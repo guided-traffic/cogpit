@@ -46,7 +46,7 @@ func (p *Prometheus) ListNodeDisks(ctx context.Context) ([]model.NodeDisk, error
 // Messages of the disk scope's states.
 const (
 	msgDiskNoPrometheus = "the disk usage comes from node-exporter through Prometheus, and no Prometheus was found"
-	msgDiskSourceOff    = "the disk usage comes from Prometheus, which this cluster's Metrics source setting turns off"
+	msgDiskSourceOff    = "the disk usage comes from Prometheus, which is switched off for this cluster"
 	msgDiskNoSeries     = " has no node-exporter series of the nodes' filesystems (node_filesystem_size_bytes)"
 )
 
