@@ -20,8 +20,10 @@ import (
 // (events). It draws what it is given and knows nothing of where the numbers came from, so the
 // Prometheus provider's series will use it as they are.
 //
-// Everything is drawn with canvas lines and text in theme colours; the renderer rebuilds its
-// objects on every Refresh and Layout (a chart holds some hundred segments at most).
+// The grid, the reference lines and the markers are canvas lines and text in theme colours, which
+// the renderer rebuilds on every Refresh and Layout; the series' lines and the areas under them are
+// two raster layers the renderer keeps (chartpath.go, D-89), drawn as continuous paths at the
+// screen's pixel size.
 type chart struct {
 	widget.BaseWidget
 	data chartData
@@ -93,7 +95,7 @@ const (
 	chartPlotHeight        = 120   // the plot's height
 	chartCompactHeight     = 72    // a compact chart's plot
 	chartMinWidth          = 120   // the narrowest the chart asks for; the drawer's width is the user's
-	chartLineWidth         = 1.5   // a series
+	chartLineWidth         = 1.5   // a series' line (a path, chartpath.go)
 	chartRefWidth          = 1     // requests and limits
 	chartDash, chartGap    = 6, 4  // a reference line's dashes
 	chartDiamond           = 3.5   // half the diamond of an event marker
@@ -117,16 +119,17 @@ func (c *chart) Set(d chartData) {
 
 // CreateRenderer implements fyne.Widget.
 func (c *chart) CreateRenderer() fyne.WidgetRenderer {
-	r := &chartRenderer{c: c}
+	r := &chartRenderer{c: c, fill: newChartLayer(false, 0), line: newChartLayer(true, chartLineWidth)}
 	c.rend = r
 	r.Refresh()
 	return r
 }
 
 type chartRenderer struct {
-	c       *chart
-	objs    []fyne.CanvasObject
-	overlay []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
+	c          *chart
+	fill, line *chartLayer // the areas under the series and the series' lines (chartpath.go)
+	objs       []fyne.CanvasObject
+	overlay    []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
 }
 
 func (r *chartRenderer) Objects() []fyne.CanvasObject {
@@ -355,20 +358,13 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		add(t)
 	}
 
-	// The area under each series (chartfill.go), beneath the markers, the reference lines and the
-	// lines themselves.
-	for _, s := range d.Series {
-		for _, run := range seriesRuns(s.Points, d.From, d.To) {
-			pts := s.Points[run[0]:run[1]]
-			xs, ys := make([]float32, len(pts)), make([]float32, len(pts))
-			for i, p := range pts {
-				xs[i], ys[i] = x(p.At), y(p.Value)
-			}
-			if f := chartFill(xs, ys, y(0), col(s.Color)); f != nil {
-				add(f)
-			}
-		}
-	}
+	// The series as paths: a line runs through the points within the axis and breaks at a gap
+	// (chartgap.go): a drawer closed for a while, both providers away. A point alone is a dot. The
+	// area under each run (chartfill.go) lies beneath the markers, the reference lines and the lines.
+	lines, fills, dots := r.seriesPaths(g)
+	r.fill.place(left, top, left+plotW, top+plotH, 0, y(0), fills)
+	r.line.place(left, top, left+plotW, top+plotH, 2*chartLineWidth, y(0), lines)
+	add(r.fill.raster)
 
 	// Event markers: a vertical line with a diamond at its top.
 	for _, mk := range d.Markers {
@@ -410,30 +406,9 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		}
 	}
 
-	// Series.
-	for _, s := range d.Series {
-		c := col(s.Color)
-		segs := 0
-		// A line runs through the points within the axis and breaks at a gap (chartgap.go): a
-		// drawer closed for a while, both providers away. A point alone is a dot.
-		for _, run := range seriesRuns(s.Points, d.From, d.To) {
-			pts := s.Points[run[0]:run[1]]
-			if len(pts) == 1 {
-				dot := canvas.NewCircle(c)
-				dot.Move(fyne.NewPos(x(pts[0].At)-chartPointRadius, y(pts[0].Value)-chartPointRadius))
-				dot.Resize(fyne.NewSize(2*chartPointRadius, 2*chartPointRadius))
-				add(dot)
-				continue
-			}
-			for i := 1; i < len(pts) && segs < chartMaxSegmentsPerSer; i++ {
-				seg := canvas.NewLine(c)
-				seg.StrokeWidth = chartLineWidth
-				seg.Position1, seg.Position2 = fyne.NewPos(x(pts[i-1].At), y(pts[i-1].Value)), fyne.NewPos(x(pts[i].At), y(pts[i].Value))
-				add(seg)
-				segs++
-			}
-		}
-	}
+	// Series: the lines' layer, then the dots of points alone.
+	add(r.line.raster)
+	r.objs = append(r.objs, dots...)
 
 	// Legend: a colour square and a name for each series, line and marker kind.
 	if legendH > 0 {

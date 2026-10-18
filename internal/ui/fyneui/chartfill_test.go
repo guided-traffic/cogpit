@@ -1,7 +1,7 @@
 package fyneui
 
 import (
-	"image/color"
+	"image"
 	"testing"
 	"time"
 
@@ -10,10 +10,10 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-// The area under a series is filled (Lens's charts, captured: "the chart's fill"): one raster per
-// run of points, between the run's first and last point and down to zero, in the series' colour at
-// chartFillAlpha; a gap splits it as it splits the line, a point alone has none; the fill lies under
-// the lines.
+// The area under a series is filled (Lens's charts, captured: "the chart's fill"): a path per run
+// of points, from the run's first to its last point and down to zero, in the series' colour at
+// chartFillAlpha, in the fill layer beneath the lines' layer; a gap splits it as it splits the
+// line, a point alone has none.
 func TestChartFillsUnderTheSeries(t *testing.T) {
 	a := test.NewTempApp(t)
 	a.Settings().SetTheme(newTheme(ThemeDark))
@@ -30,53 +30,46 @@ func TestChartFillsUnderTheSeries(t *testing.T) {
 	c.Set(chartData{From: at, To: at.Add(31 * time.Minute), Series: []chartSeries{{Name: "CPU usage", Color: colorAccent, Points: pts}}})
 	w := test.NewTempWindow(t, c)
 	w.Resize(fyne.NewSize(400, 200))
+	r := c.rend
+	if len(r.fill.paths) != 2 || len(r.line.paths) != 2 {
+		t.Fatalf("%d fills and %d lines, want one of each per run of points (2)", len(r.fill.paths), len(r.line.paths))
+	}
 	objs := test.WidgetRenderer(c).Objects()
-	var fills []*canvas.Raster
-	firstLine := -1
+	fillAt, lineAt, circles := -1, -1, 0
 	for i, o := range objs {
-		switch x := o.(type) {
-		case *canvas.Raster:
-			fills = append(fills, x)
-		case *canvas.Line:
-			if x.StrokeWidth == chartLineWidth && firstLine < 0 {
-				firstLine = i
-			}
+		switch o {
+		case r.fill.raster:
+			fillAt = i
+		case r.line.raster:
+			lineAt = i
+		}
+		if _, ok := o.(*canvas.Circle); ok {
+			circles++
 		}
 	}
-	if len(fills) != 2 {
-		t.Fatalf("%d fills, want one per run of points (2)", len(fills))
+	if fillAt < 0 || lineAt < 0 || fillAt > lineAt {
+		t.Errorf("the fill layer at %d, the lines' at %d: the fill must lie beneath the lines", fillAt, lineAt)
 	}
-	g := c.geom
-	if f := fills[0]; f.Position().X != g.x(pts[0].At) || f.Position().Y+f.Size().Height != g.y(0) {
-		t.Errorf("the first fill at %v size %v, want from x %v down to the axis at %v", f.Position(), f.Size(), g.x(pts[0].At), g.y(0))
+	if circles != 1 {
+		t.Errorf("%d dots, want the point alone as one", circles)
 	}
-	for i, o := range objs {
-		if r, ok := o.(*canvas.Raster); ok && r == fills[len(fills)-1] && i > firstLine {
-			t.Error("a fill is drawn over a line")
-		}
-	}
-	// The raster: filled under the line, transparent above, the series' colour at the fill's alpha.
-	img := fills[0].Generator(100, 100)
-	under, above := img.At(50, 99), img.At(50, 0)
-	if _, _, _, a := under.RGBA(); a == 0 {
-		t.Error("no fill under the line")
-	}
-	if _, _, _, a := above.RGBA(); a != 0 {
-		t.Error("filled above the line")
-	}
-	if n, ok := under.(color.NRGBA); !ok || n.A != chartFillAlpha {
-		t.Errorf("fill colour %#v, want the accent at alpha %#x", under, chartFillAlpha)
-	}
-}
 
-func TestLineAt(t *testing.T) {
-	xs, ys := []float32{0, 10, 20}, []float32{100, 50, 80}
-	for _, c := range []struct{ x, want float32 }{{-5, 100}, {0, 100}, {5, 75}, {10, 50}, {15, 65}, {25, 80}} {
-		if got := lineAt(xs, ys, c.x); got != c.want {
-			t.Errorf("lineAt(%v) = %v, want %v", c.x, got, c.want)
-		}
+	// The fill's image at the layer's size: filled under the line, transparent above it and in the
+	// gap, the series' colour at the fill's alpha.
+	g, l := c.geom, r.fill
+	img := l.draw(int(l.size.Width), int(l.size.Height)).(*image.RGBA)
+	px := func(x, y float32) uint8 {
+		return img.RGBAAt(int(x-l.origin.X), int(y-l.origin.Y)).A
 	}
-	if chartFill([]float32{1}, []float32{1}, 5, color.White) != nil || chartFill([]float32{1, 1}, []float32{1, 1}, 5, color.White) != nil {
-		t.Error("a fill without width")
+	mid := pts[4] // 2, between a 1 and a 3; the plot's top is 3
+	if a := px(g.x(mid.At), g.y(0)-1); a != chartFillAlpha {
+		t.Errorf("alpha %#x under the line, want %#x", a, chartFillAlpha)
+	}
+	if a := px(g.x(mid.At), g.top+1); a != 0 {
+		t.Errorf("filled above the line (alpha %#x)", a)
+	}
+	gap := at.Add(10*30*time.Second + 15*time.Second)
+	if a := px(g.x(gap), g.y(0)-1); a != 0 {
+		t.Errorf("filled in the gap (alpha %#x)", a)
 	}
 }

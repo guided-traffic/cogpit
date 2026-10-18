@@ -402,8 +402,15 @@ func TestChartDrawsWhatItIsGiven(t *testing.T) {
 			texts++
 		}
 	}
-	// 239 segments of the usage line; the requests and limits as dashes; grid; marker.
-	if lines < 239+10 || texts < 5 {
+	// The usage line, one path of 240 points (chartpath.go); the requests and limits as dashes;
+	// grid; marker.
+	for _, l := range p.plot.rend.line.paths {
+		colors[l.color]++
+	}
+	if paths := p.plot.rend.line.paths; len(paths) != 1 || len(paths[0].pts) != 240 {
+		t.Errorf("usage paths %d, want one of 240 points", len(paths))
+	}
+	if lines < 10 || texts < 5 {
 		t.Errorf("%d lines and %d texts drawn", lines, texts)
 	}
 	if len(colors) < 4 {

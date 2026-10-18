@@ -4105,22 +4105,29 @@ variant, with that container's requests and limits (`TestEveryChartHasItsOwnCont
 rebuilds, so a selection survives watch events and polls; a container that appears later gets a new
 `chartCtl` with the defaults (CPU, 1h, events off: `TestLateContainerStartsWithCPU`). A selection is
 not kept when the drawer shows another object or is closed. The chart widget takes plain series, dashed reference lines and markers and
-draws them with canvas lines in theme tokens: usage in the accent colour, requests and allocatable
+draws them in theme tokens: usage in the accent colour, requests and allocatable
 capacity in the warning colour, limits and capacity in the error colour, events in the pending
-yellow; its width is never more than the drawer's.
+yellow; its width is never more than the drawer's. The grid, the reference lines and the markers
+are canvas lines; **each run of a series' points is one path** (since 2026-10-18, the owner's WF23,
+[D-89](decisions.md#d-89-how-a-charts-line-is-drawn); [`chartpath.go`](../../internal/ui/fyneui/chartpath.go)):
+a stroke 1.5 units wide with round joins and ends, rasterised by rasterx into a `canvas.Raster` at
+the window's pixel size, every series in one layer (`chartLayer`) that the renderer keeps with its
+image across layouts and polls. Separate `canvas.Line` segments, drawn before, were antialiased each
+on its own and made the line look thinner in places (`TestChartLineKeepsItsWidth` at 1× and 2×,
+`TestChartLayerReusesItsImage`).
 
 **The area under a series is filled** (since the night of 2026-10-16/17, G12;
 [`chartfill.go`](../../internal/ui/fyneui/chartfill.go); Lens's charts fill it, captured with the
 drawer's charts as "the chart's fill"): each run of a series' points (a line between gaps,
-`seriesRuns`) gets one `canvas.Raster` from its first to its last point and down to zero, a pixel
-filled where it lies under the line between the points around it (`lineAt`), in the series' colour
+`seriesRuns`) is filled from its first to its last point and down to zero in the series' colour
 at `chartFillAlpha` (0x33, a fifth), drawn after the grid and before the event markers, the
 reference lines and the lines, so those stay on top. Every chart has it: the drawer's (the pod's,
-each container's, a node's) and the Overview's three. The raster's pixels are typed `color.NRGBA`,
-the transparent ones too: Fyne's raster takes its image type from the first pixel's colour, and
-`color.Transparent` (an `Alpha16`) made an alpha-only image that drew the fill white (found in the
-render, fixed before it landed). Tests: `TestChartFillsUnderTheSeries` (one fill per run, none for
-a point alone, under the lines, the colour and alpha), `TestLineAt`; renders of the drawer's and the
+each container's, a node's) and the Overview's three. Since 2026-10-18 ([D-89](decisions.md#d-89-how-a-charts-line-is-drawn))
+the fill is the line's own path closed along zero, filled antialiased by rasterx in the chart's
+fill layer (one raster for every series and run), so its top edge lies exactly under the line; before,
+a raster per run tested each pixel against the line (`lineAt`), without antialiasing. Tests:
+`TestChartFillsUnderTheSeries` (a fill path per run, none for a point alone, the layer beneath the
+lines', the alpha under the line, nothing above it or in a gap); renders of the drawer's and the
 Overview's charts in testdata. *The lead's decisions* (night run 2026-10-16/17, open to revision in a real window; they change what he sees): options (a) every series filled at a fifth of
 its colour, (b) only the first series (the network's Receive, not Transmit), (c) a gradient as
 Chart.js draws by default; chosen (a): the two network series overlap readably at a fifth each
@@ -4139,7 +4146,9 @@ unset); within 5 units of an event marker the panel also names the event (reason
 message cut to one line), taken from the marker's own `Reason`, `Message` and `Count`. The chart
 implements only `desktop.Hoverable`, so clicks and scrolls pass through; `MouseOut`, `Hide` and no
 data clear the panel. The pointer is kept across `Set`: a new poll recomputes the crosshair at the
-same x, and only the overlay's objects are replaced, never the chart's own, so nothing flickers
+same x, and only the overlay's objects are replaced, never the chart's own, so nothing flickers;
+a move of the pointer repaints the overlay's objects alone (`refreshOverlay`, since 2026-10-18,
+D-89), so the line and fill layers are not drawn again
 (`TestHoverSnapsToTheNearestPoint`, `TestHoverNamesTheEventNearAMarker`,
 `TestHoverOutHidesAndDataRefreshKeepsTheCrosshair`, `TestHoverNoDataNoPanelAndClicksPassThrough`,
 `TestDrawerChartsHoverPerChartAndVariant`). The chart still knows nothing of its data's source, so the

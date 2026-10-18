@@ -1,10 +1,10 @@
 package fyneui
 
 import (
+	"slices"
 	"testing"
 	"time"
 
-	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -77,15 +77,16 @@ func reopenedPod(m *engine.ObjectMetrics) {
 func TestReopenedDrawerChartBreaksAtTheGap(t *testing.T) {
 	sh, _, _ := metricsDrawer(t, ThemeDark, reopenedPod)
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
-	usage := 0
-	for _, o := range test.WidgetRenderer(p.plot).Objects() {
-		if l, ok := o.(*canvas.Line); ok && l.StrokeColor == themeColor(p.plot.Theme(), colorAccent) && l.StrokeWidth == chartLineWidth {
-			usage++
+	test.WidgetRenderer(p.plot) // laid out
+	var runs []int
+	for _, l := range p.plot.rend.line.paths {
+		if l.color == themeColor(p.plot.Theme(), colorAccent) {
+			runs = append(runs, len(l.pts))
 		}
 	}
-	// 160 points in two runs of 80: 79 + 79 segments, none across the gap.
-	if usage != 158 {
-		t.Errorf("%d usage segments, want 158 (two runs of 80 points, no line across the gap)", usage)
+	// 160 points in two runs of 80: two paths, none across the gap.
+	if !slices.Equal(runs, []int{80, 80}) {
+		t.Errorf("usage paths of %v points, want two runs of 80 (no line across the gap)", runs)
 	}
 	if !p.note.Visible() || p.note.text == "" {
 		t.Errorf("the note on the Metrics Server's history: %q", p.note.text)

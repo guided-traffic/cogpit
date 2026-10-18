@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"image/color"
 	"math"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -136,8 +137,26 @@ func (c *chart) updateHover() {
 	}
 	c.hover = h
 	if r := c.rend; r != nil {
+		old := slices.Clone(r.overlay)
 		r.buildOverlay()
-		canvas.Refresh(c)
+		refreshOverlay(c, old, r.overlay)
+	}
+}
+
+// refreshOverlay repaints the chart's window for a changed overlay without refreshing the chart:
+// a refresh of the chart would drop the textures of its line and fill layers (chartpath.go) and
+// draw them again at every move of the pointer. The old objects are refreshed so their textures
+// go; the new ones so the window paints, and walks the chart's objects, again.
+func refreshOverlay(c *chart, old, cur []fyne.CanvasObject) {
+	cv := fyne.CurrentApp().Driver().CanvasForObject(c)
+	if cv == nil {
+		return
+	}
+	for _, o := range old {
+		cv.Refresh(o)
+	}
+	for _, o := range cur {
+		cv.Refresh(o)
 	}
 }
 
