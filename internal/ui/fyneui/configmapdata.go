@@ -362,7 +362,7 @@ func (cd *cmData) restore(u *engine.ConfigMapEdits) {
 	}
 	if back > 0 && cd.dirty() {
 		cd.base = u.BaseResourceVersion
-		cd.setStatus(fmt.Sprintf("Your unsaved changes are back, based on version %s: Save writes them, Revert drops them.", u.BaseResourceVersion), colorStatusWarning)
+		cd.setStatus("Your unsaved changes are back: Save writes them, Revert drops them.", colorStatusWarning)
 	}
 	cd.keepSoon()
 }
@@ -569,12 +569,11 @@ func (cd *cmData) refreshFooter() {
 	case reason != "" && !cd.hidden:
 		cd.setStatus("Read-only: "+reason, colorMuted)
 	case dirty && cd.latest != cd.base:
-		cd.setStatus(fmt.Sprintf("The Config Map changed on the cluster since your edits began (version %s, now %s): Save "+
-			"rebases your changes onto the newer version when none of your keys changed there, else shows them against it "+
-			"first.", cd.base, cd.latest), colorStatusWarning)
+		cd.setStatus("Changed on the cluster since your edits began: Save rebases your changes onto it, or first shows where "+
+			"they clash.", colorStatusWarning)
 	case dirty:
 		if !strings.HasPrefix(cd.status.text, "Your unsaved changes are back") {
-			cd.setStatus(fmt.Sprintf("Edited: %s, based on version %s.", editsText(len(cd.edits()), len(cd.added), len(cd.removed)), cd.base), colorMuted)
+			cd.setStatus("Edited: "+editsText(len(cd.edits()), len(cd.added), len(cd.removed))+".", colorMuted)
 		}
 	case strings.HasPrefix(cd.status.text, "Saved"):
 	default:
@@ -637,7 +636,7 @@ func (cd *cmData) saved(p configMapDataParams, rv string) {
 	}
 	cd.removed, cd.added, cd.addedRows = map[string]bool{}, nil, map[string]*cmRow{}
 	cd.base, cd.latest = rv, rv
-	cd.setStatus(fmt.Sprintf("Saved %s · version %s", editsText(len(p.Data), len(p.Add), len(p.Remove)), rv), colorStatusOK)
+	cd.setStatus("Saved "+editsText(len(p.Data), len(p.Add), len(p.Remove))+" at "+cd.d.sh.timeFormat().FormatTime(time.Now()), colorStatusOK)
 	cd.layoutRows()
 	cd.refreshFooter()
 	cd.keepNow() // what was edited is saved: the rest, if any, stays kept
@@ -816,8 +815,9 @@ type cmReview struct {
 	last    *engine.ConfigMapDataReview
 	dlg     *dialog.CustomDialog
 	diff    *diffView
-	banner  *textLine
-	keys    *fyne.Container // what keysBlock says
+	banner  *textLine       // a newer version on the cluster (showOver); hidden otherwise
+	keys    *fyne.Container // the head, reviewHead
+	top     *fyne.Container // the head and the banner
 	status  *paragraph
 	save    *widget.Button
 	width   float32
@@ -836,10 +836,12 @@ func (cd *cmData) openReview() {
 	width := min(float32(760), cd.d.sh.win.Canvas().Size().Width-120)
 	rv := &cmReview{cd: cd, values: values, adds: adds, removes: removes, from: cd.froms(), base: cd.base, diff: newDiffView(),
 		width: width, opened: time.Now()}
-	rv.banner = newTextLine("Changes to ConfigMap "+cd.ref.Key(), theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
+	rv.banner = newTextLine("", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	rv.banner.truncate = true
+	rv.banner.Hide()
 	rv.keys = container.NewVBox()
-	rv.keys.Hide()
+	setKeysBlock(rv.keys, reviewHead("Config Map", cd.ref, "", mapKeys(adds), removes, width))
+	rv.top = container.NewVBox(rv.keys, rv.banner, newDivider(false))
 	rv.status = newParagraph("", colorMuted, width)
 	rv.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), rv.commit)
 	rv.save.Importance = widget.HighImportance
@@ -849,8 +851,8 @@ func (cd *cmData) openReview() {
 	rv.save.Disable()
 	cancel := widget.NewButton("Cancel", func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 300)}, container.NewStack(newSurface(theme.ColorNameInputBackground), rv.diff.list))
-	content := container.NewBorder(container.NewVBox(rv.banner, newDivider(false), rv.keys), container.NewVBox(newDivider(false), rv.status), nil, nil, list)
-	rv.dlg = dialog.NewCustomWithoutButtons("Save ConfigMap "+cd.ref.Name, content, cd.d.sh.win)
+	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
+	rv.dlg = dialog.NewCustomWithoutButtons("Save Config Map "+cd.ref.Name, content, cd.d.sh.win)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; cd.review = nil; cd.refreshFooter() })
 	cd.review = rv
@@ -885,29 +887,23 @@ func (rv *cmReview) check() {
 			return
 		}
 		rv.last, rv.uid = &r, r.UID
-		setKeysBlock(rv.keys, keysBlock("ConfigMap", resolvedRef(r.Ref, cd.ref), r.KeysAdded, r.KeysRemoved, rv.width))
-		rv.diff.set(r.Lines)
-		rebased := ""
+		changes := fmt.Sprintf("%s · %d line%s added, %d removed", editsText(len(r.Keys), len(r.KeysAdded), len(r.KeysRemoved)),
+			r.Added, plural(r.Added), r.Removed)
 		if r.RebasedFrom != "" && !r.Stale {
 			rv.base, cd.base = r.BaseResourceVersion, r.BaseResourceVersion
 			cd.keepSoon() // the kept values are based on the newer version now
-			rebased = fmt.Sprintf("The Config Map changed on the cluster since version %s, but none of the keys you edited did: "+
-				"your changes are rebased onto version %s, and this is their diff against it. ", r.RebasedFrom, r.BaseResourceVersion)
+			changes += " · rebased onto the cluster's change in other keys"
 		}
+		setKeysBlock(rv.keys, reviewHead("Config Map", resolvedRef(r.Ref, cd.ref), changes, r.KeysAdded, r.KeysRemoved, rv.width))
+		rv.diff.set(r.Lines)
 		switch {
 		case r.Stale:
 			rv.showOver(r.BaseResourceVersion, r.CachedResourceVersion)
 		case r.Accepted:
-			title := fmt.Sprintf("Changes to ConfigMap %s: %s, %d line%s added, %d removed", cd.ref.Key(),
-				editsText(len(r.Keys), len(r.KeysAdded), len(r.KeysRemoved)), r.Added, plural(r.Added), r.Removed)
-			if rebased != "" {
-				title += ", rebased onto version " + r.BaseResourceVersion
-			}
-			rv.banner.SetText(title)
-			rv.setStatus(rebased+"The server accepts the change (dry run). Save writes it to the cluster.", colorStatusOK)
+			rv.setStatus("The server accepts the change (dry run).", colorStatusOK)
 			rv.arm()
 		default:
-			rv.setStatus(rebased+"The server refuses the change: "+r.Refused, colorStatusError)
+			rv.setStatus("The server refuses the change: "+r.Refused, colorStatusError)
 		}
 		cd.refreshFooter()
 	})
@@ -919,7 +915,8 @@ func (rv *cmReview) reset() {
 	rv.over, rv.ready = "", false
 	rv.save.SetText("Save")
 	rv.save.Disable()
-	rv.banner.SetColor(theme.ColorNameForeground)
+	setVisible(rv.banner, false)
+	rv.top.Refresh()
 }
 
 // arm enables Save, a removal's after the confirmation's delay (armSave).
@@ -948,17 +945,18 @@ func (rv *cmReview) takeOver() {
 // it, a second, explicit step.
 func (rv *cmReview) showOver(base, current string) {
 	if current == "" || current == base {
-		rv.setStatus(fmt.Sprintf("The Config Map changed on the cluster since version %s and Cogpit has not seen the new version "+
-			"yet; nothing was saved. Save again in a moment.", base), colorStatusWarning)
+		rv.setStatus("The Config Map changed on the cluster and Cogpit has not seen the change yet; nothing was saved. "+
+			"Save again in a moment.", colorStatusWarning)
 		rv.arm()
 		return
 	}
 	rv.over = current
-	rv.banner.SetText(fmt.Sprintf("ConfigMap %s changed on the cluster since version %s: your changes against version %s", rv.cd.ref.Key(), base, current))
-	rv.banner.SetColor(colorStatusWarning)
-	rv.setStatus(fmt.Sprintf("Nothing was saved: a key you edited, added or removed changed there too. Save over version %s writes your "+
-		"changes over it; the cluster's other changes stay.", current), colorStatusWarning)
-	rv.save.SetText("Save over version " + current)
+	rv.banner.SetText("Changed on the cluster since your edits began: your changes against its current state")
+	setVisible(rv.banner, true)
+	rv.top.Refresh()
+	rv.setStatus("Nothing was saved: a key you edited, added or removed changed there too. Overwrite writes your changes over "+
+		"it; the cluster's other changes stay.", colorStatusWarning)
+	rv.save.SetText("Overwrite")
 	rv.arm()
 }
 

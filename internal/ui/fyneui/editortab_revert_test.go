@@ -74,7 +74,7 @@ func TestEditTabRevertsAndUndoes(t *testing.T) {
 	if len(calls) == 0 || decodeParams[editorTextParams](t, calls[len(calls)-1]).YAML != edited {
 		t.Fatal("the typing was not sent before the revert")
 	}
-	if !et.undoBtn.Visible() || !strings.Contains(et.status.text, "Reverted to Service checkout · version 41") {
+	if !et.undoBtn.Visible() || !strings.Contains(et.status.text, "Reverted to Service checkout as the cluster holds it") {
 		t.Errorf("after the revert: undo visible %v, status %q", et.undoBtn.Visible(), et.status.text)
 	}
 

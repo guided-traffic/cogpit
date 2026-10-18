@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/metrics"
@@ -312,7 +311,7 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 	if len(events) > 0 && !m.NoEvents {
 		m.Events = objectEvents(events, p.Kind, ref.Namespace, ref.Name, string(obj.GetUID()))
 	}
-	if y, yerr := yaml.Marshal(model.Redact(obj).Object); yerr == nil {
+	if y, yerr := model.ObjectYAML(model.Redact(obj).Object); yerr == nil { // the Kubernetes order (D-86)
 		m.YAML = string(y)
 	}
 	if p.Key == "pods" && p.Group == "" {

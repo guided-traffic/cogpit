@@ -174,3 +174,19 @@ func TestSetColumnOrder(t *testing.T) {
 		}
 	}
 }
+
+// TestCSVFilenameNamesTheCluster (WF19): the suggested file name is the view and the cluster's
+// short name (D-68), never the kubeconfig file the context comes from.
+func TestCSVFilenameNamesTheCluster(t *testing.T) {
+	for _, c := range []struct{ view, cluster, want string }{
+		{"configmaps", engine.ClusterName("kind-cogpit [walk-kind.yaml]", engine.ClusterSettings{}), "configmaps-kind-cogpit.csv"},
+		{"pods", engine.ClusterName("kubernetes-admin@prod-eu [dev.yaml]", engine.ClusterSettings{}), "pods-prod-eu.csv"},
+		{"pods", engine.ClusterName("x [a.yaml]", engine.ClusterSettings{Name: "Shop (EU)"}), "pods-Shop_EU.csv"},
+		{"workloads/overview", "arn:aws:eks:eu-central-1:1:cluster/shop", "workloads_overview-arn_aws_eks_eu-central-1_1_cluster_shop.csv"},
+		{"services", "", "services.csv"},
+	} {
+		if got := commands.CSVFilename(c.view, c.cluster); got != c.want {
+			t.Errorf("csvFilename(%q, %q) = %q, want %q", c.view, c.cluster, got, c.want)
+		}
+	}
+}

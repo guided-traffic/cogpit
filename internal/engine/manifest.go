@@ -173,12 +173,13 @@ func ParseManifest(text string) (*unstructured.Unstructured, error) {
 }
 
 // EditableYAML is an object as the editor shows it: its YAML without managedFields (the cache
-// drops them already; a server response still has them). It returns an error, never a panic, for
-// content that YAML cannot represent.
+// drops them already; a server response still has them), in the Kubernetes order (apiVersion,
+// kind, metadata first: model.ObjectYAML, D-86). It returns an error, never a panic, for content
+// that YAML cannot represent.
 func EditableYAML(obj *unstructured.Unstructured) (string, error) {
 	c := obj.DeepCopy()
 	unstructured.RemoveNestedField(c.Object, "metadata", "managedFields")
-	b, err := yaml.Marshal(c.Object)
+	b, err := model.ObjectYAML(c.Object)
 	if err != nil {
 		return "", fmt.Errorf("the object cannot be shown as YAML: %w", err)
 	}

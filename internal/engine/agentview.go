@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
@@ -230,7 +229,7 @@ func withholdFluxText(text string) string {
 	for _, o := range objs {
 		w, c := kinds.WithholdFluxCredentials(o)
 		changed = changed || c
-		y, err := yaml.Marshal(w.Object)
+		y, err := model.ObjectYAML(w.Object) // the Kubernetes order (D-86)
 		if err != nil {
 			return model.Withheld
 		}

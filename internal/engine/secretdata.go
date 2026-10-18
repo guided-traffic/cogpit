@@ -11,7 +11,6 @@ import (
 	"unicode/utf8"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -259,7 +258,7 @@ func readLikeUser(p *model.KindProfile, obj *unstructured.Unstructured, m *Detai
 		}
 	}
 	if secret || model.IsHelmRecord(obj) {
-		if y, err := yaml.Marshal(obj.Object); err == nil {
+		if y, err := model.ObjectYAML(obj.Object); err == nil { // the Kubernetes order (D-86)
 			m.YAML = string(y)
 		}
 	}

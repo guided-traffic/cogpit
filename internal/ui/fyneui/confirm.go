@@ -15,9 +15,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// guiConfirmer is the engine's Confirmer for the desktop app: a dialog that names the command,
-// the objects, the namespace, the context and who asked. The engine calls Confirm on its own
-// goroutines; the dialog is shown on the main goroutine and Confirm waits for the answer.
+// guiConfirmer is the engine's Confirmer for the desktop app: a dialog whose title names the
+// command and whose rows name the context, the namespace, the objects, the effect and who asked.
+// The engine calls Confirm on its own goroutines; the dialog is shown on the main goroutine and
+// Confirm waits for the answer.
 //
 // One dialog is shown at a time, in the order the requests came: a second request (an agent's,
 // while the user is about to confirm their own) would otherwise open on top, with its confirm
@@ -97,39 +98,43 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	width := th.Size(sizeConfirmWidth)
 	destructive := req.Danger == engine.DangerDestructive
 
+	// The rows say what happens, in the place order Context › Namespace › Objects (the owner's
+	// rule, WF16): no sentence above them repeats them. req.Message() stays the text of agents, the
+	// audit log and the CLI.
+	valueWidth := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
 	rows := box(kvLayout{})
 	addRow := func(name, value string) {
-		v := newParagraph(value, theme.ColorNameForeground, width-th.Size(sizeDrawerLabel)-2*th.Size(theme.SizeNamePadding))
+		v := newParagraph(value, theme.ColorNameForeground, valueWidth)
+		v.hard = true // an image digest (the node shell's) is one word wider than the column
 		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), v)
 	}
-	objects := make([]string, 0, len(req.Objects))
-	for i, o := range req.Objects {
-		kind := singular(c.sh.kindTitle(o.Kind))
-		if i < len(req.Kinds) && req.Kinds[i] != "" { // the engine's name, as the message above says it
-			kind = req.Kinds[i]
-		}
-		objects = append(objects, kind+" "+o.Name)
-	}
-	name, value := confirmObjects(objects, width-th.Size(sizeDrawerLabel)-2*th.Size(theme.SizeNamePadding)) // every object, a long list scrolling (tablecheck_confirm.go)
-	rows.Objects = append(rows.Objects, name, value)
+	addRow("Context", req.Context)
 	switch {
 	case len(req.Namespaces) == 1:
 		addRow("Namespace", req.Namespaces[0])
 	case len(req.Namespaces) > 1: // a selection's objects (Delete of a selection)
 		addRow("Namespaces", strings.Join(req.Namespaces, ", "))
 	}
-	addRow("Context", req.Context)
+	objects := make([]string, 0, len(req.Objects))
+	for i, o := range req.Objects {
+		kind := singular(c.sh.kindTitle(o.Kind))
+		if i < len(req.Kinds) && req.Kinds[i] != "" { // the engine's name, as Message says it
+			kind = req.Kinds[i]
+		}
+		objects = append(objects, kind+" "+o.Name)
+	}
+	name, value := confirmObjects(objects, valueWidth) // every object, a long list scrolling (tablecheck_confirm.go)
+	rows.Objects = append(rows.Objects, name, value)
+	if req.Detail != "" { // what the objects alone don't say: the keys a save removes, a drain's options
+		addRow("Effect", req.Detail)
+	}
 	addRow("Requested by", originText(req.Origin))
 
-	message := newParagraph(req.Message(), theme.ColorNameForeground, width)
-	message.hard = true // an image digest (the node shell's) is one word wider than the dialog
-	content := container.NewVBox(message)
+	content := container.NewVBox(rows)
 	if req.Warning != "" { // what the user must know before answering: a chart nothing authenticates (H-41, A14)
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(newParagraph(req.Warning, colorStatusWarning, width))
 	}
-	content.Add(newSpace(theme.SizeNamePadding))
-	content.Add(rows)
 	if req.Review != "" { // what the command will apply, as the request carries it: read before answering
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(reviewBlock(req.Review, width))

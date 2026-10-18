@@ -66,7 +66,7 @@ func TestSecretEditAndCreateAreGUIOnly(t *testing.T) {
 	if !strings.Contains(opened.Text, base64.StdEncoding.EncodeToString([]byte(editedSecretValue))) {
 		t.Fatalf("the Edit tab does not show the Secret's values:\n%s", opened.Text)
 	}
-	edited := strings.Replace(opened.Text, "data:", "stringData:\n  token: "+newSecretValue+"\ndata:", 1)
+	edited := strings.Replace(opened.Text, "\ndata:", "\nstringData:\n  token: "+newSecretValue+"\ndata:", 1)
 	h.must(t, gui, "editor.setText", map[string]any{"id": opened.Tab.ID, "yaml": edited}, nil)
 	var diff engine.EditDiff
 	h.must(t, gui, "editor.diff", map[string]any{"id": opened.Tab.ID}, &diff)
@@ -139,7 +139,7 @@ func TestSecretWriteErrorsNeverQuoteValues(t *testing.T) {
 	gui := engine.OriginGUI
 	var opened commands.EditResult
 	h.must(t, gui, "object.edit", map[string]any{"ref": dbSecret}, &opened)
-	edited := strings.Replace(opened.Text, "data:", "stringData:\n  token: "+newSecretValue+"\ndata:", 1)
+	edited := strings.Replace(opened.Text, "\ndata:", "\nstringData:\n  token: "+newSecretValue+"\ndata:", 1)
 	quote := func() error {
 		return fmt.Errorf("Secret %q is invalid: stringData[token]: Invalid value: %q", "db", newSecretValue)
 	}

@@ -10,3 +10,6 @@ func SetFluxJobWait(d time.Duration) (restore func()) {
 	fluxJobWait = d
 	return func() { fluxJobWait = old }
 }
+
+// CSVFilename is csvFilename, the file name table.exportCsv suggests.
+func CSVFilename(view, cluster string) string { return csvFilename(view, cluster) }

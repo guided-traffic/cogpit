@@ -162,26 +162,35 @@ func registerTables(g *registrar) {
 			if err := engine.WriteCSVIn(&b, t, s.Now(), s.TimeFormat()); err != nil {
 				return nil, err
 			}
-			return CSVResult{View: t.View, Filename: csvFilename(t.View, t.Context), Rows: len(t.Rows), CSV: b.String()}, nil
+			cs, _ := s.ClusterSettingsOf(t.Context) // its display name, if the user gave it one
+			return CSVResult{View: t.View, Filename: csvFilename(t.View, engine.ClusterName(t.Context, cs)), Rows: len(t.Rows), CSV: b.String()}, nil
 		},
 	})
 }
 
-// csvFilename is "<view>-<context>.csv" with every character but letters, digits, dots, dashes
-// and underscores replaced: context names may hold colons and slashes (an EKS context is an ARN).
-func csvFilename(view, context string) string {
+// csvFilename is "<view>-<cluster>.csv", the cluster by the name the window shows (D-68: its
+// display name, else the short name, never the kubeconfig file it comes from; the owner's WF19),
+// with every run of characters but letters, digits, dots, dashes and underscores one underscore:
+// names may hold blanks, colons and slashes (an EKS context is an ARN).
+func csvFilename(view, cluster string) string {
 	clean := func(s string) string {
-		return strings.Map(func(r rune) rune {
+		var b strings.Builder
+		under := false
+		for _, r := range s {
 			switch {
 			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
-				return r
+				b.WriteRune(r)
+				under = false
+			case !under:
+				b.WriteByte('_')
+				under = true
 			}
-			return '_'
-		}, s)
+		}
+		return strings.Trim(b.String(), "_")
 	}
 	name := clean(view)
-	if context != "" {
-		name += "-" + clean(context)
+	if c := clean(cluster); c != "" {
+		name += "-" + c
 	}
 	return name + ".csv"
 }

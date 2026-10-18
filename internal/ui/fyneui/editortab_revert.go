@@ -1,8 +1,6 @@
 package fyneui
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -66,9 +64,9 @@ func (e *editorTab) revert() {
 				e.backToEditor()
 			}
 			if rr.Changed {
-				e.setStatus(fmt.Sprintf("Reverted to %s · version %s, as the cluster holds it. Undo Revert brings your text back.", e.tab.Title, rr.BaseResourceVersion), colorMuted)
+				e.setStatus("Reverted to "+e.tab.Title+" as the cluster holds it. Undo Revert brings your text back.", colorMuted)
 			} else {
-				e.setStatus(fmt.Sprintf("Nothing to revert: the text is %s · version %s, as the cluster holds it.", e.tab.Title, rr.BaseResourceVersion), colorMuted)
+				e.setStatus("Nothing to revert: the text is "+e.tab.Title+" as the cluster holds it.", colorMuted)
 			}
 			e.showUndo(rr.CanUndo)
 		})
@@ -93,7 +91,7 @@ func (e *editorTab) undoRevert() {
 			return
 		}
 		e.pane.replace(rr.Text, rr.Revision)
-		e.setStatus(fmt.Sprintf("Your text is back, based on version %s.", rr.BaseResourceVersion), colorMuted)
+		e.setStatus("Your text is back.", colorMuted)
 	})
 }
 

@@ -129,6 +129,28 @@ malformed-input tests or fuzz targets.
 - Verify every visual change with an offscreen render (Fyne's `test` package) or a screenshot, in
   dark and light themes, and attach before/after images to the pull request.
 
+### Dialogs, reviews and status lines
+
+The owner's rule (walk of 2026-10-18, WF13, WF14, WF16; [D-85](decisions.md#d-85-dialogs-as-tables-and-an-objects-state-without-its-resourceversion)):
+"Vermeide solche Texte, bei der täglichen Arbeit braucht man genau so eine Tabelle … Schnell zu
+erfassen, was jetzt passiert." and "Die Reihenfolge für die Ortsbeschreibung von
+Kubernetes-Objekten ist immer: Context, Namespace, Objects."
+
+- A confirmation, a save review or any dialog that says what is about to happen is a **table of
+  rows** (name, value), read at a glance; **no sentence repeats the rows**. A destructive
+  confirmation still names the objects, the namespace and the context: through its rows.
+- **An object's place is always Context › Namespace › Object(s)**, in rows, titles and texts.
+- **No Kubernetes lectures** ("a workload that reads a removed key no longer finds it"): what is
+  lost is said by the red **"This cannot be undone."**, nothing more.
+- **No raw `resourceVersion`** in the window: an object's state is "since your edits began", "its
+  current state", a time ("Saved 1 value at 14:02:05"); the number stays in what agents, the CLI
+  and the audit log read.
+- Status lines and source lines are **short**: details go into a tooltip.
+- The YAML of an object shows `apiVersion`, `kind`, `metadata` (`name`, `namespace` first) before
+  the rest, as the Kubernetes docs write a manifest ([D-86](decisions.md#d-86-the-order-of-an-objects-yaml)).
+- A suggested file name names a cluster by the short name the window shows (D-68), never the
+  kubeconfig file it comes from.
+
 ## Decisions
 
 The owner decides product direction, scope, security posture and anything irreversible or

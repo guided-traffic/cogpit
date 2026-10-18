@@ -165,8 +165,7 @@ func (sd *secData) restore() {
 		r.masked = true
 	}
 	sd.base = u.base
-	sd.setStatus(fmt.Sprintf("Your unsaved changes are back, masked, based on version %s: Show reveals them, Save writes them, "+
-		"Revert drops them.", u.base), colorStatusWarning)
+	sd.setStatus("Your unsaved changes are back, masked: Show reveals them, Save writes them, Revert drops them.", colorStatusWarning)
 }
 
 // newRow makes the editor row of a key whose value was revealed at version at.
@@ -537,14 +536,12 @@ func (sd *secData) refreshFooter() {
 	case sd.reason != "" && (sd.revealed || len(sd.rows) > 0):
 		sd.setStatus("Read-only: "+sd.reason, colorMuted)
 	case dirty && sd.latest != sd.base:
-		sd.setStatus(fmt.Sprintf("The Secret changed on the cluster since your edits began (version %s, now %s): Save rebases "+
-			"your changes onto the newer version when none of your keys changed there, else shows them against it first.",
-			sd.base, sd.latest), colorStatusWarning)
+		sd.setStatus("Changed on the cluster since your edits began: Save rebases your changes onto it, or first shows where "+
+			"they clash.", colorStatusWarning)
 	case dirty:
 		if !strings.HasPrefix(sd.status.text, "Your unsaved changes are back") {
 			values, _ := sd.edits()
-			sd.setStatus(fmt.Sprintf("Edited: %s, based on version %s. Save shows the keys that change and their sizes, never a value.",
-				editsText(len(values), len(sd.added), len(sd.removed)), sd.base), colorMuted)
+			sd.setStatus("Edited: "+editsText(len(values), len(sd.added), len(sd.removed))+".", colorMuted)
 		}
 	case strings.HasPrefix(sd.status.text, "Saved"):
 	default:
@@ -608,7 +605,7 @@ func (sd *secData) saved(p secretDataParams, rv string) {
 	}
 	sd.removed, sd.added, sd.addedRows = map[string]bool{}, nil, map[string]*secRow{}
 	sd.base = ""
-	sd.setStatus(fmt.Sprintf("Saved %s · version %s", editsText(len(p.Data), len(p.Add), len(p.Remove)), rv), colorStatusOK)
+	sd.setStatus("Saved "+editsText(len(p.Data), len(p.Add), len(p.Remove))+" at "+sd.d.sh.timeFormat().FormatTime(time.Now()), colorStatusOK)
 	sd.d.rebuild()
 }
 
@@ -666,8 +663,9 @@ type secReview struct {
 	last              *engine.SecretDataReview
 	dlg               *dialog.CustomDialog
 	changes           *fyne.Container // one line per key that changes
-	banner            *textLine
-	keys              *fyne.Container // what keysBlock says
+	banner            *textLine       // a newer version on the cluster (showOver); hidden otherwise
+	keys              *fyne.Container // the head, reviewHead
+	top               *fyne.Container // the head and the banner
 	status            *paragraph
 	save              *widget.Button
 	width             float32
@@ -687,10 +685,12 @@ func (sd *secData) openReview() {
 	width := min(float32(620), sd.d.sh.win.Canvas().Size().Width-120)
 	rv := &secReview{sd: sd, values: values, from: from, add: add, removes: removes, base: sd.base, changes: container.NewVBox(),
 		width: width, opened: time.Now()}
-	rv.banner = newTextLine("Changes to Secret "+sd.ref.Key(), theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
+	rv.banner = newTextLine("", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	rv.banner.truncate = true
+	rv.banner.Hide()
 	rv.keys = container.NewVBox()
-	rv.keys.Hide()
+	setKeysBlock(rv.keys, reviewHead("Secret", sd.ref, "", mapKeys(add), removes, width))
+	rv.top = container.NewVBox(rv.keys, rv.banner, newDivider(false))
 	rv.status = newParagraph("", colorMuted, width)
 	rv.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), rv.commit)
 	rv.save.Importance = widget.HighImportance
@@ -700,7 +700,7 @@ func (sd *secData) openReview() {
 	cancel := widget.NewButton("Cancel", func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 120)}, container.NewStack(newSurface(theme.ColorNameInputBackground),
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVScroll(rv.changes))))
-	content := container.NewBorder(container.NewVBox(rv.banner, newDivider(false), rv.keys), container.NewVBox(newDivider(false), rv.status), nil, nil, list)
+	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
 	rv.dlg = dialog.NewCustomWithoutButtons("Save Secret "+sd.ref.Name, content, sd.d.sh.win)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; sd.review = nil; sd.refreshFooter() })
@@ -741,7 +741,8 @@ func (rv *secReview) check() {
 	rv.over, rv.ready = "", false
 	rv.save.SetText("Save")
 	rv.save.Disable()
-	rv.banner.SetColor(theme.ColorNameForeground)
+	setVisible(rv.banner, false)
+	rv.top.Refresh()
 	rv.setStatus("Comparing with the Secret in the cluster and checking with the server (dry run)…", colorMuted)
 	params := secretDataParams{Ref: sd.ref, ResourceVersion: rv.base, Data: rv.values, Add: rv.add, Remove: rv.removes, From: rv.from}
 	sd.d.sh.dispatch(engine.SecretReviewDataCommand, params, func(res any, err error) {
@@ -764,27 +765,20 @@ func (rv *secReview) check() {
 		rv.last, rv.uid = &r, r.UID
 		rv.setChanges(r.Changes)
 		added, removed := changedKeys(r.Changes)
-		setKeysBlock(rv.keys, keysBlock("Secret", resolvedRef(r.Ref, sd.ref), added, removed, rv.width))
-		rebased := ""
+		changes := editsText(len(r.Changes)-len(added)-len(removed), len(added), len(removed)) + " · no value shown"
 		if r.RebasedFrom != "" && !r.Stale {
 			rv.base, sd.base = r.BaseResourceVersion, r.BaseResourceVersion
-			rebased = fmt.Sprintf("The Secret changed on the cluster since version %s, but none of the keys you edited did: your "+
-				"changes are rebased onto version %s, and these are their changes against it. ", r.RebasedFrom, r.BaseResourceVersion)
+			changes += " · rebased onto the cluster's change in other keys"
 		}
+		setKeysBlock(rv.keys, reviewHead("Secret", resolvedRef(r.Ref, sd.ref), changes, added, removed, rv.width))
 		switch {
 		case r.Stale:
 			rv.showOver(r.BaseResourceVersion, r.CachedResourceVersion)
 		case r.Accepted:
-			added, removed := changedKeys(r.Changes)
-			title := fmt.Sprintf("Changes to Secret %s: %s", sd.ref.Key(), editsText(len(r.Changes)-len(added)-len(removed), len(added), len(removed)))
-			if rebased != "" {
-				title += ", rebased onto version " + r.BaseResourceVersion
-			}
-			rv.banner.SetText(title)
-			rv.setStatus(rebased+"The server accepts the change (dry run). Save writes it to the cluster; no value is shown here.", colorStatusOK)
+			rv.setStatus("The server accepts the change (dry run).", colorStatusOK)
 			rv.arm()
 		default:
-			rv.setStatus(rebased+"The server refuses the change: "+r.Refused, colorStatusError)
+			rv.setStatus("The server refuses the change: "+r.Refused, colorStatusError)
 		}
 		sd.refreshFooter()
 	})
@@ -794,17 +788,18 @@ func (rv *secReview) check() {
 // over it, a second, explicit step.
 func (rv *secReview) showOver(base, current string) {
 	if current == "" || current == base {
-		rv.setStatus(fmt.Sprintf("The Secret changed on the cluster since version %s and Cogpit has not seen the new version yet; "+
-			"nothing was saved. Save again in a moment.", base), colorStatusWarning)
+		rv.setStatus("The Secret changed on the cluster and Cogpit has not seen the change yet; nothing was saved. "+
+			"Save again in a moment.", colorStatusWarning)
 		rv.arm()
 		return
 	}
 	rv.over = current
-	rv.banner.SetText(fmt.Sprintf("Secret %s changed on the cluster since version %s: your changes against version %s", rv.sd.ref.Key(), base, current))
-	rv.banner.SetColor(colorStatusWarning)
-	rv.setStatus(fmt.Sprintf("Nothing was saved: a key you edited, added or removed changed there too. Save over version %s writes "+
-		"your changes over it; the cluster's other changes stay.", current), colorStatusWarning)
-	rv.save.SetText("Save over version " + current)
+	rv.banner.SetText("Changed on the cluster since your edits began: your changes against its current state")
+	setVisible(rv.banner, true)
+	rv.top.Refresh()
+	rv.setStatus("Nothing was saved: a key you edited, added or removed changed there too. Overwrite writes your changes over "+
+		"it; the cluster's other changes stay.", colorStatusWarning)
+	rv.save.SetText("Overwrite")
 	rv.arm()
 }
 

@@ -305,7 +305,7 @@ func TestSecretDrawerEditAndSave(t *testing.T) {
 	}
 	settle(w)
 	typeIntoRow(r.cmRow, secTyped)
-	if sd.save.Disabled() || !strings.Contains(sd.status.text, "1 value, based on version 48210") {
+	if sd.save.Disabled() || sd.status.text != "Edited: 1 value." {
 		t.Fatalf("after editing: save disabled %v, status %q", sd.save.Disabled(), sd.status.text)
 	}
 	test.Tap(sd.save)
@@ -333,7 +333,7 @@ func TestSecretDrawerEditAndSave(t *testing.T) {
 	if sp.ResourceVersion != "48210" || sp.Data["DB_PASSWORD"] != secTyped || len(sp.Data) != 1 || len(sp.From) != 0 {
 		t.Errorf("save params %+v", sp)
 	}
-	if s.values["DB_PASSWORD"] != secTyped || sd.dirty() || sd.status.text != "Saved 1 value · version 48211" {
+	if s.values["DB_PASSWORD"] != secTyped || sd.dirty() || !strings.HasPrefix(sd.status.text, "Saved 1 value at ") {
 		t.Errorf("after the save: stored %v, dirty %v, status %q", s.values["DB_PASSWORD"] == secTyped, sd.dirty(), sd.status.text)
 	}
 	if l := valueLeaks(sh, f); l != "" {
@@ -429,13 +429,13 @@ func TestSecretDrawerRebaseAndConflict(t *testing.T) {
 	if sd.rows["DB_USER"] != nil || sd.rows["DB_PASSWORD"] == nil {
 		t.Errorf("after the change: an unedited value kept %v, the edited one kept %v", sd.rows["DB_USER"] != nil, sd.rows["DB_PASSWORD"] != nil)
 	}
-	if !strings.Contains(sd.status.text, "since your edits began (version 48210, now 48211)") {
+	if !strings.Contains(sd.status.text, "Changed on the cluster since your edits began") {
 		t.Errorf("status %q", sd.status.text)
 	}
 	test.Tap(sd.save)
 	q.until(t, "the rebased review", func() bool { return sd.review != nil && !sd.review.save.Disabled() })
-	if sd.review.base != "48211" || !strings.Contains(sd.review.banner.text, "rebased onto version 48211") || sd.review.over != "" {
-		t.Fatalf("the rebased review: base %s, %q", sd.review.base, sd.review.banner.text)
+	if sd.review.base != "48211" || !strings.Contains(texts(sd.review.keys), "rebased onto the cluster's change in other keys") || sd.review.over != "" {
+		t.Fatalf("the rebased review: base %s, %q", sd.review.base, texts(sd.review.keys))
 	}
 	settle(w)
 	test.Tap(sd.review.save)
@@ -451,7 +451,7 @@ func TestSecretDrawerRebaseAndConflict(t *testing.T) {
 	s.change("DB_PASSWORD", "rotated-by-someone-else")
 	test.Tap(sd.save)
 	q.until(t, "the conflict", func() bool { return sd.review != nil && sd.review.over == "48213" })
-	if sd.review.save.Text != "Save over version 48213" || len(f.callsOf(engine.SecretSaveDataCommand)) != 1 {
+	if sd.review.save.Text != "Overwrite" || len(f.callsOf(engine.SecretSaveDataCommand)) != 1 {
 		t.Fatalf("the conflict: button %q", sd.review.save.Text)
 	}
 	settle(w)

@@ -103,7 +103,7 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 	typeInto(r, "debug")
 	test.Tap(removeButtonOf(t, cd.list, "bpf-lb-acceleration"))
 	if !cd.removed["bpf-lb-acceleration"] || !strings.Contains(texts(cd.list), "Removed: Save removes this key and its value.") ||
-		!strings.Contains(cd.status.text, "Edited: 1 key added, 1 key removed, based on version 4211.") || cd.save.Disabled() {
+		cd.status.text != "Edited: 1 key added, 1 key removed." || cd.save.Disabled() {
 		t.Fatalf("after a removal: status %q", cd.status.text)
 	}
 	addKeyThrough(t, cd.adder, "log-format")
@@ -120,8 +120,8 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 	q.until(t, "the review", func() bool { return cd.review != nil && !cd.review.save.Disabled() })
 	rv := cd.review
 	block := texts(rv.keys)
-	if !strings.Contains(block, "Removes 1 key: bpf-lb-acceleration") || !strings.Contains(block, "Adds 1 key: log-level") ||
-		!strings.Contains(block, "From ConfigMap cilium-config in namespace kube-system, context demo") ||
+	if !strings.Contains(block, "Context | Namespace | Object | Changes | Removes | Adds | demo | kube-system | Config Map cilium-config") ||
+		!strings.Contains(block, "| bpf-lb-acceleration | log-level |") || strings.Contains(block, "workload") ||
 		!strings.Contains(block, "This cannot be undone.") || rv.save.Importance != widget.DangerImportance {
 		t.Errorf("the review's keys: %q, Save %v", block, rv.save.Importance)
 	}
@@ -139,7 +139,7 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 	if !slices.Equal(answered, []bool{true}) {
 		t.Errorf("the engine's confirmation took the review's answer: %v", answered)
 	}
-	if cd.status.text != "Saved 1 key added, 1 key removed · version 4212" || cd.dirty() || len(cd.added) != 0 {
+	if !strings.HasPrefix(cd.status.text, "Saved 1 key added, 1 key removed at ") || cd.dirty() || len(cd.added) != 0 {
 		t.Errorf("after the save: %q, dirty %v", cd.status.text, cd.dirty())
 	}
 	q.until(t, "the keys read again", func() bool { return cd.rows["log-level"] != nil && cd.rows["bpf-lb-acceleration"] == nil })
@@ -187,7 +187,7 @@ func TestConfigMapDrawerKeysConflict(t *testing.T) {
 	c.mu.Unlock()
 	test.Tap(cd.save)
 	q.until(t, "the stale review", func() bool { return cd.review != nil && cd.review.over == "4212" })
-	if cd.review.save.Text != "Save over version 4212" || !strings.Contains(cd.review.status.text, "added or removed changed there too") {
+	if cd.review.save.Text != "Overwrite" || !strings.Contains(cd.review.status.text, "added or removed changed there too") {
 		t.Fatalf("the stale review: %q / %q", cd.review.save.Text, cd.review.status.text)
 	}
 	settle(w)
@@ -285,7 +285,9 @@ func TestSecretDrawerAddsAndRemovesKeys(t *testing.T) {
 	rv := sd.review
 	all := texts(rv.changes) + " | " + texts(rv.keys) + " | " + rv.banner.text + " | " + rv.status.text
 	if !strings.Contains(all, "API_TOKEN") || !strings.Contains(all, "added, 27 B") || !strings.Contains(all, "removed, 38 B") ||
-		!strings.Contains(all, "Removes 1 key: DB_HOST") || !strings.Contains(all, "From Secret checkout-db in namespace checkout, context demo") {
+		!strings.Contains(all, "Context | Namespace | Object | Changes | Removes | Adds | demo | checkout | Secret checkout-db") ||
+		!strings.Contains(all, "1 key added, 1 key removed · no value shown | DB_HOST | API_TOKEN | This cannot be undone.") ||
+		strings.Contains(all, "workload") {
 		t.Errorf("the review: %q", all)
 	}
 	if strings.Contains(all, secTyped) || strings.Contains(all, fixtureSecretValues["DB_HOST"]) {

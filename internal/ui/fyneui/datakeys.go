@@ -183,25 +183,35 @@ func editsText(values, added, removed int) string {
 	return strings.Join(parts, ", ")
 }
 
-// keysBlock is the review's account of the keys an edit adds and removes: the removed ones first,
-// prominent in the error colour, with the object, its namespace and its context and what a removal
-// means; then the added ones. Nil when the edit neither adds nor removes a key.
-func keysBlock(kind string, ref model.ObjectRef, added, removed []string, width float32) fyne.CanvasObject {
-	if len(added)+len(removed) == 0 {
-		return nil
+// reviewHead is a save review's head, rows in the place order Context › Namespace › Object (the
+// owner's rule, WF14 and WF16; conventions › Dialogs): then what the save changes (changes, ""
+// before the review's check answered) and the keys it removes, in the error colour, and adds.
+// Under a removal "This cannot be undone." in red; no sentence repeats the rows.
+func reviewHead(kind string, ref model.ObjectRef, changes string, added, removed []string, width float32) fyne.CanvasObject {
+	nameW, gap := kvLayout{}.dims()
+	valueW := width - nameW - gap
+	rows := box(kvLayout{})
+	addRow := func(name string, value *paragraph) {
+		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), value)
 	}
-	out := container.NewVBox()
+	addRow("Context", newParagraph(ref.Context, theme.ColorNameForeground, valueW))
+	if ref.Namespace != "" {
+		addRow("Namespace", newParagraph(ref.Namespace, theme.ColorNameForeground, valueW))
+	}
+	addRow("Object", newParagraph(kind+" "+ref.Name, theme.ColorNameForeground, valueW))
+	if changes != "" {
+		addRow("Changes", newParagraph(changes, theme.ColorNameForeground, valueW))
+	}
 	if len(removed) > 0 {
-		out.Add(newParagraphStyled(fmt.Sprintf("Removes %d key%s: %s", len(removed), plural(len(removed)), strings.Join(sortedKeys(removed), ", ")),
-			colorStatusError, width, fyne.TextStyle{Bold: true}))
-		out.Add(newParagraph(fmt.Sprintf("From %s %s in namespace %s, context %s. A workload that reads a removed key no longer finds it, "+
-			"and its value is gone from the cluster. This cannot be undone.", kind, ref.Name, ref.Namespace, ref.Context), colorStatusError, width))
+		addRow("Removes", newParagraphStyled(strings.Join(sortedKeys(removed), ", "), colorStatusError, valueW, fyne.TextStyle{Bold: true}))
 	}
 	if len(added) > 0 {
-		out.Add(newParagraphStyled(fmt.Sprintf("Adds %d key%s: %s", len(added), plural(len(added)), strings.Join(sortedKeys(added), ", ")),
-			theme.ColorNameForeground, width, fyne.TextStyle{Bold: true}))
+		addRow("Adds", newParagraphStyled(strings.Join(sortedKeys(added), ", "), theme.ColorNameForeground, valueW, fyne.TextStyle{Bold: true}))
 	}
-	return out
+	if len(removed) == 0 {
+		return rows
+	}
+	return container.NewVBox(rows, newParagraph("This cannot be undone.", colorStatusError, width))
 }
 
 // newParagraphStyled is a paragraph in a text style.
@@ -216,7 +226,7 @@ func sortedKeys(keys []string) []string { return slices.Sorted(slices.Values(key
 // mapKeys are a map's keys, sorted.
 func mapKeys(m map[string]string) []string { return slices.Sorted(maps.Keys(m)) }
 
-// setKeysBlock puts a review's keys block into its place; nothing when there is none.
+// setKeysBlock puts a review's head (reviewHead) into its place; nothing when there is none.
 func setKeysBlock(place *fyne.Container, block fyne.CanvasObject) {
 	place.Objects = nil
 	if block != nil {

@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fmt"
-	"strings"
 	"sync/atomic"
 
 	"fyne.io/fyne/v2"
@@ -111,9 +110,9 @@ func draftTitle(d engine.DraftInfo) string {
 	return "Unsaved changes to " + d.Title
 }
 
-// draftDetail is a row's second line: where the text belongs, when Cogpit kept it, its size (a
-// drawer's values: how many), and for an Edit tab or a drawer the version the changes are based
-// on. The time is written in tf, the user's zone and format (D-31).
+// draftDetail is a row's second line: where the text belongs, when Cogpit kept it and its size (a
+// drawer's values: how many); never the raw resourceVersion its changes are based on (WF13). The
+// time is written in tf, the user's zone and format (D-31).
 func draftDetail(d engine.DraftInfo, tf model.TimeFormat) string {
 	where := "Context " + d.Context
 	if d.Ref != nil && d.Ref.Namespace != "" {
@@ -123,9 +122,5 @@ func draftDetail(d engine.DraftInfo, tf model.TimeFormat) string {
 	if d.Type == engine.DraftConfigMapData {
 		size = valuesText(len(d.Keys))
 	}
-	parts := []string{where + ", kept " + tf.Format(d.Saved), size}
-	if d.BaseResourceVersion != "" {
-		parts = append(parts, "based on version "+d.BaseResourceVersion)
-	}
-	return strings.Join(parts, " · ")
+	return where + ", kept " + tf.Format(d.Saved) + " · " + size
 }

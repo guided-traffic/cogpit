@@ -390,7 +390,7 @@ func TestConfigMapDrawerEditAndSave(t *testing.T) {
 	cd := cmDataOf(sh)
 	typeInto(cd.rows["allow-localhost"], "always")
 	typeInto(cd.rows["bpf-lb-map-max"], "131072")
-	if cd.save.Disabled() || cd.revert.Disabled() || !strings.Contains(cd.status.text, "2 values, based on version 4211") {
+	if cd.save.Disabled() || cd.revert.Disabled() || cd.status.text != "Edited: 2 values." {
 		t.Fatalf("after editing: save %v revert %v status %q", cd.save.Disabled(), cd.revert.Disabled(), cd.status.text)
 	}
 	test.Tap(cd.save)
@@ -398,8 +398,8 @@ func TestConfigMapDrawerEditAndSave(t *testing.T) {
 	if calls := f.callsOf("configMap.reviewData"); len(calls) != 1 || !strings.Contains(string(calls[0].Params), `"resourceVersion":"4211"`) {
 		t.Fatalf("review calls %+v", calls)
 	}
-	if !strings.Contains(cd.review.banner.text, "2 values") || !strings.Contains(cd.review.status.text, "accepts") || len(cd.review.diff.rows) == 0 {
-		t.Errorf("the review: %q / %q, %d diff rows", cd.review.banner.text, cd.review.status.text, len(cd.review.diff.rows))
+	if !strings.Contains(texts(cd.review.keys), "2 values") || !strings.Contains(cd.review.status.text, "accepts") || len(cd.review.diff.rows) == 0 {
+		t.Errorf("the review: %q / %q, %d diff rows", texts(cd.review.keys), cd.review.status.text, len(cd.review.diff.rows))
 	}
 	settle(w)
 	test.Tap(findButton(w, "Save"))
@@ -412,7 +412,7 @@ func TestConfigMapDrawerEditAndSave(t *testing.T) {
 	if p.ResourceVersion != "4211" || len(p.Data) != 2 || p.Data["allow-localhost"] != "always" || p.Data["bpf-lb-map-max"] != "131072" || calls[0].Origin != engine.OriginGUI {
 		t.Errorf("save params %+v from %s", p, calls[0].Origin)
 	}
-	if cd.dirty() || !cd.save.Disabled() || cd.status.text != "Saved 2 values · version 4212" {
+	if cd.dirty() || !cd.save.Disabled() || !strings.HasPrefix(cd.status.text, "Saved 2 values at ") {
 		t.Errorf("after the save: dirty %v, save disabled %v, status %q", cd.dirty(), cd.save.Disabled(), cd.status.text)
 	}
 	if c.values["allow-localhost"] != "always" {
@@ -431,8 +431,8 @@ func TestConfigMapDrawerConflict(t *testing.T) {
 	c.change("allow-localhost", "policy")
 	test.Tap(cd.save)
 	q.until(t, "the stale review", func() bool { return cd.review != nil && cd.review.over == "4212" })
-	if len(f.callsOf("configMap.saveData")) != 0 || !strings.Contains(cd.review.banner.text, "changed on the cluster since version 4211") ||
-		cd.review.save.Text != "Save over version 4212" {
+	if len(f.callsOf("configMap.saveData")) != 0 || !strings.Contains(cd.review.banner.text, "Changed on the cluster since your edits began") ||
+		!cd.review.banner.Visible() || cd.review.save.Text != "Overwrite" {
 		t.Fatalf("the stale review: %q, button %q", cd.review.banner.text, cd.review.save.Text)
 	}
 	review := decodeParams[configMapDataParams](t, f.callsOf("configMap.reviewData")[0])
@@ -469,8 +469,8 @@ func TestConfigMapDrawerRebases(t *testing.T) {
 	q.until(t, "the rebased review", func() bool { return cd.review != nil && !cd.review.save.Disabled() })
 	rv := cd.review
 	if rv.over != "" || rv.base != "4212" || cd.base != "4212" || rv.save.Text != "Save" ||
-		!strings.Contains(rv.banner.text, "rebased onto version 4212") || !strings.Contains(rv.status.text, "none of the keys you edited") {
-		t.Fatalf("the rebased review: base %s, over %q, %q / %q", rv.base, rv.over, rv.banner.text, rv.status.text)
+		!strings.Contains(texts(rv.keys), "rebased onto the cluster's change in other keys") || rv.banner.Visible() {
+		t.Fatalf("the rebased review: base %s, over %q, %q / %q", rv.base, rv.over, texts(rv.keys), rv.status.text)
 	}
 
 	c.change("bpf-lb-acceleration", "native") // between the review and Save
@@ -546,7 +546,7 @@ func TestConfigMapDrawerTakesARestoredDraft(t *testing.T) {
 	c.mu.Unlock()
 	f.emit(engine.Event{Type: engine.EventDrafts})
 	q.until(t, "the restored values", func() bool { return cd.dirty() })
-	if r := cd.rows["bpf-lb-map-max"]; r.view.Text() != "131072" || r.from != "65536" || cd.base != "4100" || !strings.Contains(cd.status.text, "since your edits began (version 4100, now 4212)") {
+	if r := cd.rows["bpf-lb-map-max"]; r.view.Text() != "131072" || r.from != "65536" || cd.base != "4100" || !strings.Contains(cd.status.text, "Changed on the cluster since your edits began") {
 		t.Errorf("restored: %q from %q based on %s, status %q", r.view.Text(), r.from, cd.base, cd.status.text)
 	}
 	q.until(t, "the values kept as the window's own", func() bool { k := c.keptValues(); return k != nil && !k.Restored })

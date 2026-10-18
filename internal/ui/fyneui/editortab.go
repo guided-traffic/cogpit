@@ -216,9 +216,9 @@ func (e *editorTab) showBase(st engine.EditorState) {
 	case st.Missing:
 		e.setStatus(e.tab.Title+" no longer exists on the cluster.", colorStatusWarning)
 	case st.Stale:
-		e.setStatus(fmt.Sprintf("%s changed on the cluster since version %s; Save compares with the newer version.", e.tab.Title, st.BaseResourceVersion), colorStatusWarning)
+		e.setStatus(e.tab.Title+" changed on the cluster since this text was loaded; Save compares with its current state.", colorStatusWarning)
 	default:
-		e.setStatus(fmt.Sprintf("%s · version %s", e.tab.Title, st.BaseResourceVersion), colorMuted)
+		e.setStatus(e.tab.Title+" · loaded at "+e.sh.timeFormat().FormatTime(time.Now()), colorMuted)
 	}
 }
 
@@ -272,8 +272,7 @@ func (e *editorTab) save(closeAfter bool) {
 		banner := fmt.Sprintf("Changes to %s: %d added, %d removed", e.tab.Title, d.Added, d.Removed)
 		bannerColor := theme.ColorNameForeground
 		if d.Stale {
-			banner = fmt.Sprintf("%s changed on the cluster since version %s: these changes are against version %s and revert the other change",
-				e.tab.Title, d.BaseResourceVersion, d.CachedResourceVersion)
+			banner = e.tab.Title + " changed on the cluster since this text was loaded: these changes are against its current state and revert the other change"
 			bannerColor = colorStatusWarning
 		}
 		e.showReview(text, d.Lines, banner, bannerColor)
@@ -326,7 +325,7 @@ func (e *editorTab) dryRun(text string) {
 // showConflict shows the changes against the version the cluster holds now and asks again.
 func (e *editorTab) showConflict(text string, ce *engine.ConflictError) {
 	if ce.CurrentResourceVersion == "" {
-		e.setStatus(e.tab.Title+" changed on the cluster and Cogpit has not seen the new version yet; nothing was applied. Save again in a moment.", colorStatusWarning)
+		e.setStatus(e.tab.Title+" changed on the cluster and Cogpit has not seen the change yet; nothing was applied. Save again in a moment.", colorStatusWarning)
 		return
 	}
 	what := "changed on the cluster"
@@ -334,14 +333,14 @@ func (e *editorTab) showConflict(text string, ce *engine.ConflictError) {
 		what = "was deleted and created again"
 	}
 	e.showReview(text, ce.Diff,
-		fmt.Sprintf("%s %s since version %s: nothing was applied. These are your changes against version %s.", e.tab.Title, what, ce.BaseResourceVersion, ce.CurrentResourceVersion),
+		e.tab.Title+" "+what+" since this text was loaded: nothing was applied. These are your changes against its current state.",
 		colorStatusWarning)
 	if ce.Rebased {
-		e.setStatus("Apply again to overwrite version "+ce.CurrentResourceVersion+" with your text.", colorStatusWarning)
+		e.setStatus("Apply again to overwrite the cluster's change with your text.", colorStatusWarning)
 	} else {
 		// A dry run does not move the edit's base: Apply reports the conflict once more and then
 		// bases the edit on the new version, so that overwriting it always takes an apply.
-		e.setStatus("Apply to base your edit on version "+ce.CurrentResourceVersion+"; applying after that overwrites it.", colorStatusWarning)
+		e.setStatus("Apply to base your edit on the cluster's current state; applying after that overwrites it.", colorStatusWarning)
 	}
 	e.applyBtn.Enable()
 }
@@ -379,7 +378,7 @@ func (e *editorTab) apply() {
 			return
 		}
 		e.backToEditor()
-		e.setStatus(fmt.Sprintf("Saved %s · version %s", e.tab.Title, ar.ResourceVersion), colorStatusOK)
+		e.setStatus("Saved "+e.tab.Title+" at "+e.sh.timeFormat().FormatTime(time.Now()), colorStatusOK)
 	})
 }
 

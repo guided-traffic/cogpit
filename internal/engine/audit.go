@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"sigs.k8s.io/yaml"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -171,7 +170,7 @@ func RedactManifests(text string, strict bool) (string, bool) {
 				changed = true
 			}
 		}
-		y, err := yaml.Marshal(o.Object)
+		y, err := model.ObjectYAML(o.Object) // the Kubernetes order (D-86)
 		if err != nil {
 			return fmt.Sprintf("<%d bytes of manifests; not shown>", len(text)), true
 		}

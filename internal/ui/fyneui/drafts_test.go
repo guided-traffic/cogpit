@@ -101,7 +101,7 @@ func TestDraftsBannerOffersAndActs(t *testing.T) {
 	if got := draftTitle(fixtureDrafts()[0]); got != "Unsaved changes to Service checkout" {
 		t.Errorf("title %q", got)
 	}
-	if got := draftDetail(fixtureDrafts()[0], germanTime); got != "Context demo, namespace storefront, kept 11.10.2026 14:02:00 · 21 lines · based on version 41" {
+	if got := draftDetail(fixtureDrafts()[0], germanTime); got != "Context demo, namespace storefront, kept 11.10.2026 14:02:00 · 21 lines" {
 		t.Errorf("detail %q", got)
 	}
 	if got := draftTitle(fixtureDrafts()[1]); got != "Unsaved text of a Create resource tab" {
@@ -112,7 +112,7 @@ func TestDraftsBannerOffersAndActs(t *testing.T) {
 	if got := draftTitle(drawer); got != "Unsaved values of ConfigMap cilium-config (drawer)" {
 		t.Errorf("a drawer draft's title %q", got)
 	}
-	if got := draftDetail(drawer, germanTime); got != "Context demo, namespace kube-system, kept 11.10.2026 14:02:00 · 2 values · based on version 4211" {
+	if got := draftDetail(drawer, germanTime); got != "Context demo, namespace kube-system, kept 11.10.2026 14:02:00 · 2 values" {
 		t.Errorf("a drawer draft's detail %q", got)
 	}
 	b := draftsButtons(sh.drafts)

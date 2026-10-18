@@ -367,8 +367,15 @@ func TestSelectionMenu(t *testing.T) {
 			t.Errorf("the confirmation does not name %s:\n%s", r.Name, all)
 		}
 	}
-	if !strings.Contains(all, "Objects (3)") || !strings.Contains(all, "Delete 3 objects: ") {
+	if !strings.Contains(all, "Objects (3)") {
 		t.Errorf("the confirmation's count:\n%s", all)
+	}
+	// The rows in the place order Context › Namespaces › Objects, no sentence repeating them (WF16).
+	if c, n, o := strings.Index(all, "Context"), strings.Index(all, "Namespaces"), strings.Index(all, "Objects (3)"); c < 0 || c >= n || n >= o {
+		t.Errorf("the rows out of the order Context, Namespaces, Objects:\n%s", all)
+	}
+	if strings.Contains(all, "Delete 3 objects") || strings.Contains(all, "(context ") {
+		t.Errorf("a sentence repeats the rows:\n%s", all)
 	}
 	test.Tap(sh.confirmer.current.cancel)
 	q.until(t, "the dialog gone", func() bool { return sh.confirmer.current == nil })

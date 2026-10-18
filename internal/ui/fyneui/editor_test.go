@@ -214,7 +214,7 @@ func TestEditTabSaveReviewsThenApplies(t *testing.T) {
 	if et.pane.view.ReadOnly() || et.reviewing {
 		t.Fatal("the edit tab starts in the editor, editable")
 	}
-	if et.status.text != "Service checkout · version 41" {
+	if !strings.HasPrefix(et.status.text, "Service checkout · loaded at ") || strings.Contains(et.status.text, "41") {
 		t.Errorf("status %q", et.status.text)
 	}
 	typeLineAfter(et.pane, 16, "sessionAffinity: ClientIP")
@@ -265,7 +265,7 @@ func TestEditTabConflictAsksAgain(t *testing.T) {
 	q.until(t, "the review", func() bool { return et.reviewing && !et.applyBtn.Disabled() })
 	test.Tap(et.applyBtn)
 	q.until(t, "the conflict", func() bool { return strings.Contains(et.banner.text, "nothing was applied") })
-	if !et.reviewing || et.applyBtn.Disabled() || !strings.Contains(et.status.text, "overwrite version 57") {
+	if !et.reviewing || et.applyBtn.Disabled() || !strings.Contains(et.status.text, "overwrite the cluster's change") {
 		t.Errorf("after the conflict: reviewing %v apply disabled %v status %q", et.reviewing, et.applyBtn.Disabled(), et.status.text)
 	}
 	removed := false
