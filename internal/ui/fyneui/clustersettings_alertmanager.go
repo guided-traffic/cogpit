@@ -21,11 +21,15 @@ import (
 // when they are built and after every change of the cluster's alerts (EventAlerts,
 // alertmanagerChanged), so an agent's change shows too.
 //
-// The fields stand under Alertmanager's row on Cluster Settings › Integrations, through that
-// section's hook for an integration's own controls (D-76's integrationRowExtras,
-// clustersettings_integrations.go).
+// The fields stand on Alertmanager's own section of Cluster Settings under its switch (D-87,
+// integrationDetails, clustersettings_integration.go); until 2026-10-18 under its row on
+// Integrations.
 
-func init() { integrationRowExtras[engine.IntegrationAlertmanager] = alertmanagerAddress }
+func init() {
+	integrationDetails[engine.IntegrationAlertmanager] = func(p *settingsPage) (fyne.CanvasObject, func()) {
+		return alertmanagerAddress(p, p.shown.Context), nil
+	}
+}
 
 // The settings' names on the page (their controls and refusal lines).
 const (
@@ -74,10 +78,10 @@ func alertmanagerAddress(p *settingsPage, ctx string) fyne.CanvasObject {
 	p.controls[amAddressSetting+"Entry"], p.controls[amPrefixSetting+"Entry"] = f.address, f.prefix
 	p.controls["alertmanagerHTTPS"], p.controls["alertmanagerLine"] = f.https, f.line
 	f.content = container.NewVBox(
-		p.setting(amAddressSetting, "Alertmanager service address",
+		p.setting(amAddressSetting, "Service address",
 			"Empty: found by its name among the cluster's services. Kept in Cogpit's settings, never the kubeconfig.",
 			container.NewVBox(f.address, f.line, f.https)),
-		p.setting(amPrefixSetting, "Alertmanager path prefix", "The path the service serves under: its --web.route-prefix.", f.prefix),
+		p.setting(amPrefixSetting, "Path prefix", "The path the service serves under: its --web.route-prefix.", f.prefix),
 	)
 	f.ExtendBaseWidget(f)
 	p.controls[amFieldsControl] = f

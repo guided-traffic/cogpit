@@ -85,9 +85,9 @@ type metricsPanel struct {
 	closed bool
 
 	root    *fyne.Container
-	caption *sourceLine // the source line, its Prometheus's namespace and service links (metricssource.go)
+	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
 	note    *textLine
-	status  *providerStatusLine  // each provider's state under the charts (metricsstatus.go)
+	status  *providerStatusLine  // the providers' source row under the charts (metricsstatus.go, D-88)
 	disk    *diskBars            // a node's disks under its chart, or why there are none (metricsdisk.go)
 	perBox  map[string]*chartCtl // each container's compact chart and controls, by container name
 }
@@ -134,6 +134,8 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef) *metricsPanel {
 	p.note = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	p.note.truncate = true
 	p.status = newProviderStatusLine(d.sh)
+	p.status.context = ref.Context
+	p.status.setAvail(d.contentWidth)
 	p.status.root.Hide()
 	p.disk = newDiskBars()
 	p.root = container.NewVBox(p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
@@ -417,12 +419,12 @@ func (p *metricsPanel) render() {
 		p.setState(true, "Loading metrics…")
 	case m.Status == metrics.StatusAvailable:
 		p.setState(true, "")
-		p.caption.setSegs(p.d.sh.sourceSegments(m.Source, m.Providers, p.ref.Context))
+		p.caption.Hide() // the source row under the charts names the providers (metricsstatus.go, D-88)
 	case m.Status == metrics.StatusUnknown:
 		p.setState(true, "Waiting for the first measurement…")
 	case m.Status == metrics.StatusNotServed:
 		// A cluster without metrics-server or Prometheus is a state, not a problem: said quietly.
-		p.setState(false, "No metrics: "+m.Message)
+		p.setState(false, noMetricsCaption(p.d.sh.ui, p.ref.Context, m.Message))
 		p.caption.SetColor(colorMuted)
 	case m.Status == engine.StatusHidden: // the cluster's settings hide them: the user's choice, said quietly
 		p.setState(false, "Metrics are "+m.Message)
@@ -477,8 +479,9 @@ func (p *metricsPanel) setState(charts bool, caption string) {
 	} else {
 		p.caption.SetColor(colorMuted)
 	}
-	if caption != "" { // "": the caller sets the source line's pieces (sourceSegments)
+	if caption != "" { // "": the caller hides the line, the source row says it
 		p.caption.SetText(caption)
+		p.caption.Show()
 	}
 	if !charts {
 		p.setNote("")

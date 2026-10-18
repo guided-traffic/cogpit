@@ -25,7 +25,7 @@ func agentWritesBox(sh *shell) *widget.Check {
 	return check
 }
 
-// A cluster's Settings › Agents, last in the list: the check is off by default; turning it on asks
+// A cluster's Settings › Agents, last in the list above the integrations (D-87): the check is off by default; turning it on asks
 // first, and Cancel leaves it off; Allow keeps it in Cogpit's cluster settings and the engine then
 // lets an agent's mutating command run without asking; turning it off asks nothing. An agent that
 // tries the same is refused and the setting stays.
@@ -34,12 +34,8 @@ func TestClusterSettingsAgentsSection(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "agents"})
 	q.until(t, "the Agents section", func() bool { return agentWritesBox(sh) != nil })
-	var labels []string
-	for _, o := range sh.settings.nav.Objects {
-		labels = append(labels, o.(*widget.Button).Text)
-	}
-	if labels[len(labels)-1] != agentsSectionLabel {
-		t.Errorf("sections %q: Agents last", labels)
+	if labels := navLabels(sh.settings); labels[slices.Index(labels, "—")-1] != agentsSectionLabel {
+		t.Errorf("sections %q: Agents last above the integrations", labels)
 	}
 	check := agentWritesBox(sh)
 	if check.Checked || check.Disabled() {

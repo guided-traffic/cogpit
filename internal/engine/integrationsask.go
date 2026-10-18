@@ -117,9 +117,9 @@ func (s *Session) PutOffIntegrationsQuestion(context string) error {
 func init() { integrationFollowers = append(integrationFollowers, detectShownIntegrations) }
 
 // detectShownIntegrations runs the detection of a connected cluster's metrics providers that are on
-// and that nothing looked for yet, once, while the question or its Settings › Integrations shows it
-// (a follower: it starts the detection in the hub's background and returns at once). When it ended,
-// the window and agents hear of it (EventIntegrations, EventMetrics).
+// and that nothing looked for yet, once, while the question or its Settings show their state
+// (integrationsShown; a follower: it starts the detection in the hub's background and returns at
+// once). When it ended, the window and agents hear of it (EventIntegrations, EventMetrics).
 func detectShownIntegrations(st *state, b *Backend, now UIState) {
 	if b == nil || b.Metrics == nil || now.connectionState(b.Context) != Connected || !integrationsShown(&now, b.Context) {
 		return
@@ -143,12 +143,20 @@ func detectUnknownWhileShown(s *Session, b *Backend) {
 	})
 }
 
-// integrationsShown reports whether the question or the cluster's Settings › Integrations shows a
-// context's integrations.
+// integrationsShown reports whether the question or the cluster's Settings shows the state of a
+// context's metrics integrations: Integrations, the Metrics Server's or Prometheus's own section,
+// or Metrics, which names both (D-87).
 func integrationsShown(u *UIState, context string) bool {
 	if u.IntegrationsQuestion == context {
 		return true
 	}
 	p := u.Settings
-	return p != nil && p.Page == SettingsCluster && p.Context == context && p.Section == SectionIntegrations
+	if p == nil || p.Page != SettingsCluster || p.Context != context {
+		return false
+	}
+	switch p.Section {
+	case SectionIntegrations, SectionMetrics, IntegrationSection(IntegrationMetricsServer), IntegrationSection(IntegrationPrometheus):
+		return true
+	}
+	return false
 }

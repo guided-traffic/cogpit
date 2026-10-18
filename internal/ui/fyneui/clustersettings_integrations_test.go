@@ -243,8 +243,11 @@ func TestIntegrationsSection(t *testing.T) {
 		}
 	}
 	prom := integrationRowOf(t, p.integrationRows, engine.IntegrationPrometheus)
-	if prom.link == nil || !prom.link.Visible() {
+	if prom.link == nil || !prom.link.Visible() || prom.link.text != "Set its address…" {
 		t.Fatal("no link to the Prometheus address on a manual Prometheus")
+	}
+	if l := integrationRowOf(t, p.integrationRows, engine.IntegrationKyverno).link; l == nil || l.text != integrationDetailsLink {
+		t.Error("no link to Kyverno's section")
 	}
 	if note := p.controls["integrationsNote"]; note.Visible() {
 		t.Error("the note of an undecided cluster shows on a decided one")
@@ -264,10 +267,10 @@ func TestIntegrationsSection(t *testing.T) {
 		t.Fatalf("set: %d calls, %s", len(calls), calls[0].Params)
 	}
 
-	// The link opens the Metrics section, where the Prometheus's address is set.
+	// The link opens Prometheus's own section, where its address is set (D-87).
 	test.Tap(prom.link)
-	q.until(t, "the Metrics section asked for", func() bool { return len(inf.callsOf("cluster.settings.open")) == 1 })
-	if c := inf.callsOf("cluster.settings.open")[0]; string(normalize(c.Params)) != `{"context":"kind-dev","section":"metrics"}` {
+	q.until(t, "the Prometheus section asked for", func() bool { return len(inf.callsOf("cluster.settings.open")) == 1 })
+	if c := inf.callsOf("cluster.settings.open")[0]; string(normalize(c.Params)) != `{"context":"kind-dev","section":"prometheus"}` {
 		t.Errorf("open: %s", c.Params)
 	}
 
@@ -278,7 +281,7 @@ func TestIntegrationsSection(t *testing.T) {
 	inf.emit(engine.Event{Type: engine.EventIntegrations, View: "kind-dev"})
 	q.until(t, "Prometheus found", func() bool {
 		r := integrationRowOf(t, p.integrationRows, engine.IntegrationPrometheus)
-		return r.status.text == "Found automatically: monitoring/prometheus-operated:9090" && !r.link.Visible()
+		return r.status.text == "Found automatically: monitoring/prometheus-operated:9090" && r.link.text == integrationDetailsLink
 	})
 
 	// Ask again: cluster.integrations.ask; the choice forgotten, nothing on, the note, the question.
@@ -299,27 +302,93 @@ func TestIntegrationsSection(t *testing.T) {
 	}
 }
 
-// An integration's own file puts its controls under its row (Alertmanager's address fields).
-func TestIntegrationRowExtras(t *testing.T) {
-	prev, had := integrationRowExtras[engine.IntegrationAlertmanager]
-	t.Cleanup(func() {
-		if had {
-			integrationRowExtras[engine.IntegrationAlertmanager] = prev
-		} else {
-			delete(integrationRowExtras, engine.IntegrationAlertmanager)
+// Each integration has a section of its own (D-87, the owner's WF22): under a divider and the
+// Integrations heading in the page's list; its switch, its status (a found Alertmanager's Service as
+// links), and the details its own file adds: Prometheus's fields, Alertmanager's address, none for
+// Kyverno. A switch there sets the cluster's choice at once.
+func TestIntegrationSections(t *testing.T) {
+	inf := newIntegrationsFake(t)
+	inf.decide()
+	inf.handlers["cluster.prometheus"] = func(context.Context, engine.Invocation) (any, error) {
+		return engine.PrometheusSetting{Context: "kind-dev", Auto: true, Format: autoSetting, Kept: true}, nil
+	}
+	sh, _, q := newTestShell(t, inf.fakeEngine, Options{})
+	p := sh.settings
+	open := func(section string, status string) *integrationRow {
+		t.Helper()
+		inf.update(func(u *engine.UIState) {
+			u.Settings = &engine.SettingsPage{Page: engine.SettingsCluster, Context: "kind-dev", Section: section}
+		})
+		q.until(t, section+"'s section", func() bool {
+			return p.shown.Section == section && len(p.integrationRows) == 1 && p.integrationRows[0].status.text == status
+		})
+		return p.integrationRows[0]
+	}
+
+	r := open("kyverno", "No permission: the current user may not list policyreports")
+	if r.check.Text != integrationSwitchLabel || !r.check.Checked || r.link != nil {
+		t.Errorf("Kyverno's switch %q, on %v, link %v", r.check.Text, r.check.Checked, r.link != nil)
+	}
+	if p.prom != nil || p.controls[amFieldsControl] != nil {
+		t.Error("another integration's details on Kyverno's section")
+	}
+	// The list: the integrations after Agents, under the heading, each by its name.
+	secs := engine.ClusterSettingsSections
+	if ia, ii := slices.Index(secs, engine.SectionAgents), slices.Index(secs, engine.SectionIntegrations); ia < 0 || ii != ia+1 ||
+		!slices.Equal(secs[ii+1:], []string{"metrics-server", "prometheus", "alertmanager", "trivy", "kyverno"}) {
+		t.Errorf("sections %q", secs)
+	}
+	for in, label := range integrationNavLabels {
+		if b := p.navItems[string(in)]; b == nil || b.Text != label {
+			t.Errorf("%s: no list item %q", in, label)
 		}
+	}
+	if b := p.navItems[engine.SectionIntegrations]; b == nil || b.Text != "" || !within(p.nav, b) {
+		t.Error("the Integrations heading is no item of the list")
+	} else if !slices.ContainsFunc(findAll[*textLine](p.nav), func(l *textLine) bool { return l.text == "INTEGRATIONS" }) {
+		t.Error("the heading's label")
+	}
+	if b := p.navItems["kyverno"]; b.Importance != widget.HighImportance {
+		t.Error("the shown section is not marked")
+	}
+	test.Tap(r.check)
+	q.until(t, "Kyverno off", func() bool { return len(inf.callsOf("cluster.settings.set")) == 1 })
+	if c := inf.callsOf("cluster.settings.set")[0]; string(normalize(c.Params)) != `{"context":"kind-dev","integrations":{"kyverno":false}}` {
+		t.Errorf("set %s", c.Params)
+	}
+
+	open("prometheus", "Needs manual configuration: none found by name")
+	q.until(t, "the Prometheus fields", func() bool {
+		return p.prom != nil && p.prom.enabled &&
+			p.prom.line.text == "Auto detect: Cogpit looks for it among the cluster's services when a chart needs it."
 	})
-	extra := widget.NewEntry()
-	var gotCtx string
-	integrationRowExtras[engine.IntegrationAlertmanager] = func(_ *settingsPage, ctx string) fyne.CanvasObject {
-		gotCtx = ctx
-		return extra
+
+	r = open("alertmanager", "Found automatically: monitoring/kube-prometheus-alertmanager:9093")
+	if _, ok := p.controls[amFieldsControl].(*amFields); !ok {
+		t.Error("no Alertmanager address on its section")
 	}
-	sh, _, _, _ := openIntegrationsSection(t, ThemeDark)
-	r := integrationRowOf(t, sh.settings.integrationRows, engine.IntegrationAlertmanager)
-	if gotCtx != "kind-dev" || len(r.box.Objects) != 3 || !within(r.box.Objects[2], extra) {
-		t.Errorf("the extra under Alertmanager's row: context %q, %d objects", gotCtx, len(r.box.Objects))
+	if links := r.status.links(); len(links) != 2 || links["monitoring"] == nil || links["kube-prometheus-alertmanager"] == nil {
+		t.Errorf("Alertmanager's place links %v", links)
 	}
+}
+
+// navLabels are the settings page's list as text: each item's label, "—" for the divider, the
+// integrations' heading as it reads.
+func navLabels(p *settingsPage) []string {
+	var out []string
+	for _, o := range p.nav.Objects {
+		switch x := o.(type) {
+		case *widget.Button:
+			out = append(out, x.Text)
+		case *fyne.Container:
+			if lines := findAll[*textLine](x); len(lines) > 0 {
+				out = append(out, lines[0].text)
+			} else {
+				out = append(out, "—")
+			}
+		}
+	}
+	return out
 }
 
 // within reports whether o is in the tree of containers under root.

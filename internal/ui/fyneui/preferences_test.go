@@ -344,9 +344,9 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 		t.Errorf("the next terminal starts in %q (%v), want %q", opts.Dir, err, work)
 	}
 
-	// Metrics: the Prometheus setting needs the cluster connected.
-	test.Tap(sh.settings.navItems["metrics"])
-	q.until(t, "the Metrics section", func() bool { return sh.settings.prom != nil })
+	// Prometheus (its own section since D-87): its setting needs the cluster connected.
+	test.Tap(sh.settings.navItems["prometheus"])
+	q.until(t, "the Prometheus section", func() bool { return sh.settings.prom != nil })
 	q.until(t, "the fields disabled", func() bool { return sh.settings.prom.address.Disabled() && sh.settings.prom.format.Disabled() })
 }
 

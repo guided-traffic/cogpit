@@ -44,7 +44,7 @@ func (f Flavor) Name() string {
 
 // VMSelectPrefix is the path VictoriaMetrics' cluster vmselect serves the Prometheus API under for
 // the default tenant, 0 (its accountID); another tenant is the user's to name in the path prefix
-// (Cluster Settings › Metrics, cluster.setPrometheus).
+// (Cluster Settings › Prometheus, cluster.setPrometheus).
 const VMSelectPrefix = "/select/0/prometheus"
 
 // vmSelectPath is a path prefix that names a tenant of vmselect: /select/<accountID>[:<projectID>]/prometheus.

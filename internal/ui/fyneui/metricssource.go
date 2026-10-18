@@ -9,16 +9,18 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 
-	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The metrics' source line under the drawer's and the Overview's charts (G12): "Displaying metrics
-// from Prometheus (monitoring/prometheus-k8s) and Kubernetes Metrics Server", or the reason there
-// are none. Lens's line names the provider's namespace and service as links (captured on a node's
-// drawer: "Displaying metrics from Prometheus: <namespace>/<service>:<port>"); Cogpit's does since
-// the night of 2026-10-16/17: the namespace opens the Namespace, the service the Service, through
-// ui.navigate as every link of a drawer does (followLink), in the drawer's or the Overview's
+// A line of text in pieces, some of them links (sourceLine). The drawer's and the Overview's caption
+// under their charts is one, in plain text ("Loading metrics…", "No metrics: …"); since the owner's
+// WF24 of 2026-10-18 (D-88) the providers are named on the source row under it (metricsstatus.go),
+// no longer in a line "Displaying metrics from Prometheus (monitoring/prometheus-server) and
+// Kubernetes Metrics Server" with the Prometheus's namespace and service as links (Lens's line,
+// captured; Cogpit's from the night of 2026-10-16/17 to 2026-10-18). Where Prometheus and
+// Alertmanager run is on their sections of Cluster Settings now (D-87), as a status line whose
+// namespace and service are links (serviceSegments): a link closes the settings page and opens the
+// Namespace or the Service through ui.navigate, as every link of a drawer does (followLink), in that
 // cluster. The line is cut to its width with an ellipsis, as a truncating textLine is.
 
 // sourceLine is one line of text in pieces, some of them links.
@@ -90,38 +92,33 @@ func (l *sourceLine) links() map[string]func() {
 	return out
 }
 
-// sourcePrefix begins the source line before the providers' names.
-const sourcePrefix = "Displaying metrics from "
-
-// sourceSegments splits "Displaying metrics from <source>" where the source names the Prometheus
-// in use as "namespace/service": the namespace and the service become links that open the
-// Namespace and the Service in context's cluster. Without such a provider, or a source that does
-// not name it, the line is plain.
-func (sh *shell) sourceSegments(source string, providers []metrics.ProviderStatus, context string) []lineSeg {
-	text := sourcePrefix + source
-	var ns, svc string
-	for _, ps := range providers {
-		if ps.Provider == metrics.PrometheusID && ps.Namespace != "" && ps.ServiceName != "" {
-			ns, svc = ps.Namespace, ps.ServiceName
-		}
-	}
-	i := -1
-	if ns != "" {
-		i = strings.Index(text, "("+ns+"/"+svc+")")
-	}
-	if i < 0 {
+// serviceSegments splits a status line that ends in where, a Service's place
+// "namespace/service:port": the namespace and the service become links that close the settings page
+// and open the Namespace and the Service in context's cluster. A line that does not end so stays
+// plain. Only a place that names a Service is passed (Prometheus's and Alertmanager's: Trivy's and
+// Kyverno's name an API group).
+func (sh *shell) serviceSegments(text, where, context string) []lineSeg {
+	ns, rest, ok := strings.Cut(where, "/")
+	svc, _, _ := strings.Cut(rest, ":")
+	if !ok || ns == "" || svc == "" || strings.ContainsAny(ns, ".:") || !strings.HasSuffix(text, where) {
 		return []lineSeg{{text: text}}
 	}
 	open := func(ref model.ObjectRef) func() {
-		return func() { sh.followLink(ref, context, false) }
+		return func() {
+			sh.dispatch("settings.close", struct{}{}, func(_ any, err error) {
+				if err == nil {
+					sh.followLink(ref, context, false)
+				}
+			})
+		}
 	}
-	i++ // after "("
+	i := len(text) - len(where)
 	return []lineSeg{
 		{text: text[:i]},
 		{text: ns, onTap: open(model.ObjectRef{Kind: kindNamespaces, Name: ns})},
 		{text: "/"},
 		{text: svc, onTap: open(model.ObjectRef{Kind: kindServices, Namespace: ns, Name: svc})},
-		{text: text[i+len(ns)+1+len(svc):]},
+		{text: where[len(ns)+1+len(svc):]},
 	}
 }
 

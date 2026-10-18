@@ -1,10 +1,11 @@
 package metrics
 
-// Which providers a cluster's metrics come from (Cluster Settings › Metrics › Metrics source; Lens:
-// a "Metrics source" dropdown, Automatic, Prometheus, Kubernetes Metrics Server, No metrics,
-// captured). Automatic is Cogpit's normal case, both providers together (the owner's requirement,
-// G12); the others turn one provider or both off for the cluster: an off provider is never
-// detected nor asked, and leaves the status line.
+// Which providers a cluster's metrics come from (Lens: a "Metrics source" dropdown, Automatic,
+// Prometheus, Kubernetes Metrics Server, No metrics, captured; Cogpit: the switches of the two
+// metrics integrations, each on its section of Cluster Settings since D-87, and
+// cluster.settings.set's metricsSource). Automatic is Cogpit's normal case, both providers together
+// (the owner's requirement, G12); the others turn one provider or both off for the cluster: an off
+// provider is never detected nor asked, and leaves the source row under the charts.
 
 // Source is a cluster's metrics source.
 type Source string
@@ -22,8 +23,10 @@ const (
 	SourceNone Source = "none"
 )
 
-// msgSourceNone is the state of a cluster whose metrics are turned off.
-const msgSourceNone = "this cluster's Metrics source setting turns metrics off"
+// msgSourceNone is the state of a cluster whose metrics are turned off: both metrics integrations
+// switched off (Cluster Settings › Metrics Server and › Prometheus, D-87; before, the Metrics source
+// dropdown).
+const msgSourceNone = "the Metrics Server and Prometheus are switched off for this cluster"
 
 // allows reports whether the source leaves a provider of a role on. A single detector (the demo
 // cluster's) is on unless metrics are off.

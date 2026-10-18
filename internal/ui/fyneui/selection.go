@@ -352,6 +352,17 @@ func newSecretText(text string, hook *copyHook, copied func(string)) *secretText
 	return t
 }
 
+// setText shows another text, its selection cleared. The kubeconfig's path on Cluster Settings ›
+// General is such a text too (the owner's WF28, D-87): whole, wrapped, selectable.
+func (t *secretText) setText(s string) {
+	if s == t.text {
+		return
+	}
+	t.text = s
+	t.anchor, t.caret = 0, 0
+	t.Refresh()
+}
+
 // vline is one wrapped line: the rune offsets of its text in the full text.
 type vline struct{ start, end int }
 

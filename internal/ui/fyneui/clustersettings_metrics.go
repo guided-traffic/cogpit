@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
-	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
 // Cluster settings › Metrics › Hide metrics from the UI (G12, G13; engine/hidemetrics.go). Lens
@@ -108,63 +107,103 @@ func (p *settingsPage) hideMetricsSetting() (fyne.CanvasObject, func()) {
 		"Hidden metrics leave the lists, the drawers and the Overview, and Cogpit stops asking the cluster for them.", control), sync
 }
 
-// metricsSourceSetting is the name of the Metrics source setting on the page.
-const metricsSourceSetting = "metricsSource"
+// metricsSourcesSetting is the name of Metrics' sources on the page.
+const metricsSourcesSetting = "metricsSources"
 
-// metricsSourceSetting builds Cluster settings › Metrics › Metrics source (G12; Lens's dropdown,
-// captured: Automatic, Prometheus, Kubernetes Metrics Server, No metrics, and under it a line naming
-// the source in use) and returns it with the function that shows the state in it. A choice is
-// dispatched at once (cluster.settings.set with metricsSource); the select follows the UI state, so
-// an agent's change shows too.
-func (p *settingsPage) metricsSourceSetting() (fyne.CanvasObject, func()) {
+// metricsSourcesHelp says where each part of the metrics comes from and where the sources are set.
+const metricsSourcesHelp = "Current values come from the Metrics Server; history, network, filesystem and disks from Prometheus."
+
+// metricsSourceIntegrations are the integrations Metrics reads, in the rows' order.
+var metricsSourceIntegrations = []engine.Integration{engine.IntegrationMetricsServer, engine.IntegrationPrometheus}
+
+// metricsSourcesSetting builds Cluster settings › Metrics › Sources (D-87, the owner's WF22 of
+// 2026-10-18: Metrics shows that it reads the two metrics integrations, their details live on their
+// own sections): a row per integration, its state's dot in the cluster dots' colours, its name as a
+// link to its section, and its status line as Integrations words it; under them, while the cluster
+// has no choice of integrations, that nothing is asked (D-82). It replaces Lens's "Metrics source"
+// dropdown (Automatic, Prometheus, Kubernetes Metrics Server, No metrics, captured), which since
+// D-76 set the same two switches: they are on the integrations' sections now, and
+// cluster.settings.set's metricsSource still sets them for agents. Returns the setting with the
+// function that shows the state in it.
+func (p *settingsPage) metricsSourcesSetting() (fyne.CanvasObject, func()) {
 	ctx := p.shown.Context
-	labels := make([]string, 0, len(engine.MetricsSources))
-	for _, o := range engine.MetricsSources {
-		labels = append(labels, o.Label)
+	type sourceRow struct {
+		name   engine.Integration
+		dot    *statusDot
+		status *textLine
 	}
-	sel := widget.NewSelect(labels, func(label string) {
-		for _, o := range engine.MetricsSources {
-			if o.Label == label && !p.syncing {
-				p.setCluster(metricsSourceSetting, o.Name)
-			}
-		}
-	})
-	line := newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	line.truncate = true
-	p.controls["metricsSourceLine"], p.controls["metricsSourceSelect"] = line, sel
+	rows := make([]sourceRow, 0, len(metricsSourceIntegrations))
+	objs := make([]fyne.CanvasObject, 0, len(metricsSourceIntegrations)+1)
+	for _, name := range metricsSourceIntegrations {
+		in, _ := engine.IntegrationOf(name)
+		r := sourceRow{name: name, dot: newStatusDot(), status: newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})}
+		r.status.truncate = true
+		link := newLinkText(in.Label, func() { p.openIntegrationSection(ctx, name) })
+		row := box(dotLinkText{}, r.dot, link, r.status)
+		p.controls["metricsSource:"+string(name)] = row
+		rows = append(rows, r)
+		objs = append(objs, row)
+	}
+	undecided := newTextLine(metricsSourceUndecided, colorStatusPending, theme.SizeNameCaptionText, fyne.TextStyle{})
+	undecided.truncate = true
+	p.controls["metricsSourceUndecided"] = undecided
+	objs = append(objs, undecided)
 	sync := func() {
-		name := p.sh.ui.MetricsSourceOf(ctx)
-		for _, o := range engine.MetricsSources {
-			if o.Name == name && sel.Selected != o.Label {
-				sel.SetSelected(o.Label)
+		statuses := p.integrationStatuses()
+		for _, r := range rows {
+			st, ok := statuses[r.name]
+			if !ok {
+				st = engine.IntegrationStatus{Name: r.name, State: engine.IntegrationChecking}
 			}
+			text, c := integrationStatusLine(st)
+			r.status.SetText(text)
+			r.status.SetColor(c)
+			r.dot.setLook(integrationDot(st.State))
 		}
-		text := metricsSourceLine(p.clusterView(), name)
-		if u := p.sh.ui; name == string(metrics.SourceNone) && u.IntegrationsAskFirst && !u.IntegrationsDecided(ctx) {
-			text = metricsSourceUndecided // nothing is asked before the user chose (D-82)
+		if u := p.sh.ui; u.IntegrationsAskFirst && !u.IntegrationsDecided(ctx) {
+			undecided.Show() // nothing is asked before the user chose (D-82)
+		} else {
+			undecided.Hide()
 		}
-		line.SetText(text)
 	}
-	return p.setting(metricsSourceSetting, "Metrics source",
-		"Automatic: history from Prometheus, current values from the Metrics Server. The others turn one or both off.",
-		container.NewVBox(sel, line)), sync
+	return p.setting(metricsSourcesSetting, "Sources", metricsSourcesHelp, container.NewVBox(objs...)), sync
 }
 
-// metricsSourceUndecided is the line under the setting while the user chose no integrations for the
+// metricsSourceUndecided is the line under the sources while the user chose no integrations for the
 // cluster: nothing of them is asked until then (D-82), its metrics included.
-const metricsSourceUndecided = "Not chosen for this cluster yet: no metrics are asked until you choose (here, in Integrations, or in its question)."
+const metricsSourceUndecided = "Not chosen for this cluster yet: no metrics are asked until you choose (in Integrations, or in its question)."
 
-// metricsSourceLine names the source in use under the setting.
-func metricsSourceLine(v engine.ClusterSettingsView, name string) string {
-	switch {
-	case name == string(metrics.SourceNone):
-		return "No metrics are asked of this cluster."
-	case !v.Connected || engine.IsDemoContext(v.Context) && v.MetricsInUse == "":
-		return "Applies while this cluster is connected."
-	case v.MetricsInUse == "":
-		return "In use: looking for the providers…"
+// dotLinkText lays out a status dot, a link at its natural width, and a text line in the rest of the
+// row, each centred in the row's height.
+type dotLinkText struct{}
+
+func (dotLinkText) gap() float32 {
+	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameInnerPadding)
+}
+
+func (l dotLinkText) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var h float32
+	for _, o := range objs {
+		h = max(h, o.MinSize().Height)
 	}
-	return "In use: " + v.MetricsInUse + "."
+	return fyne.NewSize(objs[0].MinSize().Width+l.gap()+textWidthOf(objs[1])+l.gap(), h)
+}
+
+func (l dotLinkText) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	x := float32(0)
+	for i, o := range objs {
+		w := o.MinSize().Width
+		switch i {
+		case 1:
+			w = textWidthOf(o)
+		case 2:
+			w = max(size.Width-x, 0)
+		}
+		h := o.MinSize().Height
+		o.Move(fyne.NewPos(x, (size.Height-h)/2))
+		o.Resize(fyne.NewSize(w, h))
+		x += w + l.gap()
+	}
 }
 
 // hiddenMetricsLine says what is hidden: "All metrics are visible.", or the hidden ones.

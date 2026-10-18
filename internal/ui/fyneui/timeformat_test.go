@@ -92,8 +92,8 @@ func TestTheWindowWritesTimesInTheUsersFormat(t *testing.T) {
 		{drainDetail(fixtureDrains()[0], tf), "started 11.10.2026 15:02:00 by you"},
 		{draftDetail(fixtureDrafts()[0], tf), "kept 11.10.2026 16:02:00"},
 		{helmOpDetail(fixtureHelmOps()[0], tf), "started 11.10.2026 15:41:00 by you"},
-		{providerLine(metrics.ProviderStatus{Label: "Prometheus", Status: metrics.StatusAvailable, LastOK: fixedNow.Add(-40 * time.Second)},
-			fixedNow, tf).tip, "Last good answer: 16:29:20 (40 s ago)"},
+		{providerTip(metrics.ProviderStatus{Label: "Prometheus", Status: metrics.StatusAvailable, LastOK: fixedNow.Add(-40 * time.Second)},
+			fixedNow, tf), "Last good answer: 16:29:20 (40 s ago)"},
 	} {
 		if !strings.Contains(tc.got, tc.want) {
 			t.Errorf("%q lacks %q", tc.got, tc.want)

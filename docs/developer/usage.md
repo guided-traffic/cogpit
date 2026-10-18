@@ -37,7 +37,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
 - 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster and the tabs of all of them, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources and its tabs, ‹ All Clusters goes back up.
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
-- 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings › Integrations with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
+- 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves.
 - 🔀 Several clusters connected at once (since 2026-10-16): switching to another cluster leaves the one you were on connected, its logs, shells, port forwards and running jobs going on; switching back within five minutes shows it at once without asking the cluster again, later its lists load anew. A cluster's namespace filter, search and status filter stay with it and its tabs: the next cluster never comes with them. The top bar's three toggles show and hide the navigator (⌘B), the dock (⌘J) and the agent chat (⌘I); with no tab in the dock, ⌘J opens a terminal there. A cluster stays connected until you disconnect it or quit; agents may work on any connected cluster. Every dot of a cluster says how it is: filled while live, a ring while it rests in the background, blinking while it reconnects, red when it needs you; the dock shows the tabs of the cluster you look at ([Several clusters connected](#several-clusters-connected)). A cluster's Settings can keep its login program from running while you look at another cluster (its login then waits, renewed when you show it), and Preferences › App can bring the last session back at start: its tabs and its clusters, connected again.
 - 🪪 One short name per cluster wherever the window names it: the name you gave it in its Settings, else its context's name after the last "@" ("kubernetes-admin@prod-eu" shows as "prod-eu"); the full name in every tooltip, and the navigator's search finds it by either. The navigator's root says who you are logged in as there, as the API server confirms it at every connect (`kubectl auth whoami`'s question), your groups in the tooltip of the small box beside it; "(kubeconfig)" marks the kubeconfig's user name where the API server does not say, and while the cluster connects the last user it confirmed shows dimmed, with when it was last seen ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
@@ -65,7 +65,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🔁 Flux CD: its section in the navigator (Helm releases, Kustomizations, sources, image automation, notifications) with each object's state, revision and message, a dashboard of what is not ready whose states open the kind's list filtered to them, and Reconcile, Reconcile with Source (which waits for the source, as the flux CLI does, in a dock tab of its own), Reset, Suspend and Resume, on a selection too.
 - 🐙 Argo CD: its section in the navigator (Applications, Application Sets, Projects, and the repositories and clusters without their credentials), a dashboard of the Applications' health and sync state, Sync (with prune) and Refresh (normal or hard) through the Kubernetes API, on a selection too and within the project's sync windows, an Application's logs in one tab, and Argo CD's own UI through a port forward.
 - 🧪 Your images' vulnerability ratings from the Trivy Operator your cluster runs (since 2026-10-17): the Pods list's column Image Rating shows each pod's worst image (sort by it to find the worst first), a pod's drawer rates each of its images, "Critical · 39" in red down to "Clean" in green, with the counts per severity, the containers that run it, when it was scanned and a link to the report; an image without a report says "Not scanned", a pod none of whose images has one shows nothing. With the cluster's Trivy integration switched off (D-76's switch per cluster, on by default), nothing of it is read or shown. Cogpit installs no scanner.
-- 📈 CPU and memory from the cluster's metrics-server and its Prometheus: columns in the Pods and Nodes lists, charts with requests and limits in the pod and node drawers, and the cluster Overview: CPU, Memory and Pods of the master or worker nodes over a time range, with the Issues (pods, nodes and workloads in trouble, warning events) below. A node's history, its network and its filesystem come from node-exporter where it runs, and so do its disks: a small usage bar per filesystem it mounts in its drawer (the root first, then a data disk such as `/data`; the numbers in each bar's tooltip), the fullest of them in the Nodes list's Disk column. Cogpit installs nothing into your cluster for this: it finds the Prometheus and the exporters the cluster runs (your own charts, kube-prometheus-stack, the `prometheus` chart under any release name, and since 2026-10-16 night Thanos's Querier and VictoriaMetrics, single-node or the cluster's vmselect, by their usual service names) and reads them; where it finds no provider, the charts say so. A cluster that runs a Prometheus and a Thanos or VictoriaMetrics reads the Prometheus; name the other in Cluster Settings › Metrics › Prometheus service address (vmselect with the path prefix `/select/<tenant>/prometheus`).
+- 📈 CPU and memory from the cluster's metrics-server and its Prometheus: columns in the Pods and Nodes lists, charts with requests and limits in the pod and node drawers, and the cluster Overview: CPU, Memory and Pods of the master or worker nodes over a time range, with the Issues (pods, nodes and workloads in trouble, warning events) below. A node's history, its network and its filesystem come from node-exporter where it runs, and so do its disks: a small usage bar per filesystem it mounts in its drawer (the root first, then a data disk such as `/data`; the numbers in each bar's tooltip), the fullest of them in the Nodes list's Disk column. Cogpit installs nothing into your cluster for this: it finds the Prometheus and the exporters the cluster runs (your own charts, kube-prometheus-stack, the `prometheus` chart under any release name, and since 2026-10-16 night Thanos's Querier and VictoriaMetrics, single-node or the cluster's vmselect, by their usual service names) and reads them; where it finds no provider, the charts say so. A cluster that runs a Prometheus and a Thanos or VictoriaMetrics reads the Prometheus; name the other in Cluster Settings › Prometheus › Service address (vmselect with the path prefix `/select/<tenant>/prometheus`). Under the charts one row says where the numbers come from, "Prometheus ● 30 s ago" at the left and "Metrics Server ● now" at the right: the dot green while it answers, red while it does not or may not be read, grey while it is not found, a ring while nothing has asked it yet; its tooltip has the details. Only while one is not reachable does the row link to its settings ("Set its address…", "Settings…"); a cluster whose integrations are not chosen yet offers "Choose integrations…".
 - 🚨 The cluster's alerts from its Alertmanager (since 2026-10-17): a pill in the title bar, red from a critical alert, orange from a warning, yellow from an info alert, with the number of every active alert; a click opens the alert board, the alerts grouped by severity and alert name, each with its summary, since when it fires, its runbook and the object it is about one click away. Found by its service's name, or set in the cluster's Settings; read only.
 - 🛂 Kyverno's policy violations on your objects (since 2026-10-17): while the Kyverno integration is on for a cluster, every object a Kyverno policy report names with a failed rule, of an Audit policy or of an Enforce policy on an object from before it, shows the warning icon in its list ("Kyverno: 2 policy violations (require-team-label, …)") and a "Policy violations" group in its drawer; agents list them all with `kyverno_violations`. Cogpit reads the reports Kyverno writes and installs nothing ([Kyverno's policy violations](#kyvernos-policy-violations)).
 - 🛡️ Never surprises a cluster: destructive actions confirm, nothing is installed or written implicitly.
@@ -428,7 +428,9 @@ agents' to change ([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-
 
 The same page has copy icons (since 2026-10-17, F27): the one by **Cluster name** copies what the
 field shows (your display name, else the context's name in its kubeconfig), the one by
-**Kubeconfig** the file's whole path; a context merged from the default files has none there.
+**Kubeconfig** the file's whole path; a context merged from the default files has none there. The
+path itself is shown whole, wrapped where it is long, and selectable (since 2026-10-18, the owner's
+WF28): drag over it, double-click a word, ⌘A for all of it, ⌘C to copy.
 
 ### Cluster Settings › Integrations, and the question at a new cluster's first connect
 
@@ -445,18 +447,28 @@ question's first choice looks for. The Alertmanager's polls and the Trivy Operat
 reports are read only while the cluster is the one shown; a cluster connected in the background
 reads none of them.
 
-Cluster Settings › Integrations (between Namespaces and Metrics) has a row per integration: its
-switch, what Cogpit found ("Found automatically: monitoring/prometheus-server:http", "Needs manual
-configuration: none found by name" with a link to where Prometheus's address is set, "Not in this
-cluster", "No permission", "Not answering", "Checking…", "Off"), and what it adds. A switch applies to
-the connected cluster at once; off, Cogpit sends the cluster nothing for that integration and shows
-nothing of it. A cluster not chosen for yet says so ("Not chosen for this cluster yet: nothing is
-looked for until you tick one here or answer its question"), its rows off; ticking one there is a
-choice: that one is on, the others stay off. **Ask again** (beside it, not on the demo cluster)
-forgets the cluster's choice and asks the question again, from its first page, while the cluster is
-shown and connected; until you answer, nothing is read. The Metrics section's "Metrics source" is
-the same two metrics switches ("No metrics" with "Not chosen for this cluster yet: …" before you
-chose).
+In Cluster Settings the integrations stand under a divider below Agents (since 2026-10-18,
+[D-87](decisions.md#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer)):
+the heading **Integrations**, which opens a section for all five, then **Metrics Server**,
+**Prometheus**, **Alertmanager**, **Trivy Operator** and **Kyverno**, a section each.
+Integrations has a row per integration: its switch, what Cogpit found ("Found automatically:
+monitoring/prometheus-server:http", "Needs manual configuration: none found by name", "Not in this
+cluster", "No permission", "Not answering", "Checking…", "Off"), what it adds, and a link to its own
+section ("Details…", "Set its address…" while Prometheus or Alertmanager needs one). An
+integration's own section has its switch ("On for this cluster"), the same status (where a found
+Prometheus or Alertmanager runs, its namespace and service as links that close the settings and
+open them), what it adds, and its details: Prometheus's query format, service address, HTTPS and
+path prefix; Alertmanager's service address, HTTPS and path prefix. They can be set while the
+integration is off; setting them sends nothing, and switched on, Cogpit asks only that address. A
+switch applies to the connected cluster at once; off, Cogpit sends the cluster nothing for that
+integration and shows nothing of it. A cluster not chosen for yet says so ("Not chosen for this
+cluster yet: nothing is looked for until you tick one here or answer its question"), its switches
+off; ticking one is a choice: that one is on, the others stay off. **Ask again** (on Integrations,
+not on the demo cluster) forgets the cluster's choice and asks the question again, from its first
+page, while the cluster is shown and connected; until you answer, nothing is read. Cluster Settings
+› Metrics names the two integrations it reads, the Metrics Server and Prometheus, each with its
+state and a link to its section, and keeps Hide metrics; before you chose it says that no metrics
+are asked until you choose.
 
 **What you see at a cluster's first connect:** a cluster you have not chosen integrations for asks,
 once it is connected and shown, in a dialog over the window "Integrations for <name>" (the cluster's
@@ -803,9 +815,9 @@ installs none.
   30 seconds, through the API server, for the alerts that fire and are neither silenced nor
   inhibited; only while the cluster is the one shown. Your user needs `get services/proxy` on that
   service. When it runs under another name, set **Alertmanager service address**
-  (`namespace/service:port`), **Use HTTPS** and **Alertmanager path prefix** in the cluster's
-  Settings › Metrics (until the Integrations section takes them); empty finds it by name again. The
-  line under the address says which one is in use.
+  (`namespace/service:port`), **Use HTTPS** and **Path prefix** in the cluster's Settings ›
+  Alertmanager (its own section since 2026-10-18); empty finds it by name again. The line under the
+  address says which one is in use. The board's settings link opens that section.
 - **The pill,** left of the bell: red while an alert is critical, orange while one is a warning
   (also `major` and any other or missing severity), yellow while one is info, the bell's colour
   without alerts; its number is every alert, `99+` beyond 99, and the tooltip counts them by

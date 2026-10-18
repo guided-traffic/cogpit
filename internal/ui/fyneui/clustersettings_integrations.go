@@ -15,12 +15,20 @@ import (
 // manual configuration (the owner's requirement of 2026-10-17, I1): one row per integration,
 // its switch with its label, a status line in the status colours ("Found automatically:
 // monitoring/kube-prometheus-alertmanager:9093", "Needs manual configuration: none found by name",
-// "Not in this cluster: …", "No permission: …", "Checking…", "Off", "Not connected"), and the line
-// of what it adds. Lens has no such section: its place (before Metrics), the wording and the rows
-// are Cogpit's (the lead's decisions, 2026-10-17). A switch dispatches cluster.settings.set's
+// "Not in this cluster: …", "No permission: …", "Checking…", "Off", "Not connected"), the line of
+// what it adds, and a link to the integration's own section (D-87: "Details…", or "Set its
+// address…" while Prometheus or Alertmanager needs one). Lens has no such section: the wording and
+// the rows are Cogpit's (the lead's decisions, 2026-10-17). A switch dispatches cluster.settings.set's
 // integrations at once and makes the choice the cluster's own; the status follows
 // EventIntegrations and EventMetrics. The window's question about a new cluster's integrations
-// (integrationsask.go) shows the same rows.
+// (integrationsask.go) shows the same rows, without the links.
+//
+// Since the owner's WF22 of 2026-10-18 (D-87) the section is the heading of the integrations in
+// the page's list, under a divider below Agents, and each integration has a section of its own
+// below it (clustersettings_integration.go) with its switch, its state and its details: Prometheus's
+// address and query format (before on Metrics), Alertmanager's address (before under its row here).
+// This section keeps what concerns them all: the note while the cluster has no choice, Ask again,
+// and the rows to switch them at a glance.
 
 const (
 	integrationsSetting = "integrations"
@@ -31,35 +39,35 @@ const (
 	// integrationsAskAgain is the button that asks the question again, and the line beside it (D-82, WF4).
 	integrationsAskAgain     = "Ask again"
 	integrationsAskAgainHint = "Shows the question again from its first choice; nothing is read until you answer it."
+	// integrationDetailsLink leads from a row to the integration's own section (D-87).
+	integrationDetailsLink = "Details…"
 )
 
 func init() { clusterSectionLabels[engine.SectionIntegrations] = integrationsLabel }
 
-// integrationRowExtras are what an integration's own file puts under its row in the section, for
-// the shown context (Alertmanager's address fields, filled in an init of its file); none: the row
-// alone. Built with the section; the extra follows the state by itself.
-var integrationRowExtras = map[engine.Integration]func(p *settingsPage, ctx string) fyne.CanvasObject{}
-
 // integrationRow is one integration's row: its switch with its label, the status line, and the line
-// of what it adds; on the settings page a link to where a manual address is set (Prometheus's).
+// of what it adds; on the settings page a link to the integration's own section.
 type integrationRow struct {
 	name   engine.Integration
 	check  *widget.Check
-	status *textLine
+	status *sourceLine     // plain text, or with the Service's namespace and name as links (placeLinks)
 	slot   *fyne.Container // holds the status line, and the link beside it
-	link   *linkText       // "Set its address…" for Prometheus while it needs one; nil elsewhere
+	link   *linkText       // "Details…" or "Set its address…" to the integration's section; nil elsewhere
 	adds   *textLine
 	box    *fyne.Container
 	state  engine.IntegrationState  // the status shown, for the link and tests
 	last   engine.IntegrationStatus // the status as the engine gave it
+
+	// placeLinks makes the place of a found Prometheus or Alertmanager links (serviceSegments); nil:
+	// the status line is plain text.
+	placeLinks func(text, where string) []lineSeg
 }
 
 // newIntegrationRow builds a row; onSwitch receives the user's switch (not the state's).
 func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integrationRow {
 	r := &integrationRow{name: in.Name}
 	r.check = widget.NewCheck(in.Label, onSwitch)
-	r.status = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	r.status.truncate = true
+	r.status = newSourceLine("", colorMuted, theme.SizeNameText)
 	r.adds = newTextLine(in.Adds, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.adds.truncate = true
 	r.slot = container.NewStack(r.status)
@@ -68,33 +76,48 @@ func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integ
 	return r
 }
 
-// withLink adds the link to where its address is set, shown while the status asks for one.
-func (r *integrationRow) withLink(text string, onTap func()) {
-	r.link = newLinkText(text, onTap)
+// withLink adds the link to the integration's section, after the status line.
+func (r *integrationRow) withLink(onTap func()) {
+	r.link = newLinkText(integrationDetailsLink, onTap)
 	r.link.size = theme.SizeNameCaptionText
-	r.link.Hide()
 	r.slot.Objects = []fyne.CanvasObject{box(textThenLink{}, r.status, r.link)}
 	r.slot.Refresh()
 }
 
-// withExtra puts an integration's own controls under its row.
-func (r *integrationRow) withExtra(o fyne.CanvasObject) {
-	if o != nil {
-		r.box.Add(box(checkIndent{}, inset("", theme.SizeNamePadding, o)))
+// needsAddress reports whether a status asks for the address the user sets: Prometheus's and
+// Alertmanager's while none is found by name, the one found does not answer, or the one set.
+func needsAddress(st engine.IntegrationStatus) bool {
+	if st.Name != engine.IntegrationPrometheus && st.Name != engine.IntegrationAlertmanager {
+		return false
 	}
+	switch st.State {
+	case engine.IntegrationManual, engine.IntegrationUnavailable, engine.IntegrationConfigured:
+		return true
+	}
+	return false
 }
 
 // setStatus shows what Cogpit knows of the integration.
 func (r *integrationRow) setStatus(st engine.IntegrationStatus) {
 	text, c := integrationStatusLine(st)
 	r.state, r.last = st.State, st
-	r.status.SetText(text)
+	switch {
+	case r.placeLinks != nil && st.Where != "" && (st.State == engine.IntegrationFound || st.State == engine.IntegrationConfigured) &&
+		(st.Name == engine.IntegrationPrometheus || st.Name == engine.IntegrationAlertmanager):
+		r.status.setSegs(r.placeLinks(text, st.Where))
+	default:
+		r.status.SetText(text)
+	}
 	r.status.SetColor(c)
 	if r.link != nil {
-		if st.State == engine.IntegrationManual || st.State == engine.IntegrationUnavailable || st.State == engine.IntegrationConfigured {
-			r.link.Show()
-		} else {
-			r.link.Hide()
+		want := integrationDetailsLink
+		if needsAddress(st) {
+			want = "Set its address…"
+		}
+		if r.link.text != want {
+			r.link.text = want
+			r.link.Refresh()
+			r.slot.Refresh()
 		}
 	}
 }
@@ -134,14 +157,48 @@ func integrationStatusLine(st engine.IntegrationStatus) (string, fyne.ThemeColor
 	return "Checking…", colorStatusPending
 }
 
+// openIntegrationSection shows an integration's own section of a context's settings (D-87).
+func (p *settingsPage) openIntegrationSection(ctx string, name engine.Integration) {
+	p.sh.dispatch("cluster.settings.open", clusterSettingsOpenParams{Context: ctx, Section: engine.IntegrationSection(name)}, nil)
+}
+
+// integrationStatuses are the shown context's integrations by name, as the page's view has them;
+// none while it loads.
+func (p *settingsPage) integrationStatuses() map[engine.Integration]engine.IntegrationStatus {
+	out := map[engine.Integration]engine.IntegrationStatus{}
+	if p.view != nil {
+		for _, st := range p.view.Integrations {
+			out[st.Name] = st
+		}
+	}
+	return out
+}
+
+// integrationsNote is the note while the shown cluster has no choice of integrations (D-82), shown
+// by syncIntegrationsNote.
+func (p *settingsPage) integrationsNote() *textLine {
+	note := newTextLine(integrationsUndecided, colorStatusPending, theme.SizeNameCaptionText, fyne.TextStyle{})
+	note.truncate = true
+	p.controls["integrationsNote"] = note
+	return note
+}
+
+// syncIntegrationsNote shows the note while the shown cluster has no choice of its own in a window
+// that asks before it looks (D-82).
+func (p *settingsPage) syncIntegrationsNote(note fyne.CanvasObject) {
+	if u := p.sh.ui; u.IntegrationsAskFirst && !u.IntegrationsDecided(p.shown.Context) {
+		note.Show()
+	} else {
+		note.Hide()
+	}
+}
+
 // clusterIntegrationsSection builds a cluster's Settings › Integrations.
 func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 	ctx := p.shown.Context
 	help := newTextLine(integrationsHelp, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	help.truncate = true
-	note := newTextLine(integrationsUndecided, colorStatusPending, theme.SizeNameCaptionText, fyne.TextStyle{})
-	note.truncate = true
-	p.controls["integrationsNote"] = note
+	note := p.integrationsNote()
 	// Ask again (D-82, the owner's WF4): the question from its pre-choice, the cluster's choice
 	// forgotten; not on the demo cluster, which is never asked.
 	ask := widget.NewButton(integrationsAskAgain, func() {
@@ -162,49 +219,43 @@ func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 		r := newIntegrationRow(in, func(on bool) {
 			p.setCluster(integrationsSetting, map[string]bool{string(name): on}) // nothing while syncing
 		})
-		if name == engine.IntegrationPrometheus {
-			r.withLink("Set its address…", func() {
-				p.sh.dispatch("cluster.settings.open", clusterSettingsOpenParams{Context: ctx, Section: engine.SectionMetrics}, nil)
-			})
-		}
-		if extra := integrationRowExtras[name]; extra != nil {
-			r.withExtra(extra(p, ctx))
-		}
+		r.withLink(func() { p.openIntegrationSection(ctx, name) })
 		p.controls["integration:"+string(name)] = r.box
 		rows = append(rows, r)
 		objs = append(objs, r.box)
 	}
 	p.integrationRows = rows
 	p.sync = func() {
-		v := p.clusterView()
-		statuses := map[engine.Integration]engine.IntegrationStatus{}
-		if p.view != nil {
-			for _, st := range v.Integrations {
-				statuses[st.Name] = st
-			}
-		}
+		statuses := p.integrationStatuses()
 		for _, r := range rows {
 			r.check.SetChecked(p.sh.ui.IntegrationOn(ctx, r.name)) // the UI state's, so the switch follows at once
 			if st, ok := statuses[r.name]; ok {
 				r.setStatus(st)
 			}
 		}
-		if p.sh.ui.IntegrationsDecided(ctx) {
-			note.Hide()
-		} else {
-			note.Show()
-		}
+		p.syncIntegrationsNote(note)
 	}
 	return container.NewVBox(p.setting(integrationsSetting, integrationsLabel, "", box(layout.NewCustomPaddedVBoxLayout(8), objs...)))
 }
 
+// showsIntegrations reports whether the shown section shows integrations' states: Integrations, an
+// integration's own section, or Metrics, which names the two it reads (D-87).
+func (p *settingsPage) showsIntegrations() bool {
+	if !p.visible() || p.shown.Page != engine.SettingsCluster {
+		return false
+	}
+	if _, ok := engine.IntegrationOfSection(p.shown.Section); ok {
+		return true
+	}
+	return p.shown.Section == engine.SectionIntegrations || p.shown.Section == engine.SectionMetrics
+}
+
 // integrationsChanged follows a change of what Cogpit knows of a cluster's integrations
-// (EventIntegrations for ctx; "" for any cluster, EventMetrics): the Integrations section and the
+// (EventIntegrations for ctx; "" for any cluster, EventMetrics): the sections that show them and the
 // question read them again. Main goroutine.
 func (sh *shell) integrationsChanged(ctx string) {
 	p := sh.settings
-	if p.visible() && p.shown.Page == engine.SettingsCluster && p.shown.Section == engine.SectionIntegrations &&
-		(ctx == "" || ctx == p.shown.Context) {
+	if p.showsIntegrations() && (ctx == "" || ctx == p.shown.Context) {
 		p.requestView()
 	}
 	sh.intq.statusesChanged(ctx)
@@ -228,11 +279,24 @@ func (textThenLink) gap() float32 {
 	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameInnerPadding)
 }
 
+// textWidthOf is the width a text line or a link takes unshortened.
+func textWidthOf(o fyne.CanvasObject) float32 {
+	switch t := o.(type) {
+	case *textLine:
+		return fyne.MeasureText(t.text, t.Theme().Size(t.size), t.style).Width + 1
+	case *sourceLine:
+		return fyne.MeasureText(t.text, t.Theme().Size(t.size), fyne.TextStyle{}).Width + 1
+	case *linkText:
+		return fyne.MeasureText(t.text, t.Theme().Size(t.size), fyne.TextStyle{}).Width + 1
+	}
+	return o.MinSize().Width
+}
+
 func (l textThenLink) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	ms := objs[0].MinSize()
 	if objs[1].Visible() {
 		lm := objs[1].MinSize()
-		ms = fyne.NewSize(ms.Width+l.gap()+lm.Width, max(ms.Height, lm.Height))
+		ms = fyne.NewSize(ms.Width+l.gap()+textWidthOf(objs[1]), max(ms.Height, lm.Height))
 	}
 	return ms
 }
@@ -241,17 +305,13 @@ func (l textThenLink) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	text, link := objs[0], objs[1]
 	lw := float32(0)
 	if link.Visible() {
-		lw = link.MinSize().Width + l.gap()
+		lw = textWidthOf(link) + l.gap()
 	}
-	tw := size.Width - lw
-	if t, ok := text.(*textLine); ok {
-		th := t.Theme()
-		tw = min(tw, fyne.MeasureText(t.text, th.Size(t.size), t.style).Width+1)
-	}
+	tw := min(size.Width-lw, textWidthOf(text))
 	text.Move(fyne.NewPos(0, 0))
 	text.Resize(fyne.NewSize(max(tw, 0), size.Height))
 	link.Move(fyne.NewPos(max(tw, 0)+l.gap(), 0))
-	link.Resize(fyne.NewSize(link.MinSize().Width, size.Height))
+	link.Resize(fyne.NewSize(max(lw-l.gap(), 0), size.Height))
 }
 
 func (l checkIndent) MinSize(objs []fyne.CanvasObject) fyne.Size {

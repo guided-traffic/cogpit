@@ -583,11 +583,34 @@ var PreferencesSections = []string{SectionApp, SectionProxy, SectionKubernetes, 
 // order (General, Proxy, Terminal, Namespaces, Metrics, ..., Node Shell) without Lens's Cost and
 // Lens Metrics (Cogpit installs nothing into a cluster for its own features: it reads the metrics
 // stack the cluster runs, D-61, owner 2026-10-16), then Cogpit's own Agents (allowance.go; its
-// place inferred: last, Lens has no such section). Cogpit's own Integrations (D-76) stands right
-// before Metrics: which tools Cogpit reads, then the details of the metrics ones (the lead's
-// decision, 2026-10-17).
-var ClusterSettingsSections = []string{SectionGeneral, SectionProxy, SectionTerminal, SectionNamespaces, SectionIntegrations,
-	SectionMetrics, SectionNodeShell, SectionAgents}
+// place inferred: last, Lens has no such section). Below them, under a divider, Cogpit's own
+// integrations (D-76; the owner's WF22, D-87): Integrations, every integration's switch and state
+// with Ask again, then one section per integration, named as the integration is
+// (IntegrationSection), with its switch, its state and its details (Prometheus's address and query
+// format, Alertmanager's address). Metrics keeps what concerns the metrics themselves and names the
+// two integrations it reads.
+var ClusterSettingsSections = append([]string{SectionGeneral, SectionProxy, SectionTerminal, SectionNamespaces,
+	SectionMetrics, SectionNodeShell, SectionAgents, SectionIntegrations}, integrationSections()...)
+
+// IntegrationSection is the Cluster settings section of an integration: its name, as
+// cluster.settings.set's integrations write it ("metrics-server", "prometheus", "alertmanager",
+// "trivy", "kyverno"), so that an agent names an integration one way everywhere.
+func IntegrationSection(name Integration) string { return string(name) }
+
+// IntegrationOfSection returns the integration a Cluster settings section shows; ok is false for
+// a section that is no integration's.
+func IntegrationOfSection(section string) (IntegrationInfo, bool) {
+	return IntegrationOf(Integration(section))
+}
+
+// integrationSections are the integrations' sections, in Integrations' order.
+func integrationSections() []string {
+	out := make([]string, 0, len(Integrations))
+	for _, in := range Integrations {
+		out = append(out, IntegrationSection(in.Name))
+	}
+	return out
+}
 
 // SettingsPage is the open settings page: Preferences, or one context's Cluster settings, and the
 // section shown.

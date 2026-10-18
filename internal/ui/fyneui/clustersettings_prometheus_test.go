@@ -30,7 +30,17 @@ func newPromSettingsFake(t *testing.T, set engine.PrometheusSetting) *promSettin
 	f.ui.Context, f.ui.Connection = "kind-dev", engine.Connection{State: engine.Connected}
 	pf := &promSettingsFake{fakeEngine: f, set: set}
 	f.handlers["cluster.settings.get"] = func(context.Context, engine.Invocation) (any, error) {
-		return engine.ClusterSettingsView{Context: "kind-dev", Name: "kind-dev", ContextName: "kind-dev", Connected: true}, nil
+		pf.mu.Lock()
+		defer pf.mu.Unlock()
+		st := engine.IntegrationStatus{Name: engine.IntegrationPrometheus, On: true, State: engine.IntegrationChecking}
+		switch {
+		case pf.set.InUseStatus == metrics.StatusAvailable && pf.set.Auto:
+			st.State, st.Where = engine.IntegrationFound, pf.set.InUse
+		case pf.set.InUseStatus == metrics.StatusAvailable:
+			st.State, st.Where = engine.IntegrationConfigured, pf.set.Address+pf.set.Prefix
+		}
+		return engine.ClusterSettingsView{Context: "kind-dev", Name: "kind-dev", ContextName: "kind-dev", Connected: true,
+			Integrations: []engine.IntegrationStatus{st}}, nil
 	}
 	f.handlers["cluster.prometheus"] = func(context.Context, engine.Invocation) (any, error) {
 		pf.mu.Lock()
@@ -72,7 +82,7 @@ func openPromSettings(t *testing.T, mode ThemeMode, set engine.PrometheusSetting
 	sh, _, q := newTestShell(t, pf.fakeEngine, Options{Theme: mode})
 	sh.settings.typing = time.Millisecond
 	pf.update(func(u *engine.UIState) {
-		u.Settings = &engine.SettingsPage{Page: engine.SettingsCluster, Context: "kind-dev", Section: engine.SectionMetrics}
+		u.Settings = &engine.SettingsPage{Page: engine.SettingsCluster, Context: "kind-dev", Section: "prometheus"}
 	})
 	want := prometheusInUseLine(set)
 	q.until(t, "the Prometheus fields", func() bool {
@@ -180,7 +190,7 @@ func TestPrometheusSettingsOnThePage(t *testing.T) {
 func TestPrometheusSettingsNeedAConnection(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
-	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "metrics"})
+	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "prometheus"})
 	q.until(t, "the fields disabled", func() bool {
 		f := sh.settings.prom
 		return f != nil && sh.settings.view != nil && f.line.text == "Connect to this cluster to set its Prometheus." &&

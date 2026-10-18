@@ -159,7 +159,7 @@ func (p *settingsPage) renderNav() {
 	if p.shown.Page == engine.SettingsCluster {
 		sections, labels = engine.ClusterSettingsSections, clusterSectionLabels
 	}
-	objs := make([]fyne.CanvasObject, 0, len(sections))
+	objs := make([]fyne.CanvasObject, 0, len(sections)+1)
 	clear(p.navItems)
 	for _, s := range sections {
 		if s == engine.SectionAgent && !p.sh.chat.available() {
@@ -173,6 +173,12 @@ func (p *settingsPage) renderNav() {
 			b.Importance = widget.HighImportance
 		}
 		p.navItems[s] = b
+		if p.shown.Page == engine.SettingsCluster && s == engine.SectionIntegrations {
+			// The integrations under a divider, their heading a section of its own (D-87,
+			// clustersettings_nav.go).
+			objs = append(objs, navDivider(), newNavHeading(b, labels[s]))
+			continue
+		}
 		objs = append(objs, b)
 	}
 	p.nav.Objects = objs

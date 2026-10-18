@@ -5,7 +5,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -178,26 +177,25 @@ func TestIntegrationsQuestionLaterAndAgent(t *testing.T) {
 	}
 }
 
-// Cluster Settings › Metrics of a cluster without a choice of integrations (D-82): the source reads
-// No metrics, and the line says why: nothing is asked until the user chooses. Choosing Automatic
-// there is a choice: the line names the source again.
+// Cluster Settings › Metrics of a cluster without a choice of integrations (D-82): under its two
+// sources (D-87) a line says nothing is asked until the user chooses. An agent's metricsSource
+// (Automatic) is a choice: the line goes; the other integrations stay off.
 func TestMetricsSourceLineUndecided(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "metrics"})
-	line := func() string {
-		l, ok := sh.settings.controls["metricsSourceLine"].(*textLine)
-		if !ok {
-			return ""
-		}
-		return l.text
+	undecided := func() bool {
+		l, ok := sh.settings.controls["metricsSourceUndecided"].(*textLine)
+		return ok && l.Visible() && l.text == metricsSourceUndecided
 	}
-	q.until(t, "the undecided line", func() bool { return sh.settings.view != nil && line() == metricsSourceUndecided })
-	if sel := sh.settings.controls["metricsSourceSelect"].(*widget.Select); sel.Selected != "No metrics" {
-		t.Errorf("the source of an undecided cluster: %q", sel.Selected)
+	q.until(t, "the undecided line", func() bool { return sh.settings.view != nil && undecided() })
+	for _, name := range metricsSourceIntegrations {
+		if sh.settings.controls["metricsSource:"+string(name)] == nil {
+			t.Errorf("no source row for %s", name)
+		}
 	}
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "metricsSource": "auto"})
-	q.until(t, "Automatic chosen", func() bool { return line() == "Applies while this cluster is connected." })
+	q.until(t, "Automatic chosen", func() bool { return sh.settings.controls["metricsSourceUndecided"] != nil && !undecided() })
 	if u := s.UIState(); !u.IntegrationsDecided("kind-dev") || u.IntegrationOn("kind-dev", engine.IntegrationTrivy) {
 		t.Errorf("Automatic on an undecided cluster: decided %v, Trivy on %v", u.IntegrationsDecided("kind-dev"),
 			u.IntegrationOn("kind-dev", engine.IntegrationTrivy))

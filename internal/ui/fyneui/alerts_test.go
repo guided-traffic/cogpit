@@ -244,13 +244,13 @@ func renderAlertBoard(t *testing.T, mode ThemeMode) {
 	savePNG(t, w, "alert_board_"+string(mode)+".png")
 }
 
-// openAlertmanagerSettings shows the cluster's Settings › Integrations and waits for the Alertmanager's
+// openAlertmanagerSettings shows the cluster's Settings › Alertmanager (D-87) and waits for its
 // fields to show the engine's setting.
 func openAlertmanagerSettings(t *testing.T, s *engine.Session, sh *shell, q *mainQueue) *amFields {
 	t.Helper()
 	ctx := s.UIState().Context
 	if _, err := s.Dispatch(context.Background(), engine.Invocation{ID: "cluster.settings.open",
-		Params: []byte(`{"context":"` + ctx + `","section":"integrations"}`), Origin: engine.OriginGUI}); err != nil {
+		Params: []byte(`{"context":"` + ctx + `","section":"alertmanager"}`), Origin: engine.OriginGUI}); err != nil {
 		t.Fatal(err)
 	}
 	var f *amFields
@@ -269,8 +269,7 @@ func openAlertmanagerSettings(t *testing.T, s *engine.Session, sh *shell, q *mai
 	return f
 }
 
-// The Alertmanager's address on Cluster Settings (D-77; under Alertmanager's row on the
-// Integrations section): the setting in use read from the engine, an address typed
+// The Alertmanager's address on Cluster Settings (D-77; on Alertmanager's own section, D-87): the setting in use read from the engine, an address typed
 // set with cluster.setAlertmanager after the typing pause and kept by the engine, emptied: found by
 // name again.
 func TestAlertmanagerAddressFields(t *testing.T) {
@@ -292,7 +291,7 @@ func TestAlertmanagerAddressFields(t *testing.T) {
 	q.until(t, "found by name again", func() bool { set, _ := s.AlertmanagerSetting(""); return set.Auto })
 }
 
-// Renders of the Integrations section with the Alertmanager's address, dark and light, for review.
+// Renders of Alertmanager's section with its address, dark and light, for review.
 func TestRenderAlertmanagerFieldsDark(t *testing.T) { renderAlertmanagerFields(t, ThemeDark) }
 
 func TestRenderAlertmanagerFieldsLight(t *testing.T) { renderAlertmanagerFields(t, ThemeLight) }

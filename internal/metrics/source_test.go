@@ -72,7 +72,7 @@ func TestMetricsSourceNone(t *testing.T) {
 		t.Errorf("metrics turned off still asked: %d gets, %d range queries more", g-gets, len(d.hist.ranges())-ranges)
 	}
 	st := d.h.State(podA)
-	if st.Status != metrics.StatusNotServed || !strings.Contains(st.Message, "turns metrics off") {
+	if st.Status != metrics.StatusNotServed || !strings.Contains(st.Message, "switched off for this cluster") {
 		t.Errorf("state %+v", st)
 	}
 	if ps := d.h.Providers(); len(ps) != 0 {

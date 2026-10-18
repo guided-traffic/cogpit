@@ -12,17 +12,19 @@ import (
 	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
-// Cluster Settings › Metrics › the Prometheus (G12; engine/metricssettings.go, cluster.prometheus
-// and cluster.setPrometheus). Lens's Metrics page shows, captured: a "Prometheus" dropdown (its
-// query formats), a checkbox that filters empty containers out of the queries (on), the
-// auto-detected provider and its path, a checkbox for HTTPS (off) and a custom path prefix. Cogpit
-// shows them on the page as well since 2026-10-16 night (before, a dialog the page's button opened):
+// Cluster Settings › Prometheus, the integration's own section (G12; D-87, the owner's WF22 of
+// 2026-10-18: until then on Cluster Settings › Metrics, where Lens has them; engine/metricssettings.go,
+// cluster.prometheus and cluster.setPrometheus). Lens's Metrics page shows, captured: a "Prometheus"
+// dropdown (its query formats), a checkbox that filters empty containers out of the queries (on),
+// the auto-detected provider and its path, a checkbox for HTTPS (off) and a custom path prefix.
+// Cogpit shows them on the page as well since 2026-10-16 night (before, a dialog the page's button
+// opened), under the integration's switch (integrationDetails, clustersettings_integration.go):
 //
-//   - Prometheus: the query format as Cogpit's presets (metrics.QueryFormats: where a node's series
-//     come from; Lens's provider list is not reproduced, D-12) and "Filter empty containers";
-//   - Prometheus service address: namespace/service:port, empty for detection by name (the
-//     lead's decision of the night run, 2026-10-16/17: Lens's empty field rather than the dialog's
-//     "Auto detect" check), a line naming the Prometheus in use, and "Use HTTPS";
+//   - Query format: Cogpit's presets (metrics.QueryFormats: where a node's series come from; Lens's
+//     provider list is not reproduced, D-12) and "Filter empty containers";
+//   - Service address: namespace/service:port, empty for detection by name (the lead's decision of
+//     the night run, 2026-10-16/17: Lens's empty field rather than the dialog's "Auto detect"
+//     check), a line naming the Prometheus in use, and "Use HTTPS";
 //   - Path prefix: the service's route prefix, for a service address only.
 //
 // A select or check is set at once, a text field after the typing pause; each change sets the
@@ -42,7 +44,13 @@ const (
 // autoSetting is cluster.setPrometheus's word for detection (address) and the detected query format.
 const autoSetting = "auto"
 
-// promFields are the Prometheus's controls of the shown Metrics section.
+func init() {
+	integrationDetails[engine.IntegrationPrometheus] = func(p *settingsPage) (fyne.CanvasObject, func()) {
+		return p.prometheusSettings()
+	}
+}
+
+// promFields are the Prometheus's controls of the shown Prometheus section.
 type promFields struct {
 	format  *widget.Select
 	filter  *widget.Check
@@ -108,9 +116,9 @@ func (p *settingsPage) prometheusSettings() (fyne.CanvasObject, func()) {
 		}
 	}
 	return container.NewVBox(
-		p.setting(promFormatSetting, "Prometheus", "The query format: how this cluster's Prometheus names a node's series.",
+		p.setting(promFormatSetting, "Query format", "How this cluster's Prometheus names a node's series.",
 			container.NewVBox(f.format, f.filter)),
-		p.setting(promAddressSetting, "Prometheus service address",
+		p.setting(promAddressSetting, "Service address",
 			"Empty: found by its name among the cluster's services. Kept in Cogpit's settings, never the kubeconfig.",
 			container.NewVBox(f.address, f.line, f.https)),
 		p.setting(promPrefixSetting, "Path prefix",
@@ -207,7 +215,19 @@ func (p *settingsPage) showPrometheus(f *promFields, set engine.PrometheusSettin
 	p.setEntry(f.address, f.address, promAddressSetting, set.Address)
 	p.setEntry(f.prefix, f.prefix, promPrefixSetting, set.Prefix)
 	f.follow()
-	f.line.SetText(prometheusInUseLine(set))
+	f.line.SetText(prometheusLine(set, p.sh.ui.IntegrationOn(p.shown.Context, engine.IntegrationPrometheus)))
+}
+
+// prometheusLine is the line under the address: the Prometheus in use, or that the integration is
+// off, its setting kept for when it is on (D-87).
+func prometheusLine(set engine.PrometheusSetting, on bool) string {
+	if on {
+		return prometheusInUseLine(set)
+	}
+	if set.Auto {
+		return "Auto detect: the Prometheus integration is off for this cluster."
+	}
+	return "Set: the Prometheus integration is off for this cluster."
 }
 
 // prometheusInUseLine names the Prometheus in use under the address: found by name or set, and

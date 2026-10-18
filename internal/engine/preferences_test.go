@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -260,6 +261,8 @@ func TestSettingsSections(t *testing.T) {
 	for _, c := range []struct{ page, in, want string }{
 		{SettingsPreferences, "", "app"}, {SettingsPreferences, "terminal", "terminal"},
 		{SettingsCluster, "", "general"}, {SettingsCluster, "metrics", "metrics"},
+		{SettingsCluster, "integrations", "integrations"}, {SettingsCluster, "prometheus", "prometheus"},
+		{SettingsCluster, "metrics-server", "metrics-server"},
 	} {
 		if got, err := CheckSection(c.page, c.in); err != nil || got != c.want {
 			t.Errorf("%s %q: %q, %v", c.page, c.in, got, err)
@@ -267,5 +270,40 @@ func TestSettingsSections(t *testing.T) {
 	}
 	if _, err := CheckSection(SettingsCluster, "editor"); err == nil {
 		t.Error("the cluster page took the editor section")
+	}
+	// The integrations after Agents, the heading's section first, then one per integration named as
+	// it is (D-87).
+	want := []string{"general", "proxy", "terminal", "namespaces", "metrics", "nodeShell", "agents", "integrations",
+		"metrics-server", "prometheus", "alertmanager", "trivy", "kyverno"}
+	if !slices.Equal(ClusterSettingsSections, want) {
+		t.Errorf("cluster sections %q", ClusterSettingsSections)
+	}
+	for _, in := range Integrations {
+		if got, ok := IntegrationOfSection(IntegrationSection(in.Name)); !ok || got.Name != in.Name {
+			t.Errorf("%s: section %q gives %v %v", in.Name, IntegrationSection(in.Name), got.Name, ok)
+		}
+	}
+	if _, ok := IntegrationOfSection("metrics"); ok {
+		t.Error("metrics is an integration's section")
+	}
+}
+
+// The one detection while shown runs while the question, Integrations, Metrics or a metrics
+// integration's own section shows the context (D-87), not for another section or context.
+func TestIntegrationsShownSections(t *testing.T) {
+	for section, want := range map[string]bool{
+		SectionIntegrations: true, SectionMetrics: true, "metrics-server": true, "prometheus": true,
+		"alertmanager": false, "kyverno": false, SectionGeneral: false,
+	} {
+		u := &UIState{Settings: &SettingsPage{Page: SettingsCluster, Context: "ctx", Section: section}}
+		if got := integrationsShown(u, "ctx"); got != want {
+			t.Errorf("%s: %v", section, got)
+		}
+		if integrationsShown(u, "other") {
+			t.Errorf("%s shown for another context", section)
+		}
+	}
+	if !integrationsShown(&UIState{IntegrationsQuestion: "ctx"}, "ctx") {
+		t.Error("the question")
 	}
 }

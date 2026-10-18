@@ -29,10 +29,11 @@ import (
 const promSource = "Prometheus (monitoring/prometheus-server)"
 
 // withPrometheus turns the canned Metrics Server numbers into Prometheus's: the capabilities, the
-// source, the pod's network (the container carries it as the pod's) and each target's
+// source and its providers, the pod's network (the container carries it as the pod's) and each target's
 // filesystem usage, at the same times as the CPU and memory samples.
 func withPrometheus(m *engine.ObjectMetrics) {
 	m.Source = promSource
+	m.Providers = bothAnswering() // the source row (D-88): Prometheus and the Metrics Server answering
 	m.Capabilities = metrics.Capabilities{History: true, Network: true, Filesystem: true}
 	m.FilesystemSource = "usage"
 	var net []model.NetworkSample
@@ -120,8 +121,8 @@ func promDrawer(t *testing.T, mode ThemeMode, more ...func(*engine.ObjectMetrics
 func TestPrometheusSourceAndVariants(t *testing.T) {
 	sh, _, _, p := promDrawer(t, ThemeDark)
 	texts := drawerTexts(sh)
-	if !slices.Contains(texts, "Displaying metrics from "+promSource) {
-		t.Errorf("source line missing: %q", texts[:8])
+	if !slices.ContainsFunc(texts, func(s string) bool { return strings.HasPrefix(s, "Prometheus ● ") }) {
+		t.Errorf("Prometheus missing on the source row: %q", texts[:8])
 	}
 	for _, s := range texts {
 		if strings.Contains(s, "keeps no history") {

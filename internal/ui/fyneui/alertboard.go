@@ -33,9 +33,9 @@ import (
 // narrow. A card of thousands would cost thousands of widgets at every refresh.
 const maxCardAlerts = 50
 
-// alertSettingsSection is where Cluster Settings shows the Alertmanager's address
-// (clustersettings_alertmanager.go).
-const alertSettingsSection = engine.SectionIntegrations
+// alertSettingsSection is where Cluster Settings shows the Alertmanager's address: its own section
+// (clustersettings_alertmanager.go, D-87).
+var alertSettingsSection = engine.IntegrationSection(engine.IntegrationAlertmanager)
 
 // alertBoard is the board's body.
 type alertBoard struct {

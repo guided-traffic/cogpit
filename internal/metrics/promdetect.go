@@ -85,7 +85,7 @@ type Candidate struct {
 // ranks before Thanos and VictoriaMetrics (D-71, the lead's decision of the night run
 // 2026-10-16/17): it holds the cluster's own series, where a Querier or a VictoriaMetrics may hold
 // several clusters' and Cogpit's queries do not narrow by a cluster label; the user names one in
-// Cluster Settings › Metrics to read it instead. Ties go to the namespaces named in
+// Cluster Settings › Prometheus to read it instead. Ties go to the namespaces named in
 // preferredNamespaces, then by name. A name that is not one of these is never tried: probing every
 // Service of a cluster would send a request each.
 var promNames = []promName{

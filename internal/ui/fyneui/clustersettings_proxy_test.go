@@ -32,11 +32,8 @@ func TestClusterProxyField(t *testing.T) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev"})
 	q.until(t, "the page", sh.settings.visible)
-	var labels []string
-	for _, o := range sh.settings.nav.Objects {
-		labels = append(labels, o.(*widget.Button).Text)
-	}
-	if !slices.Equal(labels, []string{"General", "Proxy", "Terminal", "Namespaces", "Integrations", "Metrics", "Node Shell", "Agents"}) {
+	if labels := navLabels(sh.settings); !slices.Equal(labels, []string{"General", "Proxy", "Terminal", "Namespaces", "Metrics", "Node Shell", "Agents",
+		"—", "INTEGRATIONS", "Metrics Server", "Prometheus", "Alertmanager", "Trivy Operator", "Kyverno"}) {
 		t.Fatalf("sections %q", labels)
 	}
 	test.Tap(sh.settings.navItems[engine.SectionProxy])
@@ -116,11 +113,7 @@ func TestPreferencesProxyField(t *testing.T) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "proxy"})
 	q.until(t, "the Proxy section", func() bool { return sh.settings.controls[httpProxySetting] != nil })
-	var labels []string
-	for _, o := range sh.settings.nav.Objects {
-		labels = append(labels, o.(*widget.Button).Text)
-	}
-	if !slices.Equal(labels, []string{"App", "Proxy", "Kubernetes", "Editor", "Terminal", "Tables"}) {
+	if labels := navLabels(sh.settings); !slices.Equal(labels, []string{"App", "Proxy", "Kubernetes", "Editor", "Terminal", "Tables"}) {
 		t.Fatalf("sections %q", labels)
 	}
 	e := sh.settings.controls[httpProxySetting].(*widget.Entry)

@@ -148,6 +148,8 @@ func podMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	cur := func(s []model.UsageSample) *model.Usage { u := s[len(s)-1].Usage; return &u }
 	return &engine.ObjectMetrics{
 		Ref: ref, Status: metrics.StatusAvailable, Source: "Kubernetes Metrics Server",
+		Providers: []metrics.ProviderStatus{{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusAvailable,
+			LastOK: fixedNow.Add(-5 * time.Second), Serves: []string{metrics.ServesLive}}},
 		Targets: []engine.MetricsTarget{
 			{
 				Current: cur(pod), At: fixedNow, Samples: pod,
@@ -222,8 +224,9 @@ func TestPodDrawerMetricsSection(t *testing.T) {
 	if texts[0] != "Metrics" {
 		t.Fatalf("the Metrics section must come first (Lens), got %q", texts[:3])
 	}
-	if i, j := slices.Index(texts, "Displaying metrics from Kubernetes Metrics Server"), slices.Index(texts, "Properties"); i < 0 || j < i {
-		t.Errorf("the source line must be in the Metrics section, before Properties: %q", texts[:6])
+	src := slices.IndexFunc(texts, func(s string) bool { return strings.HasPrefix(s, "Metrics Server ● ") })
+	if j := slices.Index(texts, "Properties"); src < 0 || j < src {
+		t.Errorf("the source row must be in the Metrics section, before Properties: %q", texts[:6])
 	}
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
 	if p.rangeSel.Selected != "1h" || p.window != time.Hour {
@@ -360,6 +363,8 @@ func TestNodeDrawerMetricsLines(t *testing.T) {
 	ref := model.ObjectRef{Context: "demo", Kind: "nodes", Name: fixtureNodeSpecs()[0].name}
 	f.metrics = map[string]*engine.ObjectMetrics{ref.String(): {
 		Ref: ref, Status: metrics.StatusAvailable, Source: "Kubernetes Metrics Server",
+		Providers: []metrics.ProviderStatus{{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusAvailable,
+			LastOK: fixedNow.Add(-5 * time.Second), Serves: []string{metrics.ServesLive}}},
 		Targets: []engine.MetricsTarget{{
 			Current: &model.Usage{CPUMilli: 1200, MemoryBytes: 3 << 30}, At: fixedNow,
 			Samples:     metricsSeries(40, func(i int) model.Usage { return model.Usage{CPUMilli: int64(900 + 8*i), MemoryBytes: 3 << 30} }),

@@ -192,7 +192,7 @@ func ParsePrometheusAddress(s string) (namespace, service, port string, err erro
 
 // PrometheusSetting is the Prometheus a connected cluster's metrics come from: the override, or
 // detection by name (Auto), and how it is asked (since 2026-10-16: Lens's query format,
-// empty-container filter and HTTPS, Cluster Settings › Metrics).
+// empty-container filter and HTTPS, Cluster Settings › Prometheus since D-87).
 type PrometheusSetting struct {
 	// Context is the connected context the setting belongs to.
 	Context string `json:"context"`
@@ -217,7 +217,7 @@ type PrometheusSetting struct {
 	// ("Prometheus monitoring/prometheus-k8s:web", "Thanos monitoring/thanos-query:http"), and
 	// InUseStatus what Cogpit knows of it (metrics.Status: unknown while nothing looked for it,
 	// notServed when detection found none). Read from the hub's last answers: no request. Since
-	// 2026-10-16 night, for Cluster Settings › Metrics.
+	// 2026-10-16 night, for the address's line on Cluster Settings › Prometheus.
 	InUse       string         `json:"inUse,omitempty"`
 	InUseStatus metrics.Status `json:"inUseStatus,omitempty"`
 }

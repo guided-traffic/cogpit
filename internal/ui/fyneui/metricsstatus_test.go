@@ -13,13 +13,14 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The status line under the drawer's charts and each chart's variant as engine state (G12, owner
+// The source row under the drawer's charts and each chart's variant as engine state (G12, owner
 // 2026-10-12, evening). The providers' states are canned as the engine reports them.
 
 // bothAnswering is the normal case: Prometheus gives the history (and the network and the
@@ -96,90 +97,121 @@ func (f *fakeEngine) setVariant(ref model.ObjectRef, container, variant string) 
 	f.emit(engine.Event{Type: engine.EventMetrics, View: ref.Kind})
 }
 
-func statusTexts(p *metricsPanel) []string {
+// chipTexts are the source row's providers as text, "Prometheus ● 40 s ago", in the row's order.
+func chipTexts(l *providerStatusLine) []string {
 	var out []string
-	for _, r := range p.status.rows {
-		if r.Visible() {
-			out = append(out, r.text.text)
+	for _, c := range l.chips {
+		if c.Visible() {
+			out = append(out, c.text())
 		}
 	}
 	return out
 }
 
-func TestProviderStatusLine(t *testing.T) {
+// The source row under the drawer's charts (D-88, the owner's WF24 and WF25): Prometheus at the
+// left, the Metrics Server at the right, each with its dot and when it last answered, the details
+// in its tooltip, no link while both answer; a provider that fails says so in a word, its dot red,
+// with a link to its section; Prometheus not found asks for its address.
+func TestSourceRow(t *testing.T) {
 	sh, f, q, p := promDrawer(t, ThemeDark, withProviders(bothAnswering()))
-	got := statusTexts(p)
-	want := []string{
-		"Prometheus monitoring/prometheus-server:http: history, network, filesystem · 40 s ago",
-		"Kubernetes Metrics Server: live values · 5 s ago",
+	got := chipTexts(p.status)
+	if want := []string{"Prometheus ● 40 s ago", "Metrics Server ● 5 s ago"}; !slices.Equal(got, want) {
+		t.Fatalf("source row = %q, want %q", got, want)
 	}
-	if !slices.Equal(got, want) {
-		t.Fatalf("status line = %q, want %q", got, want)
+	if p.caption.Visible() {
+		t.Errorf("a source line in prose above the row: %q", p.caption.text)
 	}
-	if r := p.status.rows[0]; r.line.color != colorStatusOK || !strings.Contains(r.line.tip, "Found and answering.") || !strings.Contains(r.line.tip, "Last good answer: 14:29:20 (40 s ago)") {
-		t.Errorf("Prometheus's row: %q in %q", r.line.tip, r.line.color)
+	prom, server := p.status.chips[0], p.status.chips[1]
+	if prom.look != dotAnswering || !strings.Contains(prom.tip, "Prometheus monitoring/prometheus-server:http") ||
+		!strings.Contains(prom.tip, "Found and answering.") || !strings.Contains(prom.tip, "Last good answer: 14:29:20 (40 s ago)") {
+		t.Errorf("Prometheus: %q, %+v", prom.tip, prom.look)
 	}
-	// Hovering a row shows its whole state.
-	row := p.status.rows[1]
-	row.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: fyne.NewPos(10, 10)}})
+	// The two at the row's ends.
+	settle(sh.win)
+	if prom.Position().X != 0 || server.Position().X+server.Size().Width < p.status.root.Size().Width-1 {
+		t.Errorf("Prometheus at %v, the Metrics Server at %v (+%v) in %v", prom.Position(), server.Position(), server.Size(), p.status.root.Size())
+	}
+	// Hovering a provider shows its whole state.
+	server.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: fyne.NewPos(10, 10)}})
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 	if tip := sh.tip.visibleText(); !strings.Contains(tip, "Kubernetes Metrics Server") || !strings.Contains(tip, "Serves: live values.") {
 		t.Errorf("tooltip = %q", tip)
 	}
-	row.MouseOut()
+	server.MouseOut()
 
-	// The Metrics Server stops answering: the line says so, with the failure's class, and that
-	// Prometheus serves the live values now; the tooltip has the last error's time.
+	// The Metrics Server stops answering: a red dot, "not answering" and a link to its settings;
+	// the tooltip has the last error's class and time.
 	f.mu.Lock()
 	m := *f.metrics[p.ref.String()]
 	m.Providers = serverDown()
 	f.metrics[p.ref.String()] = &m
 	f.mu.Unlock()
 	f.emit(engine.Event{Type: engine.EventMetrics, View: "pods"})
-	q.until(t, "the fallback on the status line", func() bool {
-		texts := statusTexts(p)
-		return len(texts) == 2 && strings.Contains(texts[1], "not answering")
+	q.until(t, "the Metrics Server down on the row", func() bool {
+		texts := chipTexts(p.status)
+		return len(texts) == 2 && texts[1] == "Metrics Server ● not answering · "+settingsLink
 	})
-	got = statusTexts(p)
-	if got[0] != "Prometheus monitoring/prometheus-server:http: history, live values, network, filesystem · 10 s ago" ||
-		got[1] != "Kubernetes Metrics Server: not answering, unavailable (HTTP 503) · last answer 3 min ago" {
-		t.Errorf("status line with the Metrics Server down = %q", got)
+	if server.look != dotFailing || !strings.Contains(server.tip, "Last error: unavailable (HTTP 503) at 14:29:35 (25 s ago)") {
+		t.Errorf("the Metrics Server: %q, %+v", server.tip, server.look)
 	}
-	if r := p.status.rows[1]; r.line.color != colorStatusWarning || !strings.Contains(r.line.tip, "Last error: unavailable (HTTP 503) at 14:29:35 (25 s ago)") {
-		t.Errorf("the Metrics Server's row: %q in %q", r.line.tip, r.line.color)
+	if got := chipTexts(p.status)[0]; got != "Prometheus ● 10 s ago" {
+		t.Errorf("Prometheus with the Metrics Server down: %q", got)
 	}
 
-	// Prometheus not found: the Metrics Server alone, the line says Prometheus is not found.
+	// Prometheus not found: a grey dot, "not found", and a link to set its address.
 	f.mu.Lock()
 	m.Providers = prometheusGone()
 	f.metrics[p.ref.String()] = &m
 	f.mu.Unlock()
 	f.emit(engine.Event{Type: engine.EventMetrics, View: "pods"})
 	q.until(t, "Prometheus not found", func() bool {
-		texts := statusTexts(p)
-		return len(texts) == 2 && texts[0] == "Prometheus: not found"
+		texts := chipTexts(p.status)
+		return len(texts) == 2 && texts[0] == "Prometheus ● not found · "+setAddressLink
 	})
-	if r := p.status.rows[0]; r.line.color != colorMuted || !strings.Contains(r.line.tip, "Not found in this cluster.") {
-		t.Errorf("Prometheus's row: %q in %q", r.line.tip, r.line.color)
+	if prom.look != dotAbsent || !strings.Contains(prom.tip, "Not found in this cluster.") {
+		t.Errorf("Prometheus: %q, %+v", prom.tip, prom.look)
 	}
 }
 
-// Every state has its icon and wording, and a status line never shows more than the class of a
-// failure (the engine hands it nothing else; the line adds nothing either).
-func TestProviderLineStates(t *testing.T) {
+// Every state has its dot and its word; a link only while a provider is not reachable; a tooltip
+// never shows more than the class of a failure (the engine hands it nothing else).
+func TestSourceChipStates(t *testing.T) {
+	a := test.NewTempApp(t)
+	a.Settings().SetTheme(newTheme(ThemeDark))
 	for _, tc := range []struct {
-		ps    metrics.ProviderStatus
-		text  string
-		color fyne.ThemeColorName
+		ps   metrics.ProviderStatus
+		text string
+		look dotLook
 	}{
-		{metrics.ProviderStatus{Label: "Prometheus", Status: metrics.StatusForbidden, LastError: "forbidden (HTTP 403)"}, "Prometheus: not allowed, forbidden (HTTP 403)", colorStatusError},
-		{metrics.ProviderStatus{Label: "Prometheus", Status: metrics.StatusUnknown}, "Prometheus: not looked for yet", colorMuted},
-		{metrics.ProviderStatus{Label: "Prometheus", Service: "monitoring/prometheus-server:http", Status: metrics.StatusAvailable}, "Prometheus monitoring/prometheus-server:http: answering, not needed now", colorStatusOK},
-		{metrics.ProviderStatus{Label: "Kubernetes Metrics Server", Status: metrics.StatusUnavailable, LastError: "timeout"}, "Kubernetes Metrics Server: not answering, timeout", colorStatusWarning},
+		{metrics.ProviderStatus{Provider: metrics.PrometheusID, Label: "Prometheus", Status: metrics.StatusForbidden, LastError: "forbidden (HTTP 403)"},
+			"Prometheus ● no permission · " + settingsLink, dotFailing},
+		{metrics.ProviderStatus{Provider: metrics.PrometheusID, Label: "Prometheus", Status: metrics.StatusUnknown}, "Prometheus ● waiting", dotWaiting},
+		{metrics.ProviderStatus{Provider: metrics.PrometheusID, Label: "Thanos", Service: "monitoring/thanos-query:http", Status: metrics.StatusAvailable},
+			"Thanos ● answering", dotAnswering},
+		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusUnavailable, LastError: "timeout"},
+			"Metrics Server ● not answering · " + settingsLink, dotFailing},
+		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusNotServed},
+			"Metrics Server ● not found · " + settingsLink, dotAbsent},
+		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusAvailable, LastOK: fixedNow},
+			"Metrics Server ● now", dotAnswering},
 	} {
-		l := providerLine(tc.ps, fixedNow, germanTime)
-		if l.text != tc.text || l.color != tc.color || l.icon == nil || !strings.HasPrefix(l.tip, tc.ps.Label) {
-			t.Errorf("%s %s: %q in %q (tip %q), want %q in %q", tc.ps.Label, tc.ps.Status, l.text, l.color, l.tip, tc.text, tc.color)
+		c := newSourceChip(&shell{app: a})
+		c.set(tc.ps, fixedNow, germanTime, nil)
+		if c.text() != tc.text || c.look != tc.look || !strings.HasPrefix(c.tip, tc.ps.Label) {
+			t.Errorf("%s %s: %q %+v (tip %q), want %q %+v", tc.ps.Label, tc.ps.Status, c.text(), c.look, c.tip, tc.text, tc.look)
+		}
+		if tc.ps.LastError != "" && !strings.Contains(c.tip, "Last error: "+tc.ps.LastError) {
+			t.Errorf("%s: tooltip without the failure's class: %q", tc.ps.Label, c.tip)
+		}
+	}
+	// An integration's state on Cluster Settings has the same colours (D-87).
+	for st, want := range map[engine.IntegrationState]dotLook{
+		engine.IntegrationFound: dotAnswering, engine.IntegrationConfigured: dotAnswering, engine.IntegrationUnavailable: dotFailing,
+		engine.IntegrationForbidden: dotFailing, engine.IntegrationMissing: dotAbsent, engine.IntegrationManual: dotAbsent,
+		engine.IntegrationOff: dotAbsent, engine.IntegrationChecking: dotWaiting, engine.IntegrationNotConnected: dotWaiting,
+	} {
+		if got := integrationDot(st); got != want {
+			t.Errorf("%s: %+v, want %+v", st, got, want)
 		}
 	}
 }
@@ -230,9 +262,10 @@ func TestMissingPartIsLeftOutOfTheChart(t *testing.T) {
 	}
 }
 
-// TestRenderMetricsStatusLine draws the status line under a pod's charts in both themes: both
-// providers answering, the Metrics Server down (Prometheus serves the live values), Prometheus not
-// found, and the narrowest drawer. To COGPIT_PNG_DIR or a temporary directory, never to testdata.
+// TestRenderMetricsStatusLine draws the source row under a pod's charts in both themes: both
+// providers answering, the Metrics Server down (its tooltip shown), Prometheus not found, and the
+// narrowest drawer, where the two stack. To COGPIT_PNG_DIR or a temporary directory, never to
+// testdata.
 func TestRenderMetricsStatusLine(t *testing.T) {
 	looks := []struct {
 		name   string
@@ -256,9 +289,9 @@ func TestRenderMetricsStatusLine(t *testing.T) {
 				}
 				settle(sh.win)
 				if l.hover {
-					r := p.status.rows[1]
-					pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(r)
-					r.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: pos.AddXY(40, 8)}})
+					c := p.status.chips[1]
+					pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(c)
+					c.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: pos.AddXY(20, 8), Position: fyne.NewPos(20, 8)}})
 					q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 					settle(sh.win)
 				}
@@ -280,28 +313,85 @@ func TestRenderMetricsStatusLine(t *testing.T) {
 	}
 }
 
-// The button under the status line opens the cluster's Settings › Metrics, where the Prometheus is
-// set (since 2026-10-16 night; before, a dialog with the same fields). The demo cluster, which has
-// no Prometheus to set, shows no button.
-func TestPrometheusButtonOpensTheSettings(t *testing.T) {
-	sh, f, q, p := promDrawer(t, ThemeDark, withProviders(bothAnswering()))
-	if !p.status.settings.Visible() {
-		t.Fatal("no Prometheus button under the status line")
+// The row's links (WF25): none while the providers answer; a provider not reachable links to its
+// section of the cluster's settings (D-87), the drawer's cluster's. The Prometheus… button under
+// the row is gone.
+func TestSourceRowLinksToTheSettings(t *testing.T) {
+	sh, f, q, p := promDrawer(t, ThemeDark, withProviders(prometheusGone()))
+	settle(sh.win)
+	c := p.status.chips[0]
+	if c.link != setAddressLink {
+		t.Fatalf("Prometheus not found: link %q", c.link)
 	}
-	p.status.settings.OnTapped()
+	if b := findAll[*tipButton](p.root); slices.ContainsFunc(b, func(b *tipButton) bool { return b.Text == "Prometheus…" }) {
+		t.Error("the Prometheus… button is still under the charts")
+	}
+	// A click on the name is no click on the link.
+	c.Tapped(&fyne.PointEvent{Position: fyne.NewPos(2, 4)})
+	settle(sh.win)
+	if n := len(f.callsOf("cluster.settings.open")); n != 0 {
+		t.Fatalf("a click on the name opened the settings (%d)", n)
+	}
+	c.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(c.linkStart()+4, 4)}})
+	if !c.hoverLink || c.Cursor() != desktop.PointerCursor {
+		t.Error("no hand over the link")
+	}
+	c.Tapped(&fyne.PointEvent{Position: fyne.NewPos(c.linkStart()+4, 4)})
 	q.until(t, "cluster.settings.open", func() bool { return len(f.callsOf("cluster.settings.open")) == 1 })
 	var params clusterSettingsOpenParams
 	if err := json.Unmarshal(normalize(f.callsOf("cluster.settings.open")[0].Params), &params); err != nil ||
-		params.Section != engine.SectionMetrics || params.Context != "" {
-		t.Errorf("cluster.settings.open %+v (%v): want the shown cluster's Metrics section", params, err)
+		params.Section != "prometheus" || params.Context != p.ref.Context {
+		t.Errorf("cluster.settings.open %+v (%v): want the drawer's cluster's Prometheus section", params, err)
 	}
 	if sh.win.Canvas().Overlays().Top() != nil {
 		t.Error("a dialog opened")
 	}
 
-	// Without a Prometheus among the providers (the demo cluster): no button.
-	p.status.set([]metrics.ProviderStatus{{Provider: "demo", Label: metrics.ServerLabel, Status: metrics.StatusAvailable}}, fixedNow)
-	if p.status.settings.Visible() {
-		t.Error("a Prometheus button without Prometheus")
+	// Both answering: no link.
+	p.status.set(bothAnswering(), fixedNow)
+	for _, c := range p.status.chips {
+		if c.link != "" {
+			t.Errorf("%s links to %q while it answers", c.name, c.link)
+		}
+	}
+}
+
+// A cluster whose integrations are not chosen (D-82) reads no metrics: the caption says why, and
+// the row offers the question again instead of the providers; the demo cluster is never asked; a
+// cluster with both switched off gives the reason and no question.
+func TestSourceRowUndecided(t *testing.T) {
+	sh, f, q, p := promDrawer(t, ThemeDark)
+	f.update(func(u *engine.UIState) { u.IntegrationsAskFirst = true })
+	q.until(t, "the window asks first", func() bool { return sh.ui.IntegrationsAskFirst })
+	const off = "the Metrics Server and Prometheus are switched off for this cluster"
+	p.status.context = "kind-dev"
+	p.status.set(nil, fixedNow)
+	if !p.status.choose.Visible() || !p.status.root.Visible() || len(chipTexts(p.status)) != 0 {
+		t.Fatalf("the question not offered: choose %v, row %q", p.status.choose.Visible(), chipTexts(p.status))
+	}
+	if got := noMetricsCaption(sh.ui, "kind-dev", off); got != "No metrics: no integrations are chosen for this cluster yet." {
+		t.Errorf("caption %q", got)
+	}
+	test.Tap(p.status.choose)
+	q.until(t, "cluster.integrations.ask", func() bool { return len(f.callsOf("cluster.integrations.ask")) == 1 })
+	if c := f.callsOf("cluster.integrations.ask")[0]; string(normalize(c.Params)) != `{"context":"kind-dev"}` {
+		t.Errorf("ask %s", c.Params)
+	}
+	if noIntegrationsChosen(sh.ui, engine.DemoContext) {
+		t.Error("the demo cluster is asked")
+	}
+
+	// Decided, both switched off: the reason, no question.
+	f.update(func(u *engine.UIState) {
+		none := engine.IntMetrics
+		u.ClusterSettings = map[string]engine.ClusterSettings{"kind-dev": {IntegrationsOff: &none}}
+	})
+	q.until(t, "the choice in the window's state", func() bool { return sh.ui.IntegrationsDecided("kind-dev") })
+	p.status.set(nil, fixedNow)
+	if p.status.root.Visible() || p.status.choose.Visible() {
+		t.Error("a row without a provider or a question")
+	}
+	if got := noMetricsCaption(sh.ui, "kind-dev", off); got != "No metrics: "+off {
+		t.Errorf("caption %q", got)
 	}
 }

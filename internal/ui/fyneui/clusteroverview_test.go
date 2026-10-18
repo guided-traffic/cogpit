@@ -188,7 +188,7 @@ func lineNames(d chartData) []string {
 
 // TestClusterOverviewPage: Overview is the navigator's first item and opens the page; the page
 // shows the node groups (Worker selected), the range, the three charts with the usage and their
-// lines, the source and status lines, and the Issues with their own header; Master and a range
+// lines, the source row, and the Issues with their own header; Master and a range
 // go to the engine and the charts follow its state; an issue's name opens its details over the
 // page.
 func TestClusterOverviewPage(t *testing.T) {
@@ -212,12 +212,11 @@ func TestClusterOverviewPage(t *testing.T) {
 	if p.rangeSel.Selected != "1h" || !slices.Contains(p.rangeSel.Options, "30d") {
 		t.Fatalf("range %q of %v", p.rangeSel.Selected, p.rangeSel.Options)
 	}
-	if !strings.HasPrefix(p.caption.text, "Displaying metrics from Prometheus (monitoring/prometheus-server) and Kubernetes Metrics Server") ||
-		len(p.status.rows) != 2 || !p.status.root.Visible() {
-		t.Fatalf("caption %q, status rows %d", p.caption.text, len(p.status.rows))
-	}
-	if links := p.caption.links(); len(links) != 2 || links["monitoring"] == nil || links["prometheus-server"] == nil {
-		t.Errorf("the source line's links %v", links) // the namespace and the service (2026-10-16 night)
+	// The source row, no prose above it (D-88): Prometheus at the left, the Metrics Server at the
+	// right, no link while both answer.
+	if got := chipTexts(p.status); p.caption.Visible() || !p.status.root.Visible() ||
+		!slices.Equal(got, []string{"Prometheus ● 40 s ago", "Metrics Server ● 5 s ago"}) {
+		t.Fatalf("caption shown %v (%q), source row %q", p.caption.Visible(), p.caption.text, got)
 	}
 	cpu, mem, pods := p.cards[0].plot.data, p.cards[1].plot.data, p.cards[2].plot.data
 	if len(cpu.Series) != 1 || len(cpu.Series[0].Points) != 121 || !slices.Equal(lineNames(cpu), []string{"Requests", "Limits", "Allocatable", "Capacity"}) ||

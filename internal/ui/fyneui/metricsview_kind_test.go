@@ -98,16 +98,17 @@ func TestKindPrometheusDrawer(t *testing.T) {
 		return len(p.data.Targets[0].Samples) > 0 && strings.Contains(p.data.Source, " and ")
 	})
 	settle(w)
-	// Both providers: Prometheus's history, then the Metrics Server's live values (G12, owner).
-	const source = "Displaying metrics from Prometheus (monitoring/prometheus-server) and Kubernetes Metrics Server"
+	// Both providers on the source row (D-88): Prometheus's history at the left, the Metrics
+	// Server's live values at the right, each answering; where Prometheus runs is in its tooltip.
 	texts := drawerTexts(sh)
-	if !slices.Contains(texts, source) {
-		t.Errorf("the drawer lacks %q: %q", source, texts[:8])
-	}
-	if st := statusTexts(p); len(st) != 2 || !strings.HasPrefix(st[0], "Prometheus monitoring/prometheus-server:http: history") || !strings.HasPrefix(st[1], "Kubernetes Metrics Server: live values") {
-		t.Errorf("status line = %q", st)
+	if st := chipTexts(p.status); len(st) != 2 || !strings.HasPrefix(st[0], "Prometheus ● ") || !strings.HasPrefix(st[1], "Metrics Server ● ") ||
+		strings.Contains(st[0], "·") || strings.Contains(st[1], "·") {
+		t.Errorf("source row = %q", st)
 	} else {
-		t.Logf("status line: %q", st)
+		t.Logf("source row: %q", st)
+	}
+	if tip := p.status.chips[0].tip; !strings.HasPrefix(tip, "Prometheus monitoring/prometheus-server:http") || !strings.Contains(tip, "Serves: history") {
+		t.Errorf("Prometheus's tooltip %q", tip)
 	}
 	for _, s := range texts {
 		if strings.Contains(s, "keeps no history") || strings.Contains(s, "has no history") {

@@ -17,20 +17,20 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
-	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
 // A cluster's Settings page (G13, ⌘⇧,; engine/clustersettings.go), as Lens's (captured
 // 2026-10-11): General (the cluster's name, the icon with its "…" menu of Upload Icon, Pick Icon
-// Color and Reset Icon, the kubeconfig's path as a link to its folder), Proxy (the proxy of the
-// cluster's API traffic, clustersettings_proxy.go), Terminal (the working directory, "$HOME" when
-// unset, and kubectl's namespace, "default" when unset), Namespaces (the accessible namespaces,
-// clustersettings_namespaces.go), Metrics (the metrics source, the Prometheus's fields of
-// cluster.setPrometheus, clustersettings_prometheus.go, and the hidden metrics,
-// clustersettings_metrics.go).
-// Integrations (Cogpit's own, D-76: each integration's switch and what Cogpit found of it,
-// clustersettings_integrations.go).
+// Color and Reset Icon, the kubeconfig's path, whole and selectable since the owner's WF28 of
+// 2026-10-18, with a button to its folder), Proxy (the proxy of the cluster's API traffic,
+// clustersettings_proxy.go), Terminal (the working directory, "$HOME" when unset, and kubectl's
+// namespace, "default" when unset), Namespaces (the accessible namespaces,
+// clustersettings_namespaces.go), Metrics (the two metrics integrations it reads and the hidden
+// metrics, clustersettings_metrics.go).
 // Node Shell (the node shells' image and pull secret, clustersettings_nodeshell.go, 2026-10-13).
+// Under a divider, Cogpit's own integrations (D-76, D-87): Integrations, every integration's switch
+// and what Cogpit found of it (clustersettings_integrations.go), then one section per integration
+// with its switch and its details (clustersettings_integration.go, the list clustersettings_nav.go).
 // Lens's Lens Metrics page, which installs a metrics stack into the cluster, has no counterpart:
 // Cogpit installs nothing for its own features and reads what the cluster runs (D-61, owner
 // 2026-10-16); its Cost page is not built and not listed. Cogpit's own: the row of
@@ -130,6 +130,9 @@ func (p *settingsPage) clusterSection(section string) fyne.CanvasObject {
 	case engine.SectionNodeShell:
 		return p.clusterNodeShellSection() // clustersettings_nodeshell.go
 	}
+	if in, ok := engine.IntegrationOfSection(section); ok {
+		return p.clusterIntegrationSection(in) // clustersettings_integration.go
+	}
 	return p.clusterGeneralSection()
 }
 
@@ -165,8 +168,13 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	swatches.Add(pickColor)
 	icon := container.NewHBox(preview, container.NewCenter(more), newHGap(theme.SizeNameInnerPadding), container.NewCenter(swatches))
 
-	path := newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Monospace: true})
-	path.truncate = true
+	// The path whole, wrapped at any character and selectable (the owner's WF28: a drag, ⌘A and ⌘C,
+	// the copy shortcut putting the selection on the clipboard as it is); a sentence where the
+	// context has no file of its own.
+	path := newSecretText("", nil, func(sel string) { p.sh.copyText(sel, false) })
+	p.controls["kubeconfigPath"] = path
+	sentence := newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
+	sentence.truncate = true
 	pathBg := newSurface(theme.ColorNameInputBackground)
 	pathBg.radius, pathBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
 	open := newTipButton(p.sh, theme.FolderOpenIcon(), "Show the kubeconfig's folder in the file manager", nil)
@@ -180,7 +188,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	nameCopy := p.settingCopyIcon("nameCopy", "Copy the cluster name", func() string { return p.shownClusterName(name) })
 	pathCopy := p.settingCopyIcon("kubeconfigCopy", "Copy the kubeconfig's path", func() string { return p.clusterView().Kubeconfig })
 	kc := container.NewBorder(nil, nil, nil, container.NewHBox(container.NewCenter(pathCopy), open),
-		container.NewStack(pathBg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, path)))
+		container.NewStack(pathBg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewStack(path, sentence))))
 	accent, syncAccent := p.accentColorSetting() // clustersettings_accent.go
 	login, syncLogin := p.clusterLoginSetting()  // clustersettings_login.go
 
@@ -209,25 +217,27 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 		} else {
 			custom.Hide()
 		}
-		path.style = fyne.TextStyle{} // a path in monospace, a sentence not
 		switch {
-		case v.Kubeconfig != "":
-			path.style = fyne.TextStyle{Monospace: true}
-			path.SetText(kubeconfig.DisplayText(v.Kubeconfig, maxShownPath))
+		case v.Kubeconfig != "": // a path in monospace, whole: what is selected is the real path
+			path.setText(v.Kubeconfig)
 			open.Enable()
 		case engine.IsDemoContext(ctx):
-			path.SetText("None: the demo cluster is generated in memory.")
+			sentence.SetText("None: the demo cluster is generated in memory.")
 			open.Disable()
 		default:
-			path.SetText("Merged from the default kubeconfig files ($KUBECONFIG, else ~/.kube/config).")
+			sentence.SetText("Merged from the default kubeconfig files ($KUBECONFIG, else ~/.kube/config).")
 			open.Disable()
 		}
 		if v.Kubeconfig != "" { // a sentence in the box is no path to copy
+			path.Show()
+			sentence.Hide()
 			pathCopy.Show()
 		} else {
+			path.Hide()
+			sentence.Show()
 			pathCopy.Hide()
 		}
-		path.Refresh()
+		kc.Refresh() // the path's lines as its last layout wrapped them
 	}
 	nameSetting := p.setting("name", "Cluster name", "Shown in the hotbar, the navigator and the welcome page; the kubeconfig is not changed.",
 		container.NewBorder(nil, nil, nil, container.NewCenter(nameCopy), name))
@@ -306,24 +316,23 @@ func (p *settingsPage) clusterTerminalSection() fyne.CanvasObject {
 	)
 }
 
+// clusterMetricsSection builds Metrics: the two integrations it reads, each with its state and a
+// link to its own section, and Hide metrics (clustersettings_metrics.go; D-87).
 func (p *settingsPage) clusterMetricsSection() fyne.CanvasObject {
-	hide, hideSync := p.hideMetricsSetting() // clustersettings_metrics.go
-	source, sourceSync := p.metricsSourceSetting()
-	prom, promSync := p.prometheusSettings() // clustersettings_prometheus.go
+	hide, hideSync := p.hideMetricsSetting()
+	sources, sourcesSync := p.metricsSourcesSetting()
 	p.sync = func() {
-		sourceSync()
+		sourcesSync()
 		hideSync()
-		promSync()
 	}
-	// The Alertmanager's address (D-77) until the Integrations section's row takes it
-	// (clustersettings_alertmanager.go).
-	return container.NewVBox(source, prom, hide)
+	return container.NewVBox(sources, hide)
 }
 
 // metricsChanged follows a change of the metrics' providers: the Prometheus setting, or the one in
 // use, may be new.
 func (p *settingsPage) metricsChanged() {
-	if p.visible() && p.shown.Page == engine.SettingsCluster && p.shown.Section == engine.SectionMetrics && p.view != nil && p.view.Connected {
+	if p.visible() && p.shown.Page == engine.SettingsCluster && p.shown.Section == engine.IntegrationSection(engine.IntegrationPrometheus) &&
+		p.view != nil && p.view.Connected {
 		p.requestPrometheus()
 	}
 }

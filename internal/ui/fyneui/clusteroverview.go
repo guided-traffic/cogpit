@@ -23,7 +23,7 @@ import (
 // (Master or Worker, Lens's "master and worker nodes"), the time range, and three charts, CPU,
 // Memory and Pods, each with the usage over the range and the lines Lens's documentation lists
 // (requests, limits, allocatable capacity, capacity; the Pods chart allocatable capacity and
-// capacity), the source line and the providers' status line under them. The Issues below are the
+// capacity), the reason when there are none, and the providers' source row under them (D-88). The Issues below are the
 // page's table, which the table view shows as it shows any view's. The data is the engine's
 // (cluster.overview); the range and the group are UI state (ui.setOverviewRange,
 // ui.setOverviewNodes), so the controls follow what the engine reports, whoever set it. Lens's
@@ -41,7 +41,7 @@ type clusterPanel struct {
 	worker    *tipButton
 	rangeSel  *widget.Select
 	syncing   bool        // set while the select is set from engine state
-	caption   *sourceLine // the source line, its Prometheus's namespace and service links (metricssource.go)
+	caption   *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
 	note      *textLine
 	status    *providerStatusLine
 	cards     [3]*overviewChartCard
@@ -122,12 +122,11 @@ func (p *clusterPanel) show(m *engine.ClusterOverviewModel) {
 	now := p.sh.now()
 	switch m.Status {
 	case metrics.StatusAvailable:
-		p.setCaption("", colorMuted)
-		p.caption.setSegs(p.sh.sourceSegments(m.Source, m.Providers, ""))
+		p.caption.Hide() // the source row under the charts names the providers (metricsstatus.go, D-88)
 	case metrics.StatusUnknown, "":
 		p.setCaption("Waiting for the first measurement…", colorMuted)
 	case metrics.StatusNotServed:
-		p.setCaption("No metrics: "+m.Message, colorMuted) // a state, said quietly
+		p.setCaption(noMetricsCaption(p.sh.ui, p.sh.ui.Context, m.Message), colorMuted) // a state, said quietly
 	case engine.StatusHidden:
 		p.setCaption("Metrics are "+m.Message, colorMuted) // the user's choice, said quietly
 	default:
@@ -193,10 +192,9 @@ func (p *clusterPanel) followReconnect() {
 }
 
 func (p *clusterPanel) setCaption(text string, color fyne.ThemeColorName) {
-	if text != "" { // "": the caller sets the source line's pieces (sourceSegments)
-		p.caption.SetText(text)
-	}
+	p.caption.SetText(text)
 	p.caption.SetColor(color)
+	p.caption.Show()
 }
 
 // showControls marks the node group and range the engine holds (the UI state, else the model's
