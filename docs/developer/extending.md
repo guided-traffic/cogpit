@@ -2,7 +2,7 @@
 
 Ordered checklists for the common additions. The packages they name are in
 [`architecture.md`](architecture.md#2-repository-layout-planned); which of them exist is in its
-[Current state](architecture.md#current-state-2026-10-16). Worked examples: the commands in
+[Current state](architecture.md#current-state-2026-10-18). Worked examples: the commands in
 [`internal/engine/commands`](../../internal/engine/commands/) and the kind profiles in
 [`internal/model/kinds`](../../internal/model/kinds/).
 
@@ -147,7 +147,7 @@ belongs to:
 
 A custom resource kind without a curated profile already gets a generic view from its definition
 (its printer columns); a built-in kind without a profile gets no view at all
-([architecture › Current state](architecture.md#current-state-2026-10-16)). A profile makes a kind
+([architecture › Current state](architecture.md#current-state-2026-10-18)). A profile makes a kind
 match Lens.
 
 1. Take the columns, status rules and actions from the kind's row in
@@ -208,7 +208,7 @@ match Lens.
    the rules that must keep other packages off it.
 2. Give it a package doc comment.
 3. Add a row to the package table in [`README.md`](README.md) and to
-   [architecture › Current state](architecture.md#current-state-2026-10-16), and a line to the
+   [architecture › Current state](architecture.md#current-state-2026-10-18), and a line to the
    package map in [`AGENTS.md`](../../AGENTS.md#2-package-map).
 
 ## Changing the logo

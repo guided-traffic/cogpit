@@ -167,7 +167,7 @@ Lens Desktop shows no alerts.
 
 ## Command line
 
-`cogpit-cli`, the headless tool beside the app (milestone 0.1, [architecture › Current state](../developer/architecture.md#current-state-2026-10-16)).
+`cogpit-cli`, the headless tool beside the app (milestone 0.1, [architecture › Current state](../developer/architecture.md#current-state-2026-10-18)).
 Lens Desktop's own command-line tool is a paid feature ([ui parity](ui-parity.md)); these rows are
 Cogpit's targets.
 

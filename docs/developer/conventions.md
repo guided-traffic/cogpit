@@ -172,7 +172,7 @@ touches (its command ids, the decision, the `H-<n>`, "not built", "planned", "no
 correct every sentence that no longer holds: the parity row, the gap and the numbers they feed
 ([rules](../parity/README.md#rules-for-every-progress-page)); the decision's status in
 [`decisions.md`](decisions.md) ("decided, not built" becomes "built", with its evidence); the
-security page whose mechanism changed; [architecture › Current state](architecture.md#current-state-2026-10-16);
+security page whose mechanism changed; [architecture › Current state](architecture.md#current-state-2026-10-18);
 [`usage.md`](usage.md) for what a user sees; the package table in [`README.md`](README.md) for a
 new package; the table in [`commands.md`](commands.md) for a new or changed command; the current
 focus in [`roadmap.md`](../parity/roadmap.md) when the change closes or moves one of its items.

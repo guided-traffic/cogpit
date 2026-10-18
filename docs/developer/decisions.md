@@ -223,7 +223,7 @@ end by the owner's own answer. Each line says its state.
 | A86 | #96 | The two newer terminal fork patches offered upstream later, at the end; the app first | [D-14](#d-14-terminal-widget) |
 | A87 | #99 | A verified, matching kubectl downloaded earlier goes first without asking; as built | [D-3](#d-3-helm-and-kubectl-binaries) |
 | – | #169 | The logs' Jump to time field cut at 1440 points: a defect, not a decision; to check in a render and fix; checked 2026-10-14 (its placeholder was cut after "10m" in a 1440×900 render, in either format) and fixed: the field as wide as its placeholder needs | [parity](../parity/README.md) |
-| A88 | #32 | `cogpit-cli get` prints Cogpit's view of a list, one object's manifest redacted; as built | [architecture › Current state](architecture.md#current-state-2026-10-16) |
+| A88 | #32 | `cogpit-cli get` prints Cogpit's view of a list, one object's manifest redacted; as built | [architecture › Current state](architecture.md#current-state-2026-10-18) |
 | – | #33 | D-2's "cogpit mcp": a doc fix, no owner's call; D-2 reads `cogpit-cli mcp` already | [D-2](#d-2-agent-interface-scope) |
 | A89 | #130 | GUI-only commands listed for agents, described and refused; as built | [D-2](#d-2-agent-interface-scope) |
 | A90 | #125 | Without the right to list the definitions, Flux and Argo CD recognised from API discovery with their curated profiles; generic custom resources stay invisible; built 2026-10-14 (every curated profile, the Vertical Pod Autoscalers' too, and Flux's HelmCharts left out, having none: the lead's decisions, open to revision in architecture §5) | [architecture §5](architecture.md#5-cache) |
@@ -2832,7 +2832,7 @@ The test fixtures carry no layout, so the other images show the ISO 8601 fallbac
 unless you see it differently: then name me the place where we should not do it and we talk about
 it." (Seen in a Node's drawer: Capacity Memory `16360780Ki`, Ephemeral Storage `119842348Ki`,
 Allocatable Memory `13856852378`, plain bytes.) **Built 2026-10-13**
-([`model/bytes.go`](../../internal/model/bytes.go); [architecture › Current state](architecture.md#current-state-2026-10-16)):
+([`model/bytes.go`](../../internal/model/bytes.go); [architecture › Current state](architecture.md#current-state-2026-10-18)):
 that drawer now reads 15.6 GiB, 114.3 GiB and 12.9 GiB (`TestNodeDrawerBytesInBinaryUnits`).
 
 What the build chose, Cogpit's defaults (the lead's and the build's, not the owner's decision):

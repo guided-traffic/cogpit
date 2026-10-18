@@ -8,9 +8,9 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-17:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
-runs on macOS, extended by fourteen further implementation runs (2026-10-11 to the evening of
-2026-10-17, night runs and day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
+**State on 2026-10-18:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+runs on macOS, extended by fifteen further implementation runs (2026-10-11 to 2026-10-18, night runs and
+day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
 hotbar that scrolls and whose tiles are dragged live (D-83), the navigator with its sections, a tab bar, the command palette, Preferences and Cluster
 settings, a welcome page, YAML editing with drafts and undo (D-84), the create dialogs, row selection (each view
@@ -26,16 +26,17 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.24.0 the
-newest, released 2026-10-17 evening with the owner's walk findings WF1–WF10), **integrations per cluster** (2026-10-17, D-76 to D-79: the Metrics
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.26.0 the
+newest, released 2026-10-18 with the owner's walk findings WF11–WF30, v0.25.0 its first part the same morning), **integrations per cluster** (2026-10-17, D-76 to D-79: the Metrics
 Server and Prometheus, Alertmanager with the title bar's alerts pill and an alert board, the Trivy
 Operator's image ratings of the pods, Kyverno's policy violations on the objects; each switched on or
-off in Cluster Settings › Integrations, a new cluster asks first and nothing is looked for before
-the answer, D-82), a Reconnect that keeps the tabs and a
+off in its own section of Cluster Settings, a new cluster asks first and nothing is looked for before
+the answer, D-82, D-87), the cluster's Kubernetes version against upstream's end of life from a table
+built into each release (D-91), dialogs as tables (D-85), a Reconnect that keeps the tabs and a
 Log in again that takes a renewed certificate from the kubeconfig file (D-81), and MCP control of all of it (M9 done: an external agent's triage and change
 workflows over MCP on kind); it doubled
 as the Fyne spike ([results](docs/developer/spike-fyne.md#results)).
-What is built and where it differs from the plan: [architecture › Current state](docs/developer/architecture.md#current-state-2026-10-16). The documentation method, and parts of
+What is built and where it differs from the plan: [architecture › Current state](docs/developer/architecture.md#current-state-2026-10-18). The documentation method, and parts of
 this file, come from [PhotoCraft](https://github.com/storytold/photocraft)
 ([attribution](ATTRIBUTION.md)).
 
