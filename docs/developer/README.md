@@ -61,6 +61,7 @@ cogpit/
 ├─ hack/macos/                release.sh: signs, images and notarizes the macOS downloads (make dist-macos; releasing.md)
 ├─ hack/appcast/              drafts and checks Sparkle's appcast (make appcast-draft, appcast-verify; releasing.md)
 ├─ hack/sigstoreroot/         refreshes the sigstore trusted root internal/kubectl embeds (make sigstore-root, D-50)
+├─ hack/k8seol/               refreshes the Kubernetes release table internal/model/k8seol embeds (make k8s-eol; the release pipeline before it builds, D-91)
 ├─ hack/ci/                   apt-install.sh: CI's apt-get with deadlines and tries
 ├─ third_party/fyne-terminal/ the patched copy of fyne-io/terminal (D-14; PATCHES.md), a module of its own (make test-fork)
 ├─ packaging/                 icon.png (no per-OS packaging yet: M11)
@@ -76,6 +77,7 @@ cogpit/
 | Package | Layer | Responsibility |
 |---|---|---|
 | `internal/model`, `internal/model/kinds` | L0 | Object refs, rows, status tokens, the time and byte formats; the kind profiles (46 built-in, the local kinds Port Forwarding and Helm Charts, the curated ones of Flux CD, Argo CD and the Vertical Pod Autoscalers, the virtual kinds Applications and Argo CD's repositories and clusters); pure |
+| `internal/model/k8seol` | L0 | The Kubernetes release table built in (`releases.json`, `make k8s-eol`): a version's upstream end of life, maintenance mode, the estimate beyond the table, the kubelet's version skew ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)) |
 | `internal/kubeconfig` | L0 | Kubeconfig discovery, merge and validation from bytes |
 | `internal/buildinfo` | L0 | The version both binaries report: a release's, set by the linker, else `dev` and the commit ([releasing](releasing.md#the-version-a-build-reports)) |
 | `internal/cluster` | L1 | Connections: client-go config, auth, cached discovery, access reviews |

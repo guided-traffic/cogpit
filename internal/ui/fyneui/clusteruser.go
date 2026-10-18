@@ -67,10 +67,11 @@ func (s *sidebar) showUser(ui engine.UIState) bool {
 	return true
 }
 
-// userChanged shows the root's user again when only it changed (a renewed login); a change of the
-// context or the connection showed it already (connectionChanged).
+// userChanged shows the root's user and version again when only they changed (a renewed login, a
+// reconnect to an upgraded API server, a day passing); a change of the context or the connection
+// showed them already (connectionChanged).
 func (s *sidebar) userChanged(st, old engine.UIState) {
-	if st.Context == old.Context && st.Connection == old.Connection && !reflect.DeepEqual(st.User, old.User) {
+	if st.Context == old.Context && st.Connection == old.Connection && (!reflect.DeepEqual(st.User, old.User) || versionChanged(st, old)) {
 		s.updateHeader()
 	}
 }
@@ -83,16 +84,34 @@ func lastSeenTip(sh *shell, u *engine.ClusterUser) string {
 }
 
 // tipAt is the root's tooltip where the pointer is: the groups' box lists the groups, the user's
-// name says what it is when it is not the API server's word, the rest of the row is the row's.
+// name says what it is when it is not the API server's word and is whole when the line cuts it
+// (the navigator's default width, the gear beside it, D-92), the version its upstream support,
+// the rest of the row is the row's.
 func (r *navRootRow) tipAt(abs fyne.Position) string {
 	s := r.s
 	if s.groups.Visible() && pointerOn(s.groups, abs) {
 		return s.groups.tip()
 	}
-	if s.userTip != "" && s.subLine.Visible() && pointerOn(s.subtitle, abs) {
-		return s.userTip
+	if tip := s.subtitleTip(); tip != "" && s.subLine.Visible() && pointerOn(s.subtitle, abs) {
+		return tip
+	}
+	if s.versionTip != "" && pointerOn(s.version, abs) {
+		return s.versionTip // the version's upstream support (clusterversion.go, D-91)
 	}
 	return r.tipText()
+}
+
+// subtitleTip is the subtitle's tooltip: its whole text first when the line cuts it, then what it
+// is (userTip); "" for a whole text with nothing to say.
+func (s *sidebar) subtitleTip() string {
+	t := s.subtitle
+	if t.text == "" || fyne.MeasureText(t.text, t.Theme().Size(t.size), t.style).Width <= t.Size().Width+0.5 {
+		return s.userTip
+	}
+	if s.userTip == "" {
+		return t.text
+	}
+	return t.text + "\n" + s.userTip
 }
 
 // pointerOn reports whether an absolute position lies on a shown object.

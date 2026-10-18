@@ -71,6 +71,9 @@ type ListRow struct {
 	Ref    model.ObjectRef   `json:"ref"`
 	Status model.Status      `json:"status,omitempty"`
 	Cells  map[string]string `json:"cells"`
+	// Tips are the tooltips of the cells that have one, by column title: a kubelet's upstream
+	// support and version skew in the Nodes' Version (D-91).
+	Tips map[string]string `json:"tips,omitempty"`
 }
 
 // FindResult is resources.find's result.
@@ -148,7 +151,7 @@ func registerResources(g *registrar) {
 	add(g, engine.Spec[listParams]{
 		ID: "resources.list", Label: "List Resources", Danger: engine.DangerRead, Verbs: cacheReads,
 		Description: "Lists objects of one kind from Cogpit's cache, as table rows: reference, status and the cells by column " +
-			"title. Optional namespaces, search text and states filter as in the view; rows are sorted by name. total counts every " +
+			"title, and tips, the tooltips of the cells that have one (a node's kubelet: its upstream support and version skew). Optional namespaces, search text and states filter as in the view; rows are sorted by name. total counts every " +
 			"row that passes the filters, returned the rows in the result (limit, default 100, at most 1000). Makes no API request once the kind is cached.",
 		Enabled: func(s *engine.Session, p listParams) error { _, err := connectedOn(s, p.Context); return err },
 		Run:     listResources,
@@ -241,12 +244,19 @@ func listResources(ctx context.Context, s *engine.Session, p listParams) (any, e
 	now, tf := s.Now(), s.TimeFormat() // times as the window writes them (D-31)
 	for _, r := range rows[:min(limit, len(rows))] {
 		cells := make(map[string]string, len(cols))
+		var tips map[string]string
 		for i, c := range cols {
 			if i < len(r.Cells) {
 				cells[c.Title] = tf.CellText(c, r.Cells[i], now)
+				if tip := r.Cells[i].Tip; tip != "" {
+					if tips == nil {
+						tips = map[string]string{}
+					}
+					tips[c.Title] = tip
+				}
 			}
 		}
-		res.Rows = append(res.Rows, ListRow{Ref: r.Ref, Status: r.Status, Cells: cells})
+		res.Rows = append(res.Rows, ListRow{Ref: r.Ref, Status: r.Status, Cells: cells, Tips: tips})
 	}
 	res.Returned = len(res.Rows)
 	return res, nil

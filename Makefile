@@ -267,6 +267,18 @@ tidy: ## go mod tidy
 sigstore-root: ## Refresh internal/kubectl/sigstore_trusted_root.json from sigstore's TUF repository (D-50)
 	$(GO) run ./hack/sigstoreroot -o internal/kubectl/sigstore_trusted_root.json
 
+# The Kubernetes release table the window's version marks read (D-91): every minor's upstream end of
+# life from kubernetes/website's data/releases/schedule.yaml and eol.yaml, checked (hack/k8seol) and
+# written to internal/model/k8seol/releases.json, which the binaries embed; Cogpit never fetches it
+# at run time. The release pipeline runs it before it builds, with K8SEOL_FLAGS=-fallback: a failed
+# download or check keeps the committed table and the build goes on. No job commits it: run it by
+# hand and commit the file when its diff shows a change.
+K8SEOL_FLAGS    ?=
+
+.PHONY: k8s-eol
+k8s-eol: ## Refresh internal/model/k8seol/releases.json from upstream's release schedule (D-91); K8SEOL_FLAGS=-fallback keeps the committed table on a failure
+	$(GO) run ./hack/k8seol -o internal/model/k8seol/releases.json $(K8SEOL_FLAGS)
+
 # The kind targets need docker and kind; kubectl talks only to KIND_KUBECONFIG.
 kind-up: ## Create the kind cluster (own kubeconfig file), or reuse it, seed it from hack/kind, add the Metrics Server
 	@command -v kind >/dev/null || { echo "kind is not installed: https://kind.sigs.k8s.io"; exit 1; }

@@ -547,15 +547,21 @@ type navRootRow struct {
 	widget.BaseWidget
 	s         *sidebar
 	hovered   bool
-	next      *widget.Icon // the ›
+	settings  *navIconButton // the gear: Cluster Settings (clusterversion.go, D-92); nil without the command
+	next      *widget.Icon   // the ›
 	body      fyne.CanvasObject
 	bg, ring  *canvas.Rectangle
 	menuModel *fyne.Menu // the open menu, for tests
 }
 
-// showCluster shows or hides what only a cluster has: the dot, the › and the subtitle's line.
+// showCluster shows or hides what only a cluster has: the gear, the dot, the › and the subtitle's
+// line.
 func (r *navRootRow) showCluster(has bool) {
-	for _, o := range []fyne.CanvasObject{r.s.dot, r.next, r.s.subLine} {
+	objs := []fyne.CanvasObject{r.s.dot, r.next, r.s.subLine}
+	if r.settings != nil {
+		objs = append(objs, r.settings)
+	}
+	for _, o := range objs {
 		if has {
 			o.Show()
 		} else {
@@ -592,10 +598,14 @@ func (r *navRootRow) TappedSecondary(ev *fyne.PointEvent) {
 func newNavRootRow(s *sidebar) *navRootRow {
 	r := &navRootRow{s: s, bg: canvas.NewRectangle(color.Transparent), ring: canvas.NewRectangle(color.Transparent)}
 	r.next = widget.NewIcon(themedIcon(iconChevronRight, colorMuted))
+	right := container.NewHBox(container.NewCenter(s.dot), container.NewCenter(r.next))
+	if r.settings = newRootSettings(s); r.settings != nil { // before the dot, as a section row's ↻ (D-92)
+		right.Objects = append([]fyne.CanvasObject{container.NewCenter(r.settings)}, right.Objects...)
+	}
 	r.body = inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
 		container.NewHBox(container.NewCenter(s.badge), newSpace(theme.SizeNamePadding)), // as the section's rows
-		container.NewHBox(container.NewCenter(s.dot), container.NewCenter(r.next)),
-		container.NewVBox(layout.NewSpacer(), s.name, s.subLine, layout.NewSpacer())))
+		right,
+		container.NewVBox(layout.NewSpacer(), s.name, s.subLine, s.version, layout.NewSpacer())))
 	r.ExtendBaseWidget(r)
 	return r
 }

@@ -72,6 +72,10 @@ func TestClusterConnectorContextsAndDemo(t *testing.T) {
 	if !b.Demo || b.Context != DemoContext || b.Conn != nil || b.CanWrite() || len(b.Profiles) == 0 || b.DemoStats == nil {
 		t.Errorf("demo backend %+v", b)
 	}
+	// Its API server's version, the one its kube-apiserver pods name (D-91).
+	if b.ServerVersion() != demo.ServerVersion || demo.ServerVersion == "" {
+		t.Errorf("the demo's API server version %q, want %q", b.ServerVersion(), demo.ServerVersion)
+	}
 	// Only the kinds the demo serves get a view, as discovery decides on a real cluster, and the
 	// Applications made of its deployments (applications.go).
 	if len(b.Profiles) != len(demo.Resources())+1 {

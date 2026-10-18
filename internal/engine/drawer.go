@@ -217,6 +217,7 @@ func (s *Session) detail(ctx context.Context, ref model.ObjectRef, wait bool) (*
 		b.overlays.waitSynced(ctx) // an agent's read sees the integrations' reads listed
 	}
 	m.Sections = append(m.Sections, b.overlays.sections(p, obj, s.TimeFormat())...) // the integrations' (overlay.go)
+	s.markNodeVersion(b, p, obj, m)                                                 // a kubelet's upstream support and skew (k8sversion.go, D-91)
 	if m.Metrics && len(s.hiddenMetrics(b.Context).drawerVariants(p.Usage)) == 0 {
 		m.Metrics = false // the cluster's settings hide every chart of the kind (hidemetrics.go)
 	}

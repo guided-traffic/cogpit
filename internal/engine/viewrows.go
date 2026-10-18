@@ -33,6 +33,9 @@ type ViewRow struct {
 	Ref    model.ObjectRef `json:"ref"`
 	Status model.Status    `json:"status,omitempty"`
 	Cells  []string        `json:"cells"`
+	// Tips are the tooltips of the cells that have one, by column id: a kubelet's upstream support
+	// and version skew in the Nodes list's Version column (D-91).
+	Tips map[string]string `json:"tips,omitempty"`
 	// Selected marks a row of the view's selection (UIState.Selected).
 	Selected bool `json:"selected,omitempty"`
 }
@@ -115,10 +118,18 @@ func RowsIn(t *TableSnapshot, selected []model.ObjectRef, offset, limit int, now
 	for ri := offset; ri < end; ri++ {
 		row := &t.Rows[ri]
 		cells := make([]string, len(visible))
+		var tips map[string]string
 		for i, ci := range visible {
-			cells[i] = f.CellText(t.Columns[ci], cellAt(row, ci), now)
+			c := cellAt(row, ci)
+			cells[i] = f.CellText(t.Columns[ci], c, now)
+			if c.Tip != "" {
+				if tips == nil {
+					tips = map[string]string{}
+				}
+				tips[t.Columns[ci].ID] = c.Tip
+			}
 		}
-		out.Rows = append(out.Rows, ViewRow{Ref: row.Ref, Status: row.Status, Cells: cells,
+		out.Rows = append(out.Rows, ViewRow{Ref: row.Ref, Status: row.Status, Cells: cells, Tips: tips,
 			Selected: slices.ContainsFunc(selected, row.Ref.Same)})
 	}
 	out.Returned = len(out.Rows)

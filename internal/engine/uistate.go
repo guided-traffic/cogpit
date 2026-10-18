@@ -23,6 +23,12 @@ type UIState struct {
 	// cluster the window left connected, each with its connection's state and whether it is cold
 	// (connections.go). Empty while nothing is connected.
 	Connections []ConnectedCluster `json:"connections,omitempty"`
+	// ClusterVersion is the API server's version of Context and its minor's upstream support (D-91,
+	// k8sversion.go): the end of life from the Kubernetes release table built into this Cogpit,
+	// estimated for a minor newer than the table, and the state on the day the UI state last
+	// changed (ui_state recomputes it when read); nil while Context is not live or its version is
+	// not known. The engine derives it after every change.
+	ClusterVersion *ClusterVersion `json:"clusterVersion,omitempty"`
 	// User is who Cogpit is logged in as on Context (whoami.go, D-68): the username and groups the
 	// API server confirmed at the connect, the kubeconfig's user entry's name where it did not, or
 	// while not connected the last username it confirmed and when; nil without a context, for the
@@ -408,6 +414,10 @@ func (u UIState) Clone() UIState {
 	}
 	out.ClusterSettings = maps.Clone(u.ClusterSettings)
 	out.User = u.User.clone()
+	if u.ClusterVersion != nil {
+		v := *u.ClusterVersion
+		out.ClusterVersion = &v
+	}
 	if u.Alerts != nil {
 		a := *u.Alerts
 		out.Alerts = &a

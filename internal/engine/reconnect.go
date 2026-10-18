@@ -273,6 +273,7 @@ func (s *Session) reconnect(ctx context.Context, contextID string, expect *Backe
 	}
 	b.login = login
 	s.learnUser(cctx, contextID, b) // who the new login is (whoami.go, D-68)
+	s.learnVersion(b)               // its version, which an upgrade may have changed (k8sversion.go, D-91)
 
 	sw, err := s.swapBackend(old, b, steps)
 	if err != nil {

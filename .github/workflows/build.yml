@@ -42,6 +42,13 @@ jobs:
         with:
           cache: none
 
+      # The Kubernetes release table of the release's day (D-91): upstream's schedule.yaml and
+      # eol.yaml from raw.githubusercontent.com, checked, into internal/model/k8seol/releases.json,
+      # which both binaries embed. A failed download or check keeps the committed table (a warning
+      # here, the build goes on); what changed against it is in this step's log (H-130).
+      - name: Refresh the Kubernetes release table
+        run: make k8s-eol K8SEOL_FLAGS=-fallback
+
       # Sparkle (D-4) goes into the bundle with the update key's public half, a repository variable
       # (not a secret: every installed copy shows it); unset, the app has no updater. Both binaries
       # are built with the Makefile's DIST_TAGS, which leave the demo cluster out (D-67), and

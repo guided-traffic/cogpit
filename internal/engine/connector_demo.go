@@ -62,6 +62,7 @@ func (c *ClusterConnector) connectDemo() (*Backend, error) {
 		Context: DemoContext, Namespace: "default", Cache: ch, Profiles: demoProfiles(), Demo: true,
 		Metrics:   metrics.NewHub(metrics.Fixed(dc.Metrics()), c.metricsOptions()),
 		DemoStats: func() any { return dc.Stats() },
+		Version:   demo.ServerVersion, // its kube-apiserver's (D-91)
 		Close: func() {
 			once.Do(func() {
 				cancel()

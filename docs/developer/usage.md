@@ -41,6 +41,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves.
 - 🔀 Several clusters connected at once (since 2026-10-16): switching to another cluster leaves the one you were on connected, its logs, shells, port forwards and running jobs going on; switching back within five minutes shows it at once without asking the cluster again, later its lists load anew. A cluster's namespace filter, search and status filter stay with it and its tabs: the next cluster never comes with them. The top bar's three toggles show and hide the navigator (⌘B), the dock (⌘J) and the agent chat (⌘I); with no tab in the dock, ⌘J opens a terminal there. A cluster stays connected until you disconnect it or quit; agents may work on any connected cluster. Every dot of a cluster says how it is: filled while live, a ring while it rests in the background, blinking while it reconnects, red when it needs you; the dock shows the tabs of the cluster you look at ([Several clusters connected](#several-clusters-connected)). A cluster's Settings can keep its login program from running while you look at another cluster (its login then waits, renewed when you show it), and Preferences › App can bring the last session back at start: its tabs and its clusters, connected again.
 - 🪪 One short name per cluster wherever the window names it: the name you gave it in its Settings, else its context's name after the last "@" ("kubernetes-admin@prod-eu" shows as "prod-eu"); the full name in every tooltip, and the navigator's search finds it by either. The navigator's root says who you are logged in as there, as the API server confirms it at every connect (`kubectl auth whoami`'s question), your groups in the tooltip of the small box beside it; "(kubeconfig)" marks the kubeconfig's user name where the API server does not say, and while the cluster connects the last user it confirmed shows dimmed, with when it was last seen ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
+- 🏷️ The cluster's Kubernetes version under your user in the navigator's root, ⚠ when upstream's support for its minor has ended, in amber during its last two months (maintenance mode); its tooltip says until when, with the days left. The Nodes list marks a kubelet the same way, and one newer than the API server or more than three minors behind it ([The Kubernetes version and upstream support](#the-kubernetes-version-and-upstream-support)). A gear beside the root's dot opens the cluster's Settings.
 - ⌨️ A command palette on ⌘⇧P (Ctrl+Shift+P): every action the menus offer, Switch to any view, the hotbar's clusters; ⌘P (Cluster › Connect to Cluster…) to search a cluster by name in the navigator's list, ↵ to connect, Escape to go back.
 - 👋 A welcome page whenever no cluster is open (and from Help › Welcome): your clusters one click away, Add Kubeconfigs, the documentation. Disconnect a cluster, or remove it from Cogpit, which unlinks the kubeconfig file you added and never touches the file.
 - ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,: the theme switched live, the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
@@ -870,6 +871,43 @@ Cogpit reads with one watch per report kind and keeps only the violations of eac
 memory. `make kind-kyverno` installs a Kyverno with test policies into the kind cluster to try it
 ([hack/kind](../../hack/kind/README.md#kyverno)).
 
+### The Kubernetes version and upstream support
+
+The navigator's root shows the cluster's Kubernetes version, the API server's as its connect read
+it (`v1.36.1` # example), on a line under your user, while the cluster is connected
+([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)). Its colour says how
+upstream supports its minor, by the Kubernetes project's own release dates only:
+
+| Shown | When | Tooltip (examples, a German computer's dates) |
+|---|---|---|
+| `v1.36.1` muted | supported | Upstream support until 28.06.2027 (253 days) |
+| `v1.34.2` amber | in maintenance mode, the last two months before the end of life | Upstream support until 27.10.2026 (9 days), maintenance mode since 27.08.2026 |
+| `v1.33.9 ⚠` orange | past the end of life | Upstream end of life since 28.06.2026 |
+
+Dates are in your computer's format; the tooltip's second line says the day of the release table
+this Cogpit carries ("Upstream dates as of …"). A minor newer than that table gets an estimate,
+marked "about … estimated: this Cogpit's table ends at 1.37": its end of life on the 28th of the
+month fourteen months after its release month, the release four months per minor after the
+table's newest (accurate to weeks; checked against every minor since 1.19).
+
+- **Managed clusters:** only upstream's dates count. EKS, GKE, AKS, STACKIT SKE and others support
+  a minor longer or shorter than upstream; Cogpit does not know their dates and does not tell one
+  distribution from another.
+- **Nodes:** the Nodes list's Version column marks a kubelet the same way (⚠ past its end of life,
+  amber in maintenance mode), and ⚠ a kubelet outside the version skew policy against the API
+  server: newer than it, or more than three minors behind (two for a kubelet older than 1.25). The
+  cell's tooltip says which; the node drawer shows "Upstream support" and, outside the policy,
+  "Version skew" under the Kubelet version.
+- **Agents** read the same: `ui_state`'s `clusterVersion` (version, minor, released,
+  maintenanceFrom, endOfLife, estimated, state, daysLeft, the table's newest minor and day),
+  `view_rows`' and `resources_list`'s `tips` per node, `object_get`'s drawer items.
+- **No connection for it:** the table is built into each release from upstream's files on the
+  release's day; Cogpit fetches nothing at run time. `make k8s-eol` refreshes the committed table
+  ([releasing](releasing.md#the-kubernetes-release-table)).
+
+The gear before the root's dot opens the cluster's Settings, as ⌘⇧, does
+([D-92](decisions.md#d-92-a-gear-in-the-navigators-cluster-row)).
+
 ### Commands and MCP tools
 
 Every command is an MCP tool. The table of all of them, with each one's danger and parameters,
@@ -982,6 +1020,7 @@ Identifiers the documentation uses:
 | `make kind-vm`, `make kind-vm-down` | VictoriaMetrics single-node and a small cluster in the kind cluster (namespace `cogpit-vm`), fed from the kind Prometheus ([hack/kind](../../hack/kind/README.md#victoriametrics)) |
 | `make kind-trivy`, `make kind-trivy-down` | Trivy Operator in the kind cluster (namespace `cogpit-trivy`), scanning only the test workloads in `cogpit-trivy-a` and `cogpit-trivy-b`, for `TestKindTrivy` ([hack/kind](../../hack/kind/README.md#trivy-operator)) |
 | `make sigstore-root` | refresh the sigstore trusted root `internal/kubectl` embeds ([D-50](decisions.md#d-50-kubectls-signature-check)) |
+| `make k8s-eol` | refresh the Kubernetes release table `internal/model/k8seol` embeds from upstream's `schedule.yaml` and `eol.yaml`, checked; `K8SEOL_FLAGS=-fallback` keeps the committed table on a failure, as the release pipeline does ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)) |
 | `make icon` | redraw `packaging/icon.png` from the current logo ([extending › Changing the logo](extending.md#changing-the-logo)) |
 | `make app` | `bin/Cogpit.app` via `fyne package`, with Sparkle in `Contents/Frameworks` (`SPARKLE_PUBLIC_ED_KEY=<base64>` for an app that updates itself) and `cogpit-cli` in `Contents/MacOS` |
 | `make sparkle` | the pinned Sparkle release in `.cache/sparkle/<version>`, its SHA-256 checked |

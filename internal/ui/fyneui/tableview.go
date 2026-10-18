@@ -625,7 +625,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if status == model.StatusNone && col.ID == "status" {
 			status = tv.snap.Rows[id.Row].Status
 		}
-		content = cellContent{text: tv.tf.CellText(*col, cell, tv.now), status: status, link: cell.Link, parts: cell.Parts, marks: cell.Marks, bar: cell.Bar}
+		content = cellContent{text: tv.tf.CellText(*col, cell, tv.now), status: status, link: cell.Link, parts: cell.Parts, marks: cell.Marks, bar: cell.Bar, tip: cell.Tip}
 		if content.link != nil && !tv.serves(content.link.Kind) {
 			content.link = nil // nowhere to go: plain text
 		}
@@ -1110,6 +1110,7 @@ type cellContent struct {
 	parts  *[]model.CellPart
 	marks  *[]model.CellMark // squares in place of the text (a pod's containers)
 	bar    *model.CellBar    // a usage bar beside the text (a node's CPU, Memory, Disk; tablebar.go)
+	tip    string            // the cell's own tooltip (model.Cell.Tip: a kubelet's support, D-91)
 	kind   cellKind
 }
 
@@ -1244,7 +1245,8 @@ func (c *tableCell) onLink(p fyne.Position) bool {
 	return p.X >= x && p.X <= x+c.text.Size().Width
 }
 
-// tipText is the cell's tooltip: a warning's reason, or the full text of a cut-off cell.
+// tipText is the cell's tooltip: a warning's reason, the cell's own (model.Cell.Tip), or the full
+// text of a cut-off cell.
 func (c *tableCell) tipText() string {
 	switch {
 	case c.content.kind == cellWarning:
@@ -1257,6 +1259,10 @@ func (c *tableCell) tipText() string {
 		return strings.Join(lines, "\n") // a square stands for a container: say which, and how it is
 	case c.content.kind == cellText && c.content.bar != nil && c.content.bar.Detail != "":
 		return c.content.bar.Detail + " (" + c.full + ")" // the amounts behind the bar
+	case c.content.kind == cellText && c.content.tip != "" && c.truncated:
+		return c.full + "\n" + c.content.tip // the text cut off, then the cell's own tooltip
+	case c.content.kind == cellText && c.content.tip != "":
+		return c.content.tip
 	case c.content.kind == cellText && c.truncated:
 		return c.full
 	}

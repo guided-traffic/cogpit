@@ -211,6 +211,11 @@ type sidebar struct {
 	emptyHint *textLine
 	hintRow   fyne.CanvasObject // the hint below the root while no item shows
 	root      fyne.CanvasObject
+
+	// The cluster's Kubernetes version, the root's third line, and its tooltip, the minor's
+	// upstream support (clusterversion.go, D-91).
+	version    *textLine
+	versionTip string
 }
 
 func newSidebar(sh *shell) *sidebar {
@@ -223,6 +228,9 @@ func newSidebar(sh *shell) *sidebar {
 	s.name.truncate, s.subtitle.truncate = true, true
 	s.groups = newGroupsBox()
 	s.subLine = box(&userLineLayout{text: s.subtitle, box: s.groups}, s.subtitle, s.groups)
+	s.version = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	s.version.truncate = true
+	s.version.Hide() // until the cluster's version is known (clusterversion.go)
 	s.dot = newConnDot(sh)
 	s.emptyHint = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	s.emptyHint.truncate = true
@@ -311,6 +319,7 @@ func (s *sidebar) updateHeader() {
 	}
 	s.dot.setMark(ui.Context, s.sh.mark(ui.Context, false)) // the shown cluster's mark (clustermarks.go)
 	s.rootRow.showCluster(ui.Context != "")
+	s.showVersion(ui) // the cluster's Kubernetes version (clusterversion.go, D-91)
 	if ui.Context == "" {
 		s.badge.set("–", true)
 		s.name.SetText(notConnected)

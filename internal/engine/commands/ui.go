@@ -81,7 +81,11 @@ func registerUI(g *registrar) {
 		Description: "Returns what the user sees: the connected context and its connection state (tlsUnchecked when the connection does not check the server's certificate), " +
 			"who Cogpit is logged in as there (user: username and groups with source apiServer when the API server confirmed them at the connect, " +
 			"source kubeconfig with a reason when it did not and username is only the kubeconfig's user entry's name, source lastSeen with lastSeen " +
-			"while the cluster is not connected; absent for the demo cluster and a context never confirmed), the open view (kind key), " +
+			"while the cluster is not connected; absent for the demo cluster and a context never confirmed), " +
+			"its Kubernetes version (clusterVersion: the API server's version as its connect read it, its minor and the minor's upstream " +
+			"support from the Kubernetes release table built into this Cogpit, upstream's dates only: released, maintenanceFrom, endOfLife, " +
+			"estimated for a minor newer than the table (tableNewest, tableFetched), state supported, maintenance, endOfLife or unknown as of now, " +
+			"daysLeft; view_rows' tips say each node's kubelet support and version skew), the open view (kind key), " +
 			"the namespace filter, the search text and its toggles (filterOptions: matchCase, regex; filterError when its " +
 			"regular expression is invalid), the status filter (states; view_rows lists the states offered), the sort order, the selected objects (selected: the shown view's; " +
 			"every view keeps its own, which comes back when the view is shown again and is not listed meanwhile), the object in the detail drawer and " +
@@ -96,6 +100,7 @@ func registerUI(g *registrar) {
 			"the updater holds for the user (available, version). Use it to learn which object the user means.",
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
 			u := s.UIState()
+			u.ClusterVersion = s.ClusterVersionNow(u.ClusterVersion) // its support as of now (k8sversion.go, D-91)
 			res := StateResult{UIState: u, FilterError: engine.FilterError(u.Filter, u.FilterOptions)}
 			if u.Hotbar != nil { // what each tile shows: label, connection, missing (hotbar.go)
 				if v, err := s.HotbarView(); err == nil {

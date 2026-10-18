@@ -365,6 +365,7 @@ func (s *Session) connect(ctx context.Context, name string) error {
 	}
 	b.login = login
 	s.learnUser(cctx, name, b) // who the API server says the user is, never failing the connect (whoami.go, D-68)
+	s.learnVersion(b)          // its Kubernetes version and the Nodes list's check (k8sversion.go, D-91)
 
 	st.mu.Lock()
 	if st.closed || st.connectSeq != seq {

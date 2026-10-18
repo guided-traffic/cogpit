@@ -54,6 +54,10 @@ const (
 	kubeSystem       = "kube-system"
 )
 
+// ServerVersion is the version the synthetic cluster's API server reports: its kube-apiserver's
+// image tag, newer than its oldest kubelets (a rolling upgrade, buildNodes).
+const ServerVersion = kubeVersion
+
 // build creates the initial cluster. Called with c.mu held.
 func (c *Cluster) build() {
 	now := c.opts.Now

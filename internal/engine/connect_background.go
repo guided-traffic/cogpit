@@ -122,6 +122,7 @@ func (s *Session) ConnectBackground(ctx context.Context, name string) error {
 	}
 	b.login = login
 	s.learnUser(cctx, name, b) // whoami.go, D-68
+	s.learnVersion(b)          // k8sversion.go, D-91
 
 	st.mu.Lock()
 	if st.closed || st.pool[b.Context] != nil {

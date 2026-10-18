@@ -25,7 +25,8 @@ func registerViewRows(g *registrar) {
 		ID: "view.rows", Label: "Read View Rows", Danger: engine.DangerRead,
 		Description: "Returns the rows the user sees in the active tab's view, as the table shows them: the namespace filter, " +
 			"the search (with its match case and regular expression toggles), the status filter (states) and the sort applied, the visible columns in the " +
-			"order the user arranged them, each cell's text as drawn (ages relative to now), each row's ref and status, and " +
+			"order the user arranged them, each cell's text as drawn (ages relative to now), each row's ref and status, its tips " +
+			"(the tooltips of the cells that have one, by column id: a node's kubelet, its upstream support and version skew), and " +
 			"selected for the rows of the selection; a page of them (offset, limit: default 100, at most 500). shown counts " +
 			"every row the view shows, total the objects before filtering. Secrets show what their view shows (key names, " +
 			"types), never a value. Reads the view's snapshot, never the API server; resources_list lists a kind regardless " +

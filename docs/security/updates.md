@@ -360,3 +360,35 @@ jobs "Vulnerability Check" and "GoSec Security Scan" in
   pin names runs in CI's envtest job, which holds no secret beyond the read-only `GITHUB_TOKEN`.
 - **A release names no inputs.** It carries no SBOM and no provenance attestation of the build
   (none in the workflows, checked 2026-10-15).
+- **The Kubernetes release table** (since 2026-10-18, [D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)):
+  data, not code, which Renovate cannot see either; each release fetches it at build time
+  ([H-130](#h-130-the-releases-kubernetes-release-table-is-fetched-unreviewed)).
+
+### H-130: The release's Kubernetes release table is fetched unreviewed
+
+The window marks a cluster's Kubernetes version and its kubelets by upstream's end-of-life dates
+from a table built into both binaries ([releasing › the Kubernetes release table](../developer/releasing.md#the-kubernetes-release-table)).
+The owner decided (2026-10-18) that it is fetched at build time so that every release carries the
+table of its day, and never at run time: the app makes no connection for it. The release job
+"Cogpit.app (macOS arm64)" downloads `kubernetes/website`'s `data/releases/schedule.yaml` and
+`eol.yaml` from `raw.githubusercontent.com` over HTTPS, unpinned (they change about monthly; no
+hash can name next month's file, and upstream signs neither), and builds what it gets into the
+signed, notarized release, without a person reading the diff first. Live for every release built
+since this change.
+
+- **Who can change what ships:** whoever can change the two files on `kubernetes/website`'s
+  `main` (the Kubernetes project's reviewers and its schedule-builder automation), and whoever can
+  alter what GitHub's raw host serves to the job.
+- **What a changed file can do:** shift dates, nothing else. The files are parsed into a fixed
+  structure of strings in a job that holds no secret, written as JSON and embedded; Cogpit reads
+  them as dates. A ⚠ can show too early, or a minor past its end of life can show as supported,
+  which may delay a user's upgrade. The generator's checks bound it: every date parses, the minors
+  follow one another without a gap and end in their order, each 12 to 18 months after its release,
+  and against the committed table no minor is lost and no known minor's end of life moves by more
+  than 120 days; anything else keeps the committed table. Within those bounds a false date ships.
+- **What remains visible:** the step's log lists every minor that changed against the committed
+  table, so a release's table can be reviewed after the fact; a build of the tag carries the
+  committed table, and the release's binaries record `vcs.modified=true` when the two differ.
+- **Not built:** a second source to compare with (endoflife.date was weighed and left out, a third
+  party with a quality record of its own, [D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)),
+  a person's approval of the table's diff before a release.

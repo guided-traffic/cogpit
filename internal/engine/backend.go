@@ -59,6 +59,9 @@ type Backend struct {
 	CredentialPlugin bool
 	// DemoStats reports the demo cluster's counters; nil for real clusters.
 	DemoStats func() any
+	// Version is the API server's version of a backend without a connection: the demo cluster's
+	// (ServerVersion); Conn's otherwise.
+	Version string
 	// Close stops the cache and closes the connection.
 	Close func()
 	// SourceFile is the kubeconfig file of a kubeconfig source the connection was made from
@@ -126,6 +129,18 @@ func (b *Backend) Writer() Actions {
 
 // CanWrite reports whether the backend can run mutating commands: false for the demo cluster.
 func (b *Backend) CanWrite() bool { return b.Writer() != nil }
+
+// ServerVersion returns the API server's version as the connect saw it ("v1.36.1"): the
+// connection's, else Version; "" when neither knows one.
+func (b *Backend) ServerVersion() string {
+	if b == nil {
+		return ""
+	}
+	if b.Conn != nil {
+		return b.Conn.ServerVersion()
+	}
+	return b.Version
+}
 
 // close stops the backend's cache and connection, recovering a panicking Close.
 func (b *Backend) close(log *slog.Logger) {

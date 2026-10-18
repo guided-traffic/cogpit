@@ -58,11 +58,13 @@ type overlayColumn struct {
 	After string
 }
 
-// overlays are a backend's overlays, one per integration that is on and marks objects.
+// overlays are a backend's overlays, one per integration that is on and marks objects, and
+// Cogpit's own after them: the version check of the Nodes list (k8sversion.go, D-91).
 type overlays struct {
 	mu     sync.Mutex
 	by     map[Integration]rowOverlay
-	gen    uint64 // counts every change of the set or of an overlay's data
+	own    rowOverlay // Cogpit's own overlay; nil for none
+	gen    uint64     // counts every change of the set or of an overlay's data
 	subs   map[uint64]func()
 	seq    uint64
 	closed bool
@@ -122,16 +124,36 @@ func (o *overlays) changed() {
 func (o *overlays) current() ([]rowOverlay, uint64) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
-	if len(o.by) == 0 {
+	if len(o.by) == 0 && o.own == nil {
 		return nil, o.gen
 	}
-	out := make([]rowOverlay, 0, len(o.by))
+	out := make([]rowOverlay, 0, len(o.by)+1)
 	for _, in := range Integrations {
 		if ov := o.by[in.Name]; ov != nil {
 			out = append(out, ov)
 		}
 	}
+	if o.own != nil {
+		out = append(out, o.own)
+	}
 	return out, o.gen
+}
+
+// putOwn sets Cogpit's own overlay (nil takes it off); the one it replaces is stopped.
+func (o *overlays) putOwn(ov rowOverlay) {
+	o.mu.Lock()
+	if o.closed && ov != nil {
+		o.mu.Unlock()
+		ov.stop()
+		return
+	}
+	old := o.own
+	o.own = ov
+	o.mu.Unlock()
+	if old != nil && old != ov {
+		old.stop()
+	}
+	o.changed()
 }
 
 // subscribe has fn called after every change; it must not block (a signal). The returned
@@ -157,10 +179,14 @@ func (o *overlays) close() {
 	o.mu.Lock()
 	o.closed = true
 	all := o.by
-	o.by = nil
+	own := o.own
+	o.by, o.own = nil, nil
 	o.mu.Unlock()
 	for _, ov := range all {
 		ov.stop()
+	}
+	if own != nil {
+		own.stop()
 	}
 }
 
@@ -285,14 +311,22 @@ func (l *overlayLayout) order(cols []model.Column, ids []string) []int {
 
 // mergeCell merges an overlay's cell into the kind's own cell of the same column: an empty cell
 // takes the overlay's; otherwise the texts are joined ("Containers not ready: web; Kyverno: 1 policy
-// violation"), the worse status and the larger sort key kept.
+// violation"), the worse status and the larger sort key kept, and the tooltips joined a line each.
+// An overlay's cell in coloured parts redraws the cell: its text and parts replace the kind's (a
+// kubelet's version with a ⚠ after it, k8sversion.go).
 func mergeCell(base, add model.Cell) model.Cell {
 	if base.Text == "" && base.Num == 0 && base.Status == model.StatusNone {
 		return add
 	}
 	out := base
-	if add.Text != "" {
+	switch {
+	case add.Parts != nil:
+		out.Text, out.Parts = add.Text, add.Parts
+	case add.Text != "":
 		out.Text = strings.TrimPrefix(base.Text+"; "+add.Text, "; ")
+	}
+	if add.Tip != "" {
+		out.Tip = strings.TrimPrefix(base.Tip+"\n"+add.Tip, "\n")
 	}
 	if statusRank(add.Status) > statusRank(base.Status) {
 		out.Status = add.Status

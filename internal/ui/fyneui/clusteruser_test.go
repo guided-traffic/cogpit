@@ -211,10 +211,14 @@ func renderNavigatorUser(t *testing.T, mode ThemeMode, suffix string) {
 			LastSeen: seen}, engine.Connecting, func(s *sidebar) fyne.CanvasObject { return s.subtitle }},
 	} {
 		f := userFake(t, sc.user, engine.Disconnected)
+		withSettingsCommand(t, f) // the gear before the dot, as every window has it (D-92)
 		sh, w, q := userScene(t, f, mode)
 		clk := fakeBlinkClock(sh) // a connecting cluster's dot blinks: drawn in its full phase
 		f.update(func(u *engine.UIState) {
 			u.Connection, u.NavigatorScope = engine.Connection{State: sc.state}, engine.NavScopeCluster(userCtx)
+			if sc.state.Live() {
+				u.ClusterVersion = clusterVersionOf("v1.37.1") // its version, supported (clusterversion.go, D-91)
+			}
 		})
 		q.until(t, "the cluster's tree", func() bool { return sh.side.tree.Visible() && sh.ui.Connection.State == sc.state })
 		clk.after(0)

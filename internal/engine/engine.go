@@ -19,6 +19,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/alerting"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
 // Origin says who dispatched a command. Confirmation rules depend on it (D-2).
@@ -113,6 +114,9 @@ type Options struct {
 	SnapshotInterval time.Duration
 	// Now is the clock; nil means time.Now.
 	Now func() time.Time
+	// K8sReleases is the Kubernetes release table the version marks read (k8sversion.go, D-91);
+	// nil means the one built in (k8seol.Embedded). Tests pass their own.
+	K8sReleases *k8seol.Table
 	// AfterFunc runs f once d has passed on the session's clock, as time.AfterFunc does, and
 	// returns its stop; nil means time.AfterFunc. Tests that move Now fire it themselves (the
 	// terminal tabs' agent-read switch, agentread.go).
@@ -205,6 +209,7 @@ type Session struct {
 	drawerEdits drawerEditStore // a Config Map's values edited in the drawer, not saved: drafts_drawer.go
 	users       userBook        // who Cogpit is logged in as, per context: whoami.go
 	alerts      alertBook       // what each cluster's Alertmanager answered last: alerts.go
+	versions    versionBook     // each connected cluster's API server version: k8sversion.go
 }
 
 // New returns a Session with an empty registry. Register commands (package commands) before use.
@@ -500,6 +505,8 @@ func (s *Session) UpdateUI(fn func(*UIState)) UIState {
 	// Who Cogpit is logged in as (whoami.go).
 	s.ui.syncUser(old, &s.users, s.opts.Now())
 	s.ui.syncAlerts(&s.alerts) // the shown cluster's alerts, the title bar's pill (alerts.go, D-77)
+	// The shown cluster's Kubernetes version and its upstream support (k8sversion.go, D-91).
+	s.ui.syncClusterVersion(&s.versions, s.releases(), s.opts.Now())
 	s.ui.Revision = old.Revision + 1
 	now := s.ui.Clone()
 	s.mu.Unlock()
