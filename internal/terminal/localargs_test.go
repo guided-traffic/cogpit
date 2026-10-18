@@ -20,7 +20,7 @@ func TestStartLocalPassesArgsAndDir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = sess.Close() })
+	closeOnCleanup(t, sess)
 	waitClosed(t, sess.Done(), 10*time.Second, "the shell running -c")
 	out := readTrimmed(t, filepath.Join(work, "out.txt"))
 	want, _ := filepath.EvalSymlinks(work)

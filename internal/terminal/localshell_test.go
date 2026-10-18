@@ -64,7 +64,7 @@ func startTestShell(t *testing.T, opts LocalOptions) (Session, *outputRecorder, 
 	if err != nil {
 		t.Fatalf("StartLocal: %v", err)
 	}
-	t.Cleanup(func() { _ = sess.Close() })
+	closeOnCleanup(t, sess)
 	return sess, record(sess), home
 }
 

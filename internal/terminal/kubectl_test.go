@@ -172,7 +172,7 @@ func TestZshKubectlFirstAfterTheProfile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = sess.Close() })
+	closeOnCleanup(t, sess)
 	out := record(sess)
 	script := strings.Join([]string{
 		`kubectl > which.txt 2>&1`,
@@ -227,7 +227,7 @@ func shellKubectlScene(t *testing.T, shell string, files map[string]string, env 
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = sess.Close() })
+	closeOnCleanup(t, sess)
 	out := record(sess)
 	if _, err := sess.Write([]byte(script)); err != nil {
 		t.Fatal(err)

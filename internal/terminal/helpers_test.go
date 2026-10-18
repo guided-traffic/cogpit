@@ -85,3 +85,19 @@ func waitClosed(t *testing.T, ch <-chan struct{}, timeout time.Duration, what st
 		t.Fatalf("%s not closed within %v", what, timeout)
 	}
 }
+
+// closeOnCleanup closes sess when the test ends and waits until its shell has exited, so that what
+// the shell writes on its way out (bash's history into the test's HOME) is done before t.TempDir
+// removes that HOME: the cleanups run in reverse order, this one before the directory's. A shell
+// still running after 10 s is reported, not waited for.
+func closeOnCleanup(t *testing.T, sess Session) {
+	t.Helper()
+	t.Cleanup(func() {
+		_ = sess.Close()
+		select {
+		case <-sess.Done():
+		case <-time.After(10 * time.Second):
+			t.Errorf("the shell did not exit within 10s of Close")
+		}
+	})
+}
