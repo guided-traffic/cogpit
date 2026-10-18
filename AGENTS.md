@@ -77,6 +77,7 @@ internal/kubectl              L1 kubectl for terminals: client version, skew, ve
 internal/locale               L1 the computer's date and time format (macOS region via cgo, else $LC_TIME), D-31
 internal/model kubeconfig     L0 the resource model (references, kind profiles, rows, detail sections); kubeconfig parsing (no I/O)
 internal/model/kinds          L0 the built-in kind profiles, one file per kind
+internal/model/k8seol         L0 Kubernetes' upstream release table, embedded and refreshed at release build (make k8s-eol, D-91)
 internal/buildinfo            L0 the version both binaries report (release, else dev and the commit)
 internal/testkit              fixtures, a fake API server and clients, a fake LLM endpoint, a sigstore of its own; kind tests in testkit/integration
 ```
