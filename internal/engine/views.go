@@ -325,6 +325,9 @@ func (s *Session) connect(ctx context.Context, name string) error {
 		if stale != nil {
 			u.dropConnection(name, 0)
 		}
+		if u.Context != name {
+			u.leaveCluster() // no filter crosses to another cluster (WF20)
+		}
 		u.Context = name
 		u.Connection = Connection{State: Connecting}
 		u.View = ""
@@ -401,6 +404,9 @@ func (s *Session) connect(ctx context.Context, name string) error {
 	s.UpdateUI(func(u *UIState) {
 		if u.Connection.State != Connecting {
 			return // b was closed since it was published: its file went (disconnectBackend, connect_gone.go)
+		}
+		if u.Context != b.Context {
+			u.leaveCluster() // no filter crosses to another cluster (WF20)
 		}
 		u.Context = b.Context
 		u.Connection = Connection{State: Connected, Demo: b.Demo, TLSUnchecked: tlsUnchecked(b), CredentialPlugin: b.CredentialPlugin} // tlswarning.go

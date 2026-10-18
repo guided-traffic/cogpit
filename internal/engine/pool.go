@@ -298,6 +298,9 @@ func (s *Session) showConnected(b *Backend, gen uint64) {
 		if i < 0 {
 			return // disconnected meanwhile
 		}
+		if u.Context != b.Context {
+			u.leaveCluster() // no filter crosses to another cluster (WF20)
+		}
 		u.Context = b.Context
 		u.Connection = u.Connections[i].Connection
 		u.connGen = gen

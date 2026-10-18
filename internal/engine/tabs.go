@@ -211,6 +211,17 @@ func (u *UIState) loadTab(i int) {
 }
 
 // saveTab makes the live state the tab's.
+// leaveCluster clears what filters the views of the cluster shown so far when the window shows
+// another one (WF20, D-69 stage 1): the namespaces, API groups, status filter, search and its
+// toggles belong to a cluster and never cross to the next. The cluster shown next comes with its
+// own tab's (syncTabs loads it), or with none.
+func (u *UIState) leaveCluster() {
+	u.Namespaces, u.Groups = nil, nil
+	u.SetStates(nil)
+	u.Filter, u.FilterOptions = "", FilterOptions{}
+	u.Selected, u.Drawer = nil, nil
+}
+
 func (u *UIState) saveTab(i int) {
 	t := &u.Tabs[i]
 	t.View, t.Filter, t.FilterOptions, t.Sort = u.View, u.Filter, u.FilterOptions, u.Sort
