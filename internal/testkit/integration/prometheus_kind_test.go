@@ -186,7 +186,7 @@ func TestKindPrometheus(t *testing.T) {
 		t.Fatalf("ui.state's providers = %+v", st.DrawerMetricsProviders)
 	}
 	prom, ms := st.DrawerMetricsProviders[0], st.DrawerMetricsProviders[1]
-	if prom.Provider != "prometheus" || prom.Status != metrics.StatusAvailable || prom.Service != "monitoring/prometheus-server:http" ||
+	if prom.Provider != "prometheus" || prom.Status != metrics.StatusAvailable || prom.Service != "monitoring/prometheus-server:80" ||
 		!slices.Contains(prom.Serves, metrics.ServesHistory) || slices.Contains(prom.Serves, metrics.ServesLive) {
 		t.Errorf("Prometheus's status = %+v", prom)
 	}
@@ -596,7 +596,7 @@ func TestKindKubePrometheusStack(t *testing.T) {
 		return strings.HasPrefix(m.Source, source) && len(m.Targets[0].Samples) >= 2 && m.HistorySource != ""
 	})
 	logProviders(t, "kube-prometheus-stack", m.Providers)
-	if p := m.Providers[0]; p.Service != "cogpit-kps/kps-kube-prometheus-stack-prometheus:http-web" || !slices.Contains(p.Serves, metrics.ServesHistory) {
+	if p := m.Providers[0]; p.Service != "cogpit-kps/kps-kube-prometheus-stack-prometheus:9090" || !slices.Contains(p.Serves, metrics.ServesHistory) {
 		t.Errorf("Prometheus's status = %+v", p)
 	}
 	if m.HistorySource != metrics.UsageNodeExporter {

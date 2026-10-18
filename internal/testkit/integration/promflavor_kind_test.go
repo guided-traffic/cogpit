@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -147,7 +148,7 @@ func TestKindVictoriaMetrics(t *testing.T) {
 	ins, _ := flavorService(ctx, t, s, model.ObjectRef{Kind: "services", Namespace: "cogpit-vm", Name: "vminsert-cogpit"})
 	stor, _ := flavorService(ctx, t, s, model.ObjectRef{Kind: "services", Namespace: "cogpit-vm", Name: "vmstorage-cogpit"})
 	cands := metrics.Candidates([]metrics.Service{single, sel, ins, stor})
-	if len(cands) != 2 || cands[0].Target.Service != "vmsingle-cogpit" || cands[0].Target.Port != "http" ||
+	if len(cands) != 2 || cands[0].Target.Service != "vmsingle-cogpit" || !slices.Contains(cands[0].Ports, "http") ||
 		cands[0].Target.Flavor != metrics.FlavorVictoriaMetrics || cands[1].Target.Service != "vmselect-cogpit" ||
 		cands[1].Target.Prefix != metrics.VMSelectPrefix {
 		t.Fatalf("candidates %+v", cands)

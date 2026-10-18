@@ -256,7 +256,7 @@ func openAlertmanagerSettings(t *testing.T, s *engine.Session, sh *shell, q *mai
 	var f *amFields
 	q.until(t, "the Alertmanager's fields", func() bool {
 		f, _ = sh.settings.controls[amFieldsControl].(*amFields)
-		return f != nil && f.enabled && f.line.text == "Auto detect: in use monitoring/kube-prometheus-alertmanager:http-web."
+		return f != nil && f.enabled && f.line.text == "Auto detect: in use monitoring/kube-prometheus-alertmanager:9093."
 	})
 	q.until(t, "the integrations' status lines", func() bool {
 		for _, r := range sh.settings.integrationRows {

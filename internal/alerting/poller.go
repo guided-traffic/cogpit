@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -381,13 +382,13 @@ type result struct {
 // ask runs one poll: the target that answered last, else the address, else the best candidates
 // among the cached Services (at most MaxProbes). Every request is the alerts request itself.
 func (p *Poller) ask(ctx context.Context, addr *Address, target *Target) result {
-	var cands []Target
+	var cands [][]Target // each candidate's spellings of its port (Candidate.Ports), the number first
 	configured := addr != nil
 	switch {
 	case target != nil:
-		cands = []Target{*target}
+		cands = [][]Target{{*target}}
 	case addr != nil:
-		cands = []Target{TargetOf(*addr)}
+		cands = [][]Target{{TargetOf(*addr)}}
 	default:
 		if p.services == nil {
 			return result{state: StateNotFound, notFound: true, err: "no Alertmanager found"}
@@ -396,14 +397,21 @@ func (p *Poller) ask(ctx context.Context, addr *Address, target *Target) result 
 		if err != nil {
 			return result{state: StateUnavailable, err: "the cluster's services cannot be read, so Alertmanager cannot be looked for: " + err.Error()}
 		}
-		for _, c := range Candidates(svcs) {
-			cands = append(cands, c.Target)
-		}
-		if len(cands) == 0 {
+		found := Candidates(svcs)
+		if len(found) == 0 {
 			return result{state: StateNotFound, notFound: true, err: "no Alertmanager found (no service named like one in the cluster)"}
 		}
-		if len(cands) > MaxProbes {
-			cands = cands[:MaxProbes]
+		if len(found) > MaxProbes {
+			found = found[:MaxProbes]
+		}
+		for _, c := range found {
+			var spellings []Target
+			for _, port := range c.Ports {
+				t := c.Target
+				t.Port = port
+				spellings = append(spellings, t)
+			}
+			cands = append(cands, spellings)
 		}
 	}
 	found := StateFound
@@ -412,25 +420,34 @@ func (p *Poller) ask(ctx context.Context, addr *Address, target *Target) result 
 	}
 	var lastErr error
 	var lastTarget Target
-	for _, t := range cands {
-		alerts, total, truncated, err := p.fetch(ctx, t)
-		if err == nil {
-			t := t
-			return result{state: found, target: &t, alerts: alerts, total: total, truncated: truncated}
+	var refused []string // the targets the service proxy refused: another spelling or candidate may be granted
+	var refusedErr error
+	for _, spellings := range cands {
+		for _, t := range spellings {
+			alerts, total, truncated, err := p.fetch(ctx, t)
+			if err == nil {
+				t := t
+				return result{state: found, target: &t, alerts: alerts, total: total, truncated: truncated}
+			}
+			if ctx.Err() != nil {
+				return result{state: StateUnavailable, err: "the request was cancelled"}
+			}
+			if forbidden(err) {
+				refused, refusedErr = append(refused, t.Where()), err
+				continue // another spelling of the port may be granted (an RBAC rule by resourceNames)
+			}
+			if target != nil && (errors.Is(err, errNotAlertmanager) || apierrors.IsNotFound(err) && !fromService(err)) {
+				return result{state: StateUnavailable, lost: true, err: t.Where() + " no longer answers as an Alertmanager: " + errorText(err)}
+			}
+			if configured || target != nil || !errors.Is(err, errNotAlertmanager) && !apierrors.IsNotFound(err) {
+				lastErr, lastTarget = err, t
+			}
+			break // it answered, or did not, under this spelling: the other asks the same server
 		}
-		if ctx.Err() != nil {
-			return result{state: StateUnavailable, err: "the request was cancelled"}
-		}
-		if forbidden(err) {
-			return result{state: StateForbidden, err: "the current user may not use the service proxy of " + t.Where() +
-				" (get services/proxy), so Alertmanager cannot be read: " + errorText(err)}
-		}
-		if target != nil && (errors.Is(err, errNotAlertmanager) || apierrors.IsNotFound(err) && !fromService(err)) {
-			return result{state: StateUnavailable, lost: true, err: t.Where() + " no longer answers as an Alertmanager: " + errorText(err)}
-		}
-		if configured || target != nil || !errors.Is(err, errNotAlertmanager) && !apierrors.IsNotFound(err) {
-			lastErr, lastTarget = err, t
-		}
+	}
+	if len(refused) > 0 {
+		return result{state: StateForbidden, err: "the current user may not use the service proxy of " + strings.Join(refused, " nor ") +
+			" (get services/proxy), so Alertmanager cannot be read: " + errorText(refusedErr)}
 	}
 	if lastErr != nil {
 		what := "looks like an Alertmanager but does not answer"

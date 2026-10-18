@@ -476,7 +476,7 @@ In Cluster Settings the integrations stand under a divider below Agents (since 2
 the heading **Integrations**, which opens a section for all five, then **Metrics Server**,
 **Prometheus**, **Alertmanager**, **Trivy Operator** and **Kyverno**, a section each.
 Integrations has a row per integration: its switch, what Cogpit found ("Found automatically:
-monitoring/prometheus-server:http", "Needs manual configuration: none found by name", "Not in this
+monitoring/prometheus-server:80", "Needs manual configuration: none found by name", "Not in this
 cluster", "No permission", "Not answering", "Checking…", "Off"), what it adds, and a link to its own
 section ("Details…", "Set its address…" while Prometheus or Alertmanager needs one). An
 integration's own section has its switch ("On for this cluster"), the same status (where a found
@@ -492,7 +492,11 @@ not on the demo cluster) forgets the cluster's choice and asks the question agai
 page, while the cluster is shown and connected; until you answer, nothing is read. Cluster Settings
 › Metrics names the two integrations it reads, the Metrics Server and Prometheus, each with its
 state and a link to its section, and keeps Hide metrics; before you chose it says that no metrics
-are asked until you choose.
+are asked until you choose. Cogpit reads Prometheus and Alertmanager through the API server's
+service proxy and spells the port by its number first (`monitoring/prometheus-operated:9090`), as
+Lens does, then by its name (`…:http-web`) when the number is refused: a role that grants
+`get services/proxy` only for named services (`resourceNames`) is matched as written, so a role
+written for Lens works; each refused spelling is a 403 in the cluster's audit log.
 
 **What you see at a cluster's first connect:** a cluster you have not chosen integrations for asks,
 once it is connected and shown, in a dialog over the window "Integrations for <name>" (the cluster's

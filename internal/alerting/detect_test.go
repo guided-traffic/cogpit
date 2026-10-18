@@ -30,17 +30,22 @@ func TestCandidates(t *testing.T) {
 	for _, c := range got {
 		where = append(where, c.Target.Where())
 	}
+	// The port by its number first, its name after (Candidate.Ports): the roles written for Lens
+	// grant the service proxy by "<service>:<number>".
 	want := []string{
-		"monitoring/kube-prometheus-alertmanager:http-web",
-		"observability/alertmanager-main:web",
-		"monitoring/alertmanager-operated:web",
-		"vm/vmalertmanager-main:http",
+		"monitoring/kube-prometheus-alertmanager:9093",
+		"observability/alertmanager-main:9093",
+		"monitoring/alertmanager-operated:9093",
+		"vm/vmalertmanager-main:9093",
 		"alerts/prom-alertmanager:9093",
 		"monitoring/alertmanager:80",
 		"team-a/alertmanager:8080",
 	}
 	if !slices.Equal(where, want) {
 		t.Errorf("candidates\n got %q\nwant %q", where, want)
+	}
+	if !slices.Equal(got[0].Ports, []string{"9093", "http-web"}) || !slices.Equal(got[4].Ports, []string{"9093"}) {
+		t.Errorf("the spellings of the ports: %q, %q", got[0].Ports, got[4].Ports)
 	}
 	for _, name := range []string{"kube-prometheus-stack-alertmanager", "kps-kube-prometheus-stack-alertmanager", "monitoring-kube-prometheus-alertmanager"} {
 		if scoreName("x", name) != 100 {

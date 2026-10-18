@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strings"
 	"testing"
 
@@ -34,17 +35,21 @@ func TestCandidatesRankKnownServices(t *testing.T) {
 	for _, c := range got {
 		names = append(names, c.Target.String()+":"+c.Target.Port)
 	}
+	// The port by its number first, as Lens writes it, its name after (Candidate.Ports).
 	want := []string{
-		"monitoring/stack-kube-prometheus-prometheus:http-web",
-		"monitoring/prometheus-k8s:web",
-		"monitoring/prometheus-operated:web",
-		"monitoring/prometheus-server:http",
-		"monitoring/thanos-query:http", // since 2026-10-16 night, Thanos by its name (D-71)
-		"lens-metrics/prometheus:web",
+		"monitoring/stack-kube-prometheus-prometheus:9090",
+		"monitoring/prometheus-k8s:9090",
+		"monitoring/prometheus-operated:9090",
+		"monitoring/prometheus-server:80",
+		"monitoring/thanos-query:9090", // since 2026-10-16 night, Thanos by its name (D-71)
+		"lens-metrics/prometheus:80",
 		"apps/prometheus:9090",
 	}
 	if strings.Join(names, " ") != strings.Join(want, " ") {
 		t.Errorf("candidates:\n got %v\nwant %v", names, want)
+	}
+	if !slices.Equal(got[0].Ports, []string{"9090", "http-web"}) || !slices.Equal(got[len(got)-1].Ports, []string{"9090"}) {
+		t.Errorf("the spellings of the ports: %q, %q", got[0].Ports, got[len(got)-1].Ports)
 	}
 
 	// kube-prometheus-stack's names by release: the release alone when it contains the chart's
@@ -62,7 +67,7 @@ func TestCandidatesRankKnownServices(t *testing.T) {
 
 func TestDetectFoundThroughTheServiceProxy(t *testing.T) {
 	c := newPromCluster(t, false)
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-server", 80), web("default", "web", 80)), metrics.PrometheusOptions{})
 
 	prov, st := det.Detect(context.Background())
@@ -105,7 +110,7 @@ func TestDetectNotFoundCostsNothing(t *testing.T) {
 
 func TestDetectCandidateThatIsNotPrometheus(t *testing.T) {
 	c := newPromCluster(t, false)
-	c.srv.SetProxy("monitoring", "prometheus-server:http", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	c.srv.SetProxy("monitoring", "prometheus-server:80", http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = w.Write([]byte("<html>hello</html>"))
 	}))
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
@@ -115,25 +120,80 @@ func TestDetectCandidateThatIsNotPrometheus(t *testing.T) {
 	}
 }
 
-func TestDetectForbiddenIsAStateAndStopsProbing(t *testing.T) {
+// TestDetectForbiddenIsAState: when the service proxy refuses every spelling of every candidate,
+// detection says forbidden and names each target it was refused; a refusal stops nothing, so
+// every candidate's spellings are asked (2 candidates × 2 spellings).
+func TestDetectForbiddenIsAState(t *testing.T) {
 	c := newPromCluster(t, false)
 	c.prom.status = http.StatusForbidden
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
-	c.srv.SetProxy("monitoring", "prometheus-operated:http", c.prom)
+	for _, name := range []string{"prometheus-server:80", "prometheus-server:http", "prometheus-operated:9090", "prometheus-operated:http"} {
+		c.srv.SetProxy("monitoring", name, c.prom)
+	}
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-server", 80), web("monitoring", "prometheus-operated", 9090)), metrics.PrometheusOptions{})
 	prov, st := det.Detect(context.Background())
-	if prov != nil || st.Status != metrics.StatusForbidden || !strings.Contains(st.Message, "services/proxy") {
+	if prov != nil || st.Status != metrics.StatusForbidden || !strings.Contains(st.Message, "services/proxy") ||
+		!strings.Contains(st.Message, "monitoring/prometheus-operated:9090 nor monitoring/prometheus-operated:http") {
 		t.Fatalf("state = %+v", st)
 	}
-	if n := c.proxyCount(); n != 1 {
-		t.Errorf("%d probes after a 403, want 1", n)
+	if n := c.proxyCount(); n != 4 {
+		t.Errorf("%d probes, want 4: each spelling of each candidate", n)
+	}
+}
+
+// refusing answers every request with a Kubernetes 403, as an RBAC rule by resourceNames refuses a
+// spelling of the proxy's name it does not list.
+var refusing = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write([]byte(`{"kind":"Status","apiVersion":"v1","status":"Failure","reason":"Forbidden","code":403,` +
+		`"message":"services \"x\" is forbidden: cannot get resource \"services/proxy\""}`))
+})
+
+// TestDetectTriesThePortsNumberThenName (the owner's mgmt-p, 2026-10-18): a role that grants the
+// service proxy by resourceNames matches the name as written. Where only "<svc>:9090" is granted
+// (as the roles written for Lens name it), the number, asked first, is found at once; where only
+// "<svc>:http-web" is, the number is refused and the name found next.
+func TestDetectTriesThePortsNumberThenName(t *testing.T) {
+	svc := metrics.Service{Namespace: "monitoring", Name: "kube-prometheus-prometheus", Ports: []metrics.ServicePort{{Name: "reloader-web", Port: 8080}, {Name: "http-web", Port: 9090}}}
+	for _, tc := range []struct {
+		granted, refused string
+		probes           int
+	}{
+		{"kube-prometheus-prometheus:9090", "kube-prometheus-prometheus:http-web", 1},
+		{"kube-prometheus-prometheus:http-web", "kube-prometheus-prometheus:9090", 2},
+	} {
+		c := newPromCluster(t, false)
+		c.srv.SetProxy("monitoring", tc.granted, c.prom)
+		c.srv.SetProxy("monitoring", tc.refused, refusing)
+		det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(svc), metrics.PrometheusOptions{})
+		prov, st := det.Detect(context.Background())
+		if prov == nil || st.Status != metrics.StatusAvailable {
+			t.Fatalf("granted %s: state = %+v", tc.granted, st)
+		}
+		if n := c.proxyCount(); n != int64(tc.probes) {
+			t.Errorf("granted %s: %d probes, want %d", tc.granted, n, tc.probes)
+		}
+	}
+}
+
+// TestDetectARefusedCandidateDoesNotStopTheNext: the best candidate refused under both spellings,
+// the next one is asked and found (before 2026-10-18 the first 403 ended detection).
+func TestDetectARefusedCandidateDoesNotStopTheNext(t *testing.T) {
+	c := newPromCluster(t, false)
+	c.srv.SetProxy("monitoring", "kube-prometheus-prometheus:9090", refusing)
+	c.srv.SetProxy("monitoring", "kube-prometheus-prometheus:http", refusing)
+	c.srv.SetProxy("monitoring", "prometheus-operated:9090", c.prom)
+	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "kube-prometheus-prometheus", 9090), web("monitoring", "prometheus-operated", 9090)), metrics.PrometheusOptions{})
+	prov, st := det.Detect(context.Background())
+	if prov == nil || st.Status != metrics.StatusAvailable {
+		t.Fatalf("state = %+v", st)
 	}
 }
 
 func TestDetectUnreachableIsUnavailableAndTriesTheNext(t *testing.T) {
 	c := newPromCluster(t, false)
 	// prometheus-operated has no endpoints (no handler: 503); prometheus-server works.
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-operated", 9090), web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	prov, st := det.Detect(context.Background())
 	if prov == nil || !st.Usable() || !strings.Contains(st.Label, "prometheus-server") {
@@ -203,7 +263,7 @@ func TestDetectServicesFailureIsAState(t *testing.T) {
 func TestChainPrefersPrometheusAndFallsBackToTheMetricsServer(t *testing.T) {
 	t.Run("prometheus found", func(t *testing.T) {
 		c := newPromCluster(t, true)
-		c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+		c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 		det, _, err := metrics.ChainForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 		if err != nil {
 			t.Fatal(err)
@@ -233,7 +293,7 @@ func TestChainPrefersPrometheusAndFallsBackToTheMetricsServer(t *testing.T) {
 	t.Run("forbidden falls back", func(t *testing.T) {
 		c := newPromCluster(t, true)
 		c.prom.status = http.StatusForbidden
-		c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+		c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 		det, _, _ := metrics.ChainForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 		prov, st := det.Detect(context.Background())
 		if prov == nil || prov.ID() != "metrics-server" || !st.Usable() {
@@ -243,7 +303,7 @@ func TestChainPrefersPrometheusAndFallsBackToTheMetricsServer(t *testing.T) {
 	t.Run("neither: the telling state wins", func(t *testing.T) {
 		c := newPromCluster(t, false)
 		c.prom.status = http.StatusForbidden
-		c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+		c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 		det, _, _ := metrics.ChainForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 		prov, st := det.Detect(context.Background())
 		if prov != nil || st.Status != metrics.StatusForbidden {

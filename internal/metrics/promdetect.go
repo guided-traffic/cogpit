@@ -56,6 +56,13 @@ func (o Override) Valid() bool { return o.Namespace != "" && o.Service != "" && 
 type Candidate struct {
 	Target Target
 	Score  int
+	// Ports are the spellings of the target's port the service proxy is asked with, best first:
+	// its number, then its name (portForms). Target.Port is the first. An RBAC rule that grants
+	// services/proxy by resourceNames matches the proxy's name "<service>:<port>" as written, and
+	// the roles written for Lens name the number (the owner's mgmt-p, 2026-10-18: only
+	// "prometheus-operated:9090" was allowed, "…:http-web" refused); empty for an override, which
+	// is asked as set.
+	Ports []string
 }
 
 // Detection of Prometheus by well-known Service names, observed from the documentation of the
@@ -152,8 +159,10 @@ func Candidates(services []Service) []Candidate {
 		if !ok {
 			continue
 		}
+		forms := portForms(port)
 		n, _ := matchName(s.Name)
-		out = append(out, Candidate{Target: Target{Namespace: s.Namespace, Service: s.Name, Port: port, Prefix: n.prefix, Flavor: n.flavor}, Score: score})
+		out = append(out, Candidate{Target: Target{Namespace: s.Namespace, Service: s.Name, Port: forms[0], Prefix: n.prefix, Flavor: n.flavor},
+			Score: score, Ports: forms})
 	}
 	slices.SortFunc(out, func(a, b Candidate) int {
 		if a.Score != b.Score {
@@ -189,9 +198,8 @@ func nsRank(ns string) int {
 
 // pickPort chooses the port Prometheus's web UI and API listen on: one named like the charts name
 // it, else 9090, else 80, else the first. Ports that belong to sidecars (the config reloader, the
-// Thanos sidecar's gRPC) are skipped by name. The port is returned as its name when it has one
-// of the known names (the service proxy resolves names), else as its number.
-func pickPort(ports []ServicePort) (string, bool) {
+// Thanos sidecar's gRPC) are skipped by name.
+func pickPort(ports []ServicePort) (ServicePort, bool) {
 	var usable []ServicePort
 	for _, p := range ports {
 		n := strings.ToLower(p.Name)
@@ -203,21 +211,32 @@ func pickPort(ports []ServicePort) (string, bool) {
 	for _, want := range webPortNames {
 		for _, p := range usable {
 			if strings.EqualFold(p.Name, want) {
-				return p.Name, true
+				return p, true
 			}
 		}
 	}
 	for _, want := range []int32{9090, 80} {
 		for _, p := range usable {
 			if p.Port == want {
-				return strconv.Itoa(int(p.Port)), true
+				return p, true
 			}
 		}
 	}
 	if len(usable) > 0 {
-		return strconv.Itoa(int(usable[0].Port)), true
+		return usable[0], true
 	}
-	return "", false
+	return ServicePort{}, false
+}
+
+// portForms are the spellings of a port in the service proxy's name, as Candidate.Ports asks
+// them: the number first, as Lens writes it and the roles written for Lens grant it, then the
+// name, which the proxy resolves as well.
+func portForms(p ServicePort) []string {
+	forms := []string{strconv.Itoa(int(p.Port))}
+	if p.Name != "" && p.Name != forms[0] {
+		forms = append(forms, p.Name)
+	}
+	return forms
 }
 
 // PrometheusDetector finds a Prometheus: the override if one is set, else the best candidates among
@@ -325,21 +344,39 @@ func (d *PrometheusDetector) Detect(ctx context.Context) (Provider, State) {
 	}
 	var lastErr error
 	var lastTarget Target
+	var refused []string // the targets the service proxy refused, each spelling (Candidate.Ports)
+	var refusedErr error
 	for _, c := range cands {
-		err := d.probe(ctx, c.Target)
-		if err == nil {
-			prov := newPrometheus(d.px, c.Target, opts)
-			return prov, State{Status: StatusAvailable, Provider: PrometheusID, Label: prov.Label()}
+		forms := c.Ports
+		if len(forms) == 0 {
+			forms = []string{c.Target.Port}
 		}
-		if ctx.Err() != nil {
-			return nil, State{Status: StatusUnavailable, Message: msgCancelled}
+		for _, port := range forms {
+			t := c.Target
+			t.Port = port
+			err := d.probe(ctx, t)
+			if err == nil {
+				prov := newPrometheus(d.px, t, opts)
+				return prov, State{Status: StatusAvailable, Provider: PrometheusID, Label: prov.Label()}
+			}
+			if ctx.Err() != nil {
+				return nil, State{Status: StatusUnavailable, Message: msgCancelled}
+			}
+			if apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err) {
+				// Another spelling of the port, or another candidate, may be granted (an RBAC rule
+				// by resourceNames): a refusal stops nothing.
+				refused, refusedErr = append(refused, t.Where()), err
+				continue
+			}
+			if !errors.Is(err, errNotPrometheus) && !apierrors.IsNotFound(err) {
+				lastErr, lastTarget = err, t
+			}
+			break // it answered, or did not, under this spelling: the other asks the same server
 		}
-		if apierrors.IsForbidden(err) || apierrors.IsUnauthorized(err) {
-			return nil, State{Status: StatusForbidden, Message: "the current user may not use the service proxy of " + c.Target.String() + " (get services/proxy), so Prometheus cannot be read: " + errorText(err), Reason: errorClass(err)}
-		}
-		if !errors.Is(err, errNotPrometheus) && !apierrors.IsNotFound(err) {
-			lastErr, lastTarget = err, c.Target
-		}
+	}
+	if len(refused) > 0 {
+		return nil, State{Status: StatusForbidden, Message: "the current user may not use the service proxy of " + strings.Join(refused, " nor ") +
+			" (get services/proxy), so Prometheus cannot be read: " + errorText(refusedErr), Reason: errorClass(refusedErr)}
 	}
 	if lastErr != nil {
 		return nil, State{Status: StatusUnavailable, Message: fmt.Sprintf("%s looks like a Prometheus but does not answer: %s", lastTarget, errorText(lastErr)), Reason: errorClass(lastErr)}

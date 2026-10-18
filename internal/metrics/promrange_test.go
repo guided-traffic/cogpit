@@ -14,7 +14,7 @@ import (
 // promProvider detects the fake Prometheus through the service proxy and returns its provider.
 func promProvider(t *testing.T, c *promCluster, opts metrics.PrometheusOptions) metrics.RangeProvider {
 	t.Helper()
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-server", 80)), opts)
 	prov, st := det.Detect(context.Background())
 	if prov == nil {

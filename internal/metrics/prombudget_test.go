@@ -13,7 +13,7 @@ import (
 // promHub is a hub over the detector chain of a fake cluster that has the fake Prometheus.
 func promHub(t *testing.T, c *promCluster, opts metrics.Options) *metrics.Hub {
 	t.Helper()
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	det, _, err := metrics.ChainForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -173,7 +173,7 @@ func TestBothProvidersBudget(t *testing.T) {
 	c := newPromCluster(t, true)
 	c.srv.Set(podMetricsGVR, podObj("web", "a"))
 	podDataRel(c.prom)
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	src, _, err := metrics.SourcesForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {
 		t.Fatal(err)
@@ -208,7 +208,7 @@ func TestBothProvidersBudget(t *testing.T) {
 		t.Errorf("%d Metrics Server gets in 4 drawer polls", n)
 	}
 	ps := h.Providers()
-	if ps[0].Status != metrics.StatusAvailable || ps[0].Service != "monitoring/prometheus-server:http" || !slices.Contains(ps[0].Serves, metrics.ServesHistory) || slices.Contains(ps[0].Serves, metrics.ServesLive) {
+	if ps[0].Status != metrics.StatusAvailable || ps[0].Service != "monitoring/prometheus-server:80" || !slices.Contains(ps[0].Serves, metrics.ServesHistory) || slices.Contains(ps[0].Serves, metrics.ServesLive) {
 		t.Errorf("Prometheus's status = %+v", ps[0])
 	}
 	if !slices.Equal(ps[1].Serves, []string{metrics.ServesLive}) || ps[1].LastOK.IsZero() || ps[1].LastError != "" {
@@ -305,8 +305,8 @@ func TestPrometheusForbiddenIsTheScopesState(t *testing.T) {
 	if st := h.State(webPodA); st.Status != metrics.StatusForbidden || !strings.Contains(st.Message, "services/proxy") {
 		t.Errorf("state = %+v", st)
 	}
-	if n := c.proxyCount(); n != 1 {
-		t.Errorf("%d proxy requests: a forbidden proxy is probed once, not queried", n)
+	if n := c.proxyCount(); n != 2 {
+		t.Errorf("%d proxy requests: a forbidden proxy is probed once per spelling of its port (80, http), not queried", n)
 	}
 }
 

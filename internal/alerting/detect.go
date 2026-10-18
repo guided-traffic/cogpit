@@ -97,6 +97,10 @@ func (t Target) prefix() string {
 type Candidate struct {
 	Target Target
 	Score  int
+	// Ports are the spellings of the target's port the service proxy is asked with, best first:
+	// its number, then its name, as Prometheus' detection asks them (metrics.Candidate.Ports): a
+	// role granting services/proxy by resourceNames matches the name "<service>:<port>" as written.
+	Ports []string
 }
 
 // Detection of Alertmanager by well-known Service names, from the documentation of the charts and
@@ -147,7 +151,8 @@ func Candidates(services []Service) []Candidate {
 		if !ok {
 			continue
 		}
-		out = append(out, Candidate{Target: Target{Namespace: s.Namespace, Service: s.Name, Port: port}, Score: score})
+		forms := portForms(port)
+		out = append(out, Candidate{Target: Target{Namespace: s.Namespace, Service: s.Name, Port: forms[0]}, Score: score, Ports: forms})
 	}
 	slices.SortFunc(out, func(a, b Candidate) int {
 		if a.Score != b.Score {
@@ -185,9 +190,8 @@ func nsRank(ns string) int {
 
 // pickPort chooses the port Alertmanager's API listens on: one named as the charts name it, else
 // 9093, else 80, else the first. The cluster gossip ports (mesh, cluster) and a config reloader's
-// are skipped by name. A known name is returned as the name (the service proxy resolves it), else
-// the number.
-func pickPort(ports []ServicePort) (string, bool) {
+// are skipped by name.
+func pickPort(ports []ServicePort) (ServicePort, bool) {
 	var usable []ServicePort
 	for _, p := range ports {
 		n := strings.ToLower(p.Name)
@@ -199,19 +203,29 @@ func pickPort(ports []ServicePort) (string, bool) {
 	for _, want := range webPortNames {
 		for _, p := range usable {
 			if strings.EqualFold(p.Name, want) {
-				return p.Name, true
+				return p, true
 			}
 		}
 	}
 	for _, want := range []int32{9093, 80} {
 		for _, p := range usable {
 			if p.Port == want {
-				return strconv.Itoa(int(p.Port)), true
+				return p, true
 			}
 		}
 	}
 	if len(usable) > 0 {
-		return strconv.Itoa(int(usable[0].Port)), true
+		return usable[0], true
 	}
-	return "", false
+	return ServicePort{}, false
+}
+
+// portForms are a port's spellings in the service proxy's name, as Candidate.Ports asks them: the
+// number first, then the name.
+func portForms(p ServicePort) []string {
+	forms := []string{strconv.Itoa(int(p.Port))}
+	if p.Name != "" && p.Name != forms[0] {
+		forms = append(forms, p.Name)
+	}
+	return forms
 }

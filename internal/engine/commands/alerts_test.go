@@ -94,7 +94,7 @@ func TestAlertCommands(t *testing.T) {
 
 	var set engine.AlertmanagerSetting
 	h.must(t, agent, "cluster.alertmanager", map[string]any{}, &set)
-	if !set.Auto || set.State != engine.AlertsFound || set.InUse != "monitoring/kube-prometheus-alertmanager:http-web" {
+	if !set.Auto || set.State != engine.AlertsFound || set.InUse != "monitoring/kube-prometheus-alertmanager:9093" {
 		t.Errorf("cluster.alertmanager %+v", set)
 	}
 	h.s.SetAgentWrites(h.s.UIState().Context, true)

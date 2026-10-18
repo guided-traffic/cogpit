@@ -78,7 +78,7 @@ func diskSeries(p *fakeProm) {
 // dualHub is a hub over a fake cluster's Metrics Server and its Prometheus behind the service proxy.
 func dualHub(t *testing.T, c *promCluster, opts metrics.Options) *metrics.Hub {
 	t.Helper()
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	src, _, err := metrics.SourcesForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {
 		t.Fatal(err)

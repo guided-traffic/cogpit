@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -82,8 +83,8 @@ func newTestPoller(px proxy, src ServiceSource, changes *atomic.Int32) *Poller {
 func TestPollerDetectsAndPolls(t *testing.T) {
 	px := &fakeProxy{}
 	at := time.Now().Add(-time.Hour)
-	px.set("monitoring/kube-prometheus-alertmanager:http-web", answer([]byte(`{"status":"success","data":{}}`))) // not an Alertmanager
-	px.set("monitoring/alertmanager-operated:web", answer(wire(t, wireAlertOf("A", "warning", at, nil))))
+	px.set("monitoring/kube-prometheus-alertmanager:9093", answer([]byte(`{"status":"success","data":{}}`))) // not an Alertmanager
+	px.set("monitoring/alertmanager-operated:9093", answer(wire(t, wireAlertOf("A", "warning", at, nil))))
 	var changes atomic.Int32
 	p := newTestPoller(px, services(
 		svc("monitoring", "alertmanager-operated", ServicePort{Name: "web", Port: 9093}),
@@ -97,7 +98,7 @@ func TestPollerDetectsAndPolls(t *testing.T) {
 	p.SetActive(true)
 	waitFor(t, "the answer", func() bool { return p.Snapshot().Answered() })
 	snap := p.Snapshot()
-	if snap.State != StateFound || snap.Target.Where() != "monitoring/alertmanager-operated:web" || snap.Total != 1 || snap.Alerts[0].Name != "A" {
+	if snap.State != StateFound || snap.Target.Where() != "monitoring/alertmanager-operated:9093" || snap.Total != 1 || snap.Alerts[0].Name != "A" {
 		t.Fatalf("snapshot %+v", snap)
 	}
 	waitFor(t, "more polls", func() bool { return px.count() >= 5 })
@@ -158,7 +159,7 @@ func TestPollerFailures(t *testing.T) {
 	px := &fakeProxy{}
 	at := time.Now().Add(-time.Hour)
 	good := wire(t, wireAlertOf("A", "critical", at, nil))
-	where := "monitoring/alertmanager-operated:web"
+	where := "monitoring/alertmanager-operated:9093"
 	px.set(where, answer(good))
 	var changes atomic.Int32
 	p := newTestPoller(px, services(svc("monitoring", "alertmanager-operated", ServicePort{Name: "web", Port: 9093})), &changes)
@@ -233,6 +234,44 @@ func TestPollerBackoffAndKeep(t *testing.T) {
 	p.apply(4, result{state: StateFound, target: target, total: 9})
 	if p.Snapshot().Total == 9 {
 		t.Error("a poll of an older address was applied")
+	}
+}
+
+// TestPollerTriesThePortsNumberThenName (the owner's mgmt-p, 2026-10-18): a refused spelling of
+// the port, or a refused candidate, does not end the search; the spelling granted is used.
+func TestPollerTriesThePortsNumberThenName(t *testing.T) {
+	refuse := func() ([]byte, error) {
+		return nil, apierrors.NewForbidden(schema.GroupResource{Resource: "services/proxy"}, "x", errors.New("not granted"))
+	}
+	px := &fakeProxy{}
+	at := time.Now().Add(-time.Hour)
+	px.set("monitoring/kube-prometheus-alertmanager:9093", refuse)
+	px.set("monitoring/kube-prometheus-alertmanager:http-web", refuse)
+	px.set("monitoring/alertmanager-operated:9093", refuse)
+	px.set("monitoring/alertmanager-operated:web", answer(wire(t, wireAlertOf("A", "warning", at, nil))))
+	var changes atomic.Int32
+	p := newTestPoller(px, services(
+		svc("monitoring", "alertmanager-operated", ServicePort{Name: "web", Port: 9093}),
+		svc("monitoring", "kube-prometheus-alertmanager", ServicePort{Name: "http-web", Port: 9093}),
+	), &changes)
+	defer p.Close()
+	p.SetActive(true)
+	waitFor(t, "the answer", func() bool { return p.Snapshot().Answered() })
+	if snap := p.Snapshot(); snap.State != StateFound || snap.Target.Where() != "monitoring/alertmanager-operated:web" {
+		t.Errorf("found %+v", snap)
+	}
+
+	// Every spelling of every candidate refused: forbidden, each named.
+	px2 := &fakeProxy{}
+	for _, w := range []string{"monitoring/kube-prometheus-alertmanager:9093", "monitoring/kube-prometheus-alertmanager:http-web"} {
+		px2.set(w, refuse)
+	}
+	p2 := newTestPoller(px2, services(svc("monitoring", "kube-prometheus-alertmanager", ServicePort{Name: "http-web", Port: 9093})), &changes)
+	defer p2.Close()
+	p2.SetActive(true)
+	waitFor(t, "forbidden", func() bool { return p2.Snapshot().State == StateForbidden })
+	if e := p2.Snapshot().Error; !strings.Contains(e, "monitoring/kube-prometheus-alertmanager:9093 nor monitoring/kube-prometheus-alertmanager:http-web") {
+		t.Errorf("forbidden error %q", e)
 	}
 }
 

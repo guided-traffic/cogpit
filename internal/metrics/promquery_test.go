@@ -146,7 +146,7 @@ func TestEmptyContainerFilter(t *testing.T) {
 func TestPrometheusOverHTTPS(t *testing.T) {
 	c := newPromCluster(t, false)
 	podData(c.prom)
-	c.srv.SetProxy("monitoring", "https:prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "https:prometheus-server:80", c.prom)
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	det.SetQuery(metrics.QuerySettings{HTTPS: true})
 	prov, st := det.Detect(context.Background())
@@ -154,7 +154,7 @@ func TestPrometheusOverHTTPS(t *testing.T) {
 		t.Fatalf("no provider over https: %+v", st)
 	}
 	p := prov.(*metrics.Prometheus)
-	if p.Where() != "monitoring/prometheus-server:http (https)" || !p.Query().HTTPS || det.Query() != (metrics.QuerySettings{HTTPS: true}) {
+	if p.Where() != "monitoring/prometheus-server:80 (https)" || !p.Query().HTTPS || det.Query() != (metrics.QuerySettings{HTTPS: true}) {
 		t.Errorf("where %q, settings %+v", p.Where(), p.Query())
 	}
 	if _, err := p.ObjectRange(context.Background(), podQuery("web", "a")); err != nil {

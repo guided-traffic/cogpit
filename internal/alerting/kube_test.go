@@ -27,7 +27,7 @@ func TestPollerThroughTheServiceProxy(t *testing.T) {
 	am := &testkit.FakeAlertmanager{}
 	now := time.Now()
 	am.Set(testkit.SampleAlerts(now)...)
-	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:http-web", am)
+	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:9093", am)
 
 	var changes atomic.Int32
 	p := alerting.NewPoller(conn.Kube(), alerting.ServiceSourceFunc(func(context.Context) ([]alerting.Service, error) {
@@ -74,7 +74,7 @@ func TestPollerThroughTheServiceProxy(t *testing.T) {
 	}
 
 	// The service without endpoints: unavailable, the answer kept.
-	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:http-web", nil)
+	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:9093", nil)
 	p.Refresh()
 	p.SetActive(true)
 	for p.Snapshot().State != alerting.StateUnavailable {

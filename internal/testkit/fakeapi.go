@@ -591,7 +591,9 @@ func (s *FakeAPIServer) serveResource(w http.ResponseWriter, r *http.Request, pa
 // SetProxy puts a service behind the API server's service proxy: a request for
 // /api/v1/namespaces/<namespace>/services/<service>/proxy/<path> reaches h with the path after
 // "/proxy" and is counted as "get services/proxy". service is the name as the request writes it,
-// "name:port" or "name". A service nobody set answers 503 like a service without endpoints.
+// "name:port" or "name"; a request that spells the port the other way (its number for its name, or
+// back) reaches the same handler when the fake holds the Service (proxyBySpelling). A service
+// nobody set answers 503 like a service without endpoints.
 func (s *FakeAPIServer) SetProxy(namespace, service string, h http.Handler) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -606,6 +608,9 @@ func (s *FakeAPIServer) serveProxy(w http.ResponseWriter, r *http.Request, req f
 	s.count("get", "services/proxy")
 	s.mu.Lock()
 	h := s.proxies[req.namespace+"/"+req.name]
+	if h == nil {
+		h = s.proxyBySpelling(req.namespace, req.name)
+	}
 	s.mu.Unlock()
 	if h == nil {
 		writeStatus(w, http.StatusServiceUnavailable, "ServiceUnavailable", "no endpoints available for service "+req.name)
@@ -621,6 +626,40 @@ func (s *FakeAPIServer) serveProxy(w http.ResponseWriter, r *http.Request, req f
 	r2 := r.Clone(r.Context())
 	r2.URL.Path = rest
 	h.ServeHTTP(w, r2)
+}
+
+// proxyBySpelling finds the handler of a service proxy request whose port is spelled otherwise
+// than SetProxy named it, as the API server resolves "name:9090" and "name:http-web" to the same
+// port of the Service: the Service's own ports (from the objects the fake holds) say which number
+// and which name are the same port. Nil without such a Service or handler. Called with s.mu held.
+func (s *FakeAPIServer) proxyBySpelling(namespace, name string) http.Handler {
+	scheme, svc, port := "", name, ""
+	parts := strings.Split(name, ":")
+	switch len(parts) {
+	case 2:
+		svc, port = parts[0], parts[1]
+	case 3:
+		scheme, svc, port = parts[0]+":", parts[1], parts[2]
+	}
+	obj, ok := s.objs[ServicesGVR][objKey(namespace, svc)]
+	if !ok || port == "" {
+		return nil
+	}
+	ports, _, _ := unstructured.NestedSlice(obj.Object, "spec", "ports")
+	for _, raw := range ports {
+		p, _ := raw.(map[string]any)
+		pname, _ := p["name"].(string)
+		num := fmt.Sprint(p["port"])
+		if port != pname && port != num {
+			continue
+		}
+		for _, alt := range []string{num, pname} {
+			if h := s.proxies[namespace+"/"+scheme+svc+":"+alt]; alt != "" && h != nil {
+				return h
+			}
+		}
+	}
+	return nil
 }
 
 func (s *FakeAPIServer) serveGet(w http.ResponseWriter, req fakeRequest) {

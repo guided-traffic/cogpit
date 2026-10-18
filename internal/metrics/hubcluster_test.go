@@ -299,7 +299,7 @@ func TestClusterBudget(t *testing.T) {
 	}
 	c.prom.onRel(`node=~`, s(nil, -60, 0.5, -30, 0.5, 0, 0.5))
 	c.prom.onRel(`{id="/"}`, s(nil, -60, 1.5, -30, 1.5, 0, 1.5))
-	c.srv.SetProxy("monitoring", "prometheus-server:http", c.prom)
+	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	src, _, err := metrics.SourcesForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {
 		t.Fatal(err)

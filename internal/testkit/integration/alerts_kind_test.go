@@ -93,7 +93,7 @@ func TestKindAlertmanager(t *testing.T) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	got := *u.Alerts
-	if got.State != engine.AlertsFound || got.Where != "cogpit-alerts/cogpit-alertmanager:http" || got.Critical != 2 ||
+	if got.State != engine.AlertsFound || got.Where != "cogpit-alerts/cogpit-alertmanager:9093" || got.Critical != 2 ||
 		got.Warning != 3 || got.Info != 1 || got.Total != 6 || got.Worst != "critical" {
 		t.Errorf("the pill: %+v", got)
 	}

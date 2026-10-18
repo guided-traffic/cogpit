@@ -63,7 +63,7 @@ func TestCandidatesThanosAndVictoriaMetrics(t *testing.T) {
 	for _, c := range got {
 		names = append(names, c.Target.Service+":"+c.Target.Port)
 	}
-	if want := []string{"kube-prometheus-prometheus:http-web", "prometheus-operated:http-web", "thanos-query:http", "thanos-query-frontend:http"}; !slices.Equal(names, want) {
+	if want := []string{"kube-prometheus-prometheus:9090", "prometheus-operated:9090", "thanos-query:9090", "thanos-query-frontend:9090"}; !slices.Equal(names, want) {
 		t.Errorf("candidates %v, want %v", names, want)
 	}
 }
@@ -73,13 +73,13 @@ func TestCandidatesThanosAndVictoriaMetrics(t *testing.T) {
 // path; the status line names the flavor.
 func TestDetectThanosAndVictoriaMetrics(t *testing.T) {
 	c := newPromCluster(t, false)
-	c.srv.SetProxy("monitoring", "thanos-query:http", c.prom)
+	c.srv.SetProxy("monitoring", "thanos-query:9090", c.prom)
 	det := metrics.NewPrometheusDetector(c.conn.Kube(), servicesOf(web("monitoring", "thanos-query", 9090), web("monitoring", "thanos-storegateway", 9090)), metrics.PrometheusOptions{})
 	prov, st := det.Detect(context.Background())
 	if prov == nil || st.Label != "Thanos (monitoring/thanos-query)" || st.Provider != metrics.PrometheusID {
 		t.Fatalf("Thanos: state %+v", st)
 	}
-	if l, ok := prov.(metrics.Located); !ok || l.Where() != "monitoring/thanos-query:http" {
+	if l, ok := prov.(metrics.Located); !ok || l.Where() != "monitoring/thanos-query:9090" {
 		t.Errorf("where %v", prov)
 	}
 	if n, ok := prov.(metrics.Named); !ok || n.Name() != "Thanos" {
@@ -88,7 +88,7 @@ func TestDetectThanosAndVictoriaMetrics(t *testing.T) {
 
 	vm := newPromCluster(t, false)
 	vm.prom.prefix = metrics.VMSelectPrefix
-	vm.srv.SetProxy("vm", "vmselect-main:http", vm.prom)
+	vm.srv.SetProxy("vm", "vmselect-main:8481", vm.prom)
 	det = metrics.NewPrometheusDetector(vm.conn.Kube(), servicesOf(web("vm", "vmselect-main", 8481), web("vm", "vminsert-main", 8480)), metrics.PrometheusOptions{})
 	prov, st = det.Detect(context.Background())
 	if prov == nil || st.Label != "VictoriaMetrics (vm/vmselect-main)" {
@@ -97,7 +97,7 @@ func TestDetectThanosAndVictoriaMetrics(t *testing.T) {
 	if reqs := vm.prom.requests(); len(reqs) != 1 || reqs[0].path != metrics.VMSelectPrefix+"/api/v1/status/buildinfo" {
 		t.Errorf("vmselect requests %+v", reqs)
 	}
-	if l := prov.(metrics.Located).Where(); l != "vm/vmselect-main:http/select/0/prometheus" {
+	if l := prov.(metrics.Located).Where(); l != "vm/vmselect-main:8481/select/0/prometheus" {
 		t.Errorf("vmselect where %q", l)
 	}
 

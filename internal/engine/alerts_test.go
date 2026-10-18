@@ -100,7 +100,7 @@ func TestAlertmanagerIntegration(t *testing.T) {
 	s := st.s
 	mustConnect(t, s, "fake")
 	u := waitUI(t, s, "the first answer", answered)
-	want := AlertsSummary{State: AlertsFound, Where: "monitoring/kube-prometheus-alertmanager:http-web", Total: 24, Critical: 3,
+	want := AlertsSummary{State: AlertsFound, Where: "monitoring/kube-prometheus-alertmanager:9093", Total: 24, Critical: 3,
 		Warning: 18, Info: 3, Worst: "critical", Answered: true}
 	if *u.Alerts != want {
 		t.Errorf("pill\n got %+v\nwant %+v", *u.Alerts, want)
