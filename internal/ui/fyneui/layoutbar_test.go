@@ -64,8 +64,8 @@ func chatEngine(t *testing.T) *engine.Session {
 // divider), in VS Code's order, drive the
 // engine's state and show it: the navigator hides (the views take its room, the hotbar stays) and
 // comes back, the dock collapses to its strip and opens again (its own arrow and a click on its
-// shown tab too), the chat column shows; the dock's toggle is disabled while the dock has no tabs.
-// An agent's change shows the same way. Against the real engine and its registry.
+// shown tab too), the chat column shows; the dock's toggle is disabled while the dock has no tabs
+// and no terminal can open (no cluster connected). An agent's change shows the same way. Against the real engine and its registry.
 func TestLayoutTogglesThroughTheEngine(t *testing.T) {
 	s := chatEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
@@ -443,4 +443,28 @@ func renderUpdate(t *testing.T, mode ThemeMode, name string) {
 func TestRenderLayoutUpdateDark(t *testing.T) { renderUpdate(t, ThemeDark, "layout_update_dark.png") }
 func TestRenderLayoutUpdateLight(t *testing.T) {
 	renderUpdate(t, ThemeLight, "layout_update_light.png")
+}
+
+// TestDockToggleOpensATerminal (WF18): with no dock tab, the dock's toggle is enabled on a real
+// cluster, says so in its tooltip and runs ui.toggleDock, which opens a terminal there; on the demo
+// cluster (no terminals) it stays disabled with the reason.
+func TestDockToggleOpensATerminal(t *testing.T) {
+	f := connectedFake(t, 3)
+	f.update(func(u *engine.UIState) {
+		u.Context, u.Connection = "kind-cogpit", engine.Connection{State: engine.Connected}
+	})
+	sh, _, q := newTestShell(t, f, Options{})
+	l := sh.top.layout
+	q.until(t, "the enabled toggle", func() bool { return !l.dock.Disabled() })
+	if !strings.HasPrefix(l.dock.tip, "Open a Terminal") {
+		t.Errorf("the empty dock's tooltip %q", l.dock.tip)
+	}
+	test.Tap(l.dock)
+	q.until(t, "ui.toggleDock", func() bool { return len(f.callsOf("ui.toggleDock")) == 1 })
+
+	f.update(func(u *engine.UIState) { u.Connection = engine.Connection{State: engine.Connected, Demo: true} })
+	q.until(t, "the disabled toggle", func() bool { return l.dock.Disabled() })
+	if !strings.HasPrefix(l.dock.tip, "Dock: no tabs; the demo cluster has no terminals") {
+		t.Errorf("the demo's tooltip %q", l.dock.tip)
+	}
 }

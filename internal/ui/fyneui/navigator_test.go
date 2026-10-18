@@ -372,6 +372,11 @@ func renderNavigatorBack(t *testing.T, mode ThemeMode, name string) {
 	settle(w)
 	sh.tip.delay = time.Millisecond
 	b := sh.side.head.back
+	// The button takes the row up to the search button (WF27): its hover box ends right before it.
+	drv := fyne.CurrentApp().Driver()
+	if end, search := drv.AbsolutePositionForObject(b).X+b.Size().Width, drv.AbsolutePositionForObject(sh.side.head.searchB).X; search-end > 16 {
+		t.Errorf("‹ All Clusters ends at %v, %v before the search button at %v", end, search-end, search)
+	}
 	test.MoveMouse(w.Canvas(), fyne.CurrentApp().Driver().AbsolutePositionForObject(b).AddXY(b.Size().Width/2, b.Size().Height/2))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() == navBackTip })
 	savePNG(t, w, name)

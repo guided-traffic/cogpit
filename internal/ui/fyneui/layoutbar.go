@@ -90,10 +90,11 @@ func newLayoutBar(sh *shell) *layoutBar {
 			b.b.Hide() // a build without the command (a test fake)
 		}
 	}
-	// At the bar's right end (bars.go), close together: no gap between the buttons and half their
-	// inner padding, so that the icons stand a padding apart as VS Code's do (the owner,
-	// 2026-10-16 night: "können näher zusammen rücken").
-	l.toggles = container.New(layout.NewCustomPaddedHBoxLayout(0), l.navigator, l.dock, l.chat)
+	// At the bar's right end (bars.go), close together: half their inner padding (the owner,
+	// 2026-10-16 night: "können näher zusammen rücken"), and a padding between the buttons (the
+	// owner, 2026-10-18, WF17: "zu eng beieinander. Ein bisschen mehr Platz").
+	gap := sh.app.Settings().Theme().Size(theme.SizeNamePadding)
+	l.toggles = container.New(layout.NewCustomPaddedHBoxLayout(gap), l.navigator, l.dock, l.chat)
 	l.root = container.NewThemeOverride(l.toggles, &compactButtonTheme{app: sh.app})
 	return l
 }
@@ -115,11 +116,19 @@ func (l *layoutBar) stateChanged() {
 	set(l.navigator, !ui.NavigatorHidden, iconNavigatorShown, iconNavigatorHidden, "Hide", "Show", "Navigator", "ui.toggleNavigator")
 	set(l.dock, l.sh.dock.open(), iconDockOpen, iconDockClosed, "Collapse", "Open", "Dock", "ui.toggleDock")
 	set(l.chat, ui.Chat, iconChatShown, iconChatHidden, "Hide", "Show", "Agent Chat", "chat.toggle")
-	if len(ui.Dock) == 0 {
-		l.dock.tip = "Dock: no tabs to show" + l.shortcut("ui.toggleDock")
-		l.dock.Disable()
-	} else {
+	switch {
+	case len(ui.DockInScope()) > 0:
 		l.dock.Enable()
+	case ui.Connection.State.Live() && !ui.Connection.Demo: // an empty dock opens a terminal (WF18)
+		l.dock.tip = "Open a Terminal" + l.shortcut("ui.toggleDock")
+		l.dock.Enable()
+	default: // as ui.toggleDock's Enabled: a terminal needs a connected cluster, not the demo
+		why := "a terminal needs a connected cluster"
+		if ui.Connection.Demo {
+			why = "the demo cluster has no terminals"
+		}
+		l.dock.tip = "Dock: no tabs; " + why + l.shortcut("ui.toggleDock")
+		l.dock.Disable()
 	}
 	if !l.sh.chat.available() {
 		l.chat.Hide() // a window without the agent's chat

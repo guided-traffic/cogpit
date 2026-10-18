@@ -47,11 +47,13 @@ func newNavHeader(s *sidebar) *navHeader {
 	h.entry = newNavSearchEntry(h)
 	h.field = inset(theme.SizeNamePadding, "", container.NewVBox(h.entry, newSpace(theme.SizeNamePadding)))
 	h.field.Hide()
-	// The title sits where the scope dropdown's text sat; the back button's ‹ takes that place.
+	// The title sits where the scope dropdown's text sat; the back button's ‹ takes that place, and
+	// the button the whole row up to the buttons at its right, so a click anywhere left of them goes
+	// up (the owner's WF27, 2026-10-18: "rechts davon ist auch valid").
 	title := inset(theme.SizeNameInnerPadding, "", h.title)
 	top := inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewBorder(nil, nil, nil,
 		container.NewHBox(container.NewCenter(h.addB), container.NewCenter(h.searchB)),
-		container.NewStack(title, container.NewHBox(h.back))))
+		container.NewStack(title, h.back)))
 	h.root = container.NewVBox(top, h.field, newDivider(false))
 	return h
 }

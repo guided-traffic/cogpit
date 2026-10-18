@@ -1,15 +1,14 @@
 package commands_test
 
 import (
-	"errors"
 	"testing"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
 // The layout toggles are UI commands: the user and agents run them alike (an agent without a
-// confirmation, D-2), ui.state reports what they set, and ui.toggleDock is disabled while the dock
-// has no tabs.
+// confirmation, D-2), ui.state reports what they set, and ui.toggleDock opens a terminal while the
+// dock has no tabs.
 func TestLayoutToggles(t *testing.T) {
 	h := newHarness(t, seed(), engine.Options{})
 	state := func(origin engine.Origin, id string, params any) engine.UIState {
@@ -32,17 +31,10 @@ func TestLayoutToggles(t *testing.T) {
 		t.Fatal("ui.state does not report the hidden navigator")
 	}
 
-	var disabled *engine.DisabledError
-	if err := h.run(t, engine.OriginExternalAgent, "ui.toggleDock", struct{}{}, nil); !errors.As(err, &disabled) ||
-		disabled.Reason != engine.ErrNoDockTabs.Error() {
-		t.Fatalf("ui.toggleDock without tabs: %v, want disabled with ErrNoDockTabs", err)
-	}
-	h.s.UpdateUI(func(u *engine.UIState) {
-		u.Dock = []engine.DockTab{{ID: "terminal-1", Type: engine.DockTerminal, Title: "Terminal 1"}}
-		u.ActiveDock = "terminal-1"
-	})
-	if !h.s.UIState().DockOpen {
-		t.Fatal("a new dock tab did not open the dock")
+	// An empty dock: the toggle opens a terminal tab and the dock with it, for every origin, as
+	// terminal.open (a UI command too) does (the owner's WF18).
+	if u := state(engine.OriginExternalAgent, "ui.toggleDock", struct{}{}); len(u.Dock) != 1 || u.Dock[0].Type != engine.DockTerminal || !u.DockOpen {
+		t.Fatalf("ui.toggleDock without tabs: dock %+v open %v, want a terminal tab in the open dock", u.Dock, u.DockOpen)
 	}
 	if state(engine.OriginExternalAgent, "ui.toggleDock", struct{}{}).DockOpen {
 		t.Fatal("an agent's ui.toggleDock did not collapse the dock")

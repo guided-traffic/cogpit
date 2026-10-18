@@ -28,10 +28,23 @@ func registerLayout(g *registrar) {
 		ID: "ui.toggleDock", Label: "Dock", MenuPath: "View/Dock", Shortcut: "Cmd+J", Danger: engine.DangerUI,
 		Description: "Opens or collapses the dock, the panel of logs, terminal, shell and editor tabs below the views, " +
 			"as ⌘J (Ctrl+J), the dock's arrow and the second layout button at the right of Cogpit's top bar do; " +
-			"collapsed, it shows its tab strip only. Opening or activating a tab opens it. Disabled while the dock " +
-			"has no tabs. ui_state reports dockOpen: true while it is open. Returns the new UI state.",
-		Enabled: func(s *engine.Session, _ layoutToggleParams) error { return s.DockToggleUnavailable() },
+			"collapsed, it shows its tab strip only. Opening or activating a tab opens it. While the dock has no " +
+			"tab it opens a terminal tab, as terminal.open does (the owner's WF18), and is disabled only when no terminal " +
+			"can open (no cluster connected). ui_state reports dockOpen: true while it is open. Returns the new UI state.",
+		Enabled: func(s *engine.Session, _ layoutToggleParams) error {
+			if s.DockToggleUnavailable() == nil {
+				return nil
+			}
+			_, err := streamableOn(s, "", "terminals") // an empty dock opens a terminal (WF18)
+			return err
+		},
 		Run: func(_ context.Context, s *engine.Session, p layoutToggleParams) (any, error) {
+			if s.DockToggleUnavailable() != nil && (p.Open == nil || *p.Open) {
+				if _, err := openTerminalTab(s, ""); err != nil { // an empty dock: a terminal, the dock opens with it
+					return nil, err
+				}
+				return s.UIState(), nil
+			}
 			return s.SetLayout(engine.LayoutDock, p.Open)
 		},
 	})

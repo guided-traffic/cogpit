@@ -784,6 +784,12 @@ func TestRenderConfigMapDrawerFooterDark(t *testing.T) {
 	typeInto(cmDataOf(sh).rows["kube-proxy-replacement-healthz-bind-address"], "0.0.0.0:10256")
 	settle(w)
 	savePNG(t, w, "configmap_drawer_footer_dark.png")
+	// The Add Key row open under the last key, with a name typed (the owner's WF12: room around it).
+	cd := cmDataOf(sh)
+	test.Tap(cd.adder.button)
+	test.Type(cd.adder.entry, "app.properties")
+	settle(w)
+	savePNG(t, w, "configmap_drawer_addkey_dark.png")
 }
 
 // longKeySecretValues are the values of a made-up Secret whose keys are long and have no spaces.

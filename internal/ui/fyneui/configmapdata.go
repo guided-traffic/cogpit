@@ -165,7 +165,7 @@ func newCMData(d *drawer, ref model.ObjectRef) *cmData {
 	cd.status.Hide()
 	cd.adder = newKeyAdder(d.contentWidth(), cd.keyTaken, cd.addKey)
 	cd.buttons = footerRow(cd.adder, cd.revert, cd.save)
-	cd.root = container.NewVBox(cd.list, cd.moreL, cd.adder.row, cd.buttons, cd.status)
+	cd.root = container.NewVBox(cd.list, cd.moreL, dataGap(), cd.adder.row, cd.buttons, cd.status)
 	cd.width = d.contentWidth()
 	cd.refreshFooter()
 	return cd

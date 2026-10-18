@@ -261,7 +261,8 @@ func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasOb
 	if l := cardLabel(c); l != "" {
 		head = append(head, newTextLine(l, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 	}
-	rows := []fyne.CanvasObject{newAlertTap(b.sh, container.NewHBox(head...), func() { b.fold(c.Key, !c.Folded, false) }, "")}
+	headTap := newAlertTap(b.sh, container.NewHBox(head...), func() { b.fold(c.Key, !c.Folded, false) }, "")
+	rows := []fyne.CanvasObject{container.NewBorder(nil, nil, nil, b.cardCopy(headTap, c.Name), headTap)}
 	if !c.Folded {
 		for i, it := range c.Alerts {
 			if i == maxCardAlerts {
@@ -279,6 +280,35 @@ func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasOb
 	bg.radius = sizeChipRadius
 	body := container.NewBorder(nil, nil, bar, nil, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(rows...)))
 	return inset("", theme.SizeNamePadding, container.NewStack(bg, body))
+}
+
+// cardCopy is the copy icon of a card's alertname (the owner's WF21, 2026-10-18: "Alarm-Namen
+// müssen kopierbar sein"): shown while the pointer is on the card's head or on the icon, as the
+// lists' copy icon (D-25: the same icon, its checkmark after a copy, the same toast); its room is
+// kept, so the head does not move when it shows.
+func (b *alertBoard) cardCopy(head *alertTap, name string) fyne.CanvasObject {
+	var done *time.Timer // the checkmark's
+	var onHead, onIcon bool
+	var btn *copyButton
+	btn = newCopyIcon(b.sh, func() {
+		b.sh.copyText(name, false)
+		btn.confirm(&done)
+		b.sh.copyToast("info", copiedToast)
+	}, func(*desktop.MouseEvent) { onIcon = true; btn.Show() }, func() {
+		onIcon = false
+		if !onHead {
+			btn.Hide()
+		}
+	})
+	btn.tip = "Copy " + name
+	head.in = func() { onHead = true; btn.Show() }
+	head.out = func() {
+		onHead = false
+		if !onIcon {
+			btn.Hide()
+		}
+	}
+	return container.NewStack(newHGap(theme.SizeNameInlineIcon), btn)
 }
 
 // cardLabel is the severity label a card's alerts carry when it is not their group's name ("major"),
@@ -390,6 +420,7 @@ type alertTap struct {
 	content fyne.CanvasObject
 	onTap   func()
 	tip     string
+	in, out func() // the pointer came in and left (a card head's copy icon, cardCopy); nil for none
 }
 
 var (
@@ -419,10 +450,20 @@ func (t *alertTap) Tapped(*fyne.PointEvent) {
 func (t *alertTap) Cursor() desktop.Cursor { return desktop.PointerCursor }
 
 // MouseIn implements desktop.Hoverable.
-func (t *alertTap) MouseIn(ev *desktop.MouseEvent) { t.sh.tip.hover(t, t.tip, ev.AbsolutePosition) }
+func (t *alertTap) MouseIn(ev *desktop.MouseEvent) {
+	t.sh.tip.hover(t, t.tip, ev.AbsolutePosition)
+	if t.in != nil {
+		t.in()
+	}
+}
 
 // MouseMoved implements desktop.Hoverable.
 func (t *alertTap) MouseMoved(ev *desktop.MouseEvent) { t.sh.tip.moved(t, ev.AbsolutePosition) }
 
 // MouseOut implements desktop.Hoverable.
-func (t *alertTap) MouseOut() { t.sh.tip.hideFor(t) }
+func (t *alertTap) MouseOut() {
+	t.sh.tip.hideFor(t)
+	if t.out != nil {
+		t.out()
+	}
+}

@@ -52,7 +52,10 @@ func newKeyAdder(width float32, taken func(string) string, onAdd func(string)) *
 	a.add.Importance = widget.HighImportance
 	cancel := widget.NewButton("Cancel", a.close)
 	a.hint = newParagraph("", colorMuted, width)
-	a.row = container.NewVBox(container.NewBorder(nil, nil, nil, container.NewHBox(a.add, cancel), a.entry), a.hint)
+	// Room around the row (the owner's WF12, 2026-10-18: "nur zu gequetscht"): a gap between the
+	// name and its buttons, and one under the row before the footer (dataGap above it).
+	buttons := container.NewHBox(newHGap(theme.SizeNamePadding), a.add, cancel)
+	a.row = container.NewVBox(container.NewBorder(nil, nil, nil, buttons, a.entry), a.hint, newSpace(theme.SizeNameInnerPadding))
 	a.row.Hide()
 	a.check()
 	return a
@@ -294,6 +297,10 @@ func (rv *secReview) target() model.ObjectRef {
 	}
 	return resolvedRef(rv.last.Ref, rv.sd.ref)
 }
+
+// dataGap is the room between a data section's last key and its Add Key row and footer (the
+// owner's WF12, 2026-10-18: "ein bisschen zu dicht am letzten key-value pair").
+func dataGap() fyne.CanvasObject { return newSpace(theme.SizeNameInnerPadding) }
 
 // footerRow is a data section's footer: Add Key at its start, Revert and Save at its end.
 func footerRow(adder *keyAdder, revert, save *widget.Button) *fyne.Container {

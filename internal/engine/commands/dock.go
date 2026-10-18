@@ -106,19 +106,10 @@ func registerDock(g *registrar) {
 			return err
 		},
 		Run: func(_ context.Context, s *engine.Session, p engine.OnCluster) (any, error) {
-			b, err := streamableOn(s, p.Context, "terminals")
+			tab, err := openTerminalTab(s, p.Context)
 			if err != nil {
 				return nil, err
 			}
-			id := s.NewDockID(engine.DockTerminal)
-			tab := engine.DockTab{
-				ID: id, Type: engine.DockTerminal, Title: "Terminal " + strings.TrimPrefix(id, string(engine.DockTerminal)+"-"),
-				Context: b.Context,
-			}
-			s.UpdateUI(func(u *engine.UIState) {
-				u.Dock = append(u.Dock, tab)
-				u.ActiveDock = tab.ID
-			})
 			return DockResult{Tab: tab, Created: true}, nil
 		},
 	})
@@ -214,4 +205,23 @@ func podContainer(ctx context.Context, s *engine.Session, p containerParams) (mo
 		return ref, "", fmt.Errorf("%s has no container %q; containers: %s", ref.String(), p.Container, strings.Join(names, ", "))
 	}
 	return ref, p.Container, nil
+}
+
+// openTerminalTab opens a terminal tab in the dock, as terminal.open does: a local shell whose
+// kubectl is bound to contextID's cluster (the shown one for ""). The dock opens with it.
+func openTerminalTab(s *engine.Session, contextID string) (engine.DockTab, error) {
+	b, err := streamableOn(s, contextID, "terminals")
+	if err != nil {
+		return engine.DockTab{}, err
+	}
+	id := s.NewDockID(engine.DockTerminal)
+	tab := engine.DockTab{
+		ID: id, Type: engine.DockTerminal, Title: "Terminal " + strings.TrimPrefix(id, string(engine.DockTerminal)+"-"),
+		Context: b.Context,
+	}
+	s.UpdateUI(func(u *engine.UIState) {
+		u.Dock = append(u.Dock, tab)
+		u.ActiveDock = tab.ID
+	})
+	return tab, nil
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 
@@ -302,4 +303,44 @@ func renderAlertmanagerFields(t *testing.T, mode ThemeMode) {
 	openAlertmanagerSettings(t, s, sh, q)
 	settle(w)
 	savePNG(t, w, "settings_alertmanager_"+string(mode)+".png")
+}
+
+// TestAlertNameCopy (WF21): a card's alertname has the lists' copy icon, shown while the pointer is
+// on the card's head or on the icon; a click puts the name on the clipboard.
+func TestAlertNameCopy(t *testing.T) {
+	s := alertEngine(t)
+	sh, w, q := newEngineShell(t, s, Options{})
+	b := openBoard(t, sh, w, q)
+	var head *alertTap
+	for _, a := range findAll[*alertTap](b.root) {
+		if a.in != nil {
+			head = a
+			break
+		}
+	}
+	btns := findAll[*copyButton](b.root)
+	if head == nil || len(btns) == 0 {
+		t.Fatalf("no card head with a copy icon: heads %v, icons %d", head != nil, len(btns))
+	}
+	btn := btns[0]
+	if btn.Visible() {
+		t.Error("the copy icon shows before the pointer is on the card")
+	}
+	head.MouseIn(&desktop.MouseEvent{})
+	if !btn.Visible() {
+		t.Fatal("the copy icon does not show on the card's head")
+	}
+	head.MouseOut() // the pointer moves onto the icon
+	btn.MouseIn(&desktop.MouseEvent{})
+	if !btn.Visible() {
+		t.Fatal("the copy icon hid under the pointer")
+	}
+	test.Tap(btn)
+	if want, got := b.data.Groups[0].Cards[0].Name, sh.app.Clipboard().Content(); got != want {
+		t.Errorf("copied %q, want the alertname %q", got, want)
+	}
+	btn.MouseOut()
+	if btn.Visible() {
+		t.Error("the copy icon stays after the pointer left")
+	}
 }

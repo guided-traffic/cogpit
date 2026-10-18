@@ -135,7 +135,7 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd.adder = newKeyAdder(d.contentWidth(), sd.keyTaken, sd.addKey)
 	sd.buttons = footerRow(sd.adder, sd.revert, sd.save)
 	sd.status = newParagraph("", colorMuted, d.contentWidth())
-	sd.root = container.NewVBox(sd.list, sd.adder.row, sd.buttons, sd.status)
+	sd.root = container.NewVBox(sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
 	sd.restore()
 	return sd
 }

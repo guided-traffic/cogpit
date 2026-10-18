@@ -1212,7 +1212,7 @@ the panel narrower without overwriting the stored value.
 [`engine/layout.go`](../../internal/engine/layout.go),
 [`commands/layout.go`](../../internal/engine/commands/layout.go),
 [`fyneui/layoutbar.go`](../../internal/ui/fyneui/layoutbar.go)): unlike their widths, it changes what
-the user sees. Three toggles at the top bar's right end (since 2026-10-16 night after the alerts pill, the bell and a short divider, close together through `compactButtonTheme`, the owner's, D-54), in VS Code's order, each
+the user sees. Three toggles at the top bar's right end (since 2026-10-16 night after the alerts pill, the bell and a short divider, close together through `compactButtonTheme`, the owner's, D-54; a padding apart since 2026-10-18, WF17, D-93; the dock's toggle on an empty dock opens a terminal tab, WF18, D-94), in VS Code's order, each
 icon (Cogpit's own drawing) showing its part filled while it is open: the navigator
 (`UIState.NavigatorHidden`, `ui.toggleNavigator`, ⌘B), the dock (`UIState.DockOpen`,
 `ui.toggleDock`, ⌘J) and the agent chat's column (`UIState.Chat`, `chat.toggle`, ⌘I, D-10). The two
