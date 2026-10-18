@@ -88,7 +88,7 @@ type metricsPanel struct {
 	caption *sourceLine // the source line, its Prometheus's namespace and service links (metricssource.go)
 	note    *textLine
 	status  *providerStatusLine  // each provider's state under the charts (metricsstatus.go)
-	disk    *textLine            // a node's disk under its chart, or why there is none (metricsdisk.go)
+	disk    *diskBars            // a node's disks under its chart, or why there are none (metricsdisk.go)
 	perBox  map[string]*chartCtl // each container's compact chart and controls, by container name
 }
 
@@ -135,7 +135,7 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef) *metricsPanel {
 	p.note.truncate = true
 	p.status = newProviderStatusLine(d.sh)
 	p.status.root.Hide()
-	p.disk = newDiskLine()
+	p.disk = newDiskBars()
 	p.root = container.NewVBox(p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
 	p.render()
 	return p

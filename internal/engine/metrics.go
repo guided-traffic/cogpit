@@ -73,7 +73,7 @@ func (b *Backend) startListFeed(p *model.KindProfile, plan nsPlan, w feedWants, 
 	return f
 }
 
-// diskOf returns a node's root filesystem when the feed polls the disks: by the node's name, then
+// diskOf returns a node's filesystems when the feed polls the disks: by the node's name, then
 // by its addresses (a node-exporter known only by its address).
 func (f *usageFeed) diskOf(obj *unstructured.Unstructured) (model.NodeDisk, bool) {
 	if f == nil || !f.disk {
@@ -88,25 +88,29 @@ func (f *usageFeed) diskOf(obj *unstructured.Unstructured) (model.NodeDisk, bool
 func diskColumnTip(f *usageFeed) string {
 	switch {
 	case f == nil || !f.wants.disk:
-		return diskTipWhat + "."
+		return diskTipWhat + diskTipProm + "."
 	case !f.disk:
-		return diskTipWhat + ". Empty: this cluster's metrics provider measures no disk."
+		return diskTipWhat + diskTipProm + ". Empty: this cluster's metrics provider measures no disk."
 	}
 	return diskTipOf(f.hub.DiskState())
 }
 
-// diskTipWhat is what the Disk column shows.
-const diskTipWhat = "Disk: the root filesystem (/) as node-exporter reports it, read through Prometheus" //nolint:gosec // a tooltip, no credential
+// diskTipWhat is what the Disk column shows (D-90), diskTipProm where it is read.
+const (
+	diskTipWhat = "Disk: the fullest of the node's filesystems as node-exporter reports them" //nolint:gosec // a tooltip, no credential
+	diskTipProm = ", read through Prometheus"
+)
 
-// diskTipOf is the Disk column's tooltip for the disks' state.
+// diskTipOf is the Disk column's tooltip for the disks' state: the provider that answered by its
+// label ("Prometheus (monitoring/prometheus-server)"; the demo cluster's own), else why it is empty.
 func diskTipOf(st metrics.State) string {
 	switch st.Status {
 	case metrics.StatusAvailable:
-		return diskTipWhat + ": " + st.Label + "."
+		return diskTipWhat + ", read through " + st.Label + "."
 	case metrics.StatusUnknown:
-		return diskTipWhat + ". Looking for Prometheus…"
+		return diskTipWhat + diskTipProm + ". Looking for Prometheus…"
 	}
-	return diskTipWhat + ". Empty: " + strings.TrimSuffix(st.Message, ".") + "."
+	return diskTipWhat + diskTipProm + ". Empty: " + strings.TrimSuffix(st.Message, ".") + "."
 }
 
 // usageListScopes are the metrics scopes of a list of a usage kind read as plan says (D-39): the
@@ -317,8 +321,8 @@ type ObjectMetrics struct {
 	Providers []metrics.ProviderStatus `json:"providers,omitempty"`
 	// Targets: the object first, then a pod's containers in spec order.
 	Targets []MetricsTarget `json:"targets"`
-	// Disk is a node's root filesystem from Prometheus's node-exporter series (the Nodes list's
-	// Disk column), polled while the drawer shows a node; nil without. DiskNote says why there is
+	// Disk is a node's filesystems from Prometheus's node-exporter series, the fullest the Nodes list's
+	// Disk column (D-90), polled while the drawer shows a node; nil without. DiskNote says why there is
 	// none (no Prometheus, one without node-exporter's series); empty for a pod, or when the
 	// cluster's settings hide the disk.
 	Disk     *model.NodeDisk `json:"disk,omitempty"`

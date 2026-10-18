@@ -61,11 +61,16 @@ func nodeUsageCells(obj *unstructured.Unstructured, u model.Usage) (cpu, memory 
 	return cpu, memory
 }
 
-// nodeDiskCell shows a node's root filesystem as the share in use, drawn as a usage bar, the
-// amounts as its detail ("41.2 GiB of 58.4 GiB"). A filesystem without a size is an empty cell.
+// nodeDiskCell shows a node's fullest filesystem (D-90) as the share in use, drawn as a usage bar,
+// its mountpoint and the amounts as its detail ("/data · 41.2 GiB of 58.4 GiB"). A filesystem
+// without a size is an empty cell.
 func nodeDiskCell(_ *unstructured.Unstructured, d model.NodeDisk) model.Cell {
 	if d.SizeBytes <= 0 {
 		return model.Cell{}
 	}
-	return model.ShareCell(d.Share(), model.FormatBytes(d.UsedBytes)+" of "+model.FormatBytes(d.SizeBytes))
+	detail := model.FormatBytes(d.UsedBytes) + " of " + model.FormatBytes(d.SizeBytes)
+	if d.Mountpoint != "" {
+		detail = d.Mountpoint + " · " + detail
+	}
+	return model.ShareCell(d.Share(), detail)
 }

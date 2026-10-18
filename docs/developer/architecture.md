@@ -4729,18 +4729,23 @@ poll is its pods' (`TestWorkloadDrawerPodsMetrics`). The table is cut after it i
 [`engine/drawerdisk.go`](../../internal/engine/drawerdisk.go); [D-43](decisions.md#d-43-where-the-nodes-disk-comes-from),
 decided by the owner 2026-10-14). Lens's Nodes list has a Disk usage bar; the Metrics
 Server measures no disk, and the kubelet's summary API is not used (it needs `nodes/proxy`). The
-source is node-exporter's root filesystem through the cluster's Prometheus.
+source is node-exporter through the cluster's Prometheus: the root filesystem until 2026-10-18,
+since then every real filesystem of a node (the owner's WF26,
+[D-90](decisions.md#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem); which count:
+[`metrics/diskfs.go`](../../internal/metrics/diskfs.go)).
 
 | What | Where | How |
 |---|---|---|
 | The scope | `metrics.DiskScope` (`KindNodeDisk`) | a list scope: polled at the list interval (60 s), cached and shared like the others; `Hub.NodeDisk(keys…)` reads a fresh result, `Hub.DiskState()` its state |
 | The poll | `Hub.pollDisks` | detects the providers that are not the live one (Prometheus) and asks the first that is a `DiskProvider`, else the state says why: not served "…no Prometheus was found", Prometheus's own forbidden or unavailable state. A Prometheus without node-exporter's series answers an empty result: the scope's state is not served ("… has no node-exporter series of the root filesystem"), the provider is not marked failing |
-| The query | `diskQuery` | one instant query: `label_replace(max by (node, instance) (node_filesystem_size_bytes{mountpoint="/",fstype!="rootfs"}), "part", "size", "", "") or` the same for `node_filesystem_avail_bytes` as `"avail"`; used = size − available (`model.NodeDisk`), a node with half the pair left out |
+| The query | `diskQuery`, `diskSelector` | one instant query: `label_replace(max by (node, instance, device, fstype, mountpoint) (node_filesystem_size_bytes{fstype!~"<fsTypesSkipped>",mountpoint!~"<mountsSkipped>"}), "part", "size", "", "") or` the same for `node_filesystem_avail_bytes` as `"avail"`; used = size − available (`model.NodeFilesystem`), a filesystem with half the pair left out |
+| The filesystems | `realFilesystem`, `diskUsages`, `nodeDisk` | the query's rules again on the answer (no memory, kernel, container or image filesystem; nothing under `/boot`, `/dev`, `/proc`, `/run`, `/sys`, `/snap`, no file under `/etc`, nothing under the kubelet's and the container runtimes' directories in `/var/lib`), one mountpoint per device (`/`, else the shortest), the root first, then by mountpoint; `model.NewNodeDisk` makes the fullest the node's summary (`Mountpoint`, `UsedBytes`, `SizeBytes`) |
 | Matching | `nodeName`, `nodeKeys` | a series' node is its `node` label, else its `instance` without the port; the engine looks it up by the node's name, then by its addresses (InternalIP, ExternalIP, Hostname), so an exporter scraped under its host-network address is found |
 | Who polls | `startListFeed`, `drawerWatch.followDisk` | the Nodes list while its Disk column shows (`listFeedWants`: not hidden by Cluster Settings › Metrics, Nodes or Filesystem, nor put away by the user), a node's drawer while open; only on a hub that may have disks (`Hub.DisksPossible`: one with a Prometheus slot, or a single detector that found a provider with disks), so the demo cluster polls nothing |
-| The cells | `KindProfile.DiskCell`, `withDisk` | the row cache patches the Disk column like CPU and Memory (`buildWith`): a usage bar ("86%", "172.0 GiB of 200.0 GiB"), an empty cell without a disk |
-| The tooltip | `TableSnapshot.ColumnTips`, `diskColumnTip` | the Disk header's tooltip: where the numbers come from ("… read through Prometheus: Prometheus (monitoring/prometheus-server).") or why it is empty; the window shows a header's tip on hover ([`tableheadertip.go`](../../internal/ui/fyneui/tableheadertip.go)) |
-| The drawer | `ObjectMetrics.Disk`, `DiskNote` | a node's disk, or why there is none; the window writes "Disk (/): 172.0 GiB of 200.0 GiB used (86%)" under the node's chart in the bars' colour at the thresholds, or the reason muted ([`metricsdisk.go`](../../internal/ui/fyneui/metricsdisk.go)) |
+| The cells | `KindProfile.DiskCell`, `withDisk` | the row cache patches the Disk column like CPU and Memory (`buildWith`): a usage bar of the fullest filesystem ("86%", its detail "/data · 172.0 GiB of 200.0 GiB"), an empty cell without a disk |
+| The tooltip | `TableSnapshot.ColumnTips`, `diskColumnTip` | the Disk header's tooltip: where the numbers come from ("Disk: the fullest of the node's filesystems as node-exporter reports them, read through Prometheus (monitoring/prometheus-server).") or why it is empty; the window shows a header's tip on hover ([`tableheadertip.go`](../../internal/ui/fyneui/tableheadertip.go)) |
+| The drawer | `ObjectMetrics.Disk`, `DiskNote` | a node's disks, or why there are none; the window draws a row per filesystem under the node's chart: "Disk", the mountpoint, a small usage bar in the lists' bar colours at the thresholds and the share, the mountpoint, device, type, used, size and free bytes in the row's tooltip (`diskBars`), or the reason muted ([`metricsdisk.go`](../../internal/ui/fyneui/metricsdisk.go)) |
+| The demo | `demo.Metrics.ListNodeDisks`, `metrics.Fixed` | the demo cluster's provider makes up every node's disks (a root, `/data` on about half the workers, `/srv/backup` on a few), and a hub over a fixed detector knows its provider has disks before its first poll ([`demo/disks.go`](../../internal/demo/disks.go)) |
 
 **Built 2026-10-14 (G12): history that outlives a closed drawer** ([`metrics/retain.go`](../../internal/metrics/retain.go),
 [`fyneui/chartgap.go`](../../internal/ui/fyneui/chartgap.go); a night decision, open to revision, [G12](../parity/gaps.md#g12-metrics-and-cluster-overview)). `Subscription.Release` of an
@@ -4782,11 +4787,12 @@ watch on Services) and 1 disk query per poll beside the Metrics Server's node li
 (`TestNodesListDiskBudget`, `TestNodeDiskBudget`). **Checked against a real node-exporter on
 2026-10-14 night** (the `prometheus` chart's, A115): its series carry the `node` label and the
 exporter's host-network address as the instance (`172.20.0.3:9100`, the node's InternalIP), both of
-which the matching reads. **The Disk column stays empty on kind:** a kind node's `/` is an overlay
-inside its Docker container, which node-exporter leaves out (its default `fs-types-exclude`), so
-there is no `mountpoint="/"` series; it lists `/var` and the bind mounts of `/dev/vda1` instead
-(verified with the query through the service proxy). A real node's root filesystem is not an
-overlay (inferred).
+which the matching reads. **On kind the Disk column shows `/var`** (since D-90; empty before): a
+kind node's `/` is an overlay inside its Docker container, which node-exporter leaves out (its
+default `fs-types-exclude`), so there is no `mountpoint="/"` series; it lists `/var` and three
+files under `/etc` bind-mounted from `/dev/vda1`, which D-90's rules leave out (verified with the
+query through the service proxy, 2026-10-18). A real node's root filesystem is not an overlay
+(seen on the owner's test cluster, 2026-10-18).
 
 **Built 2026-10-14 night (G12, F1, A43, A115): the nodes' history from node-exporter**
 ([`promql.go`](../../internal/metrics/promql.go), [`promrange.go`](../../internal/metrics/promrange.go),

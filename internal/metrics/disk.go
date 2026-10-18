@@ -4,15 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
-	"strings"
-	"time"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // The nodes' disks (G12; resource-parity › Nodes, captured: "CPU, Memory, Disk (usage bars)"): the
-// root filesystem of every node as node-exporter reports it, read through Prometheus. The Metrics
+// real filesystems of every node as node-exporter reports them (the root filesystem alone until
+// D-90; which count as real: diskfs.go), read through Prometheus. The Metrics
 // Server measures no disk, and the kubelet's summary API (/api/v1/nodes/<node>/proxy/stats/summary)
 // is never used: it needs nodes/proxy, which also lets its holder run commands in any pod through
 // the kubelet (privilege-footprint, Metrics). Prometheus is the only source.
@@ -22,40 +20,18 @@ import (
 // node's size and free bytes at once (diskQuery). Without Prometheus the scope's state says why
 // and the column stays empty.
 
-// KindNodeDisk is the scope of every node's root filesystem: Scope{Kind: KindNodeDisk}.
+// KindNodeDisk is the scope of every node's filesystems: Scope{Kind: KindNodeDisk}.
 const KindNodeDisk Kind = "nodeDisk"
 
 // DiskScope is the scope of the nodes' disks.
 var DiskScope = Scope{Kind: KindNodeDisk}
 
-// DiskProvider is a provider that knows the nodes' root filesystems: Prometheus, from
-// node-exporter's series. The Metrics Server is not one.
+// DiskProvider is a provider that knows the nodes' filesystems: Prometheus, from node-exporter's
+// series. The Metrics Server is not one.
 type DiskProvider interface {
-	// ListNodeDisks returns the root filesystem of every node that has node-exporter's series:
+	// ListNodeDisks returns the real filesystems of every node that has node-exporter's series:
 	// none (and no error) when the Prometheus has no such series.
 	ListNodeDisks(ctx context.Context) ([]model.NodeDisk, error)
-}
-
-// metricFSSize and metricFSAvail are node-exporter's filesystem gauges.
-const (
-	metricFSSize  = "node_filesystem_size_bytes"
-	metricFSAvail = "node_filesystem_avail_bytes"
-)
-
-// rootFS selects a node's root filesystem among node-exporter's series: the mountpoint "/" as the
-// exporter sees the host (its chart mounts the host's root and passes --path.rootfs, so the host's
-// "/" reads as "/"), without the "rootfs" pseudo filesystem older kernels list beside the real one.
-const rootFS = `mountpoint="/",fstype!="rootfs"`
-
-// diskQuery is the one query of a disk poll: every node's size and available bytes, each series
-// marked with a "part" label so that one answer carries both. max by (node, instance) keeps one
-// series per exporter however many jobs scrape it; the node label (kube-prometheus-stack's and the
-// prometheus chart's service discovery) or the instance names the node.
-func diskQuery() string {
-	part := func(metric, name string) string {
-		return fmt.Sprintf(`label_replace(max by (node, instance) (%s{%s}), "part", %q, "", "")`, metric, rootFS, name)
-	}
-	return part(metricFSSize, "size") + " or " + part(metricFSAvail, "avail")
 }
 
 // ListNodeDisks implements DiskProvider: one instant query.
@@ -67,53 +43,11 @@ func (p *Prometheus) ListNodeDisks(ctx context.Context) ([]model.NodeDisk, error
 	return diskUsages(series), nil
 }
 
-// diskUsages joins the size and the available bytes of each node; a node with only one of the two
-// is left out (half an answer is no share). The newest pair wins when two exporters name one node.
-func diskUsages(series []promSeries) []model.NodeDisk {
-	type half struct {
-		size, avail       float64
-		hasSize, hasAvail bool
-		at                int64
-	}
-	byNode := map[string]*half{}
-	for _, s := range series {
-		name := nodeName(s.labels)
-		if name == "" || len(s.points) == 0 {
-			continue
-		}
-		pt := s.points[len(s.points)-1]
-		h := byNode[name]
-		if h == nil {
-			h = &half{}
-			byNode[name] = h
-		}
-		switch s.labels["part"] {
-		case "size":
-			h.size, h.hasSize = max(h.size, pt.v), true
-		case "avail":
-			h.avail, h.hasAvail = max(h.avail, pt.v), true
-		default:
-			continue
-		}
-		h.at = max(h.at, pt.t)
-	}
-	out := make([]model.NodeDisk, 0, len(byNode))
-	for name, h := range byNode {
-		if !h.hasSize || !h.hasAvail || h.size <= 0 {
-			continue
-		}
-		used := max(h.size-h.avail, 0)
-		out = append(out, model.NodeDisk{Name: name, Timestamp: time.UnixMilli(h.at), UsedBytes: int64(used), SizeBytes: int64(h.size)})
-	}
-	slices.SortFunc(out, func(a, b model.NodeDisk) int { return strings.Compare(a.Name, b.Name) })
-	return out
-}
-
 // Messages of the disk scope's states.
 const (
 	msgDiskNoPrometheus = "the disk usage comes from node-exporter through Prometheus, and no Prometheus was found"
 	msgDiskSourceOff    = "the disk usage comes from Prometheus, which this cluster's Metrics source setting turns off"
-	msgDiskNoSeries     = " has no node-exporter series of the root filesystem (node_filesystem_size_bytes{mountpoint=\"/\"})"
+	msgDiskNoSeries     = " has no node-exporter series of the nodes' filesystems (node_filesystem_size_bytes)"
 )
 
 // pollDisks asks the provider that knows the nodes' disks (Prometheus) for them. Prometheus is
@@ -200,9 +134,10 @@ func listDisks(ctx context.Context, p DiskProvider) (d []model.NodeDisk, err err
 
 // DisksPossible reports whether the cluster's providers may know disks: a hub with a Prometheus
 // slot (NewHubFor's History, the engine's for a real cluster), or a single detector that found a
-// provider that knows them. A hub over the Metrics Server alone (the demo cluster's) has none, so
-// nothing subscribes the disks' scope there; a single detector that has not answered yet counts as
-// none (what subscribes then does not poll disks until it subscribes again).
+// provider that knows them, or a fixed one whose provider does (the demo cluster's, which makes up
+// disks since D-90). A hub over the Metrics Server alone has none, so nothing subscribes the disks'
+// scope there; a single detector that has not answered yet counts as none (what subscribes then
+// does not poll disks until it subscribes again).
 func (h *Hub) DisksPossible() bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -213,7 +148,11 @@ func (h *Hub) DisksPossible() bool {
 				return true
 			}
 		case roleAny:
-			if _, ok := sl.prov.(DiskProvider); ok {
+			prov := sl.prov
+			if f, ok := sl.det.(fixedDetector); ok && prov == nil {
+				prov = f.p // known before it is asked: the demo cluster's
+			}
+			if _, ok := prov.(DiskProvider); ok {
 				return true
 			}
 		}
@@ -233,7 +172,7 @@ func (h *Hub) DiskState() State {
 	return State{Status: StatusUnknown}
 }
 
-// NodeDisk returns a node's root filesystem from a fresh result of the disk scope, by the first of
+// NodeDisk returns a node's filesystems from a fresh result of the disk scope, by the first of
 // keys that names one: the node's name, then its addresses (a node-exporter whose series carry
 // neither a node label nor the node's name as the instance is known by its address).
 func (h *Hub) NodeDisk(keys ...string) (model.NodeDisk, bool) {

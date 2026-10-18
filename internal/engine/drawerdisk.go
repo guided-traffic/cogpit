@@ -7,9 +7,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A node's drawer shows the node's disk (G12): its root filesystem from Prometheus's node-exporter
-// series, the Nodes list's Disk column. While a node's drawer is open and the cluster's settings
-// leave the disk visible, the drawer holds a subscription of the disks' scope (metrics.DiskScope):
+// A node's drawer shows the node's disks (G12, D-90): its real filesystems from Prometheus's
+// node-exporter series, a usage bar each; the Nodes list's Disk column shows the fullest. While a
+// node's drawer is open and the cluster's settings leave the disk visible, the drawer holds a
+// subscription of the disks' scope (metrics.DiskScope):
 // shared with an open Nodes list, polled at the list interval (60 s), one instant query of
 // Prometheus per poll; released when the drawer closes, shows another object or the disk is hidden.
 
@@ -49,7 +50,7 @@ func drawerDisk(hub *metrics.Hub, ref model.ObjectRef, obj *unstructured.Unstruc
 	case metrics.StatusUnknown:
 		return nil, "looking for Prometheus…"
 	case metrics.StatusAvailable:
-		return nil, "node-exporter reports no root filesystem for this node"
+		return nil, "node-exporter reports no filesystem of this node"
 	}
 	return nil, st.Message
 }

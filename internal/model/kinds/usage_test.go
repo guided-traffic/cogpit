@@ -135,3 +135,16 @@ func profile(t *testing.T, key string) *model.KindProfile {
 	t.Fatalf("no profile %q", key)
 	return nil
 }
+
+// The Nodes list's Disk cell is the node's fullest filesystem, its mountpoint in the bar's detail
+// (D-90); a disk without a size is an empty cell.
+func TestNodeDiskCell(t *testing.T) {
+	p := profile(t, "nodes")
+	c := p.DiskCell(nil, model.NodeDisk{Mountpoint: "/data", UsedBytes: 92 << 30, SizeBytes: 100 << 30})
+	if c.Text != "92%" || c.Bar == nil || c.Bar.Status != model.StatusError || c.Bar.Detail != "/data · 92.0 GiB of 100.0 GiB" {
+		t.Errorf("disk cell = %+v, bar %+v", c, c.Bar)
+	}
+	if c := p.DiskCell(nil, model.NodeDisk{}); c.Text != "" || c.Bar != nil {
+		t.Errorf("a disk without a size = %+v", c)
+	}
+}

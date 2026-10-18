@@ -104,24 +104,59 @@ type NodeUsage struct {
 	Usage
 }
 
-// NodeDisk is a node's root filesystem (the mountpoint "/") as node-exporter reports it through
-// Prometheus, at Timestamp: its size, and the bytes in use, the size less what is available
-// (node_filesystem_avail_bytes: what an unprivileged process may still write, as df's Avail).
-// Name is the series' node: its node label, else its instance's host, which may be an address
-// (the engine matches it against the node's name and addresses).
+// NodeDisk is a node's disks as node-exporter reports them through Prometheus, at Timestamp: every
+// real filesystem the node mounts (D-90: no memory, kernel or container filesystems, no pods'
+// volumes, one mountpoint per device), the root first. Mountpoint, UsedBytes and SizeBytes are
+// the fullest of them, the one the Nodes list's Disk column shows. Name is the series' node: its
+// node label, else its instance's host, which may be an address (the engine matches it against
+// the node's name and addresses).
 type NodeDisk struct {
-	Name      string    `json:"name"`
-	Timestamp time.Time `json:"timestamp"`
-	UsedBytes int64     `json:"usedBytes"`
-	SizeBytes int64     `json:"sizeBytes"`
+	Name       string    `json:"name"`
+	Timestamp  time.Time `json:"timestamp"`
+	Mountpoint string    `json:"mountpoint,omitempty"`
+	UsedBytes  int64     `json:"usedBytes"`
+	SizeBytes  int64     `json:"sizeBytes"`
+	// Filesystems are the node's real filesystems: the root ("/") first, then by mountpoint.
+	Filesystems []NodeFilesystem `json:"filesystems,omitempty"`
 }
 
 // Share is the part of the filesystem in use; 0 for a filesystem without a size.
-func (d NodeDisk) Share() float64 {
-	if d.SizeBytes <= 0 {
+func (d NodeDisk) Share() float64 { return share(d.UsedBytes, d.SizeBytes) }
+
+// NewNodeDisk is a node's disk of the filesystems fs, in the order given (the root first), its
+// summary the fullest of them, the first on a tie.
+func NewNodeDisk(name string, at time.Time, fs []NodeFilesystem) NodeDisk {
+	d := NodeDisk{Name: name, Timestamp: at, Filesystems: fs}
+	for i, f := range fs {
+		if i == 0 || f.Share() > d.Share() {
+			d.Mountpoint, d.UsedBytes, d.SizeBytes = f.Mountpoint, f.UsedBytes, f.SizeBytes
+		}
+	}
+	return d
+}
+
+// NodeFilesystem is one filesystem a node mounts: where, from which device, of which type, its
+// size and the bytes in use, the size less what is available (node_filesystem_avail_bytes: what
+// an unprivileged process may still write, as df's Avail).
+type NodeFilesystem struct {
+	Mountpoint string `json:"mountpoint"`
+	Device     string `json:"device,omitempty"`
+	FSType     string `json:"fstype,omitempty"`
+	UsedBytes  int64  `json:"usedBytes"`
+	SizeBytes  int64  `json:"sizeBytes"`
+}
+
+// Share is the part of the filesystem in use; 0 for a filesystem without a size.
+func (f NodeFilesystem) Share() float64 { return share(f.UsedBytes, f.SizeBytes) }
+
+// FreeBytes is what is still available: the size less the bytes in use.
+func (f NodeFilesystem) FreeBytes() int64 { return max(f.SizeBytes-f.UsedBytes, 0) }
+
+func share(used, size int64) float64 {
+	if size <= 0 {
 		return 0
 	}
-	return float64(d.UsedBytes) / float64(d.SizeBytes)
+	return float64(used) / float64(size)
 }
 
 // CountSample is one point of a count over time: the pods on a group of nodes (the cluster

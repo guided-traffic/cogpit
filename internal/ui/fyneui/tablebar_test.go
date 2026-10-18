@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/test"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -35,19 +36,28 @@ var barNodeUsage = map[string]model.Usage{
 	// worker-a-03: no measurement at all
 }
 
-// barNodeDisk are the fixture nodes' root filesystems (node-exporter through Prometheus): a few
-// nodes have none (no exporter on them).
+// barNodeDisk are the fixture nodes' fullest filesystems (node-exporter through Prometheus, D-90):
+// a few nodes have none (no exporter on them).
 var barNodeDisk = map[string]model.NodeDisk{
-	"control-plane-1": {UsedBytes: 21 << 30, SizeBytes: 100 << 30},  // 21%
-	"worker-a-01":     {UsedBytes: 172 << 30, SizeBytes: 200 << 30}, // 86%
-	"worker-a-02":     {UsedBytes: 47 << 30, SizeBytes: 50 << 30},   // 94%
-	"worker-a-03":     {UsedBytes: 60 << 30, SizeBytes: 200 << 30},  // 30%
-	"worker-a-04":     {UsedBytes: 88 << 30, SizeBytes: 200 << 30},  // 44%
-	"worker-b-03":     {UsedBytes: 131 << 30, SizeBytes: 200 << 30}, // 66%
+	"control-plane-1": {Mountpoint: "/", UsedBytes: 21 << 30, SizeBytes: 100 << 30},      // 21%
+	"worker-a-01":     {Mountpoint: "/data", UsedBytes: 172 << 30, SizeBytes: 200 << 30}, // 86%
+	"worker-a-02":     {Mountpoint: "/", UsedBytes: 47 << 30, SizeBytes: 50 << 30},       // 94%
+	"worker-a-03":     {Mountpoint: "/", UsedBytes: 60 << 30, SizeBytes: 200 << 30},      // 30%
+	"worker-a-04":     {Mountpoint: "/", UsedBytes: 88 << 30, SizeBytes: 200 << 30},      // 44%
+	"worker-b-03":     {Mountpoint: "/", UsedBytes: 131 << 30, SizeBytes: 200 << 30},     // 66%
+}
+
+// workerA01Filesystems are worker-a-01's filesystems, shaped like a real node's (D-90): the root,
+// a data disk at the warning share (the fullest, the Nodes list's Disk) and a backup disk at the
+// error share's edge below it.
+var workerA01Filesystems = []model.NodeFilesystem{
+	{Mountpoint: "/", Device: "/dev/sda1", FSType: "ext4", UsedBytes: 51 << 30, SizeBytes: 123 << 30},     // 41%
+	{Mountpoint: "/data", Device: "/dev/sdb1", FSType: "xfs", UsedBytes: 172 << 30, SizeBytes: 200 << 30}, // 86%
+	{Mountpoint: "/srv/backup", Device: "/dev/sdc1", FSType: "ext4", UsedBytes: 92 << 30, SizeBytes: 500 << 30},
 }
 
 // diskTipFixture is the Disk header's tooltip as the engine writes it with Prometheus found.
-const diskTipFixture = "Disk: the root filesystem (/) as node-exporter reports it, read through Prometheus: Prometheus (monitoring/prometheus-server)."
+const diskTipFixture = "Disk: the fullest of the node's filesystems as node-exporter reports them, read through Prometheus (monitoring/prometheus-server)."
 
 // withNodeBars fills the fixture Nodes view's CPU, Memory and Disk cells as the engine's row cache
 // does, from barNodeUsage and barNodeDisk, and the Disk header's tooltip.
@@ -125,10 +135,11 @@ func TestNodesListDrawsUsageBars(t *testing.T) {
 		t.Errorf("tooltip = %q", got)
 	}
 
-	// Disk: a bar from node-exporter's numbers; a node without them is empty.
+	// Disk: a bar of the fullest filesystem from node-exporter's numbers, its mountpoint in the
+	// tooltip (D-90); a node without them is empty.
 	diskCol := firstDataColumn + p.ColumnIndex(model.ColumnDisk)
 	check("worker-a-01", diskCol, 172.0/200, statusColorName(model.StatusWarning))
-	if got := sh.view.cellAt(t, row("worker-a-01"), diskCol).tipText(); got != "172.0 GiB of 200.0 GiB (86%)" {
+	if got := sh.view.cellAt(t, row("worker-a-01"), diskCol).tipText(); got != "/data · 172.0 GiB of 200.0 GiB (86%)" {
 		t.Errorf("disk tooltip = %q", got)
 	}
 	if c := sh.view.cellAt(t, row("worker-b-01"), diskCol); c.full != "" {
@@ -172,22 +183,61 @@ func TestNodesListDrawsUsageBars(t *testing.T) {
 	}
 }
 
-// A node's drawer shows its disk under the chart, in the bars' colour at the thresholds, or quietly
-// why there is none.
+// A node's drawer shows a usage bar per filesystem under the chart (WF26, D-90), the root first, in
+// the bars' colours at the thresholds, the numbers in each row's tooltip; or quietly why there is
+// none.
 func TestNodeDrawerShowsTheDisk(t *testing.T) {
 	sh, ref := nodeDiskDrawer(t, ThemeDark)
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
-	if !p.disk.Visible() || p.disk.text != "Disk (/): 172.0 GiB of 200.0 GiB used (86%)" || p.disk.color != statusColorName(model.StatusWarning) {
-		t.Errorf("disk line %q in %s, shown %v", p.disk.text, p.disk.color, p.disk.Visible())
+	b := p.disk
+	r := test.WidgetRenderer(b).(*diskBarsRenderer)
+	if !b.Visible() || len(r.rows) != 3 || r.title.Text != "Disk" {
+		t.Fatalf("disk shown %v with %d rows, title %q", b.Visible(), len(r.rows), r.title.Text)
 	}
+	th := b.Theme()
+	for i, want := range []struct {
+		mount, share string
+		color        fyne.ThemeColorName
+	}{
+		{"/", "41%", colorAccent},
+		{"/data", "86%", statusColorName(model.StatusWarning)},
+		{"/srv/backup", "18%", colorAccent},
+	} {
+		row := r.rows[i]
+		if row.mount.Text != want.mount || row.share.Text != want.share || row.fill.FillColor != themeColor(th, want.color) {
+			t.Errorf("row %d: %q %q in %v, want %q %q in %s", i, row.mount.Text, row.share.Text, row.fill.FillColor, want.mount, want.share, want.color)
+		}
+		// The bars line up and fill to the share.
+		if row.track.Position().X != r.rows[0].track.Position().X {
+			t.Errorf("row %d: bar at %v, the first's at %v", i, row.track.Position().X, r.rows[0].track.Position().X)
+		}
+		share := float32(workerA01Filesystems[i].Share())
+		if got := row.fill.Size().Width / row.track.Size().Width; got < share-0.01 || got > share+0.01 {
+			t.Errorf("row %d: filled %.3f of the bar, want %.3f", i, got, share)
+		}
+	}
+	// The row under the pointer names its numbers in the tooltip.
+	f, ok := b.rowAt(fyne.NewPos(10, b.rowH*1.5))
+	if tip := diskTip(f); !ok || tip != "/data · /dev/sdb1 · xfs\nUsed 172.0 GiB of 200.0 GiB (86%)\nFree 28.0 GiB" {
+		t.Errorf("the second row's tooltip = %q", tip)
+	}
+	if _, ok := b.rowAt(fyne.NewPos(10, b.rowH*3.5)); ok {
+		t.Error("a row below the last")
+	}
+
 	p.apply(&engine.ObjectMetrics{Ref: ref, Status: metrics.StatusAvailable, Source: "Kubernetes Metrics Server",
 		DiskNote: "the disk usage comes from node-exporter through Prometheus, and no Prometheus was found"}, nil)
-	if !strings.HasPrefix(p.disk.text, "Disk: the disk usage comes from node-exporter") || p.disk.color != colorMuted {
-		t.Errorf("disk note %q in %s", p.disk.text, p.disk.color)
+	if r := test.WidgetRenderer(b).(*diskBarsRenderer); !b.Visible() || len(r.rows) != 0 ||
+		!strings.HasPrefix(r.title.Text, "Disk: the disk usage comes from node-exporter") || r.title.Color != themeColor(th, colorMuted) {
+		t.Errorf("disk note %q, %d rows", r.title.Text, len(r.rows))
 	}
 	p.apply(&engine.ObjectMetrics{Ref: ref, Status: metrics.StatusAvailable, Source: "Kubernetes Metrics Server"}, nil)
-	if p.disk.Visible() {
-		t.Error("a disk line without a disk or a note")
+	if b.Visible() {
+		t.Error("the disk shown without a disk or a note")
+	}
+	// A disk read without its filesystems shows the one its summary names.
+	if fs := diskFilesystems(model.NodeDisk{UsedBytes: 1, SizeBytes: 2}); len(fs) != 1 || fs[0].Mountpoint != "/" {
+		t.Errorf("a summary alone = %+v", fs)
 	}
 }
 
@@ -221,7 +271,7 @@ func nodeDiskDrawerOn(t *testing.T, f *fakeEngine, mode ThemeMode) (*shell, mode
 			Samples:     metricsSeries(40, func(i int) model.Usage { return model.Usage{CPUMilli: int64(900 + 8*i), MemoryBytes: 3 << 30} }),
 			Allocatable: model.Usage{CPUMilli: 7800, MemoryBytes: 30 << 30}, Capacity: model.Usage{CPUMilli: 8000, MemoryBytes: 32 << 30},
 		}},
-		Disk: &model.NodeDisk{Name: ref.Name, UsedBytes: 172 << 30, SizeBytes: 200 << 30},
+		Disk: &model.NodeDisk{Name: ref.Name, Mountpoint: "/data", UsedBytes: 172 << 30, SizeBytes: 200 << 30, Filesystems: workerA01Filesystems},
 	}}
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})

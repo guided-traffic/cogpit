@@ -22,7 +22,7 @@ import (
 )
 
 // The Nodes list's Disk column against a fake API server with the Metrics Server's node metrics
-// and a Prometheus behind the service proxy that has node-exporter's root filesystems: the whole
+// and a Prometheus behind the service proxy that has node-exporter's filesystems: the whole
 // path through the engine, and the request budget a Nodes list costs with Prometheus (P12, P13).
 
 var nodeMetricsGVR = schema.GroupVersionResource{Group: "metrics.k8s.io", Version: "v1beta1", Resource: "nodes"}
@@ -54,6 +54,7 @@ func (p *diskProm) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	p.disks++
 	now := float64(time.Now().UnixMilli()) / 1000
 	item := func(labels map[string]string, v string) map[string]any {
+		labels["mountpoint"], labels["device"], labels["fstype"] = "/", "/dev/sda1", "ext4" // the root filesystem (D-90)
 		return map[string]any{"metric": labels, "value": []any{now, v}}
 	}
 	_ = json.NewEncoder(w).Encode(map[string]any{"status": "success", "data": map[string]any{"resultType": "vector", "result": []any{
@@ -123,7 +124,7 @@ func TestNodesListDiskBudget(t *testing.T) {
 			t.Errorf("%s: disk %+v, want %q", tbl.Rows[i].Ref.Name, got, want)
 		}
 	}
-	if tip := tbl.ColumnTips[model.ColumnDisk]; !strings.HasSuffix(tip, ": Prometheus (monitoring/prometheus-server).") {
+	if tip := tbl.ColumnTips[model.ColumnDisk]; !strings.HasSuffix(tip, ", read through Prometheus (monitoring/prometheus-server).") {
 		t.Errorf("the Disk header's tooltip = %q", tip)
 	}
 

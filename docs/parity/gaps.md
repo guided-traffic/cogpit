@@ -1502,7 +1502,10 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   footprint](../security/privilege-footprint.md)). The same usage bar as CPU and Memory; without
   Prometheus, or with one without node-exporter, an empty column whose header's tooltip says why
   (a header tooltip is new: `TableSnapshot.ColumnTips`). A node's drawer polls the disks while
-  open and shows "Disk (/): 172.0 GiB of 200.0 GiB used (86%)" under its chart. Hidden with the nodes
+  open and shows "Disk (/): 172.0 GiB of 200.0 GiB used (86%)" under its chart (since 2026-10-18 a
+  usage bar per real filesystem, the root first, the numbers in each row's tooltip, and the column
+  the fullest filesystem, the owner's WF26,
+  [D-90](../developer/decisions.md#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem)). Hidden with the nodes
   or the filesystem (Cluster Settings › Metrics); not polled while the user puts the column away.
   **Measured** at the HTTP level against a fake API server and a fake Prometheus
   (`TestNodesListDiskBudget`, budget P13): a Nodes list with Prometheus costs one detection probe,
@@ -1510,9 +1513,9 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   Server's node list; nothing after it closes. **Checked against a real node-exporter since
   2026-10-14 night** (A115, the kind cluster's Prometheus with node-exporter): its series carry the
   node label and the node's InternalIP as the instance, which the matching reads
-  (`TestKindNodeExporterByAddress`); the column itself stays empty on kind, whose node's `/` is an
+  (`TestKindNodeExporterByAddress`); the column stayed empty on kind, whose node's `/` is an
   overlay node-exporter leaves out (no `mountpoint="/"` series; verified by the query through the
-  service proxy).
+  service proxy), and shows its `/var` since D-90 (verified by the new query, 2026-10-18).
 - **Built (2026-10-14): history that outlives a closed drawer** ([architecture §9](../developer/architecture.md#9-metrics-internalmetrics)).
   When a drawer closes, the hub keeps its chart's CPU and memory series (the object's and each
   container's; the cluster Overview's sums too) and the next drawer of the object starts with them:
@@ -2876,6 +2879,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 | 2026-10-18 | minor | G16: WF15, the YAML in the Kubernetes order, built (D-86) |
 | 2026-10-18 | minor | G16: WF13, WF14, WF16 and WF19 (dialogs as tables, no raw resourceVersion, the CSV's name), built (D-85) |
 | 2026-10-18 | minor | G16: WF20, the namespace filter of one cluster came along to the next, fixed |
+| 2026-10-18 | minor | G12: a node's disks as a usage bar per real filesystem and the Nodes list's Disk the fullest (the owner's WF26, D-90); no gap closes or opens |
 | 2026-10-17 | minor | G12: a cluster without a choice of integrations asks no metrics until its question's pre-choice is answered (the owner's WF5, D-82), its Metrics source No metrics with the reason; estimate not moved |
 | 2026-10-17 | minor | G16: WF9, ⌘Z did nothing in the YAML editor, an undo and redo history built (D-84, the lead's decisions); no estimate moves |
 | 2026-10-17 | minor | G16: WF8, a selection dragged out of the YAML editor and released over another widget lost the keyboard (Fyne's driver unfocuses on the release too), fixed in `yamlview`; Fyne's `widget.Entry` fields behave the same and stay so, the lead's decision; no estimate moves |

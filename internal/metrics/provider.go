@@ -105,10 +105,14 @@ type DetectorFunc func(ctx context.Context) (Provider, State)
 func (f DetectorFunc) Detect(ctx context.Context) (Provider, State) { return f(ctx) }
 
 // Fixed is a Detector that always finds p: the synthetic demo cluster's.
-func Fixed(p Provider) Detector {
-	return DetectorFunc(func(context.Context) (Provider, State) {
-		return p, State{Status: StatusAvailable, Provider: p.ID(), Label: p.Label()}
-	})
+func Fixed(p Provider) Detector { return fixedDetector{p} }
+
+// fixedDetector is Fixed's: the hub knows its provider before it asks (Hub.DisksPossible).
+type fixedDetector struct{ p Provider }
+
+// Detect implements Detector.
+func (f fixedDetector) Detect(context.Context) (Provider, State) {
+	return f.p, State{Status: StatusAvailable, Provider: f.p.ID(), Label: f.p.Label()}
 }
 
 // msgCancelled is the state message of a request that was cancelled: it says nothing about the

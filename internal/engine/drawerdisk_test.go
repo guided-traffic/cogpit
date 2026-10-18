@@ -14,7 +14,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// The Nodes list's Disk column and a node drawer's disk (G12): node-exporter's root filesystem
+// The Nodes list's Disk column and a node drawer's disk (G12, D-90): node-exporter's filesystems
 // through Prometheus, matched to a node by its name or one of its addresses, polled only while
 // shown; the header's tooltip says where the numbers come from or why the column is empty.
 
@@ -125,7 +125,7 @@ func TestNodesListDiskColumnWithoutPrometheus(t *testing.T) {
 	if tip := diskTipOf(st); !strings.HasSuffix(tip, ". Empty: the disk usage comes from node-exporter through Prometheus, and no Prometheus was found.") {
 		t.Errorf("tip = %q", tip)
 	}
-	if tip := diskColumnTip(nil); tip != "Disk: the root filesystem (/) as node-exporter reports it, read through Prometheus." {
+	if tip := diskColumnTip(nil); tip != "Disk: the fullest of the node's filesystems as node-exporter reports them, read through Prometheus." {
 		t.Errorf("tip without a feed = %q", tip)
 	}
 }
@@ -175,7 +175,7 @@ func TestNodeDrawerDisk(t *testing.T) {
 	if d, _ := drawerDisk(hub, model.ObjectRef{Kind: "nodes", Name: "n2"}, nodeObject("n2", "10.0.0.2")); d == nil || d.SizeBytes != 40<<30 {
 		t.Errorf("n2 by its address = %+v", d)
 	}
-	if d, note := drawerDisk(hub, model.ObjectRef{Kind: "nodes", Name: "n3"}, nodeObject("n3", "10.0.0.3")); d != nil || !strings.Contains(note, "no root filesystem") {
+	if d, note := drawerDisk(hub, model.ObjectRef{Kind: "nodes", Name: "n3"}, nodeObject("n3", "10.0.0.3")); d != nil || !strings.Contains(note, "no filesystem of this node") {
 		t.Errorf("n3 = %+v, %q", d, note)
 	}
 

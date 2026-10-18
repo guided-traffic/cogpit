@@ -21,49 +21,7 @@ import (
 // Memory columns, a pod's drawer gathers a series and draws it with the pod's requests and limits.
 // The PNG goes to COGPIT_PNG_DIR or a temporary directory, never to testdata.
 func TestRenderDemoMetrics(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds a demo cluster")
-	}
-	conn := &engine.ClusterConnector{
-		IncludeDemo: true,
-		MetricsOptions: metrics.Options{
-			ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
-		},
-	}
-	// The UI may not import the demo package, but it may size the demo cluster through its field.
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 1500, true, 11
-	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
-	s := engine.New(engine.Options{Connector: conn})
-	defer s.Close()
-	if err := commands.RegisterAll(s.Registry()); err != nil {
-		t.Fatal(err)
-	}
-	a := test.NewTempApp(t)
-	a.Settings().SetTheme(newTheme(ThemeDark))
-	w := test.NewTempWindow(t, nil)
-	w.SetPadded(false)
-	q := &mainQueue{}
-	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext}, q.do)
-	s.SetConfirmer(sh.confirmer)
-	w.SetContent(sh.root)
-	w.Resize(fyne.NewSize(1440, 900))
-	sh.start()
-	defer func() {
-		sh.stop()
-		q.drain()
-	}()
-	until := func(what string, cond func() bool) {
-		t.Helper()
-		deadline := time.Now().Add(30 * time.Second)
-		for !cond() {
-			if time.Now().After(deadline) {
-				t.Fatalf("timed out waiting for %s", what)
-			}
-			q.drain()
-			time.Sleep(5 * time.Millisecond)
-		}
-		q.drain()
-	}
+	s, sh, w, until := demoShell(t)
 	until("the Pods list with usage", func() bool {
 		tbl := s.Table("pods")
 		if tbl == nil || !tbl.Synced || len(tbl.Rows) == 0 || len(sh.kinds) == 0 {
@@ -115,12 +73,69 @@ func TestRenderDemoMetrics(t *testing.T) {
 		t.Errorf("lines = %+v, want the pod's requests and limits", p.plot.data.Lines)
 	}
 
+	demoPNG(t, w, "demo_metrics.png")
+}
+
+// demoShell is the shell over the real engine and the demo cluster, as `cogpit --demo` runs, with
+// the polls shortened, and a wait that drains the main queue.
+func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what string, cond func() bool)) {
+	t.Helper()
+	if testing.Short() {
+		t.Skip("builds a demo cluster")
+	}
+	conn := &engine.ClusterConnector{
+		IncludeDemo: true,
+		MetricsOptions: metrics.Options{
+			ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
+		},
+	}
+	// The UI may not import the demo package, but it may size the demo cluster through its field.
+	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 1500, true, 11
+	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
+	s := engine.New(engine.Options{Connector: conn})
+	t.Cleanup(s.Close)
+	if err := commands.RegisterAll(s.Registry()); err != nil {
+		t.Fatal(err)
+	}
+	a := test.NewTempApp(t)
+	a.Settings().SetTheme(newTheme(ThemeDark))
+	w := test.NewTempWindow(t, nil)
+	w.SetPadded(false)
+	q := &mainQueue{}
+	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext}, q.do)
+	s.SetConfirmer(sh.confirmer)
+	w.SetContent(sh.root)
+	w.Resize(fyne.NewSize(1440, 900))
+	sh.start()
+	t.Cleanup(func() {
+		sh.stop()
+		q.drain()
+	})
+	until := func(what string, cond func() bool) {
+		t.Helper()
+		deadline := time.Now().Add(30 * time.Second)
+		for !cond() {
+			if time.Now().After(deadline) {
+				t.Fatalf("timed out waiting for %s", what)
+			}
+			q.drain()
+			time.Sleep(5 * time.Millisecond)
+		}
+		q.drain()
+	}
+	return s, sh, w, until
+}
+
+// demoPNG writes a capture of the window to COGPIT_PNG_DIR or a temporary directory, never to
+// testdata.
+func demoPNG(t *testing.T, w fyne.Window, name string) {
+	t.Helper()
 	settle(w)
 	dir := os.Getenv("COGPIT_PNG_DIR")
 	if dir == "" {
 		dir = t.TempDir()
 	}
-	f, err := os.Create(filepath.Join(dir, "demo_metrics.png"))
+	f, err := os.Create(filepath.Join(dir, name))
 	if err != nil {
 		t.Fatal(err)
 	}

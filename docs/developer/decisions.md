@@ -99,6 +99,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-85](#d-85-dialogs-as-tables-and-an-objects-state-without-its-resourceversion) | Dialogs as tables and an object's state without its resourceVersion | the owner's WF13, WF14, WF16 and WF19 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: no sentence repeating a confirmation's rows, the rows Context, Namespace, Objects, Effect, Requested by; the save review's head as rows with "This cannot be undone." and no workload explanation; no raw resourceVersion in the window ("since your edits began", times); Overwrite; the CSV named by the cluster's short name |
 | [D-86](#d-86-the-order-of-an-objects-yaml) | The order of an object's YAML | the owner's WF15 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: apiVersion, kind, metadata (name, generateName, namespace, labels, annotations, then sorted), the body sorted, status last, wherever Cogpit shows an object's YAML; each field written by `sigs.k8s.io/yaml` so the quoting stays |
 | [D-89](#d-89-how-a-charts-line-is-drawn) | How a chart's line is drawn | the owner's WF23 (2026-10-18): the line looked thinner in places, each series drawn as separate segments without joins; built 2026-10-18 with the lead's decisions, open to revision: one path per run of points with round joins and ends, rasterised by rasterx at the screen's pixel size (no new dependency), the fill the same path in a layer beneath, the images kept per layer, the hover repainting its overlay only |
+| [D-90](#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem) | A node's disks: a usage bar per real filesystem | the owner's WF26 (2026-10-18): the disk as a small bar, and every block storage such as `/data`; built 2026-10-18 with the lead's decisions, open to revision: one query per poll for every node's real filesystems (no memory, kernel, container or boot filesystems, no pods' volumes, one mountpoint per device), the drawer a bar per filesystem with the numbers in its tooltip, the Nodes list's Disk the fullest, the demo cluster's made-up disks |
 | [D-93](#d-93-room-in-the-drawers-data-footer-between-the-layout-toggles-and-in-the-navigators-back-row) | Room in the drawer's data footer, between the layout toggles and in the navigator's back row | the owner's WF12, WF17 and WF27 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: an inner padding above a data section's Add Key row and footer, a padding between the layout toggles, "‹ All Clusters" across the whole row |
 | [D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy) | The empty dock's toggle opens a terminal, and alert names copy | the owner's WF18 and WF21 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: `ui.toggleDock` on an empty dock opens a terminal tab for every origin (D-54 changed); an alertname's copy icon on hover |
 
@@ -3744,7 +3745,7 @@ captured). Since D-41 the start can also show the tabs of the last run. **Built 
 
 ## D-43: Where the nodes' disk comes from
 
-**Decided (owner, 2026-10-14):** option (b), node-exporter's root filesystem through Prometheus, as built; without node-exporter the Disk column stays empty (no cAdvisor fallback, never `nodes/proxy`).
+**Decided (owner, 2026-10-14):** option (b), node-exporter's root filesystem through Prometheus, as built; without node-exporter the Disk column stays empty (no cAdvisor fallback, never `nodes/proxy`). Since 2026-10-18 every real filesystem of a node, the column the fullest ([D-90](#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem)).
 
 **The night decision (the lead's, 2026-10-14), confirmed by the owner (2026-10-14):** Lens's Nodes list shows a
 Disk usage bar (capture, 2026-10-11); the Metrics Server measures no disk. Options: (a) the
@@ -3777,8 +3778,8 @@ What the build chose, Cogpit's defaults (not the owner's decision):
   discovery adds the node label; an exporter scraped with host networking under its own address is
   found by the node's InternalIP. Checked against the `prometheus` chart's node-exporter on kind
   since 2026-10-14 night (A115): the node label and the InternalIP as the instance, both read
-  (`TestKindNodeExporterByAddress`); the Disk column stays empty on kind, whose node's `/` is an
-  overlay that node-exporter leaves out.
+  (`TestKindNodeExporterByAddress`); the Disk column stayed empty on kind, whose node's `/` is an
+  overlay that node-exporter leaves out, and shows the node's `/var` since D-90 (2026-10-18).
 - **The Nodes list looks for Prometheus while its Disk column shows** (before: only when a drawer
   opened or the Metrics Server failed). The cost on a cluster with Prometheus: the detection's
   probe (once per 10 minutes) and the watch on Services the detection reads, then one query per
@@ -3789,7 +3790,8 @@ What the build chose, Cogpit's defaults (not the owner's decision):
   view shares.
 - **A node's drawer shows its disk** as a line under the node's chart ("Disk (/): 41.2 GiB of 58.4
   GiB used (71%)", in the bars' colour at the thresholds), polled while the drawer is open, shared
-  with the Nodes list's poll; Lens's drawer has no disk line that is captured (inferred).
+  with the Nodes list's poll; Lens's drawer has no disk line that is captured (inferred). Since 2026-10-18 a usage bar
+  per real filesystem with the numbers in its tooltip ([D-90](#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem)).
 
 **The nodes' CPU and memory history, the same source (owner, 2026-10-14 evening):**
 
@@ -8320,6 +8322,79 @@ painter's at scale 1 and 2, and GL draws the same image as a texture of its pixe
 source, not seen). At a fractional scale (1.25, 1.5 on Windows and Linux) the layer's origin, rounded
 to whole units, may lie up to half a pixel off the grid's lines.
 
+## D-90: A node's disks: a usage bar per real filesystem
+
+**The owner's finding WF26 (walk of 2026-10-18, a test cluster's node drawer, verbatim):** "Disk
+Usage hier wieder als Text, besser als kleine Visualisierung mit Tooltip für genaue Details. Hat
+der Server vielleicht auch weitere Blockstorages, die wir einblenden sollten? Mein Main-Cluster hat
+zum Beispiel eine SSD an /data gemountet. Bekommen wir diese Information vielleicht einfach
+zusammen und können, wenn mehrere Blockstorage verfügbar und gemountet, auch übersichtlich
+dargestellt?" He saw "Disk (/): 50.5 GiB of 122.9 GiB used (41%)".
+
+**What was there (verified 2026-10-18):** [D-43](#d-43-where-the-nodes-disk-comes-from)'s root
+filesystem alone (`mountpoint="/",fstype!="rootfs"`), a line of text under the node's chart.
+node-exporter reports every filesystem the host mounts, by `mountpoint`, `device` and `fstype`.
+**What it reports, read only on 2026-10-18:** on the owner's test cluster (kube-prometheus-stack's
+exporter, four nodes; its names not recorded here) `/` (ext4 on a disk partition), `/boot` (ext4),
+`/boot/efi` (vfat), `/run` and `/run/lock` (tmpfs) on each node, the kubelet's mounts already left
+out by that chart's exporter flags; on the kind cluster (the `prometheus` chart's exporter) `/var`
+and three files under `/etc` bind-mounted from the same disk, `/run`, `/tmp` and a systemd
+credentials tmpfs. The owner's main cluster with its `/data` was not available to read: the
+fixtures are made up, shaped like these.
+
+**Built 2026-10-18** (the lead's agent "charts"), the lead's decisions below, open to revision:
+
+- **One query per poll, as before, for every node's real filesystems**
+  ([`metrics/diskfs.go`](../../internal/metrics/diskfs.go)): both gauges `max by (node, instance,
+  device, fstype, mountpoint)`, the types and mountpoints that do not count left out in the selector
+  (`fstype!~…,mountpoint!~…`) and again in Go on the answer. The query's text was run read-only
+  against the test cluster's Prometheus and kind's: it parses, and answers `/` alone for each node
+  of the first and `/var` alone on kind.
+- **The model** ([`model/usage.go`](../../internal/model/usage.go)): `NodeDisk.Filesystems`, each a
+  `NodeFilesystem` (mountpoint, device, type, used and size bytes; free is the size less the used),
+  the root first, then by mountpoint; `NodeDisk.Mountpoint`, `UsedBytes` and `SizeBytes` are the
+  fullest of them.
+- **The drawer** ([`metricsdisk.go`](../../internal/ui/fyneui/metricsdisk.go)): under the node's
+  chart a row per filesystem: "Disk" before the first, the mountpoint, a small usage bar in the
+  table's bar colours (the accent, the warning colour from 80 %, the error colour from 90 %;
+  `model.UsageBarStatus`) and the share; each row's tooltip "/data · /dev/sdb1 · xfs", "Used 172.0
+  GiB of 200.0 GiB (86%)", "Free 28.0 GiB". Without a disk, the reason as before, muted, one line.
+- **The Nodes list's Disk column shows the fullest filesystem**, its bar's tooltip naming it ("/data
+  · 172.0 GiB of 200.0 GiB (86%)"), the header's tooltip "Disk: the fullest of the node's
+  filesystems as node-exporter reports them, read through Prometheus (…)". On kind the column
+  shows `/var` since (before: empty, no `/` series there).
+- **The demo cluster** ([`demo/disks.go`](../../internal/demo/disks.go), development builds only)
+  makes up every node's disks: a root on each, `/data` on about half the workers, `/srv/backup` on a
+  few; its metrics provider is a disk provider, and `metrics.Fixed` lets the hub know it before
+  its first poll (`Hub.DisksPossible`), so the demo's Nodes list shows the Disk column (before:
+  empty) and a worker's drawer more than one bar.
+- **Agents** read the column's cell, the fullest filesystem with its mountpoint in the detail,
+  through `view.rows`; the drawer's per-filesystem rows are in no tool's answer (not built).
+- Tests: `TestNodeDisksFromNodeExporter` (the query, the root of each node), `TestNodeDiskFilesystems`
+  (a node shaped like a real one: `/`, `/data`, `/srv/backup` kept; `/boot`, `/boot/efi`, `/run`,
+  `/run/lock`, a pod's volume, a container's layers, a file under `/etc` and the root's device
+  bind-mounted at `/var/lib/kubelet` left out; the fullest), `TestNodeDiskCell`,
+  `TestNodeDrawerShowsTheDisk` (rows, colours, aligned bars, fills, the tooltip, the note),
+  `TestNodesListDrawsUsageBars`, `TestDemoDisks`, `TestNodesListDiskBudget` (still one disk query
+  per poll); renders `node_drawer_disk_*.png` and the demo's `TestRenderDemoNodeDisks`.
+
+**The lead's decisions (2026-10-18), open to revision:**
+
+| Question | Options weighed | Chosen | Why |
+|---|---|---|---|
+| Which filesystems count | every series node-exporter reports; only block devices (`device` under `/dev/`); every one but those that hold none of the node's own data | the last: not a filesystem in memory or of the kernel (tmpfs, ramfs, devtmpfs, proc, sysfs, cgroup, nsfs, …), not a container's layers (overlay) or an image (squashfs, erofs, iso9660), not under `/boot`, `/dev`, `/proc`, `/run`, `/sys`, `/snap`, not a file under `/etc`, not under `/var/lib/kubelet/`, `/var/lib/docker/`, `/var/lib/containerd/`, `/var/lib/containers/`, `/var/lib/rancher/` | Every series shows `/run` and, with node-exporter's defaults, a tmpfs per pod's volume (hundreds on a busy node). Block devices alone would leave out a network filesystem the host mounts for its data, and LVM and ZFS devices do not all sit under `/dev/`. A disk mounted at `/var/lib/kubelet` or `/var/lib/containerd` itself counts: it is where the kubelet's disk pressure is measured |
+| `/boot` and `/boot/efi` | show them; leave them out | leave them out | They are the firmware's and the boot loader's, a few hundred MiB sized by the installer, on every node; two more bars per node that say nothing about the cluster's data. A `/boot` that fills up stops kernel updates, which node-exporter's own alert rules watch |
+| A device mounted twice (a bind mount, a btrfs subvolume) | a bar each; one | one, at `/` when it is the root, else at its shortest mountpoint | The same space twice reads as twice the disk |
+| Order | by mountpoint; by share; root first, then by mountpoint | root first, then by mountpoint | The owner's "root first, then the others"; an order that stays put across polls |
+| The Nodes list's Disk column | (a) the root, as D-43 and Lens; (b) the fullest; (c) the root's share with the fullest's colour | (b), the mountpoint in the bar's tooltip | The column answers which node runs out of disk; a `/data` at 95 % under a root at 40 % would stay unseen in the list with (a), and sorting by Disk finds the fullest disks with (b). (c) shows a number and a colour of two different disks. On a node with one real filesystem, the usual case, (a) and (b) are the same |
+| The drawer's look | a line of text per filesystem (as before); a bar per filesystem with the numbers in a tooltip | the bars, the share beside each, the numbers in the tooltip | The owner's words; the bars' colours and their thresholds are the lists', so a warning reads the same everywhere |
+| Where the rules live | the query only; Go only; both | both, from the same text | The query keeps the answer small where the exporter excludes nothing; Go keeps the same filesystems out of an answer from a store that reads the expressions differently, and is what the tests check |
+| The query's cost | one query for every node (as before); one per node | one for every node, per poll at the list's 60 s | The brief's one query per node is met by one for all of them, and no poll beyond today's |
+
+**Not verified:** the owner's main cluster's `/data` (not available; the fixtures are made up,
+shaped like the test cluster's answer); an exporter with node-exporter's own defaults on a node
+with many pods (the rules were checked on synthetic series of such mounts); a real window.
+
 ## D-93: Room in the drawer's data footer, between the layout toggles and in the navigator's back row
 
 **The owner's findings (walk of 2026-10-18, verbatim):**
@@ -8373,6 +8448,7 @@ Tests: `TestLayoutToggles` (an agent's toggle on an empty dock opens a terminal)
 | 2026-10-18 | minor | D-86 added (the owner's WF15 of 2026-10-18) and built: apiVersion, kind, metadata first, status last, in every YAML of an object; its index row |
 | 2026-10-18 | minor | D-85 added (the owner's WF13, WF14, WF16 and WF19 of 2026-10-18) and built: a confirmation's rows Context, Namespace, Objects, Effect, Requested by and no sentence repeating them; the save review's head as rows; no raw resourceVersion in the window; Overwrite; the CSV's name; its index row |
 | 2026-10-18 | minor | D-69 stage 1: the filters when another cluster is shown, the owner's WF20 of 2026-10-18 (a bug): the next cluster's own tab's, else none; fixed |
+| 2026-10-18 | minor | D-90 added (the owner's WF26 of 2026-10-18): a node's disks as a usage bar per real filesystem, the root first, the numbers in each row's tooltip; which filesystems count; the Nodes list's Disk the fullest; the demo cluster makes up disks; built with the lead's decisions, open to revision; D-43 points to it; its index row |
 | 2026-10-18 | minor | D-89 added (the owner's WF23 of 2026-10-18): a chart's series drawn as one path per run of points with round joins, rasterised at the screen's pixel size, the fill the same path in a layer beneath; the hover repaints its overlay only; built with the lead's decisions, open to revision; its index row |
 | 2026-10-17 | minor | D-82 added (the owner's WF5 and WF4 of 2026-10-17, his walk) and built the same evening with the lead's decisions, open to revision: consent before looking (nothing of a cluster without a choice of integrations read before the question's pre-choice is answered, while it is put off, or in the background), the pre-choice (Check all, Choose, Don't use with its warning, Back), Ask again in Cluster Settings › Integrations, `cluster.integrations.step`, `.lookFor` and `.ask`; D-76 changed (its note); H-126 opened; its index row |
 | 2026-10-17 | minor | D-83 added (the owner's WF7 and WF6 of 2026-10-17) and built: one hotbar, its banks, their four commands and MCP tools, the switcher and ⇧F1–⇧F12 gone, a file of banks merged into one list at the start and kept as `hotbar.json.v1`, no limit to the tiles, F1–F12 the first twelve; the drag that carries the tile (a lifted copy under the pointer, the others sliding into place, the bar scrolling at its edges, Reduce motion honoured), R2's look replaced; A65 and A57 moot; the lead's details, open to revision |
