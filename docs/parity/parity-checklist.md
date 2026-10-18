@@ -14,7 +14,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 |---|---|---|---|---|---|
 | Resource views (free) | 64 | 64 | 1 | 63 | 0 |
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
-| Interface rows, free plan | 120 | 117 | 9 | 108 | 3 |
+| Interface rows, free plan | 121 | 118 | 9 | 109 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
 | Platform rows (packages, authentication, versions, tools, display) | 38 | 18 | 0 | 18 | 20 |
 | Beyond Lens (not in feature breadth) | 71 | 69 | 58 | 11 | 2 |
@@ -108,6 +108,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Navigator header: a dropdown of the scope the tree shows, one cluster or a section such as "Local Kubeconfigs", and a search button; the tr… | partial | [Layout](ui-parity.md#layout) |
 | Tab bar of cluster views: single click opens a preview tab, double-click (or ⇧↵) a fixed tab; a tab reads "<view> - <context>" with the clu… | partial | [Layout](ui-parity.md#layout) |
 | Workspace showing the active view | partial | [Layout](ui-parity.md#layout) |
+| The window opens where it was closed: as large, on the same display, in full screen if it was (Lens Desktop does, inferred: not in its docu… | partial | [Layout](ui-parity.md#layout) |
 | Detail drawer on the right (Detail drawer) | partial | [Layout](ui-parity.md#layout) |
 | Dock along the bottom (Dock) | partial | [Layout](ui-parity.md#layout) |
 | Status bar | partial | [Layout](ui-parity.md#layout) |

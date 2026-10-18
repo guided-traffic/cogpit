@@ -22,7 +22,7 @@ serial foundation, about 80% of the work parallelizes.
 
 | | Value | Kind |
 |---|---|---|
-| **Feature breadth** | **~85%** (was ~82%) | measured by `make parity`: 64 of 64 views (ten of them the Gateway API views, generic), 42 of 42 actions (2026-10-15 night: a Secret's drawer Save, `secret.saveData`, D-59; a Config Map's drawer Save, `configMap.saveData`, F3; an application's logs its own command, `application.logs`), 117 of 120 interface rows (2026-10-16: Lens Metrics not a target, Cogpit Metrics withdrawn by the owner, D-61), 6 of 13 package rows (2026-10-14: Sparkle 2 and the signed appcast, no update key yet), 3 of 11 paid features (the diff, Flux CD, Argo CD) (pasting kubeconfigs is not a target, D-21); 10 rows done (2026-10-15: the terminal's scrollback), the rest partial |
+| **Feature breadth** | **~85%** (was ~82%) | measured by `make parity`: 64 of 64 views (ten of them the Gateway API views, generic), 42 of 42 actions (2026-10-15 night: a Secret's drawer Save, `secret.saveData`, D-59; a Config Map's drawer Save, `configMap.saveData`, F3; an application's logs its own command, `application.logs`), 118 of 121 interface rows (2026-10-16: Lens Metrics not a target, Cogpit Metrics withdrawn by the owner, D-61), 6 of 13 package rows (2026-10-14: Sparkle 2 and the signed appcast, no update key yet), 3 of 11 paid features (the diff, Flux CD, Argo CD) (pasting kubeconfigs is not a target, D-21); 10 rows done (2026-10-15: the terminal's scrollback), the rest partial |
 | **Ready for real work** | **~30%** (was ~26%) | estimated (lead, 2026-10-13: breadth jumped, nothing walked by a person yet) |
 | Mainstream practitioner | ~29% (was ~25%) | estimated |
 | Essentials user | ~36% (was ~34%) | estimated |

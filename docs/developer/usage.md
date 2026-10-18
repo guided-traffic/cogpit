@@ -44,6 +44,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🏷️ The cluster's Kubernetes version under your user in the navigator's root, ⚠ when upstream's support for its minor has ended, in amber during its last two months (maintenance mode); its tooltip says until when, with the days left. The Nodes list marks a kubelet the same way, and one newer than the API server or more than three minors behind it ([The Kubernetes version and upstream support](#the-kubernetes-version-and-upstream-support)). A gear beside the root's dot opens the cluster's Settings.
 - ⌨️ A command palette on ⌘⇧P (Ctrl+Shift+P): every action the menus offer, Switch to any view, the hotbar's clusters; ⌘P (Cluster › Connect to Cluster…) to search a cluster by name in the navigator's list, ↵ to connect, Escape to go back.
 - 👋 A welcome page whenever no cluster is open (and from Help › Welcome): your clusters one click away, Add Kubeconfigs, the documentation. Disconnect a cluster, or remove it from Cogpit, which unlinks the kubeconfig file you added and never touches the file.
+- 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,: the theme switched live, the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec plugins for EKS, GKE, AKS); no local proxy, no login.
@@ -366,8 +367,9 @@ connect with its most recently used tab, then the others one after another in th
 allowed yet, or one whose program changed since, is not run, and the cluster says why (allow it in
 the navigator). `--context` shows its own cluster, and the restore connects the others behind it. A
 cluster whose kubeconfig is gone is left out with a notice. The dock's tabs (logs, terminals,
-editors) are not reopened. The tables' column choice and order, the navigator's collapsed groups and
-whether the navigator and the chat are shown come back whatever this says. The welcome page has
+editors) are not reopened. The tables' column choice and order, the navigator's collapsed groups,
+whether the navigator and the chat are shown, and the window's place and size
+([below](#the-windows-place-and-size)) come back whatever this says. The welcome page has
 the same preference as a checkbox under "Add Kubeconfigs…", "Restore this session at the next start:
 its tabs and connected clusters" (since 2026-10-17 evening, the owner's walk, WF1): ticked there, it
 is on in the Preferences too.
@@ -380,6 +382,27 @@ is on in the Preferences too.
 it on restores the session of your last quit. Security note: on, the next start connects clusters
 and runs their login programs without a click, so only you, in Cogpit's window, can turn it on;
 agents and the CLI may only turn it off.
+
+### The window's place and size
+
+Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
+WF11): Cogpit opens where you closed it, at every start and whatever Restore the last session says.
+
+| Platform | What comes back | When it is kept |
+|---|---|---|
+| macOS | the size, the place, the display, full screen | half a second after you move or resize the window, take it to another display or into or out of full screen, and at quit |
+| Windows, Linux | the size and full screen; the place is the system's | when the window closes |
+
+| Case (macOS) | Where the window opens |
+|---|---|
+| First start, or no `window.json` | 1440 × 900 in the middle of the main display # default |
+| Its display is gone (unplugged) | 1440 × 900 in the middle of the main display; plugged in again, the window goes back to it |
+| Its display is arranged elsewhere | on that display, at the same place from its top left |
+| Larger than its display, or over an edge | clipped to the display's area without the menu bar and the Dock, moved in |
+| In full screen at quit | at its window frame, then in full screen once Cogpit is the active app |
+
+To start over, quit Cogpit and delete `window.json` ([files](#naming-conventions)). Agents neither
+read nor move the window: it is not part of `ui_state`.
 
 ### Cluster Settings › General: the login while the cluster is not shown
 
@@ -952,6 +975,7 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Last known users | `<user config dir>/Cogpit/cluster-users.json`, owner-only (0600, directory 0700): per context id the username the API server last confirmed and when Cogpit last saw it so, for the navigator's root while the cluster is not connected; never the groups, never the kubeconfig's user name; an unreadable one is moved to `cluster-users.json.unreadable` at the next write ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `{"version": 1, "users": {"kubernetes-admin@prod-eu [dev.yaml]": {"username": "alice@example.com", "seen": "2026-10-16T09:12:00Z"}}}` # example |
 | Bookmarks of picked files | `<user config dir>/Cogpit/bookmarks.json`, owner-only (0600, directory 0700), macOS (since 2026-10-16, [D-72](decisions.md#d-72-native-file-panels-and-macos-folder-access)): a security-scoped bookmark of each kubeconfig file and sync folder, folder and CA file you picked in the system's panels, with its path, its use (`kubeconfig`, `folder`, `caFile`) and its access; resolved at every start before the sources are read; a source's goes with the source, the newest 16 folders and CA files stay; removing the file removes the kept access ([file access](../security/file-access.md)) | |
 | Tabs and column layout | `<user config dir>/Cogpit/workspace.json`, owner-only (0600, directory 0700): the tab bar's tabs (context id, view, filters, search, sort, history), each view's hidden columns and column order, and since 2026-10-15 the navigator's collapsed source groups (their folders' and files' labels, A63) and whether the navigator is hidden and the chat column shown (F7, [D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)), and since 2026-10-16 the clusters connected (`connected`, context ids) and the one shown (`shown`) ([D-41](decisions.md#d-41-what-survives-a-restart)); the layout comes back at every start, the tabs and the connections only while Preferences › App › Restore the last session is on ([D-69](decisions.md#d-69-several-clusters-connected-at-once) item 8); format version 1, a file of v0.17.0 loads; an unreadable one is moved to `workspace.json.unreadable` at the first change | `{"version": 1, "tabs": […], "active": 0, "connected": ["kind-dev", "prod-eu"], "shown": "prod-eu"}` # example |
+| Window place | `<user config dir>/Cogpit/window.json`, owner-only (0600, directory 0700), since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was)): on macOS the window's frame in points (origin at the main display's bottom left), the display it was on (id, name, frame) and whether it was in full screen, written half a second after a change and at quit; on Windows and Linux its size and full screen, written when it closes; read at every start, whatever Restore the last session says; an unreadable one is replaced by the next change; deleting it gives the first start's window | `{"version": 1, "frame": {"x": 300, "y": 200, "width": 1000, "height": 700}, "display": {"id": 1, "name": "Built-in Retina Display", "frame": {…}}}` # example |
 | Drafts of unsaved text | `<user config dir>/Cogpit/drafts/<32 hex digits>.json`, owner-only (0600, directory 0700): an Edit or Create resource tab's unsaved text, and since 2026-10-15 a Config Map's values edited in the drawer (type `configMapData`; since 2026-10-16 its keys added and removed too), removed when saved, reverted or discarded, offered again at the next connect of their context ([D-11](decisions.md#d-11-crash-stance), [D-55](decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)); never a Secret's values or Helm values | `drafts/3f9a…c2.json` # example |
 | Helm chart repositories | Helm's own `repositories.yaml`, as the helm CLI resolves it: `$HELM_REPOSITORY_CONFIG`, else `$HELM_CONFIG_HOME/repositories.yaml`, else Helm's folder; read every 2 seconds, never written (add and remove repositories with `helm repo add` and `helm repo remove`, [D-29](decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)); credentials stay in memory | `~/Library/Preferences/helm/repositories.yaml` # default on macOS |
 | Helm repositories allowed over http | `<user config dir>/Cogpit/helm-http-approvals.json`, owner-only (0600, directory 0700): the repositories whose user and password you let Cogpit send over plain http, each by its name, its URL without user, password or query values, a SHA-256 of its name, URL and user name and when; no credential ([H-40](../security/credentials.md#h-40-credentials-over-plain-http)) | |

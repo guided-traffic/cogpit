@@ -58,6 +58,10 @@ type Options struct {
 	// Bookmarks keeps the security-scoped bookmarks of what the user picks in the system's open
 	// panel and Cogpit reads again in later runs (D-72, filepicker.go); nil keeps none.
 	Bookmarks *nativedialog.Store
+	// WindowPlace is the file the window's place and size are kept in, the app's
+	// <user config dir>/Cogpit/window.json (D-95, windowplace.go); empty keeps nothing, and the
+	// window opens at 1440 × 900 in the middle of the screen.
+	WindowPlace string
 }
 
 // PerfStats is what the jank meter measured: how late callbacks posted to the main goroutine
@@ -182,12 +186,22 @@ func Run(s *engine.Session, opts Options) error {
 	w.SetContent(sh.root)
 	w.SetOnClosed(sh.clearSecretClipboard) // a copied Secret value does not outlive the window on the clipboard
 	w.SetMainMenu(sh.mainMenu())
-	w.Resize(fyne.NewSize(1440, 900))
+	// The window's last place and size, whatever Restore the last session says; the first start's
+	// 1440 × 900 in the middle of the screen without one (D-95, windowplace.go). A --perf run
+	// measures at that size and keeps nothing.
+	placeFile := opts.WindowPlace
+	if opts.PerfReport != nil {
+		placeFile = ""
+	}
+	place := newWindowPlacer(openWindowPlace(placeFile))
+	place.restore(a, w)
 	// Cogpit's own title bar on macOS needs the window, which exists once the app started: queued
 	// from OnStarted, the install runs after the window's creation (titlebar.go).
 	detachLinks := func() {}
 	a.Lifecycle().SetOnStarted(func() {
 		do(sh.titlebar.install)
+		// After the title bar took its room: the kept frame exactly, full screen, its changes kept (D-95).
+		do(func() { place.follow(w) })
 		do(sh.installAbout)     // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
 		do(sh.showStartNotices) // the crash notice, and what the engine said before the window was up
 		// The cogpit:// links that came before the window wait until now (deeplink.go).
@@ -214,6 +228,7 @@ func Run(s *engine.Session, opts Options) error {
 	}()
 	w.ShowAndRun()
 	stopped.Store(true)
+	place.finishWindow(w) // what is pending written now; Windows and Linux keep the size here
 	detachLinks()
 	if sh.perf != nil {
 		sh.perf.finish() // the window closed before PerfDuration ended, or there is none

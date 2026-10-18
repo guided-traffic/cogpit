@@ -124,7 +124,7 @@ func run(previousCrash string) int {
 	s.SetUpdater(update.New())
 
 	opts := fyneui.Options{AutoConnect: *contextName, Theme: fyneui.ThemeMode(*themeName),
-		DeepLinks: deepLinkQueue, Bookmarks: bookmarks}
+		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath()}
 	if previousCrash != "" {
 		at := time.Now()
 		if fi, err := os.Stat(previousCrash); err == nil {
@@ -178,6 +178,16 @@ func discoveryCacheDir() string {
 		return ""
 	}
 	return dirs.DiscoveryCacheDir()
+}
+
+// windowPlacePath is <user config dir>/Cogpit/window.json, the window's place and size (D-95);
+// empty, and nothing kept, without a configuration directory.
+func windowPlacePath() string {
+	dirs, err := app.UserDirs()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(dirs.Config, fyneui.WindowPlaceFile)
 }
 
 // connectLogDir is <user config dir>/Cogpit/connection-logs (app.Dirs.ConnectLogDir, D-66); empty,
