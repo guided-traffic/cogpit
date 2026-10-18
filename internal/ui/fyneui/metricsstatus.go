@@ -343,9 +343,12 @@ func providerTip(ps metrics.ProviderStatus, now time.Time, tf model.TimeFormat) 
 	return strings.Join(tip, "\n")
 }
 
-// sourceRowLayout lays the row's parts out: one at the left; two at the left and the right, or one
-// under the other when they do not fit side by side in the room the row has (avail, the drawer's
-// width; else the size it is given).
+// sourceRowLayout lays the row's parts out in the row's middle (the owner, 2026-10-18, on WF24:
+// "nicht ganz außen rechts und links, sondern mittig zentriert, rechts und links"): one centred;
+// two side by side, the first ending a gap's half left of the centre and the second starting a
+// gap's half right of it, or the pair centred as one when the wider of them does not fit its half;
+// one under the other, each centred, when they do not fit side by side in the room the row has
+// (avail, the drawer's width; else the size it is given).
 type sourceRowLayout struct {
 	avail func() float32
 }
@@ -410,20 +413,37 @@ func (l *sourceRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	if l.stacked(sizes, size.Width) {
 		y := float32(0)
 		for i, o := range parts {
-			o.Move(fyne.NewPos(0, y))
-			o.Resize(fyne.NewSize(min(sizes[i].Width, size.Width), sizes[i].Height))
+			w := min(sizes[i].Width, size.Width)
+			o.Move(fyne.NewPos((size.Width-w)/2, y))
+			o.Resize(fyne.NewSize(w, sizes[i].Height))
 			y += sizes[i].Height + fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameLineSpacing)
 		}
 		return
 	}
 	for i, o := range parts {
-		x := float32(0)
-		if i == len(parts)-1 && i > 0 {
-			x = size.Width - sizes[i].Width // the last at the right
-		}
-		o.Move(fyne.NewPos(x, (size.Height-sizes[i].Height)/2))
+		o.Move(fyne.NewPos(l.partX(sizes, i, size.Width), (size.Height-sizes[i].Height)/2))
 		o.Resize(sizes[i])
 	}
+}
+
+// partX is where part i of parts side by side starts: around the centre (Layout).
+func (l *sourceRowLayout) partX(sizes []fyne.Size, i int, width float32) float32 {
+	gap, mid := l.gap(), width/2
+	if len(sizes) == 2 && 2*max(sizes[0].Width, sizes[1].Width)+gap <= width {
+		if i == 0 {
+			return mid - gap/2 - sizes[0].Width
+		}
+		return mid + gap/2
+	}
+	total := -gap // the parts centred as one
+	for _, s := range sizes {
+		total += s.Width + gap
+	}
+	x := (width - total) / 2
+	for _, s := range sizes[:i] {
+		x += s.Width + gap
+	}
+	return x
 }
 
 // sourceChip is one provider on the source row: its name, its dot, when it last answered or why

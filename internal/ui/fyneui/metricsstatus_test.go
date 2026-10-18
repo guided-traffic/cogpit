@@ -108,8 +108,8 @@ func chipTexts(l *providerStatusLine) []string {
 	return out
 }
 
-// The source row under the drawer's charts (D-88, the owner's WF24 and WF25): Prometheus at the
-// left, the Metrics Server at the right, each with its dot and when it last answered, the details
+// The source row under the drawer's charts (D-88, the owner's WF24 and WF25): Prometheus left of
+// the row's centre, the Metrics Server right of it, each with its dot and when it last answered, the details
 // in its tooltip, no link while both answer; a provider that fails says so in a word, its dot red,
 // with a link to its section; Prometheus not found asks for its address.
 func TestSourceRow(t *testing.T) {
@@ -126,10 +126,11 @@ func TestSourceRow(t *testing.T) {
 		!strings.Contains(prom.tip, "Found and answering.") || !strings.Contains(prom.tip, "Last good answer: 14:29:20 (40 s ago)") {
 		t.Errorf("Prometheus: %q, %+v", prom.tip, prom.look)
 	}
-	// The two at the row's ends.
+	// The two around the row's centre, a gap between them (the owner: "mittig zentriert, rechts und links").
 	settle(sh.win)
-	if prom.Position().X != 0 || server.Position().X+server.Size().Width < p.status.root.Size().Width-1 {
-		t.Errorf("Prometheus at %v, the Metrics Server at %v (+%v) in %v", prom.Position(), server.Position(), server.Size(), p.status.root.Size())
+	mid := p.status.root.Size().Width / 2
+	if end := prom.Position().X + prom.Size().Width; end > mid || end < mid-30 || server.Position().X < mid || server.Position().X > mid+30 {
+		t.Errorf("Prometheus at %v (+%v), the Metrics Server at %v, the centre at %v", prom.Position(), prom.Size(), server.Position(), mid)
 	}
 	// Hovering a provider shows its whole state.
 	server.MouseIn(&desktop.MouseEvent{PointEvent: fyne.PointEvent{AbsolutePosition: fyne.NewPos(10, 10)}})
