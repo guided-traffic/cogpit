@@ -158,11 +158,13 @@ func (s *Session) runConnect(r *connectRun) {
 	}
 	conn := Connection{State: Connected, Demo: b.Demo, TLSUnchecked: tlsUnchecked(b), CredentialPlugin: b.CredentialPlugin} // tlswarning.go
 	s.UpdateUI(func(u *UIState) { u.setRunConnected(b.Context, r.name, conn, r.gen) })
-	st.mu.Lock()
-	if st.pooledLocked(b) == e && st.shown != b {
-		st.armColdLocked(e) // a cluster the window left, until the connect waiting for it shows it (showLocked); after its entry, which the cold mark needs
+	if !watched { // the window's connect shows it next (awaitRun); else a cluster the window left
+		st.mu.Lock()
+		if st.pooledLocked(b) == e && st.shown != b {
+			st.armColdLocked(e) // after its entry, which the cold mark needs
+		}
+		st.mu.Unlock()
 	}
-	st.mu.Unlock()
 	b.watch.start()                   // nil-safe; the watch writes its Connection from now on (connwatch.go)
 	s.applyLoginHolds()               // a cluster that is not shown: its setting may hold its login (connwatch_lapse.go)
 	s.settleGoneConnect(b.Context, b) // its file went or its source was removed meanwhile (connect_gone.go)
@@ -252,7 +254,14 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 	current := !st.closed && st.connectSeq == seq
 	st.mu.Unlock()
 	if !current {
-		if watched { // it ended as the window's, which another connect replaced since: say it as nobody waited
+		if watched { // it ended as the window's, which another connect replaced since: as if nobody waited
+			if e != nil {
+				st.mu.Lock()
+				if st.pooledLocked(e.b) == e && st.shown != e.b {
+					st.armColdLocked(e)
+				}
+				st.mu.Unlock()
+			}
 			s.tellRunEnd(r, err)
 			return fmt.Errorf("connect %s: %w", r.name, errConnectInBackground)
 		}

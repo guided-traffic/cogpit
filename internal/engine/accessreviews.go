@@ -603,12 +603,19 @@ func (a *accessReviews) reviewAccess(q cluster.AccessAttributes, c *accessCheck)
 		allowed, known bool
 		err            = errAccessReviewAborted
 	)
-	defer func() { a.finishAccess(q, c, allowed, known, err) }()
-	if !a.acquire() {
+	acquired := false
+	defer func() {
+		a.finishAccess(q, c, allowed, known, err)
+		if acquired {
+			// After the answer is recorded: a review waiting for this slot sees a failure and is
+			// not sent (released first, one more slipped through: TestBudgetWithoutAccessReviews).
+			a.release()
+		}
+	}()
+	if acquired = a.acquire(); !acquired {
 		err = a.ctx.Err()
 		return
 	}
-	defer a.release()
 	a.mu.Lock()
 	failing := a.failing
 	a.mu.Unlock()
