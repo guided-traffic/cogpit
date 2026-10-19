@@ -103,12 +103,22 @@ func (ck *customKinds) stop() {
 // current returns the definitions' handle and the error the custom kinds show: the watch's own,
 // or the refusal that ended it.
 func (ck *customKinds) current() (*cache.Handle, string) {
+	h, msg, _ := ck.state()
+	return h, msg
+}
+
+// state is current with the handle's error that msg was made from, nil once the watch was dropped.
+// A refusal is judged on this one read: read again, a refusal that arrived in between was dropped
+// with the empty text of the first read, and the watch ended with no error, no refusal and no
+// discovery until the next connect (TestCuratedKindsFromDiscovery, CI, 2026-10-16).
+func (ck *customKinds) state() (h *cache.Handle, msg string, err error) {
 	ck.hmu.Lock()
 	defer ck.hmu.Unlock()
 	if ck.dropped != "" {
-		return ck.handle, ck.dropped
+		return ck.handle, ck.dropped, nil
 	}
-	return ck.handle, errText(ck.handle.Err())
+	err = ck.handle.Err()
+	return ck.handle, errText(err), err
 }
 
 // drop ends a watch of the definitions that the API server refused (403 Forbidden): retried, it
@@ -116,15 +126,17 @@ func (ck *customKinds) current() (*cache.Handle, string) {
 // namespace-limited user, measured on kind 2026-10-13: ten refused requests in 20 seconds). The
 // custom kinds keep the refusal as their error; a refresh of the access reviews or the next
 // connect asks again (retake), as for a kind refused in all namespaces (accessiblens_plan.go).
-func (ck *customKinds) drop(h *cache.Handle, reason string) {
+// The refusal's text is the reason: dropped holds it, and an empty one would end the watch without
+// saying so (refused and retake read dropped).
+func (ck *customKinds) drop(h *cache.Handle, refusal error) {
 	ck.hmu.Lock()
 	defer ck.hmu.Unlock()
-	if ck.stopped.Load() || ck.handle != h || ck.dropped != "" {
+	if ck.stopped.Load() || ck.handle != h || ck.dropped != "" || refusal == nil {
 		return
 	}
 	ck.unsub()
 	ck.handle.Release()
-	ck.handle, ck.unsub, ck.dropped = cache.Pending(cache.Scope{GVR: crdsGVR}), func() {}, reason
+	ck.handle, ck.unsub, ck.dropped = cache.Pending(cache.Scope{GVR: crdsGVR}), func() {}, refusal.Error()
 	// The views whose rows look the definitions up (a custom owner, an event's custom object:
 	// kinds.CustomKindsByGroupKind) read them no more and stop waiting for them (relatedKey).
 	ck.b.ns.wakeReplan()
@@ -176,10 +188,10 @@ func (ck *customKinds) rebuild() {
 				"panic", fmt.Sprint(r), "stack", string(debug.Stack()))
 		}
 	}()
-	h, errMsg := ck.current()
+	h, errMsg, err := ck.state()
 	synced := h.HasSynced() // before List: a set never claims a partial list is complete
-	if cache.IsRefused(h.Err()) {
-		ck.drop(h, errMsg) // not retried on every backoff step; the set below says why
+	if cache.IsRefused(err) {
+		ck.drop(h, err) // not retried on every backoff step; the set below says why
 	}
 	crds := h.List()
 	slices.SortFunc(crds, func(x, y *unstructured.Unstructured) int { return strings.Compare(x.GetName(), y.GetName()) })

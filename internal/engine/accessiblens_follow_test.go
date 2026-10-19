@@ -373,8 +373,10 @@ func TestCustomKindsStopAfterARefusal(t *testing.T) {
 		set := b.customSet()
 		return b.CustomKindsSettled() && set != nil && strings.Contains(set.err, "forbidden")
 	}
-	// 30 s, and what was asked so far: on CI (2026-10-14) the refused list had not even been sent
-	// after 10 s, on a runner shared by every job of the push.
+	// 30 s, and what was asked so far. Its timeout on CI (2026-10-14, no diagnostics then) matches
+	// a refusal that landed while the custom kinds read the handle's error twice: the watch was
+	// dropped with an empty reason, one list sent and no error ever shown (customKinds.state,
+	// 2026-10-20).
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if !testkit.WaitFor(ctx, refused) {
