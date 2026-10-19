@@ -97,11 +97,18 @@ func TestRenderTitleHistoryLight(t *testing.T) {
 }
 
 // renderNotifications: the panel open below the bell, newest first, every row tinted as unread when
-// the panel showed it.
+// the panel showed it; the pointer on the warning, its copy icon shown after the time, and a word
+// of its text selected (WF41, D-99).
 func renderNotifications(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := titleScene(t, mode)
 	test.Tap(sh.top.notes.bell)
 	q.until(t, "the list", func() bool { return len(sh.top.notes.list) == 4 && sh.ui.Notifications.Unread == 0 })
+	settle(w)
+	row := findAll[*noteRow](sh.top.notes.panel)[2]
+	row.MouseIn(mouse())
+	text := findAll[*selParagraph](row)[0]
+	_, lineH := text.metrics()
+	text.DoubleTapped(&fyne.PointEvent{Position: fyne.NewPos(fyne.MeasureText("Node worker-2: the evi", text.p.Theme().Size(text.p.size), text.p.style).Width, lineH/2)})
 	savePNG(t, w, name)
 }
 

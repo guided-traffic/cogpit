@@ -266,7 +266,13 @@ if it still holds the value (`shell.copyText`, `TestSecretValueCopyOnlyOnceRevea
 can put a Secret on the clipboard (`TestCopyHasNoCommand`). Since 2026-10-13 a list's cells copy
 with the same icon (D-25): the Secrets list shows Name, Namespace, Labels, the names of the keys,
 Type and Age, never a value (`TestSecretDetailShowsNoValue`), so a copy from it is a plain one and
-carries no value (`TestSecretsListCopiesNoValue`). Since 2026-10-13 the drawer decodes the
+carries no value (`TestSecretsListCopiesNoValue`). Since 2026-10-19 a log tab's lines and a toast's
+text copy too (by a selection or a copy icon, [D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)),
+as plain copies: a Secret's value that an application printed into its log reaches the clipboard
+as the user copied it, neither marked concealed nor cleared, as Download writes it into a file;
+Cogpit cannot tell such a value from the rest of a line (the filter that replaces the cached
+Secrets' values in what agents read, [H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents),
+does not apply to the user's own copy). Since 2026-10-13 the drawer decodes the
 certificates a Secret's keys hold into separate fields, for the window and agents alike
 ([D-30](../developer/decisions.md#d-30-certificates-in-secrets-decoded),
 [`secretcerts.go`](../../internal/engine/secretcerts.go)): a certificate is public material; only

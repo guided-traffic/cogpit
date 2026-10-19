@@ -22,7 +22,7 @@ serial foundation, about 80% of the work parallelizes.
 
 | | Value | Kind |
 |---|---|---|
-| **Feature breadth** | **~85%** (was ~82%) | measured by `make parity`: 64 of 64 views (ten of them the Gateway API views, generic), 42 of 42 actions (2026-10-15 night: a Secret's drawer Save, `secret.saveData`, D-59; a Config Map's drawer Save, `configMap.saveData`, F3; an application's logs its own command, `application.logs`), 118 of 121 interface rows (2026-10-16: Lens Metrics not a target, Cogpit Metrics withdrawn by the owner, D-61), 6 of 13 package rows (2026-10-14: Sparkle 2 and the signed appcast, no update key yet), 3 of 11 paid features (the diff, Flux CD, Argo CD) (pasting kubeconfigs is not a target, D-21); 10 rows done (2026-10-15: the terminal's scrollback), the rest partial |
+| **Feature breadth** | **~85%** (was ~82%) | measured by `make parity`: 64 of 64 views (ten of them the Gateway API views, generic), 42 of 42 actions (2026-10-15 night: a Secret's drawer Save, `secret.saveData`, D-59; a Config Map's drawer Save, `configMap.saveData`, F3; an application's logs its own command, `application.logs`), 119 of 122 interface rows (2026-10-19: a log tab's text selected and copied, a new row, D-99; 2026-10-16: Lens Metrics not a target, Cogpit Metrics withdrawn by the owner, D-61), 6 of 13 package rows (2026-10-14: Sparkle 2 and the signed appcast, no update key yet), 3 of 11 paid features (the diff, Flux CD, Argo CD) (pasting kubeconfigs is not a target, D-21); 10 rows done (2026-10-15: the terminal's scrollback), the rest partial |
 | **Ready for real work** | **~30%** (was ~26%) | estimated (lead, 2026-10-13: breadth jumped, nothing walked by a person yet); stale since the owner's walks of 2026-10-17 to 2026-10-19, re-estimated by counting after the gate walk ([current focus](docs/parity/roadmap.md#current-focus) item 6) |
 | Mainstream practitioner | ~29% (was ~25%) | estimated |
 | Essentials user | ~36% (was ~34%) | estimated |
@@ -139,6 +139,7 @@ Detail: [docs/parity/roadmap.md](docs/parity/roadmap.md).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | Feature breadth: 119 of 122 interface rows, a log tab's text selected and copied a new row (the owner's WF36, D-99); breadth ~85% unchanged |
 | 2026-10-19 | minor | Stage line, Why pre-alpha and the path to alpha and beta brought to the owner's walks of 2026-10-17 to 2026-10-19 (Connect and most of Triage walked on real clusters; five gate workflows to walk; WF31–WF45 found); the readiness and the hours marked as of before the walks; progress log 2026-10-19 |
 | 2026-10-18 | minor | Progress log: the owner's walk findings WF11–WF30 built (D-85 to D-95), v0.25.0 and v0.26.0; Beyond Lens 58 of 71 rows done, 11 partial (WF26's and WF30's rows); the free interface rows 118 of 121 (WF11's row) |
 | 2026-10-17 | minor | Beyond Lens: a pre-choice before any integration is looked for and Ask again (the owner's WF5 and WF4, D-82), two rows of Cogpit's own, done; 56 of 69 rows done, 11 partial; no estimate moves |

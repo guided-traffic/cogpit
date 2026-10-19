@@ -48,6 +48,9 @@ const (
 	// colorCode is inline code's text on its chip in the agent chat's answers (chat_markdown.go): a
 	// warm yellow, as the owner's design direction has it (plan/captures/chat), 4.5:1 on the chip.
 	colorCode fyne.ThemeColorName = "cogpit.code"
+	// colorToastSelection is selected text on a toast: the theme's selection is too close to the
+	// dark toast's surface to be seen (D-99).
+	colorToastSelection fyne.ThemeColorName = "cogpit.toastSelection"
 )
 
 // Status colour tokens, one per model.Status.
@@ -166,6 +169,7 @@ var darkPalette = palette{
 		colorChip:             hex(0x004052),
 		colorToast:            hex(0x0b4556), // lighter than the window and the drawer, so a toast stands out
 		colorToastText:        hex(0xeee8d5), // base2
+		colorToastSelection:   hex(0x1d6870), // 1.6:1 against the toast, 5.2:1 under its text
 		colorLink:             hex(solCyan),
 		colorTooltip:          hex(0x003847), // editorHoverWidget.background #004052 is 3.6:1 under the text
 		colorCode:             hex(0xd9a73a), // yellow #b58900 lightened: 5.1:1 on the chip
@@ -232,6 +236,7 @@ var lightPalette = palette{
 		colorChip:             hex(0xddd6c1),
 		colorToast:            hex(0xffffff), // lighter than the window, with the level's border and bar
 		colorToastText:        hex(0x073642), // base02
+		colorToastSelection:   hex(0xdfca88), // the selection, list.activeSelectionBackground
 		colorLink:             hex(0x1b6761),
 		colorTooltip:          hex(0xeee8d5), // editorHoverWidget.background #ccc4b0 is 3.1:1 under the text
 		colorCode:             hex(0x8f4a0a), // orange #cb4b16 darkened: 4.6:1 on the chip

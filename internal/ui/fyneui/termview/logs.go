@@ -79,6 +79,12 @@ type Logs struct {
 	hasJumped   bool
 	cols        int      // characters per row while wrapping; 0 until laid out
 	runs        []logRun // scratch for rendering a row
+	// Selecting text (logselect.go): the selection, the surface over the list that makes it, the
+	// copy's target, and the rows the list set up last, by item.
+	sel       logSel
+	surface   *logSurface
+	onCopy    func(string)
+	shownRows map[widget.ListItemID]*logRow
 	// The stream's state as the status shows it: lines received, and its end.
 	stReceived int64
 	stEnded    bool
@@ -110,7 +116,7 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	l.list = &logList{}
 	l.list.Length = func() int { return len(l.rows) + l.headRows() }
 	l.list.CreateItem = func() fyne.CanvasObject { return newLogRow() }
-	l.list.UpdateItem = func(id widget.ListItemID, o fyne.CanvasObject) { o.(*logRow).set(l.itemRuns(id)) }
+	l.list.UpdateItem = l.updateItem
 	l.list.OnSelected = l.selected
 	l.list.HideSeparators = true
 	l.list.ExtendBaseWidget(l.list)
@@ -121,6 +127,8 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	l.followCheck.Checked = true
 	l.followCheck.OnChanged = l.setFollow
 	l.status = widget.NewLabel("0 lines")
+	l.surface = newLogSurface(l)
+	l.shownRows = map[widget.ListItemID]*logRow{}
 	l.ExtendBaseWidget(l)
 	l.startReading()
 	return l
@@ -140,7 +148,8 @@ func (l *Logs) Close() error {
 // CreateRenderer implements fyne.Widget.
 func (l *Logs) CreateRenderer() fyne.WidgetRenderer {
 	bar := container.NewHBox(l.followCheck, l.controls, layout.NewSpacer(), l.status)
-	return &logsRenderer{l: l, root: container.NewBorder(container.NewVBox(l.header, bar), nil, nil, nil, l.list)}
+	rows := container.New(surfaceLayout{}, l.list, l.surface) // the surface selects text (logselect.go)
+	return &logsRenderer{l: l, root: container.NewBorder(container.NewVBox(l.header, bar), nil, nil, nil, rows)}
 }
 
 // logsRenderer lays the bar and the list out and, while wrapping, re-wraps when the width in
@@ -193,6 +202,9 @@ func (l *Logs) View() LogView { return l.view }
 func (l *Logs) SetView(v LogView) {
 	if v == l.view {
 		return
+	}
+	if shownChanged(v, l.view) { // the selection's offsets would point elsewhere in the lines
+		l.sel = logSel{}
 	}
 	l.view = v
 	l.rebuildRows()
@@ -295,23 +307,43 @@ func (l *Logs) trimRows() int {
 	return n
 }
 
+// updateItem is the list's UpdateItem: a row's runs and its part of the selection. It keeps the
+// rows by the item they show, so that a selection repaints them without a refresh of the list.
+func (l *Logs) updateItem(id widget.ListItemID, o fyne.CanvasObject) {
+	r := o.(*logRow)
+	if l.shownRows[r.item] == r {
+		delete(l.shownRows, r.item)
+	}
+	l.shownRows[id] = r
+	r.item = id
+	r.set(l.itemRuns(id), l.itemSel(id))
+	if len(l.shownRows) > maxShownRows {
+		first, last := l.onScreen()
+		for k := range l.shownRows {
+			if k < first || k > last {
+				delete(l.shownRows, k) // a row out of sight, or one the list's pool dropped
+			}
+		}
+	}
+}
+
+// maxShownRows bounds the rows updateItem keeps: a screen's worth is a few dozen.
+const maxShownRows = 256
+
+// onScreen returns the first and last list item in view.
+func (l *Logs) onScreen() (first, last widget.ListItemID) {
+	stride, offset := l.stride(), l.list.GetScrollOffset()
+	first = max(int(offset/stride)-1, 0)
+	last = int((offset+l.list.Size().Height)/stride) + 1
+	return first, last
+}
+
 // rowRuns returns the coloured runs of row id. Main goroutine only.
 func (l *Logs) rowRuns(id widget.ListItemID) []logRun {
 	if id < 0 || id >= len(l.rows) {
 		return nil
 	}
-	r := l.rows[id]
-	text, sp := l.view.shown(l.lines.at(int(r.line - l.lines.evicted)))
-	from, to := int(r.from), int(r.to)
-	if to < 0 || to > len(text) {
-		to = len(text)
-	}
-	from = min(from, to)
-	cut := false
-	if !l.view.Wrap && to-from > logMaxShownBytes {
-		to = from + len(shownText(text[from:to])) - len(truncatedMark)
-		cut = true
-	}
+	text, sp, from, to, cut := l.rowSpan(id)
 	l.runs = runsOf(text, sp, from, to, l.view.Search, l.runs)
 	if cut {
 		l.runs = append(l.runs, logRun{text: truncatedMark, color: theme.ColorNamePlaceHolder})
@@ -473,9 +505,11 @@ func (l *Logs) apply(batch []string, received int64, ended bool, endErr error) {
 	for _, s := range batch {
 		l.lines.push(s)
 	}
-	// Rows of dropped lines go; the new lines that are still kept get theirs. Dropped rows shift
-	// every index, so a view that does not follow moves up by their height.
+	// Rows of dropped lines go, and the selection's part in them; the new lines that are still kept
+	// get theirs. Dropped rows shift every index, so a view that does not follow moves up by their
+	// height.
 	dropped := l.trimRows()
+	l.clampSelection()
 	total := l.lines.evicted + int64(l.lines.len())
 	for abs := max(total-int64(len(batch)), l.lines.evicted); abs < total; abs++ {
 		l.addRows(abs)

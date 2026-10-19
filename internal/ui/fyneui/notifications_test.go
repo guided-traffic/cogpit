@@ -143,7 +143,7 @@ func TestNotificationBellAndPanel(t *testing.T) {
 	})
 	cards := toastCards(sh)
 	last := cards[len(cards)-1]
-	test.Tap(findAll[*widget.Button](last)[0])
+	test.Tap(findAll[*toastButton](last)[0])
 	q.until(t, "the closed toast read", func() bool { return sh.ui.Notifications.Unread == 0 })
 
 	// An agent reads what the engine said, and the window's own text filtered (A19; withheld before).

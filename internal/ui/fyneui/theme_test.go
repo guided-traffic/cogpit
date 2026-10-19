@@ -213,6 +213,10 @@ func TestPaletteContrast(t *testing.T) {
 		check("toast warning", p.status[model.StatusWarning], colorToast, 3.0)
 		check("toast error", p.status[model.StatusError], colorToast, 3.0)
 		check("toast close icon", c(colorToastText), colorToast, 3.0)
+		check("selected toast text", c(colorToastText), colorToastSelection, 4.5)
+		if got := contrastRatio(c(colorToastSelection), c(colorToast)); got < 1.25 {
+			t.Errorf("%s: a toast's selection is %.2f:1 against the toast, too faint to be seen", name, got)
+		}
 		check("placeholder", c(theme.ColorNamePlaceHolder), theme.ColorNameInputBackground, 3.0)
 		// A chart's lines are graphics on the plot (the input background), and their swatches sit
 		// in the hover panel (the tooltip).

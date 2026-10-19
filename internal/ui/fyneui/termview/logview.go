@@ -1,6 +1,7 @@
 package termview
 
 import (
+	"image/color"
 	"io"
 	"strings"
 	"time"
@@ -277,11 +278,15 @@ func sortInts(s []int) {
 	}
 }
 
-// logRow draws one row of the list: its runs left to right in monospace, highlighted ones on the
-// theme's selection colour.
+// logRow draws one row of the list: its runs left to right in monospace, highlighted ones (a
+// search's matches) on the find colour, and its part of the selection (logselect.go) on the
+// theme's selection colour beneath.
 type logRow struct {
 	widget.BaseWidget
 	runs []logRun
+	sel  rowSel
+	item widget.ListItemID // the list item it shows (Logs.updateItem)
+	rend *logRowRenderer   // nil until rendered
 }
 
 func newLogRow() *logRow {
@@ -290,16 +295,32 @@ func newLogRow() *logRow {
 	return r
 }
 
-func (r *logRow) set(runs []logRun) {
+func (r *logRow) set(runs []logRun, sel rowSel) {
 	r.runs = append(r.runs[:0], runs...)
+	r.sel = sel
 	r.Refresh()
 }
 
+// setSel repaints the row's part of the selection alone.
+func (r *logRow) setSel(sel rowSel) {
+	r.sel = sel
+	if r.rend != nil {
+		r.rend.placeSel(r.Size())
+		r.rend.sel.Refresh()
+	}
+}
+
 // CreateRenderer implements fyne.Widget.
-func (r *logRow) CreateRenderer() fyne.WidgetRenderer { return &logRowRenderer{row: r} }
+func (r *logRow) CreateRenderer() fyne.WidgetRenderer {
+	sel := canvas.NewRectangle(color.Transparent)
+	sel.Hide()
+	r.rend = &logRowRenderer{row: r, sel: sel, objs: []fyne.CanvasObject{sel}}
+	return r.rend
+}
 
 type logRowRenderer struct {
 	row   *logRow
+	sel   *canvas.Rectangle // the selection, beneath the marks and the texts
 	texts []*canvas.Text
 	marks []*canvas.Rectangle
 	objs  []fyne.CanvasObject
@@ -326,6 +347,51 @@ func (lr *logRowRenderer) Layout(size fyne.Size) {
 		}
 		x += w
 	}
+	lr.placeSel(size)
+}
+
+// xAt is where the byte off of the row's text (its runs one after another) is drawn.
+func (lr *logRowRenderer) xAt(off int) float32 {
+	x, pos := float32(0), 0
+	for i, run := range lr.row.runs {
+		if i >= len(lr.texts) {
+			break
+		}
+		if off < pos+len(run.text) {
+			if off <= pos {
+				return x
+			}
+			t := lr.texts[i]
+			return x + fyne.MeasureText(run.text[:off-pos], t.TextSize, t.TextStyle).Width
+		}
+		x += lr.texts[i].MinSize().Width
+		pos += len(run.text)
+	}
+	return x
+}
+
+// placeSel puts the selection's rectangle under its part of the row; a selected line break adds
+// a character's width after the text, and a selection that goes on fills the gap below the row,
+// so that the rows of a selection join.
+func (lr *logRowRenderer) placeSel(size fyne.Size) {
+	s := lr.row.sel
+	if !s.on() {
+		lr.sel.Hide()
+		return
+	}
+	th := lr.row.Theme()
+	x1, x2 := lr.xAt(s.from), lr.xAt(s.to)
+	if s.eol {
+		x2 += charWidth(th)
+	}
+	lr.sel.FillColor = th.Color(theme.ColorNameSelection, fyne.CurrentApp().Settings().ThemeVariant())
+	h := size.Height
+	if s.cont {
+		h += th.Size(theme.SizeNamePadding) // the list's gap between rows
+	}
+	lr.sel.Move(fyne.NewPos(x1, 0))
+	lr.sel.Resize(fyne.NewSize(x2-x1, h))
+	lr.sel.Show()
 }
 
 func (lr *logRowRenderer) Refresh() {
@@ -352,7 +418,7 @@ func (lr *logRowRenderer) Refresh() {
 		t.TextSize = th.Size(theme.SizeNameText)
 		t.Show()
 		if runs[i].mark {
-			m.FillColor = th.Color(theme.ColorNameSelection, v)
+			m.FillColor = findColor(th, v)
 			m.Show()
 		} else {
 			m.Hide()
@@ -361,10 +427,22 @@ func (lr *logRowRenderer) Refresh() {
 		m.Refresh()
 	}
 	lr.Layout(lr.row.Size())
+	lr.sel.Refresh()
 }
 
 func (lr *logRowRenderer) Objects() []fyne.CanvasObject { return lr.objs }
 func (lr *logRowRenderer) Destroy()                     {}
+
+// findColor is a search's match: the theme's warning hue, translucent, as editors and browsers
+// mark what a search found, so that it is not taken for selected text (D-99).
+func findColor(th fyne.Theme, v fyne.ThemeVariant) color.Color {
+	c := color.NRGBAModel.Convert(th.Color(theme.ColorNameWarning, v)).(color.NRGBA)
+	c.A = findAlpha
+	return c
+}
+
+// findAlpha is the find colour's opacity.
+const findAlpha = 0x60
 
 // lineHeight is the height of one row of monospace text.
 func lineHeight(th fyne.Theme) float32 {

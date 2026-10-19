@@ -859,16 +859,19 @@ func (sh *shell) showToast(level, msg string, id uint64) {
 	}
 	th := sh.app.Settings().Theme()
 	pad := th.Size(theme.SizeNamePadding)
-	text := newParagraph(msg, colorToastText,
-		th.Size(sizeToastWidth)-2*th.Size(theme.SizeNameInlineIcon)-8*pad-toastBar)
+	card := &toastCard{}
+	card.ExtendBaseWidget(card)
+	// The text is selectable, and a copy icon before the × copies the whole message (D-99,
+	// toastcopy.go).
+	copyIcon := sh.newToastCopy(card, msg)
+	text := sh.newToastText(card, msg,
+		th.Size(sizeToastWidth)-2*th.Size(theme.SizeNameInlineIcon)-8*pad-toastBar-copyIcon.MinSize().Width-pad)
 	head := newTextLine(title, colorToastText, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	bg := newSurface(colorToast)
 	bg.stroke = c
 	bar := newSurface(c)
 	bar.min = fyne.NewSize(toastBar, 0)
-	card := &toastCard{}
-	card.ExtendBaseWidget(card)
-	closeBtn := newToastClose(func() {
+	closeBtn := newToastClose(card, func() {
 		sh.dismissToast(card)
 		sh.markToastRead(id)
 	})
@@ -880,7 +883,7 @@ func (sh *shell) showToast(level, msg string, id uint64) {
 			inset(theme.SizeNamePadding, theme.SizeNamePadding,
 				container.NewBorder(nil, nil,
 					container.NewVBox(container.NewPadded(widget.NewIcon(themedIcon(icon, c)))),
-					container.NewVBox(closeBtn),
+					container.NewVBox(container.NewHBox(container.NewCenter(copyIcon), closeBtn)),
 					container.NewVBox(head, text)))),
 	)
 	sh.toasts.Objects = append(sh.toasts.Objects, card)
@@ -894,20 +897,23 @@ const toastBar = 5
 // dismissToast removes a toast, on expiry or by its close button.
 func (sh *shell) dismissToast(card *toastCard) {
 	card.disarm()
+	card.dropFocus(sh.win)
 	sh.toasts.Objects = slices.DeleteFunc(sh.toasts.Objects, func(o fyne.CanvasObject) bool { return o == card })
 	sh.toasts.Refresh()
 }
 
 // toastCard is one toast. Its time runs while the pointer is away: entering stops it, leaving
-// starts the full lifetime again.
+// starts the full lifetime again. Its text selected, or being selected, holds it too (toastcopy.go).
 type toastCard struct {
 	widget.BaseWidget
-	content fyne.CanvasObject
-	life    time.Duration
-	expire  func() // called on a timer goroutine
-	mu      sync.Mutex
-	timer   *time.Timer
-	hovered bool
+	content   fyne.CanvasObject
+	life      time.Duration
+	expire    func() // called on a timer goroutine
+	mu        sync.Mutex
+	timer     *time.Timer
+	hovered   bool
+	selecting bool
+	text      *selParagraph
 }
 
 var _ desktop.Hoverable = (*toastCard)(nil)
@@ -918,7 +924,7 @@ func (c *toastCard) arm() {
 	if c.timer != nil {
 		c.timer.Stop()
 	}
-	if !c.hovered {
+	if !c.hovered && !c.selecting {
 		c.timer = time.AfterFunc(c.life, c.expire)
 	}
 }
@@ -953,13 +959,6 @@ func (c *toastCard) MouseOut() {
 
 // CreateRenderer implements fyne.Widget.
 func (c *toastCard) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(c.content) }
-
-// newToastClose is the small × of a toast.
-func newToastClose(fn func()) *widget.Button {
-	b := widget.NewButtonWithIcon("", themedIcon(theme.CancelIcon(), colorToastText), fn)
-	b.Importance = widget.LowImportance
-	return b
-}
 
 // toastLayout stacks toasts upwards from the bottom-right corner, above the status bar.
 type toastLayout struct{}

@@ -14,7 +14,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 |---|---|---|---|---|---|
 | Resource views (free) | 64 | 64 | 1 | 63 | 0 |
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
-| Interface rows, free plan | 121 | 118 | 9 | 109 | 3 |
+| Interface rows, free plan | 122 | 119 | 9 | 110 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
 | Platform rows (packages, authentication, versions, tools, display) | 38 | 18 | 0 | 18 | 20 |
 | Beyond Lens (not in feature breadth) | 71 | 69 | 58 | 11 | 2 |
@@ -171,6 +171,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Logs of a controlling resource (all its pods), with resource names shown | partial | [Logs](ui-parity.md#logs) |
 | Filter matching lines on or off (/) | partial | [Logs](ui-parity.md#logs) |
 | Download logs | partial | [Logs](ui-parity.md#logs) |
+| Select the lines' text and copy it (Lens's log view is part of its web page, where text selects as on any page; how far is not captured) | partial | [Logs](ui-parity.md#logs) |
 | Jump to a time and date | partial | [Logs](ui-parity.md#logs) |
 | Load older lines when scrolling up | partial | [Logs](ui-parity.md#logs) |
 | Terminal session for a cluster, with the working directory and default namespace from cluster settings | partial | [Terminal and shells](ui-parity.md#terminal-and-shells) |

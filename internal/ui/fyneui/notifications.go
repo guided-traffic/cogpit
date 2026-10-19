@@ -210,25 +210,30 @@ func (n *notificationsUI) content() fyne.CanvasObject {
 }
 
 // row is one notification: the level's icon in its colour, the level's title as on its toast, the
-// time and the text; a row that was unread when the panel showed it first is tinted.
+// time and the text; a row that was unread when the panel showed it first is tinted. Its text is
+// selectable, and a copy icon after the time, shown while the pointer is on the row, copies the
+// whole message (D-99, toastcopy.go).
 func (n *notificationsUI) row(it engine.Notification, width float32) fyne.CanvasObject {
-	th := n.sh.app.Settings().Theme()
+	sh := n.sh
+	th := sh.app.Settings().Theme()
 	c, title, icon := toastStyle(it.Level)
 	pad := th.Size(theme.SizeNamePadding)
 	inner := th.Size(theme.SizeNameInnerPadding)
 	textW := width - th.Size(theme.SizeNameInlineIcon) - 2*inner - 3*pad
+	glyph := newCopyGlyph(sh, it.Message, theme.ColorNameForeground)
 	head := container.NewBorder(nil, nil, nil,
-		newTextLine(n.timeText(it.Time), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+		container.NewHBox(newTextLine(n.timeText(it.Time), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), glyphSlot(glyph)),
 		newTextLine(title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}))
-	text := newParagraph(it.Message, theme.ColorNameForeground, textW)
+	text := newSelParagraph(newParagraph(it.Message, theme.ColorNameForeground, textW), theme.ColorNameSelection,
+		func(sel string) { sh.copyText(sel, false) })
 	ic := widget.NewIcon(themedIcon(icon, c))
 	line := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewBorder(nil, nil, container.NewVBox(ic), nil, container.NewVBox(head, text)))
 	if !n.fresh[it.ID] {
-		return line
+		return newNoteRow(line, glyph)
 	}
 	bg := newSurface(colorRowHover)
-	return container.NewStack(bg, line)
+	return newNoteRow(container.NewStack(bg, line), glyph)
 }
 
 // timeText is when a notification was shown, in the user's zone and format (D-31): the time of day

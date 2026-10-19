@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -27,9 +28,9 @@ func TestToastCloseButtonDismisses(t *testing.T) {
 	if len(cards) != 1 {
 		t.Fatalf("%d toasts, want 1", len(cards))
 	}
-	btns := findAll[*widget.Button](cards[0])
-	if len(btns) != 1 {
-		t.Fatalf("%d buttons in the toast, want the close button", len(btns))
+	btns := findAll[*toastButton](cards[0])
+	if len(btns) != 1 || len(findAll[*widget.Button](cards[0])) != 0 {
+		t.Fatalf("%d close buttons in the toast, want one and no other button", len(btns))
 	}
 	test.Tap(btns[0])
 	if len(toastCards(sh)) != 0 {
@@ -71,11 +72,23 @@ func TestToastSurfaceWidth(t *testing.T) {
 	}
 }
 
+// renderToasts: an info, a warning and an error, each with the copy icon at the end of its title
+// line; the error's text selected from its second word into its second line (WF41, D-99).
 func renderToasts(t *testing.T, mode ThemeMode, name string) {
 	sh, w, _, _ := podDrawerScene(t, mode)
 	sh.copyToast("info", copiedToast)
 	sh.toast("warning", "Context demo lost its credentials; reconnect to read the cluster again")
-	sh.toast("error", "pods.delete: pods \"checkout-api-7d9f8b6c5-x2k4p\" is forbidden: User cannot delete resource \"pods\" in namespace \"shop\"")
+	sh.toast("error", errorToast)
+	settle(w)
+	cards := toastCards(sh)
+	text := cards[len(cards)-1].text
+	_, lineH := text.metrics()
+	from := fyne.NewPos(fyne.MeasureText("pods.delete: ", text.p.Theme().Size(text.p.size), text.p.style).Width, lineH/2)
+	second := text.lines[1].text // up to "User" on the second line, wherever the text wraps
+	to := fyne.NewPos(fyne.MeasureText(second[:strings.Index(second, "User")+len("User")], text.p.Theme().Size(text.p.size), text.p.style).Width, lineH*1.5)
+	pressAt(text, from)
+	dragTo(text, from, to)
+	text.DragEnd()
 	savePNG(t, w, name)
 }
 

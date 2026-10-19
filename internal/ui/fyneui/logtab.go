@@ -220,6 +220,7 @@ func (lt *logTab) open() {
 			w.SetHeader(lt.header...)
 			w.SetControls(lt.controls...)
 			w.SetOnSlash(lt.focusSearch)
+			w.SetOnCopy(func(text string) { sh.copyText(text, false) }) // a selection's ⌘C and the menu's copies (D-99)
 			w.SetView(viewOf(lt.tab, sh.timeFormat()))
 			lt.view, lt.c.closer, lt.failed = w, w, err != nil
 			lt.resetOlder()

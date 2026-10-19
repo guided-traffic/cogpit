@@ -110,6 +110,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-96](#d-96-the-service-proxys-port-spelled-by-its-number-first) | The service proxy's port spelled by its number first | the owner's mgmt-p finding (2026-10-18 evening) and his choice: Prometheus and Alertmanager asked as `<service>:<number>` first, then `<service>:<name>`; a refusal no longer ends detection; built 2026-10-18 |
 | [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | the owner's WF39 and WF40 of 2026-10-19: every connect a run of its own; showing another cluster ends only the window's wait, the connect goes on in the background with a toast at its end; a failed connect never shows the cluster shown before (the owner: "Immer"); built 2026-10-19 with the lead's decisions, open to revision |
 | [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | the owner's WF44 and WF45 of 2026-10-19: a "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…; removing a source or Remove from Cogpit takes its clusters' tiles off the hotbar, a file gone by itself keeps its tile marked missing; built 2026-10-19 with the lead's decisions, open to revision |
+| [D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts) | Selecting and copying a log tab's text and a toast's | the owner's WF36 and WF41 (walk of 2026-10-19): nothing in a log tab or a toast could be selected and copied; built 2026-10-19 with the lead's decisions, open to revision: a log tab's selection a range in its lines (a drag that scrolls the view at its edges, ⇧-click, a double click, ⌘A for the lines it shows, ⌘C, a right-click's Copy, Select All and Copy All Lines Shown), Follow off when the pointer selects, the dropped lines' part dropped; a search's matches in the find colour; a toast's text selectable, a copy icon before its ×, the toast held while selected; the bell's list the same; the window's, not engine state |
 
 ## Decision round 2026-10-14 evening
 
@@ -2056,7 +2057,11 @@ entry, in YAML syntax (`app.kubernetes.io/name: grafana`). A Secret's value can 
 revealed, in the GUI, and the clipboard is cleared 60 seconds later if it still holds that value.
 Agents get no copy command (they read values through `object_get` already). This is Cogpit's own
 approach; how Lens Desktop copies is not captured and not needed. Since 2026-10-18 the alert board's alertnames copy the same way (the owner's WF21,
-[D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)).
+[D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)). Since 2026-10-19 a log
+tab's text selects across its lines and copies with ⌘C or its right-click menu, and a toast's text
+and a notification's in the bell's list select as the drawer's do, each with a copy icon for the
+whole message (the owner's WF36 and WF41,
+[D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)): plain copies, no toast, no command.
 
 **Added (owner, 2026-10-12, H-25):** on macOS a copied Secret value is marked for clipboard
 managers to skip (nspasteboard.org's concealed and transient types) and kept to this Mac (no
@@ -9063,10 +9068,75 @@ the navigator's PNGs ([dark](../../internal/ui/fyneui/testdata/navigator_section
 
 **Not verified:** in a real window.
 
+## D-99: Selecting and copying a log tab's text and a toast's
+
+**The owner's findings (walk of 2026-10-19, verbatim):**
+- WF36, a pod's followed log: "Ich habe auch festgestellt, dass ich aus dem Log nichts selektieren
+  und kopieren kann. Das ist schlecht." Verified in the code: the log view was a `widget.List` of
+  rows, a click selected a row and copied nothing; Download was the only way out.
+- WF41, an error toast: "Ich sehe den Toast aber musste auch hier wieder feststellen, dass ich in
+  diesem nichts markieren und kopieren kann, auch schlecht für einen toast in dem Fehler stehen
+  können." Verified: the toast's text was a `paragraph`, drawn only; the bell's list neither.
+
+**Built 2026-10-19** (the lead), the lead's decisions, open to revision. Code:
+[`termview/logselect.go`](../../internal/ui/fyneui/termview/logselect.go) (the log's selection and
+the surface that makes it), [`termview/logview.go`](../../internal/ui/fyneui/termview/logview.go)
+(a row's part of it), [`selparagraph.go`](../../internal/ui/fyneui/selparagraph.go),
+[`toastcopy.go`](../../internal/ui/fyneui/toastcopy.go), `showToast` in
+[`shell.go`](../../internal/ui/fyneui/shell.go), the bell's rows in
+[`notifications.go`](../../internal/ui/fyneui/notifications.go).
+
+| Question | Options weighed | Chosen | Why |
+|---|---|---|---|
+| What a log tab's selection is | the drawer's `textSelection` (rune offsets into the one string a widget holds); a range in the tab's lines | **a range in the lines**: each end a line's absolute number (as the rows count lines, prepended ones below zero) and a byte offset into the line's text as the tab shows it | The list is virtualized and recycles its rows as it scrolls; a selection held by a row goes with the row. The drawer's gestures stay: a drag, a double click, ⌘C |
+| What takes the pointer | each row; a layer over the list | **a layer over the list** (`logSurface`), all of it but the scroll bar, which keeps its drag; no Hoverable, so the row under the pointer still shows | Fyne sends a drag's events to the object it began on, and a recycled row moves away under a drag that scrolls the view |
+| The gestures | the spec's; a triple click for a line | a drag (beyond the view's top or bottom it scrolls a row per 50 ms, faster the farther, at most 8 rows a step); ⇧-click extends from where the selection began; a double click selects a word (a run without white space); ⌘A every line the tab shows, its sources and its filter applied, as Download saves them (A84); ⌘C copies; Escape drops the selection; a right-click offers Copy (greyed without a selection), Select All and Copy All Lines Shown; no triple click | The macOS idiom and the drawer's; Copy All Lines Shown is Download's lines on the clipboard, for a bug report or a chat; the head row (Load older lines) still acts on a click |
+| What a copy holds | the lines as they came; as the tab shows them | **as the tab shows them**: resource names and timestamps as toggled, the timestamps in your format (D-31), one line per line joined by "\n", no line ending after the last; a wrapped line as one line, a line cut for its row whole | What you see is what you paste, as Download saves it; a selected line break after the last line is copied as one ("\n" at the end) |
+| Following | keep following; stop at any selection; stop at one made with the pointer | **a selection made with the pointer (a drag, ⇧-click, a double click) turns Follow off**, as a jump to a time does; ⌘A does not | At 10,000 lines a second a followed view carries the selection out of sight within a second; the selection stays on its lines when Follow is turned on again |
+| New lines, wrapping, a search, a filter | drop the selection; keep it | **kept on its lines**: new lines, Wrap and another width, a search, a filter and the pod and container selectors leave it where it is; a copy takes the lines the tab shows within it | The selection is in the lines, not the rows |
+| Lines the scrollback drops (10,000 lines, 32 MiB) | drop the selection; keep the rest; stop dropping while something is selected | **their part of it goes, the rest stays selected**; a selection wholly in dropped lines goes | Memory stays bounded (P5); the highlight shows exactly what a copy holds |
+| A view that shows the lines' text differently (Resource names, Timestamps, the time format) | keep the offsets; map them; drop the selection | **drops it** | Its offsets would point at other characters |
+| The focus | drop the selection when the focus goes, as the drawer's lines do; keep it | **kept**: the context menu and the toolbar take the focus without dropping it; a press in the tab begins a new one; ⌘C copies while the tab has the keys (after a press in it, and again once the context menu closes) | The context menu takes the focus, and its Copy is what the selection is for |
+| Keys the focused log does not use | swallowed, as the list did; passed on | **passed on to the window's**: F1–F12 (the hotbar), Escape without a selection, `/` focuses the search; other shortcuts reach the window's shortcuts | A focused widget that takes shortcuts keeps them otherwise (A55) |
+| A search's matches and the selection, which both used the selection colour | the selection in another colour; the matches in another | **the matches in a find colour**: the theme's warning hue at 38 % opacity (`findColor`), as editors and browsers mark what a search found; the selection keeps the theme's selection colour, as the drawer and the YAML editor | A double-clicked word looked like a match; the selection keeps the one colour selected text has everywhere in Cogpit |
+| A toast's text | widget.Label made selectable; Cogpit's paragraph made selectable | **the paragraph with the drawer's `textSelection`** (`selParagraph`): a drag over its lines, a double click, ⌘C, Escape drops the selection; the selection in the text as shown, its wrapped lines joined by a space | The paragraph is told its width, which a Label is not, and which mis-sized toasts before; tests still find a toast's paragraph |
+| A toast's copy icon | in the title line; beside the ×; on hover only | **always shown, left of the ×**, of a text line's height; it copies the message as it came, a checkmark for 1.5 s, no toast | A toast lives seconds: an icon that shows only under the pointer is found late; in the title line it sat 6 points above the ×; a "Copied" toast would push the toast under the pointer up |
+| Holding a toast | the pointer on the card (as before); also its icons and a selection | the pointer on the card, on its × or on its copy icon; while its text holds a selection or a drag makes one; the full time again once neither holds | "Must not vanish while you select"; before, the pointer on the × let the time run |
+| A toast's selection colour | the theme's selection; a token of its own | **`cogpit.toastSelection`**: dark #1d6870, light the selection #dfca88 | The dark selection (#274642) is barely apart from the dark toast (#0b4556); `TestPaletteContrast` holds the text 4.5:1 on it and it 1.25:1 against the toast |
+| The bell's list | nothing; a copy icon per entry; selectable text | **both**: each notification's text selectable, and a copy icon after its time while the pointer is on its row, its room kept so the time does not move | The list is where a toast that went is read again |
+| A copy toast (the drawer's "Copied to the clipboard") | an icon on it too; none | **every toast has it**, that one too | One rule per toast; not worth a case |
+| Engine state | the selection in `UIState`; the window's | **the window's**: no command, no `ui_state`, no audit line, as the drawer's selection (D-25) | Rule 2 covers what an agent drives (view, filter, row selection, drawer); a text selection only feeds the clipboard, and agents read a log tab's lines through `dock.read` (D-44) and a notification through `notifications.list`. No new GUI-only exception (conventions › Commands, not handlers): D-25's, the owner's ("text in Cogpit can be selected and copied … agents get no copy command"), covers it |
+
+The copies go through `shell.copyText` as plain copies (D-25): they cancel a pending clearing of a
+Secret value copied before. Tests: `TestLogSelectionDragAcrossRows`,
+`TestLogSelectionWordAndShiftClick`, `TestLogSelectAllIsWhatTheViewShows`,
+`TestLogSelectionKeepsItsLines`, `TestLogSelectionDroppedWithItsLines`,
+`TestLogSelectionAutoScroll`, `TestLogSelectionHeadRowActs`, `TestLogSelectionLongLine`,
+`TestLogSelectionKeysGoOn`, `TestLogTabCopiesThroughTheShell`, `TestToastCopyIcon`,
+`TestToastTextSelectable`, `TestToastHoverOnItsIcons`, `TestNotificationRowCopy`,
+`TestSelParagraphShownText`, `TestPaletteContrast`; `TestLogsP5` unchanged (the slowest batch 2.3 ms
+at 10,000 lines a second). Renders: a log tab's selection
+([dark](../../internal/ui/fyneui/testdata/logs_selection_dark.png),
+[light](../../internal/ui/fyneui/testdata/logs_selection_light.png),
+[termview](../../internal/ui/fyneui/termview/testdata/logs_selection.png)), toasts with their copy
+icon and a selection ([dark](../../internal/ui/fyneui/testdata/toasts_dark.png),
+[light](../../internal/ui/fyneui/testdata/toasts_light.png)), the bell's list with a hovered row
+([dark](../../internal/ui/fyneui/testdata/notifications_panel_dark.png),
+[light](../../internal/ui/fyneui/testdata/notifications_panel_light.png)).
+
+**What it does not cover:** not tried in a real window: the drag's feel, the auto-scroll's speed,
+the order in which the desktop driver sends a toast's and its icons' hover events (read in Fyne
+2.8.2's source and replayed in the test driver), and the shortcuts a focused log passes on to the
+window (the test driver's canvas has no `TypedShortcut`); ⌘A in a toast's or the drawer's text does
+nothing (Fyne hands a disabled selectable text only Copy); a selection does not survive the tab's
+stream opening again (another container, Previous, a Reconnect); the terminal tabs select as their
+own widget does (D-14).
+
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | D-99 added (the owner's WF36 and WF41 of 2026-10-19) and built with the lead's decisions, open to revision: a log tab's selection across its lines, its gestures, Follow, the scrollback and the focus; a search's matches in the find colour; a toast's text selectable, its copy icon, the toast held while selected; the bell's list the same; D-25 says what copies since; its index row |
 | 2026-10-19 | minor | D-72: the owner's walk of 2026-10-19 (v0.26.1): a source picked in Downloads read again after a restart of Cogpit without a prompt and without a TCC grant; whether the bookmark or the item's own grant carried it not told apart, a restart of the Mac not tried; its index row |
 | 2026-10-18 | minor | D-96 added (the owner's mgmt-p finding and his choice, 2026-10-18 evening) and built: Prometheus and Alertmanager asked as <service>:<number> first, then by the port's name; a refusal no longer ends detection; its index row |
 | 2026-10-18 | minor | D-88: the source row in the middle, Prometheus left of the centre and the Metrics Server right of it (the owner's correction after v0.26.0) |
