@@ -204,9 +204,20 @@ type logRun struct {
 	mark  bool
 }
 
+// noticePrefix starts the lines Cogpit writes into a log itself (engine.NoticePrefix): the marker
+// of an interruption, a lapsed login, a stream that could not be opened again.
+const noticePrefix = "[cogpit]"
+
 // runsOf splits text[from:to] into runs: the name in the accent colour, the timestamp muted, the
-// rest in the foreground colour, matches of search highlighted.
+// rest in the foreground colour, matches of search highlighted. A line of Cogpit's own (a notice
+// such as the marker where the connection was lost) is drawn in the warning colour, apart from the
+// container's lines (the owner's WF35 of 2026-10-19).
 func runsOf(text string, sp shownSpans, from, to int, search string, dst []logRun) []logRun {
+	body := theme.ColorNameForeground
+	if at := max(sp.nameEnd, sp.tsEnd); strings.HasPrefix(text, noticePrefix) || // a merged log's: "[cogpit]" in the name's place
+		at <= len(text) && strings.HasPrefix(strings.TrimLeft(text[at:], " "), noticePrefix) {
+		body = theme.ColorNameWarning
+	}
 	colorAt := func(i int) fyne.ThemeColorName {
 		switch {
 		case i < sp.nameEnd:
@@ -214,7 +225,7 @@ func runsOf(text string, sp shownSpans, from, to int, search string, dst []logRu
 		case i >= sp.tsStart && i < sp.tsEnd:
 			return theme.ColorNamePlaceHolder
 		}
-		return theme.ColorNameForeground
+		return body
 	}
 	// Match ranges within [from, to).
 	var marks [][2]int

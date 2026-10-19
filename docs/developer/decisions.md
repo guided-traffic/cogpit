@@ -5673,7 +5673,8 @@ together ("unable to decode an event from the watch stream").
    2 s) · the log was read again from its last line: what was written meanwhile follows ──", the gap
    from the last line that arrived to the reconnect, with seconds and the zone; until then "—
    interrupted 14:03–14:07 —", the connection watch's interruption in minutes, which a sleep showed as
-   "11:10–11:10" because the watch notices a sleep only at the wake); port forwards keep their backoff but do not dial while
+   "11:10–11:10" because the watch notices a sleep only at the wake; Cogpit's own lines of a log, the
+   marker among them, drawn in the warning colour, apart from the container's lines); port forwards keep their backoff but do not dial while
    interrupted and dial at once after the reconnect; pod shells, the node shell and attach end with
    a note in the tab and a **Reconnect** button that opens a new shell in the same tab (a process
    cannot be resumed); local terminals are not affected.

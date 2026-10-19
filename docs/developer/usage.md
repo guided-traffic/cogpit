@@ -703,7 +703,8 @@ interrupted cluster in the background disables the changes to it only, and its s
   (10 min 2 s) · the log was read again from its last line: what was written meanwhile follows ──`,
   from where it stopped: the times are when the last line arrived and when the connection was back,
   with seconds and your time zone (the log's own lines may print another), and the lines the
-  container wrote meanwhile come after it. A port forward waits and connects again at once. A pod shell, a node shell or an attach
+  container wrote meanwhile come after it. Cogpit's own lines in a log (this one, a login that
+  lapsed, a log that could not be opened again) are orange, apart from the container's. A port forward waits and connects again at once. A pod shell, a node shell or an attach
   ends (a process cannot be resumed): its tab says so and offers **Reconnect**, which opens a new
   one in the same tab once the cluster answers. A local terminal is not affected.
 - A drain or a Helm install, upgrade or rollback that was running stops, as after a crash (a drain's

@@ -313,3 +313,25 @@ func TestLogViewSelectsAGroupsSource(t *testing.T) {
 		t.Errorf("source %q %v", src, ok)
 	}
 }
+
+// A line of Cogpit's own is drawn in the warning colour, apart from the container's (WF35): a pod
+// log's marker, a merged log's notice in the name's place, and not a container's line that merely
+// mentions it.
+func TestCogpitsOwnLinesStandApart(t *testing.T) {
+	for _, c := range []struct {
+		view   LogView
+		line   string
+		notice bool
+	}{
+		{LogView{}, "[cogpit] ── no connection 11:00:05 – 11:10:07 CEST (10 min 2 s) · …", true},
+		{LogView{Prefixed: true, Names: true}, "[cogpit] web-7d9f-a1/app: ── no connection 11:00:05 – 11:10:07 CEST (10 min 2 s) · …", true},
+		{LogView{Timestamps: true}, "2026-10-19T09:00:05Z hello [cogpit]", false},
+	} {
+		text, sp := c.view.shown(c.line)
+		runs := runsOf(text, sp, 0, len(text), "", nil)
+		last := runs[len(runs)-1].color
+		if got := last == theme.ColorNameWarning; got != c.notice {
+			t.Errorf("%q: notice colour %v, want %v (runs %+v)", c.line, got, c.notice, runs)
+		}
+	}
+}
