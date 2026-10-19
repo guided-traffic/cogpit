@@ -327,7 +327,7 @@ func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 // (D-97, the owner's WF40: "Immer"): its error with Connect Again and Connection Updates, its dots
 // red, nothing connected or shown by itself; the cluster shown before stays connected behind it.
 func TestAFailedConnectStaysOnItsCluster(t *testing.T) {
-	sh, _, q, f, _ := marksScene(t, ThemeDark, false)
+	sh, w, q, f, _ := marksScene(t, ThemeDark, false)
 	f.update(func(u *engine.UIState) { // a connect to qa-eu-west starts: kind-cogpit stays connected behind it
 		u.Context, u.Connection = cFailed, engine.Connection{State: engine.Connecting}
 		for i := range u.Connections {
@@ -343,8 +343,18 @@ func TestAFailedConnectStaysOnItsCluster(t *testing.T) {
 	if calls := f.callsOf("cluster.connect"); len(calls) != 0 || sh.ui.Context != cFailed {
 		t.Errorf("cluster.connect %v, shown %q", calls, sh.ui.Context)
 	}
-	q.until(t, "the failed tile red", func() bool { return tileOf(sh, cFailed) != nil })
-	checkMark(t, tileDot(tileOf(sh, cFailed)), colorStatusError, false, "the failed cluster's tile")
+	// The red comes with the contexts' read, which may land after the tile was drawn (as in
+	// TestDotsShowEachClustersMark): wait for it.
+	red := tokenColor(colorStatusError)
+	q.until(t, "the failed tile red", func() bool {
+		settle(w)
+		ti := tileOf(sh, cFailed)
+		if ti == nil {
+			return false
+		}
+		fill, _, width := drawnShape(tileDot(ti))
+		return fill == red && width == 0
+	})
 	if !sh.view.failedBox.Visible() || sh.view.connectButton.Visible() {
 		t.Error("the failed connect's buttons are not shown")
 	}
