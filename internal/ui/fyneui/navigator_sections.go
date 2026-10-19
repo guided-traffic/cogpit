@@ -715,7 +715,7 @@ func newNavSectionRootRow(n *navSections) *navSectionRootRow {
 	r.title = newTextLine(navSectionTitle, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	r.sub = newTextLine(navSectionParent, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.title.truncate, r.sub.truncate = true, true
-	side := sized(sizeNavBadge, sizeNavBadge, container.NewCenter(r.icon)) // the clusters' badges' column
+	side := sized(sizeNavBadge, sizeNavBadge, container.NewCenter(r.icon))                                          // the clusters' badges' column
 	r.sources = newNavIconButton(n.s.sh, theme.ContentRemoveIcon(), sourcesTip, func() { n.s.sh.kc.showSources() }) // kc is made after the sidebar
 	// The "−" on the title's line, so that the line under it keeps the row's width.
 	titleLine := container.NewBorder(nil, nil, nil, r.sources, r.title)
