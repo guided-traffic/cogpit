@@ -20,20 +20,28 @@ import (
 
 // waitingPlugin is a credential plugin that, while its block file exists, waits for ever as a
 // browser login nobody finishes does (a loop of short sleeps, so that its own children never
-// outlive it by more than 100 ms); otherwise it hands out the ExecCredential the test wrote, after
-// the delay its delay file names. It notes the number of each of its processes.
+// outlive it by more than 100 ms); while its exec file exists, it is a wrapper that replaces itself
+// with /bin/sleep 900 (WF38: its number stays, its command line becomes sleep's); while its stray
+// file exists, it leaves /bin/sleep 900 running with its standard output and exits, so that
+// client-go's run goes on without a process of Cogpit's to end (H-118); otherwise it hands out the
+// ExecCredential the test wrote, after the delay its delay file names. It notes the number of each
+// of its processes, and of each stray sleep; the test's cleanup ends what still runs.
 type waitingPlugin struct {
 	*countingPlugin
-	pids  string
-	block string
-	delay string
+	pids   string
+	strays string
+	block  string
+	exec   string
+	stray  string
+	delay  string
 }
 
 func newWaitingPlugin(t *testing.T, srv *testkit.FakeAPIServer) *waitingPlugin {
 	t.Helper()
 	p := &waitingPlugin{countingPlugin: newCountingPlugin(t, srv)}
 	dir := filepath.Dir(p.path)
-	p.pids, p.block, p.delay = filepath.Join(dir, "pids"), filepath.Join(dir, "block"), filepath.Join(dir, "delay")
+	p.pids, p.strays = filepath.Join(dir, "pids"), filepath.Join(dir, "strays")
+	p.block, p.exec, p.stray, p.delay = filepath.Join(dir, "block"), filepath.Join(dir, "exec"), filepath.Join(dir, "stray"), filepath.Join(dir, "delay")
 	script := `#!/bin/sh
 echo $$ >> "` + p.pids + `"
 echo run >> "$PLUGIN_RUNS"
@@ -41,41 +49,79 @@ if [ -f "` + p.block + `" ]; then
   echo "Log in at http://127.0.0.1:1/callback?code=secret-code-0042 to continue" >&2
   while :; do sleep 0.1; done
 fi
+if [ -f "` + p.exec + `" ]; then exec /bin/sleep 900; fi
+if [ -f "` + p.stray + `" ]; then
+  /bin/sleep 900 &
+  echo $! >> "` + p.strays + `"
+  exit 0
+fi
 if [ -f "` + p.delay + `" ]; then sleep "$(cat "` + p.delay + `")"; fi
 cat "$PLUGIN_CRED"
 `
 	if err := os.WriteFile(p.path, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
+	t.Cleanup(p.endLeftovers)
 	return p
 }
 
-// blocking makes the plugin wait for ever, or answer again.
-func (p *waitingPlugin) blocking(on bool) {
+// endLeftovers kills what the plugin left running: its processes that are still children of the
+// test's, and its stray sleeps that still run sleep (a number the system gave to another process
+// meanwhile is not hit).
+func (p *waitingPlugin) endLeftovers() {
+	for _, pid := range p.numbers(p.pids) {
+		for _, c := range listChildren() {
+			if c.id.pid == pid {
+				_ = syscall.Kill(pid, syscall.SIGKILL)
+			}
+		}
+	}
+	for _, pid := range p.numbers(p.strays) {
+		if argv := commandLine(pid); len(argv) == 2 && argv[0] == "/bin/sleep" && argv[1] == "900" {
+			_ = syscall.Kill(pid, syscall.SIGKILL)
+		}
+	}
+}
+
+// mode switches one of the plugin's files on or off.
+func (p *waitingPlugin) mode(file string, on bool) {
 	p.t.Helper()
 	if !on {
-		if err := os.Remove(p.block); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
 			p.t.Fatal(err)
 		}
 		return
 	}
-	if err := os.WriteFile(p.block, nil, 0o600); err != nil {
+	if err := os.WriteFile(file, nil, 0o600); err != nil {
 		p.t.Fatal(err)
 	}
 }
 
+// blocking makes the plugin wait for ever, or answer again.
+func (p *waitingPlugin) blocking(on bool) { p.t.Helper(); p.mode(p.block, on) }
+
+// numbers are the process numbers noted in file, oldest first.
+func (p *waitingPlugin) numbers(file string) []int {
+	data, err := os.ReadFile(file) // #nosec G304 -- the test's own file
+	if err != nil {
+		return nil
+	}
+	var out []int
+	for _, f := range strings.Fields(string(data)) {
+		if pid, err := strconv.Atoi(f); err == nil {
+			out = append(out, pid)
+		}
+	}
+	return out
+}
+
 // lastPID is the number of the plugin's latest process; 0 before its first run.
 func (p *waitingPlugin) lastPID() int {
-	data, err := os.ReadFile(p.pids)
-	if err != nil {
+	pids := p.numbers(p.pids)
+	if len(pids) == 0 {
 		return 0
 	}
-	lines := strings.Fields(string(data))
-	if len(lines) == 0 {
-		return 0
-	}
-	pid, _ := strconv.Atoi(lines[len(lines)-1])
-	return pid
+	return pids[len(pids)-1]
 }
 
 // gone reports whether process pid has ended (and was reaped).
@@ -357,15 +403,224 @@ func TestFindPluginByItsCommandLine(t *testing.T) {
 	}
 	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
 	want := cmd.Process.Pid
-	if !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool { return findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}) == want }) {
-		t.Fatalf("the plugin's process %d was not found among %+v", want, childProcesses())
+	if !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool {
+		id, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, nil)
+		return n == 1 && id.pid == want
+	}) {
+		t.Fatalf("the plugin's process %d was not found among %+v", want, listChildren())
 	}
-	if pid := findPlugin([]string{script, "oidc", "--issuer=https://other.example"}); pid != 0 {
-		t.Errorf("another command line found process %d", pid)
+	if id, n := findPlugin([]string{script, "oidc", "--issuer=https://other.example"}, nil); n != 0 {
+		t.Errorf("another command line found process %d", id.pid)
 	}
 	// A plugin of the same name elsewhere is another context's, or another test's (CI run
 	// 38975936330: a cancel's search ended the next test's plugin).
-	if pid := findPlugin([]string{filepath.Join(t.TempDir(), "find-me"), "oidc", "--issuer=https://issuer.example"}); pid != 0 {
-		t.Errorf("a program of the same name in another folder found process %d", pid)
+	if id, n := findPlugin([]string{filepath.Join(t.TempDir(), "find-me"), "oidc", "--issuer=https://issuer.example"}, nil); n != 0 {
+		t.Errorf("a program of the same name in another folder found process %d", id.pid)
+	}
+	// A process that ran before the run began is not the run's (findPlugin's before).
+	if _, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, childSet()); n != 0 {
+		t.Error("a process older than the run was taken for its plugin")
+	}
+}
+
+// connectResult is what a Connect that runs on a goroutine of its own returned.
+type connectResult struct {
+	c   *Conn
+	err error
+}
+
+// connectAsync connects p's context with ctx and watch on a goroutine of its own.
+func (p *waitingPlugin) connectAsync(ctx context.Context, watch *LoginWatch, trace func(ConnectStep)) <-chan connectResult {
+	done := make(chan connectResult, 1)
+	go func() {
+		c, err := Connect(ctx, Options{KubeconfigPaths: []string{p.kconf}, Login: watch, Trace: trace})
+		done <- connectResult{c, err}
+	}()
+	return done
+}
+
+// result waits for a Connect's result, at most 5 s.
+func result(t *testing.T, done <-chan connectResult) connectResult {
+	t.Helper()
+	select {
+	case r := <-done:
+		if r.c != nil {
+			t.Cleanup(r.c.Close)
+		}
+		return r
+	case <-time.After(5 * time.Second):
+		t.Fatal("the cancelled connect did not return within 5 s")
+	}
+	return connectResult{}
+}
+
+// WF38 (the lead's walk of 2026-10-19), part 3: a credential plugin that is a wrapper and replaces
+// itself with the real login program (exec) keeps its process number while its command line
+// becomes the program's. Cogpit finds it at the run's begin and ends it by its number: the cancel
+// ends the process, and the log says so truthfully.
+func TestCancelEndsAPluginThatExecs(t *testing.T) {
+	time.Sleep(searchWindow) // no other test's run began within the search's window
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
+	defer srv.Close()
+	p := newWaitingPlugin(t, srv)
+	p.give(secretToken, false)
+	p.mode(p.exec, true)
+	var mu sync.Mutex
+	var steps []ConnectStep
+	watch := NewLoginWatch(func() {})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := p.connectAsync(ctx, watch, func(s ConnectStep) { mu.Lock(); steps = append(steps, s); mu.Unlock() })
+	wait := waitCtx(t, 10*time.Second)
+	var pid int
+	if !testkit.WaitFor(wait, func() bool {
+		_, on := watch.Current()
+		pid = p.lastPID()
+		argv := commandLine(pid)
+		return on && pid != 0 && len(argv) > 0 && argv[0] == "/bin/sleep"
+	}) {
+		t.Fatalf("the wrapper never replaced itself with sleep: %v", commandLine(pid))
+	}
+
+	cancel()
+	r := result(t, done)
+	var ended *LoginEndedError
+	var ce *ConnectError
+	if !errors.As(r.err, &ce) || !errors.As(r.err, &ended) || ended.RunsOn {
+		t.Fatalf("the cancelled connect: %v, want a cancelled login whose process Cogpit ended", r.err)
+	}
+	if ce.Problem != "login cancelled: Cogpit ended login-plugin" {
+		t.Errorf("the problem: %q", ce.Problem)
+	}
+	if !testkit.WaitFor(wait, func() bool { return gone(pid) }) {
+		t.Fatalf("the wrapper's process %d (now %v) still runs after the cancel", pid, commandLine(pid))
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	var logged bool
+	for _, s := range steps {
+		logged = logged || (s.Name == StepLogin && strings.Contains(s.Text, "Login cancelled: Cogpit ended login-plugin"))
+	}
+	if !logged {
+		t.Errorf("no step says Cogpit ended the plugin: %+v", steps)
+	}
+}
+
+// holdOf is the hold of the Authenticator that runs plugin.
+func holdOf(t *testing.T, plugin string) *pluginHold {
+	t.Helper()
+	patchMu.Lock()
+	defer patchMu.Unlock()
+	for _, h := range holds {
+		h.mu.Lock()
+		match := len(h.command) > 0 && h.command[0] == plugin
+		h.mu.Unlock()
+		if match {
+			return h
+		}
+	}
+	t.Fatalf("no hold runs %s", plugin)
+	return nil
+}
+
+// WF38, parts 1 and 2. A run whose process Cogpit cannot end (the plugin left a child that holds
+// its output, and exited: client-go's run goes on, H-118): the cancel says Cogpit stopped waiting
+// and the process may run on, not that Cogpit ended it. Two later connects whose requests queued
+// behind that run, cancelled, start no run of their own once it ends: no connect or login asks for
+// one any more (before, each started the plugin anew, with nobody waiting). A connect afterwards
+// runs it once.
+func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
+	defer srv.Close()
+	p := newWaitingPlugin(t, srv)
+	p.give(secretToken, false)
+	p.mode(p.stray, true)
+	var mu sync.Mutex
+	var steps []ConnectStep
+	watch := NewLoginWatch(func() {})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := p.connectAsync(ctx, watch, func(s ConnectStep) { mu.Lock(); steps = append(steps, s); mu.Unlock() })
+	wait := waitCtx(t, 20*time.Second)
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
+		t.Fatal("the connect never waited for the plugin's stray child")
+	}
+	stray := p.numbers(p.strays)[0]
+
+	cancel()
+	r := result(t, done)
+	var ended *LoginEndedError
+	var ce *ConnectError
+	if !errors.As(r.err, &ce) || !errors.As(r.err, &ended) || !ended.RunsOn {
+		t.Fatalf("the cancelled connect: %v, want a cancelled login whose process was not found", r.err)
+	}
+	const want = "login cancelled: Cogpit stopped waiting for login-plugin; its process was not found and may run on"
+	if ce.Problem != want {
+		t.Errorf("the problem: %q, want %q", ce.Problem, want)
+	}
+	mu.Lock()
+	var logged bool
+	for _, s := range steps {
+		logged = logged || (s.Name == StepLogin && s.Failed && s.Text == "Login cancelled: Cogpit stopped waiting for login-plugin; "+
+			"its process was not found and may run on")
+		if strings.Contains(s.Text, "Cogpit ended") {
+			t.Errorf("a step says Cogpit ended the plugin: %q", s.Text)
+		}
+	}
+	mu.Unlock()
+	if !logged {
+		t.Errorf("no step says Cogpit stopped waiting: %+v", steps)
+	}
+
+	// Two connects whose requests queue behind the stray run, each cancelled.
+	p.mode(p.stray, false)
+	for range 2 {
+		w := NewLoginWatch(func() {})
+		cctx, ccancel := context.WithCancel(context.Background())
+		d := p.connectAsync(cctx, w, nil)
+		if !testkit.WaitFor(wait, func() bool { _, on := w.Current(); return on }) {
+			ccancel()
+			t.Fatal("a later connect does not see the run under way")
+		}
+		time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+		ccancel()
+		if r := result(t, d); r.err == nil {
+			t.Fatal("a cancelled connect connected")
+		}
+	}
+	hold := holdOf(t, p.path)
+	_ = syscall.Kill(stray, syscall.SIGKILL) // the run ends: the queued requests take the lock
+	refused := func() int { hold.mu.Lock(); defer hold.mu.Unlock(); return hold.notAsked }
+	if !testkit.WaitFor(wait, func() bool { return refused() >= 2 }) {
+		t.Fatalf("the cancelled connects' requests were refused %d times, want 2", refused())
+	}
+	if n := p.count(); n != 1 {
+		t.Fatalf("the plugin ran %d times, want once: no run for a cancelled connect", n)
+	}
+
+	c := p.connect()
+	if c == nil || p.count() != 2 {
+		t.Errorf("a connect after the stray run: %d runs in all, want 2", p.count())
+	}
+}
+
+// A connection whose login the user cancelled asks for no run until Log in again (ArmLogin), even
+// while the plugin may run for others: its expired login is not renewed by the plugin.
+func TestCancelledLoginRunsNoMoreUntilLogInAgain(t *testing.T) {
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
+	defer srv.Close()
+	p := newWaitingPlugin(t, srv)
+	p.give(secretToken, true) // expired at once: every request needs a run
+	c := p.connect()
+	base := p.count()
+	if c.CancelLogin() {
+		t.Error("CancelLogin ended a run while none was under way")
+	}
+	if err := c.Heartbeat(context.Background()); err == nil || p.count() != base {
+		t.Fatalf("a heartbeat after the cancel: %v, %d runs; want refused without a run", err, p.count()-base)
+	}
+	c.ArmLogin()
+	if err := c.Heartbeat(context.Background()); err != nil || p.count() != base+1 {
+		t.Fatalf("a heartbeat after Log in again: %v, %d runs; want one run", err, p.count()-base)
 	}
 }

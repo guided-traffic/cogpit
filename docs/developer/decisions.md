@@ -84,7 +84,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-70](#d-70-the-disk-images-window) | The disk image's window | decided by the owner (2026-10-16) in a visual review: the plate background, an arrow, Cogpit's own helm wheel faint behind the Applications folder, names on grey pills for both Finder themes; the official Kubernetes logo not used (the Linux Foundation's guidelines); dmgbuild makes a template in the app's job, the signing job fills it with Apple's tools (the owner's choice); built 2026-10-16, checked locally |
 | [D-71](#d-71-thanos-and-victoriametrics-read-as-prometheus) | Thanos and VictoriaMetrics, read as Prometheus | the lead's decisions (night run 2026-10-16/17), built the same night, open to revision: found by their Services' names after a Prometheus by its own names, named "Thanos" and "VictoriaMetrics", vmselect under the default tenant `/select/0/prometheus` |
 | [D-72](#d-72-native-file-panels-and-macos-folder-access) | Native file panels and macOS folder access | the owner's order (2026-10-16 night): every file chooser the operating system's own, macOS first, and no macOS prompts for the user's folders; built the same night with the lead's decisions, open to revision (the saves on the system's panel too, a sheet on the window, Fyne's dialogs and Cogpit's Sync browser where there is no panel, security-scoped bookmarks of what Cogpit reads again, the usage descriptions); after a restart of Cogpit a source picked in Downloads is read without a prompt and without a TCC grant (the owner's walk, 2026-10-19), whether by the bookmark or the item's own grant not told apart, a restart of the Mac not tried; H-116 opened |
-| [D-73](#d-73-a-login-that-waits-cancel-connecting-and-a-bound) | A login that waits: Cancel Connecting and a bound | the lead's decisions (night run 2026-10-16/17) after the owner's finding of that night (a connect waiting for an OIDC login nobody finished blinked ten minutes, could not be cancelled, Disconnect waited behind it); built the same night: Disconnect (the window's Cancel Connecting) ends a connect under way and the credential plugin it waits for, found among Cogpit's child processes; every run of a plugin bounded by 5 minutes; the connection says what it waits for (`waitingForLogin`); the connect's own timeout no longer counts the login;, open to revision; H-118 opened |
+| [D-73](#d-73-a-login-that-waits-cancel-connecting-and-a-bound) | A login that waits: Cancel Connecting and a bound | the lead's decisions (night run 2026-10-16/17) after the owner's finding of that night (a connect waiting for an OIDC login nobody finished blinked ten minutes, could not be cancelled, Disconnect waited behind it); built the same night: Disconnect (the window's Cancel Connecting) ends a connect under way and the credential plugin it waits for, found among Cogpit's child processes; every run of a plugin bounded by 5 minutes; the connection says what it waits for (`waitingForLogin`); the connect's own timeout no longer counts the login;, open to revision; H-118 opened; amended 2026-10-19 (WF38, the lead's walk): the plugin's process found at the run's begin and followed by its number (a wrapper that `exec`s is ended), "Cogpit ended" only when it was, no run for a request of a cancelled connect; built, the lead's decisions, open to revision; H-118 narrowed |
 | [D-74](#d-74-how-the-leads-decisions-are-reviewed) | How the lead's decisions are reviewed | decided (owner, 2026-10-17): the lead decides details and records them, open to revision; the owner decides direction, scope, security posture and the irreversible or outward-facing; what the window shows he judges in walks |
 | [D-75](#d-75-a-client-certificates-validity-in-the-cluster-lists) | A client certificate's validity in the cluster lists | the owner's finding F22 (2026-10-17): the time left or "expired" where the user chooses a cluster, never blocking a connect; built the same day with the lead's decisions, open to revision: a second line in the navigator's section ("cert expires in 23 days"), a pill on the welcome page, the date in the tooltips, the warning colour within 14 days or the last fifth of the lifetime, `clientCert` in `cluster.contexts`; the leaf's two dates only, never the key; a `client-certificate` file in a place macOS protects read only after a connect read it; H-119 opened |
 | [D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect) | Integrations per cluster, and the question at a new cluster's first connect | the owner's words (2026-10-17): a Cluster Settings section to switch each integration, found automatically or needing a manual configuration at once, asked at a new cluster's first connect with a checkbox for the default, everything on by default; built the same day with the lead's decisions, open to revision: `ClusterSettings.IntegrationsOff` and `Preferences.IntegrationsOff`, the Metrics source moved into the two metrics switches, Cluster Settings › Integrations before Metrics (since 2026-10-18 under a divider below Agents with a section per integration, [D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer)), `ui_state`'s `integrationsQuestion` and a dialog with Later and Apply, `cluster.integrations.answer` and `.later`, agents switching both ways, the metrics providers detected once when shown; H-120 opened; changed 2026-10-17 evening by [D-82](#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again): nothing looked for before the question's pre-choice is answered, the default what Check all looks for, Ask again |
@@ -7136,16 +7136,20 @@ run included, so a browser login that took longer than 15 s failed the connect a
 **Built 2026-10-16 night** (the lead's design in the run's brief, built by its agent E):
 
 - **The cluster layer** ([`cluster/loginrun.go`](../../internal/cluster/loginrun.go),
-  [`pluginproc_*.go`](../../internal/cluster/pluginproc_darwin.go)): the wrapper of the
-  Authenticator's `interactiveFunc` that D-69's hold set ([`loginhold.go`](../../internal/cluster/loginhold.go))
+  [`pluginproc.go`](../../internal/cluster/pluginproc.go), [`pluginproc_*.go`](../../internal/cluster/pluginproc_darwin.go)):
+  the wrapper of the Authenticator's `interactiveFunc` that D-69's hold set ([`loginhold.go`](../../internal/cluster/loginhold.go))
   also notes each run's begin; a goroutine that takes the Authenticator's lock after it notes the
   run's end. A run that has not ended after its bound (`Options.LoginTimeout`, 5 minutes), or that
-  the user cancels (`Connect`'s context, `Conn.CancelLogin`, `Conn.Close`), is ended: Cogpit finds
-  the plugin's process among its own child processes by its command line (a plugin the kubeconfig
-  names by its path under that path only, since 2026-10-16 night), sends it SIGTERM, and
-  SIGKILL after 3 s if the run has not ended and the same number still runs the same command line.
-  Once Cogpit ended a run, no run of that plugin configuration starts until the user connects again
-  or logs in again (`ArmLogin`); a request that needed one ends as a `*LoginEndedError`. A
+  the user cancels (`Connect`'s context, `Conn.CancelLogin`, `Conn.Close`), is ended: Cogpit
+  signals the plugin's process, SIGTERM and SIGKILL after 3 s if the run has not ended and the same
+  process still runs. Since 2026-10-19 (WF38, below) the process is the child of Cogpit's that
+  appeared at the run's begin, followed by its number and start time (before: the child whose
+  command line was the plugin's at the cancel, which missed a wrapper that `exec`s; a plugin the
+  kubeconfig names by its path is matched under that path only, since 2026-10-16 night); one not
+  found is not ended, and the error and the log say so (`LoginEndedError.RunsOn`). Once Cogpit
+  ended a run, no run of that plugin configuration starts until the user connects again or logs in
+  again (`ArmLogin`); a request that needed one ends as a `*LoginEndedError`. Since 2026-10-19 a run
+  starts only while an open connection the user did not cancel asks for one (`admit`). A
   `LoginWatch` tells the engine when a run begins and ends. The connect's first request is bounded
   below the plugin (`withRequestBound`), so its timeout no longer counts the login.
 - **The engine** ([`engine/loginwait.go`](../../internal/engine/loginwait.go)):
@@ -7155,7 +7159,9 @@ run included, so a browser login that took longer than 15 s failed the connect a
   the connection log's line "Login: waiting for <program> since …; Cogpit ends it at … (after
   5 min)"; `cluster.disconnect` of a connect under way (the shown cluster's or a restore's
   background connect) cancels it at once, the plugin ended, the attempt's outcome `cancelled`
-  ("Connecting cancelled (Disconnect): login cancelled: Cogpit ended <program>"); a connect whose
+  ("Connecting cancelled (Disconnect): login cancelled: Cogpit ended <program>"; since 2026-10-19,
+  when the process was not found, "…: Cogpit stopped waiting for <program>; its process was not
+  found and may run on"); a connect whose
   plugin's run passed its bound fails with "the login through <program> did not finish within 5
   minutes; Connect starts it again"; a renewal of a standing connection (D-58, D-69 stage 3) whose
   run passed it makes the login expired with "…; Log in again starts it again"; Disconnect of a
@@ -7181,28 +7187,62 @@ run included, so a browser login that took longer than 15 s failed the connect a
   `TestABackgroundConnectOffersCancelConnecting` and the PNGs
   [dark](../../internal/ui/fyneui/testdata/connecting_login_wait_dark.png) and
   [light](../../internal/ui/fyneui/testdata/connecting_login_wait_light.png) (window). All with the
-  race detector.
+  race detector. Since 2026-10-19 (WF38): `TestCancelEndsAPluginThatExecs` (a wrapper that
+  replaces itself with `/bin/sleep 900`, ended by its number, the log saying so),
+  `TestCancelledConnectsStartNoRunAfterAStrayOne` (a run Cogpit cannot end, its plugin gone and a
+  child holding its output: the cancel says "stopped waiting … may run on"; two connects queued
+  behind it and cancelled start no run when it ends; a connect afterwards runs it once),
+  `TestCancelledLoginRunsNoMoreUntilLogInAgain`, `TestSearchFindsAWrapperAfterItsExec` (next to a
+  child in a process group of its own and one older than the run), `TestListChildren`,
+  `TestDecideProcess` (cluster; the plugin's processes and stray children ended by the tests'
+  cleanup).
 
 **The lead's decisions (night run 2026-10-16/17), open to revision:**
 
 | Question | Options weighed | Chosen | Why |
 |---|---|---|---|
 | The command | a new `cluster.cancelConnect {context?}`; `cluster.disconnect` extended | `cluster.disconnect` extended: it already ended "a connect under way", now at once and with its plugin, a background connect too; the window labels it **Cancel Connecting** while the cluster connects | The same effect for every origin without a second tool that agents must tell apart; the command count stays. UI danger: it stops only what the user's own connect started (D-2) |
-| How the plugin's process is ended | Cogpit runs the plugin itself (client-go's exec authenticator re-done; rejected in D-58: certificate plugins need client-go's TLS callback, D-26's binding); a wrapper program in the plugin's place (changes the command D-26 approved; rejected in D-66); abandon the waiting request only (the plugin runs on and keeps client-go's lock: the next connect of the context waits behind it); find the process among Cogpit's children by its command line, noted where client-go starts it, and signal it | find and signal it | client-go offers no context, no `*exec.Cmd` and no `SysProcAttr`; the run's begin is seen where D-69's hold already sits. macOS through `proc_info` and `kern.procargs2`, Linux through `/proc`, both without cgo (`cogpit-cli` is pure Go) and without a direct `golang.org/x/sys` dependency; Windows by the program's file name (its command line is not readable without another process's memory), not tried on Windows |
-| What is signalled | the plugin's process group; the plugin and its descendants; the plugin alone | the plugin alone: SIGTERM, SIGKILL after 3 s | The plugin runs in Cogpit's own process group (client-go sets no `Setpgid`): signalling the group would end Cogpit. A browser the plugin opens through macOS's `open` is no child of it; on Linux a browser `xdg-open` starts can be one, and must not be ended. What remains: [H-118](../security/credentials.md#h-118-a-cancelled-logins-plugin-is-found-by-its-command-line-its-children-run-on) |
+| How the plugin's process is ended | Cogpit runs the plugin itself (client-go's exec authenticator re-done; rejected in D-58: certificate plugins need client-go's TLS callback, D-26's binding); a wrapper program in the plugin's place (changes the command D-26 approved; rejected in D-66); abandon the waiting request only (the plugin runs on and keeps client-go's lock: the next connect of the context waits behind it); find the process among Cogpit's children by its command line, noted where client-go starts it, and signal it | find and signal it (how it is found changed with WF38, 2026-10-19: below) | client-go offers no context, no `*exec.Cmd` and no `SysProcAttr`; the run's begin is seen where D-69's hold already sits. macOS through `proc_info` and `kern.procargs2`, Linux through `/proc`, both without cgo (`cogpit-cli` is pure Go) and without a direct `golang.org/x/sys` dependency; Windows by the program's file name (its command line is not readable without another process's memory), not tried on Windows |
+| What is signalled | the plugin's process group; the plugin and its descendants; the plugin alone | the plugin alone: SIGTERM, SIGKILL after 3 s | The plugin runs in Cogpit's own process group (client-go sets no `Setpgid`): signalling the group would end Cogpit. A browser the plugin opens through macOS's `open` is no child of it; on Linux a browser `xdg-open` starts can be one, and must not be ended. What remains: [H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running) |
 | The bound | a preference; a cluster setting; fixed | fixed, 5 minutes, for every run of a plugin (the connect's, a renewal's, Log in again's); `ClusterConnector.LoginTimeout` for tests | A browser login with a second factor takes a minute or two; nobody knows what to set; the user ends a run earlier at any time (Cancel Connecting, Disconnect) |
 | Interactive plugins only, or every plugin | a longer bound for `interactiveMode` IfAvailable or Always; one bound | one bound | Cogpit has no terminal: client-go never runs a plugin interactively in it (IfAvailable finds no TTY, Always is refused), so the field does not tell a browser login from a silent one; a silent plugin that has not answered in 5 minutes is broken anyway |
 | The connect's 15 s timeout | the whole first request, the login included (as built); the request below the plugin | below the plugin | Its purpose is a server that does not answer; the login has its own bound now. Before, a browser login longer than 15 s failed the connect after it had worked |
 | After Cogpit ended a run | client-go may start the plugin again at the next request; no run until the user acts | no run until the user connects or logs in again | Every request that waited behind client-go's lock would start it again, a browser tab each (`TestEndedLoginDoesNotRunAgainUntilLogInAgain`: five waiting requests, one run) |
-| A run two contexts share (the same plugin configuration, D-69's shared login) | a cancel always ends it; never | a cancel ends it only when no other open connection that does not hold its login uses it; the bound ends it whoever waits; a cancelled connect then abandons its wait after half a second | The run serves the other connection too (`TestSharedRunEndsWithTheLastConnection`) |
+| A run two contexts share (the same plugin configuration, D-69's shared login) | a cancel always ends it; never | a cancel ends it only when no other open connection that does not hold its login (and, since 2026-10-19, was not cancelled itself) uses it; the bound ends it whoever waits; a cancelled connect then abandons its wait after half a second | The run serves the other connection too (`TestSharedRunEndsWithTheLastConnection`) |
 | What the cluster shows after Cancel Connecting | failed, "Login cancelled"; disconnected | disconnected, without an error; its attempt in the log `cancelled` with the reason | The user's own action; the welcome page and the dot then say "not connected", the log says why |
 | How the state says what it waits for | a new state `waitingForLogin`; a field of the connection | `connection.waitingForLogin {program, since, until}`, while connecting with the reason as a sentence | The state stays `connecting` (or `connected`, `loginExpired` during a renewal), so the dots, the blink, the menus and agents' checks of the state keep working; agents read program, since and until |
 | Log in again while an earlier automatic run still waits | join it (D-58 as built); end it and start a new one | join it, as built; Cogpit ends it at its bound, and Disconnect then Connect starts over at once | D-58's confirmed behaviour; ending a run the user may be finishing in the browser is the owner's call. **For the owner:** should Log in again start over? |
 | The plugin's standard error of an ended run | kept as after a failed login; dropped | kept after the bound (a failed login: scrubbed, 4 KiB, D-66; it may say what it waited for); dropped after a cancel (the user's action) | |
 
+**WF38 (the lead's walk W44, 2026-10-19), built the same day.** The walk's plugin was a wrapper
+script doing `exec /bin/sleep 900`. After Cancel Connecting its process ran on, while the
+connection log said "Login cancelled: Cogpit ended walk-login.sh": the cancel looked the process up
+by the kubeconfig's command line, which the `exec` had replaced, and the error had been told before
+the lookup. Two more connects, each cancelled after 2–3 s, had queued their first request behind
+that run (client-go's `getCreds` waits for the Authenticator's lock without the request's
+context); each later started a new `/bin/sleep 900` when the run before it ended, with no connect
+waiting. A connect's registration had cleared the stop that the first cancel set, and its own
+cancel set none, since the run was already being ended. Built in the cluster layer
+([`pluginproc.go`](../../internal/cluster/pluginproc.go), [`loginrun.go`](../../internal/cluster/loginrun.go),
+[`loginhold.go`](../../internal/cluster/loginhold.go)); H-118 narrowed; tests above. The engine
+reads the same `*LoginEndedError`: its texts follow from it.
+
+**The lead's decisions for WF38 (2026-10-19, by the agent who built it), open to revision:**
+
+| Question | Options weighed | Chosen | Why |
+|---|---|---|---|
+| What the log and the error say when the process is not ended | "Cogpit ended <program>" always (as built: the error was told before the lookup, which only warned in the app log); look the process up first, then say what happened | look it up first: `pluginHold.end` waits for the run's process search (at most until 500 ms after the run's begin), checks that Cogpit may signal it (`kill(pid, 0)`; `OpenProcess` on Windows), then tells the connections, then signals. "Cogpit ended <program>" only then; otherwise "Cogpit stopped waiting for <program>; its process was not found and may run on" (or "could not be signalled"), `LoginEndedError.RunsOn` for the engine; the timeout's "Connect starts it again" is left out then | The log said Cogpit had ended a process that ran on (W44). Telling before signalling keeps a request that the plugin's end fails counted as an ended login (the count `loginEndedSince` reads), as before |
+| A request that queued behind a run for a connect the user cancelled | client-go's behaviour (it starts the plugin when it gets the lock: one run per cancelled connect, nobody waiting); follow each request's context into the run (client-go's `getCreds` does not pass it, and `interactiveFunc` has none); the hold refuses a run while no open connection asks for one | the hold: `admit` starts a run only while an open connection that neither holds its login nor was cancelled uses the plugin. `CancelLogin` (a cancelled connect, `Close`, Disconnect) withdraws its connection until `ArmLogin` (Log in again) or a new connect; `Close` drops it. A refused request fails with `errLoginNotAsked` and an INFO line in the app log naming the program | The gate already sits where client-go asks before every run (D-69's hold). A request that queued behind a run while another connection asks may start one, and the run then serves that connection: its watch shows it, its cancel ends it (`TestCancelledConnectsStartNoRunAfterAStrayOne`) |
+| How the run's process is found | by its command line at the cancel (as built; misses a wrapper that `exec`s); a marker of the run in the plugin's environment, found in the process's (changes the environment D-26 approved; macOS 26 leaves the environment out of `kern.procargs2` for a caller that is not root, tried 2026-10-19); the plugin's standard error as a pipe of Cogpit's own per run, found by the pipe the process holds (redoes D-66's capture; it would find the plugin's children too); Cogpit's children noted at the run's begin, the new one taken | the new one: noted at the begin (inside the `interactiveFunc` wrapper, before client-go forks), the one new child seen running the plugin's command line, else the one new child in Cogpit's process group when no other plugin run was under way alongside; followed by its number and start time (`proc_info` `PROC_PIDTBSDINFO` on macOS, `/proc/<pid>/stat` on Linux, `GetProcessTimes` on Windows); a run not found then falls back to a new child running the command line | Small and local to the cluster layer; the number and the start time survive the `exec` (checked on macOS 26); a terminal's shell runs in a session of its own and a run that begins alongside another disables the group rule instead of guessing. The pipe stays the option for H-118's children |
+| How long the search looks | 100 ms; 500 ms; until the cancel | 500 ms after the run's begin, every 1 ms for the first 50 ms (to see a wrapper's own command line before its `exec`), then every 10 ms | client-go starts the process microseconds after it asked; a race-enabled test binary on a loaded runner needs margin; a cancel within the window waits for the rest of it |
+
 **Not verified:** a real OIDC plugin (pinniped, kubelogin) with a browser in a real window; the
-process lookup on Windows (it compiles); a plugin whose child keeps its output open (H-118). The
-walk steps for the owner are in the night run's report.
+process lookup on Windows (it compiles; its start time and the new-child rule untested); the
+search on Linux beyond the tests' shell scripts (CI's runner runs them); two plugin runs of
+different contexts that begin together with wrappers (the restore of several clusters), where the
+group rule stands aside; WF38 in the app itself (W44 with the wrapper again; tested only in the
+cluster package against the fake API server). The walk steps for the owner are in the night
+run's report.
 
 
 ## D-74: How the lead's decisions are reviewed

@@ -2646,22 +2646,38 @@ data, Secrets included, at rest on the disk.
   and a `LoginWatch` (`Options.Login`) tells the engine both; `Conn.LoginRun` says what is under way.
   A run is ended after its bound (`Options.LoginTimeout`, `DefaultLoginTimeout` 5 minutes) and on a
   cancel (`Connect`'s context: `firstAnswer` runs the first request on a goroutine of its own and
-  calls `Conn.CancelLogin` when the context ends, waiting at most 5 s more; `Conn.Close`): the
-  process is found among Cogpit's own children by its command line ([`pluginproc_darwin.go`](../../internal/cluster/pluginproc_darwin.go):
-  `proc_info` and `kern.procargs2` as system calls, no cgo; [`pluginproc_linux.go`](../../internal/cluster/pluginproc_linux.go):
-  `/proc`; [`pluginproc_windows.go`](../../internal/cluster/pluginproc_windows.go): the Toolhelp
-  snapshot by program name) and sent SIGTERM, SIGKILL after 3 s if it is still the same command
-  line. After that the wrapper refuses every run of the plugin configuration (each connection using it
-  counts it, so that `Heartbeat` and `Connect` return a `*LoginEndedError`) until a new `Connect`
-  registers or `ArmLogin`. A cancel ends a run only when no other open connection that does not hold
-  its login uses it; the bound always does. `Connect`'s own timeout bounds its first request below
-  the plugin (`withRequestBound`, read by the request timeout's round tripper), so a browser login
-  longer than it no longer fails the connect. Tested with shell-script plugins that wait as a browser
-  login nobody finishes (`TestCancelledConnectEndsThePlugin`, `TestLoginTimeoutEndsThePlugin`,
+  calls `Conn.CancelLogin` when the context ends, waiting at most 5 s more; `Conn.Close`): Cogpit
+  signals the run's process, found at the run's begin and followed by its number and start time
+  (since 2026-10-19, WF38: [`pluginproc.go`](../../internal/cluster/pluginproc.go); `begin` notes
+  Cogpit's children before client-go starts the plugin, a `procSearch` looks at the new ones for
+  500 ms and takes the one running the plugin's command line, else the one new child in Cogpit's
+  process group when no other run was under way alongside, so a wrapper that `exec`s is found;
+  [`pluginproc_darwin.go`](../../internal/cluster/pluginproc_darwin.go): `proc_info` (the children,
+  `PROC_PIDTBSDINFO` for the start time and process group) and `kern.procargs2` as system calls, no
+  cgo; [`pluginproc_linux.go`](../../internal/cluster/pluginproc_linux.go): `/proc`;
+  [`pluginproc_windows.go`](../../internal/cluster/pluginproc_windows.go): the Toolhelp snapshot by
+  program name), SIGTERM, then SIGKILL after 3 s if the same number with the same start time still
+  runs. `pluginHold.end` looks the process up before it tells the connections, so the
+  `*LoginEndedError` says "Cogpit ended <program>" only for a process it found and may signal, and
+  otherwise "Cogpit stopped waiting …; its process was not found and may run on" (`RunsOn`). After
+  that the wrapper refuses every run of the plugin configuration (each connection using it counts
+  it, so that `Heartbeat` and `Connect` return a `*LoginEndedError`) until a new `Connect` registers
+  or `ArmLogin`. It also admits a run only while an open connection asks for one (`admit`; since
+  2026-10-19): `CancelLogin` withdraws its connection until `ArmLogin`, `Close` drops it, so a
+  request of a cancelled connect that queued behind a run (client-go's `getCreds` waits for the lock
+  without its context) fails with `errLoginNotAsked` instead of starting the plugin. A cancel ends a
+  run only when no other open connection that asks for runs uses it; the bound always does.
+  `Connect`'s own timeout bounds its first request below the plugin (`withRequestBound`, read by the
+  request timeout's round tripper), so a browser login longer than it no longer fails the connect.
+  Tested with shell-script plugins that wait as a browser login nobody finishes
+  (`TestCancelledConnectEndsThePlugin`, `TestLoginTimeoutEndsThePlugin`,
   `TestEndedLoginDoesNotRunAgainUntilLogInAgain`, `TestCloseEndsARenewalsPlugin`,
   `TestSharedRunEndsWithTheLastConnection`, `TestConnectTimeoutDoesNotCountTheLogin`,
-  `TestFindPluginByItsCommandLine`); the process's children run on
-  ([H-118](../security/credentials.md#h-118-a-cancelled-logins-plugin-is-found-by-its-command-line-its-children-run-on)).
+  `TestFindPluginByItsCommandLine`; WF38: `TestCancelEndsAPluginThatExecs`,
+  `TestCancelledConnectsStartNoRunAfterAStrayOne`, `TestCancelledLoginRunsNoMoreUntilLogInAgain`,
+  `TestSearchFindsAWrapperAfterItsExec`, `TestDecideProcess`); the process's children run on, and a
+  process not found at its run's begin is not ended
+  ([H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running)).
 - **Who the connection is logged in as** (built 2026-10-16, [D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as),
   [`whoami.go`](../../internal/cluster/whoami.go)): `Conn.ReviewUser` creates one `SelfSubjectReview`
   (`authentication.k8s.io/v1`; on a 404 `v1beta1` once more, Kubernetes 1.27), what `kubectl auth

@@ -769,7 +769,13 @@ waits for you to finish there. While it waits:
   another cluster, D-97) included. It ends the
   connect at once and the login program Cogpit started for it; the cluster is not connected, and
   its connection updates say "cancelled". **Connect** starts the login again, a new browser tab
-  included. A browser window the program opened stays open: close it yourself.
+  included. A browser window the program opened stays open: close it yourself. A login program
+  that is a wrapper script handing over to the real program (`exec`) is ended too (since
+  2026-10-19). When Cogpit cannot find the program's process (two logins that start at the same
+  moment, a helper the program left behind that keeps its output open), it only stops waiting,
+  and the connection updates say so: "Login cancelled: Cogpit stopped waiting for <program>; its
+  process was not found and may run on" (before 2026-10-19 they said "Cogpit ended <program>"
+  either way). A connect you start then waits for that process until it ends; cancel it too.
 - A login program that has not finished after **5 minutes** is ended by Cogpit: the connect fails
   with "the login through <program> did not finish within 5 minutes; Connect starts it again" (the
   dot red). The 5 minutes are fixed.
@@ -777,7 +783,9 @@ waits for you to finish there. While it waits:
   waits for, Disconnect ends the program, and after 5 minutes the login is **Login expired** with
   "…; Log in again starts it again".
 - After Cogpit ended a login program, it does not start it again by itself: only Connect or Log in
-  again does, so no browser tabs pile up.
+  again does, so no browser tabs pile up. A connect you cancelled starts no login program later
+  either, when the login it waited behind ends (since 2026-10-19; before, each cancelled connect
+  started one more).
 - The connect's own limit (15 s for the API server's first answer) no longer counts the time you
   take in the browser.
 

@@ -373,6 +373,8 @@ func errorClass(err error) string {
 	var netErr net.Error
 	var ended *LoginEndedError
 	switch {
+	case errors.As(err, &ended) && ended.TimedOut() && ended.RunsOn:
+		return "timeout: " + ended.Error() + " (D-73)"
 	case errors.As(err, &ended) && ended.TimedOut():
 		return "timeout: " + ended.Error() + "; Cogpit ended it (D-73)"
 	case errors.As(err, &ended):

@@ -540,7 +540,7 @@ func (c *Conn) describeConnectFailure(ctx context.Context, timeout time.Duration
 	var ue *url.Error
 	var ended *LoginEndedError
 	switch {
-	case errors.As(err, &ended) && ended.TimedOut():
+	case errors.As(err, &ended) && ended.TimedOut() && !ended.RunsOn:
 		return ended.Error() + "; Connect starts it again"
 	case errors.As(err, &ended):
 		return ended.Error()

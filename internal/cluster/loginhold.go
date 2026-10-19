@@ -36,6 +36,15 @@ import (
 // ErrLoginLapsed for the engine. A held connection's 401 is not handed to the plugin either: the
 // login guard ends it as ErrLoginLapsed.
 //
+// The same wrapper starts a run only for a connection that asks for one (admit; WF38, the lead's
+// walk of 2026-10-19): one that is open and that the user did not cancel (Conn.CancelLogin, a
+// cancelled Connect, Close) since he last connected or logged in (ArmLogin). client-go's getCreds
+// waits for the Authenticator's lock without its request's context, so a request of a cancelled
+// connect that queued behind a run took the lock once that run ended and started the plugin anew,
+// one run per cancelled connect, with nobody waiting for it. Such a request now fails with
+// errLoginNotAsked and no process starts; a request that queued behind a run while another
+// connection asks for one may start it, and the run then serves that connection.
+//
 // client-go keeps one Authenticator per plugin configuration (its command, arguments and
 // environment, and the cluster when provideClusterInfo is set, exec.go:166–170): two contexts with
 // the same plugin configuration share one login, and it is held only while every connection using
@@ -52,12 +61,19 @@ var ErrLoginLapsed = errors.New("the login to the cluster lapsed and Cogpit does
 // mode: …") without keeping it as a cause, which is why the refusal is counted instead.
 var errPluginHeld = errors.New("cogpit holds the credential plugin while the cluster is not shown")
 
-// pluginHold is one Authenticator's hold: the connections that use it and whether each holds; and
-// its plugin's runs (loginrun.go, D-73).
+// errLoginNotAsked is what the wrapped interactiveFunc returns when no open connection asks for a
+// run: the ones that use the plugin were cancelled or closed (admit). client-go wraps it as it does
+// errPluginHeld.
+var errLoginNotAsked = errors.New("no connect or login under way asks for the credential plugin: " +
+	"the one that asked for it was cancelled or closed, so cogpit does not start it")
+
+// pluginHold is one Authenticator's hold: the connections that use it and what each asks; and its
+// plugin's runs (loginrun.go, D-73).
 type pluginHold struct {
 	mu        sync.Mutex
-	conns     map[*loginGuard]bool
+	conns     map[*loginGuard]connLogin
 	installed bool // the interactiveFunc is wrapped
+	notAsked  int  // runs refused because no connection asked for them (admit)
 
 	run     *pluginRun       // the run under way; nil while none is
 	last    *pluginRun       // the last run that ended
@@ -74,6 +90,15 @@ var (
 	holdWarnOnce  sync.Once
 	interactiveFn = reflect.TypeFor[func() (bool, error)]()
 )
+
+// connLogin is what one connection asks of its Authenticator's plugin.
+type connLogin struct {
+	held      bool // the engine holds the login (HoldLogin): no run for this connection
+	withdrawn bool // the user cancelled (CancelLogin): no run for it until ArmLogin
+}
+
+// asks reports whether the connection may have the plugin run.
+func (c connLogin) asks() bool { return !c.held && !c.withdrawn }
 
 // loginHold is a connection's part of its Authenticator's hold.
 type loginHold struct {
@@ -95,12 +120,12 @@ func registerLoginHold(cfg *rest.Config, g *loginGuard, bound time.Duration) *lo
 	patchMu.Lock()
 	p := holds[a]
 	if p == nil {
-		p = &pluginHold{conns: map[*loginGuard]bool{}}
+		p = &pluginHold{conns: map[*loginGuard]connLogin{}}
 		holds[a] = p
 	}
 	patchMu.Unlock()
 	p.mu.Lock()
-	p.conns[g] = false
+	p.conns[g] = connLogin{}
 	p.mu.Unlock()
 	p.configureRuns(cfg, g, bound)
 	h := &loginHold{a: a, p: p, g: g}
@@ -131,8 +156,9 @@ func (h *loginHold) install() bool {
 // set records whether the connection holds the login.
 func (h *loginHold) set(on bool) {
 	h.p.mu.Lock()
-	if _, ok := h.p.conns[h.g]; ok {
-		h.p.conns[h.g] = on
+	if st, ok := h.p.conns[h.g]; ok {
+		st.held = on
+		h.p.conns[h.g] = st
 	}
 	h.p.mu.Unlock()
 }
@@ -148,31 +174,50 @@ func (h *loginHold) drop() {
 	h.p.mu.Unlock()
 }
 
-// refuse reports whether the plugin is held: some connection uses the Authenticator and every one
-// holds it. Each is told, so that its request ends as ErrLoginLapsed. It runs under the
-// Authenticator's lock (inside refreshCredsLocked).
-func (p *pluginHold) refuse() bool {
+// admit decides whether client-go may start the plugin now; it runs under the Authenticator's lock
+// (inside refreshCredsLocked), before every run. A run starts only while some open connection asks
+// for one (connLogin.asks). Otherwise, while one still holds the login it fails with errPluginHeld
+// and each connection that holds counts the refusal (its request ends as ErrLoginLapsed); with none
+// (every connection that uses the plugin was cancelled or closed) with errLoginNotAsked. After
+// Cogpit ended a run, none starts until the user connects or logs in again (loginrun.go): the
+// LoginEndedError, counted for every connection.
+func (p *pluginHold) admit() error {
 	p.mu.Lock()
-	defer p.mu.Unlock()
-	if len(p.conns) == 0 {
-		return false
+	asks, held := false, false
+	for _, st := range p.conns {
+		asks = asks || st.asks()
+		held = held || (st.held && !st.withdrawn)
 	}
-	for _, held := range p.conns {
-		if !held {
-			return false
+	switch {
+	case !asks && held:
+		for g, st := range p.conns {
+			if st.held && !st.withdrawn {
+				g.lapses.Add(1)
+			}
 		}
+		p.mu.Unlock()
+		return errPluginHeld
+	case !asks:
+		p.notAsked++
+		program := p.program
+		p.mu.Unlock()
+		slog.Info("cluster: did not start a credential plugin: no connect or login under way asks for it", "program", program)
+		return errLoginNotAsked
+	case p.stopped != nil:
+		p.tellLocked(p.stopped)
+		e := p.stopped
+		p.mu.Unlock()
+		return e
 	}
-	for g := range p.conns {
-		g.lapses.Add(1)
-	}
-	return true
+	p.mu.Unlock()
+	return nil
 }
 
-// wrapInteractive sets a's unexported interactiveFunc to one that refuses while p holds the plugin,
-// or after Cogpit ended a run of it (loginrun.go), and otherwise asks the original and notes the run
-// client-go starts next; under a's own lock (client-go reads the field under it, in
-// refreshCredsLocked). It reports false, setting nothing, when the fields are not what client-go
-// v0.37.1 has, or a plugin run holds the lock right now.
+// wrapInteractive sets a's unexported interactiveFunc to one that refuses a run p does not admit
+// (the plugin held, no connection asking, or after Cogpit ended a run of it, loginrun.go), and
+// otherwise asks the original and notes the run client-go starts next; under a's own lock
+// (client-go reads the field under it, in refreshCredsLocked). It reports false, setting nothing,
+// when the fields are not what client-go v0.37.1 has, or a plugin run holds the lock right now.
 func wrapInteractive(a *exec.Authenticator, p *pluginHold) bool {
 	v := reflect.ValueOf(a).Elem()
 	field, lock := v.FieldByName("interactiveFunc"), v.FieldByName("mu")
@@ -195,10 +240,7 @@ func wrapInteractive(a *exec.Authenticator, p *pluginHold) bool {
 		return false
 	}
 	fn.Set(reflect.ValueOf(func() (bool, error) {
-		if p.refuse() {
-			return false, errPluginHeld
-		}
-		if err := p.refuseStopped(); err != nil { // Cogpit ended a run: none until the user asks (loginrun.go)
+		if err := p.admit(); err != nil {
 			return false, err
 		}
 		interactive, err := orig()

@@ -12,3 +12,7 @@ func signalPlugin(pid int, kill bool) error {
 	}
 	return syscall.Kill(pid, sig)
 }
+
+// canSignal reports whether Cogpit may signal process pid (a plugin that runs as another user, a
+// setuid program, may not be).
+func canSignal(pid int) bool { return syscall.Kill(pid, 0) == nil }

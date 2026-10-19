@@ -231,14 +231,17 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   (client-go runs the plugin without a context). Built: Disconnect (the window's **Cancel
   Connecting**, in the cluster's menus and on the connecting workspace) cancels a connect under way
   at once, a restore's background connect too, and ends the credential plugin's process it waits
-  for, found among Cogpit's child processes by its command line; every run of a plugin (a connect's,
+  for, found among Cogpit's child processes when the run began (since 2026-10-19, WF38: followed by
+  its number, so a wrapper that `exec`s is ended too; one not found is said to run on, and a
+  cancelled connect starts no run later); every run of a plugin (a connect's,
   a renewal's, Log in again's) is ended after 5 minutes, and none starts again until the user
   connects or logs in again; the connection carries `waitingForLogin` (program, since, until),
   shown in the workspace and the dot's tooltip, read by agents in `ui_state`; the connect's 15 s
   limit no longer counts the login (a browser login longer than it failed the connect after it had
   worked). **Missing:** a real OIDC plugin with a browser in a real window (the tests use shell
-  scripts that wait); the process lookup on Windows, compiled only; the plugin's children run on
-  ([H-118](../security/credentials.md#h-118-a-cancelled-logins-plugin-is-found-by-its-command-line-its-children-run-on));
+  scripts that wait); the process lookup on Windows, compiled only; the plugin's children run on,
+  and two runs that begin together are not always told apart
+  ([H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running));
   whether Log in again should start a waiting renewal over (the owner's question in D-73).
 - **Missing (2026-10-15):** the exec plugins' environment beyond the `PATH` stopgap
   (`cluster.EnsureToolPath` in [`cluster.go`](../../internal/cluster/cluster.go);
@@ -2533,10 +2536,8 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   alert board's copy icon shows late and flakily, at the card's far right; WF35 a followed log's
   resume marker after a sleep ("interrupted 11:10–11:10") does not say what happened; WF36 a log's
   text cannot be selected or copied; WF37 a succeeded Reconnect's entry in the connection log reads
-  as ending in "Connection interrupted"; WF38 a credential plugin that is a wrapper and `exec`s is
-  left running after Cancel Connecting while the log says Cogpit ended it, and connects cancelled
-  behind it start new runs later ([H-118](../security/credentials.md#h-118-a-cancelled-logins-plugin-is-found-by-its-command-line-its-children-run-on));
-  WF39 showing another cluster ends a connect that waits for its login without a word; **WF40 a
+  as ending in "Connection interrupted"; WF39 showing another cluster ends a connect that waits for
+  its login without a word; **WF40 a
   failed connect shows the cluster shown before again** (a safety matter: the user may act on a
   cluster he did not choose; the owner: never, the window stays on the failed one); WF41 a toast's
   text cannot be selected or copied; WF42 the disk image's name pills (a visual review with the
@@ -2544,6 +2545,15 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   finalizers to anyone who may read the namespace, checked live on kind), with a destructive
   Remove finalizers on one object (the owner's yes); WF44 the kubeconfig sources dialog has no
   button in the navigator; WF45 a removed cluster's hotbar tile stays. Estimate not moved.
+- **Found in the same walk (2026-10-19), WF38 (the lead's, W44):** a credential plugin that is a
+  wrapper and `exec`s was left running after Cancel Connecting while the log said Cogpit ended it,
+  and connects cancelled behind it started new runs later. Built 2026-10-19
+  ([D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound)): the
+  plugin's process is found at the run's begin and ended by its number and start time, a wrapper
+  that `exec`s included; the log and the error say "Cogpit ended" only then, otherwise "stopped
+  waiting … may run on"; a request of a cancelled connect starts no run
+  (`TestCancelEndsAPluginThatExecs`, `TestCancelledConnectsStartNoRunAfterAStrayOne`). What stays:
+  [H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running).
 - **Found by the owner (2026-10-18 evening), mgmt-p through Pinniped:** Lens showed the cluster's
   Prometheus, Cogpit did not. Cause (verified on the cluster, read only): the user's role grants the
   service proxy only for `prometheus-operated:9090` and `kube-prometheus-prometheus:9090`; Cogpit

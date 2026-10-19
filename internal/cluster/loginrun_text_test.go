@@ -41,9 +41,43 @@ func TestLoginEndedErrorText(t *testing.T) {
 		{&LoginEndedError{Program: "pinniped", Bound: time.Minute, Cause: ErrLoginTimedOut}, "the login through pinniped did not finish within 1 minute"},
 		{&LoginEndedError{Program: "pinniped", Bound: 1500 * time.Millisecond, Cause: ErrLoginTimedOut}, "the login through pinniped did not finish within 1.5s"},
 		{&LoginEndedError{Program: "kubelogin", Bound: 5 * time.Minute, Cause: ErrLoginCancelled}, "login cancelled: Cogpit ended kubelogin"},
+		// WF38: Cogpit says it ended the plugin only when it found and signalled its process.
+		{&LoginEndedError{Program: "walk-login.sh", Bound: 5 * time.Minute, Cause: ErrLoginCancelled, RunsOn: true},
+			"login cancelled: Cogpit stopped waiting for walk-login.sh; its process was not found and may run on"},
+		{&LoginEndedError{Program: "pinniped", Bound: 5 * time.Minute, Cause: ErrLoginTimedOut, RunsOn: true},
+			"the login through pinniped did not finish within 5 minutes; Cogpit stopped waiting for it; its process was not found and may run on"},
+		{&LoginEndedError{Program: "pinniped", Bound: 5 * time.Minute, Cause: ErrLoginCancelled, RunsOn: true, why: whyNotAllowed},
+			"login cancelled: Cogpit stopped waiting for pinniped; its process could not be signalled and may run on"},
 	} {
 		if got := tt.e.Error(); got != tt.want {
 			t.Errorf("%q, want %q", got, tt.want)
+		}
+	}
+}
+
+// The run's process is the one new child seen running the plugin's command line, else the one new
+// child in Cogpit's process group, each only when no other run began alongside that could have
+// started it (WF38).
+func TestDecideProcess(t *testing.T) {
+	plugin, other, shell := procID{pid: 10, start: 1}, procID{pid: 11, start: 2}, procID{pid: 12, start: 3}
+	for _, tt := range []struct {
+		name       string
+		seen       map[procID]*sighting
+		near, same bool
+		want       procID
+	}{
+		{"by its command line", map[procID]*sighting{plugin: {group: true, matched: true}, other: {group: true}}, false, false, plugin},
+		{"by its command line, another run alongside", map[procID]*sighting{plugin: {group: true, matched: true}}, true, false, plugin},
+		{"by its command line, the same command line alongside", map[procID]*sighting{plugin: {group: true, matched: true}}, true, true, procID{}},
+		{"two of the same command line", map[procID]*sighting{plugin: {matched: true}, other: {matched: true}}, false, false, procID{}},
+		{"a wrapper after its exec", map[procID]*sighting{plugin: {group: true}, shell: {}}, false, false, plugin},
+		{"a wrapper after its exec, another run alongside", map[procID]*sighting{plugin: {group: true}}, true, false, procID{}},
+		{"two new children in the group", map[procID]*sighting{plugin: {group: true}, other: {group: true}}, false, false, procID{}},
+		{"only a terminal's shell", map[procID]*sighting{shell: {}}, false, false, procID{}},
+		{"nothing new", map[procID]*sighting{}, false, false, procID{}},
+	} {
+		if got := decideProcess(tt.seen, tt.near, tt.same); got != tt.want {
+			t.Errorf("%s: %+v, want %+v", tt.name, got, tt.want)
 		}
 	}
 }

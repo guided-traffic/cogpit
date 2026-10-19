@@ -461,13 +461,13 @@ func (c *Conn) SetHealth(h Health) {
 
 // ArmLogin lets the next 401 Unauthorized reach client-go's credential plugin, which then runs once
 // to renew the login (the user's Log in again); a plugin whose run Cogpit ended (loginrun.go) may
-// run again.
+// run again, and a connection whose login the user cancelled (CancelLogin) asks for runs again.
 func (c *Conn) ArmLogin() {
 	if c.health != nil {
 		c.health.guard.armed.Store(true)
 	}
 	if c.hold != nil {
-		c.hold.p.rearm()
+		c.hold.p.rearm(c.hold.g)
 	}
 }
 

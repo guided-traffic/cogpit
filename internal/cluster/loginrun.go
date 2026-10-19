@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"path/filepath"
 	"slices"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -33,18 +32,22 @@ import (
 //     goroutine that takes the Authenticator's lock once the run let go of it notes its end;
 //   - a run that has not ended after its bound (Options.LoginTimeout, DefaultLoginTimeout), or that
 //     the user cancels (a cancelled Connect, Conn.CancelLogin, Conn.Close; Disconnect in the
-//     engine), is ended: Cogpit finds the plugin's process among its own child processes by its
-//     command line (pluginproc_*.go), sends it SIGTERM, and SIGKILL after killGrace if it still runs
-//     (TerminateProcess on Windows). Only the plugin's own process: it shares Cogpit's process group,
-//     so there is no group of its own to signal, and a browser it opened is no child of it (macOS's
-//     open hands the URL to the system) and is never ended;
+//     engine), is ended: Cogpit signals the plugin's process, found among its own child processes
+//     at the run's begin and followed by its number and start time (pluginproc.go), SIGTERM and
+//     SIGKILL after killGrace if it still runs (TerminateProcess on Windows). Only the plugin's own
+//     process: it shares Cogpit's process group, so there is no group of its own to signal, and a
+//     browser it opened is no child of it (macOS's open hands the URL to the system) and is never
+//     ended. A run whose process is not found Cogpit stops waiting for, and says so
+//     (LoginEndedError.RunsOn): its process may run on (H-118);
 //   - once Cogpit ended a run, the Authenticator starts the plugin no more until the user connects
 //     or logs in again (rearm): client-go would start it again for each request that waited behind
-//     the lock, a browser tab each. A request that needed it ends as a *LoginEndedError.
+//     the lock, a browser tab each. A request that needed it ends as a *LoginEndedError;
+//   - a connection the user cancelled or closed asks for no run (loginhold.go, admit): a request of
+//     it that waited behind the lock does not start the plugin once the run before it ended (WF38).
 //
 // A run serves every connection whose plugin configuration is the same (client-go keeps one
 // Authenticator for them, loginhold.go): a cancel ends it only when no other connection that does
-// not hold its login uses it; the bound ends it whoever waits.
+// not hold its login, and was not cancelled, uses it; the bound ends it whoever waits.
 
 // DefaultLoginTimeout bounds one run of a credential plugin (Options.LoginTimeout; the lead's
 // decision of the night run 2026-10-16/17, D-73): long enough for a browser login with a second
@@ -53,13 +56,6 @@ const DefaultLoginTimeout = 5 * time.Minute
 
 // killGrace is how long a plugin has to end after SIGTERM before SIGKILL.
 const killGrace = 3 * time.Second
-
-// findTries and findPause bound the search for a run's process: the run is noted just before
-// client-go starts it.
-const (
-	findTries = 20
-	findPause = 50 * time.Millisecond
-)
 
 // Why Cogpit ended a credential plugin's run (LoginEndedError.Cause).
 var (
@@ -71,18 +67,45 @@ var (
 
 // LoginEndedError ends a request that needed a credential plugin's run that Cogpit ended (Cause:
 // ErrLoginCancelled or ErrLoginTimedOut), or that Cogpit did not start again after it ended one,
-// until the user connects or logs in again. Its text names the program, never its arguments.
+// until the user connects or logs in again. Its text names the program, never its arguments, and
+// says "Cogpit ended" only when Cogpit found the run's process and signals it.
 type LoginEndedError struct {
 	Program string
 	Bound   time.Duration // the run's bound
 	Cause   error
+	// RunsOn: Cogpit stopped waiting for the run without ending its process, which it did not find
+	// among its children (or may not signal): the process may run on (H-118). The zero value is a
+	// run Cogpit ended.
+	RunsOn bool
+	why    string // why it runs on, in words; empty: whyNotFound
 }
 
 func (e *LoginEndedError) Error() string {
-	if errors.Is(e.Cause, ErrLoginTimedOut) {
-		return fmt.Sprintf("the login through %s did not finish within %s", e.Program, boundText(e.Bound))
+	if e.TimedOut() {
+		text := fmt.Sprintf("the login through %s did not finish within %s", e.Program, boundText(e.Bound))
+		if e.RunsOn {
+			text += "; Cogpit stopped waiting for it; " + e.runsOnText()
+		}
+		return text
 	}
-	return "login cancelled: Cogpit ended " + e.Program
+	return "login cancelled: " + e.endText()
+}
+
+// endText says what Cogpit did with the run's process: "Cogpit ended pinniped", or that it stopped
+// waiting for it and why the process may run on.
+func (e *LoginEndedError) endText() string {
+	if e.RunsOn {
+		return "Cogpit stopped waiting for " + e.Program + "; " + e.runsOnText()
+	}
+	return "Cogpit ended " + e.Program
+}
+
+func (e *LoginEndedError) runsOnText() string {
+	why := e.why
+	if why == "" {
+		why = whyNotFound
+	}
+	return why + " and may run on"
 }
 
 func (e *LoginEndedError) Unwrap() error { return e.Cause }
@@ -152,11 +175,13 @@ func (w *LoginWatch) Last() (run LoginRun, ended time.Time, endedBy *LoginEndedE
 // pluginRun is one run of an Authenticator's plugin.
 type pluginRun struct {
 	LoginRun
-	command []string      // the command line it runs, to find its process
-	done    chan struct{} // closed when it ended
-	timer   *time.Timer   // its bound
-	ended   time.Time     // when it ended
-	ending  *LoginEndedError
+	command  []string      // the command line it runs, to find its process
+	search   *procSearch   // its process, looked for from its begin (pluginproc.go)
+	done     chan struct{} // closed when it ended
+	timer    *time.Timer   // its bound
+	ended    time.Time     // when it ended
+	stopping bool          // Cogpit is ending it: its process is being looked for
+	ending   *LoginEndedError
 	// watches were told its begin: each is told its end too, also when its connection stopped
 	// using the plugin meanwhile (a cancelled connect unregisters before the run ends).
 	watches []*LoginWatch
@@ -198,8 +223,11 @@ func (p *pluginHold) current() (LoginRun, bool) {
 }
 
 // begin notes a run that client-go starts now. It runs inside refreshCredsLocked, under the
-// Authenticator's lock (lock), which client-go lets go once the plugin's process ended.
+// Authenticator's lock (lock), which client-go lets go once the plugin's process ended; Cogpit's
+// children are noted first, before client-go starts the plugin, so that its process is the one that
+// appears after (pluginproc.go).
 func (p *pluginHold) begin(lock *sync.Mutex) {
+	before := childSet()
 	now := time.Now()
 	p.mu.Lock()
 	var told []*LoginWatch
@@ -213,10 +241,12 @@ func (p *pluginHold) begin(lock *sync.Mutex) {
 	}
 	run := &pluginRun{LoginRun: LoginRun{Program: p.program, Since: now, Until: now.Add(bound)},
 		command: slices.Clone(p.command), done: make(chan struct{})}
-	run.timer = time.AfterFunc(bound, func() { p.end(run, ErrLoginTimedOut) })
+	run.search = newProcSearch(now, run.command, before)
+	run.timer = time.AfterFunc(bound, func() { _ = p.end(run, ErrLoginTimedOut) }) // the connections are told
 	p.run = run
 	run.watches = p.watchesLocked()
 	p.mu.Unlock()
+	go run.search.run(run.done)
 	notifyAll(unionWatches(told, run.watches))
 	go func() {
 		// refreshCredsLocked holds the Authenticator's lock until cmd.Run returned: taking it is
@@ -255,6 +285,7 @@ func (p *pluginHold) finishLocked(run *pluginRun, now time.Time) {
 	run.timer.Stop()
 	run.ended = now
 	close(run.done)
+	run.search.finished(now)
 	p.run = nil
 	p.last = run
 }
@@ -276,23 +307,39 @@ func notifyAll(watches []*LoginWatch) {
 	}
 }
 
-// end ends run for cause, unless it ended or is being ended: no run starts any more until rearm,
-// each connection using the plugin is told, and its process is ended.
-func (p *pluginHold) end(run *pluginRun, cause error) bool {
+// end ends run for cause, unless it ended or is being ended: its process is looked up first (it may
+// wait for the search of it, at most until searchWindow after the run's begin); then no run starts
+// any more until rearm, each connection using the plugin is told, and the process, if found, is
+// signalled. It returns what the connections were told: RunsOn when the process was not found;
+// nil when it ended nothing (the run ended by itself meanwhile, or is being ended).
+func (p *pluginHold) end(run *pluginRun, cause error) *LoginEndedError {
 	p.mu.Lock()
-	if p.run != run || run.ending != nil {
+	if p.run != run || run.ending != nil || run.stopping {
 		p.mu.Unlock()
-		return false
+		return nil
 	}
-	e := &LoginEndedError{Program: run.Program, Bound: run.Until.Sub(run.Since), Cause: cause}
+	run.stopping = true
+	p.mu.Unlock()
+	target, why := run.search.locate(run.done)
+	p.mu.Lock()
+	if p.run != run { // it answered or failed meanwhile, by itself
+		p.mu.Unlock()
+		return nil
+	}
+	e := &LoginEndedError{Program: run.Program, Bound: run.Until.Sub(run.Since), Cause: cause, RunsOn: why != "", why: why}
 	run.ending = e
 	p.stopped = e
-	p.tellLocked(e)
+	p.tellLocked(e) // before the signal: a request the plugin's end fails sees it
 	p.mu.Unlock()
-	slog.Warn("cluster: ending a credential plugin's login", "program", run.Program, "why", e.Error(),
-		"after", time.Since(run.Since).Round(time.Millisecond))
-	go endProcess(run)
-	return true
+	after := time.Since(run.Since).Round(time.Millisecond)
+	if e.RunsOn {
+		slog.Warn("cluster: stopped waiting for a credential plugin's login; its process may run on", "program", run.Program,
+			"why", e.Error(), "after", after)
+		return e
+	}
+	slog.Warn("cluster: ending a credential plugin's login", "program", run.Program, "why", e.Error(), "after", after)
+	go terminate(run, target)
+	return e
 }
 
 // tellLocked counts an ended or refused run for every connection that uses the plugin.
@@ -303,33 +350,30 @@ func (p *pluginHold) tellLocked(e *LoginEndedError) {
 	}
 }
 
-// refuseStopped is the error of a run asked for after Cogpit ended one, nil while runs may start.
-// It runs under the Authenticator's lock (inside refreshCredsLocked).
-func (p *pluginHold) refuseStopped() error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if p.stopped == nil {
-		return nil
-	}
-	p.tellLocked(p.stopped)
-	return p.stopped
-}
-
-// rearm lets the plugin run again: the user logs in again.
-func (p *pluginHold) rearm() {
+// rearm lets the plugin run again for connection g: its user logs in again.
+func (p *pluginHold) rearm(g *loginGuard) {
 	p.mu.Lock()
 	p.stopped = nil
+	if st, ok := p.conns[g]; ok {
+		st.withdrawn = false
+		p.conns[g] = st
+	}
 	p.mu.Unlock()
 }
 
-// cancelFor ends the run under way for connection g's cancel, unless another connection that does
-// not hold its login uses the plugin (the run serves it too).
+// cancelFor is connection g's cancel: g asks for no run any more (until rearm), and the run under
+// way is ended unless another connection that asks for runs uses the plugin (the run serves it
+// too). It reports whether Cogpit found the run's process and signals it.
 func (p *pluginHold) cancelFor(g *loginGuard) bool {
 	p.mu.Lock()
+	if st, ok := p.conns[g]; ok {
+		st.withdrawn = true
+		p.conns[g] = st
+	}
 	run := p.run
 	shared := false
-	for o, held := range p.conns {
-		if o != g && !held {
+	for o, st := range p.conns {
+		if o != g && st.asks() {
 			shared = true
 		}
 	}
@@ -337,7 +381,8 @@ func (p *pluginHold) cancelFor(g *loginGuard) bool {
 	if run == nil || shared {
 		return false
 	}
-	return p.end(run, ErrLoginCancelled)
+	e := p.end(run, ErrLoginCancelled)
+	return e != nil && !e.RunsOn
 }
 
 // lastSince is the last run that began at or after t: the one under way or the last that ended.
@@ -352,98 +397,6 @@ func (p *pluginHold) lastSince(t time.Time) (pluginRun, bool) {
 	return pluginRun{}, false
 }
 
-// endProcess ends run's process: SIGTERM, and SIGKILL after killGrace if the run has not ended,
-// both only to the process found by the plugin's command line among Cogpit's own children.
-func endProcess(run *pluginRun) {
-	defer func() {
-		if r := recover(); r != nil { // a crash is a bug, not a reason to end Cogpit (D-11)
-			slog.Error("cluster: ending a credential plugin failed", "program", run.Program, "panic", fmt.Sprint(r))
-		}
-	}()
-	pid := 0
-	for range findTries {
-		if pid = findPlugin(run.command); pid != 0 {
-			break
-		}
-		select {
-		case <-run.done:
-			return
-		case <-time.After(findPause):
-		}
-	}
-	if pid == 0 {
-		slog.Warn("cluster: the credential plugin's process was not found among Cogpit's; it runs on, and its login is not "+
-			"used until the user connects or logs in again", "program", run.Program)
-		return
-	}
-	if err := signalPlugin(pid, false); err != nil {
-		slog.Warn("cluster: cannot end the credential plugin", "program", run.Program, "pid", pid, "err", err)
-	}
-	select {
-	case <-run.done:
-		return
-	case <-time.After(killGrace):
-	}
-	if findPlugin(run.command) != pid { // it ended, or the number is another process's now
-		return
-	}
-	slog.Warn("cluster: the credential plugin did not end on SIGTERM; killing it", "program", run.Program, "pid", pid)
-	if err := signalPlugin(pid, true); err != nil {
-		slog.Warn("cluster: cannot kill the credential plugin", "program", run.Program, "pid", pid, "err", err)
-	}
-}
-
-// childProcess is one of Cogpit's child processes: its number and command line (argv, nil where the
-// system does not tell it) or its program's file name (exe, Windows).
-type childProcess struct {
-	pid  int
-	argv []string
-	exe  string
-}
-
-// findPlugin returns the number of the one child process of Cogpit's whose command line is
-// command's; 0 when there is none, or more than one (two runs of the same command line from
-// different plugin configurations are not told apart, and neither is ended).
-func findPlugin(command []string) int {
-	found := 0
-	for _, c := range childProcesses() {
-		if !c.runs(command) {
-			continue
-		}
-		if found != 0 {
-			return 0
-		}
-		found = c.pid
-	}
-	return found
-}
-
-// runs reports whether the process runs command: its arguments last, after the program (argv[0], or
-// a script's path after its interpreter, as the kernel starts a #! script); by the program's file
-// name where the command line is not known.
-func (c childProcess) runs(command []string) bool {
-	if len(command) == 0 {
-		return false
-	}
-	prog := filepath.Base(command[0])
-	if c.argv == nil {
-		exe := strings.TrimSuffix(strings.ToLower(c.exe), ".exe")
-		return exe != "" && exe == strings.TrimSuffix(strings.ToLower(prog), ".exe")
-	}
-	args := command[1:]
-	if len(c.argv) < len(command) || !slices.Equal(c.argv[len(c.argv)-len(args):], args) {
-		return false
-	}
-	ran := c.argv[len(c.argv)-len(args)-1]
-	if filepath.IsAbs(command[0]) && strings.ContainsRune(ran, filepath.Separator) {
-		// A program the kubeconfig names by its path runs under that path, a script's too (the
-		// kernel passes it to the interpreter as given): a program of the same name in another
-		// folder, a plugin of another context, is not it.
-		return filepath.Clean(ran) == filepath.Clean(command[0])
-	}
-	return ran == command[0] || filepath.Base(ran) == prog // a name looked up in PATH; a script's resolved path
-}
-
 // LoginRun returns the run of the connection's credential plugin that is under way, if one is: a
 // run serves every connection with the same plugin configuration, and each request of theirs that
 // needs the credential waits for it.
@@ -456,8 +409,11 @@ func (c *Conn) LoginRun() (LoginRun, bool) {
 
 // CancelLogin ends the run of the connection's credential plugin that is under way, as the user's
 // cancel: its process is ended and the plugin does not run again until the user connects or logs in
-// again (ArmLogin). A run that another open connection with the same plugin configuration needs
-// too, and that one does not hold, runs on. It reports whether it ended one.
+// again (ArmLogin); the connection asks for no run until then, so a request of it that still waits
+// behind the run starts none afterwards. A run that another open connection with the same plugin
+// configuration needs too, and that one does not hold, runs on. It reports whether it ended one:
+// false too when Cogpit only stopped waiting for a run whose process it did not find
+// (LoginEndedError.RunsOn).
 func (c *Conn) CancelLogin() bool {
 	if c == nil || c.hold == nil {
 		return false
@@ -514,10 +470,12 @@ func (c *Conn) traceLoginRun(start time.Time) {
 	}
 	took := end.Sub(run.Since)
 	switch {
+	case run.ending != nil && run.ending.TimedOut() && run.ending.RunsOn:
+		c.trace.timed(StepLogin, "Login: "+run.ending.Error(), took, true)
 	case run.ending != nil && run.ending.TimedOut():
 		c.trace.timed(StepLogin, "Login: "+run.ending.Error()+"; Cogpit ended it", took, true)
 	case run.ending != nil:
-		c.trace.timed(StepLogin, "Login cancelled: Cogpit ended "+run.Program, took, true)
+		c.trace.timed(StepLogin, "Login cancelled: "+run.ending.endText(), took, true)
 	case run.ended.IsZero():
 		c.trace.timed(StepLogin, "Login: "+run.Program+" still runs", took, true)
 	default:
