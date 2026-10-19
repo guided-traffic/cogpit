@@ -37,14 +37,12 @@ type state struct {
 	mu            sync.Mutex
 	closed        bool
 	connectSeq    uint64
-	connectCancel context.CancelCauseFunc // the shown connect's: errConnectSuperseded, errConnectCancelled (Disconnect)
+	connectCancel context.CancelCauseFunc // the window's connect's wait: errConnectSuperseded, errConnectCancelled (Disconnect)
 	pool          map[string]*pooled      // every connected backend, by context id (pool.go)
-	// background are the connects under way that show nothing (ConnectBackground, the restore of
-	// the last session), by context id: each channel closes when its connect ended; bgCancel
-	// cancels one (Disconnect, D-73).
-	background map[string]chan struct{}
-	bgCancel   map[string]context.CancelCauseFunc
-	bgGen      uint64 // the last background connect's number (backgroundGen)
+	// runs are the connects under way, by context id (connect_run.go, D-97): the one the window
+	// waits for and those in the background (the restore, or one the window stopped waiting for).
+	runs  map[string]*connectRun
+	bgGen uint64 // the last connection's number (newGenLocked)
 	// reconnects are the reconnects under way, by context id (reconnect.go, D-81): a disconnect
 	// ends one.
 	reconnects map[string]*reconnectRun
@@ -182,10 +180,10 @@ func (st *state) close() {
 	}
 	st.closed = true
 	if st.connectCancel != nil {
-		st.connectCancel(ErrClosed) // its credential plugin's run ends with it (D-73)
+		st.connectCancel(ErrClosed)
 	}
-	for _, cancel := range st.bgCancel {
-		cancel(ErrClosed)
+	for _, r := range st.runs {
+		r.cancel(ErrClosed) // its credential plugin's run ends with it (D-73)
 	}
 	st.detachViewsLocked()
 	var all []*Backend
@@ -256,8 +254,11 @@ func (s *Session) markClientCerts(list []ContextInfo) {
 // shown, from its cache, without a request (one whose login program changed since it was allowed
 // is connected anew, D-26); the cluster shown before stays connected, and the window's views on it
 // stop when the connect starts, so that UIState.Context always names the cluster the window shows.
-// A later Connect supersedes a pending one. The tab a connected cluster shows again comes with its
-// selection, without the objects gone meanwhile (DropGoneSelected).
+// The connect runs on its own (connect_run.go, D-97): a later Connect, or a Show, ends only this
+// wait, and the connect goes on in the background (ErrConnectInBackground); a failed connect leaves
+// the window on its cluster with the error, never on the cluster shown before. The tab a connected
+// cluster shows again comes with its selection, without the objects gone meanwhile
+// (DropGoneSelected).
 func (s *Session) Connect(ctx context.Context, name string) error {
 	if err := s.connect(ctx, name); err != nil {
 		return err
@@ -289,7 +290,9 @@ func (s *Session) connect(ctx context.Context, name string) error {
 		return ErrClosed
 	}
 	if st.connectCancel != nil {
-		st.connectCancel(errConnectSuperseded) // supersede a pending connect: it returns soon and leaves the UI alone
+		// The window's connect waiting so far stops waiting; its run goes on in the background
+		// (connect_run.go, D-97).
+		st.connectCancel(errConnectSuperseded)
 	}
 	st.connectSeq++
 	seq := st.connectSeq
@@ -299,11 +302,6 @@ func (s *Session) connect(ctx context.Context, name string) error {
 	st.connMu.Lock()
 	defer st.connMu.Unlock()
 	if !st.current(seq) {
-		return fmt.Errorf("connect %s: superseded by a newer connect", name)
-	}
-	// A connect of the restore that runs in the background for this context: its connection is
-	// the one to show, rather than a second connect beside it (connect_background.go).
-	if err := st.awaitBackground(cctx, name); err != nil {
 		return fmt.Errorf("connect %s: superseded by a newer connect", name)
 	}
 
@@ -318,6 +316,13 @@ func (s *Session) connect(ctx context.Context, name string) error {
 	}
 	stale := st.removeLocked(name) // its login program changed since it was allowed: connected anew (D-26)
 	st.leaveLocked()               // the cluster shown so far stays connected (D-69)
+	// The connect under way for the context, in the background (the restore, or one the window
+	// stopped waiting for), is the one to show; else a new one (connect_run.go).
+	run, fresh := st.runs[name], false
+	if run == nil {
+		run, fresh = st.newRunLocked(ctx, name, false), true
+	}
+	run.watchSeq = seq
 	st.mu.Unlock()
 	stale.close(s.log)
 	s.applyLoginHolds() // the cluster shown so far may hold its login now
@@ -325,114 +330,29 @@ func (s *Session) connect(ctx context.Context, name string) error {
 		if stale != nil {
 			u.dropConnection(name, 0)
 		}
+		conn := Connection{State: Connecting}
+		if c, ok := u.ConnectionOf(name); ok && c.Connection.State == Connecting {
+			conn.WaitingForLogin, conn.Reason = c.Connection.WaitingForLogin, c.Connection.Reason // what it waits for already
+		}
 		if u.Context != name {
 			u.leaveCluster() // no filter crosses to another cluster (WF20)
 		}
 		u.Context = name
-		u.Connection = Connection{State: Connecting}
+		u.Connection = conn
 		u.View = ""
 		u.Selected = nil
 		u.Drawer = nil
 		u.Filter = ""
 	})
-
-	// The connection log's attempt (connectlog.go, D-66): the connector and the cluster layer add
-	// their steps to it through the connect's context.
-	attempt := st.logs.begin(name, AttemptConnect, LogInfo, "Connecting to "+name)
-	steps := &connectSteps{logs: &st.logs, attempt: attempt}
-	if line := s.proxyLogLine(name); line != "" {
-		steps.step(LogInfo, cluster.StepProxy, line, 0) // the proxy of the cluster's settings, its password as ••• (proxy.go)
+	if fresh {
+		s.startConnectRun(run)
 	}
-	// The runs of its credential plugin: the UI state and the log say what it waits for (loginwait.go, D-73).
-	login := s.newLoginNotes(name, steps)
-	cctx = withLoginWatch(withConnectSteps(cctx, steps), login.lw)
-	var b *Backend
-	err := s.safeCall("connect", func() (err error) { b, err = connector.Connect(cctx, name); return err })
-	login.connected()
-	if err == nil && b == nil {
-		err = errors.New("the connector returned no cluster")
-	}
-	if err != nil {
-		if st.current(seq) {
-			st.logs.finish(attempt, OutcomeFailed, LogError, err.Error())
-			msg := err.Error()
-			s.UpdateUI(func(u *UIState) { u.Connection = Connection{State: ConnectError, Error: msg} })
-			s.settleGoneConnect(name, nil) // its context left Cogpit meanwhile: forget it (connect_gone.go)
-		} else {
-			finishLeftConnect(cctx, &st.logs, attempt, err)
-		}
-		return fmt.Errorf("connect %s: %w", name, err)
-	}
-	b.login = login
-	s.learnUser(cctx, name, b) // who the API server says the user is, never failing the connect (whoami.go, D-68)
-	s.learnVersion(b)          // its Kubernetes version and the Nodes list's check (k8sversion.go, D-91)
-
-	st.mu.Lock()
-	if st.closed || st.connectSeq != seq {
-		st.mu.Unlock()
-		b.close(s.log)
-		finishLeftConnect(cctx, &st.logs, attempt, nil)
-		return fmt.Errorf("connect %s: superseded by a newer connect", name)
-	}
-	if e := st.pool[b.Context]; e != nil {
-		// The connector named the cluster by a context id the pool holds already: that connection
-		// stays, with its streams, and is shown; the new one closes.
-		st.showLocked(e)
-		st.mu.Unlock()
-		b.close(s.log)
-		st.logs.finish(attempt, OutcomeAbandoned, LogInfo, "Connected already as "+b.Context)
-		s.showConnected(e.b, e.gen)
-		s.applyLoginHolds()
-		return nil
-	}
-	s.attachCustomKinds(b)
-	s.noteAccessReviews(b, steps) // their first answers, when they come (accessreviews.go)
-	s.attachAccess(b)
-	s.attachRefusals(b) // a refused read in all namespaces is followed, whoever sent it (accessiblens_plan.go)
-	if line := insecureLogLine(b); line != "" {
-		steps.step(LogWarn, cluster.StepTLS, line, 0) // insecure-skip-tls-verify (tlswarning.go)
-	}
-	b.watch = newConnWatch(s, b, seq) // nil for the demo cluster (connwatch.go, D-58)
-	s.noteNoAlertmanager(b)           // the pill hidden with the connection's first UI state (alerts.go)
-	logConnectedSteps(steps, b)
-	st.logs.finish(attempt, OutcomeOK, LogInfo, "Connected to "+name)
-	st.addLocked(&pooled{b: b, gen: seq})
-	st.shown = b
-	st.mu.Unlock()
-
-	view := defaultView(b)
-	sort := s.ViewSort(view)
-	s.UpdateUI(func(u *UIState) {
-		if u.Connection.State != Connecting {
-			return // b was closed since it was published: its file went (disconnectBackend, connect_gone.go)
-		}
-		if u.Context != b.Context {
-			u.leaveCluster() // no filter crosses to another cluster (WF20)
-		}
-		u.Context = b.Context
-		u.Connection = Connection{State: Connected, Demo: b.Demo, TLSUnchecked: tlsUnchecked(b), CredentialPlugin: b.CredentialPlugin} // tlswarning.go
-		// The connection's watch writes Connection from now on (connwatch.go).
-		u.connGen = seq
-		u.View = view
-		u.Sort = sort
-		u.Selected = nil
-		u.Drawer = nil
-		u.Filter = ""
-	})
-	b.watch.start()                   // nil-safe
-	s.applyLoginHolds()               // the shown cluster's login is renewed (connwatch_lapse.go)
-	s.settleGoneConnect(b.Context, b) // its file went or its source was removed meanwhile (connect_gone.go)
-	return nil
+	return s.awaitRun(cctx, run, seq)
 }
 
-// finishLeftConnect ends the attempt of a connect that is no longer the latest: cancelled by
-// Disconnect (Cancel Connecting, D-73), with how its login ended when it waited for one, or
-// superseded by a newer connect.
-func finishLeftConnect(cctx context.Context, logs *connectLogs, attempt *ConnectAttempt, err error) {
-	if !errors.Is(context.Cause(cctx), errConnectCancelled) {
-		logs.finish(attempt, OutcomeAbandoned, LogInfo, "Superseded by a newer connect")
-		return
-	}
+// finishCancelledConnect ends the attempt of a connect that Disconnect cancelled (Cancel
+// Connecting, D-73), with how its login ended when it waited for one.
+func finishCancelledConnect(logs *connectLogs, attempt *ConnectAttempt, err error) {
 	text := "Connecting cancelled (Disconnect)"
 	var ended *cluster.LoginEndedError
 	if errors.As(err, &ended) {

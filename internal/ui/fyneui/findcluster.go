@@ -15,6 +15,9 @@ const connectCommand = "cluster.connect"
 // command (a test fake) uses it as it is.
 const connectLabel = "Connect to Cluster"
 
+// connectAgainLabel is the button after a failed connect that connects its cluster again (D-97).
+const connectAgainLabel = "Connect Again"
+
 // Choosing a cluster (D-57, the owner's interview of 2026-10-15 evening): one list, the navigator's
 // section (navigator_sections.go), instead of the context picker that listed the same clusters a
 // second time. Every way that opened the picker shows the section with its search open and

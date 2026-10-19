@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -104,10 +105,16 @@ func registerCluster(g *registrar) {
 			"is only shown, from Cogpit's cache, without a request. Connecting only reads from the cluster. " +
 			"A context whose credential plugin, or whose connection without the certificate check (insecure-skip-tls-verify), " +
 			"the user has not allowed in Cogpit's window ends in state error saying so: only the user allows it there. " +
-			"Returns {context, state, error, tlsUnchecked}; state is connected or error; tlsUnchecked is set when the " +
+			"Returns {context, state, error, tlsUnchecked}; state is connected or error, or connecting when another cluster " +
+			"was shown while it waited (a login in a browser, say): the connect goes on in the background, its entry in " +
+			"ui_state's connections, cluster_disconnect with its context cancels it, and the window keeps showing the cluster " +
+			"chosen last. A failed connect leaves the window on its cluster with the error. tlsUnchecked is set when the " +
 			"connection does not check the server's certificate (ui_state's connection says the same while it stands).",
 		Run: func(ctx context.Context, s *engine.Session, p connectParams) (any, error) {
 			err := s.Connect(ctx, p.Context)
+			if errors.Is(err, engine.ErrConnectInBackground) {
+				return ConnectResult{Context: p.Context, State: engine.Connecting}, nil
+			}
 			u := s.UIState()
 			if err != nil && u.Connection.State != engine.ConnectError {
 				return nil, err // refused before connecting: no connector, closed, or superseded

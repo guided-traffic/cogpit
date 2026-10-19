@@ -195,8 +195,7 @@ func (h *hotbar) open(slot int) {
 				State   string `json:"state"`
 				Error   string `json:"error"`
 			}
-			// A window that went back to the cluster it showed said why already (clustermarks.go).
-			if decode(res, &out) == nil && out.State == string(engine.ConnectError) && !h.sh.wentBack(t.Context) {
+			if decode(res, &out) == nil && out.State == string(engine.ConnectError) {
 				h.sh.toast("error", "Could not connect to "+name+": "+out.Error)
 			}
 		})

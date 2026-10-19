@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"context"
 	"slices"
 	"time"
 )
@@ -22,7 +21,7 @@ func (s *Session) Disconnect() error { return s.DisconnectContext("") }
 //
 // A connect under way is cancelled at once (the window's Cancel Connecting, D-73): the credential
 // plugin it waits for, a browser login, is ended by the cluster layer, and the connect's attempt in
-// the log says "cancelled"; a background connect of the restore (connect_background.go) too.
+// the log says "cancelled"; a connect under way in the background (connect_run.go) too.
 //
 // A connect started after Disconnect wins: Disconnect then leaves the new connection alone.
 func (s *Session) DisconnectContext(contextID string) error {
@@ -42,12 +41,12 @@ func (s *Session) DisconnectContext(contextID string) error {
 	e := st.pool[contextID]
 	shown := (u.Context == contextID && activeConnection(u.Connection.State)) || (e != nil && st.shown == e.b)
 	if e == nil && !shown {
-		cancel, done := st.bgCancel[contextID], st.background[contextID]
+		r := st.runs[contextID]
 		st.mu.Unlock()
-		if cancel == nil {
+		if r == nil {
 			return &NotConnectedError{Context: contextID}
 		}
-		return s.cancelBackground(contextID, cancel, done)
+		return s.cancelBackground(contextID, r)
 	}
 	if !shown {
 		// Another connected cluster: the shown one and a connect under way are left alone. Decided
@@ -65,6 +64,9 @@ func (s *Session) DisconnectContext(contextID string) error {
 	if st.connectCancel != nil {
 		// A connect under way returns at once, its plugin ended (D-73), and leaves the UI alone.
 		st.connectCancel(errConnectCancelled)
+	}
+	if r := st.runs[contextID]; r != nil {
+		r.cancel(errConnectCancelled) // the connect run itself (connect_run.go)
 	}
 	st.connectSeq++
 	seq := st.connectSeq
@@ -98,12 +100,13 @@ func (s *Session) DisconnectContext(contextID string) error {
 // (the cluster layer ends its plugin within seconds).
 const backgroundCancelWait = 10 * time.Second
 
-// cancelBackground cancels a background connect of the restore under way (D-73) and waits for it
-// to end: its entry of Connections goes with it, and its attempt says "cancelled".
-func (s *Session) cancelBackground(contextID string, cancel context.CancelCauseFunc, done <-chan struct{}) error {
-	cancel(errConnectCancelled)
+// cancelBackground cancels a connect under way in the background (the restore's, or one the window
+// stopped waiting for, D-73, D-97) and waits for it to end: its entry of Connections goes with it,
+// and its attempt says "cancelled".
+func (s *Session) cancelBackground(contextID string, r *connectRun) error {
+	r.cancel(errConnectCancelled)
 	select {
-	case <-done:
+	case <-r.done:
 	case <-time.After(backgroundCancelWait):
 		s.log.Warn("engine: a cancelled background connect did not end in time", "context", contextID)
 	}

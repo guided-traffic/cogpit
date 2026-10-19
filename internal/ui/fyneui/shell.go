@@ -99,7 +99,6 @@ type shell struct {
 	tabs      *tabBar       // the tabs of cluster views above the workspace (tabbar.go)
 	kc        *kubeconfigUI // the kubeconfig sources' dialogs (kubeconfigs.go)
 	blink     *blinker      // the connection dots' one clock (conndot.go, F13)
-	switcher  clusterSwitch // the cluster shown before a connect, shown again when it fails (clustermarks.go, D-69)
 	settings  *settingsPage // Preferences and Cluster settings (preferences_page.go)
 	confirmer *guiConfirmer
 	conn      *connBanner  // an interrupted connection or an expired login, right below the top bar (connbanner.go, D-58)

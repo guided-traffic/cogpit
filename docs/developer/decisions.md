@@ -108,6 +108,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy) | The empty dock's toggle opens a terminal, and alert names copy | the owner's WF18 and WF21 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: `ui.toggleDock` on an empty dock opens a terminal tab for every origin (D-54 changed); an alertname's copy icon on hover |
 | [D-95](#d-95-the-window-comes-back-where-it-was) | The window comes back where it was | the owner's WF11 (2026-10-17): the window always opened at 1440 × 900 in the middle; built 2026-10-18 with the lead's decisions, open to revision: its last size, place, display and full screen at every start, whatever Restore the last session says, from `window.json` (written half a second after a change and at quit); the display found by id or name and the frame moved with it, else the one it overlaps most, fitted into its visible area; on no display the first start's window; full screen once Cogpit is active; Windows and Linux the size and full screen only; not engine state, no command |
 | [D-96](#d-96-the-service-proxys-port-spelled-by-its-number-first) | The service proxy's port spelled by its number first | the owner's mgmt-p finding (2026-10-18 evening) and his choice: Prometheus and Alertmanager asked as `<service>:<number>` first, then `<service>:<name>`; a refusal no longer ends detection; built 2026-10-18 |
+| [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | the owner's WF39 and WF40 of 2026-10-19: every connect a run of its own; showing another cluster ends only the window's wait, the connect goes on in the background with a toast at its end; a failed connect never shows the cluster shown before (the owner: "Immer"); built 2026-10-19 with the lead's decisions, open to revision |
 
 ## Decision round 2026-10-14 evening
 
@@ -6568,7 +6569,7 @@ is stage 2):
 |---|---|---|---|
 | A connect of a connected context | connect anew; only show it | only show it, except a login whose plugin changed (D-26), which connects anew | Item 1: no reconnect, the views at once. A changed plugin must be shown to the user first, which only a new connect does |
 | A cluster's proxy or approval changed while it is connected | reconnect on the next connect; apply after a Disconnect | after Disconnect and Connect (the Cluster Settings note says so) | A show must never drop the cluster's streams by itself; the connection open keeps its way, as the note said before |
-| A connect under way to another cluster | goes on in the background; superseded | superseded by the next connect or show, as before | The window shows one cluster; a background connect would run without a state the user sees |
+| A connect under way to another cluster | goes on in the background; superseded | superseded by the next connect or show, until 2026-10-19; since then it goes on in the background ([D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays), the owner's WF39) | The window shows one cluster; a background connect would run without a state the user sees. Replaced: stage 2 gave such a connect its blinking dot, waiting line and Cancel Connecting, and ending a browser login without a word cost the user the login |
 | A failed connect | the previous cluster shown again; the error shown | the error shown (the cluster tried is the shown one, `ConnectError`), the previous cluster stays connected behind it | The user asked for that cluster; the other is one click away and loses nothing |
 | `Connections` entries | connected clusters only; also the connect under way | also the connect under way (`connecting`, shown) | Stage 2's blinking mark needs it; a failed one leaves none |
 | How cold is known | the time since leaving; ask the cache | ask the cache at the end of its last warm period (`Cache.WarmUntil`), again if a release moved it | Cold means the informers are gone, which only the cache knows; one timer per left cluster, nothing polls |
@@ -6643,18 +6644,18 @@ several clusters connected for hours.
 - **Diagnostics** (item 3): a line per connected cluster under the summary, the shown one first,
   while more than one is connected: its API requests, open and warm watches, objects and memory
   (`DiagnosticsReport.Clusters`).
-- **A failed connect while another cluster was shown** (the lead's item 7 of stage 2): the window
-  shows the cluster it showed before again (`cluster.connect` of it, which only shows it,
-  `followSwitch`), one toast says why ("Could not connect to <name>: …"; the hotbar's own toast stays
-  away then), and the failed cluster's dots turn red. Without another connected cluster the failed
-  connect stays shown with its error, as before.
+- **A failed connect while another cluster was shown** (the lead's item 7 of stage 2, replaced
+  2026-10-19 by the owner's WF40, [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)):
+  the window stays on the failed cluster with its error, Connect Again and Show Connection Updates,
+  and its dots turn red; the cluster shown before stays connected behind it and is never shown by
+  itself. Until 2026-10-19 the window showed the cluster it showed before again, with a toast.
 - **`ConnectedCluster.LoginLapsed`** (JSON `loginLapsed`) added in [`connections.go`](../../internal/engine/connections.go)
   for the grey ring; stage 3 sets it.
 - **Tests:** in the engine `TestDockFollowsTheShownCluster`, `TestAHiddenClustersTabStaysInItsDock`,
   `TestDockMemoIsCloned`, and `TestDockActivateShowsTheTabsCluster` in the commands; in the window
   `TestDotsShowEachClustersMark`, `TestABackgroundReconnectBlinksItsDots`,
   `TestAConnectedClusterIsShownWithoutAReview`, `TestDisconnectInAClustersMenuNamesIt`,
-  `TestTabsGreyOnlyWithoutAConnection`, `TestAFailedConnectShowsTheClusterBefore`,
+  `TestTabsGreyOnlyWithoutAConnection`, `TestAFailedConnectStaysOnItsCluster` (until 2026-10-19 `TestAFailedConnectShowsTheClusterBefore`),
   `TestAFailedConnectWithoutAnotherClusterStays`, `TestWelcomeRowsShowTheConnectedClusters`,
   `TestDiagnosticsListsEachCluster`, `TestDockShowsTheShownClustersTabs`. PNGs: the hotbar's marks
   ([dark](../../internal/ui/fyneui/testdata/hotbar_marks_dark.png),
@@ -6680,10 +6681,10 @@ several clusters connected for hours.
 | `dock.activate` of a hidden cluster's tab | refuse; show its cluster | show its cluster first, never a connect | As `ui.navigate` shows the cluster of an object (stage 1) |
 | The dock's height | per cluster; the window's | the window's | A layout preference like the panels' widths, not engine state |
 | The dock before any cluster is shown | its own tabs only; every tab | every tab | Nothing to scope by; only the Audit Log can be there then |
-| A failed connect while another cluster was shown | the error shown (stage 1's choice); the cluster before shown again | shown again by the window, one toast, the failed cluster red | The lead's item 7 of stage 2 ("the shown cluster stays"); `cluster_connect`'s result still says `error`, so an agent learns the failure |
+| A failed connect while another cluster was shown | the error shown (stage 1's choice); the cluster before shown again | the error shown, on the failed cluster, its dots red (since 2026-10-19, the owner's WF40, [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays); until then the cluster before shown again, one toast) | The owner: a window that shows another cluster than the one the user chose, after a long login, invites acting on the wrong cluster; `cluster_connect`'s result says `error` |
 | Which hotbar tile is raised | every connected one; the shown one | the shown one; the others carry their mark | The raised tile says where the window is, the dots what is connected |
 | A connected cluster's menu item | Connect; Show | Show | It connects nothing |
-| A failed last connect on a hotbar tile | the shown cluster's only; every tile | every tile red while the connect log says the last attempt failed | Item 5's red "a connect failed" on every dot; it stays red once the window went back to the cluster before |
+| A failed last connect on a hotbar tile | the shown cluster's only; every tile | every tile red while the connect log says the last attempt failed | Item 5's red "a connect failed" on every dot; it stays red once another cluster is shown |
 | The grey ring's colour | the muted text colour; the not-connected grey | the not-connected grey (`status.unknown`) as a line | Grey says resting, the ring that the connection stands |
 | The ring's line | 1, 1.5 or 2 points | 1.5 points inside the 8-point dot | Readable at 1×; the dot's size unchanged |
 | Several states at once | — | red over the grey ring over blinking over the green ring over filled | What needs the user first; a cold cluster's reconnect blinks (item 7) |
@@ -8935,6 +8936,58 @@ Tests: `TestDetectTriesThePortsNumberThenName`, `TestDetectARefusedCandidateDoes
 permission" on mgmt-p whatever the spelling; each refused spelling is a 403 in the cluster's audit
 log, again at every detection (every 2 minutes while nothing is granted); not yet tried against
 mgmt-p from Cogpit's window.
+
+## D-97: A connect goes on when another cluster is shown; a failed one stays
+
+**The owner's findings (walk of 2026-10-19 on v0.26.1, verbatim).** WF39: "ich bin in den stage
+cluster gegangen und walk-login-hang blinkt hier nicht." — a connect that waited for its login was
+ended by showing another cluster ("Superseded by a newer connect", its plugin ended), its dot grey,
+without a word. WF40: "Er wurde rot, ist dann aber automatisch in meinen vorherigen cluster zurück
+gesprungen […] man wartet auf den Login, dieser dauert ewig, verlässt den Rechner und auf einmal
+ist man in einem anderen Cluster. A: man ist unaufmerksam und merkt es nicht. B: man hat vergessen,
+dass man sich gerade auf einen anderen Cluster verbinden wollte um etwas zu tun und vergisst das
+gleich mit." Asked whether only after a long wait or always: **"Immer"** — a failed connect never
+shows the cluster shown before; the window stays on the failed one with its error and a retry.
+Both replace lead decisions of [D-69](#d-69-several-clusters-connected-at-once) (stage 1: "a connect
+under way to another cluster: superseded"; stage 2, item 7: "a failed connect shows the cluster
+shown before again").
+
+**WF40, the owner's decision, built 2026-10-19:** a failed connect leaves the window on its cluster:
+`UIState.Context` names it, `Connection` is `error` with the message, its dots are red, the cluster
+shown before stays connected behind it. The workspace's placeholder says "Could not connect to
+<cluster>: <error>" with **Connect Again** (the welcome page's connect of that cluster, a credential
+plugin's review included) and **Show Connection Updates** (its connection log); the welcome page,
+when it shows, says it in its status line and its row's warning icon opens the log. The window's
+`followSwitch` and its memory of the cluster shown before are gone; a hotbar tile's failed connect
+says it in a toast as any failed connect from a tile did.
+
+**WF39, the lead's decisions, open to revision:**
+
+| Decision | Options weighed | Chosen | Why |
+|---|---|---|---|
+| A connect waiting for its login when the user shows or connects another cluster | end it (as built); ask before ending it; go on in the background | go on in the background: its entry of `Connections` stays `connecting`, its dot blinks, its waiting line is in the dot's tooltip, Cancel Connecting is in its menus; the window shows the cluster the user chose | Ending a browser login or an MFA push the user is in the middle of costs the login; a question in the way of every switch is noise; stage 2 and 3 already gave a connect nobody watches a state the user sees (the restore's), so D-69's reason for superseding is gone |
+| How it is built | keep the window's connect and detach it on a switch; make every connect a run of its own that the window's connect waits for | every connect a run of its own (`connectRun`, [`connect_run.go`](../../internal/engine/connect_run.go)), the restore's too: the window's connect starts one, or joins the one under way for that context, and waits; a switch ends only the wait | One path for the window's and the restore's connects; nothing holds the connect lock while a login waits, so a switch is at once; the wait, not the login, is what a switch supersedes |
+| When the run ends nobody waits for | connected silently; a toast | the cluster joins the pool as one the window left (its warm period, then cold), a toast "Connected to <cluster> in the background."; a failure says "Could not connect to <cluster>: …" in a toast, its entry gone; a cancel says nothing | The user left it waiting; the toast is the one place that says it came; the window's shown cluster never changes by itself |
+| Connecting a context again whose connect runs (in the background or shown) | a new connect beside it; join it | join it: the window shows it connecting with what it waits for, and shows its end | A second plugin run would race the first for the login (H-118); the user's second click means "show me that one" |
+| `cluster.connect`'s result when the user (or an agent) showed another cluster while it waited | an error ("superseded"); `connecting` | `{state: connecting}` without an error; the window shows no error toast | The connect did not fail, it goes on; an agent reads its end in `ui_state`'s `connections` and the connection log |
+| The caller's own context ends (an MCP request given up) | the run goes on; the run ends | the run ends with it, as the connect did before | Nothing else changes for agents; only the window's switch keeps a login alive |
+| The connection log of a run nobody waited for at its end | as any connect; marked | "Connected to <cluster> in the background: another cluster was shown meanwhile" (the restore's keeps "… in the background"); a cancel "Connecting cancelled (Disconnect)"; Cogpit's close "Ended: Cogpit closed"; "Superseded by a newer connect" no longer occurs for a connect | The log says where the connection came from |
+
+**Built 2026-10-19:** `connectRun` in [`connect_run.go`](../../internal/engine/connect_run.go) (`state.runs`
+replaces the restore's `background` and `bgCancel`), `Session.connect` and `ConnectBackground` on it,
+`DisconnectContext` cancelling a run in the background or the window's, `ConnectedCluster.running`
+(was `restoring`) keeping a run's entry while another cluster is shown, `ErrConnectInBackground`;
+the window's [`tableview.go`](../../internal/ui/fyneui/tableview.go) placeholder after a failed connect,
+[`clustermarks.go`](../../internal/ui/fyneui/clustermarks.go) without `followSwitch`. Tests:
+`TestShowingAnotherClusterLeavesTheConnectRunning`, `TestALeftConnectThatFailsSaysSo`,
+`TestConnectAgainJoinsTheRun`, `TestCancelALeftConnect`, `TestAFailedConnectStaysOnItsCluster` in the
+engine; `TestAFailedConnectStaysOnItsCluster` in the window; PNGs
+([dark](../../internal/ui/fyneui/testdata/connect_failed_stays_dark.png),
+[light](../../internal/ui/fyneui/testdata/connect_failed_stays_light.png)).
+
+**Not verified:** a real browser login (OIDC, Pinniped) left in the background and finished there;
+the walk's fake plugins on kind against this build; several runs in the background at once against
+real clusters.
 
 ## Revision history
 

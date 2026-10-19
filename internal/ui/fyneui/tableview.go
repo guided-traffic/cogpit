@@ -72,6 +72,7 @@ type tableView struct {
 	connectButton              *widget.Button
 	cancelButton               *widget.Button  // Cancel Connecting while connecting (D-73)
 	cancelBox                  *fyne.Container // cancelButton centred; hidden unless connecting
+	failedBox                  *fyne.Container // after a failed connect: Connect Again and Connection Updates (WF40, D-97)
 	create                     *createButton   // the floating "+" (createbutton.go)
 	root                       fyne.CanvasObject
 
@@ -156,8 +157,15 @@ func newTableView(sh *shell) *tableView {
 	tv.detailBox, tv.cancelBox = container.NewCenter(tv.placeholderDetail), container.NewCenter(tv.cancelButton)
 	tv.detailBox.Hide()
 	tv.cancelBox.Hide()
+	// A failed connect leaves the window on its cluster (D-97, the owner's WF40): its error, a
+	// connect again and its connection log at hand, never the cluster shown before.
+	retry := widget.NewButtonWithIcon(connectAgainLabel, theme.LoginIcon(), func() { sh.tabs.welcome.connect(sh.ui.Context) })
+	retry.Importance = widget.HighImportance
+	connLog := widget.NewButtonWithIcon(strings.TrimSuffix(connectLogItem, "…"), theme.ListIcon(), func() { sh.kc.showConnectLog(sh.ui.Context) })
+	tv.failedBox = container.NewCenter(container.NewHBox(retry, connLog))
+	tv.failedBox.Hide()
 	tv.placeholder = container.NewCenter(container.NewVBox(
-		container.NewCenter(tv.placeholderText), tv.detailBox, container.NewCenter(tv.connectButton), tv.cancelBox))
+		container.NewCenter(tv.placeholderText), tv.detailBox, container.NewCenter(tv.connectButton), tv.cancelBox, tv.failedBox))
 
 	tv.csvButton = widget.NewButtonWithIcon("", theme.DownloadIcon(), tv.exportCSV)
 	tv.csvButton.Importance = widget.LowImportance
@@ -373,7 +381,7 @@ func (tv *tableView) updateConnecting(ui engine.UIState) {
 func (tv *tableView) updatePlaceholder() {
 	ui := tv.sh.ui
 	msg := ""
-	connect := false
+	connect, failed := false, false
 	switch {
 	case ui.Connection.State == engine.Connecting:
 		msg = "Connecting to " + ui.Context + "…"
@@ -381,6 +389,7 @@ func (tv *tableView) updatePlaceholder() {
 		msg, connect = notConnected+".", true
 		if ui.Connection.State == engine.ConnectError && ui.Connection.Error != "" {
 			msg = "Could not connect to " + ui.Context + ": " + ui.Connection.Error
+			connect, failed = ui.Context == "", ui.Context != ""
 		}
 		if ui.Connection.State == engine.Disconnected && ui.Connection.Error != "" {
 			msg = ui.Connection.Error // Cogpit closed the connection: its kubeconfig file went away
@@ -401,6 +410,11 @@ func (tv *tableView) updatePlaceholder() {
 		tv.connectButton.Show()
 	} else {
 		tv.connectButton.Hide()
+	}
+	if failed {
+		tv.failedBox.Show()
+	} else {
+		tv.failedBox.Hide()
 	}
 	tv.updateConnecting(ui)
 	if msg == "" {

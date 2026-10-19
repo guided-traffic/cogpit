@@ -682,9 +682,15 @@ cluster clears it. Nothing polls and no request is sent for it (`TestSwitchingBa
 **LoginLapsed** (stage 3, 2026-10-16, D-69 item 4) is a cluster the window does not show whose login
 lapsed while its setting held its credential plugin: its `connection` stays `connected` with `since`
 and its reason, the watch's own state `stateLapsed` underneath ([`connwatch_lapse.go`](../../internal/engine/connwatch_lapse.go),
-§4.3's connection watch); showing it renews the login. An entry of a background connect of the
-restore (`ConnectBackground`) is `connecting` while it connects, kept by `syncConnections` through
-its unexported `restoring` mark.
+§4.3's connection watch); showing it renews the login. Since 2026-10-19 ([D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays))
+every connect is a run of its own ([`connect_run.go`](../../internal/engine/connect_run.go),
+`state.runs` by context): the window's connect (`Session.Connect`) starts one, or joins the one
+under way for the context, and waits for it, holding the connect lock only while it waits; the
+restore's `ConnectBackground` starts one nobody waits for. A later connect or show ends the wait
+(`errConnectSuperseded`), never the run, which then joins the pool as a cluster the window left
+with a toast, or says why it failed; Disconnect cancels the run itself. A run's entry is
+`connecting` while it runs, kept by `syncConnections` through its unexported `running` mark when
+another cluster is shown; a failed connect leaves `Context` on its cluster with `ConnectError`.
 
 A command's cluster ([`target.go`](../../internal/engine/target.go)) is the context its parameters
 name: an optional `context` (`engine.OnCluster`, embedded in the parameters of the commands that

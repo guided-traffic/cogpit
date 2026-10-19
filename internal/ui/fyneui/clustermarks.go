@@ -174,18 +174,11 @@ func connectionsChanged(st, old engine.UIState) bool {
 	})
 }
 
-// clusterSwitch is the window's memory of the cluster it showed, for a connect that fails while
-// another cluster was shown (D-69 stage 2, item 7): the window shows that cluster again.
-type clusterSwitch struct {
-	shown string // the last cluster the window showed connected
-	back  string // the cluster whose failed connect the window went back from, until the next connect
-}
-
 // clustersChanged follows the clusters after a change of the UI state: every dot's mark and blink,
 // the bars, the navigator and the hotbar's tiles when only a connected cluster's state changed (the
 // tab bar and the welcome page follow through tabsChanged), the contexts' failed connects after a
-// connect ended, and a failed connect while another cluster was shown. applyUIState calls it after
-// every change.
+// connect ended. A failed connect leaves the window on its cluster (D-97, the owner's WF40): the
+// window never shows another cluster by itself. applyUIState calls it after every change.
 func (sh *shell) clustersChanged(st, old engine.UIState, first bool) {
 	shownChanged := first || st.Context != old.Context || st.Connection != old.Connection
 	if connectionsChanged(st, old) && !shownChanged { // the shown cluster's change refreshes them already (connectionChanged, hot.stateChanged)
@@ -204,32 +197,4 @@ func (sh *shell) clustersChanged(st, old engine.UIState, first bool) {
 		sh.side.sec.load() // a connect ended: its contexts' failed connects (ContextInfo.ConnectProblem)
 		sh.tabs.welcome.reload()
 	}
-	sh.followSwitch(st, old)
 }
-
-// followSwitch remembers the cluster shown connected, and shows it again when a connect of another
-// cluster failed while it was shown and is still connected: the failed cluster's dots turn red and
-// a toast says why (the hotbar's own toast stays away then, hotbar.open).
-func (sh *shell) followSwitch(st, old engine.UIState) {
-	sw := &sh.switcher
-	if st.Context != "" && st.Connection.State.Live() {
-		sw.shown = st.Context
-		return
-	}
-	if st.Connection.State == engine.Connecting {
-		sw.back = ""
-	}
-	failed := st.Connection.State == engine.ConnectError && old.Connection.State != engine.ConnectError
-	prev := sw.shown
-	if !failed || prev == "" || prev == st.Context || !clusterConnected(st, prev) {
-		return
-	}
-	sw.back = st.Context
-	name := sh.identity(st.Context).name
-	sh.toast("error", "Could not connect to "+name+": "+st.Connection.Error)
-	sh.dispatch("cluster.connect", contextParams{Context: prev}, nil) // a connected cluster: only shown again
-}
-
-// wentBack reports whether the window showed the cluster before again after ctx's connect failed
-// (followSwitch), which said why in its own toast.
-func (sh *shell) wentBack(ctx string) bool { return ctx != "" && sh.switcher.back == ctx }

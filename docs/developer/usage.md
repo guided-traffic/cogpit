@@ -640,8 +640,17 @@ F-key), its row in All Clusters or on the welcome page, or one of its tabs: it s
 Cogpit's cache, without asking the cluster or showing its login program again. A cluster that is not
 connected connects and shows; the others stay connected. A connected cluster's menu (right-click on
 its tile or row) says **Show** instead of Connect, and **Disconnect** there closes that cluster
-alone. If a connect fails while another cluster was shown, Cogpit shows that cluster again and a
-toast says why; the cluster that failed turns red.
+alone. A connect that fails leaves the window on that cluster (since 2026-10-19, [D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)):
+"Could not connect to <cluster>: …" with **Connect Again** and **Show Connection Updates**, its dot
+red; Cogpit never shows another cluster by itself, so you never come back to a window that shows a
+cluster you did not choose. The cluster shown before stays connected; click it to go back.
+
+Showing another cluster while one connects (it waits for your login in a browser, say) does not end
+that connect (since 2026-10-19, D-97): it goes on in the background, its dot blinking, its tooltip
+saying what it waits for, **Cancel Connecting** in its menus. When it is done, a toast says
+"Connected to <cluster> in the background." (or why it failed) and the window stays where you are;
+click the cluster to show it. Clicking a cluster that connects in the background shows it connecting
+and waits for that same connect, without starting the login a second time.
 
 Every dot of a cluster (its hotbar tile, its row in the navigator and on the welcome page, the top
 bar and the status bar for the one shown) says how it is; its tooltip names the state, a click on it
@@ -753,7 +762,8 @@ waits for you to finish there. While it waits:
   **Cancel Connecting** button. The cluster's dot keeps blinking; its tooltip says the same.
 - **Cancel Connecting** is also in the window's Cluster menu and in every menu of the cluster (its
   navigator rows, its hotbar tile, its welcome-page row) in place of Disconnect while it connects,
-  a cluster connecting in the background (restoring the last session) included. It ends the
+  a cluster connecting in the background (restoring the last session, or one you left to show
+  another cluster, D-97) included. It ends the
   connect at once and the login program Cogpit started for it; the cluster is not connected, and
   its connection updates say "cancelled". **Connect** starts the login again, a new browser tab
   included. A browser window the program opened stays open: close it yourself.
@@ -773,6 +783,8 @@ program runs, and while connecting `connection.reason` "waiting for the login th
 may wait for you to log in, in a browser". `cluster_disconnect` of a connecting cluster (its
 `context` for one connecting in the background) cancels the connect as the window's Cancel
 Connecting does; agents may run it without asking you (it stops only what your connect started).
+`cluster_connect` answers `connecting` when another cluster was shown while it waited: the connect
+goes on in the background, and its end is in `ui_state`'s `connections` and its connection updates.
 
 ### Connection Updates: the connection log
 

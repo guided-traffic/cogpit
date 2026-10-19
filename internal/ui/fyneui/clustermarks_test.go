@@ -323,9 +323,10 @@ func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 	q.until(t, "the greyed tab", func() bool { return !sh.tabs.shown[1].live })
 }
 
-// A connect that fails while another cluster was shown shows that cluster again (D-69 stage 2, item
-// 7): one toast says why, the failed cluster's dots turn red, the cluster shown before stays.
-func TestAFailedConnectShowsTheClusterBefore(t *testing.T) {
+// A connect that fails while another cluster was shown leaves the window on the failed cluster
+// (D-97, the owner's WF40: "Immer"): its error with Connect Again and Connection Updates, its dots
+// red, nothing connected or shown by itself; the cluster shown before stays connected behind it.
+func TestAFailedConnectStaysOnItsCluster(t *testing.T) {
 	sh, _, q, f, _ := marksScene(t, ThemeDark, false)
 	f.update(func(u *engine.UIState) { // a connect to qa-eu-west starts: kind-cogpit stays connected behind it
 		u.Context, u.Connection = cFailed, engine.Connection{State: engine.Connecting}
@@ -337,19 +338,42 @@ func TestAFailedConnectShowsTheClusterBefore(t *testing.T) {
 	f.update(func(u *engine.UIState) {
 		u.Connection = engine.Connection{State: engine.ConnectError, Error: "dial tcp 10.0.0.9:6443: connect: connection refused"}
 	})
-	q.until(t, "the shown cluster again", func() bool { return sh.ui.Context == cShown && sh.ui.Connection.State == engine.Connected })
-	calls := f.callsOf("cluster.connect")
-	if len(calls) != 1 || decodeParams[contextParams](t, calls[0]).Context != cShown {
-		t.Errorf("cluster.connect %v", calls)
-	}
-	if got := toastTexts(sh); strings.Count(got, "Could not connect to qa-eu-west: dial tcp 10.0.0.9:6443") != 1 {
-		t.Errorf("toasts %q", got)
+	q.until(t, "the error", func() bool { return sh.ui.Connection.State == engine.ConnectError })
+	q.drain()
+	if calls := f.callsOf("cluster.connect"); len(calls) != 0 || sh.ui.Context != cFailed {
+		t.Errorf("cluster.connect %v, shown %q", calls, sh.ui.Context)
 	}
 	q.until(t, "the failed tile red", func() bool { return tileOf(sh, cFailed) != nil })
 	checkMark(t, tileDot(tileOf(sh, cFailed)), colorStatusError, false, "the failed cluster's tile")
-	if !sh.wentBack(cFailed) {
-		t.Error("the window does not know it went back")
+	if !sh.view.failedBox.Visible() || sh.view.connectButton.Visible() {
+		t.Error("the failed connect's buttons are not shown")
 	}
+	if got := sh.view.placeholderText.text; !strings.Contains(got, "Could not connect to "+cFailed) {
+		t.Errorf("placeholder %q", got)
+	}
+}
+
+// renderFailedConnect draws the window after a connect failed while another cluster was shown: the
+// window on the failed cluster, its error, Connect Again and Connection Updates (D-97).
+func renderFailedConnect(t *testing.T, mode ThemeMode, name string) {
+	sh, w, q, f, _ := marksScene(t, mode, false)
+	f.update(func(u *engine.UIState) {
+		u.Context, u.Connection = cFailed, engine.Connection{State: engine.ConnectError, Error: "the login through walk-login.sh did not finish within 5 minutes; Cogpit ended it"}
+		for i := range u.Connections {
+			u.Connections[i].Shown = false
+		}
+		u.View = ""
+	})
+	q.until(t, "the error", func() bool { return sh.view.failedBox.Visible() })
+	savePNG(t, w, name)
+}
+
+func TestRenderAFailedConnectStaysDark(t *testing.T) {
+	renderFailedConnect(t, ThemeDark, "connect_failed_stays_dark.png")
+}
+
+func TestRenderAFailedConnectStaysLight(t *testing.T) {
+	renderFailedConnect(t, ThemeLight, "connect_failed_stays_light.png")
 }
 
 // Without another connected cluster a failed connect stays shown, as before: the welcome page says

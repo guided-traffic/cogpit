@@ -30,8 +30,8 @@ type ConnectedCluster struct {
 	// in again (cluster.login with its context), renews the login.
 	LoginLapsed bool `json:"loginLapsed,omitempty"`
 
-	gen       uint64 // the connect that made it (pooled.gen): a watch writes only its own connection's state
-	restoring bool   // a connect of the restore of the last session, in the background (connect_background.go)
+	gen     uint64 // the connect that made it (pooled.gen): a watch writes only its own connection's state
+	running bool   // its connect runs (connect_run.go): connecting, it stays when another cluster is shown
 }
 
 // connectionIndex returns the index of a context's entry of Connections, made by the connect gen
@@ -78,16 +78,17 @@ func (u *UIState) dropConnection(contextID string, gen uint64) {
 
 // syncConnections keeps Connections in step with the shown cluster after every change (UpdateUI):
 // the entry of the cluster the window shows, or connects, says Shown, mirrors Connection and is
-// not cold; a connect under way has an entry of its own; one that ended without a connection
-// (failed, superseded) leaves none. The engine adds the entries of connections and removes those
-// of disconnects itself; the connection watches write the others' states (connwatch.go).
+// not cold; a connect under way has an entry of its own, which stays while another cluster is
+// shown (connect_run.go, D-97); one that ended without a connection leaves none. The engine adds
+// the entries of connections and removes those of disconnects itself; the connection watches write
+// the others' states (connwatch.go).
 func (u *UIState) syncConnections() {
 	shownID := ""
 	if u.Context != "" && activeConnection(u.Connection.State) {
 		shownID = u.Context
 	}
 	u.Connections = slices.DeleteFunc(u.Connections, func(c ConnectedCluster) bool {
-		return c.Connection.State == Connecting && c.Context != shownID && !c.restoring
+		return c.Connection.State == Connecting && c.Context != shownID && !c.running
 	})
 	found := false
 	for i := range u.Connections {
@@ -97,9 +98,12 @@ func (u *UIState) syncConnections() {
 			continue
 		}
 		found = true
-		c.Connection, c.Cold, c.restoring = u.Connection, false, false
+		if u.Connection.State == Connecting && c.gen != 0 && c.Connection.State.Live() {
+			continue // its connect run connected: the connect waiting for it shows it next (awaitRun)
+		}
+		c.Connection, c.Cold = u.Connection, false
 		if u.Connection.State.Live() {
-			c.gen = u.connGen
+			c.gen, c.running = u.connGen, false
 		}
 	}
 	if !found && shownID != "" {
