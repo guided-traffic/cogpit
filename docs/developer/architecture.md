@@ -1430,8 +1430,9 @@ interruption closes after marking the tab `DockTab.Interrupted`; `dock.reconnect
 and counts `DockTab.Session`, and the window opens a new session in the tab; a node shell's pod is
 kept for it (deleted only when the connection answered, `settle`). A pod's followed log
 ([`logsresume.go`](../../internal/engine/logsresume.go)) and a workload's container streams wait in
-`connWatch.await` (a check at once, then until reconnected), write `[cogpit] — interrupted
-14:03–14:07 —` and open again from the newest line's time, the lines they have left out. Port
+`connWatch.await` (a check at once, then until reconnected), write `[cogpit] ── no connection
+14:03:12 – 14:07:40 CEST (4 min 28 s) · …` (from the last line that arrived, `logCursor.seen`, to
+the reconnect; WF35) and open again from the newest line's time, the lines they have left out. Port
 forwards do not dial while the connection is not connected and dial at once when it is
 (`forwardRun.awaitConnection`), and an interruption ends their tunnel. A Helm action's context is
 `Session.OperationContext`, which ends with `ErrConnectionLost`, and a drain's is its job's, which

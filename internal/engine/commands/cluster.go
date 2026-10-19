@@ -75,10 +75,10 @@ func registerCluster(g *registrar) {
 
 	add(g, engine.Spec[connectLogParams]{
 		ID: "cluster.connectLog", Label: "Show Connection Updates", Danger: engine.DangerRead,
-		Description: "Returns a context's connection log. attempts: every connect, reconnect, login and disconnect kept " +
-			"(7 days, at most 1 MiB per context, also from earlier runs), newest first, each with its kind, start, end, " +
-			"duration (tookMs), outcome (ok, failed, abandoned; empty and running:true while it runs, empty otherwise when " +
-			"Cogpit stopped first) and lines: a time, a level (INFO, WARN or ERROR), a text, the step it documents (kubeconfig, " +
+		Description: "Returns a context's connection log. attempts: every connect, reconnect, login, disconnect and " +
+			"interruption kept (7 days, at most 1 MiB per context, also from earlier runs), newest first, each with its kind, " +
+			"start, end, duration (tookMs), outcome (ok, failed, abandoned, cancelled, interrupted for an interruption, whose " +
+			"reconnect is the next attempt; empty and running:true while it runs, empty otherwise when Cogpit stopped first) and lines: a time, a level (INFO, WARN or ERROR), a text, the step it documents (kubeconfig, " +
 			"server, login, tls, proxy, answer, discovery, cache, access, heartbeat, error, plugin) and its duration. A failed " +
 			"step is followed by its error picture (class, HTTP status, the presented certificate's public facts, the error " +
 			"chain) and, for a credential plugin that failed, its standard error, scrubbed and cut to 4 KiB. lines: this " +

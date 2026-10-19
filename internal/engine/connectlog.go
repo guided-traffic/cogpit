@@ -48,6 +48,10 @@ const (
 	AttemptReconnect  = "reconnect"
 	AttemptLogin      = "login"
 	AttemptDisconnect = "disconnect"
+	// AttemptInterruption is a connection's interruption with its cause, an entry of its own that
+	// ends at once (OutcomeInterrupted); the reconnect after it is the next attempt (the owner's
+	// WF37 of 2026-10-19: a reconnect that succeeded read as ending in "Connection interrupted").
+	AttemptInterruption = "interruption"
 )
 
 // Outcomes of an attempt (ConnectAttempt.Outcome); empty while it runs, or when Cogpit stopped
@@ -57,6 +61,8 @@ const (
 	OutcomeFailed    = "failed"
 	OutcomeAbandoned = "abandoned" // a newer attempt began before it ended
 	OutcomeCancelled = "cancelled" // the user cancelled it (Disconnect of a connect under way, D-73)
+	// OutcomeInterrupted ends an AttemptInterruption: the connection was lost, a reconnect follows.
+	OutcomeInterrupted = "interrupted"
 )
 
 const (
@@ -87,13 +93,13 @@ type ConnectLogLine struct {
 
 // ConnectAttempt is one attempt of a context's connection log.
 type ConnectAttempt struct {
-	Kind    string    `json:"kind"` // AttemptConnect, AttemptReconnect, AttemptLogin, AttemptDisconnect
+	Kind    string    `json:"kind"` // AttemptConnect, AttemptReconnect, AttemptLogin, AttemptDisconnect, AttemptInterruption
 	Context string    `json:"context"`
 	Start   time.Time `json:"start"`
 	End     time.Time `json:"end,omitzero"`
 	// TookMS is End − Start in milliseconds, once it ended.
 	TookMS  int64  `json:"tookMs,omitempty"`
-	Outcome string `json:"outcome,omitempty"` // OutcomeOK, OutcomeFailed, OutcomeAbandoned, OutcomeCancelled; empty: see Running
+	Outcome string `json:"outcome,omitempty"` // OutcomeOK, OutcomeFailed, OutcomeAbandoned, OutcomeCancelled, OutcomeInterrupted; empty: see Running
 	// Running: this session's attempt has not ended yet. An attempt without an outcome that is not
 	// running ended when Cogpit stopped (a quit or a crash).
 	Running bool             `json:"running,omitempty"`

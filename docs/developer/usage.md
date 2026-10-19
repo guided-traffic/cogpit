@@ -697,8 +697,11 @@ interrupted cluster in the background disables the changes to it only, and its s
   then every 30 seconds, for as long as the window is open. Back, the dot stops blinking (after
   three blinks at least, so that a quick reconnect is seen too) and stays green, a notification says
   how long it was away, and the views catch up. Connecting to a cluster blinks the same way.
-- A followed log goes on by itself after a line `[cogpit] — interrupted 14:03–14:07 —`, from where it
-  stopped. A port forward waits and connects again at once. A pod shell, a node shell or an attach
+- A followed log goes on by itself after a line `[cogpit] ── no connection 11:00:05 – 11:10:07 CEST
+  (10 min 2 s) · the log was read again from its last line: what was written meanwhile follows ──`,
+  from where it stopped: the times are when the last line arrived and when the connection was back,
+  with seconds and your time zone (the log's own lines may print another), and the lines the
+  container wrote meanwhile come after it. A port forward waits and connects again at once. A pod shell, a node shell or an attach
   ends (a process cannot be resumed): its tab says so and offers **Reconnect**, which opens a new
   one in the same tab once the cluster answers. A local terminal is not affected.
 - A drain or a Helm install, upgrade or rollback that was running stops, as after a crash (a drain's
@@ -800,6 +803,13 @@ menu), for any context, connected or not; one with nothing recorded says so.
   lines follow in the order they happened: time of day, INFO, WARN or ERROR, the text and how long
   the step took. A login program that waits writes when it began and when Cogpit ends it, then how
   long it took or that Cogpit ended it (D-73).
+- A connection that was lost has an entry of its own, **Interruption**, with what went wrong (in
+  orange: "the connection was lost"); the **Reconnect** after it is the entry above, with its own
+  steps, ending in "Reconnected to … after 55 ms" when it worked (since 2026-10-19, the owner's
+  WF37: before, the reconnect's entry began with the interruption's lines and read as if it ended
+  in them). Durations are written one way everywhere: "55 ms", "2.4 s", "10 min 2 s".
+- What you did yourself is not an error: Cancel Connecting writes INFO lines and "cancelled",
+  removing a kubeconfig source or Remove from Cogpit a disconnect (since 2026-10-19).
 - A connect lists the kubeconfig file and context, the API server, how you log in (a client
   certificate by its name and expiry, a token "not shown", a login program by its name and
   whether you allowed it), how the server's certificate is checked, the proxy, the first answer

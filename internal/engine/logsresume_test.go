@@ -57,7 +57,7 @@ func TestAPodLogBrokenAfterTheReconnectResumes(t *testing.T) {
 	waitState(t, s, Connected)
 	srv.drop(key) // the stream breaks only now, after the reconnect
 	srv.add(key, t0.Add(2*time.Second), "while it slept")
-	if l := next("the marker"); !strings.Contains(l, "interrupted") {
+	if l := next("the marker"); !strings.Contains(l, interruptedMarkerStart) {
 		t.Fatalf("after the break: %q, want the interruption's marker", l)
 	}
 	if l := next("the line after the sleep"); !strings.HasSuffix(l, "while it slept") {

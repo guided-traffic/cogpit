@@ -28,6 +28,10 @@ const (
 type connectSteps struct {
 	logs    *connectLogs
 	attempt *ConnectAttempt
+	// cancelled reports whether the user cancelled the connect (Cancel Connecting, D-73): the
+	// steps it ended are the user's own act, written INFO, not ERROR (D-66 keeps ERROR for a
+	// connect that failed; the lead's note of the walk of 2026-10-19). Nil: never.
+	cancelled func() bool
 }
 
 // cluster records one of the cluster layer's steps.
@@ -37,6 +41,7 @@ func (r *connectSteps) cluster(st cluster.ConnectStep) {
 	}
 	level := LogInfo
 	switch {
+	case (st.Failed || st.Warn) && r.cancelled != nil && r.cancelled():
 	case st.Failed:
 		level = LogError
 	case st.Warn:

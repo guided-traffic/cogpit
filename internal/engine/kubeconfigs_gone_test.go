@@ -175,6 +175,11 @@ func TestConnectionClosesWhenItsSourceIsRemoved(t *testing.T) {
 	if g.s.CloseGoneSourceConnection() {
 		t.Error("closed twice")
 	}
+	// The user's own act: an INFO line and a disconnect, not an error (the walk of 2026-10-19).
+	got, _ := g.s.ConnectAttempts("a", 1)
+	if len(got) != 1 || got[0].Kind != AttemptDisconnect || got[0].Outcome != OutcomeOK || strings.Contains(attemptText(got[0]), "ERROR") {
+		t.Errorf("the source's removal in the log: %+v", got)
+	}
 }
 
 // TestGoneFileDoesNotTouchANewerConnect: a connection to another context started after the file
@@ -186,10 +191,10 @@ func TestGoneFileDoesNotTouchANewerConnect(t *testing.T) {
 	if err := g.s.Connect(context.Background(), "test"); err != nil {
 		t.Fatal(err)
 	}
-	if !g.s.disconnectBackend(b, "late") {
+	if !g.s.disconnectBackend(b, "late", false) {
 		t.Error("the background connection of the gone file stayed")
 	}
-	if g.s.disconnectBackend(b, "late") {
+	if g.s.disconnectBackend(b, "late", false) {
 		t.Error("closed twice")
 	}
 	ui := g.s.UIState()

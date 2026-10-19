@@ -452,7 +452,8 @@ const workloadLogSteady = 30 * time.Second
 type logCursor struct {
 	last  time.Time
 	atIt  int
-	lines int // lines written, with or without a timestamp
+	lines int       // lines written, with or without a timestamp
+	seen  time.Time // when the last line written arrived, by Cogpit's clock (interruptedMarker)
 }
 
 // stream copies one container's log into the merged stream, line by line, each with its prefix.
@@ -541,7 +542,7 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 			return
 		}
 		if !from.IsZero() {
-			if !wl.write(NoticePrefix, []byte(prefix+": "+wl.s.interruptedMarker(from, to))) {
+			if !wl.write(NoticePrefix, []byte(prefix+": "+wl.s.interruptedMarker(from, to, cur.seen))) {
 				return
 			}
 			drops = 0
@@ -612,6 +613,7 @@ func (wl *workloadLogs) copyLines(rc io.Reader, prefix string, cur *logCursor, g
 			}
 			fresh++
 			cur.lines++
+			cur.seen = wl.s.Now()
 		}
 		for full { // the rest of a line longer than the bound is dropped
 			_, err = br.ReadSlice('\n')

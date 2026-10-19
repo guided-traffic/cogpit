@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"time"
 
@@ -11,16 +12,35 @@ import (
 )
 
 // A pod's followed log goes on after an interrupted connection (D-58, S7): when its stream ends
-// with the connection, it waits until the connection is back, writes a marker line ("[cogpit] —
-// interrupted 14:03–14:07 —") and opens the log again from the last line's time (sinceTime), the
-// lines it has already written left out. A stream that ends while the connection works ends the
+// with the connection, it waits until the connection is back, writes a marker line ("[cogpit] ──
+// no connection 14:03:12 – 14:07:40 CEST (4 min 28 s) · …") and opens the log again from the last
+// line's time (sinceTime), the lines it has already written left out. A stream that ends while the connection works ends the
 // tab's log as before. A controlling resource's logs resume the same way (workloadlogs.go).
 
-// interruptedMarker is the line a log shows where the connection was interrupted, in the user's
-// time format (D-31).
-func (s *Session) interruptedMarker(from, to time.Time) string {
-	return "— interrupted " + s.clockText(from) + "–" + s.clockText(to) + " —"
+// interruptedMarker is the line a log shows where its stream broke with the connection and was
+// opened again (the owner's WF35 of 2026-10-19: "— interrupted 11:10–11:10 —" after ten minutes of
+// sleep could not be read). The gap runs from the last line that arrived before the break (seen,
+// by Cogpit's clock; the interruption's start, from, when it came first or no line had) to the
+// reconnect (to), with seconds and the zone, in the user's time format (D-31): the connection
+// watch notices a sleep only at the wake, so its own start says when the computer woke, not when
+// the lines stopped. The log is read again from its last line's time, so what the container wrote
+// meanwhile follows the marker; a kubelet that rotated the container's log meanwhile may have
+// dropped some, which Cogpit cannot tell, so the marker does not claim that none is missing.
+func (s *Session) interruptedMarker(from, to, seen time.Time) string {
+	if !seen.IsZero() && seen.Before(from) {
+		from = seen
+	}
+	tf := s.TimeFormat()
+	zone := to.UTC().Format("MST")
+	if tf.Zone != nil {
+		zone = to.In(tf.Zone).Format("MST")
+	}
+	return fmt.Sprintf("%s%s – %s %s (%s) · the log was read again from its last line: what was written meanwhile follows ──",
+		interruptedMarkerStart, tf.FormatTime(from), tf.FormatTime(to), zone, FormatSpan(to.Sub(from)))
 }
+
+// interruptedMarkerStart begins interruptedMarker's line.
+const interruptedMarkerStart = "── no connection "
 
 // resumingLog is a followed pod log that survives interruptions.
 type resumingLog struct {
@@ -84,7 +104,7 @@ func (r *resumingLog) run(rc io.ReadCloser, opened time.Time) {
 			endErr = err // the stream ended while the connection works: the log ends here, as before
 			return
 		}
-		if !r.line(NoticePrefix + " " + r.s.interruptedMarker(from, to)) {
+		if !r.line(NoticePrefix + " " + r.s.interruptedMarker(from, to, cur.seen)) {
 			return
 		}
 		opts := r.opts
@@ -156,6 +176,7 @@ func (r *resumingLog) copy(rc io.Reader, cur *logCursor) error {
 				}
 			}
 			cur.lines++
+			cur.seen = r.s.Now()
 		}
 		for full { // the rest of a line longer than the bound is dropped
 			_, err = br.ReadSlice('\n')

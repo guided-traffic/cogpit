@@ -232,16 +232,17 @@ func (s *Session) CloseGoneSourceConnection() bool {
 			continue
 		}
 		var reason string
+		byUser := false
 		path := kubeconfig.DisplayText(b.SourceFile, 400)
 		switch k.FateOf(b.SourceFile, ContextSourceLabel(b.Context)) {
 		case FileGone:
 			reason = "its kubeconfig file " + path + " is gone"
 		case FileUnlisted:
-			reason = "its kubeconfig source was removed (the file " + path + " is untouched)"
+			reason, byUser = "its kubeconfig source was removed (the file "+path+" is untouched)", true
 		default:
 			continue
 		}
-		if s.disconnectBackend(b, "Disconnected from "+kubeconfig.DisplayText(b.Context, 200)+": "+reason+".") {
+		if s.disconnectBackend(b, "Disconnected from "+kubeconfig.DisplayText(b.Context, 200)+": "+reason+".", byUser) {
 			closed = true
 		}
 	}
@@ -250,8 +251,11 @@ func (s *Session) CloseGoneSourceConnection() bool {
 
 // disconnectBackend closes b if it is still connected and, when the window shows it, leaves the
 // UI Disconnected, naming the reason; another connected cluster's entry of Connections goes. It
-// reports whether it did. A connect that started meanwhile is not touched.
-func (s *Session) disconnectBackend(b *Backend, reason string) bool {
+// reports whether it did. A connect that started meanwhile is not touched. byUser: the user's own
+// act closed it (a source removed, Remove from Cogpit), which the log says as INFO, its outcome a
+// disconnect (the lead's note of the walk of 2026-10-19: D-66 keeps ERROR for what failed); a file
+// gone is Cogpit's close, an error that marks the context.
+func (s *Session) disconnectBackend(b *Backend, reason string, byUser bool) bool {
 	st := s.state
 	st.mu.Lock()
 	e := st.pooledLocked(b)
@@ -262,10 +266,13 @@ func (s *Session) disconnectBackend(b *Backend, reason string) bool {
 	st.removeLocked(b.Context)
 	st.mu.Unlock()
 	b.close(s.log)
-	// A disconnect of Cogpit's own: an attempt that "failed", its line an error, so the context is
-	// marked (connectlog.go).
-	a := st.logs.begin(b.Context, AttemptDisconnect, LogError, reason)
-	st.logs.finish(a, OutcomeFailed, LogError, "")
+	if byUser {
+		a := st.logs.begin(b.Context, AttemptDisconnect, LogInfo, reason)
+		st.logs.finish(a, OutcomeOK, LogInfo, "")
+	} else { // Cogpit's own close of a file gone: "failed", its line an error, so the context is marked (connectlog.go)
+		a := st.logs.begin(b.Context, AttemptDisconnect, LogError, reason)
+		st.logs.finish(a, OutcomeFailed, LogError, "")
+	}
 	s.UpdateUI(func(u *UIState) {
 		u.dropConnection(b.Context, e.gen)
 		// Connecting: b's own connect, between publishing b and saying Connected, which then
@@ -279,7 +286,11 @@ func (s *Session) disconnectBackend(b *Backend, reason string) bool {
 		u.Drawer = nil
 		u.Filter = ""
 	})
-	s.emit(Event{Type: EventToast, Level: LevelWarning, Message: reason})
+	level := LevelWarning
+	if byUser {
+		level = LevelInfo
+	}
+	s.emit(Event{Type: EventToast, Level: level, Message: reason})
 	return true
 }
 

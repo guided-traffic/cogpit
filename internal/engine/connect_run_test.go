@@ -8,6 +8,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/guided-traffic/cogpit/internal/cluster"
 )
 
 // heldConnector is a poolConnector whose named contexts wait at a gate of their own, as a connect
@@ -223,4 +225,63 @@ func lastLine(a ConnectAttempt) string {
 		return ""
 	}
 	return a.Lines[len(a.Lines)-1].Text
+}
+
+// stepConnector waits for its context's end and then reports a failed login step, as the cluster
+// layer reports a plugin it ended (D-73).
+type stepConnector struct{ *poolConnector }
+
+func (c stepConnector) Connect(ctx context.Context, name string) (*Backend, error) {
+	<-ctx.Done()
+	connectStepsOf(ctx).cluster(cluster.ConnectStep{Name: cluster.StepLogin, Text: "Login cancelled: Cogpit ended sleep", Failed: true})
+	return nil, context.Cause(ctx)
+}
+
+// The user's Cancel Connecting is the user's own act: the steps it ended are INFO, its attempt
+// "cancelled", no ERROR line (the lead's note of the walk of 2026-10-19; D-66 keeps ERROR for a
+// connect that failed).
+func TestACancelledConnectWritesNoError(t *testing.T) {
+	s := New(Options{Connector: stepConnector{newPoolConnector(time.Minute, "alpha")}, SnapshotInterval: 10 * time.Millisecond, ConnWatch: fastWatch})
+	t.Cleanup(s.Close)
+	errc := make(chan error, 1)
+	go func() { errc <- s.Connect(context.Background(), "alpha") }()
+	waitUntil(t, "connecting", func() bool { return s.UIState().Connection.State == Connecting })
+	if err := s.Disconnect(); err != nil {
+		t.Fatal(err)
+	}
+	<-errc
+	got, _ := s.ConnectAttempts("alpha", 1)
+	if len(got) != 1 || got[0].Outcome != OutcomeCancelled {
+		t.Fatalf("attempts %+v", got)
+	}
+	for _, l := range got[0].Lines {
+		if l.Level == LogError {
+			t.Errorf("an ERROR line after the user's cancel: %q", l.Text)
+		}
+	}
+	if !strings.Contains(attemptText(got[0]), "INFO login: Login cancelled") {
+		t.Errorf("the login step:\n%s", attemptText(got[0]))
+	}
+}
+
+// The marker after a log's interruption (WF35): the gap from the last line that arrived to the
+// reconnect, with seconds, the zone and how long, and what follows.
+func TestTheInterruptedMarkerSaysTheGap(t *testing.T) {
+	s := New(Options{})
+	t.Cleanup(s.Close)
+	day := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
+	seen, from, to := day.Add(9*time.Hour+5*time.Second), day.Add(9*time.Hour+10*time.Minute+4*time.Second), day.Add(9*time.Hour+10*time.Minute+7*time.Second)
+	tf := s.TimeFormat() // the computer's zone and format (D-31)
+	zone := to.UTC().Format("MST")
+	if tf.Zone != nil {
+		zone = to.In(tf.Zone).Format("MST")
+	}
+	want := "── no connection " + tf.FormatTime(seen) + " – " + tf.FormatTime(to) + " " + zone +
+		" (10 min 2 s) · the log was read again from its last line: what was written meanwhile follows ──"
+	if got := s.interruptedMarker(from, to, seen); got != want {
+		t.Errorf("marker\n%q\nwant\n%q", got, want)
+	}
+	if got := s.interruptedMarker(from, to, time.Time{}); !strings.Contains(got, tf.FormatTime(from)+" – "+tf.FormatTime(to)+" "+zone+" (3.0 s)") {
+		t.Errorf("without a line seen: %q", got)
+	}
 }

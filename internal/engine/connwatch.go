@@ -694,16 +694,16 @@ func (w *connWatch) reconnect() {
 		a.forgetFailures() // the reviews the interruption failed are asked again
 	}
 	w.s.renewUser(w.b) // the login may be another user's now (whoami.go, D-68)
-	away := now.Sub(from).Round(time.Second)
-	text := fmt.Sprintf("Reconnected to %s after %s", w.b.Context, away)
+	away := now.Sub(from)
+	text := fmt.Sprintf("Reconnected to %s after %s", w.b.Context, FormatSpan(away))
 	switch {
 	case lapsed:
-		text = fmt.Sprintf("Renewed the login to %s, lapsed for %s", w.b.Context, away)
+		text = fmt.Sprintf("Renewed the login to %s, lapsed for %s", w.b.Context, FormatSpan(away))
 	case kind == AttemptLogin:
-		text = fmt.Sprintf("Logged in again to %s; the connection was away %s", w.b.Context, away)
+		text = fmt.Sprintf("Logged in again to %s; the connection was away %s", w.b.Context, FormatSpan(away))
 	}
 	w.logs().end(w.b.Context, kind, OutcomeOK, LogInfo, text)
-	w.s.log.Info("engine: reconnected", "context", w.b.Context, "after", away)
+	w.s.log.Info("engine: reconnected", "context", w.b.Context, "after", away.Round(time.Millisecond))
 	w.publish()
 	if lapsed {
 		return // the user showed the cluster or logged in: the window shows the rest, no toast

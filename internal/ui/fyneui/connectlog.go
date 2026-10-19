@@ -26,7 +26,9 @@ import (
 //
 // The attempts are shown newest first, each with its lines in the order they happened: the latest
 // attempt is the first thing the dialog shows without scrolling, and each attempt reads top down
-// like a log. While the dialog is open it follows the log: the engine announces each change
+// like a log and ends in how it ended, which its header says in its colour. An interruption is an
+// entry of its own under the reconnect after it (the owner's WF37 of 2026-10-19: a reconnect that
+// succeeded read as ending in "Connection interrupted", its cause written into its top). While the dialog is open it follows the log: the engine announces each change
 // (EventConnectLog, coalesced), and the dialog reads cluster.connectLog again (the engine's memory
 // and the context's file; nothing is asked of the cluster). Copy puts every attempt shown on the
 // clipboard as plain text, for a bug report. A line's time is its time of day in the user's zone
@@ -242,10 +244,11 @@ func connectLogRow(l connectLogLine, tf model.TimeFormat, width float32) fyne.Ca
 
 // attemptLabels are the attempts' kinds as the dialog names them.
 var attemptLabels = map[string]string{
-	engine.AttemptConnect:    "Connect",
-	engine.AttemptReconnect:  "Reconnect",
-	engine.AttemptLogin:      "Login",
-	engine.AttemptDisconnect: "Disconnect",
+	engine.AttemptConnect:      "Connect",
+	engine.AttemptReconnect:    "Reconnect",
+	engine.AttemptLogin:        "Login",
+	engine.AttemptDisconnect:   "Disconnect",
+	engine.AttemptInterruption: "Interruption",
 }
 
 // attemptHeader is an attempt's header line and its colour: kind, start, outcome and duration.
@@ -274,12 +277,15 @@ func attemptHeader(a connectLogAttempt, tf model.TimeFormat) (string, fyne.Theme
 		return head + "ended by a newer attempt" + took, colorMuted
 	case a.Outcome == engine.OutcomeCancelled: // Cancel Connecting (D-73)
 		return head + "cancelled" + took, colorMuted
+	case a.Outcome == engine.OutcomeInterrupted: // the reconnect after it is the attempt above (WF37)
+		return head + "the connection was lost", colorStatusWarning
 	}
 	return head + "no outcome recorded (Cogpit stopped first)", colorMuted
 }
 
-// tookText writes a duration in milliseconds as the agent tests do (formatTook): "340 ms", "2.4 s".
-func tookText(ms int64) string { return formatTook(time.Duration(ms) * time.Millisecond) }
+// tookText writes a duration in milliseconds as the engine's lines do (engine.FormatSpan): "340 ms",
+// "2.4 s", "10 min 2 s", so that a header and its lines say a duration the same way (WF37).
+func tookText(ms int64) string { return engine.FormatSpan(time.Duration(ms) * time.Millisecond) }
 
 // connectLogText is the log as Copy puts it on the clipboard: a heading, then each attempt's
 // header and lines, newest first.

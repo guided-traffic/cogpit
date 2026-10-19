@@ -129,7 +129,7 @@ func TestStandbyWindowStaysUsable(t *testing.T) {
 	}
 	until("the resumed log", 20*time.Second, func() bool { return slices.ContainsFunc(shown(), standbyLine("while it slept")) })
 	lines := shown()
-	marker := slices.IndexFunc(lines, standbyLine("— interrupted "))
+	marker := slices.IndexFunc(lines, standbyLine("── no connection "))
 	after := slices.IndexFunc(lines, standbyLine("while it slept"))
 	if marker < 0 || after < marker || slices.IndexFunc(lines, standbyLine("before the sleep")) > marker {
 		t.Errorf("the log after the reconnect: %q", lines)

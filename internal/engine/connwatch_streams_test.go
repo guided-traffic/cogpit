@@ -14,8 +14,8 @@ import (
 )
 
 // TestAPodLogResumesAfterTheInterruption is S7's logs: a followed pod log whose stream ends with the
-// connection waits for it without asking the server again, then marks the gap ("— interrupted
-// 14:03–14:07 —") and goes on from its last line's time, the line written meanwhile included and
+// connection waits for it without asking the server again, then marks the gap ("── no
+// connection 14:03:12 – 14:07:40 CEST (4 min 28 s) · …") and goes on from its last line's time, the line written meanwhile included and
 // none twice.
 func TestAPodLogResumesAfterTheInterruption(t *testing.T) {
 	s, p := watchedSession(t, fastWatch)
@@ -50,8 +50,8 @@ func TestAPodLogResumesAfterTheInterruption(t *testing.T) {
 	lr.wait(t, line(2000, "after"))
 
 	got := lr.all()
-	if len(got) != 5 || got[0] != line(100, "one") || got[1] != line(200, "two") || !strings.HasPrefix(got[2], NoticePrefix+" — interrupted ") ||
-		!strings.HasSuffix(got[2], " —") || got[3] != line(1500, "during") || got[4] != line(2000, "after") {
+	if len(got) != 5 || got[0] != line(100, "one") || got[1] != line(200, "two") || !strings.HasPrefix(got[2], NoticePrefix+" "+interruptedMarkerStart) ||
+		!strings.HasSuffix(got[2], " ──") || got[3] != line(1500, "during") || got[4] != line(2000, "after") {
 		t.Errorf("lines %q", got)
 	}
 	reqs := f.requestsFor(key)

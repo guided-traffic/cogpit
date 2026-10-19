@@ -237,7 +237,7 @@ func TestALogOfALapsedClusterWaitsWithANotice(t *testing.T) {
 	}
 	srv.add(key, t0.Add(2*time.Second), "while it lapsed")
 	mustConnect(t, s, "alpha")
-	if l := next("the marker"); !strings.Contains(l, "interrupted") {
+	if l := next("the marker"); !strings.Contains(l, interruptedMarkerStart) {
 		t.Fatalf("after the renewal: %q, want the marker", l)
 	}
 	if l := next("the line after the renewal"); !strings.HasSuffix(l, "while it lapsed") {

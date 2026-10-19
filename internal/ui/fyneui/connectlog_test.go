@@ -180,3 +180,37 @@ func TestRenderConnectionUpdatesFailure(t *testing.T) {
 	q.until(t, "the dialog", func() bool { return sh.kc.connectLog != nil })
 	savePNG(t, w, "connection_updates_failure_dark.png")
 }
+
+// TestRenderConnectionUpdatesReconnect (WF37): a reconnect that succeeded after an interruption.
+// The interruption is an entry of its own under the reconnect; each entry reads top down and ends
+// in how it ended, its header in its outcome's colour, the durations written one way.
+func TestRenderConnectionUpdatesReconnect(t *testing.T) {
+	at := logAt.Add(2 * time.Hour)
+	line := func(d time.Duration, level, step, text string) engine.ConnectLogLine {
+		return engine.ConnectLogLine{Time: at.Add(d), Level: level, Step: step, Text: text}
+	}
+	interruption := engine.ConnectAttempt{Kind: engine.AttemptInterruption, Context: logCtx, Start: at, End: at,
+		Outcome: engine.OutcomeInterrupted, Lines: []engine.ConnectLogLine{
+			line(0, engine.LogWarn, "", "Connection interrupted: no answer from the API server"),
+			line(0, engine.LogWarn, "error", "Class: timeout: the API server did not answer in time"),
+			line(0, engine.LogWarn, "error", `Error chain: Get "https://team.example:6443/version": context deadline exceeded`),
+			line(0, engine.LogWarn, "error", "Innermost error: context deadline exceeded"),
+		}}
+	reconnect := engine.ConnectAttempt{Kind: engine.AttemptReconnect, Context: logCtx, Start: at, End: at.Add(55 * time.Millisecond),
+		TookMS: 55, Outcome: engine.OutcomeOK, Lines: []engine.ConnectLogLine{
+			line(0, engine.LogInfo, "", "Reconnecting to "+logCtx),
+			line(55*time.Millisecond, engine.LogInfo, "", "Reconnected to "+logCtx+" after 55 ms"),
+			line(80*time.Millisecond, engine.LogInfo, "", "Logged in again as hfi@example.com (from the API server's SelfSubjectReview)"),
+		}}
+	lf := newLogFake(t, reconnect, interruption, successAttempt(logAt))
+	sh, w, q := newTestShell(t, lf.fakeEngine, Options{})
+	q.until(t, "the section's rows", func() bool { return sh.side.sec.loaded })
+	sh.kc.showConnectLog(logCtx)
+	q.until(t, "the dialog", func() bool { return sh.kc.connectLog != nil })
+	text := connectLogText(logCtx, sh.kc.connectLog.view, sh.timeFormat())
+	if i, j := strings.Index(text, "== Reconnect"), strings.Index(text, "== Interruption"); i < 0 || j < i ||
+		!strings.Contains(text, "succeeded after 55 ms") || !strings.Contains(text, "the connection was lost") {
+		t.Errorf("the log:\n%s", text)
+	}
+	savePNG(t, w, "connection_updates_reconnect_dark.png")
+}
