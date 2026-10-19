@@ -177,5 +177,8 @@ func endedReason(err error) string {
 	if !errors.As(err, &e) {
 		return "the login program was ended; log in again to start it again"
 	}
+	if e.RunsOn { // its process holds client-go's lock until it ends (H-118)
+		return e.Error() + "; Log in again starts it again once that process ended"
+	}
 	return e.Error() + "; Log in again starts it again"
 }
