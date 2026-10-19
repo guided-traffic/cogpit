@@ -16,7 +16,10 @@ import (
 // Evict, Share, Logs, Edit, Delete; Deployment: Scale, Restart, Logs. A pair such as Cordon and
 // Uncordon are both listed here; the menu shows the one that applies (TestRowMenuNodes). Commands
 // Cogpit has not built are named in missing, so that the test shows the gap instead of hiding it.
+// Remove Finalizers is Cogpit's own (D-98), between Edit and Delete of every kind, and shown only
+// for an object being deleted that finalizers hold.
 func TestRegistryMenusAsLens(t *testing.T) {
+	const rf = engine.RemoveFinalizersCommand
 	s := engine.New(engine.Options{})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
@@ -27,14 +30,14 @@ func TestRegistryMenusAsLens(t *testing.T) {
 		want    []string
 		missing string
 	}{
-		{"nodes", []string{"node.shell", "node.cordon", "node.uncordon", "node.drain", "object.edit", "object.delete"}, ""},
-		{"cronjobs", []string{"cronjob.trigger", "cronjob.resume", "cronjob.suspend", "object.edit", "object.delete"}, ""},
-		{"pods", []string{"pod.attach", "pod.shell", "pod.evict", "pod.logs", "object.edit", "object.delete"}, "pod.share is not a target"},
-		{"deployments", []string{"deployment.scale", "deployment.restart", "workload.logs", "object.edit", "object.delete"}, ""},
-		{"statefulsets", []string{"statefulset.restart", "statefulset.scale", "workload.logs", "object.edit", "object.delete"}, ""},
-		{"daemonsets", []string{"daemonset.restart", "workload.logs", "object.edit", "object.delete"}, ""},
-		{"replicasets", []string{"replicaset.scale", "workload.logs", "object.edit", "object.delete"}, ""},
-		{"jobs", []string{"workload.logs", "object.edit", "object.delete"}, ""},
+		{"nodes", []string{"node.shell", "node.cordon", "node.uncordon", "node.drain", "object.edit", rf, "object.delete"}, ""},
+		{"cronjobs", []string{"cronjob.trigger", "cronjob.resume", "cronjob.suspend", "object.edit", rf, "object.delete"}, ""},
+		{"pods", []string{"pod.attach", "pod.shell", "pod.evict", "pod.logs", "object.edit", rf, "object.delete"}, "pod.share is not a target"},
+		{"deployments", []string{"deployment.scale", "deployment.restart", "workload.logs", "object.edit", rf, "object.delete"}, ""},
+		{"statefulsets", []string{"statefulset.restart", "statefulset.scale", "workload.logs", "object.edit", rf, "object.delete"}, ""},
+		{"daemonsets", []string{"daemonset.restart", "workload.logs", "object.edit", rf, "object.delete"}, ""},
+		{"replicasets", []string{"replicaset.scale", "workload.logs", "object.edit", rf, "object.delete"}, ""},
+		{"jobs", []string{"workload.logs", "object.edit", rf, "object.delete"}, ""},
 	} {
 		var got []string
 		for _, c := range s.Registry().Actions(tt.kind) {
@@ -53,7 +56,7 @@ func TestRegistryMenusAsLens(t *testing.T) {
 		"daemonset.restart": "", "statefulset.restart": "", "workload.logs": "",
 		"pod.logs": "containers", "pod.shell": "containers", "pod.attach": "containers",
 		"node.drain": "dialog:ignoreDaemonSets,deleteEmptyDirData,force,gracePeriodSeconds,timeoutSeconds",
-		"pod.evict":  "", "node.cordon": "", "cronjob.trigger": "", "object.edit": "", "object.delete": "",
+		"pod.evict":  "", "node.cordon": "", "cronjob.trigger": "", "object.edit": "", "object.delete": "", engine.RemoveFinalizersCommand: "",
 	} {
 		c, ok := s.Registry().Get(id)
 		if !ok {

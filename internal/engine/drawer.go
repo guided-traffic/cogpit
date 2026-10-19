@@ -45,6 +45,10 @@ type drawerWatch struct {
 	stopped atomic.Bool
 	planKey string // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
 
+	// blockers are a Terminating namespace's Blocking Deletion reads (nsblockers.go); nil for
+	// other kinds.
+	blockers *nsBlockers
+
 	// variants is what each chart shows, by target name; absent: CPU (metrics.go). Guarded by wmu.
 	variants map[string]string
 	// hidden are the metrics the cluster's settings hide (hidemetrics.go); hiddenSet once known.
@@ -87,12 +91,17 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 	// pod); Detail reads through this set while the drawer shows ref (drawerRelated). The drawer's
 	// own indexes (DetailNeeds: a workload's pods) live only as long as it does.
 	d.related = newRelatedSetWith(b, drawerNeeds(b, p), func() { signal(d.wake) }, true, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, ns) })
+	if isNamespaces(p) && b.Cache != nil { // the kinds its conditions name, followed by Detail (nsblockers.go)
+		d.blockers = newNSBlockers(b, ref.Name, func() { signal(d.wake) })
+	}
 	d.followHidden(s, hidden)
 	objSynced, evSynced := d.synced()
+	blockersKey := d.blockers.key()
 	poll := func() bool {
 		o, e := d.synced()
-		changed := o != objSynced || e != evSynced
-		objSynced, evSynced = o, e
+		k := d.blockers.key() // an access review answered, a first list finished (nsblockers.go)
+		changed := o != objSynced || e != evSynced || k != blockersKey
+		objSynced, evSynced, blockersKey = o, e, k
 		return changed
 	}
 	s.goSafe("detail drawer", func() {
@@ -140,6 +149,7 @@ func (d *drawerWatch) stop() {
 		d.events.Release()
 	}
 	d.related.release()
+	d.blockers.release()
 	d.usageSub().Release()
 	d.diskSub().Release()
 	releaseAll(d.podsSubs())
@@ -212,7 +222,8 @@ func (s *Session) detail(ctx context.Context, ref model.ObjectRef, wait bool) (*
 	if perr != nil {
 		s.log.Error("engine: kind profile detail panicked", "kind", p.Key, "panic", perr.Error())
 	}
-	m = s.helmChartDrawer(ctx, p, ref, obj, m, wait) // a chart's version and README (helmchartdrawer.go)
+	m = s.helmChartDrawer(ctx, p, ref, obj, m, wait)  // a chart's version and README (helmchartdrawer.go)
+	s.namespaceBlocking(ctx, b, p, ref, obj, m, wait) // what holds a Terminating namespace (nsblockers.go, D-98)
 	if wait {
 		b.overlays.waitSynced(ctx) // an agent's read sees the integrations' reads listed
 	}

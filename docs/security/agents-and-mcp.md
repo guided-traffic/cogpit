@@ -526,7 +526,8 @@ Per case:
   Live only while agent writes are allowed for the conversation's context; dormant otherwise,
   since every write of an agent asks. `Destructive` commands (delete, drain, evict, scale to zero,
   a Config Map's key removed by `configMap_saveData` or by `object_apply`, Helm uninstall and
-  rollback) and the writes that always ask (role bindings and the RBAC kinds,
+  rollback, an object's finalizers removed by `object_removeFinalizers` since 2026-10-19, D-98) and
+  the writes that always ask (role bindings and the RBAC kinds,
   Helm install and upgrade, `cluster.setPrometheus`, a proxy) ask whatever the allowance, so the
   user sees each repetition.
 - **A history older than the cluster.** The reads that remain before the cut point saw the cluster

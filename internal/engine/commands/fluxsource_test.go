@@ -257,10 +257,10 @@ func TestFluxActionsWithSourceInTheMenus(t *testing.T) {
 		}
 		return ids
 	}
-	if got, want := menu(ksKey), []string{"flux.reconcile", "flux.reconcileWithSource", "flux.resume", "flux.suspend", "flux.logs", "object.edit", "object.delete"}; !slices.Equal(got, want) {
+	if got, want := menu(ksKey), []string{"flux.reconcile", "flux.reconcileWithSource", "flux.resume", "flux.suspend", "flux.logs", "object.edit", engine.RemoveFinalizersCommand, "object.delete"}; !slices.Equal(got, want) {
 		t.Errorf("Kustomizations %v, want %v", got, want)
 	}
-	if got, want := menu(hrKey), []string{"flux.reconcile", "flux.reconcileWithSource", "flux.reset", "flux.resume", "flux.suspend", "object.edit", "object.delete"}; !slices.Equal(got, want) {
+	if got, want := menu(hrKey), []string{"flux.reconcile", "flux.reconcileWithSource", "flux.reset", "flux.resume", "flux.suspend", "object.edit", engine.RemoveFinalizersCommand, "object.delete"}; !slices.Equal(got, want) {
 		t.Errorf("Helm releases %v, want %v", got, want)
 	}
 	if got := menu(gitKey); slices.Contains(got, "flux.reconcileWithSource") || slices.Contains(got, "flux.reset") {

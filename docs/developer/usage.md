@@ -72,6 +72,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 📈 CPU and memory from the cluster's metrics-server and its Prometheus: columns in the Pods and Nodes lists, charts with requests and limits in the pod and node drawers, and the cluster Overview: CPU, Memory and Pods of the master or worker nodes over a time range, with the Issues (pods, nodes and workloads in trouble, warning events) below. A node's history, its network and its filesystem come from node-exporter where it runs, and so do its disks: a small usage bar per filesystem it mounts in its drawer (the root first, then a data disk such as `/data`; the numbers in each bar's tooltip), the fullest of them in the Nodes list's Disk column. Cogpit installs nothing into your cluster for this: it finds the Prometheus and the exporters the cluster runs (your own charts, kube-prometheus-stack, the `prometheus` chart under any release name, and since 2026-10-16 night Thanos's Querier and VictoriaMetrics, single-node or the cluster's vmselect, by their usual service names) and reads them; where it finds no provider, the charts say so. A cluster that runs a Prometheus and a Thanos or VictoriaMetrics reads the Prometheus; name the other in Cluster Settings › Prometheus › Service address (vmselect with the path prefix `/select/<tenant>/prometheus`). Under the charts one row says where the numbers come from, "Prometheus ● 30 s ago" left of the row's centre and "Metrics Server ● now" right of it: the dot green while it answers, red while it does not or may not be read, grey while it is not found, a ring while nothing has asked it yet; its tooltip has the details. Only while one is not reachable does the row link to its settings ("Set its address…", "Settings…"); a cluster whose integrations are not chosen yet offers "Choose integrations…".
 - 🚨 The cluster's alerts from its Alertmanager (since 2026-10-17): a pill in the title bar, red from a critical alert, orange from a warning, yellow from an info alert, with the number of every active alert; a click opens the alert board, the alerts grouped by severity and alert name, each with its summary, since when it fires, its runbook and the object it is about one click away. Found by its service's name, or set in the cluster's Settings; read only.
 - 🛂 Kyverno's policy violations on your objects (since 2026-10-17): while the Kyverno integration is on for a cluster, every object a Kyverno policy report names with a failed rule, of an Audit policy or of an Enforce policy on an object from before it, shows the warning icon in its list ("Kyverno: 2 policy violations (require-team-label, …)") and a "Policy violations" group in its drawer; agents list them all with `kyverno_violations`. Cogpit reads the reports Kyverno writes and installs nothing ([Kyverno's policy violations](#kyvernos-policy-violations)).
+- 🧹 A namespace stuck in Terminating says why (since 2026-10-19): its drawer lists the objects whose finalizers hold it, each a link with its finalizers, as Kubernetes' namespace controller names their kinds; kinds you may not list there are counted, an unavailable API service is named with its Service; an object vanishes from the list once its finalizers go, and the namespace then goes by itself. Remove Finalizers on one object, confirmed, naming the finalizers and the cleanup it skips ([below](#a-namespace-stuck-in-terminating)).
 - 🛡️ Never surprises a cluster: destructive actions confirm, nothing is installed or written implicitly; every confirmation is a table you read at a glance, the place as Context › Namespace › Object, the object as "Config Map → walk-cm", what the command does a row each ("Removes  level" in red), never a sentence.
 - 😴 Sleep and lost connections: when the Mac wakes, the network or a VPN changes, or the cluster stops answering, Cogpit notices within seconds, blinks the cluster's dot and shows a banner, keeps your views and tabs as they were, disables changes, and reconnects by itself; a login that expired asks you once ([below](#when-the-connection-breaks)).
 - 🤖 Fully controllable over MCP, the UI included: an agent sees what you see and navigates for you.
@@ -930,6 +931,40 @@ Cogpit marks every object a report names with a violation
 Cogpit reads with one watch per report kind and keeps only the violations of each report in
 memory. `make kind-kyverno` installs a Kyverno with test policies into the kind cluster to try it
 ([hack/kind](../../hack/kind/README.md#kyverno)).
+
+### A namespace stuck in Terminating
+
+A namespace you delete stays Terminating for as long as objects in it remain; usually an object
+whose finalizers no controller removes (its controller is gone, or cannot reach what it cleans up).
+Its drawer then shows **Blocking Deletion** right under Properties
+([D-98](decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)):
+
+- **What it lists:** for each kind Kubernetes' namespace controller names on the namespace (its
+  condition `NamespaceContentRemaining`), the objects of that kind there that are being deleted and
+  held by finalizers, each as "Config Map  walk-cm" (a link to the object), a **Remove Finalizers**
+  button, and its finalizers under it. Objects of the kind without finalizers are counted ("1 more
+  without finalizers, not gone yet").
+- **What you may not see:** a kind you may not list in that namespace is a row from the
+  controller's own count, "1 remaining; you may not list secrets in walk-fin": the namespace object
+  names kinds and counts to anyone who may read it, never the objects. A kind Cogpit has no view of
+  is counted the same way.
+- **Discovery failed:** when the controller cannot list every kind the server serves
+  (`NamespaceDeletionDiscoveryFailure`), the API services that are not available are named with
+  their reason and the Service that serves each, a link (usually a metrics or webhook backend that
+  is down).
+- **It follows the cluster:** an object whose finalizers go vanishes from the list by itself; when
+  nothing is left, the drawer says so, and the namespace controller removes the namespace by itself
+  within seconds. No second Delete is needed.
+- **Remove Finalizers** (in the list, the row menu and the drawer's toolbar of an object being
+  deleted that holds finalizers, between Edit and Delete): confirmed every time, naming the object,
+  each finalizer it removes in red and "Skips the cleanup of the controllers that own them (a cloud
+  disk or a DNS record may stay)". It removes exactly the finalizers the dialog named, from exactly
+  that object: if one was added or removed meanwhile, nothing is removed and Cogpit says so. It is
+  never offered on a namespace, and Cogpit never forces a namespace's own finalizer.
+- **Agents** read the same section in `object_get`, each row's `object_removeFinalizers` action
+  with its params; their request always waits for your confirmation.
+- **Reads:** while the drawer shows such a namespace, each kind named is watched in that namespace
+  only, names and finalizers only (no values); nothing when it closes.
 
 ### The Kubernetes version and upstream support
 

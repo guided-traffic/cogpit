@@ -89,6 +89,8 @@ func RegisterAll(r *engine.Registry) error {
 	registerConnection(g)
 	registerJobs(g)
 	registerKyverno(g) // the Kyverno integration's violations (D-79)
+	// Remove finalizers on an object being deleted (WF43, D-98).
+	registerFinalizers(g)
 	return g.err
 }
 

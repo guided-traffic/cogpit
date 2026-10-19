@@ -221,6 +221,8 @@ var wantCommands = map[string]engine.Danger{
 	"job.cancel": engine.DangerUI,
 	// The Kyverno integration's violations, from the cache (D-79) (TestKyvernoViolationsCommand).
 	"kyverno.violations": engine.DangerRead,
+	// An object being deleted loses its finalizers (WF43, D-98) (TestRemoveFinalizersConfirmsWhatItRemoves).
+	"object.removeFinalizers": engine.DangerDestructive,
 }
 
 func TestRegistryComplete(t *testing.T) {

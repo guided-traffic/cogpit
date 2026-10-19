@@ -248,7 +248,7 @@ func TestFluxActionsApply(t *testing.T) {
 			ids = append(ids, c.ID)
 		}
 	}
-	if want := []string{"flux.reconcile", "flux.reconcileWithSource", "flux.resume", "flux.suspend", "flux.logs", "object.edit", "object.delete"}; !slices.Equal(ids, want) {
+	if want := []string{"flux.reconcile", "flux.reconcileWithSource", "flux.resume", "flux.suspend", "flux.logs", "object.edit", engine.RemoveFinalizersCommand, "object.delete"}; !slices.Equal(ids, want) {
 		t.Errorf("row menu %v, want %v", ids, want)
 	}
 	// Only Reconcile takes force (Helm releases).

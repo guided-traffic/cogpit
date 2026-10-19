@@ -111,6 +111,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | the owner's WF39 and WF40 of 2026-10-19: every connect a run of its own; showing another cluster ends only the window's wait, the connect goes on in the background with a toast at its end; a failed connect never shows the cluster shown before (the owner: "Immer"); built 2026-10-19 with the lead's decisions, open to revision |
 | [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | the owner's WF44 and WF45 of 2026-10-19: a "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…; removing a source or Remove from Cogpit takes its clusters' tiles off the hotbar, a file gone by itself keeps its tile marked missing; built 2026-10-19 with the lead's decisions, open to revision |
 | [D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts) | Selecting and copying a log tab's text and a toast's | the owner's WF36 and WF41 (walk of 2026-10-19): nothing in a log tab or a toast could be selected and copied; built 2026-10-19 with the lead's decisions, open to revision: a log tab's selection a range in its lines (a drag that scrolls the view at its edges, ⇧-click, a double click, ⌘A for the lines it shows, ⌘C, a right-click's Copy, Select All and Copy All Lines Shown), Follow off when the pointer selects, the dropped lines' part dropped; a search's matches in the find colour; a toast's text selectable, a copy icon before its ×, the toast held while selected; the bell's list the same; the window's, not engine state |
+| [D-98](#d-98-what-holds-a-terminating-namespace-and-remove-finalizers) | What holds a Terminating namespace, and Remove finalizers | the owner's WF43 (walk of 2026-10-19) and his yes to Remove finalizers (Q1); built 2026-10-19 with the lead's decisions, open to revision: the drawer of a Terminating namespace lists, per kind its conditions name, the objects there held by finalizers (a metadata-only watch in that namespace while the drawer shows it), kinds the user may not list there counted from the condition, unavailable API services with their Service; `object.removeFinalizers` on one object being deleted, Destructive, a JSON patch testing the UID and exactly the confirmed finalizers; never a namespace or `/finalize` |
 | [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save) | Objects and effects in one form, and a drawer's edited state beside Save | the owner's WF31, WF32 and WF33 (walk of 2026-10-19), built 2026-10-19 with the lead's decisions, open to revision: every dialog names an object "Config Map → walk-cm" (kind muted, name bold, several grouped by kind); a confirmation's effects a row each ("Removes  added", bold and red), `Spec.Effects` in place of a Detail sentence; the drawer's edited state as pills beside Revert and Save |
 
 ## Decision round 2026-10-14 evening
@@ -9142,6 +9143,80 @@ window (the test driver's canvas has no `TypedShortcut`); ⌘A in a toast's or t
 nothing (Fyne hands a disabled selectable text only Copy); a selection does not survive the tab's
 stream opening again (another container, Previous, a Reconnect); the terminal tabs select as their
 own widget does (D-14).
+
+## D-98: What holds a Terminating namespace, and Remove finalizers
+
+**The owner's wish (walk of 2026-10-19 on v0.26.1, WF43, verbatim):** "ich hatte in der
+Vergangenheit immer mal wieder das Problem, dass sich ein Namespace nicht hat Löschen lassen, weil
+darin noch Objekte waren, die Finalizer hatten die einfach nicht abgeräumt wurden. Ist es möglich
+solche Objekte automatisch zu finden? Diese Objekte bei einem Delete des Namespaces im Drawer
+aufzulisten und Links aufzubauen, gelöschte Objekte verschwinden dann aus der Auflistung und wenn
+keines mehr zusehen ist, kann auch der Namespace gelöscht werden? Ich bin mir unsicher, es könnten
+Permissions fehlen um alle Objekte zu sehen. Recherchiere das mal"
+
+**The owner's answer (Q1, 2026-10-19, verbatim):** "ja gerne", to: besides the read-only list of
+what blocks a Terminating namespace, a destructive **Remove finalizers** on one object, its
+confirmation naming the object, its finalizers and that the owning controller's cleanup is skipped
+(a cloud disk or DNS record may stay); agents only with the user's acceptance
+([D-2](#d-2-agent-interface-scope)); never the namespace's own `kubernetes` finalizer
+through `/finalize`.
+
+**What it builds on (the lead's research, live on kind v1.36.1, 2026-10-19):** the namespace
+controller writes on the Namespace itself why it is stuck: `NamespaceContentRemaining` ("Some
+resources are remaining: configmaps. has 1 resource instances, secrets. has 1 resource
+instances"), `NamespaceFinalizersRemaining` ("… example.com/x in 2 resource instances") and
+`NamespaceDeletionDiscoveryFailure`, kinds by resource and group and finalizers by name with
+counts, never an object's name and no pairing of the two. A user who may only read namespaces reads
+them in full while `list configmaps` there is Forbidden. After the last finalizer goes the
+namespace is gone within seconds (2 s in the research, 4.9 and 5.1 s in two runs of `TestKindTerminatingNamespaceBlockers`):
+no second Delete is needed.
+
+**Built 2026-10-19** (package I), the lead's decisions, open to revision:
+
+| Decision | Options weighed | Chosen | Why |
+|---|---|---|---|
+| Where the list is made | (a) the Namespace profile's `DetailWith` with `DetailNeeds`; (b) the engine's drawer model, reads that follow the namespace's conditions | **(b)**, [`engine/nsblockers.go`](../../internal/engine/nsblockers.go); the condition parsing is L0, [`kinds/namespacedeletion.go`](../../internal/model/kinds/namespacedeletion.go) `NamespaceDeletionOf` | The kinds come from the condition at run time, any kind, custom ones too; `DetailNeeds` are fixed per profile |
+| How a named kind is read | (a) the kind's own scope, as its view reads it (cluster-wide and whole for a user who may list it everywhere); (b) a scope of its own: metadata only, in that namespace | **(b)**: `cache.Scope{GVR, Namespace, MetadataOnly}` per kind the condition names | Name, deletionTimestamp and finalizers are metadata: no Secret value crosses the wire for the list, and opening a namespace's drawer never starts a list of every Secret or custom resource of the cluster. Cost: a second watch of that namespace while the kind's own view runs too. Measured (`TestBudgetTerminatingNamespaceBlockers`): one metadata-only streaming list of Config Maps in the namespace, nothing for the Secrets the rules deny, nothing more while the drawer stays open |
+| How long it is held | for the call; while the drawer shows the namespace | **while the drawer shows the namespace and the condition names the kind** (`drawerWatch.blockers`): a kind the condition drops, and every kind when the drawer closes, goes back (the cache's warm period as for any consumer); an agent's `object_get` reads for the call and waits, bounded, for the first lists | Cache first: a watch makes an object whose finalizers go vanish from the list by itself |
+| Which objects are rows | every object of a named kind; those being deleted and held by finalizers | **those with a deletionTimestamp and finalizers**, by name, at most 100; the kind's other objects counted ("1 more without finalizers, not gone yet") | What holds the namespace is a finalizer; the others go without anyone's help |
+| A kind the user may not list there | (a) try and show the refusal; (b) the namespace's rules review first | **(b)**: the namespace's `SelfSubjectRulesReview` (started if not asked yet); denied: a counted row from the condition, "1 remaining; you may not list secrets in walk-fin", and no request; unknown: read, and a 403 the same row, not asked again while the drawer shows the namespace | Discover, don't assume (rule 3); the access reviews exist to spare the API server refused requests |
+| A kind Cogpit has no profile of (a custom kind of a user who may not list the definitions, a kind curated nowhere) | (a) map it through discovery and read it; (b) a counted row | **(b)**: "3 remaining; Cogpit has no view of this kind (its definition is not listed)" | Without a profile there is no view to link to; discovery in the drawer's read could block it |
+| `NamespaceDeletionDiscoveryFailure` | the condition's text only; the API services that are not available | **the API services whose `Available` is not True**, each with its reason and message and, linked, the Service that serves it ("Served by kube-system/metrics-server"); read whole, cluster-wide, while the condition is True, only when the access reviews do not deny listing `apiservices` (else a row saying so) | The unavailable aggregated API is the classic cause; Cogpit has no API Services view, so the link goes to what the user fixes next, its Service (Lens's form not verified) |
+| Nothing left | — | "Nothing blocks the deletion any more: the namespace controller removes the namespace by itself; no second Delete is needed.", once the controller reported and the cache holds nothing of the kinds it names (its condition lags by its requeue, about 6 s); before its first report "has not reported what remains yet" | The owner's "dann kann auch der Namespace gelöscht werden" happens without the user |
+| Where in the drawer | after Status; **right after Properties** | right after Properties | Status's five raw conditions would push the list below the fold |
+| A row's form | a table; a section renderer of the window's own; **the drawer's items** | "Config Map  walk-cm  Remove Finalizers" (the name a link, the action a button), then "Finalizers" as chips | No code of the window's own; agents read the same items in `object_get`, the action with its params |
+| The command | id `object.removeFinalizers` (no id in the parity pages), label "Remove Finalizers" | offered in the list's rows (the item action, with the object's finalizers), and on every kind between Edit and Delete (`Order` 950) in the row menu, the drawer's toolbar (scissors) and the Object menu, while the object is being deleted and holds finalizers; otherwise not applicable (hidden), the reason in `Enabled` | The other action about an object's deletion sits beside Delete; an object not being deleted is no case for it |
+| The write | (a) a merge patch `finalizers: null` with the resourceVersion; (b) a JSON patch: `test /metadata/uid`, `test /metadata/finalizers` equal to the finalizers confirmed, `remove /metadata/finalizers` | **(b)**, [`cluster/finalizers.go`](../../internal/cluster/finalizers.go) `FinalizersPatch` | It refuses exactly what the user did not see (another object under the name, a finalizer added or removed since) and nothing else: a controller's status update meanwhile does not refuse it. A failed test is 422 Invalid without causes (seen on kind v1.36.1, the message says nothing more), mapped to `ErrTargetsChanged`. The patch names `metadata.finalizers` only, never `spec.finalizers` or a subresource |
+| What binds the confirmation to the write | (a) a required `finalizers` parameter, the window reading them before it dispatches; (b) optional: the confirmation's row "Removes finalizers" shows the given ones, else the cached object's, and Run removes exactly that row's (`engine.ConfirmedFinalizers`) | **(b)** | The row the user read is what the patch tests; no code in the window; an agent may pass them (then they must equal the object's) or not |
+| Namespaces | — | **never**: not applicable to the kind `namespaces`, and `/finalize` is never called | The owner's condition; a namespace's own finalizer is the controller's, which removes it once nothing is left |
+| Its confirmation | — | Destructive for every origin, agents' included (D-2); Context › Namespace › Object ("Config Map → walk-cm", D-100), "Removes finalizers" a line each (lost), "Skips" "the cleanup of the controllers that own them (a cloud disk or a DNS record may stay)" (warning), "This cannot be undone." | The owner's words; the rows of D-100 |
+| Its verb | — | `patch` on the object's resource (`patch *`, resolved per object by the access reviews, greyed "not permitted" on a denial) | The JSON patch is a `patch` |
+
+Tests: `TestNamespaceDeletionFromTheControllersConditions`, `TestNamespaceDeletionFailuresAndEdges`,
+`FuzzNamespaceDeletion` (kinds); `TestRemoveFinalizersSendsTheGuardedPatch`,
+`TestRemoveFinalizersFailedTest` (cluster); `TestTerminatingNamespaceListsWhatBlocksIt`,
+`TestBlockingListForAgents`, `TestBlockingListDiscoveryFailure` (engine);
+`TestRemoveFinalizersConfirmsWhatItRemoves`, `TestRemoveFinalizersRefusals`,
+`TestRemoveFinalizersOfAKindWithoutAProfile` (commands); `TestBudgetTerminatingNamespaceBlockers`
+(the fake API server); on kind `TestKindTerminatingNamespaceBlockers` (a ConfigMap and a Secret with
+a dummy finalizer, the namespace deleted, the drawer's rows and `object_get`'s, the API server's
+refusal of other finalizers and of another UID, Remove Finalizers through the engine with its
+confirmation, each object gone from the list, the namespace gone about 5 s after the last). Renders:
+`namespace_blocking_{dark,light}.png`, `confirm_remove_finalizers_{dark,light}.png`.
+
+**What it does not cover:** Lens's behaviour (not verified); a kind without a profile is counted,
+not listed; Remove finalizers binds the UID through the kind's own cache, as Delete does, so from
+the list, with no view of the kind open, its confirmation reads the kind as its view would (for a
+user who may list it everywhere, every object of the kind, once, then warm for five minutes);
+`NamespaceDeletionGroupVersionParsingFailure` and `NamespaceDeletionContentFailure` stay in Status,
+the section only says they are reported; a custom resource definition being deleted is not
+excluded as a namespace is, though its `customresourcecleanup.apiextensions.k8s.io` finalizer
+guards its objects in etcd as a namespace's own guards its content (removing it should leave them
+to reappear with a definition of the same name: inferred from how the finalizer works, not
+verified; the confirmation's "Skips" row says so only in general; open for the owner); what a
+finalizer guards Cogpit cannot know
+([H-9](../security/privilege-footprint.md#h-9-force-finalize-skips-cleanup), live since); seen in
+offscreen renders only, not yet in a real window.
 
 ## D-100: Objects and effects in one form, and a drawer's edited state beside Save
 
