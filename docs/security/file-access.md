@@ -57,9 +57,14 @@ the walk steps that check it):
   resolved at the next start before anything reads a source, its item accessed for the process's
   life ([`internal/ui/nativedialog`](../../internal/ui/nativedialog/), [`cmd/cogpit/fileaccess.go`](../../cmd/cogpit/fileaccess.go)).
   Apple documents these bookmarks for sandboxed apps; Apple DTS names them among what the
-  user-intent check considers. Whether macOS honours them for an app without a sandbox, so that a
-  source picked in Downloads raises no prompt after a restart, is not documented and not verified
-  (D-72, open). Verified: Cogpit's process makes, resolves and starts accessing them
+  user-intent check considers. Whether macOS honours them for an app without a sandbox is not
+  documented. **Observed 2026-10-19** (the owner's walk, the v0.26.1 release): with Cogpit's
+  Downloads grant reset (`tccutil reset SystemPolicyDownloadsFolder io.guided-traffic.cogpit`), a
+  source picked in Downloads earlier was read at the next start of Cogpit without a prompt, and no
+  grant was recorded afterwards; a log saved to the Desktop through the save panel without a grant
+  for the Desktop raised none either. Whether the bookmark or the item's own grant from the pick
+  (`com.apple.macl`, above) carried it is not told apart, and a restart of the Mac was not tried
+  (D-72). Verified: Cogpit's process makes, resolves and starts accessing them
   (`TestBookmarkHarness`, `TestBookmarkRoundTrip`).
 
 ## The bookmarks file
