@@ -2530,7 +2530,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 - **Estimate:** 28–66 h (was 30–70; the perf gate no longer hangs on a slow runner, third run).
 
 ### G16. Stability and the user bug backlog
-- **Found in the owner's walk (2026-10-19, v0.26.1), built 2026-10-19 but WF42; his re-walk is
+- **Found in the owner's walk (2026-10-19, v0.26.1), all built 2026-10-19; his re-walk is
   open:** WF31 a drawer's edited state ("Edited: 1 value.") was easy to miss: a coloured pill per
   count beside Revert and Save ([D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save)); WF32 a
   confirmation's Object(s) row did not set the kind apart from the name: "Config Map → walk-cm",
@@ -2557,9 +2557,10 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   resource definition ([D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)); WF44 the kubeconfig sources dialog
   had no button in the navigator: a "−" beside Local Kubeconfigs; WF45 a removed cluster's hotbar
   tile stayed: removing a source or Remove from Cogpit takes it off, a file gone by itself keeps it
-  marked missing ([D-101](../developer/decisions.md#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar)). Open: **WF42**, the disk image's
-  name pills sit too low and Cogpit's is too narrow for "Cogpit.app" (a visual review with the
-  owner, D-70). Estimate not moved.
+  marked missing ([D-101](../developer/decisions.md#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar)). WF42 the disk image's name pills sat too low and Cogpit's was too narrow for "Cogpit.app":
+  Finder's label measured in a ruler disk image on the owner's Mac (76–87 pt under the icon's centre,
+  black in both modes), the pills centred on it and 102 pt wide, chosen by the owner in the DMG
+  Lab ([D-70](../developer/decisions.md#d-70-the-disk-images-window)). Estimate not moved.
 - **Found in the same walk (2026-10-19), WF38 (the lead's, W44):** a credential plugin that is a
   wrapper and `exec`s was left running after Cancel Connecting while the log said Cogpit ended it,
   and connects cancelled behind it started new runs later. Built 2026-10-19
@@ -2944,6 +2945,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | G16: WF42 built, the owner's pick in the DMG Lab (D-70); WF31–WF45 all built |
 | 2026-10-19 | minor | G16: the owner's findings WF31–WF45 of 2026-10-19 built the same day but WF42 (D-94, D-58, D-66, D-97 to D-101), each with how; WF42 open for a visual review with the owner; no estimate moves |
 | 2026-10-19 | minor | G16: WF36 and WF41 built (D-99): a log tab's text selected across its lines and copied, a toast's and a notification's text selectable with a copy icon; no estimate moves |
 | 2026-10-19 | minor | G16: WF43 built (a Terminating namespace's drawer lists what holds it; Remove finalizers on one object), D-98; no estimate moves |

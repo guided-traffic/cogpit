@@ -406,7 +406,9 @@ Since 2026-10-16 ([D-70](decisions.md#d-70-the-disk-images-window)) the disk ima
 owner chose it in a visual review: a 600 × 340 window with the app's plate as the background (the
 logo's navy gradient and halo), Cogpit's icon on the left, an arrow to the Applications folder on
 the right, Cogpit's own helm wheel faint behind the folder, the icons at 124 points with their
-names on grey pills that read in light and dark Finder; the volume carries the app's icon. The
+names on grey pills that read in light and dark Finder (since 2026-10-19, the owner's WF42: centred
+on where Finder writes the names, measured on his Mac, and wide enough for "Cogpit.app"); the volume
+carries the app's icon. The
 settings are [`packaging/dmg/lab.json`](../../packaging/dmg/lab.json) (from the review's lab, the
 link inside); the background is the lab's drawing of them without icons and names
 ([`background.png`](../../packaging/dmg/background.png) and `@2x`, joined into one TIFF).

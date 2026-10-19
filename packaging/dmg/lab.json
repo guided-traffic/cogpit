@@ -1,6 +1,6 @@
 {
  "lab": "https://claude.ai/artifact/GYAkHGF8QJpVwXBFnCSpKg",
- "chosen": "2026-10-16, the owner (D-70)",
+ "chosen": "2026-10-16, the owner (D-70); the plaques under the names 2026-10-19, the owner (WF42)",
  "settings": {
   "W": 600,
   "H": 340,
@@ -35,6 +35,13 @@
   "caption": false,
   "captionText": "Drag Cogpit to Applications",
   "captionColor": "#bfe9ff",
-  "captionY": 0.97
+  "captionY": 0.97,
+  "ext": true,
+  "pillMode": "centred",
+  "pillOffset": 0,
+  "pillH": 22,
+  "pillPad": 10,
+  "pillSame": true,
+  "pillRadius": 0.4
  }
 }
