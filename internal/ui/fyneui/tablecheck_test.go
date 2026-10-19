@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -68,14 +69,30 @@ func withDeleteMany(t testing.TB, f *fakeEngine) {
 	}
 }
 
-// heldKeys makes keyModifiers report mods until the test ends or the returned function runs.
+// heldKeys makes the desktop driver's modifier keys, those of the last key event it delivered,
+// report mods until the test ends or the returned function runs: what the driver believes is held,
+// which is stale after a ⌘ that went down outside the window (keyEventModifiers, G16).
 func heldKeys(t *testing.T, mods fyne.KeyModifier) (release func()) {
 	t.Helper()
-	old := keyModifiers
-	keyModifiers = func() fyne.KeyModifier { return mods }
-	release = func() { keyModifiers = old }
+	old := keyEventModifiers
+	keyEventModifiers = func() fyne.KeyModifier { return mods }
+	release = func() { keyEventModifiers = old }
 	t.Cleanup(release)
 	return release
+}
+
+// mouseShortcut is ⌘ in a mouse event on macOS and Ctrl elsewhere, as Fyne's GLFW driver reports
+// them (convertMouseButton, internal/driver/glfw/window_desktop.go:486–497 in v2.8.2).
+const mouseShortcut = fyne.KeyModifierControl
+
+// clickWith clicks a table cell as Fyne's GLFW driver does: the primary button's press with the
+// click's own modifier keys (mods, in the mouse event's convention), its release, then the tap.
+func clickWith(t *testing.T, c *tableCell, mods fyne.KeyModifier) {
+	t.Helper()
+	ev := &desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(1, 1)}, Button: desktop.MouseButtonPrimary, Modifier: mods}
+	c.MouseDown(ev)
+	c.MouseUp(ev)
+	test.Tap(c)
 }
 
 // lastSelect is the last ui.select's parameters.
@@ -136,9 +153,7 @@ func TestRowCheckboxes(t *testing.T) {
 	q.until(t, "Delete back", func() bool { return !tv.check.bar.del.Disabled() })
 
 	// ⇧ on another checkbox adds the rows between.
-	release := heldKeys(t, fyne.KeyModifierShift)
-	test.Tap(cellAt(t, sh, 5, checkColumn))
-	release()
+	clickWith(t, cellAt(t, sh, 5, checkColumn), fyne.KeyModifierShift)
 	q.until(t, "the range", func() bool { return len(sh.ui.Selected) == 4 })
 	between := []model.ObjectRef{rows[2].Ref, rows[3].Ref, rows[4].Ref, rows[5].Ref}
 	if p := lastSelect(t, f); p.Mode != "add" || !slices.Equal(refKeys(p.Refs), refKeys(between)) {
@@ -150,9 +165,7 @@ func TestRowCheckboxes(t *testing.T) {
 	}
 
 	// ⌘-click on a row toggles it, without the drawer.
-	release = heldKeys(t, fyne.KeyModifierShortcutDefault)
-	test.Tap(cellAt(t, sh, 3, firstDataColumn+1))
-	release()
+	clickWith(t, cellAt(t, sh, 3, firstDataColumn+1), mouseShortcut)
 	q.until(t, "the row toggled off", func() bool { return len(sh.ui.Selected) == 3 })
 	if p := lastSelect(t, f); p.Mode != "toggle" || p.Refs[0] != rows[3].Ref || sh.ui.Drawer != nil {
 		t.Fatalf("⌘-click sent %+v, drawer %v", p, sh.ui.Drawer)
@@ -250,12 +263,10 @@ func TestPlainClickKeepsTheCheckedRows(t *testing.T) {
 	}
 
 	// ⌘-click far down toggles that row; the drawer stays, and the table stays where it is.
-	release := heldKeys(t, fyne.KeyModifierShortcutDefault)
 	far := cellAt(t, sh, 150, firstDataColumn+1) // scrolls there
 	scroll := tableScroll(t, sh)
 	at := scroll.Offset
-	test.Tap(far)
-	release()
+	clickWith(t, far, mouseShortcut)
 	q.until(t, "row 150 checked", func() bool { return len(sh.ui.Selected) == 3 })
 	settle(w)
 	if *sh.ui.Drawer != rows[4].Ref {

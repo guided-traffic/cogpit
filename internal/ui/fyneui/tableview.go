@@ -732,8 +732,8 @@ func (tv *tableView) rowTapped(id widget.TableCellID) {
 	}
 	tv.setHoverCell(id.Row, id.Col)
 	tv.sh.tip.hide()
-	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox
-		tv.checkTapped(id.Row)
+	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox: ⇧ is the key's
+		tv.checkTapped(id.Row, keyEventModifiers())
 		return
 	}
 	ref := tv.snap.Rows[id.Row].Ref
@@ -802,7 +802,8 @@ func (tv *tableView) requestTip() {
 
 // cellTapped handles a click on a body cell: the ⋮ opens the row's actions menu below it, a link
 // is followed (and the row is not selected), any other click selects the row through the table.
-func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent) {
+// mods are the click's own modifier keys (tableCell.MouseDown).
+func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyModifier) {
 	tv.sh.tip.hide()
 	if tv.snap == nil || c.row < 0 || c.row >= len(tv.snap.Rows) {
 		return
@@ -812,7 +813,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent) {
 	case c.content.kind == cellMenu:
 		tv.openRowMenu(c.row, drv.AbsolutePositionForObject(c).AddXY(0, c.Size().Height))
 	case c.content.kind == cellCheck:
-		tv.checkTapped(c.row)
+		tv.checkTapped(c.row, mods)
 	case c.onLink(e.Position) && c.content.link.Same(tv.snap.Rows[c.row].Ref):
 		// A link to the row's own object (an issue's name on the cluster Overview) opens its
 		// details over the page, as a click on the row does.
@@ -821,7 +822,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent) {
 		vis, ok := tv.dataColumn(c.col)
 		nsColumn := ok && tv.snap.Columns[tv.cols[vis]].ID == "namespace"
 		tv.sh.followLink(*c.content.link, tv.snap.Rows[c.row].Ref.Context, nsColumn)
-	case tv.modifiedClick(c.row): // ⌘-click toggles the row, ⇧-click selects a range (tablecheck.go)
+	case tv.modifiedClick(c.row, mods): // ⌘-click toggles the row, ⇧-click selects a range (tablecheck.go)
 	default:
 		if cnv := drv.CanvasForObject(tv.table); cnv != nil {
 			cnv.Focus(tv.table)
@@ -1163,11 +1164,15 @@ type tableCell struct {
 	focused   bool // the keyboard is on this cell (tablekeys.go)
 	tracked   bool // registered in tableView.cells
 	row, col  int
+	// pressMods are the modifier keys of the primary button's press on this cell, from its own
+	// mouse event (MouseDown), until the click's Tapped takes them.
+	pressMods fyne.KeyModifier
 }
 
 var (
 	_ fyne.Tappable          = (*tableCell)(nil)
 	_ fyne.SecondaryTappable = (*tableCell)(nil)
+	_ desktop.Mouseable      = (*tableCell)(nil)
 	_ desktop.Cursorable     = (*tableCell)(nil)
 )
 
@@ -1247,8 +1252,26 @@ func (c *tableCell) setHover(row, cell bool) {
 	}
 }
 
-// Tapped implements fyne.Tappable: follow a link, open the menu of the ⋮, else select the row.
-func (c *tableCell) Tapped(e *fyne.PointEvent) { c.tv.cellTapped(c, e) }
+// MouseDown implements desktop.Mouseable: it keeps the modifier keys of the primary button's
+// press for the click it begins. Fyne's GLFW driver sends the press to the object the click's Tapped
+// goes to, with the OS's modifier flags of that very event (on macOS NSEvent's modifierFlags), so
+// ⌘ and ⇧ are what the user held while clicking, not what the driver last saw in a key event.
+func (c *tableCell) MouseDown(ev *desktop.MouseEvent) {
+	if ev.Button == desktop.MouseButtonPrimary {
+		c.pressMods = clickModifiers(ev.Modifier)
+	}
+}
+
+// MouseUp implements desktop.Mouseable; the click is Tapped's.
+func (c *tableCell) MouseUp(*desktop.MouseEvent) {}
+
+// Tapped implements fyne.Tappable: follow a link, open the menu of the ⋮, else select the row. It
+// takes the press's modifier keys, so a tap without a press (Fyne's test driver) is a plain click.
+func (c *tableCell) Tapped(e *fyne.PointEvent) {
+	mods := c.pressMods
+	c.pressMods = 0
+	c.tv.cellTapped(c, e, mods)
+}
 
 // TappedSecondary implements fyne.SecondaryTappable: a right-click opens the row's actions menu
 // (Lens since 2025.10.230725).

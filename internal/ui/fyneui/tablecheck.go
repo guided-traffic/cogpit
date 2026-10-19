@@ -3,6 +3,7 @@ package fyneui
 import (
 	"errors"
 	"fmt"
+	"runtime"
 	"slices"
 
 	"fyne.io/fyne/v2"
@@ -28,7 +29,9 @@ import (
 // Cogpit's defaults (inferred, not the owner's decision, 2026-10-13):
 //   - a checkbox toggles its row without opening the drawer;
 //   - ⌘-click (Ctrl-click off macOS) toggles a row, ⇧-click (on a row or a checkbox) adds the rows
-//     from the last row clicked or checked, neither opens the drawer;
+//     from the last row clicked or checked, neither opens the drawer; ⌘ and ⇧ are the click's own,
+//     from its mouse event, never the driver's memory of the last key (the lead's choice of
+//     2026-10-19, architecture.md §4.4);
 //   - the header's checkbox selects the rows the view shows (the namespace filter and the search
 //     applied), or clears the selection when every one of them is selected already; it shows a
 //     dash while some are;
@@ -71,13 +74,32 @@ type selectModeParams struct {
 	NoDrawer bool              `json:"noDrawer"`
 }
 
-// keyModifiers returns the modifier keys held now, for ⌘- and ⇧-click; the test driver has none,
-// so tests replace it.
-var keyModifiers = func() fyne.KeyModifier {
+// keyEventModifiers returns the modifier keys of the key event being handled, for ⇧-Space on a
+// checkbox. Fyne's desktop driver keeps the modifiers of the last key event it delivered and writes
+// them before it hands the key on (internal/driver/glfw/window_desktop.go:714 in v2.8.2), so they are
+// exact while a key is handled. They are not the keys held now: nothing in Fyne resets them when
+// the window loses the focus, and GLFW drops the release of a key it never saw pressed, so a ⌘ that
+// went down outside the window can stay "held" until the next key event. A click takes its keys
+// from its own mouse event instead (tableCell.MouseDown, clickModifiers): a click once toggled every
+// row it hit as if ⌘ were held (G16, 2026-10-19). The test driver has no modifiers, so tests replace
+// it.
+var keyEventModifiers = func() fyne.KeyModifier {
 	if d, ok := fyne.CurrentApp().Driver().(desktop.Driver); ok {
 		return d.CurrentKeyModifiers()
 	}
 	return 0
+}
+
+// clickModifiers turns a mouse event's modifier keys into the keys' convention, in which
+// fyne.KeyModifierShortcutDefault is ⌘ on macOS and Ctrl elsewhere. Fyne's GLFW driver reports ⌘ in
+// a mouse event as Control on macOS, and a Ctrl-click there as a secondary click without it
+// (convertMouseButton, internal/driver/glfw/window_desktop.go:486–497 in v2.8.2); elsewhere Ctrl
+// stays Control.
+func clickModifiers(m fyne.KeyModifier) fyne.KeyModifier {
+	if runtime.GOOS == goosMac && m&fyne.KeyModifierControl != 0 {
+		m = m&^fyne.KeyModifierControl | fyne.KeyModifierSuper
+	}
+	return m
 }
 
 // selRef identifies a row's object in the open view: comparing it allocates nothing, so that each
@@ -160,12 +182,13 @@ func (tv *tableView) selectRows(refs []model.ObjectRef, mode engine.SelectMode) 
 	tv.sh.dispatch("ui.select", selectModeParams{Refs: refs, Mode: string(mode), NoDrawer: true}, nil)
 }
 
-// checkTapped toggles a row's checkbox; with ⇧ held it adds the rows from the anchor to it.
-func (tv *tableView) checkTapped(row int) {
+// checkTapped toggles a row's checkbox; with ⇧ in mods (the click's, or the key's for Space and ↵)
+// it adds the rows from the anchor to it.
+func (tv *tableView) checkTapped(row int, mods fyne.KeyModifier) {
 	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
 		return
 	}
-	if keyModifiers()&fyne.KeyModifierShift != 0 && tv.selectRange(row) {
+	if mods&fyne.KeyModifierShift != 0 && tv.selectRange(row) {
 		return
 	}
 	ref := tv.snap.Rows[row].Ref
@@ -173,13 +196,12 @@ func (tv *tableView) checkTapped(row int) {
 	tv.selectRows([]model.ObjectRef{ref}, engine.SelectToggle)
 }
 
-// modifiedClick handles a click on a row with ⌘ (Ctrl off macOS) or ⇧ held, and reports whether it
-// did; a plain click selects the row through the table.
-func (tv *tableView) modifiedClick(row int) bool {
+// modifiedClick handles a click on a row with ⌘ (Ctrl off macOS) or ⇧ in its own modifier keys
+// (clickModifiers), and reports whether it did; a plain click selects the row through the table.
+func (tv *tableView) modifiedClick(row int, mods fyne.KeyModifier) bool {
 	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
 		return false
 	}
-	mods := keyModifiers()
 	switch {
 	case mods&fyne.KeyModifierShortcutDefault != 0:
 		ref := tv.snap.Rows[row].Ref
