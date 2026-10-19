@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"net/url"
+	"reflect"
 	"strconv"
 	"sync/atomic"
 	"time"
@@ -45,6 +46,12 @@ type alertBoard struct {
 	root  *fyne.Container // the background and the scroll over the table's place
 	data  *engine.AlertBoardModel
 	ages  []alertAge // the since texts, refreshed by the shell's tick (refreshAges)
+
+	// The card head the pointer is on, kept across a rebuild of the board, so that its copy icon
+	// stays shown (the owner's WF34: it showed late or not at all, a rebuilt head getting no
+	// MouseIn until the pointer moved): the card's key and the hide of its icon.
+	hoverKey  string
+	hoverHide func()
 
 	// Requests of the model are coalesced, as the other pages' are (fluxdashboard.go).
 	requests atomic.Int32
@@ -130,8 +137,14 @@ func (b *alertBoard) refreshAges() {
 	}
 }
 
-// show makes the board show m.
+// show makes the board show m. A model that shows what the board shows already (a poll's answer
+// with nothing new, a UI change that is not the board's) keeps the board's widgets as they are, the
+// pointer's card head and its copy icon with them (WF34).
 func (b *alertBoard) show(m *engine.AlertBoardModel) {
+	if sameBoard(b.data, m) && len(b.box.Objects) > 0 {
+		b.data = m
+		return
+	}
 	b.data, b.ages = m, nil
 	var objs []fyne.CanvasObject
 	objs = append(objs, b.stateLines(m)...)
@@ -157,6 +170,17 @@ func (b *alertBoard) show(m *engine.AlertBoardModel) {
 	tv := b.sh.view
 	tv.count.SetText(b.countText())
 	tv.showHeadingCount()
+}
+
+// sameBoard reports whether b shows what a shows: the same model but for the time of its answer,
+// whose ages the shell's tick advances (refreshAges).
+func sameBoard(a, b *engine.AlertBoardModel) bool {
+	if a == nil || b == nil || a.AsOf.IsZero() != b.AsOf.IsZero() {
+		return false
+	}
+	x, y := *a, *b
+	x.AsOf, y.AsOf = time.Time{}, time.Time{}
+	return reflect.DeepEqual(x, y)
 }
 
 // stateLines say what the board shows while the Alertmanager does not answer, or answered more
@@ -256,13 +280,15 @@ func (b *alertBoard) groupHeader(g engine.AlertGroup) fyne.CanvasObject {
 // count, the severity label when the rules wrote another), its alerts.
 func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasObject {
 	name := newTextLine(c.Name, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	head := []fyne.CanvasObject{widget.NewIcon(chevron(c.Folded)), name,
+	copyIcon, attach := b.cardCopy(c.Key, c.Name)
+	head := []fyne.CanvasObject{widget.NewIcon(chevron(c.Folded)), name, copyIcon,
 		newTextLine(strconv.Itoa(c.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{})}
 	if l := cardLabel(c); l != "" {
 		head = append(head, newTextLine(l, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 	}
 	headTap := newAlertTap(b.sh, container.NewHBox(head...), func() { b.fold(c.Key, !c.Folded, false) }, "")
-	rows := []fyne.CanvasObject{container.NewBorder(nil, nil, nil, b.cardCopy(headTap, c.Name), headTap)}
+	attach(headTap)
+	rows := []fyne.CanvasObject{headTap}
 	if !c.Folded {
 		for i, it := range c.Alerts {
 			if i == maxCardAlerts {
@@ -283,32 +309,44 @@ func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasOb
 }
 
 // cardCopy is the copy icon of a card's alertname (the owner's WF21, 2026-10-18: "Alarm-Namen
-// müssen kopierbar sein"): shown while the pointer is on the card's head or on the icon, as the
-// lists' copy icon (D-25: the same icon, its checkmark after a copy, the same toast); its room is
-// kept, so the head does not move when it shows.
-func (b *alertBoard) cardCopy(head *alertTap, name string) fyne.CanvasObject {
+// müssen kopierbar sein"), right after the name (WF34, 2026-10-19: it sat at the card's far right):
+// shown while the pointer is on the card's head or on the icon, as the lists' copy icon (D-25: the
+// same icon, its checkmark after a copy, the same toast); its room is kept, so the head does not
+// move when it shows. attach hands it the head's hover. A board rebuilt under the pointer shows the
+// icon of the card it is on at once (alertBoard.hoverKey).
+func (b *alertBoard) cardCopy(key, name string) (icon fyne.CanvasObject, attach func(head *alertTap)) {
 	var done *time.Timer // the checkmark's
 	var onHead, onIcon bool
 	var btn *copyButton
+	hide := func() { onHead, onIcon = false, false; btn.Hide() }
+	enter := func() { b.hoverKey, b.hoverHide = key, hide; btn.Show() }
+	leave := func() {
+		if onHead || onIcon {
+			return
+		}
+		btn.Hide()
+		if b.hoverKey == key { // also the card rebuilt from this one, whose head the pointer may have left meanwhile
+			h := b.hoverHide
+			b.hoverKey, b.hoverHide = "", nil
+			if h != nil {
+				h()
+			}
+		}
+	}
 	btn = newCopyIcon(b.sh, func() {
 		b.sh.copyText(name, false)
 		btn.confirm(&done)
 		b.sh.copyToast("info", copiedToast)
-	}, func(*desktop.MouseEvent) { onIcon = true; btn.Show() }, func() {
-		onIcon = false
-		if !onHead {
-			btn.Hide()
-		}
-	})
+	}, func(*desktop.MouseEvent) { onIcon = true; enter() }, func() { onIcon = false; leave() })
 	btn.tip = "Copy " + name
-	head.in = func() { onHead = true; btn.Show() }
-	head.out = func() {
-		onHead = false
-		if !onIcon {
-			btn.Hide()
-		}
+	if key == b.hoverKey {
+		onHead = true
+		enter()
 	}
-	return container.NewStack(newHGap(theme.SizeNameInlineIcon), btn)
+	return container.NewStack(newHGap(theme.SizeNameInlineIcon), btn), func(head *alertTap) {
+		head.in = func() { onHead = true; enter() }
+		head.out = func() { onHead = false; leave() }
+	}
 }
 
 // cardLabel is the severity label a card's alerts carry when it is not their group's name ("major"),

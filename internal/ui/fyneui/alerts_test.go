@@ -240,6 +240,7 @@ func renderAlertBoard(t *testing.T, mode ThemeMode) {
 		t.Fatal(err)
 	}
 	q.until(t, "the description", func() bool { return b.data.Groups[0].Cards[0].Alerts[0].Expanded })
+	firstCardHead(t, b).MouseIn(&desktop.MouseEvent{}) // the pointer on the first card: its copy icon after the name (WF34)
 	settle(w)
 	savePNG(t, w, "alert_board_"+string(mode)+".png")
 }
@@ -342,4 +343,58 @@ func TestAlertNameCopy(t *testing.T) {
 	if btn.Visible() {
 		t.Error("the copy icon stays after the pointer left")
 	}
+}
+
+// TestAlertNameCopyAcrossARebuild (WF34): the copy icon sits right after the alertname; a board
+// rebuilt under the pointer (the next answer of the Alertmanager) shows the icon of the card the
+// pointer is on at once, and the same answer again rebuilds nothing.
+func TestAlertNameCopyAcrossARebuild(t *testing.T) {
+	s := alertEngine(t)
+	sh, w, q := newEngineShell(t, s, Options{})
+	b := openBoard(t, sh, w, q)
+	head := firstCardHead(t, b)
+	row := head.content.(*fyne.Container)
+	if _, ok := row.Objects[1].(*textLine); !ok || len(findAll[*copyButton](row.Objects[2])) != 1 {
+		t.Fatalf("the head's objects %T: want the chevron, the name and its copy icon first", row.Objects)
+	}
+	head.MouseIn(&desktop.MouseEvent{})
+
+	same := *b.data
+	same.AsOf = same.AsOf.Add(30 * time.Second)
+	before := b.box.Objects[0]
+	b.show(&same)
+	if b.box.Objects[0] != before {
+		t.Error("the same answer rebuilt the board")
+	}
+
+	next := *b.data
+	next.Total++ // a new answer: the board is built anew
+	b.show(&next)
+	fresh := firstCardHead(t, b)
+	if fresh == head {
+		t.Fatal("the board was not rebuilt")
+	}
+	btn := findAll[*copyButton](fresh)[0]
+	if !btn.Visible() {
+		t.Fatal("the rebuilt card's copy icon waits for the pointer to move")
+	}
+	head.MouseOut() // the pointer moves: the old head leaves first, then the new one is entered if it is there
+	if btn.Visible() {
+		t.Error("the rebuilt card's icon stays after the pointer left")
+	}
+	fresh.MouseIn(&desktop.MouseEvent{})
+	if !btn.Visible() {
+		t.Error("the rebuilt card's icon does not show on its head")
+	}
+}
+
+func firstCardHead(t *testing.T, b *alertBoard) *alertTap {
+	t.Helper()
+	for _, a := range findAll[*alertTap](b.root) {
+		if a.in != nil {
+			return a
+		}
+	}
+	t.Fatal("no card head")
+	return nil
 }

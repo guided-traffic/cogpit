@@ -867,7 +867,7 @@ installs none.
   minutes and its tooltip says since when. The pill is not there while the integration is off for
   the cluster shown.
 - **The board,** a click on the pill or Alerts in the command palette (⌘⇧P): a fold per severity, worst first, in each a
-  card per alert name with its count (the pointer on a card's head shows a copy icon for its name);
+  card per alert name with its count (the pointer on a card's head shows a copy icon right after its name);
   per alert its summary (a click shows the description), how
   long it has fired and a Runbook link, and under it the namespace (a click narrows the board to
   it) and the object it is about (a click opens it). The search and the namespace filter work as
