@@ -58,6 +58,15 @@ func TestBudgetCustomResourceView(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { _, ok := s.Backend().Profile(widgetsKey); return ok }) {
 		t.Fatal("the Widget kind never appeared")
 	}
+	// The Pods view the connection opens reads its pods only once the access reviews decided its
+	// plan; the Services are read from the cache by the detection of Prometheus (the Pods view's CPU
+	// and Memory columns) and of the Alertmanager (while the cluster is shown). The Widget kind can
+	// come first: opened before the reviews' answer, its view ends the Pods view before it watched,
+	// and the count below stays at three (2026-10-17; reviews held 1.5 s by the fake: the pods'
+	// watch missing three times in three). Leave the Pods view once both watches are open.
+	if !testkit.WaitFor(ctx, func() bool { w := srv.OpenWatchesBy(); return w["pods"] == 1 && w["services"] == 1 }) {
+		t.Fatalf("the Pods view's watches: %v, want pods and services", srv.OpenWatchesBy())
+	}
 	if _, err := s.Dispatch(ctx, engine.Invocation{ID: "ui.openView", Params: json.RawMessage(`{"view":"` + widgetsKey + `"}`), Origin: engine.OriginGUI}); err != nil {
 		t.Fatal(err)
 	}
@@ -65,9 +74,9 @@ func TestBudgetCustomResourceView(t *testing.T) {
 		t.Fatalf("the Widget view never filled: %+v", s.Table(widgetsKey))
 	}
 	// The definitions, the Pods view the connection opened first (warm), the Widget view, and the
-	// Services: the Pods view's CPU and Memory columns detect Prometheus among the cached Services.
+	// Services (above).
 	if !testkit.WaitFor(ctx, func() bool { return srv.OpenWatches() == 4 }) {
-		t.Fatalf("open watches: %d, want 4", srv.OpenWatches())
+		t.Fatalf("open watches: %v, want 4", srv.OpenWatchesBy())
 	}
 	conn := s.Backend().Conn
 	synced := conn.Counter().Snapshot()
