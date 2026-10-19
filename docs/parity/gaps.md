@@ -2543,8 +2543,10 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   draws on a fixed 60 Hz timer (`internal/driver/glfw/loop.go`), not at the display's rate, so
   against 120 Hz input a frame moves one, two or three events' distance. Decided by the owner the
   same evening, not built: an audit of the UI's goroutines first (a Fyne call off the main goroutine
-  would race instead of being moved once the check is off), then the check off in release builds
-  only, development builds and tests keeping it with its warning made visible; then he scrolls a
+  would race instead of being moved once the check is off), then a build parameter choosing speed
+  or safety: release builds the check off (Fyne's own tag `migrated_fynedo` compiles it out),
+  development builds and tests keeping it with its warning made visible, each overridable per
+  build; on a branch of its own until he has looked at it; then he scrolls a
   release himself, and only if it still jumps for him come frames at the display's rate and smoothed
   input (an upstream Fyne issue first, a fork as the fallback) with one separator line per row
   (−1.2 ms per frame). Not verified: how smooth it looks, the real trackpad's event rate, Retina
