@@ -203,7 +203,8 @@ type Connection struct {
 	// WaitingForLogin is set while the connection waits for its credential plugin (loginwait.go,
 	// D-73): a connect's first request, a renewal, Log in again. The plugin may wait for the user in
 	// a browser; Cogpit ends it at its Until, and cluster.disconnect ends it (and a connect under
-	// way) at once. While Connecting, Reason says it in a sentence.
+	// way) at once; a run Cogpit could not end has no Until (LoginWait.RunsOn), and
+	// cluster.disconnect then only stops the wait. While Connecting, Reason says it in a sentence.
 	WaitingForLogin LoginWait `json:"waitingForLogin,omitzero"`
 	// CredentialPlugin is set for a connection whose context logs in through a credential plugin
 	// (exec): Log in again runs it once. Without it, Log in again connects anew from the kubeconfig
@@ -217,9 +218,14 @@ type Connection struct {
 
 // LoginWait is a credential plugin's run that a connection waits for (Connection.WaitingForLogin).
 type LoginWait struct {
-	Program string    `json:"program"` // the plugin's program, its file name ("pinniped")
-	Since   time.Time `json:"since"`   // when it began
-	Until   time.Time `json:"until"`   // when Cogpit ends it unless it returned
+	Program string    `json:"program"`        // the plugin's program, its file name ("pinniped")
+	Since   time.Time `json:"since"`          // when it began
+	Until   time.Time `json:"until,omitzero"` // when Cogpit ends it unless it returned; none when RunsOn
+	// RunsOn: Cogpit stopped waiting for this run (a cancel, or its bound passed) and could not end
+	// its process, which keeps client-go's run going (cluster.LoginRun.RunsOn, H-118): it has no end
+	// time, and the connection waits behind it until that process ends. Cancel Connecting stops a
+	// connect's wait; the process runs on.
+	RunsOn bool `json:"runsOn,omitempty"`
 }
 
 // ConnectionState is a connection's lifecycle state.

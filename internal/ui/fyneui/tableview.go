@@ -68,7 +68,8 @@ type tableView struct {
 	placeholder                *fyne.Container
 	placeholderText            *textLine
 	placeholderDetail          *textLine       // while connecting: the login it waits for (D-73)
-	detailBox                  *fyne.Container // placeholderDetail centred; hidden while it says nothing
+	placeholderDetailEnd       *textLine       // behind a login Cogpit could not end: that it has no end (H-118)
+	detailBox                  *fyne.Container // the detail's lines centred; hidden while it says nothing
 	connectButton              *widget.Button
 	cancelButton               *widget.Button  // Cancel Connecting while connecting (D-73)
 	cancelBox                  *fyne.Container // cancelButton centred; hidden unless connecting
@@ -152,9 +153,13 @@ func newTableView(sh *shell) *tableView {
 	tv.connectButton = widget.NewButtonWithIcon(connectLabel+"…", theme.LoginIcon(), func() { sh.findCluster() }) // D-57
 	tv.connectButton.Importance = widget.HighImportance
 	tv.placeholderDetail = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	tv.placeholderDetailEnd = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	tv.placeholderDetail.align, tv.placeholderDetailEnd.align = fyne.TextAlignCenter, fyne.TextAlignCenter
+	tv.placeholderDetailEnd.Hide()
 	tv.cancelButton = widget.NewButtonWithIcon(cancelConnectingLabel, theme.CancelIcon(), sh.disconnect) // cluster.disconnect (menus_cluster.go)
 	// Hidden as boxes: a centring box around a hidden widget would still take its row's padding.
-	tv.detailBox, tv.cancelBox = container.NewCenter(tv.placeholderDetail), container.NewCenter(tv.cancelButton)
+	tv.detailBox = container.NewCenter(container.NewVBox(tv.placeholderDetail, tv.placeholderDetailEnd))
+	tv.cancelBox = container.NewCenter(tv.cancelButton)
 	tv.detailBox.Hide()
 	tv.cancelBox.Hide()
 	// A failed connect leaves the window on its cluster (D-97, the owner's WF40): its error, a
@@ -369,8 +374,16 @@ func (tv *tableView) updateConnecting(ui engine.UIState) {
 		return
 	}
 	tv.cancelBox.Show()
-	if line := loginWaitLine(ui.Connection.WaitingForLogin, tv.sh.timeFormat()); line != "" {
-		tv.placeholderDetail.SetText(line)
+	if w := ui.Connection.WaitingForLogin; w.Program != "" {
+		what, end := loginWaitSentences(w, tv.sh.timeFormat())
+		if w.RunsOn { // two lines, and the button below stops the wait only, not that run (H-118)
+			tv.placeholderDetail.SetText(what)
+			tv.placeholderDetailEnd.SetText(end + " " + loginWaitCancel(w, ""))
+			tv.placeholderDetailEnd.Show()
+		} else {
+			tv.placeholderDetail.SetText(what + " " + end)
+			tv.placeholderDetailEnd.Hide()
+		}
 		tv.detailBox.Show()
 	} else {
 		tv.detailBox.Hide()

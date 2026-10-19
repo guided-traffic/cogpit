@@ -38,7 +38,9 @@ import (
 //     process: it shares Cogpit's process group, so there is no group of its own to signal, and a
 //     browser it opened is no child of it (macOS's open hands the URL to the system) and is never
 //     ended. A run whose process is not found Cogpit stops waiting for, and says so
-//     (LoginEndedError.RunsOn): its process may run on (H-118);
+//     (LoginEndedError.RunsOn): its process may run on (H-118), and while client-go's run goes on
+//     the connections that wait behind it are told it has no end any more (LoginRun.RunsOn), a
+//     connect that registers behind it too;
 //   - once Cogpit ended a run, the Authenticator starts the plugin no more until the user connects
 //     or logs in again (rearm): client-go would start it again for each request that waited behind
 //     the lock, a browser tab each. A request that needed it ends as a *LoginEndedError;
@@ -128,7 +130,12 @@ func boundText(d time.Duration) string {
 type LoginRun struct {
 	Program string    // the plugin's program, its file name ("pinniped")
 	Since   time.Time // when it began
-	Until   time.Time // when Cogpit ends it unless it returned
+	Until   time.Time // when Cogpit ends it unless it returned; zero when RunsOn
+	// RunsOn: Cogpit stopped waiting for the run and could not end its process
+	// (LoginEndedError.RunsOn), and client-go's run goes on (a child of the plugin keeps its output
+	// open). No bound acts on it any more, so it has no end time: it ends when that process does,
+	// and every connection with its plugin configuration waits behind it until then (H-118).
+	RunsOn bool
 }
 
 // LoginWatch tells the owner of a connection when a run of its credential plugin begins or ends
@@ -197,7 +204,9 @@ type loginEnds struct {
 }
 
 // configureRuns gives the hold what its runs need: the plugin's command line, its program and the
-// runs' bound (the last connection's to register sets it); and the watch of the connection g.
+// runs' bound (the last connection's to register sets it); and the watch of the connection g,
+// which is told at once when a run is under way: the connection's requests wait behind it (H-118:
+// a connect behind a run Cogpit could not end said nothing of what it waited for).
 func (p *pluginHold) configureRuns(cfg *rest.Config, g *loginGuard, bound time.Duration) {
 	command := append([]string{filepath.Clean(cfg.ExecProvider.Command)}, cfg.ExecProvider.Args...)
 	p.mu.Lock()
@@ -206,20 +215,28 @@ func (p *pluginHold) configureRuns(cfg *rest.Config, g *loginGuard, bound time.D
 		p.bound = bound
 	}
 	p.stopped = nil // a connect is the user's: the plugin may run again (rearm)
+	under := p.run != nil
 	p.mu.Unlock()
-	if g.ends.watch != nil {
-		g.ends.watch.hold.Store(p)
+	if w := g.ends.watch; w != nil {
+		w.hold.Store(p)
+		if under && w.notify != nil {
+			notifyAll([]*LoginWatch{w})
+		}
 	}
 }
 
-// current is the run under way.
+// current is the run under way; one Cogpit stopped waiting for and could not end has no Until.
 func (p *pluginHold) current() (LoginRun, bool) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.run == nil {
 		return LoginRun{}, false
 	}
-	return p.run.LoginRun, true
+	run := p.run.LoginRun
+	if e := p.run.ending; e != nil && e.RunsOn {
+		run.Until, run.RunsOn = time.Time{}, true
+	}
+	return run, true
 }
 
 // begin notes a run that client-go starts now. It runs inside refreshCredsLocked, under the
@@ -242,7 +259,7 @@ func (p *pluginHold) begin(lock *sync.Mutex) {
 	run := &pluginRun{LoginRun: LoginRun{Program: p.program, Since: now, Until: now.Add(bound)},
 		command: slices.Clone(p.command), done: make(chan struct{})}
 	run.search = newProcSearch(now, run.command, before)
-	run.timer = time.AfterFunc(bound, func() { _ = p.end(run, ErrLoginTimedOut) }) // the connections are told
+	run.timer = time.AfterFunc(bound, func() { _ = p.end(run, ErrLoginTimedOut, nil) }) // the connections are told
 	p.run = run
 	run.watches = p.watchesLocked()
 	p.mu.Unlock()
@@ -310,9 +327,12 @@ func notifyAll(watches []*LoginWatch) {
 // end ends run for cause, unless it ended or is being ended: its process is looked up first (it may
 // wait for the search of it, at most until searchWindow after the run's begin); then no run starts
 // any more until rearm, each connection using the plugin is told, and the process, if found, is
-// signalled. It returns what the connections were told: RunsOn when the process was not found;
-// nil when it ended nothing (the run ended by itself meanwhile, or is being ended).
-func (p *pluginHold) end(run *pluginRun, cause error) *LoginEndedError {
+// signalled. Without one, client-go's run goes on: the watches of the connections that wait behind
+// it are told that it has no end any more (current), but the one of by, the connection whose cancel
+// it is (its connect or connection ends; nil for the bound). It returns what the connections were
+// told: RunsOn when the process was not found; nil when it ended nothing (the run ended by itself
+// meanwhile, or is being ended).
+func (p *pluginHold) end(run *pluginRun, cause error, by *loginGuard) *LoginEndedError {
 	p.mu.Lock()
 	if p.run != run || run.ending != nil || run.stopping {
 		p.mu.Unlock()
@@ -330,11 +350,20 @@ func (p *pluginHold) end(run *pluginRun, cause error) *LoginEndedError {
 	run.ending = e
 	p.stopped = e
 	p.tellLocked(e) // before the signal: a request the plugin's end fails sees it
+	var watches []*LoginWatch
+	if e.RunsOn {
+		for _, w := range unionWatches(run.watches, p.watchesLocked()) {
+			if by == nil || w != by.ends.watch {
+				watches = append(watches, w)
+			}
+		}
+	}
 	p.mu.Unlock()
 	after := time.Since(run.Since).Round(time.Millisecond)
 	if e.RunsOn {
 		slog.Warn("cluster: stopped waiting for a credential plugin's login; its process may run on", "program", run.Program,
 			"why", e.Error(), "after", after)
+		notifyAll(watches) // it goes on without an end (current): their waiting lines say so
 		return e
 	}
 	slog.Warn("cluster: ending a credential plugin's login", "program", run.Program, "why", e.Error(), "after", after)
@@ -381,7 +410,7 @@ func (p *pluginHold) cancelFor(g *loginGuard) bool {
 	if run == nil || shared {
 		return false
 	}
-	e := p.end(run, ErrLoginCancelled)
+	e := p.end(run, ErrLoginCancelled, g)
 	return e != nil && !e.RunsOn
 }
 

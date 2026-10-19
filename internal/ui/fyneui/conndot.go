@@ -293,7 +293,7 @@ func (d *connDot) tipText() string {
 	if line := loginWaitLine(c.WaitingForLogin, tf); line != "" { // its credential plugin runs (D-73)
 		text += "\n" + line
 		if c.State == engine.Connecting {
-			text += " Cancel Connecting in its menu ends it now."
+			text += " " + loginWaitCancel(c.WaitingForLogin, " in its menu")
 		}
 	}
 	if d.tipExtra != "" {

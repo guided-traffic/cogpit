@@ -17,7 +17,8 @@ import (
 // LoginPlugin is a credential plugin for tests of a login that waits (D-73): a shell script named
 // login-plugin that notes each run and the number of each of its processes, and either hands out the
 // ExecCredential the test gave it or, while Block is on, waits for ever as a browser login nobody
-// finishes does (a loop of short sleeps, so that no child of it outlives it by more than 100 ms).
+// finishes does (a loop of short sleeps, so that no child of it outlives it by more than 100 ms), or,
+// while Stray is on, leaves a child that keeps its standard output open and exits (H-118).
 // Kubeconfig is a file with one context that logs in with it against the fake API server.
 type LoginPlugin struct {
 	t          testing.TB
@@ -38,6 +39,10 @@ echo run >> "` + p.file("runs") + `"
 if [ -f "` + p.file("block") + `" ]; then
   echo "Log in in your browser to continue" >&2
   while :; do sleep 0.1; done
+fi
+if [ -f "` + p.file("stray") + `" ]; then
+  (while [ -f "` + p.file("stray") + `" ]; do sleep 0.1; done) &
+  exit 0
 fi
 cat "` + p.file("cred.json") + `"
 `
@@ -84,15 +89,23 @@ func (p *LoginPlugin) Give(token string, exp time.Time) {
 }
 
 // Block makes the plugin wait for ever from its next run on, or answer again.
-func (p *LoginPlugin) Block(on bool) {
+func (p *LoginPlugin) Block(on bool) { p.t.Helper(); p.mode("block", on) }
+
+// Stray makes the plugin's next runs leave a child that keeps the plugin's standard output open, and
+// exit at once: client-go's run goes on without a process of Cogpit's to end (H-118), until
+// Stray(false), which ends that child within 100 ms (as the test's end does).
+func (p *LoginPlugin) Stray(on bool) { p.t.Helper(); p.mode("stray", on) }
+
+// mode switches the plugin's file name on or off.
+func (p *LoginPlugin) mode(name string, on bool) {
 	p.t.Helper()
 	if !on {
-		if err := os.Remove(p.file("block")); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(p.file(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			p.t.Fatal(err)
 		}
 		return
 	}
-	if err := os.WriteFile(p.file("block"), nil, 0o600); err != nil {
+	if err := os.WriteFile(p.file(name), nil, 0o600); err != nil {
 		p.t.Fatal(err)
 	}
 }

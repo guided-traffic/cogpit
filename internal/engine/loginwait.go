@@ -20,7 +20,9 @@ import (
 //
 //   - the UI state: Connection.WaitingForLogin (the program, since, until) wherever the cluster's
 //     connection shows, while connecting with Reason "waiting for the login through <program>; …";
-//     agents read it in ui_state;
+//     agents read it in ui_state. A run Cogpit stopped waiting for and could not end (H-118) has no
+//     until but runsOn, and the reason "waiting behind the login through <program>, which Cogpit
+//     stopped waiting for and could not end; …": a connect that registers behind it is told of it;
 //   - the connection log: the run's begin in the connect's attempt, or in the attempt that runs (a
 //     login, a reconnect), and how it ended;
 //   - Disconnect of a cluster that connects (cluster.disconnect, the window's Cancel Connecting)
@@ -58,6 +60,7 @@ type loginNotes struct {
 
 	mu     sync.Mutex
 	logged time.Time // the Since of the run whose begin the log has
+	stray  time.Time // the Since of the run the log has as one Cogpit could not end
 	closed time.Time // the Since of the run whose end the log has
 }
 
@@ -85,13 +88,17 @@ func (n *loginNotes) wait() LoginWait {
 	if !on {
 		return LoginWait{}
 	}
-	return LoginWait{Program: run.Program, Since: run.Since, Until: run.Until}
+	return LoginWait{Program: run.Program, Since: run.Since, Until: run.Until, RunsOn: run.RunsOn}
 }
 
 // waitingReason is a connecting cluster's Reason while it waits for its plugin.
 func waitingReason(w LoginWait) string {
-	if w.Program == "" {
+	switch {
+	case w.Program == "":
 		return ""
+	case w.RunsOn:
+		return "waiting behind the login through " + kubeconfig.DisplayText(w.Program, 80) +
+			", which Cogpit stopped waiting for and could not end; it has no end time"
 	}
 	return "waiting for the login through " + kubeconfig.DisplayText(w.Program, 80) + "; it may wait for you to log in, in a browser"
 }
@@ -124,9 +131,10 @@ func (n *loginNotes) changed() {
 	}
 }
 
-// log writes a run's begin, and the end of one that ran for a connection that stands; a connect's
-// trace writes how its own run ended (cluster.Conn.traceLoginRun), and the watch writes a run
-// Cogpit ended (its expire).
+// log writes a run's begin, that Cogpit stopped waiting for a run it could not end (a connect
+// behind it, or a run past its bound: from then on it has no end time, H-118), and the end of one
+// that ran for a connection that stands; a connect's trace writes how its own run ended
+// (cluster.Conn.traceLoginRun), and the watch writes a run Cogpit ended (its expire).
 func (n *loginNotes) log() {
 	run, on := n.lw.Current()
 	tf := n.s.clockText
@@ -135,16 +143,21 @@ func (n *loginNotes) log() {
 	if begin {
 		n.logged = run.Since
 	}
+	stray := on && run.RunsOn && !run.Since.Equal(n.stray)
+	if stray {
+		n.stray = run.Since
+	}
 	n.mu.Unlock()
-	if begin {
-		text := fmt.Sprintf("Login: waiting for %s since %s; it may wait for you to log in, in a browser. Cogpit ends it at %s "+
+	switch {
+	case stray:
+		n.logWait(fmt.Sprintf("Login: waiting behind the login through %s, running since %s, which Cogpit stopped waiting for "+
+			"and could not end; it has no end time and lasts until its process ends", kubeconfig.DisplayText(run.Program, 80),
+			tf(run.Since)), "; Cancel Connecting stops this wait, that login goes on")
+		return
+	case begin:
+		n.logWait(fmt.Sprintf("Login: waiting for %s since %s; it may wait for you to log in, in a browser. Cogpit ends it at %s "+
 			"(after %s) unless it returns", kubeconfig.DisplayText(run.Program, 80), tf(run.Since), tf(run.Until),
-			boundWords(run.Until.Sub(run.Since)))
-		if n.connecting.Load() {
-			n.steps.step(LogInfo, cluster.StepLogin, text+"; Cancel Connecting ends it now", 0)
-		} else {
-			n.s.state.logs.stepRunning(n.contextID, LogInfo, cluster.StepLogin, text)
-		}
+			boundWords(run.Until.Sub(run.Since))), "; Cancel Connecting ends it now")
 		return
 	}
 	if on || n.connecting.Load() {
@@ -160,6 +173,16 @@ func (n *loginNotes) log() {
 	if write {
 		n.s.state.logs.stepRunning(n.contextID, LogInfo, cluster.StepLogin, fmt.Sprintf("Login: %s answered after %s",
 			kubeconfig.DisplayText(last.Program, 80), ended.Sub(last.Since).Round(100*time.Millisecond)))
+	}
+}
+
+// logWait writes a line about the run a connection waits for: into the connect's attempt with what
+// Cancel Connecting does (cancel), else into the attempt that runs.
+func (n *loginNotes) logWait(text, cancel string) {
+	if n.connecting.Load() {
+		n.steps.step(LogInfo, cluster.StepLogin, text+cancel, 0)
+	} else {
+		n.s.state.logs.stepRunning(n.contextID, LogInfo, cluster.StepLogin, text)
 	}
 }
 

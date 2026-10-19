@@ -508,10 +508,20 @@ stopped waiting for <program>; its process was not found and may run on"
   running until it ends by itself. If such a child keeps the plugin's output open, client-go's run
   does not end with the plugin, its lock stays taken, and every connection with that plugin
   configuration waits behind it: a new connect of the context waits too, and can be cancelled
-  again, with no process left to end. Its waiting line then still says when Cogpit ends the stray
-  run, which no longer happens: the bound does not act on a run Cogpit stopped waiting for. Since
-  2026-10-19 the requests of such cancelled connects that queued behind the run start no run of
-  their own once it ends: client-go's `getCreds` waits for the lock without the request's context,
+  again, with no process left to end. That wait has no bound: the 5 minutes act on a run Cogpit can
+  still end, and a connect has no deadline of its own, so it lasts until the stray process ends
+  (then the connect goes on: with the credential that run handed out, if it did, else with a run
+  of its own, bounded as any) or until the user cancels it. Since
+  2026-10-20 its waiting line says so, with no end time: "Waiting behind the login through
+  <program>, running since 14:28, which Cogpit stopped waiting for and could not end. It has no end
+  time: it lasts until its process ends.", and "Cancel Connecting stops this wait; that login goes
+  on" (for agents `waitingForLogin` with `runsOn` and no `until`; [`loginrun.go`](../../internal/cluster/loginrun.go)
+  `LoginRun.RunsOn`, `TestAWaitBehindARunCogpitCouldNotEndHasNoEnd`,
+  `TestAConnectBehindARunCogpitCouldNotEndHasNoEnd`). Before, a connect that registered behind the
+  run said nothing of what it waited for, and a connection that already showed the run kept its
+  passed end ("Cogpit ends it at …") after the bound had failed to end it. Since 2026-10-19 the
+  requests of such cancelled connects that queued behind the run start no run of their own once it
+  ends: client-go's `getCreds` waits for the lock without the request's context,
   and before, each started the plugin anew (a browser tab each) with nobody waiting; now the hold
   admits a run only while an open connection the user did not cancel asks for one
   ([`loginhold.go`](../../internal/cluster/loginhold.go) `admit`, `TestCancelledConnectsStartNoRunAfterAStrayOne`).

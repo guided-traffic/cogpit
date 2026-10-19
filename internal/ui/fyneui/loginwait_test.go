@@ -24,9 +24,23 @@ func waitingConnection() engine.Connection {
 		WaitingForLogin: engine.LoginWait{Program: "pinniped", Since: fixedNow.Add(-2 * time.Minute), Until: fixedNow.Add(3 * time.Minute)}}
 }
 
+// strayWaitConnection is a connect that waits behind a run of pinniped that began twelve minutes
+// ago and that Cogpit stopped waiting for and could not end (H-118): no end time.
+func strayWaitConnection() engine.Connection {
+	return engine.Connection{State: engine.Connecting,
+		Reason:          "waiting behind the login through pinniped, which Cogpit stopped waiting for and could not end; it has no end time",
+		WaitingForLogin: engine.LoginWait{Program: "pinniped", Since: fixedNow.Add(-12 * time.Minute), RunsOn: true}}
+}
+
 // connectingScene is the shell while prod-eu-central connects and its plugin waits, the dots'
 // blink in its first phase.
 func connectingScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *fakeEngine) {
+	t.Helper()
+	return connectingSceneWith(t, mode, waitingConnection())
+}
+
+// connectingSceneWith is connectingScene with conn as the connect's state.
+func connectingSceneWith(t *testing.T, mode ThemeMode, conn engine.Connection) (*shell, fyne.Window, *mainQueue, *fakeEngine) {
 	t.Helper()
 	f := connectedFake(t, 0)
 	f.ui.Context, f.ui.View = "prod-eu-central", ""
@@ -38,7 +52,7 @@ func connectingScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQu
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.drain()
 	fakeBlinkClock(sh)
-	f.update(func(u *engine.UIState) { u.Connection = waitingConnection() })
+	f.update(func(u *engine.UIState) { u.Connection = conn })
 	q.until(t, "Cancel Connecting", func() bool { return sh.view.cancelBox.Visible() && sh.view.detailBox.Visible() })
 	return sh, w, q, f
 }
@@ -51,8 +65,8 @@ func TestConnectingOffersCancelConnecting(t *testing.T) {
 		t.Errorf("the placeholder: %q", got)
 	}
 	want := "Waiting for the login through pinniped since 14:28; it may wait for you in your browser. Cogpit ends it at 14:33."
-	if got := sh.view.placeholderDetail.text; got != want {
-		t.Errorf("the detail: %q, want %q", got, want)
+	if got := sh.view.placeholderDetail.text; got != want || sh.view.placeholderDetailEnd.Visible() {
+		t.Errorf("the detail: %q (a second line %v), want %q", got, sh.view.placeholderDetailEnd.Visible(), want)
 	}
 	if item := windowDisconnect(t, w); item.Label != cancelConnectingLabel || item.Disabled {
 		t.Errorf("the Cluster menu's item: %q, disabled %v", item.Label, item.Disabled)
@@ -112,8 +126,38 @@ func TestABackgroundConnectOffersCancelConnecting(t *testing.T) {
 	}
 }
 
+// H-118: a connect behind a run Cogpit stopped waiting for and could not end names no end time,
+// in the workspace and the dot's tooltip, and says that Cancel Connecting only stops the wait.
+func TestConnectingBehindALoginCogpitCouldNotEnd(t *testing.T) {
+	sh, w, q, _ := connectingSceneWith(t, ThemeDark, strayWaitConnection())
+	what := "Waiting behind the login through pinniped, running since 14:18, which Cogpit stopped waiting for and could not end."
+	end := "It has no end time: it lasts until its process ends."
+	if got := sh.view.placeholderDetail.text; got != what {
+		t.Errorf("the detail: %q, want %q", got, what)
+	}
+	if got, want := sh.view.placeholderDetailEnd.text, end+" Cancel Connecting stops this wait; that login goes on."; got != want ||
+		!sh.view.placeholderDetailEnd.Visible() {
+		t.Errorf("the detail's second line: %q (shown %v), want %q", got, sh.view.placeholderDetailEnd.Visible(), want)
+	}
+	line := what + " " + end
+	sh.tip.delay = time.Millisecond
+	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
+	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
+	tip := sh.tip.visibleText()
+	if !strings.Contains(tip, line+" Cancel Connecting in its menu stops this wait; that login goes on.") {
+		t.Errorf("the dot's tooltip: %q", tip)
+	}
+	if strings.Contains(tip, "Cogpit ends it") || strings.Contains(tip, "ends it now") {
+		t.Errorf("the dot's tooltip promises an end: %q", tip)
+	}
+}
+
 func renderConnecting(t *testing.T, mode ThemeMode, name string) {
-	sh, w, q, _ := connectingScene(t, mode)
+	renderConnectingWith(t, mode, waitingConnection(), name)
+}
+
+func renderConnectingWith(t *testing.T, mode ThemeMode, conn engine.Connection, name string) {
+	sh, w, q, _ := connectingSceneWith(t, mode, conn)
 	sh.tip.delay = time.Millisecond
 	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
@@ -126,4 +170,12 @@ func TestRenderConnectingLoginWaitDark(t *testing.T) {
 
 func TestRenderConnectingLoginWaitLight(t *testing.T) {
 	renderConnecting(t, ThemeLight, "connecting_login_wait_light.png")
+}
+
+func TestRenderConnectingBehindAStrayLoginDark(t *testing.T) {
+	renderConnectingWith(t, ThemeDark, strayWaitConnection(), "connecting_stray_login_dark.png")
+}
+
+func TestRenderConnectingBehindAStrayLoginLight(t *testing.T) {
+	renderConnectingWith(t, ThemeLight, strayWaitConnection(), "connecting_stray_login_light.png")
 }

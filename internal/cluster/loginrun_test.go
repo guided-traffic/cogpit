@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"testing"
 	"time"
@@ -622,5 +623,122 @@ func TestCancelledLoginRunsNoMoreUntilLogInAgain(t *testing.T) {
 	c.ArmLogin()
 	if err := c.Heartbeat(context.Background()); err != nil || p.count() != base+1 {
 		t.Fatalf("a heartbeat after Log in again: %v, %d runs; want one run", err, p.count()-base)
+	}
+}
+
+// H-118's residual after WF38: a connect that waits behind a run Cogpit stopped waiting for and
+// could not end (the plugin left a child that holds its output, and exited: client-go's run goes
+// on) is told of that run as it registers, and the run says it has no end: the bound no longer
+// acts on it (LoginRun.RunsOn, no Until). Before, the later connect was not told at all, and its
+// watch gave the passed bound as the run's end. Its cancel stops its wait; the run goes on. A
+// connect behind it that is not cancelled goes on once the run ends, with a run of its own.
+func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
+	defer srv.Close()
+	p := newWaitingPlugin(t, srv)
+	p.give(secretToken, false)
+	p.mode(p.stray, true)
+	watch := NewLoginWatch(func() {})
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := p.connectAsync(ctx, watch, nil)
+	wait := waitCtx(t, 20*time.Second)
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
+		t.Fatal("the connect never waited for the plugin's stray child")
+	}
+	if run, _ := watch.Current(); run.RunsOn || run.Until.Sub(run.Since) != DefaultLoginTimeout {
+		t.Errorf("the run before the cancel: %+v, want its end after %s", run, DefaultLoginTimeout)
+	}
+	cancel()
+	if r := result(t, done); !errors.Is(r.err, ErrLoginCancelled) {
+		t.Fatalf("the cancelled connect: %v, want a cancelled login", r.err)
+	}
+	stray := p.numbers(p.strays)[0]
+	p.mode(p.stray, false)
+
+	var told atomic.Int32
+	later := NewLoginWatch(func() { told.Add(1) })
+	lctx, lcancel := context.WithCancel(context.Background())
+	defer lcancel()
+	ldone := p.connectAsync(lctx, later, nil)
+	if !testkit.WaitFor(wait, func() bool { return told.Load() > 0 }) {
+		t.Fatal("the later connect was not told of the run it waits behind")
+	}
+	run, on := later.Current()
+	if !on || run.Program != "login-plugin" || !run.RunsOn || !run.Until.IsZero() {
+		t.Fatalf("the run the later connect waits behind: %+v (under way %v), want login-plugin, RunsOn, no end", run, on)
+	}
+	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+	lcancel()
+	r := result(t, ldone)
+	var ce *ConnectError
+	if !errors.As(r.err, &ce) || ce.Problem != "connecting was cancelled" {
+		t.Fatalf("the cancelled later connect: %v, want cancelled", r.err)
+	}
+	if gone(stray) {
+		t.Error("the stray child ended: the test no longer shows a run Cogpit could not end")
+	}
+
+	// A connect behind the run that is not cancelled goes on once the stray child ends: with a run
+	// of its own (the stray run handed out no credential), bounded as any.
+	third := NewLoginWatch(func() {})
+	tdone := p.connectAsync(context.Background(), third, nil)
+	if !testkit.WaitFor(wait, func() bool { run, on := third.Current(); return on && run.RunsOn }) {
+		t.Fatal("the third connect does not see the run it waits behind")
+	}
+	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+	_ = syscall.Kill(stray, syscall.SIGKILL)
+	if r := result(t, tdone); r.err != nil {
+		t.Fatalf("the connect behind the run, once it ended: %v", r.err)
+	}
+	if n := p.count(); n != 2 {
+		t.Errorf("the plugin ran %d times, want twice: the stray run and the third connect's own", n)
+	}
+	if last, _, by, ok := third.Last(); !ok || by != nil || last.Until.Sub(last.Since) != DefaultLoginTimeout {
+		t.Errorf("the third connect's own run: %+v (ended by %v), want one bounded by %s", last, by, DefaultLoginTimeout)
+	}
+}
+
+// The same for a connect's own run that passes its bound and whose process Cogpit cannot end: its
+// watch is told at the bound, and the run has no end from then on (the connect still waits behind
+// it, until the user cancels or its process ends).
+func TestARunPastItsBoundThatCogpitCouldNotEndHasNoEnd(t *testing.T) {
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
+	defer srv.Close()
+	p := newWaitingPlugin(t, srv)
+	p.give(secretToken, false)
+	p.mode(p.stray, true)
+	var told atomic.Int32
+	watch := NewLoginWatch(func() { told.Add(1) })
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan connectResult, 1)
+	go func() {
+		c, err := Connect(ctx, Options{KubeconfigPaths: []string{p.kconf}, Login: watch, LoginTimeout: time.Second})
+		done <- connectResult{c, err}
+	}()
+	wait := waitCtx(t, 20*time.Second)
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
+		t.Fatal("the connect never waited for the plugin's stray child")
+	}
+	begun := told.Load()
+	if !testkit.WaitFor(wait, func() bool { run, _ := watch.Current(); return run.RunsOn }) {
+		run, _ := watch.Current()
+		t.Fatalf("the run past its bound: %+v, want RunsOn", run)
+	}
+	if run, on := watch.Current(); !on || !run.Until.IsZero() || run.Since.IsZero() {
+		t.Errorf("the run past its bound: %+v (under way %v), want its begin and no end", run, on)
+	}
+	if told.Load() <= begun {
+		t.Error("the watch was not told when Cogpit stopped waiting for the run")
+	}
+	select {
+	case r := <-done:
+		t.Fatalf("the connect returned while the run went on: %v", r.err)
+	default:
+	}
+	cancel()
+	if r := result(t, done); r.err == nil {
+		t.Fatal("a cancelled connect connected")
 	}
 }

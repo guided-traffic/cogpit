@@ -792,7 +792,12 @@ waits for you to finish there. While it waits:
   moment, a helper the program left behind that keeps its output open), it only stops waiting,
   and the connection updates say so: "Login cancelled: Cogpit stopped waiting for <program>; its
   process was not found and may run on" (before 2026-10-19 they said "Cogpit ended <program>"
-  either way). A connect you start then waits for that process until it ends; cancel it too.
+  either way). A connect you start then waits behind that login until its process ends, with no
+  end time, and says so (since 2026-10-20): **Waiting behind the login through <program>, running
+  since 14:28, which Cogpit stopped waiting for and could not end. It has no end time: it lasts
+  until its process ends. Cancel Connecting stops this wait; that login goes on.** The same shows
+  when a login passes its 5 minutes and Cogpit cannot find its process: the connect then waits on
+  the same way instead of failing.
 - A login program that has not finished after **5 minutes** is ended by Cogpit: the connect fails
   with "the login through <program> did not finish within 5 minutes; Connect starts it again" (the
   dot red). The 5 minutes are fixed.
@@ -808,7 +813,9 @@ waits for you to finish there. While it waits:
 
 Agents see it in `ui_state`: `connection.waitingForLogin` (`program`, `since`, `until`) while a login
 program runs, and while connecting `connection.reason` "waiting for the login through <program>; it
-may wait for you to log in, in a browser". `cluster_disconnect` of a connecting cluster (its
+may wait for you to log in, in a browser". Behind a login Cogpit stopped waiting for and could not
+end, `waitingForLogin` has `runsOn: true` and no `until`, and the reason is "waiting behind the
+login through <program>, which Cogpit stopped waiting for and could not end; it has no end time". `cluster_disconnect` of a connecting cluster (its
 `context` for one connecting in the background) cancels the connect as the window's Cancel
 Connecting does; agents may run it without asking you (it stops only what your connect started).
 `cluster_connect` answers `connecting` when another cluster was shown while it waited: the connect
