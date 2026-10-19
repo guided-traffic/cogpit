@@ -12,6 +12,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/cluster"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
 // Remove finalizers (WF43, D-98): a destructive command on one object being deleted that removes
@@ -91,6 +92,21 @@ var ErrNotBeingDeleted = errors.New("the object is not being deleted: only an ob
 // errNamespaceFinalizers says why Remove finalizers never applies to a namespace.
 var errNamespaceFinalizers = fmt.Errorf("a namespace's deletion is never forced: it finishes by itself once nothing in it holds it, and its own finalizer is the namespace controller's, which Cogpit never removes (%w)", ErrNotApplicable)
 
+// errDefinitionFinalizers says why Remove finalizers never applies to a custom resource
+// definition: its finalizer (customresourcecleanup.apiextensions.k8s.io) is the API server's own,
+// which deletes the definition's custom resources from etcd first; without it they would stay in
+// etcd and come back with a definition of the same name, as a namespace's content would without
+// the namespace controller's finalizer (the lead's decision of 2026-10-19, D-98, open to revision).
+var errDefinitionFinalizers = fmt.Errorf("a custom resource definition's deletion is never forced: its finalizer is the API server's, which removes its custom resources from etcd first, and Cogpit never removes it (%w)", ErrNotApplicable)
+
+// definitionsKind is the custom resource definitions' kind key.
+const definitionsKind = kinds.KeyCustomResourceDefinitions
+
+// isDefinitions reports whether group and resource name the custom resource definitions.
+func isDefinitions(group, resource string) bool {
+	return group == crdsGVR.Group && resource == crdsGVR.Resource
+}
+
 // FinalizersRemovable checks Remove finalizers on an object the cache holds: it applies only to an
 // object of the cluster's API, not a namespace, that is being deleted and holds finalizers, and,
 // when finalizers are given, the object must hold exactly those. Objects of a kind without a
@@ -121,6 +137,9 @@ func (s *Session) finalizersApply(b *Backend, ref model.ObjectRef, finalizers []
 		if ref.Kind == namespacesKind {
 			return errNamespaceFinalizers
 		}
+		if ref.Kind == definitionsKind {
+			return errDefinitionFinalizers
+		}
 		if ref.Name == "" {
 			return errors.New("the reference has no name")
 		}
@@ -131,6 +150,9 @@ func (s *Session) finalizersApply(b *Backend, ref model.ObjectRef, finalizers []
 	}
 	if isNamespaces(p) {
 		return errNamespaceFinalizers
+	}
+	if isDefinitions(p.Group, p.Resource) {
+		return errDefinitionFinalizers
 	}
 	obj, err := s.Lookup(ref)
 	switch {
@@ -166,12 +188,18 @@ func (s *Session) RemoveFinalizers(ctx context.Context, p RemoveFinalizersParams
 	if len(p.Finalizers) == 0 {
 		return RemoveFinalizersResult{}, errors.New("name the finalizers to remove, exactly as the object holds them (metadata.finalizers)")
 	}
+	if p.Ref.Kind == definitionsKind { // before anything is resolved, as a namespace below
+		return RemoveFinalizersResult{}, errDefinitionFinalizers
+	}
 	t, b, err := s.ResolveTarget(ctx, p.Ref)
 	if err != nil {
 		return RemoveFinalizersResult{}, err
 	}
 	if t.GVR.Group == "" && t.GVR.Resource == namespacesKind {
 		return RemoveFinalizersResult{}, errNamespaceFinalizers
+	}
+	if isDefinitions(t.GVR.Group, t.GVR.Resource) {
+		return RemoveFinalizersResult{}, errDefinitionFinalizers
 	}
 	w, ok := b.Writer().(FinalizerWriter)
 	if !ok {

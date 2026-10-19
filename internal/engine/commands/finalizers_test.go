@@ -115,6 +115,17 @@ func TestRemoveFinalizersRefusals(t *testing.T) {
 			t.Errorf("%s: applicable (%v)", what, cmd.Enabled(h.s, cmd.ObjectParams(r, "")))
 		}
 	}
+	// A custom resource definition's finalizer is the API server's own (D-98): never removed.
+	crd := model.ObjectRef{Kind: "customresourcedefinitions", Name: "widgets.example.com"}
+	if err := h.run(t, engine.OriginGUI, engine.RemoveFinalizersCommand, map[string]any{"ref": crd,
+		"finalizers": []string{"customresourcecleanup.apiextensions.k8s.io"}}, nil); err == nil {
+		t.Error("a definition's finalizer removed")
+	} else if !strings.Contains(err.Error(), "custom resource definition") {
+		t.Errorf("the refusal: %v", err)
+	}
+	if got := removals(h.writer); len(got) != 0 {
+		t.Errorf("removals %v after the definition's refusal", got)
+	}
 	if err := h.run(t, engine.OriginGUI, engine.RemoveFinalizersCommand, map[string]any{"ref": ref, "finalizers": []string{"example.com/y", "example.com/x"}}, nil); !errors.Is(err, engine.ErrTargetsChanged) {
 		t.Errorf("finalizers in another order: %v", err)
 	}
