@@ -86,8 +86,8 @@ func registerSecretData(g *registrar) {
 		Escalate: func(_ *engine.Session, p secretDataParams) bool { return len(p.Remove) > 0 },
 		Targets:  func(s *engine.Session, p secretDataParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
 		// The keys only, which the drawer's review binds as its confirmation of a removal.
-		Detail: func(_ *engine.Session, p secretDataParams) string {
-			return engine.SecretSaveDetail(slices.Collect(maps.Keys(p.Data)), slices.Collect(maps.Keys(p.Add)), p.Remove)
+		Effects: func(_ *engine.Session, p secretDataParams) []engine.Effect {
+			return engine.SecretSaveEffects(slices.Collect(maps.Keys(p.Data)), slices.Collect(maps.Keys(p.Add)), p.Remove)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p secretDataParams) (any, error) {
 			if err := refuseSecretData(ctx); err != nil {

@@ -174,8 +174,9 @@ func TestCreateDialogsDryRunThenCreate(t *testing.T) {
 	// naming what it grants to whom, in the owner's words, and not saying it cannot be undone (A101).
 	if len(asked) != 1 || asked[0].Command != "clusterRoleBinding.create" || asked[0].Danger != engine.DangerDestructive ||
 		!asked[0].Undoable ||
-		!strings.HasPrefix(asked[0].Detail, "Grants these rights immediately, cluster-wide: the permissions of ClusterRole system:health-reader to ") ||
-		!strings.Contains(asked[0].Detail, "Group oncall and ServiceAccount shop/ci") {
+		!slices.Equal(asked[0].Effects, []engine.Effect{{Name: "Grants", Value: "ClusterRole → system:health-reader", Tone: engine.EffectNames},
+			{Name: "To", Value: "Group → oncall\nServiceAccount → shop/ci", Tone: engine.EffectNames},
+			{Name: "Takes effect", Value: "immediately, cluster-wide", Tone: engine.EffectWarning}}) {
 		t.Errorf("confirmations: %+v", asked)
 	}
 
@@ -258,10 +259,10 @@ func TestCreateDialogsAgentsNeedAcceptance(t *testing.T) {
 	req := asked[0]
 	if req.Danger != engine.DangerMutating || req.Context != "test" || !slices.Equal(req.Namespaces, []string{"shop"}) ||
 		len(req.Objects) != 1 || req.Objects[0].Kind != "rolebindings" || req.Objects[0].Name != "ci-admin" ||
-		req.Detail != "Grants these rights immediately, in namespace shop: the permissions of ClusterRole admin to ServiceAccount shop/ci." {
+		req.Detail != "Grants: ClusterRole → admin. To: ServiceAccount → shop/ci. Takes effect: immediately, in namespace shop." {
 		t.Errorf("confirmation %+v", req)
 	}
-	if !strings.Contains(req.Message(), "An agent asks to run: Create Role Binding Role Binding ci-admin in namespace shop (context test)? Grants these rights immediately") {
+	if !strings.Contains(req.Message(), "An agent asks to run: Create Role Binding Role Binding ci-admin in namespace shop (context test)? Grants: ClusterRole → admin.") {
 		t.Errorf("message %q", req.Message())
 	}
 	answer = true

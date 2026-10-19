@@ -54,7 +54,7 @@ func TestDeepLinksOpenInTheWindow(t *testing.T) {
 	defer detach()
 	q.until(t, "the link's question", func() bool { return sh.confirmer.current != nil })
 	texts := strings.Join(overlayTexts(w), "\n")
-	if !strings.Contains(texts, "connects demo and opens the deployments view there") || !strings.Contains(texts, "A cogpit:// link") {
+	if !strings.Contains(texts, "Opens") || !strings.Contains(texts, "the deployments view") || !strings.Contains(texts, "A cogpit:// link") {
 		t.Errorf("the question:\n%s", texts)
 	}
 	test.Tap(sh.confirmer.current.confirm)

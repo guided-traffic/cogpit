@@ -213,7 +213,7 @@ func TestHelmUpgradeAgents(t *testing.T) {
 			t.Errorf("confirmation %+v: %s", req, req.Message())
 		}
 	}
-	if !strings.Contains(asked[0].Message(), "chart web 0.3.0") || !strings.Contains(asked[0].Message(), "in the tab "+tab.Tab.ID) {
+	if !strings.Contains(asked[0].Message(), "Chart: web 0.3.0") || !strings.Contains(asked[0].Message(), "Values: tab "+tab.Tab.ID) {
 		t.Errorf("message %q", asked[0].Message())
 	}
 	if calls := h.server.recorded(); len(calls) != 1 {

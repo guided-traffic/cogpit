@@ -104,9 +104,9 @@ func TestNodeShellPodAndConfirmation(t *testing.T) {
 	}
 	msg := req.Message()
 	at := strings.LastIndex(engine.DefaultNodeShellImage, "@") // Renovate moves the default: the test follows it
-	for _, want := range []string{"Shell Node worker-1 (context test)?", "privileged pod in namespace kube-system on node worker-1",
-		"root access to the node", "Image: " + engine.DefaultNodeShellImage[:at] + ", pinned by digest " + engine.DefaultNodeShellImage[at+1:] + ".",
-		"ends by itself after 2 hours, its maximum duration."} {
+	for _, want := range []string{"Shell Node worker-1 (context test)?", "Creates: a privileged pod in namespace kube-system on node worker-1.",
+		"Access: root on the node", "Image: " + engine.DefaultNodeShellImage[:at] + ". Digest: " + engine.DefaultNodeShellImage[at+1:] + ".",
+		"Ends: when the shell closes, by itself after 2 hours."} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("the confirmation lacks %q:\n%s", want, msg)
 		}
@@ -223,8 +223,8 @@ func TestNodeShellSettings(t *testing.T) {
 	}
 	h.must(t, engine.OriginGUI, engine.NodeShellCommand, map[string]any{"ref": worker1}, nil)
 	msg := conf.last(t).Message()
-	for _, want := range []string{"Image: registry.example.com/tools/shell:1.2, a floating tag, not pinned by digest",
-		"pulled with the image pull secret registry-pull"} {
+	for _, want := range []string{"Image: registry.example.com/tools/shell:1.2. Digest: none: a floating tag",
+		"Pull secret: registry-pull."} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("the confirmation lacks %q:\n%s", want, msg)
 		}
@@ -278,7 +278,7 @@ func TestNodeShellMaxDurationSetting(t *testing.T) {
 
 	var res commands.DockResult
 	h.must(t, engine.OriginGUI, engine.NodeShellCommand, map[string]any{"ref": worker1}, &res)
-	if msg := conf.last(t).Message(); !strings.Contains(msg, "ends by itself after 1 hour 30 minutes, its maximum duration.") {
+	if msg := conf.last(t).Message(); !strings.Contains(msg, "Ends: when the shell closes, by itself after 1 hour 30 minutes.") {
 		t.Errorf("the confirmation does not name the maximum duration:\n%s", msg)
 	}
 	pod := h.writer.createdPods()[0]

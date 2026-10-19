@@ -170,7 +170,9 @@ func TestConfirmationShowsTheWarning(t *testing.T) {
 	q.until(t, "the charts", func() bool { return sh.view.snap != nil })
 	req := engine.ConfirmRequest{Command: "helm.chart.install", Label: "Install", Danger: engine.DangerMutating, Origin: engine.OriginExternalAgent,
 		Context: "demo", Namespaces: []string{"web"}, Objects: []model.ObjectRef{{Context: "demo", Kind: helm.ReleaseKind, Namespace: "web", Name: "podinfo"}},
-		Detail: "A new release is installed from chart lab/podinfo 6.7.1 (the archive is checked against the index's digest), with the values below.", Warning: labWarning}
+		Effects: []engine.Effect{{Name: "Chart", Value: "lab/podinfo 6.7.1", Tone: engine.EffectNames},
+			{Name: "Archive", Value: "checked against the index's digest"}, {Name: "Values", Value: "below"}},
+		Warning: labWarning}
 	var d *confirmDialog
 	sh.do(func() { d = sh.confirmer.show(req, func(bool) {}) })
 	q.drain()

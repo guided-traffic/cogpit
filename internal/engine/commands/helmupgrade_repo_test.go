@@ -301,8 +301,8 @@ func TestHelmUpgradeFromARepositoryAgents(t *testing.T) {
 	asked := h.confirmations()
 	if len(asked) != 1 || asked[0].Danger != engine.DangerMutating || asked[0].Context != "test" || len(asked[0].Objects) != 1 ||
 		asked[0].Objects[0].Name != "web" || asked[0].Namespaces[0] != "apps" || asked[0].Review != "greeting: agent-s3cr3t\n" ||
-		!strings.Contains(asked[0].Detail, "from chart web 0.1.0 to web 0.2.0 from repository test") ||
-		!strings.Contains(asked[0].Detail, "checked against the index's digest") {
+		!strings.Contains(asked[0].Detail, "Chart: web 0.1.0 → 0.2.0. Repository: test.") ||
+		!strings.Contains(asked[0].Detail, "Archive: checked against the index's digest.") {
 		t.Fatalf("confirmation %+v", asked)
 	}
 	if b, _ := json.Marshal(asked[0]); strings.Contains(string(b), "s3cr3t") {
@@ -323,7 +323,7 @@ func TestHelmUpgradeFromARepositoryAgents(t *testing.T) {
 	if !errors.Is(err, engine.ErrTargetsChanged) {
 		t.Errorf("a choice changed during the confirmation: %v", err)
 	}
-	if asked := h.confirmations(); !strings.Contains(asked[len(asked)-1].Detail, "to web 0.2.0 from repository test") {
+	if asked := h.confirmations(); !strings.Contains(asked[len(asked)-1].Detail, "Chart: web 0.1.0 → 0.2.0. Repository: test.") {
 		t.Errorf("the tab's choice was not named: %q", asked[len(asked)-1].Detail)
 	}
 	if len(h.upgrades()) != 0 || h.repo.Requests("/web-0.2.0.tgz") != 0 {

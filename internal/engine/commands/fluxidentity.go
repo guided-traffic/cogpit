@@ -44,14 +44,15 @@ func fluxIdentity(ref model.ObjectRef, obj *unstructured.Unstructured) string {
 	}
 	if obj != nil && impersonates(group) {
 		if sa, _, _ := unstructured.NestedString(obj.Object, "spec", "serviceAccountName"); strings.TrimSpace(sa) != "" {
-			return fmt.Sprintf("ServiceAccount %s/%s (spec.serviceAccountName, through the %s)", ref.Namespace, sa, controller)
+			return fmt.Sprintf("ServiceAccount → %s/%s (spec.serviceAccountName, through the %s)", ref.Namespace, sa, controller)
 		}
 	}
 	return "the " + controller + "'s own service account"
 }
 
-// fluxIdentityDetail is the confirmation's sentence for the objects an action acts on.
-func fluxIdentityDetail(s *engine.Session, refs []model.ObjectRef) string {
+// fluxIdentityEffects are the confirmation's rows for the objects an action acts on: whose rights
+// the reconciliation uses, one identity a line, and that it is not the user's.
+func fluxIdentityEffects(s *engine.Session, refs []model.ObjectRef) []engine.Effect {
 	var ids []string
 	for _, ref := range refs {
 		obj, _ := s.Lookup(ref) // nil when the cache does not hold it: the controller's account
@@ -60,8 +61,10 @@ func fluxIdentityDetail(s *engine.Session, refs []model.ObjectRef) string {
 		}
 	}
 	if len(ids) == 0 {
-		return ""
+		return nil
 	}
-	return "Flux carries it out with the rights of " + capped(ids) + ", not yours (unless the controller enforces " +
-		"a default service account, which Cogpit cannot see)."
+	return []engine.Effect{
+		{Name: "Runs as", Value: cappedWith(ids, "\n"), Tone: engine.EffectNames},
+		{Name: "Your rights", Value: "not used (unless the controller enforces a default service account, which Cogpit cannot see)"},
+	}
 }

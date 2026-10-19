@@ -218,8 +218,9 @@ type pill struct {
 	fg     fyne.ThemeColorName
 	tinted bool // background tinted from fg instead of the chip colour
 	bold   bool
-	maxW   float32 // the widest the pill may be, padding included; 0: as wide as its text
-	wrap   bool    // with maxW: break a longer text into lines instead of cutting it
+	size   fyne.ThemeSizeName // the text's size; "": the caption size
+	maxW   float32            // the widest the pill may be, padding included; 0: as wide as its text
+	wrap   bool               // with maxW: break a longer text into lines instead of cutting it
 }
 
 func newPill(text string, fg fyne.ThemeColorName, tinted bool) *pill {
@@ -268,6 +269,9 @@ func (r *pillRenderer) padding() (h, v float32) {
 }
 
 func (r *pillRenderer) textSize() float32 {
+	if r.p.size != "" {
+		return r.p.Theme().Size(r.p.size)
+	}
 	return r.p.Theme().Size(theme.SizeNameCaptionText)
 }
 

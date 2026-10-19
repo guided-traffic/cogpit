@@ -74,17 +74,19 @@ func registerRestartMany(g *registrar) {
 		Targets: func(s *engine.Session, p selectionParams) ([]model.ObjectRef, error) {
 			return selectionTargets(s, p.Refs)
 		},
-		Detail: func(s *engine.Session, p selectionParams) string {
+		Effects: func(s *engine.Session, p selectionParams) []engine.Effect {
 			onDelete := 0
 			for _, r := range p.Refs {
-				if obj, err := s.Lookup(r); err == nil && model.NestedString(obj, "spec", "updateStrategy", "type") == "OnDelete" {
+				if obj, err := s.Lookup(r); err == nil && model.NestedString(obj, "spec", "updateStrategy", "type") == updateStrategyOnDelete {
 					onDelete++
 				}
 			}
-			if onDelete == 0 {
-				return "Every pod of each is replaced by its update strategy."
+			out := []engine.Effect{{Name: "Replaces", Value: "every pod of each, by its update strategy"}}
+			if onDelete > 0 {
+				out = append(out, engine.Effect{Name: updateStrategyOnDelete, Value: fmt.Sprintf("%d of them: their pods are replaced only when deleted", onDelete),
+					Tone: engine.EffectWarning})
 			}
-			return fmt.Sprintf("Every pod of each is replaced by its update strategy; %d of them use OnDelete: their pods are replaced only when deleted.", onDelete)
+			return out
 		},
 		Run: restartMany,
 	})

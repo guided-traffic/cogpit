@@ -229,7 +229,8 @@ func TestDeepLinkAsksBeforeItConnects(t *testing.T) {
 		t.Fatalf("declined: %v, asked %d, connected %v", err, h.asked.Load(), h.conn.connected())
 	}
 	if req.Command != engine.DeepLinkConnectCommand || req.Origin != engine.OriginDeepLink || req.Context != "dev [dev.yaml]" ||
-		!strings.Contains(req.Detail, "pods web-0 in namespace shop") || !strings.Contains(req.Detail, "you are working in test") {
+		!slices.Equal(req.Effects, []engine.Effect{{Name: "Opens", Value: "pods → web-0 in namespace shop", Tone: engine.EffectNames},
+			{Name: "Shown now", Value: "test, its tabs stay"}}) {
 		t.Errorf("the question %+v", req)
 	}
 	if u := h.s.UIState(); u.Context != "test" || u.View != "services" {

@@ -367,45 +367,49 @@ type installPreviewDialog struct {
 const maxPreviewLines = 200
 
 // showInstallPreview shows the objects an install creates, the release, namespace and context, the
-// chart and how its archive was checked; answer gets the user's choice.
+// chart and how its archive was checked; answer gets the user's choice. The head is rows as every
+// confirmation has them (D-85), the release and the objects in the one form (WF32, objectnames.go):
+// "Deployment → web/api", a hook's kind "Pod (hook)", a CRD's marked as staying after an uninstall.
 func (sh *shell) showInstallPreview(p installPreview, createNamespace bool, answer func(bool)) *installPreviewDialog {
-	width := sh.app.Settings().Theme().Size(sizeConfirmWidth) * 1.4
+	th := sh.app.Settings().Theme()
+	width := th.Size(sizeConfirmWidth) * 1.4
 	pd := &installPreviewDialog{}
-	add := func(prefix string, objs []helm.RenderedObject) {
-		for _, o := range objs {
+	var objs []namedObject
+	add := func(suffix string, rendered []helm.RenderedObject) {
+		for _, o := range rendered {
 			name := o.Name
 			if o.Namespace != "" {
 				name = o.Namespace + "/" + o.Name
 			}
-			pd.lines = append(pd.lines, prefix+o.Kind+" "+name)
+			objs = append(objs, namedObject{kind: o.Kind + suffix, name: name})
+			pd.lines = append(pd.lines, objectText(o.Kind+suffix, name))
 		}
 	}
 	add("", p.Objects)
-	add("Hook: ", p.Hooks)
-	add("CRD (stays after an uninstall): ", p.CRDs)
-	list := container.NewVBox()
-	for i, l := range pd.lines {
-		if i == maxPreviewLines {
-			list.Add(newTextLine(fmt.Sprintf("… and %d more", len(pd.lines)-i), colorMuted, theme.SizeNameText, fyne.TextStyle{}))
-			break
-		}
-		list.Add(newTextLine(l, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Monospace: true}))
+	add(" (hook)", p.Hooks)
+	add(" (stays after an uninstall)", p.CRDs)
+	list := container.NewVBox(objectNames(objs[:min(len(objs), maxPreviewLines)], width-th.Size(theme.SizeNameScrollBar)))
+	if n := len(objs) - maxPreviewLines; n > 0 {
+		list.Add(newTextLine(fmt.Sprintf("… and %d more", n), colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	}
-	if len(pd.lines) == 0 {
+	if len(objs) == 0 {
 		list.Add(newTextLine("The chart renders no objects.", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	}
 	scroll := container.NewVScroll(list)
 	scroll.SetMinSize(fyne.NewSize(width, 220))
-	checked := "its archive matched the repository index's digest"
+	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
+	rows := box(kvLayout{})
+	placeRows(rows, p.Release.Context, []string{p.Release.Namespace}, []namedObject{{kind: "Release", name: p.Release.Name}}, valueW)
+	effects := []engine.Effect{{Name: "Chart", Value: p.Repository + "/" + p.Chart + " " + p.Version, Tone: engine.EffectNames},
+		{Name: "Archive", Value: "matched the repository index's digest"}}
 	if !p.Verified {
-		checked = "its archive is unverified: the repository's index lists no digest"
+		effects[1] = engine.Effect{Name: "Archive", Value: "not checked: the repository's index lists no digest", Tone: engine.EffectWarning}
 	}
-	where := fmt.Sprintf("Release %s in namespace %s (context %s), from chart %s/%s %s: %s.", p.Release.Name, p.Release.Namespace,
-		p.Release.Context, p.Repository, p.Chart, p.Version, checked)
 	if createNamespace {
-		where += " The namespace is created if it does not exist."
+		effects = append(effects, engine.Effect{Name: "Creates", Value: "namespace " + p.Release.Namespace + ", if it does not exist", Tone: engine.EffectNames})
 	}
-	content := container.NewVBox(newParagraph(where, colorMuted, width))
+	effectRows(rows, effects, valueW)
+	content := container.NewVBox(rows)
 	if p.Warning != "" { // a chart nothing authenticated on its way (H-41, A14): the install's confirmation in the window
 		pd.warning = newParagraph(p.Warning, colorStatusWarning, width)
 		content.Add(newSpace(theme.SizeNamePadding))
@@ -417,7 +421,7 @@ func (sh *shell) showInstallPreview(p installPreview, createNamespace bool, answ
 	pd.install = widget.NewButton("Install", nil)
 	pd.install.Importance = widget.HighImportance
 	pd.cancel = widget.NewButton("Cancel", nil)
-	pd.d = dialog.NewCustomWithoutButtons("Install "+p.Release.Name+"?", content, sh.win)
+	pd.d = dialog.NewCustomWithoutButtons("Install "+objectText("Release", p.Release.Name)+"?", content, sh.win)
 	pd.d.SetButtons([]fyne.CanvasObject{pd.cancel, pd.install})
 	done := false
 	finish := func(ok bool) {

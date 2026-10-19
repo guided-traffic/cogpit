@@ -56,15 +56,15 @@ func restartSpec(id, menuPath, kind, noun string) engine.Spec[refParams] {
 			return err
 		},
 		Targets: func(s *engine.Session, p refParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(s *engine.Session, p refParams) string {
+		Effects: func(s *engine.Session, p refParams) []engine.Effect {
 			obj, err := s.Lookup(p.Ref)
 			if err != nil {
-				return ""
+				return nil
 			}
-			if t := model.NestedString(obj, "spec", "updateStrategy", "type"); t == "OnDelete" {
-				return "Its update strategy is OnDelete: the pods are replaced only when they are deleted."
+			if t := model.NestedString(obj, "spec", "updateStrategy", "type"); t == updateStrategyOnDelete {
+				return []engine.Effect{{Name: "Update strategy", Value: "OnDelete: the pods are replaced only when deleted", Tone: engine.EffectWarning}}
 			}
-			return ""
+			return nil
 		},
 		Run: func(ctx context.Context, s *engine.Session, p refParams) (any, error) {
 			return act(ctx, s, p.Ref, "restarted", func(w engine.Actions, ref model.ObjectRef) error {

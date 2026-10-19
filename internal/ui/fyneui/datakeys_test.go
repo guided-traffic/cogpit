@@ -103,8 +103,14 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 	typeInto(r, "debug")
 	test.Tap(removeButtonOf(t, cd.list, "bpf-lb-acceleration"))
 	if !cd.removed["bpf-lb-acceleration"] || !strings.Contains(texts(cd.list), "Removed: Save removes this key and its value.") ||
-		cd.status.text != "Edited: 1 key added, 1 key removed." || cd.save.Disabled() {
-		t.Fatalf("after a removal: status %q", cd.status.text)
+		cd.counts.text() != "1 key added · 1 key removed" || cd.status.Visible() || cd.save.Disabled() {
+		t.Fatalf("after a removal: counts %q, status %q", cd.counts.text(), cd.status.text)
+	}
+	// The pills in the footer, in the colours a diff marks its lines with (WF31; the layout:
+	// TestDataFooterLayout).
+	if cd.counts.removed.fg != colorStatusError || cd.counts.added.fg != colorStatusOK || cd.counts.values.Visible() ||
+		len(cd.buttons.Objects) != 4 || cd.buttons.Objects[1] != cd.counts.box {
+		t.Errorf("the pills: values shown %v, colours %s %s", cd.counts.values.Visible(), cd.counts.added.fg, cd.counts.removed.fg)
 	}
 	addKeyThrough(t, cd.adder, "log-format")
 	cd.adder.entry.SetText("log-format")
@@ -120,7 +126,7 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 	q.until(t, "the review", func() bool { return cd.review != nil && !cd.review.save.Disabled() })
 	rv := cd.review
 	block := texts(rv.keys)
-	if !strings.Contains(block, "Context | Namespace | Object | Changes | Removes | Adds | demo | kube-system | Config Map cilium-config") ||
+	if !strings.Contains(block, "Context | Namespace | Object | Config Map → | Changes | Removes | Adds | demo | kube-system | cilium-config |") ||
 		!strings.Contains(block, "| bpf-lb-acceleration | log-level |") || strings.Contains(block, "workload") ||
 		!strings.Contains(block, "This cannot be undone.") || rv.save.Importance != widget.DangerImportance {
 		t.Errorf("the review's keys: %q, Save %v", block, rv.save.Importance)
@@ -285,7 +291,7 @@ func TestSecretDrawerAddsAndRemovesKeys(t *testing.T) {
 	rv := sd.review
 	all := texts(rv.changes) + " | " + texts(rv.keys) + " | " + rv.banner.text + " | " + rv.status.text
 	if !strings.Contains(all, "API_TOKEN") || !strings.Contains(all, "added, 27 B") || !strings.Contains(all, "removed, 38 B") ||
-		!strings.Contains(all, "Context | Namespace | Object | Changes | Removes | Adds | demo | checkout | Secret checkout-db") ||
+		!strings.Contains(all, "Context | Namespace | Object | Secret → | Changes | Removes | Adds | demo | checkout | checkout-db |") ||
 		!strings.Contains(all, "1 key added, 1 key removed · no value shown | DB_HOST | API_TOKEN | This cannot be undone.") ||
 		strings.Contains(all, "workload") {
 		t.Errorf("the review: %q", all)

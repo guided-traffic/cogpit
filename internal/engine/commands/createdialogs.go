@@ -28,7 +28,7 @@ import (
 //
 // Danger (the lead's default, 2026-10-12, not the owner's decision; privilege-footprint.md): every
 // create is mutating, so an agent's waits for the user's acceptance (D-2). A binding is a
-// privilege grant, so its confirmation says what it grants to whom (Detail); an agent's role
+// privilege grant, so its confirmation says what it grants to whom (Effects); an agent's role
 // binding, role or cluster role waits for the user even where the user allowed agent writes for
 // the context (AgentsAsk, the owner's decisions of 2026-10-14, H-27 and A1); and two kinds of
 // grant are confirmed for every origin, the GUI too: a cluster role binding (cluster-wide, so registered destructive) and a role
@@ -287,7 +287,7 @@ func registerCreateDialogs(g *registrar) {
 		p.Namespace = ns
 		return p, err
 	}
-	role.Detail = func(_ *engine.Session, p roleCreateParams) string { return rulesDetail(p.Rules) }
+	role.Effects = func(_ *engine.Session, p roleCreateParams) []engine.Effect { return rulesEffects(p.Rules) }
 	// Its rules are what every binding to it grants: an agent's always waits for the user (A1).
 	role.AgentsAsk = func(*engine.Session, roleCreateParams) bool { return true }
 	add(g, role)
@@ -308,7 +308,7 @@ func registerCreateDialogs(g *registrar) {
 			obj["rules"] = rules
 			return obj, ref, err
 		})
-	clusterRole.Detail = func(_ *engine.Session, p clusterRoleCreateParams) string { return rulesDetail(p.Rules) }
+	clusterRole.Effects = func(_ *engine.Session, p clusterRoleCreateParams) []engine.Effect { return rulesEffects(p.Rules) }
 	clusterRole.AgentsAsk = func(*engine.Session, clusterRoleCreateParams) bool { return true } // A1
 	add(g, clusterRole)
 
@@ -344,9 +344,9 @@ func registerCreateDialogs(g *registrar) {
 	rb.Escalate = func(s *engine.Session, p roleBindingCreateParams) bool {
 		return grantsAll(s, p.Context, p.RoleRef.Kind, p.RoleRef.Name, p.Namespace)
 	}
-	rb.Detail = func(s *engine.Session, p roleBindingCreateParams) string {
+	rb.Effects = func(s *engine.Session, p roleBindingCreateParams) []engine.Effect {
 		ns, _ := s.CreateNamespace(p.Context, p.Namespace)
-		return bindingDetail(canonicalRoleKind(p.RoleRef.Kind), strings.TrimSpace(p.RoleRef.Name), ns, p.Subjects)
+		return bindingEffects(canonicalRoleKind(p.RoleRef.Kind), strings.TrimSpace(p.RoleRef.Name), ns, p.Subjects)
 	}
 	add(g, rb)
 
@@ -371,8 +371,8 @@ func registerCreateDialogs(g *registrar) {
 			return obj, ref, err
 		})
 	crb.Undoable = true // deleting the binding takes the grant back (A101)
-	crb.Detail = func(_ *engine.Session, p clusterRoleBindingCreateParams) string {
-		return bindingDetail(rbacKindClusterRole, strings.TrimSpace(p.ClusterRole), "", p.Subjects)
+	crb.Effects = func(_ *engine.Session, p clusterRoleBindingCreateParams) []engine.Effect {
+		return bindingEffects(rbacKindClusterRole, strings.TrimSpace(p.ClusterRole), "", p.Subjects)
 	}
 	add(g, crb)
 
@@ -396,7 +396,7 @@ func registerCreateDialogs(g *registrar) {
 		p.Namespace = ns
 		return p, err
 	}
-	quota.Detail = func(_ *engine.Session, p resourceQuotaCreateParams) string { return quotaDetail(p.Hard) }
+	quota.Effects = func(_ *engine.Session, p resourceQuotaCreateParams) []engine.Effect { return quotaEffects(p.Hard) }
 	add(g, quota)
 }
 
@@ -649,8 +649,10 @@ func grantsAll(s *engine.Session, contextID, kind, name, namespace string) bool 
 	return false
 }
 
-// bindingDetail is a binding's sentence in the confirmation: what it grants, where, to whom.
-func bindingDetail(roleKind, roleName, namespace string, subjects []subjectParams) string {
+// bindingEffects are a binding's rows in the confirmation: the role it grants, to whom (one
+// subject a line), and the owner's "immediately, cluster-wide" or "in namespace <ns>" (A101,
+// 2026-10-14 evening), cluster-wide in the warning colour.
+func bindingEffects(roleKind, roleName, namespace string, subjects []subjectParams) []engine.Effect {
 	texts := make([]string, 0, len(subjects))
 	for _, sub := range subjects {
 		kind, name, ns := subjectKind(sub.Kind), strings.TrimSpace(sub.Name), strings.TrimSpace(sub.Namespace)
@@ -663,21 +665,23 @@ func bindingDetail(roleKind, roleName, namespace string, subjects []subjectParam
 			}
 			name = ns + "/" + name
 		}
-		texts = append(texts, kind+" "+name)
+		texts = append(texts, kind+" → "+name)
 	}
-	where := "in namespace " + namespace
+	when := engine.Effect{Name: "Takes effect", Value: "immediately, in namespace " + namespace}
 	if namespace == "" {
-		where = "cluster-wide"
+		when = engine.Effect{Name: "Takes effect", Value: "immediately, cluster-wide", Tone: engine.EffectWarning}
 	}
-	// The owner's wording (A101, 2026-10-14 evening).
-	return fmt.Sprintf("Grants these rights immediately, %s: the permissions of %s %s to %s.",
-		where, roleKind, roleName, capped(texts))
+	return []engine.Effect{
+		{Name: "Grants", Value: roleKind + " → " + roleName, Tone: engine.EffectNames},
+		{Name: "To", Value: cappedWith(texts, "\n"), Tone: engine.EffectNames},
+		when,
+	}
 }
 
-// rulesDetail is a role's sentence in the confirmation: its rules, the first few in full.
-func rulesDetail(rules []policyRuleParams) string {
+// rulesEffects are a role's row in the confirmation: its rules, one a line, the first few.
+func rulesEffects(rules []policyRuleParams) []engine.Effect {
 	if len(rules) == 0 {
-		return "No rules: the role grants nothing until rules are added."
+		return []engine.Effect{{Name: "Rules", Value: "none: the role grants nothing until rules are added"}}
 	}
 	texts := make([]string, 0, len(rules))
 	for _, r := range rules {
@@ -695,11 +699,11 @@ func rulesDetail(rules []policyRuleParams) string {
 		}
 		texts = append(texts, t)
 	}
-	return "Rules: " + cappedWith(texts, "; ") + "."
+	return []engine.Effect{{Name: "Rules", Value: cappedWith(texts, "\n"), Tone: engine.EffectNames}}
 }
 
-// quotaDetail is a quota's sentence in the confirmation: its limits, sorted.
-func quotaDetail(hard map[string]string) string {
+// quotaEffects are a quota's row in the confirmation: its limits, sorted, one a line.
+func quotaEffects(hard map[string]string) []engine.Effect {
 	keys := make([]string, 0, len(hard))
 	for k := range hard {
 		keys = append(keys, k)
@@ -709,18 +713,7 @@ func quotaDetail(hard map[string]string) string {
 	for _, k := range keys {
 		texts = append(texts, k+" "+strings.TrimSpace(hard[k]))
 	}
-	return "Hard limits: " + cappedWith(texts, ", ") + "."
-}
-
-// capped joins the first maxDetailItems texts with commas and "and", then "and N more".
-func capped(texts []string) string {
-	if len(texts) > maxDetailItems {
-		return strings.Join(texts[:maxDetailItems], ", ") + fmt.Sprintf(" and %d more", len(texts)-maxDetailItems)
-	}
-	if len(texts) <= 1 {
-		return strings.Join(texts, "")
-	}
-	return strings.Join(texts[:len(texts)-1], ", ") + " and " + texts[len(texts)-1]
+	return []engine.Effect{{Name: "Hard limits", Value: cappedWith(texts, "\n"), Tone: engine.EffectNames}}
 }
 
 // cappedWith joins the first maxDetailItems texts with sep, then "and N more".

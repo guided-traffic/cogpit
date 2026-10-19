@@ -547,7 +547,7 @@ func TestPortForwardConfirmationPerOrigin(t *testing.T) {
 	}
 	req := conf.last(t)
 	if req.Danger != engine.DangerMutating || len(req.Objects) != 1 || req.Objects[0].Name != "web-0" || req.Context != "test" ||
-		!strings.Contains(req.Detail, "127.0.0.1") || !strings.Contains(req.Detail, "port 8080 of pod web-0") {
+		!strings.Contains(req.Detail, "Listens on: 127.0.0.1") || !strings.Contains(req.Detail, "Forwards to: port 8080.") {
 		t.Errorf("confirmation %+v", req)
 	}
 

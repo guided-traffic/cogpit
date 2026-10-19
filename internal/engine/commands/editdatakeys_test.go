@@ -121,7 +121,7 @@ func TestApplyRemovingADataKeyIsDestructive(t *testing.T) {
 	req := conf.last(t)
 	if req.Command != "object.apply" || req.Danger != engine.DangerDestructive || req.Origin != gui || req.Context != "test" ||
 		!slices.Equal(req.Namespaces, []string{"shop"}) || len(req.Objects) != 1 || !req.Objects[0].Same(appConfig) ||
-		req.Detail != "Removes key level." {
+		req.Detail != "Removes: level." || !slices.Equal(req.Effects, []engine.Effect{{Name: "Removes", Value: "level", Tone: engine.EffectLost}}) {
 		t.Fatalf("the confirmation %+v", req)
 	}
 	if n := updates(srv); n != 0 {
@@ -170,7 +170,7 @@ func TestAgentApplyRemovingADataKeyAlwaysAsks(t *testing.T) {
 		if len(conf.all()) != asked+1 {
 			t.Fatalf("%s's apply without a key did not ask", o)
 		}
-		if req := conf.last(t); req.Danger != engine.DangerDestructive || req.Origin != o || req.Detail != "Removes key mode." ||
+		if req := conf.last(t); req.Danger != engine.DangerDestructive || req.Origin != o || req.Detail != "Removes: mode." ||
 			req.Context != "test" || !slices.Equal(req.Namespaces, []string{"shop"}) {
 			t.Fatalf("%s's confirmation %+v", o, req)
 		}
@@ -222,7 +222,7 @@ func TestApplyRemovingASecretKeyIsDestructive(t *testing.T) {
 		t.Fatalf("the window's apply without a Secret key: %v, want the user's refusal", err)
 	}
 	req := conf.last(t)
-	if req.Danger != engine.DangerDestructive || req.Detail != "Removes key user." || len(req.Objects) != 1 || !req.Objects[0].Same(dbSecret) {
+	if req.Danger != engine.DangerDestructive || req.Detail != "Removes: user." || len(req.Objects) != 1 || !req.Objects[0].Same(dbSecret) {
 		t.Fatalf("the confirmation %+v", req)
 	}
 	raw, err := json.Marshal(req)

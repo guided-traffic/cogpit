@@ -137,7 +137,7 @@ func registerAlertmanagerSetting(g *registrar) {
 		// Which service Cogpit asks for alerts, with the user's identity, is the user's to choose:
 		// an agent's change always waits for the user, as the Prometheus address does (A16).
 		AgentsAsk: func(*engine.Session, alertmanagerParams) bool { return true },
-		Detail:    alertmanagerDetail,
+		Effects:   alertmanagerEffects,
 		Run: func(_ context.Context, s *engine.Session, p alertmanagerParams) (any, error) {
 			addr := strings.TrimSpace(p.Address)
 			if addr == "" || strings.EqualFold(addr, autoAddress) {
@@ -153,16 +153,18 @@ func registerAlertmanagerSetting(g *registrar) {
 	})
 }
 
-// alertmanagerDetail is the confirmation's sentence: where the alerts then come from.
-func alertmanagerDetail(_ *engine.Session, p alertmanagerParams) string {
+// alertmanagerEffects are the confirmation's rows: where the alerts then come from.
+func alertmanagerEffects(_ *engine.Session, p alertmanagerParams) []engine.Effect {
 	addr := strings.TrimSpace(p.Address)
 	if addr == "" || strings.EqualFold(addr, autoAddress) {
-		return "Cogpit then finds the cluster's Alertmanager by its well-known service names again."
+		return []engine.Effect{{Name: "Alertmanager", Value: "found by its well-known service names again"}}
 	}
-	out := "Cogpit then reads the cluster's alerts from " + addr + strings.TrimSpace(p.Prefix) +
-		" through the API server's service proxy, every 30 seconds while the cluster is shown."
+	out := []engine.Effect{
+		{Name: "Alerts from", Value: addr + strings.TrimSpace(p.Prefix), Tone: engine.EffectNames},
+		{Name: "Through", Value: "the API server's service proxy, every 30 s while the cluster is shown"},
+	}
 	if p.HTTPS {
-		out += " The service is asked over https."
+		out = append(out, engine.Effect{Name: "Scheme", Value: "https"})
 	}
 	return out
 }

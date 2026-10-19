@@ -109,7 +109,7 @@ func TestKindNodeShell(t *testing.T) {
 		_ = kube.CoreV1().Pods(engine.NodeShellNamespace).Delete(cctx, pod, metav1.DeleteOptions{})
 	})
 	if len(asked) != 1 || !strings.Contains(asked[0].Message(), "privileged pod in namespace kube-system on node "+node) ||
-		!strings.Contains(asked[0].Message(), "ends by itself after 30 minutes") {
+		!strings.Contains(asked[0].Message(), "Ends: when the shell closes, by itself after 30 minutes.") {
 		t.Errorf("confirmation %+v", asked)
 	}
 	created, err := kube.CoreV1().Pods(engine.NodeShellNamespace).Get(ctx, pod, metav1.GetOptions{})

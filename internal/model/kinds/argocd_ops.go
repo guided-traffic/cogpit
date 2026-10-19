@@ -49,8 +49,8 @@ func ArgoSyncOperation(app any, prune bool) map[string]any {
 }
 
 // ArgoPrunable names the resources an Application's status marks requiresPruning: what a sync
-// with prune deletes, as the controller last compared the Application with Git ("Deployment
-// shop/old-worker").
+// with prune deletes, as the controller last compared the Application with Git, the kind set apart
+// from the name as every confirmation names an object (D-85, WF32): "Deployment → shop/old-worker".
 func ArgoPrunable(app any) []string {
 	var out []string
 	for _, r := range model.NestedSlice(app, fieldArgoStatus, "resources") {
@@ -61,7 +61,7 @@ func ArgoPrunable(app any) []string {
 		if ns := model.NestedString(r, "namespace"); ns != "" {
 			name = ns + "/" + name
 		}
-		out = append(out, model.NestedString(r, idKind)+" "+name)
+		out = append(out, model.NestedString(r, idKind)+" → "+name)
 	}
 	return out
 }

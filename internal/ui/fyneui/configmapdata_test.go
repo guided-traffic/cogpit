@@ -390,8 +390,9 @@ func TestConfigMapDrawerEditAndSave(t *testing.T) {
 	cd := cmDataOf(sh)
 	typeInto(cd.rows["allow-localhost"], "always")
 	typeInto(cd.rows["bpf-lb-map-max"], "131072")
-	if cd.save.Disabled() || cd.revert.Disabled() || cd.status.text != "Edited: 2 values." {
-		t.Fatalf("after editing: save %v revert %v status %q", cd.save.Disabled(), cd.revert.Disabled(), cd.status.text)
+	// The edited state beside Revert and Save, not a muted line under them (WF31).
+	if cd.save.Disabled() || cd.revert.Disabled() || cd.counts.text() != "2 values edited" || !cd.counts.box.Visible() || cd.status.Visible() {
+		t.Fatalf("after editing: save %v revert %v counts %q status %q", cd.save.Disabled(), cd.revert.Disabled(), cd.counts.text(), cd.status.text)
 	}
 	test.Tap(cd.save)
 	q.until(t, "the review", func() bool { return cd.review != nil && !cd.review.save.Disabled() })
@@ -412,8 +413,8 @@ func TestConfigMapDrawerEditAndSave(t *testing.T) {
 	if p.ResourceVersion != "4211" || len(p.Data) != 2 || p.Data["allow-localhost"] != "always" || p.Data["bpf-lb-map-max"] != "131072" || calls[0].Origin != engine.OriginGUI {
 		t.Errorf("save params %+v from %s", p, calls[0].Origin)
 	}
-	if cd.dirty() || !cd.save.Disabled() || !strings.HasPrefix(cd.status.text, "Saved 2 values at ") {
-		t.Errorf("after the save: dirty %v, save disabled %v, status %q", cd.dirty(), cd.save.Disabled(), cd.status.text)
+	if cd.dirty() || !cd.save.Disabled() || !strings.HasPrefix(cd.status.text, "Saved 2 values at ") || cd.counts.box.Visible() {
+		t.Errorf("after the save: dirty %v, save disabled %v, status %q, counts %q", cd.dirty(), cd.save.Disabled(), cd.status.text, cd.counts.text())
 	}
 	if c.values["allow-localhost"] != "always" {
 		t.Error("the fake did not store the value")

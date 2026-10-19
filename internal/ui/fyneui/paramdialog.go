@@ -53,7 +53,7 @@ func (sh *shell) openParamDialog(cmd *engine.Command, ref model.ObjectRef, prefi
 			return nil
 		})
 	}
-	title := fmt.Sprintf("%s %s %s", cmd.Label, singular(sh.kindTitle(ref.Kind)), ref.Name)
+	title := cmd.Label + " " + objectText(singular(sh.kindTitle(ref.Kind)), ref.Name) // the one form (WF32)
 	d := dialog.NewForm(title, cmd.Label, "Cancel", items, func(ok bool) {
 		if !ok {
 			return

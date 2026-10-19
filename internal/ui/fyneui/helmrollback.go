@@ -2,12 +2,11 @@ package fyneui
 
 import (
 	"errors"
-	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -22,11 +21,12 @@ import (
 // updated: 12/10/2026, 08:30:16", then Cancel and Rollback, and no second confirmation. Rollback
 // stays enabled with the current revision selected; what Lens does then is not captured. Cogpit
 // rolls back to it as helm does: a new revision equal to the current one, its manifest applied
-// again, which the dialog says.
+// again; the dialog's row "Writes" says so for every choice.
 //
 // Rollback is destructive, so the engine asks the GUI's confirmer for every origin (D-2). The
-// dialog is that confirmation: it names the release, its namespace and its context, as Cogpit's
-// confirmations do, and when the user picks Rollback it hands the confirmer the release's newest
+// dialog is that confirmation: it names the release, its namespace and its context in the rows
+// Cogpit's confirmations have (D-85, the release as "Release → name", WF32), and when the user
+// picks Rollback it hands the confirmer the release's newest
 // revision as it showed it (its release Secret's UID). The engine's confirmation of exactly that
 // command, from this window, on that release in that context, then takes the user's answer from
 // the dialog instead of asking again; one whose release moved to another revision while the dialog
@@ -113,15 +113,15 @@ func (sh *shell) showRollbackDialog(h releaseHistory) *rollbackDialog {
 	}
 	rd.confirm.Disable()
 
-	where := fmt.Sprintf("Release %s in namespace %s (context %s). Rolling back changes the release's objects to the chosen revision; the current revision gives a new revision equal to it.",
-		h.Ref.Name, h.Ref.Namespace, h.Ref.Context)
-	content := container.NewVBox(
-		newTextLine("REVISION", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}),
-		rd.revision,
-		newSpace(theme.SizeNamePadding),
-		newParagraph(where, colorMuted, width),
-	)
-	rd.d = dialog.NewCustomWithoutButtons("Rollback "+h.Ref.Name, content, sh.win)
+	// Rows as every confirmation has them (D-85, WF32): the place, Context › Namespace › Object, the
+	// release in the one form (objectnames.go), the revision to choose, and what helm writes, which
+	// holds for the current revision too (a reading of helm's behaviour, not of Lens's).
+	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
+	rows := box(kvLayout{})
+	placeRows(rows, h.Ref.Context, []string{h.Ref.Namespace}, []namedObject{{kind: "Release", name: h.Ref.Name}}, valueW)
+	rows.Objects = append(rows.Objects, rowName("To revision"), rd.revision)
+	effectRows(rows, []engine.Effect{{Name: "Writes", Value: "a new revision equal to the chosen one"}}, valueW)
+	rd.d = dialog.NewCustomWithoutButtons("Rollback "+objectText("Release", h.Ref.Name), rows, sh.win)
 	rd.d.SetButtons([]fyne.CanvasObject{rd.cancel, rd.confirm})
 	rd.cancel.OnTapped = rd.d.Hide
 	rd.confirm.OnTapped = func() {
@@ -160,7 +160,7 @@ type dialogConfirmation struct {
 // commands.RollbackDetail; TestRollbackDialogAnswerBinding keeps them equal). Were they to differ,
 // the dialog's answer would match no request and the user would be asked again: safe.
 func rollbackDetail(revision int) string {
-	return fmt.Sprintf("The release's objects are changed to revision %d's manifest.", revision)
+	return engine.EffectsText([]engine.Effect{{Name: "To revision", Value: strconv.Itoa(revision), Tone: engine.EffectNames}})
 }
 
 // dialogAnswers holds the guiConfirmer's dialog answer; one at a time, the last one wins.

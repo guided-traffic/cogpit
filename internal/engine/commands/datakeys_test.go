@@ -58,7 +58,9 @@ func TestConfigMapDataAddsAndRemovesKeys(t *testing.T) {
 	req := c.last(t)
 	if req.Danger != engine.DangerDestructive || req.Origin != gui || req.Context != "test" || !slices.Equal(req.Namespaces, []string{"shop"}) ||
 		len(req.Objects) != 1 || req.Objects[0].Name != "cilium-config" || !slices.Equal(req.UIDs, []string{"uid-shop-cilium-config"}) ||
-		req.Detail != "Removes key bpf-lb-acceleration and adds key enable-ipv6." || req.Undoable {
+		req.Detail != "Removes: bpf-lb-acceleration. Adds: enable-ipv6." || req.Undoable ||
+		!slices.Equal(req.Effects, []engine.Effect{{Name: "Removes", Value: "bpf-lb-acceleration", Tone: engine.EffectLost},
+			{Name: "Adds", Value: "enable-ipv6", Tone: engine.EffectNames}}) {
 		t.Errorf("the confirmation of a removal: %+v", req)
 	}
 	got, _, _ := unstructured.NestedStringMap(srv.lastUpdate().Object, "data")
@@ -258,7 +260,7 @@ func TestConfigMapDataAgentRemovalAsks(t *testing.T) {
 		t.Fatalf("an agent's removal where agent writes are allowed: %v", err)
 	}
 	req := c.last(t)
-	if req.Danger != engine.DangerDestructive || req.Origin != agent || req.Detail != "Removes key enable-ipv4." ||
+	if req.Danger != engine.DangerDestructive || req.Origin != agent || req.Detail != "Removes: enable-ipv4." ||
 		!strings.Contains(req.Review, "-   enable-ipv4: \"true\"") || !strings.Contains(req.Message(), "An agent asks to run") {
 		t.Errorf("the confirmation %+v\n%s", req, req.Review)
 	}
@@ -354,7 +356,7 @@ func TestSecretDrawerDataAddsAndRemovesKeys(t *testing.T) {
 	var saved engine.SecretDataSaved
 	h.must(t, gui, engine.SecretSaveDataCommand, map[string]any{"ref": sdRef, "resourceVersion": base, "add": params["add"], "remove": params["remove"]}, &saved)
 	req := c.last(t)
-	if req.Danger != engine.DangerDestructive || req.Detail != "Removes key token and adds key api-key. The values are not shown." ||
+	if req.Danger != engine.DangerDestructive || req.Detail != "Removes: token. Adds: api-key. Values: not shown." ||
 		req.Context != "test" || !slices.Equal(req.UIDs, []string{"uid-shop-db-creds"}) {
 		t.Errorf("the confirmation %+v", req)
 	}

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -268,8 +269,9 @@ func TestArgoSyncWritesTheOperation(t *testing.T) {
 	asked := h.confirmations()
 	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive || asked[0].Context != "test" ||
 		len(asked[0].Objects) != 1 || asked[0].Objects[0].Name != "shop" || asked[0].Objects[0].Namespace != "argocd" ||
-		!strings.Contains(asked[0].Detail, "no longer in Git are deleted") || !strings.Contains(asked[0].Detail, "syncs to main") ||
-		!strings.Contains(asked[0].Detail, "marks for pruning: ConfigMap shop/old-config.") {
+		!strings.Contains(asked[0].Detail, "no longer in Git are deleted") || !strings.Contains(asked[0].Detail, "Syncs to: main.") ||
+		!strings.Contains(asked[0].Detail, "To prune: ConfigMap → shop/old-config.") ||
+		!slices.Contains(asked[0].Effects, engine.Effect{Name: "To prune", Value: "ConfigMap → shop/old-config", Tone: engine.EffectLost}) {
 		t.Fatalf("confirmation %+v", asked)
 	}
 	if w := h.writer.Writes(); len(w) != 2 || w[1].operation["sync"].(map[string]any)["prune"] != true {
@@ -367,7 +369,7 @@ func TestArgoRefreshNormalAndHard(t *testing.T) {
 		t.Fatalf("writes %+v", w)
 	}
 	asked := h.confirmations()
-	if len(asked) != 1 || asked[0].Danger != engine.DangerMutating || !strings.Contains(asked[0].Detail, "hard refresh") {
+	if len(asked) != 1 || asked[0].Danger != engine.DangerMutating || !strings.Contains(asked[0].Detail, "Refresh: hard:") {
 		t.Fatalf("an agent's refresh asked %+v", asked)
 	}
 	// Other kinds: not applicable, so no menu offers them.

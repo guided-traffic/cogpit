@@ -80,7 +80,9 @@ type secData struct {
 	list   *fyne.Container
 	save   *widget.Button
 	revert *widget.Button
-	// buttons are Revert and Save; status the line under them; footer both.
+	// buttons are Add Key, the edited state's pills (WF31), Revert and Save; status the line under
+	// them for what the pills don't say.
+	counts  *editCounts
 	buttons *fyne.Container
 	status  *paragraph
 	root    *fyne.Container
@@ -133,7 +135,8 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd.save.Importance = widget.HighImportance
 	sd.revert = widget.NewButton("Revert", sd.revertAll)
 	sd.adder = newKeyAdder(d.contentWidth(), sd.keyTaken, sd.addKey)
-	sd.buttons = footerRow(sd.adder, sd.revert, sd.save)
+	sd.counts = newEditCounts()
+	sd.buttons = footerRow(sd.adder, sd.counts, sd.revert, sd.save, d.contentWidth())
 	sd.status = newParagraph("", colorMuted, d.contentWidth())
 	sd.root = container.NewVBox(sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
 	sd.restore()
@@ -192,6 +195,7 @@ func (sd *secData) render(sec model.DetailSection) {
 		sd.width = w
 		sd.status.width = w
 		sd.status.Refresh()
+		setFooterWidth(sd.buttons, w)
 	}
 	if v := sectionVersion(sec); v != "" && v != sd.latest {
 		sd.latest = v
@@ -509,7 +513,8 @@ func (sd *secData) saveReason() string {
 	return ""
 }
 
-// refreshFooter makes the editors editable or read-only and sets Save, Revert and the status line.
+// refreshFooter makes the editors editable or read-only and sets Save, Revert, the edited state's
+// pills and the status line.
 func (sd *secData) refreshFooter() {
 	editable := sd.editable()
 	for _, r := range sd.rows {
@@ -530,6 +535,11 @@ func (sd *secData) refreshFooter() {
 	sd.adder.setEditable(editable && sd.review == nil)
 	enable(sd.save, editable && dirty && sd.review == nil)
 	enable(sd.revert, dirty && sd.review == nil)
+	if values, _ := sd.edits(); dirty && !sd.hidden { // the edited state beside Revert and Save (WF31)
+		sd.counts.set(len(values), len(sd.added), len(sd.removed))
+	} else {
+		sd.counts.set(0, 0, 0)
+	}
 	switch {
 	case sd.hidden:
 		sd.setStatus("", colorMuted)
@@ -540,8 +550,7 @@ func (sd *secData) refreshFooter() {
 			"they clash.", colorStatusWarning)
 	case dirty:
 		if !strings.HasPrefix(sd.status.text, "Your unsaved changes are back") {
-			values, _ := sd.edits()
-			sd.setStatus("Edited: "+editsText(len(values), len(sd.added), len(sd.removed))+".", colorMuted)
+			sd.setStatus("", colorMuted) // the pills say it
 		}
 	case strings.HasPrefix(sd.status.text, "Saved"):
 	default:
@@ -701,7 +710,7 @@ func (sd *secData) openReview() {
 	list := box(sizedMin{size: fyne.NewSize(width, 120)}, container.NewStack(newSurface(theme.ColorNameInputBackground),
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVScroll(rv.changes))))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
-	rv.dlg = dialog.NewCustomWithoutButtons("Save Secret "+sd.ref.Name, content, sd.d.sh.win)
+	rv.dlg = dialog.NewCustomWithoutButtons("Save "+objectText("Secret", sd.ref.Name), content, sd.d.sh.win)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; sd.review = nil; sd.refreshFooter() })
 	sd.review = rv

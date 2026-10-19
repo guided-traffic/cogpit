@@ -172,7 +172,7 @@ func TestKindHelmUpgradeFromRepository(t *testing.T) {
 	asked := slices.Clone(k.asked)
 	mu.Unlock()
 	if len(asked) != 1 || asked[0].Command != "helm.release.upgrade" || asked[0].Review != "greeting: agent-s3cr3t\n" ||
-		!strings.Contains(asked[0].Detail, "from chart u-web 0.2.0 to u-web 0.1.0 from repository u, an older version,") {
+		!strings.Contains(asked[0].Detail, "Chart: u-web 0.2.0 → 0.1.0, an older version. Repository: u.") {
 		t.Errorf("confirmations %+v", asked)
 	}
 	if strings.Contains(k.audit.String(), "agent-s3cr3t") {

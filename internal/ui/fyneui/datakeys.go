@@ -9,7 +9,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -187,9 +186,11 @@ func editsText(values, added, removed int) string {
 }
 
 // reviewHead is a save review's head, rows in the place order Context › Namespace › Object (the
-// owner's rule, WF14 and WF16; conventions › Dialogs): then what the save changes (changes, ""
-// before the review's check answered) and the keys it removes, in the error colour, and adds.
-// Under a removal "This cannot be undone." in red; no sentence repeats the rows.
+// owner's rule, WF14 and WF16; conventions › Dialogs), the object as every dialog names one ("Config
+// Map → walk-cm", WF32, objectnames.go): then what the save changes (changes, "" before the
+// review's check answered) and the keys it removes, in the error colour, and adds. Under a removal
+// "This cannot be undone." in red; no sentence repeats the rows. The Edit tab's Apply names a
+// removed key in the same row (engine.DataKeysEffects, WF33).
 func reviewHead(kind string, ref model.ObjectRef, changes string, added, removed []string, width float32) fyne.CanvasObject {
 	nameW, gap := kvLayout{}.dims()
 	valueW := width - nameW - gap
@@ -197,11 +198,11 @@ func reviewHead(kind string, ref model.ObjectRef, changes string, added, removed
 	addRow := func(name string, value *paragraph) {
 		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), value)
 	}
-	addRow("Context", newParagraph(ref.Context, theme.ColorNameForeground, valueW))
+	var namespaces []string
 	if ref.Namespace != "" {
-		addRow("Namespace", newParagraph(ref.Namespace, theme.ColorNameForeground, valueW))
+		namespaces = []string{ref.Namespace}
 	}
-	addRow("Object", newParagraph(kind+" "+ref.Name, theme.ColorNameForeground, valueW))
+	placeRows(rows, ref.Context, namespaces, []namedObject{{kind: kind, name: ref.Name}}, valueW)
 	if changes != "" {
 		addRow("Changes", newParagraph(changes, theme.ColorNameForeground, valueW))
 	}
@@ -302,7 +303,176 @@ func (rv *secReview) target() model.ObjectRef {
 // owner's WF12, 2026-10-18: "ein bisschen zu dicht am letzten key-value pair").
 func dataGap() fyne.CanvasObject { return newSpace(theme.SizeNameInnerPadding) }
 
-// footerRow is a data section's footer: Add Key at its start, Revert and Save at its end.
-func footerRow(adder *keyAdder, revert, save *widget.Button) *fyne.Container {
-	return container.NewHBox(adder.button, layout.NewSpacer(), revert, save)
+// editCounts is a data section's edited state in its footer, beside Revert and Save (the owner's
+// WF31, 2026-10-19: "Die Statuszeile ist absolut übersehbar"; it was "Edited: 1 value." in small
+// muted text under the footer): a tinted pill per count, coloured as a diff marks its lines, the
+// values edited in the warning colour, the keys added in the green of their "new" tag, the keys
+// removed in the red of their struck name. Nothing shows while nothing is edited (D-100).
+type editCounts struct {
+	box                    *fyne.Container
+	values, added, removed *pill
+	footer                 *fyne.Container // the footer they are in (footerRow)
+	shown                  [3]int          // the counts shown: values, added, removed
+}
+
+func newEditCounts() *editCounts {
+	e := &editCounts{
+		values:  newPill("", colorStatusWarning, true),
+		added:   newPill("", colorStatusOK, true),
+		removed: newPill("", colorStatusError, true),
+	}
+	for _, p := range []*pill{e.values, e.added, e.removed} {
+		p.bold, p.size = true, theme.SizeNameText // as large as the buttons' labels beside them
+		p.Hide()
+	}
+	e.box = container.NewHBox(e.values, e.added, e.removed)
+	e.box.Hide()
+	return e
+}
+
+// set shows the counts of values edited, keys added and keys removed; all zero hides them. The same
+// counts again (each keystroke asks) cost nothing.
+func (e *editCounts) set(values, added, removed int) {
+	n := [3]int{values, added, removed}
+	if n == e.shown {
+		return
+	}
+	e.shown = n
+	show := func(p *pill, n int, text string) {
+		if n > 0 {
+			p.Set(text, p.fg)
+		}
+		setVisible(p, n > 0)
+	}
+	show(e.values, values, valuesText(values)+" edited")
+	show(e.added, added, fmt.Sprintf("%d key%s added", added, plural(added)))
+	show(e.removed, removed, fmt.Sprintf("%d key%s removed", removed, plural(removed)))
+	setVisible(e.box, values+added+removed > 0)
+	e.box.Refresh()
+	if e.footer != nil {
+		e.footer.Refresh() // the pills' width moves Revert and Save's neighbours, or takes a line
+	}
+}
+
+// text is what the pills shown say, joined by " · ": "1 value edited · 1 key removed".
+func (e *editCounts) text() string {
+	var parts []string
+	for _, p := range []*pill{e.values, e.added, e.removed} {
+		if p.Visible() {
+			parts = append(parts, p.text)
+		}
+	}
+	return strings.Join(parts, " · ")
+}
+
+// footerRow is a data section's footer: Add Key at its start, the edited state's pills and Revert
+// and Save at its end (dataFooterLayout); width is the details' width it is told, as a paragraph
+// is (setFooterWidth).
+func footerRow(adder *keyAdder, counts *editCounts, revert, save *widget.Button, width float32) *fyne.Container {
+	counts.footer = box(&dataFooterLayout{width: width}, adder.button, counts.box, revert, save)
+	return counts.footer
+}
+
+// setFooterWidth tells a footer the details' width it lays out in.
+func setFooterWidth(footer *fyne.Container, width float32) {
+	if l, ok := footer.Layout.(*dataFooterLayout); ok && l.width != width {
+		l.width = width
+		footer.Refresh()
+	}
+}
+
+// dataFooterLayout lays out a data section's footer, its objects Add Key, the edited state's pills,
+// Revert and Save, a hidden one taking no room: Add Key at the start, the rest at the end, all on
+// one line, centred on it. Where the details' width (told: a minimum size cannot depend on the
+// size it gets) has no room for that, the pills take a line of their own above the buttons, at its
+// end, so that the drawer never grows wider than the user made it.
+type dataFooterLayout struct{ width float32 }
+
+func (l *dataFooterLayout) gap() float32 {
+	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)
+}
+
+// widths are the visible objects' minimum widths at the start (Add Key), in the pills and at the
+// end (Revert and Save with the gap between them), and the line's height.
+func (l *dataFooterLayout) widths(objs []fyne.CanvasObject) (start, pills, end, pillsH, rowH float32) {
+	gap := l.gap()
+	if o := objs[0]; o.Visible() {
+		start, rowH = o.MinSize().Width, o.MinSize().Height
+	}
+	if o := objs[1]; o.Visible() {
+		pills, pillsH = o.MinSize().Width, o.MinSize().Height
+	}
+	for _, o := range objs[2:] {
+		if !o.Visible() {
+			continue
+		}
+		if end > 0 {
+			end += gap
+		}
+		end += o.MinSize().Width
+		rowH = max(rowH, o.MinSize().Height)
+	}
+	return start, pills, end, pillsH, rowH
+}
+
+// oneLine reports whether everything fits on one line of width w.
+func (l *dataFooterLayout) oneLine(objs []fyne.CanvasObject, w float32) bool {
+	start, pills, end, _, _ := l.widths(objs)
+	return pills == 0 || w <= 0 || start+pills+end+2*l.gap() <= w
+}
+
+func (l *dataFooterLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	if len(objs) < 4 {
+		return fyne.Size{}
+	}
+	start, pills, end, pillsH, rowH := l.widths(objs)
+	gap := l.gap()
+	if l.oneLine(objs, l.width) {
+		w := start + end + gap
+		if pills > 0 {
+			w += pills + gap
+		}
+		return fyne.NewSize(w, max(rowH, pillsH))
+	}
+	return fyne.NewSize(max(start+gap+end, pills), pillsH+gap+rowH)
+}
+
+func (l *dataFooterLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	if len(objs) < 4 {
+		return
+	}
+	_, pills, _, pillsH, rowH := l.widths(objs)
+	gap := l.gap()
+	w := l.width
+	if w <= 0 || w > size.Width {
+		w = size.Width
+	}
+	one := l.oneLine(objs, w)
+	lineH, rowY := max(rowH, pillsH), float32(0)
+	if !one {
+		lineH, rowY = rowH, pillsH+gap
+	}
+	place := func(o fyne.CanvasObject, x, y, h float32) {
+		ms := o.MinSize()
+		o.Move(fyne.NewPos(x, y+(h-ms.Height)/2))
+		o.Resize(ms)
+	}
+	if objs[0].Visible() {
+		place(objs[0], 0, rowY, lineH)
+	}
+	x := size.Width
+	for i := 3; i >= 2; i-- {
+		if o := objs[i]; o.Visible() {
+			x -= o.MinSize().Width
+			place(o, x, rowY, lineH)
+			x -= gap
+		}
+	}
+	if objs[1].Visible() {
+		if one {
+			place(objs[1], x-pills, rowY, lineH)
+		} else {
+			place(objs[1], size.Width-pills, 0, pillsH)
+		}
+	}
 }

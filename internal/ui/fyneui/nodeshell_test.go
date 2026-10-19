@@ -116,12 +116,13 @@ func TestRenderNodeShellLight(t *testing.T) {
 }
 
 // nodeShellRequest is the confirmation the engine asks for a node shell on busyNode (as Dispatch
-// builds it from node.shell: its label, the node, the context, the detail).
+// builds it from node.shell: its label, the node, the context, the effects and their text).
 func nodeShellRequest(origin engine.Origin) engine.ConfirmRequest {
 	ref := model.ObjectRef{Context: "demo", Kind: "nodes", Name: busyNode}
+	cfg := engine.NodeShellConfig{Image: engine.DefaultNodeShellImage, Deadline: engine.DefaultNodeShellDeadline}
 	return engine.ConfirmRequest{Command: engine.NodeShellCommand, Label: "Shell", Danger: engine.DangerDestructive, Origin: origin,
 		Context: "demo", Objects: []model.ObjectRef{ref}, Kinds: []string{"Node"}, Undoable: true, // as the engine sets them (A101)
-		Detail: engine.NodeShellDetail(busyNode, engine.NodeShellConfig{Image: engine.DefaultNodeShellImage, Deadline: engine.DefaultNodeShellDeadline})}
+		Effects: engine.NodeShellEffects(busyNode, cfg), Detail: engine.NodeShellDetail(busyNode, cfg)}
 }
 
 // confirmNodeShell shows the node shell's confirmation and returns the dialog's texts; answer is
@@ -155,9 +156,9 @@ func confirmNodeShell(t *testing.T, mode ThemeMode, origin engine.Origin, png st
 func TestNodeShellConfirmationNamesWhatItCreates(t *testing.T) {
 	texts := strings.Join(confirmNodeShell(t, ThemeDark, engine.OriginExternalAgent, ""), "\n")
 	at := strings.LastIndex(engine.DefaultNodeShellImage, "@") // Renovate moves the default: the test follows it
-	for _, want := range []string{"An agent asks: Shell?", "privileged pod in namespace kube-system on node " + busyNode,
-		"root access to the node", "Image: " + engine.DefaultNodeShellImage[:at] + ", pinned by digest " + engine.DefaultNodeShellImage[at+1:at+20],
-		"after 2 hours, its maximum duration", "demo", "An external agent over MCP"} {
+	for _, want := range []string{"An agent asks: Shell?", "Creates", "privileged pod in namespace kube-system on node " + busyNode,
+		"Access", "root on the node", "Image\n" + engine.DefaultNodeShellImage[:at], "Digest\n" + engine.DefaultNodeShellImage[at+1:at+20],
+		"by itself after 2 hours", "demo", "An external agent over MCP"} {
 		if !strings.Contains(texts, want) {
 			t.Errorf("the confirmation lacks %q:\n%s", want, texts)
 		}

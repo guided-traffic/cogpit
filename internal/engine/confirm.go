@@ -29,7 +29,12 @@ type ConfirmRequest struct {
 	// objects, never on one created again under the same name while the dialog was open. Only
 	// destructive commands record them.
 	UIDs []string `json:"uids,omitempty"`
-	// Detail adds what the objects alone don't say: the options that make a drain lose data.
+	// Effects say what the command does beyond its objects, one row each (Effect): the keys a
+	// save removes, a drain's options, a rollback's revision. The window shows them as rows of the
+	// confirmation's table, under the objects (D-85, WF33).
+	Effects []Effect `json:"effects,omitempty"`
+	// Detail is the effects as one line (EffectsText), which Message ends with and to which a
+	// command's own dialog binds the user's answer (the Rollback dialog, a drawer's save review).
 	Detail string `json:"detail,omitempty"`
 	// Warning is what the user must know before answering, apart from the message: a Helm chart
 	// from a repository whose content nothing authenticates (H-41, A14). The GUI's dialog shows it
@@ -52,6 +57,44 @@ type ConfirmRequest struct {
 // ConfirmNamed is how many objects the confirmation's message names before it gives the count of
 // the rest ("and 12 more"); the dialog lists every object below it (a selection's Delete).
 const ConfirmNamed = 10
+
+// Effect is one row of what a confirmed command does beyond naming its objects, as the
+// confirmation's table shows it (the owner's WF33, 2026-10-19: "eine technisch präzise
+// Schnellansicht", never a sentence): a short name and a terse value. "Removes" "color, size"
+// (lost), "To revision" "3" (names), "Grace period" "30 s per pod". A value may hold several
+// lines ("\n"), one fact each.
+type Effect struct {
+	Name  string     `json:"name"`
+	Value string     `json:"value"`
+	Tone  EffectTone `json:"tone,omitempty"`
+}
+
+// EffectTone is how the window sets an effect's value.
+type EffectTone string
+
+const (
+	// EffectPlain is a fact in the text colour: a duration, an option, where the values come from.
+	EffectPlain EffectTone = ""
+	// EffectNames are names the command acts on or writes (keys, a revision, an image, a chart):
+	// bold, as the save review's keys.
+	EffectNames EffectTone = "names"
+	// EffectLost is what the command loses for good (a removed key, the resources a prune
+	// deletes): bold, in the error colour, as the save review's "Removes".
+	EffectLost EffectTone = "lost"
+	// EffectWarning is what the user weighs before answering (root on a node, an unchecked
+	// archive, a proxy that sees credentials): in the warning colour.
+	EffectWarning EffectTone = "warning"
+)
+
+// EffectsText is the effects on one line, for ConfirmRequest.Detail: "Removes: color, size.
+// Adds: debug." A value's lines are joined with "; ".
+func EffectsText(effects []Effect) string {
+	parts := make([]string, 0, len(effects))
+	for _, e := range effects {
+		parts = append(parts, e.Name+": "+strings.ReplaceAll(e.Value, "\n", "; ")+".")
+	}
+	return strings.Join(parts, " ")
+}
 
 // Message is the confirmation text: "Delete Pod web-0 in namespace default (context kind-cogpit)?"
 // with the origin named when an agent asked. Several objects are counted first and named up to

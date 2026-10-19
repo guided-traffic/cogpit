@@ -43,8 +43,9 @@ func TestNodeShellImageRules(t *testing.T) {
 		t.Error("pull secret names")
 	}
 	cfg := NodeShellConfig{Image: "alpine:3.24", Deadline: DefaultNodeShellDeadline}
-	if !strings.Contains(NodeShellDetail("n1", cfg), "a floating tag, not pinned by digest") {
-		t.Error("a tag's detail does not say it floats")
+	if !slices.Contains(NodeShellEffects("n1", cfg), Effect{Name: "Digest", Value: "none: a floating tag, what it runs can change without Cogpit knowing", Tone: EffectWarning}) ||
+		!strings.Contains(NodeShellDetail("n1", cfg), "Digest: none: a floating tag") {
+		t.Error("a tag's effects do not say it floats")
 	}
 	pod := NodeShellPod("cogpit-node-shell-x", "n1", NodeShellConfig{Image: "alpine:3.24", PullSecret: "pull", Deadline: 90 * time.Minute})
 	if len(pod.Spec.ImagePullSecrets) != 1 || pod.Spec.ImagePullSecrets[0].Name != "pull" || pod.Labels["app.kubernetes.io/name"] != "cogpit-node-shell" {

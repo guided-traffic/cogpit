@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"runtime/debug"
-	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -57,26 +56,24 @@ type pendingDrainsParams struct {
 	All bool `json:"all,omitempty" jsonschema:"list the pending drains of every context, not only the shown cluster's"`
 }
 
-// drainDetail names, for the confirmation, the drain options that lose data or end pods for good,
-// so that "Finish drain" or an agent's drain with them never reads like a plain drain.
-func drainDetail(_ *engine.Session, p drainParams) string {
-	var notes []string
+// drainEffects are the confirmation's rows of the drain options that lose data or end pods for
+// good, so that "Finish drain" or an agent's drain with them never reads like a plain drain: what
+// is lost in the error colour, the other options plain.
+func drainEffects(_ *engine.Session, p drainParams) []engine.Effect {
+	var out []engine.Effect
 	if p.DeleteEmptyDirData {
-		notes = append(notes, "the emptyDir data of evicted pods is lost")
+		out = append(out, engine.Effect{Name: "Loses", Value: "the emptyDir data of evicted pods", Tone: engine.EffectLost})
 	}
 	if p.Force {
-		notes = append(notes, "pods that no controller manages are evicted and not started again")
+		out = append(out, engine.Effect{Name: "Evicts", Value: "pods no controller manages, not started again", Tone: engine.EffectLost})
 	}
 	if p.IgnoreDaemonSets != nil && !*p.IgnoreDaemonSets {
-		notes = append(notes, "the drain refuses a node that runs DaemonSet pods")
+		out = append(out, engine.Effect{Name: "DaemonSet pods", Value: "not ignored: a node that runs them is refused"})
 	}
 	if p.GracePeriodSeconds > 0 {
-		notes = append(notes, fmt.Sprintf("each pod gets %d seconds to shut down", p.GracePeriodSeconds))
+		out = append(out, engine.Effect{Name: "Grace period", Value: fmt.Sprintf("%d s per pod", p.GracePeriodSeconds)})
 	}
-	if len(notes) == 0 {
-		return ""
-	}
-	return "With these options: " + strings.Join(notes, "; ") + "."
+	return out
 }
 
 // drainVerbs are the requests kubectl's drain library makes, as cluster.DrainNode documents them;
@@ -148,7 +145,7 @@ func registerNodes(g *registrar) {
 			"stops it. Ending your call does not stop it. A drain that fails, times out or is stopped leaves the node " +
 			"cordoned and partly drained, and nothing is uncordoned by itself; it stays in node_pendingDrains, and so " +
 			"does one a crash of Cogpit interrupts. Run it again to finish it.",
-		Detail: drainDetail,
+		Effects: drainEffects,
 		Enabled: func(s *engine.Session, p drainParams) error {
 			if _, err := cachedOfKind(s, p.Ref, nodeKindKey); err != nil {
 				return err

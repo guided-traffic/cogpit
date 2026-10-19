@@ -246,7 +246,7 @@ func TestHelmInstallTabInstalls(t *testing.T) {
 	if previews, installs := rec.recorded(); len(previews) != 1 || len(installs) != 0 || previews[0].Tab != tab.ID || previews[0].Name != "nginx-x2k4q" {
 		t.Fatalf("previews %+v installs %+v", previews, installs)
 	}
-	if len(u.preview.lines) != 5 || u.preview.lines[0] != "ConfigMap web/nginx-x2k4q-server-block" || u.preview.lines[4] != "Hook: Pod web/nginx-x2k4q-test" {
+	if len(u.preview.lines) != 5 || u.preview.lines[0] != "ConfigMap → web/nginx-x2k4q-server-block" || u.preview.lines[4] != "Pod (hook) → web/nginx-x2k4q-test" {
 		t.Errorf("preview lines %q", u.preview.lines)
 	}
 	test.Tap(u.preview.cancel)

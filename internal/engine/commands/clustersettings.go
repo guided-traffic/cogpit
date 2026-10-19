@@ -144,12 +144,12 @@ func registerClusterSettings(g *registrar) {
 		// A proxy decides where the user's cluster traffic goes, credentials in it: an agent's always
 		// waits for the user (A20, owner 2026-10-14 evening).
 		AgentsAsk: func(_ *engine.Session, p clusterSettingsSetParams) bool { return setsProxy(p.Proxy) },
-		Detail: func(s *engine.Session, p clusterSettingsSetParams) string {
+		Effects: func(s *engine.Session, p clusterSettingsSetParams) []engine.Effect {
 			if !setsProxy(p.Proxy) {
-				return ""
+				return nil
 			}
 			ctx, _ := settingsContext(s, p.Context)
-			return proxyDetail("the API traffic of "+ctx+", from its next connect,", *p.Proxy)
+			return proxyEffects("the API traffic of "+ctx+", from its next connect", *p.Proxy)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p clusterSettingsSetParams) (any, error) {
 			if err := refuseProxy(ctx, p.Proxy); err != nil {

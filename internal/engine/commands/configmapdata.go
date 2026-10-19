@@ -145,8 +145,8 @@ func registerConfigMapData(g *registrar) {
 		Escalate: func(_ *engine.Session, p configMapDataParams) bool { return len(p.Remove) > 0 },
 		Targets:  func(s *engine.Session, p configMapDataParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
 		// The keys removed and added, which the drawer's review binds as its confirmation.
-		Detail: func(_ *engine.Session, p configMapDataParams) string {
-			return engine.DataKeysDetail(slices.Collect(maps.Keys(p.Add)), p.Remove)
+		Effects: func(_ *engine.Session, p configMapDataParams) []engine.Effect {
+			return engine.DataKeysEffects(slices.Collect(maps.Keys(p.Add)), p.Remove)
 		},
 		// The user reads what an agent's save writes before answering (as an agent's Helm values).
 		Review: func(s *engine.Session, p configMapDataParams) string {

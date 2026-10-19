@@ -205,26 +205,32 @@ func NodeShellPod(name, node string, cfg NodeShellConfig) *corev1.Pod {
 	return pod
 }
 
-// NodeShellDetail is the node shell's sentence in the confirmation: that it creates a privileged
-// pod with root access to the node, its namespace, node and image, whether the image is pinned,
-// the pull secret, and how long the pod lives at most.
-func NodeShellDetail(node string, cfg NodeShellConfig) string {
+// NodeShellEffects are the node shell's rows in the confirmation: the privileged pod it creates,
+// its namespace and node, the root access, the image and whether it is pinned, the pull secret,
+// and how long the pod lives at most.
+func NodeShellEffects(node string, cfg NodeShellConfig) []Effect {
 	image := cfg.Image
-	var b strings.Builder
-	fmt.Fprintf(&b, "It creates a privileged pod in namespace %s on node %s with root access to the node: the pod shares "+
-		"the node's processes and the shell enters the node's namespaces as root. ", NodeShellNamespace, node)
-	if ImagePinned(image) { // the digest on its own, so that a dialog can break the line before it
+	out := []Effect{
+		{Name: "Creates", Value: fmt.Sprintf("a privileged pod in namespace %s on node %s", NodeShellNamespace, node), Tone: EffectWarning},
+		{Name: "Access", Value: "root on the node: its processes and namespaces", Tone: EffectWarning},
+	}
+	if ImagePinned(image) { // the digest a row of its own: the dialog breaks it where it must
 		at := strings.LastIndex(image, "@")
-		fmt.Fprintf(&b, "Image: %s, pinned by digest %s", image[:at], image[at+1:])
+		out = append(out, Effect{Name: "Image", Value: image[:at], Tone: EffectNames}, Effect{Name: "Digest", Value: image[at+1:]})
 	} else {
-		fmt.Fprintf(&b, "Image: %s, a floating tag, not pinned by digest: what it runs can change without Cogpit knowing", image)
+		out = append(out, Effect{Name: "Image", Value: image, Tone: EffectNames},
+			Effect{Name: "Digest", Value: "none: a floating tag, what it runs can change without Cogpit knowing", Tone: EffectWarning})
 	}
 	if cfg.PullSecret != "" {
-		fmt.Fprintf(&b, ", pulled with the image pull secret %s", cfg.PullSecret)
+		out = append(out, Effect{Name: "Pull secret", Value: cfg.PullSecret, Tone: EffectNames})
 	}
-	fmt.Fprintf(&b, ". The pod is deleted when the shell closes and ends by itself after %s, its maximum duration.",
-		NodeShellDeadlineText(cfg.Deadline))
-	return b.String()
+	return append(out, Effect{Name: "Ends", Value: "when the shell closes, by itself after " + NodeShellDeadlineText(cfg.Deadline)})
+}
+
+// NodeShellDetail is NodeShellEffects' text, the confirmation's Detail: StartNodeShell refuses
+// when it no longer matches the settings.
+func NodeShellDetail(node string, cfg NodeShellConfig) string {
+	return EffectsText(NodeShellEffects(node, cfg))
 }
 
 // nodeShellName returns a new pod name: the prefix and eight random characters.

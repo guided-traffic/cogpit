@@ -99,8 +99,8 @@ func registerPortForward(g *registrar) {
 			return nil
 		},
 		Targets: func(s *engine.Session, p podForwardParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(_ *engine.Session, p podForwardParams) string {
-			return forwardDetail(p.LocalPort, fmt.Sprintf("port %d of pod %s", p.Port, p.Ref.Name))
+		Effects: func(_ *engine.Session, p podForwardParams) []engine.Effect {
+			return forwardEffects(p.LocalPort, fmt.Sprintf("port %d", p.Port))
 		},
 		Run: func(ctx context.Context, s *engine.Session, p podForwardParams) (any, error) {
 			return startForward(ctx, s, engine.ForwardSpec{
@@ -145,8 +145,8 @@ func registerPortForward(g *registrar) {
 			return fmt.Errorf("service %s has no port %d", p.Ref.Name, p.Port)
 		},
 		Targets: func(s *engine.Session, p serviceForwardParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(_ *engine.Session, p serviceForwardParams) string {
-			return forwardDetail(p.LocalPort, fmt.Sprintf("port %d of service %s (a ready pod of it)", p.Port, p.Ref.Name))
+		Effects: func(_ *engine.Session, p serviceForwardParams) []engine.Effect {
+			return forwardEffects(p.LocalPort, fmt.Sprintf("port %d, a ready pod of the service", p.Port))
 		},
 		Run: func(ctx context.Context, s *engine.Session, p serviceForwardParams) (any, error) {
 			return startForward(ctx, s, engine.ForwardSpec{
@@ -212,16 +212,16 @@ func registerPortForward(g *registrar) {
 			return p, nil
 		},
 		Targets: func(s *engine.Session, p editForwardParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(s *engine.Session, p editForwardParams) string {
+		Effects: func(s *engine.Session, p editForwardParams) []engine.Effect {
 			f, err := cachedForward(s, p.Ref)
 			if err != nil {
-				return ""
+				return nil
 			}
 			local := f.Spec.LocalPort
 			if p.LocalPort != nil {
 				local = *p.LocalPort
 			}
-			return forwardDetail(local, forwardTargetText(f.Spec))
+			return forwardEffects(local, forwardTargetText(f.Spec))
 		},
 		Run: func(ctx context.Context, s *engine.Session, p editForwardParams) (any, error) {
 			f, err := s.ForwardOf(p.Ref)
@@ -316,14 +316,19 @@ func cachedForward(s *engine.Session, ref model.ObjectRef) (engine.Forward, erro
 	return s.LookupForward(ref)
 }
 
-// forwardDetail is the confirmation's sentence: where it listens, where it goes, who can use it.
-func forwardDetail(localPort uint16, to string) string {
-	at := "a free local port"
+// forwardEffects are the confirmation's rows: where it listens, where it goes (the object is the
+// confirmation's Objects row), whose identity it uses, who can use it.
+func forwardEffects(localPort uint16, to string) []engine.Effect {
+	at := "127.0.0.1, a free port"
 	if localPort != 0 {
-		at = "local port " + strconv.Itoa(int(localPort))
+		at = "127.0.0.1:" + strconv.Itoa(int(localPort))
 	}
-	return "It listens on " + at + " of 127.0.0.1 and forwards each connection to " + to +
-		", with your identity; every process on this computer can connect while it runs."
+	return []engine.Effect{
+		{Name: "Listens on", Value: at, Tone: engine.EffectNames},
+		{Name: "Forwards to", Value: to, Tone: engine.EffectNames},
+		{Name: "Identity", Value: "yours"},
+		{Name: "Reachable by", Value: "every process on this computer, while it runs", Tone: engine.EffectWarning},
+	}
 }
 
 func forwardTargetText(spec engine.ForwardSpec) string {

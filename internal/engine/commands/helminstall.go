@@ -197,7 +197,7 @@ func registerHelmInstall(g *registrar) {
 			}
 			return []model.ObjectRef{engine.HelmReleaseRef(b.Context, p.Namespace, p.Name)}, nil
 		},
-		Detail:  installDetail,
+		Effects: installEffects,
 		Warning: installWarning, // a chart nothing authenticates (H-41, A14)
 		// The values an agent passes inline are shown to the user before they answer (D-27); from
 		// a tab, the tab is what the user reviews.
@@ -327,47 +327,48 @@ func installWarning(s *engine.Session, p installParams) string {
 	return kinds.HelmOriginWarning(p.Repository, s.HelmRepos().Origin(p.Repository))
 }
 
-// installDetail is the confirmation's sentence: the chart, its version and how its archive was
-// checked, and where the values come from. The objects name the release, its namespace and the
-// context.
-func installDetail(s *engine.Session, p installParams) string {
-	repo, chart, version, checked := p.Repository, p.Chart, p.Version, ""
+// installEffects are the confirmation's rows: the chart, its version and how its archive was
+// checked, a namespace it creates, where the values come from, whose identity creates the objects
+// and, with Helm's ConfigMaps driver, who can read the release's records. The objects name the
+// release, its namespace and the context.
+func installEffects(s *engine.Session, p installParams) []engine.Effect {
+	repo, chart, version := p.Repository, p.Chart, p.Version
+	var archive *engine.Effect
+	unchecked := engine.Effect{Name: effectArchive, Value: "not checked: the index lists no digest", Tone: engine.EffectWarning}
 	if p.Tab != "" {
 		if t, err := s.HelmInstallTab(p.Tab); err == nil && t.Tab.HelmInstall != nil {
 			hi := t.Tab.HelmInstall
 			repo, chart, version = hi.Repository, hi.Chart, hi.Version
-			checked = "its archive did not match a digest: the index lists none"
+			archive = &unchecked
 			if hi.Verified {
-				checked = "its archive matched the index's digest"
+				archive = &engine.Effect{Name: effectArchive, Value: "matched the index's digest"}
 			}
 		}
 	} else if repos := s.HelmRepos(); repos != nil {
 		if _, _, v, err := repos.ChartVersion(p.Repository, p.Chart, p.Version); err == nil {
-			checked = "the index lists no digest, so the archive cannot be checked"
+			archive = &unchecked
 			if v.Digest != "" {
-				checked = "the archive is checked against the index's digest"
+				archive = &engine.Effect{Name: effectArchive, Value: "checked against the index's digest"}
 			}
 		}
 	}
-	var b strings.Builder
-	fmt.Fprintf(&b, "A new release is installed from chart %s/%s %s", repo, chart, version)
-	if checked != "" {
-		fmt.Fprintf(&b, " (%s)", checked)
+	out := []engine.Effect{{Name: "Chart", Value: fmt.Sprintf("%s/%s %s", repo, chart, version), Tone: engine.EffectNames}}
+	if archive != nil {
+		out = append(out, *archive)
 	}
 	if p.CreateNamespace {
-		fmt.Fprintf(&b, ", creating namespace %s if it does not exist", p.Namespace)
+		out = append(out, engine.Effect{Name: "Creates", Value: "namespace " + p.Namespace + ", if it does not exist", Tone: engine.EffectNames})
 	}
+	values := engine.Effect{Name: effectValues, Value: "below"}
 	if p.Tab != "" {
-		fmt.Fprintf(&b, ", with the values in the tab %s at its text revision %d (review them there; a change refuses the install).", p.Tab, p.TextRevision)
-	} else {
-		b.WriteString(", with the values below.")
+		values.Value = fmt.Sprintf("tab %s at text revision %d (review them there; a change refuses the install)", p.Tab, p.TextRevision)
 	}
-	b.WriteString(" Its objects are created with your identity; helm_chart_preview names them.")
+	out = append(out, values, engine.Effect{Name: "Created as", Value: "you, with your identity (helm_chart_preview lists what it creates)"})
 	if s.HelmDriver() == helm.DriverConfigMap {
-		b.WriteString(" Helm keeps the release's records, values included, in ConfigMaps (the HELM_DRIVER preference): " +
-			"whoever may read ConfigMaps in the namespace can read them.")
+		out = append(out, engine.Effect{Name: "Records", Value: "in ConfigMaps (HELM_DRIVER), values included: readable by whoever may read " +
+			"ConfigMaps in the namespace", Tone: engine.EffectWarning})
 	}
-	return b.String()
+	return out
 }
 
 func runInstall(ctx context.Context, s *engine.Session, p installParams) (any, error) {

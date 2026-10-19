@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -16,7 +15,8 @@ import (
 )
 
 // guiConfirmer is the engine's Confirmer for the desktop app: a dialog whose title names the
-// command and whose rows name the context, the namespace, the objects, the effect and who asked.
+// command and whose rows name the context, the namespace, the objects (kind and name apart,
+// objectnames.go), what the command does beyond them (its effects, a row each) and who asked.
 // The engine calls Confirm on its own goroutines; the dialog is shown on the main goroutine and
 // Confirm waits for the answer.
 //
@@ -99,33 +99,29 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	destructive := req.Danger == engine.DangerDestructive
 
 	// The rows say what happens, in the place order Context › Namespace › Objects (the owner's
-	// rule, WF16): no sentence above them repeats them. req.Message() stays the text of agents, the
-	// audit log and the CLI.
+	// rule, WF16): no sentence above them repeats them. req.Message() stays the engine's one-line
+	// text of the same request (the tests read it; no agent or log does).
 	valueWidth := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
 	rows := box(kvLayout{})
 	addRow := func(name, value string) {
 		v := newParagraph(value, theme.ColorNameForeground, valueWidth)
-		v.hard = true // an image digest (the node shell's) is one word wider than the column
+		v.hard = true
 		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), v)
 	}
-	addRow("Context", req.Context)
-	switch {
-	case len(req.Namespaces) == 1:
-		addRow("Namespace", req.Namespaces[0])
-	case len(req.Namespaces) > 1: // a selection's objects (Delete of a selection)
-		addRow("Namespaces", strings.Join(req.Namespaces, ", "))
-	}
-	objects := make([]string, 0, len(req.Objects))
+	objects := make([]namedObject, 0, len(req.Objects))
 	for i, o := range req.Objects {
 		kind := singular(c.sh.kindTitle(o.Kind))
 		if i < len(req.Kinds) && req.Kinds[i] != "" { // the engine's name, as Message says it
 			kind = req.Kinds[i]
 		}
-		objects = append(objects, kind+" "+o.Name)
+		objects = append(objects, namedObject{kind: kind, name: o.Name})
 	}
-	name, value := confirmObjects(objects, valueWidth) // every object, a long list scrolling (tablecheck_confirm.go)
-	rows.Objects = append(rows.Objects, name, value)
-	if req.Detail != "" { // what the objects alone don't say: the keys a save removes, a drain's options
+	// Every object, kind and name apart, grouped by kind, a long list scrolling (WF32, objectnames.go).
+	placeRows(rows, req.Context, req.Namespaces, objects, valueWidth)
+	// What the objects alone don't say, a row each in the quick view the save review has (WF33):
+	// the keys a save removes, a drain's options, a rollback's revision.
+	effectRows(rows, req.Effects, valueWidth)
+	if len(req.Effects) == 0 && req.Detail != "" { // a request that carries only the text: never hidden
 		addRow("Effect", req.Detail)
 	}
 	addRow("Requested by", originText(req.Origin))

@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -518,7 +519,8 @@ func TestHelmActionsConfirmPerOrigin(t *testing.T) {
 			t.Errorf("confirmation %+v", req)
 		}
 	}
-	if !strings.Contains(asked[0].Message(), "revision 2's manifest") || !strings.Contains(asked[1].Message(), "deletes every object of the release") {
+	if !strings.HasSuffix(asked[0].Message(), "? To revision: 2.") || !strings.Contains(asked[1].Message(), "Deletes: every object of the release, its history.") ||
+		!slices.Equal(asked[1].Effects, []engine.Effect{{Name: "Deletes", Value: "every object of the release, its history", Tone: engine.EffectLost}}) {
 		t.Errorf("messages %q, %q", asked[0].Message(), asked[1].Message())
 	}
 	if calls := h.server.recorded(); len(calls) != 0 {

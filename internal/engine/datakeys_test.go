@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -31,24 +32,29 @@ func TestCheckDataKeyIsTheServers(t *testing.T) {
 	}
 }
 
-// TestDataKeysDetail: the confirmation's detail names the keys removed, added and changed, sorted,
-// capped, never a value.
+// TestDataKeysDetail: the confirmation's rows name the keys removed (lost), added and changed,
+// sorted, capped, never a value, and never inside a sentence (the owner's WF33: "Removes key
+// added." read the key "added" as a word); Detail is their text.
 func TestDataKeysDetail(t *testing.T) {
 	for _, c := range []struct {
 		got, want string
 	}{
 		{DataKeysDetail(nil, nil), ""},
-		{DataKeysDetail([]string{"b", "a"}, nil), "Adds keys a, b."},
-		{DataKeysDetail([]string{"new"}, []string{"old"}), "Removes key old and adds key new."},
-		{SecretSaveDetail(nil, nil, nil), "The values are not shown."},
-		{SecretSaveDetail([]string{"password"}, nil, nil), "Changes key password. The values are not shown."},
-		{SecretSaveDetail([]string{"c"}, []string{"b"}, []string{"a"}), "Removes key a, adds key b and changes key c. The values are not shown."},
+		{DataKeysDetail([]string{"b", "a"}, nil), "Adds: a, b."},
+		{DataKeysDetail([]string{"new"}, []string{"added"}), "Removes: added. Adds: new."},
+		{SecretSaveDetail(nil, nil, nil), "Values: not shown."},
+		{SecretSaveDetail([]string{"password"}, nil, nil), "Changes: password. Values: not shown."},
+		{SecretSaveDetail([]string{"c"}, []string{"b"}, []string{"a"}), "Removes: a. Adds: b. Changes: c. Values: not shown."},
 		{DataKeysDetail(nil, strings.Split("k01 k02 k03 k04 k05 k06 k07 k08 k09 k10 k11 k12", " ")),
-			"Removes keys k01, k02, k03, k04, k05, k06, k07, k08, k09, k10 and 2 more."},
+			"Removes: k01, k02, k03, k04, k05, k06, k07, k08, k09, k10 and 2 more."},
 	} {
 		if c.got != c.want {
 			t.Errorf("got %q, want %q", c.got, c.want)
 		}
+	}
+	want := []Effect{{Name: "Removes", Value: "added", Tone: EffectLost}, {Name: "Adds", Value: "new", Tone: EffectNames}}
+	if got := DataKeysEffects([]string{"new"}, []string{"added"}); !slices.Equal(got, want) {
+		t.Errorf("effects %+v, want %+v", got, want)
 	}
 }
 

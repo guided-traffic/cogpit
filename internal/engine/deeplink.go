@@ -347,25 +347,29 @@ func (s *Session) askLinkConnect(ctx context.Context, link DeepLink, ctxID strin
 	if confirmer == nil {
 		return fmt.Errorf("the link would connect %s: %w", kubeconfig.DisplayText(ctxID, 200), ErrConfirmationUnavailable)
 	}
-	from := "no cluster is connected"
+	from := "none connected"
 	if u.Connection.State.Live() && u.Context != "" {
-		from = "you are working in " + kubeconfig.DisplayText(u.Context, 200) + ", whose tabs stay"
+		from = kubeconfig.DisplayText(u.Context, 200) + ", its tabs stay"
 	}
-	what := "its overview"
+	what := "the cluster's overview"
 	switch {
 	case link.Name != "":
-		what = link.View + " " + link.Name
+		what = link.View + " → " + link.Name
 		if link.Namespace != "" {
 			what += " in namespace " + link.Namespace
 		}
 	case link.View != "":
 		what = "the " + link.View + " view"
 	}
+	// The rows: the context to connect (the dialog's Context), what the link opens there, and the
+	// cluster the user works in now (D-85: no sentence; "Requested by" names the link).
+	effects := []Effect{
+		{Name: "Opens", Value: kubeconfig.DisplayText(what, 300), Tone: EffectNames},
+		{Name: "Shown now", Value: from},
+	}
 	req := ConfirmRequest{
 		Command: DeepLinkConnectCommand, Label: "Follow a cogpit:// link and connect", Danger: DangerUI, Origin: OriginDeepLink,
-		Context: ctxID,
-		Detail: "A web page, mail or app opened a cogpit:// link that connects " + kubeconfig.DisplayText(ctxID, 200) +
-			" and opens " + kubeconfig.DisplayText(what, 300) + " there; " + from + ".",
+		Context: ctxID, Effects: effects, Detail: EffectsText(effects),
 	}
 	ok, err := confirmer.Confirm(ctx, req)
 	if err != nil {

@@ -227,7 +227,7 @@ data:
 		t.Fatalf("the review of keys: %+v", review)
 	}
 	must("configMap.saveData", keys, &saved)
-	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive || !strings.HasPrefix(asked[0].Detail, "Removes key hubble-flowlogs-config.yaml and adds keys ") {
+	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive || !strings.HasPrefix(asked[0].Detail, "Removes: hubble-flowlogs-config.yaml. Adds: ") {
 		t.Errorf("the confirmation of a removal: %+v", asked)
 	}
 	got, _, _ = unstructured.NestedStringMap(get().Object, "data")

@@ -198,7 +198,7 @@ windows (item 10).
    withdrawn by the owner on 2026-10-16 and removed, D-61); the Argo CD section
    checked against a live Argo CD 3.5 controller on that cluster, five findings fixed (D-36,
    [G23](gaps.md#g23-flux-cd-and-argo-cd-views)). Hours recounted: alpha ~50–200 h plus the walks.
-   **Found 2026-10-19 (the owner's walk on v0.26.1), not built yet**
+   **Found 2026-10-19 (the owner's walk on v0.26.1), not built yet but WF31–WF33** (built 2026-10-19, [D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save))
    ([G16](gaps.md#g16-stability-and-the-user-bug-backlog)): WF31–WF45 — the drawer's edited state
    hard to see, the dialogs' object and effect rows, the alert board's copy icon, the log's resume
    marker, no text selection in logs and toasts, the connection log's order, a wrapper credential

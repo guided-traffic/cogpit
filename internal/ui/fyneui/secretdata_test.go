@@ -305,8 +305,8 @@ func TestSecretDrawerEditAndSave(t *testing.T) {
 	}
 	settle(w)
 	typeIntoRow(r.cmRow, secTyped)
-	if sd.save.Disabled() || sd.status.text != "Edited: 1 value." {
-		t.Fatalf("after editing: save disabled %v, status %q", sd.save.Disabled(), sd.status.text)
+	if sd.save.Disabled() || sd.counts.text() != "1 value edited" || sd.status.Visible() {
+		t.Fatalf("after editing: save disabled %v, counts %q, status %q", sd.save.Disabled(), sd.counts.text(), sd.status.text)
 	}
 	test.Tap(sd.save)
 	q.until(t, "the review", func() bool { return sd.review != nil && !sd.review.save.Disabled() })

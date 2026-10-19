@@ -176,58 +176,53 @@ func truncateKey(key string) string {
 	return key[:40] + "…"
 }
 
-// maxDetailKeys is how many keys a confirmation's detail names before "and N more".
+// maxDetailKeys is how many keys a confirmation's effect names before "and N more".
 const maxDetailKeys = 10
 
-// DataKeysDetail is the confirmation's detail of a drawer's save that adds or removes keys
-// (configMap.saveData): the keys removed, then the keys added, never a value; "" when it does
-// neither. The drawer's review, which is that confirmation in the window, binds the same text.
+// DataKeysEffects are the confirmation's rows of a save or an apply that adds or removes keys of
+// a Config Map's or a Secret's data (configMap.saveData, object.apply): Removes, in the error
+// colour, then Adds, the keys' names only, never a value; none when it does neither. The drawer's
+// save review shows the same rows (the owner's WF33, 2026-10-19).
+func DataKeysEffects(added, removed []string) []Effect {
+	return dataEffects(nil, added, removed)
+}
+
+// DataKeysDetail is DataKeysEffects' text, the confirmation's Detail, which the drawer's review
+// binds as its confirmation of a removal.
 func DataKeysDetail(added, removed []string) string {
-	return dataDetail(nil, added, removed)
+	return EffectsText(DataKeysEffects(added, removed))
 }
 
-// SecretSaveDetail is the confirmation's detail of secret.saveData: the keys it removes, adds and
-// changes, and that the values are not shown.
+// SecretSaveEffects are secret.saveData's rows: the keys it removes, adds and changes, and that
+// the values are not shown.
+func SecretSaveEffects(changed, added, removed []string) []Effect {
+	return append(dataEffects(changed, added, removed), Effect{Name: "Values", Value: "not shown"})
+}
+
+// SecretSaveDetail is SecretSaveEffects' text, the confirmation's Detail.
 func SecretSaveDetail(changed, added, removed []string) string {
-	d := dataDetail(changed, added, removed)
-	if d == "" {
-		return "The values are not shown."
-	}
-	return d + " The values are not shown."
+	return EffectsText(SecretSaveEffects(changed, added, removed))
 }
 
-func dataDetail(changed, added, removed []string) string {
-	var parts []string
+func dataEffects(changed, added, removed []string) []Effect {
+	var out []Effect
 	for _, c := range []struct {
-		verb string
+		name string
 		keys []string
-	}{{"removes", removed}, {"adds", added}, {"changes", changed}} {
+		tone EffectTone
+	}{{"Removes", removed, EffectLost}, {"Adds", added, EffectNames}, {"Changes", changed, EffectNames}} {
 		if len(c.keys) > 0 {
-			parts = append(parts, c.verb+" "+keyList(c.keys))
+			out = append(out, Effect{Name: c.name, Value: keyList(c.keys), Tone: c.tone})
 		}
 	}
-	if len(parts) == 0 {
-		return ""
-	}
-	text := parts[0]
-	switch len(parts) {
-	case 2:
-		text += " and " + parts[1]
-	case 3:
-		text += ", " + parts[1] + " and " + parts[2]
-	}
-	return strings.ToUpper(text[:1]) + text[1:] + "."
+	return out
 }
 
-// keyList names keys, sorted: "key a", "keys a, b", "keys a, … and 3 more".
+// keyList names keys, sorted: "a", "a, b", "a, … and 3 more".
 func keyList(keys []string) string {
 	sorted := slices.Sorted(slices.Values(keys))
-	noun := "keys "
-	if len(sorted) == 1 {
-		noun = "key "
-	}
 	if len(sorted) > maxDetailKeys {
-		return noun + strings.Join(sorted[:maxDetailKeys], ", ") + fmt.Sprintf(" and %d more", len(sorted)-maxDetailKeys)
+		return strings.Join(sorted[:maxDetailKeys], ", ") + fmt.Sprintf(" and %d more", len(sorted)-maxDetailKeys)
 	}
-	return noun + strings.Join(sorted, ", ")
+	return strings.Join(sorted, ", ")
 }

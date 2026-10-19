@@ -26,8 +26,12 @@ Ordered checklists for the common additions. The packages they name are in
      declares it, [H-27](../security/privilege-footprint.md#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache));
      `Prefill` when a dialog should start from cached values;
    - for a command that asks the user ([`registry.go`](../../internal/engine/registry.go) `Spec`):
-     `Targets`, the objects the confirmation names and binds by UID; `Detail`, a sentence for what
-     the objects do not show (the drain's options that lose data); `Warning`, what the user must
+     `Targets`, the objects the confirmation names and binds by UID; `Effects`, a row each for what
+     the objects do not show (`engine.Effect`: a short name, a terse value and a tone, "Removes"
+     the keys a save loses, the drain's options that lose data), never a sentence
+     ([D-100](decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save));
+     a dialog of the command's own names its objects with `placeRows` and `objectsRow`
+     ([`objectnames.go`](../../internal/ui/fyneui/objectnames.go)); `Warning`, what the user must
      know before answering, in the warning colour; `Review`, a text of the parameters to read (an
      agent's Helm values); `Undoable` for a destructive command that loses nothing (a grant, a
      rollback), whose confirmation then leaves out "This cannot be undone."; `Refuse` to refuse an

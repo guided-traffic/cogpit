@@ -296,7 +296,7 @@ func TestHelmInstallUsesTheDriverPreference(t *testing.T) {
 		t.Fatal(err)
 	}
 	asked := h.confirmations()
-	if len(asked) != 1 || !strings.Contains(asked[0].Detail, "in ConfigMaps (the HELM_DRIVER preference)") {
+	if len(asked) != 1 || !strings.Contains(asked[0].Detail, "Records: in ConfigMaps (HELM_DRIVER)") {
 		t.Errorf("confirmation %+v", asked)
 	}
 	ins := fi.recordedInstalls()

@@ -441,10 +441,11 @@ func TestFluxConfirmationNamesTheIdentity(t *testing.T) {
 	if len(asked) != 3 {
 		t.Fatalf("asked %d times", len(asked))
 	}
-	if d := asked[0].Detail; !strings.Contains(d, "the kustomize-controller's own service account") || !strings.Contains(d, "not yours") {
+	if d := asked[0].Detail; !strings.Contains(d, "Runs as: the kustomize-controller's own service account.") ||
+		!strings.Contains(d, "Your rights: not used") {
 		t.Errorf("a Kustomization without a service account: %q", d)
 	}
-	if d := asked[1].Detail; !strings.Contains(d, "ServiceAccount shop/shop-deployer (spec.serviceAccountName, through the helm-controller)") {
+	if d := asked[1].Detail; !strings.Contains(d, "ServiceAccount → shop/shop-deployer (spec.serviceAccountName, through the helm-controller)") {
 		t.Errorf("a HelmRelease with one: %q", d)
 	}
 	if d := asked[2].Detail; strings.Count(d, "kustomize-controller") != 1 || !strings.Contains(d, "shop/shop-deployer") {

@@ -63,7 +63,7 @@ func registerPrometheusSetting(g *registrar) {
 		// and nodes the user opens (H-26): an agent's change always waits for the user (A16, owner
 		// 2026-10-14 evening; always, as the lead's night decision N8 has UI commands ask).
 		AgentsAsk: func(*engine.Session, prometheusParams) bool { return true },
-		Detail:    prometheusDetail,
+		Effects:   prometheusEffects,
 		Run: func(_ context.Context, s *engine.Session, p prometheusParams) (any, error) {
 			q, err := p.querySettings()
 			if err != nil {
@@ -82,27 +82,30 @@ func registerPrometheusSetting(g *registrar) {
 	})
 }
 
-// prometheusDetail is the confirmation's sentence: where the metrics come from, and how they are
-// asked when that is not Lens's default.
-func prometheusDetail(_ *engine.Session, p prometheusParams) string {
+// prometheusEffects are the confirmation's rows: where the metrics come from, what that service
+// learns, and how they are asked when that is not Lens's default.
+func prometheusEffects(_ *engine.Session, p prometheusParams) []engine.Effect {
 	addr := strings.TrimSpace(p.Address)
-	out := "Cogpit's charts and lists then read the cluster's metrics from " + addr + strings.TrimSpace(p.Prefix) +
-		" through the API server's service proxy; that service learns the names of the pods and nodes you open."
+	out := []engine.Effect{
+		{Name: "Metrics from", Value: addr + strings.TrimSpace(p.Prefix), Tone: engine.EffectNames},
+		{Name: "Through", Value: "the API server's service proxy"},
+		{Name: "Service sees", Value: "the names of the pods and nodes you open", Tone: engine.EffectWarning},
+	}
 	if addr == "" || strings.EqualFold(addr, autoAddress) {
-		out = "Cogpit then finds the cluster's Prometheus by its well-known service names again."
+		out = []engine.Effect{{Name: "Prometheus", Value: "found by its well-known service names again"}}
 	}
 	q, err := p.querySettings()
 	if err != nil {
 		return out
 	}
 	if q.Format != metrics.QueryAuto {
-		out += " Query format: " + q.Format.Label() + "."
+		out = append(out, engine.Effect{Name: "Query format", Value: q.Format.Label()})
 	}
 	if q.KeepEmptyContainers {
-		out += " The pods' queries keep the series without a container name."
+		out = append(out, engine.Effect{Name: "Pods' queries", Value: "keep the series without a container name"})
 	}
 	if q.HTTPS {
-		out += " The service is asked over https."
+		out = append(out, engine.Effect{Name: "Scheme", Value: "https"})
 	}
 	return out
 }

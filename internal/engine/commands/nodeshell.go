@@ -72,14 +72,14 @@ func nodeShellEnabled(s *engine.Session, ref model.ObjectRef) error {
 // errNoNodeShells disables node.shell on a connection without the node shell's writes.
 var errNoNodeShells = errors.New("this cluster connection cannot open node shells")
 
-// nodeShellDetail is node.shell's sentence in the confirmation, from the node's context's
-// settings (D-69: the reference's cluster, the shown one without a context).
-func nodeShellDetail(s *engine.Session, p refParams) string {
+// nodeShellEffects are node.shell's rows in the confirmation, from the node's context's settings
+// (D-69: the reference's cluster, the shown one without a context).
+func nodeShellEffects(s *engine.Session, p refParams) []engine.Effect {
 	ctx := ""
 	if b := s.BackendOf(p.Ref.Context); b != nil {
 		ctx = b.Context
 	}
-	return engine.NodeShellDetail(p.Ref.Name, s.NodeShellSettings(ctx))
+	return engine.NodeShellEffects(p.Ref.Name, s.NodeShellSettings(ctx))
 }
 
 // nodeShellBounds are the maximum duration's bounds and default as the descriptions name them.
@@ -97,7 +97,7 @@ func registerNodeShell(g *registrar) {
 			"the maximum duration Cluster Settings › Node Shell sets (activeDeadlineSeconds; " + nodeShellBounds + "), and " +
 			"is deleted when the shell ends, its tab closes or Cogpit quits. Whoever asks, the user confirms it, naming the " +
 			"node, the namespace, the image and the maximum duration. Returns the tab, which names the pod.",
-		Detail:  nodeShellDetail,
+		Effects: nodeShellEffects,
 		Enabled: func(s *engine.Session, p refParams) error { return nodeShellEnabled(s, p.Ref) },
 		Targets: func(s *engine.Session, p refParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
 		Run: func(ctx context.Context, s *engine.Session, p refParams) (any, error) {

@@ -97,9 +97,10 @@ type cmData struct {
 	more  string   // the note that more keys are not listed
 	list  *fyne.Container
 	moreL *textLine
-	// The footer at the end of the data: Revert and Save, and the line that says what the editors
-	// hold.
+	// The footer at the end of the data: Add Key, the edited state's pills beside Revert and Save
+	// (WF31), and under it the line for what the pills don't say (read-only, a newer version, saved).
 	save, revert *widget.Button
+	counts       *editCounts
 	buttons      *fyne.Container
 	status       *paragraph
 	root         *fyne.Container
@@ -164,7 +165,8 @@ func newCMData(d *drawer, ref model.ObjectRef) *cmData {
 	cd.status = newParagraph("", colorMuted, d.contentWidth())
 	cd.status.Hide()
 	cd.adder = newKeyAdder(d.contentWidth(), cd.keyTaken, cd.addKey)
-	cd.buttons = footerRow(cd.adder, cd.revert, cd.save)
+	cd.counts = newEditCounts()
+	cd.buttons = footerRow(cd.adder, cd.counts, cd.revert, cd.save, d.contentWidth())
 	cd.root = container.NewVBox(cd.list, cd.moreL, dataGap(), cd.adder.row, cd.buttons, cd.status)
 	cd.width = d.contentWidth()
 	cd.refreshFooter()
@@ -182,6 +184,7 @@ func (cd *cmData) fromModel(sec model.DetailSection) {
 		cd.status.width = w
 		cd.status.Refresh()
 		cd.adder.setWidth(w)
+		setFooterWidth(cd.buttons, w)
 	}
 	if cd.loaded {
 		cd.layoutRows()
@@ -545,8 +548,8 @@ func (cd *cmData) saveReason() string {
 	return ""
 }
 
-// refreshFooter makes the editors editable or read-only and sets Add Key, Save, Revert and the
-// status line from what the editors hold.
+// refreshFooter makes the editors editable or read-only and sets Add Key, Save, Revert, the edited
+// state's pills and the status line from what the editors hold.
 func (cd *cmData) refreshFooter() {
 	reason := cd.reason
 	for _, r := range cd.rows {
@@ -564,6 +567,11 @@ func (cd *cmData) refreshFooter() {
 	dirty := cd.dirty()
 	enable(cd.save, cd.loaded && reason == "" && dirty && cd.review == nil)
 	enable(cd.revert, dirty && cd.review == nil)
+	if dirty { // the edited state beside Revert and Save (WF31)
+		cd.counts.set(len(cd.edits()), len(cd.added), len(cd.removed))
+	} else {
+		cd.counts.set(0, 0, 0)
+	}
 	switch {
 	case !cd.loaded:
 	case reason != "" && !cd.hidden:
@@ -573,7 +581,7 @@ func (cd *cmData) refreshFooter() {
 			"they clash.", colorStatusWarning)
 	case dirty:
 		if !strings.HasPrefix(cd.status.text, "Your unsaved changes are back") {
-			cd.setStatus("Edited: "+editsText(len(cd.edits()), len(cd.added), len(cd.removed))+".", colorMuted)
+			cd.setStatus("", colorMuted) // the pills say it
 		}
 	case strings.HasPrefix(cd.status.text, "Saved"):
 	default:
@@ -852,7 +860,7 @@ func (cd *cmData) openReview() {
 	cancel := widget.NewButton("Cancel", func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 300)}, container.NewStack(newSurface(theme.ColorNameInputBackground), rv.diff.list))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
-	rv.dlg = dialog.NewCustomWithoutButtons("Save Config Map "+cd.ref.Name, content, cd.d.sh.win)
+	rv.dlg = dialog.NewCustomWithoutButtons("Save "+objectText("Config Map", cd.ref.Name), content, cd.d.sh.win)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; cd.review = nil; cd.refreshFooter() })
 	cd.review = rv

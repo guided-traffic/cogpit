@@ -37,7 +37,7 @@ const argoCatchUp = 3 * time.Second
 
 // Danger texts of the confirmations.
 const (
-	argoPruneDetail = "Prune is on: the resources the Application manages that are no longer in Git are deleted from the cluster."
+	argoPruneEffect = "on: the resources the Application manages that are no longer in Git are deleted from the cluster"
 	argoSyncLabel   = "Sync"
 	argoRefreshText = "Refresh"
 )
@@ -178,8 +178,8 @@ func registerArgoCD(g *registrar) {
 		},
 		Escalate: func(_ *engine.Session, p argoSyncParams) bool { return p.Prune },
 		Targets:  func(s *engine.Session, p argoSyncParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(s *engine.Session, p argoSyncParams) string {
-			return argoSyncDetail(s, []model.ObjectRef{p.Ref}, p.Prune)
+		Effects: func(s *engine.Session, p argoSyncParams) []engine.Effect {
+			return argoSyncEffects(s, []model.ObjectRef{p.Ref}, p.Prune)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p argoSyncParams) (any, error) {
 			ref, err := argoOne(ctx, s, p.Ref, func(w engine.ArgoCDActions, version string, ref model.ObjectRef) error {
@@ -201,7 +201,7 @@ func registerArgoCD(g *registrar) {
 			"nothing in the cluster but the annotation.",
 		Enabled: func(s *engine.Session, p argoRefreshParams) error { _, err := argoEnabled(s, p.Ref); return err },
 		Targets: func(s *engine.Session, p argoRefreshParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail:  func(_ *engine.Session, p argoRefreshParams) string { return argoRefreshDetail(p.Hard) },
+		Effects: func(_ *engine.Session, p argoRefreshParams) []engine.Effect { return argoRefreshEffects(p.Hard) },
 		Run: func(ctx context.Context, s *engine.Session, p argoRefreshParams) (any, error) {
 			ref, err := argoOne(ctx, s, p.Ref, func(w engine.ArgoCDActions, version string, ref model.ObjectRef) error {
 				return argoRefresh(ctx, s, w, version, ref, p.Hard)
@@ -225,7 +225,9 @@ func registerArgoCD(g *registrar) {
 		Targets: func(s *engine.Session, p argoSyncManyParams) ([]model.ObjectRef, error) {
 			return selectionTargets(s, p.Refs)
 		},
-		Detail: func(s *engine.Session, p argoSyncManyParams) string { return argoSyncDetail(s, p.Refs, p.Prune) },
+		Effects: func(s *engine.Session, p argoSyncManyParams) []engine.Effect {
+			return argoSyncEffects(s, p.Refs, p.Prune)
+		},
 		Run: func(ctx context.Context, s *engine.Session, p argoSyncManyParams) (any, error) {
 			return argoMany(ctx, s, "argocd.application.syncMany", argoSyncLabel, p.Refs, argoSyncDone(p.Prune),
 				func(ctx context.Context, w engine.ArgoCDActions, version string, ref model.ObjectRef) error {
@@ -243,7 +245,7 @@ func registerArgoCD(g *registrar) {
 		Targets: func(s *engine.Session, p argoRefreshManyParams) ([]model.ObjectRef, error) {
 			return selectionTargets(s, p.Refs)
 		},
-		Detail: func(_ *engine.Session, p argoRefreshManyParams) string { return argoRefreshDetail(p.Hard) },
+		Effects: func(_ *engine.Session, p argoRefreshManyParams) []engine.Effect { return argoRefreshEffects(p.Hard) },
 		Run: func(ctx context.Context, s *engine.Session, p argoRefreshManyParams) (any, error) {
 			return argoMany(ctx, s, "argocd.application.refreshMany", argoRefreshText, p.Refs, argoRefreshDone(p.Hard),
 				func(ctx context.Context, w engine.ArgoCDActions, version string, ref model.ObjectRef) error {
@@ -323,20 +325,22 @@ func argoRefreshDone(hard bool) string {
 	return "refresh requested"
 }
 
-func argoRefreshDetail(hard bool) string {
+// argoRefreshEffects are a Refresh's confirmation row: normal or hard, and what that does.
+func argoRefreshEffects(hard bool) []engine.Effect {
 	if hard {
-		return "A hard refresh: Argo CD discards its cached manifests and generates them again."
+		return []engine.Effect{{Name: "Refresh", Value: "hard: Argo CD discards its cached manifests and generates them again"}}
 	}
-	return "A normal refresh: Argo CD compares the live state with Git again."
+	return []engine.Effect{{Name: "Refresh", Value: "normal: Argo CD compares the live state with Git again"}}
 }
 
 // argoPrunedNamed is how many resources a Sync's confirmation names that prune deletes.
 const argoPrunedNamed = 10
 
-// argoSyncDetail says what a Sync syncs to and, with prune, what prune deletes: the resources the
-// Applications' status marks requiresPruning, as the controller last compared them.
-func argoSyncDetail(s *engine.Session, refs []model.ObjectRef, prune bool) string {
-	var parts []string
+// argoSyncEffects are a Sync's confirmation rows: what it syncs to and, with prune, what prune
+// deletes: the resources the Applications' status marks requiresPruning, as the controller last
+// compared them, one a line.
+func argoSyncEffects(s *engine.Session, refs []model.ObjectRef, prune bool) []engine.Effect {
+	var out []engine.Effect
 	var pruned []string
 	for _, ref := range refs {
 		obj, err := s.Lookup(ref)
@@ -345,25 +349,25 @@ func argoSyncDetail(s *engine.Session, refs []model.ObjectRef, prune bool) strin
 		}
 		if len(refs) == 1 {
 			if revs := argoTargets(obj); revs != "" {
-				parts = append(parts, "It syncs to "+revs+".")
+				out = append(out, engine.Effect{Name: "Syncs to", Value: revs, Tone: engine.EffectNames})
 			}
 		}
 		pruned = append(pruned, kinds.ArgoPrunable(obj)...)
 	}
 	if !prune {
-		return strings.Join(parts, " ")
+		return out
 	}
-	parts = append(parts, argoPruneDetail)
+	out = append(out, engine.Effect{Name: "Prune", Value: argoPruneEffect, Tone: engine.EffectLost})
+	marked := engine.Effect{Name: "To prune", Value: "none, as Argo CD last compared", Tone: engine.EffectLost}
 	switch n := len(pruned); {
 	case n == 0:
-		parts = append(parts, "Argo CD's last comparison marks none to prune.")
+		marked.Tone = engine.EffectPlain
 	case n <= argoPrunedNamed:
-		parts = append(parts, "Argo CD's last comparison marks for pruning: "+strings.Join(pruned, ", ")+".")
+		marked.Value = strings.Join(pruned, "\n")
 	default:
-		parts = append(parts, fmt.Sprintf("Argo CD's last comparison marks for pruning: %s and %d more.",
-			strings.Join(pruned[:argoPrunedNamed], ", "), n-argoPrunedNamed))
+		marked.Value = strings.Join(pruned[:argoPrunedNamed], "\n") + fmt.Sprintf("\nand %d more", n-argoPrunedNamed)
 	}
-	return strings.Join(parts, " ")
+	return append(out, marked)
 }
 
 // argoTargets names the revisions a Sync of obj targets: "main", "65.1.0 and main".

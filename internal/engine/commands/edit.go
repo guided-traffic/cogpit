@@ -178,9 +178,10 @@ func registerEdit(g *registrar) {
 		Escalate: func(s *engine.Session, p applyParams) bool {
 			return s.EditScalesToZero(p.ID, p.YAML) || len(s.EditRemovesDataKeys(p.ID, p.YAML)) > 0
 		},
-		// The removed keys, names only (editdatakeys.go); "" for an apply that removes none.
-		Detail: func(s *engine.Session, p applyParams) string {
-			return engine.DataKeysDetail(nil, s.EditRemovesDataKeys(p.ID, p.YAML))
+		// The removed keys, names only (editdatakeys.go), a row "Removes" as the drawer's review
+		// shows it (WF33); none for an apply that removes none.
+		Effects: func(s *engine.Session, p applyParams) []engine.Effect {
+			return engine.DataKeysEffects(nil, s.EditRemovesDataKeys(p.ID, p.YAML))
 		},
 		AgentsAsk: func(s *engine.Session, p applyParams) bool { return s.EditorHoldsRBAC(p.ID, p.YAML) }, // H-27, A1
 		Refuse: func(ctx context.Context, s *engine.Session, p applyParams) error {

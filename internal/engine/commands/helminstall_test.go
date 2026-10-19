@@ -261,8 +261,8 @@ func TestHelmInstallAgents(t *testing.T) {
 	}
 	a := asked[0]
 	if a.Danger != engine.DangerMutating || a.Context != "test" || len(a.Objects) != 1 || a.Objects[0].Kind != helm.ReleaseKind || a.Objects[0].Name != "api" ||
-		!slices.Equal(a.Namespaces, []string{"apps"}) || !strings.Contains(a.Detail, "chart test/web 0.1.0") ||
-		!strings.Contains(a.Detail, "checked against the index's digest") || a.Review != "password: agent-s3cr3t\n" {
+		!slices.Equal(a.Namespaces, []string{"apps"}) || !strings.Contains(a.Detail, "Chart: test/web 0.1.0.") ||
+		!strings.Contains(a.Detail, "Archive: checked against the index's digest.") || a.Review != "password: agent-s3cr3t\n" {
 		t.Errorf("confirmation %+v (message %q)", a, a.Message())
 	}
 	h.answer = true

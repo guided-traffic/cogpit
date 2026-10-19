@@ -71,47 +71,40 @@ func init() {
 // argoRowNoun names the Dashboard's rows in hints: Needs attention lists Applications.
 func argoRowNoun(sh *shell) string { return strings.ToLower(sh.kindTitle(kinds.ArgoApplicationsKey)) }
 
-// argoTitle names the Applications a dialog acts on: "Application shop", "3 Applications".
+// argoTitle names the Applications a dialog acts on: "Application → shop", "3 Applications".
 func argoTitle(refs []model.ObjectRef) string {
 	if len(refs) == 1 {
-		return "Application " + refs[0].Name
+		return objectText("Application", refs[0].Name)
 	}
 	return fmt.Sprintf("%d Applications", len(refs))
 }
 
-// argoNames lists the Applications a dialog acts on, at most ten by name.
-func argoNames(refs []model.ObjectRef) string {
-	names := make([]string, 0, min(len(refs), engine.ConfirmNamed))
-	for _, r := range refs[:min(len(refs), engine.ConfirmNamed)] {
-		names = append(names, r.Key())
-	}
-	s := strings.Join(names, ", ")
-	if n := len(refs) - len(names); n > 0 {
-		s += fmt.Sprintf(" and %d more", n)
-	}
-	return s
-}
-
 // argoDialog shows a dialog of Argo CD's actions (Lens's "Sync app(s)" and "Refresh app(s)"
 // dialogs, documented, not captured: the layout and texts are Cogpit's): the Applications and
-// their context, the options, and the action's button. Several Applications are a list of checks,
-// every one checked at first, as Lens preselects them; the user unchecks those to leave out, and
-// run gets the checked ones (none: nothing runs).
+// their context as rows (D-85: Context › Namespace › Object, the Application as "Application →
+// shop", WF32), the options, and the action's button. Several Applications are a list of checks
+// in the Objects row, every one checked at first, as Lens preselects them; the user unchecks those
+// to leave out, and run gets the checked ones (none: nothing runs).
 func (sh *shell) argoDialog(title, action string, refs []model.ObjectRef, options fyne.CanvasObject, run func([]model.ObjectRef)) {
 	th := sh.app.Settings().Theme()
 	width := th.Size(sizeConfirmWidth)
+	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
 	context := ""
 	if len(refs) > 0 {
 		context = refs[0].Context
 	}
 	picker := newArgoPicker(refs)
-	var what fyne.CanvasObject = newParagraph(argoNames(refs)+" (context "+context+")", colorMuted, width)
-	if len(refs) > 1 {
+	rows := box(kvLayout{})
+	if len(refs) == 1 {
+		placeRows(rows, context, []string{refs[0].Namespace}, []namedObject{{kind: "Application", name: refs[0].Name}}, valueW)
+	} else {
+		placeRows(rows, context, nil, nil, valueW)
 		list := container.NewVScroll(picker.checks)
-		list.SetMinSize(fyne.NewSize(width, min(picker.checks.MinSize().Height, th.Size(sizePopupMaxList))))
-		what = container.NewVBox(newParagraph("Context "+context+":", colorMuted, width), list)
+		list.SetMinSize(fyne.NewSize(valueW, min(picker.checks.MinSize().Height, th.Size(sizePopupMaxList))))
+		rows.Objects = append(rows.Objects,
+			rowName(fmt.Sprintf("Applications (%d)", len(refs))), list)
 	}
-	d := dialog.NewCustomConfirm(title, action, "Cancel", container.NewVBox(what, newSpace(theme.SizeNamePadding), options),
+	d := dialog.NewCustomConfirm(title, action, "Cancel", container.NewVBox(rows, newSpace(theme.SizeNamePadding), options),
 		func(ok bool) {
 			if chosen := picker.chosen(); ok && len(chosen) > 0 {
 				run(chosen)

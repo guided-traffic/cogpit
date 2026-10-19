@@ -95,7 +95,7 @@ func registerSecretCreate(g *registrar) {
 	spec.Refuse = func(ctx context.Context, _ *engine.Session, _ secretCreateParams) error {
 		return refuseSecretCreate(ctx)
 	}
-	spec.Detail = func(_ *engine.Session, p secretCreateParams) string { return secretDetail(p) }
+	spec.Effects = func(_ *engine.Session, p secretCreateParams) []engine.Effect { return secretEffects(p) }
 	create := spec.Run
 	spec.Run = func(ctx context.Context, s *engine.Session, p secretCreateParams) (any, error) {
 		if err := refuseSecretCreate(ctx); err != nil { // Refuse ran already; this keeps Run safe on its own
@@ -282,10 +282,10 @@ func checkSecretType(typ string, entries []secretEntryParams, annotations map[st
 	return nil
 }
 
-// secretDetail is the Secret's sentence in a confirmation: its type and keys, never a value. Only
-// the GUI runs the command, which confirms nothing mutating; the sentence is there for a session
+// secretEffects are the Secret's rows in a confirmation: its type and keys, never a value. Only
+// the GUI runs the command, which confirms nothing mutating; the rows are there for a session
 // whose agents' writes are confirmed all the same.
-func secretDetail(p secretCreateParams) string {
+func secretEffects(p secretCreateParams) []engine.Effect {
 	typ, err := secretType(p.Type)
 	if err != nil {
 		typ = strings.TrimSpace(p.Type)
@@ -294,8 +294,10 @@ func secretDetail(p secretCreateParams) string {
 	for _, e := range p.Data {
 		keys = append(keys, strings.TrimSpace(e.Key))
 	}
+	out := []engine.Effect{{Name: "Type", Value: typ, Tone: engine.EffectNames}}
 	if len(keys) == 0 {
-		return "Type " + typ + ", no data."
+		return append(out, engine.Effect{Name: "Keys", Value: "none"})
 	}
-	return "Type " + typ + ", keys " + cappedWith(keys, ", ") + "; the values are not shown."
+	return append(out, engine.Effect{Name: "Keys", Value: cappedWith(keys, ", "), Tone: engine.EffectNames},
+		engine.Effect{Name: effectValues, Value: "not shown"})
 }

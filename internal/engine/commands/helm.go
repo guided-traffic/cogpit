@@ -86,8 +86,8 @@ func registerHelm(g *registrar) {
 			}
 			return p, nil
 		},
-		Detail: func(_ *engine.Session, p rollbackParams) string { return RollbackDetail(p.Revision) },
-		Run:    runRollback,
+		Effects: func(_ *engine.Session, p rollbackParams) []engine.Effect { return rollbackEffects(p.Revision) },
+		Run:     runRollback,
 	})
 
 	add(g, engine.Spec[refParams]{
@@ -105,8 +105,8 @@ func registerHelm(g *registrar) {
 			return helmWritable(s, p.Ref)
 		},
 		Targets: func(s *engine.Session, p refParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail: func(*engine.Session, refParams) string {
-			return "Uninstalling deletes every object of the release and its history."
+		Effects: func(*engine.Session, refParams) []engine.Effect {
+			return []engine.Effect{{Name: "Deletes", Value: "every object of the release, its history", Tone: engine.EffectLost}}
 		},
 		Run: runUninstall,
 	})
@@ -200,10 +200,15 @@ func helmWritable(s *engine.Session, ref model.ObjectRef) error {
 	return nil
 }
 
-// RollbackDetail is a rollback's confirmation detail, which names the revision it rolls back to:
-// the GUI's Rollback dialog binds its answer to it.
+// rollbackEffects are a rollback's confirmation row: the revision it rolls back to.
+func rollbackEffects(revision int) []engine.Effect {
+	return []engine.Effect{{Name: "To revision", Value: strconv.Itoa(revision), Tone: engine.EffectNames}}
+}
+
+// RollbackDetail is a rollback's confirmation detail (rollbackEffects' text), which names the
+// revision it rolls back to: the GUI's Rollback dialog binds its answer to it.
 func RollbackDetail(revision int) string {
-	return fmt.Sprintf("The release's objects are changed to revision %d's manifest.", revision)
+	return engine.EffectsText(rollbackEffects(revision))
 }
 
 // previousRevision is the revision a rollback dialog starts with: the newest one before the

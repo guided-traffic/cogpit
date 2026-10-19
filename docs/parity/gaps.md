@@ -2530,9 +2530,13 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 - **Estimate:** 28–66 h (was 30–70; the perf gate no longer hangs on a slow runner, third run).
 
 ### G16. Stability and the user bug backlog
-- **Found in the owner's walk (2026-10-19, v0.26.1), not built yet:** WF31 a drawer's edited state
-  ("Edited: 1 value.") is easy to miss; WF32 a confirmation's Object(s) row does not set the kind
-  apart from the name; WF33 the Effect row is still a sentence ("Removes key added."); WF34 the
+- **Found in the owner's walk (2026-10-19, v0.26.1), not built yet unless marked:** WF31 a drawer's
+  edited state ("Edited: 1 value.") is easy to miss (**built 2026-10-19**: a coloured pill per count
+  beside Revert and Save, [D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save));
+  WF32 a confirmation's Object(s) row does not set the kind apart from the name (**built
+  2026-10-19**: "Config Map → walk-cm", kind muted, name bold, in every dialog, D-100); WF33 the
+  Effect row is still a sentence ("Removes key added.") (**built 2026-10-19**: a row per effect,
+  "Removes  added" bold and red, for every command, D-100); WF34 the
   alert board's copy icon shows late and flakily, at the card's far right; WF35 a followed log's
   resume marker after a sleep ("interrupted 11:10–11:10") does not say what happened; WF36 a log's
   text cannot be selected or copied (**built 2026-10-19**, [D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts): a selection across the lines,
@@ -2932,6 +2936,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 | Date | Change | Summary |
 |---|---|---|
 | 2026-10-19 | minor | G16: WF36 and WF41 built (D-99): a log tab's text selected across its lines and copied, a toast's and a notification's text selectable with a copy icon; no estimate moves |
+| 2026-10-19 | minor | G16: WF31 (the drawer's edited state as pills beside Revert and Save), WF32 (an object named "Config Map → walk-cm" in every dialog) and WF33 (a confirmation's effects a row each) built, D-100; no estimate moves |
 | 2026-10-19 | minor | G16: the owner's walk of 2026-10-19 on v0.26.1, his findings WF31–WF45, not built yet; no estimate moves |
 | 2026-10-18 | minor | G16: the owner's mgmt-p finding, Prometheus refused under its port's name, fixed (D-96) |
 | 2026-10-18 | minor | G12: the metrics source row in the middle (the owner's correction of WF24, D-88) |

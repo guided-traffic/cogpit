@@ -93,9 +93,10 @@ type Spec[P any] struct {
 	// Prefill returns the parameters a dialog shows before the user edits them, read from the
 	// cache: the current replica count for Scale. Nil shows p as it is.
 	Prefill func(s *Session, p P) (P, error)
-	// Detail adds a sentence to the confirmation for parameters the objects don't show: the drain
-	// options that lose data. Nil adds nothing.
-	Detail func(s *Session, p P) string
+	// Effects are the confirmation's rows for what the objects don't show (Effect): the keys a
+	// save removes, the drain options that lose data, a rollback's revision. Short names and terse
+	// values, never a sentence (D-85, WF33). Nil, or none, adds no row.
+	Effects func(s *Session, p P) []Effect
 	// Warning returns what the user must know before answering, which the confirmation shows apart
 	// in the warning colour (ConfirmRequest.Warning): a Helm chart from a repository whose content
 	// nothing authenticates (H-41, A14). Nil, or "", shows none.
@@ -151,7 +152,7 @@ type Command struct {
 	escalate  func(s *Session, p any) bool
 	agentsAsk func(s *Session, p any) bool
 	prefill   func(s *Session, p any) (any, error)
-	detail    func(s *Session, p any) string
+	effects   func(s *Session, p any) []Effect
 	warning   func(s *Session, p any) string
 	review    func(s *Session, p any) string
 	refuse    func(ctx context.Context, s *Session, p any) error
@@ -335,8 +336,8 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	if spec.Prefill != nil {
 		c.prefill = func(s *Session, p any) (any, error) { return spec.Prefill(s, p.(P)) }
 	}
-	if spec.Detail != nil {
-		c.detail = func(s *Session, p any) string { return spec.Detail(s, p.(P)) }
+	if spec.Effects != nil {
+		c.effects = func(s *Session, p any) []Effect { return spec.Effects(s, p.(P)) }
 	}
 	if spec.Warning != nil {
 		c.warning = func(s *Session, p any) string { return spec.Warning(s, p.(P)) }

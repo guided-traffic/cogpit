@@ -401,10 +401,11 @@ func (s *Session) Dispatch(ctx context.Context, inv Invocation) (result any, err
 		req := newConfirmRequest(cmd, danger, inv.Origin, uiContext, targets)
 		req.Kinds = s.kindNames(targets)
 		req.AgentsAsk = agentsAsk
-		if cmd.detail != nil {
-			if err := s.safeCall(cmd.ID, func() error { req.Detail = cmd.detail(s, p); return nil }); err != nil {
+		if cmd.effects != nil { // rows for what the objects don't say (D-85, WF33); Detail is their text
+			if err := s.safeCall(cmd.ID, func() error { req.Effects = cmd.effects(s, p); return nil }); err != nil {
 				return nil, err
 			}
+			req.Detail = EffectsText(req.Effects)
 		}
 		if cmd.warning != nil { // a chart nothing authenticates (H-41)
 			if err := s.safeCall(cmd.ID, func() error { req.Warning = cmd.warning(s, p); return nil }); err != nil {

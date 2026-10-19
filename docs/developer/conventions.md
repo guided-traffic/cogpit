@@ -142,6 +142,19 @@ Kubernetes-Objekten ist immer: Context, Namespace, Objects."
   rows** (name, value), read at a glance; **no sentence repeats the rows**. A destructive
   confirmation still names the objects, the namespace and the context: through its rows.
 - **An object's place is always Context › Namespace › Object(s)**, in rows, titles and texts.
+- **An object is named in one form everywhere** (the owner's WF32, 2026-10-19: "Config Map ->
+  walk-cm oder etwas ähnliches"; [D-100](decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save)):
+  the kind muted with an arrow, the name bold, "Config Map → walk-cm"; several grouped by kind,
+  the kind once, the names under each other; in plain text (a title) "Config Map → walk-cm". A
+  dialog builds its rows with `placeRows` and `objectsRow` ([`objectnames.go`](../../internal/ui/fyneui/objectnames.go)),
+  never with `kind + " " + name`.
+- **What a command does beyond its objects is a quick view, never a sentence** (the owner's WF33:
+  "technisch präzise Schnellansicht"): a row per fact with its own short name ("Removes",
+  "To revision", "Image"), the value terse, names bold, what is lost bold in the error colour, what
+  to weigh in the warning colour. A command gives them as `Spec.Effects` (`engine.Effect`); a name
+  never stands inside a sentence, where it reads as a word ("Removes key added.").
+- **A state the user must act on stands where they act**: a drawer's unsaved edits as pills
+  beside Revert and Save, not a muted line under them (WF31).
 - **No Kubernetes lectures** ("a workload that reads a removed key no longer finds it"): what is
   lost is said by the red **"This cannot be undone."**, nothing more.
 - **No raw `resourceVersion`** in the window: an object's state is "since your edits began", "its

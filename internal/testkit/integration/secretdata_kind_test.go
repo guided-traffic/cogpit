@@ -229,7 +229,7 @@ stringData:
 	}
 	var keysSaved engine.SecretDataSaved
 	must(engine.SecretSaveDataCommand, keys, &keysSaved)
-	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive || asked[0].Detail != "Removes key user and adds key api-token. The values are not shown." {
+	if len(asked) != 1 || asked[0].Danger != engine.DangerDestructive || asked[0].Detail != "Removes: user. Adds: api-token. Values: not shown." {
 		t.Errorf("the confirmation of a removal: %+v", asked)
 	}
 	cur = get()

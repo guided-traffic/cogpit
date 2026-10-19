@@ -158,6 +158,10 @@ their own and the drawers' and the Overview's metrics have one source row; the c
 series as one path; a node's disks are a bar per real filesystem; the cluster's Kubernetes version
 is checked against upstream's end of life from a table built into each release
 (`internal/model/k8seol`, `make k8s-eol`); the window comes back where it was (`window.json`).
+Since 2026-10-19 (WF31–WF33, [D-100](decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save)):
+every dialog names an object in one form, "Config Map → walk-cm" (`fyneui/objectnames.go`), a
+confirmation's effects are rows (`engine.Effect`, a command's `Spec.Effects` in place of a Detail
+sentence), and a drawer's unsaved edits are pills beside Revert and Save.
 ## 1. Goals and principles
 
 **Goals**
@@ -404,9 +408,17 @@ Fields added on 2026-10-11 for row menus, the drawer's toolbar and dialogs
   `hotbar.removeBank` of a bank with tiles (A65) did until D-83 removed the banks (2026-10-17).
 - `Prefill`: parameters a schema-generated dialog starts with, read from the cache (the current
   replica count for Scale).
-- `Detail`: a sentence the confirmation adds for parameters its objects don't show (the drain
-  options that lose data). The message names each object by its kind as the dialog's Objects row
-  does, "Delete Pod web-0", "Drain Node worker-1", "Rollback Release web": the engine fills
+- `Effects` (`Detail`, a sentence, until 2026-10-19; [D-100](decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save)):
+  the rows the confirmation adds for what its objects don't show, `engine.Effect` each (a short
+  name, a terse value, a tone: plain, `names` bold, `lost` bold in the error colour, `warning`):
+  the keys a save removes ("Removes", lost), the drain options that lose data, a rollback's
+  revision, a node shell's image. The window's dialog shows each as a row under the objects; their
+  text (`EffectsText`, "Removes: level. Adds: debug.") is `ConfirmRequest.Detail`, which `Message`
+  ends with and to which a command's own dialog binds the user's answer (Rollback, a drawer's save
+  review). No MCP client and no log reads a `ConfirmRequest` (checked 2026-10-19): the window and
+  the tests do. The message names each object by its kind as the dialog's Objects row
+  does, "Delete Pod web-0", "Drain Node worker-1", "Rollback Release web" (the dialog itself sets
+  the kind apart, "Pod → web-0", D-100): the engine fills
   `ConfirmRequest.Kinds` from the profiles (the drawer's singular title, else the view's title in
   the singular) when it asks (2026-10-16; the kind key, "pods", before, [D-62](decisions.md#d-62-checks-against-a-real-cluster)).
 - `Warning` (added 2026-10-15, A14): what the user must know before answering, which the
@@ -1510,7 +1522,8 @@ while the drafts banner and the node shell sweep take an interruption's end as n
   window's review is its confirmation, handing the GUI's confirmer the answer for that command,
   object, UID and keys (`confirmRemoval`, as Rollback's dialog does); the rebase needs an added key
   still absent and a removed key unchanged; Add Key in the footer and a remove button on each key's
-  line, the kept edits and drafts holding the keys too.
+  line, the kept edits and drafts holding the keys too. The footer counts what is edited, added and
+  removed in pills beside Revert and Save (`editCounts`, `dataFooterLayout`, since 2026-10-19, D-100).
   A Secret's values (since 2026-10-15 night, [D-59](decisions.md#d-59-a-secrets-values-edited-in-the-drawer),
   [`fyneui/secretdata.go`](../../internal/ui/fyneui/secretdata.go)): where `secret.saveData` is
   enabled, Show reads the whole value (`secret.reveal` with `whole`) into the same editor row
@@ -3938,7 +3951,8 @@ above, this paragraph wins.
   scrubbed; `TestUpgradeToARepositoryChart`, `TestUpgradeChartScrubsValues`). An older version (a
   downgrade) is allowed, as helm allows it, and the confirmation says so.
 - **What the user accepts is what runs.** An agent's upgrade waits for the user (mutating, D-2).
-  The confirmation's detail (`upgradeDetail`) names the chart version from and to, the repository,
+  The confirmation's rows (`upgradeEffects`, D-100: Chart "web 0.1.0 → 0.2.0", Repository, Archive,
+  Values; their text is the detail) name the chart version from and to, the repository,
   whether the archive is checked against the index's digest and an older version; inline values
   are shown as before (D-27). An agent's upgrade from a tab without `version` takes the tab's
   choice, which the agent could change with `helm.release.upgradeTab` while the confirmation is

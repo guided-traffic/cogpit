@@ -159,7 +159,7 @@ func registerHelmUpgrade(g *registrar) {
 			return helmWritable(s, p.Ref)
 		},
 		Targets: func(s *engine.Session, p upgradeParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
-		Detail:  upgradeDetail,
+		Effects: upgradeEffects,
 		Warning: upgradeWarning, // a chart from a repository nothing authenticates (H-41, A14)
 		// The values an agent passes inline are shown to the user before they answer (owner,
 		// 2026-10-12: R-2's remainder); from a tab, the tab is what the user reviews.
@@ -325,39 +325,35 @@ func upgradeWarning(s *engine.Session, p upgradeParams) string {
 	return kinds.HelmOriginWarning(t.repository, t.origin)
 }
 
-// upgradeDetail is the confirmation's sentence: the chart version from and to, where the chart
-// comes from and how it is checked, and where the values come from. The objects name the release,
-// its namespace and the context. runUpgrade checks that the sentence is still true when it runs.
-func upgradeDetail(s *engine.Session, p upgradeParams) string {
-	values := "the values below, which replace the release's user-supplied values whole"
+// upgradeEffects are the confirmation's rows: the chart version from and to, where the chart comes
+// from and how its archive is checked, and where the values come from. The objects name the
+// release, its namespace and the context. runUpgrade checks that the rows still hold when it runs
+// (their text, the confirmation's Detail).
+func upgradeEffects(s *engine.Session, p upgradeParams) []engine.Effect {
+	values := engine.Effect{Name: effectValues, Value: "below, replacing the release's user-supplied values whole"}
 	if p.Tab != "" {
-		values = fmt.Sprintf("the values in the tab %s at its text revision %d (review them there; a change refuses the upgrade)", p.Tab, p.TextRevision)
+		values.Value = fmt.Sprintf("tab %s at text revision %d (review them there; a change refuses the upgrade)", p.Tab, p.TextRevision)
 	}
 	obj, err := s.Lookup(p.Ref)
 	if err != nil {
-		return fmt.Sprintf("The release is upgraded with %s; its objects change to the new manifest.", values)
+		return []engine.Effect{values}
 	}
 	t, err := resolveUpgradeTarget(s, p, obj)
 	if err != nil {
-		return fmt.Sprintf("The release is upgraded with %s; its objects change to the new manifest.", values)
+		return []engine.Effect{values}
 	}
-	var b strings.Builder
-	switch {
-	case t.own():
-		fmt.Fprintf(&b, "The release is upgraded from chart %s %s to %s, its own chart (nothing is downloaded),", t.chart, t.from, t.to)
-	default:
-		fmt.Fprintf(&b, "The release is upgraded from chart %s %s to %s %s from repository %s", t.chart, t.from, t.chart, t.to, t.repository)
-		if c, ok := helm.CompareVersions(t.to, t.from); ok && c < 0 {
-			b.WriteString(", an older version,")
-		}
-		if t.digest {
-			b.WriteString(" (the archive is checked against the index's digest),")
-		} else {
-			b.WriteString(" (the index lists no digest, so the archive cannot be checked),")
-		}
+	chart := engine.Effect{Name: "Chart", Value: fmt.Sprintf("%s %s → %s", t.chart, t.from, t.to), Tone: engine.EffectNames}
+	if t.own() {
+		return []engine.Effect{chart, {Name: "Source", Value: "the release's own chart, nothing downloaded"}, values}
 	}
-	fmt.Fprintf(&b, " with %s; its objects change to the new manifest.", values)
-	return b.String()
+	if c, ok := helm.CompareVersions(t.to, t.from); ok && c < 0 {
+		chart.Value += ", an older version"
+	}
+	archive := engine.Effect{Name: effectArchive, Value: "checked against the index's digest"}
+	if !t.digest {
+		archive = engine.Effect{Name: effectArchive, Value: "not checked: the index lists no digest", Tone: engine.EffectWarning}
+	}
+	return []engine.Effect{chart, {Name: "Repository", Value: t.repository, Tone: engine.EffectNames}, archive, values}
 }
 
 // rebaseWait bounds how long a successful upgrade from a tab waits for the cache to show the new
@@ -402,11 +398,11 @@ func runUpgrade(ctx context.Context, s *engine.Session, p upgradeParams) (any, e
 	if err != nil {
 		return nil, fmt.Errorf("release %s: %w; nothing was done", ref.Name, err)
 	}
-	// What the user accepted is what runs: a confirmation whose sentence (the chart version from
+	// What the user accepted is what runs: a confirmation whose rows (the chart version from
 	// and to, the repository, the digest check) or warning (the repository's origin, H-41) would
 	// read differently now, because the tab's choice, an index or Helm's file changed while it
 	// was open, is refused.
-	if req, ok := engine.Confirmed(ctx); ok && req.Detail != "" && (req.Detail != upgradeDetail(s, p) || req.Warning != upgradeWarning(s, p)) {
+	if req, ok := engine.Confirmed(ctx); ok && req.Detail != "" && (req.Detail != engine.EffectsText(upgradeEffects(s, p)) || req.Warning != upgradeWarning(s, p)) {
 		return nil, fmt.Errorf("%w: the chart the upgrade installs changed since it was confirmed; nothing was done: review it and upgrade again", engine.ErrTargetsChanged)
 	}
 	// The window's tab marks its repository's origin: one that changed in Helm's file since the tab

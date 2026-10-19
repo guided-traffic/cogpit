@@ -96,7 +96,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-82](#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again) | A pre-choice before any integration is looked for, and Ask again | the owner's WF5 and WF4 (2026-10-17, his walk): consent before looking, and a way to see the question again; built the same evening with the lead's decisions, open to revision: nothing of a cluster without a choice read before the pre-choice is answered (Later and background clusters included), Check all (the default's integrations), Choose (ticks), Don't use (a warning that the resources still show), Back; `ui_state`'s `integrationsStep`, `integrationsLookFor`, `integrationsAskFirst`; `cluster.integrations.step`, `.lookFor`, `.ask`; Ask again in Cluster Settings › Integrations; the CLI and the demo cluster keep the default; changes D-76; H-126 opened |
 | [D-83](#d-83-one-hotbar-and-a-drag-that-carries-the-tile) | One hotbar, and a drag that carries the tile | decided (owner, 2026-10-17, WF7): one hotbar without banks, as many tiles as pinned, scrolling, F1–F12 the first twelve, a deliberate deviation from Lens; a file of banks merged; WF6: the dragged tile carried under the pointer while the others slide into place, R2's look replaced; built 2026-10-17 evening (the lead's details, open to revision) |
 | [D-84](#d-84-undo-and-redo-in-the-yaml-editor) | Undo and redo in the YAML editor | the owner's WF9 (2026-10-17): ⌘Z did nothing in Cogpit's YAML editor; built the same evening with the lead's decisions, open to revision: ⌘Z, ⇧⌘Z and ⌘Y in every YAML editor, a run of typing one step until a pause of a second, a caret move or a new line, a paste, a cut, a deleted selection and an indentation a step each, the caret and the selection restored, the newest 1,000 steps and 32 MiB; a text set from outside clears the history, ⌘Z after a Revert is Undo Revert; the widget's, no command; a Secret's editors drop theirs with the drawer; no Edit menu |
-| [D-85](#d-85-dialogs-as-tables-and-an-objects-state-without-its-resourceversion) | Dialogs as tables and an object's state without its resourceVersion | the owner's WF13, WF14, WF16 and WF19 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: no sentence repeating a confirmation's rows, the rows Context, Namespace, Objects, Effect, Requested by; the save review's head as rows with "This cannot be undone." and no workload explanation; no raw resourceVersion in the window ("since your edits began", times); Overwrite; the CSV named by the cluster's short name |
+| [D-85](#d-85-dialogs-as-tables-and-an-objects-state-without-its-resourceversion) | Dialogs as tables and an object's state without its resourceVersion | the owner's WF13, WF14, WF16 and WF19 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: no sentence repeating a confirmation's rows, the rows Context, Namespace, Objects, Effect, Requested by (the object's form and an effect a row each since 2026-10-19: D-100); the save review's head as rows with "This cannot be undone." and no workload explanation; no raw resourceVersion in the window ("since your edits began", times); Overwrite; the CSV named by the cluster's short name |
 | [D-86](#d-86-the-order-of-an-objects-yaml) | The order of an object's YAML | the owner's WF15 (walk of 2026-10-18), built 2026-10-18 with the lead's decisions, open to revision: apiVersion, kind, metadata (name, generateName, namespace, labels, annotations, then sorted), the body sorted, status last, wherever Cogpit shows an object's YAML; each field written by `sigs.k8s.io/yaml` so the quoting stays |
 | [D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer) | Cluster Settings: the integrations under a divider, a section each, Metrics their consumer | the owner's WF22 and WF28 (2026-10-18, his walk): built the same day with the lead's decisions, open to revision: the list General … Agents, a divider, the heading Integrations (its own section: the rows, the note, Ask again), then Metrics Server, Prometheus, Alertmanager, Trivy Operator, Kyverno, each a section with its switch, its state and its details (Prometheus's fields from Metrics, Alertmanager's address), named as the integration is; Metrics shows the two it reads with their states and links, Lens's Metrics source dropdown gone (`metricsSource` kept for agents); the kubeconfig's path whole and selectable |
 | [D-88](#d-88-the-metrics-source-row-and-links-to-the-settings-only-when-needed) | The metrics' source row, and links to the settings only when needed | the owner's WF24 and WF25 (2026-10-18, his walk): built the same day with the lead's decisions, open to revision: under the drawers' and the Overview's charts one row "Prometheus ● 30 s ago" left, "Metrics Server ● now" right, the dot in the cluster dots' colours, the details in tooltips, no source line in prose, no namespace and service links (on the integration's section now), no Prometheus… button; a link to the integration's section only while it is not reachable; D-82's undecided cluster offers its question |
@@ -111,6 +111,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | the owner's WF39 and WF40 of 2026-10-19: every connect a run of its own; showing another cluster ends only the window's wait, the connect goes on in the background with a toast at its end; a failed connect never shows the cluster shown before (the owner: "Immer"); built 2026-10-19 with the lead's decisions, open to revision |
 | [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | the owner's WF44 and WF45 of 2026-10-19: a "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…; removing a source or Remove from Cogpit takes its clusters' tiles off the hotbar, a file gone by itself keeps its tile marked missing; built 2026-10-19 with the lead's decisions, open to revision |
 | [D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts) | Selecting and copying a log tab's text and a toast's | the owner's WF36 and WF41 (walk of 2026-10-19): nothing in a log tab or a toast could be selected and copied; built 2026-10-19 with the lead's decisions, open to revision: a log tab's selection a range in its lines (a drag that scrolls the view at its edges, ⇧-click, a double click, ⌘A for the lines it shows, ⌘C, a right-click's Copy, Select All and Copy All Lines Shown), Follow off when the pointer selects, the dropped lines' part dropped; a search's matches in the find colour; a toast's text selectable, a copy icon before its ×, the toast held while selected; the bell's list the same; the window's, not engine state |
+| [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save) | Objects and effects in one form, and a drawer's edited state beside Save | the owner's WF31, WF32 and WF33 (walk of 2026-10-19), built 2026-10-19 with the lead's decisions, open to revision: every dialog names an object "Config Map → walk-cm" (kind muted, name bold, several grouped by kind); a confirmation's effects a row each ("Removes  added", bold and red), `Spec.Effects` in place of a Detail sentence; the drawer's edited state as pills beside Revert and Save |
 
 ## Decision round 2026-10-14 evening
 
@@ -5169,7 +5170,10 @@ GUI ([`fyneui/configmapdata.go`](../../internal/ui/fyneui/configmapdata.go),
 [`fyneui/drawerdata.go`](../../internal/ui/fyneui/drawerdata.go),
 [`fyneui/wrapname.go`](../../internal/ui/fyneui/wrapname.go)): the Data section draws each key
 muted on its own line and its value in a `yamlview` editor the width of the details; Revert and
-Save at the end of the data, the line under them saying what the editors hold; Save opens a review
+Save at the end of the data, beside them the edited state's pills (values edited, keys added, keys
+removed, since 2026-10-19, [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save);
+a muted line under them before) and under them a line for what the pills don't say (read-only, a
+newer version on the cluster, saved at); Save opens a review
 over the window (the diff, the dry run's verdict) whose Save writes. A Secret's Data and a Config
 Map's Binary Data put each key above its value the same way. Tests: `TestConfigMapDataSave`,
 `TestConfigMapDataNeverOverwritesUnasked`, `TestConfigMapDataRefusals`,
@@ -5238,7 +5242,9 @@ every refusal names the key and nothing is sent. The review reports `keysAdded`,
 the Config Map's `uid` beside `keys`; the save `keysAdded` and `keysRemoved`. A save that removes a
 key escalates to **destructive** (`Escalate`): the user confirms it whoever asks, an agent's even
 where agent writes are allowed (D-2), the confirmation's detail naming the keys removed and added
-(`DataKeysDetail`, "Removes key a and adds key b."), the save acting only on the Config Map with
+(`DataKeysEffects`: a row "Removes" with the removed keys, bold and red, and a row "Adds", their
+text "Removes: a. Adds: b." since 2026-10-19, [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save);
+"Removes key a and adds key b." before), the save acting only on the Config Map with
 the UID the confirmation recorded (`checkRemovalTarget`); a save that only adds keys or changes
 values stays mutating. The rebase (D-55's (9)) moves an edit onto a newer version only when none of
 its keys changed there: each changed and removed key still holds its value at the base (`from`,
@@ -5329,7 +5335,9 @@ removed); GUI `TestConfigMapDrawerAddsAndRemovesKeys`, `TestConfigMapDrawerRemov
   [`commands/edit.go`](../../internal/engine/commands/edit.go)): `object.apply`'s `Escalate` is
   `EditScalesToZero` or a removed key, so the window's own apply asks too, and an agent always asks,
   agent writes allowed or not; the confirmation names the object, its namespace and its context, and
-  its detail the removed keys ("Removes key level.", `DataKeysDetail`), never a value. A Secret's
+  a row "Removes" with the removed keys ("Removes  level", bold and red as the drawer's review,
+  `DataKeysEffects`; the sentence "Removes key level." until the owner's WF33, D-100), never a
+  value. A Secret's
   tab stays the window's only (D-19): an agent's apply of it is refused before anything is asked.
   A changed value that keeps every key and an added key do not escalate. Tests:
   `TestApplyRemovingADataKeyIsDestructive` (the window), `TestAgentApplyRemovingADataKeyAlwaysAsks`
@@ -5352,7 +5360,8 @@ removed); GUI `TestConfigMapDrawerAddsAndRemovesKeys`, `TestConfigMapDrawerRemov
     (a); a cache ahead of the base can only ask once too often, its write then fails with a conflict.
     Without a cluster or a cached object the base alone counts.
   - *What the confirmation says:* ★ the removed keys by name, sorted, at most ten and the count of
-    the rest, the drawer's wording ("Removes key level."); no "The values are not shown." for a
+    the rest, as the drawer's review names them (a row "Removes  level" since 2026-10-19, D-100;
+    "Removes key level." before); no "The values are not shown." for a
     Secret, since an apply's confirmation shows no values at all.
 - **An added key beyond the first 100, live.** The drawer lists the first 100 keys; a name among the
   keys beyond them passes the drawer's check and is refused by the engine when the review runs ("its
@@ -5939,7 +5948,8 @@ with each value `<redacted>` and the keys of `remove` (`auditSecretDataParams`).
 lists an added key ("added, 27 B") and a removed one ("removed, 38 B", in the error colour), never a
 value; the review's block above it names the keys removed with the Secret, its namespace and its
 context; a save that removes a key is destructive and the review is its confirmation, its detail
-"Removes key a and adds key b. The values are not shown." (`SecretSaveDetail`). A key's value need
+"Removes: a. Adds: b. Values: not shown." (`SecretSaveDetail`, the text of `SecretSaveEffects`'
+rows since 2026-10-19, D-100; a sentence before). A key's value need
 not be revealed to remove it; a binary value cannot be edited but can be removed. An added key's
 editor is the revealed value's (yamlview, Hide masks it, copies go to the clipboard as a Secret's
 value); added and removed keys the drawer moves away from stay in the window's memory only
@@ -8287,13 +8297,13 @@ The rule that follows is recorded in [conventions › Dialogs, reviews and statu
 
 | Decision | Options weighed | Chosen | Why |
 |---|---|---|---|
-| The confirmation's sentence ("Apply Config Map walk-cm in namespace walk-test (context …)? Removes key color.") | keep it short; drop it | dropped from the window's dialog; `ConfirmRequest.Message()` stays what agents, the CLI and the audit log read | It said the rows again ([`confirm.go`](../../internal/ui/fyneui/confirm.go)) |
+| The confirmation's sentence ("Apply Config Map walk-cm in namespace walk-test (context …)? Removes key color.") | keep it short; drop it | dropped from the window's dialog; `ConfirmRequest.Message()` stays the engine's one-line text of the request (checked 2026-10-19: no agent, CLI or log reads it, the tests do; an agent gets the command's result or its refusal) | It said the rows again ([`confirm.go`](../../internal/ui/fyneui/confirm.go)) |
 | The rows' order | Objects, Namespace, Context (before); Context, Namespace, Objects | **Context, Namespace(s), Objects**, then Effect, then Requested by | The owner's place order; who asked last, it is not the object's place |
-| What the sentence alone said (the command's detail: the keys a save removes, a drain's options, a rollback's revision) | drop it; a row | a row **Effect** with the detail's text | Nothing the user read before is lost; one word for every command's detail ("Changes" reads wrong for a node shell) |
+| What the sentence alone said (the command's detail: the keys a save removes, a drain's options, a rollback's revision) | drop it; a row | a row **Effect** with the detail's text; **since 2026-10-19 a row per effect** with its own name ("Removes", "To revision", "Image"), never a sentence ([D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save), the owner's WF33) | Nothing the user read before is lost; one word for every command's detail ("Changes" reads wrong for a node shell) |
 | The warning (a chart nothing authenticates, H-41) | above the rows; under them | under the rows, before the review text and "This cannot be undone." | The rows come first everywhere; the warning stays in the warning colour |
-| The save review's head (Config Map and Secret, [`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `reviewHead`) | a bold title line and a paragraph naming the place (before); rows | rows **Context, Namespace, Object, Changes, Removes (red, bold), Adds**, "This cannot be undone." in red under a removal; the warning title line only for a newer version on the cluster | The owner's WF14 and WF16; the destructive rule (objects, namespace, context named) holds through the rows. The kind as the lists write it ("Config Map", was "ConfigMap") |
+| The save review's head (Config Map and Secret, [`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `reviewHead`) | a bold title line and a paragraph naming the place (before); rows | rows **Context, Namespace, Object, Changes, Removes (red, bold), Adds**, "This cannot be undone." in red under a removal; the warning title line only for a newer version on the cluster; since 2026-10-19 the Object "Config Map → walk-cm", kind muted, name bold (D-100, WF32) | The owner's WF14 and WF16; the destructive rule (objects, namespace, context named) holds through the rows. The kind as the lists write it ("Config Map", was "ConfigMap") |
 | The workload explanation ("A workload that reads a removed key no longer finds it, and its value is gone from the cluster.") | keep; drop | dropped | WF14 |
-| How the window names the state an edit is based on (the raw `metadata.resourceVersion`, an etcd revision: one counter for the whole cluster, so large and jumping) | (a) the time it was loaded; (b) no version where nothing conflicts, "since your edits began" / "its current state" where one does; (c) the number in a tooltip | **(b), with a time where one helps**: "Edited: 1 key removed.", "Saved 1 value at 14:02:05", an Edit tab "Config Map walk-cm · loaded at 14:02:05", "Changed on the cluster since your edits began: …"; the number in no window text, the draft notice included; it stays in the engine's results (`baseResourceVersion`), for agents, the CLI, the audit log and drafts on disk | The user needs to know whether the object moved since the edit began, which every conflict text says; the counter says nothing more to a person. A status line has no tooltip, so (c) would need a new widget for a number nobody reads. Helm's revisions stay: they are the release's own numbering, which `helm history` shows |
+| How the window names the state an edit is based on (the raw `metadata.resourceVersion`, an etcd revision: one counter for the whole cluster, so large and jumping) | (a) the time it was loaded; (b) no version where nothing conflicts, "since your edits began" / "its current state" where one does; (c) the number in a tooltip | **(b), with a time where one helps**: "Edited: 1 key removed." (since 2026-10-19 a pill "1 key removed" beside Save, D-100), "Saved 1 value at 14:02:05", an Edit tab "Config Map walk-cm · loaded at 14:02:05", "Changed on the cluster since your edits began: …"; the number in no window text, the draft notice included; it stays in the engine's results (`baseResourceVersion`), for agents, the CLI, the audit log and drafts on disk | The user needs to know whether the object moved since the edit began, which every conflict text says; the counter says nothing more to a person. A status line has no tooltip, so (c) would need a new widget for a number nobody reads. Helm's revisions stay: they are the release's own numbering, which `helm history` shows |
 | "Save over version 883939" | keep the number; a word | **Overwrite** | The number was the only thing the button said; what it overwrites is the banner above it |
 | The Secret's edit status "… Save shows the keys that change and their sizes, never a value." | keep; drop | dropped; the review's Changes row ends "· no value shown" | Prose in a status line said what the review shows anyway |
 | The CSV's suggested name | the context id (before); the cluster's short name | **`<view>-<cluster>.csv`**, the cluster by the name the window shows (D-68: its display name, else the part after the last "@", never the kubeconfig file); every run of other characters one `_`, trimmed (`configmaps-kind-cogpit.csv`) | WF19. Checked: the log download (`Pod_walk-ticker.log`, the tab's title) and the Create tab's save (`configmap-walk-cm.yaml`, the manifest's kind and name) name no context; a name already in the folder is the save panel's Replace question |
@@ -8303,10 +8313,10 @@ Tests: `TestSelectionMenu` (the rows' order, no sentence repeating them),
 (`configmapdata_test.go`, `secretdata_test.go`, `datakeys_test.go`, `editortab_test.go`,
 `drafts_test.go`).
 
-**What it does not cover:** the commands' detail texts themselves (Argo CD's refresh, a Helm
-upgrade's, the node shell's) are still sentences in the Effect row, not shortened; the create
-dialogs, Helm's install review and the Preferences' notices were not checked against the rule;
-Windows and Linux not tried.
+**What it does not cover:** the create dialogs and the Preferences' notices were not checked
+against the rule; Windows and Linux not tried. (The commands' detail texts, sentences in the
+Effect row until 2026-10-19, are rows of their own since, and Helm's install review is rows:
+[D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save).)
 
 ## D-86: The order of an object's YAML
 
@@ -9133,11 +9143,61 @@ nothing (Fyne hands a disabled selectable text only Copy); a selection does not 
 stream opening again (another container, Previous, a Reconnect); the terminal tabs select as their
 own widget does (D-14).
 
+## D-100: Objects and effects in one form, and a drawer's edited state beside Save
+
+**The owner's findings (walk of 2026-10-19 on v0.26.1, verbatim):**
+- WF32, a Config Map's save review: "Save Dialog schon viel übersichtlicher, aber ich möchte dass
+  Config Map noch klarer vom Namen getrennt wird: "Config Map -> walk-cm" oder etwas ähnliches".
+  It applies to every confirmation's Object(s) row ([D-85](#d-85-dialogs-as-tables-and-an-objects-state-without-its-resourceversion)).
+- WF33, the Edit tab's "Apply?": "Auch hier wieder: Removes key added. Ist wieder als Satz
+  geschreiben anstatt einer technsich präzisen schnellansicht." The removed key was named `added`:
+  in the sentence it read as a word of it. The drawer's save review showed the same fact as a row
+  "Removes  new2", red and bold.
+- WF31, a Config Map's drawer: "Die Statuszeile ist absolut übersehbar. Wäre mir nicht aufgefallen,
+  dass es dort eine Zeile mit Changes / Status gibt wenn du es nicht gesagt hättest." The line,
+  "Edited: 1 value.", sat small and muted under the footer.
+
+The rule that follows is in [conventions › Dialogs, reviews and status lines](conventions.md#dialogs-reviews-and-status-lines).
+
+**Built 2026-10-19** (for the lead), the lead's decisions, open to revision:
+
+| Decision | Options weighed | Chosen | Why |
+|---|---|---|---|
+| How a dialog names an object (WF32) | (a) "Config Map → walk-cm" as text, the owner's example; (b) the kind muted, the name bold; (c) the kind as a chip; (d) kind and name in two columns | **(a), (b) and (d) together**: the kind muted with the arrow, the name bold, each in a column of its own ([`objectnames.go`](../../internal/ui/fyneui/objectnames.go) `objectNames`, `objectsRow`); where only plain text fits (a dialog's title) "Config Map → walk-cm" (`objectText`) | The owner's own form; colour and weight set the kind apart where the arrow is not read; the name bold as the review's keys are bold, what a dialog acts on stands out. A chip per object would make a list of twelve pods twelve badges |
+| Several objects (Delete of a selection, Restart, Argo CD's and Flux's selections) | the kind on every line (before); grouped by kind, the kind once; a count per kind | **grouped by kind**, the kinds in the order they first appear, the kind on its group's first line, the names under each other; the row "Objects (12)", a single object "Object" (a confirmation said "Objects" for one) | Twelve pods read as twelve names, not twelve "Pod"s; the review said "Object" already |
+| Which dialogs | the confirmation only; every dialog that names an object | **every dialog**: the confirmation (Delete, Scale to zero, Drain, Helm, Apply, the node shell, an agent's write), the Config Map's and the Secret's save review (row and title), Rollback, Helm's install review (its head as rows; what it creates: "Deployment → web/api", a hook's "Pod (hook)", a CRD's "(stays after an uninstall)"), Argo CD's Sync and Refresh, the parameter dialog's title ("Scale Deployment → web"), the resources a prune deletes, a binding's role and subjects ("ClusterRole → admin", "ServiceAccount → shop/ci") | One form everywhere, as asked; `placeRows` (Context › Namespace › Object(s)) and `objectsRow` are what the next dialog (Remove finalizers, WF43) builds its rows with |
+| The Rollback dialog's sentence ("Release x in namespace y (context z). Rolling back changes …; the current revision gives a new revision equal to it.") | keep it; rows | **rows** Context, Namespace, Object, To revision (the dropdown), Writes "a new revision equal to the chosen one" | D-85's rule; what helm writes holds for every choice, the current revision's too, so it stays said |
+| The confirmation's effect (WF33) | keep the sentence in a row "Effect"; a list in that row; **a row per effect with its own name** | a row per effect: `engine.Effect`, a short name, a terse value and a tone (plain; names bold; lost bold in the error colour; warning in the warning colour); every command's sentence rewritten as rows, `Spec.Detail` replaced by `Spec.Effects`; a name fits the table's name column (128 px: "Runs as", "To prune"), a longer one wraps in it (`rowName`) instead of running into its value | The review's "Removes  new2" is the owner's model: a key in a cell of its own never reads as a word; the compiler makes the next command give rows |
+| What each command's rows say | — | data keys: Removes (lost), Adds, Changes, Values "not shown"; Rollback: To revision; uninstall: Deletes (lost); upgrade: Chart "web 0.1.0 → 0.2.0" (", an older version"), Repository, Archive (not checked: warning), Values; install: Chart, Archive, Creates (a namespace), Values, Created as, Records (Helm's ConfigMaps driver: warning); drain: Loses and Evicts (lost), DaemonSet pods, Grace period; node shell: Creates and Access (warning), Image, Digest (none: warning), Pull secret, Ends; a binding: Grants, To (a subject a line), Takes effect ("immediately, cluster-wide" in the warning colour, the owner's A101 words); a role: Rules (a rule a line); a quota: Hard limits; a Secret: Type, Keys, Values; a port forward: Listens on, Forwards to, Identity, Reachable by (warning); a proxy: Proxy, For, Proxy sees (warning); Prometheus and Alertmanager: Metrics from or Alerts from, Through, Service sees (warning), Query format, Scheme; Argo CD: Syncs to, Prune and To prune (lost, a resource a line), Refresh; Flux: Runs as, Your rights; Restart: Replaces, OnDelete (warning); a `cogpit://` link: Opens, Shown now | A fact a row, read at a glance; what is lost red, what to weigh amber; an explanation that only repeated what a command is ("its objects change to the new manifest") dropped |
+| What `ConfirmRequest.Detail` holds | a sentence beside the rows; the rows' text | **the rows' text** (`EffectsText`: "Removes: added. Adds: new."), with the rows in `ConfirmRequest.Effects` | One source: the Rollback dialog and the drawer's review bind their answer to that text, the upgrade and the node shell refuse when it no longer holds. Checked: no MCP client, CLI or log reads a `ConfirmRequest` (an agent gets the result or the refusal), so nobody outside the window reads either |
+| A request with a Detail and no Effects | not shown; a row "Effect" | **a row "Effect"** | None of Cogpit's commands sends one now; a future one must never hide what the user confirms |
+| The drawer's edited state (WF31) | (a) the line under the footer in a colour; (b) a banner above the data; (c) the counts in the footer beside Revert and Save; (d) a count in Save's label | **(c), a tinted pill per count**: "2 values edited" amber, "1 key added" green, "1 key removed" red, bold and in the text size of the buttons' labels beside them (a pill's caption size read as a footnote), between Add Key and Revert; on a line of its own above the buttons, at its end, where the drawer is too narrow for one ([`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `editCounts`, `dataFooterLayout`); nothing while nothing is edited; the line under the footer keeps what the pills don't say (read-only, a newer version on the cluster, the drafts back, saved at) | Where the eye goes before Save, in the colours a diff marks lines with (modified, added, deleted) and the drawer uses already ("new" green, a removed key red); (a) stays a line under the footer; (b) moves the data; (d) hides which kind of change |
+
+Tests: `TestObjectNamesSetTheKindApart`, `TestConfirmationEffectsAreRows` (the owner's Apply case),
+`TestConfirmationShowsADetailWithoutEffects`, `TestDataFooterLayout`, the engine's
+`TestDataKeysDetail` and the command tests that pin each command's rows (`argocd_test.go`,
+`createdialogs_test.go`, `datakeys_test.go`, `editdatakeys_test.go`, `flux_test.go`, `helm*_test.go`,
+`nodeshell_test.go`, `portforward_test.go`, `deeplink_test.go`), the drawers' (`configmapdata_test.go`,
+`secretdata_test.go`, `datakeys_test.go`). Renders: `confirm.png`, `confirm_apply_removes_*.png`
+(new), `delete_selection_*.png`, `node_shell_confirm_*.png`, `rollback_dialog_dark.png`,
+`helm_install_preview_dark.png`, `argocd_*_dialog_*.png`, `scale_dialog_*.png`, the reviews
+(`configmap_keys_review_*.png`, `secret_keys_review_*.png`, `configmap_save_*.png`, `secret_save_*.png`)
+and the drawers' footers (`configmap_keys_drawer_*.png`, `secret_keys_drawer_*.png`,
+`configmap_drawer_footer_dark.png`).
+
+**What it does not cover:** the engine's `Message()` names an object "Pod web-0" still (only the
+tests read it); the port-forward dialog's title ("Port Forwarding for web-0", Lens's) and the
+create dialogs name no kind beside a name; the Edit tab's title ("Config Map walk-cm · loaded at
+…") and the drawer's head keep their own form; the kind tests' expectations of the new texts were
+edited, not run (kind is not up); seen in offscreen renders only, not yet in a real window;
+Windows and Linux not tried.
+
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
 | 2026-10-19 | minor | D-99 added (the owner's WF36 and WF41 of 2026-10-19) and built with the lead's decisions, open to revision: a log tab's selection across its lines, its gestures, Follow, the scrollback and the focus; a search's matches in the find colour; a toast's text selectable, its copy icon, the toast held while selected; the bell's list the same; D-25 says what copies since; its index row |
+| 2026-10-19 | minor | D-100 added (the owner's WF31, WF32 and WF33 of 2026-10-19) and built: every dialog names an object "Config Map → walk-cm" (kind muted, name bold, grouped by kind); a confirmation's effects a row each, `Spec.Effects` in place of a Detail sentence; the drawer's edited state as pills beside Revert and Save; D-85, D-55 and D-59 follow; its index row |
 | 2026-10-19 | minor | D-72: the owner's walk of 2026-10-19 (v0.26.1): a source picked in Downloads read again after a restart of Cogpit without a prompt and without a TCC grant; whether the bookmark or the item's own grant carried it not told apart, a restart of the Mac not tried; its index row |
 | 2026-10-18 | minor | D-96 added (the owner's mgmt-p finding and his choice, 2026-10-18 evening) and built: Prometheus and Alertmanager asked as <service>:<number> first, then by the port's name; a refusal no longer ends detection; its index row |
 | 2026-10-18 | minor | D-88: the source row in the middle, Prometheus left of the centre and the Metrics Server right of it (the owner's correction after v0.26.0) |

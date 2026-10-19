@@ -139,11 +139,11 @@ func registerPreferences(g *registrar) {
 		// An agent's proxy always waits for the user (A20, owner 2026-10-14 evening; the follow-up's
 		// Preferences proxy belongs to no context, so no allowance could skip it: a night decision).
 		AgentsAsk: func(_ *engine.Session, p preferencesSetParams) bool { return setsProxy(p.HTTPProxy) },
-		Detail: func(_ *engine.Session, p preferencesSetParams) string {
+		Effects: func(_ *engine.Session, p preferencesSetParams) []engine.Effect {
 			if !setsProxy(p.HTTPProxy) {
-				return ""
+				return nil
 			}
-			return proxyDetail("Cogpit's downloads (Helm repositories, kubectl)", *p.HTTPProxy)
+			return proxyEffects("Cogpit's downloads (Helm repositories, kubectl)", *p.HTTPProxy)
 		},
 		Refuse: func(ctx context.Context, _ *engine.Session, p preferencesSetParams) error {
 			if err := p.refuse(ctx); err != nil {

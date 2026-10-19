@@ -21,9 +21,12 @@ func refuseProxy(ctx context.Context, proxy *string) error {
 // setsProxy reports whether a settings change sets a proxy (not only clears it or leaves it).
 func setsProxy(proxy *string) bool { return proxy != nil && strings.TrimSpace(*proxy) != "" }
 
-// proxyDetail is the confirmation's line for an agent's proxy: where the traffic goes, its
-// password never shown.
-func proxyDetail(what, proxy string) string {
-	return "It sends " + what + " through the proxy " + engine.RedactProxyURL(proxy) +
-		"; the proxy sees the hosts Cogpit talks to, and wherever TLS is not checked, the credentials too."
+// proxyEffects are the confirmation's rows for an agent's proxy: the proxy, its password never
+// shown, what it carries and what it sees.
+func proxyEffects(what, proxy string) []engine.Effect {
+	return []engine.Effect{
+		{Name: "Proxy", Value: engine.RedactProxyURL(proxy), Tone: engine.EffectNames},
+		{Name: "For", Value: what},
+		{Name: "Proxy sees", Value: "the hosts Cogpit talks to; the credentials too wherever TLS is not checked", Tone: engine.EffectWarning},
+	}
 }
