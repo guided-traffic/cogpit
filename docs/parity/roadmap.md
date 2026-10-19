@@ -217,7 +217,9 @@ windows (item 10).
    hold** ("Wir machen jetzt gar keine Walks", 2026-10-19 evening; the re-walk of WF31–WF45 and of
    v0.28.0/v0.29.0 and item 6's gate walk wait for his word) **and found fast scrolling less fluid
    than Lens's**: Fyne draws on a fixed 60 Hz timer while his displays run at 120 Hz (verified in
-   Fyne v2.8.2's `loop.go`); measured and proposed, not decided
+   Fyne v2.8.2's `loop.go`) and, measured, Fyne's thread check, which Cogpit leaves on, costs most
+   of a fast scroll's frame (6 frames per second at 10,000 px/s, 60 with it off); decided the same
+   evening, not built: audit the UI's goroutines, then the check off in release builds
    ([G16](gaps.md#g16-stability-and-the-user-bug-backlog)). The readiness figure (~30%) is still the estimate of 2026-10-13, before any walk:
    re-estimate it, by counting the gate and the checklists, after item 6.
 
