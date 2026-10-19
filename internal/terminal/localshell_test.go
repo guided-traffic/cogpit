@@ -279,9 +279,13 @@ func TestDefaultShellIsOneThatExists(t *testing.T) {
 		}
 	}
 	t.Setenv("SHELL", "")
-	sess, err := StartLocal(LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}, Dir: t.TempDir()})
+	// A HOME of its own, as startTestShell's: the login shell reads none of the developer's profile
+	// files and writes its history there, and the test waits for it to exit (closeOnCleanup).
+	home := t.TempDir()
+	sess, err := StartLocal(LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}, Dir: home,
+		Env: []string{"HOME=" + home, "ENV=", "ZDOTDIR=" + home}})
 	if err != nil {
 		t.Fatalf("StartLocal without SHELL: %v", err)
 	}
-	_ = sess.Close()
+	closeOnCleanup(t, sess)
 }
