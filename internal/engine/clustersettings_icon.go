@@ -29,7 +29,8 @@ import (
 // scripts, event handlers or references outside itself (Fyne's renderer loads none, but the copy
 // holds none either). Uploading reads a file on this computer, so it is the user's own action in
 // Cogpit's window: agents and the CLI are refused (a refusal that names no file's content, and
-// a read that never happens for them).
+// a read that never happens for them). Since H-125 (2026-10-19) every change of the icon is the
+// user's alone (clusteridentity.go).
 
 // ClusterIconsDir is the directory of the uploaded icons under Cogpit's configuration directory.
 const ClusterIconsDir = "cluster-icons"
@@ -54,7 +55,7 @@ const (
 
 // ErrIconGUIOnly refuses an icon upload from anywhere but the user's own action in Cogpit's window.
 var ErrIconGUIOnly = errors.New("only the user, in Cogpit's own window, can upload a cluster's icon; agents and the " +
-	"CLI are refused (it reads a file on this computer); an agent can pick an icon colour instead")
+	"CLI are refused (it reads a file on this computer, and a cluster's icon is the user's mark of which cluster it is)")
 
 // validIconFile reports whether name is a kept icon's file name: "<sha256 hex>.png" or ".svg", so
 // that a tampered settings file cannot point outside ClusterIconsDir.

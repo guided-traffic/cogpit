@@ -166,8 +166,9 @@ func testPNG(t *testing.T) []byte {
 	return b.Bytes()
 }
 
-// A context's settings change through the commands, for any context a source offers; the upload is
-// the GUI's; none of it writes the kubeconfig, and everything lands in Cogpit's own folder.
+// A context's settings change through the commands, for any context a source offers; the name, the
+// icon colour, the upload and the reset are the GUI's (H-125); none of it writes the kubeconfig, and
+// everything lands in Cogpit's own folder.
 func TestClusterSettingsCommandsNeverTouchTheKubeconfig(t *testing.T) {
 	s, cfg, kubeconfig := settingsSession(t)
 	before, err := os.Stat(kubeconfig)
@@ -176,15 +177,18 @@ func TestClusterSettingsCommandsNeverTouchTheKubeconfig(t *testing.T) {
 	}
 	agent := engine.OriginExternalAgent
 	var v engine.ClusterSettingsView
-	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev", "iconColor": "Violet",
+	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "kind-dev",
 		"terminalDir": "$HOME/src", "terminalNamespace": "team-a"}, &v); err != nil {
+		t.Fatal(err)
+	}
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev", "iconColor": "Violet"}, &v); err != nil {
 		t.Fatal(err)
 	}
 	if v.Name != "Dev" || !v.NameSet || v.IconColor != "violet" || v.TerminalDir != "$HOME/src" || v.TerminalNamespace != "team-a" ||
 		v.ContextName != "kind-dev" || v.Connected || !v.Kept {
-		t.Errorf("after the agent's set: %+v", v)
+		t.Errorf("after the agent's and the user's set: %+v", v)
 	}
-	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "nope", "name": "X"}, nil); err == nil {
+	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "nope", "terminalDir": "$HOME"}, nil); err == nil {
 		t.Error("settings for a context no source offers")
 	}
 	if err := dispatch(t, s, agent, "cluster.settings.get", struct{}{}, nil); err == nil {
@@ -208,7 +212,7 @@ func TestClusterSettingsCommandsNeverTouchTheKubeconfig(t *testing.T) {
 		t.Errorf("after the upload: %+v", v)
 	}
 	v = engine.ClusterSettingsView{}
-	if err := dispatch(t, s, agent, "cluster.settings.resetIcon", map[string]any{"context": "kind-dev"}, &v); err != nil || v.IconImage != "" || v.IconColor != "" {
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.resetIcon", map[string]any{"context": "kind-dev"}, &v); err != nil || v.IconImage != "" || v.IconColor != "" {
 		t.Errorf("reset: %+v, %v", v, err)
 	}
 	if err := dispatch(t, s, agent, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "terminal"}, nil); err != nil {

@@ -152,8 +152,10 @@ func TestIntegrationsQuestionDontUse(t *testing.T) {
 	}
 }
 
-// Later puts it off; an agent's answer closes the open dialog without a Later; an agent's step
-// turns the dialog's page.
+// Later puts it off; a choice made elsewhere (Cluster Settings › Integrations) closes the open
+// dialog without a Later; a step the engine took turns the dialog's page: the dialog follows the
+// engine's state, whoever changed it. (Until H-126, 2026-10-19, an agent could step and answer; the
+// test keeps its name.)
 func TestIntegrationsQuestionLaterAndAgent(t *testing.T) {
 	sh, _, q, inf := openIntegrationsQuestion(t, ThemeLight, 0)
 	test.Tap(sh.intq.later)
@@ -166,20 +168,20 @@ func TestIntegrationsQuestionLaterAndAgent(t *testing.T) {
 		u.IntegrationsQuestion, u.IntegrationsStep = "kind-dev", engine.IntegrationsPreChoice
 	})
 	q.until(t, "asked again", func() bool { return sh.intq.d != nil })
-	inf.update(func(u *engine.UIState) { // an agent chose Check all
+	inf.update(func(u *engine.UIState) { // the engine took Check all
 		u.IntegrationsStep, u.IntegrationsLookFor = engine.IntegrationsCheckAll, engine.IntAll
 	})
-	q.until(t, "the agent's Check all", func() bool { return sh.intq.page == engine.IntegrationsCheckAll && len(sh.intq.rows) == 5 })
-	inf.setIntegrations("kind-dev", map[string]bool{"trivy": false}) // an agent answered
-	q.until(t, "closed by the agent's answer", func() bool { return sh.intq.d == nil })
+	q.until(t, "the engine's Check all", func() bool { return sh.intq.page == engine.IntegrationsCheckAll && len(sh.intq.rows) == 5 })
+	inf.setIntegrations("kind-dev", map[string]bool{"trivy": false}) // chosen in Cluster Settings › Integrations
+	q.until(t, "closed by a choice made elsewhere", func() bool { return sh.intq.d == nil })
 	if n := len(inf.callsOf("cluster.integrations.later")); n != 1 {
-		t.Errorf("%d Later calls after an agent's answer", n)
+		t.Errorf("%d Later calls after a choice made elsewhere", n)
 	}
 }
 
 // Cluster Settings › Metrics of a cluster without a choice of integrations (D-82): under its two
-// sources (D-87) a line says nothing is asked until the user chooses. An agent's metricsSource
-// (Automatic) is a choice: the line goes; the other integrations stay off.
+// sources (D-87) a line says nothing is asked until the user chooses. A metricsSource (Automatic)
+// from the window's command is a choice: the line goes; the other integrations stay off.
 func TestMetricsSourceLineUndecided(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})

@@ -450,8 +450,12 @@ the eight colours of the icon, a colour of your own from the palette button. A c
 Security note: only you set or clear it, in Cogpit's window. `cluster.settings.setAccentColor` is
 GUI-only: agents (over MCP and the built-in one) and `cogpit-cli` are refused, also where you allowed
 agents' writes, so no agent can make a production cluster look like a development one. Agents read
-it (`accentColor` in `ui_state` and `cluster_settings_get`). The cluster's name and icon colour stay
-agents' to change ([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)).
+it (`accentColor` in `ui_state` and `cluster_settings_get`). Since 2026-10-19 the cluster's **name
+and icon** are yours alone too ([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)):
+`cluster.settings.set`'s `name` and `iconColor` are refused to agents and `cogpit-cli`, whether they
+set or clear them, and Reset Icon (`cluster.settings.resetIcon`) and Upload Icon are GUI-only. Agents
+read the name and the icon colour; the other fields of `cluster.settings.set` (the terminal's
+directory and namespace, hidden metrics, accessible namespaces) stay theirs.
 
 The same page has copy icons (since 2026-10-17, F27): the one by **Cluster name** copies what the
 field shows (your display name, else the context's name in its kubeconfig), the one by
@@ -528,16 +532,24 @@ nothing and reads every integration the default keeps on (H-120).
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks |
-| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json` |
-| `cluster.integrations.step` `{context?, step}` | `preChoice` # default | the question's page: `preChoice`, `checkAll`, `choose`, `dontUse`; `cluster.integrations.lookFor` `{context?, integrations}` ticks the rows (`{"prometheus": true}`) |
-| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false`; `cluster.integrations.later` `{context?}` its Later; `cluster.integrations.ask` `{context?}` Ask again; `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
+| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks. Agents and the CLI: `false` only, and only once the cluster has a choice |
+| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json`. Agents and the CLI: `false` only |
+| `cluster.integrations.step` `{context?, step}` | `preChoice` # default | the question's page: `preChoice`, `checkAll`, `choose`, `dontUse`; `cluster.integrations.lookFor` `{context?, integrations}` ticks the rows (`{"prometheus": true}`); both GUI-only |
+| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false` (GUI-only); `cluster.integrations.later` `{context?}` its Later; `cluster.integrations.ask` `{context?}` Ask again (both open to agents); `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
 
 A `metricsSource` an older Cogpit kept in `cluster-settings.json` is moved into the two metrics
 switches once (`prometheus`: the Metrics Server off; `metrics-server`: Prometheus off; `none`: both
-off). Security note: agents switch integrations on and off as you do, which changes only what Cogpit
-reads with your identity from what the cluster runs, never a write; where an integration is read from
-when it is not found by name stays yours to set ([agents and MCP](../security/agents-and-mcp.md)). Agents can also step through and answer the question for you, which is consent to these reads given by an agent ([H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user)).
+off). Security note: since 2026-10-19 only you switch an integration on and answer the question
+([H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user)),
+since switching one on lets Cogpit look for and read it with your identity. Agents (over MCP and the
+built-in one) and `cogpit-cli` are refused `cluster.integrations.step`, `.lookFor` and `.answer`
+(GUI-only), `cluster.settings.set`'s `integrations` naming one `true` and a `metricsSource` other than
+`none`, and `preferences.set`'s `integrationDefaults` naming one `true`, also where you allowed
+agents' writes. They may switch integrations off (`false`, `metricsSource` `none`, a default off) on
+a cluster you have chosen integrations for, not on one whose question is still open, and they may put
+the question off (`cluster.integrations.later`) or ask it again (`cluster.integrations.ask`); each of
+these only makes Cogpit read less. Where an integration is read from when it is not found by name
+stays yours to set ([agents and MCP](../security/agents-and-mcp.md)).
 `cogpit-cli` does not apply these switches ([H-120](../security/agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)).
 
 ### Deep links (`cogpit://`)

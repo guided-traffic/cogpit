@@ -13,14 +13,17 @@ import (
 // the Cluster Settings page (⌘⇧,): its display name and icon (a colour of the theme's accent
 // palette, or an uploaded image), and its terminals' working directory and kubectl namespace.
 // Every command changes only Cogpit's own cluster settings file (and its icons folder), never a
-// cluster or a kubeconfig, so they are UI commands that agents run freely (D-2), except the icon
-// upload, which reads a file on this computer and is the user's own action in the window
-// (engine.ErrIconGUIOnly), and the accent colour, the user's own mark of the cluster (accentcolor.go,
-// D-80). The Prometheus a cluster's metrics come from stays cluster.setPrometheus.
-// Its integrations (D-76) agents switch on and off as the user does: a switch only changes what
-// Cogpit reads with the user's identity, never a write (the lead's decision, 2026-10-17); where an
-// integration is read from when it is not found by name (cluster.setPrometheus) stays the user's
-// (A16).
+// cluster or a kubeconfig, so they are UI commands that agents run freely (D-2), except what marks
+// which cluster this is, the user's alone, in the window: the display name and the icon (H-125, the
+// owner's decision of 2026-10-19: cluster.settings.set's name and iconColor refused for agents and
+// the CLI, set or cleared, engine.ErrClusterIdentityGUIOnly; cluster.settings.resetIcon GUI-only;
+// the icon upload GUI-only, it also reads a file on this computer, engine.ErrIconGUIOnly) and the
+// accent colour (accentcolor.go, D-80). The Prometheus a cluster's metrics come from stays
+// cluster.setPrometheus. Its integrations (D-76) only the user switches on (H-126, the owner's
+// decision of 2026-10-19; engine/integrationsguionly.go): agents and the CLI may switch one off,
+// which only stops reads, on a cluster the user has chosen them for (the lead's decision,
+// 2026-10-19); where an integration is read from when it is not found by name
+// (cluster.setPrometheus) stays the user's (A16).
 
 type clusterSettingsParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it (a bare context name works when one file only defines it); empty or omitted: the connected context"`
@@ -28,18 +31,19 @@ type clusterSettingsParams struct {
 
 type clusterSettingsSetParams struct {
 	Context              string   `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it (a bare context name works when one file only defines it); empty or omitted: the connected context"`
-	Name                 *string  `json:"name,omitempty" jsonschema:"the cluster's display name in the hotbar, the navigator and the welcome page, one line of at most 128 characters; empty: the context's name"`
-	IconColor            *string  `json:"iconColor,omitempty" jsonschema:"the icon's colour, one of cyan, blue, violet, magenta, red, orange, yellow, green (the theme's accents) or any colour as #rrggbb (drawn in a shade of its hue legible on each theme); it replaces an uploaded image; empty: the accent"`
+	Name                 *string  `json:"name,omitempty" jsonschema:"the cluster's display name in the hotbar, the navigator and the welcome page, one line of at most 128 characters; empty: the context's name. Only the user in Cogpit's window may set or clear it: refused for agents and the CLI"`
+	IconColor            *string  `json:"iconColor,omitempty" jsonschema:"the icon's colour, one of cyan, blue, violet, magenta, red, orange, yellow, green (the theme's accents) or any colour as #rrggbb (drawn in a shade of its hue legible on each theme); it replaces an uploaded image; empty: the accent. Only the user in Cogpit's window may set or clear it: refused for agents and the CLI"`
 	TerminalDir          *string  `json:"terminalDir,omitempty" jsonschema:"the working directory of the cluster's local terminals: an absolute path, or one starting with $HOME or ~; empty: $HOME"`
 	TerminalNamespace    *string  `json:"terminalNamespace,omitempty" jsonschema:"kubectl's namespace in the cluster's local terminals; empty: the namespace filter's single namespace, else the context's own"`
 	Proxy                *string  `json:"proxy,omitempty" jsonschema:"the HTTP(S) or SOCKS5 proxy of this cluster's API traffic (http://<address>:<port>, https:// or socks5://, optionally with user:password@), applied at the next connect in place of the kubeconfig's proxy-url; empty: none. Agents and the CLI may only clear it (an empty string): setting one is the user's, in Cogpit's window"`
 	HiddenMetrics        []string `json:"hiddenMetrics,omitempty" jsonschema:"the metrics the window hides for this cluster, and does not ask the cluster for: places (cluster: the Overview's charts; nodes, pods: their lists' CPU and Memory columns and their drawers' charts; containers: a pod's containers' charts) and measures (cpu, memory, network, filesystem), or all; it replaces the list set before, and an empty list shows every metric again. metrics_get still answers"`
-	MetricsSource        *string  `json:"metricsSource,omitempty" jsonschema:"which providers the cluster's metrics come from, as Lens's Metrics source: auto (both: Prometheus's history and the Metrics Server's current values, the default), prometheus (Prometheus alone), metrics-server (the Metrics Server alone: no history, network, filesystem or disk) or none (no metrics: nothing is asked); applied to the connected cluster at once. It sets the metrics-server and prometheus integrations"`
+	MetricsSource        *string  `json:"metricsSource,omitempty" jsonschema:"which providers the cluster's metrics come from, as Lens's Metrics source: auto (both: Prometheus's history and the Metrics Server's current values, the default), prometheus (Prometheus alone), metrics-server (the Metrics Server alone: no history, network, filesystem or disk) or none (no metrics: nothing is asked); applied to the connected cluster at once. It sets the metrics-server and prometheus integrations. Agents and the CLI may only set none, and not for a cluster the user has not chosen integrations for: a source that switches a provider on is the user's, in Cogpit's window"`
 	AccessibleNamespaces []string `json:"accessibleNamespaces,omitempty" jsonschema:"the namespaces the user may read in, for a user who may not list the cluster's namespaces (Lens: Accessible namespaces), at most 100 namespace names; it replaces the list set before, and an empty list removes them. It only narrows what Cogpit reads: the namespace filter offers them, and a kind the user may not list in all namespaces is watched in each of them instead"`
 	// RenewLoginInBackground: agents and the CLI may only turn it off (engine/connwatch_lapse.go, D-69 item 4).
 	RenewLoginInBackground *bool `json:"renewLoginInBackground,omitempty" jsonschema:"whether the cluster's login is renewed while the cluster is connected but not shown, its credential plugin running (a browser login included) when the login expires (default true). Off: the plugin does not run then, and an expired login lapses (connections' loginLapsed) until the cluster is shown or logged in again. Agents and the CLI may only turn it off"`
-	// Integrations (D-76; engine/integrations.go): agents may switch them on and off.
-	Integrations map[string]bool `json:"integrations,omitempty" jsonschema:"integrations switched on (true) or off (false) for this cluster, by name: metrics-server, prometheus, alertmanager, trivy, kyverno, as {alertmanager: false}; those left out stay as they apply now (for a cluster without a choice of its own: off, but for what the window's question about it ticks), and the result is the cluster's own choice (the window's question about it ends). Off: Cogpit sends the cluster nothing for it and shows nothing of it; on: Cogpit reads what the cluster runs, with the user's identity, and never writes to it. Applied to the connected cluster at once. Not together with metricsSource for metrics-server or prometheus"`
+	// Integrations (D-76; engine/integrations.go): agents and the CLI may only switch them off, on a
+	// cluster the user has chosen them for (H-126, engine/integrationsguionly.go).
+	Integrations map[string]bool `json:"integrations,omitempty" jsonschema:"integrations switched on (true) or off (false) for this cluster, by name: metrics-server, prometheus, alertmanager, trivy, kyverno, as {alertmanager: false}; those left out stay as they apply now (for a cluster without a choice of its own: off, but for what the window's question about it ticks), and the result is the cluster's own choice (the window's question about it ends). Off: Cogpit sends the cluster nothing for it and shows nothing of it; on: Cogpit reads what the cluster runs, with the user's identity, and never writes to it. Applied to the connected cluster at once. Not together with metricsSource for metrics-server or prometheus. Agents and the CLI may only switch integrations off (false), and not for a cluster the user has not chosen integrations for (cluster_settings_get's integrationsDecided false): switching one on, and that choice, are the user's, in Cogpit's window"`
 }
 
 type clusterIconParams struct {
@@ -81,6 +85,58 @@ func changeSettings(s *engine.Session, name string, fn func(*engine.ClusterSetti
 		return nil, err
 	}
 	return settingsView(s, id)
+}
+
+// refuse refuses what of a cluster settings change only the user may make, in Cogpit's window,
+// for every other origin, before anyone is asked (Dispatch) and again before it runs: the display
+// name and the icon colour (H-125), the renewal of a background login turned on (D-69), an
+// integration switched on or any switch of a cluster the window still asks about (H-126), and a
+// proxy from the CLI (refuseProxy).
+func (p clusterSettingsSetParams) refuse(ctx context.Context, s *engine.Session) error {
+	if err := engine.RefuseClusterIdentity(ctx, p.Name, p.IconColor); err != nil {
+		return err
+	}
+	if err := engine.RefuseRenewLogin(ctx, p.RenewLoginInBackground); err != nil {
+		return err
+	}
+	if err := p.refuseIntegrations(ctx, s); err != nil {
+		return err
+	}
+	return refuseProxy(ctx, p.Proxy)
+}
+
+// refuseIntegrations refuses an integration switched on, by name or by a Metrics source that names
+// a provider, and any switch of a cluster whose question the window still asks, for every origin but
+// the window (H-126).
+func (p clusterSettingsSetParams) refuseIntegrations(ctx context.Context, s *engine.Session) error {
+	if (p.Integrations == nil && p.MetricsSource == nil) || engine.OriginOf(ctx) == engine.OriginGUI {
+		return nil
+	}
+	on, _, err := engine.ParseIntegrationSwitches(p.Integrations)
+	if err != nil {
+		return err
+	}
+	if p.MetricsSource != nil {
+		source, err := engine.ParseMetricsSource(*p.MetricsSource)
+		if err != nil {
+			return err
+		}
+		on |= engine.MetricsSourceOn(source)
+	}
+	id, err := settingsContext(s, p.Context)
+	if err != nil {
+		return err
+	}
+	return s.RefuseIntegrationSwitches(ctx, id, on)
+}
+
+// refuseIconReset refuses resetting a cluster's icon from anywhere but the window (Dispatch refuses
+// it first, the command being GUI-only; Run checks again).
+func refuseIconReset(ctx context.Context) error {
+	if engine.OriginOf(ctx) != engine.OriginGUI {
+		return engine.ErrClusterIdentityGUIOnly
+	}
+	return nil
 }
 
 func registerClusterSettings(g *registrar) {
@@ -127,7 +183,10 @@ func registerClusterSettings(g *registrar) {
 			"namespaces (a list that replaces the last) only narrow what Cogpit reads: the namespace filter offers them, " +
 			"and a kind the user may not list in all namespaces is watched in each of them, at once; renewLoginInBackground " +
 			"off holds the credential plugin while the cluster is not shown (its login then lapses instead of being renewed), " +
-			"and only the user may turn it on again. An agent's proxy " +
+			"and only the user may turn it on again. Refused for agents and the CLI: the display name and the icon colour, set " +
+			"or cleared (only the user changes what marks which cluster this is), switching an integration on (true, or a " +
+			"metricsSource other than none), and any integration switch on a cluster the user has not chosen integrations " +
+			"for (the window's question is the user's to answer); they may switch integrations off. An agent's proxy " +
 			"always waits for the user's acceptance, also where the user allowed agent writes; the CLI may clear the proxy " +
 			"but not set one; the proxy read back has its password shown as •••." +
 			clusterSettingsOnly + " Returns the settings.",
@@ -135,11 +194,8 @@ func registerClusterSettings(g *registrar) {
 			_, err := settingsContext(s, p.Context)
 			return err
 		},
-		Refuse: func(ctx context.Context, _ *engine.Session, p clusterSettingsSetParams) error {
-			if err := engine.RefuseRenewLogin(ctx, p.RenewLoginInBackground); err != nil {
-				return err
-			}
-			return refuseProxy(ctx, p.Proxy)
+		Refuse: func(ctx context.Context, s *engine.Session, p clusterSettingsSetParams) error {
+			return p.refuse(ctx, s)
 		},
 		// A proxy decides where the user's cluster traffic goes, credentials in it: an agent's always
 		// waits for the user (A20, owner 2026-10-14 evening).
@@ -152,10 +208,7 @@ func registerClusterSettings(g *registrar) {
 			return proxyEffects("the API traffic of "+ctx+", from its next connect", *p.Proxy)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p clusterSettingsSetParams) (any, error) {
-			if err := refuseProxy(ctx, p.Proxy); err != nil {
-				return nil, err
-			}
-			if err := engine.RefuseRenewLogin(ctx, p.RenewLoginInBackground); err != nil {
+			if err := p.refuse(ctx, s); err != nil {
 				return nil, err
 			}
 			var source string
@@ -231,8 +284,8 @@ func registerClusterSettings(g *registrar) {
 		GUIOnly: engine.ErrIconGUIOnly,
 		Description: "Makes an image file the user picked a context's icon (it replaces the icon colour): a PNG or JPEG, kept " +
 			"as a PNG of at most 256 pixels a side, or an SVG without scripts or outside references, at most 1 MiB. Only the " +
-			"user, in Cogpit's window, can upload: refused for agents and the CLI, which can set an icon colour with " +
-			"cluster_settings_set." + clusterSettingsOnly + " Returns the settings.",
+			"user, in Cogpit's window, can upload: refused for agents and the CLI, as every change of a cluster's icon is." +
+			clusterSettingsOnly + " Returns the settings.",
 		Enabled: func(s *engine.Session, p clusterIconParams) error {
 			_, err := settingsContext(s, p.Context)
 			return err
@@ -263,13 +316,21 @@ func registerClusterSettings(g *registrar) {
 
 	add(g, engine.Spec[clusterSettingsParams]{
 		ID: "cluster.settings.resetIcon", Label: "Reset Icon", Danger: engine.DangerUI,
+		GUIOnly: engine.ErrClusterIdentityGUIOnly, // H-125: the icon is the user's mark of the cluster
 		Description: "Gives a context its default icon back: its initials in the accent colour, without an uploaded image or " +
-			"an icon colour." + clusterSettingsOnly + " Returns the settings.",
+			"an icon colour. Only the user, in Cogpit's window, can reset it: refused for agents and the CLI, so that no " +
+			"agent takes away the icon the user marked a cluster with." + clusterSettingsOnly + " Returns the settings.",
 		Enabled: func(s *engine.Session, p clusterSettingsParams) error {
 			_, err := settingsContext(s, p.Context)
 			return err
 		},
-		Run: func(_ context.Context, s *engine.Session, p clusterSettingsParams) (any, error) {
+		Refuse: func(ctx context.Context, _ *engine.Session, _ clusterSettingsParams) error {
+			return refuseIconReset(ctx)
+		},
+		Run: func(ctx context.Context, s *engine.Session, p clusterSettingsParams) (any, error) {
+			if err := refuseIconReset(ctx); err != nil {
+				return nil, err
+			}
 			return changeSettings(s, p.Context, func(cs *engine.ClusterSettings) error {
 				cs.Icon, cs.IconColor = "", ""
 				return nil

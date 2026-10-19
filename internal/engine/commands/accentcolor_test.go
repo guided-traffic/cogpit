@@ -57,17 +57,18 @@ func TestAccentColorIsTheUsers(t *testing.T) {
 		t.Errorf("ui_state's accent colour %q", got)
 	}
 
-	// Agents read it, cannot change it, even with agent writes allowed, and an icon reset leaves it.
+	// Agents read it, cannot change it, even with agent writes allowed, and an icon reset leaves it
+	// (the icon too is the user's since H-125: TestClusterIdentityIsTheUsers).
 	h.must(t, engine.OriginGUI, "cluster.settings.setAgentWrites", map[string]any{"allowed": true}, nil)
 	refused("agent writes allowed")
 	h.must(t, engine.OriginExternalAgent, "cluster.settings.get", map[string]any{}, &view)
 	if view.AccentColor != "red" {
 		t.Errorf("an agent reads %+v", view)
 	}
-	h.must(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"iconColor": "green", "name": "Shop"}, nil)
-	h.must(t, engine.OriginExternalAgent, "cluster.settings.resetIcon", map[string]any{}, &view)
+	h.must(t, engine.OriginGUI, "cluster.settings.set", map[string]any{"iconColor": "green", "name": "Shop"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.settings.resetIcon", map[string]any{}, &view)
 	if view.AccentColor != "red" {
-		t.Errorf("the accent colour after an agent's icon changes: %q", view.AccentColor)
+		t.Errorf("the accent colour after the user's icon changes: %q", view.AccentColor)
 	}
 
 	// The user's own: a free colour, a colour the window does not know, and none again.

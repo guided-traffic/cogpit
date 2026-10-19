@@ -24,7 +24,7 @@ func TestAccessibleNamespacesCommand(t *testing.T) {
 	if !slices.Equal(v.AccessibleNamespaces, []string{"team-a", "team-b"}) {
 		t.Errorf("after the set: %q", v.AccessibleNamespaces)
 	}
-	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev"}, &v); err != nil ||
+	if err := dispatch(t, s, agent, "cluster.settings.set", map[string]any{"context": "kind-dev", "terminalNamespace": "team-a"}, &v); err != nil ||
 		!slices.Equal(v.AccessibleNamespaces, []string{"team-a", "team-b"}) {
 		t.Errorf("a set without the field changed it: %q, %v", v.AccessibleNamespaces, err)
 	}

@@ -23,7 +23,8 @@ import (
 // ClusterSettingsFile under Cogpit's configuration directory, the images in ClusterIconsDir beside
 // it, never in a kubeconfig and never in the cluster (D-2: no implicit kubeconfig writes). They
 // are engine state (UIState.ClusterSettings) so that the hotbar, the welcome page and the
-// navigator show the same identity, and agents see and change it. The Prometheus a cluster's
+// navigator show the same identity, and agents see it; the identity itself (the name and the icon)
+// only the user changes (H-125, clusteridentity.go), the rest agents change too. The Prometheus a cluster's
 // metrics come from is a cluster setting too, kept apart in metrics.json (metricssettings.go).
 
 // ClusterSettingsFile is the cluster settings' file under Cogpit's configuration directory.
@@ -66,9 +67,11 @@ var ErrNoClusterSettings = errors.New("this Cogpit keeps no cluster settings")
 // ClusterSettings are one context's settings. The zero value is a context's defaults: its own
 // name, the initials badge in the accent colour, terminals in $HOME and kubectl's own namespace.
 type ClusterSettings struct {
-	// Name is the display name; empty: the context's name.
+	// Name is the display name; empty: the context's name. Only the user sets or clears it, in
+	// Cogpit's window (ErrClusterIdentityGUIOnly, H-125).
 	Name string `json:"name,omitempty"`
-	// IconColor is one of IconColors; empty: the accent.
+	// IconColor is one of IconColors; empty: the accent. Only the user sets or clears it, as the
+	// uploaded image (ErrClusterIdentityGUIOnly, H-125).
 	IconColor string `json:"iconColor,omitempty"`
 	// Icon is the uploaded image's file in ClusterIconsDir ("<sha256>.png" or "<sha256>.svg"),
 	// which takes the colour's place; empty: none.
@@ -94,6 +97,8 @@ type ClusterSettings struct {
 	// IntegrationsOff are the integrations the user switched off for this cluster (integrations.go,
 	// D-76); nil while the user made no choice for it: the window asks, and reads nothing of them
 	// meanwhile but what its question ticks (D-82; the CLI's session: Preferences.IntegrationsOff).
+	// Only the user switches one on or makes the choice; agents and the CLI may switch one off once
+	// it is made (integrationsguionly.go, H-126).
 	IntegrationsOff *IntegrationSet `json:"integrationsOff,omitempty"`
 	// Proxy is the HTTP(S) or SOCKS5 proxy of this cluster's API traffic, as the user typed it
 	// (proxy.go), applied at the next connect in place of the kubeconfig's proxy-url; empty: the

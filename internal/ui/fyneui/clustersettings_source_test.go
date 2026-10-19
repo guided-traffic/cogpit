@@ -13,7 +13,8 @@ import (
 // Cluster settings › Metrics › Sources (D-87, the owner's WF22; before, Lens's Metrics source
 // dropdown): the two integrations Metrics reads, each with its dot, its name linking to its own
 // section and its status; switching both off on their sections empties the Pods list's CPU and
-// agents read the state; an agent's metricsSource (Automatic) brings the numbers back.
+// agents read the state; the window's metricsSource (Automatic; an agent's is refused since H-126)
+// brings the numbers back.
 func TestMetricsSourceFromTheSettings(t *testing.T) {
 	s, sh, _, until := demoSettingsShell(t)
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})
@@ -58,7 +59,7 @@ func TestMetricsSourceFromTheSettings(t *testing.T) {
 		t.Errorf("metrics.get with metrics off: %+v", m.Status)
 	}
 
-	// An agent sets Automatic again: the numbers come back, the sources say so.
+	// The window's command sets Automatic again: the numbers come back, the sources say so.
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": engine.DemoContext, "metricsSource": "auto"})
 	until("the CPU column back", func() bool { return sh.view.snap != nil && usageRow(sh.view.snap) >= 0 })
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})

@@ -142,7 +142,8 @@ type Preferences struct {
 	// what the window's question looks for at once when the user checks the integrations (Check
 	// all, D-82), and what applies to a cluster without a choice in a session that does not ask
 	// (the CLI's) and on the demo cluster. None, the default: every integration is on (the owner,
-	// 2026-10-17).
+	// 2026-10-17). Agents and the CLI may only add to it, switching a default off
+	// (ErrIntegrationsGUIOnly, H-126).
 	IntegrationsOff IntegrationSet `json:"integrationsOff,omitempty"`
 }
 

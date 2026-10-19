@@ -140,8 +140,8 @@ type UIState struct {
 	// for it (ClusterSettings.IntegrationsOff unset), unless it is the demo cluster or the question
 	// was put off this run; empty otherwise. Until it is answered nothing of the cluster's
 	// integrations is read but what the question ticks (D-82); nothing waits for it.
-	// cluster.integrations.step moves it, .lookFor ticks, .answer answers it, .later puts it off;
-	// cluster.settings.get lists each integration's status. The engine derives it after every change.
+	// cluster.integrations.step moves it, .lookFor ticks, .answer answers it (these three the
+	// window's only, H-126), .later puts it off; cluster.settings.get lists each integration's status. The engine derives it after every change.
 	IntegrationsQuestion string `json:"integrationsQuestion,omitempty"`
 	// IntegrationsStep is the page the question shows (D-82, integrationsconsent.go): preChoice,
 	// checkAll, choose or dontUse; empty while there is no question.

@@ -73,8 +73,8 @@ func integrationsOf(t *testing.T, h *harness, ctx string) (map[string]bool, bool
 // on the pre-choice, nothing on, as ui_state shows it; Check all looks for every integration; Later
 // puts it off for the run (a reconnect does not ask again) and nothing is on meanwhile, the next
 // start asks again; an answer decides the cluster, with saveAsDefault the default for new clusters
-// too, which the next new cluster's Check all looks for; a decided cluster is not asked. Agents run
-// every step: they change only Cogpit's own settings and what it reads.
+// too, which the next new cluster's Check all looks for; a decided cluster is not asked. The window
+// steps and answers (H-126: agents may not); an agent reads the question and may put it off.
 func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	settings, prefs := t.TempDir(), t.TempDir()
 	h := integrationsHarness(t, settings, prefs)
@@ -85,7 +85,7 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	if decided || slices.Contains(boolValues(on), true) {
 		t.Fatalf("before an answer: decided %v, %v", decided, on)
 	}
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
 	if a := asked(t, h); a.Step != "checkAll" || len(a.LookFor) != len(engine.Integrations) {
 		t.Errorf("Check all: %+v", a)
 	}
@@ -120,8 +120,8 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	if q := question(t, h2); q != "test" {
 		t.Fatalf("the next start: %q", q)
 	}
-	h2.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
-	h2.must(t, engine.OriginExternalAgent, "cluster.integrations.answer", map[string]any{"integrations": map[string]bool{"alertmanager": false}}, nil)
+	h2.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
+	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{"integrations": map[string]bool{"alertmanager": false}}, nil)
 	if q := question(t, h2); q != "" {
 		t.Errorf("after the answer: %q", q)
 	}
@@ -158,7 +158,7 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	if on, decided := integrationsOf(t, h3, "test"); decided || slices.Contains(boolValues(on), true) {
 		t.Errorf("before the pre-choice: decided %v, %v", decided, on)
 	}
-	h3.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
+	h3.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
 	on, decided = integrationsOf(t, h3, "test")
 	if decided || on["trivy"] || on["kyverno"] || !on["alertmanager"] || !on["prometheus"] {
 		t.Errorf("Check all with the default: decided %v, %v", decided, on)
@@ -170,17 +170,17 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	}
 }
 
-// The pre-choice's commands as an agent drives them (D-82): Choose ticks one at a time, a tick
+// The pre-choice's commands as the window drives them (D-82): Choose ticks one at a time, a tick
 // before Check all or Choose is refused with the reason, Back looks for nothing, Don't use's Yes
-// answers with every one off, and Ask again brings the question back from the pre-choice, for a
-// decided cluster or one put off; refused for a cluster asked already.
+// answers with every one off, and Ask again (an agent's too) brings the question back from the
+// pre-choice, for a decided cluster or one put off; refused for a cluster asked already.
 func TestIntegrationsConsentCommands(t *testing.T) {
 	h := integrationsHarness(t, t.TempDir(), t.TempDir())
-	if err := h.run(t, engine.OriginExternalAgent, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"trivy": true}}, nil); err == nil ||
+	if err := h.run(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"trivy": true}}, nil); err == nil ||
 		!strings.Contains(err.Error(), "Check all or Choose") {
 		t.Errorf("a tick on the pre-choice: %v", err)
 	}
-	if err := h.run(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "later"}, nil); err == nil ||
+	if err := h.run(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "later"}, nil); err == nil ||
 		!strings.Contains(err.Error(), "preChoice") {
 		t.Errorf("an unknown step: %v", err)
 	}
@@ -188,27 +188,27 @@ func TestIntegrationsConsentCommands(t *testing.T) {
 		!strings.Contains(err.Error(), "asks about this cluster") {
 		t.Errorf("Ask again while asked: %v", err)
 	}
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "choose"}, nil)
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"metrics-server": true, "kyverno": true}}, nil)
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"kyverno": false}}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "choose"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"metrics-server": true, "kyverno": true}}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"kyverno": false}}, nil)
 	if a := asked(t, h); a.Step != "choose" || !slices.Equal(a.LookFor, []string{"metrics-server"}) {
 		t.Errorf("Choose, one ticked: %+v", a)
 	}
 	if on, _ := integrationsOf(t, h, "test"); !on["metrics-server"] || on["kyverno"] || on["prometheus"] {
 		t.Errorf("looked for: %v", on)
 	}
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "preChoice"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "preChoice"}, nil)
 	if a := asked(t, h); a.Step != "preChoice" || len(a.LookFor) != 0 {
 		t.Errorf("back on the pre-choice: %+v", a)
 	}
 
 	// Don't use, then the warning's Yes: every integration off, the cluster decided.
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.step", map[string]any{"step": "dontUse"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "dontUse"}, nil)
 	off := map[string]bool{}
 	for _, in := range engine.Integrations {
 		off[string(in.Name)] = false
 	}
-	h.must(t, engine.OriginExternalAgent, "cluster.integrations.answer", map[string]any{"integrations": off}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{"integrations": off}, nil)
 	on, decided := integrationsOf(t, h, "test")
 	if !decided || slices.Contains(boolValues(on), true) || question(t, h) != "" {
 		t.Fatalf("without integrations: decided %v, %v", decided, on)
@@ -252,12 +252,13 @@ func TestIntegrationsQuestionNotAsked(t *testing.T) {
 
 // cluster.settings.set's integrations and preferences.set's integrationDefaults: by name, unknown
 // names refused with the known ones, the metrics switches shown as the Metrics source; not
-// together with a metricsSource that names the same providers. Agents switch both ways. A cluster
-// without a choice starts from nothing on (D-82): only what is named is switched on.
+// together with a metricsSource that names the same providers. The user switches both ways, an
+// agent only off (TestIntegrationsOnAreTheUsers). A cluster without a choice starts from nothing on
+// (D-82): only what is named is switched on.
 func TestIntegrationSwitchCommands(t *testing.T) {
 	h := integrationsHarness(t, t.TempDir(), t.TempDir())
 	var v engine.ClusterSettingsView
-	h.must(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"metrics-server": true, "trivy": true}}, &v)
+	h.must(t, engine.OriginGUI, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"metrics-server": true, "trivy": true}}, &v)
 	if v.MetricsSource != "metrics-server" || !v.IntegrationsDecided {
 		t.Errorf("after switching the Metrics Server on: source %q, decided %v", v.MetricsSource, v.IntegrationsDecided)
 	}
@@ -267,32 +268,141 @@ func TestIntegrationSwitchCommands(t *testing.T) {
 		}
 	}
 	h.must(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"prometheus": false}}, &v)
-	h.must(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"prometheus": true, "alertmanager": true, "kyverno": true}}, &v)
+	h.must(t, engine.OriginGUI, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"prometheus": true, "alertmanager": true, "kyverno": true}}, &v)
 	if v.MetricsSource != "auto" {
-		t.Errorf("an agent switched Prometheus on again: source %q", v.MetricsSource)
+		t.Errorf("the user switched Prometheus on again: source %q", v.MetricsSource)
 	}
 	for _, in := range v.Integrations {
 		if !in.On {
 			t.Errorf("%s off", in.Name)
 		}
 	}
-	err := h.run(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"falco": true}}, nil)
+	err := h.run(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"falco": false}}, nil)
 	if err == nil || !strings.Contains(err.Error(), "alertmanager") {
 		t.Errorf("an unknown integration: %v", err)
 	}
-	err = h.run(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"metricsSource": "none", "integrations": map[string]bool{"prometheus": true}}, nil)
+	err = h.run(t, engine.OriginGUI, "cluster.settings.set", map[string]any{"metricsSource": "none", "integrations": map[string]bool{"prometheus": true}}, nil)
 	if err == nil {
 		t.Error("metricsSource and the metrics integrations together were accepted")
 	}
 
 	var pr commands.PreferencesResult
 	h.must(t, engine.OriginExternalAgent, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"alertmanager": false, "kyverno": false}}, &pr)
-	h.must(t, engine.OriginExternalAgent, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"kyverno": true}}, &pr)
+	h.must(t, engine.OriginGUI, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"kyverno": true}}, &pr)
 	if got := engine.IntegrationNames(pr.Preferences.IntegrationsOff); !slices.Equal(got, []string{"alertmanager"}) {
 		t.Errorf("the default for new clusters: %v", got)
 	}
 	if err := h.run(t, engine.OriginExternalAgent, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"falco": false}}, nil); err == nil {
 		t.Error("an unknown integration in the default was accepted")
+	}
+}
+
+// TestIntegrationsOnAreTheUsers (H-126, the owner's decision of 2026-10-19: "Nein"): only the user,
+// in the window, answers a new cluster's integrations question or switches an integration on. The
+// question's step, ticks and answer refuse agents and the CLI, and so does every switch of a cluster
+// the window still asks about (it would answer the question); on a cluster the user chose for they
+// may switch integrations off (the lead's decision, 2026-10-19), by name or as the Metrics source
+// none, but never on: by name, by a Metrics source that names a provider, or as the default for new
+// clusters; a change that switches one on and another off is refused as a whole. Also where the
+// user allowed agent writes; nobody is asked, nothing is looked for. Later and Ask again stay theirs.
+func TestIntegrationsOnAreTheUsers(t *testing.T) {
+	settings, prefs := t.TempDir(), t.TempDir()
+	h := integrationsHarness(t, settings, prefs)
+	c := &confirmations{answer: true}
+	h.s.SetConfirmer(c)
+	agents := []engine.Origin{engine.OriginExternalAgent, engine.OriginBuiltInAgent, engine.OriginCLI}
+	isRefused := func(err error) bool { return errors.Is(err, engine.ErrIntegrationsGUIOnly) }
+
+	// The question's steps, ticks and answer, and every switch while the cluster has no choice.
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "choose"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"metrics-server": true}}, nil)
+	undecided := func(when string) {
+		t.Helper()
+		for _, o := range agents {
+			for id, p := range map[string]map[string]any{
+				"cluster.integrations.step":    {"step": "checkAll"},
+				"cluster.integrations.lookFor": {"integrations": map[string]bool{"kyverno": true}},
+				"cluster.integrations.answer":  {"integrations": map[string]bool{"trivy": false}},
+			} {
+				err := h.run(t, o, id, p, nil)
+				var ge *engine.GUIOnlyError
+				if !errors.As(err, &ge) || !isRefused(err) {
+					t.Errorf("%s: %s %s: %v, want a GUI-only refusal", when, o, id, err)
+				}
+			}
+			for _, p := range []map[string]any{
+				{"integrations": map[string]bool{"alertmanager": false}}, {"metricsSource": "none"},
+				{"integrations": map[string]bool{"kyverno": true}},
+			} {
+				if err := h.run(t, o, "cluster.settings.set", p, nil); !isRefused(err) {
+					t.Errorf("%s: %s switched %v on a cluster without a choice: %v", when, o, p, err)
+				}
+			}
+		}
+		if a := asked(t, h); a.Question != "test" || a.Step != "choose" || !slices.Equal(a.LookFor, []string{"metrics-server"}) {
+			t.Errorf("%s: the question after the refusals: %+v", when, a)
+		}
+		if _, decided := integrationsOf(t, h, "test"); decided {
+			t.Errorf("%s: a refused switch decided the cluster", when)
+		}
+	}
+	undecided("agent writes not allowed")
+	h.must(t, engine.OriginGUI, "cluster.settings.setAgentWrites", map[string]any{"allowed": true}, nil)
+	undecided("agent writes allowed")
+
+	// Later stays the agents'; the next start asks again, and the user answers: every one on.
+	h.must(t, engine.OriginExternalAgent, "cluster.integrations.later", map[string]any{}, nil)
+	h2 := integrationsHarness(t, settings, prefs)
+	h2.s.SetConfirmer(c)
+	h2.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
+	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{}, nil)
+	if on, decided := integrationsOf(t, h2, "test"); !decided || slices.Contains(boolValues(on), false) {
+		t.Fatalf("the user's answer: decided %v, %v", decided, on)
+	}
+
+	// On a cluster the user chose for: off by name and as the source none; never on.
+	for _, o := range agents {
+		for _, p := range []map[string]any{
+			{"integrations": map[string]bool{"alertmanager": true}},
+			{"integrations": map[string]bool{"kyverno": false, "trivy": true}},
+			{"metricsSource": "auto"}, {"metricsSource": "prometheus"}, {"metricsSource": "metrics-server"},
+		} {
+			if err := h2.run(t, o, "cluster.settings.set", p, nil); !isRefused(err) {
+				t.Errorf("%s switched %v on: %v", o, p, err)
+			}
+		}
+		if err := h2.run(t, o, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"trivy": true}}, nil); !isRefused(err) {
+			t.Errorf("%s switched a default on: %v", o, err)
+		}
+	}
+	if on, _ := integrationsOf(t, h2, "test"); slices.Contains(boolValues(on), false) {
+		t.Errorf("a refused switch changed the cluster: %v", on)
+	}
+	h2.must(t, engine.OriginExternalAgent, "cluster.settings.set", map[string]any{"integrations": map[string]bool{"kyverno": false, "trivy": false}}, nil)
+	h2.must(t, engine.OriginBuiltInAgent, "cluster.settings.set", map[string]any{"metricsSource": "none"}, nil)
+	h2.must(t, engine.OriginExternalAgent, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"kyverno": false}}, nil)
+	on, _ := integrationsOf(t, h2, "test")
+	if on["kyverno"] || on["trivy"] || on["metrics-server"] || on["prometheus"] || !on["alertmanager"] {
+		t.Errorf("after the agents' off switches: %v", on)
+	}
+	if p, _ := h2.s.Preferences(); !slices.Equal(engine.IntegrationNames(p.IntegrationsOff), []string{"kyverno"}) {
+		t.Errorf("the default after an agent's off: %v", engine.IntegrationNames(p.IntegrationsOff))
+	}
+	if len(c.all()) != 0 {
+		t.Errorf("the user was asked: %+v", c.all())
+	}
+
+	// The tools say so: the question's commands are GUI only, the switches' fields name the rule.
+	for _, id := range []string{"cluster.integrations.step", "cluster.integrations.lookFor", "cluster.integrations.answer"} {
+		if cmd, _ := h.s.Registry().Get(id); !cmd.GUIOnly || !strings.Contains(cmd.ToolDescription(), "GUI only") {
+			t.Errorf("%s is not described as GUI only", id)
+		}
+	}
+	set, _ := h.s.Registry().Get("cluster.settings.set")
+	for _, field := range []string{"integrations", "metricsSource"} {
+		if d := set.Schema.Properties[field].Description; !strings.Contains(d, "Agents and the CLI may only") {
+			t.Errorf("cluster_settings_set's %s does not say what agents may: %q", field, d)
+		}
 	}
 }
 

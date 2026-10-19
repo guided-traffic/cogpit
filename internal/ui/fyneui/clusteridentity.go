@@ -16,7 +16,8 @@ import (
 // "Pick Icon Color", "Reset Icon"; captured 2026-10-11): the name it shows and its icon, the
 // initials on a tinted square in a colour of the theme's accent palette, or an image the user
 // uploaded. The hotbar's tiles, the navigator's rows and root and the welcome page show the same
-// identity, read from UIState.ClusterSettings (engine state, so an agent's change shows at once);
+// identity, read from UIState.ClusterSettings (engine state, so a change from Cluster Settings shows
+// everywhere at once; only the user changes it, in the window, engine.ErrClusterIdentityGUIOnly);
 // the image's bytes come from the engine's kept copy (Session.ClusterIcon), loaded off the main
 // goroutine once per image.
 

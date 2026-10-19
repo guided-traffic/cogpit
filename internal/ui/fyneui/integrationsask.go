@@ -35,8 +35,9 @@ import (
 //     pre-choice.
 //
 // Every button is an engine command (cluster.integrations.step, .lookFor, .answer, .later), so
-// agents see and drive the same state; the dialog closes when the engine drops the question,
-// whoever answered it.
+// agents see the same state; only the window steps, ticks and answers (GUI-only, H-126), an agent
+// may put the question off (Later). The dialog closes when the engine drops the question, whatever
+// ended it (an answer, Later, a choice made in Cluster Settings › Integrations).
 
 const (
 	integrationsAskSave    = "Save as the default for new clusters"
