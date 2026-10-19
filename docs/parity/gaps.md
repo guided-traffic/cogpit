@@ -2530,29 +2530,36 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 - **Estimate:** 28–66 h (was 30–70; the perf gate no longer hangs on a slow runner, third run).
 
 ### G16. Stability and the user bug backlog
-- **Found in the owner's walk (2026-10-19, v0.26.1), not built yet unless marked:** WF31 a drawer's
-  edited state ("Edited: 1 value.") is easy to miss (**built 2026-10-19**: a coloured pill per count
-  beside Revert and Save, [D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save));
-  WF32 a confirmation's Object(s) row does not set the kind apart from the name (**built
-  2026-10-19**: "Config Map → walk-cm", kind muted, name bold, in every dialog, D-100); WF33 the
-  Effect row is still a sentence ("Removes key added.") (**built 2026-10-19**: a row per effect,
-  "Removes  added" bold and red, for every command, D-100); WF34 the
-  alert board's copy icon shows late and flakily, at the card's far right; WF35 a followed log's
-  resume marker after a sleep ("interrupted 11:10–11:10") does not say what happened; WF36 a log's
-  text cannot be selected or copied (**built 2026-10-19**, [D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts): a selection across the lines,
-  ⌘A, ⌘C and a right-click's Copy); WF37 a succeeded Reconnect's entry in the connection log reads
-  as ending in "Connection interrupted"; WF39 showing another cluster ends a connect that waits for
-  its login without a word; **WF40 a
-  failed connect shows the cluster shown before again** (a safety matter: the user may act on a
-  cluster he did not choose; the owner: never, the window stays on the failed one); WF41 a toast's
-  text cannot be selected or copied (**built 2026-10-19**, [D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts): its text selectable, a copy
-  icon left of its ×, the bell's list the same); WF42 the disk image's name pills (a visual review with the
-  owner); WF43 a Terminating namespace: list what blocks it (its conditions name the kinds and
-  finalizers to anyone who may read the namespace, checked live on kind), with a destructive
-  Remove finalizers on one object (the owner's yes) (**built 2026-10-19**: the drawer's Blocking
-  Deletion list through metadata-only watches in the namespace, kinds the user may not list
-  counted, Remove finalizers a JSON patch testing the UID and the confirmed finalizers, D-98); WF44 the kubeconfig sources dialog has no
-  button in the navigator; WF45 a removed cluster's hotbar tile stays. Estimate not moved.
+- **Found in the owner's walk (2026-10-19, v0.26.1), built 2026-10-19 but WF42; his re-walk is
+  open:** WF31 a drawer's edited state ("Edited: 1 value.") was easy to miss: a coloured pill per
+  count beside Revert and Save ([D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save)); WF32 a
+  confirmation's Object(s) row did not set the kind apart from the name: "Config Map → walk-cm",
+  kind muted, name bold, in every dialog (D-100); WF33 the Effect row was a sentence ("Removes key
+  added."): a row per effect, "Removes  added" bold and red (D-100); WF34 the alert board's copy
+  icon showed late and flakily, at the card's far right: the board rebuilt every card at each
+  answer, so a head under a resting pointer got no hover; now nothing is rebuilt for the same
+  answer, a rebuilt board keeps the hovered card's icon, the icon after the name
+  ([D-94](../developer/decisions.md#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)); WF35 a followed log's resume marker after a
+  sleep ("interrupted 11:10–11:10"): the gap from the last line that arrived to the reconnect, with
+  seconds, the zone and its length, Cogpit's own lines in the warning colour
+  ([D-58](../developer/decisions.md#d-58-standby-and-lost-connections) S7); WF36 a log's text could not be selected or copied: a selection across
+  the lines, ⌘A, ⌘C and a right-click's Copy ([D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)); WF37 a succeeded
+  Reconnect's entry read as ending in "Connection interrupted": the interruption an entry of its
+  own, the reconnect ending in its success, one way to write a duration, the user's own cancel and
+  removal INFO ([D-66](../developer/decisions.md#d-66-the-connection-log)); WF39 showing another cluster ended a connect that waited for its
+  login without a word: the connect goes on in the background, a toast at its end; **WF40 a failed
+  connect showed the cluster shown before again** (a safety matter): the window stays on the failed
+  cluster with Connect Again and Show Connection Updates ([D-97](../developer/decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)); WF41 a
+  toast's text could not be selected or copied: selectable, a copy icon left of its ×, the bell's
+  list the same (D-99); WF43 a Terminating namespace: the drawer's Blocking Deletion list through
+  metadata-only watches in the namespace, kinds the user may not list counted, Remove finalizers a
+  JSON patch testing the UID and the confirmed finalizers, never on a namespace or a custom
+  resource definition ([D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)); WF44 the kubeconfig sources dialog
+  had no button in the navigator: a "−" beside Local Kubeconfigs; WF45 a removed cluster's hotbar
+  tile stayed: removing a source or Remove from Cogpit takes it off, a file gone by itself keeps it
+  marked missing ([D-101](../developer/decisions.md#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar)). Open: **WF42**, the disk image's
+  name pills sit too low and Cogpit's is too narrow for "Cogpit.app" (a visual review with the
+  owner, D-70). Estimate not moved.
 - **Found in the same walk (2026-10-19), WF38 (the lead's, W44):** a credential plugin that is a
   wrapper and `exec`s was left running after Cancel Connecting while the log said Cogpit ended it,
   and connects cancelled behind it started new runs later. Built 2026-10-19
@@ -2937,6 +2944,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-19 | minor | G16: the owner's findings WF31–WF45 of 2026-10-19 built the same day but WF42 (D-94, D-58, D-66, D-97 to D-101), each with how; WF42 open for a visual review with the owner; no estimate moves |
 | 2026-10-19 | minor | G16: WF36 and WF41 built (D-99): a log tab's text selected across its lines and copied, a toast's and a notification's text selectable with a copy icon; no estimate moves |
 | 2026-10-19 | minor | G16: WF43 built (a Terminating namespace's drawer lists what holds it; Remove finalizers on one object), D-98; no estimate moves |
 | 2026-10-19 | minor | G16: WF31 (the drawer's edited state as pills beside Revert and Save), WF32 (an object named "Config Map → walk-cm" in every dialog) and WF33 (a confirmation's effects a row each) built, D-100; no estimate moves |

@@ -9,7 +9,7 @@ this page.
    Lens's list at least in part, the custom resource views from the cache, Helm, Flux CD and
    Argo CD, logs, terminals and shells, CI and releases, and MCP control through
    [213 commands](commands.md) (2026-10-19); it doubled as the [Fyne spike](spike-fyne.md#results). What exists and
-   where it differs from the plan: [architecture › Current state](architecture.md#current-state-2026-10-18).
+   where it differs from the plan: [architecture › Current state](architecture.md#current-state-2026-10-19).
 2. **Go and Fyne.** The engine is Go on client-go, the kubectl libraries and the Helm SDK. The UI
    is Fyne: the [spike](spike-fyne.md) passed and D-1 is decided; re-checks on Windows and Linux
    can still move one platform's UI to a Rust/egui process ([decisions](decisions.md#d-1-ui-toolkit)).
