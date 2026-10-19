@@ -257,4 +257,3 @@ func checkDebuggedPod(ctx context.Context, t *testing.T, s *engine.Session, ref 
 		t.Logf("%s/%s: Target %q, square ok", ref.Name, name, got)
 	}
 }
-
