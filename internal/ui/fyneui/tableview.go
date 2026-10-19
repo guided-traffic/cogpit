@@ -1190,6 +1190,15 @@ type rowMarks struct{ selected, checked bool }
 
 // set gives the cell new content; unchanged content costs a few comparisons. It reports whether
 // the content changed.
+//
+// A cell whose content changed is laid out again at its size: Fyne's table gives a cell it keeps
+// on screen (a refresh after a filter, a watch event that moves the rows) new content without a
+// layout when the cell's size is unchanged, and the GL driver lays a cell out only when one of its
+// objects' minimum size changed. What Layout alone shows, hides and places (a pod's squares, a
+// usage bar, the count after the squares) would otherwise stay as the cell's last content left it:
+// a colleague of the owner saw a pod with three squares of which the third was the pod's before
+// (2026-10-19). Laying out here keeps one rule for every object a cell draws, a new kind of mark
+// included (architecture.md §4.4, the lead's choice of 2026-10-19).
 func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover, linkHover bool) bool {
 	c.row, c.col = row, col
 	changed := false
@@ -1201,6 +1210,9 @@ func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover
 	if changed || marks.selected != c.selected || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover {
 		c.selected, c.checked, c.hover, c.linkHover = marks.selected, marks.checked, hover, linkHover
 		c.apply()
+	}
+	if changed {
+		c.layout(c.Size())
 	}
 	return changed
 }
@@ -1361,7 +1373,6 @@ func (c *tableCell) apply() {
 	c.setIcon(c.tv.cellIcon(c.content, c.checked))
 	c.fit(th)
 	c.colourMore(th)
-	c.placeBar(th) // the table updates a reused cell without laying it out: the share and bar move here
 	c.bg.Refresh()
 	c.text.Refresh()
 	for _, t := range c.more {
@@ -1539,8 +1550,11 @@ type tableCellRenderer struct {
 	gen   int
 }
 
-func (r *tableCellRenderer) Layout(size fyne.Size) {
-	c := r.c
+func (r *tableCellRenderer) Layout(size fyne.Size) { r.c.layout(size) }
+
+// layout places the cell's objects in a cell of size: the renderer's Layout, and set's for a cell
+// that got new content at an unchanged size.
+func (c *tableCell) layout(size fyne.Size) {
 	th := c.Theme()
 	gap := th.Size(theme.SizeNamePadding)
 	c.bg.Move(fyne.NewPos(-gap/2, -gap/2))

@@ -99,22 +99,10 @@ func (c *tableCell) fitBar(th fyne.Theme, avail float32) float32 {
 	return slot
 }
 
-// placeBar lays out the share and the bar of a cell that shows or showed one at its current size:
-// the table gives a reused cell new content without laying it out, and the share's x and the
-// fill's width follow the content.
-func (c *tableCell) placeBar(th fyne.Theme) {
-	if c.bar == nil {
-		return
-	}
-	size := c.Size()
-	pad := th.Size(sizeCellPadding)
-	ts := c.text.MinSize()
-	c.text.Move(fyne.NewPos(c.layoutBar(th, size, pad, ts.Width), (size.Height-ts.Height)/2))
-	c.text.Resize(ts)
-}
-
 // layoutBar places the bar in a cell of size and returns the x of the text: right-aligned in the
-// share's slot when the bar shows, else the cell's padding.
+// share's slot when the bar shows, else the cell's padding. The cell's layout calls it, also when
+// a cell the table keeps on screen gets new content (tableCell.set): the share's x and the fill's
+// width follow the content.
 func (c *tableCell) layoutBar(th fyne.Theme, size fyne.Size, pad, textWidth float32) float32 {
 	if c.bar == nil {
 		return pad

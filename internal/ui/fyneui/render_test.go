@@ -58,6 +58,13 @@ func relayout(o fyne.CanvasObject) {
 func savePNG(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
 	settle(w)
+	writePNG(t, w, name)
+}
+
+// writePNG captures the window as it is, without settling it: for a test that lays out only what
+// the GL driver would (glPass, tablereuse_test.go).
+func writePNG(t *testing.T, w fyne.Window, name string) {
+	t.Helper()
 	dir := os.Getenv("COGPIT_PNG_DIR")
 	switch {
 	case *updatePNG:
