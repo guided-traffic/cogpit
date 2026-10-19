@@ -392,3 +392,8 @@ since this change.
 - **Not built:** a second source to compare with (endoflife.date was weighed and left out, a third
   party with a quality record of its own, [D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)),
   a person's approval of the table's diff before a release.
+
+Accepted by the owner (2026-10-19 afternoon, asked as one question: "lassen"): the table stays
+fetched as built (option (a)), an accepted risk that this entry keeps documented. Showing the
+table's diff in the release notes, so that it is reviewed after the fact (option (c)), is not wanted
+for now.
