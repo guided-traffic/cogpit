@@ -454,8 +454,13 @@ func TestEngineEventsWithoutRaces(t *testing.T) {
 			q.drain()
 		}
 	}
-	want := f.UIState().Revision
-	q.until(t, "the last state", func() bool { return sh.ui.Revision == want && sh.view.snap == f.Table("pods") })
+	// The engine's newest state, read at every check: the window's own reports move it too, the
+	// navigator's row a debounce after the kinds came (navigatorstate.go, D-51). On a slow runner
+	// that report lands after the flood, and a revision read once here waits forever (CI,
+	// 2026-10-18: run 39161105286).
+	q.until(t, "the last state", func() bool {
+		return sh.ui.Revision == f.UIState().Revision && sh.view.snap == f.Table("pods")
+	})
 	// Every refresh measures a fresh template cell; only shown cells may be kept.
 	if n := len(sh.view.cells); n > 600 {
 		t.Fatalf("%d cells tracked after %d snapshots: template cells leak", n, n)

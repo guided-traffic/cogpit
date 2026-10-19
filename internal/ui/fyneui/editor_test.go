@@ -214,8 +214,10 @@ func TestEditTabSaveReviewsThenApplies(t *testing.T) {
 	if et.pane.view.ReadOnly() || et.reviewing {
 		t.Fatal("the edit tab starts in the editor, editable")
 	}
-	if !strings.HasPrefix(et.status.text, "Service checkout · loaded at ") || strings.Contains(et.status.text, "41") {
-		t.Errorf("status %q", et.status.text)
+	// The title and the time it loaded, nothing else: no resourceVersion ("41", D-85). On the shell's
+	// clock, so that a wall clock at hh:41 or hh:mm:41 cannot match (CI, 2026-10-18: run 39161105286).
+	if want := "Service checkout · loaded at " + sh.timeFormat().FormatTime(fixedNow); et.status.text != want {
+		t.Errorf("status %q, want %q", et.status.text, want)
 	}
 	typeLineAfter(et.pane, 16, "sessionAffinity: ClientIP")
 	q.until(t, "the text to reach the engine", func() bool { return len(f.callsOf("editor.setText")) == 1 })

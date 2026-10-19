@@ -218,7 +218,7 @@ func (e *editorTab) showBase(st engine.EditorState) {
 	case st.Stale:
 		e.setStatus(e.tab.Title+" changed on the cluster since this text was loaded; Save compares with its current state.", colorStatusWarning)
 	default:
-		e.setStatus(e.tab.Title+" · loaded at "+e.sh.timeFormat().FormatTime(time.Now()), colorMuted)
+		e.setStatus(e.tab.Title+" · loaded at "+e.sh.timeFormat().FormatTime(e.sh.now()), colorMuted)
 	}
 }
 
