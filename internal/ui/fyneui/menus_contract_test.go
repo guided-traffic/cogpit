@@ -17,7 +17,8 @@ import (
 // Uncordon are both listed here; the menu shows the one that applies (TestRowMenuNodes). Commands
 // Cogpit has not built are named in missing, so that the test shows the gap instead of hiding it.
 // Remove Finalizers is Cogpit's own (D-98), between Edit and Delete of every kind, and shown only
-// for an object being deleted that finalizers hold.
+// for an object being deleted that finalizers hold. Debug is Cogpit's own too (D-102), after Shell,
+// in a dialog of the window's own that is its confirmation (debugdialog.go).
 func TestRegistryMenusAsLens(t *testing.T) {
 	const rf = engine.RemoveFinalizersCommand
 	s := engine.New(engine.Options{})
@@ -32,7 +33,7 @@ func TestRegistryMenusAsLens(t *testing.T) {
 	}{
 		{"nodes", []string{"node.shell", "node.cordon", "node.uncordon", "node.drain", "object.edit", rf, "object.delete"}, ""},
 		{"cronjobs", []string{"cronjob.trigger", "cronjob.resume", "cronjob.suspend", "object.edit", rf, "object.delete"}, ""},
-		{"pods", []string{"pod.attach", "pod.shell", "pod.evict", "pod.logs", "object.edit", rf, "object.delete"}, "pod.share is not a target"},
+		{"pods", []string{"pod.attach", "pod.shell", engine.DebugCommand, "pod.evict", "pod.logs", "object.edit", rf, "object.delete"}, "pod.share is not a target"},
 		{"deployments", []string{"deployment.scale", "deployment.restart", "workload.logs", "object.edit", rf, "object.delete"}, ""},
 		{"statefulsets", []string{"statefulset.restart", "statefulset.scale", "workload.logs", "object.edit", rf, "object.delete"}, ""},
 		{"daemonsets", []string{"daemonset.restart", "workload.logs", "object.edit", rf, "object.delete"}, ""},
@@ -55,8 +56,9 @@ func TestRegistryMenusAsLens(t *testing.T) {
 		"deployment.scale": "dialog:replicas", "statefulset.scale": "dialog:replicas", "replicaset.scale": "dialog:replicas",
 		"daemonset.restart": "", "statefulset.restart": "", "workload.logs": "",
 		"pod.logs": "containers", "pod.shell": "containers", "pod.attach": "containers",
-		"node.drain": "dialog:ignoreDaemonSets,deleteEmptyDirData,force,gracePeriodSeconds,timeoutSeconds",
-		"pod.evict":  "", "node.cordon": "", "cronjob.trigger": "", "object.edit": "", "object.delete": "", engine.RemoveFinalizersCommand: "",
+		engine.DebugCommand: "dialog:image,target,uid",
+		"node.drain":        "dialog:ignoreDaemonSets,deleteEmptyDirData,force,gracePeriodSeconds,timeoutSeconds",
+		"pod.evict":         "", "node.cordon": "", "cronjob.trigger": "", "object.edit": "", "object.delete": "", engine.RemoveFinalizersCommand: "",
 	} {
 		c, ok := s.Registry().Get(id)
 		if !ok {

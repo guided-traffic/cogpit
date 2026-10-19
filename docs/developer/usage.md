@@ -56,6 +56,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🔔 Notifications as toasts at the bottom right, and the session's in the bell's list: a toast stays while the pointer is on it or you select in it; drag over its text and ⌘C copies, its copy icon left of the × copies the whole message, an error included (since 2026-10-19).
 - 💻 Pod shells, attach and a terminal bound to the cluster's context; copy and paste by keys or, if you choose, the right mouse button.
 - 🖥️ A node shell, as Lens opens it: a privileged pod in `kube-system` from an image pinned by digest, confirmed every time, deleted when the shell closes.
+- 🔍 Debug a running pod: Debug in its drawer adds an ephemeral container (by default nicolaka/netshoot:v0.16, pinned by digest, your choice in Preferences) that sees the processes of the container you pick and opens a shell in it; confirmed every time, since it stays in the pod; the Pods list shows such containers as blue squares, outlined once they ended, and Logs, Shell and Attach reach them ([details](#debug-containers)).
 - 🔐 Create Secret from a dialog, values masked as you type, for you alone: agents can neither create a Secret nor read its values.
 - 🗝️ A Secret's values and keys edited in its drawer, for you alone: Show puts a value into an editor, whose copy icon copies the whole value (the clipboard is cleared again after 60 seconds), Add Key adds a key, each key's bin icon removes it, pills beside Revert and Save count what you edited, added and removed; Save shows which keys change, are added or are removed and their sizes, never a value, checks with the server first and, for a removed key, is your confirmation; agents can neither save nor review a Secret's values, and unsaved ones never touch the disk.
 - 🧰 The terminal's `kubectl` checked against the cluster: more than one minor version off, or none, and one click downloads the matching release from `dl.k8s.io`, verified against its SHA-256, the Kubernetes release's signature and that signature's entry in sigstore's transparency log, for Cogpit's terminals only.
@@ -978,6 +979,60 @@ Its drawer then shows **Blocking Deletion** right under Properties
 - **Reads:** while the drawer shows such a namespace, each kind named is watched in that namespace
   only, names and finalizers only (no values); nothing when it closes.
 
+### Debug containers
+
+**Debug** (the magnifier in a pod's drawer, after Shell in its row menu, or the command palette)
+adds an ephemeral container to a running pod, as `kubectl debug -it <pod> --target=<container>`
+does ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach)):
+
+- **The dialog** names the context, the namespace and the pod, and asks two things: **Target**, the
+  container whose processes the debug container sees (the pod's first preselected; None for no
+  shared processes), and **Image**, an ordinary field you can edit, select, copy and paste into,
+  filled with the image Preferences › Kubernetes › Debug container image names. Under them it
+  says what the container sees of the target ("app's processes and files") and the image's digest,
+  or that the image is a floating tag. The dialog is the confirmation: **Debug** adds the container,
+  and "This cannot be undone." means what it says (below). If the pod was replaced by another of
+  its name while the dialog was open, nothing is added.
+- **What is added:** a container `debugger-<5 characters>` from that image with stdin and a
+  terminal, sharing the target's processes. Then an **Attach** tab opens on it, which says
+  "Waiting for debugger-… to start…" while the image is pulled and is its shell once it runs
+  (netshoot's zsh). Closing the tab detaches; the shell runs on, and **Attach**, **Shell** and
+  **Logs** in the pod's menus reach it again. `exit` in the shell ends it.
+- **How long it lives:** as long as the pod object. A crash or liveness restart of the pod's other
+  containers keeps it; a deleted or replaced pod (a rollout, an eviction, a lost node) takes it
+  away. It is never restarted itself: once its shell exits it stays Terminated, with its log, and
+  Kubernetes offers no way to remove or change it.
+- **What you see:** in the Pods list's Containers column a blue square per ephemeral container after
+  the others, filled while it runs or starts, a blue outline once it ended, red while its image
+  cannot be pulled; the ones still running first; at most 12 squares, "+N" for the rest. The
+  tooltip says "debugger: ephemeral, running, target app". The ratio ("1/1") counts only the pod's
+  containers, as kubectl's READY. The drawer lists them under **Ephemeral Containers**, each with
+  its **Target**. A pod's log tab lists them under "Ephemeral containers"; the logs of a Deployment
+  or another controller show the template's containers only.
+- **Refusals:** Debug is greyed on a pod that has ended or is being deleted, and "not permitted"
+  when you may not `patch pods/ephemeralcontainers` or `create pods/attach`. The cluster's own
+  refusals are shown as it words them: a namespace that enforces the restricted Pod Security level
+  refuses netshoot ("violates PodSecurity …"), an admission policy (Kyverno) may refuse it too.
+- **Agents** run `pod_debug` with an image and a target of their choice; it always waits for your
+  confirmation, with the same rows.
+
+**Preferences › Kubernetes › Debug container image:**
+
+```json
+{
+  "debugImage": ""
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `debugImage` | `""` # default: `docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70` | the image Debug offers; best pinned by digest (`repository:tag@sha256:…`); a floating tag works and is named as one |
+
+Security note: a debug container with a target reads that container's processes and, through
+them, its files, the Secrets it mounts included, as root with netshoot
+([privilege footprint › Debug container](../security/privilege-footprint.md#debug-container)). Only
+you, in Cogpit's window, set the image; agents and the CLI may only reset it.
+
 ### The Kubernetes version and upstream support
 
 The navigator's root shows the cluster's Kubernetes version, the API server's as its connect read
@@ -1102,6 +1157,8 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | A terminal's own directory | `<temp dir>/cogpit-terminal-<random>/`, owner-only, removed on close, only when Cogpit puts a `kubectl` first: `bin/kubectl` (a link), `zsh/.zshenv` (zsh only), `bash/rc` (bash only, since 2026-10-14) | |
 | Node shell pod | `kube-system/cogpit-node-shell-<8 random characters>`, labels `app.kubernetes.io/name=cogpit-node-shell` and `app.kubernetes.io/managed-by=cogpit`, annotation `cogpit.io/node-shell-id=<random id>` (its journal entry's), deleted when the shell closes, else at the next connect to its context after a crash, else ended by its deadline, Cluster Settings › Node Shell › Maximum duration (2 hours unless the user sets 5 minutes to 24 hours; [why](../security/privilege-footprint.md#node-shell)) | `kube-system/cogpit-node-shell-k3v9q2mx` # example |
 | Node shell dock tab | id `nodeShell-<n>`, title `Node shell: <node>` | `Node shell: worker-1` # example |
+| Debug container | an ephemeral container `debugger-<5 lowercase characters>` in the pod, as kubectl debug names one, never a name the pod has; it stays as long as the pod ([why](../security/privilege-footprint.md#debug-container)) | `debugger-x7k2q` # example |
+| Debug's Attach tab | id `attach-<n>`, title `Attach: <pod>/<container>`, as Attach's | `Attach: web-0/debugger-x7k2q` # example |
 | Prometheus and Alertmanager settings | `<user config dir>/Cogpit/metrics.json`, owner-only (0600): per context the Prometheus you named (namespace, service, port, path prefix) and, since 2026-10-16, how it is asked when not the defaults (`format`: `prometheus-operator` or `cadvisor`; `keepEmptyContainers`; `https`); since 2026-10-17 the Alertmanager you named (`alertmanager`: namespace, service, port, path prefix, `https`, D-77); never the kubeconfig | `{"prometheus":{},"query":{"kind-dev":{"https":true}},"alertmanager":{"kind-dev":{"namespace":"monitoring","service":"alertmanager-operated","port":"web"}}}` # example |
 | Demo context | `demo` (the synthetic cluster), development builds only; in a release `demo` is a kubeconfig context name like any other ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) | |
 | Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app` checks both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |

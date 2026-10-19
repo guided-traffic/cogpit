@@ -182,7 +182,7 @@ func (d *drawer) request() {
 			m, err = d.sh.eng.Detail(r)
 			var containers []string
 			if m != nil {
-				containers = append(append(containers, m.Containers...), m.InitContainers...)
+				containers = podContainers(m) // rowmenu.go
 			}
 			acts = d.sh.evaluateActions(r, containers)
 		}()

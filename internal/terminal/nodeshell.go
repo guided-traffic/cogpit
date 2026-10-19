@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -56,10 +57,11 @@ func StartNodeShell(ctx context.Context, config *rest.Config, client kubernetes.
 	return startStreamMode(ctx, beforeExecutor{exec: exec, before: opts.Before}, mode), nil
 }
 
-// beforeExecutor runs before, then the executor's stream.
+// beforeExecutor runs before, then writes after (if any) to the output, then the executor's stream.
 type beforeExecutor struct {
 	exec   remotecommand.Executor
 	before func(ctx context.Context) error
+	after  string // a line once before succeeded: what an attach that waited is attached to
 }
 
 // Stream is StreamWithContext without a deadline (remotecommand.Executor).
@@ -71,6 +73,11 @@ func (b beforeExecutor) Stream(opts remotecommand.StreamOptions) error {
 func (b beforeExecutor) StreamWithContext(ctx context.Context, opts remotecommand.StreamOptions) error {
 	if err := b.before(ctx); err != nil {
 		return err
+	}
+	if b.after != "" && opts.Stdout != nil {
+		if _, err := io.WriteString(opts.Stdout, b.after); err != nil {
+			return err
+		}
 	}
 	return b.exec.StreamWithContext(ctx, opts)
 }

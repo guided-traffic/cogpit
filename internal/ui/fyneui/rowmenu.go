@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -180,8 +181,9 @@ func (tv *tableView) openRowMenu(row int, pos fyne.Position) {
 	}()
 }
 
-// containersFor returns a pod's containers and init containers, for the container submenus; other
-// kinds have none. It reads the drawer model and must run off the main goroutine.
+// containersFor returns a pod's containers, init containers and ephemeral containers, for the
+// container submenus; other kinds have none. It reads the drawer model and must run off the main
+// goroutine.
 func (sh *shell) containersFor(ref model.ObjectRef) []string {
 	needed := false
 	for _, c := range sh.eng.Registry().Actions(ref.Kind) {
@@ -194,7 +196,14 @@ func (sh *shell) containersFor(ref model.ObjectRef) []string {
 	if err != nil || m == nil {
 		return nil
 	}
-	return append(append([]string(nil), m.Containers...), m.InitContainers...)
+	return podContainers(m)
+}
+
+// podContainers are the containers a pod's Logs, Shell and Attach submenus offer: its containers,
+// then its init containers, then its ephemeral (debug) containers (the owner's "Fix bauen",
+// 2026-10-19, D-102).
+func podContainers(m *engine.DetailModel) []string {
+	return slices.Concat(m.Containers, m.InitContainers, m.EphemeralContainers)
 }
 
 // shorten cuts s to n runes with an ellipsis.

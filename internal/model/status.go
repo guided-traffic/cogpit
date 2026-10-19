@@ -15,4 +15,8 @@ const (
 	StatusTerminating Status = "terminating" // deletionTimestamp set
 	StatusUnknown     Status = "unknown"     // state could not be determined
 	StatusStopped     Status = "stopped"     // a container that ran and stopped (a finished init container)
+	// StatusEphemeral is a kind of container rather than a state: an ephemeral (debug) container's
+	// square in a pod's Containers cell, in the palette's blue (D-102); the square's fill says its
+	// state (CellMark.Hollow once it has finished).
+	StatusEphemeral Status = "ephemeral"
 )

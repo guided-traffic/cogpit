@@ -74,7 +74,7 @@ func TestPaletteListsWhatTheMenusOffer(t *testing.T) {
 			actions = append(actions, e.Command)
 		}
 	}
-	want := []string{"object.copyName", "pod.attach", "pod.shell", "pod.evict", "pod.logs", "object.edit", "object.delete"}
+	want := []string{"object.copyName", "pod.attach", "pod.shell", "pod.debug", "pod.evict", "pod.logs", "object.edit", "object.delete"}
 	if !slices.Equal(actions, want) || !slices.Equal(actions, commandsOf(entries[:len(want)])) {
 		t.Errorf("object actions %v, want %v first", actions, want)
 	}

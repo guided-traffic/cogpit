@@ -12,7 +12,7 @@ func registerAttach(g *registrar) {
 	add(g, engine.Spec[containerParams]{
 		ID: "pod.attach", Label: "Attach Pod", MenuPath: "Pod/Attach", Kinds: []string{kindPods}, Order: 100,
 		Danger: engine.DangerMutating,
-		Verbs:  []engine.Verb{{Verb: nwVerbCreate, Resource: kindPods, Subresource: "attach"}},
+		Verbs:  []engine.Verb{{Verb: nwVerbCreate, Resource: kindPods, Subresource: subresourceAttach}},
 		Description: "Opens a dock tab attached to a container's main process, as kubectl attach does: its output from " +
 			"now on and, when the container was started with stdin (and a TTY), what is typed there as its input. " +
 			"Anything typed reaches the process, so an agent's request waits for the user's acceptance. Closing the tab " +

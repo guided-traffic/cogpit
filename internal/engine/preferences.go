@@ -22,8 +22,9 @@ import (
 // cluster's, as Lens's Preferences page holds them: the theme, the time zone absolute times are
 // shown in, the tables' row height, the editor's font size, line numbers and tab size, and the
 // local terminal's font size, shell and shell arguments, the proxy of the traffic that is no
-// cluster's (the Helm repositories' downloads), and Helm's storage driver for new installs
-// (HelmDriver, helmdriver.go). They are engine state (UIState.Preferences, the
+// cluster's (the Helm repositories' downloads), Helm's storage driver for new installs
+// (HelmDriver, helmdriver.go), and the image of the debug containers Debug adds to a pod
+// (DebugImage, debugcontainer.go). They are engine state (UIState.Preferences, the
 // proxy's password redacted: Shown) so that agents see and change what the user sees; the GUI
 // changes them only through preferences.set. They are kept in PreferencesFile under Cogpit's
 // configuration directory, never in a kubeconfig, and no preference talks to a cluster. Only the
@@ -145,6 +146,11 @@ type Preferences struct {
 	// 2026-10-17). Agents and the CLI may only add to it, switching a default off
 	// (ErrIntegrationsGUIOnly, H-126).
 	IntegrationsOff IntegrationSet `json:"integrationsOff,omitempty"`
+	// DebugImage is the image Debug (pod.debug, debugcontainer.go, D-102) offers for a pod's
+	// ephemeral container; empty: DefaultDebugImage, nicolaka/netshoot pinned by digest. App-wide,
+	// unlike the node shell's image, which is a cluster's (the owner, 2026-10-19). Only the user
+	// sets it; agents and the CLI may only reset it (ErrDebugImageGUIOnly).
+	DebugImage string `json:"debugImage,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
@@ -200,6 +206,9 @@ func (p Preferences) Check() error {
 		return err
 	}
 	if err := CheckUpdateChannel(p.UpdateChannel); err != nil {
+		return err
+	}
+	if err := CheckDebugImage(p.DebugImage); err != nil { // debugcontainer.go
 		return err
 	}
 	return p.checkKubectl()
@@ -289,6 +298,9 @@ func (p *Preferences) normalize() {
 	}
 	if (Preferences{KubectlPath: p.KubectlPath}).checkKubectl() != nil {
 		p.KubectlPath = ""
+	}
+	if p.DebugImage = strings.TrimSpace(p.DebugImage); CheckDebugImage(p.DebugImage) != nil {
+		p.DebugImage = "" // Cogpit's default
 	}
 	if p.UpdateChannel == "" || CheckUpdateChannel(p.UpdateChannel) != nil {
 		p.UpdateChannel = UpdateChannelStable

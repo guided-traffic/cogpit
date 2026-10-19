@@ -226,6 +226,21 @@
       "automerge": true
     },
     {
+      "description": "The debug container's default image (internal/engine/debugcontainer.go, D-102): a new digest or a new netshoot release (v0.16 to v0.17, a minor update) merges on its own once CI passes, whose kind job adds a debug container with it, attaches and reads its log (TestKindDebugContainer); a major (v1) waits for review. It runs as root beside a pod's processes, which is why it is pinned by digest and the change is a pull request, never a floating tag.",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "docker.io/nicolaka/netshoot"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch",
+        "digest"
+      ],
+      "automerge": true
+    },
+    {
       "description": "Sparkle, the macOS app's updater (Makefile SPARKLE_VERSION, D-4): Renovate proposes a new release but cannot know its archive's SHA-256, so make sparkle fails until SPARKLE_SHA256 is set to the new asset's digest (gh api repos/sparkle-project/Sparkle/releases/tags/<version> --jq '.assets[] | select(.name | endswith(\".tar.xz\")) | .digest'); its code updates installed copies, so a person reads its changes and never merges it on its own",
       "matchManagers": [
         "custom.regex"
@@ -335,6 +350,17 @@
       "customType": "regex",
       "managerFilePatterns": [
         "/^internal/engine/nodeshell\\.go$/"
+      ],
+      "matchStrings": [
+        "// renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)\\n\\s*\\w+\\s*=\\s*\"[^\"@]+:(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[0-9a-f]{64})\""
+      ],
+      "versioningTemplate": "docker"
+    },
+    {
+      "description": "The debug container's default image (D-102, owner 2026-10-19): nicolaka/netshoot pinned by the digest of its multi-arch index, DefaultDebugImage in internal/engine/debugcontainer.go under a renovate comment. A new netshoot release moves the tag (v0.16 to v0.17), a rebuilt tag moves the digest; CI's kind job runs it (TestKindDebugContainer).",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^internal/engine/debugcontainer\\.go$/"
       ],
       "matchStrings": [
         "// renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)\\n\\s*\\w+\\s*=\\s*\"[^\"@]+:(?<currentValue>[^\"@]+)@(?<currentDigest>sha256:[0-9a-f]{64})\""

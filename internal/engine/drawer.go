@@ -329,6 +329,7 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 	if p.Key == "pods" && p.Group == "" {
 		m.Containers = ContainerNames(obj, false)
 		m.InitContainers = containerNames(obj, "initContainers")
+		m.EphemeralContainers = containerNames(obj, specEphemeralContainers)
 	}
 	return m, err
 }
@@ -432,15 +433,20 @@ func eventItem(ev *unstructured.Unstructured) EventItem {
 	return it
 }
 
-// ContainerNames returns the container names of a pod: spec.containers, then, with init, the
-// init containers. Other shapes yield none.
-func ContainerNames(obj *unstructured.Unstructured, init bool) []string {
+// ContainerNames returns the container names of a pod: spec.containers, then, with all, the init
+// containers and the ephemeral (debug) containers, which logs, shells and attach reach too (the
+// owner's "Fix bauen", 2026-10-19, D-102). Other shapes yield none.
+func ContainerNames(obj *unstructured.Unstructured, all bool) []string {
 	out := containerNames(obj, "containers")
-	if init {
+	if all {
 		out = append(out, containerNames(obj, "initContainers")...)
+		out = append(out, containerNames(obj, specEphemeralContainers)...)
 	}
 	return out
 }
+
+// specEphemeralContainers is a pod spec's list of ephemeral containers.
+const specEphemeralContainers = "ephemeralContainers"
 
 // containerNames returns the names in a pod's spec.<field> list.
 func containerNames(obj *unstructured.Unstructured, field string) []string {

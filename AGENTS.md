@@ -96,7 +96,8 @@ Cogpit acts with the user's identity on clusters that may be production.
 - **Read-only unless asked.** Browsing never writes.
 - **Every mutating command declares its verbs and a danger level.** `Destructive` commands
   (delete, drain, evict, scale to zero, Helm uninstall and rollback, node shell, removing a data
-  key from a Config Map or Secret, in its drawer or through the Edit tab) need a confirmation that
+  key from a Config Map or Secret, in its drawer or through the Edit tab, adding a debug container
+  to a pod) need a confirmation that
   names the objects, the namespace and the context. The engine enforces it for every origin: GUI,
   CLI, external agents and the built-in agent.
 - **Agents follow D-2:** reads and UI operations run freely; mutating commands need the user's

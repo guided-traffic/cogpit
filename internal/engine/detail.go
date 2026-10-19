@@ -43,6 +43,9 @@ type DetailModel struct {
 	Containers []string `json:"containers,omitempty"`
 	// InitContainers are the pod's init container names, which logs and shell can pick too.
 	InitContainers []string `json:"initContainers,omitempty"`
+	// EphemeralContainers are the pod's ephemeral (debug) container names, which logs, shell and
+	// attach can pick too (D-102).
+	EphemeralContainers []string `json:"ephemeralContainers,omitempty"`
 	// Missing is true when the object is not (or no longer) in the cache.
 	Missing bool `json:"missing,omitempty"`
 	// Loading is true while the object's kind is still being listed: the object may yet appear,

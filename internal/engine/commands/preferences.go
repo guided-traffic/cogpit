@@ -58,6 +58,8 @@ type preferencesSetParams struct {
 	RestoreSession *bool `json:"restoreSession,omitempty" jsonschema:"whether Cogpit, at its next start, restores the tabs of the last run and connects again to the clusters connected when it quit, the one shown then first, their credential plugins running as on any connect (default false: it starts without tabs and connections). Agents and the CLI may only turn it off"`
 	// IntegrationDefaults: the integrations of clusters without a choice of their own (engine/integrations.go, D-76).
 	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. Agents and the CLI may only switch a default off (false): switching one on is the user's, in Cogpit's window"`
+	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
+	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 }
 
 // shellChange reports whether the parameters change the local terminal's shell or arguments.
@@ -120,7 +122,8 @@ func registerPreferences(g *registrar) {
 			"secret), whether chart icons are fetched (loadChartIcons), whether the app checks for updates automatically " +
 			"(checkForUpdates) and on which channel (updateChannel), whether the next start restores the last session " +
 			"(restoreSession: its tabs and connections), the integrations off for clusters without a choice of their own " +
-			"(integrationsOff, the default for new clusters; absent: every one on); kept says whether they outlive this run. " +
+			"(integrationsOff, the default for new clusters; absent: every one on), the image Debug offers for a pod's debug " +
+			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest); kept says whether they outlive this run. " +
 			"ui_state carries the same.",
 		Enabled: func(s *engine.Session, _ struct{}) error { _, err := s.Preferences(); return err },
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
@@ -145,7 +148,8 @@ func registerPreferences(g *registrar) {
 			"only set back to secret, turning on chart icons, which they may only turn off, turning off the automatic " +
 			"update checks, which they may only turn on, and turning on the restore of the last session (the next start would " +
 			"connect clusters and run their credential plugins without a click), which they may only turn off, and switching " +
-			"on a default integration for new clusters, which they may only switch off. The default " +
+			"on a default integration for new clusters, which they may only switch off, and setting the debug container's " +
+			"image (debugImage), which they may only reset: it decides what the user's next Debug runs beside a pod's processes. The default " +
 			"integrations for new clusters (integrationDefaults) apply at once to every cluster without a choice of its own." +
 			prefsWritesOnly + " Returns the preferences.",
 		Enabled: func(s *engine.Session, _ preferencesSetParams) error { _, err := s.Preferences(); return err },
@@ -180,6 +184,9 @@ func registerPreferences(g *registrar) {
 			if err := p.refuseIntegrationDefaults(ctx); err != nil {
 				return err
 			}
+			if err := engine.RefuseDebugImage(ctx, p.DebugImage); err != nil {
+				return err
+			}
 			return refuseProxy(ctx, p.HTTPProxy)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p preferencesSetParams) (any, error) {
@@ -205,6 +212,9 @@ func registerPreferences(g *registrar) {
 				return nil, err
 			}
 			if err := p.refuseIntegrationDefaults(ctx); err != nil {
+				return nil, err
+			}
+			if err := engine.RefuseDebugImage(ctx, p.DebugImage); err != nil {
 				return nil, err
 			}
 			var helmDriver string
@@ -274,6 +284,9 @@ func registerPreferences(g *registrar) {
 				}
 				if p.KubectlEnforce != nil {
 					pr.KubectlEnforce = *p.KubectlEnforce
+				}
+				if p.DebugImage != nil {
+					pr.DebugImage = strings.TrimSpace(*p.DebugImage)
 				}
 				return nil
 			})

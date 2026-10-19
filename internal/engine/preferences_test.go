@@ -108,7 +108,8 @@ func TestPreferencesUnreadableFileIsKeptAside(t *testing.T) {
 func TestPreferencesCheckAndNormalize(t *testing.T) {
 	dir := t.TempDir()
 	bad := `{"version":1,"theme":"neon","timezone":"Mars/Olympus","tableRowHeight":3,"editorFontSize":99,` +
-		`"editorLineNumbers":false,"editorTabSize":3,"terminalFontSize":12,"terminalShell":"zsh","terminalShellArgs":["-l","a\nb"]}`
+		`"editorLineNumbers":false,"editorTabSize":3,"terminalFontSize":12,"terminalShell":"zsh","terminalShellArgs":["-l","a\nb"],` +
+		`"debugImage":"https://example.com/x"}`
 	if err := os.WriteFile(filepath.Join(dir, PreferencesFile), []byte(bad), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -118,7 +119,8 @@ func TestPreferencesCheckAndNormalize(t *testing.T) {
 	want := DefaultPreferences()
 	want.EditorLineNumbers, want.EditorTabSize, want.TerminalFontSize = false, 3, 12
 	if got.Theme != want.Theme || got.Timezone != "" || got.TableRowHeight != 0 || got.EditorFontSize != want.EditorFontSize ||
-		got.EditorLineNumbers || got.EditorTabSize != 3 || got.TerminalFontSize != 12 || got.TerminalShell != "" || got.TerminalShellArgs != nil {
+		got.EditorLineNumbers || got.EditorTabSize != 3 || got.TerminalFontSize != 12 || got.TerminalShell != "" || got.TerminalShellArgs != nil ||
+		got.DebugImage != "" {
 		t.Errorf("normalized %+v, want the good fields kept and the bad ones defaulted", got)
 	}
 
@@ -132,6 +134,7 @@ func TestPreferencesCheckAndNormalize(t *testing.T) {
 		"tab":        func(p *Preferences) { p.EditorTabSize = 0 },
 		"shell":      func(p *Preferences) { p.TerminalShell = "bin/zsh" },
 		"args":       func(p *Preferences) { p.TerminalShellArgs = []string{"ok", "two\nlines"} },
+		"debug":      func(p *Preferences) { p.DebugImage = "nicolaka/netshoot v0.16" },
 	} {
 		before, _ := s.Preferences()
 		_, err := s.ChangePreferences(func(p *Preferences) error { fn(p); return nil })

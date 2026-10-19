@@ -37,6 +37,7 @@ var DefaultStateColumns = []StateColumn{
 var statusTitles = map[Status]string{
 	StatusOK: "OK", StatusSucceeded: "Succeeded", StatusPending: "Pending", StatusWarning: "Warning",
 	StatusError: "Error", StatusTerminating: "Terminating", StatusUnknown: "Unknown", StatusStopped: "Stopped",
+	StatusEphemeral: "Ephemeral",
 }
 
 // StatusTitle names a status token as a state: "OK", "Pending"; "" for StatusNone.

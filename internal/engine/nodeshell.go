@@ -121,15 +121,22 @@ func ImagePinned(image string) bool { return imageDigest.MatchString(image) }
 // line of at most 512 bytes without spaces, a URL's scheme or control characters. Whether the
 // registry has it is the kubelet's to say.
 func CheckNodeShellImage(image string) error {
+	return checkImageReference("the node shell's image", "docker.io/library/alpine:3.24", image)
+}
+
+// checkImageReference is CheckNodeShellImage's rule for any image a setting names (what), the
+// examples naming example: empty passes, else one line of at most 512 bytes without spaces, a URL's
+// scheme or control characters.
+func checkImageReference(what, example, image string) error {
 	switch {
 	case image == "":
 		return nil
 	case len(image) > maxNodeShellImage:
-		return fmt.Errorf("the node shell's image: at most %d characters", maxNodeShellImage)
+		return fmt.Errorf("%s: at most %d characters", what, maxNodeShellImage)
 	case strings.IndexFunc(image, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) }) >= 0:
-		return errors.New("the node shell's image: a reference without spaces, such as docker.io/library/alpine:3.24@sha256:…")
+		return fmt.Errorf("%s: a reference without spaces, such as %s@sha256:…", what, example)
 	case strings.Contains(image, "://"):
-		return errors.New("the node shell's image: a reference such as docker.io/library/alpine:3.24, not a URL")
+		return fmt.Errorf("%s: a reference such as %s, not a URL", what, example)
 	}
 	return nil
 }
@@ -209,18 +216,11 @@ func NodeShellPod(name, node string, cfg NodeShellConfig) *corev1.Pod {
 // its namespace and node, the root access, the image and whether it is pinned, the pull secret,
 // and how long the pod lives at most.
 func NodeShellEffects(node string, cfg NodeShellConfig) []Effect {
-	image := cfg.Image
 	out := []Effect{
 		{Name: "Creates", Value: fmt.Sprintf("a privileged pod in namespace %s on node %s", NodeShellNamespace, node), Tone: EffectWarning},
 		{Name: "Access", Value: "root on the node: its processes and namespaces", Tone: EffectWarning},
 	}
-	if ImagePinned(image) { // the digest a row of its own: the dialog breaks it where it must
-		at := strings.LastIndex(image, "@")
-		out = append(out, Effect{Name: "Image", Value: image[:at], Tone: EffectNames}, Effect{Name: "Digest", Value: image[at+1:]})
-	} else {
-		out = append(out, Effect{Name: "Image", Value: image, Tone: EffectNames},
-			Effect{Name: "Digest", Value: "none: a floating tag, what it runs can change without Cogpit knowing", Tone: EffectWarning})
-	}
+	out = append(out, imageEffects(cfg.Image)...) // debugcontainer.go
 	if cfg.PullSecret != "" {
 		out = append(out, Effect{Name: "Pull secret", Value: cfg.PullSecret, Tone: EffectNames})
 	}

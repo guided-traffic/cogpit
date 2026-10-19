@@ -15,8 +15,8 @@ import (
 // what the tab can show (logs.sources, from the cache) and offers it in a menu; a choice dispatches
 // logs.setSource, and the buttons follow the tab as the engine reports it. Lens's log tab has a
 // pod and a container drop-down (its documentation's "View logs"); their place, the "All pods"
-// and "All containers" entries and the init containers under a heading of their own are Cogpit's
-// (inferred).
+// and "All containers" entries and the init containers and a pod's ephemeral containers (D-102)
+// under a heading of their own are Cogpit's (inferred).
 
 // Labels of the selectors' "every pod" and "every container" entries, and a group's "every
 // workload" (A81: an application's tab, whose lines start with "<workload>/<pod>/<container>").
@@ -25,6 +25,8 @@ const (
 	allContainersLabel = "All containers"
 	allWorkloadsLabel  = "All workloads"
 	initHeadingLabel   = "Init containers"
+	// ephemeralHeadingLabel heads a pod's ephemeral (debug) containers (D-102).
+	ephemeralHeadingLabel = "Ephemeral containers"
 )
 
 // maxSourceItems bounds the pods a selector's menu lists (Cogpit's default): a Daemon Set on a
@@ -183,11 +185,17 @@ func (lt *logTab) sourceMenu(src engine.LogSources, pod bool) *fyne.Menu {
 	for _, c := range src.Containers {
 		items = append(items, choice(c, c, c == cur))
 	}
-	if len(src.InitContainers) > 0 {
-		heading := fyne.NewMenuItem(initHeadingLabel, nil)
+	for _, group := range []struct {
+		heading string
+		names   []string
+	}{{initHeadingLabel, src.InitContainers}, {ephemeralHeadingLabel, src.EphemeralContainers}} {
+		if len(group.names) == 0 {
+			continue
+		}
+		heading := fyne.NewMenuItem(group.heading, nil)
 		heading.Disabled = true
 		items = append(items, fyne.NewMenuItemSeparator(), heading)
-		for _, c := range src.InitContainers {
+		for _, c := range group.names {
 			items = append(items, choice(c, c, c == cur))
 		}
 	}

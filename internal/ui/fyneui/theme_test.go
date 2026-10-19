@@ -16,7 +16,7 @@ import (
 
 var allStatuses = []model.Status{
 	model.StatusOK, model.StatusSucceeded, model.StatusPending, model.StatusWarning,
-	model.StatusError, model.StatusTerminating, model.StatusUnknown, model.StatusStopped,
+	model.StatusError, model.StatusTerminating, model.StatusUnknown, model.StatusStopped, model.StatusEphemeral,
 }
 
 func TestThemeDefinesEveryColour(t *testing.T) {
@@ -62,11 +62,20 @@ func TestForeignThemeWithoutCogpitColours(t *testing.T) {
 	}
 }
 
+// TestStatusColoursAreDistinct: every state has its own colour. Ephemeral is a kind of container,
+// not a state, and is the palette's blue on purpose, as Succeeded is (D-102): a container's square
+// is never Succeeded (a finished one is Stopped), so the two never meet in one place.
 func TestStatusColoursAreDistinct(t *testing.T) {
 	for _, v := range []fyne.ThemeVariant{theme.VariantDark, theme.VariantLight} {
 		seen := map[color.Color]model.Status{}
 		for _, s := range allStatuses {
 			c := StatusColor(s, v)
+			if s == model.StatusEphemeral {
+				if c != StatusColor(model.StatusSucceeded, v) {
+					t.Errorf("variant %d: ephemeral is %v, not the palette's blue", v, c)
+				}
+				continue
+			}
 			if other, dup := seen[c]; dup {
 				t.Errorf("variant %d: %s and %s share colour %v", v, s, other, c)
 			}

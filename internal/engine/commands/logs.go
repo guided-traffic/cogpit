@@ -25,7 +25,7 @@ type logSourceParams struct {
 	ID        string  `json:"id" jsonschema:"logs tab id as ui_state lists it, e.g. logs-1"`
 	Workload  *string `json:"workload,omitempty" jsonschema:"an application's tab only: the workload to show, one logs_sources lists; empty: every workload"`
 	Pod       *string `json:"pod,omitempty" jsonschema:"the pod to show, one logs_sources lists; empty: every pod of a controlling resource's tab (a pod's tab shows one pod)"`
-	Container *string `json:"container,omitempty" jsonschema:"the container to show, one logs_sources lists (an init container too); empty: every container of a controlling resource's tab (a pod's tab shows one)"`
+	Container *string `json:"container,omitempty" jsonschema:"the container to show, one logs_sources lists (an init container too, and in a pod's tab an ephemeral one); empty: every container of a controlling resource's tab (a pod's tab shows one)"`
 }
 
 // workloadLogVerbs are what a controlling resource's logs cost: the pods' (and for a Deployment
@@ -129,7 +129,8 @@ func registerLogs(g *registrar) {
 			"a controlling resource (allPods true) its pods, and the containers of the pod the tab shows or of every " +
 			"pod; for an application's tab (application_logs, argocd_logs, flux_logs) also its workloads by name, the " +
 			"pods then of the workload it shows or of every one; for a pod's tab the pods of the resource that controls " +
-			"it (the pod alone if none does) and the pod's containers. Init containers are listed apart. Makes no API " +
+			"it (the pod alone if none does) and the pod's containers. Init containers are listed apart, and a pod's " +
+			"tab lists its ephemeral (debug) containers apart too (ephemeralContainers). Makes no API " +
 			"request once the pods are cached.",
 		Enabled: func(s *engine.Session, p dockParams) error { _, err := s.LogsTab(p.ID); return err },
 		Run: func(ctx context.Context, s *engine.Session, p dockParams) (any, error) {

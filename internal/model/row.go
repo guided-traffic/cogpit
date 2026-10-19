@@ -103,10 +103,13 @@ type CellBar struct {
 	Detail string  `json:"detail,omitempty"`
 }
 
-// CellMark is one square of a cell drawn in marks.
+// CellMark is one square of a cell drawn in marks. Hollow draws it as an outline in its status
+// colour instead of filled: an ephemeral container that has finished, which stays in the pod's
+// status as long as the pod exists (D-102).
 type CellMark struct {
 	Text   string `json:"text"`
 	Status Status `json:"status,omitempty"`
+	Hollow bool   `json:"hollow,omitempty"`
 }
 
 // CellPart is one run of a cell's text in its own status colour; StatusNone draws it in the

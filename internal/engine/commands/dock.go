@@ -19,7 +19,7 @@ type DockResult struct {
 
 type containerParams struct {
 	Ref       model.ObjectRef `json:"ref" jsonschema:"the pod"`
-	Container string          `json:"container,omitempty" jsonschema:"container name; empty means the pod's first container"`
+	Container string          `json:"container,omitempty" jsonschema:"container name: one of the pod's containers, init containers or ephemeral (debug) containers; empty means the pod's first container"`
 }
 
 type dockParams struct {
@@ -181,7 +181,8 @@ func podRef(ref model.ObjectRef) error {
 }
 
 // podContainer resolves a pod reference from the cache and picks its container: the given one,
-// which must be one of the pod's containers or init containers, or the pod's first container.
+// which must be one of the pod's containers, init containers or ephemeral containers (D-102), or
+// the pod's first container.
 func podContainer(ctx context.Context, s *engine.Session, p containerParams) (model.ObjectRef, string, error) {
 	if err := podRef(p.Ref); err != nil {
 		return p.Ref, "", err

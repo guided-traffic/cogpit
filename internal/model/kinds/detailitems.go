@@ -10,6 +10,10 @@ const (
 	fieldImage          = "image"
 	fieldContainers     = "containers"
 	fieldInitContainers = "initContainers"
+	// fieldEphemeralContainers and fieldTargetContainer: a pod's ephemeral (debug) containers and the
+	// container one targets, whose processes it sees (D-102).
+	fieldEphemeralContainers = "ephemeralContainers"
+	fieldTargetContainer     = "targetContainerName"
 )
 
 // put appends a prepared item (chips, a link, a fold), dropping it when its value is empty, as add

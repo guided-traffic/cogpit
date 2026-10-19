@@ -1362,7 +1362,7 @@ func (c *tableCell) apply() {
 		}
 		for i, r := range c.marks {
 			if i < len(marks) {
-				r.FillColor = themeColor(th, markColorName(marks[i].Status))
+				paintMark(r, themeColor(th, markColorName(marks[i].Status)), marks[i].Hollow)
 			}
 		}
 	}
@@ -1499,11 +1499,15 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 // squares give way until the count fits beside them; apply colours the count by the hidden
 // containers' gravest state (moreStatus), so that "+1" in the Running colour tells a running
 // container behind finished init containers.
+//
+// At most maxCellMarks squares show however wide the column is: a pod debugged often collects
+// finished ephemeral containers (they stay as long as the pod), which come last and are counted
+// (D-102).
 func (c *tableCell) fitMarks(th fyne.Theme, avail float32) string {
 	size, gap := markSize(th)
 	marks := *c.content.marks
 	n := len(marks)
-	c.shown = max(0, min(n, int((avail+gap)/(size+gap)))) // a cell not laid out yet has no room
+	c.shown = max(0, min(n, maxCellMarks, int((avail+gap)/(size+gap)))) // a cell not laid out yet has no room
 	c.truncated = c.shown < n
 	if !c.truncated {
 		return ""
@@ -1522,10 +1526,28 @@ func (c *tableCell) colourMore(th fyne.Theme) {
 	}
 }
 
+// maxCellMarks is how many squares a cell draws at most; the rest are counted (fitMarks).
+// markStroke is a hollow square's outline.
+const (
+	maxCellMarks = 12
+	markStroke   = 1.5
+)
+
+// paintMark colours a square: filled in col, or for a hollow mark (an ephemeral container that has
+// finished, D-102) an outline in col on nothing.
+func paintMark(r *canvas.Rectangle, col color.Color, hollow bool) {
+	if hollow {
+		r.FillColor, r.StrokeColor, r.StrokeWidth = color.Transparent, col, markStroke
+		return
+	}
+	r.FillColor, r.StrokeColor, r.StrokeWidth = col, color.Transparent, 0
+}
+
 // moreStatus is the gravest state among hidden squares: an error, a warning, one waiting, one
-// running, else stopped.
+// running, an ephemeral container, else stopped.
 func moreStatus(hidden []model.CellMark) model.Status {
-	rank := map[model.Status]int{model.StatusError: 5, model.StatusWarning: 4, model.StatusPending: 3, model.StatusOK: 2, model.StatusStopped: 1}
+	rank := map[model.Status]int{model.StatusError: 6, model.StatusWarning: 5, model.StatusPending: 4, model.StatusOK: 3,
+		model.StatusEphemeral: 2, model.StatusStopped: 1}
 	best := model.StatusStopped
 	for _, m := range hidden {
 		if rank[m.Status] > rank[best] {
@@ -1629,8 +1651,9 @@ func (c *tableCell) layout(size fyne.Size) {
 			r.Hide()
 			continue
 		}
-		r.Move(fyne.NewPos(pad+float32(i)*(ms+mg), (size.Height-ms)/2))
-		r.Resize(fyne.NewSize(ms, ms))
+		in := r.StrokeWidth / 2 // an outline (a hollow mark) is drawn centred on the edge: inset, it is as large as a filled one
+		r.Move(fyne.NewPos(pad+float32(i)*(ms+mg)+in, (size.Height-ms)/2+in))
+		r.Resize(fyne.NewSize(ms-2*in, ms-2*in))
 		r.Show()
 	}
 }

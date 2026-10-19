@@ -14,6 +14,7 @@ import (
 var commandIcons = map[string]fyne.ThemeIconName{
 	"pod.attach":          theme.IconNameMailAttachment,
 	"pod.shell":           theme.IconNameComputer,
+	"pod.debug":           theme.IconNameSearch, // a magnifier: looking into the pod (D-102)
 	"node.shell":          theme.IconNameComputer,
 	"pod.evict":           theme.IconNameContentRemove,
 	"pod.logs":            theme.IconNameList,

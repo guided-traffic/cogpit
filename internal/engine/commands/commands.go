@@ -48,6 +48,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerChartDrawer(g)
 	registerWorkloadActions(g)
 	registerAttach(g)
+	registerDebugContainer(g) // a pod's debug (ephemeral) container (D-102)
 	registerLogs(g)
 	registerCopy(g)
 	registerTables(g)

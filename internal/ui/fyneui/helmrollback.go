@@ -154,6 +154,7 @@ type dialogConfirmation struct {
 	uid     string
 	detail  string // the confirmation's detail, which names what the dialog chose (the revision)
 	until   time.Time
+	moved   error // what another object under the name gives; nil: errMovedWhileOpen (a release's)
 }
 
 // rollbackDetail is the engine's confirmation detail of a rollback to revision (the engine's
@@ -183,6 +184,17 @@ func (c *guiConfirmer) confirmedByDialog(command string, ref model.ObjectRef, ui
 	return c.answers.c
 }
 
+// confirmedByDialogOr is confirmedByDialog for another kind of object than a release: moved is the
+// error when the object under the name is no longer the one the dialog showed (the Debug dialog's
+// pod, debugdialog.go).
+func (c *guiConfirmer) confirmedByDialogOr(command string, ref model.ObjectRef, uid, detail string, moved error) *dialogConfirmation {
+	c.answers.mu.Lock()
+	defer c.answers.mu.Unlock()
+	c.answers.c = &dialogConfirmation{command: command, ref: ref, uid: uid, detail: detail, until: time.Now().Add(dialogConfirmWindow),
+		moved: moved}
+	return c.answers.c
+}
+
 // dropDialogAnswer forgets answer if no confirmation took it: its dispatch ended, so it must not
 // confirm another one in its window.
 func (c *guiConfirmer) dropDialogAnswer(answer *dialogConfirmation) {
@@ -206,6 +218,9 @@ func (c *guiConfirmer) takeDialogAnswer(req engine.ConfirmRequest) (ok, handled 
 	}
 	c.answers.c = nil
 	if len(req.UIDs) != 1 || a.uid == "" || req.UIDs[0] != a.uid {
+		if a.moved != nil {
+			return false, true, a.moved
+		}
 		return false, true, errMovedWhileOpen
 	}
 	return true, true, nil

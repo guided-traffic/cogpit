@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -38,6 +39,22 @@ type AttachOptions struct {
 // output as "[cogpit] attach ended: …"; Read then returns io.EOF. Closing the session detaches;
 // the process goes on.
 func StartPodAttach(ctx context.Context, config *rest.Config, client kubernetes.Interface, opts AttachOptions) (Session, error) {
+	return StartPodAttachAfter(ctx, config, client, opts, AttachWait{})
+}
+
+// AttachWait is what an attach waits for before its stream connects: a container that has not
+// started yet (an ephemeral container just added, D-102), whose attach the API server would
+// refuse. Notice is written first, while Before runs; Before's error ends the session with
+// "[cogpit] attach ended: …". The zero value waits for nothing.
+type AttachWait struct {
+	Notice string
+	Before func(ctx context.Context) error
+}
+
+// StartPodAttachAfter is StartPodAttach after wait: its notice, then Before, then the line that
+// says what the session is attached to, then the stream. Closing the session during Before cancels
+// it.
+func StartPodAttachAfter(ctx context.Context, config *rest.Config, client kubernetes.Interface, opts AttachOptions, wait AttachWait) (Session, error) {
 	if opts.Namespace == "" || opts.Pod == "" {
 		return nil, errors.New("attach: namespace and pod are required")
 	}
@@ -48,7 +65,13 @@ func StartPodAttach(ctx context.Context, config *rest.Config, client kubernetes.
 	if err != nil {
 		return nil, fmt.Errorf("attach %s/%s: %w", opts.Namespace, opts.Pod, err)
 	}
-	return startStreamMode(ctx, exec, streamMode{tty: opts.TTY, stdin: opts.Stdin, what: "attach", notice: attachNotice(opts)}), nil
+	mode := streamMode{tty: opts.TTY, stdin: opts.Stdin, what: "attach", notice: attachNotice(opts)}
+	if wait.Before == nil {
+		return startStreamMode(ctx, exec, mode), nil
+	}
+	after := mode.notice
+	mode.notice = printable(strings.TrimRight(wait.Notice, "\r\n")) + "\r\n"
+	return startStreamMode(ctx, beforeExecutor{exec: exec, before: wait.Before, after: after}, mode), nil
 }
 
 // attachRequest is the request kubectl attach sends: POST pods/<pod>/attach with the container,

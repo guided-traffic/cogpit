@@ -18,7 +18,10 @@ import (
 // (DockTab.Container), an init container among them; its merged stream follows the narrowing
 // without opening the streams that stay again (workloadlogs.go). A pod's tab shows one container
 // of one pod and switches to another of its containers, or to another pod of the resource that
-// controls it, by opening its stream again. Every list comes from the cache.
+// controls it, by opening its stream again. Every list comes from the cache. A pod's tab offers
+// its ephemeral (debug) containers too (D-102); a controlling resource's tab does not: an
+// ephemeral container belongs to one pod and is in no template, so the merged stream stays with
+// the template's containers (the lead's choice, D-102).
 
 // LogSources are what a logs tab's selectors offer.
 type LogSources struct {
@@ -31,9 +34,11 @@ type LogSources struct {
 	// controls it (the pod alone when none does).
 	Pods []string `json:"pods"`
 	// Containers are the containers' names: of the tab's pod, or for a controlling resource's
-	// tab of the pod it narrows to, else of every pod; InitContainers the init containers' apart.
-	Containers     []string `json:"containers"`
-	InitContainers []string `json:"initContainers,omitempty"`
+	// tab of the pod it narrows to, else of every pod; InitContainers the init containers' apart,
+	// EphemeralContainers a pod's tab's ephemeral (debug) containers apart.
+	Containers          []string `json:"containers"`
+	InitContainers      []string `json:"initContainers,omitempty"`
+	EphemeralContainers []string `json:"ephemeralContainers,omitempty"`
 }
 
 // logSelection is what a controlling resource's tab narrows to, and a group's tab to one of its
@@ -62,9 +67,10 @@ func (s *Session) LogSources(ctx context.Context, id string) (LogSources, error)
 			return LogSources{}, err
 		}
 		return LogSources{
-			Pods:           objectNames(s.podSiblings(ctx, *tab.Ref, pod)),
-			Containers:     containerNames(pod, "containers"),
-			InitContainers: containerNames(pod, "initContainers"),
+			Pods:                objectNames(s.podSiblings(ctx, *tab.Ref, pod)),
+			Containers:          containerNames(pod, "containers"),
+			InitContainers:      containerNames(pod, "initContainers"),
+			EphemeralContainers: containerNames(pod, specEphemeralContainers),
 		}, nil
 	}
 	pods, workloads, err := s.tabPods(ctx, tab, tab.Logs.Workload)
