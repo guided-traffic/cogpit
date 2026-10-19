@@ -683,14 +683,14 @@ func TestLogDownloadSavesWhatTheTabShows(t *testing.T) {
 	if got := savedLogs(t, lt.view.DownloadLines()); len(got) != len(demoMerged) || got[4] != shown(4) || got[0] != shown(0) {
 		t.Errorf("unfiltered, saved %q", got)
 	}
-	for title, want := range map[string]string{
-		"Logs: Deployment checkout-api": "Deployment_checkout-api.log",
-		"Logs: web-0/app":               "web-0_app.log",
-		"Logs: \x1b]0;x\a":              "]0;x.log",
-		"":                              "logs.log",
+	for _, c := range []struct{ title, cluster, want string }{
+		{"Logs: Deployment checkout-api", "kind-cogpit", "Deployment_checkout-api-kind-cogpit.log"},
+		{"Logs: web-0/app", "arn:aws:eks:eu-central-1:1:cluster/prod", "web-0_app-arn_aws_eks_eu-central-1_1_cluster_prod.log"},
+		{"Logs: \x1b]0;x\a", "", "0_x.log"},
+		{"", "", "logs.log"},
 	} {
-		if got := logFileName(title); got != want {
-			t.Errorf("logFileName(%q) = %q, want %q", title, got, want)
+		if got := logFileName(c.title, c.cluster); got != c.want {
+			t.Errorf("logFileName(%q, %q) = %q, want %q", c.title, c.cluster, got, c.want)
 		}
 	}
 	// The button opens the save dialog over the window.

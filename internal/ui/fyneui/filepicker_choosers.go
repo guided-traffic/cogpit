@@ -144,7 +144,7 @@ func (lt *logTab) saveLines() {
 		return
 	}
 	sh := lt.sh
-	if sh.files.save(nativedialog.SaveOptions{Title: "Download Logs", Name: logFileName(lt.tab.Title)}, func(path string) {
+	if sh.files.save(nativedialog.SaveOptions{Title: "Download Logs", Name: lt.fileName()}, func(path string) {
 		lines := lt.view.DownloadLines()
 		go func() {
 			defer sh.recoverTo("logs download")

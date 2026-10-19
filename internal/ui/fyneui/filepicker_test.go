@@ -320,7 +320,7 @@ func TestLogSavePanel(t *testing.T) {
 	p.savePath = filepath.Join(t.TempDir(), "checkout.log")
 	test.Tap(lt.download)
 	q.until(t, "the file", func() bool { fi, err := os.Stat(p.savePath); return err == nil && fi.Size() > 0 })
-	if o := p.lastSave(t); o.Name != "Deployment_checkout-api.log" || len(o.Types) != 0 {
+	if o := p.lastSave(t); o.Name != "Deployment_checkout-api-demo.log" || len(o.Types) != 0 {
 		t.Errorf("save panel %+v", o)
 	}
 	fh, err := os.Open(p.savePath)

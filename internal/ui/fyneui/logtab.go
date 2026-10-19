@@ -329,7 +329,7 @@ func (lt *logTab) saveDialog() {
 			})
 		}()
 	}, lt.sh.win)
-	d.SetFileName(logFileName(lt.tab.Title))
+	d.SetFileName(lt.fileName())
 	d.Show()
 }
 
@@ -342,21 +342,42 @@ func saveLogs(w io.WriteCloser, lines []string) error {
 	return err
 }
 
-// logFileName is the file name a download proposes: the tab's title, made safe for a file
-// system, ".log".
-func logFileName(title string) string {
-	name := strings.TrimSpace(strings.TrimPrefix(title, "Logs:"))
-	name = strings.Map(func(r rune) rune {
-		switch {
-		case r == '/' || r == '\\' || r == ':' || r == ' ':
-			return '_'
-		case r < 0x20 || r == 0x7f:
-			return -1
+// fileName is the name a download of the tab proposes (logFileName).
+func (lt *logTab) fileName() string {
+	cluster := ""
+	if lt.tab.Context != "" {
+		cluster = lt.sh.identity(lt.tab.Context).name // the name the window shows (D-68)
+	}
+	return logFileName(lt.tab.Title, cluster)
+}
+
+// logFileName is the file name a download proposes, as a table's CSV is named (D-85, the lead's
+// option of the walk of 2026-10-19: "<pod>_<container>.log" beside "<view>-<cluster>.csv"):
+// "<what>-<cluster>.log", what the tab's title names ("web-0_app", "Deployment_checkout-api") and the
+// cluster by the name the window shows, every run of characters but letters, digits, dots, dashes
+// and underscores one underscore.
+func logFileName(title, cluster string) string {
+	clean := func(s string) string {
+		var b strings.Builder
+		under := false
+		for _, r := range s {
+			switch {
+			case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+				b.WriteRune(r)
+				under = false
+			case !under:
+				b.WriteByte('_')
+				under = true
+			}
 		}
-		return r
-	}, name)
+		return strings.Trim(b.String(), "_.")
+	}
+	name := clean(strings.TrimPrefix(strings.TrimSpace(title), "Logs:"))
 	if name == "" {
 		name = "logs"
+	}
+	if c := clean(cluster); c != "" {
+		name += "-" + c
 	}
 	return name + ".log"
 }
