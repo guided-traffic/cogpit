@@ -729,7 +729,8 @@ func TestARunPastItsBoundThatCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	if run, on := watch.Current(); !on || !run.Until.IsZero() || run.Since.IsZero() {
 		t.Errorf("the run past its bound: %+v (under way %v), want its begin and no end", run, on)
 	}
-	if told.Load() <= begun {
+	// The watch hears of it on a goroutine of its own (notifyAll): wait for it, never assume it ran.
+	if !testkit.WaitFor(wait, func() bool { return told.Load() > begun }) {
 		t.Error("the watch was not told when Cogpit stopped waiting for the run")
 	}
 	select {
