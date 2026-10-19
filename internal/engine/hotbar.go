@@ -19,7 +19,9 @@ import (
 // bottom; Cogpit has one hotbar (the owner's decision of 2026-10-17, D-83): it holds as many tiles
 // as the user pins, and the bar scrolls when they do not fit. F1–F12 open the first twelve.
 // Inferred (Cogpit's): the tiles are packed in order without empty cells; a context is pinned once;
-// a tile whose context no kubeconfig source offers any more stays, marked missing.
+// a tile whose context no kubeconfig source offers any more stays, marked missing, when its file
+// went away by itself; removing its source, or Remove from Cogpit, takes it off (the owner's WF45,
+// D-101, dropHotbarTilesOfSource).
 //
 // The hotbar is engine state (UIState.Hotbar) so that agents see and drive what the user sees; the
 // GUI changes it only through the hotbar.* commands. It is Cogpit's own preference: kept in a file
@@ -72,7 +74,8 @@ type HotbarTile struct {
 	// shown or not, as UIState.Connections has it; disconnected without one).
 	Connection ConnectionState `json:"connection,omitempty"`
 	// Missing is set when no kubeconfig source offers the context any more (its file or folder
-	// went away, or the context was renamed): the tile stays until the user removes it.
+	// went away, or the context was renamed): the tile stays until the user removes it. Removing
+	// the context's source, or Remove from Cogpit, removes its tile with it (D-101).
 	Missing bool `json:"missing,omitempty"`
 	// Exec is the approval state of the context's credential plugin (ContextInfo.Exec), so that the
 	// GUI shows the plugin for approval before it connects; empty when it needs none.

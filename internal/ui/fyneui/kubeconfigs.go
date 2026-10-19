@@ -88,7 +88,7 @@ func (k *kubeconfigUI) menuItems() []*fyne.MenuItem {
 	return []*fyne.MenuItem{
 		fyne.NewMenuItemSeparator(),
 		fyne.NewMenuItem("Sync Files and Folders…", k.addKubeconfigs),
-		fyne.NewMenuItem("Kubeconfig Sources…", k.showSources),
+		fyne.NewMenuItem(sourcesLabel, k.showSources),
 	}
 }
 

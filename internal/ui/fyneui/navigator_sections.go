@@ -688,13 +688,16 @@ func (n *navSections) showMenu(items []*fyne.MenuItem, pos fyne.Position) {
 }
 
 // navSectionRootRow is the section's root: "Local Kubeconfigs" with "Kubernetes Clusters" and the
-// number of clusters below it. Its menu (right-click) adds kubeconfigs.
+// number of clusters below it, and a "−" at its right that opens Kubeconfig Sources…, where synced
+// files and folders are removed (the owner's WF44 of 2026-10-19: the dialog was hard to find; the
+// header's "+" adds them). Its menu (right-click) adds kubeconfigs and opens the sources.
 type navSectionRootRow struct {
 	widget.BaseWidget
 	n        *navSections
 	icon     *widget.Icon
 	title    *textLine
 	sub      *textLine
+	sources  *navIconButton // "−": Kubeconfig Sources…
 	body     fyne.CanvasObject
 	bg, ring *canvas.Rectangle
 	hovered  bool
@@ -713,8 +716,11 @@ func newNavSectionRootRow(n *navSections) *navSectionRootRow {
 	r.sub = newTextLine(navSectionParent, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.title.truncate, r.sub.truncate = true, true
 	side := sized(sizeNavBadge, sizeNavBadge, container.NewCenter(r.icon)) // the clusters' badges' column
+	r.sources = newNavIconButton(n.s.sh, theme.ContentRemoveIcon(), sourcesTip, func() { n.s.sh.kc.showSources() }) // kc is made after the sidebar
+	// The "−" on the title's line, so that the line under it keeps the row's width.
+	titleLine := container.NewBorder(nil, nil, nil, r.sources, r.title)
 	r.body = inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
-		container.NewCenter(side), nil, container.NewVBox(layout.NewSpacer(), r.title, r.sub, layout.NewSpacer())))
+		container.NewCenter(side), nil, container.NewVBox(layout.NewSpacer(), titleLine, r.sub, layout.NewSpacer())))
 	r.ExtendBaseWidget(r)
 	return r
 }
@@ -735,11 +741,19 @@ func (r *navSectionRootRow) Tapped(*fyne.PointEvent) {
 }
 
 // TappedSecondary implements fyne.SecondaryTappable: Add Kubeconfigs… (the Sync Files and Folders
-// dialog; Cogpit's, inferred).
+// dialog; Cogpit's, inferred) and Kubeconfig Sources… (WF44).
 func (r *navSectionRootRow) TappedSecondary(ev *fyne.PointEvent) {
 	sh := r.n.s.sh
-	r.n.showMenu([]*fyne.MenuItem{fyne.NewMenuItem("Add Kubeconfigs…", sh.kc.addKubeconfigs)}, ev.AbsolutePosition)
+	r.n.showMenu([]*fyne.MenuItem{fyne.NewMenuItem("Add Kubeconfigs…", sh.kc.addKubeconfigs),
+		fyne.NewMenuItem(sourcesLabel, sh.kc.showSources)}, ev.AbsolutePosition)
 }
+
+// sourcesLabel opens the dialog of the kubeconfig sources; sourcesTip is the section row's "−"
+// that opens it (WF44).
+const (
+	sourcesLabel = "Kubeconfig Sources…"
+	sourcesTip   = "Kubeconfig Sources…: remove synced files and folders"
+)
 
 // MouseIn implements desktop.Hoverable.
 func (r *navSectionRootRow) MouseIn(ev *desktop.MouseEvent) {

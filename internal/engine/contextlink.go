@@ -190,9 +190,36 @@ func (s *Session) RemoveKubeconfigSource(id string) (KubeconfigSource, error) {
 		s.CloseGoneSourceConnection() // a connection made from the source's files ends with the link
 		s.closeTabsOfSource(k, src)
 		s.forgetSettingsOfSource(k, src)
+		s.dropHotbarTilesOfSource(k, src)
 		s.emit(Event{Type: EventContexts})
 	}
 	return src, err
+}
+
+// dropHotbarTilesOfSource takes the removed source's contexts that no source offers any more off
+// the hotbar (the owner's WF45 of 2026-10-19: "Ein entfernter Cluster wird automatisch auch aus der
+// Hotbar entfernt."): removing a source and Remove from Cogpit are the user's own acts. A file that
+// went away by itself keeps its tile, marked missing (HotbarTile.Missing): it may come back, and
+// its tile keeps its place. When the sources cannot be read, nothing is dropped on a guess.
+func (s *Session) dropHotbarTilesOfSource(k *KubeconfigSources, src KubeconfigSource) {
+	if s.opts.Hotbar == nil {
+		return
+	}
+	offered, err := offeredContexts(k)
+	if err != nil {
+		return
+	}
+	gone := func(t HotbarTile) bool { return ofSource(src, t.Context) && !offered[t.Context] }
+	st, err := s.HotbarState()
+	if err != nil || !slices.ContainsFunc(st.Clusters, gone) {
+		return
+	}
+	if _, err := s.ChangeHotbar(func(h *HotbarState) error {
+		h.Clusters = slices.DeleteFunc(h.Clusters, gone)
+		return nil
+	}); err != nil {
+		s.log.Warn("hotbar: the tiles of a removed source stay", "source", src.ID, "err", err)
+	}
 }
 
 // closeTabsOfSource closes the tabs of the removed source's contexts that no source offers any

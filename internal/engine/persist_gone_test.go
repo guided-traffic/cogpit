@@ -125,3 +125,49 @@ func TestTabsCloseWhenTheirFileLeavesASyncFolder(t *testing.T) {
 		return msg == "Closed 2 tabs of a [synced/a.yaml]: its kubeconfig file is gone."
 	})
 }
+
+// Removing a source, as Remove from Cogpit does, takes its clusters off the hotbar (the owner's
+// WF45 of 2026-10-19); a tile of a context another source still offers, and one whose file went
+// away by itself, stay (the latter marked missing).
+func TestRemovedSourceLeavesTheHotbar(t *testing.T) {
+	root := t.TempDir()
+	fileA, fileB := filepath.Join(root, "a.yaml"), filepath.Join(root, "b.yaml")
+	writeUserFile(t, fileA, sourceKubeconfig("a"))
+	writeUserFile(t, fileB, sourceKubeconfig("b"))
+	k := NewKubeconfigSources(filepath.Join(t.TempDir(), "Cogpit"))
+	srcA, _, err := k.AddFile(fileA)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := k.AddFile(fileB); err != nil {
+		t.Fatal(err)
+	}
+	fc := &fakeConnector{src: testkit.NewMemorySource(), profiles: testProfiles()}
+	s := New(Options{Connector: sourceConnector{fakeConnector: fc, k: k, file: map[string]string{"a [a.yaml]": fileA, "b [b.yaml]": fileB}},
+		Hotbar: NewHotbar(t.TempDir()), SnapshotInterval: 5 * time.Millisecond})
+	t.Cleanup(s.Close)
+	if _, err := s.ChangeHotbar(func(h *HotbarState) error {
+		h.Clusters = []HotbarTile{{Context: "a [a.yaml]"}, {Context: "b [b.yaml]"}}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.RemoveKubeconfigSource(srcA.ID); err != nil {
+		t.Fatal(err)
+	}
+	st, _ := s.HotbarState()
+	if got := tiles(st); got != "b [b.yaml]" {
+		t.Errorf("tiles after removing a.yaml: %q", got)
+	}
+	if h := s.UIState().Hotbar; h == nil || len(h.Clusters) != 1 {
+		t.Errorf("the UI's hotbar %+v", h)
+	}
+	// b's file goes by itself: its tile stays, marked missing.
+	if err := os.Remove(fileB); err != nil {
+		t.Fatal(err)
+	}
+	view, _ := s.HotbarView()
+	if len(view.Clusters) != 1 || !view.Clusters[0].Missing {
+		t.Errorf("the gone file's tile %+v", view.Clusters)
+	}
+}

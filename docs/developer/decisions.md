@@ -109,6 +109,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-95](#d-95-the-window-comes-back-where-it-was) | The window comes back where it was | the owner's WF11 (2026-10-17): the window always opened at 1440 × 900 in the middle; built 2026-10-18 with the lead's decisions, open to revision: its last size, place, display and full screen at every start, whatever Restore the last session says, from `window.json` (written half a second after a change and at quit); the display found by id or name and the frame moved with it, else the one it overlaps most, fitted into its visible area; on no display the first start's window; full screen once Cogpit is active; Windows and Linux the size and full screen only; not engine state, no command |
 | [D-96](#d-96-the-service-proxys-port-spelled-by-its-number-first) | The service proxy's port spelled by its number first | the owner's mgmt-p finding (2026-10-18 evening) and his choice: Prometheus and Alertmanager asked as `<service>:<number>` first, then `<service>:<name>`; a refusal no longer ends detection; built 2026-10-18 |
 | [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | the owner's WF39 and WF40 of 2026-10-19: every connect a run of its own; showing another cluster ends only the window's wait, the connect goes on in the background with a toast at its end; a failed connect never shows the cluster shown before (the owner: "Immer"); built 2026-10-19 with the lead's decisions, open to revision |
+| [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | the owner's WF44 and WF45 of 2026-10-19: a "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…; removing a source or Remove from Cogpit takes its clusters' tiles off the hotbar, a file gone by itself keeps its tile marked missing; built 2026-10-19 with the lead's decisions, open to revision |
 
 ## Decision round 2026-10-14 evening
 
@@ -9037,6 +9038,30 @@ engine; `TestAFailedConnectStaysOnItsCluster` in the window; PNGs
 **Not verified:** a real browser login (OIDC, Pinniped) left in the background and finished there;
 the walk's fake plugins on kind against this build; several runs in the background at once against
 real clusters.
+
+## D-101: The kubeconfig sources at hand, and a removed cluster leaves the hotbar
+
+**The owner's findings (walk of 2026-10-19 on v0.26.1, verbatim).** WF44: "Die Maske zum entfernen
+von Sync-Files/Folders fand ich hilfreich, hätte nur nicht gewusst wo ich diese finden kann. Es
+fehlt neben \"Local Kubeconfigs\" ein Minus ganz rechts um diese Maske aufzurufen." WF45: "Ein
+Entfernter Cluster wird automatisch auch aus der Hotbar entfernt." (read as a wish: by design a tile
+whose context no source offered stayed, marked missing, until the user removed it).
+
+**Built 2026-10-19**, the lead's decisions, open to revision:
+
+| Decision | Options weighed | Chosen | Why |
+|---|---|---|---|
+| Where the "−" sits (WF44) | the navigator's header beside its "+"; the Local Kubeconfigs row | **at the right of the Local Kubeconfigs row, on its title's line** ([`navigator_sections.go`](../../internal/ui/fyneui/navigator_sections.go) `navSectionRootRow.sources`), its tooltip "Kubeconfig Sources…: remove synced files and folders"; the row's right-click menu has Kubeconfig Sources… beside Add Kubeconfigs… | Where the owner looked for it; on the title's line the "Kubernetes Clusters · 4 clusters" under it keeps the row's width (on the whole row's height it was cut to "4 cl…") |
+| What the "−" does | remove a source at once; open the dialog | **opens Kubeconfig Sources…**, where each source is removed after its confirmation | The owner asked for the dialog ("diese Maske aufzurufen"); a source holds several clusters, and removing one is confirmed there |
+| Which removals drop a tile (WF45) | every way a context leaves Cogpit; the user's own acts only | **the user's own acts**: removing a source (`kubeconfig.remove`, the dialog) and Remove from Cogpit (`cluster.remove`) take the tiles of the contexts no source offers any more off the hotbar (`Session.dropHotbarTilesOfSource`, beside the tabs and cluster settings they forget already); **a file that went away by itself keeps its tile, marked missing** | A file that is back after a moment (a sync tool, an editor's save by rename, an unmounted volume) would lose its tile and place for nothing; the user who removed a source meant its clusters to go |
+| A source of the session (`$KUBECONFIG`) | keep its tiles as its settings are kept; drop them | **drop them** like any other source's | The owner's words name no exception; the session file offers the context again at the next start, where the user pins it again if wanted |
+
+Tests: `TestRemovedSourceLeavesTheHotbar` (a removed source's tile goes, another source's stays, a gone
+file's stays marked missing), `TestSectionRootMinusOpensTheSources`, `TestNavigatorSectionRowMenu`;
+the navigator's PNGs ([dark](../../internal/ui/fyneui/testdata/navigator_section_dark.png),
+[light](../../internal/ui/fyneui/testdata/navigator_section_light.png)).
+
+**Not verified:** in a real window.
 
 ## Revision history
 

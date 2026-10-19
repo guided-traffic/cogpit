@@ -422,7 +422,7 @@ func TestNavigatorSectionRowMenu(t *testing.T) {
 		t.Errorf("the connected cluster's menu %q", got)
 	}
 	n.root.TappedSecondary(&fyne.PointEvent{})
-	if got := labels(); !slices.Equal(got, []string{"Add Kubeconfigs…"}) {
+	if got := labels(); !slices.Equal(got, []string{"Add Kubeconfigs…", sourcesLabel}) {
 		t.Errorf("the root's menu %q", got)
 	}
 }
@@ -581,4 +581,16 @@ func renderNavigatorFind(t *testing.T, mode ThemeMode, name string) {
 	q.until(t, "the search reported", func() bool { return sh.ui.Navigator.Search == "pro" })
 	settle(w)
 	savePNG(t, w, name)
+}
+
+// The section root's "−" opens Kubeconfig Sources… (the owner's WF44 of 2026-10-19), as its menu
+// does.
+func TestSectionRootMinusOpensTheSources(t *testing.T) {
+	sh, _, q, _ := sectionScene(t, ThemeDark)
+	r := sh.side.sec.root
+	if !r.sources.Visible() || r.sources.tip != sourcesTip {
+		t.Fatalf("the root row's minus: visible %v, tip %q", r.sources.Visible(), r.sources.tip)
+	}
+	test.Tap(r.sources)
+	q.until(t, "the sources dialog", func() bool { return sh.kc.sources != nil })
 }
