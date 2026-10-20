@@ -8,7 +8,8 @@ package fyneui
 */
 import "C"
 
-// reduceMotion reports macOS's Reduce motion (System Settings › Accessibility › Display): the
-// connection's dots then do not blink (conndot.go). A property read, cheap: the blinker reads it
-// whenever a blink starts, so a change shows with the next (re)connect.
-func reduceMotion() bool { return C.cogpitReduceMotion() != 0 }
+// systemReduceMotion reports macOS's Reduce motion (System Settings › Accessibility › Display),
+// which stops Cogpit's motion as its own preference does (shell.reduceMotion, preferences_motion.go).
+// A property read, cheap: it is read whenever a motion would start, so a change shows with the
+// next one.
+func systemReduceMotion() bool { return C.cogpitReduceMotion() != 0 }

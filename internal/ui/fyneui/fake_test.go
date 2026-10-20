@@ -699,8 +699,9 @@ func newTestShell(t testing.TB, f *fakeEngine, opts Options) (*shell, fyne.Windo
 	q := &mainQueue{}
 	sh := newShell(f, a, w, opts, q.do)
 	sh.now = func() time.Time { return fixedNow }
-	sh.kc.startDir = t.TempDir // no test lists the developer's home directory or ~/.kube
-	sh.confirmer.armDelay = 0  // tests tap at once; TestConfirmationsOneAtATimeAndArmed covers the delay
+	sh.kc.startDir = t.TempDir                     // no test lists the developer's home directory or ~/.kube
+	sh.systemReduce = func() bool { return false } // the computer's Reduce motion stays out of the tests
+	sh.confirmer.armDelay = 0                      // tests tap at once; TestConfirmationsOneAtATimeAndArmed covers the delay
 	f.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

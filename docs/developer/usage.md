@@ -35,7 +35,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app first; Windows and Linux (Ubuntu first) after the macOS beta *(planned)*.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20).
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
@@ -399,6 +399,23 @@ it on restores the session of your last quit. Security note: on, the next start 
 and runs their login programs without a click, so only you, in Cogpit's window, can turn it on;
 agents and the CLI may only turn it off.
 
+### Preferences › App: reduce motion
+
+Since 2026-10-20 ([D-107](decisions.md#d-107-the-navigator-slides-and-reduce-motion), the owner's
+request): **off by default**, the navigator slides. Going into a cluster moves its tree in from the
+right over All Clusters, ‹ All Clusters moves it out to the right again; showing another cluster
+while a cluster's tree shows (a tab of another cluster with Mixed environments on, a hotbar tile, an
+agent) slides vertically: a cluster listed above the shown one in All Clusters comes in from above
+and pushes the old one down, one listed below comes in from below. Every change of the navigator's
+scope slides, an agent's too; the first view at start does not. On, nothing in Cogpit moves: the
+navigator switches at once, a dragged hotbar tile or tab jumps to its place instead of gliding, and
+a reconnecting cluster's dot stays steady at half strength instead of blinking. macOS's own Reduce
+motion (System Settings › Accessibility › Display) does the same, whatever the preference says.
+
+| Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
+|---|---|---|
+| `reduceMotion` | `false` # default | on: the window switches at once where it would slide or blink; agents may set it either way, it changes only how the window moves |
+
 ### The window's place and size
 
 Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
@@ -713,8 +730,8 @@ interrupted cluster in the background disables the changes to it only, and its s
 - The cluster's dot blinks green, slowly (half a second on, half a second dimmed), everywhere it
   shows: the top bar, the status bar, its hotbar tile, the navigator, the welcome page. No word
   stands beside it; its tooltip says **Reconnecting…**, since when, why and the next attempt, and a
-  click on it opens the cluster's connection updates. Under macOS's Reduce motion it stays a steady,
-  paler green. A banner over the view says which cluster, since when, why, and when Cogpit tries
+  click on it opens the cluster's connection updates. Under Reduce motion (Cogpit's [preference](#preferences--app-reduce-motion)
+  or macOS's) it stays a steady, paler green. A banner over the view says which cluster, since when, why, and when Cogpit tries
   next; **Reconnect** connects anew at once ([below](#reconnect-a-new-connection-from-the-kubeconfig-file);
   since 2026-10-16, the owner's F13: dots, never words).
 - The views, the tabs, the drawer and the dock stay as they were, showing the cluster as of the

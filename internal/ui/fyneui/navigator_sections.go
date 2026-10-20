@@ -274,6 +274,27 @@ func (n *navSections) groups(filter string) (keys []string, byGroup map[string][
 	return keys, byGroup
 }
 
+// listedAbove reports whether All Clusters lists context a above context b, searched or collapsed
+// or not: the order a change of cluster slides in (navigator_slide.go). A context not listed is
+// below every other.
+func (n *navSections) listedAbove(a, b string) bool {
+	keys, byGroup := n.groups("")
+	ia, ib := -1, -1
+	i := 0
+	for _, g := range keys {
+		for _, c := range byGroup[g] {
+			switch c.Name {
+			case a:
+				ia = i
+			case b:
+				ib = i
+			}
+			i++
+		}
+	}
+	return ia >= 0 && (ib < 0 || ia < ib)
+}
+
 // groupOpen reports whether a source group shows its clusters: the user has not collapsed it, or a
 // search is on.
 func (n *navSections) groupOpen(g string) bool { return n.s.filter != "" || !n.collapsed[g] }

@@ -175,6 +175,9 @@ type shell struct {
 	iconLoading map[string]bool
 	// charts are the Helm charts' icons the window fetched (helmcharticons.go, D-46).
 	charts chartIconCache
+	// systemReduce reads macOS's Reduce motion (reducemotion_darwin.go); tests replace it, so that
+	// the computer's setting does not reach them (shell.reduceMotion, preferences_motion.go).
+	systemReduce func() bool
 }
 
 // newShell builds every widget. Nothing talks to the engine until start.
@@ -198,6 +201,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.titlebar = newTitlebar(sh)
 	sh.loadWidths() // before the drawer, which wraps its values to the width it will have
 
+	sh.systemReduce = systemReduceMotion
 	sh.blink = newBlinker(sh) // before the bars, whose dots it refreshes
 	sh.top = newTopBar(sh)
 	sh.side = newSidebar(sh)

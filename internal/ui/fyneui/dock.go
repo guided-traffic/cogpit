@@ -85,7 +85,7 @@ type dockEditor interface {
 
 func newDock(sh *shell) *dock {
 	d := &dock{sh: sh, contents: map[string]*dockContent{}}
-	d.drag = newStripDrag(nil)
+	d.drag = newStripDrag(nil, sh.reduceMotion)
 	d.tabRow = container.New(&stripLayout{d: d.drag})
 	d.drag.row = d.tabRow
 	d.drag.idOf = func(o fyne.CanvasObject) string {

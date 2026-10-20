@@ -69,7 +69,7 @@ type click struct {
 
 func newTabBar(sh *shell) *tabBar {
 	b := &tabBar{sh: sh, now: time.Now}
-	b.drag = newStripDrag(nil)
+	b.drag = newStripDrag(nil, sh.reduceMotion)
 	b.row = container.New(&stripLayout{d: b.drag})
 	b.drag.row = b.row
 	b.drag.idOf = func(o fyne.CanvasObject) string {

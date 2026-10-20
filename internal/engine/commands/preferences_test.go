@@ -91,6 +91,13 @@ func TestPreferencesCommands(t *testing.T) {
 	if u := s.UIState().Preferences; u == nil || u.Theme != "light" {
 		t.Errorf("ui_state shows %+v", u)
 	}
+	// Less motion is the agents' too, either way: it changes only how the window moves.
+	for _, on := range []bool{true, false} {
+		var got commands.PreferencesResult // omitempty: a false is left out of the result
+		if err := dispatch(t, s, agent, "preferences.set", map[string]any{"reduceMotion": on}, &got); err != nil || got.Preferences.ReduceMotion != on {
+			t.Errorf("an agent's reduceMotion %v: %v, %v", on, err, got.Preferences.ReduceMotion)
+		}
+	}
 	for _, origin := range []engine.Origin{agent, engine.OriginBuiltInAgent, engine.OriginCLI} {
 		for _, params := range []map[string]any{{"terminalShell": "/bin/sh"}, {"terminalShellArgs": []string{"-c", "touch /tmp/x"}}} {
 			if err := dispatch(t, s, origin, "preferences.set", params, nil); !errors.Is(err, engine.ErrShellGUIOnly) {

@@ -66,7 +66,7 @@ func connectionColor(c engine.Connection) fyne.ThemeColorName {
 type blinker struct {
 	sh     *shell
 	now    func() time.Time
-	reduce func() bool // Reduce motion (reducemotion_darwin.go), read when a blink starts
+	reduce func() bool // Reduce motion (shell.reduceMotion), read when a blink starts
 	ticker func(on bool)
 
 	blinks map[string]*blink // the clusters that blink, by context
@@ -87,7 +87,7 @@ type blink struct {
 func (k *blink) on(now time.Time) bool { return k != nil && (k.live || now.Before(k.until)) }
 
 func newBlinker(sh *shell) *blinker {
-	b := &blinker{sh: sh, now: time.Now, reduce: reduceMotion, blinks: map[string]*blink{}}
+	b := &blinker{sh: sh, now: time.Now, reduce: sh.reduceMotion, blinks: map[string]*blink{}}
 	b.ticker = b.runTicker
 	return b
 }

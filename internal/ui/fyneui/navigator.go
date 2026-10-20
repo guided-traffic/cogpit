@@ -94,8 +94,11 @@ func newNavTree(s *sidebar) *navTree {
 	return t
 }
 
-// CreateRenderer implements fyne.Widget.
-func (t *navTree) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(t.scroll) }
+// CreateRenderer implements fyne.Widget: the rows on the sidebar's colour, so that the tree covers
+// the section level while it slides over it (navigator_slide.go).
+func (t *navTree) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewStack(newSurface(colorSidebar), t.scroll))
+}
 
 // IsBranchOpen reports whether the user opened a group (a search shows every group open without
 // changing this).

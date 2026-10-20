@@ -156,6 +156,12 @@ type Preferences struct {
 	// 2026-10-20, GW11: "mixed environments", at the foot of the navigator's All Clusters; TabsShown).
 	// Agents and the CLI may set it either way: it changes only which tabs the bar shows.
 	MixedEnvironments bool `json:"mixedEnvironments,omitempty"`
+	// ReduceMotion: the window switches at once where it would slide, between All Clusters and a
+	// cluster's tree and from one cluster's tree to another's; off, the default, it slides (the
+	// owner, 2026-10-20: "weniger Bewegung", for those who do not like the animations;
+	// fyneui/navigator_slide.go). Agents and the CLI may set it either way: it changes only how the
+	// window moves.
+	ReduceMotion bool `json:"reduceMotion,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's

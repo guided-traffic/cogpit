@@ -36,7 +36,7 @@ import (
 //     cluster, would start in ended; it waits for the owner's decision on several windows (D-52).
 //   - Near the top or the bottom edge of a bar whose tiles do not fit, the bar scrolls by itself,
 //     the faster the closer the pointer is to the edge.
-//   - Reduce motion (macOS, reducemotion_darwin.go, read at the lift): no slide, no glide and no
+//   - Reduce motion (Cogpit's preference or macOS's, shell.reduceMotion, read at the lift): no slide, no glide and no
 //     lift; the tiles and the ghost jump to their places.
 //   - A drag shorter than minTileDrag is the click that slipped: it opens the cluster, as the click
 //     would have (Fyne taps only what was not dragged, and its driver counts two points as a drag).
@@ -84,7 +84,7 @@ type tileDrag struct {
 	float *fyne.Container // a layer over the whole window, without a layout (shell.go): the ghost
 	ghost *hotbarTile
 
-	reduce  func() bool // Reduce motion (reducemotion_darwin.go)
+	reduce  func() bool // Reduce motion (shell.reduceMotion)
 	still   bool        // Reduce motion at the lift: the tiles and the ghost jump
 	animate func(d time.Duration, tick func(float32)) (stop func())
 
@@ -95,7 +95,7 @@ type tileDrag struct {
 }
 
 func newTileDrag(h *hotbar) *tileDrag {
-	return &tileDrag{h: h, float: container.NewWithoutLayout(), reduce: reduceMotion, animate: runAnimation, from: -1, to: -1}
+	return &tileDrag{h: h, float: container.NewWithoutLayout(), reduce: h.sh.reduceMotion, animate: runAnimation, from: -1, to: -1}
 }
 
 // runAnimation runs tick over d with Fyne's animation, eased out, and returns how to stop it.

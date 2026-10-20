@@ -182,7 +182,10 @@ type sidebar struct {
 	head     *navHeader
 	tree     *navTree
 	sec      *navSections // the section level, shown in the tree's place at the section scope
+	slide    *navSlide    // the tree sliding over the section level and back (navigator_slide.go)
 	section  bool         // the section level shows (the scope applied last)
+	scoped   bool         // a scope was applied: the next change slides
+	shownAt  string       // the cluster of the scope applied last; "" at the section
 	children map[string][]string
 	titles   map[string]string
 	parents  map[string]string // node id → its branch's id; "" for a top-level item
@@ -241,9 +244,10 @@ func newSidebar(sh *shell) *sidebar {
 	s.sec.Hide() // until the first UI state says which scope shows (scopeChanged)
 	s.head = newNavHeader(s)
 	s.rootRow = newNavRootRow(s)
+	s.slide = newNavSlide(s)
 	// The header before the tree in the objects, so that Tab goes from the search field into the
 	// tree (container.NewBorder would put the tree first).
-	s.root = container.New(layout.NewBorderLayout(s.head.root, nil, nil, nil), s.head.root, container.NewStack(s.tree, s.sec))
+	s.root = container.New(layout.NewBorderLayout(s.head.root, nil, nil, nil), s.head.root, s.slide.clip)
 	s.tree.rebuild()
 	s.initNavigatorState()
 	return s
@@ -267,8 +271,14 @@ func (s *sidebar) scopeChanged() {
 	if s.sec.loadSeq == 0 {
 		s.sec.load() // at either level: the clusters are read before ⌘P or ‹ All Clusters shows them
 	}
-	section := s.sh.ui.ScopeCluster() == ""
-	if section == s.section && s.sec.Visible() == section {
+	cluster := s.sh.ui.ScopeCluster()
+	section := cluster == ""
+	animate, before := s.scoped, s.shownAt // the first scope the window shows does not slide
+	s.scoped, s.shownAt = true, cluster
+	if section == s.section {
+		if animate && !section && before != "" && cluster != before {
+			s.slide.swap(s.sec.listedAbove(cluster, before)) // another cluster's tree (navigator_slide.go)
+		}
 		return
 	}
 	from := s.sh.ui.Context
@@ -283,15 +293,16 @@ func (s *sidebar) scopeChanged() {
 	if s.head.searching() {
 		s.head.closeSearch()
 	}
+	// Both levels show while the tree slides over the clusters or away from them (navigator_slide.go).
 	if section {
-		s.tree.Hide()
 		s.sec.Show()
 		s.sec.shownFrom(from)
+		s.slide.to(1, animate, s.tree.Hide)
 	} else {
-		s.sec.Hide()
 		s.tree.Show()
 		s.tree.focus = rootNode
 		s.tree.rebuild()
+		s.slide.to(0, animate, s.sec.Hide)
 	}
 	if hadKeys {
 		s.tree.pointer, s.sec.pointer = !byKeys, !byKeys

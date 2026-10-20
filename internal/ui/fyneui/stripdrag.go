@@ -26,7 +26,8 @@ import (
 //     that order until the state it shows has the move. A drop far above or below the strip (more
 //     than its height away), on the tab's own place, or after the tabs changed under the drag (an
 //     agent moved, opened or closed one) moves nothing: the tabs slide back.
-//   - Reduce motion (macOS, read at the lift): no slide and no glide; the tabs jump.
+//   - Reduce motion (Cogpit's preference or macOS's, shell.reduceMotion, read at the lift): no slide
+//     and no glide; the tabs jump.
 //   - A drag shorter than minTileDrag is the click that slipped: it does what the click would have,
 //     shows the tab or, pressed on its ×, closes it, since Fyne taps only what was not dragged (and
 //     starts a drag of the tab after 2 points, the × being no draggable of its own).
@@ -77,8 +78,8 @@ type stripDrag struct {
 	stopSlide, stopGlide func()
 }
 
-func newStripDrag(row *fyne.Container) *stripDrag {
-	return &stripDrag{row: row, reduce: reduceMotion, animate: runAnimation, from: -1, to: -1, dx: map[string]float32{}}
+func newStripDrag(row *fyne.Container, reduce func() bool) *stripDrag {
+	return &stripDrag{row: row, reduce: reduce, animate: runAnimation, from: -1, to: -1, dx: map[string]float32{}}
 }
 
 // carries reports whether the tab id is lifted or landing: it is drawn raised.

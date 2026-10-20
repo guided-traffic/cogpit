@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 9 | 110 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
 | Platform rows (packages, authentication, versions, tools, display) | 38 | 18 | 0 | 18 | 20 |
-| Beyond Lens (not in feature breadth) | 73 | 71 | 60 | 11 | 2 |
+| Beyond Lens (not in feature breadth) | 74 | 72 | 61 | 11 | 2 |
 
 Not counted: 10 interface rows that are not a target, 5 platform rows that are paid or have nothing to build.
 
@@ -358,6 +358,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | The cluster's Kubernetes version in the navigator's cluster row with a warning symbol when it is past its end of life and how long it has l… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A namespace stuck in Terminating says what holds it: its drawer lists the objects whose finalizers keep it, with links, deleted ones vanish… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Debug containers: ephemeral containers stand out in blue among a pod's containers in the Pods list; a drawer icon adds one, asking for the… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| The navigator moves: going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window (owner, 2026-10-14 evening) | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |

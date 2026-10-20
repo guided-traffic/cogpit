@@ -62,6 +62,8 @@ type preferencesSetParams struct {
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
 	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the title bar names (false, the default); ui_state's tabs list every tab either way"`
+	// ReduceMotion: whether the window slides (fyneui/navigator_slide.go).
+	ReduceMotion *bool `json:"reduceMotion,omitempty" jsonschema:"whether the window switches at once where it would slide (true): between All Clusters and a cluster's tree, and from one cluster's tree to another's; false, the default, it slides"`
 }
 
 // shellChange reports whether the parameters change the local terminal's shell or arguments.
@@ -125,7 +127,9 @@ func registerPreferences(g *registrar) {
 			"(checkForUpdates) and on which channel (updateChannel), whether the next start restores the last session " +
 			"(restoreSession: its tabs and connections), the integrations off for clusters without a choice of their own " +
 			"(integrationsOff, the default for new clusters; absent: every one on), the image Debug offers for a pod's debug " +
-			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest); kept says whether they outlive this run. " +
+			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest), whether the tab bar shows " +
+			"every cluster's tabs (mixedEnvironments) and whether the window switches at once instead of sliding (reduceMotion); " +
+			"kept says whether they outlive this run. " +
 			"ui_state carries the same.",
 		Enabled: func(s *engine.Session, _ struct{}) error { _, err := s.Preferences(); return err },
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
@@ -274,6 +278,7 @@ func registerPreferences(g *registrar) {
 				setIf(&pr.CheckForUpdates, p.CheckForUpdates)
 				setIf(&pr.RestoreSession, p.RestoreSession)
 				setIf(&pr.MixedEnvironments, p.MixedEnvironments)
+				setIf(&pr.ReduceMotion, p.ReduceMotion)
 				if p.UpdateChannel != nil {
 					pr.UpdateChannel = strings.TrimSpace(*p.UpdateChannel)
 					if pr.UpdateChannel == "" {
