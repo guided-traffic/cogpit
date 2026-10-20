@@ -910,14 +910,15 @@ installs none.
   (`namespace/service:port`), **Use HTTPS** and **Path prefix** in the cluster's Settings ›
   Alertmanager (its own section since 2026-10-18); empty finds it by name again. The line under the
   address says which one is in use. The board's settings link opens that section.
-- **The pill,** left of the bell: red while an alert is critical, orange while one is a warning
-  (also `major` and any other or missing severity), yellow while one is info, the bell's colour
-  without alerts; its number is every alert, `99+` beyond 99, and the tooltip counts them by
-  severity. Alerts of severity `none` and the meta alerts Watchdog and InfoInhibitor are left out. A
-  dash means nothing answered yet: still looking, none found, not allowed or not answering (the
-  tooltip says which). When the Alertmanager stops answering, the pill keeps its last count for 5
-  minutes and its tooltip says since when. The pill is not there while the integration is off for
-  the cluster shown.
+- **The pill,** left of the bell, a warning sign the bell's size and a number as tall: red while an
+  alert is critical, orange while one is a warning (also `major` and any other or missing
+  severity), yellow while one is info, green with `0` while the Alertmanager answers with none; its
+  number is every alert, `99+` beyond 99, and the tooltip counts them by severity. Alerts of
+  severity `none` and the meta alerts Watchdog and InfoInhibitor are left out. Grey with `warn`
+  means nothing answers: none found, not allowed or not answering (the tooltip says which); grey
+  with a dash while Cogpit still looks for it. When the Alertmanager stops answering, the pill keeps
+  its last count for 5 minutes and its tooltip says since when, then turns grey. The pill is not
+  there while the integration is off for the cluster shown.
 - **The board,** a click on the pill or Alerts in the command palette (⌘⇧P): a fold per severity, worst first, in each a
   card per alert name with its count (the pointer on a card's head shows a copy icon right after its name);
   per alert its summary (a click shows the description), how

@@ -20,11 +20,14 @@ import (
 // engine/alerts.go): the owner's colours (2026-10-17) by the worst active alert, Solarized's
 // status tokens: red (the error token) from a critical alert, orange (the warning token) from a
 // warning, major or unlabelled one, yellow (the pending token, Solarized yellow) from an info one,
-// the bell's colour without alerts; its number is every alert shown, "99+" beyond 99. A click opens
-// the alert board (alerts.open). Hidden while the Alertmanager integration is off for the shown
-// cluster, while no cluster is shown and for the demo cluster; a dash in the bell's colour while
-// nothing has answered (looking for it, none found, not allowed, not answering), the tooltip says
-// which. Cogpit's own; Lens's title bar has no such pill.
+// green (the ok token) with "0" while Alertmanager answers with none (the owner, 2026-10-20); its
+// number is every alert shown, "99+" beyond 99. A click opens the alert board (alerts.open). Hidden
+// while the Alertmanager integration is off for the shown cluster, while no cluster is shown and for
+// the demo cluster; grey (the unknown token) with "warn" while the integration is on and nothing
+// answers (none found, not allowed, not answering; the owner, 2026-10-20), with a dash while the
+// first look runs (the lead's, open to revision); the tooltip says which. The triangle is the bell's
+// size, the number as tall as the triangle, a padding between them, and both inside the pill (the
+// owner, 2026-10-20). Cogpit's own; Lens's title bar has no such pill.
 type alertsButton struct {
 	widget.BaseWidget
 	sh        *shell
@@ -84,23 +87,26 @@ func (b *alertsButton) set(sum *engine.AlertsSummary) {
 	b.update()
 }
 
-// colour is the pill's colour token: the worst alert's, the bell's without alerts or an answer.
+// colour is the pill's colour token: the worst alert's, green without alerts, grey without an
+// answer.
 func (b *alertsButton) colour() fyne.ThemeColorName {
 	if !b.sum.Answered {
-		return theme.ColorNameForeground
+		return colorStatusUnknown
 	}
 	if s := engine.AlertSeverityStatus(b.sum.Worst); s != "" {
 		return statusColorName(s)
 	}
-	return theme.ColorNameForeground
+	return colorStatusOK
 }
 
-// countText is the number in the pill: every alert shown, "99+" beyond 99; a dash without an
-// answer.
+// countText is the number in the pill: every alert shown, "99+" beyond 99; without an answer "warn",
+// a dash while the first look runs.
 func (b *alertsButton) countText() string {
 	switch n := b.sum.Total; {
-	case !b.sum.Answered:
+	case !b.sum.Answered && b.sum.State == engine.AlertsChecking:
 		return "–"
+	case !b.sum.Answered:
+		return "warn"
 	case n > 99:
 		return "99+"
 	default:
@@ -183,20 +189,26 @@ type alertsRenderer struct {
 	count *canvas.Text
 }
 
-// metrics are the pill's inner sizes: the icon's side, the padding at its ends and between the
-// icon and the number, and the pill's height (a line of caption text with the pill's padding, as
-// the status bar's pills).
+// metrics are the pill's inner sizes: the icon's side (the bell's), the padding at its ends and
+// between the icon and the number, and the pill's height (the icon with the padding).
 func (r *alertsRenderer) metrics() (icon, pad, height float32) {
 	th := r.b.Theme()
 	pad = th.Size(theme.SizeNamePadding)
-	text := fyne.MeasureText("Mg", th.Size(theme.SizeNameCaptionText), r.count.TextStyle).Height
-	icon = text
-	return icon, pad, text + pad
+	icon = bellIcon(th)
+	return icon, pad, icon + pad
 }
+
+// countSize is the number's text size: its digits as tall as the warning sign drawn in an icon of
+// the bell's side (both measured in the renders, 13 pixels at scale 1).
+func countSize(th fyne.Theme) float32 { return bellIcon(th) }
+
+// countRise lifts the number by this share of its text size: a text's box holds the line's
+// descent below the digits, so a box centred in the pill puts the digits low (measured).
+const countRise = 0.08
 
 func (r *alertsRenderer) MinSize() fyne.Size {
 	icon, pad, h := r.metrics()
-	return fyne.NewSize(2*pad+icon+pad/2+r.count.MinSize().Width, h)
+	return fyne.NewSize(2*pad+icon+pad+r.count.MinSize().Width, h)
 }
 
 func (r *alertsRenderer) Layout(size fyne.Size) {
@@ -210,7 +222,7 @@ func (r *alertsRenderer) Layout(size fyne.Size) {
 	r.img.img.Move(fyne.NewPos(x+pad, y+(h-icon)/2))
 	r.img.img.Resize(fyne.NewSize(icon, icon))
 	ts := r.count.MinSize()
-	r.count.Move(fyne.NewPos(x+pad+icon+pad/2, y+(h-ts.Height)/2))
+	r.count.Move(fyne.NewPos(x+pad+icon+pad, y+(h-ts.Height)/2-countRise*r.count.TextSize))
 	r.count.Resize(ts)
 }
 
@@ -220,7 +232,7 @@ func (r *alertsRenderer) Refresh() {
 	fg := themeColor(th, c)
 	r.img.set(th, theme.WarningIcon(), c)
 	r.count.Text = r.b.countText()
-	r.count.TextSize = th.Size(theme.SizeNameCaptionText)
+	r.count.TextSize = countSize(th)
 	r.count.Color = fg
 	alpha := uint8(0x2c) // as a tinted pill's (widgets.go)
 	if r.b.hovered {

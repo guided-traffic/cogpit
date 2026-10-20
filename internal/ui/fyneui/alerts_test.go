@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/alerting"
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -49,12 +48,13 @@ func TestTopBarRightOrder(t *testing.T) {
 	}
 }
 
-// The alerts pill (D-54 changed by D-77): hidden without the shown cluster's Alertmanager (off, no
-// cluster, the demo cluster); a dash in the bell's colour until it answered; then the number of
-// every alert in the worst one's colour: red from a critical, orange from a warning (major and
-// unlabelled ones count as warning in the engine), yellow from an info alert, the bell's colour
-// without alerts; "99+" beyond 99; a failing Alertmanager keeps its last answer, the tooltip says
-// so; a click opens the board.
+// The alerts pill (D-54 changed by D-77, the owner's look of 2026-10-20): hidden without the shown
+// cluster's Alertmanager (off, no cluster, the demo cluster); grey with a dash while the first look
+// runs, grey with "warn" while nothing answers; then the number of every alert in the worst one's
+// colour: red from a critical, orange from a warning (major and unlabelled ones count as warning in
+// the engine), yellow from an info alert, green with "0" without alerts; "99+" beyond 99; a failing
+// Alertmanager keeps its last answer, the tooltip says so; the sign and the number inside the pill;
+// a click opens the board.
 func TestAlertsPill(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, w, q := newTestShell(t, f, Options{})
@@ -71,10 +71,10 @@ func TestAlertsPill(t *testing.T) {
 		text   string
 		tip    string
 	}{
-		{"checking", engine.AlertsSummary{State: engine.AlertsChecking}, theme.ColorNameForeground, "–", "looking for"},
-		{"not found", engine.AlertsSummary{State: engine.AlertsNotFound, Detail: "no Alertmanager found"}, theme.ColorNameForeground, "–", "no Alertmanager found in this cluster"},
-		{"forbidden", engine.AlertsSummary{State: engine.AlertsForbidden, Detail: "the current user may not use the service proxy"}, theme.ColorNameForeground, "–", "may not use the service proxy"},
-		{"none", engine.AlertsSummary{State: engine.AlertsFound, Answered: true}, theme.ColorNameForeground, "0", "No active alerts"},
+		{"checking", engine.AlertsSummary{State: engine.AlertsChecking}, colorStatusUnknown, "–", "looking for"},
+		{"not found", engine.AlertsSummary{State: engine.AlertsNotFound, Detail: "no Alertmanager found"}, colorStatusUnknown, "warn", "no Alertmanager found in this cluster"},
+		{"forbidden", engine.AlertsSummary{State: engine.AlertsForbidden, Detail: "the current user may not use the service proxy"}, colorStatusUnknown, "warn", "may not use the service proxy"},
+		{"none", engine.AlertsSummary{State: engine.AlertsFound, Answered: true}, colorStatusOK, "0", "No active alerts"},
 		{"info", engine.AlertsSummary{State: engine.AlertsFound, Answered: true, Total: 2, Info: 2, Worst: "info"}, colorStatusPending, "2", "Alerts: 2 info"},
 		{"warning", engine.AlertsSummary{State: engine.AlertsFound, Answered: true, Total: 4, Warning: 3, Info: 1, Worst: "warning"}, colorStatusWarning, "4", "Alerts: 3 warning, 1 info"},
 		{"critical", engine.AlertsSummary{State: engine.AlertsFound, Answered: true, Total: 38, Critical: 4, Warning: 33, Info: 1, Worst: "critical"}, colorStatusError, "38", "Alerts: 4 critical, 33 warning, 1 info"},
@@ -86,6 +86,21 @@ func TestAlertsPill(t *testing.T) {
 		a.set(&sum)
 		if !a.Visible() || a.colour() != c.colour || a.countText() != c.text || !strings.Contains(a.tipText(), c.tip) {
 			t.Errorf("%s: visible %v, colour %v, text %q, tip %q; want %v, %q, %q", c.name, a.Visible(), a.colour(), a.countText(), a.tipText(), c.colour, c.text, c.tip)
+		}
+		settle(w)
+		// The sign and the number inside the pill (the owner, 2026-10-20): both within its width,
+		// the sign within its height; the number's box holds the line's descent below the digits,
+		// so it is taller than the pill, its digits measured inside it in the renders.
+		r := test.WidgetRenderer(a).(*alertsRenderer)
+		bg, pill := r.bg.Position(), r.bg.Size()
+		for _, o := range []fyne.CanvasObject{r.img.img, r.count} {
+			at, sz := o.Position().Subtract(bg), o.Size()
+			if at.X < 0 || at.X+sz.Width > pill.Width {
+				t.Errorf("%s: %T at %v size %v reaches out of the pill %v", c.name, o, at, sz, pill)
+			}
+		}
+		if at, sz := r.img.img.Position().Subtract(bg), r.img.img.Size(); at.Y < 0 || at.Y+sz.Height > pill.Height {
+			t.Errorf("%s: the sign at %v size %v reaches out of the pill %v", c.name, at, sz, pill)
 		}
 	}
 	if bell := sh.top.notes.bell; a.MinSize().Height > bell.MinSize().Height {
@@ -104,8 +119,8 @@ func TestAlertsPill(t *testing.T) {
 	}
 }
 
-// The top bar's right part with the alerts pill in each colour, for review: no alerts, info,
-// warning, critical, and a dash while none answered.
+// The top bar's right part with the alerts pill in each colour, for review: no alerts (green 0),
+// info, warning, critical, and "warn" in grey while none answers.
 func TestRenderTopBarAlertsDark(t *testing.T) { renderTopBarAlerts(t, ThemeDark) }
 
 func TestRenderTopBarAlertsLight(t *testing.T) { renderTopBarAlerts(t, ThemeLight) }
