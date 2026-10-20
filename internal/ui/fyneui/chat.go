@@ -46,6 +46,8 @@ type chatPanel struct {
 
 	root      *fyne.Container
 	convTitle *textLine
+	agentHead *bracketLabel // "agent · <model>", in the agent's violet
+	thinking  *thinkingWave // under the header while a reply is written
 	historyB  *tipButton
 	newB      *tipButton
 	closeB    *tipButton
@@ -100,7 +102,8 @@ type parsedAnswer struct {
 func newChatPanel(sh *shell) *chatPanel {
 	c := &chatPanel{sh: sh, agent: sh.eng.Chat(), expanded: map[string]bool{}, parsed: map[int]parsedAnswer{}}
 	c.shownID.Store("")
-	title := newTextLine("Agent", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
+	c.agentHead = newBracketLabel("agent", colorAgent)
+	c.thinking = newThinkingWave(sh)
 	c.closeB = newTipButton(sh, theme.CancelIcon(), "Hide the chat (⌘I)", func() {
 		sh.dispatch("chat.toggle", chatToggleParams{Open: new(false)}, nil)
 	})
@@ -108,10 +111,10 @@ func newChatPanel(sh *shell) *chatPanel {
 	c.convTitle.truncate = true
 	c.historyB = newTipButton(sh, theme.HistoryIcon(), "Conversations about this cluster", c.showHistory)
 	c.newB = newTipButton(sh, iconNewChat, "New conversation", c.newConversation)
-	row1 := inset(theme.SizeNameInnerPadding, "", container.NewBorder(nil, nil, nil, c.closeB, container.NewVBox(layout.NewSpacer(), title, layout.NewSpacer())))
+	row1 := inset(theme.SizeNameInnerPadding, "", container.NewBorder(nil, nil, nil, c.closeB, container.NewVBox(layout.NewSpacer(), c.agentHead, layout.NewSpacer())))
 	row2 := inset(theme.SizeNameInnerPadding, "", container.NewBorder(nil, nil, nil, container.NewHBox(c.historyB, c.newB),
 		container.NewVBox(layout.NewSpacer(), c.convTitle, layout.NewSpacer())))
-	header := container.NewVBox(row1, row2, newDivider(false))
+	header := container.NewVBox(row1, row2, fixedSpace(0, 4), c.thinking.w, fixedSpace(0, 4), newDivider(false))
 
 	c.list = newVStack(theme.SizeNameInnerPadding)
 	c.list.gapX = 2
@@ -203,6 +206,7 @@ func (c *chatPanel) show(on bool) {
 		sh.chatRow.Objects = []fyne.CanvasObject{sh.chatSplit}
 	} else {
 		sh.chatRow.Objects = []fyne.CanvasObject{sh.center}
+		c.thinking.set(false) // no animation runs for a column nobody sees; the next read starts it again
 		c.closePopups()
 		if f := sh.win.Canvas().Focused(); f == c.input.entry {
 			sh.win.Canvas().Unfocus()
@@ -215,6 +219,7 @@ func (c *chatPanel) show(on bool) {
 		if !c.loaded || c.stale || (c.conv != nil && c.sh.ui.Context != "" && c.conv.Context != c.sh.ui.Context) {
 			c.load()
 		}
+		c.thinking.set(c.running())
 		if c.requested {
 			sh.win.Canvas().Focus(c.input.entry)
 		}
@@ -461,6 +466,9 @@ func (c *chatPanel) refreshChrome() {
 		title = c.conv.Title
 	}
 	c.convTitle.SetText(title)
+	cn, ok := c.connection()
+	c.agentHead.SetText(agentHeadText(cn.Name, cn.Model, ok))
+	c.thinking.set(c.running())
 	c.empty.refresh()
 	c.input.refresh()
 }

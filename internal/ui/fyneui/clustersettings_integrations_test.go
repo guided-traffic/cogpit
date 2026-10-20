@@ -349,7 +349,7 @@ func TestIntegrationSections(t *testing.T) {
 	}
 	if b := p.navItems[engine.SectionIntegrations]; b == nil || b.Text != "" || !within(p.nav, b) {
 		t.Error("the Integrations heading is no item of the list")
-	} else if !slices.ContainsFunc(findAll[*textLine](p.nav), func(l *textLine) bool { return l.text == "INTEGRATIONS" }) {
+	} else if !slices.ContainsFunc(findAll[*bracketLabel](p.nav), func(l *bracketLabel) bool { return l.text == "integrations" }) {
 		t.Error("the heading's label")
 	}
 	if b := p.navItems["kyverno"]; b.Importance != widget.HighImportance {
@@ -382,10 +382,10 @@ func navLabels(p *settingsPage) []string {
 	var out []string
 	for _, o := range p.nav.Objects {
 		switch x := o.(type) {
-		case *widget.Button:
+		case *navItem:
 			out = append(out, x.Text)
 		case *fyne.Container:
-			if lines := findAll[*textLine](x); len(lines) > 0 {
+			if lines := findAll[*bracketLabel](x); len(lines) > 0 {
 				out = append(out, lines[0].text)
 			} else {
 				out = append(out, "—")

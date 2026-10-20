@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -57,7 +56,7 @@ func reviewBlock(text string, width float32) fyne.CanvasObject {
 
 // confirmDialog is one shown confirmation.
 type confirmDialog struct {
-	d       *dialog.CustomDialog
+	d       *dialogFrame
 	confirm *widget.Button
 	cancel  *widget.Button
 }
@@ -135,10 +134,6 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(reviewBlock(req.Review, width))
 	}
-	if destructive && !req.Undoable { // only where something is lost (A101)
-		content.Add(newSpace(theme.SizeNamePadding))
-		content.Add(newParagraph("This cannot be undone.", colorStatusError, width))
-	}
 	if hint := c.sh.allowanceHint(req); hint != "" { // Cluster Settings › Agents (clustersettings_agents.go)
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(newParagraph(hint, colorMuted, width))
@@ -153,14 +148,28 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	cd.confirm.Importance = widget.HighImportance
 	if destructive {
 		cd.confirm.Importance = widget.DangerImportance
-		cd.confirm.SetIcon(theme.WarningIcon())
+		// No icon: the word, the red fill and the rim say it (design-language.md), and a glyph in the
+		// button would be a fourth way of saying the same.
 	}
 	cd.cancel = widget.NewButton("Cancel", nil)
-	title := label + "?"
-	if req.Origin.IsAgent() {
-		title = "An agent asks: " + title
+	// The card says who asks and what is at stake (design-language.md): a request an agent made carries
+	// a violet "asked by · agent" over the title; a destructive one a rim in the error colour, which
+	// outranks the agent's violet (the eyebrow still names the agent). The rim is never the only signal:
+	// the button is red and says the verb, and "This cannot be undone." stays in words.
+	cd.d = newDialogFrame(c.sh, dialogTitle(label+"?"))
+	cd.d.setContent(content)
+	if destructive && !req.Undoable { // only where something is lost (A101): in the footer, with the buttons
+		cd.d.setNote("This cannot be undone.", colorStatusError)
 	}
-	cd.d = dialog.NewCustomWithoutButtons(title, content, c.sh.win)
+	if req.Origin.IsAgent() {
+		cd.d.setEyebrow("asked by · agent", colorAgent)
+	}
+	switch {
+	case destructive:
+		cd.d.setRim(colorStatusError)
+	case req.Origin.IsAgent():
+		cd.d.setRim(colorAgent)
+	}
 	cd.d.SetButtons([]fyne.CanvasObject{cd.cancel, cd.confirm})
 	cd.d.SetOnClosed(func() {
 		reply(false) // closed any other way than Confirm: Escape, ctx ended

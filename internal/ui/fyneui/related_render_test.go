@@ -176,6 +176,12 @@ func scrollDrawerTo(t *testing.T, sh *shell, title string) {
 			return
 		}
 	}
+	for _, l := range findAll[*sectionHead](sh.drawer.details) { // a section's bracket label (stage_header.go)
+		if l.title == title {
+			scroll.ScrollToOffset(fyne.NewPos(0, drv.AbsolutePositionForObject(l).Y-drv.AbsolutePositionForObject(scroll.Content).Y))
+			return
+		}
+	}
 	t.Fatalf("no section %q in the drawer", title)
 }
 

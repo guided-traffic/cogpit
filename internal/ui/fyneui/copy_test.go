@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -167,10 +168,9 @@ func TestDrawerCopiesEntriesInYAML(t *testing.T) {
 	}
 
 	// A single value is copied as it is, not as YAML.
-	created := selLineWith(t, d, "Properties") // a title: no icon
-	created.MouseIn(mouse())
-	if d.copyBtn.Visible() {
-		t.Error("a section title has a copy icon")
+	// A section's head is a bracket label (stage_header.go), no selectable line: no icon.
+	if len(findAll[*sectionHead](d.details)) == 0 || slices.ContainsFunc(findAll[*selLine](d.details), func(l *selLine) bool { return l.line.text == "Properties" }) {
+		t.Error("a section title is a selectable line with a copy icon")
 	}
 }
 

@@ -222,16 +222,18 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		syncMotion()
 		syncLoginItem()
 	}
-	objs := append([]fyne.CanvasObject{p.setting("theme", "Theme", themeHelp, themeSel)}, updates...)
-	rows := container.NewVBox(append(objs,
+	// Two real groups, one bracket each: what the app is and does, and how it updates.
+	general := []fyne.CanvasObject{p.setting("theme", "Theme", themeHelp, themeSel),
 		p.setting("timezone", "Locale timezone", "Absolute times: the drawer's Created, the charts' time axes and hover. Empty: the computer's.", zone),
 		restore,
 		motion,
-	)...)
-	if loginItem != nil {
-		rows.Add(loginItem)
 	}
-	return rows
+	if loginItem != nil {
+		general = append(general, loginItem)
+	}
+	return container.NewVBox(
+		p.settingsGroup("general · "+strconv.Itoa(len(general)), "", general...),
+		p.settingsGroup("updates · "+strconv.Itoa(len(updates)), "", updates...))
 }
 
 func (p *settingsPage) kubernetesSection() fyne.CanvasObject {

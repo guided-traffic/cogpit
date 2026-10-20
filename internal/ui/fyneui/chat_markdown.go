@@ -888,6 +888,7 @@ type mdCode struct {
 	lines []string
 	laidW float32
 	color fyne.ThemeColorName
+	words bool // prose, not code (an error's text): wrap at word boundaries, break a word only when it is wider than a line
 }
 
 func newMDCode(text string) *mdCode {
@@ -914,7 +915,11 @@ func (c *mdCode) relayout() {
 			c.lines = append(c.lines, l)
 			continue
 		}
-		c.lines = append(c.lines, wrapChars(l, w, c.textSize(), st)...)
+		if c.words {
+			c.lines = append(c.lines, wrapHard(l, w, c.textSize(), st)...)
+		} else {
+			c.lines = append(c.lines, wrapChars(l, w, c.textSize(), st)...)
+		}
 		if l == "" {
 			c.lines = append(c.lines, "")
 		}
@@ -962,6 +967,9 @@ func (r *mdCodeRenderer) Refresh() {
 	c.relayout()
 	th := c.Theme()
 	r.bg.FillColor = themeColor(th, colorChip)
+	if c.color == colorStatusError { // an error: its own colour at about 8 %, not a red box
+		r.bg.FillColor = withAlpha(themeColor(th, colorStatusError), 0x14)
+	}
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	fg := themeColor(th, c.color)
 	if len(r.texts) != len(c.lines) {

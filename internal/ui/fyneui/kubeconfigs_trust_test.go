@@ -37,6 +37,10 @@ func overlayTexts(w fyne.Window) []string {
 			out = append(out, x.text)
 		case *widget.Label:
 			out = append(out, x.Text)
+		case *widget.RichText: // a framed dialog's title (dialogframe.go)
+			out = append(out, x.String())
+		case *bracketLabel:
+			out = append(out, x.text)
 		case *fyne.Container:
 			for _, c := range x.Objects {
 				walk(c)

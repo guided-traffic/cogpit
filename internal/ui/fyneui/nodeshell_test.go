@@ -156,7 +156,7 @@ func confirmNodeShell(t *testing.T, mode ThemeMode, origin engine.Origin, png st
 func TestNodeShellConfirmationNamesWhatItCreates(t *testing.T) {
 	texts := strings.Join(confirmNodeShell(t, ThemeDark, engine.OriginExternalAgent, ""), "\n")
 	at := strings.LastIndex(engine.DefaultNodeShellImage, "@") // Renovate moves the default: the test follows it
-	for _, want := range []string{"An agent asks: Shell?", "Creates", "privileged pod in namespace kube-system on node " + busyNode,
+	for _, want := range []string{"asked by · agent", "Shell?", "Creates", "privileged pod in namespace kube-system on node " + busyNode,
 		"Access", "root on the node", "Image\n" + engine.DefaultNodeShellImage[:at], "Digest\n" + engine.DefaultNodeShellImage[at+1:at+20],
 		"by itself after 2 hours", "demo", "An external agent over MCP"} {
 		if !strings.Contains(texts, want) {

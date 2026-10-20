@@ -63,7 +63,7 @@ func TestConfirmationEffectsAreRows(t *testing.T) {
 	for _, l := range findAll[*textLine](top) {
 		lines = append(lines, l.text)
 	}
-	if want := []string{"Context", "Namespace", "Object", "Config Map →", "Removes", "Requested by"}; !slices.Equal(lines, want) {
+	if want := []string{"Context", "Namespace", "Object", "Config Map →", "Removes", "Requested by", "This cannot be undone."}; !slices.Equal(lines, want) { // the footer's note last
 		t.Errorf("the rows' names %q, want %q", lines, want)
 	}
 	var removed, name *paragraph

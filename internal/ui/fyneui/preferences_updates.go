@@ -40,8 +40,8 @@ func (p *settingsPage) updatesSettings() ([]fyne.CanvasObject, func()) {
 	check := widget.NewCheck("At every start and every hour; a new release installs with one click", func(on bool) {
 		p.setPreference("checkForUpdates", on)
 	})
-	why := newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	why.truncate = true
+	why := newParagraph("", colorMuted, settingsHelpWidth) // wrapped at word boundaries, never cut short
+	why.size = theme.SizeNameCaptionText
 	why.Hide()
 	go func() { // Enabled is evaluated off the main goroutine, as every command's
 		defer p.sh.recoverTo("the update preference") // D-11: a panic here would end the app

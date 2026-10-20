@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -103,7 +102,7 @@ type createForm struct {
 	spec    createDialogSpec
 	width   float32
 	content *fyne.Container
-	d       *dialog.CustomDialog
+	d       *dialogFrame
 	create  *widget.Button
 	cancel  *widget.Button
 	status  *paragraph
@@ -190,7 +189,8 @@ func (sh *shell) newCreateForm(cmd *engine.Command, spec createDialogSpec) *crea
 	f.create = widget.NewButton("Create", f.submit)
 	f.create.Importance = widget.HighImportance
 	f.cancel = widget.NewButton("Cancel", nil)
-	f.d = dialog.NewCustomWithoutButtons(cmd.Label, f.content, sh.win)
+	f.d = newDialogFrame(sh, dialogTitle(cmd.Label)) // a card with a header and a footer (dialogframe.go)
+	f.d.setContent(f.content)
 	f.d.SetButtons([]fyne.CanvasObject{f.cancel, f.create})
 	f.cancel.OnTapped = f.d.Hide
 	f.d.SetOnClosed(func() {
@@ -250,7 +250,7 @@ func (f *createForm) caption(text string) {
 		f.content.Add(newSpace(theme.SizeNamePadding))
 	}
 	f.fields++
-	f.content.Add(newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}))
+	f.content.Add(newTextLine(sentenceCase(text), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 }
 
 // addName adds the object's name.

@@ -30,6 +30,8 @@ func drawerTexts(sh *shell) []string {
 		switch x := o.(type) {
 		case *textLine:
 			out = append(out, x.text)
+		case *sectionHead: // a section's bracket label (stage_header.go), under the title as the model gave it
+			out = append(out, x.title)
 		case *sourceLine: // the metrics' caption (metricssource.go)
 			if x.Visible() {
 				out = append(out, x.text)
