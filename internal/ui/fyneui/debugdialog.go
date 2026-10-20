@@ -155,6 +155,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	content := container.NewVBox(dd.rows, newSpace(theme.SizeNamePadding), newParagraph("This cannot be undone.", colorStatusError, width))
 	dd.d = newDialogFrame(sh, objectDialogTitle("Debug", "Pod", p.Ref.Name, "")) // no gap after the arrow (dialogframe.go)
 	dd.d.setContent(content)
+	dd.d.setRim(colorStatusError) // adding a container cannot be undone: as a destructive confirmation
 	dd.d.SetButtons([]fyne.CanvasObject{dd.cancel, dd.confirm})
 	dd.cancel.OnTapped = dd.d.Hide
 	dd.confirm.OnTapped = func() {

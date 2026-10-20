@@ -45,9 +45,10 @@ type drawer struct {
 	// A Secret's edited values the drawer moved away from, by object, in memory only (secretdata.go).
 	secretUnsaved map[string]*secUnsaved
 
-	kind     *textLine
+	kind     *bracketLabel // the eyebrow: "pod · inventory" (stage_header.go)
 	title    *textLine
-	status   *pill
+	status   *statusBadge
+	wash     *stateWash // the header's backdrop, tinted by the object's status
 	missing  *textLine
 	lead     *fyne.Container // a kind's own part left of the title (drawerHeaderParts); hidden without
 	extra    *fyne.Container // a kind's own part under the title (drawerHeaderParts); hidden without
@@ -76,10 +77,11 @@ type drawer struct {
 
 func newDrawer(sh *shell) *drawer {
 	d := &drawer{sh: sh, expanded: map[string]bool{}, revealed: map[string]string{}, revealedLen: map[string]int{}, kept: map[string]any{}}
-	d.kind = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	d.title = newTextLine("", theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})
+	d.kind = newBracketLabel("", colorAccent)
+	d.wash = newStateWash()
+	d.title = newTextLine("", theme.ColorNameForeground, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})
 	d.title.truncate = true
-	d.status = newPill("", colorMuted, true)
+	d.status = newStatusBadge()
 	d.status.Hide()
 	d.missing = newTextLine("This object is no longer in the cluster.", colorStatusWarning, theme.SizeNameCaptionText, fyne.TextStyle{})
 	d.missing.Hide()
@@ -110,7 +112,7 @@ func newDrawer(sh *shell) *drawer {
 	titleRow := container.NewBorder(nil, nil, d.lead,
 		container.NewHBox(container.NewCenter(d.status), d.actions, newDivider(true), closeB),
 		d.titleBox)
-	header := container.NewStack(newSurface(colorDrawerHeader),
+	header := container.NewStack(d.wash,
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding,
 			container.NewVBox(d.kind, titleRow, d.extra, d.missing)))
 	// The root's minimum width is a constant: the drawer's width is the user's (panelwidths.go).
@@ -212,7 +214,8 @@ func (d *drawer) showLoading(ref model.ObjectRef) {
 	d.showHeader(ref, nil)
 	d.resetCopy()
 	d.setPlain(ref.Kind == helm.ReleaseKind)
-	d.kind.SetText(singular(d.sh.kindTitle(ref.Kind)))
+	d.kind.SetText(eyebrow(singular(d.sh.kindTitle(ref.Kind)), ref.Namespace))
+	d.wash.Set("", 0)
 	d.setTitle(ref.Name)
 	d.status.Hide()
 	d.missing.Hide()
@@ -266,7 +269,7 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 	if kind == "" {
 		kind = singular(d.sh.kindTitle(ref.Kind))
 	}
-	d.kind.SetText(kind)
+	d.kind.SetText(eyebrow(kind, ref.Namespace))
 	d.setTitle(name)
 	if m.Plain {
 		d.setTitle(m.Title) // "Release: web" on one line
@@ -276,6 +279,11 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 		d.status.Show()
 	} else {
 		d.status.Hide()
+	}
+	if m.Plain {
+		d.wash.Set("", 0)
+	} else {
+		d.wash.setStatus(m.Status)
 	}
 	if m.Missing {
 		d.missing.Show()
@@ -412,11 +420,16 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 			out = append(out, newSpace(theme.SizeNameInnerPadding))
 		}
 		if sec.Group != "" && sec.Group != group {
-			out = append(out, d.line(sec.Group, theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true}, false, ""),
+			out = append(out, newBracketLabel(headText(sec.Group, groupSize(m.Sections, sec.Group)), colorAccent),
 				newSpace(theme.SizeNamePadding))
 		}
 		group = sec.Group
-		out = append(out, d.sectionTitle(sec), newDivider(false))
+		out = append(out, d.sectionTitle(sec))
+		if sec.Group != "" {
+			out = append(out, newDivider(false)) // a container under its group's bracket keeps a rule of its own
+		} else {
+			out = append(out, newSpace(theme.SizeNamePadding))
+		}
 		if panel != nil && containerTitleHasChart(sec) {
 			if c := panel.containerChart(sec.Title); c != nil {
 				out = append(out, c, newSpace(theme.SizeNamePadding))
@@ -443,7 +456,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		return out
 	}
 	out = append(out, newSpace(theme.SizeNameInnerPadding),
-		d.line("Events", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, ""), newDivider(false))
+		newBracketLabel(headText("Events", len(m.Events)), colorAccent), newSpace(theme.SizeNamePadding))
 	return append(out, d.buildEvents(m.Events)...)
 }
 
@@ -515,10 +528,10 @@ func (d *drawer) dropKept() {
 
 // sectionTitle is a section's bold title; a container's carries a dot in its status's colour.
 func (d *drawer) sectionTitle(sec model.DetailSection) fyne.CanvasObject {
-	title := d.line(sec.Title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, "")
 	if sec.Group == "" {
-		return title
+		return sectionHead(sec)
 	}
+	title := d.line(sec.Title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, "")
 	for _, it := range sec.Items {
 		if it.Name == "Status" && it.Status != model.StatusNone {
 			return container.NewHBox(container.NewCenter(newDot(statusColorName(it.Status))), title)

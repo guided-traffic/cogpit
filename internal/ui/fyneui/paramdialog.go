@@ -65,6 +65,9 @@ func (sh *shell) openParamDialog(cmd *engine.Command, ref model.ObjectRef, prefi
 	}
 	pd.confirm = widget.NewButtonWithIcon(cmd.Label, theme.ConfirmIcon(), nil)
 	pd.confirm.Importance = widget.HighImportance
+	if cmd.Danger == engine.DangerDestructive { // the verb's button in the error colour, as its confirmation's will be
+		pd.confirm.Importance = widget.DangerImportance
+	}
 	pd.cancel = widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), pd.d.Hide)
 	pd.confirm.OnTapped = func() {
 		for _, f := range pd.fields {

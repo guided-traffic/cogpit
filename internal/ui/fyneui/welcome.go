@@ -13,7 +13,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -51,10 +50,10 @@ import (
 
 const (
 	welcomeColumn    = 600 // the page's column, in points
-	welcomeLogoSize  = 72  // the logo's side
+	welcomeLogoSize  = 88  // the logo's side
 	welcomeMaxRecent = 6   // clusters of this session listed
 	welcomeMaxOthers = 8   // other clusters listed
-	welcomeTopMargin = 48  // above the column, when the workspace is tall enough
+	welcomeTopMargin = 12  // above the column, when the workspace is tall enough (the logo's glow brings its own)
 	readmeURL        = "https://github.com/guided-traffic/cogpit#readme"
 	commandsURL      = "https://github.com/guided-traffic/cogpit/blob/main/docs/developer/commands.md"
 	welcomeTagline   = "Cogpit is a Kubernetes IDE: it shows your clusters from a live cache, asks before it changes anything, " +
@@ -93,9 +92,11 @@ func newWelcomePage(sh *shell) *welcomePage {
 	w := &welcomePage{sh: sh}
 	w.links = newClusterLinks(sh)
 	title := newTextLine("Welcome to Cogpit", theme.ColorNameForeground, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})
-	tagline := newParagraph(welcomeTagline, colorMuted, welcomeColumn-welcomeLogoSize-24)
-	head := container.NewBorder(nil, nil, container.NewHBox(newWelcomeLogo(welcomeLogoSize), newHGap(theme.SizeNameInnerPadding)), nil,
-		container.NewVBox(layout.NewSpacer(), title, tagline, layout.NewSpacer()))
+	title.align = fyne.TextAlignCenter
+	tagline := newCenteredText(welcomeTagline, colorMuted, theme.SizeNameText, welcomeColumn-120)
+	// The head stands in the column's middle: the logo on its glow, the title and the tagline under it.
+	head := container.NewVBox(container.NewCenter(newLogoGlow(welcomeLogoSize)), title, newSpace(theme.SizeNamePadding),
+		container.NewCenter(tagline))
 	w.status = newParagraph("", colorMuted, welcomeColumn)
 	w.status.Hide()
 	w.list = container.NewVBox()
@@ -113,7 +114,6 @@ func newWelcomePage(sh *shell) *welcomePage {
 		newSpace(theme.SizeNameInnerPadding),
 		w.status,
 		newSpace(theme.SizeNameInnerPadding),
-		heading("Clusters"),
 		w.list,
 		container.NewHBox(w.addB),
 		w.restore,
@@ -124,7 +124,8 @@ func newWelcomePage(sh *shell) *welcomePage {
 		w.hint,
 	)
 	page := box(welcomeLayout{}, column)
-	w.root = container.NewStack(newSurface(theme.ColorNameBackground), container.NewVScroll(page))
+	// The horizon is the page's backdrop: no data lies under it, only the stage light and the grid floor.
+	w.root = container.NewStack(clippedHorizon(), container.NewVScroll(page))
 	w.root.Hide()
 	return w
 }
@@ -380,9 +381,9 @@ func (w *welcomePage) render() {
 	w.rows = w.rows[:0]
 	var objs []fyne.CanvasObject
 	for _, g := range groups {
-		objs = append(objs, newTextLine(g.title, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+		objs = append(objs, newBracketLabel(headText(g.title, len(g.contexts)), colorAccent), newSpace(theme.SizeNamePadding))
 		for _, c := range g.contexts {
-			objs = append(objs, w.row(c))
+			objs = append(objs, plateOf(w.row(c)))
 		}
 		objs = append(objs, newSpace(theme.SizeNamePadding))
 	}

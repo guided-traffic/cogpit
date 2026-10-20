@@ -52,7 +52,7 @@ type settingsPage struct {
 	errs     map[string]*textLine
 	timers   map[string]*time.Timer
 	sync     func() // sets the shown section's controls from the state
-	navItems map[string]*widget.Button
+	navItems map[string]*navItem
 
 	// The window's dialogs, replaced by tests: an image file, a folder (the system's panels, else
 	// Fyne's dialogs, filepicker_choosers.go), the file manager.
@@ -71,7 +71,7 @@ type settingsPage struct {
 
 func newSettingsPage(sh *shell) *settingsPage {
 	p := &settingsPage{sh: sh, typing: settingsTyping, controls: map[string]fyne.CanvasObject{}, errs: map[string]*textLine{},
-		timers: map[string]*time.Timer{}, navItems: map[string]*widget.Button{}}
+		timers: map[string]*time.Timer{}, navItems: map[string]*navItem{}}
 	p.title = newTextLine("", theme.ColorNameForeground, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})
 	p.title.truncate = true
 	p.badge = newClusterBadge()
@@ -80,9 +80,11 @@ func newSettingsPage(sh *shell) *settingsPage {
 	p.closeB.Importance = widget.LowImportance
 	p.nav = container.NewVBox()
 	p.body = container.NewStack()
-	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
-		container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)), container.NewCenter(p.closeB),
-		container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))
+	// The title stands in the column the settings stand in (columnLayout), the × at the window's edge.
+	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil, nil, container.NewCenter(p.closeB),
+		box(columnLayout{}, container.NewBorder(nil, nil,
+			container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)), nil,
+			container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))))
 	navPanel := sized(sizeSidebarWidth, "", newSurface(colorSidebar),
 		container.NewBorder(nil, nil, nil, newDivider(true), inset(theme.SizeNamePadding, theme.SizeNameInnerPadding, container.NewVBox(p.nav))))
 	content := container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil,
@@ -166,9 +168,7 @@ func (p *settingsPage) renderNav() {
 			continue // a window without the built-in agent has no connections to set (preferences_agent.go)
 		}
 		section := s
-		b := widget.NewButton(labels[s], func() { p.openSection(section) })
-		b.Alignment = widget.ButtonAlignLeading
-		b.Importance = widget.LowImportance
+		b := newNavItem(labels[s], func() { p.openSection(section) })
 		if s == p.shown.Section {
 			b.Importance = widget.HighImportance
 		}
@@ -233,9 +233,9 @@ func (p *settingsPage) stopTimers() {
 
 // --- building blocks of a section ---
 
-// heading is a section's upper-case heading, as Lens's pages have them (captured).
+// heading is a setting's head: a bracket label in lowercase, in the muted light of app settings.
 func heading(text string) fyne.CanvasObject {
-	return newTextLine(strings.ToUpper(text), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
+	return newBracketLabel(strings.ToLower(text), "")
 }
 
 // setting is one setting: its heading, its control, a help line and the line that shows why the
@@ -247,8 +247,8 @@ func (p *settingsPage) setting(name, title, help string, control fyne.CanvasObje
 	p.controls[name] = control
 	objs := []fyne.CanvasObject{heading(title), control}
 	if help != "" {
-		h := newTextLine(help, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-		h.truncate = true
+		h := newParagraph(help, colorMuted, settingsHelpWidth) // wrapped, never cut short
+		h.size = theme.SizeNameCaptionText
 		objs = append(objs, h)
 	}
 	objs = append(objs, errLine, newSpace(theme.SizeNameInnerPadding))
@@ -304,12 +304,16 @@ func (p *settingsPage) setEntry(focus fyne.Focusable, e *widget.Entry, name, val
 	e.SetText(value)
 }
 
-// columnLayout lays its objects out at most settingsColumn points wide, from the left: a page's
-// fields do not stretch across a wide window.
+// columnLayout lays its objects out at most settingsColumn points wide, centred: a page's fields do
+// not stretch across a wide window, and the window's right half is not left empty.
 type columnLayout struct{}
 
-// settingsColumn is the widest a settings page's column grows.
-const settingsColumn = 640
+// settingsColumn is the widest a settings page's column grows; settingsHelpWidth is the width a
+// help line wraps at.
+const (
+	settingsColumn    = 680
+	settingsHelpWidth = 620
+)
 
 func (columnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	var ms fyne.Size
@@ -324,8 +328,9 @@ func (columnLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 func (columnLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	w := min(size.Width, max(settingsColumn, 0))
 	for _, o := range objs {
-		o.Move(fyne.NewPos(0, 0))
-		o.Resize(fyne.NewSize(max(w, o.MinSize().Width), size.Height))
+		ow := max(w, o.MinSize().Width)
+		o.Move(fyne.NewPos(max((size.Width-ow)/2, 0), 0)) // the column stands in the page's middle
+		o.Resize(fyne.NewSize(ow, size.Height))
 	}
 }
 

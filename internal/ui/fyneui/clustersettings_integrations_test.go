@@ -345,7 +345,7 @@ func TestIntegrationSections(t *testing.T) {
 	}
 	if b := p.navItems[engine.SectionIntegrations]; b == nil || b.Text != "" || !within(p.nav, b) {
 		t.Error("the Integrations heading is no item of the list")
-	} else if !slices.ContainsFunc(findAll[*textLine](p.nav), func(l *textLine) bool { return l.text == "INTEGRATIONS" }) {
+	} else if !slices.ContainsFunc(findAll[*bracketLabel](p.nav), func(l *bracketLabel) bool { return l.text == "integrations" }) {
 		t.Error("the heading's label")
 	}
 	if b := p.navItems["kyverno"]; b.Importance != widget.HighImportance {
