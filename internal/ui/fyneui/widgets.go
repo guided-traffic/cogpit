@@ -334,6 +334,9 @@ func (r *pillRenderer) Refresh() {
 	for i, t := range r.txts {
 		t.Text = lines[i]
 		t.Color = fg
+		if r.p.tinted {
+			t.Color = pillInk(th, fg, 0x2c) // a word on its own tint keeps 4.5:1 (chrome_tones.go)
+		}
 		t.TextSize = r.textSize()
 		t.TextStyle = fyne.TextStyle{Bold: r.p.bold}
 		t.Refresh()

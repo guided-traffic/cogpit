@@ -666,6 +666,12 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 			utf8.RuneCountInString(content.text) <= maxPillText
 		if col.Type == model.ColumnWarning {
 			content.kind = cellWarning
+			if tv.statusLit(row) {
+				content.kind, content.text = cellText, "" // the spine and the pill say it; the reason moves to the status word's tooltip
+			}
+		}
+		if col.ID == "status" && content.tip == "" && tv.statusLit(row) {
+			content.tip = tv.warningReason(row)
 		}
 		if col.Type == model.ColumnIcon {
 			content.kind, content.text = cellImage, cell.Image
@@ -679,6 +685,31 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 	}
 	tv.copyIcon.updated(c)
 	c.setFocused(tv.keyboardOn(id.Row, id.Col))
+}
+
+// statusLit reports whether the row shows a status pill and a spine, so that its warning icon would
+// say the same a third time: the row is in an abnormal state and a status column is shown.
+func (tv *tableView) statusLit(row *model.Row) bool {
+	if !abnormalStatus(row.Status) {
+		return false
+	}
+	for _, ci := range tv.cols {
+		if tv.snap.Columns[ci].ID == "status" {
+			return true
+		}
+	}
+	return false
+}
+
+// warningReason is the text of the row's warning cell, the reason of the icon that a lit row does
+// not draw (statusLit): it is the status word's tooltip then.
+func (tv *tableView) warningReason(row *model.Row) string {
+	for _, ci := range tv.cols {
+		if tv.snap.Columns[ci].Type == model.ColumnWarning && ci < len(row.Cells) {
+			return tv.tf.CellText(tv.snap.Columns[ci], row.Cells[ci], tv.now)
+		}
+	}
+	return ""
 }
 
 func (tv *tableView) createHeader() fyne.CanvasObject {
@@ -1370,6 +1401,9 @@ func (c *tableCell) apply() {
 		fg = colorRowSelectedText // the plain and link colours are too faint on the selection
 	}
 	c.text.Color = themeColor(th, fg)
+	if c.pillShows() && abnormalStatus(c.content.status) && !c.selected {
+		c.text.Color = pillInk(th, themeColor(th, fg), pillFill(th)) // 4.5:1 on its own tint (chrome_tones.go)
+	}
 	if c.content.link != nil && !c.selected && !c.linkHover {
 		// A link is quiet until the pointer is on it: three blue columns would tint every healthy row
 		// and compete with the selection (Dark Cockpit: blue is you, focus and selection).
@@ -1399,13 +1433,7 @@ func (c *tableCell) apply() {
 		}
 		for i, r := range c.marks {
 			if i < len(marks) {
-				mc := themeColor(th, markColorName(marks[i].Status))
-				switch marks[i].Status {
-				case model.StatusOK:
-					mc = withAlpha(mc, quietMarkA) // healthy containers are the quiet token
-				case model.StatusStopped:
-					mc = withAlpha(mc, quietStrokeA)
-				}
+				mc := markColor(th, marks[i].Status)
 				paintMark(r, mc, marks[i].Hollow || marks[i].Status == model.StatusStopped)
 			}
 		}

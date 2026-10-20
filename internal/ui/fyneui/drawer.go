@@ -272,7 +272,8 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 		d.setTitle(m.Title) // "Release: web" on one line
 	}
 	if label := statusLabel(m); label != "" && m.Status != model.StatusNone && !m.Plain {
-		d.status.Set(label, statusColorName(m.Status))
+		d.status.tinted = !healthyStatus(m.Status)
+		d.status.Set(label, statusPillInk(m.Status))
 		d.status.Show()
 	} else {
 		d.status.Hide()
@@ -682,7 +683,7 @@ func (d *drawer) plainValue(ref model.ObjectRef, it model.DetailItem, copyable b
 	case it.Pill:
 		return wrapCopy(container.NewHBox(d.valuePill(it.Value, colorMuted, true)), d.copyFor(copyOf(it.Value), false))
 	case it.Status != model.StatusNone:
-		return wrapCopy(container.NewHBox(d.valuePill(it.Value, statusColorName(it.Status), true)), d.copyFor(copyOf(it.Value), false))
+		return wrapCopy(container.NewHBox(d.statusValuePill(it.Value, it.Status)), d.copyFor(copyOf(it.Value), false))
 	}
 	if len(lines) == 1 {
 		return d.line(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}, true, copyOf(it.Value))
@@ -700,6 +701,28 @@ func (d *drawer) valuePill(text string, fg fyne.ThemeColorName, tinted bool) *pi
 	p := newPill(text, fg, tinted)
 	p.limit(d.valueWidth(), true)
 	return p
+}
+
+// statusValuePill is a pill for a status in the details. A healthy one is a muted chip with plain
+// text, as in the lists, where a healthy word draws no colour; only a state that asks for
+// attention is tinted in its status colour.
+func (d *drawer) statusValuePill(text string, s model.Status) *pill {
+	return d.valuePill(text, statusPillInk(s), !healthyStatus(s))
+}
+
+// healthyStatus reports whether a status is one of the two that need no colour: Running and its
+// kin, and Completed.
+func healthyStatus(s model.Status) bool {
+	return s == model.StatusOK || s == model.StatusSucceeded
+}
+
+// statusPillInk is the colour of a status pill's word: the status colour, or for a healthy status
+// the plain text colour.
+func statusPillInk(s model.Status) fyne.ThemeColorName {
+	if healthyStatus(s) {
+		return theme.ColorNameForeground
+	}
+	return statusColorName(s)
 }
 
 // chips renders a list as chips: a short list on one line, a longer one a chip per line. A chip
@@ -728,7 +751,7 @@ func (d *drawer) chips(ref model.ObjectRef, chips []model.Chip, copyOf func(stri
 			p.limit(max(d.valueWidth()-gutter, 0), true)
 			o = newTapTarget(p, func() { d.sh.followLink(link, ref.Context, false) })
 		case c.Status != model.StatusNone:
-			p := d.valuePill(c.Text, statusColorName(c.Status), true)
+			p := d.statusValuePill(c.Text, c.Status)
 			p.limit(max(d.valueWidth()-gutter, 0), true)
 			o = p
 		default:

@@ -464,9 +464,9 @@ func (h *headerCell) setCheck(col, state int) {
 func headerCheckIcon(state int) (fyne.Resource, fyne.ThemeColorName) {
 	switch state {
 	case checkAll:
-		return theme.Icon(theme.IconNameCheckButtonChecked), colorAccent
+		return checkAllOutline, theme.ColorNamePrimary
 	case checkSome:
-		return theme.Icon(theme.IconNameCheckButtonPartial), colorAccent
+		return checkSomeOutline, theme.ColorNamePrimary
 	}
 	return theme.Icon(theme.IconNameCheckButton), colorMuted
 }

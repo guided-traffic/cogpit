@@ -99,7 +99,7 @@ func TestSecretDrawerShowsCertificates(t *testing.T) {
 	}
 	notAfter, keyMatches, chain := false, false, false
 	for _, p := range findAll[*pill](sh.drawer.details) {
-		ok := p.fg == statusColorName(model.StatusOK)
+		ok := p.fg == statusPillInk(model.StatusOK) // a healthy status is a quiet chip
 		switch {
 		case strings.HasSuffix(p.text, "(in 20 days)") && p.fg == colorStatusWarning:
 			notAfter = true

@@ -72,3 +72,23 @@ func (r *dangerPlateRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *dangerPlateRenderer) Destroy() {}
+
+// The header checkbox's icons: an outlined box with a dash (some rows selected) or a check (every
+// row), never Fyne's filled block, which was stronger than the selected row it stands for. The
+// box keeps the 24 unit grid of Fyne's own icons so that it lines up with the rows' boxes.
+//
+// Fyne recolours an icon's filled paths but not its strokes or rect elements, so the box is a
+// filled ring (an even-odd path); only the first path of an icon is recoloured, so the mark is a
+// second subpath of the same one.
+const checkBoxRing = `M6.5 4h11A2.5 2.5 0 0 1 20 6.5v11a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-11A2.5 2.5 0 0 1 6.5 4zM6.5 6a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h11a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5z`
+
+var (
+	checkSomeOutline = checkIcon("check-some-outline.svg", `M9 11h6a1 1 0 0 1 0 2H9a1 1 0 0 1 0-2z`)
+	checkAllOutline  = checkIcon("check-all-outline.svg", `M7.6 12.6L9 11.2l1.8 1.8 4.4-4.4 1.4 1.4-5.8 5.8z`)
+)
+
+// checkIcon is the box with a mark inside it as one even-odd path: the mark lies in the box's
+// hole, so it is filled again.
+func checkIcon(name, mark string) fyne.Resource {
+	return fyne.NewStaticResource(name, []byte(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill-rule="evenodd" d="`+checkBoxRing+mark+`"/></svg>`))
+}

@@ -107,7 +107,7 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 		c.dot.Show()
 		c.pill.FillColor = color.Transparent
 		if abnormalStatus(c.content.status) {
-			c.pill.FillColor = withAlpha(col, pillAlpha)
+			c.pill.FillColor = withAlpha(col, pillFill(th))
 		}
 		c.pill.Show()
 	} else if c.pill != nil {
@@ -135,7 +135,7 @@ func (c *tableCell) rowPlate(th fyne.Theme) color.Color {
 	case c.hover:
 		return themeColor(th, colorRowHover)
 	case c.content.row == model.StatusError:
-		return withAlpha(themeColor(th, colorStatusError), errorTint)
+		return withAlpha(themeColor(th, colorStatusError), errorTintFor(th))
 	}
 	return color.Transparent
 }
@@ -169,4 +169,26 @@ func (c *tableCell) layoutRowMarks(size fyne.Size, ts fyne.Size, pad float32) {
 		c.dot.Move(fyne.NewPos(pad+pillPadX+(pillDotSide-side)/2, (size.Height-side)/2))
 		c.dot.Resize(fyne.NewSize(side, side))
 	}
+}
+
+// errorTintFor is the alpha of an error row's tint: 6 % on the dark theme and 3.5 % on the light
+// one, where the same tint spreads across a whole white row and shouts.
+func errorTintFor(th fyne.Theme) uint8 {
+	if pillFill(th) == pillAlpha {
+		return errorTint
+	}
+	return 9
+}
+
+// markColor is a container square's paint: its colour, the running ones and the stopped ones
+// quieter than the rest so that a column of healthy squares stays calm and a failing one lights.
+func markColor(th fyne.Theme, s model.Status) color.Color {
+	mc := themeColor(th, markColorName(s))
+	switch s {
+	case model.StatusOK:
+		return withAlpha(mc, quietMarkA)
+	case model.StatusStopped:
+		return withAlpha(mc, quietStrokeA)
+	}
+	return mc
 }

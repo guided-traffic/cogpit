@@ -184,7 +184,7 @@ func checkSquares(t *testing.T, sh *shell, how string) {
 		for i, m := range marks {
 			r := c.marks[i]
 			at := fyne.NewPos(pad+float32(i)*(side+gap), (c.Size().Height-side)/2)
-			if r.Position() != at || r.FillColor != themeColor(th, markColorName(m.Status)) {
+			if r.Position() != at || r.FillColor != markColor(th, m.Status) {
 				t.Errorf("%s: %s square %d at %v in %v, want %v in %s", how, row.Ref.Name, i, r.Position(), r.FillColor, at, markColorName(m.Status))
 			}
 		}
