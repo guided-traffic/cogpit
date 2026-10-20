@@ -180,13 +180,28 @@ func (c *Cache) OnRefused(fn func(Scope)) {
 	c.refused.Store(&fn)
 }
 
+// failed records a list or watch error. A refusal is told first (OnRefused), then shown: a reader
+// that sees it may release the scope, which ends it (a refused scope is not kept warm), and a
+// reader that decides how to read the kind after that must already know of the refusal, or it
+// starts the refused read again (2026-10-20). A warm scope that was refused ends (refusedIf); a
+// scope a handle holds keeps retrying, and its error shows.
+func (r *runner) failed(err error) {
+	refused := isRefused(err) && r.c != nil
+	if refused {
+		r.tellRefused()
+	}
+	r.setErr(err)
+	if refused {
+		r.refusedIf(err)
+	}
+}
+
 // refusedIf ends a warm scope whose list or watch the API server refused; a scope a handle holds
-// keeps retrying, and its error shows. Either way the cache's OnRefused hears of it.
+// keeps retrying, and its error shows. The cache's OnRefused heard of it before (failed).
 func (r *runner) refusedIf(err error) {
 	if !isRefused(err) || r.c == nil {
 		return
 	}
-	r.tellRefused()
 	c := r.c
 	c.mu.Lock()
 	defer c.mu.Unlock()

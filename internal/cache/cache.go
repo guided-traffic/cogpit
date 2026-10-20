@@ -639,9 +639,8 @@ func (r *runner) watchError(err error) {
 		errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return
 	}
-	r.setErr(err)
+	r.failed(err)
 	r.log.Warn("cache: list or watch failed; retrying", "err", err)
-	r.refusedIf(err)
 	if !isRefused(err) {
 		r.tellStreamError(err) // the engine checks the connection at once (D-58)
 	}
@@ -725,8 +724,7 @@ func (t *trackedLW) observe(ctx context.Context, err error) {
 	switch {
 	case ctx.Err() != nil:
 	case err != nil:
-		t.r.setErr(err)
-		t.r.refusedIf(err)
+		t.r.failed(err)
 	default:
 		t.r.clearErr()
 	}

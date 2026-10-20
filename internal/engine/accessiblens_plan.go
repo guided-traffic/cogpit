@@ -44,6 +44,9 @@ import (
 type nsState struct {
 	in atomic.Pointer[nsInputs]
 
+	// planMu orders noting a refusal (markRefused, exclusive) against acquiring a kind in all
+	// namespaces by a plan made earlier (acquirePlanned, shared).
+	planMu  sync.RWMutex
 	mu      sync.Mutex
 	refused map[schema.GroupVersionResource]bool // listing in all namespaces refused by the server (403)
 	replan  chan struct{}                        // wakes the session's replan loop (attachRefusals); nil before
@@ -87,6 +90,8 @@ func (n *nsState) setInputs(accessible, filter []string) {
 }
 
 func (n *nsState) markRefused(gvr schema.GroupVersionResource) bool {
+	n.planMu.Lock()
+	defer n.planMu.Unlock()
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if n.refused[gvr] {
@@ -317,9 +322,25 @@ func (a *accessReviews) settledRulesLocked(ns string) (r *rulesReview, pending b
 
 // acquirePlanned returns a handle on a kind read as the plan says: in all namespaces, or in each
 // of the plan's namespaces; a pending plan reads in all namespaces too (only the view waits).
+//
+// A plan to read in all namespaces that was made before the API server's refusal of that read was
+// noted is stale: the refused read may have ended already (a refused scope is not kept warm), and
+// acquiring it would send the refused read again. The check and the acquire hold off noting a
+// refusal (planMu), and the cache tells of a refusal before a reader can see it and end the read
+// (cache.OnRefused), so a plan found current here either joins the read still running or starts
+// the first one. Before (2026-10-20) a reader that had planned while another reader's read was
+// refused and ended started it again (TestPrometheusDetectionFollowsARefusal, CI: Prometheus's
+// detection after the Alertmanager's lookup of the Services).
 func (b *Backend) acquirePlanned(p *model.KindProfile, plan nsPlan) *cache.Handle {
 	if plan.perNamespace {
 		return b.Cache.AcquireNamespaces(b.Scope(p), plan.watch)
+	}
+	b.ns.planMu.RLock()
+	defer b.ns.planMu.RUnlock()
+	if b.ns.isRefused(p.GVR()) {
+		if now := b.namespacePlan(p); now.perNamespace {
+			return b.Cache.AcquireNamespaces(b.Scope(p), now.watch)
+		}
 	}
 	return b.Cache.Acquire(b.Scope(p))
 }

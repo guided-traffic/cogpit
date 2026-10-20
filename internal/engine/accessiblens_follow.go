@@ -46,8 +46,8 @@ func (b *Backend) settleReads(ctx context.Context, reads ...*followedRead) {
 			}
 			if !r.followed && readsAllNamespaces(r.p, r.h) && cache.IsRefused(r.h.Err()) {
 				r.followed = true
+				b.followRefused(r.p) // noted before the release ends the refused read (acquirePlanned)
 				r.h.Release()
-				b.followRefused(r.p)
 				if r.h = r.acquire(ctx); r.h.HasSynced() {
 					continue
 				}
@@ -103,10 +103,10 @@ func openFollowing[T any](ctx context.Context, b *Backend, keys []string, open f
 	}
 	r, reads := open()
 	if refused := refusedWide(ctx, reads); len(refused) > 0 {
-		release(r)
-		for _, p := range refused {
+		for _, p := range refused { // noted before the release ends the refused reads (acquirePlanned)
 			b.followRefused(p)
 		}
+		release(r)
 		r, _ = open()
 	}
 	return r
