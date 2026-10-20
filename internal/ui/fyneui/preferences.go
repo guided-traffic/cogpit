@@ -195,7 +195,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 			}
 		}
 	})
-	themeHelp := "Dark and light are Solarized's; Sync with computer follows the system's appearance."
+	themeHelp := "Dark and light are Cogpit's night and day stages; Sync with computer follows the system's appearance."
 	if p.sh.opts.Theme != "" {
 		themeHelp = "This run was started with --theme " + string(p.sh.opts.Theme) + "; the choice applies from the next start."
 	}

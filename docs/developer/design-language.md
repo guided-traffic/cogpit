@@ -76,16 +76,48 @@ Built on the shapes above, in `instrument_*.go` and the views they sit in:
 | Quiet dashboards | healthy counts and Ready segments muted, a spine and the status colour only on what needs a look; an empty kind is a hairline card with no bar, a kind without a state has no bar; activity in text colour with a coloured dot and age | Flux, Argo CD, Workloads Overview |
 
 The bracket head (glow.go) draws its line in its own light at about 55 %, with 6 point ticks, 8 points
-under the label and 12 above what it introduces; the groups on a page are 20 points apart. The
-create button is a 36 point dark plate with a blue outline, set one menu column in from the right so
-that it never covers a row's menu.
+under the label and 12 above what it introduces; the groups on a page are 20 points apart.
 
 The Overview's node and pod states come from the engine's own build of the page
 (`ClusterOverviewModel.NodeStates`, `PodStates`), counted from the cache; the bearing reads the
 integrations' states through `cluster.settings.get`, which sends no request to the cluster. Flux and
 Argo CD are not in the bearing: the engine reports no state for them as integrations.
 
+## Lists and window chrome
+
+| Element | Look | Where |
+|---|---|---|
+| Status spine | a 3 point rounded bar at a row's left edge in its status colour, only for rows that are not healthy; an error row also gets a 6 % tint (3.5 % in light) | every list ([list_rows.go](../../internal/ui/fyneui/list_rows.go), [tableview.go](../../internal/ui/fyneui/tableview.go)) |
+| Status word | healthy: foreground text with a 4 point dot at 55 %; abnormal: a pill (the status colour at 14 %, 18 % in light, a dot, the word moved in lightness until it holds 4.5:1 on its tint); a reason that was a warning triangle is the word's tooltip | Status columns, the drawer's status and conditions ([chrome_tones.go](../../internal/ui/fyneui/chrome_tones.go)) |
+| Container tokens | 9 point rounded squares; running at 40 % of the Running green, stopped hollow, warning, error and ephemeral in full colour | Pods' Containers column |
+| Quiet links | names of other objects in the foreground at 92 %, glow blue with an underline only under the pointer; the drawer's property links stay blue | Namespace, Controlled By, Node cells |
+| Selection | about 14 % glow blue (dark `#16293f`, light `#e0ebfb`), a 2 point glow-blue bar at the inner left edge, near-white text | rows, navigator, palette ([chrome_nav.go](../../internal/ui/fyneui/chrome_nav.go)) |
+| Hotbar plates | the identity colour as a vertical gradient from 22 % to 10 % with a white 8 % inner highlight; the shown cluster's tile in a glow frame; the connection dot as a badge at the corner | hotbar ([chrome_plate.go](../../internal/ui/fyneui/chrome_plate.go)) |
+| Tab, capsule, pulse | the active tab's 2 point glow-blue underline with a faint wide one; the cluster in a pill in the title bar; an 80×14 cyan wave of the last 24 event rates in the status bar (the demo cluster's counter only: real clusters have no rate history yet) | tab bar, title bar, status bar ([chrome_bar.go](../../internal/ui/fyneui/chrome_bar.go)) |
+| Create and Delete | Create is a 28 point chip at the right end of the dock's strip and never covers a row; the selection's Delete is a coral outline on a 12 % plate instead of a solid block | list toolbar, dock ([chrome_actions.go](../../internal/ui/fyneui/chrome_actions.go)) |
+
+A cluster's identity colour stays the hue its user picked (the lead's decision, open to revision): a
+track of the prototype mapped "red" to a teal so that no tile borrows a status hue, but a red tile is
+often a user's own production warning, and that cue outranks the calm.
+
+## Drawer, dialogs, forms, welcome and agent
+
+| Element | Look | Where |
+|---|---|---|
+| Drawer header | an eyebrow bracket "pod · inventory" in the cyan, the name at 20 points on its own row, the status badge under it, a 48 point wash in the status colour (14 % to 0) only for abnormal states; section titles as bracket heads | drawer ([stage_header.go](../../internal/ui/fyneui/stage_header.go), [drawer.go](../../internal/ui/fyneui/drawer.go)) |
+| Dialog family | every framed dialog a card: radius 14, the title, an eyebrow bracket as the header rule, a footer with right-aligned plain buttons; a destructive confirmation in a coral glow frame with "This cannot be undone." in the footer, one asked by an agent in a violet frame with "asked by · agent" | [dialogframe.go](../../internal/ui/fyneui/dialogframe.go), [confirm.go](../../internal/ui/fyneui/confirm.go) |
+| Forms | one bracket per real group ("general · 4", "updates · 2"), a plain label, the control, muted help wrapped under it, 24 points between settings; the nav's selection as in lists | Preferences, Cluster Settings |
+| Welcome | the horizon behind the logo's stage light, the grid floor only below the last line (a scrim follows the scroll), cluster rows as plates with a hairline | [stage_welcome.go](../../internal/ui/fyneui/stage_welcome.go) |
+| Agent chat | the violet header "agent · …", the thinking wave while a reply runs (still under Reduce motion and in tests), tool rows without fill and with a 2 point status spine, the row that waits for the user on a 10 % violet tint, a violet stop | chat ([chat.go](../../internal/ui/fyneui/chat.go), [chat_items.go](../../internal/ui/fyneui/chat_items.go)) |
+| About | the logo's glow as the only light | [about.go](../../internal/ui/fyneui/about.go) |
+
 ## What this does not cover yet
 
 - Typography: Fyne's bundled font stays; Inter (OFL) through the theme is a proposal, not built.
 - Lens parity checks: this branch does not update the parity checklists.
+- Fyne's own CustomDialog dialogs that are not confirm, create or parameter dialogs (Helm, kubeconfig,
+  the integrations question) keep Fyne's frame.
+- Measured speed: the per-cell objects are reused by Fyne's table, but no 10,000-row scroll run with
+  the perf harness has been made on this branch.
+- The real window: everything was judged from Fyne's software renderer (offscreen renders), not in
+  the GL window on a Mac.

@@ -300,7 +300,7 @@ rm -rf ~/.cache/Cogpit ~/.config/Cogpit                                 # the sa
 | `--perf-mode <mode>` | empty # default | with `--perf`: `scroll`; or `gate`, alone too: start-up, scrolling, every view and typing into 5 MB of YAML in one run (the [spike](spike-fyne.md)'s measurements) |
 | `--cpuprofile <file>` | empty # default | write a CPU profile of the first `--cpuprofile-for` to this file |
 | `--cpuprofile-for <duration>` | `5s` # default | how long `--cpuprofile` records |
-| `--theme <mode>` | `dark` # example | `dark` (Solarized Dark), `light` (Solarized Light) or `system`, for this run; without it the theme of Preferences › App (⌘,) applies, System (follow macOS) until changed (since 2026-10-14, [D-22](decisions.md#d-22-colour-theme)) |
+| `--theme <mode>` | `dark` # example | `dark` (Dark Cockpit's night stage), `light` (its day stage) or `system`, for this run; without it the theme of Preferences › App (⌘,) applies, System (follow macOS) until changed (since 2026-10-14, [D-22](decisions.md#d-22-colour-theme)) |
 | `-v` | `false` # default | debug logging |
 
 Security note on `--mcp-addr`: the server checks `Host`, `Origin` and the bearer token, and binds

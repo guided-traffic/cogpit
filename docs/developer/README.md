@@ -35,6 +35,7 @@ this page.
 | [`releasing.md`](releasing.md) | CI jobs and their make targets, the race shards, coverage, Renovate, the release flow with semantic-release, the release pipeline and its artifacts, the macOS signing and notarization and what to do when it fails, signed updates |
 | [`decisions.md`](decisions.md) | Decisions taken and open |
 | [`spike-fyne.md`](spike-fyne.md) | The UI toolkit gate before M2 |
+| [`design-language.md`](design-language.md) | Dark Cockpit, the design prototype of the branch `design-prototype`: principles, palette, shapes, what each part of the window looks like |
 
 Where Cogpit stands against Lens: [`../parity/`](../parity/README.md). Security architecture:
 [`../security/`](../security/README.md).

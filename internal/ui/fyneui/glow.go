@@ -278,11 +278,16 @@ func (g *glowFrame) CreateRenderer() fyne.WidgetRenderer {
 type glowFrameRenderer struct {
 	g     *glowFrame
 	plate *canvas.Rectangle
-	rings [3]*canvas.Rectangle
+	rings [4]*canvas.Rectangle
 }
 
-// glowAlphas are the rings' alphas from the inside out.
-var glowAlphas = [3]uint8{0xd0, 0x40, 0x18}
+// The rings from the inside out: a crisp edge in the full light, then a halo that falls off over
+// about seven points, the logo's glow drawn without blur.
+var (
+	glowAlphas  = [4]uint8{0xe6, 0x5c, 0x2a, 0x10}
+	glowOffsets = [4]float32{0, 1.5, 3.5, 6.5}
+	glowWidths  = [4]float32{1, 2, 2.5, 3.5}
+)
 
 func (r *glowFrameRenderer) MinSize() fyne.Size { return r.g.content.MinSize() }
 
@@ -291,7 +296,7 @@ func (r *glowFrameRenderer) Layout(size fyne.Size) {
 	r.g.content.Move(fyne.NewPos(0, 0))
 	r.plate.Resize(size)
 	for i, ring := range r.rings {
-		o := float32(i) * 2
+		o := glowOffsets[i]
 		ring.Move(fyne.NewPos(-o, -o))
 		ring.Resize(fyne.NewSize(size.Width+2*o, size.Height+2*o))
 		ring.CornerRadius = r.g.radius + o
@@ -305,10 +310,7 @@ func (r *glowFrameRenderer) Refresh() {
 	for i, ring := range r.rings {
 		ring.FillColor = color.Transparent
 		ring.StrokeColor = withAlpha(c, glowAlphas[i])
-		ring.StrokeWidth = 1.5
-		if i > 0 {
-			ring.StrokeWidth = 2
-		}
+		ring.StrokeWidth = glowWidths[i]
 		ring.Hidden = !r.g.on
 	}
 	r.plate.FillColor = color.Transparent
@@ -321,7 +323,7 @@ func (r *glowFrameRenderer) Refresh() {
 }
 
 func (r *glowFrameRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.rings[2], r.rings[1], r.plate, r.g.content, r.rings[0]}
+	return []fyne.CanvasObject{r.rings[3], r.rings[2], r.rings[1], r.plate, r.g.content, r.rings[0]}
 }
 func (r *glowFrameRenderer) Destroy() {}
 
