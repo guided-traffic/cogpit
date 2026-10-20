@@ -547,7 +547,11 @@ stopped waiting for <program>; its process was not found and may run on"
   be signalled: only if the plugin's own process did not appear within the half second while exactly
   one other child in Cogpit's process group did. Cogpit starts one other such child, `kubectl version
   --client` ([`kubectl/client.go`](../../internal/kubectl/client.go)), which ends within a second; a
-  terminal's shell runs in a session of its own and is never taken. Dormant as far as the code
+  terminal's shell runs in a session of its own and is never taken, nor counted as a second child in
+  the group: a child's group is the one at Cogpit's last look, and the shell leaves Cogpit's group
+  right after its fork (fixed 2026-10-20: seen there first, a shell started within the half second
+  left a run whose wrapper replaced itself before Cogpit saw its command line without a process,
+  `TestSearchCountsTheGroupAChildEndsIn`). Dormant as far as the code
   shows: client-go starts the plugin microseconds after it asked, and a plugin that cannot start
   ends the run at once, before anything is signalled.
 - **Windows** finds the plugin by its program's file name among the children that are new since

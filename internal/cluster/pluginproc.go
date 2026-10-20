@@ -201,7 +201,7 @@ func (s *procSearch) neighbours() (near, same bool) {
 
 // sighting is what the search saw of a new child.
 type sighting struct {
-	group   bool // in Cogpit's process group
+	group   bool // in Cogpit's process group at its last look
 	matched bool // seen running the plugin's command line
 }
 
@@ -238,8 +238,12 @@ func (s *procSearch) run(stop <-chan struct{}) {
 	s.found = decideProcess(seen, near, same)
 }
 
-// look notes each child that is new since the run's begin, and whether it runs the plugin's command
-// line; a child's command line is read until it does (a fork shows Cogpit's own until its exec).
+// look notes each child that is new since the run's begin, whether it runs the plugin's command
+// line, and its process group; a child's command line is read until it does (a fork shows Cogpit's
+// own until its exec). The group is the one at the last look: a terminal's shell leaves Cogpit's
+// group right after its fork (setsid), and a look in that moment saw it there; counted by its first
+// look, it made a second child in the group, and a run whose command line was missed had none
+// (CI, 2026-10-19).
 func (s *procSearch) look(seen map[procID]*sighting) {
 	for _, c := range listChildren() {
 		if s.before[c.id] {
@@ -247,9 +251,10 @@ func (s *procSearch) look(seen map[procID]*sighting) {
 		}
 		o := seen[c.id]
 		if o == nil {
-			o = &sighting{group: c.group}
+			o = &sighting{}
 			seen[c.id] = o
 		}
+		o.group = c.group
 		if !o.matched {
 			c.argv = commandLine(c.id.pid)
 			o.matched = c.runs(s.command)

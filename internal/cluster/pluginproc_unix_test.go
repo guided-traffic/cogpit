@@ -96,3 +96,32 @@ func TestListChildren(t *testing.T) {
 		t.Errorf("start times: %d, then %d", a.id.start, b.id.start)
 	}
 }
+
+// A terminal's shell leaves Cogpit's process group right after its fork (setsid, setpgid), and a
+// look in that moment sees it in the group. The search counts a child as in the group by its last
+// look: seen there first, the shell had made two children in the group with the run's, and a run
+// whose own command line the search missed (a wrapper that replaced itself before the first look)
+// had no process (CI, 2026-10-19: TestSearchFindsAWrapperAfterItsExec found pid 0). The shell here
+// stays in the group for 100 ms, and the plugin's command line never matches.
+func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
+	perl, err := exec.LookPath("perl")
+	if err != nil {
+		t.Skip("no perl to leave the process group with")
+	}
+	time.Sleep(searchWindow) // no other test's run began within the search's window
+	stop := make(chan struct{})
+	defer close(stop)
+	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, childSet())
+	defer func() { s.finished(time.Now()) }()
+	go s.run(stop)
+	shell := startChild(t, false, perl, "-e", "select(undef, undef, undef, 0.1); setpgrp(0, 0); sleep 900")
+	plugin := startChild(t, false, "/bin/sleep", "900")
+	select {
+	case <-s.done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the search did not decide")
+	}
+	if s.found.pid != plugin.Process.Pid {
+		t.Fatalf("the search found %+v; the plugin is %d, the shell that left the group %d", s.found, plugin.Process.Pid, shell.Process.Pid)
+	}
+}
