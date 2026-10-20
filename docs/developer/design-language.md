@@ -61,6 +61,24 @@ they cost the GPU, not a raster per frame (the wave is one raster, redrawn only 
 | `wave` | a glowing sine or series, crisp core and faint halo | the agent's thinking, the cluster's pulse, sparklines |
 | `horizon` | stage light and perspective grid floor | welcome, empty states, About, connecting |
 
+## Instruments (cluster Overview, integrations, dashboards)
+
+Built on the shapes above, in `instrument_*.go` and the views they sit in:
+
+| Instrument | What it is | Where |
+|---|---|---|
+| Health header | bracketed groups in the cluster's cyan: nodes as squares by state, pods as bars by state, the integrations' bearing; a legend names only the states that are not healthy | Overview ([instrument_health.go](../../internal/ui/fyneui/instrument_health.go)) |
+| Bearing | one rounded token per integration in a fixed order: filled cyan live, outline amber needs the user, coral failing, dim off or absent; a tooltip says it in words | Overview header, top of Settings › Integrations ([instrument_bearing.go](../../internal/ui/fyneui/instrument_bearing.go)) |
+| Instrument rows | a 28 point tile with the integration's initial, tinted by its state, then the switch, the status line and what it adds; grouped under `on · n` and `off · n` | Settings › Integrations ([instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go)) |
+| Headroom wave | usage as a crisp line over a faint wide glow stroke, the area fading to zero downwards, requests and limits softer, allocatable and capacity faintest | every chart ([chart.go](../../internal/ui/fyneui/chart.go), [chartpath.go](../../internal/ui/fyneui/chartpath.go)) |
+| Segmented alerts pill | the triangle in the worst severity's colour, then a token per severity sized by its count with the number | title bar ([alerts.go](../../internal/ui/fyneui/alerts.go)) |
+| Quiet dashboards | healthy counts in muted text, a spine and the status colour only on counts that need a look; health bars as tokens with gaps | Flux, Argo CD, Workloads Overview |
+
+The Overview's node and pod states come from the engine's own build of the page
+(`ClusterOverviewModel.NodeStates`, `PodStates`), counted from the cache; the bearing reads the
+integrations' states through `cluster.settings.get`, which sends no request to the cluster. Flux and
+Argo CD are not in the bearing: the engine reports no state for them as integrations.
+
 ## What this does not cover yet
 
 - Typography: Fyne's bundled font stays; Inter (OFL) through the theme is a proposal, not built.

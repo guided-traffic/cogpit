@@ -76,7 +76,7 @@ func newArgoPanel(sh *shell) *argoPanel {
 	head := container.NewBorder(nil, nil, nil, sized(sizeSearchWidth, "", p.filter))
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewVBox(p.stripHead, newSpace(theme.SizeNameInnerPadding), p.strip, newSpace(theme.SizeNamePadding), actions, p.cards,
-			newSpace(theme.SizeNamePadding), p.activityHead, newSpace(theme.SizeNameInnerPadding), head, p.activity))
+			newSpace(theme.SizeNamePadding), p.activityHead, head, p.activity))
 	return p
 }
 
