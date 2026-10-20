@@ -43,6 +43,8 @@ type tableView struct {
 	errLine               *textLine
 	scopeLine             *textLine // the namespaces a kind is read in one by one, and those denied (clustersettings_namespaces_filter.go)
 	nsButton              *widget.Button
+	nsTint                *container.ThemeOverride // the button red while a namespace it names is gone or going (nsgone.go)
+	nsTintTheme           *nsTintTheme
 	nsBox                 *fyne.Container // the namespace filter's slot; hidden on cluster-scoped views
 	states                *statusFilter   // the status filter beside it (statusfilter.go)
 	search                *searchEntry    // F1–F12 are the hotbar's (A64, searchkeys.go)
@@ -177,7 +179,9 @@ func newTableView(sh *shell) *tableView {
 	tv.csvButton.Hide()
 	tv.check.bar = newSelectionBar(tv)
 	tv.heading = container.NewHBox(tv.title, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root)
-	tv.nsBox = sized(sizeFilterWidth, "", tv.nsButton)
+	tv.nsTintTheme = &nsTintTheme{app: sh.app}
+	tv.nsTint = container.NewThemeOverride(tv.nsButton, tv.nsTintTheme)
+	tv.nsBox = sized(sizeFilterWidth, "", tv.nsTint)
 	tv.states = newStatusFilter(tv)
 	tv.searchBox = sized(sizeSearchWidth, "", tv.toggles.field())
 	// The tools give way to a narrow view, the search first (headerrow.go).
@@ -998,6 +1002,11 @@ func (tv *tableView) updateNamespaceButton() {
 	}
 	if tv.nsButton.Text != text {
 		tv.nsButton.SetText(text)
+	}
+	// Red while a namespace it names is deleted or terminating (GW9, nsgone.go).
+	if alarm := !tv.groupMode() && tv.sh.filterNamesGone(); alarm != tv.nsTintTheme.on {
+		tv.nsTintTheme.on = alarm
+		tv.nsTint.Refresh()
 	}
 	// Lens shows no namespace filter on a cluster-scoped view (captures of Nodes, Ingress Classes,
 	// Cluster Roles and Cluster Role Bindings, 2026-10-11), and a group filter on Definitions.

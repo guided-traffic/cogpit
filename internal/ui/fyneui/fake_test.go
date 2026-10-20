@@ -43,8 +43,10 @@ type fakeEngine struct {
 	confirmer  engine.Confirmer
 	kinds      []kindInfo
 	namespaces []string
-	disabled   map[string]string // command id → the reason Enabled returns
-	opened     map[string]int    // dock tab id → times its stream was opened
+	// terminatingNS are the namespaces resources.list answers as Terminating.
+	terminatingNS map[string]bool
+	disabled      map[string]string // command id → the reason Enabled returns
+	opened        map[string]int    // dock tab id → times its stream was opened
 	// quietTerminals: OpenTerminal's sessions print nothing (quietReader).
 	quietTerminals bool
 	// terminalCallsOnly: terminal.open is recorded but opens no dock tab, so that no terminal
@@ -513,14 +515,31 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		return slices.Clone(f.kinds), nil
-	case "resources.list":
+	case "resources.list": // the namespaces, a page at a time as the engine answers (limit 100 by default, at most 1000)
+		var p listParams
+		if err := params(&p); err != nil {
+			return nil, err
+		}
+		limit := p.Limit
+		switch {
+		case limit == 0:
+			limit = 100
+		case limit > 1000:
+			limit = 1000
+		}
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		rows := make([]map[string]any, 0, len(f.namespaces))
 		for _, n := range f.namespaces {
-			rows = append(rows, map[string]any{"ref": model.ObjectRef{Kind: "namespaces", Name: n}, "status": "ok", "cells": []string{n}})
+			status := model.StatusOK
+			if f.terminatingNS[n] {
+				status = model.StatusTerminating
+			}
+			rows = append(rows, map[string]any{"ref": model.ObjectRef{Kind: "namespaces", Name: n}, "status": status, "cells": []string{n}})
 		}
-		return map[string]any{"rows": rows}, nil
+		page := rows[min(p.Offset, len(rows)):]
+		page = page[:min(limit, len(page))]
+		return map[string]any{"rows": page, "total": len(rows), "returned": len(page)}, nil
 	case "pod.logs", "pod.shell":
 		var p containerParams
 		if err := params(&p); err != nil {

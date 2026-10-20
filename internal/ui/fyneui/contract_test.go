@@ -27,7 +27,7 @@ func TestDispatchedParamsMatchTheRegistry(t *testing.T) {
 	}{
 		{"cluster.connect", contextParams{Context: "demo"}},
 		{"kinds.list", struct{}{}},
-		{"resources.list", listParams{Kind: kindNamespaces}},
+		{"resources.list", listParams{Kind: kindNamespaces, Limit: nsPageSize, Offset: nsPageSize}}, // the filter's pages (nsgone.go)
 		{"ui.openView", openViewParams{View: "pods"}},
 		{"ui.setNamespace", namespacesParams{Namespaces: []string{}}},
 		{"ui.setFilter", filterParams{Filter: "web"}},

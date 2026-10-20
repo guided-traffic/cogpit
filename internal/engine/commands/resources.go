@@ -62,7 +62,7 @@ type KindInfo struct {
 type ListResult struct {
 	Kind     string    `json:"kind"`
 	Total    int       `json:"total"`    // objects that pass the namespace, search and status filters
-	Returned int       `json:"returned"` // rows in this result, at most the limit
+	Returned int       `json:"returned"` // rows in this result, at most the limit, from the offset on
 	Rows     []ListRow `json:"rows"`
 }
 
@@ -98,6 +98,7 @@ type listParams struct {
 	Filter     string   `json:"filter,omitempty" jsonschema:"search text as in the view's search box: every term must occur in a cell, case-insensitively"`
 	States     []string `json:"states,omitempty" jsonschema:"status filter as in the view's states menu (ui_setStatusFilter): only objects whose row carries one of these states per state column named (Running, Not Ready, Health: Degraded; view_rows lists a view's in stateChoices)"`
 	Limit      int      `json:"limit,omitempty" jsonschema:"maximum rows to return; default 100, at most 1000"`
+	Offset     int      `json:"offset,omitempty" jsonschema:"rows to skip before the first one returned, for the next page: with limit 100, offset 100 returns rows 101 to 200 of total, sorted by name"`
 }
 
 type findParams struct {
@@ -152,7 +153,8 @@ func registerResources(g *registrar) {
 		ID: "resources.list", Label: "List Resources", Danger: engine.DangerRead, Verbs: cacheReads,
 		Description: "Lists objects of one kind from Cogpit's cache, as table rows: reference, status and the cells by column " +
 			"title, and tips, the tooltips of the cells that have one (a node's kubelet: its upstream support and version skew). Optional namespaces, search text and states filter as in the view; rows are sorted by name. total counts every " +
-			"row that passes the filters, returned the rows in the result (limit, default 100, at most 1000). Makes no API request once the kind is cached.",
+			"row that passes the filters, returned the rows in the result (limit, default 100, at most 1000); offset skips rows for the next page, so " +
+			"every row is read page by page while offset + returned < total. Makes no API request once the kind is cached.",
 		Enabled: func(s *engine.Session, p listParams) error { _, err := connectedOn(s, p.Context); return err },
 		Run:     listResources,
 	})
@@ -223,6 +225,9 @@ func listResources(ctx context.Context, s *engine.Session, p listParams) (any, e
 	if err != nil {
 		return nil, err
 	}
+	if p.Offset < 0 {
+		return nil, fmt.Errorf("offset %d is negative", p.Offset)
+	}
 	b, prof, err := s.KindIn(p.Context, p.Kind) // the context's cluster, "" the shown one (D-69)
 	if err != nil {
 		return nil, err
@@ -240,9 +245,12 @@ func listResources(ctx context.Context, s *engine.Session, p listParams) (any, e
 	}
 	rows = engine.FilterRowsByStates(prof, rows, engine.CleanStates(p.States))
 	engine.SortRows(rows, cols, engine.DefaultSort)
-	res := ListResult{Kind: prof.Key, Total: len(rows), Rows: make([]ListRow, 0, min(limit, len(rows)))}
+	res := ListResult{Kind: prof.Key, Total: len(rows)}
+	page := rows[min(p.Offset, len(rows)):]
+	page = page[:min(limit, len(page))]
+	res.Rows = make([]ListRow, 0, len(page))
 	now, tf := s.Now(), s.TimeFormat() // times as the window writes them (D-31)
-	for _, r := range rows[:min(limit, len(rows))] {
+	for _, r := range page {
 		cells := make(map[string]string, len(cols))
 		var tips map[string]string
 		for i, c := range cols {

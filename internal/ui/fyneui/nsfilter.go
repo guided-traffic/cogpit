@@ -84,13 +84,20 @@ func (tv *tableView) openNamespaces() {
 }
 
 // namespacesLoaded fills an open list with the newly loaded names, keeping the typed text and the
-// highlighted row.
+// highlighted row; the button follows a namespace gone or going (nsgone.go).
 func (tv *tableView) namespacesLoaded() {
+	tv.updateNamespaceButton()
 	if f := tv.ns; f.visible() {
-		f.fill()
-		f.popup.Hide()
-		f.show()
+		f.refill()
 	}
+}
+
+// refill makes an open list's rows again, keeping the typed text and the highlighted row, and
+// shows it again at its new width.
+func (f *nsFilter) refill() {
+	f.fill()
+	f.popup.Hide()
+	f.show()
 }
 
 // show shows the list below the button, as wide as its widest row (at least the button's width plus
@@ -130,9 +137,13 @@ func (f *nsFilter) fill() {
 	all, choices, _ := f.tv.filterChoices()
 	lit := f.highlighted()
 	f.rows = f.rows[:0]
-	f.rows = append(f.rows, newNSRow(f, "", all))
+	f.rows = append(f.rows, newNSRow(f, "", all, nsLive))
 	for _, n := range choices {
-		f.rows = append(f.rows, newNSRow(f, n, n))
+		state := nsLive
+		if !f.tv.groupMode() {
+			state = f.tv.sh.namespaceState(n) // deleted or terminating: marked red (nsgone.go, GW9)
+		}
+		f.rows = append(f.rows, newNSRow(f, n, n, state))
 	}
 	f.search.SetPlaceHolder("Search " + strings.ToLower(strings.TrimPrefix(all, "All ")) + "…")
 	f.empty.SetText("No " + strings.ToLower(strings.TrimPrefix(all, "All ")) + " match.")
@@ -309,11 +320,31 @@ func (f *nsFilter) syncChecks() {
 }
 
 // syncNamespaceChecks makes an open list's boxes show the engine's namespaces (or groups); a closed
-// one follows when it opens.
+// one follows when it opens. A deleted namespace unticked leaves the list (GW9): the list is made
+// again when the namespaces it offers changed.
 func (tv *tableView) syncNamespaceChecks() {
-	if tv.ns.visible() {
-		tv.ns.syncChecks()
+	f := tv.ns
+	if !f.visible() {
+		return
 	}
+	if _, choices, _ := tv.filterChoices(); !f.offers(choices) {
+		f.refill()
+		return
+	}
+	f.syncChecks()
+}
+
+// offers reports whether the list's rows are "All namespaces" and the names given, in order.
+func (f *nsFilter) offers(names []string) bool {
+	if len(f.rows) != len(names)+1 {
+		return false
+	}
+	for i, n := range names {
+		if f.rows[i+1].name != n {
+			return false
+		}
+	}
+	return true
 }
 
 // toggled follows a click on a box (or Space): "All namespaces" clears the filter, a namespace is
@@ -392,6 +423,7 @@ type nsRow struct {
 	widget.BaseWidget
 	f       *nsFilter
 	name    string // "" for "All namespaces"
+	state   string // nsDeleted or nsTerminating: marked red (nsgone.go); nsLive otherwise
 	check   *widget.Check
 	label   *textLine
 	bg      *canvas.Rectangle
@@ -406,10 +438,16 @@ var (
 	_ desktop.Cursorable = (*nsRow)(nil)
 )
 
-func newNSRow(f *nsFilter, name, text string) *nsRow {
-	r := &nsRow{f: f, name: name, bg: canvas.NewRectangle(color.Transparent)}
+// newNSRow makes a row; a namespace deleted or terminating (state, nsgone.go) reads red and says
+// which after its name.
+func newNSRow(f *nsFilter, name, text, state string) *nsRow {
+	r := &nsRow{f: f, name: name, state: state, bg: canvas.NewRectangle(color.Transparent)}
 	r.check = widget.NewCheck("", func(on bool) { f.toggled(name, on) })
-	r.label = newTextLine(text, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
+	ink := theme.ColorNameForeground
+	if state != nsLive {
+		text, ink = text+" · "+state, colorStatusError
+	}
+	r.label = newTextLine(text, ink, theme.SizeNameText, fyne.TextStyle{})
 	r.content = container.NewStack(r.bg, container.NewBorder(nil, nil, r.check, nil, r.label))
 	r.ExtendBaseWidget(r)
 	return r

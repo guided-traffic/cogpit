@@ -13,12 +13,19 @@ import (
 // accessible namespaces then). Both come from the engine's state: UIState.ClusterSettings and the
 // view's snapshot (TableSnapshot.Watched and Denied).
 
-// namespaceChoices are the namespaces the filter offers: the cluster's, once listed; else the
+// namespaceChoices are the namespaces the filter offers: the cluster's, once listed, with those the
+// filter names that are gone (nsgone.go, GW9: listed and marked until unticked); else the
 // accessible namespaces, those the open view reads or names as denied, and the filter's own
 // selection, sorted.
 func (sh *shell) namespaceChoices(snap *engine.TableSnapshot) []string {
 	if len(sh.namespaces) > 0 {
-		return sh.namespaces
+		gone := sh.goneNamespaces()
+		if len(gone) == 0 {
+			return sh.namespaces
+		}
+		out := append(slices.Clone(sh.namespaces), gone...)
+		slices.Sort(out)
+		return out
 	}
 	out := slices.Clone(sh.ui.ClusterSettings[sh.ui.Context].AccessibleNamespaces)
 	if snap != nil && snap.View == sh.ui.View {

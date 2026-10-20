@@ -73,7 +73,14 @@ type shell struct {
 	namespaces []string
 	nsFollow   map[int]func([]string) // open fields that offer the namespaces (followNamespaces)
 	nsFollowID int
-	diag       diagView
+	// nsFor is the context namespaces were read for; nsTerminating its namespaces being deleted.
+	// nsChecked is when the view's changing rows last read them, nsRecheck the read waiting for
+	// nsRecheckEvery to pass (nsgone.go, GW9).
+	nsFor         string
+	nsTerminating map[string]bool
+	nsChecked     time.Time
+	nsRecheck     *time.Timer
+	diag          diagView
 
 	// Coalescing of engine events: the latest UI state wins, and at most one table, detail and
 	// diagnostics refresh is queued at a time. Guarded by pendingMu or atomic.
@@ -371,6 +378,7 @@ func (sh *shell) onEvent(ev engine.Event) {
 			sh.do(func() {
 				sh.tableQueued.Store(false)
 				sh.refreshTable()
+				sh.recheckNamespaces() // a namespace the filter names may be gone with its rows (nsgone.go)
 			})
 		}
 	case engine.EventDetail:
@@ -591,7 +599,7 @@ func (sh *shell) connectionChanged(st, old engine.UIState) {
 		sh.loadNamespaces()
 	}
 	if !st.Connection.State.Live() && old.Connection.State.Live() { // an interruption keeps them (D-58)
-		sh.kinds, sh.kindsFor, sh.namespaces = nil, "", nil
+		sh.kinds, sh.kindsFor, sh.namespaces, sh.nsFor, sh.nsTerminating = nil, "", nil, "", nil
 		sh.side.setKinds(nil) // the View menu follows in applyUIState, with the connection's other items
 	}
 }
@@ -677,23 +685,56 @@ func (sh *shell) loadKinds() {
 // that offer namespaces (followNamespaces). It runs when a cluster is shown and again whenever the
 // filter or such a field opens, so that a namespace created since is offered (the owner's walk,
 // 2026-10-17, WF10: walk-test, created in the window, was missing from both until the cluster was
-// shown anew); it reads the cache, never the API server. Only a changed list touches the widgets.
+// shown anew), and while the filter names namespaces when the view's rows change (nsgone.go); it
+// reads the cache, never the API server, every namespace page by page (nsPageSize), and notes the
+// terminating ones. Only a changed list touches the widgets.
 func (sh *shell) loadNamespaces() {
 	ctxName := sh.ui.Context
-	sh.dispatch("resources.list", listParams{Kind: kindNamespaces}, func(res any, err error) {
-		if err != nil || sh.ui.Context != ctxName {
-			return // the filter then offers "All namespaces" only; nothing to tell the user
-		}
-		names, derr := decodeNames(res)
-		if derr != nil || (slices.Equal(names, sh.namespaces) && sh.namespaces != nil) {
-			return
-		}
-		sh.namespaces = names
-		sh.view.namespacesLoaded()
-		for _, id := range slices.Sorted(maps.Keys(sh.nsFollow)) {
-			sh.nsFollow[id](slices.Clone(names))
-		}
-	})
+	var names []string
+	terminating := map[string]bool{}
+	var page func(offset int)
+	page = func(offset int) {
+		sh.dispatch("resources.list", listParams{Kind: kindNamespaces, Limit: nsPageSize, Offset: offset}, func(res any, err error) {
+			if err != nil || sh.ui.Context != ctxName {
+				return // the filter then offers "All namespaces" only; nothing to tell the user
+			}
+			rows, total, derr := decodeNamespacePage(res)
+			if derr != nil {
+				return
+			}
+			for _, r := range rows {
+				names = append(names, r.Ref.Name)
+				if r.Status == model.StatusTerminating {
+					terminating[r.Ref.Name] = true
+				}
+			}
+			if next := offset + len(rows); len(rows) > 0 && next < total {
+				page(next)
+				return
+			}
+			slices.Sort(names)
+			names = slices.Compact(names)
+			sh.namespacesRead(ctxName, names, terminating)
+		})
+	}
+	page(0)
+}
+
+// namespacesRead takes in the namespaces read for a context: the filter's list and button and the
+// fields that offer them follow a change.
+func (sh *shell) namespacesRead(ctxName string, names []string, terminating map[string]bool) {
+	same := slices.Equal(names, sh.namespaces) && sh.namespaces != nil
+	if same && sh.nsFor == ctxName && maps.Equal(terminating, sh.nsTerminating) {
+		return
+	}
+	sh.namespaces, sh.nsFor, sh.nsTerminating = names, ctxName, terminating
+	sh.view.namespacesLoaded()
+	if same {
+		return
+	}
+	for _, id := range slices.Sorted(maps.Keys(sh.nsFollow)) {
+		sh.nsFollow[id](slices.Clone(names))
+	}
 }
 
 // refreshNamespaces reads the namespace names again when the shown cluster lets the user list them.
@@ -1120,7 +1161,9 @@ type (
 		ID string `json:"id"`
 	}
 	listParams struct {
-		Kind string `json:"kind"`
+		Kind   string `json:"kind"`
+		Limit  int    `json:"limit,omitempty"`
+		Offset int    `json:"offset,omitempty"`
 	}
 )
 
@@ -1170,24 +1213,6 @@ func decodeKinds(res any) ([]kindInfo, error) {
 		return nil, err
 	}
 	return wrapped.Kinds, nil
-}
-
-// decodeNames reads the object names from a resources.list result.
-func decodeNames(res any) ([]string, error) {
-	var out struct {
-		Rows []struct {
-			Ref model.ObjectRef `json:"ref"`
-		} `json:"rows"`
-	}
-	if err := decode(res, &out); err != nil {
-		return nil, err
-	}
-	names := make([]string, 0, len(out.Rows))
-	for _, r := range out.Rows {
-		names = append(names, r.Ref.Name)
-	}
-	slices.Sort(names)
-	return slices.Compact(names), nil
 }
 
 // formatCount formats n with thousands separators: 10000 → "10,000".
