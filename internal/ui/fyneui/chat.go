@@ -114,7 +114,7 @@ func newChatPanel(sh *shell) *chatPanel {
 	row1 := inset(theme.SizeNameInnerPadding, "", container.NewBorder(nil, nil, nil, c.closeB, container.NewVBox(layout.NewSpacer(), c.agentHead, layout.NewSpacer())))
 	row2 := inset(theme.SizeNameInnerPadding, "", container.NewBorder(nil, nil, nil, container.NewHBox(c.historyB, c.newB),
 		container.NewVBox(layout.NewSpacer(), c.convTitle, layout.NewSpacer())))
-	header := container.NewVBox(row1, row2, c.thinking.w, newDivider(false))
+	header := container.NewVBox(row1, row2, fixedSpace(0, 4), c.thinking.w, fixedSpace(0, 4), newDivider(false))
 
 	c.list = newVStack(theme.SizeNameInnerPadding)
 	c.list.gapX = 2

@@ -269,9 +269,9 @@ func (in *chatInput) refresh() {
 
 	switch {
 	case c.running():
-		in.sendB.SetIcon(theme.MediaStopIcon())
+		in.sendB.SetIcon(themedIcon(theme.MediaStopIcon(), colorAgent)) // the agent's violet, not a warning's orange
 		in.sendB.tip = "Stop (Escape, " + shortcutText("Cmd+.", runtime.GOOS == goosMac) + ")"
-		in.sendB.Importance = widget.WarningImportance
+		in.sendB.Importance = widget.MediumImportance
 		in.sendB.Enable()
 	default:
 		in.sendB.SetIcon(iconSend)
