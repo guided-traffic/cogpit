@@ -15,15 +15,17 @@ import (
 // "ich möchte dass Config Map noch klarer vom Namen getrennt wird: "Config Map -> walk-cm" oder
 // etwas ähnliches"; D-85, D-100): the kind in the muted colour with an arrow, the name in bold,
 // "Config Map → walk-cm". Several objects are grouped by kind: the kind stands once, on its group's
-// first line, and the names stand under each other in their own column. Where only plain text fits
-// (a dialog's title) the same form without the colours: objectText. A dialog that names objects
-// (a confirmation, a save review, Rollback, a Helm install, Remove finalizers to come) builds its
-// Object(s) row with objectsRow.
+// first line, and the names stand under each other in their own column. A dialog's title has the
+// same form without the colours, its arrow ending a text of its own (objectDialogTitle,
+// dialogframe.go: one text with a space after the arrow draws an em-wide gap, D-104); other plain
+// text has objectText. A dialog that names objects (a confirmation, a save review, Rollback, a Helm
+// install, Remove finalizers to come) builds its Object(s) row with objectsRow.
 
 // objectArrow sets a kind apart from its name.
 const objectArrow = "→"
 
-// objectText is an object's kind and name in plain text: "Config Map → walk-cm".
+// objectText is an object's kind and name in plain text: "Config Map → walk-cm". Not for a
+// dialog's title, which is objectDialogTitle (D-104).
 func objectText(kind, name string) string { return kind + " " + objectArrow + " " + name }
 
 // namedObject is one object a dialog names: its kind as the user reads it ("Config Map", "Pod",

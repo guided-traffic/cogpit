@@ -116,6 +116,10 @@ func registerWorkloads(g *registrar) {
 	})
 }
 
+// scaleSliderMax is the top of the Scale dialog's slider; a higher count is typed (the owner's
+// GW2: "Slider von 1 bis 30, höhere Zahlen eintippen").
+const scaleSliderMax = 30
+
 // scaleSpec builds the Scale command of a workload kind.
 func scaleSpec(id, menuPath, kind, noun string, order int) engine.Spec[scaleParams] {
 	return engine.Spec[scaleParams]{
@@ -133,6 +137,12 @@ func scaleSpec(id, menuPath, kind, noun string, order int) engine.Spec[scalePara
 			return err
 		},
 		Escalate: func(_ *engine.Session, p scaleParams) bool { return p.Replicas != nil && *p.Replicas == 0 },
+		// The dialog: a slider from 1 to 30, a higher count typed (the owner's GW2, 2026-10-20), 0 only
+		// typed; the hint a person reads in place of the schema's words for agents (D-104).
+		Dialog: map[string]engine.DialogField{"replicas": {
+			Hint:      "The number of pods. Drag up to 30 or type up to 65,535; 0 stops every pod and is confirmed first.",
+			SliderMin: 1, SliderMax: scaleSliderMax,
+		}},
 		Prefill: func(s *engine.Session, p scaleParams) (scaleParams, error) {
 			if p.Replicas != nil {
 				return p, nil

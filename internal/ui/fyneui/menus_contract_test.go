@@ -78,7 +78,7 @@ func TestRegistryMenusAsLens(t *testing.T) {
 		// Every dialog field is one the generated form can show.
 		test.NewTempApp(t)
 		for _, name := range c.DialogFields() {
-			if _, _, err := formField(name, c.Schema.Properties[name], nil, c.Requires(name)); err != nil {
+			if _, err := formField(c, name, nil, newTooltip(nil)); err != nil {
 				t.Errorf("%s: %v", id, err)
 			}
 		}

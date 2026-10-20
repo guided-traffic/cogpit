@@ -542,18 +542,7 @@ func TestRenderReleaseDrawerEnd(t *testing.T) {
 	renderReleaseDrawer(t, ThemeLight, "release_drawer_end_light.png", true)
 }
 
-func TestRenderRollbackDialog(t *testing.T) {
-	sh, w, q, _, _ := releaseDrawerShell(t, ThemeDark)
-	var rd *rollbackDialog
-	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
-		var h releaseHistory
-		if err == nil && decode(res, &h) == nil {
-			rd = sh.showRollbackDialog(h)
-		}
-	})
-	q.until(t, "the dialog", func() bool { return rd != nil })
-	savePNG(t, w, "rollback_dialog_dark.png")
-}
+// TestRenderRollbackDialog and its dropdown's renders: render_dialogs_test.go.
 
 func renderHelmUpgradeTab(t *testing.T, mode ThemeMode, name string, find bool) {
 	f, ref := releasesFake(t)

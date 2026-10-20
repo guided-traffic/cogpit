@@ -56,6 +56,17 @@ type pendingDrainsParams struct {
 	All bool `json:"all,omitempty" jsonschema:"list the pending drains of every context, not only the shown cluster's"`
 }
 
+// drainDialog are the Drain dialog's hints, the tooltips of the "?" after each option's name: the
+// schema's descriptions said to a person, without the kubectl flags and defaults agents need
+// (the owner's GW6, 2026-10-20, D-104).
+var drainDialog = map[string]engine.DialogField{
+	"ignoreDaemonSets":   {Hint: "Leave DaemonSet pods running: their DaemonSet would start them again at once. Off: the drain stops if the node runs any."},
+	"deleteEmptyDirData": {Hint: "Also evict pods with emptyDir volumes; their emptyDir data is lost. Off: the drain stops if the node runs any."},
+	"force":              {Hint: "Also evict pods no controller manages; nothing starts them again. Off: the drain stops if the node runs any."},
+	"gracePeriodSeconds": {Hint: "Seconds each pod gets to shut down. 0: each pod's own grace period."},
+	"timeoutSeconds":     {Hint: "Seconds until the drain gives up, the node left cordoned and partly drained. 0: 300 seconds."},
+}
+
 // drainEffects are the confirmation's rows of the drain options that lose data or end pods for
 // good, so that "Finish drain" or an agent's drain with them never reads like a plain drain: what
 // is lost in the error colour, the other options plain.
@@ -168,7 +179,8 @@ func registerNodes(g *registrar) {
 			p.DrainSettings = p.WithDefaults()
 			return p, nil
 		},
-		Run: runDrain,
+		Dialog: drainDialog,
+		Run:    runDrain,
 	})
 
 	add(g, engine.Spec[pendingDrainsParams]{

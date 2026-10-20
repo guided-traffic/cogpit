@@ -13,7 +13,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -821,7 +820,7 @@ type cmReview struct {
 	base    string            // the version the shown diff and dry run are of, which Save writes with
 	uid     string            // the Config Map's the review is of, which a removal's confirmation binds
 	last    *engine.ConfigMapDataReview
-	dlg     *dialog.CustomDialog
+	dlg     *dialogFrame
 	diff    *diffView
 	banner  *textLine       // a newer version on the cluster (showOver); hidden otherwise
 	keys    *fyne.Container // the head, reviewHead
@@ -860,7 +859,8 @@ func (cd *cmData) openReview() {
 	cancel := widget.NewButton("Cancel", func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 300)}, container.NewStack(newSurface(theme.ColorNameInputBackground), rv.diff.list))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
-	rv.dlg = dialog.NewCustomWithoutButtons("Save "+objectText("Config Map", cd.ref.Name), content, cd.d.sh.win)
+	rv.dlg = newDialogFrame(cd.d.sh, objectDialogTitle("Save", "Config Map", cd.ref.Name, "")) // no gap after the arrow (dialogframe.go)
+	rv.dlg.setContent(content)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; cd.review = nil; cd.refreshFooter() })
 	cd.review = rv

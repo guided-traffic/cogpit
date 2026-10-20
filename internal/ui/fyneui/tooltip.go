@@ -27,18 +27,45 @@ type tooltip struct {
 	layer *fyne.Container
 
 	delay time.Duration
-	owner any           // who asked for the current or pending tooltip: a table cell, a button
-	text  string        // what it shows
-	pos   fyne.Position // the pointer, in window coordinates
-	shown bool
-	gen   uint64
-	timer *time.Timer
+	// inDialog marks a dialog's own tooltip (newDialogTooltip): its layer lies in the dialog, over
+	// the window's other overlays, where the shell's layer cannot reach, and is placed anywhere in
+	// the window, so the tooltip is kept inside the window rather than inside its layer.
+	inDialog bool
+	owner    any           // who asked for the current or pending tooltip: a table cell, a button
+	text     string        // what it shows
+	pos      fyne.Position // the pointer, in window coordinates
+	shown    bool
+	gen      uint64
+	timer    *time.Timer
 }
 
 func newTooltip(sh *shell) *tooltip {
 	t := &tooltip{sh: sh, delay: tooltipDelay}
 	t.layer = box(&tooltipLayout{t: t})
 	return t
+}
+
+// newDialogTooltip is a dialog's own tooltip (dialogFrame): the shell's layer lies under every
+// overlay, and only the top overlay receives the pointer, so a tooltip over a dialog lives in it.
+func newDialogTooltip(sh *shell) *tooltip {
+	t := newTooltip(sh)
+	t.inDialog = true
+	return t
+}
+
+// now shows owner's tooltip at once, without the delay: a click on a hint's "?" (paramdialog.go).
+// A second click on the same owner hides it.
+func (t *tooltip) now(owner any, text string, pos fyne.Position) {
+	if owner == t.owner && t.shown {
+		t.hide()
+		return
+	}
+	t.hide()
+	if text == "" {
+		return
+	}
+	t.owner, t.text, t.pos = owner, text, pos
+	t.show()
 }
 
 // hover asks for owner's tooltip text at the pointer position pos. The same owner and text keep
@@ -134,14 +161,20 @@ func (l *tooltipLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	o := objs[0]
 	ms := o.MinSize()
 	off := fyne.CurrentApp().Settings().Theme().Size(sizeTooltipOffset)
-	pos := l.t.pos.AddXY(off, off)
-	if pos.X+ms.Width > size.Width {
-		pos.X = fyne.Max(0, size.Width-ms.Width-off/2)
+	var origin fyne.Position // the layer's place in the window: the shell's layer covers it
+	area := size
+	if l.t.inDialog {
+		origin = fyne.CurrentApp().Driver().AbsolutePositionForObject(l.t.layer)
+		area = l.t.sh.win.Canvas().Size()
 	}
-	if pos.Y+ms.Height > size.Height {
+	pos := l.t.pos.AddXY(off, off)
+	if pos.X+ms.Width > area.Width {
+		pos.X = fyne.Max(0, area.Width-ms.Width-off/2)
+	}
+	if pos.Y+ms.Height > area.Height {
 		pos.Y = fyne.Max(0, l.t.pos.Y-ms.Height-off/2)
 	}
-	o.Move(pos)
+	o.Move(pos.Subtract(origin))
 	o.Resize(ms)
 }
 

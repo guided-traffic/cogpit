@@ -93,6 +93,10 @@ type Spec[P any] struct {
 	// Prefill returns the parameters a dialog shows before the user edits them, read from the
 	// cache: the current replica count for Scale. Nil shows p as it is.
 	Prefill func(s *Session, p P) (P, error)
+	// Dialog says how the window's generated dialog shows some of the parameters, by their JSON
+	// names: a hint written for a person and a slider's range (DialogField). Agents never read it;
+	// they read the schema. Nil: every field as its schema says.
+	Dialog map[string]DialogField
 	// Effects are the confirmation's rows for what the objects don't show (Effect): the keys a
 	// save removes, the drain options that lose data, a rollback's revision. Short names and terse
 	// values, never a sentence (D-85, WF33). Nil, or none, adds no row.
@@ -152,6 +156,7 @@ type Command struct {
 	escalate  func(s *Session, p any) bool
 	agentsAsk func(s *Session, p any) bool
 	prefill   func(s *Session, p any) (any, error)
+	dialog    map[string]DialogField // Spec.Dialog
 	effects   func(s *Session, p any) []Effect
 	warning   func(s *Session, p any) string
 	review    func(s *Session, p any) string
@@ -278,11 +283,14 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	if err != nil {
 		return fmt.Errorf("command %s: resolve params schema: %w", spec.ID, err)
 	}
+	if err := checkDialogFields(schema, spec.Dialog); err != nil {
+		return fmt.Errorf("command %s: %w", spec.ID, err)
+	}
 	c := &Command{
 		ID: spec.ID, Label: spec.Label, MenuPath: spec.MenuPath, Shortcut: spec.Shortcut,
 		Description: spec.Description, Kinds: spec.Kinds, Order: spec.Order, DrawerOnly: spec.DrawerOnly, Danger: spec.Danger,
 		Escalates: spec.Escalate != nil, AgentsAsk: spec.AgentsAsk != nil, GUIOnly: spec.GUIOnly != nil, guiOnly: spec.GUIOnly, undoable: spec.Undoable, Verbs: spec.Verbs, Schema: schema,
-		resolved: resolved,
+		resolved: resolved, dialog: spec.Dialog,
 	}
 	c.decode = func(raw json.RawMessage) (any, error) {
 		var p P

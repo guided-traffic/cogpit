@@ -30,10 +30,15 @@ type probeContainer struct {
 	Container string          `json:"container,omitempty"`
 }
 
+// probeScale has the real Scale's parameters: replicas optional for agents (a dialog starts from
+// the cache), 0 to 65535, the description written for agents (commands/workloads.go).
 type probeScale struct {
 	Ref      model.ObjectRef `json:"ref"`
-	Replicas int32           `json:"replicas" jsonschema:"the number of pods the deployment runs"`
+	Replicas *uint16         `json:"replicas,omitempty" jsonschema:"the desired number of pods, 0 to 65535 (required to run; a dialog starts from the current count)"`
 }
+
+// probeScaleHint is the probe's dialog hint, the real Scale's words.
+const probeScaleHint = "The number of pods. Drag up to 30 or type up to 65,535; 0 stops every pod and is confirmed first."
 
 // cordonedNode and suspendedJob are the objects the probes treat as cordoned and suspended.
 const (
@@ -88,10 +93,12 @@ func registerProbes(t testing.TB, f *fakeEngine) {
 	must(engine.Register(f.reg, engine.Spec[probeScale]{ID: "deployment.scale", Label: "Scale", Kinds: []string{"deployments"}, Order: 100,
 		Danger:   engine.DangerMutating,
 		Targets:  func(_ *engine.Session, p probeScale) ([]model.ObjectRef, error) { return []model.ObjectRef{p.Ref}, nil },
-		Escalate: func(_ *engine.Session, p probeScale) bool { return p.Replicas == 0 },
+		Escalate: func(_ *engine.Session, p probeScale) bool { return p.Replicas != nil && *p.Replicas == 0 },
+		Dialog:   map[string]engine.DialogField{"replicas": {Hint: probeScaleHint, SliderMin: 1, SliderMax: 30}},
 		Prefill: func(_ *engine.Session, p probeScale) (probeScale, error) {
-			if p.Ref.Name == "checkout-api" {
-				p.Replicas = 3 // what the cache says
+			if p.Ref.Name == "checkout-api" && p.Replicas == nil {
+				n := uint16(3) // what the cache says
+				p.Replicas = &n
 			}
 			return p, nil
 		},
@@ -275,7 +282,8 @@ func TestMenuColumnOpensMenuWithoutSelecting(t *testing.T) {
 }
 
 // TestScaleDialogPrefilled: a command whose schema needs more than the object (Scale's replicas)
-// opens a dialog generated from the schema, prefilled from the cache, and dispatches its values.
+// opens a dialog generated from the schema, prefilled from the cache, its field named with the
+// command's hint behind a "?" (GW6), a slider beside the count (GW2), and dispatches its values.
 func TestScaleDialogPrefilled(t *testing.T) {
 	f := kindsFake(t, "deployments")
 	registerProbes(t, f)
@@ -297,17 +305,14 @@ func TestScaleDialogPrefilled(t *testing.T) {
 	if entry.Text != "3" {
 		t.Fatalf("replicas prefilled %q, want the cached 3", entry.Text)
 	}
-	if forms := findAll[*widget.Form](w.Canvas().Overlays().Top()); len(forms) != 1 || forms[0].Items[0].Text != "Replicas" ||
-		forms[0].Items[0].HintText != "the number of pods the deployment runs" {
-		t.Fatalf("form items %+v", forms)
+	top := w.Canvas().Overlays().Top()
+	names := findAll[*fieldName](top)
+	sliders := findAll[*widget.Slider](top)
+	if len(names) != 1 || names[0].text != "Replicas" || names[0].hint != probeScaleHint || len(sliders) != 1 || sliders[0].Value != 3 {
+		t.Fatalf("names %+v, sliders %d", names, len(sliders))
 	}
-	entry.SetText("x")
-	if entry.Validate() == nil {
-		t.Error("a non-number validates")
-	}
-	entry.SetText("5")
 	var confirm *widget.Button
-	for _, b := range findAll[*widget.Button](w.Canvas().Overlays().Top()) {
+	for _, b := range findAll[*widget.Button](top) {
 		if b.Text == "Scale" {
 			confirm = b
 		}
@@ -315,10 +320,18 @@ func TestScaleDialogPrefilled(t *testing.T) {
 	if confirm == nil || confirm.Disabled() {
 		t.Fatal("no enabled Scale button")
 	}
+	entry.SetText("x")
+	if !confirm.Disabled() {
+		t.Error("Scale is armed with a count that is not a number")
+	}
+	entry.SetText("5")
+	if confirm.Disabled() || sliders[0].Value != 5 {
+		t.Fatalf("Scale disabled %v, slider %v after typing 5", confirm.Disabled(), sliders[0].Value)
+	}
 	test.Tap(confirm)
 	q.until(t, "deployment.scale", func() bool { return len(f.callsOf("deployment.scale")) == 1 })
 	p := decodeParams[probeScale](t, f.callsOf("deployment.scale")[0])
-	if p.Replicas != 5 || p.Ref.Name != "checkout-api" || p.Ref.Kind != "deployments" {
+	if p.Replicas == nil || *p.Replicas != 5 || p.Ref.Name != "checkout-api" || p.Ref.Kind != "deployments" {
 		t.Errorf("scale params %+v", p)
 	}
 }

@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -71,12 +70,13 @@ func init() {
 // argoRowNoun names the Dashboard's rows in hints: Needs attention lists Applications.
 func argoRowNoun(sh *shell) string { return strings.ToLower(sh.kindTitle(kinds.ArgoApplicationsKey)) }
 
-// argoTitle names the Applications a dialog acts on: "Application → shop", "3 Applications".
-func argoTitle(refs []model.ObjectRef) string {
+// argoTitle is a dialog's title naming the Applications it acts on: "Sync Application → shop"
+// (the name shaped apart from the arrow, dialogframe.go), "Sync 3 Applications".
+func argoTitle(verb string, refs []model.ObjectRef) *widget.RichText {
 	if len(refs) == 1 {
-		return objectText("Application", refs[0].Name)
+		return objectDialogTitle(verb, "Application", refs[0].Name, "")
 	}
-	return fmt.Sprintf("%d Applications", len(refs))
+	return dialogTitle(fmt.Sprintf("%s %d Applications", verb, len(refs)))
 }
 
 // argoDialog shows a dialog of Argo CD's actions (Lens's "Sync app(s)" and "Refresh app(s)"
@@ -85,7 +85,7 @@ func argoTitle(refs []model.ObjectRef) string {
 // shop", WF32), the options, and the action's button. Several Applications are a list of checks
 // in the Objects row, every one checked at first, as Lens preselects them; the user unchecks those
 // to leave out, and run gets the checked ones (none: nothing runs).
-func (sh *shell) argoDialog(title, action string, refs []model.ObjectRef, options fyne.CanvasObject, run func([]model.ObjectRef)) {
+func (sh *shell) argoDialog(action string, refs []model.ObjectRef, options fyne.CanvasObject, run func([]model.ObjectRef)) {
 	th := sh.app.Settings().Theme()
 	width := th.Size(sizeConfirmWidth)
 	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
@@ -104,12 +104,16 @@ func (sh *shell) argoDialog(title, action string, refs []model.ObjectRef, option
 		rows.Objects = append(rows.Objects,
 			rowName(fmt.Sprintf("Applications (%d)", len(refs))), list)
 	}
-	d := dialog.NewCustomConfirm(title, action, "Cancel", container.NewVBox(rows, newSpace(theme.SizeNamePadding), options),
-		func(ok bool) {
-			if chosen := picker.chosen(); ok && len(chosen) > 0 {
-				run(chosen)
-			}
-		}, sh.win)
+	d := newDialogFrame(sh, argoTitle(action, refs)) // no gap after the arrow (dialogframe.go)
+	d.setContent(container.NewVBox(rows, newSpace(theme.SizeNamePadding), options))
+	confirm := widget.NewButtonWithIcon(action, theme.ConfirmIcon(), func() {
+		d.Hide()
+		if chosen := picker.chosen(); len(chosen) > 0 {
+			run(chosen)
+		}
+	})
+	confirm.Importance = widget.HighImportance
+	d.SetButtons([]fyne.CanvasObject{widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), d.Hide), confirm})
 	d.Resize(fyne.NewSize(width, d.MinSize().Height))
 	d.Show()
 }
@@ -156,7 +160,7 @@ func (sh *shell) openArgoSyncDialog(refs []model.ObjectRef) {
 	prune := widget.NewCheck("Prune resources not in Git", nil)
 	width := sh.app.Settings().Theme().Size(sizeConfirmWidth)
 	hint := newParagraph("Pruning deletes the live resources the Application manages that are no longer in Git; Cogpit asks once more before it does.", colorMuted, width)
-	sh.argoDialog("Sync "+argoTitle(refs), "Sync", refs, container.NewVBox(prune, hint), func(chosen []model.ObjectRef) {
+	sh.argoDialog("Sync", refs, container.NewVBox(prune, hint), func(chosen []model.ObjectRef) {
 		if len(chosen) == 1 {
 			sh.dispatch(argoSyncCommand, argoSyncParams{Ref: chosen[0], Prune: prune.Checked}, nil)
 			return
@@ -174,7 +178,7 @@ func (sh *shell) openArgoRefreshDialog(refs []model.ObjectRef) {
 	mode := widget.NewRadioGroup([]string{normal, hard}, nil)
 	mode.Required = true
 	mode.SetSelected(normal)
-	sh.argoDialog("Refresh "+argoTitle(refs), "Refresh", refs, mode, func(chosen []model.ObjectRef) {
+	sh.argoDialog("Refresh", refs, mode, func(chosen []model.ObjectRef) {
 		isHard := mode.Selected == hard
 		if len(chosen) == 1 {
 			sh.dispatch(argoRefreshCommand, argoRefreshParams{Ref: chosen[0], Hard: isHard}, nil)

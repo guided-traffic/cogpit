@@ -11,7 +11,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -670,7 +669,7 @@ type secReview struct {
 	base              string // the version the shown changes and dry run are of, which Save writes with
 	uid               string // the Secret's the review is of, which a removal's confirmation binds
 	last              *engine.SecretDataReview
-	dlg               *dialog.CustomDialog
+	dlg               *dialogFrame
 	changes           *fyne.Container // one line per key that changes
 	banner            *textLine       // a newer version on the cluster (showOver); hidden otherwise
 	keys              *fyne.Container // the head, reviewHead
@@ -710,7 +709,8 @@ func (sd *secData) openReview() {
 	list := box(sizedMin{size: fyne.NewSize(width, 120)}, container.NewStack(newSurface(theme.ColorNameInputBackground),
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVScroll(rv.changes))))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
-	rv.dlg = dialog.NewCustomWithoutButtons("Save "+objectText("Secret", sd.ref.Name), content, sd.d.sh.win)
+	rv.dlg = newDialogFrame(sd.d.sh, objectDialogTitle("Save", "Secret", sd.ref.Name, "")) // no gap after the arrow (dialogframe.go)
+	rv.dlg.setContent(content)
 	rv.dlg.SetButtons([]fyne.CanvasObject{cancel, rv.save})
 	rv.dlg.SetOnClosed(func() { rv.closed = true; sd.review = nil; sd.refreshFooter() })
 	sd.review = rv

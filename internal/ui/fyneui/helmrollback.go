@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -67,7 +66,7 @@ func openRollbackDialog(sh *shell, ref model.ObjectRef, _ model.ItemAction) {
 
 // rollbackDialog is a shown Rollback dialog.
 type rollbackDialog struct {
-	d        *dialog.CustomDialog
+	d        *dialogFrame
 	revision *widget.Select
 	confirm  *widget.Button
 	cancel   *widget.Button
@@ -121,7 +120,8 @@ func (sh *shell) showRollbackDialog(h releaseHistory) *rollbackDialog {
 	placeRows(rows, h.Ref.Context, []string{h.Ref.Namespace}, []namedObject{{kind: "Release", name: h.Ref.Name}}, valueW)
 	rows.Objects = append(rows.Objects, rowName("To revision"), rd.revision)
 	effectRows(rows, []engine.Effect{{Name: "Writes", Value: "a new revision equal to the chosen one"}}, valueW)
-	rd.d = dialog.NewCustomWithoutButtons("Rollback "+objectText("Release", h.Ref.Name), rows, sh.win)
+	rd.d = newDialogFrame(sh, objectDialogTitle("Rollback", "Release", h.Ref.Name, "")) // no gap after the arrow (dialogframe.go)
+	rd.d.setContent(rows)
 	rd.d.SetButtons([]fyne.CanvasObject{rd.cancel, rd.confirm})
 	rd.cancel.OnTapped = rd.d.Hide
 	rd.confirm.OnTapped = func() {

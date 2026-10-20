@@ -356,7 +356,7 @@ func (u *helmInstallTab) close() {
 
 // installPreviewDialog shows what an install creates before it runs.
 type installPreviewDialog struct {
-	d       *dialog.CustomDialog
+	d       *dialogFrame
 	install *widget.Button
 	cancel  *widget.Button
 	lines   []string
@@ -421,7 +421,8 @@ func (sh *shell) showInstallPreview(p installPreview, createNamespace bool, answ
 	pd.install = widget.NewButton("Install", nil)
 	pd.install.Importance = widget.HighImportance
 	pd.cancel = widget.NewButton("Cancel", nil)
-	pd.d = dialog.NewCustomWithoutButtons("Install "+objectText("Release", p.Release.Name)+"?", content, sh.win)
+	pd.d = newDialogFrame(sh, objectDialogTitle("Install", "Release", p.Release.Name, "?")) // no gap after the arrow (dialogframe.go)
+	pd.d.setContent(content)
 	pd.d.SetButtons([]fyne.CanvasObject{pd.cancel, pd.install})
 	done := false
 	finish := func(ok bool) {

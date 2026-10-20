@@ -24,7 +24,10 @@ Ordered checklists for the common additions. The packages they name are in
      mutating command are destructive; `AgentsAsk` when some invocations by an agent must wait for
      the user even where agent writes are allowed (a role binding: a command that can write one
      declares it, [H-27](../security/privilege-footprint.md#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache));
-     `Prefill` when a dialog should start from cached values;
+     `Prefill` when a dialog should start from cached values; `Dialog` when a field of the
+     generated dialog needs a hint for a person (the schema's description speaks to agents) or a
+     whole number a slider over the range most values fall in (`engine.DialogField`,
+     [D-104](decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6));
    - for a command that asks the user ([`registry.go`](../../internal/engine/registry.go) `Spec`):
      `Targets`, the objects the confirmation names and binds by UID; `Effects`, a row each for what
      the objects do not show (`engine.Effect`: a short name, a terse value and a tone, "Removes"
@@ -102,9 +105,10 @@ Ordered checklists for the common additions. The packages they name are in
    appear without UI code. With an `Order`, the command is in its kinds' row menu and drawer
    toolbar ([architecture §4.2](architecture.md#42-the-command-registry)); a `container`
    parameter makes it a submenu of the pod's containers; required parameters beyond `ref` and
-   `container` get a schema-generated dialog (integer, number, string and boolean fields, the
-   `jsonschema` tag as the hint), started from `Prefill`; a command with a `Prefill` gets the
-   dialog for its optional parameters too. Add a custom dialog only when the schema
+   `container` get a schema-generated dialog (integer, number, string and boolean fields, each as
+   wide as what it holds, its hint the tooltip of a "?" after its name: `Spec.Dialog`'s, else the
+   `jsonschema` tag; a slider beside a whole number where `Spec.Dialog` gives one), started from
+   `Prefill`; a command with a `Prefill` gets the dialog for its optional parameters too. Add a custom dialog only when the schema
    can't express it. Give the command an icon in the drawer's toolbar in
    [`cmdicons.go`](../../internal/ui/fyneui/cmdicons.go); others get a generic one. The command
    palette lists an object action with its object, and any other command with a `MenuPath`

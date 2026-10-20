@@ -94,7 +94,11 @@ const (
 	sizeCellIcon       fyne.ThemeSizeName = "cogpit.cellIcon"       // an icon in a table cell (the warning triangle, ⋮)
 	sizeTooltipWidth   fyne.ThemeSizeName = "cogpit.tooltipWidth"   // the widest tooltip; longer text wraps
 	sizeTooltipOffset  fyne.ThemeSizeName = "cogpit.tooltipOffset"  // a tooltip's distance from the pointer
-	sizeDialogWidth    fyne.ThemeSizeName = "cogpit.dialogWidth"    // a command's parameter dialog
+	sizeDialogWidth    fyne.ThemeSizeName = "cogpit.dialogWidth"    // the create and port-forward dialogs
+	sizeDialogPadX     fyne.ThemeSizeName = "cogpit.dialogPadX"     // a framed dialog's sides together, Fyne's dialog padWidth (dialogframe.go)
+	sizeDialogPadY     fyne.ThemeSizeName = "cogpit.dialogPadY"     // above its content and below its buttons, Fyne's dialog padHeight
+	sizeSliderWidth    fyne.ThemeSizeName = "cogpit.sliderWidth"    // a parameter dialog's slider (paramdialog.go, D-104)
+	sizeHintIcon       fyne.ThemeSizeName = "cogpit.hintIcon"       // the "?" after a dialog field's name (D-104)
 	sizeAboutWidth     fyne.ThemeSizeName = "cogpit.aboutWidth"     // About Cogpit's column (about.go)
 	sizeHealthBar      fyne.ThemeSizeName = "cogpit.healthBar"      // a health bar's height (Workloads Overview)
 	sizeLogo           fyne.ThemeSizeName = "cogpit.logo"           // the header's mark (D-24: 20 pixels)
@@ -505,6 +509,14 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 		return 14
 	case sizeDialogWidth:
 		return 420
+	case sizeDialogPadX:
+		return 32 // Fyne's dialog.padWidth (v2.8.2), so that a framed dialog looks like Fyne's own
+	case sizeDialogPadY:
+		return 16 // Fyne's dialog.padHeight (v2.8.2)
+	case sizeSliderWidth:
+		return 180 // 30 steps of 6 points: each count can be hit with the pointer
+	case sizeHintIcon:
+		return 14
 	case sizeAboutWidth:
 		return 300
 	case sizeHealthBar:

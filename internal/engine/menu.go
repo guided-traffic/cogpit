@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"fmt"
 	"slices"
 	"sort"
 
@@ -106,6 +107,62 @@ func propertyOrder(s *jsonschema.Schema) []string {
 	}
 	sort.Strings(rest)
 	return append(out, rest...)
+}
+
+// DialogField is how the window's generated dialog shows one parameter beyond what its schema
+// says (Spec.Dialog; the owner's gate walk of 2026-10-20, GW2 and GW6, D-104). The schema's
+// description is written for agents ("required to run; a dialog starts from the current count");
+// Hint says the same to a person, in the tooltip of the "?" after the field's name. A whole number
+// whose schema allows far more than anyone picks (Scale's 0 to 65535) gets a slider over the range
+// most values fall in, SliderMin to SliderMax, and the number field beside it for any other value
+// the schema allows.
+type DialogField struct {
+	// Hint is the field's tooltip; empty shows the schema's description.
+	Hint string
+	// SliderMin and SliderMax are the slider's range; both zero: no slider. Only an integer
+	// field has one, inside the schema's bounds, SliderMin below SliderMax.
+	SliderMin, SliderMax int
+}
+
+// HasSlider reports whether the field gets a slider.
+func (f DialogField) HasSlider() bool { return f.SliderMin != 0 || f.SliderMax != 0 }
+
+// DialogField returns how the generated dialog shows the parameter name (Spec.Dialog); the zero
+// value when the command says nothing about it.
+func (c *Command) DialogField(name string) DialogField { return c.dialog[name] }
+
+// DialogHint is the text of the "?" after a dialog field's name: the command's hint for a person
+// (DialogField.Hint), else the schema's description; "" when neither says anything.
+func (c *Command) DialogHint(name string) string {
+	if h := c.dialog[name].Hint; h != "" {
+		return h
+	}
+	if c.Schema == nil || c.Schema.Properties[name] == nil {
+		return ""
+	}
+	return c.Schema.Properties[name].Description
+}
+
+// checkDialogFields refuses a Spec.Dialog entry that names no parameter of the schema, and a
+// slider on anything but an integer, outside the schema's bounds, or with no room between its ends.
+func checkDialogFields(schema *jsonschema.Schema, fields map[string]DialogField) error {
+	for name, f := range fields {
+		prop := schema.Properties[name]
+		if prop == nil {
+			return fmt.Errorf("dialog field %q is not a parameter", name)
+		}
+		if !f.HasSlider() {
+			continue
+		}
+		if SchemaType(prop) != "integer" {
+			return fmt.Errorf("dialog field %q: a slider needs an integer", name)
+		}
+		lo, hi := float64(f.SliderMin), float64(f.SliderMax)
+		if lo >= hi || (prop.Minimum != nil && lo < *prop.Minimum) || (prop.Maximum != nil && hi > *prop.Maximum) {
+			return fmt.Errorf("dialog field %q: slider %d to %d is not inside the schema's bounds", name, f.SliderMin, f.SliderMax)
+		}
+	}
+	return nil
 }
 
 // Requires reports whether the command's schema requires a parameter.

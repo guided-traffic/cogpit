@@ -10,7 +10,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -79,7 +78,7 @@ func openDebugDialog(sh *shell, ref model.ObjectRef, a model.ItemAction) {
 
 // debugDialog is a shown Debug dialog.
 type debugDialog struct {
-	d       *dialog.CustomDialog
+	d       *dialogFrame
 	rows    *fyne.Container
 	target  *widget.Select
 	image   *widget.Entry
@@ -154,7 +153,8 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	dd.confirm.Disable()
 
 	content := container.NewVBox(dd.rows, newSpace(theme.SizeNamePadding), newParagraph("This cannot be undone.", colorStatusError, width))
-	dd.d = dialog.NewCustomWithoutButtons("Debug "+objectText("Pod", p.Ref.Name), content, sh.win)
+	dd.d = newDialogFrame(sh, objectDialogTitle("Debug", "Pod", p.Ref.Name, "")) // no gap after the arrow (dialogframe.go)
+	dd.d.setContent(content)
 	dd.d.SetButtons([]fyne.CanvasObject{dd.cancel, dd.confirm})
 	dd.cancel.OnTapped = dd.d.Hide
 	dd.confirm.OnTapped = func() {

@@ -166,6 +166,14 @@ Kubernetes-Objekten ist immer: Context, Namespace, Objects."
   current state", a time ("Saved 1 value at 14:02:05"); the number stays in what agents, the CLI
   and the audit log read.
 - Status lines and source lines are **short**: details go into a tooltip.
+- **A field's hint is the tooltip of a small "?" after its name**, never a line under the field
+  (the owner's GW6, 2026-10-20: "Deine Texte sind echt hilfreich, aber sie überladen unsere Masken
+  teilweise enorm"), in a person's words where the schema's description speaks to agents
+  (`Spec.Dialog`); **a field is as wide as what it holds**, not as the dialog
+  ([D-104](decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)).
+- A dialog whose title names an object is a `dialogFrame` titled with `objectDialogTitle`
+  ([`dialogframe.go`](../../internal/ui/fyneui/dialogframe.go)): in one text a space after the
+  arrow is drawn an em wide (Fyne's symbol font has no space), so the arrow ends a text of its own.
 - The YAML of an object shows `apiVersion`, `kind`, `metadata` (`name`, `namespace` first) before
   the rest, as the Kubernetes docs write a manifest ([D-86](decisions.md#d-86-the-order-of-an-objects-yaml)).
 - A suggested file name names a cluster by the short name the window shows (D-68), never the
