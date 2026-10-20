@@ -371,8 +371,9 @@ func (r *connDotRenderer) Layout(size fyne.Size) {
 	d := min(r.diameter(), size.Width, size.Height)
 	r.c.Move(fyne.NewPos((size.Width-d)/2, (size.Height-d)/2))
 	r.c.Resize(fyne.NewSize(d, d))
-	r.halo.Move(fyne.NewPos((size.Width-d)/2-haloReach, (size.Height-d)/2-haloReach))
-	r.halo.Resize(fyne.NewSize(d+2*haloReach, d+2*haloReach))
+	// A stroke is centred on the circle's edge: half a reach out puts the ring right around the dot.
+	r.halo.Move(fyne.NewPos((size.Width-d)/2-haloReach/2, (size.Height-d)/2-haloReach/2))
+	r.halo.Resize(fyne.NewSize(d+haloReach, d+haloReach))
 }
 
 func (r *connDotRenderer) MinSize() fyne.Size {
@@ -392,7 +393,8 @@ func (r *connDotRenderer) Refresh() {
 		r.halo.Hide()
 	} else {
 		r.c.FillColor, r.c.StrokeColor, r.c.StrokeWidth = c, color.Transparent, 0
-		r.halo.FillColor = withAlpha(c, scaleAlpha(color.NRGBAModel.Convert(c).(color.NRGBA).A, haloAlpha))
+		r.halo.FillColor, r.halo.StrokeWidth = color.Transparent, haloReach
+		r.halo.StrokeColor = withAlpha(c, scaleAlpha(color.NRGBAModel.Convert(c).(color.NRGBA).A, haloAlpha))
 		r.halo.Show()
 	}
 	r.Layout(r.d.Size())
@@ -400,7 +402,7 @@ func (r *connDotRenderer) Refresh() {
 	r.c.Refresh()
 }
 
-func (r *connDotRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.halo, r.c} }
+func (r *connDotRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.c, r.halo} }
 func (r *connDotRenderer) Destroy()                     {}
 
 // scaleAlpha is an alpha of 255 times a: a dimmed or steady dot's.
