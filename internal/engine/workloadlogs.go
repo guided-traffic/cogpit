@@ -119,7 +119,7 @@ type workloadLogs struct {
 	// started holds the "<pod uid>/<container>/<instance>" streams started; scan forgets the ones
 	// whose pod or container instance the cache no longer shows, which never come back.
 	started   map[string]bool
-	streaming map[string]streamEntry // the started streams still running
+	streaming map[string]*streamEntry // the started streams still running, by the instance they follow
 	// cursors are where the streams the selection ended stood, for when it selects them again.
 	cursors map[string]logCursor
 	sel     logSelection // what the tab narrows to
@@ -147,10 +147,21 @@ func (sel logSelection) selects(t logTarget) bool {
 		(sel.workload == "" || t.workload == "" || sel.workload == t.workload)
 }
 
-// streamEntry is a running stream: its target, and how the selection ends it.
+// streamEntry is a running stream: its target, and how the selection ends it. Its fields are
+// guarded by workloadLogs.mu.
+//
+// A log request names the pod and the container, never the pod's UID or the container's instance:
+// the API server answers with the instance that holds the name when the request arrives. A stream's
+// first request is opened when the cache shows its instance running. A stream opened again (after
+// an interruption, or after the server ended it) is opened by the name while the cache may lag, right
+// after a reconnect always: the pod may have been created again under its name meanwhile (a Stateful
+// Set's), or the container restarted, and the stream then follows that instance. Such a stream is
+// byName: when the cache shows that container's new instance, the stream is handed it (adopt)
+// instead of a second stream opening for it, which would show its lines again.
 type streamEntry struct {
-	target logTarget
+	target logTarget // the instance it follows; adopt changes it, never its pod or container
 	cancel context.CancelFunc
+	byName bool // opened again by the name since the cache showed its instance running
 }
 
 // openWorkloadLogs opens the merged logs of the resource a logs tab names.
@@ -187,7 +198,7 @@ func (s *Session) newWorkloadLogs(ctx context.Context, tab DockTab, ref model.Ob
 		s: s, watch: b.watch, tabID: tab.ID, ref: ref, noun: noun, opts: tab.Logs, streamer: streamer, uid: string(obj.GetUID()),
 		name: name, bounds: bounds, sink: sink, previousDone: previousDone,
 		wake: make(chan struct{}, 1), stop: make(chan struct{}), started: map[string]bool{},
-		streaming: map[string]streamEntry{}, cursors: map[string]logCursor{}, sel: selectionOf(tab),
+		streaming: map[string]*streamEntry{}, cursors: map[string]logCursor{}, sel: selectionOf(tab),
 	}
 	// The workload's namespace, once the access reviews said how (accessiblens_plan.go acquireIn):
 	// a handle taken before they answered would read in all namespaces, which a user who may not
@@ -414,6 +425,9 @@ func (wl *workloadLogs) start(targets []logTarget, tail int64) {
 		if wl.started[t.key] { // another start took it since the scan (previous instances)
 			continue
 		}
+		if wl.adopt(t) {
+			continue
+		}
 		if wl.active >= wl.bounds.streams {
 			if !wl.capped {
 				wl.capped = true
@@ -422,13 +436,51 @@ func (wl *workloadLogs) start(targets []logTarget, tail int64) {
 			return
 		}
 		ctx, cancel := context.WithCancel(wl.ctx)
-		wl.started[t.key], wl.streaming[t.key] = true, streamEntry{target: t, cancel: cancel}
+		e := &streamEntry{target: t, cancel: cancel}
+		wl.started[t.key], wl.streaming[t.key] = true, e
 		cur, resumed := wl.cursors[t.key]
 		delete(wl.cursors, t.key)
 		wl.active++
 		wl.wg.Add(1)
-		go wl.stream(ctx, t, tail, cur, resumed)
+		go wl.stream(ctx, e, tail, cur, resumed)
 	}
+}
+
+// adopt hands t, a container instance the cache shows that no stream follows, to the stream of the
+// same pod and container that was opened again by the name (streamEntry.byName): that stream
+// follows whatever instance holds the name, t by now, and a second stream would show t's lines
+// again. It reports whether it did. Called with wl.mu held.
+func (wl *workloadLogs) adopt(t logTarget) bool {
+	for key, e := range wl.streaming {
+		if !e.byName || key == t.key || e.target.pod != t.pod || e.target.container != t.container {
+			continue
+		}
+		delete(wl.streaming, key) // scan forgets the old key: the cache no longer shows it
+		e.target = t
+		wl.started[t.key], wl.streaming[t.key] = true, e
+		return true
+	}
+	return false
+}
+
+// targetOf is the instance a stream follows now.
+func (wl *workloadLogs) targetOf(e *streamEntry) logTarget {
+	wl.mu.Lock()
+	defer wl.mu.Unlock()
+	return e.target
+}
+
+// resume reports whether a stream may open its container's log again: the cache shows the instance
+// it follows running. From then on the stream is byName (streamEntry), in the same lock as the
+// rescan's adopt, so that no rescan starts a second stream between the two.
+func (wl *workloadLogs) resume(e *streamEntry) bool {
+	wl.mu.Lock()
+	defer wl.mu.Unlock()
+	if !wl.stillRunning(e.target) {
+		return false
+	}
+	e.byName = true
+	return true
 }
 
 // Resuming a follow stream the server ended while its container still runs (the API server or
@@ -461,19 +513,22 @@ type logCursor struct {
 // opened again from the newest line's timestamp (sinceTime), after a backoff, at most
 // workloadLogResumes times in a row without a new line. ctx ends with the merged stream, or when
 // the selection leaves the container out: then the stream keeps its cursor, and when the selection
-// takes the container in again it starts from it (resumed), with at most workloadLogTail lines.
-func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur logCursor, resumed bool) {
+// takes the container in again it starts from it (resumed), with at most workloadLogTail lines. A
+// stream opened again follows the container by its pod's name (streamEntry): the instance e
+// follows may change (adopt), its pod and container never do.
+func (wl *workloadLogs) stream(ctx context.Context, e *streamEntry, tail int64, cur logCursor, resumed bool) {
 	defer wl.wg.Done()
 	defer func() {
 		deselected := ctx.Err() != nil && wl.ctx.Err() == nil // asked before the cancel below
 		wl.mu.Lock()
+		key := e.target.key // the instance it followed last
 		wl.active--
-		wl.streaming[t.key].cancel()
-		delete(wl.streaming, t.key)
+		e.cancel()
+		delete(wl.streaming, key)
 		if deselected { // left out by the selection: started again when selected
-			delete(wl.started, t.key)
+			delete(wl.started, key)
 			if cur.lines > 0 {
-				wl.cursors[t.key] = cur
+				wl.cursors[key] = cur
 			}
 		}
 		wl.mu.Unlock()
@@ -486,6 +541,7 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 		signal(wl.wake) // a container left out may start now
 	}()
 	defer wl.s.recoverTo("workload logs")
+	t := wl.targetOf(e)
 	prefix := t.pod + "/" + t.container
 	if wl.name != "" { // a group's workload (grouplogs.go)
 		prefix = wl.name + "/" + prefix
@@ -493,6 +549,8 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 	follow := !wl.opts.Previous
 	drops := 0 // resumptions in a row without a new line
 	for attempt := 0; ; attempt++ {
+		prev := t
+		t = wl.targetOf(e)
 		opts := cluster.LogOptions{
 			Namespace: wl.ref.Namespace, Pod: t.pod, Container: t.container,
 			// Every stream asks for timestamps: a resumption starts from them, and the tab jumps
@@ -500,13 +558,16 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 			// them.
 			Follow: follow, Previous: wl.opts.Previous, Timestamps: true, TailLines: tail,
 		}
-		gapCheck := false
+		check := checkNone
 		switch {
 		case attempt == 0 && resumed && !cur.last.IsZero():
 			// Selected again: the lines since it was left out, but no more than a fresh start.
-			opts.TailLines, opts.SinceTime, gapCheck = workloadLogTail, cur.last.Truncate(time.Second), true
+			opts.TailLines, opts.SinceTime, check = workloadLogTail, cur.last.Truncate(time.Second), checkBound
 		case !cur.last.IsZero():
 			opts.TailLines, opts.SinceTime = 0, cur.last.Truncate(time.Second)
+			if attempt > 0 && t.key == prev.key { // the same instance, as far as the cache knows
+				check = checkContinued
+			}
 		}
 		opened := time.Now()
 		openedAt := wl.s.Now() // the watch's clock, for await
@@ -522,7 +583,7 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 			}
 		} else {
 			var open bool
-			fresh, open = wl.copyLines(rc, prefix, &cur, gapCheck)
+			fresh, open = wl.copyLines(rc, prefix, &cur, check)
 			_ = rc.Close()
 			if !open {
 				return // the tab closed
@@ -530,19 +591,30 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 		}
 		// Ended: by the container (it exited or restarted; the scan starts its next instance), by
 		// the tab or the selection, or by the server while the container runs on.
-		if !follow || ctx.Err() != nil || !wl.stillRunning(t) {
+		if !follow || ctx.Err() != nil || !wl.stillRunning(wl.targetOf(e)) {
 			return
 		}
 		if cur.last.IsZero() && cur.lines > 0 {
 			return // lines without timestamps: a resumption could not tell which it has
 		}
-		// Broken with the connection: wait until it is back, mark the gap and go on at once (D-58).
+		// Broken with the connection: wait until it is back, mark the gap and go on at once (D-58),
+		// unless the cache shows the instance gone by then: the scan streams the one that holds the
+		// name now.
 		from, to, werr := wl.watch.await(ctx, openedAt, func() { wl.write(NoticePrefix, []byte(prefix+": "+lapsedNotice)) })
 		if werr != nil {
 			return
 		}
 		if !from.IsZero() {
-			if !wl.write(NoticePrefix, []byte(prefix+": "+wl.s.interruptedMarker(from, to, cur.seen))) {
+			if !wl.write(NoticePrefix, []byte(prefix+": "+wl.s.interruptedMarker(from, to, cur.seen))) || !wl.resume(e) {
+				return
+			}
+			drops = 0
+			continue
+		}
+		if wl.targetOf(e).key != t.key {
+			// Handed the container's next instance while this request ran (adopt): the end was
+			// the old instance's, and the new one runs. On at once.
+			if !wl.resume(e) {
 				return
 			}
 			drops = 0
@@ -564,20 +636,36 @@ func (wl *workloadLogs) stream(ctx context.Context, t logTarget, tail int64, cur
 		case <-wait.C:
 		}
 		// Asked again after the wait: a stream also ends when its container restarts, and the
-		// cache may show the restart late. A resumption names the container, not the instance,
-		// and would follow the new instance, whose own stream the scan starts.
-		if !wl.stillRunning(t) {
+		// cache may show the restart late. A resumption names the container, not the instance:
+		// if the cache still shows the old one, it follows the new one by the name, which the
+		// rescan then hands it (adopt).
+		if !wl.resume(e) {
 			return
 		}
 	}
 }
 
+// lineCheck is what a stream's first timestamped line is checked for against the cursor.
+type lineCheck int
+
+const (
+	checkNone lineCheck = iota
+	// checkBound: a stream selected again, whose request is bounded: a first line newer than the
+	// cursor's means the bound cut lines off.
+	checkBound
+	// checkContinued: a stream opened again: the same container instance sends its last line again
+	// (the request starts at its second), so a first line newer than the cursor's means that the
+	// log is another instance's (a restart, a pod created again under its name) or was rotated.
+	checkContinued
+)
+
 // copyLines copies one opened stream's lines into the merged stream and returns how many it
 // wrote; open is false once the merged stream is closed. Each line's leading timestamp (every
 // stream asks for them) moves cur, and lines at or before cur's are dropped (a resumption sends
-// the second it starts in again). With gapCheck (a stream selected again, whose request is
-// bounded), a first line newer than cur's means the bound cut lines off: a notice says so.
-func (wl *workloadLogs) copyLines(rc io.Reader, prefix string, cur *logCursor, gapCheck bool) (fresh int, open bool) {
+// the second it starts in again). A first line newer than cur's gets a notice before it, by check:
+// the bound of a stream selected again cut lines off (checkBound), or a stream opened again does
+// not go on from its last line (checkContinued, notContinuedNotice).
+func (wl *workloadLogs) copyLines(rc io.Reader, prefix string, cur *logCursor, check lineCheck) (fresh int, open bool) {
 	// What the stream had when this one opened: lines before it, and the first atIt lines at it,
 	// are written already.
 	had, skip := cur.last, cur.atIt
@@ -588,12 +676,10 @@ func (wl *workloadLogs) copyLines(rc io.Reader, prefix string, cur *logCursor, g
 		keep := len(line) > 0
 		if keep {
 			if ts, _, ok := splitLogTimestamp(line); ok {
-				if gapCheck && ts.After(had) && !wl.write(NoticePrefix, []byte(fmt.Sprintf(
-					"%s: more lines were written while it was not selected than Cogpit loads again (%d); the older ones are not shown",
-					prefix, workloadLogTail))) {
+				if check != checkNone && ts.After(had) && !wl.write(NoticePrefix, []byte(prefix+": "+checkNotice(check))) {
 					return fresh, false
 				}
-				gapCheck = false
+				check = checkNone
 				switch {
 				case ts.Before(had):
 					keep = false
@@ -623,6 +709,14 @@ func (wl *workloadLogs) copyLines(rc io.Reader, prefix string, cur *logCursor, g
 			return fresh, true
 		}
 	}
+}
+
+// checkNotice is the notice before a first line newer than the cursor's (copyLines).
+func checkNotice(check lineCheck) string {
+	if check == checkBound {
+		return fmt.Sprintf("more lines were written while it was not selected than Cogpit loads again (%d); the older ones are not shown", workloadLogTail)
+	}
+	return notContinuedNotice
 }
 
 // splitLogTimestamp splits the RFC 3339 timestamp the API server puts before a line when asked

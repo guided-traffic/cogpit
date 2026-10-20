@@ -15,7 +15,9 @@ import (
 // with the connection, it waits until the connection is back, writes a marker line ("[cogpit] ──
 // no connection 14:03:12 – 14:07:40 CEST (4 min 28 s) · …") and opens the log again from the last
 // line's time (sinceTime), the lines it has already written left out. A stream that ends while the connection works ends the
-// tab's log as before. A controlling resource's logs resume the same way (workloadlogs.go).
+// tab's log as before. A controlling resource's logs resume the same way (workloadlogs.go). The
+// request names the pod, never its UID: a pod created again under its name meanwhile, or a
+// restarted container, is what the log reads then, and a line says so (notContinuedNotice).
 
 // interruptedMarker is the line a log shows where its stream broke with the connection and was
 // opened again (the owner's WF35 of 2026-10-19: "— interrupted 11:10–11:10 —" after ten minutes of
@@ -41,6 +43,10 @@ func (s *Session) interruptedMarker(from, to, seen time.Time) string {
 
 // interruptedMarkerStart begins interruptedMarker's line.
 const interruptedMarkerStart = "── no connection "
+
+// notContinuedNotice is the line a log shows where it was opened again and does not go on from the
+// last line it had.
+const notContinuedNotice = "the log read again does not hold its last line: the container restarted, the pod was created again under its name or its log was rotated meanwhile; lines written in between may be missing"
 
 // resumingLog is a followed pod log that survives interruptions.
 type resumingLog struct {
@@ -143,9 +149,13 @@ func (r *resumingLog) line(text string) bool {
 }
 
 // copy copies a stream's lines, moving cur with their timestamps and leaving out what a
-// resumption sends again (the lines before cur and the ones at it already written).
+// resumption sends again (the lines before cur and the ones at it already written). A resumption
+// whose first line is newer than cur's does not go on from the last line: the request names the
+// pod and the container, and another pod or container instance holds the name now, or the log was
+// rotated; notContinuedNotice says so before that line.
 func (r *resumingLog) copy(rc io.Reader, cur *logCursor) error {
 	had, skip := cur.last, cur.atIt
+	check := !had.IsZero()
 	br := bufio.NewReaderSize(rc, logLineBytes)
 	for {
 		line, err := br.ReadSlice('\n')
@@ -153,6 +163,10 @@ func (r *resumingLog) copy(rc io.Reader, cur *logCursor) error {
 		keep := len(line) > 0
 		if keep {
 			if ts, _, ok := splitLogTimestamp(line); ok {
+				if check && ts.After(had) && !r.line(NoticePrefix+" "+notContinuedNotice) {
+					return io.ErrClosedPipe
+				}
+				check = false
 				switch {
 				case ts.Before(had):
 					keep = false

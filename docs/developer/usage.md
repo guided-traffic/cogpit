@@ -717,7 +717,11 @@ interrupted cluster in the background disables the changes to it only, and its s
   (10 min 2 s) · the log was read again from its last line: what was written meanwhile follows ──`,
   from where it stopped: the times are when the last line arrived and when the connection was back,
   with seconds and your time zone (the log's own lines may print another), and the lines the
-  container wrote meanwhile come after it. Cogpit's own lines in a log (this one, a login that
+  container wrote meanwhile come after it. If the log no longer holds its last line (the pod was
+  deleted and created again under its name, as a Stateful Set's pods are, the container restarted,
+  or the kubelet rotated the log), a second line says so, `[cogpit] the log read again does not
+  hold its last line: …`, and what follows is the log as it is now; in a workload's tab each line
+  still comes once. Cogpit's own lines in a log (this one, a login that
   lapsed, a log that could not be opened again) are orange, apart from the container's. A port forward waits and connects again at once. A pod shell, a node shell or an attach
   ends (a process cannot be resumed): its tab says so and offers **Reconnect**, which opens a new
   one in the same tab once the cluster answers. A local terminal is not affected.
