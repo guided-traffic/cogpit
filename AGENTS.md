@@ -8,8 +8,8 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-19:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
-runs on macOS, extended by seventeen further implementation runs (2026-10-11 to 2026-10-19, night runs and
+**State on 2026-10-20:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+runs on macOS, extended by eighteen further implementation runs (2026-10-11 to 2026-10-20, night runs and
 day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
 hotbar that scrolls and whose tiles are dragged live (D-83), the navigator with its sections, a tab bar, the command palette, Preferences and Cluster
@@ -26,8 +26,10 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.29.0 the
-newest, released 2026-10-19 evening with **debug containers** added from a pod's drawer, blue in the Pods list and reached by Logs, Shell and Attach (D-102); v0.28.0 the same evening: agents kept from a cluster's name, icon and integrations (H-125, H-126), a reused row's stale container square and a click's own ⌘ and ⇧ (G16); v0.27.1 the same day with the disk image's name pills the owner chose that afternoon (WF42, D-70) and two race fixes; v0.27.0 the same day with his walk findings WF31–WF45 but WF42; v0.26.0 released 2026-10-18 with his findings WF11–WF30, v0.25.0 its first part the same morning; in v0.27.0: a connect that goes on in the background when another cluster is shown and a failed connect that stays on its cluster, D-97; a Terminating namespace's blockers with Remove finalizers, D-98; text selection in logs and toasts, D-99; dialogs' "Config Map → walk-cm" and effect rows, D-100; the kubeconfig sources' "−" and a removed cluster leaving the hotbar, D-101), **integrations per cluster** (2026-10-17, D-76 to D-79: the Metrics
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.29.3 the
+newest, released 2026-10-20 night with a refused read sent once and the plugin's process search fixed, v0.29.2
+before it with a log opened again under a name another pod holds shown once, v0.29.1 with H-118's waiting line and the custom kinds' refusal read once; fast scrolling
+built that night on the branch `fast-scroll`, D-103, waiting for the owner's look; v0.29.0 released 2026-10-19 evening with **debug containers** added from a pod's drawer, blue in the Pods list and reached by Logs, Shell and Attach (D-102); v0.28.0 the same evening: agents kept from a cluster's name, icon and integrations (H-125, H-126), a reused row's stale container square and a click's own ⌘ and ⇧ (G16); v0.27.1 the same day with the disk image's name pills the owner chose that afternoon (WF42, D-70) and two race fixes; v0.27.0 the same day with his walk findings WF31–WF45 but WF42; v0.26.0 released 2026-10-18 with his findings WF11–WF30, v0.25.0 its first part the same morning; in v0.27.0: a connect that goes on in the background when another cluster is shown and a failed connect that stays on its cluster, D-97; a Terminating namespace's blockers with Remove finalizers, D-98; text selection in logs and toasts, D-99; dialogs' "Config Map → walk-cm" and effect rows, D-100; the kubeconfig sources' "−" and a removed cluster leaving the hotbar, D-101), **integrations per cluster** (2026-10-17, D-76 to D-79: the Metrics
 Server and Prometheus, Alertmanager with the title bar's alerts pill and an alert board, the Trivy
 Operator's image ratings of the pods, Kyverno's policy violations on the objects; each switched on or
 off in its own section of Cluster Settings, a new cluster asks first and nothing is looked for before
