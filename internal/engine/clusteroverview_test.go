@@ -211,6 +211,19 @@ func TestClusterOverviewIssues(t *testing.T) {
 	if pods.Allocatable != 220 || pods.Capacity != 220 || pods.Current == nil || *pods.Current != 2 || pods.Requests != nil {
 		t.Errorf("pods chart %+v", pods)
 	}
+	// The health header's counts: every node and pod of the cluster by the state its view shows, in
+	// StatusOrder, zero counts left out.
+	if len(m.NodeStates) != 2 || m.NodeStates[0] != (StatusCount{Status: model.StatusOK, Count: 2}) ||
+		m.NodeStates[1] != (StatusCount{Status: model.StatusError, Count: 1}) {
+		t.Errorf("node states %+v, want 2 ok then 1 error", m.NodeStates)
+	}
+	podTotal := 0
+	for _, c := range m.PodStates {
+		podTotal += c.Count
+	}
+	if podTotal == 0 {
+		t.Errorf("pod states %+v: want the fixture's pods counted", m.PodStates)
+	}
 }
 
 // TestClusterOverviewPage: the page's table lists the issues as rows of their own kinds (Name, Kind,

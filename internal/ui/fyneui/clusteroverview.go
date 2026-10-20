@@ -77,7 +77,10 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(newSpace(theme.SizeNamePadding), p.reconnect), p.controls)
 	charts := container.NewGridWithColumns(3, p.cards[0].root, p.cards[1].root, p.cards[2].root)
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
-		container.NewVBox(p.health.root, newSpace(theme.SizeNamePadding), head, charts, p.caption, p.note, p.status.root))
+		container.NewVBox(p.health.root, newSpace(theme.SizeNamePadding), head, charts, p.caption,
+			// One row under the charts: what the history is made of at the left, quietly, and the
+			// providers as chips at the right (dot, name, when it last answered).
+			container.NewBorder(nil, nil, nil, p.status.root, p.note)))
 	p.followReconnect()
 	p.showControls()
 	return p
