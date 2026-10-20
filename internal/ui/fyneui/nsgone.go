@@ -99,7 +99,7 @@ func (sh *shell) recheckNamespaces() {
 	if len(sh.ui.Namespaces) == 0 || sh.view.groupMode() || !sh.ui.Connection.State.Live() || !sh.namespacesListable() {
 		return
 	}
-	if wait := sh.nsChecked.Add(nsRecheckEvery).Sub(time.Now()); wait > 0 {
+	if wait := time.Until(sh.nsChecked.Add(nsRecheckEvery)); wait > 0 {
 		if sh.nsRecheck == nil {
 			sh.nsRecheck = time.AfterFunc(wait, func() {
 				sh.do(func() {

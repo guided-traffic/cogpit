@@ -230,7 +230,7 @@ func (d *stripDrag) rearrange(change func()) {
 // clearSlides ends every tab's slide offset but a landing tab's.
 func (d *stripDrag) clearSlides() {
 	for id := range d.dx {
-		if !(d.landing && id == d.id) {
+		if !d.landing || id != d.id {
 			delete(d.dx, id)
 		}
 	}
