@@ -277,29 +277,40 @@ func alertTone(g engine.AlertGroup) fyne.ThemeColorName {
 }
 
 // alertStrip is the board's overview (Dark Cockpit): a bracket "firing · 24" over one rounded token
-// per alert, worst first, in its severity's colour, so that a cascade (many alerts of one severity,
-// or one of each) shows before the list is read. Nil without alerts. At most alertStripMax tokens.
+// per alert, worst first, in its severity's colour, one run per severity with a gap between the
+// runs, so that a cascade (many alerts of one severity, or one of each) shows before the list is
+// read and the runs answer to the sections below. Nil without alerts. At most alertStripMax tokens.
 func alertStrip(groups []engine.AlertGroup) fyne.CanvasObject {
-	total := 0
-	var toks []tok
+	total, shown := 0, 0
+	var runs []fyne.CanvasObject
 	for _, g := range groups {
+		var toks []tok
 		for range g.Count {
-			if len(toks) < alertStripMax {
+			if shown < alertStripMax {
 				toks = append(toks, tok{color: alertTone(g)})
+				shown++
 			}
 		}
 		total += g.Count
+		if len(toks) > 0 {
+			runs = append(runs, newTokenRow(alertStripSide, toks...))
+		}
 	}
 	if total == 0 {
 		return nil
 	}
-	row := newTokenRow(10, toks...)
-	return inset("", theme.SizeNamePadding, box(layout.NewCustomPaddedVBoxLayout(8),
-		newBracketLabel("firing · "+strconv.Itoa(total), colorAccent), row, newSpace(theme.SizeNamePadding)))
+	row := box(layout.NewCustomPaddedHBoxLayout(alertStripRunGap), runs...)
+	return inset("", theme.SizeNamePadding, box(layout.NewCustomPaddedVBoxLayout(0),
+		newBracketLabel("firing · "+strconv.Itoa(total), colorAccent), row, gapOf(10)))
 }
 
-// alertStripMax bounds the strip's tokens; the list below has every alert.
-const alertStripMax = 120
+// The strip's tokens: 14 points, as many as fit a window's width (the list below has every alert),
+// and 14 points between one severity's run and the next.
+const (
+	alertStripMax    = 60
+	alertStripSide   = 14
+	alertStripRunGap = 14
+)
 
 // groupHeader is a severity's line: its fold, a dot in its colour, its title and count.
 func (b *alertBoard) groupHeader(g engine.AlertGroup) fyne.CanvasObject {

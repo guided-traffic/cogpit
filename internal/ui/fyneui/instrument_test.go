@@ -3,7 +3,10 @@ package fyneui
 import (
 	"testing"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -96,5 +99,84 @@ func TestAlertsPillSegments(t *testing.T) {
 	settle(w)
 	if !r.count.Visible() || r.segs[2].tok.Visible() {
 		t.Error("no alerts: want the single zero")
+	}
+}
+
+// Requests and limits are ticks at the plot's right edge at rest; the pointer on the legend's
+// "Reference lines" entry runs them full width, dashed, and leaving it puts them back. The
+// ceilings are single hairlines either way.
+func TestChartReferenceLinesAreRevealedByTheLegend(t *testing.T) {
+	c := hoverChart(t)
+	if c.refRect.x1 <= c.refRect.x0 {
+		t.Fatalf("no legend entry for the reference lines: %+v", c.refRect)
+	}
+	count := func() int { return len(test.WidgetRenderer(c).Objects()) }
+	rest := count()
+	in := fyne.NewPos((c.refRect.x0+c.refRect.x1)/2, (c.refRect.y0+c.refRect.y1)/2)
+	c.MouseMoved(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: in}})
+	if !c.refShown {
+		t.Fatal("the pointer on the entry did not reveal the lines")
+	}
+	if shown := count(); shown <= rest {
+		t.Errorf("revealed: %d objects, at rest %d: the dashes are missing", shown, rest)
+	}
+	c.MouseOut()
+	if c.refShown || count() != rest {
+		t.Errorf("after the pointer left: shown %v, %d objects, want rest %d", c.refShown, count(), rest)
+	}
+}
+
+// The segmented Master | Worker control marks the chosen segment with its underline and none
+// with none.
+func TestSegmentedControlMarksTheChosenSegment(t *testing.T) {
+	test.NewTempApp(t)
+	a, b := widget.NewButton("Master", nil), widget.NewButton("Worker", nil)
+	s := newSegmented(&shell{app: fyne.CurrentApp()}, a, b)
+	s.choose(1)
+	if s.under.Hidden || !s.st[1].chosen || s.st[0].chosen {
+		t.Errorf("worker chosen: underline hidden %v, themes %v %v", s.under.Hidden, s.st[0].chosen, s.st[1].chosen)
+	}
+	s.root.Resize(s.root.MinSize())
+	if s.under.Position().X < a.MinSize().Width {
+		t.Errorf("the underline at %v is not under the second segment", s.under.Position())
+	}
+	s.choose(-1)
+	if !s.under.Hidden {
+		t.Error("an underline without a chosen segment")
+	}
+}
+
+// The alerts pill's tokens are bounded: five widths, and "99+" from a hundred alerts.
+func TestAlertTokenWidthIsBounded(t *testing.T) {
+	if w := alertTokenWidth(1000); w != 24 || alertTokenWidth(1) != 8 || alertTokenWidth(18) != 16 {
+		t.Errorf("widths: 1 → %v, 18 → %v, 1000 → %v", alertTokenWidth(1), alertTokenWidth(18), w)
+	}
+	if alertCountText(100) != "99+" || alertCountText(99) != "99" {
+		t.Errorf("counts: %q %q", alertCountText(99), alertCountText(100))
+	}
+}
+
+// A found integration's status is muted words and a mint dot; a failing one is coral words and
+// dot; the pill switch toggles from anywhere in its row.
+func TestIntegrationRowStaysQuietWhenHealthy(t *testing.T) {
+	test.NewTempApp(t)
+	in, _ := engine.IntegrationOf(engine.IntegrationMetricsServer)
+	var got []bool
+	r := newIntegrationRow(in, func(on bool) { got = append(got, on) })
+	r.paintStatus(colorStatusOK)
+	if r.status.color != colorMuted || r.dot.fill != colorStatusOK || !r.dot.Visible() {
+		t.Errorf("healthy: words %s, dot %s", r.status.color, r.dot.fill)
+	}
+	r.paintStatus(colorStatusError)
+	if r.status.color != colorStatusError || r.dot.fill != colorStatusError {
+		t.Errorf("failing: words %s, dot %s", r.status.color, r.dot.fill)
+	}
+	r.paintStatus(colorMuted)
+	if r.dot.Visible() {
+		t.Error("a plain state has a dot")
+	}
+	r.check.Tapped(&fyne.PointEvent{Position: fyne.NewPos(1, 1)})
+	if !r.check.Checked || len(got) != 1 || !got[0] {
+		t.Errorf("tap: checked %v, calls %v", r.check.Checked, got)
 	}
 }

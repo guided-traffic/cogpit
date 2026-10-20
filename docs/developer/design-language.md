@@ -67,12 +67,18 @@ Built on the shapes above, in `instrument_*.go` and the views they sit in:
 
 | Instrument | What it is | Where |
 |---|---|---|
-| Health header | bracketed groups in the cluster's cyan: nodes as squares by state, pods as bars by state, the integrations' bearing; a legend names only the states that are not healthy | Overview ([instrument_health.go](../../internal/ui/fyneui/instrument_health.go)) |
-| Bearing | one rounded token per integration in a fixed order: filled cyan live, outline amber needs the user, coral failing, dim off or absent; a tooltip says it in words | Overview header, top of Settings › Integrations ([instrument_bearing.go](../../internal/ui/fyneui/instrument_bearing.go)) |
-| Instrument rows | a 28 point tile with the integration's initial, tinted by its state, then the switch, the status line and what it adds; grouped under `on · n` and `off · n` | Settings › Integrations ([instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go)) |
-| Headroom wave | usage as a crisp line over a faint wide glow stroke, the area fading to zero downwards, requests and limits softer, allocatable and capacity faintest | every chart ([chart.go](../../internal/ui/fyneui/chart.go), [chartpath.go](../../internal/ui/fyneui/chartpath.go)) |
-| Segmented alerts pill | the triangle in the worst severity's colour, then a token per severity sized by its count with the number | title bar ([alerts.go](../../internal/ui/fyneui/alerts.go)) |
-| Quiet dashboards | healthy counts in muted text, a spine and the status colour only on counts that need a look; health bars as tokens with gaps | Flux, Argo CD, Workloads Overview |
+| Health header | bracketed groups in the cyan, three equal columns on the page's one left edge ([columnsLayout](../../internal/ui/fyneui/instrument_health.go)): nodes as squares that fill their column (28 points at most), pods as bars by state, the integrations' bearing; healthy tokens at about a third of their light, a legend names only the states that are not healthy | Overview ([instrument_health.go](../../internal/ui/fyneui/instrument_health.go)) |
+| Bearing | the integrations as the same 28 point tiles as in Settings, spread over the column with the short name beneath: tint and outline by state (cyan live, amber needs the user, coral failing, dim off or absent), a glyph per integration; a tooltip says it in words | Overview header, top of Settings › Integrations ([instrument_bearing.go](../../internal/ui/fyneui/instrument_bearing.go), [instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go)) |
+| Instrument rows | the tile, the name and a pill switch on one line; under it the status (a dot, muted words, coloured only for amber and coral) and what it adds; grouped under `enabled · n` and `off · n` | Settings › Integrations ([instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go), [instrument_switch.go](../../internal/ui/fyneui/instrument_switch.go)) |
+| Segmented control | one dark plate with a hairline, the chosen segment a step lighter with a 2 point blue underline, the other muted; the buttons keep their behaviour and only their theme changes | Overview's Master / Worker ([instrument_segment.go](../../internal/ui/fyneui/instrument_segment.go)) |
+| Headroom wave | usage as a crisp line over a faint wide glow stroke, the area fading to zero downwards; allocatable and capacity as 25 % hairlines, requests and limits as a tick with their value at the right edge, full-width dashed lines with names only while the pointer is on the legend's "Reference lines" | every chart ([chart.go](../../internal/ui/fyneui/chart.go), [chartpath.go](../../internal/ui/fyneui/chartpath.go)) |
+| Segmented alerts pill | the triangle in the worst severity's colour, then a token per severity in five widths (8 to 24 points) with the number, "99+" from a hundred; a hairline on the neutral plate | title bar ([alerts.go](../../internal/ui/fyneui/alerts.go)) |
+| Quiet dashboards | healthy counts and Ready segments muted, a spine and the status colour only on what needs a look; an empty kind is a hairline card with no bar, a kind without a state has no bar; activity in text colour with a coloured dot and age | Flux, Argo CD, Workloads Overview |
+
+The bracket head (glow.go) draws its line in its own light at about 55 %, with 6 point ticks, 8 points
+under the label and 12 above what it introduces; the groups on a page are 20 points apart. The
+create button is a 36 point dark plate with a blue outline, set one menu column in from the right so
+that it never covers a row's menu.
 
 The Overview's node and pod states come from the engine's own build of the page
 (`ClusterOverviewModel.NodeStates`, `PodStates`), counted from the cache; the bearing reads the
