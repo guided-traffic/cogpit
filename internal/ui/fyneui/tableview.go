@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -660,7 +661,9 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if content.link != nil && !tv.serves(content.link.Kind) {
 			content.link = nil // nowhere to go: plain text
 		}
-		content.pill = status != model.StatusNone && col.Type == model.ColumnText
+		// A word is a pill, a sentence is not: an event's message in a status colour stays plain text.
+		content.pill = status != model.StatusNone && col.Type == model.ColumnText && col.ID != "message" &&
+			utf8.RuneCountInString(content.text) <= maxPillText
 		if col.Type == model.ColumnWarning {
 			content.kind = cellWarning
 		}

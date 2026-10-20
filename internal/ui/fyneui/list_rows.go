@@ -26,6 +26,7 @@ const (
 	pillDotGap   = 6   // between the dot and the word
 	pillAlpha    = 36  // a pill's fill: the status colour at about 14 %
 	errorTint    = 15  // an error row's tint: about 6 %
+	maxPillText  = 24  // the longest text drawn as a status pill; longer is a sentence
 	markRadius   = 2.5 // a container square's corner
 	markGapWidth = 2   // between two squares
 )

@@ -348,15 +348,22 @@ func (d *connDot) MouseOut() {
 
 // CreateRenderer implements fyne.Widget.
 func (d *connDot) CreateRenderer() fyne.WidgetRenderer {
-	r := &connDotRenderer{d: d, c: canvas.NewCircle(color.Transparent)}
+	r := &connDotRenderer{d: d, c: canvas.NewCircle(color.Transparent), halo: canvas.NewCircle(color.Transparent)}
 	r.Refresh()
 	return r
 }
 
 type connDotRenderer struct {
-	d *connDot
-	c *canvas.Circle
+	d    *connDot
+	c    *canvas.Circle
+	halo *canvas.Circle // a soft ring of the dot's colour around a filled dot: the cockpit's lamp
 }
+
+// haloReach is how far the halo reaches past the dot, in points; haloAlpha its strength.
+const (
+	haloReach = 2.5
+	haloAlpha = 0.22
+)
 
 func (r *connDotRenderer) diameter() float32 { return r.d.Theme().Size(sizeDotDiameter) }
 
@@ -364,6 +371,8 @@ func (r *connDotRenderer) Layout(size fyne.Size) {
 	d := min(r.diameter(), size.Width, size.Height)
 	r.c.Move(fyne.NewPos((size.Width-d)/2, (size.Height-d)/2))
 	r.c.Resize(fyne.NewSize(d, d))
+	r.halo.Move(fyne.NewPos((size.Width-d)/2-haloReach, (size.Height-d)/2-haloReach))
+	r.halo.Resize(fyne.NewSize(d+2*haloReach, d+2*haloReach))
 }
 
 func (r *connDotRenderer) MinSize() fyne.Size {
@@ -380,14 +389,18 @@ func (r *connDotRenderer) Refresh() {
 	}
 	if ring { // the same size, an outline: the layout does not move (D-69 item 5)
 		r.c.FillColor, r.c.StrokeColor, r.c.StrokeWidth = color.Transparent, c, ringStroke
+		r.halo.Hide()
 	} else {
 		r.c.FillColor, r.c.StrokeColor, r.c.StrokeWidth = c, color.Transparent, 0
+		r.halo.FillColor = withAlpha(c, scaleAlpha(color.NRGBAModel.Convert(c).(color.NRGBA).A, haloAlpha))
+		r.halo.Show()
 	}
 	r.Layout(r.d.Size())
+	r.halo.Refresh()
 	r.c.Refresh()
 }
 
-func (r *connDotRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.c} }
+func (r *connDotRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.halo, r.c} }
 func (r *connDotRenderer) Destroy()                     {}
 
 // scaleAlpha is an alpha of 255 times a: a dimmed or steady dot's.
