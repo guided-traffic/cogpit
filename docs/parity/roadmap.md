@@ -19,7 +19,7 @@ for macOS first; Windows and Linux follow after the macOS beta
 (Reach a service, Helm, Maintain a node's cordon and drain, kubectl in a cluster terminal,
 Change's scale, restart and pod delete, a pod that really fails) in the gate walk of 2026-10-20 on
 the staging cluster; each passed, its findings GW1–GW9 blocked none and are built (2026-10-20, with
-GW10 to GW12 from his use the same day). Open: his re-walk of the
+GW10 to GW14 from his use the same day). Open: his re-walk of the
 earlier findings' fixes that touch the gate, and the readiness recount. The hours are the gap
 entries' of 2026-10-15/16 and do not count the walks' findings since; they are re-estimated, by
 counting, now that the gate walk is done ([current focus](#current-focus) items 6 and 7).
@@ -48,7 +48,7 @@ on real clusters and part of Change on kind (2026-10-17 to 2026-10-19), and the 
 walk of 2026-10-20 on v0.30.0 against the staging cluster ([current focus](#current-focus) item 6):
 Change's scale, restart and pod delete, Reach a service, Helm, Maintain a node's cordon and drain,
 kubectl in a cluster terminal, a pod that really fails. Its findings GW1–GW9 ([G16](gaps.md#g16-stability-and-the-user-bug-backlog))
-block no workflow; built the same day with GW10 to GW12 from his use (D-104, D-105, D-106). Open before the gate counts as passed: the owner's re-walk of the fixes of the
+block no workflow; built the same day with GW10 to GW14 from his use (D-104, D-105, D-106). Open before the gate counts as passed: the owner's re-walk of the fixes of the
 earlier findings that touch it (WF31–WF33 Change, WF35 Triage, WF38–WF40 Connect, built 2026-10-19,
 item 7). Open before alpha besides: the readiness recount, which alpha needs in the ~40–75% band
 (item 7). (No cloud credential plugin is verified either; that is out of scope until long after
@@ -190,8 +190,9 @@ windows (item 10).
    and a previous container's logs). Each passed; findings GW1–GW9, none blocking a workflow, in
    [G16](gaps.md#g16-stability-and-the-user-bug-backlog), built the same day with GW10 (the alerts
    pill), GW11 (the tab bar shows the shown cluster's tabs, Mixed environments shows every
-   cluster's) and GW12 (EtcdIsVoter healthy) from his use. Open: the re-walk of the earlier
-   findings' fixes and of GW1–GW12 (item 7).
+   cluster's), GW12 (EtcdIsVoter healthy) and GW13 (no tab of a cluster without a connection) from
+   his use. Open: the re-walk of the earlier
+   findings' fixes and of GW1–GW14 (item 7).
 7. **What the walks find, and the depth the gate needs** ([G16](gaps.md#g16-stability-and-the-user-bug-backlog)
    and the gaps marked *blocks alpha*, G1–G11 and part of G13): the bulk of the ~50–200 h. Alpha
    also needs ready for real work in the ~40–75% band ([stages](README.md#stages)); it is ~30%
@@ -303,7 +304,7 @@ Beside the path to alpha:
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-20 | minor | The stage line and Current focus item 6: GW1–GW9 of the gate walk built, GW10 to GW12 from the owner's use the same day (D-104, D-105, D-106, D-77, D-69) |
+| 2026-10-20 | minor | The stage line and Current focus item 6: GW1–GW9 of the gate walk built, GW10 to GW14 from the owner's use the same day (D-104, D-105, D-106, D-77, D-69) |
 | 2026-10-20 | minor | The alpha gate, the stage line and Current focus items 6 and 7: the owner's gate walk on the staging cluster, every workflow walked and passed, findings GW1–GW9 in G16; the gate's cells for WF31–WF33, WF35 and WF38–WF40 corrected to built, their re-walk open |
 | 2026-10-19 | minor | WF42 chosen by the owner in a visual review (D-70): the disk image's name pills; WF31–WF45 all built |
 | 2026-10-19 | minor | Current focus items 2, 5, 6 and 7 and the alpha path: the owner's findings WF31–WF45 built the same day but WF42 (D-97 to D-101; WF35 and WF37 under item 2); his re-walk of them before the gate walk |

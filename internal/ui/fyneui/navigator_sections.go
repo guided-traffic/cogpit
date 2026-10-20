@@ -132,7 +132,7 @@ type navSections struct {
 }
 
 // mixedEnvironmentsHint is the "?" tooltip after the check.
-const mixedEnvironmentsHint = "On: the tab bar shows the open tabs of every cluster side by side.\n" +
+const mixedEnvironmentsHint = "On: the tab bar shows the open tabs of every connected cluster side by side.\n" +
 	"Off: only the tabs of the cluster you are in, the one the title bar names; another cluster's tabs show when you go to that cluster."
 
 var (
@@ -155,7 +155,7 @@ func newNavSections(s *sidebar) *navSections {
 		}
 	})
 	n.foot = container.NewVBox(newDivider(false), inset(theme.SizeNamePadding, theme.SizeNamePadding,
-		container.NewHBox(n.mixed, newFieldName("", mixedEnvironmentsHint, s.sh.tip))))
+		container.NewHBox(n.mixed, newFieldName("", mixedEnvironmentsHint, func() *tooltip { return s.sh.tip }))))
 	n.ExtendBaseWidget(n)
 	return n
 }

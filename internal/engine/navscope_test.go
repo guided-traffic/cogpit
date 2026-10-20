@@ -196,24 +196,31 @@ func TestTabsShown(t *testing.T) {
 }
 
 // The tab bar with mixed environments (the owner's GW11, 2026-10-20): off, the default, only the
-// shown cluster's tabs, at the section too and whatever its connection (a restored session's
-// other clusters keep theirs hidden); on, every cluster's tabs; every tab while no cluster is shown.
+// shown cluster's tabs, at the section too; on, every connected cluster's tabs; every tab of a
+// connected cluster while no cluster is shown. Never a tab of a cluster without a connection
+// (GW13): connecting, a failed connect, disconnected.
 func TestTabsShownMixedEnvironments(t *testing.T) {
 	tabs := []ViewTab{{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}}
 	ids := func(u UIState) []string { return tabIDs(u.TabsShown()) }
 	off := DefaultPreferences()
 	on := DefaultPreferences()
 	on.MixedEnvironments = true
+	live := Connection{State: Connected}
+	both := []ConnectedCluster{{Context: "a", Connection: live}, {Context: "b", Connection: live}}
+	onlyA := []ConnectedCluster{{Context: "a", Connection: live}}
 	for _, c := range []struct {
 		name string
 		u    UIState
 		want []string
 	}{
-		{"off, a shown at the section", UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: Connection{State: Connected}, Preferences: &off, Tabs: tabs}, []string{"a1", "a2"}},
-		{"off, a shown, not connected yet", UIState{Context: "a", NavigatorScope: NavScopeLocal, Preferences: &off, Tabs: tabs}, []string{"a1", "a2"}},
-		{"off, b shown in its tree", UIState{Context: "b", NavigatorScope: NavScopeCluster("b"), Connection: Connection{State: Connected}, Preferences: &off, Tabs: tabs}, []string{"b1"}},
-		{"on, a shown in its tree", UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), Connection: Connection{State: Connected}, Preferences: &on, Tabs: tabs}, []string{"a1", "b1", "a2"}},
-		{"no cluster shown", UIState{NavigatorScope: NavScopeLocal, Preferences: &off, Tabs: tabs}, []string{"a1", "b1", "a2"}},
+		{"off, a shown at the section", UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: live, Connections: both, Preferences: &off, Tabs: tabs}, []string{"a1", "a2"}},
+		{"off, a shown, connecting", UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: Connection{State: Connecting}, Preferences: &off, Tabs: tabs}, nil},
+		{"off, a shown, its connect failed", UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: Connection{State: ConnectError}, Connections: []ConnectedCluster{{Context: "b", Connection: live}}, Preferences: &off, Tabs: tabs}, nil},
+		{"off, b shown in its tree", UIState{Context: "b", NavigatorScope: NavScopeCluster("b"), Connection: live, Connections: both, Preferences: &off, Tabs: tabs}, []string{"b1"}},
+		{"on, a shown, b connected", UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), Connection: live, Connections: both, Preferences: &on, Tabs: tabs}, []string{"a1", "b1", "a2"}},
+		{"on, a shown, b not connected", UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), Connection: live, Connections: onlyA, Preferences: &on, Tabs: tabs}, []string{"a1", "a2"}},
+		{"no cluster shown, both connected", UIState{NavigatorScope: NavScopeLocal, Connections: both, Preferences: &off, Tabs: tabs}, []string{"a1", "b1", "a2"}},
+		{"no cluster shown, none connected", UIState{NavigatorScope: NavScopeLocal, Preferences: &off, Tabs: tabs}, nil},
 	} {
 		if got := ids(c.u); !slices.Equal(got, c.want) {
 			t.Errorf("%s: %v, want %v", c.name, got, c.want)

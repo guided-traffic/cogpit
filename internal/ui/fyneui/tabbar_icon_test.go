@@ -26,8 +26,8 @@ func iconResource(t *testing.T) fyne.Resource {
 
 // TestTabShowsTheClustersImage (the owner's F25): a tab of a cluster with an uploaded icon shows the
 // image in its badge's place, as the navigator and the hotbar do, also when the image arrives after
-// the tab drew the initials; faded while its cluster is not connected; the initials again once the
-// icon is reset to a colour.
+// the tab drew the initials, unfaded (a tab of a cluster not connected is not in the bar, GW13); the
+// initials again once the icon is reset to a colour.
 func TestTabShowsTheClustersImage(t *testing.T) {
 	sh, _, q, f := tabsShell(t, ThemeDark)
 	f.update(func(u *engine.UIState) {
@@ -51,8 +51,8 @@ func TestTabShowsTheClustersImage(t *testing.T) {
 			t.Errorf("tab %d (live %v): translucency %v, want %v", i, tab.live, r.img.Translucency, want)
 		}
 	}
-	if long := sh.tabs.shown[2]; long.live {
-		t.Fatal("the long context's tab should be of a cluster that is not connected")
+	if long := sh.tabs.shown[2]; !long.live {
+		t.Fatal("the long context's tab is in the bar while its cluster is not connected")
 	}
 	if r := tabRenderer(sh.tabs.shown[0]); r.img.Size().Width <= 0 || r.img.Size() != r.badge.Size() {
 		t.Errorf("the image's size %v, the badge's %v", r.img.Size(), r.badge.Size())
@@ -75,9 +75,9 @@ func TestRenderTabBarClusterIconsLight(t *testing.T) {
 	renderTabBarClusterIcons(t, ThemeLight, "tabbar_cluster_icons_light.png")
 }
 
-// renderTabBarClusterIcons: the shown cluster's tab with its uploaded image (the owner's case), a
-// tab of a cluster connected in the background with its icon colour, one of a cluster that is not
-// connected with an image, faded; the navigator shows the same identities.
+// renderTabBarClusterIcons: the shown cluster's tab with its uploaded image (the owner's case) and a
+// tab of a cluster connected in the background with its icon colour; the failed cluster's tab is
+// not in the bar (GW13); the navigator shows the same identities.
 func renderTabBarClusterIcons(t *testing.T, mode ThemeMode, name string) {
 	f, _ := marksFake(t, true)
 	f.ui.Tabs = []engine.ViewTab{
@@ -93,7 +93,7 @@ func renderTabBarClusterIcons(t *testing.T, mode ThemeMode, name string) {
 	mixed.MixedEnvironments = true // every cluster's tabs in the bar (GW11)
 	f.ui.Preferences = &mixed
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 3 && len(sh.kinds) > 0 && sh.side.sec.loaded })
+	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 2 && len(sh.kinds) > 0 && sh.side.sec.loaded })
 	sh.icons = map[string]fyne.Resource{iconFile: iconResource(t)}
 	sh.identitiesChanged()
 	q.drain()

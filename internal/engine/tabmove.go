@@ -67,10 +67,16 @@ func placeAmong[T any](all []T, id string, idOf func(T) string, shown func(T) bo
 func viewTabID(t ViewTab) string { return t.ID }
 func dockTabID(t DockTab) string { return t.ID }
 
-// tabShown reports whether the tab bar shows a tab (TabsShown): with mixed environments on every
-// tab, else the shown cluster's (UIState.Context, whatever its connection: a restored session's
-// other clusters keep their tabs hidden until they are shown), any while no cluster is.
+// tabShown reports whether the tab bar shows a tab (TabsShown): only while its cluster holds a
+// connection (connected, interrupted or its login expired; the owner, 2026-10-20, GW13: "Es sollen
+// keine Tabs angezeigt werden, von Clustern zu denen keine Verbindung besteht"), and then with mixed
+// environments on every such tab, else the shown cluster's (UIState.Context: a restored session's
+// other clusters keep their tabs hidden until they are shown), any while no cluster is. A hidden
+// tab stays in Tabs and shows again when its cluster connects.
 func (u UIState) tabShown(t ViewTab) bool {
+	if t.Context != "" && !u.connectionState(t.Context).Live() {
+		return false
+	}
 	if u.Preferences != nil && u.Preferences.MixedEnvironments {
 		return true
 	}

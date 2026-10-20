@@ -3,6 +3,7 @@ package fyneui
 import (
 	"context"
 	"image/color"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -302,8 +303,9 @@ func TestDisconnectInAClustersMenuNamesIt(t *testing.T) {
 	}
 }
 
-// The tab bar greys a tab only while its cluster is not connected: a tab of another connected
-// cluster is not greyed (D-69); other clusters' tabs show with mixed environments on (GW11).
+// The tab bar shows a tab only while its cluster holds a connection (the owner's GW13): with mixed
+// environments on, the shown cluster's and another connected one's, never the failed cluster's;
+// a cluster disconnected meanwhile takes its tab out of the bar (kept in the UI state).
 func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 	f, _ := marksFake(t, true)
 	f.ui.Tabs = []engine.ViewTab{
@@ -316,14 +318,16 @@ func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 	mixed.MixedEnvironments = true
 	f.ui.Preferences = &mixed
 	sh, _, q := newTestShell(t, f, Options{})
-	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 3 })
-	for i, want := range []bool{true, true, false} {
-		if got := sh.tabs.shown[i].live; got != want {
-			t.Errorf("%s: live %v, want %v", sh.tabs.shown[i].tab.ID, got, want)
+	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 2 })
+	for i, id := range []string{"tab-1", "tab-2"} {
+		if got := sh.tabs.shown[i]; got.tab.ID != id || !got.live {
+			t.Errorf("tab %d: %s live %v, want %s live", i, got.tab.ID, got.live, id)
 		}
 	}
-	f.update(func(u *engine.UIState) { u.Connections = u.Connections[:2] }) // staging-us-east disconnected
-	q.until(t, "the greyed tab", func() bool { return !sh.tabs.shown[1].live })
+	f.update(func(u *engine.UIState) {
+		u.Connections = slices.DeleteFunc(slices.Clone(u.Connections), func(c engine.ConnectedCluster) bool { return c.Context == cCold })
+	})
+	q.until(t, "the disconnected cluster's tab gone", func() bool { return len(sh.tabs.shown) == 1 && len(sh.ui.Tabs) == 3 })
 }
 
 // A connect that fails while another cluster was shown leaves the window on the failed cluster

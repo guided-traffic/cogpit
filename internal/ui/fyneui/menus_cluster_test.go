@@ -81,10 +81,10 @@ func TestRemovedClusterLeavesTheTabBar(t *testing.T) {
 		}
 	})
 	sh, _, q := newEngineShell(t, s, Options{})
-	shown := func() []string {
+	shown := func() []string { // the UI state's tabs: the bar shows none, no cluster being connected (GW13)
 		var out []string
-		for _, tab := range sh.tabs.shown {
-			out = append(out, tab.tab.Context)
+		for _, tab := range sh.ui.Tabs {
+			out = append(out, tab.Context)
 		}
 		return out
 	}

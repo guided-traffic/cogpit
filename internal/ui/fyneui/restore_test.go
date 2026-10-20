@@ -5,12 +5,9 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync/atomic"
 	"testing"
-
-	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -98,14 +95,15 @@ func TestStartShowsRestoredTabsWithoutConnecting(t *testing.T) {
 	s := restoredEngine(t, srv.URL)
 	sh, _, q := newEngineShell(t, s, Options{})
 	welcomeShown(t, sh, q)
-	// Every tab is restored; the bar shows the shown cluster's (the owner's GW11: the others' come
-	// with their cluster).
-	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 && len(sh.tabs.shown) == 2 && sh.tabs.root.Visible() })
-	if got, want := tabTitles(sh), []string{"Pods - kind-dev", "Deployments - kind-dev"}; !slices.Equal(got, want) {
-		t.Errorf("tabs %q, want %q", got, want)
+	// Every tab is restored, in the UI state; the bar shows none while no cluster is connected (the
+	// owner's GW13; GW11: then the shown cluster's, the others' with their cluster).
+	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 })
+	q.drain()
+	if len(sh.tabs.shown) != 0 || sh.tabs.root.Visible() || sh.ui.Connection.State != engine.Disconnected {
+		t.Errorf("the bar shows %d tabs before a connect, or connected: %+v", len(sh.tabs.shown), sh.ui.Connection)
 	}
-	if !sh.tabs.shown[0].active || sh.tabs.shown[1].active || sh.ui.Connection.State != engine.Disconnected {
-		t.Errorf("the tab shown last is not the marked one, or connected: %+v", sh.ui.Connection)
+	if sh.ui.ActiveTab != sh.ui.Tabs[0].ID {
+		t.Errorf("the tab shown last is not the active one: %q", sh.ui.ActiveTab)
 	}
 	if sh.side.head.searching() {
 		t.Error("the navigator's search opened by itself at start")
@@ -125,7 +123,9 @@ func TestStartShowsRestoredTabsWithoutConnecting(t *testing.T) {
 		t.Fatalf("%d requests to the cluster before a tab was shown", n)
 	}
 
-	test.Tap(sh.tabs.shown[0])
+	// No tab shows before a connect (GW13): the active tab selected by its id, as the hotbar's
+	// tile or an agent does, connects its cluster.
+	sh.dispatch("ui.tab.select", map[string]string{"id": sh.ui.ActiveTab}, nil)
 	q.until(t, "the tab's connect to ask its cluster", func() bool { return requests.Load() > 0 })
 }
 
@@ -149,7 +149,8 @@ func TestStartWithoutTheRestoreShowsNoTabs(t *testing.T) {
 	}
 }
 
-// The start screen with the tabs of the last run: the tab bar over the welcome page.
+// The start screen with the tabs of the last run, before a connect: the welcome page, no tab bar
+// (GW13).
 func TestRenderStartRestoredDark(t *testing.T)  { renderStartRestored(t, ThemeDark) }
 func TestRenderStartRestoredLight(t *testing.T) { renderStartRestored(t, ThemeLight) }
 
@@ -157,7 +158,7 @@ func renderStartRestored(t *testing.T, mode ThemeMode) {
 	s := restoredEngine(t, "")
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
 	welcomeShown(t, sh, q)
-	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 && len(sh.tabs.shown) == 2 })
+	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 })
 	q.drain()
 	savePNG(t, w, "start_restored_"+string(mode)+".png")
 	if s.Backend() != nil || sh.side.head.searching() {

@@ -57,10 +57,10 @@ func renderScaleHint(t *testing.T, mode ThemeMode, name string) {
 		return len(names) == 1
 	})
 	settle(w)
-	names[0].tip.delay = time.Millisecond
+	names[0].tip().delay = time.Millisecond
 	icon := names[0].Size()
 	test.MoveMouse(w.Canvas(), fyne.CurrentApp().Driver().AbsolutePositionForObject(names[0]).AddXY(icon.Width-6, icon.Height/2))
-	q.until(t, "the tooltip", func() bool { return names[0].tip.visibleText() != "" })
+	q.until(t, "the tooltip", func() bool { return names[0].tip().visibleText() != "" })
 	savePNG(t, w, name)
 }
 

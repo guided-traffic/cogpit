@@ -138,9 +138,9 @@ func fakeTabCommands(t testing.TB, f *fakeEngine) {
 }
 
 // tabsFake is the demo with three tabs: Services (fixed), Pods (the preview tab, shown, with a view
-// before it in its history) and a tab of a cluster with a long name, which is not connected; the
-// navigator at the section level and mixed environments on, so that the bar shows them all (GW11:
-// off, it shows the shown cluster's only).
+// before it in its history) and a tab of a cluster with a long name, connected in the background;
+// the navigator at the section level and mixed environments on, so that the bar shows them all
+// (GW11: off, it shows the shown cluster's only; GW13: never a tab of a cluster not connected).
 func tabsFake(t testing.TB) *fakeEngine {
 	f := connectedFake(t, 200)
 	f.ui.Tabs = []engine.ViewTab{
@@ -151,6 +151,7 @@ func tabsFake(t testing.TB) *fakeEngine {
 	}
 	f.ui.ActiveTab = "tab-2"
 	f.ui.NavigatorScope = engine.NavScopeLocal
+	f.ui.Connections = []engine.ConnectedCluster{{Context: longContext, Connection: engine.Connection{State: engine.Connected}}}
 	mixed := engine.DefaultPreferences()
 	mixed.MixedEnvironments = true // every cluster's tabs in the bar (navscope.go TabsShown)
 	f.ui.Preferences = &mixed
@@ -170,8 +171,8 @@ func tabsShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *
 func tabRenderer(tab *viewTab) *viewTabRenderer { return test.WidgetRenderer(tab).(*viewTabRenderer) }
 
 // The bar shows every tab: the cluster's badge, "<view> - <context>" (italic for the preview tab),
-// a close button; the active tab raised, a tab of a cluster that is not connected with a muted
-// badge, a long title cut and shown whole as the tooltip. Without tabs the bar is hidden.
+// a close button; the active tab raised, a tab of another connected cluster drawn as the shown
+// one's, a long title cut and shown whole as the tooltip. Without tabs the bar is hidden.
 func TestTabBarShowsTheTabs(t *testing.T) {
 	sh, w, q, f := tabsShell(t, ThemeDark)
 	bar := sh.tabs
@@ -192,7 +193,7 @@ func TestTabBarShowsTheTabs(t *testing.T) {
 	if !tabRenderer(pods).title.TextStyle.Italic || tabRenderer(services).title.TextStyle.Italic {
 		t.Error("only the preview tab's title is italic")
 	}
-	if r := tabRenderer(long); long.live || !strings.HasSuffix(r.title.Text, "…") || r.initials.Text != "PE" {
+	if r := tabRenderer(long); !long.live || !strings.HasSuffix(r.title.Text, "…") || r.initials.Text != "PE" {
 		t.Errorf("the long tab: live %v, title %q, badge %q", long.live, r.title.Text, r.initials.Text)
 	}
 	if r := tabRenderer(services); !services.live || r.initials.Text != "DE" {

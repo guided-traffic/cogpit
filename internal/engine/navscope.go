@@ -32,8 +32,9 @@ import (
 //   - the tab bar shows the shown cluster's tabs, at the section too (the owner, 2026-10-20, GW11:
 //     the title bar and the status bar name one cluster, and the bar shows its tabs; until then it
 //     showed every cluster's at the section); every cluster's with the preference mixed
-//     environments on (off by default), and every tab while no cluster is shown; ⌘1–⌘9, next and
-//     previous count the tabs it shows (TabsShown).
+//     environments on (off by default), and every tab while no cluster is shown; never a tab of a
+//     cluster without a connection (GW13); ⌘1–⌘9, next and previous count the tabs it shows
+//     (TabsShown).
 //
 // UpdateUI keeps the scope in step with the connection (syncNavScope) after every change, so
 // agents read it with ui_state as navigatorScope and the window draws the navigator from it.
@@ -86,7 +87,8 @@ func (u UIState) ScopeCluster() string {
 }
 
 // TabsShown returns the tabs the tab bar shows: the shown cluster's, wherever the navigator stands
-// (GW11); every tab with the preference mixed environments on, and while no cluster is shown.
+// (GW11); every connected cluster's with the preference mixed environments on, and while no cluster
+// is shown; never a tab of a cluster without a connection (GW13: connecting, failed, disconnected).
 func (u UIState) TabsShown() []ViewTab {
 	return slices.DeleteFunc(slices.Clone(u.Tabs), func(t ViewTab) bool { return !u.tabShown(t) })
 }

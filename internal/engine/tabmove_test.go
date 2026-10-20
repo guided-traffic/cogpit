@@ -20,9 +20,11 @@ func tabIDs(tabs []ViewTab) []string {
 // cluster is shown; "" is the active tab; a place outside the bar, an unknown tab and a hidden one
 // are refused and change nothing.
 func TestMoveTab(t *testing.T) {
-	base := UIState{Context: "a", NavigatorScope: NavScopeLocal, ActiveTab: "a2", Tabs: []ViewTab{
-		{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}, {ID: "b2", Context: "b"}, {ID: "a3", Context: "a"},
-	}}
+	live := Connection{State: Connected} // both clusters connected: a cluster's tabs show only then (GW13)
+	base := UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: live, ActiveTab: "a2",
+		Connections: []ConnectedCluster{{Context: "a", Connection: live}, {Context: "b", Connection: live}}, Tabs: []ViewTab{
+			{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}, {ID: "b2", Context: "b"}, {ID: "a3", Context: "a"},
+		}}
 	cases := []struct {
 		name  string
 		shown string
@@ -86,7 +88,7 @@ func TestMoveTab(t *testing.T) {
 // TestTabStep: Move Tab Left and Right step the active tab among the tabs the bar shows, and say
 // why not at the bar's ends.
 func TestTabStep(t *testing.T) {
-	u := UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), ActiveTab: "a1", Tabs: []ViewTab{
+	u := UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), Connection: Connection{State: Connected}, ActiveTab: "a1", Tabs: []ViewTab{
 		{ID: "b1", Context: "b"}, {ID: "a1", Context: "a"}, {ID: "a2", Context: "a"},
 	}}
 	if _, err := u.tabStep(-1); err == nil {

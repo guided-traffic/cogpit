@@ -621,7 +621,7 @@ func TestMixedEnvironmentsCheck(t *testing.T) {
 	if !n.mixed.Visible() || n.mixed.Checked || n.mixed.Text != "Mixed environments" {
 		t.Fatalf("the check: visible %v, checked %v, %q", n.mixed.Visible(), n.mixed.Checked, n.mixed.Text)
 	}
-	if hints := findAll[*fieldName](n.foot); len(hints) != 1 || !strings.Contains(hints[0].hint, "every cluster") {
+	if hints := findAll[*fieldName](n.foot); len(hints) != 1 || !strings.Contains(hints[0].hint, "every connected cluster") {
 		t.Errorf("the foot's hint: %+v", hints)
 	}
 	shownBefore := len(sh.tabs.shown)
@@ -635,7 +635,16 @@ func TestMixedEnvironmentsCheck(t *testing.T) {
 		p.MixedEnvironments = true
 		u.Preferences = &p
 	})
-	q.until(t, "every cluster's tabs", func() bool { return len(sh.tabs.shown) == len(sh.ui.Tabs) && n.mixed.Checked })
+	// prod's connect failed: its tab stays out of the bar (GW13) until prod is connected.
+	q.until(t, "the check on", func() bool { return n.mixed.Checked })
+	q.drain()
+	if len(sh.tabs.shown) != shownBefore {
+		t.Errorf("with mixed environments on, the failed prod's tab shows: %d tabs", len(sh.tabs.shown))
+	}
+	f.update(func(u *engine.UIState) {
+		u.Connections = append(u.Connections, engine.ConnectedCluster{Context: secProd, Connection: engine.Connection{State: engine.Connected}})
+	})
+	q.until(t, "every connected cluster's tabs", func() bool { return len(sh.tabs.shown) == len(sh.ui.Tabs) })
 	if shownBefore >= len(sh.ui.Tabs) {
 		t.Errorf("the scene shows every tab with the check off too (%d of %d)", shownBefore, len(sh.ui.Tabs))
 	}
@@ -643,4 +652,28 @@ func TestMixedEnvironmentsCheck(t *testing.T) {
 		t.Errorf("the UI state's check sent preferences.set again: %d calls", n)
 	}
 	settle(w)
+}
+
+// The foot's "?" shows its explanation on a hover and a click (GW11). Its tooltip is the shell's,
+// asked for at the event: the navigator is built before the shell's tooltip, and v0.31.0 kept the
+// nil it saw then, so a hover over the "?" ended Cogpit (the owner's report of 2026-10-20).
+func TestMixedEnvironmentsHintHover(t *testing.T) {
+	sh, w, q, _ := sectionScene(t, ThemeDark)
+	hints := findAll[*fieldName](sh.side.sec.foot)
+	if len(hints) != 1 {
+		t.Fatalf("%d hints at the foot", len(hints))
+	}
+	hint := hints[0]
+	if hint.tip() != sh.tip || sh.tip == nil {
+		t.Fatalf("the hint's tooltip %p, the shell's %p", hint.tip(), sh.tip)
+	}
+	sh.tip.delay = time.Millisecond
+	settle(w)
+	at := fyne.CurrentApp().Driver().AbsolutePositionForObject(hint).AddXY(hint.Size().Width/2, hint.Size().Height/2)
+	test.MoveMouse(w.Canvas(), at)
+	q.until(t, "the hint's tooltip", func() bool { return strings.Contains(sh.tip.visibleText(), "every connected cluster") })
+	test.MoveMouse(w.Canvas(), fyne.NewPos(1, 1))
+	q.until(t, "the tooltip gone", func() bool { return sh.tip.visibleText() == "" })
+	test.Tap(hint)
+	q.until(t, "the tooltip on a click", func() bool { return sh.tip.visibleText() != "" })
 }

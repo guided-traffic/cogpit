@@ -35,7 +35,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app first; Windows and Linux (Ubuntu first) after the macOS beta *(planned)*.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every cluster's tabs side by side (since 2026-10-20).
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
@@ -385,8 +385,9 @@ whether the navigator and the chat are shown, and the window's place and size
 the same preference as a checkbox under "Add Kubeconfigs…", "Restore this session at the next start:
 its tabs and connected clusters" (since 2026-10-17 evening, the owner's walk, WF1): ticked there, it
 is on in the Preferences too. Every cluster gets its tabs back; the tab bar shows those of the
-cluster shown first, the others' come with their cluster when you go to it (since 2026-10-20, the
-owner's GW11), unless Mixed environments is on (below).
+cluster shown first once it is connected, the others' come with their cluster when you go to it
+(since 2026-10-20, the owner's GW11), unless Mixed environments is on (below); a cluster whose
+connect fails (an expired certificate) shows no tabs (GW13).
 
 | Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
 |---|---|---|
@@ -916,7 +917,7 @@ installs none.
   (`namespace/service:port`), **Use HTTPS** and **Path prefix** in the cluster's Settings ›
   Alertmanager (its own section since 2026-10-18); empty finds it by name again. The line under the
   address says which one is in use. The board's settings link opens that section.
-- **The pill,** left of the bell, a warning sign the bell's size and a number as tall: red while an
+- **The pill,** left of the bell, a warning sign the bell's size and the number in the lists' text size: red while an
   alert is critical, orange while one is a warning (also `major` and any other or missing
   severity), yellow while one is info, green with `0` while the Alertmanager answers with none; its
   number is every alert, `99+` beyond 99, and the tooltip counts them by severity. Alerts of

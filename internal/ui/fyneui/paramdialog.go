@@ -148,7 +148,7 @@ func formField(cmd *engine.Command, name string, value any, tip *tooltip) (*para
 		label = fieldLabel(name)
 	}
 	required := cmd.Requires(name)
-	f := &paramField{name: name, label: newFieldName(label, cmd.DialogHint(name), tip)}
+	f := &paramField{name: name, label: newFieldName(label, cmd.DialogHint(name), func() *tooltip { return tip })}
 	f.problem = newTextLine("", colorStatusError, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.problem.Hide()
 	switch typ := engine.SchemaType(prop); typ {
@@ -356,11 +356,13 @@ func (l paramRowsLayout) Layout(objs []fyne.CanvasObject, _ fyne.Size) {
 // fieldName is a dialog field's name, muted as every dialog table's names are, with a small "?"
 // after it whose tooltip is the field's hint (GW6); no "?" without a hint. The whole cell, the
 // name's column wide and the row tall, shows the hint: the pointer need not hit the icon. A click
-// shows it at once, a second one hides it.
+// shows it at once, a second one hides it. The tooltip is asked for at the pointer's event, not
+// kept from the start: the navigator's foot builds its "?" before the shell has its tooltip, and
+// a hover there ended Cogpit (v0.31.0, the owner's report of 2026-10-20).
 type fieldName struct {
 	widget.BaseWidget
 	text, hint string
-	tip        *tooltip
+	tipOf      func() *tooltip
 }
 
 var (
@@ -368,27 +370,47 @@ var (
 	_ fyne.Tappable     = (*fieldName)(nil)
 )
 
-func newFieldName(text, hint string, tip *tooltip) *fieldName {
-	n := &fieldName{text: text, hint: hint, tip: tip}
+func newFieldName(text, hint string, tipOf func() *tooltip) *fieldName {
+	n := &fieldName{text: text, hint: hint, tipOf: tipOf}
 	n.ExtendBaseWidget(n)
 	return n
 }
 
+// tip is the tooltip the hint shows in; nil before there is one.
+func (n *fieldName) tip() *tooltip {
+	if n.tipOf == nil {
+		return nil
+	}
+	return n.tipOf()
+}
+
 // MouseIn implements desktop.Hoverable.
 func (n *fieldName) MouseIn(ev *desktop.MouseEvent) {
-	if n.hint != "" {
-		n.tip.hover(n, n.hint, ev.AbsolutePosition)
+	if t := n.tip(); t != nil && n.hint != "" {
+		t.hover(n, n.hint, ev.AbsolutePosition)
 	}
 }
 
 // MouseMoved implements desktop.Hoverable.
-func (n *fieldName) MouseMoved(ev *desktop.MouseEvent) { n.tip.moved(n, ev.AbsolutePosition) }
+func (n *fieldName) MouseMoved(ev *desktop.MouseEvent) {
+	if t := n.tip(); t != nil {
+		t.moved(n, ev.AbsolutePosition)
+	}
+}
 
 // MouseOut implements desktop.Hoverable.
-func (n *fieldName) MouseOut() { n.tip.hideFor(n) }
+func (n *fieldName) MouseOut() {
+	if t := n.tip(); t != nil {
+		t.hideFor(n)
+	}
+}
 
 // Tapped implements fyne.Tappable.
-func (n *fieldName) Tapped(ev *fyne.PointEvent) { n.tip.now(n, n.hint, ev.AbsolutePosition) }
+func (n *fieldName) Tapped(ev *fyne.PointEvent) {
+	if t := n.tip(); t != nil && n.hint != "" {
+		t.now(n, n.hint, ev.AbsolutePosition)
+	}
+}
 
 // CreateRenderer implements fyne.Widget.
 func (n *fieldName) CreateRenderer() fyne.WidgetRenderer {
