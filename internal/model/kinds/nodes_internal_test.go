@@ -69,6 +69,20 @@ func TestNodeWarningsAndConditions(t *testing.T) {
 			t.Errorf("SystemdUnitsReady %s: cell %q, row %q, warning %+v", status, c.Text, s.token, s.warning())
 		}
 	}
+	// RKE2's and k3s's EtcdIsVoter reads the same way (the owner's finding of 2026-10-20): True on an
+	// etcd member that votes is healthy, False (a learner) the problem.
+	etcd := func(status string) map[string]any {
+		return map[string]any{"status": map[string]any{"conditions": []any{
+			map[string]any{"type": "Ready", "status": "True"},
+			map[string]any{"type": "EtcdIsVoter", "status": status},
+		}}}
+	}
+	if s = summariseNode(etcd("True")); s.conditionsCell().Text != "Ready" || s.token != model.StatusOK || s.warning() != (model.Cell{}) {
+		t.Errorf("EtcdIsVoter True: cell %q, row %q, warning %+v", s.conditionsCell().Text, s.token, s.warning())
+	}
+	if s = summariseNode(etcd("False")); s.conditionsCell().Text != "Ready EtcdIsVoter: False" || s.token != model.StatusWarning {
+		t.Errorf("EtcdIsVoter False: cell %q, row %q", s.conditionsCell().Text, s.token)
+	}
 	if problem, ok := conditionProblem("KernelDeadlock", "True"); !ok || problem != "KernelDeadlock" {
 		t.Errorf("node-problem-detector's KernelDeadlock True: %q %v", problem, ok)
 	}

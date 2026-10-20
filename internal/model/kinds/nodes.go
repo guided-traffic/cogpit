@@ -148,11 +148,18 @@ func summariseNode(obj any) nodeSummary {
 
 // positiveCondition reports whether a node condition names a healthy state when True: its type ends
 // in "Ready", as Ready itself and SystemdUnitsReady (seen on a Gardener cluster of STACKIT, the
-// owner's finding of 2026-10-17) do. The others name a problem when True: the kubelet's
-// MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable, and what node-problem-detector adds
-// (KernelDeadlock, ReadonlyFilesystem, FrequentKubeletRestart, …). Cogpit's rule, inferred: the
-// API has no field that says which way a condition reads.
-func positiveCondition(typ string) bool { return strings.HasSuffix(typ, nodeReady) }
+// owner's finding of 2026-10-17) do, or it is one of positiveConditions. The others name a problem
+// when True: the kubelet's MemoryPressure, DiskPressure, PIDPressure, NetworkUnavailable, and what
+// node-problem-detector adds (KernelDeadlock, ReadonlyFilesystem, FrequentKubeletRestart, …).
+// Cogpit's rule, inferred: the API has no field that says which way a condition reads.
+func positiveCondition(typ string) bool {
+	return strings.HasSuffix(typ, nodeReady) || slices.Contains(positiveConditions, typ)
+}
+
+// positiveConditions are the conditions healthy when True whose type does not end in "Ready":
+// EtcdIsVoter, which RKE2 and k3s set on a server node whose etcd member votes (False while it is
+// a learner; the owner's finding on an RKE2 cluster, 2026-10-20: "ein guter Node Zustand").
+var positiveConditions = []string{"EtcdIsVoter"}
 
 // conditionProblem reports whether a condition other than Ready names a problem, and how the
 // Conditions read it: a positive condition that is False or Unknown as "<type>: <status>", any
