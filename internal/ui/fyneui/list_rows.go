@@ -29,6 +29,11 @@ const (
 	maxPillText  = 24  // the longest text drawn as a status pill; longer is a sentence
 	markRadius   = 2.5 // a container square's corner
 	markGapWidth = 2   // between two squares
+
+	quietDotSide  = 4    // a healthy status word's dot
+	quietDotAlpha = 0x8c // and its alpha: about 55 %
+	quietMarkA    = 0x66 // a running container's square: the Running green at 40 %, so a column of them stays calm
+	quietStrokeA  = 0x8c // a stopped container's outline: about 55 %
 )
 
 // abnormalStatus reports whether a state asks for attention: the ones a spine and a pill light.
@@ -157,7 +162,11 @@ func (c *tableCell) layoutRowMarks(size fyne.Size, ts fyne.Size, pad float32) {
 		c.pill.CornerRadius = min(9, h/2)
 		c.pill.Move(fyne.NewPos(pad, y))
 		c.pill.Resize(fyne.NewSize(min(size.Width-pad, pillPadX+pillDotSide+pillDotGap+ts.Width+pillPadX), h))
-		c.dot.Move(fyne.NewPos(pad+pillPadX, (size.Height-pillDotSide)/2))
-		c.dot.Resize(fyne.NewSize(pillDotSide, pillDotSide))
+		side := float32(pillDotSide)
+		if !abnormalStatus(c.content.status) {
+			side = quietDotSide // the slot stays pillDotSide wide, so the words of a column stay aligned
+		}
+		c.dot.Move(fyne.NewPos(pad+pillPadX+(pillDotSide-side)/2, (size.Height-side)/2))
+		c.dot.Resize(fyne.NewSize(side, side))
 	}
 }

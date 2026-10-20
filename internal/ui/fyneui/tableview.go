@@ -208,7 +208,7 @@ func newTableView(sh *shell) *tableView {
 	tv.pageBox.Hide()
 	frame := box(&stretchLayout{tv: tv}, tv.table)
 	tv.create = newCreateButton(sh)
-	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.create.floating(), tv.alerts.root)
+	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root)
 	tv.root = container.NewBorder(
 		container.NewVBox(header, tv.pageBox, inset(theme.SizeNameInnerPadding, "", tv.errLine), inset(theme.SizeNameInnerPadding, "", tv.scopeLine)),
 		nil, nil, nil, body)
@@ -1370,6 +1370,11 @@ func (c *tableCell) apply() {
 		fg = colorRowSelectedText // the plain and link colours are too faint on the selection
 	}
 	c.text.Color = themeColor(th, fg)
+	if c.content.link != nil && !c.selected && !c.linkHover {
+		// A link is quiet until the pointer is on it: three blue columns would tint every healthy row
+		// and compete with the selection (Dark Cockpit: blue is you, focus and selection).
+		c.text.Color = withAlpha(themeColor(th, theme.ColorNameForeground), 0xeb)
+	}
 	c.text.TextSize = size
 	if c.content.parts != nil && c.content.kind == cellText {
 		parts := *c.content.parts
@@ -1394,7 +1399,14 @@ func (c *tableCell) apply() {
 		}
 		for i, r := range c.marks {
 			if i < len(marks) {
-				paintMark(r, themeColor(th, markColorName(marks[i].Status)), marks[i].Hollow || marks[i].Status == model.StatusStopped)
+				mc := themeColor(th, markColorName(marks[i].Status))
+				switch marks[i].Status {
+				case model.StatusOK:
+					mc = withAlpha(mc, quietMarkA) // healthy containers are the quiet token
+				case model.StatusStopped:
+					mc = withAlpha(mc, quietStrokeA)
+				}
+				paintMark(r, mc, marks[i].Hollow || marks[i].Status == model.StatusStopped)
 			}
 		}
 	}
@@ -1564,7 +1576,7 @@ func (c *tableCell) colourMore(th fyne.Theme) {
 // markStroke is a hollow square's outline.
 const (
 	maxCellMarks = 12
-	markStroke   = 1.5
+	markStroke   = 1.25
 )
 
 // paintMark colours a square: filled in col, or for a hollow mark (an ephemeral container that has

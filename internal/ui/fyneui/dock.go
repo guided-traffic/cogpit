@@ -126,9 +126,12 @@ func newDock(sh *shell) *dock {
 	d.toggle.Importance = widget.LowImportance
 	d.agentRead = d.newAgentReadSwitch()
 	d.agentReadMarks = newAgentReadMarks()
+	right := container.NewHBox(d.agentReadMarks.note, d.agentRead, d.toggle)
+	if sh.view != nil { // the list's create chip lives here, never over the rows (createbutton.go)
+		right = container.NewHBox(container.NewCenter(sh.view.create), d.agentReadMarks.note, d.agentRead, d.toggle, newHGap(theme.SizeNameInnerPadding))
+	}
 	d.strip = container.NewStack(newSurface(colorDock),
-		container.NewBorder(nil, nil, container.NewHBox(d.tabRow, add),
-			container.NewHBox(d.agentReadMarks.note, d.agentRead, d.toggle)))
+		container.NewBorder(nil, nil, container.NewHBox(d.tabRow, add), right))
 	d.stripHolder = container.NewStack()
 	d.collapsedBar = container.NewVBox()
 	d.body = container.NewStack()

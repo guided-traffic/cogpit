@@ -521,9 +521,9 @@ func (r *hotbarTileRenderer) Layout(size fyne.Size) {
 	r.initials.Move(fyne.NewPos(x+(side-is.Width)/2, pad+(side-is.Height)/2))
 	r.initials.Resize(is)
 	ring := d + 4*r.t.zoom()
-	r.ring.Move(fyne.NewPos(x+side-ring+2, pad+side-ring+2))
+	r.ring.Move(fyne.NewPos(x+side-ring+4, pad+side-ring+4))
 	r.ring.Resize(fyne.NewSize(ring, ring))
-	r.dot.Move(fyne.NewPos(x+side-d, pad+side-d))
+	r.dot.Move(fyne.NewPos(x+side-d+2, pad+side-d+2)) // a badge on the corner, cut out of the tile by its ring
 	r.dot.Resize(fyne.NewSize(d, d))
 	r.still.Move(r.dot.Position())
 	r.still.Resize(r.dot.Size())
@@ -565,12 +565,12 @@ func (r *hotbarTileRenderer) Refresh() {
 	default:
 		r.bg.FillColor, r.bg.StrokeWidth = withAlpha(accent, 0x2c), 0 // ghost and carried place: show() repaints
 	}
-	top, base := uint8(0x47), uint8(0x1f) // the plate: about 28 % down to 12 %
+	top, base := uint8(0x38), uint8(0x1a) // the plate: about 22 % down to 10 %
 	switch {
 	case t.hovered && t.tile.Missing:
 		r.bg.FillColor = themeColor(th, theme.ColorNameHover)
 	case t.hovered:
-		top, base = 0x5c, 0x38
+		top, base = 0x4a, 0x2c
 		if !plated {
 			r.bg.FillColor = withAlpha(accent, 0x66)
 		}

@@ -13,7 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// createButton is the round "+" at the bottom right of every list (Lens's, captured 2026-10-11):
+// createButton is the "+" that creates an object in the open list (Lens's was a round button over
+// the rows, captured 2026-10-11; here it is a 28 point chip in the dock's strip, so that it never
+// covers a cell):
 // it opens a Create resource tab in the dock, starting from the template of the view's kind when
 // Cogpit has one (Cogpit's choice; what Lens prefills is not captured), else the example Pod. On
 // the views whose kind has a create dialog (Namespaces, Service Accounts, the four RBAC kinds,
@@ -23,13 +25,12 @@ type createButton struct {
 	sh      *shell
 	hovered bool
 
-	shadow *canvas.Circle
-	disc   *canvas.Circle
-	icon   *iconImage
+	plate *canvas.Rectangle
+	icon  *iconImage
 }
 
 func newCreateButton(sh *shell) *createButton {
-	b := &createButton{sh: sh, shadow: canvas.NewCircle(color.Transparent), disc: canvas.NewCircle(color.Transparent), icon: newIconImage()}
+	b := &createButton{sh: sh, plate: canvas.NewRectangle(color.Transparent), icon: newIconImage()}
 	b.ExtendBaseWidget(b)
 	b.Hide()
 	return b
@@ -89,23 +90,18 @@ func (b *createButton) CreateRenderer() fyne.WidgetRenderer {
 
 type createButtonRenderer struct{ b *createButton }
 
-func (r *createButtonRenderer) diameter() float32 {
-	return r.b.Theme().Size(theme.SizeNameInlineIcon) * 2.5
-}
+// createButtonSide is the chip's side in points.
+const createButtonSide = 28
 
 func (r *createButtonRenderer) MinSize() fyne.Size {
-	d := r.diameter()
-	return fyne.NewSize(d, d)
+	return fyne.NewSize(createButtonSide, createButtonSide)
 }
 
 func (r *createButtonRenderer) Layout(s fyne.Size) {
 	b := r.b
 	d := fyne.Min(s.Width, s.Height)
-	off := d / 16
-	b.shadow.Move(fyne.NewPos(0, off))
-	b.shadow.Resize(fyne.NewSize(d, d))
-	b.disc.Move(fyne.NewPos(0, 0))
-	b.disc.Resize(fyne.NewSize(d, d))
+	b.plate.Move(fyne.NewPos(0, 0))
+	b.plate.Resize(fyne.NewSize(d, d))
 	icon := b.Theme().Size(theme.SizeNameInlineIcon)
 	b.icon.img.Move(fyne.NewPos((d-icon)/2, (d-icon)/2))
 	b.icon.img.Resize(fyne.NewSize(icon, icon))
@@ -114,20 +110,21 @@ func (r *createButtonRenderer) Layout(s fyne.Size) {
 func (r *createButtonRenderer) Refresh() {
 	b := r.b
 	th := b.Theme()
-	accent := themeColor(th, colorAccent)
+	b.plate.CornerRadius = th.Size(theme.SizeNameInputRadius)
+	b.plate.FillColor = themeColor(th, colorChip)
+	b.plate.StrokeColor, b.plate.StrokeWidth = themeColor(th, colorBracket), 1
+	glyph := fyne.ThemeColorName(colorAccent)
 	if b.hovered {
-		accent = themeColor(th, theme.ColorNamePrimary)
+		b.plate.FillColor = themeColor(th, theme.ColorNameHover)
+		b.plate.StrokeColor = withAlpha(themeColor(th, colorAccent), 0xa0)
 	}
-	b.disc.FillColor = accent
-	b.shadow.FillColor = themeColor(th, theme.ColorNameShadow)
-	b.icon.set(th, theme.ContentAddIcon(), theme.ColorNameForegroundOnPrimary)
+	b.icon.set(th, theme.ContentAddIcon(), glyph)
 	r.Layout(b.Size())
-	b.shadow.Refresh()
-	b.disc.Refresh()
+	b.plate.Refresh()
 }
 
 func (r *createButtonRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.b.shadow, r.b.disc, r.b.icon.img}
+	return []fyne.CanvasObject{r.b.plate, r.b.icon.img}
 }
 
 func (r *createButtonRenderer) Destroy() {}
