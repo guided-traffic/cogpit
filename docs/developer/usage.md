@@ -111,8 +111,8 @@ spctl -a -t open --context context:primary-signature -vv Cogpit-<version>-macos-
 The window says which version runs: right of the wordmark "Cogpit" in the top bar, smaller, on its line,
 a release shows `v0.16.0` (# example), a build from source `dev`, its commit in the tooltip
 (`dev 0691fb32abcd` # example, `-dirty` when the tree had changes; since 2026-10-16, the owner's
-F12). About Cogpit says the same. A release is built with Fyne's thread check off, a build from
-source with it on ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)):
+F12). About Cogpit says the same. A release is built with Fyne's thread check off (since v0.30.0;
+fast scrolling stays at 60 frames per second), a build from source with it on ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)):
 About adds "Fyne thread check on" to a release built with it and "Fyne thread check off" to a build
 from source without it, and the app log names the mode at every start
 (`cogpit started version=… fyneThreadCheck="off (speed)"` # example). A build from source with the
