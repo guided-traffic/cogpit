@@ -120,12 +120,14 @@ func TestCrashMidDrainIsOfferedOnTheNextStart(t *testing.T) {
 	if err := j.Put(onDisk[0]); err != nil {
 		t.Fatal(err)
 	}
+	waitCordoned(t, second, "worker-1", true)
 	second.must(t, engine.OriginGUI, "node.uncordon", actionNodeRef("worker-1"), nil)
 	if len(pendingOf(t, second)) != 0 {
 		t.Error("uncordon left the drain pending")
 	}
 
 	// Dismiss: forgotten, the cluster untouched.
+	waitCordoned(t, second, "worker-1", false)
 	second.must(t, engine.OriginGUI, "node.cordon", actionNodeRef("worker-1"), nil)
 	if err := j.Put(onDisk[0]); err != nil {
 		t.Fatal(err)

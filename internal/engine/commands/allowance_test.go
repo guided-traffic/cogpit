@@ -67,6 +67,7 @@ func TestAgentWritesAllowance(t *testing.T) {
 
 	// Allowed: Uncordon runs without asking and is audited; Drain still asks.
 	asked := len(c.all())
+	waitCordoned(t, h, "worker-1", true)
 	h.must(t, engine.OriginExternalAgent, "node.uncordon", actionNodeRef("worker-1"), nil)
 	if len(c.all()) != asked {
 		t.Error("an agent's uncordon asked although agent writes are allowed")
@@ -91,6 +92,7 @@ func TestAgentWritesAllowance(t *testing.T) {
 	// Forbidden again: Uncordon (the drain cordoned the node) asks.
 	h.must(t, engine.OriginGUI, "cluster.settings.setAgentWrites", map[string]any{"allowed": false}, nil)
 	asked = len(c.all())
+	waitCordoned(t, h, "worker-1", true)
 	h.must(t, engine.OriginExternalAgent, "node.uncordon", actionNodeRef("worker-1"), nil)
 	if len(c.all()) != asked+1 {
 		t.Error("an agent's uncordon ran without asking after the allowance was taken back")
