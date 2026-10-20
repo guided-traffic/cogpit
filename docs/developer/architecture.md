@@ -321,9 +321,10 @@ MCP stdio bridge, so neither needs a display. Since 2026-10-14 it ships inside t
 the `cogpit-cli` beside its running executable ([`cmd/cogpit/bundledcli.go`](../../cmd/cogpit/bundledcli.go),
 [D-2](decisions.md#d-2-agent-interface-scope)). Since 2026-10-20 night the Linux package installs
 both as `/usr/bin/cogpit` and `/usr/bin/cogpit-cli`
-([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); there the app
-offers the HTTP registration only, since `bundledCLI` looks for a macOS bundle
-([`bundledcli_other.go`](../../cmd/cogpit/bundledcli_other.go)).
+([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)), and since the
+release after v0.33.0 the app running as `/usr/bin/cogpit` copies the stdio registration of
+`/usr/bin/cogpit-cli` the same way (`packagedCLIBeside`); a development build offers the HTTP
+registration.
 
 ---
 

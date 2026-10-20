@@ -11,18 +11,44 @@ import (
 // Cogpit.app/Contents/MacOS, where Apple's "Placing Content in a Bundle" puts helper tools (D-16).
 const bundledCLIName = "cogpit-cli"
 
-// bundledCLI returns the path of the cogpit-cli in the running app's bundle, "" when this Cogpit
-// is not an installed macOS bundle that carries one (bundledCLIBeside): a dev build (bin/cogpit,
-// go run) and every other system offer the HTTP registration instead.
+// bundledCLI returns the path of the cogpit-cli that came with the running app: the one in an
+// installed macOS bundle (bundledCLIBeside), or the Linux package's beside /usr/bin/cogpit
+// (packagedCLIBeside, D-108); "" otherwise: a dev build (bin/cogpit, go run) and every other
+// system offer the HTTP registration instead.
 func bundledCLI() string {
-	if runtime.GOOS != "darwin" {
-		return ""
-	}
 	exe, err := os.Executable()
 	if err != nil {
 		return ""
 	}
-	return bundledCLIBeside(exe, readOnlyVolume)
+	switch runtime.GOOS {
+	case "darwin":
+		return bundledCLIBeside(exe, readOnlyVolume)
+	case "linux":
+		return packagedCLIBeside(exe, packagedBinDir)
+	}
+	return ""
+}
+
+// packagedBinDir is where the Linux package installs both binaries (D-108).
+const packagedBinDir = "/usr/bin"
+
+// packagedCLIBeside returns <dir>/cogpit-cli when exe is <dir>/cogpit, the Linux package's app (its
+// symbolic links resolved; with " (deleted)" once apt replaced the file under the running process),
+// and the cogpit-cli there is an executable file; "" otherwise.
+func packagedCLIBeside(exe, dir string) string {
+	exe = strings.TrimSuffix(exe, " (deleted)")
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	if exe != filepath.Join(dir, "cogpit") {
+		return ""
+	}
+	cli := filepath.Join(dir, bundledCLIName)
+	fi, err := os.Lstat(cli)
+	if err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
+		return ""
+	}
+	return cli
 }
 
 // bundledCLIBeside returns the path of the cogpit-cli in the app bundle whose main executable is

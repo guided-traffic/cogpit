@@ -106,6 +106,7 @@ func TestNetworkOnlyDrawerAsksNoLiveUsage(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return prom.count("node_network_receive_bytes_total") > 0 }) {
 		t.Fatal("the network was never asked")
 	}
+	quiet(3) // the poll that was under way when the variant changed
 	if live, cpu := quiet(20); live != 0 || cpu != 0 {
 		t.Errorf("the network shown: %d live gets and %d CPU queries in 20 polls, want none", live, cpu)
 	}

@@ -241,8 +241,8 @@ install by themselves is your system's setting, never Cogpit's
 **`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`
 (in the Linux package at `/usr/bin/cogpit-cli`): it lists your contexts, prints any kind's objects
 as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Help › Copy MCP command
-gives you the one command that registers it with Claude Code, once (on Linux the HTTP registration
-for now; [reference](docs/developer/usage.md#cogpit-cli)).
+gives you the one command that registers it with Claude Code, once
+([reference](docs/developer/usage.md#cogpit-cli)).
 
 **Build from source** with Go and the Xcode Command Line Tools (on Linux a C compiler and the GL,
 X11 and Wayland headers): `make run-demo` starts a development build on its synthetic demo cluster

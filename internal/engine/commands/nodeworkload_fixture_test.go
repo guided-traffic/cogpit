@@ -150,6 +150,24 @@ func (w *actionsWriter) SetNodeUnschedulable(ctx context.Context, name string, u
 	return nil
 }
 
+// waitCordoned waits until the session's cache shows the node cordoned (or not): the writer applies
+// a cordon to the source, which reaches the cache through its watch a moment later, and the next
+// node command's Enabled reads the cache, as the window's does (a test that ran Uncordon at once
+// after a Cordon failed now and then: "worker-1 is not cordoned").
+func waitCordoned(t *testing.T, h *harness, node string, cordoned bool) {
+	t.Helper()
+	id, state := "node.cordon", "uncordoned"
+	if cordoned {
+		id, state = "node.uncordon", "cordoned"
+	}
+	cmd, ok := h.s.Registry().Get(id)
+	if !ok {
+		t.Fatalf("no command %s", id)
+	}
+	params := mustJSON(t, actionNodeRef(node))
+	waitUntil(t, "the cache to show "+node+" "+state, func() bool { return cmd.Enabled(h.s, params) == nil })
+}
+
 // DrainNode cordons the node, then runs the test's hook, or evicts two pods.
 func (w *actionsWriter) DrainNode(ctx context.Context, name string, opts cluster.DrainOptions, progress func(cluster.DrainProgress)) error {
 	w.mu.Lock()
