@@ -287,7 +287,9 @@ func TestOnRefusedHearsEveryRefusal(t *testing.T) {
 	if g := got(); g[0] != all {
 		t.Errorf("reported %v, want %v", g, all)
 	}
-	if !cache.IsRefused(h.Err()) {
+	// The hook hears of a refusal before the handle shows it (runner.failed: a reader that sees the
+	// error may end the scope, and must know of the refusal by then): wait for the error.
+	if !testkit.WaitFor(ctx, func() bool { return cache.IsRefused(h.Err()) }) {
 		t.Errorf("the handle's error: %v", h.Err())
 	}
 	h.Release()
