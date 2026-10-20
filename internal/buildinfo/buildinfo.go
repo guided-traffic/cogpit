@@ -100,3 +100,12 @@ func (i Info) String() string {
 	}
 	return i.Version
 }
+
+// ThreadChecksText is the build's mode of Fyne's thread check as About, Diagnostics and the app
+// log show it (D-103): "on (safety)" or "off (speed)".
+func ThreadChecksText() string {
+	if FyneThreadChecks {
+		return "on (safety)"
+	}
+	return "off (speed)"
+}

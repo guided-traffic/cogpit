@@ -122,7 +122,12 @@ malformed-input tests or fuzz targets.
   [`theme.go`](../../internal/ui/fyneui/theme.go)): a new colour is a token there, in both
   palettes, with the VS Code key it comes from or a note why it differs. Text on a surface must
   pass the floors of `TestPaletteContrast`; add the new surface to that test.
-- Widget updates from other goroutines go through `fyne.Do`.
+- Widget updates from other goroutines go through `fyne.Do` (in the shell `sh.do`), and so do
+  reads of widget state. A new goroutine, timer, cgo export, engine subscription or other callback
+  below `internal/ui` gets its row in [ui-threads.md](ui-threads.md) saying why it is safe:
+  releases turn Fyne's thread check off ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)),
+  so a stray call races there, and a `fyne.DoAndWait` on the main goroutine never returns.
+  `TestEveryGoroutineSiteIsAudited` fails on goroutines, timers and exports without a row.
 - Nothing runs Fyne's theme or `fyne.CurrentApp()` at package initialisation (a package-level
   `var x = theme.SomeIcon()`): no app exists yet, Fyne logs "Attempt to access current Fyne app
   when none is started" and hands out the fallback theme's value. Store the function

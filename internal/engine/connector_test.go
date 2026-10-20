@@ -9,8 +9,9 @@ import (
 )
 
 // TestReleaseBuildsLeaveTheDemoOut: the release pipeline's make dist-app builds both binaries with
-// the Makefile's DIST_TAGS, and those name the tag connector_nodemo.go is built with. A tag no file
-// knows is silently ignored, and a release would ship the demo cluster (D-67).
+// the Makefile's DIST_TAGS (through BUILD_TAGS, which adds Fyne's thread check tag, D-103), and
+// those name the tag connector_nodemo.go is built with. A tag no file knows is silently ignored,
+// and a release would ship the demo cluster (D-67).
 func TestReleaseBuildsLeaveTheDemoOut(t *testing.T) {
 	stub, err := os.ReadFile("connector_nodemo.go")
 	if err != nil {
@@ -30,10 +31,13 @@ func TestReleaseBuildsLeaveTheDemoOut(t *testing.T) {
 	if d == nil || !slices.Contains(strings.FieldsFunc(string(d[1]), func(r rune) bool { return r == ',' || r == ' ' }), tag) {
 		t.Errorf("the Makefile's DIST_TAGS do not name %q: %q", tag, d)
 	}
+	if b := regexp.MustCompile(`(?m)^BUILD_TAGS\s*:?=\s*(.*)$`).FindSubmatch(mk); b == nil || !strings.Contains(string(b[1]), "$(GO_TAGS)") {
+		t.Errorf("the Makefile's BUILD_TAGS do not take GO_TAGS: %q", b)
+	}
 	for _, want := range []string{
 		"$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'", // dist-app
-		"$(GO) build -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit",
-		"$(GO) build -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli",
+		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit",
+		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli",
 	} {
 		if !strings.Contains(string(mk), want) {
 			t.Errorf("the Makefile lacks %q", want)

@@ -17,6 +17,7 @@ import (
 	"math"
 	"runtime/debug"
 	"sync"
+	"sync/atomic"
 
 	fyneterm "github.com/fyne-io/terminal"
 
@@ -68,7 +69,15 @@ type Terminal struct {
 	started   bool
 	closeOnce sync.Once
 	closeErr  error
+	// stopping, once set (Stop), makes the widget's reading loop end at its next read without
+	// drawing what it read: the app is quitting (D-103).
+	stopping atomic.Bool
 }
+
+// Stop ends the widget's output at once, before the window goes: the widget calls fyne.Do itself,
+// and once Fyne has drained its queue at quit, it would run them on its reading goroutine. Call it
+// on the main goroutine while Fyne still queues (the window's close); Close ends the session.
+func (t *Terminal) Stop() { t.stopping.Store(true) }
 
 // NewTerminal connects a terminal widget to sess. The connection starts when the widget is first
 // laid out with a usable size. Closing the widget closes the session.
@@ -159,7 +168,7 @@ func (t *Terminal) run() {
 		}
 		_ = t.sess.Close()
 	}()
-	out := &endNotice{src: newEscFilter(t.sess), notice: []byte(sessionEndedNotice)}
+	out := stopGate{src: &endNotice{src: newEscFilter(t.sess), notice: []byte(sessionEndedNotice)}, stopping: &t.stopping}
 	if err := t.term.RunWithConnection(sessionInput{t.sess}, out); err != nil {
 		slog.Warn("termview: terminal connection ended", "error", err.Error())
 	}
@@ -230,6 +239,24 @@ type sessionInput struct {
 
 func (s sessionInput) Write(p []byte) (int, error) { return s.sess.Write(p) }
 func (s sessionInput) Close() error                { return nil }
+
+// stopGate ends the output with io.EOF once stopping is set, dropping what the read brought and
+// the end notice: nothing more reaches the widget (Terminal.Stop).
+type stopGate struct {
+	src      io.Reader
+	stopping *atomic.Bool
+}
+
+func (g stopGate) Read(p []byte) (int, error) {
+	if g.stopping.Load() {
+		return 0, io.EOF
+	}
+	n, err := g.src.Read(p)
+	if g.stopping.Load() {
+		return 0, io.EOF
+	}
+	return n, err
+}
 
 // endNotice passes the session's output on and, when it ends, appends a notice and reports
 // io.EOF. Any error ends it: the widget's loop treats errors other than EOF as transient and

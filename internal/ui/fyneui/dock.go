@@ -239,9 +239,14 @@ func (c *dockContent) close() {
 	}
 }
 
-// closeAll closes every tab's stream when the window closes.
+// closeAll closes every tab's stream when the window closes. A terminal stops drawing first, on
+// the main goroutine, while Fyne still queues its fyne.Do calls (termview.Terminal.Stop, D-103);
+// the session's close follows on a goroutine of its own, as for any closed tab.
 func (d *dock) closeAll() {
 	for id, c := range d.contents {
+		if s, ok := c.closer.(interface{ Stop() }); ok {
+			s.Stop()
+		}
 		c.close()
 		delete(d.contents, id)
 	}

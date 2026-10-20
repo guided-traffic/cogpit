@@ -66,9 +66,12 @@ func run(previousCrash string) int {
 		defer stop()
 	}
 
-	logger := slog.New(helm.RedactSDKLog(newLogger(*verbose).Handler())) // Helm values never reach the log
+	// Helm values never reach the log; Fyne's thread-check warnings, which come through the
+	// standard log package that slog.SetDefault routes here, reach the window too (D-103).
+	logger := slog.New(fyneui.WatchThreadChecks(helm.RedactSDKLog(newLogger(*verbose).Handler())))
 	slog.SetDefault(logger)
 	klog.SetSlogLogger(logger)
+	logger.Info("cogpit started", "version", buildinfo.Read().String(), "fyneThreadCheck", buildinfo.ThreadChecksText())
 	// cogpit:// links (D-47): the handler must be in place before the app finishes launching, when
 	// macOS delivers the link that started it; the links wait in the queue for the window.
 	deepLinkQueue := installDeepLinks(logger)

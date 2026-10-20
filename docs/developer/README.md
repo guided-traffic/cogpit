@@ -31,6 +31,7 @@ this page.
 | [`conventions.md`](conventions.md) | Clean-room, never surprise a cluster, cache first, crash stance, secrets, style, commits |
 | [`extending.md`](extending.md) | Checklists: a command, a kind profile, a cache consumer, a package |
 | [`testing.md`](testing.md) | Test tiers, fixtures, performance and API-load budgets |
+| [`ui-threads.md`](ui-threads.md) | Every place the GUI's code runs off Fyne's main goroutine, and why it is safe (D-103's audit, kept by a test) |
 | [`releasing.md`](releasing.md) | CI jobs and their make targets, the race shards, coverage, Renovate, the release flow with semantic-release, the release pipeline and its artifacts, the macOS signing and notarization and what to do when it fails, signed updates |
 | [`decisions.md`](decisions.md) | Decisions taken and open |
 | [`spike-fyne.md`](spike-fyne.md) | The UI toolkit gate before M2 |

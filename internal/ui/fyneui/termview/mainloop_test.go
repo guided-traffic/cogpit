@@ -29,6 +29,10 @@ type mainLoop struct {
 	wake   chan struct{}
 	loopID atomic.Uint64
 	panics chan string
+	// waitedOnLoop counts fyne.DoAndWait calls made on the main loop itself. Fyne's desktop driver
+	// warns and runs them on a new goroutine only while its thread check is compiled in; Cogpit's
+	// releases build it out (D-103), and there such a call never returns. The test fails.
+	waitedOnLoop atomic.Int32
 }
 
 type mainLoopApp struct {
@@ -49,6 +53,9 @@ func useMainLoop(tb testing.TB) *mainLoop {
 		time.Sleep(400 * time.Millisecond) // a bell clears itself after 300 ms
 		loop.do(func() {})
 		fyne.SetCurrentApp(prev)
+		if n := loop.waitedOnLoop.Load(); n > 0 {
+			tb.Errorf("fyne.DoAndWait called %d times on the main goroutine: a release build (Fyne's thread check off) never returns from it", n)
+		}
 	})
 	return loop
 }
@@ -57,7 +64,8 @@ func useMainLoop(tb testing.TB) *mainLoop {
 func (l *mainLoop) DoFromGoroutine(f func(), wait bool) {
 	switch {
 	case wait && l.onLoop():
-		f() // the desktop driver warns and does not wait; waiting here would never end
+		l.waitedOnLoop.Add(1) // the test fails at its end (waitedOnLoop)
+		f()                   // waiting here would never end
 	case wait:
 		done := make(chan struct{})
 		l.push(func() {

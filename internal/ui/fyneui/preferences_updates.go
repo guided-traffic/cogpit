@@ -44,8 +44,9 @@ func (p *settingsPage) updatesSettings() ([]fyne.CanvasObject, func()) {
 	why.truncate = true
 	why.Hide()
 	go func() { // Enabled is evaluated off the main goroutine, as every command's
+		defer p.sh.recoverTo("the update preference") // D-11: a panic here would end the app
 		err := p.sh.commandEnabled(checkForUpdatesCommand, struct{}{})
-		if err == nil || errors.Is(err, errUnavailable) {
+		if err == nil || errors.Is(err, errUnavailable) || err.Error() == "" {
 			return
 		}
 		text := err.Error()

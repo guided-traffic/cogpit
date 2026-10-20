@@ -46,6 +46,21 @@ func aboutVersion(info buildinfo.Info) (version, detail string) {
 	return devBuild, detail
 }
 
+// aboutThreadCheck is the dialog's line for a build whose Fyne thread check is not its kind's
+// default (D-103): a release built with it on (FYNE_THREAD_CHECKS=on, the way back to before
+// D-103), a development build with it off (a release's speed tried before it ships); "" for the
+// defaults, a release without it and a development build with it, so that About stays as it was.
+// A bug report then names the mode either way.
+func aboutThreadCheck(info buildinfo.Info, checks bool) string {
+	switch {
+	case info.Release && checks:
+		return "Fyne thread check on"
+	case !info.Release && !checks:
+		return "Fyne thread check off"
+	}
+	return ""
+}
+
 // showAbout shows About Cogpit for this binary's build.
 func (sh *shell) showAbout() { sh.showAboutFor(buildinfo.Read()) }
 
@@ -71,6 +86,9 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 	}
 	if detail != "" {
 		objs = append(objs, line(detail, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Monospace: true}))
+	}
+	if check := aboutThreadCheck(info, buildinfo.FyneThreadChecks); check != "" {
+		objs = append(objs, line(check, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 	}
 	objs = append(objs,
 		newSpace(theme.SizeNameInnerPadding),

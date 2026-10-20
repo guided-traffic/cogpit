@@ -148,7 +148,8 @@ type shell struct {
 	// (menukeys.go): macOS's key equivalent; a test replaces it.
 	menuKey func() bool
 
-	unsubscribe func()
+	unsubscribe  func()
+	unwatchStray func() // a development build's toasts for Fyne's thread-check warnings (threadcheck.go)
 	// early are the notices the engine gave before the window subscribed (a restored tab bar's,
 	// D-41), shown as toasts with the start's warning once the window is up (showStartNotices).
 	early       []engine.Notification
@@ -260,6 +261,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 func (sh *shell) start() {
 	sh.early = sh.earlyNotices() // before subscribing: what comes after arrives as events
 	sh.unsubscribe = sh.eng.Subscribe(sh.onEvent)
+	sh.unwatchStray = sh.watchStrayCalls()
 	sh.applyUIState(sh.eng.UIState())
 	sh.requestDiagnostics()
 	sh.installShortcuts()
@@ -314,6 +316,9 @@ func (sh *shell) stop() {
 	sh.stopped.Store(true)
 	if sh.unsubscribe != nil {
 		sh.unsubscribe()
+	}
+	if sh.unwatchStray != nil {
+		sh.unwatchStray()
 	}
 	select {
 	case <-sh.stopTickers:
