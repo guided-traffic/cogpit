@@ -57,7 +57,7 @@ const (
 	colorStageLight fyne.ThemeColorName = "cogpit.stageLight" // the stage's top light
 	colorGrid       fyne.ThemeColorName = "cogpit.grid"       // the horizon's grid lines
 	colorBracket    fyne.ThemeColorName = "cogpit.bracket"    // a bracket under a group's label
-	colorTokenDim   fyne.ThemeColorName = "cogpit.tokenDim"   // an empty token
+	colorSlotDim    fyne.ThemeColorName = "cogpit.slotDim"    // an empty token
 )
 
 // Status colour tokens, one per model.Status.
@@ -196,7 +196,7 @@ var darkPalette = palette{
 		colorStageLight: hex(0x15233b),              // the stage's top light, a radial gradient's centre
 		colorGrid:       alpha(hex(0x5ab8ff), 0x1c), // the horizon's grid lines
 		colorBracket:    hex(0x34435c),              // a bracket's line under a group's label
-		colorTokenDim:   hex(0x1c2636),              // an empty token's square
+		colorSlotDim:    hex(0x1c2636),              // an empty token's square
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x3dd68c), // mint
@@ -270,7 +270,7 @@ var lightPalette = palette{
 		colorStageLight: hex(0xe4edfb),
 		colorGrid:       alpha(hex(0x0a6fd6), 0x16),
 		colorBracket:    hex(0xb9c2cf),
-		colorTokenDim:   hex(0xe3e8ef),
+		colorSlotDim:    hex(0xe3e8ef),
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x138a52),

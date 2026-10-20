@@ -75,7 +75,7 @@ func paintTile(th fyne.Theme, plate *canvas.Rectangle, glyph *iconImage, name en
 	plate.CornerRadius = 8
 	switch state {
 	case bearingOff:
-		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = themeColor(th, colorTokenDim), themeColor(th, colorBracket), 1
+		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = themeColor(th, colorSlotDim), themeColor(th, colorBracket), 1
 		tone = colorMuted
 	case bearingNeeds:
 		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = withAlpha(c, 0x1a), withAlpha(c, 0xb0), 1.5

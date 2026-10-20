@@ -97,7 +97,7 @@ func bearingTone(s bearingState) fyne.ThemeColorName {
 	case bearingFailing:
 		return colorStatusError
 	}
-	return colorTokenDim
+	return colorSlotDim
 }
 
 // bearing is the widget: the integrations' tiles in one row spread over the width, each with its

@@ -30,7 +30,7 @@ func TestRenderGlowPrimitives(t *testing.T) {
 			long := newTokenRow(10, sq("a", "a", "a")...)
 			long.bars = true
 			status := newTokenRow(10, tok{color: colorStatusOK}, tok{color: colorStatusOK}, tok{color: colorStatusWarning},
-				tok{color: colorStatusError}, tok{color: colorTokenDim, hollow: true})
+				tok{color: colorStatusError}, tok{color: colorSlotDim, hollow: true})
 			thinking := newWave(colorAgent, 4, 0.5)
 			thinking.min = fyne.NewSize(420, 40)
 			spark := newWave(colorAccent, 0, 0)

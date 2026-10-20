@@ -238,7 +238,7 @@ func newArgoActivityLine(sh *shell, a engine.ArgoActivityItem, now time.Time) fy
 	what.truncate = true
 	dotted := newDotSlot(newSurfaceDot(tone))
 	if healthy {
-		dotted = newDotSlot(newSurfaceDot(colorTokenDim))
+		dotted = newDotSlot(newSurfaceDot(colorSlotDim))
 	}
 	return container.NewBorder(nil, nil, container.NewHBox(dotted, ago, box(naturalWidth{text: ref.Name}, app)), nil, what)
 }
