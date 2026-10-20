@@ -2515,8 +2515,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   restart, an update through the Software Updater, X11 and Wayland in a real session, the arm64
   package beyond GitHub's ARM runner); `cogpit://` links (a link starts a second process, which needs
   a hand-over to the running Cogpit, D-108), Start at login, the window's place beyond its size and
-  full screen (D-95), the system's file panels, the stdio registration of the package's
-  `cogpit-cli`; AppImage, rpm, tar.xz and Flatpak, an RPM repository and Flathub. On Windows,
+  full screen (D-95), the system's file panels; AppImage, rpm, tar.xz and Flatpak, an RPM repository and Flathub. On Windows,
   everything platform-specific beyond macOS ([D-7](../developer/decisions.md#d-7-language-and-platforms)):
   ConPTY for terminals, MSI and portable builds for x64 and arm64, winget and Scoop, the one-click
   update, code signing. The UI and terminal tests run on Linux in CI (its runners are Linux); on

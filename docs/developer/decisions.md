@@ -10008,8 +10008,11 @@ The release pipeline's jobs "Cogpit.deb (Linux amd64)", "(Linux arm64)", "Attach
 on every push (`make test-linux-package`). The app's updater on Linux:
 [`internal/update/apt_linux.go`](../../internal/update/apt_linux.go), the engine's
 `UpdateRestarter`, `UpdateReporter` and `UpdateActor` ([`engine/updates.go`](../../internal/engine/updates.go)),
-the button's Restart to Update ([`layoutbar.go`](../../internal/ui/fyneui/layoutbar.go)). The trust
-chain: [updates › Linux](../security/updates.md#linux).
+the button's Restart to Update ([`layoutbar.go`](../../internal/ui/fyneui/layoutbar.go)). Since the
+release after v0.33.0 the MCP details offer the stdio registration of the package's
+`/usr/bin/cogpit-cli`, as the macOS app offers its bundle's (`packagedCLIBeside` in
+[`bundledcli.go`](../../cmd/cogpit/bundledcli.go)). The trust chain:
+[updates › Linux](../security/updates.md#linux).
 
 Every choice below is the lead's decision (2026-10-20), open to revision.
 
@@ -10054,6 +10057,7 @@ an update through Ubuntu's Software Updater.
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | D-108: on Linux the MCP details offer the stdio registration of the package's `/usr/bin/cogpit-cli` (`packagedCLIBeside`) |
 | 2026-10-20 | minor | D-108 added and built: Cogpit for Linux, a .deb for amd64 and arm64 from the releases and Cogpit's signed APT repository on GitHub Pages; the app updates through apt (pkexec and the package's helper), Restart to Update; D-4, D-7 and D-16 follow |
 | 2026-10-20 | patch | D-77: the alerts pill 5 points wider at each end (`alertsPillEnd`), the owner's "5px rechts und links dazu" |
 | 2026-10-20 | minor | D-107 added and built: the navigator slides into a cluster and back, and vertically between clusters in All Clusters' order; Reduce motion, Cogpit's preference or macOS's, stops every motion |

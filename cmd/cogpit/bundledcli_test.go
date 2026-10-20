@@ -113,3 +113,36 @@ func fakeBundleCLIDir(t *testing.T, dir string) string {
 	}
 	return exe
 }
+
+// TestPackagedCLIBeside: the Linux package's cogpit-cli beside its /usr/bin/cogpit, by the path the
+// running executable has, also once apt replaced it under the process; none for an executable
+// elsewhere (a dev build), without cogpit-cli, or with one that is not an executable file.
+func TestPackagedCLIBeside(t *testing.T) {
+	dir := resolved(t, t.TempDir())
+	exe := filepath.Join(dir, "cogpit")
+	cli := filepath.Join(dir, bundledCLIName)
+	if err := os.WriteFile(exe, []byte("app"), 0o755); err != nil { // #nosec G306 -- a test's fake executable
+		t.Fatal(err)
+	}
+	if got := packagedCLIBeside(exe, dir); got != "" {
+		t.Errorf("without cogpit-cli: %q", got)
+	}
+	if err := os.WriteFile(cli, []byte("cli"), 0o644); err != nil { // #nosec G306 -- a test's fake file
+		t.Fatal(err)
+	}
+	if got := packagedCLIBeside(exe, dir); got != "" {
+		t.Errorf("cogpit-cli not executable: %q", got)
+	}
+	if err := os.Chmod(cli, 0o755); err != nil { // #nosec G302 -- a test's fake executable
+		t.Fatal(err)
+	}
+	for _, e := range []string{exe, exe + " (deleted)"} {
+		if got := packagedCLIBeside(e, dir); got != cli {
+			t.Errorf("packagedCLIBeside(%q) = %q, want %q", e, got, cli)
+		}
+	}
+	other := filepath.Join(t.TempDir(), "bin", "cogpit")
+	if got := packagedCLIBeside(other, dir); got != "" {
+		t.Errorf("an executable elsewhere: %q", got)
+	}
+}

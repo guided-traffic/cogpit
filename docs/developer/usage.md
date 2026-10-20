@@ -189,9 +189,9 @@ rm -rf ~/.config/Cogpit ~/.cache/Cogpit   # your settings, logs and caches, if y
 ```
 
 Not on Linux yet: `cogpit://` links, Start at login, the window's place (its size and full screen
-come back, D-95), the system's file panels (Fyne's dialogs instead), and the stdio registration of
-`/usr/bin/cogpit-cli` in the MCP details (they offer the HTTP one;
-`claude mcp add --scope user cogpit -- /usr/bin/cogpit-cli mcp` registers the bridge by hand). No
+come back, D-95) and the system's file panels (Fyne's dialogs instead). The MCP details offer the
+stdio registration of `/usr/bin/cogpit-cli` since the release after v0.33.0 (0.33.0 offers the HTTP
+one; `claude mcp add --scope user cogpit -- /usr/bin/cogpit-cli mcp` registers the bridge by hand). No
 rpm, AppImage, Flatpak or tarball;
 not tried yet by a person on a desktop: polkit's password dialog, the restart, an update through
 the Software Updater, the arm64 package beyond GitHub's ARM runner.
@@ -324,9 +324,9 @@ ln -s /Applications/Cogpit.app/Contents/MacOS/cogpit-cli ~/bin/cogpit-cli    # e
 It is signed and notarized with the app and replaced with it by an update; on Linux apt replaces it
 with the package. Releases no longer carry it alone for any system; Windows gets it with its
 desktop app (M11), until then build it from source there:
-`CGO_ENABLED=0 go build ./cmd/cogpit-cli`. On Linux the MCP details offer only the HTTP registration
-for now; register the package's bridge by hand with
-`claude mcp add --scope user cogpit -- /usr/bin/cogpit-cli mcp`. It offers the same contexts as the app, from
+`CGO_ENABLED=0 go build ./cmd/cogpit-cli`. On Linux the MCP details offer the stdio registration of
+the package's `/usr/bin/cogpit-cli` since the release after v0.33.0, as the macOS app offers its
+bundle's. It offers the same contexts as the app, from
 the same kubeconfig sources (`~/.kube`, the files `--kubeconfig` or `$KUBECONFIG` names, the files
 and sync folders added in Cogpit), and runs a context's credential plugin, or connects a context
 whose cluster sets `insecure-skip-tls-verify` (A28, since 2026-10-14), only once you allowed it in
