@@ -456,6 +456,15 @@ linters:
       - path: ^(cmd/cogpit/crash|internal/engine/(auditlist|drainjournal|journallock|privatefile)|internal/mcp/(endpoint|token))\.go$
         text: G304
         linters: [gosec]
+      # G204: the Linux updater (D-108) runs fixed programs only: dpkg-query and apt-cache with
+      # fixed arguments, pkexec with the package's helper /usr/libexec/cogpit/update and nothing
+      # else, and /bin/sh with a fixed script that starts /usr/bin/cogpit with this process's own
+      # arguments after it ended; the names are package variables only its tests change, never
+      # cluster data or an agent's parameter. G702 on the restart: the arguments it passes on are
+      # the ones the user started this process with.
+      - path: ^internal/update/apt_linux\.go$
+        text: G204|G702
+        linters: [gosec]
       # G304: the connection log's files (D-66), Cogpit's own in <user config dir>/Cogpit/
       # connection-logs, named by the SHA-256 of a context id (never the id, never cluster data or
       # an agent's parameter), Lstat-checked as regular files; 0600 in 0700 (credentials.md).

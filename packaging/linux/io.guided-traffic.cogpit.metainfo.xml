@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.guided-traffic.cogpit</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>Apache-2.0</project_license>
+  <name>Cogpit</name>
+  <summary>Native Kubernetes IDE</summary>
+  <description>
+    <p>
+      Cogpit is a native Kubernetes IDE. It shows your clusters from a live cache, asks before it
+      changes anything, and lets agents drive it over MCP.
+    </p>
+    <p>
+      It browses every resource of the clusters in your kubeconfigs, shows logs and metrics, opens
+      shells in pods and nodes, and manages Helm releases. Nothing is installed into a cluster for
+      Cogpit's own features.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.guided-traffic.cogpit.desktop</launchable>
+  <icon type="stock">io.guided-traffic.cogpit</icon>
+  <url type="homepage">https://github.com/guided-traffic/cogpit</url>
+  <url type="bugtracker">https://github.com/guided-traffic/cogpit/issues</url>
+  <developer id="io.github.guided-traffic">
+    <name>Guided Traffic</name>
+  </developer>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <provides>
+    <binary>cogpit</binary>
+    <binary>cogpit-cli</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@VERSION@" date="@DATE@">
+      <url type="details">https://github.com/guided-traffic/cogpit/releases/tag/v@VERSION@</url>
+    </release>
+  </releases>
+</component>

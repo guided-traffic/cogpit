@@ -199,3 +199,103 @@ func TestCheckForUpdatesCommand(t *testing.T) {
 		t.Errorf("checks %d, starts %v (want 2 checks, one start with the checks off as set)", checks, starts)
 	}
 }
+
+// aptUpdater is an updater whose check acts, as the Linux package's does (internal/update,
+// D-108): it names an update, knows when it is installed already, and reports what a check came to.
+type aptUpdater struct {
+	fakeUpdater
+	mu        sync.Mutex
+	version   string
+	restart   bool
+	onChange  []func()
+	onMessage []func(level, message string)
+}
+
+func (a *aptUpdater) CheckActs() bool { return true }
+
+func (a *aptUpdater) AvailableUpdate() (string, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.version, a.version != ""
+}
+
+func (a *aptUpdater) RestartPending() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.restart
+}
+
+func (a *aptUpdater) OnUpdateChange(fn func()) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.onChange = append(a.onChange, fn)
+}
+
+func (a *aptUpdater) OnUpdateMessage(fn func(level, message string)) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.onMessage = append(a.onMessage, fn)
+}
+
+// set changes what the updater knows and tells the session, as internal/update does.
+func (a *aptUpdater) set(version string, restart bool) {
+	a.mu.Lock()
+	a.version, a.restart = version, restart
+	fns := append([]func(){}, a.onChange...)
+	a.mu.Unlock()
+	for _, fn := range fns {
+		fn()
+	}
+}
+
+func (a *aptUpdater) report(level, message string) {
+	a.mu.Lock()
+	fns := append([]func(string, string){}, a.onMessage...)
+	a.mu.Unlock()
+	for _, fn := range fns {
+		fn(level, message)
+	}
+}
+
+// Where the check acts (Linux: it installs through apt after a password, or restarts Cogpit), only
+// the window runs app.checkForUpdates; agents and the CLI read the state, which says whether the
+// release is installed already. What the check came to becomes a toast.
+func TestCheckForUpdatesThatActs(t *testing.T) {
+	s, _, _ := settingsSession(t)
+	u := &aptUpdater{}
+	s.SetUpdater(u)
+	for _, origin := range []engine.Origin{engine.OriginExternalAgent, engine.OriginBuiltInAgent, engine.OriginCLI} {
+		if err := dispatch(t, s, origin, "app.checkForUpdates", struct{}{}, nil); !errors.Is(err, engine.ErrUpdateCheckGUIOnly) {
+			t.Errorf("%s: %v, want ErrUpdateCheckGUIOnly", origin, err)
+		}
+	}
+	if _, _, checks := u.seen(); checks != 0 {
+		t.Fatalf("an agent's refused check ran: %d", checks)
+	}
+	if err := dispatch(t, s, engine.OriginGUI, "app.checkForUpdates", struct{}{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, checks := u.seen(); checks != 1 {
+		t.Errorf("the window's check: %d checks", checks)
+	}
+
+	u.set("0.34.0", false)
+	if got := s.UIState().Update; got != (engine.UpdateState{Available: true, Version: "0.34.0"}) {
+		t.Errorf("an update to install: %+v", got)
+	}
+	u.set("0.34.0", true)
+	if got := s.UIState().Update; got != (engine.UpdateState{Available: true, Version: "0.34.0", Restart: true}) {
+		t.Errorf("an update installed under the app: %+v", got)
+	}
+	u.set("", false)
+	if got := s.UIState().Update; got != (engine.UpdateState{}) {
+		t.Errorf("none: %+v", got)
+	}
+
+	u.report("info", "Cogpit 0.34.0 is installed: click Restart to Update to use it")
+	list := s.Notifications(true)
+	if len(list.Notifications) == 0 || list.Notifications[0].Message != "Cogpit 0.34.0 is installed: click Restart to Update to use it" ||
+		list.Notifications[0].Level != engine.LevelInfo {
+		t.Errorf("the report as a toast: %+v", list.Notifications)
+	}
+}

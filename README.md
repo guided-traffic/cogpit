@@ -27,8 +27,8 @@ change.
   <img src="docs/images/hero_dark.png" alt="Cogpit: the navigator, the Pods list with CPU and memory, and a pod's drawer with its CPU chart, requests and limits">
 </picture>
 
-> **Pre-alpha.** Cogpit runs on macOS on Apple silicon today; Windows and Linux are planned after
-> the macOS beta. The views and actions are in place, some of them still in part, but nothing has
+> **Pre-alpha.** Cogpit runs on macOS on Apple silicon and, from the release after v0.32.0, on
+> Debian and Ubuntu (amd64 and arm64); Windows is planned after the macOS beta. The views and actions are in place, some of them still in part, but nothing has
 > been walked through by testers on real clusters yet: try it on a test cluster first. Where it
 > stands, feature by feature:
 > [ROADMAP.md](ROADMAP.md).
@@ -226,13 +226,27 @@ dark theme too.
 `Cogpit-<version>-macos-arm64.dmg`, Cogpit for Apple silicon, signed and notarized by Apple. Open it
 and drag Cogpit into Applications.
 
-**`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`: it
-lists your contexts, prints any kind's objects as Cogpit's views show them, and connects agents to
-Cogpit's MCP tools. Help › Copy MCP command gives you the one command that registers it with
-Claude Code, once ([reference](docs/developer/usage.md#cogpit-cli)).
+**On Linux** (Debian 13, Ubuntu 24.04 or later; from the release after v0.32.0 on), download
+`cogpit_<version>_amd64.deb` (or `_arm64.deb`) from the same release and install it:
 
-**Build from source** with Go and the Xcode Command Line Tools: `make run-demo` starts a
-development build on its synthetic demo cluster ([run from source](docs/developer/usage.md#run-the-mvp)).
+```sh
+sudo apt install ./cogpit_<version>_amd64.deb
+```
+
+The package also sets up Cogpit's signed APT repository, so `apt` and the Software Updater offer
+every new release, and Cogpit's own Update button installs it after your password. Whether updates
+install by themselves is your system's setting, never Cogpit's
+([installing on Linux](docs/developer/usage.md#install-on-linux)).
+
+**`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`
+(in the Linux package at `/usr/bin/cogpit-cli`): it lists your contexts, prints any kind's objects
+as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Help › Copy MCP command
+gives you the one command that registers it with Claude Code, once (on Linux the HTTP registration
+for now; [reference](docs/developer/usage.md#cogpit-cli)).
+
+**Build from source** with Go and the Xcode Command Line Tools (on Linux a C compiler and the GL,
+X11 and Wayland headers): `make run-demo` starts a development build on its synthetic demo cluster
+([run from source](docs/developer/usage.md#run-the-mvp)).
 
 ## 📚 Documentation
 

@@ -1,8 +1,9 @@
 // Package update is the desktop app's updater (D-4; docs/developer/architecture.md §11): on macOS
 // Sparkle 2, which the app bundle carries in Contents/Frameworks and which checks Cogpit's signed
 // appcast, shows Sparkle's own window when an update is there, verifies the disk image's EdDSA
-// signature and Apple's code signature, replaces the app and relaunches it. cogpit-cli has no
-// updater, and Windows and Linux come with M11.
+// signature and Apple's code signature, replaces the app and relaunches it. On Linux apt, which
+// the .deb points at Cogpit's signed APT repository (apt_linux.go, D-108). cogpit-cli has no
+// updater, and Windows comes with M11.
 //
 // The binary does not link Sparkle. New loads Sparkle.framework at run time from the running app's
 // bundle (dlopen through NSBundle) and finds SPUStandardUpdaterController with NSClassFromString,
@@ -24,7 +25,8 @@
 // that the window shows its Update button, whose click brings Sparkle's window with that update up
 // (CheckForUpdates). OnUpdateChange tells the engine.
 //
-// Layer L4: it imports nothing of Cogpit's; cmd/cogpit wires it into the engine.
+// Layer L4: it imports nothing of Cogpit's but internal/buildinfo (L0, the version this process
+// runs, on Linux); cmd/cogpit wires it into the engine.
 package update
 
 import (
@@ -35,8 +37,8 @@ import (
 
 // The reasons this Cogpit cannot update itself, as Unavailable returns them.
 var (
-	// ErrNotMacOS: only the macOS app updates itself so far.
-	ErrNotMacOS = errors.New("not macOS: Cogpit updates itself on macOS only so far (Windows and Linux with M11)")
+	// ErrNotMacOS: only the macOS app and the Linux package update themselves so far.
+	ErrNotMacOS = errors.New("not macOS or Linux: Cogpit updates itself on macOS and, installed from its package, on Linux so far (Windows with M11)")
 	// ErrNoBundle: the process is not an app bundle's executable (go run, bin/cogpit).
 	ErrNoBundle = errors.New("not installed from the disk image: this Cogpit does not run as an app bundle")
 	// ErrNoFramework: the bundle carries no Sparkle.framework.
@@ -51,6 +53,20 @@ var (
 	ErrNoKey = errors.New("this build has no update key")
 	// ErrNotStarted: CheckForUpdates before Start.
 	ErrNotStarted = errors.New("the updater has not started yet")
+	// ErrNotFromPackage: on Linux, the process is not /usr/bin/cogpit of the installed package
+	// cogpit (a build of its own, a copy elsewhere), which apt does not update.
+	ErrNotFromPackage = errors.New("not installed from the package: this Cogpit is not /usr/bin/cogpit of the installed .deb, which apt updates")
+	// ErrNoRepository: on Linux, the package's sources file is gone (the user deleted it), so apt
+	// knows of no new release.
+	ErrNoRepository = errors.New("no package repository: /etc/apt/sources.list.d/cogpit.sources, which the package installs, is missing, " +
+		"so apt finds no new release of Cogpit; reinstall the package from Cogpit's releases to set it up again")
+)
+
+// The levels of the messages OnUpdateMessage passes on: the engine's toast levels.
+const (
+	LevelInfo    = "info"
+	LevelWarning = "warning"
+	LevelError   = "error"
 )
 
 // Updater is the app's updater. Its zero value has none (ErrNotMacOS); New returns the real one.
@@ -142,15 +158,46 @@ func (u *Updater) OnUpdateChange(fn func()) {
 	notice.listen(fn)
 }
 
-// notice is what Sparkle's user driver delegate reported last (sparkle_darwin.m): one per
-// process, as Sparkle's controller is.
+// RestartPending reports whether the newer release AvailableUpdate names is installed already, so
+// that a restart of Cogpit uses it: on Linux apt replaces the files under the running app (the
+// Software Updater, unattended-upgrades or the Update button's helper), and CheckForUpdates then
+// restarts Cogpit. Never on macOS, where Sparkle relaunches the app itself.
+func (u *Updater) RestartPending() bool {
+	if u.Unavailable() != nil {
+		return false
+	}
+	return notice.restartPending()
+}
+
+// OnUpdateMessage registers fn, called on a goroutine of its own with what an update the user
+// started came to (installed, already the newest, cancelled, failed), for the window's
+// notifications; level is LevelInfo, LevelWarning or LevelError. On macOS Sparkle's own window
+// says it and fn is never called.
+func (u *Updater) OnUpdateMessage(fn func(level, message string)) {
+	if u.Unavailable() != nil || fn == nil {
+		return
+	}
+	messages.listen(fn)
+}
+
+// CheckActs reports whether CheckForUpdates acts instead of showing a window of its own: on Linux
+// it installs through apt after polkit's password prompt, or restarts Cogpit (apt_linux.go); on
+// macOS Sparkle shows its window and installs only on the user's click there.
+func (u *Updater) CheckActs() bool { return u.Unavailable() == nil && checkActs }
+
+// checkActs: this system's CheckForUpdates acts (apt_linux.go sets it).
+var checkActs bool
+
+// notice is what the updater reported last (Sparkle's user driver delegate, sparkle_darwin.m; apt,
+// apt_linux.go): one per process, as Sparkle's controller is.
 var notice updateNotice
 
-// updateNotice holds the update Sparkle reports and the functions that follow it.
+// updateNotice holds the update the updater reports and the functions that follow it.
 type updateNotice struct {
 	mu        sync.Mutex
 	available bool
 	version   string
+	restart   bool // installed already: a restart uses it (Linux)
 	listeners []func()
 }
 
@@ -158,6 +205,12 @@ func (n *updateNotice) get() (string, bool) {
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	return n.version, n.available
+}
+
+func (n *updateNotice) restartPending() bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	return n.available && n.restart
 }
 
 func (n *updateNotice) listen(fn func()) {
@@ -168,13 +221,16 @@ func (n *updateNotice) listen(fn func()) {
 
 // set keeps what Sparkle reported and tells the listeners when it changed, each on a goroutine of
 // its own: Sparkle reports on the main thread inside AppKit's event dispatch, which must not wait.
-func (n *updateNotice) set(available bool, version string) {
+func (n *updateNotice) set(available bool, version string) { n.setState(available, version, false) }
+
+// setState is set with restart: the release is installed already and a restart uses it.
+func (n *updateNotice) setState(available bool, version string, restart bool) {
 	if !available {
-		version = ""
+		version, restart = "", false
 	}
 	n.mu.Lock()
-	changed := n.available != available || n.version != version
-	n.available, n.version = available, version
+	changed := n.available != available || n.version != version || n.restart != restart
+	n.available, n.version, n.restart = available, version, restart
 	fns := slices.Clone(n.listeners)
 	n.mu.Unlock()
 	if !changed {
@@ -183,4 +239,19 @@ func (n *updateNotice) set(available bool, version string) {
 	for _, fn := range fns {
 		go fn()
 	}
+}
+
+// messages passes what an update the user started came to on to the functions OnUpdateMessage
+// registered.
+var messages updateMessages
+
+type updateMessages struct {
+	mu        sync.Mutex
+	listeners []func(level, message string)
+}
+
+func (m *updateMessages) listen(fn func(level, message string)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.listeners = append(m.listeners, fn)
 }

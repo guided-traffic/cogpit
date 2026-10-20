@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.5
+Name=Cogpit
+GenericName=Kubernetes IDE
+Comment=Your Kubernetes clusters from a live cache; every change asked first; drivable by agents over MCP
+Exec=cogpit
+Icon=io.guided-traffic.cogpit
+Terminal=false
+StartupNotify=true
+StartupWMClass=Cogpit
+Categories=Development;
+Keywords=kubernetes;k8s;kubectl;helm;cluster;lens;

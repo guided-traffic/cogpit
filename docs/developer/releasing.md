@@ -1,6 +1,6 @@
 # Releasing
 
-> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-20 · **Change:** minor (What gets built: Fyne's thread check off in releases since v0.30.0); minor (What gets built: a release has Fyne's thread check off, the repository variable `FYNE_THREAD_CHECKS` its way back, D-103, on the branch `fast-scroll`); minor (Renovate: the debug container's default image, D-102); minor (the release pipeline: the Kubernetes release table refreshed before the app is built, `make k8s-eol K8SEOL_FLAGS=-fallback`, D-91; Renovate's list: the table is no dependency it sees); minor (CI: `internal/ui/logo` out of the race tests, the job at its fifteen-minute limit); minor (v0.22.0 released 2026-10-17 08:14 UTC, its appcast waiting for the owner's approval with v0.20.0's and v0.21.0's); minor (v0.20.0 and v0.21.0 released in the night of 2026-10-16/17, their appcasts waiting for the owner's approval); minor (CI's macOS job: the file panels' harness and the lint of `internal/ui/nativedialog`, 2026-10-16 night); minor (the appcast: every start checks at once while the automatic checks are on, the owner's of 2026-10-16 night); minor (v0.17.0 to v0.19.0 released 2026-10-16, the feed holds 0.19.0 to 0.15.0); minor (the appcast: the deploy refuses only a feed that takes back a newer release Pages serves, an older item a newer release's draft never saw left out with a warning, the owner's correction of F18 after v0.19.0's refused deploy); minor (the appcast: the waiting appcast runs of v0.13.0 and v0.14.0 cancelled on 2026-10-16, the owner's choice, so neither can reset the feed); minor (Renovate: the rules for Cogpit Metrics' bundled chart and `make metrics-bundle` removed with the stack, D-61 withdrawn by the owner 2026-10-16); minor (v0.13.0 has its disk image: the re-run after its 330-minute wait, 2026-10-15 23:52 UTC); minor (the disk image's window, D-70, 2026-10-16: the template made by dmgbuild in the app's job, filled and signed in the signing job with Apple's tools only; Renovate's rule for dmgbuild); minor (releases leave the demo cluster out: `make dist-app` builds with `DIST_TAGS` `nodemo` and checks both binaries recorded it, CI's lint job runs `make check-nodemo`, D-67); minor (the appcast's deploy refuses a feed that drops an item Pages serves, F18, the owner's decision 2026-10-16); minor (the appcast read every hour by each running copy, `SUScheduledCheckInterval` 3600, owner 2026-10-16; what it costs); minor (the first update through the feed seen on 2026-10-16: the owner's MacBook from 0.15.0 to 0.16.0); minor (the signed feed served since 2026-10-16 with 0.16.0 and 0.15.0; appcasts approved in release order, the site artifact named per run attempt); minor (CI: the job Integration Tests (envtest), `make test-envtest` against envtest's etcd and kube-apiserver pinned by SHA-512 and cached per pin, its coverage profile `envtest.out`, in Semantic Release's needs, D-64; not observed yet); minor (Renovate: Cogpit Metrics' bundled chart version and its manual archive update, `make metrics-bundle`, D-61, 2026-10-16); minor (CI: apt-install.sh repairs an interrupted dpkg before a retry, the install's deadline six minutes); minor (signing and notarization: signed releases with `cogpit-cli` inside since v0.7.0, the quarantined-copy and offline checks not tried with them; v0.13.0's pipeline still waiting for Apple's notarization on 2026-10-15 at 20:10 UTC, no files yet; What gets built as of 2026-10-15); minor (Sparkle's update key set up by the owner on 2026-10-15 and in the releases since v0.11.0, no signed appcast yet: no release with the key has passed notarization; the releases with files are v0.6.0 to v0.8.0); minor (when no release comes: `hack/ci/apt-install.sh` with deadlines and tries, `rerun.yml` re-running jobs of main\'s newest run that failed setting up); major (notarization in a job of its own: "Sign and submit (macOS)" submits the disk image and records the submission, "Notarize and staple (macOS)" waits up to 330 minutes for that submission and a re-run waits for the same one, after v0.9.0 to v0.12.0 got no download); minor (Sparkle: steps 1 and 2 set up 2026-10-15, the environment `sparkle` and Pages; the repository renamed back to `cogpit`, the feed URL with its spelling, Pages being case-sensitive, H-97); minor (the version a build reports: one variable for both binaries, `internal/buildinfo`, set by `DIST_LDFLAGS`; development builds say `dev` and their commit; `make dist-app` needs `VERSION`); major (D-16 revised by the owner: a release carries only the complete product, the disk image with `cogpit-cli` inside the app (`Contents/MacOS`), and `SHA256SUMS`; the `cogpit-cli` job, its archives and `make dist-cli` removed; the signing job signs the bundled `cogpit-cli` inside-out and submits only the disk image; agent CLIBUNDLE); major (Sparkle 2: the framework in the app, pinned by version and SHA-256, Sparkle's parts signed inside-out, the appcast's three jobs (drafted, signed in the environment `sparkle`, deployed to GitHub Pages) and the owner's steps to set them up; no update key yet); major (the release pipeline signs the macOS app and `cogpit-cli` with the Developer ID, puts the app into a disk image, notarizes both and staples the disk image's ticket, in a job of its own in the environment `release`; a failed signature or notarization fails that job and the release gets no files until it is re-run, the lead's decision for the owner to confirm); minor (the Apple signing and notarization material set up in the environment `release`); minor (Renovate: the node shell's default image, D-37); earlier major (CI split into parallel jobs of at most ten minutes, the UI's race tests sharded; semantic-release live, D-16 revised; the release pipeline attaches `cogpit-cli` and the unsigned app; Renovate: sigstore's trusted root refreshed by make sigstore-root, D-50) · **Target:** Lens Desktop 2026.10.51501
+> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-20 · **Change:** minor ([Linux](#linux), D-108: the Linux packages for amd64 and arm64 and their jobs, the release's one `SHA256SUMS` merged by the macOS and the Linux jobs, Cogpit's APT repository on Pages beside the appcast, signed with `APT_SIGNING_KEY` in the environment `apt`; CI's job Linux Package); minor (What gets built: Fyne's thread check off in releases since v0.30.0); minor (What gets built: a release has Fyne's thread check off, the repository variable `FYNE_THREAD_CHECKS` its way back, D-103, on the branch `fast-scroll`); minor (Renovate: the debug container's default image, D-102); minor (the release pipeline: the Kubernetes release table refreshed before the app is built, `make k8s-eol K8SEOL_FLAGS=-fallback`, D-91; Renovate's list: the table is no dependency it sees); minor (CI: `internal/ui/logo` out of the race tests, the job at its fifteen-minute limit); minor (v0.22.0 released 2026-10-17 08:14 UTC, its appcast waiting for the owner's approval with v0.20.0's and v0.21.0's); minor (v0.20.0 and v0.21.0 released in the night of 2026-10-16/17, their appcasts waiting for the owner's approval); minor (CI's macOS job: the file panels' harness and the lint of `internal/ui/nativedialog`, 2026-10-16 night); minor (the appcast: every start checks at once while the automatic checks are on, the owner's of 2026-10-16 night); minor (v0.17.0 to v0.19.0 released 2026-10-16, the feed holds 0.19.0 to 0.15.0); minor (the appcast: the deploy refuses only a feed that takes back a newer release Pages serves, an older item a newer release's draft never saw left out with a warning, the owner's correction of F18 after v0.19.0's refused deploy); minor (the appcast: the waiting appcast runs of v0.13.0 and v0.14.0 cancelled on 2026-10-16, the owner's choice, so neither can reset the feed); minor (Renovate: the rules for Cogpit Metrics' bundled chart and `make metrics-bundle` removed with the stack, D-61 withdrawn by the owner 2026-10-16); minor (v0.13.0 has its disk image: the re-run after its 330-minute wait, 2026-10-15 23:52 UTC); minor (the disk image's window, D-70, 2026-10-16: the template made by dmgbuild in the app's job, filled and signed in the signing job with Apple's tools only; Renovate's rule for dmgbuild); minor (releases leave the demo cluster out: `make dist-app` builds with `DIST_TAGS` `nodemo` and checks both binaries recorded it, CI's lint job runs `make check-nodemo`, D-67); minor (the appcast's deploy refuses a feed that drops an item Pages serves, F18, the owner's decision 2026-10-16); minor (the appcast read every hour by each running copy, `SUScheduledCheckInterval` 3600, owner 2026-10-16; what it costs); minor (the first update through the feed seen on 2026-10-16: the owner's MacBook from 0.15.0 to 0.16.0); minor (the signed feed served since 2026-10-16 with 0.16.0 and 0.15.0; appcasts approved in release order, the site artifact named per run attempt); minor (CI: the job Integration Tests (envtest), `make test-envtest` against envtest's etcd and kube-apiserver pinned by SHA-512 and cached per pin, its coverage profile `envtest.out`, in Semantic Release's needs, D-64; not observed yet); minor (Renovate: Cogpit Metrics' bundled chart version and its manual archive update, `make metrics-bundle`, D-61, 2026-10-16); minor (CI: apt-install.sh repairs an interrupted dpkg before a retry, the install's deadline six minutes); minor (signing and notarization: signed releases with `cogpit-cli` inside since v0.7.0, the quarantined-copy and offline checks not tried with them; v0.13.0's pipeline still waiting for Apple's notarization on 2026-10-15 at 20:10 UTC, no files yet; What gets built as of 2026-10-15); minor (Sparkle's update key set up by the owner on 2026-10-15 and in the releases since v0.11.0, no signed appcast yet: no release with the key has passed notarization; the releases with files are v0.6.0 to v0.8.0); minor (when no release comes: `hack/ci/apt-install.sh` with deadlines and tries, `rerun.yml` re-running jobs of main\'s newest run that failed setting up); major (notarization in a job of its own: "Sign and submit (macOS)" submits the disk image and records the submission, "Notarize and staple (macOS)" waits up to 330 minutes for that submission and a re-run waits for the same one, after v0.9.0 to v0.12.0 got no download); minor (Sparkle: steps 1 and 2 set up 2026-10-15, the environment `sparkle` and Pages; the repository renamed back to `cogpit`, the feed URL with its spelling, Pages being case-sensitive, H-97); minor (the version a build reports: one variable for both binaries, `internal/buildinfo`, set by `DIST_LDFLAGS`; development builds say `dev` and their commit; `make dist-app` needs `VERSION`); major (D-16 revised by the owner: a release carries only the complete product, the disk image with `cogpit-cli` inside the app (`Contents/MacOS`), and `SHA256SUMS`; the `cogpit-cli` job, its archives and `make dist-cli` removed; the signing job signs the bundled `cogpit-cli` inside-out and submits only the disk image; agent CLIBUNDLE); major (Sparkle 2: the framework in the app, pinned by version and SHA-256, Sparkle's parts signed inside-out, the appcast's three jobs (drafted, signed in the environment `sparkle`, deployed to GitHub Pages) and the owner's steps to set them up; no update key yet); major (the release pipeline signs the macOS app and `cogpit-cli` with the Developer ID, puts the app into a disk image, notarizes both and staples the disk image's ticket, in a job of its own in the environment `release`; a failed signature or notarization fails that job and the release gets no files until it is re-run, the lead's decision for the owner to confirm); minor (the Apple signing and notarization material set up in the environment `release`); minor (Renovate: the node shell's default image, D-37); earlier major (CI split into parallel jobs of at most ten minutes, the UI's race tests sharded; semantic-release live, D-16 revised; the release pipeline attaches `cogpit-cli` and the unsigned app; Renovate: sigstore's trusted root refreshed by make sigstore-root, D-50) · **Target:** Lens Desktop 2026.10.51501
 
 Every push to `main` and every pull request runs the checks, each a job of its own with a make
 target that runs the same on a laptop. Since 2026-10-13 ([D-16](decisions.md#d-16-the-first-real-release))
@@ -14,9 +14,12 @@ submission beyond the job's 45 minutes, [when it fails](#when-signing-or-notariz
 v0.13.0's run was still in "Notarize and staple (macOS)" two hours after its tag (20:10 UTC on
 2026-10-15, no files yet), and v0.4.0 and earlier are **unsigned**. Since 2026-10-14 (the owner,
 [D-16](decisions.md#d-16-the-first-real-release)) a release carries **only the complete product**:
-today the disk image, with `cogpit-cli` inside the app, and `SHA256SUMS`; no `cogpit-cli`
+today the disk image, with `cogpit-cli` inside the app, since 2026-10-20 the Linux packages for
+amd64 and arm64 with both binaries ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages), [Linux](#linux)), and `SHA256SUMS`; no `cogpit-cli`
 archives for any platform (releases up to v0.6.0 had them, unsigned for Linux and Windows,
-[updates](../security/updates.md#what-a-release-holds-today)). Since 2026-10-14 the app carries
+[updates](../security/updates.md#what-a-release-holds-today)). The Linux packages also go into
+Cogpit's APT repository on GitHub Pages beside the appcast, signed with the key in the environment
+`apt`, which the packages set up for updates ([the APT repository](#the-apt-repository)). Since 2026-10-14 the app carries
 Sparkle 2, and three jobs add each release to Sparkle's appcast on GitHub Pages, signed with the
 update key in the environment `sparkle` ([the appcast](#the-appcast)). The owner set up the key on
 2026-10-15 ([setting up Sparkle](#setting-up-sparkle)) and the releases carry it since v0.11.0;
@@ -36,7 +39,7 @@ other repositories (`valkey-operator`):
 | Workflow | Triggers | What it does |
 |---|---|---|
 | [`release.yml`](../../.github/workflows/release.yml) "Test and Release" | push to `main`, pull request to `main`, manual | the checks below, each a job; on `main`, Semantic Release once all of them passed. The README's build badge shows this workflow. |
-| [`build.yml`](../../.github/workflows/build.yml) "Release Build" | a release published (`release: types: [published]`) | builds the artifacts from the release's tag, signs and notarizes the macOS ones, and attaches them ([the release pipeline](#the-release-pipeline)) |
+| [`build.yml`](../../.github/workflows/build.yml) "Release Build" | a release published (`release: types: [published]`) | builds the artifacts from the release's tag, signs and notarizes the macOS ones, and attaches them ([the release pipeline](#the-release-pipeline)); the Linux packages, and Cogpit's APT repository with them ([Linux](#linux)) |
 | [`renovate.yml`](../../.github/workflows/renovate.yml) | daily at 02:00 Berlin time, manual | dependency updates ([Renovate](#renovate)) |
 | [`rerun.yml`](../../.github/workflows/rerun.yml) "Re-run on runner failures" | a push run of "Test and Release" on `main` completed red or cancelled | re-runs its failed jobs once when each of them stopped in a set-up step (actions not downloadable, an apt mirror hanging) and the run is for `main`'s newest commit; never a failing test ([when no release comes](#when-no-release-comes)) |
 
@@ -98,6 +101,7 @@ environment `release` ([secrets](#secrets)).
 | Integration Tests (envtest) | self-hosted | `make envtest-bin`, `make test-envtest` | the `TestEnvtest*` tests against envtest's etcd and kube-apiserver of Kubernetes 1.37.0, no Docker and no kubelet: D-58's standby case with the API server stopped by SIGSTOP ([D-64](decisions.md#d-64-envtest-a-real-api-server-in-ci-without-docker)); the binaries, pinned by SHA-512, download while the tests compile and are cached per pin (`make envtest-key`) | – (since 2026-10-16, not observed yet; expected 5–8) |
 | macOS | `macos-latest` | `make test-darwin`, `make lint LINT_PKGS=…`, `make app` | the tests only macOS can run (the title bar's AppKit harness, the updater's harness with Sparkle's framework from `make sparkle`, the file panels' harness and the bookmarks' round trip of `internal/ui/nativedialog` (since 2026-10-16), the locale's CoreFoundation read, the tests that expect macOS's shortcut glyphs), the lint of the packages with darwin-only files (`internal/ui/nativedialog` among them since 2026-10-16), and the app bundle with Sparkle | 5.0 |
 | Compile (windows) | `windows-latest` | `go build`, `go vet`, `go test -run '^$'` | every package and test compiles and links on Windows with cgo (MinGW-w64 from MSYS2) and Fyne; it runs no test | 2.9 |
+| Linux Package | self-hosted | `make dist-linux VERSION=0.0.1`, `make test-linux-package` | the Linux package as the release builds it ([Linux](#linux)): both binaries with the release's tags, the package, lintian on it (an error fails), and the APT repository's script end to end with a throwaway key and a local web server (`hack/linux/apt-test.sh`: two generations, a tampered package and another key refused, the mirror leaving nothing of a tampered repository, an older repository not replacing a newer one); since 2026-10-20 | – (not observed yet; locally 5 minutes on 12 CPUs, most of it the cgo build) |
 | Combined Coverage Report | self-hosted, after the test jobs | `make coverage-report` | the unit, race and cluster profiles merged: the job summary, and the badge Semantic Release commits ([coverage](#coverage)) | 1.0 |
 | Semantic Release | self-hosted, `main` only, after every job | `npx semantic-release` | the tag, the GitHub release with its notes, and the release commit with the badge ([release flow](#release-flow)) | 0.9 |
 
@@ -351,7 +355,10 @@ its `v`:
 | Cogpit.app (macOS arm64) | `macos-latest` | `make k8s-eol K8SEOL_FLAGS=-fallback`, `make dist-app` | first the Kubernetes release table of the release's day ([below](#the-kubernetes-release-table)); then `Cogpit_<v>_darwin_arm64.zip`: `make app` (`fyne package`, the version in `Info.plist` as both versions and in the binary, Sparkle 2 in `Contents/Frameworks` with the update key's public half from the repository variable `SPARKLE_PUBLIC_ED_KEY`, `cogpit-cli` in `Contents/MacOS`, an ad-hoc signature) zipped with `ditto`. Both binaries are built with `DIST_TAGS` (`nodemo`: no demo cluster, [below](#what-gets-built)), and the target fails unless both recorded the tag. The bundled `cogpit-cli` is `make build`'s, pure Go (`CGO_ENABLED=0`), `-s -w`, the version set with `-X …/internal/buildinfo.version` as in the app's binary ([the version a build reports](#the-version-a-build-reports)) ([D-16](decisions.md#d-16-the-first-real-release)). The job checks the bundle's versions, the framework, that its `SUPublicEDKey` is the variable (none while it is unset), its signature seal with the nested code, its architecture, and that `cogpit-cli` has the app's architecture, the identifier `io.guided-traffic.cogpit.cli` and says the release's version (`cogpit-cli version`; this job runs it, the signing job never does). No secret reaches it.; then the disk image's window as a template without the app, `make dist-dmg-template` (dmgbuild, [below](#the-disk-images-window)) |
 | Sign and submit (macOS) | `macos-latest`, after the app, environment `release` | `make dist-macos-sign` | `Cogpit-<v>-macos-arm64.dmg`: the app with Sparkle and `cogpit-cli` signed inside-out with the Developer ID, in the checked template of the disk image's window ([below](#the-disk-images-window)), converted and signed, submitted to Apple's notary service without waiting; the artifact `macos-signed` carries it with `notary-submission.json`, the submission's id and the disk image's SHA-256 ([below](#signing-and-notarization)); without the secrets, the app zip unchanged |
 | Notarize and staple (macOS) | `macos-latest`, after the signing, environment `release` (the team API key only) | `make dist-macos-notarize` | Apple's verdict on that submission, asked every minute for up to 330 minutes; the ticket stapled, the disk image and the app in it checked as Gatekeeper checks them; the record removed. A re-run waits for the same submission ([when it fails](#when-signing-or-notarization-fails)); without a submission, the unsigned zip passes |
-| Attach to the release | self-hosted, after the notarization | `make dist-checksums` | `SHA256SUMS` over the download; checks that the release gets exactly the files the signing job's verdict promises and nothing else (signed: the disk image; unsigned: the app zip; with `SHA256SUMS`); attaches them (`softprops/action-gh-release@v3`) and appends a note to the release text: what the download is, that `cogpit-cli` comes inside the app and where, and that the app, its `cogpit-cli` and the disk image are signed and notarized, naming the certificate the signature carries, or else that they are unsigned and how macOS lets the user start the app anyway; Cogpit for Linux and Windows with M11 |
+| Attach to the release | self-hosted, after the notarization | `make dist-checksums` | `SHA256SUMS` over the download, merged with the Linux packages' lines the release has (`hack/ci/sha256sums.sh`; the job takes turns with the Linux one, the concurrency group `release-files-<tag>`); checks that the release gets exactly the files the signing job's verdict promises and nothing else (signed: the disk image; unsigned: the app zip; with `SHA256SUMS`); attaches them (`softprops/action-gh-release@v3`) and appends a note to the release text: what the download is, that `cogpit-cli` comes inside the app and where, and that the app, its `cogpit-cli` and the disk image are signed and notarized, naming the certificate the signature carries, or else that they are unsigned and how macOS lets the user start the app anyway; Cogpit for Windows with M11 |
+| Cogpit.deb (Linux amd64), (Linux arm64) | GitHub's `ubuntu-24.04` and `ubuntu-24.04-arm` | `make k8s-eol K8SEOL_FLAGS=-fallback`, `make dist-linux` | `cogpit_<v>_<arch>.deb` ([Linux](#linux)): both binaries with `DIST_TAGS` and Fyne's thread check as the app's, position-independent; checked: its fields, lintian (an error fails), the `cogpit-cli` in it says the release's version, its sources file names the repository. No secret reaches it |
+| Attach to the release (Linux) | `ubuntu-24.04`, after both packages | `hack/linux/publish.sh` | both packages on the release, their lines merged into its `SHA256SUMS` (in turn with the macOS job), and the note on installing them appended to the release's text once; both packages or none |
+| APT repository (sign), APT repository (deploy to Pages) | `ubuntu-24.04` in the environment `apt`, `ubuntu-24.04` in `github-pages` | `make apt-repo`, `make apt-verify` | Cogpit's APT repository with this release's packages, signed with `APT_SIGNING_KEY`, checked and deployed to GitHub Pages with the appcast Pages serves ([the APT repository](#the-apt-repository)); without the key nothing is signed or deployed |
 | Appcast (draft), Appcast (sign), Appcast (deploy to Pages) | `macos-latest`, `macos-latest` in the environment `sparkle`, self-hosted in `github-pages` | `make appcast-draft`, `appcast-sign`, `appcast-verify` | the release's item in Sparkle's appcast, signed and deployed to GitHub Pages ([the appcast](#the-appcast)); without the update key nothing is signed or deployed and the release is complete without them |
 
 The release jobs build without a build cache (`cache: none`): an artifact never comes from objects
@@ -374,8 +381,8 @@ ID`; open it and run `"/Volumes/Cogpit <v>/Cogpit.app/Contents/MacOS/cogpit-cli"
 says the release's version.
 
 **Not built yet:** the universal (Intel) app and the Homebrew cask
-([D-4](decisions.md#d-4-packaging-and-updates)); desktop packages for Linux and Windows (M11); an
-SBOM; signed checksums.
+([D-4](decisions.md#d-4-packaging-and-updates)); desktop packages for Windows (M11) and Linux
+packages other than the .deb (rpm, Flatpak, AppImage); an SBOM; signed checksums.
 
 ### The Kubernetes release table
 
@@ -766,13 +773,92 @@ person's observation, not a test). Not seen yet: a scheduled check of a copy tha
 time, and Console.app's log of the steps. A release whose appcast jobs fail keeps its files; re-run
 the failed jobs.
 
+## Linux
+
+Cogpit for Linux is a Debian package for each architecture, `cogpit_<version>_amd64.deb` and
+`cogpit_<version>_arm64.deb`, on every release since the one after v0.32.0, and Cogpit's APT
+repository on GitHub Pages that the package sets up for updates (the owner, 2026-10-20,
+[D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)). It runs on Debian
+13 and Ubuntu 24.04 and later (built on Ubuntu 24.04: glibc 2.38). To install:
+
+```sh
+sudo apt install ./cogpit_<version>_amd64.deb   # from the release's files
+```
+
+**The package** (`make dist-linux VERSION=x.y.z`, [`hack/linux/deb.sh`](../../hack/linux/deb.sh),
+for the build machine's architecture, Debian or Ubuntu with `dpkg-dev`): both binaries built as the
+macOS app's (`DIST_TAGS`, Fyne's thread check off unless `FYNE_THREAD_CHECKS=on`, checked by the
+same `checkDistBinaries`), position-independent (`-buildmode=pie`), and from
+[`packaging/linux`](../../packaging/linux):
+
+| Path | What |
+|---|---|
+| `/usr/bin/cogpit`, `/usr/bin/cogpit-cli` | the app and the command-line tool |
+| `/usr/share/applications/io.guided-traffic.cogpit.desktop` | the launcher; `StartupWMClass=Cogpit` (the X11 window's class), and its name is the app's Wayland app_id, so the dock pairs the window with it |
+| `/usr/share/icons/hicolor/<n>x<n>/apps/io.guided-traffic.cogpit.png` | the icon in eight sizes from 16 to 512, drawn by `hack/icon` |
+| `/usr/share/metainfo/io.guided-traffic.cogpit.metainfo.xml` | the AppStream entry software centres show |
+| `/usr/libexec/cogpit/update`, `/usr/share/polkit-1/actions/io.guided-traffic.cogpit.update.policy` | the update helper the Update button runs through pkexec, and its polkit action (an administrator's password, kept a few minutes) |
+| `/etc/apt/sources.list.d/cogpit.sources` | the repository, its public key inline (`Signed-By`); a conffile: a user who deletes it keeps it deleted through upgrades, `apt purge cogpit` removes it |
+| `/usr/share/doc/cogpit/`, `/usr/share/lintian/overrides/cogpit` | the copyright and a changelog; lintian's accepted findings, each with its reason |
+
+Its `Depends` are the libraries the app links (dpkg-shlibdeps) and the X11 and Wayland libraries
+Fyne's GLFW loads itself; pkexec and libdecor are recommended. No maintainer scripts: dpkg's
+triggers refresh the desktop and icon caches. The `Maintainer` is `DEB_MAINTAINER` (the owner's
+name and address, the lead's choice). Checked 2026-10-20: lintian `--pedantic` without findings
+but the overrides; installed, upgraded by its helper from a signed test repository, started under
+Xvfb, removed and purged in containers of Ubuntu 24.04, Ubuntu 26.04 and Debian 13.
+
+### The APT repository
+
+`https://guided-traffic.github.io/cogpit/apt`, beside the appcast on the same Pages site:
+
+```text
+apt/
+  files.sha256                                every file with its SHA-256, for the next deploy
+  dists/stable/InRelease, Release, Release.gpg
+  dists/stable/main/binary-<arch>/Packages, Packages.gz, by-hash/SHA256/<hash>
+  pool/main/c/cogpit/cogpit_<version>_<arch>.deb
+```
+
+[`hack/linux/apt.sh`](../../hack/linux/apt.sh) makes it. The job "APT repository (sign)" (the
+environment `apt`, tags `v*`, no reviewer; GitHub's hosted runner; bash, apt-ftparchive and gpg,
+no Go and nothing of the packages) runs `make apt-repo`: `mirror` fetches the repository Pages
+serves into a directory of its own and checks every file against the packages' key (none served:
+nothing), `build` puts this run's packages beside the served ones and keeps the **two newest
+versions of each architecture**, writes the index with `Acquire-By-Hash` and keeps the served
+generation's by-hash files, and `sign` signs `InRelease` and `Release.gpg` with `APT_SIGNING_KEY`,
+refusing a key whose fingerprint is not the one in
+[`packaging/linux/cogpit-archive-keyring.asc`](../../packaging/linux/cogpit-archive-keyring.asc), then
+checks the result. The job "APT repository (deploy to Pages)" checks it again (`verify`), refuses
+it with a warning when Pages serves a newer release already (`newer`: a run of an older release
+that ends after a newer one's), copies the appcast Pages serves into the site, and deploys. The
+appcast's deploy does the reverse: it fetches and checks the served repository and deploys it with
+the new feed. Both deploys share the concurrency group `pages`, so neither takes the other's part
+back; GitHub cancels a deploy that waits behind another one when a third arrives, and the next
+release's deploy brings the newest packages then.
+
+Pages caches every file for up to ten minutes. With `Acquire-By-Hash` apt fetches the index files
+by the hash an `InRelease` names, and the previous generation's index and packages stay, so a client
+that reads an `InRelease` from before a deploy still finds what it names.
+
+**Checked:** `make test-linux-package` (CI's job Linux Package) runs `hack/linux/apt-test.sh` on
+every push. Not observed yet: the first release's run and the repository served from Pages.
+
+**The key** (D-108): Ed25519, for signing only, made on 2026-10-20 without a passphrase, expiring
+on 2031-10-19. To renew it, extend its expiry with the private key (`gpg --quick-set-expire`),
+replace the secret and `packaging/linux/cogpit-archive-keyring.asc`, and release: the new package's
+sources file carries the renewed key, and dpkg replaces an unchanged conffile. A user who changed
+the file keeps the old key and sees apt's error once it expires. A leaked key: revoke it with the
+revocation certificate the owner keeps, make a new one, and every user installs a new package by
+hand, since apt trusts only the key in the file ([updates › Linux](../security/updates.md#linux)).
+
 ## What gets built
 
 | Platform | Today (2026-10-15) | Planned | Signing |
 |---|---|---|---|
 | macOS (minimum: [below](#the-minimum-macos)) | `Cogpit-<v>-macos-arm64.dmg` with `Cogpit.app` for Apple silicon, from the first release after v0.4.0 on, in the releases whose pipeline finished (v0.6.0 to v0.8.0; v0.4.0 and earlier: `Cogpit_<v>_darwin_arm64.zip`); `cogpit-cli` inside the app (`Contents/MacOS`) from the first release after v0.6.0 on, before as archives for amd64 and arm64 | `Cogpit-<v>-macos-universal.dmg` ([D-4](decisions.md#d-4-packaging-and-updates)), built per architecture with cgo and joined with `lipo` | the app with its `cogpit-cli` and the disk image signed with the Developer ID (hardened runtime, timestamp), the disk image notarized, its ticket stapled; without the secrets none (ad-hoc only) |
 | Windows 10+ x64 and arm64 | nothing since D-16's revision (2026-10-14; up to v0.6.0 a `cogpit-cli` zip) | `Cogpit-<v>-windows-<arch>.msi`, a portable zip (M11), on native runners (cgo), with `cogpit-cli` inside | planned: Authenticode |
-| Linux x86_64 and aarch64 | nothing since D-16's revision (2026-10-14; up to v0.6.0 a `cogpit-cli` tar.gz) | AppImage, deb, rpm, tar.xz, Flatpak (M11), on native runners (cgo, OpenGL and X11/Wayland headers), with `cogpit-cli` inside | planned: checksums, SBOM, signed update manifest |
+| Linux x86_64 and aarch64 (Debian 13, Ubuntu 24.04 and later) | `cogpit_<v>_amd64.deb` and `cogpit_<v>_arm64.deb` with the app and `cogpit-cli`, from the release after v0.32.0 on ([Linux](#linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)), built on native runners (cgo, OpenGL and X11/Wayland headers); up to v0.6.0 a `cogpit-cli` tar.gz, nothing between | rpm, Flatpak, AppImage (not decided) | the packages unsigned (Debian's convention); Cogpit's APT repository signed with the OpenPGP key `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, which apt checks every package against |
 
 **The macOS download is the app bundle `Cogpit.app` in a disk image**: the standard way to install
 a Mac app outside the App Store, without a terminal. Opening the image shows the app next to a link
@@ -785,9 +871,10 @@ it also opens offline without a Gatekeeper prompt. Sparkle's updates use the sam
 download of its own, so a system gets `cogpit-cli` when it gets the desktop app. `cogpit-cli` is
 pure Go (`CGO_ENABLED=0`) and builds for any system from source (`CGO_ENABLED=0 GOOS=<os>
 GOARCH=<arch> go build ./cmd/cogpit-cli`). The desktop app needs cgo for Fyne's OpenGL driver, so
-each platform builds on its own runner. Whether `fyne package`
-alone covers MSI, AppImage, deb, rpm and Flatpak, or `packaging/` needs extra tools, is criterion S7
-of the [spike](spike-fyne.md).
+each platform builds on its own runner. The Linux package is not `fyne package`'s (a tar.xz with
+a Makefile to install it): `hack/linux/deb.sh` builds it with `dpkg-deb`, from the binaries and
+[`packaging/linux`](../../packaging/linux) ([Linux](#linux)). Whether `fyne package` covers MSI, or
+`packaging/` needs extra tools there, is criterion S7 of the [spike](spike-fyne.md).
 
 **A release has no demo cluster** (owner, 2026-10-16,
 [D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)): the synthetic cluster is for
@@ -873,7 +960,20 @@ offers only a `CFBundleVersion` newer than the running one. The appcast itself i
 same key ([the appcast](#the-appcast)), which lives in the environment `sparkle` behind the owner's
 approval. A build without the key (every local one, every release up to v0.10.0) has no updater, and
 says so. `cogpit-cli` has no updater of its own: the one inside the app is
-replaced with the app; installs owned by a package manager (Homebrew, winget, Flathub, deb or rpm repositories) are to hand over to the manager.
+replaced with the app, the one in the Linux package with the package; installs owned by other package managers (Homebrew, winget, Flathub, rpm repositories) are to hand over to the manager.
+
+On Linux (since 2026-10-20, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages))
+apt updates Cogpit: the package sets up Cogpit's APT repository, so `apt upgrade` and the Software
+Updater offer its releases, and whether they install by themselves is the user's own setting
+(unattended-upgrades). The app reads apt's state (`apt-cache policy cogpit`, no network, no root)
+at every start and every hour while Check for updates automatically is on; a newer release shows
+the Update button, whose click runs the package's helper through pkexec (polkit asks an
+administrator's password; the helper refreshes the list of Cogpit's repository and upgrades the
+package `cogpit`, nothing else); then a toast says so and the button reads Restart to Update, which
+restarts Cogpit into the new release. When the system installed the release under the running app,
+the button reads Restart to Update at once. Help › Check for Updates… runs the helper too. On
+Linux only the user's own click in the window starts it: an agent's `app.checkForUpdates` is
+refused.
 Security perspective: [updates](../security/updates.md).
 
 ## Secrets
@@ -886,13 +986,16 @@ Security perspective: [updates](../security/updates.md).
 | `APPLE_API_KEY_P8` (an App Store Connect team API key, role Developer, base64), `APPLE_API_KEY_ID`, `APPLE_API_ISSUER_ID` | notarization with `notarytool` | environment `release`, exist since 2026-10-14; checked locally: `notarytool` accepts the key and a submission with the role Developer. Used since 2026-10-14 by the same job, since 2026-10-15 by "Sign and submit (macOS)" for the submission and "Notarize and staple (macOS)" for the verdict; the `.p8` (base64, or its PEM text as is) lives in a file of each job's temporary directory, in the first until the disk image is submitted, in the second until Apple's verdict is in | as for `MACOS_SIGN_P12` |
 | Windows code-signing certificate or signing service credentials | Authenticode | planned (M11) | SmartScreen warns |
 | `SPARKLE_ED_PRIVATE_KEY` (Sparkle's EdDSA update key, the base64 of its seed as `generate_keys -x` exports it) | signing each release's disk image and the appcast at `https://guided-traffic.github.io/cogpit/appcast.xml` (D-4, owner, 2026-10-14), in the job "Appcast (sign)" only, through `sign_update`'s standard input ([the appcast](#the-appcast)) | decided (owner, 2026-10-13): a secret of the GitHub environment `sparkle`, the owner its required reviewer, deployment rule tags `v*`; generated by the owner with Sparkle's `generate_keys`, never seen by an agent ([setting up Sparkle](#setting-up-sparkle)). Created by the owner on 2026-10-15 (checked with `gh secret list --env sparkle`); the job refuses to use it while the environment lacks its reviewer or its tag rule | that release's item is not added and Pages keeps the feed it has (a notice, never a failure) |
+| `APT_SIGNING_KEY` (the APT repository's OpenPGP key, Ed25519, armored, without a passphrase; fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19) | signing the APT repository's `InRelease` and `Release.gpg` in the job "APT repository (sign)" only, imported on gpg's standard input into a temporary keyring ([the APT repository](#the-apt-repository), D-108) | a secret of the GitHub environment `apt` (created 2026-10-20 by the lead with the owner's consent: deployment rule tags `v*`, no required reviewer, the owner's choice), generated the same evening on the owner's machine; its public half in [`packaging/linux/cogpit-archive-keyring.asc`](../../packaging/linux/cogpit-archive-keyring.asc) and in every package's sources file; the private key and its revocation certificate kept by the owner outside GitHub, since a secret cannot be read back. `make apt-repo`'s `sign` refuses a key that is not the packages' | the repository is not signed and Pages keeps the one it has (a notice, never a failure) |
 | `SPARKLE_PUBLIC_ED_KEY` (a repository variable) | the app's `SUPublicEDKey` (`make dist-app`), and the appcast jobs' checks with the public key | set by the owner on 2026-10-15 ([setting up Sparkle](#setting-up-sparkle)); not a secret: every installed copy shows it | the app has no updater ("this build has no update key"), and the release gets no appcast item |
 
 Who holds which key and what follows if one leaks:
 [updates › keys](../security/updates.md#keys-and-who-holds-them).
 **Human:** the Apple material exists since 2026-10-14 (set up by the owner with the lead), and the
 release pipeline uses it since the same day; the certificate expires on 2027-11-13 and must be
-renewed and the secret replaced before then. The
+renewed and the secret replaced before then. The APT
+repository's key expires on 2031-10-19: a package update must carry its renewal before then
+([the APT repository](#the-apt-repository)). The
 Windows material does not exist yet; Sparkle is built since 2026-10-14 and its update key exists
 since 2026-10-15; each release's appcast jobs wait for the owner's approval in `sparkle`
 ([setting up Sparkle](#setting-up-sparkle),

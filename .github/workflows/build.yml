@@ -3,12 +3,14 @@
 # event starts this workflow on the tag (github.ref is refs/tags/v<version>), which builds the app,
 # signs it, has Apple notarize it (two jobs, so that a re-run waits for the same submission) and
 # attaches it to the release with SHA256SUMS; then the release's item joins Sparkle's appcast, signed
-# in the environment sparkle and deployed to GitHub Pages. A release made with GITHUB_TOKEN would
-# start no workflow, hence the App.
+# in the environment sparkle and deployed to GitHub Pages. Beside it, the Linux packages (D-108): one
+# .deb per architecture, attached to the release, then Cogpit's APT repository with them, signed in
+# the environment apt and deployed to GitHub Pages beside the appcast. A release made with
+# GITHUB_TOKEN would start no workflow, hence the App.
 # A release holds the complete product only (owner, 2026-10-14, D-16): today the macOS app in its
-# disk image, with cogpit-cli inside the app, and SHA256SUMS; no cogpit-cli archives for any
-# platform. What vouches for it: docs/developer/releasing.md#the-release-pipeline,
-# docs/security/updates.md.
+# disk image, with cogpit-cli inside the app, the Linux packages with both binaries, and
+# SHA256SUMS; no cogpit-cli archives for any platform. What vouches for it:
+# docs/developer/releasing.md#the-release-pipeline, docs/security/updates.md.
 name: Release Build
 
 on:
@@ -223,6 +225,11 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write  # upload the assets, append the note to the release's text
+    # The release's SHA256SUMS and text are shared with the Linux packages' job (linux-publish):
+    # the two take turns.
+    concurrency:
+      group: release-files-${{ github.ref }}
+      cancel-in-progress: false
     steps:
       - name: Checkout the release's tag
         uses: actions/checkout@v7
@@ -264,6 +271,10 @@ jobs:
           expect SHA256SUMS 1
           n="$(find . -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
           [ "${n}" = 2 ] || { echo "::error::dist holds $(find . -mindepth 1 -maxdepth 1 | tr '\n' ' '), expected the download and SHA256SUMS only"; exit 1; }
+          # The Linux packages' lines that their job attached already stay in the release's SHA256SUMS.
+          ../hack/ci/sha256sums.sh "${GITHUB_REF_NAME}" SHA256SUMS "${RUNNER_TEMP}/SHA256SUMS"
+          cp "${RUNNER_TEMP}/SHA256SUMS" SHA256SUMS
+          cat SHA256SUMS
           {
             echo 'list<<EOF'
             find . -maxdepth 1 \( -name '*.zip' -o -name '*.dmg' -o -name SHA256SUMS \) | sed 's|^\./|dist/|' | sort
@@ -277,18 +288,18 @@ jobs:
 
           ---
 
-          **Download.** \`${dmg}\` is Cogpit for macOS on Apple silicon: open it and drag Cogpit into Applications. The command-line tool \`cogpit-cli\` comes inside the app, at \`/Applications/Cogpit.app/Contents/MacOS/cogpit-cli\`. Check the disk image against \`SHA256SUMS\` (\`shasum -a 256 -c SHA256SUMS\`).
+          **Download.** \`${dmg}\` is Cogpit for macOS on Apple silicon: open it and drag Cogpit into Applications. The command-line tool \`cogpit-cli\` comes inside the app, at \`/Applications/Cogpit.app/Contents/MacOS/cogpit-cli\`. Check the disk image against \`SHA256SUMS\` (\`shasum -a 256 -c --ignore-missing SHA256SUMS\`).
 
-          **Signed and notarized.** The app, its \`cogpit-cli\` and the disk image are signed with the Developer ID "${IDENTITY}" and notarized by Apple; the disk image carries its ticket, so macOS opens it without a warning, offline too. \`SHA256SUMS\` is not signed ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Linux and Windows comes with milestone M11.
+          **Signed and notarized.** The app, its \`cogpit-cli\` and the disk image are signed with the Developer ID "${IDENTITY}" and notarized by Apple; the disk image carries its ticket, so macOS opens it without a warning, offline too. \`SHA256SUMS\` is not signed ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Windows comes with milestone M11.
           EOF
           else
             cat > "${note}" <<'EOF'
 
           ---
 
-          **Download.** `Cogpit.app` for macOS on Apple silicon, zipped, with the command-line tool `cogpit-cli` inside it (`Cogpit.app/Contents/MacOS/cogpit-cli`); check it against `SHA256SUMS` (`shasum -a 256 -c SHA256SUMS`).
+          **Download.** `Cogpit.app` for macOS on Apple silicon, zipped, with the command-line tool `cogpit-cli` inside it (`Cogpit.app/Contents/MacOS/cogpit-cli`); check it against `SHA256SUMS` (`shasum -a 256 -c --ignore-missing SHA256SUMS`).
 
-          **Unsigned.** This build ran without the project's Apple signing material: neither the app nor its `cogpit-cli` is signed with a Developer ID or notarized. macOS blocks the first start of a downloaded copy: allow it once in System Settings → Privacy & Security → Open Anyway ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Linux and Windows comes with milestone M11.
+          **Unsigned.** This build ran without the project's Apple signing material: neither the app nor its `cogpit-cli` is signed with a Developer ID or notarized. macOS blocks the first start of a downloaded copy: allow it once in System Settings → Privacy & Security → Open Anyway ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Windows comes with milestone M11.
           EOF
           fi
           cat "${note}"
@@ -300,6 +311,229 @@ jobs:
           fail_on_unmatched_files: true
           append_body: true
           body_path: ${{ runner.temp }}/note.md
+
+  # Cogpit for Linux (D-108; docs/developer/releasing.md#linux): the Debian package of each
+  # architecture, built on a runner of its own (cgo with OpenGL and X11 does not cross-compile), with
+  # both binaries built as the macOS app's are (the release's tags, no demo cluster, Fyne's thread
+  # check off unless the variable FYNE_THREAD_CHECKS=on), the launcher, the icons, the update helper
+  # and Cogpit's APT repository with its key. Checked: its fields, lintian, and the cogpit-cli in it
+  # reports the release's version. GitHub's hosted runners (free for a public repository), Ubuntu
+  # 24.04, so the packages run on Debian 13 and Ubuntu 24.04 and later. This job sees no secret.
+  linux-deb:
+    name: Cogpit.deb (Linux ${{ matrix.arch }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-24.04
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: none
+
+      - name: Install the packaging tools
+        run: hack/ci/apt-install.sh dpkg-dev lintian
+
+      # The Kubernetes release table of the release's day (D-91), as the macOS app's job has it.
+      - name: Refresh the Kubernetes release table
+        run: make k8s-eol K8SEOL_FLAGS=-fallback
+
+      - name: Build the package
+        env:
+          FYNE_THREAD_CHECKS: ${{ vars.FYNE_THREAD_CHECKS }}
+        run: make dist-linux VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Check the package
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          deb="dist/linux/cogpit_${version}_${ARCH}.deb"
+          dpkg-deb --field "${deb}" Package Version Architecture Depends Recommends
+          test "$(dpkg-deb --field "${deb}" Version)" = "${version}"
+          test "$(dpkg-deb --field "${deb}" Architecture)" = "${ARCH}"
+          lintian --fail-on error "${deb}"
+          dir="$(mktemp -d)"
+          dpkg-deb -x "${deb}" "${dir}"
+          out="$("${dir}/usr/bin/cogpit-cli" version)"
+          echo "${out}"
+          case "${out}" in "cogpit-cli ${version} "*) ;; *) echo "::error::cogpit-cli version: ${out}"; exit 1 ;; esac
+          grep -x 'URIs: https://guided-traffic.github.io/cogpit/apt/' "${dir}/etc/apt/sources.list.d/cogpit.sources"
+          ls -l dist/linux
+
+      - name: Upload the package
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-deb-${{ matrix.arch }}
+          path: dist/linux/cogpit_*.deb
+          if-no-files-found: error
+          retention-days: 7
+
+  # Both packages on the release, their lines merged into its SHA256SUMS, and the note on installing
+  # them appended to its text (hack/linux/publish.sh). The release's SHA256SUMS and text are shared
+  # with the macOS job (publish): the two take turns. Both packages or none: a failed architecture
+  # leaves the release without Linux files until the failed job is re-run.
+  linux-publish:
+    name: Attach to the release (Linux)
+    needs: [linux-deb]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write  # upload the assets, append the note to the release's text
+    concurrency:
+      group: release-files-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: linux-deb-*
+          merge-multiple: true
+          path: dist/linux
+
+      - name: Attach the packages, SHA256SUMS and the note
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: hack/linux/publish.sh "${GITHUB_REF_NAME}" dist/linux
+
+  # Cogpit's APT repository (D-108; docs/developer/releasing.md#the-apt-repository): the packages of
+  # the two newest releases and their index, signed with APT_SIGNING_KEY. The only job in the
+  # environment apt (tags v* only), and the only one that sees the key; it runs no Go and nothing of
+  # the packages, only bash, apt-ftparchive and gpg (make apt-repo: hack/linux/apt.sh). The
+  # repository Pages serves now is fetched first and checked against the packages' key; its packages
+  # and its index generation stay, for clients that read Pages' cached index of before this deploy.
+  # Without the key (a fork) nothing is signed and nothing deployed.
+  apt-sign:
+    name: APT repository (sign)
+    needs: [linux-publish]
+    runs-on: ubuntu-24.04
+    environment: apt
+    timeout-minutes: 15
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          pattern: linux-deb-*
+          merge-multiple: true
+          path: dist/linux
+
+      - name: Install the repository tools
+        run: command -v apt-ftparchive >/dev/null && command -v gpg >/dev/null && command -v gpgv >/dev/null || hack/ci/apt-install.sh apt-utils gnupg gpgv
+
+      - name: Build and sign the repository
+        id: sign
+        env:
+          APT_SIGNING_KEY: ${{ secrets.APT_SIGNING_KEY }}
+        run: make apt-repo
+
+      - name: Upload the repository
+        if: steps.sign.outputs.signed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: apt-repo
+          path: dist/apt/
+          if-no-files-found: error
+          retention-days: 7
+          overwrite: true
+
+  # Checked with the packages' public key before Pages gets it, and refused (skipped, with a
+  # warning) when Pages serves a newer release already: a run of an older release that ends after a
+  # newer one's. Pages serves one site, so the appcast it serves goes into it too, unchanged. The
+  # environment github-pages allows tags v*.
+  apt-deploy:
+    name: APT repository (deploy to Pages)
+    needs: [apt-sign]
+    if: needs.apt-sign.outputs.signed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}apt/
+    permissions:
+      contents: read
+      pages: write     # deploy to Pages
+      id-token: write  # the deployment's OIDC token
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Download the repository
+        uses: actions/download-artifact@v8
+        with:
+          name: apt-repo
+          path: dist/apt
+
+      - name: Check the repository
+        id: check
+        env:
+          APT_URL: https://guided-traffic.github.io/cogpit/apt
+          KEYRING: packaging/linux/cogpit-archive-keyring.asc
+        run: |
+          set -euo pipefail
+          command -v gpg >/dev/null && command -v gpgv >/dev/null || hack/ci/apt-install.sh gnupg gpgv
+          hack/linux/apt.sh verify dist/apt "${KEYRING}"
+          set +e
+          hack/linux/apt.sh newer dist/apt "${APT_URL}" "${KEYRING}"
+          rc=$?
+          set -e
+          case "${rc}" in
+          0) echo "deploy=true" >> "${GITHUB_OUTPUT}" ;;
+          3)
+            echo "::warning::Pages serves a newer release's APT repository already: this one is not deployed"
+            echo "deploy=false" >> "${GITHUB_OUTPUT}"
+            ;;
+          *) exit "${rc}" ;;
+          esac
+
+      # The appcast Pages serves now (Sparkle's signed feed), byte for byte; none yet is none.
+      - name: Keep the appcast
+        if: steps.check.outputs.deploy == 'true'
+        run: |
+          set -euo pipefail
+          mkdir -p dist/site
+          cp -r dist/apt dist/site/apt
+          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast.xml -w '%{http_code}' \
+            "https://guided-traffic.github.io/cogpit/appcast.xml?t=$(date +%s)")"
+          case "${code}" in
+          200) echo "the appcast: $(wc -c < dist/site/appcast.xml) bytes" ;;
+          404) rm -f dist/site/appcast.xml; echo "no appcast on Pages yet" ;;
+          *) echo "::error::the appcast on Pages: HTTP ${code}"; exit 1 ;;
+          esac
+
+      - name: Upload the site
+        if: steps.check.outputs.deploy == 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/site/
+          name: github-pages-apt-${{ github.run_attempt }}
+
+      - name: Deploy to GitHub Pages
+        if: steps.check.outputs.deploy == 'true'
+        id: deploy
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-apt-${{ github.run_attempt }}
 
   # Sparkle's appcast (D-4; docs/developer/releasing.md#the-appcast): the update feed at
   # https://guided-traffic.github.io/cogpit/appcast.xml, one feed with the releases' history, signed
@@ -459,6 +693,14 @@ jobs:
         env:
           SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
         run: make appcast-verify VERSION="${GITHUB_REF_NAME#v}"
+
+      # Pages serves one site, the APT repository too (D-108): the one it serves now goes into
+      # this deploy, fetched and checked against the packages' key (hack/linux/apt.sh mirror);
+      # none yet is none, one that does not check fails the job.
+      - name: Keep the APT repository
+        run: |
+          command -v gpg >/dev/null && command -v gpgv >/dev/null && command -v curl >/dev/null || hack/ci/apt-install.sh gnupg gpgv curl
+          hack/linux/apt.sh mirror https://guided-traffic.github.io/cogpit/apt packaging/linux/cogpit-archive-keyring.asc dist/site/apt
 
       # The site's artifact is named per run attempt: deploy-pages refuses a run that holds two
       # artifacts of one name, and a re-run of this job (or of the whole run) uploads its site

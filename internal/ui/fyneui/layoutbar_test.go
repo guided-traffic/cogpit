@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -225,6 +226,38 @@ func TestUpdateButtonShowsOnlyWithAnUpdate(t *testing.T) {
 	}
 }
 
+// uiRestarter is a notifier whose release can be installed already, as the Linux package's
+// updater knows (internal/update, D-108).
+type uiRestarter struct {
+	uiNotifier
+	restart atomic.Bool
+}
+
+func (r *uiRestarter) RestartPending() bool { return r.restart.Load() }
+
+// Once apt installed the release under the running app, the button reads Restart to Update, and
+// its tooltip says the click restarts Cogpit.
+func TestUpdateButtonOffersTheRestart(t *testing.T) {
+	s, _ := settingsEngine(t)
+	r := &uiRestarter{}
+	s.SetUpdater(r)
+	sh, w, q := newEngineShell(t, s, Options{})
+	b := sh.top.layout.update
+	r.set(true, "0.34.0")
+	q.until(t, "the Update button", func() bool { return b.Visible() })
+	settle(w)
+	if b.Text != "Update to v0.34.0" {
+		t.Errorf("before the install: %q", b.Text)
+	}
+	r.restart.Store(true)
+	r.set(true, "0.34.0") // the same version, now installed
+	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart })
+	settle(w)
+	if b.Text != restartLabel || b.tip != "Cogpit 0.34.0 is installed: restart Cogpit to use it" {
+		t.Errorf("after the install: %q, tooltip %q", b.Text, b.tip)
+	}
+}
+
 // The Update button's label names the version Sparkle reports, a version's own v not doubled, and
 // says "Update" without one.
 func TestUpdateLabel(t *testing.T) {
@@ -234,6 +267,26 @@ func TestUpdateLabel(t *testing.T) {
 	} {
 		if got := updateLabel(in); got != want {
 			t.Errorf("updateLabel(%q) = %q, want %q", in, got, want)
+		}
+	}
+}
+
+// The Update button's tooltip says what its click does: Sparkle's window on macOS, apt's install on
+// Linux, and the restart into a release apt installed under the running app.
+func TestUpdateTip(t *testing.T) {
+	for _, c := range []struct {
+		u    engine.UpdateState
+		goos string
+		want string
+	}{
+		{engine.UpdateState{Available: true, Version: "0.34.0"}, "darwin", "Cogpit 0.34.0 is available: show it in the update window"},
+		{engine.UpdateState{Available: true}, "darwin", "A newer Cogpit is available: show it in the update window"},
+		{engine.UpdateState{Available: true, Version: "0.34.0"}, "linux",
+			"Cogpit 0.34.0 is available: install it through apt (asks for an administrator's password)"},
+		{engine.UpdateState{Available: true, Version: "0.34.0", Restart: true}, "linux", "Cogpit 0.34.0 is installed: restart Cogpit to use it"},
+	} {
+		if got := updateTip(c.u, c.goos); got != c.want {
+			t.Errorf("updateTip(%+v, %s) = %q, want %q", c.u, c.goos, got, c.want)
 		}
 	}
 }

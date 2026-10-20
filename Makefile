@@ -683,13 +683,11 @@ DIST_LDFLAGS     = -s -w -X github.com/guided-traffic/cogpit/internal/buildinfo.
 DIST_TAGS        = nodemo
 MACOS_SIGN      ?=
 
-.PHONY: dist-app dist-dmg-template dist-macos dist-macos-sign dist-macos-notarize dist-checksums
-
-dist-app: ## The macOS app with cogpit-cli inside, built with DIST_TAGS (no demo cluster) and Fyne's thread check off unless FYNE_THREAD_CHECKS=on (D-103), zipped, in dist/ (macOS only); VERSION=x.y.z
-	@test "$$($(GO) env GOOS)" = darwin || { echo "dist-app runs on macOS only"; exit 1; }
-	@test "$(origin VERSION)" != file || { echo "dist-app needs VERSION=x.y.z: the binaries would report release $(VERSION)"; exit 1; }
-	$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)' FYNE_THREAD_CHECKS='$(call threadMode,off)'
-	@for b in $(APP_MACOS)/cogpit $(APP_MACOS)/cogpit-cli; do \
+# checkDistBinaries fails unless each binary of $(1) recorded the release's build tags: DIST_TAGS,
+# and Fyne's thread check's tag exactly when the release turns the check off (D-103). dist-app and
+# dist-linux run it on what they built.
+define checkDistBinaries
+	@for b in $(1); do \
 		tags=",$$($(GO) version -m $$b | sed -n -E 's/^[[:space:]]+build[[:space:]]+-tags=//p'),"; \
 		case "$$tags" in *,$(DIST_TAGS),*) ;; *) echo "$$b: not built with -tags=$(DIST_TAGS), so it would ship the demo cluster"; exit 1;; esac; \
 		case "$(call threadMode,off):$$tags" in off:*,$(FYNE_NOCHECK_TAG),*|on:*) ;; \
@@ -697,6 +695,15 @@ dist-app: ## The macOS app with cogpit-cli inside, built with DIST_TAGS (no demo
 		case "$(call threadMode,off):$$tags" in on:*,$(FYNE_NOCHECK_TAG),*) echo "$$b: built with $(FYNE_NOCHECK_TAG) though FYNE_THREAD_CHECKS=on"; exit 1;; esac; \
 	done
 	@echo "Fyne's thread check in this release build: $(call threadMode,off) (FYNE_THREAD_CHECKS, D-103)"
+endef
+
+.PHONY: dist-app dist-dmg-template dist-macos dist-macos-sign dist-macos-notarize dist-checksums
+
+dist-app: ## The macOS app with cogpit-cli inside, built with DIST_TAGS (no demo cluster) and Fyne's thread check off unless FYNE_THREAD_CHECKS=on (D-103), zipped, in dist/ (macOS only); VERSION=x.y.z
+	@test "$$($(GO) env GOOS)" = darwin || { echo "dist-app runs on macOS only"; exit 1; }
+	@test "$(origin VERSION)" != file || { echo "dist-app needs VERSION=x.y.z: the binaries would report release $(VERSION)"; exit 1; }
+	$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)' FYNE_THREAD_CHECKS='$(call threadMode,off)'
+	$(call checkDistBinaries,$(APP_MACOS)/cogpit $(APP_MACOS)/cogpit-cli)
 	@mkdir -p $(DIST)
 	ditto -c -k --keepParent $(BIN)/Cogpit.app $(DIST)/Cogpit_$(VERSION)_darwin_$$($(GO) env GOARCH).zip
 	@echo "dist/Cogpit_$(VERSION)_darwin_$$($(GO) env GOARCH).zip"
@@ -738,6 +745,54 @@ dist-checksums: ## SHA256SUMS of the disk images and app zips in dist/
 	cd $(DIST) && files=$$(ls *.zip *.dmg 2>/dev/null || true) && test -n "$$files" && \
 		if command -v sha256sum >/dev/null; then sha256sum $$files; else shasum -a 256 $$files; fi > SHA256SUMS
 	@cat $(DIST)/SHA256SUMS
+
+# Cogpit for Linux (D-108; docs/developer/releasing.md#linux): the Debian package
+# dist/cogpit_<version>_<arch>.deb with both binaries, built as a release builds them (DIST_TAGS,
+# Fyne's thread check off unless FYNE_THREAD_CHECKS=on), the launcher, the icons drawn by hack/icon,
+# the update helper and Cogpit's APT repository (hack/linux/deb.sh); for this machine's architecture
+# (cgo with OpenGL and X11 does not cross-compile), so the release pipeline builds each on its own
+# runner. The APT repository on GitHub Pages (https://guided-traffic.github.io/cogpit/apt) is made
+# by hack/linux/apt.sh: apt-repo builds it from the packages in dist/linux and the repository Pages
+# serves, signed with APT_SIGNING_KEY (the release pipeline's environment apt; without it, unsigned
+# and not deployed), apt-verify checks it with the public key the packages carry.
+DEB_ARCH        ?= $(shell dpkg --print-architecture 2>/dev/null)
+DEB_MAINTAINER  ?= Hans Fischer <mail@hans-fischer.com>
+# The hicolor theme's sizes the icon is drawn in.
+LINUX_ICON_SIZES := 16 24 32 48 64 128 256 512
+LINUX_ICONS     := $(CACHE)/linux/icons
+APT_URL         := https://guided-traffic.github.io/cogpit/apt
+APT_KEYRING     := packaging/linux/cogpit-archive-keyring.asc
+
+.PHONY: dist-linux apt-repo apt-verify
+
+dist-linux: ## The Linux package dist/linux/cogpit_<version>_<arch>.deb for this machine's architecture, built with DIST_TAGS and Fyne's thread check off unless FYNE_THREAD_CHECKS=on (D-103, D-108; Linux only, dpkg-dev); VERSION=x.y.z
+	@test "$$($(GO) env GOOS)" = linux || { echo "dist-linux runs on Linux only"; exit 1; }
+	@test "$(origin VERSION)" != file || { echo "dist-linux needs VERSION=x.y.z: the binaries would report release $(VERSION)"; exit 1; }
+	@test -n "$(DEB_ARCH)" || { echo "dist-linux needs dpkg (Debian or Ubuntu)"; exit 1; }
+	@# Position-independent, as Debian builds its own Go programs: the system lays them out at random.
+	GOFLAGS="$${GOFLAGS:+$$GOFLAGS }-buildmode=pie" \
+		$(MAKE) build GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)' FYNE_THREAD_CHECKS='$(call threadMode,off)'
+	$(call checkDistBinaries,$(BIN)/cogpit $(BIN)/cogpit-cli)
+	rm -rf $(LINUX_ICONS) && mkdir -p $(LINUX_ICONS)
+	$(GO) build -o $(CACHE)/linux/icon ./hack/icon
+	for s in $(LINUX_ICON_SIZES); do $(CACHE)/linux/icon -size $$s -o $(LINUX_ICONS)/$$s.png; done
+	DEB_MAINTAINER='$(DEB_MAINTAINER)' hack/linux/deb.sh '$(VERSION)' '$(DEB_ARCH)' '$(BIN)' '$(LINUX_ICONS)' '$(DIST)/linux'
+
+.PHONY: test-linux-package
+test-linux-package: ## Check the package dist-linux built: lintian (an error fails) and the APT repository's scripts end to end with a throwaway key (hack/linux/apt-test.sh); CI's job Linux Package
+	@n=$$(ls $(DIST)/linux/cogpit_*.deb 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/linux holds $$n packages: run make dist-linux VERSION=x.y.z first, once"; exit 1; }
+	lintian --fail-on error $(DIST)/linux/cogpit_*.deb
+	hack/linux/apt-test.sh $(DIST)/linux
+
+apt-repo: ## The APT repository in dist/apt from the packages in dist/linux and the one Pages serves, signed with APT_SIGNING_KEY when it is set (release pipeline's environment apt)
+	rm -rf $(DIST)/apt $(CACHE)/apt-live
+	hack/linux/apt.sh mirror '$(APT_URL)' '$(APT_KEYRING)' '$(CACHE)/apt-live'
+	hack/linux/apt.sh build '$(DIST)/apt' '$(CACHE)/apt-live' $(DIST)/linux/cogpit_*.deb
+	hack/linux/apt.sh sign '$(DIST)/apt' '$(APT_KEYRING)'
+
+apt-verify: ## Check the signed APT repository in dist/apt with the packages' public key, and that it takes back no newer release Pages serves
+	hack/linux/apt.sh verify '$(DIST)/apt' '$(APT_KEYRING)'
+	hack/linux/apt.sh newer '$(DIST)/apt' '$(APT_URL)' '$(APT_KEYRING)'
 
 clean: ## Remove build output
 	rm -rf $(BIN) dist

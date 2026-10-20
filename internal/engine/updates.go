@@ -8,8 +8,9 @@ import (
 	"sync"
 )
 
-// Updates (D-4, G14; docs/security/updates.md): the macOS app updates itself through Sparkle 2,
-// which the binary wires in (internal/update) as an Updater; the engine does no OS calls itself.
+// Updates (D-4, G14; docs/security/updates.md): the macOS app updates itself through Sparkle 2, the
+// Linux package through apt (D-108), which the binary wires in (internal/update) as an Updater; the
+// engine does no OS calls itself.
 // Two preferences are Cogpit's, kept with the others and shown in UIState.Preferences:
 // CheckForUpdates ("Check for updates automatically", on by default as in Lens), which the engine
 // hands to the updater at start and whenever it changes, so that Cogpit's preference and not
@@ -27,6 +28,14 @@ import (
 // UpdateNotifier tells when it holds a newer release for the user; UIState.Update says so, and the
 // window shows an Update button left of the layout toggles, which runs app.checkForUpdates and so
 // brings Sparkle's window with that release up. A session without such an updater never shows it.
+//
+// On Linux (D-108) the check acts instead of showing a window (UpdateActor): it installs the
+// release through apt after polkit asked for the password, or restarts Cogpit into the release
+// apt installed under it (UpdateRestarter, UIState.Update.Restart: the button reads Restart to
+// Update). Only the user's own click in the window starts that (the lead's decision, 2026-10-20):
+// an agent or the CLI would put a password prompt or a restart in front of the user unasked. What
+// it came to (installed, the newest already, cancelled, failed) the updater reports
+// (UpdateReporter), and the window shows it as a toast.
 
 // Update channels. Stable is the appcast's default channel; Beta (Sparkle's channel "beta") comes
 // with the first prerelease.
@@ -67,6 +76,28 @@ type UpdateNotifier interface {
 type UpdateState struct {
 	Available bool   `json:"available,omitempty"`
 	Version   string `json:"version,omitempty"`
+	// Restart: the release is installed already (Linux: apt replaced the files under the running
+	// app), and app.checkForUpdates restarts Cogpit into it.
+	Restart bool `json:"restart,omitempty"`
+}
+
+// UpdateRestarter is an UpdateNotifier that knows when the release it names is installed already,
+// so that a restart of Cogpit uses it (internal/update on Linux).
+type UpdateRestarter interface {
+	RestartPending() bool
+}
+
+// UpdateReporter is an Updater that reports what a check the user started came to; the session
+// shows each report as a toast. fn is called on any goroutine and must not block.
+type UpdateReporter interface {
+	OnUpdateMessage(fn func(level, message string))
+}
+
+// UpdateActor is an Updater whose CheckForUpdates acts instead of showing a window of its own (on
+// Linux it installs through apt after polkit's password prompt, or restarts Cogpit): only the GUI
+// runs app.checkForUpdates then.
+type UpdateActor interface {
+	CheckActs() bool
 }
 
 // maxUpdateVersion bounds the version text UIState.Update carries.
@@ -81,6 +112,11 @@ var ErrNoUpdater = errors.New("this Cogpit does not update itself: cogpit-cli an
 // user's own action in Cogpit's window.
 var ErrUpdateChecksGUIOnly = errors.New("only the user, in Cogpit's own window, can turn off the automatic update checks; " +
 	"agents and the CLI may only turn them on (off leaves this copy without the fixes of newer releases)")
+
+// ErrUpdateCheckGUIOnly refuses app.checkForUpdates from an agent or the CLI where the check acts
+// (UpdateActor).
+var ErrUpdateCheckGUIOnly = errors.New("only the user, in Cogpit's own window, starts this update: on Linux it installs " +
+	"through apt after an administrator's password, or restarts Cogpit into the installed release; agents read ui_state's update")
 
 // ErrNoBetaChannel refuses the Beta channel while there is none.
 var ErrNoBetaChannel = errors.New("update channel beta: Cogpit publishes no prereleases yet, so only the stable channel exists")
@@ -110,6 +146,11 @@ func (s *Session) SetUpdater(u Updater) {
 	if n, ok := u.(UpdateNotifier); ok {
 		n.OnUpdateChange(func() { s.updateNoticeChanged(n) })
 	}
+	if r, ok := u.(UpdateReporter); ok {
+		r.OnUpdateMessage(func(level, message string) {
+			s.Emit(Event{Type: EventToast, Level: toastLevel(level), Message: message})
+		})
+	}
 	u.Start(p.CheckForUpdates)
 }
 
@@ -122,6 +163,9 @@ func (s *Session) updateNoticeChanged(n UpdateNotifier) {
 	next := UpdateState{}
 	if version, ok := n.AvailableUpdate(); ok {
 		next = UpdateState{Available: true, Version: cleanUpdateVersion(version)}
+		if r, ok := n.(UpdateRestarter); ok {
+			next.Restart = r.RestartPending()
+		}
 	}
 	s.mu.Lock()
 	same := s.ui.Update == next
@@ -163,6 +207,15 @@ func (s *Session) UpdatesUnavailable() error {
 		return ErrNoUpdater
 	}
 	return u.Unavailable()
+}
+
+// RefuseUpdateCheck refuses app.checkForUpdates from another origin than the GUI where the check
+// acts (UpdateActor).
+func (s *Session) RefuseUpdateCheck(ctx context.Context) error {
+	if a, ok := s.updater().(UpdateActor); ok && a.CheckActs() && OriginOf(ctx) != OriginGUI {
+		return ErrUpdateCheckGUIOnly
+	}
+	return nil
 }
 
 // CheckForUpdates checks for updates now, with the updater's own window.

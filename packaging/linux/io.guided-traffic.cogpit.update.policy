@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/PolicyKit/1/policyconfig.dtd">
+<!-- Cogpit's update helper (D-108): Cogpit's Update button runs /usr/libexec/cogpit/update through
+     pkexec, and polkit asks an administrator's password for it, kept for a few minutes. -->
+<policyconfig>
+  <vendor>Cogpit</vendor>
+  <vendor_url>https://github.com/guided-traffic/cogpit</vendor_url>
+  <action id="io.guided-traffic.cogpit.update">
+    <description>Update Cogpit</description>
+    <message>Authentication is required to update Cogpit from its package repository</message>
+    <icon_name>io.guided-traffic.cogpit</icon_name>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/cogpit/update</annotate>
+  </action>
+</policyconfig>

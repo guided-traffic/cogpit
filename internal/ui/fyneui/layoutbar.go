@@ -137,13 +137,16 @@ func (l *layoutBar) stateChanged() {
 }
 
 // updateChanged shows the Update button while the updater holds a newer release, its version in
-// the label (where the bar has the room) and the tooltip.
+// the label (where the bar has the room) and the tooltip. On Linux (D-108) the click installs the
+// release through apt after polkit's password prompt, and once apt installed it under the running
+// app the button reads Restart to Update and restarts Cogpit into it.
 func (l *layoutBar) updateChanged(u engine.UpdateState) {
-	l.update.tip = "A newer Cogpit is available: show it in the update window"
-	if u.Version != "" {
-		l.update.tip = "Cogpit " + u.Version + " is available: show it in the update window"
+	l.update.tip = updateTip(u, runtime.GOOS)
+	label := updateLabel(u.Version)
+	if u.Restart {
+		label = restartLabel
 	}
-	if label := updateLabel(u.Version); label != l.label {
+	if label != l.label {
 		l.label = label
 		l.fit(l.room)
 	}
@@ -167,6 +170,25 @@ func updateLabel(version string) string {
 }
 
 func isDigit(b byte) bool { return b >= '0' && b <= '9' }
+
+// restartLabel is the Update button's label once the release is installed under the running app
+// (Linux); where the bar has no room it says "Update" as ever, and the tooltip says what it does.
+const restartLabel = "Restart to Update"
+
+// updateTip is the Update button's tooltip: what its click does on goos.
+func updateTip(u engine.UpdateState, goos string) string {
+	cogpit := "A newer Cogpit"
+	if u.Version != "" {
+		cogpit = "Cogpit " + u.Version
+	}
+	switch {
+	case u.Restart:
+		return cogpit + " is installed: restart Cogpit to use it"
+	case goos == "linux":
+		return cogpit + " is available: install it through apt (asks for an administrator's password)"
+	}
+	return cogpit + " is available: show it in the update window"
+}
 
 // fit gives the Update button its label with the version while that fits in room, the width the
 // bar's row leaves for the button, and "Update" otherwise: on a narrow window, or beside a long

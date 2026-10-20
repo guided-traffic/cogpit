@@ -482,6 +482,33 @@ jobs:
       - name: Compile and link the tests
         run: go test -count=1 -run '^$' ./...
 
+  # Cogpit for Linux (D-108) as the release pipeline builds it, for this commit: make dist-linux
+  # (the release's build tags, the package with its launcher, icons, update helper and APT
+  # repository) at version 0.0.1, below every release, then lintian on it and the APT repository's
+  # scripts end to end with a throwaway key (make test-linux-package). A change that breaks the
+  # release's Linux jobs fails here, before a release.
+  linux-package:
+    name: Linux Package
+    runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: linux-package
+
+      - name: Install the packaging tools
+        run: hack/ci/apt-install.sh dpkg-dev lintian apt-utils gnupg curl python3
+
+      - name: Build the package
+        run: make dist-linux VERSION=0.0.1
+
+      - name: Check the package and the APT repository's scripts
+        run: make test-linux-package
+
   # The unit, race and cluster profiles merged: the job summary, and the README's badge, which
   # Semantic Release commits with the release.
   coverage:
@@ -528,7 +555,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, coverage]
+    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, linux-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 15
     steps:

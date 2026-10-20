@@ -9,8 +9,8 @@ start at the [developer documentation](README.md). Every command and MCP tool is
 ## What Cogpit is and its status
 
 Cogpit is a native Kubernetes IDE for the desktop, written in Go: an open-source, clean-room
-reimplementation of the current [Lens Desktop](https://lenshq.io/). It runs on your Mac first,
-later on Windows and Linux. It reads your kubeconfig files, connects to your clusters with your
+reimplementation of the current [Lens Desktop](https://lenshq.io/). It runs on your Mac and, from
+the release after v0.32.0, on Debian and Ubuntu; Windows comes later. It reads your kubeconfig files, connects to your clusters with your
 own credentials, and gives you the views Lens users know: workloads, logs, shells, YAML editing,
 port forwarding and the Helm releases in your clusters. Every view reads from a cache that watches
 keep current, so it is fast for you and light on the API server. And agents can drive all of it
@@ -20,8 +20,10 @@ list exists at least in part (64 of 64 views, 42 of 42 actions, counted by `make
 the Flux CD and Argo CD sections, Helm releases and charts, metrics, logs, a terminal, pod and node
 shells, the built-in agent's chat and MCP control of all of it; none of it has been walked through
 by a person on a real cluster yet. The releases are builds for Apple silicon, signed and notarized
-since v0.6.0 (v0.6.0 to v0.8.0 carry the download; v0.5.0 and v0.9.0 to v0.12.0 got no files)
-([Download a release](#download-a-release),
+since v0.6.0 (v0.6.0 to v0.8.0 carry the download; v0.5.0 and v0.9.0 to v0.12.0 got no files),
+and from the release after v0.32.0 on also Linux packages for amd64 and arm64 with Cogpit's APT
+repository (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages))
+([Download a release](#download-a-release), [Install on Linux](#install-on-linux),
 [Run the MVP](#run-the-mvp)); where Cogpit stands: [roadmap](../../ROADMAP.md).
 
 How data flows from the kubeconfig files to the views and agents:
@@ -33,7 +35,7 @@ What Cogpit does and is meant to do, feature by feature. Everything below exists
 unless it is marked *(planned)*; how far each one goes is measured row by row in
 [docs/parity](../parity/README.md) and summed up in [ROADMAP.md](../../ROADMAP.md).
 
-- 🖥️ A native macOS app first; Windows and Linux (Ubuntu first) after the macOS beta *(planned)*.
+- 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); Windows after the macOS beta *(planned)*, and on Linux no `cogpit://` links and no Start at login yet.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
 - 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
@@ -82,15 +84,18 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - ⌨️ `cogpit-cli`, inside the app: your contexts and any kind's objects on the command line, read-only, and an MCP stdio bridge you register once.
 - 💬 A built-in agent in a chat beside your views (⌘I), on any OpenAI-compatible endpoint such as LM Studio, LiteLLM or Open WebUI.
 - 📦 Installs the Mac way: open the disk image, drag Cogpit into Applications, signed and notarized (since v0.6.0); *(planned)* a Homebrew cask for shell users.
-- ⬆️ Updates with one click in the macOS app (Sparkle), verified against a signed update feed: built; the releases carry the update key since v0.11.0, and updates start once the first of them has passed Apple's notarization and its feed is served (not yet on 2026-10-15).
+- ⬆️ Updates with one click in the macOS app (Sparkle), verified against a signed update feed: the releases carry the update key since v0.11.0, Pages serves the signed feed since 2026-10-16 and the first installed copy updated through it that day. On Linux (since 2026-10-20 night, D-108) apt updates Cogpit from its signed APT repository: the Software Updater and `apt upgrade` offer each release, and Cogpit's Update button installs it after an administrator's password, then reads Restart to Update; whether updates install by themselves is the system's setting, never Cogpit's ([updates on Linux](#updates-on-linux)).
 
 ## Get it and run it
 
 ### Download a release
 
 Every [release](https://github.com/guided-traffic/cogpit/releases) carries the complete product
-only ([D-16](decisions.md#d-16-the-first-real-release)): today Cogpit for Apple silicon as
-`Cogpit-<version>-macos-arm64.dmg`, and `SHA256SUMS`. Open the disk image and drag Cogpit into
+only ([D-16](decisions.md#d-16-the-first-real-release)): Cogpit for Apple silicon as
+`Cogpit-<version>-macos-arm64.dmg`, from the release after v0.32.0 on the Linux packages
+`cogpit_<version>_amd64.deb` and `cogpit_<version>_arm64.deb` beside it, each with both binaries
+([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+and one `SHA256SUMS` over all of them. Open the disk image and drag Cogpit into
 Applications; `cogpit-cli` comes inside the app ([`cogpit-cli`](#cogpit-cli)). v0.6.0, v0.7.0 and
 v0.8.0 carry these files; v0.5.0 and v0.9.0 to v0.12.0 have none, their signing or notarization
 having not finished ([releasing](releasing.md#when-signing-or-notarization-fails)), and v0.13.0's
@@ -102,7 +107,8 @@ carry `Cogpit_<version>_darwin_arm64.zip` instead, **unsigned**: macOS blocks th
 start until you allow it under System Settings › Privacy & Security › Open Anyway. Releases up to
 v0.6.0 also carry `cogpit-cli` archives for Linux, macOS and Windows, those for Linux and Windows
 not signed ([updates](../security/updates.md#what-a-release-holds-today)); later releases carry
-none, and Cogpit for Linux and Windows comes with its desktop app (M11).
+none: from the release after v0.32.0 on, Linux gets `cogpit-cli` in its package with the app, and
+Windows gets it with its desktop app (M11).
 
 ```sh
 shasum -a 256 -c SHA256SUMS
@@ -121,11 +127,84 @@ from source without it, and the app log names the mode at every start
 check on shows each place where the window's code called Fyne off its main goroutine once, as a
 warning toast naming the file and line; a release keeps such lines in the app log only.
 
+### Install on Linux
+
+Since 2026-10-20 night ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
+the owner's request of that evening), the release pipeline builds Cogpit for Linux as a Debian
+package, for amd64 and arm64; the first release that carries it is the one after v0.32.0. It runs
+on Debian 13 and Ubuntu 24.04 and later (it is built on Ubuntu 24.04 and needs glibc 2.38), in an
+X11 or a Wayland session. Download the package for your machine's architecture
+(`dpkg --print-architecture`) from the [release](https://github.com/guided-traffic/cogpit/releases)
+and install it with apt, which fetches the libraries it needs:
+
+```sh
+sha256sum --ignore-missing -c SHA256SUMS                 # the release's checksums, the downloaded files only
+sudo apt install ./cogpit_<version>_amd64.deb            # the ./ makes apt read the file
+cogpit-cli version                                       # cogpit-cli <version> (go1.27.2, linux/amd64)
+```
+
+Cogpit is then in the desktop's list of applications (its launcher
+`io.guided-traffic.cogpit.desktop`), and `cogpit` starts it from a terminal. The package also sets
+up Cogpit's own APT repository, `https://guided-traffic.github.io/cogpit/apt/` (suite `stable`,
+component `main`), so after `sudo apt update` apt knows Cogpit's releases: `apt upgrade` and the
+Software Updater offer each new one with the system's other updates, and Cogpit's Update button
+installs it ([updates on Linux](#updates-on-linux)). apt checks every file of the
+repository against its signing key, which the sources file carries inline (`Signed-By`): Ed25519,
+fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, valid until 2031-10-19, its public
+half also in the repository at
+[`packaging/linux/cogpit-archive-keyring.asc`](../../packaging/linux/cogpit-archive-keyring.asc)
+(`gpg --show-keys` on it prints the fingerprint). The repository holds the two newest releases of
+each architecture. Trust chain: [security › updates › Linux](../security/updates.md#linux); the
+pipeline: [releasing › Linux](releasing.md#linux).
+
+**Updates without asking are your setting, not Cogpit's** (the owner, 2026-10-20: Cogpit serves
+users in general and he does not decide for them). The package installs nothing that upgrades by
+itself. Ubuntu's Software Updater shows Cogpit's releases as it shows every repository's;
+unattended-upgrades installs only the origins its `Unattended-Upgrade::Origins-Pattern` names, and
+Cogpit's repository says `Origin: Cogpit`, `Suite: stable` (`"origin=Cogpit,suite=stable";` # example,
+not tried). An upgrade replaces the files under a running Cogpit, so its next check offers
+Restart to Update.
+
+| File the package installs | What it is |
+|---|---|
+| `/usr/bin/cogpit`, `/usr/bin/cogpit-cli` | the app and the command-line tool, built as a release builds them: the tag `nodemo` (no demo cluster), Fyne's thread check off, position-independent |
+| `/usr/share/applications/io.guided-traffic.cogpit.desktop` | the launcher (`StartupWMClass=Cogpit`; on Wayland the window's app id is `io.guided-traffic.cogpit`) |
+| `/usr/share/icons/hicolor/<n>x<n>/apps/io.guided-traffic.cogpit.png` | the icon, 16 to 512 pixels |
+| `/usr/share/metainfo/io.guided-traffic.cogpit.metainfo.xml` | the AppStream entry software centres read |
+| `/usr/libexec/cogpit/update` | the update helper the Update button runs as root through `pkexec`: it refreshes the list of Cogpit's repository only and upgrades the package `cogpit` only, keeping a sources file you changed |
+| `/usr/share/polkit-1/actions/io.guided-traffic.cogpit.update.policy` | the helper's polkit action `io.guided-traffic.cogpit.update`: an administrator's password, kept for a few minutes |
+| `/etc/apt/sources.list.d/cogpit.sources` | Cogpit's APT repository with its key inline; a configuration file of the package: delete it and upgrades keep it deleted (apt then knows no new release, and Cogpit's Help › Check for Updates… is greyed "no package repository"); `apt purge` removes it |
+| `/usr/share/doc/cogpit/` | the copyright and a changelog |
+
+It depends on the libraries the app links and the X11 and Wayland libraries its window loads at
+run time, and recommends `pkexec` (without it the Update button cannot install, apt and the
+Software Updater still can) and `libdecor-0-0` (the window's frame on a Wayland desktop that draws
+none); it has no maintainer scripts. Your settings live in `~/.config/Cogpit` and the logs and
+caches in `~/.cache/Cogpit` ([naming conventions](#naming-conventions)).
+
+```sh
+sudo apt remove cogpit     # removes the app; keeps the sources file, so apt update still reads the repository
+sudo apt purge cogpit      # also removes /etc/apt/sources.list.d/cogpit.sources
+rm -rf ~/.config/Cogpit ~/.cache/Cogpit   # your settings, logs and caches, if you want them gone too
+```
+
+Not on Linux yet: `cogpit://` links, Start at login, the window's place (its size and full screen
+come back, D-95), the system's file panels (Fyne's dialogs instead), and the stdio registration of
+`/usr/bin/cogpit-cli` in the MCP details (they offer the HTTP one;
+`claude mcp add --scope user cogpit -- /usr/bin/cogpit-cli mcp` registers the bridge by hand). No
+rpm, AppImage, Flatpak or tarball;
+not tried yet by a person on a desktop: polkit's password dialog, the restart, an update through
+the Software Updater, the arm64 package beyond GitHub's ARM runner.
+
 ### Run the MVP
 
 The MVP is a local build for macOS (tested on Apple silicon, macOS 26). It needs Go (1.26 or
 later; the build fetches Go 1.27.2 itself), the Xcode Command Line Tools (Fyne uses cgo), and for
-the kind cluster Docker, `kind` and `kubectl`.
+the kind cluster Docker, `kind` and `kubectl`. On Debian or Ubuntu a C compiler and the GL, X11
+and Wayland headers take the Command Line Tools' place, as CI installs them (`sudo apt install
+build-essential libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols`), and
+`make dist-linux VERSION=x.y.z` builds the Debian package for the machine's architecture in
+`dist/linux` (with `dpkg-dev`; since 2026-10-20 night, D-108); `make app` is macOS only.
 
 ```sh
 git clone https://github.com/guided-traffic/cogpit.git
@@ -186,8 +265,9 @@ your confirmation in Cogpit's window ([agents and MCP](../security/agents-and-mc
 **Verify.** `make test-unit-race` runs every test without a cluster; with the kind cluster up,
 `make test-kind` also runs the cluster tests (views, logs, pod shell, `kubectl` in the terminal).
 
-**Not built yet (2026-10-16):** Windows and Linux packages (the only way `cogpit-cli` is to reach them in a release, M11), the app for Intel Macs, the Homebrew cask. Updates work on
-macOS: the first installed copy updated from 0.15.0 to 0.16.0 on 2026-10-16
+**Not built yet (2026-10-20):** Windows packages (the only way `cogpit-cli` is to reach Windows in a release, M11), Linux formats besides the `.deb` (rpm, AppImage, Flatpak, a tarball), the app for Intel Macs, the Homebrew cask. Updates work on
+macOS: the first installed copy updated from 0.15.0 to 0.16.0 on 2026-10-16; on Linux through apt
+from the release after v0.32.0 on, not yet seen through a release
 ([Preferences › App: updates](#preferences--app-updates)). What exists and what is missing, row by
 row: [docs/parity](../parity/README.md).
 
@@ -198,6 +278,7 @@ row: [docs/parity](../parity/README.md).
 make kind-down     # deletes the kind cluster and its kubeconfig file
 make clean         # removes bin/ and dist/
 rm -rf ~/Library/Caches/Cogpit "~/Library/Application Support/Cogpit"   # logs, the discovery and Helm caches, audit and connection logs, token, downloaded kubectl releases
+rm -rf ~/.cache/Cogpit ~/.config/Cogpit                                 # the same on Linux
 ```
 
 </details>
@@ -230,7 +311,9 @@ cluster identities.
 
 The headless command-line tool (pure Go, no window). It comes inside the app, beside the app's own
 executable, from the first release after v0.6.0 on
-([D-16](decisions.md#d-16-the-first-real-release)); a source checkout builds it as
+([D-16](decisions.md#d-16-the-first-real-release)), and in the Linux package as
+`/usr/bin/cogpit-cli`, on your `PATH`, from the release after v0.32.0 on
+([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); a source checkout builds it as
 `bin/cogpit-cli` (`make build`):
 
 ```sh
@@ -238,9 +321,12 @@ executable, from the first release after v0.6.0 on
 ln -s /Applications/Cogpit.app/Contents/MacOS/cogpit-cli ~/bin/cogpit-cli    # example: as cogpit-cli on your PATH; updates follow
 ```
 
-It is signed and notarized with the app and replaced with it by an update. Releases no longer carry
-it for Linux and Windows (they get Cogpit with its desktop app, M11); there, build it from source:
-`CGO_ENABLED=0 go build ./cmd/cogpit-cli`. It offers the same contexts as the app, from
+It is signed and notarized with the app and replaced with it by an update; on Linux apt replaces it
+with the package. Releases no longer carry it alone for any system; Windows gets it with its
+desktop app (M11), until then build it from source there:
+`CGO_ENABLED=0 go build ./cmd/cogpit-cli`. On Linux the MCP details offer only the HTTP registration
+for now; register the package's bridge by hand with
+`claude mcp add --scope user cogpit -- /usr/bin/cogpit-cli mcp`. It offers the same contexts as the app, from
 the same kubeconfig sources (`~/.kube`, the files `--kubeconfig` or `$KUBECONFIG` names, the files
 and sync folders added in Cogpit), and runs a context's credential plugin, or connects a context
 whose cluster sets `insecure-skip-tls-verify` (A28, since 2026-10-14), only once you allowed it in
@@ -623,7 +709,8 @@ narrow window beside a long context name); the tooltip names the version, and a 
 Sparkle's window with the release. The button stays until Sparkle's update session ends (the
 release installed or skipped, or put off with "Remind Me Later" until the next scheduled check)
 ([D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)). Kept in
-`<user config dir>/Cogpit/preferences.json` with the other preferences.
+`<user config dir>/Cogpit/preferences.json` with the other preferences. On Linux apt does the
+updating, with the same preference and button ([below](#updates-on-linux)).
 
 ```json
 {
@@ -634,17 +721,44 @@ release installed or skipped, or put off with "Remind Me Later" until the next s
 
 | Field | Default | Meaning |
 |---|---|---|
-| `checkForUpdates` | `true` # default | Sparkle checks `https://guided-traffic.github.io/cogpit/appcast.xml` at every start and every hour (since 2026-10-16; once a day before); off, no check at start or on a schedule, only Help › Check for Updates… checks |
+| `checkForUpdates` | `true` # default | Sparkle checks `https://guided-traffic.github.io/cogpit/appcast.xml` at every start and every hour (since 2026-10-16; once a day before); on Linux Cogpit reads apt's lists then instead; off, no check at start or on a schedule, only Help › Check for Updates… checks (on Linux apt and the Software Updater still offer Cogpit's releases: they are the system's) |
 | `updateChannel` | `"stable"` # default | the only channel until Cogpit publishes prereleases; `beta` is refused for now |
 
 Security note: an agent or `cogpit-cli` may turn `checkForUpdates` on, never off; only you can, in
 Cogpit's window ([agents and MCP](../security/agents-and-mcp.md)). A build without the update key
 (every local build, and every release up to v0.10.0; the releases carry the key since v0.11.0), an app still on its disk
-image and other systems than macOS do not update themselves, and the row says why. `cogpit-cli`
-has no updater of its own: the one inside the app is replaced with the app, one built from source
-is not.
+image, a Cogpit on Linux that is not the installed package's and Windows do not update themselves,
+and the row says why. `cogpit-cli`
+has no updater of its own: the one inside the app is replaced with the app (on Linux with the
+package), one built from source is not.
 Sparkle installs an update only when its disk image and the feed carry the update key's signature
 and the new app carries Cogpit's Developer ID ([updates](../security/updates.md)).
+
+#### Updates on Linux
+
+Since 2026-10-20 night (from the release after v0.32.0 on,
+[D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) apt updates
+Cogpit, from the APT repository the package set up ([Install on Linux](#install-on-linux)), and
+apt checks the repository's signature before it installs anything
+([updates › Linux](../security/updates.md#linux)). While `checkForUpdates` is on, Cogpit reads
+`apt-cache policy cogpit` at every start and every hour: what apt's package lists, which the system
+refreshes by itself every day, say is installed and newest. That read sends no request and needs
+no password.
+
+| What apt's lists say | The top bar's button | Its click |
+|---|---|---|
+| a newer release than the installed one | "Update to v0.34.0" # example ("Update" where the bar has no room) | `pkexec /usr/libexec/cogpit/update`: polkit asks for an administrator's password, then the package's helper refreshes the list of Cogpit's repository only and upgrades the package `cogpit` only; a notification says "Cogpit 0.34.0 is installed: click Restart to Update to use it" # example, or why not (the dialog dismissed, not allowed, the newest already) |
+| a newer release installed under the running Cogpit (by the button, `apt upgrade`, the Software Updater or unattended-upgrades) | "Restart to Update" | Cogpit quits and starts again as the installed release: a detached shell waits for this process to end and starts `/usr/bin/cogpit` |
+| nothing newer | none | – |
+
+Installing never restarts Cogpit by itself: the restart is your second click. Help › Check for
+Updates… runs the helper too, password included, since only root can fetch a fresh list. On Linux
+only your own click in the window runs `app.checkForUpdates`: an agent or `cogpit-cli` is refused
+(it would put a password prompt or a restart in front of you unasked) and reads `ui_state`'s
+`update` (`available`, `version`, `restart`) instead. Where this Cogpit is not `/usr/bin/cogpit` of
+the installed package (a build of your own) the Help item is greyed "not installed from the
+package"; where `/etc/apt/sources.list.d/cogpit.sources` was deleted, "no package repository".
+`updateChannel`'s `stable` is the repository's suite `stable`, its only one.
 
 ### Preferences › Agent: the chat's connections
 
@@ -916,8 +1030,8 @@ Cogpit a folder they read it without asking ([H-116](../security/file-access.md#
 Your answers are in System Settings › Privacy & Security › Files and Folders; `tccutil reset
 SystemPolicyDownloadsFolder io.guided-traffic.cogpit` # example asks again.
 
-On Windows and Linux (M11) the choosers are Fyne's dialogs, and Sync Files and Folders is
-Cogpit's own browser for files and folders together, one at a time.
+On Linux and Windows the choosers are Fyne's dialogs (the system's panels there wait for M11), and
+Sync Files and Folders is Cogpit's own browser for files and folders together, one at a time.
 
 ### Alerts: the pill and the alert board
 
@@ -1148,7 +1262,8 @@ is generated from the registry: [`commands.md`](commands.md).
 ## Naming conventions
 
 Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
-`~/Library/Application Support`, `<user cache dir>` is `~/Library/Caches`.
+`~/Library/Application Support`, `<user cache dir>` is `~/Library/Caches`. On Linux they are
+`$XDG_CONFIG_HOME` (else `~/.config`) and `$XDG_CACHE_HOME` (else `~/.cache`), Go's own rule.
 
 <details>
 <summary>Names, paths and files</summary>
@@ -1158,6 +1273,7 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Go module | `github.com/guided-traffic/cogpit` | |
 | Binaries | `cogpit` (desktop app), `cogpit-cli` (headless CLI and MCP stdio bridge) | |
 | App bundle | `Cogpit.app`, bundle id `io.guided-traffic.cogpit` | `bin/Cogpit.app` # example |
+| Linux package | `cogpit`, the app id `io.guided-traffic.cogpit` (its launcher, icon, AppStream entry and Wayland app id), the window's `WM_CLASS` `Cogpit`, the polkit action `io.guided-traffic.cogpit.update`, since 2026-10-20 night ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages); its files: [Install on Linux](#install-on-linux)) | `/usr/share/applications/io.guided-traffic.cogpit.desktop` # example |
 | `cogpit-cli` in the app | `Cogpit.app/Contents/MacOS/cogpit-cli`, code-signing identifier `io.guided-traffic.cogpit.cli` ([D-16](decisions.md#d-16-the-first-real-release)) | `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli` # example |
 | Packages | `internal/<area>` | `internal/cache` # example |
 | Command ids | `<kind-or-area>.<action>`, lowerCamelCase segments | `deployment.restart`, `ui.navigate` |
@@ -1203,15 +1319,16 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Debug's Attach tab | id `attach-<n>`, title `Attach: <pod>/<container>`, as Attach's | `Attach: web-0/debugger-x7k2q` # example |
 | Prometheus and Alertmanager settings | `<user config dir>/Cogpit/metrics.json`, owner-only (0600): per context the Prometheus you named (namespace, service, port, path prefix) and, since 2026-10-16, how it is asked when not the defaults (`format`: `prometheus-operator` or `cadvisor`; `keepEmptyContainers`; `https`); since 2026-10-17 the Alertmanager you named (`alertmanager`: namespace, service, port, path prefix, `https`, D-77); never the kubeconfig | `{"prometheus":{},"query":{"kind-dev":{"https":true}},"alertmanager":{"kind-dev":{"namespace":"monitoring","service":"alertmanager-operated","port":"web"}}}` # example |
 | Demo context | `demo` (the synthetic cluster), development builds only; in a release `demo` is a kubeconfig context name like any other ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) | |
-| Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app` checks both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |
-| Fyne's thread check | the Makefile's `FYNE_THREAD_CHECKS=on\|off`: off adds Cogpit's build tag `nothreadcheck`, with which the app declares itself migrated to `fyne.Do` (`go version -m <binary>` shows `-tags=nodemo,nothreadcheck` for a release); empty: off for `make dist-app`, on for every other target; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `make app FYNE_THREAD_CHECKS=off` # example |
+| Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app` and `make dist-linux` check both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |
+| Fyne's thread check | the Makefile's `FYNE_THREAD_CHECKS=on\|off`: off adds Cogpit's build tag `nothreadcheck`, with which the app declares itself migrated to `fyne.Do` (`go version -m <binary>` shows `-tags=nodemo,nothreadcheck` for a release); empty: off for `make dist-app` and `make dist-linux`, on for every other target; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `make app FYNE_THREAD_CHECKS=off` # example |
 | Local kind cluster | cluster `cogpit`, context `kind-cogpit`, kubeconfig `.cache/kind/kubeconfig` | |
-| Release artifacts (planned) | `Cogpit-<version>-macos-universal.dmg`; the desktop app for Windows and Linux (M11), each with `cogpit-cli` inside | `Cogpit-0.1.0-macos-universal.dmg` # example |
+| Release artifacts (planned) | `Cogpit-<version>-macos-universal.dmg`; the desktop app for Windows (M11), with `cogpit-cli` inside | `Cogpit-0.1.0-macos-universal.dmg` # example |
 | Deep links (macOS) | `cogpit://open?context=<context id>&view=<view key>&namespace=<namespace>&name=<name>`, the scheme registered in the app's `CFBundleURLTypes` (name `io.guided-traffic.cogpit`); audited as `deeplink.open` with origin `deeplink` | `cogpit://open?view=pods&namespace=team-a` # example |
-| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (signed releases; `universal` once the app is built for Intel too, planned), `Cogpit_<version>_darwin_<arch>.zip` (v0.4.0 and earlier, and builds without the signing secrets), `SHA256SUMS`; nothing else since D-16's revision (2026-10-14): `cogpit-cli_<version>_<os>_<arch>.tar.gz` (`.zip` for Windows) only up to v0.6.0 | `Cogpit-0.5.0-macos-arm64.dmg` # example |
+| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (signed releases; `universal` once the app is built for Intel too, planned), `Cogpit_<version>_darwin_<arch>.zip` (v0.4.0 and earlier, and builds without the signing secrets), `SHA256SUMS`; from the release after v0.32.0 on `cogpit_<version>_<arch>.deb` for Linux, `<arch>` `amd64` and `arm64` (D-108), each with both binaries, `SHA256SUMS` over every file; nothing else since D-16's revision (2026-10-14): `cogpit-cli_<version>_<os>_<arch>.tar.gz` (`.zip` for Windows) only up to v0.6.0 | `Cogpit-0.5.0-macos-arm64.dmg`, `cogpit_0.34.0_amd64.deb` # example |
 | Deep links | `cogpit://` ([D-47](decisions.md#d-47-deep-links-cogpit)) | |
 | Update feed | the appcast every macOS app with the update key reads (`SUFeedURL`, [D-4](decisions.md#d-4-packaging-and-updates)) | `https://guided-traffic.github.io/cogpit/appcast.xml` # default |
 | Sparkle's own state | the app's user defaults, written by Sparkle: whether it checks automatically (`SUEnableAutomaticChecks`, which Cogpit sets from its preference), the last check's time, a skipped version | `~/Library/Preferences/io.guided-traffic.cogpit.plist` # default |
+| APT repository (Linux) | the repository the package's `/etc/apt/sources.list.d/cogpit.sources` names, suite `stable`, component `main`, `Origin` and `Label` `Cogpit`, signed with Cogpit's APT key (Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`), the two newest releases of each architecture ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) | `https://guided-traffic.github.io/cogpit/apt/` # default |
 
 </details>
 
@@ -1264,6 +1381,9 @@ Identifiers the documentation uses:
 | `make oxipng` | the pinned oxipng release in `.cache/oxipng/<version>`, its SHA-256 checked (macOS on Apple silicon and Linux on x86-64) |
 | `make dist-app`, `make dist-macos`, `make dist-macos-sign`, `make dist-macos-notarize`, `make dist-checksums` | the release pipeline's macOS download and `SHA256SUMS` in `dist/`; `MACOS_SIGN=adhoc` for a local check ([releasing › Running the signing locally](releasing.md#running-the-signing-locally)) |
 | `make appcast-draft`, `make appcast-sign`, `make appcast-verify` | the release pipeline's appcast jobs ([releasing › the appcast](releasing.md#the-appcast)) |
+| `make dist-linux VERSION=x.y.z` | the Debian package `dist/linux/cogpit_<version>_<arch>.deb` for this machine's architecture (cgo does not cross-compile), its binaries built as a release builds them; Debian or Ubuntu with `dpkg-dev` (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) |
+| `make test-linux-package` | lintian on the package `dist-linux` built and the APT repository's scripts end to end with a throwaway key (`hack/linux/apt-test.sh`); CI's job Linux Package |
+| `make apt-repo`, `make apt-verify` | the release pipeline's APT repository in `dist/apt`: built from the packages in `dist/linux` and the repository Pages serves, signed with `APT_SIGNING_KEY` when it is set; checked with the packages' public key ([releasing › the APT repository](releasing.md#the-apt-repository)) |
 | `make clean` | removes `bin/` and `dist/`; `make help` lists every target |
 
 ## Development

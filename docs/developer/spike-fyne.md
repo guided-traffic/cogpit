@@ -1,6 +1,6 @@
 # Fyne spike
 
-> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-15 · **Change:** minor (the Status names S7's re-check since CI, half done, D-1); major (the spike ran as the local MVP; results S1–S8 recorded) · **Target:** Lens Desktop 2026.10.51501
+> **Last reviewed:** 2026-10-11 · **Last updated:** 2026-10-20 · **Change:** minor (the Status: S7's re-check, the Linux package built on CI since 2026-10-20, D-108); minor (the Status names S7's re-check since CI, half done, D-1); major (the spike ran as the local MVP; results S1–S8 recorded) · **Target:** Lens Desktop 2026.10.51501
 
 The gate of [D-1](decisions.md#d-1-ui-toolkit): before milestone M2 builds the real UI on Fyne, a
 spike builds the parts most likely to fail and measures them. If the gate passes, M2 builds on
@@ -9,8 +9,11 @@ Fyne. If it fails, the engine stays in Go and the UI becomes a separate Rust/egu
 **Status: run on 2026-10-11 as the local MVP** (the MVP builds the spike's pieces on the planned
 packages, see [Results](#results)). **Gate passed; D-1 decided for Fyne** (owner, 2026-10-11), with
 re-checks of S7 and S5 on Windows and Linux ([D-1](decisions.md#d-1-ui-toolkit)). S7's re-check
-since CI landed (2026-10-13) is half done: CI packages the macOS app and compiles and links every
-package on Windows with cgo, and packages nothing for Windows or Linux (M11); S5's waits for M11.
+since CI landed (2026-10-13) is half done: CI packages the macOS app and, since 2026-10-20, the
+Linux `.deb` for amd64 and arm64 (built with `make build` and `hack/linux/deb.sh`, not
+`fyne package`; [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+compiles and links every package on Windows with cgo, and packages nothing for Windows (M11); S5's
+waits for M11.
 The results below are those of 2026-10-11.
 
 ## What the spike builds
@@ -101,6 +104,7 @@ M0's CI lands) and S5 (Windows and Linux, at M11). S5 holds only because Cogpit 
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-20 | minor | The Status: S7's re-check, CI packages the Linux `.deb` for amd64 and arm64 since 2026-10-20 (D-108), Windows still nothing; the results stay those of 2026-10-11 |
 | 2026-10-15 | minor | The Status names S7's re-check since CI (the macOS app packaged on every push, Windows compiled and linked, no Windows or Linux package) and S5's at M11; the results stay those of 2026-10-11 |
 | 2026-10-11 | minor | S1 and S4 measured again in a real window (gate mode with view switches, typing, a CPU profile); S1 passes with a reservation (owner), S4 passes |
 | 2026-10-11 | major | Results S1–S8 from the local MVP on an M1 Ultra |

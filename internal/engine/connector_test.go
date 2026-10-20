@@ -8,8 +8,9 @@ import (
 	"testing"
 )
 
-// TestReleaseBuildsLeaveTheDemoOut: the release pipeline's make dist-app builds both binaries with
-// the Makefile's DIST_TAGS (through BUILD_TAGS, which adds Fyne's thread check tag, D-103), and
+// TestReleaseBuildsLeaveTheDemoOut: the release pipeline's make dist-app and make dist-linux build
+// both binaries with the Makefile's DIST_TAGS (through BUILD_TAGS, which adds Fyne's thread check
+// tag, D-103), and
 // those name the tag connector_nodemo.go is built with. A tag no file knows is silently ignored,
 // and a release would ship the demo cluster (D-67).
 func TestReleaseBuildsLeaveTheDemoOut(t *testing.T) {
@@ -35,7 +36,8 @@ func TestReleaseBuildsLeaveTheDemoOut(t *testing.T) {
 		t.Errorf("the Makefile's BUILD_TAGS do not take GO_TAGS: %q", b)
 	}
 	for _, want := range []string{
-		"$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'", // dist-app
+		"$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'",   // dist-app
+		"$(MAKE) build GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'", // dist-linux
 		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit",
 		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli",
 	} {

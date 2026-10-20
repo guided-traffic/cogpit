@@ -1,0 +1,16 @@
+#!/bin/sh
+# Cogpit's update helper (D-108), installed as /usr/libexec/cogpit/update and run as root through
+# pkexec when the user clicks Update in Cogpit (internal/update, apt_linux.go); polkit asks for the
+# password first (io.guided-traffic.cogpit.update.policy). It refreshes the package list of
+# Cogpit's own repository only, then upgrades the package cogpit only, keeping a changed
+# cogpit.sources. It takes no arguments and nothing from the caller's environment: pkexec starts
+# it with a clean one.
+set -eu
+export DEBIAN_FRONTEND=noninteractive LC_ALL=C
+sources=/etc/apt/sources.list.d/cogpit.sources
+if [ ! -f "$sources" ]; then
+	echo "Cogpit's package repository is not set up: $sources is missing" >&2
+	exit 3
+fi
+apt-get -q update -o Dir::Etc::SourceList="$sources" -o Dir::Etc::SourceParts=- -o APT::Get::List-Cleanup=0
+apt-get -q install -y --only-upgrade -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold cogpit

@@ -13,7 +13,9 @@ the owner's, from 0.15.0 to 0.16.0, through the signed feed and Sparkle's instal
 observation; [setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). `cogpit-cli` has no
 updater of its own: since 2026-10-14 it is part of the app bundle
 ([D-16](../developer/decisions.md#d-16-the-first-real-release)), so Sparkle's update replaces it
-with the app under the same checks; Windows and Linux have no updater. The other place, built 2026-10-13, is the
+with the app under the same checks; Windows has no updater. On Linux, since 2026-10-20, apt updates
+Cogpit from Cogpit's signed APT repository, which the package sets up
+([Linux](#linux), [D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)). The other place, built 2026-10-13, is the
 `kubectl` a terminal offers for its cluster: downloaded only on the user's click and verified against
 the Kubernetes release's own sigstore signature and, since 2026-10-15, that signature's entry in
 sigstore's transparency log, not Cogpit's update key
@@ -87,7 +89,9 @@ creates a tag and a GitHub release once every gate on `main` is green, and the r
 ([`build.yml`](../../.github/workflows/build.yml)) builds the artifacts from that tag and attaches
 them ([releasing › the release pipeline](../developer/releasing.md#the-release-pipeline)). Since
 2026-10-14 (the owner, D-16 revised) a release carries only the complete product: the disk image
-with `cogpit-cli` inside the app, and `SHA256SUMS`. The `cogpit-cli` archives for six platforms
+with `cogpit-cli` inside the app, since the release after v0.32.0 the Linux packages with both
+binaries ([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+and `SHA256SUMS`. The `cogpit-cli` archives for six platforms
 that releases up to v0.6.0 carry (unsigned for Linux and Windows) are not built any more:
 
 | Artifact | Built by | What vouches for it today |
@@ -95,7 +99,8 @@ that releases up to v0.6.0 carry (unsigned for Linux and Windows) are not built 
 | `Cogpit-<v>-macos-arm64.dmg`, the app bundle in a disk image (from the first release after v0.4.0 on: v0.6.0, v0.7.0 and v0.8.0 carry it, v0.5.0 and v0.9.0 to v0.12.0 have no files; checked 2026-10-15) | `make dist-app` on GitHub's `macos-latest`, signed and imaged by `make dist-macos-sign` ([`hack/macos/release.sh`](../../hack/macos/release.sh)) in the job "Sign and submit (macOS)", notarized and stapled by `make dist-macos-notarize` in "Notarize and staple (macOS)" | the app and the disk image signed with the Developer ID "Developer ID Application: Hans Fischer (6L57P2HXN6)", the hardened runtime and Apple's timestamp; the disk image notarized by Apple, its ticket stapled, so Gatekeeper accepts it offline as `Notarized Developer ID`; its SHA-256 in `SHA256SUMS`. When a signature, the notarization or a check fails, the job fails and the release gets no files until the failed jobs are re-run, never unsigned files under a signed note; the notarization job waits 330 minutes at most for Apple's verdict on the one submission the signing job made, and a re-run waits for the same one; it staples only the disk image whose SHA-256 the signing job recorded with the submission ([`build.yml`](../../.github/workflows/build.yml), [`release.sh`](../../hack/macos/release.sh); the lead's default, confirmed by the owner on 2026-10-14 evening) |
 | `cogpit-cli` in the app, `Cogpit.app/Contents/MacOS/cogpit-cli` (from the first release after v0.6.0 on) | `make app` from `make build`'s binary, in the same job | the same as the app: signed with the same Developer ID before the bundle (identifier `io.guided-traffic.cogpit.cli`, the hardened runtime, the timestamp), sealed into the app's signature, so changing it breaks the app's; notarized with the disk image, whose stapled ticket covers it; replaced by Sparkle's update with the bundle. Not verified (the signed releases v0.7.0 and v0.8.0 carry it): that it runs from a terminal in a quarantined copy, before the app was ever opened, without a prompt |
 | `Cogpit_<v>_darwin_arm64.zip`, the app bundle (v0.4.0 and earlier, and any build without the signing secrets) | `make dist-app` on GitHub's `macos-latest` | its SHA-256 in `SHA256SUMS`; an ad-hoc signature (`codesign --sign -`), which seals the bundle but names nobody: **no Developer ID, not notarized**, so Gatekeeper blocks the first start until the user allows it |
-| `SHA256SUMS` | the release pipeline's last job | nothing: it is not signed, so it shows that a download matches what CI attached to the release, not who attached it |
+| `cogpit_<v>_amd64.deb`, `cogpit_<v>_arm64.deb` (from the release after v0.32.0 on) | `make dist-linux` on GitHub's `ubuntu-24.04` and `ubuntu-24.04-arm`, attached by "Attach to the release (Linux)" | as downloaded from the release: nothing but HTTPS from GitHub and its line in `SHA256SUMS` (Debian's packages carry no signature of their own; [H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)); as installed from Cogpit's APT repository: the repository's OpenPGP signature, which apt checks ([Linux](#linux)) |
+| `SHA256SUMS` | the release pipeline's attach jobs, the macOS one and the Linux one, each merging its lines into the release's file | nothing: it is not signed, so it shows that a download matches what CI attached to the release, not who attached it |
 | The release's item in `https://guided-traffic.github.io/cogpit/appcast.xml` (from the first release built with the update key that passes notarization; none yet on 2026-10-15: v0.11.0 to v0.13.0 are built with the key, v0.11.0 and v0.12.0 have no files, v0.13.0's notarization was in progress) | the three appcast jobs after "Attach to the release" ([releasing › the appcast](../developer/releasing.md#the-appcast)) | the update key's EdDSA signature over the feed and over the disk image it names, made after the owner approved the run; checked with the public key before Pages gets it |
 
 **What the Developer ID signature and the notarization vouch for:** that the code was signed with
@@ -141,7 +146,58 @@ anything the key did not sign.
 | The organisation's GitHub App private key (`APP_CLIENT_ID`, `APP_PRIVATE_KEY`) | organisation secrets of `guided-traffic`, visible to this repository; used by the Semantic Release job (token with `contents: write`) and by Renovate | push to `main`, create tags and releases; a release it creates starts the release pipeline, which builds whatever the tag points at | rotate the App's private key in the App's settings and replace the organisation secret; delete the releases and tags it made. Secrets are not handed to workflows of pull requests from forks |
 | The release pipeline's `GITHUB_TOKEN` | per job; `contents: write` only in its last job, to attach the artifacts | upload assets to and edit the text of this repository's releases | expires with the job |
 | Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the GitHub environment `release` (created 2026-10-13; the material in it since 2026-10-14), which only tag workflows may use (deployment rule: tags `v*`), so that no pull request workflow can read them (decided by the owner on 2026-10-14 evening and further on 2026-10-15, GitHub settings not made yet: only the semantic-release GitHub App may create `v*` tags, as the tag ruleset's only bypass, and the environment's administrator bypass off; [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). Two jobs read them (since 2026-10-15; before, one job "Sign and notarize (macOS)"): "Sign and submit (macOS)" with the certificate and the API key, "Notarize and staple (macOS)" with the API key only. Neither builds anything or runs Go; the first imports the certificate into a temporary keychain (key not extractable, usable by `codesign` only), both write the API key into an owner-only file, and each deletes them when it ends ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize code as team 6L57P2HXN6: whatever is signed and notarized with the two passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple, and the key in App Store Connect; releases notarized before stay valid (the owner's note, 2026-10-13; not checked against Apple's documentation) |
+| The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19; made on 2026-10-20 on the owner's machine) | `APT_SIGNING_KEY`, a secret of the environment `apt` (tags `v*` only, no required reviewer: the owner's choice, 2026-10-20); one job reads it, "APT repository (sign)", on GitHub's hosted runner, which runs no Go and nothing of the packages and hands the key to gpg on its standard input in a temporary keyring; a copy, with the revocation certificate, kept by the owner outside GitHub. Its public half is in every package's sources file | sign a repository whose packages every Linux copy installs as Cogpit's updates, by apt as root | [H-135](#h-135-the-apt-key-signs-without-an-approval), [Linux](#linux) |
 | The update key (Sparkle's EdDSA key; made by the owner on 2026-10-15) | decided (owner, 2026-10-13) and set up 2026-10-15 (the secret since 07:00 UTC; the environment with the owner as required reviewer, the tag rule `v*` only and no administrator bypass; checked with `gh` that day): `SPARKLE_ED_PRIVATE_KEY`, a secret of the environment `sparkle` with the owner as required reviewer and tags `v*` only, so CI signs a release's feed only after the owner approved that run; made by the owner with Sparkle's `generate_keys`, which keeps it in his login keychain ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). One job reads it, "Appcast (sign)": it refuses while the environment lacks its rules, hands the key to Sparkle's `sign_update` on its standard input only and runs no Go and no dependency's code. Its public half is the repository variable `SPARKLE_PUBLIC_ED_KEY`, built into every copy as `SUPublicEDKey` | sign appcasts and disk images that every copy with this key accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
+
+## Linux
+
+Since 2026-10-20 ([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
+[releasing › Linux](../developer/releasing.md#linux)) Cogpit for Linux is a Debian package, and apt
+updates it: the package installs `/etc/apt/sources.list.d/cogpit.sources`, which names Cogpit's
+APT repository on GitHub Pages and carries its public key inline, so apt trusts that key for that
+repository only, not for the system's other sources.
+
+```text
+release pipeline ─► cogpit_<v>_<arch>.deb (both binaries), attached to the release, its line in SHA256SUMS
+   "APT repository (sign)", environment apt ─► the repository Pages serves, checked against the key
+        ─► this release's packages beside the newest served ones ─► Release, signed: InRelease, Release.gpg
+   "APT repository (deploy)" ─► checked with the public key, refused if Pages serves a newer one
+        ─► https://guided-traffic.github.io/cogpit/apt (beside appcast.xml)
+                                   │
+apt on the user's machine (apt update: the system's timer, the Software Updater, or Cogpit's helper)
+       ─► InRelease's signature with the key in cogpit.sources ─► Packages by the hash InRelease names
+       ─► a package's SHA-256 as Packages names it ─► dpkg installs it as root
+Cogpit (internal/update, apt_linux.go) ─► apt-cache policy cogpit at every start and every hour: no network, no root
+       ─► the Update button ─► pkexec /usr/libexec/cogpit/update (polkit: an administrator's password)
+       ─► apt-get update of Cogpit's list only, apt-get install --only-upgrade cogpit ─► Restart to Update
+```
+
+| Check | Where | Prevents |
+|---|---|---|
+| InRelease's OpenPGP signature with the key in `cogpit.sources` (`Signed-By`) | apt, on every update of the list | a repository changed on or by the host: another package, another version, another index |
+| The index files by the hash InRelease names (`Acquire-By-Hash`), the packages by Packages' SHA-256 and size | apt | a swapped index or package; a client mixing an index cached from before a deploy with a newer one |
+| Only a newer version is installed by `apt upgrade` and the helper's `--only-upgrade` | apt | a downgrade by an older signed repository (not a freeze: [H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)) |
+| The key's fingerprint is the packages' before anything is signed (`apt.sh sign`) | "APT repository (sign)" | a secret replaced with another key, whose repository every copy would refuse |
+| The repository served now is fetched, checked against the key and kept only then (`apt.sh mirror`) | "APT repository (sign)", "Appcast (deploy to Pages)" | a repository altered on Pages being signed again with the next release, or deployed again with the appcast |
+| The new repository checked with the public key, and refused when Pages serves a newer release (`apt.sh verify`, `newer`) | "APT repository (deploy to Pages)" | a repository every copy would refuse; an older release's run, ending after a newer one's, taking the newer release back for new installs |
+| The helper takes no argument, upgrades only the package `cogpit` from Cogpit's list, and is the polkit action's only program (`org.freedesktop.policykit.exec.path`) | pkexec, the helper | the Update button running anything else as root |
+| On Linux only the window runs `app.checkForUpdates` | the engine | an agent or the CLI putting a password prompt or a restart in front of the user |
+
+**What vouches for an update on Linux:** the repository key's signature over the index, made in the
+job "APT repository (sign)", checked by apt on every copy; the hashes in it, over every package.
+**What does not:** the host, as for the appcast: Pages can withhold the repository or serve an
+older signed one, but not make apt install a package the key did not sign
+([H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)). Whether an update installs without
+the user is the user's own setting (unattended-upgrades does not take third-party repositories
+unless the user adds them), never the package's (the owner, 2026-10-20).
+
+**Checked 2026-10-20:** in containers of Ubuntu 24.04, Ubuntu 26.04 and Debian 13, apt read the
+package's sources file with its key inline, refused nothing it should accept, and the helper
+upgraded the package from a repository signed with a test key; `hack/linux/apt-test.sh` (CI, every
+push) shows `verify` refusing a tampered package and another key, `mirror` refusing a tampered
+repository and leaving nothing, `sign` refusing a key that is not the packages', and `newer`
+refusing an older repository. Not checked yet: the repository served from Pages after the first
+release, polkit's dialog in a desktop session.
 
 ## What this does not cover
 
@@ -167,16 +223,19 @@ no code signature that names Cogpit, and the `cogpit-cli` archives for Linux and
 release up to v0.6.0 none at all. Since 2026-10-14 the release pipeline signs the macOS app with
 its `cogpit-cli` and the disk image with the Developer ID and has them notarized
 ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)),
-and a release carries nothing else but `SHA256SUMS`
-([D-16](../developer/decisions.md#d-16-the-first-real-release)); v0.6.0, v0.7.0 and v0.8.0 carry
+and a release carries nothing else but `SHA256SUMS` and, since the release after v0.32.0, the
+Linux packages ([D-16](../developer/decisions.md#d-16-the-first-real-release),
+[D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); v0.6.0, v0.7.0 and v0.8.0 carry
 that signed, notarized disk image (v0.5.0 and v0.9.0 to v0.12.0 no files; checked 2026-10-15), so
 the unsigned case holds for v0.4.0 and earlier and for the archives up to v0.6.0. What stays live:
 `SHA256SUMS` is not signed, and the unsigned archives of the releases up to v0.6.0 stay on their
 release pages, so whoever can change a release's assets (the GitHub App's key, a maintainer's
 account) can replace one of those archives and its checksum together, and a user has nothing to
 check them against. A swapped macOS download would need the Developer ID key as well. Signing the
-checksums is not designed; Linux and Windows downloads come back with their desktop app (M11),
-whose signing is planned there.
+checksums is not designed. The Linux packages carry no signature of their own either (Debian's
+convention): what vouches for an update is the APT repository's signature, which apt checks, and a
+first install trusts the download ([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own));
+Windows downloads come back with their desktop app (M11), whose signing is planned there.
 
 ### H-62: Every push to `main` that passes the gates is released
 
@@ -313,10 +372,55 @@ administrator created with the ruleset switched off.
 ### H-17: Installs owned by a package manager
 
 For Homebrew (and, later, winget, Flathub and Linux repositories) the integrity of an update is
-the package manager's, not Cogpit's. Dormant: this repository builds no package for a package
-manager (no Homebrew cask, no winget, Flathub or Linux package; checked 2026-10-15 in the
-`Makefile`, `packaging/` and the workflows), so the hand-over to the manager in the table above is
-not built either.
+the package manager's, not Cogpit's. For Linux this is built (2026-10-20,
+[Linux](#linux)): the .deb is apt's, and Cogpit's Update button hands the install to apt through
+the package's helper; Cogpit never writes a file the package owns. Dormant for the rest: no
+Homebrew cask, winget or Flathub package exists (checked 2026-10-20 in the `Makefile`, `packaging/`
+and the workflows).
+
+### H-135: The APT key signs without an approval
+
+Open, accepted by the owner (2026-10-20: the environment `apt` without a required reviewer, so that
+a release reaches Linux users without waiting for anyone). Unlike the update key, which signs only
+after the owner approved the run ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)),
+the APT key signs in every run on a `v*` tag: whoever can create such a tag, or change the workflow
+a tag runs, can publish a package that every Linux copy installs as root with its next upgrade, and
+silently where the user allowed unattended-upgrades for it. What bounds it is what bounds the
+release itself: tags come from the semantic-release GitHub App once the gates pass, and the tag
+ruleset that would make it the only one is not set up
+([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). A leaked key needs a new key
+and every user's manual install of a new package, since apt trusts only the key in the sources file;
+the revocation certificate the owner keeps withdraws the old one for anyone who imports it, which
+apt does not.
+
+### H-136: The first Linux install has no signature of its own
+
+Open. The .deb a user downloads from the release carries no signature (Debian's convention; apt's
+trust is in the repository's index), and `SHA256SUMS` is not signed
+([H-61](#h-61-releases-are-unsigned)), so the first install trusts GitHub's HTTPS and the release
+page, and the package it installs brings the repository key every later update is checked against.
+A user can compare the key's fingerprint in `/etc/apt/sources.list.d/cogpit.sources` with the one the
+release note and this page name, `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, before the
+first `apt update`; a signed `SHA256SUMS` would cover the download itself.
+
+### H-137: The APT repository's host can withhold updates
+
+Open, as [H-93](#h-93-the-feeds-host-can-withhold-updates) for the appcast. The repository's
+`Release` carries no `Valid-Until`, so apt accepts an old signed index indefinitely: GitHub Pages,
+or someone who controls what it serves, can keep a copy on an older release (a freeze), though not
+make it install a package the key did not sign. A `Valid-Until` would turn a pause between releases
+longer than its period into apt errors on every machine; none was set (the lead's choice,
+2026-10-20). A user who changed `cogpit.sources` keeps its old key through a package update that
+carries a renewed one, and sees apt's error once that key expires (2031-10-19).
+
+### H-138: polkit keeps the password for the update helper a few minutes
+
+Open, accepted (the lead's choice, 2026-10-20). The helper's polkit action is `auth_admin_keep`:
+after the user typed the password, any process of the same user may run the helper again without it
+for polkit's keep time (five minutes by default). The helper takes no argument and does nothing but
+refresh Cogpit's list and upgrade the package `cogpit` from the signed repository, so the most such a
+process can do is start that upgrade. `auth_admin` would ask again for each click, also when
+Help › Check for Updates… runs after the Update button.
 
 ### H-18: Dependencies
 

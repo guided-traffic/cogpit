@@ -16,8 +16,8 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
 | Interface rows, free plan | 122 | 119 | 9 | 110 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
-| Platform rows (packages, authentication, versions, tools, display) | 38 | 18 | 0 | 18 | 20 |
-| Beyond Lens (not in feature breadth) | 74 | 72 | 61 | 11 | 2 |
+| Platform rows (packages, authentication, versions, tools, display) | 38 | 20 | 0 | 20 | 18 |
+| Beyond Lens (not in feature breadth) | 74 | 73 | 61 | 12 | 1 |
 
 Not counted: 10 interface rows that are not a target, 5 platform rows that are paid or have nothing to build.
 
@@ -253,11 +253,11 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 |---|---|---|
 | macOS | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Windows | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
-| Linux | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
+| Linux | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Homebrew cask (macOS) | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | winget and Scoop (Windows) | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Flathub (Linux) | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
-| APT and RPM repositories | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
+| APT and RPM repositories | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Snap | – | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Update notice | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | One-click update | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
@@ -326,8 +326,8 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Limits per turn: tool calls, tokens, time | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Data sent to the endpoint is visible to the user; Secret values are never sent unless the user marked the connection private (owner, 2026-1… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | ⌘I / Ctrl+I opens the chat for the current cluster (Lens's Ask AI shortcut) | done | [Built-in agent](beyond-lens.md#built-in-agent) |
-| One click updates the macOS app through Sparkle 2; MSI, portable zip, AppImage and tar.xz with Windows and Linux (M11) | partial | [Updates](beyond-lens.md#updates) |
-| Package-manager installs: the button runs or shows the manager's command | missing | [Updates](beyond-lens.md#updates) |
+| One click updates the macOS app through Sparkle 2 and the Linux deb through apt; MSI, portable zip, AppImage and tar.xz with Windows and Li… | partial | [Updates](beyond-lens.md#updates) |
+| Package-manager installs: the button runs or shows the manager's command | partial | [Updates](beyond-lens.md#updates) |
 | Signed update manifest verified with a key built into the app, before anything is replaced | done | [Updates](beyond-lens.md#updates) |
 | Diagnostics view: API requests per cluster by verb and resource, open and warm watches, objects and memory per kind | done | [Cache transparency](beyond-lens.md#cache-transparency) |
 | On start, Helm releases left pending-install, pending-upgrade or pending-rollback by Cogpit are shown with "finish" and "roll back" | partial | [Crash recovery](beyond-lens.md#crash-recovery) |
