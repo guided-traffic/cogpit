@@ -99,7 +99,7 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 	)
 	// The horizon is the dialog's stage: About shows no data, so the grid floor and the stage light may
 	// stand behind the column (design-language.md).
-	return sized(sizeAboutWidth, "", container.NewStack(clippedHorizon(), container.NewVBox(objs...)))
+	return sized(sizeAboutWidth, "", container.NewStack(clippedHorizon(0.18), container.NewVBox(objs...)))
 }
 
 // aboutLink is a link of the dialog: a click opens it in the user's browser, nothing else does.

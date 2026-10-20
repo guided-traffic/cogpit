@@ -151,9 +151,15 @@ func plateOf(content fyne.CanvasObject) fyne.CanvasObject {
 }
 
 // clippedHorizon is the horizon cut to its own bounds: the grid's rays run past the page's edges
-// to converge, and the navigator beside the page must not show them.
-func clippedHorizon() fyne.CanvasObject {
-	c := container.NewClip(newHorizon())
+// to converge, and the navigator beside the page must not show them. floor is the grid floor's
+// share of the height: the welcome page's full-height stage takes the default (0), a small panel
+// (About) a low floor, so that no line runs behind its text.
+func clippedHorizon(floor float32) fyne.CanvasObject {
+	h := newHorizon()
+	if floor > 0 {
+		h.floor = floor
+	}
+	c := container.NewClip(h)
 	c.MinSize() // NewClip extends its base widget at the first MinSize (navigator_slide.go)
 	return c
 }

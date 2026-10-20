@@ -125,7 +125,7 @@ func newWelcomePage(sh *shell) *welcomePage {
 	)
 	page := box(welcomeLayout{}, column)
 	// The horizon is the page's backdrop: no data lies under it, only the stage light and the grid floor.
-	w.root = container.NewStack(clippedHorizon(), container.NewVScroll(page))
+	w.root = container.NewStack(clippedHorizon(0), container.NewVScroll(page))
 	w.root.Hide()
 	return w
 }
