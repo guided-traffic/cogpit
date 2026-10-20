@@ -78,8 +78,7 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 	}
 	version, detail := aboutVersion(info)
 	objs := []fyne.CanvasObject{
-		container.NewCenter(newWelcomeLogo(aboutLogoSize)),
-		newSpace(theme.SizeNameInnerPadding),
+		container.NewCenter(newLogoGlow(aboutLogoSize)), // on its glow
 		line("Cogpit", theme.ColorNameForeground, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true}),
 		newSpace(theme.SizeNameLineSpacing),
 		line(version, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
@@ -98,7 +97,9 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 		container.NewCenter(container.NewHBox(sh.aboutLink("Repository", repoURL), sh.aboutLink("Licence", licenceURL))),
 		newSpace(theme.SizeNamePadding), // room above the dialog's Close
 	)
-	return sized(sizeAboutWidth, "", container.NewVBox(objs...))
+	// The horizon is the dialog's stage: About shows no data, so the grid floor and the stage light may
+	// stand behind the column (design-language.md).
+	return sized(sizeAboutWidth, "", container.NewStack(clippedHorizon(), container.NewVBox(objs...)))
 }
 
 // aboutLink is a link of the dialog: a click opens it in the user's browser, nothing else does.

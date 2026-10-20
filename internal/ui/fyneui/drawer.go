@@ -420,7 +420,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 			out = append(out, newSpace(theme.SizeNameInnerPadding))
 		}
 		if sec.Group != "" && sec.Group != group {
-			out = append(out, newBracketLabel(headText(sec.Group, groupSize(m.Sections, sec.Group)), colorAccent),
+			out = append(out, newSectionHead(sec.Group, groupSize(m.Sections, sec.Group)),
 				newSpace(theme.SizeNamePadding))
 		}
 		group = sec.Group
@@ -456,7 +456,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		return out
 	}
 	out = append(out, newSpace(theme.SizeNameInnerPadding),
-		newBracketLabel(headText("Events", len(m.Events)), colorAccent), newSpace(theme.SizeNamePadding))
+		newSectionHead("Events", len(m.Events)), newSpace(theme.SizeNamePadding))
 	return append(out, d.buildEvents(m.Events)...)
 }
 
@@ -529,7 +529,7 @@ func (d *drawer) dropKept() {
 // sectionTitle is a section's bold title; a container's carries a dot in its status's colour.
 func (d *drawer) sectionTitle(sec model.DetailSection) fyne.CanvasObject {
 	if sec.Group == "" {
-		return sectionHead(sec)
+		return sectionHeadOf(sec)
 	}
 	title := d.line(sec.Title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, "")
 	for _, it := range sec.Items {

@@ -116,6 +116,11 @@ func drawerHasText(d *drawer, s string) bool {
 			return true
 		}
 	}
+	for _, l := range findAll[*sectionHead](d.details) { // a section's head (stage_header.go)
+		if strings.Contains(l.title, s) {
+			return true
+		}
+	}
 	for _, l := range findAll[*secretText](d.details) { // a revealed value (D-25)
 		if strings.Contains(l.text, s) {
 			return true

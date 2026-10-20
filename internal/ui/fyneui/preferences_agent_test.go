@@ -131,8 +131,8 @@ func TestAgentPreferencesKeyHint(t *testing.T) {
 			t.Errorf("the hint is shortened to %q", shown)
 		}
 	}
-	var help *textLine
-	for _, l := range findAll[*textLine](w.Content()) {
+	var help *paragraph
+	for _, l := range findAll[*paragraph](w.Content()) { // a setting's help is wrapped, never cut (preferences_page.go)
 		if strings.HasPrefix(l.text, "Each conversation uses one") {
 			help = l
 		}
@@ -140,7 +140,11 @@ func TestAgentPreferencesKeyHint(t *testing.T) {
 	if help == nil {
 		t.Fatal("no help under LLM connections")
 	}
-	whole(help, "Each conversation uses one; a new conversation the default. API keys stay in Cogpit's settings folder.")
+	settle(w)
+	const helpText = "Each conversation uses one; a new conversation the default. API keys stay in Cogpit's settings folder."
+	if help.text != helpText || paragraphShown(help) != helpText {
+		t.Errorf("help %q, drawn %q, want %q whole", help.text, paragraphShown(help), helpText)
+	}
 
 	a.edit(litellm())
 	whole(a.form.keyHelp, "The key is kept in Cogpit's settings folder, readable only by you. Empty keeps it.")
@@ -165,8 +169,8 @@ func TestAgentPreferencesPrivateHint(t *testing.T) {
 	a := sh.settings.agent
 	a.edit(litellm())
 	settle(w)
-	var hint *textLine
-	for _, l := range findAll[*textLine](a.form.root) {
+	var hint *paragraph
+	for _, l := range findAll[*paragraph](a.form.root) {
 		if l.text == privateNotKept {
 			hint = l
 		}
@@ -177,7 +181,7 @@ func TestAgentPreferencesPrivateHint(t *testing.T) {
 	if hint.color != colorMuted || hint.size != theme.SizeNameCaptionText {
 		t.Errorf("the hint is drawn in %s at %s, want the settings' hint style", hint.color, hint.size)
 	}
-	if shown := test.WidgetRenderer(hint).Objects()[0].(*canvas.Text).Text; shown != privateNotKept {
+	if shown := paragraphShown(hint); shown != privateNotKept {
 		t.Errorf("the hint is shortened to %q", shown)
 	}
 	d := fyne.CurrentApp().Driver()
@@ -510,4 +514,13 @@ func TestRenderAgentPreferencesPlainHTTP(t *testing.T) {
 			renderAgentPreferences(t, mode, "preferences_agent_plainhttp", lanStudio(), plainSteps())
 		})
 	}
+}
+
+// paragraphShown is the text a paragraph draws, its lines joined: the whole of it when nothing is cut.
+func paragraphShown(p *paragraph) string {
+	var lines []string
+	for _, o := range test.WidgetRenderer(p).Objects() {
+		lines = append(lines, o.(*canvas.Text).Text)
+	}
+	return strings.Join(lines, " ")
 }

@@ -378,10 +378,10 @@ func navLabels(p *settingsPage) []string {
 	var out []string
 	for _, o := range p.nav.Objects {
 		switch x := o.(type) {
-		case *widget.Button:
+		case *navItem:
 			out = append(out, x.Text)
 		case *fyne.Container:
-			if lines := findAll[*textLine](x); len(lines) > 0 {
+			if lines := findAll[*bracketLabel](x); len(lines) > 0 {
 				out = append(out, lines[0].text)
 			} else {
 				out = append(out, "—")

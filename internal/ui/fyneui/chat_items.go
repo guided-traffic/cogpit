@@ -531,7 +531,7 @@ func (v *chatAnswerView) update(it engine.ChatItem, blocks []mdBlock) {
 	v.Refresh()
 }
 
-func (v *chatAnswerView) setWidth(w float32) { v.text.setWidth(w) }
+func (v *chatAnswerView) setWidth(w float32) { v.text.setWidth(max(w-answerIndent, 0)) }
 
 // --- a tool call ---
 

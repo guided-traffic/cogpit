@@ -219,14 +219,34 @@ func (r *stateWashRenderer) Refresh() {
 func (r *stateWashRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.bg, r.grad} }
 func (r *stateWashRenderer) Destroy()                     {}
 
-// sectionHead is an ungrouped section's head: its title in lowercase with the number of rows it
-// holds, "properties · 14", as a bracket label in the light of cluster data.
-func sectionHead(sec model.DetailSection) fyne.CanvasObject {
+// sectionHead is a section's head in the drawer: its title in lowercase with the number of rows it
+// holds, "properties · 14", as a bracket label in the light of cluster data. It keeps the title as
+// the model gave it, so that a reader of the drawer (a test, an accessibility layer) finds
+// "Properties" and not the label's lowercase.
+type sectionHead struct {
+	widget.BaseWidget
+	title string
+	n     int
+}
+
+func newSectionHead(title string, n int) *sectionHead {
+	h := &sectionHead{title: title, n: n}
+	h.ExtendBaseWidget(h)
+	return h
+}
+
+// CreateRenderer implements fyne.Widget.
+func (h *sectionHead) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(newBracketLabel(headText(h.title, h.n), colorAccent))
+}
+
+// sectionHeadOf is an ungrouped section's head: its title and its rows.
+func sectionHeadOf(sec model.DetailSection) fyne.CanvasObject {
 	n := len(sec.Items)
 	if sec.Table != nil {
 		n += len(sec.Table.Rows)
 	}
-	return newBracketLabel(headText(sec.Title, n), colorAccent)
+	return newSectionHead(sec.Title, n)
 }
 
 // headText is a bracket label's text for a title and a count; no count: the title alone.
