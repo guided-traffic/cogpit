@@ -93,7 +93,10 @@ func TestAlertsPill(t *testing.T) {
 		// so it is taller than the pill, its digits measured inside it in the renders.
 		r := test.WidgetRenderer(a).(*alertsRenderer)
 		bg, pill := r.bg.Position(), r.bg.Size()
-		for _, o := range []fyne.CanvasObject{r.img.img, r.count} {
+		for _, o := range []fyne.CanvasObject{r.img.img, r.count, r.segs[0].tok, r.segs[0].num, r.segs[1].tok, r.segs[1].num, r.segs[2].tok, r.segs[2].num} {
+			if !o.Visible() {
+				continue // the segmented pill shows the severities' tokens, not the single number (alerts.go)
+			}
 			at, sz := o.Position().Subtract(bg), o.Size()
 			if at.X < 0 || at.X+sz.Width > pill.Width {
 				t.Errorf("%s: %T at %v size %v reaches out of the pill %v", c.name, o, at, sz, pill)

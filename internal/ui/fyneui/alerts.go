@@ -178,6 +178,10 @@ func (b *alertsButton) CreateRenderer() fyne.WidgetRenderer {
 	r := &alertsRenderer{b: b, bg: canvas.NewRectangle(color.Transparent), img: newIconImage(),
 		count: canvas.NewText("", color.Transparent)}
 	r.count.TextStyle = fyne.TextStyle{Bold: true}
+	for i := range r.segs {
+		r.segs[i] = alertSegment{tok: canvas.NewRectangle(color.Transparent), num: canvas.NewText("", color.Transparent)}
+		r.segs[i].num.TextStyle = fyne.TextStyle{Bold: true}
+	}
 	r.Refresh()
 	return r
 }
@@ -187,6 +191,66 @@ type alertsRenderer struct {
 	bg    *canvas.Rectangle
 	img   *iconImage
 	count *canvas.Text
+	segs  [3]alertSegment // critical, warning, info: a token sized by the count and the count (Dark Cockpit)
+}
+
+// alertSegment is one severity's token and number in the segmented pill.
+type alertSegment struct {
+	tok *canvas.Rectangle
+	num *canvas.Text
+}
+
+// alertSegments are the pill's severities in order, with the token colour of each: the error colour
+// for critical, amber for warning, blue for info (the Succeeded token's blue; the pill's triangle
+// keeps the worst severity's own status colour, colour()).
+var alertSegments = [3]struct {
+	name  string
+	tone  fyne.ThemeColorName
+	count func(engine.AlertsSummary) int
+}{
+	{"critical", colorStatusError, func(s engine.AlertsSummary) int { return s.Critical }},
+	{"warning", colorStatusWarning, func(s engine.AlertsSummary) int { return s.Warning }},
+	{"info", colorStatusSucceeded, func(s engine.AlertsSummary) int { return s.Info }},
+}
+
+// segmented reports whether the pill shows the severities' tokens: while an Alertmanager answered
+// with alerts. Otherwise it shows its single number (zero, a dash, "warn").
+func (b *alertsButton) segmented() bool { return b.sum.Answered && b.sum.Total > 0 }
+
+// alertTokenWidth is a severity token's width: a short bar for one alert, growing with the count to
+// a long one at thirty, so that the pill reads as a proportion before it is read as numbers.
+func alertTokenWidth(n int) float32 { return 8 + 0.9*float32(min(n, 30)) }
+
+// segmentSizes are the shown segments' token widths and number sizes, in order, with the severity's
+// index.
+func (r *alertsRenderer) shownSegments() (idx []int, widths []float32, nums []fyne.Size) {
+	if !r.b.segmented() {
+		return nil, nil, nil
+	}
+	for i, sg := range alertSegments {
+		if n := sg.count(r.b.sum); n > 0 {
+			r.segs[i].num.Text = strconv.Itoa(n)
+			idx = append(idx, i)
+			widths = append(widths, alertTokenWidth(n))
+			nums = append(nums, r.segs[i].num.MinSize())
+		}
+	}
+	return idx, widths, nums
+}
+
+// segmentsWidth is the room the severities take, with a gap of the padding between neighbours and
+// between a token and its number.
+func (r *alertsRenderer) segmentsWidth() float32 {
+	_, pad, _ := r.metrics()
+	idx, widths, nums := r.shownSegments()
+	var w float32
+	for i := range idx {
+		w += widths[i] + pad + nums[i].Width
+		if i > 0 {
+			w += 2 * pad
+		}
+	}
+	return w
 }
 
 // metrics are the pill's inner sizes: the icon's side (the bell's), the padding at its ends
@@ -215,7 +279,11 @@ const countRise = 0.08
 
 func (r *alertsRenderer) MinSize() fyne.Size {
 	icon, pad, h := r.metrics()
-	return fyne.NewSize(2*(pad+alertsPillEnd)+icon+pad+r.count.MinSize().Width, h)
+	inner := r.count.MinSize().Width
+	if r.b.segmented() {
+		inner = r.segmentsWidth()
+	}
+	return fyne.NewSize(2*(pad+alertsPillEnd)+icon+pad+inner, h)
 }
 
 func (r *alertsRenderer) Layout(size fyne.Size) {
@@ -233,6 +301,22 @@ func (r *alertsRenderer) Layout(size fyne.Size) {
 	ts := r.count.MinSize()
 	r.count.Move(fyne.NewPos(x+pad+icon+pad, y+(h-ts.Height)/2-countRise*r.count.TextSize))
 	r.count.Resize(ts)
+	// The severities: a token of the count's width, 6 points high, and its number after it.
+	idx, widths, nums := r.shownSegments()
+	sx := x + pad + icon + pad
+	for k, i := range idx {
+		if k > 0 {
+			sx += 2 * pad
+		}
+		sg := r.segs[i]
+		sg.tok.Move(fyne.NewPos(sx, y+(h-6)/2))
+		sg.tok.Resize(fyne.NewSize(widths[k], 6))
+		sg.tok.CornerRadius = 3
+		sx += widths[k] + pad
+		sg.num.Move(fyne.NewPos(sx, y+(h-nums[k].Height)/2-countRise*sg.num.TextSize))
+		sg.num.Resize(nums[k])
+		sx += nums[k].Width
+	}
 }
 
 func (r *alertsRenderer) Refresh() {
@@ -248,13 +332,34 @@ func (r *alertsRenderer) Refresh() {
 		alpha = 0x48
 	}
 	r.bg.FillColor = withAlpha(fg, alpha)
+	// With severities to show the plate is neutral, so that the tokens carry the colours and the
+	// triangle the worst one's.
+	seg := r.b.segmented()
+	r.count.Hidden = seg
+	if seg {
+		r.bg.FillColor = themeColor(th, colorChip)
+		if r.b.hovered {
+			r.bg.FillColor = themeColor(th, colorRowHover)
+		}
+	}
+	for i, sg := range r.segs {
+		tone := themeColor(th, alertSegments[i].tone)
+		sg.tok.FillColor = tone
+		sg.num.TextSize, sg.num.Color = countSize(th), themeColor(th, theme.ColorNameForeground)
+		on := seg && alertSegments[i].count(r.b.sum) > 0
+		sg.tok.Hidden, sg.num.Hidden = !on, !on
+	}
 	r.Layout(r.b.Size())
 	r.bg.Refresh()
 	r.count.Refresh()
 }
 
 func (r *alertsRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.bg, r.img.img, r.count}
+	objs := []fyne.CanvasObject{r.bg, r.img.img, r.count}
+	for _, sg := range r.segs {
+		objs = append(objs, sg.tok, sg.num)
+	}
+	return objs
 }
 
 func (r *alertsRenderer) Destroy() {}
