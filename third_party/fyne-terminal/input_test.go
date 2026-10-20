@@ -203,7 +203,7 @@ func TestTerminal_TypedShortcut(t *testing.T) {
 			want: []byte{24},
 		},
 		// Cogpit patch: Ctrl with a named key sends xterm's sequence with the modifier parameter 5
-		// (6 with ⇧), or nothing; it sent the control character of the name's first letter, so
+		// (6 with ⇧); Return and Backspace go as without Ctrl, Tab and Escape send nothing; it sent the control character of the name's first letter, so
 		// Ctrl+↓ and Ctrl+Delete sent ^D (end of input: a shell at an empty prompt exits), Ctrl+↑
 		// ^U, Ctrl+← ^L, Ctrl+→ and Ctrl+Return ^R, Ctrl+Home ^H.
 		"Control+Left":        {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyLeft}, []byte("\x1b[1;5D")},
@@ -213,7 +213,9 @@ func TestTerminal_TypedShortcut(t *testing.T) {
 		"Control+F1":          {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyF1}, []byte("\x1b[1;5P")},
 		"Control+F5":          {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyF5}, []byte("\x1b[15;5~")},
 		"Control+Shift+Right": {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift, KeyName: fyne.KeyRight}, []byte("\x1b[1;6C")},
-		"Control+Return":      {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyReturn}, []byte{}},
+		"Control+Return":      {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyReturn}, []byte{'\r'}},
+		"Control+Backspace":   {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyBackspace}, []byte{asciiBackspace}},
+		"Control+Tab":         {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyTab}, []byte{}},
 		"Control+Escape":      {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl, KeyName: fyne.KeyEscape}, []byte{}},
 		"Control+Shift+C":     {&desktop.CustomShortcut{Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift, KeyName: fyne.KeyC}, []byte{}},
 	}

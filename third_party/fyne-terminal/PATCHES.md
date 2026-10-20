@@ -177,8 +177,8 @@ unterminated OSC took about 60 s). The ten-minute runs with the fixed harness (f
 - A reversed character's default colours are the theme's when it is written: after a switch between
   dark and light, highlighted text written before keeps the old theme's (as upstream's swap did).
 - ⌥ (Alt) with a named key sends nothing, where xterm sends `CSI 1;3 D` and the like (what a
-  macOS user expects of ⌥← in a shell, word movement, is not settled here); Ctrl with Return, Tab,
-  Backspace or Escape sends nothing either.
+  macOS user expects of ⌥← in a shell, word movement, is not settled here); Ctrl with Tab or
+  Escape sends nothing either (Ctrl with Return or Backspace goes as without Ctrl, as in xterm).
 
 `go.mod` requires Fyne v2.8.1 (Cogpit's own module builds it with v2.8.2, the latest release, since
 the Renovate updates of 2026-10-15, e858ee49), where upstream's asks for an unreleased Fyne

@@ -197,11 +197,20 @@ func (t *Terminal) TypedShortcut(s fyne.Shortcut) {
 		t.ShortcutHandler.TypedShortcut(s) // it's not clear how we can check if this consumed the event
 
 		// Cogpit patch: Ctrl, or Ctrl and ⇧, with a named key (an arrow, Delete, F1) sends xterm's
-		// sequence or nothing (typeModifiedKey); it took the name's first letter as a character.
+		// sequence (typeModifiedKey); Return, Enter and Backspace, which have none, go as without
+		// Ctrl, as in xterm and Terminal.app; Tab and Escape send nothing. It took the name's first
+		// letter as a character.
 		named := len(ds.KeyName) > 1 && ds.KeyName != fyne.KeySpace
 		if named && ds.Modifier&fyne.KeyModifierControl != 0 &&
 			ds.Modifier&^(fyne.KeyModifierControl|fyne.KeyModifierShift) == 0 {
-			t.typeModifiedKey(ds.KeyName, ds.Modifier)
+			if !t.typeModifiedKey(ds.KeyName, ds.Modifier) {
+				switch ds.KeyName {
+				case fyne.KeyReturn, fyne.KeyEnter:
+					_, _ = t.in.Write([]byte{'\r'})
+				case fyne.KeyBackspace:
+					_, _ = t.in.Write([]byte{asciiBackspace})
+				}
+			}
 			return
 		}
 
