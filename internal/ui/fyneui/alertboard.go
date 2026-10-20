@@ -156,6 +156,9 @@ func (b *alertBoard) show(m *engine.AlertBoardModel) {
 		objs = append(objs, container.NewCenter(inset("", theme.SizeNameInnerPadding,
 			newTextLine(text, colorMuted, theme.SizeNameText, fyne.TextStyle{}))))
 	}
+	if strip := alertStrip(m.Groups); strip != nil {
+		objs = append(objs, strip)
+	}
 	for _, g := range m.Groups {
 		objs = append(objs, b.groupHeader(g))
 		if g.Folded {
@@ -264,10 +267,44 @@ func (t textWidth) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
+// alertTone is a severity's token colour on the board and in the title bar's pill: the status colour
+// of the group, except info, which is the Succeeded blue (the pill's, alerts.go).
+func alertTone(g engine.AlertGroup) fyne.ThemeColorName {
+	if g.Key == "info" {
+		return colorStatusSucceeded
+	}
+	return statusColorName(g.Status)
+}
+
+// alertStrip is the board's overview (Dark Cockpit): a bracket "firing · 24" over one rounded token
+// per alert, worst first, in its severity's colour, so that a cascade (many alerts of one severity,
+// or one of each) shows before the list is read. Nil without alerts. At most alertStripMax tokens.
+func alertStrip(groups []engine.AlertGroup) fyne.CanvasObject {
+	total := 0
+	var toks []tok
+	for _, g := range groups {
+		for range g.Count {
+			if len(toks) < alertStripMax {
+				toks = append(toks, tok{color: alertTone(g)})
+			}
+		}
+		total += g.Count
+	}
+	if total == 0 {
+		return nil
+	}
+	row := newTokenRow(10, toks...)
+	return inset("", theme.SizeNamePadding, box(layout.NewCustomPaddedVBoxLayout(8),
+		newBracketLabel("firing · "+strconv.Itoa(total), colorAccent), row, newSpace(theme.SizeNamePadding)))
+}
+
+// alertStripMax bounds the strip's tokens; the list below has every alert.
+const alertStripMax = 120
+
 // groupHeader is a severity's line: its fold, a dot in its colour, its title and count.
 func (b *alertBoard) groupHeader(g engine.AlertGroup) fyne.CanvasObject {
 	icon := widget.NewIcon(chevron(g.Folded))
-	dot := newSurface(statusColorName(g.Status))
+	dot := newSurface(alertTone(g))
 	dot.min = fyne.NewSize(10, 10)
 	dot.radius = sizeChipRadius
 	title := newTextLine(g.Title, theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})

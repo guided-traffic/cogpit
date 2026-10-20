@@ -226,8 +226,13 @@ func (r *healthBarRenderer) Layout(size fyne.Size) {
 		if r.b.total > 0 {
 			w = size.Width * float32(s.Count) / float32(r.b.total)
 		}
+		// Tokens, not one smeared bar (Dark Cockpit): a hairline gap parts the states.
+		gap := float32(2)
+		if i == len(r.b.statuses)-1 || w < 6 {
+			gap = 0
+		}
 		r.segs[i].Move(fyne.NewPos(x, y))
-		r.segs[i].Resize(fyne.NewSize(w, h))
+		r.segs[i].Resize(fyne.NewSize(max(w-gap, 1), h))
 		x += w
 	}
 }
@@ -247,6 +252,7 @@ func (r *healthBarRenderer) Refresh() {
 			c = colorMuted
 		}
 		r.segs[i].FillColor = themeColor(th, c)
+		r.segs[i].CornerRadius = min(radius, 3.5)
 		r.segs[i].Refresh()
 		r.objs = append(r.objs, r.segs[i])
 	}

@@ -1,6 +1,8 @@
 package fyneui
 
 import (
+	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"fyne.io/fyne/v2"
@@ -90,14 +92,22 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 		grid = nil
 	}
 	seen := map[string]bool{}
+	// Each group of kinds is a bracket in the cluster's cyan with its object count ("sources · 5"),
+	// the first one, which the navigator leaves without a name, "release & build".
+	totals := map[string]int{}
+	for _, k := range m.Kinds {
+		totals[k.Section] += k.Count
+	}
 	for i, k := range m.Kinds {
 		if i == 0 || k.Section != section {
 			flush()
 			section = k.Section
-			if section != "" {
-				objs = append(objs, inset("", theme.SizeNameInnerPadding,
-					newTextLine(section, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})))
+			name := strings.ToLower(section)
+			if name == "" {
+				name = "release & build"
 			}
+			head := newBracketLabel(name+" · "+strconv.Itoa(totals[section]), colorAccent)
+			objs = append(objs, inset("", theme.SizeNameInnerPadding, head))
 		}
 		t := p.tiles[k.Kind]
 		if t == nil {
@@ -189,8 +199,15 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 	objs := make([]fyne.CanvasObject, 0, len(k.States))
 	for _, st := range k.States {
 		title := st.Title
-		link := newTapTarget(container.NewHBox(newDot(statusColorName(st.Status)),
-			newTextLine(formatCount(int64(st.Count))+" "+title, colorLink, theme.SizeNameText, fyne.TextStyle{})), func() { t.openState(title) })
+		// Quiet when healthy: a Ready count is muted text, and only the states that need a look carry
+		// their status colour (Dark Cockpit).
+		tone := statusColorName(st.Status)
+		textTone := tone
+		if st.Status == model.StatusOK || st.Status == model.StatusSucceeded {
+			textTone = colorMuted
+		}
+		link := newTapTarget(container.NewHBox(newDot(tone),
+			newTextLine(formatCount(int64(st.Count))+" "+title, textTone, theme.SizeNameText, fyne.TextStyle{})), func() { t.openState(title) })
 		t.links[string(st.State)] = link
 		objs = append(objs, link)
 	}
@@ -216,6 +233,8 @@ func statesEqual(a, b []engine.FluxStateCount) bool {
 // CreateRenderer implements fyne.Widget.
 func (t *fluxTile) CreateRenderer() fyne.WidgetRenderer {
 	line := container.NewBorder(nil, nil, t.link, t.count)
-	return widget.NewSimpleRenderer(container.NewStack(newSurface(theme.ColorNameInputBackground),
+	plate := newSurface(theme.ColorNameInputBackground)
+	plate.radius = theme.SizeNameDialogRadius
+	return widget.NewSimpleRenderer(container.NewStack(plate,
 		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(line, t.bar, t.states))))
 }

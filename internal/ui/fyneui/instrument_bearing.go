@@ -183,6 +183,9 @@ func (r *bearingRenderer) Refresh() {
 		rect := r.rects[i]
 		rect.CornerRadius = 3.5
 		switch it.state {
+		case bearingOff:
+			// A dim plate with a hairline, so that it still reads as a slot on a light page.
+			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = c, themeColor(th, colorBracket), 1
 		case bearingNeeds:
 			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = color.Transparent, c, 1.5
 		default:
