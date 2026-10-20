@@ -42,6 +42,9 @@ type View struct {
 	// the view's own history: an Edit tab hands it to its Undo Revert, whose text the history no
 	// longer reaches because a Revert sets the text from outside.
 	OnNothingToUndo func()
+	// OnFind, when set, gets the find shortcut (⌘F, Ctrl+F): the find bar of the dock tab the view
+	// edits in opens (the window's findbar.go). Without it the view ignores the key.
+	OnFind func()
 
 	doc       document
 	readOnly  bool
@@ -428,9 +431,9 @@ func (v *View) KeyUp(ev *fyne.KeyEvent) {
 }
 
 // TypedShortcut implements fyne.Shortcutable: copy, cut, paste, select all, undo (⌘Z, Ctrl+Z) and
-// redo (⌘Y, Ctrl+Y, and ⇧⌘Z or Ctrl+Shift+Z, which Fyne delivers as a custom shortcut), and the
-// navigation shortcuts that arrive with modifiers (document start and end, line start and end, word
-// moves).
+// redo (⌘Y, Ctrl+Y, and ⇧⌘Z or Ctrl+Shift+Z, which Fyne delivers as a custom shortcut), find (⌘F,
+// Ctrl+F, to OnFind), and the navigation shortcuts that arrive with modifiers (document start and
+// end, line start and end, word moves).
 func (v *View) TypedShortcut(s fyne.Shortcut) {
 	switch sc := s.(type) {
 	case *fyne.ShortcutUndo:
@@ -681,6 +684,10 @@ func (v *View) customShortcut(sc *desktop.CustomShortcut) {
 	switch {
 	case sc.KeyName == fyne.KeyZ && extend && mod == primaryModifier: // ⇧⌘Z, Ctrl+Shift+Z: redo
 		v.Redo()
+	case sc.KeyName == fyne.KeyF && !extend && mod == primaryModifier: // ⌘F, Ctrl+F: find
+		if v.OnFind != nil {
+			v.OnFind()
+		}
 	case (sc.KeyName == fyne.KeyHome && (ctrl || super)) || (sc.KeyName == fyne.KeyUp && super):
 		v.goalCol = -1
 		v.moveTo(pos{}, extend)

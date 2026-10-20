@@ -150,6 +150,9 @@ type editorTab struct {
 	tab  engine.DockTab
 	pane *editorPane
 	diff *diffView
+	// find is the editor's find bar, opened by ⌘F (findkeys.go); editor is the editor with it.
+	find   *findBar
+	editor fyne.CanvasObject
 
 	body     *fyne.Container // the editor, or the review
 	review   fyne.CanvasObject
@@ -193,7 +196,9 @@ func newEditorTab(sh *shell, t engine.DockTab) *editorTab {
 	e.review = container.NewBorder(
 		container.NewVBox(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, e.banner), newDivider(false)),
 		nil, nil, nil, e.diff.list)
-	e.body = container.NewStack(e.pane.view)
+	e.find = newFindBar(sh, e.pane.view)
+	e.editor = container.NewBorder(nil, e.find.root, nil, nil, e.pane.view)
+	e.body = container.NewStack(e.editor)
 	footer := container.NewStack(newSurface(colorDock), inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewBorder(nil, nil, nil, container.NewStack(e.editBtns, e.revBtns), e.status)))
 	e.root = container.NewBorder(nil, container.NewVBox(newDivider(false), footer), nil, nil,
@@ -293,7 +298,7 @@ func (e *editorTab) showReview(text string, lines []engine.DiffLine, banner stri
 
 func (e *editorTab) backToEditor() {
 	e.reviewing = false
-	e.body.Objects = []fyne.CanvasObject{e.pane.view}
+	e.body.Objects = []fyne.CanvasObject{e.editor}
 	e.body.Refresh()
 	e.revBtns.Hide()
 	e.editBtns.Show()

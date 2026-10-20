@@ -126,6 +126,7 @@ type findBar struct {
 
 func newFindBar(sh *shell, view *yamlview.View) *findBar {
 	b := &findBar{sh: sh, view: view, cur: -1}
+	view.OnFind = func() { b.open() } // ⌘F in the editor (findkeys.go)
 	b.find = newSearchEntry(sh)
 	b.find.SetPlaceHolder("Find")
 	b.find.OnChanged = func(string) { b.refresh(true) }
