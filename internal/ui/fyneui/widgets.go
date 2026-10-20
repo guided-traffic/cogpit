@@ -203,6 +203,8 @@ func (r *surfaceRenderer) Refresh() {
 	if r.s.stroke != "" {
 		r.rect.StrokeColor = themeColor(th, r.s.stroke)
 		r.rect.StrokeWidth = th.Size(theme.SizeNameInputBorder)
+	} else {
+		r.rect.StrokeWidth = 0 // a surface that had an outline and lost it
 	}
 	r.rect.Refresh()
 }

@@ -227,9 +227,9 @@ func TestIntegrationsSection(t *testing.T) {
 		text string
 		c    fyne.ThemeColorName
 	}{
-		engine.IntegrationMetricsServer: {"Found automatically", colorStatusOK},
+		engine.IntegrationMetricsServer: {"Found automatically", colorMuted},
 		engine.IntegrationPrometheus:    {"Needs manual configuration: none found by name", colorStatusWarning},
-		engine.IntegrationAlertmanager:  {"Found automatically: monitoring/kube-prometheus-alertmanager:9093", colorStatusOK},
+		engine.IntegrationAlertmanager:  {"Found automatically: monitoring/kube-prometheus-alertmanager:9093", colorMuted},
 		engine.IntegrationTrivy:         {"Not in this cluster: aquasecurity.github.io is not served (no Trivy Operator)", colorMuted},
 		engine.IntegrationKyverno:       {"No permission: the current user may not list policyreports", colorStatusError},
 	}
@@ -237,6 +237,10 @@ func TestIntegrationsSection(t *testing.T) {
 		r := integrationRowOf(t, p.integrationRows, name)
 		if r.status.text != w.text || r.status.color != w.c || !r.check.Checked {
 			t.Errorf("%s: %q in %s, on %v", name, r.status.text, w.c, r.check.Checked)
+		}
+		// Quiet when healthy (Dark Cockpit): a found integration is muted words and a mint dot.
+		if name == engine.IntegrationMetricsServer && (r.dot.fill != colorStatusOK || !r.dot.Visible()) {
+			t.Errorf("%s: the status dot is %s, visible %v", name, r.dot.fill, r.dot.Visible())
 		}
 		if in, _ := engine.IntegrationOf(name); r.check.Text != in.Label || r.adds.text != in.Adds {
 			t.Errorf("%s: label %q, adds %q", name, r.check.Text, r.adds.text)

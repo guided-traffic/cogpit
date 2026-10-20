@@ -55,7 +55,7 @@ func (p *settingsPage) clusterIntegrationSection(in engine.IntegrationInfo) fyne
 	r := newIntegrationRow(in, func(on bool) {
 		p.setCluster(integrationsSetting, map[string]bool{string(in.Name): on}) // nothing while syncing
 	})
-	r.check.Text = integrationSwitchLabel
+	r.setLabel(integrationSwitchLabel)
 	r.check.Refresh()
 	r.placeLinks = func(text, where string) []lineSeg { return p.sh.serviceSegments(text, where, ctx) }
 	p.integrationRows = []*integrationRow{r}

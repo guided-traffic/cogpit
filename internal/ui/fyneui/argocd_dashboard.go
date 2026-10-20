@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"slices"
+	"strconv"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -30,16 +31,17 @@ const argoActivityLines = 8
 
 // argoPanel shows the Dashboard's model.
 type argoPanel struct {
-	sh       *shell
-	data     *engine.ArgoCDDashboardModel
-	strip    *fyne.Container
-	cards    *fyne.Container
-	activity *fyne.Container
-	filter   *searchEntry // the activity's filter: the window's; F1–F12 are the hotbar's (A64)
-	openUI   *widget.Button
-	sync     *widget.Button
-	refresh  *widget.Button
-	root     fyne.CanvasObject
+	sh                      *shell
+	data                    *engine.ArgoCDDashboardModel
+	strip                   *fyne.Container
+	cards                   *fyne.Container
+	activity                *fyne.Container
+	stripHead, activityHead *bracketLabel // the groups' heads (Dark Cockpit)
+	filter                  *searchEntry  // the activity's filter: the window's; F1–F12 are the hotbar's (A64)
+	openUI                  *widget.Button
+	sync                    *widget.Button
+	refresh                 *widget.Button
+	root                    fyne.CanvasObject
 
 	requests atomic.Int32 // coalesced as the Workloads Overview's (overview.go)
 }
@@ -65,15 +67,16 @@ func newArgoPanel(sh *shell) *argoPanel {
 	})
 	p.sync.Disable()
 	p.refresh.Disable()
-	actions := container.NewHBox(newTextLine("Applications", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}),
-		layout.NewSpacer(), p.openUI, p.sync, p.refresh)
-	title := newTextLine("Recent activity", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
+	actions := container.NewHBox(layout.NewSpacer(), p.openUI, p.sync, p.refresh)
+	p.stripHead = newBracketLabel("applications", colorAccent)
+	p.activityHead = newBracketLabel("recent activity", colorAccent)
 	p.filter = newSearchEntry(sh)
 	p.filter.SetPlaceHolder("Filter activity…")
 	p.filter.OnChanged = func(string) { p.showActivity() }
-	head := container.NewBorder(nil, nil, title, sized(sizeSearchWidth, "", p.filter))
+	head := container.NewBorder(nil, nil, nil, sized(sizeSearchWidth, "", p.filter))
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
-		container.NewVBox(p.strip, newSpace(theme.SizeNamePadding), actions, p.cards, newSpace(theme.SizeNamePadding), head, p.activity))
+		container.NewVBox(p.stripHead, newSpace(theme.SizeNameInnerPadding), p.strip, newSpace(theme.SizeNamePadding), actions, p.cards,
+			gapOf(groupGap), p.activityHead, head, p.activity))
 	return p
 }
 
@@ -108,6 +111,9 @@ func (p *argoPanel) request() {
 // show draws a model.
 func (p *argoPanel) show(m *engine.ArgoCDDashboardModel) {
 	p.data = m
+	if len(m.Strip) > 0 {
+		p.stripHead.SetText("applications · " + strconv.Itoa(m.Strip[0].Count))
+	}
 	tiles := make([]fyne.CanvasObject, 0, len(m.Strip))
 	for _, t := range m.Strip {
 		tiles = append(tiles, newArgoTile(p.sh, t, m.Synced))
@@ -166,9 +172,15 @@ func (p *argoPanel) enable(b *widget.Button, on bool) {
 // label below; a click opens the Applications view filtered to the tile's state (its status filter,
 // D-34: "Sync: OutOfSync", "Health: Degraded"), Applications unfiltered.
 func newArgoTile(sh *shell, t engine.ArgoTile, synced bool) fyne.CanvasObject {
+	// Quiet when healthy (Dark Cockpit): the number is the text colour, a zero is muted, and only a
+	// count of something that needs a look is in its status colour with a spine at the tile's edge.
 	color := theme.ColorNameForeground
-	if t.Count > 0 && t.Status != model.StatusNone {
+	lit := t.Count > 0 && t.Status != model.StatusNone && t.Status != model.StatusOK && t.Status != model.StatusSucceeded
+	switch {
+	case lit:
 		color = statusColorName(t.Status)
+	case t.Count == 0:
+		color = colorMuted
 	}
 	count := formatCount(int64(t.Count))
 	if !synced {
@@ -176,8 +188,15 @@ func newArgoTile(sh *shell, t engine.ArgoTile, synced bool) fyne.CanvasObject {
 	}
 	num := newTextLine(count, color, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})
 	label := newLinkText(t.Label, func() { sh.openArgoApplications(t.State) })
-	return container.NewStack(newSurface(theme.ColorNameInputBackground),
-		inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVBox(num, label)))
+	plate := newSurface(theme.ColorNameInputBackground)
+	plate.radius = theme.SizeNameDialogRadius
+	body := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(num, label))
+	if !lit {
+		return container.NewStack(plate, body)
+	}
+	spine := newSurface(statusColorName(t.Status))
+	spine.radius, spine.min = theme.SizeNameSelectionRadius, fyne.NewSize(3, 0)
+	return container.NewStack(plate, container.NewBorder(nil, nil, inset("", theme.SizeNameInnerPadding, spine), nil, body))
 }
 
 // openArgoApplications opens Argo CD's Applications view filtered to a state of its status filter
@@ -200,16 +219,28 @@ func newArgoCard(sh *shell, k engine.OverviewKind) fyne.CanvasObject {
 // newArgoActivityLine is one entry of the recent activity: how long ago, the Application (a link
 // to it), what happened in its status colour, the revision.
 func newArgoActivityLine(sh *shell, a engine.ArgoActivityItem, now time.Time) fyne.CanvasObject {
-	ago := newTextLine(model.FormatAge(now.Sub(a.At))+" ago", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	// Quiet when healthy: the sentence is text and muted colour; only a dot and the age carry a
+	// failure's or a wait's colour.
+	tone := statusColorName(a.Status)
+	healthy := a.Status == model.StatusOK || a.Status == model.StatusSucceeded || a.Status == model.StatusNone
+	ageTone := tone
+	if healthy {
+		ageTone = colorMuted
+	}
+	ago := newTextLine(model.FormatAge(now.Sub(a.At))+" ago", ageTone, theme.SizeNameText, fyne.TextStyle{})
 	ref := a.Ref
 	app := newLinkText(ref.Name, func() { sh.dispatch("ui.navigate", refParams{Ref: ref}, nil) })
 	text := a.Text
 	if a.Revision != "" {
 		text += " · " + a.Revision
 	}
-	what := newTextLine(text, statusColorName(a.Status), theme.SizeNameText, fyne.TextStyle{})
+	what := newTextLine(text, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	what.truncate = true
-	return container.NewBorder(nil, nil, container.NewHBox(ago, box(naturalWidth{text: ref.Name}, app)), nil, what)
+	dotted := fyne.CanvasObject(newDotSlot(newSurfaceDot(tone)))
+	if healthy {
+		dotted = newDotSlot(newSurfaceDot(colorTokenDim))
+	}
+	return container.NewBorder(nil, nil, container.NewHBox(dotted, ago, box(naturalWidth{text: ref.Name}, app)), nil, what)
 }
 
 // naturalWidth lays out a link (which takes any width, shortening its text) as wide as its text.
@@ -224,4 +255,11 @@ func (n naturalWidth) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		o.Move(fyne.NewPos(0, 0))
 		o.Resize(size)
 	}
+}
+
+// newSurfaceDot is a status dot of 6 points: the colour of a state, drawn as a small rounded plate.
+func newSurfaceDot(c fyne.ThemeColorName) *surface {
+	d := newSurface(c)
+	d.radius, d.min = theme.SizeNameSelectionRadius, fyne.NewSize(6, 6)
+	return d
 }

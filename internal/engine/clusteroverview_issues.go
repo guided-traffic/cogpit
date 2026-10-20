@@ -54,6 +54,9 @@ type overviewEntry struct {
 	node     string
 	active   bool
 	req, lim model.Usage
+	// A node's or a pod's own state, as its view's row shows it: the Overview's health header counts
+	// them (ClusterOverviewModel.NodeStates, PodStates).
+	state model.Status
 
 	// An event's last time: its issue leaves the Issues an hour later.
 	last time.Time
@@ -66,6 +69,8 @@ type overviewBuild struct {
 	issues  []ClusterIssue
 	groups  map[string]groupTotals
 	masters []string // the control-plane nodes, sorted
+	// nodeStates and podStates count the cluster's nodes and pods by state, in all namespaces.
+	nodeStates, podStates map[model.Status]int
 	// masterAddrs are the control-plane nodes' addresses, by node: the cluster's Prometheus history
 	// finds the masters' series by them too (Hub.SetNodeAddresses, A43).
 	masterAddrs map[string][]string
@@ -134,7 +139,8 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 	defer src.mu.Unlock()
 	ob := &overviewBuild{at: now, synced: src.synced(), errText: src.errText(), // before the lists: never claims more
 		nodesSynced: src.nodes == nil || src.nodes.handle.HasSynced() || src.nodes.handle.Err() != nil,
-		groups:      map[string]groupTotals{NodesMaster: {}, NodesWorker: {}}}
+		groups:      map[string]groupTotals{NodesMaster: {}, NodesWorker: {}},
+		nodeStates:  map[model.Status]int{}, podStates: map[model.Status]int{}}
 	context := src.b.Context
 
 	nodeGroup := map[string]string{}
@@ -153,6 +159,7 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 			ob.masterAddrs[name] = e.addrs
 		}
 		nodeGroup[name] = g
+		ob.nodeStates[e.state]++
 		t := ob.groups[g]
 		t.nodes++
 		t.allocatable, t.capacity = t.allocatable.Add(e.alloc), t.capacity.Add(e.capa)
@@ -166,6 +173,7 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 		if e.issue != nil {
 			ob.issues = append(ob.issues, *e.issue)
 		}
+		ob.podStates[e.state]++
 		g, ok := nodeGroup[e.node]
 		if !e.active || !ok {
 			return
@@ -203,7 +211,7 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 // capacity.
 func nodeEntry(p *model.KindProfile, context string, obj *unstructured.Unstructured) *overviewEntry {
 	row := model.BuildRow(p, context, obj)
-	e := &overviewEntry{node: obj.GetName()}
+	e := &overviewEntry{node: obj.GetName(), state: row.Status}
 	if i := p.ColumnIndex("roles"); i >= 0 && i < len(row.Cells) {
 		for _, r := range strings.Split(row.Cells[i].Text, ",") {
 			if r = strings.TrimSpace(r); r == "control-plane" || r == "master" {
@@ -231,7 +239,7 @@ func nodeEntry(p *model.KindProfile, context string, obj *unstructured.Unstructu
 // podEntry is a pod's issue (the Pods view's warning icon) and what it takes of its node.
 func podEntry(p *model.KindProfile, context string, obj *unstructured.Unstructured) *overviewEntry {
 	row := model.BuildRow(p, context, obj)
-	e := &overviewEntry{node: model.NestedString(obj.Object, "spec", "nodeName")}
+	e := &overviewEntry{node: model.NestedString(obj.Object, "spec", "nodeName"), state: row.Status}
 	switch model.NestedString(obj.Object, "status", "phase") {
 	case "Succeeded", "Failed":
 	default:

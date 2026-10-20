@@ -1,6 +1,8 @@
 package fyneui
 
 import (
+	"strconv"
+	"strings"
 	"sync/atomic"
 
 	"fyne.io/fyne/v2"
@@ -90,14 +92,25 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 		grid = nil
 	}
 	seen := map[string]bool{}
+	// Each group of kinds is a bracket in the cluster's cyan with its object count ("sources · 5"),
+	// the first one, which the navigator leaves without a name, "release & build".
+	totals := map[string]int{}
+	for _, k := range m.Kinds {
+		totals[k.Section] += k.Count
+	}
 	for i, k := range m.Kinds {
 		if i == 0 || k.Section != section {
 			flush()
 			section = k.Section
-			if section != "" {
-				objs = append(objs, inset("", theme.SizeNameInnerPadding,
-					newTextLine(section, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})))
+			name := strings.ToLower(section)
+			if name == "" {
+				name = "release & build"
 			}
+			head := newBracketLabel(name+" · "+strconv.Itoa(totals[section]), colorAccent)
+			if len(objs) > 0 {
+				objs = append(objs, gapOf(groupGap))
+			}
+			objs = append(objs, head)
 		}
 		t := p.tiles[k.Kind]
 		if t == nil {
@@ -138,6 +151,7 @@ type fluxTile struct {
 	count  *textLine
 	bar    *healthBar
 	states *fyne.Container
+	plate  *surface // the card's plate: dim, a hairline only, while the kind has no objects
 	// links are the states' links by state ("notReady"): a dot in the state's colour and the
 	// count with the state's name, each opening the kind's view filtered to the state.
 	links map[string]*tapTarget
@@ -151,6 +165,8 @@ func newFluxTile(sh *shell, kind string) *fluxTile {
 	t.count = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	t.bar = newHealthBar(sh)
 	t.states = container.NewHBox()
+	t.plate = newSurface(theme.ColorNameInputBackground)
+	t.plate.radius = theme.SizeNameDialogRadius
 	t.ExtendBaseWidget(t)
 	return t
 }
@@ -181,6 +197,15 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 	}
 	t.bar.names = names
 	t.bar.set(statuses, k.Count)
+	// A kind without objects is a dim card: a hairline in place of the plate, a muted count.
+	if empty := k.Count == 0; empty != (t.plate.stroke != "") {
+		if empty {
+			t.plate.fill, t.plate.stroke = theme.ColorNameBackground, theme.ColorNameSeparator
+		} else {
+			t.plate.fill, t.plate.stroke = theme.ColorNameInputBackground, ""
+		}
+		t.plate.Refresh()
+	}
 	if t.drawn && statesEqual(t.shown, k.States) {
 		return
 	}
@@ -189,8 +214,15 @@ func (t *fluxTile) set(k engine.FluxDashboardKind) {
 	objs := make([]fyne.CanvasObject, 0, len(k.States))
 	for _, st := range k.States {
 		title := st.Title
-		link := newTapTarget(container.NewHBox(newDot(statusColorName(st.Status)),
-			newTextLine(formatCount(int64(st.Count))+" "+title, colorLink, theme.SizeNameText, fyne.TextStyle{})), func() { t.openState(title) })
+		// Quiet when healthy: the words stay muted or in the text colour, and only the dot and the
+		// bar carry a state's colour (Dark Cockpit).
+		tone := statusColorName(st.Status)
+		textTone := theme.ColorNameForeground
+		if st.Status == model.StatusOK || st.Status == model.StatusSucceeded {
+			textTone = colorMuted
+		}
+		link := newTapTarget(container.NewHBox(newDot(tone),
+			newTextLine(formatCount(int64(st.Count))+" "+title, textTone, theme.SizeNameText, fyne.TextStyle{})), func() { t.openState(title) })
 		t.links[string(st.State)] = link
 		objs = append(objs, link)
 	}
@@ -216,6 +248,6 @@ func statesEqual(a, b []engine.FluxStateCount) bool {
 // CreateRenderer implements fyne.Widget.
 func (t *fluxTile) CreateRenderer() fyne.WidgetRenderer {
 	line := container.NewBorder(nil, nil, t.link, t.count)
-	return widget.NewSimpleRenderer(container.NewStack(newSurface(theme.ColorNameInputBackground),
+	return widget.NewSimpleRenderer(container.NewStack(t.plate,
 		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(line, t.bar, t.states))))
 }

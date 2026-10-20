@@ -61,6 +61,30 @@ they cost the GPU, not a raster per frame (the wave is one raster, redrawn only 
 | `wave` | a glowing sine or series, crisp core and faint halo | the agent's thinking, the cluster's pulse, sparklines |
 | `horizon` | stage light and perspective grid floor | welcome, empty states, About, connecting |
 
+## Instruments (cluster Overview, integrations, dashboards)
+
+Built on the shapes above, in `instrument_*.go` and the views they sit in:
+
+| Instrument | What it is | Where |
+|---|---|---|
+| Health header | bracketed groups in the cyan, three equal columns on the page's one left edge ([columnsLayout](../../internal/ui/fyneui/instrument_health.go)): nodes as squares that fill their column (28 points at most), pods as bars by state, the integrations' bearing; healthy tokens at about a third of their light, a legend names only the states that are not healthy | Overview ([instrument_health.go](../../internal/ui/fyneui/instrument_health.go)) |
+| Bearing | the integrations as the same 28 point tiles as in Settings, spread over the column with the short name beneath: tint and outline by state (cyan live, amber needs the user, coral failing, dim off or absent), a glyph per integration; a tooltip says it in words | Overview header, top of Settings › Integrations ([instrument_bearing.go](../../internal/ui/fyneui/instrument_bearing.go), [instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go)) |
+| Instrument rows | the tile, the name and a pill switch on one line; under it the status (a dot, muted words, coloured only for amber and coral) and what it adds; grouped under `enabled · n` and `off · n` | Settings › Integrations ([instrument_tile.go](../../internal/ui/fyneui/instrument_tile.go), [instrument_switch.go](../../internal/ui/fyneui/instrument_switch.go)) |
+| Segmented control | one dark plate with a hairline, the chosen segment a step lighter with a 2 point blue underline, the other muted; the buttons keep their behaviour and only their theme changes | Overview's Master / Worker ([instrument_segment.go](../../internal/ui/fyneui/instrument_segment.go)) |
+| Headroom wave | usage as a crisp line over a faint wide glow stroke, the area fading to zero downwards; allocatable and capacity as 25 % hairlines, requests and limits as a tick with their value at the right edge, full-width dashed lines with names only while the pointer is on the legend's "Reference lines" | every chart ([chart.go](../../internal/ui/fyneui/chart.go), [chartpath.go](../../internal/ui/fyneui/chartpath.go)) |
+| Segmented alerts pill | the triangle in the worst severity's colour, then a token per severity in five widths (8 to 24 points) with the number, "99+" from a hundred; a hairline on the neutral plate | title bar ([alerts.go](../../internal/ui/fyneui/alerts.go)) |
+| Quiet dashboards | healthy counts and Ready segments muted, a spine and the status colour only on what needs a look; an empty kind is a hairline card with no bar, a kind without a state has no bar; activity in text colour with a coloured dot and age | Flux, Argo CD, Workloads Overview |
+
+The bracket head (glow.go) draws its line in its own light at about 55 %, with 6 point ticks, 8 points
+under the label and 12 above what it introduces; the groups on a page are 20 points apart. The
+create button is a 36 point dark plate with a blue outline, set one menu column in from the right so
+that it never covers a row's menu.
+
+The Overview's node and pod states come from the engine's own build of the page
+(`ClusterOverviewModel.NodeStates`, `PodStates`), counted from the cache; the bearing reads the
+integrations' states through `cluster.settings.get`, which sends no request to the cluster. Flux and
+Argo CD are not in the bearing: the engine reports no state for them as integrations.
+
 ## What this does not cover yet
 
 - Typography: Fyne's bundled font stays; Inter (OFL) through the theme is a proposal, not built.

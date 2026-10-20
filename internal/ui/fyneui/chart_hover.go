@@ -110,13 +110,25 @@ func (c *chart) MouseIn(ev *desktop.MouseEvent) { c.MouseMoved(ev) }
 // MouseMoved implements desktop.Hoverable.
 func (c *chart) MouseMoved(ev *desktop.MouseEvent) {
 	c.hovering, c.pointer = true, ev.Position
+	c.setReferencesShown(c.refRect.contains(ev.Position))
 	c.updateHover()
 }
 
 // MouseOut implements desktop.Hoverable.
 func (c *chart) MouseOut() {
 	c.hovering = false
+	c.setReferencesShown(false)
 	c.updateHover()
+}
+
+// setReferencesShown reveals or hides the reference lines (chart.go) and lays the chart out again
+// only when that changes, which is when the pointer enters or leaves the legend's entry.
+func (c *chart) setReferencesShown(on bool) {
+	if c.refShown == on {
+		return
+	}
+	c.refShown = on
+	c.Refresh()
 }
 
 // Hide clears the hover: a hidden chart gets no MouseOut.

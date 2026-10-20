@@ -289,11 +289,11 @@ func showAsked(r *integrationRow, st engine.IntegrationStatus) {
 	switch {
 	case !r.check.Checked:
 		r.status.SetText(integrationsAskUnticked)
-		r.status.SetColor(colorMuted)
+		r.paintStatus(colorMuted)
 	case st.State == engine.IntegrationOff || st.State == "":
 		text, c := integrationStatusLine(engine.IntegrationStatus{State: engine.IntegrationChecking})
 		r.status.SetText(text)
-		r.status.SetColor(c)
+		r.paintStatus(c)
 	}
 }
 

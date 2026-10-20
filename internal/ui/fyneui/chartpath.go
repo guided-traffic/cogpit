@@ -28,12 +28,14 @@ import (
 type chartPath struct {
 	pts   []fyne.Position
 	color color.Color
+	top   float32 // the run's highest point (smallest y): a fading fill is strongest here
 }
 
 // seriesPaths are the series' lines and the areas under them as paths in the chart's coordinates
 // (geometry g), one per run of points (chartgap.go), at most chartMaxSegmentsPerSer segments a
-// series; a run of a single point is a dot instead.
-func (r *chartRenderer) seriesPaths(g chartGeom) (lines, fills []chartPath, dots []fyne.CanvasObject) {
+// series; a run of a single point is a dot instead. The glows are the lines again, drawn wide and
+// faint under them (the headroom wave of the Dark Cockpit design, docs/developer/design-language.md).
+func (r *chartRenderer) seriesPaths(g chartGeom) (lines, glows, fills []chartPath, dots []fyne.CanvasObject) {
 	th := r.c.Theme()
 	d := r.c.data
 	for _, s := range d.Series {
@@ -54,14 +56,17 @@ func (r *chartRenderer) seriesPaths(g chartGeom) (lines, fills []chartPath, dots
 			pts = pts[:min(len(pts), chartMaxSegmentsPerSer-segs+1)]
 			segs += len(pts) - 1
 			path := make([]fyne.Position, len(pts))
+			top := float32(math.MaxFloat32)
 			for i, p := range pts {
 				path[i] = fyne.NewPos(g.x(p.At), g.y(p.Value))
+				top = min(top, path[i].Y)
 			}
-			lines = append(lines, chartPath{pts: path, color: c})
-			fills = append(fills, chartPath{pts: path, color: withAlpha(c, chartFillAlpha)})
+			lines = append(lines, chartPath{pts: path, color: c, top: top})
+			glows = append(glows, chartPath{pts: path, color: withAlpha(c, chartGlowAlpha), top: top})
+			fills = append(fills, chartPath{pts: path, color: withAlpha(c, chartFillAlpha), top: top})
 		}
 	}
-	return lines, fills, dots
+	return lines, glows, fills, dots
 }
 
 // chartLayer is a raster over the plot that draws paths: strokes (the series' lines) or the areas
@@ -70,6 +75,7 @@ type chartLayer struct {
 	raster *canvas.Raster
 	stroke bool
 	width  float32 // a stroke's width, in units
+	fade   bool    // a fill dissolves from its run's top to the base, as a gradient would
 
 	origin fyne.Position // the raster's top-left, in the chart's coordinates
 	size   fyne.Size
@@ -126,6 +132,9 @@ func (l *chartLayer) draw(w, h int) image.Image {
 		}
 		l.scan.Clear()
 		l.scan.SetColor(p.color)
+		if !l.stroke && l.fade && l.base > p.top {
+			l.scan.SetColor(l.fadeFunc(p, sy))
+		}
 		first, last := p.pts[0], p.pts[len(p.pts)-1]
 		if l.stroke {
 			s := rasterx.NewStroker(w, h, l.scan)
@@ -149,4 +158,18 @@ func (l *chartLayer) draw(w, h int) image.Image {
 		f.Draw()
 	}
 	return l.img
+}
+
+// fadeFunc colours a fill by its row: the path's colour at the run's top, falling to nothing at the
+// base with an ease, so that the area under a line reads as light falling off and not as a block. It
+// is a function of the pixel's row only, so it costs one multiplication per painted pixel.
+func (l *chartLayer) fadeFunc(p chartPath, sy float64) rasterx.ColorFunc {
+	c := color.NRGBAModel.Convert(p.color).(color.NRGBA)
+	span := float64(l.base - p.top)
+	return func(_, yi int) color.Color {
+		y := float64(yi)/sy + float64(l.origin.Y)
+		t := math.Min(1, math.Max(0, (y-float64(p.top))/span))
+		k := (1 - t) * (1 - t)
+		return color.NRGBA{R: c.R, G: c.G, B: c.B, A: uint8(float64(c.A) * k)}
+	}
 }

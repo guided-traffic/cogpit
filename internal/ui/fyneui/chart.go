@@ -35,6 +35,12 @@ type chart struct {
 	geom     chartGeom
 	hover    *chartHover
 	rend     *chartRenderer
+
+	// refShown says the pointer is on the legend's "Reference lines" entry: requests and limits
+	// then run the plot's full width, dashed, named. refRect is that entry's rectangle from the
+	// last layout.
+	refShown bool
+	refRect  chartRect
 }
 
 // chartData is what a chart draws.
@@ -79,6 +85,7 @@ type chartLine struct {
 	Name  string
 	Color fyne.ThemeColorName
 	Value float64
+	Soft  bool // a ceiling that frames the chart (allocatable, capacity): drawn fainter than requests and limits
 }
 
 type chartMarker struct {
@@ -95,9 +102,11 @@ const (
 	chartPlotHeight        = 120   // the plot's height
 	chartCompactHeight     = 72    // a compact chart's plot
 	chartMinWidth          = 120   // the narrowest the chart asks for; the drawer's width is the user's
-	chartLineWidth         = 1.5   // a series' line (a path, chartpath.go)
-	chartRefWidth          = 1     // requests and limits
-	chartDash, chartGap    = 6, 4  // a reference line's dashes
+	chartLineWidth         = 1.75  // a series' line (a path, chartpath.go)
+	chartGlowWidth         = 6     // the faint wide stroke under it
+	chartRefWidth          = 1     // a reference line
+	chartRefTick           = 12    // the end tick that stands for requests and limits at rest
+	chartDash, chartGap    = 6, 4  // a revealed reference line's dashes
 	chartDiamond           = 3.5   // half the diamond of an event marker
 	chartGridLines         = 3     // the grid's horizontal lines above the axis
 	chartPointRadius       = 2.5   // a single point's dot
@@ -119,17 +128,18 @@ func (c *chart) Set(d chartData) {
 
 // CreateRenderer implements fyne.Widget.
 func (c *chart) CreateRenderer() fyne.WidgetRenderer {
-	r := &chartRenderer{c: c, fill: newChartLayer(false, 0), line: newChartLayer(true, chartLineWidth)}
+	r := &chartRenderer{c: c, fill: newChartLayer(false, 0), glow: newChartLayer(true, chartGlowWidth), line: newChartLayer(true, chartLineWidth)}
+	r.fill.fade = true
 	c.rend = r
 	r.Refresh()
 	return r
 }
 
 type chartRenderer struct {
-	c          *chart
-	fill, line *chartLayer // the areas under the series and the series' lines (chartpath.go)
-	objs       []fyne.CanvasObject
-	overlay    []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
+	c                *chart
+	fill, glow, line *chartLayer // the areas under the series, their glow, and the series' lines (chartpath.go)
+	objs             []fyne.CanvasObject
+	overlay          []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
 }
 
 func (r *chartRenderer) Objects() []fyne.CanvasObject {
@@ -323,7 +333,7 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		add(line)
 		t := text(l, colorMuted)
 		ts := t.MinSize()
-		t.Move(fyne.NewPos(left-m.pad-ts.Width, gy-ts.Height/2))
+		t.Move(fyne.NewPos(left-2*m.pad-ts.Width, gy-ts.Height/2)) // the widest label starts on the chart's own left edge
 		t.Resize(ts)
 		add(t)
 	}
@@ -361,10 +371,12 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 	// The series as paths: a line runs through the points within the axis and breaks at a gap
 	// (chartgap.go): a drawer closed for a while, both providers away. A point alone is a dot. The
 	// area under each run (chartfill.go) lies beneath the markers, the reference lines and the lines.
-	lines, fills, dots := r.seriesPaths(g)
+	lines, glows, fills, dots := r.seriesPaths(g)
 	r.fill.place(left, top, left+plotW, top+plotH, 0, y(0), fills)
+	r.glow.place(left, top, left+plotW, top+plotH, chartGlowWidth, y(0), glows)
 	r.line.place(left, top, left+plotW, top+plotH, 2*chartLineWidth, y(0), lines)
 	add(r.fill.raster)
+	add(r.glow.raster)
 
 	// Event markers: a vertical line with a diamond at its top.
 	for _, mk := range d.Markers {
@@ -390,32 +402,26 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		}
 	}
 
-	// Reference lines, dashed.
-	for _, l := range d.Lines {
-		if l.Value <= 0 {
-			continue
-		}
-		c := col(l.Color)
-		ly := y(l.Value)
-		for dx := float32(0); dx < plotW; dx += chartDash + chartGap {
-			seg := canvas.NewLine(c)
-			seg.StrokeWidth = chartRefWidth
-			seg.Position1 = fyne.NewPos(left+dx, ly)
-			seg.Position2 = fyne.NewPos(left+fyne.Min(dx+chartDash, plotW), ly)
-			add(seg)
-		}
-	}
+	// Reference lines. At rest they are quiet, so the usage wave is the one thing that lights the
+	// plot: the cluster's ceilings (allocatable, capacity) are solid hairlines at a quarter of
+	// their colour, requests and limits are a tick at the right edge with their value. While the
+	// pointer is on the legend's "Reference lines" entry every line runs full width, dashed, with
+	// its name.
+	r.referenceLines(g, text, col, add)
 
 	// Series: the lines' layer, then the dots of points alone.
 	add(r.line.raster)
 	r.objs = append(r.objs, dots...)
 
-	// Legend: a colour square and a name for each series, line and marker kind.
+	// Legend: a colour square and a name for each series and marker kind, and one entry for all
+	// the reference lines, whose hover shows them (chartRenderer.referenceLines).
+	r.c.refRect = chartRect{}
 	if legendH > 0 {
 		lx := left
 		ly := top + plotH + m.pad/2 + m.textH + m.pad/2
 		entry := func(name string, c fyne.ThemeColorName) {
 			sw := canvas.NewRectangle(col(c))
+			sw.CornerRadius = 2
 			sw.Move(fyne.NewPos(lx, ly+(m.textH-chartLegendSwatch)/2))
 			sw.Resize(fyne.NewSize(chartLegendSwatch, chartLegendSwatch))
 			add(sw)
@@ -429,10 +435,22 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		for _, s := range d.Series {
 			entry(s.Name, s.Color)
 		}
-		for _, l := range d.Lines {
-			if l.Value > 0 && !d.Compact {
-				entry(l.Name, l.Color)
+		if d.hasReferences() {
+			// A dash, not a square: the entry names a kind of line, not a series.
+			x0 := lx
+			for i := float32(0); i < 2; i++ {
+				dash := canvas.NewRectangle(col(colorMuted))
+				dash.Move(fyne.NewPos(lx+i*(chartLegendSwatch/2+1), ly+m.textH/2))
+				dash.Resize(fyne.NewSize(chartLegendSwatch/2-1, 1.5))
+				add(dash)
 			}
+			t := text("Reference lines", colorMuted)
+			ts := t.MinSize()
+			t.Move(fyne.NewPos(lx+chartLegendSwatch+m.pad, ly))
+			t.Resize(ts)
+			add(t)
+			lx += chartLegendSwatch + m.pad + ts.Width + 2*m.pad
+			r.c.refRect = chartRect{x0: x0 - m.pad, y0: ly, x1: lx - m.pad, y1: ly + m.textH}
 		}
 		if len(d.Markers) > 0 {
 			entry(d.Markers[0].Name, fallback(d.Markers[0].Color, colorStatusPending))
@@ -442,6 +460,97 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 	// A pointer still over the chart after new data or a resize gets its crosshair at the same x.
 	r.c.hover = r.c.computeHover()
 	r.buildOverlay()
+}
+
+// chartRect is a rectangle in the chart's own coordinates.
+type chartRect struct{ x0, y0, x1, y1 float32 }
+
+func (r chartRect) contains(p fyne.Position) bool {
+	return r.x1 > r.x0 && p.X >= r.x0 && p.X <= r.x1 && p.Y >= r.y0 && p.Y <= r.y1
+}
+
+// hasReferences reports whether the chart has reference lines to name: a compact chart leaves
+// them out of its legend, as it leaves out the lines' names.
+func (d chartData) hasReferences() bool {
+	if d.Compact {
+		return false
+	}
+	for _, l := range d.Lines {
+		if l.Value > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// referenceLines draws the chart's fixed values (see Layout).
+func (r *chartRenderer) referenceLines(g chartGeom, text func(string, fyne.ThemeColorName) *canvas.Text, col func(fyne.ThemeColorName) color.Color, add func(fyne.CanvasObject)) {
+	d := r.c.data
+	revealed := r.c.refShown
+	var taken [][2]float32 // the label rows already used, top and bottom
+	free := func(y0, y1 float32) bool {
+		for _, t := range taken {
+			if y0 < t[1] && y1 > t[0] {
+				return false
+			}
+		}
+		return true
+	}
+	for _, l := range d.Lines {
+		if l.Value <= 0 {
+			continue
+		}
+		c := col(l.Color)
+		ly := g.y(l.Value)
+		line := func(x0, x1 float32, w float32) {
+			seg := canvas.NewLine(c)
+			seg.StrokeWidth = w
+			seg.Position1, seg.Position2 = fyne.NewPos(x0, ly), fyne.NewPos(x1, ly)
+			add(seg)
+		}
+		right := g.left + g.w
+		switch {
+		case revealed:
+			c = withAlpha(c, 0xb8)
+			for dx := float32(0); dx < g.w; dx += chartDash + chartGap {
+				seg := canvas.NewLine(c)
+				seg.StrokeWidth = chartRefWidth
+				seg.Position1 = fyne.NewPos(g.left+dx, ly)
+				seg.Position2 = fyne.NewPos(g.left+fyne.Min(dx+chartDash, g.w), ly)
+				add(seg)
+			}
+		case l.Soft:
+			c = withAlpha(c, 0x40)
+			line(g.left, right, chartRefWidth)
+			continue
+		default:
+			c = withAlpha(c, 0xd0)
+			line(right-chartRefTick, right, 1.5)
+		}
+		// The label sits above the line's end. At rest a label that would land on another is left
+		// out (the hover panel has every value); revealed, it moves up until it fits, so every
+		// name can be read.
+		if l.Soft {
+			continue
+		}
+		label := d.format(l.Value)
+		if revealed {
+			label = l.Name + " " + label
+		}
+		t := text(label, l.Color)
+		ts := t.MinSize()
+		y0 := ly - ts.Height - 1
+		for revealed && !free(y0, y0+ts.Height) && y0 > g.top {
+			y0 -= ts.Height
+		}
+		if !free(y0, y0+ts.Height) {
+			continue
+		}
+		taken = append(taken, [2]float32{y0, y0 + ts.Height})
+		t.Move(fyne.NewPos(right-ts.Width-2, y0))
+		t.Resize(ts)
+		add(t)
+	}
 }
 
 func fallback(n, def fyne.ThemeColorName) fyne.ThemeColorName {
