@@ -250,7 +250,7 @@ func (f *createForm) caption(text string) {
 		f.content.Add(newSpace(theme.SizeNamePadding))
 	}
 	f.fields++
-	f.content.Add(newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}))
+	f.content.Add(newTextLine(sentenceCase(text), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 }
 
 // addName adds the object's name.

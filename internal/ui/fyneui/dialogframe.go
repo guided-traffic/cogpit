@@ -1,6 +1,9 @@
 package fyneui
 
 import (
+	"strings"
+	"unicode"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
@@ -24,9 +27,10 @@ import (
 // a framed dialog and a dialog of Fyne's look alike. Like Fyne's, it has no Escape of its own.
 type dialogFrame struct {
 	sh      *shell
-	frame   *fyne.Container // background, content, buttons, title, eyebrow, two rules, tooltips (dialogFrameLayout)
+	frame   *fyne.Container // background, content, buttons, title, eyebrow, two rules, footer note, tooltips (dialogFrameLayout)
 	rim     *glowFrame      // the card's rim: lit for a destructive or an agent-asked dialog (setRim)
 	eyebrow *bracketLabel   // a small head over the title ("asked by · agent"); hidden without
+	note    *textLine       // a line at the footer's left, on the buttons' baseline ("This cannot be undone."); hidden without
 	popup   *widget.PopUp
 	tip     *tooltip
 	size    fyne.Size // what Resize asked for
@@ -43,8 +47,10 @@ func newDialogFrame(sh *shell, title fyne.CanvasObject) *dialogFrame {
 	bg.stroke = colorBracket // a hairline edge: the card parts from the dimmed window by it and by its step of luminance
 	d.eyebrow = newBracketLabel("", colorMuted)
 	d.eyebrow.Hide()
-	d.frame = box(dialogFrameLayout{eyebrow: d.eyebrow}, bg, container.NewStack(), container.NewGridWithRows(1), title,
-		d.eyebrow, newDivider(false), newDivider(false), d.tip.layer)
+	d.note = newTextLine("", colorStatusError, theme.SizeNameText, fyne.TextStyle{})
+	d.note.Hide()
+	d.frame = box(dialogFrameLayout{eyebrow: d.eyebrow, note: d.note}, bg, container.NewStack(), container.NewGridWithRows(1), title,
+		d.eyebrow, newDivider(false), newDivider(false), d.note, d.tip.layer)
 	d.rim = newGlowFrame(d.frame, colorStatusError, sh.app.Settings().Theme().Size(theme.SizeNameDialogRadius))
 	d.rim.SetGlow(false, colorStatusError)
 	d.popup = widget.NewModalPopUp(d.rim, sh.win.Canvas())
@@ -65,6 +71,21 @@ func (d *dialogFrame) setEyebrow(text string, tone fyne.ThemeColorName) {
 		d.eyebrow.Hide()
 	} else {
 		d.eyebrow.Show()
+	}
+	d.frame.Refresh()
+}
+
+// setNote shows a short line at the footer's left, on the buttons' baseline, in tone: what a
+// destructive dialog must say in words ("This cannot be undone."), so that it is read with the
+// buttons and does not float in the body. An empty text hides it.
+func (d *dialogFrame) setNote(text string, tone fyne.ThemeColorName) {
+	d.note.color = tone
+	d.note.SetText(text)
+	d.note.Refresh()
+	if text == "" {
+		d.note.Hide()
+	} else {
+		d.note.Show()
 	}
 	d.frame.Refresh()
 }
@@ -175,9 +196,14 @@ const (
 
 // dialogFrameLayout places a dialogFrame's objects as a card with a header and a footer: the
 // background under everything; the header (an optional eyebrow, the title) above a rule; the content;
-// a rule and the buttons, right-aligned, in the footer; the tooltips' layer over all of it. Objects:
-// background, content, buttons, title, eyebrow, header rule, footer rule, tooltips.
-type dialogFrameLayout struct{ eyebrow *bracketLabel }
+// a rule, the buttons right-aligned and an optional note left-aligned in the footer; the tooltips'
+// layer over all of it. With an eyebrow the bracket's own line is the header's rule, so the second
+// hairline is not drawn (two parallel lines read as noise). Objects: background, content, buttons,
+// title, eyebrow, header rule, footer rule, note, tooltips.
+type dialogFrameLayout struct {
+	eyebrow *bracketLabel
+	note    *textLine
+}
 
 func (l dialogFrameLayout) pads() (gap float32) {
 	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)
@@ -188,22 +214,34 @@ func (l dialogFrameLayout) head(title fyne.Size) (h, eyebrow float32) {
 	h = dialogHeadV + title.Height + dialogHeadGap
 	if l.eyebrow != nil && l.eyebrow.Visible() {
 		eyebrow = l.eyebrow.MinSize().Height + 6
-		h += eyebrow
+		h += eyebrow - dialogHeadGap + 4
 	}
 	return h, eyebrow
+}
+
+// footer is the footer's content height and the width the note and the buttons need side by side.
+func (l dialogFrameLayout) footer(buttons fyne.Size) (w, h float32) {
+	w, h = buttons.Width, buttons.Height
+	if l.note != nil && l.note.Visible() {
+		n := l.note.MinSize()
+		w += n.Width + 2*dialogSide
+		h = max(h, n.Height)
+	}
+	return w, h
 }
 
 func (l dialogFrameLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	gap := l.pads()
 	content, buttons, title := objs[1].MinSize(), objs[2].MinSize(), objs[3].MinSize()
 	head, _ := l.head(title)
-	w := max(content.Width, buttons.Width, title.Width) + 2*dialogSide
-	return fyne.NewSize(w, head+1+dialogBodyGap+content.Height+gap+1+dialogFootV+buttons.Height+dialogFootV)
+	foot, footH := l.footer(buttons)
+	w := max(content.Width, foot, title.Width) + 2*dialogSide
+	return fyne.NewSize(w, head+1+dialogBodyGap+content.Height+gap+1+dialogFootV+footH+dialogFootV)
 }
 
 func (l dialogFrameLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	gap := l.pads()
-	bg, content, buttons, title, eyebrow, headRule, footRule, tips := objs[0], objs[1], objs[2], objs[3], objs[4], objs[5], objs[6], objs[7]
+	bg, content, buttons, title, eyebrow, headRule, footRule, note, tips := objs[0], objs[1], objs[2], objs[3], objs[4], objs[5], objs[6], objs[7], objs[8]
 	bg.Move(fyne.Position{})
 	bg.Resize(size)
 	titleMin := title.MinSize()
@@ -218,14 +256,35 @@ func (l dialogFrameLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	title.Resize(fyne.NewSize(size.Width-2*dialogSide, titleMin.Height))
 	headRule.Move(fyne.NewPos(0, head))
 	headRule.Resize(fyne.NewSize(size.Width, 1))
+	if eyebrow.Visible() {
+		headRule.Hide()
+	} else {
+		headRule.Show()
+	}
 	btnMin := buttons.MinSize()
+	_, footH := l.footer(btnMin)
 	buttons.Resize(btnMin)
-	buttons.Move(fyne.NewPos(size.Width-dialogSide-btnMin.Width, size.Height-dialogFootV-btnMin.Height))
-	footRule.Move(fyne.NewPos(0, buttons.Position().Y-dialogFootV-1))
+	buttons.Move(fyne.NewPos(size.Width-dialogSide-btnMin.Width, size.Height-dialogFootV-footH+(footH-btnMin.Height)/2))
+	if note.Visible() {
+		nm := note.MinSize()
+		note.Resize(nm)
+		note.Move(fyne.NewPos(dialogSide, size.Height-dialogFootV-footH+(footH-nm.Height)/2))
+	}
+	footRule.Move(fyne.NewPos(0, size.Height-dialogFootV-footH-dialogFootV-1))
 	footRule.Resize(fyne.NewSize(size.Width, 1))
 	top := head + 1 + dialogBodyGap
 	content.Move(fyne.NewPos(dialogSide, top))
 	content.Resize(fyne.NewSize(size.Width-2*dialogSide, max(footRule.Position().Y-gap-top, 0)))
 	tips.Move(fyne.Position{})
 	tips.Resize(size)
+}
+
+// sentenceCase writes "CLUSTER ROLE" as "Cluster role": a field's caption is an ordinary label, and
+// lower case belongs to bracket labels only (design-language.md).
+func sentenceCase(text string) string {
+	r := []rune(strings.ToLower(text))
+	if len(r) > 0 {
+		r[0] = unicode.ToUpper(r[0])
+	}
+	return string(r)
 }

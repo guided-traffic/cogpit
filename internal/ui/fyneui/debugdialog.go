@@ -113,7 +113,6 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	dd.image.SetText(p.Image)
 	dd.confirm = widget.NewButton("Debug", nil)
 	dd.confirm.Importance = widget.DangerImportance
-	dd.confirm.SetIcon(theme.WarningIcon())
 	dd.cancel = widget.NewButton("Cancel", nil)
 
 	// The rows as the confirmation has them (D-85): the place, then the target and the image as the
@@ -152,9 +151,10 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	build()
 	dd.confirm.Disable()
 
-	content := container.NewVBox(dd.rows, newSpace(theme.SizeNamePadding), newParagraph("This cannot be undone.", colorStatusError, width))
+	content := container.NewVBox(dd.rows)
 	dd.d = newDialogFrame(sh, objectDialogTitle("Debug", "Pod", p.Ref.Name, "")) // no gap after the arrow (dialogframe.go)
 	dd.d.setContent(content)
+	dd.d.setNote("This cannot be undone.", colorStatusError)
 	dd.d.setRim(colorStatusError) // adding a container cannot be undone: as a destructive confirmation
 	dd.d.SetButtons([]fyne.CanvasObject{dd.cancel, dd.confirm})
 	dd.cancel.OnTapped = dd.d.Hide

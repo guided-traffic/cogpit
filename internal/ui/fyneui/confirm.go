@@ -134,10 +134,6 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(reviewBlock(req.Review, width))
 	}
-	if destructive && !req.Undoable { // only where something is lost (A101)
-		content.Add(newSpace(theme.SizeNamePadding))
-		content.Add(newParagraph("This cannot be undone.", colorStatusError, width))
-	}
 	if hint := c.sh.allowanceHint(req); hint != "" { // Cluster Settings › Agents (clustersettings_agents.go)
 		content.Add(newSpace(theme.SizeNamePadding))
 		content.Add(newParagraph(hint, colorMuted, width))
@@ -152,7 +148,8 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	cd.confirm.Importance = widget.HighImportance
 	if destructive {
 		cd.confirm.Importance = widget.DangerImportance
-		cd.confirm.SetIcon(theme.WarningIcon())
+		// No icon: the word, the red fill and the rim say it (design-language.md), and a glyph in the
+		// button would be a fourth way of saying the same.
 	}
 	cd.cancel = widget.NewButton("Cancel", nil)
 	// The card says who asks and what is at stake (design-language.md): a request an agent made carries
@@ -161,6 +158,9 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	// the button is red and says the verb, and "This cannot be undone." stays in words.
 	cd.d = newDialogFrame(c.sh, dialogTitle(label+"?"))
 	cd.d.setContent(content)
+	if destructive && !req.Undoable { // only where something is lost (A101): in the footer, with the buttons
+		cd.d.setNote("This cannot be undone.", colorStatusError)
+	}
 	if req.Origin.IsAgent() {
 		cd.d.setEyebrow("asked by · agent", colorAgent)
 	}
