@@ -122,7 +122,18 @@ type navSections struct {
 
 	menuModel *fyne.Menu // a row's open menu, for tests
 	subOnce   sync.Once
+
+	// mixed is the foot's "Mixed environments" check (the owner, 2026-10-20, GW11): the preference
+	// mixedEnvironments, every cluster's tabs in the tab bar; off, the default, only the shown
+	// cluster's (engine/navscope.go TabsShown). syncing is set while the UI state sets it.
+	mixed   *widget.Check
+	foot    fyne.CanvasObject
+	syncing bool
 }
+
+// mixedEnvironmentsHint is the "?" tooltip after the check.
+const mixedEnvironmentsHint = "On: the tab bar shows the open tabs of every cluster side by side.\n" +
+	"Off: only the tabs of the cluster you are in, the one the title bar names; another cluster's tabs show when you go to that cluster."
 
 var (
 	_ fyne.Focusable  = (*navSections)(nil)
@@ -138,12 +149,32 @@ func newNavSections(s *sidebar) *navSections {
 	n.hintRow = inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, n.hint)
 	n.list = container.New(layout.NewVBoxLayout(), n.root)
 	n.scroll = container.NewVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, n.list))
+	n.mixed = widget.NewCheck("Mixed environments", func(on bool) {
+		if !n.syncing {
+			n.s.sh.dispatch("preferences.set", map[string]bool{"mixedEnvironments": on}, nil)
+		}
+	})
+	n.foot = container.NewVBox(newDivider(false), inset(theme.SizeNamePadding, theme.SizeNamePadding,
+		container.NewHBox(n.mixed, newFieldName("", mixedEnvironmentsHint, s.sh.tip))))
 	n.ExtendBaseWidget(n)
 	return n
 }
 
-// CreateRenderer implements fyne.Widget.
-func (n *navSections) CreateRenderer() fyne.WidgetRenderer { return widget.NewSimpleRenderer(n.scroll) }
+// CreateRenderer implements fyne.Widget: the clusters, and at the foot the mixed environments check.
+func (n *navSections) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(container.NewBorder(nil, n.foot, nil, nil, n.scroll))
+}
+
+// syncMixed sets the foot's check from the UI state's preferences.
+func (n *navSections) syncMixed() {
+	on := mixedEnvironments(n.s.sh.ui)
+	if n.mixed.Checked == on {
+		return
+	}
+	n.syncing = true
+	n.mixed.SetChecked(on)
+	n.syncing = false
+}
 
 // load reads the contexts off the main goroutine, then shows them; a newer load supersedes an
 // older one. It also starts following the contexts (a kubeconfig synced or removed).

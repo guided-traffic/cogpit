@@ -103,7 +103,8 @@ func scopeCalls(t *testing.T, f *fakeEngine) []string {
 // the folder or file it comes from, the demo cluster first: each with its identity's badge, its
 // display name, a connection dot and a ›, the source as the tooltip with what the context picker
 // said beside the context (a failed connect, a login waiting for the user; D-57); the connected one
-// marked. The header reads All Clusters with its "+" and search, and the tab bar shows every tab.
+// marked. The header reads All Clusters with its "+" and search, and the tab bar shows the shown
+// cluster's tabs (GW11).
 func TestNavigatorSectionLevel(t *testing.T) {
 	sh, w, q, _ := sectionScene(t, ThemeDark)
 	s, n := sh.side, sh.side.sec
@@ -156,8 +157,21 @@ func TestNavigatorSectionLevel(t *testing.T) {
 	if got := n.rows["demo"].tipText(); got != demoLabel {
 		t.Errorf("the demo's tooltip %q", got)
 	}
-	if len(sh.tabs.shown) != 3 {
-		t.Errorf("the tab bar shows %d tabs at the section, want every one", len(sh.tabs.shown))
+	// The tab bar at the section shows the shown cluster's tabs only (the owner's GW11, mixed
+	// environments off).
+	want := 0
+	for _, tab := range sh.ui.Tabs {
+		if tab.Context == sh.ui.Context {
+			want++
+		}
+	}
+	if len(sh.tabs.shown) != want || want == len(sh.ui.Tabs) {
+		t.Errorf("the tab bar shows %d tabs at the section, want the shown cluster's %d of %d", len(sh.tabs.shown), want, len(sh.ui.Tabs))
+	}
+	for _, v := range sh.tabs.shown {
+		if v.tab.Context != sh.ui.Context {
+			t.Errorf("the tab bar at the section shows %s's tab %s", v.tab.Context, v.tab.ID)
+		}
 	}
 
 	sh.tip.delay = time.Millisecond
@@ -198,8 +212,8 @@ func TestNavigatorSectionTooltipLines(t *testing.T) {
 
 // A cluster's › (or a click on its row) drills into it: ui.setNavigatorScope, which connects a
 // cluster that is not connected; the tree shows its root and the tab bar its tabs only. The header's
-// ‹ All Clusters goes back up to the section, where every tab shows again; a click on the connected
-// cluster's row drills in without a connect.
+// ‹ All Clusters goes back up to the section, where the tab bar still shows the shown cluster's tabs
+// only (the owner's GW11); a click on the connected cluster's row drills in without a connect.
 func TestNavigatorSectionDrillsInAndBack(t *testing.T) {
 	sh, _, q, f := sectionScene(t, ThemeDark)
 	s, n := sh.side, sh.side.sec
@@ -215,7 +229,10 @@ func TestNavigatorSectionDrillsInAndBack(t *testing.T) {
 	}
 
 	test.Tap(s.head.back)
-	q.until(t, "the section", func() bool { return n.Visible() && !s.tree.Visible() && len(sh.tabs.shown) == 3 })
+	q.until(t, "the section", func() bool { return n.Visible() && !s.tree.Visible() })
+	if len(sh.tabs.shown) != 1 || sh.tabs.shown[0].tab.ID != "tab-3" {
+		t.Errorf("the tab bar at the section with prod shown: %d tabs", len(sh.tabs.shown))
+	}
 	if sh.ui.Context != secProd {
 		t.Errorf("going up changed the connection: %q", sh.ui.Context)
 	}
@@ -593,4 +610,37 @@ func TestSectionRootMinusOpensTheSources(t *testing.T) {
 	}
 	test.Tap(r.sources)
 	q.until(t, "the sources dialog", func() bool { return sh.kc.sources != nil })
+}
+
+// The foot of All Clusters (the owner's GW11, 2026-10-20): "Mixed environments", off by default,
+// with a "?" whose tooltip says what it does; a click sets the preference through preferences.set
+// (agents set the same), and with it on the tab bar shows every cluster's tabs.
+func TestMixedEnvironmentsCheck(t *testing.T) {
+	sh, w, q, f := sectionScene(t, ThemeDark)
+	n := sh.side.sec
+	if !n.mixed.Visible() || n.mixed.Checked || n.mixed.Text != "Mixed environments" {
+		t.Fatalf("the check: visible %v, checked %v, %q", n.mixed.Visible(), n.mixed.Checked, n.mixed.Text)
+	}
+	if hints := findAll[*fieldName](n.foot); len(hints) != 1 || !strings.Contains(hints[0].hint, "every cluster") {
+		t.Errorf("the foot's hint: %+v", hints)
+	}
+	shownBefore := len(sh.tabs.shown)
+	test.Tap(n.mixed)
+	q.until(t, "preferences.set", func() bool { return len(f.callsOf("preferences.set")) == 1 })
+	if p := decodeParams[map[string]bool](t, f.callsOf("preferences.set")[0]); !p["mixedEnvironments"] {
+		t.Errorf("preferences.set %v", p)
+	}
+	f.update(func(u *engine.UIState) {
+		p := engine.DefaultPreferences()
+		p.MixedEnvironments = true
+		u.Preferences = &p
+	})
+	q.until(t, "every cluster's tabs", func() bool { return len(sh.tabs.shown) == len(sh.ui.Tabs) && n.mixed.Checked })
+	if shownBefore >= len(sh.ui.Tabs) {
+		t.Errorf("the scene shows every tab with the check off too (%d of %d)", shownBefore, len(sh.ui.Tabs))
+	}
+	if n := len(f.callsOf("preferences.set")); n != 1 {
+		t.Errorf("the UI state's check sent preferences.set again: %d calls", n)
+	}
+	settle(w)
 }

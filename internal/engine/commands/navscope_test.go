@@ -13,7 +13,7 @@ import (
 // the tab bar's index counts the scope's tabs. An agent runs it without the user's acceptance (D-2:
 // a UI command; connecting only reads).
 func TestNavigatorScopeCommand(t *testing.T) {
-	h := newHarness(t, seed(), engine.Options{})
+	h := newHarness(t, seed(), engine.Options{Preferences: engine.NewPreferencesStore(t.TempDir())})
 	agent, gui := engine.OriginExternalAgent, engine.OriginGUI
 	var st commands.StateResult
 	h.must(t, agent, "ui.state", nil, &st)
@@ -34,10 +34,16 @@ func TestNavigatorScopeCommand(t *testing.T) {
 	if err := h.run(t, agent, "ui.tab.select", map[string]any{"index": 2}, nil); !errors.Is(err, engine.ErrUnknownTab) {
 		t.Errorf("tab 2 of other's one: %v", err)
 	}
+	// At the section the bar still shows the shown cluster's tabs (the owner's GW11); with mixed
+	// environments on, which an agent may set, every cluster's, and tab 2 is test's.
 	h.must(t, gui, "ui.setNavigatorScope", map[string]any{"scope": "section:local"}, nil)
+	if err := h.run(t, agent, "ui.tab.select", map[string]any{"index": 2}, nil); !errors.Is(err, engine.ErrUnknownTab) {
+		t.Errorf("tab 2 at the section with other's one shown: %v", err)
+	}
+	h.must(t, agent, "preferences.set", map[string]any{"mixedEnvironments": true}, nil)
 	h.must(t, agent, "ui.tab.select", map[string]any{"index": 2}, &st)
 	if st.Context != "test" || st.View != "services" || st.NavigatorScope != "cluster:test" {
-		t.Errorf("tab 2 at the section: %q view %q scope %q", st.Context, st.View, st.NavigatorScope)
+		t.Errorf("tab 2 at the section with mixed environments: %q view %q scope %q", st.Context, st.View, st.NavigatorScope)
 	}
 
 	h.must(t, agent, "ui.setNavigatorScope", map[string]any{"scope": "cluster:broken"}, &st)

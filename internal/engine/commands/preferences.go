@@ -60,6 +60,8 @@ type preferencesSetParams struct {
 	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. Agents and the CLI may only switch a default off (false): switching one on is the user's, in Cogpit's window"`
 	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
+	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
+	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the title bar names (false, the default); ui_state's tabs list every tab either way"`
 }
 
 // shellChange reports whether the parameters change the local terminal's shell or arguments.
@@ -271,6 +273,7 @@ func registerPreferences(g *registrar) {
 				setIf(&pr.LoadChartIcons, p.LoadChartIcons)
 				setIf(&pr.CheckForUpdates, p.CheckForUpdates)
 				setIf(&pr.RestoreSession, p.RestoreSession)
+				setIf(&pr.MixedEnvironments, p.MixedEnvironments)
 				if p.UpdateChannel != nil {
 					pr.UpdateChannel = strings.TrimSpace(*p.UpdateChannel)
 					if pr.UpdateChannel == "" {

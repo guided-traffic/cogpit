@@ -303,7 +303,7 @@ func TestDisconnectInAClustersMenuNamesIt(t *testing.T) {
 }
 
 // The tab bar greys a tab only while its cluster is not connected: a tab of another connected
-// cluster is not greyed (D-69).
+// cluster is not greyed (D-69); other clusters' tabs show with mixed environments on (GW11).
 func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 	f, _ := marksFake(t, true)
 	f.ui.Tabs = []engine.ViewTab{
@@ -312,6 +312,9 @@ func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 		{ID: "tab-3", Context: cFailed, View: "nodes", Title: "Nodes - qa-eu-west", Sort: engine.DefaultSort},
 	}
 	f.ui.ActiveTab = "tab-1"
+	mixed := engine.DefaultPreferences()
+	mixed.MixedEnvironments = true
+	f.ui.Preferences = &mixed
 	sh, _, q := newTestShell(t, f, Options{})
 	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 3 })
 	for i, want := range []bool{true, true, false} {

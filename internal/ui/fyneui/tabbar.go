@@ -122,13 +122,13 @@ func (b *tabBar) double(last *click, id string) bool {
 	return false
 }
 
-// sync shows the tabs of the navigator's scope (UIState.TabsInScope: every tab at the section, the
-// cluster's at a cluster; engine/navscope.go): one widget per tab, the active one raised and
+// sync shows the shown cluster's tabs (UIState.TabsShown, wherever the navigator stands; every tab
+// while no cluster is shown; engine/navscope.go): one widget per tab, the active one raised and
 // scrolled into view.
 func (b *tabBar) sync() {
 	defer b.welcome.sync() // the welcome page while the workspace has nothing else (welcome.go)
 	ui := b.sh.ui
-	tabs := ui.TabsInScope()
+	tabs := ui.TabsShown()
 	if len(tabs) == 0 {
 		b.drag.cancel()
 		b.shown, b.row.Objects = nil, nil
@@ -199,7 +199,7 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 	}
 	whenTabs := func(id string) func() {
 		return func() {
-			if len(sh.ui.TabsInScope()) > 0 {
+			if len(sh.ui.TabsShown()) > 0 {
 				sh.dispatch(id, struct{}{}, nil)
 			}
 		}
@@ -219,7 +219,7 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 	// Move Tab Left and Right (GW4): only where the active tab has a place to go.
 	step := func(id string, d int) func() {
 		return func() {
-			tabs := sh.ui.TabsInScope()
+			tabs := sh.ui.TabsShown()
 			i := slices.IndexFunc(tabs, func(t engine.ViewTab) bool { return t.ID == sh.ui.ActiveTab })
 			if i >= 0 && i+d >= 0 && i+d < len(tabs) {
 				sh.dispatch(id, struct{}{}, nil)
@@ -238,7 +238,7 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 				label, params = "Last Tab", tabSelectParams{Last: true}
 			}
 			item := fyne.NewMenuItem(label, func() {
-				if n := len(sh.ui.TabsInScope()); n >= params.Index && n > 0 { // the tabs the bar shows
+				if n := len(sh.ui.TabsShown()); n >= params.Index && n > 0 { // the tabs the bar shows
 					sh.dispatch(c.ID, params, nil)
 				}
 			})
@@ -272,10 +272,15 @@ func (b *tabBar) history(back bool) func() {
 // tabsChanged reports whether the tab bar shows something else in st than in old.
 func tabsChanged(st, old engine.UIState) bool {
 	return st.ActiveTab != old.ActiveTab || st.Context != old.Context || st.Connection.State != old.Connection.State ||
-		st.Scope() != old.Scope() || connectionsChanged(st, old) ||
+		st.Scope() != old.Scope() || connectionsChanged(st, old) || mixedEnvironments(st) != mixedEnvironments(old) ||
 		!slices.EqualFunc(st.Tabs, old.Tabs, func(a, b engine.ViewTab) bool {
 			return a.ID == b.ID && a.Title == b.Title && a.Preview == b.Preview && a.Context == b.Context
 		})
+}
+
+// mixedEnvironments reports whether the preference shows every cluster's tabs (GW11, TabsShown).
+func mixedEnvironments(u engine.UIState) bool {
+	return u.Preferences != nil && u.Preferences.MixedEnvironments
 }
 
 // openFixed opens a navigator item's view in a fixed tab (⇧↵, a double click); on a group or the

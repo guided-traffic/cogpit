@@ -15,34 +15,34 @@ func tabIDs(tabs []ViewTab) []string {
 	return out
 }
 
-// TestMoveTab (the owner's GW4): a tab moves to a place among the tabs the bar shows; at the
-// section every tab, at a cluster that cluster's, the other clusters' keeping their places among
-// the rest; "" is the active tab; a place outside the bar, an unknown tab and a hidden one are
-// refused and change nothing.
+// TestMoveTab (the owner's GW4): a tab moves to a place among the tabs the bar shows; the shown
+// cluster's (GW11), the other clusters' keeping their places among the rest; every tab while no
+// cluster is shown; "" is the active tab; a place outside the bar, an unknown tab and a hidden one
+// are refused and change nothing.
 func TestMoveTab(t *testing.T) {
 	base := UIState{Context: "a", NavigatorScope: NavScopeLocal, ActiveTab: "a2", Tabs: []ViewTab{
 		{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}, {ID: "b2", Context: "b"}, {ID: "a3", Context: "a"},
 	}}
 	cases := []struct {
 		name  string
-		scope string
+		shown string
 		id    string
 		index int
 		want  []string
 	}{
-		{"every tab: right", NavScopeLocal, "b1", 4, []string{"a1", "a2", "b2", "b1", "a3"}},
-		{"every tab: to the first", NavScopeLocal, "a3", 1, []string{"a3", "a1", "b1", "a2", "b2"}},
-		{"every tab: to the last", NavScopeLocal, "a1", 5, []string{"b1", "a2", "b2", "a3", "a1"}},
-		{"every tab: its own place", NavScopeLocal, "a2", 3, []string{"a1", "b1", "a2", "b2", "a3"}},
-		{"the active tab", NavScopeLocal, "", 1, []string{"a2", "a1", "b1", "b2", "a3"}},
-		{"a cluster: to the first", NavScopeCluster("a"), "a3", 1, []string{"a3", "a1", "b1", "a2", "b2"}},
-		{"a cluster: to the last", NavScopeCluster("a"), "a1", 3, []string{"b1", "a2", "b2", "a3", "a1"}},
-		{"a cluster: one right, before the shown tab after it", NavScopeCluster("a"), "a1", 2, []string{"b1", "a2", "b2", "a1", "a3"}},
+		{"no cluster shown: right", "", "b1", 4, []string{"a1", "a2", "b2", "b1", "a3"}},
+		{"no cluster shown: to the first", "", "a3", 1, []string{"a3", "a1", "b1", "a2", "b2"}},
+		{"no cluster shown: to the last", "", "a1", 5, []string{"b1", "a2", "b2", "a3", "a1"}},
+		{"no cluster shown: its own place", "", "a2", 3, []string{"a1", "b1", "a2", "b2", "a3"}},
+		{"the active tab", "", "", 1, []string{"a2", "a1", "b1", "b2", "a3"}},
+		{"cluster a shown: to the first", "a", "a3", 1, []string{"a3", "a1", "b1", "a2", "b2"}},
+		{"cluster a shown: to the last", "a", "a1", 3, []string{"b1", "a2", "b2", "a3", "a1"}},
+		{"cluster a shown: one right, before the shown tab after it", "a", "a1", 2, []string{"b1", "a2", "b2", "a1", "a3"}},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			u := base.Clone()
-			u.NavigatorScope = c.scope
+			u.Context = c.shown
 			if err := u.moveTab(c.id, c.index); err != nil {
 				t.Fatal(err)
 			}
@@ -54,19 +54,19 @@ func TestMoveTab(t *testing.T) {
 
 	for _, c := range []struct {
 		name  string
-		scope string
+		shown string
 		id    string
 		index int
 		is    error
 	}{
-		{"an unknown tab", NavScopeLocal, "c9", 1, ErrUnknownTab},
-		{"another cluster's tab", NavScopeCluster("a"), "b1", 1, errNotInBar},
-		{"place 0", NavScopeLocal, "a1", 0, nil},
-		{"past the last", NavScopeCluster("a"), "a1", 4, nil},
+		{"an unknown tab", "", "c9", 1, ErrUnknownTab},
+		{"another cluster's tab", "a", "b1", 1, errNotInBar},
+		{"place 0", "", "a1", 0, nil},
+		{"past the last", "a", "a1", 4, nil},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			u := base.Clone()
-			u.NavigatorScope = c.scope
+			u.Context = c.shown
 			err := u.moveTab(c.id, c.index)
 			if err == nil || (c.is != nil && !errors.Is(err, c.is)) {
 				t.Fatalf("error %v, want %v", err, c.is)

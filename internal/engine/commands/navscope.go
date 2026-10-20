@@ -7,12 +7,12 @@ import (
 )
 
 // The navigator's scope (engine/navscope.go; ui-parity › Layout and Clusters). Which level the
-// navigator shows, and with it which tabs the tab bar shows, is UI state, so agents see and drive
+// navigator shows is UI state (the tab bar shows the shown cluster's tabs at either level, GW11), so agents see and drive
 // it as the user does (D-2: a UI command, run freely; into another cluster it connects, as
 // cluster.connect does, which only reads).
 
 type navScopeParams struct {
-	Scope string `json:"scope" jsonschema:"section:local for the Local Kubeconfigs section (every cluster Cogpit offers; the tab bar shows every tab), or cluster:<context id> for a cluster's tree (context id as cluster_contexts lists it; the tab bar shows that cluster's tabs). A cluster that is not connected is connected first"`
+	Scope string `json:"scope" jsonschema:"section:local for the Local Kubeconfigs section (every cluster Cogpit offers), or cluster:<context id> for a cluster's tree (context id as cluster_contexts lists it). The tab bar shows the shown cluster's tabs at either level. A cluster that is not connected is connected first"`
 }
 
 func registerNavScope(g *registrar) {
@@ -20,8 +20,8 @@ func registerNavScope(g *registrar) {
 		ID: "ui.setNavigatorScope", Label: "Show in Navigator", Danger: engine.DangerUI, Verbs: cacheReads,
 		Description: "Sets what the navigator shows, as its header's ‹ All Clusters, ⌘P (Connect to Cluster) and the › on a " +
 			"cluster's row do: section:local, the Local Kubeconfigs section listing every cluster Cogpit offers, or " +
-			"cluster:<context id>, that cluster's resource tree. The tab bar shows the tabs of the scope: every tab at the " +
-			"section, the cluster's tabs at a cluster (ui_tab_select's index, next and previous count those). Going up to " +
+			"cluster:<context id>, that cluster's resource tree. The tab bar shows the shown cluster's tabs at either level " +
+			"(ui_tab_select's index, next and previous count those). Going up to " +
 			"the section keeps the connection. A cluster that is not the shown one is shown as cluster_connect shows it: " +
 			"one that is connected already at once, from the cache, another one connected first (connecting only reads; " +
 			"the cluster shown before stays connected); a failed connect leaves the section with connection saying why. " +

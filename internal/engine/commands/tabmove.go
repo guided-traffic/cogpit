@@ -11,7 +11,7 @@ import (
 
 type tabMoveParams struct {
 	ID    string `json:"id,omitempty" jsonschema:"tab id as ui_state lists it in tabs (tab-1); empty means the active tab"`
-	Index int    `json:"index" jsonschema:"the place to move it to among the tabs the tab bar shows (the navigator's scope's), from 1 (the first)"`
+	Index int    `json:"index" jsonschema:"the place to move it to among the tabs the tab bar shows (the shown cluster's), from 1 (the first)"`
 }
 
 type dockMoveParams struct {

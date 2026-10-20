@@ -139,7 +139,8 @@ func fakeTabCommands(t testing.TB, f *fakeEngine) {
 
 // tabsFake is the demo with three tabs: Services (fixed), Pods (the preview tab, shown, with a view
 // before it in its history) and a tab of a cluster with a long name, which is not connected; the
-// navigator at the section level, so that the bar shows them all.
+// navigator at the section level and mixed environments on, so that the bar shows them all (GW11:
+// off, it shows the shown cluster's only).
 func tabsFake(t testing.TB) *fakeEngine {
 	f := connectedFake(t, 200)
 	f.ui.Tabs = []engine.ViewTab{
@@ -149,7 +150,10 @@ func tabsFake(t testing.TB) *fakeEngine {
 			Title: "Validating Admission Policy Bindings - " + engine.ContextLabel(longContext), Sort: engine.DefaultSort},
 	}
 	f.ui.ActiveTab = "tab-2"
-	f.ui.NavigatorScope = engine.NavScopeLocal // the section level: the bar shows every cluster's tabs (navscope.go)
+	f.ui.NavigatorScope = engine.NavScopeLocal
+	mixed := engine.DefaultPreferences()
+	mixed.MixedEnvironments = true // every cluster's tabs in the bar (navscope.go TabsShown)
+	f.ui.Preferences = &mixed
 	fakeTabCommands(t, f)
 	return f
 }

@@ -8,7 +8,7 @@ import (
 
 // Moving tabs (the owner's gate walk, 2026-10-20, GW4: "Man muss Tab beliebig anordnen können").
 // A tab of the tab bar, or of the dock, moves to another place among the tabs its bar shows: the
-// tab bar's are the navigator's scope's (TabsInScope), the dock's the shown cluster's and those of
+// tab bar's are the shown cluster's (TabsShown), the dock's the shown cluster's and those of
 // no cluster (DockInScope). The tabs the bar does not show keep their places among the others. The
 // window drags a tab there (tabbar.go, dock.go, stripdrag.go); ui.tab.moveLeft and ui.tab.moveRight
 // move the active tab one place (View › Move Tab Left and Right). The order is UI state: agents see
@@ -67,10 +67,14 @@ func placeAmong[T any](all []T, id string, idOf func(T) string, shown func(T) bo
 func viewTabID(t ViewTab) string { return t.ID }
 func dockTabID(t DockTab) string { return t.ID }
 
-// tabShown reports whether the tab bar shows a tab: one of the navigator's scope (TabsInScope).
+// tabShown reports whether the tab bar shows a tab (TabsShown): with mixed environments on every
+// tab, else the shown cluster's (UIState.Context, whatever its connection: a restored session's
+// other clusters keep their tabs hidden until they are shown), any while no cluster is.
 func (u UIState) tabShown(t ViewTab) bool {
-	c := u.ScopeCluster()
-	return c == "" || t.Context == c
+	if u.Preferences != nil && u.Preferences.MixedEnvironments {
+		return true
+	}
+	return u.Context == "" || t.Context == u.Context
 }
 
 // moveTab moves a tab ("" is the active one) to the 1-based place index among the tabs the tab bar

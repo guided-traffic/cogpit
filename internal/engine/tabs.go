@@ -551,11 +551,11 @@ func (s *Session) SelectTab(ctx context.Context, id string) (UIState, error) {
 	return st, nil
 }
 
-// SelectTabAt activates the n-th tab (from 1) the tab bar shows, or the last one: the tabs of the
-// navigator's scope (navscope.go).
+// SelectTabAt activates the n-th tab (from 1) the tab bar shows, or the last one: the shown
+// cluster's tabs (TabsShown, navscope.go).
 func (s *Session) SelectTabAt(ctx context.Context, n int, last bool) (UIState, error) {
 	u := s.UIState()
-	tabs := u.TabsInScope()
+	tabs := u.TabsShown()
 	if len(tabs) == 0 {
 		return u, ErrNoTab
 	}
@@ -569,11 +569,11 @@ func (s *Session) SelectTabAt(ctx context.Context, n int, last bool) (UIState, e
 }
 
 // CycleTab activates the tab d places right of the active one (left for a negative d) among the
-// tabs the tab bar shows (the navigator's scope's), wrapping around; without an active tab there,
+// tabs the tab bar shows (the shown cluster's), wrapping around; without an active tab there,
 // the first (d > 0) or the last.
 func (s *Session) CycleTab(ctx context.Context, d int) (UIState, error) {
 	u := s.UIState()
-	tabs := u.TabsInScope()
+	tabs := u.TabsShown()
 	n := len(tabs)
 	if n == 0 {
 		return u, ErrNoTab

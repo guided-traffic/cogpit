@@ -98,8 +98,10 @@ func TestStartShowsRestoredTabsWithoutConnecting(t *testing.T) {
 	s := restoredEngine(t, srv.URL)
 	sh, _, q := newEngineShell(t, s, Options{})
 	welcomeShown(t, sh, q)
-	q.until(t, "the restored tabs", func() bool { return len(sh.tabs.shown) == 3 && sh.tabs.root.Visible() })
-	if got, want := tabTitles(sh), []string{"Pods - kind-dev", "Deployments - kind-dev", "Services - staging"}; !slices.Equal(got, want) {
+	// Every tab is restored; the bar shows the shown cluster's (the owner's GW11: the others' come
+	// with their cluster).
+	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 && len(sh.tabs.shown) == 2 && sh.tabs.root.Visible() })
+	if got, want := tabTitles(sh), []string{"Pods - kind-dev", "Deployments - kind-dev"}; !slices.Equal(got, want) {
 		t.Errorf("tabs %q, want %q", got, want)
 	}
 	if !sh.tabs.shown[0].active || sh.tabs.shown[1].active || sh.ui.Connection.State != engine.Disconnected {
@@ -155,7 +157,7 @@ func renderStartRestored(t *testing.T, mode ThemeMode) {
 	s := restoredEngine(t, "")
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
 	welcomeShown(t, sh, q)
-	q.until(t, "the restored tabs", func() bool { return len(sh.tabs.shown) == 3 })
+	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 && len(sh.tabs.shown) == 2 })
 	q.drain()
 	savePNG(t, w, "start_restored_"+string(mode)+".png")
 	if s.Backend() != nil || sh.side.head.searching() {

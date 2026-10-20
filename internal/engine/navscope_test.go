@@ -140,9 +140,10 @@ func TestNavScopeIsChecked(t *testing.T) {
 	}
 }
 
-// The tab bar shows the tabs of the scope: every tab at the section, the cluster's at a cluster;
-// the n-th tab, next and previous count those, so that ⌘n and ⌘⌥→ never leave the cluster shown.
-func TestTabsInScope(t *testing.T) {
+// The tab bar shows the shown cluster's tabs, at the section too (the owner's GW11, 2026-10-20);
+// the n-th tab, next and previous count those, so that ⌘n and ⌘⌥→ never leave the cluster shown;
+// another cluster's tab, selected by its id (ui.tab.select), shows that cluster.
+func TestTabsShown(t *testing.T) {
 	s, _ := scopeSession(t)
 	ctx := context.Background()
 	if err := s.Connect(ctx, "test"); err != nil {
@@ -162,7 +163,7 @@ func TestTabsInScope(t *testing.T) {
 		}
 		return out
 	}
-	if got := ids(u.TabsInScope()); !slices.Equal(got, []string{"tab-1", "tab-3"}) {
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-1", "tab-3"}) {
 		t.Errorf("prod's tabs %q", got)
 	}
 	u, err := s.CycleTab(ctx, 1)
@@ -178,15 +179,44 @@ func TestTabsInScope(t *testing.T) {
 	}
 
 	u, _ = s.SetNavigatorScope(ctx, NavScopeLocal)
-	if got := ids(u.TabsInScope()); !slices.Equal(got, []string{"tab-1", "tab-3", "tab-2"}) {
-		t.Errorf("the section's tabs %q", got)
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-1", "tab-3"}) {
+		t.Errorf("the section's tabs with prod shown %q", got)
 	}
-	u, err = s.SelectTabAt(ctx, 3, false) // test's tab: connects, and the connect drills in
+	if _, err := s.SelectTabAt(ctx, 3, false); !errors.Is(err, ErrUnknownTab) {
+		t.Errorf("tab 3 at the section with prod's 2 shown: %v", err)
+	}
+	u, err = s.SelectTab(ctx, "tab-2") // test's tab by its id: shows test, and the switch drills in
 	if err != nil || u.ActiveTab != "tab-2" || u.Context != "test" || u.View != "services" {
-		t.Fatalf("tab 3 at the section: %v, %q on %q view %q", err, u.ActiveTab, u.Context, u.View)
+		t.Fatalf("test's tab: %v, %q on %q view %q", err, u.ActiveTab, u.Context, u.View)
 	}
 	wantScope(t, u, NavScopeCluster("test"))
-	if got := ids(u.TabsInScope()); !slices.Equal(got, []string{"tab-2"}) {
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-2"}) {
 		t.Errorf("test's tabs %q", got)
+	}
+}
+
+// The tab bar with mixed environments (the owner's GW11, 2026-10-20): off, the default, only the
+// shown cluster's tabs, at the section too and whatever its connection (a restored session's
+// other clusters keep theirs hidden); on, every cluster's tabs; every tab while no cluster is shown.
+func TestTabsShownMixedEnvironments(t *testing.T) {
+	tabs := []ViewTab{{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}}
+	ids := func(u UIState) []string { return tabIDs(u.TabsShown()) }
+	off := DefaultPreferences()
+	on := DefaultPreferences()
+	on.MixedEnvironments = true
+	for _, c := range []struct {
+		name string
+		u    UIState
+		want []string
+	}{
+		{"off, a shown at the section", UIState{Context: "a", NavigatorScope: NavScopeLocal, Connection: Connection{State: Connected}, Preferences: &off, Tabs: tabs}, []string{"a1", "a2"}},
+		{"off, a shown, not connected yet", UIState{Context: "a", NavigatorScope: NavScopeLocal, Preferences: &off, Tabs: tabs}, []string{"a1", "a2"}},
+		{"off, b shown in its tree", UIState{Context: "b", NavigatorScope: NavScopeCluster("b"), Connection: Connection{State: Connected}, Preferences: &off, Tabs: tabs}, []string{"b1"}},
+		{"on, a shown in its tree", UIState{Context: "a", NavigatorScope: NavScopeCluster("a"), Connection: Connection{State: Connected}, Preferences: &on, Tabs: tabs}, []string{"a1", "b1", "a2"}},
+		{"no cluster shown", UIState{NavigatorScope: NavScopeLocal, Preferences: &off, Tabs: tabs}, []string{"a1", "b1", "a2"}},
+	} {
+		if got := ids(c.u); !slices.Equal(got, c.want) {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
 	}
 }

@@ -317,6 +317,7 @@ func (s *sidebar) updateHeader() {
 	if s.section {
 		s.sec.render() // the clusters' dots, marks and identities
 	}
+	s.sec.syncMixed()                                       // the foot's mixed environments check (GW11)
 	s.dot.setMark(ui.Context, s.sh.mark(ui.Context, false)) // the shown cluster's mark (clustermarks.go)
 	s.rootRow.showCluster(ui.Context != "")
 	s.showVersion(ui) // the cluster's Kubernetes version (clusterversion.go, D-91)

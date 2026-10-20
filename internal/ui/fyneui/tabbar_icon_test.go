@@ -89,6 +89,9 @@ func renderTabBarClusterIcons(t *testing.T, mode ThemeMode, name string) {
 	f.ui.ClusterSettings = map[string]engine.ClusterSettings{
 		cShown: {Name: "wds18-main", Icon: iconFile}, cCold: {IconColor: "magenta"}, cFailed: {Icon: iconFile},
 	}
+	mixed := engine.DefaultPreferences()
+	mixed.MixedEnvironments = true // every cluster's tabs in the bar (GW11)
+	f.ui.Preferences = &mixed
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "the tabs", func() bool { return len(sh.tabs.shown) == 3 && len(sh.kinds) > 0 && sh.side.sec.loaded })
 	sh.icons = map[string]fyne.Resource{iconFile: iconResource(t)}

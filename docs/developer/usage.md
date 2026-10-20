@@ -35,7 +35,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app first; Windows and Linux (Ubuntu first) after the macOS beta *(planned)*.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster and the tabs of all of them, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources and its tabs, ‹ All Clusters goes back up.
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every cluster's tabs side by side (since 2026-10-20).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
@@ -384,11 +384,14 @@ whether the navigator and the chat are shown, and the window's place and size
 ([below](#the-windows-place-and-size)) come back whatever this says. The welcome page has
 the same preference as a checkbox under "Add Kubeconfigs…", "Restore this session at the next start:
 its tabs and connected clusters" (since 2026-10-17 evening, the owner's walk, WF1): ticked there, it
-is on in the Preferences too.
+is on in the Preferences too. Every cluster gets its tabs back; the tab bar shows those of the
+cluster shown first, the others' come with their cluster when you go to it (since 2026-10-20, the
+owner's GW11), unless Mixed environments is on (below).
 
 | Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
 |---|---|---|
 | `restoreSession` | `false` # default | on: the next start restores the last session's tabs and connections |
+| `mixedEnvironments` | `false` # default | on: the tab bar shows the open tabs of every cluster side by side; off: only the shown cluster's. Set at the foot of the navigator's All Clusters (its ? explains it); agents may set it either way, it changes only what the bar shows |
 
 `workspace.json` keeps the clusters connected and the one shown whether it is on or off, so turning
 it on restores the session of your last quit. Security note: on, the next start connects clusters
@@ -660,7 +663,8 @@ a write of the cut part can run again unasked
 
 Since 2026-10-16 ([D-69](decisions.md#d-69-several-clusters-connected-at-once)). Showing another
 cluster leaves the one you were on connected. Click a connected cluster's hotbar tile (or press its
-F-key), its row in All Clusters or on the welcome page, or one of its tabs: it shows at once, from
+F-key), its row in All Clusters or on the welcome page, or one of its tabs (in the tab bar with
+Mixed environments on; off, the bar shows the shown cluster's tabs only): it shows at once, from
 Cogpit's cache, without asking the cluster or showing its login program again. A cluster that is not
 connected connects and shows; the others stay connected. A connected cluster's menu (right-click on
 its tile or row) says **Show** instead of Connect, and **Disconnect** there closes that cluster
