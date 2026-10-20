@@ -179,8 +179,15 @@ func TestDeleteManyJobCancelled(t *testing.T) {
 			phases = append(phases, fmt.Sprintf("%s %v %s", l.Phase, l.OK, l.Error))
 		}
 	}
-	if wantPhases := []string{"requested true ", "done true ", "ended false " + want}; !slices.Equal(phases, wantPhases) {
-		t.Errorf("audit %q, want %q", phases, wantPhases)
+	// The request comes first; the dispatch's done and the job's end in either order: the job runs
+	// on and can be cancelled (at s02) before the dispatch has written its done line (CI, 2026-10-20).
+	wantPhases := []string{"requested true ", "done true ", "ended false " + want}
+	sorted := slices.Clone(phases)
+	if len(sorted) > 1 {
+		slices.Sort(sorted[1:])
+	}
+	if !slices.Equal(sorted, wantPhases) {
+		t.Errorf("audit %q, want %q (done and ended in either order)", phases, wantPhases)
 	}
 
 	err := h.run(t, engine.OriginGUI, "job.cancel", map[string]any{"id": res.Job.ID}, nil)
