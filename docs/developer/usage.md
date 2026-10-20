@@ -111,7 +111,13 @@ spctl -a -t open --context context:primary-signature -vv Cogpit-<version>-macos-
 The window says which version runs: right of the wordmark "Cogpit" in the top bar, smaller, on its line,
 a release shows `v0.16.0` (# example), a build from source `dev`, its commit in the tooltip
 (`dev 0691fb32abcd` # example, `-dirty` when the tree had changes; since 2026-10-16, the owner's
-F12). About Cogpit says the same.
+F12). About Cogpit says the same. A release is built with Fyne's thread check off, a build from
+source with it on ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)):
+About adds "Fyne thread check on" to a release built with it and "Fyne thread check off" to a build
+from source without it, and the app log names the mode at every start
+(`cogpit started version=… fyneThreadCheck="off (speed)"` # example). A build from source with the
+check on shows each place where the window's code called Fyne off its main goroutine once, as a
+warning toast naming the file and line; a release keeps such lines in the app log only.
 
 ### Run the MVP
 
@@ -1173,6 +1179,7 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Prometheus and Alertmanager settings | `<user config dir>/Cogpit/metrics.json`, owner-only (0600): per context the Prometheus you named (namespace, service, port, path prefix) and, since 2026-10-16, how it is asked when not the defaults (`format`: `prometheus-operator` or `cadvisor`; `keepEmptyContainers`; `https`); since 2026-10-17 the Alertmanager you named (`alertmanager`: namespace, service, port, path prefix, `https`, D-77); never the kubeconfig | `{"prometheus":{},"query":{"kind-dev":{"https":true}},"alertmanager":{"kind-dev":{"namespace":"monitoring","service":"alertmanager-operated","port":"web"}}}` # example |
 | Demo context | `demo` (the synthetic cluster), development builds only; in a release `demo` is a kubeconfig context name like any other ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) | |
 | Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app` checks both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |
+| Fyne's thread check | the Makefile's `FYNE_THREAD_CHECKS=on\|off`: off adds Cogpit's build tag `nothreadcheck`, with which the app declares itself migrated to `fyne.Do` (`go version -m <binary>` shows `-tags=nodemo,nothreadcheck` for a release); empty: off for `make dist-app`, on for every other target; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `make app FYNE_THREAD_CHECKS=off` # example |
 | Local kind cluster | cluster `cogpit`, context `kind-cogpit`, kubeconfig `.cache/kind/kubeconfig` | |
 | Release artifacts (planned) | `Cogpit-<version>-macos-universal.dmg`; the desktop app for Windows and Linux (M11), each with `cogpit-cli` inside | `Cogpit-0.1.0-macos-universal.dmg` # example |
 | Deep links (macOS) | `cogpit://open?context=<context id>&view=<view key>&namespace=<namespace>&name=<name>`, the scheme registered in the app's `CFBundleURLTypes` (name `io.guided-traffic.cogpit`); audited as `deeplink.open` with origin `deeplink` | `cogpit://open?view=pods&namespace=team-a` # example |
@@ -1203,7 +1210,7 @@ Identifiers the documentation uses:
 
 | Target | What it does |
 |---|---|
-| `make build` | `bin/cogpit` (cgo, Fyne) and `bin/cogpit-cli` (pure Go), a development build with the demo cluster; `GO_TAGS=nodemo` builds the release's variant without it |
+| `make build` | `bin/cogpit` (cgo, Fyne) and `bin/cogpit-cli` (pure Go), a development build with the demo cluster and Fyne's thread check on; `GO_TAGS=nodemo` builds the release's variant without the demo, `FYNE_THREAD_CHECKS=off` without the check, as a release scrolls ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) |
 | `make run`, `make run-demo` | run against the kind cluster, or the demo cluster (development builds only) |
 | `make check-nodemo` | the release build's variant (CI's lint job): `internal/demo` in neither binary with `-tags nodemo` and in both without, the packages with `nodemo` files linted with the tag, and their `TestNoDemo*` tests ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |
 | `make test-unit-race`, `make test` | every test without a cluster, race detector on, the patched terminal widget's (`make test-fork`) first |

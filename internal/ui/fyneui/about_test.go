@@ -36,6 +36,25 @@ func TestAboutVersion(t *testing.T) {
 	}
 }
 
+// A build whose Fyne thread check is not its kind's default says so in About (D-103); the
+// defaults, a release without the check and a development build with it, add no line.
+func TestAboutThreadCheck(t *testing.T) {
+	for _, tt := range []struct {
+		info   buildinfo.Info
+		checks bool
+		want   string
+	}{
+		{aboutRelease, false, ""},
+		{aboutRelease, true, "Fyne thread check on"},
+		{aboutDev, true, ""},
+		{aboutDev, false, "Fyne thread check off"},
+	} {
+		if got := aboutThreadCheck(tt.info, tt.checks); got != tt.want {
+			t.Errorf("release %v, checks %v: %q, want %q", tt.info.Release, tt.checks, got, tt.want)
+		}
+	}
+}
+
 // The dialog: the name, the version, one line of what Cogpit is, the licence and two links that
 // open in the browser on a click; no title above the name and none of the toolchain's details.
 func TestAboutDialog(t *testing.T) {
@@ -45,6 +64,9 @@ func TestAboutDialog(t *testing.T) {
 	q.drain()
 	texts := dialogTexts(w)
 	want := []string{"Cogpit", "Version 0.7.0", aboutTagline, aboutLicence, "Repository", "Licence", "Close"}
+	if check := aboutThreadCheck(aboutRelease, buildinfo.FyneThreadChecks); check != "" { // a test binary has the check
+		want = slices.Insert(want, 2, check)
+	}
 	if !slices.Equal(texts, want) {
 		t.Errorf("a release's About %q, want %q", texts, want)
 	}

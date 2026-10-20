@@ -40,7 +40,8 @@ type MCPEndpoint struct {
 // MCPControl lets the user switch the external MCP server, the loopback HTTP endpoint for other
 // programs, off and on from the window (D-23), and regenerate its token (F6). It touches nothing
 // else of the engine: an in-process agent keeps working while the endpoint is off. The window
-// calls it from a goroutine of its own, never from the main goroutine, and it is the only way to
+// calls it from a goroutine of its own, but for the first Start before the window runs (startMCP,
+// on the main goroutine before Fyne's loop), so it must make no Fyne call; it is the only way to
 // start the server or replace its token: neither is an engine command or an MCP tool, so no agent
 // can switch the server on or cut the other clients off. The desktop app implements it over
 // internal/mcp (cmd/cogpit), which internal/ui may not import.

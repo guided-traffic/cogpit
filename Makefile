@@ -47,6 +47,26 @@ GO_LDFLAGS      ?=
 # Build tags for build; the dist targets set the release's (DIST_TAGS: no demo cluster, D-67).
 # Empty: a development build, with the synthetic demo cluster.
 GO_TAGS         ?=
+# Fyne's thread check (D-103), the one build parameter that chooses speed or safety (owner,
+# 2026-10-19). on: Fyne checks on every canvas refresh that it runs on its main goroutine and moves
+# a stray call there, with a warning in the app log (safety; the default of build, app, run and
+# run-demo). off: Cogpit's build tag nothreadcheck makes the app declare itself migrated to
+# fyne.Do (its metadata's Migrations["fyneDo"], internal/ui/fyneui/fyneui.go), which turns the check
+# off and keeps fast scrolling at 60 frames per second; a stray call races instead (speed; the
+# default of dist-app, so of every release). Not Fyne's own tag migrated_fynedo: that also makes
+# Fyne's caches and queues single-threaded, so a stray call could end the app. Either way
+# overridable per build: make dist-app VERSION=x.y.z FYNE_THREAD_CHECKS=on is a release with the
+# check, make app FYNE_THREAD_CHECKS=off a development build at a release's speed. The tests need
+# none: Fyne's test driver has no such check.
+FYNE_THREAD_CHECKS ?=
+FYNE_NOCHECK_TAG   := nothreadcheck
+comma           := ,
+empty           :=
+space           := $(empty) $(empty)
+# threadMode names the mode a build gets: $(1) is the default when FYNE_THREAD_CHECKS is empty.
+threadMode       = $(if $(filter-out on off,$(or $(FYNE_THREAD_CHECKS),$(1))),$(error FYNE_THREAD_CHECKS must be on or off, not "$(FYNE_THREAD_CHECKS)"),$(or $(FYNE_THREAD_CHECKS),$(1)))
+# BUILD_TAGS is GO_TAGS with the thread check's tag when the build turns it off, comma-separated.
+BUILD_TAGS       = $(subst $(space),$(comma),$(strip $(subst $(comma),$(space),$(GO_TAGS)) $(if $(filter off,$(call threadMode,on)),$(FYNE_NOCHECK_TAG))))
 APP_ID          := io.guided-traffic.cogpit
 # The code-signing identifier of the cogpit-cli in Cogpit.app/Contents/MacOS (D-16); the release's
 # Developer ID signature uses the same (hack/macos/release.sh, cli_identifier).
@@ -63,8 +83,9 @@ help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 build: ## Build bin/cogpit (cgo, Fyne) and bin/cogpit-cli (pure Go)
-	$(GO) build -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit
-	CGO_ENABLED=0 $(GO) build -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli
+	$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit
+	CGO_ENABLED=0 $(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli
+	@echo "Fyne's thread check: $(call threadMode,on) (FYNE_THREAD_CHECKS, D-103)"
 
 run: build ## Run Cogpit against the kind cluster (make kind-up first)
 	@test -s $(KIND_KUBECONFIG) || { echo "no kubeconfig at $(KIND_KUBECONFIG): run make kind-up first"; exit 1; }
@@ -154,8 +175,6 @@ test-race-rest: test-fork ## Race tests of every package but internal/ui/fyneui 
 # bar's AppKit harness, the updater's harness with make sparkle's framework, the locale's
 # CoreFoundation read), and the tests whose expectations branch
 # on runtime.GOOS for the macOS shortcut glyphs (the terminal view's package, the title history).
-empty           :=
-space           := $(empty) $(empty)
 DARWIN_TEST_FILES = $(shell find cmd internal -name '*_darwin_test.go')
 DARWIN_TESTS      = $(shell sed -n -E 's/^func (Test[A-Za-z0-9_]*).*/\1/p' $(DARWIN_TEST_FILES)) TestTitleHistoryArrows
 
@@ -666,14 +685,18 @@ MACOS_SIGN      ?=
 
 .PHONY: dist-app dist-dmg-template dist-macos dist-macos-sign dist-macos-notarize dist-checksums
 
-dist-app: ## The macOS app with cogpit-cli inside, built with DIST_TAGS (no demo cluster), zipped, in dist/ (macOS only); VERSION=x.y.z
+dist-app: ## The macOS app with cogpit-cli inside, built with DIST_TAGS (no demo cluster) and Fyne's thread check off unless FYNE_THREAD_CHECKS=on (D-103), zipped, in dist/ (macOS only); VERSION=x.y.z
 	@test "$$($(GO) env GOOS)" = darwin || { echo "dist-app runs on macOS only"; exit 1; }
 	@test "$(origin VERSION)" != file || { echo "dist-app needs VERSION=x.y.z: the binaries would report release $(VERSION)"; exit 1; }
-	$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'
+	$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)' FYNE_THREAD_CHECKS='$(call threadMode,off)'
 	@for b in $(APP_MACOS)/cogpit $(APP_MACOS)/cogpit-cli; do \
-		$(GO) version -m $$b | grep -Ex '[[:space:]]+build[[:space:]]+-tags=$(DIST_TAGS)' >/dev/null || \
-			{ echo "$$b: not built with -tags=$(DIST_TAGS), so it would ship the demo cluster"; exit 1; }; \
+		tags=",$$($(GO) version -m $$b | sed -n -E 's/^[[:space:]]+build[[:space:]]+-tags=//p'),"; \
+		case "$$tags" in *,$(DIST_TAGS),*) ;; *) echo "$$b: not built with -tags=$(DIST_TAGS), so it would ship the demo cluster"; exit 1;; esac; \
+		case "$(call threadMode,off):$$tags" in off:*,$(FYNE_NOCHECK_TAG),*|on:*) ;; \
+			*) echo "$$b: not built with -tags=$(FYNE_NOCHECK_TAG), so Fyne's thread check would stay on"; exit 1;; esac; \
+		case "$(call threadMode,off):$$tags" in on:*,$(FYNE_NOCHECK_TAG),*) echo "$$b: built with $(FYNE_NOCHECK_TAG) though FYNE_THREAD_CHECKS=on"; exit 1;; esac; \
 	done
+	@echo "Fyne's thread check in this release build: $(call threadMode,off) (FYNE_THREAD_CHECKS, D-103)"
 	@mkdir -p $(DIST)
 	ditto -c -k --keepParent $(BIN)/Cogpit.app $(DIST)/Cogpit_$(VERSION)_darwin_$$($(GO) env GOARCH).zip
 	@echo "dist/Cogpit_$(VERSION)_darwin_$$($(GO) env GOARCH).zip"

@@ -18,6 +18,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 
+	"github.com/guided-traffic/cogpit/internal/buildinfo"
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/terminal"
@@ -150,10 +151,38 @@ type Engine interface {
 
 var _ Engine = (*engine.Session)(nil)
 
+// appID is the app's unique ID: its preferences' and its storage's name for Fyne; appName is the
+// product's name, the window's default title and the metadata's.
+const (
+	appID   = "io.guided-traffic.cogpit"
+	appName = "Cogpit"
+)
+
+// appMetadata is the app's metadata for a build with Fyne's thread check off (the Makefile's
+// FYNE_THREAD_CHECKS=off, the tag nothreadcheck; D-103): it declares the app migrated to fyne.Do,
+// which Fyne reads once (internal/build.MigratedToFyneDo) and then no longer asks, on every canvas
+// refresh, which goroutine it runs on. That question took a stack trace each time and most of a
+// fast scroll's frame. A stray call from another goroutine is then not moved to the main
+// goroutine and races; every place the window's code runs off it is audited (ui-threads.md).
+// Unlike Fyne's own tag migrated_fynedo, the metadata leaves Fyne's caches thread-safe. ok is false
+// for a build with the check on, which sets no metadata, as before D-103.
+func appMetadata(checks bool) (m fyne.AppMetadata, ok bool) {
+	if checks {
+		return fyne.AppMetadata{}, false
+	}
+	// ID and Name set, so that Fyne does not look for a FyneApp.toml beside the binary, which
+	// would replace the migrations; Version and Build are Fyne's defaults (About reads buildinfo).
+	return fyne.AppMetadata{ID: appID, Name: appName, Version: "0.0.1", Build: 1,
+		Migrations: map[string]bool{"fyneDo": true}}, true
+}
+
 // Run builds the window for the session, installs the GUI confirmer and runs Fyne's event loop
 // until the window closes.
 func Run(s *engine.Session, opts Options) error {
-	a := app.NewWithID("io.guided-traffic.cogpit")
+	if m, ok := appMetadata(buildinfo.FyneThreadChecks); ok {
+		app.SetMetadata(m) // before the app exists: Fyne reads it at the first canvas refresh
+	}
+	a := app.NewWithID(appID)
 	mode, rowHeight := opts.Theme, 0 // --theme for the run, else the Preferences' (preferences.go)
 	if p := s.UIState().Preferences; p != nil {
 		if mode == "" {
@@ -164,7 +193,7 @@ func Run(s *engine.Session, opts Options) error {
 	a.Settings().SetTheme(newThemeFor(mode, rowHeight))
 	title := opts.Title
 	if title == "" {
-		title = "Cogpit"
+		title = appName
 	}
 	w := a.NewWindow(title)
 	w.SetPadded(false) // the bars and the sidebar reach the window's edges
@@ -184,7 +213,20 @@ func Run(s *engine.Session, opts Options) error {
 	s.SetConfirmer(sh.confirmer)
 	s.SetDockOutputReader(dockOutputReader{sh}) // what the dock's tabs show, for dock.read (dockoutput.go)
 	w.SetContent(sh.root)
-	w.SetOnClosed(sh.clearSecretClipboard) // a copied Secret value does not outlive the window on the clipboard
+	w.SetOnClosed(func() {
+		// The app quits with its window: Fyne then drains its queue and from then on runs a fyne.Do
+		// at once on the caller's goroutine (or panics on its closed queue), so nothing more may reach
+		// it. The window's close runs on the main goroutine a frame before that, for the close button,
+		// a.Quit and macOS's ⌘Q alike (GLFW turns it into the windows' close); OnStopped comes later,
+		// on Fyne's lifecycle goroutine. Only Fyne's own SIGINT and SIGTERM handler quits without it,
+		// racing the handler below, which quits through a.Quit.
+		stopped.Store(true)
+		// The dock's streams end here too, while Fyne still queues: the terminal widget calls fyne.Do
+		// itself, not through the funnel, and after the drain its reading goroutines would run
+		// widget code at once, side by side (the -race run of D-103 found it at quit).
+		sh.dock.closeAll()
+		sh.clearSecretClipboard() // a copied Secret value does not outlive the window on the clipboard
+	})
 	w.SetMainMenu(sh.mainMenu())
 	// The window's last place and size, whatever Restore the last session says; the first start's
 	// 1440 × 900 in the middle of the screen without one (D-95, windowplace.go). A --perf run
