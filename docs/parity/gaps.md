@@ -2563,8 +2563,15 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   verified: the screenshot shortcut's key reaching the terminal, or a bracketed paste left open).
   GW9 a list filtered to a namespace that was deleted meanwhile shows "No pods match the filter."
   under the same filter button, without saying the namespace is gone, so that nothing can be
-  created there now; with several namespaces filtered, what to show when some or all are deleted
-  is the owner's to choose from the lead's proposals.
+  created there now. **The owner's choice (2026-10-20), "nur eine ganz kleine Anpassung":** a
+  namespace still selected in the filter but deleted is marked red, like a crashing pod, and when
+  the user unticks a red one it leaves the selection and the list; no further button or logic (he
+  declined a notice line with "Remove from filter" and the automatic removal). The lead's details,
+  open to revision: a Terminating namespace is marked the same (nothing can be created there
+  either); the filter button's label is red while one of its namespaces is; one namespace or
+  several alike. Side finding of the reading (not tried): the filter's namespace list comes from a
+  `resources.list` without a limit, which answers 100 rows (`shell.go` `loadNamespaces`,
+  `commands/resources.go`), so a cluster with more namespaces may offer only the first 100.
 - **Found by the owner (2026-10-19 late evening): fast scrolling jumps, less fluid than Lens's.**
   Proposal 1 built (2026-10-19 night on the branch `fast-scroll`, [D-103](../developer/decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)),
   and merged after the owner scrolled a release build of it on 2026-10-20 ("Deutlich besseres
@@ -3042,7 +3049,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-20 | minor | G16: the owner's gate walk on the staging cluster, every workflow passed; findings GW1–GW9 recorded, not built |
+| 2026-10-20 | minor | G16: the owner's gate walk on the staging cluster, every workflow passed; findings GW1–GW9 recorded, not built; GW9 as the owner chose it |
 | 2026-10-20 | patch | G8: the reopened log stream noted from reading on 2026-10-14 checked: real after an interruption (a Stateful Set's pod created again under its name, a restarted container: its lines twice once the cache showed it) and after a late cache; fixed, the pod's tab says where its log does not go on from its last line (D-58) |
 | 2026-10-19 | minor | G16: the owner's report, every click on a pod only checked it as if ⌘ were held, fixed (a click takes ⌘ and ⇧ from its own mouse event, not from the driver's last key event) |
 | 2026-10-19 | minor | G16: a colleague's report, one container square too many after the namespace filter, fixed (a list's cell with new content laid out again) |
