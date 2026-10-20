@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,7 +36,8 @@ type settingsPage struct {
 
 	root   *fyne.Container // the page, in the window's centre while open
 	title  *textLine
-	badge  *clusterBadge // the cluster's icon beside the title; hidden on Preferences
+	badge  *clusterBadge   // the cluster's icon beside the title; hidden on Preferences
+	lead   *fyne.Container // the badge and its gap: hidden with it, so that the title stands on the column's edge
 	nav    *fyne.Container
 	body   *fyne.Container
 	closeB *widget.Button
@@ -67,6 +69,8 @@ type settingsPage struct {
 
 	// integrationRows are the Integrations section's rows while it is built (clustersettings_integrations.go).
 	integrationRows []*integrationRow
+
+	grouped bool // the section drew its own group heads (settingsGroup): build adds none
 }
 
 func newSettingsPage(sh *shell) *settingsPage {
@@ -78,12 +82,14 @@ func newSettingsPage(sh *shell) *settingsPage {
 	p.badge.side = sizeHotbarTile
 	p.closeB = widget.NewButtonWithIcon("", theme.CancelIcon(), func() { sh.dispatch("settings.close", struct{}{}, nil) })
 	p.closeB.Importance = widget.LowImportance
+	p.lead = container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)) // hidden with the badge
 	p.nav = container.NewVBox()
 	p.body = container.NewStack()
 	// The title stands in the column the settings stand in (columnLayout), the × at the window's edge.
-	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil, nil, container.NewCenter(p.closeB),
+	// A spacer as wide as the × stands at the left, so that the header's column is the body's column.
+	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil, fixedSpace(p.closeB.MinSize().Width, 0), container.NewCenter(p.closeB),
 		box(columnLayout{}, container.NewBorder(nil, nil,
-			container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)), nil,
+			p.lead, nil,
 			container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))))
 	navPanel := sized(sizeSidebarWidth, "", newSurface(colorSidebar),
 		container.NewBorder(nil, nil, nil, newDivider(true), inset(theme.SizeNamePadding, theme.SizeNameInnerPadding, container.NewVBox(p.nav))))
@@ -140,7 +146,7 @@ func (p *settingsPage) stateChanged() {
 func (p *settingsPage) build() {
 	clear(p.controls)
 	clear(p.errs)
-	p.sync, p.prom, p.integrationRows = nil, nil, nil
+	p.sync, p.prom, p.integrationRows, p.grouped = nil, nil, nil, false
 	if p.agent != nil && p.agent.form != nil {
 		p.agent.form.close() // a connection test under way ends with its section
 	}
@@ -150,6 +156,14 @@ func (p *settingsPage) build() {
 		content = p.clusterSection(p.shown.Section)
 	} else {
 		content = p.preferencesSection(p.shown.Section)
+	}
+	if n := len(p.errs); !p.grouped && n > 0 {
+		// One bracket per group of settings: a section without groups of its own is one group.
+		label := preferencesSectionLabels[p.shown.Section]
+		if p.shown.Page == engine.SettingsCluster {
+			label = clusterSectionLabels[p.shown.Section]
+		}
+		content = container.NewVBox(fixedSpace(0, 4), newBracketLabel(strings.ToLower(label)+" · "+strconv.Itoa(n), ""), fixedSpace(0, 10), content)
 	}
 	p.body.Objects = []fyne.CanvasObject{content}
 	p.body.Refresh()
@@ -203,12 +217,14 @@ func (p *settingsPage) identityChanged() {
 	if p.shown.Page != engine.SettingsCluster {
 		p.title.SetText("Preferences")
 		p.badge.Hide()
+		p.lead.Hide()
 		return
 	}
 	id := p.sh.identity(p.shown.Context)
 	p.title.SetText("Settings - " + id.name)
 	p.badge.setIdentity(id)
 	p.badge.Show()
+	p.lead.Show()
 	if b, ok := p.controls["iconPreview"].(*clusterBadge); ok {
 		b.setIdentity(id)
 	}
@@ -245,14 +261,25 @@ func (p *settingsPage) setting(name, title, help string, control fyne.CanvasObje
 	errLine.Hide()
 	p.errs[name] = errLine
 	p.controls[name] = control
-	objs := []fyne.CanvasObject{heading(title), control}
+	// An ordinary label, not a bracket: a bracket means a group (settingsGroup), and six of them on
+	// a page would read as underlines. 6 pt from the label to its control, 24 pt to the next setting.
+	objs := []fyne.CanvasObject{newTextLine(title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
+		fixedSpace(0, 6), control}
 	if help != "" {
 		h := newParagraph(help, colorMuted, settingsHelpWidth) // wrapped, never cut short
 		h.size = theme.SizeNameCaptionText
-		objs = append(objs, h)
+		objs = append(objs, fixedSpace(0, 4), h)
 	}
-	objs = append(objs, errLine, newSpace(theme.SizeNameInnerPadding))
-	return container.NewVBox(objs...)
+	objs = append(objs, errLine, fixedSpace(0, 24))
+	return box(layout.NewCustomPaddedVBoxLayout(0), objs...)
+}
+
+// settingsGroup is a real group of settings under one bracket label ("general · 5"): the label,
+// 10 pt of air, then the settings. The group before it is 20 pt away.
+func (p *settingsPage) settingsGroup(text string, tone fyne.ThemeColorName, objs ...fyne.CanvasObject) fyne.CanvasObject {
+	p.grouped = true
+	head := []fyne.CanvasObject{fixedSpace(0, 4), newBracketLabel(text, tone), fixedSpace(0, 10)}
+	return container.NewVBox(append(head, objs...)...)
 }
 
 // showResult shows a refusal under a setting, or clears it.
