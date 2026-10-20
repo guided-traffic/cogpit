@@ -67,7 +67,7 @@ func openRollbackDialog(sh *shell, ref model.ObjectRef, _ model.ItemAction) {
 // rollbackDialog is a shown Rollback dialog.
 type rollbackDialog struct {
 	d        *dialogFrame
-	revision *widget.Select
+	revision *selectField
 	confirm  *widget.Button
 	cancel   *widget.Button
 	choices  []int // the revision of each option
@@ -88,7 +88,7 @@ func (sh *shell) showRollbackDialog(h releaseHistory) *rollbackDialog {
 			selected = text
 		}
 	}
-	rd.revision = widget.NewSelect(options, nil)
+	rd.revision = newSelectField(options, nil)
 	rd.confirm = widget.NewButton("Rollback", nil)
 	rd.confirm.Importance = widget.DangerImportance
 	rd.cancel = widget.NewButton("Cancel", nil)

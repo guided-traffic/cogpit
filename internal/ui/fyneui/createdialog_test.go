@@ -287,13 +287,13 @@ func TestRoleBindingDialogOffersTheCache(t *testing.T) {
 	}
 	subjects := form.editors[0]
 	row := subjects.rows[0]
-	row.fields[0].(*widget.Select).SetSelected(subjectServiceAccount)
+	row.fields[0].(*selectField).SetSelected(subjectServiceAccount)
 	q.until(t, "ci's service accounts", func() bool {
 		return slices.Equal(form.offered[row.fields[1].(*widget.SelectEntry)], []string{"ci-deployer"})
 	})
 	row.fields[1].(*widget.SelectEntry).SetText("ci-deployer")
 	group := subjects.add()
-	group.fields[0].(*widget.Select).SetSelected(subjectGroup)
+	group.fields[0].(*selectField).SetSelected(subjectGroup)
 	group.fields[1].(*widget.SelectEntry).SetText("oncall:sre")
 	if !group.fields[2].(*widget.SelectEntry).Disabled() {
 		t.Error("a group's namespace is editable")
@@ -383,7 +383,7 @@ func TestServiceAccountAndClusterRoleBindingDialogs(t *testing.T) {
 	q.until(t, "the cluster roles", func() bool { return slices.Contains(crb.offered[crb.roleName], "cluster-admin") })
 	crb.roleName.SetText("metrics-collector")
 	row := crb.editors[0].rows[0]
-	row.fields[0].(*widget.Select).SetSelected(subjectServiceAccount)
+	row.fields[0].(*selectField).SetSelected(subjectServiceAccount)
 	row.fields[2].(*widget.SelectEntry).SetText("monitoring")
 	q.until(t, "monitoring's service accounts", func() bool {
 		return slices.Equal(crb.offered[row.fields[1].(*widget.SelectEntry)], []string{"metrics-collector"})
@@ -463,10 +463,10 @@ func fillRoleBinding(form *createForm, q *mainQueue) {
 	form.roleName.SetText("view")
 	subjects := form.editors[0]
 	sa := subjects.rows[0]
-	sa.fields[0].(*widget.Select).SetSelected(subjectServiceAccount)
+	sa.fields[0].(*selectField).SetSelected(subjectServiceAccount)
 	sa.fields[1].(*widget.SelectEntry).SetText("ci-deployer")
 	g := subjects.add()
-	g.fields[0].(*widget.Select).SetSelected(subjectGroup)
+	g.fields[0].(*selectField).SetSelected(subjectGroup)
 	g.fields[1].(*widget.SelectEntry).SetText("oncall:sre")
 	u := subjects.add()
 	u.fields[1].(*widget.SelectEntry).SetText("carol@example.com")

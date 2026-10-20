@@ -38,7 +38,7 @@ const (
 
 // secretForm is the Create Secret dialog's own fields, for its type's prefill and for tests.
 type secretForm struct {
-	typ         *widget.Select
+	typ         *selectField
 	data        *rowEditor
 	labels      *rowEditor
 	annotations *rowEditor
@@ -50,7 +50,7 @@ func buildSecretForm(f *createForm) {
 	f.addNamespace()
 	sf := &secretForm{}
 	f.caption("TYPE")
-	sf.typ = widget.NewSelect(engine.SecretTypes, nil)
+	sf.typ = newSelectField(engine.SecretTypes, nil)
 	f.content.Add(sf.typ)
 	sf.data = f.addRows("DATA", keyValueColumns, "Add Data", func() *editorRow { return newSecretDataRow(f.sh) })
 	f.addHint("Values stay masked until you show them with the eye; they are sent base64-encoded in the Secret's data and are " +

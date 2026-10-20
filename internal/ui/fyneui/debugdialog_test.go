@@ -90,9 +90,9 @@ func dialogEntry(t *testing.T, w fyne.Window) *widget.Entry {
 	return es[0]
 }
 
-func dialogSelect(t *testing.T, w fyne.Window) *widget.Select {
+func dialogSelect(t *testing.T, w fyne.Window) *selectField {
 	t.Helper()
-	ss := findAll[*widget.Select](w.Canvas().Overlays().Top())
+	ss := findAll[*selectField](w.Canvas().Overlays().Top())
 	if len(ss) != 1 {
 		t.Fatalf("%d selects in the dialog", len(ss))
 	}

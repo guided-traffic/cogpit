@@ -109,7 +109,7 @@ type chartCtl struct {
 
 	root     *fyne.Container // a container's controls and chart; nil for the pod's, which the panel's root holds
 	controls *fyne.Container
-	rangeSel *widget.Select // the pod's; a container's chart has rangeBtn
+	rangeSel *selectField // the pod's; a container's chart has rangeBtn
 	rangeBtn *tipButton
 	variants map[string]*tipButton
 	flag     *tipButton
@@ -158,7 +158,7 @@ func newChartCtl(p *metricsPanel, name string, compact bool) *chartCtl {
 		c.rangeBtn.OnTapped = func() { c.rangeMenu() }
 		ctl = append(ctl, c.rangeBtn)
 	} else {
-		c.rangeSel = widget.NewSelect(rangeLabels(false), c.setRange)
+		c.rangeSel = newSelectField(rangeLabels(false), c.setRange)
 		c.rangeSel.Selected = label
 		ctl = append(ctl, c.rangeSel)
 	}

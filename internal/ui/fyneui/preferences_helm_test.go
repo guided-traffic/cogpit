@@ -3,8 +3,6 @@ package fyneui
 import (
 	"testing"
 	"time"
-
-	"fyne.io/fyne/v2/widget"
 )
 
 // Preferences › Kubernetes › Helm storage driver: the select shows the HELM_DRIVER preference
@@ -15,10 +13,10 @@ func TestPreferencesHelmDriverSelect(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the Kubernetes section", func() bool {
-		sel, ok := sh.settings.controls["helmDriver"].(*widget.Select)
+		sel, ok := sh.settings.controls["helmDriver"].(*selectField)
 		return ok && sel.Selected == "Secrets (Helm's default)"
 	})
-	sel := sh.settings.controls["helmDriver"].(*widget.Select)
+	sel := sh.settings.controls["helmDriver"].(*selectField)
 	if len(sel.Options) != 2 || sel.Options[1] != "ConfigMaps" {
 		t.Fatalf("options %q", sel.Options)
 	}
@@ -30,7 +28,7 @@ func TestPreferencesHelmDriverSelect(t *testing.T) {
 	mustDispatch(t, s, "preferences.set", map[string]any{"helmDriver": "secret"})
 	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
 		q.drain()
-		sel, ok := sh.settings.controls["helmDriver"].(*widget.Select)
+		sel, ok := sh.settings.controls["helmDriver"].(*selectField)
 		if ok && sel.Selected == "Secrets (Helm's default)" {
 			break
 		}
@@ -60,7 +58,7 @@ func renderPreferencesHelmDriver(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the Kubernetes section", func() bool {
-		sel, ok := sh.settings.controls["helmDriver"].(*widget.Select)
+		sel, ok := sh.settings.controls["helmDriver"].(*selectField)
 		return sh.settings.visible() && ok && sel.Selected == "ConfigMaps"
 	})
 	q.drain()

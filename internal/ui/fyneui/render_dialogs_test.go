@@ -10,10 +10,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The renders of the owner's gate walk of 2026-10-20 (GW2, GW6; D-104): the real Drain's dialog,
-// the Scale dialog with its hint's tooltip, the Rollback dialog's title. PNGs:
-// testdata/drain_dialog_*.png, scale_dialog_hint_*.png, rollback_dialog_*.png; the Scale dialog's
-// own: scale_dialog_*.png (render_drawer_test.go).
+// The renders of the owner's gate walk of 2026-10-20 (GW2, GW5, GW6; D-104): the real Drain's
+// dialog, the Scale dialog with its hint's tooltip, the Rollback dialog with its dropdown closed and
+// open. PNGs: testdata/drain_dialog_*.png, scale_dialog_hint_*.png, rollback_dialog_*.png,
+// rollback_dropdown_*.png; the Scale dialog's own: scale_dialog_*.png (render_drawer_test.go).
 
 func renderDrainDialog(t *testing.T, mode ThemeMode, name string) {
 	f := kindsFake(t, "nodes")
@@ -72,8 +72,9 @@ func TestRenderScaleHintLight(t *testing.T) {
 }
 
 // renderRollback shows the Rollback dialog of a release with four revisions, the current one
-// chosen.
-func renderRollback(t *testing.T, mode ThemeMode, name string) {
+// chosen; open taps its dropdown, which lists them over the field, the current one checked at the
+// field's place (GW5).
+func renderRollback(t *testing.T, mode ThemeMode, name string, open bool) {
 	sh, w, q, _, _ := releaseDrawerShell(t, mode)
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
@@ -84,12 +85,24 @@ func renderRollback(t *testing.T, mode ThemeMode, name string) {
 	})
 	q.until(t, "the dialog", func() bool { return rd != nil })
 	settle(w)
+	if open {
+		test.Tap(rd.revision)
+		if !rd.revision.isOpen() {
+			t.Fatal("the dropdown did not open")
+		}
+	}
 	savePNG(t, w, name)
 }
 
 func TestRenderRollbackDialog(t *testing.T) {
-	renderRollback(t, ThemeDark, "rollback_dialog_dark.png")
+	renderRollback(t, ThemeDark, "rollback_dialog_dark.png", false)
 }
 func TestRenderRollbackDialogLight(t *testing.T) {
-	renderRollback(t, ThemeLight, "rollback_dialog_light.png")
+	renderRollback(t, ThemeLight, "rollback_dialog_light.png", false)
+}
+func TestRenderRollbackDropdownDark(t *testing.T) {
+	renderRollback(t, ThemeDark, "rollback_dropdown_dark.png", true)
+}
+func TestRenderRollbackDropdownLight(t *testing.T) {
+	renderRollback(t, ThemeLight, "rollback_dropdown_light.png", true)
 }

@@ -124,7 +124,7 @@ func TestPreferencesOpenWithTheShortcutAndSwitchTheTheme(t *testing.T) {
 		t.Fatalf("starts %s", th.mode)
 	}
 
-	sel := sh.settings.controls["theme"].(*widget.Select)
+	sel := sh.settings.controls["theme"].(*selectField)
 	if sel.Selected != "Sync with computer" {
 		t.Errorf("theme shows %q", sel.Selected)
 	}

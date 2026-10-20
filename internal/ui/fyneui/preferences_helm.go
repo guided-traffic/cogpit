@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Lens's HELM_DRIVER on the Preferences page (G11; engine/helmdriver.go): where a new Helm install
@@ -24,7 +23,7 @@ func (p *settingsPage) helmDriverSetting() (fyne.CanvasObject, func()) {
 	for i, c := range helmDriverChoices {
 		labels[i] = c.label
 	}
-	sel := widget.NewSelect(labels, func(label string) {
+	sel := newSelectField(labels, func(label string) {
 		for _, c := range helmDriverChoices {
 			if c.label == label {
 				p.setPreference("helmDriver", c.value)

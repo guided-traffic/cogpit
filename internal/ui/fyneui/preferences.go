@@ -188,7 +188,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	for i, c := range themeChoices {
 		labels[i] = c.label
 	}
-	themeSel := widget.NewSelect(labels, func(label string) {
+	themeSel := newSelectField(labels, func(label string) {
 		for _, c := range themeChoices {
 			if c.label == label {
 				p.setPreference("theme", c.value)
@@ -266,8 +266,8 @@ func sizeChoices(cur int, sizes ...int) []string {
 }
 
 // intSelect is a select of numbers that sets a preference.
-func (p *settingsPage) intSelect(name string, options []string) *widget.Select {
-	return widget.NewSelect(options, func(s string) {
+func (p *settingsPage) intSelect(name string, options []string) *selectField {
+	return newSelectField(options, func(s string) {
 		if n, err := strconv.Atoi(s); err == nil {
 			p.setPreference(name, n)
 		}
@@ -346,7 +346,7 @@ func (p *settingsPage) tablesSection() fyne.CanvasObject {
 	def := "Default (" + strconv.Itoa(defaultRowHeight()) + ")"
 	heights := []int{20, 22, 24, 26, 28, 30, 32, 36, 40, 44, 48}
 	opts := append([]string{def}, sizeChoices(0, heights...)...)
-	row := widget.NewSelect(opts, func(s string) {
+	row := newSelectField(opts, func(s string) {
 		if s == def {
 			p.setPreference("tableRowHeight", 0)
 		} else if n, err := strconv.Atoi(s); err == nil {

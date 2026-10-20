@@ -49,9 +49,9 @@ type helmUpgradeTab struct {
 	originBox   *fyne.Container // the pill's place on the chart's line
 	originNote  *textLine
 	originRow   *fyne.Container // what the origin means, while Save downloads from it
-	version     *widget.Select
+	version     *selectField
 	versionBox  *fyne.Container
-	repo        *widget.Select
+	repo        *selectField
 	repoBox     *fyne.Container
 	versionText *textLine
 	releaseLink *linkText
@@ -108,11 +108,11 @@ func newHelmUpgradeTab(sh *shell, t engine.DockTab) *helmUpgradeTab {
 	u.originRow = container.NewBorder(nil, nil,
 		container.NewCenter(widget.NewIcon(themedIcon(theme.WarningIcon(), colorStatusWarning))), nil, u.originNote)
 	u.originRow.Hide()
-	u.version = widget.NewSelect(nil, nil)
+	u.version = newSelectField(nil, nil)
 	u.version.PlaceHolder = "Select…"
 	u.version.OnChanged = u.pickVersion
 	u.versionBox = box(fitSelect{}, u.version)
-	u.repo = widget.NewSelect(nil, nil)
+	u.repo = newSelectField(nil, nil)
 	u.repo.OnChanged = u.pickRepository
 	u.repoBox = box(fitSelect{}, u.repo)
 	u.versionText = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})

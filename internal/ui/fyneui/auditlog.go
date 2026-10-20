@@ -44,7 +44,7 @@ type auditLogTab struct {
 	tab engine.DockTab
 
 	root    *fyne.Container
-	origin  *widget.Select
+	origin  *selectField
 	summary *textLine
 	list    *widget.List
 	empty   *fyne.Container
@@ -65,7 +65,7 @@ func newAuditLogTab(sh *shell, t engine.DockTab) *auditLogTab {
 	for i, o := range auditOrigins {
 		labels[i] = o.label
 	}
-	a.origin = widget.NewSelect(labels, func(label string) {
+	a.origin = newSelectField(labels, func(label string) {
 		if a.syncing {
 			return
 		}

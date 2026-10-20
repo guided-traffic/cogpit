@@ -60,7 +60,7 @@ func (p *settingsPage) updatesSettings() ([]fyne.CanvasObject, func()) {
 	for i, c := range updateChannelChoices {
 		labels[i] = c.label
 	}
-	channel := widget.NewSelect(labels, func(label string) {
+	channel := newSelectField(labels, func(label string) {
 		for _, c := range updateChannelChoices {
 			if c.label == label {
 				p.setPreference("updateChannel", c.value)

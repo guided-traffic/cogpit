@@ -42,7 +42,7 @@ const (
 
 // chartVersionPicker is the drawer's version picker of one chart.
 type chartVersionPicker struct {
-	sel     *widget.Select
+	sel     *selectField
 	root    fyne.CanvasObject
 	syncing bool // the picker follows the model: no dispatch
 }
@@ -72,7 +72,7 @@ func chartDrawerHeader(d *drawer, m *engine.DetailModel) (lead, extra fyne.Canva
 
 func newChartVersionPicker(d *drawer, ref model.ObjectRef) *chartVersionPicker {
 	p := &chartVersionPicker{}
-	p.sel = widget.NewSelect(nil, func(v string) {
+	p.sel = newSelectField(nil, func(v string) {
 		if p.syncing {
 			return
 		}

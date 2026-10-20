@@ -135,6 +135,11 @@ malformed-input tests or fuzz targets.
   on such a line (2026-10-12).
 - Verify every visual change with an offscreen render (Fyne's `test` package) or a screenshot, in
   dark and light themes, and attach before/after images to the pull request.
+- Every dropdown is a `selectField` (`newSelectField`, [`selectfield.go`](../../internal/ui/fyneui/selectfield.go)),
+  never Fyne's `widget.NewSelect`: it opens over its field, the current entry checked at the
+  field's place, as a macOS pop-up button (the owner's GW5, 2026-10-20: Fyne's list showed the
+  current entry a second time under the field, "verwirrend";
+  [D-104](decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)).
 
 ### Dialogs, reviews and status lines
 

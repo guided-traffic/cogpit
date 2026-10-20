@@ -303,7 +303,7 @@ type agentForm struct {
 	root fyne.CanvasObject
 
 	name      *widget.Entry
-	kind      *widget.Select
+	kind      *selectField
 	baseURL   *widget.Entry
 	urlHint   *textLine
 	plainWarn *paragraph // plain http to another machine (H-95)
@@ -360,7 +360,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.caFile.SetText(c.CAFile)
 	f.caB = widget.NewButton("Choose…", f.chooseCAFile)
 	f.caB.Importance = widget.LowImportance
-	f.kind = widget.NewSelect(labels, func(label string) { f.kindChanged(label) })
+	f.kind = newSelectField(labels, func(label string) { f.kindChanged(label) })
 	f.kind.SetSelected(chatKindLabel(orKind(c.Kind)))
 
 	f.key = widget.NewPasswordEntry()

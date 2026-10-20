@@ -111,7 +111,7 @@ type createForm struct {
 	name *widget.Entry
 	ns   *widget.SelectEntry // nil for a cluster-scoped kind
 	// The binding dialogs' role (roleKind nil in a cluster role binding's) and every list of rows.
-	roleKind *widget.Select
+	roleKind *selectField
 	roleName *widget.SelectEntry
 	editors  []*rowEditor
 	secret   *secretForm                      // the Create Secret dialog's own fields (createdialog_secret.go)
@@ -612,7 +612,7 @@ func buildRoleForm(f *createForm, cluster bool) {
 // service account, its namespace.
 func buildBindingForm(f *createForm, cluster bool) {
 	var (
-		roleKind  *widget.Select
+		roleKind  *selectField
 		roleName  = widget.NewSelectEntry(nil)
 		autoName  string
 		accounts  = map[string][]string{} // service account names by namespace, from the cache
@@ -628,7 +628,7 @@ func buildBindingForm(f *createForm, cluster bool) {
 	} else {
 		f.addNamespace()
 		f.caption("ROLE")
-		roleKind = widget.NewSelect([]string{roleKindRole, roleKindClusterRole}, nil)
+		roleKind = newSelectField([]string{roleKindRole, roleKindClusterRole}, nil)
 		f.roleKind = roleKind
 		roleKind.SetSelected(roleKindRole)
 		f.content.Add(container.NewBorder(nil, nil, roleKind, nil, roleName))
@@ -667,7 +667,7 @@ func buildBindingForm(f *createForm, cluster bool) {
 		autoName = role
 	}
 	subjects = f.addRows("SUBJECTS", []string{"Kind", "Name", "Namespace"}, "Add Subject", func() *editorRow {
-		kind := widget.NewSelect([]string{subjectUser, subjectGroup, subjectServiceAccount}, nil)
+		kind := newSelectField([]string{subjectUser, subjectGroup, subjectServiceAccount}, nil)
 		name, ns := widget.NewSelectEntry(nil), f.namespaceField()
 		hint := "the binding's" // a role binding's service account defaults to its namespace
 		if cluster {

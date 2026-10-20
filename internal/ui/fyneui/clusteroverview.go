@@ -39,7 +39,7 @@ type clusterPanel struct {
 	data      *engine.ClusterOverviewModel
 	master    *tipButton
 	worker    *tipButton
-	rangeSel  *widget.Select
+	rangeSel  *selectField
 	syncing   bool        // set while the select is set from engine state
 	caption   *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
 	note      *textLine
@@ -58,7 +58,7 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	p.master = newTipButton(sh, nil, "", func() { p.setNodes(engine.NodesMaster) })
 	p.worker = newTipButton(sh, nil, "", func() { p.setNodes(engine.NodesWorker) })
 	p.master.Text, p.worker.Text = "Master", "Worker"
-	p.rangeSel = widget.NewSelect(rangeLabels(false), p.setRange)
+	p.rangeSel = newSelectField(rangeLabels(false), p.setRange)
 	p.rangeSel.Selected = engine.FormatChartRange(engine.DefaultOverviewWindow)
 	p.caption = newSourceLine("Loading metrics…", colorMuted, theme.SizeNameCaptionText)
 	p.note = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})

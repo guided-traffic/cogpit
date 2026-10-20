@@ -80,7 +80,7 @@ func openDebugDialog(sh *shell, ref model.ObjectRef, a model.ItemAction) {
 type debugDialog struct {
 	d       *dialogFrame
 	rows    *fyne.Container
-	target  *widget.Select
+	target  *selectField
 	image   *widget.Entry
 	confirm *widget.Button
 	cancel  *widget.Button
@@ -100,7 +100,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	width := th.Size(sizeConfirmWidth)
 	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
 	dd := &debugDialog{rows: box(kvLayout{})}
-	dd.target = widget.NewSelect(append(slices.Clone(targets), debugNoTarget), nil)
+	dd.target = newSelectField(append(slices.Clone(targets), debugNoTarget), nil)
 	switch {
 	case p.Target != "" && slices.Contains(targets, p.Target):
 		dd.target.SetSelected(p.Target)

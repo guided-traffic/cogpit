@@ -52,7 +52,7 @@ func init() {
 
 // promFields are the Prometheus's controls of the shown Prometheus section.
 type promFields struct {
-	format  *widget.Select
+	format  *selectField
 	filter  *widget.Check
 	address *widget.Entry
 	prefix  *widget.Entry
@@ -80,7 +80,7 @@ func (p *settingsPage) prometheusSettings() (fyne.CanvasObject, func()) {
 		labels[i] = o.Label
 	}
 	set := func() { p.setPrometheus(f) }
-	f.format = widget.NewSelect(labels, func(string) { set() })
+	f.format = newSelectField(labels, func(string) { set() })
 	f.filter = widget.NewCheck("Filter empty containers", func(bool) { set() })
 	f.https = widget.NewCheck("Use HTTPS", func(bool) { set() })
 	f.address = widget.NewEntry()

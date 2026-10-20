@@ -53,7 +53,7 @@ func TestPreferencesUpdateRows(t *testing.T) {
 	q.until(t, "the box checked and the reason shown", func() bool {
 		return check.Checked && why.Visible() && why.text == "This build has no update key"
 	})
-	sel, ok := sh.settings.controls["updateChannel"].(*widget.Select)
+	sel, ok := sh.settings.controls["updateChannel"].(*selectField)
 	if !ok || !slices.Equal(sel.Options, []string{"Stable"}) || sel.Selected != "Stable" {
 		t.Fatalf("the channel select: %#v", sh.settings.controls["updateChannel"])
 	}

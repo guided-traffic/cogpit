@@ -38,7 +38,7 @@ type helmInstallTab struct {
 	installBtn *widget.Button
 	searchBtn  *tipButton
 	find       *findBar
-	version    *widget.Select
+	version    *selectField
 	namespace  *widget.Entry
 	release    *widget.Entry
 	createNS   *widget.Check
@@ -101,7 +101,7 @@ func newHelmInstallTab(sh *shell, t engine.DockTab) *helmInstallTab {
 	u.installBtn.Importance = widget.HighImportance
 	u.searchBtn = newTipButton(sh, theme.SearchIcon(), "Find", u.toggleSearch)
 	u.find = newFindBar(sh, u.pane.view)
-	u.version = widget.NewSelect(hi.Versions, nil)
+	u.version = newSelectField(hi.Versions, nil)
 	u.version.SetSelected(hi.Version)
 	u.version.OnChanged = u.pickVersion
 	u.namespace = widget.NewEntry()
