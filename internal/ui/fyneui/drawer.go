@@ -121,7 +121,7 @@ func newDrawer(sh *shell) *drawer {
 	d.root = box(lockedWidth{}, newSurface(colorDrawer),
 		container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil, d.body))
 	d.width = clampWidth(sh.drawerW, minDrawerWidth, maxDrawerWidth, minDrawerWidth)
-	d.status.limit(d.statusWidth(), false)
+	d.status.limit(d.statusWidth())
 	return d
 }
 
@@ -151,7 +151,7 @@ func (d *drawer) widthChanged() {
 		return
 	}
 	d.width = w
-	d.status.limit(d.statusWidth(), false)
+	d.status.limit(d.statusWidth())
 	d.rebuild()
 }
 
@@ -713,7 +713,7 @@ func (d *drawer) plainValue(ref model.ObjectRef, it model.DetailItem, copyable b
 // beside its name, then wrapped (the text stays whole in the copy icon and the selection).
 func (d *drawer) valuePill(text string, fg fyne.ThemeColorName, tinted bool) *pill {
 	p := newPill(text, fg, tinted)
-	p.limit(d.valueWidth(), true)
+	p.limit(d.valueWidth())
 	return p
 }
 
@@ -762,15 +762,15 @@ func (d *drawer) chips(ref model.ObjectRef, chips []model.Chip, copyOf func(stri
 		case c.Link != nil && d.sh.view.serves(c.Link.Kind):
 			link := *c.Link
 			p := d.valuePill(c.Text, colorLink, false)
-			p.limit(max(d.valueWidth()-gutter, 0), true)
+			p.limit(max(d.valueWidth()-gutter, 0))
 			o = newTapTarget(p, func() { d.sh.followLink(link, ref.Context, false) })
 		case c.Status != model.StatusNone:
 			p := d.statusValuePill(c.Text, c.Status)
-			p.limit(max(d.valueWidth()-gutter, 0), true)
+			p.limit(max(d.valueWidth()-gutter, 0))
 			o = p
 		default:
 			p := d.valuePill(c.Text, theme.ColorNameForeground, false)
-			p.limit(max(d.valueWidth()-gutter, 0), true)
+			p.limit(max(d.valueWidth()-gutter, 0))
 			o = p
 		}
 		o = wrapCopy(o, d.copyFor(copyOf(c.Text), false))

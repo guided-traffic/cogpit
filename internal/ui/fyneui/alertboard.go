@@ -270,7 +270,7 @@ func (t textWidth) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 // alertTone is a severity's token colour on the board and in the title bar's pill: the status colour
 // of the group, except info, which is the Succeeded blue (the pill's, alerts.go).
 func alertTone(g engine.AlertGroup) fyne.ThemeColorName {
-	if g.Key == "info" {
+	if g.Key == severityInfo {
 		return colorStatusSucceeded
 	}
 	return statusColorName(g.Status)

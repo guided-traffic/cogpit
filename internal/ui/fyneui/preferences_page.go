@@ -278,8 +278,9 @@ func (p *settingsPage) setting(name, title, help string, control fyne.CanvasObje
 // 10 pt of air, then the settings. The group before it is 20 pt away.
 func (p *settingsPage) settingsGroup(text string, tone fyne.ThemeColorName, objs ...fyne.CanvasObject) fyne.CanvasObject {
 	p.grouped = true
-	head := []fyne.CanvasObject{fixedSpace(0, 4), newBracketLabel(text, tone), fixedSpace(0, 10)}
-	return container.NewVBox(append(head, objs...)...)
+	all := make([]fyne.CanvasObject, 0, 3+len(objs))
+	all = append(all, fixedSpace(0, 4), newBracketLabel(text, tone), fixedSpace(0, 10))
+	return container.NewVBox(append(all, objs...)...)
 }
 
 // showResult shows a refusal under a setting, or clears it.

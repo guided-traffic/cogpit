@@ -339,16 +339,6 @@ func (sh *shell) integrationsChanged(ctx string) {
 	}
 }
 
-// checkIndent lays its objects out from where a check's label starts, so that the lines under a
-// switch line up with its label (widget.Check's layout: the focus square, the borders, the
-// label's own padding).
-type checkIndent struct{}
-
-func (checkIndent) offset() float32 {
-	th := fyne.CurrentApp().Settings().Theme()
-	return th.Size(theme.SizeNameInlineIcon) + th.Size(theme.SizeNameInnerPadding) + 2*th.Size(theme.SizeNameInputBorder)
-}
-
 // textThenLink lays a text line out at its natural width (shortened when the room is short) with a
 // link right after it, on one line.
 type textThenLink struct{}
@@ -390,22 +380,4 @@ func (l textThenLink) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	text.Resize(fyne.NewSize(max(tw, 0), size.Height))
 	link.Move(fyne.NewPos(max(tw, 0)+l.gap(), 0))
 	link.Resize(fyne.NewSize(max(lw-l.gap(), 0), size.Height))
-}
-
-func (l checkIndent) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	var ms fyne.Size
-	for _, o := range objs {
-		if o.Visible() {
-			ms = ms.Max(o.MinSize())
-		}
-	}
-	return ms.AddWidthHeight(l.offset(), 0)
-}
-
-func (l checkIndent) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	x := l.offset()
-	for _, o := range objs {
-		o.Move(fyne.NewPos(x, 0))
-		o.Resize(fyne.NewSize(max(size.Width-x, 0), size.Height))
-	}
 }

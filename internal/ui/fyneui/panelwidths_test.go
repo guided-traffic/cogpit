@@ -90,7 +90,7 @@ func TestDrawerWidthNeverFollowsItsContent(t *testing.T) {
 	// text is what the copy icon copies.
 	var wrapped *pill
 	for _, p := range findAll[*pill](sh.drawer.details) {
-		if p.text == crashLoopStatus && p.wrap {
+		if p.text == crashLoopStatus && p.maxW > 0 {
 			wrapped = p
 			break
 		}

@@ -36,10 +36,6 @@ func newCreateButton(sh *shell) *createButton {
 	return b
 }
 
-// floating places the button at the bottom right of the area it covers. The container handles no
-// input itself, so the table below it keeps every click outside the button.
-func (b *createButton) floating() *fyne.Container { return box(floatLayout{}, b) }
-
 // update shows the button while a cluster is connected and a view is open, except on the views
 // of local and virtual kinds (Port Forwarding, Helm Releases): no manifest creates their objects,
 // so a Create resource tab would only offer to create something else (owner, 2026-10-12).
@@ -113,7 +109,7 @@ func (r *createButtonRenderer) Refresh() {
 	b.plate.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	b.plate.FillColor = themeColor(th, colorChip)
 	b.plate.StrokeColor, b.plate.StrokeWidth = themeColor(th, colorBracket), 1
-	glyph := fyne.ThemeColorName(colorAccent)
+	glyph := colorAccent
 	if b.hovered {
 		b.plate.FillColor = themeColor(th, theme.ColorNameHover)
 		b.plate.StrokeColor = withAlpha(themeColor(th, colorAccent), 0xa0)
@@ -128,21 +124,6 @@ func (r *createButtonRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *createButtonRenderer) Destroy() {}
-
-// floatLayout puts its objects at their minimum size in the bottom-right corner, inset by the
-// theme's padding.
-type floatLayout struct{}
-
-func (floatLayout) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.Size{} }
-
-func (floatLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	pad := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding) * 5
-	for _, o := range objs {
-		ms := o.MinSize()
-		o.Move(fyne.NewPos(size.Width-ms.Width-pad, size.Height-ms.Height-pad))
-		o.Resize(ms)
-	}
-}
 
 // openCreateTab opens a Create resource tab, from the template of the open view's kind when
 // Cogpit has one.

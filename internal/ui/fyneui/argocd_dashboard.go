@@ -236,7 +236,7 @@ func newArgoActivityLine(sh *shell, a engine.ArgoActivityItem, now time.Time) fy
 	}
 	what := newTextLine(text, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	what.truncate = true
-	dotted := fyne.CanvasObject(newDotSlot(newSurfaceDot(tone)))
+	dotted := newDotSlot(newSurfaceDot(tone))
 	if healthy {
 		dotted = newDotSlot(newSurfaceDot(colorTokenDim))
 	}

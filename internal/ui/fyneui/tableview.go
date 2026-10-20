@@ -24,9 +24,9 @@ import (
 // next to the table and not in the theme.
 var defaultColumnWidths = map[string]float32{
 	"name": 220, "namespace": 130, "containers": 84, "cpu": 64, "memory": 88, "restarts": 64,
-	"controlledBy": 108, "node": 104, "qos": 80, "age": 56, "status": 172, "conditions": 240,
+	"controlledBy": 108, "node": 104, "qos": 80, "age": 56, columnStatus: 172, "conditions": 240,
 	"pods": 72, "replicas": 86, "type": 100, "clusterIP": 120, "ports": 140, "externalIP": 120,
-	"selector": 200, "labels": 260, "message": 300, "involvedObject": 210, "source": 140,
+	"selector": 200, "labels": 260, columnMessage: 300, "involvedObject": 210, "source": 140,
 	"count": 60, "lastSeen": 172, "roles": 120, "version": 104, "taints": 64, "disk": 76,
 }
 
@@ -654,7 +654,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 			cell = row.Cells[ci]
 		}
 		status := cell.Status
-		if status == model.StatusNone && col.ID == "status" {
+		if status == model.StatusNone && col.ID == columnStatus {
 			status = tv.snap.Rows[id.Row].Status
 		}
 		content = cellContent{text: tv.tf.CellText(*col, cell, tv.now), status: status, link: cell.Link, parts: cell.Parts, marks: cell.Marks, bar: cell.Bar, tip: cell.Tip}
@@ -662,7 +662,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 			content.link = nil // nowhere to go: plain text
 		}
 		// A word is a pill, a sentence is not: an event's message in a status colour stays plain text.
-		content.pill = status != model.StatusNone && col.Type == model.ColumnText && col.ID != "message" &&
+		content.pill = status != model.StatusNone && col.Type == model.ColumnText && col.ID != columnMessage &&
 			utf8.RuneCountInString(content.text) <= maxPillText
 		if col.Type == model.ColumnWarning {
 			content.kind = cellWarning
@@ -670,7 +670,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 				content.kind, content.text = cellText, "" // the spine and the pill say it; the reason moves to the status word's tooltip
 			}
 		}
-		if col.ID == "status" && content.tip == "" && tv.statusLit(row) {
+		if col.ID == columnStatus && content.tip == "" && tv.statusLit(row) {
 			content.tip = tv.warningReason(row)
 		}
 		if col.Type == model.ColumnIcon {
@@ -694,7 +694,7 @@ func (tv *tableView) statusLit(row *model.Row) bool {
 		return false
 	}
 	for _, ci := range tv.cols {
-		if tv.snap.Columns[ci].ID == "status" {
+		if tv.snap.Columns[ci].ID == columnStatus {
 			return true
 		}
 	}
@@ -906,7 +906,7 @@ func (tv *tableView) columnWidth(i int) float32 {
 // flexColumn is the visible column that takes the free width: the name, as in Lens; for views
 // without a visible name (Events hides it) the message; else the first column.
 func (tv *tableView) flexColumn() int {
-	for _, id := range []string{"name", "message"} {
+	for _, id := range []string{"name", columnMessage} {
 		for i, ci := range tv.cols {
 			if tv.snap.Columns[ci].ID == id {
 				return i

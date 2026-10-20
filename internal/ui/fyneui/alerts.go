@@ -108,7 +108,7 @@ func (b *alertsButton) countText() string {
 	case !b.sum.Answered:
 		return "warn"
 	case n > 99:
-		return "99+"
+		return countOverflow
 	default:
 		return strconv.Itoa(n)
 	}
@@ -129,7 +129,7 @@ func (b *alertsButton) tipText() string {
 	for _, c := range []struct {
 		n    int
 		what string
-	}{{s.Critical, "critical"}, {s.Warning, "warning"}, {s.Info, "info"}} {
+	}{{s.Critical, severityCritical}, {s.Warning, severityWarning}, {s.Info, severityInfo}} {
 		if c.n > 0 {
 			parts = append(parts, strconv.Itoa(c.n)+" "+c.what)
 		}
@@ -200,6 +200,13 @@ type alertSegment struct {
 	num *canvas.Text
 }
 
+// The alert severities as the engine names them (AlertGroup.Key, AlertsSummary.Worst).
+const (
+	severityCritical = "critical"
+	severityWarning  = "warning"
+	severityInfo     = "info"
+)
+
 // alertSegments are the pill's severities in order, with the token colour of each: the error colour
 // for critical, amber for warning, blue for info (the Succeeded token's blue; the pill's triangle
 // keeps the worst severity's own status colour, colour()).
@@ -208,9 +215,9 @@ var alertSegments = [3]struct {
 	tone  fyne.ThemeColorName
 	count func(engine.AlertsSummary) int
 }{
-	{"critical", colorStatusError, func(s engine.AlertsSummary) int { return s.Critical }},
-	{"warning", colorStatusWarning, func(s engine.AlertsSummary) int { return s.Warning }},
-	{"info", colorStatusSucceeded, func(s engine.AlertsSummary) int { return s.Info }},
+	{severityCritical, colorStatusError, func(s engine.AlertsSummary) int { return s.Critical }},
+	{severityWarning, colorStatusWarning, func(s engine.AlertsSummary) int { return s.Warning }},
+	{severityInfo, colorStatusSucceeded, func(s engine.AlertsSummary) int { return s.Info }},
 }
 
 // segmented reports whether the pill shows the severities' tokens: while an Alertmanager answered
@@ -234,10 +241,13 @@ func alertTokenWidth(n int) float32 {
 	return 24
 }
 
+// countOverflow is the text of a count beyond 99, so that the width of a number is bounded.
+const countOverflow = "99+"
+
 // alertCountText is a severity's number: "99+" from a hundred on, so that its width is bounded too.
 func alertCountText(n int) string {
 	if n > 99 {
-		return "99+"
+		return countOverflow
 	}
 	return strconv.Itoa(n)
 }
@@ -379,7 +389,8 @@ func (r *alertsRenderer) Refresh() {
 }
 
 func (r *alertsRenderer) Objects() []fyne.CanvasObject {
-	objs := []fyne.CanvasObject{r.bg, r.img.img, r.count}
+	objs := make([]fyne.CanvasObject, 0, 3+2*len(r.segs))
+	objs = append(objs, r.bg, r.img.img, r.count)
 	for _, sg := range r.segs {
 		objs = append(objs, sg.tok, sg.num)
 	}

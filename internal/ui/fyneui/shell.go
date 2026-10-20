@@ -876,7 +876,9 @@ var errUnavailable = errors.New("not available in this build")
 
 // toastLifetimes is how long a toast stays per level; an error stays longest, because it asks for
 // a reaction. The pointer over a toast pauses its time.
-var toastLifetimes = map[string]time.Duration{"info": 6 * time.Second, "warning": 9 * time.Second, "error": 14 * time.Second}
+var toastLifetimes = map[string]time.Duration{
+	engine.LevelInfo: 6 * time.Second, engine.LevelWarning: 9 * time.Second, engine.LevelError: 14 * time.Second,
+}
 
 // toast shows a message the window raised itself and keeps it in the engine's notification log
 // (notifications.go), for the window's eyes only.
@@ -902,7 +904,7 @@ func (sh *shell) showToast(level, msg string, id uint64) {
 	c, title, icon := toastStyle(level)
 	life := toastLifetimes[level]
 	if life == 0 {
-		life = toastLifetimes["info"]
+		life = toastLifetimes[engine.LevelInfo]
 	}
 	if sh.toastTime > 0 {
 		life = sh.toastTime

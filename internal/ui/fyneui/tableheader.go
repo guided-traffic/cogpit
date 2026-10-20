@@ -80,7 +80,7 @@ func (tv *tableView) fitToContent(col int) {
 			return tv.tf.CellText(c, cell, tv.now)
 		}, size))
 	}
-	if c.ID == "status" {
+	if c.ID == columnStatus {
 		w += pillPadX*2 + pillDotSide + pillDotGap // the pill's padding and dot (list_rows.go)
 	}
 	tv.userWidths[tv.snap.View+"/"+c.ID] = w + 2*pad + 1 // a point of slack against rounding

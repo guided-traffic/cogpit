@@ -58,9 +58,9 @@ func (s *statusBadge) Set(text string, tone fyne.ThemeColorName) {
 	s.Refresh()
 }
 
-// limit sets the widest the badge may be; a longer word is cut with an ellipsis. The second
-// argument keeps the pill's signature (a status word never wraps).
-func (s *statusBadge) limit(maxW float32, _ bool) {
+// limit sets the widest the badge may be; a longer word is cut with an ellipsis (a status word
+// never wraps).
+func (s *statusBadge) limit(maxW float32) {
 	if maxW == s.maxW {
 		return
 	}
