@@ -14,31 +14,49 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// instrumentTile is the 28 point rounded square at the left of an integration's row (Dark Cockpit,
-// design prototype): the integration's initial on a plate tinted by its state, the same tones as
-// the bearing's tokens (instrument_bearing.go). A live integration glows in the cluster's cyan, one
+// instrumentTile is the 28 point rounded square of an integration (Dark Cockpit, design prototype):
+// its glyph on a plate tinted by its state, the same object in the Overview's bearing and at the
+// left of its row in Settings › Integrations. A live integration is tinted in the cluster's cyan, one
 // that needs the user is outlined in amber, a failing one is coral, an absent or switched off one is
-// dim. The tint is never the only signal: the row's status line says it in words.
+// dim. The tint is never the only signal: the status line and the tooltip say it in words.
 type instrumentTile struct {
 	widget.BaseWidget
-	letter string
-	state  bearingState
+	name  engine.Integration
+	state bearingState
 }
 
 const instrumentTileSide = 28
 
 func newInstrumentTile(name engine.Integration) *instrumentTile {
-	t := &instrumentTile{letter: instrumentLetter(name)}
+	t := &instrumentTile{name: name}
 	t.ExtendBaseWidget(t)
 	return t
 }
 
-// instrumentLetter is the monogram of an integration: M for Metrics Server, P, A, T, K.
-func instrumentLetter(name engine.Integration) string {
-	if l := integrationNavLabels[name]; l != "" {
-		return l[:1]
+// The integrations' glyphs, Cogpit's own drawings (clean-room, D-12) on a 24-unit grid: the
+// Metrics Server's chip, Prometheus' rising line, the Alertmanager's bell, Trivy's shield and
+// Kyverno's checked ring.
+var (
+	glyphPrometheus = metricIcon("cogpit-prometheus.svg", `<path d="M3 18.2 9 11l3.6 3.6L19.6 6.4l1.6 1.4-8.5 10-3.6-3.6-4.7 5.6z"/>`)
+	glyphTrivy      = metricIcon("cogpit-trivy.svg", `<path d="M12 2 4 5.5v5.7c0 4.7 3.3 8.7 8 10 4.7-1.3 8-5.3 8-10V5.5z"/>`)
+	glyphKyverno    = metricIcon("cogpit-kyverno.svg", `<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2.4a7.6 7.6 0 1 1 0 15.2 7.6 7.6 0 0 1 0-15.2z"/>`+
+		`<path d="M10.6 15.6 7.4 12.4l1.4-1.4 1.8 1.8 4.6-4.6 1.4 1.4z"/>`)
+)
+
+// instrumentGlyph is the glyph of an integration; the first letter's absence is a state nobody
+// reaches (the five are fixed), so an unknown one gets the chip.
+func instrumentGlyph(name engine.Integration) fyne.Resource {
+	switch name {
+	case engine.IntegrationPrometheus:
+		return glyphPrometheus
+	case engine.IntegrationAlertmanager:
+		return iconBell
+	case engine.IntegrationTrivy:
+		return glyphTrivy
+	case engine.IntegrationKyverno:
+		return glyphKyverno
 	}
-	return "?"
+	return cpuIcon
 }
 
 // setState tints the tile.
@@ -50,10 +68,27 @@ func (t *instrumentTile) setState(s bearingState) {
 	t.Refresh()
 }
 
+// paintTile gives a plate and its glyph the look of a state; side is the plate's side, for the
+// radius and the glyph's size.
+func paintTile(th fyne.Theme, plate *canvas.Rectangle, glyph *iconImage, name engine.Integration, state bearingState) {
+	tone := bearingTone(state)
+	c := themeColor(th, tone)
+	plate.CornerRadius = 8
+	switch state {
+	case bearingOff:
+		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = themeColor(th, colorTokenDim), themeColor(th, colorBracket), 1
+		tone = colorMuted
+	case bearingNeeds:
+		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = withAlpha(c, 0x1a), withAlpha(c, 0xb0), 1.5
+	default:
+		plate.FillColor, plate.StrokeColor, plate.StrokeWidth = withAlpha(c, 0x24), withAlpha(c, 0x70), 1
+	}
+	glyph.set(th, instrumentGlyph(name), tone)
+}
+
 // CreateRenderer implements fyne.Widget.
 func (t *instrumentTile) CreateRenderer() fyne.WidgetRenderer {
-	r := &instrumentTileRenderer{t: t, plate: canvas.NewRectangle(color.Transparent), text: canvas.NewText("", color.Transparent)}
-	r.text.TextStyle = fyne.TextStyle{Bold: true}
+	r := &instrumentTileRenderer{t: t, plate: canvas.NewRectangle(color.Transparent), glyph: newIconImage()}
 	r.Refresh()
 	return r
 }
@@ -61,7 +96,7 @@ func (t *instrumentTile) CreateRenderer() fyne.WidgetRenderer {
 type instrumentTileRenderer struct {
 	t     *instrumentTile
 	plate *canvas.Rectangle
-	text  *canvas.Text
+	glyph *iconImage
 }
 
 func (r *instrumentTileRenderer) MinSize() fyne.Size {
@@ -70,39 +105,24 @@ func (r *instrumentTileRenderer) MinSize() fyne.Size {
 
 func (r *instrumentTileRenderer) Layout(size fyne.Size) {
 	r.plate.Resize(size)
-	ts := fyne.MeasureText(r.text.Text, r.text.TextSize, r.text.TextStyle)
-	r.text.Resize(ts)
-	r.text.Move(fyne.NewPos((size.Width-ts.Width)/2, (size.Height-ts.Height)/2))
+	g := size.Width * 0.58
+	r.glyph.img.Resize(fyne.NewSize(g, g))
+	r.glyph.img.Move(fyne.NewPos((size.Width-g)/2, (size.Height-g)/2))
 }
 
 func (r *instrumentTileRenderer) Refresh() {
-	th := r.t.Theme()
-	tone := themeColor(th, bearingTone(r.t.state))
-	r.plate.CornerRadius = 8
-	r.text.Text, r.text.TextSize = r.t.letter, th.Size(theme.SizeNameText)
-	switch r.t.state {
-	case bearingOff:
-		r.plate.FillColor, r.plate.StrokeColor, r.plate.StrokeWidth = themeColor(th, colorTokenDim), color.Transparent, 0
-		r.text.Color = themeColor(th, colorMuted)
-	case bearingNeeds:
-		amber := themeColor(th, colorStatusWarning)
-		r.plate.FillColor, r.plate.StrokeColor, r.plate.StrokeWidth = withAlpha(amber, 0x1a), withAlpha(amber, 0xb0), 1.5
-		r.text.Color = amber
-	default:
-		r.plate.FillColor, r.plate.StrokeColor, r.plate.StrokeWidth = withAlpha(tone, 0x24), withAlpha(tone, 0x70), 1
-		r.text.Color = tone
-	}
+	paintTile(r.t.Theme(), r.plate, r.glyph, r.t.name, r.t.state)
 	r.Layout(r.t.Size())
 	canvas.Refresh(r.t)
 }
 
 func (r *instrumentTileRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.plate, r.text}
+	return []fyne.CanvasObject{r.plate, r.glyph.img}
 }
 func (r *instrumentTileRenderer) Destroy() {}
 
-// integrationGroups are the two groups of Settings › Integrations: the integrations switched on, in
-// the cluster's cyan, and the ones off, muted; each under a bracket head with its count ("on · 3").
+// integrationGroups are the two groups of Settings › Integrations: the integrations switched on ("enabled"), in
+// the cluster's cyan, and the ones off, muted; each under a bracket head with its count ("enabled · 3").
 type integrationGroups struct {
 	on, off *integrationGroup
 	key     string // which rows are in which group, so that a sync that changes nothing rebuilds nothing
@@ -115,8 +135,8 @@ type integrationGroup struct {
 }
 
 func newIntegrationGroups() *integrationGroups {
-	g := &integrationGroups{on: &integrationGroup{word: "on"}, off: &integrationGroup{word: "off"}}
-	g.on.head, g.off.head = newBracketLabel("on", colorAccent), newBracketLabel("off", "")
+	g := &integrationGroups{on: &integrationGroup{word: "enabled"}, off: &integrationGroup{word: "off"}}
+	g.on.head, g.off.head = newBracketLabel("enabled", colorAccent), newBracketLabel("off", "")
 	for _, grp := range []*integrationGroup{g.on, g.off} {
 		grp.box = container.NewVBox()
 	}

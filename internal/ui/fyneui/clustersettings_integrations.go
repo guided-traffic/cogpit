@@ -49,7 +49,9 @@ func init() { clusterSectionLabels[engine.SectionIntegrations] = integrationsLab
 // of what it adds; on the settings page a link to the integration's own section.
 type integrationRow struct {
 	name   engine.Integration
-	check  *widget.Check
+	check  *pillSwitch     // the switch (instrument_switch.go); the row writes its label
+	title  *textLine       // the integration's name, on the row's first line
+	dot    *surface        // the status line's dot: the state's colour, none while it is plain
 	status *sourceLine     // plain text, or with the Service's namespace and name as links (placeLinks)
 	slot   *fyne.Container // holds the status line, and the link beside it
 	link   *linkText       // "Details…" or "Set its address…" to the integration's section; nil elsewhere
@@ -64,20 +66,75 @@ type integrationRow struct {
 	placeLinks func(text, where string) []lineSeg
 }
 
-// newIntegrationRow builds a row; onSwitch receives the user's switch (not the state's).
+// newIntegrationRow builds a row; onSwitch receives the user's switch (not the state's). Dark
+// Cockpit: the first line is the tile, the name and the switch, on one baseline; under it two
+// quiet lines, the status (a dot, and words that are coloured only when something needs the user
+// or fails) and what the integration adds.
 func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integrationRow {
 	r := &integrationRow{name: in.Name}
-	r.check = widget.NewCheck(in.Label, onSwitch)
-	r.status = newSourceLine("", colorMuted, theme.SizeNameText)
+	r.check = newPillSwitch(in.Label, onSwitch)
+	r.title = newTextLine(in.Label, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
+	r.title.truncate = true
+	r.dot = newSurface(colorStatusOK)
+	r.dot.radius, r.dot.min = theme.SizeNameSelectionRadius, fyne.NewSize(6, 6)
+	r.status = newSourceLine("", colorMuted, theme.SizeNameCaptionText)
 	r.adds = newTextLine(in.Adds, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.adds.truncate = true
 	r.slot = container.NewStack(r.status)
 	r.tile = newInstrumentTile(in.Name)
-	lines := box(layout.NewCustomPaddedVBoxLayout(0), r.check,
-		box(checkIndent{}, box(layout.NewCustomPaddedVBoxLayout(2), r.slot, r.adds)))
-	// The tile sits at the row's left, centred on the row's height; the lines keep their own layout.
-	r.box = container.NewBorder(nil, nil, container.NewVBox(layout.NewSpacer(), r.tile, layout.NewSpacer()), nil, lines)
+	first := container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), r.tile), r.check, r.title)
+	under := box(layout.NewCustomPaddedVBoxLayout(2),
+		container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 6), newDotSlot(r.dot)), nil, r.slot),
+		r.adds)
+	r.box = box(layout.NewCustomPaddedVBoxLayout(2), first, box(fixedIndent{w: instrumentTileSide + 12}, under))
 	return r
+}
+
+// setLabel writes the name of the row's switch: the integration's own, or what the switch says on
+// the integration's section, where the heading is the name.
+func (r *integrationRow) setLabel(s string) {
+	r.check.Text = s
+	r.title.SetText(s)
+}
+
+// fixedIndent lays its objects out from w points in: the status and adds lines start under the
+// name, not under the tile.
+type fixedIndent struct{ w float32 }
+
+func (l fixedIndent) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var ms fyne.Size
+	for _, o := range objs {
+		if o.Visible() {
+			ms = ms.Max(o.MinSize())
+		}
+	}
+	return ms.AddWidthHeight(l.w, 0)
+}
+
+func (l fixedIndent) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objs {
+		o.Move(fyne.NewPos(l.w, 0))
+		o.Resize(fyne.NewSize(max(size.Width-l.w, 0), size.Height))
+	}
+}
+
+// paintStatus colours the status line: words are muted while the state is as expected or still
+// being found out, in amber while the user must act, in coral while it fails. The dot repeats the
+// colour (mint for a healthy one) so that the line can stay quiet; a plain state has none.
+func (r *integrationRow) paintStatus(c fyne.ThemeColorName) {
+	text := c
+	switch c {
+	case colorStatusOK, colorStatusPending:
+		text = colorMuted
+	}
+	r.status.SetColor(text)
+	if c == colorMuted {
+		r.dot.Hide()
+		return
+	}
+	r.dot.fill = c
+	r.dot.Show()
+	r.dot.Refresh()
 }
 
 // withLink adds the link to the integration's section, after the status line.
@@ -113,7 +170,7 @@ func (r *integrationRow) setStatus(st engine.IntegrationStatus) {
 	default:
 		r.status.SetText(text)
 	}
-	r.status.SetColor(c)
+	r.paintStatus(c)
 	if r.link != nil {
 		want := integrationDetailsLink
 		if needsAddress(st) {

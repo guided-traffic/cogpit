@@ -76,7 +76,7 @@ func newArgoPanel(sh *shell) *argoPanel {
 	head := container.NewBorder(nil, nil, nil, sized(sizeSearchWidth, "", p.filter))
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewVBox(p.stripHead, newSpace(theme.SizeNameInnerPadding), p.strip, newSpace(theme.SizeNamePadding), actions, p.cards,
-			newSpace(theme.SizeNamePadding), p.activityHead, head, p.activity))
+			gapOf(groupGap), p.activityHead, head, p.activity))
 	return p
 }
 
@@ -219,21 +219,28 @@ func newArgoCard(sh *shell, k engine.OverviewKind) fyne.CanvasObject {
 // newArgoActivityLine is one entry of the recent activity: how long ago, the Application (a link
 // to it), what happened in its status colour, the revision.
 func newArgoActivityLine(sh *shell, a engine.ArgoActivityItem, now time.Time) fyne.CanvasObject {
-	ago := newTextLine(model.FormatAge(now.Sub(a.At))+" ago", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	// Quiet when healthy: the sentence is text and muted colour; only a dot and the age carry a
+	// failure's or a wait's colour.
+	tone := statusColorName(a.Status)
+	healthy := a.Status == model.StatusOK || a.Status == model.StatusSucceeded || a.Status == model.StatusNone
+	ageTone := tone
+	if healthy {
+		ageTone = colorMuted
+	}
+	ago := newTextLine(model.FormatAge(now.Sub(a.At))+" ago", ageTone, theme.SizeNameText, fyne.TextStyle{})
 	ref := a.Ref
 	app := newLinkText(ref.Name, func() { sh.dispatch("ui.navigate", refParams{Ref: ref}, nil) })
 	text := a.Text
 	if a.Revision != "" {
 		text += " · " + a.Revision
 	}
-	// Quiet when healthy: a success reads in the text colour, a failure or a wait in its own.
-	tone := statusColorName(a.Status)
-	if a.Status == model.StatusOK || a.Status == model.StatusSucceeded {
-		tone = theme.ColorNameForeground
-	}
-	what := newTextLine(text, tone, theme.SizeNameText, fyne.TextStyle{})
+	what := newTextLine(text, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	what.truncate = true
-	return container.NewBorder(nil, nil, container.NewHBox(ago, box(naturalWidth{text: ref.Name}, app)), nil, what)
+	dotted := fyne.CanvasObject(newDotSlot(newSurfaceDot(tone)))
+	if healthy {
+		dotted = newDotSlot(newSurfaceDot(colorTokenDim))
+	}
+	return container.NewBorder(nil, nil, container.NewHBox(dotted, ago, box(naturalWidth{text: ref.Name}, app)), nil, what)
 }
 
 // naturalWidth lays out a link (which takes any width, shortening its text) as wide as its text.
@@ -248,4 +255,11 @@ func (n naturalWidth) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		o.Move(fyne.NewPos(0, 0))
 		o.Resize(size)
 	}
+}
+
+// newSurfaceDot is a status dot of 6 points: the colour of a state, drawn as a small rounded plate.
+func newSurfaceDot(c fyne.ThemeColorName) *surface {
+	d := newSurface(c)
+	d.radius, d.min = theme.SizeNameSelectionRadius, fyne.NewSize(6, 6)
+	return d
 }

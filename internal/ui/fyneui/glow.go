@@ -61,15 +61,16 @@ type bracketRenderer struct {
 }
 
 const (
-	bracketTick = 5 // an end tick's length below the line
-	bracketGap  = 5 // between the label and the line
+	bracketTick  = 6  // an end tick's length below the line
+	bracketGap   = 8  // between the label and the line
+	bracketBelow = 12 // between the line and what the head introduces
 )
 
 func (r *bracketRenderer) textSize() float32 { return r.b.Theme().Size(theme.SizeNameCaptionText) + 1 }
 
 func (r *bracketRenderer) MinSize() fyne.Size {
 	ts := fyne.MeasureText(r.b.text, r.textSize(), r.text.TextStyle)
-	return fyne.NewSize(ts.Width+2*bracketTick, ts.Height+bracketGap+bracketTick+2)
+	return fyne.NewSize(ts.Width+2*bracketTick, ts.Height+bracketGap+bracketBelow)
 }
 
 func (r *bracketRenderer) Layout(size fyne.Size) {
@@ -87,7 +88,8 @@ func (r *bracketRenderer) Refresh() {
 	r.text.Text = r.b.text
 	r.text.TextSize = r.textSize()
 	r.text.Color = themeColor(th, r.b.tone)
-	line := themeColor(th, colorBracket)
+	// The group's light at about 55 %: a line that does its job beside its label, not a stray rule.
+	line := withAlpha(themeColor(th, r.b.tone), 0x8c)
 	for _, l := range []*canvas.Line{r.line, r.left, r.right} {
 		l.StrokeColor, l.StrokeWidth = line, 1
 		l.Hidden = l != r.line && !r.b.ticks
@@ -107,6 +109,7 @@ type tok struct {
 	color  fyne.ThemeColorName
 	weight float32
 	hollow bool // drawn as an outline: an empty slot, a stale value
+	quiet  bool // a healthy token, drawn at about a third of its light, so that only what needs a look is bright
 }
 
 // tokenRow draws tokens left to right: squares of the row's height, or, with bars set, bars
@@ -119,6 +122,10 @@ type tokenRow struct {
 	gap    float32
 	bars   bool
 	fade   bool
+	// fit, when set, spreads a square row over the width it is given: each square is as wide as the
+	// width allows, at most fit points (a row of nine nodes fills its bracket instead of huddling at
+	// its left), and the row is fit points high.
+	fit float32
 }
 
 func newTokenRow(side float32, tokens ...tok) *tokenRow {
@@ -147,6 +154,9 @@ type tokenRowRenderer struct {
 
 func (r *tokenRowRenderer) MinSize() fyne.Size {
 	n := float32(len(r.t.tokens))
+	if r.t.fit > 0 {
+		return fyne.NewSize(r.t.side, r.t.fit)
+	}
 	if r.t.bars || n == 0 {
 		return fyne.NewSize(r.t.side, r.t.side)
 	}
@@ -159,6 +169,16 @@ func (r *tokenRowRenderer) Layout(size fyne.Size) {
 		return
 	}
 	y := (size.Height - r.t.side) / 2
+	if !r.t.bars && r.t.fit > 0 {
+		side := min(r.t.fit, (size.Width-float32(n-1)*r.t.gap)/float32(n))
+		y = (size.Height - side) / 2
+		for i, rect := range r.rects {
+			rect.CornerRadius = max(1.5, side/4)
+			rect.Move(fyne.NewPos(float32(i)*(side+r.t.gap), y))
+			rect.Resize(fyne.NewSize(side, side))
+		}
+		return
+	}
 	if !r.t.bars {
 		for i, rect := range r.rects {
 			rect.Move(fyne.NewPos(float32(i)*(r.t.side+r.t.gap), y))
@@ -196,6 +216,9 @@ func (r *tokenRowRenderer) Refresh() {
 			c = withAlpha(c, a)
 		}
 		rect.CornerRadius = radius
+		if tk.quiet {
+			c = withAlpha(c, 0x6a)
+		}
 		if tk.hollow {
 			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = color.Transparent, c, 1
 		} else {

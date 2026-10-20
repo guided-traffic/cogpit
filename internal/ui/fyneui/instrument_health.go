@@ -90,30 +90,65 @@ type overviewHealth struct {
 // are bars by state, as the reference coarsens its squares.
 const healthNodeSquares = 40
 
+// healthSide is the height of the node and pod rows and the largest a node square gets: the same
+// size as the integrations' tiles (instrumentTileSide), so the three groups share one scale.
+const healthSide = instrumentTileSide
+
 func newOverviewHealth(sh *shell) *overviewHealth {
 	h := &overviewHealth{
 		nodesHead: newBracketLabel("nodes", colorAccent), podsHead: newBracketLabel("pods", colorAccent),
 		intHead:     newBracketLabel("integrations", colorAccent),
-		nodes:       newTokenRow(14),
-		pods:        newTokenRow(14),
+		nodes:       newTokenRow(healthSide),
+		pods:        newTokenRow(healthSide),
 		nodesLegend: newHealthLegend(), podsLegend: newHealthLegend(),
 		bearing: newBearing(sh),
 	}
 	h.pods.bars = true
+	h.nodes.fit, h.nodes.gap = healthSide, 6
+	h.pods.gap = 6
 	col := func(head, content fyne.CanvasObject, legend fyne.CanvasObject) *fyne.Container {
 		return box(layout.NewCustomPaddedVBoxLayout(8), head, content, legend)
 	}
 	h.nodesCol = col(h.nodesHead, h.nodes, h.nodesLegend.row)
 	h.podsCol = col(h.podsHead, h.pods, h.podsLegend.row)
-	h.intCol = col(h.intHead, h.bearing, newSpace(theme.SizeNameCaptionText))
-	h.root = box(layout.NewGridLayoutWithColumns(3), healthGutter(h.nodesCol), healthGutter(h.podsCol), healthGutter(h.intCol))
+	h.intCol = box(layout.NewCustomPaddedVBoxLayout(8), h.intHead, h.bearing)
+	h.root = box(columnsLayout{gap: pageColumnGap}, h.nodesCol, h.podsCol, h.intCol)
 	return h
 }
 
-// healthGutter gives a column its own breathing room, so that the brackets of neighbours do not
-// run into one line.
-func healthGutter(o fyne.CanvasObject) fyne.CanvasObject {
-	return inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, o)
+// pageColumnGap is the space between the Overview's three columns. The page has one left edge:
+// the first column starts on it, with no padding of its own, and so do the title, the controls and
+// the charts' titles.
+const pageColumnGap = 28
+
+// columnsLayout lays its objects in equal columns with a gap between them and none at the ends,
+// so that the first starts on the page's left edge and the last ends on its right.
+type columnsLayout struct{ gap float32 }
+
+func (l columnsLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var w, h float32
+	n := 0
+	for _, o := range objs {
+		if !o.Visible() {
+			continue
+		}
+		n++
+		ms := o.MinSize()
+		w, h = max(w, ms.Width), max(h, ms.Height)
+	}
+	if n == 0 {
+		return fyne.Size{}
+	}
+	return fyne.NewSize(w*float32(len(objs))+l.gap*float32(len(objs)-1), h)
+}
+
+func (l columnsLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	n := float32(len(objs))
+	w := (size.Width - l.gap*(n-1)) / n
+	for i, o := range objs {
+		o.Move(fyne.NewPos(float32(i)*(w+l.gap), 0))
+		o.Resize(fyne.NewSize(w, size.Height))
+	}
 }
 
 // setStates shows the nodes' and pods' states.
@@ -129,11 +164,11 @@ func (h *overviewHealth) setStates(nodeStates, podStates []engine.StatusCount) {
 	h.nodes.bars = nodeTotal > healthNodeSquares
 	for _, c := range nodeStates {
 		if h.nodes.bars {
-			toks = append(toks, tok{color: statusColorName(c.Status), weight: float32(c.Count)})
+			toks = append(toks, tok{color: statusColorName(c.Status), weight: float32(c.Count), quiet: c.Status == model.StatusOK})
 			continue
 		}
 		for range c.Count {
-			toks = append(toks, tok{color: statusColorName(c.Status)})
+			toks = append(toks, tok{color: statusColorName(c.Status), quiet: c.Status == model.StatusOK})
 		}
 	}
 	h.nodes.SetTokens(toks)
@@ -152,7 +187,7 @@ func (h *overviewHealth) setStates(nodeStates, podStates []engine.StatusCount) {
 	toks = toks[:0:0]
 	for _, c := range podStates {
 		podTotal += c.Count
-		toks = append(toks, tok{color: statusColorName(c.Status), weight: float32(c.Count)})
+		toks = append(toks, tok{color: statusColorName(c.Status), weight: float32(c.Count), quiet: c.Status == model.StatusOK})
 	}
 	h.pods.SetTokens(toks)
 	h.podsHead.SetText("pods · " + strconv.Itoa(podTotal))

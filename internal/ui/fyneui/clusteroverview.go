@@ -47,6 +47,7 @@ type clusterPanel struct {
 	health    *overviewHealth // the nodes, pods and integrations above the charts (instrument_health.go)
 	bearingOf string          // the context whose integrations the header shows (instrument_bearing.go)
 	cards     [3]*overviewChartCard
+	segment   *segmented
 	controls  *fyne.Container // the node group and the range; hidden with every chart
 	reconnect *widget.Button  // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
 	root      fyne.CanvasObject
@@ -72,10 +73,11 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	for i, title := range []string{"CPU", "Memory", "Pods"} {
 		p.cards[i] = newOverviewChartCard(title)
 	}
-	p.controls = container.NewHBox(p.master, p.worker, layout.NewSpacer(), p.rangeSel)
+	p.segment = newSegmented(sh, p.master, p.worker)
+	p.controls = container.NewHBox(p.segment.root, layout.NewSpacer(), p.rangeSel)
 	p.reconnect = widget.NewButtonWithIcon(reconnectLabel, reconnectIcon(), func() { sh.reconnect(sh.ui.Context) })
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(newSpace(theme.SizeNamePadding), p.reconnect), p.controls)
-	charts := container.NewGridWithColumns(3, p.cards[0].root, p.cards[1].root, p.cards[2].root)
+	charts := box(columnsLayout{gap: pageColumnGap}, p.cards[0].root, p.cards[1].root, p.cards[2].root)
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewVBox(p.health.root, newSpace(theme.SizeNamePadding), head, charts, p.caption,
 			// One row under the charts: what the history is made of at the left, quietly, and the
@@ -275,6 +277,14 @@ func (p *clusterPanel) showControls() {
 		}
 		b.btn.Refresh()
 	}
+	switch nodes {
+	case engine.NodesMaster:
+		p.segment.choose(0)
+	case engine.NodesWorker:
+		p.segment.choose(1)
+	default:
+		p.segment.choose(-1)
+	}
 	opts := rangeLabels(history)
 	if !slices.Contains(opts, rng) {
 		opts = append(opts, rng) // a range an agent set beyond what the providers offer
@@ -331,7 +341,7 @@ func newOverviewChartCard(title string) *overviewChartCard {
 		plot:     newChart(),
 	}
 	c.headline.truncate = true
-	c.root = inset(theme.SizeNamePadding, "", container.NewVBox(container.NewBorder(nil, nil, c.title, nil, c.headline), c.plot))
+	c.root = container.NewVBox(container.NewBorder(nil, nil, c.title, nil, c.headline), c.plot)
 	return c
 }
 

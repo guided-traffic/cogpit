@@ -89,8 +89,10 @@ func (b *createButton) CreateRenderer() fyne.WidgetRenderer {
 
 type createButtonRenderer struct{ b *createButton }
 
+// diameter is a dark plate's size: smaller than the Lens-style disc it replaces, so the list stays
+// the brightest thing on the page (Dark Cockpit: an action is outlined in the glow blue, not filled).
 func (r *createButtonRenderer) diameter() float32 {
-	return r.b.Theme().Size(theme.SizeNameInlineIcon) * 2.5
+	return r.b.Theme().Size(theme.SizeNameInlineIcon) * 2
 }
 
 func (r *createButtonRenderer) MinSize() fyne.Size {
@@ -114,13 +116,16 @@ func (r *createButtonRenderer) Layout(s fyne.Size) {
 func (r *createButtonRenderer) Refresh() {
 	b := r.b
 	th := b.Theme()
-	accent := themeColor(th, colorAccent)
+	plate := themeColor(th, theme.ColorNameOverlayBackground)
+	ring := withAlpha(themeColor(th, theme.ColorNamePrimary), 0xb0)
 	if b.hovered {
-		accent = themeColor(th, theme.ColorNamePrimary)
+		plate = themeColor(th, colorRowSelected)
+		ring = themeColor(th, theme.ColorNamePrimary)
 	}
-	b.disc.FillColor = accent
+	b.disc.FillColor = plate
+	b.disc.StrokeColor, b.disc.StrokeWidth = ring, 1.5
 	b.shadow.FillColor = themeColor(th, theme.ColorNameShadow)
-	b.icon.set(th, theme.ContentAddIcon(), theme.ColorNameForegroundOnPrimary)
+	b.icon.set(th, theme.ContentAddIcon(), theme.ColorNamePrimary)
 	r.Layout(b.Size())
 	b.shadow.Refresh()
 	b.disc.Refresh()
@@ -133,7 +138,8 @@ func (r *createButtonRenderer) Objects() []fyne.CanvasObject {
 func (r *createButtonRenderer) Destroy() {}
 
 // floatLayout puts its objects at their minimum size in the bottom-right corner, inset by the
-// theme's padding.
+// theme's padding, and from the right by a column more: the list's ⋮ menus end the rows, and the
+// button must never cover one.
 type floatLayout struct{}
 
 func (floatLayout) MinSize([]fyne.CanvasObject) fyne.Size { return fyne.Size{} }
@@ -142,7 +148,8 @@ func (floatLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	pad := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding) * 5
 	for _, o := range objs {
 		ms := o.MinSize()
-		o.Move(fyne.NewPos(size.Width-ms.Width-pad, size.Height-ms.Height-pad))
+		menu := fyne.CurrentApp().Settings().Theme().Size(sizeMenuColumn) + fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameScrollBar)
+		o.Move(fyne.NewPos(size.Width-ms.Width-pad-menu, size.Height-ms.Height-pad))
 		o.Resize(ms)
 	}
 }

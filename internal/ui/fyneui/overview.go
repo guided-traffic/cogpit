@@ -164,6 +164,20 @@ func (b *healthBar) set(statuses []engine.StatusCount, total int) {
 	b.Refresh()
 }
 
+// hasState reports whether the bar has a state to draw: a kind with no objects, or whose objects
+// have no status at all (an Argo CD project, a repository), shows no bar and no empty track.
+func (b *healthBar) hasState() bool {
+	if b.total == 0 {
+		return false
+	}
+	for _, s := range b.statuses {
+		if s.Status != model.StatusNone && s.Count > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // tipText names the segments: "2 ok · 1 pending · 1 error".
 func (b *healthBar) tipText() string {
 	if b.total == 0 {
@@ -209,6 +223,9 @@ type healthBarRenderer struct {
 }
 
 func (r *healthBarRenderer) MinSize() fyne.Size {
+	if !r.b.hasState() {
+		return fyne.NewSize(0, 0) // nothing to say about states: no bar
+	}
 	return fyne.NewSize(0, r.b.Theme().Size(sizeHealthBar))
 }
 
@@ -242,6 +259,7 @@ func (r *healthBarRenderer) Refresh() {
 	radius := th.Size(sizeHealthBar) / 2
 	r.track.FillColor = themeColor(th, theme.ColorNameSeparator)
 	r.track.CornerRadius = radius
+	r.track.Hidden = !r.b.hasState()
 	for len(r.segs) < len(r.b.statuses) {
 		r.segs = append(r.segs, canvas.NewRectangle(color.Transparent))
 	}
@@ -251,7 +269,12 @@ func (r *healthBarRenderer) Refresh() {
 		if s.Status == model.StatusNone {
 			c = colorMuted
 		}
-		r.segs[i].FillColor = themeColor(th, c)
+		fill := themeColor(th, c)
+		if s.Status == model.StatusOK || s.Status == model.StatusSucceeded {
+			fill = withAlpha(fill, 0x6a) // what is healthy recedes; the light is for what is not
+		}
+		r.segs[i].FillColor = fill
+		r.segs[i].Hidden = !r.b.hasState()
 		r.segs[i].CornerRadius = min(radius, 3.5)
 		r.segs[i].Refresh()
 		r.objs = append(r.objs, r.segs[i])

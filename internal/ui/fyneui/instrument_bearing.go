@@ -100,7 +100,8 @@ func bearingTone(s bearingState) fyne.ThemeColorName {
 	return colorTokenDim
 }
 
-// bearing is the widget: the tokens, each with its short name beside it.
+// bearing is the widget: the integrations' tiles in one row spread over the width, each with its
+// short name beneath, as the nodes' squares above it are spread over theirs.
 type bearing struct {
 	widget.BaseWidget
 	sh      *shell
@@ -109,8 +110,8 @@ type bearing struct {
 }
 
 const (
-	bearingSide = 12 // a token's side
-	bearingGap  = 14 // between one token's name and the next token
+	bearingNameGap = 8  // between a tile and its name: the nodes' legend sits as far below its squares
+	bearingMinCell = 52 // the narrowest a tile's cell is, for the name beneath it
 )
 
 // newBearing returns an empty bearing; sh gives its tooltips (nil: none).
@@ -134,90 +135,85 @@ func (b *bearing) CreateRenderer() fyne.WidgetRenderer {
 }
 
 type bearingRenderer struct {
-	b     *bearing
-	rects []*canvas.Rectangle
-	names []*canvas.Text
+	b      *bearing
+	plates []*canvas.Rectangle
+	glyphs []*iconImage
+	names  []*canvas.Text
 }
 
 func (r *bearingRenderer) textSize() float32 { return r.b.Theme().Size(theme.SizeNameCaptionText) }
 
-// slot is the x range of the token i with its name.
-func (b *bearing) slots() []float32 {
-	size := b.Theme().Size(theme.SizeNameCaptionText)
-	xs := make([]float32, 0, len(b.items)+1)
-	x := float32(0)
-	for _, it := range b.items {
-		xs = append(xs, x)
-		x += bearingSide + 6 + fyne.MeasureText(it.label, size, fyne.TextStyle{}).Width + bearingGap
+func (r *bearingRenderer) textHeight() float32 {
+	return fyne.MeasureText("Mg", r.textSize(), fyne.TextStyle{}).Height
+}
+
+// cell is the width of one tile's cell in a row of the given width.
+func (b *bearing) cell(width float32) float32 {
+	if len(b.items) == 0 {
+		return 0
 	}
-	return append(xs, x-bearingGap)
+	return width / float32(len(b.items))
 }
 
 func (r *bearingRenderer) MinSize() fyne.Size {
-	xs := r.b.slots()
-	h := max(bearingSide, fyne.MeasureText("Mg", r.textSize(), fyne.TextStyle{}).Height)
-	return fyne.NewSize(max(xs[len(xs)-1], 0), h)
+	if len(r.b.items) == 0 {
+		return fyne.NewSize(0, instrumentTileSide)
+	}
+	return fyne.NewSize(bearingMinCell*float32(len(r.b.items)), instrumentTileSide+bearingNameGap+r.textHeight())
 }
 
 func (r *bearingRenderer) Layout(size fyne.Size) {
-	xs := r.b.slots()
-	ts := r.textSize()
-	th := fyne.MeasureText("Mg", ts, fyne.TextStyle{}).Height
-	for i := range r.rects {
-		r.rects[i].Move(fyne.NewPos(xs[i], (size.Height-bearingSide)/2))
-		r.rects[i].Resize(fyne.NewSize(bearingSide, bearingSide))
-		r.names[i].Move(fyne.NewPos(xs[i]+bearingSide+6, (size.Height-th)/2))
-		r.names[i].Resize(fyne.NewSize(xs[i+1]-xs[i]-bearingSide-6-bearingGap, th))
+	cell := r.b.cell(size.Width)
+	th := r.textHeight()
+	g := float32(instrumentTileSide) * 0.58
+	for i := range r.plates {
+		x := float32(i) * cell
+		r.plates[i].Move(fyne.NewPos(x+(cell-instrumentTileSide)/2, 0))
+		r.plates[i].Resize(fyne.NewSize(instrumentTileSide, instrumentTileSide))
+		r.glyphs[i].img.Move(fyne.NewPos(x+(cell-g)/2, (instrumentTileSide-g)/2))
+		r.glyphs[i].img.Resize(fyne.NewSize(g, g))
+		w := fyne.MeasureText(r.b.items[i].label, r.textSize(), fyne.TextStyle{}).Width
+		r.names[i].Move(fyne.NewPos(x+(cell-w)/2, instrumentTileSide+bearingNameGap))
+		r.names[i].Resize(fyne.NewSize(w, th))
 	}
 }
 
 func (r *bearingRenderer) Refresh() {
 	th := r.b.Theme()
-	for len(r.rects) < len(r.b.items) {
-		r.rects = append(r.rects, canvas.NewRectangle(color.Transparent))
+	for len(r.plates) < len(r.b.items) {
+		r.plates = append(r.plates, canvas.NewRectangle(color.Transparent))
+		r.glyphs = append(r.glyphs, newIconImage())
 		r.names = append(r.names, canvas.NewText("", color.Transparent))
 	}
-	r.rects, r.names = r.rects[:len(r.b.items)], r.names[:len(r.b.items)]
+	n := len(r.b.items)
+	r.plates, r.glyphs, r.names = r.plates[:n], r.glyphs[:n], r.names[:n]
 	for i, it := range r.b.items {
-		c := themeColor(th, bearingTone(it.state))
-		rect := r.rects[i]
-		rect.CornerRadius = 3.5
-		switch it.state {
-		case bearingOff:
-			// A dim plate with a hairline, so that it still reads as a slot on a light page.
-			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = c, themeColor(th, colorBracket), 1
-		case bearingNeeds:
-			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = color.Transparent, c, 1.5
-		default:
-			rect.FillColor, rect.StrokeColor, rect.StrokeWidth = c, color.Transparent, 0
-		}
+		paintTile(th, r.plates[i], r.glyphs[i], it.name, it.state)
 		name := r.names[i]
 		name.Text, name.TextSize = it.label, r.textSize()
 		name.Color = themeColor(th, colorMuted)
-		if it.state == bearingLive || it.state == bearingFailing {
-			name.Color = themeColor(th, theme.ColorNameForeground)
-		}
 	}
 	r.Layout(r.b.Size())
 	canvas.Refresh(r.b)
 }
 
 func (r *bearingRenderer) Objects() []fyne.CanvasObject {
-	objs := make([]fyne.CanvasObject, 0, 2*len(r.rects))
-	for i := range r.rects {
-		objs = append(objs, r.rects[i], r.names[i])
+	objs := make([]fyne.CanvasObject, 0, 3*len(r.plates))
+	for i := range r.plates {
+		objs = append(objs, r.plates[i], r.glyphs[i].img, r.names[i])
 	}
 	return objs
 }
 func (r *bearingRenderer) Destroy() {}
 
-// tokenAt is the token under x, or -1.
+// tokenAt is the token whose cell holds x, or -1.
 func (b *bearing) tokenAt(x float32) int {
-	xs := b.slots()
-	for i := range b.items {
-		if x >= xs[i] && x <= xs[i+1]-bearingGap {
-			return i
-		}
+	cell := b.cell(b.Size().Width)
+	if cell <= 0 || x < 0 {
+		return -1
+	}
+	if i := int(x / cell); i < len(b.items) {
+		return i
 	}
 	return -1
 }
