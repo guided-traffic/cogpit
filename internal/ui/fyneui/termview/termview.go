@@ -49,8 +49,8 @@ const sessionEndedNotice = "\r\n\x1b[93m[session ended]\x1b[0m\r\n"
 
 // Terminal shows one terminal session.
 //
-// Copy and paste are the widget's (fyne-io/terminal): dragging selects (with Alt: a block),
-// double-click selects a word; on macOS ⌘C copies the selection and ⌘V pastes, elsewhere
+// Copy and paste are the widget's (fyne-io/terminal): dragging selects (with Alt held at the
+// press: a block), double-click selects a word; on macOS ⌘C copies the selection and ⌘V pastes, elsewhere
 // Ctrl+Shift+C or Ctrl+Insert and Ctrl+Shift+V or Shift+Insert (the clipboard, a patch of the
 // fork). The right mouse button neither copies nor pastes unless SetRightClickCopyPaste turned it
 // on (the Preferences' setting): then it copies the selection, or pastes when nothing is

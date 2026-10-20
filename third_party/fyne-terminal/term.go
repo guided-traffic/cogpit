@@ -99,11 +99,10 @@ type Terminal struct {
 	mouseCursor      desktop.Cursor
 	rightClick       RightClickAction // Cogpit patch: SetRightClickAction (rightclick.go)
 
-	keyboardState struct {
-		shiftPressed bool
-		ctrlPressed  bool
-		altPressed   bool
-	}
+	// pressAlt is whether ⌥ (Alt) was held at the primary button's last press, which makes its drag
+	// select a block. Cogpit patch: from the press's own event; the widget tracked the modifier keys
+	// from KeyDown and KeyUp, and one whose release it never saw stayed held (keyModifiers).
+	pressAlt               bool
 	newLineMode            bool // new line mode or line feed mode
 	bracketedPasteMode     bool
 	disableAutoWrap        bool // disable auto wrap mode (DECAWM off)
@@ -165,6 +164,9 @@ func (t *Terminal) MinSize() fyne.Size {
 func (t *Terminal) MouseDown(ev *desktop.MouseEvent) {
 	if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil {
 		c.Focus(t)
+	}
+	if ev.Button == desktop.MouseButtonPrimary {
+		t.pressAlt = ev.Modifier&fyne.KeyModifierAlt != 0 // Cogpit patch: a block drag, see pressAlt
 	}
 
 	// Cogpit patch: the right button does what SetRightClickAction chose; the selection it may
@@ -694,7 +696,7 @@ func (t *Terminal) Dragged(d *fyne.DragEvent) {
 		// take away the delta to find the cell the drag actually started from
 		start := t.getTermPosition(*t.sanitizePosition(d.Position.Subtract(d.Dragged)))
 		t.selStart = &start
-		t.blockMode = t.keyboardState.altPressed
+		t.blockMode = t.pressAlt // Cogpit patch: the press's ⌥
 		t.selecting = true
 	}
 

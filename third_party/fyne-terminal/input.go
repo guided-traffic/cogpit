@@ -34,6 +34,27 @@ func sinceKeyTyped() time.Duration {
 // on one system cover the keys of the others.
 var goos = runtime.GOOS
 
+// keyModifiers returns the modifier keys of the key event being handled. Fyne's desktop driver
+// writes the event's own modifiers before it hands the key to the widget (window_desktop.go's
+// keyPressed in Fyne v2.8.2; GLFW takes them from the event, on macOS NSEvent's modifierFlags), so
+// they are exact while a key is handled; between keys they are the last key's. Fyne's test driver
+// has none, so tests replace the function.
+//
+// Cogpit patch: the widget kept ⇧, Ctrl and Alt itself from the KeyDown and KeyUp it saw, and a
+// release it never saw left a key "held": ⇧⌘4 starts macOS's screenshot overlay, which takes the
+// keys while the window stays key, and every arrow key went out with ⇧ and Return as nothing until
+// the focus changed (Cogpit's G16 GW8). A key's modifiers now come from the key itself.
+var keyModifiers = func() fyne.KeyModifier {
+	a := fyne.CurrentApp()
+	if a == nil {
+		return 0
+	}
+	if d, ok := a.Driver().(desktop.Driver); ok {
+		return d.CurrentKeyModifiers()
+	}
+	return 0
+}
+
 // TypedRune is called when the user types a visible character
 func (t *Terminal) TypedRune(r rune) {
 	keyTyped()
@@ -49,8 +70,9 @@ func (t *Terminal) TypedKey(e *fyne.KeyEvent) {
 	if !isModifier(e.Name) {
 		t.followOutput() // Cogpit patch: typing returns the view to the screen; ⌘ or Ctrl alone does not
 	}
-	if t.keyboardState.shiftPressed {
-		t.keyTypedWithShift(e)
+	// Cogpit patch: ⇧ from the key's own event (keyModifiers), and a key without a form of its own
+	// with ⇧ (Return, Enter, Backspace, Escape) goes as without it, as in xterm; it sent nothing.
+	if keyModifiers()&fyne.KeyModifierShift != 0 && t.keyTypedWithShift(e) {
 		return
 	}
 
@@ -110,81 +132,34 @@ func (t *Terminal) TypedKey(e *fyne.KeyEvent) {
 	}
 }
 
-func (t *Terminal) keyTypedWithShift(e *fyne.KeyEvent) {
-	switch e.Name {
-	case fyne.KeyF1:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '5', '~'})
-	case fyne.KeyF2:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '6', '~'})
-	case fyne.KeyF3:
-		_, _ = t.in.Write([]byte{asciiEscape, 'O', 'R', ';', '2', '~'})
-	case fyne.KeyF4:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', ';', '2', 'S'})
-	case fyne.KeyF5:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', '5', ';', '2', '~'})
-	case fyne.KeyF6:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', '7', ';', '2', '~'})
-	case fyne.KeyF7:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', '8', ';', '2', '~'})
-	case fyne.KeyF8:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', '9', ';', '2', '~'})
-	case fyne.KeyF9:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '0', ';', '2', '~'})
-	case fyne.KeyF10:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '1', ';', '2', '~'})
-	case fyne.KeyF11:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '3', ';', '2', '~'})
-	case fyne.KeyF12:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', '4', ';', '2', '~'})
-	case fyne.KeyPageUp:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '5', ';', '2', '~'})
-	case fyne.KeyPageDown:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '6', ';', '2', '~'})
-	case fyne.KeyHome:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', ';', '2', 'H'})
-	case fyne.KeyInsert:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '2', ';', '2', '~'})
-	case fyne.KeyDelete:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '3', ';', '2', '~'})
-	case fyne.KeyEnd:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', '1', ';', '2', 'F'})
-	case fyne.KeyUp:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', 'A', ';', '2'})
-	case fyne.KeyDown:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', 'B', ';', '2'})
-	case fyne.KeyLeft:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', 'D', ';', '2'})
-	case fyne.KeyRight:
-		_, _ = t.in.Write([]byte{asciiEscape, '[', 'C', ';', '2'})
+// shiftKeys are xterm's sequences for keys typed with ⇧, as the terminfo entry xterm-256color names
+// them (kf13–kf24, kLFT, kRIT, kri, kind, kHOM, kEND, kPRV, kNXT, kIC, kDC, kcbt). Cogpit patch:
+// ⇧ and an arrow went out as ESC [ A ; 2, which no program reads as one key (a shell takes the arrow
+// and types ";2"), ⇧F1 to ⇧F3 as ESC [ 25 ~, ESC [ 26 ~ and ESC O R ; 2 ~, and ⇧Tab as nothing.
+var shiftKeys = map[fyne.KeyName]string{
+	fyne.KeyF1: "\x1b[1;2P", fyne.KeyF2: "\x1b[1;2Q", fyne.KeyF3: "\x1b[1;2R", fyne.KeyF4: "\x1b[1;2S",
+	fyne.KeyF5: "\x1b[15;2~", fyne.KeyF6: "\x1b[17;2~", fyne.KeyF7: "\x1b[18;2~", fyne.KeyF8: "\x1b[19;2~",
+	fyne.KeyF9: "\x1b[20;2~", fyne.KeyF10: "\x1b[21;2~", fyne.KeyF11: "\x1b[23;2~", fyne.KeyF12: "\x1b[24;2~",
+	fyne.KeyUp: "\x1b[1;2A", fyne.KeyDown: "\x1b[1;2B", fyne.KeyRight: "\x1b[1;2C", fyne.KeyLeft: "\x1b[1;2D",
+	fyne.KeyHome: "\x1b[1;2H", fyne.KeyEnd: "\x1b[1;2F", fyne.KeyPageUp: "\x1b[5;2~", fyne.KeyPageDown: "\x1b[6;2~",
+	fyne.KeyInsert: "\x1b[2;2~", fyne.KeyDelete: "\x1b[3;2~", fyne.KeyTab: "\x1b[Z",
+}
+
+// keyTypedWithShift writes xterm's sequence for e typed with ⇧ and reports whether e has one.
+func (t *Terminal) keyTypedWithShift(e *fyne.KeyEvent) bool {
+	seq, ok := shiftKeys[e.Name]
+	if ok {
+		_, _ = t.in.Write([]byte(seq))
 	}
+	return ok
 }
 
-func (t *Terminal) trackKeyboardState(down bool, e *fyne.KeyEvent) {
-	switch e.Name {
-	case desktop.KeyShiftLeft:
-		t.keyboardState.shiftPressed = down
-	case desktop.KeyAltLeft:
-		t.keyboardState.altPressed = down
-	case desktop.KeyControlLeft:
-		t.keyboardState.ctrlPressed = down
-	case desktop.KeyShiftRight:
-		t.keyboardState.shiftPressed = down
-	case desktop.KeyAltRight:
-		t.keyboardState.altPressed = down
-	case desktop.KeyControlRight:
-		t.keyboardState.ctrlPressed = down
-	}
-}
+// KeyDown is called when we get a down key event. Cogpit patch: it does nothing; the widget no
+// longer keeps the modifier keys itself (keyModifiers, and a drag's ⌥ from its press).
+func (t *Terminal) KeyDown(_ *fyne.KeyEvent) {}
 
-// KeyDown is called when we get a down key event
-func (t *Terminal) KeyDown(e *fyne.KeyEvent) {
-	t.trackKeyboardState(true, e)
-}
-
-// KeyUp is called when we get an up key event
-func (t *Terminal) KeyUp(e *fyne.KeyEvent) {
-	t.trackKeyboardState(false, e)
-}
+// KeyUp is called when we get an up key event. Cogpit patch: it does nothing, see KeyDown.
+func (t *Terminal) KeyUp(_ *fyne.KeyEvent) {}
 
 // FocusGained notifies the terminal that it has focus
 func (t *Terminal) FocusGained() {
@@ -256,10 +231,6 @@ func (t *Terminal) TypedShortcut(s fyne.Shortcut) {
 // FocusLost tells the terminal it no longer has focus
 func (t *Terminal) FocusLost() {
 	t.focused = false
-	// the key up for anything held down will go to whatever is focused next
-	t.keyboardState.shiftPressed = false
-	t.keyboardState.ctrlPressed = false
-	t.keyboardState.altPressed = false
 	t.Refresh()
 }
 
