@@ -146,7 +146,7 @@ func (r *centeredTextRenderer) Destroy() {}
 func plateOf(content fyne.CanvasObject) fyne.CanvasObject {
 	bg := newSurface(colorDrawer)
 	bg.radius = theme.SizeNameDialogRadius
-	bg.stroke = theme.ColorNameSeparator
+	bg.stroke = colorPlateEdge
 	return container.NewStack(bg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, content))
 }
 
@@ -162,4 +162,70 @@ func clippedHorizon(floor float32) fyne.CanvasObject {
 	c := container.NewClip(h)
 	c.MinSize() // NewClip extends its base widget at the first MinSize (navigator_slide.go)
 	return c
+}
+
+// welcomeStage is the welcome page's backdrop and its content in one: the horizon (the stage light
+// at the top, the grid floor at the bottom) behind a scroll holding the page. The floor must never
+// run behind text (design-language.md: no line under a word), so a scrim in the stage's own colour
+// lies over it from just above where the floor starts to just under the content's last line, with a
+// soft edge at each end: the grid shows only in the free band below the content, and not at all
+// when the content fills the window. The scrim follows the scroll offset.
+type welcomeStage struct {
+	horizon fyne.CanvasObject
+	top     *canvas.LinearGradient // the scrim's upper edge: the stage fading in
+	body    *canvas.Rectangle      // the scrim
+	bottom  *canvas.LinearGradient // the scrim's lower edge: the stage fading out
+	scroll  *container.Scroll
+	page    fyne.CanvasObject // the content the scroll holds, whose height says where the last line is
+}
+
+// welcomeScrimEdge is the height of the scrim's soft edges, in points.
+const welcomeScrimEdge = 28
+
+func newWelcomeStage(page fyne.CanvasObject) *fyne.Container {
+	s := &welcomeStage{horizon: clippedHorizon(0), page: page, scroll: container.NewVScroll(page),
+		top: canvas.NewLinearGradient(color.Transparent, color.Transparent, 0), body: canvas.NewRectangle(color.Transparent),
+		bottom: canvas.NewLinearGradient(color.Transparent, color.Transparent, 0)}
+	c := container.New(s, s.horizon, s.top, s.body, s.bottom, s.scroll)
+	s.scroll.OnScrolled = func(fyne.Position) { c.Layout.Layout(c.Objects, c.Size()) }
+	return c
+}
+
+func (s *welcomeStage) MinSize(objs []fyne.CanvasObject) fyne.Size { return s.scroll.MinSize() }
+
+func (s *welcomeStage) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	s.horizon.Move(fyne.Position{})
+	s.horizon.Resize(size)
+	s.scroll.Move(fyne.Position{})
+	s.scroll.Resize(size)
+	th := fyne.CurrentApp().Settings().Theme()
+	stage := themeColor(th, theme.ColorNameBackground)
+	s.top.StartColor, s.top.EndColor = withAlpha(stage, 0), stage
+	s.bottom.StartColor, s.bottom.EndColor = stage, withAlpha(stage, 0)
+	s.body.FillColor = stage
+	floorTop := size.Height * (1 - newHorizon().floor)
+	from := floorTop - welcomeScrimEdge
+	to := max(s.page.MinSize().Height-s.scroll.Offset.Y, 0) + 10 // just under the last line
+	if to >= size.Height {
+		to = size.Height // the content reaches the floor: no floor at all
+	}
+	if to <= from {
+		s.top.Hide()
+		s.body.Hide()
+		s.bottom.Hide()
+		return
+	}
+	s.top.Show()
+	s.body.Show()
+	s.top.Move(fyne.NewPos(0, from))
+	s.top.Resize(fyne.NewSize(size.Width, welcomeScrimEdge))
+	s.body.Move(fyne.NewPos(0, from+welcomeScrimEdge))
+	s.body.Resize(fyne.NewSize(size.Width, max(to-from-welcomeScrimEdge, 0)))
+	if to < size.Height {
+		s.bottom.Show()
+		s.bottom.Move(fyne.NewPos(0, to))
+		s.bottom.Resize(fyne.NewSize(size.Width, welcomeScrimEdge))
+	} else {
+		s.bottom.Hide()
+	}
 }
