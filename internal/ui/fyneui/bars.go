@@ -92,8 +92,10 @@ func newTopBar(sh *shell) *topBar {
 		t.version.gap = newHGap(theme.SizeNameInnerPadding)
 		left = append(left, t.version.gap)
 	}
+	// The cluster is a capsule: its dot, name and kubeconfig on one small plate (chrome_bar.go).
+	cluster := newCapsule(inset(theme.SizeNameInnerPadding, "", container.NewHBox(t.dot, t.context, t.file)))
 	t.left = container.NewHBox(append(left, t.history.root, newHGap(theme.SizeNameInnerPadding), newDivider(true),
-		newHGap(theme.SizeNameInnerPadding), t.dot, t.context, t.file)...)
+		newHGap(theme.SizeNameInnerPadding), container.NewCenter(cluster))...)
 	t.layout = newLayoutBar(sh)
 	t.alerts = newAlertsButton(sh)
 	// The divider is a short line, a line of text high (the owner: "wie so ein Zeichen |").
@@ -244,6 +246,8 @@ type statusBar struct {
 	informers *textLine
 	demo      *textLine
 	demoSep   fyne.CanvasObject
+	pulse     *pulse // the event rate's wave beside the demo text (chrome_bar.go)
+	pulseBox  fyne.CanvasObject
 	root      fyne.CanvasObject
 }
 
@@ -258,8 +262,11 @@ func newStatusBar(sh *shell) *statusBar {
 	s.tls = newTextLine(engine.TLSUncheckedLabel, colorStatusWarning, sizeStatusText, fyne.TextStyle{})
 	s.tls.Hide()
 	s.demoSep = newStatusDivider()
+	s.pulse = newPulse()
+	s.pulseBox = container.NewCenter(s.pulse.w)
+	s.pulseBox.Hide()
 	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.requests, newStatusDivider(),
-		s.informers, s.demoSep, s.demo)
+		s.informers, s.demoSep, s.demo, s.pulseBox)
 	right := container.NewHBox()
 	if sh.hasMCP() {
 		s.mcp = newMCPItem(sh, sh.mcp.on)
@@ -415,8 +422,11 @@ func (s *statusBar) update() {
 			formatCount(d.demoObjects), formatCount(int64(d.demoRate+0.5))))
 		s.demo.Show()
 		s.demoSep.Show()
+		s.pulse.add(d.demoRate)
+		s.pulseBox.Show()
 	} else {
 		s.demo.Hide()
 		s.demoSep.Hide()
+		s.pulseBox.Hide()
 	}
 }

@@ -416,6 +416,7 @@ func (t *viewTab) MouseOut() {
 // CreateRenderer implements fyne.Widget.
 func (t *viewTab) CreateRenderer() fyne.WidgetRenderer {
 	r := &viewTabRenderer{t: t, bg: canvas.NewRectangle(color.Transparent), under: canvas.NewRectangle(color.Transparent),
+		halo:  canvas.NewRectangle(color.Transparent),
 		badge: canvas.NewRectangle(color.Transparent), initials: canvas.NewText("", color.Transparent),
 		title: canvas.NewText("", color.Transparent),
 		img:   &canvas.Image{FillMode: canvas.ImageFillContain, ScaleMode: canvas.ImageScaleSmooth}}
@@ -427,9 +428,13 @@ func (t *viewTab) CreateRenderer() fyne.WidgetRenderer {
 type viewTabRenderer struct {
 	t                *viewTab
 	bg, under, badge *canvas.Rectangle
+	halo             *canvas.Rectangle // the active tab's wider, faint underline under the crisp one
 	initials, title  *canvas.Text
 	img              *canvas.Image // the cluster's uploaded icon in the badge's place (clusteridentity.go)
 }
+
+// tabHaloExtra is how far the active tab's faint underline rises above the crisp one.
+const tabHaloExtra = 3
 
 // notLiveFade is how much a tab fades its cluster's image while the cluster is not connected, as
 // its initials take the muted colour.
@@ -463,6 +468,10 @@ func (r *viewTabRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
 	r.under.Move(fyne.NewPos(0, size.Height-line))
 	r.under.Resize(fyne.NewSize(size.Width, line))
+	r.under.CornerRadius = line / 2
+	r.halo.Move(fyne.NewPos(0, size.Height-line-tabHaloExtra))
+	r.halo.Resize(fyne.NewSize(size.Width, line+tabHaloExtra))
+	r.halo.CornerRadius = (line + tabHaloExtra) / 2
 	r.badge.Move(fyne.NewPos(pad, (size.Height-side)/2))
 	r.badge.Resize(fyne.NewSize(side, side))
 	r.img.Move(r.badge.Position())
@@ -520,26 +529,30 @@ func (r *viewTabRenderer) Refresh() {
 	r.title.TextSize = th.Size(theme.SizeNameText)
 	switch {
 	case t.active || t.bar.drag.carries(t.tab.ID): // a carried tab raised as the active one (stripdrag.go)
-		r.bg.FillColor = themeColor(th, colorDockTab)
+		// The active tab is the stage itself, lit from below in the glow blue: a crisp 2 point line
+		// and a wider faint one (the logo's glow without blur).
+		glow := themeColor(th, theme.ColorNamePrimary)
+		r.bg.FillColor = themeColor(th, theme.ColorNameBackground)
 		r.title.Color = themeColor(th, colorDockTabText)
-		r.under.FillColor = accent
+		r.under.FillColor = glow
+		r.halo.FillColor = withAlpha(glow, 0x30)
 	case t.hovered:
 		r.bg.FillColor = themeColor(th, theme.ColorNameHover)
 		r.title.Color = themeColor(th, colorDockTabDim)
-		r.under.FillColor = color.Transparent
-	default:
+		r.under.FillColor, r.halo.FillColor = color.Transparent, color.Transparent
+	default: // ghost: no plate, muted text
 		r.bg.FillColor = color.Transparent
 		r.title.Color = themeColor(th, colorDockTabDim)
-		r.under.FillColor = color.Transparent
+		r.under.FillColor, r.halo.FillColor = color.Transparent, color.Transparent
 	}
 	r.Layout(t.Size())
-	for _, o := range []fyne.CanvasObject{r.bg, r.under, r.badge, r.initials, r.img, r.title} {
+	for _, o := range []fyne.CanvasObject{r.bg, r.halo, r.under, r.badge, r.initials, r.img, r.title} {
 		o.Refresh()
 	}
 }
 
 func (r *viewTabRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.bg, r.under, r.badge, r.initials, r.img, r.title, r.t.close}
+	return []fyne.CanvasObject{r.bg, r.halo, r.under, r.badge, r.initials, r.img, r.title, r.t.close}
 }
 
 func (r *viewTabRenderer) Destroy() {}
