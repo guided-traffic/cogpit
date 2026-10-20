@@ -2,6 +2,7 @@ package terminal
 
 import (
 	"runtime"
+	"strconv"
 	"sync/atomic"
 	"time"
 	"unicode/utf8"
@@ -72,7 +73,7 @@ func (t *Terminal) TypedKey(e *fyne.KeyEvent) {
 	}
 	// Cogpit patch: ⇧ from the key's own event (keyModifiers), and a key without a form of its own
 	// with ⇧ (Return, Enter, Backspace, Escape) goes as without it, as in xterm; it sent nothing.
-	if keyModifiers()&fyne.KeyModifierShift != 0 && t.keyTypedWithShift(e) {
+	if keyModifiers()&fyne.KeyModifierShift != 0 && t.typeModifiedKey(e.Name, fyne.KeyModifierShift) {
 		return
 	}
 
@@ -132,26 +133,46 @@ func (t *Terminal) TypedKey(e *fyne.KeyEvent) {
 	}
 }
 
-// shiftKeys are xterm's sequences for keys typed with ⇧, as the terminfo entry xterm-256color names
-// them (kf13–kf24, kLFT, kRIT, kri, kind, kHOM, kEND, kPRV, kNXT, kIC, kDC, kcbt). Cogpit patch:
-// ⇧ and an arrow went out as ESC [ A ; 2, which no program reads as one key (a shell takes the arrow
-// and types ";2"), ⇧F1 to ⇧F3 as ESC [ 25 ~, ESC [ 26 ~ and ESC O R ; 2 ~, and ⇧Tab as nothing.
-var shiftKeys = map[fyne.KeyName]string{
-	fyne.KeyF1: "\x1b[1;2P", fyne.KeyF2: "\x1b[1;2Q", fyne.KeyF3: "\x1b[1;2R", fyne.KeyF4: "\x1b[1;2S",
-	fyne.KeyF5: "\x1b[15;2~", fyne.KeyF6: "\x1b[17;2~", fyne.KeyF7: "\x1b[18;2~", fyne.KeyF8: "\x1b[19;2~",
-	fyne.KeyF9: "\x1b[20;2~", fyne.KeyF10: "\x1b[21;2~", fyne.KeyF11: "\x1b[23;2~", fyne.KeyF12: "\x1b[24;2~",
-	fyne.KeyUp: "\x1b[1;2A", fyne.KeyDown: "\x1b[1;2B", fyne.KeyRight: "\x1b[1;2C", fyne.KeyLeft: "\x1b[1;2D",
-	fyne.KeyHome: "\x1b[1;2H", fyne.KeyEnd: "\x1b[1;2F", fyne.KeyPageUp: "\x1b[5;2~", fyne.KeyPageDown: "\x1b[6;2~",
-	fyne.KeyInsert: "\x1b[2;2~", fyne.KeyDelete: "\x1b[3;2~", fyne.KeyTab: "\x1b[Z",
+// modifiedKeys are the keys xterm sends with a modifier parameter: CSI <n> ; <m> <final>, the
+// parameter m 1 plus 1 for ⇧ and 4 for Ctrl, as the terminfo entry xterm-256color names them
+// (kLFT, kRIT, kri, kind, kHOM, kEND, kPRV, kNXT, kIC, kDC, kf13–kf24 with ⇧; kLFT5, kf25–kf36 and
+// the like with Ctrl). Cogpit patch, see typeModifiedKey.
+var modifiedKeys = map[fyne.KeyName]struct {
+	n     string
+	final byte
+}{
+	fyne.KeyUp: {"1", 'A'}, fyne.KeyDown: {"1", 'B'}, fyne.KeyRight: {"1", 'C'}, fyne.KeyLeft: {"1", 'D'},
+	fyne.KeyHome: {"1", 'H'}, fyne.KeyEnd: {"1", 'F'},
+	fyne.KeyF1: {"1", 'P'}, fyne.KeyF2: {"1", 'Q'}, fyne.KeyF3: {"1", 'R'}, fyne.KeyF4: {"1", 'S'},
+	fyne.KeyF5: {"15", '~'}, fyne.KeyF6: {"17", '~'}, fyne.KeyF7: {"18", '~'}, fyne.KeyF8: {"19", '~'},
+	fyne.KeyF9: {"20", '~'}, fyne.KeyF10: {"21", '~'}, fyne.KeyF11: {"23", '~'}, fyne.KeyF12: {"24", '~'},
+	fyne.KeyInsert: {"2", '~'}, fyne.KeyDelete: {"3", '~'}, fyne.KeyPageUp: {"5", '~'}, fyne.KeyPageDown: {"6", '~'},
 }
 
-// keyTypedWithShift writes xterm's sequence for e typed with ⇧ and reports whether e has one.
-func (t *Terminal) keyTypedWithShift(e *fyne.KeyEvent) bool {
-	seq, ok := shiftKeys[e.Name]
-	if ok {
-		_, _ = t.in.Write([]byte(seq))
+// typeModifiedKey writes xterm's sequence for the key name typed with mods, of which it encodes ⇧
+// and Ctrl, and reports whether the key has one; ⇧Tab is CSI Z. Cogpit patch: ⇧ and an arrow went
+// out as ESC [ A ; 2, which no program reads as one key (a shell takes the arrow and types ";2"),
+// ⇧F1 to ⇧F3 as ESC [ 25 ~, ESC [ 26 ~ and ESC O R ; 2 ~, ⇧Tab as nothing; and Ctrl with a named
+// key as the control character of the name's first letter: Ctrl+↓ and Ctrl+Delete ^D, which ends
+// a shell at an empty prompt, Ctrl+↑ ^U, Ctrl+← ^L, Ctrl+→ and Ctrl+Return ^R.
+func (t *Terminal) typeModifiedKey(name fyne.KeyName, mods fyne.KeyModifier) bool {
+	if name == fyne.KeyTab && mods == fyne.KeyModifierShift {
+		_, _ = t.in.Write([]byte{asciiEscape, '[', 'Z'})
+		return true
 	}
-	return ok
+	k, ok := modifiedKeys[name]
+	if !ok {
+		return false
+	}
+	m := 1
+	if mods&fyne.KeyModifierShift != 0 {
+		m++
+	}
+	if mods&fyne.KeyModifierControl != 0 {
+		m += 4
+	}
+	_, _ = t.in.Write([]byte("\x1b[" + k.n + ";" + strconv.Itoa(m) + string(k.final)))
+	return true
 }
 
 // KeyDown is called when we get a down key event. Cogpit patch: it does nothing; the widget no
@@ -175,8 +196,17 @@ func (t *Terminal) TypedShortcut(s fyne.Shortcut) {
 	if ds, ok := s.(*desktop.CustomShortcut); ok {
 		t.ShortcutHandler.TypedShortcut(s) // it's not clear how we can check if this consumed the event
 
+		// Cogpit patch: Ctrl, or Ctrl and ⇧, with a named key (an arrow, Delete, F1) sends xterm's
+		// sequence or nothing (typeModifiedKey); it took the name's first letter as a character.
+		named := len(ds.KeyName) > 1 && ds.KeyName != fyne.KeySpace
+		if named && ds.Modifier&fyne.KeyModifierControl != 0 &&
+			ds.Modifier&^(fyne.KeyModifierControl|fyne.KeyModifierShift) == 0 {
+			t.typeModifiedKey(ds.KeyName, ds.Modifier)
+			return
+		}
+
 		// handle CTRL+A to CTRL+_ and everything in-between
-		if ds.Modifier == fyne.KeyModifierControl && len(ds.KeyName) > 0 {
+		if ds.Modifier == fyne.KeyModifierControl && len(ds.KeyName) > 0 && !named {
 			char := ds.KeyName[0]
 			off := char - 'A' + 1
 			switch {
