@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	widget2 "github.com/fyne-io/terminal/internal/widget"
 	"github.com/stretchr/testify/assert"
@@ -29,13 +30,15 @@ func testColor(t *testing.T, tests map[string]struct {
 			terminal := New()
 			terminal.handleOutput([]byte(test.inputSeq))
 
-			// Verify the actual results match the expected results
-			if !reflect.DeepEqual(terminal.currentFG, test.expectedFg) {
-				t.Errorf("Foreground color mismatch. Got %v, expected %v", terminal.currentFG, test.expectedFg)
+			// Verify the actual results match the expected results. Cogpit patch: the colours a
+			// character written now gets (cellColors), which reverse video swaps.
+			fg, bg := terminal.cellColors()
+			if !reflect.DeepEqual(fg, test.expectedFg) {
+				t.Errorf("Foreground color mismatch. Got %v, expected %v", fg, test.expectedFg)
 			}
 
-			if !reflect.DeepEqual(terminal.currentBG, test.expectedBg) {
-				t.Errorf("Background color mismatch. Got %v, expected %v", terminal.currentBG, test.expectedBg)
+			if !reflect.DeepEqual(bg, test.expectedBg) {
+				t.Errorf("Background color mismatch. Got %v, expected %v", bg, test.expectedBg)
 			}
 			if terminal.bold != test.expectedStyle.Bold {
 				t.Errorf("Bold flag mismatch. Got %v, expected %v", terminal.bold, test.expectedStyle.Bold)
@@ -179,9 +182,11 @@ func TestHandleOutput_ANSI_Colors(t *testing.T) {
 			expectedStyle: fyne.TextStyle{Bold: true},
 		},
 		"reverse video": {
+			// Cogpit patch: as in xterm, the colour set after SGR 7 is the text's, shown as the
+			// background; upstream wrote it as the text over the reversed default background.
 			inputSeq:   esc("[7m") + esc("[37m"),
-			expectedFg: &color.RGBA{170, 170, 170, 255},
-			expectedBg: color.NRGBA{255, 255, 255, 255},
+			expectedFg: color.NRGBA{34, 34, 34, 255},
+			expectedBg: &color.RGBA{170, 170, 170, 255},
 		},
 		"underline": {
 			inputSeq:      esc("[4m"),
@@ -851,4 +856,73 @@ func TestHandleOutput_BufferCutoff(t *testing.T) {
 		},
 	}
 	assert.Equal(t, tg.Rows, term.content.Rows)
+}
+
+// TestReverseVideo: reverse video (SGR 7) is a state, as in xterm: SGR 7 turns it on however often
+// it comes, SGR 27 and SGR 0 turn it off, and a character written while it is on shows the current
+// colours swapped, the default ones included; colours set meanwhile keep their meaning, and an erase
+// is not reversed. Cogpit patch: SGR 7 swapped the current colours each time it came and SGR 27
+// cleared both. zsh highlights a paste with SGR 7 until Enter, and with oh-my-zsh it sends SGR 7
+// again before every character (zsh-syntax-highlighting loaded) or part way (without it; zsh 5.9 in
+// a pseudo-terminal, 2026-10-20), so every other character, or the rest of the paste after one,
+// showed without the highlight (Cogpit's G16 GW7).
+func TestReverseVideo(t *testing.T) {
+	type colors struct{ fg, bg color.Color }
+	text := theme.Color(theme.ColorNameDisabledButton) // the default background, as text
+	back := theme.Color(theme.ColorNameForeground)     // the default text, as background
+	reversed := colors{text, back}
+	red := basicColors[1]
+	tests := map[string]struct {
+		out  string
+		want []colors // one per cell from the first
+	}{
+		"SGR 7 before every character": {
+			esc("[7m") + "k" + esc("[7m") + "u" + esc("[7m") + "b" + esc("[7m") + "e" + esc("[27m") + "c",
+			[]colors{reversed, reversed, reversed, reversed, {}},
+		},
+		"SGR 7 again part way": {
+			esc("[7m") + "ge" + esc("[7m") + "p" + esc("[7m") + "od" + esc("[27m") + " ",
+			[]colors{reversed, reversed, reversed, reversed, reversed, {}},
+		},
+		"colours kept across it": {
+			esc("[31m") + esc("[7m") + "x" + esc("[27m") + "y",
+			[]colors{{text, red}, {red, nil}},
+		},
+		"a colour set while it is on": {
+			esc("[7m") + esc("[31m") + "x" + esc("[39m") + "y" + esc("[41m") + "z",
+			[]colors{{text, red}, reversed, {red, back}},
+		},
+		"SGR 0 ends it": {
+			esc("[7m") + "x" + esc("[0m") + "y" + esc("[7m") + "z" + esc("[m") + "w",
+			[]colors{reversed, {}, reversed, {}},
+		},
+		"SGR 27 alone keeps the colours": {
+			esc("[31m") + esc("[27m") + "x",
+			[]colors{{red, nil}},
+		},
+		"an erase is not reversed": {
+			esc("[7m") + "ab" + esc("[2D") + esc("[1X"),
+			[]colors{{}, reversed},
+		},
+	}
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			term := New()
+			term.Resize(fyne.NewSize(400, 100))
+			term.handleOutput([]byte(tt.out))
+			cells := term.content.Rows[0].Cells
+			if len(cells) < len(tt.want) {
+				t.Fatalf("%d cells, want %d", len(cells), len(tt.want))
+			}
+			for i, want := range tt.want {
+				var got colors
+				if s := cells[i].Style; s != nil {
+					got = colors{s.TextColor(), s.BackgroundColor()}
+				}
+				if !reflect.DeepEqual(got, want) {
+					t.Errorf("cell %d (%q): colours %v, want %v", i, cells[i].Rune, got, want)
+				}
+			}
+		})
+	}
 }

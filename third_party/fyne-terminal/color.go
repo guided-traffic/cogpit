@@ -50,6 +50,7 @@ func (t *Terminal) handleColorEscape(message string) {
 		t.underline = false
 		t.strikethrough = false
 		t.blinking = false
+		t.reverse = false
 		return
 	}
 	if message[0] == '>' || message[0] == '?' {
@@ -94,6 +95,7 @@ func (t *Terminal) handleColorMode(modeStr string) {
 		t.italic = false
 		t.underline = false
 		t.strikethrough = false
+		t.reverse = false
 	case 1:
 		t.bold = true
 	case 3:
@@ -102,18 +104,8 @@ func (t *Terminal) handleColorMode(modeStr string) {
 		t.underline = true
 	case 5:
 		t.blinking = true
-	case 7: // reverse
-		bg, fg := t.currentBG, t.currentFG
-		if fg == nil {
-			t.currentBG = theme.Color(theme.ColorNameForeground)
-		} else {
-			t.currentBG = fg
-		}
-		if bg == nil {
-			t.currentFG = theme.Color(theme.ColorNameDisabledButton)
-		} else {
-			t.currentFG = bg
-		}
+	case 7: // reverse; Cogpit patch: a state, see cellColors
+		t.reverse = true
 	case 9:
 		t.strikethrough = true
 	case 22:
@@ -123,17 +115,7 @@ func (t *Terminal) handleColorMode(modeStr string) {
 	case 24:
 		t.underline = false
 	case 27: // reverse off
-		bg, fg := t.currentBG, t.currentFG
-		if fg != nil {
-			t.currentBG = nil
-		} else {
-			t.currentBG = fg
-		}
-		if bg != nil {
-			t.currentFG = nil
-		} else {
-			t.currentFG = bg
-		}
+		t.reverse = false
 	case 30, 31, 32, 33, 34, 35, 36, 37:
 		t.currentFG = basicColors[mode-30]
 	case 39:
@@ -151,6 +133,30 @@ func (t *Terminal) handleColorMode(modeStr string) {
 			log.Println("Unsupported graphics mode", mode)
 		}
 	}
+}
+
+// cellColors returns the colours of a character written now: the current ones, swapped while reverse
+// video is on, with the default text colour as the background and the default background's stand-in
+// as the text where a colour is the default (nil). An erase does not use it: erased cells take the
+// current colours unswapped, as in xterm.
+//
+// Cogpit patch: SGR 7 swapped the current colours each time it came and SGR 27 cleared both, so a
+// second SGR 7 swapped them back and an SGR 27 dropped colours set before the SGR 7. zsh highlights a
+// paste with SGR 7 until Enter, and with oh-my-zsh sends it again part way, or before every character
+// when zsh-syntax-highlighting is loaded: every other character showed without the highlight
+// (TestReverseVideo).
+func (t *Terminal) cellColors() (fg, bg color.Color) {
+	if !t.reverse {
+		return t.currentFG, t.currentBG
+	}
+	fg, bg = t.currentBG, t.currentFG
+	if fg == nil {
+		fg = theme.Color(theme.ColorNameDisabledButton) // upstream's choice for the reversed text
+	}
+	if bg == nil {
+		bg = theme.Color(theme.ColorNameForeground)
+	}
+	return fg, bg
 }
 
 func (t *Terminal) handleColorModeMap(mode, ids string) {

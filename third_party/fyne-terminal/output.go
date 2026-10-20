@@ -379,12 +379,13 @@ func (t *Terminal) handleOutputChar(r rune) {
 		Underline:     t.underline,
 		Strikethrough: t.strikethrough,
 	}
+	fg, bg := t.cellColors() // Cogpit patch: reverse video applied here, see cellColors
 	cellStyle = &widget.CustomTextGridStyle{
-		FGColor: t.currentFG, BGColor: t.currentBG,
+		FGColor: fg, BGColor: bg,
 		TextStyle: textStyle,
 	}
 	if t.blinking {
-		cellStyle = widget2.NewTermTextGridStyle(t.currentFG, t.currentBG, highlightBitMask, t.blinking, textStyle)
+		cellStyle = widget2.NewTermTextGridStyle(fg, bg, highlightBitMask, t.blinking, textStyle)
 	}
 
 	row, col := t.cursorRow, t.cursorCol

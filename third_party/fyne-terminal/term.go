@@ -59,6 +59,7 @@ type Terminal struct {
 
 	bell, debug, focused                   bool
 	bold, italic, underline, strikethrough bool
+	reverse                                bool // Cogpit patch: SGR 7, a state (cellColors)
 	currentFG, currentBG                   color.Color
 	cursorRow, cursorCol                   int
 	savedRow, savedCol                     int

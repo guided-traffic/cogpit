@@ -50,6 +50,15 @@ other three); drop the fork once upstream has equivalent fixes ([D-14](../../doc
 | `rightclick.go`, `term.go` | 2026-10-13: `SetRightClickAction` chooses what the secondary mouse button does: `RightClickPasteSelection` (the default, upstream's behaviour: paste the text last selected in the terminal), `RightClickNone`, or `RightClickCopyPaste` (copy the selection to the clipboard, else paste the clipboard); `MouseDown` reads the selection before it clears it. A program that asked for mouse events still gets the click. Cogpit sets none or copy and paste from its terminal preference (`TestRightClickAction`) |
 | `input.go`, `term.go` | 2026-10-13: off macOS, Ctrl+Insert copies the selection to the clipboard and Shift+Insert pastes the clipboard (the shortcut's, else the app's); both used the terminal's own selection buffer, which nothing outside the terminal reads, so a copy could not be pasted elsewhere. The system is read from a variable, `goos`, so that the tests on macOS cover the keys of Windows and Linux (`TestCopyPasteKeys_WindowsAndLinux`) |
 
+## Found in the owner's gate walk (2026-10-20)
+
+Cogpit's G16 GW7 and GW8, [D-105](../../docs/developer/decisions.md#d-105-reverse-video-as-a-state-and-a-keys-modifiers-from-the-key-itself).
+Candidates not offered upstream yet.
+
+| File | Patch |
+|---|---|
+| `color.go`, `output.go`, `term.go` | Reverse video (SGR 7) is a state, as in xterm (`reverse`, `cellColors`): SGR 7 turns it on however often it comes, SGR 27 and SGR 0 turn it off, and a character written while it is on gets the current colours swapped, the default text colour as its background and `DisabledButton`, upstream's choice, as its text where a colour is the default; a colour set while it is on keeps its meaning (`SGR 7` then `SGR 32` is a green background), and an erase (`CSI X`, `CSI @`) takes the colours unswapped. SGR 7 swapped the current colours each time it came and SGR 27 cleared both: zsh highlights a paste with SGR 7 until Enter, and with oh-my-zsh sends SGR 7 again part way, or before every character when zsh-syntax-highlighting is loaded (zsh 5.9 in a pseudo-terminal), so every other character showed without the highlight, and an SGR 27 dropped the colours set before the SGR 7 (`TestReverseVideo`; `testColor` compares the colours a character gets, `cellColors`, and the `[7m[37m` case expects xterm's meaning) |
+
 ## Data races (H-19)
 
 Fyne's desktop driver runs `fyne.Do` on its main goroutine; the widget parses output on the
@@ -162,6 +171,8 @@ unterminated OSC took about 60 s). The ten-minute runs with the fixed harness (f
   GLFW loop runs queued functions only between its event polls, and `glfwPollEvents` stays in
   Cocoa's resize loop meanwhile (read in Fyne 2.8.1's `loop.go`). Fyne's, not patched.
 - Wide characters (CJK) take one cell, also in the scrollback and its reflow.
+- A reversed character's default colours are the theme's when it is written: after a switch between
+  dark and light, highlighted text written before keeps the old theme's (as upstream's swap did).
 
 `go.mod` requires Fyne v2.8.1 (Cogpit's own module builds it with v2.8.2, the latest release, since
 the Renovate updates of 2026-10-15, e858ee49), where upstream's asks for an unreleased Fyne
