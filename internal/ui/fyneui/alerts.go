@@ -189,8 +189,9 @@ type alertsRenderer struct {
 	count *canvas.Text
 }
 
-// metrics are the pill's inner sizes: the icon's side (the bell's), the padding at its ends and
-// between the icon and the number, and the pill's height (the icon with the padding).
+// metrics are the pill's inner sizes: the icon's side (the bell's), the padding at its ends
+// (alertsPillEnd beyond it) and between the icon and the number, and the pill's height (the icon
+// with the padding).
 func (r *alertsRenderer) metrics() (icon, pad, height float32) {
 	th := r.b.Theme()
 	pad = th.Size(theme.SizeNamePadding)
@@ -204,13 +205,17 @@ func (r *alertsRenderer) metrics() (icon, pad, height float32) {
 // (2026-10-20: "Die Zahl doch etwas kleiner").
 func countSize(th fyne.Theme) float32 { return th.Size(theme.SizeNameText) }
 
+// alertsPillEnd is the room added at the pill's two ends beyond the padding: the owner's look of
+// 2026-10-20 ("die Pille ist mir zu eng", "5px rechts und links dazu").
+const alertsPillEnd = 5
+
 // countRise lifts the number by this share of its text size: a text's box holds the line's
 // descent below the digits, so a box centred in the pill puts the digits low (measured).
 const countRise = 0.08
 
 func (r *alertsRenderer) MinSize() fyne.Size {
 	icon, pad, h := r.metrics()
-	return fyne.NewSize(2*pad+icon+pad+r.count.MinSize().Width, h)
+	return fyne.NewSize(2*(pad+alertsPillEnd)+icon+pad+r.count.MinSize().Width, h)
 }
 
 func (r *alertsRenderer) Layout(size fyne.Size) {
@@ -221,6 +226,8 @@ func (r *alertsRenderer) Layout(size fyne.Size) {
 	r.bg.Move(fyne.NewPos(x, y))
 	r.bg.Resize(fyne.NewSize(ms.Width, h))
 	r.bg.CornerRadius = r.b.Theme().Size(sizeChipRadius) // the status bar's MCP pill's
+	// The icon and the number start after the end's room.
+	x += alertsPillEnd
 	r.img.img.Move(fyne.NewPos(x+pad, y+(h-icon)/2))
 	r.img.img.Resize(fyne.NewSize(icon, icon))
 	ts := r.count.MinSize()
