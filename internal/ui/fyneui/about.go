@@ -97,9 +97,9 @@ func (sh *shell) aboutContent(info buildinfo.Info) fyne.CanvasObject {
 		container.NewCenter(container.NewHBox(sh.aboutLink("Repository", repoURL), sh.aboutLink("Licence", licenceURL))),
 		newSpace(theme.SizeNamePadding), // room above the dialog's Close
 	)
-	// The horizon is the dialog's stage: About shows no data, so the grid floor and the stage light may
-	// stand behind the column (design-language.md).
-	return sized(sizeAboutWidth, "", container.NewStack(clippedHorizon(0.18), container.NewVBox(objs...)))
+	// The logo's own glow is the only light: a panel of the horizon in the dialog read as a box in a
+	// box, with its grid cut at the edge and the links standing on it (the review of 2026-10-21).
+	return sized(sizeAboutWidth, "", container.NewVBox(objs...))
 }
 
 // aboutLink is a link of the dialog: a click opens it in the user's browser, nothing else does.
