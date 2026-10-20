@@ -157,3 +157,63 @@ func TestClickModifiers(t *testing.T) {
 		t.Errorf("a ⌘ press kept %v, want %v", c.pressMods, fyne.KeyModifierShortcutDefault)
 	}
 }
+
+// TestClickBelowTheRowsClosesTheDrawer (the owner's gate walk, GW1): a click on the empty area below
+// a short list's rows closes the drawer through ui.closeDrawer, and the checked rows stay checked; a
+// click on the header or on a row is the table's as before; a list that fills the view has no area
+// below its rows.
+func TestClickBelowTheRowsClosesTheDrawer(t *testing.T) {
+	f := connectedFake(t, 6)
+	sh, w, q := settledShell(t, f, kindPods)
+	rows := f.tables[kindPods].Rows
+	tbl := sh.view.table
+
+	clickWith(t, cellAt(t, sh, 4, checkColumn), 0)
+	q.until(t, "row 4 checked", func() bool { return len(sh.ui.Selected) == 1 })
+	clickWith(t, cellAt(t, sh, 2, firstDataColumn+1), 0)
+	q.until(t, "the drawer on row 2", func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == rows[2].Ref })
+	settle(w)
+
+	last := cellAt(t, sh, len(rows)-1, firstDataColumn+1)
+	bottom := absolutePos(last).Y + last.Size().Height - absolutePos(tbl).Y
+	below := fyne.NewPos(tbl.Size().Width/2, bottom+(tbl.Size().Height-bottom)/2)
+	if !tbl.belowRows(below) {
+		t.Fatalf("%v is not below the rows (their bottom %v, the table %v)", below, bottom, tbl.Size())
+	}
+	header := fyne.NewPos(tbl.Size().Width/2, 2)
+	if tbl.belowRows(header) || tbl.belowRows(fyne.NewPos(below.X, bottom-4)) {
+		t.Fatal("the header or the last row counts as below the rows")
+	}
+
+	test.TapAt(tbl, header) // the header: nothing closes
+	q.drain()
+	if len(f.callsOf("ui.closeDrawer")) != 0 || sh.ui.Drawer == nil {
+		t.Fatal("a click on the header closed the drawer")
+	}
+	test.TapAt(tbl, below)
+	q.until(t, "the drawer closed", func() bool { return sh.ui.Drawer == nil })
+	if n := len(f.callsOf("ui.closeDrawer")); n != 1 {
+		t.Fatalf("ui.closeDrawer sent %d times", n)
+	}
+	if len(sh.ui.Selected) != 1 || sh.ui.Selected[0] != rows[4].Ref {
+		t.Fatalf("the checked rows changed to %v", sh.ui.Selected)
+	}
+	if c := cellAt(t, sh, 2, firstDataColumn+1); c.selected {
+		t.Fatal("row 2 is still marked as the drawer's")
+	}
+
+	// Without a drawer the click sends nothing.
+	test.TapAt(tbl, below)
+	q.drain()
+	if n := len(f.callsOf("ui.closeDrawer")); n != 1 {
+		t.Fatalf("a click below the rows without a drawer sent ui.closeDrawer (%d)", n)
+	}
+
+	// A list taller than the view: no place in it is below the rows.
+	f.setTable(kindPods, fixturePods(500, 7))
+	q.until(t, "500 rows", func() bool { return sh.view.snap != nil && len(sh.view.snap.Rows) == 500 })
+	settle(w)
+	if tbl.belowRows(below) || tbl.belowRows(fyne.NewPos(below.X, tbl.Size().Height-1)) {
+		t.Fatal("a full list has an area below its rows")
+	}
+}

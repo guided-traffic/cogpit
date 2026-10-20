@@ -1056,9 +1056,10 @@ func (tv *tableView) viewNamespaced() bool {
 type resourceTable struct {
 	widget.Table
 	tv     *tableView
-	keying bool          // set while a key moves Fyne's highlight (tablekeys.go)
-	shift  bool          // Shift is held, for ⇧Tab
-	offset fyne.Position // the scroll offset, as the scroller last reported it
+	keying bool              // set while a key moves Fyne's highlight (tablekeys.go)
+	shift  bool              // Shift is held, for ⇧Tab
+	offset fyne.Position     // the scroll offset, as the scroller last reported it
+	body   *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
 }
 
 func newResourceTable(tv *tableView) *resourceTable {
@@ -1084,6 +1085,7 @@ func (t *resourceTable) CreateRenderer() fyne.WidgetRenderer {
 	r := t.Table.CreateRenderer()
 	for _, o := range r.Objects() {
 		if s, ok := o.(*container.Scroll); ok && s.OnScrolled != nil {
+			t.body = s
 			inner := s.OnScrolled
 			s.OnScrolled = func(p fyne.Position) {
 				inner(p)
