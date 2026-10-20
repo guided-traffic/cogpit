@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -25,6 +26,7 @@ var tabProbes = map[string]func(t testing.TB, f *fakeEngine, cmd *engine.Command
 	"ui.tab.open": probe[tabOpenParams], "ui.tab.pin": probe[tabIDParams], "ui.tab.close": probe[tabIDParams],
 	"ui.tab.select": probe[tabSelectParams], "ui.tab.next": probe[struct{}], "ui.tab.previous": probe[struct{}],
 	"ui.tab.back": probe[struct{}], "ui.tab.forward": probe[struct{}],
+	"ui.tab.move": probe[tabMoveParams], "ui.tab.moveLeft": probe[struct{}], "ui.tab.moveRight": probe[struct{}],
 }
 
 // fakeTabCommands gives the fake engine the tab commands: stand-ins of the real ones in its
@@ -88,6 +90,37 @@ func fakeTabCommands(t testing.TB, f *fakeEngine) {
 		})
 		return nil, nil
 	}
+	f.handlers["ui.tab.move"] = func(_ context.Context, inv engine.Invocation) (any, error) { // every tab in the bar (the tests' scope)
+		var p tabMoveParams
+		if err := decodeInto(inv, &p); err != nil {
+			return nil, err
+		}
+		var err error
+		f.update(func(u *engine.UIState) {
+			id := cmp.Or(p.ID, u.ActiveTab)
+			i := slices.IndexFunc(u.Tabs, func(tab engine.ViewTab) bool { return tab.ID == id })
+			if i < 0 || p.Index < 1 || p.Index > len(u.Tabs) {
+				err = fmt.Errorf("no place %d for %q", p.Index, id)
+				return
+			}
+			tab := u.Tabs[i]
+			u.Tabs = slices.Insert(slices.Delete(slices.Clone(u.Tabs), i, i+1), p.Index-1, tab)
+		})
+		return nil, err
+	}
+	step := func(d int) func(context.Context, engine.Invocation) (any, error) {
+		return func(_ context.Context, _ engine.Invocation) (any, error) {
+			f.update(func(u *engine.UIState) {
+				i := slices.IndexFunc(u.Tabs, func(tab engine.ViewTab) bool { return tab.ID == u.ActiveTab })
+				if i >= 0 && i+d >= 0 && i+d < len(u.Tabs) {
+					tab := u.Tabs[i]
+					u.Tabs = slices.Insert(slices.Delete(slices.Clone(u.Tabs), i, i+1), i+d, tab)
+				}
+			})
+			return nil, nil
+		}
+	}
+	f.handlers["ui.tab.moveLeft"], f.handlers["ui.tab.moveRight"] = step(-1), step(1)
 	f.handlers["ui.tab.pin"] = func(_ context.Context, inv engine.Invocation) (any, error) {
 		var p tabIDParams
 		if err := decodeInto(inv, &p); err != nil {

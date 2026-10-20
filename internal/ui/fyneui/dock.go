@@ -26,7 +26,7 @@ import (
 // options' toolbar (logtab.go); terminal, shell and attach tabs show termview.Terminal on
 // Session.OpenTerminal; Edit and Create resource tabs show a YAML editor whose text lives in the
 // engine (editortab.go, createtab.go). A stream is opened when its tab appears and closed when it
-// disappears.
+// disappears. A tab dragged along the strip moves there (dock.move; stripdrag.go, the owner's GW4).
 //
 // The dock per cluster (D-69 item 9, engine/dockscope.go): the strip shows the shown cluster's
 // tabs and those of no cluster (UIState.DockInScope); every other connected cluster's tabs keep
@@ -54,6 +54,8 @@ type dock struct {
 	agentReadSince   time.Time
 	// agentReadMarks is the tab marker and its flash at each agent's read (dockagentread.go).
 	agentReadMarks agentReadMarks
+	// drag is a tab dragged to another place in the strip (stripdrag.go, GW4).
+	drag *stripDrag
 }
 
 // dockContent is one tab's content and the stream behind it.
@@ -83,7 +85,40 @@ type dockEditor interface {
 
 func newDock(sh *shell) *dock {
 	d := &dock{sh: sh, contents: map[string]*dockContent{}}
-	d.tabRow = container.NewHBox()
+	d.drag = newStripDrag(nil)
+	d.tabRow = container.New(&stripLayout{d: d.drag})
+	d.drag.row = d.tabRow
+	d.drag.idOf = func(o fyne.CanvasObject) string {
+		if b, ok := o.(*tabButton); ok {
+			return b.id
+		}
+		return ""
+	}
+	d.drag.shownIDs = func() []string {
+		ids := make([]string, len(d.tabs))
+		for i, t := range d.tabs {
+			ids[i] = t.ID
+		}
+		return ids
+	}
+	d.drag.move = func(id string, index int, failed func()) {
+		sh.dispatch("dock.move", dockMoveParams{ID: id, Index: index}, func(_ any, err error) {
+			if err != nil {
+				sh.showError(err)
+				failed()
+			}
+		})
+	}
+	d.drag.click = func(o fyne.CanvasObject, at fyne.Position) {
+		b, ok := o.(*tabButton)
+		switch {
+		case !ok:
+		case pressedOn(b.close, at):
+			b.close.OnTapped()
+		case b.onTap != nil:
+			b.onTap()
+		}
+	}
 	add := widget.NewButtonWithIcon("", theme.ContentAddIcon(), nil)
 	add.Importance = widget.LowImportance
 	add.OnTapped = func() { d.showAddMenu(add) }
@@ -288,9 +323,14 @@ func (d *dock) rebuildStrip() {
 			},
 			func() { d.sh.dispatch("dock.close", dockParams{ID: id}, nil) })
 		d.agentReadMarks.mark(b, t) // agents may read it: the marker, flashing at a read (dockagentread.go)
+		b.id, b.drag = id, d.drag
 		objs = append(objs, b)
 	}
 	d.tabRow.Objects = objs
+	d.drag.follow() // a tab carried or its move pending (stripdrag.go)
+	if len(objs) == 0 {
+		d.drag.cancel()
+	}
 	d.tabRow.Refresh()
 	d.updateToggle()
 	d.updateAgentRead()
@@ -365,6 +405,12 @@ func (d *dock) addMenu(reasons []error) *fyne.Menu {
 	return fyne.NewMenu("", items...)
 }
 
+// dockMoveParams mirror dock.move's parameters.
+type dockMoveParams struct {
+	ID    string `json:"id"`
+	Index int    `json:"index"`
+}
+
 // dockMessage is a centred line of text in a dock tab: opening, failed, unsupported.
 func dockMessage(text string, c fyne.ThemeColorName) fyne.CanvasObject {
 	return container.NewCenter(newTextLine(text, c, theme.SizeNameText, fyne.TextStyle{}))
@@ -374,6 +420,8 @@ func dockMessage(text string, c fyne.ThemeColorName) fyne.CanvasObject {
 // underlined in the accent colour.
 type tabButton struct {
 	widget.BaseWidget
+	id     string     // the dock tab's id
+	drag   *stripDrag // the dock's: the button drags its tab to another place (stripdrag.go)
 	title  string
 	icon   fyne.Resource
 	active bool
@@ -408,6 +456,25 @@ func (b *tabButton) Tapped(*fyne.PointEvent) {
 		b.onTap()
 	}
 }
+
+var _ fyne.Draggable = (*tabButton)(nil)
+
+// Dragged implements fyne.Draggable: the tab is carried to another place in the strip (GW4).
+func (b *tabButton) Dragged(ev *fyne.DragEvent) {
+	if b.drag != nil {
+		b.drag.dragged(b, ev)
+	}
+}
+
+// DragEnd implements fyne.Draggable.
+func (b *tabButton) DragEnd() {
+	if b.drag != nil {
+		b.drag.ended(b)
+	}
+}
+
+// carried reports whether the button's tab is carried: it is drawn raised.
+func (b *tabButton) carried() bool { return b.drag != nil && b.drag.carries(b.id) }
 
 // CreateRenderer implements fyne.Widget.
 func (b *tabButton) CreateRenderer() fyne.WidgetRenderer {
@@ -469,7 +536,7 @@ func (r *tabButtonRenderer) Layout(size fyne.Size) {
 func (r *tabButtonRenderer) Refresh() {
 	b := r.b
 	th := b.Theme()
-	if b.active {
+	if b.active || b.carried() { // a carried tab raised as the active one (stripdrag.go)
 		b.bg.FillColor = themeColor(th, colorDockTab)
 		b.txt.SetColor(colorDockTabText)
 		b.under.FillColor = themeColor(th, colorAccent)
@@ -480,7 +547,8 @@ func (r *tabButtonRenderer) Refresh() {
 		b.under.FillColor = color.Transparent
 		b.img.set(th, b.icon, colorMuted)
 	}
-	refreshAgentReadMark(th, b) // dockagentread.go
+	b.bg.Shadow = liftShadow(th, b.carried()) // carried (stripdrag.go)
+	refreshAgentReadMark(th, b)               // dockagentread.go
 	r.Layout(b.Size())
 	b.bg.Refresh()
 	b.under.Refresh()

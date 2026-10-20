@@ -16,7 +16,7 @@ blank line before `</details>`. It moved here from the root README on 2026-10-14
 Cogpit and its flags are in [`usage.md`](usage.md).
 
 <details>
-<summary>All 214 commands</summary>
+<summary>All 218 commands</summary>
 
 | Command | MCP tool | Danger | Parameters | What it does |
 |---|---|---|---|---|
@@ -81,6 +81,7 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `dock.activate` | `dock_activate` | ui | `id` | Shows a dock tab |
 | `dock.allowAgentRead` | `dock_allowAgentRead` | ui (GUI only) | `allowed`, `id` | Lets agents read a terminal, shell, attach or node shell tab's output with dock_read, or stops them, as the tab's "Agents may read" switch does; off when a tab opens |
 | `dock.close` | `dock_close` | ui | `id` | Closes a dock tab and ends its stream, shell or job (a job stops; what it wrote stays) |
+| `dock.move` | `dock_move` | ui | `id`, `index` | Moves a dock tab to another place among the tabs the dock shows, as dragging it there does: index 1 is the first |
 | `dock.read` | `dock_read` | read | `after`?, `before`?, `id`, `limit`? | Returns what a dock tab shows, as the user sees it, a page of its lines: a logs tab's lines its view shows (the pod and container it narrows to and its filter applied, resource names and timestamps as shown), or a terminal, shell, attach or node shell tab's lines (its scrollback's, then its screen's, no colours or escape sequences, a line wrapped over rows as one line; a line keeps its number while it scrolls, so before: n, limit: 2 returns the two lines above line n) |
 | `dock.reconnect` | `dock_reconnect` | mutating (destructive for some calls) | `id` | Opens a new session in a shell, attach or node shell tab whose session ended because the connection was interrupted (its dock tab's interrupted is set): a new shell in the same container, attached again, or a new root shell in the node shell's pod while it still runs |
 | `editor.diff` | `editor_diff` | read | `context`?, `id`, `yaml`? | Returns the line diff of an Edit tab's text (or of yaml) against the object as Cogpit's cache holds it now: lines with op "-" (removed), "+" (added) or "=" (context), with line numbers |
@@ -222,6 +223,9 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `ui.tab.back` | `ui_tab_back` | ui |  | Goes back to the view the active tab showed before (its history: views opened in the preview tab, ui_navigate to another kind) |
 | `ui.tab.close` | `ui_tab_close` | ui | `id`? | Closes the active tab (or the tab named by id) |
 | `ui.tab.forward` | `ui_tab_forward` | ui |  | Goes forward again in the active tab's history, after ui_tab_back |
+| `ui.tab.move` | `ui_tab_move` | ui | `id`?, `index` | Moves a tab of the tab bar (the active one without id) to another place among the tabs the bar shows, as dragging it there does: index 1 is the first |
+| `ui.tab.moveLeft` | `ui_tab_moveLeft` | ui |  | Moves the active tab one place to the left in the tab bar, as ui_tab_move does |
+| `ui.tab.moveRight` | `ui_tab_moveRight` | ui |  | Moves the active tab one place to the right in the tab bar, as ui_tab_move does |
 | `ui.tab.next` | `ui_tab_next` | ui |  | Activates the tab right of the active one, the first after the last, as ui_tab_select does |
 | `ui.tab.open` | `ui_tab_open` | ui | `fixed`?, `view` | Opens a view of the shown cluster in a tab of the tab bar: in the preview tab (which the next view opened in preview replaces; ui_openView does the same), or with fixed in a new fixed tab that stays until closed |
 | `ui.tab.pin` | `ui_tab_pin` | ui | `id`? | Makes the preview tab (or the tab named by id) a fixed tab, as a double click on its title does: the next view opened in preview then opens in a new preview tab |

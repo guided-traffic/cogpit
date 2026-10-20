@@ -34,7 +34,9 @@ import (
 //   - the bar is hidden while there is no tab (before the first connect);
 //   - the shortcuts are main-menu items of the View menu, so they work whatever has the focus:
 //     ⌘W, ⌘⌥→ and ⌘⌥←, ⌘1–⌘8 and ⌘9 (the last tab), ⌃- and ⌃⇧-; on Windows and Linux they are the
-//     Ctrl forms of the same keys, not Lens's Ctrl+PageUp/PageDown and Alt+←/→ (G22).
+//     Ctrl forms of the same keys, not Lens's Ctrl+PageUp/PageDown and Alt+←/→ (G22);
+//   - a tab dragged along the bar moves there (ui.tab.move; stripdrag.go, the owner's GW4), and
+//     ⌘⌥⇧← and ⌘⌥⇧→ (View › Move Tab Left and Right) move the active tab one place.
 //
 // The bar changes the tabs only through ui.tab.* commands: UI state is engine state.
 
@@ -56,6 +58,7 @@ type tabBar struct {
 	now      func() time.Time // the clock of double clicks (a test moves it)
 	tabClick click            // the last click on a tab
 	navClick click            // the last click on a navigator item
+	drag     *stripDrag       // a tab dragged to another place (stripdrag.go, GW4)
 }
 
 // click is a click on something with an id, for telling a double click.
@@ -66,7 +69,41 @@ type click struct {
 
 func newTabBar(sh *shell) *tabBar {
 	b := &tabBar{sh: sh, now: time.Now}
-	b.row = container.NewHBox()
+	b.drag = newStripDrag(nil)
+	b.row = container.New(&stripLayout{d: b.drag})
+	b.drag.row = b.row
+	b.drag.idOf = func(o fyne.CanvasObject) string {
+		if t, ok := o.(*viewTab); ok {
+			return t.tab.ID
+		}
+		return ""
+	}
+	b.drag.shownIDs = func() []string {
+		ids := make([]string, len(b.shown))
+		for i, t := range b.shown {
+			ids[i] = t.tab.ID
+		}
+		return ids
+	}
+	b.drag.move = func(id string, index int, failed func()) {
+		sh.dispatch("ui.tab.move", tabMoveParams{ID: id, Index: index}, func(_ any, err error) {
+			if err != nil {
+				sh.showError(err)
+				failed()
+			}
+		})
+	}
+	b.drag.click = func(o fyne.CanvasObject, at fyne.Position) {
+		t, ok := o.(*viewTab)
+		switch {
+		case !ok:
+		case pressedOn(t.close, at):
+			t.close.OnTapped()
+		default:
+			b.tapped(t.tab)
+		}
+	}
+	b.drag.lifting = func() { sh.tip.hide() }
 	b.scroll = container.NewHScroll(b.row)
 	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.scroll))
 	b.root.Hide()
@@ -93,6 +130,7 @@ func (b *tabBar) sync() {
 	ui := b.sh.ui
 	tabs := ui.TabsInScope()
 	if len(tabs) == 0 {
+		b.drag.cancel()
 		b.shown, b.row.Objects = nil, nil
 		b.root.Hide()
 		b.row.Refresh()
@@ -115,6 +153,7 @@ func (b *tabBar) sync() {
 		objs[i] = w
 	}
 	b.row.Objects = objs
+	b.drag.follow() // a tab carried or its move pending (stripdrag.go)
 	b.root.Show()
 	b.scroll.Refresh()
 	if active != nil {
@@ -177,6 +216,18 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 	})
 	add("ui.tab.next", whenTabs("ui.tab.next"))
 	add("ui.tab.previous", whenTabs("ui.tab.previous"))
+	// Move Tab Left and Right (GW4): only where the active tab has a place to go.
+	step := func(id string, d int) func() {
+		return func() {
+			tabs := sh.ui.TabsInScope()
+			i := slices.IndexFunc(tabs, func(t engine.ViewTab) bool { return t.ID == sh.ui.ActiveTab })
+			if i >= 0 && i+d >= 0 && i+d < len(tabs) {
+				sh.dispatch(id, struct{}{}, nil)
+			}
+		}
+	}
+	add("ui.tab.moveLeft", step("ui.tab.moveLeft", -1))
+	add("ui.tab.moveRight", step("ui.tab.moveRight", 1))
 	add("ui.tab.back", b.history(true))
 	add("ui.tab.forward", b.history(false))
 	if c, ok := sh.eng.Registry().Get("ui.tab.select"); ok {
@@ -268,6 +319,10 @@ type (
 		View  string `json:"view"`
 		Fixed bool   `json:"fixed,omitempty"`
 	}
+	tabMoveParams struct {
+		ID    string `json:"id,omitempty"`
+		Index int    `json:"index"`
+	}
 )
 
 // viewTab is one tab of the bar: the cluster's badge, the title (italic for the preview tab) and a
@@ -286,6 +341,7 @@ type viewTab struct {
 var (
 	_ fyne.Tappable     = (*viewTab)(nil)
 	_ desktop.Hoverable = (*viewTab)(nil)
+	_ fyne.Draggable    = (*viewTab)(nil)
 )
 
 func newViewTab(b *tabBar) *viewTab {
@@ -316,8 +372,18 @@ func (t *viewTab) Tapped(*fyne.PointEvent) {
 	t.bar.tapped(t.tab)
 }
 
-// MouseIn implements desktop.Hoverable: the full title as the tooltip.
+// Dragged implements fyne.Draggable: the tab is carried to another place (stripdrag.go).
+func (t *viewTab) Dragged(ev *fyne.DragEvent) { t.bar.drag.dragged(t, ev) }
+
+// DragEnd implements fyne.Draggable.
+func (t *viewTab) DragEnd() { t.bar.drag.ended(t) }
+
+// MouseIn implements desktop.Hoverable: the full title as the tooltip; nothing while a tab is
+// dragged.
 func (t *viewTab) MouseIn(ev *desktop.MouseEvent) {
+	if t.bar.drag.active {
+		return
+	}
 	t.hovered = true
 	t.Refresh()
 	t.bar.sh.tip.hover(t, t.tipText(), ev.AbsolutePosition)
@@ -444,10 +510,11 @@ func (r *viewTabRenderer) Refresh() {
 		r.badge.Show()
 		r.initials.Show()
 	}
+	r.bg.Shadow = liftShadow(th, t.bar.drag.carries(t.tab.ID)) // carried (stripdrag.go)
 	r.title.TextStyle = fyne.TextStyle{Italic: t.tab.Preview}
 	r.title.TextSize = th.Size(theme.SizeNameText)
 	switch {
-	case t.active:
+	case t.active || t.bar.drag.carries(t.tab.ID): // a carried tab raised as the active one (stripdrag.go)
 		r.bg.FillColor = themeColor(th, colorDockTab)
 		r.title.Color = themeColor(th, colorDockTabText)
 		r.under.FillColor = accent
