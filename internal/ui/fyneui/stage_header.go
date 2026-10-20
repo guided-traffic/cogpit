@@ -167,18 +167,20 @@ func (w *stateWash) Set(tone fyne.ThemeColorName, alpha uint8) {
 	w.Refresh()
 }
 
-// setStatus washes the header for a status: about 12 % for a state that needs a look, 6 % for a
-// healthy one, none for no status.
+// setStatus washes the header for a status: about 14 % for a state that needs a look; a healthy
+// object and one without a status are not washed at all (quiet when healthy: a 6 % wash was
+// invisible and only cost a gradient).
 func (w *stateWash) setStatus(s model.Status) {
-	switch {
-	case s == model.StatusNone:
+	if s == model.StatusNone || quietStatus(statusColorName(s)) {
 		w.Set("", 0)
-	case quietStatus(statusColorName(s)):
-		w.Set(statusColorName(s), 0x10)
-	default:
-		w.Set(statusColorName(s), 0x1f)
+		return
 	}
+	w.Set(statusColorName(s), 0x24)
 }
+
+// stateWashReach is how far the wash reaches down from the header's top edge, in points: it fades
+// out inside the header instead of ending in a band at the rule below.
+const stateWashReach = 48
 
 // CreateRenderer implements fyne.Widget.
 func (w *stateWash) CreateRenderer() fyne.WidgetRenderer {
@@ -198,7 +200,7 @@ func (r *stateWashRenderer) MinSize() fyne.Size { return fyne.NewSize(0, 0) }
 
 func (r *stateWashRenderer) Layout(size fyne.Size) {
 	r.bg.Resize(size)
-	r.grad.Resize(size)
+	r.grad.Resize(fyne.NewSize(size.Width, min(size.Height, stateWashReach)))
 }
 
 func (r *stateWashRenderer) Refresh() {

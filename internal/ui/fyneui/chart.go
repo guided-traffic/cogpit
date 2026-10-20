@@ -395,7 +395,7 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 		if l.Value <= 0 {
 			continue
 		}
-		c := col(l.Color)
+		c := withAlpha(col(l.Color), 0x70) // muted: full colour is for the data series (quiet when healthy)
 		ly := y(l.Value)
 		for dx := float32(0); dx < plotW; dx += chartDash + chartGap {
 			seg := canvas.NewLine(c)

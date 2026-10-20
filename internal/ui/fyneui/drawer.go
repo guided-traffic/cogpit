@@ -109,12 +109,14 @@ func newDrawer(sh *shell) *drawer {
 	d.lead, d.extra = container.NewStack(), container.NewStack()
 	d.lead.Hide()
 	d.extra.Hide()
+	// The name keeps the row's width: the status stands on a line of its own under it, so that a long
+	// name is not cut by the badge (the name is the object's identity; the status is read second).
 	titleRow := container.NewBorder(nil, nil, d.lead,
-		container.NewHBox(container.NewCenter(d.status), d.actions, newDivider(true), closeB),
+		container.NewHBox(d.actions, newDivider(true), closeB),
 		d.titleBox)
 	header := container.NewStack(d.wash,
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding,
-			container.NewVBox(d.kind, titleRow, d.extra, d.missing)))
+			container.NewVBox(d.kind, titleRow, container.NewHBox(d.status), d.extra, d.missing)))
 	// The root's minimum width is a constant: the drawer's width is the user's (panelwidths.go).
 	d.root = box(lockedWidth{}, newSurface(colorDrawer),
 		container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil, d.body))
@@ -139,7 +141,7 @@ func (d *drawer) valueWidth() float32 {
 
 // statusWidth is the most the status pill in the title bar may take: the title and the icons
 // keep the rest.
-func (d *drawer) statusWidth() float32 { return d.width * 0.4 }
+func (d *drawer) statusWidth() float32 { return d.width * 0.8 }
 
 // widthChanged runs after a layout gave the drawer another width (a drag, the window's size): the
 // widgets that were built to the old width are built again to the new one.
