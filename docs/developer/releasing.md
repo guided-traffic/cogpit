@@ -802,7 +802,13 @@ same `checkDistBinaries`), position-independent (`-buildmode=pie`), and from
 | `/usr/share/doc/cogpit/`, `/usr/share/lintian/overrides/cogpit` | the copyright and a changelog; lintian's accepted findings, each with its reason |
 
 Its `Depends` are the libraries the app links (dpkg-shlibdeps) and the X11 and Wayland libraries
-Fyne's GLFW loads itself; pkexec and libdecor are recommended. No maintainer scripts: dpkg's
+Fyne's GLFW loads itself, and libdecor with its GTK plugin (or another plugin), which draws the
+window's title bar with minimize, maximize and close where the compositor draws none; pkexec is
+recommended. The title bar, checked 2026-10-20: on GNOME with XWayland (Ubuntu's default, this
+workstation's Ubuntu 26.04) Fyne 2.8 makes the window an X11 one, since GNOME draws no title bar
+for Wayland clients, and GNOME draws it with its three buttons; on GNOME's mutter without XWayland
+libdecor draws an Adwaita header bar with them (a nested mutter in a container); a compositor that
+draws title bars itself (KDE, Weston) draws its own. No maintainer scripts: dpkg's
 triggers refresh the desktop and icon caches. The `Maintainer` is `DEB_MAINTAINER` (the owner's
 name and address, the lead's choice). Checked 2026-10-20: lintian 2.117 (Ubuntu 24.04's, CI's) without
 a finding but the overrides, lintian 2.129 `--pedantic` with one warning more (appstreamcli's of

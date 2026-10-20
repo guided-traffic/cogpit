@@ -176,10 +176,12 @@ Restart to Update.
 | `/etc/apt/sources.list.d/cogpit.sources` | Cogpit's APT repository with its key inline; a configuration file of the package: delete it and upgrades keep it deleted (apt then knows no new release, and Cogpit's Help › Check for Updates… is greyed "no package repository"); `apt purge` removes it |
 | `/usr/share/doc/cogpit/` | the copyright and a changelog |
 
-It depends on the libraries the app links and the X11 and Wayland libraries its window loads at
-run time, and recommends `pkexec` (without it the Update button cannot install, apt and the
-Software Updater still can) and `libdecor-0-0` (the window's frame on a Wayland desktop that draws
-none); it has no maintainer scripts. Your settings live in `~/.config/Cogpit` and the logs and
+It depends on the libraries the app links, the X11 and Wayland libraries its window loads at run
+time, and libdecor with its GTK plugin, which draws the title bar with minimize, maximize and close
+on a Wayland desktop that draws none and runs no XWayland; on GNOME with XWayland (Ubuntu's
+default) Cogpit's window is an X11 one and GNOME draws its title bar. It recommends `pkexec`
+(without it the Update button cannot install, apt and the Software Updater still can) and has no
+maintainer scripts. Your settings live in `~/.config/Cogpit` and the logs and
 caches in `~/.cache/Cogpit` ([naming conventions](#naming-conventions)).
 
 ```sh

@@ -20,7 +20,7 @@
 #                                               it deleted through upgrades, a purge removes it
 #
 # Its dependencies are the shared libraries the app links (dpkg-shlibdeps) and the ones its window
-# loads at run time, and pkexec is recommended: without it Cogpit's Update button says so and apt or
+# loads at run time, libdecor for its title bar included, and pkexec is recommended: without it Cogpit's Update button says so and apt or
 # the Software Updater still update it. No maintainer scripts: dpkg's triggers refresh the desktop and icon caches. The
 # Maintainer field is DEB_MAINTAINER (the Makefile's default).
 set -euo pipefail
@@ -128,10 +128,13 @@ depends=$(cd "$work/src" && dpkg-shlibdeps -O -e"$root/usr/bin/cogpit" 2>/dev/nu
 [ -n "$depends" ] || die "dpkg-shlibdeps found no dependencies of cogpit"
 # GLFW (Fyne's window) loads the X11 and Wayland client libraries at run time (dlopen), which
 # dpkg-shlibdeps cannot see: the ones it needs for a window on either, by their packages' names
-# on Debian 13 and Ubuntu 24.04 and later; libdecor draws the window's frame on Wayland compositors
-# without server-side decorations, and is recommended.
+# on Debian 13 and Ubuntu 24.04 and later. libdecor and a plugin of it draw the window's title bar
+# with its minimize, maximize and close buttons where the compositor draws none and there is no
+# XWayland (GNOME without it; with it, Fyne takes X11 and GNOME draws them): required, so that the
+# window always has its buttons, also when the package is installed without its recommendations.
 depends="$depends, libegl1, libwayland-cursor0, libwayland-egl1, libxkbcommon0, libx11-6, libx11-xcb1"
 depends="$depends, libxcursor1, libxext6, libxi6, libxinerama1, libxrandr2, libxrender1, libxxf86vm1"
+depends="$depends, libdecor-0-0, libdecor-0-plugin-1-gtk | libdecor-0-plugin-1"
 
 mkdir -p "$root/DEBIAN"
 echo /etc/apt/sources.list.d/cogpit.sources >"$root/DEBIAN/conffiles"
@@ -142,7 +145,7 @@ Architecture: $arch
 Maintainer: $DEB_MAINTAINER
 Installed-Size: $(du -sk --exclude=DEBIAN "$root" | cut -f1)
 Depends: $depends
-Recommends: pkexec, libdecor-0-0
+Recommends: pkexec
 Section: devel
 Priority: optional
 Homepage: https://github.com/guided-traffic/cogpit
