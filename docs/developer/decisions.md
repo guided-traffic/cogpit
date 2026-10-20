@@ -10037,8 +10037,10 @@ Every choice below is the lead's decision (2026-10-20), open to revision.
 | The checksums | a file per platform; one | **one `SHA256SUMS`**, which the macOS and the Linux attach jobs merge in turn (`hack/ci/sha256sums.sh`, the concurrency group `release-files-<tag>`) | One file to check every download against, as before |
 | `cogpit://` links | registered in the desktop file now; later | **later** ([G22](../parity/gaps.md)) | On Linux a link starts a second process, which would need a hand-over to the running Cogpit that does not exist yet |
 
-**Verified (2026-10-20 night).** The package: lintian (pedantic, warnings fail) without findings
-but the documented overrides; installed in containers of Ubuntu 24.04 (its dependencies from the
+**Verified (2026-10-20 night).** The package: lintian 2.117 (Ubuntu 24.04's, CI's) without a
+finding but the documented overrides, lintian 2.129 (pedantic) with one warning more, of the hyphen
+in the AppStream id (the app's id, kept; CI's first run found that the older lintian refuses an
+override of that tag); installed in containers of Ubuntu 24.04 (its dependencies from the
 archive), upgraded from 0.0.2 to 0.0.3 by the helper from a repository signed with a test key and
 served over HTTP, with by-hash and a changed sources file kept; Cogpit's window open under Xvfb
 (its WM_CLASS `Cogpit`); `apt remove` keeps the sources file and `apt update` stays quiet, `apt

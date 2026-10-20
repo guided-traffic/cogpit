@@ -804,8 +804,10 @@ same `checkDistBinaries`), position-independent (`-buildmode=pie`), and from
 Its `Depends` are the libraries the app links (dpkg-shlibdeps) and the X11 and Wayland libraries
 Fyne's GLFW loads itself; pkexec and libdecor are recommended. No maintainer scripts: dpkg's
 triggers refresh the desktop and icon caches. The `Maintainer` is `DEB_MAINTAINER` (the owner's
-name and address, the lead's choice). Checked 2026-10-20: lintian `--pedantic` without findings
-but the overrides; installed, upgraded by its helper from a signed test repository, started under
+name and address, the lead's choice). Checked 2026-10-20: lintian 2.117 (Ubuntu 24.04's, CI's) without
+a finding but the overrides, lintian 2.129 `--pedantic` with one warning more (appstreamcli's of
+the hyphen in the AppStream id, which is the app's id everywhere; not overridden, since the older
+lintian calls an override of a tag it does not know an error); installed, upgraded by its helper from a signed test repository, started under
 Xvfb, removed and purged in containers of Ubuntu 24.04, Ubuntu 26.04 and Debian 13.
 
 ### The APT repository

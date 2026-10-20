@@ -114,10 +114,11 @@ cogpit: no-manual-page [usr/bin/cogpit-cli]
 cogpit: shared-library-lacks-prerequisites [usr/bin/cogpit-cli]
 # The repository's sources file is the package's purpose for updates (D-108), a conffile the user may delete.
 cogpit: package-installs-apt-sources [etc/apt/sources.list.d/cogpit.sources]
-# appstreamcli warns of the hyphen in io.guided-traffic.cogpit; it is the app's id everywhere (its
-# Wayland app_id, the macOS bundle's), and the desktop file and the AppStream id must match it.
-cogpit: appstream-metadata-validation-failed *
 EOF
+# Not overridden, since an older lintian (Ubuntu 24.04's, CI's) calls an override of a tag it does
+# not know an error: newer lintian warns appstream-metadata-validation-failed, because appstreamcli
+# warns of the hyphen in io.guided-traffic.cogpit; it is the app's id everywhere (its Wayland
+# app_id, the macOS bundle's), and the desktop file and the AppStream id must match it.
 
 # The shared libraries the app links, as dpkg-shlibdeps names their packages; it wants a source
 # package's debian/control around it.
