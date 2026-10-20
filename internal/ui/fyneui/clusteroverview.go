@@ -44,6 +44,8 @@ type clusterPanel struct {
 	caption   *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
 	note      *textLine
 	status    *providerStatusLine
+	health    *overviewHealth // the nodes, pods and integrations above the charts (instrument_health.go)
+	bearingOf string          // the context whose integrations the header shows (instrument_bearing.go)
 	cards     [3]*overviewChartCard
 	controls  *fyne.Container // the node group and the range; hidden with every chart
 	reconnect *widget.Button  // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
@@ -66,6 +68,7 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	p.note.Hide()
 	p.status = newProviderStatusLine(sh)
 	p.status.root.Hide()
+	p.health = newOverviewHealth(sh)
 	for i, title := range []string{"CPU", "Memory", "Pods"} {
 		p.cards[i] = newOverviewChartCard(title)
 	}
@@ -74,7 +77,7 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(newSpace(theme.SizeNamePadding), p.reconnect), p.controls)
 	charts := container.NewGridWithColumns(3, p.cards[0].root, p.cards[1].root, p.cards[2].root)
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
-		container.NewVBox(head, charts, p.caption, p.note, p.status.root))
+		container.NewVBox(p.health.root, newSpace(theme.SizeNamePadding), head, charts, p.caption, p.note, p.status.root))
 	p.followReconnect()
 	p.showControls()
 	return p
@@ -119,6 +122,10 @@ func (p *clusterPanel) request() {
 func (p *clusterPanel) show(m *engine.ClusterOverviewModel) {
 	p.data = m
 	p.showControls()
+	p.health.setStates(m.NodeStates, m.PodStates)
+	if p.bearingOf != p.sh.ui.Context {
+		p.requestBearing()
+	}
 	now := p.sh.now()
 	switch m.Status {
 	case metrics.StatusAvailable:
@@ -171,6 +178,31 @@ func (p *clusterPanel) show(m *engine.ClusterOverviewModel) {
 	} else {
 		p.controls.Show()
 	}
+}
+
+// requestBearing reads the shown cluster's integrations and shows them as the header's bearing. The
+// engine answers from what its probes already hold (the cache and API discovery), so it asks the
+// cluster nothing; while the user has not chosen integrations for the cluster (D-82) nothing is
+// read and every token is dim. Main goroutine.
+func (p *clusterPanel) requestBearing() {
+	ctx := p.sh.ui.Context
+	p.bearingOf = ctx
+	if noIntegrationsChosen(p.sh.ui, ctx) {
+		items := bearingItems(nil)
+		for i := range items {
+			items[i].tip = integrationNavLabels[items[i].name] + "\nNot chosen for this cluster yet"
+		}
+		p.health.setBearing(items)
+		return
+	}
+	p.sh.dispatch("cluster.settings.get", clusterSettingsContext{Context: ctx}, func(res any, err error) {
+		var v engine.ClusterSettingsView
+		if err != nil || decode(res, &v) != nil || p.sh.ui.Context != ctx {
+			p.bearingOf = "" // the next model asks again
+			return
+		}
+		p.health.setBearing(bearingItems(v.Integrations))
+	})
 }
 
 // followReconnect shows Reconnect while the shown cluster is connected (not the demo cluster),
@@ -319,8 +351,8 @@ func (c *overviewChartCard) set(ch engine.OverviewChart, window time.Duration, n
 		d.Lines = append(d.Lines, chartLine{Name: "Limits", Color: colorStatusError, Value: *ch.Limits})
 	}
 	d.Lines = append(d.Lines,
-		chartLine{Name: "Allocatable", Color: colorChartSecond, Value: ch.Allocatable},
-		chartLine{Name: "Capacity", Color: colorMuted, Value: ch.Capacity})
+		chartLine{Name: "Allocatable", Color: colorChartSecond, Value: ch.Allocatable, Soft: true},
+		chartLine{Name: "Capacity", Color: colorMuted, Value: ch.Capacity, Soft: true})
 	c.plot.Set(d)
 	c.headline.SetText(overviewHeadline(ch, detail))
 }

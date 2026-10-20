@@ -55,6 +55,7 @@ type integrationRow struct {
 	link   *linkText       // "Details…" or "Set its address…" to the integration's section; nil elsewhere
 	adds   *textLine
 	box    *fyne.Container
+	tile   *instrumentTile          // the state's tint at the row's left (instrument_tile.go)
 	state  engine.IntegrationState  // the status shown, for the link and tests
 	last   engine.IntegrationStatus // the status as the engine gave it
 
@@ -71,8 +72,11 @@ func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integ
 	r.adds = newTextLine(in.Adds, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.adds.truncate = true
 	r.slot = container.NewStack(r.status)
-	r.box = box(layout.NewCustomPaddedVBoxLayout(0), r.check,
+	r.tile = newInstrumentTile(in.Name)
+	lines := box(layout.NewCustomPaddedVBoxLayout(0), r.check,
 		box(checkIndent{}, box(layout.NewCustomPaddedVBoxLayout(2), r.slot, r.adds)))
+	// The tile sits at the row's left, centred on the row's height; the lines keep their own layout.
+	r.box = container.NewBorder(nil, nil, container.NewVBox(layout.NewSpacer(), r.tile, layout.NewSpacer()), nil, lines)
 	return r
 }
 
@@ -101,6 +105,7 @@ func needsAddress(st engine.IntegrationStatus) bool {
 func (r *integrationRow) setStatus(st engine.IntegrationStatus) {
 	text, c := integrationStatusLine(st)
 	r.state, r.last = st.State, st
+	r.tile.setState(bearingOf(st).state)
 	switch {
 	case r.placeLinks != nil && st.Where != "" && (st.State == engine.IntegrationFound || st.State == engine.IntegrationConfigured) &&
 		(st.Name == engine.IntegrationPrometheus || st.Name == engine.IntegrationAlertmanager):
@@ -213,7 +218,12 @@ func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 	}
 	rows := make([]*integrationRow, 0, len(engine.Integrations))
 	objs := make([]fyne.CanvasObject, 0, 4+len(engine.Integrations))
-	objs = append(objs, help, note, askRow, newSpace(theme.SizeNamePadding))
+	// The bearing at the top: the five integrations as tokens, then the rows grouped as on and off
+	// (instrument_bearing.go, instrument_tile.go).
+	bearingLabel := newBracketLabel("integrations", colorAccent)
+	bear := newBearing(p.sh)
+	groups := newIntegrationGroups()
+	objs = append(objs, help, note, askRow, newSpace(theme.SizeNamePadding), bearingLabel, bear, newSpace(theme.SizeNameInnerPadding))
 	for _, in := range engine.Integrations {
 		name := in.Name
 		r := newIntegrationRow(in, func(on bool) {
@@ -222,8 +232,8 @@ func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 		r.withLink(func() { p.openIntegrationSection(ctx, name) })
 		p.controls["integration:"+string(name)] = r.box
 		rows = append(rows, r)
-		objs = append(objs, r.box)
 	}
+	objs = append(objs, groups.on.box, groups.off.box)
 	p.integrationRows = rows
 	p.sync = func() {
 		statuses := p.integrationStatuses()
@@ -233,6 +243,14 @@ func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 				r.setStatus(st)
 			}
 		}
+		list := make([]engine.IntegrationStatus, 0, len(statuses))
+		for _, st := range statuses {
+			list = append(list, st)
+		}
+		items := bearingItems(list)
+		bear.SetItems(items)
+		bearingLabel.SetText(bearingHead(items))
+		groups.place(rows)
 		p.syncIntegrationsNote(note)
 	}
 	return container.NewVBox(p.setting(integrationsSetting, integrationsLabel, "", box(layout.NewCustomPaddedVBoxLayout(8), objs...)))
@@ -259,6 +277,9 @@ func (sh *shell) integrationsChanged(ctx string) {
 		p.requestView()
 	}
 	sh.intq.statusesChanged(ctx)
+	if c := sh.view.cluster; c != nil && (ctx == "" || ctx == sh.ui.Context) {
+		c.bearingOf = "" // the Overview's bearing reads them again with its next model
+	}
 }
 
 // checkIndent lays its objects out from where a check's label starts, so that the lines under a

@@ -79,6 +79,7 @@ type chartLine struct {
 	Name  string
 	Color fyne.ThemeColorName
 	Value float64
+	Soft  bool // a ceiling that frames the chart (allocatable, capacity): drawn fainter than requests and limits
 }
 
 type chartMarker struct {
@@ -95,7 +96,8 @@ const (
 	chartPlotHeight        = 120   // the plot's height
 	chartCompactHeight     = 72    // a compact chart's plot
 	chartMinWidth          = 120   // the narrowest the chart asks for; the drawer's width is the user's
-	chartLineWidth         = 1.5   // a series' line (a path, chartpath.go)
+	chartLineWidth         = 1.75  // a series' line (a path, chartpath.go)
+	chartGlowWidth         = 6     // the faint wide stroke under it
 	chartRefWidth          = 1     // requests and limits
 	chartDash, chartGap    = 6, 4  // a reference line's dashes
 	chartDiamond           = 3.5   // half the diamond of an event marker
@@ -119,17 +121,18 @@ func (c *chart) Set(d chartData) {
 
 // CreateRenderer implements fyne.Widget.
 func (c *chart) CreateRenderer() fyne.WidgetRenderer {
-	r := &chartRenderer{c: c, fill: newChartLayer(false, 0), line: newChartLayer(true, chartLineWidth)}
+	r := &chartRenderer{c: c, fill: newChartLayer(false, 0), glow: newChartLayer(true, chartGlowWidth), line: newChartLayer(true, chartLineWidth)}
+	r.fill.fade = true
 	c.rend = r
 	r.Refresh()
 	return r
 }
 
 type chartRenderer struct {
-	c          *chart
-	fill, line *chartLayer // the areas under the series and the series' lines (chartpath.go)
-	objs       []fyne.CanvasObject
-	overlay    []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
+	c                *chart
+	fill, glow, line *chartLayer // the areas under the series, their glow, and the series' lines (chartpath.go)
+	objs             []fyne.CanvasObject
+	overlay          []fyne.CanvasObject // the hover's crosshair, dots and panel, above the rest
 }
 
 func (r *chartRenderer) Objects() []fyne.CanvasObject {
@@ -361,10 +364,12 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 	// The series as paths: a line runs through the points within the axis and breaks at a gap
 	// (chartgap.go): a drawer closed for a while, both providers away. A point alone is a dot. The
 	// area under each run (chartfill.go) lies beneath the markers, the reference lines and the lines.
-	lines, fills, dots := r.seriesPaths(g)
+	lines, glows, fills, dots := r.seriesPaths(g)
 	r.fill.place(left, top, left+plotW, top+plotH, 0, y(0), fills)
+	r.glow.place(left, top, left+plotW, top+plotH, chartGlowWidth, y(0), glows)
 	r.line.place(left, top, left+plotW, top+plotH, 2*chartLineWidth, y(0), lines)
 	add(r.fill.raster)
+	add(r.glow.raster)
 
 	// Event markers: a vertical line with a diamond at its top.
 	for _, mk := range d.Markers {
@@ -396,6 +401,11 @@ func (r *chartRenderer) Layout(size fyne.Size) {
 			continue
 		}
 		c := col(l.Color)
+		if l.Soft {
+			c = withAlpha(c, 0x66) // the cluster's ceilings recede behind what is being measured
+		} else {
+			c = withAlpha(c, 0xb8)
+		}
 		ly := y(l.Value)
 		for dx := float32(0); dx < plotW; dx += chartDash + chartGap {
 			seg := canvas.NewLine(c)

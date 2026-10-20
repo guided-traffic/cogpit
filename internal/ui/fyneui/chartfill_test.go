@@ -62,8 +62,13 @@ func TestChartFillsUnderTheSeries(t *testing.T) {
 		return img.RGBAAt(int(x-l.origin.X), int(y-l.origin.Y)).A
 	}
 	mid := pts[4] // 2, between a 1 and a 3; the plot's top is 3
-	if a := px(g.x(mid.At), g.y(0)-1); a != chartFillAlpha {
-		t.Errorf("alpha %#x under the line, want %#x", a, chartFillAlpha)
+	// The fill dissolves from the line towards zero (the headroom wave): strong just under the line,
+	// nearly gone at the base, and always under the fill's alpha at the line.
+	if a := px(g.x(mid.At), g.y(mid.Value)+3); a > chartFillAlpha || a < chartFillAlpha/4 {
+		t.Errorf("alpha %#x just under the line, want from %#x to %#x", a, chartFillAlpha/4, chartFillAlpha)
+	}
+	if low, high := px(g.x(mid.At), g.y(0)-1), px(g.x(mid.At), g.y(mid.Value)+3); low >= high/4 {
+		t.Errorf("alpha %#x at the base against %#x under the line: the fill does not fade", low, high)
 	}
 	if a := px(g.x(mid.At), g.top+1); a != 0 {
 		t.Errorf("filled above the line (alpha %#x)", a)

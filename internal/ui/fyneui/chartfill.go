@@ -12,5 +12,9 @@ package fyneui
 // fill layer (chartpath.go, D-89): its top edge is the line's own path, so the line drawn over it
 // covers the edge exactly, with no stair of pixels between the two.
 
-// chartFillAlpha is the fill's opacity: a fifth of the line's colour.
-const chartFillAlpha = 0x33
+// The headroom wave (Dark Cockpit): the fill is strongest at the line and dissolves towards zero
+// (chartLayer.fadeFunc), and a wide faint stroke of the line's colour lies between the two.
+const (
+	chartFillAlpha = 0x58 // the fill's opacity at the line; it falls to nothing at the base
+	chartGlowAlpha = 0x22 // the glow stroke's opacity: a halo, not a second line
+)
