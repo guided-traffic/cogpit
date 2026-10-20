@@ -445,7 +445,7 @@ func (r *navRow) MouseOut() {
 
 // CreateRenderer implements fyne.Widget.
 func (r *navRow) CreateRenderer() fyne.WidgetRenderer {
-	rr := &navRowRenderer{r: r, bg: canvas.NewRectangle(color.Transparent), ring: canvas.NewRectangle(color.Transparent),
+	rr := &navRowRenderer{r: r, bg: canvas.NewRectangle(color.Transparent), ring: canvas.NewRectangle(color.Transparent), bar: newSelBar(),
 		chevron: newIconImage(), icon: newIconImage(), txt: canvas.NewText("", color.Transparent)}
 	rr.Refresh()
 	return rr
@@ -453,7 +453,7 @@ func (r *navRow) CreateRenderer() fyne.WidgetRenderer {
 
 type navRowRenderer struct {
 	r             *navRow
-	bg, ring      *canvas.Rectangle
+	bg, ring, bar *canvas.Rectangle
 	chevron, icon *iconImage
 	txt           *canvas.Text
 }
@@ -472,10 +472,7 @@ func (rr *navRowRenderer) Layout(size fyne.Size) {
 	r := rr.r
 	th := r.Theme()
 	pad, is := th.Size(theme.SizeNamePadding), th.Size(theme.SizeNameInlineIcon)
-	rr.bg.Move(fyne.NewPos(0, 0))
-	rr.bg.Resize(size)
-	rr.ring.Move(fyne.NewPos(0, 0))
-	rr.ring.Resize(size)
+	layoutPlate(rr.bg, rr.ring, rr.bar, size)
 	x := pad + float32(r.depth)*(is+pad)
 	rr.chevron.img.Move(fyne.NewPos(x, (size.Height-is)/2))
 	rr.chevron.img.Resize(fyne.NewSize(is, is))
@@ -494,7 +491,9 @@ func (rr *navRowRenderer) Layout(size fyne.Size) {
 func (rr *navRowRenderer) Refresh() {
 	r := rr.r
 	th := r.Theme()
-	paintRow(th, rr.bg, rr.ring, r.t.s.marked == r.id, r.hovered, r.t.keyboardOn(r.id))
+	selected := r.t.s.marked == r.id
+	paintRow(th, rr.bg, rr.ring, selected, r.hovered, r.t.keyboardOn(r.id))
+	paintSelBar(th, rr.bar, selected)
 	var chevron fyne.Resource
 	if r.branch {
 		chevron = iconChevronRight
@@ -506,6 +505,9 @@ func (rr *navRowRenderer) Refresh() {
 	rr.icon.set(th, r.icon, colorMuted)
 	rr.txt.TextSize = th.Size(theme.SizeNameText)
 	rr.txt.Color = themeColor(th, theme.ColorNameForeground)
+	if selected {
+		rr.txt.Color = themeColor(th, colorRowSelectedText)
+	}
 	rr.Layout(r.Size())
 	rr.bg.Refresh()
 	rr.ring.Refresh()
@@ -513,7 +515,7 @@ func (rr *navRowRenderer) Refresh() {
 }
 
 func (rr *navRowRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{rr.bg, rr.chevron.img, rr.icon.img, rr.txt, rr.ring}
+	return []fyne.CanvasObject{rr.bg, rr.bar, rr.chevron.img, rr.icon.img, rr.txt, rr.ring}
 }
 
 func (rr *navRowRenderer) Destroy() {}
@@ -524,7 +526,7 @@ func paintRow(th fyne.Theme, bg, ring *canvas.Rectangle, selected, hovered, focu
 	bg.CornerRadius = th.Size(theme.SizeNameSelectionRadius)
 	switch {
 	case selected:
-		bg.FillColor = themeColor(th, theme.ColorNameSelection)
+		bg.FillColor = themeColor(th, colorRowSelected)
 	case hovered:
 		bg.FillColor = themeColor(th, theme.ColorNameHover)
 	default:
@@ -661,15 +663,20 @@ type navRootRenderer struct{ r *navRootRow }
 func (rr *navRootRenderer) MinSize() fyne.Size { return rr.r.body.MinSize() }
 
 func (rr *navRootRenderer) Layout(size fyne.Size) {
-	for _, o := range []fyne.CanvasObject{rr.r.bg, rr.r.ring, rr.r.body} {
-		o.Move(fyne.NewPos(0, 0))
-		o.Resize(size)
-	}
+	rr.r.body.Move(fyne.NewPos(0, 0))
+	rr.r.body.Resize(size)
+	layoutPlate(rr.r.bg, rr.r.ring, nil, size)
 }
 
 func (rr *navRootRenderer) Refresh() {
 	r := rr.r
-	paintRow(r.Theme(), r.bg, r.ring, false, r.hovered, r.s.tree.keyboardOn(rootNode))
+	th := r.Theme()
+	paintRow(th, r.bg, r.ring, false, r.hovered, r.s.tree.keyboardOn(rootNode))
+	if !r.hovered {
+		// The cluster is the navigator's root: a small plate under its identity tile, always on.
+		r.bg.FillColor = themeColor(th, colorChip)
+	}
+	r.bg.CornerRadius = 10
 	rr.Layout(r.Size())
 	r.bg.Refresh()
 	r.ring.Refresh()

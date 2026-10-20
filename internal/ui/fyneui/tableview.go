@@ -23,7 +23,7 @@ import (
 // next to the table and not in the theme.
 var defaultColumnWidths = map[string]float32{
 	"name": 220, "namespace": 130, "containers": 84, "cpu": 64, "memory": 88, "restarts": 64,
-	"controlledBy": 108, "node": 104, "qos": 80, "age": 56, "status": 120, "conditions": 240,
+	"controlledBy": 108, "node": 104, "qos": 80, "age": 56, "status": 172, "conditions": 240,
 	"pods": 72, "replicas": 86, "type": 100, "clusterIP": 120, "ports": 140, "externalIP": 120,
 	"selector": 200, "labels": 260, "message": 300, "involvedObject": 210, "source": 140,
 	"count": 60, "lastSeen": 172, "roles": 120, "version": 104, "taints": 64, "disk": 76,
@@ -660,6 +660,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if content.link != nil && !tv.serves(content.link.Kind) {
 			content.link = nil // nowhere to go: plain text
 		}
+		content.pill = status != model.StatusNone && col.Type == model.ColumnText
 		if col.Type == model.ColumnWarning {
 			content.kind = cellWarning
 		}
@@ -667,6 +668,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 			content.kind, content.text = cellImage, cell.Image
 		}
 	}
+	content.row = tv.snap.Rows[id.Row].Status
 	hover := id.Row == tv.hoverRow
 	marks := rowMarks{selected: tv.rowSelected(id.Row), checked: tv.rowChecked(id.Row)}
 	if c.set(id.Row, id.Col, content, marks, hover, hover && id.Col == tv.hoverCol) && tv.sh.tip.owner == c {
@@ -1151,6 +1153,8 @@ type cellContent struct {
 	bar    *model.CellBar    // a usage bar beside the text (a node's CPU, Memory, Disk; tablebar.go)
 	tip    string            // the cell's own tooltip (model.Cell.Tip: a kubelet's support, D-91)
 	kind   cellKind
+	row    model.Status // the row's status: its spine and tint (list_rows.go)
+	pill   bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
 }
 
 // tableCell is one body cell: text in the cell's status colour (a link in the link colour, a cell
@@ -1172,9 +1176,14 @@ type tableCell struct {
 	bar   *cellBar            // a usage bar's track and fill; made when the cell first shows one (tablebar.go)
 	icon  *canvas.Image       // made when the cell first shows an icon
 	line  *canvas.Rectangle
-	under *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
-	ring  *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
-	objs  int               // bumped when an object is added, so the renderer lists it
+	// The Dark Cockpit's row marks (list_rows.go), each made the first time a cell needs it.
+	spine  *canvas.Rectangle // an abnormal row's status spine, in the first cell
+	selBar *canvas.Rectangle // the selected row's glow blue bar, in the first cell
+	pill   *canvas.Rectangle // a status cell's pill, filled for an abnormal state
+	dot    *canvas.Circle    // a status cell's dot
+	under  *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
+	ring   *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
+	objs   int               // bumped when an object is added, so the renderer lists it
 
 	content   cellContent
 	full      string // the cell text; text.Text may be a shortened form of it
@@ -1345,16 +1354,12 @@ func (c *tableCell) tipText() string {
 // apply recolours and refits the cell's canvas objects.
 func (c *tableCell) apply() {
 	th := c.Theme()
-	switch {
-	case c.selected:
-		c.bg.FillColor = themeColor(th, colorRowSelected)
-	case c.hover:
-		c.bg.FillColor = themeColor(th, colorRowHover)
-	default:
-		c.bg.FillColor = color.Transparent
-	}
+	c.bg.FillColor = c.rowPlate(th)
 	size := th.Size(theme.SizeNameText)
 	fg := statusColorName(c.content.status)
+	if c.pillShows() && !abnormalStatus(c.content.status) {
+		fg = theme.ColorNameForeground // a healthy word is quiet; its dot carries the colour
+	}
 	if c.content.link != nil {
 		fg = colorLink
 	}
@@ -1386,11 +1391,12 @@ func (c *tableCell) apply() {
 		}
 		for i, r := range c.marks {
 			if i < len(marks) {
-				paintMark(r, themeColor(th, markColorName(marks[i].Status)), marks[i].Hollow)
+				paintMark(r, themeColor(th, markColorName(marks[i].Status)), marks[i].Hollow || marks[i].Status == model.StatusStopped)
 			}
 		}
 	}
 	c.applyBar(th)
+	c.applyRowMarks(th)
 	if c.under == nil && c.content.link != nil {
 		c.under = canvas.NewRectangle(color.Transparent)
 		c.objs++
@@ -1466,6 +1472,7 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 	}
 	c.fitWidth = avail
 	avail = c.fitBar(th, avail) // a usage bar takes the room right of its share (tablebar.go)
+	avail -= c.pillRoom()       // a status cell's pill takes its padding and dot (list_rows.go)
 	if c.content.kind != cellText {
 		c.truncated, c.shown = false, 0 // a reused cell drops the squares it drew before
 		changed := c.text.Text != ""
@@ -1560,6 +1567,7 @@ const (
 // paintMark colours a square: filled in col, or for a hollow mark (an ephemeral container that has
 // finished, D-102) an outline in col on nothing.
 func paintMark(r *canvas.Rectangle, col color.Color, hollow bool) {
+	r.CornerRadius = markRadius
 	if hollow {
 		r.FillColor, r.StrokeColor, r.StrokeWidth = color.Transparent, col, markStroke
 		return
@@ -1644,7 +1652,8 @@ func (c *tableCell) layout(size fyne.Size) {
 	pad := th.Size(sizeCellPadding)
 	ts := c.text.MinSize()
 	y := (size.Height - ts.Height) / 2
-	x := c.layoutBar(th, size, pad, ts.Width)
+	x := c.layoutBar(th, size, pad, ts.Width) + c.pillLead()
+	c.layoutRowMarks(size, ts, pad)
 	if c.content.marks != nil && c.content.kind == cellText {
 		ms, mg := markSize(th)
 		x = pad + float32(c.shown)*(ms+mg) // the count of the squares that do not fit, after the shown (fitMarks)
@@ -1694,8 +1703,8 @@ func markColorName(s model.Status) fyne.ThemeColorName {
 // markSize is the side of a cell's square and the gap between two, from the text size: a square
 // sits in a row like a small letter.
 func markSize(th fyne.Theme) (side, gap float32) {
-	side = float32(int(th.Size(theme.SizeNameText)*0.72 + 0.5))
-	return side, max(2, float32(int(side/3+0.5)))
+	side = float32(int(th.Size(theme.SizeNameText)*0.66 + 0.5))
+	return side, markGapWidth
 }
 
 func (r *tableCellRenderer) MinSize() fyne.Size {
@@ -1717,7 +1726,17 @@ func (r *tableCellRenderer) Objects() []fyne.CanvasObject {
 	c := r.c
 	if r.objs == nil || r.nmore != len(c.more) || r.gen != c.objs {
 		r.nmore, r.gen = len(c.more), c.objs
-		r.objs = append(r.objs[:0], c.bg, c.line, c.text)
+		r.objs = append(r.objs[:0], c.bg, c.line)
+		if c.spine != nil {
+			r.objs = append(r.objs, c.spine)
+		}
+		if c.selBar != nil {
+			r.objs = append(r.objs, c.selBar)
+		}
+		if c.pill != nil {
+			r.objs = append(r.objs, c.pill, c.dot)
+		}
+		r.objs = append(r.objs, c.text)
 		if c.under != nil {
 			r.objs = append(r.objs, c.under)
 		}
@@ -1886,11 +1905,12 @@ func (r *headerCellRenderer) Refresh() {
 	h := r.h
 	th := h.Theme()
 	h.text.Text = h.title
-	h.text.TextSize = th.Size(theme.SizeNameText)
+	// Muted bold text on the stage and a hairline under it: no band and no column dividers.
+	h.text.TextSize = th.Size(theme.SizeNameText) - 1
 	h.text.TextStyle = fyne.TextStyle{Bold: true}
 	h.text.Color = themeColor(th, colorMuted)
-	h.sep.FillColor = themeColor(th, theme.ColorNameSeparator)
-	h.line.FillColor = themeColor(th, theme.ColorNameSeparator)
+	h.sep.FillColor = color.Transparent
+	h.line.FillColor = themeColor(th, colorBracket)
 	var arrow fyne.Resource
 	switch h.sort {
 	case 1:

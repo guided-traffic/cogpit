@@ -1007,8 +1007,10 @@ func (r *navContextRow) MouseOut() {
 
 // CreateRenderer implements fyne.Widget.
 func (r *navContextRow) CreateRenderer() fyne.WidgetRenderer {
-	rr := &rowBodyRenderer{w: r, body: r.body, bg: r.bg, ring: r.ring, paint: func() {
+	bar := newSelBar()
+	rr := &rowBodyRenderer{w: r, body: r.body, bg: r.bg, ring: r.ring, bar: bar, paint: func() {
 		paintRow(r.Theme(), r.bg, r.ring, r.n.marked(r.id), r.hovered, r.n.keyboardOn(r.id))
+		paintSelBar(r.Theme(), bar, r.n.marked(r.id))
 	}}
 	rr.Refresh()
 	return rr
@@ -1112,16 +1114,16 @@ type rowBodyRenderer struct {
 	w        fyne.Widget
 	body     fyne.CanvasObject
 	bg, ring *canvas.Rectangle
+	bar      *canvas.Rectangle // the selection's bar (chrome_nav.go); nil for a row that is never the open one
 	paint    func()
 }
 
 func (rr *rowBodyRenderer) MinSize() fyne.Size { return rr.body.MinSize() }
 
 func (rr *rowBodyRenderer) Layout(size fyne.Size) {
-	for _, o := range []fyne.CanvasObject{rr.bg, rr.ring, rr.body} {
-		o.Move(fyne.NewPos(0, 0))
-		o.Resize(size)
-	}
+	rr.body.Move(fyne.NewPos(0, 0))
+	rr.body.Resize(size)
+	layoutPlate(rr.bg, rr.ring, rr.bar, size)
 }
 
 func (rr *rowBodyRenderer) Refresh() {
@@ -1133,7 +1135,11 @@ func (rr *rowBodyRenderer) Refresh() {
 }
 
 func (rr *rowBodyRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{rr.bg, rr.body, rr.ring}
+	objs := []fyne.CanvasObject{rr.bg, rr.body, rr.ring}
+	if rr.bar != nil {
+		objs = append(objs, rr.bar)
+	}
+	return objs
 }
 
 func (rr *rowBodyRenderer) Destroy() {}
