@@ -11,8 +11,8 @@ import (
 // plugin is found by its program's file name alone; its start time comes from GetProcessTimes.
 // Windows has no process groups as the search means them, and no exec that keeps a process's
 // number, so a run's process is never taken for the one new child (pluginproc.go). Its finding and
-// ending of a child is tried on Windows by pluginproc_windows_test.go (first run 2026-10-21); CI
-// compiles it there without running it.
+// ending of a child is tried on Windows by pluginproc_windows_test.go (first run 2026-10-21), which
+// CI's Unit Tests (windows) runs.
 
 // processQueryLimitedInformation is PROCESS_QUERY_LIMITED_INFORMATION, enough for GetProcessTimes.
 const processQueryLimitedInformation = 0x1000
