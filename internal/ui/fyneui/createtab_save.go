@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"path/filepath"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -66,7 +67,7 @@ func (c *createTab) showSaveDialog(name string, data []byte, start fyne.Listable
 			c.setStatus("Not saved: "+err.Error(), colorStatusError)
 			return
 		}
-		c.setStatus("Saved to "+w.URI().Path()+".", colorStatusOK)
+		c.setStatus("Saved to "+filepath.FromSlash(w.URI().Path())+".", colorStatusOK) // C:/Users/… on Windows otherwise
 		c.sh.toast(engine.LevelInfo, "Saved the manifest to "+w.URI().Name())
 	}, c.sh.win)
 	d.SetFileName(name)

@@ -8,6 +8,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
 )
@@ -48,7 +49,7 @@ func TestCreateTabSavesToAFile(t *testing.T) {
 	ct.saveDialog = func(name string, data []byte) { d = ct.showSaveDialog(name, data, start) }
 	test.Tap(ct.saveBtn)
 	q.until(t, "the save dialog", func() bool { return d != nil })
-	save := findButton(w, "Save")
+	save := findButton(w, lang.L("Save")) // Fyne's dialog speaks the system's language
 	if save == nil {
 		t.Fatal("no Save button in the dialog")
 	}

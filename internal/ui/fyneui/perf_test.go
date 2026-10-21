@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -73,7 +74,10 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 		}
 	}
 	keys := got.Phases[3].Keystrokes
-	if keys == nil || keys.Count == 0 || keys.DocBytes < 200<<10 || keys.WorkMaxMs <= 0 {
+	// Go's clock on Windows advances in steps of about half a millisecond, so a keystroke's work
+	// there may measure 0.
+	if keys == nil || keys.Count == 0 || keys.DocBytes < 200<<10 || keys.WorkMaxMs < 0 ||
+		(keys.WorkMaxMs == 0 && runtime.GOOS != "windows") {
 		t.Errorf("keystrokes %+v", keys)
 	}
 	if got.Samples == 0 || got.DurationS <= 0 {

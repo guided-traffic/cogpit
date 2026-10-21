@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/guided-traffic/cogpit/internal/buildinfo"
 )
 
 // bundledCLIName is the command-line tool `make app` puts beside the app's own executable, in
@@ -12,9 +14,10 @@ import (
 const bundledCLIName = "cogpit-cli"
 
 // bundledCLI returns the path of the cogpit-cli that came with the running app: the one in an
-// installed macOS bundle (bundledCLIBeside), or the Linux package's beside /usr/bin/cogpit
-// (packagedCLIBeside, D-108); "" otherwise: a dev build (bin/cogpit, go run) and every other
-// system offer the HTTP registration instead.
+// installed macOS bundle (bundledCLIBeside), the Linux package's beside /usr/bin/cogpit
+// (packagedCLIBeside, D-108), or the Windows setup's cogpit-cli.exe beside a release's cogpit.exe
+// (installedCLIBeside); "" otherwise: a dev build (bin/cogpit, go run) and every other system offer
+// the HTTP registration instead.
 func bundledCLI() string {
 	exe, err := os.Executable()
 	if err != nil {
@@ -25,8 +28,36 @@ func bundledCLI() string {
 		return bundledCLIBeside(exe, readOnlyVolume)
 	case "linux":
 		return packagedCLIBeside(exe, packagedBinDir)
+	case "windows":
+		// The setup lets the user choose the folder, so no path tells an installed copy from a
+		// development build's bin\cogpit.exe, which has a cogpit-cli.exe beside it too; the
+		// release's version does.
+		if buildinfo.Read().Release {
+			return installedCLIBeside(exe)
+		}
 	}
 	return ""
+}
+
+// installedCLIBeside returns <dir>\cogpit-cli.exe when exe is <dir>\cogpit.exe (its symbolic links
+// resolved) and the cogpit-cli.exe there is a file; "" otherwise. The Windows setup installs both
+// into one folder, per user under %LOCALAPPDATA%\Programs\Cogpit, per machine under
+// C:\Program Files\Cogpit or wherever the user chose, so the folder itself is not checked. Windows
+// has no executable bit: the .exe name makes a file a program. The names compare without case, as
+// Windows' own do.
+func installedCLIBeside(exe string) string {
+	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = resolved
+	}
+	if !strings.EqualFold(filepath.Base(exe), "cogpit.exe") {
+		return ""
+	}
+	cli := filepath.Join(filepath.Dir(exe), bundledCLIName+".exe")
+	fi, err := os.Lstat(cli)
+	if err != nil || !fi.Mode().IsRegular() {
+		return ""
+	}
+	return cli
 }
 
 // packagedBinDir is where the Linux package installs both binaries (D-108).

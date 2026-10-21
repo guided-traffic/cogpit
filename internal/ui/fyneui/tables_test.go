@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/lang"
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
@@ -95,7 +96,7 @@ func TestCSVButtonSavesTheView(t *testing.T) {
 	}
 	var save *widget.Button
 	for _, b := range findAll[*widget.Button](w.Canvas().Overlays().Top()) {
-		if b.Text == "Save" {
+		if b.Text == lang.L("Save") { // Fyne's dialog speaks the system's language
 			save = b
 		}
 	}

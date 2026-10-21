@@ -145,7 +145,7 @@ func TestSyncPanelSyncsEveryPick(t *testing.T) {
 	}
 	q.until(t, "the bookmarks kept", func() bool { return len(store.Entries()) == 2 })
 	for i, e := range store.Entries() {
-		if e.Use != nativedialog.UseKubeconfig || e.Access != nativedialog.ReadOnly || e.Path != p.picks[i].Path ||
+		if e.Use != nativedialog.UseKubeconfig || e.Access != nativedialog.ReadOnly || e.Path != filepath.Clean(p.picks[i].Path) ||
 			string(e.Bookmark) != string(p.picks[i].Bookmark) {
 			t.Errorf("bookmark %d: %+v", i, e)
 		}
@@ -229,7 +229,7 @@ func TestIconAndFolderPanels(t *testing.T) {
 	if !slices.Equal(got, []string{"/Users/me/Pictures/prod.png", "/Users/me/Documents/work"}) {
 		t.Errorf("picked %v", got)
 	}
-	if e := store.Entries()[0]; e.Use != nativedialog.UseFolder || e.Access != nativedialog.ReadWrite || e.Path != "/Users/me/Documents/work" {
+	if e := store.Entries()[0]; e.Use != nativedialog.UseFolder || e.Access != nativedialog.ReadWrite || e.Path != filepath.Clean("/Users/me/Documents/work") {
 		t.Errorf("kept %+v; an icon keeps no bookmark", e)
 	}
 }

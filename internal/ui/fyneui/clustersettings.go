@@ -344,7 +344,7 @@ func (p *settingsPage) pickIconWithDialog(done func(path string)) {
 		if err != nil || r == nil {
 			return
 		}
-		path := r.URI().Path()
+		path := filepath.FromSlash(r.URI().Path()) // a file URI's path has slashes, on Windows too (C:/Users/…)
 		_ = r.Close()
 		done(path)
 	}, p.sh.win)
@@ -357,7 +357,7 @@ func (p *settingsPage) pickIconWithDialog(done func(path string)) {
 func (p *settingsPage) pickFolderWithDialog(done func(path string)) {
 	dialog.NewFolderOpen(func(l fyne.ListableURI, err error) {
 		if err == nil && l != nil {
-			done(l.Path())
+			done(filepath.FromSlash(l.Path()))
 		}
 	}, p.sh.win).Show()
 }
@@ -369,9 +369,20 @@ func (sh *shell) openFolderWithFileManager(dir string) {
 		sh.toast("warning", "The folder "+dir+" does not exist.")
 		return
 	}
-	if err := sh.app.OpenURL(&url.URL{Scheme: storage.NewFileURI(dir).Scheme(), Path: dir}); err != nil {
+	if err := sh.app.OpenURL(folderURL(dir)); err != nil {
 		sh.toast("error", "Could not open the folder: "+err.Error())
 	}
+}
+
+// folderURL is the file URL of the absolute folder dir: file:///Users/me/.kube, and on Windows
+// file:///C:/Users/me/.kube. A URL's path takes slashes and begins with one: Windows' backslashes
+// would be escaped and the drive read as the host, a URL Explorer does not open.
+func folderURL(dir string) *url.URL {
+	p := filepath.ToSlash(dir)
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return &url.URL{Scheme: storage.NewFileURI(dir).Scheme(), Path: p}
 }
 
 // swatch is one colour of the icon palette under the icon: a tinted square in the colour, ringed

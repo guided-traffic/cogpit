@@ -3,7 +3,7 @@ package fyneui
 import (
 	"context"
 	"log/slog"
-	"path/filepath"
+	"path"
 	"strings"
 	"sync"
 
@@ -107,11 +107,12 @@ func (sh *shell) watchStrayCalls() (stop func()) {
 }
 
 // strayCallMessage names the place by its package directory and file: enough to find it, short
-// enough for a toast.
+// enough for a toast. The place is a Go source position, written with slashes on every system
+// (C:/Users/... on Windows), so package path splits it, not filepath.
 func strayCallMessage(site string) string {
 	short := site
-	if dir, file := filepath.Split(site); dir != "" {
-		short = filepath.Join(filepath.Base(dir), file)
+	if dir, file := path.Split(site); dir != "" {
+		short = path.Join(path.Base(dir), file)
 	}
 	return "Development build: a Fyne call ran off the main goroutine at " + short +
 		". Fyne moved it there; a release build, with the thread check off, would race (D-103). The app log has the details."

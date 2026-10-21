@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -356,7 +357,8 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.plainWarn = newParagraph(engine.ChatPlainHTTPWarning, colorStatusWarning, textW)
 	f.baseURL.OnChanged = func(string) { f.showPlainWarning() }
 	f.caFile = widget.NewEntry()
-	f.caFile.SetPlaceHolder("/path/to/private-ca.pem")
+	placeholder, _ := caFileExamples(runtime.GOOS)
+	f.caFile.SetPlaceHolder(placeholder)
 	f.caFile.SetText(c.CAFile)
 	f.caB = widget.NewButton("Choose…", f.chooseCAFile)
 	f.caB.Importance = widget.LowImportance
@@ -472,12 +474,21 @@ func (f *agentForm) chooseCAFileWithDialog() {
 		if err != nil || r == nil {
 			return
 		}
-		path := r.URI().Path()
+		path := filepath.FromSlash(r.URI().Path()) // a file URI's path has slashes, on Windows too (C:/Users/…)
 		_ = r.Close()
 		f.caFile.SetText(path)
 	}, f.a.p.sh.win)
 	d.SetFilter(storage.NewExtensionFileFilter([]string{".pem", ".crt", ".cer"}))
 	d.Show()
+}
+
+// caFileExamples are the CA file field's placeholder and the absolute path its error suggests, as
+// goos writes paths: a Windows path begins with its drive, and /Users/you/… is not absolute there.
+func caFileExamples(goos string) (placeholder, example string) {
+	if goos == "windows" {
+		return `C:\path\to\private-ca.pem`, `C:\Users\you\certs\private-ca.pem`
+	}
+	return "/path/to/private-ca.pem", "/Users/you/certs/private-ca.pem"
 }
 
 // caFilePath is the CA file's field as a path: "~/" is the home folder.
@@ -575,7 +586,8 @@ func (f *agentForm) values() (engine.ChatConnection, error) {
 	case c.CAFile != "" && u.Scheme != schemeWebSecure:
 		return c, errors.New("a CA file is for an https base URL: plain http checks no certificate")
 	case c.CAFile != "" && !filepath.IsAbs(c.CAFile):
-		return c, errors.New("the CA file must be an absolute path, such as /Users/you/certs/private-ca.pem")
+		_, example := caFileExamples(runtime.GOOS)
+		return c, errors.New("the CA file must be an absolute path, such as " + example)
 	}
 	c.Model = strings.TrimSpace(f.model.Text)
 	c.Private = f.private.Checked

@@ -36,8 +36,9 @@ func newTestStore(t *testing.T) (*Store, string) {
 	return s, path
 }
 
-// Keep stores a bookmark under its use and path, owner-only, replacing the one of the same use
-// and path; nothing without a bookmark; a nil store keeps nothing.
+// Keep stores a bookmark under its use and path (cleaned, so the fixtures' slashes are backslashes
+// on Windows), owner-only, replacing the one of the same use and path; nothing without a bookmark;
+// a nil store keeps nothing.
 func TestStoreKeep(t *testing.T) {
 	s, path := newTestStore(t)
 	if err := s.Keep(UseKubeconfig, "/Users/me/Downloads/dev.yaml", ReadOnly, []byte("one")); err != nil {
@@ -53,7 +54,7 @@ func TestStoreKeep(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := s.Entries()
-	if len(got) != 2 || string(got[0].Bookmark) != "two" || got[0].Path != "/Users/me/Downloads/dev.yaml" ||
+	if len(got) != 2 || string(got[0].Bookmark) != "two" || got[0].Path != filepath.FromSlash("/Users/me/Downloads/dev.yaml") ||
 		got[1].Use != UseFolder || got[1].Access != ReadWrite {
 		t.Fatalf("entries = %+v", got)
 	}
@@ -99,7 +100,7 @@ func TestStoreRestore(t *testing.T) {
 	}
 	var calls []string
 	next.resolve = fakeResolver(&calls)
-	rep, err := next.Restore(func(e Entry) bool { return e.Path != "/k/3-removed" })
+	rep, err := next.Restore(func(e Entry) bool { return e.Path != filepath.FromSlash("/k/3-removed") })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +116,7 @@ func TestStoreRestore(t *testing.T) {
 	}
 	var paths, data []string
 	for _, e := range after.Entries() {
-		paths, data = append(paths, e.Path), append(data, string(e.Bookmark))
+		paths, data = append(paths, filepath.ToSlash(e.Path)), append(data, string(e.Bookmark))
 	}
 	if fmt.Sprint(paths) != "[/k/0-ok /k/1-stale /k/2-gone]" || fmt.Sprint(data) != "[ok fresh gone]" {
 		t.Errorf("kept %v with %v", paths, data)
@@ -128,7 +129,7 @@ func TestStoreRestoreUnsupported(t *testing.T) {
 	_ = s.Keep(UseCAFile, "/ca.pem", ReadOnly, []byte("x"))
 	_ = s.Keep(UseCAFile, "/old.pem", ReadOnly, []byte("y"))
 	s.resolve = func([]byte, Access) (resolved, error) { return resolved{}, ErrUnsupported }
-	rep, err := s.Restore(func(e Entry) bool { return e.Path != "/old.pem" })
+	rep, err := s.Restore(func(e Entry) bool { return e.Path != filepath.FromSlash("/old.pem") })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -150,7 +151,7 @@ func TestStoreBounds(t *testing.T) {
 		_ = s.Keep(UseKubeconfig, fmt.Sprintf("/k/%d", i), ReadOnly, []byte("b"))
 	}
 	got := s.Entries()
-	if len(got) != maxOtherBookmarks+5 || got[0].Path != "/f/03" {
+	if len(got) != maxOtherBookmarks+5 || got[0].Path != filepath.FromSlash("/f/03") {
 		t.Fatalf("kept %d, first %q; want the newest %d folders and every source", len(got), got[0].Path, maxOtherBookmarks)
 	}
 	many := make([]Entry, 0, maxKubeconfigBookmarks+1)
