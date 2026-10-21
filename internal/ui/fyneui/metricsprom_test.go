@@ -4,10 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"image/png"
 	"math"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -380,7 +377,7 @@ func TestRateFormatsAndLongRanges(t *testing.T) {
 
 // TestRenderPrometheusMetrics draws the drawer's charts with Prometheus's numbers for a look: each
 // variant in both themes, a container's network with its hint, a week's range, and the hover over
-// the network chart. To COGPIT_PNG_DIR or a temporary directory, never to testdata.
+// the network chart. To COGPIT_PNG_DIR when that is set (else only captured), never to testdata.
 func TestRenderPrometheusMetrics(t *testing.T) {
 	type look struct {
 		name     string
@@ -435,19 +432,7 @@ func TestRenderPrometheusMetrics(t *testing.T) {
 					}
 					settle(sh.win)
 				}
-				dir := os.Getenv("COGPIT_PNG_DIR")
-				if dir == "" {
-					dir = t.TempDir()
-				}
-				f, err := os.Create(filepath.Join(dir, name))
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer f.Close()
-				if err := png.Encode(f, sh.win.Canvas().Capture()); err != nil {
-					t.Fatal(err)
-				}
-				t.Log("rendered", f.Name())
+				lookPNG(t, sh.win, name)
 			})
 		}
 	}

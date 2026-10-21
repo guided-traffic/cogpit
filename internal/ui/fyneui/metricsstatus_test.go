@@ -3,9 +3,6 @@ package fyneui
 import (
 	"context"
 	"encoding/json"
-	"image/png"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -265,8 +262,8 @@ func TestMissingPartIsLeftOutOfTheChart(t *testing.T) {
 
 // TestRenderMetricsStatusLine draws the source row under a pod's charts in both themes: both
 // providers answering, the Metrics Server down (its tooltip shown), Prometheus not found, and the
-// narrowest drawer, where the two stack. To COGPIT_PNG_DIR or a temporary directory, never to
-// testdata.
+// narrowest drawer, where the two stack. To COGPIT_PNG_DIR when that is set (else only captured),
+// never to testdata.
 func TestRenderMetricsStatusLine(t *testing.T) {
 	looks := []struct {
 		name   string
@@ -296,19 +293,7 @@ func TestRenderMetricsStatusLine(t *testing.T) {
 					q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 					settle(sh.win)
 				}
-				dir := os.Getenv("COGPIT_PNG_DIR")
-				if dir == "" {
-					dir = t.TempDir()
-				}
-				f, err := os.Create(filepath.Join(dir, name))
-				if err != nil {
-					t.Fatal(err)
-				}
-				defer f.Close()
-				if err := png.Encode(f, sh.win.Canvas().Capture()); err != nil {
-					t.Fatal(err)
-				}
-				t.Log("rendered", f.Name())
+				lookPNG(t, sh.win, name)
 			})
 		}
 	}

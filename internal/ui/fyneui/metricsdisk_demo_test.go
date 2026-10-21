@@ -10,7 +10,7 @@ import (
 // TestRenderDemoNodeDisks runs the shell over the real engine and the demo cluster, whose metrics
 // provider makes up the nodes' disks (D-90): the Nodes list fills its Disk column with the fullest
 // filesystem, and a worker's drawer shows a usage bar per filesystem. The PNG goes to
-// COGPIT_PNG_DIR or a temporary directory, never to testdata.
+// COGPIT_PNG_DIR when that is set (else it is only captured), never to testdata.
 func TestRenderDemoNodeDisks(t *testing.T) {
 	s, sh, w, until := demoShell(t)
 	until("the demo connected", func() bool { tbl := s.Table("pods"); return tbl != nil && tbl.Synced && len(sh.kinds) > 0 })
