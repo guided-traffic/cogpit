@@ -32,7 +32,7 @@ func unlockFile(f *os.File) error { return flock(f, syscall.LOCK_UN) }
 
 // createOwnerFile creates an owner file, owner-only; it fails when the file exists.
 func createOwnerFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600) // #nosec G304 -- the journal folder's owners/<random id>.lock (journalDir.self)
 }
 
 func flock(f *os.File, how int) error {
