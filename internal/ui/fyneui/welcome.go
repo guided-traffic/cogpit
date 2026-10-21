@@ -74,10 +74,11 @@ type welcomePage struct {
 	docs      *widget.Hyperlink // the README: what Cogpit does
 	cmds      *widget.Hyperlink // docs/developer/commands.md: every command
 	shown     bool
-	built     string        // the signature the list was built for
-	rows      []*clusterRow // the clusters' rows in the order shown, for tests
-	links     *clusterLinks // the clusters' links, for Remove from Cogpit (menus_cluster.go)
-	menuModel *fyne.Menu    // a row's open menu, for tests
+	built     string         // the signature the list was built for
+	rows      []*clusterRow  // the clusters' rows in the order shown, for tests
+	titles    map[string]int // how many rows show each title; a shared one names its kubeconfig (sharedTitles)
+	links     *clusterLinks  // the clusters' links, for Remove from Cogpit (menus_cluster.go)
+	menuModel *fyne.Menu     // a row's open menu, for tests
 
 	contexts []engine.ContextInfo // the contexts the sources offer, read off the main goroutine
 	loadSeq  int
@@ -380,6 +381,7 @@ func (w *welcomePage) render() {
 	w.built = sig.String()
 	w.rows = w.rows[:0]
 	var objs []fyne.CanvasObject
+	w.titles = w.sharedTitles(groups)
 	for _, g := range groups {
 		objs = append(objs, newBracketLabel(headText(g.title, len(g.contexts)), colorAccent), newSpace(theme.SizeNamePadding))
 		for _, c := range g.contexts {
@@ -398,16 +400,39 @@ func (w *welcomePage) render() {
 	w.list.Refresh()
 }
 
-// row is one cluster, connecting with one click.
-func (w *welcomePage) row(c engine.ContextInfo) *clusterRow {
+// labels are a cluster row's title and subtitle: the one name of the cluster (its display name,
+// else its short name, D-68), the context's full name below it where they differ.
+func (w *welcomePage) labels(c engine.ContextInfo) (title, sub string) {
 	sh := w.sh
-	title, sub := contextLabels(c)
-	// The one name of the cluster (its display name, else its short name, D-68), the context's full
-	// name below it where they differ.
+	title, sub = contextLabels(c)
 	named := sh.ui.ClusterSettings[c.Name].Name != "" // the demo cluster keeps its label unless the user named it
 	if name := sh.identity(c.Name).name; (!c.Demo || named) && kubeconfig.DisplayText(name, maxShownPath) != title {
 		sub = strings.TrimSuffix("context "+title+" · "+sub, " · ")
 		title = kubeconfig.DisplayText(name, maxShownPath)
+	}
+	return title, sub
+}
+
+// sharedTitles counts the titles the page's rows show: a row whose title another row shows too
+// names its kubeconfig file, so that the two can be told apart; every other row leaves the file
+// out (the owner, 2026-10-21: the path only for the clusters whose names occur more than once).
+func (w *welcomePage) sharedTitles(groups []welcomeGroup) map[string]int {
+	n := map[string]int{}
+	for _, g := range groups {
+		for _, c := range g.contexts {
+			title, _ := w.labels(c)
+			n[title]++
+		}
+	}
+	return n
+}
+
+// row is one cluster, connecting with one click.
+func (w *welcomePage) row(c engine.ContextInfo) *clusterRow {
+	sh := w.sh
+	title, sub := w.labels(c)
+	if w.titles[title] < 2 {
+		c.Source = "" // its name is unique on the page: no file pill
 	}
 	name := c.Name
 	connect := func() { w.connect(name) }
