@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # sha256sums.sh <tag> <sums> <out>: the release's SHA256SUMS with the lines of <sums> merged in.
-# A release's checksums file lists every download, and two jobs attach downloads (the macOS one and
-# the Linux packages, D-108): each writes the lines for its own files, and this keeps the other
-# job's lines from the SHA256SUMS the release has now (none yet: <sums> alone). A line of <sums>
-# replaces the release's line for the same file (a re-run). The two jobs share a concurrency group,
-# so they never merge at the same time. The release's file is read from its public download URL.
+# A release's checksums file lists every download, and three jobs attach downloads (the macOS one,
+# the Linux packages, D-108, and the Windows setup, D-111): each writes the lines for its own files,
+# and this keeps the other jobs' lines from the SHA256SUMS the release has now (none yet: <sums>
+# alone). A line of <sums> replaces the release's line for the same file (a re-run). The jobs share
+# a concurrency group, so they never merge at the same time. The release's file is read from its
+# public download URL.
 set -euo pipefail
 
 die() { echo "sha256sums.sh: $*" >&2; exit 1; }

@@ -512,6 +512,41 @@ jobs:
       - name: Check the package and the APT repository's scripts
         run: make test-linux-package
 
+  # Cogpit for Windows (D-111) as the release pipeline builds it, for this commit: make dist-windows
+  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make and NSIS
+  # from its signed packages), then make test-windows-package: the setup installs for the runner's
+  # user, installs again over itself and uninstalls. A change that breaks the release's Windows job
+  # fails here, before a release.
+  windows-package:
+    name: Windows Package
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: windows-package
+
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          path-type: inherit
+          install: make unzip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
+
+      - name: Build the setup
+        run: make dist-windows VERSION=0.0.1
+
+      - name: Install, update and uninstall it
+        run: make test-windows-package
+
   # The unit, race and cluster profiles merged: the job summary, and the README's badge, which
   # Semantic Release commits with the release.
   coverage:
@@ -558,7 +593,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, linux-package, coverage]
+    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, linux-package, windows-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     steps:

@@ -10,3 +10,5 @@
 /.claude/
 /node_modules/
 /secrets/
+# The Windows resources make dist-windows writes for one build (hack/windows/resources.sh).
+/cmd/*/rsrc_windows_*.syso

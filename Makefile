@@ -73,6 +73,11 @@ APP_ID          := io.guided-traffic.cogpit
 # Developer ID signature uses the same (hack/macos/release.sh, cli_identifier).
 CLI_ID          := $(APP_ID).cli
 APP_OS          ?= $(shell $(GO) env GOOS)
+# Windows' executables end in .exe: go build -o names the file exactly as given.
+EXE              = $(if $(filter windows,$(APP_OS)),.exe)
+# Linker flags for the app's binary only, after GO_LDFLAGS: dist-windows makes it a GUI program
+# (-H=windowsgui), which opens no console window; cogpit-cli stays a console program.
+APP_LDFLAGS     ?=
 TEST_ENV        := env -u KUBERNETES_SERVICE_HOST -u KUBERNETES_SERVICE_PORT KUBECONFIG=/dev/null
 
 .PHONY: all build run run-demo test test-unit test-unit-race test-kind test-kind-compile bench lint parity fmt tidy \
@@ -84,16 +89,16 @@ help: ## Show targets
 	@grep -E '^[a-zA-Z_-]+:.*?## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-16s %s\n", $$1, $$2}'
 
 build: ## Build bin/cogpit (cgo, Fyne) and bin/cogpit-cli (pure Go)
-	$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit
-	CGO_ENABLED=0 $(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli
+	$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(strip $(GO_LDFLAGS) $(APP_LDFLAGS))' -o $(BIN)/cogpit$(EXE) ./cmd/cogpit
+	CGO_ENABLED=0 $(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli$(EXE) ./cmd/cogpit-cli
 	@echo "Fyne's thread check: $(call threadMode,on) (FYNE_THREAD_CHECKS, D-103)"
 
 run: build ## Run Cogpit against the kind cluster (make kind-up first)
 	@test -s $(KIND_KUBECONFIG) || { echo "no kubeconfig at $(KIND_KUBECONFIG): run make kind-up first"; exit 1; }
-	$(BIN)/cogpit --kubeconfig $(KIND_KUBECONFIG) --context $(KIND_CONTEXT)
+	$(BIN)/cogpit$(EXE) --kubeconfig $(KIND_KUBECONFIG) --context $(KIND_CONTEXT)
 
 run-demo: build ## Run Cogpit on the synthetic demo cluster (10,000 pods, 1,000 events/s); development builds only, a release has none (D-67)
-	$(BIN)/cogpit --demo
+	$(BIN)/cogpit$(EXE) --demo
 
 test: test-unit-race ## All tests that need no cluster (race detector on); test-kind needs make kind-up
 
@@ -794,6 +799,86 @@ apt-repo: ## The APT repository in dist/apt from the packages in dist/linux and 
 apt-verify: ## Check the signed APT repository in dist/apt with the packages' public key, and that it takes back no newer release Pages serves
 	hack/linux/apt.sh verify '$(DIST)/apt' '$(APT_KEYRING)'
 	hack/linux/apt.sh newer '$(DIST)/apt' '$(APT_URL)' '$(APT_KEYRING)'
+
+# Cogpit for Windows (D-111; docs/developer/releasing.md#windows): the setup
+# dist/windows/Cogpit-<version>-windows-<arch>-setup.exe (NSIS, packaging/windows/cogpit.nsi) with
+# both executables, built as a release builds them (DIST_TAGS, Fyne's thread check off unless
+# FYNE_THREAD_CHECKS=on), the app a GUI program, both with their icon, manifest and version
+# information (hack/windows/resources.sh, go-winres), and WinSparkle, the app's updater; for this
+# machine's architecture (cgo with OpenGL does not cross-compile), on Windows with MSYS2's MinGW-w64
+# gcc, NSIS 3 and Git Bash or MSYS2's bash (hack/windows/setup.sh).
+# renovate: datasource=go depName=github.com/tc-hib/go-winres
+GO_WINRES_VERSION ?= v0.3.3
+GO_WINRES       := $(BIN)/go-winres$(EXE)
+# WinSparkle (D-111), Sparkle's Windows port: the release archive pinned by version and SHA-256
+# (GitHub's digest of the asset), kept in .cache/winsparkle/<version> (hack/windows/winsparkle.sh).
+# Renovate proposes a new version and never merges it on its own; WINSPARKLE_SHA256 must be set to
+# the new asset's digest by hand, as SPARKLE_SHA256 is.
+# renovate: datasource=github-releases depName=vslavik/winsparkle extractVersion=^v(?<version>.*)$
+WINSPARKLE_VERSION := 0.9.4
+WINSPARKLE_SHA256  := 6037df37fc263bd1650a1c4949681a9d40ffe991d01f35892a406cb5d103c976
+WINSPARKLE_DIR     := $(CACHE)/winsparkle/$(WINSPARKLE_VERSION)
+# The setup's architecture names (x64, arm64) for Go's (amd64, arm64).
+WIN_ARCH         = $(if $(filter arm64,$(shell $(GO) env GOARCH)),arm64,x64)
+WIN_ICON        := $(CACHE)/windows/cogpit.ico
+WIN_ICON_SIZES  := 16,20,24,32,40,48,64,256
+# The Windows app's update feed (D-111), beside Sparkle's on Pages, and the update key's public
+# half, the one Sparkle's feed is signed with (SPARKLE_PUBLIC_ED_KEY, the repository variable): the
+# linker writes both into the app (internal/update's windowsFeedURL and edPublicKey; their
+# TestMakefileBuildsTheFeedIntoTheApp checks these names, since the linker ignores a -X for a
+# missing symbol). Without the key the app has no updater, as a macOS app without it.
+WINDOWS_FEED_URL := https://guided-traffic.github.io/cogpit/appcast-windows.xml
+UPDATE_PKG       := github.com/guided-traffic/cogpit/internal/update
+WIN_APP_LDFLAGS   = -H=windowsgui -X $(UPDATE_PKG).windowsFeedURL=$(WINDOWS_FEED_URL) \
+	$(if $(SPARKLE_PUBLIC_ED_KEY),-X $(UPDATE_PKG).edPublicKey=$(SPARKLE_PUBLIC_ED_KEY))
+
+.PHONY: winsparkle dist-windows test-windows-package
+
+winsparkle: $(WINSPARKLE_DIR)/.verified ## Download the pinned WinSparkle release into .cache/winsparkle (checksum verified)
+
+$(WINSPARKLE_DIR)/.verified:
+	hack/windows/winsparkle.sh fetch '$(WINSPARKLE_VERSION)' '$(WINSPARKLE_SHA256)' '$(WINSPARKLE_DIR)'
+
+$(GO_WINRES):
+	GOBIN=$(BIN) $(GO) install github.com/tc-hib/go-winres@$(GO_WINRES_VERSION)
+
+dist-windows: winsparkle $(GO_WINRES) ## The Windows setup dist/windows/Cogpit-<version>-windows-<arch>-setup.exe for this machine's architecture, built with DIST_TAGS and Fyne's thread check off unless FYNE_THREAD_CHECKS=on (D-103, D-111; Windows only, MinGW-w64 gcc and NSIS 3); VERSION=x.y.z
+	@test "$$($(GO) env GOOS)" = windows || { echo "dist-windows runs on Windows only"; exit 1; }
+	@test "$(origin VERSION)" != file || { echo "dist-windows needs VERSION=x.y.z: the binaries would report release $(VERSION)"; exit 1; }
+	@mkdir -p $(CACHE)/windows
+	$(GO) run ./hack/icon -ico $(WIN_ICON_SIZES) -o $(WIN_ICON)
+	@# The resources carry the version: made for this build only, removed whatever it comes to.
+	hack/windows/resources.sh make '$(VERSION)' '$(WIN_ICON)' '$(GO_WINRES)' "$$($(GO) env GOARCH)"
+	$(MAKE) build GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)' FYNE_THREAD_CHECKS='$(call threadMode,off)' \
+		APP_LDFLAGS='$(strip $(WIN_APP_LDFLAGS))'; rc=$$?; hack/windows/resources.sh clean; exit $$rc
+	$(call checkDistBinaries,$(BIN)/cogpit.exe $(BIN)/cogpit-cli.exe)
+	hack/windows/setup.sh '$(VERSION)' '$(WIN_ARCH)' '$(BIN)' '$(WIN_ICON)' '$(WINSPARKLE_DIR)' '$(DIST)/windows'
+
+# WinSparkle's appcast (D-111; docs/developer/releasing.md#windows): the release pipeline's three
+# Windows appcast jobs, as the macOS feed's. appcast-windows-draft drafts the feed with the
+# release's item in dist/appcast-windows (no secret), appcast-windows-sign signs the setup and the
+# feed with Sparkle's sign_update and SPARKLE_ED_PRIVATE_KEY into dist/site-windows (the
+# environment sparkle, on macOS; hack/macos/appcast.sh's sign), appcast-windows-verify checks both
+# with SPARKLE_PUBLIC_ED_KEY before Pages gets them.
+APPCAST_WINDOWS := $(DIST)/appcast-windows
+
+.PHONY: appcast-windows-draft appcast-windows-sign appcast-windows-verify
+
+appcast-windows-draft: ## Draft the Windows appcast with this release's item in dist/appcast-windows (release pipeline); VERSION=x.y.z
+	hack/windows/appcast.sh draft '$(VERSION)' '$(DIST)/windows' '$(APPCAST_WINDOWS)' '$(WINDOWS_FEED_URL)'
+
+appcast-windows-sign: sparkle ## Sign the setup and the drafted Windows appcast into dist/site-windows with SPARKLE_ED_PRIVATE_KEY (release pipeline's environment sparkle, macOS); VERSION=x.y.z
+	hack/macos/appcast.sh sign '$(VERSION)' '$(DIST)/windows' '$(APPCAST_WINDOWS)' '$(DIST)/site-windows' '$(SPARKLE_DIR)' \
+		'Cogpit-$(VERSION)-windows-*-setup.exe' appcast-windows.xml
+
+appcast-windows-verify: ## Check dist/site-windows/appcast-windows.xml and the setup with SPARKLE_PUBLIC_ED_KEY, and that it takes back no newer release Pages serves; VERSION=x.y.z
+	$(GO) run ./hack/appcast verify -feed '$(DIST)/site-windows/appcast-windows.xml' -pubkey '$(SPARKLE_PUBLIC_ED_KEY)' \
+		-file "$$(ls $(DIST)/windows/Cogpit-$(VERSION)-windows-*-setup.exe)" -version "$$(cat $(APPCAST_WINDOWS)/version)" \
+		-live '$(WINDOWS_FEED_URL)'
+
+test-windows-package: ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
+	@n=$$(ls $(DIST)/windows/Cogpit-*-windows-*-setup.exe 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/windows holds $$n setups: run make dist-windows VERSION=x.y.z first, once"; exit 1; }
+	hack/windows/setup-test.sh $(DIST)/windows/Cogpit-*-windows-*-setup.exe
 
 clean: ## Remove build output
 	rm -rf $(BIN) dist

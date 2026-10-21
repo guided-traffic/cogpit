@@ -31,6 +31,12 @@
 // copy the newest item it may install; an item older than every item of its channel in the new
 // feed went with the channel's -keep newest and is not reported.
 //
+// The Windows app's feed (D-111) is the same format at another URL, read by WinSparkle: add with
+// -os windows-x64 (sparkle:os on the enclosure) and -installer-args (sparkle:installerArguments,
+// how WinSparkle runs the setup), its enclosure a setup (.exe), its release notes a link to the
+// release's page (sparkle:releaseNotesLink: WinSparkle shows HTML, not Sparkle 2's Markdown);
+// verify takes the setup with -file. A feed holds one system's items only.
+//
 // Standard library only: it runs in the release pipeline beside no dependency's code.
 package main
 
@@ -89,6 +95,7 @@ type item struct {
 	MinimumSystemVersion string      `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle minimumSystemVersion"`
 	Channel              string      `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle channel"`
 	FullReleaseNotesLink string      `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle fullReleaseNotesLink"`
+	ReleaseNotesLink     string      `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle releaseNotesLink"`
 	PubDate              string      `xml:"pubDate"`
 	Description          description `xml:"description"`
 	Enclosure            enclosure   `xml:"enclosure"`
@@ -100,11 +107,16 @@ type description struct {
 }
 
 type enclosure struct {
-	URL         string `xml:"url,attr"`
-	Length      int64  `xml:"length,attr"`
-	Type        string `xml:"type,attr"`
-	EdSignature string `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle edSignature,attr"`
+	URL                string `xml:"url,attr"`
+	Length             int64  `xml:"length,attr"`
+	Type               string `xml:"type,attr"`
+	EdSignature        string `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle edSignature,attr"`
+	OS                 string `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle os,attr"`
+	InstallerArguments string `xml:"http://www.andymatuschak.org/xml-namespaces/sparkle installerArguments,attr"`
 }
+
+// windows reports whether the item is the Windows app's (sparkle:os windows, windows-x64, …).
+func (it item) windows() bool { return strings.HasPrefix(it.Enclosure.OS, "windows") }
 
 func main() {
 	if len(os.Args) < 2 {
@@ -136,6 +148,7 @@ func fail(err error) {
 // addOptions are add's flags.
 type addOptions struct {
 	feed, pubkey, out, version, short, min, url, signature, notes, link, published, channel string
+	system, installerArgs                                                                   string
 	length                                                                                  int64
 	keep                                                                                    int
 }
@@ -157,6 +170,8 @@ func runAdd(args []string, stdout io.Writer) error {
 	fs.StringVar(&o.published, "published", "", "when the release was published (RFC 3339)")
 	fs.StringVar(&o.channel, "channel", "", "empty (the default channel, Stable) or beta")
 	fs.IntVar(&o.keep, "keep", 10, "the items each channel keeps")
+	fs.StringVar(&o.system, "os", "", "empty for the macOS app's feed; windows-x64 or windows-arm64 (sparkle:os) for the Windows app's")
+	fs.StringVar(&o.installerArgs, "installer-args", "", "with -os windows-…: how WinSparkle runs the setup (sparkle:installerArguments)")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -217,7 +232,17 @@ func add(o addOptions) ([]byte, error) {
 		MinimumSystemVersion: threePart(o.min), Channel: o.channel,
 		FullReleaseNotesLink: releasesPage(o.link), PubDate: published.UTC().Format(time.RFC1123Z),
 		Description: description{Format: "markdown", Text: notes},
-		Enclosure:   enclosure{URL: o.url, Length: o.length, Type: "application/octet-stream", EdSignature: o.signature},
+		Enclosure: enclosure{URL: o.url, Length: o.length, Type: "application/octet-stream", EdSignature: o.signature,
+			OS: o.system, InstallerArguments: o.installerArgs},
+	}
+	if next.windows() {
+		// WinSparkle shows a description as HTML and knows no Markdown: the release's page instead.
+		next.Description, next.FullReleaseNotesLink, next.ReleaseNotesLink = description{}, "", o.link
+	}
+	for _, it := range history {
+		if it.Enclosure.OS != next.Enclosure.OS {
+			return nil, fmt.Errorf("the feed %s holds items for %q, not %q: one feed for each system", o.feed, it.Enclosure.OS, next.Enclosure.OS)
+		}
 	}
 	items := merge(history, next, o.keep)
 	if err := check(items, o.signature); err != nil {
@@ -336,8 +361,18 @@ func check(items []item, placeholder string) error {
 			return fmt.Errorf("%s: the enclosure has no length", what)
 		}
 		seen[it.Version] = true
-		if u, err := url.Parse(it.Enclosure.URL); err != nil || u.Scheme != "https" || u.Host == "" || !strings.HasSuffix(u.Path, ".dmg") {
-			return fmt.Errorf("%s: the enclosure %q is not an https URL of a disk image", what, it.Enclosure.URL)
+		suffix, kind := ".dmg", "a disk image"
+		switch {
+		case it.windows():
+			suffix, kind = ".exe", "a setup"
+			if it.Enclosure.InstallerArguments == "" || it.ReleaseNotesLink == "" {
+				return fmt.Errorf("%s: a Windows item needs sparkle:installerArguments and sparkle:releaseNotesLink", what)
+			}
+		case it.Enclosure.OS != "":
+			return fmt.Errorf("%s: sparkle:os %q", what, it.Enclosure.OS)
+		}
+		if u, err := url.Parse(it.Enclosure.URL); err != nil || u.Scheme != "https" || u.Host == "" || !strings.HasSuffix(u.Path, suffix) {
+			return fmt.Errorf("%s: the enclosure %q is not an https URL of %s", what, it.Enclosure.URL, kind)
 		}
 		if _, err := time.Parse(time.RFC1123Z, it.PubDate); err != nil {
 			return fmt.Errorf("%s: pubDate %q: %w", what, it.PubDate, err)
@@ -424,9 +459,9 @@ var feedTemplate = template.Must(template.New("feed").Funcs(template.FuncMap{"x"
     <channel>
         <title>Cogpit</title>
         <link>https://github.com/guided-traffic/cogpit</link>
-        <description>Cogpit's releases for the macOS app's updater (Sparkle 2).</description>
+        <description>{{.About}}</description>
         <language>en</language>
-{{- range .}}
+{{- range .Items}}
         <item>
             <title>{{x .Title}}</title>
             <link>{{x .Link}}</link>
@@ -439,11 +474,16 @@ var feedTemplate = template.Must(template.New("feed").Funcs(template.FuncMap{"x"
 {{- if .FullReleaseNotesLink}}
             <sparkle:fullReleaseNotesLink>{{x .FullReleaseNotesLink}}</sparkle:fullReleaseNotesLink>
 {{- end}}
+{{- if .ReleaseNotesLink}}
+            <sparkle:releaseNotesLink>{{x .ReleaseNotesLink}}</sparkle:releaseNotesLink>
+{{- end}}
             <pubDate>{{x .PubDate}}</pubDate>
 {{- if .Description.Text}}
             <description{{if .Description.Format}} sparkle:format="{{x .Description.Format}}"{{end}}>{{cdata .Description.Text}}</description>
 {{- end}}
-            <enclosure url="{{x .Enclosure.URL}}" length="{{.Enclosure.Length}}" type="{{x .Enclosure.Type}}" sparkle:edSignature="{{x .Enclosure.EdSignature}}"/>
+            <enclosure url="{{x .Enclosure.URL}}" length="{{.Enclosure.Length}}" type="{{x .Enclosure.Type}}"
+{{- if .Enclosure.OS}} sparkle:os="{{x .Enclosure.OS}}"{{end}}
+{{- if .Enclosure.InstallerArguments}} sparkle:installerArguments="{{x .Enclosure.InstallerArguments}}"{{end}} sparkle:edSignature="{{x .Enclosure.EdSignature}}"/>
         </item>
 {{- end}}
     </channel>
@@ -452,8 +492,15 @@ var feedTemplate = template.Must(template.New("feed").Funcs(template.FuncMap{"x"
 
 // render writes the feed, items in their order.
 func render(items []item) ([]byte, error) {
+	about := "Cogpit's releases for the macOS app's updater (Sparkle 2)."
+	if len(items) > 0 && items[0].windows() {
+		about = "Cogpit's releases for the Windows app's updater (WinSparkle)."
+	}
 	var buf bytes.Buffer
-	if err := feedTemplate.Execute(&buf, items); err != nil {
+	if err := feedTemplate.Execute(&buf, struct {
+		About string
+		Items []item
+	}{about, items}); err != nil {
 		return nil, err
 	}
 	if _, err := parse(buf.Bytes()); err != nil { // well-formed, or a bug here
@@ -487,6 +534,7 @@ func runVerify(args []string, stdout io.Writer) error {
 	fs.StringVar(&o.feed, "feed", "", "the signed feed")
 	fs.StringVar(&o.pubkey, "pubkey", "", "the app's SUPublicEDKey (base64)")
 	fs.StringVar(&o.dmg, "dmg", "", "the release's disk image, which the item of -version must name")
+	fs.StringVar(&o.dmg, "file", "", "the release's download (the disk image, or the Windows setup), which the item of -version must name")
 	fs.StringVar(&o.version, "version", "", "the release's CFBundleVersion")
 	liveURL := fs.String("live", "", "the feed's URL on Pages: refuse to drop an item it serves")
 	if err := fs.Parse(args); err != nil {
@@ -574,9 +622,9 @@ func verify(o verifyOptions) (items []item, gaps []string, err error) {
 	case path.Base(u.Path) != filepath.Base(o.dmg):
 		return nil, nil, fmt.Errorf("item %s names %s, not %s", it.Version, it.Enclosure.URL, filepath.Base(o.dmg))
 	case it.Enclosure.Length != int64(len(dmg)):
-		return nil, nil, fmt.Errorf("item %s says %d bytes, the disk image has %d", it.Version, it.Enclosure.Length, len(dmg))
+		return nil, nil, fmt.Errorf("item %s says %d bytes, %s has %d", it.Version, it.Enclosure.Length, filepath.Base(o.dmg), len(dmg))
 	case !ed25519.Verify(pub, dmg, sig):
-		return nil, nil, fmt.Errorf("item %s: the disk image's signature does not verify with the app's update key", it.Version)
+		return nil, nil, fmt.Errorf("item %s: the signature of %s does not verify with the app's update key", it.Version, filepath.Base(o.dmg))
 	}
 	return f.Items, gaps, nil
 }
