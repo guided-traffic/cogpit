@@ -90,6 +90,10 @@ func defaultShell(lookPath func(string) (string, error), exists func(string) boo
 	return filepath.Join(root, "System32", "cmd.exe")
 }
 
+// DefaultShell is the shell a local terminal runs when the preference names none, as Preferences ›
+// Terminal shows it.
+func DefaultShell() string { return defaultShell(exec.LookPath, isFile) }
+
 // isFile reports whether path is a regular file; Windows has no executable bit to look at.
 func isFile(path string) bool {
 	fi, err := os.Stat(path)

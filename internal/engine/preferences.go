@@ -89,7 +89,8 @@ type Preferences struct {
 	EditorTabSize     int  `json:"editorTabSize"`
 	// TerminalFontSize is the local terminal's, pod shells' and attached sessions' text size.
 	TerminalFontSize int `json:"terminalFontSize"`
-	// TerminalShell is the local terminal's shell, an absolute path; empty: $SHELL, else /bin/zsh.
+	// TerminalShell is the local terminal's shell, an absolute path; empty: the system's default
+	// (terminal.DefaultShell: $SHELL, else /bin/zsh; on Windows pwsh, else Windows PowerShell).
 	// TerminalShellArgs are its arguments, one per entry. Pod shells are not affected.
 	TerminalShell     string   `json:"terminalShell,omitempty"`
 	TerminalShellArgs []string `json:"terminalShellArgs,omitempty"`
@@ -357,13 +358,21 @@ func checkShellPath(path string) error {
 	case len(path) > maxShellPath || !utf8.ValidString(path) || strings.IndexFunc(path, unicode.IsControl) >= 0:
 		return fmt.Errorf("the shell is one line of at most %d bytes", maxShellPath)
 	case !filepath.IsAbs(path):
-		return fmt.Errorf("the shell %q: give its absolute path, such as /bin/zsh", path)
+		return fmt.Errorf("the shell %q: give its absolute path, such as %s", path, exampleShell(runtime.GOOS))
 	}
 	return nil
 }
 
+// exampleShell is an absolute shell path as goos writes it, for the messages.
+func exampleShell(goos string) string {
+	if goos == goosWindows {
+		return `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
+	}
+	return "/bin/zsh"
+}
+
 // CheckShell says why a shell cannot be the local terminal's: not an absolute path, or no
-// executable file there. Empty means the default, $SHELL.
+// executable file there. Empty means the system's default.
 func CheckShell(path string) error {
 	if err := checkShellPath(path); err != nil || path == "" {
 		return err

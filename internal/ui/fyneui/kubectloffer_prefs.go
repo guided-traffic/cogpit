@@ -63,7 +63,7 @@ func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
 			"The kubectl your terminals run, an absolute path; Cogpit checks it against each cluster as it checks PATH's.",
 			path),
 		p.setting("kubectlEnforce", "Enforce kubectl",
-			"A shell function kubectl (zsh, bash, fish), so that an alias or a folder put first later cannot win.",
+			"A shell function kubectl (zsh, bash, fish; not yet PowerShell or cmd), so that an alias or a folder put first later cannot win.",
 			enforce),
 	}
 }
