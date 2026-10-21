@@ -60,7 +60,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - ⚡ Cache first: views read from a watch-fed cache; switching back to a view costs no API request.
 - 📋 Lens's resource views: workloads, config, network, storage, access control, device resources (with each node's devices in its drawer), custom resources; each searchable by words, with match case or a regular expression, and filtered by the states its rows carry (Running, Pending, Not Ready, Degraded…), several at once, cleared with one click; the namespace filter's list has a search field to find your namespaces by typing, a click on a name shows only that namespace, its box adds it to the others. A namespace you filter by that is deleted, or being deleted, reads red there with "deleted" or "terminating", and the filter's button turns red; untick a deleted one and it leaves the list. A click on the empty area below a list's rows closes the drawer; the rows you checked stay checked.
 - 🔏 The certificates in your Secrets decoded in the drawer, PEM or DER, a section per certificate of a chain: subject, issuer, serial, validity (a warning 30 days before it ends), names, key, usages, fingerprint, each field copyable; whether `tls.key` belongs to `tls.crt` and the chain is in order; agents read the same fields, never the PEM text or the private key.
-- 📜 Logs with follow, filter, timestamps, the previous container, pod and container selectors, older lines and a jump to a time; select their text across lines and copy it (since 2026-10-19: a drag, ⇧-click, a double click, ⌘A, ⌘C, a right-click's Copy All Lines Shown; [details](#selecting-and-copying-a-logs-and-a-notifications-text)).
+- 📜 Logs with follow, filter, timestamps, the previous container, pod and container selectors, older lines and a jump to a time; select their text across lines and copy it (since 2026-10-19: a drag, ⇧-click, a double click, ⌘A, ⌘C, a right-click's Copy All Lines Shown; [details](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)).
 - 🔔 Notifications as toasts at the bottom right, and the session's in the bell's list: a toast stays while the pointer is on it or you select in it; drag over its text and ⌘C copies, its copy icon left of the × copies the whole message, an error included (since 2026-10-19).
 - 💻 Pod shells, attach and a terminal bound to the cluster's context; copy and paste by keys or, if you choose, the right mouse button.
 - 🖥️ A node shell, as Lens opens it: a privileged pod in `kube-system` from an image pinned by digest, confirmed every time, deleted when the shell closes.
@@ -1404,7 +1404,7 @@ table's newest (accurate to weeks; checked against every minor since 1.19).
 The gear before the root's dot opens the cluster's Settings, as ⌘⇧, does
 ([D-92](decisions.md#d-92-a-gear-in-the-navigators-cluster-row)).
 
-### Selecting and copying a log's and a notification's text
+### Selecting and copying a log's, a notification's and the agent's text
 
 Since 2026-10-19 (the owner's WF36 and WF41,
 [D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)). In a **logs tab**:
@@ -1431,6 +1431,12 @@ pointer is on it, its × or its icon, and while its text is selected; its full t
 neither holds. In the **bell's list** a notification's text selects the same way, and its copy icon
 shows after its time while the pointer is on it. Selecting is the window's alone: agents read a
 logs tab's lines with `dock.read` and the notifications with `notifications.list`.
+
+In the **agent's column** (since 2026-10-21) every block of a message selects on its own: a
+paragraph, a heading, a list item, a table cell, a code block, a note, an opened tool row's
+arguments and result. Drag over it or double-click a word, and ⌘C copies the text as written (a
+wrapped line as one, inline code without its chip); Escape drops the selection. A drag stays in its
+block; the copy icon under an answer copies all of it as Markdown. Links still open with a click.
 
 ### Commands and MCP tools
 

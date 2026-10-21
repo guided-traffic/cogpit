@@ -22,7 +22,7 @@ var _ fyne.DoubleTappable = (*resourceTable)(nil)
 // not cover the separators, so only double clicks there and in the gaps between body cells reach
 // the table; the latter do nothing.
 func (t *resourceTable) DoubleTapped(ev *fyne.PointEvent) {
-	if col := t.tv.separatorAt(ev.Position); col >= 0 {
+	if col := t.tv.separatorAt(ev.Position); col >= 0 && !t.tv.fixedAt(col) {
 		t.tv.fitToContent(col)
 	}
 }

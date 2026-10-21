@@ -182,7 +182,7 @@ func newChatUserView(c *chatPanel, idx int) *chatUserView {
 	v.card = newSurface(colorDrawerHeader)
 	v.card.radius, v.card.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
 	v.chip = newChatChip(iconTarget, nil)
-	v.text = newMDText(theme.ColorNameForeground, c.openLink)
+	v.text = newMDText(theme.ColorNameForeground, c.mdHooks())
 	v.sent = newChatSentLine(func() { c.showPayload(v.idx) })
 	v.editB = newChatIconTap(c.sh, theme.DocumentCreateIcon(), editTip, func() { v.startEdit() })
 	v.editB.reason = c.editReason()
@@ -499,7 +499,7 @@ func thinkingText(n int, d time.Duration) string {
 
 func newChatAnswerView(c *chatPanel) *chatAnswerView {
 	v := &chatAnswerView{c: c}
-	v.text = newMDText(theme.ColorNameForeground, c.openLink)
+	v.text = newMDText(theme.ColorNameForeground, c.mdHooks())
 	v.thinking = newTextLine("Thinking…", colorMuted, theme.SizeNameText, fyne.TextStyle{Italic: true})
 	v.thinking.Hide()
 	v.copyB = newTipButton(c.sh, themedIcon(theme.ContentCopyIcon(), colorMuted), "Copy the answer as Markdown", func() {
@@ -669,16 +669,21 @@ func (v *chatToolView) build() {
 	}
 	t := v.item.Tool
 	var objs []fyne.CanvasObject
+	code := func(text string) *mdCode { // selectable, as the messages' text (chat_select.go)
+		c := newMDCode(text)
+		c.selectable(v.c.copySelection)
+		return c
+	}
 	if args := strings.TrimSpace(t.Args); args != "" && args != "{}" {
-		objs = append(objs, heading("Arguments"), newMDCode(prettyJSON(t.Args)))
+		objs = append(objs, heading("Arguments"), code(prettyJSON(t.Args)))
 	}
 	switch {
 	case t.Error != "":
-		objs = append(objs, heading("Error"), newMDCode(t.Error))
+		objs = append(objs, heading("Error"), code(t.Error))
 		objs[len(objs)-1].(*mdCode).color = colorStatusError
 		objs[len(objs)-1].(*mdCode).words = true
 	case t.Result != "":
-		objs = append(objs, heading("Result, as the model saw it"), newMDCode(prettyJSON(t.Result)))
+		objs = append(objs, heading("Result, as the model saw it"), code(prettyJSON(t.Result)))
 	case t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting:
 		objs = append(objs, newTextLine("No result yet.", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Italic: true}))
 	}
@@ -770,9 +775,10 @@ type chatNoteView struct {
 	color fyne.ThemeColorName
 }
 
-func newChatNoteView() *chatNoteView {
+func newChatNoteView(c *chatPanel) *chatNoteView {
 	v := &chatNoteView{bg: canvas.NewRectangle(color.Transparent), bar: canvas.NewRectangle(color.Transparent), icon: widget.NewIcon(nil)}
 	v.text = newMDFlow(nil, colorMuted, nil)
+	v.text.selectable(c.copySelection)
 	v.ExtendBaseWidget(v)
 	return v
 }
@@ -855,7 +861,7 @@ func newChatView(c *chatPanel, kind engine.ChatItemKind, idx int) chatView {
 	case engine.ChatItemTool:
 		return newChatToolView(c)
 	case engine.ChatItemNote:
-		return newChatNoteView()
+		return newChatNoteView(c)
 	}
 	return newChatAnswerView(c)
 }

@@ -150,7 +150,8 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  # Every package without the race detector, with coverage: what a change breaks, fast.
+  # Every package without the race detector, with coverage: what a change breaks, fast. The UI's
+  # package runs in four processes one after the other (the Makefile's UNIT_UI_SHARDS says why).
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -171,7 +172,7 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: profile-unit
-          path: .cache/coverage/unit.out
+          path: .cache/coverage/unit*.out
           include-hidden-files: true
           retention-days: 7
 
