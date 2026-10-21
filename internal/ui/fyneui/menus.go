@@ -25,7 +25,8 @@ import (
 //     it did not add). Cogpit adds none, which would be a second Window menu.
 //   - Window on Windows and Linux: Close Window and Toggle Full Screen (Cogpit's). Minimize is
 //     missing: Fyne 2.8.1's window has no minimise call and keeps GLFW's window private.
-//   - Quit stays the platform's (GLFW's ⌘Q on macOS; Fyne adds Quit to the first menu elsewhere).
+//   - Quit stays the platform's on macOS (GLFW's ⌘Q); elsewhere Cogpit adds it to the first menu,
+//     as Fyne's own menu bar did (menubar.go, since the menus moved into the top bar).
 
 // goosMac is runtime.GOOS on macOS.
 const goosMac = "darwin"

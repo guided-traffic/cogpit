@@ -60,7 +60,7 @@ func TestTitlebarLayout(t *testing.T) {
 // window buttons' room and the bar grows to a taller title bar; full screen gives the room back.
 func TestTopBarMakesRoomForWindowButtons(t *testing.T) {
 	f := connectedFake(t, 1)
-	sh, w, q := newTestShell(t, f, Options{})
+	sh, w, q := newTestShell(t, f, Options{menus: menusNative}) // macOS's bar: its menus are the system's
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
 	logoX := func() float32 {
 		settle(w)

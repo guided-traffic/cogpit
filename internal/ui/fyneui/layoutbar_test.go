@@ -341,7 +341,9 @@ func TestUpdateButtonAtTheNarrowestWindow(t *testing.T) {
 	s := chatEngine(t)
 	n := &uiNotifier{}
 	s.SetUpdater(n)
-	sh, w, q := newEngineShell(t, s, Options{})
+	// macOS's bar: the menus are the system's. With the menus in the bar (Windows and Linux) the bar is
+	// the window's widest row, as below.
+	sh, w, q := newEngineShell(t, s, Options{menus: menusNative})
 	n.set(true, "0.16.0")
 	q.until(t, "the Update button", func() bool { return sh.top.layout.update.Visible() })
 	settle(w)
