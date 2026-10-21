@@ -33,6 +33,11 @@ import (
 // With LocalOptions.EnforceKubectl (A27, Preferences › Kubernetes) each of the three also defines
 // a function named kubectl that runs <dir>/bin/kubectl, after removing an alias of that name, so
 // that a folder the user puts first later, or an alias, does not win over Cogpit's choice.
+//
+// On Windows (localpty_windows.go, kubectlOnPath) a symbolic link needs a privilege: a kubectl
+// named kubectl.exe has its own folder put first on PATH instead, and only one by another name
+// gets the directory above, with a hard link or a copy named kubectl.exe. PowerShell and cmd keep
+// the environment's order, and EnforceKubectl has no effect there.
 
 // zshenv is the .zshenv of a zsh terminal whose kubectl Cogpit chose.
 const zshenv = `# Written by Cogpit for one terminal and removed when it closes. zsh reads it in place of your
@@ -129,7 +134,7 @@ func kubectlFirst(kubectl, shellPath string, env []string, enforce bool) (dir st
 	if err := os.Mkdir(bin, 0o700); err != nil {
 		return fail(err)
 	}
-	if err := os.Symlink(kubectl, filepath.Join(bin, binaryName())); err != nil {
+	if err := linkKubectl(kubectl, filepath.Join(bin, binaryName())); err != nil {
 		return fail(err)
 	}
 	path, _ := lastEnv(env, "PATH")
@@ -180,10 +185,11 @@ func binaryName() string {
 	return "kubectl"
 }
 
-// lastEnv returns the last value of key in env, as os/exec passes a duplicated key.
+// lastEnv returns the last value of key in env, as os/exec passes a duplicated key; on Windows,
+// whose names ignore case (its PATH is usually Path), in any case.
 func lastEnv(env []string, key string) (string, bool) {
 	for i := len(env) - 1; i >= 0; i-- {
-		if k, v, ok := strings.Cut(env[i], "="); ok && k == key {
+		if k, v, ok := strings.Cut(env[i], "="); ok && (k == key || (os.PathSeparator == '\\' && strings.EqualFold(k, key))) {
 			return v, true
 		}
 	}

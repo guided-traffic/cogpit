@@ -58,6 +58,11 @@ func defaultShell(exists func(string) bool) string {
 	return "/bin/sh"
 }
 
+// linkKubectl puts kubectl at link for kubectlFirst: a symbolic link.
+func linkKubectl(kubectl, link string) error {
+	return os.Symlink(kubectl, link)
+}
+
 // isExecutable reports whether path is a regular file someone may execute.
 func isExecutable(path string) bool {
 	fi, err := os.Stat(path)

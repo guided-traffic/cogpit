@@ -36,7 +36,9 @@ type Session interface {
 
 // LocalOptions configure a local shell.
 type LocalOptions struct {
-	// Shell is the shell to run; empty means $SHELL, else /bin/zsh. It runs as a login shell.
+	// Shell is the shell to run; empty means $SHELL, else the first of /bin/zsh, /bin/bash and
+	// /bin/sh. It runs as a login shell. On Windows, empty means pwsh.exe on PATH, else Windows
+	// PowerShell, else %ComSpec% (localpty_windows.go).
 	Shell string
 	// Args are the shell's arguments after its name (the Preferences' shell arguments); none
 	// by default.
@@ -54,16 +56,20 @@ type LocalOptions struct {
 	// Env is added to the environment. It cannot override KUBECONFIG.
 	Env []string
 	// Kubectl is the kubectl the shell should find first, an absolute path: a link named kubectl
-	// in the session's own directory, which leads PATH (kubectl.go). Empty: PATH as it is.
+	// in the session's own directory, which leads PATH (kubectl.go); on Windows the folder of a
+	// kubectl.exe leads PATH itself. Empty: PATH as it is.
 	Kubectl string
 	// EnforceKubectl also defines a shell function kubectl (zsh, bash, fish) that runs Kubectl,
-	// so that a folder put first later or an alias does not win (A27, kubectl.go).
+	// so that a folder put first later or an alias does not win (A27, kubectl.go). PowerShell and
+	// cmd get none.
 	EnforceKubectl bool
 }
 
 // StartLocal starts a local shell on a new PTY with KUBECONFIG=<own file>:<the user's files>,
 // where the own file holds only the context and namespace (docs/security/credentials.md). The
-// file is owner-only and removed when the session closes or the shell exits.
+// file is owner-only and removed when the session closes or the shell exits. On Windows the
+// shell runs on a pseudo console (ConPTY) and in a job that ends with the session, and the list
+// separator is ";" (localpty_windows.go).
 //
 // Resolving the context reads the kubeconfig files but runs no credential plugin and writes
 // nothing to them.

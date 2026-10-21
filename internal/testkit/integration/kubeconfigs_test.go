@@ -15,7 +15,6 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
-	"github.com/guided-traffic/cogpit/internal/terminal"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
@@ -116,14 +115,10 @@ func TestAddedKubeconfigConnects(t *testing.T) {
 		t.Fatal(err)
 	}
 	term, err := s.OpenTerminal(context.Background(), tab.Tab.ID)
-	switch {
-	case runtime.GOOS == "windows" && errors.Is(err, terminal.ErrNotImplemented):
-		// No local terminal on Windows yet (ConPTY): the binding is not tried there.
-	case err != nil:
+	if err != nil {
 		t.Fatalf("a terminal for a source context: %v", err)
-	default:
-		_ = term.Close()
 	}
+	_ = term.Close()
 
 	var sources commands.SourcesResult
 	if err := sourcesDispatch(t, s, engine.OriginExternalAgent, "kubeconfig.sources", nil, &sources); err != nil {
