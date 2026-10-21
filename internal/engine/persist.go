@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -406,7 +405,7 @@ func (w *Workspace) write(data []byte, unreadable bool) error {
 		return nil
 	}
 	if unreadable {
-		if err := os.Rename(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err := renameFile(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("keeping the unreadable file aside: %w", err)
 		}
 	}

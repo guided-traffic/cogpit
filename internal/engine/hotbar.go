@@ -311,7 +311,7 @@ func (h *Hotbar) save(st HotbarState) error {
 		return nil
 	}
 	if h.unreadable {
-		if err := os.Rename(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err := renameFile(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("hotbar: keeping the unreadable file aside: %w", err)
 		}
 		h.unreadable = false

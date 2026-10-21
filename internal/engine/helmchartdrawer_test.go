@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -138,11 +139,15 @@ func TestReadmeStoreBounds(t *testing.T) {
 	if err := os.WriteFile(target, []byte(`{"file":"README.md","text":"x","size":1}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.Symlink(target, path); err != nil {
+	switch err := os.Symlink(target, path); {
+	case err != nil && runtime.GOOS == "windows":
+		t.Log("no symlink:", err) // Windows makes them only in Developer Mode or as an administrator
+	case err != nil:
 		t.Fatal(err)
-	}
-	if _, ok := readReadmeFile(path); ok {
-		t.Error("a symlink was followed")
+	default:
+		if _, ok := readReadmeFile(path); ok {
+			t.Error("a symlink was followed")
+		}
 	}
 
 	prune := t.TempDir()

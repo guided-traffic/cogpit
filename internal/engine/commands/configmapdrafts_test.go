@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -38,14 +39,13 @@ func draftFiles(t *testing.T, dir string) []engine.Draft {
 	var out []engine.Draft
 	for _, e := range entries {
 		path := filepath.Join(dir, engine.DraftsDir, e.Name())
-		info, err := os.Stat(path)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if info.Mode().Perm() != 0o600 {
-			t.Errorf("the draft file %s is %v, want 0600", e.Name(), info.Mode().Perm())
-		}
+		assertMode(t, path, 0o600)
 		raw, err := os.ReadFile(path)
+		// On Windows an open fails while the drafts replace the file: tried again.
+		for try := 0; err != nil && runtime.GOOS == "windows" && try < 100; try++ {
+			time.Sleep(time.Millisecond)
+			raw, err = os.ReadFile(path)
+		}
 		if err != nil {
 			t.Fatal(err)
 		}

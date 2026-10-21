@@ -85,7 +85,13 @@ func draftFiles(t *testing.T, dir string) []Draft {
 		if !strings.HasSuffix(e.Name(), draftSuffix) {
 			continue
 		}
-		data, err := os.ReadFile(filepath.Join(dir, DraftsDir, e.Name()))
+		path := filepath.Join(dir, DraftsDir, e.Name())
+		data, err := os.ReadFile(path)
+		// On Windows an open fails while the drafts replace or remove the file: tried again.
+		for try := 0; err != nil && heldOpenElsewhere(err) && try < 100; try++ {
+			time.Sleep(time.Millisecond)
+			data, err = os.ReadFile(path)
+		}
 		if errors.Is(err, os.ErrNotExist) { // removed since the listing
 			continue
 		}

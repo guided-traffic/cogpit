@@ -117,12 +117,8 @@ func TestHelmChartDrawerVersion(t *testing.T) {
 	if len(kept) != 1 {
 		t.Fatalf("kept READMEs %v", kept)
 	}
-	if fi, err := os.Stat(kept[0]); err != nil || fi.Mode().Perm() != 0o600 {
-		t.Errorf("the kept README: %v %v", fi, err)
-	}
-	if fi, err := os.Stat(filepath.Dir(kept[0])); err != nil || fi.Mode().Perm() != 0o700 {
-		t.Errorf("the README folder: %v %v", fi, err)
-	}
+	assertMode(t, kept[0], 0o600)
+	assertMode(t, filepath.Dir(kept[0]), 0o700)
 
 	var u engine.UIState
 	res, err := h.dispatch(engine.OriginExternalAgent, "ui.setChartVersion", map[string]any{"ref": docsRef, "version": "0.9.0"})

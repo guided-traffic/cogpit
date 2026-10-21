@@ -13,3 +13,7 @@ func tryLockFile(*os.File) error { return nil }
 func lockFile(*os.File) error { return nil }
 
 func unlockFile(*os.File) error { return nil }
+
+func createOwnerFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+}

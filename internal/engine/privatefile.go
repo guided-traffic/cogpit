@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -80,12 +81,34 @@ func writePrivateFile(path string, data []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Rename(tmp.Name(), path); err != nil {
+	if err := renameFile(tmp.Name(), path); err != nil {
 		return err
 	}
 	done = true
 	syncDir(dir)
 	return nil
+}
+
+// heldRetry bounds how long retryHeld runs a rename or a removal again on Windows.
+const heldRetry = time.Second
+
+// retryHeld runs op, a rename or a removal. On Windows those fail while another process has the
+// file open without sharing its deletion (another Cogpit reading it, an editor, a virus scanner),
+// which macOS and Linux allow. Such a hold lasts moments, so there op runs again for up to
+// heldRetry, as in Go's own cmd/go (robustio), rather than the change being lost.
+func retryHeld(op func() error) error {
+	err := op()
+	deadline := time.Now().Add(heldRetry)
+	for wait := time.Millisecond; err != nil && heldOpenElsewhere(err) && time.Now().Before(deadline); wait = min(2*wait, 100*time.Millisecond) {
+		time.Sleep(wait)
+		err = op()
+	}
+	return err
+}
+
+// renameFile is os.Rename, run again on Windows while a file is held open elsewhere (retryHeld).
+func renameFile(from, to string) error {
+	return retryHeld(func() error { return os.Rename(from, to) })
 }
 
 // readPrivateJSON decodes the JSON file at path into v. A missing file leaves v alone and is not

@@ -56,13 +56,8 @@ func TestFileDrainJournalRoundTrip(t *testing.T) {
 		t.Errorf("after remove: %+v", got)
 	}
 
-	info, err := os.Stat(j.Path())
-	if err != nil || info.Mode().Perm() != 0o600 {
-		t.Errorf("journal mode %v, %v; want 0600", info.Mode(), err)
-	}
-	if info, err := os.Stat(dir); err != nil || info.Mode().Perm() != 0o700 {
-		t.Errorf("directory mode %v, %v; want 0700", info.Mode(), err)
-	}
+	checkMode(t, j.Path(), 0o600)
+	checkMode(t, dir, 0o700)
 	entries, _ := os.ReadDir(dir)
 	var names []string
 	for _, e := range entries {
@@ -71,9 +66,7 @@ func TestFileDrainJournalRoundTrip(t *testing.T) {
 	if strings.Join(names, " ") != "drains.json journals.lock owners" { // the lock and owners: H-22
 		t.Errorf("temporary files left behind: %v", names)
 	}
-	if info, err := os.Stat(filepath.Join(dir, journalLockFile)); err != nil || info.Mode().Perm() != 0o600 {
-		t.Errorf("lock file mode %v, %v; want 0600", info.Mode(), err)
-	}
+	checkMode(t, filepath.Join(dir, journalLockFile), 0o600)
 	raw, _ := os.ReadFile(j.Path())
 	var doc map[string]any
 	if err := json.Unmarshal(raw, &doc); err != nil || doc["version"] != float64(1) {
@@ -90,9 +83,7 @@ func TestFileDrainJournalTightensAWiderMode(t *testing.T) {
 	if err := j.Put(drainEntry("c", "n")); err != nil {
 		t.Fatal(err)
 	}
-	if info, _ := os.Stat(j.Path()); info.Mode().Perm() != 0o600 {
-		t.Errorf("mode %v after a write", info.Mode())
-	}
+	checkMode(t, j.Path(), 0o600)
 }
 
 // TestFileDrainJournalReportsCorruption: a journal that cannot be read is an error naming the

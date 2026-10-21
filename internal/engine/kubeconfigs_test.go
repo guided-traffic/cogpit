@@ -134,7 +134,7 @@ func sameTree(t *testing.T, before, after map[string]fileState) {
 func checkMode(t *testing.T, path string, want fs.FileMode) {
 	t.Helper()
 	if runtime.GOOS == "windows" {
-		return
+		return // no modes there: the profile's inherited ACLs protect Cogpit's files (privatefile.go)
 	}
 	fi, err := os.Lstat(path)
 	if err != nil {

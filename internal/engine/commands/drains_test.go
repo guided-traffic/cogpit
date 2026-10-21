@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -149,6 +150,9 @@ func TestCrashMidDrainIsOfferedOnTheNextStart(t *testing.T) {
 
 func assertMode(t *testing.T, path string, want os.FileMode) {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		return // no modes there: the profile's inherited ACLs protect Cogpit's files (engine/privatefile.go)
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		t.Fatal(err)

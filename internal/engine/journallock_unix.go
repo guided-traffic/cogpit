@@ -30,6 +30,11 @@ func lockFile(f *os.File) error { return flock(f, syscall.LOCK_EX) }
 // unlockFile releases f's lock.
 func unlockFile(f *os.File) error { return flock(f, syscall.LOCK_UN) }
 
+// createOwnerFile creates an owner file, owner-only; it fails when the file exists.
+func createOwnerFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+}
+
 func flock(f *os.File, how int) error {
 	rc, err := f.SyscallConn()
 	if err != nil {

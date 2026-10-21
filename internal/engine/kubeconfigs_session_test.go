@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -320,10 +321,11 @@ func TestEarlierSourcesFileIsReadAsItIs(t *testing.T) {
 	folder := filepath.Join(su.dir, "team")
 	writeUserFile(t, filepath.Join(folder, "t.yaml"), sourceKubeconfig("team"))
 	su.treeBefore = treeState(t, su.treeBeforeDir)
+	quote := func(path string) string { q, _ := json.Marshal(path); return string(q) } // a Windows path's backslashes escaped
 	doc := `{"version":1,"defaultFolderRemoved":true,"sources":[` +
-		`{"id":"a.yaml","kind":"file","path":"` + su.a + `","added":"2026-10-01T00:00:00Z"},` +
-		`{"id":"team/","kind":"folder","path":"` + folder + `","added":"2026-10-01T00:00:00Z"},` +
-		`{"id":"pasted-1","kind":"pasted","path":"` + filepath.Join(su.cfg, "kubeconfigs", "p.yaml") + `","added":"2026-10-01T00:00:00Z"}]}`
+		`{"id":"a.yaml","kind":"file","path":` + quote(su.a) + `,"added":"2026-10-01T00:00:00Z"},` +
+		`{"id":"team/","kind":"folder","path":` + quote(folder) + `,"added":"2026-10-01T00:00:00Z"},` +
+		`{"id":"pasted-1","kind":"pasted","path":` + quote(filepath.Join(su.cfg, "kubeconfigs", "p.yaml")) + `,"added":"2026-10-01T00:00:00Z"}]}`
 	writeUserFile(t, filepath.Join(su.cfg, KubeconfigSourcesFile), doc)
 	if err := os.Chmod(filepath.Join(su.cfg, KubeconfigSourcesFile), 0o600); err != nil {
 		t.Fatal(err)

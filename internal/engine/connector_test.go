@@ -37,12 +37,18 @@ func TestReleaseBuildsLeaveTheDemoOut(t *testing.T) {
 	}
 	for _, want := range []string{
 		"$(MAKE) app GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'",   // dist-app
-		"$(MAKE) build GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'", // dist-linux
-		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit ./cmd/cogpit",
-		"$(GO) build -tags '$(BUILD_TAGS)' -ldflags '$(GO_LDFLAGS)' -o $(BIN)/cogpit-cli ./cmd/cogpit-cli",
+		"$(MAKE) build GO_LDFLAGS='$(DIST_LDFLAGS)' GO_TAGS='$(DIST_TAGS)'", // dist-linux, dist-windows
 	} {
 		if !strings.Contains(string(mk), want) {
 			t.Errorf("the Makefile lacks %q", want)
+		}
+	}
+	// make build: the app's own linker flags may follow GO_LDFLAGS, and $(EXE) is .exe on Windows.
+	for _, bin := range []string{"cogpit", "cogpit-cli"} {
+		re := `(?m)\$\(GO\) build -tags '\$\(BUILD_TAGS\)' -ldflags '[^']*\$\(GO_LDFLAGS\)[^']*' -o \$\(BIN\)/` + bin +
+			`(\$\(EXE\))? \./cmd/` + bin + `$`
+		if !regexp.MustCompile(re).Match(mk) {
+			t.Errorf("the Makefile does not build %s with BUILD_TAGS and GO_LDFLAGS", bin)
 		}
 	}
 }

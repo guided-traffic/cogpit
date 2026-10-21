@@ -7,7 +7,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -80,9 +79,7 @@ func TestChartIcons(t *testing.T) {
 	if len(kept) != 1 {
 		t.Fatalf("kept icons %v", kept)
 	}
-	if fi, err := os.Stat(kept[0]); err != nil || fi.Mode().Perm() != 0o600 {
-		t.Errorf("the kept icon: %v %v", fi, err)
-	}
+	assertMode(t, kept[0], 0o600)
 
 	again := engine.NewHelmRepos(h.helmFile.Path, h.cacheDir, engine.WithChartFetcher(&helm.Fetcher{Client: h.repo.Client()}))
 	other := newChartHarnessOn(t, again)

@@ -109,7 +109,11 @@ func TestClusterSettingsCheckAndNormalize(t *testing.T) {
 	if _, err := s.ChangeClusterSettings("", func(*ClusterSettings) error { return nil }); err == nil {
 		t.Error("an empty context accepted")
 	}
-	for _, dir := range []string{"", "$HOME", "~", "~/src", "$HOME/src", "/opt/work"} {
+	abs := "/opt/work"
+	if runtime.GOOS == "windows" {
+		abs = `C:\work` // /opt/work has no drive there: not absolute
+	}
+	for _, dir := range []string{"", "$HOME", "~", "~/src", "$HOME/src", abs} {
 		if err := checkTerminalDir(dir); err != nil {
 			t.Errorf("%q: %v", dir, err)
 		}
