@@ -232,11 +232,18 @@ GO_TAGS=nodemo` builds the same variant from source (owner, 2026-10-16,
 `web` and `api`, a crash-looping pod, a completed job, a `toolbox` pod with a shell, and the Service
 `web` with the ClusterIP `10.96.100.100`. Nothing writes `~/.kube/config`; `make run` lists your `~/.kube` contexts too (Kubeconfig Sources removes the folder from the list, never from disk).
 
-**Drive it with an agent.** The gear beside the MCP item at the right end of the status bar opens
-the MCP details: the server's switch, its endpoint, its token (masked until you click Show), the
-registration commands with a copy button each, and Regenerate token
-([D-53](decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it)).
-Help › Copy MCP command copies the command and opens them too, and Cogpit prints it at start. The
+**Drive it with an agent.** Cogpit's external MCP server, the endpoint other programs on this
+computer use, is **opt-in: off until you switch it on**, on a new installation too (the owner's
+decision of 2026-10-21, [D-49](decisions.md#d-49-the-external-mcp-servers-switch-honoured-by-cogpit-cli-mcp)).
+Click the MCP item at the right end of the status bar, muted while the server is off, to switch it
+on; an installation where you already switched it on keeps it on, and one where you never touched
+the item has it off since that change. The gear beside the item opens the MCP details: the
+server's switch, its endpoint, its token (masked until you click Show), the registration commands
+with a copy button each, and Regenerate token
+([D-53](decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it)); the
+endpoint, the token and the commands appear once the server runs.
+Help › Copy MCP command copies the command and opens them too (it is disabled while the server is
+off), and Cogpit prints it to the terminal that started it whenever the server starts. The
 installed app offers the registration of the `cogpit-cli` inside it, which you run once
 ([D-2](decisions.md#d-2-agent-interface-scope)):
 
@@ -297,7 +304,7 @@ rm -rf ~/.cache/Cogpit ~/.config/Cogpit                                 # the sa
 | `--demo-pods <n>` | `10000` # default | pods in the demo cluster; development builds only |
 | `--demo-events <n>` | `1000` # default | watch events per second in the demo cluster; development builds only |
 | `--mcp-addr <addr>` | `127.0.0.1:0` # default | MCP listen address; anything but a loopback address is refused. Port 0 binds the port Cogpit kept in `mcp-port` (a free one the first time, or when the kept one is taken, which it then keeps); a port given here binds that port for this run and is not kept |
-| `--no-mcp` | `false` # default | do not start the external MCP server; without it, click the MCP item in the status bar to switch the server off and on (the choice is remembered; `--no-mcp` wins over it), or its gear for the MCP details |
+| `--no-mcp` | `false` # default | leave the external MCP server and its status bar item out of this run; without it, the server is off until you switch it on by clicking the MCP item in the status bar (opt-in, D-49; the choice is remembered, and `--no-mcp` wins over it), or its gear for the MCP details |
 | `--perf <duration>` | `0` # default | measure main-loop latency while auto-scrolling the table, print it as JSON and quit |
 | `--perf-mode <mode>` | empty # default | with `--perf`: `scroll`; or `gate`, alone too: start-up, scrolling, every view and typing into 5 MB of YAML in one run (the [spike](spike-fyne.md)'s measurements) |
 | `--cpuprofile <file>` | empty # default | write a CPU profile of the first `--cpuprofile-for` to this file |
@@ -340,7 +347,7 @@ codes: `0` done, `1` the command failed, `2` the command line is wrong. `cogpit-
 |---|---|---|
 | `cogpit-cli contexts` | `--kubeconfig <files>` (empty: the files `$KUBECONFIG` lists # default), `-o table` # default (`json`, `yaml`), `-v` (`false` # default) | lists every context as `<context> [<file>]`, with its namespace, server and whether its login (a credential plugin, or a token file outside its folder) is `approved`, `required` or `changed`, and `not checked` under CERTIFICATE for a context whose cluster sets `insecure-skip-tls-verify` (Cogpit's default), followed for a source's context by whether you allowed connecting to it so (`not checked, required` # example; `approved`, `required` or `changed`, A28); since 2026-10-17 the last column, CLIENT CERT, says how long the client certificate the context's user logs in with is valid (`expires in 23 days`, `expired 3 days ago` # example; empty without one, [D-75](decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists)); `json` and `yaml` are the `cluster_contexts` tool's result (`insecure: true`; `clientCert` with `notBefore`, `notAfter` and `state`); reads the kubeconfig files and those certificates only, never a key |
 | `cogpit-cli get <kind> [name]` | `--context <context>` (required; an id as `contexts` lists it, `demo` in a development build too, or a context name only one file defines), `-n`/`--namespace <ns,...>` (empty: every namespace, for a named object the context's namespace # default), `-o table` # default (`json`, `yaml`), `--filter <text>` (empty # default), `--timeout 1m` # default, `--kubeconfig <files>`, `-v` | connects through a headless engine, waits for the cache's first list of the kind and prints it as Cogpit's view does (its columns, those empty in every row left out), then exits; `json` and `yaml` print the `resources_list` result for a list (at most 1,000 rows; stderr says when there are more) and the object's manifest for a named object (managed fields dropped, Secret values redacted). `<kind>` is a kind key (`pods`, `certificates.cert-manager.io`), or a Kubernetes kind or view title that names one kind (`Pod`). Connected to a context that skips the certificate check (`insecure-skip-tls-verify`, allowed once in Cogpit's window), it writes one line to stderr, `cogpit-cli: warning: TLS not checked for <context>. Certificate checks are off for this context …` (A29), and stdout stays the result |
-| `cogpit-cli mcp` | `--headless` (`false` # default), `--kubeconfig <files>` (the headless engine only), `-v` | serves Cogpit's MCP tools over stdin and stdout for agents that speak only stdio: with Cogpit running, every call is forwarded to it (its confirmations and audit log apply; a restart of Cogpit, a new port and a regenerated token are followed); without it, or with `--headless`, an engine of its own serves them, and what needs your confirmation is refused. stdout carries the protocol only; logs go to stderr |
+| `cogpit-cli mcp` | `--headless` (`false` # default), `--kubeconfig <files>` (the headless engine only), `-v` | serves Cogpit's MCP tools over stdin and stdout for agents that speak only stdio: with Cogpit running, every call is forwarded to it (its confirmations and audit log apply; a restart of Cogpit, a new port and a regenerated token are followed); without it, or with `--headless`, an engine of its own serves them, and what needs your confirmation is refused. The external MCP server is opt-in (D-49): until you switched it on in Cogpit's window, and while you have it switched off, the bridge serves only a note that the server is off, `--headless` included. stdout carries the protocol only; logs go to stderr |
 | `cogpit-cli version` | – | prints the version, the Go version and the platform (`--version` too): a release's `cogpit-cli 0.7.0 (go1.27.2, darwin/arm64)` # example, a development build's `dev` and its commit, `cogpit-cli dev 0691fb3277bb-dirty (…)` # example ([which build reports what](releasing.md#the-version-a-build-reports)) |
 
 ```sh
@@ -353,9 +360,17 @@ cogpit-cli get services --context demo                      # the synthetic demo
 Security note on `mcp`: the bridge sends the token from Cogpit's token file only to the loopback
 URL in `mcp-endpoint`, reads both again before every call and sends nothing while there is no
 endpoint file, follows no redirect and uses no proxy. Switching the MCP server off in the
-status bar stops a bridge that forwards to the app, and a bridge started while it is off serves
-no engine, headless included: the agent is told the server is off (`mcp-switch`, D-49). A run
-with `--no-mcp` leaves the switch as it is ([H-28](../security/agents-and-mcp.md#h-28-the-status-bars-switch-does-not-reach-a-headless-bridge)).
+status bar stops a bridge that forwards to the app, and a bridge started while it is off, or
+before it was ever switched on (it is opt-in), serves no engine, headless included: the agent is
+told the server is off (`mcp-switch`, D-49). A computer where the configuration directory is
+unknown counts as off too. A run with `--no-mcp` leaves the switch as it is
+([H-28](../security/agents-and-mcp.md#h-28-the-status-bars-switch-does-not-reach-a-headless-bridge)).
+Without a window, the only way to switch the server on is by hand, since a command for it would be
+one an agent could run (not built, the owner's call):
+
+```sh
+mkdir -p -m 700 ~/.config/Cogpit && printf 'on\n' > ~/.config/Cogpit/mcp-switch   # example on Linux; macOS: "~/Library/Application Support/Cogpit/mcp-switch"
+```
 
 Security note on `get`: it only reads (`resources_list` and `object_get` through the cache, origin
 CLI), prints a Secret's key names and sizes but never a value, and refuses a context whose
@@ -451,7 +466,7 @@ the row shows what macOS reports, read when the section opens.
 | `notFound` | macOS finds no login item for this Cogpit: it needs the signed `Cogpit.app` in Applications; a `bin/cogpit` or `go run` build reports this without asking macOS |
 
 Security note: with it on, Cogpit runs after every login without being opened, its MCP endpoint
-included unless you switched that off; so only you, in Cogpit's window, can turn it on, and agents
+included if you switched that on (it is off until you do); so only you, in Cogpit's window, can turn it on, and agents
 may only turn it off. Not offered on Windows and Linux yet. What macOS does with the releases' app,
 signed with the Developer ID since v0.6.0, is not verified: no signed app installed in Applications
 has been tried ([D-48](decisions.md#d-48-start-at-login)).
@@ -1288,7 +1303,7 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | MCP bearer token | `<user config dir>/Cogpit/mcp-token`, owner-only (0600, directory 0700), kept across starts and the switch until you click Regenerate token in the MCP details (D-53); a file that holds no token Cogpit wrote, or that other users may read, is replaced at the next start | |
 | MCP port file | `<user config dir>/Cogpit/mcp-port`, beside the token and with its rules: the port the next start binds (not with `--mcp-addr` and a port) | `59449` # example |
 | MCP endpoint file | `<user config dir>/Cogpit/mcp-endpoint`, beside the token and with its rules: the endpoint's URL, for `cogpit-cli mcp`, written while the server listens and removed when it stops (on exit and when you switch the external MCP server off) | `http://127.0.0.1:59449/mcp` # example |
-| MCP switch | `<user config dir>/Cogpit/mcp-switch`, beside the token and with its rules: `on` or `off`, the status bar's MCP switch, written only by a click in the window; `cogpit-cli mcp` serves nothing but a note that the server is off while it says `off` (D-49) | `off` # example; no file means on |
+| MCP switch | `<user config dir>/Cogpit/mcp-switch`, beside the token and with its rules: `on` or `off`, the status bar's MCP switch, written only by a click in the window (or by hand, without one); the server is opt-in, so no file means off, and `cogpit-cli mcp` serves nothing but a note that the server is off unless it says `on` (D-49) | `on` # example; no file means off |
 | Audit log | `<user config dir>/Cogpit/audit.log`, owner-only, one JSON line per agent-initiated command; read back newest first in Help › Audit Log and by `audit_list` (its last 4 MiB) | |
 | Connection log | `<user config dir>/Cogpit/connection-logs/<32 hex digits>.jsonl`, owner-only (0600, directory 0700), shared by the app and `cogpit-cli` (since 2026-10-16, [D-66](decisions.md#d-66-the-connection-log)): one file per context, named by the first 32 hex digits of the SHA-256 of the context id (the id itself is inside); one JSON line per record (an attempt's begin with its kind and context, its lines, its end with the outcome and duration), appended as it happens. Attempts older than 7 days, and the oldest beyond 1 MiB per context, are dropped; a file nobody wrote for 7 days is deleted at a run's first connect. Read back by the Connection Updates dialog and `cluster_connectLog`; no credential in it, a credential plugin's standard error only after a failed login, scrubbed ([H-112](../security/credentials.md#h-112-a-credential-plugins-standard-error-in-the-connection-log)) | `~/Library/Application Support/Cogpit/connection-logs/4f1c0a9e7b2d6c35e8a1f0b9d2c47e61.jsonl` # example |
 | Agent chat connections | `<user config dir>/Cogpit/llm-connections.json`, owner-only (0600, directory 0700): each LLM connection's id, name, kind (`lmstudio`, `litellm`, `openwebui`, `openai`), base URL, model, limits, private mark, whether it sends all tools (`allTools`, since 2026-10-15), its CA file's path (`caFile`, since 2026-10-15), whether a key was given and which one is the default; never a key ([D-10](decisions.md#d-10-built-in-agent)) | |

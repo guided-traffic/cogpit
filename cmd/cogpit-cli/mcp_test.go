@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net"
 	"os"
 	"path/filepath"
@@ -12,12 +13,22 @@ import (
 
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
+	"github.com/guided-traffic/cogpit/internal/app"
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/mcp"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
+
+// switchMCPOn writes the user's switch "on" into the test's Cogpit directory: the external MCP
+// server is opt-in, so a bridge serves nothing but the note that it is off until the user did.
+func (te *testEnv) switchMCPOn(t *testing.T) {
+	t.Helper()
+	if err := mcp.WriteSwitch(te.dirs.Config, true); err != nil {
+		t.Fatal(err)
+	}
+}
 
 // serveMCP runs `cogpit-cli mcp args...` on in-memory transports and returns a connected agent's
 // session and a function that disconnects the agent and returns the exit code.
@@ -102,6 +113,7 @@ func TestMCPHeadlessServesTheRegistry(t *testing.T) {
 	defer srv.Close()
 	srv.Set(testkit.PodsGVR, testkit.Pod("team", "web-0"))
 	te := newTestEnv(t)
+	te.switchMCPOn(t)
 	te.writeKube(t, "config", string(srv.Kubeconfig("fake", "team")))
 
 	cs, stop := te.serveMCP(t)
@@ -192,6 +204,7 @@ func startApp(t *testing.T, te *testEnv) *engine.Session {
 // state; --headless serves an engine of its own instead.
 func TestMCPForwardsToTheRunningApp(t *testing.T) {
 	te := newTestEnv(t)
+	te.switchMCPOn(t)
 	app := startApp(t, te)
 
 	cs, stop := te.serveMCP(t)
@@ -220,6 +233,7 @@ func TestMCPForwardsToTheRunningApp(t *testing.T) {
 // address nothing listens at; the bridge serves an engine of its own.
 func TestMCPStaleFilesServeHeadless(t *testing.T) {
 	te := newTestEnv(t)
+	te.switchMCPOn(t)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
@@ -256,6 +270,7 @@ func writeAppFiles(t *testing.T, te *testEnv, url string) {
 // reason to send the token there or to serve a headless engine.
 func TestMCPRefusesAForeignEndpoint(t *testing.T) {
 	te := newTestEnv(t)
+	te.switchMCPOn(t)
 	writeAppFiles(t, te, "http://192.0.2.10:4711/mcp")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -266,6 +281,44 @@ func TestMCPRefusesAForeignEndpoint(t *testing.T) {
 	}
 	if !strings.Contains(te.errOut.String(), "not on this machine") {
 		t.Errorf("stderr: %s", te.errOut)
+	}
+}
+
+// TestMCPFreshInstallationIsOff: the external MCP server is opt-in (D-49, the owner's decision of
+// 2026-10-21). In a Cogpit directory without a switch file, a new installation, the bridge serves
+// neither the running app's tools nor a headless engine's: the agent is told the server is off, with
+// --headless too, and the bridge does not write the switch for the user. Where Cogpit's directory is
+// unknown the switch cannot have been switched on, so it is the same.
+func TestMCPFreshInstallationIsOff(t *testing.T) {
+	te := newTestEnv(t)
+	if _, err := os.Lstat(mcp.SwitchPath(te.dirs.Config)); !os.IsNotExist(err) {
+		t.Fatalf("a fresh test environment has a switch file: %v", err)
+	}
+	for _, args := range [][]string{nil, {"--headless"}} {
+		cs, stop := te.serveMCP(t, args...)
+		if got := cs.InitializeResult().Instructions; got != mcp.SwitchedOffMessage {
+			t.Errorf("%v: instructions %q", args, got)
+		}
+		tools, err := cs.ListTools(context.Background(), nil)
+		if err != nil || len(tools.Tools) != 1 || tools.Tools[0].Name != "cogpit_mcp_off" {
+			t.Errorf("%v: tools %+v, %v", args, tools, err)
+		}
+		if code := stop(); code != exitOK {
+			t.Errorf("%v: exit code %d; stderr: %s", args, code, te.errOut)
+		}
+	}
+	if _, err := os.Lstat(mcp.SwitchPath(te.dirs.Config)); !os.IsNotExist(err) {
+		t.Errorf("the bridge wrote the switch: %v", err)
+	}
+
+	te = newTestEnv(t)
+	te.dirs, te.dirsErr = app.Dirs{}, errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
+	cs, stop := te.serveMCP(t)
+	if got := cs.InitializeResult().Instructions; got != mcp.SwitchedOffMessage {
+		t.Errorf("no configuration directory: instructions %q", got)
+	}
+	if code := stop(); code != exitOK {
+		t.Errorf("no configuration directory: exit code %d; stderr: %s", code, te.errOut)
 	}
 }
 

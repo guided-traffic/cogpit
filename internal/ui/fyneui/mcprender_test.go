@@ -23,6 +23,7 @@ func TestRenderMCPStatusBar(t *testing.T) {
 				t.Run(name, func(t *testing.T) {
 					ctl := &fakeMCP{}
 					sh, _, q := newTestShell(t, connectedFake(t, 20), Options{Theme: mode, MCP: ctl})
+					sh.app.Preferences().SetBool(prefMCPEnabled, true) // the server is opt-in: switched on earlier
 					sh.startMCP()
 					q.until(t, "the diagnostics", func() bool { return sh.diag.total > 0 })
 					if !on {

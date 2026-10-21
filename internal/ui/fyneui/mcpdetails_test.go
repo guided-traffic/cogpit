@@ -334,6 +334,7 @@ func TestMCPPortTakenNotice(t *testing.T) {
 func renderMCPDetails(t *testing.T, mode ThemeMode, warn bool, name string) {
 	sh, w, q := newTestShell(t, connectedFake(t, 20), Options{Theme: mode,
 		MCP: &fakeMCP{token: fakeMCPToken, stdio: fakeStdio}})
+	sh.app.Preferences().SetBool(prefMCPEnabled, true) // the server is opt-in: switched on earlier
 	sh.startMCP()
 	q.until(t, "the diagnostics", func() bool { return sh.diag.total > 0 })
 	settle(w)

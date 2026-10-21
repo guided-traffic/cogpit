@@ -38,13 +38,14 @@ type MCPEndpoint struct {
 }
 
 // MCPControl lets the user switch the external MCP server, the loopback HTTP endpoint for other
-// programs, off and on from the window (D-23), and regenerate its token (F6). It touches nothing
-// else of the engine: an in-process agent keeps working while the endpoint is off. The window
-// calls it from a goroutine of its own, but for the first Start before the window runs (startMCP,
-// on the main goroutine before Fyne's loop), so it must make no Fyne call; it is the only way to
-// start the server or replace its token: neither is an engine command or an MCP tool, so no agent
-// can switch the server on or cut the other clients off. The desktop app implements it over
-// internal/mcp (cmd/cogpit), which internal/ui may not import.
+// programs, on and off from the window (D-23), and regenerate its token (F6). The server is opt-in:
+// it stays off until the user switches it on (D-49). The control touches nothing else of the
+// engine: an in-process agent keeps working while the endpoint is off. The window calls it from a
+// goroutine of its own, but for the first Start before the window runs (startMCP, on the main
+// goroutine before Fyne's loop), so it must make no Fyne call; it is the only way to start the
+// server or replace its token: neither is an engine command or an MCP tool, so no agent can switch
+// the server on or cut the other clients off. The desktop app implements it over internal/mcp
+// (cmd/cogpit), which internal/ui may not import.
 type MCPControl interface {
 	// Start brings the server up, with the token and the port it kept, and returns its endpoint.
 	// fromUser is true for a click on the status bar item and false for the start at launch, so
@@ -73,22 +74,37 @@ type MCPSwitchStore interface {
 }
 
 // prefMCPEnabled is the preference that remembered the user's switch before D-49, and still does
-// beside the switch store. Absent means on, as before the switch existed; only a click writes it.
+// beside the switch store. Only a click writes it. Absent means the user never chose, which is off:
+// the server is opt-in (the owner, 2026-10-21); before that, absent meant on.
 const prefMCPEnabled = "mcp.enabled"
 
-// storedMCP returns whether the server starts at launch: the switch store's choice, else the
-// preference's, which is then copied into the store once (a switch set before D-49).
-func (sh *shell) storedMCP(ctl MCPControl) bool {
-	pref := true
-	if sh.app != nil {
-		pref = sh.app.Preferences().BoolWithFallback(prefMCPEnabled, true)
+// legacyMCP returns the preference's choice and whether the user made one. Fyne has no "is it
+// set" query, so the two fallbacks tell a stored value from an absent one: a stored value ignores
+// the fallback, an absent one returns it.
+func (sh *shell) legacyMCP() (on, chosen bool) {
+	if sh.app == nil {
+		return false, false
 	}
+	p := sh.app.Preferences()
+	on = p.BoolWithFallback(prefMCPEnabled, false)
+	return on, on == p.BoolWithFallback(prefMCPEnabled, true)
+}
+
+// storedMCP returns whether the server starts at launch: only a choice to switch it on does. The
+// switch store's choice decides when the user ever set it; else the preference's does, and an
+// explicit one (a switch set before D-49, "on" included) is copied into the store once, where
+// cogpit-cli reads it. Neither set, a new installation, is off, and nothing is written.
+func (sh *shell) storedMCP(ctl MCPControl) bool {
+	pref, chosen := sh.legacyMCP()
 	st, ok := ctl.(MCPSwitchStore)
 	if !ok {
 		return pref
 	}
 	if on, set := st.StoredMCP(); set {
 		return on
+	}
+	if !chosen {
+		return false
 	}
 	if err := st.StoreMCP(pref); err != nil {
 		slog.Warn("MCP switch not stored", "err", err)
@@ -137,16 +153,17 @@ func (sh *shell) mcpTip() string {
 	case m.err != "":
 		return mcpTipName + ": off — click to start\nThe last start failed: " + m.err
 	}
-	return mcpTipName + ": off — click to start"
+	return mcpTipName + ": off until you switch it on — click to start"
 }
 
 // mcpTipName names what the switch controls: the HTTP endpoint other programs connect to with the
 // token. A built-in chat (D-10) calls the engine in-process and does not depend on it.
 const mcpTipName = "External MCP server (for other apps on this computer)"
 
-// startMCP starts the server at launch unless the user switched it off in an earlier run. A server
-// that cannot start leaves the item in its off state with the reason in the tooltip; the stored
-// choice stays as it was. Call it once, before the window shows.
+// startMCP starts the server at launch only if the user switched it on in an earlier run: it is
+// opt-in, so a new installation shows the item off. A server that cannot start leaves the item in
+// its off state with the reason in the tooltip; the stored choice stays as it was. Call it once,
+// before the window shows.
 func (sh *shell) startMCP() {
 	ctl := sh.opts.MCP
 	if ctl == nil {

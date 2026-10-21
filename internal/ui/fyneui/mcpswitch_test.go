@@ -90,9 +90,13 @@ func (m *fakeMCP) log() string {
 	return strings.Join(m.calls, ",")
 }
 
+// mcpShell is a window whose user switched the server on in an earlier run (the preference
+// mcp.enabled stored true): the server is opt-in, so a window with no stored choice starts it off
+// (TestMCPIsOptIn).
 func mcpShell(t *testing.T, ctl *fakeMCP) (*shell, fyne.Window, *mainQueue) {
 	t.Helper()
 	sh, w, q := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
+	sh.app.Preferences().SetBool(prefMCPEnabled, true)
 	sh.startMCP()
 	settle(w)
 	return sh, w, q
@@ -121,7 +125,7 @@ func TestMCPItemSwitchesTheServer(t *testing.T) {
 	if ctl.log() != "start(user=false),stop" {
 		t.Errorf("calls %s, want a stop", ctl.log())
 	}
-	if !strings.Contains(item.tip, "off — click to start") || item.on {
+	if !strings.Contains(item.tip, "off until you switch it on — click to start") || item.on {
 		t.Errorf("after stop: on %v, tooltip %q", item.on, item.tip)
 	}
 	sh.mcpMenu = fyne.NewMenuItem("x", nil) // the menu item exists only after mainMenu
@@ -182,8 +186,7 @@ func TestMCPCopyNamesWhatTheCommandIs(t *testing.T) {
 	}
 }
 
-// TestMCPOffIsRemembered: a server the user switched off stays off at the next launch, and a
-// launch without a stored choice starts it.
+// TestMCPOffIsRemembered: a server the user switched off stays off at the next launch.
 func TestMCPOffIsRemembered(t *testing.T) {
 	ctl := &fakeMCP{}
 	sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
@@ -193,6 +196,67 @@ func TestMCPOffIsRemembered(t *testing.T) {
 		t.Errorf("a stored off was ignored: calls %q, on %v", ctl.log(), sh.mcp.on)
 	}
 }
+
+// TestMCPIsOptIn (D-49, the owner's decision of 2026-10-21): a launch without any stored choice, a
+// new installation, does not start the server; the item shows it off and says why, nothing is
+// stored, and the user's first click starts it and is remembered.
+func TestMCPIsOptIn(t *testing.T) {
+	ctl := &fakeMCP{}
+	sh, _, q := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
+	sh.startMCP()
+	if ctl.log() != "" || sh.mcp.on || sh.status.mcp.on {
+		t.Fatalf("a new installation started the server: calls %q, on %v", ctl.log(), sh.mcp.on)
+	}
+	if tip := sh.status.mcp.tip; !strings.Contains(tip, "off until you switch it on") || strings.Contains(tip, "last start failed") {
+		t.Errorf("the tooltip of an opt-in server that was never switched on: %q", tip)
+	}
+	if _, chosen := sh.legacyMCP(); chosen {
+		t.Error("launching a new installation stored a choice")
+	}
+	sh.openMCPDetails()
+	if texts := detailsTexts(t, sh); !strings.Contains(texts, "starts only when you switch it on") || !strings.Contains(texts, "Switch on") {
+		t.Errorf("the details of an opt-in server that is off:\n%s", texts)
+	}
+	sh.closeMCPDetails()
+
+	test.Tap(sh.status.mcp)
+	q.until(t, "the server on", func() bool { return sh.mcp.on && !sh.mcp.busy })
+	if ctl.log() != "start(user=true)" {
+		t.Errorf("calls %s, want one start by the user", ctl.log())
+	}
+	if on, chosen := sh.legacyMCP(); !on || !chosen {
+		t.Errorf("the user's switch-on was not stored: on %v, chosen %v", on, chosen)
+	}
+}
+
+// TestMCPLegacyPreference: the preference every installation before D-49 kept. Only a stored
+// choice counts: true stays on, false stays off, and an absent one is off (no store, as in a window
+// whose control keeps no switch file).
+func TestMCPLegacyPreference(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		pref   *bool
+		starts bool
+	}{
+		{"stored true", ptr(true), true},
+		{"stored false", ptr(false), false},
+		{"never chosen", nil, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ctl := &fakeMCP{}
+			sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
+			if tc.pref != nil {
+				sh.app.Preferences().SetBool(prefMCPEnabled, *tc.pref)
+			}
+			sh.startMCP()
+			if started := ctl.log() == "start(user=false)"; started != tc.starts || sh.mcp.on != tc.starts {
+				t.Errorf("calls %q, on %v, want a start: %v", ctl.log(), sh.mcp.on, tc.starts)
+			}
+		})
+	}
+}
+
+func ptr[T any](v T) *T { return &v }
 
 // storingMCP is a fakeMCP that keeps the switch where cogpit-cli reads it (MCPSwitchStore, D-49).
 type storingMCP struct {
@@ -221,11 +285,13 @@ func (m *storingMCP) written() []bool {
 }
 
 // TestMCPSwitchStore (D-49, A15): the switch store decides the launch over the window's
-// preference; a store never set takes the preference once (a switch set before D-49); every click
-// that worked is stored there too, for cogpit-cli mcp.
+// preference; a store never set takes the preference's explicit choice once (a switch set before
+// D-49), and takes nothing when the user never chose, so a new installation is off and unset; every
+// click that worked is stored there too, for cogpit-cli mcp.
 func TestMCPSwitchStore(t *testing.T) {
 	off := &storingMCP{stored: false, set: true}
 	sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: off})
+	sh.app.Preferences().SetBool(prefMCPEnabled, true) // the store wins over an older preference
 	sh.startMCP()
 	if off.log() != "" || sh.mcp.on {
 		t.Errorf("a stored off was ignored: calls %q", off.log())
@@ -251,11 +317,50 @@ func TestMCPSwitchStore(t *testing.T) {
 	}
 }
 
+// TestMCPSwitchStoreIsOptIn (D-49, the owner's decision of 2026-10-21): a new installation, with
+// neither a stored switch nor the old preference, starts off and writes nothing; a stored "on" stays
+// on; an old installation whose preference was stored true stays on, and its choice is copied into
+// the store once, where cogpit-cli reads it.
+func TestMCPSwitchStoreIsOptIn(t *testing.T) {
+	t.Run("a new installation is off", func(t *testing.T) {
+		fresh := &storingMCP{}
+		sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: fresh})
+		sh.startMCP()
+		if fresh.log() != "" || sh.mcp.on || sh.status.mcp.on {
+			t.Errorf("a new installation started the server: calls %q", fresh.log())
+		}
+		if got := fresh.written(); len(got) != 0 {
+			t.Errorf("a launch without a choice stored one: %v", got)
+		}
+	})
+	t.Run("a stored on stays on", func(t *testing.T) {
+		on := &storingMCP{stored: true, set: true}
+		sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: on})
+		sh.startMCP()
+		if on.log() != "start(user=false)" || !sh.mcp.on || len(on.written()) != 0 {
+			t.Errorf("a stored on: calls %q, on %v, writes %v", on.log(), sh.mcp.on, on.written())
+		}
+	})
+	t.Run("a stored legacy preference true stays on", func(t *testing.T) {
+		legacy := &storingMCP{}
+		sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: legacy})
+		sh.app.Preferences().SetBool(prefMCPEnabled, true)
+		sh.startMCP()
+		if legacy.log() != "start(user=false)" || !sh.mcp.on {
+			t.Errorf("the preference's on was ignored: calls %q, on %v", legacy.log(), sh.mcp.on)
+		}
+		if got := legacy.written(); len(got) != 1 || !got[0] {
+			t.Errorf("the preference's on was not copied into the store: %v", got)
+		}
+	})
+}
+
 // TestMCPStartFailureShowsOff: a server that cannot start leaves the item off with the reason, and
 // the stored choice alone decides the next launch.
 func TestMCPStartFailureShowsOff(t *testing.T) {
 	ctl := &fakeMCP{startErr: errors.New("address in use")}
 	sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
+	sh.app.Preferences().SetBool(prefMCPEnabled, true) // switched on in an earlier run
 	sh.startMCP()
 	if sh.mcp.on || !strings.Contains(sh.status.mcp.tip, "address in use") {
 		t.Errorf("on %v, tooltip %q", sh.mcp.on, sh.status.mcp.tip)

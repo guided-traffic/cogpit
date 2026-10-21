@@ -11,13 +11,16 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
-// The switch file (D-49, A15): no file is on and unset; "on" and "off" round-trip owner-only; a file
-// that holds anything else, or is a symlink, reads as off, set, with an error: the switch fails
-// closed.
+// The switch file (D-49, A15): the server is opt-in (the owner, 2026-10-21), so no file is off and
+// unset; "on" and "off" round-trip owner-only; a file that holds anything else, or is a symlink,
+// reads as off, set, with an error: the switch fails closed.
 func TestSwitchFile(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "Cogpit")
-	if on, set, err := ReadSwitch(dir); !on || set || err != nil {
+	if on, set, err := ReadSwitch(dir); on || set || err != nil {
 		t.Fatalf("no file: on %v, set %v, %v", on, set, err)
+	}
+	if _, err := os.Lstat(SwitchPath(dir)); !os.IsNotExist(err) {
+		t.Fatalf("reading the switch created it: %v", err)
 	}
 	for _, want := range []bool{false, true, false} {
 		if err := WriteSwitch(dir, want); err != nil {
@@ -49,6 +52,19 @@ func TestSwitchFile(t *testing.T) {
 	}
 	if err := WriteSwitch(dir, true); err == nil {
 		t.Error("the switch was written through a symlink")
+	}
+}
+
+// A bridge behind a new installation is told the server is off because it is opt-in, and one behind
+// an installation whose user switched it off is told the same: the message claims neither case.
+func TestSwitchedOffMessageHoldsForBothCases(t *testing.T) {
+	for _, want := range []string{"switched off", "opt-in", "switched it on", "status bar"} {
+		if !strings.Contains(SwitchedOffMessage, want) {
+			t.Errorf("the message lacks %q: %s", want, SwitchedOffMessage)
+		}
+	}
+	if strings.Contains(SwitchedOffMessage, "turned it off") {
+		t.Errorf("the message says the user turned it off, which a new installation never did: %s", SwitchedOffMessage)
 	}
 }
 
