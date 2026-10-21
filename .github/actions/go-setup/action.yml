@@ -46,7 +46,7 @@ runs:
           ${{ steps.paths.outputs.gocache }}
           ~/.cache/golangci-lint
           ~/Library/Caches/golangci-lint
-        key: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-${{ hashFiles('go.sum', 'third_party/fyne-terminal/go.sum') }}
+        key: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-${{ hashFiles('go.mod', 'go.sum', 'third_party/fyne-terminal/go.mod', 'third_party/fyne-terminal/go.sum') }}
         restore-keys: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-
 
     # The packages Fyne documents for Debian and Ubuntu: a C compiler, OpenGL, X11, xkbcommon,
