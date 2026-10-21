@@ -172,6 +172,7 @@ var wantCommands = map[string]engine.Danger{
 	"kubectl.download": engine.DangerUI,
 	// Help › Check for Updates… (D-4): Sparkle's window, never a cluster (TestCheckForUpdatesCommand).
 	"app.checkForUpdates": engine.DangerUI,
+	"app.installUpdate":   engine.DangerUI,
 	// The editor's drafts and Revert to original (G9): Cogpit's own files and the editor's text,
 	// never a cluster (TestDraftRestoredAfterARestart, TestRevertToOriginal).
 	"editor.drafts": engine.DangerRead, "editor.restoreDraft": engine.DangerUI, "editor.discardDraft": engine.DangerUI,

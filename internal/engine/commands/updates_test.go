@@ -299,3 +299,68 @@ func TestCheckForUpdatesThatActs(t *testing.T) {
 		t.Errorf("the report as a toast: %+v", list.Notifications)
 	}
 }
+
+// winUpdater installs from the Update button without its window's questions, as the Windows app's
+// WinSparkle does (internal/update, D-111).
+type winUpdater struct {
+	aptUpdater
+	installs int
+}
+
+func (w *winUpdater) CheckActs() bool { return false }
+
+func (w *winUpdater) InstallUpdate() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	w.installs++
+	return nil
+}
+
+func (w *winUpdater) installed() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.installs
+}
+
+// The Update button's app.installUpdate (D-111): only the window runs it, and only while the
+// updater holds a newer release; an updater that installs by itself does (Windows), any other one
+// shows the release as app.checkForUpdates does (macOS's Sparkle window, Linux's apt).
+func TestInstallUpdateCommand(t *testing.T) {
+	s, _, _ := settingsSession(t)
+	w := &winUpdater{}
+	s.SetUpdater(w)
+	if err := dispatch(t, s, engine.OriginGUI, "app.installUpdate", struct{}{}, nil); !errors.Is(err, engine.ErrNoUpdateAvailable) {
+		t.Fatalf("without a newer release: %v, want ErrNoUpdateAvailable", err)
+	}
+	w.set("0.36.0", false)
+	for _, origin := range []engine.Origin{engine.OriginExternalAgent, engine.OriginBuiltInAgent, engine.OriginCLI} {
+		err := dispatch(t, s, origin, "app.installUpdate", struct{}{}, nil)
+		var ge *engine.GUIOnlyError
+		if !errors.As(err, &ge) || !errors.Is(err, engine.ErrInstallUpdateGUIOnly) {
+			t.Errorf("%s installed the update: %v", origin, err)
+		}
+	}
+	if w.installed() != 0 {
+		t.Fatal("a refused origin installed")
+	}
+	var res struct {
+		Started bool `json:"started"`
+	}
+	if err := dispatch(t, s, engine.OriginGUI, "app.installUpdate", struct{}{}, &res); err != nil || !res.Started {
+		t.Fatalf("the button's click: %v, %+v", err, res)
+	}
+	if _, _, checks := w.seen(); w.installed() != 1 || checks != 0 {
+		t.Errorf("installs %d, checks %d; want the installer's install and no window", w.installed(), checks)
+	}
+
+	s2, _, _ := settingsSession(t)
+	mac := &aptUpdater{}
+	s2.SetUpdater(mac)
+	mac.set("0.36.0", false)
+	if err := dispatch(t, s2, engine.OriginGUI, "app.installUpdate", struct{}{}, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, checks := mac.seen(); checks != 1 {
+		t.Errorf("an updater that does not install by itself: %d checks, want its window once", checks)
+	}
+}

@@ -134,7 +134,7 @@ var winSparkleProcs = []string{
 	"win_sparkle_set_can_shutdown_callback", "win_sparkle_set_shutdown_request_callback",
 	"win_sparkle_set_did_not_find_update_callback", "win_sparkle_set_update_skipped_callback",
 	"win_sparkle_set_update_postponed_callback", "win_sparkle_set_update_dismissed_callback",
-	"win_sparkle_init", "win_sparkle_check_update_with_ui",
+	"win_sparkle_init", "win_sparkle_check_update_with_ui", "win_sparkle_check_update_with_ui_and_install",
 }
 
 // installedBySetup reports whether dir is the folder one of Cogpit's uninstall entries names.
@@ -296,8 +296,13 @@ func httpFeed(url string) ([]byte, error) {
 	return io.ReadAll(io.LimitReader(resp.Body, maxFeedSize+1))
 }
 
-// WinSparkle asks the app to quit once it started the setup (Updater.OnShutdownRequest).
+// WinSparkle asks the app to quit once it started the setup (Updater.OnShutdownRequest). The
+// Update button installs without its window's questions (Updater.InstallUpdate): WinSparkle's
+// check_update_with_ui_and_install, whose window shows the check and the download and then runs the
+// setup, where check_update_with_ui asks Install update before the download and again after it
+// (the owner, 2026-10-21, after a test in which nothing seemed to happen at the second question).
 func init() {
+	installNow = func() { winSparkle.call("win_sparkle_check_update_with_ui_and_install") }
 	shutdownHook = func(fn func()) {
 		winSparkle.mu.Lock()
 		defer winSparkle.mu.Unlock()

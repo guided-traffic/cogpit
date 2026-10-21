@@ -133,6 +133,31 @@ func (u *Updater) CheckForUpdates() error {
 	return nil
 }
 
+// InstallUpdate installs the newer release the Update button names, the user's click being the
+// decision: on Windows WinSparkle checks, downloads, verifies and runs the setup without asking
+// again (its window shows the progress only), and asks Cogpit to quit; elsewhere it is
+// CheckForUpdates, Sparkle's window offering the release on macOS, apt installing it on Linux.
+func (u *Updater) InstallUpdate() error {
+	if err := u.Unavailable(); err != nil {
+		return err
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if !u.started {
+		return ErrNotStarted
+	}
+	if installNow != nil {
+		installNow()
+	} else {
+		check()
+	}
+	return nil
+}
+
+// installNow installs without the updater's questions where it can (winsparkle_windows.go); nil
+// elsewhere.
+var installNow func()
+
 // SetAutomaticChecks turns Sparkle's scheduled checks on or off; before Start it does nothing
 // (Start takes the value).
 func (u *Updater) SetAutomaticChecks(on bool) {

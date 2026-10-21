@@ -16,7 +16,7 @@ blank line before `</details>`. It moved here from the root README on 2026-10-14
 Cogpit and its flags are in [`usage.md`](usage.md).
 
 <details>
-<summary>All 218 commands</summary>
+<summary>All 219 commands</summary>
 
 | Command | MCP tool | Danger | Parameters | What it does |
 |---|---|---|---|---|
@@ -25,7 +25,8 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `alerts.list` | `alerts_list` | read | `context`?, `filter`?, `limit`?, `namespace`?, `severities`? | Lists the active alerts of a connected cluster's Alertmanager (the shown one unless context names another), as the title bar's alerts pill counts them: active, neither silenced nor inhibited, the meta alerts Watchdog and InfoInhibitor and alerts of severity none left out |
 | `alerts.open` | `alerts_open` | ui |  | Shows the alert board of the cluster the window shows, as a click on the title bar's alerts pill does: in the preview tab, as ui_openView with view alerts/board |
 | `alerts.refresh` | `alerts_refresh` | read | `context`? | Asks the cluster's Alertmanager for its alerts again at once instead of at the next poll (the shown cluster only: a cluster connected in the background is not polled) |
-| `app.checkForUpdates` | `app_checkForUpdates` | ui |  | Checks Cogpit's update feed now, as Help › Check for Updates… does in the macOS app: Sparkle's window shows the user whether a newer release exists, its release notes and an Install button; nothing is installed without the user's click there, and the result is not returned |
+| `app.checkForUpdates` | `app_checkForUpdates` | ui |  | Checks Cogpit's update feed now, as Help › Check for Updates… does: Sparkle's window (on Windows WinSparkle's) shows the user whether a newer release exists, its release notes and an Install button; nothing is installed without the user's click there, and the result is not returned |
+| `app.installUpdate` | `app_installUpdate` | ui (GUI only) |  | Installs the newer release the window's Update button names (ui_state's update), as the button's click does: on Windows WinSparkle downloads it, checks its signature, runs the setup and restarts Cogpit, without asking again; on macOS Sparkle's window shows the release with its Install button; on Linux apt installs it after an administrator's password, or Cogpit restarts into the release apt installed |
 | `application.logs` | `application_logs` | read | `ref` | Opens the logs of an application (applications view) in one dock tab: every container of every pod of its Deployments, Stateful Sets, Daemon Sets and Jobs, merged, each line starting with <workload>/<pod>/<container>, and follows them: pods, restarted containers and workloads that join the application join the tab |
 | `argocd.application.refresh` | `argocd_application_refresh` | mutating | `hard`?, `ref` | Refreshes an Argo CD Application through the Kubernetes API: it sets the annotation argocd.argoproj.io/refresh to normal (compare the live state with Git again) or, with hard, to hard (also discard Argo CD's cached manifests); Argo CD's controller refreshes and removes the annotation |
 | `argocd.application.refreshMany` | `argocd_application_refreshMany` | mutating | `hard`?, `refs` | Refreshes several Argo CD Applications at once, normal or hard, as argocd.application.refresh does for one: one acceptance names them all, then each is refreshed in turn, bound to its UID |

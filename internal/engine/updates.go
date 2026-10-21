@@ -26,8 +26,10 @@ import (
 //
 // The Update button (F7, the owner's finding of 2026-10-15): an updater that implements
 // UpdateNotifier tells when it holds a newer release for the user; UIState.Update says so, and the
-// window shows an Update button left of the layout toggles, which runs app.checkForUpdates and so
-// brings Sparkle's window with that release up. A session without such an updater never shows it.
+// window shows an Update button left of the layout toggles, which runs app.installUpdate: on macOS
+// it brings Sparkle's window with that release up, as app.checkForUpdates does; on Windows
+// (UpdateInstaller, D-111) it installs the release at once, the click being the user's decision.
+// Only the window runs app.installUpdate. A session without such an updater never shows it.
 //
 // On Linux (D-108) the check acts instead of showing a window (UpdateActor): it installs the
 // release through apt after polkit asked for the password, or restarts Cogpit into the release
@@ -100,6 +102,14 @@ type UpdateActor interface {
 	CheckActs() bool
 }
 
+// UpdateInstaller is an Updater that installs the release it holds without its window's questions
+// when the user clicks the Update button (app.installUpdate): on Windows WinSparkle checks,
+// downloads, verifies and runs the setup in one go, where its window would ask twice more (the
+// owner, 2026-10-21, D-111). An Updater without it shows its window as app.checkForUpdates does.
+type UpdateInstaller interface {
+	InstallUpdate() error
+}
+
 // maxUpdateVersion bounds the version text UIState.Update carries.
 const maxUpdateVersion = 64
 
@@ -117,6 +127,14 @@ var ErrUpdateChecksGUIOnly = errors.New("only the user, in Cogpit's own window, 
 // (UpdateActor).
 var ErrUpdateCheckGUIOnly = errors.New("only the user, in Cogpit's own window, starts this update: on Linux it installs " +
 	"through apt after an administrator's password, or restarts Cogpit into the installed release; agents read ui_state's update")
+
+// ErrInstallUpdateGUIOnly refuses app.installUpdate from an agent or the CLI: on Windows it
+// installs and restarts Cogpit without asking again.
+var ErrInstallUpdateGUIOnly = errors.New("only the user's click on the Update button in Cogpit's window installs a release: " +
+	"on Windows it installs it and restarts Cogpit at once; agents run app.checkForUpdates, which shows the release in the updater's window")
+
+// ErrNoUpdateAvailable: app.installUpdate while the updater holds no newer release.
+var ErrNoUpdateAvailable = errors.New("no newer release is known: Help › Check for Updates… looks for one")
 
 // ErrNoBetaChannel refuses the Beta channel while there is none.
 var ErrNoBetaChannel = errors.New("update channel beta: Cogpit publishes no prereleases yet, so only the stable channel exists")
@@ -224,6 +242,35 @@ func (s *Session) CheckForUpdates() error {
 		return err
 	}
 	return s.updater().CheckForUpdates()
+}
+
+// UpdateInstallUnavailable returns why app.installUpdate cannot run now, nil when it can: an
+// updater, and a newer release it holds (UIState.Update).
+func (s *Session) UpdateInstallUnavailable() error {
+	if err := s.UpdatesUnavailable(); err != nil {
+		return err
+	}
+	s.mu.Lock()
+	available := s.ui.Update.Available
+	s.mu.Unlock()
+	if !available {
+		return ErrNoUpdateAvailable
+	}
+	return nil
+}
+
+// InstallUpdate installs the newer release the Update button names (app.installUpdate): through
+// the updater's UpdateInstaller where it has one (Windows), else as CheckForUpdates, whose window
+// offers the release (macOS) or which installs it (Linux).
+func (s *Session) InstallUpdate() error {
+	if err := s.UpdateInstallUnavailable(); err != nil {
+		return err
+	}
+	u := s.updater()
+	if i, ok := u.(UpdateInstaller); ok {
+		return i.InstallUpdate()
+	}
+	return u.CheckForUpdates()
 }
 
 // updatePrefsChanged hands a change of the automatic checks to the updater.
