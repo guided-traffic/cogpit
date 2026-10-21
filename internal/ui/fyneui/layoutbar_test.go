@@ -252,7 +252,9 @@ func TestUpdateButtonOffersTheRestart(t *testing.T) {
 	}
 	r.restart.Store(true)
 	r.set(true, "0.34.0") // the same version, now installed
-	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart })
+	// The engine's state first, then the window's: the bar follows the state's change on the main
+	// queue, which until drains, a step later on a slow runner (the Windows CI, 2026-10-21).
+	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart && b.Text == restartLabel })
 	settle(w)
 	if b.Text != restartLabel || b.tip != "Cogpit 0.34.0 is installed: restart Cogpit to use it" {
 		t.Errorf("after the install: %q, tooltip %q", b.Text, b.tip)
