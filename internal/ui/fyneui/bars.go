@@ -3,11 +3,13 @@ package fyneui
 import (
 	"encoding/json"
 	"fmt"
+	"image"
 	"image/color"
 	"math"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -125,6 +127,27 @@ func splitContextID(id string) (name, file string) {
 	return id, ""
 }
 
+// logoTiles holds the logo drawn at each pixel size the window has shown it at (the header's, the
+// welcome page's, About's), for every widget that shows it at that size: the tile is the same in
+// both themes, drawing it is pure Go (tens of milliseconds a size, many times that under the race
+// detector, where every UI test's window drew it again, D-112), and nothing draws into it.
+var logoTiles sync.Map // logoTileKey → *image.NRGBA
+
+type logoTileKey struct {
+	name string // the logo's version
+	px   int
+}
+
+// logoTile is the current logo's tile, px pixels square, drawn once per size.
+func logoTile(px int) *image.NRGBA {
+	k := logoTileKey{logoart.Current.Name, px}
+	if img, ok := logoTiles.Load(k); ok {
+		return img.(*image.NRGBA)
+	}
+	img, _ := logoTiles.LoadOrStore(k, logoart.Current.Tile(px))
+	return img.(*image.NRGBA)
+}
+
 // newLogo draws Cogpit's logo in the header: the current version's tile (internal/ui/logo, D-24),
 // the same in both themes (owner, 2026-10-15), drawn at the pixel size the canvas shows it at.
 func newLogo() fyne.CanvasObject {
@@ -171,7 +194,7 @@ func (r *logoRenderer) Refresh() {
 	}
 	px := int(math.Ceil(float64(r.MinSize().Width * scale)))
 	if px != l.px || r.img.Image == nil {
-		r.img.Image = logoart.Current.Tile(px)
+		r.img.Image = logoTile(px)
 		l.px = px
 	}
 	r.Layout(l.Size())
