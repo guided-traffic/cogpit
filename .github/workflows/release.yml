@@ -4,6 +4,9 @@
 # race tests run in shards. Semantic Release needs every job. What each job runs and how long it
 # takes: docs/developer/releasing.md#ci.
 #
+# Every job's limit is 30 minutes for the first runs after Go 1.27.3 (2026-10-21), whose build caches
+# are made then (a job saves its cache only when it succeeds); 15 again once they are saved.
+#
 # Linux jobs run on the organisation's self-hosted runners (ephemeral pods, Ubuntu 24.04, 16 CPUs,
 # Docker; no make or C compiler until .github/actions/go-setup installs them), as the team's other
 # repositories do, unless the repository variable LINUX_RUNNER names other runners (ubuntu-latest:
@@ -44,7 +47,7 @@ jobs:
   lint:
     name: Code Linting
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -67,7 +70,7 @@ jobs:
   parity:
     name: Parity
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -86,7 +89,7 @@ jobs:
   gosec:
     name: GoSec Security Scan
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -104,7 +107,7 @@ jobs:
   govulncheck:
     name: Vulnerability Check
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -120,7 +123,7 @@ jobs:
   cyclomatic-complexity:
     name: Cyclomatic Complexity
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -151,7 +154,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -178,7 +181,7 @@ jobs:
   race-ui:
     name: Race Tests (UI ${{ matrix.shard }}/8)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -207,7 +210,7 @@ jobs:
   race-rest:
     name: Race Tests (other packages)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -235,7 +238,7 @@ jobs:
   kind:
     name: Integration Tests (kind)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       KIND_CLUSTER: cogpit-${{ github.run_id }}
       KUBECONFIG: ${{ github.workspace }}/.cache/kind/kubeconfig
@@ -304,7 +307,7 @@ jobs:
   kind-drain:
     name: Integration Tests (kind drain)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       KIND_DRAIN_CLUSTER: cogpit-drain-${{ github.run_id }}
       KUBECONFIG: ${{ github.workspace }}/.cache/kind-drain/kubeconfig
@@ -363,7 +366,7 @@ jobs:
   envtest:
     name: Integration Tests (envtest)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -412,7 +415,7 @@ jobs:
   macos:
     name: macOS
     runs-on: macos-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -437,7 +440,7 @@ jobs:
   compile-windows:
     name: Compile (windows)
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     defaults:
       run:
         shell: bash
@@ -490,7 +493,7 @@ jobs:
   linux-package:
     name: Linux Package
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -516,7 +519,7 @@ jobs:
     needs: [unit-tests, race-ui, race-rest, kind, kind-drain, envtest]
     if: always() && needs.unit-tests.result == 'success'
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -557,7 +560,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, linux-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       # The organisation's GitHub App, scoped to this repository; the token expires after an hour
       # and is revoked at the end of the job. Not GITHUB_TOKEN: a release created with it would not
