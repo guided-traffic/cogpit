@@ -145,10 +145,23 @@ UNIT_TIMEOUT    ?= 20m
 
 .PHONY: test-unit-coverage test-race-ui test-race-rest test-darwin coverage-report
 
-test-unit-coverage: ## Unit tests without the race detector, with a coverage profile (.cache/coverage/unit.out)
+# internal/ui/fyneui's unit tests run in UNIT_UI_SHARDS processes one after the other (hack/shard's
+# split, as the race tests'): every test's new app makes Fyne parse its fonts again, and go-text's
+# shaper keeps each parsed face for good (its buffer's plan cache is never pruned), so one process
+# for the package grew to 14 GB, the likeliest reason CI's runner died three times on 2026-10-21; four
+# peak at 4.4 GB (docs/developer/releasing.md#the-uis-unit-tests-in-four-processes).
+UNIT_UI_SHARDS  ?= 4
+
+test-unit-coverage: ## Unit tests without the race detector, with coverage profiles (.cache/coverage/unit.out, unit-ui-<n>.out)
 	@mkdir -p $(COVERAGE_DIR)
-	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=atomic -coverprofile=$(COVERAGE_DIR)/unit.out ./...
-	@$(GO) tool cover -func=$(COVERAGE_DIR)/unit.out | tail -n 1
+	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=atomic -coverprofile=$(COVERAGE_DIR)/unit.out \
+		$$($(GO) list ./... | grep -v -x -e 'github.com/guided-traffic/cogpit/internal/ui/fyneui')
+	@for n in $$(seq 1 $(UNIT_UI_SHARDS)); do \
+		run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -shard $$n -of $(UNIT_UI_SHARDS))" && test -n "$$run" && \
+		echo "$(GO) test $(UI_PKG) -run <shard $$n of $(UNIT_UI_SHARDS)>" && \
+		$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=atomic \
+			-coverprofile=$(COVERAGE_DIR)/unit-ui-$$n.out -run "$$run" $(UI_PKG) || exit 1; \
+	done
 
 # The UI's race tests in RACE_SHARDS shards: hack/shard assigns each test of internal/ui/fyneui to a
 # shard by a hash of its name, so a new test lands in one without a change here or in CI. The

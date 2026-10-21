@@ -93,7 +93,7 @@ environment `release` ([secrets](#secrets)).
 | GoSec Security Scan | self-hosted | `make gosec` | golangci-lint's gosec on the shipped code (tests, `internal/testkit` and `hack` left out); every accepted finding is excluded in [`.golangci.yml`](../../.golangci.yml) with its reason, a real one is fixed or an H-gap in [`docs/security`](../security/README.md) | 2.6 |
 | Vulnerability Check | self-hosted | `make vuln` | govulncheck: no known vulnerability in a function Cogpit's code reaches | 1.6 |
 | Cyclomatic Complexity | self-hosted | `make cyclo` | gocyclo: no function above `CYCLO_THRESHOLD`; the 20 most complex in the job summary ([below](#cyclomatic-complexity)) | 0.8 |
-| Unit Tests | self-hosted | `make test-unit-coverage` | every package's tests without the race detector, with a coverage profile | 5.7 |
+| Unit Tests | self-hosted | `make test-unit-coverage` | every package's tests without the race detector, with coverage profiles; `internal/ui/fyneui`'s in four processes one after the other ([below](#the-uis-unit-tests-in-four-processes)) | 5.7 |
 | Race Tests (UI n/8) | self-hosted, eight jobs | `make test-race-ui RACE_SHARD=n RACE_SHARDS=8` | one shard of `internal/ui/fyneui`'s tests under the race detector ([sharding](#the-uis-race-tests-in-shards)) | 5.2–9.3 |
 | Race Tests (other packages) | self-hosted | `make test-race-rest` | every other package under the race detector but `internal/ui/logo` (pure-Go rasterising on one goroutine: nine of the job's fifteen minutes under the race detector; the unit tests run it, since 2026-10-17, the lead's decision after the job ran out of time), and the patched terminal widget's tests (`make test-fork`) | 6.6 |
 | Integration Tests (kind) | self-hosted | `make kind-up`, `make test-kind` | the `TestKind*` tests against a real API server and kubelet (kind v0.33.0, Kubernetes 1.37.0, the seed of [`hack/kind`](../../hack/kind/README.md) and the Metrics Server); the tests compile while the cluster starts | 9.6 |
@@ -154,6 +154,21 @@ repositories use 15; 121 functions are above that today. **Decided (owner, 2026-
 as a ratchet and comes down step by step: a change that makes the most complex function simpler
 lowers `CYCLO_THRESHOLD` to the new maximum in the same commit (`make cyclo-report` shows it); no
 refactoring of its own for it.
+
+### The UI's unit tests in four processes
+
+Since 2026-10-21 `make test-unit-coverage` runs every package but `internal/ui/fyneui` in one `go
+test`, then the UI's package in `UNIT_UI_SHARDS` (4) processes one after the other, split by
+[`hack/shard`](../../hack/shard/main.go) as the race tests are, each with its own profile
+(`unit-ui-<n>.out`, merged by the coverage job). The reason is memory: every test makes a new Fyne
+app, a new app makes Fyne parse its fonts again, and go-text's shaper keeps every face it has shaped
+for the life of the process (its buffer's plan cache, keyed by face, is never pruned). One process
+for the package grew by about 2.4 GB a minute to a peak of 14.3 GB in 413 s (macOS, `/usr/bin/time
+-l`), and on 2026-10-21 the job's runner died without a log three times about 20 minutes in (memory
+the likeliest cause; no log shows it). Four processes peak at 4.4 GB and take 369 s together, with
+the package's coverage unchanged (91.0%). A memory limit is no way out: `GOMEMLIMIT=4GiB` held it to 8.9 GB but made the run six times slower, as the heap
+the tests keep is live. The same shaper keeps a few megabytes in the app for each theme change and
+each new theme override; that is upstream's to fix.
 
 ### Running a job locally
 
