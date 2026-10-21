@@ -194,6 +194,10 @@ func kindFluxWithSourceAndReset(ctx context.Context, t *testing.T, conn *cluster
 	}
 	create(gitGVR, testkit.Object("source.toolkit.fluxcd.io/v1", "GitRepository", fluxNamespace, "flux-system", map[string]any{
 		"spec": map[string]any{"url": "https://example.invalid/fleet", "interval": "1m"}}))
+	// The command reads the source from the cache, which the watch fills a moment after the create
+	// (CI, 2026-10-21: "not found in the cache").
+	gitRef := model.ObjectRef{Kind: "gitrepositories.source.toolkit.fluxcd.io", Namespace: fluxNamespace, Name: "flux-system"}
+	waitFor(ctx, t, "the GitRepository in the cache", func() bool { _, err := s.Lookup(gitRef); return err == nil })
 	before := annotation()
 	var res commands.FluxSourceJobResult
 	d.must("flux.reconcileWithSource", map[string]any{"ref": ks}, &res)
