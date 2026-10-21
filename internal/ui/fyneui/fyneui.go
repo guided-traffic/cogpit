@@ -63,6 +63,10 @@ type Options struct {
 	// <user config dir>/Cogpit/window.json (D-95, windowplace.go); empty keeps nothing, and the
 	// window opens at 1440 × 900 in the middle of the screen.
 	WindowPlace string
+	// Quit, when it receives, closes the window as Ctrl+C or SIGTERM does, so that the caller's
+	// cleanup runs: the updater's request on Windows once WinSparkle started the setup, which waits
+	// for Cogpit to quit (internal/update, D-111). nil: nothing asks.
+	Quit <-chan struct{}
 	// menus is where the menus are: this system's place (menusHere), or, for the tests, the
 	// system's menu bar as on macOS (menusNative) or the top bar as elsewhere (menusInBar).
 	menus menuPlace
@@ -273,6 +277,8 @@ func Run(s *engine.Session, opts Options) error {
 	go func() {
 		select {
 		case <-sig:
+			do(a.Quit)
+		case <-opts.Quit: // a nil channel never receives
 			do(a.Quit)
 		case <-ran:
 		}

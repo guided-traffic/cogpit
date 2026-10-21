@@ -2,8 +2,10 @@
 // Sparkle 2, which the app bundle carries in Contents/Frameworks and which checks Cogpit's signed
 // appcast, shows Sparkle's own window when an update is there, verifies the disk image's EdDSA
 // signature and Apple's code signature, replaces the app and relaunches it. On Linux apt, which
-// the .deb points at Cogpit's signed APT repository (apt_linux.go, D-108). cogpit-cli has no
-// updater, and Windows comes with M11.
+// the .deb points at Cogpit's signed APT repository (apt_linux.go, D-108). On Windows WinSparkle,
+// Sparkle's Windows port, which the setup installs beside cogpit.exe; it checks the setup's EdDSA
+// signature and runs it, and the setup starts the new release (winsparkle_windows.go, D-111).
+// cogpit-cli has no updater: the app's installation brings it.
 //
 // The binary does not link Sparkle. New loads Sparkle.framework at run time from the running app's
 // bundle (dlopen through NSBundle) and finds SPUStandardUpdaterController with NSClassFromString,
@@ -26,7 +28,7 @@
 // (CheckForUpdates). OnUpdateChange tells the engine.
 //
 // Layer L4: it imports nothing of Cogpit's but internal/buildinfo (L0, the version this process
-// runs, on Linux); cmd/cogpit wires it into the engine.
+// runs, on Linux and Windows); cmd/cogpit wires it into the engine.
 package update
 
 import (
@@ -37,8 +39,9 @@ import (
 
 // The reasons this Cogpit cannot update itself, as Unavailable returns them.
 var (
-	// ErrNotMacOS: only the macOS app and the Linux package update themselves so far.
-	ErrNotMacOS = errors.New("not macOS or Linux: Cogpit updates itself on macOS and, installed from its package, on Linux so far (Windows with M11)")
+	// ErrNotMacOS: only the macOS app, the Linux package and the Windows setup's app update
+	// themselves (and the macOS app only when built with cgo).
+	ErrNotMacOS = errors.New("not macOS, Linux or Windows: Cogpit updates itself on macOS, and on Linux and Windows when installed from its package or setup")
 	// ErrNoBundle: the process is not an app bundle's executable (go run, bin/cogpit).
 	ErrNoBundle = errors.New("not installed from the disk image: this Cogpit does not run as an app bundle")
 	// ErrNoFramework: the bundle carries no Sparkle.framework.
@@ -60,6 +63,12 @@ var (
 	// knows of no new release.
 	ErrNoRepository = errors.New("no package repository: /etc/apt/sources.list.d/cogpit.sources, which the package installs, is missing, " +
 		"so apt finds no new release of Cogpit; reinstall the package from Cogpit's releases to set it up again")
+	// ErrNotFromSetup: on Windows, the process is not the cogpit.exe Cogpit's setup installed (a
+	// build of its own, a copy elsewhere), which WinSparkle does not update.
+	ErrNotFromSetup = errors.New("not installed from the setup: this Cogpit is not the cogpit.exe Cogpit's setup installed, which updates itself")
+	// ErrNoWinSparkle: on Windows, WinSparkle.dll is missing beside cogpit.exe or does not load.
+	ErrNoWinSparkle = errors.New("WinSparkle.dll, which Cogpit's setup installs beside cogpit.exe, is missing or does not load; " +
+		"install Cogpit again from its setup")
 )
 
 // The levels of the messages OnUpdateMessage passes on: the engine's toast levels.
@@ -179,6 +188,22 @@ func (u *Updater) OnUpdateMessage(fn func(level, message string)) {
 	}
 	messages.listen(fn)
 }
+
+// OnShutdownRequest registers fn, called on a goroutine of its own when an update the user started
+// needs Cogpit to quit so that it can install: on Windows once WinSparkle has started the setup,
+// which waits for cogpit.exe to be free and then starts the new release. fn closes the window as
+// the user would, so that the caller's cleanup runs. Nothing is registered without an updater, nor
+// on macOS and Linux, where Sparkle relaunches the app itself and apt's restart quits it.
+func (u *Updater) OnShutdownRequest(fn func()) {
+	if u.Unavailable() != nil || fn == nil || shutdownHook == nil {
+		return
+	}
+	shutdownHook(fn)
+}
+
+// shutdownHook keeps OnShutdownRequest's functions where an updater asks for them
+// (winsparkle_windows.go); nil elsewhere.
+var shutdownHook func(fn func())
 
 // CheckActs reports whether CheckForUpdates acts instead of showing a window of its own: on Linux
 // it installs through apt after polkit's password prompt, or restarts Cogpit (apt_linux.go); on

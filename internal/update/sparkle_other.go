@@ -1,8 +1,8 @@
-//go:build (!darwin || !cgo) && !linux
+//go:build (!darwin || !cgo) && !linux && !windows
 
 package update
 
-// Elsewhere (Windows, and macOS built without cgo) there is no updater yet: Windows with M11.
+// Elsewhere (macOS built without cgo, the BSDs) there is no updater.
 
 func load() error             { return ErrNotMacOS }
 func startFailure() error     { return nil }
