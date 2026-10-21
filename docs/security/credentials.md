@@ -44,7 +44,20 @@ credential into its own files.
 |---|---|---|
 | MCP bearer token | `<user config dir>/Cogpit/mcp-token` (macOS: `~/Library/Application Support/Cogpit/mcp-token`), file 0600 in a 0700 directory, written atomically, never through a symlink, kept across starts and the status bar's switch since 2026-10-15 (until then removed on exit and when switched off); written when the server first starts or the user clicks Regenerate token, so a new installation has none until the user does one of them (the server is opt-in since 2026-10-21, D-49); a file that holds no token Cogpit wrote, or that other users may read, is replaced at the next start ([`internal/mcp/token.go`](../../internal/mcp/token.go), `TestTokenFileLifecycle`, `TestTokenKeptAcrossStarts`, `TestTokenFileNotKept`, `TestStartRefusesSymlinks`) | 32 random bytes, new only when the user clicks Regenerate token in the MCP details (the gear in the status bar's MCP item; F6, [D-53](../developer/decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it), `TestRegenerateToken`), until then valid across starts ([agents and MCP › H-98](agents-and-mcp.md#h-98-a-leaked-token-stays-valid-until-the-user-regenerates-it)); shown there masked until the user shows it, copied on request as a Secret's value (kept from clipboard managers on macOS, cleared after 1 minute; `TestMCPDetailsTokenShownAndCopied`), never in a toast or a notification; printed to the terminal that started Cogpit inside the HTTP `claude mcp add` command, at start and after a regenerate, never logged; an app whose bundle carries `cogpit-cli` prints and copies the stdio registration of that `cogpit-cli` instead, which names no token (since 2026-10-14, [D-2](../developer/decisions.md#d-2-agent-interface-scope), `TestMCPControlOffersTheBundledCLI`) (`TestTokenNeverLogged`) ([agents and MCP](agents-and-mcp.md)). Since 2026-10-13 the endpoint's URL is written beside it, `mcp-endpoint`, with the same rules (not a secret: a loopback URL), while the server listens, for the stdio bridge `cogpit-cli mcp`, which reads both before every call and sends the token to that loopback URL only, and nothing while the file is missing (`TestEndpointFileLifecycle`, `TestReadEndpointTakesOnlyWhatCogpitWrites`, `TestBridgeFollowsARestart`); since 2026-10-15 the port is kept beside them, `mcp-port`, with the same rules (not a secret) (`TestPortKeptAcrossStarts`) |
 | LLM API key (built-in agent) | `<user config dir>/Cogpit/llm-keys.json` (macOS: `~/Library/Application Support/Cogpit/llm-keys.json`), the connection's id to its key, file 0600 in a 0700 directory, written atomically through the engine's owner-only writer, never through a symlink, read and written anew on every call, on every platform; a file other users may access is made owner-only again before its keys are used, the log naming the file and its mode, never a key ([`agent/keystore.go`](../../internal/agent/keystore.go), `TestKeyFileKeepsTheKey`, `TestKeyFileAccessibleByOthersIsRepaired`, `TestFileKeyStoreRefuses`). Never in a keychain since 2026-10-15 (the owner's decision, [D-10](../developer/decisions.md#d-10-built-in-agent) item 12: every self-built binary made macOS ask for the login password). Until then the macOS login keychain held it (service `io.guided-traffic.cogpit.llm`, label "Cogpit LLM connection"); Cogpit no longer reads that item, not even to move a key out of it, and has no keychain code left (`TestNoKeychainCode`): such a connection shows "no API key" and its turn asks for the key again until the user enters it once more (`TestKeyFromTheKeychainIsAskedForAgain`); the item stays for the user to delete in Keychain Access | never in `llm-connections.json`, which holds whether a key was given (`TestConnectionsKeepTheKeyInTheKeyStore`); never logged; never in an error (a key file that does not decode is named, not quoted), a note, the audit log, the conversations or a request body (`TestTurnErrors`, `TestKeyFileKeepsTheKey`); sent only in the `Authorization` header to the configured endpoint, which no redirect can change ([D-10](../developer/decisions.md#d-10-built-in-agent)), over `https` checked against the system's roots or, since 2026-10-15, a connection's own CA file, which since 2026-10-16 replaces them for that connection (the owner's decision in the audit of 2026-10-16) ([trust boundaries › H-104](trust-boundaries.md#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier)); over plain `http` to another machine the window warns (H-95); removed from the file by Remove Key and with its connection; plain text protected by the file's mode ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)) |
-| Update public key (Sparkle's EdDSA key) | the app bundle's `Info.plist` (`SUPublicEDKey`), written at build time by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh) from the repository variable `SPARKLE_PUBLIC_ED_KEY`; a build without it has no update key and its updater does not start | not secret; its private counterpart never touches a user's machine ([updates](updates.md)) |
+| Update public key (Sparkle's EdDSA key) | the app bundle's `Info.plist` (`SUPublicEDKey`), written at build time by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh) from the repository variable `SPARKLE_PUBLIC_ED_KEY`; on Windows (since 2026-10-21, D-111) the same key written into `cogpit.exe` by the linker (`make dist-windows`); a build without it has no update key and its updater does not start | not secret; its private counterpart never touches a user's machine ([updates](updates.md)) |
+
+**On Windows** (since 2026-10-21, on the branch `windows-release`,
+[D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle); the
+lead's policy, open to revision) the modes on this page (0600, 0700) are neither set nor checked:
+a mode there says only whether a file is read-only. Cogpit's files live in the user's profile,
+`%APPDATA%\Cogpit` and `%LOCALAPPDATA%\Cogpit`, whose inherited ACLs give the user, SYSTEM and
+the Administrators access and no other user; the terminal's kubeconfig in `%TEMP%` inherits the
+same (checked with `icacls` on the owner's Windows 11). Cogpit does not check those ACLs: a profile
+whose ACLs someone widened exposes the token, the API keys and the drafts as a widened mode would
+on macOS ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)). A rename over one of
+these files, or a removal, that another process holds open (another Cogpit, an editor, a virus
+scanner) is retried for up to a second instead of failing
+([`privatefile.go`](../../internal/engine/privatefile.go)).
 
 ## Where they live inside Cogpit
 
@@ -224,11 +237,22 @@ token and is gone after close, and that `kubectl config use-context` in the term
 user's file byte-identical. A shell profile can still override `KUBECONFIG`
 ([H-20](#h-20-shell-profiles-can-override-the-terminals-kubeconfig)).
 
+On Windows (since 2026-10-21, D-111) the list is joined with `;`,
+`KUBECONFIG=<temp file>;<the user's kubeconfig files>`, and the temp file
+(`%TEMP%\cogpit-terminal-<random>.kubeconfig`) has no Unix mode to speak of: it inherits the
+`%TEMP%` folder's ACL in the user's profile (the user, SYSTEM, the Administrators). It is removed when
+the terminal closes, retried for up to 2 seconds, since Windows deletes no file that a program the
+terminal started (kubectl reads it) still holds; the job object that holds the shell ends those
+programs first ([`localpty_windows.go`](../../internal/terminal/localpty_windows.go),
+`TestStartLocalWindowsBindsKubectlToContextAndNamespace`, `TestStartLocalWindowsRemovesHeldFiles`).
+
 When Cogpit puts a `kubectl` first for the terminal (since 2026-10-13, [D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries)),
 the terminal also gets a temporary directory of its own (0700, removed with the terminal) holding a
 link named `kubectl` and, for zsh, a `.zshenv` that hands over to the user's own: names and a
 script of Cogpit's, no credential ([`terminal/kubectl.go`](../../internal/terminal/kubectl.go)).
-That `kubectl` reads the same `KUBECONFIG` as any other.
+That `kubectl` reads the same `KUBECONFIG` as any other. On Windows the directory exists only for
+a kubectl not named `kubectl.exe` and holds a hard link or a copy of it named `kubectl.exe`; a
+`kubectl.exe` has its own folder put first on `PATH` instead (D-111).
 
 ## Where credentials must never end up
 
@@ -557,7 +581,10 @@ stopped waiting for <program>; its process was not found and may run on"
 - **Windows** finds the plugin by its program's file name among the children that are new since
   the run's begin (another process's command line is not readable without its memory; Windows has
   no `exec` that keeps a process's number), so another new child with the same program would be
-  ended in its place; the code compiles for Windows and is not tried there. Systems other than
+  ended in its place. Tried on Windows since 2026-10-21 (D-111): a new child found by its name and
+  ended (`TestWindowsChildIsFoundAndEnded`). A plugin that is a `.bat` or `.cmd` file runs as
+  `cmd.exe`, so the search by its name finds nothing, and a cancel or the bound ends in "Cogpit
+  stopped waiting …; its process was not found and may run on". Systems other than
   macOS, Linux and Windows find no process: Cogpit stops waiting, says so, and the login is not
   used until the user acts.
 
@@ -715,7 +742,10 @@ keychain held them; the owner accepted the trade-off to end the keychain's passw
   advice reaches only a user who reads the log. Dormant: Cogpit itself always writes 0600; live
   only after a change outside Cogpit, and only on a computer with other users.
 - **On Windows** file modes do not express access: the user profile's ACLs protect the file, as
-  they protect the MCP token (not checked on Windows; Cogpit does not ship for it yet).
+  they protect the MCP token, and Cogpit neither sets nor checks a mode there, so the repair above
+  does not happen on Windows (since 2026-10-21, D-111, the lead's policy:
+  [Cogpit's own secrets](#cogpits-own-secrets)). Cogpit ships for Windows from the first release
+  after the branch `windows-release` is merged; live there wherever the profile's ACLs were widened.
 - **The old keychain item** of a version up to 2026-10-15 stays in the login keychain until the
   user deletes it in Keychain Access; Cogpit never reads or removes it (reading it would ask for the
   login password). Confirmed by the owner (2026-10-15): no migration, such a key is entered once

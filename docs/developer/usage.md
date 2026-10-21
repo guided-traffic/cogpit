@@ -9,8 +9,10 @@ start at the [developer documentation](README.md). Every command and MCP tool is
 ## What Cogpit is and its status
 
 Cogpit is a native Kubernetes IDE for the desktop, written in Go: an open-source, clean-room
-reimplementation of the current [Lens Desktop](https://lenshq.io/). It runs on your Mac and, from
-the release after v0.32.0, on Debian and Ubuntu; Windows comes later. It reads your kubeconfig files, connects to your clusters with your
+reimplementation of the current [Lens Desktop](https://lenshq.io/). It runs on your Mac, from
+the release after v0.32.0 on Debian and Ubuntu, and from the first release after the branch
+`windows-release` is merged on Windows 10 and 11 (built 2026-10-21,
+[D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). It reads your kubeconfig files, connects to your clusters with your
 own credentials, and gives you the views Lens users know: workloads, logs, shells, YAML editing,
 port forwarding and the Helm releases in your clusters. Every view reads from a cache that watches
 keep current, so it is fast for you and light on the API server. And agents can drive all of it
@@ -22,9 +24,12 @@ shells, the built-in agent's chat and MCP control of all of it; none of it has b
 by a person on a real cluster yet. The releases are builds for Apple silicon, signed and notarized
 since v0.6.0 (v0.6.0 to v0.8.0 carry the download; v0.5.0 and v0.9.0 to v0.12.0 got no files),
 and from the release after v0.32.0 on also Linux packages for amd64 and arm64 with Cogpit's APT
-repository (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages))
+repository (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+and from the first release after the branch `windows-release` is merged a Windows setup for x64
+that WinSparkle keeps up to date (built 2026-10-21, not yet in a release)
 ([Download a release](#download-a-release), [Install on Linux](#install-on-linux),
-[Run the MVP](#run-the-mvp)); where Cogpit stands: [roadmap](../../ROADMAP.md).
+[Install on Windows](#install-on-windows), [Run the MVP](#run-the-mvp)); where Cogpit stands:
+[roadmap](../../ROADMAP.md).
 
 How data flows from the kubeconfig files to the views and agents:
 [developer documentation › Data flow](README.md#data-flow).
@@ -35,7 +40,7 @@ What Cogpit does and is meant to do, feature by feature. Everything below exists
 unless it is marked *(planned)*; how far each one goes is measured row by row in
 [docs/parity](../parity/README.md) and summed up in [ROADMAP.md](../../ROADMAP.md).
 
-- 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); Windows after the macOS beta *(planned)*, and on Linux no `cogpit://` links and no Start at login yet.
+- 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); since 2026-10-21 a Windows setup for Windows 10 (1809) and 11 on x64, installed for your user without an administrator, on the branch `windows-release` and in the first release after its merge ([Install on Windows](#install-on-windows), [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)); on Linux and Windows no `cogpit://` links and no Start at login yet.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
 - 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
@@ -84,7 +89,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - ⌨️ `cogpit-cli`, inside the app: your contexts and any kind's objects on the command line, read-only, and an MCP stdio bridge you register once.
 - 💬 A built-in agent in a chat beside your views (⌘I), on any OpenAI-compatible endpoint such as LM Studio, LiteLLM or Open WebUI.
 - 📦 Installs the Mac way: open the disk image, drag Cogpit into Applications, signed and notarized (since v0.6.0); *(planned)* a Homebrew cask for shell users.
-- ⬆️ Updates with one click in the macOS app (Sparkle), verified against a signed update feed: the releases carry the update key since v0.11.0, Pages serves the signed feed since 2026-10-16 and the first installed copy updated through it that day. On Linux (since 2026-10-20 night, D-108) apt updates Cogpit from its signed APT repository: the Software Updater and `apt upgrade` offer each release, and Cogpit's Update button installs it after an administrator's password, then reads Restart to Update; whether updates install by themselves is the system's setting, never Cogpit's ([updates on Linux](#updates-on-linux)).
+- ⬆️ Updates with one click in the macOS app (Sparkle), verified against a signed update feed: the releases carry the update key since v0.11.0, Pages serves the signed feed since 2026-10-16 and the first installed copy updated through it that day. On Linux (since 2026-10-20 night, D-108) apt updates Cogpit from its signed APT repository: the Software Updater and `apt upgrade` offer each release, and Cogpit's Update button installs it after an administrator's password, then reads Restart to Update; whether updates install by themselves is the system's setting, never Cogpit's ([updates on Linux](#updates-on-linux)). On Windows (from the first release after the branch `windows-release` is merged, D-111) WinSparkle updates the setup's installation from a feed signed with the same update key: a click on the Update button downloads the setup, checks its signature, installs it and restarts Cogpit ([updates on Windows](#updates-on-windows)).
 
 ## Get it and run it
 
@@ -95,6 +100,9 @@ only ([D-16](decisions.md#d-16-the-first-real-release)): Cogpit for Apple silico
 `Cogpit-<version>-macos-arm64.dmg`, from the release after v0.32.0 on the Linux packages
 `cogpit_<version>_amd64.deb` and `cogpit_<version>_arm64.deb` beside it, each with both binaries
 ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+from the first release after the branch `windows-release` is merged the Windows setup
+`Cogpit-<version>-windows-x64-setup.exe` with both executables
+([Install on Windows](#install-on-windows), [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)),
 and one `SHA256SUMS` over all of them. Open the disk image and drag Cogpit into
 Applications; `cogpit-cli` comes inside the app ([`cogpit-cli`](#cogpit-cli)). v0.6.0, v0.7.0 and
 v0.8.0 carry these files; v0.5.0 and v0.9.0 to v0.12.0 have none, their signing or notarization
@@ -108,7 +116,8 @@ start until you allow it under System Settings › Privacy & Security › Open A
 v0.6.0 also carry `cogpit-cli` archives for Linux, macOS and Windows, those for Linux and Windows
 not signed ([updates](../security/updates.md#what-a-release-holds-today)); later releases carry
 none: from the release after v0.32.0 on, Linux gets `cogpit-cli` in its package with the app, and
-Windows gets it with its desktop app (M11).
+from the first release after the branch `windows-release` is merged Windows gets `cogpit-cli.exe`
+from the setup, beside `cogpit.exe`.
 
 ```sh
 shasum -a 256 -c SHA256SUMS
@@ -204,6 +213,92 @@ rpm, AppImage, Flatpak or tarball;
 not tried yet by a person on a desktop: polkit's password dialog, the restart, an update through
 the Software Updater, the arm64 package beyond GitHub's ARM runner.
 
+### Install on Windows
+
+Since 2026-10-21 ([D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
+the owner's request of that day), Cogpit for Windows is a setup,
+`Cogpit-<version>-windows-x64-setup.exe`, built on the branch `windows-release`; the first release
+that carries it is the first after that branch is merged. It runs on Windows 10 1809 (build 17763)
+and later and on Windows 11, x64; Windows 11 on ARM runs it emulated. Download it and
+`SHA256SUMS` from the [release](https://github.com/guided-traffic/cogpit/releases) and compare the
+digests in PowerShell (the file writes it in lower case, PowerShell in upper case):
+
+```powershell
+(Get-FileHash .\Cogpit-<version>-windows-x64-setup.exe -Algorithm SHA256).Hash
+Select-String windows-x64-setup .\SHA256SUMS
+```
+
+The setup is **not signed with Authenticode yet**
+([H-139](../security/updates.md#h-139-the-windows-setup-is-not-signed-with-authenticode)), so
+Windows SmartScreen says "Windows protected your PC" when you first open it: More info, then Run
+anyway. Updates are vouched for by Cogpit's update key instead: WinSparkle runs only a setup that
+key signed ([updates on Windows](#updates-on-windows)).
+
+```text
+Cogpit-<version>-windows-x64-setup.exe                         for you only, %LOCALAPPDATA%\Programs\Cogpit, no administrator # default
+Cogpit-<version>-windows-x64-setup.exe /allusers               for every user, C:\Program Files\Cogpit (UAC asks)
+Cogpit-<version>-windows-x64-setup.exe /S /D=D:\Tools\Cogpit   silently, into a folder of your own (/D= comes last) # example
+```
+
+An installation is updated where it is and as it was installed (for you or for every user). The
+setup waits for a running Cogpit to quit (a minute silently, then it asks), and moves a running
+`cogpit-cli.exe` aside, an agent's MCP bridge that may run for hours; a later setup or the
+uninstaller removes it.
+
+| File the setup installs into its folder | What it is |
+|---|---|
+| `cogpit.exe` | the app, a GUI program (no console window opens), built as a release builds it: the tag `nodemo` (no demo cluster), Fyne's thread check off, the Windows feed's URL and the update key's public half; its icon and version in Explorer's Properties |
+| `cogpit-cli.exe` | the command-line tool and MCP stdio bridge ([`cogpit-cli`](#cogpit-cli)); not put on your `PATH` |
+| `WinSparkle.dll` | WinSparkle 0.9.4, the updater `cogpit.exe` loads from its own folder by its full path; pinned by the SHA-256 of its release archive, unsigned as WinSparkle ships it ([H-140](../security/updates.md#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
+| `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | Cogpit's licence; the third-party code in the binaries, WinSparkle's and expat's licences |
+| `uninstall.exe` | the uninstaller (`/S` silently) |
+
+and the Start menu entry Cogpit and the entry Settings › Apps lists (its uninstall entry
+`io.guided-traffic.cogpit`, in your registry or, for every user, the machine's). Your settings live
+in `%APPDATA%\Cogpit` and the logs and caches in `%LOCALAPPDATA%\Cogpit`
+([naming conventions](#naming-conventions)). Uninstalling, from Settings › Apps, removes the program, its entries and WinSparkle's state
+(`HKCU\Software\guided-traffic\Cogpit\WinSparkle`), and keeps your files:
+
+```powershell
+Remove-Item -Recurse "$env:APPDATA\Cogpit", "$env:LOCALAPPDATA\Cogpit"   # your settings, logs and caches, if you want them gone too
+```
+
+The window has Windows' own title bar with its three buttons, and below it Cogpit's bar with the
+menus (Cluster, View, Helm, Window, Help) before the logo
+([D-109](decisions.md#d-109-the-menus-in-the-top-bar-on-windows-and-linux)); it follows each
+monitor's scaling. In a release the MCP details offer the stdio registration of the
+`cogpit-cli.exe` beside `cogpit.exe`, written for PowerShell ([Drive it with an agent](#run-the-mvp)).
+
+**The terminal on Windows** (built 2026-10-21, D-111). A local terminal runs the shell Preferences
+› Terminal names, else PowerShell 7 (`pwsh.exe` on `PATH`), else Windows PowerShell
+(`%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe`), else `%ComSpec%` (cmd.exe); the
+field's placeholder shows which one. `$SHELL` is not read on Windows (Git Bash sets a POSIX path
+there that Windows cannot start), and no login shell is asked for: PowerShell and cmd read their
+profiles at every start. The shell runs on Windows' pseudo console (ConPTY). Its own kubeconfig binds
+the cluster's context and namespace as on macOS, `KUBECONFIG=<temp file>;<your kubeconfig files>`
+joined with `;` ([why](../security/credentials.md#the-terminals-kubeconfig)). When Cogpit puts a
+`kubectl` first ([kubectl for terminals](#preferences--kubernetes-kubectl-for-terminals)), a file
+named `kubectl.exe` has its folder put first on the terminal's `PATH`, no file written (any other
+program in that folder comes first too; Cogpit's download folders hold kubectl alone); a kubectl by
+another name gets a hard link named `kubectl.exe` in the terminal's own folder, else a copy.
+**Enforce kubectl does nothing on Windows yet**: its shell function exists for zsh, bash and fish,
+not for PowerShell or cmd, and the switch still shows. **Closing the terminal ends every program
+started from it**, windowed ones too (a Notepad, the first `code .`), as closing a console window
+does: the shell and what it starts run in a job of their own; a program that asks to leave the job
+may, as a program on macOS or Linux may leave the terminal's session. Tested by the session's tests
+on Windows; not looked at yet: a terminal tab in the real window (the console's first output
+carries `ESC[?9001h`, `ESC[?1004h` and OSC 0 titles, which the widget has not been seen to handle
+there), PowerShell 7, Windows 10 and ARM.
+
+**Not on Windows yet:** the Authenticode signature (H-139); a setup for ARM64; winget and Scoop;
+`cogpit://` links and Start at login; the system's file dialogs (the choosers are Fyne's, which
+speak Windows' language, "Speichern" on a German Windows, while Cogpit speaks English, and the
+folder chooser lists no drives); the region's date and time format (Windows' region settings are
+not read: Cogpit writes ISO 8601 unless `LC_ALL`, `LC_TIME` or `LANG` names a locale); the window's place (its size and full screen come back,
+[D-95](decisions.md#d-95-the-window-comes-back-where-it-was)); `~\` in a path field (a terminal's
+folder, a CA file: only `~/` stands for your home folder). Not tried yet: an installation for every
+user through UAC, Windows 10, an ARM machine, a release through the pipeline.
+
 ### Run the MVP
 
 The MVP is a local build for macOS (tested on Apple silicon, macOS 26). It needs Go (1.26 or
@@ -212,7 +307,11 @@ the kind cluster Docker, `kind` and `kubectl`. On Debian or Ubuntu a C compiler 
 and Wayland headers take the Command Line Tools' place, as CI installs them (`sudo apt install
 build-essential libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols`), and
 `make dist-linux VERSION=x.y.z` builds the Debian package for the machine's architecture in
-`dist/linux` (with `dpkg-dev`; since 2026-10-20 night, D-108); `make app` is macOS only.
+`dist/linux` (with `dpkg-dev`; since 2026-10-20 night, D-108); `make app` is macOS only. On
+Windows, Git Bash or MSYS2's shell with MSYS2's MinGW-w64 gcc and make (as CI has them) builds and
+tests Cogpit (`make build`, `make test-windows-unit`, `make test-windows-ui`), and
+`make dist-windows VERSION=x.y.z` builds the setup in `dist/windows` with NSIS 3 (since 2026-10-21,
+D-111; [releasing › Windows](releasing.md#windows)).
 
 ```sh
 git clone https://github.com/guided-traffic/cogpit.git
@@ -257,6 +356,18 @@ installed app offers the registration of the `cogpit-cli` inside it, which you r
 claude mcp remove --scope user cogpit >/dev/null 2>&1; claude mcp add --scope user cogpit -- /Applications/Cogpit.app/Contents/MacOS/cogpit-cli mcp   # example
 ```
 
+On Windows the commands are written for PowerShell, which Windows Terminal opens (since 2026-10-21,
+D-111): the output goes to `*> $null`, the commands are joined with `;` (Windows PowerShell 5.1
+knows no `&&`), and a path that needs quoting is put in single quotes, a single quote in it doubled
+(the typographic ones too, which PowerShell reads as quotes). A release offers the stdio
+registration of the `cogpit-cli.exe` the setup installed beside `cogpit.exe`; a build from source
+(`bin\cogpit.exe`, which has a `cogpit-cli.exe` beside it too) offers the HTTP one:
+
+```powershell
+claude mcp remove --scope user cogpit *> $null; claude mcp add --scope user cogpit -- C:\Users\you\AppData\Local\Programs\Cogpit\cogpit-cli.exe mcp   # example
+claude mcp remove --scope user cogpit *> $null; claude mcp add --scope user cogpit -- 'C:\Program Files\Cogpit\cogpit-cli.exe' mcp                  # example: for every user
+```
+
 Claude Code then starts that `cogpit-cli mcp`, which reads the running app's port and token
 itself before every call, so the registration follows every restart and update of Cogpit and a
 regenerated token; run it again only if you move `Cogpit.app`. Beside it, and alone in a build
@@ -265,6 +376,7 @@ the HTTP registration, with the URL and the token:
 
 ```sh
 claude mcp remove --scope user cogpit >/dev/null 2>&1; claude mcp add --scope user --transport http cogpit http://127.0.0.1:<port>/mcp --header "Authorization: Bearer <token>"
+claude mcp remove --scope user cogpit *> $null; claude mcp add --scope user --transport http cogpit http://127.0.0.1:<port>/mcp --header "Authorization: Bearer <token>"   # the same on Windows, in PowerShell
 ```
 
 Cogpit keeps the port and the token across restarts and the switch, so you run it once, and again
@@ -280,9 +392,12 @@ your confirmation in Cogpit's window ([agents and MCP](../security/agents-and-mc
 **Verify.** `make test-unit-race` runs every test without a cluster; with the kind cluster up,
 `make test-kind` also runs the cluster tests (views, logs, pod shell, `kubectl` in the terminal).
 
-**Not built yet (2026-10-20):** Windows packages (the only way `cogpit-cli` is to reach Windows in a release, M11), Linux formats besides the `.deb` (rpm, AppImage, Flatpak, a tarball), the app for Intel Macs, the Homebrew cask. Updates work on
-macOS: the first installed copy updated from 0.15.0 to 0.16.0 on 2026-10-16; on Linux through apt
-from the release after v0.32.0 on, not yet seen through a release
+**Not built yet (2026-10-21):** the Windows setup's Authenticode signature, a setup for Windows on
+ARM, winget and Scoop ([Install on Windows](#install-on-windows)), Linux formats besides the `.deb`
+(rpm, AppImage, Flatpak, a tarball), the app for Intel Macs, the Homebrew cask. Updates work on
+macOS: the first installed copy updated from 0.15.0 to 0.16.0 on 2026-10-16; on Linux through apt,
+from 0.33.0 to 0.34.0 on the owner's workstation (2026-10-20 night); on Windows through WinSparkle,
+end to end with a throwaway key and a local feed (2026-10-21), not yet through a release
 ([Preferences › App: updates](#preferences--app-updates)). What exists and what is missing, row by
 row: [docs/parity](../parity/README.md).
 
@@ -294,6 +409,10 @@ make kind-down     # deletes the kind cluster and its kubeconfig file
 make clean         # removes bin/ and dist/
 rm -rf ~/Library/Caches/Cogpit "~/Library/Application Support/Cogpit"   # logs, the discovery and Helm caches, audit and connection logs, token, downloaded kubectl releases
 rm -rf ~/.cache/Cogpit ~/.config/Cogpit                                 # the same on Linux
+```
+
+```powershell
+Remove-Item -Recurse "$env:LOCALAPPDATA\Cogpit", "$env:APPDATA\Cogpit"   # the same on Windows
 ```
 
 </details>
@@ -328,7 +447,10 @@ The headless command-line tool (pure Go, no window). It comes inside the app, be
 executable, from the first release after v0.6.0 on
 ([D-16](decisions.md#d-16-the-first-real-release)), and in the Linux package as
 `/usr/bin/cogpit-cli`, on your `PATH`, from the release after v0.32.0 on
-([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); a source checkout builds it as
+([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)), and from the
+Windows setup as `cogpit-cli.exe` beside `cogpit.exe`, not on your `PATH`, from the first release
+after the branch `windows-release` is merged
+([D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)); a source checkout builds it as
 `bin/cogpit-cli` (`make build`):
 
 ```sh
@@ -337,11 +459,12 @@ ln -s /Applications/Cogpit.app/Contents/MacOS/cogpit-cli ~/bin/cogpit-cli    # e
 ```
 
 It is signed and notarized with the app and replaced with it by an update; on Linux apt replaces it
-with the package. Releases no longer carry it alone for any system; Windows gets it with its
-desktop app (M11), until then build it from source there:
+with the package, on Windows the setup an update runs. Releases no longer carry it alone for any
+system; until the first release with the Windows setup, build it from source there:
 `CGO_ENABLED=0 go build ./cmd/cogpit-cli`. On Linux the MCP details offer the stdio registration of
 the package's `/usr/bin/cogpit-cli` since the release after v0.33.0, as the macOS app offers its
-bundle's. It offers the same contexts as the app, from
+bundle's, and on Windows a release's details offer the `cogpit-cli.exe` beside `cogpit.exe`, in
+PowerShell's form ([Drive it with an agent](#run-the-mvp)). It offers the same contexts as the app, from
 the same kubeconfig sources (`~/.kube`, the files `--kubeconfig` or `$KUBECONFIG` names, the files
 and sync folders added in Cogpit), and runs a context's credential plugin, or connects a context
 whose cluster sets `insecure-skip-tls-verify` (A28, since 2026-10-14), only once you allowed it in
@@ -375,7 +498,7 @@ Without a window, the only way to switch the server on is by hand, since a comma
 one an agent could run (not built, the owner's call):
 
 ```sh
-mkdir -p -m 700 ~/.config/Cogpit && printf 'on\n' > ~/.config/Cogpit/mcp-switch   # example on Linux; macOS: "~/Library/Application Support/Cogpit/mcp-switch"
+mkdir -p -m 700 ~/.config/Cogpit && printf 'on\n' > ~/.config/Cogpit/mcp-switch   # example on Linux; macOS: "~/Library/Application Support/Cogpit/mcp-switch"; Windows: %APPDATA%\Cogpit\mcp-switch
 ```
 
 Security note on `get`: it only reads (`resources_list` and `object_get` through the cache, origin
@@ -411,9 +534,9 @@ version; more than one minor version off, or none, and the terminal offers the m
 |---|---|---|
 | `kubectlDownload` | `true` # default | offer the matching release in a terminal whose `kubectl` does not suit the cluster; off, the terminal only says so. The download itself always waits for your click |
 | `kubectlMirror` | `""`: `https://dl.k8s.io/release` # default | the https base URL under which `v<version>/bin/<os>/<arch>/kubectl` and its `.sha256`, `.sig` and `.cert` lie, such as `https://mirror.example.com/kubernetes/kubectl` # example |
-| `kubectlDir` | `""`: `<user config dir>/Cogpit/kubectl` # default | the directory for binaries, an absolute path; releases go into `<dir>/<version>/kubectl` |
+| `kubectlDir` | `""`: `<user config dir>/Cogpit/kubectl` # default | the directory for binaries, an absolute path; releases go into `<dir>/<version>/kubectl` (`kubectl.exe` on Windows, where the default is `%APPDATA%\Cogpit\kubectl`) |
 | `kubectlPath` | `""`: the first `kubectl` on `PATH` # default | the `kubectl` your terminals run, an absolute path; Cogpit checks it against the cluster as it would check `PATH`'s and puts it first on the terminal's `PATH` |
-| `kubectlEnforce` | `false` # default | off: the chosen `kubectl` goes first on the terminal's `PATH` once the shell's profile ran (zsh through `ZDOTDIR`, bash through `--init-file`, fish through `-C`); on: zsh, bash and fish also get a function `kubectl` that runs it, so that a folder the profile puts first later, or an alias, does not win (A27, since 2026-10-14). Other shells keep the environment's `PATH` order ([H-36](../security/trust-boundaries.md#h-36-a-shells-profile-can-put-another-kubectl-first)) |
+| `kubectlEnforce` | `false` # default | off: the chosen `kubectl` goes first on the terminal's `PATH` once the shell's profile ran (zsh through `ZDOTDIR`, bash through `--init-file`, fish through `-C`); on: zsh, bash and fish also get a function `kubectl` that runs it, so that a folder the profile puts first later, or an alias, does not win (A27, since 2026-10-14). Other shells keep the environment's `PATH` order ([H-36](../security/trust-boundaries.md#h-36-a-shells-profile-can-put-another-kubectl-first)); on Windows PowerShell and cmd get no function yet, so the switch does nothing there ([the terminal on Windows](#install-on-windows), D-111) |
 
 Security note: the last four decide which program your terminals run as `kubectl`, so only you, in
 Cogpit's window, can set them, and only you can start a download; agents and `cogpit-cli` are
@@ -733,7 +856,8 @@ Sparkle's window with the release. The button stays until Sparkle's update sessi
 release installed or skipped, or put off with "Remind Me Later" until the next scheduled check)
 ([D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)). Kept in
 `<user config dir>/Cogpit/preferences.json` with the other preferences. On Linux apt does the
-updating, with the same preference and button ([below](#updates-on-linux)).
+updating, with the same preference and button ([below](#updates-on-linux)); on Windows WinSparkle,
+whose button installs at once ([below](#updates-on-windows)).
 
 ```json
 {
@@ -744,16 +868,17 @@ updating, with the same preference and button ([below](#updates-on-linux)).
 
 | Field | Default | Meaning |
 |---|---|---|
-| `checkForUpdates` | `true` # default | Sparkle checks `https://guided-traffic.github.io/cogpit/appcast.xml` at every start and every hour (since 2026-10-16; once a day before); on Linux Cogpit reads apt's lists then instead; off, no check at start or on a schedule, only Help › Check for Updates… checks (on Linux apt and the Software Updater still offer Cogpit's releases: they are the system's) |
+| `checkForUpdates` | `true` # default | Sparkle checks `https://guided-traffic.github.io/cogpit/appcast.xml` at every start and every hour (since 2026-10-16; once a day before); on Linux Cogpit reads apt's lists then instead, on Windows `https://guided-traffic.github.io/cogpit/appcast-windows.xml`; off, no check at start or on a schedule, only Help › Check for Updates… checks (on Linux apt and the Software Updater still offer Cogpit's releases: they are the system's) |
 | `updateChannel` | `"stable"` # default | the only channel until Cogpit publishes prereleases; `beta` is refused for now |
 
 Security note: an agent or `cogpit-cli` may turn `checkForUpdates` on, never off; only you can, in
 Cogpit's window ([agents and MCP](../security/agents-and-mcp.md)). A build without the update key
 (every local build, and every release up to v0.10.0; the releases carry the key since v0.11.0), an app still on its disk
-image, a Cogpit on Linux that is not the installed package's and Windows do not update themselves,
-and the row says why. `cogpit-cli`
+image, a Cogpit on Linux that is not the installed package's and a Cogpit on Windows that is not
+the setup's `cogpit.exe` (a build of your own, a copy elsewhere) do not update themselves, and the
+row says why. `cogpit-cli`
 has no updater of its own: the one inside the app is replaced with the app (on Linux with the
-package), one built from source is not.
+package, on Windows by the setup), one built from source is not.
 Sparkle installs an update only when its disk image and the feed carry the update key's signature
 and the new app carries Cogpit's Developer ID ([updates](../security/updates.md)).
 
@@ -782,6 +907,33 @@ only your own click in the window runs `app.checkForUpdates`: an agent or `cogpi
 the installed package (a build of your own) the Help item is greyed "not installed from the
 package"; where `/etc/apt/sources.list.d/cogpit.sources` was deleted, "no package repository".
 `updateChannel`'s `stable` is the repository's suite `stable`, its only one.
+
+#### Updates on Windows
+
+From the first release after the branch `windows-release` is merged (built 2026-10-21,
+[D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)) WinSparkle, Sparkle's
+Windows port, updates Cogpit for Windows: the `cogpit.exe` the setup installed (in the folder its
+uninstall entry names), in a release build, with `WinSparkle.dll` beside it
+([Install on Windows](#install-on-windows)). While `checkForUpdates` is on, Cogpit reads the signed
+feed `https://guided-traffic.github.io/cogpit/appcast-windows.xml` itself at every start and every
+hour and checks its signature with the update key the release carries; a newer release for Windows
+x64 than the running one, unless you skipped it in WinSparkle's window, shows the Update button
+([updates › Windows](../security/updates.md#windows)).
+
+| What you click | What happens |
+|---|---|
+| The Update button, "Update to v0.35.0" # example (tooltip: "… is available: install it now; Cogpit restarts into it") | installs at once (`app.installUpdate`; the owner's choice of 2026-10-21): WinSparkle's window shows the download, WinSparkle checks the setup's signature with the update key, runs it silently (`/S /relaunch`) and asks Cogpit to quit; the setup waits for Cogpit to end, installs, and starts the new release. No second question: your click is the decision. An installation for you needs no administrator; one for every user asks UAC, since its setup runs elevated |
+| Help › Check for Updates… | WinSparkle's window: whether a newer release exists, its notes (the release's page), Install update, Skip this version, Remind me later; Install update then does what the button does |
+
+Only your click in the window runs `app.installUpdate`: an agent or `cogpit-cli` is refused, since it
+would install and restart Cogpit without asking again; `app.checkForUpdates`, which agents may run,
+shows WinSparkle's window, which installs nothing without your click there. Cogpit's own reading of
+the feed goes through Go's HTTP client, which follows `HTTPS_PROXY` but neither Windows' proxy
+settings nor Preferences › Proxy; WinSparkle's own requests (Help › Check for Updates…, the
+download) follow Windows' settings. Behind a proxy only Windows knows, the Update button stays
+away, and Help › Check for Updates… still finds the release. Checked end to end on 2026-10-21 with a
+throwaway key and a feed on `127.0.0.1` (the owner's Windows 11): 0.0.1 showed "Update to v0.0.2",
+the click had 0.0.2 running 4.6 s later; not yet through a release.
 
 ### Preferences › Agent: the chat's connections
 
@@ -1053,8 +1205,11 @@ Cogpit a folder they read it without asking ([H-116](../security/file-access.md#
 Your answers are in System Settings › Privacy & Security › Files and Folders; `tccutil reset
 SystemPolicyDownloadsFolder io.guided-traffic.cogpit` # example asks again.
 
-On Linux and Windows the choosers are Fyne's dialogs (the system's panels there wait for M11), and
-Sync Files and Folders is Cogpit's own browser for files and folders together, one at a time.
+On Linux and Windows the choosers are Fyne's dialogs (the system's panels there are not built), and
+Sync Files and Folders is Cogpit's own browser for files and folders together, one at a time. On
+Windows Fyne's dialogs speak the system's language ("Speichern" on a German Windows) while the rest
+of Cogpit speaks English, the folder chooser lists no drives to go to, and a chosen path shows with
+backslashes (since 2026-10-21, D-111).
 
 ### Alerts: the pill and the alert board
 
@@ -1286,7 +1441,12 @@ is generated from the registry: [`commands.md`](commands.md).
 
 Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 `~/Library/Application Support`, `<user cache dir>` is `~/Library/Caches`. On Linux they are
-`$XDG_CONFIG_HOME` (else `~/.config`) and `$XDG_CACHE_HOME` (else `~/.cache`), Go's own rule.
+`$XDG_CONFIG_HOME` (else `~/.config`) and `$XDG_CACHE_HOME` (else `~/.cache`), on Windows
+`%APPDATA%` and `%LOCALAPPDATA%` (so `%APPDATA%\Cogpit` and `%LOCALAPPDATA%\Cogpit`), Go's own rule.
+On Windows the "owner-only" modes below are neither set nor checked: the files live in the user's
+profile, whose inherited ACLs give the user, SYSTEM and the Administrators access, and a temporary
+file in `%TEMP%` inherits the same (the lead's policy, 2026-10-21,
+[D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)).
 
 <details>
 <summary>Names, paths and files</summary>
@@ -1297,6 +1457,7 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Binaries | `cogpit` (desktop app), `cogpit-cli` (headless CLI and MCP stdio bridge) | |
 | App bundle | `Cogpit.app`, bundle id `io.guided-traffic.cogpit` | `bin/Cogpit.app` # example |
 | Linux package | `cogpit`, the app id `io.guided-traffic.cogpit` (its launcher, icon, AppStream entry and Wayland app id), the window's `WM_CLASS` `Cogpit`, the polkit action `io.guided-traffic.cogpit.update`, since 2026-10-20 night ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages); its files: [Install on Linux](#install-on-linux)) | `/usr/share/applications/io.guided-traffic.cogpit.desktop` # example |
+| Windows setup | `Cogpit-<version>-windows-x64-setup.exe`, installing `cogpit.exe`, `cogpit-cli.exe` and `WinSparkle.dll` into `%LOCALAPPDATA%\Programs\Cogpit` (for every user `C:\Program Files\Cogpit`), the Start menu entry `Cogpit.lnk`, the uninstall entry `…\CurrentVersion\Uninstall\io.guided-traffic.cogpit` (HKCU, or HKLM's 64-bit view for every user), since 2026-10-21 on the branch `windows-release` ([D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle); its files: [Install on Windows](#install-on-windows)) | `C:\Users\you\AppData\Local\Programs\Cogpit\cogpit.exe` # example |
 | `cogpit-cli` in the app | `Cogpit.app/Contents/MacOS/cogpit-cli`, code-signing identifier `io.guided-traffic.cogpit.cli` ([D-16](decisions.md#d-16-the-first-real-release)) | `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli` # example |
 | Packages | `internal/<area>` | `internal/cache` # example |
 | Command ids | `<kind-or-area>.<action>`, lowerCamelCase segments | `deployment.restart`, `ui.navigate` |
@@ -1333,24 +1494,26 @@ Names Cogpit generates or expects. Paths are macOS paths; `<user config dir>` is
 | Helm chart objects | kind `helmcharts`, named by the chart's id: `<repository>.<chart>`, every dot of the repository's name doubled, so that the first single dot separates the two (a repository's name: 1 to 63 letters, digits, `.`, `-` or `_`, the first a letter or a digit; another is listed as not used) | `bitnami.nginx`, `charts..example.nginx` for repository `charts.example` # example |
 | App log | `<user cache dir>/Cogpit/cogpit.log`, and stderr | |
 | Discovery cache | `<user cache dir>/Cogpit/discovery/<32 hex digits>.json`, owner-only (0600, directory 0700), shared by the app and `cogpit-cli` (since 2026-10-16, [D-65](decisions.md#d-65-discovery-cached-on-disk)): one file per API server and identity, named by a SHA-256 over the server URL, its TLS server name, the kubeconfig files, the context's cluster and user entry names and the user it impersonates (never a credential); it holds the server's URL and version, when the answer was fetched, the digest of the custom resource definitions it was checked against, and the groups and resources the server serves, no object. Reused for the same server version only, for 6 hours once the definitions confirmed it, else 10 minutes; dropped when the definitions change. About 140 KiB for a cluster with 230 custom resource definitions (measured 2026-10-16); deleting the folder costs the next connect its discovery requests, nothing else | `~/Library/Caches/Cogpit/discovery/9c1e4b7a2d5f8e0c3b6a9d2e5f8c1b4a.json` # example |
-| Terminal kubeconfig | a temporary file per terminal holding only a context, owner-only, deleted on close ([why](../security/credentials.md#the-terminals-kubeconfig)) | |
-| Downloaded `kubectl` | `<user config dir>/Cogpit/kubectl/<version>/kubectl` (0755, directories 0700), or the directory for binaries set in Preferences › Kubernetes ([why](decisions.md#d-3-helm-and-kubectl-binaries)) | `~/Library/Application Support/Cogpit/kubectl/1.36.1/kubectl` # example |
-| A terminal's own directory | `<temp dir>/cogpit-terminal-<random>/`, owner-only, removed on close, only when Cogpit puts a `kubectl` first: `bin/kubectl` (a link), `zsh/.zshenv` (zsh only), `bash/rc` (bash only, since 2026-10-14) | |
+| Terminal kubeconfig | a temporary file per terminal holding only a context, `<temp dir>/cogpit-terminal-<random>.kubeconfig`, owner-only (on Windows in `%TEMP%`, whose ACL it inherits), deleted on close (on Windows retried for up to 2 seconds while a program the terminal started still holds it) ([why](../security/credentials.md#the-terminals-kubeconfig)) | |
+| Downloaded `kubectl` | `<user config dir>/Cogpit/kubectl/<version>/kubectl` (0755, directories 0700; on Windows `%APPDATA%\Cogpit\kubectl\<version>\kubectl.exe`), or the directory for binaries set in Preferences › Kubernetes ([why](decisions.md#d-3-helm-and-kubectl-binaries)) | `~/Library/Application Support/Cogpit/kubectl/1.36.1/kubectl` # example |
+| A terminal's own directory | `<temp dir>/cogpit-terminal-<random>/`, owner-only, removed on close, only when Cogpit puts a `kubectl` first: `bin/kubectl` (a link), `zsh/.zshenv` (zsh only), `bash/rc` (bash only, since 2026-10-14); on Windows only for a kubectl not named `kubectl.exe`: `bin\kubectl.exe`, a hard link or else a copy (a `kubectl.exe` has its own folder put first on `PATH` instead; since 2026-10-21, D-111) | |
 | Node shell pod | `kube-system/cogpit-node-shell-<8 random characters>`, labels `app.kubernetes.io/name=cogpit-node-shell` and `app.kubernetes.io/managed-by=cogpit`, annotation `cogpit.io/node-shell-id=<random id>` (its journal entry's), deleted when the shell closes, else at the next connect to its context after a crash, else ended by its deadline, Cluster Settings › Node Shell › Maximum duration (2 hours unless the user sets 5 minutes to 24 hours; [why](../security/privilege-footprint.md#node-shell)) | `kube-system/cogpit-node-shell-k3v9q2mx` # example |
 | Node shell dock tab | id `nodeShell-<n>`, title `Node shell: <node>` | `Node shell: worker-1` # example |
 | Debug container | an ephemeral container `debugger-<5 lowercase characters>` in the pod, as kubectl debug names one, never a name the pod has; it stays as long as the pod ([why](../security/privilege-footprint.md#debug-container)) | `debugger-x7k2q` # example |
 | Debug's Attach tab | id `attach-<n>`, title `Attach: <pod>/<container>`, as Attach's | `Attach: web-0/debugger-x7k2q` # example |
 | Prometheus and Alertmanager settings | `<user config dir>/Cogpit/metrics.json`, owner-only (0600): per context the Prometheus you named (namespace, service, port, path prefix) and, since 2026-10-16, how it is asked when not the defaults (`format`: `prometheus-operator` or `cadvisor`; `keepEmptyContainers`; `https`); since 2026-10-17 the Alertmanager you named (`alertmanager`: namespace, service, port, path prefix, `https`, D-77); never the kubeconfig | `{"prometheus":{},"query":{"kind-dev":{"https":true}},"alertmanager":{"kind-dev":{"namespace":"monitoring","service":"alertmanager-operated","port":"web"}}}` # example |
 | Demo context | `demo` (the synthetic cluster), development builds only; in a release `demo` is a kubeconfig context name like any other ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) | |
-| Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app` and `make dist-linux` check both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |
-| Fyne's thread check | the Makefile's `FYNE_THREAD_CHECKS=on\|off`: off adds Cogpit's build tag `nothreadcheck`, with which the app declares itself migrated to `fyne.Do` (`go version -m <binary>` shows `-tags=nodemo,nothreadcheck` for a release); empty: off for `make dist-app` and `make dist-linux`, on for every other target; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `make app FYNE_THREAD_CHECKS=off` # example |
+| Release build tag | `nodemo` (the Makefile's `DIST_TAGS`; `make dist-app`, `make dist-linux` and `make dist-windows` check both binaries recorded it, `go version -m <binary>` shows `-tags=nodemo`) | |
+| Fyne's thread check | the Makefile's `FYNE_THREAD_CHECKS=on\|off`: off adds Cogpit's build tag `nothreadcheck`, with which the app declares itself migrated to `fyne.Do` (`go version -m <binary>` shows `-tags=nodemo,nothreadcheck` for a release); empty: off for `make dist-app`, `make dist-linux` and `make dist-windows`, on for every other target; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `make app FYNE_THREAD_CHECKS=off` # example |
 | Local kind cluster | cluster `cogpit`, context `kind-cogpit`, kubeconfig `.cache/kind/kubeconfig` | |
-| Release artifacts (planned) | `Cogpit-<version>-macos-universal.dmg`; the desktop app for Windows (M11), with `cogpit-cli` inside | `Cogpit-0.1.0-macos-universal.dmg` # example |
+| Release artifacts (planned) | `Cogpit-<version>-macos-universal.dmg`; a Windows setup for ARM64 | `Cogpit-0.1.0-macos-universal.dmg` # example |
 | Deep links (macOS) | `cogpit://open?context=<context id>&view=<view key>&namespace=<namespace>&name=<name>`, the scheme registered in the app's `CFBundleURLTypes` (name `io.guided-traffic.cogpit`); audited as `deeplink.open` with origin `deeplink` | `cogpit://open?view=pods&namespace=team-a` # example |
-| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (signed releases; `universal` once the app is built for Intel too, planned), `Cogpit_<version>_darwin_<arch>.zip` (v0.4.0 and earlier, and builds without the signing secrets), `SHA256SUMS`; from the release after v0.32.0 on `cogpit_<version>_<arch>.deb` for Linux, `<arch>` `amd64` and `arm64` (D-108), each with both binaries, `SHA256SUMS` over every file; nothing else since D-16's revision (2026-10-14): `cogpit-cli_<version>_<os>_<arch>.tar.gz` (`.zip` for Windows) only up to v0.6.0 | `Cogpit-0.5.0-macos-arm64.dmg`, `cogpit_0.34.0_amd64.deb` # example |
+| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (signed releases; `universal` once the app is built for Intel too, planned), `Cogpit_<version>_darwin_<arch>.zip` (v0.4.0 and earlier, and builds without the signing secrets), `SHA256SUMS`; from the release after v0.32.0 on `cogpit_<version>_<arch>.deb` for Linux, `<arch>` `amd64` and `arm64` (D-108), each with both binaries; from the first release after the branch `windows-release` is merged `Cogpit-<version>-windows-x64-setup.exe` (D-111) with both executables and WinSparkle; `SHA256SUMS` over every file; nothing else since D-16's revision (2026-10-14): `cogpit-cli_<version>_<os>_<arch>.tar.gz` (`.zip` for Windows) only up to v0.6.0 | `Cogpit-0.5.0-macos-arm64.dmg`, `cogpit_0.34.0_amd64.deb` # example |
 | Deep links | `cogpit://` ([D-47](decisions.md#d-47-deep-links-cogpit)) | |
 | Update feed | the appcast every macOS app with the update key reads (`SUFeedURL`, [D-4](decisions.md#d-4-packaging-and-updates)) | `https://guided-traffic.github.io/cogpit/appcast.xml` # default |
 | Sparkle's own state | the app's user defaults, written by Sparkle: whether it checks automatically (`SUEnableAutomaticChecks`, which Cogpit sets from its preference), the last check's time, a skipped version | `~/Library/Preferences/io.guided-traffic.cogpit.plist` # default |
+| Update feed (Windows) | the appcast the Windows setup's `cogpit.exe` reads, built into it by `make dist-windows` (D-111); its items `sparkle:os="windows-x64"` | `https://guided-traffic.github.io/cogpit/appcast-windows.xml` # default |
+| WinSparkle's own state | the registry key WinSparkle writes (a release you skipped, `SkipThisVersion`, which Cogpit reads to leave that release off the button; its own scheduled checks are off); the uninstaller removes it | `HKCU\Software\guided-traffic\Cogpit\WinSparkle` # default |
 | APT repository (Linux) | the repository the package's `/etc/apt/sources.list.d/cogpit.sources` names, suite `stable`, component `main`, `Origin` and `Label` `Cogpit`, signed with Cogpit's APT key (Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`), the two newest releases of each architecture ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) | `https://guided-traffic.github.io/cogpit/apt/` # default |
 
 </details>
@@ -1406,6 +1569,10 @@ Identifiers the documentation uses:
 | `make appcast-draft`, `make appcast-sign`, `make appcast-verify` | the release pipeline's appcast jobs ([releasing › the appcast](releasing.md#the-appcast)) |
 | `make dist-linux VERSION=x.y.z` | the Debian package `dist/linux/cogpit_<version>_<arch>.deb` for this machine's architecture (cgo does not cross-compile), its binaries built as a release builds them; Debian or Ubuntu with `dpkg-dev` (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) |
 | `make test-linux-package` | lintian on the package `dist-linux` built and the APT repository's scripts end to end with a throwaway key (`hack/linux/apt-test.sh`); CI's job Linux Package |
+| `make dist-windows VERSION=x.y.z` | the Windows setup `dist/windows/Cogpit-<version>-windows-x64-setup.exe`, its executables built as a release builds them, with their icon, manifest and version information (go-winres) and WinSparkle (`make winsparkle`, pinned by SHA-256); on Windows only, with MinGW-w64 gcc and NSIS 3 (since 2026-10-21, [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle); [releasing › Windows](releasing.md#windows)) |
+| `make test-windows-package` | installs the setup `dist-windows` built silently for this user into a folder of its own, checks its files, both executables' version, the uninstall and Start menu entries and that `cogpit.exe` is a GUI program, installs it again over itself and uninstalls it (`hack/windows/setup-test.sh`); CI's job Windows Package |
+| `make test-windows-unit`, `make test-windows-ui` | CI's Windows test jobs: `go vet` and every package's tests but `internal/ui/fyneui`'s; `internal/ui/fyneui`'s tests; on Windows, without the race detector ([testing › On Windows](testing.md#on-windows)) |
+| `make appcast-windows-draft`, `make appcast-windows-sign`, `make appcast-windows-verify` | the release pipeline's Windows appcast jobs: `appcast-windows.xml` drafted, signed with the update key (on macOS, Sparkle's `sign_update`) and checked ([releasing › Windows](releasing.md#windows)) |
 | `make apt-repo`, `make apt-verify` | the release pipeline's APT repository in `dist/apt`: built from the packages in `dist/linux` and the repository Pages serves, signed with `APT_SIGNING_KEY` when it is set; checked with the packages' public key ([releasing › the APT repository](releasing.md#the-apt-repository)) |
 | `make clean` | removes `bin/` and `dist/`; `make help` lists every target |
 
