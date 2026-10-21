@@ -260,7 +260,9 @@ func TestDotClickOpensTheConnectionLog(t *testing.T) {
 	if tile == nil {
 		t.Fatal("no tile")
 	}
+	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
 	before := len(f.calls)
+	f.mu.Unlock()
 	test.TapCanvas(w.Canvas(), middleOf(test.WidgetRenderer(tile).(*hotbarTileRenderer).dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
 	f.mu.Lock()
@@ -291,7 +293,9 @@ func TestSectionDotOpensTheLogNotTheRow(t *testing.T) {
 	if row == nil || !row.Visible() {
 		t.Fatal("no row")
 	}
+	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
 	before := len(f.calls)
+	f.mu.Unlock()
 	test.TapCanvas(w.Canvas(), middleOf(row.dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
 	f.mu.Lock()

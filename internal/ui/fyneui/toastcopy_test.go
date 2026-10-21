@@ -59,10 +59,16 @@ func TestToastCopyIcon(t *testing.T) {
 // selection and the toast goes after its time.
 func TestToastTextSelectable(t *testing.T) {
 	sh, w, q := newTestShell(t, connectedFake(t, 3), Options{Theme: ThemeDark})
-	sh.toastTime = 40 * time.Millisecond
+	// A long first lifetime, so that a slow runner cannot let the toast go before the pointer is on
+	// it; the short one from then on, which the selection has to outlast.
+	sh.toastTime = time.Hour
 	sh.toast("error", errorToast)
 	settle(w)
 	card := toastCards(sh)[0]
+	card.MouseIn(mouse())
+	card.mu.Lock()
+	card.life = 40 * time.Millisecond
+	card.mu.Unlock()
 	text := card.text
 	if text == nil || len(text.lines) < 2 {
 		t.Fatalf("the toast's text is not a selectable paragraph over lines: %+v", text)
