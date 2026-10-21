@@ -63,6 +63,9 @@ type Options struct {
 	// <user config dir>/Cogpit/window.json (D-95, windowplace.go); empty keeps nothing, and the
 	// window opens at 1440 × 900 in the middle of the screen.
 	WindowPlace string
+	// menus is where the menus are: this system's place (menusHere), or, for the tests, the
+	// system's menu bar as on macOS (menusNative) or the top bar as elsewhere (menusInBar).
+	menus menuPlace
 }
 
 // PerfStats is what the jank meter measured: how late callbacks posted to the main goroutine
@@ -227,7 +230,10 @@ func Run(s *engine.Session, opts Options) error {
 		sh.dock.closeAll()
 		sh.clearSecretClipboard() // a copied Secret value does not outlive the window on the clipboard
 	})
-	w.SetMainMenu(sh.mainMenu())
+	// On Windows and Linux the menus are the top bar's; the window keeps them for their keys only
+	// from its start on, when Fyne no longer builds its own menu bar later (menubar.go).
+	sh.deferMenuKeys = sh.inlineMenus
+	sh.setMainMenu()
 	// The window's last place and size, whatever Restore the last session says; the first start's
 	// 1440 × 900 in the middle of the screen without one (D-95, windowplace.go). A --perf run
 	// measures at that size and keeps nothing.
@@ -244,7 +250,10 @@ func Run(s *engine.Session, opts Options) error {
 		do(sh.titlebar.install)
 		// After the title bar took its room: the kept frame exactly, full screen, its changes kept (D-95).
 		do(func() { place.follow(w) })
-		do(sh.installAbout)     // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
+		do(sh.installAbout) // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
+		if sh.inlineMenus {
+			do(sh.installMenuKeys) // Windows and Linux: the menus' keys, the window up (menubar.go)
+		}
 		do(sh.showStartNotices) // the crash notice, and what the engine said before the window was up
 		// The cogpit:// links that came before the window wait until now (deeplink.go).
 		do(func() { detachLinks = sh.attachDeepLinks(opts.DeepLinks) })

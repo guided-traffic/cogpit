@@ -314,7 +314,7 @@ func (h *hotbar) syncMenu() {
 	}
 	if state != h.menuFor {
 		h.menuFor = state
-		h.sh.win.SetMainMenu(h.sh.mainMenu())
+		h.sh.setMainMenu()
 	}
 }
 

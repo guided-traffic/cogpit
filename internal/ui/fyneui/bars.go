@@ -72,6 +72,9 @@ type topBar struct {
 	root        fyne.CanvasObject
 	// layout is the Update button and the layout toggles left of the right end (layoutbar.go, F7).
 	layout *layoutBar
+	// menus is the window's menus' titles at the bar's left on Windows and Linux (menubar.go); nil
+	// on macOS, whose menu bar is the system's.
+	menus *menuBar
 }
 
 func newTopBar(sh *shell) *topBar {
@@ -88,6 +91,11 @@ func newTopBar(sh *shell) *topBar {
 	t.history = newTitleHistory(sh)
 	t.notes = newNotificationsUI(sh)
 	left := []fyne.CanvasObject{t.lead, newLogo(), wordmark, t.version}
+	if sh.inlineMenus { // the menus before the logo, a divider between (menubar.go)
+		t.menus = newMenuBar(sh)
+		left = append([]fyne.CanvasObject{t.menus.root, newHGap(theme.SizeNameInnerPadding), newDivider(true),
+			newHGap(theme.SizeNameInnerPadding)}, left...)
+	}
 	if t.history.shown() { // the arrows a gap away from the version, as the divider is from them
 		t.version.gap = newHGap(theme.SizeNameInnerPadding)
 		left = append(left, t.version.gap)

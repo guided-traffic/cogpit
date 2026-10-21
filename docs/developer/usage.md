@@ -190,6 +190,12 @@ sudo apt purge cogpit      # also removes /etc/apt/sources.list.d/cogpit.sources
 rm -rf ~/.config/Cogpit ~/.cache/Cogpit   # your settings, logs and caches, if you want them gone too
 ```
 
+The window has two bars: the desktop's title bar with its buttons, and Cogpit's bar with the menus
+(Cluster, View, Helm, Window, Help) before the logo, since the release after v0.34.1 (the owner,
+[D-109](decisions.md#d-109-the-menus-in-the-top-bar-on-windows-and-linux); before, Fyne's menu bar
+was a row of its own between them). The menus' keys work from any focus, a text field's too; Alt
+does not open the menus, the command palette (Ctrl+Shift+P) reaches every command.
+
 Not on Linux yet: `cogpit://` links, Start at login, the window's place (its size and full screen
 come back, D-95) and the system's file panels (Fyne's dialogs instead). The MCP details offer the
 stdio registration of `/usr/bin/cogpit-cli` since the release after v0.33.0 (0.33.0 offers the HTTP

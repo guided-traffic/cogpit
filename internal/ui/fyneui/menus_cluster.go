@@ -94,7 +94,7 @@ func (l *clusterLinks) set(r linksRead) {
 	}
 	if state != l.menuFor {
 		l.menuFor = state
-		l.sh.win.SetMainMenu(l.sh.mainMenu())
+		l.sh.setMainMenu()
 	}
 }
 

@@ -50,6 +50,13 @@ type shell struct {
 	app       fyne.App
 	win       fyne.Window
 	opts      Options
+	// inlineMenus: the menus are drawn in the top bar (Windows and Linux, menubar.go); the window's
+	// main menu, menuKeys, only holds them for their keys (menuItems, the last built), installed
+	// once the window exists (deferMenuKeys until then).
+	inlineMenus   bool
+	menuKeys      *fyne.MainMenu
+	menuItems     []*fyne.Menu
+	deferMenuKeys bool
 	// do runs a function on the main goroutine (fyne.Do, a queue in tests); once the shell stopped,
 	// what it queued before and what arrives after is dropped (stopped).
 	do      func(func())
@@ -203,6 +210,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 
 	sh.systemReduce = systemReduceMotion
 	sh.blink = newBlinker(sh) // before the bars, whose dots it refreshes
+	sh.inlineMenus = opts.menus.inBar()
 	sh.top = newTopBar(sh)
 	sh.side = newSidebar(sh)
 	sh.view = newTableView(sh)
@@ -567,7 +575,7 @@ func (sh *shell) applyUIState(st engine.UIState) {
 		// Cluster Settings… is enabled while a cluster is chosen, Disconnect while one is connected or
 		// connecting (a reconnect too: menus_cluster.go), Refresh Access Reviews while one is connected
 		// (menuaccess.go), the View menu's kinds while connected (loadKinds rebuilds it once they come).
-		sh.win.SetMainMenu(sh.mainMenu())
+		sh.setMainMenu()
 	}
 	if first || st.Scope() != old.Scope() {
 		sh.side.scopeChanged() // the section's clusters or the cluster's tree (navigator_sections.go)
@@ -681,7 +689,7 @@ func (sh *shell) loadKinds() {
 		sh.view.updateTitle()
 		sh.view.updateNamespaceButton()
 		sh.view.create.update() // local and virtual kinds have no "+"
-		sh.win.SetMainMenu(sh.mainMenu())
+		sh.setMainMenu()
 	})
 }
 
