@@ -140,7 +140,7 @@ and install it with apt, which fetches the libraries it needs:
 ```sh
 sha256sum --ignore-missing -c SHA256SUMS                 # the release's checksums, the downloaded files only
 sudo apt install ./cogpit_<version>_amd64.deb            # the ./ makes apt read the file
-cogpit-cli version                                       # cogpit-cli <version> (go1.27.2, linux/amd64)
+cogpit-cli version                                       # cogpit-cli <version> (go1.27.3, linux/amd64)
 ```
 
 Cogpit is then in the desktop's list of applications (its launcher
@@ -207,7 +207,7 @@ the Software Updater, the arm64 package beyond GitHub's ARM runner.
 ### Run the MVP
 
 The MVP is a local build for macOS (tested on Apple silicon, macOS 26). It needs Go (1.26 or
-later; the build fetches Go 1.27.2 itself), the Xcode Command Line Tools (Fyne uses cgo), and for
+later; the build fetches Go 1.27.3 itself), the Xcode Command Line Tools (Fyne uses cgo), and for
 the kind cluster Docker, `kind` and `kubectl`. On Debian or Ubuntu a C compiler and the GL, X11
 and Wayland headers take the Command Line Tools' place, as CI installs them (`sudo apt install
 build-essential libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols`), and

@@ -3,7 +3,8 @@
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
 # test-envtest, coverage-report, and test-darwin with app on macOS (docs/developer/releasing.md#ci).
 #
-# Go: go.mod declares go 1.27.2; GOTOOLCHAIN=auto fetches it when the local Go is older.
+# Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
+# fetches it when the local Go is older.
 # Kubeconfig safety: every target that talks to a cluster uses KIND_KUBECONFIG, a separate file;
 # nothing here reads or writes ~/.kube/config. Tests run with KUBECONFIG=/dev/null so that code
 # falling back to the default loading rules finds no cluster, and without KUBERNETES_SERVICE_HOST
