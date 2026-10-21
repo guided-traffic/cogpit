@@ -72,24 +72,25 @@ func newChatInput(c *chatPanel) *chatInput {
 }
 
 // flatEntryTheme draws the entry without its own background and border: the input's box is them.
+// The border keeps its width and loses its colours, the unfocused one and the focused one (the
+// primary), because Fyne draws the text cursor as wide as the border: a border of width 0 left the
+// agent's input without a cursor (the owner, 2026-10-21). The blinking cursor takes the app's
+// primary, not this theme's; only with Fyne's animations off (FYNE_DISABLE_ANIMATIONS, which Cogpit
+// never sets) would it take this theme's and not show.
 type flatEntryTheme struct{ app fyne.App }
 
 func (t *flatEntryTheme) cur() fyne.Theme { return t.app.Settings().Theme() }
 
 func (t *flatEntryTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	if n == theme.ColorNameInputBackground {
+	switch n {
+	case theme.ColorNameInputBackground, theme.ColorNameInputBorder, theme.ColorNamePrimary:
 		return color.Transparent
 	}
 	return t.cur().Color(n, v)
 }
 func (t *flatEntryTheme) Font(s fyne.TextStyle) fyne.Resource     { return t.cur().Font(s) }
 func (t *flatEntryTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return t.cur().Icon(n) }
-func (t *flatEntryTheme) Size(n fyne.ThemeSizeName) float32 {
-	if n == theme.SizeNameInputBorder {
-		return 0
-	}
-	return t.cur().Size(n)
-}
+func (t *flatEntryTheme) Size(n fyne.ThemeSizeName) float32       { return t.cur().Size(n) }
 
 // chatEntry is the input's entry: Enter sends, Shift+Enter is a new line, Escape stops a running
 // turn (else leaves the entry), ⌘. stops.

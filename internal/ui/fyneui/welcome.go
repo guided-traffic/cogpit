@@ -346,6 +346,7 @@ func (w *welcomePage) groups() []welcomeGroup {
 // render shows the connection's line and the clusters. The list is rebuilt only when what it shows
 // changed.
 func (w *welcomePage) render() {
+	defer welcomeStageOf(w.root).relayout() // the scrim over the grid floor ends under the last line
 	w.renderStatus()
 	w.renderHint()
 	w.renderRestore()

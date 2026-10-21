@@ -1948,11 +1948,13 @@ func (r *headerCellRenderer) Refresh() {
 	h := r.h
 	th := h.Theme()
 	h.text.Text = h.title
-	// Muted bold text on the stage and a hairline under it: no band and no column dividers.
+	// Muted bold text on the stage, a hairline under it and a short divider between the columns,
+	// both in the bracket's ink: no band. The dividers show where a column is dragged wider (the
+	// owner missed them in the first build of Dark Cockpit, 2026-10-21).
 	h.text.TextSize = th.Size(theme.SizeNameText) - 1
 	h.text.TextStyle = fyne.TextStyle{Bold: true}
 	h.text.Color = themeColor(th, colorMuted)
-	h.sep.FillColor = color.Transparent
+	h.sep.FillColor = themeColor(th, colorBracket)
 	h.line.FillColor = themeColor(th, colorBracket)
 	var arrow fyne.Resource
 	switch h.sort {

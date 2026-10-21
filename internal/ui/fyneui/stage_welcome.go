@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"image"
 	"image/color"
 
 	"fyne.io/fyne/v2"
@@ -167,28 +168,52 @@ func clippedHorizon(floor float32) fyne.CanvasObject {
 // welcomeStage is the welcome page's backdrop and its content in one: the horizon (the stage light
 // at the top, the grid floor at the bottom) behind a scroll holding the page. The floor must never
 // run behind text (design-language.md: no line under a word), so a scrim in the stage's own colour
-// lies over it from just above where the floor starts to just under the content's last line, with a
-// soft edge at each end: the grid shows only in the free band below the content, and not at all
-// when the content fills the window. The scrim follows the scroll offset.
+// lies over it behind the page's column only, from just above where the floor starts to just under
+// the content's last line, with soft edges all round: the grid shows beside the column all the
+// time, and under it in the free band below the content. The scrim follows the scroll offset and
+// the page's height (relayout, which the page calls after it renders).
+//
+// The owner, 2026-10-21, on the first build (a scrim the window's width, worked out from a stale
+// height until the first scroll): the grid seen at a fresh start "sehr gut gemacht", but gone after
+// the slightest scroll until a restart. The column's scrim keeps that look and the rule.
 type welcomeStage struct {
 	horizon fyne.CanvasObject
-	top     *canvas.LinearGradient // the scrim's upper edge: the stage fading in
-	body    *canvas.Rectangle      // the scrim
-	bottom  *canvas.LinearGradient // the scrim's lower edge: the stage fading out
+	scrim   *canvas.Raster
 	scroll  *container.Scroll
 	page    fyne.CanvasObject // the content the scroll holds, whose height says where the last line is
+	box     *fyne.Container   // the stage's container, laid out again by relayout
+
+	// What the scrim's image was drawn for, so that a layout that moves nothing draws nothing.
+	drawn    fyne.Size
+	fadeDown bool // the scrim ends above the window's bottom and fades out there
+	stage    color.NRGBA
 }
 
-// welcomeScrimEdge is the height of the scrim's soft edges, in points.
-const welcomeScrimEdge = 28
+const (
+	welcomeScrimEdge   = 28 // the height (and width) of the scrim's soft edges, in points
+	welcomeScrimMargin = 12 // the scrim's solid part beyond the column on each side, in points
+)
 
 func newWelcomeStage(page fyne.CanvasObject) *fyne.Container {
-	s := &welcomeStage{horizon: clippedHorizon(0), page: page, scroll: container.NewVScroll(page),
-		top: canvas.NewLinearGradient(color.Transparent, color.Transparent, 0), body: canvas.NewRectangle(color.Transparent),
-		bottom: canvas.NewLinearGradient(color.Transparent, color.Transparent, 0)}
-	c := container.New(s, s.horizon, s.top, s.body, s.bottom, s.scroll)
-	s.scroll.OnScrolled = func(fyne.Position) { c.Layout.Layout(c.Objects, c.Size()) }
-	return c
+	s := &welcomeStage{horizon: clippedHorizon(0), page: page, scroll: container.NewVScroll(page)}
+	s.scrim = canvas.NewRaster(s.drawScrim)
+	s.scrim.ScaleMode = canvas.ImageScaleSmooth
+	s.box = container.New(s, s.horizon, s.scrim, s.scroll)
+	s.scroll.OnScrolled = func(fyne.Position) { s.relayout() }
+	return s.box
+}
+
+// relayout places the scrim again: after a scroll, and after the page changed its height.
+func (s *welcomeStage) relayout() {
+	if s != nil {
+		s.Layout(s.box.Objects, s.box.Size())
+	}
+}
+
+// welcomeStageOf returns the stage a welcome page's root is, or nil.
+func welcomeStageOf(root *fyne.Container) *welcomeStage {
+	s, _ := root.Layout.(*welcomeStage)
+	return s
 }
 
 func (s *welcomeStage) MinSize(objs []fyne.CanvasObject) fyne.Size { return s.scroll.MinSize() }
@@ -198,34 +223,65 @@ func (s *welcomeStage) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	s.horizon.Resize(size)
 	s.scroll.Move(fyne.Position{})
 	s.scroll.Resize(size)
-	th := fyne.CurrentApp().Settings().Theme()
-	stage := themeColor(th, theme.ColorNameBackground)
-	s.top.StartColor, s.top.EndColor = withAlpha(stage, 0), stage
-	s.bottom.StartColor, s.bottom.EndColor = stage, withAlpha(stage, 0)
-	s.body.FillColor = stage
 	floorTop := size.Height * (1 - newHorizon().floor)
 	from := floorTop - welcomeScrimEdge
 	to := max(s.page.MinSize().Height-s.scroll.Offset.Y, 0) + 10 // just under the last line
-	if to >= size.Height {
-		to = size.Height // the content reaches the floor: no floor at all
-	}
 	if to <= from {
-		s.top.Hide()
-		s.body.Hide()
-		s.bottom.Hide()
+		s.scrim.Hide()
 		return
 	}
-	s.top.Show()
-	s.body.Show()
-	s.top.Move(fyne.NewPos(0, from))
-	s.top.Resize(fyne.NewSize(size.Width, welcomeScrimEdge))
-	s.body.Move(fyne.NewPos(0, from+welcomeScrimEdge))
-	s.body.Resize(fyne.NewSize(size.Width, max(to-from-welcomeScrimEdge, 0)))
-	if to < size.Height {
-		s.bottom.Show()
-		s.bottom.Move(fyne.NewPos(0, to))
-		s.bottom.Resize(fyne.NewSize(size.Width, welcomeScrimEdge))
-	} else {
-		s.bottom.Hide()
+	// The column as welcomeLayout places it, and the scrim's solid margin and soft edge beside it.
+	pad := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameInnerPadding)
+	col := min(float32(welcomeColumn), size.Width-2*pad)
+	x := max((size.Width-col)/2-welcomeScrimMargin-welcomeScrimEdge, 0)
+	w := min(col+2*(welcomeScrimMargin+welcomeScrimEdge), size.Width)
+	bottom := min(to+welcomeScrimEdge, size.Height)
+	stage := color.NRGBAModel.Convert(themeColor(fyne.CurrentApp().Settings().Theme(), theme.ColorNameBackground)).(color.NRGBA)
+	box, fadeDown := fyne.NewSize(w, bottom-from), to+welcomeScrimEdge <= size.Height
+	s.scrim.Move(fyne.NewPos(x, from))
+	s.scrim.Resize(box)
+	s.scrim.Show()
+	if box != s.drawn || fadeDown != s.fadeDown || stage != s.stage {
+		s.drawn, s.fadeDown, s.stage = box, fadeDown, stage
+		s.scrim.Refresh()
 	}
+}
+
+// drawScrim draws the scrim: the stage's colour, opaque inside, fading to nothing over
+// welcomeScrimEdge at the left, right and top, and at the bottom when the scrim ends above the
+// window's. It draws a quarter of the pixels; the raster's smooth scaling makes up the rest, which
+// a fade this soft does not show, and keeps a scroll cheap.
+func (s *welcomeStage) drawScrim(pw, ph int) image.Image {
+	w, h := max(pw/4, 1), max(ph/4, 1)
+	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+	if s.drawn.Width <= 0 || s.drawn.Height <= 0 {
+		return img
+	}
+	ex := float32(w) * welcomeScrimEdge / s.drawn.Width  // the soft edge's width in this image's pixels
+	ey := float32(h) * welcomeScrimEdge / s.drawn.Height // and its height
+	ramp := func(d, e float32) float32 {                 // 0 at the edge, 1 a full edge inside it
+		if e <= 0 || d >= e {
+			return 1
+		}
+		return max(d/e, 0)
+	}
+	fx := make([]float32, w)
+	for i := range fx {
+		c := float32(i) + 0.5
+		fx[i] = ramp(min(c, float32(w)-c), ex)
+	}
+	for j := range h {
+		c := float32(j) + 0.5
+		fy := ramp(c, ey)
+		if s.fadeDown {
+			fy = min(fy, ramp(float32(h)-c, ey))
+		}
+		row := img.Pix[j*img.Stride:]
+		for i, f := range fx {
+			a := fy * f
+			row[4*i], row[4*i+1], row[4*i+2] = s.stage.R, s.stage.G, s.stage.B
+			row[4*i+3] = uint8(float32(s.stage.A) * a * a * (3 - 2*a)) // smoothstep: no visible band where the fade begins
+		}
+	}
+	return img
 }
