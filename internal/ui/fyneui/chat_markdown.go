@@ -406,16 +406,16 @@ func (r *vstackRenderer) Destroy()                     {}
 // every block whose content did not change.
 type mdText struct {
 	*vstack
-	color  fyne.ThemeColorName
-	onLink func(*url.URL)
-	keys   []string
-	width  float32
+	color fyne.ThemeColorName
+	hooks mdHooks
+	keys  []string
+	width float32
 	// relaid counts the blocks laid out anew by setBlocks (the streaming test reads it).
 	relaid int
 }
 
-func newMDText(color fyne.ThemeColorName, onLink func(*url.URL)) *mdText {
-	t := &mdText{vstack: makeVStack(theme.SizeNamePadding), color: color, onLink: onLink}
+func newMDText(color fyne.ThemeColorName, hooks mdHooks) *mdText {
+	t := &mdText{vstack: makeVStack(theme.SizeNamePadding), color: color, hooks: hooks}
 	t.gapX = 2
 	t.extend(t)
 	return t
@@ -441,7 +441,7 @@ func (t *mdText) setBlocks(blocks []mdBlock) {
 				continue
 			}
 		}
-		objs[i] = newBlockView(b, t.color, t.onLink)
+		objs[i] = newBlockView(b, t.color, t.hooks)
 		if a, ok := objs[i].(widthAware); ok {
 			a.setWidth(t.width)
 		}
@@ -462,18 +462,25 @@ func (t *mdText) setWidth(w float32) {
 func isFlow(k mdKind) bool { return k == mdKindPara || k == mdKindHeading || k == mdKindQuote }
 
 // newBlockView makes the widget of one block.
-func newBlockView(b mdBlock, color fyne.ThemeColorName, onLink func(*url.URL)) fyne.CanvasObject {
+func newBlockView(b mdBlock, color fyne.ThemeColorName, hooks mdHooks) fyne.CanvasObject {
 	switch b.kind {
 	case mdKindCode:
-		return newMDCode(b.code)
+		c := newMDCode(b.code)
+		if hooks.copy != nil {
+			c.selectable(hooks.copy)
+		}
+		return c
 	case mdKindList:
-		return newMDList(b.list, color, onLink)
+		return newMDList(b.list, color, hooks)
 	case mdKindTable:
-		return newMDTable(b.table, color, onLink)
+		return newMDTable(b.table, color, hooks)
 	case mdKindRule:
 		return newDivider(false)
 	}
-	f := newMDFlow(b.runs, color, onLink)
+	f := newMDFlow(b.runs, color, hooks.link)
+	if hooks.copy != nil {
+		f.selectable(hooks.copy)
+	}
 	f.kindOf, f.level = b.kind, b.level
 	switch {
 	case b.kind == mdKindHeading && b.level == 1:
@@ -505,7 +512,8 @@ type mdFlow struct {
 	height  float32
 	laidW   float32
 	laidOK  bool
-	overURL bool // the pointer is over a link
+	overURL bool     // the pointer is over a link
+	sel     *selArea // the selection over the text (chat_select.go); nil: not selectable
 }
 
 // flowPiece is a piece of a laid-out flow: text in one style at a position.
@@ -517,7 +525,20 @@ type flowPiece struct {
 	size  float32
 	code  bool
 	link  *url.URL
+	line  int       // the line it is on, from 0
+	brk   flowBreak // what the text had where this piece starts a line (chat_select.go's copy)
+	hard  int       // with flowHard: how many line breaks (a blank line is two)
 }
+
+// flowBreak is what a piece that starts a line follows in the text: the lines a width wrapped run
+// on, a word's space carried by the line before.
+type flowBreak uint8
+
+const (
+	flowWrap  flowBreak = iota // a wrap: the line before ends with its space, or a word broke
+	flowHard                   // a line break of the text
+	flowSpace                  // a wrap at a space the line start dropped
+)
 
 var (
 	_ fyne.Tappable      = (*mdFlow)(nil)
@@ -535,6 +556,9 @@ func newMDFlow(runs []mdRun, color fyne.ThemeColorName, onLink func(*url.URL)) *
 func (f *mdFlow) setRuns(runs []mdRun) {
 	f.runs = runs
 	f.laidOK = false
+	if f.sel != nil {
+		f.sel.reset() // the offsets were into the old text
+	}
 	f.relayout()
 	f.Refresh()
 }
@@ -571,6 +595,7 @@ func layoutFlow(runs []mdRun, width, size, spacing float32, bold, italic bool, m
 	var out, line []flowPiece
 	x, y, lines := float32(0), float32(0), 0
 	full := false
+	brk, hard := flowWrap, 0 // what the next placed piece follows, when it starts a line
 	newline := func() {
 		if full {
 			line = nil
@@ -592,7 +617,11 @@ func layoutFlow(runs []mdRun, width, size, spacing float32, bold, italic bool, m
 		x = 0
 	}
 	place := func(p flowPiece) {
-		p.x = x
+		p.x, p.line = x, lines
+		if len(line) == 0 {
+			p.brk, p.hard = brk, hard
+		}
+		brk, hard = flowWrap, 0
 		line = append(line, p)
 		x += p.w
 	}
@@ -623,6 +652,8 @@ func layoutFlow(runs []mdRun, width, size, spacing float32, bold, italic bool, m
 		for li, seg := range strings.Split(r.text, "\n") {
 			if li > 0 {
 				newline()
+				brk = flowHard
+				hard++
 			}
 			for _, word := range splitWords(seg) {
 				trimmed := strings.TrimRight(word, " ")
@@ -631,6 +662,7 @@ func layoutFlow(runs []mdRun, width, size, spacing float32, bold, italic bool, m
 				if x > 0 && x+tw > width {
 					newline()
 					if trimmed == "" {
+						brk = flowSpace
 						continue // no space at a line's start
 					}
 				}
@@ -787,6 +819,7 @@ type mdFlowRenderer struct {
 	objs   []fyne.CanvasObject
 	built  []flowPiece // the pieces objs were made for
 	chips  []*canvas.Rectangle
+	hls    []*canvas.Rectangle // the selection's highlights, one per piece, over the chips and under the text
 	texts  []*canvas.Text
 	tokens []fyne.ThemeColorName // each text's colour token
 }
@@ -798,6 +831,11 @@ func (r *mdFlowRenderer) Layout(size fyne.Size) {
 	r.f.relayout()
 	if !samePieces(r.built, r.f.pieces) {
 		r.build()
+	}
+	if r.f.sel != nil {
+		r.f.sel.Move(fyne.Position{})
+		r.f.sel.Resize(size)
+		r.f.placeSelection(r.hls)
 	}
 }
 
@@ -813,11 +851,12 @@ func samePieces(a, b []flowPiece) bool {
 	return true
 }
 
-// build makes the canvas objects of the laid-out pieces.
+// build makes the canvas objects of the laid-out pieces: the chips, the selection's highlights,
+// the texts and the selection's area, in that order.
 func (r *mdFlowRenderer) build() {
 	f := r.f
 	th := f.Theme()
-	r.objs, r.chips, r.texts, r.tokens = r.objs[:0], r.chips[:0], r.texts[:0], r.tokens[:0]
+	r.objs, r.chips, r.hls, r.texts, r.tokens = r.objs[:0], r.chips[:0], r.hls[:0], r.texts[:0], r.tokens[:0]
 	for _, p := range f.pieces {
 		tok := f.color
 		x := p.x
@@ -828,7 +867,6 @@ func (r *mdFlowRenderer) build() {
 			chip.Move(fyne.NewPos(p.x, p.y-1))
 			chip.Resize(fyne.NewSize(p.w, p.h+2))
 			r.chips = append(r.chips, chip)
-			r.objs = append(r.objs, chip)
 			tok, x = colorCode, p.x+chipPad
 		case p.link != nil:
 			tok = colorLink
@@ -839,7 +877,22 @@ func (r *mdFlowRenderer) build() {
 		t.Resize(fyne.NewSize(p.w, p.h))
 		r.texts = append(r.texts, t)
 		r.tokens = append(r.tokens, tok)
+	}
+	for _, c := range r.chips {
+		r.objs = append(r.objs, c)
+	}
+	if f.sel != nil {
+		for range f.pieces {
+			hl := newSelHighlight()
+			r.hls = append(r.hls, hl)
+			r.objs = append(r.objs, hl)
+		}
+	}
+	for _, t := range r.texts {
 		r.objs = append(r.objs, t)
+	}
+	if f.sel != nil {
+		r.objs = append(r.objs, f.sel)
 	}
 	r.built = f.pieces
 }
@@ -858,6 +911,9 @@ func (r *mdFlowRenderer) Refresh() {
 		for _, c := range r.chips {
 			c.FillColor = themeColor(th, colorChip)
 		}
+	}
+	if r.f.sel != nil {
+		r.f.placeSelection(r.hls)
 	}
 	canvas.Refresh(r.f)
 }
@@ -888,7 +944,9 @@ type mdCode struct {
 	lines []string
 	laidW float32
 	color fyne.ThemeColorName
-	words bool // prose, not code (an error's text): wrap at word boundaries, break a word only when it is wider than a line
+	words bool     // prose, not code (an error's text): wrap at word boundaries, break a word only when it is wider than a line
+	cont  []bool   // a line runs on from the one before: the width broke a line of the text
+	sel   *selArea // the selection over the text (chat_select.go); nil: not selectable
 }
 
 func newMDCode(text string) *mdCode {
@@ -909,19 +967,23 @@ func (c *mdCode) relayout() {
 	}
 	st := fyne.TextStyle{Monospace: true}
 	w := c.width - 2*c.pad()
-	c.lines = c.lines[:0]
+	c.lines, c.cont = c.lines[:0], c.cont[:0]
 	for _, l := range strings.Split(strings.ReplaceAll(c.text, "\t", "    "), "\n") {
-		if c.width <= 0 {
-			c.lines = append(c.lines, l)
-			continue
+		var parts []string
+		switch {
+		case c.width <= 0:
+			parts = []string{l}
+		case c.words:
+			parts = wrapHard(l, w, c.textSize(), st)
+		default:
+			parts = wrapChars(l, w, c.textSize(), st)
 		}
-		if c.words {
-			c.lines = append(c.lines, wrapHard(l, w, c.textSize(), st)...)
-		} else {
-			c.lines = append(c.lines, wrapChars(l, w, c.textSize(), st)...)
+		if l == "" && c.width > 0 {
+			parts = append(parts, "")
 		}
-		if l == "" {
-			c.lines = append(c.lines, "")
+		for i, part := range parts {
+			c.lines = append(c.lines, part)
+			c.cont = append(c.cont, i > 0)
 		}
 	}
 	c.laidW = c.width
@@ -948,6 +1010,7 @@ func (c *mdCode) CreateRenderer() fyne.WidgetRenderer {
 type mdCodeRenderer struct {
 	c     *mdCode
 	bg    *canvas.Rectangle
+	hls   []*canvas.Rectangle // the selection's highlights, one per line
 	texts []*canvas.Text
 	objs  []fyne.CanvasObject
 }
@@ -957,6 +1020,11 @@ func (r *mdCodeRenderer) Layout(size fyne.Size) {
 	pad, lh := r.c.pad(), r.c.lineHeight()
 	for i, t := range r.texts {
 		t.Move(fyne.NewPos(pad, pad+float32(i)*lh))
+	}
+	if r.c.sel != nil {
+		r.c.sel.Move(fyne.Position{})
+		r.c.sel.Resize(size)
+		r.c.placeSelection(r.hls)
 	}
 }
 
@@ -973,15 +1041,24 @@ func (r *mdCodeRenderer) Refresh() {
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	fg := themeColor(th, c.color)
 	if len(r.texts) != len(c.lines) {
-		r.texts = r.texts[:0]
+		r.texts, r.hls = r.texts[:0], r.hls[:0]
 		for range c.lines {
 			r.texts = append(r.texts, canvas.NewText("", fg))
+			if c.sel != nil {
+				r.hls = append(r.hls, newSelHighlight())
+			}
 		}
 	}
 	r.objs = append(r.objs[:0], r.bg)
+	for _, hl := range r.hls {
+		r.objs = append(r.objs, hl)
+	}
 	for i, t := range r.texts {
 		t.Text, t.Color, t.TextSize, t.TextStyle = c.lines[i], fg, c.textSize(), fyne.TextStyle{Monospace: true}
 		r.objs = append(r.objs, t)
+	}
+	if c.sel != nil {
+		r.objs = append(r.objs, c.sel)
 	}
 	r.Layout(c.Size())
 	canvas.Refresh(c)
@@ -999,7 +1076,7 @@ type mdListView struct {
 	indent  float32
 }
 
-func newMDList(l *mdList, color fyne.ThemeColorName, onLink func(*url.URL)) *mdListView {
+func newMDList(l *mdList, color fyne.ThemeColorName, hooks mdHooks) *mdListView {
 	v := &mdListView{}
 	n := l.start
 	widest := ""
@@ -1014,7 +1091,7 @@ func newMDList(l *mdList, color fyne.ThemeColorName, onLink func(*url.URL)) *mdL
 		}
 		m := newTextLine(mark, color, theme.SizeNameText, fyne.TextStyle{Bold: l.ordered})
 		m.align = fyne.TextAlignTrailing
-		t := newMDText(color, onLink)
+		t := newMDText(color, hooks)
 		t.gapX = 1
 		t.setBlocks(it)
 		v.markers = append(v.markers, m)
@@ -1093,7 +1170,7 @@ type mdTableView struct {
 	words   []float32 // each column's longest word, which it keeps whole when the table can
 }
 
-func newMDTable(t *mdTable, fg fyne.ThemeColorName, onLink func(*url.URL)) *mdTableView {
+func newMDTable(t *mdTable, fg fyne.ThemeColorName, hooks mdHooks) *mdTableView {
 	v := &mdTableView{align: t.align, header: len(t.header) > 0}
 	cols := len(t.header)
 	for _, r := range t.rows {
@@ -1106,8 +1183,11 @@ func newMDTable(t *mdTable, fg fyne.ThemeColorName, onLink func(*url.URL)) *mdTa
 			if c < len(cells) {
 				runs = cells[c]
 			}
-			f := newMDFlow(runs, fg, onLink)
+			f := newMDFlow(runs, fg, hooks.link)
 			f.bold = bold
+			if hooks.copy != nil {
+				f.selectable(hooks.copy)
+			}
 			out[c] = f
 		}
 		return out

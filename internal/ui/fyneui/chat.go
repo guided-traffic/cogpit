@@ -818,6 +818,7 @@ func (c *chatPanel) payloadDialog(body, endpoint string, private bool) {
 		note += fmt.Sprintf(" · %s more lines not drawn: Copy has them", formatCount(int64(len(lines)-payloadMaxLines)))
 	}
 	code := newMDCode(shown)
+	code.selectable(c.copySelection)
 	win := c.sh.win.Canvas().Size()
 	w := max(win.Width*0.6, 480)
 	code.setWidth(w - 24)

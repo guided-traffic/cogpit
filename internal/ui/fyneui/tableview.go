@@ -749,7 +749,8 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		title = "" // Lens's warning and icon columns have no title; Title names them for agents
 	}
 	h.set(id.Col, title, sort)
-	if !tv.fitting && id.Col < len(tv.setWidths) {
+	h.setFixed(fixedWidth(col))
+	if !tv.fitting && !fixedWidth(col) && id.Col < len(tv.setWidths) {
 		if w := o.Size().Width; w > 0 && w != tv.setWidths[id.Col] {
 			tv.setWidths[id.Col] = w
 			tv.userWidths[tv.snap.View+"/"+col.ID] = w
@@ -888,7 +889,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 // the default for the column id or type.
 func (tv *tableView) columnWidth(i int) float32 {
 	col := tv.snap.Columns[tv.cols[i]]
-	if w, ok := tv.userWidths[tv.snap.View+"/"+col.ID]; ok {
+	if w, ok := tv.userWidths[tv.snap.View+"/"+col.ID]; ok && !fixedWidth(col) {
 		return w
 	}
 	if col.Width > 0 {
@@ -901,6 +902,17 @@ func (tv *tableView) columnWidth(i int) float32 {
 		return w
 	}
 	return defaultWidthByType[model.ColumnText]
+}
+
+// fixedWidth reports whether a column keeps its width: Lens's warning column, an icon without a
+// title, has no divider in the header and is neither dragged wider nor fitted to its content (the
+// owner, 2026-10-21, after the dividers came back: "kann meiner Meinung nach eine feste Breite
+// haben").
+func fixedWidth(c model.Column) bool { return c.Type == model.ColumnWarning }
+
+// fixedAt reports whether the visible column i keeps its width (fixedWidth).
+func (tv *tableView) fixedAt(i int) bool {
+	return tv.snap != nil && i >= 0 && i < len(tv.cols) && fixedWidth(tv.snap.Columns[tv.cols[i]])
 }
 
 // flexColumn is the visible column that takes the free width: the name, as in Lens; for views
@@ -1105,6 +1117,9 @@ type resourceTable struct {
 	shift  bool              // Shift is held, for ⇧Tab
 	offset fyne.Position     // the scroll offset, as the scroller last reported it
 	body   *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
+	hover  fyne.Position     // the pointer in the table, for the cursor over a divider
+
+	dragging, dragFixed bool // a drag is under way; it began on the divider of a column that keeps its width
 }
 
 func newResourceTable(tv *tableView) *resourceTable {
@@ -1145,12 +1160,42 @@ func (t *resourceTable) CreateRenderer() fyne.WidgetRenderer {
 
 // MouseIn records the pointer for tooltips.
 func (t *resourceTable) MouseIn(ev *desktop.MouseEvent) {
+	t.hover = ev.Position
 	t.tv.pointer, t.tv.pointerIn = ev.AbsolutePosition, true
 	t.Table.MouseIn(ev)
 }
 
+// Cursor implements desktop.Cursorable: Fyne's resize arrows over a header divider, but none over
+// the edge of a column that keeps its width (fixedWidth).
+func (t *resourceTable) Cursor() desktop.Cursor {
+	c := t.Table.Cursor()
+	if c == desktop.HResizeCursor && t.tv.fixedAt(t.tv.separatorAt(t.hover)) {
+		return desktop.DefaultCursor
+	}
+	return c
+}
+
+// Dragged implements fyne.Draggable: Fyne's table drags a column's divider, except a column's that
+// keeps its width (fixedWidth); where the drag began decides it.
+func (t *resourceTable) Dragged(e *fyne.DragEvent) {
+	if !t.dragging {
+		t.dragging = true
+		t.dragFixed = t.tv.fixedAt(t.tv.separatorAt(e.Position.Subtract(e.Dragged)))
+	}
+	if !t.dragFixed {
+		t.Table.Dragged(e)
+	}
+}
+
+// DragEnd implements fyne.Draggable.
+func (t *resourceTable) DragEnd() {
+	t.dragging, t.dragFixed = false, false
+	t.Table.DragEnd()
+}
+
 // MouseMoved records the pointer; the table's hover callback then moves the highlight.
 func (t *resourceTable) MouseMoved(ev *desktop.MouseEvent) {
+	t.hover = ev.Position
 	t.tv.pointer, t.tv.pointerIn = ev.AbsolutePosition, true
 	t.Table.MouseMoved(ev)
 	t.tv.requestTip()
@@ -1854,6 +1899,7 @@ type headerCell struct {
 	menu      bool // the ⋮ at the end of the header row
 	box       bool // the checkbox at the start of the header row (tablecheck.go)
 	boxed     int  // the checkbox's state: checkNone, checkSome or checkAll
+	fixed     bool // the column keeps its width (fixedWidth): no divider
 
 	text  *canvas.Text
 	arrow *iconImage
@@ -1880,6 +1926,14 @@ func (h *headerCell) set(col int, title string, sort int) {
 	}
 	h.title, h.sort, h.menu, h.box = title, sort, false, false
 	h.Refresh()
+}
+
+// setFixed marks the header of a column that keeps its width: it draws no divider.
+func (h *headerCell) setFixed(on bool) {
+	if on != h.fixed {
+		h.fixed = on
+		h.Refresh()
+	}
 }
 
 // setMenu makes the cell the ⋮ of the header row (on), or an empty header.
@@ -1955,6 +2009,9 @@ func (r *headerCellRenderer) Refresh() {
 	h.text.TextStyle = fyne.TextStyle{Bold: true}
 	h.text.Color = themeColor(th, colorMuted)
 	h.sep.FillColor = themeColor(th, colorBracket)
+	if h.fixed {
+		h.sep.FillColor = color.Transparent // a column that keeps its width has no divider to drag
+	}
 	h.line.FillColor = themeColor(th, colorBracket)
 	var arrow fyne.Resource
 	switch h.sort {

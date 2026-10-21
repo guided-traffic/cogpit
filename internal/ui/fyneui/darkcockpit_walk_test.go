@@ -2,13 +2,17 @@ package fyneui
 
 import (
 	"image/color"
+	"slices"
 	"testing"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
+
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // The owner's findings on Dark Cockpit's first release (2026-10-21): the welcome page's grid floor
@@ -152,4 +156,67 @@ func rectanglesIn(o fyne.CanvasObject) (out []*canvas.Rectangle) {
 		}
 	}
 	return out
+}
+
+// TestWarningColumnKeepsItsWidth: Lens's warning column right after Name keeps its width (the
+// owner, 2026-10-21): its header draws no divider, a drag that starts on its edge changes nothing,
+// a double click there fits nothing, and the resize arrows do not show over that edge; Name's own
+// divider, left of it, still drags.
+func TestWarningColumnKeepsItsWidth(t *testing.T) {
+	f := connectedFake(t, 50)
+	pods := f.tables["pods"]
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	for i := range pods.Rows {
+		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
+	}
+	sh, w, q := newTestShell(t, f, Options{})
+	q.until(t, "the pods", func() bool { return sh.view.snap != nil && len(sh.view.cols) > 2 })
+	settle(w)
+	tv := sh.view
+	if !tv.fixedAt(1) || tv.fixedAt(0) {
+		t.Fatalf("fixed columns: name %v, warning %v; want the warning column only", tv.fixedAt(0), tv.fixedAt(1))
+	}
+	if h := headerFor(t, sh, firstDataColumn+1); h.sep.FillColor != color.Transparent {
+		t.Errorf("the warning column's header draws a divider (%v)", h.sep.FillColor)
+	}
+	if h := headerFor(t, sh, firstDataColumn); h.sep.FillColor == color.Transparent {
+		t.Error("Name's header lost its divider")
+	}
+	gap := tv.table.Theme().Size(theme.SizeNamePadding)
+	header := headerFor(t, sh, firstDataColumn).Size().Height
+	edge := func(col int) fyne.Position { // the middle of the divider right of the visible column col
+		x := float32(0)
+		for i := 0; i < firstDataColumn+col; i++ {
+			x += tv.setWidths[i] + gap
+		}
+		return fyne.NewPos(x+tv.setWidths[firstDataColumn+col]+gap/2, header/2)
+	}
+	before := tv.setWidths[firstDataColumn+1]
+
+	tv.table.DoubleTapped(&fyne.PointEvent{Position: edge(1)})
+	if tv.setWidths[firstDataColumn+1] != before || len(tv.userWidths) != 0 {
+		t.Errorf("a double click on its edge: %v wide (was %v), user widths %v", tv.setWidths[firstDataColumn+1], before, tv.userWidths)
+	}
+
+	rel := edge(1)
+	abs := fyne.CurrentApp().Driver().AbsolutePositionForObject(tv.table).Add(rel)
+	test.MoveMouse(w.Canvas(), abs)
+	if cur := tv.table.Cursor(); cur == desktop.HResizeCursor {
+		t.Error("the resize arrows show over the warning column's edge")
+	}
+	tv.table.MouseDown(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: rel, AbsolutePosition: abs}, Button: desktop.MouseButtonPrimary})
+	tv.table.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{Position: rel.AddXY(60, 0), AbsolutePosition: abs.AddXY(60, 0)}, Dragged: fyne.NewDelta(60, 0)})
+	tv.table.DragEnd()
+	q.drain()
+	settle(w)
+	if got := headerFor(t, sh, firstDataColumn+1).Size().Width; got != before {
+		t.Errorf("dragging its edge by 60: %v wide, want %v", got, before)
+	}
+
+	tv.userWidths["pods/warning"] = 120 // a width kept from before the rule
+	tv.fitWidth = 0
+	tv.fitColumns(tv.table.Size().Width)
+	if got := tv.setWidths[firstDataColumn+1]; got != 28 {
+		t.Errorf("a kept user width: the warning column %v wide, want its 28", got)
+	}
 }
