@@ -22,6 +22,7 @@ work=$(mktemp -d)
 pids=()
 cleanup() {
 	for p in "${pids[@]}"; do kill "$p" 2>/dev/null || true; done
+	GNUPGHOME=$work/gnupg gpgconf --kill all 2>/dev/null || true
 	rm -rf "$work"
 }
 trap cleanup EXIT

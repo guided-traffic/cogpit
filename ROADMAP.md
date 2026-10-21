@@ -89,9 +89,11 @@ GKE and AKS (it was rank 7). Beside it: the owner's open questions for a later r
 GitHub settings only with the owner's OK; several windows (R3) and selectable chat text (F8),
 postponed by the owner; the terminal widget's upstream pull requests (#156, #158, #147 open).
 Beside the path to alpha since 2026-10-20 night ([D-108](docs/developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)):
-the first release with the Linux packages (the one after v0.32.0) and its repository served from
-Pages, then a person's look on a Linux desktop: polkit's password dialog, Restart to Update, an
-update through the Software Updater, the arm64 package beyond GitHub's ARM runner (G22).
+the Linux packages are in the releases since v0.33.0 and Cogpit's APT repository on Pages, checked
+that night on the owner's workstation (installed from the release, upgraded from 0.33.0 to 0.34.0
+through apt, GNOME's title bar with its three buttons); left: a person's look on a Linux desktop
+(polkit's password dialog, the click on Restart to Update, an update through the Software Updater,
+the arm64 package beyond GitHub's ARM runner, G22).
 
 Then, to beta (2026-10-16 evening; the [Beta milestone](docs/parity/roadmap.md#milestones): M7–M10,
 the GitOps views, ~75% of views and actions, the budgets P1–P11 met, the first user bug backlog,

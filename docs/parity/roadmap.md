@@ -297,10 +297,12 @@ Beside the path to alpha:
     the owner's request of 2026-10-20 evening (a deb from the GitHub releases, kept up to date
     automatically; an APT repository on Pages; whether updates install silently each user's own
     setting), **built that night**: the deb for amd64 and arm64, Cogpit's signed APT repository,
-    the updates through apt. Open: the release after v0.32.0 carries the first packages and deploys
-    the repository to Pages (the lead checks both, and that `apt update` reads it); then the owner's
-    or a tester's look on a Linux desktop (polkit's password dialog, Restart to Update, an update
-    through the Software Updater, the arm64 package on a real machine); `cogpit://` links and
+    the updates through apt. v0.33.0 (2026-10-20 night) carries the first packages and deployed the
+    repository to Pages; on the owner's workstation the lead installed it from the release, `apt
+    update` read the repository, Cogpit showed GNOME's title bar with its three buttons and, once
+    v0.34.0 was out, its Update button, and apt upgraded it from Pages. Open: the owner's or a
+    tester's look on a Linux desktop (polkit's password dialog, the click on Restart to Update, an
+    update through the Software Updater, the arm64 package on a real machine); `cogpit://` links and
     Start at login on Linux later.
 
 ## What's next, with estimates
