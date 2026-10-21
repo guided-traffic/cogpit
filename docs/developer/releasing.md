@@ -1,6 +1,6 @@
 # Releasing
 
-> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-21 · **Change:** minor (CI: every test runs on Windows since 2026-10-21, the jobs Unit Tests (windows) and UI Tests (windows) in MSYS2's MINGW64 shell in place of Compile (windows), both in Semantic Release's needs, D-111); minor ([Windows](#windows), D-111, on the branch `windows-release`: the setup `Cogpit-<version>-windows-x64-setup.exe` built with NSIS, WinSparkle and its feed `appcast-windows.xml` signed with the update key, the release pipeline's Windows jobs, CI's job Windows Package, What gets built, the updates on Windows, the Authenticode secret planned); patch (the release check switches the MCP server on before Help › Copy MCP command, which is disabled while it is off: opt-in, D-49); minor ([Linux](#linux), D-108: the Linux packages for amd64 and arm64 and their jobs, the release's one `SHA256SUMS` merged by the macOS and the Linux jobs, Cogpit's APT repository on Pages beside the appcast, signed with `APT_SIGNING_KEY` in the environment `apt`; CI's job Linux Package); minor (What gets built: Fyne's thread check off in releases since v0.30.0); minor (What gets built: a release has Fyne's thread check off, the repository variable `FYNE_THREAD_CHECKS` its way back, D-103, on the branch `fast-scroll`); minor (Renovate: the debug container's default image, D-102); minor (the release pipeline: the Kubernetes release table refreshed before the app is built, `make k8s-eol K8SEOL_FLAGS=-fallback`, D-91; Renovate's list: the table is no dependency it sees); minor (CI: `internal/ui/logo` out of the race tests, the job at its fifteen-minute limit); minor (v0.22.0 released 2026-10-17 08:14 UTC, its appcast waiting for the owner's approval with v0.20.0's and v0.21.0's); minor (v0.20.0 and v0.21.0 released in the night of 2026-10-16/17, their appcasts waiting for the owner's approval); minor (CI's macOS job: the file panels' harness and the lint of `internal/ui/nativedialog`, 2026-10-16 night); minor (the appcast: every start checks at once while the automatic checks are on, the owner's of 2026-10-16 night); minor (v0.17.0 to v0.19.0 released 2026-10-16, the feed holds 0.19.0 to 0.15.0); minor (the appcast: the deploy refuses only a feed that takes back a newer release Pages serves, an older item a newer release's draft never saw left out with a warning, the owner's correction of F18 after v0.19.0's refused deploy); minor (the appcast: the waiting appcast runs of v0.13.0 and v0.14.0 cancelled on 2026-10-16, the owner's choice, so neither can reset the feed); minor (Renovate: the rules for Cogpit Metrics' bundled chart and `make metrics-bundle` removed with the stack, D-61 withdrawn by the owner 2026-10-16); minor (v0.13.0 has its disk image: the re-run after its 330-minute wait, 2026-10-15 23:52 UTC); minor (the disk image's window, D-70, 2026-10-16: the template made by dmgbuild in the app's job, filled and signed in the signing job with Apple's tools only; Renovate's rule for dmgbuild); minor (releases leave the demo cluster out: `make dist-app` builds with `DIST_TAGS` `nodemo` and checks both binaries recorded it, CI's lint job runs `make check-nodemo`, D-67); minor (the appcast's deploy refuses a feed that drops an item Pages serves, F18, the owner's decision 2026-10-16); minor (the appcast read every hour by each running copy, `SUScheduledCheckInterval` 3600, owner 2026-10-16; what it costs); minor (the first update through the feed seen on 2026-10-16: the owner's MacBook from 0.15.0 to 0.16.0); minor (the signed feed served since 2026-10-16 with 0.16.0 and 0.15.0; appcasts approved in release order, the site artifact named per run attempt); minor (CI: the job Integration Tests (envtest), `make test-envtest` against envtest's etcd and kube-apiserver pinned by SHA-512 and cached per pin, its coverage profile `envtest.out`, in Semantic Release's needs, D-64; not observed yet); minor (Renovate: Cogpit Metrics' bundled chart version and its manual archive update, `make metrics-bundle`, D-61, 2026-10-16); minor (CI: apt-install.sh repairs an interrupted dpkg before a retry, the install's deadline six minutes); minor (signing and notarization: signed releases with `cogpit-cli` inside since v0.7.0, the quarantined-copy and offline checks not tried with them; v0.13.0's pipeline still waiting for Apple's notarization on 2026-10-15 at 20:10 UTC, no files yet; What gets built as of 2026-10-15); minor (Sparkle's update key set up by the owner on 2026-10-15 and in the releases since v0.11.0, no signed appcast yet: no release with the key has passed notarization; the releases with files are v0.6.0 to v0.8.0); minor (when no release comes: `hack/ci/apt-install.sh` with deadlines and tries, `rerun.yml` re-running jobs of main\'s newest run that failed setting up); major (notarization in a job of its own: "Sign and submit (macOS)" submits the disk image and records the submission, "Notarize and staple (macOS)" waits up to 330 minutes for that submission and a re-run waits for the same one, after v0.9.0 to v0.12.0 got no download); minor (Sparkle: steps 1 and 2 set up 2026-10-15, the environment `sparkle` and Pages; the repository renamed back to `cogpit`, the feed URL with its spelling, Pages being case-sensitive, H-97); minor (the version a build reports: one variable for both binaries, `internal/buildinfo`, set by `DIST_LDFLAGS`; development builds say `dev` and their commit; `make dist-app` needs `VERSION`); major (D-16 revised by the owner: a release carries only the complete product, the disk image with `cogpit-cli` inside the app (`Contents/MacOS`), and `SHA256SUMS`; the `cogpit-cli` job, its archives and `make dist-cli` removed; the signing job signs the bundled `cogpit-cli` inside-out and submits only the disk image; agent CLIBUNDLE); major (Sparkle 2: the framework in the app, pinned by version and SHA-256, Sparkle's parts signed inside-out, the appcast's three jobs (drafted, signed in the environment `sparkle`, deployed to GitHub Pages) and the owner's steps to set them up; no update key yet); major (the release pipeline signs the macOS app and `cogpit-cli` with the Developer ID, puts the app into a disk image, notarizes both and staples the disk image's ticket, in a job of its own in the environment `release`; a failed signature or notarization fails that job and the release gets no files until it is re-run, the lead's decision for the owner to confirm); minor (the Apple signing and notarization material set up in the environment `release`); minor (Renovate: the node shell's default image, D-37); earlier major (CI split into parallel jobs of at most ten minutes, the UI's race tests sharded; semantic-release live, D-16 revised; the release pipeline attaches `cogpit-cli` and the unsigned app; Renovate: sigstore's trusted root refreshed by make sigstore-root, D-50) · **Target:** Lens Desktop 2026.10.51501
+> **Last reviewed:** 2026-10-13 · **Last updated:** 2026-10-21 · **Change:** minor (CI, D-112: the build cache saved from main's pushes only, Fyne's Linux build dependencies minimal and in the background, Unit Tests (no race) running only what the race detector keeps from running, UI Tests (windows) in four shards two at a time; [The tests without the race detector](#the-tests-without-the-race-detector), [The UI's tests in parallel shards](#the-uis-tests-in-parallel-shards) in place of the four processes' section; Running a job locally); minor (CI: every test runs on Windows since 2026-10-21, the jobs Unit Tests (windows) and UI Tests (windows) in MSYS2's MINGW64 shell in place of Compile (windows), both in Semantic Release's needs, D-111); minor ([Windows](#windows), D-111, on the branch `windows-release`: the setup `Cogpit-<version>-windows-x64-setup.exe` built with NSIS, WinSparkle and its feed `appcast-windows.xml` signed with the update key, the release pipeline's Windows jobs, CI's job Windows Package, What gets built, the updates on Windows, the Authenticode secret planned); patch (the release check switches the MCP server on before Help › Copy MCP command, which is disabled while it is off: opt-in, D-49); minor ([Linux](#linux), D-108: the Linux packages for amd64 and arm64 and their jobs, the release's one `SHA256SUMS` merged by the macOS and the Linux jobs, Cogpit's APT repository on Pages beside the appcast, signed with `APT_SIGNING_KEY` in the environment `apt`; CI's job Linux Package); minor (What gets built: Fyne's thread check off in releases since v0.30.0); minor (What gets built: a release has Fyne's thread check off, the repository variable `FYNE_THREAD_CHECKS` its way back, D-103, on the branch `fast-scroll`); minor (Renovate: the debug container's default image, D-102); minor (the release pipeline: the Kubernetes release table refreshed before the app is built, `make k8s-eol K8SEOL_FLAGS=-fallback`, D-91; Renovate's list: the table is no dependency it sees); minor (CI: `internal/ui/logo` out of the race tests, the job at its fifteen-minute limit); minor (v0.22.0 released 2026-10-17 08:14 UTC, its appcast waiting for the owner's approval with v0.20.0's and v0.21.0's); minor (v0.20.0 and v0.21.0 released in the night of 2026-10-16/17, their appcasts waiting for the owner's approval); minor (CI's macOS job: the file panels' harness and the lint of `internal/ui/nativedialog`, 2026-10-16 night); minor (the appcast: every start checks at once while the automatic checks are on, the owner's of 2026-10-16 night); minor (v0.17.0 to v0.19.0 released 2026-10-16, the feed holds 0.19.0 to 0.15.0); minor (the appcast: the deploy refuses only a feed that takes back a newer release Pages serves, an older item a newer release's draft never saw left out with a warning, the owner's correction of F18 after v0.19.0's refused deploy); minor (the appcast: the waiting appcast runs of v0.13.0 and v0.14.0 cancelled on 2026-10-16, the owner's choice, so neither can reset the feed); minor (Renovate: the rules for Cogpit Metrics' bundled chart and `make metrics-bundle` removed with the stack, D-61 withdrawn by the owner 2026-10-16); minor (v0.13.0 has its disk image: the re-run after its 330-minute wait, 2026-10-15 23:52 UTC); minor (the disk image's window, D-70, 2026-10-16: the template made by dmgbuild in the app's job, filled and signed in the signing job with Apple's tools only; Renovate's rule for dmgbuild); minor (releases leave the demo cluster out: `make dist-app` builds with `DIST_TAGS` `nodemo` and checks both binaries recorded it, CI's lint job runs `make check-nodemo`, D-67); minor (the appcast's deploy refuses a feed that drops an item Pages serves, F18, the owner's decision 2026-10-16); minor (the appcast read every hour by each running copy, `SUScheduledCheckInterval` 3600, owner 2026-10-16; what it costs); minor (the first update through the feed seen on 2026-10-16: the owner's MacBook from 0.15.0 to 0.16.0); minor (the signed feed served since 2026-10-16 with 0.16.0 and 0.15.0; appcasts approved in release order, the site artifact named per run attempt); minor (CI: the job Integration Tests (envtest), `make test-envtest` against envtest's etcd and kube-apiserver pinned by SHA-512 and cached per pin, its coverage profile `envtest.out`, in Semantic Release's needs, D-64; not observed yet); minor (Renovate: Cogpit Metrics' bundled chart version and its manual archive update, `make metrics-bundle`, D-61, 2026-10-16); minor (CI: apt-install.sh repairs an interrupted dpkg before a retry, the install's deadline six minutes); minor (signing and notarization: signed releases with `cogpit-cli` inside since v0.7.0, the quarantined-copy and offline checks not tried with them; v0.13.0's pipeline still waiting for Apple's notarization on 2026-10-15 at 20:10 UTC, no files yet; What gets built as of 2026-10-15); minor (Sparkle's update key set up by the owner on 2026-10-15 and in the releases since v0.11.0, no signed appcast yet: no release with the key has passed notarization; the releases with files are v0.6.0 to v0.8.0); minor (when no release comes: `hack/ci/apt-install.sh` with deadlines and tries, `rerun.yml` re-running jobs of main\'s newest run that failed setting up); major (notarization in a job of its own: "Sign and submit (macOS)" submits the disk image and records the submission, "Notarize and staple (macOS)" waits up to 330 minutes for that submission and a re-run waits for the same one, after v0.9.0 to v0.12.0 got no download); minor (Sparkle: steps 1 and 2 set up 2026-10-15, the environment `sparkle` and Pages; the repository renamed back to `cogpit`, the feed URL with its spelling, Pages being case-sensitive, H-97); minor (the version a build reports: one variable for both binaries, `internal/buildinfo`, set by `DIST_LDFLAGS`; development builds say `dev` and their commit; `make dist-app` needs `VERSION`); major (D-16 revised by the owner: a release carries only the complete product, the disk image with `cogpit-cli` inside the app (`Contents/MacOS`), and `SHA256SUMS`; the `cogpit-cli` job, its archives and `make dist-cli` removed; the signing job signs the bundled `cogpit-cli` inside-out and submits only the disk image; agent CLIBUNDLE); major (Sparkle 2: the framework in the app, pinned by version and SHA-256, Sparkle's parts signed inside-out, the appcast's three jobs (drafted, signed in the environment `sparkle`, deployed to GitHub Pages) and the owner's steps to set them up; no update key yet); major (the release pipeline signs the macOS app and `cogpit-cli` with the Developer ID, puts the app into a disk image, notarizes both and staples the disk image's ticket, in a job of its own in the environment `release`; a failed signature or notarization fails that job and the release gets no files until it is re-run, the lead's decision for the owner to confirm); minor (the Apple signing and notarization material set up in the environment `release`); minor (Renovate: the node shell's default image, D-37); earlier major (CI split into parallel jobs of at most ten minutes, the UI's race tests sharded; semantic-release live, D-16 revised; the release pipeline attaches `cogpit-cli` and the unsigned app; Renovate: sigstore's trusted root refreshed by make sigstore-root, D-50) · **Target:** Lens Desktop 2026.10.51501
 
 Every push to `main` and every pull request runs the checks, each a job of its own with a make
 target that runs the same on a laptop. Since 2026-10-13 ([D-16](decisions.md#d-16-the-first-real-release))
@@ -49,10 +49,13 @@ Linux jobs on one shared self-hosted machine; the whole run about 25 minutes, mo
 waiting for a free runner (the owner finds 20 minutes and more acceptable). The second live run
 (38449778410) stayed at most 7.7 minutes per job; its macOS job got no hosted runner within its
 15 minutes once (no step ran) and passed on a rerun of the failed jobs in 6.2. The UI's race tests take about
-18 minutes in one process on a Linux runner, so they run in eight shards. Every job's timeout is
+18 minutes in one process on a Linux runner, so they run in eight shards. Every job's timeout was
 15 minutes: a run after a `go.sum` change starts without caches and saves them (two minutes more,
 measured up to 13.8 minutes for the kind job in run 38439307913); the budget is for the runs in
-between.
+between. Since 2026-10-21 it is 30 minutes: first for the runs that made Go 1.27.3's caches, then
+kept because only main's pushes save caches (D-112), so a pull request that changes `go.mod` or
+`go.sum` compiles what changed in each of its runs (a job without its cache took up to 16.5
+minutes, the macOS job on 2026-10-21).
 
 **Concurrency:** a newer push cancels the running run of the same branch, on `main` too:
 semantic-release releases every commit since the last tag, so a cancelled run loses nothing.
@@ -70,11 +73,24 @@ cross-compile from Linux.
 
 **Setup:** every Go job starts with [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml):
 Go from `go.mod`, the build cache under a key per kind of build (`lint`, `unit`, `race-ui`,
-`race-rest`, `kind`, `macos`, …) and `go.sum`, Fyne's Linux build dependencies with
-`build-essential`, `SHELL=/bin/bash` where the pod exports none, and the modules from the module
-proxy. A key is saved once per `go.sum` (about two minutes from the self-hosted runners, 11 to
-14 MB/s up), so the next runs start with the dependencies compiled. The modules are not cached:
-the self-hosted runners restore a cache at 6 to 9 MB/s, slower than `go mod download`.
+`race-rest`, `kind`, `macos`, …) and `go.sum`, Fyne's Linux build dependencies, `SHELL=/bin/bash`
+where the pod exports none, and the modules from the module proxy. **The build cache is saved from
+main's pushes only** (D-112): a key is saved once per `go.sum` there (about two minutes from the
+self-hosted runners, 11 to 14 MB/s up), so the next runs start with the dependencies compiled; a
+pull request's run restores main's newest cache of its kind and saves none. Before, every pull
+request that changed `go.sum` (Renovate's above all) saved its own copy of every kind under its own
+ref, which no other branch reads, and pushed main's caches out of the repository's 10 GB
+(2026-10-21: 28 entries, 10.0 GB, main's macOS and Windows caches gone, so those jobs compiled
+everything again). The modules are not cached: the self-hosted runners restore a cache at 6 to
+9 MB/s, slower than `go mod download`. **Fyne's build dependencies** are the 14 packages a cgo
+build with GLFW 3.4 needs on Ubuntu 24.04, without their recommendations (`gcc libc6-dev make
+pkgconf libgl-dev libegl-dev libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev
+libxxf86vm-dev libxkbcommon-dev libwayland-dev`: 113 packages and 104 MB instead of the 263 and
+166 MB that `build-essential`, `xorg-dev`, `libgl1-mesa-dev` and `wayland-protocols` with their
+recommendations brought), installed in the background while Go, the cache and the modules come
+(a job's own extra packages with them, the `packages` input), with dpkg's `force-unsafe-io`; the
+step waits for them at its end. On the shared machine the apt step took 2 to 5 minutes of a job
+before (2026-10-21), on top of the cache's one to two.
 **Every test runs on every run** (`GOFLAGS=-count=1`): the restored build cache also holds Go's
 cached test results, and a race shard once "passed" in four seconds without running a test.
 
@@ -94,17 +110,17 @@ environment `release` ([secrets](#secrets)).
 | GoSec Security Scan | self-hosted | `make gosec` | golangci-lint's gosec on the shipped code (tests, `internal/testkit` and `hack` left out); every accepted finding is excluded in [`.golangci.yml`](../../.golangci.yml) with its reason, a real one is fixed or an H-gap in [`docs/security`](../security/README.md) | 2.6 |
 | Vulnerability Check | self-hosted | `make vuln` | govulncheck: no known vulnerability in a function Cogpit's code reaches | 1.6 |
 | Cyclomatic Complexity | self-hosted | `make cyclo` | gocyclo: no function above `CYCLO_THRESHOLD`; the 20 most complex in the job summary ([below](#cyclomatic-complexity)) | 0.8 |
-| Unit Tests | self-hosted | `make test-unit-coverage` | every package's tests without the race detector, with coverage profiles; `internal/ui/fyneui`'s in four processes one after the other ([below](#the-uis-unit-tests-in-four-processes)) | 5.7 |
-| Race Tests (UI n/8) | self-hosted, eight jobs | `make test-race-ui RACE_SHARD=n RACE_SHARDS=8` | one shard of `internal/ui/fyneui`'s tests under the race detector ([sharding](#the-uis-race-tests-in-shards)) | 5.2–9.3 |
+| Unit Tests (no race) | self-hosted | `make test-norace-coverage` | what the race detector keeps from running, run without it, with coverage profiles ([the tests without the race detector](#the-tests-without-the-race-detector)): every test of `internal/ui/logo`, and the tests `hack/shard -norace` finds over `./...` (19 on 2026-10-21: 15 of the UI's terminal and dock tests, the cache's heap measurements, the log view's budget, the scorecard's line); until 2026-10-21 every package's tests a second time, the UI's in four processes | 5.5 (run 39672982047; 12.6 as Unit Tests in run 39636886615) |
+| Race Tests (UI n/8) | self-hosted, eight jobs | `make test-race-ui RACE_SHARD=n RACE_SHARDS=8` | one shard of `internal/ui/fyneui`'s tests under the race detector ([sharding](#the-uis-race-tests-in-shards)) | 5.2–9.3 (548 tests); 6.4–10.4 in run 39672982047 (1,155 tests, D-112) |
 | Race Tests (other packages) | self-hosted | `make test-race-rest` | every other package under the race detector but `internal/ui/logo` (pure-Go rasterising on one goroutine: nine of the job's fifteen minutes under the race detector; the unit tests run it, since 2026-10-17, the lead's decision after the job ran out of time), and the patched terminal widget's tests (`make test-fork`) | 6.6 |
 | Integration Tests (kind) | self-hosted | `make kind-up`, `make test-kind` | the `TestKind*` tests against a real API server and kubelet (kind v0.33.0, Kubernetes 1.37.0, the seed of [`hack/kind`](../../hack/kind/README.md) and the Metrics Server); the tests compile while the cluster starts | 9.6 |
 | Integration Tests (kind drain) | self-hosted | `make kind-drain-up`, `make test-kind-drain` | cordon, a blocked drain, a simulated crash and the finish on a three-node cluster of its own | 4.0 |
 | Integration Tests (envtest) | self-hosted | `make envtest-bin`, `make test-envtest` | the `TestEnvtest*` tests against envtest's etcd and kube-apiserver of Kubernetes 1.37.0, no Docker and no kubelet: D-58's standby case with the API server stopped by SIGSTOP ([D-64](decisions.md#d-64-envtest-a-real-api-server-in-ci-without-docker)); the binaries, pinned by SHA-512, download while the tests compile and are cached per pin (`make envtest-key`) | – (since 2026-10-16, not observed yet; expected 5–8) |
 | macOS | `macos-latest` | `make test-darwin`, `make lint LINT_PKGS=…`, `make app` | the tests only macOS can run (the title bar's AppKit harness, the updater's harness with Sparkle's framework from `make sparkle`, the file panels' harness and the bookmarks' round trip of `internal/ui/nativedialog` (since 2026-10-16), the locale's CoreFoundation read, the tests that expect macOS's shortcut glyphs), the lint of the packages with darwin-only files (`internal/ui/nativedialog` among them since 2026-10-16), and the app bundle with Sparkle | 5.0 |
-| Unit Tests (windows) | `windows-latest`, MSYS2's MINGW64 shell (`msys2/setup-msys2`: make, unzip and MinGW-w64 gcc, `path-type: inherit`) | `make test-windows-unit` | `go vet ./...`, then every package's tests but `internal/ui/fyneui`'s on Windows with cgo and Fyne, without the race detector: the terminal's ConPTY sessions, the updater (its test against the real WinSparkle.dll, which the target fetches first with `make winsparkle`), the journals' `LockFileEx`, the plugin's process search, PowerShell's quoting ([testing › On Windows](testing.md#on-windows)); since 2026-10-21 (D-111), in place of "Compile (windows)", which built, vetted and linked every package and test there and ran none | – (not observed yet; locally on the owner's workstation, 16 CPUs: `make test-windows-unit` 108 s, `make test-windows-ui` 216 s) |
-| UI Tests (windows) | `windows-latest`, MSYS2's MINGW64 shell, as above | `make test-windows-ui` | `internal/ui/fyneui`'s tests on Windows, offscreen with Fyne's test driver, without the race detector: the window's paths, file URLs and dialogs as Windows writes them; a job of its own, being most of a Windows run; since 2026-10-21 (D-111) | – (not observed yet; locally `make test-windows-ui` 216 s on 16 CPUs) |
-| Windows Package | `windows-latest`, MSYS2's MINGW64 shell | `make dist-windows VERSION=0.0.1`, `make test-windows-package` | the Windows setup as the release builds it ([Windows](#windows)): both executables with the release's tags and their resources, the setup with NSIS from MSYS2, then installed silently for the runner's user into a folder of its own, installed again over itself and uninstalled, checking the files, both executables' version, the uninstall entry, the Start menu entry and that `cogpit.exe` is a GUI program; since 2026-10-21 (D-111) | – (not observed yet; locally 4 minutes, most of it the cgo build) |
-| Linux Package | self-hosted | `make dist-linux VERSION=0.0.1`, `make test-linux-package` | the Linux package as the release builds it ([Linux](#linux)): both binaries with the release's tags, the package, lintian on it (an error fails), and the APT repository's script end to end with a throwaway key and a local web server (`hack/linux/apt-test.sh`: two generations, a tampered package and another key refused, the mirror leaving nothing of a tampered repository, an older repository not replacing a newer one); since 2026-10-20 | – (not observed yet; locally 5 minutes on 12 CPUs, most of it the cgo build) |
+| Unit Tests (windows) | `windows-latest`, MSYS2's MINGW64 shell (`msys2/setup-msys2`: make, unzip and MinGW-w64 gcc, `path-type: inherit`) | `make test-windows-unit` | `go vet ./...`, then every package's tests but `internal/ui/fyneui`'s on Windows with cgo and Fyne, without the race detector: the terminal's ConPTY sessions, the updater (its test against the real WinSparkle.dll, which the target fetches first with `make winsparkle`), the journals' `LockFileEx`, the plugin's process search, PowerShell's quoting ([testing › On Windows](testing.md#on-windows)); since 2026-10-21 (D-111), in place of "Compile (windows)", which built, vetted and linked every package and test there and ran none | 4.8 (run 39672982047, the build cache restored; 15.2 in 39636886615 without one) |
+| UI Tests (windows) | `windows-latest`, MSYS2's MINGW64 shell, as above | `make test-windows-ui` | `internal/ui/fyneui`'s tests on Windows, offscreen with Fyne's test driver, without the race detector, in four of `hack/shard`'s shards two at a time (D-112: the runner has 16 GB, one process for the package peaked at 15.6 GB on macOS): the window's paths, file URLs and dialogs as Windows writes them; a job of its own, being most of a Windows run; since 2026-10-21 (D-111) | 5.2 (run 39672982047, four shards two at a time; 19.9 in 39636886615, one process without a build cache) |
+| Windows Package | `windows-latest`, MSYS2's MINGW64 shell | `make dist-windows VERSION=0.0.1`, `make test-windows-package` | the Windows setup as the release builds it ([Windows](#windows)): both executables with the release's tags and their resources, the setup with NSIS from MSYS2, then installed silently for the runner's user into a folder of its own, installed again over itself and uninstalled, checking the files, both executables' version, the uninstall entry, the Start menu entry and that `cogpit.exe` is a GUI program; since 2026-10-21 (D-111) | 4.0 (run 39672982047; 12.5 in 39636886615 without a build cache) |
+| Linux Package | self-hosted | `make dist-linux VERSION=0.0.1`, `make test-linux-package` | the Linux package as the release builds it ([Linux](#linux)): both binaries with the release's tags, the package, lintian on it (an error fails), and the APT repository's script end to end with a throwaway key and a local web server (`hack/linux/apt-test.sh`: two generations, a tampered package and another key refused, the mirror leaving nothing of a tampered repository, an older repository not replacing a newer one); since 2026-10-20 | 4.4 (run 39672982047, its packaging tools installed with Go's dependencies in the background; 14.4 in 39636886615) |
 | Combined Coverage Report | self-hosted, after the test jobs | `make coverage-report` | the unit, race and cluster profiles merged: the job summary, and the badge Semantic Release commits ([coverage](#coverage)) | 1.0 |
 | Semantic Release | self-hosted, `main` only, after every job | `npx semantic-release` | the tag, the GitHub release with its notes, and the release commit with the badge ([release flow](#release-flow)) | 0.9 |
 
@@ -137,12 +153,18 @@ the hash puts 111 to 179 s of tests into a shard, the longest single test is
 shard's time. To change the number of shards, change the matrix and `RACE_SHARDS` in
 `release.yml`'s `race-ui` job together. The `Makefile`'s own default, `RACE_SHARDS ?= 8`, is CI's
 number (set equal 2026-10-15), so a local `make test-race-ui RACE_SHARD=<n>` runs CI's shard n.
+Locally the shards run in parallel instead ([below](#the-uis-tests-in-parallel-shards)).
+**Measured 2026-10-21** (1,154 tests, an M1 Ultra): shard 1 took 391 s alone, as on CI (393 s in run
+39636886615); 272 s once the render tests encoded no PNG nobody keeps and the logo was drawn once
+per size (D-112): both draw pixels in pure Go, which the race detector instruments access by
+access, so under it they cost far more than their share without it.
 
 ### Coverage
 
-Every test job writes a profile to `.cache/coverage` and uploads it (`profile-*`): `unit.out`
-(every package without the race detector, each package counting its own tests), `race-ui-<n>.out`
-and `race-rest.out` (the same under the race detector), `integration.out` and
+Every test job writes a profile to `.cache/coverage` and uploads it (`profile-*`): `unit-*.out`
+(what the race detector keeps from running, without it, each package counting its own tests; one
+profile per package, D-112), `race-ui-<n>.out` and `race-rest.out` (every other test under the race
+detector, the same way), `integration.out` and
 `integration-drain.out` (the cluster tests with `-coverpkg=./...`, so they count for every package
 they reach), and since 2026-10-16 `envtest.out` (the envtest tests, the same way). The Combined Coverage Report job merges them with [`hack/coverage`](../../hack/coverage/main.go)
 (`make coverage-report`): a block counts once, as covered when any profile covered it. It writes the
@@ -151,7 +173,10 @@ total and a table per package to the job summary and
 badge](https://shields.io/badges/endpoint-badge), coloured as in the team's other repositories
 (≥ 90 % brightgreen, ≥ 80 % green, ≥ 70 % yellow, ≥ 60 % orange, else red). Semantic Release
 commits the badge with the release (`@semantic-release/git`), so the README's number moves with
-releases. **Measured:** 83.6 % on 2026-10-13 (run 38439307913: 37,635 of 45,002 statements; the unit profile alone gave 82.9 %).
+releases. **Measured:** 83.6 % on 2026-10-13 (run 38439307913: 37,635 of 45,002 statements; the unit profile alone gave 82.9 %);
+83.8 % on 2026-10-21 (run 39636886615: 66,796 of 79,744). Between two runs of main the merged
+profiles differ by 24 to 39 statements that only some runs reach (timing-dependent paths: a
+cancellation, a retry), so a change of that size is no change of coverage.
 
 ### Cyclomatic complexity
 
@@ -164,20 +189,55 @@ as a ratchet and comes down step by step: a change that makes the most complex f
 lowers `CYCLO_THRESHOLD` to the new maximum in the same commit (`make cyclo-report` shows it); no
 refactoring of its own for it.
 
-### The UI's unit tests in four processes
+### The tests without the race detector
 
-Since 2026-10-21 `make test-unit-coverage` runs every package but `internal/ui/fyneui` in one `go
-test`, then the UI's package in `UNIT_UI_SHARDS` (4) processes one after the other, split by
-[`hack/shard`](../../hack/shard/main.go) as the race tests are, each with its own profile
-(`unit-ui-<n>.out`, merged by the coverage job). The reason is memory: every test makes a new Fyne
-app, a new app makes Fyne parse its fonts again, and go-text's shaper keeps every face it has shaped
-for the life of the process (its buffer's plan cache, keyed by face, is never pruned). One process
-for the package grew by about 2.4 GB a minute to a peak of 14.3 GB in 413 s (macOS, `/usr/bin/time
--l`), and on 2026-10-21 the job's runner died without a log three times about 20 minutes in (memory
-the likeliest cause; no log shows it). Four processes peak at 4.4 GB and take 369 s together, with
-the package's coverage unchanged (91.0%). A memory limit is no way out: `GOMEMLIMIT=4GiB` held it to 8.9 GB but made the run six times slower, as the heap
-the tests keep is live. The same shaper keeps a few megabytes in the app for each theme change and
-each new theme override; that is upstream's to fix.
+Since 2026-10-21 (D-112) every test runs under the race detector on Linux, in the race jobs, but what
+the race detector keeps from running, which Unit Tests (no race) (`make test-norace-coverage`) runs
+without it: every test of `internal/ui/logo`, which `make test-race-rest` leaves out (pure-Go
+rasterising on one goroutine, nine of that job's fifteen minutes under the race detector,
+2026-10-17), and in every package the tests that skip themselves, or part of their checks, under
+it, as they read `raceEnabled` (the constant `race_on_test.go` and `race_off_test.go` define per
+package), directly or through anything of their test package that does, and the tests only the
+build without the race tag compiles. [`hack/shard -norace`](../../hack/shard/norace.go) finds them
+over `./...` (19 tests in four packages on 2026-10-21); a test that reads `raceEnabled` for a bound
+only runs again without the race detector, which costs little. Before, the job ran every package's
+tests a second time without the race detector, the UI's in four processes (twelve minutes of a
+runner), and covered 216 statements that no run under the race detector reached in three runs of
+main (39636886615, 39612633312, 39606754690). 202 of them are those tests' and covered here; the
+14 others were reached by timing alone, a run without the race detector being fast enough to see a
+dashboard's count before its informer had synced, an empty Flux kind, another cluster reconnecting,
+a throttled notification, and tests reach them on purpose now (`*_states_test.go`, D-112). The
+Windows jobs run every test without the race detector.
+
+### The UI's tests in parallel shards
+
+`internal/ui/fyneui` holds most of the tests' time, and its tests cannot run in parallel within one
+process (one Fyne app at a time). [`hack/shard -exec`](../../hack/shard/exec.go) runs the package's
+shards (the split the race jobs use) as `go test` runs of their own, `-jobs` at a time, after one
+`go test -run '^$'` that compiles the package's tests, so that the shards find them compiled and
+only link; it prints a line per shard and the output of a shard that fails. As `go test` runs them,
+Go's test cache keeps each shard's result: `make test-ui` again with nothing changed answers from it
+(CI sets `-count=1`).
+`make test-ui` and `make test-ui-race` run it with CI's eight shards, `UI_JOBS` at a time (unless
+set, half the CPUs, and no more than three quarters of the memory holds: about 3 GB a shard, 8 GB
+under the race detector, which a shard of an eighth of the tests peaked at with room to spare); `make test-unit` and `make test-unit-race` run the other packages with `go test`,
+then the UI's package so; `make test-windows-ui` (CI's UI Tests (windows)) runs four shards, two at a
+time, on the Windows runner's 4 CPUs and 16 GB. **Measured 2026-10-21 (an M1 Ultra):** `make
+test-ui` 68 s against 344 s for the package in one process, `make test-ui-race` 379 s against about
+18 minutes.
+
+The reason for processes rather than one: every test makes a new Fyne app, a new app makes Fyne
+clear its font cache and parse its fonts again (`test.NewApp`, and again at `SetTheme`), and go-text's
+shaper keeps every face it has shaped for the life of the process (its buffer's plan cache, keyed by
+face, is never pruned). One process for the package grew to 15.6 GB in 344 s (macOS, `/usr/bin/time
+-l`), and three quarters of its CPU went to the garbage collector marking that heap; on 2026-10-21
+CI's runner died without a log three times about 20 minutes into the unit job that ran it so (memory
+the likeliest cause). A memory limit is no way out: `GOMEMLIMIT=4GiB` held it to 8.9 GB but made the
+run six times slower, as the heap the tests keep is live; `GOGC=200` saved 8 % of a shard's time
+without the race detector and nothing under it, for 30 to 50 % more memory (D-112). With the font
+cache never cleared (a patched Fyne, measured, not committed) the package took 248 s and 10.3 GB;
+that is upstream's to fix, and the same shaper keeps a few megabytes in the app for each theme
+change and each new theme override.
 
 ### Running a job locally
 
@@ -185,8 +245,8 @@ Each job's make target runs the same here (fast local checks first: [AGENTS.md �
 
 ```sh
 make lint check-nodemo parity gosec vuln cyclo
-make test-unit-coverage
-make test-race-ui RACE_SHARD=3 RACE_SHARDS=8   # one shard; make test-unit-race runs everything
+make test-norace-coverage                      # what the race detector keeps from running, without it
+make test-race-ui RACE_SHARD=3 RACE_SHARDS=8   # one shard; make test-ui-race runs all eight in parallel
 make test-race-rest
 make kind-up && make test-kind                 # the cluster tests; make kind-down after
 make test-envtest                              # the envtest tests; fetches the pinned binaries first

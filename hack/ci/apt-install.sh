@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# apt-install.sh <package...>: installs Debian packages on a CI runner without letting a hanging
+# apt-install.sh [apt-get option...] <package...>: installs Debian packages on a CI runner (options
+# such as --no-install-recommends go to apt-get install as given) without letting a hanging
 # mirror take the job with it. On 2026-10-15 `apt-get update` hung 13 minutes on the shared
 # self-hosted node until the job's timeout cancelled the job, and with it the run's release. Each
 # try here has a deadline, the network timeouts are short, and there are three tries. An install
@@ -7,12 +8,13 @@
 # was interrupted"), so a try after a failed one first finishes dpkg's configuration.
 set -euo pipefail
 
-# apt <deadline> <apt-get arguments...>
+# apt <deadline> <apt-get arguments...>: dpkg without its fsync calls (force-unsafe-io), which a
+# runner's disk, shared with the other jobs and thrown away after the job, has no use for.
 apt() {
 	local deadline=$1
 	shift
 	sudo timeout "$deadline" apt-get -qq -o Acquire::Retries=3 -o Acquire::http::Timeout=20 \
-		-o Acquire::https::Timeout=20 -o DPkg::Lock::Timeout=60 "$@"
+		-o Acquire::https::Timeout=20 -o DPkg::Lock::Timeout=60 -o Dpkg::Options::=--force-unsafe-io "$@"
 }
 
 # repair finishes what an interrupted dpkg left half configured.

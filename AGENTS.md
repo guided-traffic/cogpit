@@ -189,6 +189,7 @@ touches.
 go build ./...                          # the tree builds
 go vet ./internal/<pkg>/...             # the packages you touched
 go test ./internal/<pkg>/...            # their tests, without -race
+make test-ui                            # internal/ui/fyneui's tests: eight shards at once, about a minute (D-112)
 go run ./hack/parity                    # only when a checklist or a progress page changed; rewrites
                                         # docs/parity/parity-checklist.md, commit it with the change
 go run ./hack/readmecmds                # only when commands changed: the table in docs/developer/commands.md
@@ -198,8 +199,8 @@ go run ./hack/readmecmds                # only when commands changed: the table 
 CI ([`release.yml`](.github/workflows/release.yml), one job per check, none longer than ten
 minutes: [releasing › CI](docs/developer/releasing.md#ci)) runs on every push what used to run
 here, each with its own make target: lint (depguard layering included), parity, GoSec,
-govulncheck, cyclomatic complexity, the unit tests, the UI's race tests in eight shards and the
-other packages' race tests, the kind and drain cluster tests, the envtest tests, the macOS-only tests and the app, the
+govulncheck, cyclomatic complexity, the tests the race detector keeps from running (without it),
+the UI's race tests in eight shards and the other packages' race tests, the kind and drain cluster tests, the envtest tests, the macOS-only tests and the app, the
 Windows unit and UI tests (every test on Windows, without the race detector), the Linux and Windows
 packages, and the combined coverage. Read its result when you next push (`gh run list`, then
 `gh run view <id> --log-failed`) and fix what is red first. Once every job on `main` is green,

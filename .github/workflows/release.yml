@@ -4,8 +4,10 @@
 # race tests run in shards. Semantic Release needs every job. What each job runs and how long it
 # takes: docs/developer/releasing.md#ci.
 #
-# Every job's limit is 30 minutes for the first runs after Go 1.27.3 (2026-10-21), whose build caches
-# are made then (a job saves its cache only when it succeeds); 15 again once they are saved.
+# Every job's limit is 30 minutes: set so for the first runs after Go 1.27.3 (2026-10-21), whose
+# build caches were made then, and kept since main's pushes alone save caches (D-112): a pull request
+# that changes go.mod or go.sum compiles what changed in each of its runs, and a job without its
+# cache took up to 16.5 minutes (macOS, 2026-10-21).
 #
 # Linux jobs run on the organisation's self-hosted runners (ephemeral pods, Ubuntu 24.04, 16 CPUs,
 # Docker; no make or C compiler until .github/actions/go-setup installs them), as the team's other
@@ -150,10 +152,13 @@ jobs:
             echo '```'
           } >> "${GITHUB_STEP_SUMMARY}"
 
-  # Every package without the race detector, with coverage: what a change breaks, fast. The UI's
-  # package runs in four processes one after the other (the Makefile's UNIT_UI_SHARDS says why).
+  # On Linux every test runs under the race detector (D-112), in the race jobs below, but what the
+  # race detector keeps from running, which this job runs without it: internal/ui/logo (left out of
+  # race-rest) and the tests that skip themselves, or part of their checks, under it (hack/shard
+  # -norace over ./...: the UI's terminal tests, the cache's heap measurements). Until 2026-10-21 it
+  # ran every package a second time, the UI's in four processes.
   unit-tests:
-    name: Unit Tests
+    name: Unit Tests (no race)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     steps:
@@ -165,8 +170,8 @@ jobs:
         with:
           cache: unit
 
-      - name: Unit tests with coverage
-        run: make test-unit-coverage
+      - name: The tests the race detector keeps from running, with coverage
+        run: make test-norace-coverage
 
       - name: Upload the coverage profile
         uses: actions/upload-artifact@v7
@@ -520,13 +525,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # The packaging tools install with Go's build dependencies, in the background (rerun.yml
+      # knows the step by this name).
       - name: Set up Go
         uses: ./.github/actions/go-setup
         with:
           cache: linux-package
-
-      - name: Install the packaging tools
-        run: hack/ci/apt-install.sh dpkg-dev lintian apt-utils gnupg curl python3
+          packages: dpkg-dev lintian apt-utils gnupg curl python3
 
       - name: Build the package
         run: make dist-linux VERSION=0.0.1
