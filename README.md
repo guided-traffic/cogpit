@@ -200,7 +200,8 @@ turn sent to the model is one click away. Escape or ⌘. stops it at any time.
 
 ### 🌗 Dark or light
 
-Solarized dark or light, or following your Mac's appearance, switched live in Preferences; every
+A calm navy stage where only what needs you lights up, dark or light, or following your Mac's
+appearance, switched live with the sun and moon in the title bar or in Preferences; every
 time in your own time zone and your region's format. The pictures on this page follow your light or
 dark theme too.
 

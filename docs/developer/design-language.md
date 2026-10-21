@@ -1,8 +1,11 @@
-# Design language: Dark Cockpit (prototype)
+# Design language: Dark Cockpit
 
-> **Status:** a design prototype on the branch `design-prototype`, built in the night of
-> 2026-10-20 at the owner's request ("eine neue Art von UI … darf sich gerne von Lens abheben").
-> Not merged; the owner decides in a visual review. Lens parity is not a goal of this branch.
+> **Status:** Cogpit's design language since 2026-10-21 ([D-109](decisions.md#d-109-dark-cockpit-cogpits-design-language)).
+> Built in the night of 2026-10-20 on the branch `design-prototype` at the owner's request ("eine
+> neue Art von UI … darf sich gerne von Lens abheben"), approved by him the next morning ("Finde ich
+> gut gelungen!"). Lens parity is not what this page is about: it says how Cogpit looks.
+> Before and after, dark: [assets/design-prototype/](assets/design-prototype/) (`<scene>_before_dark.webp`,
+> `<scene>_after_dark.webp`).
 
 Cogpit's name is a cockpit. Aviation designs its cockpits **dark**: when every system is normal, no
 light is on; only a deviation lights up. That is the whole idea of this design. The window is a calm,
@@ -94,6 +97,7 @@ Argo CD are not in the bearing: the engine reports no state for them as integrat
 | Selection | about 14 % glow blue (dark `#16293f`, light `#e0ebfb`), a 2 point glow-blue bar at the inner left edge, near-white text | rows, navigator, palette ([chrome_nav.go](../../internal/ui/fyneui/chrome_nav.go)) |
 | Hotbar plates | the identity colour as a vertical gradient from 22 % to 10 % with a white 8 % inner highlight; the shown cluster's tile in a glow frame; the connection dot as a badge at the corner | hotbar ([chrome_plate.go](../../internal/ui/fyneui/chrome_plate.go)) |
 | Tab, pulse | the active tab's 2 point glow-blue underline with a faint wide one; an 80×14 cyan wave of the last 24 event rates in the status bar (the demo cluster's counter only: real clusters have no rate history yet). The cluster's pill in the title bar (a capsule: its dot, name and kubeconfig) is gone since 2026-10-21 at the owner's request: the title bar names no cluster, the status bar and the navigator do | tab bar, status bar ([chrome_bar.go](../../internal/ui/fyneui/chrome_bar.go)) |
+| Appearance toggle | a sun in the dark and a moon in the light, at the bell's size, left of the bell; the hover plate as the bell's; greyed out in a run started with `--theme` | title bar ([themetoggle.go](../../internal/ui/fyneui/themetoggle.go), D-54) |
 | Create and Delete | Create is a 28 point chip at the right end of the dock's strip and never covers a row; the selection's Delete is a coral outline on a 12 % plate instead of a solid block | list toolbar, dock ([chrome_actions.go](../../internal/ui/fyneui/chrome_actions.go)) |
 
 A cluster's identity colour stays the hue its user picked (the lead's decision, open to revision): a
@@ -114,7 +118,6 @@ often a user's own production warning, and that cue outranks the calm.
 ## What this does not cover yet
 
 - Typography: Fyne's bundled font stays; Inter (OFL) through the theme is a proposal, not built.
-- Lens parity checks: this branch does not update the parity checklists.
 - Fyne's own CustomDialog dialogs that are not confirm, create or parameter dialogs (Helm, kubeconfig,
   the integrations question) keep Fyne's frame.
 - Measured speed: the per-cell objects are reused by Fyne's table, but no 10,000-row scroll run with
