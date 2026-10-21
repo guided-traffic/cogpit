@@ -1,6 +1,6 @@
 # Design language: Dark Cockpit
 
-> **Status:** Cogpit's design language since 2026-10-21 ([D-109](decisions.md#d-109-dark-cockpit-cogpits-design-language)).
+> **Status:** Cogpit's design language since 2026-10-21 ([D-110](decisions.md#d-110-dark-cockpit-cogpits-design-language)).
 > Built in the night of 2026-10-20 on the branch `design-prototype` at the owner's request ("eine
 > neue Art von UI … darf sich gerne von Lens abheben"), approved by him the next morning ("Finde ich
 > gut gelungen!"). Lens parity is not what this page is about: it says how Cogpit looks.
