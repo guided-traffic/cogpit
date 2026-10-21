@@ -45,7 +45,12 @@ func TestClusterSettingsRenewLogin(t *testing.T) {
 	test.Tap(check)
 	q.until(t, "on", func() bool { return !s.UIState().ClusterSettings["kind-dev"].HoldBackgroundLogin && check.Checked })
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "renewLoginInBackground": false})
-	q.until(t, "off from elsewhere", func() bool { return !check.Checked })
+	// The page may build its controls again for the change: the check it shows now, not the one
+	// tapped above (a loaded CI runner, 2026-10-21).
+	q.until(t, "off from elsewhere", func() bool {
+		c, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
+		return ok && !c.Checked
+	})
 }
 
 // Preferences › App with the restore on, dark and light: the PNGs of the pull request (AGENTS.md
