@@ -362,6 +362,16 @@ func safeText(s string) string {
 	return sanitizeURLs(kubeconfig.SafeError(errors.New(s)).Error())
 }
 
+// Winsock's numbers for the network failures errorClass names: on Windows a dial or a read fails
+// with these, never with syscall.ECONNREFUSED and its kin, which Go invents there for code that
+// names them. No other system's errno takes these numbers, so they match on Windows alone.
+const (
+	wsaENETUNREACH  syscall.Errno = 10051
+	wsaECONNRESET   syscall.Errno = 10054
+	wsaECONNREFUSED syscall.Errno = 10061
+	wsaEHOSTUNREACH syscall.Errno = 10065
+)
+
 // errorClass names the kind of failure in words a user can act on.
 func errorClass(err error) string {
 	msg := err.Error()
@@ -383,11 +393,12 @@ func errorClass(err error) string {
 		return "the credential plugin failed: " + pluginFailure(msg)
 	case errors.As(err, &dns):
 		return dnsClass(dns)
-	case errors.Is(err, syscall.ECONNREFUSED):
+	case errors.Is(err, syscall.ECONNREFUSED), errors.Is(err, wsaECONNREFUSED):
 		return "TCP: the connection was refused" + addrOf(err) + ": nothing listens there, or a firewall refuses it"
-	case errors.Is(err, syscall.ECONNRESET):
+	case errors.Is(err, syscall.ECONNRESET), errors.Is(err, wsaECONNRESET):
 		return "TCP: the connection was reset" + addrOf(err)
-	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH):
+	case errors.Is(err, syscall.EHOSTUNREACH), errors.Is(err, syscall.ENETUNREACH),
+		errors.Is(err, wsaEHOSTUNREACH), errors.Is(err, wsaENETUNREACH):
 		return "network: the server's address cannot be reached from this computer" + addrOf(err)
 	case errors.As(err, &unknown):
 		return "TLS: the server's certificate is signed by an authority this context does not trust"

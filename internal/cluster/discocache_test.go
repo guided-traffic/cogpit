@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -90,11 +91,14 @@ func TestDiscoveryCacheServesTheNextConnection(t *testing.T) {
 	if err != nil {
 		t.Fatalf("no cache file: %v", err)
 	}
-	if fi.Mode().Perm() != 0o600 {
-		t.Errorf("cache file mode %v, want 0600", fi.Mode().Perm())
-	}
-	if di, err := os.Stat(dir); err != nil || di.Mode().Perm() != 0o700 {
-		t.Errorf("cache directory mode %v (%v), want 0700", di.Mode().Perm(), err)
+	// Windows sets no file modes: there the user profile's permissions protect the cache.
+	if runtime.GOOS != "windows" {
+		if fi.Mode().Perm() != 0o600 {
+			t.Errorf("cache file mode %v, want 0600", fi.Mode().Perm())
+		}
+		if di, err := os.Stat(dir); err != nil || di.Mode().Perm() != 0o700 {
+			t.Errorf("cache directory mode %v (%v), want 0700", di.Mode().Perm(), err)
+		}
 	}
 	data, _ := os.ReadFile(first.discoCfg.file)
 	for _, secret := range []string{discoveryToken, "team-ctx"} {

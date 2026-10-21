@@ -403,16 +403,17 @@ func (s *Server) TokenPath() string {
 // found the kept port taken (PortTaken); a client that registers the stdio bridge instead
 // (`cogpit-cli mcp`, architecture §7; ClaudeAddStdioCommand, which the app offers when its bundle
 // carries cogpit-cli) follows both by itself, since the bridge reads the endpoint and token files.
-// The syntax is POSIX shell (macOS, Linux).
+// The syntax is POSIX shell on macOS and Linux and PowerShell on Windows (terminalShell), where the
+// output of the remove goes to *> $null instead.
 func (s *Server) ClaudeAddCommand() string {
 	url, token := s.endpoint()
 	if url == "" {
 		return ""
 	}
 	// --header takes several values, so it comes last, after the name and the URL.
-	return fmt.Sprintf(`claude mcp remove --scope user %[1]s >/dev/null 2>&1; `+
+	return fmt.Sprintf(`claude mcp remove --scope user %[1]s %[4]s; `+
 		`claude mcp add --scope user --transport http %[1]s %[2]s --header "Authorization: Bearer %[3]s"`,
-		serverName, url, token)
+		serverName, url, token, terminalShell().quiet)
 }
 
 // ClientConfigJSON returns an MCP client configuration for this endpoint, for

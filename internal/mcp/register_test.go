@@ -1,27 +1,62 @@
 package mcp
 
 import (
+	"encoding/base64"
 	"os/exec"
+	"runtime"
+	"strings"
 	"testing"
+	"unicode/utf16"
 )
 
 // TestClaudeAddStdioCommand: the registration names the bundled cogpit-cli by its absolute path,
 // after replacing an earlier registration; a path a pasted command should not carry gives none.
 func TestClaudeAddStdioCommand(t *testing.T) {
-	for _, tc := range []struct{ cli, want string }{
-		{"/Applications/Cogpit.app/Contents/MacOS/cogpit-cli",
+	cli, quiet := "/Applications/Cogpit.app/Contents/MacOS/cogpit-cli", ">/dev/null 2>&1"
+	if runtime.GOOS == goosWindows {
+		cli, quiet = `C:\Program Files\Cogpit\cogpit-cli.exe`, "*> $null" // PowerShell's
+	}
+	if got, want := ClaudeAddStdioCommand(cli), claudeAddStdio(terminalShell(), cli); got != want || !strings.Contains(got, " cogpit "+quiet+"; ") {
+		t.Errorf("ClaudeAddStdioCommand(%q):\n got %s\nwant %s", cli, got, want)
+	}
+	for _, cli := range []string{
+		"Cogpit.app/Contents/MacOS/cogpit-cli",
+		"",
+		"/Applications/Co\ngpit.app/Contents/MacOS/cogpit-cli",
+		"/Applications/Co\x1b]0;x\agpit.app/Contents/MacOS/cogpit-cli",
+		`C:\Program Files\Co` + "\n" + `gpit\cogpit-cli.exe`,
+	} {
+		if got := ClaudeAddStdioCommand(cli); got != "" {
+			t.Errorf("ClaudeAddStdioCommand(%q) = %s, want none", cli, got)
+		}
+	}
+}
+
+// The command for each shell, on every system: a POSIX shell's on macOS and Linux, PowerShell's on
+// Windows, whose terminal knows no /dev/null.
+func TestClaudeAddStdioCommandForEachShell(t *testing.T) {
+	for _, tc := range []struct {
+		sh        pasteShell
+		cli, want string
+	}{
+		{posixShell, "/Applications/Cogpit.app/Contents/MacOS/cogpit-cli",
 			"claude mcp remove --scope user cogpit >/dev/null 2>&1; " +
 				"claude mcp add --scope user cogpit -- /Applications/Cogpit.app/Contents/MacOS/cogpit-cli mcp"},
-		{"/Users/a b/Apps/Cogpit.app/Contents/MacOS/cogpit-cli",
+		{posixShell, "/Users/a b/Apps/Cogpit.app/Contents/MacOS/cogpit-cli",
 			"claude mcp remove --scope user cogpit >/dev/null 2>&1; " +
 				"claude mcp add --scope user cogpit -- '/Users/a b/Apps/Cogpit.app/Contents/MacOS/cogpit-cli' mcp"},
-		{"Cogpit.app/Contents/MacOS/cogpit-cli", ""},
-		{"", ""},
-		{"/Applications/Co\ngpit.app/Contents/MacOS/cogpit-cli", ""},
-		{"/Applications/Co\x1b]0;x\agpit.app/Contents/MacOS/cogpit-cli", ""},
+		{powerShell, `C:\Users\a\AppData\Local\Programs\Cogpit\cogpit-cli.exe`,
+			"claude mcp remove --scope user cogpit *> $null; " +
+				`claude mcp add --scope user cogpit -- C:\Users\a\AppData\Local\Programs\Cogpit\cogpit-cli.exe mcp`},
+		{powerShell, `C:\Program Files\Cogpit\cogpit-cli.exe`,
+			"claude mcp remove --scope user cogpit *> $null; " +
+				`claude mcp add --scope user cogpit -- 'C:\Program Files\Cogpit\cogpit-cli.exe' mcp`},
+		{powerShell, `C:\Users\O'Brien\Cogpit\cogpit-cli.exe`,
+			"claude mcp remove --scope user cogpit *> $null; " +
+				`claude mcp add --scope user cogpit -- 'C:\Users\O''Brien\Cogpit\cogpit-cli.exe' mcp`},
 	} {
-		if got := ClaudeAddStdioCommand(tc.cli); got != tc.want {
-			t.Errorf("ClaudeAddStdioCommand(%q):\n got %s\nwant %s", tc.cli, got, tc.want)
+		if got := claudeAddStdio(tc.sh, tc.cli); got != tc.want {
+			t.Errorf("for %q:\n got %s\nwant %s", tc.cli, got, tc.want)
 		}
 	}
 }
@@ -50,6 +85,51 @@ func TestShellQuoteRoundTrips(t *testing.T) {
 		}
 	}
 	if got := shellQuote("/Applications/Cogpit.app/Contents/MacOS/cogpit-cli"); got != "/Applications/Cogpit.app/Contents/MacOS/cogpit-cli" {
+		t.Errorf("a plain path is quoted: %s", got)
+	}
+}
+
+// TestPowerShellQuoteRoundTrips: PowerShell (Windows PowerShell, or pwsh where it is installed)
+// reads every quoted path back as the same one word, whatever it holds, and expands nothing in it;
+// a plain path stays bare.
+func TestPowerShellQuoteRoundTrips(t *testing.T) {
+	ps, err := exec.LookPath("powershell")
+	if err != nil {
+		if ps, err = exec.LookPath("pwsh"); err != nil {
+			t.Skip("no PowerShell")
+		}
+	}
+	words := []string{
+		`C:\Users\a\AppData\Local\Programs\Cogpit\cogpit-cli.exe`,
+		`C:\Program Files\Cogpit\cogpit-cli.exe`,
+		`C:\Users\O'Brien\it’s ‘x’ ‚y‛\cogpit-cli.exe`,
+		`C:\tmp\$HOME\$(whoami)\` + "`n" + `\%PATH%\;&|<>(){}#@,[a]\~\-n\cogpit-cli.exe`,
+		`C:\Users\ünïcode\Cögpit\cogpit-cli.exe`,
+		`\\server\share\cogpit-cli.exe`,
+	}
+	// The script goes in as UTF-16 (-EncodedCommand), so no command line parses it on the way, and
+	// its output comes back as UTF-8.
+	script := "[Console]::OutputEncoding = New-Object System.Text.UTF8Encoding $false; "
+	for _, w := range words {
+		script += "Write-Output " + powerShellQuote(w) + "; "
+	}
+	u := utf16.Encode([]rune(script))
+	b := make([]byte, 0, 2*len(u))
+	for _, c := range u {
+		b = append(b, byte(c), byte(c>>8))
+	}
+	out, err := exec.Command(ps, "-NoProfile", "-NonInteractive", "-EncodedCommand", // #nosec G204 -- the test's own words
+		base64.StdEncoding.EncodeToString(b)).Output()
+	if err != nil {
+		t.Fatalf("%s: %v", ps, err)
+	}
+	lines := strings.Split(strings.TrimRight(string(out), "\r\n"), "\n")
+	for i, w := range words {
+		if i >= len(lines) || strings.TrimSuffix(lines[i], "\r") != w {
+			t.Errorf("powerShellQuote(%q) = %s reads back as %q", w, powerShellQuote(w), lines)
+		}
+	}
+	if got := powerShellQuote(words[0]); got != words[0] {
 		t.Errorf("a plain path is quoted: %s", got)
 	}
 }

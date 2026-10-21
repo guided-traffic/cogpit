@@ -200,6 +200,14 @@ func TestErrorPictureClasses(t *testing.T) {
 	if pic := ErrorPicture(refused); !strings.Contains(pic[0], "TCP: the connection was refused") {
 		t.Errorf("refused: %q", pic)
 	}
+	// Windows' dial fails with Winsock's numbers instead.
+	for errno, want := range map[syscall.Errno]string{wsaECONNREFUSED: "TCP: the connection was refused",
+		wsaECONNRESET: "TCP: the connection was reset", wsaEHOSTUNREACH: "network: ", wsaENETUNREACH: "network: "} {
+		winsock := &net.OpError{Op: "dial", Net: "tcp", Err: os.NewSyscallError("connectex", errno)}
+		if pic := ErrorPicture(winsock); !strings.Contains(pic[0], want) {
+			t.Errorf("Winsock %d: %q", uint(errno), pic)
+		}
+	}
 	cert := testkit.NewCert(t, testkit.CertSpec{CommonName: "api", DNSNames: []string{"api.example"}})
 	parsed, err := x509.ParseCertificate(cert.Cert.Raw)
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -86,7 +87,8 @@ type Installation struct {
 
 // Installed lists the kubectl releases in dir as Download leaves them, <dir>/<version>/kubectl,
 // newest first. An entry whose name is not a version, or that holds no executable regular kubectl
-// file, is skipped; a missing dir lists nothing.
+// file, is skipped; a missing dir lists nothing. goos names the releases' platform (the binary's
+// name); whether a file is executable is this system's matter, and Windows keeps no execute bit.
 func Installed(dir, goos string) []Installation {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -104,7 +106,7 @@ func Installed(dir, goos string) []Installation {
 		}
 		path := filepath.Join(dir, e.Name(), name)
 		fi, err := os.Stat(path)
-		if err != nil || !fi.Mode().IsRegular() || (goos != "windows" && fi.Mode().Perm()&0o100 == 0) {
+		if err != nil || !fi.Mode().IsRegular() || (runtime.GOOS != "windows" && fi.Mode().Perm()&0o100 == 0) {
 			continue
 		}
 		out = append(out, Installation{Version: v, Path: path})

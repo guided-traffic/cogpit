@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +31,8 @@ func TestSwitchFile(t *testing.T) {
 			t.Fatalf("stored %v: on %v, set %v, %v", want, on, set, err)
 		}
 	}
-	if fi, err := os.Stat(SwitchPath(dir)); err != nil || fi.Mode().Perm() != 0o600 {
+	// Windows sets no file modes: there the user profile's permissions protect the switch.
+	if fi, err := os.Stat(SwitchPath(dir)); err != nil || (runtime.GOOS != goosWindows && fi.Mode().Perm() != 0o600) {
 		t.Errorf("the switch file: %v, %v", fi.Mode(), err)
 	}
 	if err := os.WriteFile(SwitchPath(dir), []byte("yes\n"), 0o600); err != nil {
@@ -38,6 +40,9 @@ func TestSwitchFile(t *testing.T) {
 	}
 	if on, set, err := ReadSwitch(dir); on || !set || err == nil {
 		t.Errorf("garbage: on %v, set %v, %v", on, set, err)
+	}
+	if runtime.GOOS == goosWindows {
+		return // symlinks need a privilege there
 	}
 	other := filepath.Join(t.TempDir(), "on")
 	if err := os.WriteFile(other, []byte("on\n"), 0o600); err != nil {

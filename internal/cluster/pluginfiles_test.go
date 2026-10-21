@@ -1,6 +1,8 @@
 package cluster
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -57,7 +59,9 @@ func inspectLogin(t *testing.T, dir, text string) *kubeconfig.ExecPlugin {
 func TestProgramInsideTheFolderIsBoundByContent(t *testing.T) {
 	dir := t.TempDir()
 	putFile(t, filepath.Join(dir, "bin", "plug"), "#!/bin/sh\necho 1\n", 0o755)
-	text := loginKubeconfig(execFields("./bin/plug"), "")
+	// client-go resolves a command against the kubeconfig's folder only when it holds the system's
+	// separator: .\bin\plug on Windows, where ./bin/plug is looked up from the working directory.
+	text := loginKubeconfig(execFields(filepath.FromSlash("./bin/plug")), "")
 	a := inspectLogin(t, dir, text)
 	if a.Files.ProgramSHA256 == "" || a.Files.ProgramNote != "" {
 		t.Fatalf("a program inside the folder is hashed: %+v", a.Files)
@@ -69,6 +73,32 @@ func TestProgramInsideTheFolderIsBoundByContent(t *testing.T) {
 	putFile(t, filepath.Join(dir, "bin", "plug"), "#!/bin/sh\necho 2\n", 0o755)
 	if changed := inspectLogin(t, dir, text); changed.Fingerprint() == a.Fingerprint() {
 		t.Error("replacing the program must change the fingerprint")
+	}
+}
+
+// A program named without an extension is bound by the file that runs: on Windows os/exec adds the
+// first of PATHEXT's extensions that exists, so plug runs plug.exe and a plug beside it binds
+// nothing; elsewhere plug itself runs.
+func TestProgramIsBoundByTheFileThatRuns(t *testing.T) {
+	dir := t.TempDir()
+	runs, beside := filepath.Join(dir, "bin", "plug"), filepath.Join(dir, "bin", "plug.exe")
+	if runtime.GOOS == "windows" {
+		runs, beside = beside, runs
+	}
+	putFile(t, runs, "runs", 0o755)
+	putFile(t, beside, "beside", 0o755)
+	text := loginKubeconfig(execFields(filepath.FromSlash("./bin/plug")), "")
+	a := inspectLogin(t, dir, text)
+	if sum := sha256.Sum256([]byte("runs")); a.Files.ProgramSHA256 != hex.EncodeToString(sum[:]) {
+		t.Fatalf("the file that runs is hashed: %+v", a.Files)
+	}
+	putFile(t, beside, "beside, changed", 0o755)
+	if b := inspectLogin(t, dir, text); b.Fingerprint() != a.Fingerprint() {
+		t.Error("a file that does not run changed the fingerprint")
+	}
+	putFile(t, runs, "runs, changed", 0o755)
+	if c := inspectLogin(t, dir, text); c.Fingerprint() == a.Fingerprint() {
+		t.Error("replacing the file that runs must change the fingerprint")
 	}
 }
 
@@ -157,7 +187,7 @@ func TestProgramThatCannotBeHashedIsBoundByANote(t *testing.T) {
 	if err := os.Chmod(plug, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	text := loginKubeconfig(execFields("./plug"), "")
+	text := loginKubeconfig(execFields(filepath.FromSlash("./plug")), "")
 	a := inspectLogin(t, dir, text)
 	if a.Files.ProgramSHA256 != "" || !strings.Contains(a.Files.ProgramNote, "larger than") {
 		t.Fatalf("too large: %+v", a.Files)
@@ -165,7 +195,7 @@ func TestProgramThatCannotBeHashedIsBoundByANote(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "d"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	d := inspectLogin(t, dir, loginKubeconfig(execFields("./d"), ""))
+	d := inspectLogin(t, dir, loginKubeconfig(execFields(filepath.FromSlash("./d")), ""))
 	if d.Files.ProgramNote != "not a regular file" {
 		t.Errorf("a directory: %+v", d.Files)
 	}

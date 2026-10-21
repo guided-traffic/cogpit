@@ -93,8 +93,10 @@ func TestInstalledAndBest(t *testing.T) {
 	for _, v := range []string{"1.34.2", "1.35.0", "1.36.0", "1.36.3", "1.37.1"} {
 		writeExecutable(t, filepath.Join(dir, v, "kubectl"), "#!/bin/sh\n", 0o755)
 	}
-	writeExecutable(t, filepath.Join(dir, "1.33.0", "kubectl"), "not executable", 0o600) // skipped
-	writeExecutable(t, filepath.Join(dir, "v1.36.9", "kubectl"), "#!/bin/sh\n", 0o755)   // not Download's name
+	if runtime.GOOS != "windows" { // Windows keeps no execute bit: there every regular kubectl counts
+		writeExecutable(t, filepath.Join(dir, "1.33.0", "kubectl"), "not executable", 0o600) // skipped
+	}
+	writeExecutable(t, filepath.Join(dir, "v1.36.9", "kubectl"), "#!/bin/sh\n", 0o755) // not Download's name
 	writeExecutable(t, filepath.Join(dir, "notes", "kubectl"), "#!/bin/sh\n", 0o755)
 	if err := os.MkdirAll(filepath.Join(dir, "1.32.0"), 0o700); err != nil { // no binary
 		t.Fatal(err)

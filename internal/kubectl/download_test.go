@@ -153,13 +153,16 @@ func TestDownloadVerifiesAndInstalls(t *testing.T) {
 	if err != nil || string(got) != string(binary) {
 		t.Fatalf("the installed file differs (%v)", err)
 	}
-	fi, _ := os.Stat(path)
-	if fi.Mode().Perm() != 0o755 {
-		t.Errorf("mode %o, want 755", fi.Mode().Perm())
-	}
-	for _, d := range []string{dir, filepath.Dir(path)} {
-		if fi, _ := os.Stat(d); fi.Mode().Perm() != 0o700 {
-			t.Errorf("%s mode %o, want 700", d, fi.Mode().Perm())
+	// Windows sets no file modes: there the user profile's permissions protect the binary.
+	if runtime.GOOS != "windows" {
+		fi, _ := os.Stat(path)
+		if fi.Mode().Perm() != 0o755 {
+			t.Errorf("mode %o, want 755", fi.Mode().Perm())
+		}
+		for _, d := range []string{dir, filepath.Dir(path)} {
+			if fi, _ := os.Stat(d); fi.Mode().Perm() != 0o700 {
+				t.Errorf("%s mode %o, want 700", d, fi.Mode().Perm())
+			}
 		}
 	}
 	if l := leftovers(t, dir); len(l) != 1 {

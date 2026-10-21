@@ -13,9 +13,10 @@ import (
 // https whose entry says insecure_skip_tls_verify; plain http wins over the entry's TLS setting,
 // which does not apply to it.
 func TestRepositoryOrigin(t *testing.T) {
+	ca := filepath.Join(t.TempDir(), "ca.pem") // absolute on every system; the file is not read
 	for _, c := range []struct{ entry, want string }{
 		{"- name: a\n  url: https://charts.example.com\n", ""},
-		{"- name: a\n  url: https://charts.example.com\n  caFile: /etc/ca.pem\n", ""},
+		{"- name: a\n  url: https://charts.example.com\n  caFile: " + ca + "\n", ""},
 		{"- name: a\n  url: http://charts.example.com\n", kinds.HelmOriginHTTP},
 		{"- name: a\n  url: HTTP://charts.example.com:8080/stable\n", kinds.HelmOriginHTTP},
 		{"- name: a\n  url: https://charts.example.com\n  insecure_skip_tls_verify: true\n", kinds.HelmOriginInsecureTLS},

@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -46,6 +47,13 @@ func BindPluginFiles(p *kubeconfig.ExecPlugin) *kubeconfig.ExecPlugin {
 		path := p.Command
 		if !strings.ContainsRune(path, filepath.Separator) {
 			path = LookPathNow(path) // client-go looks a bare name up on PATH
+		} else if runtime.GOOS == "windows" {
+			// os/exec (client-go's exec.Command) runs a path without one of PATHEXT's extensions
+			// (.com, .exe, .bat, .cmd, …) as the first of the path with each that exists: plug runs
+			// plug.exe there, which is the file to bind, not a plug beside it.
+			if found := LookPathNow(path); found != "" {
+				path = found
+			}
 		}
 		f.ProgramResolved, f.ProgramSHA256, f.ProgramNote = bindFile(path, folder, MaxBoundProgramSize)
 	}

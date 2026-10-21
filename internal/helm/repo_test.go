@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -41,10 +42,11 @@ func TestDownloadIndexAndFetchChart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fi, err := os.Stat(dest); err != nil || fi.Mode().Perm() != 0o600 {
+	// Windows sets no file modes: there the user profile's permissions protect the cache.
+	if fi, err := os.Stat(dest); err != nil || (runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600) {
 		t.Errorf("index file %v %v", fi, err)
 	}
-	if fi, err := os.Stat(filepath.Dir(dest)); err != nil || fi.Mode().Perm() != 0o700 {
+	if fi, err := os.Stat(filepath.Dir(dest)); err != nil || (runtime.GOOS != "windows" && fi.Mode().Perm() != 0o700) {
 		t.Errorf("cache folder %v %v", fi, err)
 	}
 	if len(idx.Charts) != 2 || idx.Charts[0].Name != "lib" || idx.Charts[1].Name != "web" {

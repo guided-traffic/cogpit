@@ -41,7 +41,10 @@ func TestResendCutsTheConversation(t *testing.T) {
 		t.Fatalf("the second turn: %v (%s)", itemKinds(before), notes(before))
 	}
 
-	h.llm.Script(fakellm.Reply{Text: []string{"Which namespace?"}})
+	// The gate holds the new turn open while the test reads the file: Windows refuses to replace a
+	// file that is open, so the turn's save at its end fails when it comes during the read.
+	gate := make(chan struct{})
+	h.llm.Script(fakellm.Reply{Text: []string{"Which namespace?"}, Gate: gate})
 	if err := h.a.Resend(id, second, engine.ChatUserMessage{Text: "Scale web to three"}); err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +53,7 @@ func TestResendCutsTheConversation(t *testing.T) {
 		strings.Contains(kept, "deployment.restart") {
 		t.Errorf("the file still holds the cut part:\n%s", kept)
 	}
+	close(gate)
 	c := h.idle(t, id)
 	want := []string{"user", "tool:resources.list:done", "assistant", "user", "assistant"}
 	if got := itemKinds(c); !slices.Equal(got, want) {

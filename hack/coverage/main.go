@@ -17,6 +17,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -159,7 +160,7 @@ func (m merged) writeSummary(w io.Writer, profiles []string) error {
 	fmt.Fprintf(w, "## Combined coverage: %.1f%%\n\n", percent(covered, total))
 	bases := make([]string, len(profiles))
 	for i, p := range profiles {
-		bases[i] = "`" + path.Base(p) + "`"
+		bases[i] = "`" + filepath.Base(p) + "`"
 	}
 	fmt.Fprintf(w, "%d of %d statements, merged from %s. A block counts as covered when any profile covered it.\n\n",
 		covered, total, strings.Join(bases, ", "))
@@ -197,7 +198,7 @@ func percent(covered, total int) float64 {
 
 // write creates name (and its directory) and fills it with fill.
 func write(name string, fill func(io.Writer) error) error {
-	if err := os.MkdirAll(path.Dir(name), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
 		return err
 	}
 	f, err := os.Create(name)
