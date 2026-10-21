@@ -22,8 +22,9 @@
 # anything of them is kept, a repository it cannot check is an error, and none served (404) is an
 # empty <dir>.
 #
-# The signing key reaches gpg on its standard input only, in a temporary GNUPGHOME removed on exit;
-# nothing derived from it is echoed. sign refuses a key whose fingerprint is not the one
+# The signing key reaches gpg on its standard input only, in a temporary GNUPGHOME removed on exit,
+# and gpg's agent, which holds it, is ended once both signatures are made; nothing derived from it
+# is echoed. sign refuses a key whose fingerprint is not the one
 # <keyring.asc> holds (the packages' key). Without APT_SIGNING_KEY (a fork) sign signs nothing and
 # says so (signed=false in $GITHUB_OUTPUT): the repository is not deployed.
 set -euo pipefail
@@ -274,6 +275,8 @@ sign() {
 	local args=(--batch --yes --quiet --pinentry-mode loopback --passphrase '' --digest-algo SHA512 --local-user "$want")
 	GNUPGHOME=$gnupg gpg "${args[@]}" --clearsign --output "$d/InRelease" "$d/Release"
 	GNUPGHOME=$gnupg gpg "${args[@]}" --armor --detach-sign --output "$d/Release.gpg" "$d/Release"
+	# gpg's agent holds the key and outlives its directory: ended now, not with the machine.
+	GNUPGHOME=$gnupg gpgconf --kill all 2>/dev/null || true
 	files "$dir"
 	verify "$dir" "$2"
 	output signed=true
