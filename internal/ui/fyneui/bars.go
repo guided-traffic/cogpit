@@ -62,6 +62,7 @@ type topBar struct {
 	left        *fyne.Container
 	right       *fyne.Container // the Update button, the alerts, the bell, a divider, the layout toggles
 	alerts      *alertsButton   // the alerts pill left of the bell (alerts.go): the shown cluster's Alertmanager (D-77)
+	appearance  *themeToggle    // the light and dark toggle directly left of the bell (themetoggle.go, the owner's of 2026-10-21)
 	version     *buildLabel     // the build's version right of the wordmark (buildlabel.go, F12)
 	edge        *surface        // the line under the bar, directly under it (shell.go, F11)
 	titleHeight float32         // the title bar's height the bar covers, in Fyne units; 0 without
@@ -91,7 +92,8 @@ func newTopBar(sh *shell) *topBar {
 	// The divider is a short line, a line of text high (the owner: "wie so ein Zeichen |").
 	t.alerts.divider = []fyne.CanvasObject{newHGap(theme.SizeNameInnerPadding), box(compactLayout{}, newDivider(true)),
 		newHGap(theme.SizeNameInnerPadding)}
-	t.right = container.NewHBox(append(append([]fyne.CanvasObject{t.layout.updateBox, t.alerts, t.notes.bell},
+	t.appearance = newThemeToggle(sh)
+	t.right = container.NewHBox(append(append([]fyne.CanvasObject{t.layout.updateBox, t.alerts, t.appearance, t.notes.bell},
 		t.alerts.divider...), t.layout.root)...)
 	// The line under the bar lies directly under it (shell.go): what the bar centres then sits
 	// midway between the window's top and the line (F11, the owner: "hängt ein wenig zu hoch"; with

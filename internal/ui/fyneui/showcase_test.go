@@ -101,6 +101,12 @@ func saveShowcaseSized(t *testing.T, w fyne.Window, name string, mode ThemeMode,
 	for _, a := range findAll[*alertsButton](w.Content()) {
 		a.conceal()
 	}
+	// The light and dark toggle as a user sees it: the scenes pick their theme as --theme does,
+	// which greys the button out in a real run.
+	for _, b := range findAll[*themeToggle](w.Content()) {
+		b.unfixed = true
+		b.Refresh()
+	}
 	settle(w)
 	c, ok := w.Canvas().(interface{ SetScale(float32) })
 	if !ok {
