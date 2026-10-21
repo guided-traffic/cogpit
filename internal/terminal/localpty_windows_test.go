@@ -44,14 +44,16 @@ func startTestCmd(t *testing.T, opts LocalOptions) (Session, *outputRecorder, st
 
 // typeLines types each line into the session as the terminal widget does (Enter is a carriage
 // return), then a last one that writes done.txt, and waits for that file: the console host
-// repaints the screen as it likes, so results go to files, not through the output.
+// repaints the screen as it likes, so results go to files, not through the output. The wait is
+// long: on a fresh CI runner every program's first start is scanned, and the kubectl GitHub's
+// Windows image brings took more than 20 seconds for its four runs (2026-10-21).
 func typeLines(t *testing.T, sess Session, home string, lines ...string) {
 	t.Helper()
 	lines = append(lines, "echo done> done.txt")
 	if _, err := sess.Write([]byte(strings.Join(lines, "\r") + "\r")); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
-	waitForFile(t, filepath.Join(home, "done.txt"), "done", 20*time.Second)
+	waitForFile(t, filepath.Join(home, "done.txt"), "done", 2*time.Minute)
 }
 
 func waitForFile(t *testing.T, path, want string, timeout time.Duration) {
@@ -171,7 +173,7 @@ func TestStartLocalWindowsResize(t *testing.T) {
 	if _, err := sess.Write([]byte(line)); err != nil {
 		t.Fatal(err)
 	}
-	waitForFile(t, filepath.Join(home, "done.txt"), "done", 30*time.Second)
+	waitForFile(t, filepath.Join(home, "done.txt"), "done", 2*time.Minute) // PowerShell starts slowly on a fresh runner
 	if got := readTrimmed(t, filepath.Join(home, "size.txt")); got != "123 45" {
 		t.Errorf("PowerShell's window size = %q, want \"123 45\"", got)
 	}
@@ -223,7 +225,7 @@ func TestStartLocalWindowsCloseEndsTheTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	var ids []uint32
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for len(ids) < 2 && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 		ids = jobProcesses(t, sess.(*localSession))
@@ -406,7 +408,7 @@ func TestStartLocalWindowsRemovesHeldFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := sess.(*localSession)
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for len(jobProcesses(t, s)) < 2 && time.Now().Before(deadline) {
 		time.Sleep(50 * time.Millisecond)
 	}
