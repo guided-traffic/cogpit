@@ -10048,10 +10048,21 @@ archive), upgraded from 0.0.2 to 0.0.3 by the helper from a repository signed wi
 served over HTTP, with by-hash and a changed sources file kept; Cogpit's window open under Xvfb
 (its WM_CLASS `Cogpit`); `apt remove` keeps the sources file and `apt update` stays quiet, `apt
 purge` removes it. The repository's script: `hack/linux/apt-test.sh`, also in CI. The updater:
-its tests, the restart script with a real process. **Not verified yet**, and these are the gaps:
-the pipeline's first run (the release after v0.32.0) and the repository served from Pages; polkit's
-password dialog and the restart in a desktop session; the arm64 package beyond GitHub's ARM runner;
-an update through Ubuntu's Software Updater.
+its tests, the restart script with a real process. **The pipeline, 2026-10-20 night:** v0.33.0 and
+v0.34.0 built both packages on GitHub's runners, attached them with one merged `SHA256SUMS`, signed
+the repository with the key and deployed it to Pages beside the appcast, which stayed as it was;
+the repository holds both releases with both generations' by-hash files, and `apt.sh mirror` checks
+it from Pages. **On the owner's workstation** (Ubuntu 26.04, GNOME on Wayland): the v0.33.0 .deb
+downloaded from the release, checked against `SHA256SUMS` and installed with apt; `apt update`
+read the repository from Pages with the key; Cogpit 0.33.0 started on the desktop showed GNOME's
+title bar with minimize, maximize and close (an X11 window through XWayland, as Fyne 2.8 chooses
+on GNOME) and, once v0.34.0 was in the repository, the Update button "Update to v0.34.0" from
+apt's lists; the helper's two apt commands (run with sudo, since nobody could type polkit's
+password at night) upgraded it to 0.34.0 from Pages, the running process then on its deleted file.
+In a container, the button's click restarted Cogpit into the installed release (a new process).
+**Not verified yet**, and these are the gaps: polkit's password dialog and the click on Restart to
+Update in a desktop session; the arm64 package beyond GitHub's ARM runner; an update through
+Ubuntu's Software Updater.
 
 ## Revision history
 

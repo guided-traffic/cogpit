@@ -196,8 +196,10 @@ package's sources file with its key inline, refused nothing it should accept, an
 upgraded the package from a repository signed with a test key; `hack/linux/apt-test.sh` (CI, every
 push) shows `verify` refusing a tampered package and another key, `mirror` refusing a tampered
 repository and leaving nothing, `sign` refusing a key that is not the packages', and `newer`
-refusing an older repository. Not checked yet: the repository served from Pages after the first
-release, polkit's dialog in a desktop session.
+refusing an older repository. Checked the same night with the real key: the repository Pages serves
+since v0.33.0, which `apt update` on Ubuntu 26.04 (apt 3, sqv) accepted and from which apt upgraded
+the owner's workstation from 0.33.0 to 0.34.0. Not checked yet: polkit's dialog in a desktop
+session.
 
 ## What this does not cover
 

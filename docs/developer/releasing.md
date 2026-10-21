@@ -850,7 +850,9 @@ by the hash an `InRelease` names, and the previous generation's index and packag
 that reads an `InRelease` from before a deploy still finds what it names.
 
 **Checked:** `make test-linux-package` (CI's job Linux Package) runs `hack/linux/apt-test.sh` on
-every push. Not observed yet: the first release's run and the repository served from Pages.
+every push. Observed 2026-10-20 night: v0.33.0's and v0.34.0's runs built, attached, signed and
+deployed it; Pages serves both releases with both generations' index files and the appcast as
+before; `apt update` and an upgrade from 0.33.0 to 0.34.0 on the owner's workstation read it.
 
 **The key** (D-108): Ed25519, for signing only, made on 2026-10-20 without a passphrase, expiring
 on 2031-10-19. To renew it, extend its expiry with the private key (`gpg --quick-set-expire`),
