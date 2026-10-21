@@ -310,14 +310,14 @@ func init() {
 	}
 }
 
-// call calls one of WinSparkle's functions.
-func (w *winSparkleState) call(name string, args ...uintptr) uintptr {
+// call calls one of WinSparkle's functions. Its result is not read: set_eddsa_public_key's says
+// whether the key is valid, which decodeKey checked already.
+func (w *winSparkleState) call(name string, args ...uintptr) {
 	p, err := w.dll.FindProc(name)
 	if err != nil {
-		return 0 // load found every one
+		return // load found every one
 	}
-	r, _, _ := p.Call(args...)
-	return r
+	_, _, _ = p.Call(args...)
 }
 
 // cstr calls name with s as a C string, kept for the process's life; w.mu is held.
