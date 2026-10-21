@@ -301,7 +301,16 @@ func TestSectionDotOpensTheLogNotTheRow(t *testing.T) {
 	f.mu.Lock()
 	calls := f.calls[before:]
 	f.mu.Unlock()
-	if len(calls) != 1 {
+	// The navigator reports its keyboard row from goroutines of its own, another cluster's row
+	// among them (kind-cogpit's, a CI run of 2026-10-21): what counts is what the click on the
+	// prod cluster's dot sent, its log and nothing that drills into it or connects it.
+	var clicked []engine.Invocation
+	for _, c := range calls {
+		if strings.HasPrefix(c.ID, "cluster.") || strings.Contains(string(c.Params), secProd) {
+			clicked = append(clicked, c)
+		}
+	}
+	if len(clicked) != 1 || clicked[0].ID != "cluster.connectLog" {
 		t.Errorf("the dot dispatched %v", calls)
 	}
 }

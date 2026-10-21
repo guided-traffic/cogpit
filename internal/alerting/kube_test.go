@@ -64,8 +64,16 @@ func TestPollerThroughTheServiceProxy(t *testing.T) {
 	// One request per poll, nothing else.
 	time.Sleep(260 * time.Millisecond)
 	p.SetActive(false)
-	sent := conn.Counter().Snapshot().ByVerbResource["get services/proxy"] - before
-	polls := int64(len(am.Requests()))
+	// A poll under way when the poller stopped is counted as sent before the fake Alertmanager has
+	// it: read both again until they agree or a second passed (a loaded CI runner, 2026-10-21).
+	var sent, polls int64
+	for settleBy := time.Now().Add(time.Second); ; time.Sleep(10 * time.Millisecond) {
+		sent = conn.Counter().Snapshot().ByVerbResource["get services/proxy"] - before
+		polls = int64(len(am.Requests()))
+		if sent == polls || time.Now().After(settleBy) {
+			break
+		}
+	}
 	if sent != polls || polls < 3 || polls > 8 {
 		t.Errorf("%d proxy requests for %d polls in ~300ms at 50ms", sent, polls)
 	}

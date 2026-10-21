@@ -9,6 +9,12 @@
 //
 //	go run ./hack/icon -o packaging/icon.png
 //	go run ./hack/icon -version helm -size 512 -o docs/developer/assets/logo/helm.png
+//
+// With -ico it writes a Windows icon instead (D-111): one image per size, each drawn at that size
+// with the narrower margin Windows icons have, for the executables' resources and the setup
+// (make dist-windows):
+//
+//	go run ./hack/icon -ico 16,20,24,32,40,48,64,256 -o .cache/windows/cogpit.ico
 package main
 
 import (
@@ -17,24 +23,35 @@ import (
 	"image"
 	"image/png"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/guided-traffic/cogpit/internal/ui/logo"
 )
 
-const margin = 100.0 / 1024 // transparent margin around the plate, as macOS icons have
+const (
+	margin    = 100.0 / 1024 // transparent margin around the plate, as macOS icons have
+	winMargin = 1.0 / 32     // Windows' icons fill their square: one pixel of 32 (the lead's, D-111)
+)
 
 func main() {
-	out := flag.String("o", "packaging/icon.png", "output PNG file")
+	out := flag.String("o", "packaging/icon.png", "output PNG file, or .ico file with -ico")
 	version := flag.String("version", logo.Current.Name, "the logo to draw: "+names())
 	size := flag.Int("size", 1024, "the PNG's side in pixels")
+	ico := flag.String("ico", "", "write a Windows icon with these sizes (comma-separated, 1 to 256) instead of a PNG")
 	flag.Parse()
 	v, ok := logo.Find(*version)
 	if !ok {
 		fmt.Fprintf(os.Stderr, "icon: no logo %q; there are %s\n", *version, names())
 		os.Exit(2)
 	}
-	if err := write(*out, render(v, *size)); err != nil {
+	var err error
+	if *ico != "" {
+		err = writeICO(*out, v, *ico)
+	} else {
+		err = write(*out, render(v, *size, margin))
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "icon:", err)
 		os.Exit(1)
 	}
@@ -61,8 +78,26 @@ func write(path string, img image.Image) (err error) {
 	return png.Encode(f, img)
 }
 
-// render draws the plate (the box's 2…98 of its 100 units) into the square inside the margin.
-func render(v logo.Version, size int) *image.NRGBA {
+// writeICO draws the logo at each of the comma-separated sizes and writes them as one icon.
+func writeICO(path string, v logo.Version, sizes string) error {
+	var imgs []*image.NRGBA
+	for _, s := range strings.Split(sizes, ",") {
+		n, err := strconv.Atoi(strings.TrimSpace(s))
+		if err != nil || n < 1 || n > 256 {
+			return fmt.Errorf("-ico: size %q: 1 to 256 expected", s)
+		}
+		imgs = append(imgs, render(v, n, winMargin))
+	}
+	data, err := encodeICO(imgs)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0o644) // #nosec G306 -- a build artefact, as the PNGs are
+}
+
+// render draws the plate (the box's 2…98 of its 100 units) into the square inside the margin, a
+// fraction of the side.
+func render(v logo.Version, size int, margin float64) *image.NRGBA {
 	img := image.NewNRGBA(image.Rect(0, 0, size, size))
 	border := margin * float64(size)
 	scale := (float64(size) - 2*border) / (logo.Box - 4) // 96 box units are the plate's side

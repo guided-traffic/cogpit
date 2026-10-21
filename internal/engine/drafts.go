@@ -571,7 +571,7 @@ func (d *Drafts) removeFile(id string) {
 	if !validOwnerID(id) {
 		return
 	}
-	if err := os.Remove(d.path(id)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+	if err := retryHeld(func() error { return os.Remove(d.path(id)) }); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		d.logger().Warn("engine: a draft of unsaved editor text could not be removed", "err", err)
 	}
 }

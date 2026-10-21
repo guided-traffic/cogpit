@@ -184,7 +184,7 @@ func files(root string) []string {
 	var out []string
 	_ = filepath.WalkDir(root, func(p string, d fs.DirEntry, _ error) error {
 		if d != nil && !d.IsDir() {
-			out = append(out, strings.TrimPrefix(p, root))
+			out = append(out, filepath.ToSlash(strings.TrimPrefix(p, root)))
 		}
 		return nil
 	})
@@ -233,9 +233,7 @@ func TestHelmReposFromHelmsFile(t *testing.T) {
 	if len(cached) != 1 || !strings.HasSuffix(cached[0], "-index.yaml") {
 		t.Fatalf("Cogpit's cache: %v", cached)
 	}
-	if fi, err := os.Stat(filepath.Join(h.cacheDir, "helm", "indexes", cached[0])); err != nil || fi.Mode().Perm() != 0o600 {
-		t.Errorf("the cached index: %v %v", fi, err)
-	}
+	assertMode(t, filepath.Join(h.cacheDir, "helm", "indexes", cached[0]), 0o600)
 	if got := files(filepath.Dir(h.helmFile.Path)); len(got) != 1 || got[0] != "/repositories.yaml" {
 		t.Errorf("Helm's folder holds %v: Cogpit wrote into it", got)
 	}

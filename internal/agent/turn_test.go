@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -426,7 +427,8 @@ func TestConversationsAreKeptScrubbed(t *testing.T) {
 	if !strings.Contains(string(data), "«secret shop/db/password»") {
 		t.Errorf("no placeholder in the file:\n%s", data)
 	}
-	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o600 {
+	// Windows sets no file modes: there the user profile's permissions protect the file.
+	if fi, _ := os.Stat(path); runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600 {
 		t.Errorf("mode %v", fi.Mode().Perm())
 	}
 

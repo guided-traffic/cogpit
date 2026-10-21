@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -239,7 +240,8 @@ func TestWindowPlaceKeeper(t *testing.T) {
 	if got := readPlace(t, path); got.Frame == nil || *got.Frame != *want.Frame || got.Display == nil || *got.Display != *want.Display {
 		t.Errorf("the file holds %+v, want %+v", got, want)
 	}
-	if fi, err := os.Stat(path); err != nil || fi.Mode().Perm() != 0o600 {
+	// Windows sets no file modes: there the user profile's permissions protect the file.
+	if fi, err := os.Stat(path); err != nil || (runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600) {
 		t.Errorf("the file: %v, mode %v; want owner-only", err, fi.Mode().Perm())
 	}
 

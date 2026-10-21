@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"image/color"
-	"os"
 	"slices"
 	"strconv"
 	"strings"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/terminal"
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/yamlview"
 )
 
@@ -302,11 +302,7 @@ func (p *settingsPage) editorSection() fyne.CanvasObject {
 func (p *settingsPage) terminalSection() fyne.CanvasObject {
 	pr := p.prefs()
 	shell := widget.NewEntry()
-	def := "$SHELL"
-	if env := p.sh.envShell(); env != "" {
-		def = env
-	}
-	shell.SetPlaceHolder(def)
+	shell.SetPlaceHolder(terminal.DefaultShell()) // $SHELL on macOS and Linux, PowerShell's on Windows
 	shell.OnChanged = func(string) {
 		p.typed("terminalShell", func() { p.setPreference("terminalShell", strings.TrimSpace(shell.Text)) })
 	}
@@ -332,9 +328,6 @@ func (p *settingsPage) terminalSection() fyne.CanvasObject {
 		p.setting("terminalRightClickCopyPaste", rightClickTitle, rightClickHelp, rightClick),
 	)
 }
-
-// envShell is the user's $SHELL, the local terminal's default shell.
-func (sh *shell) envShell() string { return os.Getenv("SHELL") }
 
 // shellArgs splits the arguments field: one argument per line, blank lines dropped.
 func shellArgs(text string) []string {

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -349,6 +350,16 @@ func TestEnsureToolPath(t *testing.T) {
 	toolDirs = []string{filepath.Join(home, "missing"), "/usr/bin"}
 	defer func() { toolDirs = toolDirsBefore }()
 
+	if runtime.GOOS == "windows" {
+		// A program started from the Start menu or Explorer has the PATH a terminal has (both
+		// read it from the user's environment in the registry): nothing is added there.
+		before := os.Getenv("PATH")
+		EnsureToolPath()
+		if got := os.Getenv("PATH"); got != before {
+			t.Errorf("PATH changed on Windows to %q", got)
+		}
+		return
+	}
 	EnsureToolPath()
 	want := strings.Join([]string{"/usr/bin", filepath.Join(home, "bin"), filepath.Join(home, ".local", "bin")}, string(os.PathListSeparator))
 	if got := os.Getenv("PATH"); got != want {

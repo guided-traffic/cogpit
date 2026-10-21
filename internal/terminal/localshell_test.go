@@ -12,45 +12,8 @@ import (
 	"time"
 )
 
-// userKubeconfig is a user's kubeconfig with a credential the terminal's own file must not copy.
-// The server is unreachable on purpose: these tests only read and change kubeconfig state.
-const userKubeconfig = `apiVersion: v1
-kind: Config
-clusters:
-- name: cluster-a
-  cluster:
-    server: https://127.0.0.1:1
-- name: cluster-b
-  cluster:
-    server: https://127.0.0.1:2
-users:
-- name: user-a
-  user:
-    token: secret-token-123
-- name: user-b
-  user:
-    token: secret-token-456
-contexts:
-- name: ctx-a
-  context:
-    cluster: cluster-a
-    user: user-a
-    namespace: default
-- name: ctx-b
-  context:
-    cluster: cluster-b
-    user: user-b
-current-context: ctx-b
-`
-
-func writeUserKubeconfig(t *testing.T) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "config")
-	if err := os.WriteFile(path, []byte(userKubeconfig), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
+// plainShell is the shell the tests start where they need one that reads no profile: /bin/sh.
+func plainShell() string { return "/bin/sh" }
 
 // startTestShell starts /bin/sh with a temporary HOME, so the login shell reads none of the
 // developer's profile files, and records its output.
@@ -66,15 +29,6 @@ func startTestShell(t *testing.T, opts LocalOptions) (Session, *outputRecorder, 
 	}
 	closeOnCleanup(t, sess)
 	return sess, record(sess), home
-}
-
-func readTrimmed(t *testing.T, path string) string {
-	t.Helper()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatalf("reading %s: %v", path, err)
-	}
-	return strings.TrimSpace(string(data))
 }
 
 func TestStartLocalBindsKubectlToContextAndNamespace(t *testing.T) {
@@ -211,52 +165,6 @@ func TestStartLocalCloseKillsShellIgnoringHangup(t *testing.T) {
 	waitClosed(t, sess.Done(), closeGrace+3*time.Second, "Done after SIGKILL")
 	if d := time.Since(start); d < closeGrace-100*time.Millisecond {
 		t.Errorf("process ended after %v, before the SIGKILL grace; the test did not exercise the kill", d)
-	}
-}
-
-func TestStartLocalUsesCurrentContextAndItsNamespace(t *testing.T) {
-	b, err := resolveLocal(LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b.context.Name != "ctx-b" || b.context.Cluster != "cluster-b" || b.context.User != "user-b" || b.context.Namespace != "" {
-		t.Errorf("binding = %+v, want ctx-b/cluster-b/user-b without namespace", b.context)
-	}
-	b, err = resolveLocal(LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}, Context: "ctx-a"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if b.context.Namespace != "default" {
-		t.Errorf("namespace = %q, want the context's own (default)", b.context.Namespace)
-	}
-}
-
-func TestStartLocalErrors(t *testing.T) {
-	user := writeUserKubeconfig(t)
-	cases := map[string]LocalOptions{
-		"unknown context": {KubeconfigPaths: []string{user}, Context: "nope", Shell: "/bin/sh"},
-		"bad namespace":   {KubeconfigPaths: []string{user}, Context: "ctx-a", Namespace: "Not_Valid", Shell: "/bin/sh"},
-		"no shell":        {KubeconfigPaths: []string{user}, Shell: "/no/such/shell"},
-		"no context":      {KubeconfigPaths: []string{filepath.Join(t.TempDir(), "missing")}, Shell: "/bin/sh"},
-	}
-	for name, opts := range cases {
-		t.Run(name, func(t *testing.T) {
-			sess, err := StartLocal(opts)
-			if err == nil {
-				_ = sess.Close()
-				t.Fatal("StartLocal succeeded")
-			}
-			if strings.Contains(err.Error(), "secret-token") {
-				t.Errorf("error leaks a credential: %v", err)
-			}
-		})
-	}
-	// No terminal kubeconfig is left behind by a failed start.
-	left, _ := filepath.Glob(filepath.Join(os.TempDir(), "cogpit-terminal-*.kubeconfig"))
-	for _, f := range left {
-		if data, err := os.ReadFile(f); err == nil && strings.Contains(string(data), `"nope"`) {
-			t.Errorf("failed start left %s behind", f)
-		}
 	}
 }
 

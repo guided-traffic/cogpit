@@ -167,7 +167,9 @@ var errWatchEnded = errors.New("the connection closed")
 // after since, since a stream can break only after the connection is back (its TCP connection
 // outlived the interruption); zero when the connection did not break; errWatchEnded when the
 // backend closed, or ctx's error. lapsed, when given, is called once before it waits for a lapsed
-// login: the stream says so in a line of its own.
+// login: the stream says so in a line of its own. An interruption it waited out counts without
+// comparing times: Windows' clock moves in steps of up to 16 ms, so one that ended within the
+// stream's first step would end at since, not after it.
 func (w *connWatch) await(ctx context.Context, since time.Time, lapsed func()) (from, to time.Time, err error) {
 	if w == nil {
 		return time.Time{}, time.Time{}, nil
@@ -188,12 +190,13 @@ func (w *connWatch) await(ctx context.Context, since time.Time, lapsed func()) (
 	case <-w.done:
 		return time.Time{}, time.Time{}, errWatchEnded
 	}
+	waited := false // back closed: only reconnect closes it, after it recorded lastFrom and lastTo
 	for {
 		w.mu.Lock()
 		st, back, lf, lt := w.state, w.back, w.lastFrom, w.lastTo
 		w.mu.Unlock()
 		if st == Connected {
-			if lt.After(since) {
+			if waited || lt.After(since) {
 				return lf, lt, nil
 			}
 			return time.Time{}, time.Time{}, nil
@@ -204,6 +207,7 @@ func (w *connWatch) await(ctx context.Context, since time.Time, lapsed func()) (
 		}
 		select {
 		case <-back:
+			waited = true
 		case <-ctx.Done():
 			return time.Time{}, time.Time{}, ctx.Err()
 		case <-w.done:

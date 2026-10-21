@@ -75,7 +75,8 @@ func TestExecApprovalRefusedAfterPluginBinaryChanged(t *testing.T) {
 	}
 }
 
-// tokenFileKubeconfig is a kubeconfig whose user reads its token from tokenFile.
+// tokenFileKubeconfig is a kubeconfig whose user reads its token from tokenFile, single-quoted: a
+// Windows path's backslashes are no escapes there.
 func tokenFileKubeconfig(server, tokenFile string) string {
 	return `apiVersion: v1
 kind: Config
@@ -84,7 +85,7 @@ clusters:
   cluster: {server: "` + server + `"}
 users:
 - name: u
-  user: {tokenFile: "` + tokenFile + `"}
+  user: {tokenFile: '` + tokenFile + `'}
 contexts:
 - name: t
   context: {cluster: c, user: u}

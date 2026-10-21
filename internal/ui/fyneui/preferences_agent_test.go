@@ -3,6 +3,7 @@ package fyneui
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -275,16 +276,20 @@ func TestAgentPreferencesPlainHTTPWarning(t *testing.T) {
 }
 
 // TestAgentPreferencesCAFile: the CA file is saved with an https connection by its absolute path
-// ("~/" the home folder), refused with an http base URL or a relative path; the list says a
-// connection has one.
+// ("~/" the home folder), refused with an http base URL or a relative path, whose error gives an
+// absolute path of this system as its example; the list says a connection has one.
 func TestAgentPreferencesCAFile(t *testing.T) {
 	sh, _, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent
 	a.edit(litellm())
 	a.form.caFile.SetText("certs/ca.pem")
 	test.Tap(a.form.saveB)
-	if !a.form.errLine.Visible() || !strings.Contains(a.form.errLine.text, "absolute path") {
+	placeholder, example := caFileExamples(runtime.GOOS)
+	if !a.form.errLine.Visible() || !strings.Contains(a.form.errLine.text, "absolute path, such as "+example) {
 		t.Errorf("a relative CA file: %q", a.form.errLine.text)
+	}
+	if !filepath.IsAbs(placeholder) || !filepath.IsAbs(example) {
+		t.Errorf("the examples %q and %q are not absolute paths here", placeholder, example)
 	}
 	a.form.caFile.SetText("~/certs/ca.pem")
 	a.form.baseURL.SetText("http://litellm.lan:4000")
@@ -501,6 +506,9 @@ func renderAgentPreferences(t *testing.T, mode ThemeMode, name string, conn engi
 func TestRenderAgentPreferences(t *testing.T) {
 	conn := litellm()
 	conn.CAFile = "/Users/you/certs/team-ca.pem"
+	if runtime.GOOS == "windows" {
+		conn.CAFile = `C:\Users\you\certs\team-ca.pem` // without a drive the form refuses the path there
+	}
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true)) })
 	}

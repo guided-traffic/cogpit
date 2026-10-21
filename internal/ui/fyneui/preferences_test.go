@@ -8,6 +8,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"sync"
 	"testing"
@@ -203,12 +204,16 @@ func TestPreferencesApplyToTablesEditorsAndTerminals(t *testing.T) {
 	shellEntry := sh.settings.controls["terminalShell"].(*widget.Entry)
 	test.Type(shellEntry, "/no/such/shell")
 	q.until(t, "the refusal", func() bool { return sh.settings.errs["terminalShell"].Visible() })
-	shellEntry.SetText("/bin/sh")
+	shellPath := "/bin/sh"
+	if runtime.GOOS == "windows" { // a shell the engine finds there: an absolute path begins with its drive
+		shellPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
+	}
+	shellEntry.SetText(shellPath)
 	args := sh.settings.controls["terminalShellArgs"].(*widget.Entry)
 	args.SetText("-l\n\n--norc\n")
 	q.until(t, "the shell kept", func() bool {
 		p, _ := s.Preferences()
-		return p.TerminalShell == "/bin/sh" && slices.Equal(p.TerminalShellArgs, []string{"-l", "--norc"})
+		return p.TerminalShell == shellPath && slices.Equal(p.TerminalShellArgs, []string{"-l", "--norc"})
 	})
 	q.until(t, "the refusal cleared", func() bool { return !sh.settings.errs["terminalShell"].Visible() })
 }

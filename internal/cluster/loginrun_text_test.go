@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"runtime"
 	"testing"
 	"time"
 )
@@ -23,6 +24,9 @@ func TestChildProcessRuns(t *testing.T) {
 		{"Windows", childProcess{exe: "PINNIPED.EXE"}, true},
 		{"Windows, another", childProcess{exe: "kubelogin.exe"}, false},
 	} {
+		if runtime.GOOS == "windows" && tt.c.argv != nil {
+			continue // Windows tells no command line (pluginproc_windows.go), and these paths are Unix ones
+		}
 		if got := tt.c.runs(cmd); got != tt.want {
 			t.Errorf("%s: %v, want %v", tt.name, got, tt.want)
 		}

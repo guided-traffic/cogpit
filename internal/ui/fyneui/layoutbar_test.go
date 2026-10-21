@@ -188,8 +188,9 @@ func TestLayoutMenuItems(t *testing.T) {
 }
 
 // The Update button shows only while the updater holds a newer release, its version in the label
-// and the tooltip, and a click runs app.checkForUpdates (Sparkle's window); it goes when the update
-// session ends. An updater that cannot update this Cogpit (no key) never shows it, whatever it says.
+// and the tooltip, and a click runs app.installUpdate (Sparkle's window for an updater that does not
+// install by itself); it goes when the update session ends. An updater that cannot update this
+// Cogpit (no key) never shows it, whatever it says.
 func TestUpdateButtonShowsOnlyWithAnUpdate(t *testing.T) {
 	s, _ := settingsEngine(t)
 	n := &uiNotifier{}
@@ -251,7 +252,9 @@ func TestUpdateButtonOffersTheRestart(t *testing.T) {
 	}
 	r.restart.Store(true)
 	r.set(true, "0.34.0") // the same version, now installed
-	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart })
+	// The engine's state first, then the window's: the bar follows the state's change on the main
+	// queue, which until drains, a step later on a slow runner (the Windows CI, 2026-10-21).
+	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart && b.Text == restartLabel })
 	settle(w)
 	if b.Text != restartLabel || b.tip != "Cogpit 0.34.0 is installed: restart Cogpit to use it" {
 		t.Errorf("after the install: %q, tooltip %q", b.Text, b.tip)
@@ -284,6 +287,7 @@ func TestUpdateTip(t *testing.T) {
 		{engine.UpdateState{Available: true, Version: "0.34.0"}, "linux",
 			"Cogpit 0.34.0 is available: install it through apt (asks for an administrator's password)"},
 		{engine.UpdateState{Available: true, Version: "0.34.0", Restart: true}, "linux", "Cogpit 0.34.0 is installed: restart Cogpit to use it"},
+		{engine.UpdateState{Available: true, Version: "0.36.0"}, "windows", "Cogpit 0.36.0 is available: install it now; Cogpit restarts into it"},
 	} {
 		if got := updateTip(c.u, c.goos); got != c.want {
 			t.Errorf("updateTip(%+v, %s) = %q, want %q", c.u, c.goos, got, c.want)

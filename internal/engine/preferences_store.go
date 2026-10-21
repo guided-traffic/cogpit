@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 )
 
 // The two preference files of this area (preferences.go, clustersettings.go) are kept as the
@@ -30,7 +29,7 @@ func writePrefsDoc(path string, unreadable *bool, doc any) error {
 		return nil
 	}
 	if *unreadable {
-		if err := os.Rename(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		if err := renameFile(path, path+".unreadable"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 			return fmt.Errorf("keeping the unreadable file aside: %w", err)
 		}
 		*unreadable = false

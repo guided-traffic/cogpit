@@ -58,6 +58,20 @@ func defaultShell(exists func(string) bool) string {
 	return "/bin/sh"
 }
 
+// DefaultShell is the shell a local terminal runs when the preference names none, as Preferences ›
+// Terminal shows it: $SHELL, else the first fallback shell that exists.
+func DefaultShell() string {
+	if shell := os.Getenv("SHELL"); shell != "" {
+		return shell
+	}
+	return defaultShell(isExecutable)
+}
+
+// linkKubectl puts kubectl at link for kubectlFirst: a symbolic link.
+func linkKubectl(kubectl, link string) error {
+	return os.Symlink(kubectl, link)
+}
+
 // isExecutable reports whether path is a regular file someone may execute.
 func isExecutable(path string) bool {
 	fi, err := os.Stat(path)

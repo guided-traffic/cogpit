@@ -16,7 +16,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
 | Interface rows, free plan | 122 | 119 | 9 | 110 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
-| Platform rows (packages, authentication, versions, tools, display) | 38 | 20 | 0 | 20 | 18 |
+| Platform rows (packages, authentication, versions, tools, display) | 38 | 21 | 0 | 21 | 17 |
 | Beyond Lens (not in feature breadth) | 74 | 73 | 61 | 12 | 1 |
 
 Not counted: 10 interface rows that are not a target, 5 platform rows that are paid or have nothing to build.
@@ -252,7 +252,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Row | Status | Section |
 |---|---|---|
 | macOS | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
-| Windows | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
+| Windows | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Linux | partial | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | Homebrew cask (macOS) | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
 | winget and Scoop (Windows) | missing | [Operating systems and packages](platform-parity.md#operating-systems-and-packages) |
@@ -326,7 +326,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Limits per turn: tool calls, tokens, time | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Data sent to the endpoint is visible to the user; Secret values are never sent unless the user marked the connection private (owner, 2026-1… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | ⌘I / Ctrl+I opens the chat for the current cluster (Lens's Ask AI shortcut) | done | [Built-in agent](beyond-lens.md#built-in-agent) |
-| One click updates the macOS app through Sparkle 2 and the Linux deb through apt; MSI, portable zip, AppImage and tar.xz with Windows and Li… | partial | [Updates](beyond-lens.md#updates) |
+| One click updates the macOS app through Sparkle 2, the Linux deb through apt and the Windows setup through WinSparkle; AppImage and tar.xz… | partial | [Updates](beyond-lens.md#updates) |
 | Package-manager installs: the button runs or shows the manager's command | partial | [Updates](beyond-lens.md#updates) |
 | Signed update manifest verified with a key built into the app, before anything is replaced | done | [Updates](beyond-lens.md#updates) |
 | Diagnostics view: API requests per cluster by verb and resource, open and warm watches, objects and memory per kind | done | [Cache transparency](beyond-lens.md#cache-transparency) |

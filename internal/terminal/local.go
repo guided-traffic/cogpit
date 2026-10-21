@@ -84,7 +84,9 @@ func writeTerminalConfig(ctx kubeconfig.Context) (string, error) {
 		return "", fmt.Errorf("local terminal: %w", err)
 	}
 	// CreateTemp creates the file with mode 0600 in the user's temporary directory (per user on
-	// macOS); the explicit Chmod keeps that true whatever CreateTemp does in future.
+	// macOS); the explicit Chmod keeps that true whatever CreateTemp does in future. On Windows the
+	// mode only keeps the file writable; the user's temporary directory (%TEMP%, in the profile)
+	// grants the user, SYSTEM and Administrators access, which the file inherits.
 	f, err := os.CreateTemp("", "cogpit-terminal-*.kubeconfig")
 	if err != nil {
 		return "", fmt.Errorf("local terminal: creating the terminal kubeconfig: %w", err)

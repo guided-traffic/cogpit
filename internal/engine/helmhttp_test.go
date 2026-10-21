@@ -111,9 +111,7 @@ func TestHelmCredentialsOverHTTPWaitForTheUser(t *testing.T) {
 	if strings.Contains(string(raw), httpPass) || strings.Contains(string(raw), httpUser) {
 		t.Errorf("the allowances file holds a credential: %s", raw)
 	}
-	if fi, _ := os.Stat(approvals); fi.Mode().Perm() != 0o600 {
-		t.Errorf("the allowances file's mode %v", fi.Mode())
-	}
+	checkMode(t, approvals, 0o600)
 
 	// A new session reads the allowance.
 	h2, f2, _ := helmReposOn(t, r, WithHTTPApprovals(approvals))

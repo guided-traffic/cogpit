@@ -201,6 +201,9 @@ func TestProtectedClientCertificateIsReadAtConnect(t *testing.T) {
 // file providers' folders, other apps' containers and /Volumes, in any case; the home folder
 // itself, ~/.kube and ~/.minikube are not.
 func TestProtectedPlaces(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("macOS's places as Unix paths; off macOS readableUnasked never asks protectedPlace")
+	}
 	homes := []string{"/Users/u"}
 	for p, want := range map[string]bool{
 		"/Users/u/Desktop/a.crt": true, "/Users/u/Documents": true, "/Users/u/DOWNLOADS/x/y.crt": true,

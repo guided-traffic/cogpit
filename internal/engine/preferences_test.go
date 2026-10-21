@@ -16,6 +16,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/terminal"
 )
 
+// testShell is an absolute shell path where the tests run: on Windows an absolute path names its
+// drive, so /bin/sh is refused there.
+func testShell() string {
+	if runtime.GOOS == "windows" {
+		return `C:\Windows\System32\cmd.exe`
+	}
+	return "/bin/sh"
+}
+
 // A first start shows the defaults and writes nothing; a change is written owner-only (0600 in a
 // 0700 directory) and read back by the next start.
 func TestPreferencesPersistPrivately(t *testing.T) {
@@ -31,7 +40,7 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 	if _, err := s.ChangePreferences(func(p *Preferences) error {
 		p.Theme, p.Timezone, p.TableRowHeight = ThemeLight, "Europe/Berlin", 32
 		p.EditorFontSize, p.EditorLineNumbers, p.EditorTabSize = 15, false, 4
-		p.TerminalFontSize, p.TerminalShell, p.TerminalShellArgs = 14, "/bin/sh", []string{"-l"}
+		p.TerminalFontSize, p.TerminalShell, p.TerminalShellArgs = 14, testShell(), []string{"-l"}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -65,7 +74,7 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 		t.Fatal(err)
 	}
 	if got.Theme != ThemeLight || got.Timezone != "Europe/Berlin" || got.TableRowHeight != 32 || got.EditorFontSize != 15 ||
-		got.EditorLineNumbers || got.EditorTabSize != 4 || got.TerminalFontSize != 14 || got.TerminalShell != "/bin/sh" ||
+		got.EditorLineNumbers || got.EditorTabSize != 4 || got.TerminalFontSize != 14 || got.TerminalShell != testShell() ||
 		len(got.TerminalShellArgs) != 1 || got.TerminalShellArgs[0] != "-l" {
 		t.Errorf("after a restart: %+v", got)
 	}
@@ -222,7 +231,7 @@ func TestLocalTerminalOptionsFromTheSettings(t *testing.T) {
 	}
 	work := t.TempDir()
 	if _, err := s.ChangePreferences(func(p *Preferences) error {
-		p.TerminalShell, p.TerminalShellArgs = "/bin/sh", []string{"-i"}
+		p.TerminalShell, p.TerminalShellArgs = testShell(), []string{"-i"}
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -234,7 +243,7 @@ func TestLocalTerminalOptionsFromTheSettings(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts, err = s.LocalTerminalOptions("dev [.kube/config]", base)
-	if err != nil || opts.Dir != work || opts.Namespace != "team-a" || opts.Shell != "/bin/sh" || len(opts.Args) != 1 ||
+	if err != nil || opts.Dir != work || opts.Namespace != "team-a" || opts.Shell != testShell() || len(opts.Args) != 1 ||
 		opts.KubeconfigPaths[0] != "/k" || opts.Context != "dev" {
 		t.Errorf("with settings: %+v, %v", opts, err)
 	}

@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 
@@ -75,5 +76,18 @@ func TestRenderKubeconfigPathSelected(t *testing.T) {
 			path.TypedShortcut(&fyne.ShortcutSelectAll{})
 			savePNG(t, w, "cluster_settings_kubeconfig_selected_"+string(mode)+".png")
 		})
+	}
+}
+
+// TestFolderURL: the folder icon opens the folder by a file URL the system's file manager takes:
+// slashes and a leading one on every system, so a Windows folder is file:///C:/…, not a URL whose
+// host is the drive.
+func TestFolderURL(t *testing.T) {
+	dir, want := "/Users/a b/.kube", "file:///Users/a%20b/.kube"
+	if runtime.GOOS == "windows" {
+		dir, want = `C:\Users\a b\.kube`, "file:///C:/Users/a%20b/.kube"
+	}
+	if got := folderURL(dir).String(); got != want {
+		t.Errorf("folderURL(%q) = %s, want %s", dir, got, want)
 	}
 }

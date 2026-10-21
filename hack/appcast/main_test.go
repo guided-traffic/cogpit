@@ -328,3 +328,68 @@ func TestFetchLive(t *testing.T) {
 		t.Error("an http URL fetched")
 	}
 }
+
+// The Windows app's feed (D-111): its items name the setup with sparkle:os and the arguments
+// WinSparkle runs it with, link the release's page for the notes instead of embedding Markdown,
+// say so in the feed's description, and verify with the setup's signature; the next release builds
+// on it, and a feed of the other system's items is refused.
+func TestAddWindowsFeed(t *testing.T) {
+	priv, pub := testKey(t)
+	windows := func(version string) addOptions {
+		o := baseOptions(t, pub, version)
+		o.min, o.system, o.installerArgs = "10.0.17763", "windows-x64", "/S /relaunch"
+		o.url = "https://github.com/guided-traffic/cogpit/releases/download/v" + version + "/Cogpit-" + version + "-windows-x64-setup.exe"
+		return o
+	}
+	first := windows("0.36.0")
+	draft, err := add(first)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, s := range []string{
+		`<description>Cogpit's releases for the Windows app's updater (WinSparkle).</description>`,
+		`<sparkle:releaseNotesLink>` + first.link + `</sparkle:releaseNotesLink>`,
+		`sparkle:os="windows-x64" sparkle:installerArguments="/S /relaunch" sparkle:edSignature="` + placeholder + `"`,
+		`<sparkle:minimumSystemVersion>10.0.17763</sparkle:minimumSystemVersion>`,
+	} {
+		if !bytes.Contains(draft, []byte(s)) {
+			t.Errorf("the draft has no %s:\n%s", s, draft)
+		}
+	}
+	if bytes.Contains(draft, []byte("<description sparkle:format")) || bytes.Contains(draft, []byte("fullReleaseNotesLink")) {
+		t.Errorf("a Windows item embeds notes:\n%s", draft)
+	}
+
+	dir := t.TempDir()
+	setup := filepath.Join(dir, "Cogpit-0.36.0-windows-x64-setup.exe")
+	if err := os.WriteFile(setup, []byte("a setup's bytes"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	first.length = int64(len("a setup's bytes"))
+	if draft, err = add(first); err != nil {
+		t.Fatal(err)
+	}
+	feed := filepath.Join(dir, "appcast-windows.xml")
+	if err := os.WriteFile(feed, signFeed(priv, fill(draft, ed25519.Sign(priv, []byte("a setup's bytes")))), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := verify(verifyOptions{feed: feed, pubkey: pub, dmg: setup, version: "0.36.0"}); err != nil {
+		t.Errorf("verify: %v", err)
+	}
+
+	next := windows("0.37.0")
+	next.feed = feed
+	if _, err := add(next); err != nil {
+		t.Errorf("the next release on the Windows feed: %v", err)
+	}
+	mac := baseOptions(t, pub, "0.37.0")
+	mac.feed = feed
+	if _, err := add(mac); err == nil || !strings.Contains(err.Error(), "one feed for each system") {
+		t.Errorf("a macOS item on the Windows feed: %v", err)
+	}
+	noArgs := windows("0.37.0")
+	noArgs.installerArgs = ""
+	if _, err := add(noArgs); err == nil {
+		t.Error("a Windows item without installer arguments: no error")
+	}
+}

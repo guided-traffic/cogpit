@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -187,13 +188,20 @@ func TestMCPControlOffersTheBundledCLI(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = srv.Close() })
 	cli := "/Users/a b/Applications/Cogpit.app/Contents/MacOS/cogpit-cli"
+	if runtime.GOOS == "windows" {
+		cli = `C:\Users\a b\AppData\Local\Programs\Cogpit\cogpit-cli.exe` // the setup's folder per user
+	}
 	c := &mcpControl{srv: srv, session: s, logger: logger, out: &terminal, cli: cli}
 
 	ep, err := c.Start(false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := "claude mcp remove --scope user cogpit >/dev/null 2>&1; claude mcp add --scope user cogpit -- '" + cli + "' mcp"
+	// The command's words and quoting are register_test.go's to check, on each system.
+	want := mcp.ClaudeAddStdioCommand(cli)
+	if want == "" || !strings.Contains(want, cli) {
+		t.Fatalf("no stdio registration of %s: %q", cli, want)
+	}
 	if !ep.Stdio || ep.Command != want || ep.URL == "" {
 		t.Errorf("endpoint %+v, want the stdio command %s", ep, want)
 	}

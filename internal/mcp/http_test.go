@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -253,8 +254,12 @@ func TestClientRegistration(t *testing.T) {
 	if !strings.HasPrefix(endpoint, "http://127.0.0.1:") || !strings.HasSuffix(endpoint, "/mcp") {
 		t.Errorf("URL %q", endpoint)
 	}
-	want := fmt.Sprintf(`claude mcp remove --scope user cogpit >/dev/null 2>&1; `+
-		`claude mcp add --scope user --transport http cogpit %s --header "Authorization: Bearer %s"`, endpoint, token)
+	quiet := ">/dev/null 2>&1"
+	if runtime.GOOS == goosWindows {
+		quiet = "*> $null" // PowerShell's
+	}
+	want := fmt.Sprintf(`claude mcp remove --scope user cogpit %s; `+
+		`claude mcp add --scope user --transport http cogpit %s --header "Authorization: Bearer %s"`, quiet, endpoint, token)
 	if got := f.server.ClaudeAddCommand(); got != want {
 		t.Errorf("ClaudeAddCommand:\n got %s\nwant %s", got, want)
 	}

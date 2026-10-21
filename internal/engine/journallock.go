@@ -164,7 +164,7 @@ func (d *journalDir) self() (*JournalOwner, error) {
 		return nil, err
 	}
 	id := hex.EncodeToString(raw[:])
-	f, err := os.OpenFile(filepath.Join(owners, id+ownerFileSuffix), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o600)
+	f, err := createOwnerFile(filepath.Join(owners, id+ownerFileSuffix))
 	if err != nil {
 		return nil, err
 	}

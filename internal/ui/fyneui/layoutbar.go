@@ -71,7 +71,7 @@ const updateShort = "Update"
 
 func newLayoutBar(sh *shell) *layoutBar {
 	l := &layoutBar{sh: sh, label: updateShort}
-	l.update = newTipButton(sh, nil, "", func() { sh.dispatch("app.checkForUpdates", struct{}{}, nil) })
+	l.update = newTipButton(sh, nil, "", func() { sh.dispatch("app.installUpdate", struct{}{}, nil) })
 	l.update.SetText(updateShort)
 	l.update.Importance = widget.HighImportance
 	l.updateBox = box(compactLayout{}, l.update)
@@ -139,7 +139,8 @@ func (l *layoutBar) stateChanged() {
 // updateChanged shows the Update button while the updater holds a newer release, its version in
 // the label (where the bar has the room) and the tooltip. On Linux (D-108) the click installs the
 // release through apt after polkit's password prompt, and once apt installed it under the running
-// app the button reads Restart to Update and restarts Cogpit into it.
+// app the button reads Restart to Update and restarts Cogpit into it. On Windows (D-111) the click
+// installs it at once through WinSparkle, which shows the download, and Cogpit restarts into it.
 func (l *layoutBar) updateChanged(u engine.UpdateState) {
 	l.update.tip = updateTip(u, runtime.GOOS)
 	label := updateLabel(u.Version)
@@ -186,6 +187,8 @@ func updateTip(u engine.UpdateState, goos string) string {
 		return cogpit + " is installed: restart Cogpit to use it"
 	case goos == "linux":
 		return cogpit + " is available: install it through apt (asks for an administrator's password)"
+	case goos == "windows":
+		return cogpit + " is available: install it now; Cogpit restarts into it"
 	}
 	return cogpit + " is available: show it in the update window"
 }

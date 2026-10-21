@@ -33,9 +33,14 @@ func TestMain(m *testing.M) {
 // that switches the external MCP server on writes the switch there before it connects.
 func startRealCLI(t *testing.T, home string, switchedOn bool) (*sdk.ClientSession, *exec.Cmd, *bytes.Buffer) {
 	t.Helper()
+	// Windows takes the configuration and cache directories from %APPDATA% and %LOCALAPPDATA%, not
+	// from the home: without them the switch below would land in the developer's real one.
+	appData, localAppData := filepath.Join(home, "AppData", "Roaming"), filepath.Join(home, "AppData", "Local")
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", appData)
+	t.Setenv("LOCALAPPDATA", localAppData)
 	if switchedOn {
 		dirs, err := app.UserDirs()
 		if err != nil {
@@ -54,6 +59,7 @@ func startRealCLI(t *testing.T, home string, switchedOn bool) (*sdk.ClientSessio
 	cmd := exec.CommandContext(ctx, exe, "mcp", "-v")
 	cmd.Env = []string{
 		childEnv + "=1", "HOME=" + home, "USERPROFILE=" + home, "XDG_CONFIG_HOME=" + filepath.Join(home, ".config"),
+		"APPDATA=" + appData, "LOCALAPPDATA=" + localAppData,
 		"KUBECONFIG=" + os.DevNull, "PATH=" + os.Getenv("PATH"),
 	}
 	stderr := &bytes.Buffer{}

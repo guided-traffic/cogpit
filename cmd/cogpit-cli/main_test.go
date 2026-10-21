@@ -37,7 +37,8 @@ func (b *syncBuffer) String() string {
 
 // testEnv is a command environment of temporary directories: a home without anything in it and
 // Cogpit's configuration directory under it. $HOME, $XDG_CONFIG_HOME and $KUBECONFIG point there
-// too, so that nothing a test runs can reach the developer's ~/.kube or Cogpit's real files.
+// too, and on Windows %USERPROFILE%, %APPDATA% and %LOCALAPPDATA%, so that nothing a test runs can
+// reach the developer's ~/.kube or Cogpit's real files.
 type testEnv struct {
 	*env
 	home   string
@@ -51,6 +52,8 @@ func newTestEnv(t *testing.T) *testEnv {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(home, ".config"))
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("KUBECONFIG", os.DevNull)
 	out, errOut := &syncBuffer{}, &syncBuffer{}
 	return &testEnv{

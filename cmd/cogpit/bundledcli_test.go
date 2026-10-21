@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -41,6 +42,9 @@ func writable(string) bool { return false }
 // the running executable has; none for a dev build, a bundle without it, one translocated or on a
 // read-only volume, or a cogpit-cli that is not an executable file.
 func TestBundledCLIBeside(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("a macOS bundle's cogpit-cli is found by its executable bit, which Windows files lack; TestInstalledCLIBeside covers Windows")
+	}
 	dir := t.TempDir()
 
 	exe := fakeBundle(t, dir, "Cogpit", 0o755)
@@ -118,6 +122,9 @@ func fakeBundleCLIDir(t *testing.T, dir string) string {
 // running executable has, also once apt replaced it under the process; none for an executable
 // elsewhere (a dev build), without cogpit-cli, or with one that is not an executable file.
 func TestPackagedCLIBeside(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the Linux package's cogpit-cli is found by its executable bit, which Windows files lack; TestInstalledCLIBeside covers Windows")
+	}
 	dir := resolved(t, t.TempDir())
 	exe := filepath.Join(dir, "cogpit")
 	cli := filepath.Join(dir, bundledCLIName)
@@ -144,5 +151,40 @@ func TestPackagedCLIBeside(t *testing.T) {
 	other := filepath.Join(t.TempDir(), "bin", "cogpit")
 	if got := packagedCLIBeside(other, dir); got != "" {
 		t.Errorf("an executable elsewhere: %q", got)
+	}
+}
+
+// TestInstalledCLIBeside: the Windows setup's cogpit-cli.exe beside its cogpit.exe, in whatever
+// folder the user chose, its name in any case; no executable bit is asked for, so the test runs on
+// every system. None for an executable of another name, without cogpit-cli.exe, or with a folder
+// of that name.
+func TestInstalledCLIBeside(t *testing.T) {
+	dir := resolved(t, t.TempDir())
+	exe := filepath.Join(dir, "cogpit.exe")
+	cli := filepath.Join(dir, bundledCLIName+".exe")
+	if err := os.WriteFile(exe, []byte("app"), 0o644); err != nil { // #nosec G306 -- a test's fake program
+		t.Fatal(err)
+	}
+	if got := installedCLIBeside(exe); got != "" {
+		t.Errorf("without cogpit-cli.exe: %q", got)
+	}
+	if err := os.WriteFile(cli, []byte("cli"), 0o644); err != nil { // #nosec G306 -- a test's fake program
+		t.Fatal(err)
+	}
+	for _, e := range []string{exe, filepath.Join(dir, "Cogpit.EXE")} {
+		if got := installedCLIBeside(e); got != cli {
+			t.Errorf("installedCLIBeside(%q) = %q, want %q", e, got, cli)
+		}
+	}
+	if got := installedCLIBeside(filepath.Join(dir, "cogpit")); got != "" {
+		t.Errorf("an executable without .exe: %q", got)
+	}
+
+	other := filepath.Join(t.TempDir(), "bin")
+	if err := os.MkdirAll(filepath.Join(other, bundledCLIName+".exe"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if got := installedCLIBeside(filepath.Join(other, "cogpit.exe")); got != "" {
+		t.Errorf("cogpit-cli.exe a folder: %q", got)
 	}
 }

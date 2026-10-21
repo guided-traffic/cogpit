@@ -5,11 +5,13 @@
 # attaches it to the release with SHA256SUMS; then the release's item joins Sparkle's appcast, signed
 # in the environment sparkle and deployed to GitHub Pages. Beside it, the Linux packages (D-108): one
 # .deb per architecture, attached to the release, then Cogpit's APT repository with them, signed in
-# the environment apt and deployed to GitHub Pages beside the appcast. A release made with
+# the environment apt and deployed to GitHub Pages beside the appcast. And the Windows setup
+# (D-111), attached to the release, then its item in WinSparkle's appcast, signed in the environment
+# sparkle as the macOS feed is and deployed to GitHub Pages beside the others. A release made with
 # GITHUB_TOKEN would start no workflow, hence the App.
 # A release holds the complete product only (owner, 2026-10-14, D-16): today the macOS app in its
-# disk image, with cogpit-cli inside the app, the Linux packages with both binaries, and
-# SHA256SUMS; no cogpit-cli archives for any platform. What vouches for it:
+# disk image, with cogpit-cli inside the app, the Linux packages and the Windows setup with both
+# binaries, and SHA256SUMS; no cogpit-cli archives for any platform. What vouches for it:
 # docs/developer/releasing.md#the-release-pipeline, docs/security/updates.md.
 name: Release Build
 
@@ -225,8 +227,8 @@ jobs:
     timeout-minutes: 15
     permissions:
       contents: write  # upload the assets, append the note to the release's text
-    # The release's SHA256SUMS and text are shared with the Linux packages' job (linux-publish):
-    # the two take turns.
+    # The release's SHA256SUMS and text are shared with the Linux packages' job (linux-publish) and
+    # the Windows setup's (windows-publish): they take turns.
     concurrency:
       group: release-files-${{ github.ref }}
       cancel-in-progress: false
@@ -271,7 +273,7 @@ jobs:
           expect SHA256SUMS 1
           n="$(find . -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')"
           [ "${n}" = 2 ] || { echo "::error::dist holds $(find . -mindepth 1 -maxdepth 1 | tr '\n' ' '), expected the download and SHA256SUMS only"; exit 1; }
-          # The Linux packages' lines that their job attached already stay in the release's SHA256SUMS.
+          # The Linux packages' and the Windows setup's lines their jobs attached already stay in SHA256SUMS.
           ../hack/ci/sha256sums.sh "${GITHUB_REF_NAME}" SHA256SUMS "${RUNNER_TEMP}/SHA256SUMS"
           cp "${RUNNER_TEMP}/SHA256SUMS" SHA256SUMS
           cat SHA256SUMS
@@ -290,7 +292,7 @@ jobs:
 
           **Download.** \`${dmg}\` is Cogpit for macOS on Apple silicon: open it and drag Cogpit into Applications. The command-line tool \`cogpit-cli\` comes inside the app, at \`/Applications/Cogpit.app/Contents/MacOS/cogpit-cli\`. Check the disk image against \`SHA256SUMS\` (\`shasum -a 256 -c --ignore-missing SHA256SUMS\`).
 
-          **Signed and notarized.** The app, its \`cogpit-cli\` and the disk image are signed with the Developer ID "${IDENTITY}" and notarized by Apple; the disk image carries its ticket, so macOS opens it without a warning, offline too. \`SHA256SUMS\` is not signed ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Windows comes with milestone M11.
+          **Signed and notarized.** The app, its \`cogpit-cli\` and the disk image are signed with the Developer ID "${IDENTITY}" and notarized by Apple; the disk image carries its ticket, so macOS opens it without a warning, offline too. \`SHA256SUMS\` is not signed ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)).
           EOF
           else
             cat > "${note}" <<'EOF'
@@ -299,7 +301,7 @@ jobs:
 
           **Download.** `Cogpit.app` for macOS on Apple silicon, zipped, with the command-line tool `cogpit-cli` inside it (`Cogpit.app/Contents/MacOS/cogpit-cli`); check it against `SHA256SUMS` (`shasum -a 256 -c --ignore-missing SHA256SUMS`).
 
-          **Unsigned.** This build ran without the project's Apple signing material: neither the app nor its `cogpit-cli` is signed with a Developer ID or notarized. macOS blocks the first start of a downloaded copy: allow it once in System Settings → Privacy & Security → Open Anyway ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)). Cogpit for Windows comes with milestone M11.
+          **Unsigned.** This build ran without the project's Apple signing material: neither the app nor its `cogpit-cli` is signed with a Developer ID or notarized. macOS blocks the first start of a downloaded copy: allow it once in System Settings → Privacy & Security → Open Anyway ([docs/security/updates.md](https://github.com/guided-traffic/cogpit/blob/main/docs/security/updates.md)).
           EOF
           fi
           cat "${note}"
@@ -381,8 +383,9 @@ jobs:
 
   # Both packages on the release, their lines merged into its SHA256SUMS, and the note on installing
   # them appended to its text (hack/linux/publish.sh). The release's SHA256SUMS and text are shared
-  # with the macOS job (publish): the two take turns. Both packages or none: a failed architecture
-  # leaves the release without Linux files until the failed job is re-run.
+  # with the macOS and the Windows jobs (publish, windows-publish): they take turns. Both packages
+  # or none: a failed architecture leaves the release without Linux files until the failed job is
+  # re-run.
   linux-publish:
     name: Attach to the release (Linux)
     needs: [linux-deb]
@@ -506,20 +509,23 @@ jobs:
           *) exit "${rc}" ;;
           esac
 
-      # The appcast Pages serves now (Sparkle's signed feed), byte for byte; none yet is none.
-      - name: Keep the appcast
+      # The appcasts Pages serves now (Sparkle's and WinSparkle's signed feeds, D-111), byte for
+      # byte; none yet is none.
+      - name: Keep the appcasts
         if: steps.check.outputs.deploy == 'true'
         run: |
           set -euo pipefail
           mkdir -p dist/site
           cp -r dist/apt dist/site/apt
-          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast.xml -w '%{http_code}' \
-            "https://guided-traffic.github.io/cogpit/appcast.xml?t=$(date +%s)")"
-          case "${code}" in
-          200) echo "the appcast: $(wc -c < dist/site/appcast.xml) bytes" ;;
-          404) rm -f dist/site/appcast.xml; echo "no appcast on Pages yet" ;;
-          *) echo "::error::the appcast on Pages: HTTP ${code}"; exit 1 ;;
-          esac
+          for feed in appcast.xml appcast-windows.xml; do
+            code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o "dist/site/${feed}" -w '%{http_code}' \
+              "https://guided-traffic.github.io/cogpit/${feed}?t=$(date +%s)")"
+            case "${code}" in
+            200) echo "${feed}: $(wc -c < "dist/site/${feed}") bytes" ;;
+            404) rm -f "dist/site/${feed}"; echo "no ${feed} on Pages yet" ;;
+            *) echo "::error::${feed} on Pages: HTTP ${code}"; exit 1 ;;
+            esac
+          done
 
       - name: Upload the site
         if: steps.check.outputs.deploy == 'true'
@@ -534,6 +540,279 @@ jobs:
         uses: actions/deploy-pages@v5
         with:
           artifact_name: github-pages-apt-${{ github.run_attempt }}
+
+  # Cogpit for Windows (D-111; docs/developer/releasing.md#windows): the setup for x64, built on
+  # GitHub's Windows runner (cgo with OpenGL does not cross-compile) in MSYS2's MINGW64 shell, whose
+  # signed packages bring MinGW-w64 gcc, make and NSIS; Go is setup-go's. Both executables are built
+  # as the macOS app's are (the release's tags, Fyne's thread check off unless the variable
+  # FYNE_THREAD_CHECKS=on), the app a GUI program carrying the feed and the update key's public half
+  # (the repository variable SPARKLE_PUBLIC_ED_KEY; unset, the app has no updater), WinSparkle
+  # beside them. Checked: the app carries the key, and the setup installs, installs again over
+  # itself and uninstalls on the runner, both executables reporting the release's version. This job
+  # sees no secret; the setup is not signed with Authenticode yet (D-111, H-139).
+  windows-setup:
+    name: Cogpit Setup (Windows x64)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: none
+
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          path-type: inherit
+          install: make unzip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
+
+      # The Kubernetes release table of the release's day (D-91), as the macOS app's job has it.
+      - name: Refresh the Kubernetes release table
+        run: make k8s-eol K8SEOL_FLAGS=-fallback
+
+      - name: Build the setup
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+          FYNE_THREAD_CHECKS: ${{ vars.FYNE_THREAD_CHECKS }}
+        run: make dist-windows VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Check the setup
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${SPARKLE_PUBLIC_ED_KEY}" ]; then
+            grep -aqF "${SPARKLE_PUBLIC_ED_KEY}" bin/cogpit.exe || { echo "::error::cogpit.exe does not carry the update key"; exit 1; }
+            echo "update key: ${SPARKLE_PUBLIC_ED_KEY}"
+          else
+            echo "update key: none (this release does not update itself on Windows)"
+          fi
+          make test-windows-package
+          ls -l dist/windows
+
+      - name: Upload the setup
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-setup
+          path: dist/windows/Cogpit-*-windows-*-setup.exe
+          if-no-files-found: error
+          retention-days: 7
+
+  # The setup on the release, its line merged into SHA256SUMS, and the note on installing it appended
+  # to the release's text (hack/windows/publish.sh). The release's SHA256SUMS and text are shared
+  # with the macOS and the Linux jobs (the concurrency group, which holds one running job and one
+  # waiting): after the Linux job, whatever it came to, so that these two, which finish at about the
+  # same time, never wait in the group together.
+  windows-publish:
+    name: Attach to the release (Windows)
+    needs: [windows-setup, linux-publish]
+    if: always() && needs.windows-setup.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write  # upload the asset, append the note to the release's text
+    concurrency:
+      group: release-files-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Download the setup
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-setup
+          path: dist/windows
+
+      - name: Attach the setup, SHA256SUMS and the note
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: hack/windows/publish.sh "${GITHUB_REF_NAME}" dist/windows
+
+  # WinSparkle's appcast (D-111; docs/developer/releasing.md#windows): the Windows app's update feed
+  # at https://guided-traffic.github.io/cogpit/appcast-windows.xml, signed with the same update key
+  # as Sparkle's, in three jobs as Sparkle's: the draft (Go, no secret), the signature (the
+  # environment sparkle, the owner its required reviewer, Sparkle's sign_update and nothing else
+  # beside the key), the check and deploy (the public key, the environment github-pages). They run
+  # once the setup is attached, so the item never points at a missing download.
+  windows-appcast-draft:
+    name: Windows appcast (draft)
+    needs: [windows-publish]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      drafted: ${{ steps.draft.outputs.drafted }}
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: none
+          fyne-deps: "false"
+
+      - name: Download the setup
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-setup
+          path: dist/windows
+
+      # A release built without the update key (the variable unset) gets no item: drafted=false.
+      - name: Draft the appcast
+        id: draft
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: make appcast-windows-draft VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Upload the draft
+        if: steps.draft.outputs.drafted == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: appcast-windows-draft
+          path: dist/appcast-windows/
+          if-no-files-found: error
+          retention-days: 7
+
+  # The second job in the environment `sparkle` (the macOS feed's is the first): the owner approves
+  # it as the macOS one, and it refuses to sign as that one does (hack/macos/appcast.sh sign, which
+  # signs the setup and appcast-windows.xml here).
+  windows-appcast-sign:
+    name: Windows appcast (sign)
+    needs: [windows-appcast-draft]
+    if: needs.windows-appcast-draft.outputs.drafted == 'true'
+    runs-on: macos-latest
+    environment: sparkle
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read  # the environment's protection rules
+    outputs:
+      signed: ${{ steps.sign.outputs.signed }}
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Download the setup
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-setup
+          path: dist/windows
+
+      - name: Download the draft
+        uses: actions/download-artifact@v8
+        with:
+          name: appcast-windows-draft
+          path: dist/appcast-windows
+
+      - name: Sign the setup and the appcast
+        id: sign
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+          GH_TOKEN: ${{ github.token }}
+        run: make appcast-windows-sign VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Upload the signed appcast
+        if: steps.sign.outputs.signed == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: appcast-windows-signed
+          path: dist/site-windows/
+          if-no-files-found: error
+          retention-days: 7
+
+      # The key was never written to a file; this removes the job's work files on any outcome.
+      - name: Remove the work files
+        if: always()
+        run: rm -rf dist .cache/sparkle
+
+  # Checked with the public key before Pages gets it, and refused when Pages serves a newer release
+  # already. Pages serves one site: Sparkle's appcast and the APT repository it serves go into this
+  # deploy too, the appcast byte for byte, the repository checked against the packages' key.
+  windows-appcast-deploy:
+    name: Windows appcast (deploy to Pages)
+    needs: [windows-appcast-sign]
+    if: needs.windows-appcast-sign.outputs.signed == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}appcast-windows.xml
+    permissions:
+      contents: read
+      pages: write     # deploy to Pages
+      id-token: write  # the deployment's OIDC token
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout the release's tag
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: none
+          fyne-deps: "false"
+
+      - name: Download the setup
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-setup
+          path: dist/windows
+
+      - name: Download the draft
+        uses: actions/download-artifact@v8
+        with:
+          name: appcast-windows-draft
+          path: dist/appcast-windows
+
+      - name: Download the signed appcast
+        uses: actions/download-artifact@v8
+        with:
+          name: appcast-windows-signed
+          path: dist/site-windows
+
+      - name: Verify the signed appcast
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: make appcast-windows-verify VERSION="${GITHUB_REF_NAME#v}"
+
+      - name: Keep the macOS appcast and the APT repository
+        run: |
+          set -euo pipefail
+          mkdir -p dist/site
+          cp dist/site-windows/appcast-windows.xml dist/site/
+          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast.xml -w '%{http_code}' \
+            "https://guided-traffic.github.io/cogpit/appcast.xml?t=$(date +%s)")"
+          case "${code}" in
+          200) echo "the macOS appcast: $(wc -c < dist/site/appcast.xml) bytes" ;;
+          404) rm -f dist/site/appcast.xml; echo "no macOS appcast on Pages yet" ;;
+          *) echo "::error::the macOS appcast on Pages: HTTP ${code}"; exit 1 ;;
+          esac
+          command -v gpg >/dev/null && command -v gpgv >/dev/null || hack/ci/apt-install.sh gnupg gpgv
+          hack/linux/apt.sh mirror https://guided-traffic.github.io/cogpit/apt packaging/linux/cogpit-archive-keyring.asc dist/site/apt
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist/site/
+          name: github-pages-windows-${{ github.run_attempt }}
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v5
+        with:
+          artifact_name: github-pages-windows-${{ github.run_attempt }}
 
   # Sparkle's appcast (D-4; docs/developer/releasing.md#the-appcast): the update feed at
   # https://guided-traffic.github.io/cogpit/appcast.xml, one feed with the releases' history, signed
@@ -701,6 +980,18 @@ jobs:
         run: |
           command -v gpg >/dev/null && command -v gpgv >/dev/null && command -v curl >/dev/null || hack/ci/apt-install.sh gnupg gpgv curl
           hack/linux/apt.sh mirror https://guided-traffic.github.io/cogpit/apt packaging/linux/cogpit-archive-keyring.asc dist/site/apt
+
+      # And the Windows app's feed (D-111) it serves, byte for byte; none yet is none.
+      - name: Keep the Windows appcast
+        run: |
+          set -euo pipefail
+          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast-windows.xml -w '%{http_code}' \
+            "https://guided-traffic.github.io/cogpit/appcast-windows.xml?t=$(date +%s)")"
+          case "${code}" in
+          200) echo "the Windows appcast: $(wc -c < dist/site/appcast-windows.xml) bytes" ;;
+          404) rm -f dist/site/appcast-windows.xml; echo "no Windows appcast on Pages yet" ;;
+          *) echo "::error::the Windows appcast on Pages: HTTP ${code}"; exit 1 ;;
+          esac
 
       # The site's artifact is named per run attempt: deploy-pages refuses a run that holds two
       # artifacts of one name, and a re-run of this job (or of the whole run) uploads its site

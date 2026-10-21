@@ -4,7 +4,7 @@
 # update key and served by GitHub Pages. The release pipeline runs it through make:
 #
 #   hack/macos/appcast.sh draft <version> <macos dir> <draft dir> <feed url>
-#   hack/macos/appcast.sh sign <version> <macos dir> <draft dir> <site dir> <sparkle dir>
+#   hack/macos/appcast.sh sign <version> <macos dir> <draft dir> <site dir> <sparkle dir> [<download glob> <feed file>]
 #
 # draft (job "Appcast (draft)", no secret): reads the app in the stapled disk image
 # Cogpit-<version>-macos-<arch>.dmg (CFBundleVersion, the short version, LSMinimumSystemVersion,
@@ -142,8 +142,12 @@ check_environment() {
 }
 
 sign() {
-	[ "$#" -eq 5 ] || die "usage: $0 sign <version> <macos dir> <draft dir> <site dir> <sparkle dir>"
+	[ "$#" -eq 5 ] || [ "$#" -eq 7 ] ||
+		die "usage: $0 sign <version> <macos dir> <draft dir> <site dir> <sparkle dir> [<download glob> <feed file>]"
 	local version=$1 in=$2 drafts=$3 site=$4 sparkle=$5
+	# The Windows app's feed (D-111, hack/windows/appcast.sh) is signed here too, with the same key:
+	# its setup in place of the disk image, appcast-windows.xml in place of appcast.xml.
+	local glob=${6:-"Cogpit-$version-macos-*.dmg"} name=${7:-appcast.xml}
 	local tool="$sparkle/bin/sign_update" dmg sig
 	if [ -z "${SPARKLE_ED_PRIVATE_KEY:-}" ]; then
 		notice "no SPARKLE_ED_PRIVATE_KEY in the environment sparkle: the appcast is not signed and Pages keeps the one it has"
@@ -154,7 +158,7 @@ sign() {
 	: "${GITHUB_REPOSITORY:?the repository, owner/name}"
 	check_environment
 	if [ ! -f "$sparkle/.verified" ] || [ ! -x "$tool" ]; then die "no verified sign_update in $sparkle: make sparkle"; fi
-	dmg="$(one "$in" "Cogpit-$version-macos-*.dmg")"
+	dmg="$(one "$in" "$glob")"
 	(cd "$(dirname "$dmg")" && shasum -a 256 -c "$drafts/dmg.sha256" >/dev/null) ||
 		die "$(basename "$dmg") is not the disk image the draft was made for"
 	[ "$(grep -c "$placeholder" "$drafts/appcast.draft.xml")" = 1 ] || die "the draft does not hold one placeholder"
@@ -164,9 +168,9 @@ sign() {
 	[ "${#sig}" = 88 ] || die "sign_update printed a signature of ${#sig} characters, not an Ed25519 one"
 	rm -rf "$site"
 	mkdir -p "$site"
-	sed "s|$placeholder|$sig|" "$drafts/appcast.draft.xml" >"$site/appcast.xml"
-	printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" --ed-key-file - "$site/appcast.xml"
-	printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" --verify --ed-key-file - "$site/appcast.xml" ||
+	sed "s|$placeholder|$sig|" "$drafts/appcast.draft.xml" >"$site/$name"
+	printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" --ed-key-file - "$site/$name"
+	printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" --verify --ed-key-file - "$site/$name" ||
 		die "sign_update does not verify the appcast it signed"
 	printf '%s' "$SPARKLE_ED_PRIVATE_KEY" | "$tool" --verify --ed-key-file - "$dmg" "$sig" ||
 		die "sign_update does not verify the disk image's signature"
@@ -180,5 +184,5 @@ draft | sign)
 	shift
 	"$cmd" "$@"
 	;;
-*) die "usage: $0 draft <version> <macos dir> <draft dir> <feed url> | sign <version> <macos dir> <draft dir> <site dir> <sparkle dir>" ;;
+*) die "usage: $0 draft <version> <macos dir> <draft dir> <feed url> | sign <version> <macos dir> <draft dir> <site dir> <sparkle dir> [<download glob> <feed file>]" ;;
 esac

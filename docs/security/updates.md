@@ -13,9 +13,12 @@ the owner's, from 0.15.0 to 0.16.0, through the signed feed and Sparkle's instal
 observation; [setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). `cogpit-cli` has no
 updater of its own: since 2026-10-14 it is part of the app bundle
 ([D-16](../developer/decisions.md#d-16-the-first-real-release)), so Sparkle's update replaces it
-with the app under the same checks; Windows has no updater. On Linux, since 2026-10-20, apt updates
+with the app under the same checks. On Linux, since 2026-10-20, apt updates
 Cogpit from Cogpit's signed APT repository, which the package sets up
-([Linux](#linux), [D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)). The other place, built 2026-10-13, is the
+([Linux](#linux), [D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)).
+On Windows, from the first release after the branch `windows-release` is merged, WinSparkle updates
+the setup's installation from its own feed, signed with the same update key
+([Windows](#windows), [D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). The other place, built 2026-10-13, is the
 `kubectl` a terminal offers for its cluster: downloaded only on the user's click and verified against
 the Kubernetes release's own sigstore signature and, since 2026-10-15, that signature's entry in
 sigstore's transparency log, not Cogpit's update key
@@ -91,6 +94,8 @@ them ([releasing › the release pipeline](../developer/releasing.md#the-release
 2026-10-14 (the owner, D-16 revised) a release carries only the complete product: the disk image
 with `cogpit-cli` inside the app, since the release after v0.32.0 the Linux packages with both
 binaries ([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
+from the first release after the branch `windows-release` is merged the Windows setup with both
+([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)),
 and `SHA256SUMS`. The `cogpit-cli` archives for six platforms
 that releases up to v0.6.0 carry (unsigned for Linux and Windows) are not built any more:
 
@@ -100,7 +105,8 @@ that releases up to v0.6.0 carry (unsigned for Linux and Windows) are not built 
 | `cogpit-cli` in the app, `Cogpit.app/Contents/MacOS/cogpit-cli` (from the first release after v0.6.0 on) | `make app` from `make build`'s binary, in the same job | the same as the app: signed with the same Developer ID before the bundle (identifier `io.guided-traffic.cogpit.cli`, the hardened runtime, the timestamp), sealed into the app's signature, so changing it breaks the app's; notarized with the disk image, whose stapled ticket covers it; replaced by Sparkle's update with the bundle. Not verified (the signed releases v0.7.0 and v0.8.0 carry it): that it runs from a terminal in a quarantined copy, before the app was ever opened, without a prompt |
 | `Cogpit_<v>_darwin_arm64.zip`, the app bundle (v0.4.0 and earlier, and any build without the signing secrets) | `make dist-app` on GitHub's `macos-latest` | its SHA-256 in `SHA256SUMS`; an ad-hoc signature (`codesign --sign -`), which seals the bundle but names nobody: **no Developer ID, not notarized**, so Gatekeeper blocks the first start until the user allows it |
 | `cogpit_<v>_amd64.deb`, `cogpit_<v>_arm64.deb` (from the release after v0.32.0 on) | `make dist-linux` on GitHub's `ubuntu-24.04` and `ubuntu-24.04-arm`, attached by "Attach to the release (Linux)" | as downloaded from the release: nothing but HTTPS from GitHub and its line in `SHA256SUMS` (Debian's packages carry no signature of their own; [H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)); as installed from Cogpit's APT repository: the repository's OpenPGP signature, which apt checks ([Linux](#linux)) |
-| `SHA256SUMS` | the release pipeline's attach jobs, the macOS one and the Linux one, each merging its lines into the release's file | nothing: it is not signed, so it shows that a download matches what CI attached to the release, not who attached it |
+| `Cogpit-<v>-windows-x64-setup.exe` (from the first release after the branch `windows-release` is merged) | `make dist-windows` on GitHub's `windows-latest` in MSYS2, attached by "Attach to the release (Windows)" | as downloaded from the release: nothing but HTTPS from GitHub and its line in `SHA256SUMS`; **not signed with Authenticode**, so SmartScreen warns at its first start ([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); as WinSparkle downloads it for an update: the update key's EdDSA signature over its bytes, which WinSparkle checks before it runs it ([Windows](#windows)) |
+| `SHA256SUMS` | the release pipeline's attach jobs, the macOS, the Linux and the Windows one, each merging its lines into the release's file | nothing: it is not signed, so it shows that a download matches what CI attached to the release, not who attached it |
 | The release's item in `https://guided-traffic.github.io/cogpit/appcast.xml` (from the first release built with the update key that passes notarization; none yet on 2026-10-15: v0.11.0 to v0.13.0 are built with the key, v0.11.0 and v0.12.0 have no files, v0.13.0's notarization was in progress) | the three appcast jobs after "Attach to the release" ([releasing › the appcast](../developer/releasing.md#the-appcast)) | the update key's EdDSA signature over the feed and over the disk image it names, made after the owner approved the run; checked with the public key before Pages gets it |
 
 **What the Developer ID signature and the notarization vouch for:** that the code was signed with
@@ -201,6 +207,49 @@ since v0.33.0, which `apt update` on Ubuntu 26.04 (apt 3, sqv) accepted and from
 the owner's workstation from 0.33.0 to 0.34.0. Not checked yet: polkit's dialog in a desktop
 session.
 
+## Windows
+
+From the first release after the branch `windows-release` is merged
+([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
+[releasing › Windows](../developer/releasing.md#windows)) Cogpit for Windows is an NSIS setup, and
+WinSparkle, Sparkle's Windows port, updates it. Its feed is a second Sparkle feed beside the first,
+signed with the same update key in the same environment `sparkle`, after the owner's approval of
+that job.
+
+```text
+release pipeline ─► Cogpit-<v>-windows-x64-setup.exe (cogpit.exe with the feed URL and the update key's public half,
+                    cogpit-cli.exe, WinSparkle.dll pinned by SHA-256), attached, its line in SHA256SUMS
+   "Windows appcast (draft)" ─► builds only on the feed Pages serves if the key verifies it
+   "Windows appcast (sign)", environment sparkle (the owner approves) ─► sign_update over the setup and the feed
+   "Windows appcast (deploy)" ─► both checked with the public key, refused if Pages serves a newer release
+        ─► https://guided-traffic.github.io/cogpit/appcast-windows.xml (beside appcast.xml and apt/)
+                                   │
+Cogpit (internal/update, winsparkle_windows.go), the setup's cogpit.exe in a release build:
+       ─► reads the feed at every start and every hour, verifies its signature with the key ─► the Update button
+       ─► the click: WinSparkle's window ─► downloads the setup ─► its EdDSA signature with the key
+       ─► runs it as "/S /relaunch" ─► asks Cogpit to quit ─► the setup waits, installs, starts the new release
+```
+
+| Check | Where | Prevents |
+|---|---|---|
+| The setup's EdDSA signature with the key built into the app (`win_sparkle_set_eddsa_public_key`) | WinSparkle, before it runs the setup | a setup swapped on GitHub's release, on Pages or in transit running as the user (or as an administrator for an installation for all users) |
+| The feed's signature with the same key | Cogpit, before the Update button shows a release | the button offering a release the key did not sign (a feed altered on or by the host); WinSparkle itself does not check the feed's signature, only the setup's |
+| The feed and the setup checked with the public key before Pages gets them, refused when Pages serves a newer release | "Windows appcast (deploy to Pages)" (`hack/appcast verify`) | a feed every copy would refuse; an older release's run taking a newer one back |
+| WinSparkle.dll loaded by its full path from the app's folder, only in a release build that runs from the folder an uninstall entry names | Cogpit (`load`) | a `WinSparkle.dll` found elsewhere through the DLL search order; a copy outside the setup's folder installing a second Cogpit |
+| `WinSparkle.dll` pinned by the SHA-256 of WinSparkle's release archive | `make winsparkle` (`WINSPARKLE_SHA256`) | another DLL than the reviewed release in a setup ([H-140](#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
+
+**What vouches for an update on Windows:** the update key's signature over the setup, checked by
+WinSparkle on every copy. **What does not:** Authenticode, until signing material exists
+([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); the host, which can withhold
+the feed or serve an older signed one, as for the macOS feed
+([H-93](#h-93-the-feeds-host-can-withhold-updates)); the first download, which trusts GitHub's HTTPS
+and the release page as on Linux. A per-user installation updates without an administrator; one for
+all users asks UAC for each update, since its setup runs again elevated.
+
+**Checked 2026-10-21** on the owner's Windows 11: the updater's unit tests (the feed's signature, a
+feed of another key refused, the real WinSparkle 0.9.4's functions), the setup built, installed,
+installed again and uninstalled. Not checked yet: a release through the pipeline and Pages.
+
 ## What this does not cover
 
 ### H-97: The feed URL follows the repository's name
@@ -236,8 +285,10 @@ account) can replace one of those archives and its checksum together, and a user
 check them against. A swapped macOS download would need the Developer ID key as well. Signing the
 checksums is not designed. The Linux packages carry no signature of their own either (Debian's
 convention): what vouches for an update is the APT repository's signature, which apt checks, and a
-first install trusts the download ([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own));
-Windows downloads come back with their desktop app (M11), whose signing is planned there.
+first install trusts the download ([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)).
+The Windows setup is not signed with Authenticode yet
+([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); its updates carry the update
+key's signature.
 
 ### H-62: Every push to `main` that passes the gates is released
 
@@ -423,6 +474,33 @@ for polkit's keep time (five minutes by default). The helper takes no argument a
 refresh Cogpit's list and upgrade the package `cogpit` from the signed repository, so the most such a
 process can do is start that upgrade. `auth_admin` would ask again for each click, also when
 Help › Check for Updates… runs after the Update button.
+
+### H-139: The Windows setup is not signed with Authenticode
+
+Open, accepted by the owner for the first Windows releases (2026-10-21,
+[D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). Neither
+the setup nor `cogpit.exe`, `cogpit-cli.exe` or the uninstaller carries an Authenticode signature,
+so SmartScreen shows "Windows protected your PC" at the downloaded setup's first start (More info,
+then Run anyway), Windows names no publisher in UAC's prompt for `/allusers`, and a company's
+application control (WDAC, AppLocker) that admits signed publishers only refuses Cogpit. A first
+install trusts GitHub's HTTPS and the release page; `SHA256SUMS` is not signed
+([H-61](#h-61-releases-are-unsigned)). Updates are not affected: WinSparkle runs only a setup the
+update key signed. What closes it: signing material, a human's step (Azure Artifact Signing takes
+organisations in the EU, not individuals there; a certificate in a cloud HSM such as Certum's or
+SSL.com's serves an individual), then a signing job of its own in an environment, as Apple's is
+(the secret's row in [releasing › secrets](../developer/releasing.md#secrets)).
+
+### H-140: WinSparkle.dll is a third-party binary without a signature
+
+Open, accepted (the lead's choice, 2026-10-21). The setup ships WinSparkle 0.9.4's x64 DLL as its
+release archive carries it: built by WinSparkle's maintainer, not by Cogpit's pipeline, and without
+an Authenticode signature. It runs inside `cogpit.exe` with the user's rights and decides which
+setup runs as an update. What bounds it: the archive is pinned by its SHA-256 (GitHub's digest of
+the asset, `WINSPARKLE_SHA256`), so a release carries exactly the binary pinned in the
+[`Makefile`](../../Makefile), and a new version comes only through a reviewed change of the pin
+(Renovate proposes it, never merges it). What it does not bound: that the maintainer's build is
+what its source says. Building WinSparkle from its source in the pipeline (Visual Studio) was
+weighed and left for later.
 
 ### H-18: Dependencies
 

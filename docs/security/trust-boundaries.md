@@ -230,7 +230,12 @@ built as follows:
   `TestCAFileSwapAsksAgain`). A link in the folder is bound by its resolved target as well, so
   repointing it asks again; a program resolved elsewhere (`PATH`, `/usr/local/bin`, `/opt/homebrew`:
   `kubelogin`, `aws`, `gke-gcloud-auth-plugin`) stays bound by its path, so a tool update does
-  not ask again (`TestProgramOutsideTheFolderIsBoundByPathOnly`). The hashing is bounded: regular
+  not ask again (`TestProgramOutsideTheFolderIsBoundByPathOnly`). On Windows the program bound is
+  the file `os/exec` runs (since 2026-10-21, [D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
+  found by the first test run there): a command path without one of `PATHEXT`'s extensions runs as
+  the first of `plug.com`, `plug.exe`, `plug.bat`, … beside it, so a `plug` in the kubeconfig binds
+  `plug.exe`, and a decoy `plug` beside a `plug.exe` swapped at will no longer keeps the approval
+  (`TestProgramIsBoundByTheFileThatRuns`). The hashing is bounded: regular
   files only, at most 32 MiB for a program and 1 MiB for a CA file; a larger or unreadable file
   inside the folder is bound by a note (its size and modification time for a large one), so a
   change still asks again. The approval names the fingerprint the dialog showed and is refused

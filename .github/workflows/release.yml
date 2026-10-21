@@ -435,16 +435,17 @@ jobs:
       - name: Build and package Cogpit.app
         run: make app
 
-  # Windows comes after the macOS beta (D-7); until then CI proves that every package and every test
-  # still compiles and links there with cgo and Fyne's native dependencies. (Linux needs no compile
-  # job: the unit and race jobs build and link every package and test there.)
-  compile-windows:
-    name: Compile (windows)
+  # The tests on Windows (D-111): every package's, in two jobs on GitHub's runner in MSYS2's MINGW64
+  # shell (MinGW-w64 gcc for cgo and Fyne, make), without the race detector; the window's
+  # (internal/ui/fyneui) in a job of their own, being most of a run. Until 2026-10-21 CI only
+  # compiled and linked them there. (Linux needs no job of its own: the unit and race jobs run there.)
+  windows-unit:
+    name: Unit Tests (windows)
     runs-on: windows-latest
     timeout-minutes: 30
     defaults:
       run:
-        shell: bash
+        shell: msys2 {0}
     env:
       # Fail loudly when no C compiler is found instead of building without cgo.
       CGO_ENABLED: "1"
@@ -457,17 +458,13 @@ jobs:
         with:
           cache: windows
 
-      # Fyne on Windows needs a MinGW-w64 gcc for cgo; MSYS2 is the toolchain Fyne documents.
-      - name: Install MinGW-w64 gcc
-        id: msys2
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, unzip for make winsparkle)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
-          install: mingw-w64-x86_64-gcc
-
-      - name: Put MinGW-w64 gcc on PATH
-        shell: pwsh
-        run: Add-Content -Path $env:GITHUB_PATH -Value "${{ steps.msys2.outputs.msys2-location }}\mingw64\bin"
+          update: false
+          path-type: inherit
+          install: make unzip mingw-w64-x86_64-gcc
 
       - name: Toolchain
         run: |
@@ -475,16 +472,40 @@ jobs:
           go env GOOS GOARCH CGO_ENABLED CC
           gcc --version | head -n 1
 
-      # Compiles every package and links the main packages (cmd/cogpit with Fyne's GL driver).
-      - name: Build every package
-        run: go build ./...
+      # Builds every package, the main ones linked (cmd/cogpit with Fyne's GL driver), vets them
+      # and runs every package's tests but the window's, with the pinned WinSparkle fetched first so
+      # that the updater's test loads the real DLL.
+      - name: Vet and test every package but the window's
+        run: make test-windows-unit
 
-      - name: Vet every package and its tests
-        run: go vet ./...
+  windows-ui:
+    name: UI Tests (windows)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    env:
+      CGO_ENABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      # Builds and links every test binary (cgo link errors show here) and runs no test.
-      - name: Compile and link the tests
-        run: go test -count=1 -run '^$' ./...
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: windows-ui
+
+      - name: Set up MSYS2 (MinGW-w64 gcc, make)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          path-type: inherit
+          install: make mingw-w64-x86_64-gcc
+
+      - name: The window's tests
+        run: make test-windows-ui
 
   # Cogpit for Linux (D-108) as the release pipeline builds it, for this commit: make dist-linux
   # (the release's build tags, the package with its launcher, icons, update helper and APT
@@ -512,6 +533,41 @@ jobs:
 
       - name: Check the package and the APT repository's scripts
         run: make test-linux-package
+
+  # Cogpit for Windows (D-111) as the release pipeline builds it, for this commit: make dist-windows
+  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make and NSIS
+  # from its signed packages), then make test-windows-package: the setup installs for the runner's
+  # user, installs again over itself and uninstalls. A change that breaks the release's Windows job
+  # fails here, before a release.
+  windows-package:
+    name: Windows Package
+    runs-on: windows-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: windows-package
+
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: false
+          path-type: inherit
+          install: make unzip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
+
+      - name: Build the setup
+        run: make dist-windows VERSION=0.0.1
+
+      - name: Install, update and uninstall it
+        run: make test-windows-package
 
   # The unit, race and cluster profiles merged: the job summary, and the README's badge, which
   # Semantic Release commits with the release.
@@ -559,7 +615,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, compile-windows, linux-package, coverage]
+    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, windows-unit, windows-ui, linux-package, windows-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     steps:

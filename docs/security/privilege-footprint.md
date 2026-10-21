@@ -445,7 +445,13 @@ the lock taken out, 35 of 120 entries were lost; with it, none) and with a proce
 SIGKILL (`TestJournalsKeepEveryProcessesEntries`, `TestJournalEntryOfAKilledProcess`). What
 remains:
 
-- The Windows lock compiles and vets but has never run; other platforms get no lock.
+- The Windows lock (`LockFileEx`) runs in the journals' tests on Windows since 2026-10-21
+  ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)),
+  where the owner file is created sharing its deletion (`FILE_SHARE_DELETE`), so that its folder
+  can be removed while Cogpit runs as on macOS and Linux, while whether its owner lives stays the
+  lock's matter; a journal's write, a rename over the file, retries for up to a second while
+  another process holds it open. Two Cogpit processes on Windows have not been tried by a person;
+  other platforms get no lock.
 - A config directory on a network file system, where `flock` may not hold across machines, is not
   covered.
 - Entries are keyed by context name: two kubeconfigs that name one cluster with different context

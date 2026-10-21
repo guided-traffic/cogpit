@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"slices"
@@ -93,8 +94,12 @@ func TestSyncPickerTakesFilesAndFoldersInOneDialog(t *testing.T) {
 	test.Tap(sp.syncB)
 	q.until(t, "the second kubeconfig.addFolder", func() bool { return len(f.callsOf("kubeconfig.addFolder")) == 2 })
 	var got []string
-	for _, c := range f.callsOf("kubeconfig.addFolder") {
-		got = append(got, string(c.Params))
+	for _, c := range f.callsOf("kubeconfig.addFolder") { // the paths decoded: JSON doubles Windows' backslashes
+		var p struct{ Path string }
+		if err := json.Unmarshal(c.Params, &p); err != nil {
+			t.Fatal(err)
+		}
+		got = append(got, p.Path)
 	}
 	if !strings.Contains(got[0], filepath.Join(dir, "clusters")) || !strings.Contains(got[1], dir) || strings.Contains(got[1], "clusters") {
 		t.Errorf("addFolder calls %v", got)
@@ -128,8 +133,10 @@ func TestSyncPickerNavigates(t *testing.T) {
 	q.until(t, "the typed folder", func() bool {
 		return sp.dir == filepath.Join(dir, "clusters") && len(sp.entries) == 1 // listed, not just chosen
 	})
-	sp.pathEntry.OnSubmitted(filepath.Join(dir, "nope"))
-	q.until(t, "the error", func() bool { return strings.Contains(sp.status.text, "no such file") })
+	nope := filepath.Join(dir, "nope")
+	_, notFound := os.Stat(nope) // the system's words: "no such file or directory", Windows' "cannot find the file"
+	sp.pathEntry.OnSubmitted(nope)
+	q.until(t, "the error", func() bool { return notFound != nil && sp.status.text == notFound.Error() })
 
 	test.Tap(sp.cancelB)
 	if sh.kc.syncing != nil || len(rec.ids()) != 0 {

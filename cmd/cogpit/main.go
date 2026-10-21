@@ -123,12 +123,21 @@ func run(previousCrash string) int {
 	installChat(s, logger) // the built-in agent's chat (chat.go, D-10)
 	// The app's updater (D-4, internal/update): on macOS Sparkle 2 from the app bundle, none for a
 	// build without the update key or outside an installed bundle; on Linux apt, for the installed
-	// package (D-108). The engine says why there is none (Help › Check for Updates…). It starts once
-	// the window's event loop runs.
-	s.SetUpdater(update.New())
+	// package (D-108); on Windows WinSparkle, for the setup's installation (D-111), which asks the
+	// window to close once it started the setup. The engine says why there is none (Help › Check
+	// for Updates…). It starts once the window's event loop runs.
+	updater := update.New()
+	quit := make(chan struct{}, 1)
+	updater.OnShutdownRequest(func() {
+		select {
+		case quit <- struct{}{}:
+		default: // asked already
+		}
+	})
+	s.SetUpdater(updater)
 
 	opts := fyneui.Options{AutoConnect: *contextName, Theme: fyneui.ThemeMode(*themeName),
-		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath()}
+		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath(), Quit: quit}
 	if previousCrash != "" {
 		at := time.Now()
 		if fi, err := os.Stat(previousCrash); err == nil {

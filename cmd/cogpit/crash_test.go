@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -51,14 +52,17 @@ func TestCrashReportSurvivesAPanic(t *testing.T) {
 	if kept, err := os.ReadFile(previous); err != nil || string(kept) != string(report) {
 		t.Errorf("the kept report differs: %v", err)
 	}
-	if fi, err := os.Stat(previous); err != nil || fi.Mode().Perm() != 0o600 {
+	// Windows sets no file modes: there the user profile's permissions protect the report.
+	if fi, err := os.Stat(previous); err != nil || (runtime.GOOS != "windows" && fi.Mode().Perm() != 0o600) {
 		t.Errorf("the report's mode: %v, %v", fi, err)
 	}
 	done() // this run ends cleanly
 	if _, err := os.Stat(filepath.Join(dir, crashFile)); !os.IsNotExist(err) {
 		t.Errorf("a clean run left %s: %v", crashFile, err)
 	}
-	if again, _ := captureCrashes(dir); again != "" {
+	again, doneAgain := captureCrashes(dir)
+	doneAgain() // the open crash.log would keep Windows from removing the test's folder
+	if again != "" {
 		t.Errorf("a clean run is reported as a crash: %q", again)
 	}
 }

@@ -159,10 +159,11 @@ func TestInspectFile(t *testing.T) {
 		t.Errorf("InspectFile = %+v", in)
 	}
 
-	// A command on PATH stays a name; a relative path with a separator resolves against the file.
+	// A command on PATH stays a name; a relative path with a separator resolves against the file
+	// (the system's separator: ..\tools\login on Windows).
 	onPath := filepath.Join(dir, "path.yaml")
 	cfg := "users:\n- name: u\n  user:\n    exec: {command: aws, apiVersion: client.authentication.k8s.io/v1beta1}\n" +
-		"- name: v\n  user:\n    exec: {command: ../tools/login, apiVersion: client.authentication.k8s.io/v1beta1}\n" +
+		"- name: v\n  user:\n    exec: {command: " + filepath.FromSlash("../tools/login") + ", apiVersion: client.authentication.k8s.io/v1beta1}\n" +
 		"contexts:\n- name: a\n  context: {user: u}\n- name: b\n  context: {user: v}\n"
 	if err := os.WriteFile(onPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
@@ -214,13 +215,17 @@ func TestListSyncFolder(t *testing.T) {
 	if err := os.Mkdir(filepath.Join(dir, "sub"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	target := writeFile(t, "elsewhere", "x")
-	link := filepath.Join(dir, "linked")
-	if err := os.Symlink(target, link); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(dir, "gone"), filepath.Join(dir, "dangling")); err != nil {
-		t.Fatal(err)
+	want := ".hidden,a.yaml"
+	if runtime.GOOS != "windows" { // symlinks need a privilege there
+		target := writeFile(t, "elsewhere", "x")
+		link := filepath.Join(dir, "linked")
+		if err := os.Symlink(target, link); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(filepath.Join(dir, "gone"), filepath.Join(dir, "dangling")); err != nil {
+			t.Fatal(err)
+		}
+		want += ",linked"
 	}
 	got, err := ListSyncFolder(dir)
 	if err != nil {
@@ -233,7 +238,7 @@ func TestListSyncFolder(t *testing.T) {
 			t.Errorf("%s: no size or time", f.Path)
 		}
 	}
-	if strings.Join(names, ",") != ".hidden,a.yaml,linked" || got[0].Path != hidden || got[1].Path != a {
+	if strings.Join(names, ",") != want || got[0].Path != hidden || got[1].Path != a {
 		t.Errorf("ListSyncFolder = %v", names)
 	}
 	if _, err := ListSyncFolder(filepath.Join(dir, "missing")); err == nil {

@@ -27,8 +27,9 @@ change.
   <img src="docs/images/hero_dark.png" alt="Cogpit: the navigator, the Pods list with CPU and memory, and a pod's drawer with its CPU chart, requests and limits">
 </picture>
 
-> **Pre-alpha.** Cogpit runs on macOS on Apple silicon and, from the release after v0.32.0, on
-> Debian and Ubuntu (amd64 and arm64); Windows is planned after the macOS beta. The views and actions are in place, some of them still in part, but nothing has
+> **Pre-alpha.** Cogpit runs on macOS on Apple silicon, from the release after v0.32.0 on
+> Debian and Ubuntu (amd64 and arm64), and on Windows 10 and 11 (x64) from the first release after
+> the branch `windows-release` is merged (built 2026-10-21). The views and actions are in place, some of them still in part, but nothing has
 > been walked through by testers on real clusters yet: try it on a test cluster first. Where it
 > stands, feature by feature:
 > [ROADMAP.md](ROADMAP.md).
@@ -241,14 +242,22 @@ every new release, and Cogpit's own Update button installs it after your passwor
 install by themselves is your system's setting, never Cogpit's
 ([installing on Linux](docs/developer/usage.md#install-on-linux)).
 
+**On Windows** (Windows 10 1809 or 11, x64; from the first release after the branch
+`windows-release` is merged), download `Cogpit-<version>-windows-x64-setup.exe` from the same
+release and run it: it installs for you alone, without an administrator (`/allusers` for every
+user, `/S` silently). It is not signed with Authenticode yet, so SmartScreen warns the first time:
+More info, then Run anyway. Cogpit then updates itself: a click on its Update button downloads the
+next release, checks its signature and installs it
+([installing on Windows](docs/developer/usage.md#install-on-windows)).
+
 **`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`
-(in the Linux package at `/usr/bin/cogpit-cli`): it lists your contexts, prints any kind's objects
+(in the Linux package at `/usr/bin/cogpit-cli`, on Windows as `cogpit-cli.exe` beside `cogpit.exe`): it lists your contexts, prints any kind's objects
 as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Once you switched the MCP
 server on, Help › Copy MCP command gives you the one command that registers it with Claude Code,
 once ([reference](docs/developer/usage.md#cogpit-cli)).
 
 **Build from source** with Go and the Xcode Command Line Tools (on Linux a C compiler and the GL,
-X11 and Wayland headers): `make run-demo` starts a development build on its synthetic demo cluster
+X11 and Wayland headers, on Windows MSYS2's MinGW-w64 gcc and make): `make run-demo` starts a development build on its synthetic demo cluster
 ([run from source](docs/developer/usage.md#run-the-mvp)).
 
 ## 📚 Documentation
