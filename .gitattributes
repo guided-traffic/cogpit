@@ -1,0 +1,5 @@
+# Every text file is checked out with LF, on Windows too (D-111): Git for Windows defaults to
+# core.autocrlf=true, which turned the golden files, the //go:build lines the tests read and the
+# hack/ scripts bash runs into CRLF on a Windows checkout and failed them there. Git decides what is
+# text; nothing in the repository needs CRLF.
+* text=auto eol=lf
