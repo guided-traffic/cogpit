@@ -30,7 +30,8 @@ import (
 //   - ui.setNavigatorScope goes up to the section and back into the connected cluster without
 //     touching the connection; into another cluster it connects, as cluster.connect does;
 //   - the tab bar shows the shown cluster's tabs, at the section too (the owner, 2026-10-20, GW11:
-//     the title bar and the status bar name one cluster, and the bar shows its tabs; until then it
+//     the status bar and the navigator name one cluster, as the title bar did until 2026-10-21
+//     (D-54), and the bar shows its tabs; until then it
 //     showed every cluster's at the section); every cluster's with the preference mixed
 //     environments on (off by default), and every tab while no cluster is shown; never a tab of a
 //     cluster without a connection (GW13); ⌘1–⌘9, next and previous count the tabs it shows

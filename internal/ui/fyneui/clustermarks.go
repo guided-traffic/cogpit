@@ -15,8 +15,8 @@ import (
 //
 // The marks (D-69 item 5, the owner's decision of 2026-10-16): the dot's shape says live or
 // resting, its colour the state, on every dot of a cluster (its hotbar tile, its navigator section
-// row and the tree's root, its welcome-page row, the top bar's and the status bar's for the shown
-// one):
+// row and the tree's root, its welcome-page row and the status bar's for the shown one; the top
+// bar names no cluster, D-54):
 //
 //	filled green            live: the shown cluster, or a connected one whose views are warm
 //	filled green, blinking  (re)connecting, a background cluster's reconnect too (conndot.go, F13)
@@ -183,7 +183,6 @@ func (sh *shell) clustersChanged(st, old engine.UIState, first bool) {
 	shownChanged := first || st.Context != old.Context || st.Connection != old.Connection
 	if connectionsChanged(st, old) && !shownChanged { // the shown cluster's change refreshes them already (connectionChanged, hot.stateChanged)
 		sh.blink.observeAll(clusterStates(st))
-		sh.top.update()
 		sh.status.update()
 		sh.side.updateHeader()
 		sh.hot.stateChanged()

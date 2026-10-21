@@ -225,7 +225,7 @@ func labelWidth(text string) float32 {
 	return fyne.MeasureText(text, th.Size(theme.SizeNameText), fyne.TextStyle{Bold: true}).Width
 }
 
-// barRowLayout is the top bar's row: the left part (the logo, the history arrows, the context) at
+// barRowLayout is the top bar's row: the left part (the logo, the wordmark, the history arrows) at
 // the left and the right part (the Update button, the toggles, the bell) at the right end, each at
 // its least width and the row's height, where a border layout without a centre puts them; and it
 // tells the Update button the room it has, which picks its label (layoutBar.fit). The row's least

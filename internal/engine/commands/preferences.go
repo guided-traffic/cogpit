@@ -61,7 +61,7 @@ type preferencesSetParams struct {
 	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
-	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the title bar names (false, the default); ui_state's tabs list every tab either way"`
+	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the status bar and the navigator name (false, the default); ui_state's tabs list every tab either way"`
 	// ReduceMotion: whether the window slides (fyneui/navigator_slide.go).
 	ReduceMotion *bool `json:"reduceMotion,omitempty" jsonschema:"whether the window switches at once where it would slide (true): between All Clusters and a cluster's tree, and from one cluster's tree to another's; false, the default, it slides"`
 }

@@ -331,9 +331,12 @@ func TestUpdateButtonOnTheBarsCentreLine(t *testing.T) {
 
 // At the narrowest window the app allows (its content's least size, which Fyne makes the window's
 // minimum), the Update button with its version still fits beside the bar's left part. Where the
-// bar is the window's widest row, as beside a long context name and its kubeconfig file, the
-// version gives way: the button says "Update" until the window has the room, and the version never
-// widens the window's minimum; the two parts never overlap.
+// row lacks the room, the version gives way: the button says "Update" until the row has it, the
+// version never widens the row's least width, and the two parts never overlap. The bar names no
+// cluster since 2026-10-21 (D-54), so no text of it, a long context name and its kubeconfig file
+// as before, makes it the window's widest row: the window's minimum lies far above the bar's own,
+// and the second half checks the row's layout itself at its least width and a hair beyond the
+// room the long label needs.
 func TestUpdateButtonAtTheNarrowestWindow(t *testing.T) {
 	s := chatEngine(t)
 	n := &uiNotifier{}
@@ -346,32 +349,32 @@ func TestUpdateButtonAtTheNarrowestWindow(t *testing.T) {
 	settle(w)
 	assertUpdateFits(t, sh, "Update to v0.16.0")
 
-	long := "arn:aws:eks:eu-central-1:123456789012:cluster/production-platform-blue-green-eu-central-1a" +
-		" [/Users/someone/Library/Application Support/Cloud/kubeconfigs/eks-production-platform-config]"
-	f := connectedFake(t, 10)
-	f.diag = engine.Diagnostics{} // a real cluster's status bar: no demo line, which is wider than the bar
-	f.update(func(u *engine.UIState) {
-		u.Context, u.Connection = long, engine.Connection{State: engine.Connected}
-		u.Update = engine.UpdateState{Available: true, Version: "0.16.0"}
-	})
-	sh2, w2, q2 := newTestShell(t, f, Options{})
-	q2.until(t, "the Update button", func() bool { return sh2.top.layout.update.Visible() })
-	// On macOS the bar makes room for the window buttons, which the status bar does not.
-	sh2.top.setTitlebar(titlebarLayout(titlebarGeometry{ButtonsMinX: 9, ButtonsMaxX: 61, Height: 28}, 1, 6, 4))
-	settle(w2)
-	least := w2.Content().MinSize().Width
-	if bar := sh2.top.root.MinSize().Width; bar != least {
-		t.Fatalf("the bar's least width %v is not the window's %v: the context is not long enough", bar, least)
+	top, l := sh.top, sh.top.layout
+	row := barRowLayout{t: top}
+	least := row.MinSize(nil).Width
+	height := top.left.Size().Height
+	apart := func(when string) {
+		t.Helper()
+		if end, start := top.left.Position().X+top.left.Size().Width, top.right.Position().X; end > start {
+			t.Errorf("%s: the left part ends at %v, the right part starts at %v", when, end, start)
+		}
 	}
-	w2.Resize(w2.Content().MinSize())
-	settle(w2)
-	assertUpdateFits(t, sh2, "Update")
+	row.Layout(nil, fyne.NewSize(least, height))
+	if l.update.Text != "Update" {
+		t.Errorf("at the row's least width the button says %q, want %q", l.update.Text, "Update")
+	}
+	apart("at the row's least width")
+	if got := row.MinSize(nil).Width; got != least {
+		t.Errorf("the version changed the row's least width from %v to %v", least, got)
+	}
 	extra := labelWidth("Update to v0.16.0") - labelWidth("Update")
-	w2.Resize(fyne.NewSize(least+extra+0.25, w2.Canvas().Size().Height)) // a quarter for the floats' rounding
-	settle(w2)
-	assertUpdateFits(t, sh2, "Update to v0.16.0")
-	if got := w2.Content().MinSize().Width; got != least {
-		t.Errorf("the version widened the window's minimum from %v to %v", least, got)
+	row.Layout(nil, fyne.NewSize(least+extra+0.25, height)) // a quarter for the floats' rounding
+	if l.update.Text != "Update to v0.16.0" {
+		t.Errorf("with room for the version the button says %q", l.update.Text)
+	}
+	apart("with room for the version")
+	if got := row.MinSize(nil).Width; got != least {
+		t.Errorf("the version widened the row's least width from %v to %v", least, got)
 	}
 }
 

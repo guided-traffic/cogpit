@@ -20,8 +20,8 @@ import (
 // connected grey; while the cluster is (re)connecting its dots blink in that green, 500 ms full and
 // 500 ms dimmed, for at least three intervals even when the reconnect succeeds at once, so that the
 // user sees it (the minimum is the window's: agents read the true state in ui_state). Every dot of
-// that cluster blinks in step: the top bar's, the status bar's, its hotbar tile's, its navigator
-// rows' and its welcome-page row's. The dot's tooltip names the state, and a click on it opens the
+// that cluster blinks in step: the status bar's, its hotbar tile's, its navigator rows' and its
+// welcome-page row's. The dot's tooltip names the state, and a click on it opens the
 // cluster's connection log (connectlog.go), never also its row or tile.
 //
 // With several clusters connected (D-69 item 5, stage 2, 2026-10-16) the dot's shape says live or

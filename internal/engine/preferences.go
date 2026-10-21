@@ -152,7 +152,7 @@ type Preferences struct {
 	// sets it; agents and the CLI may only reset it (ErrDebugImageGUIOnly).
 	DebugImage string `json:"debugImage,omitempty"`
 	// MixedEnvironments: the tab bar shows the open tabs of every cluster side by side; off, the
-	// default, only the shown cluster's, the one the title bar and the status bar name (the owner,
+	// default, only the shown cluster's, the one the status bar and the navigator name (the owner,
 	// 2026-10-20, GW11: "mixed environments", at the foot of the navigator's All Clusters; TabsShown).
 	// Agents and the CLI may set it either way: it changes only which tabs the bar shows.
 	MixedEnvironments bool `json:"mixedEnvironments,omitempty"`

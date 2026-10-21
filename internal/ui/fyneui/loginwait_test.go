@@ -79,7 +79,7 @@ func TestConnectingOffersCancelConnecting(t *testing.T) {
 		t.Errorf("the cluster's menu: %q", labels)
 	}
 	sh.tip.delay = time.Millisecond
-	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
+	test.MoveMouse(w.Canvas(), middleOf(sh.status.dot))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 	if tip := sh.tip.visibleText(); !strings.Contains(tip, "Connecting…") || !strings.Contains(tip, want) ||
 		!strings.Contains(tip, "Cancel Connecting in its menu ends it now.") {
@@ -141,7 +141,7 @@ func TestConnectingBehindALoginCogpitCouldNotEnd(t *testing.T) {
 	}
 	line := what + " " + end
 	sh.tip.delay = time.Millisecond
-	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
+	test.MoveMouse(w.Canvas(), middleOf(sh.status.dot))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 	tip := sh.tip.visibleText()
 	if !strings.Contains(tip, line+" Cancel Connecting in its menu stops this wait; that login goes on.") {
@@ -159,7 +159,7 @@ func renderConnecting(t *testing.T, mode ThemeMode, name string) {
 func renderConnectingWith(t *testing.T, mode ThemeMode, conn engine.Connection, name string) {
 	sh, w, q, _ := connectingSceneWith(t, mode, conn)
 	sh.tip.delay = time.Millisecond
-	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
+	test.MoveMouse(w.Canvas(), middleOf(sh.status.dot))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 	savePNG(t, w, name)
 }

@@ -37,7 +37,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); Windows after the macOS beta *(planned)*, and on Linux no `cogpit://` links and no Start at login yet.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the title bar names, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
 - 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
@@ -829,9 +829,9 @@ saying what it waits for, **Cancel Connecting** in its menus. When it is done, a
 click the cluster to show it. Clicking a cluster that connects in the background shows it connecting
 and waits for that same connect, without starting the login a second time.
 
-Every dot of a cluster (its hotbar tile, its row in the navigator and on the welcome page, the top
-bar and the status bar for the one shown) says how it is; its tooltip names the state, a click on it
-opens the cluster's connection updates:
+Every dot of a cluster (its hotbar tile, its row in the navigator and on the welcome page, and the
+status bar for the one shown; the top bar has none since 2026-10-21, D-54) says how it is; its
+tooltip names the state, a click on it opens the cluster's connection updates:
 
 | Dot | Means |
 |---|---|
@@ -859,7 +859,7 @@ interrupted cluster in the background disables the changes to it only, and its s
 `ui_state`'s `connections`:
 
 - The cluster's dot blinks green, slowly (half a second on, half a second dimmed), everywhere it
-  shows: the top bar, the status bar, its hotbar tile, the navigator, the welcome page. No word
+  shows: the status bar, its hotbar tile, the navigator, the welcome page. No word
   stands beside it; its tooltip says **Reconnecting…**, since when, why and the next attempt, and a
   click on it opens the cluster's connection updates. Under Reduce motion (Cogpit's [preference](#preferences--app-reduce-motion)
   or macOS's) it stays a steady, paler green. A banner over the view says which cluster, since when, why, and when Cogpit tries

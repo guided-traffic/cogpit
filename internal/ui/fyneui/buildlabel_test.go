@@ -33,8 +33,7 @@ func TestBuildLabelText(t *testing.T) {
 }
 
 // The label sits right of the wordmark in its style (the same size, bold, the foreground colour),
-// the history arrows a gap of the theme's inner padding beyond it, as the divider is beyond them;
-// a development build's label names its commit in the tooltip.
+// the history arrows a gap of the theme's inner padding beyond it; a development build's label names its commit in the tooltip.
 func TestBuildLabelBesideTheWordmark(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{})

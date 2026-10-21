@@ -129,18 +129,15 @@ func TestRootRowShowsTheLastKnownUser(t *testing.T) {
 	}
 }
 
-// The short name everywhere the window names the cluster, the full name in each tooltip: the top
-// bar, the status bar, the hotbar's tile, the tab, the navigator's section row and the welcome
+// The short name everywhere the window names the cluster, the full name in each tooltip: the status
+// bar (the top bar names none, D-54), the hotbar's tile, the tab, the navigator's section row and the welcome
 // page's row; the navigator's search still finds the context by its full name.
 func TestShortClusterNameEverywhere(t *testing.T) {
 	f := userFake(t, confirmedUser, engine.Connected)
 	withHotbar(f, userCtx)
 	sh, _, q := userScene(t, f, ThemeDark)
 
-	if sh.top.context.text != "prod-eu" || sh.top.context.tip != "kubernetes-admin@prod-eu" || sh.top.file.text != "dev.yaml" {
-		t.Errorf("top bar %q (tip %q) / %q", sh.top.context.text, sh.top.context.tip, sh.top.file.text)
-	}
-	if sh.status.context.text != "prod-eu" || sh.status.context.tip != userCtx {
+	if sh.status.context.text != "prod-eu" || sh.status.context.tip != userCtx { // the full id, the kubeconfig's file included
 		t.Errorf("status bar %q (tip %q)", sh.status.context.text, sh.status.context.tip)
 	}
 	q.until(t, "the tile", func() bool { return len(tilesOf(sh.hot)) == 1 })
@@ -181,8 +178,8 @@ func TestShortClusterNameEverywhere(t *testing.T) {
 		u.ClusterSettings = map[string]engine.ClusterSettings{userCtx: {Name: "Production"}}
 	})
 	q.until(t, "the display name", func() bool { return sh.side.name.text == "Production" })
-	if sh.top.context.text != "Production" || sh.top.context.tip != "kubernetes-admin@prod-eu" {
-		t.Errorf("top bar with a display name %q (tip %q)", sh.top.context.text, sh.top.context.tip)
+	if sh.status.context.text != "Production" || sh.status.context.tip != userCtx {
+		t.Errorf("status bar with a display name %q (tip %q)", sh.status.context.text, sh.status.context.tip)
 	}
 	if r := sh.tabs.welcome.row(userCtxInfo); r.title.text != "Production" || !strings.HasPrefix(r.sub.text, "context kubernetes-admin@prod-eu · ") {
 		t.Errorf("welcome row with a display name %q / %q", r.title.text, r.sub.text)

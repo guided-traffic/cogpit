@@ -118,7 +118,8 @@ func centre(o fyne.CanvasObject) fyne.Position {
 
 // TestBarClicksReachTheButtons: on macOS a mouse-down that reaches the bar's drag area drags the
 // window, so every button on the bar must take the click itself: the arrows (enabled or not) and
-// the bell (Switch context went, D-57); the bar's text and its empty stretch reach the drag
+// the bell (Switch context went, D-57; the cluster and its dot went, D-54: the connection log is
+// the status bar's dot's, conndot_test.go); the bar's text and its empty stretch reach the drag
 // area, whose right-click opens the bar's context menu: Preferences…, which opens the
 // Preferences page.
 func TestBarClicksReachTheButtons(t *testing.T) {
@@ -141,11 +142,10 @@ func TestBarClicksReachTheButtons(t *testing.T) {
 		}
 	}
 	drag := findAll[*barDragArea](top.root)[0]
-	if got := clickTarget(root, centre(top.context)); got != drag {
-		t.Errorf("a click on the context's name reaches %T, not the drag area", got)
-	}
-	if got := clickTarget(root, centre(top.dot)); got != top.dot { // it opens the connection log (F13)
-		t.Errorf("a click on the connection's dot reaches %T", got)
+	for _, l := range findAll[*textLine](top.left) { // the wordmark
+		if got := clickTarget(root, centre(l)); got != drag {
+			t.Errorf("a click on the bar's text %q reaches %T, not the drag area", l.text, got)
+		}
 	}
 	empty := fyne.CurrentApp().Driver().AbsolutePositionForObject(top.left).AddXY(top.left.Size().Width+40, 10) // between the left and the right
 	if got := clickTarget(root, empty); got != drag {

@@ -590,7 +590,6 @@ func (sh *shell) applyUIState(st engine.UIState) {
 // placeholder, and the connected cluster's kinds and namespaces.
 func (sh *shell) connectionChanged(st, old engine.UIState) {
 	sh.blink.observeAll(clusterStates(st)) // before the dots follow (conndot.go): every cluster's, D-69
-	sh.top.update()
 	sh.status.update()
 	sh.conn.update()            // the banner of an interrupted connection (D-58)
 	sh.dock.connectionChanged() // its shells' Reconnect (dockreconnect.go)

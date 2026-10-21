@@ -133,7 +133,7 @@ type navSections struct {
 
 // mixedEnvironmentsHint is the "?" tooltip after the check.
 const mixedEnvironmentsHint = "On: the tab bar shows the open tabs of every connected cluster side by side.\n" +
-	"Off: only the tabs of the cluster you are in, the one the title bar names; another cluster's tabs show when you go to that cluster."
+	"Off: only the tabs of the cluster you are in, the one the status bar and the navigator name; another cluster's tabs show when you go to that cluster."
 
 var (
 	_ fyne.Focusable  = (*navSections)(nil)
