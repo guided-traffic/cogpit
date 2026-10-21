@@ -203,15 +203,17 @@ func (r *surfaceRenderer) Refresh() {
 	if r.s.stroke != "" {
 		r.rect.StrokeColor = themeColor(th, r.s.stroke)
 		r.rect.StrokeWidth = th.Size(theme.SizeNameInputBorder)
+	} else {
+		r.rect.StrokeWidth = 0 // a surface that had an outline and lost it
 	}
 	r.rect.Refresh()
 }
 
 // pill is a short text on a rounded background: a status badge, or a tag such as "current".
 // With a status colour the background is the same hue, translucent; otherwise it is the chip
-// colour. A pill with a maximum width (maxW) never asks for more: a longer text is cut with an
-// ellipsis, or with wrap set broken into lines, so that a long value cannot widen what holds it
-// (the detail drawer's width is the user's, panelwidths.go).
+// colour. A pill with a maximum width (maxW) never asks for more: a longer text is broken into
+// lines, so that a long value cannot widen what holds it (the detail drawer's width is the user's,
+// panelwidths.go).
 type pill struct {
 	widget.BaseWidget
 	text   string
@@ -220,7 +222,6 @@ type pill struct {
 	bold   bool
 	size   fyne.ThemeSizeName // the text's size; "": the caption size
 	maxW   float32            // the widest the pill may be, padding included; 0: as wide as its text
-	wrap   bool               // with maxW: break a longer text into lines instead of cutting it
 }
 
 func newPill(text string, fg fyne.ThemeColorName, tinted bool) *pill {
@@ -241,12 +242,12 @@ func (p *pill) Set(text string, fg fyne.ThemeColorName) {
 // wrapped is the lines the pill's text is shown in.
 func (p *pill) wrapped() []string { return (&pillRenderer{p: p}).shown() }
 
-// limit sets the maximum width and whether a longer text wraps; an unchanged limit costs nothing.
-func (p *pill) limit(maxW float32, wrap bool) {
-	if maxW == p.maxW && wrap == p.wrap {
+// limit sets the maximum width, within which a longer text wraps; an unchanged limit costs nothing.
+func (p *pill) limit(maxW float32) {
+	if maxW == p.maxW {
 		return
 	}
-	p.maxW, p.wrap = maxW, wrap
+	p.maxW = maxW
 	p.Refresh()
 }
 
@@ -280,7 +281,7 @@ func (r *pillRenderer) lineHeight() float32 {
 	return fyne.MeasureText("Mg", r.textSize(), fyne.TextStyle{Bold: r.p.bold}).Height
 }
 
-// shown is the pill's text as lines: one, or, within maxW, the wrapped or the cut text.
+// shown is the pill's text as lines: one, or, within maxW, the wrapped text.
 func (r *pillRenderer) shown() []string {
 	p := r.p
 	size, style := r.textSize(), fyne.TextStyle{Bold: p.bold}
@@ -289,10 +290,7 @@ func (r *pillRenderer) shown() []string {
 	}
 	h, _ := r.padding()
 	avail := p.maxW - 2*h
-	if p.wrap {
-		return wrapHard(p.text, avail, size, style)
-	}
-	return []string{ellipsize(p.text, avail, size, style)}
+	return wrapHard(p.text, avail, size, style)
 }
 
 func (r *pillRenderer) MinSize() fyne.Size {
@@ -334,6 +332,9 @@ func (r *pillRenderer) Refresh() {
 	for i, t := range r.txts {
 		t.Text = lines[i]
 		t.Color = fg
+		if r.p.tinted {
+			t.Color = pillInk(th, fg, 0x2c) // a word on its own tint keeps 4.5:1 (chrome_tones.go)
+		}
 		t.TextSize = r.textSize()
 		t.TextStyle = fyne.TextStyle{Bold: r.p.bold}
 		t.Refresh()

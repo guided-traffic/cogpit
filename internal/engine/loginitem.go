@@ -18,9 +18,9 @@ import (
 // itself. Without one (Windows, Linux, cogpit-cli) UIState.LoginItem is nil and the row is not
 // offered. Off by default: nothing is registered until the user turns it on.
 //
-// Only the user turns it on, in Cogpit's window (ErrStartAtLoginGUIOnly): it makes Cogpit run, its
-// MCP server included, without being opened. Agents and the CLI may turn it off, as they may turn
-// off chart icons (D-46).
+// Only the user turns it on, in Cogpit's window (ErrStartAtLoginGUIOnly): it makes Cogpit run
+// without being opened, its MCP server included once the user switched that on (it is opt-in, D-49).
+// Agents and the CLI may turn it off, as they may turn off chart icons (D-46).
 
 // LoginItem is the operating system's start at login for Cogpit's app. Implementations need not
 // be safe for concurrent use: the session serialises its calls.
@@ -63,7 +63,7 @@ var (
 	// ErrStartAtLoginGUIOnly refuses turning start at login on from anywhere but the user's own
 	// action in Cogpit's window.
 	ErrStartAtLoginGUIOnly = errors.New("only the user, in Cogpit's own window, can turn on start at login; agents and the " +
-		"CLI may only turn it off (it makes Cogpit run, its MCP server included, without being opened)")
+		"CLI may only turn it off (it makes Cogpit run without being opened, its MCP server included if the user switched that on)")
 	// ErrLoginItemsGUIOnly refuses opening System Settings' login items to every origin but the GUI.
 	ErrLoginItemsGUIOnly = errors.New("only the user, in Cogpit's own window, can open System Settings › General › Login Items")
 )

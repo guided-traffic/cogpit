@@ -6,6 +6,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -126,7 +127,8 @@ func objectsRow(objs []namedObject, width float32) (name, value fyne.CanvasObjec
 	line := fyne.MeasureText("Mg", th.Size(theme.SizeNameText), fyne.TextStyle{}).Height + th.Size(theme.SizeNameLineSpacing)
 	scroll := container.NewVScroll(list)
 	scroll.SetMinSize(fyne.NewSize(width, line*objectListRows))
-	return name, scroll
+	// 8 pt below it: Fyne's scroll shadow at its foot would otherwise crowd the next row.
+	return name, container.New(layout.NewCustomPaddedLayout(0, 8, 0, 0), scroll)
 }
 
 // placeRows adds a dialog's place to a kvLayout table in the owner's order Context › Namespace ›

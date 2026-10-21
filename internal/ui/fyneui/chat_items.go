@@ -531,7 +531,7 @@ func (v *chatAnswerView) update(it engine.ChatItem, blocks []mdBlock) {
 	v.Refresh()
 }
 
-func (v *chatAnswerView) setWidth(w float32) { v.text.setWidth(w) }
+func (v *chatAnswerView) setWidth(w float32) { v.text.setWidth(max(w-answerIndent, 0)) }
 
 // --- a tool call ---
 
@@ -545,8 +545,8 @@ var chatToolStates = map[engine.ChatToolState]struct {
 	icon  fyne.ThemeIconName
 }{
 	engine.ChatToolRunning: {"Running", colorAccent, theme.IconNameViewRefresh},
-	engine.ChatToolWaiting: {"Waiting for your confirmation", colorStatusPending, theme.IconNameQuestion},
-	engine.ChatToolDone:    {"Done", colorStatusOK, theme.IconNameConfirm},
+	engine.ChatToolWaiting: {"Waiting for your confirmation", colorAgent, theme.IconNameQuestion}, // the agent asks: its violet
+	engine.ChatToolDone:    {"Done", colorMuted, theme.IconNameConfirm},                           // quiet when healthy: no colour
 	engine.ChatToolFailed:  {"Failed", colorStatusError, theme.IconNameError},
 	engine.ChatToolRefused: {"Refused", colorStatusWarning, theme.IconNameCancel},
 	engine.ChatToolStopped: {"Stopped", colorMuted, theme.IconNameMediaStop},
@@ -564,7 +564,8 @@ type chatToolView struct {
 	state   *textLine
 	chevron *widget.Icon
 	header  *tapTarget
-	bg      *surface // the row's background: a tint of the pending colour while it waits for the user
+	bg      *surface // the row's background: none, a plate while it is open, a violet tint while it waits for the user
+	spine   *surface // 2 pt at the row's left in the state's colour; none for a finished call
 	body    *vstack
 	width   float32
 }
@@ -581,9 +582,11 @@ func newChatToolView(c *chatPanel) *chatToolView {
 		container.NewHBox(sized(sizeCellIcon, "", v.icon), v.label),
 		container.NewHBox(v.state, sized(sizeCellIcon, "", v.chevron)),
 		v.summary)
-	v.bg = newSurface(theme.ColorNameHover)
+	v.bg = newSurface(colorClear)
 	v.bg.radius = theme.SizeNameInputRadius
-	v.header = newTapTarget(container.NewStack(v.bg, inset(theme.SizeNamePadding, theme.SizeNamePadding, row)), v.toggle)
+	v.spine = newSurface(colorClear)
+	v.spine.min = fyne.NewSize(2, 0)
+	v.header = newTapTarget(container.NewStack(v.bg, container.NewBorder(nil, nil, v.spine, nil), inset(theme.SizeNamePadding, theme.SizeNamePadding, row)), v.toggle)
 	v.body = newVStack(theme.SizeNamePadding)
 	v.body.Hide()
 	v.vstack = makeVStack(theme.SizeNamePadding, v.header, v.body)
@@ -628,17 +631,33 @@ func (v *chatToolView) update(it engine.ChatItem, _ []mdBlock) {
 	v.summary.SetText(strings.ReplaceAll(t.Summary, "\n", " "))
 	v.state.SetText(st.text)
 	v.state.SetColor(st.color)
-	v.bg.fill, v.bg.stroke = theme.ColorNameHover, ""
-	if t.State == engine.ChatToolWaiting {
-		v.bg.stroke = colorStatusPending
+	// Quiet rows: no fill and a 2 pt spine in the state's colour (none for a finished call); a row
+	// that waits for the user is tinted violet, an open one stands on a plate.
+	v.bg.fill, v.bg.stroke, v.spine.fill = colorClear, "", colorClear
+	if t.State != engine.ChatToolDone {
+		v.spine.fill = st.color
+	}
+	switch {
+	case t.State == engine.ChatToolWaiting:
+		v.bg.fill = colorAgentWash
+	case v.open():
+		v.bg.fill = theme.ColorNameHover
 	}
 	v.bg.Refresh()
+	v.spine.Refresh()
 	v.build()
 }
 
 // build fills the opened details: the arguments, pretty-printed, and the result or the error.
 func (v *chatToolView) build() {
 	open := v.open()
+	if v.item.Tool != nil && v.item.Tool.State != engine.ChatToolWaiting { // an open row stands on a plate
+		v.bg.fill = colorClear
+		if open {
+			v.bg.fill = theme.ColorNameHover
+		}
+		v.bg.Refresh()
+	}
 	v.chevron.SetResource(themedIcon(iconChevronRight, colorMuted))
 	if open {
 		v.chevron.SetResource(themedIcon(iconChevronDown, colorMuted))
@@ -657,6 +676,7 @@ func (v *chatToolView) build() {
 	case t.Error != "":
 		objs = append(objs, heading("Error"), newMDCode(t.Error))
 		objs[len(objs)-1].(*mdCode).color = colorStatusError
+		objs[len(objs)-1].(*mdCode).words = true
 	case t.Result != "":
 		objs = append(objs, heading("Result, as the model saw it"), newMDCode(prettyJSON(t.Result)))
 	case t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting:
@@ -813,7 +833,7 @@ func (r *chatNoteRenderer) Refresh() {
 	v := r.v
 	th := v.Theme()
 	c := themeColor(th, v.color)
-	v.bg.FillColor = withAlpha(c, 0x1c)
+	v.bg.FillColor = withAlpha(c, 0x12)
 	v.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	v.bar.FillColor = c
 	r.Layout(v.Size())

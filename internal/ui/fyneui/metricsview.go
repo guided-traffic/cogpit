@@ -751,8 +751,8 @@ func (d *drawer) metricsChanged() {
 // metricsSection returns the objects of the Metrics section: its title, the divider and the panel.
 func (d *drawer) metricsSection(p *metricsPanel) []fyne.CanvasObject {
 	return []fyne.CanvasObject{
-		d.line("Metrics", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, ""),
-		newDivider(false), p.root,
+		newSectionHead("Metrics", 0),
+		newSpace(theme.SizeNamePadding), p.root,
 	}
 }
 

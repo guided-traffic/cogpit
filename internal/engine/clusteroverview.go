@@ -108,6 +108,11 @@ type ClusterOverviewModel struct {
 	// "cadvisor" (the nodes' root cgroups), "none" (it has neither: the charts hold what Cogpit
 	// measured since the page opened), or empty while not known or without Prometheus.
 	UsageHistory string `json:"usageHistory,omitempty"`
+	// NodeStates and PodStates count the cluster's nodes and pods by the state their views show
+	// (all namespaces, whichever group the charts show), in StatusOrder; the health header
+	// above the charts draws them.
+	NodeStates []StatusCount `json:"nodeStates,omitempty"`
+	PodStates  []StatusCount `json:"podStates,omitempty"`
 	// Providers is the status line under the charts: each of the cluster's metrics providers, whether
 	// it answers, what it serves (as metrics.get and a drawer's status line have it).
 	Providers []metrics.ProviderStatus `json:"providers,omitempty"`
@@ -494,10 +499,22 @@ func overviewModel(ob *overviewBuild, p viewParams, choice OverviewChoice) *Clus
 		{Name: NodesMaster, Title: "Master", Nodes: ob.groups[NodesMaster].nodes},
 		{Name: NodesWorker, Title: "Worker", Nodes: ob.groups[NodesWorker].nodes},
 	}
+	m.NodeStates, m.PodStates = statusCounts(ob.nodeStates), statusCounts(ob.podStates)
 	m.Nodes = nodeGroupOf(choice, ob)
 	m.Window = chartWindowOf(choice)
 	m.Range = FormatChartRange(m.Window)
 	return m
+}
+
+// statusCounts lists counts by state in StatusOrder (healthy first), zero counts left out.
+func statusCounts(by map[model.Status]int) []StatusCount {
+	out := make([]StatusCount, 0, len(by))
+	for _, st := range StatusOrder {
+		if n := by[st]; n > 0 {
+			out = append(out, StatusCount{Status: st, Count: n})
+		}
+	}
+	return out
 }
 
 func setOf(ss []string) map[string]struct{} {

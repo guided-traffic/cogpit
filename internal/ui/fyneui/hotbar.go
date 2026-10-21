@@ -459,14 +459,17 @@ func (t *hotbarTile) zoom() float32 {
 // CreateRenderer implements fyne.Widget.
 func (t *hotbarTile) CreateRenderer() fyne.WidgetRenderer {
 	r := &hotbarTileRenderer{t: t,
-		card: canvas.NewRectangle(color.Transparent),
-		bg:   canvas.NewRectangle(color.Transparent), initials: canvas.NewText("", color.Transparent),
+		card: canvas.NewRectangle(color.Transparent), plate: newPlate(),
+		bg: canvas.NewRectangle(color.Transparent), initials: canvas.NewText("", color.Transparent),
 		ring: canvas.NewCircle(color.Transparent), dot: newConnDot(t.h.sh), still: canvas.NewCircle(color.Transparent),
 		label: canvas.NewText("", color.Transparent),
 		img:   &canvas.Image{FillMode: canvas.ImageFillContain, ScaleMode: canvas.ImageScaleSmooth}}
 	r.initials.TextStyle = fyne.TextStyle{Bold: true}
 	r.card.Hide()
 	r.still.Hide()
+	for i := range r.glow {
+		r.glow[i] = canvas.NewRectangle(color.Transparent)
+	}
 	r.Refresh()
 	return r
 }
@@ -475,6 +478,8 @@ type hotbarTileRenderer struct {
 	t        *hotbarTile
 	card     *canvas.Rectangle // a ghost's lifted card under the tile, with its shadow
 	bg       *canvas.Rectangle
+	plate    *plate               // the tile's face: the identity colour as a gradient (chrome_plate.go)
+	glow     [3]*canvas.Rectangle // the shown cluster's glow in the glow blue, as glowFrame's rings
 	initials *canvas.Text
 	ring     *canvas.Circle
 	dot      *connDot       // a click on it opens the cluster's connection log, not the cluster (F13)
@@ -502,15 +507,23 @@ func (r *hotbarTileRenderer) Layout(size fyne.Size) {
 	x := (size.Width - side) / 2
 	r.bg.Move(fyne.NewPos(x, pad))
 	r.bg.Resize(fyne.NewSize(side, side))
+	r.plate.img.Move(r.bg.Position())
+	r.plate.img.Resize(r.bg.Size())
+	for i, g := range r.glow {
+		o := float32(i) * 2 * r.t.zoom()
+		g.Move(fyne.NewPos(x-o, pad-o))
+		g.Resize(fyne.NewSize(side+2*o, side+2*o))
+		g.CornerRadius = r.bg.CornerRadius + o
+	}
 	r.img.Move(fyne.NewPos(x+2, pad+2))
 	r.img.Resize(fyne.NewSize(side-4, side-4))
 	is := r.initials.MinSize()
 	r.initials.Move(fyne.NewPos(x+(side-is.Width)/2, pad+(side-is.Height)/2))
 	r.initials.Resize(is)
 	ring := d + 4*r.t.zoom()
-	r.ring.Move(fyne.NewPos(x+side-ring+2, pad+side-ring+2))
+	r.ring.Move(fyne.NewPos(x+side-ring+4, pad+side-ring+4))
 	r.ring.Resize(fyne.NewSize(ring, ring))
-	r.dot.Move(fyne.NewPos(x+side-d, pad+side-d))
+	r.dot.Move(fyne.NewPos(x+side-d+2, pad+side-d+2)) // a badge on the corner, cut out of the tile by its ring
 	r.dot.Resize(fyne.NewSize(d, d))
 	r.still.Move(r.dot.Position())
 	r.still.Resize(r.dot.Size())
@@ -539,23 +552,38 @@ func (r *hotbarTileRenderer) Refresh() {
 	r.label.TextSize = th.Size(theme.SizeNameCaptionText) * t.zoom()
 	r.label.Color = themeColor(th, colorMuted)
 	r.initials.Color = accent
+	plated := !t.tile.Missing && !t.carried() && !t.ghost // the face is the plate; the others keep the flat square
+	glowing := plated && t.active()
 	switch {
 	case t.tile.Missing: // an empty outline in the warning colour: the context is gone
 		r.bg.FillColor = color.Transparent
 		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, colorStatusWarning), th.Size(theme.SizeNameInputBorder)
 		r.initials.Color = themeColor(th, colorMuted)
 	case t.active():
-		r.bg.FillColor = withAlpha(accent, 0x4c)
-		r.bg.StrokeColor, r.bg.StrokeWidth = accent, th.Size(theme.SizeNameInputBorder)
+		r.bg.FillColor, r.bg.StrokeWidth = color.Transparent, 0
 		r.label.Color = themeColor(th, theme.ColorNameForeground)
 	default:
-		r.bg.FillColor = withAlpha(accent, 0x2c) // the initials badge's tint (pill)
+		r.bg.FillColor, r.bg.StrokeWidth = withAlpha(accent, 0x2c), 0 // ghost and carried place: show() repaints
 	}
+	top, base := uint8(0x38), uint8(0x1a) // the plate: about 22 % down to 10 %
 	switch {
 	case t.hovered && t.tile.Missing:
 		r.bg.FillColor = themeColor(th, theme.ColorNameHover)
 	case t.hovered:
-		r.bg.FillColor = withAlpha(accent, 0x66)
+		top, base = 0x4a, 0x2c
+		if !plated {
+			r.bg.FillColor = withAlpha(accent, 0x66)
+		}
+	}
+	r.plate.set(accent, top, base, r.bg.CornerRadius)
+	setVisible(r.plate.img, plated)
+	if plated {
+		r.bg.FillColor = color.Transparent
+	}
+	glow := themeColor(th, theme.ColorNamePrimary)
+	for i, g := range r.glow {
+		g.FillColor, g.StrokeColor, g.StrokeWidth = color.Transparent, withAlpha(glow, glowAlphas[i]), 2
+		setVisible(g, glowing)
 	}
 	m := t.mark() // the cluster's mark, with its reason and times for the dot's tooltip (D-69)
 	if t.tile.Missing {
@@ -619,7 +647,7 @@ func (r *hotbarTileRenderer) show(th fyne.Theme, accent color.Color, m clusterMa
 }
 
 func (r *hotbarTileRenderer) Objects() []fyne.CanvasObject {
-	return []fyne.CanvasObject{r.card, r.bg, r.img, r.initials, r.ring, r.dot, r.still, r.label}
+	return []fyne.CanvasObject{r.card, r.glow[2], r.glow[1], r.plate.img, r.bg, r.glow[0], r.img, r.initials, r.ring, r.dot, r.still, r.label}
 }
 
 func (r *hotbarTileRenderer) Destroy() {}

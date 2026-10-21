@@ -405,7 +405,7 @@ func badgeText(unread int) string {
 	case unread <= 0:
 		return ""
 	case unread > 99:
-		return "99+"
+		return countOverflow
 	}
 	return strconv.Itoa(unread)
 }

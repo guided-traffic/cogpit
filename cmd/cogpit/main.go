@@ -47,7 +47,7 @@ func run(previousCrash string) int {
 		contextName = flag.String("context", "", "connect to this context at start; without it Cogpit starts on the welcome page")
 		demo        = registerDemoFlags() // a development build's --demo, --demo-pods, --demo-events (demo.go); a release has none (D-67)
 		mcpAddr     = flag.String("mcp-addr", "127.0.0.1:0", "MCP listen address; loopback only")
-		noMCP       = flag.Bool("no-mcp", false, "do not start the MCP server")
+		noMCP       = flag.Bool("no-mcp", false, "leave the MCP server and its status bar item out of this run (otherwise the server is off until you switch it on there)")
 		perf        = flag.Duration("perf", 0, "measure main-loop latency while auto-scrolling the table for this long, print the result as JSON and quit")
 		perfMode    = flag.String("perf-mode", "", "with --perf (or alone for gate): scroll, or gate for start-up, scrolling, every view and typing into 5 MB of YAML in one run")
 		cpuProfile  = flag.String("cpuprofile", "", "write a CPU profile of the first --cpuprofile-for to this file")
@@ -147,10 +147,11 @@ func run(previousCrash string) int {
 		if err != nil {
 			logger.Warn("MCP server not started", "err", err)
 		} else {
-			// The window starts the server, unless the user switched it off in an earlier run, and
-			// switches it from the status bar; the choice is kept where cogpit-cli mcp reads it too
-			// (D-49). Quitting closes it for good. --no-mcp wins over the stored choice for this
-			// run: no server, no item, the stored choice left as it is.
+			// The window starts the server only if the user switched it on in an earlier run (it is
+			// opt-in: off on a new installation, D-49) and switches it from the status bar; the
+			// choice is kept where cogpit-cli mcp reads it too. Quitting closes it for good. --no-mcp
+			// wins over the stored choice for this run: no server, no item, the stored choice left
+			// as it is.
 			defer func() { _ = srv.Close() }()
 			ctl := &mcpControl{srv: srv, session: s, logger: logger, out: os.Stdout, cli: bundledCLI()}
 			if dirs, err := app.UserDirs(); err == nil {

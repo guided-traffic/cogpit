@@ -447,10 +447,13 @@ func TestTooltips(t *testing.T) {
 	settle(w)
 	crash := podNamed(t, podCrashLoop)
 	warn := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "warning"))
-	if warn.content.kind != cellWarning || warn.iconRes == nil || warn.text.Text != "" {
+	// A row in an abnormal state shows a spine and a status pill: its warning icon would say it a
+	// third time, so the reason moves to the tooltip of the status word (Dark Cockpit).
+	if warn.content.kind != cellText || warn.iconRes != nil && warn.icon.Visible() || warn.text.Text != "" {
 		t.Fatalf("warning cell %+v", warn.content)
 	}
-	test.MoveMouse(w.Canvas(), at(warn))
+	status := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "status"))
+	test.MoveMouse(w.Canvas(), at(status))
 	q.until(t, "the warning tooltip", func() bool {
 		return sh.tip.visibleText() == "CrashLoopBackOff; Containers not ready: app; 412 restarts"
 	})

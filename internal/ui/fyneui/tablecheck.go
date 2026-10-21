@@ -362,6 +362,7 @@ type selectionBar struct {
 	tv    *tableView
 	count *textLine
 	del   *tipButton
+	plate *dangerPlate // del's outlined plate (chrome_actions.go)
 	clear *tipButton
 	root  *fyne.Container
 	// asked is the connection (its context and state) the engine was last asked about why Delete
@@ -378,12 +379,12 @@ const deleteSelectedTip = "Delete the selected objects…"
 func newSelectionBar(tv *tableView) *selectionBar {
 	b := &selectionBar{tv: tv}
 	b.count = newTextLine("", colorAccent, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	b.del = newTipButton(tv.sh, theme.DeleteIcon(), deleteSelectedTip, func() {
+	b.del = newTipButton(tv.sh, theme.NewErrorThemedResource(theme.DeleteIcon()), deleteSelectedTip, func() {
 		tv.runOnSelection(deleteManyID, slices.Clone(tv.selected))
 	})
-	b.del.Importance = widget.DangerImportance
+	b.plate = newDangerPlate(b.del) // an outlined plate, not a solid red block (chrome_actions.go)
 	b.clear = newTipButton(tv.sh, theme.CancelIcon(), "Clear the selection", tv.clearSelection)
-	b.root = container.NewHBox(newHGap(theme.SizeNamePadding), b.count, b.del, b.clear)
+	b.root = container.NewHBox(newHGap(theme.SizeNamePadding), b.count, b.plate, b.clear)
 	b.root.Hide()
 	return b
 }
@@ -414,11 +415,13 @@ func (b *selectionBar) followConnection() {
 		}
 		b.asked = ""
 		b.del.setTip(deleteSelectedTip)
+		b.plate.Refresh()
 		return
 	}
 	if !b.del.Disabled() {
 		b.del.Disable()
 	}
+	b.plate.Refresh()
 	at := fmt.Sprintf("%s\x00%s\x00%t", ui.Context, ui.Connection.State, entry.LoginLapsed)
 	if at != b.asked && b.root.Visible() {
 		b.asked = at
@@ -461,9 +464,9 @@ func (h *headerCell) setCheck(col, state int) {
 func headerCheckIcon(state int) (fyne.Resource, fyne.ThemeColorName) {
 	switch state {
 	case checkAll:
-		return theme.Icon(theme.IconNameCheckButtonChecked), colorAccent
+		return checkAllOutline, theme.ColorNamePrimary
 	case checkSome:
-		return theme.Icon(theme.IconNameCheckButtonPartial), colorAccent
+		return checkSomeOutline, theme.ColorNamePrimary
 	}
 	return theme.Icon(theme.IconNameCheckButton), colorMuted
 }

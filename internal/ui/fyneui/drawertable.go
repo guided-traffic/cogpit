@@ -78,8 +78,11 @@ func (d *drawer) tableCell(ref model.ObjectRef, typ model.ColumnType, c model.Ce
 		d.hookLink(l, text)
 		return l
 	}
+	// A healthy word is plain text, as in the lists; a state that asks for attention keeps its
+	// colour. It is not a pill here: the table's columns shrink to the drawer's width and cut a
+	// text off with an ellipsis, which a pill cannot do.
 	fg := theme.ColorNameForeground
-	if c.Status != model.StatusNone {
+	if c.Status != model.StatusNone && !healthyStatus(c.Status) {
 		fg = statusColorName(c.Status)
 	}
 	return d.tableCellText(text, fg)

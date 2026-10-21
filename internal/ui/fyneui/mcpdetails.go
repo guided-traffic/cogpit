@@ -37,8 +37,9 @@ const mcpCommandMask = "••••••••"
 // The details' texts.
 const (
 	mcpDetailsIntro = "For other apps on this computer, such as Claude Code. Cogpit's own agent does not need it."
-	mcpDetailsOff   = "Off: no app on this computer reaches Cogpit over MCP, cogpit-cli mcp included. " +
-		"Switched on again, the server keeps its token and its port, so the clients registered before connect again."
+	mcpDetailsOff   = "Off: no app on this computer reaches Cogpit over MCP, cogpit-cli mcp included. The server starts " +
+		"only when you switch it on, and Cogpit shows the command that registers it with Claude Code once it runs. " +
+		"Switched on, the server keeps its token and its port, so the clients registered before connect again."
 	mcpStdioText = "Run it once in a terminal: Claude Code then starts the cogpit-cli inside Cogpit.app, which drives " +
 		"this window whenever Cogpit runs and follows restarts, updates and a new token by itself. " +
 		"Run it again if you move Cogpit.app."

@@ -100,7 +100,8 @@ var (
 )
 
 // While a cluster reconnects every dot of it blinks in step, 500 ms full and 500 ms dimmed: the
-// top bar's, the status bar's, the navigator's root, its hotbar tile's; the other clusters' do not.
+// status bar's, the navigator's root, its hotbar tile's (the top bar has none, D-54); the other
+// clusters' do not.
 // The ticker runs only while it blinks.
 func TestDotsBlinkWhileReconnecting(t *testing.T) {
 	sh, w, q, f, _ := hotbarScene(t, ThemeDark)
@@ -121,7 +122,7 @@ func TestDotsBlinkWhileReconnecting(t *testing.T) {
 		}
 		return false
 	})
-	sites := map[*connDot]string{sh.top.dot: "top bar", sh.status.dot: "status bar", sh.side.dot: "navigator root"}
+	sites := map[*connDot]string{sh.status.dot: "status bar", sh.side.dot: "navigator root"}
 	for _, ti := range tilesOf(sh.hot) {
 		if ti.tile.Context == ctx {
 			sites[test.WidgetRenderer(ti).(*hotbarTileRenderer).dot] = "hotbar tile"
@@ -133,7 +134,7 @@ func TestDotsBlinkWhileReconnecting(t *testing.T) {
 			t.Errorf("the %s's dot stands for %q", name, d.context)
 		}
 	}
-	if len(all) < len(sites) || len(sites) != 4 {
+	if len(all) < len(sites) || len(sites) != 3 {
 		t.Fatalf("%d dots of the cluster, %d sites", len(all), len(sites))
 	}
 	if !clk.running {
@@ -232,7 +233,7 @@ func TestDotTooltipNamesTheState(t *testing.T) {
 	q.until(t, "interrupted", func() bool { return sh.ui.Connection.State == engine.Interrupted })
 	settle(w)
 	sh.tip.delay = time.Millisecond
-	test.MoveMouse(w.Canvas(), middleOf(sh.top.dot))
+	test.MoveMouse(w.Canvas(), middleOf(sh.status.dot))
 	q.until(t, "the tooltip", func() bool { return sh.tip.visibleText() != "" })
 	tip := sh.tip.visibleText()
 	for _, want := range []string{"Reconnecting…", "since ", "next attempt in 8 s", "No answer from the API server", "Click for its connection updates"} {
@@ -259,7 +260,9 @@ func TestDotClickOpensTheConnectionLog(t *testing.T) {
 	if tile == nil {
 		t.Fatal("no tile")
 	}
+	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
 	before := len(f.calls)
+	f.mu.Unlock()
 	test.TapCanvas(w.Canvas(), middleOf(test.WidgetRenderer(tile).(*hotbarTileRenderer).dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
 	f.mu.Lock()
@@ -269,10 +272,15 @@ func TestDotClickOpensTheConnectionLog(t *testing.T) {
 		t.Errorf("the tile's dot dispatched %v", calls)
 	}
 
-	test.TapCanvas(w.Canvas(), middleOf(sh.top.dot))
-	q.until(t, "the top bar's log", func() bool { return len(f.callsOf("cluster.connectLog")) == 2 })
+	// The shown cluster's connection log is reached from the status bar's dot (the top bar has none,
+	// D-54): the click lands on the dot, not on the bar under it.
+	if got := clickTarget(w.Canvas().Content(), centre(sh.status.dot)); got != sh.status.dot {
+		t.Errorf("a click on the status bar's dot reaches %T", got)
+	}
+	test.TapCanvas(w.Canvas(), middleOf(sh.status.dot))
+	q.until(t, "the status bar's log", func() bool { return len(f.callsOf("cluster.connectLog")) == 2 })
 	if p := string(f.callsOf("cluster.connectLog")[1].Params); !strings.Contains(p, "kind-cogpit") {
-		t.Errorf("the top bar's dot asked for %s", p)
+		t.Errorf("the status bar's dot asked for %s", p)
 	}
 }
 
@@ -285,7 +293,9 @@ func TestSectionDotOpensTheLogNotTheRow(t *testing.T) {
 	if row == nil || !row.Visible() {
 		t.Fatal("no row")
 	}
+	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
 	before := len(f.calls)
+	f.mu.Unlock()
 	test.TapCanvas(w.Canvas(), middleOf(row.dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
 	f.mu.Lock()

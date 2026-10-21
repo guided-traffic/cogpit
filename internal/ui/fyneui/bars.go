@@ -47,23 +47,22 @@ func connectionText(c engine.Connection) string {
 }
 
 // topBar is the window's top bar: the Cogpit wordmark and the build's version (F12), the history
-// arrows, the active context with its connection state (a display: the navigator's section chooses
-// a cluster, D-57) and at the right: the Update button while an update is available, the alerts
-// pill (alerts.go), the notifications' bell, a divider and the layout toggles at the right end
+// arrows and at the right: the Update button while an update is available, the alerts pill
+// (alerts.go), the notifications' bell, a divider and the layout toggles at the right end
 // (layoutbar.go, F7; their order the owner's, 2026-10-16 night; the MCP details are the status
-// bar's, F6). On macOS it is also the window's title bar (titlebar.go): room for the window buttons
-// before the logo, and a drag area under its contents.
+// bar's, F6). It names no cluster (the owner, 2026-10-21, D-54): the shown cluster, its connection's
+// dot and its kubeconfig are the status bar's and the navigator's. On macOS it is also the window's
+// title bar (titlebar.go): room for the window buttons before the logo, and a drag area under its
+// contents.
 type topBar struct {
 	sh          *shell
-	dot         *connDot          // the connection's state, no word beside it (conndot.go, F13)
-	context     *tipLine          // the cluster's short name, its full name the tooltip (clustername.go, D-68)
-	file        *textLine         // the kubeconfig the context comes from, muted
 	lead        *canvas.Rectangle // the window buttons' room; hidden unless Cogpit draws the title bar
 	history     *titleHistory     // the history arrows and the bar's context menu (titlehistory.go)
 	notes       *notificationsUI  // the bell and its panel (notifications.go)
 	left        *fyne.Container
 	right       *fyne.Container // the Update button, the alerts, the bell, a divider, the layout toggles
 	alerts      *alertsButton   // the alerts pill left of the bell (alerts.go): the shown cluster's Alertmanager (D-77)
+	appearance  *themeToggle    // the light and dark toggle directly left of the bell (themetoggle.go, the owner's of 2026-10-21)
 	version     *buildLabel     // the build's version right of the wordmark (buildlabel.go, F12)
 	edge        *surface        // the line under the bar, directly under it (shell.go, F11)
 	titleHeight float32         // the title bar's height the bar covers, in Fyne units; 0 without
@@ -79,11 +78,6 @@ type topBar struct {
 
 func newTopBar(sh *shell) *topBar {
 	t := &topBar{sh: sh}
-	t.dot = newConnDot(sh)
-	t.context = newTipLine(sh, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	t.file = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	t.file.Hide()
-
 	wordmark := newTextLine("Cogpit", theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})
 	t.lead = canvas.NewRectangle(color.Transparent)
 	t.lead.Hide()
@@ -96,18 +90,18 @@ func newTopBar(sh *shell) *topBar {
 		left = append([]fyne.CanvasObject{t.menus.root, newHGap(theme.SizeNameInnerPadding), newDivider(true),
 			newHGap(theme.SizeNameInnerPadding)}, left...)
 	}
-	if t.history.shown() { // the arrows a gap away from the version, as the divider is from them
+	if t.history.shown() { // the arrows a gap away from the version
 		t.version.gap = newHGap(theme.SizeNameInnerPadding)
 		left = append(left, t.version.gap)
 	}
-	t.left = container.NewHBox(append(left, t.history.root, newHGap(theme.SizeNameInnerPadding), newDivider(true),
-		newHGap(theme.SizeNameInnerPadding), t.dot, t.context, t.file)...)
+	t.left = container.NewHBox(append(left, t.history.root)...)
 	t.layout = newLayoutBar(sh)
 	t.alerts = newAlertsButton(sh)
 	// The divider is a short line, a line of text high (the owner: "wie so ein Zeichen |").
 	t.alerts.divider = []fyne.CanvasObject{newHGap(theme.SizeNameInnerPadding), box(compactLayout{}, newDivider(true)),
 		newHGap(theme.SizeNameInnerPadding)}
-	t.right = container.NewHBox(append(append([]fyne.CanvasObject{t.layout.updateBox, t.alerts, t.notes.bell},
+	t.appearance = newThemeToggle(sh)
+	t.right = container.NewHBox(append(append([]fyne.CanvasObject{t.layout.updateBox, t.alerts, t.appearance, t.notes.bell},
 		t.alerts.divider...), t.layout.root)...)
 	// The line under the bar lies directly under it (shell.go): what the bar centres then sits
 	// midway between the window's top and the line (F11, the owner: "hängt ein wenig zu hoch"; with
@@ -121,28 +115,9 @@ func newTopBar(sh *shell) *topBar {
 	return t
 }
 
-func (t *topBar) update() {
-	ui := t.sh.ui
-	t.dot.setMark(ui.Context, t.sh.mark(ui.Context, false)) // the shown cluster's mark (clustermarks.go)
-	_, file := splitContextID(ui.Context)
-	name, tip := notConnected, "" // the same words in both bars and the navigator (the owner's walk, WF2)
-	if ui.Context != "" {
-		name = t.sh.identity(ui.Context).name // the one short name (D-68)
-		tip = fullNameTip(name, ui.Context)
-	}
-	t.context.SetText(name)
-	t.context.tip = tip
-	t.file.SetText(file)
-	if file == "" {
-		t.file.Hide()
-	} else {
-		t.file.Show()
-	}
-}
-
 // splitContextID splits a source context's id, "<context> [<file>]" (engine.SourceContextID), into
-// the context's name and the file it comes from, so that the bars show the name and the file apart;
-// an id without a file (demo) is a name alone.
+// the context's name and the file it comes from, so that the navigator's header shows the name and
+// the file apart; an id without a file (demo) is a name alone.
 func splitContextID(id string) (name, file string) {
 	if i := strings.LastIndex(id, " ["); i > 0 && strings.HasSuffix(id, "]") {
 		return id[:i], id[i+2 : len(id)-1]
@@ -252,6 +227,8 @@ type statusBar struct {
 	informers *textLine
 	demo      *textLine
 	demoSep   fyne.CanvasObject
+	pulse     *pulse // the event rate's wave beside the demo text (chrome_bar.go)
+	pulseBox  fyne.CanvasObject
 	root      fyne.CanvasObject
 }
 
@@ -266,8 +243,11 @@ func newStatusBar(sh *shell) *statusBar {
 	s.tls = newTextLine(engine.TLSUncheckedLabel, colorStatusWarning, sizeStatusText, fyne.TextStyle{})
 	s.tls.Hide()
 	s.demoSep = newStatusDivider()
+	s.pulse = newPulse()
+	s.pulseBox = container.NewCenter(s.pulse.w)
+	s.pulseBox.Hide()
 	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.requests, newStatusDivider(),
-		s.informers, s.demoSep, s.demo)
+		s.informers, s.demoSep, s.demo, s.pulseBox)
 	right := container.NewHBox()
 	if sh.hasMCP() {
 		s.mcp = newMCPItem(sh, sh.mcp.on)
@@ -423,8 +403,11 @@ func (s *statusBar) update() {
 			formatCount(d.demoObjects), formatCount(int64(d.demoRate+0.5))))
 		s.demo.Show()
 		s.demoSep.Show()
+		s.pulse.add(d.demoRate)
+		s.pulseBox.Show()
 	} else {
 		s.demo.Hide()
 		s.demoSep.Hide()
+		s.pulseBox.Hide()
 	}
 }

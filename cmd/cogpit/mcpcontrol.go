@@ -39,11 +39,12 @@ var (
 	_ fyneui.MCPSwitchStore = (*mcpControl)(nil)
 )
 
-// StoredMCP implements fyneui.MCPSwitchStore. A switch file that cannot be read counts as set and
-// off, as cogpit-cli reads it: the server stays off until the user clicks.
+// StoredMCP implements fyneui.MCPSwitchStore. The server is opt-in (D-49, 2026-10-21): no switch
+// file is off and unset, and a file that cannot be read counts as set and off, as cogpit-cli reads
+// it, so the server stays off until the user clicks.
 func (c *mcpControl) StoredMCP() (on, set bool) {
 	if c.config == "" {
-		return true, false
+		return false, false
 	}
 	on, set, err := mcp.ReadSwitch(c.config)
 	if err != nil {

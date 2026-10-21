@@ -216,3 +216,42 @@ func TestMCPControlOffersTheBundledCLI(t *testing.T) {
 		t.Errorf("without a bundled cogpit-cli: %+v", ep)
 	}
 }
+
+// TestMCPControlStoredSwitchIsOptIn (D-49, the owner's decision of 2026-10-21): the window asks the
+// control for the stored switch at launch, and the server is opt-in. A fresh configuration
+// directory, a new installation, reads as off and unset, and so does no directory at all; a stored
+// "on" is on and set; a stored "off" is off and set; a file Cogpit cannot read is off and set, so
+// the server stays off until the user clicks. The window's own click is stored where it reads from.
+func TestMCPControlStoredSwitchIsOptIn(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
+	fresh := filepath.Join(t.TempDir(), "Cogpit")
+	c := &mcpControl{logger: logger, config: fresh}
+	if on, set := c.StoredMCP(); on || set {
+		t.Errorf("a fresh configuration directory: on %v, set %v", on, set)
+	}
+	if _, err := os.Lstat(mcp.SwitchPath(fresh)); !os.IsNotExist(err) {
+		t.Errorf("asking for the switch created it: %v", err)
+	}
+	if on, set := (&mcpControl{logger: logger}).StoredMCP(); on || set {
+		t.Errorf("no configuration directory: on %v, set %v", on, set)
+	}
+
+	if err := c.StoreMCP(true); err != nil {
+		t.Fatal(err)
+	}
+	if on, set := c.StoredMCP(); !on || !set {
+		t.Errorf("a stored on: on %v, set %v", on, set)
+	}
+	if err := c.StoreMCP(false); err != nil {
+		t.Fatal(err)
+	}
+	if on, set := c.StoredMCP(); on || !set {
+		t.Errorf("a stored off: on %v, set %v", on, set)
+	}
+	if err := os.WriteFile(mcp.SwitchPath(fresh), []byte("maybe\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if on, set := c.StoredMCP(); on || !set {
+		t.Errorf("an unreadable switch: on %v, set %v", on, set)
+	}
+}

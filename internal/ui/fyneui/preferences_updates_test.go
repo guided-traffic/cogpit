@@ -28,13 +28,13 @@ func (u *uiUpdater) CheckForUpdates() error {
 
 // updatesRow returns the App section's update check box and the line under it that says why this
 // copy does not update itself.
-func updatesRow(t *testing.T, sh *shell) (*widget.Check, *textLine) {
+func updatesRow(t *testing.T, sh *shell) (*widget.Check, *paragraph) {
 	t.Helper()
 	box, ok := sh.settings.controls["checkForUpdates"].(*fyne.Container)
 	if !ok || len(box.Objects) != 2 {
 		t.Fatalf("the checkForUpdates control: %#v", sh.settings.controls["checkForUpdates"])
 	}
-	return box.Objects[0].(*widget.Check), box.Objects[1].(*textLine)
+	return box.Objects[0].(*widget.Check), box.Objects[1].(*paragraph)
 }
 
 // Preferences › App: "Check for updates automatically" shows the preference (on by default), a

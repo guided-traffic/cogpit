@@ -29,8 +29,11 @@ that need the user's confirmation are refused, since there is no window to ask i
 same kubeconfig sources and runs only the credential plugins the user allowed in Cogpit's window.
 Every command an agent runs through it is written to Cogpit's audit log.
 
-While the user has switched Cogpit's external MCP server off (the MCP item in the status bar of
-Cogpit's window), the bridge serves none of this: it tells the agent that the server is off.
+The external MCP server is opt-in: it is off on a new installation until the user switches it on
+with the MCP item in the status bar of Cogpit's window, and off again once the user switches it
+off there. While it is off the bridge serves none of this, headless included: it tells the agent
+that the server is off. Without a window, the file mcp-switch in Cogpit's configuration directory
+holds the switch: "on" opts in.
 
 stdout carries the protocol only; logs go to stderr.`
 
@@ -51,19 +54,25 @@ func runMCP(ctx context.Context, args []string, e *env) int {
 		t = &sdk.StdioTransport{}
 	}
 
-	// The user's switch of the external MCP server (D-49, A15): off, the bridge serves no engine,
-	// forwarding or headless, and tells the agent why. Unreadable counts as off.
+	// The user's switch of the external MCP server (D-49, A15): the server is opt-in, so no switch
+	// file is off, and off the bridge serves no engine, forwarding or headless, and tells the agent
+	// why. Unreadable counts as off, and so does an unknown configuration directory: where the
+	// switch cannot be read it cannot have been switched on.
+	on := false
 	if e.dirsErr == nil && e.dirs.Config != "" {
-		if on, _, err := mcp.ReadSwitch(e.dirs.Config); !on {
-			if err != nil {
-				e.logger.Warn("the MCP switch is unreadable; serving as switched off", "err", err)
-			}
-			e.logger.Info("Cogpit's external MCP server is switched off in its window; telling the agent so")
-			return served(e, mcp.ServeSwitchedOff(ctx, t, buildinfo.Version()))
+		var err error
+		if on, _, err = mcp.ReadSwitch(e.dirs.Config); err != nil {
+			e.logger.Warn("the MCP switch is unreadable; serving as switched off", "err", err)
 		}
+	} else {
+		e.logger.Warn("Cogpit's configuration directory is unknown, so the MCP switch cannot have been switched on; serving as switched off", "err", e.dirsErr)
+	}
+	if !on {
+		e.logger.Info("Cogpit's external MCP server is switched off (opt-in: the user switches it on in Cogpit's window); telling the agent so")
+		return served(e, mcp.ServeSwitchedOff(ctx, t, buildinfo.Version()))
 	}
 
-	if !*headless && e.dirsErr == nil && e.dirs.Config != "" {
+	if !*headless {
 		br, err := mcp.DialApp(ctx, mcp.BridgeOptions{
 			TokenFile: filepath.Join(e.dirs.Config, mcp.TokenFileName), Version: buildinfo.Version(), Logger: e.logger,
 		})

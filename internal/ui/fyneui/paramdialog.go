@@ -63,9 +63,12 @@ func (sh *shell) openParamDialog(cmd *engine.Command, ref model.ObjectRef, prefi
 		pd.fields = append(pd.fields, f)
 		rows.Objects = append(rows.Objects, f.label, f.value, newSpace(""), f.problem)
 	}
-	pd.confirm = widget.NewButtonWithIcon(cmd.Label, theme.ConfirmIcon(), nil)
+	pd.confirm = widget.NewButton(cmd.Label, nil)
 	pd.confirm.Importance = widget.HighImportance
-	pd.cancel = widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), pd.d.Hide)
+	if cmd.Danger == engine.DangerDestructive { // the verb's button in the error colour, as its confirmation's will be
+		pd.confirm.Importance = widget.DangerImportance
+	}
+	pd.cancel = widget.NewButton("Cancel", pd.d.Hide)
 	pd.confirm.OnTapped = func() {
 		for _, f := range pd.fields {
 			v, err := f.get()
@@ -180,7 +183,7 @@ func formField(cmd *engine.Command, name string, value any, tip *tooltip) (*para
 		f.value = field
 		if hasSlider {
 			f.slider = newBoundSlider(f.entry, df, parse)
-			f.value = container.NewHBox(sized(sizeSliderWidth, "", f.slider), field)
+			f.value = container.NewHBox(sized(sizeSliderWidth, "", themedSlider(f.slider)), field)
 		}
 	case "string":
 		f.entry = widget.NewEntry()

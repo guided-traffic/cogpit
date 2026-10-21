@@ -102,8 +102,12 @@ var noCopyColumns = map[string]bool{
 	"protocol":           true, // Port Forwards: TCP
 }
 
-// columnStatus is the id of the Status column of many kinds.
-const columnStatus = "status"
+// Column ids that code outside the profiles names: the Status column of many kinds and the Message
+// column of Events.
+const (
+	columnStatus  = "status"
+	columnMessage = "message"
+)
 
 // copyColumn reports whether a column's cells have the copy icon.
 func copyColumn(c model.Column) bool { return !noCopyTypes[c.Type] && !noCopyColumns[c.ID] }

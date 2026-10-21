@@ -12,7 +12,7 @@ import (
 // ThemeMode picks Cogpit's colour palette.
 type ThemeMode string
 
-// Theme modes. The zero value means ThemeDark: Cogpit starts dark, as Lens does.
+// Theme modes. The zero value means ThemeDark: Cogpit starts dark, on its night stage.
 const (
 	ThemeDark   ThemeMode = "dark"
 	ThemeLight  ThemeMode = "light"
@@ -51,6 +51,13 @@ const (
 	// colorToastSelection is selected text on a toast: the theme's selection is too close to the
 	// dark toast's surface to be seen (D-99).
 	colorToastSelection fyne.ThemeColorName = "cogpit.toastSelection"
+
+	// The design prototype's tokens (docs/developer/design-language.md).
+	colorAgent      fyne.ThemeColorName = "cogpit.agent"      // violet, the agent's light: "the thinking"
+	colorStageLight fyne.ThemeColorName = "cogpit.stageLight" // the stage's top light
+	colorGrid       fyne.ThemeColorName = "cogpit.grid"       // the horizon's grid lines
+	colorBracket    fyne.ThemeColorName = "cogpit.bracket"    // a bracket under a group's label
+	colorSlotDim    fyne.ThemeColorName = "cogpit.slotDim"    // an empty token
 )
 
 // Status colour tokens, one per model.Status.
@@ -104,9 +111,13 @@ const (
 	sizeLogo           fyne.ThemeSizeName = "cogpit.logo"           // the header's mark (D-24: 20 pixels)
 )
 
-// palette is one variant's colours: Solarized Dark and Solarized Light as VS Code's built-in themes
-// colour them (D-22), copied here once; the comments name the VS Code key a value comes from. Status
-// hues are spread so that no two tokens are confused at a glance.
+// palette is one variant's colours. Since the design prototype (docs/developer/design-language.md,
+// "Dark Cockpit") the palettes are Cogpit's own, drawn from the logo and the owner's reference image:
+// a deep navy stage whose surfaces step up in luminance instead of carrying borders, and three
+// lights on it, each with one meaning: the logo's glow blue is Cogpit itself (primary actions, focus,
+// selection, links), cyan is the cluster's live data ("the writing": charts, the pulse, info), violet
+// is the agent ("the thinking": the chat, its suggestions and runs). Status hues are spread so that no
+// two tokens are confused at a glance; glow is kept for what needs attention.
 type palette struct {
 	fyne   map[fyne.ThemeColorName]color.Color
 	status map[model.Status]color.Color
@@ -118,145 +129,159 @@ func hex(rgb uint32) color.NRGBA {
 
 func alpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 
-// solCyan is Solarized's cyan, Cogpit's accent in the dark theme. Status tokens are Solarized's
-// accents too, lightened (dark) or darkened (light) just far enough to read as text, at 3:1 on the
-// view, sidebar, hover and header surfaces and 2.5:1 on a selected row (TestPaletteContrast).
-// Credited in ATTRIBUTION.md.
-const solCyan = 0x2aa198
+// The three lights of the dark palette. Status tokens read as text at 3:1 on the view, sidebar,
+// hover and header surfaces and 2.5:1 on a selected row (TestPaletteContrast).
+const (
+	glowBlue   = 0x4aa8ff // the logo's C: primary buttons, focus
+	glowCyan   = 0x5ad1e3 // the cluster: charts' first series, the pulse, info
+	glowViolet = 0xa48bff // the agent: the chat, its runs and suggestions
+)
 
 var darkPalette = palette{
 	fyne: map[fyne.ThemeColorName]color.Color{
-		theme.ColorNameBackground:          hex(0x002b36), // editor.background
-		theme.ColorNameButton:              hex(0x004052), // tab.inactiveBackground
-		theme.ColorNameDisabledButton:      hex(0x00212b),
-		theme.ColorNameDisabled:            hex(0x586e75), // base01
-		theme.ColorNameError:               hex(0xe66d6b),
-		theme.ColorNameFocus:               alpha(hex(solCyan), 0x99), // focusBorder
-		theme.ColorNameForeground:          hex(0x839496),             // editor.foreground
-		theme.ColorNameForegroundOnError:   hex(0x002b36),
-		theme.ColorNameForegroundOnPrimary: hex(0x002b36),
-		theme.ColorNameForegroundOnSuccess: hex(0x002b36),
-		theme.ColorNameForegroundOnWarning: hex(0x002b36),
-		theme.ColorNameHeaderBackground:    hex(0x003847), // activityBar.background
-		theme.ColorNameHover:               alpha(hex(0xffffff), 0x10),
-		theme.ColorNameHyperlink:           hex(solCyan),
-		theme.ColorNameInputBackground:     hex(0x003847), // input.background
-		theme.ColorNameInputBorder:         hex(0x005a6f),
-		theme.ColorNameMenuBackground:      hex(0x00212b), // dropdown.background
-		theme.ColorNameOverlayBackground:   hex(0x00212b), // editorWidget.background
-		theme.ColorNamePlaceHolder:         hex(0x718588),
-		theme.ColorNamePressed:             alpha(hex(0xffffff), 0x1c),
-		theme.ColorNamePrimary:             hex(solCyan), // button.background
-		theme.ColorNameScrollBar:           alpha(hex(0xffffff), 0x40),
+		theme.ColorNameBackground:          hex(0x0d121a), // the stage: the view behind lists and pages
+		theme.ColorNameButton:              hex(0x1a2230),
+		theme.ColorNameDisabledButton:      hex(0x121822),
+		theme.ColorNameDisabled:            hex(0x4d5869),
+		theme.ColorNameError:               hex(0xff6b74),
+		theme.ColorNameFocus:               alpha(hex(glowBlue), 0xaa),
+		theme.ColorNameForeground:          hex(0xd5dde8), // 13.7:1 on the stage
+		theme.ColorNameForegroundOnError:   hex(0x1a0508),
+		theme.ColorNameForegroundOnPrimary: hex(0x04111f),
+		theme.ColorNameForegroundOnSuccess: hex(0x03140c),
+		theme.ColorNameForegroundOnWarning: hex(0x1f0e02),
+		theme.ColorNameHeaderBackground:    hex(0x141b26), // a table's header, the hotbar
+		theme.ColorNameHover:               alpha(hex(0xffffff), 0x0e),
+		theme.ColorNameHyperlink:           hex(0x7cc4ff),
+		theme.ColorNameInputBackground:     hex(0x131a25),
+		theme.ColorNameInputBorder:         hex(0x263042),
+		theme.ColorNameMenuBackground:      hex(0x121925),
+		theme.ColorNameOverlayBackground:   hex(0x121925), // dialogs, the palette: a lifted plate
+		theme.ColorNamePlaceHolder:         hex(0x6f7b8e),
+		theme.ColorNamePressed:             alpha(hex(0xffffff), 0x1a),
+		theme.ColorNamePrimary:             hex(glowBlue),
+		theme.ColorNameScrollBar:           alpha(hex(0xffffff), 0x33),
 		theme.ColorNameScrollBarBackground: alpha(hex(0x000000), 0x00),
-		theme.ColorNameSelection:           hex(0x274642), // editor.selectionBackground
-		theme.ColorNameSeparator:           hex(0x004052),
-		theme.ColorNameShadow:              alpha(hex(0x000000), 0x66),
-		theme.ColorNameSuccess:             hex(0x899c08),
-		theme.ColorNameWarning:             hex(0xd97a53),
+		theme.ColorNameSelection:           hex(0x22406a),
+		theme.ColorNameSeparator:           hex(0x1b2330), // a hairline: surfaces part by luminance first
+		theme.ColorNameShadow:              alpha(hex(0x000000), 0x8c),
+		theme.ColorNameSuccess:             hex(0x3dd68c),
+		theme.ColorNameWarning:             hex(0xff9f5a),
 
-		colorTopBar:           hex(0x002c39), // titleBar.activeBackground
-		colorStatusBar:        hex(0x00212b), // statusBar.background
-		colorSidebar:          hex(0x00212b), // sideBar.background
-		colorRowHover:         hex(0x003a4a), // list.hoverBackground #004454aa over the background
-		colorRowSelected:      hex(0x005a6f), // list.activeSelectionBackground
-		colorContainerRunning: hex(0x3dd68c), // the earlier Running green (owner, 2026-10-12)
-		colorRowSelectedText:  hex(0xeee8d5), // base2: the foreground is too faint on the selection
-		colorDrawer:           hex(0x00212b),
-		colorDrawerHeader:     hex(0x003847),
-		colorDock:             hex(0x004052), // tab.inactiveBackground, the strip behind the tabs
-		colorDockTab:          hex(0x002b37), // tab.activeBackground
-		colorDockTabText:      hex(0xd6dbdb), // tab.activeForeground
-		colorDockTabDim:       hex(0x93a1a1), // base1
-		colorMuted:            hex(0x718588),
-		colorAccent:           hex(solCyan),
-		colorChartSecond:      hex(0x898dd0), // violet #6c71c4, lightened to 4:1 on the plot
-		colorChip:             hex(0x004052),
-		colorToast:            hex(0x0b4556), // lighter than the window and the drawer, so a toast stands out
-		colorToastText:        hex(0xeee8d5), // base2
-		colorToastSelection:   hex(0x1d6870), // 1.6:1 against the toast, 5.2:1 under its text
-		colorLink:             hex(solCyan),
-		colorTooltip:          hex(0x003847), // editorHoverWidget.background #004052 is 3.6:1 under the text
-		colorCode:             hex(0xd9a73a), // yellow #b58900 lightened: 5.1:1 on the chip
+		colorTopBar:           hex(0x0a0e14), // the chrome recedes: darker than the stage
+		colorStatusBar:        hex(0x0a0e14),
+		colorSidebar:          hex(0x0b0f16),
+		colorRowHover:         hex(0x141b26),
+		colorRowSelected:      hex(0x183252), // the glow blue, deep: the selected object
+		colorContainerRunning: hex(0x3dd68c), // the Running green (owner, 2026-10-12)
+		colorRowSelectedText:  hex(0xf2f7ff),
+		colorDrawer:           hex(0x10161f), // in front of the stage, a step lighter
+		colorDrawerHeader:     hex(0x151d29),
+		colorDock:             hex(0x0b0f16),
+		colorDockTab:          hex(0x0d121a),
+		colorDockTabText:      hex(0xe3e9f2),
+		colorDockTabDim:       hex(0x8d99ab),
+		colorMuted:            hex(0x8592a5),
+		colorAccent:           hex(glowCyan),
+		colorChartSecond:      hex(glowViolet),
+		colorChip:             hex(0x1a2331),
+		colorToast:            hex(0x182131),
+		colorToastText:        hex(0xeef3fa),
+		colorToastSelection:   hex(0x2b4a73),
+		colorLink:             hex(0x7cc4ff),
+		colorTooltip:          hex(0x182131),
+		colorCode:             hex(0xf2c14e),
+
+		colorAgent:      hex(glowViolet),
+		colorStageLight: hex(0x15233b),              // the stage's top light, a radial gradient's centre
+		colorGrid:       alpha(hex(0x5ab8ff), 0x1c), // the horizon's grid lines
+		colorBracket:    hex(0x34435c),              // a bracket's line under a group's label
+		colorSlotDim:    hex(0x1c2636),              // an empty token's square
 	},
 	status: map[model.Status]color.Color{
-		model.StatusOK:          hex(0x899c08), // green #859900
-		model.StatusSucceeded:   hex(0x4099d7), // blue #268bd2
-		model.StatusPending:     hex(0xb78d08), // yellow #b58900
-		model.StatusWarning:     hex(0xd97a53), // orange #cb4b16
-		model.StatusError:       hex(0xe66d6b), // red #dc322f
-		model.StatusTerminating: hex(0x898dd0), // violet #6c71c4
-		model.StatusUnknown:     hex(0x84959c), // base00 #657b83
-		model.StatusStopped:     hex(0x93a1a1), // base1: a stopped container's square, legible on a selected row too
-		model.StatusEphemeral:   hex(0x4099d7), // blue #268bd2, as Succeeded: an ephemeral container's square (D-102)
+		model.StatusOK:          hex(0x3dd68c), // mint
+		model.StatusSucceeded:   hex(0x5ab8ff), // the glow blue: done
+		model.StatusPending:     hex(0xf2c14e), // amber
+		model.StatusWarning:     hex(0xff9f5a), // orange
+		model.StatusError:       hex(0xff6b74), // coral
+		model.StatusTerminating: hex(0xee82b8), // rose: going away (violet is the agent's)
+		model.StatusUnknown:     hex(0x8a95a8),
+		model.StatusStopped:     hex(0x9ba5b5), // a stopped container's square, legible on a selected row too
+		model.StatusEphemeral:   hex(0x5ab8ff), // as Succeeded: an ephemeral container's square (D-102)
 	},
 }
 
 var lightPalette = palette{
 	fyne: map[fyne.ThemeColorName]color.Color{
-		theme.ColorNameBackground:          hex(0xfdf6e3), // editor.background
-		theme.ColorNameButton:              hex(0xddd6c1), // activityBar.background
-		theme.ColorNameDisabledButton:      hex(0xeee8d5),
-		theme.ColorNameDisabled:            hex(0x93a1a1), // base1
-		theme.ColorNameError:               hex(0xdc322f),
-		theme.ColorNameFocus:               alpha(hex(0x1f7f78), 0x99),
-		theme.ColorNameForeground:          hex(0x586e75), // sideBarTitle.foreground; editor.foreground #657b83 is 4.1:1 on the background
-		theme.ColorNameForegroundOnError:   hex(0xfdf6e3),
-		theme.ColorNameForegroundOnPrimary: hex(0xfdf6e3),
-		theme.ColorNameForegroundOnSuccess: hex(0xfdf6e3),
-		theme.ColorNameForegroundOnWarning: hex(0xfdf6e3),
-		theme.ColorNameHeaderBackground:    hex(0xddd6c1), // activityBar.background
-		theme.ColorNameHover:               alpha(hex(0x000000), 0x0c),
-		theme.ColorNameHyperlink:           hex(0x1b6761),
-		theme.ColorNameInputBackground:     hex(0xddd6c1), // input.background
-		theme.ColorNameInputBorder:         hex(0xd3af86), // dropdown.border
-		theme.ColorNameMenuBackground:      hex(0xeee8d5), // dropdown.background
-		theme.ColorNameOverlayBackground:   hex(0xeee8d5), // editorWidget.background
-		theme.ColorNamePlaceHolder:         hex(0x657b83),
-		theme.ColorNamePressed:             alpha(hex(0x000000), 0x17),
-		theme.ColorNamePrimary:             hex(0x1f7f78), // cyan, darkened to carry the base3 text
+		theme.ColorNameBackground:          hex(0xfbfcfd),
+		theme.ColorNameButton:              hex(0xe6eaf0),
+		theme.ColorNameDisabledButton:      hex(0xeef1f5),
+		theme.ColorNameDisabled:            hex(0xa1aab8),
+		theme.ColorNameError:               hex(0xd23b45),
+		theme.ColorNameFocus:               alpha(hex(0x0a6fd6), 0x99),
+		theme.ColorNameForeground:          hex(0x1a2230), // 15.5:1 on the view
+		theme.ColorNameForegroundOnError:   hex(0xffffff),
+		theme.ColorNameForegroundOnPrimary: hex(0xffffff),
+		theme.ColorNameForegroundOnSuccess: hex(0xffffff),
+		theme.ColorNameForegroundOnWarning: hex(0xffffff),
+		theme.ColorNameHeaderBackground:    hex(0xeef1f6),
+		theme.ColorNameHover:               alpha(hex(0x000000), 0x0a),
+		theme.ColorNameHyperlink:           hex(0x0a62c2),
+		theme.ColorNameInputBackground:     hex(0xf0f3f7),
+		theme.ColorNameInputBorder:         hex(0xcdd4df),
+		theme.ColorNameMenuBackground:      hex(0xffffff),
+		theme.ColorNameOverlayBackground:   hex(0xffffff),
+		theme.ColorNamePlaceHolder:         hex(0x697486),
+		theme.ColorNamePressed:             alpha(hex(0x000000), 0x14),
+		theme.ColorNamePrimary:             hex(0x0a6fd6), // the glow blue, deep enough to carry white text
 		theme.ColorNameScrollBar:           alpha(hex(0x000000), 0x40),
 		theme.ColorNameScrollBarBackground: alpha(hex(0x000000), 0x00),
-		theme.ColorNameSelection:           hex(0xdfca88), // list.activeSelectionBackground
-		theme.ColorNameSeparator:           hex(0xddd6c1),
-		theme.ColorNameShadow:              alpha(hex(0x000000), 0x2e),
-		theme.ColorNameSuccess:             hex(0x6e7f00),
-		theme.ColorNameWarning:             hex(0xcb4b16),
+		theme.ColorNameSelection:           hex(0xcfe2ff),
+		theme.ColorNameSeparator:           hex(0xe1e6ed),
+		theme.ColorNameShadow:              alpha(hex(0x0b1a33), 0x2e),
+		theme.ColorNameSuccess:             hex(0x138a52),
+		theme.ColorNameWarning:             hex(0xc4570e),
 
-		colorTopBar:           hex(0xeee8d5), // titleBar.activeBackground
-		colorStatusBar:        hex(0xeee8d5), // statusBar.background
-		colorSidebar:          hex(0xeee8d5), // sideBar.background
-		colorRowHover:         hex(0xf5eacb), // list.hoverBackground #dfca8844 over the background
-		colorRowSelected:      hex(0xdfca88), // list.activeSelectionBackground
-		colorContainerRunning: hex(0x177f4a), // the earlier Running green #1f9d5c, darkened to read on a selected row: 3.1:1 on the selection, 4.1:1 on the navigator (owner, 2026-10-16; #1a8f53 before, 2.5:1 on the selection)
-		colorRowSelectedText:  hex(0x073642), // base02
-		colorDrawer:           hex(0xeee8d5),
-		colorDrawerHeader:     hex(0xddd6c1),
-		colorDock:             hex(0xddd6c1), // the strip behind the tabs (tab.inactiveBackground #d3cbb7 is 3.3:1 under its text)
-		colorDockTab:          hex(0xfdf6e3), // tab.activeBackground
-		colorDockTabText:      hex(0x586e75),
-		colorDockTabDim:       hex(0x586e75), // tab.inactiveForeground
-		colorMuted:            hex(0x657b83),
-		colorAccent:           hex(0x1f7f78),
-		colorChartSecond:      hex(0x5a5fb5), // violet #6c71c4, darkened to 3.9:1 on the plot
-		colorChip:             hex(0xddd6c1),
-		colorToast:            hex(0xffffff), // lighter than the window, with the level's border and bar
-		colorToastText:        hex(0x073642), // base02
-		colorToastSelection:   hex(0xdfca88), // the selection, list.activeSelectionBackground
-		colorLink:             hex(0x1b6761),
-		colorTooltip:          hex(0xeee8d5), // editorHoverWidget.background #ccc4b0 is 3.1:1 under the text
-		colorCode:             hex(0x8f4a0a), // orange #cb4b16 darkened: 4.6:1 on the chip
+		colorTopBar:           hex(0xeef1f5),
+		colorStatusBar:        hex(0xeef1f5),
+		colorSidebar:          hex(0xf1f3f7),
+		colorRowHover:         hex(0xf0f4fa),
+		colorRowSelected:      hex(0xd6e6ff),
+		colorContainerRunning: hex(0x128a4f), // the Running green, darkened to read on a selected row (owner, 2026-10-16)
+		colorRowSelectedText:  hex(0x0b1a33),
+		colorDrawer:           hex(0xf7f8fa),
+		colorDrawerHeader:     hex(0xeef1f6),
+		colorDock:             hex(0xeef1f5),
+		colorDockTab:          hex(0xfbfcfd),
+		colorDockTabText:      hex(0x1a2230),
+		colorDockTabDim:       hex(0x5b6678),
+		colorMuted:            hex(0x5f6a7c),
+		colorAccent:           hex(0x0b7c93),
+		colorChartSecond:      hex(0x6d4ee8),
+		colorChip:             hex(0xe6eaf0),
+		colorToast:            hex(0xffffff),
+		colorToastText:        hex(0x0f1a2a),
+		colorToastSelection:   hex(0xcfe2ff),
+		colorLink:             hex(0x0a62c2),
+		colorTooltip:          hex(0xf4f6f9),
+		colorCode:             hex(0x9a4d00),
+
+		colorAgent:      hex(0x6d4ee8),
+		colorStageLight: hex(0xe4edfb),
+		colorGrid:       alpha(hex(0x0a6fd6), 0x16),
+		colorBracket:    hex(0xb9c2cf),
+		colorSlotDim:    hex(0xe3e8ef),
 	},
 	status: map[model.Status]color.Color{
-		model.StatusOK:          hex(0x6e7f00), // green #859900
-		model.StatusSucceeded:   hex(0x237ebf), // blue #268bd2
-		model.StatusPending:     hex(0x987300), // yellow #b58900
-		model.StatusWarning:     hex(0xcb4b16), // orange
-		model.StatusError:       hex(0xdc322f), // red
-		model.StatusTerminating: hex(0x6c71c4), // violet
-		model.StatusUnknown:     hex(0x657b83), // base00
-		model.StatusStopped:     hex(0x586e75), // base01: a stopped container's square, legible on a selected row too
-		model.StatusEphemeral:   hex(0x237ebf), // blue #268bd2, as Succeeded: an ephemeral container's square (D-102)
+		model.StatusOK:          hex(0x138a52),
+		model.StatusSucceeded:   hex(0x0a6fd6),
+		model.StatusPending:     hex(0x9a6a00),
+		model.StatusWarning:     hex(0xc4570e),
+		model.StatusError:       hex(0xd23b45),
+		model.StatusTerminating: hex(0xb8417f),
+		model.StatusUnknown:     hex(0x66717f),
+		model.StatusStopped:     hex(0x4f5a6b),
+		model.StatusEphemeral:   hex(0x0a6fd6),
 	},
 }
 
@@ -266,14 +291,14 @@ func identityColorName(color string) fyne.ThemeColorName {
 	return fyne.ThemeColorName("cogpit.identity." + color)
 }
 
-// identityColors are the icon colours per variant: Solarized's eight accents in the shades the
-// status tokens use, so that a cluster's initials read at 3:1 on the hotbar, the navigator and the
-// welcome page's list (TestIdentityColorsContrast); cyan is each variant's accent.
+// identityColors are the icon colours per variant: the palette's lights and status hues, so that a
+// cluster's initials read at 3:1 on the hotbar, the navigator and the welcome page's list
+// (TestIdentityColorsContrast); cyan is each variant's accent.
 var identityColors = map[fyne.ThemeVariant]map[string]uint32{
-	theme.VariantDark: {"cyan": solCyan, "blue": 0x4099d7, "violet": 0x898dd0, "magenta": 0xe0619c,
-		"red": 0xe66d6b, "orange": 0xd97a53, "yellow": 0xb78d08, "green": 0x899c08},
-	theme.VariantLight: {"cyan": 0x1f7f78, "blue": 0x237ebf, "violet": 0x6c71c4, "magenta": 0xc4307a,
-		"red": 0xdc322f, "orange": 0xcb4b16, "yellow": 0x987300, "green": 0x6e7f00},
+	theme.VariantDark: {"cyan": glowCyan, "blue": 0x5ab8ff, "violet": glowViolet, "magenta": 0xee82b8,
+		"red": 0xff6b74, "orange": 0xff9f5a, "yellow": 0xf2c14e, "green": 0x3dd68c},
+	theme.VariantLight: {"cyan": 0x0b7c93, "blue": 0x0a6fd6, "violet": 0x6d4ee8, "magenta": 0xb8417f,
+		"red": 0xd23b45, "orange": 0xc4570e, "yellow": 0x9a6a00, "green": 0x138a52},
 }
 
 // init files each palette's status and identity colours under their theme names, so that Color
@@ -441,11 +466,11 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 	case theme.SizeNameScrollBarSmall:
 		return 3
 	case theme.SizeNameInputRadius, theme.SizeNameButtonRadius:
-		return 5
+		return 7
 	case theme.SizeNameSelectionRadius:
-		return 4
+		return 6
 	case theme.SizeNameDialogRadius:
-		return 10
+		return 14
 	case theme.SizeNameSplitThickness:
 		return 4
 

@@ -89,8 +89,8 @@ func TestNodeDrawerDevices(t *testing.T) {
 		t.Fatalf("Devices sections %q", drivers)
 	}
 	var heading bool
-	for _, l := range findAll[*textLine](sh.drawer.details) {
-		heading = heading || (l.text == "Devices" && l.style.Bold)
+	for _, l := range findAll[*sectionHead](sh.drawer.details) {
+		heading = heading || l.title == "Devices"
 	}
 	if !heading {
 		t.Error("no Devices heading in the drawer")

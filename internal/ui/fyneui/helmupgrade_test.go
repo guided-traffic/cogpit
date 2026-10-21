@@ -31,6 +31,9 @@ func releaseDrawerText(d *drawer) string {
 	for _, l := range findAll[*textLine](d.details) {
 		out = append(out, l.text)
 	}
+	for _, l := range findAll[*sectionHead](d.details) { // a section's bracket label (stage_header.go)
+		out = append(out, l.title)
+	}
 	for _, l := range findAll[*widget.Label](d.details) {
 		out = append(out, l.Text)
 	}

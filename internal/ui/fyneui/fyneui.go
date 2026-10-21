@@ -29,9 +29,9 @@ import (
 type Options struct {
 	// Title is the window title; empty means "Cogpit".
 	Title string
-	// MCP switches the MCP server off and on from the status bar and starts it at launch (unless
-	// the user switched it off in an earlier run); nil means the window has no MCP server, as with
-	// --no-mcp, and shows no MCP item, button or menu entry.
+	// MCP switches the MCP server on and off from the status bar and starts it at launch only if the
+	// user switched it on in an earlier run (it is opt-in, D-49); nil means the window has no MCP
+	// server, as with --no-mcp, and shows no MCP item, button or menu entry.
 	MCP MCPControl
 	// MCPCommand is the `claude mcp add` command of a server already running that the window
 	// cannot switch: with it and without MCP the item only indicates, and the Help menu offers the

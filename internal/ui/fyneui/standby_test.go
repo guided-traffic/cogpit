@@ -24,7 +24,7 @@ import (
 // against the fake API server behind a proxy that goes silent, as a cluster does for a computer
 // that slept (deterministic, so CI runs it; the docker pause of a kind node is
 // standby_freeze_test.go's, by hand). Frozen: the connection is Interrupted within the heartbeat
-// window, the top bar's dot turns amber and reads "Reconnecting…", the banner says since when, a
+// window, the status bar's dot blinks green (its tooltip reads "Reconnecting…"), the banner says since when, a
 // write is refused at once, and the main goroutine's work never takes 100 ms. Thawed: Connected
 // again, the banner gone, the pod's log resumed with the line written meanwhile after the marker.
 func TestStandbyWindowStaysUsable(t *testing.T) {
@@ -103,8 +103,8 @@ func TestStandbyWindowStaysUsable(t *testing.T) {
 	if d, window := time.Since(frozen), watch.Heartbeat+2*watch.ProbeTimeout+watch.Confirm+2*time.Second; d > window {
 		t.Errorf("interrupted after %v, want within %v", d, window)
 	}
-	if sh.top.dot.color != colorContainerRunning || barSaysState(sh) { // blinking green, no word (F13)
-		t.Errorf("the top bar: dot %v, words %q", sh.top.dot.color, barTexts(sh))
+	if sh.status.dot.color != colorContainerRunning || barSaysState(sh) { // blinking green, no word (F13)
+		t.Errorf("the status bar: dot %v, words %q", sh.status.dot.color, barTexts(sh))
 	}
 	if !sh.conn.root.Visible() || !strings.Contains(sh.conn.title.text, "interrupted · since") {
 		t.Errorf("the banner: visible %v, %q", sh.conn.root.Visible(), sh.conn.title.text)

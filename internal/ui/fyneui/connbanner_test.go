@@ -30,8 +30,8 @@ func interrupt(f *fakeEngine, state engine.ConnectionState, now time.Time) {
 }
 
 // TestConnectionBannerFollowsTheState is S3 as the owner amended it (F13, 2026-10-16): interrupted,
-// the top bar's dot is the Running green (it blinks, conndot_test.go) and no word stands beside it
-// in either bar, the banner over the view says what is interrupted, since when and the next
+// the status bar's dot is the Running green (it blinks, conndot_test.go) and no word stands beside it
+// in either bar (the top bar has no dot, D-54), the banner over the view says what is interrupted, since when and the next
 // attempt, and Reconnect dispatches cluster.reconnect (D-81); an expired login turns the dot red and
 // offers Log in again (cluster.login); connected again, the banner goes.
 func TestConnectionBannerFollowsTheState(t *testing.T) {
@@ -45,8 +45,8 @@ func TestConnectionBannerFollowsTheState(t *testing.T) {
 	sh.now = func() time.Time { return now }
 	interrupt(f, engine.Interrupted, now)
 	q.until(t, "the banner", func() bool { return sh.conn.root.Visible() })
-	if sh.top.dot.color != colorContainerRunning || barSaysState(sh) {
-		t.Errorf("top bar: dot %v, words %q", sh.top.dot.color, barTexts(sh))
+	if sh.status.dot.color != colorContainerRunning || barSaysState(sh) {
+		t.Errorf("status bar: dot %v, words %q", sh.status.dot.color, barTexts(sh))
 	}
 	if got := sh.conn.title.text; !strings.HasPrefix(got, "The connection to demo is interrupted · since ") {
 		t.Errorf("title %q", got)
@@ -66,8 +66,8 @@ func TestConnectionBannerFollowsTheState(t *testing.T) {
 
 	interrupt(f, engine.LoginExpired, now)
 	q.until(t, "the login banner", func() bool { return sh.conn.action.Text == "Log in again" })
-	if sh.top.dot.color != statusColorName(model.StatusError) || barSaysState(sh) {
-		t.Errorf("top bar: dot %v, words %q", sh.top.dot.color, barTexts(sh))
+	if sh.status.dot.color != statusColorName(model.StatusError) || barSaysState(sh) {
+		t.Errorf("status bar: dot %v, words %q", sh.status.dot.color, barTexts(sh))
 	}
 	if !strings.Contains(sh.conn.detail.text, "may open your browser") {
 		t.Errorf("detail %q", sh.conn.detail.text)
@@ -77,21 +77,29 @@ func TestConnectionBannerFollowsTheState(t *testing.T) {
 
 	f.update(func(u *engine.UIState) { u.Connection = engine.Connection{State: engine.Connected, Demo: true} })
 	q.until(t, "the banner to go", func() bool { return !sh.conn.root.Visible() })
-	if sh.top.dot.color != colorContainerRunning || barSaysState(sh) {
-		t.Errorf("top bar: dot %v, words %q", sh.top.dot.color, barTexts(sh))
+	if sh.status.dot.color != colorContainerRunning || barSaysState(sh) {
+		t.Errorf("status bar: dot %v, words %q", sh.status.dot.color, barTexts(sh))
 	}
 }
 
-// barTexts are the top bar's left part's texts.
+// barTexts are the texts of the top bar's left part and of the status bar.
 func barTexts(sh *shell) []string {
+	return append(lineTexts(sh.top.left), lineTexts(sh.status.root)...)
+}
+
+// lineTexts are the texts of the text lines under root, the tooltip lines (a cluster's name) too.
+func lineTexts(root fyne.CanvasObject) []string {
 	var out []string
-	for _, l := range findAll[*textLine](sh.top.left) {
+	for _, l := range findAll[*textLine](root) {
+		out = append(out, l.text)
+	}
+	for _, l := range findAll[*tipLine](root) {
 		out = append(out, l.text)
 	}
 	return out
 }
 
-// barSaysState reports whether the top bar names the connection's state in a word (F13: never).
+// barSaysState reports whether a bar names the connection's state in a word (F13: never).
 func barSaysState(sh *shell) bool {
 	for _, s := range barTexts(sh) {
 		for _, w := range []string{"Connected", "Connecting", "Reconnecting", "Login expired", "Connection failed", "Not connected"} {

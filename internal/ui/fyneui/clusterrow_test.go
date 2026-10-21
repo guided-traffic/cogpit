@@ -127,3 +127,30 @@ func TestRenderConnectionUpdatesInsecure(t *testing.T) {
 	}
 	savePNG(t, w, "connection_updates_insecure_dark.png")
 }
+
+// A cluster row on the welcome page names its kubeconfig file only when another row shows the same
+// title (the owner, 2026-10-21): two "staging" contexts from two files are told apart by their
+// files, a cluster whose name is unique shows none.
+func TestWelcomeNamesTheFileOnlyForSharedNames(t *testing.T) {
+	f := newFakeEngine(t)
+	f.contexts = []engine.ContextInfo{
+		{Name: "staging [a.yaml]", KubeContext: "staging", Source: "a.yaml", Cluster: "staging-a", Server: "https://a.example:6443"},
+		{Name: "staging [b.yaml]", KubeContext: "staging", Source: "b.yaml", Cluster: "staging-b", Server: "https://b.example:6443"},
+		{Name: "prod [c.yaml]", KubeContext: "prod", Source: "c.yaml", Cluster: "prod", Server: "https://c.example:6443"},
+	}
+	sh, _ := welcomeOnFake(t, f, ThemeDark)
+	files := map[string]bool{}
+	for _, r := range sh.tabs.welcome.rows {
+		for _, file := range []string{"a.yaml", "b.yaml", "c.yaml"} {
+			if hasPill(r, file) {
+				files[file] = true
+			}
+		}
+	}
+	if !files["a.yaml"] || !files["b.yaml"] {
+		t.Errorf("the two staging rows name their files: %v", files)
+	}
+	if files["c.yaml"] {
+		t.Error("the prod row, unique on the page, names its file")
+	}
+}

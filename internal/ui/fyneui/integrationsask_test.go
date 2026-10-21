@@ -87,7 +87,7 @@ func TestIntegrationsQuestionPreChoice(t *testing.T) {
 			t.Errorf("%s ticked %v", r.name, r.check.Checked)
 		}
 	}
-	if kyv := integrationRowOf(t, iq.rows, engine.IntegrationKyverno); kyv.status.text != "Checking…" || kyv.status.color != colorStatusPending {
+	if kyv := integrationRowOf(t, iq.rows, engine.IntegrationKyverno); kyv.status.text != "Checking…" || kyv.status.color != colorMuted || kyv.dot.fill != colorStatusPending {
 		t.Errorf("Kyverno: %q", kyv.status.text)
 	}
 	if trivy := integrationRowOf(t, iq.rows, engine.IntegrationTrivy); trivy.status.text != integrationsAskUnticked {

@@ -171,7 +171,6 @@ func TestDotsShowEachClustersMark(t *testing.T) {
 	if !strings.Contains(tileOf(sh, cCold).tipText(), markCold) {
 		t.Errorf("the cold tile's tooltip %q", tileOf(sh, cCold).tipText())
 	}
-	checkMark(t, sh.top.dot, colorContainerRunning, false, "the top bar")
 	checkMark(t, sh.status.dot, colorContainerRunning, false, "the status bar")
 }
 

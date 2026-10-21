@@ -7,7 +7,7 @@ import (
 
 // A cluster's display name and icon are the user's (H-125, the owner's decision of 2026-10-19
 // afternoon: "Nein, sollen sie nicht können."). They are what the window shows of which cluster this
-// is: the name in the hotbar, the navigator, the tab bar, the title bar and the status bar (D-68),
+// is: the name in the hotbar, the navigator, the tab bar and the status bar (D-68),
 // the icon on the hotbar's tile and the tabs. An agent that could change them could rename a
 // production cluster "dev" and colour its icon green, so only the user changes them, in Cogpit's
 // window, as only the user sets the accent colour (D-80, accentcolor.go): cluster.settings.set's

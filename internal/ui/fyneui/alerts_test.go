@@ -16,20 +16,20 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The top bar's right part, left to right (the owner, 2026-10-16 night): the Update button's
-// place, the alerts pill, the bell, a divider, then the three layout toggles at the bar's right
-// end.
+// The top bar's right part, left to right (the owner, 2026-10-16 night; the appearance toggle left
+// of the bell, the owner's of 2026-10-21): the Update button's place, the alerts pill, the light and
+// dark toggle, the bell, a divider, then the three layout toggles at the bar's right end.
 func TestTopBarRightOrder(t *testing.T) {
 	s := chatEngine(t)
 	sh, w, _ := newEngineShell(t, s, Options{})
 	settle(w)
 	top := sh.top
 	got := top.right.Objects
-	if len(got) != 7 || got[0] != top.layout.updateBox || got[1] != top.alerts || got[2] != top.notes.bell ||
-		got[6] != top.layout.root { // gaps of the inner padding around the divider
+	if len(got) != 8 || got[0] != top.layout.updateBox || got[1] != top.alerts || got[2] != top.appearance ||
+		got[3] != top.notes.bell || got[7] != top.layout.root { // gaps of the inner padding around the divider
 		t.Fatalf("the bar's right part holds %v", got)
 	}
-	div, ok := got[4].(*fyne.Container)
+	div, ok := got[5].(*fyne.Container)
 	if !ok || len(div.Objects) != 1 {
 		t.Fatalf("no divider between the bell and the toggles: %T", got[4])
 	}
@@ -42,9 +42,11 @@ func TestTopBarRightOrder(t *testing.T) {
 	top.alerts.set(&engine.AlertsSummary{State: engine.AlertsFound, Answered: true})
 	settle(w)
 	bell, _ := absRect(top.notes.bell)
+	toggle, toggleEnd := absRect(top.appearance)
 	_, alertsEnd := absRect(top.alerts)
-	if alertsEnd.X > bell.X {
-		t.Errorf("the alerts pill ends at %v, right of the bell at %v", alertsEnd.X, bell.X)
+	if alertsEnd.X > toggle.X || toggleEnd.X > bell.X {
+		t.Errorf("the alerts pill ends at %v, the toggle spans %v to %v, the bell starts at %v: want them in that order",
+			alertsEnd.X, toggle.X, toggleEnd.X, bell.X)
 	}
 }
 
@@ -93,7 +95,10 @@ func TestAlertsPill(t *testing.T) {
 		// so it is taller than the pill, its digits measured inside it in the renders.
 		r := test.WidgetRenderer(a).(*alertsRenderer)
 		bg, pill := r.bg.Position(), r.bg.Size()
-		for _, o := range []fyne.CanvasObject{r.img.img, r.count} {
+		for _, o := range []fyne.CanvasObject{r.img.img, r.count, r.segs[0].tok, r.segs[0].num, r.segs[1].tok, r.segs[1].num, r.segs[2].tok, r.segs[2].num} {
+			if !o.Visible() {
+				continue // the segmented pill shows the severities' tokens, not the single number (alerts.go)
+			}
 			at, sz := o.Position().Subtract(bg), o.Size()
 			if at.X < 0 || at.X+sz.Width > pill.Width {
 				t.Errorf("%s: %T at %v size %v reaches out of the pill %v", c.name, o, at, sz, pill)

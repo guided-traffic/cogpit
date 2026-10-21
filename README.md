@@ -174,7 +174,9 @@ Every command in Cogpit is also an MCP tool, so an agent such as Claude Code see
 reads lists and logs, and navigates the window for you. Reading is free; a change waits for your OK
 in Cogpit's window, which names the objects, the namespace and the cluster (unless you allowed
 changes on that cluster; destructive ones always wait), and Help › Audit Log shows everything
-agents did. A few commands, such as creating a Secret, only you can run.
+agents did. A few commands, such as creating a Secret, only you can run. The server agents connect
+to is off until you switch it on, with the MCP item in the status bar: nothing listens for agents
+unless you chose it.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/agents_dark.png">
@@ -198,7 +200,8 @@ turn sent to the model is one click away. Escape or ⌘. stops it at any time.
 
 ### 🌗 Dark or light
 
-Solarized dark or light, or following your Mac's appearance, switched live in Preferences; every
+A calm navy stage where only what needs you lights up, dark or light, or following your Mac's
+appearance, switched live with the sun and moon in the title bar or in Preferences; every
 time in your own time zone and your region's format. The pictures on this page follow your light or
 dark theme too.
 
@@ -240,9 +243,9 @@ install by themselves is your system's setting, never Cogpit's
 
 **`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`
 (in the Linux package at `/usr/bin/cogpit-cli`): it lists your contexts, prints any kind's objects
-as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Help › Copy MCP command
-gives you the one command that registers it with Claude Code, once
-([reference](docs/developer/usage.md#cogpit-cli)).
+as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Once you switched the MCP
+server on, Help › Copy MCP command gives you the one command that registers it with Claude Code,
+once ([reference](docs/developer/usage.md#cogpit-cli)).
 
 **Build from source** with Go and the Xcode Command Line Tools (on Linux a C compiler and the GL,
 X11 and Wayland headers): `make run-demo` starts a development build on its synthetic demo cluster

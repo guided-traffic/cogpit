@@ -101,6 +101,12 @@ func saveShowcaseSized(t *testing.T, w fyne.Window, name string, mode ThemeMode,
 	for _, a := range findAll[*alertsButton](w.Content()) {
 		a.conceal()
 	}
+	// The light and dark toggle as a user sees it: the scenes pick their theme as --theme does,
+	// which greys the button out in a real run.
+	for _, b := range findAll[*themeToggle](w.Content()) {
+		b.unfixed = true
+		b.Refresh()
+	}
 	settle(w)
 	c, ok := w.Canvas().(interface{ SetScale(float32) })
 	if !ok {
@@ -710,8 +716,10 @@ func TestShowcaseClusters(t *testing.T) {
 		f.ui.ActiveTab = "tab-1"
 		fakeTabCommands(t, f)
 		sh, w, q := newTestShell(t, f, Options{Theme: mode, MCPCommand: "claude mcp add cogpit -- cogpit-cli mcp"})
+		// The tab bar shows the shown cluster's tabs only (GW11, D-69), and no tab of a cluster
+		// without a connection (GW13): demo's one of the four.
 		q.until(t, "the shell", func() bool {
-			return len(sh.kinds) > 0 && sh.hot.root.Visible() && len(tilesOf(sh.hot)) == 5 && len(sh.tabs.shown) == 4 && sh.diag.total > 0
+			return len(sh.kinds) > 0 && sh.hot.root.Visible() && len(tilesOf(sh.hot)) == 5 && len(sh.tabs.shown) == 1 && sh.diag.total > 0
 		})
 		openPalette(t, sh, q)
 		typeInPalette(t, sh, q, "open")

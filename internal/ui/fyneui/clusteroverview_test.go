@@ -139,6 +139,9 @@ func clusterModelFor(choice engine.OverviewChoice) engine.ClusterOverviewModel {
 			{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusAvailable, LastOK: fixedNow.Add(-5 * time.Second),
 				Serves: []string{metrics.ServesLive}},
 		},
+		NodeStates: []engine.StatusCount{{Status: model.StatusOK, Count: 7}, {Status: model.StatusWarning, Count: 1}, {Status: model.StatusError, Count: 1}},
+		PodStates: []engine.StatusCount{{Status: model.StatusOK, Count: 38}, {Status: model.StatusSucceeded, Count: 3}, {Status: model.StatusPending, Count: 2},
+			{Status: model.StatusWarning, Count: 4}, {Status: model.StatusError, Count: 3}},
 		Synced: true,
 	}
 }
@@ -154,6 +157,20 @@ func clusterFake(t *testing.T) *fakeEngine {
 		choice := f.ui.Overview
 		f.mu.Unlock()
 		return clusterModelFor(choice), nil
+	}
+	// The header's bearing reads the integrations' states (instrument_bearing.go): the fixture of
+	// Cluster Settings › Integrations, with Prometheus found here as the metrics source says.
+	f.handlers["cluster.settings.get"] = func(context.Context, engine.Invocation) (any, error) {
+		v := engine.ClusterSettingsView{Connected: true, IntegrationsDecided: true}
+		for _, st := range integrationsFixture {
+			in, _ := engine.IntegrationOf(st.Name)
+			st.Label, st.Adds, st.On = in.Label, in.Adds, true
+			if st.Name == engine.IntegrationPrometheus {
+				st.State, st.Where, st.Detail = engine.IntegrationFound, "monitoring/prometheus-server:http", ""
+			}
+			v.Integrations = append(v.Integrations, st)
+		}
+		return v, nil
 	}
 	f.handlers["ui.setOverviewRange"] = func(_ context.Context, inv engine.Invocation) (any, error) {
 		var p struct {

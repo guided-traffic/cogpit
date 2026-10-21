@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // The integrations in a cluster's Settings list (the owner's WF22 of 2026-10-18, D-87): under
@@ -22,16 +21,12 @@ func navDivider() fyne.CanvasObject {
 	return inset("", theme.SizeNameInnerPadding, newDivider(false))
 }
 
-// newNavHeading turns a list item's button into the integrations' heading: the button keeps the
-// click, the hover and the mark of the shown section; the label over it is a heading's.
-func newNavHeading(b *widget.Button, label string) fyne.CanvasObject {
-	b.SetText("")
-	c := colorMuted
-	if b.Importance == widget.HighImportance {
-		c = theme.ColorNameForegroundOnPrimary
-	}
-	line := newTextLine(strings.ToUpper(label), c, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
-	line.truncate = true
+// newNavHeading turns a list item into the integrations' heading: the item keeps the click, the
+// hover and the mark of the shown section; the bracket label over it, "integrations", is a
+// heading's (a group's head in the design, in the light of cluster data).
+func newNavHeading(b *navItem, label string) fyne.CanvasObject {
+	b.Text = ""
+	b.Refresh()
 	return container.NewStack(b, inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding,
-		container.NewVBox(layout.NewSpacer(), line, layout.NewSpacer())))
+		container.NewVBox(layout.NewSpacer(), newBracketLabel(strings.ToLower(label), colorAccent), layout.NewSpacer())))
 }

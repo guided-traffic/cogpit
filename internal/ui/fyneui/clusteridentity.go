@@ -88,11 +88,10 @@ func (sh *shell) icon(context, file string) fyne.Resource {
 }
 
 // identitiesChanged shows the clusters' identities again wherever they appear: the navigator's
-// root and section, the hotbar's tiles, the top bar and the status bar (the name, D-68), the
-// settings page's title, the tabs and the welcome page.
+// root and section, the hotbar's tiles, the status bar (the name, D-68), the settings page's
+// title, the tabs and the welcome page.
 func (sh *shell) identitiesChanged() {
 	sh.side.updateHeader()
-	sh.top.update()
 	sh.status.update()
 	sh.hot.tiles.Refresh()
 	sh.settings.identityChanged()
