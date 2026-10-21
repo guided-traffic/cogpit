@@ -1,7 +1,9 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-unit-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, and test-darwin with app on macOS (docs/developer/releasing.md#ci).
+# test-envtest, coverage-report, test-darwin with app on macOS, dist-linux with test-linux-package,
+# and on Windows test-windows-unit, test-windows-ui and dist-windows with test-windows-package
+# (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -875,6 +877,19 @@ appcast-windows-verify: ## Check dist/site-windows/appcast-windows.xml and the s
 	$(GO) run ./hack/appcast verify -feed '$(DIST)/site-windows/appcast-windows.xml' -pubkey '$(SPARKLE_PUBLIC_ED_KEY)' \
 		-file "$$(ls $(DIST)/windows/Cogpit-$(VERSION)-windows-*-setup.exe)" -version "$$(cat $(APPCAST_WINDOWS)/version)" \
 		-live '$(WINDOWS_FEED_URL)'
+
+# The tests on Windows (D-111): CI's jobs Unit Tests (windows) and UI Tests (windows) on GitHub's
+# runner in MSYS2. Every package's tests without the race detector, the window's in a job of their
+# own (200 of the 222 seconds of a whole run on the owner's workstation, 2026-10-21). Until
+# 2026-10-21 CI only compiled the tests there.
+.PHONY: test-windows-unit test-windows-ui
+
+test-windows-unit: winsparkle ## Every package's tests on Windows but the window's (internal/ui/fyneui), after go vet; CI's Unit Tests (windows)
+	$(GO) vet ./...
+	$(TEST_ENV) $(GO) test -count=1 -timeout 20m $$($(GO) list ./... | grep -v '/internal/ui/fyneui$$')
+
+test-windows-ui: ## The window's tests (internal/ui/fyneui) on Windows; CI's UI Tests (windows)
+	$(TEST_ENV) $(GO) test -count=1 -timeout 20m $(UI_PKG)
 
 test-windows-package: ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
 	@n=$$(ls $(DIST)/windows/Cogpit-*-windows-*-setup.exe 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/windows holds $$n setups: run make dist-windows VERSION=x.y.z first, once"; exit 1; }
