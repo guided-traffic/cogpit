@@ -2,9 +2,6 @@ package fyneui
 
 import (
 	"fmt"
-	"image/png"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"fyne.io/fyne/v2"
@@ -12,7 +9,7 @@ import (
 )
 
 // TestRenderMCPStatusBar draws the status bar wide and narrow, with the server on and off, in both
-// themes, to COGPIT_PNG_DIR or a temporary directory (never testdata) for a look.
+// themes, to COGPIT_PNG_DIR when that is set (else only captured; never testdata) for a look.
 func TestRenderMCPStatusBar(t *testing.T) {
 	state := map[bool]string{true: "on", false: "off"}
 	size := map[bool]string{true: "wide", false: "narrow"}
@@ -38,18 +35,7 @@ func TestRenderMCPStatusBar(t *testing.T) {
 					w2.SetPadded(false)
 					w2.Resize(fyne.NewSize(width, sh.status.root.MinSize().Height))
 					settle(w2)
-					dir := os.Getenv("COGPIT_PNG_DIR")
-					if dir == "" {
-						dir = t.TempDir()
-					}
-					out, err := os.Create(filepath.Join(dir, name))
-					if err != nil {
-						t.Fatal(err)
-					}
-					defer out.Close()
-					if err := png.Encode(out, w2.Canvas().Capture()); err != nil {
-						t.Fatal(err)
-					}
+					lookPNG(t, w2, name)
 				})
 			}
 		}

@@ -57,7 +57,7 @@ cogpit/
 ├─ hack/icon/                 generator of the app icon (make icon; internal/ui/logo draws it)
 ├─ hack/showcase/             oxipng.sh: the pinned oxipng and its lossless run over docs/images (make showcase)
 ├─ hack/parity/               make parity: checks the parity checklists and counts what they report
-├─ hack/shard/                the UI's race tests split into CI shards (make test-race-ui)
+├─ hack/shard/                the UI's tests split into shards: CI's race jobs (make test-race-ui), run in parallel locally (make test-ui), the tests -race skips (make test-norace-coverage)
 ├─ hack/coverage/             merges coverage profiles into the badge and the summary (make coverage-report)
 ├─ hack/readmecmds/           the command table in docs/developer/commands.md, from the registry
 ├─ hack/macos/                release.sh: signs, images and notarizes the macOS downloads (make dist-macos; releasing.md)
@@ -140,7 +140,8 @@ Through the `Makefile`, as in the team's other repositories (`make help` lists e
 |---|---|
 | Build | `make build` (a development build, with the demo cluster; `GO_TAGS=nodemo` builds a release's variant) |
 | Run the app | `make run` (kind cluster), `make run-demo` (demo cluster), `bin/cogpit` (your kubeconfig) |
-| Unit tests with the race detector | `make test-unit-race` |
+| Unit tests with the race detector | `make test-unit-race` (the UI's package in eight parallel shards) |
+| The UI's tests alone, fast | `make test-ui` (eight shards, as many at once as the CPUs and memory allow: about a minute on an M1 Ultra), `make test-ui-race` (about six) |
 | Cluster tests | `make kind-up && make test-kind` |
 | Envtest tests (a real kube-apiserver and etcd, no Docker) | `make test-envtest` |
 | Benchmarks of the gate | `make bench` |

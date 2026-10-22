@@ -305,7 +305,8 @@ The MVP is a local build for macOS (tested on Apple silicon, macOS 26). It needs
 later; the build fetches Go 1.27.3 itself), the Xcode Command Line Tools (Fyne uses cgo), and for
 the kind cluster Docker, `kind` and `kubectl`. On Debian or Ubuntu a C compiler and the GL, X11
 and Wayland headers take the Command Line Tools' place, as CI installs them (`sudo apt install
-build-essential libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols`), and
+--no-install-recommends gcc libc6-dev make pkgconf libgl-dev libegl-dev libx11-dev libxcursor-dev
+libxrandr-dev libxinerama-dev libxi-dev libxxf86vm-dev libxkbcommon-dev libwayland-dev`, D-112), and
 `make dist-linux VERSION=x.y.z` builds the Debian package for the machine's architecture in
 `dist/linux` (with `dpkg-dev`; since 2026-10-20 night, D-108); `make app` is macOS only. On
 Windows, Git Bash or MSYS2's shell with MSYS2's MinGW-w64 gcc and make (as CI has them) builds and
@@ -1547,10 +1548,11 @@ Identifiers the documentation uses:
 | `make build` | `bin/cogpit` (cgo, Fyne) and `bin/cogpit-cli` (pure Go), a development build with the demo cluster and Fyne's thread check on; `GO_TAGS=nodemo` builds the release's variant without the demo, `FYNE_THREAD_CHECKS=off` without the check, as a release scrolls ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) |
 | `make run`, `make run-demo` | run against the kind cluster, or the demo cluster (development builds only) |
 | `make check-nodemo` | the release build's variant (CI's lint job): `internal/demo` in neither binary with `-tags nodemo` and in both without, the packages with `nodemo` files linted with the tag, and their `TestNoDemo*` tests ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |
-| `make test-unit-race`, `make test` | every test without a cluster, race detector on, the patched terminal widget's (`make test-fork`) first |
-| `make test-unit` | every test without a cluster, without the race detector |
+| `make test-unit-race`, `make test` | every test without a cluster, race detector on, the patched terminal widget's (`make test-fork`) first; the UI's package in eight shards at once (`make test-ui-race`) |
+| `make test-unit` | every test without a cluster, without the race detector; the UI's package in eight shards at once (`make test-ui`) |
+| `make test-ui`, `make test-ui-race` | `internal/ui/fyneui`'s tests, compiled once and run as eight shards (each a `go test` run of its own, so Go's test cache keeps its result), `UI_JOBS` at a time (unless set, half the CPUs and no more than three quarters of the memory holds: about 3 GB a shard, 8 GB under the race detector), without and with the race detector: 68 s and about 6 minutes on an M1 Ultra instead of 344 s and about 18 minutes in one process ([releasing › the UI's tests in parallel shards](releasing.md#the-uis-tests-in-parallel-shards), D-112) |
 | `make test-kind` | cluster tests against the kind cluster (build tag `kind`) |
-| `make test-unit-coverage`, `make test-race-ui RACE_SHARD=n RACE_SHARDS=m`, `make test-race-rest`, `make test-darwin` | CI's test jobs: the unit tests with a coverage profile; one shard of the UI's race tests; every other package's race tests; the macOS-only tests ([releasing › CI](releasing.md#ci)) |
+| `make test-norace-coverage`, `make test-race-ui RACE_SHARD=n RACE_SHARDS=m`, `make test-race-rest`, `make test-darwin` | CI's test jobs: what the race detector keeps from running, without it, with coverage profiles; one shard of the UI's race tests; every other package's race tests; the macOS-only tests ([releasing › CI](releasing.md#ci)) |
 | `make coverage-report` | the profiles in `.cache/coverage` merged into `combined.out`, the badge `.github/badges/coverage.json` and `summary.md` (CI keeps the badge current on main) |
 | `make vuln`, `make gosec`, `make cyclo`, `make cyclo-report` | govulncheck over the code paths Cogpit calls; gosec over the shipped code; no function above `CYCLO_THRESHOLD`; the 20 most complex functions |
 | `make parity` | the parity checklists and the numbers the progress pages report ([rules](../parity/README.md#make-parity)) |
@@ -1577,7 +1579,7 @@ Identifiers the documentation uses:
 | `make test-linux-package` | lintian on the package `dist-linux` built and the APT repository's scripts end to end with a throwaway key (`hack/linux/apt-test.sh`); CI's job Linux Package |
 | `make dist-windows VERSION=x.y.z` | the Windows setup `dist/windows/Cogpit-<version>-windows-x64-setup.exe`, its executables built as a release builds them, with their icon, manifest and version information (go-winres) and WinSparkle (`make winsparkle`, pinned by SHA-256); on Windows only, with MinGW-w64 gcc and NSIS 3 (since 2026-10-21, [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle); [releasing › Windows](releasing.md#windows)) |
 | `make test-windows-package` | installs the setup `dist-windows` built silently for this user into a folder of its own, checks its files, both executables' version, the uninstall and Start menu entries and that `cogpit.exe` is a GUI program, installs it again over itself and uninstalls it (`hack/windows/setup-test.sh`); CI's job Windows Package |
-| `make test-windows-unit`, `make test-windows-ui` | CI's Windows test jobs: `go vet` and every package's tests but `internal/ui/fyneui`'s; `internal/ui/fyneui`'s tests; on Windows, without the race detector ([testing › On Windows](testing.md#on-windows)) |
+| `make test-windows-unit`, `make test-windows-ui` | CI's Windows test jobs: `go vet` and every package's tests but `internal/ui/fyneui`'s; `internal/ui/fyneui`'s tests in four shards, two at a time (D-112); on Windows, without the race detector ([testing › On Windows](testing.md#on-windows)) |
 | `make appcast-windows-draft`, `make appcast-windows-sign`, `make appcast-windows-verify` | the release pipeline's Windows appcast jobs: `appcast-windows.xml` drafted, signed with the update key (on macOS, Sparkle's `sign_update`) and checked ([releasing › Windows](releasing.md#windows)) |
 | `make apt-repo`, `make apt-verify` | the release pipeline's APT repository in `dist/apt`: built from the packages in `dist/linux` and the repository Pages serves, signed with `APT_SIGNING_KEY` when it is set; checked with the packages' public key ([releasing › the APT repository](releasing.md#the-apt-repository)) |
 | `make clean` | removes `bin/` and `dist/`; `make help` lists every target |

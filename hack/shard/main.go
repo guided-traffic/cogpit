@@ -5,9 +5,16 @@
 // pattern of one shard. A test added later lands in a shard without a change to the workflow, and a
 // name keeps its shard as long as the number of shards stays the same.
 //
+// With -exec it runs the shards itself: it compiles the package's tests once and runs every shard
+// as a go test run of its own, -jobs of them at once (make test-ui; docs/developer/releasing.md).
+// With -norace it prints, a line per package, the -run pattern of the tests the race detector keeps
+// from running, for the job that runs them without it (make test-norace-coverage).
+//
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -shard 2 -of 6   # the -run pattern of shard 2
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -of 6 -summary   # the tests per shard
 //	go run ./hack/shard ... -summary -durations race.json                     # and their time, from go test -json
+//	go run ./hack/shard -pkg ./internal/ui/fyneui -of 8 -jobs 8 -exec         # run all eight shards, eight at once
+//	go run ./hack/shard -pkg ./... -norace                                    # per package, the tests -race keeps from running
 package main
 
 import (
@@ -24,8 +31,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -37,10 +46,58 @@ func main() {
 	of := flag.Int("of", 0, "the number of shards")
 	summary := flag.Bool("summary", false, "print the number of tests per shard instead of a pattern")
 	durations := flag.String("durations", "", "with -summary: a go test -json file of the package, to sum each shard's time")
+	norace := flag.Bool("norace", false, "print, a line per package of -pkg, the package and the -run pattern of its tests the race detector keeps from running")
+	run := flag.Bool("exec", false, "build the test binary once and run every shard, -jobs at once")
+	jobs := flag.Int("jobs", 0, "with -exec: how many shards run at once (0: as many as the CPUs and the memory allow)")
+	race := flag.Bool("race", false, "with -exec: build with the race detector (and split the files of the race build)")
+	timeout := flag.Duration("timeout", 30*time.Minute, "with -exec: each shard's -test.timeout")
+	cover := flag.String("coverdir", "", "with -exec: build with coverage and write each shard's profile to <dir>/<name>-<n>.out")
+	coverName := flag.String("covername", "shard", "with -coverdir: the profiles' name before -<n>.out")
 	flag.Parse()
 
+	if *norace {
+		if *pkg == "" {
+			fmt.Fprintln(os.Stderr, "shard: -norace needs -pkg (a package or a pattern such as ./...)")
+			os.Exit(2)
+		}
+		kept, err := raceKept(*pkg)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "shard:", err)
+			os.Exit(2)
+		}
+		n := 0
+		for _, p := range kept {
+			n += len(p.names)
+			fmt.Printf("%s %s\n", p.importPath, pattern(p.names))
+		}
+		fmt.Fprintf(os.Stderr, "shard: %d tests in %d packages of %s run only without the race detector\n", n, len(kept), *pkg)
+		return
+	}
+	if *run {
+		if *pkg == "" || *of < 1 || *jobs < 0 {
+			fmt.Fprintln(os.Stderr, "shard: -exec needs -pkg, -of >= 1 and -jobs >= 0")
+			os.Exit(2)
+		}
+		if *race {
+			*tags = joinTags(*tags, "race")
+		}
+		if *jobs == 0 {
+			*jobs = defaultJobs(*race, totalMemory())
+		}
+		ok, err := execShards(execConfig{pkg: *pkg, tags: *tags, race: *race, of: *of, jobs: *jobs,
+			timeout: *timeout, coverDir: *cover, coverName: *coverName}, os.Stdout)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "shard:", err)
+			os.Exit(2)
+		}
+		if !ok {
+			os.Exit(1)
+		}
+		return
+	}
+
 	if *pkg == "" || *of < 1 || (!*summary && (*shard < 1 || *shard > *of)) {
-		fmt.Fprintln(os.Stderr, "shard: need -pkg, -of >= 1 and -shard 1..of (or -summary)")
+		fmt.Fprintln(os.Stderr, "shard: need -pkg, -of >= 1 and -shard 1..of (or -summary, -norace or -exec)")
 		os.Exit(2)
 	}
 	names, err := testNames(*pkg, *tags)
@@ -96,6 +153,24 @@ func pattern(names []string) string {
 // testNames lists the package's top-level Test, Example and Fuzz functions, sorted, from the test
 // files go list reports for the given tags (TestMain is not a test).
 func testNames(pkg, tags string) ([]string, error) {
+	files, err := testFiles(pkg, tags)
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, file := range files {
+		for _, d := range file.Decls {
+			if fn, ok := d.(*ast.FuncDecl); ok && isTopLevelTest(fn) {
+				names = append(names, fn.Name.Name)
+			}
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names), nil
+}
+
+// testFiles parses the package's test files that go list reports for the given tags.
+func testFiles(pkg, tags string) ([]*ast.File, error) {
 	args := []string{"list", "-json"}
 	if tags != "" {
 		args = append(args, "-tags", tags)
@@ -117,24 +192,24 @@ func testNames(pkg, tags string) ([]string, error) {
 		return nil, fmt.Errorf("go list %s: %w", pkg, err)
 	}
 	fset := token.NewFileSet()
-	var names []string
+	var files []*ast.File
 	for _, f := range append(p.TestGoFiles, p.XTestGoFiles...) {
 		file, err := parser.ParseFile(fset, filepath.Join(p.Dir, f), nil, parser.SkipObjectResolution)
 		if err != nil {
 			return nil, err
 		}
-		for _, d := range file.Decls {
-			fn, ok := d.(*ast.FuncDecl)
-			if !ok || fn.Recv != nil || fn.Name.Name == "TestMain" {
-				continue
-			}
-			if name := fn.Name.Name; isTest(name, "Test") || isTest(name, "Example") || isTest(name, "Fuzz") {
-				names = append(names, name)
-			}
-		}
+		files = append(files, file)
 	}
-	slices.Sort(names)
-	return slices.Compact(names), nil
+	return files, nil
+}
+
+// isTopLevelTest reports whether fn is a test, example or fuzz target the go tool runs.
+func isTopLevelTest(fn *ast.FuncDecl) bool {
+	if fn.Recv != nil || fn.Name.Name == "TestMain" {
+		return false
+	}
+	name := fn.Name.Name
+	return isTest(name, "Test") || isTest(name, "Example") || isTest(name, "Fuzz")
 }
 
 // isTest reports whether name is a test function name for prefix, by the go tool's rule: the

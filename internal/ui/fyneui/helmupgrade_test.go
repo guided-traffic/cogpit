@@ -536,8 +536,8 @@ func TestRenderReleaseDrawerLight(t *testing.T) {
 	renderReleaseDrawer(t, ThemeLight, "release_drawer_light.png", false)
 }
 
-// TestRenderReleaseDrawerEnd renders the drawer's end (notes, resources) for a look, to a
-// temporary directory unless COGPIT_PNG_DIR names one; it is not committed (see renderReleaseDrawer).
+// TestRenderReleaseDrawerEnd renders the drawer's end (notes, resources) for a look, to
+// COGPIT_PNG_DIR when that names one, else only captured; it is not committed (see renderReleaseDrawer).
 func TestRenderReleaseDrawerEnd(t *testing.T) {
 	if *updatePNG {
 		t.Skip("not a committed PNG")

@@ -217,7 +217,8 @@ func TestPrometheusInUseLine(t *testing.T) {
 }
 
 // TestRenderPrometheusSettings draws Settings › Metrics with the Prometheus's fields of a connected
-// cluster, a service address set, in both themes, to COGPIT_PNG_DIR or a temporary directory.
+// cluster, a service address set, in both themes, to COGPIT_PNG_DIR when that is set (else only
+// captured).
 func TestRenderPrometheusSettings(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		name := "metrics_prometheus_settings_" + string(mode) + ".png"

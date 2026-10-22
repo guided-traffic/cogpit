@@ -17,8 +17,9 @@ import (
 )
 
 // The render tests draw the shell offscreen with Fyne's software painter: the visual check
-// docs/developer/conventions.md asks for. With -update they rewrite testdata/*.png; otherwise
-// they render to a temporary directory (or COGPIT_PNG_DIR), so a run never changes the tree.
+// docs/developer/conventions.md asks for. With -update they rewrite testdata/*.png, with
+// COGPIT_PNG_DIR they write their pictures there; otherwise they capture the window, which paints
+// every renderer, and write nothing (D-112), so a run never changes the tree.
 var updatePNG = flag.Bool("update", false, "rewrite the PNGs in testdata")
 
 // settle lays the window out again from the top, as the GL driver's EnsureMinSize does every
@@ -55,6 +56,28 @@ func relayout(o fyne.CanvasObject) {
 	}
 }
 
+// lookPNG captures the window, which paints every renderer (the check), and writes the picture to
+// COGPIT_PNG_DIR when that is set, for a look, never to testdata: the pictures a test only shows,
+// as against the ones writePNG keeps in testdata. Before D-112 it went to a temporary folder the
+// test removed when COGPIT_PNG_DIR was not set.
+func lookPNG(t *testing.T, w fyne.Window, name string) {
+	t.Helper()
+	img := w.Canvas().Capture()
+	dir := os.Getenv("COGPIT_PNG_DIR")
+	if dir == "" {
+		return
+	}
+	f, err := os.Create(filepath.Join(dir, name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	if err := png.Encode(f, img); err != nil {
+		t.Fatal(err)
+	}
+	t.Log("rendered", f.Name())
+}
+
 func savePNG(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
 	settle(w)
@@ -66,15 +89,18 @@ func savePNG(t *testing.T, w fyne.Window, name string) {
 func writePNG(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
 	dir := os.Getenv("COGPIT_PNG_DIR")
-	switch {
-	case *updatePNG:
+	if *updatePNG {
 		dir = "testdata"
-	case dir == "":
-		dir = t.TempDir()
 	}
 	img := w.Canvas().Capture()
 	if b := img.Bounds(); b.Dx() < 1440 || b.Dy() < 900 {
 		t.Fatalf("%s: captured %v, want at least 1440×900", name, b)
+	}
+	// The capture paints every renderer, which is the check; without -update or COGPIT_PNG_DIR the
+	// picture went to a temporary folder the test removes, and encoding it cost a third as much
+	// again as the capture, for nobody (D-112).
+	if dir == "" {
+		return
 	}
 	f, err := os.Create(filepath.Join(dir, name))
 	if err != nil {

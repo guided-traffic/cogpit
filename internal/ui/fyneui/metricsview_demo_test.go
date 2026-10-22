@@ -1,9 +1,6 @@
 package fyneui
 
 import (
-	"image/png"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -19,7 +16,7 @@ import (
 // TestRenderDemoMetrics runs the shell over the real engine and the demo cluster's synthetic
 // Metrics Server, as `cogpit --demo` does, with the polls shortened: the Pods list fills its CPU and
 // Memory columns, a pod's drawer gathers a series and draws it with the pod's requests and limits.
-// The PNG goes to COGPIT_PNG_DIR or a temporary directory, never to testdata.
+// The PNG goes to COGPIT_PNG_DIR when that is set (else it is only captured), never to testdata.
 func TestRenderDemoMetrics(t *testing.T) {
 	s, sh, w, until := demoShell(t)
 	until("the Pods list with usage", func() bool {
@@ -126,22 +123,10 @@ func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what st
 	return s, sh, w, until
 }
 
-// demoPNG writes a capture of the window to COGPIT_PNG_DIR or a temporary directory, never to
-// testdata.
+// demoPNG settles the window and captures it, written to COGPIT_PNG_DIR when that is set, never
+// to testdata (lookPNG).
 func demoPNG(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
 	settle(w)
-	dir := os.Getenv("COGPIT_PNG_DIR")
-	if dir == "" {
-		dir = t.TempDir()
-	}
-	f, err := os.Create(filepath.Join(dir, name))
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer f.Close()
-	if err := png.Encode(f, w.Canvas().Capture()); err != nil {
-		t.Fatal(err)
-	}
-	t.Log("rendered", f.Name())
+	lookPNG(t, w, name)
 }

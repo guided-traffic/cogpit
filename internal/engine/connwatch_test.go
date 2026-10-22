@@ -234,9 +234,9 @@ func TestReconnectBacksOffAndComesBack(t *testing.T) {
 	if c := s.UIState().Connection; !c.Since.IsZero() || c.Reason != "" {
 		t.Errorf("connection after the reconnect: %+v", c)
 	}
-	if !strings.Contains(lastToast(s), "Reconnected to test") {
-		t.Errorf("toast %q", lastToast(s))
-	}
+	// The reconnect publishes Connected before it posts its toast (connwatch.go reconnect): wait for
+	// the toast, not for the state that comes before it (CI, 2026-10-21: the toast was not there yet).
+	waitUntil(t, "the reconnect's toast", func() bool { return strings.Contains(lastToast(s), "Reconnected to test") })
 }
 
 // TestAWakeChecksAtOnce is S2's first signal: at wake one failed check interrupts.
