@@ -95,7 +95,7 @@ jobs:
       # hashes, is code from PyPI, so it runs here, never in the job with the signing identity,
       # which checks the template's contents and fills it in with Apple's tools only.
       - name: Set up Python for dmgbuild
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.15"
 
