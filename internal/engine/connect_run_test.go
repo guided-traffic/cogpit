@@ -151,7 +151,9 @@ func TestConnectAgainJoinsTheRun(t *testing.T) {
 	if err := s.Show("beta"); err != nil {
 		t.Fatal(err)
 	}
-	<-errc
+	if err := <-errc; !errors.Is(err, ErrConnectInBackground) {
+		t.Fatalf("the left connect returned %v", err)
+	}
 	again := make(chan error, 1)
 	go func() { again <- s.Connect(context.Background(), "alpha") }()
 	waitUntil(t, "alpha shown connecting again", func() bool {
@@ -180,7 +182,9 @@ func TestCancelALeftConnect(t *testing.T) {
 	if err := s.Show("beta"); err != nil {
 		t.Fatal(err)
 	}
-	<-errc
+	if err := <-errc; !errors.Is(err, ErrConnectInBackground) {
+		t.Fatalf("the left connect returned %v", err)
+	}
 	if err := s.DisconnectContext("alpha"); err != nil {
 		t.Fatal(err)
 	}
@@ -249,7 +253,7 @@ func TestACancelledConnectWritesNoError(t *testing.T) {
 	if err := s.Disconnect(); err != nil {
 		t.Fatal(err)
 	}
-	<-errc
+	_ = <-errc
 	got, _ := s.ConnectAttempts("alpha", 1)
 	if len(got) != 1 || got[0].Outcome != OutcomeCancelled {
 		t.Fatalf("attempts %+v", got)

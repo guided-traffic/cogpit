@@ -261,7 +261,7 @@ func (c *blockingConfirmer) waitEntered(t testing.TB) {
 func (c *blockingConfirmer) waitEnded(t testing.TB) {
 	t.Helper()
 	select {
-	case <-c.ended:
+	case _ = <-c.ended:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the pending confirmation did not see the call end")
 	}

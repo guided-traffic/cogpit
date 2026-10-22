@@ -101,7 +101,7 @@ func TestServeSwitchedOff(t *testing.T) {
 	}
 	_ = cs.Close()
 	select {
-	case <-done:
+	case _ = <-done:
 	case <-ctx.Done():
 		t.Fatal("the switched-off server did not end with the client")
 	}

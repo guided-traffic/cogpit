@@ -421,7 +421,7 @@ func (w *connWatch) expired() bool {
 		select {
 		case <-w.ctx.Done():
 			return false
-		case <-pending: // nil blocks
+		case _ = <-pending: // nil blocks; whatever it says, afterReach asks again
 			w.mu.Lock()
 			w.pending = nil
 			w.mu.Unlock()
@@ -459,7 +459,7 @@ func (w *connWatch) login() {
 	select {
 	case <-w.ctx.Done():
 		return
-	case <-ch:
+	case _ = <-ch:
 	}
 	// Whatever the first answer was, it came with or before the plugin's run: ask again.
 	switch res, err := w.check(w.o.LoginWait); res {
@@ -532,7 +532,7 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 	rest := time.NewTimer(max(bound-w.o.ProbeTimeout-probeSlack, 0))
 	defer rest.Stop()
 	select {
-	case <-ch:
+	case _ = <-ch:
 		cancel()
 		// The plugin answered within the bound; this heartbeat's own request ran out of time.
 		again := make(chan error, 1)

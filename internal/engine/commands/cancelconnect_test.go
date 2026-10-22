@@ -54,7 +54,7 @@ func TestCancelConnectingFromTheWindowAndAnAgent(t *testing.T) {
 			t.Errorf("%s: the plugin's process %d still runs", origin, pid)
 		}
 		select {
-		case <-done:
+		case _ = <-done:
 		case <-ctx.Done():
 			t.Fatalf("%s: the cancelled connect did not return", origin)
 		}

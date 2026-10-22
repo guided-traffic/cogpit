@@ -41,6 +41,16 @@ linters:
         - name: superfluous-else
         - name: unreachable-code
         - name: redefines-builtin-id
+    # errcheck reports a bare receive from a chan error since golangci-lint v2.15.0 (errcheck
+    # v1.30.0), and the blank assignment that marks an error left unread on purpose, `_ = <-errc`,
+    # is what staticcheck's S1005 calls unnecessary: the two contradict each other. Options: a
+    # //nolint:errcheck with its reason at every such receive, or S1005 off and `_ = <-errc`, the
+    # repository's `_ = conn.Close()` for a receive. Chosen (the lead's decision, 2026-10-22): S1005
+    # off. One idiom for every error left unread; errcheck's receive check stays on, which found two
+    # tests that now check the error; S1005's other forms (`x, _ = m[k]`, `for x, _ = range`) had
+    # no finding in the tree. The other checks are golangci-lint's default set.
+    staticcheck:
+      checks: ["all", "-ST1000", "-ST1003", "-ST1016", "-ST1020", "-ST1021", "-ST1022", "-S1005"]
     # Layering (docs/developer/architecture.md §3). A package imports only lower layers; only
     # internal/ui/... imports Fyne; model and kubeconfig do no I/O; only cluster, cache, terminal,
     # helm, metrics and alerting talk to the API server (kubectl talks to the release host and sigstore's log only).

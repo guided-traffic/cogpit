@@ -183,7 +183,7 @@ func (f *fixture) connect(t testing.TB) *sdk.ClientSession {
 	t.Cleanup(func() {
 		_ = cs.Close()
 		cancel()
-		<-served
+		_ = <-served
 	})
 	return cs
 }

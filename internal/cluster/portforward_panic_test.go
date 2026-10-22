@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -75,7 +76,12 @@ func TestTunnelForwardSurvivesPanickingStreams(t *testing.T) {
 			done := make(chan error, 1)
 			go func() { done <- tun.Forward(local, 8080) }()
 			select {
-			case <-done:
+			case err := <-done:
+				// Only the error stream's panic makes Forward fail: a data stream's panic ends its
+				// copy, and Forward returns what the error stream says (nothing here).
+				if where == "errorRead" && !errors.Is(err, errStreamPanicked) {
+					t.Errorf("Forward returned %v", err)
+				}
 			case <-time.After(5 * time.Second):
 				t.Fatal("Forward did not return after a stream panicked")
 			}
