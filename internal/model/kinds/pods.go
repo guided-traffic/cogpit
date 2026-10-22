@@ -657,9 +657,9 @@ func podDetailRel(obj *unstructured.Unstructured, rel model.Related) []model.Det
 		title, spec, status string
 		probed              bool
 	}{
-		{"Init Containers", fieldInitContainers, "initContainerStatuses", false},
-		{"Containers", fieldContainers, "containerStatuses", true},
-		{"Ephemeral Containers", fieldEphemeralContainers, "ephemeralContainerStatuses", false},
+		{model.GroupInitContainers, fieldInitContainers, "initContainerStatuses", false},
+		{model.GroupContainers, fieldContainers, "containerStatuses", true},
+		{model.GroupEphemeralContainers, fieldEphemeralContainers, "ephemeralContainerStatuses", false},
 	}
 	podRef := model.ObjectRef{Kind: podsResource, Namespace: ns, Name: obj.GetName()}
 	for _, g := range groups {

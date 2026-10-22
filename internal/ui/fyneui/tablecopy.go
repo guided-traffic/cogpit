@@ -63,6 +63,7 @@ var noCopyTypes = map[model.ColumnType]bool{
 	model.ColumnMetric:  true, // CPU, Memory
 	model.ColumnWarning: true, // the warning triangle
 	model.ColumnIcon:    true, // a chart's icon
+	model.ColumnGrade:   true, // an image grade's shield: its icon would cover it
 }
 
 // noCopyColumns are the text columns without the icon, by column id, in every view (a custom

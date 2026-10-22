@@ -32,8 +32,9 @@ import (
 // them is built from the cache on the first lookup after a change and maps a workload and a
 // container to the report's summary; a change of the reports tells the overlays, coalesced, which
 // wakes the open view and drawer. The overlay gives the Pods list its column "Image Rating" (the
-// worst rating of a pod's images) and a pod's drawer its "Image Ratings". Switched off: no overlay,
-// so no column, no section and no read.
+// worst grade of a pod's images, drawn as a shield, model.ImageGrade) and each container section of
+// a pod's drawer its image's grade (D-new). Switched off: no overlay, so no column, no grade and no
+// read.
 //
 // A pod's reports are its controller's, as Trivy Operator resolves a pod's workload (its
 // ReportOwner, read in its source and seen on kind 2026-10-17): a ReplicaSet's (a Deployment's
@@ -53,14 +54,20 @@ const trivyNotServed = "Trivy Operator's reports are not served"
 // trivyTrim names the trim of the reports' scope (cache.RegisterTrim).
 const trivyTrim = "trivy-summary"
 
-// trivyColumnID is the Pods list's column of the worst image rating, its title, its width and the
-// column it shows after.
+// trivyColumnID is the Pods list's column of the worst image grade, its title (for agents and the
+// columns menu: the header shows none, as the warning column's), its fixed width and the column it
+// shows after. The owner (2026-10-22): no title and a fixed width right after Containers, to save
+// room as the warning column does; 32 points hold the 18-point shield and the header's sort arrow
+// (the lead's choice).
 const (
 	trivyColumnID    = "imageRating"
 	trivyColumnTitle = "Image Rating"
-	trivyColumnWidth = 96
-	trivyColumnAfter = specContainers // the Containers column: the images' rating beside their squares
+	trivyColumnWidth = 32
+	trivyColumnAfter = specContainers // the Containers column: the images' grade beside their squares
 )
+
+// initSuffix marks an init container among the containers that run an image.
+const initSuffix = " (init)"
 
 // The workload kinds a report names that a pod's lookup picks itself, and a pod spec's container lists.
 const (
@@ -274,35 +281,53 @@ func (t *trivySource) reports() int {
 }
 
 // columns: the Pods list's "Image Rating", shown after Containers, while the overlay is on (also
-// while no pod has a rating yet: a column that comes and goes with the reports would move the
+// while no pod has a grade yet: a column that comes and goes with the reports would move the
 // columns after it). Other kinds get none.
 func (t *trivySource) columns(p *model.KindProfile) []overlayColumn {
 	if !isPodsKind(p) {
 		return nil
 	}
 	return []overlayColumn{{
-		Column: model.Column{ID: trivyColumnID, Title: trivyColumnTitle, Type: model.ColumnRank, Width: trivyColumnWidth},
+		Column: model.Column{ID: trivyColumnID, Title: trivyColumnTitle, Type: model.ColumnGrade, Width: trivyColumnWidth},
 		After:  trivyColumnAfter,
 	}}
 }
 
-// cell is a pod's worst image rating ("Critical · 39"), sorted by the rating, then the count; none
-// while the reports list or when none of its images has a report.
+// cell is a pod's worst image grade, drawn as its shield: its text says the grade and the count
+// that decides it ("D · 2 Critical"), its tooltip every severity's count, the end of life of the
+// image's OS, and which of several images it is; sorted by the grade, then that count. A pod none
+// of whose images has a report is N/A (the owner, 2026-10-22: N/A everywhere, unobtrusive); a pod
+// some of whose images have one, the worst of those (D-78). None while the reports list.
 func (t *trivySource) cell(p *model.KindProfile, column string, obj *unstructured.Unstructured) (model.Cell, bool) {
 	if column != trivyColumnID || !isPodsKind(p) || !t.synced() {
 		return model.Cell{}, false
 	}
 	idx, _ := t.index()
-	worst, ok := worstImage(idx.podImages(obj))
+	images := idx.podImages(obj)
+	worst, ok := worstImage(images)
 	if !ok {
-		return model.Cell{}, false
+		return model.Cell{
+			Text: model.GradeText(model.GradeNA, model.VulnerabilityCounts{}, false), Grade: model.GradeNA,
+			Num: model.GradeRank(model.GradeNA, model.VulnerabilityCounts{}, false), Tip: "No Trivy report of this pod's images",
+		}, true
 	}
-	r, c := worst.rating()
-	return model.Cell{Text: model.RatingText(r, c), Status: r.Status(), Num: model.RatingRank(r, c)}, true
+	r := worst.report
+	g := r.Grade()
+	tip := []string{r.Counts.Summary()}
+	if r.EOSL {
+		tip = append(tip, r.OS()+": end of life")
+	}
+	if len(images) > 1 {
+		tip = append(tip, fmt.Sprintf("The worst of %d images: %s", len(images), worst.image))
+	}
+	return model.Cell{
+		Text: model.GradeText(g, r.Counts, r.EOSL), Grade: g, Num: model.GradeRank(g, r.Counts, r.EOSL),
+		Tip: strings.Join(tip, "\n"),
+	}, true
 }
 
-// worstImage returns the image of the worst rating among those with a report (by rating, then the
-// count of that severity); ok is false when none has one.
+// worstImage returns the image of the worst grade among those with a report (by grade, then the
+// count that decides it); ok is false when none has one.
 func worstImage(images []podImage) (podImage, bool) {
 	var worst podImage
 	found := false
@@ -310,21 +335,30 @@ func worstImage(images []podImage) (podImage, bool) {
 		if im.report == nil {
 			continue
 		}
-		r, c := im.rating()
-		if !found || model.RatingRank(r, c) > model.RatingRank(worst.rating()) {
+		if !found || reportRank(*im.report) > reportRank(*worst.report) {
 			worst, found = im, true
 		}
 	}
 	return worst, found
 }
 
-// sections: a pod's "Image Ratings" (imageRatingSections).
-func (t *trivySource) sections(p *model.KindProfile, obj *unstructured.Unstructured, f model.TimeFormat) []model.DetailSection {
+// reportRank is a report's grade as a sort key (model.GradeRank).
+func reportRank(r model.VulnerabilityReport) int64 {
+	return model.GradeRank(r.Grade(), r.Counts, r.EOSL)
+}
+
+// sections: none of its own; the grades go into the pod's container sections (amend).
+func (t *trivySource) sections(*model.KindProfile, *unstructured.Unstructured, model.TimeFormat) []model.DetailSection {
+	return nil
+}
+
+// amend gives each container section of a pod's drawer its image's grade (gradeSections).
+func (t *trivySource) amend(p *model.KindProfile, obj *unstructured.Unstructured, sections []model.DetailSection, f model.TimeFormat) []model.DetailSection {
 	if !isPodsKind(p) || obj == nil || !t.synced() {
-		return nil
+		return sections
 	}
 	idx, _ := t.index()
-	return f.WriteSections(imageRatingSections(idx.podImages(obj), t.s.displayNow()))
+	return f.WriteSections(gradeSections(idx.podImages(obj), sections, t.s.displayNow()))
 }
 
 // trivyWorkloadsOf returns the workloads whose reports hold a pod's containers, in the order to
@@ -379,14 +413,6 @@ type podImage struct {
 	report     *model.VulnerabilityReport
 }
 
-// rating is the image's rating and its counts.
-func (im podImage) rating() (model.ImageRating, model.VulnerabilityCounts) {
-	if im.report == nil {
-		return model.RatingNotScanned, model.VulnerabilityCounts{}
-	}
-	return im.report.Counts.Rating(), im.report.Counts
-}
-
 // podImages returns a pod's images in the order its init containers and then its containers name
 // them, each with its report. Ephemeral containers are left out: Trivy Operator scans workloads'
 // pod templates, which have none.
@@ -412,7 +438,7 @@ func (idx trivyReportIndex) podImages(pod *unstructured.Unstructured) []podImage
 		}
 		label := name
 		if init {
-			label += " (init)"
+			label += initSuffix
 		}
 		out[i].containers = append(out[i].containers, label)
 		r, ok := reports[name]
@@ -434,7 +460,7 @@ func (idx trivyReportIndex) podImages(pod *unstructured.Unstructured) []podImage
 }
 
 func worseReport(a, b model.VulnerabilityReport) bool {
-	ra, rb := model.RatingRank(a.Counts.Rating(), a.Counts), model.RatingRank(b.Counts.Rating(), b.Counts)
+	ra, rb := reportRank(a), reportRank(b)
 	if ra != rb {
 		return ra > rb
 	}
@@ -488,62 +514,72 @@ func probeTrivy(_ *Session, b *Backend, on bool) (IntegrationState, string, stri
 	return IntegrationChecking, where, ""
 }
 
-// The drawer's "Image Ratings" (D-78): one section per image of the pod, under the group heading,
-// titled by the image as the pod names it: the rating with its count ("Critical · 39"), the counts
-// as chips, the containers that run it, when it was scanned, and the report as a link to its object
-// (the reports' custom kind view). An image without a report says "Not scanned". A pod none of whose
-// images has a report gets no section (the owner's "wenn verfügbar": a namespace Trivy Operator
-// does not scan, a scan not done yet), and neither does a pod while the integration is off, the
-// cluster does not serve the reports, or they are still being listed. The lead's decisions
-// (2026-10-17). The sections come through the overlay (trivySource.sections), after the kind's own.
+// The drawer's grades (D-78, D-new; the owner, 2026-10-22: no section of their own, each in its
+// container's section, as a symbol and a detail card): every init container's and container's
+// section of a pod gets its image's grade card (model.GradeCard): the grade, its text and rule, the
+// counts, the report's OS and its end of life, when it was scanned, and the report as a link to its
+// object (the reports' custom kind view). An image without a report is N/A, also when none of the
+// pod's images has one (the owner's N/A everywhere). Ephemeral containers get none: no workload's
+// template has them, so no report does. Nothing while the integration is off, the cluster does not
+// serve the reports, or they are still being listed. The grades come through the overlay
+// (trivySource.amend), into the kind's own sections.
 
-// groupImageRatings is the drawer's group heading of the image sections.
-const groupImageRatings = "Image Ratings"
-
-// PodImageRatings returns a pod's "Image Ratings" sections from Trivy Operator's report objects, as
-// the overlay builds them from its index, with absolute times in ISO 8601 in now's zone (as
-// BuildDetail writes them): the drawer's content without the cache, for tests of the UI.
-func PodImageRatings(pod *unstructured.Unstructured, reports []*unstructured.Unstructured, now time.Time) []model.DetailSection {
+// PodImageGrades returns a pod's drawer sections with each container's image grade from Trivy
+// Operator's report objects, as the overlay builds them from its index, with absolute times in ISO
+// 8601 in now's zone (as BuildDetail writes them): the drawer's content without the cache, for tests
+// of the UI.
+func PodImageGrades(pod *unstructured.Unstructured, reports []*unstructured.Unstructured, sections []model.DetailSection, now time.Time) []model.DetailSection {
 	idx, _ := newTrivyReportIndex(reports)
-	return model.TimeLayout{}.In(now.Location()).WriteSections(imageRatingSections(idx.podImages(pod), now))
+	return model.TimeLayout{}.In(now.Location()).WriteSections(gradeSections(idx.podImages(pod), sections, now))
 }
 
-// imageRatingSections are the drawer sections of a pod's images; none when no image has a report.
-// Absolute times are marks (model.MarkTime).
-func imageRatingSections(images []podImage, now time.Time) []model.DetailSection {
-	scanned := false
+// gradeSections returns sections with a grade card on each init container's and container's
+// section; sections it changes are copied, the input is not modified. Absolute times are marks
+// (model.MarkTime).
+func gradeSections(images []podImage, sections []model.DetailSection, now time.Time) []model.DetailSection {
+	byContainer := map[string]podImage{}
 	for _, im := range images {
-		scanned = scanned || im.report != nil
+		for _, c := range im.containers {
+			byContainer[strings.TrimSuffix(c, initSuffix)] = im
+		}
 	}
-	if !scanned {
-		return nil
+	var out []model.DetailSection
+	for i, sec := range sections {
+		if sec.Group != model.GroupContainers && sec.Group != model.GroupInitContainers {
+			continue
+		}
+		im, ok := byContainer[sec.Title]
+		if !ok {
+			continue
+		}
+		if out == nil {
+			out = append([]model.DetailSection(nil), sections...)
+		}
+		out[i].Grade = gradeCard(im.report, now)
 	}
-	out := make([]model.DetailSection, 0, len(images))
-	for _, im := range images {
-		rating, counts := im.rating()
-		sec := model.DetailSection{Title: im.image, Group: groupImageRatings, Items: []model.DetailItem{
-			{Name: "Rating", Value: model.RatingText(rating, counts), Status: rating.Status()},
-		}}
-		if chips := counts.Chips(); len(chips) > 0 {
-			sec.Items = append(sec.Items, model.ChipsItem("Vulnerabilities", chips))
-		}
-		name := "Container"
-		if len(im.containers) > 1 {
-			name = "Containers"
-		}
-		sec.Items = append(sec.Items, model.DetailItem{Name: name, Value: strings.Join(im.containers, ", ")})
-		if r := im.report; r != nil {
-			if !r.Scanned.IsZero() {
-				sec.Items = append(sec.Items, model.DetailItem{
-					Name: "Scanned", Value: model.FormatAge(now.Sub(r.Scanned)) + " ago (" + model.MarkTime(r.Scanned) + ")",
-				})
-			}
-			sec.Items = append(sec.Items, model.DetailItem{
-				Name: "Report", Value: r.Name,
-				Link: &model.ObjectRef{Kind: trivyReportsKind, Namespace: r.Namespace, Name: r.Name},
-			})
-		}
-		out = append(out, sec)
+	if out == nil {
+		return sections
 	}
 	return out
+}
+
+// gradeCard is one image's grade card; N/A for an image without a report.
+func gradeCard(r *model.VulnerabilityReport, now time.Time) *model.GradeCard {
+	if r == nil {
+		var none model.VulnerabilityCounts
+		return &model.GradeCard{
+			Grade: model.GradeNA, Text: model.GradeText(model.GradeNA, none, false),
+			Reason: model.GradeReason(model.GradeNA, none, false),
+		}
+	}
+	g, counts := r.Grade(), r.Counts
+	card := &model.GradeCard{
+		Grade: g, Text: model.GradeText(g, counts, r.EOSL), Reason: model.GradeReason(g, counts, r.EOSL),
+		Counts: &counts, OS: r.OS(), EOSL: r.EOSL,
+		Report: &model.ObjectRef{Kind: trivyReportsKind, Namespace: r.Namespace, Name: r.Name},
+	}
+	if !r.Scanned.IsZero() {
+		card.Scanned = model.FormatAge(now.Sub(r.Scanned)) + " ago (" + model.MarkTime(r.Scanned) + ")"
+	}
+	return card
 }

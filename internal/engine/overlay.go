@@ -30,8 +30,9 @@ import (
 //     overlays' generation (snapshot.go, rowEntry.ov); a row the overlays leave alone is shared as
 //     the profile built it. Search, sort, the CSV export and view.rows see the overlaid row, as the
 //     window does; resources.list too (BuildRowsShown).
-//   - Drawer: an overlay's sections follow the kind's own (rowOverlay.sections), in the GUI's
-//     drawer and in object_get alike.
+//   - Drawer: an overlay's sections follow the kind's own (rowOverlay.sections), and an overlay that
+//     adds to the kind's own sections does so through sectionAmender (Trivy's grade in each
+//     container's section), in the GUI's drawer and in object_get alike.
 //   - Off: no overlay on the backend, so no column, no cell, no section; and the integration's
 //     follower released its reads, so nothing is asked of the cluster.
 
@@ -49,6 +50,14 @@ type rowOverlay interface {
 	waitSynced(ctx context.Context)
 	// stop ends the overlay's reads: it was switched off, or its backend closes.
 	stop()
+}
+
+// sectionAmender is an overlay that also adds to the kind's own drawer sections: Trivy's image grade
+// in each container section of a pod (trivy.go, D-new). amend returns the sections with its
+// additions, copying what it changes and never changing the input; it reads the overlay's own data,
+// never the cluster.
+type sectionAmender interface {
+	amend(p *model.KindProfile, obj *unstructured.Unstructured, sections []model.DetailSection, f model.TimeFormat) []model.DetailSection
 }
 
 // overlayColumn is a column an overlay gives a kind.
@@ -369,6 +378,18 @@ func (o *overlays) sections(p *model.KindProfile, obj *unstructured.Unstructured
 		out = append(out, ov.sections(p, obj, f)...)
 	}
 	return out
+}
+
+// amend returns a drawer's sections with what the overlays add to the kind's own (sectionAmender),
+// in the overlays' order.
+func (o *overlays) amend(p *model.KindProfile, obj *unstructured.Unstructured, sections []model.DetailSection, f model.TimeFormat) []model.DetailSection {
+	list, _ := o.current()
+	for _, ov := range list {
+		if a, ok := ov.(sectionAmender); ok {
+			sections = a.amend(p, obj, sections, f)
+		}
+	}
+	return sections
 }
 
 // ViewColumns returns the columns the view of a kind has on the cluster the window shows: the

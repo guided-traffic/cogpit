@@ -705,6 +705,9 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if col.Type == model.ColumnIcon {
 			content.kind, content.text = cellImage, cell.Image
 		}
+		if col.Type == model.ColumnGrade {
+			content.kind, content.grade = cellGrade, cell.Grade // the shield; the text is its tooltip (gradebadge.go)
+		}
 	}
 	content.row = tv.snap.Rows[id.Row].Status
 	hover := id.Row == tv.hoverRow
@@ -774,8 +777,8 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		}
 	}
 	title := col.Title
-	if col.Type == model.ColumnWarning || col.Type == model.ColumnIcon {
-		title = "" // Lens's warning and icon columns have no title; Title names them for agents
+	if col.Type == model.ColumnWarning || col.Type == model.ColumnIcon || col.Type == model.ColumnGrade {
+		title = "" // Lens's warning and icon columns, and the grades', have no title; Title names them for agents
 	}
 	h.set(id.Col, title, sort)
 	h.setFixed(fixedWidth(col))
@@ -936,8 +939,11 @@ func (tv *tableView) columnWidth(i int) float32 {
 // fixedWidth reports whether a column keeps its width: Lens's warning column, an icon without a
 // title, has no divider in the header and is neither dragged wider nor fitted to its content (the
 // owner, 2026-10-21, after the dividers came back: "kann meiner Meinung nach eine feste Breite
-// haben").
-func fixedWidth(c model.Column) bool { return c.Type == model.ColumnWarning }
+// haben"); the image grades' shields too (the owner, 2026-10-22: "mit fester Breite hinter
+// Containers", to save room as the warning column does).
+func fixedWidth(c model.Column) bool {
+	return c.Type == model.ColumnWarning || c.Type == model.ColumnGrade
+}
 
 // fixedAt reports whether the visible column i keeps its width (fixedWidth).
 func (tv *tableView) fixedAt(i int) bool {
@@ -1248,6 +1254,7 @@ const (
 	cellMenu                    // the ⋮ that opens the row's actions menu
 	cellCheck                   // the row's checkbox (tablecheck.go)
 	cellImage                   // an image from a URL, which text holds (a chart's icon, helmcharticons.go)
+	cellGrade                   // an image grade's shield; the text and the tip are its tooltip (gradebadge.go)
 )
 
 // cellContent is what one body cell shows. Its fields are values or pointers into the immutable
@@ -1260,6 +1267,7 @@ type cellContent struct {
 	marks  *[]model.CellMark // squares in place of the text (a pod's containers)
 	bar    *model.CellBar    // a usage bar beside the text (a node's CPU, Memory, Disk; tablebar.go)
 	tip    string            // the cell's own tooltip (model.Cell.Tip: a kubelet's support, D-91)
+	grade  model.ImageGrade  // a grade cell's shield
 	kind   cellKind
 	row    model.Status // the row's status: its spine and tint (list_rows.go)
 	pill   bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
@@ -1283,6 +1291,7 @@ type tableCell struct {
 	shown int                 // the squares that fit, set by fit
 	bar   *cellBar            // a usage bar's track and fill; made when the cell first shows one (tablebar.go)
 	icon  *canvas.Image       // made when the cell first shows an icon
+	badge *gradeBadge         // an image grade's shield; made when the cell first shows one
 	line  *canvas.Rectangle
 	// The Dark Cockpit's row marks (list_rows.go), each made the first time a cell needs it.
 	spine  *canvas.Rectangle // an abnormal row's status spine, in the first cell
@@ -1441,6 +1450,10 @@ func (c *tableCell) tipText() string {
 	switch {
 	case c.content.kind == cellWarning:
 		return c.full
+	case c.content.kind == cellGrade && c.content.tip != "":
+		return c.full + "\n" + c.content.tip // "D · 2 Critical", then the counts behind it
+	case c.content.kind == cellGrade:
+		return c.full
 	case c.content.kind == cellText && c.content.marks != nil:
 		lines := make([]string, 0, len(*c.content.marks))
 		for _, m := range *c.content.marks {
@@ -1541,6 +1554,7 @@ func (c *tableCell) apply() {
 		c.ring.Refresh()
 	}
 	c.setIcon(c.tv.cellIcon(c.content, c.checked))
+	c.setGrade()
 	c.fit(th)
 	c.colourMore(th)
 	c.bg.Refresh()
@@ -1553,6 +1567,27 @@ func (c *tableCell) apply() {
 	}
 	c.refreshBar()
 }
+
+// setGrade shows a grade cell's shield, or hides the shield of a cell that shows something else.
+func (c *tableCell) setGrade() {
+	if c.content.kind != cellGrade || c.content.grade == model.GradeNone {
+		if c.badge != nil && c.badge.Visible() {
+			c.badge.Hide()
+		}
+		return
+	}
+	if c.badge == nil {
+		c.badge = newGradeBadge(gradeTableSide, c.content.grade)
+		c.objs++
+	}
+	c.badge.setGrade(c.content.grade)
+	if !c.badge.Visible() {
+		c.badge.Show()
+	}
+}
+
+// gradeTableSide is a grade's shield in a list's cell, in points (the owner's pick in the lab: 18).
+const gradeTableSide = 18
 
 // setIcon shows res, or hides the icon for nil. The image is refreshed (its SVG rasterised) only
 // when the resource changes; the resources are shared per icon and colour (tableView.cellIcon).
@@ -1795,6 +1830,10 @@ func (c *tableCell) layout(size fyne.Size) {
 		c.icon.Move(fyne.NewPos((size.Width-is)/2, (size.Height-is)/2))
 		c.icon.Resize(fyne.NewSize(is, is))
 	}
+	if c.badge != nil {
+		c.badge.Move(fyne.NewPos((size.Width-gradeTableSide)/2, (size.Height-gradeTableSide)/2))
+		c.badge.Resize(fyne.NewSize(gradeTableSide, gradeTableSide))
+	}
 	ms, mg := markSize(th)
 	for i, r := range c.marks {
 		if i >= c.shown {
@@ -1859,6 +1898,9 @@ func (r *tableCellRenderer) Objects() []fyne.CanvasObject {
 		}
 		if c.icon != nil {
 			r.objs = append(r.objs, c.icon)
+		}
+		if c.badge != nil {
+			r.objs = append(r.objs, c.badge)
 		}
 		for _, t := range c.more {
 			r.objs = append(r.objs, t)
