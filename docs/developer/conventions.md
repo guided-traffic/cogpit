@@ -59,6 +59,11 @@ cluster operation is worse than a crash.
 - **Errors, not panics.** Return errors and wrap them with `%w`; `errcheck` is on. Do not call
   `panic` in non-test code; a programming error found at start-up (duplicate registry ids) may stop
   start-up with an error message.
+- **An error left unread on purpose says so.** `_ = conn.Close()` for a call, `_ = <-errc` and
+  `case _ = <-done:` for a receive from a `chan error`: errcheck reports a bare `<-errc` since
+  golangci-lint v2.15.0, and staticcheck's S1005, which calls the blank assignment unnecessary, is
+  off for it (the lead's decision of 2026-10-22, recorded in [`.golangci.yml`](../../.golangci.yml)).
+  Where the error has one expected value, a test checks it instead.
 - **Recover at goroutine boundaries.** Every goroutine that does cluster I/O starts through a helper
   that recovers a panic, logs it with its stack, and reports it to the engine as an error. One
   failing watch must not close every cluster.

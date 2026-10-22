@@ -277,7 +277,7 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 	select {
-	case <-done:
+	case _ = <-done:
 	case <-time.After(10 * time.Second):
 		t.Fatal("the cancelled connect did not return")
 	}

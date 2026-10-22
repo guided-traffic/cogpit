@@ -130,7 +130,7 @@ func bridgeClient(t *testing.T, b *Bridge) *sdk.ClientSession {
 	t.Cleanup(func() {
 		_ = cs.Close()
 		cancel()
-		<-served
+		_ = <-served
 		_ = b.Close()
 	})
 	return cs

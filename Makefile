@@ -37,7 +37,7 @@ KUBECTL         := KUBECONFIG=$(KIND_KUBECONFIG) kubectl --context $(KIND_CONTEX
 FYNE_TOOLS      ?= v1.7.3
 FYNE            := $(BIN)/fyne
 # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2/cmd/golangci-lint
-GOLANGCI_LINT_VERSION ?= v2.14.0
+GOLANGCI_LINT_VERSION ?= v2.15.0
 GOLANGCI_LINT   := $(BIN)/golangci-lint
 # The version fyne package writes into the bundle's Info.plist (CFBundleShortVersionString;
 # sparkle.sh writes CFBundleVersion). The release pipeline sets it to the release's (dist-app), and
