@@ -14,10 +14,14 @@ import (
 // (engine/tabmove.go), without it for the tab bar's, as before. The lead's decisions, open to
 // revision (D-106):
 //   - the dock's while the focused widget lies in the dock: its tab's terminal, editor, log or a
-//     find bar's field, or the strip's switch;
-//   - with nothing focused (a click on a tab, a button or a list's empty area takes the focus away
-//     in Fyne), the bar whose tab was clicked last; the tab bar's once its tabs were switched by the
-//     keys (⌘⌥→, ⌘⌥←, ⌘1–⌘9);
+//     find bar's field, or the strip's switch. A click on a dock tab gives the tab's widget the keys
+//     (D-115, dockfocus.go), so after a click on a tab with one the keys are the dock's this way, and
+//     switching the tab bar's tabs by the keys (⌘⌥→) leaves them there: the focus decides first;
+//   - with nothing focused, the bar whose tab was clicked last; the tab bar's once its tabs were
+//     switched by the keys (⌘⌥→, ⌘⌥←, ⌘1–⌘9). Nothing is focused after a click on a dock tab that
+//     takes no keys (the Audit Log, the Diagnostics, a job's progress, an Edit tab's review) or not
+//     yet (a session or a stream still opening), on a tab of the tab bar, a button or a list's empty
+//     area (a click on what takes no keys takes them away in Fyne);
 //   - else, with the keys anywhere outside the dock, the tab bar's.
 //
 // The keys reach the menu item whatever has the focus, a terminal included: the items are main-menu

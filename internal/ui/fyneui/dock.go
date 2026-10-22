@@ -61,7 +61,8 @@ type dock struct {
 	// (dockfocus.go, AW5, AW8).
 	focusReq *focusRequest
 	// keysLast: a dock tab was clicked after the tab bar's last click or key, so that Move Tab's
-	// keys move the dock's tab while nothing is focused (tabmovekeys.go, AW10).
+	// keys move the dock's tab while nothing is focused: the clicked tab takes no keys, or not yet
+	// (tabmovekeys.go, AW10).
 	keysLast bool
 }
 
