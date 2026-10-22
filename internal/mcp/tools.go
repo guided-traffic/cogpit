@@ -199,6 +199,13 @@ func failure(cmd *engine.Command, schema json.RawMessage, err error) *sdk.CallTo
 	case errors.Is(err, engine.ErrConfirmationUnavailable):
 		return toolError(codeConfirmationUnavailable, fmt.Sprintf("%q needs the user's confirmation, but Cogpit has no window "+
 			"to ask in (it runs headless), so it did not run. Ask the user to run it in Cogpit's window.", cmd.Label))
+	case errors.Is(err, engine.ErrConnectCancelled):
+		return toolError(codeCancelled, fmt.Sprintf("%q did not finish: its connect was cancelled (cluster_disconnect: the user's "+
+			"Cancel Connecting in Cogpit's window, or an agent's), so the cluster is not connected. Do not connect it again "+
+			"unless the user asks you to.", cmd.Label))
+	case errors.Is(err, engine.ErrConnectSuperseded):
+		return toolError(codeCancelled, fmt.Sprintf("%q did not connect: another cluster was chosen in Cogpit's window before "+
+			"this connect began (ui_state names the cluster shown). Nothing failed.", cmd.Label))
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return toolError(codeCancelled, fmt.Sprintf("%q was cancelled before it finished (%v). If it was waiting for the "+
 			"user's confirmation, it did not run.", cmd.Label, err))

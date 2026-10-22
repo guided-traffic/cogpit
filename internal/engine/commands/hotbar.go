@@ -167,7 +167,8 @@ func registerHotbar(g *registrar) {
 			"does: a cluster connected already is only shown, from Cogpit's cache and without a request, another one is " +
 			"connected first, and the cluster shown before stays connected; the tile of the cluster shown changes nothing. " +
 			"Connecting only reads from the cluster. A tile whose context no kubeconfig source offers any more is disabled. " +
-			"Returns {context, state, error}.",
+			"Returns {context, state, error} as cluster_connect does: state connecting when another cluster was shown while " +
+			"it waited (the connect goes on in the background), a cancelled error when cluster_disconnect cancelled it.",
 		Enabled: func(s *engine.Session, p hotbarSlotParams) error {
 			_, err := openableTile(s, p)
 			return err
@@ -180,12 +181,7 @@ func registerHotbar(g *registrar) {
 			if u := s.UIState(); u.Context == t.Context && (u.Connection.State.Live() || u.Connection.State == engine.Connecting) {
 				return ConnectResult{Context: u.Context, State: u.Connection.State, TLSUnchecked: u.Connection.TLSUnchecked}, nil
 			}
-			err = s.Connect(ctx, t.Context)
-			u := s.UIState()
-			if err != nil && u.Connection.State != engine.ConnectError {
-				return nil, err // refused before connecting: no connector, closed, or superseded
-			}
-			return connectResult(u), nil
+			return connectAnswer(s, t.Context, s.Connect(ctx, t.Context))
 		},
 	})
 }

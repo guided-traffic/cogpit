@@ -30,6 +30,12 @@ func failure(cmd *engine.Command, err error) (engine.ChatToolState, string) {
 	case errors.Is(err, engine.ErrConfirmationUnavailable):
 		return engine.ChatToolRefused, fmt.Sprintf("%q needs the user's confirmation, but Cogpit has no window to ask in, so it "+
 			"did not run.", cmd.Label)
+	case errors.Is(err, engine.ErrConnectCancelled):
+		return engine.ChatToolStopped, fmt.Sprintf("%q did not finish: its connect was cancelled (Cancel Connecting in Cogpit's "+
+			"window, or cluster_disconnect), so the cluster is not connected. Do not connect it again unless the user asks you to.", cmd.Label)
+	case errors.Is(err, engine.ErrConnectSuperseded):
+		return engine.ChatToolStopped, fmt.Sprintf("%q did not connect: another cluster was chosen in Cogpit's window before this "+
+			"connect began (ui_state names the cluster shown). Nothing failed.", cmd.Label)
 	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		return engine.ChatToolStopped, fmt.Sprintf("%q was cancelled before it finished; if it was waiting for the user's "+
 			"confirmation, it did not run.", cmd.Label)

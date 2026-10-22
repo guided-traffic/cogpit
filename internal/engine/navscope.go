@@ -116,8 +116,9 @@ func (u *UIState) syncNavScope(old UIState) {
 // The section and the connected (or connecting) cluster are set at once. Another cluster is
 // connected first, as cluster.connect connects it (a credential plugin runs only once the user
 // allowed it); the connect drills into it as it starts (syncNavScope). Like cluster.connect it
-// returns the state, with no error, when the connect failed: Connection says why, and the scope is
-// the section again.
+// returns the state, with no error, when the connect failed (Connection says why, and the scope is
+// the section again) and when another cluster was shown while it waited (the connect goes on in the
+// background, D-97; the owner's AW16).
 func (s *Session) SetNavigatorScope(ctx context.Context, scope string) (UIState, error) {
 	id, err := ParseNavScope(scope)
 	if err != nil {
@@ -139,10 +140,10 @@ func (s *Session) SetNavigatorScope(ctx context.Context, scope string) (UIState,
 		return st, nil
 	}
 	if err := s.Connect(ctx, id); err != nil {
-		if st := s.UIState(); st.Connection.State == ConnectError && st.Context == id {
+		if st := s.UIState(); (st.Connection.State == ConnectError && st.Context == id) || errors.Is(err, ErrConnectInBackground) {
 			return st, nil
 		}
-		return s.UIState(), err // refused before connecting: no connector, closed, or superseded
+		return s.UIState(), err // refused before connecting (no connector, closed), cancelled or superseded
 	}
 	return s.UIState(), nil
 }

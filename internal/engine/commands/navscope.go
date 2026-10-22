@@ -24,7 +24,9 @@ func registerNavScope(g *registrar) {
 			"(ui_tab_select's index, next and previous count those). Going up to " +
 			"the section keeps the connection. A cluster that is not the shown one is shown as cluster_connect shows it: " +
 			"one that is connected already at once, from the cache, another one connected first (connecting only reads; " +
-			"the cluster shown before stays connected); a failed connect leaves the section with connection saying why. " +
+			"the cluster shown before stays connected); a failed connect leaves the section with connection saying why, one " +
+			"that goes on in the background because another cluster was shown while it waited answers the state too, and " +
+			"one cancelled meanwhile (cluster_disconnect) a cancelled error. " +
 			"Every connect drills into its cluster, and without a shown cluster the scope is the section. Returns the new UI " +
 			"state; navigatorScope is the scope.",
 		Run: func(ctx context.Context, s *engine.Session, p navScopeParams) (any, error) {

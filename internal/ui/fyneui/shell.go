@@ -287,16 +287,21 @@ func (sh *shell) start() {
 	go sh.tick()
 
 	if name := sh.opts.AutoConnect; name != "" {
-		// A --context the engine refuses (no such context, a login not allowed yet) says why in a
-		// toast and shows the navigator's section with its search focused, as ⌘P does (D-57): there
-		// the cluster can be connected, its login program allowed first. A connect that fails says
-		// why on the welcome page.
-		sh.dispatch("cluster.connect", contextParams{Context: name}, func(_ any, err error) {
-			if err != nil {
-				sh.toast("error", "Could not connect to "+name+": "+err.Error())
-				sh.findCluster()
-			}
-		})
+		sh.dispatch("cluster.connect", contextParams{Context: name}, sh.autoConnected(name))
+	}
+}
+
+// autoConnected answers the start's connect of --context name. A context the engine refuses (no
+// such context, a login not allowed yet) says why in a toast and shows the navigator's section with
+// its search focused, as ⌘P does (D-57): there the cluster can be connected, its login program
+// allowed first. A connect that fails says why on the welcome page; one that did not fail
+// (engine.ConnectNotFailed) says nothing.
+func (sh *shell) autoConnected(name string) func(any, error) {
+	return func(_ any, err error) {
+		if err != nil && !engine.ConnectNotFailed(err) {
+			sh.toast("error", "Could not connect to "+name+": "+err.Error())
+			sh.findCluster()
+		}
 	}
 }
 
@@ -860,9 +865,12 @@ func (sh *shell) run(id string, raw json.RawMessage, done func(any, error)) {
 	})
 }
 
-// showError shows a dispatch error as a toast; a declined confirmation is the user's answer.
+// showError shows a dispatch error as a toast; a declined confirmation is the user's answer, and a
+// connect that did not fail is none (engine.ConnectNotFailed: the user's Cancel Connecting, a
+// connect that goes on in the background, one superseded before it began; the owner's AW15 and
+// AW16 of 2026-10-22): the cluster's dot and its connection log say what happened.
 func (sh *shell) showError(err error) {
-	if err == nil || errors.Is(err, engine.ErrDeclined) {
+	if err == nil || errors.Is(err, engine.ErrDeclined) || engine.ConnectNotFailed(err) {
 		return
 	}
 	var dis *engine.DisabledError
