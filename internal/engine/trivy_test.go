@@ -180,7 +180,7 @@ func detailOf(t *testing.T, s *Session, ref model.ObjectRef) *DetailModel {
 	return m
 }
 
-// The pod drawer's image grades (D-new): each container's section (its init containers' too) carries
+// The pod drawer's image grades (D-113): each container's section (its init containers' too) carries
 // its image's grade card: the grade, its text and rule, the counts, when it was scanned and the
 // report's link; the reports of a Deployment's pod are its ReplicaSet's, of a CronJob's Job's pod the
 // CronJob's, of a bare pod its own; a pod without any report is N/A in each container. A changed

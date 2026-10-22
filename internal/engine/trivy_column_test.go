@@ -21,7 +21,7 @@ func ratingCells(snap *TableSnapshot) (int, map[string]model.Cell) {
 	return ci, out
 }
 
-// The Pods list's Image Rating (D-78's second phase, D-new's grades): a pod's worst image grade, its
+// The Pods list's Image Rating (D-78's second phase, D-113's grades): a pod's worst image grade, its
 // text the grade and the count that decides it, sorted by the grade, then that count; N/A for a pod
 // without a report, sorted below S; the column without a header title (its Title for agents) and of
 // a fixed width; gone while the integration is off.

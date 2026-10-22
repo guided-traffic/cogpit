@@ -8,7 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// Image grades (D-78, D-new): a container image's grade from Trivy Operator's VulnerabilityReport
+// Image grades (D-78, D-113): a container image's grade from Trivy Operator's VulnerabilityReport
 // (aquasecurity.github.io/v1alpha1), shown as a shield in Docker Scout's manner. The owner's request
 // (2026-10-22): the Pods list shows each pod's worst grade as a symbol only, the pod's drawer each
 // container's grade in its own section, as a symbol and a detail card. His rules of 2026-10-22, from
@@ -221,7 +221,7 @@ func GradeRank(g ImageGrade, c VulnerabilityCounts, eosl bool) int64 {
 // rankStep separates the grades in GradeRank: a count beyond it is cut there.
 const rankStep = 10_000_000
 
-// GradeCard is a container's image grade in the container's section of a pod's drawer (D-new): the
+// GradeCard is a container's image grade in the container's section of a pod's drawer (D-113): the
 // grade and its text and rule, the counts (nil for N/A), the report's OS and whether it is at its
 // end of life, when it was scanned ("3h ago (<a time mark>)", written by TimeFormat.WriteSections),
 // and the report's object. The drawer draws the grade as a shield beside the container's name and

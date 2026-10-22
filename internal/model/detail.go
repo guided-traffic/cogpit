@@ -29,7 +29,7 @@ type DetailSection struct {
 	// Table, when set, is the section's content as a table: a node's Capacity and Allocatable.
 	Table *DetailTable `json:"table,omitempty"`
 	// Grade, when set, is the image grade of the container the section is about (the Trivy
-	// integration, D-new): a shield beside the section's title and a card under its items.
+	// integration, D-113): a shield beside the section's title and a card under its items.
 	Grade *GradeCard `json:"grade,omitempty"`
 }
 
