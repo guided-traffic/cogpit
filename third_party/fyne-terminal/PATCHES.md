@@ -14,7 +14,9 @@ and test per fix: [#155](https://github.com/fyne-io/terminal/pull/155) the crash
 [#156](https://github.com/fyne-io/terminal/pull/156) the hangs,
 [#157](https://github.com/fyne-io/terminal/pull/157) OSC 7, and
 [#158](https://github.com/fyne-io/terminal/pull/158) the races with the fuzz test (built on the
-other three); drop the fork once upstream has equivalent fixes ([D-14](../../docs/developer/decisions.md#d-14-terminal-widget)).
+other three). #157, #155 and #156 are merged upstream (2026-10-14, 2026-10-15, 2026-10-17, in the
+form the review asked for, which differs from this copy's in places); #158 waits on the changes the
+maintainer asked for on 2026-10-19. Drop the fork once upstream has equivalent fixes ([D-14](../../docs/developer/decisions.md#d-14-terminal-widget)).
 
 ## Crashes and hangs
 
