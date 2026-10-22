@@ -78,7 +78,10 @@ type refParams struct {
 func registerUI(g *registrar) {
 	add(g, engine.Spec[struct{}]{
 		ID: "ui.state", Label: "Show UI State", Danger: engine.DangerRead,
-		Description: "Returns what the user sees: the connected context and its connection state (tlsUnchecked when the connection does not check the server's certificate), " +
+		Description: "Returns what the user sees: the connected context and its connection state (tlsUnchecked when the connection does not check the server's certificate; " +
+			"after a failed connect state error, error its cause in a sentence and connectFailure the page the window shows for it: " +
+			"the context, when, and the connect's stages kubeconfig, login, dns, tcp, tls and api, each with its result and text; " +
+			"welcome is set while the welcome page shows instead), " +
 			"who Cogpit is logged in as there (user: username and groups with source apiServer when the API server confirmed them at the connect, " +
 			"source kubeconfig with a reason when it did not and username is only the kubeconfig's user entry's name, source lastSeen with lastSeen " +
 			"while the cluster is not connected; absent for the demo cluster and a context never confirmed), " +

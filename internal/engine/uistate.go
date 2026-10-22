@@ -116,9 +116,15 @@ type UIState struct {
 	// with the connection; ui.setNavigatorScope sets it.
 	NavigatorScope string `json:"navigatorScope"`
 	// Welcome is set while the workspace shows the welcome page (welcome.go): no cluster is
-	// connected and none is connecting, or one is and no tab is active. The engine derives it
-	// after every change (syncWelcome); ui.welcome.open shows the page over a connected cluster.
+	// connected and none is connecting, or one is and no tab is active; never while the shown
+	// cluster's connect failed, whose error page shows instead (ConnectFailure, D-114). The engine
+	// derives it after every change (syncWelcome); ui.welcome.open shows the page over a connected
+	// cluster, and over a failed connect (it leaves the failed cluster disconnected).
 	Welcome bool `json:"welcome,omitempty"`
+	// ConnectFailure is the shown cluster's connect while it failed (Connection.State error): its
+	// stages, the failed one with its cause (connectfailure.go, D-114). The window's error page shows
+	// it in the workspace whether or not a tab is open. Nil otherwise.
+	ConnectFailure *ConnectFailure `json:"connectFailure,omitempty"`
 	// Preferences are Cogpit's own settings (preferences.go); nil in a session that keeps none.
 	Preferences *Preferences `json:"preferences,omitempty"`
 	// LoginItem is Cogpit's start at login as the operating system reports it (loginitem.go); nil
@@ -420,6 +426,7 @@ func (u UIState) Clone() UIState {
 	}
 	out.ClusterSettings = maps.Clone(u.ClusterSettings)
 	out.User = u.User.clone()
+	out.ConnectFailure = u.ConnectFailure.clone()
 	if u.ClusterVersion != nil {
 		v := *u.ClusterVersion
 		out.ClusterVersion = &v

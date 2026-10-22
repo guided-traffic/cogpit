@@ -266,6 +266,12 @@ func (f *fakeEngine) update(fn func(*engine.UIState)) {
 	old := f.ui.Clone()
 	fn(&f.ui)
 	syncFakeNavigator(&f.ui, old)
+	// The welcome page or a failed connect's page, as the engine's UpdateUI derives them, where the
+	// connection changed: the fake keeps no tabs as the engine does (a connected fake shows a view
+	// without one), so that elsewhere a test's own Welcome stands.
+	if f.ui.Connection != old.Connection || f.ui.Context != old.Context {
+		f.ui.SyncWelcome()
+	}
 	f.ui.SyncDock(old) // a new or activated tab opens the dock, as the engine's UpdateUI does
 	f.ui.Revision++
 	st := f.ui.Clone()

@@ -55,6 +55,7 @@ type tabBar struct {
 	shown  []*viewTab // the tab widgets in order
 	// welcome is the workspace's page while no tab is active (welcome.go).
 	welcome *welcomePage
+	errPage *errorPage // a failed connect's page over the workspace (errorpage.go, D-114)
 
 	now      func() time.Time // the clock of double clicks (a test moves it)
 	tabClick click            // the last click on a tab
@@ -109,6 +110,7 @@ func newTabBar(sh *shell) *tabBar {
 	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.scroll))
 	b.root.Hide()
 	b.welcome = newWelcomePage(sh)
+	b.errPage = newErrorPage(sh)
 	return b
 }
 
@@ -128,6 +130,7 @@ func (b *tabBar) double(last *click, id string) bool {
 // scrolled into view.
 func (b *tabBar) sync() {
 	defer b.welcome.sync() // the welcome page while the workspace has nothing else (welcome.go)
+	defer b.errPage.sync() // a failed connect's page (errorpage.go, D-114)
 	ui := b.sh.ui
 	tabs := ui.TabsShown()
 	if len(tabs) == 0 {
@@ -273,6 +276,7 @@ func (b *tabBar) history(back bool) func() {
 // tabsChanged reports whether the tab bar shows something else in st than in old.
 func tabsChanged(st, old engine.UIState) bool {
 	return st.ActiveTab != old.ActiveTab || st.Context != old.Context || st.Connection.State != old.Connection.State ||
+		st.Connection.Error != old.Connection.Error || st.Welcome != old.Welcome || connectFailureChanged(st.ConnectFailure, old.ConnectFailure) ||
 		st.Scope() != old.Scope() || connectionsChanged(st, old) || mixedEnvironments(st) != mixedEnvironments(old) ||
 		!slices.EqualFunc(st.Tabs, old.Tabs, func(a, b engine.ViewTab) bool {
 			return a.ID == b.ID && a.Title == b.Title && a.Preview == b.Preview && a.Context == b.Context

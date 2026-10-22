@@ -106,6 +106,11 @@ type ConnectAttempt struct {
 	Lines   []ConnectLogLine `json:"lines"`
 	// Omitted counts the lines left out beyond maxAttemptLines.
 	Omitted int `json:"omitted,omitempty"`
+	// Stages are a connect's stages, the failed one with its cause (connectfailure.go, D-114): the
+	// kubeconfig, a credential plugin's login, DNS, TCP, TLS and the API server's answer. Empty for
+	// another kind of attempt, one of a connector that measures none (the demo cluster), and one
+	// written before Cogpit kept them.
+	Stages []ConnectStage `json:"stages,omitempty"`
 
 	id   int64 // its start in UnixNano, unique per context: the file's attempt key
 	live bool  // begun by this session
@@ -448,6 +453,7 @@ func (l *connectLogs) attempts(ctx string, limit int) ([]ConnectAttempt, error) 
 		for _, a := range c.list {
 			cp := *a
 			cp.Lines = slices.Clone(a.Lines)
+			cp.Stages = slices.Clone(a.Stages)
 			cp.Running = a == open
 			byID[a.id] = cp
 		}

@@ -79,10 +79,11 @@ func TestWelcomePageOverTheEngine(t *testing.T) {
 		t.Errorf("the welcome page's buttons %q, want Add Kubeconfigs… alone", got)
 	}
 
-	// Pinned to the hotbar, the demo is listed first, under the hotbar; the others follow.
+	// Pinned to the hotbar, the demo is listed under the hotbar, alone: no "Other clusters" (AW13,
+	// D-114), the navigator's section lists them.
 	mustDispatch(t, s, "hotbar.addCluster", map[string]string{"context": engine.DemoContext})
 	q.until(t, "the hotbar's group", func() bool {
-		return slices.Equal(w.shownClusters(), []string{demoLabel, "kind-dev", "prod-eu-central", "staging"})
+		return slices.Equal(w.shownClusters(), []string{demoLabel})
 	})
 
 	// One click connects through the engine; the cluster's tab takes the workspace.
@@ -123,7 +124,7 @@ func TestWelcomePageOverTheEngine(t *testing.T) {
 	if len(sh.toasts.Objects) != toasts || len(sh.ui.Tabs) != 1 {
 		t.Errorf("⌘W on the welcome page: %d toasts (was %d), tabs %v", len(sh.toasts.Objects), toasts, sh.ui.Tabs)
 	}
-	q.until(t, "the connected row", func() bool { return len(w.rows) == 4 && w.rows[0].title.text == demoLabel })
+	q.until(t, "the connected row", func() bool { return len(w.rows) == 1 && w.rows[0].title.text == demoLabel })
 	test.Tap(w.rows[0])
 	q.until(t, "the tab back", func() bool { return !w.shown && sh.ui.ActiveTab != "" && sh.ui.View != "" })
 
@@ -400,24 +401,34 @@ func TestHelpAndWindowMenus(t *testing.T) {
 	}
 }
 
-// A click on a cluster that cannot be reached: the connect fails, the page stays and says why, in
-// full (wrapped); the cluster heads this session's group and the others stay to try next.
+// A click on a cluster that cannot be reached: the connect fails and the window shows its error
+// page, not the welcome page (D-114): the cause, the connect stage by stage from the engine (TCP
+// refused at 127.0.0.1:1), Connect Again. Help › Welcome then shows the welcome page, the failed
+// cluster under Recent, alone (AW13).
 func TestWelcomeShowsAFailedConnect(t *testing.T) {
 	s := welcomeEngine(t)
-	sh, win, q := newEngineShell(t, s, Options{})
+	sh, _, q := newEngineShell(t, s, Options{})
 	w := welcomeShown(t, sh, q)
 	test.Tap(w.rows[0]) // kind-dev, at https://127.0.0.1:1
-	q.until(t, "the failed connect", func() bool { return sh.ui.Connection.State == engine.ConnectError && w.status.Visible() })
-	if !w.shown || !strings.HasPrefix(w.status.text, "Could not connect to kind-dev: ") || w.status.color != colorStatusError {
-		t.Errorf("after a failed connect: shown %v, status %q in %s", w.shown, w.status.text, w.status.color)
+	p := sh.tabs.errPage
+	q.until(t, "the error page", func() bool { return sh.ui.Connection.State == engine.ConnectError && p.shown && len(p.rows) > 0 })
+	if w.shown || p.title.text != "Could not connect to kind-dev" || !strings.Contains(p.cause.text, "127.0.0.1:1 refused the connection") {
+		t.Errorf("after a failed connect: welcome %v, title %q, cause %q", w.shown, p.title.text, p.cause.text)
 	}
-	q.until(t, "this session's group", func() bool {
-		return slices.Equal(w.shownClusters(), []string{"kind-dev", "prod-eu-central", "staging", demoLabel})
-	})
-	if g := w.groups(); len(g) == 0 || g[0].title != "Recent" { // A67: was "This session"
-		t.Errorf("groups %+v, want Recent first", g)
+	var results []string
+	for _, r := range p.rows {
+		results = append(results, r.stage.Name+"="+r.stage.Result)
 	}
-	savePNG(t, win, "welcome_connect_error_dark.png")
+	if got := strings.Join(results, " "); got != "kubeconfig=ok dns=skipped tcp=failed tls=notReached api=notReached" {
+		t.Errorf("the stages %s", got)
+	}
+	help := menuNamed(sh.mainMenu(), "Help")
+	help.Items[0].Action() // Help › Welcome
+	q.until(t, "the welcome page", func() bool { return w.shown && !p.shown })
+	q.until(t, "this session's group", func() bool { return slices.Equal(w.shownClusters(), []string{"kind-dev"}) })
+	if g := w.groups(); len(g) != 1 || g[0].title != "Recent" { // A67: was "This session"
+		t.Errorf("groups %+v, want Recent alone", groupTitles(g))
+	}
 }
 
 // The page links the repository on GitHub, in the browser (A113): the README for what Cogpit does,

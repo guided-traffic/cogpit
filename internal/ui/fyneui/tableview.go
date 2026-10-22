@@ -76,7 +76,6 @@ type tableView struct {
 	connectButton              *widget.Button
 	cancelButton               *widget.Button  // Cancel Connecting while connecting (D-73)
 	cancelBox                  *fyne.Container // cancelButton centred; hidden unless connecting
-	failedBox                  *fyne.Container // after a failed connect: Connect Again and Connection Updates (WF40, D-97)
 	create                     *stripChip      // the create chip in the dock's strip (createbutton.go)
 	root                       fyne.CanvasObject
 
@@ -154,6 +153,7 @@ func newTableView(sh *shell) *tableView {
 	tv.search.back = tv.table // Escape in the search clears it and hands the table the keys (AW4)
 
 	tv.placeholderText = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	tv.placeholderText.align, tv.placeholderText.truncate = fyne.TextAlignCenter, true                            // never beyond the view (AW18)
 	tv.connectButton = widget.NewButtonWithIcon(connectLabel+"…", theme.LoginIcon(), func() { sh.findCluster() }) // D-57
 	tv.connectButton.Importance = widget.HighImportance
 	tv.placeholderDetail = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
@@ -166,15 +166,10 @@ func newTableView(sh *shell) *tableView {
 	tv.cancelBox = container.NewCenter(tv.cancelButton)
 	tv.detailBox.Hide()
 	tv.cancelBox.Hide()
-	// A failed connect leaves the window on its cluster (D-97, the owner's WF40): its error, a
-	// connect again and its connection log at hand, never the cluster shown before.
-	retry := widget.NewButtonWithIcon(connectAgainLabel, theme.LoginIcon(), func() { sh.tabs.welcome.connect(sh.ui.Context) })
-	retry.Importance = widget.HighImportance
-	connLog := widget.NewButtonWithIcon(strings.TrimSuffix(connectLogItem, "…"), theme.ListIcon(), func() { sh.kc.showConnectLog(sh.ui.Context) })
-	tv.failedBox = container.NewCenter(container.NewHBox(retry, connLog))
-	tv.failedBox.Hide()
-	tv.placeholder = container.NewCenter(container.NewVBox(
-		container.NewCenter(tv.placeholderText), tv.detailBox, container.NewCenter(tv.connectButton), tv.cancelBox, tv.failedBox))
+	// A failed connect leaves the window on its cluster (D-97, the owner's WF40) with its error page
+	// over the workspace (errorpage.go, D-114), which has Connect Again and its connection log.
+	tv.placeholder = box(placeholderLayout{text: tv.placeholderText}, container.NewVBox(
+		tv.placeholderText, tv.detailBox, container.NewCenter(tv.connectButton), tv.cancelBox))
 
 	tv.csvButton = widget.NewButtonWithIcon("", theme.DownloadIcon(), tv.exportCSV)
 	tv.csvButton.Importance = widget.LowImportance
@@ -427,16 +422,14 @@ func (tv *tableView) updateConnecting(ui engine.UIState) {
 func (tv *tableView) updatePlaceholder() {
 	ui := tv.sh.ui
 	msg := ""
-	connect, failed := false, false
+	connect := false
 	switch {
 	case ui.Connection.State == engine.Connecting:
 		msg = "Connecting to " + ui.Context + "…"
 	case !ui.Connection.State.Live(): // an interrupted cluster keeps its view (D-58)
-		msg, connect = notConnected+".", true
-		if ui.Connection.State == engine.ConnectError && ui.Connection.Error != "" {
-			msg = "Could not connect to " + ui.Context + ": " + ui.Connection.Error
-			connect, failed = ui.Context == "", ui.Context != ""
-		}
+		msg, connect = notConnected+".", ui.Connection.State != engine.ConnectError || ui.Context == ""
+		// A failed connect's error and its actions are its error page's, over the view (D-114); the
+		// view says no more than that it is not connected (its long line drew over the navigator, AW18).
 		if ui.Connection.State == engine.Disconnected && ui.Connection.Error != "" {
 			msg = ui.Connection.Error // Cogpit closed the connection: its kubeconfig file went away
 		}
@@ -458,11 +451,6 @@ func (tv *tableView) updatePlaceholder() {
 		tv.connectButton.Show()
 	} else {
 		tv.connectButton.Hide()
-	}
-	if failed {
-		tv.failedBox.Show()
-	} else {
-		tv.failedBox.Hide()
 	}
 	tv.updateConnecting(ui)
 	if msg == "" {

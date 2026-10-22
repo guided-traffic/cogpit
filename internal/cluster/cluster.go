@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -112,6 +113,10 @@ type Options struct {
 	// answer, and the error picture of a failed one. It is called on Connect's goroutine and must
 	// not block. No step holds a credential.
 	Trace func(ConnectStep)
+
+	// dial, in tests, replaces the dialer below the connection's (a resolver of their own, so that
+	// a lookup reaches no network; connectstages_test.go).
+	dial func(ctx context.Context, network, address string) (net.Conn, error)
 }
 
 // loadingRules returns client-go's loading rules for paths: exactly these files in this order,
@@ -223,6 +228,11 @@ type ConnectError struct {
 	Context string
 	Problem string
 	Err     error
+	// Stages are the connect's stages, the failed one with its cause (connectstages.go, D-114); nil
+	// for a failure outside Connect. Cause is the failed stage's text: the failure in a sentence,
+	// shorter than Problem, which keeps the whole chain.
+	Stages []Stage
+	Cause  string
 }
 
 func (e *ConnectError) Error() string {
@@ -266,7 +276,8 @@ type Conn struct {
 	// are the user entry's values it is scrubbed of.
 	stderr  *pluginStderr
 	secrets []string
-	trace   tracer // Connect's steps; nil after Connect
+	trace   tracer         // Connect's steps; nil after Connect
+	stages  *connectStages // Connect's stages (connectstages.go); nil after Connect
 
 	// hold holds the credential plugin while the engine says so (loginhold.go, D-69 item 4); nil
 	// without a plugin.
@@ -286,6 +297,9 @@ type Conn struct {
 // discovery request (GET /version, bounded by opts.ConnectTimeout) and returns a *ConnectError a
 // user can act on otherwise. Credentials never appear in the error.
 func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
+	// The connect's stages (connectstages.go, D-114): reported last, on the error the caller sees.
+	stages := &connectStages{secrets: proxySecrets(opts.Proxy)}
+	defer func() { err = stages.finish(ctx, tracer(opts.Trace), err) }()
 	defer func() { err = scrubProxySecret(err, opts.Proxy) }()
 	name := opts.Context
 	rules := loadingRules(opts.KubeconfigPaths)
@@ -303,6 +317,7 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	// client-go quotes a proxy-url it cannot use whole, its password included (proxyurl.go).
 	kubeProxySecrets := kubeconfigProxySecrets(raw)
 	defer func() { err = scrubSecrets(err, kubeProxySecrets) }()
+	stages.secrets = append(stages.secrets, kubeProxySecrets...)
 	if name == "" {
 		name = raw.CurrentContext
 	}
@@ -322,8 +337,10 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	}
 	cfg, err := cc.ClientConfig()
 	if err != nil {
+		stages.failedConfig(configCause(err)) // "the client certificate file … does not exist"
 		return nil, &ConnectError{Context: name, Problem: "invalid kubeconfig: " + kubeconfig.SafeError(err).Error()}
 	}
+	stages.secrets = append(stages.secrets, knownLoginSecrets(raw, kctx)...)
 	if err := checkExecPolicy(opts.ExecPolicy, raw, name, kctx, cfg); err != nil {
 		return nil, &ConnectError{Context: name, Problem: err.Error(), Err: err}
 	}
@@ -333,6 +350,11 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	cfg.AuthConfigPersister = memoryPersister{}
 	applyProxy(cfg, opts.Proxy) // the cluster's proxy in Cogpit's settings, over the kubeconfig's
 	trace.traceSetup(cfg, raw, kctx, opts.ExecPolicy != nil, opts.Proxy != nil)
+	if cl := raw.Clusters[kctx.Cluster]; cl != nil {
+		stages.configuredFrom(cfg, cl.ProxyURL)
+	} else {
+		stages.configuredFrom(cfg, "")
+	}
 	namespace, _, err := cc.Namespace()
 	if err != nil || namespace == "" {
 		namespace = "default"
@@ -355,6 +377,9 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	// No cfg.Timeout: it would end every watch after that long. A request that is not a stream is
 	// bounded by RequestTimeout instead (health.go).
 	server := kubeconfig.StripUserInfo(cfg.Host)
+	if opts.dial != nil {
+		cfg.Dial = opts.dial
+	}
 	counter := NewRequestCounter()
 	counter.prefix = serverPathPrefix(cfg.Host)
 	cfg.Wrap(counter.Wrap)
@@ -433,9 +458,15 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 		hold:        hold,
 		login:       loginFingerprint(raw, kctx),
 		plugin:      cfg.ExecProvider != nil,
+		stages:      stages,
 	}
+	file := kctx.LocationOfOrigin
+	if file == "" {
+		file = describePaths(usable)
+	}
+	stages.passedConfig(configText(name, file, cfg.Host, cfg), connectLimit(opts.ConnectTimeout))
 	err = c.checkReachable(ctx, opts.ConnectTimeout)
-	c.trace = nil
+	c.trace, c.stages = nil, nil
 	if err != nil {
 		c.Close()
 		return nil, err
@@ -458,14 +489,17 @@ func (memoryPersister) Persist(map[string]string) error { return nil }
 // (withRequestBound): the plugin's run, which may wait for the user in a browser, has its own bound
 // (LoginTimeout), and ctx's cancel ends it (D-73).
 func (c *Conn) checkReachable(ctx context.Context, timeout time.Duration) error {
-	if timeout <= 0 {
-		timeout = DefaultConnectTimeout
-	}
+	timeout = connectLimit(timeout)
 	start := time.Now()
 	mark, ended := c.stderr.mark(), c.loginEndMark()
-	info, err := c.firstAnswer(ctx, timeout)
+	rctx := ctx
+	if c.stages != nil {
+		rctx = c.stages.withTrace(ctx) // its DNS, TCP and TLS, from client-go's own request (D-114)
+	}
+	info, err := c.firstAnswer(rctx, timeout)
 	took := time.Since(start)
 	c.traceLoginRun(start)
+	c.stageLoginRun(start)
 	if e := c.loginEndedSince(ended); err != nil && e != nil {
 		err = endedWithStderr(err, e, c.stderr, mark, c.secrets)
 	} else {
@@ -474,6 +508,9 @@ func (c *Conn) checkReachable(ctx context.Context, timeout time.Duration) error 
 	if err == nil {
 		if info != nil {
 			c.version = info.GitVersion
+		}
+		if c.stages != nil {
+			c.stages.answered(c.version)
 		}
 		c.trace.timed(StepAnswer, "First answer: GET /version: Kubernetes "+c.version, took, false)
 		return nil

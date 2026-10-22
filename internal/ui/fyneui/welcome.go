@@ -24,14 +24,19 @@ import (
 // behind Help › Welcome; its content is not captured, so the page, its wording and its layout are
 // Cogpit's own (inferred, Cogpit's defaults 2026-10-13, not the owner's decision):
 //   - Cogpit's logo, "Welcome to Cogpit" and a line saying what Cogpit is;
-//   - a line about the connection when there is one to tell: a connect that failed, a connection
-//     Cogpit closed, or the cluster that stays connected under the page;
+//   - a line about the connection when there is one to tell: a connection Cogpit closed, a failed
+//     connect without a context to name, or the cluster that stays connected under the page (a
+//     chosen cluster's failed connect has its own page instead, errorpage.go, D-114);
 //   - the clusters to connect with one click: the hotbar's, then Recent, the clusters of
 //     this session (the connected or last one, the tabs' ones; the heading "Recent" since the
-//     owner's A67, 2026-10-14 evening, was "This session"), then up to eight other clusters the
-//     kubeconfig sources offer (the kubeconfig's current one first), so that a failed connect
-//     always leaves another to try; each row as the context picker had it (clusterrow.go), with
-//     its right-click menu;
+//     owner's A67, 2026-10-14 evening, was "This session"); each row as the context picker had it
+//     (clusterrow.go), with its right-click menu. The "Other clusters" group that followed (up to
+//     eight more the kubeconfig sources offer) is gone at the owner's AW13 of 2026-10-22 ("dass ich
+//     auf der Welcome-Seite keine 'other Cluster' Sektion mehr haben will", D-114): the navigator's
+//     section beside the page lists every cluster. Only on a first start, with no hotbar tile and
+//     no recent cluster, the page lists them as "Your clusters" (up to eight, the kubeconfig's
+//     current one first), so that it never offers nothing at all (the lead's detail, open to
+//     revision);
 //   - "Add Kubeconfigs…" (the Sync Files and Folders dialog) and below it the checkbox of the
 //     preference "Restore the last session" (welcomeRestoreLabel), the documentation and the shortcuts
 //     to remember, ⌘P finding a cluster by name among them. The page has no "Connect to Cluster…"
@@ -51,7 +56,7 @@ const (
 	welcomeColumn    = 600 // the page's column, in points
 	welcomeLogoSize  = 88  // the logo's side
 	welcomeMaxRecent = 6   // clusters of this session listed
-	welcomeMaxOthers = 8   // other clusters listed
+	welcomeMaxFirst  = 8   // clusters listed on a first start ("Your clusters", AW13)
 	welcomeTopMargin = 12  // above the column, when the workspace is tall enough (the logo's glow brings its own)
 	readmeURL        = "https://github.com/guided-traffic/cogpit#readme"
 	commandsURL      = "https://github.com/guided-traffic/cogpit/blob/main/docs/developer/commands.md"
@@ -163,9 +168,9 @@ func (w *welcomePage) setRestore(on bool) {
 }
 
 // workspace is the tab bar's hook into the window's centre (newShell): the workspace with the dock,
-// and the welcome page over both while it shows.
+// and the welcome page or a failed connect's page (errorpage.go) over both while it shows.
 func (b *tabBar) workspace(body fyne.CanvasObject) fyne.CanvasObject {
-	return container.NewStack(body, b.welcome.root)
+	return container.NewStack(body, b.welcome.root, b.errPage.root)
 }
 
 // sync follows UIState.Welcome: shows or hides the page, and refreshes what it lists. The tab bar
@@ -321,19 +326,18 @@ func (w *welcomePage) groups() []welcomeGroup {
 	if len(recent.contexts) > 0 {
 		out = append(out, recent)
 	}
-	// The other clusters the kubeconfigs offer, their current context first, so that a failed
-	// connect or a small hotbar never leaves the page without a cluster to try next.
-	all := welcomeGroup{title: "Other clusters"}
-	if len(out) == 0 { // a first start
-		all.title = "Your clusters"
+	if len(out) > 0 {
+		return out // no "Other clusters" (AW13): the navigator's section lists every cluster
 	}
+	// A first start: the clusters the kubeconfigs offer, their current context first.
+	all := welcomeGroup{title: "Your clusters"}
 	for _, c := range w.contexts {
 		if c.Current {
 			take(&all, c.Name)
 		}
 	}
 	for _, c := range w.contexts {
-		if len(all.contexts) < welcomeMaxOthers {
+		if len(all.contexts) < welcomeMaxFirst {
 			take(&all, c.Name)
 		}
 	}
@@ -539,8 +543,11 @@ func (w *welcomePage) renderStatus() {
 	}
 	text, c := "", colorMuted
 	switch ui.Connection.State {
-	case engine.ConnectError:
-		text, c = "Could not connect to "+name+": "+ui.Connection.Error, colorStatusError
+	case engine.ConnectError: // without a context to name: a chosen cluster's failure has its page (errorpage.go)
+		text, c = "Could not connect: "+ui.Connection.Error, colorStatusError
+		if name != "" {
+			text = "Could not connect to " + name + ": " + ui.Connection.Error
+		}
 	case engine.Disconnected:
 		if ui.Connection.Error != "" { // Cogpit closed it: its kubeconfig file went away
 			text, c = ui.Connection.Error, colorStatusWarning

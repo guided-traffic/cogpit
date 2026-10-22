@@ -50,7 +50,8 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🪪 One short name per cluster wherever the window names it: the name you gave it in its Settings, else its context's name after the last "@" ("kubernetes-admin@prod-eu" shows as "prod-eu"); the full name in every tooltip, and the navigator's search finds it by either. The navigator's root says who you are logged in as there, as the API server confirms it at every connect (`kubectl auth whoami`'s question), your groups in the tooltip of the small box beside it; "(kubeconfig)" marks the kubeconfig's user name where the API server does not say, and while the cluster connects the last user it confirmed shows dimmed, with when it was last seen ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
 - 🏷️ The cluster's Kubernetes version under your user in the navigator's root, ⚠ when upstream's support for its minor has ended, in amber during its last two months (maintenance mode); its tooltip says until when, with the days left. The Nodes list marks a kubelet the same way, and one newer than the API server or more than three minors behind it ([The Kubernetes version and upstream support](#the-kubernetes-version-and-upstream-support)). A gear beside the root's dot opens the cluster's Settings.
 - ⌨️ A command palette on ⌘⇧P (Ctrl+Shift+P): every action the menus offer, Switch to any view, the hotbar's clusters; ⌘P (Cluster › Connect to Cluster…) to search a cluster by name in the navigator's list, ↵ to connect, Escape to go back.
-- 👋 A welcome page whenever no cluster is open (and from Help › Welcome): your clusters one click away, Add Kubeconfigs, the documentation. Disconnect a cluster, or remove it from Cogpit, which unlinks the kubeconfig file you added and never touches the file.
+- 👋 A welcome page whenever no cluster is open (and from Help › Welcome): the clusters of your hotbar and the recent ones one click away (on a first start the clusters your kubeconfigs offer; All Clusters beside it lists every one), Add Kubeconfigs, the documentation. Disconnect a cluster, or remove it from Cogpit, which unlinks the kubeconfig file you added and never touches the file.
+- 🩺 A connect that fails shows its own error page (since 2026-10-22): why, in a sentence, and the connect stage by stage (the kubeconfig, a login program, DNS with the addresses, TCP to the address and port, TLS, the API server's answer), with Connect Again and Show Connection Updates.
 - 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - 🗂️ Tabs you arrange (since 2026-10-20): drag a tab along the tab bar, or the dock's, to another place, the others making room as it moves; ⌘⌥⇧← and ⌘⌥⇧→ move the shown tab one place; the tab bar's order comes back with your tabs at the next start.
 - ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,: the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
@@ -609,7 +610,9 @@ clusters that were connected when Cogpit quit: the one you were looking at first
 connect with its most recently used tab, then the others one after another in the background
 (`ui_state`'s `connections` lists each as `connecting` meanwhile). Their login programs run as on any connect; one you have not
 allowed yet, or one whose program changed since, is not run, and the cluster says why (allow it in
-the navigator). `--context` shows its own cluster, and the restore connects the others behind it. A
+the navigator). When the one you were looking at fails to connect, the window shows its error page
+with the connect's stages (since 2026-10-22, [below](#several-clusters-connected)), not the welcome
+page. `--context` shows its own cluster, and the restore connects the others behind it. A
 cluster whose kubeconfig is gone is left out with a notice. The dock's tabs (logs, terminals,
 editors) are not reopened. The tables' column choice and order, the navigator's collapsed groups,
 whether the navigator and the chat are shown, and the window's place and size
@@ -975,10 +978,30 @@ Mixed environments on; off, the bar shows the shown cluster's tabs only): it sho
 Cogpit's cache, without asking the cluster or showing its login program again. A cluster that is not
 connected connects and shows; the others stay connected. A connected cluster's menu (right-click on
 its tile or row) says **Show** instead of Connect, and **Disconnect** there closes that cluster
-alone. A connect that fails leaves the window on that cluster (since 2026-10-19, [D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)):
-"Could not connect to <cluster>: …" with **Connect Again** and **Show Connection Updates**, its dot
-red; Cogpit never shows another cluster by itself, so you never come back to a window that shows a
-cluster you did not choose. The cluster shown before stays connected; click it to go back.
+alone. A connect that fails leaves the window on that cluster (since 2026-10-19, [D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)),
+its dot red; Cogpit never shows another cluster by itself, so you never come back to a window that
+shows a cluster you did not choose. The cluster shown before stays connected; click it to go back.
+
+**A failed connect's error page** (since 2026-10-22, [D-114](decisions.md#d-114-the-alpha-walks-decisions-a-failed-connects-page-and-its-stages)):
+whether you clicked the cluster or the start restored it, and whether or not one of its tabs was
+open, the workspace shows the cluster's error page in the welcome page's look: "Could not connect
+to <cluster>", that this is an error page, the cause in a sentence ("The client certificate file
+/Users/…/client.crt does not exist") under the stage it failed in, then the connect stage by stage,
+each with a tick, a cross, a ring for not reached or a dash for skipped:
+
+| Stage | Says |
+|---|---|
+| Kubeconfig valid and complete | the context, its file, the server and how you log in; or which file is missing or what is wrong |
+| Login by the credential plugin | only for a context with a login program: how long it took, or why it failed (it runs before anything is sent) |
+| DNS: the API server's name resolved | the name and the addresses it gave; skipped for a server named by its address; behind a proxy the proxy's name, the proxy resolving the server's |
+| TCP: the address and port reached | the address and port dialled (or the proxy's), or that it refused or did not answer within the limit |
+| TLS handshake | the TLS version and against what the server's certificate is checked; or why it failed (an authority this context does not trust, another name) |
+| API server: the login and the first request | `GET /version`'s answer with the server's version, the login accepted; or the 401, 403 or the time it waited |
+
+**Connect Again** tries again (a login program you have not allowed yet is shown first);
+**Show Connection Updates** opens the cluster's connection log with the whole error line by line.
+Help › Welcome leaves the failed cluster and shows the welcome page. Agents read the same in
+`ui_state`: `connection.error` is the cause, `connectFailure` holds the stages.
 
 Showing another cluster while one connects (it waits for your login in a browser, say) does not end
 that connect (since 2026-10-19, D-97): it goes on in the background, its dot blinking, its tooltip
@@ -1182,6 +1205,10 @@ menu), for any context, connected or not; one with nothing recorded says so.
   cut to 4 KiB.
 - While the dialog is open it follows the log: a connect or reconnect that runs adds its lines as
   they come. **Copy** puts every attempt shown on the clipboard as plain text, for a bug report.
+- Each connect shows its stages above its lines (since 2026-10-22, D-114): the same table as on a
+  failed connect's error page ([above](#several-clusters-connected)), for the ones that worked too;
+  Copy writes them under "Stages:". Cogpit measures them on the connect's own first request: it
+  opens no connection or lookup of its own for them.
 - Agents read the same log with `cluster_connectLog`.
 
 ### Choosing files: the system's panels
