@@ -119,7 +119,7 @@ func (k *kubeconfigUI) openConnectLog(contextID string, v connectLogView) {
 	cl := &connectLogDialog{ctx: contextID, rows: container.NewVBox()}
 	cl.scroll = container.NewVScroll(cl.rows)
 	bg := newSurface(theme.ColorNameInputBackground)
-	bg.radius, bg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewStack(bg, inset(theme.SizeNamePadding, theme.SizeNamePadding, cl.scroll)))
 
 	cl.d = dialog.NewCustomWithoutButtons("Connection Updates: "+kubeconfig.DisplayText(contextID, maxShownArg), content, k.sh.win)
@@ -137,7 +137,7 @@ func (k *kubeconfigUI) openConnectLog(contextID string, v connectLogView) {
 	})
 	k.connectLog = cl
 	k.fillConnectLog(cl, v)
-	cl.d.Show()
+	k.sh.showDialog(cl.d) // Escape closes it (AW19)
 }
 
 // connectLogChanged follows the engine's EventConnectLog: the open dialog of that context reads

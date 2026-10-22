@@ -151,6 +151,7 @@ func newTableView(sh *shell) *tableView {
 	tv.search.OnChanged = tv.searchChanged
 
 	tv.table = newResourceTable(tv)
+	tv.search.back = tv.table // Escape in the search clears it and hands the table the keys (AW4)
 
 	tv.placeholderText = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	tv.connectButton = widget.NewButtonWithIcon(connectLabel+"…", theme.LoginIcon(), func() { sh.findCluster() }) // D-57

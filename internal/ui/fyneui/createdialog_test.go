@@ -289,13 +289,13 @@ func TestRoleBindingDialogOffersTheCache(t *testing.T) {
 	row := subjects.rows[0]
 	row.fields[0].(*selectField).SetSelected(subjectServiceAccount)
 	q.until(t, "ci's service accounts", func() bool {
-		return slices.Equal(form.offered[row.fields[1].(*widget.SelectEntry)], []string{"ci-deployer"})
+		return slices.Equal(form.offered[row.fields[1].(*fieldSelectEntry)], []string{"ci-deployer"})
 	})
-	row.fields[1].(*widget.SelectEntry).SetText("ci-deployer")
+	row.fields[1].(*fieldSelectEntry).SetText("ci-deployer")
 	group := subjects.add()
 	group.fields[0].(*selectField).SetSelected(subjectGroup)
-	group.fields[1].(*widget.SelectEntry).SetText("oncall:sre")
-	if !group.fields[2].(*widget.SelectEntry).Disabled() {
+	group.fields[1].(*fieldSelectEntry).SetText("oncall:sre")
+	if !group.fields[2].(*fieldSelectEntry).Disabled() {
 		t.Error("a group's namespace is editable")
 	}
 	subjects.add() // an empty row is left out
@@ -318,9 +318,9 @@ func TestCreateDialogsSendRulesAndLimits(t *testing.T) {
 	set := func(r *editorRow, texts ...string) {
 		for i, txt := range texts {
 			switch w := r.fields[i].(type) {
-			case *widget.Entry:
+			case *fieldEntry:
 				w.SetText(txt)
-			case *widget.SelectEntry:
+			case *fieldSelectEntry:
 				w.SetText(txt)
 			}
 		}
@@ -384,11 +384,11 @@ func TestServiceAccountAndClusterRoleBindingDialogs(t *testing.T) {
 	crb.roleName.SetText("metrics-collector")
 	row := crb.editors[0].rows[0]
 	row.fields[0].(*selectField).SetSelected(subjectServiceAccount)
-	row.fields[2].(*widget.SelectEntry).SetText("monitoring")
+	row.fields[2].(*fieldSelectEntry).SetText("monitoring")
 	q.until(t, "monitoring's service accounts", func() bool {
-		return slices.Equal(crb.offered[row.fields[1].(*widget.SelectEntry)], []string{"metrics-collector"})
+		return slices.Equal(crb.offered[row.fields[1].(*fieldSelectEntry)], []string{"metrics-collector"})
 	})
-	row.fields[1].(*widget.SelectEntry).SetText("metrics-collector")
+	row.fields[1].(*fieldSelectEntry).SetText("metrics-collector")
 	test.Tap(crb.create)
 	q.until(t, "the cluster role binding", func() bool { return len(f.callsOf("clusterRoleBinding.create")) == 1 })
 	want := `{"clusterRole":"metrics-collector","name":"metrics-collector","subjects":[{"kind":"ServiceAccount","name":"metrics-collector","namespace":"monitoring"}]}`
@@ -464,12 +464,12 @@ func fillRoleBinding(form *createForm, q *mainQueue) {
 	subjects := form.editors[0]
 	sa := subjects.rows[0]
 	sa.fields[0].(*selectField).SetSelected(subjectServiceAccount)
-	sa.fields[1].(*widget.SelectEntry).SetText("ci-deployer")
+	sa.fields[1].(*fieldSelectEntry).SetText("ci-deployer")
 	g := subjects.add()
 	g.fields[0].(*selectField).SetSelected(subjectGroup)
-	g.fields[1].(*widget.SelectEntry).SetText("oncall:sre")
+	g.fields[1].(*fieldSelectEntry).SetText("oncall:sre")
 	u := subjects.add()
-	u.fields[1].(*widget.SelectEntry).SetText("carol@example.com")
+	u.fields[1].(*fieldSelectEntry).SetText("carol@example.com")
 	q.drain()
 }
 
@@ -486,12 +486,12 @@ func TestRenderCreateRoleDialogDark(t *testing.T) {
 		form.name.SetText("release-manager")
 		rules := form.editors[0]
 		r := rules.rows[0]
-		r.fields[1].(*widget.Entry).SetText("pods, pods/log")
-		r.fields[2].(*widget.Entry).SetText("get, list, watch")
+		r.fields[1].(*fieldEntry).SetText("pods, pods/log")
+		r.fields[2].(*fieldEntry).SetText("get, list, watch")
 		r2 := rules.add()
-		r2.fields[0].(*widget.Entry).SetText("apps")
-		r2.fields[1].(*widget.Entry).SetText("deployments, replicasets")
-		r2.fields[2].(*widget.Entry).SetText("get, patch")
+		r2.fields[0].(*fieldEntry).SetText("apps")
+		r2.fields[1].(*fieldEntry).SetText("deployments, replicasets")
+		r2.fields[2].(*fieldEntry).SetText("get, patch")
 	})
 }
 
@@ -505,8 +505,8 @@ func TestRenderCreateResourceQuotaDialogDark(t *testing.T) {
 			if i > 0 {
 				r = limits.add()
 			}
-			r.fields[0].(*widget.SelectEntry).SetText(kv[0])
-			r.fields[1].(*widget.Entry).SetText(kv[1])
+			r.fields[0].(*fieldSelectEntry).SetText(kv[0])
+			r.fields[1].(*fieldEntry).SetText(kv[1])
 		}
 	})
 }

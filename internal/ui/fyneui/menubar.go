@@ -160,6 +160,7 @@ func (b *menuBar) show(i int) {
 	b.open = o
 	b.titles[i].setOpen(true)
 	c.Overlays().Add(o)
+	onEscape(c, o, b.close) // while the menu does not have the keyboard (escape.go)
 	o.Resize(c.Size())
 	o.place()
 	c.Focus(o)

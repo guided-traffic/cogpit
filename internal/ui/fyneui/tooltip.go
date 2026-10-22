@@ -143,7 +143,7 @@ func (t *tooltip) show() {
 	text := newParagraph(t.text, theme.ColorNameForeground, width)
 	text.size = theme.SizeNameCaptionText
 	bg := newSurface(colorTooltip)
-	bg.radius, bg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	t.layer.Objects = []fyne.CanvasObject{container.NewStack(bg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, text))}
 	t.shown = true
 	t.layer.Refresh()

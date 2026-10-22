@@ -83,7 +83,7 @@ func openDebug(t *testing.T, sh *shell, w fyne.Window, q *mainQueue) {
 // dialogEntry and dialogSelect are the dialog's image entry and target select.
 func dialogEntry(t *testing.T, w fyne.Window) *widget.Entry {
 	t.Helper()
-	es := findAll[*widget.Entry](w.Canvas().Overlays().Top())
+	es := entriesIn(w.Canvas().Overlays().Top())
 	if len(es) != 1 {
 		t.Fatalf("%d entries in the dialog", len(es))
 	}

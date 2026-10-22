@@ -45,6 +45,9 @@ type View struct {
 	// OnFind, when set, gets the find shortcut (⌘F, Ctrl+F): the find bar of the dock tab the view
 	// edits in opens (the window's findbar.go). Without it the view ignores the key.
 	OnFind func()
+	// OnEscape, when set, gets Escape first and reports whether it used it: an open find bar closes
+	// (the window's findbar.go). Unused, Escape drops the selection.
+	OnEscape func() bool
 
 	doc       document
 	readOnly  bool
@@ -409,6 +412,9 @@ func (v *View) TypedKey(ev *fyne.KeyEvent) {
 			v.tab()
 		}
 	case fyne.KeyEscape:
+		if v.OnEscape != nil && v.OnEscape() {
+			return
+		}
 		if v.anchor != v.caret {
 			v.anchor = v.caret
 			v.Refresh()

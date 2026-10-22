@@ -24,7 +24,10 @@ import (
 //     frame's topmost object.
 //
 // The sizes are Fyne's own (sizeDialogPadX and sizeDialogPadY are its padWidth and padHeight), so
-// a framed dialog and a dialog of Fyne's look alike. Like Fyne's, it has no Escape of its own.
+// a framed dialog and a dialog of Fyne's look alike. Escape over it hides it, as every framed
+// dialog's Cancel does: what a dialog answers when it closes without its confirm button (a
+// confirmation's no, a review's nothing saved) its SetOnClosed functions say for every way it
+// closes (escape.go, the owner's AW3 of 2026-10-22).
 type dialogFrame struct {
 	sh      *shell
 	frame   *fyne.Container // background, content, buttons, title, eyebrow, two rules, footer note, tooltips (dialogFrameLayout)
@@ -134,7 +137,7 @@ func (d *dialogFrame) Show() {
 		d.popup.Resize(d.size)
 	}
 	d.shown = true
-	d.popup.Show()
+	onShown(d.sh.win.Canvas(), d.popup.Show, d.Hide)
 }
 
 // Hide closes the dialog and runs SetOnClosed's functions; a dialog not shown stays as it is.

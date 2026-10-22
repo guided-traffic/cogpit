@@ -395,7 +395,7 @@ func (r *chartRenderer) buildOverlay() {
 	py := fyne.Max(0, fyne.Min(g.top+m.pad, size.Height-hgt))
 
 	bg := canvas.NewRectangle(col(colorTooltip))
-	bg.StrokeColor, bg.StrokeWidth = col(theme.ColorNameInputBorder), 1
+	bg.StrokeColor, bg.StrokeWidth = col(colorHairline), 1
 	bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	bg.Move(fyne.NewPos(px, py))
 	bg.Resize(fyne.NewSize(w, hgt))

@@ -58,6 +58,10 @@ const (
 	colorGrid       fyne.ThemeColorName = "cogpit.grid"       // the horizon's grid lines
 	colorBracket    fyne.ThemeColorName = "cogpit.bracket"    // a bracket under a group's label
 	colorSlotDim    fyne.ThemeColorName = "cogpit.slotDim"    // an empty token
+	// colorHairline is the edge of a well, a list's frame, a card or a tooltip: what the input
+	// border drew before fields got an outline of their own that reads on every surface (the
+	// owner's AW1 of 2026-10-22: theme.ColorNameInputBorder is a field's outline since).
+	colorHairline fyne.ThemeColorName = "cogpit.hairline"
 )
 
 // Status colour tokens, one per model.Status.
@@ -154,7 +158,7 @@ var darkPalette = palette{
 		theme.ColorNameHover:               alpha(hex(0xffffff), 0x0e),
 		theme.ColorNameHyperlink:           hex(0x7cc4ff),
 		theme.ColorNameInputBackground:     hex(0x131a25),
-		theme.ColorNameInputBorder:         hex(0x263042),
+		theme.ColorNameInputBorder:         hex(0x3e4f6a), // a field's outline: 2:1 on every surface a field stands on (AW1)
 		theme.ColorNameMenuBackground:      hex(0x121925),
 		theme.ColorNameOverlayBackground:   hex(0x121925), // dialogs, the palette: a lifted plate
 		theme.ColorNamePlaceHolder:         hex(0x6f7b8e),
@@ -197,6 +201,7 @@ var darkPalette = palette{
 		colorGrid:       alpha(hex(0x5ab8ff), 0x1c), // the horizon's grid lines
 		colorBracket:    hex(0x34435c),              // a bracket's line under a group's label
 		colorSlotDim:    hex(0x1c2636),              // an empty token's square
+		colorHairline:   hex(0x263042),              // a well's or a card's edge
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x3dd68c), // mint
@@ -228,7 +233,7 @@ var lightPalette = palette{
 		theme.ColorNameHover:               alpha(hex(0x000000), 0x0a),
 		theme.ColorNameHyperlink:           hex(0x0a62c2),
 		theme.ColorNameInputBackground:     hex(0xf0f3f7),
-		theme.ColorNameInputBorder:         hex(0xcdd4df),
+		theme.ColorNameInputBorder:         hex(0xa1acbc), // a field's outline: 2:1 on every surface a field stands on (AW1)
 		theme.ColorNameMenuBackground:      hex(0xffffff),
 		theme.ColorNameOverlayBackground:   hex(0xffffff),
 		theme.ColorNamePlaceHolder:         hex(0x697486),
@@ -271,6 +276,7 @@ var lightPalette = palette{
 		colorGrid:       alpha(hex(0x0a6fd6), 0x16),
 		colorBracket:    hex(0xb9c2cf),
 		colorSlotDim:    hex(0xe3e8ef),
+		colorHairline:   hex(0xcdd4df),
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x138a52),

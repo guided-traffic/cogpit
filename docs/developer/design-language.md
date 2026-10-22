@@ -45,7 +45,9 @@ brackets with end ticks, lowercase labels with a middle dot, a faint perspective
 
 The palettes in [theme.go](../../internal/ui/fyneui/theme.go) replace Solarized (D-22) on this branch.
 Dark: stage `#0d121a`, chrome `#0a0e14`, sidebar `#0b0f16`, drawer `#10161f`, overlay `#121925`,
-hairline `#1b2330`; text `#d5dde8`, muted `#8592a5` (5.9:1 on the stage); glow blue `#4aa8ff`, cyan
+hairline `#1b2330`, a well's or card's edge `#263042`; a field's outline `#3e4f6a`, light `#a1acbc`,
+2:1 on every surface a field stands on, since a closed dropdown on a dialog read as the dialog's own
+colour (the owner's AW1 of 2026-10-22, [D-104](decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)); text `#d5dde8`, muted `#8592a5` (5.9:1 on the stage); glow blue `#4aa8ff`, cyan
 `#5ad1e3`, violet `#a48bff`; status mint `#3dd68c`, amber `#f2c14e`, orange `#ff9f5a`, coral `#ff6b74`,
 rose `#ee82b8` (Terminating; violet is the agent's), blue `#5ab8ff` (Succeeded). Light keeps the same
 roles on white plates with the lights deepened for 4.5:1 text. Every pair still passes

@@ -227,6 +227,13 @@ func TestPaletteContrast(t *testing.T) {
 			t.Errorf("%s: a toast's selection is %.2f:1 against the toast, too faint to be seen", name, got)
 		}
 		check("placeholder", c(theme.ColorNamePlaceHolder), theme.ColorNameInputBackground, 3.0)
+		// A field's outline (the input border Fyne's entries, checks and radios and Cogpit's dropdown
+		// draw) on every surface a field stands on, its own plate included (the owner's AW1 of
+		// 2026-10-22: a closed dropdown on a dialog read as the dialog's own colour).
+		for _, bg := range []fyne.ThemeColorName{theme.ColorNameBackground, colorSidebar, colorDrawer,
+			theme.ColorNameOverlayBackground, theme.ColorNameHeaderBackground, theme.ColorNameInputBackground} {
+			check("field outline", c(theme.ColorNameInputBorder), bg, 2.0)
+		}
 		// A chart's lines are graphics on the plot (the input background), and their swatches sit
 		// in the hover panel (the tooltip).
 		for _, n := range []fyne.ThemeColorName{colorAccent, colorChartSecond} {

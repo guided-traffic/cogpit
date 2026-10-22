@@ -187,5 +187,5 @@ func (b *helmHTTPBanner) confirm(r engine.HelmRepoInfo) {
 		}
 	})
 	b.ask = d
-	d.Show()
+	b.sh.showDialog(d)
 }

@@ -244,7 +244,7 @@ func dialogTexts(w fyne.Window) []string {
 			out = append(out, t.Text)
 		}
 	}
-	for _, c := range findAll[*widget.Check](top) {
+	for _, c := range checksIn(top) {
 		out = append(out, "["+c.Text+"]")
 	}
 	return out
@@ -270,8 +270,8 @@ func TestForwardDialogFromPodDrawer(t *testing.T) {
 		}
 	}
 	top := w.Canvas().Overlays().Top()
-	entries := findAll[*widget.Entry](top)
-	checks := findAll[*widget.Check](top)
+	entries := entriesIn(top)
+	checks := checksIn(top)
 	if len(entries) != 1 || entries[0].PlaceHolder != "Random" || entries[0].Text != "" || len(checks) != 2 || checks[0].Checked || !checks[1].Checked {
 		t.Fatalf("the dialog's fields: %d entries, checks %v", len(entries), checks)
 	}
@@ -358,7 +358,7 @@ func TestPortForwardingView(t *testing.T) {
 	item(t, m, "Edit").Action()
 	q.until(t, "the dialog", func() bool { return w.Canvas().Overlays().Top() != nil })
 	top := w.Canvas().Overlays().Top()
-	entries, checks := findAll[*widget.Entry](top), findAll[*widget.Check](top)
+	entries, checks := entriesIn(top), checksIn(top)
 	if len(entries) != 1 || entries[0].Text != "9443" || len(checks) != 2 || !checks[0].Checked || checks[1].Checked {
 		t.Fatalf("Edit's dialog does not start from the forward's settings: entries %v checks %v", entries, checks)
 	}

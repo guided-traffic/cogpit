@@ -94,6 +94,7 @@ func (sh *shell) openMCPDetails() {
 	d.panel = newMCPPanel(d)
 	sh.mcp.details = d
 	sh.win.Canvas().Overlays().Add(d.panel)
+	onEscape(sh.win.Canvas(), d.panel, sh.closeMCPDetails) // escape.go
 	d.panel.Resize(sh.win.Canvas().Size())
 	d.rebuild()
 	sh.refreshMCPGear()
@@ -365,7 +366,7 @@ func (sh *shell) askRegenerateMCP() {
 		time.AfterFunc(delay, func() { sh.do(w.confirm.Enable) })
 	}
 	d.warning = w
-	w.d.Show() // no button has the focus: Enter must not regenerate by accident
+	sh.showDialog(w.d) // no button has the focus: Enter must not regenerate by accident; Escape is Cancel
 }
 
 // regenerateMCP replaces the token off the main goroutine (a file write, connections ending) and

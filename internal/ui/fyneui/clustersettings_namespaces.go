@@ -81,7 +81,7 @@ func (p *settingsPage) clusterNamespacesSection() fyne.CanvasObject {
 			name := newTextLine(ns, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Monospace: true})
 			name.truncate = true
 			bg := newSurface(theme.ColorNameInputBackground)
-			bg.radius, bg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+			bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 			objs = append(objs, container.NewStack(bg, container.NewBorder(nil, nil, nil, remove,
 				inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, name))))
 		}

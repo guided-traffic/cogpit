@@ -87,7 +87,7 @@ func (p *settingsPage) pickColor(title string, set func(hex string)) {
 		set(fmt.Sprintf("#%02x%02x%02x", r>>8, g>>8, b>>8))
 	}, p.sh.win)
 	d.Advanced = true
-	d.Show()
+	p.sh.showDialog(d)
 }
 
 // noneSwatch is the accent row's None: an empty square crossed by a line, ringed while the cluster

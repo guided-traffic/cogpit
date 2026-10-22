@@ -81,7 +81,7 @@ func (s *segmented) choose(i int) {
 		s.themes[j].Refresh()
 	}
 	s.lay.plate.FillColor = th.Color(theme.ColorNameInputBackground, v)
-	s.lay.plate.StrokeColor = th.Color(theme.ColorNameInputBorder, v)
+	s.lay.plate.StrokeColor = th.Color(colorHairline, v)
 	s.under.FillColor = th.Color(theme.ColorNamePrimary, v)
 	s.under.Hidden = i < 0
 	s.root.Refresh()

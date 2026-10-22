@@ -1106,8 +1106,8 @@ func (sh *shell) mainMenu() *fyne.MainMenu {
 
 // installShortcuts adds Lens's keyboard shortcuts that Cogpit supports, as the registry declares
 // them: ⌘F (ui.setFilter: the search) and ⌘⇧T (terminal.open), the window's own (windowKeys: a
-// focused widget that takes shortcuts keeps them; the View menu shows them, A55), Escape (close the
-// palette, the notifications or a settings page, else the drawer), "/" (the logs tab's search), and F1–F12 for
+// focused widget that takes shortcuts keeps them; the View menu shows them, A55), Escape (the
+// innermost thing open: the top overlay, a settings page, the drawer; escape.go), "/" (the logs tab's search), and F1–F12 for
 // the hotbar while no text field has the focus (the table and the search fields pass them on, A64).
 // ⌘⇧P and ⌘P are the main menu's (mainMenu), which take them from any focus.
 func (sh *shell) installShortcuts() {
@@ -1123,19 +1123,7 @@ func (sh *shell) installShortcuts() {
 			return
 		}
 		if ev.Name == fyne.KeyEscape {
-			if sh.palette.visible() { // the palette lies over everything
-				sh.palette.dismissThen(nil)
-				return
-			}
-			if sh.top.notes.visible() { // the notifications' panel (notifications.go)
-				sh.top.notes.close()
-				return
-			}
-			if sh.settings.visible() { // a settings page lies over the views
-				sh.dispatch("settings.close", struct{}{}, nil)
-				return
-			}
-			sh.closeDrawer()
+			sh.escape() // the innermost thing open: an overlay, a settings page, the drawer (escape.go)
 		}
 	})
 	c.SetOnTypedRune(func(r rune) {

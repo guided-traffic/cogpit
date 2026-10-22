@@ -96,7 +96,7 @@ func (sh *shell) forwardTargetName(ref model.ObjectRef) string {
 // (on), Cancel and Start; Fyne's dialog dims the window behind it. Edit starts from the forward's
 // settings.
 func (sh *shell) showForwardDialog(command string, p forwardParams) {
-	local := widget.NewEntry()
+	local := newFieldEntry() // Escape in it cancels the dialog (escape.go)
 	local.SetPlaceHolder("Random")
 	if p.LocalPort != nil && *p.LocalPort != 0 {
 		local.SetText(strconv.Itoa(int(*p.LocalPort)))
@@ -105,9 +105,9 @@ func (sh *shell) showForwardDialog(command string, p forwardParams) {
 		_, err := parseLocalPort(s)
 		return err
 	}
-	https := widget.NewCheck("https", nil)
+	https := newFieldCheck("https")
 	https.SetChecked(p.HTTPS != nil && *p.HTTPS)
-	open := widget.NewCheck("Open in Browser", nil)
+	open := newFieldCheck("Open in Browser")
 	open.SetChecked(p.OpenInBrowser == nil || *p.OpenInBrowser)
 	items := []*widget.FormItem{
 		{Text: "Local port", Widget: local},
@@ -130,7 +130,7 @@ func (sh *shell) showForwardDialog(command string, p forwardParams) {
 	}, sh.win)
 	th := sh.app.Settings().Theme()
 	d.Resize(fyne.NewSize(th.Size(sizeDialogWidth), d.MinSize().Height))
-	d.Show()
+	sh.showDialog(d)
 }
 
 // parseLocalPort reads the local port field: empty is 0, a free port.

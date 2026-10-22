@@ -134,7 +134,8 @@ func (c *createTab) showTemplates() {
 		}
 	}
 	c.menu = widget.NewPopUp(content, cnv)
-	c.menu.ShowAtPosition(pos)
+	m := c.menu
+	onShown(cnv, func() { m.ShowAtPosition(pos) }, m.Hide) // Escape closes it (escape.go)
 	c.menu.Resize(fyne.NewSize(width, height))
 }
 

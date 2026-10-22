@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -98,7 +97,7 @@ func renderScaleDialog(t *testing.T, mode ThemeMode, name string) {
 	item(t, m, "Scale").Action()
 	q.until(t, "the dialog", func() bool {
 		top := w.Canvas().Overlays().Top()
-		return top != nil && len(findAll[*widget.Entry](top)) == 1
+		return top != nil && len(entriesIn(top)) == 1
 	})
 	settle(w)
 	savePNG(t, w, name)

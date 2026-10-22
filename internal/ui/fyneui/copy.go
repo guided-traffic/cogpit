@@ -462,7 +462,7 @@ func (r *copyButtonRenderer) Layout(size fyne.Size) {
 func (r *copyButtonRenderer) Refresh() {
 	th := r.b.Theme()
 	r.bg.FillColor = themeColor(th, colorChip)
-	r.bg.StrokeColor = themeColor(th, theme.ColorNameInputBorder)
+	r.bg.StrokeColor = themeColor(th, colorHairline)
 	r.bg.StrokeWidth = th.Size(theme.SizeNameInputBorder)
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	if r.b.done {

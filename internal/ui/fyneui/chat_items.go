@@ -180,7 +180,7 @@ type chatUserView struct {
 func newChatUserView(c *chatPanel, idx int) *chatUserView {
 	v := &chatUserView{c: c, idx: idx}
 	v.card = newSurface(colorDrawerHeader)
-	v.card.radius, v.card.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	v.card.radius, v.card.stroke = theme.SizeNameInputRadius, colorHairline
 	v.chip = newChatChip(iconTarget, nil)
 	v.text = newMDText(theme.ColorNameForeground, c.mdHooks())
 	v.sent = newChatSentLine(func() { c.showPayload(v.idx) })
@@ -254,7 +254,7 @@ func (r *chatUserRenderer) Layout(size fyne.Size) {
 	ch := v.cardHeight()
 	v.card.Move(fyne.NewPos(0, 0))
 	v.card.Resize(fyne.NewSize(size.Width, ch))
-	v.card.fill, v.card.stroke = colorDrawerHeader, theme.ColorNameInputBorder
+	v.card.fill, v.card.stroke = colorDrawerHeader, colorHairline
 	if v.editor != nil {
 		r.layoutEditor(size, ch)
 		return

@@ -53,7 +53,7 @@ type syncPicker struct {
 	selected string
 	seq      int // the newest listing; older answers are dropped
 
-	pathEntry *widget.Entry
+	pathEntry *fieldEntry
 	upB       *widget.Button
 	syncB     *widget.Button
 	cancelB   *widget.Button
@@ -78,7 +78,7 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 	}
 	th := k.sh.app.Settings().Theme()
 	sp := &syncPicker{k: k, done: done, rows: map[string]*fsRow{}}
-	sp.pathEntry = widget.NewEntry()
+	sp.pathEntry = newFieldEntry() // Escape in it cancels the dialog (escape.go)
 	sp.pathEntry.SetPlaceHolder("Folder or file path…")
 	sp.pathEntry.OnSubmitted = sp.goToTyped
 	sp.pathEntry.OnChanged = func(string) { sp.renderStatus() }
@@ -90,7 +90,7 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 		"follows their changes and never writes them.", colorMuted, th.Size(sizePickerWidth))
 
 	listBg := newSurface(theme.ColorNameInputBackground)
-	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
 	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(sp.list)))
 	top := container.NewVBox(intro, newSpace(theme.SizeNamePadding), container.NewBorder(nil, nil, sp.upB, nil, sp.pathEntry),
 		newSpace(theme.SizeNamePadding))
@@ -107,7 +107,7 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 		}
 	})
 	k.syncing = sp
-	sp.d.Show()
+	k.sh.showDialog(sp.d)
 	sp.goTo(k.startDir(), "")
 }
 

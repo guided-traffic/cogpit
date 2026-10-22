@@ -107,21 +107,21 @@ type createForm struct {
 	cancel  *widget.Button
 	status  *paragraph
 
-	name *widget.Entry
-	ns   *widget.SelectEntry // nil for a cluster-scoped kind
+	name *fieldEntry
+	ns   *fieldSelectEntry // nil for a cluster-scoped kind
 	// The binding dialogs' role (roleKind nil in a cluster role binding's) and every list of rows.
 	roleKind *selectField
-	roleName *widget.SelectEntry
+	roleName *fieldSelectEntry
 	editors  []*rowEditor
-	secret   *secretForm                      // the Create Secret dialog's own fields (createdialog_secret.go)
-	offered  map[*widget.SelectEntry][]string // what each field offers from the cache (offer)
+	secret   *secretForm                    // the Create Secret dialog's own fields (createdialog_secret.go)
+	offered  map[*fieldSelectEntry][]string // what each field offers from the cache (offer)
 	// writers add the dialog's other fields to the parameters, or say what is wrong with them.
 	writers []func(map[string]any) error
 	// onNamespace runs when the namespace changes: options that depend on it are offered again.
 	onNamespace []func(string)
 	// nsFields are the fields that offer the namespaces; they follow the names while the dialog is
 	// open (stopNS ends it), so that a namespace created since is offered (WF10).
-	nsFields []*widget.SelectEntry
+	nsFields []*fieldSelectEntry
 	stopNS   func()
 
 	shown    bool
@@ -205,8 +205,8 @@ func (sh *shell) newCreateForm(cmd *engine.Command, spec createDialogSpec) *crea
 
 // namespaceField returns a field that offers the namespaces the window knows, kept current while
 // the dialog is open.
-func (f *createForm) namespaceField() *widget.SelectEntry {
-	e := widget.NewSelectEntry(slices.Clone(f.sh.namespaces))
+func (f *createForm) namespaceField() *fieldSelectEntry {
+	e := newFieldSelectEntry(slices.Clone(f.sh.namespaces))
 	f.nsFields = append(f.nsFields, e)
 	return e
 }
@@ -256,7 +256,7 @@ func (f *createForm) caption(text string) {
 // addName adds the object's name.
 func (f *createForm) addName(placeholder string) {
 	f.caption("NAME")
-	f.name = widget.NewEntry()
+	f.name = newFieldEntry()
 	f.name.SetPlaceHolder(placeholder)
 	f.name.OnSubmitted = func(string) { f.submit() }
 	f.content.Add(f.name)
@@ -427,9 +427,9 @@ func (f *createForm) loadNames(kind string, namespaces []string, done func([]mod
 }
 
 // offer sets the names a field offers, and remembers them (Fyne's SelectEntry does not say).
-func (f *createForm) offer(e *widget.SelectEntry, options []string) {
+func (f *createForm) offer(e *fieldSelectEntry, options []string) {
 	if f.offered == nil {
-		f.offered = map[*widget.SelectEntry][]string{}
+		f.offered = map[*fieldSelectEntry][]string{}
 	}
 	f.offered[e] = options
 	e.SetOptions(options)
@@ -568,7 +568,7 @@ func buildRoleForm(f *createForm, cluster bool) {
 		resourcesHint = "pods, /healthz"
 	}
 	rules := f.addRows("RULES", []string{"API groups", "Resources", "Verbs"}, "Add Rule", func() *editorRow {
-		groups, resources, verbs := widget.NewEntry(), widget.NewEntry(), widget.NewEntry()
+		groups, resources, verbs := newFieldEntry(), newFieldEntry(), newFieldEntry()
 		groups.SetPlaceHolder("core")
 		resources.SetPlaceHolder(resourcesHint)
 		verbs.SetPlaceHolder("get, list, watch")
@@ -613,7 +613,7 @@ func buildRoleForm(f *createForm, cluster bool) {
 func buildBindingForm(f *createForm, cluster bool) {
 	var (
 		roleKind  *selectField
-		roleName  = widget.NewSelectEntry(nil)
+		roleName  = newFieldSelectEntry(nil)
 		autoName  string
 		accounts  = map[string][]string{} // service account names by namespace, from the cache
 		roleSeq   int
@@ -668,7 +668,7 @@ func buildBindingForm(f *createForm, cluster bool) {
 	}
 	subjects = f.addRows("SUBJECTS", []string{"Kind", "Name", "Namespace"}, "Add Subject", func() *editorRow {
 		kind := newSelectField([]string{subjectUser, subjectGroup, subjectServiceAccount}, nil)
-		name, ns := widget.NewSelectEntry(nil), f.namespaceField()
+		name, ns := newFieldSelectEntry(nil), f.namespaceField()
 		hint := "the binding's" // a role binding's service account defaults to its namespace
 		if cluster {
 			hint = "its namespace"
@@ -732,7 +732,7 @@ func buildQuotaForm(f *createForm) {
 	f.addName("compute")
 	f.addNamespace()
 	limits := f.addRows("HARD LIMITS", []string{"Resource", "Limit"}, "Add Limit", func() *editorRow {
-		res, qty := widget.NewSelectEntry(quotaResources), widget.NewEntry()
+		res, qty := newFieldSelectEntry(quotaResources), newFieldEntry()
 		res.SetPlaceHolder("pods")
 		qty.SetPlaceHolder("10")
 		return &editorRow{fields: []fyne.CanvasObject{res, qty}, value: func() (any, bool) {

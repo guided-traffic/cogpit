@@ -115,7 +115,7 @@ func (p *settingsPage) confirmAgentWrites(ctx string, done func(bool)) {
 		time.AfterFunc(delay, func() { sh.do(cd.confirm.Enable) })
 	}
 	p.agentsDialog = cd
-	cd.d.Show()
+	sh.showDialog(cd.d) // Escape closes it, answering no (SetOnClosed)
 }
 
 // allowanceHint is the confirmation's line about the allowance (Cluster Settings › Agents) for an

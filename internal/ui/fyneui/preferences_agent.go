@@ -278,7 +278,7 @@ func (a *agentPrefs) confirmDelete(c engine.ChatConnection) {
 		}()
 	}, sh.win)
 	d.SetConfirmText("Delete")
-	d.Show()
+	sh.showDialog(d)
 }
 
 func (a *agentPrefs) makeDefault(id string) {
@@ -428,7 +428,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	cancel := widget.NewButton("Cancel", a.closeForm)
 
 	bg := newSurface(theme.ColorNameInputBackground)
-	bg.radius, bg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	form := container.NewVBox(
 		newTextLine(title, theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true}),
 		newSpace(theme.SizeNamePadding),
@@ -479,7 +479,7 @@ func (f *agentForm) chooseCAFileWithDialog() {
 		f.caFile.SetText(path)
 	}, f.a.p.sh.win)
 	d.SetFilter(storage.NewExtensionFileFilter([]string{".pem", ".crt", ".cer"}))
-	d.Show()
+	f.a.p.sh.showDialog(d)
 }
 
 // caFileExamples are the CA file field's placeholder and the absolute path its error suggests, as

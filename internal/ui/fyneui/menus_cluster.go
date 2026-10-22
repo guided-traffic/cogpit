@@ -273,7 +273,7 @@ func (sh *shell) confirmRemoveCluster(contextID string) {
 				})
 			}, sh.win)
 			links.removing = d
-			d.Show()
+			sh.showDialog(d)
 		})
 	}()
 }

@@ -127,9 +127,10 @@ type paramField struct {
 	label   *fieldName
 	value   fyne.CanvasObject
 	problem *textLine
-	entry   *widget.Entry  // a number's or a string's; nil for a check
-	slider  *widget.Slider // a number's slider (DialogField.SliderMin..SliderMax); nil without
-	check   *widget.Check  // a boolean's
+	entry   *fieldEntry  // a number's or a string's; nil for a check
+	slider  *fieldSlider // a number's slider (DialogField.SliderMin..SliderMax); nil without
+	check   *fieldCheck  // a boolean's
+	// The three hand Escape on to the dialog's Cancel (escape.go).
 	// get returns the value to send, nil for an optional field left empty, or why the field's
 	// text cannot be sent.
 	get func() (any, error)
@@ -158,7 +159,7 @@ func formField(cmd *engine.Command, name string, value any, tip *tooltip) (*para
 	case schemaInteger, "number":
 		df := cmd.DialogField(name)
 		hasSlider := typ == schemaInteger && df.HasSlider()
-		f.entry = widget.NewEntry()
+		f.entry = newFieldEntry()
 		if v, ok := value.(float64); ok {
 			f.entry.SetText(strconv.FormatFloat(v, 'f', -1, 64))
 		}
@@ -182,11 +183,11 @@ func formField(cmd *engine.Command, name string, value any, tip *tooltip) (*para
 		field := box(widthLayout{width: numberWidth(prop, typ)}, f.entry)
 		f.value = field
 		if hasSlider {
-			f.slider = newBoundSlider(f.entry, df, parse)
+			f.slider = newBoundSlider(&f.entry.Entry, df, parse)
 			f.value = container.NewHBox(sized(sizeSliderWidth, "", themedSlider(f.slider)), field)
 		}
 	case "string":
-		f.entry = widget.NewEntry()
+		f.entry = newFieldEntry()
 		if s, ok := value.(string); ok {
 			f.entry.SetText(s)
 		}
@@ -199,7 +200,7 @@ func formField(cmd *engine.Command, name string, value any, tip *tooltip) (*para
 		f.entry.OnChanged = func(string) { f.edited() }
 		f.value = sized(sizeSearchWidth, "", f.entry)
 	case "boolean":
-		f.check = widget.NewCheck("", nil)
+		f.check = newFieldCheck("")
 		if b, ok := value.(bool); ok {
 			f.check.SetChecked(b)
 		}
@@ -237,10 +238,9 @@ func parseNumber(s, typ string, prop *jsonschema.Schema) (float64, error) {
 // newBoundSlider is the slider beside a number entry (GW2): dragging it writes its value into the
 // entry; a number typed into the entry moves it there, or to its nearer end when the number lies
 // beyond its range (Scale's 50 at 30, 0 at 1: the entry holds the value sent).
-func newBoundSlider(e *widget.Entry, df engine.DialogField, parse func(string) (float64, error)) *widget.Slider {
+func newBoundSlider(e *widget.Entry, df engine.DialogField, parse func(string) (float64, error)) *fieldSlider {
 	lo, hi := float64(df.SliderMin), float64(df.SliderMax)
-	s := widget.NewSlider(lo, hi)
-	s.Step = 1
+	s := newFieldSlider(lo, hi)
 	syncing := false
 	place := func() {
 		v, err := parse(e.Text)

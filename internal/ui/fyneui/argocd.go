@@ -157,7 +157,7 @@ func (sh *shell) openArgoSyncDialog(refs []model.ObjectRef) {
 	if len(refs) == 0 {
 		return
 	}
-	prune := widget.NewCheck("Prune resources not in Git", nil)
+	prune := newFieldCheck("Prune resources not in Git")
 	width := sh.app.Settings().Theme().Size(sizeConfirmWidth)
 	hint := newParagraph("Pruning deletes the live resources the Application manages that are no longer in Git; Cogpit asks once more before it does.", colorMuted, width)
 	sh.argoDialog("Sync", refs, container.NewVBox(prune, hint), func(chosen []model.ObjectRef) {
