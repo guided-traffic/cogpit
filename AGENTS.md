@@ -233,10 +233,13 @@ what landed, numbers, what's still open. Keep the tree building at every step.
 **Several leads at once** (owner, 2026-10-22: up to three lead sessions, each on its own bugs and
 features; these rules are the lead's, open to revision):
 
-- **Own worktree, own branch.** Each lead starts with `claude -w <name>` (worktree
-  `.claude/worktrees/<name>`, branch `worktree-<name>`), never in the main checkout another lead
-  may use. Its work ends as a pull request it merges itself once CI is green: rebase on `main`
-  first; in the docs' status lines and revision tables keep both sides.
+- **Own worktree, own branch.** Each lead works in its own git worktree, never in a folder
+  another lead uses: the owner works in VS Code only, one window per lead, opened on
+  `.claude/worktrees/<name>` (made with `git worktree add -b worktree-<name>
+  .claude/worktrees/<name> origin/main`; `lead-2` and `lead-3` exist since 2026-10-22). A task gets
+  a branch of its own in it (`git switch -c <topic> origin/main`) and ends as a pull request the
+  lead merges itself once CI is green: rebase on `main` first; in the docs' status lines and
+  revision tables keep both sides. The worktree stays for the lead's next task.
 - **Numbers at merge time.** A new decision, gap or security gap is written `D-new`, `G-new`,
   `H-new` on the branch and gets the next free number on `main` in the rebase before the merge, so
   two leads never take the same one.
