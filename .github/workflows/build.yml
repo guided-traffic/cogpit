@@ -97,7 +97,7 @@ jobs:
       - name: Set up Python for dmgbuild
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.15"
 
       - name: Build the disk image's template
         run: make dist-dmg-template VERSION="${GITHUB_REF_NAME#v}"
