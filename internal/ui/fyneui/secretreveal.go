@@ -11,7 +11,8 @@ import (
 // masked and a "Show" button beside each; Show runs secret.reveal from the GUI, the one origin the
 // engine hands a value to, and the drawer shows the value in place until the user hides it, the
 // drawer moves to another object or closes. The value lives in the drawer's revealed map and its
-// widgets only: no toast, no log, no engine state.
+// widgets only: no toast, no log, no engine state. A masked value is copied without being shown
+// (secretcopy.go), and that copy leaves the revealed map alone.
 
 func init() { itemActionDialogs[engine.RevealCommand] = toggleReveal }
 
@@ -93,15 +94,16 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 // revealedValue renders a revealed value: selectable text in the monospace face, wrapped, so that
 // a long token can be read and copied whole. Its copy icon and the copy shortcut put it on the
 // clipboard through shell.copyText as a Secret value, which is cleared again later (D-25). The
-// icon copies the value alone; the note that a long value was cut is part of the shown text only.
-func (d *drawer) revealedValue(it model.DetailItem) fyne.CanvasObject {
-	value := it.Value
-	for _, a := range it.Actions {
-		if n, ok := d.revealedLen[revealKey(a)]; ok && n <= len(value) {
-			value = value[:n]
-		}
+// icon copies the value alone, not the note that a long value was cut; a value Show cut it reads
+// again whole and copies whole, the drawer still showing the cut text (secretcopy.go, the lead's
+// decision of 2026-10-22). A selection and the copy shortcut copy exactly the selection.
+func (d *drawer) revealedValue(ref model.ObjectRef, it model.DetailItem) fyne.CanvasObject {
+	copied := func(sel string) { d.sh.copyText(sel, true) }
+	a, _ := revealAction(it)
+	if n, ok := d.revealedLen[revealKey(a)]; ok && n < len(it.Value) { // cut: the note follows the value
+		return newSecretText(it.Value, d.fetchCopyFor(wholeCopyTip, func(h *copyHook) { d.copyWhole(ref, a, h) }), copied)
 	}
-	return newSecretText(it.Value, d.copyFor(value, true), func(sel string) { d.sh.copyText(sel, true) })
+	return newSecretText(it.Value, d.copyFor(it.Value, true), copied)
 }
 
 // actionLabel is an item action's button text: Hide for a value the action revealed.
@@ -114,12 +116,8 @@ func (d *drawer) actionLabel(a model.ItemAction) string {
 
 // revealable reports whether an item's value can be revealed in place.
 func revealable(it model.DetailItem) bool {
-	for _, a := range it.Actions {
-		if a.Command == engine.RevealCommand {
-			return true
-		}
-	}
-	return false
+	_, ok := revealAction(it)
+	return ok
 }
 
 // byteText renders a size as every byte amount is (D-32): "24 B", "4.0 KiB", "1.5 MiB".
