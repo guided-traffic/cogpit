@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"slices"
+	"strings"
 	"testing"
 )
 
@@ -109,6 +110,39 @@ func TestTabStep(t *testing.T) {
 	}
 	u.ActiveTab = ""
 	if _, err := u.tabStep(1); !errors.Is(err, ErrNoTab) {
+		t.Fatalf("without an active tab: %v", err)
+	}
+}
+
+// TestDockStep (AW10): Move Tab Left and Right with dock step the dock's active tab among the tabs
+// the dock shows, another cluster's hidden tab keeping its place, and say why not at the dock's
+// ends or without a tab.
+func TestDockStep(t *testing.T) {
+	u := UIState{Context: "a", ActiveDock: "logs-1", Dock: []DockTab{
+		{ID: "logs-1", Context: "a"}, {ID: "terminal-1", Context: "b"}, {ID: "audit-1"},
+	}}
+	if _, err := u.dockStep(-1); err == nil || !strings.Contains(err.Error(), "first in the dock") {
+		t.Fatalf("the first tab steps left: %v", err)
+	}
+	to, err := u.dockStep(1)
+	if err != nil || to != 2 {
+		t.Fatalf("right: %d, %v", to, err)
+	}
+	if err := u.moveDockTab(u.ActiveDock, to); err != nil {
+		t.Fatal(err)
+	}
+	if got := dockIDs(u.Dock); !slices.Equal(got, []string{"terminal-1", "audit-1", "logs-1"}) {
+		t.Fatalf("after the step %v", got)
+	}
+	if _, err := u.dockStep(1); err == nil || !strings.Contains(err.Error(), "last in the dock") {
+		t.Fatalf("the last tab steps right: %v", err)
+	}
+	u.ActiveDock = "terminal-1" // a hidden cluster's tab is never the shown dock's active one; if it were
+	if _, err := u.dockStep(1); !errors.Is(err, errNotInBar) {
+		t.Fatalf("a hidden tab: %v", err)
+	}
+	u.ActiveDock = ""
+	if _, err := u.dockStep(1); !errors.Is(err, ErrNoDockTabs) {
 		t.Fatalf("without an active tab: %v", err)
 	}
 }

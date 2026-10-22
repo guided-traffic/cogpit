@@ -39,6 +39,8 @@ func TestDispatchedParamsMatchTheRegistry(t *testing.T) {
 		{"ui.closeDrawer", struct{}{}},
 		{"ui.navigate", refParams{Ref: ref}},
 		{"dock.activate", dockParams{ID: "logs-1"}},
+		{"ui.tab.moveLeft", tabStepParams{Dock: true}}, // Move Tab's keys in the dock (tabmovekeys.go, AW10)
+		{"ui.tab.moveRight", tabStepParams{}},
 		{"dock.close", dockParams{ID: "logs-1"}},
 		{"terminal.open", struct{}{}},
 		{"pod.logs", containerParams{Ref: ref}},

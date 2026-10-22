@@ -225,8 +225,8 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `ui.tab.close` | `ui_tab_close` | ui | `id`? | Closes the active tab (or the tab named by id) |
 | `ui.tab.forward` | `ui_tab_forward` | ui |  | Goes forward again in the active tab's history, after ui_tab_back |
 | `ui.tab.move` | `ui_tab_move` | ui | `id`?, `index` | Moves a tab of the tab bar (the active one without id) to another place among the tabs the bar shows, as dragging it there does: index 1 is the first |
-| `ui.tab.moveLeft` | `ui_tab_moveLeft` | ui |  | Moves the active tab one place to the left in the tab bar, as ui_tab_move does |
-| `ui.tab.moveRight` | `ui_tab_moveRight` | ui |  | Moves the active tab one place to the right in the tab bar, as ui_tab_move does |
+| `ui.tab.moveLeft` | `ui_tab_moveLeft` | ui | `dock`? | Moves the active tab one place to the left in the tab bar, as ui_tab_move does, or with dock the dock's active tab in the dock, as dock_move does |
+| `ui.tab.moveRight` | `ui_tab_moveRight` | ui | `dock`? | Moves the active tab one place to the right in the tab bar, as ui_tab_move does, or with dock the dock's active tab in the dock, as dock_move does |
 | `ui.tab.next` | `ui_tab_next` | ui |  | Activates the tab right of the active one, the first after the last, as ui_tab_select does |
 | `ui.tab.open` | `ui_tab_open` | ui | `fixed`?, `view` | Opens a view of the shown cluster in a tab of the tab bar: in the preview tab (which the next view opened in preview replaces; ui_openView does the same), or with fixed in a new fixed tab that stays until closed |
 | `ui.tab.pin` | `ui_tab_pin` | ui | `id`? | Makes the preview tab (or the tab named by id) a fixed tab, as a double click on its title does: the next view opened in preview then opens in a new preview tab |

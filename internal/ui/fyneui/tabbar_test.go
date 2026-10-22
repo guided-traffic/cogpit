@@ -26,7 +26,7 @@ var tabProbes = map[string]func(t testing.TB, f *fakeEngine, cmd *engine.Command
 	"ui.tab.open": probe[tabOpenParams], "ui.tab.pin": probe[tabIDParams], "ui.tab.close": probe[tabIDParams],
 	"ui.tab.select": probe[tabSelectParams], "ui.tab.next": probe[struct{}], "ui.tab.previous": probe[struct{}],
 	"ui.tab.back": probe[struct{}], "ui.tab.forward": probe[struct{}],
-	"ui.tab.move": probe[tabMoveParams], "ui.tab.moveLeft": probe[struct{}], "ui.tab.moveRight": probe[struct{}],
+	"ui.tab.move": probe[tabMoveParams], "ui.tab.moveLeft": probe[tabStepParams], "ui.tab.moveRight": probe[tabStepParams],
 }
 
 // fakeTabCommands gives the fake engine the tab commands: stand-ins of the real ones in its

@@ -180,6 +180,7 @@ func (b *tabBar) reveal(t *viewTab) {
 // tapped is a click on a tab: it activates the tab, and the second click of a double click on the
 // preview tab fixes it.
 func (b *tabBar) tapped(t engine.ViewTab) {
+	b.sh.dock.keysLast = false // Move Tab's keys are the tab bar's again (tabmovekeys.go)
 	if b.double(&b.tabClick, t.ID) && t.Preview {
 		b.sh.dispatch("ui.tab.pin", tabIDParams{ID: t.ID}, nil)
 		return
@@ -203,6 +204,7 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 	}
 	whenTabs := func(id string) func() {
 		return func() {
+			sh.dock.keysLast = false // the tab bar's keys: Move Tab's are its own again (tabmovekeys.go)
 			if len(sh.ui.TabsShown()) > 0 {
 				sh.dispatch(id, struct{}{}, nil)
 			}
@@ -220,18 +222,10 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 	})
 	add("ui.tab.next", whenTabs("ui.tab.next"))
 	add("ui.tab.previous", whenTabs("ui.tab.previous"))
-	// Move Tab Left and Right (GW4): only where the active tab has a place to go.
-	step := func(id string, d int) func() {
-		return func() {
-			tabs := sh.ui.TabsShown()
-			i := slices.IndexFunc(tabs, func(t engine.ViewTab) bool { return t.ID == sh.ui.ActiveTab })
-			if i >= 0 && i+d >= 0 && i+d < len(tabs) {
-				sh.dispatch(id, struct{}{}, nil)
-			}
-		}
-	}
-	add("ui.tab.moveLeft", step("ui.tab.moveLeft", -1))
-	add("ui.tab.moveRight", step("ui.tab.moveRight", 1))
+	// Move Tab Left and Right (GW4): the active tab of the bar the keyboard works in, the dock's
+	// included (AW10, tabmovekeys.go), only where it has a place to go.
+	add("ui.tab.moveLeft", func() { sh.stepTab("ui.tab.moveLeft", -1) })
+	add("ui.tab.moveRight", func() { sh.stepTab("ui.tab.moveRight", 1) })
 	add("ui.tab.back", b.history(true))
 	add("ui.tab.forward", b.history(false))
 	if c, ok := sh.eng.Registry().Get("ui.tab.select"); ok {
@@ -242,6 +236,7 @@ func (b *tabBar) menuItems() []*fyne.MenuItem {
 				label, params = "Last Tab", tabSelectParams{Last: true}
 			}
 			item := fyne.NewMenuItem(label, func() {
+				sh.dock.keysLast = false
 				if n := len(sh.ui.TabsShown()); n >= params.Index && n > 0 { // the tabs the bar shows
 					sh.dispatch(c.ID, params, nil)
 				}

@@ -60,6 +60,9 @@ type dock struct {
 	// focusReq is the tab the window asked the keys for, until its main widget takes them
 	// (dockfocus.go, AW5, AW8).
 	focusReq *focusRequest
+	// keysLast: a dock tab was clicked after the tab bar's last click or key, so that Move Tab's
+	// keys move the dock's tab while nothing is focused (tabmovekeys.go, AW10).
+	keysLast bool
 }
 
 // dockContent is one tab's content and the stream behind it.
@@ -321,6 +324,7 @@ func (d *dock) rebuildStrip() {
 		b := newTabButton(t.Title, icon, id == d.active && d.open(),
 			func() { // another tab activated opens the dock in the engine; the shown one opens it here
 				d.requestFocus(id) // the clicked tab takes the keys, the shown one too (dockfocus.go)
+				d.keysLast = true  // Move Tab's keys are the dock's (tabmovekeys.go)
 				if id != d.active {
 					d.sh.dispatch("dock.activate", dockParams{ID: id}, nil)
 				} else if !d.open() {
