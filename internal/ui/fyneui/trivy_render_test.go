@@ -5,15 +5,17 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2/widget"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The pod drawer's Image Ratings (D-78): a pod of a ReplicaSet with two containers and an init
-// container, its images rated from Trivy Operator's reports as the engine builds the sections
-// (engine.PodImageRatings): one Critical, one Clean, and the init container's image not scanned.
+// The pod drawer's image grades (D-78, D-new): a pod of a ReplicaSet with two containers and an init
+// container, each container's section graded from Trivy Operator's reports as the engine builds them
+// (engine.PodImageGrades): the shield after the container's name and the card under its items; app
+// D, envoy C for its OS's end of life, and the init container's image not scanned, N/A.
 
 // trivyFixtureReport is a report of one container of a fixture pod's ReplicaSet, shaped as Trivy
 // Operator writes it (kind, 2026-10-17), the image as the fixture names it.
@@ -68,26 +70,28 @@ func trivyPodFake(t *testing.T) (*engine.DetailModel, *fakeEngine) {
 		t.Fatalf("no container %s", name)
 		return ""
 	}
+	envoy := trivyFixtureReport(pod.ns, pod.ownerName, "envoy", image("containers", "envoy"))
+	_ = unstructured.SetNestedMap(envoy.Object, map[string]any{"family": "alpine", "name": "3.20.10", "eosl": true}, "report", "os")
 	reports := []*unstructured.Unstructured{
 		trivyFixtureReport(pod.ns, pod.ownerName, "app", image("containers", "app"), 3, 12, 30, 8, 2),
-		trivyFixtureReport(pod.ns, pod.ownerName, "envoy", image("containers", "envoy")),
+		envoy,
 	}
 	m := f.details[ref.String()]
-	m.Sections = append(m.Sections, engine.PodImageRatings(obj, reports, fixedNow)...)
+	m.Sections = engine.PodImageGrades(obj, reports, m.Sections, fixedNow)
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	return m, f
 }
 
-func renderImageRatings(t *testing.T, mode ThemeMode, name string) {
+func renderImageGrades(t *testing.T, mode ThemeMode, name string) {
 	m, f := trivyPodFake(t)
-	var titles []string
+	grades := map[string]model.ImageGrade{}
 	for _, sec := range m.Sections {
-		if sec.Group == "Image Ratings" {
-			titles = append(titles, sec.Title)
+		if sec.Grade != nil {
+			grades[sec.Title] = sec.Grade.Grade
 		}
 	}
-	if len(titles) != 3 {
-		t.Fatalf("image sections %v", titles)
+	if len(grades) != 3 || grades["app"] != model.GradeD || grades["envoy"] != model.GradeC || grades["migrate"] != model.GradeNA {
+		t.Fatalf("graded containers %v", grades)
 	}
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "the drawer", func() bool {
@@ -98,21 +102,33 @@ func renderImageRatings(t *testing.T, mode ThemeMode, name string) {
 	for _, p := range findAll[*pill](sh.drawer.details) { // a value with a status: its pill
 		all = append(all, p.text)
 	}
+	for _, rt := range findAll[*widget.RichText](sh.drawer.details) { // the grade cards' texts
+		all = append(all, rt.String())
+	}
 	texts := strings.Join(all, "\n")
-	for _, want := range []string{"Image Ratings", "Critical · 3", "Clean", "Not scanned", "app", "envoy", "migrate (init)"} {
+	for _, want := range []string{"D · 3 Critical", "C · OS end of life", "N/A · not scanned", "app", "envoy", "migrate"} {
 		if !strings.Contains(texts, want) {
 			t.Errorf("the drawer does not show %q", want)
 		}
 	}
-	scrollDrawerTo(t, sh, "Image Ratings")
+	if strings.Contains(texts, "Image Ratings") {
+		t.Error("the grades have a section of their own")
+	}
+	if n := len(findAll[*gradeBadge](sh.drawer.details)); n != 6 { // a shield after each name and on each card
+		t.Errorf("%d shields in the drawer", n)
+	}
+	if n := len(findAll[*severityBar](sh.drawer.details)); n != 2 { // N/A has no counts
+		t.Errorf("%d severity bars", n)
+	}
+	scrollDrawerTo(t, sh, "app")
 	settle(w)
 	savePNG(t, w, name)
 }
 
-func TestRenderPodImageRatingsDark(t *testing.T) {
-	renderImageRatings(t, ThemeDark, "pod_image_ratings_dark.png")
+func TestRenderPodImageGradesDark(t *testing.T) {
+	renderImageGrades(t, ThemeDark, "pod_image_grades_dark.png")
 }
 
-func TestRenderPodImageRatingsLight(t *testing.T) {
-	renderImageRatings(t, ThemeLight, "pod_image_ratings_light.png")
+func TestRenderPodImageGradesLight(t *testing.T) {
+	renderImageGrades(t, ThemeLight, "pod_image_grades_light.png")
 }

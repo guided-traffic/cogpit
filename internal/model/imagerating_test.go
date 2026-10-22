@@ -34,75 +34,82 @@ func trivyReport(kind, workload, container string, summary map[string]any) *unst
 	}}
 }
 
-func TestImageRatings(t *testing.T) {
+// TestImageGrades checks the owner's rules (2026-10-22) on the counts Trivy 0.69.3 found in real
+// images the same day (the Image Rating Lab's sample) and at each threshold.
+func TestImageGrades(t *testing.T) {
 	cases := []struct {
-		c     VulnerabilityCounts
-		want  ImageRating
-		text  string
-		st    Status
-		chips []string
+		name string
+		c    VulnerabilityCounts
+		eosl bool
+		want ImageGrade
+		text string
 	}{
-		{VulnerabilityCounts{Critical: 39, High: 123, Medium: 147, Low: 23, Unknown: 31}, RatingCritical, "Critical · 39", StatusError,
-			[]string{"39 Critical", "123 High", "147 Medium", "23 Low", "31 Unknown"}},
-		{VulnerabilityCounts{High: 10, Medium: 16, Low: 1, Unknown: 152}, RatingHigh, "High · 10", StatusWarning,
-			[]string{"10 High", "16 Medium", "1 Low", "152 Unknown"}},
-		{VulnerabilityCounts{Medium: 2}, RatingMedium, "Medium · 2", StatusPending, []string{"2 Medium"}},
-		{VulnerabilityCounts{Low: 1}, RatingLow, "Low · 1", StatusSucceeded, []string{"1 Low"}},
-		{VulnerabilityCounts{Unknown: 4}, RatingUnknown, "Unknown · 4", StatusUnknown, []string{"4 Unknown"}},
-		{VulnerabilityCounts{}, RatingClean, "Clean", StatusOK, nil},
+		{"redis:8-alpine", VulnerabilityCounts{}, false, GradeS, "S · no known vulnerabilities"},
+		{"busybox:1.37 (no package database)", VulnerabilityCounts{}, false, GradeS, "S · no known vulnerabilities"},
+		{"distroless/static", VulnerabilityCounts{Unknown: 1}, false, GradeA, "A · 1 Unknown"},
+		{"ubuntu:24.04", VulnerabilityCounts{Medium: 9, Low: 4}, false, GradeB, "B · 9 Medium"},
+		{"golang:1.25-alpine", VulnerabilityCounts{High: 2, Medium: 7, Low: 12}, false, GradeC, "C · 2 High"},
+		{"nginx:1.29-alpine", VulnerabilityCounts{High: 43, Medium: 83, Low: 50, Unknown: 2}, false, GradeC, "C · 43 High"},
+		{"node-exporter", VulnerabilityCounts{Critical: 1, High: 39, Medium: 25, Low: 1, Unknown: 2}, false, GradeD, "D · 1 Critical"},
+		{"prometheus", VulnerabilityCounts{Critical: 4, High: 92, Medium: 61, Low: 7, Unknown: 4}, false, GradeD, "D · 4 Critical"},
+		{"velero", VulnerabilityCounts{Critical: 6, High: 135, Medium: 148, Low: 63, Unknown: 4}, false, GradeE, "E · 6 Critical"},
+		{"alpine:3.20 (end of life)", VulnerabilityCounts{}, true, GradeC, "C · OS end of life"},
+		// The thresholds.
+		{"A at most", VulnerabilityCounts{Low: 6, Unknown: 4}, false, GradeA, "A · 10 Low or Unknown"},
+		{"B beyond", VulnerabilityCounts{Low: 11}, false, GradeB, "B · 11 Low"},
+		{"D at most", VulnerabilityCounts{Critical: 5}, false, GradeD, "D · 5 Critical"},
+		{"end of life keeps worse", VulnerabilityCounts{Critical: 2}, true, GradeD, "D · 2 Critical"},
+		{"end of life over High", VulnerabilityCounts{High: 3}, true, GradeC, "C · 3 High"},
 	}
 	for _, c := range cases {
-		r := c.c.Rating()
-		if r != c.want || RatingText(r, c.c) != c.text || r.Status() != c.st {
-			t.Errorf("%+v: %v %q %q", c.c, r, RatingText(r, c.c), r.Status())
+		g := c.c.Grade(c.eosl)
+		if g != c.want || GradeText(g, c.c, c.eosl) != c.text {
+			t.Errorf("%s: %v %q", c.name, g, GradeText(g, c.c, c.eosl))
 		}
-		var chips []string
-		for _, ch := range c.c.Chips() {
-			chips = append(chips, ch.Text)
-			if ch.Status == StatusNone {
-				t.Errorf("chip %q without a colour", ch.Text)
-			}
-		}
-		if len(chips) != len(c.chips) {
-			t.Errorf("%+v chips %v", c.c, chips)
-		}
-		for i := range chips {
-			if chips[i] != c.chips[i] {
-				t.Errorf("%+v chips %v", c.c, chips)
-			}
+		if GradeReason(g, c.c, c.eosl) == "" {
+			t.Errorf("%s: no reason", c.name)
 		}
 	}
-	if RatingText(RatingNotScanned, VulnerabilityCounts{}) != "Not scanned" || RatingNotScanned.Status() != StatusNone {
-		t.Error("Not scanned")
+	if r := GradeReason(GradeC, VulnerabilityCounts{}, true); r != "OS end of life: no more security updates, the scan may miss vulnerabilities" {
+		t.Errorf("end of life's reason %q", r)
 	}
-	// The order: a worse rating is greater.
-	order := []ImageRating{RatingNotScanned, RatingClean, RatingUnknown, RatingLow, RatingMedium, RatingHigh, RatingCritical}
-	for i := 1; i < len(order); i++ {
-		if order[i] <= order[i-1] {
-			t.Errorf("%v is not worse than %v", order[i], order[i-1])
-		}
+	if r := GradeReason(GradeC, VulnerabilityCounts{High: 3}, true); r != "High found, no Critical" {
+		t.Errorf("High's reason under an end of life %q", r)
 	}
-	if ImageRating(42).String() != "Not scanned" || ImageRating(-1).Status() != StatusNone {
-		t.Error("an out-of-range rating")
+	if GradeText(GradeNA, VulnerabilityCounts{}, false) != "N/A · not scanned" || GradeReason(GradeNA, VulnerabilityCounts{}, false) != "No Trivy report for this image" {
+		t.Error("N/A")
 	}
-	// The rank: the rating, then the count of its severity.
+	if s := (VulnerabilityCounts{Critical: 2, High: 45, Medium: 28, Low: 4, Unknown: 3}).Summary(); s != "2 Critical · 45 High · 28 Medium · 4 Low · 3 Unknown" {
+		t.Errorf("summary %q", s)
+	}
+	// The rank: the grade, then the count that decides it; N/A below S; none 0.
 	ranks := []int64{
-		RatingRank(RatingNotScanned, VulnerabilityCounts{}), RatingRank(RatingClean, VulnerabilityCounts{}),
-		RatingRank(RatingHigh, VulnerabilityCounts{High: 120}), RatingRank(RatingCritical, VulnerabilityCounts{Critical: 3}),
-		RatingRank(RatingCritical, VulnerabilityCounts{Critical: 39}), RatingRank(RatingCritical, VulnerabilityCounts{Critical: 1 << 40}),
+		GradeRank(GradeNone, VulnerabilityCounts{}, false),
+		GradeRank(GradeNA, VulnerabilityCounts{}, false),
+		GradeRank(GradeS, VulnerabilityCounts{}, false),
+		GradeRank(GradeA, VulnerabilityCounts{Low: 2}, false),
+		GradeRank(GradeC, VulnerabilityCounts{}, true),
+		GradeRank(GradeC, VulnerabilityCounts{High: 120}, false),
+		GradeRank(GradeD, VulnerabilityCounts{Critical: 2}, false),
+		GradeRank(GradeD, VulnerabilityCounts{Critical: 4}, false),
+		GradeRank(GradeE, VulnerabilityCounts{Critical: 1 << 40}, false),
 	}
 	for i := 1; i < len(ranks); i++ {
 		if ranks[i] <= ranks[i-1] {
 			t.Errorf("ranks out of order: %v", ranks)
 		}
 	}
-	if ranks[0] != 0 || RatingRank(ImageRating(9), VulnerabilityCounts{}) != 0 {
-		t.Errorf("not scanned ranks %d", ranks[0])
+	if ranks[0] != 0 || GradeRank(ImageGrade(42), VulnerabilityCounts{}, false) != 0 || ImageGrade(42).String() != "" {
+		t.Errorf("none ranks %d", ranks[0])
 	}
-	b, _ := json.Marshal(map[string]ImageRating{"r": RatingHigh})
-	var back map[string]ImageRating
-	if string(b) != `{"r":"high"}` || json.Unmarshal(b, &back) != nil || back["r"] != RatingHigh {
+	b, _ := json.Marshal(map[string]ImageGrade{"g": GradeNA, "h": GradeD})
+	var back map[string]ImageGrade
+	if string(b) != `{"g":"N/A","h":"D"}` || json.Unmarshal(b, &back) != nil || back["g"] != GradeNA || back["h"] != GradeD {
 		t.Errorf("JSON %s, %v", b, back)
+	}
+	// A cell without a grade carries none in JSON.
+	if b, _ := json.Marshal(Cell{Text: "x"}); string(b) != `{"text":"x"}` {
+		t.Errorf("cell JSON %s", b)
 	}
 }
 
@@ -118,6 +125,14 @@ func TestParseVulnerabilityReport(t *testing.T) {
 		t.Fatalf("%+v, %v", r, ok)
 	}
 
+	if r.OS() != "" || r.EOSL {
+		t.Errorf("no OS: %q %v", r.OS(), r.EOSL)
+	}
+	// The OS and its end of life (report.os, eosl written only when true).
+	_ = unstructured.SetNestedMap(obj.Object, map[string]any{"family": "alpine", "name": "3.20.10", "eosl": true}, "report", "os")
+	if r, _ := ParseVulnerabilityReport(obj); r.OS() != "alpine 3.20.10" || !r.EOSL || r.Grade() != GradeD { // a Critical: worse than the end of life's C
+		t.Errorf("OS %q, end of life %v, grade %v", r.OS(), r.EOSL, r.Grade())
+	}
 	// A workload name too long for a label: the annotation of the same key.
 	long := trivyReport("StatefulSet", "", "db", nil)
 	labels := long.GetLabels()
@@ -126,7 +141,7 @@ func TestParseVulnerabilityReport(t *testing.T) {
 	long.SetLabels(labels)
 	long.SetAnnotations(map[string]string{TrivyLabelResourceName: "a-statefulset-whose-name-is-much-longer-than-sixty-three-characters-x"})
 	if r, ok := ParseVulnerabilityReport(long); !ok || r.Workload != "a-statefulset-whose-name-is-much-longer-than-sixty-three-characters-x" ||
-		r.Counts != (VulnerabilityCounts{}) || r.Counts.Rating() != RatingClean {
+		r.Counts != (VulnerabilityCounts{}) || r.Grade() != GradeS {
 		t.Errorf("long name: %+v, %v", r, ok)
 	}
 	// Neither: the report's controller of that kind.

@@ -36,10 +36,12 @@ const (
 	// cell and the user allows it (D-46), drawing a glyph of its own otherwise. Its cells have no
 	// text, so that searching, sorting and copying ignore it.
 	ColumnIcon ColumnType = "icon"
-	// ColumnRank is text that sorts by Cell.Num, a rank rather than an amount: a pod's worst image
-	// rating, "Critical · 39" above "Critical · 3" above "High · 120" (D-78, [RatingRank]). A cell
-	// without Text is empty: it shows nothing and sorts last.
-	ColumnRank ColumnType = "rank"
+	// ColumnGrade is a column of image grades drawn as shields (a pod's worst image grade, the Trivy
+	// integration, D-new): Cell.Grade is the shield, Cell.Text its readable form ("D · 2
+	// Critical") for search, CSV and agents, Cell.Tip the counts behind it, and the column sorts by
+	// Cell.Num ([GradeRank]). Like the warning column it has no title in the header and a fixed
+	// width; Title names it for agents and the columns menu. A cell without a grade is empty.
+	ColumnGrade ColumnType = "grade"
 )
 
 // Column describes one table column of a kind.
@@ -91,6 +93,8 @@ type Cell struct {
 	// Tip is the cell's tooltip, a line or a few: a kubelet's upstream support and version skew in
 	// the Nodes list (D-91). Agents read it beside the cell's text (view_rows, resources_list).
 	Tip string `json:"tip,omitempty"`
+	// Grade is the image grade a ColumnGrade cell draws as its shield; GradeNone draws nothing.
+	Grade ImageGrade `json:"grade,omitempty"`
 }
 
 // CellBar is a usage bar: Share is the part of the whole in use (0 to 1; more is drawn full),

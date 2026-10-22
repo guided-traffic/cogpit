@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -58,9 +59,23 @@ func (c *crdConnector) Contexts() ([]ContextInfo, error) { return []ContextInfo{
 func (c *crdConnector) Connect(context.Context, string) (*Backend, error) {
 	ch := cache.New(c.src, cache.Options{WarmPeriod: time.Minute})
 	return &Backend{
-		Context: "test", Namespace: "default", Cache: ch, Profiles: append(testProfiles(), c.extra...),
+		Context: "test", Namespace: "default", Cache: ch, Profiles: withProfiles(testProfiles(), c.extra...),
 		CustomResources: true, Close: ch.Close,
 	}, nil
+}
+
+// withProfiles returns the profiles with extra's: one of a key the profiles have replaces it, the
+// others follow.
+func withProfiles(base []*model.KindProfile, extra ...*model.KindProfile) []*model.KindProfile {
+	out := append([]*model.KindProfile(nil), base...)
+	for _, e := range extra {
+		if i := slices.IndexFunc(out, func(p *model.KindProfile) bool { return p.Key == e.Key }); i >= 0 {
+			out[i] = e
+		} else {
+			out = append(out, e)
+		}
+	}
+	return out
 }
 
 func newCRDSession(t testing.TB, src cache.Source, extra ...*model.KindProfile) *Session {

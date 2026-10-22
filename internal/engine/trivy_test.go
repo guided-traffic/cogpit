@@ -118,24 +118,33 @@ func trivyOn(b *Backend) *trivySource {
 	return t
 }
 
-// imageSections returns a drawer model's image rating sections.
-func imageSections(m *DetailModel) []model.DetailSection {
-	var out []model.DetailSection
+// gradedPods is the test pods' profile with a section per init container and container, grouped
+// and titled as the real profile's (kinds/pods.go): the sections the Trivy integration grades.
+var gradedPods = func() *model.KindProfile {
+	p := *testPods
+	p.Detail = func(obj *unstructured.Unstructured) []model.DetailSection {
+		out := testPods.Detail(obj)
+		for _, g := range [][2]string{{specInitContainers, model.GroupInitContainers}, {specContainers, model.GroupContainers}} {
+			for _, c := range model.NestedSlice(obj.Object, "spec", g[0]) {
+				out = append(out, model.DetailSection{Title: model.NestedString(c, "name"), Group: g[1]})
+			}
+		}
+		return out
+	}
+	return &p
+}()
+
+// gradeCards returns a drawer model's image grades by the container sections that carry them, in
+// the sections' order ("init", "app").
+func gradeCards(m *DetailModel) (names []string, cards map[string]*model.GradeCard) {
+	cards = map[string]*model.GradeCard{}
 	for _, sec := range m.Sections {
-		if sec.Group == groupImageRatings {
-			out = append(out, sec)
+		if sec.Grade != nil {
+			names = append(names, sec.Title)
+			cards[sec.Title] = sec.Grade
 		}
 	}
-	return out
-}
-
-// item returns a section's item by name.
-func item(sec model.DetailSection, name string) (model.DetailItem, bool) {
-	i := slices.IndexFunc(sec.Items, func(it model.DetailItem) bool { return it.Name == name })
-	if i < 0 {
-		return model.DetailItem{}, false
-	}
-	return sec.Items[i], true
+	return names, cards
 }
 
 func trivyStatus(s *Session) IntegrationStatus {
@@ -171,13 +180,14 @@ func detailOf(t *testing.T, s *Session, ref model.ObjectRef) *DetailModel {
 	return m
 }
 
-// The pod drawer's image ratings: per image of the pod (its init containers' too) the rating with
-// its count, the counts, the containers, when it was scanned and the report's link; the reports of
-// a Deployment's pod are its ReplicaSet's, of a CronJob's Job's pod the CronJob's, of a bare pod
-// its own; a pod without any report has no section. A changed report reaches the open drawer.
-func TestTrivyImageRatings(t *testing.T) {
+// The pod drawer's image grades (D-new): each container's section (its init containers' too) carries
+// its image's grade card: the grade, its text and rule, the counts, when it was scanned and the
+// report's link; the reports of a Deployment's pod are its ReplicaSet's, of a CronJob's Job's pod the
+// CronJob's, of a bare pod its own; a pod without any report is N/A in each container. A changed
+// report reaches the open drawer.
+func TestTrivyImageGrades(t *testing.T) {
 	src := trivyFixture()
-	s := newCRDSession(t, src)
+	s := newCRDSession(t, src, gradedPods)
 	rec := record(s)
 	b := s.Backend()
 	waitFor(t, "the reports listed", func() bool { return trivyOn(b).synced() })
@@ -192,69 +202,62 @@ func TestTrivyImageRatings(t *testing.T) {
 
 	web := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-5d9c-a"}
 	s.UpdateUI(func(u *UIState) { u.Drawer = &web })
-	secs := imageSections(detailOf(t, s, web))
-	if len(secs) != 2 || secs[0].Title != "busybox:1.37.0" || secs[1].Title != "nginx:1.16.1" {
-		t.Fatalf("sections %+v", secs)
+	m := detailOf(t, s, web)
+	names, cards := gradeCards(m)
+	if !slices.Equal(names, []string{"init", "app", "side"}) {
+		t.Fatalf("containers with a grade %v", names)
 	}
-	clean, bad := secs[0], secs[1]
-	if it, _ := item(clean, "Rating"); it.Value != "Clean" || it.Status != model.StatusOK {
-		t.Errorf("busybox rating %+v", it)
+	for _, sec := range m.Sections {
+		if sec.Group == "Image Ratings" {
+			t.Errorf("a section of its own: %+v", sec)
+		}
 	}
-	if it, _ := item(clean, "Containers"); it.Value != "init (init), side" {
-		t.Errorf("busybox containers %+v", it)
+	for _, name := range []string{"init", "side"} {
+		if c := cards[name]; c.Grade != model.GradeS || c.Text != "S · no known vulnerabilities" || c.Counts == nil || c.Counts.Total() != 0 {
+			t.Errorf("%s %+v", name, c)
+		}
 	}
-	if _, ok := item(clean, "Vulnerabilities"); ok {
-		t.Error("a clean image lists vulnerabilities")
+	app := cards["app"]
+	if app.Grade != model.GradeE || app.Text != "E · 39 Critical" || app.Reason != "More than 5 Critical" ||
+		*app.Counts != (model.VulnerabilityCounts{Critical: 39, High: 123, Medium: 147, Low: 23, Unknown: 31}) {
+		t.Errorf("nginx %+v", app)
 	}
-	if it, _ := item(bad, "Rating"); it.Value != "Critical · 39" || it.Status != model.StatusError {
-		t.Errorf("nginx rating %+v", it)
+	if !strings.HasSuffix(app.Scanned, ")") || strings.ContainsRune(app.Scanned, '￹') {
+		t.Errorf("scanned %q: a time, written in the user's format", app.Scanned)
 	}
-	if it, _ := item(bad, "Vulnerabilities"); len(it.Chips) != 5 || it.Chips[0].Text != "39 Critical" || it.Chips[1].Status != model.StatusWarning {
-		t.Errorf("nginx counts %+v", it)
-	}
-	if it, _ := item(bad, "Container"); it.Value != "app" {
-		t.Errorf("nginx container %+v", it)
-	}
-	if it, _ := item(bad, "Scanned"); !strings.HasSuffix(it.Value, ")") || strings.ContainsRune(it.Value, '￹') {
-		t.Errorf("scanned %+v: a time, written in the user's format", it)
-	}
-	if it, _ := item(bad, "Report"); it.Link == nil || *it.Link != (model.ObjectRef{Kind: trivyReportsKind, Namespace: "shop", Name: "replicaset-web-5d9c-app"}) {
-		t.Errorf("report %+v", it)
+	if app.Report == nil || *app.Report != (model.ObjectRef{Kind: trivyReportsKind, Namespace: "shop", Name: "replicaset-web-5d9c-app"}) {
+		t.Errorf("report %+v", app.Report)
 	}
 
 	// A changed report reaches the open drawer.
 	before := rec.count(EventDetail, "pods")
 	src.Set(vulnReportsGVR, vulnReport("shop", "ReplicaSet", "web-5d9c", "app", "library/nginx", "1.16.1", 0, 0, 2))
-	waitFor(t, "the new rating in the drawer", func() bool {
-		secs := imageSections(detailOf(t, s, web))
-		it, _ := item(secs[len(secs)-1], "Rating")
-		return it.Value == "Medium · 2" && it.Status == model.StatusPending
+	waitFor(t, "the new grade in the drawer", func() bool {
+		_, cards := gradeCards(detailOf(t, s, web))
+		return cards["app"] != nil && cards["app"].Text == "B · 2 Medium" && cards["app"].Grade == model.GradeB
 	})
 	waitFor(t, "an EventDetail for the changed report", func() bool { return rec.count(EventDetail, "pods") > before })
 
-	for ref, want := range map[model.ObjectRef]string{
-		{Kind: "pods", Namespace: "shop", Name: "nightly-29000000-x"}: "Critical · 1", // the CronJob's
-		{Kind: "pods", Namespace: "shop", Name: "once-y"}:             "Clean",        // the Job's
-		{Kind: "pods", Namespace: "team", Name: "bare"}:               "Critical · 1", // its own
+	for ref, want := range map[model.ObjectRef][2]string{
+		{Kind: "pods", Namespace: "shop", Name: "nightly-29000000-x"}: {"report", "D · 1 Critical"},             // the CronJob's
+		{Kind: "pods", Namespace: "shop", Name: "once-y"}:             {"task", "S · no known vulnerabilities"}, // the Job's
+		{Kind: "pods", Namespace: "team", Name: "bare"}:               {"shell", "D · 1 Critical"},              // its own
+		{Kind: "pods", Namespace: "shop", Name: "db-0"}:               {"db", "N/A · not scanned"},              // none: N/A
 	} {
-		secs := imageSections(detailOf(t, s, ref))
-		if len(secs) != 1 {
-			t.Errorf("%s: %+v", ref, secs)
-			continue
-		}
-		if it, _ := item(secs[0], "Rating"); it.Value != want {
-			t.Errorf("%s: %+v", ref, it)
+		names, cards := gradeCards(detailOf(t, s, ref))
+		if len(names) != 1 || names[0] != want[0] || cards[want[0]].Text != want[1] {
+			t.Errorf("%s: %v %+v", ref, names, cards[want[0]])
 		}
 	}
-	if secs := imageSections(detailOf(t, s, model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "db-0"})); len(secs) != 0 {
-		t.Errorf("a pod without reports: %+v", secs)
+	if _, cards := gradeCards(detailOf(t, s, model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "db-0"})); cards["db"].Grade != model.GradeNA || cards["db"].Counts != nil {
+		t.Errorf("N/A %+v", cards["db"])
 	}
 
-	// Switched off: no read of the reports, no section, the state says so; on again, they come back.
+	// Switched off: no read of the reports, no grade, the state says so; on again, they come back.
 	setTrivy(s, false)
 	waitFor(t, "the index stopped", func() bool { return trivyOn(b) == nil })
-	if secs := imageSections(detailOf(t, s, web)); len(secs) != 0 {
-		t.Errorf("off, the drawer shows %+v", secs)
+	if names, _ := gradeCards(detailOf(t, s, web)); len(names) != 0 {
+		t.Errorf("off, the drawer shows grades on %v", names)
 	}
 	if st := trivyStatus(s); st.On || st.State != IntegrationOff {
 		t.Errorf("off: %+v", st)
@@ -265,15 +268,15 @@ func TestTrivyImageRatings(t *testing.T) {
 		}
 	}
 	setTrivy(s, true)
-	waitFor(t, "the ratings back", func() bool { return len(imageSections(detailOf(t, s, web))) == 2 })
+	waitFor(t, "the grades back", func() bool { names, _ := gradeCards(detailOf(t, s, web)); return len(names) == 3 })
 }
 
 // A cluster without Trivy Operator: the integration says the reports are not served, and the
-// drawer has no section; one whose reports the user may not list says which permission is missing.
+// drawer has no grade; one whose reports the user may not list says which permission is missing.
 func TestTrivyNotServedOrForbidden(t *testing.T) {
 	src := trivyFixture()
 	src.Delete(crdsGVR, "", "vulnerabilityreports.aquasecurity.github.io")
-	s := newCRDSession(t, src)
+	s := newCRDSession(t, src, gradedPods)
 	b := s.Backend()
 	waitFor(t, "the definitions listed", func() bool { set := b.customSet(); return set != nil && set.synced })
 	waitFor(t, "the state", func() bool { return trivyStatus(s).State == IntegrationMissing })
@@ -283,8 +286,8 @@ func TestTrivyNotServedOrForbidden(t *testing.T) {
 	if trivyOn(b) != nil {
 		t.Error("an index without the reports' kind")
 	}
-	if secs := imageSections(detailOf(t, s, model.ObjectRef{Kind: "pods", Namespace: "team", Name: "bare"})); len(secs) != 0 {
-		t.Errorf("not served: %+v", secs)
+	if names, _ := gradeCards(detailOf(t, s, model.ObjectRef{Kind: "pods", Namespace: "team", Name: "bare"})); len(names) != 0 {
+		t.Errorf("not served: grades on %v", names)
 	}
 
 	refused := testkit.RefusingSource{Inner: trivyFixture(), Refuse: map[schema.GroupVersionResource]error{
@@ -298,7 +301,7 @@ func TestTrivyNotServedOrForbidden(t *testing.T) {
 }
 
 // A user who may list the reports in team-a alone: the index reads them there, after the refusal
-// of the read in all namespaces, and the pod there has its rating.
+// of the read in all namespaces, and the pod there has its grade.
 func TestTrivyNamespaceLimited(t *testing.T) {
 	mem := trivyFixture()
 	mem.Set(testkit.PodsGVR, trivyPod("team-a", "bare", nil, "shell=alpine:3.12"))
@@ -307,7 +310,7 @@ func TestTrivyNamespaceLimited(t *testing.T) {
 	rev := newFakeReviewer(map[string][]cluster.AccessRule{"team-a": {
 		rule("get,list,watch", "", "pods"), rule("get,list,watch", "aquasecurity.github.io", "vulnerabilityreports"),
 	}})
-	s := New(Options{Connector: dockConnector{src: src, rev: rev, profiles: testProfiles(), namespace: "team-a", custom: true},
+	s := New(Options{Connector: dockConnector{src: src, rev: rev, profiles: withProfiles(testProfiles(), gradedPods), namespace: "team-a", custom: true},
 		SnapshotInterval: 5 * time.Millisecond})
 	t.Cleanup(s.Close)
 	connectTest(t, s)
@@ -318,13 +321,9 @@ func TestTrivyNamespaceLimited(t *testing.T) {
 	})
 	ref := model.ObjectRef{Kind: "pods", Namespace: "team-a", Name: "bare"}
 	s.UpdateUI(func(u *UIState) { u.Drawer = &ref })
-	waitFor(t, "the rating", func() bool {
-		secs := imageSections(detailOf(t, s, ref))
-		if len(secs) != 1 {
-			return false
-		}
-		it, _ := item(secs[0], "Rating")
-		return it.Value == "High · 4"
+	waitFor(t, "the grade", func() bool {
+		_, cards := gradeCards(detailOf(t, s, ref))
+		return cards["shell"] != nil && cards["shell"].Text == "C · 4 High"
 	})
 	if st := trivyStatus(s); st.State != IntegrationFound || st.Detail != "1 vulnerability report" {
 		t.Errorf("status %+v", st)
@@ -364,9 +363,15 @@ func TestTrivyWorkloadsOf(t *testing.T) {
 		}
 	}
 	// A report of another image than the container's (the workload changed, not scanned again) is
-	// not the container's rating; none of the pod's images rated: no section.
-	images := []podImage{{image: "nginx:1.17", containers: []string{"app"}}}
-	if secs := imageRatingSections(images, time.Now()); secs != nil {
-		t.Errorf("no report: %+v", secs)
+	// not the container's grade: N/A. Sections of other groups and the input stay as they were.
+	images := []podImage{{image: "nginx:1.17", containers: []string{"app"}}, {image: "busybox", containers: []string{"prep (init)"}}}
+	in := []model.DetailSection{{Title: "Properties"}, {Title: "prep", Group: model.GroupInitContainers}, {Title: "app", Group: model.GroupContainers},
+		{Title: "debug", Group: model.GroupEphemeralContainers}}
+	out := gradeSections(images, in, time.Now())
+	if out[0].Grade != nil || out[3].Grade != nil || out[1].Grade == nil || out[1].Grade.Grade != model.GradeNA || out[2].Grade.Grade != model.GradeNA {
+		t.Errorf("no report: %+v", out)
+	}
+	if in[2].Grade != nil {
+		t.Error("the input was changed")
 	}
 }

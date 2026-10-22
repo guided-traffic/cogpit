@@ -28,7 +28,17 @@ type DetailSection struct {
 	Items []DetailItem `json:"items,omitempty"`
 	// Table, when set, is the section's content as a table: a node's Capacity and Allocatable.
 	Table *DetailTable `json:"table,omitempty"`
+	// Grade, when set, is the image grade of the container the section is about (the Trivy
+	// integration, D-new): a shield beside the section's title and a card under its items.
+	Grade *GradeCard `json:"grade,omitempty"`
 }
+
+// The groups of a pod's container sections, one section per container titled by its name.
+const (
+	GroupInitContainers      = "Init Containers"
+	GroupContainers          = "Containers"
+	GroupEphemeralContainers = "Ephemeral Containers"
+)
 
 // DetailTable is a small table in the drawer: column titles and rows of cell texts. A cell's text
 // may hold several lines, separated by "\n" as in an item's value, shown one under the other: a

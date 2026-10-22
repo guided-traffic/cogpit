@@ -208,6 +208,9 @@ func (f TimeFormat) WriteSections(sections []DetailSection) []DetailSection {
 }
 
 func sectionHasMarks(sec DetailSection) bool {
+	if g := sec.Grade; g != nil && HasMarks(g.Scanned) {
+		return true
+	}
 	for _, it := range sec.Items {
 		if HasMarks(it.Value) {
 			return true
@@ -276,6 +279,11 @@ func (f TimeFormat) writeSection(sec DetailSection) DetailSection {
 			}
 		}
 		sec.Table = &nt
+	}
+	if g := sec.Grade; g != nil {
+		ng := *g
+		ng.Scanned = f.WriteMarks(g.Scanned)
+		sec.Grade = &ng
 	}
 	return sec
 }

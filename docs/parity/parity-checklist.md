@@ -365,8 +365,8 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Every integration on by default, the default for new clusters the user's to change (the owner, 2026-10-17, I3) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "check all integrations" looks f… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The question can be shown again after it was answered (the owner's WF4, 2026-10-17: "Gibt es eine Möglichkeit den Dialog nochmal angezeigt… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| A pod's drawer rates each of its images from Trivy Operator's reports, when one has a report: the worst severity found and how many of it,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| Every pod in the Pods list shows the worst image rating of its containers; nothing while the integration is off (the owner, 2026-10-17, I6,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| A pod's drawer grades each container's image from Trivy Operator's reports, in the container's own section, as a symbol and a detail view,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Kyverno: the objects that violate a policy show it, in their lists and their drawer: an Audit policy's fail, and an Enforce policy's on an… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Agents read every policy violation of a cluster in one call, with each object's reference, from the cache (D-79) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The title bar's alerts pill shows the shown cluster's active alerts while the Alertmanager integration is on: red from a critical alert, or… | done | [Alerts](beyond-lens.md#alerts) |

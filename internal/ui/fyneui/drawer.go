@@ -475,6 +475,10 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		if sec.Table != nil {
 			out = append(out, d.table(m.Ref, sec.Title, sec.Table))
 		}
+		if sec.Grade != nil { // a container's image grade, under its items (drawergrade.go)
+			out = append(out, newSpace(theme.SizeNamePadding), newDivider(false), newSpace(theme.SizeNamePadding),
+				d.gradeCard(m.Ref, sec.Grade))
+		}
 	}
 	if m.NoEvents { // a kind no event is about (Helm releases): Lens's drawer has no Events
 		return out
@@ -550,18 +554,27 @@ func (d *drawer) dropKept() {
 	d.kept = map[string]any{}
 }
 
-// sectionTitle is a section's bold title; a container's carries a dot in its status's colour.
+// sectionTitle is a section's bold title; a container's carries a dot in its status's colour and,
+// with the Trivy integration on, its image's grade as a shield after its name (drawergrade.go).
 func (d *drawer) sectionTitle(sec model.DetailSection) fyne.CanvasObject {
 	if sec.Group == "" {
 		return sectionHeadOf(sec)
 	}
 	title := d.line(sec.Title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}, false, "")
+	objs := []fyne.CanvasObject{title}
 	for _, it := range sec.Items {
 		if it.Name == "Status" && it.Status != model.StatusNone {
-			return container.NewHBox(container.NewCenter(newDot(statusColorName(it.Status))), title)
+			objs = []fyne.CanvasObject{container.NewCenter(newDot(statusColorName(it.Status))), title}
+			break
 		}
 	}
-	return title
+	if sec.Grade != nil {
+		objs = append(objs, d.titleGrade(sec.Grade))
+	}
+	if len(objs) == 1 {
+		return title
+	}
+	return container.NewHBox(objs...)
 }
 
 // foldKey names a folded list for the expanded state, which survives refreshes of the object.

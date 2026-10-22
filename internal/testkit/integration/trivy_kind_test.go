@@ -77,61 +77,54 @@ func TestKindTrivy(t *testing.T) {
 		}
 		return list.Items[0].Name
 	}
-	// ratings returns a pod's image sections as "image: rating (containers)", once every image of
-	// it is rated (its reports may still be on their way).
-	ratings := func(ref model.ObjectRef) map[string]string {
+	// grades returns a pod's container sections' image grades as "container: D · 1 Critical", once
+	// the drawer has them (its reports may still be on their way).
+	grades := func(ref model.ObjectRef) map[string]string {
 		m, err := s.DetailWait(ctx, ref)
 		if err != nil {
 			t.Fatal(err)
 		}
 		out := map[string]string{}
 		for _, sec := range m.Sections {
-			if sec.Group != "Image Ratings" {
-				continue
+			if sec.Grade != nil {
+				out[sec.Title] = sec.Grade.Text
 			}
-			var rating, containers string
-			for _, it := range sec.Items {
-				switch it.Name {
-				case "Rating":
-					rating = it.Value
-				case "Container", "Containers":
-					containers = it.Value
-				}
-			}
-			out[sec.Title] = rating + " (" + containers + ")"
 		}
 		return out
 	}
-	worst := map[string]string{} // pod name → the word of its Image Rating in the Pods list
+	worst := map[string]string{} // pod name → the grade of its Image Rating in the Pods list
+	// The grades as Trivy's database rated the images on 2026-10-22 (D-new): nginx:1.16.1's dozens of
+	// Critical E; nginx:1.30.0-alpine's High C; alpine:3.12's Critical D (its OS's end of life caps at
+	// C, and D is worse); busybox's nothing S.
 	for _, c := range []struct {
 		ns, selector string
-		images       map[string]string // image → its rating's word and the containers
+		containers   map[string]string // container → its grade's letter
 		worst        string
 	}{
-		{"cogpit-trivy-a", "app=mixed", map[string]string{"busybox:1.37.0": "Clean (init (init), new)", "nginx:1.16.1": "Critical"}, "Critical"},
-		{"cogpit-trivy-a", "app=store", map[string]string{"nginx:1.30.0-alpine": "High"}, "High"},
-		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=once", map[string]string{"busybox:1.37.0": "Clean (task)"}, "Clean"},
-		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=nightly-29000000", map[string]string{"alpine:3.12": "Critical"}, "Critical"},
-		{"cogpit-trivy-b", "", map[string]string{"alpine:3.12": "Critical"}, "Critical"},
+		{"cogpit-trivy-a", "app=mixed", map[string]string{"init": "S", "old": "E", "new": "S"}, "E"},
+		{"cogpit-trivy-a", "app=store", map[string]string{"web": "C"}, "C"},
+		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=once", map[string]string{"task": "S"}, "S"},
+		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=nightly-29000000", map[string]string{"report": "D"}, "D"},
+		{"cogpit-trivy-b", "", map[string]string{"shell": "D"}, "D"},
 	} {
 		ref := model.ObjectRef{Kind: "pods", Namespace: c.ns, Name: pod(c.ns, c.selector)}
 		worst[ref.Name] = c.worst
-		waitFor(ctx, t, "the ratings of "+ref.String(), func() bool {
-			got := ratings(ref)
-			if len(got) != len(c.images) {
+		waitFor(ctx, t, "the grades of "+ref.String(), func() bool {
+			got := grades(ref)
+			if len(got) != len(c.containers) {
 				return false
 			}
-			for image, want := range c.images {
-				if g, ok := got[image]; !ok || !strings.HasPrefix(g, want) {
+			for name, want := range c.containers {
+				if g, ok := got[name]; !ok || !strings.HasPrefix(g, want+" · ") {
 					return false
 				}
 			}
 			return true
 		})
-		t.Logf("%s: %v", ref, ratings(ref))
+		t.Logf("%s: %v", ref, grades(ref))
 	}
 
-	// The Pods list's Image Rating: each test pod's worst rating, coloured.
+	// The Pods list's Image Rating: each test pod's worst grade.
 	s.UpdateUI(func(u *engine.UIState) { u.View = "pods" })
 	cellOf := func(snap *engine.TableSnapshot, name string) model.Cell {
 		ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == "imageRating" })
@@ -142,13 +135,13 @@ func TestKindTrivy(t *testing.T) {
 		}
 		return model.Cell{}
 	}
-	waitFor(ctx, t, "the Pods list's ratings", func() bool {
+	waitFor(ctx, t, "the Pods list's grades", func() bool {
 		snap := s.Table("pods")
 		if snap == nil || !snap.Synced {
 			return false
 		}
 		for name, want := range worst {
-			if c := cellOf(snap, name); !strings.HasPrefix(c.Text, want) || c.Status == model.StatusNone {
+			if c := cellOf(snap, name); c.Grade.String() != want || !strings.HasPrefix(c.Text, want+" · ") {
 				return false
 			}
 		}
@@ -180,7 +173,7 @@ func TestKindTrivy(t *testing.T) {
 		t.Errorf("the trimmed reports take %d bytes, the whole ones %d", trimmed, full)
 	}
 
-	// Switched off: the handle goes back, the drawer shows no rating, the column is gone, the state
+	// Switched off: the handle goes back, the drawer shows no grade, the column is gone, the state
 	// says off.
 	s.UpdateUI(func(u *engine.UIState) {
 		if u.ClusterSettings == nil {
@@ -202,8 +195,8 @@ func TestKindTrivy(t *testing.T) {
 		t.Errorf("off: %+v", st)
 	}
 	bare := model.ObjectRef{Kind: "pods", Namespace: "cogpit-trivy-b", Name: "bare"}
-	if got := ratings(bare); len(got) != 0 {
-		t.Errorf("off, the drawer rates %v", got)
+	if got := grades(bare); len(got) != 0 {
+		t.Errorf("off, the drawer grades %v", got)
 	}
 	waitFor(ctx, t, "the column gone", func() bool {
 		snap := s.Table("pods")
