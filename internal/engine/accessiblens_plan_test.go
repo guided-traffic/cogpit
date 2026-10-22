@@ -262,18 +262,27 @@ func TestRefusedClusterWideListFallsBackToNamespaces(t *testing.T) {
 		}
 		return true
 	})
-	if calls := podCalls(src); calls["list pods"] == 0 || calls["list pods in team-a"] != 1 {
+	calls := podCalls(src)
+	if calls["list pods"] == 0 || calls["list pods in team-a"] != 1 {
 		t.Errorf("calls %v", calls)
 	}
 	if !s.Backend().ns.isRefused(testkit.PodsGVR) {
 		t.Error("the refusal is not kept")
 	}
+	// The reviews held while the refresh is checked: once they answer, the view tries the
+	// cluster-wide list again and the server refuses it again (CI, 2026-10-22: a loaded runner
+	// had the refusal noted again before the check ran).
+	rev.set(func(f *fakeReviewer) { f.gate = make(chan struct{}) })
 	if _, ok := s.Backend().RefreshAccess(); !ok {
 		t.Fatal("no access reviews")
 	}
 	if s.Backend().ns.isRefused(testkit.PodsGVR) {
 		t.Error("a refresh kept the refusal")
 	}
+	rev.set(func(f *fakeReviewer) { close(f.gate); f.gate = nil })
+	waitCond(t, "the cluster-wide list tried again", func() bool {
+		return podCalls(src)["list pods"] > calls["list pods"] && s.Backend().ns.isRefused(testkit.PodsGVR)
+	})
 }
 
 // Backends without access reviews (the demo cluster) and cluster-scoped, local and virtual
