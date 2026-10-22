@@ -718,8 +718,8 @@ fixed, not theme tokens; and the copy must be kept in step with upstream until u
 patches: the crash, hang, OSC 7 and race fixes of 2026-10-12 are offered as four pull requests
 ([#155](https://github.com/fyne-io/terminal/pull/155) to
 [#158](https://github.com/fyne-io/terminal/pull/158)), of which the crash, hang and OSC 7 fixes are
-merged (2026-10-14 to 2026-10-17) and the race fixes wait on changes the maintainer asked for on
-2026-10-19; fixes to upstream's own scrolling ([#147](https://github.com/fyne-io/terminal/pull/147))
+merged (2026-10-14 to 2026-10-17) and the race fixes wait for the maintainer's review of the
+changes he asked for (pushed 2026-10-22); fixes to upstream's own scrolling ([#147](https://github.com/fyne-io/terminal/pull/147))
 are offered as [andydotxyz/terminal#2](https://github.com/andydotxyz/terminal/pull/2) and Cogpit's
 scrollback model as a counter-proposal on #147 (2026-10-15, D-56); the input patches of 2026-10-13
 and the race fixes of 2026-10-15 are not offered.
