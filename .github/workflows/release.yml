@@ -525,8 +525,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The packaging tools install with Go's build dependencies, in the background (rerun.yml
-      # knows the step by this name).
+      # The packaging tools install with Go's build dependencies, in the background.
       - name: Set up Go
         uses: ./.github/actions/go-setup
         with:
