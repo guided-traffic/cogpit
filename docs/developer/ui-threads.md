@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-20 · **Change:** trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-22 · **Change:** trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -148,7 +148,6 @@ places of the same kind has one row.
 | `fyneui/mcpdetails.go` | `shell.askRegenerateMCP` | AfterFunc | A | The arm delay: `sh.do(w.confirm.Enable)`; `w.confirm` is set before the timer and never reassigned. |
 | `fyneui/mcpdetails.go` | `shell.regenerateMCP` | go | A | `MCPControl.Regenerate` under its own recover; `regeneratedMCP` runs inside `sh.do`. |
 | `fyneui/dock.go` | `dockContent.close` | go | B | `Close` of a termview Terminal or Logs: once, a mutex, a channel closed, the session or stream closed; no Fyne object (fyne-terminal's Close only takes `closeLock`). |
-| `fyneui/dock.go` | `dock.showAddMenu` | go | A | `commandEnabled` (the engine's Enabled, which recovers) per entry; the menu is built and shown inside `d.sh.do`. |
 | `fyneui/dockagentread.go` | `dock.flashAgentRead` | AfterFunc | A | The flash's end: map, button field and Refresh run inside `d.sh.do`; the closure only captures values. |
 | `fyneui/dockoutput.go` | `dockOutputReader.ReadDockOutput` | callback | A | Installed with `Session.SetDockOutputReader`; `dock.read` calls it on MCP, agent and `sh.run` goroutines; `dock.output` runs inside `r.sh.do` and answers over a buffered channel. |
 | `fyneui/dockoutput.go` | `dockOutputReader.ReadDockOutput` | wait | A | Waits for its `sh.do` or its context (`dockReadWait`); never on main, because every caller of Dispatch is off main; `fyne.Do` does not wait, so the tag changes nothing. |
@@ -224,8 +223,9 @@ places of the same kind has one row.
   releases, D-103).
 - **A goroutine without its recover:** the update preference's (`settingsPage.updatesSettings`)
   had none and cut an error's text by its first letter; fixed 2026-10-19. `StoreMCP` runs outside
-  `toggleMCP`'s recover and `dock.showAddMenu`'s goroutine has none (`commandEnabled` recovers
-  itself): left, no race.
+  `toggleMCP`'s recover and `dock.showAddMenu`'s goroutine had none (`commandEnabled` recovers
+  itself): left, no race; the menu and its goroutine are gone since 2026-10-22 (the dock's
+  terminal chip dispatches instead).
 - **`MCPControl`'s comment** said the window never calls it on the main goroutine; the first
   `Start` runs there before Fyne's loop. Corrected; it makes no Fyne call.
 - **Not verified:** that the engine hands every subscriber a `UIState` it never changes afterwards

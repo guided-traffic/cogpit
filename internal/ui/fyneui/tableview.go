@@ -77,7 +77,7 @@ type tableView struct {
 	cancelButton               *widget.Button  // Cancel Connecting while connecting (D-73)
 	cancelBox                  *fyne.Container // cancelButton centred; hidden unless connecting
 	failedBox                  *fyne.Container // after a failed connect: Connect Again and Connection Updates (WF40, D-97)
-	create                     *createButton   // the floating "+" (createbutton.go)
+	create                     *stripChip      // the create chip in the dock's strip (createbutton.go)
 	root                       fyne.CanvasObject
 
 	snap    *engine.TableSnapshot
