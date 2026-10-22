@@ -61,8 +61,14 @@ func TestPollerThroughTheServiceProxy(t *testing.T) {
 		!strings.Contains(reqs[0], "silenced=false") || !strings.Contains(reqs[0], "inhibited=false") {
 		t.Errorf("requests %q", reqs)
 	}
-	// One request per poll, nothing else.
-	time.Sleep(260 * time.Millisecond)
+	// One request per poll, nothing else: wait for three polls rather than a fixed time, which a
+	// loaded CI runner did not always fill with three (2026-10-22).
+	for len(am.Requests()) < 3 {
+		if time.Now().After(deadline) {
+			t.Fatalf("%d polls before the deadline", len(am.Requests()))
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	p.SetActive(false)
 	// A poll under way when the poller stopped is counted as sent before the fake Alertmanager has
 	// it: read both again until they agree or a second passed (a loaded CI runner, 2026-10-21).
@@ -75,7 +81,7 @@ func TestPollerThroughTheServiceProxy(t *testing.T) {
 		}
 	}
 	if sent != polls || polls < 3 || polls > 8 {
-		t.Errorf("%d proxy requests for %d polls in ~300ms at 50ms", sent, polls)
+		t.Errorf("%d proxy requests for %d polls at 50ms", sent, polls)
 	}
 	if c := changes.Load(); c != 1 {
 		t.Errorf("OnChange ran %d times for unchanged answers", c)

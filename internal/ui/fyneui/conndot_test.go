@@ -266,7 +266,14 @@ func TestDotClickOpensTheConnectionLog(t *testing.T) {
 	test.TapCanvas(w.Canvas(), middleOf(test.WidgetRenderer(tile).(*hotbarTileRenderer).dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
 	f.mu.Lock()
-	calls := f.calls[before:]
+	var calls []engine.Invocation
+	for _, c := range f.calls[before:] {
+		// The navigator reports its row on its own goroutine whenever it settles; a report landing
+		// after before was read is not the click's (a race job, 2026-10-22).
+		if c.ID != "ui.setNavigatorRow" {
+			calls = append(calls, c)
+		}
+	}
 	f.mu.Unlock()
 	if len(calls) != 1 || !strings.Contains(string(calls[0].Params), "prod-eu-central") {
 		t.Errorf("the tile's dot dispatched %v", calls)
