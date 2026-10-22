@@ -304,6 +304,23 @@ func (p *settingsPage) showResult(name string, err error) {
 	l.Show()
 }
 
+// settled is the answer to the user's change of a setting: the refusal under it, or, once the engine
+// took the change, the page following the window's state again, as it does when the state changes.
+// The window follows a state only where it differs from the one it showed before
+// (settingsShowChanged) and takes the states queued for it as one (shell.onEvent): the state of the
+// user's tap and a change from elsewhere right after it (an agent's) can come as one state that
+// equals the one before the tap, and the control would go on showing the tapped value (CI,
+// 2026-10-21 and 2026-10-22). The state a change makes is queued before its answer, so the window
+// holds it, or a newer one, by then.
+func (p *settingsPage) settled(name string) func(any, error) {
+	return func(_ any, err error) {
+		p.showResult(name, err)
+		if err == nil {
+			p.stateChanged()
+		}
+	}
+}
+
 // typed sets a text field's value after a typing pause.
 func (p *settingsPage) typed(name string, set func()) {
 	if p.syncing {

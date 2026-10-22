@@ -77,7 +77,7 @@ func (p *settingsPage) clusterAgentsSection() fyne.CanvasObject {
 // setAgentWrites dispatches the user's change of the allowance; a refusal shows under it.
 func (p *settingsPage) setAgentWrites(ctx string, allowed bool) {
 	p.sh.dispatch("cluster.settings.setAgentWrites", map[string]any{contextParam: ctx, "allowed": allowed},
-		func(_ any, err error) { p.showResult(agentWritesSetting, err) })
+		p.settled(agentWritesSetting))
 }
 
 // agentsDialog is the open confirmation of turning the allowance on, for tests.

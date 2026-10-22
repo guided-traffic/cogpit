@@ -161,7 +161,7 @@ func (p *settingsPage) setPreference(name string, value any) {
 	if p.syncing {
 		return
 	}
-	p.sh.dispatchInOrder("preferences.set", map[string]any{name: value}, func(_ any, err error) { p.showResult(name, err) })
+	p.sh.dispatchInOrder("preferences.set", map[string]any{name: value}, p.settled(name))
 }
 
 // preferencesSection builds one section of the Preferences page.

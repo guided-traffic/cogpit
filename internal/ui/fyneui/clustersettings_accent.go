@@ -75,7 +75,7 @@ func (p *settingsPage) accentColorSetting() (fyne.CanvasObject, func()) {
 // setAccentColor dispatches the user's accent colour for ctx ("" for none); a refusal shows under it.
 func (p *settingsPage) setAccentColor(ctx, c string) {
 	p.sh.dispatch("cluster.settings.setAccentColor", map[string]any{contextParam: ctx, "color": c},
-		func(_ any, err error) { p.showResult(accentSetting, err) })
+		p.settled(accentSetting))
 }
 
 // pickColor opens the colour picker for a cluster colour picked freely (A93), the icon's or the

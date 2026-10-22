@@ -1097,7 +1097,9 @@ terminal's font size through a `container.ThemeOverride` around each terminal op
 views and the dock (the hotbar, the bars stay); its section list and close button dispatch
 `preferences.open`, `cluster.settings.open` and `settings.close`, and a field's change dispatches
 `preferences.set` or `cluster.settings.set` (a text field after a typing pause), the refusal shown
-under the field. A cluster's identity (display name, initials, icon colour token, uploaded image) is
+under the field; once the engine took the change, the page follows the window's state again
+(`settingsPage.settled`), since the state of a tap and a change from elsewhere right after it can
+reach the window as one state that equals the one before the tap. A cluster's identity (display name, initials, icon colour token, uploaded image) is
 derived from `UIState.ClusterSettings` (`shell.identity`); the image's bytes come from the engine's
 checked copy (`Session.ClusterIcon`, read off the main goroutine once per image). ⌘, and ⌘⇧, are
 main-menu items (Preferences… moves into macOS's application menu); Settings… is in the menus of

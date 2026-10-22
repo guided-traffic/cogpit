@@ -2,9 +2,12 @@ package fyneui
 
 import (
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
+
+	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
 // D-69 items 4 and 8 in the window: Preferences › App › Restore the last session (off by default)
@@ -45,12 +48,43 @@ func TestClusterSettingsRenewLogin(t *testing.T) {
 	test.Tap(check)
 	q.until(t, "on", func() bool { return !s.UIState().ClusterSettings["kind-dev"].HoldBackgroundLogin && check.Checked })
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "renewLoginInBackground": false})
-	// The page may build its controls again for the change: the check it shows now, not the one
-	// tapped above (a loaded CI runner, 2026-10-21).
-	q.until(t, "off from elsewhere", func() bool {
-		c, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
-		return ok && !c.Checked
+	q.until(t, "off from elsewhere", func() bool { return !check.Checked })
+}
+
+// A change from elsewhere that comes before the window has shown the state of the user's own tap:
+// the window takes the two states as one, which equals the state it showed before the tap, and the
+// check shows the change all the same (TestClusterSettingsRenewLogin on CI, 2026-10-21 and 2026-10-22).
+func TestClusterSettingsRenewLoginChangedElsewhereRightAfterATap(t *testing.T) {
+	s, _ := settingsEngine(t)
+	sh, _, q := newEngineShell(t, s, Options{})
+	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
+	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check); return ok })
+	check := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
+	test.Tap(check)
+	// The window shows the off, and the page's read of its settings for it has answered: no answer
+	// still under way shows the state again by chance.
+	q.until(t, "off", func() bool {
+		v := sh.settings.view
+		return sh.ui.ClusterSettings["kind-dev"].HoldBackgroundLogin && v != nil && !v.RenewLoginInBackground
 	})
+	took := make(chan struct{}, 1)
+	cancel := s.Subscribe(func(ev engine.Event) {
+		if ev.Type == engine.EventUIState && ev.UIState != nil && !ev.UIState.ClusterSettings["kind-dev"].HoldBackgroundLogin {
+			select {
+			case took <- struct{}{}:
+			default:
+			}
+		}
+	})
+	defer cancel()
+	test.Tap(check)
+	select {
+	case <-took: // the engine took the tap; the window has not run what it queued for it
+	case <-time.After(15 * time.Second):
+		t.Fatal("the tap never reached the engine")
+	}
+	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "renewLoginInBackground": false})
+	q.until(t, "off from elsewhere", func() bool { return !check.Checked })
 }
 
 // Preferences › App with the restore on, dark and light: the PNGs of the pull request (AGENTS.md

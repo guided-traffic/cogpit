@@ -117,5 +117,5 @@ func (p *settingsPage) setNodeShell(param, setting, value string) {
 		return
 	}
 	p.sh.dispatch("cluster.settings.setNodeShell", map[string]any{contextParam: p.shown.Context, param: value},
-		func(_ any, err error) { p.showResult(setting, err) })
+		p.settled(setting))
 }
