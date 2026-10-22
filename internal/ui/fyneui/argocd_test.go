@@ -389,7 +389,7 @@ func TestArgoSyncWithPruneConfirms(t *testing.T) {
 		}
 	}
 	q.until(t, "the sync dialog", func() bool { return w.Canvas().Overlays().Top() != nil })
-	for _, c := range findAll[*widget.Check](w.Canvas().Overlays().Top()) {
+	for _, c := range checksIn(w.Canvas().Overlays().Top()) {
 		c.SetChecked(true)
 	}
 	argoTapButton(t, w, "Sync")

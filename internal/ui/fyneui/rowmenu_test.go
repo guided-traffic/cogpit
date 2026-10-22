@@ -296,7 +296,7 @@ func TestScaleDialogPrefilled(t *testing.T) {
 		if top == nil {
 			return false
 		}
-		entries := findAll[*widget.Entry](top)
+		entries := entriesIn(top)
 		if len(entries) == 1 {
 			entry = entries[0]
 		}
@@ -307,7 +307,7 @@ func TestScaleDialogPrefilled(t *testing.T) {
 	}
 	top := w.Canvas().Overlays().Top()
 	names := findAll[*fieldName](top)
-	sliders := findAll[*widget.Slider](top)
+	sliders := slidersIn(top)
 	if len(names) != 1 || names[0].text != "Replicas" || names[0].hint != probeScaleHint || len(sliders) != 1 || sliders[0].Value != 3 {
 		t.Fatalf("names %+v, sliders %d", names, len(sliders))
 	}

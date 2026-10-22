@@ -66,7 +66,7 @@ func (sh *shell) showAbout() { sh.showAboutFor(buildinfo.Read()) }
 
 // showAboutFor shows About Cogpit for a build. No title: the name is the dialog's heading.
 func (sh *shell) showAboutFor(info buildinfo.Info) {
-	dialog.NewCustom("", "Close", sh.aboutContent(info), sh.win).Show()
+	sh.showDialog(dialog.NewCustom("", "Close", sh.aboutContent(info), sh.win))
 }
 
 // aboutContent is the dialog's column, every line centred.

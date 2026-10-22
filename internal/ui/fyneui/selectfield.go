@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"image/color"
 	"slices"
 	"strings"
 	"unicode"
@@ -22,16 +23,20 @@ import (
 //
 // The field is Fyne's Select, embedded: its look, its state and its API (Options, Selected,
 // SetSelected, OnChanged, PlaceHolder, Disable), so a choice reaches the code through OnChanged
-// exactly as before and the commands and state agents see do not change. Only the list is
-// Cogpit's. Keys as before: Space, ↑ and ↓ open it, ← and → step through the entries without it;
+// exactly as before and the commands and state agents see do not change. The list is Cogpit's,
+// and so is the field's outline, the one Fyne's entry draws (the owner's AW1 of 2026-10-22: Fyne's
+// Select draws a plate in the input background only, which on a dialog's card is the card's own
+// colour, so a closed dropdown read as no field). Keys as before: Space, ↑ and ↓ open it, ← and → step through the entries without it;
 // in the list ↑ ↓ (Page Up, Page Down, Home, End) move, a letter jumps to the next entry starting
-// with it, Return, Enter or Space choose and Escape closes; a click outside closes it too.
+// with it, Return, Enter or Space choose and Escape closes, taking the keyboard off the field (the
+// next Escape goes on: AW2); a click outside closes it too. Escape on the field goes on to the window.
 type selectField struct {
 	widget.Select
 	pop *selectPopup // the open list; nil, or hidden by a click outside, while closed
 
-	pos  fyne.Position
-	size fyne.Size
+	pos     fyne.Position
+	size    fyne.Size
+	focused bool // the field has the keyboard: its outline in the primary colour, as an entry's
 }
 
 var (
@@ -57,15 +62,82 @@ func (s *selectField) Tapped(*fyne.PointEvent) {
 	s.open()
 }
 
-// TypedKey implements fyne.Focusable: Space, ↑ and ↓ open the list; the rest is Fyne's (← and →
-// step through the entries).
+// TypedKey implements fyne.Focusable: Space, ↑ and ↓ open the list; Escape goes on to the window
+// (the dialog's Cancel, a settings page's close: the owner's AW2, escape.go); the rest is Fyne's (←
+// and → step through the entries).
 func (s *selectField) TypedKey(ev *fyne.KeyEvent) {
 	switch ev.Name {
 	case fyne.KeySpace, fyne.KeyUp, fyne.KeyDown:
 		s.open()
+	case fyne.KeyEscape:
+		passEscape(s)
 	default:
 		s.Select.TypedKey(ev)
 	}
+}
+
+// FocusGained implements fyne.Focusable.
+func (s *selectField) FocusGained() {
+	s.focused = true
+	s.Select.FocusGained()
+}
+
+// FocusLost implements fyne.Focusable.
+func (s *selectField) FocusLost() {
+	s.focused = false
+	s.Select.FocusLost()
+}
+
+// CreateRenderer implements fyne.Widget: Fyne's Select with an entry's outline over it.
+func (s *selectField) CreateRenderer() fyne.WidgetRenderer {
+	inner := s.Select.CreateRenderer()
+	r := &selectFieldRenderer{WidgetRenderer: inner, s: s, outline: canvas.NewRectangle(color.Transparent)}
+	r.objects = append(slices.Clone(inner.Objects()), r.outline)
+	r.style()
+	return r
+}
+
+// selectFieldRenderer is Fyne's Select renderer and the outline: the input border, the primary
+// colour while the field has the keyboard, the disabled colour while it is disabled, as Fyne's
+// entry draws its own.
+type selectFieldRenderer struct {
+	fyne.WidgetRenderer
+	s       *selectField
+	outline *canvas.Rectangle
+	objects []fyne.CanvasObject
+}
+
+func (r *selectFieldRenderer) style() {
+	th := r.s.Theme()
+	v := fyne.CurrentApp().Settings().ThemeVariant()
+	o := r.outline
+	o.StrokeWidth = th.Size(theme.SizeNameInputBorder)
+	o.CornerRadius = th.Size(theme.SizeNameInputRadius)
+	switch {
+	case r.s.Disabled():
+		o.StrokeColor = th.Color(theme.ColorNameDisabled, v)
+	case r.s.focused:
+		o.StrokeColor = th.Color(theme.ColorNamePrimary, v)
+	default:
+		o.StrokeColor = th.Color(theme.ColorNameInputBorder, v)
+	}
+}
+
+// Layout places the outline as Fyne's entry places its border: inside the field by half its width.
+func (r *selectFieldRenderer) Layout(size fyne.Size) {
+	r.WidgetRenderer.Layout(size)
+	b := r.s.Theme().Size(theme.SizeNameInputBorder)
+	r.outline.Move(fyne.NewSquareOffsetPos(b / 2))
+	r.outline.Resize(fyne.NewSize(size.Width-b-.5, size.Height-b-.5)) // .5: a low DPI rounds down at the trailing edge
+}
+
+func (r *selectFieldRenderer) Objects() []fyne.CanvasObject { return r.objects }
+
+func (r *selectFieldRenderer) Refresh() {
+	r.WidgetRenderer.Refresh()
+	r.style()
+	r.Layout(r.s.Size())
+	r.outline.Refresh()
 }
 
 // Hide closes the list with the field.
@@ -209,7 +281,7 @@ func (p *selectPopup) show() {
 	left := min(max(fieldPos.X+fieldTextX()-textX, margin), area.Width-margin-width)
 
 	p.scroll.SetMinSize(fyne.NewSize(width, height))
-	p.popup.ShowAtPosition(fyne.NewPos(left, top)) // never at 0,0: Fyne would centre it
+	onShown(p.canvas, func() { p.popup.ShowAtPosition(fyne.NewPos(left, top)) }, p.escape) // never at 0,0: Fyne would centre it
 	p.popup.Resize(fyne.NewSize(width, height))
 	p.scroll.ScrollToOffset(fyne.NewPos(0, off))
 	p.canvas.Focus(p)
@@ -261,6 +333,16 @@ func (p *selectPopup) dismiss() {
 	p.popup.Hide()
 }
 
+// escape is Escape on the open list: it closes without a choice, and the field gives the keyboard
+// up, so that it is no longer drawn focused and the next Escape goes on to what holds it (the
+// owner's AW2 of 2026-10-22: the field stayed blue and took the next Escape for nothing).
+func (p *selectPopup) escape() {
+	p.dismiss()
+	if c := fyne.CurrentApp().Driver().CanvasForObject(p.sel); c != nil && c.Focused() == p.sel {
+		c.Unfocus()
+	}
+}
+
 // FocusGained implements fyne.Focusable.
 func (p *selectPopup) FocusGained() {}
 
@@ -298,7 +380,7 @@ func (p *selectPopup) TypedKey(ev *fyne.KeyEvent) {
 	case fyne.KeyReturn, fyne.KeyEnter, fyne.KeySpace:
 		p.pick(p.active)
 	case fyne.KeyEscape:
-		p.dismiss()
+		p.escape()
 	}
 }
 

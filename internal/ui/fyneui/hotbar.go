@@ -627,7 +627,7 @@ func (r *hotbarTileRenderer) show(th fyne.Theme, accent color.Color, m clusterMa
 		v := fyne.CurrentApp().Settings().ThemeVariant()
 		r.card.FillColor = themeColor(th, theme.ColorNameHeaderBackground)
 		r.card.CornerRadius = th.Size(theme.SizeNameInputRadius) * t.zoom()
-		r.card.StrokeColor, r.card.StrokeWidth = themeColor(th, theme.ColorNameInputBorder), 1
+		r.card.StrokeColor, r.card.StrokeWidth = themeColor(th, colorHairline), 1
 		r.card.Shadow = canvas.Shadow{Color: th.Color(theme.ColorNameShadow, v), BlurRadius: 12,
 			Offset: fyne.NewPos(0, 4), Variant: canvas.DropShadow}
 		if !t.tile.Missing {
@@ -758,7 +758,7 @@ func (r *hotbarButtonRenderer) Refresh() {
 	r.bg.StrokeWidth = 0
 	if b.square {
 		r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
-		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, theme.ColorNameInputBorder), th.Size(theme.SizeNameInputBorder)
+		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, colorHairline), th.Size(theme.SizeNameInputBorder)
 	}
 	if b.hovered && !b.disabled {
 		r.bg.FillColor = themeColor(th, theme.ColorNameHover)

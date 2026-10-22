@@ -694,7 +694,9 @@ func (c *chatPanel) showHistoryList(ctx string, list []engine.ChatConversationIn
 	content.SetMinSize(fyne.NewSize(width, min(float32(len(rows))*32+16, th.Size(sizePopupMaxList))))
 	c.history = widget.NewPopUp(content, c.sh.win.Canvas())
 	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(c.historyB)
-	c.history.ShowAtPosition(fyne.NewPos(pos.X+c.historyB.Size().Width-width-th.Size(theme.SizeNameInnerPadding), pos.Y+c.historyB.Size().Height))
+	at := fyne.NewPos(pos.X+c.historyB.Size().Width-width-th.Size(theme.SizeNameInnerPadding), pos.Y+c.historyB.Size().Height)
+	h := c.history
+	onShown(c.sh.win.Canvas(), func() { h.ShowAtPosition(at) }, h.Hide) // Escape closes it (escape.go)
 }
 
 // historyRow is one conversation of the history: its title and age (a running turn says so, and a
@@ -769,7 +771,7 @@ func (c *chatPanel) confirmClear(ctx string, n int) {
 			}()
 		}, c.sh.win)
 	d.SetConfirmText("Delete")
-	d.Show()
+	c.sh.showDialog(d)
 }
 
 // showPayload shows the exact request body the turn of a user's message sent, read-only (H-13:
@@ -828,7 +830,7 @@ func (c *chatPanel) payloadDialog(body, endpoint string, private bool) {
 	copyB := widget.NewButtonWithIcon("Copy", theme.ContentCopyIcon(), func() { c.sh.app.Clipboard().SetContent(body) })
 	d := dialog.NewCustom("What this turn sent", "Close", container.NewBorder(info, container.NewHBox(copyB), nil, nil, scroll), c.sh.win)
 	c.payload = d
-	d.Show()
+	c.sh.showDialog(d)
 }
 
 // --- the pinned message ---
@@ -876,7 +878,7 @@ var _ fyne.Tappable = (*chatPin)(nil)
 func newChatPin(c *chatPanel) *chatPin {
 	p := &chatPin{c: c}
 	p.card = newSurface(colorDrawerHeader)
-	p.card.radius, p.card.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	p.card.radius, p.card.stroke = theme.SizeNameInputRadius, colorHairline
 	p.chip = newChatChip(iconTarget, nil)
 	p.text = newMDFlow(nil, theme.ColorNameForeground, nil)
 	p.text.maxLines = 2

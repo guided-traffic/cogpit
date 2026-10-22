@@ -302,14 +302,14 @@ func (u *helmInstallTab) pickVersion(v string) {
 		load()
 		return
 	}
-	dialog.ShowConfirm("Load version "+v+"?", "The values become version "+v+"'s values.yaml; your changes to the values are lost.",
+	u.sh.showDialog(dialog.NewConfirm("Load version "+v+"?", "The values become version "+v+"'s values.yaml; your changes to the values are lost.",
 		func(ok bool) {
 			if ok {
 				load()
 			} else {
 				u.version.SetSelected(hi.Version)
 			}
-		}, u.sh.win)
+		}, u.sh.win))
 }
 
 // update follows the engine's tab: a reload at another version replaces the values.

@@ -137,7 +137,8 @@ func (f *statusFilter) open() {
 	}
 	scroll.SetMinSize(fyne.NewSize(th.Size(sizeFilterWidth)+th.Size(sizeCellPadding)*2, h))
 	f.popup = widget.NewPopUp(scroll, c)
-	f.popup.ShowAtRelativePosition(fyne.NewPos(0, f.button.Size().Height), f.button)
+	p := f.popup
+	onShown(c, func() { p.ShowAtRelativePosition(fyne.NewPos(0, f.button.Size().Height), f.button) }, p.Hide) // Escape closes it (escape.go)
 }
 
 // fill makes the list show the snapshot's states: All states, then each state with its dot and

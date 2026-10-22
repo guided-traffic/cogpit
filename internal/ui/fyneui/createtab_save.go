@@ -75,7 +75,7 @@ func (c *createTab) showSaveDialog(name string, data []byte, start fyne.Listable
 	if start != nil {
 		d.SetLocation(start)
 	}
-	d.Show()
+	c.sh.showDialog(d)
 	return d
 }
 

@@ -193,7 +193,7 @@ func (sh *shell) saveWithDialog(name string, rows int, data []byte, start fyne.L
 	if start != nil {
 		d.SetLocation(start)
 	}
-	d.Show()
+	sh.showDialog(d)
 	return d
 }
 
@@ -245,7 +245,8 @@ func (tv *tableView) openColumns() {
 	}
 	tv.colPopup = widget.NewPopUp(scroll, c)
 	pos := fyne.NewPos(tv.table.Size().Width-tv.colPopup.MinSize().Width, header)
-	tv.colPopup.ShowAtRelativePosition(pos, tv.table)
+	p := tv.colPopup
+	onShown(c, func() { p.ShowAtRelativePosition(pos, tv.table) }, p.Hide) // Escape closes it (escape.go)
 }
 
 // columnsOpen reports whether the column list is showing.

@@ -78,7 +78,7 @@ func buildSecretForm(f *createForm) {
 // newSecretDataRow is one data row: the key, and the value masked in a field that takes several
 // lines, with the eye that shows it.
 func newSecretDataRow(sh *shell) *editorRow {
-	key := widget.NewEntry()
+	key := newFieldEntry()
 	key.SetPlaceHolder("password")
 	value := newSecretEntry(sh)
 	value.SetMinRowsVisible(1)
@@ -94,7 +94,7 @@ func newSecretDataRow(sh *shell) *editorRow {
 
 // newKeyValueRow is one label or annotation row.
 func newKeyValueRow(keyHint, valueHint string) *editorRow {
-	key, value := widget.NewEntry(), widget.NewEntry()
+	key, value := newFieldEntry(), newFieldEntry()
 	key.SetPlaceHolder(keyHint)
 	value.SetPlaceHolder(valueHint)
 	return &editorRow{fields: []fyne.CanvasObject{key, value}, value: func() (any, bool) {
@@ -107,7 +107,7 @@ func newKeyValueRow(keyHint, valueHint string) *editorRow {
 }
 
 // rowKey is a row's key field.
-func rowKey(r *editorRow) *widget.Entry { return r.fields[0].(*widget.Entry) }
+func rowKey(r *editorRow) *fieldEntry { return r.fields[0].(*fieldEntry) }
 
 // prefillKeys puts each of keys that no row has yet into the first empty row, else into a new one.
 func prefillKeys(e *rowEditor, keys []string) {
@@ -145,6 +145,15 @@ func newSecretEntry(sh *shell) *secretEntry {
 	e.MultiLine, e.Password, e.Wrapping = true, true, fyne.TextWrapOff
 	e.ExtendBaseWidget(e)
 	return e
+}
+
+// TypedKey implements fyne.Focusable: Escape goes on to the dialog's Cancel (escape.go).
+func (e *secretEntry) TypedKey(ev *fyne.KeyEvent) {
+	if ev.Name == fyne.KeyEscape {
+		passEscape(e)
+		return
+	}
+	e.Entry.TypedKey(ev)
 }
 
 // TypedShortcut sends a copy or cut of the shown value through the shell's clipboard for Secret

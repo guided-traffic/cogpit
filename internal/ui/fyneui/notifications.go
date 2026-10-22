@@ -114,6 +114,7 @@ func (n *notificationsUI) open() {
 	n.fresh, n.list, n.loaded = map[uint64]bool{}, nil, false
 	n.panel = newNotificationPanel(n)
 	sh.win.Canvas().Overlays().Add(n.panel)
+	onEscape(sh.win.Canvas(), n.panel, n.close) // escape.go
 	n.panel.Resize(sh.win.Canvas().Size())
 	n.rebuild()
 	n.request()

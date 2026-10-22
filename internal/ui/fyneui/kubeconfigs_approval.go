@@ -210,7 +210,7 @@ func (k *kubeconfigUI) showApproval(g approvalGroupView, done func(bool)) {
 		blocks.Add(rows)
 	}
 	listBg := newSurface(theme.ColorNameInputBackground)
-	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
 	content.Add(muted(fmt.Sprintf("%d %s", len(g.Contexts), nounFor(len(g.Contexts), "context", "contexts"))))
 	content.Add(container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, blocks)))
 
@@ -272,5 +272,5 @@ func (k *kubeconfigUI) showApproval(g approvalGroupView, done func(bool)) {
 		time.AfterFunc(delay, func() { k.sh.do(a.allow.Enable) })
 	}
 	k.approval = a
-	a.d.Show() // no button has the focus: Enter must not allow a program by accident
+	k.sh.showDialog(a.d) // no button has the focus: Enter must not allow a program by accident; Escape is Cancel
 }

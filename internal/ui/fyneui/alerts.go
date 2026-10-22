@@ -374,7 +374,7 @@ func (r *alertsRenderer) Refresh() {
 			r.bg.FillColor = themeColor(th, colorRowHover)
 		}
 		// A hairline keeps the neutral plate on a light bar, where chip and chrome are close.
-		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, theme.ColorNameInputBorder), 1
+		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, colorHairline), 1
 	}
 	for i, sg := range r.segs {
 		tone := themeColor(th, alertSegments[i].tone)

@@ -174,7 +174,7 @@ func (k *kubeconfigUI) noClusters(a sourceAdded) {
 		})
 	}, k.sh.win)
 	k.noClustersDialog = d
-	d.Show()
+	k.sh.showDialog(d) // Escape: Keep Syncing
 }
 
 // contextsChanged refreshes the sources dialog if it is open; the navigator's section and the
@@ -226,7 +226,7 @@ func (k *kubeconfigUI) showSources() {
 		"writes them. Removing one removes only Cogpit's link to it. Your ~/.kube folder is synced like any other; "+
 		"the files $KUBECONFIG names are offered for this run and are removed for this run only.", colorMuted, k.sh.app.Settings().Theme().Size(sizePickerWidth))
 	listBg := newSurface(theme.ColorNameInputBackground)
-	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
 	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(sd.list)))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(
 		container.NewVBox(intro, newSpace(theme.SizeNamePadding)), sd.status, nil, nil, list))
@@ -241,7 +241,7 @@ func (k *kubeconfigUI) showSources() {
 		}
 	})
 	k.sources = sd
-	sd.d.Show()
+	k.sh.showDialog(sd.d)
 	sd.load()
 }
 
@@ -362,7 +362,7 @@ func (sd *sourcesDialog) confirmRemove(src sourceStatus) {
 		}
 	}, sd.k.sh.win)
 	sd.removing = d
-	d.Show()
+	sd.k.sh.showDialog(d)
 }
 
 func (sd *sourcesDialog) remove(id string) {

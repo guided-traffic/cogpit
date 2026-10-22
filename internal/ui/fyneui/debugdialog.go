@@ -81,7 +81,7 @@ type debugDialog struct {
 	d       *dialogFrame
 	rows    *fyne.Container
 	target  *selectField
-	image   *widget.Entry
+	image   *fieldEntry
 	confirm *widget.Button
 	cancel  *widget.Button
 }
@@ -109,7 +109,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	default:
 		dd.target.SetSelected(debugNoTarget)
 	}
-	dd.image = widget.NewEntry() // an ordinary entry: select, copy, paste, edit
+	dd.image = newFieldEntry() // an ordinary entry: select, copy, paste, edit; Escape cancels (escape.go)
 	dd.image.SetText(p.Image)
 	dd.confirm = widget.NewButton("Debug", nil)
 	dd.confirm.Importance = widget.DangerImportance

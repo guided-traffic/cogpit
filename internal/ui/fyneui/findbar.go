@@ -110,7 +110,7 @@ type findBar struct {
 	view *yamlview.View
 
 	find          *searchEntry // F1–F12 are the hotbar's (A64): a search field, not the editor's text
-	replace       *widget.Entry
+	replace       *fieldEntry
 	opts          findOptions
 	toggles       [3]*tipButton // match case, whole word, regular expression
 	count         *textLine
@@ -131,7 +131,16 @@ func newFindBar(sh *shell, view *yamlview.View) *findBar {
 	b.find.SetPlaceHolder("Find")
 	b.find.OnChanged = func(string) { b.refresh(true) }
 	b.find.OnSubmitted = func(string) { b.step(1) }
-	b.replace = widget.NewEntry()
+	b.find.escape = b.close // Escape closes the bar from either field and from the editor (AW4)
+	b.replace = newFieldEntry()
+	b.replace.onEscape = b.close
+	view.OnEscape = func() bool {
+		if !b.visible() {
+			return false
+		}
+		b.close()
+		return true
+	}
 	b.replace.SetPlaceHolder("Replace")
 	b.replace.OnSubmitted = func(string) { b.replaceOne() }
 

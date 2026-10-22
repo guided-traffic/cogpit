@@ -140,6 +140,12 @@ malformed-input tests or fuzz targets.
   on such a line (2026-10-12).
 - Verify every visual change with an offscreen render (Fyne's `test` package) or a screenshot, in
   dark and light themes, and attach before/after images to the pull request.
+- Escape closes the innermost thing open ([D-116](decisions.md#d-116-escape-closes-the-innermost-thing),
+  [`escape.go`](../../internal/ui/fyneui/escape.go)): show a Fyne dialog with `sh.showDialog`, never
+  its own `Show`; show a `widget.PopUp` through `onShown` with what closes it; give a dialog's
+  fields the types that pass Escape on to the dialog's Cancel (`newFieldEntry`,
+  `newFieldSelectEntry`, `newFieldCheck`, `newFieldSlider`), never Fyne's plain ones
+  (`TestEveryDialogTakesEscape` reads the sources for the first two).
 - Every dropdown is a `selectField` (`newSelectField`, [`selectfield.go`](../../internal/ui/fyneui/selectfield.go)),
   never Fyne's `widget.NewSelect`: it opens over its field, the current entry checked at the
   field's place, as a macOS pop-up button (the owner's GW5, 2026-10-20: Fyne's list showed the

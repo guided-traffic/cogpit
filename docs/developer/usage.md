@@ -1409,6 +1409,26 @@ table's newest (accurate to weeks; checked against every minor since 1.19).
 The gear before the root's dot opens the cluster's Settings, as ⌘⇧, does
 ([D-92](decisions.md#d-92-a-gear-in-the-navigators-cluster-row)).
 
+### Escape
+
+Since 2026-10-22 (the owner's alpha walk, [D-116](decisions.md#d-116-escape-closes-the-innermost-thing)),
+Escape closes the innermost thing open, and only that; press it again to go one step further out.
+
+| Where you are | Escape |
+|---|---|
+| An open dropdown's list | closes it without a choice; the field is no longer highlighted |
+| A dialog (a confirmation, Rollback, Scale, a create dialog, Connection Updates, About, …), whatever field has the keyboard | is its Cancel, or its Close where it has none; the drawer behind it stays open |
+| A pop-up list (the namespace filter, the status filter, the columns, the agent's history) or the palette, the bell's list, the MCP details | closes it |
+| A dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
+| A list's search (⌘F) | clears it; the list gets the keys |
+| The logs tab's search, Argo CD's activity filter | clears it |
+| A settings page (Preferences, Cluster Settings) | closes the page (a text field on it keeps Escape) |
+| The list or the navigator | closes the drawer |
+
+A selected text (a log, a toast, the agent's answer) drops its selection first, and the
+navigator's search opened by ⌘P and the namespace filter's search clear a typed text first, as
+before.
+
 ### Selecting and copying a log's, a notification's and the agent's text
 
 Since 2026-10-19 (the owner's WF36 and WF41,

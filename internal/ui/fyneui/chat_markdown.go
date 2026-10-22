@@ -1375,7 +1375,7 @@ func (r *mdTableRenderer) Layout(fyne.Size) {
 	th := v.Theme()
 	pad := v.cellPad()
 	tw := v.tableWidth()
-	line := themeColor(th, theme.ColorNameInputBorder)
+	line := themeColor(th, colorHairline)
 	nLines := max(len(v.rowsH)-1, 0) + max(len(v.cols)-1, 0)
 	for len(v.lines) < nLines {
 		v.lines = append(v.lines, canvas.NewRectangle(line))

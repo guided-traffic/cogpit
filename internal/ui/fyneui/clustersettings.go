@@ -176,7 +176,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	sentence := newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	sentence.truncate = true
 	pathBg := newSurface(theme.ColorNameInputBackground)
-	pathBg.radius, pathBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	pathBg.radius, pathBg.stroke = theme.SizeNameInputRadius, colorHairline
 	open := newTipButton(p.sh, theme.FolderOpenIcon(), "Show the kubeconfig's folder in the file manager", nil)
 	open.OnTapped = func() {
 		if f := p.clusterView().Kubeconfig; f != "" {
@@ -349,17 +349,17 @@ func (p *settingsPage) pickIconWithDialog(done func(path string)) {
 		done(path)
 	}, p.sh.win)
 	d.SetFilter(storage.NewExtensionFileFilter([]string{".png", ".jpg", ".jpeg", ".svg"}))
-	d.Show()
+	p.sh.showDialog(d)
 }
 
 // pickFolderWithDialog asks for a folder in Fyne's dialog: pickFolder's fallback where the
 // system has no panel (filepicker_choosers.go).
 func (p *settingsPage) pickFolderWithDialog(done func(path string)) {
-	dialog.NewFolderOpen(func(l fyne.ListableURI, err error) {
+	p.sh.showDialog(dialog.NewFolderOpen(func(l fyne.ListableURI, err error) {
 		if err == nil && l != nil {
 			done(filepath.FromSlash(l.Path()))
 		}
-	}, p.sh.win).Show()
+	}, p.sh.win))
 }
 
 // openFolderWithFileManager shows a folder in the file manager (Finder on macOS): the folder that

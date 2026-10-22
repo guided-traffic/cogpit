@@ -72,7 +72,7 @@ func (sh *shell) showHelmRepos() {
 	rd.file = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	rd.file.truncate = true
 	listBg := newSurface(theme.ColorNameInputBackground)
-	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
 	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(rd.list)))
 	top := container.NewVBox(intro, newSpace(theme.SizeNamePadding), rd.file, rd.fileMsg, newSpace(theme.SizeNamePadding))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(top, rd.status, nil, nil, list))
@@ -99,7 +99,7 @@ func (sh *shell) showHelmRepos() {
 		}
 	})
 	sh.helmRepos = rd
-	rd.d.Show()
+	sh.showDialog(rd.d)
 	rd.load()
 }
 

@@ -113,7 +113,7 @@ func (r *pillSwitchRenderer) Refresh() {
 		r.knob.FillColor = cyan
 	} else {
 		r.track.FillColor = themeColor(th, theme.ColorNameInputBackground)
-		r.track.StrokeColor, r.track.StrokeWidth = themeColor(th, theme.ColorNameInputBorder), 1
+		r.track.StrokeColor, r.track.StrokeWidth = themeColor(th, colorHairline), 1
 		r.knob.FillColor = themeColor(th, colorMuted)
 		if r.s.hovered {
 			r.knob.FillColor = themeColor(th, theme.ColorNameForeground)

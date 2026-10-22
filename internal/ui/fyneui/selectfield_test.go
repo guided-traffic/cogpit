@@ -71,9 +71,9 @@ func TestSelectOpensOverTheField(t *testing.T) {
 	}
 }
 
-// TestSelectKeys: Space opens the list, ↓ and ↑ move, Return chooses (OnChanged as Fyne's did),
-// Escape closes without a choice, a letter jumps, ← and → step without the list; the field has the
-// keyboard again after the list closes.
+// TestSelectKeys: Space opens the list, ↓ and ↑ move, Return chooses (OnChanged as Fyne's did) and
+// the field has the keyboard again, Escape closes without a choice and takes the keyboard off the
+// field (the owner's AW2: the next Escape goes on), a letter jumps, ← and → step without the list.
 func TestSelectKeys(t *testing.T) {
 	s, w, changed := selectWindow(t, []string{"alpha", "bravo", "charlie", "delta", "echo"}, "bravo", 600)
 	c := w.Canvas()
@@ -103,8 +103,8 @@ func TestSelectKeys(t *testing.T) {
 		t.Errorf("Home: row %d", s.pop.active)
 	}
 	key(fyne.KeyEscape)
-	if s.isOpen() || s.Selected != "charlie" || len(*changed) != 1 || c.Focused() != s {
-		t.Fatalf("Escape: open %v, selected %q, changed %v", s.isOpen(), s.Selected, *changed)
+	if s.isOpen() || s.Selected != "charlie" || len(*changed) != 1 || c.Focused() != nil {
+		t.Fatalf("Escape: open %v, selected %q, changed %v, focus %T", s.isOpen(), s.Selected, *changed, c.Focused())
 	}
 	s.TypedKey(&fyne.KeyEvent{Name: fyne.KeyRight})
 	if s.isOpen() || s.Selected != "delta" {

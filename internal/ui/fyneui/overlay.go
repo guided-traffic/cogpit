@@ -12,7 +12,7 @@ import (
 // dismissOverlay shows content centred over the window on a shaded background, as a modal pop-up
 // does, but a click on the shade outside the content closes it (owner, 2026-10-12, of the context
 // picker's mask, which went with D-57; the command palette has it now); the shell's Escape closes
-// it too (installShortcuts). Fyne's pop-ups do one or the other: a modal one
+// it too (escape.go). Fyne's pop-ups do one or the other: a modal one
 // shades the window and ignores clicks outside, a plain one closes on them without a shade.
 type dismissOverlay struct {
 	widget.BaseWidget

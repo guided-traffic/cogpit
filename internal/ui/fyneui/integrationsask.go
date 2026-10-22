@@ -68,7 +68,7 @@ type integrationsQuestion struct {
 	d       *dialog.CustomDialog
 	choices []*widget.Button // the pre-choice's Check all, Choose and Don't use
 	rows    []*integrationRow
-	save    *widget.Check
+	save    *fieldCheck
 	apply   *widget.Button
 	back    *widget.Button
 	later   *widget.Button
@@ -155,11 +155,11 @@ func (q *integrationsQuestion) open(ctx string, page engine.IntegrationsStep) {
 	q.d.SetButtons(buttons)
 	d := q.d
 	q.d.SetOnClosed(func() {
-		if !q.closing && q.d == d { // closed otherwise than by the question's end: Later
+		if !q.closing && q.d == d { // closed otherwise than by the question's end (Escape too): Later
 			q.putOff()
 		}
 	})
-	q.d.Show()
+	sh.showDialog(q.d)
 	if page != engine.IntegrationsPreChoice {
 		q.request()
 	}
@@ -241,7 +241,7 @@ func (q *integrationsQuestion) rowsPage(page engine.IntegrationsStep) fyne.Canva
 		objs = append(objs, r.box)
 	}
 	q.syncTicks()
-	q.save = widget.NewCheck(integrationsAskSave, nil)
+	q.save = newFieldCheck(integrationsAskSave)
 	objs = append(objs, newSpace(theme.SizeNameInnerPadding), newDivider(false), q.save, q.errLine)
 	q.apply = widget.NewButton("Apply", q.answer)
 	q.apply.Importance = widget.HighImportance
@@ -388,7 +388,7 @@ func (q *integrationsQuestion) showWarning(show bool) {
 			q.step(engine.IntegrationsPreChoice)
 		}
 	})
-	q.warn.Show()
+	sh.showDialog(q.warn)
 }
 
 // failed shows why a step or an answer was refused under the dialog's content; the dialog stays.
@@ -399,6 +399,6 @@ func (q *integrationsQuestion) failed(ctx string, err error) {
 	q.errLine.SetText(err.Error())
 	q.errLine.Show()
 	if q.d != nil && q.sh.ui.IntegrationsQuestion == ctx {
-		q.d.Show() // Later by closing it: shown again while the question stands
+		q.sh.showDialog(q.d) // Later by closing it: shown again while the question stands
 	}
 }

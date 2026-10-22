@@ -331,7 +331,7 @@ func (lt *logTab) saveDialog() {
 		}()
 	}, lt.sh.win)
 	d.SetFileName(lt.fileName())
-	d.Show()
+	lt.sh.showDialog(d)
 }
 
 // saveLogs writes the lines to w and closes it.

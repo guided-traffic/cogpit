@@ -110,7 +110,9 @@ func (f *nsFilter) show() {
 	}
 	f.fit()
 	f.popup.Resize(f.popup.MinSize()) // a list shown before may have been taller
-	f.popup.ShowAtRelativePosition(fyne.NewPos(0, f.tv.nsButton.Size().Height), f.tv.nsButton)
+	p := f.popup
+	onShown(p.Canvas, func() { p.ShowAtRelativePosition(fyne.NewPos(0, f.tv.nsButton.Size().Height), f.tv.nsButton) },
+		f.hide) // its search's Escape first, this while the search has no keyboard (escape.go)
 	f.popup.Canvas.Focus(f.search)
 	f.reveal()
 }

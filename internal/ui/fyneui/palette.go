@@ -118,7 +118,7 @@ func newCmdPalette(sh *shell) *cmdPalette {
 	p.hint.truncate = true
 
 	listBg := newSurface(theme.ColorNameInputBackground)
-	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, theme.ColorNameInputBorder
+	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
 	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding,
 		container.NewStack(p.list, container.NewVBox(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, p.empty)))))
 	top := container.NewVBox(p.filter, newSpace(theme.SizeNamePadding))
@@ -229,6 +229,8 @@ func (p *cmdPalette) show() {
 	p.byOther, p.picked, p.refused = false, false, false
 	p.sel = 0
 	p.popup.Show()
+	// The palette lies over everything; Escape closes it while its filter has no keyboard (escape.go).
+	onEscape(p.sh.win.Canvas(), p.popup, func() { p.dismissThen(nil) })
 	if p.requested { // opened by an agent, the focus stays where the user's typing goes
 		p.sh.win.Canvas().Focus(p.filter)
 	}

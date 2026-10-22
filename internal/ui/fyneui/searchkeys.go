@@ -23,10 +23,16 @@ func hotbarKey(sh *shell, ev *fyne.KeyEvent) bool {
 	return sh.hot.key(ev.Name, shiftHeld())
 }
 
-// searchEntry is a plain search field whose F-keys are the hotbar's.
+// searchEntry is a plain search field whose F-keys are the hotbar's. Escape ends the search (the
+// owner's AW4 of 2026-10-22; escape.go): a find bar closes (escape), any other search is cleared
+// and left, the keyboard going to back (the list's table) or nowhere.
 type searchEntry struct {
 	widget.Entry
 	sh *shell
+	// escape is the field's Escape in place of clearing and leaving it: a find bar's close.
+	escape func()
+	// back gets the keyboard when Escape leaves the field; nil: nothing has it.
+	back fyne.Focusable
 }
 
 func newSearchEntry(sh *shell) *searchEntry {
@@ -40,5 +46,29 @@ func (e *searchEntry) TypedKey(ev *fyne.KeyEvent) {
 	if hotbarKey(e.sh, ev) {
 		return
 	}
+	if ev.Name == fyne.KeyEscape {
+		e.leave()
+		return
+	}
 	e.Entry.TypedKey(ev)
+}
+
+// leave is Escape in the field: the search ends.
+func (e *searchEntry) leave() {
+	if e.escape != nil {
+		e.escape()
+		return
+	}
+	if e.Text != "" {
+		e.SetText("") // OnChanged sends the empty search, as typing it away does
+	}
+	c := fyne.CurrentApp().Driver().CanvasForObject(e)
+	if c == nil {
+		return
+	}
+	if e.back != nil {
+		c.Focus(e.back)
+		return
+	}
+	c.Unfocus()
 }
