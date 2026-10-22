@@ -226,6 +226,7 @@ func (lt *logTab) open() {
 			lt.resetOlder()
 			lt.updateHead()
 			lt.c.set(w)
+			sh.dock.takeFocus() // the user's new tab takes the keys now (dockfocus.go)
 			if lt.older.pending {
 				lt.older.pending = false
 				lt.loadOlder(time.Time{}, nil)

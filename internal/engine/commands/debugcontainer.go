@@ -51,6 +51,15 @@ type DebugResult struct {
 	Note      string          `json:"note,omitempty"`
 }
 
+// OpenedTab is the Attach tab opened on the debug container, none (no id) when it was not: the
+// window gives it the keyboard when it ran the command itself (fyneui/dockfocus.go, D-115).
+func (r DebugResult) OpenedTab() engine.DockTab {
+	if r.Tab == nil {
+		return engine.DockTab{}
+	}
+	return *r.Tab
+}
+
 // errNoDebugContainers disables pod.debug on a connection without the debug container's write.
 var errNoDebugContainers = errors.New("this cluster connection cannot add debug containers")
 

@@ -17,6 +17,7 @@ import (
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/terminal"
@@ -555,12 +556,15 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		if inv.ID == "pod.shell" {
 			typ, title = engine.DockShell, "Shell: "
 		}
+		var tab engine.DockTab
 		f.update(func(u *engine.UIState) {
 			id := fmt.Sprintf("%s-%d", typ, len(u.Dock)+1)
 			r := p.Ref
-			u.Dock = append(u.Dock, engine.DockTab{ID: id, Type: typ, Title: title + p.Ref.Name, Ref: &r, Container: p.Container})
+			tab = engine.DockTab{ID: id, Type: typ, Title: title + p.Ref.Name, Ref: &r, Container: p.Container}
+			u.Dock = append(u.Dock, tab)
 			u.ActiveDock = id
 		})
+		return commands.DockResult{Tab: tab, Created: true}, nil // as the engine answers (commands/dock.go)
 	case "terminal.open":
 		f.mu.Lock()
 		callsOnly := f.terminalCallsOnly
@@ -568,11 +572,14 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		if callsOnly {
 			return nil, nil
 		}
+		var tab engine.DockTab
 		f.update(func(u *engine.UIState) {
 			id := fmt.Sprintf("terminal-%d", len(u.Dock)+1)
-			u.Dock = append(u.Dock, engine.DockTab{ID: id, Type: engine.DockTerminal, Title: "Terminal: " + u.Context})
+			tab = engine.DockTab{ID: id, Type: engine.DockTerminal, Title: "Terminal: " + u.Context}
+			u.Dock = append(u.Dock, tab)
 			u.ActiveDock = id
 		})
+		return commands.DockResult{Tab: tab, Created: true}, nil // as the engine answers (commands/dock.go)
 	case "dock.close":
 		var p dockParams
 		if err := params(&p); err != nil {

@@ -57,6 +57,9 @@ type dock struct {
 	agentReadMarks agentReadMarks
 	// drag is a tab dragged to another place in the strip (stripdrag.go, GW4).
 	drag *stripDrag
+	// focusReq is the tab the window asked the keys for, until its main widget takes them
+	// (dockfocus.go, AW5, AW8).
+	focusReq *focusRequest
 }
 
 // dockContent is one tab's content and the stream behind it.
@@ -317,6 +320,7 @@ func (d *dock) rebuildStrip() {
 		}
 		b := newTabButton(t.Title, icon, id == d.active && d.open(),
 			func() { // another tab activated opens the dock in the engine; the shown one opens it here
+				d.requestFocus(id) // the clicked tab takes the keys, the shown one too (dockfocus.go)
 				if id != d.active {
 					d.sh.dispatch("dock.activate", dockParams{ID: id}, nil)
 				} else if !d.open() {

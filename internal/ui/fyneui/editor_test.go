@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
@@ -152,7 +153,7 @@ func newEditorFake(f *fakeEngine) *editorFake {
 			u.ActiveDock = tab.ID
 		})
 		e.setText(tab.ID, tpl.Text)
-		return map[string]any{"tab": tab}, nil
+		return commands.EditResult{Tab: tab, Created: true, Text: tpl.Text}, nil // as the engine answers (commands/edit.go)
 	}
 	reg := func(id string, d engine.Danger) {
 		spec := engine.Spec[struct{}]{ID: id, Label: id, Danger: d, Run: func(context.Context, *engine.Session, struct{}) (any, error) { return nil, nil }}

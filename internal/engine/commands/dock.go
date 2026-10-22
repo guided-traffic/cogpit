@@ -17,6 +17,10 @@ type DockResult struct {
 	Created bool           `json:"created"` // false: an existing tab was activated
 }
 
+// OpenedTab is the tab the command opened or showed: the window gives it the keyboard when it ran
+// the command itself (fyneui/dockfocus.go, D-115).
+func (r DockResult) OpenedTab() engine.DockTab { return r.Tab }
+
 type containerParams struct {
 	Ref       model.ObjectRef `json:"ref" jsonschema:"the pod"`
 	Container string          `json:"container,omitempty" jsonschema:"container name: one of the pod's containers, init containers or ephemeral (debug) containers; empty means the pod's first container"`

@@ -103,6 +103,10 @@ func (t *Terminal) Done() <-chan struct{} { return t.ended }
 // Text returns the terminal's screen as text. Call it on the main goroutine.
 func (t *Terminal) Text() string { return t.term.Text() }
 
+// FocusTarget is the widget that takes the keyboard: the terminal widget inside, which a click
+// focuses too. The dock gives it the keys when the user opens the tab (fyneui/dockfocus.go).
+func (t *Terminal) FocusTarget() fyne.Focusable { return t.term }
+
 // RightClickCopyPaste reports what SetRightClickCopyPaste last chose. Call it on the main goroutine.
 func (t *Terminal) RightClickCopyPaste() bool { return t.rightClick }
 

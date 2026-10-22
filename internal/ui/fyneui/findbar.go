@@ -185,9 +185,13 @@ func (b *findBar) open() {
 		b.find.SetText(sel)
 	}
 	b.root.Show()
-	if c := fyne.CurrentApp().Driver().CanvasForObject(b.find); c != nil {
-		c.Focus(b.find)
-	}
+	// Through the window's canvas (the owner's AW6, 2026-10-22): Fyne's Container.Show asks for no
+	// repaint, and the driver knows no canvas for a field never drawn (CanvasForObject nil), so the
+	// first ⌘F showed the bar seconds later, at a repaint something else asked for, and left the
+	// keys in the editor.
+	c := b.sh.win.Canvas()
+	c.Refresh(b.root)
+	c.Focus(b.find)
 	b.refresh(true)
 }
 

@@ -134,6 +134,11 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	return l
 }
 
+// FocusTarget is the widget that takes the keyboard: the surface over the lines, which a press
+// focuses too (⌘C, ⌘A, "/" for the tab's search; logselect.go). The dock gives it the keys when the
+// user opens the tab (fyneui/dockfocus.go).
+func (l *Logs) FocusTarget() fyne.Focusable { return l.surface }
+
 // Close stops reading and closes the stream. It is idempotent.
 func (l *Logs) Close() error {
 	l.closeOnce.Do(func() {

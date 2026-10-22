@@ -47,6 +47,7 @@ func (d *dock) startTerminal(ctx context.Context, c *dockContent, id string) {
 			w.SetRightClickCopyPaste(d.sh.rightClickCopyPaste()) // the Preferences' right mouse button (termpaste.go)
 			c.closer, c.term = w, w
 			c.set(c.withReconnectRow(c.withKubectlOffer(d.sh.terminalScope(w)))) // the Preferences' terminal font size (preferences.go)
+			d.takeFocus()                                                        // the user's new tab takes the keys now (dockfocus.go)
 		})
 	}()
 }

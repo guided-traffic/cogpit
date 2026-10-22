@@ -26,6 +26,10 @@ type EditResult struct {
 	BaseResourceVersion string         `json:"baseResourceVersion"`
 }
 
+// OpenedTab is the editor tab the command opened or showed: the window gives it the keyboard when
+// it ran the command itself (fyneui/dockfocus.go, D-115).
+func (r EditResult) OpenedTab() engine.DockTab { return r.Tab }
+
 // TextResult is what editor.setText returns.
 type TextResult struct {
 	Revision uint64 `json:"revision"`
