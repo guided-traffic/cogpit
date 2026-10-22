@@ -82,6 +82,7 @@ type welcomePage struct {
 	contexts []engine.ContextInfo // the contexts the sources offer, read off the main goroutine
 	loadSeq  int
 	loaded   bool
+	pending  string // the context whose connect or login review a click began and that has not returned (connect)
 
 	subOnce  sync.Once
 	sigMu    sync.Mutex
@@ -436,7 +437,7 @@ func (w *welcomePage) row(c engine.ContextInfo) *clusterRow {
 	}
 	name := c.Name
 	connect := func() { w.connect(name) }
-	r := newClusterRow(c, title, sub, connect, connect, func() { sh.kc.showConnectLog(name) })
+	r := newClusterRow(c, title, sub, connect, func() { sh.kc.showConnectLog(name) })
 	r.badge.setIdentity(sh.identity(name))
 	if text, color := certPill(c.ClientCert, sh.now()); text != "" { // D-75, clientcert.go
 		objs := r.badges.Objects
@@ -458,9 +459,16 @@ func (w *welcomePage) row(c engine.ContextInfo) *clusterRow {
 
 // connect connects a cluster as the navigator's section does: a login program the user has not
 // allowed yet is shown first; the connection's outcome shows on the page (or the cluster's tab
-// replaces it). A connected cluster is only shown (D-69).
+// replaces it). A connected cluster is only shown (D-69). A click on a cluster whose connect is
+// under way, the page's own (pending, from the click to the engine's answer, the login program's
+// review included) or the one the window shows connecting, does nothing more: the second click of
+// a double click, or an impatient one, would ask a second review, or send a second cluster.connect
+// that joins the run under way and ends the first one's wait with an error (D-106, AW12).
 func (w *welcomePage) connect(name string) {
 	sh := w.sh
+	if w.pending == name || (sh.ui.Context == name && sh.ui.Connection.State == engine.Connecting) {
+		return
+	}
 	if sh.ui.Context == name && sh.ui.Connection.State.Live() {
 		if len(sh.ui.Tabs) > 0 { // under Help › Welcome: back to the cluster's last tab
 			for _, t := range sh.ui.Tabs {
@@ -475,15 +483,33 @@ func (w *welcomePage) connect(name string) {
 	}
 	for _, c := range w.contexts {
 		if c.Name == name && (c.Exec == engine.ExecRequired || c.Exec == engine.ExecChanged) && !switchable(sh.ui, name) {
+			w.pending = name
 			sh.kc.reviewPlugin(name, func(allowed bool) {
 				if allowed {
-					sh.dispatch("cluster.connect", contextParams{Context: name}, nil)
+					w.dispatchConnect(name)
+				} else if w.pending == name {
+					w.pending = ""
 				}
 			})
 			return
 		}
 	}
-	sh.dispatch("cluster.connect", contextParams{Context: name}, nil)
+	w.dispatchConnect(name)
+}
+
+// dispatchConnect sends cluster.connect for name, pending until the engine answers; an error is a
+// toast, as dispatch shows it.
+func (w *welcomePage) dispatchConnect(name string) {
+	sh := w.sh
+	w.pending = name
+	sh.dispatch("cluster.connect", contextParams{Context: name}, func(_ any, err error) {
+		if w.pending == name {
+			w.pending = ""
+		}
+		if sh.ctx.Err() == nil {
+			sh.showError(err)
+		}
+	})
 }
 
 // menu is a cluster row's right-click menu: Connect, Settings, the hotbar's item, Disconnect and
