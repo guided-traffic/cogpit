@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -74,14 +75,26 @@ func TestARestoredFailedConnectShowsTheErrorPage(t *testing.T) {
 		}
 	}
 
-	// Connect Again connects the cluster through the engine; Show Connection Updates reads its log.
+	// Connect Again connects the cluster through the engine, once for a double press (the welcome
+	// page's pending connect, which it goes through); Show Connection Updates reads its log.
+	answer := make(chan struct{})
+	f.handlers["cluster.connect"] = func(ctx context.Context, _ engine.Invocation) (any, error) {
+		select {
+		case <-answer:
+		case <-ctx.Done():
+		}
+		return nil, nil
+	}
 	p.retry.OnTapped()
 	q.until(t, "the connect", func() bool { return len(f.callsOf("cluster.connect")) == 1 })
-	if c := f.callsOf("cluster.connect")[0]; !strings.Contains(string(normalize(c.Params)), cFailed) {
-		t.Errorf("Connect Again connected %s", c.Params)
-	}
+	p.retry.OnTapped() // the double press's second, before the engine answered
 	p.connLog.OnTapped()
 	q.until(t, "the log read", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
+	close(answer)
+	q.until(t, "the connect returned", func() bool { return sh.tabs.welcome.pending == "" })
+	if calls := f.callsOf("cluster.connect"); len(calls) != 1 || !strings.Contains(string(normalize(calls[0].Params)), cFailed) {
+		t.Errorf("Connect Again pressed twice: %d connects (%v)", len(calls), calls)
+	}
 
 	// Another cluster shown: the page goes.
 	f.update(func(u *engine.UIState) {

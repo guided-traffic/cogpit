@@ -166,14 +166,23 @@ func TestWelcomeNamesTheFileOnlyForSharedNames(t *testing.T) {
 // navigator, an agent), and through the login program's review; once the connect returned, a click
 // connects again. Each "no second time" is checked after a later step the test waits for,
 // so that a second dispatch, which runs on a goroutine of its own, has been seen.
+//
+// The fake engine derives the welcome page as the engine does (fake_test.go, D-114): it hides while
+// the shown cluster connects, so a click on a row of that cluster can only come from an event the
+// page's hiding overtook. keepPage puts the page back so that such a click is checked all the same;
+// the test's last step checks that the page hides. Every cluster is on the hotbar, so that each keeps
+// its row whichever one is recent: the page has no "Other clusters" (AW13).
 func TestWelcomeRowConnectsOnce(t *testing.T) {
 	f := newFakeEngine(t)
 	f.contexts = fixtureContexts()
+	names := make([]string, 0, len(f.contexts))
 	for i := range f.contexts {
 		if f.contexts[i].Name == "dev-hfi" {
 			f.contexts[i].Exec = engine.ExecRequired // its login program not allowed yet: reviewed first
 		}
+		names = append(names, f.contexts[i].Name)
 	}
+	withHotbar(f, names...)
 	shown, done := make(chan struct{}), make(chan struct{})
 	f.handlers["cluster.connect"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
 		var p contextParams
@@ -186,10 +195,11 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 			case <-ctx.Done():
 				return nil, ctx.Err()
 			}
-			if step == shown { // the engine shows the cluster connecting
+			if step == shown { // the engine shows the cluster connecting; the page kept up (keepPage)
 				f.update(func(u *engine.UIState) {
 					u.Context, u.Connection = p.Context, engine.Connection{State: engine.Connecting}
 				})
+				f.update(func(u *engine.UIState) { u.Welcome = true })
 			}
 		}
 		return nil, nil
@@ -249,7 +259,8 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	f.update(func(u *engine.UIState) {
 		u.Context, u.Connection = "prod-eu-central", engine.Connection{State: engine.Connecting}
 	})
-	q.until(t, "prod-eu-central connecting", func() bool { return sh.ui.Context == "prod-eu-central" })
+	f.update(func(u *engine.UIState) { u.Welcome = true }) // keepPage
+	q.until(t, "prod-eu-central connecting", func() bool { return sh.ui.Context == "prod-eu-central" && sh.tabs.welcome.shown })
 	settle(sh.win)
 	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "prod-eu-central")))
 	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "staging-us-east")))
@@ -270,4 +281,12 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	if n, m := len(f.callsOf("kubeconfig.pendingApprovals")), connectsOf("dev-hfi"); n != 1 || m != 1 {
 		t.Fatalf("two clicks on a row whose login program is reviewed: %d reviews, %d connects", n, m)
 	}
+
+	// Without the page kept up, it hides while the shown cluster connects, as the engine has it.
+	f.update(func(u *engine.UIState) { u.Context, u.Connection = "", engine.Connection{} })
+	q.until(t, "the page", func() bool { return sh.tabs.welcome.shown })
+	f.update(func(u *engine.UIState) {
+		u.Context, u.Connection = "kind-cogpit", engine.Connection{State: engine.Connecting}
+	})
+	q.until(t, "the page hidden while kind-cogpit connects", func() bool { return !sh.tabs.welcome.shown })
 }
