@@ -281,8 +281,9 @@ Beside the path to alpha:
 11. **Upstream** ([G8](gaps.md#g8-logs-terminal-and-shells),
     [D-14](../developer/decisions.md#d-14-terminal-widget),
     [D-112](../developer/decisions.md#d-112-ci-and-test-time)): fyne-io/terminal #157, #155 and #156
-    merged (2026-10-14, 2026-10-15, 2026-10-17); #158 rebased on master 2026-10-19, waiting for
-    review; a pull request to #147 (scroll support, andydotxyz/terminal#2) and Cogpit's scrollback
+    merged (2026-10-14, 2026-10-15, 2026-10-17); #158 rebased on master 2026-10-19, and the
+    maintainer asked for changes the same evening (comments next to `fyne.Do` that say nothing the
+    code does not), the follow-up open; a pull request to #147 (scroll support, andydotxyz/terminal#2) and Cogpit's scrollback
     model offered there, waiting for the maintainer, who moved #147 to TextGrid's own scrolling on
     2026-10-18; then Cogpit's fork moves to upstream's master. The two newer patches (right-click
     copy and paste, Ctrl/Shift+Insert) are offered at the end, the app first. Fyne: the fonts each
@@ -340,7 +341,7 @@ Beside the path to alpha:
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-22 | trivial | Current focus item 11 as Upstream: Fyne's font cache fix (issue fyne#6619, PR fyne#6620, D-112) beside the terminal pull requests, whose state is brought up to date (#156 merged 2026-10-17, #158 rebased 2026-10-19, #147 moved to TextGrid's scrolling) |
+| 2026-10-22 | trivial | Current focus item 11 as Upstream: Fyne's font cache fix (issue fyne#6619, PR fyne#6620, D-112) beside the terminal pull requests, whose state is brought up to date (#156 merged 2026-10-17; #158 rebased 2026-10-19, changes asked for by the maintainer the same evening; #147 moved to TextGrid's scrolling) |
 | 2026-10-21 | minor | Cogpit for Windows (D-111, built 2026-10-21 on the branch `windows-release`): the stage line; M0's CI with every test on Windows and the setup; M11 with the Windows setup, WinSparkle, the terminal on ConPTY, 20–45 h left (G22 re-estimated, was 30–65); Current focus item 15, the merge's approval and the first release with the setup; What's next after the macOS beta 130–265 h |
 | 2026-10-20 | minor | Cogpit for Linux (D-108, built 2026-10-20 night): the stage line; M11 in progress (🟡) with the Linux deb, Cogpit's APT repository and the updates through apt, 30–65 h left (G22 re-estimated, was 40–80); Current focus item 14, the first release with the packages and a look on a desktop; What's next after the macOS beta 140–285 h |
 | 2026-10-20 | minor | The stage line and Current focus item 6: GW1–GW9 of the gate walk built, GW10 to GW14 from the owner's use the same day (D-104, D-105, D-106, D-77, D-69) |
