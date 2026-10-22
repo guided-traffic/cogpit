@@ -479,6 +479,7 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 		return
 	}
 	newView := snap != nil && (tv.snap == nil || tv.snap.View != snap.View)
+	fewer := snap != nil && tv.snap != nil && len(snap.Rows) < len(tv.snap.Rows)
 	tv.snap = snap
 	key := ""
 	if snap != nil {
@@ -525,8 +526,29 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 	if newView {
 		tv.table.resetKeyboard() // a view starts at its first cell, scrolled to the top
 	}
+	if fewer {
+		tv.keepScrollInRows()
+	}
 	tv.table.Refresh()
 	tv.resolvePending()
+}
+
+// keepScrollInRows brings the table's scroll offset back within its rows after the list got
+// shorter, as a scroller does with its own: down to where the new last row ends at the bottom, to
+// the top when every row fits. Fyne 2.8's table keeps its offset where the longer list left it and
+// draws the rows from there, past the new last one: a namespace filter that narrowed a list
+// scrolled down to two pods showed "2 of 200 items" and no row (the owner's finding of 2026-10-22,
+// awe-d-pinniped). Its scroller checks its offset again only when it is resized, and then sets an
+// offset that no longer fits to zero without telling the table, which keeps its own; the table's
+// ScrollToOffset sets both.
+func (tv *tableView) keepScrollInRows() {
+	b := tv.table.body
+	if b == nil || b.Content == nil || b.Size().Height <= 0 {
+		return
+	}
+	last := max(b.Content.MinSize().Height-b.Size().Height, 0)
+	tv.table.ScrollToOffset(fyne.NewPos(b.Offset.X, min(b.Offset.Y, last)))
+	tv.table.offset = b.Offset // the scroller may not report a reset to zero
 }
 
 // refreshAges re-renders the visible cells so that age columns advance and absolute times follow
