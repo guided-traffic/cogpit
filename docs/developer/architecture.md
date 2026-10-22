@@ -1813,7 +1813,8 @@ while the drafts banner and the node shell sweep take an interruption's end as n
   and in a read-only one, has the drawer's copy icon too: its `copyHook.fetch` runs `secret.reveal`
   with `whole` and copies the answer as a Secret's value without showing it, nothing kept in the
   drawer's revealed values, and an edited value hidden again copies the editor's text
-  ([`fyneui/secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)).
+  ([`fyneui/secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)); a revealed value Show cut
+  copies whole through its icon by the same hook, the drawer keeping the cut text.
 - **Editors, logs, terminals and chats** are engine sessions shown as dock tabs, so agents can open,
   read and close them too.
 - **Background jobs** (A91, built 2026-10-15; [`engine/jobs.go`](../../internal/engine/jobs.go),

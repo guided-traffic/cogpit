@@ -286,6 +286,9 @@ response and a revealed value's string wait for the garbage collector, so the wi
 A revealed value can be copied from the drawer, by its copy icon or by selecting it (D-25, built
 2026-10-12), and the clipboard is emptied 60 seconds after such a copy if it still holds the value
 (`shell.copyText`, `TestSecretRevealedValueCopied`, `TestSecretClipboardKeepsWhatReplacedIt`).
+Since 2026-10-22 the icon of a revealed value that Show cut (4 KiB, 40 lines) copies the whole
+value, read again as a masked value's copy is (below), while the drawer keeps the cut text; a
+selection copies exactly the selection (`TestSecretCutRevealedValueCopiedWhole`).
 Since 2026-10-22 (the owner's decision, reversing "copyable only once revealed",
 [D-25](../developer/decisions.md#d-25-copying-values)) a masked value is copied too, without being
 shown: its copy icon on hover runs `secret.reveal` with `whole` from the window, the GUI-only

@@ -598,7 +598,7 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 	var v fyne.CanvasObject
 	hooks := len(d.copyHooks) // the value's own copy hooks follow
 	if revealed {
-		v = d.revealedValue(it)
+		v = d.revealedValue(ref, it)
 	}
 	objs := []fyne.CanvasObject{nil}
 	for _, a := range it.Actions {

@@ -403,7 +403,7 @@ func (sd *secData) maskedLine(r *secRow) fyne.CanvasObject {
 	show.Importance = widget.LowImportance
 	d := sd.d
 	line := newTextLine(engine.MaskedValue+" (edited, not saved)", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
-	hook := d.maskedCopyFor(func(h *copyHook) { d.copyUnseen(r.key, r.view.Text(), h) })
+	hook := d.fetchCopyFor(maskedCopyTip, func(h *copyHook) { d.copyUnseen(r.key, r.view.Text(), h) })
 	text := newSelLine(line, hook, func(sel string) { d.sh.copyText(sel, false) })
 	return container.NewBorder(nil, nil, nil, show, text)
 }

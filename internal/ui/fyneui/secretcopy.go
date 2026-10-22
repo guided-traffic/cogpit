@@ -24,13 +24,22 @@ import (
 // the drawer's editor and hid again (D-59) is copied the same way from the editor's memory, with no
 // reveal. A binary value has neither Show nor this icon: the engine never hands it out, and the
 // clipboard holds text. No command copies: TestCopyHasNoCommand.
+//
+// A revealed value that Show cut (4 KiB, 40 lines) copies the whole value the same way through its
+// icon, "Copy the whole value", the drawer still showing the cut text (the lead's decision of
+// 2026-10-22, D-25: a password cut short on the clipboard is wrong, revealed or not, and the icon
+// means the value wherever it sits); a selection and ⌘C copy exactly the selection.
 
-// maskedCopyTip is the copy icon's tooltip over a masked Secret value.
-const maskedCopyTip = "Copy the value without showing it"
+// Copy icons' tooltips: over a masked Secret value, over a revealed one Show cut.
+const (
+	maskedCopyTip = "Copy the value without showing it"
+	wholeCopyTip  = "Copy the whole value"
+)
 
-// maskedCopyFor returns the copy hook of a masked Secret value; fetch is what a tap runs.
-func (d *drawer) maskedCopyFor(fetch func(*copyHook)) *copyHook {
-	h := &copyHook{d: d, secret: true, fetch: fetch, tip: maskedCopyTip}
+// fetchCopyFor returns the copy hook of a Secret value the drawer does not hold whole, with the
+// tooltip tip; fetch is what a tap runs.
+func (d *drawer) fetchCopyFor(tip string, fetch func(*copyHook)) *copyHook {
+	h := &copyHook{d: d, secret: true, fetch: fetch, tip: tip}
 	d.copyHooks = append(d.copyHooks, h)
 	return h
 }
@@ -41,25 +50,25 @@ func (d *drawer) maskedCopyFor(fetch func(*copyHook)) *copyHook {
 func (d *drawer) maskedValue(ref model.ObjectRef, it model.DetailItem, a model.ItemAction) fyne.CanvasObject {
 	l := newTextLine(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	l.truncate = true
-	h := d.maskedCopyFor(func(h *copyHook) { d.copyMasked(ref, a, h) })
+	h := d.fetchCopyFor(maskedCopyTip, func(h *copyHook) { d.copyWhole(ref, a, h) })
 	return newSelLine(l, h, func(sel string) { d.sh.copyText(sel, false) })
 }
 
-// copyMasked reads the whole value a reveal action names (secret.reveal, GUI-only) and copies it
-// without showing it (maskedRead).
-func (d *drawer) copyMasked(ref model.ObjectRef, a model.ItemAction, h *copyHook) {
+// copyWhole reads the whole value a reveal action names (secret.reveal, GUI-only) and copies it
+// without showing it (wholeRead): a masked value, or a revealed one Show cut.
+func (d *drawer) copyWhole(ref model.ObjectRef, a model.ItemAction, h *copyHook) {
 	var p engine.RevealParams
 	if err := json.Unmarshal(a.Params, &p); err != nil {
 		d.sh.showError(err)
 		return
 	}
 	p.Whole = true
-	d.sh.dispatch(a.Command, p, func(res any, err error) { d.maskedRead(ref, p.Key, h, res, err) })
+	d.sh.dispatch(a.Command, p, func(res any, err error) { d.wholeRead(ref, p.Key, h, res, err) })
 }
 
-// maskedRead copies the value a masked copy read as a Secret's value: nothing, not even its error,
-// when the drawer no longer shows ref; nothing when the answer is not the whole value.
-func (d *drawer) maskedRead(ref model.ObjectRef, key string, h *copyHook, res any, err error) {
+// wholeRead copies the value copyWhole read as a Secret's value: nothing, not even its error, when
+// the drawer no longer shows ref; nothing when the answer is not the whole value.
+func (d *drawer) wholeRead(ref model.ObjectRef, key string, h *copyHook, res any, err error) {
 	if d.shown == nil || *d.shown != ref {
 		return // the drawer moved on meanwhile: copy nothing
 	}

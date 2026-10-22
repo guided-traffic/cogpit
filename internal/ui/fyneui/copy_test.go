@@ -394,12 +394,12 @@ func TestSecretMaskedCopyRefusals(t *testing.T) {
 		}
 	}
 
-	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Size: 0}, nil)
+	d.wholeRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Size: 0}, nil)
 	untouched("an empty value")
 	if !toastSays(sh, "empty") {
 		t.Error("an empty value's copy does not say that nothing was copied")
 	}
-	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue[:4<<10], Size: len(longSecretValue), Cut: true}, nil)
+	d.wholeRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue[:4<<10], Size: len(longSecretValue), Cut: true}, nil)
 	untouched("a cut value")
 	if !toastSays(sh, "not read whole") || toastSays(sh, "correct-horse") {
 		t.Error("a cut value's copy does not say that nothing was copied, or shows the value")
@@ -409,16 +409,70 @@ func TestSecretMaskedCopyRefusals(t *testing.T) {
 	f.update(func(u *engine.UIState) { u.Selected, u.Drawer = []model.ObjectRef{other}, &other })
 	q.until(t, "the other Secret", func() bool { return d.shown != nil && *d.shown == other })
 	toasts := len(sh.toasts.Objects)
-	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
+	d.wholeRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
 	untouched("an answer for the drawer that moved on")
-	d.maskedRead(ref, "DB_PASSWORD", h, nil, engine.ErrNoSecretData)
+	d.wholeRead(ref, "DB_PASSWORD", h, nil, engine.ErrNoSecretData)
 	if len(sh.toasts.Objects) != toasts {
 		t.Error("an answer for the drawer that moved on showed a toast")
 	}
 	f.update(func(u *engine.UIState) { u.Drawer = nil })
 	q.until(t, "the drawer closed", func() bool { return d.shown == nil })
-	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
+	d.wholeRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
 	untouched("an answer for the closed drawer")
+}
+
+// TestSecretCutRevealedValueCopiedWhole (the lead's decision of 2026-10-22, D-25): a revealed value
+// that Show cut at 4 KiB copies the whole value through its copy icon, read again with whole as a
+// masked value's copy is, its tooltip "Copy the whole value", the toast naming the key; the drawer
+// keeps showing what Show showed, cut, and nothing more. A selection and ⌘C still copy exactly the
+// selection.
+func TestSecretCutRevealedValueCopiedWhole(t *testing.T) {
+	f := wholeRevealFake(t)
+	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
+	concealed := concealedClipboard(sh)
+	d := sh.drawer
+	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
+
+	test.Tap(drawerButtons(d)["Show"][2]) // DB_PASSWORD, longer than a reveal shows
+	q.until(t, "the value", func() bool { return len(findAll[*secretText](d.details)) == 1 })
+	st := findAll[*secretText](d.details)[0]
+	shown := st.text
+	if !strings.HasPrefix(shown, longSecretValue[:4<<10]) || !strings.Contains(shown, "[the first ") {
+		t.Fatalf("Show did not cut the value: %d bytes shown", len(shown))
+	}
+	st.MouseIn(mouse())
+	if !d.copyBtn.Visible() {
+		t.Fatal("no copy icon over the cut value")
+	}
+	if d.copyBtn.tip != "Copy the whole value" {
+		t.Errorf("the icon's tooltip over a cut value is %q", d.copyBtn.tip)
+	}
+	test.Tap(d.copyBtn)
+	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
+	if got := (*concealed)[0]; got != longSecretValue {
+		t.Errorf("the icon copied %d bytes, want the whole value's %d", len(got), len(longSecretValue))
+	}
+	calls := f.callsOf(engine.RevealCommand)
+	if len(calls) != 2 || strings.Contains(string(calls[0].Params), `"whole":true`) || !strings.Contains(string(calls[1].Params), `"whole":true`) {
+		t.Errorf("reveal calls %+v, want Show's and then the copy's with whole", calls)
+	}
+	if sts := findAll[*secretText](d.details); len(sts) != 1 || sts[0].text != shown {
+		t.Error("the copy changed what the drawer shows")
+	}
+	if !toastSays(sh, "DB_PASSWORD") || !toastSays(sh, "cleared in") || toastSays(sh, "correct-horse") {
+		t.Error("the toast should name the key and say the clipboard is cleared, never show the value")
+	}
+
+	// A selection copies exactly the selection.
+	st = findAll[*secretText](d.details)[0]
+	st.TypedShortcut(&fyne.ShortcutSelectAll{})
+	st.TypedShortcut(&fyne.ShortcutCopy{Clipboard: sh.app.Clipboard()})
+	if len(*concealed) != 2 || (*concealed)[1] != shown {
+		t.Errorf("⌘C on the whole selection copied %d bytes, want the %d selected", len((*concealed)[len(*concealed)-1]), len(shown))
+	}
+	if n := len(f.callsOf(engine.RevealCommand)); n != 2 {
+		t.Errorf("⌘C read the value again (%d reveals)", n)
+	}
 }
 
 // TestSecretRevealedValueCopied: after Show the value has the copy icon as before, the copy goes
