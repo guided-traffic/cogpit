@@ -39,6 +39,10 @@ func (r *connectSteps) cluster(st cluster.ConnectStep) {
 	if r == nil {
 		return
 	}
+	if st.Name == cluster.StepStages { // the connect's stages, at its end (D-114)
+		r.logs.stagesTo(r.attempt, connectStages(st.Stages))
+		return
+	}
 	level := LogInfo
 	switch {
 	case (st.Failed || st.Warn) && r.cancelled != nil && r.cancelled():

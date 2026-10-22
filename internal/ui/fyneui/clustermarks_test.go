@@ -330,8 +330,9 @@ func TestTabsGreyOnlyWithoutAConnection(t *testing.T) {
 }
 
 // A connect that fails while another cluster was shown leaves the window on the failed cluster
-// (D-97, the owner's WF40: "Immer"): its error with Connect Again and Connection Updates, its dots
-// red, nothing connected or shown by itself; the cluster shown before stays connected behind it.
+// (D-97, the owner's WF40: "Immer"): its error page (D-114), not the welcome page, with Connect
+// Again and Connection Updates, its dots red, nothing connected or shown by itself; the cluster
+// shown before stays connected behind it.
 func TestAFailedConnectStaysOnItsCluster(t *testing.T) {
 	sh, w, q, f, _ := marksScene(t, ThemeDark, false)
 	f.update(func(u *engine.UIState) { // a connect to qa-eu-west starts: kind-cogpit stays connected behind it
@@ -361,11 +362,15 @@ func TestAFailedConnectStaysOnItsCluster(t *testing.T) {
 		fill, _, width := drawnShape(tileDot(ti))
 		return fill == red && width == 0
 	})
-	if !sh.view.failedBox.Visible() || sh.view.connectButton.Visible() {
-		t.Error("the failed connect's buttons are not shown")
+	p := sh.tabs.errPage
+	if sh.tabs.welcome.shown || !p.shown || !p.root.Visible() {
+		t.Fatalf("after the failed connect: the welcome page %v, the error page %v", sh.tabs.welcome.shown, p.shown)
 	}
-	if got := sh.view.placeholderText.text; !strings.Contains(got, "Could not connect to "+cFailed) {
-		t.Errorf("placeholder %q", got)
+	if p.title.text != "Could not connect to "+cFailed || !p.retry.Visible() || !p.connLog.Visible() || sh.view.connectButton.Visible() {
+		t.Errorf("the error page %q, its buttons %v %v", p.title.text, p.retry.Visible(), p.connLog.Visible())
+	}
+	if got := sh.view.placeholderText.text; strings.Contains(got, "Could not connect") {
+		t.Errorf("the view under the page says the error too: %q", got)
 	}
 }
 
@@ -375,12 +380,17 @@ func renderFailedConnect(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, f, _ := marksScene(t, mode, false)
 	f.update(func(u *engine.UIState) {
 		u.Context, u.Connection = cFailed, engine.Connection{State: engine.ConnectError, Error: "the login through walk-login.sh did not finish within 5 minutes; Cogpit ended it"}
+		u.ConnectFailure = &engine.ConnectFailure{Context: cFailed, At: fixedNow, Stages: []engine.ConnectStage{
+			{Name: "kubeconfig", Result: "ok", Text: `context "qa-eu-west" in /Users/me/.kube/qa.yaml: server https://api.qa-eu-west.example.com:6443, login by the credential plugin walk-login.sh`},
+			{Name: "login", Result: "failed", Text: "the login through walk-login.sh did not finish within 5 minutes; Cogpit ended it", TookMS: 300000},
+			{Name: "dns", Result: "notReached"}, {Name: "tcp", Result: "notReached"}, {Name: "tls", Result: "notReached"}, {Name: "api", Result: "notReached"},
+		}}
 		for i := range u.Connections {
 			u.Connections[i].Shown = false
 		}
 		u.View = ""
 	})
-	q.until(t, "the error", func() bool { return sh.view.failedBox.Visible() })
+	q.until(t, "the error page", func() bool { return sh.tabs.errPage.shown && len(sh.tabs.errPage.rows) == 6 })
 	savePNG(t, w, name)
 }
 

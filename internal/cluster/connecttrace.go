@@ -55,6 +55,9 @@ type ConnectStep struct {
 	Took   time.Duration // how long the step took; zero when it is not timed
 	Failed bool          // the step failed: an error line
 	Warn   bool          // a fact that likely fails the connect: a warning line (an out-of-date client certificate, D-75)
+	// Stages are the connect's stages (StepStages, connectstages.go, D-114): reported once, at
+	// Connect's end, in their order; Text is empty then.
+	Stages []Stage
 }
 
 // tracer reports Connect's steps; a nil tracer reports nothing.

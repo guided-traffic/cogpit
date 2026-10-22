@@ -136,7 +136,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	}
 	opts, sourceID, err := c.connectOptions(name)
 	if err != nil {
-		return nil, err
+		return nil, withConfigStages(err)
 	}
 	settingsID := name // the context id the settings are kept under, as the UI state names it
 	if sourceID != "" {
@@ -144,7 +144,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	}
 	rawProxy, _ := c.ClusterSettings.proxyOf(settingsID) // an unreadable file is reported where it loads: no proxy then
 	if opts.Proxy, err = parseClusterProxy(rawProxy); err != nil {
-		return nil, &cluster.ConnectError{Context: settingsID, Problem: err.Error(), Err: err}
+		return nil, withConfigStages(&cluster.ConnectError{Context: settingsID, Problem: "the proxy in its Cluster Settings: " + err.Error(), Err: err})
 	}
 	opts.ExecPolicy = proxyBoundPolicy(opts.ExecPolicy, RedactProxyURL(rawProxy))
 	opts.DiscoveryCacheDir = c.DiscoveryCacheDir

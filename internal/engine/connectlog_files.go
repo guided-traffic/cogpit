@@ -59,6 +59,7 @@ const (
 const (
 	recordBegin = "begin"
 	recordEnd   = "end"
+	recordStage = "stage" // a connect's stage: its name in step, its result in out (D-114)
 )
 
 // logRecord is one line of a connection log file.
@@ -306,6 +307,11 @@ func parseAttempts(data []byte, ctx string, now time.Time) []*ConnectAttempt {
 			continue
 		case rec.Event == recordEnd:
 			a.End, a.Outcome, a.TookMS = rec.Time, rec.Outcome, rec.TookMS
+			continue
+		case rec.Event == recordStage:
+			if rec.Step != "" {
+				a.addStage(ConnectStage{Name: rec.Step, Result: rec.Outcome, Text: rec.Text, TookMS: rec.TookMS})
+			}
 			continue
 		}
 		if rec.Text == "" {

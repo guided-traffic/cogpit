@@ -190,6 +190,9 @@ func (s *Session) endRunFailed(r *connectRun, attempt *ConnectAttempt, err error
 	case cause != nil: // the session's close
 		st.logs.finish(attempt, OutcomeAbandoned, LogInfo, "Ended: Cogpit closed")
 	default:
+		if stages, _ := cluster.StagesOf(err); !st.logs.hasStages(attempt) {
+			st.logs.stagesTo(attempt, connectStages(stages)) // a failure before the cluster layer reported them
+		}
 		st.logs.finish(attempt, OutcomeFailed, LogError, err.Error())
 	}
 	s.UpdateUI(func(u *UIState) { u.dropRunning(r.name) })
@@ -268,13 +271,16 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 		return fmt.Errorf("connect %s: superseded by a newer connect", r.name)
 	}
 	if err != nil {
-		msg := err.Error()
+		msg, callers := err.Error(), false
 		if c := context.Cause(r.ctx); c != nil && !errors.Is(c, errConnectCancelled) && !errors.Is(c, ErrClosed) {
-			msg = c.Error() // the caller's own end: its cause, as before
+			msg, callers = c.Error(), true // the caller's own end: its cause, as before
 		}
+		conn, stages := failedConnection(err, msg, callers) // the cause in a sentence and the stages (connectfailure.go, D-114)
+		at := s.opts.Now()
 		s.UpdateUI(func(u *UIState) {
 			if u.Context == r.name && u.Connection.State == Connecting {
-				u.Connection = Connection{State: ConnectError, Error: msg}
+				u.Connection = conn
+				u.ConnectFailure = &ConnectFailure{Context: r.name, At: at.UTC(), Stages: stages}
 			}
 		})
 		s.settleGoneConnect(r.name, nil) // its context left Cogpit meanwhile: forget it (connect_gone.go)

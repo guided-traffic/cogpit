@@ -495,6 +495,7 @@ func (s *Session) UpdateUI(fn func(*UIState)) UIState {
 	s.ui.syncConnections()          // the shown cluster's entry of Connections (connections.go, D-69)
 	s.ui.syncStates()               // a status filter ends with its view (statusfilter.go)
 	s.ui.syncTabs(old, s.viewTitle) // the active tab follows the view, whoever changed it (tabs.go)
+	s.ui.syncConnectFailure()       // a failed connect's page, while it is the shown cluster's (connectfailure.go, D-114)
 	s.ui.syncWelcome()              // the welcome page shows while the workspace has nothing else (welcome.go)
 	s.ui.syncNavScope(old)          // the navigator shows the connected cluster, or the section (navscope.go)
 	s.ui.syncNavigator(old)         // its search and keyboard follow the level and the view (navigator.go)

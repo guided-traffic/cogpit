@@ -14,8 +14,9 @@ import (
 )
 
 // The welcome page shows while the workspace has nothing else to show: before the first connect,
-// after closing the last tab, after a failed connect; not while a connect runs nor while a tab is
-// active. Help › Welcome leaves the active tab, which keeps its state and brings it back.
+// after closing the last tab; not while a connect runs, nor while a tab is active, nor after the
+// shown cluster's connect failed (its error page, D-114). Help › Welcome leaves the active tab,
+// which keeps its state and brings it back.
 func TestWelcomeFollowsTheConnectionAndTheTabs(t *testing.T) {
 	src := testkit.NewMemorySource()
 	src.Set(testkit.PodsGVR, testkit.Pod("shop", "web-0"))
@@ -69,11 +70,13 @@ func TestWelcomeFollowsTheConnectionAndTheTabs(t *testing.T) {
 		t.Errorf("the last tab closed: welcome %v, tabs %v", u.Welcome, tabSummary(u))
 	}
 
-	// A failed connect: the page, with the connection's error for the window to show.
+	// A failed connect: its error page, not the welcome page (D-114), with the connection's error
+	// and its stages for the window to show.
 	if err := s.Connect(context.Background(), "broken"); err == nil {
 		t.Fatal("broken connected")
 	}
-	if u = s.UIState(); !u.Welcome || u.Connection.State != ConnectError || u.Connection.Error == "" {
+	if u = s.UIState(); u.Welcome || u.Connection.State != ConnectError || u.Connection.Error == "" ||
+		u.ConnectFailure == nil || u.ConnectFailure.Context != "broken" {
 		t.Errorf("a failed connect: %+v", u)
 	}
 }

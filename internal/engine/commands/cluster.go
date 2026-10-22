@@ -79,7 +79,10 @@ func registerCluster(g *registrar) {
 			"interruption kept (7 days, at most 1 MiB per context, also from earlier runs), newest first, each with its kind, " +
 			"start, end, duration (tookMs), outcome (ok, failed, abandoned, cancelled, interrupted for an interruption, whose " +
 			"reconnect is the next attempt; empty and running:true while it runs, empty otherwise when Cogpit stopped first) and lines: a time, a level (INFO, WARN or ERROR), a text, the step it documents (kubeconfig, " +
-			"server, login, tls, proxy, answer, discovery, cache, access, heartbeat, error, plugin) and its duration. A failed " +
+			"server, login, tls, proxy, answer, discovery, cache, access, heartbeat, error, plugin) and its duration; a " +
+			"connect's stages too (stages: kubeconfig, login for a credential plugin, dns, tcp, tls, api, each with its result " +
+			"ok, failed, notReached, skipped or cancelled, its text and tookMs: the names looked up and their addresses, the " +
+			"address and port dialled, or the proxy's, the TLS handshake and the API server's answer). A failed " +
 			"step is followed by its error picture (class, HTTP status, the presented certificate's public facts, the error " +
 			"chain) and, for a credential plugin that failed, its standard error, scrubbed and cut to 4 KiB. lines: this " +
 			"session's lines since its latest connect. The contexts cluster_contexts lists with connectProblem set have an " +
@@ -108,7 +111,9 @@ func registerCluster(g *registrar) {
 			"Returns {context, state, error, tlsUnchecked}; state is connected or error, or connecting when another cluster " +
 			"was shown while it waited (a login in a browser, say): the connect goes on in the background, its entry in " +
 			"ui_state's connections, cluster_disconnect with its context cancels it, and the window keeps showing the cluster " +
-			"chosen last. A failed connect leaves the window on its cluster with the error. tlsUnchecked is set when the " +
+			"chosen last. A failed connect leaves the window on its cluster with its error page: error is its cause in a " +
+			"sentence (the whole chain is in cluster_connectLog), ui_state's connectFailure has the connect's stages. " +
+			"tlsUnchecked is set when the " +
 			"connection does not check the server's certificate (ui_state's connection says the same while it stands).",
 		Run: func(ctx context.Context, s *engine.Session, p connectParams) (any, error) {
 			err := s.Connect(ctx, p.Context)

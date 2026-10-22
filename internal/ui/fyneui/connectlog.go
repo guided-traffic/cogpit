@@ -56,6 +56,8 @@ type connectLogAttempt struct {
 	Running bool             `json:"running"`
 	Lines   []connectLogLine `json:"lines"`
 	Omitted int              `json:"omitted"`
+	// Stages are a connect's stages, shown above its lines (connectstages.go, D-114).
+	Stages []engine.ConnectStage `json:"stages"`
 
 	headerless bool // the lines of a result without attempts: shown as they are
 }
@@ -209,6 +211,9 @@ func (k *kubeconfigUI) fillConnectLog(cl *connectLogDialog, v connectLogView) {
 			label, fg := attemptHeader(a, tf)
 			cl.rows.Add(newTextLine(label, fg, theme.SizeNameText, fyne.TextStyle{Bold: true}))
 		}
+		if len(a.Stages) > 0 {
+			cl.rows.Add(connectLogStages(a.Stages, width)) // the connect stage by stage (D-114)
+		}
 		for _, l := range a.Lines {
 			cl.rows.Add(connectLogRow(l, tf, width))
 		}
@@ -300,6 +305,9 @@ func connectLogText(ctx string, v connectLogView, tf model.TimeFormat) string {
 		if !a.headerless {
 			label, _ := attemptHeader(a, tf)
 			b.WriteString("\n== " + label + " ==\n")
+		}
+		if len(a.Stages) > 0 {
+			b.WriteString("Stages:\n" + stagesText(a.Stages) + "Lines:\n")
 		}
 		for _, l := range a.Lines {
 			b.WriteString(tf.FormatTime(l.Time) + "  " + padRight(l.Level, 5) + "  " + l.Text)
