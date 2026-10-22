@@ -9,6 +9,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -466,10 +467,18 @@ func charWidth(th fyne.Theme) float32 {
 }
 
 // logList is the list of rows; it hands "/" to the view (focus the search) instead of ignoring it
-// when it has the keyboard focus, which a tap on a row gives it.
+// when it has the keyboard focus, which a tap on a row gives it, and tells the view of the scrolls
+// the user makes (logsfollow.go).
 type logList struct {
 	widget.List
 	onSlash func()
+
+	// onUserScroll is called after the user scrolled the rows: the wheel or the trackpad, the scroll
+	// bar's drag or a click on its track; dy is how far the view moved down (< 0: up).
+	onUserScroll func(dy float32)
+	scroll       *container.Scroll // the list's own scroller, once rendered
+	quiet        int               // > 0 while the view scrolls or lays the list out itself
+	lastY        float32           // the scroller's offset after the last scroll, the user's or the view's
 }
 
 // TypedRune implements fyne.Focusable.

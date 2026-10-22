@@ -1484,7 +1484,12 @@ Since 2026-10-19 (the owner's WF36 and WF41,
 | Escape | drops the selection |
 
 Selecting with the pointer turns **Follow** off, so the lines stay where you see them; turn it on
-again with its check, and the selection stays on its lines as new ones arrive. The selection keeps
+again with its check, and the selection stays on its lines as new ones arrive. Scrolling switches it
+too (since 2026-10-22): five lines or more up from the newest line, with the wheel, the trackpad or
+the scroll bar, turn Follow off and the log stays where you scrolled; scroll back down to the newest
+line and Follow is on again. A smaller scroll up keeps following, that far behind the newest line.
+New lines never turn Follow on by themselves. The Follow check works as before: off, the log stays
+where it is; on, it jumps to the newest line and follows. The selection keeps
 its lines through Wrap, a new width, a search and a filter; turning Resource names or Timestamps on
 or off drops it. A tab keeps its newest 10,000 lines: when older ones go, the part of the selection
 in them goes too. Copying shows no toast. `/` still jumps to the search.

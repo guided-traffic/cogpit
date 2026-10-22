@@ -63,6 +63,7 @@ type Logs struct {
 	// Main goroutine only.
 	lines       *lineRing
 	follow      bool
+	under       float32 // how far behind the newest line a followed view stays (logsfollow.go)
 	list        *logList
 	followCheck *widget.Check
 	status      *widget.Label
@@ -119,6 +120,7 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	l.list.UpdateItem = l.updateItem
 	l.list.OnSelected = l.selected
 	l.list.HideSeparators = true
+	l.list.onUserScroll = l.userScrolled // Follow by scrolling (logsfollow.go)
 	l.list.ExtendBaseWidget(l.list)
 	l.controls = container.NewHBox()
 	l.header = container.NewHBox()
@@ -167,6 +169,9 @@ type logsRenderer struct {
 func (r *logsRenderer) Layout(size fyne.Size) {
 	r.root.Resize(size)
 	r.l.widthChanged(r.l.list.Size().Width)
+	if r.l.follow && r.l.list.scroll != nil {
+		r.l.toEnd() // a followed view resized stays at its newest line
+	}
 }
 
 func (r *logsRenderer) MinSize() fyne.Size           { return r.root.MinSize() }
@@ -357,11 +362,12 @@ func (l *Logs) rowRuns(id widget.ListItemID) []logRun {
 }
 
 // refreshKeepingPlace redraws the list after dropped rows were taken off its front: following, it
-// stays at the newest row; else the rows in view stay where they are.
+// stays at the newest row (or as far behind it as the user scrolled, logsfollow.go); else the rows
+// in view stay where they are.
 func (l *Logs) refreshKeepingPlace(dropped int) {
 	if l.follow {
 		l.list.Refresh()
-		l.list.ScrollToBottom()
+		l.toEnd()
 		return
 	}
 	offset := l.list.GetScrollOffset()
@@ -379,7 +385,7 @@ func (l *Logs) Following() bool { return l.follow }
 
 // setFollow is the Follow toggle: on, the view jumps to the newest line and stays there.
 func (l *Logs) setFollow(on bool) {
-	l.follow = on
+	l.follow, l.under = on, 0
 	if on {
 		l.list.ScrollToBottom()
 	}
