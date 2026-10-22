@@ -269,7 +269,7 @@ a kubectl not named `kubectl.exe` and holds a hard link or a copy of it named `k
 | Telemetry | Cogpit sends none. Any network call to something other than a cluster, a Helm repository, the configured LLM endpoint, the release channel or the kubectl release host or mirror ([D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries), a download the user clicked; it sends the version and platform in the URL, no credential) needs a decision entry in [`decisions.md`](../developer/decisions.md). The check of kubectl's signature against sigstore's transparency log is such a call, decided by the owner on 2026-10-14 evening and built 2026-10-15 ([D-50](../developer/decisions.md#d-50-kubectls-signature-check)): during a download the user clicked, one request to `rekor.sigstore.dev` (`POST /api/v1/log/entries/retrieve`) with the release's published SHA-256, signature and certificate, public material and no credential, through the same proxy as the download ([H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)) |
 | The LLM endpoint | Secret values only over a connection the user marked private (decided 2026-10-14 late evening, built in the engine the same night: the private turn reads what the window shows, Secret values, Helm's values, Flux's credential fields and Helm's errors included; an exec plugin's arguments stay withheld from it as from every agent: [H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint), [H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)) |
 | Screenshots taken by automation | Secret values stay masked unless the user revealed them in the GUI |
-| Clipboard | Only on an explicit copy action; a copied Secret value is cleared after 60 seconds if the clipboard still holds it ([H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
+| Clipboard | Only on an explicit copy action, of a revealed or (since 2026-10-22) a masked Secret value; a copied Secret value is cleared after 60 seconds if the clipboard still holds it ([H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
 
 ## Secret objects
 
@@ -284,10 +284,20 @@ drawer closes or moves, the engine zeroes the bytes it kept of the opened Secret
 response and a revealed value's string wait for the garbage collector, so the wipe is best effort
 ([privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
 A revealed value can be copied from the drawer, by its copy icon or by selecting it (D-25, built
-2026-10-12): a masked value has no icon, and the clipboard is emptied 60 seconds after such a copy
-if it still holds the value (`shell.copyText`, `TestSecretValueCopyOnlyOnceRevealed`,
-`TestSecretClipboardKeepsWhatReplacedIt`). Copying is a GUI behaviour with no command, so no agent
-can put a Secret on the clipboard (`TestCopyHasNoCommand`). Since 2026-10-13 a list's cells copy
+2026-10-12), and the clipboard is emptied 60 seconds after such a copy if it still holds the value
+(`shell.copyText`, `TestSecretRevealedValueCopied`, `TestSecretClipboardKeepsWhatReplacedIt`).
+Since 2026-10-22 (the owner's decision, reversing "copyable only once revealed",
+[D-25](../developer/decisions.md#d-25-copying-values)) a masked value is copied too, without being
+shown: its copy icon on hover runs `secret.reveal` with `whole` from the window, the GUI-only
+command Show runs, and puts the whole value on the clipboard the same way; the value enters no
+widget and not the drawer's revealed values, so the drawer stays masked, and the toast names the
+key, never the value. An answer for a drawer that has moved on copies nothing. A binary value has
+no Show and no such copy: the engine never hands it out
+([`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
+`TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`). A copy, as a Show,
+writes no line in the audit log, which records agents' calls; an agent's `secret.reveal` is refused
+and audited with the Secret and the key, never a value (`TestRevealIsGUIOnly`). Copying is a GUI
+behaviour with no command, so no agent can put a Secret on the clipboard (`TestCopyHasNoCommand`). Since 2026-10-13 a list's cells copy
 with the same icon (D-25): the Secrets list shows Name, Namespace, Labels, the names of the keys,
 Type and Age, never a value (`TestSecretDetailShowsNoValue`), so a copy from it is a plain one and
 carries no value (`TestSecretsListCopiesNoValue`). Since 2026-10-19 a log tab's lines and a toast's
@@ -360,7 +370,9 @@ as built:
   still holds it, a toast that says so; ⌘C, ⌘X and the field's menu take that one path
   ([`createdialog_secret.go`](../../internal/ui/fyneui/createdialog_secret.go) `secretEntry`,
   `TestSecretDialogCopiesAShownValueConcealed`; [H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)
-  for what remains of any copy). The widgets,
+  for what remains of any copy). A masked field still copies nothing since the drawer's masked
+  values copy (2026-10-22, D-25, the lead's decision): the value came from the user, and the eye
+  shows it to copy. The widgets,
   and the entry's undo history, hold the text until the dialog is gone and the garbage collector
   takes it, as a revealed value in the drawer does.
 - **To the engine, in the GUI's own process.** The dialog dispatches `secret.create` with origin
@@ -406,7 +418,10 @@ a Secret's values are edited in its drawer, as a Config Map's are, in the window
   yamlview's `OnCopy`, `TestSecretEditorCopiesAsASecret`). Since 2026-10-16 (the owner's choice in
   the audit of 2026-10-16, D-59) the copy icon in the key's line above each editor copies the whole
   value the same way, never through the plain clipboard; an empty value copies nothing, so a click
-  does not empty the clipboard (`secData.copyIcon`, `TestSecretEditorCopyIcon`).
+  does not empty the clipboard (`secData.copyIcon`, `TestSecretEditorCopyIcon`). Since 2026-10-22
+  (D-25) a masked value's copy icon on hover copies it without showing it and opens no editor, and
+  an edited or added value hidden again copies what was typed, from the editor's memory, with no
+  reveal (`TestSecretEditorMaskedValueCopiedWithoutShowing`).
 - **To the engine, in the GUI's own process.** `secret.reviewData` (a masked diff: the keys that
   change and their sizes, never a value, and the server's dry run) and `secret.saveData` are marked
   GUI-only: `Dispatch` refuses the CLI and every agent before anything is read, asked or sent, and
@@ -590,8 +605,9 @@ stopped waiting for <program>; its process was not found and may run on"
 
 ### H-25: A copied Secret value reaches the clipboard
 
-A Secret's value that the user copies from the drawer, or a value shown in the Create Secret
-dialog (since 2026-10-14), goes on the system clipboard, where Cogpit
+A Secret's value that the user copies from the drawer, revealed or (since 2026-10-22, the owner's
+decision, [D-25](../developer/decisions.md#d-25-copying-values)) masked, or a value shown in the Create Secret dialog (since 2026-10-14), goes on
+the system clipboard, where Cogpit
 cannot guard it. It clears the clipboard after 60 seconds if the clipboard still holds the value,
 and when the window closes. On macOS (owner's decision, 2026-10-12) the copy is marked with
 nspasteboard.org's concealed and transient types, which clipboard managers that honour them
@@ -601,8 +617,9 @@ neither show nor record, and is kept to this Mac, out of Universal Clipboard
 hand, not by a test). What remains: a clipboard manager that ignores those types keeps its own
 history of the value; any process of the user can read it while it is there; Cogpit's process
 ending within the 60 seconds (a crash, `kill -9`) leaves it on the clipboard; on Linux and Windows
-the copy goes through Fyne's clipboard unmarked. Only values the user revealed and copied are
-affected; an agent has no way to copy.
+the copy goes through Fyne's clipboard unmarked. Only values the user copied are affected, since
+2026-10-22 masked ones too: one click on the icon over a masked value puts it there, and nothing
+on screen but the checkmark and the toast says so. An agent has no way to copy.
 
 ### H-29: Authenticated Helm repositories
 

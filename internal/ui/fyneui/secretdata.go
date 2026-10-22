@@ -37,7 +37,8 @@ import (
 // and save sees them, no draft keeps them (edited values the drawer moves away from are kept in
 // drawer.secretUnsaved until Cogpit quits, and come back masked), a copy from an editor (⌘C, ⌘X or
 // the copy icon in its key's line) goes to the clipboard as a Secret's value (concealed, cleared
-// after 60 seconds), and no toast or status line names one.
+// after 60 seconds), as does the copy icon on a masked value, which copies it without showing it
+// (secretcopy.go, the owner's decision of 2026-10-22), and no toast or status line names one.
 //
 // Keys are added and removed here too (the owner's audit decision of 2026-10-16, datakeys.go): Add
 // Key opens a row for the new key's name and puts the key with an empty editor at the end of the
@@ -394,11 +395,16 @@ func (sd *secData) beginEdit() {
 	}
 }
 
-// maskedLine is an edited value hidden again: masked, with Show to bring the editor back.
+// maskedLine is an edited value hidden again: masked, with Show to bring the editor back, and the
+// drawer's copy icon on hover, which copies the value as typed without showing it (the owner's
+// decision of 2026-10-22, secretcopy.go).
 func (sd *secData) maskedLine(r *secRow) fyne.CanvasObject {
 	show := widget.NewButton("Show", func() { sd.unmask(r.key) })
 	show.Importance = widget.LowImportance
-	text := newTextLine(engine.MaskedValue+" (edited, not saved)", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
+	d := sd.d
+	line := newTextLine(engine.MaskedValue+" (edited, not saved)", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
+	hook := d.maskedCopyFor(func(h *copyHook) { d.copyUnseen(r.key, r.view.Text(), h) })
+	text := newSelLine(line, hook, func(sel string) { d.sh.copyText(sel, false) })
 	return container.NewBorder(nil, nil, nil, show, text)
 }
 

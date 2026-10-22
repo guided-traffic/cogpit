@@ -1,6 +1,8 @@
 package fyneui
 
 import (
+	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -16,7 +18,8 @@ import (
 )
 
 // Copying values from the drawer (D-25): everything selectable, a copy icon on hover, entries in
-// YAML syntax, Secret values only once revealed and cleared from the clipboard later.
+// YAML syntax, Secret values masked or revealed (masked ones without showing them, the owner's
+// decision of 2026-10-22) and cleared from the clipboard later.
 
 func TestYAMLEntry(t *testing.T) {
 	for entry, want := range map[string]string{
@@ -249,31 +252,183 @@ func TestDrawerLongNamesSelectUnderTheEllipsis(t *testing.T) {
 	}
 }
 
-// TestSecretValueCopyOnlyOnceRevealed: a masked Secret value has no copy icon; after Show it has
-// one, the copy goes to the clipboard, and the clipboard is cleared after the TTL if it still
-// holds the value. The TTL is shortened for the test.
-func TestSecretValueCopyOnlyOnceRevealed(t *testing.T) {
+// longSecretValue is a value longer than a reveal shows (4 KiB): a copy of it whole proves that the
+// copy asked for the whole value.
+var longSecretValue = strings.Repeat("correct-horse-battery-staple-", 200)
+
+// wholeRevealFake is secretsFake with DB_PASSWORD longer than 4 KiB, and secret.reveal answering
+// as the engine does: cut to 4 KiB unless the whole value is asked for.
+func wholeRevealFake(t *testing.T) *fakeEngine {
+	t.Helper()
+	f, _ := secretsFake(t)
+	f.handlers[engine.RevealCommand] = func(_ context.Context, inv engine.Invocation) (any, error) {
+		var p engine.RevealParams
+		if err := json.Unmarshal(normalize(inv.Params), &p); err != nil {
+			return nil, err
+		}
+		if inv.Origin != engine.OriginGUI {
+			t.Errorf("secret.reveal dispatched by %s", inv.Origin)
+		}
+		v := fixtureSecretValues[p.Key]
+		if p.Key == "DB_PASSWORD" {
+			v = longSecretValue
+		}
+		if cut := 4 << 10; !p.Whole && len(v) > cut {
+			return engine.SecretValue{Key: p.Key, Value: v[:cut], Size: len(v), Cut: true}, nil
+		}
+		return engine.SecretValue{Key: p.Key, Value: v, Size: len(v)}, nil
+	}
+	return f
+}
+
+// maskedLines are the drawer's masked Secret values, in the drawer's order (the text keys sorted:
+// DATABASE_URL, DB_HOST, DB_PASSWORD, DB_USER).
+func maskedLines(d *drawer) []*selLine {
+	var out []*selLine
+	for _, l := range findAll[*selLine](d.details) {
+		if strings.HasPrefix(l.line.text, engine.MaskedValue) {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+// concealedClipboard records what goes to the clipboard for Secret values (H-25) and holds it, as
+// the system clipboard would.
+func concealedClipboard(sh *shell) *[]string {
+	var got []string
+	sh.setConcealed = func(text string) bool {
+		got = append(got, text)
+		sh.app.Clipboard().SetContent(text)
+		return true
+	}
+	return &got
+}
+
+// TestSecretMaskedValueCopiedWithoutShowing (the owner's decision of 2026-10-22, D-25): a masked
+// Secret value has the copy icon like any value, its tooltip says it copies without showing; a tap
+// reads the whole value from the GUI (a value longer than a reveal shows comes whole) and puts it
+// on the clipboard for Secret values, concealed, without showing it: the drawer stays masked, the
+// value enters no widget and not the revealed map, and the toast names the key, never the value.
+// The clipboard is cleared after the TTL, shortened for the test.
+func TestSecretMaskedValueCopiedWithoutShowing(t *testing.T) {
+	f := wholeRevealFake(t)
+	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
+	sh.secretClipTTL = 40 * time.Millisecond
+	concealed := concealedClipboard(sh)
+	d := sh.drawer
+	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
+
+	masked := maskedLines(d)
+	if len(masked) != 4 {
+		t.Fatalf("%d masked values, want 4", len(masked))
+	}
+	pw := masked[2] // DB_PASSWORD
+	pw.MouseIn(mouse())
+	if !d.copyBtn.Visible() {
+		t.Fatal("no copy icon over a masked value")
+	}
+	if d.copyBtn.tip != "Copy the value without showing it" {
+		t.Errorf("the icon's tooltip over a masked value is %q", d.copyBtn.tip)
+	}
+	if pw.hook == nil || pw.hook.text != "" {
+		t.Fatal("the masked value's icon holds a text")
+	}
+
+	sh.app.Clipboard().SetContent("the user's own")
+	test.Tap(d.copyBtn)
+	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
+	if got := (*concealed)[0]; got != longSecretValue {
+		t.Errorf("copied %d bytes, want the whole value's %d", len(got), len(longSecretValue))
+	}
+	calls := f.callsOf(engine.RevealCommand)
+	if len(calls) != 1 || calls[0].Origin != engine.OriginGUI || !strings.Contains(string(calls[0].Params), `"key":"DB_PASSWORD"`) ||
+		!strings.Contains(string(calls[0].Params), `"whole":true`) {
+		t.Errorf("reveal calls %+v, want one from the GUI for the whole of DB_PASSWORD", calls)
+	}
+
+	// Still masked: nothing shown, nothing kept by the drawer.
+	if len(d.revealed) != 0 || len(d.revealedLen) != 0 {
+		t.Error("the copy put the value into the drawer's revealed map")
+	}
+	if len(findAll[*secretText](d.details)) != 0 || drawerHasText(d, "correct-horse") {
+		t.Error("the copy showed the value")
+	}
+	if b := drawerButtons(d); len(b["Show"]) != 4 || len(b["Hide"]) != 0 {
+		t.Errorf("buttons after the copy: Show %d, Hide %d", len(b["Show"]), len(b["Hide"]))
+	}
+	if n := len(maskedLines(d)); n != 4 {
+		t.Errorf("%d masked values after the copy, want 4", n)
+	}
+	if !d.copyBtn.done {
+		t.Error("no checkmark after the copy")
+	}
+	if !toastSays(sh, "DB_PASSWORD") || !toastSays(sh, "cleared in") || toastSays(sh, "correct-horse") {
+		t.Error("the toast should name the key and say the clipboard is cleared, never show the value")
+	}
+	q.until(t, "the clipboard to be cleared", func() bool { return sh.app.Clipboard().Content() == "" })
+	if sh.clipSecret != "" || sh.clipTimer != nil {
+		t.Error("the shell still remembers the value")
+	}
+}
+
+// TestSecretMaskedCopyRefusals: what a masked value's copy puts on the clipboard when the answer is
+// no whole value, or comes late. An empty value copies nothing and says so, so that the click does
+// not empty the clipboard; an answer cut short (an engine that ignored whole) copies nothing, since a
+// password pasted unseen and cut would be wrong; an answer for a drawer that moved on meanwhile
+// copies nothing and says nothing, its error included. The answers are handed to the copy's
+// callback directly: the drawer's move must come between the tap and the answer.
+func TestSecretMaskedCopyRefusals(t *testing.T) {
+	f := wholeRevealFake(t)
+	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
+	concealed := concealedClipboard(sh)
+	d := sh.drawer
+	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
+	ref := *d.shown
+	h := maskedLines(d)[2].hook
+	sh.app.Clipboard().SetContent("the user's own")
+	untouched := func(what string) {
+		t.Helper()
+		if len(*concealed) != 0 || sh.app.Clipboard().Content() != "the user's own" || sh.clipSecret != "" {
+			t.Errorf("%s: %d concealed copies, the clipboard holds %d bytes", what, len(*concealed), len(sh.app.Clipboard().Content()))
+		}
+	}
+
+	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Size: 0}, nil)
+	untouched("an empty value")
+	if !toastSays(sh, "empty") {
+		t.Error("an empty value's copy does not say that nothing was copied")
+	}
+	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue[:4<<10], Size: len(longSecretValue), Cut: true}, nil)
+	untouched("a cut value")
+	if !toastSays(sh, "not read whole") || toastSays(sh, "correct-horse") {
+		t.Error("a cut value's copy does not say that nothing was copied, or shows the value")
+	}
+
+	other := model.ObjectRef{Context: "demo", Kind: "secrets", Namespace: "payments", Name: "stripe-webhook"}
+	f.update(func(u *engine.UIState) { u.Selected, u.Drawer = []model.ObjectRef{other}, &other })
+	q.until(t, "the other Secret", func() bool { return d.shown != nil && *d.shown == other })
+	toasts := len(sh.toasts.Objects)
+	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
+	untouched("an answer for the drawer that moved on")
+	d.maskedRead(ref, "DB_PASSWORD", h, nil, engine.ErrNoSecretData)
+	if len(sh.toasts.Objects) != toasts {
+		t.Error("an answer for the drawer that moved on showed a toast")
+	}
+	f.update(func(u *engine.UIState) { u.Drawer = nil })
+	q.until(t, "the drawer closed", func() bool { return d.shown == nil })
+	d.maskedRead(ref, "DB_PASSWORD", h, engine.SecretValue{Key: "DB_PASSWORD", Value: longSecretValue, Size: len(longSecretValue)}, nil)
+	untouched("an answer for the closed drawer")
+}
+
+// TestSecretRevealedValueCopied: after Show the value has the copy icon as before, the copy goes
+// to the clipboard, and the clipboard is cleared after the TTL if it still holds the value.
+func TestSecretRevealedValueCopied(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
 	sh.secretClipTTL = 40 * time.Millisecond
 	d := sh.drawer
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(drawerButtons(d)["Show"]) == 4 })
-
-	// Masked: nothing to copy.
-	for _, l := range findAll[*selLine](d.details) {
-		if l.hook != nil && strings.Contains(l.hook.text, "correct-horse") {
-			t.Fatalf("a masked value has the copy icon for %q", l.hook.text)
-		}
-	}
-	for _, l := range findAll[*selLine](d.details) {
-		if strings.Contains(l.line.text, "•") {
-			l.MouseIn(mouse())
-			if d.copyBtn.Visible() {
-				t.Error("the copy icon shows over a masked value")
-			}
-			l.MouseOut()
-		}
-	}
 
 	test.Tap(drawerButtons(d)["Show"][2]) // DB_PASSWORD
 	q.until(t, "the value", func() bool { return len(findAll[*secretText](d.details)) == 1 })
@@ -284,6 +439,9 @@ func TestSecretValueCopyOnlyOnceRevealed(t *testing.T) {
 	st.MouseIn(mouse())
 	if !d.copyBtn.Visible() {
 		t.Fatal("no copy icon over the revealed value")
+	}
+	if d.copyBtn.tip != "" {
+		t.Errorf("the icon over a revealed value has the tooltip %q, want the plain Copy", d.copyBtn.tip)
 	}
 	sh.app.Clipboard().SetContent("")
 	test.Tap(d.copyBtn)

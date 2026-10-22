@@ -504,8 +504,9 @@ func TestSecretEditorCopiesAsASecret(t *testing.T) {
 // editor has a copy icon in its key's line, above the editor's right end and over none of its
 // text; a click copies the whole value as typed so far through the clipboard for Secret values
 // (concealed, cleared after the time), never the plain clipboard, with the copy icons' toast and
-// checkmark. An empty value copies nothing; a masked value has no icon; an added key's editor has
-// one.
+// checkmark. An empty value copies nothing; a masked value has no pinned icon (the drawer's icon on
+// hover copies it without showing it, TestSecretEditorMaskedValueCopiedWithoutShowing); an added
+// key's editor has one.
 func TestSecretEditorCopyIcon(t *testing.T) {
 	sh, w, q, f, _ := secShell(t, ThemeDark)
 	sh.secretClipTTL = 40 * time.Millisecond
@@ -558,7 +559,7 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 		t.Errorf("an empty value: %d copies, the clipboard %q", len(concealed), sh.app.Clipboard().Content())
 	}
 
-	sd.hide("DB_PASSWORD") // the edited value masked: no icon
+	sd.hide("DB_PASSWORD") // the edited value masked: no pinned icon
 	q.until(t, "the masked value", func() bool { return len(findAll[*copyButton](sd.list)) == 0 })
 
 	addKeyThrough(t, sd.adder, "API_TOKEN")
@@ -571,6 +572,83 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 	test.Tap(a.copyBtn)
 	if len(concealed) != 3 || concealed[2] != secTyped+"-new" {
 		t.Errorf("the added key's value was not copied (%d copies)", len(concealed))
+	}
+	if l := valueLeaks(sh, f); l != "" {
+		t.Errorf("%q in a toast or the notifications", l)
+	}
+}
+
+// TestSecretEditorMaskedValueCopiedWithoutShowing (the owner's decision of 2026-10-22, D-25, D-59):
+// where the values can be saved, a masked value's copy icon reads the whole value and copies it
+// without showing it, and opens no editor; a value edited and hidden again copies what was typed
+// from the editor's memory, still masked; an added key hidden again likewise. No value reaches a
+// toast or a command but the GUI-only reveal.
+func TestSecretEditorMaskedValueCopiedWithoutShowing(t *testing.T) {
+	sh, _, q, f, _ := secShell(t, ThemeDark)
+	sh.secretClipTTL = time.Minute
+	concealed := concealedClipboard(sh)
+	d, sd := sh.drawer, secDataOf(sh)
+
+	maskedLines(d)[2].MouseIn(mouse()) // DB_PASSWORD
+	if !d.copyBtn.Visible() || d.copyBtn.tip != "Copy the value without showing it" {
+		t.Fatalf("over a masked value: the icon shown %v, its tooltip %q", d.copyBtn.Visible(), d.copyBtn.tip)
+	}
+	test.Tap(d.copyBtn)
+	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
+	if (*concealed)[0] != fixtureSecretValues["DB_PASSWORD"] {
+		t.Errorf("copied %d bytes, want DB_PASSWORD's", len((*concealed)[0]))
+	}
+	if calls := f.callsOf(engine.RevealCommand); len(calls) != 1 || !strings.Contains(string(calls[0].Params), `"whole":true`) {
+		t.Errorf("reveal calls %+v, want one for the whole value", calls)
+	}
+	if len(sd.rows) != 0 || len(drawerButtons(d)["Hide"]) != 0 || drawerHasText(d, "correct-horse") {
+		t.Error("the copy opened an editor or showed the value")
+	}
+	if !toastSays(sh, "DB_PASSWORD") || !toastSays(sh, "cleared in") {
+		t.Error("the toast does not name the key or the clearing")
+	}
+
+	// An edited value hidden again: the typed text, from the window's memory, no reveal.
+	r := showKey(t, sh, q, "DB_USER")
+	typeIntoRow(r.cmRow, secTyped)
+	sd.hide("DB_USER")
+	q.until(t, "the edited value masked", func() bool { return r.masked && drawerHasText(d, "(edited, not saved)") })
+	edited := selLineWith(t, d, engine.MaskedValue+" (edited, not saved)")
+	edited.MouseIn(mouse())
+	if !d.copyBtn.Visible() || d.copyBtn.tip != "Copy the value without showing it" {
+		t.Fatalf("over an edited masked value: the icon shown %v, its tooltip %q", d.copyBtn.Visible(), d.copyBtn.tip)
+	}
+	reveals := len(f.callsOf(engine.RevealCommand))
+	test.Tap(d.copyBtn)
+	if len(*concealed) != 2 || (*concealed)[1] != secTyped {
+		t.Fatalf("the edited value was not copied as typed (%d copies)", len(*concealed))
+	}
+	if len(f.callsOf(engine.RevealCommand)) != reveals {
+		t.Error("copying a value the editor holds read it from the engine again")
+	}
+	if !r.masked || drawerHasText(d, secTyped) {
+		t.Error("the copy showed the edited value")
+	}
+
+	// An added key hidden again: what was typed into it.
+	addKeyThrough(t, sd.adder, "API_TOKEN")
+	a := sd.addedRows["API_TOKEN"]
+	typeIntoRow(a.cmRow, secTyped+"-new")
+	sd.hide("API_TOKEN")
+	q.until(t, "the added key masked", func() bool { return a.masked && len(findAll[*selLine](d.details)) > 0 })
+	var lines []*selLine
+	for _, l := range findAll[*selLine](d.details) {
+		if l.line.text == engine.MaskedValue+" (edited, not saved)" {
+			lines = append(lines, l)
+		}
+	}
+	if len(lines) != 2 {
+		t.Fatalf("%d edited masked values, want DB_USER's and API_TOKEN's", len(lines))
+	}
+	lines[1].MouseIn(mouse())
+	test.Tap(d.copyBtn)
+	if len(*concealed) != 3 || (*concealed)[2] != secTyped+"-new" {
+		t.Errorf("the added key's value was not copied (%d copies)", len(*concealed))
 	}
 	if l := valueLeaks(sh, f); l != "" {
 		t.Errorf("%q in a toast or the notifications", l)

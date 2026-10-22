@@ -587,8 +587,11 @@ func foldKey(sec model.DetailSection, it model.DetailItem) string {
 // follow the value as buttons; an action marked Link is the value itself, a link that runs it.
 func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it model.DetailItem) fyne.CanvasObject {
 	it, revealed := d.revealedItem(it)
-	// A Secret's value is copyable once it is revealed, and not before (D-25).
-	copyable := !revealable(it) || revealed
+	// A Secret's masked value copies without being shown, through its own icon (maskedValue, the
+	// owner's decision of 2026-10-22, D-25); its masked text is no value to copy.
+	reveal, masked := revealAction(it)
+	masked = masked && !revealed
+	copyable := !masked
 	if len(it.Actions) == 0 {
 		return d.foldedValue(ref, sec, it, copyable)
 	}
@@ -612,7 +615,10 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 		b.Importance = widget.LowImportance
 		objs = append(objs, b)
 	}
-	if v == nil {
+	switch {
+	case v == nil && masked:
+		v = d.maskedValue(ref, it, reveal)
+	case v == nil:
 		v = d.foldedValue(ref, sec, it, copyable)
 	}
 	objs[0] = v
