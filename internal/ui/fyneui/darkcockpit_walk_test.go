@@ -193,7 +193,7 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 	}
 	before := tv.setWidths[firstDataColumn+1]
 
-	tv.table.DoubleTapped(&fyne.PointEvent{Position: edge(1)})
+	doubleClickAt(tv.table, edge(1))
 	if tv.setWidths[firstDataColumn+1] != before || len(tv.userWidths) != 0 {
 		t.Errorf("a double click on its edge: %v wide (was %v), user widths %v", tv.setWidths[firstDataColumn+1], before, tv.userWidths)
 	}

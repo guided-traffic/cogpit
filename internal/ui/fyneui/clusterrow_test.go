@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"context"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -152,5 +153,121 @@ func TestWelcomeNamesTheFileOnlyForSharedNames(t *testing.T) {
 	}
 	if files["c.yaml"] {
 		t.Error("the prod row, unique on the page, names its file")
+	}
+}
+
+// TestWelcomeRowConnectsOnce (the lead's follow-up to AW12): a click on a welcome page's cluster row
+// connects at its release, as Fyne's driver delivers a tap to an object that is no
+// fyne.DoubleTappable (driverTap); the row was one, for a double click that connected as one click
+// does, so the driver held every click for the double-click interval. A second click (a double
+// click's, or an impatient one) while that cluster's connect is under way connects no second time:
+// before the engine says so (the page's own pending connect), on the row rebuilt once the window
+// shows the cluster connecting, on a cluster the window shows connecting from elsewhere (the
+// navigator, an agent), and through the login program's review; once the connect returned, a click
+// connects again. Each "no second time" is checked after a later step the test waits for,
+// so that a second dispatch, which runs on a goroutine of its own, has been seen.
+func TestWelcomeRowConnectsOnce(t *testing.T) {
+	f := newFakeEngine(t)
+	f.contexts = fixtureContexts()
+	for i := range f.contexts {
+		if f.contexts[i].Name == "dev-hfi" {
+			f.contexts[i].Exec = engine.ExecRequired // its login program not allowed yet: reviewed first
+		}
+	}
+	shown, done := make(chan struct{}), make(chan struct{})
+	f.handlers["cluster.connect"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
+		var p contextParams
+		if err := json.Unmarshal(normalize(inv.Params), &p); err != nil {
+			return nil, err
+		}
+		for _, step := range []chan struct{}{shown, done} {
+			select {
+			case <-step:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			if step == shown { // the engine shows the cluster connecting
+				f.update(func(u *engine.UIState) {
+					u.Context, u.Connection = p.Context, engine.Connection{State: engine.Connecting}
+				})
+			}
+		}
+		return nil, nil
+	}
+	review := make(chan struct{})
+	f.handlers["kubeconfig.pendingApprovals"] = func(ctx context.Context, _ engine.Invocation) (any, error) {
+		select {
+		case <-review:
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+		return map[string]any{"groups": []any{}}, nil // allowed meanwhile: the connect follows
+	}
+	sh, q := welcomeOnFake(t, f, ThemeDark)
+	connects := func() int { return len(f.callsOf("cluster.connect")) }
+	connectsOf := func(name string) int {
+		n := 0
+		for _, inv := range f.callsOf("cluster.connect") {
+			if decodeParams[contextParams](t, inv).Context == name {
+				n++
+			}
+		}
+		return n
+	}
+	settle(sh.win) // the page laid out: a click finds what it shows
+
+	row := welcomeRowOf(t, sh, "kind-cogpit")
+	if got := driverTap(t, sh.win, centre(row)); got != row {
+		t.Fatalf("a click on kind-cogpit's row reached %T, not the row", got)
+	}
+	q.until(t, "the connect", func() bool { return connects() == 1 })
+	driverTap(t, sh.win, centre(row)) // the double click's second click: the engine has not answered
+	close(shown)
+	q.until(t, "kind-cogpit connecting, its row rebuilt", func() bool {
+		return sh.ui.Context == "kind-cogpit" && sh.ui.Connection.State == engine.Connecting && welcomeRowOf(t, sh, "kind-cogpit") != row
+	})
+	if n := connects(); n != 1 {
+		t.Fatalf("a second click before the engine answered connected %d times", n)
+	}
+	settle(sh.win)
+	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "kind-cogpit"))) // an impatient click on the new row
+	close(done)
+	q.until(t, "the connect returned", func() bool { return sh.tabs.welcome.pending == "" })
+	if n := connects(); n != 1 {
+		t.Fatalf("a click while connecting connected %d times", n)
+	}
+
+	f.update(func(u *engine.UIState) { u.Context, u.Connection = "", engine.Connection{} })
+	q.until(t, "no cluster shown", func() bool { return sh.ui.Context == "" })
+	settle(sh.win)
+	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "kind-cogpit")))
+	q.until(t, "a connect again", func() bool { return connects() == 2 })
+	q.until(t, "that connect returned", func() bool { return sh.tabs.welcome.pending == "" })
+
+	// A connect the window shows, begun elsewhere: a click on its row connects nothing; one on
+	// another cluster's row does.
+	f.update(func(u *engine.UIState) {
+		u.Context, u.Connection = "prod-eu-central", engine.Connection{State: engine.Connecting}
+	})
+	q.until(t, "prod-eu-central connecting", func() bool { return sh.ui.Context == "prod-eu-central" })
+	settle(sh.win)
+	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "prod-eu-central")))
+	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "staging-us-east")))
+	q.until(t, "staging-us-east's connect", func() bool { return connectsOf("staging-us-east") == 1 })
+	q.until(t, "its connect returned", func() bool { return sh.tabs.welcome.pending == "" })
+	if n := connectsOf("prod-eu-central"); n != 0 {
+		t.Fatalf("a click on a cluster the window shows connecting connected it %d times", n)
+	}
+
+	// The login program's review: one for two clicks, then one connect.
+	dev := welcomeRowOf(t, sh, "dev-hfi")
+	driverTap(t, sh.win, centre(dev))
+	q.until(t, "the review", func() bool { return len(f.callsOf("kubeconfig.pendingApprovals")) == 1 })
+	driverTap(t, sh.win, centre(dev))
+	close(review)
+	q.until(t, "dev-hfi's connect", func() bool { return connectsOf("dev-hfi") == 1 })
+	q.until(t, "dev-hfi's connect returned", func() bool { return sh.tabs.welcome.pending == "" })
+	if n, m := len(f.callsOf("kubeconfig.pendingApprovals")), connectsOf("dev-hfi"); n != 1 || m != 1 {
+		t.Fatalf("two clicks on a row whose login program is reviewed: %d reviews, %d connects", n, m)
 	}
 }

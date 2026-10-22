@@ -15,12 +15,19 @@ import (
 // Below the rows is where Fyne's table, not one of its cells, takes the click: the table's own
 // area under its last row, in a list shorter than the view, or under the header of an empty one.
 // The gaps between rows and columns stay Fyne's, which selects nothing there.
+//
+// The click closes the drawer as soon as the button is released, as × and Escape do: the table is
+// no fyne.DoubleTappable, whose taps Fyne's driver holds for the double-click interval (AW12; the
+// header separators' double click, tableheader.go).
 
 var _ fyne.Tappable = (*resourceTable)(nil)
 
-// Tapped implements fyne.Tappable: a click below the rows closes the drawer; any other click is the
-// table's.
+// Tapped implements fyne.Tappable: a click below the rows closes the drawer, one on a header
+// separator may be a double click's (tableheader.go); any other click is the table's.
 func (t *resourceTable) Tapped(e *fyne.PointEvent) {
+	if t.separatorTapped(e.Position) {
+		return
+	}
 	if t.belowRows(e.Position) {
 		t.tv.sh.tip.hide()
 		t.tv.sh.closeDrawer()

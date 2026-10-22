@@ -8,6 +8,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -216,4 +217,74 @@ func TestClickBelowTheRowsClosesTheDrawer(t *testing.T) {
 	if tbl.belowRows(below) || tbl.belowRows(fyne.NewPos(below.X, tbl.Size().Height-1)) {
 		t.Fatal("a full list has an area below its rows")
 	}
+}
+
+// driverTap clicks at abs (window coordinates) as Fyne's GLFW driver delivers a click's tap
+// (internal/driver/glfw/window.go, mouseClickedHandleTapDoubleTap, v2.8.2): to the object the click
+// reaches, at once, unless that object is a fyne.DoubleTappable, whose tap the driver holds for the
+// double-click interval (driver_darwin.go: NSEvent.doubleClickInterval, 0.5 s by default; 300 ms on
+// the other desktops) to tell it from a double tap. Fyne's test driver does not model the hold
+// (test.Tap calls Tapped), so a click that would wait fails the test. It returns what took the tap.
+func driverTap(t *testing.T, w fyne.Window, abs fyne.Position) fyne.CanvasObject {
+	t.Helper()
+	target := clickTarget(w.Canvas().Content(), abs)
+	if _, held := target.(fyne.DoubleTappable); held {
+		t.Fatalf("a click at %v reaches %T, a fyne.DoubleTappable: Fyne's driver holds its tap for the double-click interval", abs, target)
+	}
+	tap, ok := target.(fyne.Tappable)
+	if !ok {
+		t.Fatalf("a click at %v reaches %T, which takes no tap", abs, target)
+	}
+	tap.Tapped(&fyne.PointEvent{Position: abs.Subtract(absolutePos(target)), AbsolutePosition: abs})
+	return target
+}
+
+// TestListClicksAreNotHeld (the owner's alpha walk of 2026-10-22, AW12: a click below the rows
+// closed the drawer after about a second, × and Escape at once): every click on a list reaches an
+// object that takes its tap at once. A row's cell opens the drawer, a header's cell sorts, and below
+// the rows the table closes the drawer; the table was a fyne.DoubleTappable for the double click
+// on a header separator, so Fyne's driver held every tap on it for the double-click interval.
+func TestListClicksAreNotHeld(t *testing.T) {
+	f := connectedFake(t, 6)
+	sh, w, q := settledShell(t, f, kindPods)
+	rows := f.tables[kindPods].Rows
+	tbl := sh.view.table
+
+	cell := cellAt(t, sh, 2, firstDataColumn+1)
+	if got := driverTap(t, w, centre(cell)); got != cell {
+		t.Fatalf("a click on row 2 reached %T, not its cell", got)
+	}
+	q.until(t, "the drawer on row 2", func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == rows[2].Ref })
+	settle(w)
+
+	head := headerFor(t, sh, firstDataColumn)
+	if got := driverTap(t, w, centre(head)); got != head {
+		t.Fatalf("a click on Name's header reached %T, not its cell", got)
+	}
+	q.until(t, "the sort", func() bool { return len(f.callsOf("ui.sort")) == 1 })
+	settle(w)
+
+	// The separator right of Name's header: the table takes both clicks of a double click, the
+	// second fits the column.
+	head = headerFor(t, sh, firstDataColumn)
+	gap := tbl.Theme().Size(theme.SizeNamePadding)
+	sep := absolutePos(head).AddXY(head.Size().Width+gap/2, head.Size().Height/2)
+	for range 2 {
+		if got := driverTap(t, w, sep); got != tbl {
+			t.Fatalf("a click on Name's separator reached %T, not the table", got)
+		}
+	}
+	if _, ok := sh.view.userWidths[kindPods+"/name"]; !ok {
+		t.Fatalf("a double click on Name's separator fitted nothing (user widths %v)", sh.view.userWidths)
+	}
+	settle(w)
+
+	last := cellAt(t, sh, len(rows)-1, firstDataColumn+1)
+	bottom := absolutePos(last).Y + last.Size().Height
+	top := absolutePos(tbl)
+	below := fyne.NewPos(top.X+tbl.Size().Width/2, bottom+(top.Y+tbl.Size().Height-bottom)/2)
+	if got := driverTap(t, w, below); got != tbl {
+		t.Fatalf("a click below the rows reached %T, not the table", got)
+	}
+	q.until(t, "the drawer closed", func() bool { return sh.ui.Drawer == nil })
 }

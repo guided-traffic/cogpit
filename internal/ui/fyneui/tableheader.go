@@ -15,16 +15,35 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-var _ fyne.DoubleTappable = (*resourceTable)(nil)
+// A double click on the separator at a column's right edge in the header row fits the column to its
+// content (ui-parity › Tables), where the resize cursor shows. The header cells do not cover the
+// separators, so a click there reaches the table, as one below the rows and in the gaps between
+// body cells does.
+//
+// The table tells the double click itself, as the tab bar and the navigator do (doubleClickTime),
+// and is no fyne.DoubleTappable: Fyne's driver holds every tap on a DoubleTappable for the
+// double-click interval before it calls Tapped or DoubleTapped (internal/driver/glfw/window.go,
+// mouseClickedHandleTapDoubleTap; on macOS NSEvent.doubleClickInterval, 0.5 s by default), so the
+// click below the rows closed the drawer only then (the owner's alpha walk, AW12; D-106). The first
+// click acts at once and the second fits the column.
 
-// DoubleTapped fits a column to its content when the double click is on the separator at its right
-// edge in the header row (ui-parity › Tables), where the resize cursor shows. The header cells do
-// not cover the separators, so only double clicks there and in the gaps between body cells reach
-// the table; the latter do nothing.
-func (t *resourceTable) DoubleTapped(ev *fyne.PointEvent) {
-	if col := t.tv.separatorAt(ev.Position); col >= 0 && !t.tv.fixedAt(col) {
+// separatorTapped takes a click at pos, in the table's coordinates, when it is on a header
+// separator: the second click on the same column's separator within doubleClickTime fits that
+// column, unless it keeps its width. Any other click on the table ends a double click begun there.
+func (t *resourceTable) separatorTapped(pos fyne.Position) bool {
+	col := t.tv.separatorAt(pos)
+	if col < 0 {
+		t.sepClick = click{}
+		return false
+	}
+	if t.tv.fixedAt(col) {
+		t.sepClick = click{}
+		return true
+	}
+	if t.tv.sh.tabs.double(&t.sepClick, t.tv.snap.View+"/"+t.tv.snap.Columns[t.tv.cols[col]].ID) {
 		t.tv.fitToContent(col)
 	}
+	return true
 }
 
 // separatorAt returns the visible column whose right-edge separator in the header row is at pos

@@ -40,9 +40,10 @@ import (
 //
 // The bar changes the tabs only through ui.tab.* commands: UI state is engine state.
 
-// doubleClickTime is how close two clicks on the same tab or navigator item make a double click:
-// macOS's default interval (Fyne's own double tap waits 300 ms before every single tap, which would
-// slow every click on the navigator, so the bar and the navigator count clicks themselves).
+// doubleClickTime is how close two clicks on the same tab, navigator item or list header separator
+// make a double click: macOS's default interval (Fyne's own double tap holds every single tap for
+// the system's interval, 0.5 s by default on macOS and 300 ms elsewhere, which would slow every
+// click on the navigator, so the bar, the navigator and the list's table count clicks themselves).
 const doubleClickTime = 500 * time.Millisecond
 
 // tabBar is the bar of tabs.

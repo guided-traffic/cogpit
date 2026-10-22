@@ -68,14 +68,17 @@ func loginState(c engine.ContextInfo) string {
 	return ""
 }
 
-// clusterRow is one cluster on the welcome page: badge, title, pills and a subtitle. A tap or a
-// double tap connects, a right-click opens the cluster's menu.
+// clusterRow is one cluster on the welcome page: badge, title, pills and a subtitle. A click
+// connects at its release, a right-click opens the cluster's menu. The row is no
+// fyne.DoubleTappable: Fyne's driver holds every tap on one for the double-click interval, and a
+// double click here did what one click does; the page takes a double click's second click as a
+// click on a cluster whose connect is under way, which connects nothing more (welcomePage.connect).
 type clusterRow struct {
 	widget.BaseWidget
-	hovered         bool
-	onTap, onDouble func()
-	onMenu          func(pos fyne.Position) // the context's menu at pos (window coordinates)
-	badge           *clusterBadge           // the cluster's icon (clusteridentity.go)
+	hovered bool
+	onTap   func()
+	onMenu  func(pos fyne.Position) // the context's menu at pos (window coordinates)
+	badge   *clusterBadge           // the cluster's icon (clusteridentity.go)
 
 	bg     *canvas.Rectangle
 	title  *textLine
@@ -88,8 +91,8 @@ type clusterRow struct {
 	note *textLine
 }
 
-func newClusterRow(c engine.ContextInfo, title, sub string, onTap, onDouble, onWarn func()) *clusterRow {
-	r := &clusterRow{onTap: onTap, onDouble: onDouble, bg: canvas.NewRectangle(color.Transparent), badge: newClusterBadge()}
+func newClusterRow(c engine.ContextInfo, title, sub string, onTap, onWarn func()) *clusterRow {
+	r := &clusterRow{onTap: onTap, bg: canvas.NewRectangle(color.Transparent), badge: newClusterBadge()}
 	r.title = newTextLine(title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	r.sub = newTextLine(sub, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.sub.truncate = true
@@ -140,9 +143,6 @@ func (r *clusterRow) TappedSecondary(ev *fyne.PointEvent) {
 		r.onMenu(ev.AbsolutePosition)
 	}
 }
-
-// DoubleTapped implements fyne.DoubleTappable.
-func (r *clusterRow) DoubleTapped(*fyne.PointEvent) { r.onDouble() }
 
 // MouseIn implements desktop.Hoverable.
 func (r *clusterRow) MouseIn(*desktop.MouseEvent) { r.hovered = true; r.Refresh() }
