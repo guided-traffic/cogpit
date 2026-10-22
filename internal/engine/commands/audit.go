@@ -71,7 +71,7 @@ func registerAudit(g *registrar) {
 				if created {
 					u.Dock = append(u.Dock, tab)
 				}
-				u.ActiveDock = tab.ID
+				u.ShowDockTab(tab.ID) // the one Audit Log, maybe the active tab: the dock opens too (AW9)
 			})
 			return DockResult{Tab: tab, Created: created}, nil
 		},

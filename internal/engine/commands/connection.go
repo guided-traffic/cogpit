@@ -159,7 +159,7 @@ func registerConnection(g *registrar) {
 				}
 				u.Dock[i].Interrupted, u.Dock[i].Reconnected = time.Time{}, false
 				u.Dock[i].Session++ // the window opens the new session in the tab
-				u.ActiveDock = p.ID
+				u.ShowDockTab(p.ID)
 				tab, found = u.Dock[i], true
 			})
 			if !found {

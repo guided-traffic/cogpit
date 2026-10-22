@@ -97,7 +97,7 @@ func (s *Session) OpenHelmUpgradeTab(ctx context.Context, ref model.ObjectRef, p
 			}
 		}
 		id := t.ID
-		s.UpdateUI(func(u *UIState) { u.ActiveDock = id })
+		s.UpdateUI(func(u *UIState) { u.ShowDockTab(id) })
 		st, err := s.EditorState(ctx, id)
 		return st, false, err
 	}
@@ -133,7 +133,7 @@ func (s *Session) OpenHelmUpgradeTab(ctx context.Context, ref model.ObjectRef, p
 		if created {
 			u.Dock = append(u.Dock, tab)
 		}
-		u.ActiveDock = tab.ID
+		u.ShowDockTab(tab.ID)
 	})
 	s.settleEditor(e.tab.ID, created, ui.Revision)
 	st, err := s.EditorState(ctx, tab.ID)

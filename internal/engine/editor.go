@@ -278,7 +278,7 @@ func (s *Session) OpenEditTab(ctx context.Context, ref model.ObjectRef) (EditorS
 		if created {
 			u.Dock = append(u.Dock, tab)
 		}
-		u.ActiveDock = tab.ID
+		u.ShowDockTab(tab.ID) // the tab open already, maybe the active one: the dock opens too (AW9)
 	})
 	s.settleEditor(e.tab.ID, created, ui.Revision)
 	st, err := s.EditorState(ctx, tab.ID)

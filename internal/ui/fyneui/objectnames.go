@@ -132,25 +132,44 @@ func objectsRow(objs []namedObject, width float32) (name, value fyne.CanvasObjec
 }
 
 // placeRows adds a dialog's place to a kvLayout table in the owner's order Context › Namespace ›
-// Object(s) (WF16, D-85): the context, the namespace or namespaces where there are any, and the
-// objects in the one form (objectsRow) where there are any. valueW is the values' column.
+// Object(s) (WF16, D-85): the context (contextValue), the namespace or namespaces where there are
+// any, and the objects in the one form (objectsRow) where there are any. valueW is the values'
+// column.
 func placeRows(rows *fyne.Container, context string, namespaces []string, objs []namedObject, valueW float32) {
-	add := func(name, value string) {
+	add := func(name string, value *paragraph) {
+		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), value)
+	}
+	plain := func(value string) *paragraph {
 		v := newParagraph(value, theme.ColorNameForeground, valueW)
 		v.hard = true
-		rows.Objects = append(rows.Objects, newTextLine(name, colorMuted, theme.SizeNameText, fyne.TextStyle{}), v)
+		return v
 	}
-	add("Context", context)
+	add("Context", contextValue(context, valueW))
 	switch {
 	case len(namespaces) == 1:
-		add("Namespace", namespaces[0])
+		add("Namespace", plain(namespaces[0]))
 	case len(namespaces) > 1: // a selection's objects (Delete of a selection)
-		add("Namespaces", strings.Join(namespaces, ", "))
+		add("Namespaces", plain(strings.Join(namespaces, ", ")))
 	}
 	if len(objs) > 0 {
 		name, value := objectsRow(objs, valueW)
 		rows.Objects = append(rows.Objects, name, value)
 	}
+}
+
+// contextValue is a dialog's Context row value: the context's id as it is, "kind-cogpit
+// [kubernetes_configs/walk-kind.yaml]", the context in the text colour and the source label that
+// tells two files' contexts of one name apart (D-28, engine.SourceContextID) in the kind word's
+// grey (the owner's alpha walk, AW7, 2026-10-22: "Dann lass es gerne in dem Format wie es ist, aber
+// grau wäre top"), wrapped as before: on the context's line where it fits. An id without a label
+// (the demo) is the context alone.
+func contextValue(id string, width float32) *paragraph {
+	v := newParagraph(id, theme.ColorNameForeground, width)
+	v.hard = true
+	if name, label := splitContextID(id); label != "" {
+		v.mutedFrom = len(name) + 1 // "[" on: the label in its brackets
+	}
+	return v
 }
 
 // rowName is a table row's name in the muted colour: a line, or, wider than the name column

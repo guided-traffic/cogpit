@@ -559,6 +559,10 @@ type paragraph struct {
 	width float32 // the wrap width; the paragraph's minimum width
 	hard  bool    // a word wider than width breaks at any character (wrapFlow): a digest has no space
 	names bool    // a name: a word wider than width breaks after - . _ / first (wrapName)
+	// mutedFrom, when above 0, is the byte offset at which the text turns muted (colorMuted), wrapped
+	// as the whole text is: a context's source label in a dialog's Context row (AW7, contextValue).
+	// Not with names.
+	mutedFrom int
 }
 
 func newParagraph(text string, c fyne.ThemeColorName, width float32) *paragraph {
@@ -576,7 +580,15 @@ func (p *paragraph) CreateRenderer() fyne.WidgetRenderer {
 
 type paragraphRenderer struct {
 	p     *paragraph
-	lines []fyne.CanvasObject
+	lines []fyne.CanvasObject // the texts drawn: a line each, or two where a line turns muted
+	at    []paragraphAt       // each text's line and left edge
+	rows  int                 // how many lines
+}
+
+// paragraphAt is where a paragraph draws one of its texts: its line and its left edge.
+type paragraphAt struct {
+	row int
+	x   float32
 }
 
 func (r *paragraphRenderer) lineHeight() float32 {
@@ -585,13 +597,13 @@ func (r *paragraphRenderer) lineHeight() float32 {
 }
 
 func (r *paragraphRenderer) MinSize() fyne.Size {
-	return fyne.NewSize(r.p.width, float32(len(r.lines))*r.lineHeight())
+	return fyne.NewSize(r.p.width, float32(r.rows)*r.lineHeight())
 }
 
 func (r *paragraphRenderer) Layout(fyne.Size) {
 	h := r.lineHeight()
 	for i, l := range r.lines {
-		l.Move(fyne.NewPos(0, float32(i)*h))
+		l.Move(fyne.NewPos(r.at[i].x, float32(r.at[i].row)*h))
 		l.Resize(l.MinSize())
 	}
 }
@@ -600,22 +612,90 @@ func (r *paragraphRenderer) Refresh() {
 	th := r.p.Theme()
 	size := th.Size(r.p.size)
 	c := themeColor(th, r.p.color)
-	wrap := wrapLines
-	switch {
-	case r.p.names:
-		wrap = wrapName
-	case r.p.hard:
-		wrap = wrapFlow
-	}
-	texts := wrap(r.p.text, r.p.width, size, r.p.style)
-	r.lines = r.lines[:0]
-	for _, t := range texts {
+	r.lines, r.at = r.lines[:0], r.at[:0]
+	add := func(t string, c color.Color, row int, x float32) {
 		o := canvas.NewText(t, c)
 		o.TextSize, o.TextStyle = size, r.p.style
-		r.lines = append(r.lines, o)
+		r.lines, r.at = append(r.lines, o), append(r.at, paragraphAt{row, x})
+	}
+	if from := r.p.mutedFrom; from > 0 && from < len(r.p.text) && !r.p.names {
+		muted := themeColor(th, colorMuted)
+		lines := wrapMuted(r.p.text, from, r.p.width, size, r.p.style, r.p.hard)
+		for i, l := range lines {
+			x := float32(0)
+			if l.head != "" {
+				add(l.head, c, i, 0)
+				x = fyne.MeasureText(l.head+" "+l.tail, size, r.p.style).Width - fyne.MeasureText(l.tail, size, r.p.style).Width
+			}
+			if l.tail != "" {
+				add(l.tail, muted, i, x)
+			}
+		}
+		r.rows = len(lines)
+	} else {
+		wrap := wrapLines
+		switch {
+		case r.p.names:
+			wrap = wrapName
+		case r.p.hard:
+			wrap = wrapFlow
+		}
+		texts := wrap(r.p.text, r.p.width, size, r.p.style)
+		for i, t := range texts {
+			add(t, c, i, 0)
+		}
+		r.rows = len(texts)
 	}
 	r.Layout(r.p.Size())
 	canvas.Refresh(r.p)
+}
+
+// mutedLine is a line of a paragraph that turns muted: its text before the muted part, and the
+// muted part.
+type mutedLine struct{ head, tail string }
+
+// wrapMuted wraps text, which turns muted at the byte offset from, as wrapFlow (hard) or wrapLines
+// wraps it whole, at spaces (newlines count as spaces): each line as its part before from and its
+// part after it.
+func wrapMuted(text string, from int, width, size float32, style fyne.TextStyle, hard bool) []mutedLine {
+	type word struct {
+		text  string
+		muted bool
+	}
+	var words []word
+	for i, part := range []string{text[:from], text[from:]} {
+		for _, w := range strings.Fields(part) {
+			pieces := []string{w}
+			if hard && width > 0 && fyne.MeasureText(w, size, style).Width > width {
+				pieces = wrapHard(w, width, size, style)
+			}
+			for _, piece := range pieces {
+				words = append(words, word{piece, i == 1})
+			}
+		}
+	}
+	// joined is the words' texts, the muted ones or the others, or all with muted nil, a space apart.
+	joined := func(ws []word, muted *bool) string {
+		parts := make([]string, 0, len(ws))
+		for _, w := range ws {
+			if muted == nil || w.muted == *muted {
+				parts = append(parts, w.text)
+			}
+		}
+		return strings.Join(parts, " ")
+	}
+	head, tail := false, true
+	var out []mutedLine
+	flush := func(line []word) { out = append(out, mutedLine{joined(line, &head), joined(line, &tail)}) }
+	start := 0 // the first word of the line being filled
+	for i := range words {
+		if i > start && fyne.MeasureText(joined(words[start:i+1], nil), size, style).Width > width {
+			flush(words[start:i])
+			start = i
+		}
+	}
+	flush(words[start:])
+	return out
 }
 
 func (r *paragraphRenderer) Objects() []fyne.CanvasObject { return r.lines }

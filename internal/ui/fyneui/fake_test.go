@@ -605,7 +605,7 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		if err := params(&p); err != nil {
 			return nil, err
 		}
-		f.update(func(u *engine.UIState) { u.ActiveDock = p.ID })
+		f.update(func(u *engine.UIState) { u.ShowDockTab(p.ID) }) // the active tab too: the dock opens (AW9)
 	case "object.delete":
 		var p refParams
 		if err := params(&p); err != nil {

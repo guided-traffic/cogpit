@@ -113,7 +113,7 @@ func (s *Session) restoreEditTab(ctx context.Context, b *Backend, dr Draft) (str
 		}); err != nil {
 			return "", err
 		}
-		s.UpdateUI(func(u *UIState) { u.ActiveDock = x.ID })
+		s.UpdateUI(func(u *UIState) { u.ShowDockTab(x.ID) })
 		return x.ID, nil
 	}
 

@@ -11,9 +11,11 @@ import (
 // tab bar's are the shown cluster's (TabsShown), the dock's the shown cluster's and those of
 // no cluster (DockInScope). The tabs the bar does not show keep their places among the others. The
 // window drags a tab there (tabbar.go, dock.go, stripdrag.go); ui.tab.moveLeft and ui.tab.moveRight
-// move the active tab one place (View › Move Tab Left and Right). The order is UI state: agents see
-// it in ui_state, and the tab bar's survives a restart with the tabs (persist.go keeps their order).
-// The lead's decisions of 2026-10-20, open to revision (D-106).
+// move the active tab one place (View › Move Tab Left and Right), the tab bar's, or with dock the
+// dock's (the owner's alpha walk, AW10: the keys did nothing in the dock; the window sends dock while
+// the keyboard works in the dock, tabmovekeys.go). The order is UI state: agents see it in ui_state,
+// and the tab bar's survives a restart with the tabs (persist.go keeps their order). The lead's
+// decisions of 2026-10-20 and 2026-10-22, open to revision (D-106).
 
 // errNotInBar reports a tab its bar does not show.
 var errNotInBar = errors.New("the bar does not show it")
@@ -106,13 +108,29 @@ func (u UIState) tabStep(d int) (int, error) {
 		return 0, ErrNoTab
 	}
 	place, n := placeAmong(u.Tabs, u.ActiveTab, viewTabID, u.tabShown)
+	return stepFrom(place, n, d, "tab bar")
+}
+
+// dockStep returns the place the dock's active tab moves to one place left (d < 0) or right among
+// the tabs the dock shows, or why it cannot.
+func (u UIState) dockStep(d int) (int, error) {
+	if u.ActiveDock == "" {
+		return 0, ErrNoDockTabs
+	}
+	place, n := placeAmong(u.Dock, u.ActiveDock, dockTabID, u.InDockScope)
+	return stepFrom(place, n, d, "dock")
+}
+
+// stepFrom is the place one step left (d < 0) or right of place among the n tabs a bar shows, or
+// why there is none.
+func stepFrom(place, n, d int, bar string) (int, error) {
 	switch {
 	case place == 0:
 		return 0, fmt.Errorf("the active tab: %w", errNotInBar)
 	case d < 0 && place == 1:
-		return 0, errors.New("the tab is the first in the tab bar")
+		return 0, errors.New("the tab is the first in the " + bar)
 	case d > 0 && place == n:
-		return 0, errors.New("the tab is the last in the tab bar")
+		return 0, errors.New("the tab is the last in the " + bar)
 	}
 	return place + d, nil
 }
@@ -148,6 +166,26 @@ func (s *Session) StepTab(d int) (UIState, error) {
 		var to int
 		if to, err = u.tabStep(d); err == nil {
 			err = u.moveTab(u.ActiveTab, to)
+		}
+	})
+	return st, err
+}
+
+// CheckDockStep returns why the dock's active tab cannot move one place left (d < 0) or right, or
+// nil.
+func (s *Session) CheckDockStep(d int) error {
+	_, err := s.UIState().dockStep(d)
+	return err
+}
+
+// StepDockTab moves the dock's active tab one place left (d < 0) or right among the tabs the dock
+// shows.
+func (s *Session) StepDockTab(d int) (UIState, error) {
+	var err error
+	st := s.UpdateUI(func(u *UIState) {
+		var to int
+		if to, err = u.dockStep(d); err == nil {
+			err = u.moveDockTab(u.ActiveDock, to)
 		}
 	})
 	return st, err

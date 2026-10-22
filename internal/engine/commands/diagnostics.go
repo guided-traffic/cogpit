@@ -46,7 +46,7 @@ func registerDiagnostics(g *registrar) {
 				if created {
 					u.Dock = append(u.Dock, tab)
 				}
-				u.ActiveDock = tab.ID
+				u.ShowDockTab(tab.ID)
 			})
 			return DockResult{Tab: tab, Created: created}, nil
 		},

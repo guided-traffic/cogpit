@@ -65,4 +65,28 @@ func TestTabMoveCommands(t *testing.T) {
 	if err := h.run(t, agent, "dock.move", map[string]any{"id": before[0], "index": 3}, nil); err == nil {
 		t.Error("a dock place past the dock accepted")
 	}
+
+	// Move Tab Left and Right with dock (the owner's alpha walk, AW10: the keys did nothing in the
+	// dock): the dock's active tab, the terminal, steps among the dock's tabs; the tab bar stays.
+	dock := map[string]any{"dock": true}
+	if active := h.s.UIState().ActiveDock; active != before[1] {
+		t.Fatalf("the dock's active tab %s, want the terminal %s", active, before[1])
+	}
+	if err := h.run(t, gui, "ui.tab.moveLeft", dock, nil); !errors.As(err, &dis) || !strings.Contains(dis.Reason, "first in the dock") {
+		t.Errorf("Move Tab Left on the dock's first tab: %v", err)
+	}
+	h.must(t, agent, "ui.tab.moveRight", dock, nil)
+	if got := dockIDs(); !slices.Equal(got, before) {
+		t.Errorf("the dock after Move Tab Right: %v, want %v", got, before)
+	}
+	if err := h.run(t, gui, "ui.tab.moveRight", dock, nil); !errors.As(err, &dis) || !strings.Contains(dis.Reason, "last in the dock") {
+		t.Errorf("Move Tab Right on the dock's last tab: %v", err)
+	}
+	h.must(t, gui, "ui.tab.moveLeft", dock, nil)
+	if got := dockIDs(); !slices.Equal(got, []string{before[1], before[0]}) {
+		t.Errorf("the dock after Move Tab Left: %v", got)
+	}
+	h.tabs(t, "Services - test", "Deployments - test *", "Pods - test (preview)")
+	h.must(t, gui, "ui.tab.moveRight", map[string]any{"dock": false}, nil) // the tab bar's, as without dock
+	h.tabs(t, "Services - test", "Pods - test (preview)", "Deployments - test *")
 }
