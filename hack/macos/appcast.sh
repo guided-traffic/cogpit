@@ -17,9 +17,9 @@
 #
 # sign (job "Appcast (sign)", environment sparkle, SPARKLE_ED_PRIVATE_KEY): without the key it
 # says so and stops, signed=false, nothing to deploy, never a failure. With it, it first refuses
-# to sign unless the environment sparkle has a required reviewer and admits only tags v*
-# (GitHub creates an environment a workflow names without any rule: docs/security/updates.md,
-# H-92); then Sparkle's own sign_update, from the pinned and verified archive (make sparkle),
+# to sign unless the environment sparkle admits only tags v* (GitHub creates an environment a
+# workflow names without any rule: docs/security/updates.md, H-92); it asks for no reviewer, the
+# job signs without an approval since 2026-10-22 (the owner's, H-141); then Sparkle's own sign_update, from the pinned and verified archive (make sparkle),
 # signs the disk image (the draft's, checked by its SHA-256), the signature replaces the
 # placeholder, sign_update signs the feed (Sparkle 2.9's signed feeds) and verifies both. The
 # key reaches sign_update on its standard input from the environment variable (printf is bash's
@@ -122,9 +122,10 @@ draft() {
 	output drafted true
 }
 
-# check_environment refuses to sign unless the environment sparkle has a required reviewer and
-# admits only tags v*: GitHub creates an environment a workflow names without any rule, and its
-# secret would then reach any run that names it.
+# check_environment refuses to sign unless the environment sparkle admits only tags v*: GitHub
+# creates an environment a workflow names without any rule, and its secret would then reach any
+# run that names it. A required reviewer is not asked for since 2026-10-22 (the owner: the appcast
+# jobs run without a click, H-141); the log names the reviewers there are.
 check_environment() {
 	local api="repos/$GITHUB_REPOSITORY/environments/sparkle" reviewers custom policies
 	reviewers="$(gh api "$api" --jq '[.protection_rules[]? | select(.type == "required_reviewers") | .reviewers[]?] | length')" ||
@@ -134,8 +135,6 @@ check_environment() {
 	if [ "$custom" = true ]; then
 		policies="$(gh api "$api/deployment-branch-policies" --jq '[.branch_policies[] | .type + ":" + .name] | sort | join(" ")')"
 	fi
-	[ "$reviewers" -ge 1 ] ||
-		die "the environment sparkle has no required reviewer: refusing to sign (docs/developer/releasing.md#setting-up-sparkle)"
 	[ "$policies" = "tag:v*" ] ||
 		die "the environment sparkle must admit tags v* only, it admits '${policies:-every branch and tag}': refusing to sign (docs/developer/releasing.md#setting-up-sparkle)"
 	log "environment sparkle: $reviewers required reviewer(s), deployments from $policies"

@@ -39,7 +39,7 @@ parts, the three appcast jobs, the history from the signed feed.
 ```text
 release pipeline ─► Cogpit-<v>-macos-arm64.dmg (the app, its cogpit-cli inside), Developer ID-signed, notarized, stapled
    "Appcast (draft)", no secret ─► the feed from Pages (only if the update key signed it) + this release's item
-   "Appcast (sign)", environment sparkle, after the owner's approval
+   "Appcast (sign)", environment sparkle, tags v* only, no approval (since 2026-10-22)
         ─► EdDSA signature over the disk image, then over the feed (Sparkle's sign_update)
    "Appcast (deploy)" ─► checked with the public key ─► https://guided-traffic.github.io/cogpit/appcast.xml
                                    │
@@ -78,7 +78,7 @@ Updates… still asks.
 | The disk image's EdDSA signature, before extraction (`SUVerifyUpdateBeforeExtraction`) | every copy, per update | a swapped download; nothing of an unsigned archive is unpacked |
 | Apple's code signature of the new app against the running app's | every copy, per update | an app that is not Cogpit's team's |
 | Only a newer `CFBundleVersion` is offered; `sparkle:minimumSystemVersion` | every copy | a downgrade to a version with known flaws; an update the Mac cannot run |
-| The update key behind the owner's approval, the environment's rules checked before signing | "Appcast (sign)" | a run the owner did not approve signing a feed ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)) |
+| The update key in an environment that admits tags `v*` only, the rule checked before signing (no approval since 2026-10-22, [H-141](#h-141-the-update-key-signs-without-an-approval)) | "Appcast (sign)", "Windows appcast (sign)" | a run of a branch, or of an environment without rules, signing a feed ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)) |
 | The history taken from Pages only when the update key signed it | "Appcast (draft)" | a feed altered on Pages being signed again with the next release |
 | The signed feed and the disk image checked with the public key before Pages gets them | "Appcast (deploy)" | a feed every copy would refuse (a secret that does not match the app's key) |
 | The new feed keeps every item the feed on Pages serves, unless its channel's newest were kept (the owner's decision, 2026-10-16) | "Appcast (deploy)" | an older release's appcast, approved after a newer one's, putting the feed back to the older version (2026-10-16): a freeze made by the pipeline itself ([H-93](#h-93-the-feeds-host-can-withhold-updates)) |
@@ -138,7 +138,8 @@ Copies installed before the first release built with the key never update themse
 or none with a key): one manual download moves them onto the chain above.
 
 **What vouches for an update once a signed feed is served:** the update key's EdDSA signatures over the
-feed and over the disk image, computed in a job the owner approved, checked by Sparkle in every
+feed and over the disk image, computed in a job on a release's tag (approved by the owner until
+2026-10-22, since then without an approval, [H-141](#h-141-the-update-key-signs-without-an-approval)), checked by Sparkle in every
 copy; Apple's Developer ID signature and notarization of the app inside, checked by Sparkle against
 the running app's and by Gatekeeper. **What does not:** the host. GitHub Pages serves the feed and
 GitHub's release storage the disk image; either can withhold an update or serve an older signed
@@ -153,7 +154,7 @@ anything the key did not sign.
 | The release pipeline's `GITHUB_TOKEN` | per job; `contents: write` only in its last job, to attach the artifacts | upload assets to and edit the text of this repository's releases | expires with the job |
 | Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the GitHub environment `release` (created 2026-10-13; the material in it since 2026-10-14), which only tag workflows may use (deployment rule: tags `v*`), so that no pull request workflow can read them (decided by the owner on 2026-10-14 evening and further on 2026-10-15, GitHub settings not made yet: only the semantic-release GitHub App may create `v*` tags, as the tag ruleset's only bypass, and the environment's administrator bypass off; [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). Two jobs read them (since 2026-10-15; before, one job "Sign and notarize (macOS)"): "Sign and submit (macOS)" with the certificate and the API key, "Notarize and staple (macOS)" with the API key only. Neither builds anything or runs Go; the first imports the certificate into a temporary keychain (key not extractable, usable by `codesign` only), both write the API key into an owner-only file, and each deletes them when it ends ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize code as team 6L57P2HXN6: whatever is signed and notarized with the two passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple, and the key in App Store Connect; releases notarized before stay valid (the owner's note, 2026-10-13; not checked against Apple's documentation) |
 | The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19; made on 2026-10-20 on the owner's machine) | `APT_SIGNING_KEY`, a secret of the environment `apt` (tags `v*` only, no required reviewer: the owner's choice, 2026-10-20); one job reads it, "APT repository (sign)", on GitHub's hosted runner, which runs no Go and nothing of the packages and hands the key to gpg on its standard input in a temporary keyring and ends gpg's agent once it signed; a copy, with the revocation certificate, kept by the owner outside GitHub. Its public half is in every package's sources file | sign a repository whose packages every Linux copy installs as Cogpit's updates, by apt as root | [H-135](#h-135-the-apt-key-signs-without-an-approval), [Linux](#linux) |
-| The update key (Sparkle's EdDSA key; made by the owner on 2026-10-15) | decided (owner, 2026-10-13) and set up 2026-10-15 (the secret since 07:00 UTC; the environment with the owner as required reviewer, the tag rule `v*` only and no administrator bypass; checked with `gh` that day): `SPARKLE_ED_PRIVATE_KEY`, a secret of the environment `sparkle` with the owner as required reviewer and tags `v*` only, so CI signs a release's feed only after the owner approved that run; made by the owner with Sparkle's `generate_keys`, which keeps it in his login keychain ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). One job reads it, "Appcast (sign)": it refuses while the environment lacks its rules, hands the key to Sparkle's `sign_update` on its standard input only and runs no Go and no dependency's code. Its public half is the repository variable `SPARKLE_PUBLIC_ED_KEY`, built into every copy as `SUPublicEDKey` | sign appcasts and disk images that every copy with this key accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
+| The update key (Sparkle's EdDSA key; made by the owner on 2026-10-15) | decided (owner, 2026-10-13) and set up 2026-10-15 (the secret since 07:00 UTC; the environment with the owner as required reviewer, the tag rule `v*` only and no administrator bypass; checked with `gh` that day): `SPARKLE_ED_PRIVATE_KEY`, a secret of the environment `sparkle` with tags `v*` only; until 2026-10-22 the owner was its required reviewer and CI signed a release's feed only after he approved that run, since then it signs in every run on a `v*` tag (the owner's choice, [H-141](#h-141-the-update-key-signs-without-an-approval)); made by the owner with Sparkle's `generate_keys`, which keeps it in his login keychain ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). Two jobs read it, "Appcast (sign)" and "Windows appcast (sign)": each refuses while the environment lacks its tag rule, hands the key to Sparkle's `sign_update` on its standard input only and runs no Go and no dependency's code. Its public half is the repository variable `SPARKLE_PUBLIC_ED_KEY`, built into every copy as `SUPublicEDKey` | sign appcasts and disk images that every copy with this key accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
 
 ## Linux
 
@@ -213,14 +214,14 @@ From the first release after the branch `windows-release` is merged
 ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
 [releasing › Windows](../developer/releasing.md#windows)) Cogpit for Windows is an NSIS setup, and
 WinSparkle, Sparkle's Windows port, updates it. Its feed is a second Sparkle feed beside the first,
-signed with the same update key in the same environment `sparkle`, after the owner's approval of
-that job.
+signed with the same update key in the same environment `sparkle`, without an approval since
+2026-10-22 ([H-141](#h-141-the-update-key-signs-without-an-approval)).
 
 ```text
 release pipeline ─► Cogpit-<v>-windows-x64-setup.exe (cogpit.exe with the feed URL and the update key's public half,
                     cogpit-cli.exe, WinSparkle.dll pinned by SHA-256), attached, its line in SHA256SUMS
    "Windows appcast (draft)" ─► builds only on the feed Pages serves if the key verifies it
-   "Windows appcast (sign)", environment sparkle (the owner approves) ─► sign_update over the setup and the feed
+   "Windows appcast (sign)", environment sparkle, no approval ─► sign_update over the setup and the feed
    "Windows appcast (deploy)" ─► both checked with the public key, refused if Pages serves a newer release
         ─► https://guided-traffic.github.io/cogpit/appcast-windows.xml (beside appcast.xml and apt/)
                                    │
@@ -336,8 +337,9 @@ every copy an update Sparkle accepts. Sparkle's documentation says a release may
 Apple code signing certificate or the EdDSA key, but not both, so the key alone lets an update
 carry another team's Developer ID ([rotating signing keys](https://sparkle-project.org/documentation/#rotating-signing-keys);
 not tried). Where it lives is decided (owner, 2026-10-13: an environment secret that CI may use only
-after the owner approved the run), which leaves a workflow the owner approves able to sign whatever
-it built ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)).
+after the owner approved the run; the approval off since 2026-10-22, [H-141](#h-141-the-update-key-signs-without-an-approval)), which leaves a
+workflow on a `v*` tag able to sign whatever it built
+([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)).
 Replacing a leaked key: a release whose app carries the new public key, offered in a feed and a
 disk image still signed with the old one; with `SUVerifyUpdateBeforeExtraction` a change of the
 EdDSA key needs a Developer ID-signed disk image, which Cogpit's is. A lost key: no feed can be
@@ -355,24 +357,25 @@ mirror.
 ### H-92: An environment `sparkle` without rules hands the update key to any run
 
 Dormant: since 2026-10-15 the environment `sparkle` holds the secret (since 07:00 UTC), and it has
-its rules: the owner as required reviewer, the tag rule `v*` only, no administrator bypass (checked
-with `gh` 2026-10-15 ~19:00 UTC). It turns live if the rules are removed or loosened while the
+its rules: the tag rule `v*` only and no administrator bypass; the owner was its required reviewer
+from 2026-10-15 (checked with `gh` 2026-10-15 ~19:00 UTC) until 2026-10-22, when he had the
+approval removed ([H-141](#h-141-the-update-key-signs-without-an-approval)). It turns live if the rules are removed or loosened while the
 secret is there. GitHub creates an environment the moment a
 workflow run names it, without a reviewer and without a deployment rule; the first release run
 after 2026-10-14 does so ("Appcast (sign)"). Live from the moment the owner stores
 `SPARKLE_ED_PRIVATE_KEY` in it before the reviewer and the tag rule: then any workflow run in this
 repository that names `environment: sparkle`, on any branch (agents and maintainers push to `main`
 and branches directly, [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), gets the
-key without anyone's approval. Cogpit's own job refuses to sign until it reads a required reviewer
-and exactly the tag rule `v*` from the API, but a workflow written to take the key does not ask.
+key without anyone's approval. Cogpit's own job refuses to sign until it reads exactly the tag
+rule `v*` from the API (until 2026-10-22 also a required reviewer), but a workflow written to take
+the key does not ask.
 The owner's steps put the rules first ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)).
-What stays live with the rules: the owner approves a run on a tag `v*`, and the job does with the
-key what the workflow at that tag says; whoever may create such a tag (the GitHub App's key, a
-maintainer) can bring a run of a changed workflow to the owner's approval, and the approval page
-names the run and its tag, not what changed. The feed also signs the release's text as it stood
+What stays live with the rules: a run on a tag `v*` does with the key what the workflow at that
+tag says, and since 2026-10-22 no one approves it first ([H-141](#h-141-the-update-key-signs-without-an-approval)); whoever may create such a
+tag (the GitHub App's key, a maintainer) has a run of a changed workflow sign. The feed also signs the release's text as it stood
 when the job ran: whoever can edit it before then (the same actors) has their text and links shown
-in Sparkle's window. Administrators may bypass the reviewer while "Allow administrators to bypass"
-is on (GitHub's default; `release` has it on). Decided (owner, 2026-10-14 evening): the bypass goes
+in Sparkle's window. Administrators could bypass a reviewer while "Allow administrators to bypass"
+is on (GitHub's default; `release` has it on; `sparkle` has no reviewer to bypass since 2026-10-22). Decided (owner, 2026-10-14 evening): the bypass goes
 off on `release`, a setting made only with the owner's explicit OK, not made yet (checked
 2026-10-15) ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released));
 the decision names `release`, not `sparkle`; `sparkle` has the bypass off since its set-up on
@@ -434,9 +437,9 @@ and the workflows).
 ### H-135: The APT key signs without an approval
 
 Open, accepted by the owner (2026-10-20: the environment `apt` without a required reviewer, so that
-a release reaches Linux users without waiting for anyone). Unlike the update key, which signs only
-after the owner approved the run ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)),
-the APT key signs in every run on a `v*` tag: whoever can create such a tag, or change the workflow
+a release reaches Linux users without waiting for anyone). Like the update key since 2026-10-22, which signed only after the owner approved the run until
+then ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)),
+the APT key signs in every run on a `v*` tag, as the update key does since 2026-10-22 ([H-141](#h-141-the-update-key-signs-without-an-approval)): whoever can create such a tag, or change the workflow
 a tag runs, can publish a package that every Linux copy installs as root with its next upgrade, and
 silently where the user allowed unattended-upgrades for it. What bounds it is what bounds the
 release itself: tags come from the semantic-release GitHub App once the gates pass, and the tag
@@ -445,6 +448,23 @@ ruleset that would make it the only one is not set up
 and every user's manual install of a new package, since apt trusts only the key in the sources file;
 the revocation certificate the owner keeps withdraws the old one for anyone who imports it, which
 apt does not.
+
+### H-141: The update key signs without an approval
+
+Open, accepted by the owner (2026-10-22: "Appcast (sign)" and "Windows appcast (sign)" run without a
+manual click; the environment `sparkle`'s required reviewer removed the same day, its tag rule `v*`
+and its administrator bypass off kept, checked with `gh`). Until then the owner's approval of each
+run was the one person's step between a green `main` and an update every macOS and Windows copy
+offers; now the update key signs in every run on a `v*` tag, as the APT key does
+([H-135](#h-135-the-apt-key-signs-without-an-approval)). Whoever can create such a tag, or change
+the workflow a tag runs, can have a disk image and a Windows setup signed and their items put in the
+feeds, which Sparkle's and WinSparkle's windows then offer to every installed copy; the tags come
+from the semantic-release GitHub App once the gates on `main` pass, and agents and maintainers push
+to `main` directly ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). What the
+approval held back was narrower than it looks: its page named the run and its tag, not what changed
+(H-92). What bounds it now is what bounds the release: the gates, and the tag ruleset that would let
+only the GitHub App create `v*` tags, decided by the owner (2026-10-14) and not set up (H-62). The job's own check keeps the tag rule: an environment
+without it is still refused (H-92).
 
 ### H-136: The first Linux install has no signature of its own
 

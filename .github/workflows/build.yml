@@ -640,7 +640,7 @@ jobs:
   # WinSparkle's appcast (D-111; docs/developer/releasing.md#windows): the Windows app's update feed
   # at https://guided-traffic.github.io/cogpit/appcast-windows.xml, signed with the same update key
   # as Sparkle's, in three jobs as Sparkle's: the draft (Go, no secret), the signature (the
-  # environment sparkle, the owner its required reviewer, Sparkle's sign_update and nothing else
+  # environment sparkle, tags v* only, Sparkle's sign_update and nothing else
   # beside the key), the check and deploy (the public key, the environment github-pages). They run
   # once the setup is attached, so the item never points at a missing download.
   windows-appcast-draft:
@@ -683,9 +683,9 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # The second job in the environment `sparkle` (the macOS feed's is the first): the owner approves
-  # it as the macOS one, and it refuses to sign as that one does (hack/macos/appcast.sh sign, which
-  # signs the setup and appcast-windows.xml here).
+  # The second job in the environment `sparkle` (the macOS feed's is the first): it runs without an
+  # approval as the macOS one does (H-141), and it refuses to sign as that one does
+  # (hack/macos/appcast.sh sign, which signs the setup and appcast-windows.xml here).
   windows-appcast-sign:
     name: Windows appcast (sign)
     needs: [windows-appcast-draft]
@@ -862,10 +862,10 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  # The only job in the environment `sparkle` (the owner its required reviewer, tags v* only), the
-  # only one that sees SPARKLE_ED_PRIVATE_KEY. Without the key it signs nothing and nothing is
-  # deployed, never a failure; with it, it refuses unless the environment has its reviewer and its
-  # tag rule (GitHub creates a named environment without any), then signs the disk image and the
+  # The macOS feed's job in the environment `sparkle` (tags v* only, no reviewer since 2026-10-22,
+  # H-141), one of the two that see SPARKLE_ED_PRIVATE_KEY. Without the key it signs nothing and
+  # nothing is deployed, never a failure; with it, it refuses unless the environment has its tag
+  # rule (GitHub creates a named environment without any), then signs the disk image and the
   # feed with sign_update from the pinned Sparkle archive. The key reaches sign_update on its
   # standard input only (hack/macos/appcast.sh).
   appcast-sign:
