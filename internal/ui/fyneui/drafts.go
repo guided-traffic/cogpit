@@ -89,7 +89,15 @@ func (b *draftsBanner) row(d engine.DraftInfo) fyne.CanvasObject {
 	discard := widget.NewButton("Discard", func() { b.sh.dispatch("editor.discardDraft", draftParams{ID: id}, nil) })
 	discard.Importance = widget.LowImportance
 	restore := widget.NewButtonWithIcon("Restore", theme.HistoryIcon(), func() {
-		b.sh.dispatch("editor.restoreDraft", draftParams{ID: id}, nil)
+		b.sh.dispatch("editor.restoreDraft", draftParams{ID: id}, func(res any, err error) {
+			var st struct {
+				Tab engine.DockTab `json:"tab"`
+			}
+			if err == nil && decode(res, &st) == nil {
+				b.sh.dock.requestFocus(st.Tab.ID) // the restored tab takes the keys; a Config Map's draft opens no tab (dockfocus.go)
+			}
+			b.sh.showError(err)
+		})
 	})
 	restore.Importance = widget.HighImportance
 	content := container.NewBorder(nil, nil,

@@ -592,6 +592,7 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	sh.chat.stateChanged(old, first) // the chat column: shown, its cluster, the input's state (chat.go)
 	sh.layoutChanged(old, first)     // the navigator, the dock's open state, the layout toggles (layoutbar.go)
 	sh.top.stateChanged()            // the history arrows and the bell (titlehistory.go)
+	sh.dock.takeFocus()              // a tab the window asked the keys for, once shown (dockfocus.go)
 }
 
 // connectionChanged follows the context or the connection: the header, the status bar, the
@@ -844,6 +845,9 @@ func (sh *shell) dispatchInOrder(id string, params any, done func(any, error)) {
 func (sh *shell) run(id string, raw json.RawMessage, done func(any, error)) {
 	defer sh.recoverTo(id)
 	res, err := sh.eng.Dispatch(sh.ctx, engine.Invocation{ID: id, Params: raw, Origin: engine.OriginGUI})
+	if err == nil {
+		sh.focusOpened(res) // a tab the window's own command opened or showed takes the keys (dockfocus.go)
+	}
 	if done == nil && (err == nil || errors.Is(err, engine.ErrDeclined) || sh.ctx.Err() != nil) {
 		return
 	}
