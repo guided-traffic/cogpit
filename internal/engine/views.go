@@ -38,6 +38,7 @@ type state struct {
 	closed        bool
 	connectSeq    uint64
 	connectCancel context.CancelCauseFunc // the window's connect's wait: errConnectSuperseded, errConnectCancelled (Disconnect)
+	connectWait   *windowConnect          // the window's latest connect while it runs (connect_join.go)
 	pool          map[string]*pooled      // every connected backend, by context id (pool.go)
 	// runs are the connects under way, by context id (connect_run.go, D-97): the one the window
 	// waits for and those in the background (the restore, or one the window stopped waiting for).
@@ -255,7 +256,9 @@ func (s *Session) markClientCerts(list []ContextInfo) {
 // is connected anew, D-26); the cluster shown before stays connected, and the window's views on it
 // stop when the connect starts, so that UIState.Context always names the cluster the window shows.
 // The connect runs on its own (connect_run.go, D-97): a later Connect, or a Show, ends only this
-// wait, and the connect goes on in the background (ErrConnectInBackground); a failed connect leaves
+// wait, and the connect goes on in the background (ErrConnectInBackground); Disconnect cancels it
+// (ErrConnectCancelled); a newer connect or show before it began supersedes it
+// (ErrConnectSuperseded); none of the three is a failure (ConnectNotFailed). A failed connect leaves
 // the window on its cluster with the error, never on the cluster shown before. The tab a connected
 // cluster shows again comes with its selection, without the objects gone meanwhile
 // (DropGoneSelected).
@@ -267,7 +270,7 @@ func (s *Session) Connect(ctx context.Context, name string) error {
 	return nil
 }
 
-func (s *Session) connect(ctx context.Context, name string) error {
+func (s *Session) connect(ctx context.Context, name string) (err error) {
 	st := s.state
 	connector := s.opts.Connector
 	if connector == nil {
@@ -289,6 +292,13 @@ func (s *Session) connect(ctx context.Context, name string) error {
 		st.mu.Unlock()
 		return ErrClosed
 	}
+	if w := st.connectWait; w != nil && w.name == name && w.ctx.Err() == nil {
+		// The window's connect waits for this cluster already: this one joins that wait and
+		// answers as it does, rather than ending it as a connect of another cluster would.
+		w.joined++
+		st.mu.Unlock()
+		return w.join(ctx)
+	}
 	if st.connectCancel != nil {
 		// The window's connect waiting so far stops waiting; its run goes on in the background
 		// (connect_run.go, D-97).
@@ -297,12 +307,21 @@ func (s *Session) connect(ctx context.Context, name string) error {
 	st.connectSeq++
 	seq := st.connectSeq
 	st.connectCancel = cancel
+	w := &windowConnect{name: name, ctx: cctx, done: make(chan struct{})}
+	st.connectWait = w
 	st.mu.Unlock()
+	defer func() { st.endWindowConnect(w, err) }()
 
 	st.connMu.Lock()
 	defer st.connMu.Unlock()
 	if !st.current(seq) {
-		return fmt.Errorf("connect %s: superseded by a newer connect", name)
+		// Replaced before it began: by a newer connect or a show (ErrConnectSuperseded), by
+		// Disconnect (ErrConnectCancelled) or by the session's close (ErrClosed).
+		cause := context.Cause(cctx)
+		if !errors.Is(cause, errConnectCancelled) && !errors.Is(cause, ErrClosed) {
+			cause = errConnectSuperseded
+		}
+		return fmt.Errorf("connect %s: %w", name, cause)
 	}
 
 	st.mu.Lock()

@@ -22,6 +22,26 @@ func connectResult(u engine.UIState) ConnectResult {
 	return ConnectResult{Context: u.Context, State: u.Connection.State, Error: u.Connection.Error, TLSUnchecked: u.Connection.TLSUnchecked}
 }
 
+// connectAnswer is the answer of a command that connected contextID (cluster.connect,
+// hotbar.openCluster) once Connect returned err. A connect that goes on in the background because
+// another cluster was shown while it waited is no failure: {context, state: connecting} without an
+// error (D-97; the owner's AW16 of 2026-10-22, every connecting command alike), its end in
+// ui_state's connections and the connection log. A failed connect is its UI state, the error in it.
+// A connect refused before it began (no connector, closed), cancelled by Disconnect
+// (engine.ErrConnectCancelled, the window's Cancel Connecting: AW15) or superseded before it began
+// (engine.ErrConnectSuperseded) is the error; the window raises no toast for the last two
+// (engine.ConnectNotFailed).
+func connectAnswer(s *engine.Session, contextID string, err error) (any, error) {
+	if errors.Is(err, engine.ErrConnectInBackground) {
+		return ConnectResult{Context: contextID, State: engine.Connecting}, nil
+	}
+	u := s.UIState()
+	if err != nil && u.Connection.State != engine.ConnectError {
+		return nil, err
+	}
+	return connectResult(u), nil
+}
+
 type connectParams struct {
 	Context string `json:"context" jsonschema:"context id as cluster_contexts lists it: <context> [<file>] (a bare context name works when one file only defines it)"`
 }
@@ -105,7 +125,8 @@ func registerCluster(g *registrar) {
 		Description: "Connects to a context as cluster_contexts lists it and shows it in the window: its most recently used " +
 			"tab, or else its Pods view in the preview tab; the other clusters' tabs stay. Several clusters stay connected at " +
 			"once (ui_state's connections): the cluster shown before stays connected, and a context that is connected already " +
-			"is only shown, from Cogpit's cache, without a request. Connecting only reads from the cluster. " +
+			"is only shown, from Cogpit's cache, without a request; one the window waits for already is waited for, its end the " +
+			"answer. Connecting only reads from the cluster. " +
 			"A context whose credential plugin, or whose connection without the certificate check (insecure-skip-tls-verify), " +
 			"the user has not allowed in Cogpit's window ends in state error saying so: only the user allows it there. " +
 			"Returns {context, state, error, tlsUnchecked}; state is connected or error, or connecting when another cluster " +
@@ -113,18 +134,11 @@ func registerCluster(g *registrar) {
 			"ui_state's connections, cluster_disconnect with its context cancels it, and the window keeps showing the cluster " +
 			"chosen last. A failed connect leaves the window on its cluster with its error page: error is its cause in a " +
 			"sentence (the whole chain is in cluster_connectLog), ui_state's connectFailure has the connect's stages. " +
-			"tlsUnchecked is set when the " +
+			"A connect cancelled while it waits (cluster_disconnect, the window's Cancel Connecting) answers a cancelled " +
+			"error, which is no failure. tlsUnchecked is set when the " +
 			"connection does not check the server's certificate (ui_state's connection says the same while it stands).",
 		Run: func(ctx context.Context, s *engine.Session, p connectParams) (any, error) {
-			err := s.Connect(ctx, p.Context)
-			if errors.Is(err, engine.ErrConnectInBackground) {
-				return ConnectResult{Context: p.Context, State: engine.Connecting}, nil
-			}
-			u := s.UIState()
-			if err != nil && u.Connection.State != engine.ConnectError {
-				return nil, err // refused before connecting: no connector, closed, or superseded
-			}
-			return connectResult(u), nil
+			return connectAnswer(s, p.Context, s.Connect(ctx, p.Context))
 		},
 	})
 }

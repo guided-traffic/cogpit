@@ -505,7 +505,8 @@ func (s *Session) OpenTab(view string, fixed bool) UIState {
 // SelectTab activates a tab. A tab of the connected cluster shows at once; a tab of another
 // cluster, or of the connected one while it is not connected, connects to its cluster (as
 // cluster.connect does, waiting for it) and shows once connected. Like cluster.connect it returns
-// the state, with no error, when the connect failed: Connection says why.
+// the state, with no error, when the connect failed (Connection says why) and when another cluster
+// was shown while it waited (the connect goes on in the background, D-97; the owner's AW16).
 func (s *Session) SelectTab(ctx context.Context, id string) (UIState, error) {
 	u := s.UIState()
 	i := u.tabIndex(id)
@@ -545,8 +546,8 @@ func (s *Session) SelectTab(ctx context.Context, id string) (UIState, error) {
 	}
 	err := s.Connect(ctx, t.Context) // which checks the tab's selection once it shows
 	st := s.UIState()
-	if err != nil && st.Connection.State != ConnectError {
-		return st, err
+	if err != nil && st.Connection.State != ConnectError && !errors.Is(err, ErrConnectInBackground) {
+		return st, err // refused, cancelled (ErrConnectCancelled) or superseded before it began
 	}
 	return st, nil
 }

@@ -76,7 +76,9 @@ func registerTabs(g *registrar) {
 		ID: "ui.tab.select", Label: "Go to Tab", Shortcut: "Cmd+1–9", Danger: engine.DangerUI, Verbs: cacheReads,
 		Description: "Activates a tab, named by id, by its place (index, from 1) or as the last one: its view comes back " +
 			"with its own namespace filter, search, sort, selection and drawer. A tab of another cluster connects to that " +
-			"cluster first (Cogpit holds one connection; connecting only reads), as cluster_connect does. Returns the new UI state.",
+			"cluster first (Cogpit holds one connection; connecting only reads), as cluster_connect does. Returns the new UI state, " +
+			"also when that connect failed (connection says why) or goes on in the background because another cluster was shown " +
+			"while it waited; a connect cancelled meanwhile (cluster_disconnect) answers a cancelled error.",
 		Enabled: func(s *engine.Session, _ tabSelectParams) error { return tabsOpen(s) },
 		Run: func(ctx context.Context, s *engine.Session, p tabSelectParams) (any, error) {
 			switch {

@@ -221,6 +221,25 @@ var errConnectInBackground = errors.New("another cluster was shown; the connect 
 // while the connect waited: the connect goes on in the background, and a toast says how it ended.
 var ErrConnectInBackground = errConnectInBackground
 
+// ErrConnectCancelled matches Connect's error when Disconnect cancelled the connect (the window's
+// Cancel Connecting, cluster.disconnect, D-73), also at the moment it ended: the cluster is not
+// connected, and its attempt in the connection log says "cancelled" (D-66).
+var ErrConnectCancelled = errConnectCancelled
+
+// ErrConnectSuperseded matches Connect's error when a newer connect or a show came before this
+// connect began: it never started, and the window shows the cluster chosen last.
+var ErrConnectSuperseded = errConnectSuperseded
+
+// ConnectNotFailed reports whether err, the error of a connect (Connect, and the commands that
+// connect a cluster: cluster.connect, hotbar.openCluster, ui.tab.select, ui.setNavigatorScope), says
+// that the connect did not fail: it goes on in the background (ErrConnectInBackground), it was
+// cancelled (ErrConnectCancelled), or a newer connect superseded it before it began
+// (ErrConnectSuperseded). The window raises no toast for any of them (the owner's AW15 and AW16 of
+// 2026-10-22): the cluster's dot and its connection log say what happened.
+func ConnectNotFailed(err error) bool {
+	return errors.Is(err, errConnectInBackground) || errors.Is(err, errConnectCancelled) || errors.Is(err, errConnectSuperseded)
+}
+
 // awaitRun is the window's connect waiting for r, as the connect with sequence number seq: it
 // shows r's cluster once r connected, or its error, while it is still the window's latest connect.
 // Another connect or show ends the wait, not the run (errConnectInBackground); Disconnect cancels
@@ -257,18 +276,7 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 	current := !st.closed && st.connectSeq == seq
 	st.mu.Unlock()
 	if !current {
-		if watched { // it ended as the window's, which another connect replaced since: as if nobody waited
-			if e != nil {
-				st.mu.Lock()
-				if st.pooledLocked(e.b) == e && st.shown != e.b {
-					st.armColdLocked(e)
-				}
-				st.mu.Unlock()
-			}
-			s.tellRunEnd(r, err)
-			return fmt.Errorf("connect %s: %w", r.name, errConnectInBackground)
-		}
-		return fmt.Errorf("connect %s: superseded by a newer connect", r.name)
+		return s.leftRun(cctx, r, err, e, watched)
 	}
 	if err != nil {
 		msg, callers := err.Error(), false
@@ -289,7 +297,7 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 	st.mu.Lock()
 	if st.closed || st.connectSeq != seq {
 		st.mu.Unlock()
-		return fmt.Errorf("connect %s: superseded by a newer connect", r.name)
+		return s.leftRun(cctx, r, nil, e, watched)
 	}
 	if st.pooledLocked(e.b) != e {
 		st.mu.Unlock()
@@ -300,6 +308,41 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 	s.showConnected(e.b, e.gen)
 	s.applyLoginHolds() // the shown cluster's login is renewed (connwatch_lapse.go)
 	return nil
+}
+
+// leftRun is awaitRun's error when the window's connect waiting for r is no longer the latest once
+// r ended, which is no failure (the owner's AW15 and AW16 of 2026-10-22: it raised an error toast,
+// "superseded by a newer connect" among them): the session closed (ErrClosed); Disconnect cancelled
+// r or, once r had ended, the window's wait cctx (ErrConnectCancelled: the cluster it connected
+// closes behind it); or another connect or show came, and r ended in the background
+// (ErrConnectInBackground). A run that ended as the window's (watched) before another connect
+// replaced it says how it ended as a run nobody waited for says it (tellRunEnd).
+func (s *Session) leftRun(cctx context.Context, r *connectRun, err error, e *pooled, watched bool) error {
+	st := s.state
+	st.mu.Lock()
+	closed := st.closed
+	st.mu.Unlock()
+	if closed {
+		return fmt.Errorf("connect %s: %w", r.name, ErrClosed)
+	}
+	if errors.Is(context.Cause(r.ctx), errConnectCancelled) || errors.Is(context.Cause(cctx), errConnectCancelled) {
+		return fmt.Errorf("connect %s: %w", r.name, errConnectCancelled)
+	}
+	if watched { // it ended as the window's, which another connect replaced since: as if nobody waited
+		shown := false
+		if e != nil {
+			st.mu.Lock()
+			shown = st.shown == e.b // the newer connect was of its own cluster, which it shows now
+			if st.pooledLocked(e.b) == e && !shown {
+				st.armColdLocked(e)
+			}
+			st.mu.Unlock()
+		}
+		if !shown {
+			s.tellRunEnd(r, err)
+		}
+	}
+	return fmt.Errorf("connect %s: %w", r.name, errConnectInBackground)
 }
 
 // tellRunEnd says in a toast how a run ended that the window's connect waited for until another

@@ -1005,10 +1005,15 @@ Help › Welcome leaves the failed cluster and shows the welcome page. Agents re
 
 Showing another cluster while one connects (it waits for your login in a browser, say) does not end
 that connect (since 2026-10-19, D-97): it goes on in the background, its dot blinking, its tooltip
-saying what it waits for, **Cancel Connecting** in its menus. When it is done, a toast says
+saying what it waits for, **Cancel Connecting** in its menus. Nothing else says it when you leave it
+(since 2026-10-22, the owner's AW16: before, an error toast "connect <cluster>: another cluster was
+shown; the connect goes on in the background"). When it is done, a toast says
 "Connected to <cluster> in the background." (or why it failed) and the window stays where you are;
 click the cluster to show it. Clicking a cluster that connects in the background shows it connecting
-and waits for that same connect, without starting the login a second time.
+and waits for that same connect, without starting the login a second time; connecting the cluster the
+window waits for again (from the navigator's section, the palette or an agent) waits for the same
+connect too and says nothing (since 2026-10-22; before, the first connect's wait ended with the
+error toast "another cluster was shown").
 
 Every dot of a cluster (its hotbar tile, its row in the navigator and on the welcome page, and the
 status bar for the one shown; the top bar has none since 2026-10-21, D-54) says how it is; its
@@ -1136,7 +1141,9 @@ waits for you to finish there. While it waits:
   a cluster connecting in the background (restoring the last session, or one you left to show
   another cluster, D-97) included. It ends the
   connect at once and the login program Cogpit started for it; the cluster is not connected, and
-  its connection updates say "cancelled". **Connect** starts the login again, a new browser tab
+  its connection updates say "cancelled". No toast says it: you cancelled it yourself (since
+  2026-10-22, the owner's AW15; before, an error toast "connect <cluster>: connecting cancelled").
+  **Connect** starts the login again, a new browser tab
   included. A browser window the program opened stays open: close it yourself. A login program
   that is a wrapper script handing over to the real program (`exec`) is ended too (since
   2026-10-19). When Cogpit cannot find the program's process (two logins that start at the same
@@ -1169,8 +1176,13 @@ end, `waitingForLogin` has `runsOn: true` and no `until`, and the reason is "wai
 login through <program>, which Cogpit stopped waiting for and could not end; it has no end time". `cluster_disconnect` of a connecting cluster (its
 `context` for one connecting in the background) cancels the connect as the window's Cancel
 Connecting does; agents may run it without asking you (it stops only what your connect started).
-`cluster_connect` answers `connecting` when another cluster was shown while it waited: the connect
-goes on in the background, and its end is in `ui_state`'s `connections` and its connection updates.
+`cluster_connect` and `hotbar_openCluster` answer `connecting` when another cluster was shown while
+they waited, `ui_tab_select` and `ui_setNavigatorScope` the UI state without an error (since
+2026-10-22; before, those three an error): the connect goes on in the background, and its end is in
+`ui_state`'s `connections` and its connection updates. `cluster_connect` of the cluster the window
+waits for already waits for that connect and answers with its end. A connect cancelled while it waits (Cancel
+Connecting, `cluster_disconnect`) answers an error with the code `cancelled` that says so, not
+`failed`, and asks the agent not to connect it again unless you ask.
 
 ### Connection Updates: the connection log
 
