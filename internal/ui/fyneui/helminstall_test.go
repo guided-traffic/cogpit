@@ -209,7 +209,9 @@ func installTabOf(t testing.TB, sh *shell, q *mainQueue, id string) *helmInstall
 func TestChartsView(t *testing.T) {
 	f := chartsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
-	q.until(t, "the charts", func() bool { return sh.view.snap != nil && len(sh.view.snap.Rows) == 7 })
+	// The sidebar's groups come with kinds.list, which can answer after the view's rows (CI on
+	// Windows, 2026-10-22).
+	q.until(t, "the charts", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) == 7 })
 	if kids := sh.side.children[groupPrefix+"helm"]; !slices.Equal(kids, []string{helmChartsKind, helm.ReleaseKind}) {
 		t.Errorf("Helm group %v", kids)
 	}
