@@ -230,6 +230,25 @@ what landed, numbers, what's still open. Keep the tree building at every step.
 - If someone else's in-progress edit breaks the build, wait and retry; don't fix their files.
 - `go.mod` and `go.sum` change through `go get` and `go mod tidy` only, by one agent at a time.
 
+**Several leads at once** (owner, 2026-10-22: up to three lead sessions, each on its own bugs and
+features; these rules are the lead's, open to revision):
+
+- **Own worktree, own branch.** Each lead starts with `claude -w <name>` (worktree
+  `.claude/worktrees/<name>`, branch `worktree-<name>`), never in the main checkout another lead
+  may use. Its work ends as a pull request it merges itself once CI is green: rebase on `main`
+  first; in the docs' status lines and revision tables keep both sides.
+- **Numbers at merge time.** A new decision, gap or security gap is written `D-new`, `G-new`,
+  `H-new` on the branch and gets the next free number on `main` in the rebase before the merge, so
+  two leads never take the same one.
+- **One real app at a time.** Every Cogpit process shares `<user config dir>/Cogpit` (sources,
+  settings, the MCP endpoint and token) and `bin/Cogpit.app` registers with LaunchServices: only one
+  lead runs or quits the real app at once; render tests and unit tests are free. A kind cluster per
+  lead: `make test-kind KIND_CLUSTER=cogpit-<name>`.
+- **One devlog.** `log/` is gitignored, so a worktree has none: append to the main checkout's
+  `log/devlog.md` by its absolute path.
+- **RAM.** Three leads use the budget of three agents: a lead starts a subagent only while
+  `memory_pressure -Q` shows 50% free or more.
+
 ## 7. Where things are tracked
 
 - [`ROADMAP.md`](ROADMAP.md) and [`docs/parity/`](docs/parity/README.md): where Cogpit stands
