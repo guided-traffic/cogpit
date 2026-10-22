@@ -1558,7 +1558,7 @@ Identifiers the documentation uses:
 | `make parity` | the parity checklists and the numbers the progress pages report ([rules](../parity/README.md#make-parity)) |
 | `make kind-drain-up`, `make test-kind-drain`, `make kind-drain-down` | a separate three-node kind cluster (`cogpit-drain`, own kubeconfig `.cache/kind-drain/kubeconfig`) for the cordon, uncordon and drain tests |
 | `make bench` | the gate benchmarks (S1, S2) |
-| `make lint`, `make fmt` | golangci-lint v2.14.0 (installed into `bin/`) with the team's linters and the `depguard` layering |
+| `make lint`, `make fmt` | golangci-lint v2.15.0 (installed into `bin/`) with the team's linters and the `depguard` layering |
 | `make kind-up`, `make kind-seed`, `make kind-down` | the local kind cluster and its seed |
 | `make kind-prometheus`, `make kind-prometheus-down` | a real Prometheus in the kind cluster (`monitoring/prometheus-server`, the `prometheus` chart) for the drawer's charts ([hack/kind](../../hack/kind/README.md#prometheus)) |
 | `make kind-kps`, `make kind-kps-down` | a minimal kube-prometheus-stack in the kind cluster (namespace `cogpit-kps`) |

@@ -525,7 +525,7 @@ Two jobs make it, so that no code from PyPI runs beside the signing identity (th
 1. **"Cogpit.app (macOS arm64)"** (no secrets): after `make dist-app`, `make dist-dmg-template`
    ([`dmg-template.sh`](../../hack/macos/dmg-template.sh)) installs dmgbuild and its dependencies,
    pinned by version and hash ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt)),
-   into a throwaway virtual environment (Python 3.13 from `actions/setup-python`; locally any
+   into a throwaway virtual environment (Python 3.15 from `actions/setup-python`; locally any
    Python 3.10 or newer, `PYTHON` chooses one) and writes `Cogpit-<v>-template.dmg`: a writable
    image of the volume "Cogpit <v>" with the window's settings (`.DS_Store`, which dmgbuild writes
    itself, without Finder or AppleScript, [`dmg_settings.py`](../../hack/macos/dmg_settings.py)),

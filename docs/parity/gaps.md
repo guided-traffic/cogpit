@@ -109,8 +109,8 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
 - **Evidence:** built on 2026-10-11: [`go.mod`](../../go.mod) (Go 1.27.2, pinned versions), the
   [`Makefile`](../../Makefile) with local targets, [`.golangci.yml`](../../.golangci.yml) with the
   team's linters and `depguard` rules for every layer (a forbidden import fails `make lint`;
-  verified with probe imports). golangci-lint is pinned to v2.14.0 because v2.13 cannot read Go
-  1.27.2 export data. CI as workflow files (2026-10-11,
+  verified with probe imports). golangci-lint is pinned (v2.15.0 since 2026-10-22), at least v2.14.0 because v2.13
+  cannot read Go 1.27.2 export data. CI as workflow files (2026-10-11,
   [releasing › CI](../developer/releasing.md#ci)): [`release.yml`](../../.github/workflows/release.yml)
   calls [`build.yml`](../../.github/workflows/build.yml) on every push and pull request: macOS runs
   `make lint`, the race tests with coverage and `make build`; Linux and Windows compile and link

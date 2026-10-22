@@ -7101,7 +7101,7 @@ The lead's decisions of the build, open to revision:
 | Decision | Chosen | Why |
 |---|---|---|
 | The tool | dmgbuild 1.6.7 with ds_store 1.3.3 and mac_alias 2.2.3, wheels only, `--require-hashes` | `create-dmg` drives Finder through AppleScript and needs a login session; a `.DS_Store` made once by hand breaks with the volume's name, which carries the version |
-| Python on CI | `actions/setup-python@v6`, 3.13 | dmgbuild needs 3.10 or newer, the system's Python is 3.9 |
+| Python on CI | `actions/setup-python@v7`, 3.15 (v6 and 3.13 until 2026-10-22: the template 3.15 builds equals 3.13's but for the alias's timestamps) | dmgbuild needs 3.10 or newer, the system's Python is 3.9 |
 | The background | the lab's own drawing code rendered at 1× and 2× (headless Chrome), committed as PNGs, joined into one TIFF at build time | the window the owner saw is the one that ships, pixel for pixel |
 | The check of the template | a UDRW image, the volume's name, exactly `.DS_Store`, `.background.tiff`, `.VolumeIcon.icns` and `Applications` → `/Applications` | anything else in the template would ship signed and notarized; the files' bytes are not checked ([updates › H-18](../security/updates.md#h-18-dependencies)) |
 | Hiding `.app` | no Finder flag | `SetFile -a E` puts `com.apple.FinderInfo` on the bundle and `codesign --verify --strict` refuses it; Finder hides an app's extension anyway |
