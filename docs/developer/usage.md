@@ -58,7 +58,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec credential plugins); no local proxy, no login.
 - ⚡ Cache first: views read from a watch-fed cache; switching back to a view costs no API request.
-- 📋 Lens's resource views: workloads, config, network, storage, access control, device resources (with each node's devices in its drawer), custom resources; each searchable by words, with match case or a regular expression, and filtered by the states its rows carry (Running, Pending, Not Ready, Degraded…), several at once, cleared with one click; the namespace filter's list has a search field to find your namespaces by typing, a click on a name shows only that namespace, its box adds it to the others. A namespace you filter by that is deleted, or being deleted, reads red there with "deleted" or "terminating", and the filter's button turns red; untick a deleted one and it leaves the list. A click on the empty area below a list's rows closes the drawer; the rows you checked stay checked.
+- 📋 Lens's resource views: workloads, config, network, storage, access control, device resources (with each node's devices in its drawer), custom resources; each searchable by words, with match case or a regular expression, and filtered by the states its rows carry (Running, Pending, Not Ready, Degraded…), several at once, cleared with one click; the namespace filter's list has a search field to find your namespaces by typing, a click on a name shows only that namespace, its box adds it to the others. A namespace you filter by that is deleted, or being deleted, reads red there with "deleted" or "terminating", and the filter's button turns red within a second of the deletion, whether or not anything in the list changed (since 2026-10-22); untick a deleted one and it leaves the list. A click on the empty area below a list's rows closes the drawer; the rows you checked stay checked.
 - 🔏 The certificates in your Secrets decoded in the drawer, PEM or DER, a section per certificate of a chain: subject, issuer, serial, validity (a warning 30 days before it ends), names, key, usages, fingerprint, each field copyable; whether `tls.key` belongs to `tls.crt` and the chain is in order; agents read the same fields, never the PEM text or the private key.
 - 📜 Logs with follow, filter, timestamps, the previous container, pod and container selectors, older lines and a jump to a time; select their text across lines and copy it (since 2026-10-19: a drag, ⇧-click, a double click, ⌘A, ⌘C, a right-click's Copy All Lines Shown; [details](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)).
 - 🔔 Notifications as toasts at the bottom right, and the session's in the bell's list: a toast stays while the pointer is on it or you select in it; drag over its text and ⌘C copies, its copy icon left of the × copies the whole message, an error included (since 2026-10-19).
@@ -1484,7 +1484,12 @@ Since 2026-10-19 (the owner's WF36 and WF41,
 | Escape | drops the selection |
 
 Selecting with the pointer turns **Follow** off, so the lines stay where you see them; turn it on
-again with its check, and the selection stays on its lines as new ones arrive. The selection keeps
+again with its check, and the selection stays on its lines as new ones arrive. Scrolling switches it
+too (since 2026-10-22): five lines or more up from the newest line, with the wheel, the trackpad or
+the scroll bar, turn Follow off and the log stays where you scrolled; scroll back down to the newest
+line and Follow is on again. A smaller scroll up keeps following, that far behind the newest line.
+New lines never turn Follow on by themselves. The Follow check works as before: off, the log stays
+where it is; on, it jumps to the newest line and follows. The selection keeps
 its lines through Wrap, a new width, a search and a filter; turning Resource names or Timestamps on
 or off drops it. A tab keeps its newest 10,000 lines: when older ones go, the part of the selection
 in them goes too. Copying shows no toast. `/` still jumps to the search.

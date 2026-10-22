@@ -90,6 +90,9 @@ func TestStatusFilterSnapshot(t *testing.T) {
 	// carries stays offered, with no rows.
 	u = s.UpdateUI(func(u *UIState) { u.Namespaces = []string{"shop"} })
 	snap = waitTable(t, s, "pods", func(t *TableSnapshot) bool { return t.CaughtUp(u) })
+	// The namespace filter has the engine watch the namespaces (nswatch.go, AW11): one list.
+	waitNamespacesWatched(t, src)
+	lists++
 	if got := rowKeys(snap); !slices.Equal(got, []string{"shop/web-0"}) || choicesText(snap) != "Failed 0, Pending 1 pending, Running 1 ok" {
 		t.Errorf("shop: rows %v, choices %s", rowKeys(snap), choicesText(snap))
 	}

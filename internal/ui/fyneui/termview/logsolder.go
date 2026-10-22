@@ -60,7 +60,7 @@ func (l *Logs) SetHead(text string, tone HeadTone, onSelect func()) {
 	}
 	l.list.Refresh()
 	if l.follow {
-		l.list.ScrollToBottom()
+		l.toEnd()
 	}
 }
 
@@ -248,7 +248,7 @@ func (l *Logs) Prepend(lines []string) int {
 	l.updateStatus()
 	if l.follow {
 		l.list.Refresh()
-		l.list.ScrollToBottom()
+		l.toEnd()
 	} else {
 		offset := l.list.GetScrollOffset()
 		l.list.Refresh()

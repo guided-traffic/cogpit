@@ -121,6 +121,7 @@ func TestWorkloadsOverviewPage(t *testing.T) {
 
 	// The namespace filter narrows the counts and the events; the cache's changes follow.
 	s.UpdateUI(func(u *UIState) { u.Namespaces = []string{"shop"} })
+	waitNamespacesWatched(t, src) // the filter has the engine watch the namespaces (nswatch.go)
 	src.Set(testkit.PodsGVR, overviewPod("shop", "web-1", "Running"))
 	waitTable(t, s, WorkloadsOverview, func(t *TableSnapshot) bool { return len(t.Rows) == 2 })
 	waitFor(t, "the pending pod to run", func() bool {
