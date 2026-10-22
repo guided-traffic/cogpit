@@ -78,8 +78,8 @@ value's end, hotbar tiles reordered by drag (R2), the terminal fork's races patc
 README's pictures in both themes; each is
 "built 2026-10-15" (or "-14") where a section describes it, with the lead's night decisions, open to revision (on 2026-10-15 the owner confirmed D-47 as a whole, D-10's repaired key file
 and D-51's ↵ on an agent's palette text; the others stay open where their sections say so). Not built: a tile dragged out to another window (R3, designed in [D-52](decisions.md#d-52-several-windows), postponed by
-the owner until the rest is done), and the release tags' ruleset (A10, a GitHub setting the owner sets with the
-lead).
+the owner until the rest is done). A10, the release tags' ruleset and the environment `release`'s admin bypass off, is set up since
+2026-10-22 (GitHub settings, made with the owner's OK).
 CI runs on every push ([releasing › CI](releasing.md#ci)); since 2026-10-16 its tests include an envtest tier against a real kube-apiserver and etcd, without Docker, whose first test stops the API server for D-58's standby case ([testing](testing.md#tiers), [D-64](decisions.md#d-64-envtest-a-real-api-server-in-ci-without-docker)), and `make scorecard` writes the measured performance and API-load budgets to the [scorecard](../parity/scorecard.md), by hand ([D-15](decisions.md#d-15-progress-generators)). The MVP doubled as the Fyne spike
 ([results](spike-fyne.md#results)). Where the code differs from the plan below, this section wins.
 

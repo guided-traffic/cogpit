@@ -22,8 +22,8 @@ the code and the test that proves it, in the same change. The owner's decision r
 evening is recorded on every page whose mechanisms it changes, in the form below; none of the
 changes it decided was built then. Every change of that round that these pages describe is built
 since (the night run of 2026-10-14/15), except two: the GitHub settings for the release
-environment, a tag ruleset and no administrator bypass, made only with the owner's OK and not made
-(checked 2026-10-15, [updates › H-62](updates.md#h-62-every-push-to-main-that-passes-the-gates-is-released));
+environment, a tag ruleset and no administrator bypass, made with the owner's OK only on
+2026-10-22 ([updates › H-62](updates.md#h-62-every-push-to-main-that-passes-the-gates-is-released));
 and several windows, postponed by the owner
 ([D-52](../developer/decisions.md#d-52-several-windows), below).
 

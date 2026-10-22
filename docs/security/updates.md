@@ -152,7 +152,7 @@ anything the key did not sign.
 |---|---|---|---|
 | The organisation's GitHub App private key (`APP_CLIENT_ID`, `APP_PRIVATE_KEY`) | organisation secrets of `guided-traffic`, visible to this repository; used by the Semantic Release job (token with `contents: write`) and by Renovate | push to `main`, create tags and releases; a release it creates starts the release pipeline, which builds whatever the tag points at | rotate the App's private key in the App's settings and replace the organisation secret; delete the releases and tags it made. Secrets are not handed to workflows of pull requests from forks |
 | The release pipeline's `GITHUB_TOKEN` | per job; `contents: write` only in its last job, to attach the artifacts | upload assets to and edit the text of this repository's releases | expires with the job |
-| Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the GitHub environment `release` (created 2026-10-13; the material in it since 2026-10-14), which only tag workflows may use (deployment rule: tags `v*`), so that no pull request workflow can read them (decided by the owner on 2026-10-14 evening and further on 2026-10-15, GitHub settings not made yet: only the semantic-release GitHub App may create `v*` tags, as the tag ruleset's only bypass, and the environment's administrator bypass off; [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). Two jobs read them (since 2026-10-15; before, one job "Sign and notarize (macOS)"): "Sign and submit (macOS)" with the certificate and the API key, "Notarize and staple (macOS)" with the API key only. Neither builds anything or runs Go; the first imports the certificate into a temporary keychain (key not extractable, usable by `codesign` only), both write the API key into an owner-only file, and each deletes them when it ends ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize code as team 6L57P2HXN6: whatever is signed and notarized with the two passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple, and the key in App Store Connect; releases notarized before stay valid (the owner's note, 2026-10-13; not checked against Apple's documentation) |
+| Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the GitHub environment `release` (created 2026-10-13; the material in it since 2026-10-14), which only tag workflows may use (deployment rule: tags `v*`), so that no pull request workflow can read them (decided by the owner on 2026-10-14 evening and further on 2026-10-15, GitHub settings made 2026-10-22: only the semantic-release GitHub App may create `v*` tags, as the tag ruleset's only bypass, and the environment's administrator bypass off; [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). Two jobs read them (since 2026-10-15; before, one job "Sign and notarize (macOS)"): "Sign and submit (macOS)" with the certificate and the API key, "Notarize and staple (macOS)" with the API key only. Neither builds anything or runs Go; the first imports the certificate into a temporary keychain (key not extractable, usable by `codesign` only), both write the API key into an owner-only file, and each deletes them when it ends ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize code as team 6L57P2HXN6: whatever is signed and notarized with the two passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple, and the key in App Store Connect; releases notarized before stay valid (the owner's note, 2026-10-13; not checked against Apple's documentation) |
 | The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19; made on 2026-10-20 on the owner's machine) | `APT_SIGNING_KEY`, a secret of the environment `apt` (tags `v*` only, no required reviewer: the owner's choice, 2026-10-20); one job reads it, "APT repository (sign)", on GitHub's hosted runner, which runs no Go and nothing of the packages and hands the key to gpg on its standard input in a temporary keyring and ends gpg's agent once it signed; a copy, with the revocation certificate, kept by the owner outside GitHub. Its public half is in every package's sources file | sign a repository whose packages every Linux copy installs as Cogpit's updates, by apt as root | [H-135](#h-135-the-apt-key-signs-without-an-approval), [Linux](#linux) |
 | The update key (Sparkle's EdDSA key; made by the owner on 2026-10-15) | decided (owner, 2026-10-13) and set up 2026-10-15 (the secret since 07:00 UTC; the environment with the owner as required reviewer, the tag rule `v*` only and no administrator bypass; checked with `gh` that day): `SPARKLE_ED_PRIVATE_KEY`, a secret of the environment `sparkle` with tags `v*` only; until 2026-10-22 the owner was its required reviewer and CI signed a release's feed only after he approved that run, since then it signs in every run on a `v*` tag (the owner's choice, [H-141](#h-141-the-update-key-signs-without-an-approval)); made by the owner with Sparkle's `generate_keys`, which keeps it in his login keychain ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). Two jobs read it, "Appcast (sign)" and "Windows appcast (sign)": each refuses while the environment lacks its tag rule, hands the key to Sparkle's `sign_update` on its standard input only and runs no Go and no dependency's code. Its public half is the repository variable `SPARKLE_PUBLIC_ED_KEY`, built into every copy as `SUPublicEDKey` | sign appcasts and disk images that every copy with this key accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
 
@@ -307,8 +307,8 @@ every automerged update.
 Decided (owner, 2026-10-14 evening): a repository ruleset lets only the semantic-release GitHub App
 (as a bypass actor) and the owner create `v*` tags, and "Allow administrators to bypass" is off on
 the environment `release`. Both are GitHub settings, an outward change made with the owner's
-approval; neither is made yet, so the arbitrary-tag case above is live today (checked with `gh`
-2026-10-15 ~19:00 UTC: no ruleset exists, and `release` still has its administrator bypass on).
+approval. The ruleset is made 2026-10-22 with the owner's OK: the ruleset "Release tags v*" (id 25618416) restricts creating, moving and deleting `refs/tags/v*`, its only bypass the App (always); a probe tag pushed from the owner's account was refused ("push declined due to repository rule violations"), so the arbitrary-tag case above is closed for everyone
+but the App and an administrator who switches the ruleset off; and the environment `release`'s admin bypass off since 2026-10-22 (with the owner's OK; its tag policy `v*`, five secrets and one variable kept, checked with `gh`).
 Decided further (owner, 2026-10-15 afternoon): the ruleset's only bypass actor is the
 semantic-release GitHub App (`guided-traffic-automation`, app id 5070048, the releases' author);
 nobody creates a `v*` tag by hand, and an emergency tag means an administrator switches the
@@ -316,7 +316,7 @@ ruleset off for the moment, which the organisation's audit log records. Options 
 plus a team holding only the owner (a team to keep, for a path nobody uses); the App plus the
 Repository admin role (the bot's token alone could start a signed release). Not verified: whether
 a ruleset accepts a single user as a bypass actor, which is why the owner is not named directly.
-What remains once they are made, per case:
+What remains with the ruleset, per case:
 
 - **A commit on `main`.** Branch protection is not part of the decision: a commit that passes the
   gates is still released and, since semantic-release tags it through the App, built, signed and
@@ -326,7 +326,7 @@ What remains once they are made, per case:
   commit, which the ruleset admits as the App's. Live for every holder of the key.
 - **An administrator's account** can switch the ruleset off and then create such a tag: the
   emergency path the owner decided on 2026-10-15; the organisation's audit log records the switch.
-  Live for every administrator once the ruleset exists.
+  Live for every administrator since 2026-10-22.
 
 ### H-15: Update key compromise and rotation
 
@@ -375,9 +375,8 @@ tag says, and since 2026-10-22 no one approves it first ([H-141](#h-141-the-upda
 tag (the GitHub App's key, a maintainer) has a run of a changed workflow sign. The feed also signs the release's text as it stood
 when the job ran: whoever can edit it before then (the same actors) has their text and links shown
 in Sparkle's window. Administrators could bypass a reviewer while "Allow administrators to bypass"
-is on (GitHub's default; `release` has it on; `sparkle` has no reviewer to bypass since 2026-10-22). Decided (owner, 2026-10-14 evening): the bypass goes
-off on `release`, a setting made only with the owner's explicit OK, not made yet (checked
-2026-10-15) ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released));
+is on (GitHub's default; `sparkle` has no reviewer to bypass since 2026-10-22). Decided (owner, 2026-10-14 evening): the bypass goes
+off on `release`, made 2026-10-22 with the owner's OK ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released));
 the decision names `release`, not `sparkle`; `sparkle` has the bypass off since its set-up on
 2026-10-15 (checked with `gh` that day), and `github-pages` keeps its bypass (the owner, 2026-10-15:
 the feed is signed).
@@ -420,10 +419,10 @@ Setting the interval to 0 closes this and turns a lost key into one manual downl
 
 Confirmed by the owner (2026-10-14 evening): Sparkle's 20 days stay (the owner declined setting the
 interval to 0). What remains, dormant until the first signed feed is served and live by design
-after: the case above. Once the tag ruleset decided the same evening (and further on 2026-10-15)
-is made ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), the Developer
-ID-signed disk image it needs comes only from a run on a tag the GitHub App created, or one an
-administrator created with the ruleset switched off.
+after: the case above. Since the tag ruleset is made (2026-10-22,
+[H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), the Developer ID-signed disk
+image it needs comes only from a run on a tag the GitHub App created, or one an administrator
+created with the ruleset switched off.
 
 ### H-17: Installs owned by a package manager
 
@@ -442,9 +441,9 @@ then ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-
 the APT key signs in every run on a `v*` tag, as the update key does since 2026-10-22 ([H-141](#h-141-the-update-key-signs-without-an-approval)): whoever can create such a tag, or change the workflow
 a tag runs, can publish a package that every Linux copy installs as root with its next upgrade, and
 silently where the user allowed unattended-upgrades for it. What bounds it is what bounds the
-release itself: tags come from the semantic-release GitHub App once the gates pass, and the tag
-ruleset that would make it the only one is not set up
-([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). A leaked key needs a new key
+release itself: tags come from the semantic-release GitHub App once the gates pass, and since
+2026-10-22 the tag ruleset makes it the only one, but for an administrator who switches the ruleset
+off ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). A leaked key needs a new key
 and every user's manual install of a new package, since apt trusts only the key in the sources file;
 the revocation certificate the owner keeps withdraws the old one for anyone who imports it, which
 apt does not.
@@ -462,8 +461,9 @@ feeds, which Sparkle's and WinSparkle's windows then offer to every installed co
 from the semantic-release GitHub App once the gates on `main` pass, and agents and maintainers push
 to `main` directly ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). What the
 approval held back was narrower than it looks: its page named the run and its tag, not what changed
-(H-92). What bounds it now is what bounds the release: the gates, and the tag ruleset that would let
-only the GitHub App create `v*` tags, decided by the owner (2026-10-14) and not set up (H-62). The job's own check keeps the tag rule: an environment
+(H-92). What bounds it now is what bounds the release: the gates, and the tag ruleset that lets only the
+GitHub App create `v*` tags, made the same day with the owner's OK (H-62); so the holders of the
+App's key and an administrator who switches the ruleset off remain. The job's own check keeps the tag rule: an environment
 without it is still refused (H-92).
 
 ### H-136: The first Linux install has no signature of its own

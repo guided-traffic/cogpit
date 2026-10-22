@@ -87,7 +87,7 @@ evening):
 | 7 | What the walks find (G16): WF31–WF45 of 2026-10-19 built the same day (WF39 and WF40, a safety matter, built: a connect goes on in the background when another cluster is shown, a failed connect stays on its cluster, D-97), the owner's re-walk of them open; then what the gate walk finds, and the depth of the gaps marked *blocks alpha*; then re-estimate readiness, which alpha needs in the ~40–75% band (~30% today). The night run of 2026-10-15/16 takes on, besides ranks 2 to 4, the depth of views and actions (G6, G7), the foundation (G1, G3, G4) and metrics (G12), against a real cluster the owner provides for tests | most of ~50–200 h |
 
 Out of scope until long after parity (owner, 2026-10-15): verifying the credential plugins on EKS,
-GKE and AKS (it was rank 7). Beside it: the owner's open questions for a later round; A10's tag ruleset and a LiteLLM CI key,
+GKE and AKS (it was rank 7). Beside it: the owner's open questions for a later round; a LiteLLM CI key (A10 made 2026-10-22),
 GitHub settings only with the owner's OK; several windows (R3) and selectable chat text (F8),
 postponed by the owner; the terminal widget's upstream pull requests (#158 and #147 open, #155 to #157 merged) and Fyne's
 font cache fix ([fyne#6620](https://github.com/fyne-io/fyne/pull/6620), opened 2026-10-22, [D-112](docs/developer/decisions.md#d-112-ci-and-test-time)).
@@ -165,6 +165,7 @@ Detail: [docs/parity/roadmap.md](docs/parity/roadmap.md).
 
 | Date | Change | Summary |
 |---|---|---|
+| 2026-10-22 | trivial | Upcoming's GitHub settings: A10 made: the tag ruleset (the App its only bypass) and `release`'s admin bypass off |
 | 2026-10-22 | trivial | Upcoming's upstream line: Fyne's font cache fix (issue fyne#6619, PR fyne#6620, D-112) and the terminal pull requests' state (#155 to #157 merged, #158 and #147 open); no number moves |
 | 2026-10-21 | minor | Progress log: CI and test time (D-112, on the branch `ci-speed`, PR #67) |
 | 2026-10-21 | minor | Cogpit for Windows (D-111, on the branch `windows-release`): the intro and the stage line; feature breadth ~86% (86.0% weighted; 9 of 13 package rows, the Windows row partial); G22 re-estimated 20–45 h (the lead's estimate, was 30–65), so the full Lens target ~360–900 h and the platforms dimension 32–75 h; readiness not re-estimated (it measures macOS); the path to alpha's side note and the progress log |
