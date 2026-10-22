@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/dialog"
@@ -217,9 +218,17 @@ func renderKeyboard(t *testing.T, mode ThemeMode, name string) {
 func TestRenderKeyboardDark(t *testing.T)  { renderKeyboard(t, ThemeDark, "keyboard_dark.png") }
 func TestRenderKeyboardLight(t *testing.T) { renderKeyboard(t, ThemeLight, "keyboard_light.png") }
 
+// doubleClickAt double-clicks the table at pos (in its coordinates) as Fyne's driver delivers it to
+// an object that is no fyne.DoubleTappable: two taps.
+func doubleClickAt(tbl *resourceTable, pos fyne.Position) {
+	test.TapAt(tbl, pos)
+	test.TapAt(tbl, pos)
+}
+
 // TestDoubleClickSeparatorFitsColumn: a double click on the separator right of a column in the
 // header fits the column to its widest content (every row, not only those on screen) and keeps
-// that width as the user's; a double click between body cells changes nothing.
+// that width as the user's; one click there, two clicks further apart than a double click's, and a
+// double click between body cells change nothing.
 func TestDoubleClickSeparatorFitsColumn(t *testing.T) {
 	f := connectedFake(t, 200)
 	sh, w, q := newTestShell(t, f, Options{})
@@ -247,21 +256,33 @@ func TestDoubleClickSeparatorFitsColumn(t *testing.T) {
 	width := func(col int) float32 { return tv.setWidths[firstDataColumn+col] }
 
 	before := width(1)
-	tv.table.DoubleTapped(&fyne.PointEvent{Position: at(1).AddXY(0, 3*header)}) // between body cells
+	doubleClickAt(tv.table, at(1).AddXY(0, 3*header)) // between body cells
 	if width(1) != before {
 		t.Fatal("a double click between body cells resized a column")
 	}
 	checks := tv.setWidths[checkColumn]
-	tv.table.DoubleTapped(&fyne.PointEvent{Position: fyne.NewPos(checks+gap/2, header/2)})
+	doubleClickAt(tv.table, fyne.NewPos(checks+gap/2, header/2))
 	if tv.setWidths[checkColumn] != checks || len(tv.userWidths) != 0 {
 		t.Fatal("a double click on the checkboxes' separator fitted a column")
 	}
 	stretched := width(0)
-	tv.table.DoubleTapped(&fyne.PointEvent{Position: at(0)})
+	now := time.Now()
+	sh.tabs.now = func() time.Time { return now } // the clock of double clicks (tabbar.go)
+	test.TapAt(tv.table, at(0))
+	if width(0) != stretched {
+		t.Fatal("one click on Name's separator fitted it")
+	}
+	now = now.Add(doubleClickTime)
+	test.TapAt(tv.table, at(0))
+	if width(0) != stretched {
+		t.Fatal("two clicks on Name's separator a double click's interval apart fitted it")
+	}
+	now = now.Add(doubleClickTime / 2)
+	test.TapAt(tv.table, at(0)) // the second click of a double click with the one before
 	if got, want := width(0), widest(0); got != want || got >= stretched {
 		t.Fatalf("Name fitted to %v, want %v (it was stretched to %v)", got, want, stretched)
 	}
-	tv.table.DoubleTapped(&fyne.PointEvent{Position: at(1)})
+	doubleClickAt(tv.table, at(1))
 	if got, want := width(1), widest(1); got != want {
 		t.Fatalf("Namespace fitted to %v, want %v", got, want)
 	}

@@ -1176,6 +1176,8 @@ type resourceTable struct {
 	offset fyne.Position     // the scroll offset, as the scroller last reported it
 	body   *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
 	hover  fyne.Position     // the pointer in the table, for the cursor over a divider
+	// sepClick is the last click on a header separator, for its double click (tableheader.go).
+	sepClick click
 
 	dragging, dragFixed bool // a drag is under way; it began on the divider of a column that keeps its width
 }
