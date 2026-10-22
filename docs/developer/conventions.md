@@ -169,6 +169,9 @@ Kubernetes-Objekten ist immer: Context, Namespace, Objects."
   the kind once, the names under each other; in plain text (a title) "Config Map → walk-cm". A
   dialog builds its rows with `placeRows` and `objectsRow` ([`objectnames.go`](../../internal/ui/fyneui/objectnames.go)),
   never with `kind + " " + name`.
+- **A context is named by its id as it is, its source label grey** (the owner's AW7, 2026-10-22:
+  "aber grau wäre top"): the Context row reads "kind-cogpit [kubernetes_configs/walk-kind.yaml]",
+  the label in brackets in the kind word's muted colour (`contextValue`, which `placeRows` uses).
 - **What a command does beyond its objects is a quick view, never a sentence** (the owner's WF33:
   "technisch präzise Schnellansicht"): a row per fact with its own short name ("Removes",
   "To revision", "Image"), the value terse, names bold, what is lost bold in the error colour, what

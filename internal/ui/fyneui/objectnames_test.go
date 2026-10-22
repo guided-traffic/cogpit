@@ -41,6 +41,81 @@ func TestObjectNamesSetTheKindApart(t *testing.T) {
 	}
 }
 
+// A dialog's Context row (the owner's alpha walk, AW7, 2026-10-22: "Dann lass es gerne in dem Format
+// wie es ist, aber grau wäre top"): a source context's id stays as it is, "<context> [<label>]", the
+// context in the text colour and its source label in the kind word's grey, on the context's line
+// where it fits, else wrapped as before; the paragraph keeps the whole id; an id without a label is
+// the context alone.
+func TestContextRowMutesTheSourceLabel(t *testing.T) {
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
+	th := fyne.CurrentApp().Settings().Theme()
+	fg, muted := themeColor(th, theme.ColorNameForeground), themeColor(th, colorMuted)
+	size := th.Size(theme.SizeNameText)
+	const name, label = "kind-cogpit", "[kubernetes_configs/walk-kind.yaml]"
+	id := name + " " + label
+	value := func(context string, width float32) (*paragraph, []*canvas.Text) {
+		t.Helper()
+		rows := box(kvLayout{})
+		placeRows(rows, context, nil, nil, width)
+		p, ok := rows.Objects[1].(*paragraph)
+		if !ok {
+			t.Fatalf("the Context row's value is a %T", rows.Objects[1])
+		}
+		p.Resize(p.MinSize())
+		return p, findAll[*canvas.Text](p)
+	}
+	type drawn struct {
+		text  string
+		muted bool
+		x, y  float32
+	}
+	draw := func(texts []*canvas.Text) []drawn {
+		var out []drawn
+		for _, c := range texts {
+			if c.Color != fg && c.Color != muted {
+				t.Errorf("%q drawn in %v", c.Text, c.Color)
+			}
+			out = append(out, drawn{c.Text, c.Color == muted, c.Position().X, c.Position().Y})
+		}
+		return out
+	}
+
+	p, texts := value(id, 600) // room for both: one line
+	if p.text != id {
+		t.Errorf("the paragraph holds %q, want the whole id", p.text)
+	}
+	got := draw(texts)
+	if len(got) != 2 || got[0] != (drawn{name, false, 0, 0}) || got[1].text != label || !got[1].muted || got[1].y != 0 ||
+		got[1].x <= fyne.MeasureText(name, size, fyne.TextStyle{}).Width {
+		t.Errorf("one line: %+v", got)
+	}
+	labelW := fyne.MeasureText(label, size, fyne.TextStyle{}).Width
+	_, texts = value(id, labelW+2) // the label wraps to a line of its own, as before
+	got = draw(texts)
+	if len(got) != 2 || got[0] != (drawn{name, false, 0, 0}) || got[1].text != label || !got[1].muted || got[1].x != 0 || got[1].y <= 0 {
+		t.Errorf("wrapped: %+v", got)
+	}
+	_, texts = value(id, labelW/2) // a label wider than the column breaks anywhere, grey to its end
+	got = draw(texts)
+	if len(got) < 3 || got[0] != (drawn{name, false, 0, 0}) {
+		t.Fatalf("broken label: %+v", got)
+	}
+	var rest string
+	for _, d := range got[1:] {
+		if !d.muted || d.x != 0 {
+			t.Errorf("a piece of the label: %+v", d)
+		}
+		rest += d.text
+	}
+	if rest != label {
+		t.Errorf("the label's pieces %q", rest)
+	}
+	_, texts = value("demo", 600) // no source: the context alone
+	if got = draw(texts); len(got) != 1 || got[0] != (drawn{"demo", false, 0, 0}) {
+		t.Errorf("demo: %+v", got)
+	}
+}
+
 // The Edit tab's Apply that removes a key (the owner's WF33, 2026-10-19: "Removes key added. Ist
 // wieder als Satz geschrieben"): the confirmation names the object in the one form and the removed
 // key in a row of its own, bold and red as the drawer's save review does, never inside a sentence.
@@ -95,18 +170,19 @@ func TestConfirmationEffectsAreRows(t *testing.T) {
 }
 
 // renderApplyRemoves shows the owner's WF33 case: the Edit tab's Apply of a Config Map whose text
-// lost the key "added".
+// lost the key "added", on a context of a synced folder's file, its source label grey (AW7).
 func renderApplyRemoves(t *testing.T, mode ThemeMode, name string) {
 	f := connectedFake(t, 10000)
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
-	ref := model.ObjectRef{Context: "demo", Kind: "configmaps", Namespace: "walk-test", Name: "walk-cm"}
+	const walkContext = "kind-cogpit [kubernetes_configs/walk-kind.yaml]"
+	ref := model.ObjectRef{Context: walkContext, Kind: "configmaps", Namespace: "walk-test", Name: "walk-cm"}
 	effects := engine.DataKeysEffects(nil, []string{"added"})
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
 		_, _ = sh.confirmer.Confirm(context.Background(), engine.ConfirmRequest{
-			Command: "object.apply", Label: "Apply", Danger: engine.DangerDestructive, Origin: engine.OriginGUI, Context: "demo",
+			Command: "object.apply", Label: "Apply", Danger: engine.DangerDestructive, Origin: engine.OriginGUI, Context: walkContext,
 			Namespaces: []string{"walk-test"}, Objects: []model.ObjectRef{ref}, Kinds: []string{"Config Map"},
 			Effects: effects, Detail: engine.EffectsText(effects),
 		})
