@@ -62,7 +62,7 @@ func registerDock(g *registrar) {
 				if created {
 					u.Dock = append(u.Dock, tab)
 				}
-				u.ActiveDock = tab.ID
+				u.ShowDockTab(tab.ID) // the pod's tab open already, maybe the active one: the dock opens too (AW9)
 			})
 			return DockResult{Tab: tab, Created: created}, nil
 		},
@@ -166,7 +166,7 @@ func registerDock(g *registrar) {
 			st := s.UpdateUI(func(u *engine.UIState) {
 				if _, ok := u.DockTab(p.ID); ok {
 					found = true
-					u.ActiveDock = p.ID
+					u.ShowDockTab(p.ID) // the active tab too: shown means the dock open (AW9)
 				}
 			})
 			if !found {

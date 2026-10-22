@@ -23,8 +23,9 @@ var ErrNoDockTabs = errors.New("the dock has no tabs: open a terminal (⌘⇧T),
 // shows is added, or when another tab is made active while the one active before is still there (a
 // tab clicked, an object's logs opened again, an agent's dock.activate), but not when the active
 // tab moves because the one before it closed, nor when another cluster is shown (its dock opens as
-// it was). UpdateUI runs it; exported for the window's test fake of the engine, which applies the
-// same rule.
+// it was). A command that shows a tab already open, the active one too, opens the dock itself
+// (ShowDockTab): SyncDock sees no change there. UpdateUI runs it; exported for the window's test
+// fake of the engine, which applies the same rule.
 func (u *UIState) SyncDock(old UIState) {
 	u.syncDockScope(old)
 	shown := u.DockInScope()
@@ -34,6 +35,19 @@ func (u *UIState) SyncDock(old UIState) {
 	case dockTabAdded(old.Dock, shown):
 		u.DockOpen = true
 	case u.Context == old.Context && u.ActiveDock != old.ActiveDock && u.ActiveDock != "" && hasDockTab(u.Dock, old.ActiveDock):
+		u.DockOpen = true
+	}
+}
+
+// ShowDockTab makes the dock tab id the active one and opens the dock on it: a command that shows a
+// dock tab opens the dock, also when the tab is open already and the active one (the owner's alpha
+// walk, 2026-10-22, AW9: Edit on an object whose Edit tab was the active one left the minimised
+// dock collapsed, since SyncDock opens it only for a tab added or another tab made active). A tab
+// of a cluster the window does not show opens that cluster's dock for when it is shown
+// (syncDockScope), never the shown one. Exported for the window's test fake of the engine.
+func (u *UIState) ShowDockTab(id string) {
+	u.ActiveDock = id
+	if u.inDockScope(id) {
 		u.DockOpen = true
 	}
 }

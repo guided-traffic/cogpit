@@ -201,3 +201,32 @@ func TestUpdateNotice(t *testing.T) {
 type unavailableNotifier struct{ *fakeNotifier }
 
 func (unavailableNotifier) Unavailable() error { return errors.New("this build has no update key") }
+
+// TestShowDockTab (AW9): showing a tab opens the dock, the active tab shown again too, which
+// SyncDock alone leaves collapsed; a hidden cluster's tab shown opens that cluster's dock for when it
+// is shown, not the shown one.
+func TestShowDockTab(t *testing.T) {
+	s, _ := poolSession(t, time.Hour, "alpha", "beta")
+	mustConnect(t, s, "alpha")
+	addDockTab(s, "logs-1", "alpha")
+	mustConnect(t, s, "beta")
+	addDockTab(s, "terminal-2", "beta")
+	collapse := false
+	if _, err := s.SetLayout(LayoutDock, &collapse); err != nil {
+		t.Fatal(err)
+	}
+	if u := s.UpdateUI(func(u *UIState) { u.ActiveDock = "terminal-2" }); u.DockOpen {
+		t.Fatal("setting the active tab again opened the dock: the case ShowDockTab is for is gone")
+	}
+	if u := s.UpdateUI(func(u *UIState) { u.ShowDockTab("terminal-2") }); u.ActiveDock != "terminal-2" || !u.DockOpen {
+		t.Errorf("the active tab shown again: active %q, open %v", u.ActiveDock, u.DockOpen)
+	}
+	_, _ = s.SetLayout(LayoutDock, &collapse)
+	u := s.UpdateUI(func(u *UIState) { u.ShowDockTab("logs-1") }) // an agent's pod.logs on alpha, not shown
+	if u.ActiveDock != "terminal-2" || u.DockOpen {
+		t.Errorf("the shown dock: active %q, open %v; want terminal-2, collapsed", u.ActiveDock, u.DockOpen)
+	}
+	if m := u.dockMemo["alpha"]; m.active != "logs-1" || !m.open {
+		t.Errorf("alpha's dock: %+v", m)
+	}
+}

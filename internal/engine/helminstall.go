@@ -113,7 +113,7 @@ func (s *Session) OpenHelmInstallTab(ctx context.Context, contextID, repository,
 			return st, false, err
 		}
 		id := t.ID
-		s.UpdateUI(func(u *UIState) { u.ActiveDock = id })
+		s.UpdateUI(func(u *UIState) { u.ShowDockTab(id) })
 		st, err := s.EditorState(ctx, id)
 		return st, false, err
 	}
@@ -147,7 +147,7 @@ func (s *Session) OpenHelmInstallTab(ctx context.Context, contextID, repository,
 		if created {
 			u.Dock = append(u.Dock, tab)
 		}
-		u.ActiveDock = tab.ID
+		u.ShowDockTab(tab.ID)
 	})
 	s.settleEditor(e.tab.ID, created, ui.Revision)
 	st, err := s.EditorState(ctx, tab.ID)
@@ -195,7 +195,7 @@ func (s *Session) ReloadHelmInstallTab(ctx context.Context, id, version string) 
 				u.Dock[i].HelmInstall = info
 			}
 		}
-		u.ActiveDock = id
+		u.ShowDockTab(id)
 	})
 	return s.EditorState(ctx, id)
 }

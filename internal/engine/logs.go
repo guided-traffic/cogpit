@@ -175,7 +175,7 @@ func (s *Session) OpenWorkloadLogsTab(ctx context.Context, ref model.ObjectRef) 
 		if created {
 			u.Dock = append(u.Dock, tab)
 		}
-		u.ActiveDock = tab.ID
+		u.ShowDockTab(tab.ID)
 	})
 	return tab, created, nil
 }
@@ -213,7 +213,7 @@ func (s *Session) OpenGroupLogsTab(ctx context.Context, ref model.ObjectRef) (Do
 		if created {
 			u.Dock = append(u.Dock, tab)
 		}
-		u.ActiveDock = tab.ID
+		u.ShowDockTab(tab.ID)
 	})
 	return tab, created, nil
 }
