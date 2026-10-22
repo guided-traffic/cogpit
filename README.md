@@ -27,11 +27,10 @@ change.
   <img src="docs/images/hero_dark.png" alt="Cogpit: the navigator, the Pods list with CPU and memory, and a pod's drawer with its CPU chart, requests and limits">
 </picture>
 
-> **Pre-alpha.** Cogpit runs on macOS on Apple silicon, from the release after v0.32.0 on
-> Debian and Ubuntu (amd64 and arm64), and on Windows 10 and 11 (x64) from the first release after
-> the branch `windows-release` is merged (built 2026-10-21). The views and actions are in place, some of them still in part, but nothing has
-> been walked through by testers on real clusters yet: try it on a test cluster first. Where it
-> stands, feature by feature:
+> **Alpha.** Cogpit runs on macOS on Apple silicon, on Debian and Ubuntu (amd64 and arm64) and on
+> Windows 10 and 11 (x64). Every core workflow has been walked end to end on real clusters; some
+> views and actions are still partial and rough edges remain, so try it on a test cluster first.
+> Where it stands, feature by feature:
 > [ROADMAP.md](ROADMAP.md).
 
 ## ✨ Features

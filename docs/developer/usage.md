@@ -17,16 +17,15 @@ own credentials, and gives you the views Lens users know: workloads, logs, shell
 port forwarding and the Helm releases in your clusters. Every view reads from a cache that watches
 keep current, so it is fast for you and light on the API server. And agents can drive all of it
 over MCP, the UI included. Cogpit is a desktop client: it is never a web UI and is never deployed
-into a cluster. **Status: pre-alpha** (updated 2026-10-15): every view and every action on Lens's
+into a cluster. **Status: alpha** (declared by the owner 2026-10-22): every view and every action on Lens's
 list exists at least in part (64 of 64 views, 42 of 42 actions, counted by `make parity`), with
 the Flux CD and Argo CD sections, Helm releases and charts, metrics, logs, a terminal, pod and node
-shells, the built-in agent's chat and MCP control of all of it; none of it has been walked through
-by a person on a real cluster yet. The releases are builds for Apple silicon, signed and notarized
-since v0.6.0 (v0.6.0 to v0.8.0 carry the download; v0.5.0 and v0.9.0 to v0.12.0 got no files),
-and from the release after v0.32.0 on also Linux packages for amd64 and arm64 with Cogpit's APT
-repository (since 2026-10-20 night, [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
-and from the first release after the branch `windows-release` is merged a Windows setup for x64
-that WinSparkle keeps up to date (built 2026-10-21, not yet in a release)
+shells, the built-in agent's chat and MCP control of all of it; every core workflow of the alpha
+gate was walked end to end on real clusters (2026-10-17 to 2026-10-22). The releases are builds for
+Apple silicon, signed and notarized, updated through Sparkle; Linux packages for amd64 and arm64
+with Cogpit's APT repository ([D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages));
+and since v0.37.0 a Windows setup for x64 that WinSparkle keeps up to date
+([D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle))
 ([Download a release](#download-a-release), [Install on Linux](#install-on-linux),
 [Install on Windows](#install-on-windows), [Run the MVP](#run-the-mvp)); where Cogpit stands:
 [roadmap](../../ROADMAP.md).
