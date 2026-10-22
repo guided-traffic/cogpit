@@ -133,9 +133,11 @@ func (s *Session) runConnect(r *connectRun) {
 	}
 	s.attachCustomKinds(b)
 	s.noteAccessReviews(b, steps) // their first answers, when they come (accessreviews.go)
-	s.attachAccess(b)
-	s.attachRefusals(b)       // a refused read in all namespaces is followed, whoever sent it (accessiblens_plan.go)
+	// The namespaces watch before the access reviews: their goroutine pokes b.nsWatch
+	// (accessChanged), so the field is set before it starts.
 	s.attachNamespaceWatch(b) // while the namespace filter names namespaces (nswatch.go, AW11)
+	s.attachAccess(b)
+	s.attachRefusals(b) // a refused read in all namespaces is followed, whoever sent it (accessiblens_plan.go)
 	if line := insecureLogLine(b); line != "" {
 		steps.step(LogWarn, cluster.StepTLS, line, 0) // insecure-skip-tls-verify (tlswarning.go)
 	}
