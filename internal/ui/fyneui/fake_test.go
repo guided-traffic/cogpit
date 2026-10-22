@@ -45,8 +45,11 @@ type fakeEngine struct {
 	namespaces []string
 	// terminatingNS are the namespaces resources.list answers as Terminating.
 	terminatingNS map[string]bool
-	disabled      map[string]string // command id → the reason Enabled returns
-	opened        map[string]int    // dock tab id → times its stream was opened
+	// nsErr, when set, is resources.list's answer for the namespaces, as for a cluster whose cache
+	// never read them and cannot now (its login expired, its connection interrupted).
+	nsErr    error
+	disabled map[string]string // command id → the reason Enabled returns
+	opened   map[string]int    // dock tab id → times its stream was opened
 	// quietTerminals: OpenTerminal's sessions print nothing (quietReader).
 	quietTerminals bool
 	// terminalCallsOnly: terminal.open is recorded but opens no dock tab, so that no terminal
@@ -529,6 +532,9 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		}
 		f.mu.Lock()
 		defer f.mu.Unlock()
+		if f.nsErr != nil {
+			return nil, f.nsErr
+		}
 		rows := make([]map[string]any, 0, len(f.namespaces))
 		for _, n := range f.namespaces {
 			status := model.StatusOK

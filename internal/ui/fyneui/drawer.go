@@ -55,6 +55,8 @@ type drawer struct {
 	actions  *fyne.Container // the action icons in the title bar
 	nameCopy *tipButton      // Copy, right after the title (drawertitlecopy.go)
 	titleBox *fyne.Container // the title and nameCopy
+	head     *fyne.Container // the header and the line under it (layoutHeader)
+	frame    *fyne.Container // head above body
 	tabs     *container.AppTabs
 	body     *fyne.Container // the tabs, or for a plain drawer (Lens's release drawer) the details alone
 	pane     *fyne.Container // the details' place in the first tab
@@ -117,9 +119,10 @@ func newDrawer(sh *shell) *drawer {
 	header := container.NewStack(d.wash,
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding,
 			container.NewVBox(d.kind, titleRow, container.NewHBox(d.status), d.extra, d.missing)))
+	d.head = container.NewVBox(header, newDivider(false))
+	d.frame = container.NewBorder(d.head, nil, nil, nil, d.body)
 	// The root's minimum width is a constant: the drawer's width is the user's (panelwidths.go).
-	d.root = box(lockedWidth{}, newSurface(colorDrawer),
-		container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil, d.body))
+	d.root = box(lockedWidth{}, newSurface(colorDrawer), d.frame)
 	d.width = clampWidth(sh.drawerW, minDrawerWidth, maxDrawerWidth, minDrawerWidth)
 	d.status.limit(d.statusWidth())
 	return d
@@ -224,10 +227,28 @@ func (d *drawer) showLoading(ref model.ObjectRef) {
 	d.actions.Objects = nil
 	d.actions.Refresh()
 	d.nameCopy.Hide()
+	d.layoutHeader()
 	d.details.Objects = []fyne.CanvasObject{newTextLine("Loading…", colorMuted, theme.SizeNameText, fyne.TextStyle{})}
 	d.details.Refresh()
 	d.setYAML("", false)
 	d.tabs.SelectIndex(0)
+}
+
+// layoutHeader lays the header out again at once after showLoading or show changed what it holds
+// (the action icons, the status, the lines under the title), and the body below it at the header's
+// height. Fyne's GL driver lays a parent out before a frame only when a child's minimum size
+// differs from the one the last frame saw. A drawer moved to another pod is laid out while it loads
+// (drawerChanged refreshes the workspace after showLoading), and the pod's detail, read from the
+// cache, often comes before the next frame: with icons as wide as the last pod's and a status as
+// tall, no frame saw a change, and the header kept the loading layout, the icons drawn from the
+// close button on past the drawer's edge and the status under the tabs (the owner's finding of
+// 2026-10-22). The header holds a few widgets; a refresh of it costs little.
+func (d *drawer) layoutHeader() {
+	if s := d.frame.Size(); s.Width <= 0 || s.Height <= 0 {
+		return // not laid out yet: its first layout places everything
+	}
+	d.frame.Layout.Layout(d.frame.Objects, d.frame.Size())
+	d.head.Refresh()
 }
 
 // setPlain switches between the drawer with Details and YAML tabs and Lens's flat release drawer
@@ -294,6 +315,7 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 	}
 	d.showHeader(ref, m)
 	d.showActions(ref, acts)
+	d.layoutHeader()
 
 	prev := d.last
 	d.last = m

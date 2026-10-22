@@ -1025,7 +1025,12 @@ interrupted cluster in the background disables the changes to it only, and its s
   next; **Reconnect** connects anew at once ([below](#reconnect-a-new-connection-from-the-kubeconfig-file);
   since 2026-10-16, the owner's F13: dots, never words).
 - The views, the tabs, the drawer and the dock stay as they were, showing the cluster as of the
-  interruption. Everything that would change the cluster is disabled, its menus saying
+  interruption. A view whose objects were not read before (opened since, or a cluster shown again
+  after its lists went cold) loads nothing until the cluster is back and says so: "The pods were
+  not read before the cluster stopped answering; they load once it answers again." (after an
+  expired login: "…before the login expired; they load once it is renewed."), without an item
+  count, "syncing…" or the download button; the namespace filter offers only that cluster's
+  namespaces, none while they were not read (since 2026-10-22). Everything that would change the cluster is disabled, its menus saying
   "connection interrupted" and the selection bar's greyed Delete "Delete — connection interrupted"
   in its tooltip; an agent's change is refused the same way, and its reads are marked as
   the cluster's state of then.

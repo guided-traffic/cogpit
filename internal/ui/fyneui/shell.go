@@ -602,10 +602,12 @@ func (sh *shell) connectionChanged(st, old engine.UIState) {
 	sh.conn.update()            // the banner of an interrupted connection (D-58)
 	sh.dock.connectionChanged() // its shells' Reconnect (dockreconnect.go)
 	sh.side.updateHeader()
+	sh.view.updateTitle() // a view not read before the interruption has no count and does not sync
 	sh.view.updatePlaceholder()
 	sh.view.checksChanged() // the selection bar's Delete follows the connection (D-58)
 	// A connected cluster shown again loads its kinds, an interrupted one too (D-69).
 	if st.Connection.State.Live() && (sh.kindsFor != st.Context) {
+		sh.forgetNamespaces()
 		sh.loadKinds()
 		sh.loadNamespaces()
 	}
@@ -745,6 +747,22 @@ func (sh *shell) namespacesRead(ctxName string, names []string, terminating map[
 	}
 	for _, id := range slices.Sorted(maps.Keys(sh.nsFollow)) {
 		sh.nsFollow[id](slices.Clone(names))
+	}
+}
+
+// forgetNamespaces drops the namespaces read for the cluster shown before another one, so that the
+// filter and the fields that offer namespaces never offer that cluster's: loadNamespaces keeps the
+// last list when its read fails, and the read of a cluster whose login expired or whose connection
+// was interrupted before its namespaces were read waits until the cluster is back (the owner's
+// finding of 2026-10-22: awe-p-pinniped, its login expired, offered wds18-main's namespaces).
+func (sh *shell) forgetNamespaces() {
+	if sh.namespaces == nil && sh.nsFor == "" {
+		return
+	}
+	sh.namespaces, sh.nsFor, sh.nsTerminating = nil, "", nil
+	sh.view.namespacesLoaded()
+	for _, id := range slices.Sorted(maps.Keys(sh.nsFollow)) {
+		sh.nsFollow[id](nil)
 	}
 }
 

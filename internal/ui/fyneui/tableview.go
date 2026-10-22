@@ -220,7 +220,8 @@ func newTableView(sh *shell) *tableView {
 // selection bar: the bar takes their place (tablecheck.go).
 func (tv *tableView) showHeadingCount() {
 	show := tv.snap != nil && (tv.check.bar == nil || !tv.check.bar.root.Visible())
-	csv := show && !tv.alerts.shown // the alert board's count has no table to download (alertboard.go)
+	csv := show && !tv.alerts.shown    // the alert board's count has no table to download (alertboard.go)
+	csv = csv && !tv.unreadWhileAway() // nor has a view not read before the cluster went away
 	show = show || tv.alerts.shown
 	if csv != tv.csvButton.Visible() {
 		if csv {
@@ -360,13 +361,39 @@ func (tv *tableView) updateTitle() {
 		tv.showHeadingCount()
 		return
 	}
-	tv.count.SetText(itemCount(len(tv.snap.Rows), tv.snap.Total))
-	tv.showHeadingCount()
-	if tv.snap.Synced {
+	switch {
+	case tv.unreadWhileAway(): // no count of what was never read, and nothing syncs
+		tv.count.SetText("")
 		tv.syncing.SetText("")
-	} else {
+	case tv.snap.Synced:
+		tv.count.SetText(itemCount(len(tv.snap.Rows), tv.snap.Total))
+		tv.syncing.SetText("")
+	default:
+		tv.count.SetText(itemCount(len(tv.snap.Rows), tv.snap.Total))
 		tv.syncing.SetText("syncing…")
 	}
+	tv.showHeadingCount()
+}
+
+// unreadWhileAway reports whether the open view shows nothing because its objects were not read
+// before the connection was interrupted or the login expired (a view opened since, a cluster shown
+// again after its cache went cold): the cache's lists wait until the cluster is back
+// (cluster.HealthInterrupted, HealthLoginExpired), so nothing loads or syncs meanwhile and the
+// view says so instead of "Loading…" and "syncing…" (the owner's finding of 2026-10-22). A view
+// read before keeps its rows as of then (D-58).
+func (tv *tableView) unreadWhileAway() bool {
+	if st := tv.sh.ui.Connection.State; st != engine.Interrupted && st != engine.LoginExpired {
+		return false
+	}
+	return tv.snap == nil || (!tv.snap.Synced && len(tv.snap.Rows) == 0 && tv.snap.Error == "")
+}
+
+// unreadText is the placeholder of a view unreadWhileAway: why it is empty and when it loads.
+func unreadText(noun string, st engine.ConnectionState) string {
+	if st == engine.LoginExpired {
+		return "The " + noun + " were not read before the login expired; they load once it is renewed."
+	}
+	return "The " + noun + " were not read before the cluster stopped answering; they load once it answers again."
 }
 
 // updateConnecting shows, while the cluster connects, the login its credential plugin waits for and
@@ -414,6 +441,8 @@ func (tv *tableView) updatePlaceholder() {
 		}
 	case ui.View == "":
 		msg = "Choose a view in the sidebar."
+	case tv.unreadWhileAway():
+		msg = unreadText(tv.rowNoun(), ui.Connection.State)
 	case tv.snap == nil || (!tv.snap.Synced && len(tv.snap.Rows) == 0 && tv.snap.Error == ""):
 		msg = "Loading " + tv.rowNoun() + "…"
 	case len(tv.snap.Rows) == 0 && (tv.snap.Filter != "" || len(tv.snap.Namespaces) > 0 || len(tv.snap.States) > 0 || (tv.groupMode() && len(ui.Groups) > 0)):
