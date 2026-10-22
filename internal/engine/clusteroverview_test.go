@@ -351,12 +351,14 @@ func TestClusterOverviewCharts(t *testing.T) {
 	s.UpdateUI(func(u *UIState) { u.View = "nodes" }) // no Pods view polling the pods' metrics
 	s.UpdateUI(func(u *UIState) { u.View = ClusterOverview })
 	var m *ClusterOverviewModel
-	waitFor(t, "the workers' CPU from the hub", func() bool {
+	// The hub's polls can come before the page's kinds are listed, and the Pods chart counts only
+	// a synced build: both are waited for.
+	waitFor(t, "the page's lists and the workers' CPU from the hub", func() bool {
 		var err error
 		if m, err = s.ClusterOverview(context.Background(), "", nil, true); err != nil {
 			t.Fatal(err)
 		}
-		return m.Status == metrics.StatusAvailable && m.Charts[0].Current != nil && len(m.Charts[0].Samples) >= 2
+		return m.Synced && m.Status == metrics.StatusAvailable && m.Charts[0].Current != nil && len(m.Charts[0].Samples) >= 2
 	})
 	if m.Nodes != NodesWorker || *m.Charts[0].Current != 1.5 || *m.Charts[1].Current != 4<<30 || m.Source != metrics.ServerLabel || m.History {
 		t.Fatalf("workers: nodes %s, cpu %v, memory %v, source %q", m.Nodes, *m.Charts[0].Current, *m.Charts[1].Current, m.Source)

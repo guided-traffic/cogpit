@@ -258,9 +258,9 @@ func (w *clusterOverviewWorker) rebuild() {
 	if w.stopped.Load() {
 		return
 	}
+	w.charts.follow(ob) // before the store: a read that finds a synced build finds its pods count
 	w.build.Store(ob)
 	w.snap.Store(snap)
-	w.charts.follow(ob)
 	w.s.emit(Event{Type: EventTable, View: ClusterOverview, Revision: snap.Revision})
 }
 
