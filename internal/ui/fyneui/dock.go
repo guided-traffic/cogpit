@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"image/color"
 	"io"
@@ -19,8 +18,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/termview"
 )
 
-// dock is the bottom panel: a tab strip (tabs from UIState.Dock, a "+" menu, a collapse toggle)
-// above the active tab's content. Whether it is open or collapsed to its strip is engine state,
+// dock is the bottom panel: a tab strip (tabs from UIState.Dock, the terminal chip after them,
+// terminalbutton.go; the create chip and a collapse toggle at its right end) above the active
+// tab's content. Whether it is open or collapsed to its strip is engine state,
 // UIState.DockOpen (ui.toggleDock, ⌘J, the top bar's layout button; engine/layout.go): a new or
 // activated tab opens it, and a dock without tabs is closed. Log tabs show termview.Logs on Session.OpenLogs with their
 // options' toolbar (logtab.go); terminal, shell and attach tabs show termview.Terminal on
@@ -46,6 +46,7 @@ type dock struct {
 	body         *fyne.Container
 	panel        fyne.CanvasObject
 	toggle       *widget.Button
+	terminal     *stripChip // the chip after the tabs that opens a terminal tab (terminalbutton.go)
 	// agentRead is the strip's "Agents may read" switch of the active terminal tab (dockoutput.go):
 	// the tab it shows and since when.
 	agentRead        *widget.Check
@@ -119,9 +120,7 @@ func newDock(sh *shell) *dock {
 			b.onTap()
 		}
 	}
-	add := widget.NewButtonWithIcon("", theme.ContentAddIcon(), nil)
-	add.Importance = widget.LowImportance
-	add.OnTapped = func() { d.showAddMenu(add) }
+	d.terminal = newTerminalButton(sh)
 	d.toggle = widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), func() { d.setOpen(nil) })
 	d.toggle.Importance = widget.LowImportance
 	d.agentRead = d.newAgentReadSwitch()
@@ -131,7 +130,7 @@ func newDock(sh *shell) *dock {
 		right = container.NewHBox(container.NewCenter(sh.view.create), d.agentReadMarks.note, d.agentRead, d.toggle, newHGap(theme.SizeNameInnerPadding))
 	}
 	d.strip = container.NewStack(newSurface(colorDock),
-		container.NewBorder(nil, nil, container.NewHBox(d.tabRow, add), right))
+		container.NewBorder(nil, nil, container.NewHBox(d.tabRow, container.NewCenter(d.terminal)), right))
 	d.stripHolder = container.NewStack()
 	d.collapsedBar = container.NewVBox()
 	d.body = container.NewStack()
@@ -359,53 +358,6 @@ func (d *dock) updateToggle() {
 	} else {
 		d.toggle.SetIcon(theme.MenuDropUpIcon())
 	}
-}
-
-// addMenuEntry is one item of the dock's "+" menu.
-type addMenuEntry struct {
-	label, command string
-	params         any
-}
-
-// addMenuEntries are the dock's "+" menu: Terminal session and Create resource (captured).
-var addMenuEntries = []addMenuEntry{
-	{"Terminal session", "terminal.open", struct{}{}},
-	{"Create resource", "resource.createTab", createTabParams{}},
-}
-
-// showAddMenu offers new tabs; an item the engine disables says why, one this build lacks is left
-// out.
-func (d *dock) showAddMenu(from fyne.CanvasObject) {
-	go func() {
-		reasons := make([]error, len(addMenuEntries))
-		for i, e := range addMenuEntries {
-			reasons[i] = d.sh.commandEnabled(e.command, e.params)
-		}
-		d.sh.do(func() {
-			menu := d.addMenu(reasons)
-			if cnv := fyne.CurrentApp().Driver().CanvasForObject(from); cnv != nil && len(menu.Items) > 0 {
-				m := widget.NewPopUpMenu(menu, cnv)
-				m.ShowAtRelativePosition(fyne.NewPos(0, -m.MinSize().Height), from)
-			}
-		})
-	}()
-}
-
-// addMenu builds the "+" menu from each entry's Enabled result.
-func (d *dock) addMenu(reasons []error) *fyne.Menu {
-	var items []*fyne.MenuItem
-	for i, e := range addMenuEntries {
-		if errors.Is(reasons[i], errUnavailable) {
-			continue
-		}
-		item := fyne.NewMenuItem(e.label, func() { d.sh.dispatch(e.command, e.params, nil) })
-		if reasons[i] != nil {
-			item.Label += " (" + reasons[i].Error() + ")"
-			item.Disabled = true
-		}
-		items = append(items, item)
-	}
-	return fyne.NewMenu("", items...)
 }
 
 // dockMoveParams mirror dock.move's parameters.

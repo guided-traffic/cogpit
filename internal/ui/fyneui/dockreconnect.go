@@ -71,8 +71,10 @@ func (d *dock) followSession(c *dockContent, t engine.DockTab) {
 }
 
 // connectionChanged updates the terminal tabs' Reconnect rows: their button works once the
-// connection is back. Main goroutine only.
+// connection is back; and the terminal chip, shown while the shown cluster is connected. Main
+// goroutine only.
 func (d *dock) connectionChanged() {
+	d.terminal.update()
 	for _, c := range d.contents {
 		c.updateReconnect(d.sh)
 	}

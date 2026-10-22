@@ -14,7 +14,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 |---|---|---|---|---|---|
 | Resource views (free) | 64 | 64 | 1 | 63 | 0 |
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
-| Interface rows, free plan | 122 | 119 | 9 | 110 | 3 |
+| Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
 | Platform rows (packages, authentication, versions, tools, display) | 38 | 21 | 0 | 21 | 17 |
 | Beyond Lens (not in feature breadth) | 74 | 73 | 61 | 12 | 1 |
@@ -156,7 +156,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Long values fold: Labels, Annotations, Tolerations, environment variables, mounts and volumes show a count ("6 Labels") and expand on click… | partial | [Detail drawer](ui-parity.md#detail-drawer) |
 | Object references in the drawer are links (namespace, controller, node, service account, secrets); container ports have a "Forward…" button… | done | [Detail drawer](ui-parity.md#detail-drawer) |
 | Bottom dock with tabs: Terminal session, Create resource, Edit, logs, Helm Install, Helm Upgrade; tabs named after their object ("Pod <name… | partial | [Dock](ui-parity.md#dock) |
-| "New tab" menu: Terminal session, Create resource | done | [Dock](ui-parity.md#dock) |
+| "New tab" menu: Terminal session, Create resource | partial | [Dock](ui-parity.md#dock) |
 | Tab icons take the cluster's colour | partial | [Dock](ui-parity.md#dock) |
 | Edit tab: YAML editor with syntax highlighting and Save | partial | [Editor and create resource](ui-parity.md#editor-and-create-resource) |
 | Diff view: "Show changes", "Revert to original", "Exit diff view" | partial | [Editor and create resource](ui-parity.md#editor-and-create-resource) |

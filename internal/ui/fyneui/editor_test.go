@@ -370,34 +370,6 @@ func TestCreateTabTemplatesAndCreate(t *testing.T) {
 	}
 }
 
-func TestDockAddMenuOffersCreateResource(t *testing.T) {
-	f := connectedFake(t, 20)
-	newEditorFake(f)
-	f.disabled["terminal.open"] = "terminals are not available on the demo cluster"
-	sh, w, q := newTestShell(t, f, Options{})
-	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
-	reasons := make([]error, len(addMenuEntries))
-	for i, e := range addMenuEntries {
-		reasons[i] = sh.commandEnabled(e.command, e.params)
-	}
-	menu := sh.dock.addMenu(reasons)
-	if len(menu.Items) != 2 || !strings.HasPrefix(menu.Items[0].Label, "Terminal session (") || !menu.Items[0].Disabled ||
-		menu.Items[1].Label != "Create resource" || menu.Items[1].Disabled {
-		for _, it := range menu.Items {
-			t.Logf("item %q disabled=%v", it.Label, it.Disabled)
-		}
-		t.Fatal("the + menu offers Terminal session (disabled with its reason) and Create resource")
-	}
-	menu.Items[1].Action()
-	q.until(t, "the create tab", func() bool { return len(f.callsOf("resource.createTab")) == 1 })
-	if p := decodeParams[createTabParams](t, f.callsOf("resource.createTab")[0]); p.Template != "" {
-		t.Errorf("the dock's Create resource starts from the example Pod, got template %q", p.Template)
-	}
-	n := len(w.Canvas().Overlays().List())
-	sh.dock.showAddMenu(sh.view.title)
-	q.until(t, "the menu", func() bool { return len(w.Canvas().Overlays().List()) == n+1 })
-}
-
 func TestCreateButtonHiddenWithoutCluster(t *testing.T) {
 	f := newFakeEngine(t)
 	f.contexts = fixtureContexts()
