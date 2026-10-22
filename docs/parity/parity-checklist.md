@@ -15,11 +15,11 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Resource views (free) | 64 | 64 | 1 | 63 | 0 |
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
-| Interface rows, paid plans | 12 | 8 | 0 | 8 | 4 |
-| Platform rows (packages, authentication, versions, tools, display) | 38 | 21 | 0 | 21 | 17 |
+| Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
+| Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
 | Beyond Lens (not in feature breadth) | 74 | 73 | 61 | 12 | 1 |
 
-Not counted: 10 interface rows that are not a target, 5 platform rows that are paid or have nothing to build.
+Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
 ## Resource views and actions
 
@@ -122,7 +122,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Cluster identity: upload an icon (.jpeg, .png, .svg) or pick a colour | partial | [Clusters](ui-parity.md#clusters) |
 | Drill into a section or cluster with its chevron to filter the tabs to that scope | partial | [Clusters](ui-parity.md#clusters) |
 | Navigator keyboard: ↑↓ move, → opens, ← closes, Tab and ⇧Tab, ↵ preview tab, ⇧↵ fixed tab | partial | [Clusters](ui-parity.md#clusters) |
-| Cloud sections list clusters from AWS, Azure and Google accounts | missing | [Clusters](ui-parity.md#clusters) |
+| Cloud sections list clusters from AWS, Azure and Google accounts | not a target | [Clusters](ui-parity.md#clusters) |
 | Hotbar of up to 12 clusters per bank | partial | [Hotbar](ui-parity.md#hotbar) |
 | Banks: create, rename, remove, switch from the command palette | not a target | [Hotbar](ui-parity.md#hotbar) |
 | F1–F12 switch to a cluster in the bank, ⇧F1–⇧F12 switch bank | partial | [Hotbar](ui-parity.md#hotbar) |
@@ -221,7 +221,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Editor: show minimap and its position, line numbers, tab size, font size, font family | partial | [Preferences](ui-parity.md#preferences) |
 | Tables: row line height | partial | [Preferences](ui-parity.md#preferences) |
 | Terminal: shell path, shell arguments, copy and paste behaviour, theme, font size, font family | partial | [Preferences](ui-parity.md#preferences) |
-| Integrations: AWS EKS, Azure AKS, Google GKE | missing | [Preferences](ui-parity.md#preferences) |
+| Integrations: AWS EKS, Azure AKS, Google GKE | not a target | [Preferences](ui-parity.md#preferences) |
 | External tools: the AI command-line tool for Ask AI | not a target | [Preferences](ui-parity.md#preferences) |
 | Extensions: install from file system, auto-update | not a target | [Preferences](ui-parity.md#preferences) |
 | Telemetry, surveys, error reports; Teamwork | not a target | [Preferences](ui-parity.md#preferences) |
@@ -269,9 +269,9 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Client certificate and key, inline or as files | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Bearer token, inline or token file | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Exec credential plugin (client.authentication.k8s.io) | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
-| Exec plugin: aws eks get-token and aws-iam-authenticator (EKS) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
-| Exec plugin: gke-gcloud-auth-plugin (GKE) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
-| Exec plugin: kubelogin (AKS, Entra ID) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
+| Exec plugin: aws eks get-token and aws-iam-authenticator (EKS) | not a target | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
+| Exec plugin: gke-gcloud-auth-plugin (GKE) | not a target | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
+| Exec plugin: kubelogin (AKS, Entra ID) | not a target | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Exec plugin: kubectl oidc-login (generic OIDC) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Exec plugins that open a browser or prompt (interactive mode) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Legacy oidc auth provider | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
@@ -281,7 +281,7 @@ Not counted: 10 interface rows that are not a target, 5 platform rows that are p
 | Custom CA, tls-server-name, insecure-skip-tls-verify | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Users who may list only some namespaces (accessible namespaces) | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Cluster Connect: reach clusters through Lens's relay (paid) | – | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
-| Cloud account integrations: list and add EKS, AKS, GKE clusters (paid) | missing | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
+| Cloud account integrations: list and add EKS, AKS, GKE clusters (paid) | not a target | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Every minor version the Kubernetes project supports (1.35, 1.36 and 1.37 on 2026-10-11) | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
 | Older clusters | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
 | Kinds and fields newer than the client libraries | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |

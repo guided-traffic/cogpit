@@ -291,7 +291,7 @@ could replace `config` and have kubectl run its plugin; in Cogpit it gets a dial
 (dormant, and narrower than before, when `config`'s plugin ran unasked); a kubeconfig that arrives in
 the folder by accident becomes contexts, and its plugin waits for the user (the approval holds); its
 `tokenFile` is H-24 below, live for these files as for every file. The cost, accepted by the owner:
-a `config` with a plugin (EKS, GKE, AKS) asks, as any other file does, and again
+a `config` with a credential plugin asks, as any other file does, and again
 when the plugin changes (once per file and plugin, listing its contexts, since the owner's decision of the same day, above). The user can remove the folder (Kubeconfig Sources), and the engine takes
 the folder and the session files as options, so tests never read the real ones
 (`TestNoDefaultFolderWithoutTheOption`, `TestConfigWithAPluginAsksForApprovalOnce`,

@@ -109,7 +109,7 @@ the root README on 2026-10-14):
 ```mermaid
 flowchart LR
   K[kubeconfig files] --> CL[cluster<br/>client-go auth]
-  P[credential plugins<br/>aws, gke, kubelogin] -. exec .-> CL
+  P[exec credential plugins<br/>from the kubeconfig] -. exec .-> CL
   CL <-->|list + watch,<br/>exec, port-forward| API[(Kubernetes API server)]
   CL --> C[cache<br/>shared informers]
   C --> E[engine<br/>commands, UI state]
