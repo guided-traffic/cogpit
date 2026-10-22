@@ -12,7 +12,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The pod drawer's image grades (D-78, D-new): a pod of a ReplicaSet with two containers and an init
+// The pod drawer's image grades (D-78, D-113): a pod of a ReplicaSet with two containers and an init
 // container, each container's section graded from Trivy Operator's reports as the engine builds them
 // (engine.PodImageGrades): the shield after the container's name and the card under its items; app
 // D, envoy C for its OS's end of life, and the init container's image not scanned, N/A.

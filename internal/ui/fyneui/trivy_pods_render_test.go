@@ -16,7 +16,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/enginekit"
 )
 
-// The Pods list's Image Rating (D-78's second phase, D-new's grades), over the real engine with the
+// The Pods list's Image Rating (D-78's second phase, D-113's grades), over the real engine with the
 // synthetic pods of the list renders and Trivy Operator's reports of most of their ReplicaSets: each
 // pod's worst image grade as a shield in the untitled column after Containers, S to E; the pods of a
 // Job, a DaemonSet and a node have no report and are N/A. PNGs: trivy_pods_{dark,light}.png.

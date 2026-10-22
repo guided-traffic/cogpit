@@ -15,7 +15,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Image grades as shields (D-new; the owner's request of 2026-10-22 and his pick in the Image Rating
+// Image grades as shields (D-113; the owner's request of 2026-10-22 and his pick in the Image Rating
 // Lab, "Kandidat 10:27:57"): a grade (model.ImageGrade) is a crest, filled top to bottom from a
 // lighter to a darker shade of its colour, its letter in the middle, in Docker Scout's colours, the
 // same in both themes. S carries a gold rim and a mint letter; N/A is grey, at the same low contrast

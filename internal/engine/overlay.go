@@ -53,7 +53,7 @@ type rowOverlay interface {
 }
 
 // sectionAmender is an overlay that also adds to the kind's own drawer sections: Trivy's image grade
-// in each container section of a pod (trivy.go, D-new). amend returns the sections with its
+// in each container section of a pod (trivy.go, D-113). amend returns the sections with its
 // additions, copying what it changes and never changing the input; it reads the overlay's own data,
 // never the cluster.
 type sectionAmender interface {

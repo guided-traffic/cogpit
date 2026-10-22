@@ -33,7 +33,7 @@ import (
 // container to the report's summary; a change of the reports tells the overlays, coalesced, which
 // wakes the open view and drawer. The overlay gives the Pods list its column "Image Rating" (the
 // worst grade of a pod's images, drawn as a shield, model.ImageGrade) and each container section of
-// a pod's drawer its image's grade (D-new). Switched off: no overlay, so no column, no grade and no
+// a pod's drawer its image's grade (D-113). Switched off: no overlay, so no column, no grade and no
 // read.
 //
 // A pod's reports are its controller's, as Trivy Operator resolves a pod's workload (its
@@ -514,7 +514,7 @@ func probeTrivy(_ *Session, b *Backend, on bool) (IntegrationState, string, stri
 	return IntegrationChecking, where, ""
 }
 
-// The drawer's grades (D-78, D-new; the owner, 2026-10-22: no section of their own, each in its
+// The drawer's grades (D-78, D-113; the owner, 2026-10-22: no section of their own, each in its
 // container's section, as a symbol and a detail card): every init container's and container's
 // section of a pod gets its image's grade card (model.GradeCard): the grade, its text and rule, the
 // counts, the report's OS and its end of life, when it was scanned, and the report as a link to its

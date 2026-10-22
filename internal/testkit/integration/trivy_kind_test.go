@@ -93,7 +93,7 @@ func TestKindTrivy(t *testing.T) {
 		return out
 	}
 	worst := map[string]string{} // pod name → the grade of its Image Rating in the Pods list
-	// The grades as Trivy's database rated the images on 2026-10-22 (D-new): nginx:1.16.1's dozens of
+	// The grades as Trivy's database rated the images on 2026-10-22 (D-113): nginx:1.16.1's dozens of
 	// Critical E; nginx:1.30.0-alpine's High C; alpine:3.12's Critical D (its OS's end of life caps at
 	// C, and D is worse); busybox's nothing S.
 	for _, c := range []struct {

@@ -37,7 +37,7 @@ const (
 	// text, so that searching, sorting and copying ignore it.
 	ColumnIcon ColumnType = "icon"
 	// ColumnGrade is a column of image grades drawn as shields (a pod's worst image grade, the Trivy
-	// integration, D-new): Cell.Grade is the shield, Cell.Text its readable form ("D · 2
+	// integration, D-113): Cell.Grade is the shield, Cell.Text its readable form ("D · 2
 	// Critical") for search, CSV and agents, Cell.Tip the counts behind it, and the column sorts by
 	// Cell.Num ([GradeRank]). Like the warning column it has no title in the header and a fixed
 	// width; Title names it for agents and the columns menu. A cell without a grade is empty.
