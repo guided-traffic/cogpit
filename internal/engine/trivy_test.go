@@ -186,9 +186,9 @@ func TestTrivyImageRatings(t *testing.T) {
 	if !st.On || st.State != IntegrationFound || st.Where != "aquasecurity.github.io/v1alpha1" || st.Detail != "6 vulnerability reports" {
 		t.Errorf("status %+v", st)
 	}
-	if rec.count(EventIntegrations, "test") == 0 {
-		t.Error("the settled detection was not announced")
-	}
+	// The source announces the settled detection from its own loop, after the reports are listed:
+	// wait for the announcement, not for the listing that comes before it (CI, 2026-10-21).
+	waitFor(t, "the settled detection announced", func() bool { return rec.count(EventIntegrations, "test") > 0 })
 
 	web := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-5d9c-a"}
 	s.UpdateUI(func(u *UIState) { u.Drawer = &web })

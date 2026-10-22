@@ -110,7 +110,7 @@ func TestHelmHTTPBannerAsksTheUser(t *testing.T) {
 }
 
 // renderHelmHTTP draws the Charts view with the banner, and the question, for a look: to
-// COGPIT_PNG_DIR or a temporary directory.
+// COGPIT_PNG_DIR when that is set, else it is only captured.
 func renderHelmHTTP(t *testing.T, mode ThemeMode, suffix string) {
 	sh, w, q, f := helmHTTPScene(t, mode)
 	f.update(func(u *engine.UIState) { u.View = helmChartsKind })

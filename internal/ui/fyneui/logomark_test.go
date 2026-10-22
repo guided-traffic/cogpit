@@ -42,3 +42,18 @@ func TestHeaderMark(t *testing.T) {
 		})
 	}
 }
+
+// TestLogoTileDrawnOncePerSize: every widget that shows the logo at one size shares one drawing of
+// it (logoTile, D-112), the current version's tile; another size is a drawing of its own.
+func TestLogoTileDrawnOncePerSize(t *testing.T) {
+	a, b := logoTile(24), logoTile(24)
+	if a != b {
+		t.Error("the logo was drawn again for a size it had been drawn at")
+	}
+	if want := logoart.Current.Tile(24); string(a.Pix) != string(want.Pix) {
+		t.Error("the shared tile is not the current logo's tile")
+	}
+	if c := logoTile(25); c == a || c.Bounds().Dx() != 25 {
+		t.Errorf("25 pixels gave %v, the 24-pixel tile's %v", c.Bounds(), a.Bounds())
+	}
+}

@@ -9,21 +9,75 @@
 # are of no use, and with go.sum alone a new Go found its old key, saved nothing new, and every job
 # compiled everything (2026-10-21, Go 1.27.3: the macOS job and a race shard ran into their limit). The modules are not cached: the self-hosted runners restore a cache at 6 to 9 MB/s, and
 # go mod download from the module proxy is faster (measured 2026-10-13).
+#
+# Only main's pushes save (D-112): a pull request's run restores main's newest cache of its kind and
+# saves nothing. Every pull request that changed go.sum (Renovate's above all) used to save a copy of
+# every kind under its own ref, which no other branch can read, and pushed main's caches out of the
+# repository's 10 GB (2026-10-21: 28 entries, 10.0 GB, the macOS and Windows caches evicted, so main's
+# next run compiled everything there again).
+#
+# Fyne's Linux build dependencies install in the background while Go, the build cache and the
+# modules come (D-112): the two downloads overlap, and the apt step, two to five minutes on the
+# shared self-hosted machine, no longer comes on top of the cache's one to two.
 name: Set up Go
 description: Go from go.mod, its caches per kind of build, and Fyne's build dependencies on Linux.
 
 inputs:
   cache:
-    description: The kind of build whose cache to restore and save (lint, unit, race-ui, race-rest, kind, macos, ...); none builds without one.
+    description: The kind of build whose cache to restore (and, on main's pushes, save) (lint, unit, race-ui, race-rest, kind, macos, ...); none builds without one.
     required: true
   fyne-deps:
     description: Install Fyne's Linux build dependencies (cgo with OpenGL, X11, xkbcommon and Wayland headers); make too.
     required: false
     default: "true"
+  packages:
+    description: More Debian packages the job needs (Linux), installed after the build dependencies in the same background run, with their recommendations.
+    required: false
+    default: ""
 
 runs:
   using: composite
   steps:
+    # What a cgo build of Cogpit needs on Ubuntu 24.04, nothing recommended beside it: a C compiler
+    # and make, pkg-config for go-gl's `pkg-config: gl`, and the headers and libraries GLFW 3.4 links
+    # (X11 and Wayland both, as go-gl builds it by default; EGL for its Wayland native header). In
+    # place of build-essential, xorg-dev, libgl1-mesa-dev and wayland-protocols with their
+    # recommendations: 113 packages and 104 MB instead of 263 and 166 MB (2026-10-21, checked in a
+    # container of ubuntu:24.04: go build ./..., go vet, and the UI's test binary linked with and
+    # without -race). Without the Fyne set, make alone where the image lacks it.
+    - name: Install the build dependencies in the background
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        FYNE_DEPS: ${{ inputs.fyne-deps }}
+        PACKAGES: ${{ inputs.packages }}
+      run: |
+        dir="${RUNNER_TEMP}/go-setup-apt"
+        mkdir -p "${dir}"
+        deps=""
+        if [ "${FYNE_DEPS}" = true ]; then
+          deps="gcc libc6-dev make pkgconf libgl-dev libegl-dev libx11-dev libxcursor-dev libxrandr-dev"
+          deps="${deps} libxinerama-dev libxi-dev libxxf86vm-dev libxkbcommon-dev libwayland-dev"
+        elif ! command -v make >/dev/null; then
+          deps="make"
+        fi
+        if [ -z "${deps}" ] && [ -z "${PACKAGES}" ]; then
+          echo 0 > "${dir}/status"
+          exit 0
+        fi
+        # The background run holds none of the step's output streams, or the runner would wait for it
+        # at the step's end.
+        # shellcheck disable=SC2086 # the package lists split on spaces
+        (
+          status=0
+          {
+            if [ -n "${deps}" ]; then hack/ci/apt-install.sh --no-install-recommends ${deps}; fi &&
+              if [ -n "${PACKAGES}" ]; then hack/ci/apt-install.sh ${PACKAGES}; fi
+          } || status=$?
+          echo "${status}" > "${dir}/status"
+        ) > "${dir}/log" 2>&1 < /dev/null &
+        echo "apt-get install ${deps} ${PACKAGES} (in the background)"
+
     # setup-go's own cache keys on go.sum alone, which every job would share.
     - name: Set up Go
       uses: actions/setup-go@v7
@@ -31,17 +85,20 @@ runs:
         go-version-file: go.mod
         cache: false
 
-    # The CPUs and the load of the machine the job landed on (the self-hosted runners share theirs).
+    # The CPUs, memory and load of the machine the job landed on (the self-hosted runners share theirs).
     - name: Locate the build cache
       if: inputs.cache != 'none'
       id: paths
       shell: bash
       run: |
         echo "$(nproc 2>/dev/null || sysctl -n hw.ncpu) CPUs; $(uptime)"
+        if [ -r /proc/meminfo ]; then
+          echo "memory: $(awk '/MemTotal/ {printf "%.1f GB", $2/1048576}' /proc/meminfo), cgroup limit: $(cat /sys/fs/cgroup/memory.max 2>/dev/null || echo unknown)"
+        fi
         echo "gocache=$(go env GOCACHE)" >> "${GITHUB_OUTPUT}"
 
-    - name: Restore the build cache
-      if: inputs.cache != 'none'
+    - name: Restore the build cache (saved at the job's end when its key is new)
+      if: inputs.cache != 'none' && github.event_name == 'push' && github.ref == 'refs/heads/main'
       uses: actions/cache@v6
       with:
         path: |
@@ -51,17 +108,16 @@ runs:
         key: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-${{ hashFiles('go.mod', 'go.sum', 'third_party/fyne-terminal/go.mod', 'third_party/fyne-terminal/go.sum') }}
         restore-keys: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-
 
-    # The packages Fyne documents for Debian and Ubuntu: a C compiler, OpenGL, X11, xkbcommon,
-    # Wayland. The self-hosted runner image has no make either; build-essential brings it.
-    - name: Install Fyne's build dependencies
-      if: runner.os == 'Linux' && inputs.fyne-deps == 'true'
-      shell: bash
-      run: hack/ci/apt-install.sh build-essential libgl1-mesa-dev xorg-dev libxkbcommon-dev libwayland-dev wayland-protocols
-
-    - name: Install make
-      if: runner.os == 'Linux' && inputs.fyne-deps != 'true'
-      shell: bash
-      run: command -v make >/dev/null || hack/ci/apt-install.sh make
+    - name: Restore the build cache (read only)
+      if: inputs.cache != 'none' && !(github.event_name == 'push' && github.ref == 'refs/heads/main')
+      uses: actions/cache/restore@v6
+      with:
+        path: |
+          ${{ steps.paths.outputs.gocache }}
+          ~/.cache/golangci-lint
+          ~/Library/Caches/golangci-lint
+        key: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-${{ hashFiles('go.mod', 'go.sum', 'third_party/fyne-terminal/go.mod', 'third_party/fyne-terminal/go.sum') }}
+        restore-keys: gobuild-${{ runner.os }}-${{ runner.arch }}-${{ inputs.cache }}-
 
     # The self-hosted runner pods export no SHELL (bash sets one for itself without exporting it),
     # and Cogpit's local terminal falls back to zsh, which their image lacks; a login session on
@@ -74,3 +130,13 @@ runs:
     - name: Download the modules
       shell: bash
       run: go mod download
+
+    # apt-install.sh bounds every try and gives up after three, so this ends.
+    - name: Wait for the build dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        dir="${RUNNER_TEMP}/go-setup-apt"
+        while [ ! -s "${dir}/status" ]; do sleep 1; done
+        if [ -f "${dir}/log" ]; then cat "${dir}/log"; fi
+        exit "$(cat "${dir}/status")"

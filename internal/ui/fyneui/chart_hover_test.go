@@ -1,9 +1,6 @@
 package fyneui
 
 import (
-	"image/png"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -264,8 +261,8 @@ func TestDrawerChartsHoverPerChartAndVariant(t *testing.T) {
 }
 
 // TestRenderChartHover draws the pod drawer's charts with the crosshair and the panel, once over a
-// point and once next to an event marker, for a look: to COGPIT_PNG_DIR or a temporary directory,
-// never to testdata.
+// point and once next to an event marker, for a look: to COGPIT_PNG_DIR when that is set (else it
+// is only captured), never to testdata.
 func TestRenderChartHover(t *testing.T) {
 	for _, c := range []struct {
 		mode   ThemeMode
@@ -309,19 +306,7 @@ func TestRenderChartHover(t *testing.T) {
 				t.Errorf("memory hover: %s", p.plot.Hover().Text())
 			}
 			settle(sh.win)
-			dir := os.Getenv("COGPIT_PNG_DIR")
-			if dir == "" {
-				dir = t.TempDir()
-			}
-			f, err := os.Create(filepath.Join(dir, c.name))
-			if err != nil {
-				t.Fatal(err)
-			}
-			defer f.Close()
-			if err := png.Encode(f, sh.win.Canvas().Capture()); err != nil {
-				t.Fatal(err)
-			}
-			t.Log("rendered", f.Name())
+			lookPNG(t, sh.win, c.name)
 		})
 	}
 }

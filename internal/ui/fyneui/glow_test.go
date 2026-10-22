@@ -10,7 +10,7 @@ import (
 )
 
 // TestRenderGlowPrimitives draws the design prototype's shapes on the stage, once per theme, for a
-// look: to COGPIT_PNG_DIR or a temporary directory.
+// look: to COGPIT_PNG_DIR when that is set, else it is only captured.
 func TestRenderGlowPrimitives(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		t.Run(string(mode), func(t *testing.T) {

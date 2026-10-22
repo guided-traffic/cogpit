@@ -5,9 +5,7 @@ package fyneui
 import (
 	"context"
 	"errors"
-	"image/png"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -28,7 +26,7 @@ import (
 // drawer with the source line naming both, the status line (Prometheus serves the history, the
 // Metrics Server the live values), the Network and Filesystem buttons enabled and each variant
 // drawn once the engine asked Prometheus for it, the ranges beyond an hour offered. It renders
-// each variant for a look, to COGPIT_PNG_DIR or a temporary directory: these are pictures of the
+// each variant for a look, to COGPIT_PNG_DIR when that is set (else only captured): pictures of the
 // kind cluster, never committed. It only reads. Skipped when the cluster has no Prometheus.
 func TestKindPrometheusDrawer(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
@@ -124,22 +122,10 @@ func TestKindPrometheusDrawer(t *testing.T) {
 		t.Errorf("ranges = %v", p.rangeSel.Options)
 	}
 
-	dir := os.Getenv("COGPIT_PNG_DIR")
-	if dir == "" {
-		dir = t.TempDir()
-	}
 	shot := func(name string) {
 		t.Helper()
 		settle(w)
-		f, err := os.Create(filepath.Join(dir, name))
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer f.Close()
-		if err := png.Encode(f, w.Canvas().Capture()); err != nil {
-			t.Fatal(err)
-		}
-		t.Log("rendered", f.Name())
+		lookPNG(t, w, name)
 	}
 	shot("kind_prom_status.png")
 	for _, v := range []string{variantCPU, variantMemory, variantNetwork, variantFilesystem} {

@@ -18,7 +18,6 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
-	logoart "github.com/guided-traffic/cogpit/internal/ui/logo"
 )
 
 // The welcome page (ui-parity › Layout, "Welcome page (Help › Welcome)"; G5, G13). Lens has one
@@ -629,7 +628,7 @@ func (r *welcomeLogoRenderer) Refresh() {
 	}
 	px := int(math.Ceil(float64(l.side * scale)))
 	if px != l.px || r.img.Image == nil {
-		r.img.Image = logoart.Current.Tile(px)
+		r.img.Image = logoTile(px)
 		l.px = px
 	}
 	r.Layout(l.Size())
