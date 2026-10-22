@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-22 · **Change:** trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-22 · **Change:** trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -86,7 +86,6 @@ places of the same kind has one row.
 | `fyneui/tablecheck.go` | `tableView.openSelectionMenu` | go | A | `evaluateSelection` (registry, `commandEnabled`) on references cloned on main; the menu built and shown inside `sh.do`. |
 | `fyneui/tablecheck.go` | `selectionBar.askReason` | go | A | The registry's label and `commandEnabled` on cloned references; the tooltip set inside `sh.do`. |
 | `fyneui/tableview.go` | `tableView.searchChanged` | AfterFunc | A | `sh.dispatch(ui.setFilter)` with the text copied; `done` (`filterBusy`, `syncSearch`) runs through `sh.do`. |
-| `fyneui/nsgone.go` | `shell.recheckNamespaces` | AfterFunc | A | The timer's function is only `sh.do(...)`: clearing `nsRecheck` and the next read run on the main goroutine (GW9, D-106). |
 | `fyneui/palette.go` | `cmdPalette.load` | go | A | `Registry.Palette` over a cloned state; `containersFor` reads the engine; results applied inside `sh.do`. |
 | `fyneui/palette.go` | `shell.runPaletteAction` | go | A | `evaluateActions` and `containersFor` touch the engine only; `runAction` or the toast inside `sh.do`. |
 | `fyneui/navigator_sections.go` | `navSections.load` | go | A | `Contexts`; render and the hotbar's marks inside `sh.do`. |

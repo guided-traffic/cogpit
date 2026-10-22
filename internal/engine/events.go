@@ -34,6 +34,10 @@ const (
 	// added, changed or deleted), or access reviews answered whether the user may list them;
 	// re-read kinds.list.
 	EventKinds EventType = "kinds"
+	// EventNamespaces: the namespaces the cache holds of a cluster changed while its namespace
+	// filter names namespaces (nswatch.go, AW11): one was added or deleted, or began or ended
+	// terminating; Event.View holds the context. Coalesced; re-read them with resources.list.
+	EventNamespaces EventType = "namespaces"
 	// EventEditor: an editor tab's text or base version changed (editor.setText, a conflict);
 	// Event.View holds the tab id, Event.Revision the text's revision. Re-read with editor.get.
 	EventEditor EventType = "editor"

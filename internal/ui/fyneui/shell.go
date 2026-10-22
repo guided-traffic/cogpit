@@ -80,13 +80,10 @@ type shell struct {
 	namespaces []string
 	nsFollow   map[int]func([]string) // open fields that offer the namespaces (followNamespaces)
 	nsFollowID int
-	// nsFor is the context namespaces were read for; nsTerminating its namespaces being deleted.
-	// nsChecked is when the view's changing rows last read them, nsRecheck the read waiting for
-	// nsRecheckEvery to pass (nsgone.go, GW9).
+	// nsFor is the context namespaces were read for; nsTerminating its namespaces being deleted
+	// (nsgone.go, GW9).
 	nsFor         string
 	nsTerminating map[string]bool
-	nsChecked     time.Time
-	nsRecheck     *time.Timer
 	diag          diagView
 
 	// Coalescing of engine events: the latest UI state wins, and at most one table, detail and
@@ -395,7 +392,6 @@ func (sh *shell) onEvent(ev engine.Event) {
 			sh.do(func() {
 				sh.tableQueued.Store(false)
 				sh.refreshTable()
-				sh.recheckNamespaces() // a namespace the filter names may be gone with its rows (nsgone.go)
 			})
 		}
 	case engine.EventDetail:
@@ -433,6 +429,9 @@ func (sh *shell) onEvent(ev engine.Event) {
 			}
 			sh.settings.alertmanagerChanged() // its address's line (clustersettings_alertmanager.go)
 		})
+	case engine.EventNamespaces: // a namespace the filter may name came, went or began terminating (nsgone.go, AW11)
+		ctx := ev.View
+		sh.do(func() { sh.namespacesChanged(ctx) })
 	case engine.EventDiagnostics:
 		sh.requestDiagnostics()
 	case engine.EventKinds:

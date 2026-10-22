@@ -260,6 +260,7 @@ func TestClusterOverviewPage(t *testing.T) {
 
 	// The namespace filter: shop's issues and the node's.
 	s.UpdateUI(func(u *UIState) { u.Namespaces = []string{"shop"} })
+	waitNamespacesWatched(t, src) // the filter has the engine watch the namespaces (nswatch.go)
 	snap = waitTable(t, s, ClusterOverview, func(t *TableSnapshot) bool { return len(t.Rows) == 4 })
 	if snap.Total != 6 || snap.IndexOf(model.ObjectRef{Context: "test", Kind: "nodes", Name: "worker-2"}) < 0 {
 		t.Fatalf("filtered: %s", summary(snap))

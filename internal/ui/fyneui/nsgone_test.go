@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"slices"
 	"testing"
-	"time"
 
 	"fyne.io/fyne/v2/test"
 
@@ -59,51 +58,52 @@ func TestDeletedNamespaceMarkedInTheFilter(t *testing.T) {
 	}
 }
 
-// TestNamespaceDeletedWhileFiltered: the owner's case: the view filtered to a namespace that is then
-// deleted. The view's next rows read the namespaces again from the cache: the button reads red with
-// no click; changes within nsRecheckEvery are read once it is over.
+// TestNamespaceDeletedWhileFiltered: the owner's case (GW9, and AW11 of the alpha walk): the Pods
+// view filtered to a namespace without pods, which is then deleted, Terminating first. No row of
+// the view changes; the engine's namespaces event reads the namespaces again from the cache: the
+// button reads red at Terminating and stays red once the namespace is gone, with no click. The
+// view's rows read nothing, nor does another cluster's event.
 func TestNamespaceDeletedWhileFiltered(t *testing.T) {
-	old := nsRecheckEvery
-	nsRecheckEvery = 50 * time.Millisecond
-	t.Cleanup(func() { nsRecheckEvery = old })
-	sh, _, q, fe := nsFilterShell(t, ThemeDark, "payments")
+	sh, _, q, fe := nsFilterShell(t, ThemeDark, "walk-gw9", "payments")
+	fe.mu.Lock()
+	fe.namespaces = append(slices.Clone(fe.namespaces), "walk-gw9")
+	fe.mu.Unlock()
+	nsEvent := func(ctx string) { fe.emit(engine.Event{Type: engine.EventNamespaces, View: ctx}) }
+	nsEvent("demo")
 	tv := sh.view
-	q.until(t, "the view settled", func() bool { return sh.view.snap != nil })
-	if tv.nsTintTheme.on {
-		t.Fatal("the button is red for a live namespace")
-	}
+	q.until(t, "walk-gw9 read", func() bool { return slices.Contains(sh.namespaces, "walk-gw9") && !tv.nsTintTheme.on })
 	reads := len(fe.callsOf("resources.list"))
 
 	fe.mu.Lock()
-	fe.terminatingNS = map[string]bool{"payments": true} // kubectl delete namespace payments: Terminating first
+	fe.terminatingNS = map[string]bool{"walk-gw9": true} // kubectl delete ns walk-gw9 --wait=false
 	fe.mu.Unlock()
-	fe.setTable(kindPods, fixturePods(150, 9)) // its pods go
+	nsEvent("demo")
 	q.until(t, "the button red for the terminating namespace", func() bool { return tv.nsTintTheme.on })
+	if st := sh.namespaceState("walk-gw9"); st != nsTerminating {
+		t.Fatalf("walk-gw9: %q, want terminating", st)
+	}
 
 	fe.mu.Lock()
-	fe.namespaces = slices.DeleteFunc(slices.Clone(fe.namespaces), func(n string) bool { return n == "payments" })
+	fe.namespaces = slices.DeleteFunc(slices.Clone(fe.namespaces), func(n string) bool { return n == "walk-gw9" })
 	fe.terminatingNS = nil
 	fe.mu.Unlock()
-	fe.setTable(kindPods, fixturePods(140, 9)) // within the interval: read once it is over
-	q.until(t, "payments gone", func() bool { return sh.namespaceState("payments") == nsDeleted })
+	nsEvent("demo")
+	q.until(t, "walk-gw9 gone", func() bool { return sh.namespaceState("walk-gw9") == nsDeleted })
 	if !tv.nsTintTheme.on {
 		t.Fatal("the button is not red for the deleted namespace")
 	}
-	if n := len(fe.callsOf("resources.list")) - reads; n < 2 || n > 4 {
-		t.Fatalf("%d reads of the namespaces for two changes of the rows", n)
+	if n := len(fe.callsOf("resources.list")) - reads; n != 2 {
+		t.Fatalf("%d reads of the namespaces for two events", n)
 	}
 
-	// Without a namespace filter the rows read nothing.
-	sh.dispatch("ui.setNamespace", namespacesParams{Namespaces: []string{}}, nil)
-	q.until(t, "the filter cleared", func() bool { return len(sh.ui.Namespaces) == 0 && !tv.nsTintTheme.on })
-	time.Sleep(2 * nsRecheckEvery)
-	q.drain()
+	// The view's rows and another cluster's namespaces read nothing.
 	reads = len(fe.callsOf("resources.list"))
-	fe.setTable(kindPods, fixturePods(130, 9))
-	time.Sleep(2 * nsRecheckEvery)
+	fe.setTable(kindPods, fixturePods(140, 9))
+	nsEvent("other")
+	q.until(t, "the rows shown", func() bool { return sh.view.snap != nil && sh.view.snap.Total == 140 })
 	q.drain()
 	if n := len(fe.callsOf("resources.list")) - reads; n != 0 {
-		t.Fatalf("rows without a namespace filter read the namespaces %d times", n)
+		t.Fatalf("the rows or another cluster's event read the namespaces %d times", n)
 	}
 }
 

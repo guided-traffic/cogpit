@@ -3,7 +3,6 @@ package fyneui
 import (
 	"image/color"
 	"slices"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
@@ -25,14 +24,12 @@ import (
 //   - the filter's button reads red (its label and its arrow) while a namespace it names is deleted
 //     or terminating, one of them or several;
 //   - what is gone or going comes from the cache through resources.list, as the list's names do:
-//     read when a cluster is shown, when the filter opens, and while the filter names namespaces at
-//     most every nsRecheckEvery after the view's rows changed (a namespace deleted takes its objects
-//     with it, which changes the rows of any view filtered to it). Nothing is read while the user
-//     may not list namespaces: then nothing is marked, for nothing is known.
-
-// nsRecheckEvery bounds how often the view's changing rows read the namespaces again (a test
-// shortens it).
-var nsRecheckEvery = 2 * time.Second
+//     read when a cluster is shown, when the filter opens, and on the engine's EventNamespaces,
+//     which the namespaces' own changes send while the filter names namespaces (the owner's alpha
+//     walk, AW11: until 2026-10-22 the view's changing rows read them again, and a namespace
+//     without objects of the view's kind was noticed only at the filter's next opening;
+//     engine/nswatch.go). Nothing is read while the user may not list namespaces: then nothing is
+//     marked, for nothing is known.
 
 // nsPageSize is how many namespaces one resources.list reads for the filter: the command's most.
 // A cluster with more is read page by page (the side finding of GW9: one request without a limit
@@ -93,25 +90,12 @@ func (sh *shell) filterNamesGone() bool {
 	return false
 }
 
-// recheckNamespaces reads the namespaces again after the view's rows changed while the filter names
-// namespaces, at most every nsRecheckEvery; a change within that time is read once it is over.
-func (sh *shell) recheckNamespaces() {
-	if len(sh.ui.Namespaces) == 0 || sh.view.groupMode() || !sh.ui.Connection.State.Live() || !sh.namespacesListable() {
-		return
+// namespacesChanged follows EventNamespaces: the shown cluster's namespaces are read again from
+// the cache; another cluster's are read when it is shown.
+func (sh *shell) namespacesChanged(contextID string) {
+	if contextID == sh.ui.Context {
+		sh.refreshNamespaces()
 	}
-	if wait := time.Until(sh.nsChecked.Add(nsRecheckEvery)); wait > 0 {
-		if sh.nsRecheck == nil {
-			sh.nsRecheck = time.AfterFunc(wait, func() {
-				sh.do(func() {
-					sh.nsRecheck = nil
-					sh.recheckNamespaces()
-				})
-			})
-		}
-		return
-	}
-	sh.nsChecked = time.Now()
-	sh.loadNamespaces()
 }
 
 // namespaceRow is one row of resources.list's result for the namespaces.

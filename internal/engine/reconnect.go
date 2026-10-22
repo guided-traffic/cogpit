@@ -414,6 +414,7 @@ func (s *Session) swapBackend(old *pooled, b *Backend, steps *connectSteps) (swa
 	s.noteAccessReviews(b, steps) // their first answers, when they come (accessreviews.go)
 	s.attachAccess(b)
 	s.attachRefusals(b)
+	s.attachNamespaceWatch(b)
 	if line := insecureLogLine(b); line != "" {
 		steps.step(LogWarn, cluster.StepTLS, line, 0)
 	}

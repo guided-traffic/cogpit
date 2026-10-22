@@ -86,6 +86,9 @@ type Backend struct {
 	// custom is the custom kinds watch (customkinds.go); the Session sets it before it publishes
 	// the backend, nil without CustomResources.
 	custom *customKinds
+	// nsWatch watches the namespaces while the shown cluster's namespace filter names namespaces
+	// (nswatch.go, AW11); the Session sets it before it publishes the backend, nil without a cache.
+	nsWatch *nsWatch
 	// local holds the objects of the local kinds (kindscope.go), made on first use.
 	local localStore
 	// apps is the Applications view's cache (applications.go), made on first use.
@@ -153,6 +156,7 @@ func (b *Backend) close(log *slog.Logger) {
 	if b.custom != nil {
 		b.custom.stop()
 	}
+	b.nsWatch.stop() // nil-safe (nswatch.go)
 	b.forwards.stopAll()
 	// The Alertmanager's polls (alerts.go), before the connection closes.
 	b.alerts.stop()

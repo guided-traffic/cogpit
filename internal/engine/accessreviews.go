@@ -351,6 +351,7 @@ func (a *accessReviews) changed() {
 // (EventDetail). Row menus ask Enabled whenever they open. The open view and drawer read their kind
 // again when the answers change how (accessiblens_plan.go).
 func (s *Session) accessChanged(b *Backend) {
+	b.nsWatch.poke() // may the user list the namespaces (nswatch.go); nil-safe
 	if s.Backend() != b {
 		return
 	}
@@ -686,6 +687,7 @@ func (b *Backend) RefreshAccess() (namespaces []string, ok bool) {
 	if b.custom != nil {
 		b.custom.retake() // the custom resource definitions, after a refused list (customkinds.go)
 	}
+	b.nsWatch.retake() // the namespaces, after a refused list (nswatch.go); nil-safe
 	a, ok := b.Access.(*accessReviews)
 	if !ok {
 		return nil, false
