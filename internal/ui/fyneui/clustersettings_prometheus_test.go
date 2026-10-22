@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -175,13 +176,49 @@ func TestPrometheusSettingsOnThePage(t *testing.T) {
 	pf.mu.Unlock()
 	n := len(pf.calls())
 	pf.emit(engine.Event{Type: engine.EventMetrics})
-	q.until(t, "the agent's setting shown", func() bool {
+	q.untilShows(t, "the agent's setting shown", func() bool {
 		return f.address.Text == "vm/vmselect-main:http" && f.prefix.Text == "/select/0/prometheus" &&
 			f.format.Selected == metrics.QueryCAdvisor.Label() && !f.https.Checked &&
 			f.line.text == "Set: VictoriaMetrics vm/vmselect-main:http/select/0/prometheus does not answer."
+	}, func() string {
+		return fmt.Sprintf("address %q, prefix %q, format %q, HTTPS %v, line %q; sets since the agent's %+v",
+			f.address.Text, f.prefix.Text, f.format.Selected, f.https.Checked, f.line.text, pf.calls()[n:])
 	})
 	if len(pf.calls()) != n {
 		t.Errorf("showing the agent's setting set it again: %+v", pf.calls()[n:])
+	}
+}
+
+// A key typed as the pause before it ends: the pause's set already waits on the main goroutine.
+// Only the newest pause sets the field, and the field stays held until it does
+// (TestPrometheusSettingsOnThePage on CI, 2026-10-22: the older pause set the address early and
+// dropped the newer one, which then set it again late, over the agent's change).
+func TestPrometheusAddressTypedAsThePauseEnds(t *testing.T) {
+	sh, pf, q, f := openPromSettings(t, ThemeDark, engine.PrometheusSetting{Context: "kind-dev", Auto: true, Format: autoSetting,
+		FilterEmptyContainers: true, Kept: true, InUse: "Prometheus monitoring/prometheus-k8s:web", InUseStatus: metrics.StatusAvailable})
+	sh.win.Canvas().Focus(f.address)
+	test.Type(f.address, "m")
+	deadline := time.Now().Add(15 * time.Second)
+	for waiting := 0; waiting == 0; {
+		q.mu.Lock()
+		waiting = len(q.fns)
+		q.mu.Unlock()
+		if waiting == 0 && time.Now().After(deadline) {
+			t.Fatal("the pause after the first key never ended")
+		}
+		time.Sleep(time.Millisecond)
+	}
+	sh.settings.typing = time.Hour // the pause after the second key lasts until the third key
+	test.Type(f.address, "o")
+	q.drain() // the first pause's set, on the main goroutine after the second key
+	if sh.settings.timers[promAddressSetting] == nil {
+		t.Fatal("the pause after the second key is no longer held")
+	}
+	sh.settings.typing = time.Millisecond
+	test.Type(f.address, "n")
+	q.until(t, "the address set", func() bool { return len(pf.calls()) > 0 })
+	if c := pf.calls(); len(c) != 1 || c[0].Address != "mon" {
+		t.Errorf("sets %+v, want the address \"mon\" set once", c)
 	}
 }
 

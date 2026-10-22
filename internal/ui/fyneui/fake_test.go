@@ -678,6 +678,13 @@ func (q *mainQueue) drain() {
 // waiting for its tab); a condition that holds returns at once.
 func (q *mainQueue) until(t testing.TB, what string, cond func() bool) {
 	t.Helper()
+	q.untilShows(t, what, cond, nil)
+}
+
+// untilShows is until with what the window shows in the failure (shows, read at the timeout), so
+// that a wait that fails on CI says how far the window got.
+func (q *mainQueue) untilShows(t testing.TB, what string, cond func() bool, shows func() string) {
+	t.Helper()
 	deadline := time.Now().Add(15 * time.Second)
 	for {
 		q.drain()
@@ -685,6 +692,9 @@ func (q *mainQueue) until(t testing.TB, what string, cond func() bool) {
 			return
 		}
 		if time.Now().After(deadline) {
+			if shows != nil {
+				t.Fatalf("timed out waiting for %s; shown: %s", what, shows())
+			}
 			t.Fatalf("timed out waiting for %s", what)
 		}
 		time.Sleep(time.Millisecond)

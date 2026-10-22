@@ -321,7 +321,12 @@ func (p *settingsPage) settled(name string) func(any, error) {
 	}
 }
 
-// typed sets a text field's value after a typing pause.
+// typed sets a text field's value after a typing pause, the field's newest pause only. A pause can
+// end just before the next key: Stop comes too late for it, and its set waits on the main
+// goroutine. Run, it set the field before the pause after that key and dropped the newer pause
+// from p.timers, which the next key then no longer stopped: the field was set again, late, over a
+// change an agent had made in between (TestPrometheusSettingsOnThePage on CI, 2026-10-22). A
+// section's pauses end with it (stopTimers), so a set left waiting finds no pause of its own.
 func (p *settingsPage) typed(name string, set func()) {
 	if p.syncing {
 		return
@@ -329,15 +334,17 @@ func (p *settingsPage) typed(name string, set func()) {
 	if t := p.timers[name]; t != nil {
 		t.Stop()
 	}
-	built := p.built
-	p.timers[name] = time.AfterFunc(p.typing, func() {
+	var t *time.Timer
+	t = time.AfterFunc(p.typing, func() {
 		p.sh.do(func() {
-			delete(p.timers, name)
-			if p.built == built { // the section is still the one typed in
-				set()
+			if p.timers[name] != t {
+				return // a newer key's pause sets the field, or the section is gone
 			}
+			delete(p.timers, name)
+			set()
 		})
 	})
+	p.timers[name] = t
 }
 
 // setEntry shows a value in a text field the user is not typing in; focus is the field's
