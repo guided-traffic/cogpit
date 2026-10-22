@@ -512,7 +512,9 @@ func TestConfirmationShowsTheReviewText(t *testing.T) {
 func TestConfirmationsOneAtATimeAndArmed(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, _, q := newTestShell(t, f, Options{})
-	sh.confirmer.armDelay = 150 * time.Millisecond
+	// Far above what the steps before the unarmed tap take: with 150 ms, a loaded Windows runner had
+	// the button armed before the tap (CI, 2026-10-22), and the tap answered as it should.
+	sh.confirmer.armDelay = time.Second
 	mk := func(name string) engine.ConfirmRequest {
 		return engine.ConfirmRequest{Command: "object.delete", Label: "Delete", Danger: engine.DangerDestructive,
 			Origin: engine.OriginExternalAgent, Context: "demo", Namespaces: []string{"default"},
