@@ -256,9 +256,9 @@ func TestTabHistoryIsBounded(t *testing.T) {
 	}
 }
 
-// Cogpit holds one connection: the tabs of another cluster stay; selecting one connects to its
-// cluster and shows its view again. A cluster connected from the picker shows its last used tab,
-// else its default view in the preview tab; a reconnect keeps the tab's view.
+// The tabs of another cluster stay; selecting one shows its cluster (connecting it when it is not)
+// and its view again. A cluster connected from the picker shows its last used tab, else its default
+// view in a preview tab of its own (D-117); a reconnect keeps the tab's view.
 func TestTabsOfAnotherCluster(t *testing.T) {
 	s := tabSession(t)
 	ctx := context.Background()
@@ -268,9 +268,9 @@ func TestTabsOfAnotherCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	u := s.UIState()
-	wantTabs(t, u, "tab-1 pods@prod [prod.yaml] p *", "tab-2 services@test")
-	if u.Tabs[0].Title != "Pods - prod" || len(u.Tabs[0].Back) != 0 {
-		t.Errorf("the preview tab taken over: %+v", u.Tabs[0])
+	wantTabs(t, u, "tab-1 pods@test p", "tab-2 services@test", "tab-3 pods@prod [prod.yaml] p *")
+	if u.Tabs[2].Title != "Pods - prod" || len(u.Tabs[2].Back) != 0 || len(u.Tabs[0].Back) != 0 {
+		t.Errorf("prod's preview tab %+v, test's %+v", u.Tabs[2], u.Tabs[0])
 	}
 	u, err := s.SelectTab(ctx, "tab-2")
 	if err != nil {
@@ -285,7 +285,7 @@ func TestTabsOfAnotherCluster(t *testing.T) {
 	if err := s.Connect(ctx, "prod [prod.yaml]"); err != nil {
 		t.Fatal(err)
 	}
-	if u := s.UIState(); u.ActiveTab != "tab-1" || u.View != "pods" {
+	if u := s.UIState(); u.ActiveTab != "tab-3" || u.View != "pods" {
 		t.Errorf("prod from the picker: %+v", tabSummary(u))
 	}
 	if err := s.Connect(ctx, "test"); err != nil {
@@ -306,11 +306,78 @@ func TestTabsOfAnotherCluster(t *testing.T) {
 		t.Fatal("broken connected")
 	}
 	u = s.UIState()
-	wantTabs(t, u, "tab-1 pods@prod [prod.yaml] p", "tab-2 services@test")
+	wantTabs(t, u, "tab-1 pods@test p", "tab-2 services@test", "tab-3 pods@prod [prod.yaml] p")
 	u, err = s.SelectTab(ctx, "tab-2")
 	if err != nil || u.ActiveTab != "tab-2" || u.View != "services" {
 		t.Errorf("selecting after a failed connect: %v, %q", err, tabSummary(u))
 	}
+}
+
+// Selecting another cluster's tab changes no other tab (D-117, the owner's bug of 2026-10-23): the
+// cluster left keeps the view its preview tab shows, though a fixed tab of it was the active one.
+func TestSelectingAnotherClustersTabChangesNoTab(t *testing.T) {
+	s := tabSession(t)
+	ctx := context.Background()
+	if _, err := s.PinTab(""); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.Connect(ctx, "prod [prod.yaml]"); err != nil {
+		t.Fatal(err)
+	}
+	s.OpenTab("services", true)
+	wantTabs(t, s.UIState(), "tab-1 pods@test", "tab-2 pods@prod [prod.yaml] p", "tab-3 services@prod [prod.yaml] *")
+	u, err := s.SelectTab(ctx, "tab-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTabs(t, u, "tab-1 pods@test *", "tab-2 pods@prod [prod.yaml] p", "tab-3 services@prod [prod.yaml]")
+	if u.Context != "test" || u.View != "pods" || len(u.Tabs[1].Back) != 0 {
+		t.Errorf("test shown: %q view %q, prod's preview history %q", u.Context, u.View, u.Tabs[1].Back)
+	}
+	u, err = s.SelectTab(ctx, "tab-3")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTabs(t, u, "tab-1 pods@test", "tab-2 pods@prod [prod.yaml] p", "tab-3 services@prod [prod.yaml] *")
+	if u.Context != "prod [prod.yaml]" || u.View != "services" {
+		t.Errorf("prod shown again: %q view %q", u.Context, u.View)
+	}
+}
+
+// The owner's case (2026-10-23): a view on three clusters, two in fixed tabs and the third in its
+// preview tab; selecting the first tab, then the second, leaves the third's preview tab as it was,
+// and every cluster keeps a preview tab of its own.
+func TestThreeClustersKeepTheirPreviewTabs(t *testing.T) {
+	s := tabSession(t)
+	ctx := context.Background()
+	for _, name := range []string{"main", "stage"} {
+		if _, err := s.PinTab(""); err != nil {
+			t.Fatal(err)
+		}
+		if err := s.Connect(ctx, name); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantTabs(t, s.UIState(), "tab-1 pods@test", "tab-2 pods@main", "tab-3 pods@stage p *")
+	for _, step := range []struct{ id, context string }{{"tab-1", "test"}, {"tab-2", "main"}, {"tab-3", "stage"}} {
+		u, err := s.SelectTab(ctx, step.id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if u.Context != step.context || u.ActiveTab != step.id {
+			t.Fatalf("selecting %s: shown %q, %q", step.id, u.Context, tabSummary(u))
+		}
+		if tab, _ := u.Tab("tab-3"); tab.Context != "stage" || tab.View != "pods" || !tab.Preview || len(tab.Back) != 0 {
+			t.Fatalf("after selecting %s, stage's preview tab is %+v", step.id, tab)
+		}
+	}
+
+	// A view opened in preview on main goes to main's own preview tab, stage's stays.
+	if _, err := s.SelectTab(ctx, "tab-2"); err != nil {
+		t.Fatal(err)
+	}
+	u := s.OpenTab("services", false)
+	wantTabs(t, u, "tab-1 pods@test", "tab-2 pods@main", "tab-4 services@main p *", "tab-3 pods@stage p")
 }
 
 // A preview tab in a closed connection keeps its view; while disconnected the tab's state does not

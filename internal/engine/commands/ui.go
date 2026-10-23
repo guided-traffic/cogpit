@@ -129,8 +129,8 @@ func registerUI(g *registrar) {
 	add(g, engine.Spec[viewParams]{
 		ID: "ui.openView", Label: "Open View", MenuPath: "View/Open View", Danger: engine.DangerUI, Verbs: cacheReads,
 		Description: "Opens the list view of a kind (pods, services, ...) or a page (cluster/overview, the cluster " +
-			"Overview; workloads/overview, the Workloads Overview), as clicking it in the sidebar does: in the preview tab " +
-			"of the tab bar, which the next view opened this way replaces, or by activating a fixed tab of the cluster " +
+			"Overview; workloads/overview, the Workloads Overview), as clicking it in the sidebar does: in the cluster's " +
+			"preview tab, which the next view of the cluster opened this way replaces, or by activating a fixed tab of the cluster " +
 			"that shows the view (ui_tab_open opens fixed tabs). The view's selection (the checked rows) comes back as " +
 			"the tab last left it, without objects deleted since; every view keeps its own, so the selection is always " +
 			"the shown view's. Clears the detail drawer, the search text and the status filter, or sets the status " +

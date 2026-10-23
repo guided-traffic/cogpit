@@ -26,7 +26,7 @@ import (
 // connections: its tabs come back without a connect, as in v0.17.0.
 //
 // What it holds (D-41, night decision): per tab its cluster (the context id), its view and the
-// view's title, whether it is the preview tab, its place in the bar, when it was last shown (a
+// view's title, whether it is its cluster's preview tab, its place in the bar, when it was last shown (a
 // rank, so that a cluster connected from the navigator shows its most recently used tab), its
 // namespace and API group filters, its search text with the search's toggles, its status filter
 // (2026-10-14), its sort and its history (view keys); which tab was shown last; and the hidden

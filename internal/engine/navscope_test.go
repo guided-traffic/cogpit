@@ -155,7 +155,7 @@ func TestTabsShown(t *testing.T) {
 	}
 	s.OpenTab("deployments", true)
 	u := s.UIState()
-	wantTabs(t, u, "tab-1 pods@prod p", "tab-3 deployments@prod *", "tab-2 services@test")
+	wantTabs(t, u, "tab-1 pods@test p", "tab-2 services@test", "tab-3 pods@prod p", "tab-4 deployments@prod *")
 	ids := func(tabs []ViewTab) []string {
 		var out []string
 		for _, t := range tabs {
@@ -163,15 +163,15 @@ func TestTabsShown(t *testing.T) {
 		}
 		return out
 	}
-	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-1", "tab-3"}) {
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-3", "tab-4"}) {
 		t.Errorf("prod's tabs %q", got)
 	}
 	u, err := s.CycleTab(ctx, 1)
-	if err != nil || u.ActiveTab != "tab-1" || u.Context != "prod" {
+	if err != nil || u.ActiveTab != "tab-3" || u.Context != "prod" {
 		t.Errorf("next after prod's last: %v, %q on %q", err, u.ActiveTab, u.Context)
 	}
 	u, err = s.SelectTabAt(ctx, 0, true)
-	if err != nil || u.ActiveTab != "tab-3" {
+	if err != nil || u.ActiveTab != "tab-4" {
 		t.Errorf("prod's last tab: %v, %q", err, u.ActiveTab)
 	}
 	if _, err := s.SelectTabAt(ctx, 3, false); !errors.Is(err, ErrUnknownTab) {
@@ -179,7 +179,7 @@ func TestTabsShown(t *testing.T) {
 	}
 
 	u, _ = s.SetNavigatorScope(ctx, NavScopeLocal)
-	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-1", "tab-3"}) {
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-3", "tab-4"}) {
 		t.Errorf("the section's tabs with prod shown %q", got)
 	}
 	if _, err := s.SelectTabAt(ctx, 3, false); !errors.Is(err, ErrUnknownTab) {
@@ -190,7 +190,7 @@ func TestTabsShown(t *testing.T) {
 		t.Fatalf("test's tab: %v, %q on %q view %q", err, u.ActiveTab, u.Context, u.View)
 	}
 	wantScope(t, u, NavScopeCluster("test"))
-	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-2"}) {
+	if got := ids(u.TabsShown()); !slices.Equal(got, []string{"tab-1", "tab-2"}) {
 		t.Errorf("test's tabs %q", got)
 	}
 }

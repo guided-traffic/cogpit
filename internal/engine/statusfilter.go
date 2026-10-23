@@ -190,7 +190,7 @@ func FilterRowsByStates(p *model.KindProfile, rows []model.Row, states []string)
 	return slices.DeleteFunc(rows, func(r model.Row) bool { return !m.Match(spec.Of(&r)) })
 }
 
-// OpenTabFiltered opens a view of the connected cluster as OpenTab does in the preview tab (or the
+// OpenTabFiltered opens a view of the connected cluster as OpenTab does in its preview tab (or the
 // fixed tab that shows it), its status filter set to states: a dashboard's state link.
 func (s *Session) OpenTabFiltered(view string, states []string) UIState {
 	s.noteKindTitle(view)
