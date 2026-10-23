@@ -107,6 +107,42 @@ func TestConnectEndsWhenItsContextLeftCogpit(t *testing.T) {
 	}
 }
 
+// The window's connect whose backend the kubeconfig watcher closed between its publishing and its
+// Connected, the watcher's change of the UI still on its way, forgets the context that left
+// Cogpit (settleClosedConnect): the run's own settle found the window Connecting and left it, and
+// a race-detector run on CI (2026-10-23) saw the connect return with the window "connecting".
+func TestAClosedConnectForgetsItsGoneContext(t *testing.T) {
+	folder := filepath.Join(t.TempDir(), "synced")
+	file := filepath.Join(folder, "a.yaml")
+	writeUserFile(t, file, sourceKubeconfig("a"))
+	k := NewKubeconfigSources(filepath.Join(t.TempDir(), "Cogpit"))
+	src, err := k.AddFolder(folder)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ida := "a [synced/a.yaml]"
+	fc := &fakeConnector{src: testkit.NewMemorySource(), profiles: testProfiles()}
+	s := New(Options{Connector: sourceConnector{fakeConnector: fc, k: k, file: map[string]string{ida: file}}})
+	t.Cleanup(s.Close)
+	s.UpdateUI(func(u *UIState) {
+		u.Context, u.Connection = ida, Connection{State: Connecting}
+		u.Tabs = []ViewTab{{ID: "tab-1", Context: ida, View: "pods"}}
+	})
+	if _, err := k.Remove(src.ID); err != nil {
+		t.Fatal(err)
+	}
+	s.forgetGoneContext(ida, "the run's settle", true, false) // as the run's settle found it
+	if u := s.UIState(); u.Context != ida || u.Connection.State != Connecting {
+		t.Fatalf("the run's settle changed the window: %q %+v", u.Context, u.Connection)
+	}
+	s.settleClosedConnect(ida)
+	u := s.UIState()
+	want := "Disconnected from a [synced/a.yaml]: its kubeconfig source was removed"
+	if u.Context != "" || u.Connection.State != Disconnected || !strings.HasPrefix(u.Connection.Error, want) || len(u.Tabs) != 0 {
+		t.Errorf("after the window's connect ended: context %q, %+v, tabs %d; want no context, Disconnected with %q", u.Context, u.Connection, len(u.Tabs), want)
+	}
+}
+
 // A connect whose context stays is left alone: a failed one keeps its context and its error, as
 // before.
 func TestFailedConnectOfAContextThatStaysKeepsIt(t *testing.T) {
