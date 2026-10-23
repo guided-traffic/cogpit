@@ -148,6 +148,20 @@ func logoTile(px int) *image.NRGBA {
 	return img.(*image.NRGBA)
 }
 
+// pixelsFor is how many of the display's pixels side points span on the canvas c: Fyne's canvas
+// scale times the framebuffer's density. On macOS the canvas scale stays 1 on a Retina display,
+// whose factor 2 is the framebuffer's (Fyne's texScale), so a picture drawn at the canvas scale had
+// half the display's pixels and was stretched, soft (the owner's question of 2026-10-23, a
+// colleague's sharp display; G16). PixelCoordinateForPosition multiplies both, as Fyne's painter
+// does for text and icons. A widget not on a canvas yet gets one pixel a point.
+func pixelsFor(c fyne.Canvas, side float32) int {
+	if c == nil {
+		return int(math.Ceil(float64(side)))
+	}
+	px, _ := c.PixelCoordinateForPosition(fyne.NewPos(side, 0))
+	return max(px, 1)
+}
+
 // newLogo draws Cogpit's logo in the header: the current version's tile (internal/ui/logo, D-24),
 // the same in both themes (owner, 2026-10-15), drawn at the pixel size the canvas shows it at.
 func newLogo() fyne.CanvasObject {
@@ -188,11 +202,7 @@ func (r *logoRenderer) Layout(size fyne.Size) {
 
 func (r *logoRenderer) Refresh() {
 	l := r.l
-	scale := float32(1)
-	if c := fyne.CurrentApp().Driver().CanvasForObject(l); c != nil {
-		scale = c.Scale()
-	}
-	px := int(math.Ceil(float64(r.MinSize().Width * scale)))
+	px := pixelsFor(fyne.CurrentApp().Driver().CanvasForObject(l), r.MinSize().Width)
 	if px != l.px || r.img.Image == nil {
 		r.img.Image = logoTile(px)
 		l.px = px
