@@ -9,7 +9,7 @@ import (
 )
 
 // A list that gets shorter while it is scrolled down (the owner's finding of 2026-10-22 on
-// awe-d-pinniped: the namespace filter narrowed the scrolled Pods list to two pods, "2 of 200
+// acme-d-pinniped: the namespace filter narrowed the scrolled Pods list to two pods, "2 of 200
 // items", and no row was drawn): the table's offset comes back within the rows
 // (tableView.keepScrollInRows).
 
