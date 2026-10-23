@@ -194,3 +194,131 @@ func scrollConfigMaps() []*unstructured.Unstructured {
 	}
 	return out
 }
+
+// A tab comes back as it was left, its list where it scrolled it (the owner, 2026-10-23: "zurück
+// komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe. Gleich
+// Scroll-position"; tabscroll.go).
+
+// showTab shows a tab of a cluster's view, its snapshots one after the other as the engine sends
+// them, and runs a frame's pass after each.
+func showTab(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, tab, view, contextID string, snaps ...*engine.TableSnapshot) {
+	t.Helper()
+	f.update(func(u *engine.UIState) { // as the engine's syncTabs: the active tab shows the view
+		u.ActiveTab, u.View, u.Context = tab, view, contextID
+		for i := range u.Tabs {
+			if u.Tabs[i].ID == tab {
+				u.Tabs[i].Context, u.Tabs[i].View = contextID, view
+			}
+		}
+	})
+	q.until(t, tab+" active", func() bool { return sh.ui.ActiveTab == tab && sh.ui.View == view })
+	p.run(sh.win)
+	for i, snap := range snaps {
+		f.setTable(view, snap)
+		q.until(t, fmt.Sprintf("snapshot %d of %s", i, tab), func() bool { return sh.view.snap == snap })
+		p.run(sh.win)
+	}
+}
+
+// twoTabs is a shell with the 400 pods of demo in tab-1 and a tab of another cluster's pods.
+func twoTabs(t *testing.T) (*fakeEngine, *shell, *mainQueue, *glPass, *engine.TableSnapshot, *engine.TableSnapshot) {
+	t.Helper()
+	all := kindSnapshot(t, "pods", longPods())
+	f, sh, _, q, p := reuseShell(t, ThemeDark, all)
+	var pods []*unstructured.Unstructured
+	for i := range 300 {
+		pods = append(pods, reusePod("shop", fmt.Sprintf("web-%03d", i), "ReplicaSet", "web", "app"))
+	}
+	other := kindSnapshot(t, "pods", pods)
+	other.Context, other.Revision = "other", 9
+	f.update(func(u *engine.UIState) {
+		u.Tabs = []engine.ViewTab{{ID: "tab-1", Context: "demo", View: "pods"}, {ID: "tab-2", Context: "other", View: "pods", Preview: true}}
+		u.ActiveTab = "tab-1"
+	})
+	q.until(t, "tab-1 active", func() bool { return sh.ui.ActiveTab == "tab-1" })
+	showTab(t, f, sh, q, p, "tab-1", "pods", "demo", all)
+	return f, sh, q, p, all, other
+}
+
+// TestATabComesBackWhereItWasLeft: tab-1 scrolled to the middle, another cluster's tab shown and
+// scrolled, tab-1 shown again (its rows after it, as a cluster shown again sends them): each tab's
+// list is where it was left; the other cluster's tab is at its own place too.
+func TestATabComesBackWhereItWasLeft(t *testing.T) {
+	f, sh, q, p, all, other := twoTabs(t)
+	sh.view.scrollTo(200)
+	p.run(sh.win)
+	left := sh.view.table.body.Offset
+	if left.Y == 0 {
+		t.Fatal("tab-1 did not scroll")
+	}
+
+	showTab(t, f, sh, q, p, "tab-2", "pods", "other", nil, notSynced(other), other)
+	wantTop(t, sh) // never scrolled
+	sh.view.scrollTo(120)
+	p.run(sh.win)
+	otherLeft := sh.view.table.body.Offset
+
+	showTab(t, f, sh, q, p, "tab-1", "pods", "demo", nil, notSynced(all), all)
+	if got := sh.view.table.body.Offset; got != left {
+		t.Errorf("tab-1 back at %v, want %v where it was left", got, left)
+	}
+	if got := drawnRows(sh); !got[200] {
+		t.Errorf("tab-1's rows drawn %v, want row 200 among them", got)
+	}
+
+	showTab(t, f, sh, q, p, "tab-2", "pods", "other", other) // its rows at once, from the cache
+	if got := sh.view.table.body.Offset; got != otherLeft {
+		t.Errorf("tab-2 back at %v, want %v where it was left", got, otherLeft)
+	}
+
+	// The rows before the tab: a moment's mix of tab-2 and tab-1's rows keeps nothing wrong.
+	f.setTable("pods", all)
+	q.until(t, "tab-1's rows under tab-2", func() bool { return sh.view.snap == all })
+	p.run(sh.win)
+	showTab(t, f, sh, q, p, "tab-1", "pods", "demo", all)
+	if got := sh.view.table.body.Offset; got != left {
+		t.Errorf("tab-1 back after the mix at %v, want %v", got, left)
+	}
+	showTab(t, f, sh, q, p, "tab-2", "pods", "other", other)
+	if got := sh.view.table.body.Offset; got != otherLeft {
+		t.Errorf("tab-2 back after the mix at %v, want %v", got, otherLeft)
+	}
+}
+
+// TestATabsNewViewStartsAtTheTop: a view the tab opens anew starts at its top, and so does the
+// view it left when the tab opens that again: only showing the tab again brings its place back.
+func TestATabsNewViewStartsAtTheTop(t *testing.T) {
+	f, sh, q, p, all, _ := twoTabs(t)
+	sh.view.scrollTo(200)
+	p.run(sh.win)
+	showTab(t, f, sh, q, p, "tab-1", "configmaps", "demo", kindSnapshot(t, "configmaps", scrollConfigMaps()))
+	wantTop(t, sh)
+	all2 := *all
+	all2.Revision++
+	showTab(t, f, sh, q, p, "tab-1", "pods", "demo", &all2)
+	wantTop(t, sh)
+}
+
+// TestAScrollEndsTheWaitForATabsRows: the user scrolls a tab shown again before its rows are all
+// in; the rows coming after leave the list where the user put it.
+func TestAScrollEndsTheWaitForATabsRows(t *testing.T) {
+	f, sh, q, p, all, other := twoTabs(t)
+	sh.view.scrollTo(380)
+	p.run(sh.win)
+	showTab(t, f, sh, q, p, "tab-2", "pods", "other", other)
+
+	part := notSynced(all)
+	part.Rows = all.Rows[:100]
+	showTab(t, f, sh, q, p, "tab-1", "pods", "demo", part) // 100 of the 400 rows: as far as they reach
+	sh.view.scrollTo(10)
+	p.run(sh.win)
+	mine := sh.view.table.body.Offset
+	full := *all
+	full.Revision += 5
+	f.setTable("pods", &full)
+	q.until(t, "the rest of the rows", func() bool { return sh.view.snap == &full })
+	p.run(sh.win)
+	if got := sh.view.table.body.Offset; got != mine {
+		t.Errorf("after the rest came: at %v, want %v where the user scrolled", got, mine)
+	}
+}

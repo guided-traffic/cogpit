@@ -80,8 +80,12 @@ type tableView struct {
 	root                       fyne.CanvasObject
 
 	snap    *engine.TableSnapshot
-	cols    []int  // visible column → index in snap.Columns
-	colsKey string // the view and column ids, to notice a column change
+	shows   shownList            // the tab, cluster and view the rows are of (tabscroll.go)
+	scrolls map[string]tabScroll // where each tab left its list, by tab id (tabscroll.go)
+	back    *fyne.Position       // where the tab shown again scrolls to once its rows are in (tabscroll.go)
+	backing bool                 // scrollBack is scrolling: not the user
+	cols    []int                // visible column → index in snap.Columns
+	colsKey string               // the view and column ids, to notice a column change
 	now     time.Time
 	tf      model.TimeFormat // absolute times (an event's Last Seen) in the user's zone and format (D-31)
 
@@ -464,13 +468,18 @@ func (tv *tableView) updatePlaceholder() {
 // setSnapshot shows a new snapshot. A replaced snapshot costs one table refresh: the table asks
 // for the visible cells only, and each cell update is O(1).
 func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
-	if snap == tv.snap && snap != nil {
+	shows := tv.shownOf(snap)
+	if snap == tv.snap && snap != nil && shows == tv.shows {
 		return
 	}
-	// A view entered: another view, the same view of another cluster (D-69), or the first snapshot
-	// after none.
-	newView := snap != nil && (tv.snap == nil || tv.snap.View != snap.View || tv.snap.Context != snap.Context)
-	fewer := snap != nil && tv.snap != nil && len(snap.Rows) < len(tv.snap.Rows)
+	// A view entered: another tab, another view, the same view of another cluster (D-69), or the
+	// first snapshot after none. The view left keeps where its tab scrolled it (tabscroll.go).
+	newView := snap != nil && (tv.snap == nil || shows != tv.shows)
+	if shows != tv.shows {
+		tv.leaveTab()
+		tv.shows = shows
+	}
+	fewer := snap != nil && tv.snap != nil && len(snap.Rows) < len(tv.snap.Rows) && !newView
 	tv.snap = snap
 	key := ""
 	if snap != nil {
@@ -517,15 +526,18 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 	if newView {
 		tv.table.resetKeyboard() // a view starts at its first cell
 		tv.scrollToTop()
+		tv.enterTab()
 	}
 	if fewer {
 		tv.keepScrollInRows()
 	}
 	tv.table.Refresh()
+	tv.scrollBack()
 	tv.resolvePending()
 }
 
-// scrollToTop shows a view entered from its top, both offsets set (the owner's finding of
+// scrollToTop shows a view entered from its top, unless its tab comes back to it (tabscroll.go),
+// both offsets set (the owner's finding of
 // 2026-10-23, v0.40.1: a view entered showed its header and "197 items" and no row until a
 // minimal scroll). Fyne 2.8's table and its scroller each keep an offset, and the table draws its
 // rows from its own: the keyboard's first cell (resetKeyboard, Fyne's ScrollTo) scrolls only as far
@@ -1213,6 +1225,9 @@ func (t *resourceTable) CreateRenderer() fyne.WidgetRenderer {
 			s.OnScrolled = func(p fyne.Position) {
 				inner(p)
 				t.offset = p
+				if !t.tv.backing {
+					t.tv.back = nil // the user scrolled: the tab shown again stays where they put it
+				}
 				t.tv.sh.tip.hide()
 				t.tv.copyIcon.moving()
 			}
