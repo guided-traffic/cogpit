@@ -447,3 +447,44 @@ func TestPinTab(t *testing.T) {
 		t.Errorf("pin an unknown tab: %v", err)
 	}
 }
+
+// A preview tab comes back as it was left when its cluster is shown again (the owner, 2026-10-23:
+// "zurück komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe
+// … gleiche filter"): its namespaces, search with its toggles, status filter, sort, selection and
+// drawer; the other cluster's preview tab keeps its own. The list's scroll offset is the window's
+// (fyneui/tabscroll.go).
+func TestATabComesBackAsItWasLeft(t *testing.T) {
+	s := tabSession(t)
+	ctx := context.Background()
+	pod := model.ObjectRef{Context: "test", Kind: "pods", Namespace: "shop", Name: "web-0"}
+	left := func(u *UIState) {
+		u.Namespaces, u.Filter, u.FilterOptions = []string{"shop"}, "web", FilterOptions{Regex: true}
+		u.SetStates([]string{"Running"})
+		u.Sort = SortSpec{Column: "age", Desc: true}
+		u.Selected, u.Drawer = []model.ObjectRef{pod}, &pod
+	}
+	s.UpdateUI(left)
+	want := s.UIState()
+	if err := s.Connect(ctx, "prod [prod.yaml]"); err != nil {
+		t.Fatal(err)
+	}
+	s.UpdateUI(func(u *UIState) { u.Namespaces, u.Filter = []string{"monitoring"}, "api" })
+	prod := s.UIState().ActiveTab
+
+	u, err := s.SelectTab(ctx, "tab-1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if u.Context != "test" || !slices.Equal(u.Namespaces, want.Namespaces) || u.Filter != want.Filter ||
+		u.FilterOptions != want.FilterOptions || !slices.Equal(u.States, want.States) || u.Sort != want.Sort ||
+		!slices.Equal(u.Selected, want.Selected) || u.Drawer == nil || *u.Drawer != pod {
+		t.Errorf("test's preview tab came back as %+v, want it as left: %+v", u, want)
+	}
+	u, err = s.SelectTab(ctx, prod)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(u.Namespaces, []string{"monitoring"}) || u.Filter != "api" || len(u.States) != 0 || u.Drawer != nil {
+		t.Errorf("prod's preview tab came back as %+v", u)
+	}
+}
