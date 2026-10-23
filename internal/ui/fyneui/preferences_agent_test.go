@@ -133,7 +133,7 @@ func TestAgentPreferencesKeyHint(t *testing.T) {
 		}
 	}
 	var help *paragraph
-	for _, l := range findAll[*paragraph](w.Content()) { // a setting's help is wrapped, never cut (preferences_page.go)
+	for _, l := range findAll[*paragraph](sh.settings.root) { // a setting's help is wrapped, never cut (preferences_page.go)
 		if strings.HasPrefix(l.text, "Each conversation uses one") {
 			help = l
 		}

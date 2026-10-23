@@ -21,7 +21,9 @@ import (
 //  2. the window's top overlay, by what was registered for it (onEscape): a dialog's Cancel, or its
 //     close for a dialog without one; a pop-up's close; the palette, the notifications, the MCP
 //     details. An overlay nothing was registered for takes Escape and nothing behind it closes;
-//  3. a settings page, then the drawer, as before.
+//  3. the drawer, as before. A settings page is a card over the window (settingsoverlay.go, D-118):
+//     the window's top overlay while nothing is opened above it, its close registered for it, so it
+//     closes in step 2; the step below stays for a page without one.
 //
 // The widgets that take the keyboard by a click hand an Escape they do not use on to the window's
 // handler (passEscape): Cogpit's dropdown and searches, and the fields, checks and sliders of
@@ -94,13 +96,14 @@ func passEscape(obj fyne.CanvasObject) {
 	}
 }
 
-// escape is the window's Escape: the top overlay's, else a settings page closes, else the drawer.
+// escape is the window's Escape: the top overlay's (a settings page's card among them), else the
+// drawer.
 func (sh *shell) escape() {
 	if escapeOverlay(sh.win.Canvas()) {
 		return
 	}
 	if sh.settings.visible() { // a settings page lies over the views
-		sh.dispatch("settings.close", struct{}{}, nil)
+		sh.settings.close()
 		return
 	}
 	sh.closeDrawer()

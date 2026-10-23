@@ -2,6 +2,8 @@ package fyneui
 
 import (
 	"errors"
+	"maps"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -17,15 +19,17 @@ import (
 
 // The settings pages (G13): Preferences (⌘,) and a cluster's Settings (⌘⇧,). Lens shows both as
 // pages (its cluster settings as a tab "Settings - <context>" with the cluster's icon and a page
-// list on the left, captured 2026-10-11; its Preferences as a page, inferred). Cogpit does not open
-// them as tabs of its tab bar (tabs.go): a settings page takes the place of the navigator, the tab
-// bar, the views and the dock until it is closed (its × or Escape); the hotbar, the top bar and
-// the status bar stay. Which page is open is
+// list on the left, captured 2026-10-11; its Preferences as a page, inferred). Cogpit shows them as
+// a card over the whole window, Cogpit dimmed behind it and nothing behind it reachable until the
+// card is closed by its ×, Escape or a click on the shade (the owner's VW6 of 2026-10-23, D-118;
+// settingsoverlay.go): its header across the card holds the cluster's icon and the title at the
+// left and the × at the right, the section list stands below it on the left. Which page is open is
 // UI state (UIState.Settings: preferences.open, cluster.settings.open, settings.close), so an
 // agent sees it and can open one; the section list dispatches the open command with the section.
 // Each section shows its settings under upper-case headings with a help line below each, as the
-// captures show Lens's; a change is dispatched at once (a text field after a typing pause), and
-// the engine's refusal shows under the field.
+// captures show Lens's; a change is dispatched at once (a text field after a typing pause, which a
+// close or another section ends by setting the field at once), and the engine's refusal shows
+// under the field.
 
 // settingsTyping is the typing pause after which a text field's value is set.
 const settingsTyping = 600 * time.Millisecond
@@ -34,13 +38,14 @@ const settingsTyping = 600 * time.Millisecond
 type settingsPage struct {
 	sh *shell
 
-	root   *fyne.Container // the page, in the window's centre while open
-	title  *textLine
-	badge  *clusterBadge   // the cluster's icon beside the title; hidden on Preferences
-	lead   *fyne.Container // the badge and its gap: hidden with it, so that the title stands on the column's edge
-	nav    *fyne.Container
-	body   *fyne.Container
-	closeB *textButton
+	root    *fyne.Container  // the page: the card the overlay shows
+	overlay *settingsOverlay // the card over the window while a page is open (settingsoverlay.go)
+	title   *textLine
+	badge   *clusterBadge   // the cluster's icon beside the title; hidden on Preferences
+	lead    *fyne.Container // the badge and its gap: hidden with it, so that the title stands on the header's edge
+	nav     *fyne.Container
+	body    *fyne.Container
+	closeB  *tipButton
 
 	typing  time.Duration       // the typing pause before a text field's value is set (tests shorten it)
 	shown   engine.SettingsPage // what the page shows; Page is empty while it is closed
@@ -48,11 +53,12 @@ type settingsPage struct {
 	view    *engine.ClusterSettingsView
 	viewSeq int
 	syncing bool // controls being set from the state: their callbacks do not dispatch
+	closing bool // the user closed the page and the engine's state has not closed it yet (close)
 
 	// The shown section's controls, by setting name, for updates from the state and for tests.
 	controls map[string]fyne.CanvasObject
 	errs     map[string]*textLine
-	timers   map[string]*time.Timer
+	timers   map[string]*typingPause
 	sync     func() // sets the shown section's controls from the state
 	navItems map[string]*navItem
 
@@ -75,27 +81,39 @@ type settingsPage struct {
 
 func newSettingsPage(sh *shell) *settingsPage {
 	p := &settingsPage{sh: sh, typing: settingsTyping, controls: map[string]fyne.CanvasObject{}, errs: map[string]*textLine{},
-		timers: map[string]*time.Timer{}, navItems: map[string]*navItem{}}
+		timers: map[string]*typingPause{}, navItems: map[string]*navItem{}}
 	p.title = newTextLine("", theme.ColorNameForeground, theme.SizeNameHeadingText, fyne.TextStyle{Bold: true})
 	p.title.truncate = true
 	p.badge = newClusterBadge()
 	p.badge.side = sizeHotbarTile
-	p.closeB = newPlateButton("", theme.CancelIcon(), func() { sh.dispatch("settings.close", struct{}{}, nil) })
-	p.closeB.Importance = widget.LowImportance
+	// The × outlined, as a content surface's icon buttons are (D-104), and named by its tooltip: the
+	// owner looked for it on the bare plate it was (VW6).
+	p.closeB = newTipButton(sh, theme.CancelIcon(), "Close (Esc)", p.close)
 	p.lead = container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)) // hidden with the badge
 	p.nav = container.NewVBox()
 	p.body = container.NewStack()
-	// The title stands in the column the settings stand in (columnLayout), the × at the window's edge.
-	// A spacer as wide as the × stands at the left, so that the header's column is the body's column.
-	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil, fixedSpace(p.closeB.MinSize().Width, 0), container.NewCenter(p.closeB),
-		box(columnLayout{}, container.NewBorder(nil, nil,
-			p.lead, nil,
-			container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))))
-	navPanel := sized(sizeSidebarWidth, "", newSurface(colorSidebar),
+	// The header across the card: the cluster's icon and the title at its left, the × at its right.
+	// It is as high without the icon (Preferences) as with it, so that the card's body does not move
+	// between the two pages.
+	tile := sh.app.Settings().Theme().Size(sizeHotbarTile)
+	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
+		container.NewStack(fixedHeight(tile), p.lead), container.NewCenter(p.closeB),
+		container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))
+	// The section list on the sidebar's colour, its foot in the card's rounded corner.
+	navBg := newSurface(colorSidebar)
+	navBg.radius, navBg.bottomLeftOnly = theme.SizeNameDialogRadius, true
+	navPanel := sized(sizeSidebarWidth, "", navBg,
 		container.NewBorder(nil, nil, nil, newDivider(true), inset(theme.SizeNamePadding, theme.SizeNameInnerPadding, container.NewVBox(p.nav))))
-	content := container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil,
-		container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, box(columnLayout{}, p.body))))
-	p.root = container.NewStack(newSurface(theme.ColorNameBackground), container.NewBorder(nil, nil, navPanel, nil, content))
+	content := container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, box(columnLayout{}, p.body)))
+	// The card: the window's background, rounded as a dialog, parted from the dimmed window by a
+	// hairline (as dialogFrame's card) and by the overlay's shadow. Its parts stand inside the
+	// hairline.
+	bg := newSurface(theme.ColorNameBackground)
+	bg.radius, bg.stroke = theme.SizeNameDialogRadius, colorBracket
+	p.root = container.NewStack(bg, inset(theme.SizeNameInputBorder, theme.SizeNameInputBorder,
+		container.NewBorder(container.NewVBox(header, newDivider(false)), nil, nil, nil,
+			container.NewBorder(nil, nil, navPanel, nil, content))))
+	p.overlay = newSettingsOverlay(sh, p.root, p.close)
 	p.pickIcon = p.pickIconPanel
 	p.pickFolder = p.pickFolderPanel
 	p.openFolder = sh.openFolderWithFileManager
@@ -112,25 +130,27 @@ func (p *settingsPage) stateChanged() {
 	st := sh.ui.Settings
 	if st == nil {
 		if p.visible() {
-			p.stopTimers()
+			p.flushTyping() // an agent's close: what the user typed is set all the same
 			p.shown, p.built, p.view = engine.SettingsPage{}, "", nil
-			sh.center.Objects = []fyne.CanvasObject{sh.mainRow}
-			sh.center.Refresh()
+			p.overlay.Hide()
 		}
 		return
 	}
+	key := st.Page + "\x00" + st.Context + "\x00" + st.Section
+	if key != p.built {
+		p.flushTyping() // before p.shown moves on: a pending set names the section's cluster
+	}
 	if !p.visible() {
+		p.closing = false
 		sh.tip.hide()
-		sh.win.Canvas().Unfocus() // the keys must not go on to a field the page hides
-		sh.center.Objects = []fyne.CanvasObject{p.root}
-		sh.center.Refresh()
+		sh.win.Canvas().Unfocus() // the keys must not go on to a field behind the card
+		p.overlay.Show()
 	}
 	p.shown = *st
-	if key := st.Page + "\x00" + st.Context + "\x00" + st.Section; key != p.built {
+	if key != p.built {
 		if st.Page == engine.SettingsCluster && (p.view == nil || p.view.Context != st.Context) {
 			p.view = nil
 		}
-		p.stopTimers()
 		p.built = key
 		p.build()
 	}
@@ -163,7 +183,7 @@ func (p *settingsPage) build() {
 		if p.shown.Page == engine.SettingsCluster {
 			label = clusterSectionLabels[p.shown.Section]
 		}
-		content = container.NewVBox(fixedSpace(0, 4), newBracketLabel(strings.ToLower(label)+" · "+strconv.Itoa(n), ""), fixedSpace(0, 10), content)
+		content = container.NewVBox(fixedHeight(4), newBracketLabel(strings.ToLower(label)+" · "+strconv.Itoa(n), ""), fixedHeight(10), content)
 	}
 	p.body.Objects = []fyne.CanvasObject{content}
 	p.body.Refresh()
@@ -240,10 +260,24 @@ func (p *settingsPage) syncControls() {
 	p.sync()
 }
 
-func (p *settingsPage) stopTimers() {
-	for k, t := range p.timers {
-		t.Stop()
-		delete(p.timers, k)
+// close is the user's close of the page: its ×, Escape, a click on the shade. A value typed in the
+// last pause is set first (flushTyping).
+func (p *settingsPage) close() {
+	p.closing = true // the answers to come find the page gone (settled)
+	p.flushTyping()
+	p.sh.dispatch("settings.close", struct{}{}, nil)
+}
+
+// flushTyping ends every typing pause of the shown section at once and sets its field: the page
+// closing or showing another section takes a value typed just before as typed (D-118). Before, the
+// pauses were stopped there and a value typed in the last 600 ms was dropped.
+func (p *settingsPage) flushTyping() {
+	names := slices.Sorted(maps.Keys(p.timers)) // one order, the fields' names'
+	for _, name := range names {
+		pause := p.timers[name]
+		pause.timer.Stop()
+		delete(p.timers, name)
+		pause.set()
 	}
 }
 
@@ -264,13 +298,13 @@ func (p *settingsPage) setting(name, title, help string, control fyne.CanvasObje
 	// An ordinary label, not a bracket: a bracket means a group (settingsGroup), and six of them on
 	// a page would read as underlines. 6 pt from the label to its control, 24 pt to the next setting.
 	objs := []fyne.CanvasObject{newTextLine(title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
-		fixedSpace(0, 6), control}
+		fixedHeight(6), control}
 	if help != "" {
 		h := newParagraph(help, colorMuted, settingsHelpWidth) // wrapped, never cut short
 		h.size = theme.SizeNameCaptionText
-		objs = append(objs, fixedSpace(0, 4), h)
+		objs = append(objs, fixedHeight(4), h)
 	}
-	objs = append(objs, errLine, fixedSpace(0, 24))
+	objs = append(objs, errLine, fixedHeight(24))
 	return box(layout.NewCustomPaddedVBoxLayout(0), objs...)
 }
 
@@ -279,7 +313,7 @@ func (p *settingsPage) setting(name, title, help string, control fyne.CanvasObje
 func (p *settingsPage) settingsGroup(text string, tone fyne.ThemeColorName, objs ...fyne.CanvasObject) fyne.CanvasObject {
 	p.grouped = true
 	all := make([]fyne.CanvasObject, 0, 3+len(objs))
-	all = append(all, fixedSpace(0, 4), newBracketLabel(text, tone), fixedSpace(0, 10))
+	all = append(all, fixedHeight(4), newBracketLabel(text, tone), fixedHeight(10))
 	return container.NewVBox(append(all, objs...)...)
 }
 
@@ -312,8 +346,17 @@ func (p *settingsPage) showResult(name string, err error) {
 // equals the one before the tap, and the control would go on showing the tapped value (CI,
 // 2026-10-21 and 2026-10-22). The state a change makes is queued before its answer, so the window
 // holds it, or a newer one, by then.
+//
+// A section closed or left before the answer came has no line under the field any more: its
+// refusal shows as a toast (a value set as the page closed, flushTyping), and the page is not
+// followed for it. The user's close counts at once, before the engine's state closes the page.
 func (p *settingsPage) settled(name string) func(any, error) {
+	built := p.built
 	return func(_ any, err error) {
+		if p.built != built || p.closing {
+			p.sh.showError(err)
+			return
+		}
 		p.showResult(name, err)
 		if err == nil {
 			p.stateChanged()
@@ -326,25 +369,32 @@ func (p *settingsPage) settled(name string) func(any, error) {
 // goroutine. Run, it set the field before the pause after that key and dropped the newer pause
 // from p.timers, which the next key then no longer stopped: the field was set again, late, over a
 // change an agent had made in between (TestPrometheusSettingsOnThePage on CI, 2026-10-22). A
-// section's pauses end with it (stopTimers), so a set left waiting finds no pause of its own.
+// section's pauses end with it (flushTyping, which sets them), so a set left waiting finds no pause
+// of its own.
 func (p *settingsPage) typed(name string, set func()) {
 	if p.syncing {
 		return
 	}
-	if t := p.timers[name]; t != nil {
-		t.Stop()
+	if old := p.timers[name]; old != nil {
+		old.timer.Stop()
 	}
-	var t *time.Timer
-	t = time.AfterFunc(p.typing, func() {
+	pause := &typingPause{set: set}
+	pause.timer = time.AfterFunc(p.typing, func() {
 		p.sh.do(func() {
-			if p.timers[name] != t {
+			if p.timers[name] != pause {
 				return // a newer key's pause sets the field, or the section is gone
 			}
 			delete(p.timers, name)
 			set()
 		})
 	})
-	p.timers[name] = t
+	p.timers[name] = pause
+}
+
+// typingPause is a text field's pause after a key, and what sets the field when it ends.
+type typingPause struct {
+	timer *time.Timer
+	set   func()
 }
 
 // setEntry shows a value in a text field the user is not typing in; focus is the field's
