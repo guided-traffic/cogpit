@@ -136,7 +136,7 @@ func TestThePlaceholderStaysInsideTheView(t *testing.T) {
 			u.Context, u.Connection = cFailed, engine.Connection{State: engine.ConnectError, Error: walkCertError}
 		},
 		"connecting": func(u *engine.UIState) {
-			u.Context = "a-cluster-with-a-very-long-name-" + strings.Repeat("x", 120) + " [kubernetes_configs/wds18-k8s-stage.yaml]"
+			u.Context = "a-cluster-with-a-very-long-name-" + strings.Repeat("x", 120) + " [kubernetes_configs/acme-k8s-stage.yaml]"
 			u.Connection = engine.Connection{State: engine.Connecting}
 		},
 	} {

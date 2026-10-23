@@ -31,9 +31,9 @@ func iconResource(t *testing.T) fyne.Resource {
 func TestTabShowsTheClustersImage(t *testing.T) {
 	sh, _, q, f := tabsShell(t, ThemeDark)
 	f.update(func(u *engine.UIState) {
-		u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {Name: "wds18-main", Icon: iconFile}, longContext: {Icon: iconFile}}
+		u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {Name: "acme-main", Icon: iconFile}, longContext: {Icon: iconFile}}
 	})
-	q.until(t, "the initials while the image loads", func() bool { return tabRenderer(sh.tabs.shown[0]).initials.Text == "WM" })
+	q.until(t, "the initials while the image loads", func() bool { return tabRenderer(sh.tabs.shown[0]).initials.Text == "AM" })
 	if r := tabRenderer(sh.tabs.shown[0]); r.img.Visible() || !r.initials.Visible() {
 		t.Fatal("an image shows before it was read")
 	}
@@ -59,7 +59,7 @@ func TestTabShowsTheClustersImage(t *testing.T) {
 	}
 
 	f.update(func(u *engine.UIState) {
-		u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {Name: "wds18-main", IconColor: "orange"}}
+		u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {Name: "acme-main", IconColor: "orange"}}
 	})
 	q.until(t, "the initials again", func() bool {
 		r := tabRenderer(sh.tabs.shown[0])
@@ -81,13 +81,13 @@ func TestRenderTabBarClusterIconsLight(t *testing.T) {
 func renderTabBarClusterIcons(t *testing.T, mode ThemeMode, name string) {
 	f, _ := marksFake(t, true)
 	f.ui.Tabs = []engine.ViewTab{
-		{ID: "tab-1", Context: cShown, View: kindPods, Title: "Pods - wds18-main", Sort: engine.DefaultSort},
+		{ID: "tab-1", Context: cShown, View: kindPods, Title: "Pods - acme-main", Sort: engine.DefaultSort},
 		{ID: "tab-2", Context: cCold, View: "services", Title: "Services - staging-us-east", Sort: engine.DefaultSort},
 		{ID: "tab-3", Context: cFailed, View: "nodes", Title: "Nodes - qa-eu-west", Sort: engine.DefaultSort},
 	}
 	f.ui.ActiveTab = "tab-1"
 	f.ui.ClusterSettings = map[string]engine.ClusterSettings{
-		cShown: {Name: "wds18-main", Icon: iconFile}, cCold: {IconColor: "magenta"}, cFailed: {Icon: iconFile},
+		cShown: {Name: "acme-main", Icon: iconFile}, cCold: {IconColor: "magenta"}, cFailed: {Icon: iconFile},
 	}
 	mixed := engine.DefaultPreferences()
 	mixed.MixedEnvironments = true // every cluster's tabs in the bar (GW11)

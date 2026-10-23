@@ -59,7 +59,7 @@ type Candidate struct {
 	// Ports are the spellings of the target's port the service proxy is asked with, best first:
 	// its number, then its name (portForms). Target.Port is the first. An RBAC rule that grants
 	// services/proxy by resourceNames matches the proxy's name "<service>:<port>" as written, and
-	// the roles written for Lens name the number (the owner's mgmt-p, 2026-10-18: only
+	// the roles written for Lens name the number (the owner's acme-mgmt, 2026-10-18: only
 	// "prometheus-operated:9090" was allowed, "…:http-web" refused); empty for an override, which
 	// is asked as set.
 	Ports []string

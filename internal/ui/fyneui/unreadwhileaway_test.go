@@ -8,7 +8,7 @@ import (
 )
 
 // A cluster shown while its login is expired or its connection interrupted, whose objects were never
-// read (the owner's finding of 2026-10-22, awe-p-pinniped): the cache's lists wait until the cluster
+// read (the owner's finding of 2026-10-22, acme-p-pinniped): the cache's lists wait until the cluster
 // is back, so the view loads nothing and the namespace filter has no namespaces of it.
 
 // unreadPods is the Pods view's snapshot before its first list: no rows, not synced, no error.
@@ -64,7 +64,7 @@ func TestAViewReadBeforeTheLoginExpired(t *testing.T) {
 }
 
 // TestNamespacesStayWithTheirCluster: shown after another cluster, a cluster whose namespaces cannot
-// be read offers none of the other cluster's in the namespace filter (it offered wds18-main's).
+// be read offers none of the other cluster's in the namespace filter (it offered acme-main's).
 func TestNamespacesStayWithTheirCluster(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, _, q := newTestShell(t, f, Options{})
@@ -76,13 +76,13 @@ func TestNamespacesStayWithTheirCluster(t *testing.T) {
 	f.tables["pods"] = unreadPods(t)
 	f.mu.Unlock()
 	f.update(func(u *engine.UIState) {
-		u.Context = "awe-p"
+		u.Context = "acme-p"
 		u.Connection = engine.Connection{State: engine.LoginExpired, Since: fixedNow, CredentialPlugin: true}
 	})
-	q.until(t, "awe-p's namespaces read", func() bool { return sh.ui.Context == "awe-p" && len(f.callsOf("resources.list")) > reads })
+	q.until(t, "acme-p's namespaces read", func() bool { return sh.ui.Context == "acme-p" && len(f.callsOf("resources.list")) > reads })
 	q.drain() // the read's answer
 	if _, names, _ := sh.view.filterChoices(); len(names) != 0 {
-		t.Errorf("awe-p's namespace filter offers %q", names)
+		t.Errorf("acme-p's namespace filter offers %q", names)
 	}
 	if sh.namespaces != nil || sh.nsFor != "" {
 		t.Errorf("namespaces %q read for %q kept", sh.namespaces, sh.nsFor)

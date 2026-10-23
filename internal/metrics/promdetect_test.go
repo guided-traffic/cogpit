@@ -149,7 +149,7 @@ var refusing = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		`"message":"services \"x\" is forbidden: cannot get resource \"services/proxy\""}`))
 })
 
-// TestDetectTriesThePortsNumberThenName (the owner's mgmt-p, 2026-10-18): a role that grants the
+// TestDetectTriesThePortsNumberThenName (the owner's acme-mgmt, 2026-10-18): a role that grants the
 // service proxy by resourceNames matches the name as written. Where only "<svc>:9090" is granted
 // (as the roles written for Lens name it), the number, asked first, is found at once; where only
 // "<svc>:http-web" is, the number is refused and the name found next.
