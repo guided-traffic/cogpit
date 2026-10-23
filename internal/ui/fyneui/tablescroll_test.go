@@ -3,9 +3,12 @@ package fyneui
 import (
 	"fmt"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
 // A list that gets shorter while it is scrolled down (the owner's finding of 2026-10-22 on
@@ -83,4 +86,111 @@ func TestRowsGoneAtTheEndKeepTheEndShown(t *testing.T) {
 	if got := drawnRows(sh); !got[last] || got[0] {
 		t.Errorf("rows drawn %v, want the end of the %d rows", got, len(fewer.Rows))
 	}
+}
+
+// A view entered after another was scrolled down (the owner's finding of 2026-10-23, v0.40.1: a
+// view entered showed its header and "197 items" and no row until a minimal scroll) shows its rows
+// from its top (tableView.scrollToTop), however its first snapshots come.
+
+// longPods are 400 pods, a list longer than the one entered after it.
+func longPods() []*unstructured.Unstructured {
+	pods := scrollPods()
+	for i := range 200 {
+		pods = append(pods, reusePod("tools", fmt.Sprintf("worker-%03d", i), "ReplicaSet", "worker", "app"))
+	}
+	return pods
+}
+
+// scrolledDown is a shell showing the 400 pods scrolled to their end.
+func scrolledDown(t *testing.T) (*fakeEngine, *shell, *mainQueue, *glPass) {
+	t.Helper()
+	all := kindSnapshot(t, "pods", longPods())
+	f, sh, _, q, p := reuseShell(t, ThemeDark, all)
+	sh.view.scrollTo(len(all.Rows) - 1)
+	p.run(sh.win)
+	if sh.view.table.body.Offset.Y == 0 {
+		t.Fatal("the list did not scroll: the test needs it scrolled down")
+	}
+	return f, sh, q, p
+}
+
+// enter shows a view of a cluster, its snapshots one after the other as the engine sends them
+// (nil while it has none), and runs a frame's pass after each.
+func enter(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, view, contextID string, snaps ...*engine.TableSnapshot) {
+	t.Helper()
+	for i, snap := range snaps {
+		f.setTable(view, snap)
+		if i == 0 {
+			f.update(func(u *engine.UIState) { u.View, u.Context = view, contextID })
+		}
+		q.until(t, fmt.Sprintf("snapshot %d of %s", i, view), func() bool { return sh.view.snap == snap })
+		p.run(sh.win)
+	}
+}
+
+// notSynced is a view's first snapshot before its list synced: no rows.
+func notSynced(full *engine.TableSnapshot) *engine.TableSnapshot {
+	s := *full
+	s.Rows, s.Total, s.Synced, s.Revision = nil, 0, false, full.Revision-1
+	return &s
+}
+
+func wantTop(t *testing.T, sh *shell) {
+	t.Helper()
+	if got := drawnRows(sh); !got[0] || !got[1] {
+		t.Errorf("rows drawn %v of %d, want the first ones", got, len(sh.view.snap.Rows))
+	}
+	if off := sh.view.table.body.Offset.Y; off != 0 {
+		t.Errorf("offset %v, want the top", off)
+	}
+}
+
+// TestAViewEnteredBeforeItsRowsShowsThem: the owner's picture. The view entered has no snapshot
+// yet, then one without rows (its list not synced), then its 150 rows: they were drawn from the
+// offset the 400 pods left, past their end, so none was.
+func TestAViewEnteredBeforeItsRowsShowsThem(t *testing.T) {
+	f, sh, q, p := scrolledDown(t)
+	full := kindSnapshot(t, "configmaps", scrollConfigMaps())
+	full.Revision = 2
+	enter(t, f, sh, q, p, "configmaps", "demo", nil, notSynced(full), full)
+	wantTop(t, sh)
+}
+
+// TestAViewEnteredWithItsRowsShowsTheFirst: the view's first snapshot has its rows; the first row
+// was left under the header row (Fyne's ScrollTo of the keyboard's first cell).
+func TestAViewEnteredWithItsRowsShowsTheFirst(t *testing.T) {
+	f, sh, q, p := scrolledDown(t)
+	enter(t, f, sh, q, p, "configmaps", "demo", kindSnapshot(t, "configmaps", scrollConfigMaps()))
+	wantTop(t, sh)
+}
+
+// TestAnotherClustersListStartsAtTheTop: the same view of another connected cluster (D-69) is a
+// view entered: its list starts at its top, not at the offset the other cluster's left.
+func TestAnotherClustersListStartsAtTheTop(t *testing.T) {
+	for _, n := range []int{150, 400} {
+		t.Run(fmt.Sprint(n), func(t *testing.T) {
+			f, sh, q, p := scrolledDown(t)
+			var pods []*unstructured.Unstructured
+			for i := range n {
+				pods = append(pods, reusePod("shop", fmt.Sprintf("web-%03d", i), "ReplicaSet", "web", "app"))
+			}
+			other := kindSnapshot(t, "pods", pods)
+			other.Context, other.Revision = "other", 9
+			enter(t, f, sh, q, p, "pods", "other", nil, notSynced(other), other)
+			wantTop(t, sh)
+		})
+	}
+}
+
+// scrollConfigMaps are 150 Config Maps, more than the window shows.
+func scrollConfigMaps() []*unstructured.Unstructured {
+	var out []*unstructured.Unstructured
+	for i := range 150 {
+		out = append(out, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "ConfigMap",
+			"metadata": map[string]any{"name": fmt.Sprintf("settings-%03d", i), "namespace": "default",
+				"uid": fmt.Sprintf("uid-cm-%03d", i), "creationTimestamp": ts(time.Hour)},
+		}})
+	}
+	return out
 }
