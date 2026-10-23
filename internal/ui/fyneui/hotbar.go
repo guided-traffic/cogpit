@@ -548,7 +548,7 @@ func (r *hotbarTileRenderer) Refresh() {
 	accent := themeColor(th, r.id.ink) // the cluster's icon colour, the accent by default
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius) * t.zoom()
 	r.bg.StrokeWidth = 0
-	r.initials.TextSize = th.Size(theme.SizeNameSubHeadingText) * t.zoom()
+	r.initials.TextSize = fitTextSize(r.id.initials, th.Size(theme.SizeNameSubHeadingText)*t.zoom(), (th.Size(sizeHotbarTile)-4)*t.zoom()) // up to five letters (D-119)
 	r.label.TextSize = th.Size(theme.SizeNameCaptionText) * t.zoom()
 	r.label.Color = themeColor(th, colorMuted)
 	r.initials.Color = accent

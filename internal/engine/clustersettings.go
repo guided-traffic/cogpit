@@ -74,8 +74,19 @@ type ClusterSettings struct {
 	// uploaded image (ErrClusterIdentityGUIOnly, H-125).
 	IconColor string `json:"iconColor,omitempty"`
 	// Icon is the uploaded image's file in ClusterIconsDir ("<sha256>.png" or "<sha256>.svg"),
-	// which takes the colour's place; empty: none.
+	// which takes the colour's place unless IconTile; empty: none. Since D-119 a square PNG cut
+	// from IconSource; an SVG or another shape only from before.
 	Icon string `json:"icon,omitempty"`
+	// IconSource is the image Icon was cut from, a PNG in ClusterIconsDir, and IconCrop where it was
+	// cut (D-119, clustersettings_iconcut.go): the dialog opens again where it was left.
+	IconSource string    `json:"iconSource,omitempty"`
+	IconCrop   *IconCrop `json:"iconCrop,omitempty"`
+	// IconTile shows the colour tile although an image is kept, so that the user can go back to
+	// the image (D-119).
+	IconTile bool `json:"iconTile,omitempty"`
+	// IconLetters are the tile's letters, at most MaxIconLetters; empty: the name's initials. Only
+	// the user sets them, as the icon (H-125).
+	IconLetters string `json:"iconLetters,omitempty"`
 	// AccentColor is the cluster's accent colour (D-80, accentcolor.go): one of IconColors or
 	// "#rrggbb"; empty: none. The user's mark of which cluster this is (a production one in red),
 	// for parts of the window to show later; only the user sets or clears it, in Cogpit's window
@@ -139,7 +150,8 @@ func (c ClusterSettings) IsZero() bool { return c.Equal(ClusterSettings{}) }
 // Equal reports whether two settings are the same; an empty list of accessible namespaces equals
 // none.
 func (c ClusterSettings) Equal(o ClusterSettings) bool {
-	return c.Name == o.Name && c.IconColor == o.IconColor && c.Icon == o.Icon && c.AccentColor == o.AccentColor && c.TerminalDir == o.TerminalDir &&
+	return c.Name == o.Name && c.IconColor == o.IconColor && c.Icon == o.Icon && c.IconSource == o.IconSource && equalCrop(c.IconCrop, o.IconCrop) &&
+		c.IconTile == o.IconTile && c.IconLetters == o.IconLetters && c.AccentColor == o.AccentColor && c.TerminalDir == o.TerminalDir &&
 		c.TerminalNamespace == o.TerminalNamespace && c.HiddenMetrics == o.HiddenMetrics && c.Proxy == o.Proxy && c.MetricsSource == o.MetricsSource &&
 		equalIntegrations(c.IntegrationsOff, o.IntegrationsOff) &&
 		slices.Equal(c.AccessibleNamespaces, o.AccessibleNamespaces) && c.AgentWrites == o.AgentWrites &&
@@ -157,6 +169,17 @@ func (c ClusterSettings) Check() error {
 	}
 	if c.Icon != "" && !validIconFile(c.Icon) {
 		return fmt.Errorf("icon %q is not an image Cogpit keeps", c.Icon)
+	}
+	if c.IconSource != "" && !validIconFile(c.IconSource) {
+		return fmt.Errorf("icon source %q is not an image Cogpit keeps", c.IconSource)
+	}
+	if c.IconCrop != nil {
+		if err := c.IconCrop.Check(); err != nil {
+			return err
+		}
+	}
+	if err := CheckIconLetters(c.IconLetters); err != nil {
+		return err
 	}
 	if c.AccentColor != "" && !validIconColor(c.AccentColor) {
 		return fmt.Errorf("accent colour %q: one of %s, or #rrggbb", c.AccentColor, strings.Join(IconColors, ", "))
@@ -204,6 +227,15 @@ func (c *ClusterSettings) normalize() {
 	}
 	if c.Icon != "" && !validIconFile(c.Icon) {
 		c.Icon = ""
+	}
+	if c.IconSource != "" && !validIconFile(c.IconSource) {
+		c.IconSource = ""
+	}
+	if c.IconCrop != nil && (c.IconSource == "" || c.IconCrop.Check() != nil) {
+		c.IconCrop = nil
+	}
+	if CheckIconLetters(c.IconLetters) != nil {
+		c.IconLetters = ""
 	}
 	if c.AccentColor != "" && !validIconColor(c.AccentColor) {
 		c.AccentColor = ""
@@ -397,7 +429,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	}
 	c.change.Lock()
 	defer c.change.Unlock()
-	var dropped string
+	var dropped []string
 	proxyChanged, holdChanged := false, false
 	next, all, err := func() (ClusterSettings, map[string]ClusterSettings, error) {
 		c.mu.Lock()
@@ -439,16 +471,18 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 		c.by = all
 		proxyChanged = RedactProxyURL(old.Proxy) != RedactProxyURL(cs.Proxy)
 		holdChanged = old.HoldBackgroundLogin != cs.HoldBackgroundLogin
-		if old.Icon != "" && old.Icon != cs.Icon && !iconInUse(all, old.Icon) {
-			dropped = old.Icon
+		for _, name := range []string{old.Icon, old.IconSource} {
+			if name != "" && name != cs.Icon && name != cs.IconSource && !iconInUse(all, name) {
+				dropped = append(dropped, name)
+			}
 		}
 		return cs, maps.Clone(all), nil
 	}()
 	if err != nil {
 		return ClusterSettings{}, err
 	}
-	if dropped != "" {
-		c.removeIcon(dropped)
+	for _, name := range dropped {
+		c.removeIcon(name)
 	}
 	shown := shownClusterSettings(all) // proxies without their passwords (proxy.go)
 	s.UpdateUI(func(u *UIState) { u.ClusterSettings = shown })
@@ -472,13 +506,22 @@ func equalIntegrations(a, b *IntegrationSet) bool {
 	return *a == *b
 }
 
+// iconInUse reports whether a kept file is a context's icon or an icon's source.
 func iconInUse(all map[string]ClusterSettings, icon string) bool {
 	for _, cs := range all {
-		if cs.Icon == icon {
+		if cs.Icon == icon || cs.IconSource == icon {
 			return true
 		}
 	}
 	return false
+}
+
+// equalCrop reports whether two cuts are the same; no cut equals only no cut.
+func equalCrop(a, b *IconCrop) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
 
 // ClusterName is the name a context shows everywhere in the window (D-68): its display name, else
@@ -507,6 +550,12 @@ type ClusterSettingsView struct {
 	IconColor string `json:"iconColor,omitempty"`
 	// IconImage is the uploaded image's format, "png" or "svg"; empty without one.
 	IconImage string `json:"iconImage,omitempty"`
+	// IconTile says the colour tile shows although an image is kept (D-119).
+	IconTile bool `json:"iconTile,omitempty"`
+	// IconLetters are the letters the user set for the tile; empty: the name's initials.
+	IconLetters string `json:"iconLetters,omitempty"`
+	// IconCrop is where the image was cut from its source (D-119); nil without one.
+	IconCrop *IconCrop `json:"iconCrop,omitempty"`
 	// AccentColor is the cluster's accent colour (one of IconColors, or #rrggbb), the user's mark of
 	// which cluster this is (D-80); empty: none. Only the user sets it, in Cogpit's window.
 	AccentColor string `json:"accentColor,omitempty"`
@@ -580,7 +629,10 @@ func (s *Session) ClusterSettingsView(context string) (ClusterSettingsView, erro
 	}
 	if cs.Icon != "" {
 		v.IconImage = strings.TrimPrefix(filepath.Ext(cs.Icon), ".")
+		v.IconTile = cs.IconTile
+		v.IconCrop = cs.IconCrop
 	}
+	v.IconLetters = cs.IconLetters
 	if ctxs, err := s.Contexts(); err == nil {
 		for _, c := range ctxs {
 			if c.Name == context {

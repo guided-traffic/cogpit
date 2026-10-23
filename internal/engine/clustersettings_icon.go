@@ -2,8 +2,6 @@ package engine
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/xml"
 	"errors"
 	"fmt"
@@ -90,23 +88,32 @@ func (c *ClusterSettingsStore) removeIcon(name string) {
 // ReadIconFile reads the image file the user picked and returns it as Cogpit keeps it: a PNG of at
 // most iconSide pixels a side, or the checked SVG, and its format ("png", "svg").
 func ReadIconFile(path string) (data []byte, format string, err error) {
+	raw, err := readIconUpload(path)
+	if err != nil {
+		return nil, "", err
+	}
+	return CheckIcon(raw)
+}
+
+// readIconUpload reads a picked image file's bytes: a regular file of at most maxIconUpload bytes.
+func readIconUpload(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, "", fmt.Errorf("the icon %s cannot be read", filepath.Base(path))
+		return nil, fmt.Errorf("the icon %s cannot be read", filepath.Base(path))
 	}
 	defer func() { _ = f.Close() }()
 	fi, err := f.Stat()
 	if err != nil || !fi.Mode().IsRegular() {
-		return nil, "", fmt.Errorf("the icon %s is not a file", filepath.Base(path))
+		return nil, fmt.Errorf("the icon %s is not a file", filepath.Base(path))
 	}
 	raw, err := io.ReadAll(io.LimitReader(f, maxIconUpload+1))
 	if err != nil {
-		return nil, "", fmt.Errorf("the icon %s cannot be read", filepath.Base(path))
+		return nil, fmt.Errorf("the icon %s cannot be read", filepath.Base(path))
 	}
 	if len(raw) > maxIconUpload {
-		return nil, "", fmt.Errorf("the icon %s is larger than %s", filepath.Base(path), model.FormatBytes(maxIconUpload))
+		return nil, fmt.Errorf("the icon %s is larger than %s", filepath.Base(path), model.FormatBytes(maxIconUpload))
 	}
-	return CheckIcon(raw)
+	return raw, nil
 }
 
 // CheckIcon checks an image's bytes and returns them as Cogpit keeps them: a PNG or JPEG decoded
@@ -128,6 +135,20 @@ func CheckIcon(raw []byte) (data []byte, format string, err error) {
 // rasterIcon decodes a PNG or JPEG, its size checked from its header first, and encodes it again
 // as a PNG of at most iconSide pixels a side.
 func rasterIcon(raw []byte) ([]byte, error) {
+	img, err := decodeRaster(raw)
+	if err != nil {
+		return nil, err
+	}
+	var out bytes.Buffer
+	if err := png.Encode(&out, shrink(img, iconSide)); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+// decodeRaster decodes a PNG or JPEG under the upload's bounds, its size checked from its header
+// first, so that a small file cannot expand into a huge image.
+func decodeRaster(raw []byte) (image.Image, error) {
 	decode, decodeConfig := png.Decode, png.DecodeConfig
 	if raw[0] == 0xff {
 		decode, decodeConfig = jpeg.Decode, jpeg.DecodeConfig
@@ -143,11 +164,7 @@ func rasterIcon(raw []byte) ([]byte, error) {
 	if err != nil {
 		return nil, errors.New("the icon is not a readable PNG or JPEG image")
 	}
-	var out bytes.Buffer
-	if err := png.Encode(&out, shrink(img, iconSide)); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
+	return img, nil
 }
 
 // shrink scales img down so that neither side exceeds side pixels, averaging the source pixels
@@ -292,38 +309,10 @@ func onlyFragmentURLs(s string) bool {
 	}
 }
 
-// SetClusterIcon keeps the image at path as a context's icon (it replaces the icon colour) and
-// returns the context's settings.
+// SetClusterIcon makes the image at path a context's icon, cut from its middle as the square it
+// just fills (SetClusterIconCut with DefaultIconCrop), and returns the context's settings.
 func (s *Session) SetClusterIcon(context, path string) (ClusterSettings, error) {
-	c := s.opts.ClusterSettings
-	if c == nil {
-		return ClusterSettings{}, ErrNoClusterSettings
-	}
-	if c.dir == "" {
-		return ClusterSettings{}, errors.New("this Cogpit has no configuration folder to keep an icon in")
-	}
-	data, format, err := ReadIconFile(path)
-	if err != nil {
-		return ClusterSettings{}, err
-	}
-	sum := sha256.Sum256(data)
-	name := hex.EncodeToString(sum[:]) + "." + format
-	if err := writePrivateFile(c.iconPath(name), data); err != nil {
-		return ClusterSettings{}, fmt.Errorf("keeping the icon: %w", err)
-	}
-	cs, err := s.ChangeClusterSettings(context, func(cs *ClusterSettings) error {
-		cs.Icon, cs.IconColor = name, ""
-		return nil
-	})
-	if err != nil {
-		c.mu.Lock()
-		used := iconInUse(c.by, name)
-		c.mu.Unlock()
-		if !used {
-			c.removeIcon(name)
-		}
-	}
-	return cs, err
+	return s.SetClusterIconCut(context, path, DefaultIconCrop)
 }
 
 // ClusterIcon returns a context's uploaded icon as Cogpit keeps it and its format ("png", "svg");

@@ -141,32 +141,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	name := widget.NewEntry()
 	name.OnChanged = func(string) { p.typed("name", func() { p.setCluster("name", strings.TrimSpace(name.Text)) }) }
 
-	preview := newClusterBadge()
-	preview.side = sizeHotbarTile
-	preview.setIdentity(p.sh.identity(ctx))
-	p.controls["iconPreview"] = preview
-	more := newPlateButton("", theme.MoreHorizontalIcon(), nil)
-	more.Importance = widget.LowImportance
-	more.OnTapped = func() {
-		pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(more)
-		p.iconMenu(pos.AddXY(0, more.Size().Height))
-	}
-	p.controls["iconMenuButton"] = more
-	swatches := container.NewHBox()
-	for _, c := range engine.IconColors {
-		col := c
-		swatches.Add(newSwatch(p.sh, col, func() { p.setCluster("iconColor", col) }))
-	}
-	p.controls["swatches"] = swatches
-	// A colour picked freely (A93): its swatch while one is set, and the picker beside the eight.
-	custom := newSwatch(p.sh, "#000000", func() { p.pickCustomColor() })
-	custom.Hide()
-	p.controls["customSwatch"] = custom
-	pickColor := newTipButton(p.sh, theme.ColorPaletteIcon(), "Pick any colour", func() { p.pickCustomColor() })
-	p.controls["customColor"] = pickColor
-	swatches.Add(custom)
-	swatches.Add(pickColor)
-	icon := container.NewHBox(preview, container.NewCenter(more), newHGap(theme.SizeNameInnerPadding), container.NewCenter(swatches))
+	icon, syncIcon := p.iconSetting(ctx) // clustericon.go
 
 	// The path whole, wrapped at any character and selectable (the owner's WF28: a drag, ⌘A and ⌘C,
 	// the copy shortcut putting the selection on the clipboard as it is); a sentence where the
@@ -195,6 +170,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	p.sync = func() {
 		syncLogin()
 		syncAccent()
+		syncIcon()
 		v := p.clusterView()
 		name.SetPlaceHolder(v.ContextName)
 		set := ""
@@ -202,21 +178,6 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 			set = v.Name
 		}
 		p.setEntry(name, name, "name", set)
-		preview.setIdentity(p.sh.identity(ctx))
-		cs := p.sh.ui.ClusterSettings[ctx] // the UI state's, so the swatch follows at once
-		for i, o := range swatches.Objects[:len(engine.IconColors)] {
-			if s, ok := o.(*swatch); ok {
-				s.setSelected(cs.Icon == "" && cs.IconColor == engine.IconColors[i])
-			}
-		}
-		if cs.Icon == "" && engine.IsCustomIconColor(cs.IconColor) {
-			custom.color = cs.IconColor
-			custom.Show()
-			custom.setSelected(true)
-			custom.Refresh()
-		} else {
-			custom.Hide()
-		}
 		switch {
 		case v.Kubeconfig != "": // a path in monospace, whole: what is selected is the real path
 			path.setText(v.Kubeconfig)
@@ -244,47 +205,11 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	p.controls["name"] = name // the field itself, not the row with its copy icon
 	return container.NewVBox(
 		nameSetting,
-		p.setting("icon", "Icon", "Upload an image (.png, .jpeg, .svg) or pick a colour; Cogpit keeps a copy in its own folder.", icon),
+		icon,
 		accent,
 		p.setting("kubeconfig", "Kubeconfig", "The file this context comes from.", kc),
 		login,
 	)
-}
-
-// iconMenu is the icon's "…" menu, as captured: Upload Icon, Pick Icon Color, Reset Icon.
-func (p *settingsPage) iconMenu(pos fyne.Position) {
-	ctx := p.shown.Context
-	v := p.clusterView()
-	colors := make([]*fyne.MenuItem, 0, len(engine.IconColors))
-	for _, c := range engine.IconColors {
-		col := c
-		item := fyne.NewMenuItem(strings.ToUpper(col[:1])+col[1:], func() { p.setCluster("iconColor", col) })
-		item.Checked = v.IconImage == "" && v.IconColor == col
-		colors = append(colors, item)
-	}
-	anyColour := fyne.NewMenuItem("Any Colour…", func() { p.pickCustomColor() }) // A93
-	anyColour.Checked = v.IconImage == "" && engine.IsCustomIconColor(v.IconColor)
-	colors = append(colors, fyne.NewMenuItemSeparator(), anyColour)
-	pick := fyne.NewMenuItem("Pick Icon Color", nil)
-	pick.ChildMenu = fyne.NewMenu("", colors...)
-	upload := fyne.NewMenuItem("Upload Icon…", func() {
-		p.pickIcon(func(path string) {
-			p.sh.dispatch("cluster.settings.uploadIcon", clusterIconParams{Context: ctx, Path: path},
-				func(_ any, err error) { p.showResult("icon", err) })
-		})
-	})
-	reset := fyne.NewMenuItem("Reset Icon", func() {
-		p.sh.dispatch("cluster.settings.resetIcon", clusterSettingsContext{Context: ctx}, func(_ any, err error) { p.showResult("icon", err) })
-	})
-	reset.Disabled = v.IconImage == "" && v.IconColor == ""
-	p.iconMenuModel = fyne.NewMenu("", upload, pick, reset)
-	widget.NewPopUpMenu(p.iconMenuModel, p.sh.win.Canvas()).ShowAtPosition(pos)
-}
-
-// pickCustomColor opens the colour picker for an icon colour picked freely (A93; pickColor,
-// clustersettings_accent.go).
-func (p *settingsPage) pickCustomColor() {
-	p.pickColor(iconPickerTitle, func(hex string) { p.setCluster("iconColor", hex) })
 }
 
 func (p *settingsPage) clusterTerminalSection() fyne.CanvasObject {

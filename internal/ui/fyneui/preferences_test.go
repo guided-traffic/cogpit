@@ -297,40 +297,44 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 		t.Errorf("title %q", sh.settings.title.text)
 	}
 
-	sw := sh.settings.controls["swatches"].(*fyne.Container).Objects[2].(*swatch) // violet
-	test.Tap(sw)
-	violet := themeColor(sh.app.Settings().Theme(), identityColorName("violet"))
-	q.until(t, "the tile's colour", func() bool { return tileRenderer(tileFor(sh, "kind-dev")).initials.Color == violet })
-	if !sw.selected {
-		t.Error("the violet swatch is not marked")
+	// The Internal icon's dialog (D-119): a colour and letters of the user's.
+	test.Tap(sh.settings.controls["iconCustomize"].(*textButton))
+	td := sh.settings.tileDialog
+	if td == nil || !td.d.shown {
+		t.Fatal("Customize… did not open the Internal icon's dialog")
 	}
-	if cs, _ := s.ClusterSettingsOf("kind-dev"); cs.Name != "Dev cluster" || cs.IconColor != "violet" {
+	test.Tap(td.swatches[2]) // violet
+	td.letters.SetText("DEV")
+	test.Tap(td.save)
+	violet := themeColor(sh.app.Settings().Theme(), identityColorName("violet"))
+	q.until(t, "the tile's colour and letters", func() bool {
+		r := tileRenderer(tileFor(sh, "kind-dev"))
+		return r.initials.Color == violet && r.initials.Text == "DEV"
+	})
+	if cs, _ := s.ClusterSettingsOf("kind-dev"); cs.Name != "Dev cluster" || cs.IconColor != "violet" || cs.IconLetters != "DEV" {
 		t.Errorf("kept %+v", cs)
 	}
 	q.until(t, "the section's row", func() bool {
 		r := n.rows["kind-dev"]
-		return r != nil && r.title.text == "Dev cluster" && r.badge.ink == identityColorName("violet")
+		return r != nil && r.title.text == "Dev cluster" && r.badge.ink == identityColorName("violet") && r.badge.text == "DEV"
 	})
 
-	// Upload Icon… in the icon's menu: the image takes the initials' place.
+	// The Custom icon: chosen without an image, its dialog asks for one; Save shows it everywhere.
 	icon := pngFile(t)
 	sh.settings.pickIcon = func(done func(string)) { done(icon) }
-	sh.settings.iconMenu(fyne.NewPos(0, 0))
-	labels := []string{}
-	for _, it := range sh.settings.iconMenuModel.Items {
-		labels = append(labels, it.Label)
-	}
-	if !slices.Equal(labels, []string{"Upload Icon…", "Pick Icon Color", "Reset Icon"}) {
-		t.Fatalf("icon menu %q", labels)
-	}
-	sh.settings.iconMenuModel.Items[0].Action()
+	sh.settings.controls["iconKind"].(*widget.RadioGroup).SetSelected(iconKindImage)
+	q.until(t, "the image in the dialog", func() bool {
+		id := sh.settings.imageDialog
+		return id != nil && id.editor.src != nil && !id.save.Disabled()
+	})
+	test.Tap(sh.settings.imageDialog.save)
 	q.until(t, "the tile's image", func() bool {
 		r := tileRenderer(tileFor(sh, "kind-dev"))
 		r.Refresh()
 		return r.img.Visible() && r.img.Resource != nil && !r.initials.Visible()
 	})
-	if entries, _ := os.ReadDir(filepath.Join(cfg, engine.ClusterIconsDir)); len(entries) != 1 {
-		t.Errorf("cluster-icons holds %d files", len(entries))
+	if entries, _ := os.ReadDir(filepath.Join(cfg, engine.ClusterIconsDir)); len(entries) != 2 {
+		t.Errorf("cluster-icons holds %d files, want the source and the icon", len(entries))
 	}
 
 	// Terminal: the working directory the cluster's next terminal starts in.

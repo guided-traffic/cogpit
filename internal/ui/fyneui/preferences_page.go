@@ -64,11 +64,12 @@ type settingsPage struct {
 
 	// The window's dialogs, replaced by tests: an image file, a folder (the system's panels, else
 	// Fyne's dialogs, filepicker_choosers.go), the file manager.
-	pickIcon      func(done func(path string))
-	pickFolder    func(done func(path string))
-	openFolder    func(path string)
-	prom          *promFields // the Metrics section's Prometheus fields (clustersettings_prometheus.go)
-	iconMenuModel *fyne.Menu  // the icon's open "…" menu, for tests
+	pickIcon    func(done func(path string))
+	pickFolder  func(done func(path string))
+	openFolder  func(path string)
+	prom        *promFields  // the Metrics section's Prometheus fields (clustersettings_prometheus.go)
+	tileDialog  *tileDialog  // the Internal icon's dialog last opened, for tests (clustericon.go)
+	imageDialog *imageDialog // the Custom icon's dialog last opened, for tests
 
 	agentsDialog *agentsDialog // the open question before agents' changes are allowed (clustersettings_agents.go)
 	agent        *agentPrefs   // Preferences › Agent while it is built (preferences_agent.go)
@@ -448,9 +449,5 @@ type (
 	}
 	clusterSettingsContext struct {
 		Context string `json:"context,omitempty"`
-	}
-	clusterIconParams struct {
-		Context string `json:"context,omitempty"`
-		Path    string `json:"path"`
 	}
 )

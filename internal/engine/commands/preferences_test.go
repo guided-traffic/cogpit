@@ -215,11 +215,36 @@ func TestClusterSettingsCommandsNeverTouchTheKubeconfig(t *testing.T) {
 	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.uploadIcon", map[string]any{"context": "kind-dev", "path": img}, &v); err != nil {
 		t.Fatal(err)
 	}
-	if v.IconImage != "png" || v.IconColor != "" {
-		t.Errorf("after the upload: %+v", v)
+	if v.IconImage != "png" || v.IconColor != "violet" || v.IconTile || v.IconCrop == nil || *v.IconCrop != engine.DefaultIconCrop {
+		t.Errorf("after the upload (the image shown, the tile's colour kept, D-119): %+v", v)
+	}
+	// The tile's letters, the choice of the tile and a new cut: the user's alone (H-125).
+	for _, origin := range []engine.Origin{agent, engine.OriginBuiltInAgent, engine.OriginCLI} {
+		for _, params := range []map[string]any{{"context": "kind-dev", "iconLetters": "PROD"}, {"context": "kind-dev", "iconTile": true}} {
+			if err := dispatch(t, s, origin, "cluster.settings.set", params, nil); !errors.Is(err, engine.ErrClusterIdentityGUIOnly) {
+				t.Errorf("%s set %v: %v, want ErrClusterIdentityGUIOnly", origin, params, err)
+			}
+		}
+		if err := dispatch(t, s, origin, "cluster.settings.cutIcon", map[string]any{"context": "kind-dev", "zoom": 2}, nil); !errors.Is(err, engine.ErrClusterIdentityGUIOnly) {
+			t.Errorf("%s cut: %v, want ErrClusterIdentityGUIOnly", origin, err)
+		}
 	}
 	v = engine.ClusterSettingsView{}
-	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.resetIcon", map[string]any{"context": "kind-dev"}, &v); err != nil || v.IconImage != "" || v.IconColor != "" {
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.cutIcon", map[string]any{"context": "kind-dev", "zoom": 2, "x": 0.25, "y": 0.75}, &v); err != nil ||
+		v.IconCrop == nil || *v.IconCrop != (engine.IconCrop{Zoom: 2, X: 0.25, Y: 0.75}) {
+		t.Errorf("cut: %+v, %v", v, err)
+	}
+	v = engine.ClusterSettingsView{}
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.set", map[string]any{"context": "kind-dev", "iconLetters": " PROD ", "iconTile": true}, &v); err != nil ||
+		v.IconLetters != "PROD" || !v.IconTile || v.IconImage != "png" {
+		t.Errorf("the tile with letters, the image kept: %+v, %v", v, err)
+	}
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.set", map[string]any{"context": "kind-dev", "iconLetters": "TOOLONG"}, nil); err == nil {
+		t.Error("six letters and more accepted")
+	}
+	v = engine.ClusterSettingsView{}
+	if err := dispatch(t, s, engine.OriginGUI, "cluster.settings.resetIcon", map[string]any{"context": "kind-dev"}, &v); err != nil || v.IconImage != "" || v.IconColor != "" ||
+		v.IconLetters != "" || v.IconTile || v.IconCrop != nil {
 		t.Errorf("reset: %+v, %v", v, err)
 	}
 	if err := dispatch(t, s, agent, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "terminal"}, nil); err != nil {

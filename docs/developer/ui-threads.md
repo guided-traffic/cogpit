@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-22 · **Change:** trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-23 · **Change:** trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -169,6 +169,9 @@ places of the same kind has one row.
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
+| `fyneui/clustericon.go` | `imageDialog.changed` | AfterFunc | A | Cuts the preview with the engine's `CutIcon` from the source image and the cut, both copied before the timer started (the image is never written); the badges are set inside `sh.do`, and only when no newer change came (`gen`). |
+| `fyneui/clustericon.go` | `imageDialog.choose` | go | A | Reads the picked file with `engine.ReadIconSource` (the path a copy); the editor is set inside `sh.do`. |
+| `fyneui/clustericon.go` | `imageDialog.load` | go | A | Calls the engine's `ClusterIconSource` with the dialog's context, a string set before; the editor or the file panel follows inside `sh.do`. |
 | `fyneui/clusteridentity.go` | `shell.icon` | go | A | Calls the engine's `ClusterIcon` with local copies; the cache maps and `identitiesChanged` run inside `sh.do`. |
 | `fyneui/clustersettings_agents.go` | `settingsPage.confirmAgentWrites` | AfterFunc | A | The arm delay is only `sh.do(cd.confirm.Enable)`; the method value reads a pointer set before the timer started. |
 | `fyneui/configmapdata.go` | `cmData.keepSoon` | AfterFunc | A | Reads `cd.d.sh`, set once at construction; the `closed` check and `keepNow` run inside `sh.do`. |

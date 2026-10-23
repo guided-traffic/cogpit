@@ -309,7 +309,7 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.open", Label: "Preferences", MenuPath: "Cogpit/Preferences", Shortcut: "Cmd+,", Danger: engine.DangerUI,
 		Description: "Opens Cogpit's Preferences page in the window, as ⌘, (Ctrl+,) does, at a section: app (theme, time zone), " +
 			"proxy (the HTTP proxy of the traffic that is no cluster's), kubernetes (kubeconfig syncs, kubectl for terminals, Helm's storage driver), " +
-			"editor, terminal, tables or agent (the built-in agent's LLM connections, which only the user edits there). It takes the place of the cluster's views until " +
+			"editor, terminal, tables or agent (the built-in agent's LLM connections, which only the user edits there). It shows as a card over the whole window until " +
 			"closed (settings_close, Escape); ui_state reports it as settings. Returns the new UI state.",
 		Enabled: func(s *engine.Session, p preferencesOpenParams) error {
 			if _, err := s.Preferences(); err != nil {
