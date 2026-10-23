@@ -467,7 +467,9 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 	if snap == tv.snap && snap != nil {
 		return
 	}
-	newView := snap != nil && (tv.snap == nil || tv.snap.View != snap.View)
+	// A view entered: another view, the same view of another cluster (D-69), or the first snapshot
+	// after none.
+	newView := snap != nil && (tv.snap == nil || tv.snap.View != snap.View || tv.snap.Context != snap.Context)
 	fewer := snap != nil && tv.snap != nil && len(snap.Rows) < len(tv.snap.Rows)
 	tv.snap = snap
 	key := ""
@@ -513,13 +515,26 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 	tv.syncColumnChecks()
 	tv.checksChanged() // the header's checkbox counts the rows shown
 	if newView {
-		tv.table.resetKeyboard() // a view starts at its first cell, scrolled to the top
+		tv.table.resetKeyboard() // a view starts at its first cell
+		tv.scrollToTop()
 	}
 	if fewer {
 		tv.keepScrollInRows()
 	}
 	tv.table.Refresh()
 	tv.resolvePending()
+}
+
+// scrollToTop shows a view entered from its top, both offsets set (the owner's finding of
+// 2026-10-23, v0.40.1: a view entered showed its header and "197 items" and no row until a
+// minimal scroll). Fyne 2.8's table and its scroller each keep an offset, and the table draws its
+// rows from its own: the keyboard's first cell (resetKeyboard, Fyne's ScrollTo) scrolls only as far
+// as the cell below the header row needs, so the first row stayed under it, and not at all while
+// the entered view has no rows yet (its list not synced), so the offset the view left kept
+// standing; past the new rows' end, below a longer list's, it drew none.
+func (tv *tableView) scrollToTop() {
+	tv.table.ScrollToOffset(fyne.Position{})
+	tv.table.offset = fyne.Position{}
 }
 
 // keepScrollInRows brings the table's scroll offset back within its rows after the list got
