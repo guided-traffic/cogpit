@@ -26,8 +26,9 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.41.0 the
-newest, released 2026-10-23 with the owner's button findings (every content button outlined, room
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.42.0 the
+newest, released 2026-10-23 with Preferences and Cluster Settings as a card over the whole window,
+Cogpit dimmed behind it (the owner's VW6, D-118); v0.41.0 the same day with the owner's button findings (every content button outlined, room
 beside every word, Show and Hide one width, a key's buttons one height; D-104), a tab that comes
 back where its list was scrolled (D-117), a view entered that draws its rows from the top, and a
 connect and a drawer race fixed; v0.40.2 the same day with one preview tab per cluster (D-117);
