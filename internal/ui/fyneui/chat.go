@@ -826,7 +826,7 @@ func (c *chatPanel) payloadDialog(body, endpoint string, private bool) {
 	scroll := container.NewScroll(code)
 	scroll.SetMinSize(fyne.NewSize(w, max(win.Height*0.6, 300)))
 	info := newParagraph(note, colorMuted, w)
-	copyB := widget.NewButtonWithIcon("Copy", theme.ContentCopyIcon(), func() { c.sh.app.Clipboard().SetContent(body) })
+	copyB := newPlateButton("Copy", theme.ContentCopyIcon(), func() { c.sh.app.Clipboard().SetContent(body) })
 	d := dialog.NewCustom("What this turn sent", "Close", container.NewBorder(info, container.NewHBox(copyB), nil, nil, scroll), c.sh.win)
 	c.payload = d
 	c.sh.showDialog(d)
@@ -981,7 +981,7 @@ type chatEmpty struct {
 	c       *chatPanel
 	title   *textLine
 	text    *mdFlow
-	addConn *widget.Button
+	addConn *textButton
 	samples []fyne.CanvasObject
 	width   float32
 }
@@ -997,7 +997,7 @@ func newChatEmpty(c *chatPanel) *chatEmpty {
 	e := &chatEmpty{c: c}
 	e.title = newTextLine("", theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})
 	e.text = newMDFlow(nil, colorMuted, nil)
-	e.addConn = widget.NewButtonWithIcon("Add a connection", theme.ContentAddIcon(), c.openAgentSettings)
+	e.addConn = newPlateButton("Add a connection", theme.ContentAddIcon(), c.openAgentSettings)
 	e.addConn.Importance = widget.HighImportance
 	objs := make([]fyne.CanvasObject, 0, 4+len(chatSamples))
 	objs = append(objs, newSpace(theme.SizeNameInnerPadding), e.title, e.text, container.NewHBox(e.addConn))

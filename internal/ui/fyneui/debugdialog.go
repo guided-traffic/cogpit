@@ -82,8 +82,8 @@ type debugDialog struct {
 	rows    *fyne.Container
 	target  *selectField
 	image   *fieldEntry
-	confirm *widget.Button
-	cancel  *widget.Button
+	confirm *textButton
+	cancel  *textButton
 }
 
 // chosenTarget is the target picked: "" for None.
@@ -111,9 +111,9 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	}
 	dd.image = newFieldEntry() // an ordinary entry: select, copy, paste, edit; Escape cancels (escape.go)
 	dd.image.SetText(p.Image)
-	dd.confirm = widget.NewButton("Debug", nil)
+	dd.confirm = newPlateButton("Debug", nil, nil)
 	dd.confirm.Importance = widget.DangerImportance
-	dd.cancel = widget.NewButton("Cancel", nil)
+	dd.cancel = newPlateButton("Cancel", nil, nil)
 
 	// The rows as the confirmation has them (D-85): the place, then the target and the image as the
 	// fields the user sets, each followed by what the engine's confirmation would add (what the

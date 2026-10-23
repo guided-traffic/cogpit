@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
@@ -82,9 +81,9 @@ func (v connectLogView) attempts() []connectLogAttempt {
 type connectLogDialog struct {
 	ctx       string
 	d         *dialog.CustomDialog
-	close     *widget.Button
-	copy      *widget.Button
-	reconnect *widget.Button
+	close     *textButton
+	copy      *textButton
+	reconnect *textButton
 	rows      *fyne.Container
 	scroll    *container.Scroll
 	view      connectLogView
@@ -125,12 +124,12 @@ func (k *kubeconfigUI) openConnectLog(contextID string, v connectLogView) {
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewStack(bg, inset(theme.SizeNamePadding, theme.SizeNamePadding, cl.scroll)))
 
 	cl.d = dialog.NewCustomWithoutButtons("Connection Updates: "+kubeconfig.DisplayText(contextID, maxShownArg), content, k.sh.win)
-	cl.close = widget.NewButton("Close", cl.d.Hide)
-	cl.copy = widget.NewButtonWithIcon("Copy", theme.ContentCopyIcon(), func() {
+	cl.close = newPlateButton("Close", nil, cl.d.Hide)
+	cl.copy = newPlateButton("Copy", theme.ContentCopyIcon(), func() {
 		k.sh.copyText(connectLogText(cl.ctx, cl.view, k.sh.timeFormat()), false)
 		k.sh.toast("info", "Copied the connection log of "+kubeconfig.DisplayText(cl.ctx, maxShownArg))
 	})
-	cl.reconnect = widget.NewButtonWithIcon(reconnectLabel, reconnectIcon(), func() { k.sh.reconnect(cl.ctx) })
+	cl.reconnect = newPlateButton(reconnectLabel, reconnectIcon(), func() { k.sh.reconnect(cl.ctx) })
 	cl.d.SetButtons([]fyne.CanvasObject{cl.reconnect, cl.copy, cl.close})
 	cl.d.SetOnClosed(func() {
 		if k.connectLog == cl {

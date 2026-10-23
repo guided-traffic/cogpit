@@ -83,8 +83,8 @@ func (p *settingsPage) setAgentWrites(ctx string, allowed bool) {
 // agentsDialog is the open confirmation of turning the allowance on, for tests.
 type agentsDialog struct {
 	d       *dialog.CustomDialog
-	confirm *widget.Button
-	cancel  *widget.Button
+	confirm *textButton
+	cancel  *textButton
 }
 
 // confirmAgentWrites asks before agents' changes are allowed in ctx: a dialog naming the cluster,
@@ -95,7 +95,7 @@ func (p *settingsPage) confirmAgentWrites(ctx string, done func(bool)) {
 	name := sh.identity(ctx).name
 	text := "Agents' mutating commands in " + name + " (context " + ctx + ") will run without asking you, until you " +
 		"turn this off. Role bindings and destructive commands (delete, drain, evict, scale to zero, …) still ask."
-	cd := &agentsDialog{confirm: widget.NewButton("Allow", nil), cancel: widget.NewButton("Cancel", nil)}
+	cd := &agentsDialog{confirm: newPlateButton("Allow", nil, nil), cancel: newPlateButton("Cancel", nil, nil)}
 	cd.confirm.Importance = widget.HighImportance
 	answered := false
 	answer := func(ok bool) {

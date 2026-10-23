@@ -72,7 +72,7 @@ type mcpDetails struct {
 
 	// The panel's controls, for tests; rebuilt with the panel's content.
 	switchB, reveal                              *textButton
-	regenerate                                   *widget.Button
+	regenerate                                   *textButton
 	copyEndpoint, copyToken, copyStdio, copyHTTP *tipButton
 }
 
@@ -285,7 +285,7 @@ func (d *mcpDetails) addOff(body *fyne.Container, width float32) {
 
 // regenerateRow is Regenerate token and its hint.
 func (d *mcpDetails) regenerateRow() fyne.CanvasObject {
-	d.regenerate = widget.NewButtonWithIcon("Regenerate token", theme.ViewRefreshIcon(), d.sh.askRegenerateMCP)
+	d.regenerate = newPlateButton("Regenerate token", theme.ViewRefreshIcon(), d.sh.askRegenerateMCP)
 	if d.sh.mcp.busy || d.sh.mcp.regenerating {
 		d.regenerate.Disable()
 	}
@@ -331,8 +331,8 @@ func (d *mcpDetails) codeBlock(shown, tip string, width float32) (fyne.CanvasObj
 // mcpRegenerateDialog is the open warning before Regenerate token.
 type mcpRegenerateDialog struct {
 	d       *dialog.CustomDialog
-	confirm *widget.Button
-	cancel  *widget.Button
+	confirm *textButton
+	cancel  *textButton
 }
 
 // askRegenerateMCP warns before the token is regenerated: every connection ends, and the clients
@@ -343,8 +343,8 @@ func (sh *shell) askRegenerateMCP() {
 		return
 	}
 	width := sh.app.Settings().Theme().Size(sizeConfirmWidth)
-	w := &mcpRegenerateDialog{confirm: widget.NewButtonWithIcon("Regenerate token", theme.WarningIcon(), nil),
-		cancel: widget.NewButton("Cancel", nil)}
+	w := &mcpRegenerateDialog{confirm: newPlateButton("Regenerate token", theme.WarningIcon(), nil),
+		cancel: newPlateButton("Cancel", nil, nil)}
 	w.confirm.Importance = widget.DangerImportance
 	content := container.NewVBox(newParagraph(mcpRegenerateWarning, theme.ColorNameForeground, width),
 		newSpace(theme.SizeNamePadding), newParagraph(mcpRegenerateBridge, colorMuted, width))

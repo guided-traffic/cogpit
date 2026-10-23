@@ -71,17 +71,17 @@ const updateShort = "Update"
 
 func newLayoutBar(sh *shell) *layoutBar {
 	l := &layoutBar{sh: sh, label: updateShort}
-	l.update = newTipButton(sh, nil, "", func() { sh.dispatch("app.installUpdate", struct{}{}, nil) })
+	l.update = newBareTipButton(sh, nil, "", func() { sh.dispatch("app.installUpdate", struct{}{}, nil) })
 	l.update.SetText(updateShort)
 	l.update.Importance = widget.HighImportance
 	l.updateBox = box(compactLayout{}, l.update)
 	l.showUpdate(false)
-	l.navigator = newTipButton(sh, iconNavigatorShown, "", func() {
+	l.navigator = newBareTipButton(sh, iconNavigatorShown, "", func() {
 		sh.dispatch("ui.toggleNavigator", layoutToggleParams{}, nil)
 	})
-	l.dock = newTipButton(sh, iconDockClosed, "", func() { sh.dispatch("ui.toggleDock", layoutToggleParams{}, nil) })
+	l.dock = newBareTipButton(sh, iconDockClosed, "", func() { sh.dispatch("ui.toggleDock", layoutToggleParams{}, nil) })
 	// ⌘I's: the input takes the focus (chat.go). The column is made after the top bar.
-	l.chat = newTipButton(sh, iconChatHidden, "", func() { sh.chat.toggle() })
+	l.chat = newBareTipButton(sh, iconChatHidden, "", func() { sh.chat.toggle() })
 	for _, b := range []struct {
 		b  *tipButton
 		id string

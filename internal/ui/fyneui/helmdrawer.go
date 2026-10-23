@@ -72,7 +72,7 @@ type releaseValues struct {
 	ref      model.ObjectRef
 	view     *yamlview.View
 	userOnly *widget.Check
-	save     *widget.Button
+	save     *textButton
 	status   *textLine
 	root     fyne.CanvasObject
 
@@ -109,7 +109,7 @@ func newReleaseValues(sh *shell, ref model.ObjectRef) *releaseValues {
 		rv.all = !on
 		rv.load()
 	})
-	rv.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), rv.upgrade)
+	rv.save = newPlateButton("Save", theme.DocumentSaveIcon(), rv.upgrade)
 	rv.save.Importance = widget.HighImportance
 	rv.save.Disable()
 	rv.status = newTextLine("Loading…", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})

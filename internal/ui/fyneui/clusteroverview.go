@@ -49,7 +49,7 @@ type clusterPanel struct {
 	cards     [3]*overviewChartCard
 	segment   *segmented
 	controls  *fyne.Container // the node group and the range; hidden with every chart
-	reconnect *widget.Button  // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
+	reconnect *textButton     // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
 	root      fyne.CanvasObject
 
 	// Requests of the model are coalesced, as the Workloads Overview's are (overview.go).
@@ -75,7 +75,7 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	}
 	p.segment = newSegmented(sh, p.master, p.worker)
 	p.controls = container.NewHBox(p.segment.root, layout.NewSpacer(), p.rangeSel)
-	p.reconnect = widget.NewButtonWithIcon(reconnectLabel, reconnectIcon(), func() { sh.reconnect(sh.ui.Context) })
+	p.reconnect = newPlateButton(reconnectLabel, reconnectIcon(), func() { sh.reconnect(sh.ui.Context) })
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(newSpace(theme.SizeNamePadding), p.reconnect), p.controls)
 	charts := box(columnsLayout{gap: pageColumnGap}, p.cards[0].root, p.cards[1].root, p.cards[2].root)
 	p.root = inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,

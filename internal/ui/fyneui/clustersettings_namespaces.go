@@ -52,7 +52,7 @@ func (p *settingsPage) clusterNamespacesSection() fyne.CanvasObject {
 		p.showResult(accessibleSetting, nil)
 	}
 	entry.OnSubmitted = func(string) { addTyped() }
-	add := widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), addTyped)
+	add := newPlateButton("Add", theme.ContentAddIcon(), addTyped)
 	p.controls["accessibleEntry"] = entry
 	p.controls["accessibleAdd"] = add
 

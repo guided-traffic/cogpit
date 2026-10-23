@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"fmt"
+	"image/color"
 	"regexp"
 	"strings"
 	"time"
@@ -284,8 +285,13 @@ type copyButton struct {
 
 	// pinned is an icon that stays shown where its owner put it instead of following the pointer
 	// from value to value (a Secret's editor, secretdata.go); tip is its tooltip, "" for "Copy".
-	pinned bool
-	tip    string
+	// It is a button of its line: as tall as the line's other buttons and outlined as they are
+	// (the owner's finding of 2026-10-23: "Copy ist hier zu klein. Die höhe von "Show", Copy und
+	// Papierkorb muss die gleiche sein. Alle Buttons bekommen den sichtbaren Rahmen"), with
+	// their hover plate.
+	pinned  bool
+	tip     string
+	hovered bool
 
 	// The drawer's: the value that keeps room for the icon at its right end, and how much.
 	roomed fyne.CanvasObject
@@ -411,6 +417,10 @@ func (b *copyButton) MouseIn(ev *desktop.MouseEvent) {
 		b.in(ev)
 	}
 	b.Show()
+	if b.pinned && !b.hovered {
+		b.hovered = true
+		b.Refresh()
+	}
 	tip := b.tip
 	if tip == "" {
 		tip = "Copy"
@@ -425,6 +435,9 @@ func (b *copyButton) MouseMoved(ev *desktop.MouseEvent) { b.sh.tip.moved(b, ev.A
 func (b *copyButton) MouseOut() {
 	if !b.pinned {
 		b.Hide()
+	} else if b.hovered {
+		b.hovered = false
+		b.Refresh()
 	}
 	b.sh.tip.hideFor(b)
 	if b.out != nil {
@@ -449,13 +462,33 @@ type copyButtonRenderer struct {
 }
 
 func (r *copyButtonRenderer) MinSize() fyne.Size {
-	s := r.b.Theme().Size(theme.SizeNameInlineIcon) + 2*r.b.Theme().Size(theme.SizeNamePadding)
-	return fyne.NewSquareSize(s)
+	th := r.b.Theme()
+	icon := th.Size(theme.SizeNameInlineIcon)
+	if r.b.pinned { // an icon button's: Fyne's, its height a text line's (tipButton beside it)
+		in := th.Size(theme.SizeNameInnerPadding)
+		line := fyne.MeasureText("M", th.Size(theme.SizeNameText), fyne.TextStyle{}).Height
+		return fyne.NewSize(icon+2*in, max(line, icon)+2*in)
+	}
+	return fyne.NewSquareSize(icon + 2*th.Size(theme.SizeNamePadding))
 }
 
 func (r *copyButtonRenderer) Layout(size fyne.Size) {
-	r.bg.Resize(size)
-	pad := r.b.Theme().Size(theme.SizeNamePadding)
+	th := r.b.Theme()
+	if r.b.pinned { // outlined as a textButton is: inside by half the stroke
+		w := th.Size(theme.SizeNameInputBorder)
+		r.bg.Move(fyne.NewSquareOffsetPos(w / 2))
+		r.bg.Resize(fyne.NewSize(size.Width-w-.5, size.Height-w-.5))
+	} else {
+		r.bg.Move(fyne.Position{})
+		r.bg.Resize(size)
+	}
+	icon := th.Size(theme.SizeNameInlineIcon)
+	if r.b.pinned {
+		r.img.Move(fyne.NewPos((size.Width-icon)/2, (size.Height-icon)/2))
+		r.img.Resize(fyne.NewSquareSize(icon))
+		return
+	}
+	pad := th.Size(theme.SizeNamePadding)
 	r.img.Move(fyne.NewPos(pad, pad))
 	r.img.Resize(size.SubtractWidthHeight(2*pad, 2*pad))
 }
@@ -466,6 +499,14 @@ func (r *copyButtonRenderer) Refresh() {
 	r.bg.StrokeColor = themeColor(th, colorHairline)
 	r.bg.StrokeWidth = th.Size(theme.SizeNameInputBorder)
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
+	if r.b.pinned { // the owner's pick A of two rendered looks: outlined as the trash beside it
+		r.bg.FillColor = color.Transparent
+		if r.b.hovered {
+			r.bg.FillColor = th.Color(theme.ColorNameHover, fyne.CurrentApp().Settings().ThemeVariant())
+		}
+		r.bg.StrokeColor = th.Color(theme.ColorNameInputBorder, fyne.CurrentApp().Settings().ThemeVariant())
+		r.bg.CornerRadius = th.Size(theme.SizeNameButtonRadius)
+	}
 	if r.b.done {
 		r.img.Resource = themedIcon(theme.ConfirmIcon(), colorStatusOK)
 	} else {

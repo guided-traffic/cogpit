@@ -24,13 +24,13 @@ type createTab struct {
 	tab  engine.DockTab
 	pane *editorPane
 
-	picker    *widget.Button
+	picker    *textButton
 	templates []engine.Template
 	menu      *widget.PopUp
 	status    *textLine
 	results   *fyne.Container
-	createBtn *widget.Button
-	closeBtn  *widget.Button
+	createBtn *textButton
+	closeBtn  *textButton
 	root      fyne.CanvasObject
 	busy      bool
 
@@ -43,14 +43,14 @@ type createTab struct {
 
 func newCreateTab(sh *shell, t engine.DockTab) *createTab {
 	c := &createTab{sh: sh, tab: t, pane: newEditorPane(sh, t.ID)}
-	c.picker = widget.NewButtonWithIcon("Select Template …", theme.MenuDropDownIcon(), c.showTemplates)
+	c.picker = newPlateButton("Select Template …", theme.MenuDropDownIcon(), c.showTemplates)
 	c.picker.IconPlacement = widget.ButtonIconTrailingText
 	c.status = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	c.status.truncate = true
 	c.results = container.NewVBox()
-	c.createBtn = widget.NewButtonWithIcon("Create", theme.ContentAddIcon(), func() { c.create(false) })
+	c.createBtn = newPlateButton("Create", theme.ContentAddIcon(), func() { c.create(false) })
 	c.createBtn.Importance = widget.HighImportance
-	c.closeBtn = widget.NewButton("Create & Close", func() { c.create(true) })
+	c.closeBtn = newPlateButton("Create & Close", nil, func() { c.create(true) })
 	c.newTools()
 
 	toolbar := container.NewStack(newSurface(colorDock), inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,

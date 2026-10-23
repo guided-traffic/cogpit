@@ -256,7 +256,7 @@ func TestIntegrationsSection(t *testing.T) {
 	if note := p.controls["integrationsNote"]; note.Visible() {
 		t.Error("the note of an undecided cluster shows on a decided one")
 	}
-	if ask := p.controls["integrationsAsk"].(*widget.Button); !ask.Visible() || ask.Text != integrationsAskAgain {
+	if ask := p.controls["integrationsAsk"].(*textButton); !ask.Visible() || ask.Text != integrationsAskAgain {
 		t.Errorf("Ask again: %q, shown %v", ask.Text, ask.Visible())
 	}
 
@@ -289,7 +289,7 @@ func TestIntegrationsSection(t *testing.T) {
 	})
 
 	// Ask again: cluster.integrations.ask; the choice forgotten, nothing on, the note, the question.
-	test.Tap(p.controls["integrationsAsk"].(*widget.Button))
+	test.Tap(p.controls["integrationsAsk"].(*textButton))
 	q.until(t, "asked again", func() bool {
 		for _, r := range p.integrationRows {
 			if r.check.Checked {

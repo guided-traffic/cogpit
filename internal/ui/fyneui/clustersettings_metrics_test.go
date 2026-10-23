@@ -115,7 +115,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 		!slices.Equal(measures.Options, []string{"CPU", "Memory", "Network", "Filesystem"}) {
 		t.Fatalf("line %q, places %q, measures %q", line.text, places.Options, measures.Options)
 	}
-	if !sh.settings.controls["resetMetrics"].(*widget.Button).Disabled() {
+	if !sh.settings.controls["resetMetrics"].(*textButton).Disabled() {
 		t.Error("Reset is enabled with nothing hidden")
 	}
 
@@ -175,14 +175,14 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 	// Hide all metrics, then Reset, from the page's buttons.
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})
 	until("the buttons", func() bool { return sh.settings.controls["hideAllMetrics"] != nil })
-	test.Tap(sh.settings.controls["hideAllMetrics"].(*widget.Button))
+	test.Tap(sh.settings.controls["hideAllMetrics"].(*textButton))
 	until("all hidden", func() bool {
 		cs, _ := s.ClusterSettingsOf(engine.DemoContext)
 		l := sh.settings.controls["hiddenMetricsLine"].(*textLine)
 		return cs.HiddenMetrics == engine.HideAll && l.text == "All metrics are hidden." &&
 			len(sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup).Selected) == 4
 	})
-	if !sh.settings.controls["hideAllMetrics"].(*widget.Button).Disabled() {
+	if !sh.settings.controls["hideAllMetrics"].(*textButton).Disabled() {
 		t.Error("Hide all metrics is enabled with everything hidden")
 	}
 	mustDispatch(t, s, "settings.close", struct{}{})
@@ -196,7 +196,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 	}
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})
 	until("the buttons again", func() bool { return sh.settings.controls["resetMetrics"] != nil })
-	test.Tap(sh.settings.controls["resetMetrics"].(*widget.Button))
+	test.Tap(sh.settings.controls["resetMetrics"].(*textButton))
 	until("all visible", func() bool {
 		cs, _ := s.ClusterSettingsOf(engine.DemoContext)
 		return cs.HiddenMetrics == 0 && sh.settings.controls["hiddenMetricsLine"].(*textLine).text == "All metrics are visible."

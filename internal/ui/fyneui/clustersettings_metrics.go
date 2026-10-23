@@ -59,8 +59,8 @@ func (p *settingsPage) hideMetricsSetting() (fyne.CanvasObject, func()) {
 		}
 	}
 	places.OnChanged, measures.OnChanged = changed, changed
-	hideAll := widget.NewButton("Hide all metrics", func() { set(engine.HideAll) })
-	reset := widget.NewButton("Reset", func() { set(0) })
+	hideAll := newPlateButton("Hide all metrics", nil, func() { set(engine.HideAll) })
+	reset := newPlateButton("Reset", nil, func() { set(0) })
 	line := newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	line.truncate = true
 	p.controls["hiddenPlaces"], p.controls["hiddenMeasures"] = places, measures

@@ -97,17 +97,42 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 // weil es löscht ja nichts, aber ein warnendes Orange?"; his pick of three rendered looks, variant
 // A): its word, its outline and an eye icon in the status warning's amber, the tone of "(edited,
 // not saved)"; filled it would be louder than Save, with the outline alone it read as any button in
-// the light theme. Hide is a plain text button; red stays for what removes.
+// the light theme. Hide puts the value away again: the eye struck through in the status OK's green
+// (the owner's CW2 of 2026-10-23, "Hide könnte doch ein grünes Button sein, weil es die visuelle
+// sicherheit wiederherstellt, vielleicht haben wir auch ein geschlossenes Auge?"; his pick of three
+// rendered looks, variant C). Red stays for what removes.
+//
+// Show and Hide are one toggle in one place: each is as wide as the wider of the two (the owner's
+// CW1 of 2026-10-23: "Hide soll genau so groß sein wie Show, damit man mit der Maus nicht erneut
+// auf hide ziehen muss"; the line ends at the right, so a narrower Hide started right of Show's
+// eye).
 func revealButton(label string, tapped func()) *textButton {
+	b := revealLook(label, tapped)
+	other := hideLabel
+	if label == hideLabel {
+		other = showLabel
+	}
+	b.width = revealLook(other, nil).MinSize().Width
+	return b
+}
+
+// revealLook is Show's or Hide's look.
+func revealLook(label string, tapped func()) *textButton {
 	b := newTextButton(label, nil, tapped)
-	if label != hideLabel {
+	if label == hideLabel {
+		b.Icon, b.tone = theme.VisibilityOffIcon(), colorStatusOK
+	} else {
 		b.Icon, b.tone = theme.VisibilityIcon(), colorStatusWarning
 	}
 	return b
 }
 
-// hideLabel is the word on the button that masks a value Show revealed.
-const hideLabel = "Hide"
+// hideLabel is the word on the button that masks a value Show revealed, showLabel the one that
+// reveals it.
+const (
+	hideLabel = "Hide"
+	showLabel = "Show"
+)
 
 // actionLabel is an item action's button text: Hide for a value the action revealed.
 func (d *drawer) actionLabel(a model.ItemAction) string {

@@ -11,7 +11,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -38,9 +37,9 @@ type argoPanel struct {
 	activity                *fyne.Container
 	stripHead, activityHead *bracketLabel // the groups' heads (Dark Cockpit)
 	filter                  *searchEntry  // the activity's filter: the window's; F1–F12 are the hotbar's (A64)
-	openUI                  *widget.Button
-	sync                    *widget.Button
-	refresh                 *widget.Button
+	openUI                  *textButton
+	sync                    *textButton
+	refresh                 *textButton
 	root                    fyne.CanvasObject
 
 	requests atomic.Int32 // coalesced as the Workloads Overview's (overview.go)
@@ -51,18 +50,18 @@ func newArgoPanel(sh *shell) *argoPanel {
 	p.strip = container.NewGridWithColumns(7)
 	p.cards = container.NewGridWithColumns(5)
 	p.activity = container.NewVBox()
-	p.sync = widget.NewButtonWithIcon("Sync Out of Sync…", theme.UploadIcon(), func() {
+	p.sync = newPlateButton("Sync Out of Sync…", theme.UploadIcon(), func() {
 		if p.data != nil {
 			sh.openArgoSyncDialog(p.data.OutOfSync)
 		}
 	})
-	p.refresh = widget.NewButtonWithIcon("Refresh All…", theme.ViewRefreshIcon(), func() {
+	p.refresh = newPlateButton("Refresh All…", theme.ViewRefreshIcon(), func() {
 		if p.data != nil {
 			sh.openArgoRefreshDialog(p.data.All)
 		}
 	})
 	// Lens's "Open Argo UI": a port forward to argocd-server, opened in the browser.
-	p.openUI = widget.NewButtonWithIcon("Open Argo CD UI", theme.ComputerIcon(), func() {
+	p.openUI = newPlateButton("Open Argo CD UI", theme.ComputerIcon(), func() {
 		sh.dispatch("argocd.openUI", struct{}{}, func(res any, err error) { sh.forwardDone(res, err, true) })
 	})
 	p.sync.Disable()
@@ -160,7 +159,7 @@ func (p *argoPanel) showActivity() {
 	p.activity.Refresh()
 }
 
-func (p *argoPanel) enable(b *widget.Button, on bool) {
+func (p *argoPanel) enable(b *textButton, on bool) {
 	if on {
 		b.Enable()
 	} else {

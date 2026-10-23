@@ -5,7 +5,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -263,7 +262,7 @@ func (p *settingsPage) clusterIntegrationsSection() fyne.CanvasObject {
 	note := p.integrationsNote()
 	// Ask again (D-82, the owner's WF4): the question from its pre-choice, the cluster's choice
 	// forgotten; not on the demo cluster, which is never asked.
-	ask := widget.NewButton(integrationsAskAgain, func() {
+	ask := newPlateButton(integrationsAskAgain, nil, func() {
 		p.sh.dispatch("cluster.integrations.ask", map[string]any{contextParam: ctx}, nil)
 	})
 	askHint := newTextLine(integrationsAskAgainHint, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})

@@ -179,9 +179,10 @@ func (l *tooltipLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 // tipButton is a button with a tooltip: the drawer's action icons, named by their tooltip. A
-// disabled one still shows its tooltip, which says why it is disabled.
+// disabled one still shows its tooltip, which says why it is disabled. It is outlined as a text
+// button is (textButton), unless it is an icon of the window's chrome (newBareTipButton).
 type tipButton struct {
-	widget.Button
+	textButton
 	sh  *shell
 	tip string
 }
@@ -190,6 +191,17 @@ func newTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) *tip
 	b := &tipButton{sh: sh, tip: tip}
 	b.Icon, b.OnTapped, b.Importance = icon, tapped, widget.LowImportance
 	b.ExtendBaseWidget(b)
+	return b
+}
+
+// newBareTipButton is a tipButton in Fyne's own look, without the outline and the room beside a
+// word: the window's chrome, the title bar's history arrows and layout switches and the
+// navigator's header (the owner's answer of 2026-10-23: the outline on a content surface's icon
+// buttons, the chrome's bare), and the search's switches Aa, ab and .*, whose on state has its
+// plate (D-104).
+func newBareTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) *tipButton {
+	b := newTipButton(sh, icon, tip, tapped)
+	b.bare = true
 	return b
 }
 

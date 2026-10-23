@@ -57,8 +57,8 @@ func reviewBlock(text string, width float32) fyne.CanvasObject {
 // confirmDialog is one shown confirmation.
 type confirmDialog struct {
 	d       *dialogFrame
-	confirm *widget.Button
-	cancel  *widget.Button
+	confirm *textButton
+	cancel  *textButton
 }
 
 // Confirm implements engine.Confirmer. It returns the user's answer, or ctx's error when ctx ends
@@ -144,14 +144,14 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 		label = "Confirm"
 	}
 	cd := &confirmDialog{}
-	cd.confirm = widget.NewButton(label, nil)
+	cd.confirm = newPlateButton(label, nil, nil)
 	cd.confirm.Importance = widget.HighImportance
 	if destructive {
 		cd.confirm.Importance = widget.DangerImportance
 		// No icon: the word, the red fill and the rim say it (design-language.md), and a glyph in the
 		// button would be a fourth way of saying the same.
 	}
-	cd.cancel = widget.NewButton("Cancel", nil)
+	cd.cancel = newPlateButton("Cancel", nil, nil)
 	// The card says who asks and what is at stake (design-language.md): a request an agent made carries
 	// a violet "asked by · agent" over the title; a destructive one a rim in the error colour, which
 	// outranks the agent's violet (the eyebrow still names the agent). The rim is never the only signal:

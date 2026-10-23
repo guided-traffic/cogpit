@@ -29,8 +29,8 @@ const allStates = "All states"
 // statusFilter is the header's status filter.
 type statusFilter struct {
 	tv     *tableView
-	button *widget.Button
-	clear  *widget.Button
+	button *textButton
+	clear  *textButton
 	box    *fyne.Container // the filter's slot: the button and the × in the namespace filter's width
 
 	popup  *widget.PopUp
@@ -48,10 +48,10 @@ type stateCheck struct {
 
 func newStatusFilter(tv *tableView) *statusFilter {
 	f := &statusFilter{tv: tv}
-	f.button = widget.NewButtonWithIcon(allStates, theme.MenuDropDownIcon(), f.open)
+	f.button = newPlateButton(allStates, theme.MenuDropDownIcon(), f.open)
 	f.button.IconPlacement = widget.ButtonIconTrailingText
 	f.button.Alignment = widget.ButtonAlignLeading
-	f.clear = widget.NewButtonWithIcon("", theme.ContentClearIcon(), f.clearAll)
+	f.clear = newPlateButton("", theme.ContentClearIcon(), f.clearAll)
 	f.clear.Importance = widget.LowImportance
 	f.clear.Hide()
 	f.box = sized(sizeFilterWidth, "", container.NewBorder(nil, nil, nil, f.clear, f.button))

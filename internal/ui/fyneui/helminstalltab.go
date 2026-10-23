@@ -35,7 +35,7 @@ type helmInstallTab struct {
 	tab  engine.DockTab
 	pane *editorPane
 
-	installBtn *widget.Button
+	installBtn *textButton
 	searchBtn  *tipButton
 	find       *findBar
 	version    *selectField
@@ -97,7 +97,7 @@ func newHelmInstallTab(sh *shell, t engine.DockTab) *helmInstallTab {
 	if hi == nil {
 		hi = &engine.HelmInstallTab{}
 	}
-	u.installBtn = widget.NewButtonWithIcon("Install", theme.DownloadIcon(), u.install)
+	u.installBtn = newPlateButton("Install", theme.DownloadIcon(), u.install)
 	u.installBtn.Importance = widget.HighImportance
 	u.searchBtn = newTipButton(sh, theme.SearchIcon(), "Find", u.toggleSearch)
 	u.find = newFindBar(sh, u.pane.view)
@@ -357,8 +357,8 @@ func (u *helmInstallTab) close() {
 // installPreviewDialog shows what an install creates before it runs.
 type installPreviewDialog struct {
 	d       *dialogFrame
-	install *widget.Button
-	cancel  *widget.Button
+	install *textButton
+	cancel  *textButton
 	lines   []string
 	warning *paragraph // the chart's origin's warning (H-41), nil without one
 }
@@ -418,9 +418,9 @@ func (sh *shell) showInstallPreview(p installPreview, createNamespace bool, answ
 	content.Add(newSpace(theme.SizeNamePadding))
 	content.Add(newTextLine(fmt.Sprintf("WHAT THE INSTALL CREATES (%d)", len(pd.lines)), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}))
 	content.Add(scroll)
-	pd.install = widget.NewButton("Install", nil)
+	pd.install = newPlateButton("Install", nil, nil)
 	pd.install.Importance = widget.HighImportance
-	pd.cancel = widget.NewButton("Cancel", nil)
+	pd.cancel = newPlateButton("Cancel", nil, nil)
 	pd.d = newDialogFrame(sh, objectDialogTitle("Install", "Release", p.Release.Name, "?")) // no gap after the arrow (dialogframe.go)
 	pd.d.setContent(content)
 	pd.d.SetButtons([]fyne.CanvasObject{pd.cancel, pd.install})

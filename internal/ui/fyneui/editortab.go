@@ -159,16 +159,16 @@ type editorTab struct {
 	banner   *textLine
 	status   *textLine
 	editBtns *fyne.Container
-	saveBtn  *widget.Button
-	saveExit *widget.Button
-	backBtn  *widget.Button
-	applyBtn *widget.Button
+	saveBtn  *textButton
+	saveExit *textButton
+	backBtn  *textButton
+	applyBtn *textButton
 	revBtns  *fyne.Container
 	root     fyne.CanvasObject
 	// Revert to original, in the editor's and the review's footer, and its undo
 	// (editortab_revert.go).
 	revertBtn, reviewRevert *textButton
-	undoBtn                 *widget.Button
+	undoBtn                 *textButton
 
 	reviewing  bool
 	reviewText string // the text under review
@@ -183,11 +183,11 @@ func newEditorTab(sh *shell, t engine.DockTab) *editorTab {
 	e.status = newTextLine("Loading…", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	e.status.truncate = true
 
-	e.saveBtn = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), func() { e.save(false) })
+	e.saveBtn = newPlateButton("Save", theme.DocumentSaveIcon(), func() { e.save(false) })
 	e.saveBtn.Importance = widget.HighImportance
-	e.saveExit = widget.NewButton("Save & Close", func() { e.save(true) })
-	e.backBtn = widget.NewButtonWithIcon("Back to Editor", theme.NavigateBackIcon(), e.backToEditor)
-	e.applyBtn = widget.NewButtonWithIcon("Apply", theme.ConfirmIcon(), e.apply)
+	e.saveExit = newPlateButton("Save & Close", nil, func() { e.save(true) })
+	e.backBtn = newPlateButton("Back to Editor", theme.NavigateBackIcon(), e.backToEditor)
+	e.applyBtn = newPlateButton("Apply", theme.ConfirmIcon(), e.apply)
 	e.applyBtn.Importance = widget.HighImportance
 	e.newRevertButtons()
 	e.editBtns = container.NewHBox(e.undoBtn, e.revertBtn, e.saveExit, e.saveBtn)
@@ -235,7 +235,7 @@ func (e *editorTab) setStatus(text string, c fyne.ThemeColorName) {
 
 func (e *editorTab) setBusy(b bool) {
 	e.busy = b
-	for _, btn := range []*widget.Button{e.saveBtn, e.saveExit, e.backBtn} {
+	for _, btn := range []*textButton{e.saveBtn, e.saveExit, e.backBtn} {
 		if b {
 			btn.Disable()
 		} else {

@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
@@ -231,8 +230,8 @@ func (k *kubeconfigUI) showSources() {
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(
 		container.NewVBox(intro, newSpace(theme.SizeNamePadding)), sd.status, nil, nil, list))
 	sd.d = dialog.NewCustomWithoutButtons("Kubeconfig Sources", content, k.sh.win)
-	addB := widget.NewButtonWithIcon("Sync Files and Folders…", theme.ContentAddIcon(), k.addKubeconfigs)
-	closeB := widget.NewButton("Close", nil)
+	addB := newPlateButton("Sync Files and Folders…", theme.ContentAddIcon(), k.addKubeconfigs)
+	closeB := newPlateButton("Close", nil, nil)
 	sd.d.SetButtons([]fyne.CanvasObject{addB, closeB})
 	closeB.OnTapped = sd.d.Hide
 	sd.d.SetOnClosed(func() {

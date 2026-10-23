@@ -85,7 +85,7 @@ func (d *dock) connectionChanged() {
 type reconnectRow struct {
 	root   *fyne.Container
 	text   *textLine
-	button *widget.Button
+	button *textButton
 }
 
 // withReconnectRow puts the tab's Reconnect row above content.
@@ -96,7 +96,7 @@ func (c *dockContent) withReconnectRow(content fyne.CanvasObject) fyne.CanvasObj
 	if c.reconnect == nil {
 		c.reconnect = &reconnectRow{text: newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})}
 		c.reconnect.text.truncate = true
-		c.reconnect.button = widget.NewButtonWithIcon("Reconnect", theme.ViewRefreshIcon(), nil)
+		c.reconnect.button = newPlateButton("Reconnect", theme.ViewRefreshIcon(), nil)
 		c.reconnect.button.Importance = widget.HighImportance
 		strip := container.NewBorder(nil, nil, container.NewCenter(widget.NewIcon(themedIcon(theme.WarningIcon(), colorStatusWarning))),
 			container.NewCenter(c.reconnect.button), c.reconnect.text)

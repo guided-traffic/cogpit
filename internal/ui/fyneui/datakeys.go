@@ -32,7 +32,7 @@ import (
 type keyAdder struct {
 	button *textButton
 	entry  *widget.Entry
-	add    *widget.Button
+	add    *textButton
 	hint   *paragraph
 	row    *fyne.Container
 	taken  func(key string) string // why key cannot be added beside the keys there are; "" when it can
@@ -46,9 +46,9 @@ func newKeyAdder(width float32, taken func(string) string, onAdd func(string)) *
 	a.entry.SetPlaceHolder("New key, e.g. config.yaml")
 	a.entry.OnChanged = func(string) { a.check() }
 	a.entry.OnSubmitted = func(string) { a.submit() }
-	a.add = widget.NewButtonWithIcon("Add", theme.ContentAddIcon(), a.submit)
+	a.add = newPlateButton("Add", theme.ContentAddIcon(), a.submit)
 	a.add.Importance = widget.HighImportance
-	cancel := widget.NewButton("Cancel", a.close)
+	cancel := newPlateButton("Cancel", nil, a.close)
 	a.hint = newParagraph("", colorMuted, width)
 	// Room around the row (the owner's WF12, 2026-10-18: "nur zu gequetscht"): a gap between the
 	// name and its buttons, and one under the row before the footer (dataGap above it).
@@ -239,7 +239,7 @@ func setKeysBlock(place *fyne.Container, block fyne.CanvasObject) {
 // armSave enables a review's Save: at once, or, for a save that removes keys, once the
 // confirmation's delay has passed since the review opened (a click meant for the drawer must not
 // confirm a removal), if ready still holds then.
-func armSave(sh *shell, b *widget.Button, destructive bool, opened time.Time, ready func() bool) {
+func armSave(sh *shell, b *textButton, destructive bool, opened time.Time, ready func() bool) {
 	wait := time.Duration(0)
 	if destructive && sh.confirmer != nil {
 		wait = time.Until(opened.Add(sh.confirmer.armDelay))
@@ -364,7 +364,7 @@ func (e *editCounts) text() string {
 // footerRow is a data section's footer: Add Key at its start, the edited state's pills and Revert
 // and Save at its end (dataFooterLayout); width is the details' width it is told, as a paragraph
 // is (setFooterWidth).
-func footerRow(adder *keyAdder, counts *editCounts, revert, save *widget.Button, width float32) *fyne.Container {
+func footerRow(adder *keyAdder, counts *editCounts, revert, save *textButton, width float32) *fyne.Container {
 	counts.footer = box(&dataFooterLayout{width: width}, adder.button, counts.box, revert, save)
 	return counts.footer
 }

@@ -81,8 +81,8 @@ type secData struct {
 	ref    model.ObjectRef
 	rows   map[string]*secRow // the keys whose values are in an editor
 	list   *fyne.Container
-	save   *widget.Button
-	revert *widget.Button
+	save   *textButton
+	revert *textButton
 	// buttons are Add Key, the edited state's pills (WF31), Revert and Save; status the line under
 	// them for what the pills don't say.
 	counts  *editCounts
@@ -143,9 +143,9 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd := &secData{d: d, ref: ref, rows: map[string]*secRow{}, width: d.contentWidth(), listed: map[string]bool{},
 		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}}
 	sd.list = box(keyedLayout{})
-	sd.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), sd.openReview)
+	sd.save = newPlateButton("Save", theme.DocumentSaveIcon(), sd.openReview)
 	sd.save.Importance = widget.HighImportance
-	sd.revert = widget.NewButton("Revert", sd.revertAll)
+	sd.revert = newPlateButton("Revert", nil, sd.revertAll)
 	sd.adder = newKeyAdder(d.contentWidth(), sd.keyTaken, sd.addKey)
 	sd.counts = newEditCounts()
 	sd.buttons = footerRow(sd.adder, sd.counts, sd.revert, sd.save, d.contentWidth())
@@ -759,7 +759,7 @@ type secReview struct {
 	keys              *fyne.Container // the head, reviewHead
 	top               *fyne.Container // the head and the banner
 	status            *paragraph
-	save              *widget.Button
+	save              *textButton
 	width             float32
 	opened            time.Time
 	ready             bool   // Save may be enabled
@@ -784,12 +784,12 @@ func (sd *secData) openReview() {
 	setKeysBlock(rv.keys, reviewHead("Secret", sd.ref, "", mapKeys(add), removes, width))
 	rv.top = container.NewVBox(rv.keys, rv.banner, newDivider(false))
 	rv.status = newParagraph("", colorMuted, width)
-	rv.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), rv.commit)
+	rv.save = newPlateButton("Save", theme.DocumentSaveIcon(), rv.commit)
 	rv.save.Importance = widget.HighImportance
 	if len(removes) > 0 {
 		rv.save.Importance = widget.DangerImportance
 	}
-	cancel := widget.NewButton("Cancel", func() { rv.hide() })
+	cancel := newPlateButton("Cancel", nil, func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 120)}, container.NewStack(newSurface(theme.ColorNameInputBackground),
 		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVScroll(rv.changes))))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)

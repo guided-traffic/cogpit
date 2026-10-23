@@ -94,8 +94,8 @@ func (k *kubeconfigUI) reviewPlugin(contextID string, done func(allowed bool)) {
 // approvalDialog shows the credential plugin of a group of contexts before its first run.
 type approvalDialog struct {
 	d      *dialog.CustomDialog
-	allow  *widget.Button
-	cancel *widget.Button
+	allow  *textButton
+	cancel *textButton
 	group  approvalGroupView
 	// scroll holds the whole content when it is taller than the window allows (many contexts); nil
 	// otherwise.
@@ -231,9 +231,9 @@ func (k *kubeconfigUI) showApproval(g approvalGroupView, done func(bool)) {
 	if len(g.Contexts) > 1 {
 		allowLabel = fmt.Sprintf("Allow All %d and Connect", len(g.Contexts))
 	}
-	a.allow = widget.NewButtonWithIcon(allowLabel, theme.ConfirmIcon(), nil)
+	a.allow = newPlateButton(allowLabel, theme.ConfirmIcon(), nil)
 	a.allow.Importance = widget.WarningImportance
-	a.cancel = widget.NewButton("Cancel", nil)
+	a.cancel = newPlateButton("Cancel", nil, nil)
 	a.d = dialog.NewCustomWithoutButtons(approvalTitle(g), body, k.sh.win)
 	a.d.SetButtons([]fyne.CanvasObject{a.cancel, a.allow})
 	answered := false

@@ -33,7 +33,7 @@ type helmReposDialog struct {
 	list    *fyne.Container
 	file    *textLine
 	fileMsg *fyne.Container // the file's status when it is not ok
-	updateB *widget.Button
+	updateB *textButton
 	status  *textLine
 	src     engine.HelmReposList
 	rows    []engine.HelmRepoInfo
@@ -77,9 +77,9 @@ func (sh *shell) showHelmRepos() {
 	top := container.NewVBox(intro, newSpace(theme.SizeNamePadding), rd.file, rd.fileMsg, newSpace(theme.SizeNamePadding))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(top, rd.status, nil, nil, list))
 	rd.d = dialog.NewCustomWithoutButtons("Helm Repositories", content, sh.win)
-	rd.updateB = widget.NewButtonWithIcon("Update All", theme.ViewRefreshIcon(), rd.update)
+	rd.updateB = newPlateButton("Update All", theme.ViewRefreshIcon(), rd.update)
 	rd.updateB.Importance = widget.HighImportance
-	closeB := widget.NewButton("Close", nil)
+	closeB := newPlateButton("Close", nil, nil)
 	rd.d.SetButtons([]fyne.CanvasObject{rd.updateB, closeB})
 	closeB.OnTapped = rd.d.Hide
 	rd.cancel = sh.eng.Subscribe(func(ev engine.Event) {

@@ -96,7 +96,7 @@ const (
 type agentPrefs struct {
 	p      *settingsPage
 	list   *fyne.Container
-	addB   *widget.Button
+	addB   *textButton
 	formC  *fyne.Container
 	form   *agentForm
 	conns  []engine.ChatConnection
@@ -113,7 +113,7 @@ func (p *settingsPage) agentSection() fyne.CanvasObject {
 	}
 	a := &agentPrefs{p: p, list: container.NewVBox(), formC: container.NewVBox()}
 	p.agent = a
-	a.addB = widget.NewButtonWithIcon("Add Connection", theme.ContentAddIcon(), func() {
+	a.addB = newPlateButton("Add Connection", theme.ContentAddIcon(), func() {
 		a.edit(engine.ChatConnection{Kind: engine.ChatLMStudio, BaseURL: chatKinds[0].prefill})
 	})
 	a.load()
@@ -207,7 +207,7 @@ func (a *agentPrefs) row(c engine.ChatConnection) fyne.CanvasObject {
 	detail.truncate = true
 	conn := c
 	edit := newTextButton("Edit", nil, func() { a.edit(conn) })
-	del := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { a.confirmDelete(conn) })
+	del := newPlateButton("", theme.DeleteIcon(), func() { a.confirmDelete(conn) })
 	del.Importance = widget.LowImportance
 	actions := container.NewHBox(edit, del)
 	if !c.Default {
@@ -313,15 +313,15 @@ type agentForm struct {
 	removeKey *textButton
 	keyGone   bool // "Remove key" was pressed: saving removes the stored key
 	model     *widget.SelectEntry
-	modelsB   *widget.Button
+	modelsB   *textButton
 	modelNote *textLine
 	private   *widget.Check
 	allTools  *widget.Check
 	limits    [4]*widget.Entry
 	def       *widget.Check
 	errLine   *textLine
-	saveB     *widget.Button
-	testB     *widget.Button
+	saveB     *textButton
+	testB     *textButton
 	steps     *fyne.Container
 	stepRows  map[engine.ChatTestLayer]*agentTestRow
 	testWarn  *paragraph // a layer's warning, under the test's rows
@@ -378,7 +378,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.model.SetText(c.Model)
 	f.modelNote = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.modelNote.truncate = true
-	f.modelsB = widget.NewButtonWithIcon("", theme.ViewRefreshIcon(), f.loadModels)
+	f.modelsB = newPlateButton("", theme.ViewRefreshIcon(), f.loadModels)
 	f.modelsB.Importance = widget.LowImportance
 	if c.ID == "" {
 		f.modelsB.Disable()
@@ -418,10 +418,10 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.errLine = newTextLine("", colorStatusError, theme.SizeNameText, fyne.TextStyle{})
 	f.errLine.Hide()
 	f.steps = container.NewVBox()
-	f.testB = widget.NewButtonWithIcon("Test Connection", theme.MediaPlayIcon(), f.test)
-	f.saveB = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), f.save)
+	f.testB = newPlateButton("Test Connection", theme.MediaPlayIcon(), f.test)
+	f.saveB = newPlateButton("Save", theme.DocumentSaveIcon(), f.save)
 	f.saveB.Importance = widget.HighImportance
-	cancel := widget.NewButton("Cancel", a.closeForm)
+	cancel := newPlateButton("Cancel", nil, a.closeForm)
 
 	bg := newSurface(theme.ColorNameInputBackground)
 	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline

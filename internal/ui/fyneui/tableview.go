@@ -40,10 +40,10 @@ type tableView struct {
 	sh *shell
 
 	title, count, syncing *textLine
-	csvButton             *widget.Button // beside the count: download the view as CSV (tableheader.go)
+	csvButton             *textButton // beside the count: download the view as CSV (tableheader.go)
 	errLine               *textLine
 	scopeLine             *textLine // the namespaces a kind is read in one by one, and those denied (clustersettings_namespaces_filter.go)
-	nsButton              *widget.Button
+	nsButton              *textButton
 	nsTint                *container.ThemeOverride // the button red while a namespace it names is gone or going (nsgone.go)
 	nsTintTheme           *nsTintTheme
 	nsBox                 *fyne.Container // the namespace filter's slot; hidden on cluster-scoped views
@@ -73,8 +73,8 @@ type tableView struct {
 	placeholderDetail          *textLine       // while connecting: the login it waits for (D-73)
 	placeholderDetailEnd       *textLine       // behind a login Cogpit could not end: that it has no end (H-118)
 	detailBox                  *fyne.Container // the detail's lines centred; hidden while it says nothing
-	connectButton              *widget.Button
-	cancelButton               *widget.Button  // Cancel Connecting while connecting (D-73)
+	connectButton              *textButton
+	cancelButton               *textButton     // Cancel Connecting while connecting (D-73)
 	cancelBox                  *fyne.Container // cancelButton centred; hidden unless connecting
 	create                     *stripChip      // the create chip in the dock's strip (createbutton.go)
 	root                       fyne.CanvasObject
@@ -139,7 +139,7 @@ func newTableView(sh *shell) *tableView {
 	tv.scopeLine.truncate = true
 	tv.scopeLine.Hide()
 
-	tv.nsButton = widget.NewButtonWithIcon("All namespaces", theme.MenuDropDownIcon(), tv.openNamespaces)
+	tv.nsButton = newPlateButton("All namespaces", theme.MenuDropDownIcon(), tv.openNamespaces)
 	tv.ns = newNSFilter(tv)
 	tv.nsButton.IconPlacement = widget.ButtonIconTrailingText
 	tv.nsButton.Alignment = widget.ButtonAlignLeading
@@ -153,14 +153,14 @@ func newTableView(sh *shell) *tableView {
 	tv.search.back = tv.table // Escape in the search clears it and hands the table the keys (AW4)
 
 	tv.placeholderText = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	tv.placeholderText.align, tv.placeholderText.truncate = fyne.TextAlignCenter, true                            // never beyond the view (AW18)
-	tv.connectButton = widget.NewButtonWithIcon(connectLabel+"…", theme.LoginIcon(), func() { sh.findCluster() }) // D-57
+	tv.placeholderText.align, tv.placeholderText.truncate = fyne.TextAlignCenter, true                  // never beyond the view (AW18)
+	tv.connectButton = newPlateButton(connectLabel+"…", theme.LoginIcon(), func() { sh.findCluster() }) // D-57
 	tv.connectButton.Importance = widget.HighImportance
 	tv.placeholderDetail = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	tv.placeholderDetailEnd = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	tv.placeholderDetail.align, tv.placeholderDetailEnd.align = fyne.TextAlignCenter, fyne.TextAlignCenter
 	tv.placeholderDetailEnd.Hide()
-	tv.cancelButton = widget.NewButtonWithIcon(cancelConnectingLabel, theme.CancelIcon(), sh.disconnect) // cluster.disconnect (menus_cluster.go)
+	tv.cancelButton = newPlateButton(cancelConnectingLabel, theme.CancelIcon(), sh.disconnect) // cluster.disconnect (menus_cluster.go)
 	// Hidden as boxes: a centring box around a hidden widget would still take its row's padding.
 	tv.detailBox = container.NewCenter(container.NewVBox(tv.placeholderDetail, tv.placeholderDetailEnd))
 	tv.cancelBox = container.NewCenter(tv.cancelButton)
@@ -171,7 +171,7 @@ func newTableView(sh *shell) *tableView {
 	tv.placeholder = box(placeholderLayout{text: tv.placeholderText}, container.NewVBox(
 		tv.placeholderText, tv.detailBox, container.NewCenter(tv.connectButton), tv.cancelBox))
 
-	tv.csvButton = widget.NewButtonWithIcon("", theme.DownloadIcon(), tv.exportCSV)
+	tv.csvButton = newPlateButton("", theme.DownloadIcon(), tv.exportCSV)
 	tv.csvButton.Importance = widget.LowImportance
 	tv.csvButton.Hide()
 	tv.check.bar = newSelectionBar(tv)

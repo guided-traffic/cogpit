@@ -103,8 +103,8 @@ type createForm struct {
 	width   float32
 	content *fyne.Container
 	d       *dialogFrame
-	create  *widget.Button
-	cancel  *widget.Button
+	create  *textButton
+	cancel  *textButton
 	status  *paragraph
 
 	name *fieldEntry
@@ -186,9 +186,9 @@ func (sh *shell) newCreateForm(cmd *engine.Command, spec createDialogSpec) *crea
 	spec.build(f)
 	f.content.Add(newSpace(theme.SizeNamePadding))
 	f.content.Add(f.status)
-	f.create = widget.NewButton("Create", f.submit)
+	f.create = newPlateButton("Create", nil, f.submit)
 	f.create.Importance = widget.HighImportance
-	f.cancel = widget.NewButton("Cancel", nil)
+	f.cancel = newPlateButton("Cancel", nil, nil)
 	f.d = newDialogFrame(sh, dialogTitle(cmd.Label)) // a card with a header and a footer (dialogframe.go)
 	f.d.setContent(f.content)
 	f.d.SetButtons([]fyne.CanvasObject{f.cancel, f.create})
@@ -508,8 +508,8 @@ func (f *createForm) addRows(caption string, columns []string, add string, newRo
 }
 
 // removeButton is a row's remove button.
-func removeButton(tapped func()) *widget.Button {
-	b := widget.NewButtonWithIcon("", theme.DeleteIcon(), tapped)
+func removeButton(tapped func()) *textButton {
+	b := newPlateButton("", theme.DeleteIcon(), tapped)
 	b.Importance = widget.LowImportance
 	return b
 }
