@@ -26,7 +26,7 @@ type kubectlOffer struct {
 	check *engine.KubectlCheck // what the line shows
 	text  *textLine
 	// download fetches the offered release; newTerm opens a terminal once it is in place.
-	download, newTerm *widget.Button
+	download, newTerm *textButton
 	asked             bool // the download was asked for in this window and has not answered yet
 }
 
@@ -34,9 +34,9 @@ func newKubectlOffer(sh *shell, t engine.DockTab) *kubectlOffer {
 	o := &kubectlOffer{sh: sh, tabID: t.ID, root: container.NewStack()}
 	o.text = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 	o.text.truncate = true
-	o.download = widget.NewButtonWithIcon("Download", theme.DownloadIcon(), o.startDownload)
+	o.download = newPlateButton("Download", theme.DownloadIcon(), o.startDownload)
 	o.download.Importance = widget.HighImportance
-	o.newTerm = widget.NewButtonWithIcon("New Terminal", theme.ContentAddIcon(), func() {
+	o.newTerm = newPlateButton("New Terminal", theme.ContentAddIcon(), func() {
 		sh.dispatch("terminal.open", struct{}{}, nil)
 	})
 	o.update(t)

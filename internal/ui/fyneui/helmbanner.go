@@ -100,27 +100,27 @@ func (b *helmBanner) row(op engine.PendingHelmOpInfo) fyne.CanvasObject {
 	if op.Status != engine.HelmOpStatusRunning {
 		dismiss := newTextButton("Dismiss", nil, func() { b.sh.dispatch("helm.dismissOperation", refParams{Ref: ref}, nil) })
 		buttons.Add(dismiss)
-		var finish *widget.Button
+		var finish *textButton
 		switch op.Action {
 		case engine.HelmRollback:
-			finish = widget.NewButtonWithIcon("Finish rollback", theme.MediaPlayIcon(), func() {
+			finish = newPlateButton("Finish rollback", theme.MediaPlayIcon(), func() {
 				b.sh.dispatch("helm.release.rollback", helmRollbackParams{refParams: refParams{Ref: ref}, Revision: op.Revision}, nil)
 			})
 		case engine.HelmUpgrade: // the SDK refuses to upgrade a release left pending-upgrade: roll back (architecture §8)
-			finish = widget.NewButtonWithIcon(fmt.Sprintf("Roll back to revision %d", op.FromRevision), theme.MediaPlayIcon(), func() {
+			finish = newPlateButton(fmt.Sprintf("Roll back to revision %d", op.FromRevision), theme.MediaPlayIcon(), func() {
 				b.sh.dispatch("helm.release.rollback", helmRollbackParams{refParams: refParams{Ref: ref}, Revision: op.FromRevision}, nil)
 			})
 		case engine.HelmInstall:
 			// Nothing is offered after an install (A17): the row shows the release's state, and the
 			// user cleans up in the Helm Releases view, which this opens on the release.
 			if op.ReleaseStatus != engine.HelmReleaseMissing {
-				show := widget.NewButtonWithIcon(showReleaseLabel, theme.VisibilityIcon(), func() {
+				show := newPlateButton(showReleaseLabel, theme.VisibilityIcon(), func() {
 					b.sh.dispatch("ui.navigate", refParams{Ref: ref}, nil)
 				})
 				buttons.Add(show)
 			}
 		default:
-			finish = widget.NewButtonWithIcon("Finish uninstall", theme.MediaPlayIcon(), func() {
+			finish = newPlateButton("Finish uninstall", theme.MediaPlayIcon(), func() {
 				b.sh.dispatch("helm.release.uninstall", refParams{Ref: ref}, nil)
 			})
 		}

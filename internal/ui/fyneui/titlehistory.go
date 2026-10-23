@@ -50,7 +50,7 @@ func (h *titleHistory) shown() bool { return h.back.Visible() || h.forward.Visib
 // arrow is one arrow, named by its command's label and shortcut; hidden in a build without the
 // command.
 func (h *titleHistory) arrow(id string, icon fyne.Resource, back bool) *tipButton {
-	b := newTipButton(h.sh, icon, "", func() { h.step(back) })
+	b := newBareTipButton(h.sh, icon, "", func() { h.step(back) })
 	if c, ok := h.sh.eng.Registry().Get(id); ok {
 		b.tip = c.Label
 		if sc := shortcutText(c.Shortcut, runtime.GOOS == "darwin"); sc != "" {

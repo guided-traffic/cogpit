@@ -122,7 +122,7 @@ func (b *helmHTTPBanner) row(r engine.HelmRepoInfo) fyne.CanvasObject {
 	title.truncate = true
 	detail := newTextLine(helmHTTPDetail(r), colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	detail.truncate = true
-	allow := widget.NewButtonWithIcon("Allow…", theme.WarningIcon(), func() { b.confirm(r) })
+	allow := newPlateButton("Allow…", theme.WarningIcon(), func() { b.confirm(r) })
 	allow.Importance = widget.WarningImportance
 	content := container.NewBorder(nil, nil,
 		container.NewCenter(widget.NewIcon(themedIcon(theme.WarningIcon(), colorStatusWarning))),
@@ -165,7 +165,7 @@ func (b *helmHTTPBanner) confirm(r engine.HelmRepoInfo) {
 		objs = append(objs, newParagraph(p, color, width))
 	}
 	var d *dialog.CustomDialog
-	allow := widget.NewButtonWithIcon("Allow over http", theme.WarningIcon(), func() {
+	allow := newPlateButton("Allow over http", theme.WarningIcon(), func() {
 		d.Hide()
 		b.sh.dispatch("helm.repo.allowHTTPCredentials", helmHTTPParams{Repositories: []helmHTTPItem{{Name: r.Name, Token: r.HTTPToken}}},
 			func(_ any, err error) {
@@ -178,7 +178,7 @@ func (b *helmHTTPBanner) confirm(r engine.HelmRepoInfo) {
 			})
 	})
 	allow.Importance = widget.WarningImportance
-	cancel := widget.NewButton("Cancel", func() { d.Hide() })
+	cancel := newPlateButton("Cancel", nil, func() { d.Hide() })
 	d = dialog.NewCustomWithoutButtons("Send credentials over plain http?", container.NewVBox(objs...), b.sh.win)
 	d.SetButtons([]fyne.CanvasObject{cancel, allow})
 	d.SetOnClosed(func() {

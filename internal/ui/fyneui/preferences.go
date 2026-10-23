@@ -238,8 +238,8 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 
 func (p *settingsPage) kubernetesSection() fyne.CanvasObject {
 	kc := p.sh.kc
-	sources := widget.NewButton("Kubeconfig Sources…", kc.showSources)
-	syncB := widget.NewButton("Sync Files and Folders…", kc.addKubeconfigs)
+	sources := newPlateButton("Kubeconfig Sources…", nil, kc.showSources)
+	syncB := newPlateButton("Sync Files and Folders…", nil, kc.addKubeconfigs)
 	helmDriver, syncHelmDriver := p.helmDriverSetting() // preferences_helm.go
 	chartIcons, syncChartIcons := p.chartIconsSetting() // helmcharticons.go
 	// The default for new clusters' integrations (preferences_integrations.go, D-76).

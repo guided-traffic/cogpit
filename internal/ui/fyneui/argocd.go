@@ -106,14 +106,14 @@ func (sh *shell) argoDialog(action string, refs []model.ObjectRef, options fyne.
 	}
 	d := newDialogFrame(sh, argoTitle(action, refs)) // no gap after the arrow (dialogframe.go)
 	d.setContent(container.NewVBox(rows, newSpace(theme.SizeNamePadding), options))
-	confirm := widget.NewButtonWithIcon(action, theme.ConfirmIcon(), func() {
+	confirm := newPlateButton(action, theme.ConfirmIcon(), func() {
 		d.Hide()
 		if chosen := picker.chosen(); len(chosen) > 0 {
 			run(chosen)
 		}
 	})
 	confirm.Importance = widget.HighImportance
-	d.SetButtons([]fyne.CanvasObject{widget.NewButtonWithIcon("Cancel", theme.CancelIcon(), d.Hide), confirm})
+	d.SetButtons([]fyne.CanvasObject{newPlateButton("Cancel", theme.CancelIcon(), d.Hide), confirm})
 	d.Resize(fyne.NewSize(width, d.MinSize().Height))
 	d.Show()
 }

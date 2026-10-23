@@ -87,7 +87,7 @@ func (b *draftsBanner) row(d engine.DraftInfo) fyne.CanvasObject {
 	detail.truncate = true
 	id := d.ID
 	discard := newTextButton("Discard", nil, func() { b.sh.dispatch("editor.discardDraft", draftParams{ID: id}, nil) })
-	restore := widget.NewButtonWithIcon("Restore", theme.HistoryIcon(), func() {
+	restore := newPlateButton("Restore", theme.HistoryIcon(), func() {
 		b.sh.dispatch("editor.restoreDraft", draftParams{ID: id}, func(res any, err error) {
 			var st struct {
 				Tab engine.DockTab `json:"tab"`

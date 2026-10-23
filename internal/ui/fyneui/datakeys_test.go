@@ -320,7 +320,7 @@ func TestSecretDrawerAddsAndRemovesKeys(t *testing.T) {
 }
 
 // renderKeysDrawer renders a drawer with a key added and one removed, and its review over it.
-func renderKeysReview(t *testing.T, sh *shell, w fyne.Window, q *mainQueue, save *widget.Button, open func() bool, name string) {
+func renderKeysReview(t *testing.T, sh *shell, w fyne.Window, q *mainQueue, save *textButton, open func() bool, name string) {
 	t.Helper()
 	q.until(t, "the list", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && sh.diag.total > 0 })
 	settle(w)

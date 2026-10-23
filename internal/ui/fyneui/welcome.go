@@ -73,7 +73,7 @@ type welcomePage struct {
 	note      *welcomeNote    // the connection's message, in a callout of its own (RW4); hidden without one
 	list      *fyne.Container // the groups of clusters
 	hint      *textLine
-	addB      *widget.Button
+	addB      *textButton
 	restore   *widget.Check     // the preference "Restore the last session" (preferences_restore.go)
 	syncing   bool              // set while restore follows the preference, so that it sends nothing
 	docs      *widget.Hyperlink // the README: what Cogpit does
@@ -106,7 +106,7 @@ func newWelcomePage(sh *shell) *welcomePage {
 		container.NewCenter(tagline))
 	w.note = newWelcomeNote()
 	w.list = container.NewVBox()
-	w.addB = widget.NewButtonWithIcon("Add Kubeconfigs…", theme.ContentAddIcon(), sh.kc.addKubeconfigs)
+	w.addB = newPlateButton("Add Kubeconfigs…", theme.ContentAddIcon(), sh.kc.addKubeconfigs)
 	u, _ := url.Parse(readmeURL)
 	w.docs = widget.NewHyperlink("What Cogpit does: the README on GitHub", u)
 	w.docs.OnTapped = func() { sh.openDocumentation() }

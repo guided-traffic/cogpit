@@ -45,7 +45,7 @@ func (p *settingsPage) loginItemSetting() (fyne.CanvasObject, func()) {
 	})
 	status := newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	status.truncate = true
-	open := widget.NewButton("Open Login Items…", func() {
+	open := newPlateButton("Open Login Items…", nil, func() {
 		p.sh.dispatch("preferences.openLoginItems", struct{}{}, func(_ any, err error) { p.showResult(name, err) })
 	})
 	openRow := container.NewHBox(open)

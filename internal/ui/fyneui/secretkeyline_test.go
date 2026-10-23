@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"image/color"
 	"slices"
 	"testing"
 
@@ -208,7 +209,9 @@ func TestTextButtonsHaveTheFieldOutline(t *testing.T) {
 }
 
 // TestSecretShowMarkedAsExposing (the owner's RW3 of 2026-10-23, his pick A): a Secret's Show is
-// marked as exposing, its word, outline and eye icon in the status warning's amber; Hide is plain.
+// marked as exposing, its word, outline and eye icon in the status warning's amber; Hide puts the
+// value away, the eye struck through in the status OK's green (his CW2, pick C), and is exactly as
+// wide as Show (CW1), so that a click where Show's eye was hits Hide.
 func TestSecretShowMarkedAsExposing(t *testing.T) {
 	sh, _, q, _, _ := secShell(t, ThemeDark)
 	d := sh.drawer
@@ -223,12 +226,123 @@ func TestSecretShowMarkedAsExposing(t *testing.T) {
 			}
 		case "Hide":
 			hides++
-			if b.tone != "" || b.Icon != nil {
-				t.Errorf("Hide's tone %q, icon %v: want it plain", b.tone, b.Icon)
+			if b.tone != colorStatusOK || b.Icon == nil || b.Icon.Name() != theme.VisibilityOffIcon().Name() {
+				t.Errorf("Hide's tone %q, icon %v: want the status OK's green and the eye struck through", b.tone, b.Icon)
 			}
 		}
 	}
 	if shows != 3 || hides != 1 {
 		t.Errorf("%d Show and %d Hide, want 3 and 1", shows, hides)
+	}
+	show, hide := revealButton(showLabel, nil).MinSize().Width, revealButton(hideLabel, nil).MinSize().Width
+	if show != hide {
+		t.Errorf("Show is %v wide, Hide %v: want them alike", show, hide)
+	}
+}
+
+// TestKeyLineButtonsOneHeight (the owner's finding of 2026-10-23 and his CW3): the buttons at the
+// end of a Secret key's name line are one height, Show, the copy icon and the remove button, and
+// Undo on a key marked for removal is as tall as they are; the copy icon is outlined as the remove
+// button is (his pick A), not on a chip.
+func TestKeyLineButtonsOneHeight(t *testing.T) {
+	sh, w, q, _, _ := secShell(t, ThemeDark)
+	d := sh.drawer
+	showKey(t, sh, q, "DB_PASSWORD")
+	settle(w)
+	heights := func(key string) map[string]float32 {
+		t.Helper()
+		line := keyLineOf(d, key)
+		if line == nil {
+			t.Fatalf("no name line for %s", key)
+		}
+		out := map[string]float32{}
+		for _, b := range findAll[*textButton](line.Objects[1]) {
+			out[b.Text] = b.Size().Height
+		}
+		for _, b := range findAll[*tipButton](line.Objects[1]) {
+			out["remove"] = b.Size().Height
+		}
+		for _, b := range findAll[*copyButton](line.Objects[1]) {
+			out["copy"] = b.Size().Height
+		}
+		return out
+	}
+	alike := func(key string, want ...string) {
+		t.Helper()
+		got := heights(key)
+		for _, k := range want {
+			if got[k] == 0 || got[k] != got[want[0]] {
+				t.Errorf("%s's line: heights %v, want %q alike", key, got, want)
+				return
+			}
+		}
+	}
+	alike("DB_USER", "Show", "copy", "remove")
+	alike("DB_PASSWORD", "Hide", "copy", "remove")
+	button := heights("DB_USER")["Show"]
+
+	icon := keyCopyIcon(t, d, "DB_USER")
+	r := test.WidgetRenderer(icon).(*copyButtonRenderer)
+	th, v := sh.app.Settings().Theme(), sh.app.Settings().ThemeVariant()
+	if r.bg.FillColor != color.Transparent || r.bg.StrokeColor != th.Color(theme.ColorNameInputBorder, v) {
+		t.Errorf("the copy icon's plate %v, stroke %v: want no fill and the field's outline", r.bg.FillColor, r.bg.StrokeColor)
+	}
+
+	remove := findAll[*tipButton](keyLineOf(d, "DB_USER").Objects[1])
+	if len(remove) != 1 {
+		t.Fatalf("%d remove buttons on DB_USER's line", len(remove))
+	}
+	test.Tap(remove[0])
+	settle(w)
+	var undo float32
+	for _, b := range findAll[*textButton](d.details) {
+		if b.Text == "Undo" {
+			undo = b.Size().Height
+		}
+	}
+	if undo != button {
+		t.Errorf("Undo is %v tall, the line's other buttons %v", undo, button)
+	}
+}
+
+// TestButtonOutlineAndRoom (the owner's answers of 2026-10-23, D-104): an icon button of a content
+// surface is outlined, one of the window's chrome is not; a neutral plate is outlined, a coloured
+// one is not; a button with a word keeps textButtonSide beside it on either side, a coloured one
+// too (his CW4: "rechts und links … 3-5px", his pick +4), an icon button keeps Fyne's square.
+func TestButtonOutlineAndRoom(t *testing.T) {
+	sh, w, _, _, _ := secShell(t, ThemeDark)
+	th, v := sh.app.Settings().Theme(), sh.app.Settings().ThemeVariant()
+	border := th.Color(theme.ColorNameInputBorder, v)
+	stroke := func(b fyne.Widget) color.Color {
+		w.SetContent(b)
+		return test.WidgetRenderer(b).(*textButtonRenderer).outline.StrokeColor
+	}
+	if c := stroke(newTipButton(sh, theme.DeleteIcon(), "Remove", func() {})); c != border {
+		t.Errorf("a content surface's icon button: outline %v, want the field's", c)
+	}
+	if c := stroke(newBareTipButton(sh, theme.SearchIcon(), "Search", func() {})); c != color.Transparent {
+		t.Errorf("a chrome icon button: outline %v, want none", c)
+	}
+	if c := stroke(newPlateButton("Cancel", nil, func() {})); c != border {
+		t.Errorf("a neutral plate: outline %v, want the field's", c)
+	}
+	save := newPlateButton("Save", nil, func() {})
+	save.Importance = widget.HighImportance
+	if c := stroke(save); c != color.Transparent {
+		t.Errorf("a coloured plate: outline %v, want none", c)
+	}
+
+	for _, imp := range []widget.Importance{widget.LowImportance, widget.MediumImportance, widget.HighImportance} {
+		fy := widget.NewButton("Edit", nil)
+		fy.Importance = imp
+		ours := newTextButton("Edit", nil, nil)
+		ours.Importance = imp
+		if got, want := ours.MinSize().Width, fy.MinSize().Width+2*textButtonSide; got != want {
+			t.Errorf("Edit at importance %v: %v wide, want Fyne's %v and the room", imp, got, want)
+		}
+	}
+	icon := newTipButton(sh, theme.DeleteIcon(), "Remove", nil)
+	if got, want := icon.MinSize(), widget.NewButtonWithIcon("", theme.DeleteIcon(), nil).MinSize(); got != want {
+		t.Errorf("an icon button is %v, want Fyne's %v", got, want)
 	}
 }

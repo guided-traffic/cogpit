@@ -46,8 +46,8 @@ type errorPage struct {
 	steps   *bracketLabel // "the connect · n stages"
 	plate   fyne.CanvasObject
 	list    *fyne.Container // the stages' rows
-	retry   *widget.Button
-	connLog *widget.Button
+	retry   *textButton
+	connLog *textButton
 	when    *paragraph
 
 	shown bool
@@ -67,9 +67,9 @@ func newErrorPage(sh *shell) *errorPage {
 	p.steps = newBracketLabel("the connect", colorAccent)
 	p.list = container.NewVBox()
 	p.plate = plateOf(p.list)
-	p.retry = widget.NewButtonWithIcon(connectAgainLabel, theme.LoginIcon(), func() { sh.tabs.welcome.connect(sh.ui.Context) })
+	p.retry = newPlateButton(connectAgainLabel, theme.LoginIcon(), func() { sh.tabs.welcome.connect(sh.ui.Context) })
 	p.retry.Importance = widget.HighImportance
-	p.connLog = widget.NewButtonWithIcon(strings.TrimSuffix(connectLogItem, "…"), theme.ListIcon(), func() { sh.kc.showConnectLog(sh.ui.Context) })
+	p.connLog = newPlateButton(strings.TrimSuffix(connectLogItem, "…"), theme.ListIcon(), func() { sh.kc.showConnectLog(sh.ui.Context) })
 	p.when = newParagraph("", colorMuted, welcomeColumn)
 	p.when.size = theme.SizeNameCaptionText
 	column := container.NewVBox(

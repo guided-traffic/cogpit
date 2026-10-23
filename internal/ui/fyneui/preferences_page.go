@@ -40,7 +40,7 @@ type settingsPage struct {
 	lead   *fyne.Container // the badge and its gap: hidden with it, so that the title stands on the column's edge
 	nav    *fyne.Container
 	body   *fyne.Container
-	closeB *widget.Button
+	closeB *textButton
 
 	typing  time.Duration       // the typing pause before a text field's value is set (tests shorten it)
 	shown   engine.SettingsPage // what the page shows; Page is empty while it is closed
@@ -80,7 +80,7 @@ func newSettingsPage(sh *shell) *settingsPage {
 	p.title.truncate = true
 	p.badge = newClusterBadge()
 	p.badge.side = sizeHotbarTile
-	p.closeB = widget.NewButtonWithIcon("", theme.CancelIcon(), func() { sh.dispatch("settings.close", struct{}{}, nil) })
+	p.closeB = newPlateButton("", theme.CancelIcon(), func() { sh.dispatch("settings.close", struct{}{}, nil) })
 	p.closeB.Importance = widget.LowImportance
 	p.lead = container.NewHBox(container.NewCenter(p.badge), newHGap(theme.SizeNamePadding)) // hidden with the badge
 	p.nav = container.NewVBox()

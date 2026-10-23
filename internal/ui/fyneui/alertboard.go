@@ -195,7 +195,7 @@ func (b *alertBoard) stateLines(m *engine.AlertBoardModel) []fyne.CanvasObject {
 		l.Wrapping = fyne.TextWrapWord
 		return l
 	}
-	setAddress := widget.NewButton("Set Its Address…", func() {
+	setAddress := newPlateButton("Set Its Address…", nil, func() {
 		b.sh.dispatch("cluster.settings.open", clusterSettingsOpenParams{Context: b.sh.ui.Context, Section: alertSettingsSection}, nil)
 	})
 	switch {

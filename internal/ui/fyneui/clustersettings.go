@@ -145,7 +145,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	preview.side = sizeHotbarTile
 	preview.setIdentity(p.sh.identity(ctx))
 	p.controls["iconPreview"] = preview
-	more := widget.NewButtonWithIcon("", theme.MoreHorizontalIcon(), nil)
+	more := newPlateButton("", theme.MoreHorizontalIcon(), nil)
 	more.Importance = widget.LowImportance
 	more.OnTapped = func() {
 		pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(more)

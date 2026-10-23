@@ -98,7 +98,7 @@ type cmData struct {
 	moreL *textLine
 	// The footer at the end of the data: Add Key, the edited state's pills beside Revert and Save
 	// (WF31), and under it the line for what the pills don't say (read-only, a newer version, saved).
-	save, revert *widget.Button
+	save, revert *textButton
 	counts       *editCounts
 	buttons      *fyne.Container
 	status       *paragraph
@@ -158,9 +158,9 @@ func newCMData(d *drawer, ref model.ObjectRef) *cmData {
 	cd.list = box(keyedLayout{})
 	cd.moreL = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	cd.moreL.Hide()
-	cd.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), cd.openReview)
+	cd.save = newPlateButton("Save", theme.DocumentSaveIcon(), cd.openReview)
 	cd.save.Importance = widget.HighImportance
-	cd.revert = widget.NewButton("Revert", cd.revertAll)
+	cd.revert = newPlateButton("Revert", nil, cd.revertAll)
 	cd.status = newParagraph("", colorMuted, d.contentWidth())
 	cd.status.Hide()
 	cd.adder = newKeyAdder(d.contentWidth(), cd.keyTaken, cd.addKey)
@@ -826,7 +826,7 @@ type cmReview struct {
 	keys    *fyne.Container // the head, reviewHead
 	top     *fyne.Container // the head and the banner
 	status  *paragraph
-	save    *widget.Button
+	save    *textButton
 	width   float32
 	opened  time.Time
 	ready   bool   // Save may be enabled: the dry run accepted the save, or a newer version waits
@@ -850,13 +850,13 @@ func (cd *cmData) openReview() {
 	setKeysBlock(rv.keys, reviewHead("Config Map", cd.ref, "", mapKeys(adds), removes, width))
 	rv.top = container.NewVBox(rv.keys, rv.banner, newDivider(false))
 	rv.status = newParagraph("", colorMuted, width)
-	rv.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), rv.commit)
+	rv.save = newPlateButton("Save", theme.DocumentSaveIcon(), rv.commit)
 	rv.save.Importance = widget.HighImportance
 	if len(removes) > 0 {
 		rv.save.Importance = widget.DangerImportance
 	}
 	rv.save.Disable()
-	cancel := widget.NewButton("Cancel", func() { rv.hide() })
+	cancel := newPlateButton("Cancel", nil, func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 300)}, container.NewStack(newSurface(theme.ColorNameInputBackground), rv.diff.list))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
 	rv.dlg = newDialogFrame(cd.d.sh, objectDialogTitle("Save", "Config Map", cd.ref.Name, "")) // no gap after the arrow (dialogframe.go)
@@ -1039,7 +1039,7 @@ func (l sizedMin) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 // enable enables or disables a button.
-func enable(b *widget.Button, on bool) {
+func enable(b *textButton, on bool) {
 	if on {
 		b.Enable()
 	} else {

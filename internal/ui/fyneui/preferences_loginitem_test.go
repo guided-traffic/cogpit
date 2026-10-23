@@ -78,7 +78,7 @@ func TestPreferencesStartAtLogin(t *testing.T) {
 	}
 	q.until(t, "the row with macOS's status", func() bool { return status() == loginItemTexts[engine.LoginItemOff] })
 	check := sh.settings.controls["startAtLogin"].(*widget.Check)
-	open := sh.settings.controls["startAtLoginOpen"].(*widget.Button)
+	open := sh.settings.controls["startAtLoginOpen"].(*textButton)
 	if check.Checked || open.Visible() || check.Text != "Start Cogpit at login" {
 		t.Errorf("checked %v, button shown %v, label %q", check.Checked, open.Visible(), check.Text)
 	}
@@ -127,7 +127,7 @@ func renderPreferencesStartAtLogin(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "app"})
 	q.until(t, "the row", func() bool {
-		b, ok := sh.settings.controls["startAtLoginOpen"].(*widget.Button)
+		b, ok := sh.settings.controls["startAtLoginOpen"].(*textButton)
 		return ok && b.Visible()
 	})
 	q.drain()

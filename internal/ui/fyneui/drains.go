@@ -110,9 +110,9 @@ func (b *drainBanner) row(d engine.PendingDrainInfo) fyne.CanvasObject {
 		dismiss := newTextButton("Dismiss", nil, func() { b.sh.dispatch("node.dismissDrain", refParams{Ref: ref}, nil) })
 		buttons.Add(dismiss)
 		if d.NodeState == engine.DrainNodeCordoned {
-			buttons.Add(widget.NewButton("Uncordon", func() { b.sh.dispatch("node.uncordon", refParams{Ref: ref}, nil) }))
+			buttons.Add(newPlateButton("Uncordon", nil, func() { b.sh.dispatch("node.uncordon", refParams{Ref: ref}, nil) }))
 		}
-		finish := widget.NewButtonWithIcon("Finish drain", theme.MediaPlayIcon(), func() {
+		finish := newPlateButton("Finish drain", theme.MediaPlayIcon(), func() {
 			b.sh.dispatch("node.drain", drainActionParams{Ref: ref, DrainSettings: d.Settings}, nil)
 		})
 		finish.Importance = widget.HighImportance

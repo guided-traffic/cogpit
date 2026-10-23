@@ -54,9 +54,9 @@ type syncPicker struct {
 	seq      int // the newest listing; older answers are dropped
 
 	pathEntry *fieldEntry
-	upB       *widget.Button
-	syncB     *widget.Button
-	cancelB   *widget.Button
+	upB       *textButton
+	syncB     *textButton
+	cancelB   *textButton
 	list      *fyne.Container
 	status    *textLine
 	rows      map[string]*fsRow // by entry name, for tests
@@ -82,7 +82,7 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 	sp.pathEntry.SetPlaceHolder("Folder or file path…")
 	sp.pathEntry.OnSubmitted = sp.goToTyped
 	sp.pathEntry.OnChanged = func(string) { sp.renderStatus() }
-	sp.upB = widget.NewButtonWithIcon("", theme.MoveUpIcon(), sp.up)
+	sp.upB = newPlateButton("", theme.MoveUpIcon(), sp.up)
 	sp.list = container.NewVBox()
 	sp.status = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	sp.status.truncate = true
@@ -97,8 +97,8 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(top, sp.status, nil, nil, list))
 
 	sp.d = dialog.NewCustomWithoutButtons("Sync Files and Folders", content, k.sh.win)
-	sp.cancelB = widget.NewButton("Cancel", sp.d.Hide)
-	sp.syncB = widget.NewButtonWithIcon("Sync", theme.ConfirmIcon(), sp.sync)
+	sp.cancelB = newPlateButton("Cancel", nil, sp.d.Hide)
+	sp.syncB = newPlateButton("Sync", theme.ConfirmIcon(), sp.sync)
 	sp.syncB.Importance = widget.HighImportance
 	sp.d.SetButtons([]fyne.CanvasObject{sp.cancelB, sp.syncB})
 	sp.d.SetOnClosed(func() {

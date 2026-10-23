@@ -53,7 +53,7 @@ func TestClusterNamespacesField(t *testing.T) {
 	entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyReturn})
 	q.until(t, "team-b kept", func() bool { return slices.Equal(kept(), []string{"team-b"}) && entry.Text == "" })
 	test.Type(entry, "team-a")
-	test.Tap(sh.settings.controls["accessibleAdd"].(*widget.Button))
+	test.Tap(sh.settings.controls["accessibleAdd"].(*textButton))
 	// The field is cleared in the dispatch's callback, which may come after the list followed
 	// the engine: wait for both, or the next name is typed into a field about to be cleared.
 	q.until(t, "team-a kept, sorted", func() bool {
@@ -62,7 +62,7 @@ func TestClusterNamespacesField(t *testing.T) {
 	})
 
 	test.Type(entry, "Team_C")
-	test.Tap(sh.settings.controls["accessibleAdd"].(*widget.Button))
+	test.Tap(sh.settings.controls["accessibleAdd"].(*textButton))
 	q.until(t, "the refusal", func() bool { return sh.settings.errs[accessibleSetting].Visible() })
 	if !slices.Equal(kept(), []string{"team-a", "team-b"}) || entry.Text != "Team_C" {
 		t.Errorf("a refused name changed the list %q or cleared the field %q", kept(), entry.Text)

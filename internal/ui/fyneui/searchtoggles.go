@@ -39,9 +39,9 @@ type searchToggles struct {
 // newSearchToggles puts the switches into the search entry, which must not have been drawn yet.
 func newSearchToggles(tv *tableView) *searchToggles {
 	s := &searchToggles{tv: tv, ring: newErrorRing()}
-	s.matchCase = newTipButton(tv.sh, nil, tipMatchCase, func() { s.toggle(false) })
+	s.matchCase = newBareTipButton(tv.sh, nil, tipMatchCase, func() { s.toggle(false) })
 	s.matchCase.Text = "Aa"
-	s.regex = newTipButton(tv.sh, nil, tipRegex, func() { s.toggle(true) })
+	s.regex = newBareTipButton(tv.sh, nil, tipRegex, func() { s.toggle(true) })
 	s.regex.Text = ".*"
 	// Inset by three points from the field's border and two apart (Cogpit's look).
 	tv.search.ActionItem = container.New(layout.NewCustomPaddedLayout(3, 3, 0, 3),

@@ -66,15 +66,15 @@ type integrationsQuestion struct {
 	page engine.IntegrationsStep // the page it shows: the pre-choice, or the rows of Check all or Choose
 
 	d       *dialog.CustomDialog
-	choices []*widget.Button // the pre-choice's Check all, Choose and Don't use
+	choices []*textButton // the pre-choice's Check all, Choose and Don't use
 	rows    []*integrationRow
 	save    *fieldCheck
-	apply   *widget.Button
-	back    *widget.Button
-	later   *widget.Button
+	apply   *textButton
+	back    *textButton
+	later   *textButton
 	errLine *textLine
 	warn    *dialog.CustomDialog // Don't use's warning, over the pre-choice; nil while not shown
-	yes, no *widget.Button       // the warning's
+	yes, no *textButton          // the warning's
 	lookFor engine.IntegrationSet
 	seq     int  // the latest status request; older answers are dropped
 	closing bool // the dialog is being closed because the question moved on: no Later, no No
@@ -141,7 +141,7 @@ func (q *integrationsQuestion) open(ctx string, page engine.IntegrationsStep) {
 	q.errLine = newTextLine("", colorStatusError, theme.SizeNameCaptionText, fyne.TextStyle{})
 	q.errLine.truncate = true
 	q.errLine.Hide()
-	q.later = widget.NewButton("Later", q.putOff)
+	q.later = newPlateButton("Later", nil, q.putOff)
 	var content fyne.CanvasObject
 	var buttons []fyne.CanvasObject
 	if page == engine.IntegrationsPreChoice {
@@ -171,7 +171,7 @@ func (q *integrationsQuestion) preChoice() fyne.CanvasObject {
 	width := sh.app.Settings().Theme().Size(sizePickerWidth)
 	all, allHint := q.checkAllText()
 	choice := func(label, hint string, step engine.IntegrationsStep) []fyne.CanvasObject {
-		b := widget.NewButton(label, func() { q.step(step) })
+		b := newPlateButton(label, nil, func() { q.step(step) })
 		b.Alignment = widget.ButtonAlignLeading
 		q.choices = append(q.choices, b)
 		line := newTextLine(hint, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
@@ -243,9 +243,9 @@ func (q *integrationsQuestion) rowsPage(page engine.IntegrationsStep) fyne.Canva
 	q.syncTicks()
 	q.save = newFieldCheck(integrationsAskSave)
 	objs = append(objs, newSpace(theme.SizeNameInnerPadding), newDivider(false), q.save, q.errLine)
-	q.apply = widget.NewButton("Apply", q.answer)
+	q.apply = newPlateButton("Apply", nil, q.answer)
 	q.apply.Importance = widget.HighImportance
-	q.back = widget.NewButton("Back", func() { q.step(engine.IntegrationsPreChoice) })
+	q.back = newPlateButton("Back", nil, func() { q.step(engine.IntegrationsPreChoice) })
 	return container.NewVBox(objs...)
 }
 
@@ -370,8 +370,8 @@ func (q *integrationsQuestion) showWarning(show bool) {
 	sh := q.sh
 	name := sh.identity(q.ctx).name
 	text := fmt.Sprintf(integrationsAskNoneText, name)
-	q.no = widget.NewButton("No", func() { q.step(engine.IntegrationsPreChoice) })
-	q.yes = widget.NewButton("Yes", func() {
+	q.no = newPlateButton("No", nil, func() { q.step(engine.IntegrationsPreChoice) })
+	q.yes = newPlateButton("Yes", nil, func() {
 		off := map[string]bool{}
 		for _, in := range engine.Integrations {
 			off[string(in.Name)] = false

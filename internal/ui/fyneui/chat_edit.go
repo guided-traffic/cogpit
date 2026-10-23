@@ -183,8 +183,8 @@ func (e *chatEditEntry) TypedShortcut(s fyne.Shortcut) {
 type chatEditor struct {
 	entry   *chatEditEntry
 	field   fyne.CanvasObject // the entry drawn flat: the card is its box
-	cancelB *widget.Button
-	sendB   *widget.Button
+	cancelB *textButton
+	sendB   *textButton
 	errLine *textLine
 	sending bool
 }
@@ -217,8 +217,8 @@ func (v *chatUserView) startEdit() {
 		v.refreshEdit()
 	}
 	e.field = container.NewThemeOverride(e.entry, &flatEntryTheme{app: c.sh.app})
-	e.cancelB = widget.NewButton("Cancel", v.stopEdit)
-	e.sendB = widget.NewButtonWithIcon("Send", iconSend, v.submitEdit)
+	e.cancelB = newPlateButton("Cancel", nil, v.stopEdit)
+	e.sendB = newPlateButton("Send", iconSend, v.submitEdit)
 	e.sendB.Importance = widget.HighImportance
 	e.errLine = newTextLine("", colorStatusError, theme.SizeNameCaptionText, fyne.TextStyle{})
 	e.errLine.truncate = true

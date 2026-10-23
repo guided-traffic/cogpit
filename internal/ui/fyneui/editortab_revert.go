@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -17,7 +16,7 @@ import (
 func (e *editorTab) newRevertButtons() {
 	e.revertBtn = newTextButton("Revert to Original", theme.ContentUndoIcon(), e.revert)
 	e.reviewRevert = newTextButton("Revert to Original", theme.ContentUndoIcon(), e.revert)
-	e.undoBtn = widget.NewButtonWithIcon("Undo Revert", theme.ContentRedoIcon(), e.undoRevert)
+	e.undoBtn = newPlateButton("Undo Revert", theme.ContentRedoIcon(), e.undoRevert)
 	e.undoBtn.Hide()
 	e.pane.onEdit = func() { e.showUndo(false) }
 	// ⌘Z after a Revert is Undo Revert: the revert set the text from outside, which clears the

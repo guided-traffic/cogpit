@@ -36,8 +36,8 @@ type paramDialog struct {
 	d       *dialogFrame
 	rows    *fyne.Container
 	fields  []*paramField
-	confirm *widget.Button
-	cancel  *widget.Button
+	confirm *textButton
+	cancel  *textButton
 }
 
 // openParamDialog shows the dialog for cmd on ref; prefill holds the starting values
@@ -63,12 +63,12 @@ func (sh *shell) openParamDialog(cmd *engine.Command, ref model.ObjectRef, prefi
 		pd.fields = append(pd.fields, f)
 		rows.Objects = append(rows.Objects, f.label, f.value, newSpace(""), f.problem)
 	}
-	pd.confirm = widget.NewButton(cmd.Label, nil)
+	pd.confirm = newPlateButton(cmd.Label, nil, nil)
 	pd.confirm.Importance = widget.HighImportance
 	if cmd.Danger == engine.DangerDestructive { // the verb's button in the error colour, as its confirmation's will be
 		pd.confirm.Importance = widget.DangerImportance
 	}
-	pd.cancel = widget.NewButton("Cancel", pd.d.Hide)
+	pd.cancel = newPlateButton("Cancel", nil, pd.d.Hide)
 	pd.confirm.OnTapped = func() {
 		for _, f := range pd.fields {
 			v, err := f.get()

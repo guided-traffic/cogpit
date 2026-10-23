@@ -42,8 +42,8 @@ func newNavHeader(s *sidebar) *navHeader {
 	h.title.truncate = true
 	h.back = newNavBackButton(h)
 	h.back.Hide()
-	h.addB = newTipButton(s.sh, theme.ContentAddIcon(), "Add Kubeconfigs…", func() { s.sh.kc.addKubeconfigs() })
-	h.searchB = newTipButton(s.sh, theme.SearchIcon(), "Search the navigator", h.toggleSearch)
+	h.addB = newBareTipButton(s.sh, theme.ContentAddIcon(), "Add Kubeconfigs…", func() { s.sh.kc.addKubeconfigs() })
+	h.searchB = newBareTipButton(s.sh, theme.SearchIcon(), "Search the navigator", h.toggleSearch)
 	h.entry = newNavSearchEntry(h)
 	h.field = inset(theme.SizeNamePadding, "", container.NewVBox(h.entry, newSpace(theme.SizeNamePadding)))
 	h.field.Hide()

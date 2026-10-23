@@ -28,8 +28,8 @@ type connBanner struct {
 	root      *fyne.Container // hidden while the connection works
 	title     *textLine
 	detail    *textLine
-	action    *widget.Button
-	reconnect *widget.Button // Reconnect beside Log in again; hidden otherwise
+	action    *textButton
+	reconnect *textButton // Reconnect beside Log in again; hidden otherwise
 	icon      *widget.Icon
 	tint      *bannerTint
 	ticker    *time.Ticker // the countdown to the next attempt; nil while hidden
@@ -42,9 +42,9 @@ func newConnBanner(sh *shell) *connBanner {
 	b.title.truncate = true
 	b.detail = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	b.detail.truncate = true
-	b.action = widget.NewButtonWithIcon(reconnectLabel, reconnectIcon(), b.act)
+	b.action = newPlateButton(reconnectLabel, reconnectIcon(), b.act)
 	b.action.Importance = widget.HighImportance
-	b.reconnect = widget.NewButtonWithIcon(reconnectLabel, reconnectIcon(), func() { b.sh.reconnect(b.sh.ui.Context) })
+	b.reconnect = newPlateButton(reconnectLabel, reconnectIcon(), func() { b.sh.reconnect(b.sh.ui.Context) })
 	b.reconnect.Hide()
 	b.icon = widget.NewIcon(themedIcon(theme.WarningIcon(), colorStatusWarning))
 	b.tint = newBannerTint(colorStatusWarning)

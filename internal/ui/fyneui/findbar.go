@@ -115,8 +115,8 @@ type findBar struct {
 	toggles       [3]*tipButton // match case, whole word, regular expression
 	count         *textLine
 	prev, next    *tipButton
-	replaceBtn    *widget.Button
-	replaceAllBtn *widget.Button
+	replaceBtn    *textButton
+	replaceAllBtn *textButton
 	root          fyne.CanvasObject
 
 	matches []findMatch
@@ -154,7 +154,7 @@ func newFindBar(sh *shell, view *yamlview.View) *findBar {
 	}
 	toggles := make([]fyne.CanvasObject, len(flags), len(flags)+4) // the row's other widgets follow
 	for i, f := range flags {
-		t := newTipButton(sh, nil, f.tip, nil)
+		t := newBareTipButton(sh, nil, f.tip, nil) // a switch: its on state has its plate (D-104)
 		t.Text = f.label
 		on := false
 		t.OnTapped = func() {
@@ -175,8 +175,8 @@ func newFindBar(sh *shell, view *yamlview.View) *findBar {
 	b.prev = newTipButton(sh, theme.MoveUpIcon(), "Previous match", func() { b.step(-1) })
 	b.next = newTipButton(sh, theme.MoveDownIcon(), "Next match", func() { b.step(1) })
 	closeBtn := newTipButton(sh, theme.CancelIcon(), "Close", b.close)
-	b.replaceBtn = widget.NewButton("Replace", b.replaceOne)
-	b.replaceAllBtn = widget.NewButton("Replace all", b.replaceEvery)
+	b.replaceBtn = newPlateButton("Replace", nil, b.replaceOne)
+	b.replaceAllBtn = newPlateButton("Replace all", nil, b.replaceEvery)
 
 	findRow := container.NewBorder(nil, nil, nil,
 		container.NewHBox(append(append(toggles, container.NewCenter(sized(sizeFindCountWidth, "", b.count))), b.prev, b.next, closeBtn)...), b.find)
