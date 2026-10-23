@@ -759,7 +759,7 @@ func (sh *shell) namespacesRead(ctxName string, names []string, terminating map[
 // filter and the fields that offer namespaces never offer that cluster's: loadNamespaces keeps the
 // last list when its read fails, and the read of a cluster whose login expired or whose connection
 // was interrupted before its namespaces were read waits until the cluster is back (the owner's
-// finding of 2026-10-22: awe-p-pinniped, its login expired, offered wds18-main's namespaces).
+// finding of 2026-10-22: acme-p-pinniped, its login expired, offered acme-main's namespaces).
 func (sh *shell) forgetNamespaces() {
 	if sh.namespaces == nil && sh.nsFor == "" {
 		return

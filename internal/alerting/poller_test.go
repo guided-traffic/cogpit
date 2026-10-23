@@ -237,7 +237,7 @@ func TestPollerBackoffAndKeep(t *testing.T) {
 	}
 }
 
-// TestPollerTriesThePortsNumberThenName (the owner's mgmt-p, 2026-10-18): a refused spelling of
+// TestPollerTriesThePortsNumberThenName (the owner's acme-mgmt, 2026-10-18): a refused spelling of
 // the port, or a refused candidate, does not end the search; the spelling granted is used.
 func TestPollerTriesThePortsNumberThenName(t *testing.T) {
 	refuse := func() ([]byte, error) {
