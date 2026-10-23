@@ -304,7 +304,8 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 	}
 	if st.pooledLocked(e.b) != e {
 		st.mu.Unlock()
-		return nil // closed since it connected: its file went or its source was removed, which the UI says (connect_gone.go)
+		s.settleClosedConnect(r.name) // closed since it connected: its file went or its source was removed (connect_gone.go)
+		return nil
 	}
 	st.showLocked(e)
 	st.mu.Unlock()

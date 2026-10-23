@@ -35,7 +35,7 @@ func (s *Session) settleGoneConnect(id string, b *Backend) {
 	if b == nil {
 		text := "Could not connect to " + kubeconfig.DisplayText(id, 200) + ": " + reason + "."
 		s.state.logs.add(id, LogError, text)
-		s.forgetGoneContext(id, text, false)
+		s.forgetGoneContext(id, text, false, false)
 		return
 	}
 	if s.state.holds(b) {
@@ -46,7 +46,20 @@ func (s *Session) settleGoneConnect(id string, b *Backend) {
 	}
 	// Closed here or by the watcher, whose change of the UI may still be on its way: the reason
 	// the UI already shows stays, else this one is said.
-	s.forgetGoneContext(id, "Disconnected from "+kubeconfig.DisplayText(id, 200)+": "+reason+".", true)
+	s.forgetGoneContext(id, "Disconnected from "+kubeconfig.DisplayText(id, 200)+": "+reason+".", true, false)
+}
+
+// settleClosedConnect follows the window's connect to id whose backend was closed between its
+// publishing and the window's Connected (awaitRun). The close of a gone file's or a removed
+// source's connection (disconnectBackend) takes the backend from the pool before it changes the
+// UI; when it ran in the kubeconfig watcher meanwhile, settleGoneConnect, at the run's end, found
+// the window still Connecting, left the context alone, and the connect returned with the window
+// "connecting" for a context that is gone (found in a race-detector run on CI, 2026-10-23). That
+// Connecting is the window's own connect's, which is over: the context is forgotten here.
+func (s *Session) settleClosedConnect(id string) {
+	if reason := s.goneReason(id); reason != "" {
+		s.forgetGoneContext(id, "Disconnected from "+kubeconfig.DisplayText(id, 200)+": "+reason+".", true, true)
+	}
 }
 
 // goneReason says why a context left Cogpit ("its kubeconfig file … is gone", "its kubeconfig
@@ -82,9 +95,11 @@ func (s *Session) goneReason(id string) string {
 // (their unsaved editor text kept as drafts, dock_gone.go) and Context, the connection left
 // Disconnected with errText. closed says the connect's backend was closed (Connect holds the
 // connect lock: a Connected UI is then stale), and that a reason the UI shows already stays.
-func (s *Session) forgetGoneContext(id, errText string, closed bool) {
+// A window Connecting to the context is left alone, a connect that started meanwhile, unless
+// ended says the window's connect is the one that ended (settleClosedConnect).
+func (s *Session) forgetGoneContext(id, errText string, closed, ended bool) {
 	stays := func(u UIState) bool {
-		return u.Context != id || u.Connection.State == Connecting || (u.Connection.State.Live() && !closed)
+		return u.Context != id || (u.Connection.State == Connecting && !ended) || (u.Connection.State.Live() && !closed)
 	}
 	if stays(s.UIState()) {
 		return
