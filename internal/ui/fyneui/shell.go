@@ -696,6 +696,7 @@ func (sh *shell) loadKinds() {
 		sh.view.updateNamespaceButton()
 		sh.view.create.update() // local and virtual kinds have no "+"
 		sh.setMainMenu()
+		sh.drawer.rebuild() // a drawer built before the kinds linked every kind (tableView.serves)
 	})
 }
 

@@ -29,7 +29,9 @@ func TestDrawerTableLinks(t *testing.T) {
 	}
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, _, q := newTestShell(t, f, Options{})
-	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 })
+	q.until(t, "the drawer and the kinds", func() bool {
+		return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 && len(sh.kinds) > 0
+	})
 
 	links := drawerLinks(sh)
 	if links["worker-a-01"] == nil {
@@ -42,6 +44,36 @@ func TestDrawerTableLinks(t *testing.T) {
 	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 1 })
 	if got := decodeParams[refParams](t, f.callsOf("ui.navigate")[0]).Ref; got != (model.ObjectRef{Context: "demo", Kind: "nodes", Name: "worker-a-01"}) {
 		t.Errorf("node link %+v", got)
+	}
+}
+
+// TestDrawerLinksFollowTheKinds: a drawer shown before the cluster's kinds are read offers every
+// link (nothing says a kind has no view yet); once they are read, a cell naming a kind without a
+// view is plain text. The test of the links above failed once on Windows (CI, 2026-10-23), where
+// the drawer was built before the kinds came.
+func TestDrawerLinksFollowTheKinds(t *testing.T) {
+	f := connectedFake(t, 3)
+	ref := f.tables["pods"].Rows[0].Ref
+	secret := &model.ObjectRef{Kind: "secrets", Namespace: ref.Namespace, Name: "db-password"}
+	f.details[ref.String()] = &engine.DetailModel{
+		Ref: ref, Title: "Pod: " + ref.Name, Events: []engine.EventItem{},
+		Sections: []model.DetailSection{{Title: "Volumes", Table: model.CellTable(
+			[]model.Column{{ID: "kind", Title: "Kind"}, {ID: "name", Title: "Name"}},
+			[][]model.Cell{{{Text: "Secret"}, {Text: "db-password", Link: secret}}},
+		)}},
+	}
+	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
+	gate := make(chan struct{})
+	f.kindsGate = gate
+	sh, _, q := newTestShell(t, f, Options{})
+	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 })
+	if len(sh.kinds) != 0 {
+		t.Fatal("the kinds came before the drawer: the test needs them late")
+	}
+	close(gate)
+	q.until(t, "the kinds", func() bool { return len(sh.kinds) > 0 })
+	if links := drawerLinks(sh); links["db-password"] != nil {
+		t.Errorf("after the kinds came, a cell naming a kind without a view is still a link: links %v", keys(links))
 	}
 }
 
