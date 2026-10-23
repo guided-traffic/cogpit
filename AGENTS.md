@@ -26,8 +26,12 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.40.1 the
-newest, released 2026-10-23 with the owner's re-walk findings RW1–RW4 (a Secret key's buttons on its
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.41.0 the
+newest, released 2026-10-23 with the owner's button findings (every content button outlined, room
+beside every word, Show and Hide one width, a key's buttons one height; D-104), a tab that comes
+back where its list was scrolled (D-117), a view entered that draws its rows from the top, and a
+connect and a drawer race fixed; v0.40.2 the same day with one preview tab per cluster (D-117);
+v0.40.1 with the owner's re-walk findings RW1–RW4 (a Secret key's buttons on its
 name line, the field's outline on every text button, a Secret's Show marked as exposing, the welcome
 page's message in a banner naming its level) and the logo at the display's pixels; the stage alpha
 since 2026-10-22 ([`ROADMAP.md`](ROADMAP.md)); v0.30.0 released 2026-10-20 morning with **fast scrolling at 60 frames per second**: Fyne's thread check off in releases, a build parameter (D-103); v0.29.3 released 2026-10-20 night with a refused read sent once and the plugin's process search fixed, v0.29.2
