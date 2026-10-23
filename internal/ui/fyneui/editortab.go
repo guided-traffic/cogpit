@@ -167,7 +167,8 @@ type editorTab struct {
 	root     fyne.CanvasObject
 	// Revert to original, in the editor's and the review's footer, and its undo
 	// (editortab_revert.go).
-	revertBtn, reviewRevert, undoBtn *widget.Button
+	revertBtn, reviewRevert *textButton
+	undoBtn                 *widget.Button
 
 	reviewing  bool
 	reviewText string // the text under review

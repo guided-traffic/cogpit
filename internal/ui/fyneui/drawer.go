@@ -584,47 +584,30 @@ func foldKey(sec model.DetailSection, it model.DetailItem) string {
 
 // itemValue renders one value: a folded list as its count ("6 Labels", a link that unfolds it),
 // chips, a link to the object it names, a status pill, else one line per line. An item's actions
-// follow the value as buttons; an action marked Link is the value itself, a link that runs it.
+// follow the value as buttons; an action marked Link is the value itself, a link that runs it. A
+// Secret's values, whose Show reveals them, are its Data section's (secretdata.go).
 func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it model.DetailItem) fyne.CanvasObject {
-	it, revealed := d.revealedItem(it)
-	// A Secret's masked value copies without being shown, through its own icon (maskedValue, the
-	// owner's decision of 2026-10-22, D-25); its masked text is no value to copy.
-	reveal, masked := revealAction(it)
-	masked = masked && !revealed
-	copyable := !masked
 	if len(it.Actions) == 0 {
-		return d.foldedValue(ref, sec, it, copyable)
+		return d.foldedValue(ref, sec, it, true)
 	}
 	var v fyne.CanvasObject
 	hooks := len(d.copyHooks) // the value's own copy hooks follow
-	if revealed {
-		v = d.revealedValue(ref, it)
-	}
 	objs := []fyne.CanvasObject{nil}
 	for _, a := range it.Actions {
 		act := a
 		if act.Link && v == nil {
 			l := newLinkText(it.Value, func() { d.sh.runItemAction(ref, act) })
-			if copyable {
-				d.hookLink(l, it.Value)
-			}
+			d.hookLink(l, it.Value)
 			v = l
 			continue
 		}
-		b := widget.NewButton(d.actionLabel(act), func() { d.sh.runItemAction(ref, act) })
-		b.Importance = widget.LowImportance
+		b := newTextButton(act.Label, nil, func() { d.sh.runItemAction(ref, act) })
 		objs = append(objs, b)
 	}
-	switch {
-	case v == nil && masked:
-		v = d.maskedValue(ref, it, reveal)
-	case v == nil:
-		v = d.foldedValue(ref, sec, it, copyable)
+	if v == nil {
+		v = d.foldedValue(ref, sec, it, true)
 	}
 	objs[0] = v
-	if revealable(it) { // a revealed value takes the width the buttons leave and wraps in it
-		return container.NewBorder(nil, nil, nil, container.NewHBox(objs[1:]...), v)
-	}
 	natural, icon := float32(0), float32(0)
 	if it.Fold == "" {
 		size := d.sh.app.Settings().Theme().Size(theme.SizeNameText)
@@ -640,7 +623,7 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 		for _, h := range d.copyHooks[hooks:] {
 			h.over = true
 		}
-	case copyable && it.Value != "":
+	case it.Value != "":
 		// No buttons (a forward's URL, a link that runs its action): the value owns the room for
 		// its icon right after its text, as a chip does.
 		icon = d.copyBtn.MinSize().Width + d.sh.app.Settings().Theme().Size(theme.SizeNamePadding)

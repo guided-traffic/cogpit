@@ -207,7 +207,7 @@ type sourcesDialog struct {
 	d       *dialog.CustomDialog
 	list    *fyne.Container
 	status  *textLine
-	removeB map[string]*widget.Button // by source id, for tests
+	removeB map[string]*textButton // by source id, for tests
 	rows    []sourceStatus
 	// removing is the open Remove confirmation, for tests.
 	removing *dialog.ConfirmDialog
@@ -219,7 +219,7 @@ func (k *kubeconfigUI) showSources() {
 		k.sources.load()
 		return
 	}
-	sd := &sourcesDialog{k: k, list: container.NewVBox(), removeB: map[string]*widget.Button{}}
+	sd := &sourcesDialog{k: k, list: container.NewVBox(), removeB: map[string]*textButton{}}
 	sd.status = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	sd.status.truncate = true
 	intro := newParagraph("Kubeconfig files and folders Cogpit syncs: it reads them, follows their changes and never "+
@@ -269,7 +269,7 @@ func (sd *sourcesDialog) load() {
 func (sd *sourcesDialog) render() {
 	th := sd.k.sh.app.Settings().Theme()
 	width := th.Size(sizePickerWidth) - 8*th.Size(theme.SizeNamePadding)
-	sd.removeB = map[string]*widget.Button{}
+	sd.removeB = map[string]*textButton{}
 	objs := make([]fyne.CanvasObject, 0, len(sd.rows))
 	for _, s := range sd.rows {
 		src := s
@@ -284,8 +284,7 @@ func (sd *sourcesDialog) render() {
 		}
 		path := newTextLine(kubeconfig.DisplayText(src.Path, maxShownPath), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 		path.truncate = true
-		remove := widget.NewButtonWithIcon("Remove", theme.DeleteIcon(), func() { sd.confirmRemove(src) })
-		remove.Importance = widget.LowImportance
+		remove := newTextButton("Remove", theme.DeleteIcon(), func() { sd.confirmRemove(src) })
 		sd.removeB[src.ID] = remove
 		var info fyne.CanvasObject
 		if src.Error != "" { // wrapped beside the button, never wider than the list

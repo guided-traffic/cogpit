@@ -72,8 +72,8 @@ func TestWelcomePageOverTheEngine(t *testing.T) {
 	if got := w.shownClusters(); len(got) != 4 || got[0] != "kind-dev" || !slices.Contains(got, demoLabel) {
 		t.Fatalf("clusters on a first start %q, want kind-dev first and the demo", got)
 	}
-	if w.status.Visible() || !strings.Contains(w.hint.text, "finds a cluster by name") {
-		t.Errorf("status %q (visible %v), hint %q", w.status.text, w.status.Visible(), w.hint.text)
+	if w.note.root.Visible() || !strings.Contains(w.hint.text, "finds a cluster by name") {
+		t.Errorf("status %q (visible %v), hint %q", w.note.title.text, w.note.root.Visible(), w.hint.text)
 	}
 	if got := welcomeButtons(w); !slices.Equal(got, []string{"Add Kubeconfigs…"}) { // N122
 		t.Errorf("the welcome page's buttons %q, want Add Kubeconfigs… alone", got)
@@ -114,8 +114,8 @@ func TestWelcomePageOverTheEngine(t *testing.T) {
 	}
 	help.Items[0].Action()
 	q.until(t, "the page over the cluster", func() bool { return w.shown && s.UIState().ActiveTab == "" })
-	if !strings.HasPrefix(w.status.text, "Connected to demo") || sh.ui.Connection.State != engine.Connected {
-		t.Errorf("status %q", w.status.text)
+	if !strings.HasPrefix(w.note.title.text, "Connected to demo") || sh.ui.Connection.State != engine.Connected {
+		t.Errorf("status %q", w.note.title.text)
 	}
 	// ⌘W has no tab to close while the page shows: nothing happens, no error.
 	toasts := len(sh.toasts.Objects)

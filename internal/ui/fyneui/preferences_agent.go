@@ -206,14 +206,12 @@ func (a *agentPrefs) row(c engine.ChatConnection) fyne.CanvasObject {
 	detail := newTextLine(strings.Join(parts, " · "), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	detail.truncate = true
 	conn := c
-	edit := widget.NewButton("Edit", func() { a.edit(conn) })
-	edit.Importance = widget.LowImportance
+	edit := newTextButton("Edit", nil, func() { a.edit(conn) })
 	del := widget.NewButtonWithIcon("", theme.DeleteIcon(), func() { a.confirmDelete(conn) })
 	del.Importance = widget.LowImportance
 	actions := container.NewHBox(edit, del)
 	if !c.Default {
-		def := widget.NewButton("Make Default", func() { a.makeDefault(conn.ID) })
-		def.Importance = widget.LowImportance
+		def := newTextButton("Make Default", nil, func() { a.makeDefault(conn.ID) })
 		actions.Objects = append([]fyne.CanvasObject{def}, actions.Objects...)
 	}
 	bg := newSurface(theme.ColorNameInputBackground)
@@ -309,10 +307,10 @@ type agentForm struct {
 	urlHint   *textLine
 	plainWarn *paragraph // plain http to another machine (H-95)
 	caFile    *widget.Entry
-	caB       *widget.Button
+	caB       *textButton
 	key       *widget.Entry
 	keyHelp   *textLine
-	removeKey *widget.Button
+	removeKey *textButton
 	keyGone   bool // "Remove key" was pressed: saving removes the stored key
 	model     *widget.SelectEntry
 	modelsB   *widget.Button
@@ -360,20 +358,18 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	placeholder, _ := caFileExamples(runtime.GOOS)
 	f.caFile.SetPlaceHolder(placeholder)
 	f.caFile.SetText(c.CAFile)
-	f.caB = widget.NewButton("Choose…", f.chooseCAFile)
-	f.caB.Importance = widget.LowImportance
+	f.caB = newTextButton("Choose…", nil, f.chooseCAFile)
 	f.kind = newSelectField(labels, func(label string) { f.kindChanged(label) })
 	f.kind.SetSelected(chatKindLabel(orKind(c.Kind)))
 
 	f.key = widget.NewPasswordEntry()
 	f.keyHelp = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.keyHelp.truncate = true
-	f.removeKey = widget.NewButton("Remove Key", func() {
+	f.removeKey = newTextButton("Remove Key", nil, func() {
 		f.keyGone = true
 		f.key.SetText("")
 		f.showKeyState()
 	})
-	f.removeKey.Importance = widget.LowImportance
 	f.key.OnChanged = func(string) { f.showKeyState() }
 	f.showKeyState()
 

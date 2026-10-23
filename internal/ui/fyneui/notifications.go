@@ -176,8 +176,7 @@ func (n *notificationsUI) content() fyne.CanvasObject {
 	th := sh.app.Settings().Theme()
 	width := th.Size(sizeToastWidth)
 	title := newTextLine("Notifications", theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})
-	clearAll := widget.NewButton("Clear all", n.clearAll)
-	clearAll.Importance = widget.LowImportance
+	clearAll := newTextButton("Clear all", nil, n.clearAll)
 	if len(n.list) == 0 {
 		clearAll.Disable()
 	}

@@ -15,10 +15,8 @@ import (
 // captured); its look, its place in the editor's footer and the undo are Cogpit's (inferred).
 
 func (e *editorTab) newRevertButtons() {
-	e.revertBtn = widget.NewButtonWithIcon("Revert to Original", theme.ContentUndoIcon(), e.revert)
-	e.revertBtn.Importance = widget.LowImportance
-	e.reviewRevert = widget.NewButtonWithIcon("Revert to Original", theme.ContentUndoIcon(), e.revert)
-	e.reviewRevert.Importance = widget.LowImportance
+	e.revertBtn = newTextButton("Revert to Original", theme.ContentUndoIcon(), e.revert)
+	e.reviewRevert = newTextButton("Revert to Original", theme.ContentUndoIcon(), e.revert)
 	e.undoBtn = widget.NewButtonWithIcon("Undo Revert", theme.ContentRedoIcon(), e.undoRevert)
 	e.undoBtn.Hide()
 	e.pane.onEdit = func() { e.showUndo(false) }

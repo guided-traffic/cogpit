@@ -86,8 +86,7 @@ func (b *draftsBanner) row(d engine.DraftInfo) fyne.CanvasObject {
 	detail := newTextLine(draftDetail(d, b.sh.timeFormat()), colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	detail.truncate = true
 	id := d.ID
-	discard := widget.NewButton("Discard", func() { b.sh.dispatch("editor.discardDraft", draftParams{ID: id}, nil) })
-	discard.Importance = widget.LowImportance
+	discard := newTextButton("Discard", nil, func() { b.sh.dispatch("editor.discardDraft", draftParams{ID: id}, nil) })
 	restore := widget.NewButtonWithIcon("Restore", theme.HistoryIcon(), func() {
 		b.sh.dispatch("editor.restoreDraft", draftParams{ID: id}, func(res any, err error) {
 			var st struct {

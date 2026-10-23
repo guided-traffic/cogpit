@@ -291,7 +291,8 @@ value, read again as a masked value's copy is (below), while the drawer keeps th
 selection copies exactly the selection (`TestSecretCutRevealedValueCopiedWhole`).
 Since 2026-10-22 (the owner's decision, reversing "copyable only once revealed",
 [D-25](../developer/decisions.md#d-25-copying-values)) a masked value is copied too, without being
-shown: its copy icon on hover runs `secret.reveal` with `whole` from the window, the GUI-only
+shown: its copy icon (in its key's line, always shown, since the owner's RW1 of 2026-10-23; on
+hover over the mask until then) runs `secret.reveal` with `whole` from the window, the GUI-only
 command Show runs, and puts the whole value on the clipboard the same way; the value enters no
 widget and not the drawer's revealed values, so the drawer stays masked, and the toast names the
 key, never the value. An answer for a drawer that has moved on copies nothing. A binary value has
@@ -422,7 +423,8 @@ a Secret's values are edited in its drawer, as a Config Map's are, in the window
   the audit of 2026-10-16, D-59) the copy icon in the key's line above each editor copies the whole
   value the same way, never through the plain clipboard; an empty value copies nothing, so a click
   does not empty the clipboard (`secData.copyIcon`, `TestSecretEditorCopyIcon`). Since 2026-10-22
-  (D-25) a masked value's copy icon on hover copies it without showing it and opens no editor, and
+  (D-25) a masked value's copy icon (in its key's line since RW1) copies it without showing it and
+  opens no editor, and
   an edited or added value hidden again copies what was typed, from the editor's memory, with no
   reveal (`TestSecretEditorMaskedValueCopiedWithoutShowing`).
 - **To the engine, in the GUI's own process.** `secret.reviewData` (a masked diff: the keys that

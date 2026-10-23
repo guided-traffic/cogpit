@@ -44,9 +44,9 @@ type logSourceParams struct {
 // newWorkloadPicker returns a group's workload selector (A81, "a filter per source"): an
 // application's tab narrows to one of its workloads, as it narrows to a pod and a container. Hidden
 // in other tabs.
-func (lt *logTab) newWorkloadPicker() *widget.Button {
-	b := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
-	b.IconPlacement, b.Importance = widget.ButtonIconTrailingText, widget.LowImportance
+func (lt *logTab) newWorkloadPicker() *textButton {
+	b := newTextButton("", theme.MenuDropDownIcon(), nil)
+	b.IconPlacement = widget.ButtonIconTrailingText
 	b.OnTapped = func() { lt.showWorkloads(b) }
 	b.Hide()
 	return b
@@ -61,7 +61,7 @@ func workloadLabel(t engine.DockTab) string {
 }
 
 // showWorkloads asks the engine for the group's workloads and offers them in a menu.
-func (lt *logTab) showWorkloads(from *widget.Button) {
+func (lt *logTab) showWorkloads(from *textButton) {
 	sh := lt.sh
 	sh.dispatch("logs.sources", dockParams{ID: lt.tab.ID}, func(res any, err error) {
 		var src engine.LogSources
@@ -100,9 +100,9 @@ func (lt *logTab) workloadMenu(src engine.LogSources) *fyne.Menu {
 }
 
 // newPicker returns the pod (pod) or container selector.
-func (lt *logTab) newPicker(pod bool) *widget.Button {
-	b := widget.NewButtonWithIcon("", theme.MenuDropDownIcon(), nil)
-	b.IconPlacement, b.Importance = widget.ButtonIconTrailingText, widget.LowImportance
+func (lt *logTab) newPicker(pod bool) *textButton {
+	b := newTextButton("", theme.MenuDropDownIcon(), nil)
+	b.IconPlacement = widget.ButtonIconTrailingText
 	b.OnTapped = func() { lt.showSources(b, pod) }
 	return b
 }
@@ -129,7 +129,7 @@ func containerLabel(t engine.DockTab) string {
 }
 
 // showSources asks the engine what the tab can show and offers it in a menu under the selector.
-func (lt *logTab) showSources(from *widget.Button, pod bool) {
+func (lt *logTab) showSources(from *textButton, pod bool) {
 	sh := lt.sh
 	sh.dispatch("logs.sources", dockParams{ID: lt.tab.ID}, func(res any, err error) {
 		var src engine.LogSources

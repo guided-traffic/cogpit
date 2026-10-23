@@ -685,8 +685,7 @@ func (c *chatPanel) showHistoryList(ctx string, list []engine.ChatConversationIn
 		rows = append(rows, c.historyRow(info))
 	}
 	if len(list) > 0 {
-		clearB := widget.NewButtonWithIcon("Clear all", theme.DeleteIcon(), func() { c.confirmClear(ctx, len(list)) })
-		clearB.Importance = widget.LowImportance
+		clearB := newTextButton("Clear all", theme.DeleteIcon(), func() { c.confirmClear(ctx, len(list)) })
 		rows = append(rows, newDivider(false), container.NewHBox(clearB))
 	}
 	width := max(c.width, 260)

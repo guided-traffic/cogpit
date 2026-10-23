@@ -122,6 +122,8 @@ func bannerButtons(b *drainBanner) map[string][]*widget.Button {
 		switch x := o.(type) {
 		case *widget.Button:
 			out[x.Text] = append(out[x.Text], x)
+		case *textButton:
+			out[x.Text] = append(out[x.Text], &x.Button)
 		case *fyne.Container:
 			for _, c := range x.Objects {
 				walk(c)

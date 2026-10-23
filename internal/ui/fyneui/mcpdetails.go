@@ -71,7 +71,8 @@ type mcpDetails struct {
 	warning *mcpRegenerateDialog
 
 	// The panel's controls, for tests; rebuilt with the panel's content.
-	switchB, reveal, regenerate                  *widget.Button
+	switchB, reveal                              *textButton
+	regenerate                                   *widget.Button
 	copyEndpoint, copyToken, copyStdio, copyHTTP *tipButton
 }
 
@@ -213,8 +214,7 @@ func (d *mcpDetails) switchControls() fyne.CanvasObject {
 	case m.on:
 		label = "Switch off"
 	}
-	d.switchB = widget.NewButton(label, sh.toggleMCP)
-	d.switchB.Importance = widget.LowImportance
+	d.switchB = newTextButton(label, nil, sh.toggleMCP)
 	if m.busy || m.regenerating {
 		d.switchB.Disable()
 	}
@@ -230,10 +230,9 @@ func (d *mcpDetails) addRunning(body *fyne.Container, width float32) {
 
 	label := "Show"
 	if d.revealed {
-		label = "Hide"
+		label = hideLabel
 	}
-	d.reveal = widget.NewButton(label, func() { d.revealed = !d.revealed; d.rebuild() })
-	d.reveal.Importance = widget.LowImportance
+	d.reveal = revealButton(label, func() { d.revealed = !d.revealed; d.rebuild() }) // the token is a secret: Show marked as exposing (RW3)
 	d.copyToken = newTipButton(sh, theme.ContentCopyIcon(), "Copy the token", func() { d.copy(sh.mcp.token, "the token", true) })
 	shown := fyne.CanvasObject(newTextLine(mcpTokenMask, colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	if d.revealed {

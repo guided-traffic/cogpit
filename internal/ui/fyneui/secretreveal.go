@@ -1,18 +1,19 @@
 package fyneui
 
 import (
-	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // Revealing a Secret's value (D-13, H-8). The drawer lists a Secret's keys with their values
-// masked and a "Show" button beside each; Show runs secret.reveal from the GUI, the one origin the
-// engine hands a value to, and the drawer shows the value in place until the user hides it, the
-// drawer moves to another object or closes. The value lives in the drawer's revealed map and its
-// widgets only: no toast, no log, no engine state. A masked value is copied without being shown
-// (secretcopy.go), and that copy leaves the revealed map alone.
+// masked and a "Show" button at the end of each key's line (secretdata.go, RW1); Show runs
+// secret.reveal from the GUI, the one origin the engine hands a value to, and the drawer shows the
+// value in place until the user hides it, the drawer moves to another object or closes. The value
+// lives in the drawer's revealed map and its widgets only: no toast, no log, no engine state. A
+// masked value is copied without being shown (secretcopy.go), and that copy leaves the revealed
+// map alone.
 
 func init() { itemActionDialogs[engine.RevealCommand] = toggleReveal }
 
@@ -91,25 +92,27 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 	return it, false
 }
 
-// revealedValue renders a revealed value: selectable text in the monospace face, wrapped, so that
-// a long token can be read and copied whole. Its copy icon and the copy shortcut put it on the
-// clipboard through shell.copyText as a Secret value, which is cleared again later (D-25). The
-// icon copies the value alone, not the note that a long value was cut; a value Show cut it reads
-// again whole and copies whole, the drawer still showing the cut text (secretcopy.go, the lead's
-// decision of 2026-10-22). A selection and the copy shortcut copy exactly the selection.
-func (d *drawer) revealedValue(ref model.ObjectRef, it model.DetailItem) fyne.CanvasObject {
-	copied := func(sel string) { d.sh.copyText(sel, true) }
-	a, _ := revealAction(it)
-	if n, ok := d.revealedLen[revealKey(a)]; ok && n < len(it.Value) { // cut: the note follows the value
-		return newSecretText(it.Value, d.fetchCopyFor(wholeCopyTip, func(h *copyHook) { d.copyWhole(ref, a, h) }), copied)
+// revealButton is Show or Hide on a Secret's value. Show exposes the value, so it is marked as
+// exposing (the owner's RW3 of 2026-10-23: "angemessen (als exposing) markiert … Vielleicht rot,
+// weil es löscht ja nichts, aber ein warnendes Orange?"; his pick of three rendered looks, variant
+// A): its word, its outline and an eye icon in the status warning's amber, the tone of "(edited,
+// not saved)"; filled it would be louder than Save, with the outline alone it read as any button in
+// the light theme. Hide is a plain text button; red stays for what removes.
+func revealButton(label string, tapped func()) *textButton {
+	b := newTextButton(label, nil, tapped)
+	if label != hideLabel {
+		b.Icon, b.tone = theme.VisibilityIcon(), colorStatusWarning
 	}
-	return newSecretText(it.Value, d.copyFor(it.Value, true), copied)
+	return b
 }
+
+// hideLabel is the word on the button that masks a value Show revealed.
+const hideLabel = "Hide"
 
 // actionLabel is an item action's button text: Hide for a value the action revealed.
 func (d *drawer) actionLabel(a model.ItemAction) string {
 	if _, ok := d.revealed[revealKey(a)]; ok {
-		return "Hide"
+		return hideLabel
 	}
 	return a.Label
 }

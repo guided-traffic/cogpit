@@ -235,13 +235,12 @@ func (tv *tableView) movedOrder(id string, slot int) ([]string, bool) {
 // resetButton is Reset Column Order at the end of the ⋮'s column list, while the user has
 // arranged the columns.
 func (d *columnDrag) resetButton(view string) fyne.CanvasObject {
-	b := widget.NewButtonWithIcon("Reset Column Order", theme.ViewRestoreIcon(), func() {
+	b := newTextButton("Reset Column Order", theme.ViewRestoreIcon(), func() {
 		d.tv.sh.dispatch("ui.setColumnOrder", orderParams{View: view, Reset: true}, nil)
 		if p := d.tv.colPopup; p != nil {
 			p.Hide()
 		}
 	})
-	b.Importance = widget.LowImportance
 	b.Alignment = widget.ButtonAlignLeading
 	return b
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -517,12 +518,12 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 		return true
 	}
 	sd := secDataOf(sh)
-	if n := len(findAll[*copyButton](sd.list)); n != 0 {
-		t.Fatalf("%d copy icons before a value is in an editor", n)
+	if n := len(findAll[*copyButton](sd.list)); n != 4 { // one in each text key's line (RW1)
+		t.Fatalf("%d copy icons before a value is in an editor, want 4", n)
 	}
 	r := showKey(t, sh, q, "DB_PASSWORD")
 	settle(w)
-	if icons := findAll[*copyButton](sd.list); len(icons) != 1 || icons[0] != r.copyBtn || !r.copyBtn.Visible() {
+	if icons := findAll[*copyButton](sd.list); len(icons) != 4 || !slices.Contains(icons, r.copyBtn) || !r.copyBtn.Visible() {
 		t.Fatalf("copy icons %d, the editor's shown %v", len(icons), r.copyBtn != nil && r.copyBtn.Visible())
 	}
 	ip, iq := absRect(r.copyBtn)
@@ -559,15 +560,15 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 		t.Errorf("an empty value: %d copies, the clipboard %q", len(concealed), sh.app.Clipboard().Content())
 	}
 
-	sd.hide("DB_PASSWORD") // the edited value masked: no pinned icon
-	q.until(t, "the masked value", func() bool { return len(findAll[*copyButton](sd.list)) == 0 })
+	sd.hide("DB_PASSWORD") // the edited value masked: its icon copies without showing (RW1)
+	q.until(t, "the masked value", func() bool { return r.masked && r.copyBtn.tip == maskedCopyTip })
 
 	addKeyThrough(t, sd.adder, "API_TOKEN")
 	a := sd.addedRows["API_TOKEN"]
 	typeIntoRow(a.cmRow, secTyped+"-new")
 	q.until(t, "the added key's icon", func() bool {
 		icons := findAll[*copyButton](sd.list)
-		return len(icons) == 1 && icons[0] == a.copyBtn
+		return len(icons) == 5 && slices.Contains(icons, a.copyBtn)
 	})
 	test.Tap(a.copyBtn)
 	if len(concealed) != 3 || concealed[2] != secTyped+"-new" {
@@ -589,11 +590,10 @@ func TestSecretEditorMaskedValueCopiedWithoutShowing(t *testing.T) {
 	concealed := concealedClipboard(sh)
 	d, sd := sh.drawer, secDataOf(sh)
 
-	maskedLines(d)[2].MouseIn(mouse()) // DB_PASSWORD
-	if !d.copyBtn.Visible() || d.copyBtn.tip != "Copy the value without showing it" {
-		t.Fatalf("over a masked value: the icon shown %v, its tooltip %q", d.copyBtn.Visible(), d.copyBtn.tip)
+	if icon := keyCopyIcon(t, d, "DB_PASSWORD"); !icon.Visible() || icon.tip != maskedCopyTip {
+		t.Fatalf("a masked key's copy icon: shown %v, its tooltip %q", icon.Visible(), icon.tip)
 	}
-	test.Tap(d.copyBtn)
+	test.Tap(keyCopyIcon(t, d, "DB_PASSWORD"))
 	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
 	if (*concealed)[0] != fixtureSecretValues["DB_PASSWORD"] {
 		t.Errorf("copied %d bytes, want DB_PASSWORD's", len((*concealed)[0]))
@@ -613,13 +613,11 @@ func TestSecretEditorMaskedValueCopiedWithoutShowing(t *testing.T) {
 	typeIntoRow(r.cmRow, secTyped)
 	sd.hide("DB_USER")
 	q.until(t, "the edited value masked", func() bool { return r.masked && drawerHasText(d, "(edited, not saved)") })
-	edited := selLineWith(t, d, engine.MaskedValue+" (edited, not saved)")
-	edited.MouseIn(mouse())
-	if !d.copyBtn.Visible() || d.copyBtn.tip != "Copy the value without showing it" {
-		t.Fatalf("over an edited masked value: the icon shown %v, its tooltip %q", d.copyBtn.Visible(), d.copyBtn.tip)
+	if icon := keyCopyIcon(t, d, "DB_USER"); icon.tip != maskedCopyTip {
+		t.Fatalf("an edited masked value's copy icon says %q", icon.tip)
 	}
 	reveals := len(f.callsOf(engine.RevealCommand))
-	test.Tap(d.copyBtn)
+	test.Tap(keyCopyIcon(t, d, "DB_USER"))
 	if len(*concealed) != 2 || (*concealed)[1] != secTyped {
 		t.Fatalf("the edited value was not copied as typed (%d copies)", len(*concealed))
 	}
@@ -635,18 +633,8 @@ func TestSecretEditorMaskedValueCopiedWithoutShowing(t *testing.T) {
 	a := sd.addedRows["API_TOKEN"]
 	typeIntoRow(a.cmRow, secTyped+"-new")
 	sd.hide("API_TOKEN")
-	q.until(t, "the added key masked", func() bool { return a.masked && len(findAll[*selLine](d.details)) > 0 })
-	var lines []*selLine
-	for _, l := range findAll[*selLine](d.details) {
-		if l.line.text == engine.MaskedValue+" (edited, not saved)" {
-			lines = append(lines, l)
-		}
-	}
-	if len(lines) != 2 {
-		t.Fatalf("%d edited masked values, want DB_USER's and API_TOKEN's", len(lines))
-	}
-	lines[1].MouseIn(mouse())
-	test.Tap(d.copyBtn)
+	q.until(t, "the added key masked", func() bool { return a.masked && keyLineOf(d, "API_TOKEN") != nil })
+	test.Tap(keyCopyIcon(t, d, "API_TOKEN"))
 	if len(*concealed) != 3 || (*concealed)[2] != secTyped+"-new" {
 		t.Errorf("the added key's value was not copied (%d copies)", len(*concealed))
 	}

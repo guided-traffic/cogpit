@@ -500,8 +500,7 @@ func (f *createForm) addRows(caption string, columns []string, add string, newRo
 	f.content.Add(container.NewBorder(nil, nil, nil, gap, container.NewGridWithColumns(len(columns), heads...)))
 	e.scroll = container.NewVScroll(e.list)
 	f.content.Add(e.scroll)
-	addButton := widget.NewButtonWithIcon(add, theme.ContentAddIcon(), func() { e.add(); f.fit() })
-	addButton.Importance = widget.LowImportance
+	addButton := newTextButton(add, theme.ContentAddIcon(), func() { e.add(); f.fit() })
 	f.content.Add(container.NewHBox(addButton))
 	e.add()
 	f.editors = append(f.editors, e)

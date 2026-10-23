@@ -30,7 +30,7 @@ import (
 // keyAdder is the footer's Add Key and the row it opens: the new key's name, Add and Cancel, and a
 // line that says why a name cannot be added.
 type keyAdder struct {
-	button *widget.Button
+	button *textButton
 	entry  *widget.Entry
 	add    *widget.Button
 	hint   *paragraph
@@ -41,8 +41,7 @@ type keyAdder struct {
 
 func newKeyAdder(width float32, taken func(string) string, onAdd func(string)) *keyAdder {
 	a := &keyAdder{taken: taken, onAdd: onAdd}
-	a.button = widget.NewButtonWithIcon("Add Key", theme.ContentAddIcon(), a.open)
-	a.button.Importance = widget.LowImportance
+	a.button = newTextButton("Add Key", theme.ContentAddIcon(), a.open)
 	a.entry = widget.NewEntry()
 	a.entry.SetPlaceHolder("New key, e.g. config.yaml")
 	a.entry.OnChanged = func(string) { a.check() }
@@ -134,8 +133,7 @@ func removeKeyButton(sh *shell, key string, tapped func()) *tipButton {
 // removedKeyLines are a removed key's two lines in the drawer: its name in the error colour with
 // Undo, and in its value's place what Save does.
 func removedKeyLines(d *drawer, key string, undo func()) (fyne.CanvasObject, fyne.CanvasObject) {
-	b := widget.NewButton("Undo", undo)
-	b.Importance = widget.LowImportance
+	b := newTextButton("Undo", nil, undo)
 	note := newTextLine("Removed: Save removes this key and its value.", colorStatusError, theme.SizeNameText, fyne.TextStyle{Italic: true})
 	return container.NewBorder(nil, nil, nil, b, keyNameIn(d, key, colorStatusError)), note
 }
@@ -150,18 +148,16 @@ func keyNameIn(d *drawer, key string, c fyne.ThemeColorName) fyne.CanvasObject {
 }
 
 // addedKeyLine is an added key's line: its name, "new" (or, when the data holds the key by now,
-// that it does), Hide where the value can be masked, a Secret's copy icon (copyIcon, nil for none),
-// and the button that drops it.
-func addedKeyLine(d *drawer, key string, exists bool, hide func(), copyIcon fyne.CanvasObject, drop func()) fyne.CanvasObject {
+// that it does), a Secret's Hide or Show (toggle) and copy icon (nil for none), and the button that
+// drops it.
+func addedKeyLine(d *drawer, key string, exists bool, toggle *textButton, copyIcon fyne.CanvasObject, drop func()) fyne.CanvasObject {
 	tag := newTextLine("new", colorStatusOK, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
 	if exists {
 		tag = newTextLine("new, but the cluster holds this key now", colorStatusWarning, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
 	}
 	right := container.NewHBox()
-	if hide != nil {
-		h := widget.NewButton("Hide", hide)
-		h.Importance = widget.LowImportance
-		right.Add(h)
+	if toggle != nil {
+		right.Add(toggle)
 	}
 	if copyIcon != nil {
 		right.Add(copyIcon)
