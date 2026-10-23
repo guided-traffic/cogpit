@@ -104,9 +104,9 @@ var (
 	cmdShiftComma = &desktop.CustomShortcut{KeyName: fyne.KeyComma, Modifier: fyne.KeyModifierShortcutDefault | fyne.KeyModifierShift}
 )
 
-// ⌘, opens the Preferences page from the window's menu (so from any focus), in place of the
-// views; choosing Light switches the window at once and is kept in Cogpit's own file; Escape
-// closes the page and the views are back.
+// ⌘, opens the Preferences page from the window's menu (so from any focus), a card over the window
+// (D-118); choosing Light switches the window at once and is kept in Cogpit's own file; Escape
+// closes the page and the card is gone.
 func TestPreferencesOpenWithTheShortcutAndSwitchTheTheme(t *testing.T) {
 	s, cfg := settingsEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{})
@@ -115,7 +115,9 @@ func TestPreferencesOpenWithTheShortcutAndSwitchTheTheme(t *testing.T) {
 		t.Fatalf("⌘, on %+v, want Preferences…", item)
 	}
 	item.Action()
-	q.until(t, "the Preferences page", func() bool { return sh.settings.visible() && sh.center.Objects[0] == sh.settings.root })
+	q.until(t, "the Preferences page", func() bool {
+		return sh.settings.visible() && w.Canvas().Overlays().Top() == sh.settings.overlay && sh.center.Objects[0] == sh.mainRow
+	})
 	if st := sh.ui.Settings; st == nil || st.Page != engine.SettingsPreferences || st.Section != "app" {
 		t.Errorf("UI state %+v", st)
 	}
@@ -146,7 +148,7 @@ func TestPreferencesOpenWithTheShortcutAndSwitchTheTheme(t *testing.T) {
 	}
 
 	pressEscape(w)
-	q.until(t, "the page closed", func() bool { return !sh.settings.visible() && sh.center.Objects[0] == sh.mainRow })
+	q.until(t, "the page closed", func() bool { return !sh.settings.visible() && w.Canvas().Overlays().Top() == nil })
 	if sh.ui.Settings != nil {
 		t.Errorf("UI state still has %+v", sh.ui.Settings)
 	}

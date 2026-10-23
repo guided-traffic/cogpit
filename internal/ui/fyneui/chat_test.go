@@ -117,15 +117,16 @@ func TestChatColumnShownByUIState(t *testing.T) {
 	q.until(t, "the column to go", func() bool { return sh.chatRow.Objects[0] == sh.center })
 }
 
-// TestChatColumnStaysBesideSettings: a settings page replaces the work area, not the chat.
-func TestChatColumnStaysBesideSettings(t *testing.T) {
-	sh, _, q, f, _ := chatScene(t, ThemeDark, nil)
+// TestChatColumnStaysUnderSettings: a settings page is a card over the whole window (D-118); the
+// chat column stays where it was, under the card's shade with the work area.
+func TestChatColumnStaysUnderSettings(t *testing.T) {
+	sh, w, q, f, _ := chatScene(t, ThemeDark, nil)
 	f.update(func(u *engine.UIState) {
 		u.Settings = &engine.SettingsPage{Page: engine.SettingsPreferences, Section: engine.SectionApp}
 	})
 	q.until(t, "the settings page", func() bool { return sh.settings.visible() })
-	if sh.chatRow.Objects[0] != sh.chatSplit || sh.center.Objects[0] != sh.settings.root {
-		t.Fatal("with a settings page open the chat column is gone, or the page is not in the work area")
+	if sh.chatRow.Objects[0] != sh.chatSplit || sh.center.Objects[0] != sh.mainRow || w.Canvas().Overlays().Top() != sh.settings.overlay {
+		t.Fatal("with a settings page open the chat column is gone, the work area replaced, or the card not over the window")
 	}
 }
 

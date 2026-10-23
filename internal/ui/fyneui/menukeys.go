@@ -41,6 +41,17 @@ var windowKeys = []windowKey{
 	{"terminal.open", func(sh *shell) { sh.dispatch("terminal.open", struct{}{}, nil) }, nil}, // ⌘⇧T: a terminal tab
 }
 
+// heldUnderSettings is a window key's run that does nothing while a settings page shows: the key
+// acts on what lies behind the card (the view's search, the editor's find bar, a terminal in the
+// dock) and would take the keyboard there, while the card has a focus of its own (D-118).
+func heldUnderSettings(run func(*shell)) func(*shell) {
+	return func(sh *shell) {
+		if !sh.settings.visible() {
+			run(sh)
+		}
+	}
+}
+
 // shownShortcut is a menu item's shortcut that the menu shows and Fyne never triggers from a key.
 type shownShortcut struct {
 	desktop.CustomShortcut
@@ -58,7 +69,10 @@ func (sh *shell) windowKeyItems() []*fyne.MenuItem {
 		if !ok || c.MenuPath == "" {
 			continue
 		}
-		run, claim := k.run, k.claim
+		run, claim := heldUnderSettings(k.run), k.claim
+		if claim != nil {
+			claim = func(sh *shell) bool { return sh.settings.visible() || k.claim(sh) } // held as run is
+		}
 		item := fyne.NewMenuItem(c.Label, func() { run(sh) })
 		if sc := parseShortcut(c.Shortcut); sc != nil {
 			item.Shortcut = &shownShortcut{*sc}

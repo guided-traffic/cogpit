@@ -125,7 +125,7 @@ type shell struct {
 
 	hsplit    *fyne.Container // table | drawer, the drawer's width set by the user (panelwidths.go)
 	mainRow   *fyne.Container // sidebar | body, the sidebar's width set by the user
-	center    *fyne.Container // mainRow, or the open settings page in its place
+	center    *fyne.Container // mainRow; a settings page is a card over the window (settingsoverlay.go)
 	sidebarW  float32         // the user's widths of the two panels, stored in the preferences
 	drawerW   float32
 	sideLay   *panelLayout
@@ -138,7 +138,7 @@ type shell struct {
 	vsplit    *container.Split // workspace / dock
 	workspace *fyne.Container  // the table view, or hsplit while the drawer is open
 	body      *fyne.Container  // the workspace, with the dock below it
-	root      fyne.CanvasObject
+	root      *fyne.Container  // the window's content; the tooltip layer and the toasts move into a settings page's overlay while it shows
 
 	workArea fyne.CanvasObject // the workspace with the welcome page over it, not over the dock (auditlog.go)
 
@@ -252,8 +252,8 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 		sh.saveWidths))
 	sh.mainRow = main
 	sh.center = container.NewStack(main)
-	// The agent's chat column, the full height beside the work area, a settings page included
-	// (chat.go); its width is the user's, as the sidebar's and the drawer's.
+	// The agent's chat column, the full height beside the work area, dimmed with it under a settings
+	// page (chat.go); its width is the user's, as the sidebar's and the drawer's.
 	sh.chat = newChatPanel(sh)
 	sh.chatLay = &panelLayout{want: func() float32 { return sh.chatW }, lo: minChatWidth, hi: maxChatWidth,
 		restMin: minSidebarWidth + handleWidth + minTableRoom}
@@ -1119,25 +1119,27 @@ func (sh *shell) mainMenu() *fyne.MainMenu {
 // focused widget that takes shortcuts keeps them; the View menu shows them, A55), Escape (the
 // innermost thing open: the top overlay, a settings page, the drawer; escape.go), "/" (the logs tab's search), and F1–F12 for
 // the hotbar while no text field has the focus (the table and the search fields pass them on, A64).
-// ⌘⇧P and ⌘P are the main menu's (mainMenu), which take them from any focus.
+// ⌘⇧P and ⌘P are the main menu's (mainMenu), which take them from any focus. While a settings page
+// shows, the window's own keys but Escape are held (heldUnderSettings, D-118): each acts on what
+// lies behind the card.
 func (sh *shell) installShortcuts() {
 	c := sh.win.Canvas()
 	for _, k := range windowKeys {
 		if sc := sh.registryShortcut(k.id); sc != nil {
-			run := k.run
+			run := heldUnderSettings(k.run)
 			c.AddShortcut(sc, func(fyne.Shortcut) { run(sh) })
 		}
 	}
 	c.SetOnTypedKey(func(ev *fyne.KeyEvent) {
-		if sh.hot.key(ev.Name, shiftHeld()) { // F1–F12: the hotbar (Fyne has no shortcut for them)
+		if !sh.settings.visible() && sh.hot.key(ev.Name, shiftHeld()) { // F1–F12: the hotbar (Fyne has no shortcut for them)
 			return
 		}
 		if ev.Name == fyne.KeyEscape {
-			sh.escape() // the innermost thing open: an overlay, a settings page, the drawer (escape.go)
+			sh.escape() // the innermost thing open: an overlay (a settings page's card among them), the drawer (escape.go)
 		}
 	})
 	c.SetOnTypedRune(func(r rune) {
-		if r == '/' {
+		if r == '/' && !sh.settings.visible() {
 			sh.dock.focusLogSearch() // "/" focuses the active logs tab's search
 		}
 	})

@@ -158,6 +158,9 @@ type surface struct {
 	radius fyne.ThemeSizeName  // optional corner radius
 	stroke fyne.ThemeColorName // optional one-point outline
 	min    fyne.Size
+	// bottomLeftOnly rounds the bottom left corner alone: a column that ends in a card's corner (the
+	// settings overlay's section list, settingsoverlay.go).
+	bottomLeftOnly bool
 }
 
 func newSurface(fill fyne.ThemeColorName) *surface {
@@ -197,7 +200,9 @@ func (r *surfaceRenderer) Destroy()                     {}
 func (r *surfaceRenderer) Refresh() {
 	th := r.s.Theme()
 	r.rect.FillColor = themeColor(th, r.s.fill)
-	if r.s.radius != "" {
+	if r.s.radius != "" && r.s.bottomLeftOnly {
+		r.rect.BottomLeftCornerRadius = th.Size(r.s.radius)
+	} else if r.s.radius != "" {
 		r.rect.CornerRadius = th.Size(r.s.radius)
 	}
 	if r.s.stroke != "" {

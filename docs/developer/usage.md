@@ -54,7 +54,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🩺 A connect that fails shows its own error page (since 2026-10-22): why, in a sentence, and the connect stage by stage (the kubeconfig, a login program, DNS with the addresses, TCP to the address and port, TLS, the API server's answer), with Connect Again and Show Connection Updates.
 - 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - 🗂️ Tabs you arrange (since 2026-10-20): drag a tab along the tab bar, or the dock's, to another place, the others making room as it moves; ⌘⌥⇧← and ⌘⌥⇧→ move the shown tab one place, the dock's while you work in the dock (since 2026-10-22); the tab bar's order comes back with your tabs at the next start.
-- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,: the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
+- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec credential plugins); no local proxy, no login.
 - ⚡ Cache first: views read from a watch-fed cache; switching back to a view costs no API request.
@@ -1461,7 +1461,7 @@ Escape closes the innermost thing open, and only that; press it again to go one 
 | A dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
 | A list's search (⌘F) | clears it; the list gets the keys |
 | The logs tab's search, Argo CD's activity filter | clears it |
-| A settings page (Preferences, Cluster Settings) | closes the page (a text field on it keeps Escape) |
+| A settings page (Preferences, Cluster Settings), a card over the window | closes the card (a text field on it keeps Escape; a menu or dialog opened from it closes first) |
 | The list or the navigator | closes the drawer |
 
 A selected text (a log, a toast, the agent's answer) drops its selection first, and the

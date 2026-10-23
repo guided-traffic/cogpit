@@ -38,11 +38,11 @@ func themedSlider(s fyne.CanvasObject) fyne.CanvasObject {
 	return container.NewThemeOverride(s, sliderTheme{fyne.CurrentApp().Settings().Theme()})
 }
 
-// fixedSpace is empty space of w by h points: the design language's rhythm (6 pt label to control,
+// fixedHeight is empty space h points high: the design language's rhythm (6 pt label to control,
 // 24 pt between settings) is in points, and no theme size has those values.
-func fixedSpace(w, h float32) fyne.CanvasObject {
+func fixedHeight(h float32) fyne.CanvasObject {
 	r := canvas.NewRectangle(color.Transparent)
-	r.SetMinSize(fyne.NewSize(w, h))
+	r.SetMinSize(fyne.NewSize(0, h))
 	return r
 }
 
