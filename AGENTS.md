@@ -8,7 +8,7 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-20:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+**State on 2026-10-23:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
 runs on macOS, extended by eighteen further implementation runs (2026-10-11 to 2026-10-20, night runs and
 day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
@@ -26,8 +26,11 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.30.0 the
-newest, released 2026-10-20 morning with **fast scrolling at 60 frames per second**: Fyne's thread check off in releases, a build parameter (D-103); v0.29.3 released 2026-10-20 night with a refused read sent once and the plugin's process search fixed, v0.29.2
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.40.1 the
+newest, released 2026-10-23 with the owner's re-walk findings RW1–RW4 (a Secret key's buttons on its
+name line, the field's outline on every text button, a Secret's Show marked as exposing, the welcome
+page's message in a banner naming its level) and the logo at the display's pixels; the stage alpha
+since 2026-10-22 ([`ROADMAP.md`](ROADMAP.md)); v0.30.0 released 2026-10-20 morning with **fast scrolling at 60 frames per second**: Fyne's thread check off in releases, a build parameter (D-103); v0.29.3 released 2026-10-20 night with a refused read sent once and the plugin's process search fixed, v0.29.2
 before it with a log opened again under a name another pod holds shown once, v0.29.1 with H-118's waiting line and the custom kinds' refusal read once; fast scrolling
 built that night and merged after the owner's look of 2026-10-20 (PR #64); v0.29.0 released 2026-10-19 evening with **debug containers** added from a pod's drawer, blue in the Pods list and reached by Logs, Shell and Attach (D-102); v0.28.0 the same evening: agents kept from a cluster's name, icon and integrations (H-125, H-126), a reused row's stale container square and a click's own ⌘ and ⇧ (G16); v0.27.1 the same day with the disk image's name pills the owner chose that afternoon (WF42, D-70) and two race fixes; v0.27.0 the same day with his walk findings WF31–WF45 but WF42; v0.26.0 released 2026-10-18 with his findings WF11–WF30, v0.25.0 its first part the same morning; in v0.27.0: a connect that goes on in the background when another cluster is shown and a failed connect that stays on its cluster, D-97; a Terminating namespace's blockers with Remove finalizers, D-98; text selection in logs and toasts, D-99; dialogs' "Config Map → walk-cm" and effect rows, D-100; the kubeconfig sources' "−" and a removed cluster leaving the hotbar, D-101), **a Linux package** (a `.deb` for amd64 and arm64 from the releases, with Cogpit's signed APT repository on GitHub Pages and updates through apt, built 2026-10-20 night, first in the release after v0.32.0, D-108), **Cogpit for Windows** (an NSIS setup for x64 per user, WinSparkle's updates with one click from a feed signed with the update key, the terminal on ConPTY, every test run on Windows; built 2026-10-21 on the branch `windows-release`, released once merged, D-111), **integrations per cluster** (2026-10-17, D-76 to D-79: the Metrics
 Server and Prometheus, Alertmanager with the title bar's alerts pill and an alert board, the Trivy
