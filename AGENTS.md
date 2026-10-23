@@ -236,10 +236,10 @@ features; these rules are the lead's, open to revision):
 - **Own worktree, own branch.** Each lead works in its own git worktree, never in a folder
   another lead uses: the owner works in VS Code only, one window per lead, opened on
   `.claude/worktrees/<name>` (made with `git worktree add -b worktree-<name>
-  .claude/worktrees/<name> origin/main`; `lead-2` and `lead-3` exist since 2026-10-22). A task gets
+  .claude/worktrees/<name> origin/main`; made when the owner opens a second or third lead; `lead-2` and `lead-3`, made 2026-10-22, removed 2026-10-23 once he closed them, empty). A task gets
   a branch of its own in it (`git switch -c <topic> origin/main`) and ends as a pull request the
   lead merges itself once CI is green: rebase on `main` first; in the docs' status lines and
-  revision tables keep both sides. The worktree stays for the lead's next task.
+  revision tables keep both sides. The worktree stays for the lead's next task and goes, once clean, when the owner closes that lead.
 - **Numbers at merge time.** A new decision, gap or security gap is written `D-new`, `G-new`,
   `H-new` on the branch and gets the next free number on `main` in the rebase before the merge, so
   two leads never take the same one.
