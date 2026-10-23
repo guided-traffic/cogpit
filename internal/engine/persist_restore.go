@@ -89,12 +89,12 @@ func storedLayout(m map[string][]string) map[string][]string {
 }
 
 // normalize makes a document read from a file one the UI state can take: tabs with a valid context
-// and view, at most maxRestoredTabs, one preview tab at most, the fields within their bounds, and
-// Active a tab's index or -1.
+// and view, at most maxRestoredTabs, one preview tab per cluster at most (D-117; a file written
+// before it holds one in all), the fields within their bounds, and Active a tab's index or -1.
 func (doc *workspaceDoc) normalize() {
 	doc.Version = workspaceVersion
 	tabs := make([]storedTab, 0, min(len(doc.Tabs), maxRestoredTabs))
-	active, preview := -1, false
+	active, preview := -1, make(map[string]bool)
 	for i, t := range doc.Tabs {
 		if strings.TrimSpace(t.Context) == "" || !storedText(t.Context, maxStoredContext) ||
 			!storedText(t.View, maxStoredKey) || len(tabs) == maxRestoredTabs {
@@ -103,8 +103,8 @@ func (doc *workspaceDoc) normalize() {
 		if i == doc.Active {
 			active = len(tabs)
 		}
-		t.Preview = t.Preview && !preview
-		preview = preview || t.Preview
+		t.Preview = t.Preview && !preview[t.Context]
+		preview[t.Context] = preview[t.Context] || t.Preview
 		if !storedText(t.ViewTitle, maxStoredTitle) {
 			t.ViewTitle = ""
 		}

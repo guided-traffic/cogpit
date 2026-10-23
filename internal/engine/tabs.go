@@ -19,10 +19,11 @@ import (
 // italic. From Lens's shortcuts page: ⌘W closes the tab, ⌃- and ⌃⇧- go back and forward in the
 // tab's history, ⌘⌥→ and ⌘⌥← to the next and the previous tab, ⌘n to the n-th.
 //
-// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13):
-//   - one preview tab in all: opening a view in preview shows it in that tab, whatever cluster
-//     the tab showed, and the view it showed before goes into its history; a fixed tab stays until
-//     it is closed;
+// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13, unless noted):
+//   - one preview tab per cluster (D-117, the owner's pick of 2026-10-23; until then one in all):
+//     opening a view in preview shows it in the shown cluster's preview tab, made when it has none,
+//     and the view it showed before goes into its history; another cluster's preview tab is never
+//     touched, and a tab never changes its cluster; a fixed tab stays until it is closed;
 //   - opening a view that a fixed tab of the cluster shows activates that tab;
 //   - a tab keeps its own namespace filter, search, status filter, sort, selection and drawer;
 //     changing them does not fix a preview tab; it remembers the selection of every view it showed,
@@ -31,11 +32,11 @@ import (
 //   - a new tab opens right of the active one;
 //   - closing the active tab shows the nearest tab of the same cluster, right first, else nothing:
 //     the workspace stays empty until a view is opened (closing the last tab too);
-//   - Cogpit holds one cluster connection at a time (architecture §6), so the tabs of other
-//     clusters stay in the bar and activating one connects to its cluster as the navigator does,
-//     then shows the tab's view again; while a connect runs no tab is active; a cluster connected
-//     from the navigator or the hotbar shows its most recently used tab, else its default view in
-//     the preview tab;
+//   - several clusters stay connected, one of them shown (D-69): activating another cluster's tab
+//     shows its cluster, connecting it first as the navigator does, then shows the tab's view
+//     again; the shown cluster's active tab stays active until the other cluster shows (D-117);
+//     while a connect runs no tab is active; a cluster shown from the navigator or the hotbar shows
+//     its most recently used tab, else its default view in its preview tab;
 //   - a tab's history holds view keys, at most maxTabHistory each way; back and forward open the
 //     view as ui.openView does (drawer and search cleared, the namespace filter kept, the view's
 //     selection as the tab last left it);
@@ -51,15 +52,14 @@ import (
 // ViewTab is one tab of the tab bar: a view of one cluster with its own state.
 type ViewTab struct {
 	ID string `json:"id"` // "tab-1"
-	// Context is the cluster the tab belongs to; a preview tab's changes when it shows a view of
-	// another cluster.
+	// Context is the cluster the tab belongs to; it never changes (a preview tab per cluster, D-117).
 	Context string `json:"context"`
 	// View is the kind or page key the tab shows ("pods", "workloads/overview").
 	View string `json:"view"`
 	// Title is "<view> - <context>", the context by its name without its kubeconfig file.
 	Title string `json:"title"`
-	// Preview marks the preview tab, which the next view opened in preview replaces; the others
-	// are fixed.
+	// Preview marks its cluster's preview tab, which the next view of the cluster opened in preview
+	// replaces; the others are fixed.
 	Preview bool `json:"preview,omitempty"`
 	// The tab's own state. While the tab is active and its cluster connected, UIState's fields of
 	// the same names are the live ones and these follow them; otherwise they are what the tab shows
@@ -141,8 +141,9 @@ func (u *UIState) tabIndex(id string) int {
 
 func (u *UIState) activeIndex() int { return u.tabIndex(u.ActiveTab) }
 
-func (u *UIState) previewIndex() int {
-	return slices.IndexFunc(u.Tabs, func(t ViewTab) bool { return t.Preview })
+// previewIndex returns the index of the cluster's preview tab, or -1.
+func (u *UIState) previewIndex(contextID string) int {
+	return slices.IndexFunc(u.Tabs, func(t ViewTab) bool { return t.Preview && t.Context == contextID })
 }
 
 // fixedTabOf returns the index of a fixed tab of the cluster showing the view, or -1.
@@ -245,24 +246,21 @@ func pushHistory(h []string, view string) []string {
 	return h
 }
 
-// showInPreview shows a view of the connected cluster in the preview tab, made or taken over from
-// another cluster as needed, and activates it; the tab's selection becomes the view's as the tab
-// last left it (selectionmemory.go). The live state is left alone: the callers make the tab's
-// selection the live one.
+// showInPreview shows a view of the connected cluster in its preview tab, made when it has none,
+// and activates it; the tab's selection becomes the view's as the tab last left it
+// (selectionmemory.go). Another cluster's preview tab is left alone (D-117). The live state is left
+// alone too: the callers make the tab's selection the live one.
 func (u *UIState) showInPreview(view string) {
-	p := u.previewIndex()
+	p := u.previewIndex(u.Context)
 	if p < 0 {
 		p = u.newTab(u.Context, view, true)
 	}
 	t := &u.Tabs[p]
-	switch {
-	case t.Context != u.Context:
-		t.Back, t.Forward = nil, nil // the other cluster's history means nothing here
-	case t.View != "" && t.View != view:
+	if t.View != "" && t.View != view {
 		t.Back, t.Forward = pushHistory(t.Back, t.View), nil
 	}
 	t.switchSelection(u.Context, view)
-	t.Context, t.View = u.Context, view
+	t.View = view
 	u.ActiveTab = t.ID
 	u.touch(p)
 }
@@ -272,9 +270,10 @@ func (u *UIState) showInPreview(view string) {
 //
 //   - A connect to another cluster than the active tab's leaves no tab active until it connected.
 //   - Once a cluster is connected, the active tab of that cluster shows its own state again; without
-//     one, the cluster's most recently used tab does; without any, the preview tab shows the
+//     one, the cluster's most recently used tab does; without any, its preview tab shows the
 //     connected view.
-//   - A view opened while no tab is active goes to the preview tab.
+//   - A view opened while no tab is active goes to the cluster's preview tab; a view that only
+//     stayed while no tab was active does not (D-117: a tab switch never changes another tab).
 //   - A view changed within the active tab by a command that knows nothing of tabs (ui.navigate)
 //     goes into the tab's history.
 //   - Either way the view's selection is the tab's for it, as the tab last left it
@@ -297,7 +296,7 @@ func (u *UIState) syncTabs(old UIState, viewTitle func(string) string) {
 			if u.Tabs[j].View != "" {
 				u.loadTab(j)
 			}
-		case i < 0 && u.View != "":
+		case i < 0 && u.View != "" && (becameConnected || u.View != old.View):
 			u.showInPreview(u.View)
 			u.Selected = slices.Clone(u.Tabs[u.activeIndex()].Selected)
 		case i >= 0 && u.View != "" && u.Tabs[i].View != "" && u.View != u.Tabs[i].View:
@@ -316,13 +315,13 @@ func (u *UIState) syncTabs(old UIState, viewTitle func(string) string) {
 	}
 }
 
-// openTab opens a view of the connected cluster: in the preview tab, or in a new fixed tab when
+// openTab opens a view of the connected cluster: in its preview tab, or in a new fixed tab when
 // fixed is set. A fixed tab of the cluster that shows the view already is activated instead, with
 // its own state (only ui.openView of the active tab's view opens it afresh, as it always did);
-// asked for fixed, the preview tab showing the view becomes fixed. A view opened afresh keeps the
+// asked for fixed, the cluster's preview tab showing the view becomes fixed. A view opened afresh keeps the
 // selection the tab last left it with (selectionmemory.go), a new tab's starts with none.
 func (u *UIState) openTab(view string, sort SortSpec, fixed bool) {
-	p := u.previewIndex()
+	p := u.previewIndex(u.Context)
 	switch i := u.fixedTabOf(u.Context, view); {
 	case i >= 0 && (fixed || u.ActiveTab != u.Tabs[i].ID):
 		if u.ActiveTab != u.Tabs[i].ID {
@@ -330,7 +329,7 @@ func (u *UIState) openTab(view string, sort SortSpec, fixed bool) {
 		}
 		return
 	case i >= 0: // ui.openView of the active tab's view: opened afresh
-	case fixed && p >= 0 && u.Tabs[p].Context == u.Context && u.Tabs[p].View == view:
+	case fixed && p >= 0 && u.Tabs[p].View == view:
 		u.Tabs[p].Preview = false
 		if u.ActiveTab != u.Tabs[p].ID {
 			u.activateTab(p)
@@ -494,7 +493,7 @@ func (s *Session) viewTitle(view string) string {
 }
 
 // OpenTab opens a view of the connected cluster (a kind key or a page key the caller checked) in
-// the preview tab, or in a fixed tab when fixed is set (UIState.openTab), and returns the new state:
+// its preview tab, or in a fixed tab when fixed is set (UIState.openTab), and returns the new state:
 // the view's selection as the tab last left it, without the objects gone since (DropGoneSelected).
 func (s *Session) OpenTab(view string, fixed bool) UIState {
 	s.noteKindTitle(view)
@@ -531,12 +530,16 @@ func (s *Session) SelectTab(ctx context.Context, id string) (UIState, error) {
 		return st, err
 	}
 	// The tab becomes its cluster's most recently used one, which syncTabs shows once connected.
-	// Another tab still marked active (the one shown last before a restart, its cluster named but
-	// not connected: D-41) gives way, or syncTabs would show it instead of the one clicked.
+	// Another tab of its cluster still marked active (the one shown last before a restart, its
+	// cluster named but not connected: D-41) gives way, or syncTabs would show it instead of the one
+	// clicked. The shown cluster's active tab stays active until the other cluster shows: cleared
+	// here, syncTabs took the shown view for one just opened and moved it into the preview tab, which
+	// lost the view that tab showed (D-117, the owner's bug of 2026-10-23); and a connect that ends
+	// before it began (superseded, cancelled) leaves the shown cluster with its tab.
 	s.UpdateUI(func(u *UIState) {
 		if j := u.tabIndex(id); j >= 0 {
 			u.touch(j)
-			if u.ActiveTab != id {
+			if a := u.activeIndex(); a >= 0 && a != j && u.Tabs[a].Context == u.Tabs[j].Context {
 				u.ActiveTab = ""
 			}
 		}

@@ -13,7 +13,7 @@ import (
 
 type tabOpenParams struct {
 	View  string `json:"view" jsonschema:"kind key of the view to open (pods, services, <plural>.<group> for a custom resource kind; kinds_list lists them) or a page key (workloads/overview)"`
-	Fixed bool   `json:"fixed,omitempty" jsonschema:"open a fixed tab (the navigator's double click or Shift+Enter); without it the view opens in the preview tab, which the next view opened in preview replaces"`
+	Fixed bool   `json:"fixed,omitempty" jsonschema:"open a fixed tab (the navigator's double click or Shift+Enter); without it the view opens in the cluster's preview tab, which the next view of the cluster opened in preview replaces"`
 }
 
 type tabIDParams struct {
@@ -37,8 +37,9 @@ func tabsOpen(s *engine.Session) error {
 func registerTabs(g *registrar) {
 	add(g, engine.Spec[tabOpenParams]{
 		ID: "ui.tab.open", Label: "Open in Tab", Danger: engine.DangerUI, Verbs: cacheReads,
-		Description: "Opens a view of the shown cluster in a tab of the tab bar: in the preview tab (which the next " +
-			"view opened in preview replaces; ui_openView does the same), or with fixed in a new fixed tab that stays until " +
+		Description: "Opens a view of the shown cluster in a tab of the tab bar: in the cluster's preview tab (every " +
+			"cluster has one of its own, which the next view of the cluster opened in preview replaces; another cluster's is " +
+			"never touched; ui_openView does the same), or with fixed in a new fixed tab that stays until " +
 			"closed. A fixed tab of the cluster already showing the view is activated instead; asked for fixed, a preview " +
 			"tab showing the view becomes fixed. A new tab starts with the namespace filter of the tab before it. Returns " +
 			"the new UI state; its tabs list every tab with its id, context, view, title and own state.",
@@ -55,7 +56,7 @@ func registerTabs(g *registrar) {
 	add(g, engine.Spec[tabIDParams]{
 		ID: "ui.tab.pin", Label: "Keep Tab Open", MenuPath: "View/Keep Tab Open", Danger: engine.DangerUI,
 		Description: "Makes the preview tab (or the tab named by id) a fixed tab, as a double click on its title does: " +
-			"the next view opened in preview then opens in a new preview tab. Returns the new UI state.",
+			"the next view of its cluster opened in preview then opens in a new preview tab. Returns the new UI state.",
 		Enabled: func(s *engine.Session, _ tabIDParams) error { return tabsOpen(s) },
 		Run: func(_ context.Context, s *engine.Session, p tabIDParams) (any, error) {
 			return s.PinTab(p.ID)

@@ -123,7 +123,7 @@ func registerCluster(g *registrar) {
 	add(g, engine.Spec[connectParams]{
 		ID: "cluster.connect", Label: "Connect to Cluster", MenuPath: "Cluster/Connect to Cluster", Shortcut: "Cmd+P", Danger: engine.DangerUI,
 		Description: "Connects to a context as cluster_contexts lists it and shows it in the window: its most recently used " +
-			"tab, or else its Pods view in the preview tab; the other clusters' tabs stay. Several clusters stay connected at " +
+			"tab, or else its Pods view in its preview tab; the other clusters' tabs stay. Several clusters stay connected at " +
 			"once (ui_state's connections): the cluster shown before stays connected, and a context that is connected already " +
 			"is only shown, from Cogpit's cache, without a request; one the window waits for already is waited for, its end the " +
 			"answer. Connecting only reads from the cluster. " +

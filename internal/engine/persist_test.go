@@ -178,6 +178,20 @@ func TestWorkspaceKeepsWhichTabWasUsedLast(t *testing.T) {
 	}
 }
 
+// A workspace file keeps one preview tab per cluster (D-117): one written before, with one preview
+// tab in all, loads as it was; a second preview tab of a cluster becomes a fixed one.
+func TestWorkspaceKeepsOnePreviewTabPerCluster(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "Cogpit")
+	writeWorkspace(t, dir, workspaceDoc{Version: workspaceVersion, Active: -1, Tabs: []storedTab{
+		{Context: "test", View: "pods", Preview: true},
+		{Context: "broken", View: "pods"}, // the fake connector offers test and broken
+		{Context: "broken", View: "nodes", Preview: true},
+		{Context: "test", View: "services", Preview: true},
+	}})
+	s, _ := workspaceSession(t, dir, time.Hour)
+	wantTabs(t, s.UIState(), "tab-1 pods@test p", "tab-2 pods@broken", "tab-3 nodes@broken p", "tab-4 services@test")
+}
+
 // The tabs of a context no kubeconfig source offers any more are dropped with a notice, and the
 // file is written again without them; the tabs of the offered ones stay.
 func TestWorkspaceDropsTabsOfGoneContexts(t *testing.T) {

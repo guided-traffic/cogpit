@@ -283,8 +283,8 @@ func (s *Session) checkCold(e *pooled) {
 }
 
 // showConnected shows a connected cluster in the UI state (Connect of a pooled context): its
-// connection as its watch last said it, its most recently used tab, else its default view in the
-// preview tab (syncTabs), and the navigator drilled into it. The cluster's views start from its
+// connection as its watch last said it, its most recently used tab, else its default view in its
+// own preview tab (syncTabs), and the navigator drilled into it. The cluster's views start from its
 // cache (uiChanged). A connect again to the shown cluster only drills the navigator into it.
 func (s *Session) showConnected(b *Backend, gen uint64) {
 	view := defaultView(b)

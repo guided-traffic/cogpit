@@ -19,9 +19,9 @@ import (
 // The lead's decisions on the owner's choice (2026-10-16):
 //   - per tab, as the tab bar's model has it (tabs.go: a tab keeps its own namespace filter,
 //     search, sort, selection and drawer): two tabs showing the same view keep a selection each, a
-//     new tab starts with none; and per cluster within a tab, since the one preview tab shows the
-//     views of every connected cluster (D-69): a cluster shown in it again gets its views'
-//     selections back;
+//     new tab starts with none; and per cluster within a tab, since the one preview tab showed the
+//     views of every connected cluster (D-69) until each cluster got its own (D-117): the key
+//     keeps the cluster, though a tab's cluster no longer changes;
 //   - ui.state does not list the remembered selections, only each tab's shown view's (selected):
 //     an agent reads one back by showing its view again, and ui.state stays compact;
 //   - ui.openView of the view the active tab shows keeps its selection (it cleared it before);

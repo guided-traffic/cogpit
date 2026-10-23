@@ -128,8 +128,8 @@ func TestRememberedSelectionDropsGoneObjects(t *testing.T) {
 	wantSelected(t, "ui.state", s.UIState(), "shop/web-1")
 }
 
-// The preview tab shows the views of every connected cluster (D-69): it remembers a selection per
-// cluster and view, and forgets a cluster's once it is disconnected.
+// Every connected cluster has a preview tab of its own (D-117; D-69): each keeps its cluster's
+// selection, and a cluster disconnected takes its tab and selections with it.
 func TestSelectionRememberedPerCluster(t *testing.T) {
 	s := tabSession(t)
 	ctx := context.Background()
@@ -140,7 +140,7 @@ func TestSelectionRememberedPerCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	u := s.UIState()
-	wantTabs(t, u, "tab-1 pods@other p *")
+	wantTabs(t, u, "tab-1 pods@test p", "tab-2 pods@other p *")
 	wantSelected(t, "the other cluster's pods", u)
 	other := model.ObjectRef{Context: "other", Kind: "pods", Namespace: "shop", Name: "web-0"}
 	s.UpdateUI(func(u *UIState) { u.Selected = []model.ObjectRef{other} })
@@ -149,7 +149,7 @@ func TestSelectionRememberedPerCluster(t *testing.T) {
 		t.Fatal(err)
 	}
 	u = s.UIState()
-	wantTabs(t, u, "tab-1 pods@test p *")
+	wantTabs(t, u, "tab-1 pods@test p *", "tab-2 pods@other p")
 	if len(u.Selected) != 1 || u.Selected[0] != pod {
 		t.Errorf("test's pods shown again: selected %v, want %v", u.Selected, pod)
 	}
@@ -160,5 +160,7 @@ func TestSelectionRememberedPerCluster(t *testing.T) {
 	if err := s.Connect(ctx, "other"); err != nil {
 		t.Fatal(err)
 	}
-	wantSelected(t, "other connected anew", s.UIState())
+	u = s.UIState()
+	wantTabs(t, u, "tab-1 pods@test p", "tab-3 pods@other p *")
+	wantSelected(t, "other connected anew", u)
 }

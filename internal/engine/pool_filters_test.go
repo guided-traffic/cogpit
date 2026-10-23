@@ -34,11 +34,18 @@ func TestNoFilterCrossesAClusterSwitch(t *testing.T) {
 		s, _ := poolSession(t, time.Minute, "kind", "stage")
 		mustConnect(t, s, "kind")
 		s.UpdateUI(filtered)
-		mustConnect(t, s, "stage") // a first connect: the one preview tab moves to stage
+		mustConnect(t, s, "stage") // a first connect: stage's own preview tab (D-117)
 		clean(t, s.UIState(), "stage")
 		s.UpdateUI(func(u *UIState) { u.Namespaces = []string{"monitoring"} })
-		mustConnect(t, s, "kind") // shown again from the pool (showConnected)
-		clean(t, s.UIState(), "kind")
+		mustConnect(t, s, "kind") // shown again from the pool (showConnected): its preview tab's filters
+		u := s.UIState()
+		if u.Context != "kind" || !slices.Equal(u.Namespaces, []string{"walk-test"}) || u.Filter != "web" {
+			t.Errorf("kind's preview tab did not bring its filters back: %q %q %q", u.Context, u.Namespaces, u.Filter)
+		}
+		mustConnect(t, s, "stage")
+		if u := s.UIState(); u.Context != "stage" || !slices.Equal(u.Namespaces, []string{"monitoring"}) || u.Filter != "" {
+			t.Errorf("stage's preview tab: %q %q %q", u.Context, u.Namespaces, u.Filter)
+		}
 	})
 
 	t.Run("fixed tab", func(t *testing.T) {
