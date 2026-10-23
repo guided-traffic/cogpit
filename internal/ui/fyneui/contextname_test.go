@@ -13,7 +13,7 @@ import (
 // the name with the full id (the file included) as its tooltip.
 func TestContextNameAndFileShownApart(t *testing.T) {
 	for id, want := range map[string][2]string{
-		"awe-d-pinniped [.kube/kubeconfig-awe-d.yaml]": {"awe-d-pinniped", ".kube/kubeconfig-awe-d.yaml"},
+		"acme-d-pinniped [.kube/kubeconfig-acme-d.yaml]": {"acme-d-pinniped", ".kube/kubeconfig-acme-d.yaml"},
 		"demo":                   {"demo", ""},
 		"prod [a.yaml]":          {"prod", "a.yaml"},
 		"odd [name] [b/c.yaml]":  {"odd [name]", "b/c.yaml"},
@@ -25,14 +25,14 @@ func TestContextNameAndFileShownApart(t *testing.T) {
 	}
 
 	f := connectedFake(t, 10)
-	f.ui.Context = "awe-d-pinniped [.kube/kubeconfig-awe-d.yaml]"
+	f.ui.Context = "acme-d-pinniped [.kube/kubeconfig-acme-d.yaml]"
 	f.ui.Connection = engine.Connection{State: engine.Connected} // not the demo cluster, whose subtitle says so
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
-	q.until(t, "the header", func() bool { return sh.side.name.text == "awe-d-pinniped" })
-	if sh.side.badge == nil || sh.side.subtitle.text != ".kube/kubeconfig-awe-d.yaml" || sh.side.subtitle.color != colorMuted {
+	q.until(t, "the header", func() bool { return sh.side.name.text == "acme-d-pinniped" })
+	if sh.side.badge == nil || sh.side.subtitle.text != ".kube/kubeconfig-acme-d.yaml" || sh.side.subtitle.color != colorMuted {
 		t.Errorf("navigator header %q / %q (%s)", sh.side.name.text, sh.side.subtitle.text, sh.side.subtitle.color)
 	}
-	if sh.status.context.text != "awe-d-pinniped" || sh.status.context.tip != f.ui.Context {
+	if sh.status.context.text != "acme-d-pinniped" || sh.status.context.tip != f.ui.Context {
 		t.Errorf("status bar %q (tip %q)", sh.status.context.text, sh.status.context.tip)
 	}
 }
@@ -41,17 +41,17 @@ func TestContextNameAndFileShownApart(t *testing.T) {
 // nor "Not connected", and it carries no connection dot; the status bar and the navigator name it,
 // and the status bar's dot is where the shown cluster's connection log opens.
 func TestTopBarNamesNoCluster(t *testing.T) {
-	const id = "awe-d-pinniped [.kube/kubeconfig-awe-d.yaml]"
+	const id = "acme-d-pinniped [.kube/kubeconfig-acme-d.yaml]"
 	f := connectedFake(t, 10)
 	f.ui.Context = id
 	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
-	q.until(t, "the header", func() bool { return sh.side.name.text == "awe-d-pinniped" })
+	q.until(t, "the header", func() bool { return sh.side.name.text == "acme-d-pinniped" })
 	settle(w)
-	if got := lineTexts(sh.top.root); !slices.Contains(got, "Cogpit") || !slices.Contains(lineTexts(sh.status.root), "awe-d-pinniped") {
+	if got := lineTexts(sh.top.root); !slices.Contains(got, "Cogpit") || !slices.Contains(lineTexts(sh.status.root), "acme-d-pinniped") {
 		t.Fatalf("the probe is blind: the top bar's texts %q, the status bar's %q", got, lineTexts(sh.status.root))
 	}
 	for _, text := range lineTexts(sh.top.root) {
-		for _, named := range []string{"awe-d-pinniped", "kubeconfig-awe-d", notConnected} {
+		for _, named := range []string{"acme-d-pinniped", "kubeconfig-acme-d", notConnected} {
 			if strings.Contains(text, named) {
 				t.Errorf("the top bar says %q", text)
 			}
@@ -60,7 +60,7 @@ func TestTopBarNamesNoCluster(t *testing.T) {
 	if dots := findAll[*connDot](sh.top.root); len(dots) != 0 {
 		t.Errorf("the top bar has %d connection dots", len(dots))
 	}
-	if sh.status.context.text != "awe-d-pinniped" || sh.status.dot.context != id || sh.side.name.text != "awe-d-pinniped" {
+	if sh.status.context.text != "acme-d-pinniped" || sh.status.dot.context != id || sh.side.name.text != "acme-d-pinniped" {
 		t.Errorf("status bar %q (dot of %q), navigator %q", sh.status.context.text, sh.status.dot.context, sh.side.name.text)
 	}
 

@@ -527,7 +527,7 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 // the top when every row fits. Fyne 2.8's table keeps its offset where the longer list left it and
 // draws the rows from there, past the new last one: a namespace filter that narrowed a list
 // scrolled down to two pods showed "2 of 200 items" and no row (the owner's finding of 2026-10-22,
-// awe-d-pinniped). Its scroller checks its offset again only when it is resized, and then sets an
+// acme-d-pinniped). Its scroller checks its offset again only when it is resized, and then sets an
 // offset that no longer fits to zero without telling the table, which keeps its own; the table's
 // ScrollToOffset sets both.
 func (tv *tableView) keepScrollInRows() {
