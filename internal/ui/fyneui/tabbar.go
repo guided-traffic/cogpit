@@ -508,7 +508,9 @@ func (r *viewTabRenderer) Refresh() {
 		r.initials.Text = initials(engine.ContextLabel(t.tab.Context))
 	}
 	r.initials.Color = ink
-	r.initials.TextSize = th.Size(theme.SizeNameCaptionText)
+	_, side, _, _ := r.dims()
+	// Up to five letters of the user's drawn smaller to fit (D-119); two keep their size.
+	r.initials.TextSize = fitTextSize(r.initials.Text, th.Size(theme.SizeNameCaptionText), side)
 	if t.id.image != nil { // the uploaded icon in place of the initials (F25), faded while not connected
 		r.img.Resource = t.id.image
 		r.img.Translucency = 0

@@ -24,7 +24,7 @@ import (
 // clusterIdentity is how a context shows itself.
 type clusterIdentity struct {
 	name     string              // the display name, else the context's name without its file
-	initials string              // up to two letters of the name
+	initials string              // the letters the user set (up to five, D-119), else up to two of the name
 	ink      fyne.ThemeColorName // the icon colour's token; the accent by default
 	image    fyne.Resource       // the uploaded icon; nil without one, while it loads, or when unreadable
 }
@@ -40,10 +40,13 @@ func (sh *shell) identity(context string) clusterIdentity {
 	cs := sh.ui.ClusterSettings[context]
 	name := engine.ClusterName(context, cs)
 	id := clusterIdentity{name: name, initials: nameInitials(name), ink: colorAccent}
+	if cs.IconLetters != "" {
+		id.initials = cs.IconLetters
+	}
 	if cs.IconColor != "" {
 		id.ink = identityColorName(cs.IconColor)
 	}
-	if cs.Icon != "" {
+	if cs.Icon != "" && !cs.IconTile { // the tile chosen keeps the image for later (D-119)
 		id.image = sh.icon(context, cs.Icon)
 	}
 	return id
@@ -184,10 +187,11 @@ func (r *clusterBadgeRenderer) Refresh() {
 	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
 	r.txt.Text = r.b.text
 	r.txt.Color = c
-	r.txt.TextSize = th.Size(theme.SizeNameText)
-	if side := r.sideOf(); side > th.Size(sizeNavBadge) {
-		r.txt.TextSize = th.Size(theme.SizeNameSubHeadingText)
+	base := th.Size(theme.SizeNameText)
+	if r.sideOf() > th.Size(sizeNavBadge) {
+		base = th.Size(theme.SizeNameSubHeadingText)
 	}
+	r.txt.TextSize = fitTextSize(r.b.text, base, r.sideOf()-4) // up to five letters of the user's (D-119)
 	if r.b.img != nil && !r.b.muted {
 		r.img.Resource = r.b.img
 		r.img.Show()

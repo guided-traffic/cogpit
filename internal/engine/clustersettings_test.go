@@ -203,8 +203,9 @@ func TestCheckIcon(t *testing.T) {
 	}
 }
 
-// An upload is kept in cluster-icons/ under its hash, owner-only; it replaces the colour; the
-// image goes once no context uses it; ClusterIcon checks the kept copy again.
+// An upload is kept in cluster-icons/ under its hash, owner-only, with its source; it shows instead
+// of the colour tile, whose colour stays (D-119); the image goes once no context uses it;
+// ClusterIcon checks the kept copy again.
 func TestClusterIconUpload(t *testing.T) {
 	cfg := t.TempDir()
 	s := New(Options{ClusterSettings: NewClusterSettingsStore(cfg)})
@@ -220,7 +221,8 @@ func TestClusterIconUpload(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cs.IconColor != "" || !validIconFile(cs.Icon) || !strings.HasSuffix(cs.Icon, ".png") {
+	if cs.IconColor != "red" || cs.IconTile || !validIconFile(cs.Icon) || !strings.HasSuffix(cs.Icon, ".png") ||
+		!validIconFile(cs.IconSource) || cs.IconCrop == nil || *cs.IconCrop != DefaultIconCrop {
 		t.Errorf("after the upload: %+v", cs)
 	}
 	kept := filepath.Join(cfg, ClusterIconsDir, cs.Icon)

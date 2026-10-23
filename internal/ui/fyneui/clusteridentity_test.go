@@ -82,8 +82,8 @@ func TestCustomIdentityColorContrast(t *testing.T) {
 	}
 }
 
-// The General section with a colour picked freely (A93): its swatch shows selected beside the
-// eight, the picker button after it; the PNGs of the pull request.
+// The Internal icon's dialog with a colour picked freely (A93, D-119): its swatch shows selected
+// beside the eight, the picker button after it; the PNGs of the pull request.
 func TestRenderClusterSettingsCustomColorDark(t *testing.T) {
 	renderClusterSettingsCustomColor(t, ThemeDark, "cluster_settings_custom_color_dark.png")
 }
@@ -97,10 +97,14 @@ func renderClusterSettingsCustomColor(t *testing.T, mode ThemeMode, name string)
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev cluster", "iconColor": "#FFE066"})
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev"})
-	q.until(t, "the custom swatch", func() bool {
-		sw, ok := sh.settings.controls["customSwatch"].(*swatch)
+	q.until(t, "the page", func() bool {
 		e, _ := sh.settings.controls["name"].(*widget.Entry)
-		return sh.settings.visible() && ok && sw.Visible() && sw.selected && sw.color == "#ffe066" && e != nil && e.Text == "Dev cluster"
+		return sh.settings.visible() && e != nil && e.Text == "Dev cluster"
+	})
+	sh.settings.openTileDialog("kind-dev")
+	q.until(t, "the custom swatch", func() bool {
+		sw := sh.settings.tileDialog.custom
+		return sw.Visible() && sw.selected && sw.color == "#ffe066"
 	})
 	q.drain()
 	savePNG(t, w, name)

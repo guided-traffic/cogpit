@@ -54,7 +54,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🩺 A connect that fails shows its own error page (since 2026-10-22): why, in a sentence, and the connect stage by stage (the kubeconfig, a login program, DNS with the addresses, TCP to the address and port, TLS, the API server's answer), with Connect Again and Show Connection Updates.
 - 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - 🗂️ Tabs you arrange (since 2026-10-20): drag a tab along the tab bar, or the dock's, to another place, the others making room as it moves; ⌘⌥⇧← and ⌘⌥⇧→ move the shown tab one place, the dock's while you work in the dock (since 2026-10-22); the tab bar's order comes back with your tabs at the next start.
-- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (a colour or your image), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
+- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (up to five letters of yours on a colour, or a part of your image you place), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec credential plugins); no local proxy, no login.
 - ⚡ Cache first: views read from a watch-fed cache; switching back to a view costs no API request.
@@ -699,6 +699,37 @@ Cogpit's window, can turn it on; agents and the CLI may only turn it off. Two co
 program runs with the same command, arguments and environment share one login in client-go: it is
 held only while both are held.
 
+### Cluster Settings › General: the icon
+
+A cluster's icon is one of two kinds, chosen in the Icon row (since 2026-10-23, the owner's VW5,
+[D-119](decisions.md#d-119-the-cluster-icon-designer)); **Customize…** opens the chosen kind's
+dialog, **Reset** gives back the initials in the accent colour:
+
+- **Internal icon:** a colour tile with letters. Its dialog takes up to five letters, digits or
+  signs (no spaces; empty: the initials of the cluster's name) and one of eight colours or any
+  colour. Longer letters are drawn smaller to fit, so the dialog previews the icon at the hotbar's
+  size and at the navigator's.
+- **Custom icon:** a square part of an image. Its dialog shows the image in the icon's square frame,
+  the rest dimmed: drag to move it, zoom with the mouse wheel (at the pointer) or the slider (up to
+  8×), **Fit** to fill the square from the middle again, **Choose Image…** for another file. The
+  image always fills the square. Opened again, it shows where you left it.
+
+Choosing one keeps the other: back on the Internal icon, the image stays for when you choose Custom
+again.
+
+| Field (in `cluster-settings.json`, per context) | Default | Values |
+|---|---|---|
+| `iconColor` | none # default: the accent | one of `cyan`, `blue`, `violet`, `magenta`, `red`, `orange`, `yellow`, `green`, or `#rrggbb` (`"#d33682"` # example) |
+| `iconLetters` | none # default: the name's initials | at most 5 characters without spaces (`"PROD"` # example) |
+| `iconTile` | `false` # default | `true` while the tile shows although an image is kept |
+| `icon`, `iconSource` | none # default | file names in `cluster-icons/`: the 256-pixel icon and the image it was cut from (at most 1,024 pixels a side; an SVG is drawn into a PNG) |
+| `iconCrop` | none # default | `{"zoom": 1.5, "x": 0.4, "y": 0.5}` # example: the zoom (1: the image's shorter side fills the square) and the image's point at the square's centre, as fractions of its width and height |
+
+Security note: the image file is read once, at most 1 MiB, and checked before anything is kept (a
+PNG or JPEG decoded under bounds, an SVG without scripts or outside references); Cogpit keeps its
+own copies and draws only those. Every change of the icon is yours alone, in Cogpit's window
+([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)).
+
 ### Cluster Settings › General: the accent colour
 
 Since 2026-10-17 ([D-80](decisions.md#d-80-a-clusters-accent-colour), the owner's F26). Beside its
@@ -717,9 +748,10 @@ GUI-only: agents (over MCP and the built-in one) and `cogpit-cli` are refused, a
 agents' writes, so no agent can make a production cluster look like a development one. Agents read
 it (`accentColor` in `ui_state` and `cluster_settings_get`). Since 2026-10-19 the cluster's **name
 and icon** are yours alone too ([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)):
-`cluster.settings.set`'s `name` and `iconColor` are refused to agents and `cogpit-cli`, whether they
-set or clear them, and Reset Icon (`cluster.settings.resetIcon`) and Upload Icon are GUI-only. Agents
-read the name and the icon colour; the other fields of `cluster.settings.set` (the terminal's
+`cluster.settings.set`'s `name`, `iconColor`, `iconLetters` and `iconTile` are refused to agents and
+`cogpit-cli`, whether they set or clear them, and Reset (`cluster.settings.resetIcon`), the image's
+upload (`cluster.settings.uploadIcon`) and its cut (`cluster.settings.cutIcon`) are GUI-only. Agents
+read the name, the icon colour and the letters; the other fields of `cluster.settings.set` (the terminal's
 directory and namespace, hidden metrics, accessible namespaces) stay theirs.
 
 The same page has copy icons (since 2026-10-17, F27): the one by **Cluster name** copies what the
@@ -1231,7 +1263,7 @@ Every file chooser of the window is the operating system's own on macOS (since 2
 | Chooser | Where | What it takes |
 |---|---|---|
 | Sync Files and Folders… | Cluster menu, the navigator's "+", the welcome page, Kubeconfig Sources | kubeconfig files and folders together, several at once (⌘-click), hidden files listed (`.kube`); the button "Sync"; opens in your home folder; ⌘⇧G types a path |
-| Upload Icon… | Cluster Settings › General › Icon | one PNG, JPEG or SVG file |
+| Choose Image… | Cluster Settings › General › Icon, Custom icon › Customize… | one PNG, JPEG or SVG file |
 | The folder buttons | Cluster Settings › Terminal (working directory), Preferences › Kubernetes (directory for binaries) | one folder, the button "Choose" |
 | Choose… | Preferences › Agent, a connection's CA file | one `.pem`, `.crt` or `.cer` file |
 | The downloads | a table's CSV, the Create tab's save, a log tab's download | a file name, proposed; macOS asks before it replaces a file; a new file is readable by you only |
@@ -1555,7 +1587,7 @@ file in `%TEMP%` inherits the same (the lead's policy, 2026-10-21,
 | Node shell journal | `<user config dir>/Cogpit/nodeshells.json`, owner-only (0600, directory 0700): the node shell pods Cogpit created and has not seen deleted (context, namespace, name, UID, the id in the pod's `cogpit.io/node-shell-id` annotation); one a crash left is deleted at the next connect to its context ([H-71](../security/privilege-footprint.md#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) | |
 | Hotbar | `<user config dir>/Cogpit/hotbar.json`, owner-only (0600, directory 0700): the pinned clusters by context id, top to bottom, `{"version": 2, "clusters": [{"context": "kind-dev [.kube/config]"}]}` (example); an unreadable one is moved to `hotbar.json.unreadable` at the first change; a file of an earlier Cogpit with banks (format 1) is merged into one list at the start (the first bank's tiles, then each further bank's, each context once) and kept as `hotbar.json.v1` ([D-83](decisions.md#d-83-one-hotbar-and-a-drag-that-carries-the-tile)) | |
 | A cluster's name in the window | the display name set in its Cluster Settings › General, else the part of its context's name after the last `@` (the whole name without an `@`, or with nothing after it), without the kubeconfig file; commands and `ui_state` keep the full context id ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `kubernetes-admin@prod-eu [dev.yaml]` → `prod-eu` # example |
-| Cluster settings | `<user config dir>/Cogpit/cluster-settings.json`, owner-only (0600, directory 0700): per context id what Cluster Settings sets (name, icon, accent colour, terminal, metrics, integrations, proxy, accessible namespaces, node shell, agent allowance, login renewal), at most 1,024 contexts; uploaded icons in `cluster-icons/`. A cluster removed from Cogpit (Remove from Cogpit, or its kubeconfig source removed) loses its settings, so added again it is a new cluster and is asked its integrations again; a file `$KUBECONFIG` names keeps them (since 2026-10-17 evening, the owner's walk, WF4) | |
+| Cluster settings | `<user config dir>/Cogpit/cluster-settings.json`, owner-only (0600, directory 0700): per context id what Cluster Settings sets (name, icon, accent colour, terminal, metrics, integrations, proxy, accessible namespaces, node shell, agent allowance, login renewal), at most 1,024 contexts; uploaded icons in `cluster-icons/`, since 2026-10-23 each with the image it was cut from (at most 1,024 pixels a side, D-119). A cluster removed from Cogpit (Remove from Cogpit, or its kubeconfig source removed) loses its settings, so added again it is a new cluster and is asked its integrations again; a file `$KUBECONFIG` names keeps them (since 2026-10-17 evening, the owner's walk, WF4) | |
 | Last known users | `<user config dir>/Cogpit/cluster-users.json`, owner-only (0600, directory 0700): per context id the username the API server last confirmed and when Cogpit last saw it so, for the navigator's root while the cluster is not connected; never the groups, never the kubeconfig's user name; an unreadable one is moved to `cluster-users.json.unreadable` at the next write ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `{"version": 1, "users": {"kubernetes-admin@prod-eu [dev.yaml]": {"username": "alice@example.com", "seen": "2026-10-16T09:12:00Z"}}}` # example |
 | Bookmarks of picked files | `<user config dir>/Cogpit/bookmarks.json`, owner-only (0600, directory 0700), macOS (since 2026-10-16, [D-72](decisions.md#d-72-native-file-panels-and-macos-folder-access)): a security-scoped bookmark of each kubeconfig file and sync folder, folder and CA file you picked in the system's panels, with its path, its use (`kubeconfig`, `folder`, `caFile`) and its access; resolved at every start before the sources are read; a source's goes with the source, the newest 16 folders and CA files stay; removing the file removes the kept access ([file access](../security/file-access.md)) | |
 | Tabs and column layout | `<user config dir>/Cogpit/workspace.json`, owner-only (0600, directory 0700): the tab bar's tabs (context id, view, filters, search, sort, history), each view's hidden columns and column order, and since 2026-10-15 the navigator's collapsed source groups (their folders' and files' labels, A63) and whether the navigator is hidden and the chat column shown (F7, [D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)), and since 2026-10-16 the clusters connected (`connected`, context ids) and the one shown (`shown`) ([D-41](decisions.md#d-41-what-survives-a-restart)); the layout comes back at every start, the tabs and the connections only while Preferences › App › Restore the last session is on ([D-69](decisions.md#d-69-several-clusters-connected-at-once) item 8); format version 1, a file of v0.17.0 loads; an unreadable one is moved to `workspace.json.unreadable` at the first change | `{"version": 1, "tabs": […], "active": 0, "connected": ["kind-dev", "prod-eu"], "shown": "prod-eu"}` # example |

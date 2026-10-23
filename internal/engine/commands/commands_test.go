@@ -142,7 +142,7 @@ var wantCommands = map[string]engine.Danger{
 	"preferences.get": engine.DangerRead, "preferences.set": engine.DangerUI, "preferences.open": engine.DangerUI,
 	"preferences.loginItem": engine.DangerRead, "preferences.setStartAtLogin": engine.DangerUI, "preferences.openLoginItems": engine.DangerUI,
 	"settings.close": engine.DangerUI, "cluster.settings.get": engine.DangerRead, "cluster.settings.set": engine.DangerUI,
-	"cluster.settings.uploadIcon": engine.DangerUI, "cluster.settings.resetIcon": engine.DangerUI,
+	"cluster.settings.uploadIcon": engine.DangerUI, "cluster.settings.resetIcon": engine.DangerUI, "cluster.settings.cutIcon": engine.DangerUI,
 	"cluster.settings.open": engine.DangerUI,
 	// The question of a new cluster's integrations (D-76): Cogpit's own settings (TestIntegrationsQuestionLifecycle).
 	"cluster.integrations.answer": engine.DangerUI, "cluster.integrations.later": engine.DangerUI,

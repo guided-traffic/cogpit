@@ -32,7 +32,9 @@ type clusterSettingsParams struct {
 type clusterSettingsSetParams struct {
 	Context              string   `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it (a bare context name works when one file only defines it); empty or omitted: the connected context"`
 	Name                 *string  `json:"name,omitempty" jsonschema:"the cluster's display name in the hotbar, the navigator and the welcome page, one line of at most 128 characters; empty: the context's name. Only the user in Cogpit's window may set or clear it: refused for agents and the CLI"`
-	IconColor            *string  `json:"iconColor,omitempty" jsonschema:"the icon's colour, one of cyan, blue, violet, magenta, red, orange, yellow, green (the theme's accents) or any colour as #rrggbb (drawn in a shade of its hue legible on each theme); it replaces an uploaded image; empty: the accent. Only the user in Cogpit's window may set or clear it: refused for agents and the CLI"`
+	IconColor            *string  `json:"iconColor,omitempty" jsonschema:"the colour tile's colour, one of cyan, blue, violet, magenta, red, orange, yellow, green (the theme's accents) or any colour as #rrggbb (drawn in a shade of its hue legible on each theme); set, it shows the tile instead of an image (the image is kept); empty: the accent. Only the user in Cogpit's window may set or clear it: refused for agents and the CLI"`
+	IconLetters          *string  `json:"iconLetters,omitempty" jsonschema:"the colour tile's letters, at most 5 characters without spaces, drawn smaller to fit; empty: the initials of the cluster's name. Only the user in Cogpit's window may set or clear them: refused for agents and the CLI"`
+	IconTile             *bool    `json:"iconTile,omitempty" jsonschema:"true: the colour tile shows although an image is kept (Internal icon); false: the kept image shows (Custom icon). Only the user in Cogpit's window may switch it: refused for agents and the CLI"`
 	TerminalDir          *string  `json:"terminalDir,omitempty" jsonschema:"the working directory of the cluster's local terminals: an absolute path, or one starting with $HOME or ~; empty: $HOME"`
 	TerminalNamespace    *string  `json:"terminalNamespace,omitempty" jsonschema:"kubectl's namespace in the cluster's local terminals; empty: the namespace filter's single namespace, else the context's own"`
 	Proxy                *string  `json:"proxy,omitempty" jsonschema:"the HTTP(S) or SOCKS5 proxy of this cluster's API traffic (http://<address>:<port>, https:// or socks5://, optionally with user:password@), applied at the next connect in place of the kubeconfig's proxy-url; empty: none. Agents and the CLI may only clear it (an empty string): setting one is the user's, in Cogpit's window"`
@@ -49,6 +51,35 @@ type clusterSettingsSetParams struct {
 type clusterIconParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it; empty or omitted: the connected context"`
 	Path    string `json:"path" jsonschema:"the image file the user picked: .png, .jpeg or .svg, at most 1 MiB"`
+	iconCutParams
+}
+
+// iconCutParams are where a cluster's icon is cut from its image (D-119); omitted: the middle, the
+// image just filling the square.
+type iconCutParams struct {
+	Zoom *float64 `json:"zoom,omitempty" jsonschema:"the zoom, from 1 (the image's shorter side fills the icon's square) to 8; omitted: 1"`
+	X    *float64 `json:"x,omitempty" jsonschema:"the image's point at the square's centre, as a fraction of its width (0 to 1); omitted: 0.5. Moved inward where the square would leave the image"`
+	Y    *float64 `json:"y,omitempty" jsonschema:"the image's point at the square's centre, as a fraction of its height (0 to 1); omitted: 0.5"`
+}
+
+// crop is the cut the parameters name, the default for what they leave out.
+func (p iconCutParams) crop() engine.IconCrop {
+	c := engine.DefaultIconCrop
+	if p.Zoom != nil {
+		c.Zoom = *p.Zoom
+	}
+	if p.X != nil {
+		c.X = *p.X
+	}
+	if p.Y != nil {
+		c.Y = *p.Y
+	}
+	return c
+}
+
+type clusterIconCutParams struct {
+	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it; empty or omitted: the connected context"`
+	iconCutParams
 }
 
 type clusterSettingsOpenParams struct {
@@ -93,7 +124,7 @@ func changeSettings(s *engine.Session, name string, fn func(*engine.ClusterSetti
 // integration switched on or any switch of a cluster the window still asks about (H-126), and a
 // proxy from the CLI (refuseProxy).
 func (p clusterSettingsSetParams) refuse(ctx context.Context, s *engine.Session) error {
-	if err := engine.RefuseClusterIdentity(ctx, p.Name, p.IconColor); err != nil {
+	if err := engine.RefuseClusterIdentity(ctx, p.Name, p.IconColor, p.IconLetters, p.IconTile); err != nil {
 		return err
 	}
 	if err := engine.RefuseRenewLogin(ctx, p.RenewLoginInBackground); err != nil {
@@ -143,7 +174,8 @@ func registerClusterSettings(g *registrar) {
 	add(g, engine.Spec[clusterSettingsParams]{
 		ID: "cluster.settings.get", Label: "Show Cluster Settings", Danger: engine.DangerRead,
 		Description: "Returns a context's settings in Cogpit, as its Settings page shows them: the name it shows (the display " +
-			"name set, else the context's name), its icon colour or uploaded image's format, its accent colour (accentColor: the " +
+			"name set, else the context's name), its icon (iconColor, the tile's iconLetters, an uploaded image's format, " +
+			"iconTile while the tile shows although an image is kept, the image's iconCrop), its accent colour (accentColor: the " +
 			"user's mark of which cluster it is, a production one in red, say; only the user sets it), the kubeconfig file it comes " +
 			"from, its terminals' working directory and kubectl namespace (empty: $HOME and the filter's or the " +
 			"context's namespace), the metrics the window hides (hiddenMetrics; empty: all visible), the metrics source (metricsSource: " +
@@ -255,8 +287,17 @@ func registerClusterSettings(g *registrar) {
 				if p.IconColor != nil {
 					cs.IconColor = strings.ToLower(strings.TrimSpace(*p.IconColor))
 					if cs.IconColor != "" {
-						cs.Icon = "" // a colour replaces an uploaded image (Lens: Pick Icon Color)
+						cs.IconTile = cs.Icon != "" // a colour shows the tile (Lens: Pick Icon Color); the image is kept (D-119)
 					}
+				}
+				if p.IconLetters != nil {
+					cs.IconLetters = strings.TrimSpace(*p.IconLetters)
+				}
+				if p.IconTile != nil {
+					if !*p.IconTile && cs.Icon == "" {
+						return errors.New("no image is kept to show: cut one in the Custom icon's dialog first")
+					}
+					cs.IconTile = *p.IconTile && cs.Icon != ""
 				}
 				if p.TerminalDir != nil {
 					cs.TerminalDir = strings.TrimSpace(*p.TerminalDir)
@@ -282,10 +323,11 @@ func registerClusterSettings(g *registrar) {
 	add(g, engine.Spec[clusterIconParams]{
 		ID: "cluster.settings.uploadIcon", Label: "Upload Icon", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrIconGUIOnly,
-		Description: "Makes an image file the user picked a context's icon (it replaces the icon colour): a PNG or JPEG, kept " +
-			"as a PNG of at most 256 pixels a side, or an SVG without scripts or outside references, at most 1 MiB. Only the " +
-			"user, in Cogpit's window, can upload: refused for agents and the CLI, as every change of a cluster's icon is." +
-			clusterSettingsOnly + " Returns the settings.",
+		Description: "Makes a context's icon a square cut from an image file the user picked (a PNG, a JPEG or an SVG without " +
+			"scripts or outside references, at most 1 MiB): the image is kept, at most 1,024 pixels a side, as the icon's source, " +
+			"and the icon is cut from it at zoom, x and y (the middle, filled, when omitted) as a PNG of 256 pixels a side; it shows " +
+			"instead of the colour tile, which stays for when the user goes back to it. Only the user, in Cogpit's window, can " +
+			"upload: refused for agents and the CLI, as every change of a cluster's icon is." + clusterSettingsOnly + " Returns the settings.",
 		Enabled: func(s *engine.Session, p clusterIconParams) error {
 			_, err := settingsContext(s, p.Context)
 			return err
@@ -307,7 +349,40 @@ func registerClusterSettings(g *registrar) {
 			if err := offered(s, id); err != nil {
 				return nil, err
 			}
-			if _, err := s.SetClusterIcon(id, p.Path); err != nil {
+			if _, err := s.SetClusterIconCut(id, p.Path, p.crop()); err != nil {
+				return nil, err
+			}
+			return settingsView(s, id)
+		},
+	})
+
+	add(g, engine.Spec[clusterIconCutParams]{
+		ID: "cluster.settings.cutIcon", Label: "Cut Icon", Danger: engine.DangerUI,
+		GUIOnly: engine.ErrClusterIdentityGUIOnly, // H-125: the icon is the user's mark of the cluster
+		Description: "Cuts a context's icon again from the image it was cut from before (D-119): at zoom (1: the image's " +
+			"shorter side fills the square, up to 8) and x and y (the image's point at the square's centre, as fractions of its " +
+			"width and height), moved inward where the square would leave the image; the icon shows instead of the colour tile. " +
+			"Only the user, in Cogpit's window, can cut it: refused for agents and the CLI, as every change of a cluster's icon " +
+			"is." + clusterSettingsOnly + " Returns the settings.",
+		Enabled: func(s *engine.Session, p clusterIconCutParams) error {
+			_, err := settingsContext(s, p.Context)
+			return err
+		},
+		Refuse: func(ctx context.Context, _ *engine.Session, _ clusterIconCutParams) error {
+			return refuseIconReset(ctx)
+		},
+		Run: func(ctx context.Context, s *engine.Session, p clusterIconCutParams) (any, error) {
+			if err := refuseIconReset(ctx); err != nil {
+				return nil, err
+			}
+			id, err := settingsContext(s, p.Context)
+			if err != nil {
+				return nil, err
+			}
+			if err := offered(s, id); err != nil {
+				return nil, err
+			}
+			if _, err := s.SetClusterIconCut(id, "", p.crop()); err != nil {
 				return nil, err
 			}
 			return settingsView(s, id)
@@ -317,8 +392,8 @@ func registerClusterSettings(g *registrar) {
 	add(g, engine.Spec[clusterSettingsParams]{
 		ID: "cluster.settings.resetIcon", Label: "Reset Icon", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrClusterIdentityGUIOnly, // H-125: the icon is the user's mark of the cluster
-		Description: "Gives a context its default icon back: its initials in the accent colour, without an uploaded image or " +
-			"an icon colour. Only the user, in Cogpit's window, can reset it: refused for agents and the CLI, so that no " +
+		Description: "Gives a context its default icon back: its initials in the accent colour, without an uploaded image, " +
+			"its source, an icon colour or letters of the user's. Only the user, in Cogpit's window, can reset it: refused for agents and the CLI, so that no " +
 			"agent takes away the icon the user marked a cluster with." + clusterSettingsOnly + " Returns the settings.",
 		Enabled: func(s *engine.Session, p clusterSettingsParams) error {
 			_, err := settingsContext(s, p.Context)
@@ -332,7 +407,7 @@ func registerClusterSettings(g *registrar) {
 				return nil, err
 			}
 			return changeSettings(s, p.Context, func(cs *engine.ClusterSettings) error {
-				cs.Icon, cs.IconColor = "", ""
+				cs.Icon, cs.IconSource, cs.IconCrop, cs.IconColor, cs.IconLetters, cs.IconTile = "", "", nil, "", "", false
 				return nil
 			})
 		},
@@ -344,7 +419,7 @@ func registerClusterSettings(g *registrar) {
 			"at a section: general (name, icon, kubeconfig), proxy, terminal, namespaces (the accessible namespaces), metrics (hidden metrics, " +
 			"and the state of the two integrations it reads), nodeShell, agents, integrations (every integration's switch and state, Ask again), " +
 			"or an integration's own, named as the integration is: metrics-server, prometheus (its address and query format), " +
-			"alertmanager (its address), trivy or kyverno. It takes the place of the cluster's views " +
+			"alertmanager (its address), trivy or kyverno. It shows as a card over the whole window " +
 			"until closed (settings_close, Escape); ui_state reports it as settings. Returns the new UI state.",
 		Enabled: func(s *engine.Session, p clusterSettingsOpenParams) error {
 			if _, err := settingsContext(s, p.Context); err != nil {
