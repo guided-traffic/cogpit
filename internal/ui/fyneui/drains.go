@@ -107,8 +107,7 @@ func (b *drainBanner) row(d engine.PendingDrainInfo) fyne.CanvasObject {
 
 	buttons := container.NewHBox()
 	if d.Status != engine.DrainStatusRunning {
-		dismiss := widget.NewButton("Dismiss", func() { b.sh.dispatch("node.dismissDrain", refParams{Ref: ref}, nil) })
-		dismiss.Importance = widget.LowImportance
+		dismiss := newTextButton("Dismiss", nil, func() { b.sh.dispatch("node.dismissDrain", refParams{Ref: ref}, nil) })
 		buttons.Add(dismiss)
 		if d.NodeState == engine.DrainNodeCordoned {
 			buttons.Add(widget.NewButton("Uncordon", func() { b.sh.dispatch("node.uncordon", refParams{Ref: ref}, nil) }))

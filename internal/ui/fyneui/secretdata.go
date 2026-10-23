@@ -20,11 +20,13 @@ import (
 
 // A Secret's Data in the drawer, its values edited as a Config Map's are, in Cogpit's own window
 // only (the owner's audit answer of 2026-10-15; decisions D-59). Each key stands on a line of its
-// own with its value masked below and Show beside it, as before. Where the user may save the
+// own with its value masked below; its buttons end the key's line, "Show [copy] [remove]", always
+// shown, as a revealed key's "Hide [copy] [remove]" (the owner's RW1 of 2026-10-23), the value line
+// holding the mask and the size only. Where the user may save the
 // Secret's values (secret.saveData enabled: not the demo cluster, an update right on its Secrets,
 // not immutable, no Helm release record), Show reads the whole value (secret.reveal with whole,
 // GUI-only) into an editor below the key, the Config Map's editor row (configmapdata.go), and Hide
-// beside the key masks it again; an edited value Hide keeps, masked, until it is saved or
+// in the key's line masks it again; an edited value Hide keeps, masked, until it is saved or
 // reverted. Save at the end of the data reviews every edited value at once in a dialog: a masked
 // diff (the keys that change and their sizes, never a value) and the server's dry run
 // (secret.reviewData), then secret.saveData writes them with the version they are based on as
@@ -37,8 +39,9 @@ import (
 // and save sees them, no draft keeps them (edited values the drawer moves away from are kept in
 // drawer.secretUnsaved until Cogpit quits, and come back masked), a copy from an editor (⌘C, ⌘X or
 // the copy icon in its key's line) goes to the clipboard as a Secret's value (concealed, cleared
-// after 60 seconds), as does the copy icon on a masked value, which copies it without showing it
-// (secretcopy.go, the owner's decision of 2026-10-22), and no toast or status line names one.
+// after 60 seconds), as does the copy icon in a masked key's line, which copies the value without
+// showing it (secretcopy.go, the owner's decision of 2026-10-22), and no toast or status line names
+// one.
 //
 // Keys are added and removed here too (the owner's audit decision of 2026-10-16, datakeys.go): Add
 // Key opens a row for the new key's name and puts the key with an empty editor at the end of the
@@ -102,6 +105,15 @@ type secData struct {
 	removed   map[string]bool    // the keys marked removed
 	added     []string           // the keys added, in the order added
 	addedRows map[string]*secRow // their editors
+
+	pins map[string]*keyPin // the copy icons of the keys whose values are in no editor, by key
+}
+
+// keyPin is the copy icon in the line of a key whose value is in no editor, kept across the
+// drawer's rebuilds so that its checkmark stays.
+type keyPin struct {
+	btn  *copyButton
+	done *time.Timer
 }
 
 // secRow is a key whose value is in an editor.
@@ -129,7 +141,7 @@ func secretDataSection(d *drawer, ref model.ObjectRef, sec model.DetailSection) 
 
 func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd := &secData{d: d, ref: ref, rows: map[string]*secRow{}, width: d.contentWidth(), listed: map[string]bool{},
-		removed: map[string]bool{}, addedRows: map[string]*secRow{}}
+		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}}
 	sd.list = box(keyedLayout{})
 	sd.save = widget.NewButtonWithIcon("Save", theme.DocumentSaveIcon(), sd.openReview)
 	sd.save.Importance = widget.HighImportance
@@ -187,8 +199,8 @@ func (sd *secData) relayout()            { sd.list.Refresh() }
 // editable reports whether Show puts a value into an editor: the user may save it.
 func (sd *secData) editable() bool { return !sd.hidden && sd.reason == "" }
 
-// render lays out the keys: an editor below a key whose value is in one, else the drawer's masked
-// value with Show (and, where nothing can be saved, a value Show revealed read-only).
+// render lays out the keys: an editor below a key whose value is in one, else its masked value (and,
+// where nothing can be saved, a value Show revealed read-only).
 func (sd *secData) render(sec model.DetailSection) {
 	d := sd.d
 	if w := d.contentWidth(); w != sd.width {
@@ -212,19 +224,23 @@ func (sd *secData) render(sec model.DetailSection) {
 		case it.Name != "" && sd.removed[it.Name]:
 			name, note := removedKeyLines(d, it.Name, func() { sd.undoRemove(it.Name) })
 			objs = append(objs, name, note)
+		case it.Name != "" && r == nil && revealable(it):
+			objs = append(objs, sd.revealLines(it)...)
 		case it.Name == "" || r == nil:
-			if _, shown := d.revealedItem(it); shown {
-				sd.revealed = true
-			}
 			objs = append(objs, sd.nameLine(it.Name), d.itemValue(sd.ref, sec, it))
 		case r.masked:
-			objs = append(objs, sd.nameLine(it.Name), sd.maskedLine(r))
+			objs = append(objs, sd.keyLine(r), sd.maskedLine())
 		default:
 			objs = append(objs, sd.keyLine(r), r.frame)
 		}
 	}
 	delete(listed, "")
 	sd.listed = listed
+	for k := range sd.pins { // a key the Secret no longer holds takes its icon along
+		if !listed[k] {
+			delete(sd.pins, k)
+		}
+	}
 	for _, k := range slices.Sorted(maps.Keys(sd.rows)) { // an edited key the cluster dropped: the review shows the conflict
 		if r := sd.rows[k]; !listed[k] && r.dirty() && !sd.removed[k] {
 			objs = append(objs, sd.keyLine(r), r.frame)
@@ -272,19 +288,75 @@ func (sd *secData) dropStale() {
 	}
 }
 
-// keyLine is a key above its editor, with Hide, the copy icon and the remove button at its end.
+// keyLine is the line of a key whose value is in an editor: Hide, the copy icon and the remove
+// button at its end; Show in Hide's place while Hide masks the edited value.
 func (sd *secData) keyLine(r *secRow) fyne.CanvasObject {
-	hide := widget.NewButton("Hide", func() { sd.hide(r.key) })
-	hide.Importance = widget.LowImportance
-	right := container.NewHBox(hide, sd.copyIcon(r))
-	if sd.editable() {
-		right.Add(removeKeyButton(sd.d.sh, r.key, func() { sd.removeKey(r.key) }))
-	}
-	return container.NewBorder(nil, nil, nil, right, sd.d.keyName(r.key))
+	return sd.buttonsLine(r.key, sd.toggle(r), sd.copyIcon(r))
 }
 
-// nameLine is a key above its masked value: its name and, where the data can be saved, the remove
-// button.
+// toggle is Hide for a value in an editor, Show for one Hide masked.
+func (sd *secData) toggle(r *secRow) *textButton {
+	if r.masked {
+		return revealButton("Show", func() { sd.unmask(r.key) })
+	}
+	return revealButton(hideLabel, func() { sd.hide(r.key) })
+}
+
+// buttonsLine is a key's name with its buttons at the end: Show or Hide, the copy icon and, where
+// the data can be saved, the remove button (RW1).
+func (sd *secData) buttonsLine(key string, toggle *textButton, copyIcon fyne.CanvasObject) fyne.CanvasObject {
+	right := container.NewHBox(toggle, copyIcon)
+	if sd.editable() {
+		right.Add(removeKeyButton(sd.d.sh, key, func() { sd.removeKey(key) }))
+	}
+	return container.NewBorder(nil, nil, nil, right, sd.d.keyName(key))
+}
+
+// revealLines are a key whose value is in no editor: its name line with Show (Hide once Show
+// revealed the value read-only), the copy icon and the remove button, and under it the value masked
+// with its size, or the value Show revealed, wrapped and selectable (secretreveal.go).
+func (sd *secData) revealLines(it model.DetailItem) []fyne.CanvasObject {
+	d := sd.d
+	a, _ := revealAction(it)
+	shown, revealed := d.revealedItem(it)
+	toggle := revealButton(d.actionLabel(a), func() { d.sh.runItemAction(sd.ref, a) })
+	if !revealed {
+		l := newTextLine(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
+		l.truncate = true
+		masked := newSelLine(l, nil, func(sel string) { d.sh.copyText(sel, false) })
+		pin := sd.pin(it.Name, maskedCopyTip, func(done func()) { d.copyWhole(sd.ref, a, done) })
+		return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin), masked}
+	}
+	sd.revealed = true
+	value := newSecretText(shown.Value, nil, func(sel string) { d.sh.copyText(sel, true) })
+	pin := sd.pin(it.Name, wholeCopyTip, func(done func()) {
+		if n, ok := d.revealedLen[revealKey(a)]; ok && n < len(shown.Value) { // Show cut it: read it whole
+			d.copyWhole(sd.ref, a, done)
+			return
+		}
+		sd.copied(shown.Value)
+		done()
+	})
+	return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin), value}
+}
+
+// pin is the copy icon in the line of key, whose value is in no editor, with the tooltip tip;
+// copyValue copies and calls done after a copy, for the icon's checkmark. The icon is kept across
+// rebuilds.
+func (sd *secData) pin(key, tip string, copyValue func(done func())) fyne.CanvasObject {
+	p := sd.pins[key]
+	if p == nil {
+		p = &keyPin{}
+		p.btn = newPinnedCopyIcon(sd.d.sh, tip, nil)
+		sd.pins[key] = p
+	}
+	p.btn.tip = tip
+	p.btn.tap = func() { copyValue(func() { p.btn.confirm(&p.done) }) }
+	return container.NewCenter(p.btn)
+}
+
+// nameLine is a key above its value without Show (a binary value): its name and, where the data
+// can be saved, the remove button.
 func (sd *secData) nameLine(key string) fyne.CanvasObject {
 	if key == "" || !sd.editable() {
 		return sd.d.keyName(key)
@@ -293,29 +365,40 @@ func (sd *secData) nameLine(key string) fyne.CanvasObject {
 }
 
 // addedLines are an added key's lines: its name with Hide, the copy icon and the button that drops
-// it, and its editor, or its value masked once hidden.
+// it, and its editor; once hidden Show in Hide's place and its value masked.
 func (sd *secData) addedLines(r *secRow, exists bool) []fyne.CanvasObject {
+	line := addedKeyLine(sd.d, r.key, exists, sd.toggle(r), sd.copyIcon(r), func() { sd.dropAdded(r.key) })
 	if r.masked {
-		return []fyne.CanvasObject{addedKeyLine(sd.d, r.key, exists, nil, nil, func() { sd.dropAdded(r.key) }), sd.maskedLine(r)}
+		return []fyne.CanvasObject{line, sd.maskedLine()}
 	}
-	return []fyne.CanvasObject{addedKeyLine(sd.d, r.key, exists, func() { sd.hide(r.key) }, sd.copyIcon(r), func() { sd.dropAdded(r.key) }), r.frame}
+	return []fyne.CanvasObject{line, r.frame}
 }
 
 // copyIcon is the copy icon in the line of a key whose value is in an editor, right above the
 // editor's top right and covering none of its text: a click copies the editor's whole value as
 // ⌘C and ⌘X copy a selection of it, to the clipboard for Secret values (the owner's audit decision
-// of 2026-10-16, D-59, D-25). A Config Map's editors have none. The row keeps the icon across the
-// drawer's rebuilds, so that its checkmark stays.
+// of 2026-10-16, D-59, D-25); while Hide masks the value, as typed, without showing it. A Config
+// Map's editors have none. The row keeps the icon across the drawer's rebuilds, so that its
+// checkmark stays.
 func (sd *secData) copyIcon(r *secRow) fyne.CanvasObject {
 	if r.copyBtn == nil {
-		r.copyBtn = newPinnedCopyIcon(sd.d.sh, "Copy the whole value", func() { sd.copyValue(r) })
+		r.copyBtn = newPinnedCopyIcon(sd.d.sh, wholeCopyTip, func() { sd.copyValue(r) })
+	}
+	r.copyBtn.tip = wholeCopyTip
+	if r.masked {
+		r.copyBtn.tip = maskedCopyTip
 	}
 	return container.NewCenter(r.copyBtn)
 }
 
-// copyValue copies a row's whole value, as typed so far, as a Secret's value; an empty value
-// copies nothing, so that the click does not empty the clipboard.
+// copyValue copies a row's whole value, as typed so far, as a Secret's value, naming the key while
+// the value is masked (copyUnseen); an empty value copies nothing, so that the click does not empty
+// the clipboard.
 func (sd *secData) copyValue(r *secRow) {
+	if r.masked {
+		sd.d.copyUnseen(r.key, r.view.Text(), func() { r.copyBtn.confirm(&r.copyDone) })
+		return
+	}
 	text := r.view.Text()
 	if text == "" {
 		sd.d.sh.copyToast("info", "The value is empty: nothing was copied.")
@@ -395,17 +478,12 @@ func (sd *secData) beginEdit() {
 	}
 }
 
-// maskedLine is an edited value hidden again: masked, with Show to bring the editor back, and the
-// drawer's copy icon on hover, which copies the value as typed without showing it (the owner's
-// decision of 2026-10-22, secretcopy.go).
-func (sd *secData) maskedLine(r *secRow) fyne.CanvasObject {
-	show := widget.NewButton("Show", func() { sd.unmask(r.key) })
-	show.Importance = widget.LowImportance
-	d := sd.d
+// maskedLine is an edited value hidden again: masked, Show and the copy icon in its key's line
+// (keyLine), the icon copying the value as typed without showing it (the owner's decision of
+// 2026-10-22, secretcopy.go).
+func (sd *secData) maskedLine() fyne.CanvasObject {
 	line := newTextLine(engine.MaskedValue+" (edited, not saved)", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
-	hook := d.fetchCopyFor(maskedCopyTip, func(h *copyHook) { d.copyUnseen(r.key, r.view.Text(), h) })
-	text := newSelLine(line, hook, func(sel string) { d.sh.copyText(sel, false) })
-	return container.NewBorder(nil, nil, nil, show, text)
+	return newSelLine(line, nil, func(sel string) { sd.d.sh.copyText(sel, false) })
 }
 
 // reveal reads a key's whole value into an editor (Show on a Secret the user may save). The answer

@@ -29,6 +29,11 @@ func findAll[T any](root fyne.CanvasObject) []T {
 		if t, ok := any(o).(T); ok {
 			out = append(out, t)
 		}
+		if b, ok := o.(*textButton); ok { // Fyne's button with an outline (textbutton.go): found as one
+			if t, ok := any(&b.Button).(T); ok {
+				out = append(out, t)
+			}
+		}
 		switch x := o.(type) {
 		case *fyne.Container:
 			for _, c := range x.Objects {

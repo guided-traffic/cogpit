@@ -73,7 +73,7 @@ type jobTab struct {
 	state   *textLine
 	times   *textLine
 	outcome *textLine
-	cancel  *widget.Button
+	cancel  *textButton
 	steps   *fyne.Container
 	scroll  *container.Scroll
 	rows    []*jobStepRow
@@ -100,7 +100,7 @@ func newJobTab(sh *shell, t engine.DockTab) *jobTab {
 	j.times = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	j.outcome = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	j.outcome.truncate = true
-	j.cancel = widget.NewButtonWithIcon("Cancel", theme.MediaStopIcon(), func() {
+	j.cancel = newTextButton("Cancel", theme.MediaStopIcon(), func() {
 		j.cancel.Disable() // until the engine says how the job ended
 		sh.dispatch(jobCancelCommand, jobParams{ID: j.id}, func(_ any, err error) {
 			if err != nil {
@@ -109,7 +109,6 @@ func newJobTab(sh *shell, t engine.DockTab) *jobTab {
 			}
 		})
 	})
-	j.cancel.Importance = widget.LowImportance
 	j.steps = container.NewVBox()
 	j.scroll = container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, j.steps))
 	j.scroll.OnScrolled = func(p fyne.Position) { // the user scrolled: the list stays where they put it

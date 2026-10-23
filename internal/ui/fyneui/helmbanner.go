@@ -98,8 +98,7 @@ func (b *helmBanner) row(op engine.PendingHelmOpInfo) fyne.CanvasObject {
 
 	buttons := container.NewHBox()
 	if op.Status != engine.HelmOpStatusRunning {
-		dismiss := widget.NewButton("Dismiss", func() { b.sh.dispatch("helm.dismissOperation", refParams{Ref: ref}, nil) })
-		dismiss.Importance = widget.LowImportance
+		dismiss := newTextButton("Dismiss", nil, func() { b.sh.dispatch("helm.dismissOperation", refParams{Ref: ref}, nil) })
 		buttons.Add(dismiss)
 		var finish *widget.Button
 		switch op.Action {

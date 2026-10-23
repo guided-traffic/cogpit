@@ -24,9 +24,10 @@ import (
 // behind Help › Welcome; its content is not captured, so the page, its wording and its layout are
 // Cogpit's own (inferred, Cogpit's defaults 2026-10-13, not the owner's decision):
 //   - Cogpit's logo, "Welcome to Cogpit" and a line saying what Cogpit is;
-//   - a line about the connection when there is one to tell: a connection Cogpit closed, a failed
-//     connect without a context to name, or the cluster that stays connected under the page (a
-//     chosen cluster's failed connect has its own page instead, errorpage.go, D-114);
+//   - a note about the connection when there is one to tell, in a banner of its own that names its
+//     level (the owner's RW4, welcomenote.go): a connection Cogpit closed, a failed connect without
+//     a context to name, or the cluster that stays connected under the page (a chosen cluster's
+//     failed connect has its own page instead, errorpage.go, D-114);
 //   - the clusters to connect with one click: the hotbar's, then Recent, the clusters of
 //     this session (the connected or last one, the tabs' ones; the heading "Recent" since the
 //     owner's A67, 2026-10-14 evening, was "This session"); each row as the context picker had it
@@ -69,7 +70,7 @@ type welcomePage struct {
 	sh   *shell
 	root *fyne.Container // over the workspace and the dock while shown
 
-	status    *paragraph      // the connection's line, wrapped; hidden without one
+	note      *welcomeNote    // the connection's message, in a callout of its own (RW4); hidden without one
 	list      *fyne.Container // the groups of clusters
 	hint      *textLine
 	addB      *widget.Button
@@ -103,8 +104,7 @@ func newWelcomePage(sh *shell) *welcomePage {
 	// The head stands in the column's middle: the logo on its glow, the title and the tagline under it.
 	head := container.NewVBox(container.NewCenter(newLogoGlow(welcomeLogoSize)), title, newSpace(theme.SizeNamePadding),
 		container.NewCenter(tagline))
-	w.status = newParagraph("", colorMuted, welcomeColumn)
-	w.status.Hide()
+	w.note = newWelcomeNote()
 	w.list = container.NewVBox()
 	w.addB = widget.NewButtonWithIcon("Add Kubeconfigs…", theme.ContentAddIcon(), sh.kc.addKubeconfigs)
 	u, _ := url.Parse(readmeURL)
@@ -118,7 +118,7 @@ func newWelcomePage(sh *shell) *welcomePage {
 	column := container.NewVBox(
 		head,
 		newSpace(theme.SizeNameInnerPadding),
-		w.status,
+		w.note.root,
 		newSpace(theme.SizeNameInnerPadding),
 		w.list,
 		container.NewHBox(w.addB),
@@ -533,37 +533,30 @@ func (w *welcomePage) menu(name string, pos fyne.Position) {
 	widget.NewPopUpMenu(w.menuModel, sh.win.Canvas()).ShowAtPosition(pos)
 }
 
-// renderStatus shows what there is to say about the connection: a failed connect, a connection
-// Cogpit closed, or the cluster still connected under the page.
+// renderStatus shows what there is to say about the connection, in its note (welcomenote.go): a
+// failed connect (error), a connection Cogpit closed (warning), or the cluster still connected under
+// the page (info).
 func (w *welcomePage) renderStatus() {
 	ui := w.sh.ui
 	name := ""
 	if ui.Context != "" {
 		name = w.sh.identity(ui.Context).name
 	}
-	text, c := "", colorMuted
+	title, text, level := "", "", noteInfo
 	switch ui.Connection.State {
 	case engine.ConnectError: // without a context to name: a chosen cluster's failure has its page (errorpage.go)
-		text, c = "Could not connect: "+ui.Connection.Error, colorStatusError
+		title, text, level = "Could not connect", ui.Connection.Error, noteError
 		if name != "" {
-			text = "Could not connect to " + name + ": " + ui.Connection.Error
+			title = "Could not connect to " + name
 		}
 	case engine.Disconnected:
 		if ui.Connection.Error != "" { // Cogpit closed it: its kubeconfig file went away
-			text, c = ui.Connection.Error, colorStatusWarning
+			title, text, level = "Connection closed", ui.Connection.Error, noteWarning
 		}
 	case engine.Connected:
-		text = "Connected to " + name + ": pick a view in the navigator, or a tab above."
+		title, text = "Connected to "+name, "Pick a view in the navigator, or a tab above."
 	}
-	if text != w.status.text || c != w.status.color {
-		w.status.text, w.status.color = text, c
-		w.status.Refresh()
-	}
-	if text == "" {
-		w.status.Hide()
-	} else {
-		w.status.Show()
-	}
+	w.note.set(level, title, text)
 }
 
 // renderHint names the shortcuts worth knowing, as the registry declares them.

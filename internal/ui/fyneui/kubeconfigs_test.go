@@ -174,6 +174,10 @@ func findButton(w fyne.Window, label string) *widget.Button {
 			if x.Text == label {
 				found = x
 			}
+		case *textButton:
+			if x.Text == label {
+				found = &x.Button
+			}
 		case *fyne.Container:
 			for _, c := range x.Objects {
 				walk(c)

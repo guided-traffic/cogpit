@@ -306,7 +306,8 @@ func concealedClipboard(sh *shell) *[]string {
 }
 
 // TestSecretMaskedValueCopiedWithoutShowing (the owner's decision of 2026-10-22, D-25): a masked
-// Secret value has the copy icon like any value, its tooltip says it copies without showing; a tap
+// Secret value has the copy icon in its key's line (RW1), its tooltip says it copies without
+// showing; a tap
 // reads the whole value from the GUI (a value longer than a reveal shows comes whole) and puts it
 // on the clipboard for Secret values, concealed, without showing it: the drawer stays masked, the
 // value enters no widget and not the revealed map, and the toast names the key, never the value.
@@ -323,20 +324,16 @@ func TestSecretMaskedValueCopiedWithoutShowing(t *testing.T) {
 	if len(masked) != 4 {
 		t.Fatalf("%d masked values, want 4", len(masked))
 	}
-	pw := masked[2] // DB_PASSWORD
-	pw.MouseIn(mouse())
-	if !d.copyBtn.Visible() {
-		t.Fatal("no copy icon over a masked value")
+	icon := keyCopyIcon(t, d, "DB_PASSWORD")
+	if !icon.Visible() {
+		t.Fatal("no copy icon in a masked key's line")
 	}
-	if d.copyBtn.tip != "Copy the value without showing it" {
-		t.Errorf("the icon's tooltip over a masked value is %q", d.copyBtn.tip)
-	}
-	if pw.hook == nil || pw.hook.text != "" {
-		t.Fatal("the masked value's icon holds a text")
+	if icon.tip != "Copy the value without showing it" {
+		t.Errorf("a masked key's copy icon says %q", icon.tip)
 	}
 
 	sh.app.Clipboard().SetContent("the user's own")
-	test.Tap(d.copyBtn)
+	test.Tap(icon)
 	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
 	if got := (*concealed)[0]; got != longSecretValue {
 		t.Errorf("copied %d bytes, want the whole value's %d", len(got), len(longSecretValue))
@@ -360,7 +357,7 @@ func TestSecretMaskedValueCopiedWithoutShowing(t *testing.T) {
 	if n := len(maskedLines(d)); n != 4 {
 		t.Errorf("%d masked values after the copy, want 4", n)
 	}
-	if !d.copyBtn.done {
+	if !keyCopyIcon(t, d, "DB_PASSWORD").done {
 		t.Error("no checkmark after the copy")
 	}
 	if !toastSays(sh, "DB_PASSWORD") || !toastSays(sh, "cleared in") || toastSays(sh, "correct-horse") {
@@ -385,7 +382,7 @@ func TestSecretMaskedCopyRefusals(t *testing.T) {
 	d := sh.drawer
 	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
 	ref := *d.shown
-	h := maskedLines(d)[2].hook
+	h := func() {}
 	sh.app.Clipboard().SetContent("the user's own")
 	untouched := func(what string) {
 		t.Helper()
@@ -440,14 +437,11 @@ func TestSecretCutRevealedValueCopiedWhole(t *testing.T) {
 	if !strings.HasPrefix(shown, longSecretValue[:4<<10]) || !strings.Contains(shown, "[the first ") {
 		t.Fatalf("Show did not cut the value: %d bytes shown", len(shown))
 	}
-	st.MouseIn(mouse())
-	if !d.copyBtn.Visible() {
-		t.Fatal("no copy icon over the cut value")
+	icon := keyCopyIcon(t, d, "DB_PASSWORD")
+	if icon.tip != "Copy the whole value" {
+		t.Errorf("a cut value's copy icon says %q", icon.tip)
 	}
-	if d.copyBtn.tip != "Copy the whole value" {
-		t.Errorf("the icon's tooltip over a cut value is %q", d.copyBtn.tip)
-	}
-	test.Tap(d.copyBtn)
+	test.Tap(icon)
 	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
 	if got := (*concealed)[0]; got != longSecretValue {
 		t.Errorf("the icon copied %d bytes, want the whole value's %d", len(got), len(longSecretValue))
@@ -475,8 +469,8 @@ func TestSecretCutRevealedValueCopiedWhole(t *testing.T) {
 	}
 }
 
-// TestSecretRevealedValueCopied: after Show the value has the copy icon as before, the copy goes
-// to the clipboard, and the clipboard is cleared after the TTL if it still holds the value.
+// TestSecretRevealedValueCopied: after Show the copy icon in the key's line copies the value shown
+// (RW1), to the clipboard, and the clipboard is cleared after the TTL if it still holds the value.
 func TestSecretRevealedValueCopied(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -490,15 +484,12 @@ func TestSecretRevealedValueCopied(t *testing.T) {
 	if st.text != "correct-horse-battery-staple" {
 		t.Fatalf("the revealed text is %q", st.text)
 	}
-	st.MouseIn(mouse())
-	if !d.copyBtn.Visible() {
-		t.Fatal("no copy icon over the revealed value")
-	}
-	if d.copyBtn.tip != "" {
-		t.Errorf("the icon over a revealed value has the tooltip %q, want the plain Copy", d.copyBtn.tip)
+	icon := keyCopyIcon(t, d, "DB_PASSWORD")
+	if icon.tip != wholeCopyTip {
+		t.Errorf("a revealed value's copy icon says %q", icon.tip)
 	}
 	sh.app.Clipboard().SetContent("")
-	test.Tap(d.copyBtn)
+	test.Tap(icon)
 	if got := sh.app.Clipboard().Content(); got != "correct-horse-battery-staple" {
 		t.Fatalf("the clipboard holds %q", got)
 	}

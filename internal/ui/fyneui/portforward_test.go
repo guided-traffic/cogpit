@@ -208,9 +208,9 @@ func openPodDrawer(t *testing.T, f *fakeEngine, ref model.ObjectRef, mode ThemeM
 	return sh, w, q
 }
 
-func forwardButtons(sh *shell) []*widget.Button {
-	var out []*widget.Button
-	for _, b := range findAll[*widget.Button](sh.drawer.details) {
+func forwardButtons(sh *shell) []*textButton {
+	var out []*textButton
+	for _, b := range findAll[*textButton](sh.drawer.details) {
 		if b.Text == "Forward…" {
 			out = append(out, b)
 		}

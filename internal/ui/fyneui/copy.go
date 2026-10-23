@@ -71,12 +71,6 @@ type copyHook struct {
 	chip   bool // the value is a chip or a pill: the icon sits after it, outside (showCopy)
 	over   bool // the value has action buttons right after it: the icon lies over its end (A71)
 	val    hoverValue
-
-	// fetch, when set, is what a tap runs instead of copying text: a masked Secret value, which the
-	// drawer does not hold, is read and copied without being shown (secretcopy.go). tip is the
-	// icon's tooltip over the value, "" for "Copy".
-	fetch func(*copyHook)
-	tip   string
 }
 
 // hoverValue is a value widget that shows the copy icon when the pointer enters it.
@@ -153,7 +147,6 @@ func (d *drawer) showCopy(w fyne.CanvasObject, h *copyHook, natural float32) {
 		d.resetConfirm()
 	}
 	d.copyOwner, d.copyHook, d.copyStale = w, h, nil
-	d.copyBtn.tip = h.tip
 	d.hostLayout.over = at.AddXY(fyne.Max(x, 0), y)
 	d.copyBtn.Show()
 	d.host.Refresh()
@@ -233,15 +226,10 @@ func (d *drawer) keepCopy(a *copyAnchor) {
 	d.copyStale = a.owner
 }
 
-// copyHovered runs the copy icon: the value's text on the clipboard, and a toast that says so; a
-// masked Secret value's fetch.
+// copyHovered runs the copy icon: the value's text on the clipboard, and a toast that says so.
 func (d *drawer) copyHovered() {
 	h := d.copyHook
 	if h == nil {
-		return
-	}
-	if h.fetch != nil {
-		h.fetch(h)
 		return
 	}
 	d.sh.copyText(h.text, h.secret)

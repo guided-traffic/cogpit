@@ -656,8 +656,9 @@ func TestDrawerLongNameNeverRunsIntoItsValue(t *testing.T) {
 	}
 }
 
-// TestSecretDrawerKeysAboveValues (F3): a Secret's keys stand above their masked values and Show,
-// which take the full width; revealing still works (TestSecretRevealInDrawer).
+// TestSecretDrawerKeysAboveValues (F3): a Secret's keys stand above their masked values, which take
+// the full width, Show at the end of the key's line (the owner's RW1 of 2026-10-23); revealing
+// still works (TestSecretRevealInDrawer).
 func TestSecretDrawerKeysAboveValues(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -669,14 +670,23 @@ func TestSecretDrawerKeysAboveValues(t *testing.T) {
 			key = l
 		}
 	}
-	show := drawerButtons(sh.drawer)["Show"][2]
-	if key == nil {
-		t.Fatal("no DB_PASSWORD key")
+	var shows []*textButton
+	for _, b := range findAll[*textButton](sh.drawer.details) {
+		if b.Text == "Show" {
+			shows = append(shows, b)
+		}
+	}
+	if key == nil || len(shows) != 4 {
+		t.Fatalf("DB_PASSWORD's key found %v, %d Show buttons", key != nil, len(shows))
 	}
 	drv := fyne.CurrentApp().Driver()
-	k, b := drv.AbsolutePositionForObject(key), drv.AbsolutePositionForObject(show)
-	if b.Y < k.Y+key.Size().Height-1 {
-		t.Errorf("Show at %v is not below its key at %v", b, k)
+	k, b := drv.AbsolutePositionForObject(key), drv.AbsolutePositionForObject(shows[2])
+	if b.Y > k.Y+key.Size().Height || b.Y+shows[2].Size().Height < k.Y || b.X < k.X+key.Size().Width/2 {
+		t.Errorf("Show at %v is not at the end of its key's line at %v", b, k)
+	}
+	masked := maskedLines(sh.drawer)[2]
+	if m := drv.AbsolutePositionForObject(masked); m.Y < k.Y+key.Size().Height-1 || masked.Size().Width < key.Size().Width {
+		t.Errorf("the masked value at %v (%v wide) is not below its key at %v", m, masked.Size().Width, k)
 	}
 }
 

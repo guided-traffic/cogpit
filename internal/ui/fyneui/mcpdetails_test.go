@@ -71,6 +71,8 @@ func detailsTexts(t *testing.T, sh *shell) string {
 			out = append(out, x.text)
 		case *widget.Button:
 			out = append(out, x.Text)
+		case *textButton:
+			out = append(out, x.Text)
 		case *tipButton:
 			out = append(out, x.Text, x.tip)
 		case *fyne.Container:

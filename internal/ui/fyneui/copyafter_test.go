@@ -193,7 +193,7 @@ func TestDrawerCopyIconAfterTheMessage(t *testing.T) {
 }
 
 // portOnButtonRow is the container port's link on the row of a Forward… button.
-func portOnButtonRow(t *testing.T, d *drawer, button *widget.Button) *linkText {
+func portOnButtonRow(t *testing.T, d *drawer, button *textButton) *linkText {
 	t.Helper()
 	drv := fyne.CurrentApp().Driver()
 	bx := drv.AbsolutePositionForObject(button)
