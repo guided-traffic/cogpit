@@ -611,7 +611,7 @@ func (welcomeLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 // welcomeLogo is Cogpit's logo at a large size (the welcome page, About): the current version's
-// tile (internal/ui/logo, D-24), drawn at the pixel size the canvas shows it at.
+// tile (internal/ui/logo, D-24), drawn at the display's pixel size (pixelsFor).
 type welcomeLogo struct {
 	widget.BaseWidget
 	side float32
@@ -648,11 +648,7 @@ func (r *welcomeLogoRenderer) Layout(size fyne.Size) {
 
 func (r *welcomeLogoRenderer) Refresh() {
 	l := r.l
-	scale := float32(1)
-	if c := fyne.CurrentApp().Driver().CanvasForObject(l); c != nil {
-		scale = c.Scale()
-	}
-	px := int(math.Ceil(float64(l.side * scale)))
+	px := pixelsFor(fyne.CurrentApp().Driver().CanvasForObject(l), l.side)
 	if px != l.px || r.img.Image == nil {
 		r.img.Image = logoTile(px)
 		l.px = px
