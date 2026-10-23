@@ -33,6 +33,7 @@ type fakeEngine struct {
 	ui         engine.UIState
 	dockShown  bool // UIState opened the dock for the tabs a test put in the state (SyncDock)
 	tables     map[string]*engine.TableSnapshot
+	kindsGate  chan struct{} // set: kinds.list answers once it is closed (a cluster's kinds read late)
 	details    map[string]*engine.DetailModel
 	metrics    map[string]*engine.ObjectMetrics
 	subs       map[int]func(engine.Event)
@@ -522,6 +523,12 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 			u.View = "pods"
 		})
 	case "kinds.list":
+		f.mu.Lock()
+		gate := f.kindsGate
+		f.mu.Unlock()
+		if gate != nil {
+			<-gate
+		}
 		f.mu.Lock()
 		defer f.mu.Unlock()
 		return slices.Clone(f.kinds), nil
