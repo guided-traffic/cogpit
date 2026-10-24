@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-23 · **Change:** trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -53,7 +53,7 @@ native code calls (`//export`), `callback` a function another package calls on i
 places of the same kind has one row.
 
 <details>
-<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (56 rows)</summary>
+<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (57 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -107,6 +107,8 @@ places of the same kind has one row.
 | `fyneui/toastcopy.go` | `copyGlyph.Tapped` | AfterFunc | A | Posts the checkmark's reset through `sh.do`; `g.timer` compared on main. |
 | `fyneui/connhints_darwin.go` | `cogpitConnectionHint` | cgo | B | A wake arrives on the main thread, a network change on a global dispatch queue (not main): reads `hintFn` under `hintMu`, then the engine's non-blocking `NoteWake` or `NoteNetworkChange`. |
 | `fyneui/connhints.go` | `shell.startConnectionHints` | callback | B | The `watchConnectionHints` closure that cgo export calls; only `NoteWake` and `NoteNetworkChange`. |
+| `fyneui/pixelscale_darwin.go` | `cogpitBackingScaleChanged` | cgo | A | Called from `dispatch_async` on the main queue, so the main goroutine; reads `backingFn` under `backingMu` and calls it: the closure below (D-121). |
+| `fyneui/pixelscale.go` | `shell.startDensityWatch` | callback | A | The `watchBackingScale` closure that cgo export calls: posts `densityWatch.check` (the density read, the theme applied again) through `sh.do`, nothing else. |
 | `fyneui/titlebar_darwin.go` | `cogpitTitlebarChanged` | cgo | A | Called from `dispatch_async` on the main queue, so the main goroutine; posts `tb.update` through `sh.do`. |
 | `fyneui/appmenu_darwin.go` | `cogpitAboutChosen` | cgo | A | An AppKit menu action on the main thread; posts `showAbout` through `sh.do`. |
 | `nativedialog/panel_darwin.go` | `cogpitPanelPicked` | cgo | B | The sheet's completion handler on the main thread; appends to the request under `requestsMu`; no Fyne. |
