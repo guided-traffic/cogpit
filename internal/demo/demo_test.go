@@ -110,10 +110,18 @@ func TestChurnReachesTheInformers(t *testing.T) {
 	elapsed := time.Since(start)
 
 	st := d.Stats()
-	if want := demo.DefaultEventsPerSecond * elapsed.Seconds(); math.Abs(float64(st.EventsSent)-want) > 0.1*want {
-		t.Errorf("sent %d events in %v, want %.0f ± 10%%", st.EventsSent, elapsed, want)
+	// The churn's pace against the wall clock: 10 % (the rate shown 30 %) without the race
+	// detector; under it, on a busy shared runner, the churn's goroutines fall behind the clock
+	// (843 of 1,000 a second in main's run of 2026-10-24), so the pace is checked loosely there and
+	// what the test is for, every event sent reaching the informers, stays exact.
+	sentTol, rateTol := 0.1, 0.3
+	if raceEnabled {
+		sentTol, rateTol = 0.5, 0.6
 	}
-	if math.Abs(rate-demo.DefaultEventsPerSecond) > 0.3*demo.DefaultEventsPerSecond {
+	if want := demo.DefaultEventsPerSecond * elapsed.Seconds(); math.Abs(float64(st.EventsSent)-want) > sentTol*want {
+		t.Errorf("sent %d events in %v, want %.0f ± %.0f%%", st.EventsSent, elapsed, want, 100*sentTol)
+	}
+	if math.Abs(rate-demo.DefaultEventsPerSecond) > rateTol*demo.DefaultEventsPerSecond {
 		t.Errorf("EventsPerSec %.0f, want about %d", rate, demo.DefaultEventsPerSecond)
 	}
 	wctx, wcancel := context.WithTimeout(context.Background(), 20*time.Second)

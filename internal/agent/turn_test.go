@@ -208,10 +208,13 @@ func TestMaxToolCallsStopsTheTurn(t *testing.T) {
 // TestMaxDurationStopsTheTurn: a stream that never ends is cut at the turn's time limit; the
 // server sees the client go.
 func TestMaxDurationStopsTheTurn(t *testing.T) {
-	h := newHarness(t, engine.ChatLimits{MaxDuration: 150 * time.Millisecond})
+	// One second, not less: the limit counts from the turn's start, and under the race detector on a
+	// busy runner 150 ms ran out before the request reached the fake server (main's run of
+	// 2026-10-24), which then never saw a client to lose.
+	h := newHarness(t, engine.ChatLimits{MaxDuration: time.Second})
 	h.llm.Script(fakellm.Reply{Gate: make(chan struct{}), Text: []string{"never"}})
 	c := h.idle(t, h.start(t, "Hello"))
-	if n := notes(c); !strings.Contains(n, "time limit of 150ms") {
+	if n := notes(c); !strings.Contains(n, "time limit of 1s") {
 		t.Fatalf("notes %q, items %v", n, itemKinds(c))
 	}
 	h.waitFor(t, "the server to see the client go", func() bool { return h.llm.Cancelled() == 1 })
