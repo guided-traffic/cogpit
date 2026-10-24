@@ -19,7 +19,7 @@ import (
 const (
 	stripHeight        = 4    // the strip's height in points (height)
 	stripGlassDensity  = 0.32 // how dense the frosted glass is (glassOff 32 %)
-	stripGrainStrength = 0.15 // the grain's strength (grain 15 %, 1 device pixel per speck)
+	stripGrainStrength = 0.10 // the grain's strength (grain 10 %, the owner's LS2 and LS20 from his lab's 15 %; 1 device pixel per speck)
 	stripGlow          = 1.0  // the light's strength (glow 100 %); no base glow, no halo, no edges
 	stripBreathePeriod = 4.6  // seconds per breath (breathePeriod)
 	stripBreatheMin    = 0.48 // the breath's lowest point (breatheMin 48 %)
@@ -31,9 +31,14 @@ const (
 	stripFPS           = 60   // the frame cap: the ticker's rate while the strip moves (fps)
 
 	// stripFade is a whole change through glass (fadeMs 700, fadeKind glass): the old light fades out
-	// in its first half, the new one fades in in its second.
+	// in its first half, the new one fades in in its second. A static colour that follows another
+	// spreads from the tab or crossfades over the same 700 ms (LS22, LS23).
 	stripFade = 700 * time.Millisecond
 	stripHalf = stripFade / 2
+
+	// stripSpreadSoft is the soft edge of a colour spreading from the tab, a share of the way it
+	// runs (the transition lab's edge softness, 18 %, plan/light-strip-transitions-lab.html).
+	stripSpreadSoft = 0.18
 
 	// The grain: one fixed texture of black and white specks, the lab's NOISE: its size, its seed,
 	// and its strength's factor (the lab draws it at grain × 0.6).
@@ -132,17 +137,38 @@ type stripLook struct {
 // lit reports whether the look has a light, rather than the glass alone.
 func (l stripLook) lit() bool { return l.color != "" }
 
+// stripCover is how a layer comes in.
+type stripCover int
+
+const (
+	// coverGlass: through glass, the old layers fading out first; every change but one static
+	// colour to another (the owner, 2026-10-24).
+	coverGlass stripCover = iota
+	// coverSpread: a static colour over another, spreading from the shown tab's place to both ends
+	// over stripFade (the owner's LS22: "bei übergang von static zu static machen wir: von Tab aus").
+	coverSpread
+	// coverCross: a static colour over another while motion is reduced, crossfading in sRGB over
+	// stripFade (the owner's LS23: "wenn der nutzer \"Bewegung reduzieren\" gewählt hat, dann erfolgt
+	// die überblendung von static zu static durch: Überblenden (sRGB)").
+	coverCross
+)
+
 // stripLayer is one look on its way in or out. Its animation's clock starts when it begins to fade
 // in (the owner: "Bei einem übergang über Milchglas, soll die Annimation stehts von vorne beginnen").
+// A covering layer (coverSpread, coverCross) comes in over the layers below it, which stay as they
+// are until it covers them all.
 type stripLayer struct {
-	look stripLook
-	in   time.Time // when it begins to fade in, and its animation's clock starts
-	out  time.Time // when it began to fade out; zero while it has not
-	from float64   // its opacity when it began to fade out
+	look   stripLook
+	in     time.Time // when it begins to fade in, and its animation's clock starts
+	out    time.Time // when it began to fade out; zero while it has not
+	from   float64   // its opacity when it began to fade out
+	cover  stripCover
+	origin float64 // a spread's start, a share of the strip's width from its left edge
 }
 
-// opacity is the layer's opacity at now, before easing: 0 to 1 over stripHalf as it fades in, and
-// back to 0 from where it was as it fades out.
+// opacity is the layer's opacity at now, before easing: 0 to 1 over stripHalf as it fades in (a
+// crossfade over stripFade; a spread is whole from its start and grows instead), and back to 0 from
+// where it was as it fades out.
 func (l *stripLayer) opacity(now time.Time) float64 {
 	if !l.out.IsZero() {
 		return clamp01(l.from - float64(now.Sub(l.out))/float64(stripHalf))
@@ -150,7 +176,43 @@ func (l *stripLayer) opacity(now time.Time) float64 {
 	if now.Before(l.in) {
 		return 0
 	}
+	switch l.cover {
+	case coverSpread:
+		return 1
+	case coverCross:
+		return clamp01(float64(now.Sub(l.in)) / float64(stripFade))
+	}
 	return clamp01(float64(now.Sub(l.in)) / float64(stripHalf))
+}
+
+// covering reports whether the layer still comes in over the layers below it at now.
+func (l *stripLayer) covering(now time.Time) bool {
+	return l.cover != coverGlass && l.out.IsZero() && now.Before(l.in.Add(stripFade))
+}
+
+// spread is how far a spreading layer has come at now, eased, 0 to 1.
+func (l *stripLayer) spread(now time.Time) float64 {
+	return smoothstep(float64(now.Sub(l.in)) / float64(stripFade))
+}
+
+// spreadRamps are a colour spreading from origin (a share of the strip's width) at progress e
+// (eased, 0 to 1) on a strip w wide, at strength k: a flat core around the origin and a soft edge
+// to each side, stripSpreadSoft of the way wide. The way runs to the farther end, so both ends are
+// reached together only when the origin is the middle; the nearer one is covered earlier.
+func spreadRamps(origin float64, e float64, w float32, k float64) []stripRamp {
+	o := float32(clamp01(origin)) * w
+	far := max(o, w-o)
+	edge := -stripSpreadSoft/2 + e*(1+stripSpreadSoft) // the soft edge's middle, a share of far
+	in := float32(max(0, edge-stripSpreadSoft/2)) * far
+	out := float32(max(0, edge+stripSpreadSoft/2)) * far
+	if out <= 0 {
+		return nil
+	}
+	ramps := make([]stripRamp, 0, 3)
+	if in > 0 {
+		ramps = append(ramps, stripRamp{o - in, o + in, k, k})
+	}
+	return append(ramps, stripRamp{o - out, o - in, 0, k}, stripRamp{o + in, o + out, k, 0})
 }
 
 // clock is the seconds since the layer's animation began, 0 before.
@@ -167,11 +229,25 @@ type stripModel struct {
 	layers []*stripLayer
 }
 
-// retarget shows look from now on, through glass; it reports whether that started a change (the
-// look shown or on its way in already starts none).
-func (m *stripModel) retarget(look stripLook, now time.Time) bool {
-	if n := len(m.layers); n > 0 && m.layers[n-1].out.IsZero() && m.layers[n-1].look == look {
+// retarget shows look from now on; it reports whether that started a change (the look shown or on
+// its way in already starts none). A static colour over another static colour that shows (or comes
+// in over one) spreads from origin, or crossfades while motion is reduced; every other change goes
+// through glass.
+func (m *stripModel) retarget(look stripLook, now time.Time, origin float64, reduced bool) bool {
+	n := len(m.layers)
+	if n > 0 && m.layers[n-1].out.IsZero() && m.layers[n-1].look == look {
 		return false
+	}
+	if n > 0 && staticLit(look) {
+		if top := m.layers[n-1]; top.out.IsZero() && staticLit(top.look) && (top.cover != coverGlass || top.opacity(now) >= 1) {
+			cover := coverSpread
+			if reduced {
+				cover = coverCross
+			}
+			m.layers = append(m.layers, &stripLayer{look: look, in: now, cover: cover, origin: origin})
+			m.prune(now)
+			return true
+		}
 	}
 	in := now
 	for _, l := range m.layers {
@@ -187,10 +263,19 @@ func (m *stripModel) retarget(look stripLook, now time.Time) bool {
 	return true
 }
 
-// prune drops the layers that have faded out.
+// staticLit reports whether a look is a colour standing still.
+func staticLit(l stripLook) bool { return l.lit() && l.anim == engine.LightStripStatic }
+
+// prune drops the layers that have faded out, and those a covering layer has covered.
 func (m *stripModel) prune(now time.Time) {
+	from := 0
+	for i, l := range m.layers {
+		if l.cover != coverGlass && l.out.IsZero() && !l.covering(now) {
+			from = i // a layer that has come in over every one below it
+		}
+	}
 	kept := m.layers[:0]
-	for _, l := range m.layers {
+	for _, l := range m.layers[from:] {
 		if !l.gone(now) {
 			kept = append(kept, l)
 		}
@@ -205,6 +290,8 @@ func (m *stripModel) moving(now time.Time) bool {
 	for _, l := range m.layers {
 		switch o := l.opacity(now); {
 		case !l.look.lit():
+		case l.covering(now):
+			return true
 		case !l.out.IsZero():
 			if o > 0 {
 				return true

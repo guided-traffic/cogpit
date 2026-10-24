@@ -13,7 +13,7 @@ import (
 
 type lightStripParams struct {
 	Context   string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it; empty or omitted: the connected context"`
-	Animation string `json:"animation" jsonschema:"how the strip under the tabs shows the cluster's accent colour while its tab is shown: static (steady, the default), breathing, scanner or flow; empty: static"`
+	Animation string `json:"animation" jsonschema:"how the strip under a view's header shows the cluster's accent colour while its tab is shown: static (steady, the default), breathing, scanner or flow; empty: static"`
 }
 
 // refuseLightStrip refuses a change of the light strip from anywhere but the window (Dispatch
@@ -29,7 +29,7 @@ func registerLightStrip(g *registrar) {
 	add(g, engine.Spec[lightStripParams]{
 		ID: "cluster.settings.setLightStrip", Label: "Set Light Strip", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrLightStripGUIOnly,
-		Description: "Chooses how the light strip under the window's tabs shows a context's accent colour while one of its tabs " +
+		Description: "Chooses how the light strip under the window's view header shows a context's accent colour while one of its tabs " +
 			"is shown, as Cluster Settings › General does: static (steady, the default), breathing, scanner or flow. Without " +
 			"an accent colour the strip is frosted glass, so the choice is disabled until one is set. Only the user, in " +
 			"Cogpit's window, can choose it: refused for agents and the CLI, so that no agent can calm a production " +

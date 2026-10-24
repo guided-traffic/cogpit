@@ -73,7 +73,8 @@ func newEngineShell(t *testing.T, s *engine.Session, opts Options) (*shell, fyne
 	sh := newShell(s, a, w, opts, q.do)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
-	sh.systemReduce = func() bool { return false } // the computer's Reduce motion stays out of the tests
+	sh.systemReduce = func() bool { return false }  // the computer's Reduce motion stays out of the tests
+	sh.systemBattery = func() bool { return false } // and its power source
 	sh.confirmer.armDelay = 0
 	sh.settings.typing = time.Millisecond
 	sh.settings.openFolder = func(string) {}

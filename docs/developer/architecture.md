@@ -1129,8 +1129,8 @@ General's row in [`fyneui/clustersettings_accent.go`](../../internal/ui/fyneui/c
 the icon colour's choices or none, the user's mark of which cluster it is, set only through
 `cluster.settings.setAccentColor` (GUI-only, `ErrAccentColorGUIOnly`) and read by agents in
 `UIState.ClusterSettings` and `ClusterSettingsView.AccentColor`. Since 2026-10-24
-([D-new](decisions.md#d-new-the-light-strip), the owner's VW14) the light strip under the tabs
-shows it (below), and the settings hold how: `ClusterSettings.LightStrip`
+([D-new](decisions.md#d-new-the-light-strip), the owner's VW14) the light strip under the view's
+header shows it (below), and the settings hold how: `ClusterSettings.LightStrip`
 ([`engine/lightstrip.go`](../../internal/engine/lightstrip.go)), `breathing`, `scanner` or `flow`,
 static kept as none, set only through `cluster.settings.setLightStrip` (GUI-only,
 `ErrLightStripGUIOnly`; disabled without an accent colour, `ErrLightStripNoAccent`) from General's
@@ -1380,20 +1380,25 @@ the first scope change, again when the section shows and on `EventContexts`, thr
 of its own), grouped by the folder or file of their kubeconfig source; a row's ›, a click, → or ↵
 dispatch `ui.setNavigatorScope`, after the credential plugin's approval dialog for a context whose
 plugin is not allowed yet; the header's ‹ All Clusters and ← on the tree's root dispatch the
-section. The tab bar draws `UIState.TabsShown` and its View menu's tab keys count those.
+section. The tab bar draws `UIState.TabsShown` and its View menu's tab keys count those; it shows
+with no tab too, a tab high (the owner's LS11, 2026-10-24).
 
-**The light strip** (2026-10-24, [D-new](decisions.md#d-new-the-light-strip), on the branch
-`feat/light-strip` until the owner's walk; [`fyneui/lightstrip.go`](../../internal/ui/fyneui/lightstrip.go),
-its maths in [`lightstrip_model.go`](../../internal/ui/fyneui/lightstrip_model.go)) lies in the tab
-bar's root right under the bar, in the place of its divider, so it shows and hides with the bar and
-spans the content column only. It derives everything from engine state and adds none: at the end
+**The light strip** (2026-10-24, [D-new](decisions.md#d-new-the-light-strip), the owner's VW14 and
+his walk; [`fyneui/lightstrip.go`](../../internal/ui/fyneui/lightstrip.go), its maths in
+[`lightstrip_model.go`](../../internal/ui/fyneui/lightstrip_model.go)) lies in the table view's
+root right under the view's header (`tableView.head`), above the page's part and the table's
+header, so it spans the view only (not the drawer); every tab of the main bar is the table view's. It derives everything from engine state and adds none: at the end
 of `applyUIState` (one call, no branch: `applyUIState` stays under the complexity limit)
 `lightStrip.follow` reads the active tab among `TabsShown` (none on the welcome page) and that
 cluster's `AccentColor` and `LightStrip` into a look (colour and animation; glass without a colour;
-static while the app is not in front or motion is reduced) and hands it to `stripModel.retarget`.
-The model keeps lights as layers whose opacity is a function of the clock: the old fade out over
-350 ms from where they were, then the new one fades in over 350 ms, its animation's clock starting
-there; smoothstep eases each half. A frame (`paint`) asks `layerPaint` for each visible layer's flat
+static while the app is not in front, motion is reduced or the battery stops it) and hands it to
+`stripModel.retarget` with the active tab widget's middle over the strip (`tabBar.activeWidget`) and
+whether motion is reduced. The model keeps lights as layers whose opacity is a function of the
+clock: through glass the old fade out over 350 ms from where they were, then the new one fades in
+over 350 ms, its animation's clock starting there; smoothstep eases each half. One static colour
+after another comes in over the old instead (`coverSpread`: a core and two soft edges growing from
+the tab's place over 700 ms, `spreadRamps`; `coverCross` while motion is reduced: its opacity over
+700 ms), the layers under it kept whole until it covers them and `prune` drops them. A frame (`paint`) asks `layerPaint` for each visible layer's flat
 strength (static, breathing) or ramps (scanner, flow) and sets a rectangle's colour or moves
 horizontal gradients, which the renderer clips to the strip (`IsClip`); a `canvas.Raster` tiles the
 lab's grain texture per device pixel over the light, generated again only on a resize. The clock is
@@ -1401,7 +1406,11 @@ a goroutine's ticker at the frame cap (60, or a development build's `Options.Lig
 `COGPIT_LIGHTSTRIP_FPS`), posting one frame at a time through `sh.do` and stopped whenever
 `stripModel.moving` says nothing changes; the app's foreground callbacks (`setActive`) and macOS's
 Reduce motion notification (`watchReduceMotion`, [`reducemotion_darwin.go`](../../internal/ui/fyneui/reducemotion_darwin.go))
-call `follow` again. Its colours: the accent through `identityColorName` in the theme's legible
+and a change of the power source (`watchPower`, [`power.go`](../../internal/ui/fyneui/power.go): IOKit's
+notification on macOS, a poll every 30 s on Windows and Linux, the handler called only when the
+computer went from its adapter to its battery or back) call `follow` again; `shell.batteryStopsStrip`
+([`preferences_power.go`](../../internal/ui/fyneui/preferences_power.go)) is the preference
+`lightStripMainsOnly` and the battery read through `shell.systemBattery`. Its colours: the accent through `identityColorName` in the theme's legible
 shade, the glass the palette token `colorLightStrip`.
 
 **The slides** (2026-10-20, [D-107](decisions.md#d-107-the-navigator-slides-and-reduce-motion)):

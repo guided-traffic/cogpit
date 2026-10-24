@@ -183,6 +183,10 @@ type shell struct {
 	// systemReduce reads macOS's Reduce motion (reducemotion_darwin.go); tests replace it, so that
 	// the computer's setting does not reach them (shell.reduceMotion, preferences_motion.go).
 	systemReduce func() bool
+	// systemBattery reads whether the computer runs on its battery (power_darwin.go and its
+	// siblings); tests replace it, so that the computer's power source does not reach them
+	// (shell.batteryStopsStrip, preferences_power.go).
+	systemBattery func() bool
 }
 
 // newShell builds every widget. Nothing talks to the engine until start.
@@ -207,10 +211,12 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.loadWidths() // before the drawer, which wraps its values to the width it will have
 
 	sh.systemReduce = systemReduceMotion
+	sh.systemBattery = systemOnBattery
 	sh.blink = newBlinker(sh) // before the bars, whose dots it refreshes
 	sh.inlineMenus = opts.menus.inBar()
 	sh.top = newTopBar(sh)
 	sh.side = newSidebar(sh)
+	sh.strip = newLightStrip(sh) // before the view, under whose header it lies (the owner's LS18, a probe)
 	sh.view = newTableView(sh)
 	sh.drawer = newDrawer(sh)
 	sh.dock = newDock(sh)
@@ -228,7 +234,6 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.toasts = box(&toastLayout{})
 	sh.tip = newTooltip(sh)
 	sh.hot = newHotbar(sh)
-	sh.strip = newLightStrip(sh) // before the tab bar, under which it lies
 	sh.tabs = newTabBar(sh)
 
 	sh.drawerLay = &panelLayout{want: func() float32 { return sh.drawerW }, lo: minDrawerWidth, hi: maxDrawerWidth, restMin: minTableRoom,

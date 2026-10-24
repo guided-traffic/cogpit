@@ -162,6 +162,12 @@ type Preferences struct {
 	// fyneui/navigator_slide.go). Agents and the CLI may set it either way: it changes only how the
 	// window moves.
 	ReduceMotion bool `json:"reduceMotion,omitempty"`
+	// LightStripMainsOnly: the light strip under the tabs animates only while the computer runs on
+	// its power adapter and on battery shows its colour standing still; off, the default, it
+	// animates on battery too (the owner, 2026-10-24, LS15 and LS16: "nur bei Netzbetrieb", once for
+	// the app; an animation repaints the window and costs CPU; fyneui/preferences_power.go). Agents
+	// and the CLI may set it either way: it changes only how the window moves.
+	LightStripMainsOnly bool `json:"lightStripMainsOnly,omitempty"`
 	// ProgramFolders are the folders, absolute paths, Cogpit looks in for the programs a
 	// kubeconfig's credential plugin runs, kubectl's plugins and a terminal's programs, after PATH's
 	// own folders and Cogpit's built-in ones, in this order (programfolders.go, D-120). Only the

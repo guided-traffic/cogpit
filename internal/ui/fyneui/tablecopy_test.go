@@ -530,7 +530,10 @@ func TestListCopyIconFollowsTheCells(t *testing.T) {
 	}
 	for i, scroll := range []func(){
 		func() { tv.scrollTo(400) },
-		func() { wheel(-120 * name.Size().Height) },
+		// 120 rows up, a whole number of rows (a cell and the padding between rows), so that the
+		// pointer stays in a row's middle and never lands in the gap between two, where the table
+		// sees no row.
+		func() { wheel(-120 * (name.Size().Height + theme.Padding())) },
 	} {
 		hoverOver(w, q, at)
 		if !btn.Visible() {

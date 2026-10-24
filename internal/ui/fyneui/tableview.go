@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -52,6 +53,7 @@ type tableView struct {
 	toggles               *searchToggles  // the search's "Aa" and ".*" (searchtoggles.go)
 	searchBox             *fyne.Container
 	heading, tools        *fyne.Container // the header's left and right parts
+	head                  *fyne.Container // the header itself, the light strip right under it (lightstrip.go)
 
 	// A page shows its own part between the header and the table: the Workloads Overview its kinds'
 	// tiles, the cluster Overview its charts (clusteroverview.go); then the table's header (the
@@ -190,7 +192,7 @@ func newTableView(sh *shell) *tableView {
 	tv.tools = box(&shrinkRowLayout{floors: map[fyne.CanvasObject]float32{
 		tv.nsBox: 120, tv.states.box: 110, tv.searchBox: 170,
 	}}, tv.nsBox, tv.states.box, tv.searchBox)
-	header := container.NewStack(newSurface(theme.ColorNameBackground),
+	tv.head = container.NewStack(newSurface(theme.ColorNameBackground),
 		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 			box(headerRowLayout{}, tv.heading, tv.tools)))
 
@@ -211,7 +213,9 @@ func newTableView(sh *shell) *tableView {
 	tv.create = newCreateButton(sh)
 	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root)
 	tv.root = container.NewBorder(
-		container.NewVBox(header, tv.pageBox, inset(theme.SizeNameInnerPadding, "", tv.errLine), inset(theme.SizeNameInnerPadding, "", tv.scopeLine)),
+		// The light strip right under the header, above the page's part and the table's header (the
+		// owner's walk, LS20: "Das ist der Platz für den Lichtstreifen").
+		container.NewVBox(box(layout.NewCustomPaddedVBoxLayout(0), tv.head, sh.strip), tv.pageBox, inset(theme.SizeNameInnerPadding, "", tv.errLine), inset(theme.SizeNameInnerPadding, "", tv.scopeLine)),
 		nil, nil, nil, body)
 	tv.updatePlaceholder()
 	return tv

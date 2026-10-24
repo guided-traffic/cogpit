@@ -199,7 +199,10 @@ func (r *surfaceRenderer) Destroy()                     {}
 
 func (r *surfaceRenderer) Refresh() {
 	th := r.s.Theme()
-	r.rect.FillColor = themeColor(th, r.s.fill)
+	r.rect.FillColor = color.Transparent // no fill: an outline alone (the light strip's animations' frame)
+	if r.s.fill != "" {
+		r.rect.FillColor = themeColor(th, r.s.fill)
+	}
 	if r.s.radius != "" && r.s.bottomLeftOnly {
 		r.rect.BottomLeftCornerRadius = th.Size(r.s.radius)
 	} else if r.s.radius != "" {

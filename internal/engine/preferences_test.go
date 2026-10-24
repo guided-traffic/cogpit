@@ -41,6 +41,7 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 		p.Theme, p.Timezone, p.TableRowHeight = ThemeLight, "Europe/Berlin", 32
 		p.EditorFontSize, p.EditorLineNumbers, p.EditorTabSize = 15, false, 4
 		p.TerminalFontSize, p.TerminalShell, p.TerminalShellArgs = 14, testShell(), []string{"-l"}
+		p.LightStripMainsOnly = true
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -75,7 +76,7 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 	}
 	if got.Theme != ThemeLight || got.Timezone != "Europe/Berlin" || got.TableRowHeight != 32 || got.EditorFontSize != 15 ||
 		got.EditorLineNumbers || got.EditorTabSize != 4 || got.TerminalFontSize != 14 || got.TerminalShell != testShell() ||
-		len(got.TerminalShellArgs) != 1 || got.TerminalShellArgs[0] != "-l" {
+		len(got.TerminalShellArgs) != 1 || got.TerminalShellArgs[0] != "-l" || !got.LightStripMainsOnly {
 		t.Errorf("after a restart: %+v", got)
 	}
 	if s2.Location().String() != "Europe/Berlin" {

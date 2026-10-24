@@ -110,14 +110,14 @@ func TestLightStripTransitionClockStartsAtFadeIn(t *testing.T) {
 	red := stripLook{color: "red", anim: engine.LightStripScanner}
 	green := stripLook{color: "green", anim: engine.LightStripBreathing}
 	var m stripModel
-	if !m.retarget(red, t0) || m.retarget(red, t0.Add(time.Millisecond)) {
+	if !m.retarget(red, t0, 0.5, false) || m.retarget(red, t0.Add(time.Millisecond), 0.5, false) {
 		t.Fatal("the first look starts a change, the same one again none")
 	}
 	if a := m.layers[0]; a.opacity(t0) != 0 || a.clock(t0) != 0 || !stripNear(a.opacity(t0.Add(stripHalf)), 1, 1e-9) {
 		t.Errorf("the first look comes from glass: opacity %v at once, %v after half the fade", a.opacity(t0), a.opacity(t0.Add(stripHalf)))
 	}
 	t1 := t0.Add(5 * time.Second)
-	m.retarget(green, t1)
+	m.retarget(green, t1, 0.5, false)
 	old, next := m.layers[0], m.layers[1]
 	if !next.in.Equal(t1.Add(stripHalf)) {
 		t.Errorf("the new look begins at %v, want once the old has faded out, %v", next.in.Sub(t1), stripHalf)
@@ -140,10 +140,10 @@ func TestLightStripTransitionClockStartsAtFadeIn(t *testing.T) {
 
 	// Back to red while green waits: green never shows, red starts from its beginning again.
 	var b stripModel
-	b.retarget(red, t0)
-	b.retarget(green, t1)
+	b.retarget(red, t0, 0.5, false)
+	b.retarget(green, t1, 0.5, false)
 	t2 := t1.Add(100 * time.Millisecond)
-	b.retarget(red, t2)
+	b.retarget(red, t2, 0.5, false)
 	last := b.layers[len(b.layers)-1]
 	if last.look != red || !last.in.Equal(t1.Add(stripHalf)) {
 		t.Errorf("red again begins %v after the first change, want when the old red has gone", last.in.Sub(t1))
@@ -173,7 +173,7 @@ func TestLightStripMovesOnlyWhileSomethingChanges(t *testing.T) {
 	}
 	for _, c := range cases {
 		var m stripModel
-		m.retarget(c.look, t0)
+		m.retarget(c.look, t0, 0.5, false)
 		if got := m.moving(t0); got != c.start {
 			t.Errorf("%+v at its start: moving %v, want %v", c.look, got, c.start)
 		}
@@ -183,8 +183,8 @@ func TestLightStripMovesOnlyWhileSomethingChanges(t *testing.T) {
 	}
 	// A light going to glass moves until it has gone.
 	var m stripModel
-	m.retarget(stripLook{color: "red", anim: engine.LightStripStatic}, t0)
-	m.retarget(stripLook{}, settled)
+	m.retarget(stripLook{color: "red", anim: engine.LightStripStatic}, t0, 0.5, false)
+	m.retarget(stripLook{}, settled, 0.5, false)
 	if !m.moving(settled.Add(stripHalf/2)) || m.moving(settled.Add(stripHalf)) {
 		t.Error("a light fading to glass: moving while it fades, still once it has gone")
 	}
@@ -236,5 +236,92 @@ func TestLightStripGlassIsTheLabsMix(t *testing.T) {
 		if got := nrgba(p.fyne[colorLightStrip]); got != want {
 			t.Errorf("dark %v: the palette's glass %+v, want the lab's mix %+v", dark, got, want)
 		}
+	}
+}
+
+// One static colour after another spreads from the tab's place over the whole fade (LS22): the old
+// layer stays under it, whole, until the new one covers the strip, and is dropped then; a static
+// colour after an animation, or an animation after a static colour, still goes through glass.
+// While motion is reduced it crossfades instead (LS23): the new colour's opacity over the old one,
+// eased, over the whole fade.
+func TestLightStripStaticToStaticSpreadsOrCrossfades(t *testing.T) {
+	t0 := time.Date(2026, 10, 24, 12, 0, 0, 0, time.UTC)
+	red := stripLook{color: "red", anim: engine.LightStripStatic}
+	blue := stripLook{color: "blue", anim: engine.LightStripStatic}
+	var m stripModel
+	m.retarget(red, t0, 0.5, false)
+	t1 := t0.Add(time.Second)
+	if !m.retarget(blue, t1, 0.8, false) {
+		t.Fatal("blue after red starts no change")
+	}
+	old, next := m.layers[0], m.layers[1]
+	if next.cover != coverSpread || next.origin != 0.8 || !next.in.Equal(t1) || !old.out.IsZero() {
+		t.Fatalf("blue over red: cover %v from %v at %v, red fading %v; want a spread from 0.8 at once, red kept", next.cover, next.origin, next.in.Sub(t1), !old.out.IsZero())
+	}
+	if !m.moving(t1.Add(stripFade/2)) || old.opacity(t1.Add(stripFade/2)) != 1 {
+		t.Error("half way the spread does not move, or red under it fades")
+	}
+	m.prune(t1.Add(stripFade))
+	if len(m.layers) != 1 || m.layers[0] != next || m.moving(t1.Add(stripFade)) {
+		t.Errorf("once spread: %d layers, moving %v; want blue alone, standing", len(m.layers), m.moving(t1.Add(stripFade)))
+	}
+
+	// An animation either side: through glass.
+	scan := stripLook{color: "green", anim: engine.LightStripScanner}
+	t2 := t1.Add(2 * time.Second)
+	m.retarget(scan, t2, 0.2, false)
+	if top := m.layers[len(m.layers)-1]; top.cover != coverGlass || !top.in.Equal(t2.Add(stripHalf)) {
+		t.Errorf("a scanner after blue: cover %v, in after %v; want through glass", top.cover, top.in.Sub(t2))
+	}
+	t3 := t2.Add(3 * time.Second)
+	m.retarget(red, t3, 0.2, false)
+	if top := m.layers[len(m.layers)-1]; top.cover != coverGlass {
+		t.Errorf("red after the scanner: cover %v, want through glass", top.cover)
+	}
+	// A static colour still fading in through glass is no colour to spread over.
+	m.retarget(blue, t3.Add(stripHalf+stripHalf/2), 0.2, false)
+	if top := m.layers[len(m.layers)-1]; top.cover != coverGlass {
+		t.Errorf("blue while red still fades in: cover %v, want through glass", top.cover)
+	}
+
+	// Motion reduced: a crossfade, eased, the old colour kept under it until it is whole.
+	var r stripModel
+	r.retarget(red, t0, 0.5, true)
+	r.retarget(blue, t1, 0.8, true)
+	x := r.layers[1]
+	if x.cover != coverCross || !stripNear(x.opacity(t1.Add(stripFade/2)), 0.5, 1e-9) || r.layers[0].opacity(t1.Add(stripFade/2)) != 1 {
+		t.Errorf("reduced: cover %v, half way %v over red %v; want a crossfade at 0.5 over red whole", x.cover, x.opacity(t1.Add(stripFade/2)), r.layers[0].opacity(t1.Add(stripFade/2)))
+	}
+	r.prune(t1.Add(stripFade))
+	if len(r.layers) != 1 {
+		t.Errorf("once crossfaded: %d layers", len(r.layers))
+	}
+}
+
+// A spread grows from its origin to both sides: nothing at its start, a soft edge each side of a
+// flat core on its way, the whole strip at its end; the nearer end is covered first.
+func TestLightStripSpreadRamps(t *testing.T) {
+	const w = 1000
+	if r := spreadRamps(0.5, 0, w, 1); len(r) != 0 {
+		t.Errorf("at its start: %+v, want nothing", r)
+	}
+	r := spreadRamps(0.25, 0.5, w, 1)
+	if len(r) != 3 || r[0].a1 != 1 || r[0].a2 != 1 || r[1].a1 != 0 || r[2].a2 != 0 {
+		t.Fatalf("half way: %+v, want a core and two soft edges", r)
+	}
+	core := r[0]
+	if mid := (core.x1 + core.x2) / 2; mid != 250 {
+		t.Errorf("the core's middle at %v, want the origin, 250", mid)
+	}
+	if core.x1 > 0 && r[1].x1 > 0 {
+		// The far end is 750 away: at 0.5 the left edge (250 away) is passed, the right not yet.
+		t.Errorf("half way from 250 the left end is not reached: %+v", r)
+	}
+	if r[2].x2 >= w {
+		t.Errorf("half way from 250 the right end is reached: %+v", r)
+	}
+	end := spreadRamps(0.25, 1, w, 1)
+	if end[0].x1 > 0 || end[0].x2 < w {
+		t.Errorf("at its end the core spans %v–%v, want the whole strip", end[0].x1, end[0].x2)
 	}
 }

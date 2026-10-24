@@ -264,7 +264,9 @@ func Run(s *engine.Session, opts Options) error {
 		do(func() { place.follow(w) })
 		do(sh.watchPixelScale) // macOS: texts drawn again when the window's pixel scale changes (D-121)
 		// macOS: the light strip stands still or moves again when Reduce motion changes (lightstrip.go).
-		watchReduceMotion(func() { sh.do(sh.strip.follow) })
+		watchReduceMotion(func() { sh.do(sh.systemMotionChanged) })
+		// And when the computer goes from its power adapter to its battery or back (preferences_power.go).
+		watchPower(sh.stopTickers, func() { sh.do(sh.systemMotionChanged) })
 		do(sh.installAbout) // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
 		if sh.inlineMenus {
 			do(sh.installMenuKeys) // Windows and Linux: the menus' keys, the window up (menubar.go)

@@ -64,6 +64,8 @@ type preferencesSetParams struct {
 	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the status bar and the navigator name (false, the default); ui_state's tabs list every tab either way"`
 	// ReduceMotion: whether the window slides (fyneui/navigator_slide.go).
 	ReduceMotion *bool `json:"reduceMotion,omitempty" jsonschema:"whether the window switches at once where it would slide (true): between All Clusters and a cluster's tree, and from one cluster's tree to another's; false, the default, it slides"`
+	// LightStripMainsOnly: whether the light strip animates on battery (fyneui/preferences_power.go).
+	LightStripMainsOnly *bool `json:"lightStripMainsOnly,omitempty" jsonschema:"whether the light strip under the tabs animates only while the computer runs on its power adapter (true): on battery it shows its colour standing still; false, the default, it animates on battery too"`
 }
 
 // shellChange reports whether the parameters change the local terminal's shell or arguments.
@@ -131,7 +133,8 @@ func registerPreferences(g *registrar) {
 			"(restoreSession: its tabs and connections), the integrations off for clusters without a choice of their own " +
 			"(integrationsOff, the default for new clusters; absent: every one on), the image Debug offers for a pod's debug " +
 			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest), whether the tab bar shows " +
-			"every cluster's tabs (mixedEnvironments) and whether the window switches at once instead of sliding (reduceMotion), " +
+			"every cluster's tabs (mixedEnvironments), whether the window switches at once instead of sliding (reduceMotion) and " +
+			"whether the light strip animates only on the power adapter (lightStripMainsOnly), " +
 			"the folders Cogpit looks in for a credential plugin's programs after PATH (programFolders: preferences_addProgramFolder, preferences_removeProgramFolder); " +
 			"kept says whether they outlive this run. " +
 			"ui_state carries the same.",
@@ -283,6 +286,7 @@ func registerPreferences(g *registrar) {
 				setIf(&pr.RestoreSession, p.RestoreSession)
 				setIf(&pr.MixedEnvironments, p.MixedEnvironments)
 				setIf(&pr.ReduceMotion, p.ReduceMotion)
+				setIf(&pr.LightStripMainsOnly, p.LightStripMainsOnly)
 				if p.UpdateChannel != nil {
 					pr.UpdateChannel = strings.TrimSpace(*p.UpdateChannel)
 					if pr.UpdateChannel == "" {

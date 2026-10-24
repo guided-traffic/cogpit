@@ -98,6 +98,21 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("an agent's reduceMotion %v: %v, %v", on, err, got.Preferences.ReduceMotion)
 		}
 	}
+	// So is the light strip's stand on battery (LS15), for every origin, and preferences.get shows it.
+	for _, origin := range []engine.Origin{agent, engine.OriginBuiltInAgent, engine.OriginCLI, engine.OriginGUI} {
+		for _, on := range []bool{true, false} {
+			var got, read commands.PreferencesResult
+			if err := dispatch(t, s, origin, "preferences.set", map[string]any{"lightStripMainsOnly": on}, &got); err != nil || got.Preferences.LightStripMainsOnly != on {
+				t.Errorf("%s's lightStripMainsOnly %v: %v, %v", origin, on, err, got.Preferences.LightStripMainsOnly)
+			}
+			if err := dispatch(t, s, origin, "preferences.get", struct{}{}, &read); err != nil || read.Preferences.LightStripMainsOnly != on {
+				t.Errorf("%s's preferences.get after lightStripMainsOnly %v: %v, %v", origin, on, err, read.Preferences.LightStripMainsOnly)
+			}
+			if u := s.UIState().Preferences; u == nil || u.LightStripMainsOnly != on {
+				t.Errorf("ui_state after lightStripMainsOnly %v: %+v", on, u)
+			}
+		}
+	}
 	for _, origin := range []engine.Origin{agent, engine.OriginBuiltInAgent, engine.OriginCLI} {
 		for _, params := range []map[string]any{{"terminalShell": "/bin/sh"}, {"terminalShellArgs": []string{"-c", "touch /tmp/x"}}} {
 			if err := dispatch(t, s, origin, "preferences.set", params, nil); !errors.Is(err, engine.ErrShellGUIOnly) {

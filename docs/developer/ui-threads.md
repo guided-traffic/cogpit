@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (five rows for the light strip, D-new: its clock's goroutine and ticker, macOS's Reduce motion report and its closure, the app's foreground callbacks); trivial (the second and third groups' counts corrected to their rows, 41 and 37); trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (four rows for Preferences › App › Light strip on battery, LS15: IOKit's power source report and the closure it and the poll call, the poll's goroutine and ticker); trivial (five rows for the light strip, D-new: its clock's goroutine and ticker, macOS's Reduce motion report and its closure, the app's foreground callbacks); trivial (the second and third groups' counts corrected to their rows, 41 and 37); trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -53,7 +53,7 @@ native code calls (`//export`), `callback` a function another package calls on i
 places of the same kind has one row.
 
 <details>
-<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (60 rows)</summary>
+<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (62 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -112,6 +112,8 @@ places of the same kind has one row.
 | `fyneui/reducemotion_darwin.go` | `cogpitReduceMotionChanged` | cgo | A | AppKit posts the display's accessibility options' change on the workspace's notification centre, on the main thread, so the main goroutine; reads `motionFn` under `motionMu` and calls it: the closure below (the light strip, D-new). |
 | `fyneui/fyneui.go` | `Run` | callback | A | The `watchReduceMotion` closure that cgo export calls: posts `lightStrip.follow` through `sh.do`, nothing else (D-new). |
 | `fyneui/fyneui.go` | `Run` | callback | A | `Lifecycle.SetOnEnteredForeground` and `SetOnExitedForeground`: GLFW's focus callback on main; each posts `lightStrip.setActive` through `sh.do` (D-new). |
+| `fyneui/power_darwin.go` | `cogpitPowerChanged` | cgo | A | IOKit's power source notification, its run loop source added to the main run loop from `dispatch_async` on the main queue, so the main goroutine; reads the power source through IOKit, then `powerFn` and `powerLast` under `powerMu`, and calls `powerFn` only when the computer went from its adapter to its battery or back: the closure below (Light strip on battery, LS15). |
+| `fyneui/fyneui.go` | `Run` | callback | A | The `watchPower` closure that the cgo export calls on macOS and `pollPower`'s goroutine on Windows and Linux: posts `lightStrip.follow` through `sh.do`, nothing else (LS15). |
 | `fyneui/titlebar_darwin.go` | `cogpitTitlebarChanged` | cgo | A | Called from `dispatch_async` on the main queue, so the main goroutine; posts `tb.update` through `sh.do`. |
 | `fyneui/appmenu_darwin.go` | `cogpitAboutChosen` | cgo | A | An AppKit menu action on the main thread; posts `showAbout` through `sh.do`. |
 | `nativedialog/panel_darwin.go` | `cogpitPanelPicked` | cgo | B | The sheet's completion handler on the main thread; appends to the request under `requestsMu`; no Fyne. |
@@ -170,7 +172,7 @@ places of the same kind has one row.
 </details>
 
 <details>
-<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (39 rows)</summary>
+<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (41 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -188,6 +190,8 @@ places of the same kind has one row.
 | `fyneui/conndot.go` | `blinker.runTicker` | Ticker | A | Made and stopped inside that goroutine; `b.stop` is written on main only. |
 | `fyneui/lightstrip.go` | `lightStrip.runTicker` | go | A | The light strip's clock (D-new): reads its locals `every`, `stop` and `stopAll` and the atomic `pending`; each frame is `s.sh.do(…)`, whose body checks `s.stop` and runs `tick` on main; never a second frame while one waits. |
 | `fyneui/lightstrip.go` | `lightStrip.runTicker` | Ticker | A | Made and stopped inside that goroutine; `s.stop` is written and read on main only. |
+| `fyneui/power.go` | `pollPower` | go | A | The power source's poll on Windows and Linux (LS15): reads its locals only (`stop`, the shell's `stopTickers`; `read`, which touches no Fyne: `GetSystemPowerStatus` or the files under `/sys/class/power_supply`; `last`); `fn` is the `Run` closure that posts through `sh.do`; a panic ends it with a log line. |
+| `fyneui/power.go` | `pollPower` | Ticker | B | Made and stopped inside that goroutine. |
 | `fyneui/connbanner.go` | `connBanner.startTicker` | go | A | Reads the locals `t`, `stop` and `sh.stopTickers`; the `Visible` check and `fill` run inside `sh.do`. |
 | `fyneui/connbanner.go` | `connBanner.startTicker` | Ticker | A | Made on main and read by the goroutine above; `Stop` and the field writes happen on main (`hide`). |
 | `fyneui/copy.go` | `shell.copyText` | AfterFunc | A | A Secret's clipboard time-out: `sh.do(sh.clearSecretClipboard)`; the clipboard and `clipTimer` are touched only on main. |

@@ -78,19 +78,20 @@ func stripLit(s *lightStrip) (flat *canvas.Rectangle, ramps []*canvas.LinearGrad
 	return flat, ramps
 }
 
-// The strip lies in the tab bar's place of its divider, the content column's width, 4 pt high, and
-// shows the accent colour of the shown tab's cluster, through glass: from glass at the start, back
-// to glass for a tab of a cluster without one, and the colour again for the first. Without tabs the
-// bar and the strip are hidden.
+// The strip lies right under the view's header (LS20), the view's width, 4 pt high, and shows the
+// accent colour of the shown tab's cluster, through glass: from glass at the start, back to glass
+// for a tab of a cluster without one, and the colour again for the first. Without tabs the bar still
+// shows, a tab high (LS11).
 func TestLightStripFollowsTheShownTab(t *testing.T) {
 	sh, _, q, f, c := stripShell(t, ThemeDark, "red", engine.LightStripStatic)
 	s := sh.strip
-	if !s.Visible() || s.Size().Height != stripHeight || s.Size().Width != sh.tabs.scroll.Size().Width {
-		t.Fatalf("the strip: shown %v, size %v, want the tab bar's width (%v) and %v pt", s.Visible(), s.Size(), sh.tabs.scroll.Size().Width, stripHeight)
+	head := sh.view.head
+	if !s.Visible() || s.Size().Height != stripHeight || s.Size().Width != head.Size().Width {
+		t.Fatalf("the strip: shown %v, size %v, want the view header's width (%v) and %v pt", s.Visible(), s.Size(), head.Size().Width, stripHeight)
 	}
 	d := fyne.CurrentApp().Driver()
-	if pos, bar := d.AbsolutePositionForObject(s), d.AbsolutePositionForObject(sh.tabs.scroll); pos.Y != bar.Y+sh.tabs.scroll.Size().Height || pos.X != bar.X {
-		t.Errorf("the strip at %v, the tabs at %v (%v high): want it right under them", pos, bar, sh.tabs.scroll.Size().Height)
+	if pos, hp := d.AbsolutePositionForObject(s), d.AbsolutePositionForObject(head); pos.Y != hp.Y+head.Size().Height || pos.X != hp.X {
+		t.Errorf("the strip at %v, the view's header at %v (%v high): want it right under it", pos, hp, head.Size().Height)
 	}
 	if flat, _ := stripLit(s); flat != nil {
 		t.Errorf("at the start the light shows at once: %+v", flat.FillColor)
@@ -121,7 +122,8 @@ func TestLightStripFollowsTheShownTab(t *testing.T) {
 		t.Errorf("after the fade out: light %v %v, ticking %v; want glass alone, standing", flat, ramps, c.running)
 	}
 
-	// The welcome page: glass; and no tab at all: the bar and the strip hidden.
+	// The welcome page: glass; and no tab at all: the bar shows still, as high as with tabs.
+	high := sh.tabs.root.Size().Height
 	f.update(func(u *engine.UIState) { u.ActiveTab, u.Welcome = "", true })
 	q.drain()
 	if s.look() != (stripLook{}) {
@@ -129,8 +131,52 @@ func TestLightStripFollowsTheShownTab(t *testing.T) {
 	}
 	f.update(func(u *engine.UIState) { u.Tabs = nil })
 	q.drain()
-	if sh.tabs.root.Visible() || s.Visible() && sh.tabs.root.Visible() {
-		t.Error("without tabs the bar and its strip show")
+	if !sh.tabs.root.Visible() || sh.tabs.root.MinSize().Height != high {
+		t.Errorf("without tabs the bar: shown %v, %v high; want shown, %v high", sh.tabs.root.Visible(), sh.tabs.root.MinSize().Height, high)
+	}
+}
+
+// One static colour after another spreads from the shown tab's place (LS22): prod-eu's tab (its long
+// context), right of demo's, makes blue spread from its middle over demo's red, which stays under it until the
+// strip is blue; with motion reduced the same change crossfades (LS23).
+func TestLightStripSpreadsFromTheTab(t *testing.T) {
+	for _, reduced := range []bool{false, true} {
+		sh, _, q, f, c := stripShell(t, ThemeDark, "red", engine.LightStripStatic)
+		sh.systemReduce = func() bool { return reduced }
+		s := sh.strip
+		f.update(func(u *engine.UIState) {
+			u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {AccentColor: "red"}, longContext: {AccentColor: "blue"}}
+		})
+		q.drain()
+		c.at(sh, stripFade)
+		change := c.now
+		f.update(func(u *engine.UIState) { u.ActiveTab = "tab-3" })
+		q.drain()
+		top := s.model.layers[len(s.model.layers)-1]
+		d := fyne.CurrentApp().Driver()
+		tab := sh.tabs.activeWidget()
+		want := float64((d.AbsolutePositionForObject(tab).X + tab.Size().Width/2 - d.AbsolutePositionForObject(s).X) / s.Size().Width)
+		cover := coverSpread
+		if reduced {
+			cover = coverCross
+		}
+		if top.look.color != "blue" || top.cover != cover || !top.in.Equal(change) || (!reduced && !stripNear(top.origin, want, 1e-6)) || !c.running {
+			t.Fatalf("reduced %v: blue's layer %+v, want cover %v at once from %v, ticking", reduced, top, cover, want)
+		}
+		c.at(sh, stripFade+stripFade/2)
+		flat, ramps := stripLit(s)
+		red, blue := s.lightColor("red"), s.lightColor("blue")
+		if reduced {
+			if len(ramps) != 0 || flat == nil || nrgba(flat.FillColor) != strength(blue, 0.5) {
+				t.Errorf("reduced, half way: flat %+v, %d ramps; want blue at half over red", flat, len(ramps))
+			}
+		} else if flat == nil || nrgba(flat.FillColor) != red || len(ramps) != 3 {
+			t.Errorf("half way: red under %+v, %d ramps of blue; want red whole and blue's core and edges", flat, len(ramps))
+		}
+		c.at(sh, 2*stripFade)
+		if flat, ramps := stripLit(s); flat == nil || nrgba(flat.FillColor) != blue || len(ramps) != 0 || c.running || len(s.model.layers) != 1 {
+			t.Errorf("reduced %v, done: %+v, %d ramps, ticking %v, %d layers; want blue alone, standing", reduced, flat, len(ramps), c.running, len(s.model.layers))
+		}
 	}
 }
 

@@ -41,10 +41,10 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); since 2026-10-21 a Windows setup for Windows 10 (1809) and 11 on x64, installed for your user without an administrator, on the branch `windows-release` and in the first release after its merge ([Install on Windows](#install-on-windows), [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)); on Linux and Windows no `cogpit://` links and no Start at login yet.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level (it stays, empty, while no tab is open, since 2026-10-24); **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
-- 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
+- 📌 A hotbar of pinned clusters at the window's edge, 50-point tiles in one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
 - ➖ The "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…, where you remove synced files and folders (since 2026-10-19; also in that row's menu and the Cluster menu).
 - 🔀 Several clusters connected at once (since 2026-10-16): switching to another cluster leaves the one you were on connected, its logs, shells, port forwards and running jobs going on; switching back within five minutes shows it at once without asking the cluster again, later its lists load anew. A cluster's namespace filter, search and status filter stay with it and its tabs: the next cluster never comes with them. The top bar's three toggles show and hide the navigator (⌘B), the dock (⌘J) and the agent chat (⌘I); with no tab in the dock, ⌘J opens a terminal there. A cluster stays connected until you disconnect it or quit; agents may work on any connected cluster. Every dot of a cluster says how it is: filled while live, a ring while it rests in the background, blinking while it reconnects, red when it needs you; the dock shows the tabs of the cluster you look at ([Several clusters connected](#several-clusters-connected)). A cluster's Settings can keep its login program from running while you look at another cluster (its login then waits, renewed when you show it), and Preferences › App can bring the last session back at start: its tabs and its clusters, connected again.
 - 🪪 One short name per cluster wherever the window names it: the name you gave it in its Settings, else its context's name after the last "@" ("kubernetes-admin@prod-eu" shows as "prod-eu"); the full name in every tooltip, and the navigator's search finds it by either. The navigator's root says who you are logged in as there, as the API server confirms it at every connect (`kubectl auth whoami`'s question), your groups in the tooltip of the small box beside it; "(kubeconfig)" marks the kubeconfig's user name where the API server does not say, and while the cluster connects the last user it confirmed shows dimmed, with when it was last seen ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
@@ -699,6 +699,27 @@ motion (System Settings › Accessibility › Display) does the same, whatever t
 |---|---|---|
 | `reduceMotion` | `false` # default | on: the window switches at once where it would slide or blink; agents may set it either way, it changes only how the window moves |
 
+### Preferences › App: light strip on battery
+
+Since 2026-10-24 (the owner's LS15 and LS16: once for the app, beside Reduce motion): the row
+**Light strip on battery**, a check "Animate the light strip only on the power adapter", **off by
+default**: the [light strip](#the-light-strip) moves as its cluster's setting says (breathing,
+scanner, flow) on battery too. On, while the computer runs on its battery the strip shows its
+colour standing still, as under Reduce motion, and it moves again once the power adapter is
+plugged in. An animation repaints the window at the strip's frame rate, about a fifth of a CPU
+core; static, off and standing still cost nothing.
+
+Where Cogpit reads the power source: on macOS IOKit's providing power source, followed at once
+when it changes (a Mac without a battery, a Mac Studio or an iMac, never runs on battery); on
+Windows `GetSystemPowerStatus` (the line offline), on Linux the power supplies under
+`/sys/class/power_supply` (no adapter or USB charger online, and a battery of the computer's own
+discharging; a wireless mouse's battery does not count), both read again every 30 s, so the strip
+follows a pulled cable there within half a minute.
+
+| Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
+|---|---|---|
+| `lightStripMainsOnly` | `false` # default | on: the light strip animates only on the power adapter and stands still on battery; agents may set it either way, it changes only how the window moves |
+
 ### The window's place and size
 
 Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
@@ -763,7 +784,7 @@ dialog, **Reset** gives back the initials in the accent colour:
 - **Internal icon:** a colour tile with letters. Its dialog takes up to five letters, digits or
   signs (no spaces; empty: the initials of the cluster's name) and one of eight colours or any
   colour. Longer letters are drawn smaller to fit, so the dialog previews the icon at the hotbar's
-  size and at the navigator's.
+  size and at the navigator's rows'.
 - **Custom icon:** a square part of an image. Its dialog shows the image in the icon's square frame,
   the rest dimmed: drag to move it, zoom with the mouse wheel (at the pointer) or the slider (up to
   8×), **Fit** to fill the square from the middle again, **Choose Image…** for another file. The
@@ -774,6 +795,17 @@ again. Both kinds are drawn with rounded corners as macOS draws an app icon, Cog
 the radius is 22/96 of the side wherever the icon shows, the hotbar, the navigator, the welcome page,
 the tabs and the settings (since 2026-10-24, the owner's VW10; before, an image was drawn square).
 The kept image itself stays square; the rounding is drawn.
+
+The icon's size (since 2026-10-24, the owner's LS19; before, 38 points on the hotbar and 28 at the
+navigator's root): a 50-point square on the hotbar's tiles, in a 76-point bar, and in Cluster
+Settings' header; at the navigator's root as tall as its lines, so 50 points beside the name, the
+user and the version, but never at the cost of a line: it gives way, down to 28 points, before it
+would cut the name or the version further than a 28-point icon did, or the user's line when that
+showed whole beside one. At the default navigator width of 216 points a short name such as
+"prod-eu" with a long e-mail address gets 50 points, a name of 14 letters such as "awe-d-pinniped"
+about 31, and 50 once the navigator is about 235 wide; drag the navigator's edge to give it room.
+The navigator's rows and the welcome page keep 28. The letters grow with the square (21 points on
+50).
 
 | Field (in `cluster-settings.json`, per context) | Default | Values |
 |---|---|---|
@@ -792,8 +824,8 @@ own copies and draws only those. Every change of the icon is yours alone, in Cog
 
 Since 2026-10-17 ([D-80](decisions.md#d-80-a-clusters-accent-colour), the owner's F26). Beside its
 icon every cluster can carry an **accent colour** you pick, your mark of which cluster it is (red for
-production, say), so that you see at a glance where you act: the **light strip** under the tabs
-shows it (below). The row "Accent colour" sits below the icon: None (the crossed square, the
+production, say), so that you see at a glance where you act: the **light strip** under a view's
+header shows it (below). The row "Accent colour" sits below the icon: None (the crossed square, the
 default), the eight colours of the icon, a colour of your own from the palette button. A click
 applies it.
 
@@ -814,14 +846,18 @@ directory and namespace, hidden metrics, accessible namespaces) stay theirs.
 
 #### The light strip
 
-Since 2026-10-24 ([D-new](decisions.md#d-new-the-light-strip), the owner's VW14; built on the
-branch `feat/light-strip`, merged after his walk). A strip 4 pt high runs right under the tab bar,
-the width of the views (not under the navigator or the chat). Off, it is frosted glass with a fine
-grain, dark or light with the theme: for a cluster without an accent colour, on the welcome page,
-and while the shown tab's cluster connects. The tab bar's active tab decides: with a tab of a
+Since 2026-10-24 ([D-new](decisions.md#d-new-the-light-strip), the owner's VW14 and his walk of
+the same evening). A strip 4 pt high runs right under a view's header (its title and count, the
+filters and the search), above the table's header or a page's part, the width of the view (not
+under the navigator, the drawer or the chat). Off, it is frosted glass with a fine grain, dark or
+light with the theme: for a cluster without an accent colour and while the shown tab's cluster
+connects. The tab bar's active tab decides: with a tab of a
 cluster that has an accent colour shown, the strip shows that colour (an accent in the theme's
 shade, a colour of your own in a shade of its hue legible on the theme, as its swatch shows it),
-the glass's grain over it. Under the accent colour the row **Light strip** chooses how:
+the glass's grain over it. Under the accent colour the row **Light strip** chooses how: Static, or
+one of the animations, which stand in a frame of their own whose ⓘ says what they cost (an animated
+strip repaints the window up to 60 times a second while it moves, about a fifth of a CPU core
+measured on an Apple M1 Ultra; static and off cost nothing):
 
 | Light strip | What the strip does |
 |---|---|
@@ -830,15 +866,21 @@ the glass's grain over it. Under the accent colour the row **Light strip** choos
 | Scanner | a light half the strip wide sweeps in from the left and swings from end to end, 6 s there and back |
 | Flow | a light 46 % of the strip long runs from left to right, 5 s a pass; the next sets off as its head goes under at the right |
 
-Every change goes through glass: the light fades out in 350 ms, then the new one fades in in
-350 ms from its beginning (a scanner or a flow coming in from beyond the left edge), whether you
-showed a tab of another cluster or changed the colour or the strip in Cluster Settings. Two
-clusters with the same colour and strip show no change. The strip stands still, its colour steady
-at full strength, while Cogpit is not the active app and while motion is reduced (Preferences ›
+A change goes through glass: the light fades out in 350 ms, then the new one fades in in 350 ms
+from its beginning (a scanner or a flow coming in from beyond the left edge), whether you showed a
+tab of another cluster or changed the colour or the strip in Cluster Settings. One static colour
+after another instead spreads from the place of the tab you made active, to both ends, in 700 ms;
+while motion is reduced it crossfades in 700 ms. Two clusters with the same colour and strip show
+no change. The strip stands still, its colour steady
+at full strength, while Cogpit is not the active app, while motion is reduced (Preferences ›
 App › Reduce motion, or macOS's System Settings › Accessibility › Display › Reduce motion, followed
-at once); it fades into and out of standing as into any change, and moves again from its beginning.
+at once) and, with Preferences › App ›
+[Light strip on battery](#preferences--app-light-strip-on-battery) on, while the computer runs on
+its battery; it fades into and out of standing as into any change, and moves again from its beginning.
 While nothing moves, it costs nothing: its clock runs only while a light fades or an animation
-shows. Under a settings card it is dimmed with the rest of the window. The row is disabled, with
+shows. Under a settings card it is dimmed with the rest of the window. While an animation you chose
+stands still because motion is reduced or the computer runs on battery, a warning under the row
+says so and where to change it. The row is disabled, with
 "Set an accent colour first" beside it, while the cluster has none; clearing the colour keeps your
 choice for when it comes back.
 

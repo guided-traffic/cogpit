@@ -13,12 +13,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The light strip (D-new, the owner's VW14 of 2026-10-24): a strip of frosted glass under the tab
-// bar, the width of the content column (not under the navigator or the chat), that shows the accent
-// colour (D-80) of the cluster whose tab is shown, so that the user knows at a glance where they
-// work: "Bin ich Beispielsweise auf Prod, wünsche ich mir einen Roten Akzent umd direkt zu wissen
-// dass ich hier vorsichtig sein muss". It stands in the tab bar's place of its divider and shows and
-// hides with the bar.
+// The light strip (D-new, the owner's VW14 of 2026-10-24): a strip of frosted glass under the view's
+// header, above the table's header or the page's part, the width of the view (not under the
+// navigator, the drawer or the chat), that shows the accent colour (D-80) of the cluster whose tab
+// is shown, so that the user knows at a glance where they work: "Bin ich Beispielsweise auf Prod,
+// wünsche ich mir einen Roten Akzent umd direkt zu wissen dass ich hier vorsichtig sein muss". Its
+// place is the owner's from his walk (LS20: "Das ist der Platz für den Lichtstreifen"); every tab of
+// the main tab bar is a view of the table view (tableview.go), pages included.
 //
 //   - Off, frosted glass with a fine grain, dark or light with the theme, for a cluster without an
 //     accent colour, the welcome page, and while no tab of a connected cluster is shown ("Stellt der
@@ -29,18 +30,22 @@ import (
 //     (engine/lightstrip.go), its maths in lightstrip_model.go.
 //   - Every change goes through glass: the old light fades out in 350 ms, then the new one fades in
 //     in 350 ms from its beginning (a tab of another cluster shown, its colour or animation changed
-//     in Cluster Settings, the window's start).
-//   - It stands still, the static look at full strength, while Cogpit is not the active app, and
-//     while motion is reduced (Preferences › App › Reduce motion or macOS's own): the lead's
-//     decision, as for every motion in Cogpit (preferences_motion.go). Going to stand and back is a
-//     change like any other, through glass, so that a scanner never resumes mid-sweep.
+//     in Cluster Settings, the window's start). One static colour following another instead spreads
+//     over 700 ms from the place of the shown tab above it (LS22), or crossfades while motion is
+//     reduced (LS23).
+//   - It stands still, the static look at full strength, while Cogpit is not the active app, while
+//     motion is reduced (Preferences › App › Reduce motion or macOS's own): the lead's decision, as
+//     for every motion in Cogpit (preferences_motion.go), and on battery when Preferences › App asks
+//     to animate it only on the power adapter (the owner's LS15, preferences_power.go). Going to stand
+//     and back is a change like any other, through glass, so that a scanner never resumes mid-sweep
+//     (the owner, LS12: "Ist sehr richtig").
 //   - Its clock is a ticker at the frame cap, posting a frame to the main goroutine, and it runs only
 //     while something moves: a fade, or an animation shown. Static, off, a finished fade, the
 //     background and reduced motion stop it, and with it the window's repaints.
 
-// stripSlots are the lights the strip can draw at once: through glass only one shows at a time,
-// so two leave room.
-const stripSlots = 2
+// stripSlots are the lights the strip can draw at once: through glass only one shows at a time; a
+// colour spreading over another while a third still spreads under it are three.
+const stripSlots = 3
 
 // lightStrip is the strip widget. Its objects are its own, made once and changed in place: a
 // frame moves the scanner's and the flow's ramps (Fyne keeps their rasterised textures) and
@@ -109,8 +114,8 @@ func (s *lightStrip) grainImage(w, h int) image.Image {
 }
 
 // look is what the strip shows for the window's state: the accent colour of the shown tab's
-// cluster, moving as its setting says while Cogpit is active and motion is not reduced; glass
-// without one.
+// cluster, moving as its setting says while Cogpit is active, motion is not reduced and the battery
+// does not stop it (preferences_power.go); glass without one.
 func (s *lightStrip) look() stripLook {
 	ui := &s.sh.ui
 	ctx := shownTabContext(ui)
@@ -119,7 +124,7 @@ func (s *lightStrip) look() stripLook {
 		return stripLook{}
 	}
 	anim := engine.LightStripOf(cs)
-	if !s.active || s.sh.reduceMotion() {
+	if !s.active || s.sh.reduceMotion() || s.sh.batteryStopsStrip() {
 		anim = engine.LightStripStatic
 	}
 	return stripLook{color: cs.AccentColor, anim: anim}
@@ -144,9 +149,23 @@ func shownTabContext(ui *engine.UIState) string {
 // lifecycle and macOS's Reduce motion call it when they change.
 func (s *lightStrip) follow() {
 	now := s.now()
-	s.model.retarget(s.look(), now)
+	s.model.retarget(s.look(), now, s.origin(), s.sh.reduceMotion())
 	s.paint(now)
 	s.ticker(s.model.moving(now))
+}
+
+// origin is the middle of the main tab bar's active tab over the strip, a share of the strip's
+// width from its left edge, where a static colour spreads from (LS22); the strip's middle while no
+// tab widget is active or the strip has no width yet.
+func (s *lightStrip) origin() float64 {
+	w := s.Size().Width
+	t := s.sh.tabs.activeWidget()
+	if t == nil || w <= 0 || !s.Visible() {
+		return 0.5
+	}
+	d := fyne.CurrentApp().Driver()
+	x := d.AbsolutePositionForObject(t).X + t.Size().Width/2 - d.AbsolutePositionForObject(s).X
+	return clamp01(float64(x / w))
 }
 
 // setActive follows Cogpit becoming the active app or another one.
@@ -219,7 +238,11 @@ func (s *lightStrip) paint(now time.Time) {
 			continue
 		}
 		l := shown[i]
-		flat, ramps := layerPaint(l.look.anim, l.clock(now), size.Width, stripGlow*smoothstep(l.opacity(now)))
+		k := stripGlow * smoothstep(l.opacity(now))
+		flat, ramps := layerPaint(l.look.anim, l.clock(now), size.Width, k)
+		if l.covering(now) && l.cover == coverSpread {
+			flat, ramps = -1, spreadRamps(l.origin, l.spread(now), size.Width, k)
+		}
 		sl.show(s.lightColor(l.look.color), flat, ramps, size)
 	}
 }

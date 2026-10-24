@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 74 | 73 | 61 | 12 | 1 |
+| Beyond Lens (not in feature breadth) | 74 | 73 | 62 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -353,7 +353,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | The window's layout from the top bar, as VS Code's title bar has it: three toggles at its right end that show and hide the navigator (⌘B),… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Restore the last session at start, a preference that is off by default: on, the tabs of the last run come back and the clusters connected a… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | How long a context's client certificate is valid, where the user chooses a cluster: the time left or "expired" (just that, the owner, 2026-… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| Every cluster has an accent colour beside its icon that the user configures, to mark parts of the window later so that the user sees at a g… | partial | [Everyday use](beyond-lens.md#everyday-use) |
+| Every cluster has an accent colour beside its icon that the user configures, to mark parts of the window later so that the user sees at a g… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A node's disks at a glance: a small usage bar per real filesystem the node mounts (the root first, then a data disk such as /data), the num… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The cluster's Kubernetes version in the navigator's cluster row with a warning symbol when it is past its end of life and how long it has l… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A namespace stuck in Terminating says what holds it: its drawer lists the objects whose finalizers keep it, with links, deleted ones vanish… | done | [Everyday use](beyond-lens.md#everyday-use) |

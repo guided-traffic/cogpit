@@ -8,7 +8,8 @@ import (
 )
 
 // The light strip's pictures (D-new) for the owner's walk, dark and light: off (frosted glass),
-// static, each animation at a fixed moment of its clock, and a change half-way through its fade-in.
+// static, each animation at a fixed moment of its clock, a change through glass half-way through its
+// fade-in, and one static colour spreading over another from the tab half way.
 // The clusters' colours are the owner's lab examples (blue static, green breathing, red scanner,
 // orange flow). The strip's clock is the test's, never the wall's.
 func TestRenderLightStrip(t *testing.T) {
@@ -25,14 +26,25 @@ func TestRenderLightStrip(t *testing.T) {
 		{name: "scanner", color: "red", anim: engine.LightStripScanner, at: time.Duration(stripScanPeriod * 3 / 4 * float64(time.Second))},
 		// 40 % into the second pass: the new light in the left half, the last one's tail running out.
 		{name: "flow", color: "orange", anim: engine.LightStripFlow, at: time.Duration(stripFlowPeriod * 1.4 * float64(time.Second))},
-		// Blue changed to red in Cluster Settings at 2 s: blue has faded out, red is half-way in.
+		// Blue changed to a red scanner in Cluster Settings at 2 s: through glass, blue has faded
+		// out, red is half-way in.
 		{name: "transition", color: "blue", anim: engine.LightStripStatic, at: 2 * time.Second,
+			then: func(t *testing.T, sh *shell, f *fakeEngine, q *mainQueue, c *stripClock) {
+				f.update(func(u *engine.UIState) {
+					u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {AccentColor: "red", LightStrip: engine.LightStripScanner}}
+				})
+				q.drain()
+				c.at(sh, 2*time.Second+stripHalf+stripHalf/2)
+			}},
+		// Blue changed to red, both static, at 2 s: red spreads from the active tab's place (LS22),
+		// half way.
+		{name: "spread", color: "blue", anim: engine.LightStripStatic, at: 2 * time.Second,
 			then: func(t *testing.T, sh *shell, f *fakeEngine, q *mainQueue, c *stripClock) {
 				f.update(func(u *engine.UIState) {
 					u.ClusterSettings = map[string]engine.ClusterSettings{"demo": {AccentColor: "red"}}
 				})
 				q.drain()
-				c.at(sh, 2*time.Second+stripHalf+stripHalf/2)
+				c.at(sh, 2*time.Second+stripFade/2)
 			}},
 	}
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
