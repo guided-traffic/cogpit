@@ -582,12 +582,12 @@ var (
 )
 
 // TappedSecondary implements fyne.SecondaryTappable: the cluster's menu (Settings, the hotbar's
-// item, Disconnect, Remove from Cogpit), while it has an item.
+// item, Copy Kubeconfig Path, Disconnect, Remove from Cogpit), while it has an item.
 func (r *navRootRow) TappedSecondary(ev *fyne.PointEvent) {
 	sh := r.s.sh
 	var items []*fyne.MenuItem
-	for _, item := range append([]*fyne.MenuItem{sh.settingsItem(sh.ui.Context), sh.hot.contextItem(sh.ui.Context)},
-		sh.clusterItems(sh.ui.Context)...) { // Disconnect, Remove from Cogpit (menus_cluster.go)
+	for _, item := range append([]*fyne.MenuItem{sh.settingsItem(sh.ui.Context), sh.hot.contextItem(sh.ui.Context),
+		sh.copyPathItem(sh.ui.Context)}, sh.clusterItems(sh.ui.Context)...) { // Disconnect, Remove from Cogpit (menus_cluster.go)
 		if item != nil {
 			items = append(items, item)
 		}

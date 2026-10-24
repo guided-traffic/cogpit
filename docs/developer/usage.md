@@ -1069,6 +1069,24 @@ turn first. The model is not told what was cut, so where you allowed agent write
 a write of the cut part can run again unasked
 ([H-100](../security/agents-and-mcp.md#h-100-a-cut-parts-tool-calls-leave-the-models-view)).
 
+### A cluster's right-click menu
+
+Right-click a cluster's hotbar tile, its row in All Clusters or on the welcome page, or the
+navigator's root (the shown cluster). The menu holds what applies to that cluster: Connect (Show for
+a connected one; not on the root), Settings…, Add to Hotbar or Remove from Hotbar, **Copy Kubeconfig
+Path**, then Reconnect, Disconnect or Cancel Connecting, and Remove from Cogpit…; a tile's menu ends
+with Move Up, Move Down and Remove from Hotbar, a row whose connect failed with Show Connection
+Updates….
+
+**Copy Kubeconfig Path** (since 2026-10-24, the owner's VW13,
+[D-25](decisions.md#d-25-copying-values)) puts the whole path of the kubeconfig file the cluster
+comes from on the clipboard, connected or not, and a toast names it ("Copied the kubeconfig path
+/Users/…/.kube/config"). The demo cluster and a cluster without a file of its own (without a
+configuration directory, the contexts merged from `$KUBECONFIG` or `~/.kube/config`) have no such
+item. It is no command: agents read the path in `cluster_contexts` (`file`) and
+`cluster_settings_get` (`kubeconfig`). Cluster Settings › General copies it too, by the path's copy
+icon.
+
 ### Several clusters connected
 
 Since 2026-10-16 ([D-69](decisions.md#d-69-several-clusters-connected-at-once)). Showing another

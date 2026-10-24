@@ -259,8 +259,8 @@ func (h *hotbar) showMenu(m *fyne.Menu, pos fyne.Position) {
 	pm.ShowAtPosition(pos)
 }
 
-// tileMenu is a tile's menu: Connect, Settings, Move Up, Move Down, Remove from Hotbar (Cogpit's,
-// inferred).
+// tileMenu is a tile's menu: Connect, Settings, Copy Kubeconfig Path, Move Up, Move Down, Remove
+// from Hotbar (Cogpit's, inferred).
 func (h *hotbar) tileMenu(slot int, pos fyne.Position) {
 	if h.view == nil || slot < 1 || slot > len(h.view.Clusters) {
 		return
@@ -283,6 +283,9 @@ func (h *hotbar) tileMenu(slot int, pos fyne.Position) {
 	items := []*fyne.MenuItem{connect}
 	if settings := h.sh.settingsItem(t.Context); settings != nil { // the cluster's Settings page
 		items = append(items, settings)
+	}
+	if path := h.sh.copyPathItem(t.Context); path != nil { // Copy Kubeconfig Path (menus_cluster.go)
+		items = append(items, path)
 	}
 	items = append(items, h.sh.clusterItems(t.Context)...) // Disconnect, Remove from Cogpit (menus_cluster.go)
 	items = append(items, fyne.NewMenuItemSeparator(), up, down, fyne.NewMenuItemSeparator(), remove)
