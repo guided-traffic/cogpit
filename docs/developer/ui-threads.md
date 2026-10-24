@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -187,6 +187,7 @@ places of the same kind has one row.
 | `fyneui/connbanner.go` | `connBanner.startTicker` | Ticker | A | Made on main and read by the goroutine above; `Stop` and the field writes happen on main (`hide`). |
 | `fyneui/copy.go` | `shell.copyText` | AfterFunc | A | A Secret's clipboard time-out: `sh.do(sh.clearSecretClipboard)`; the clipboard and `clipTimer` are touched only on main. |
 | `fyneui/copy.go` | `copyButton.confirm` | AfterFunc | A | The timer comparison and `setDone` run inside `b.sh.do`. |
+| `fyneui/secretcopy.go` | `b64Button.confirm` | AfterFunc | A | The b64 button's checkmark back to its word (VW7): the timer comparison and the button's refresh run inside `sh.do`. |
 | `fyneui/createdialog.go` | `shell.createDialog` | go | A | The prefill through `shell.prefill` (rowmenu.go, engine only) on local parameters; `setNamespace` and `show` run inside `sh.do`. |
 | `fyneui/createdialog.go` | `createForm.check` | go | A | `commandEnabled` on parameters marshalled on main; the sequence check, `denied` and `refresh` run inside `f.sh.do`. |
 | `fyneui/datakeys.go` | `armSave` | AfterFunc | A | `ready()` and `b.Enable` run inside `sh.do`. |

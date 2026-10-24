@@ -82,7 +82,7 @@ func TestSettingsOverlayKeepsTabInTheCard(t *testing.T) {
 	q.until(t, "the Terminal section", func() bool { return sh.settings.controls["terminalShell"] != nil })
 	c := w.Canvas()
 	inCard := findAll[fyne.CanvasObject](sh.settings.root)
-	c.Focus(sh.settings.controls["terminalShell"].(*widget.Entry))
+	c.Focus(sh.settings.controls["terminalShell"].(fyne.Focusable))
 	seen := map[fyne.Focusable]bool{}
 	for range 40 {
 		c.FocusNext()
@@ -107,7 +107,7 @@ func TestSettingsOverlayTypedValueIsSetOnClose(t *testing.T) {
 	prefs := func() engine.Preferences { pr, _ := s.Preferences(); return pr }
 	entry := func(name string) *widget.Entry {
 		q.until(t, name, func() bool { return p.controls[name] != nil })
-		return p.controls[name].(*widget.Entry)
+		return entryOf(p.controls[name])
 	}
 	reopen := func(section string) {
 		mustDispatch(t, s, "preferences.open", map[string]any{"section": section})
@@ -192,4 +192,105 @@ func TestSettingsOverlayHoldsTheWindowKeys(t *testing.T) {
 	if f := w.Canvas().Focused(); f != nil && f == fyne.Focusable(sh.view.search) {
 		t.Error("⌘F under the card took the list's search behind it")
 	}
+}
+
+// escapeInFocus sends Escape where the driver sends it: to the widget that has the keyboard, else
+// to the window's handler.
+func escapeInFocus(w fyne.Window) {
+	if f := w.Canvas().Focused(); f != nil {
+		f.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+		return
+	}
+	pressEscape(w)
+}
+
+// typeIntoSetting focuses a settings page's text field, as a click does, and types text into it.
+func typeIntoSetting(t *testing.T, w fyne.Window, q *mainQueue, p *settingsPage, name, text string) {
+	t.Helper()
+	q.until(t, name, func() bool { return p.controls[name] != nil })
+	f, ok := p.controls[name].(fyne.Focusable)
+	if !ok {
+		t.Fatalf("%s is a %T, no field", name, p.controls[name])
+	}
+	w.Canvas().Focus(f)
+	entryOf(p.controls[name]).SetText("")
+	test.Type(f, text)
+}
+
+// TestSettingsEscapeInATextFieldClosesTheCard (the owner's decision (a) of 2026-10-23 after VW6,
+// D-116, D-118): Escape in a text field of Preferences or Cluster Settings, the keyboard in the
+// field, closes the card, and the value typed is set (D-118's flushTyping), a multi-line field and a
+// field with a list (the time zone) too; before, the field kept Escape and nothing happened.
+func TestSettingsEscapeInATextFieldClosesTheCard(t *testing.T) {
+	s, sh, w, q := overlayScene(t, engine.SectionTerminal)
+	p := sh.settings
+	p.typing = time.Hour // the pause never ends by itself here: only the close sets the value
+	prefs := func() engine.Preferences { pr, _ := s.Preferences(); return pr }
+	reopen := func(cmd string, args map[string]any) {
+		mustDispatch(t, s, cmd, args)
+		q.until(t, "the page again", func() bool { return p.visible() && w.Canvas().Overlays().Top() == p.overlay })
+	}
+	shellPath := "/bin/sh"
+	if runtime.GOOS == "windows" { // a shell the engine finds there
+		shellPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
+	}
+
+	typeIntoSetting(t, w, q, p, "terminalShell", shellPath)
+	escapeInFocus(w)
+	q.until(t, "Preferences closed, the shell set", func() bool { return !p.visible() && prefs().TerminalShell == shellPath })
+
+	reopen("preferences.open", map[string]any{"section": engine.SectionTerminal})
+	typeIntoSetting(t, w, q, p, "terminalShellArgs", "-l")
+	escapeInFocus(w)
+	q.until(t, "closed, the arguments set", func() bool { return !p.visible() && slices.Equal(prefs().TerminalShellArgs, []string{"-l"}) })
+
+	reopen("preferences.open", map[string]any{"section": engine.SectionApp})
+	typeIntoSetting(t, w, q, p, "timezone", "Europe/Berlin")
+	escapeInFocus(w)
+	q.until(t, "closed, the time zone set", func() bool { return !p.visible() && prefs().Timezone == "Europe/Berlin" })
+
+	reopen("cluster.settings.open", map[string]any{"context": "kind-dev"})
+	typeIntoSetting(t, w, q, p, "name", "Dev cluster")
+	escapeInFocus(w)
+	q.until(t, "Cluster Settings closed, the name set", func() bool {
+		cs, err := s.ClusterSettingsOf("kind-dev")
+		return !p.visible() && err == nil && cs.Name == "Dev cluster"
+	})
+	if w.Canvas().Overlays().Top() != nil {
+		t.Errorf("an overlay is left: %T", w.Canvas().Overlays().Top())
+	}
+}
+
+// TestSettingsEscapeInTheAgentFormClosesTheForm (D-116's innermost thing, the lead's detail of
+// 2026-10-24): Escape in a field of Preferences › Agent's connection form closes the form, as its
+// Cancel does, and leaves the card open; the next Escape, the keyboard nowhere, closes the card.
+func TestSettingsEscapeInTheAgentFormClosesTheForm(t *testing.T) {
+	sh, w, q, ch := agentPrefsShell(t, ThemeDark)
+	a := sh.settings.agent
+	for _, field := range []func(f *agentForm) fyne.Focusable{
+		func(f *agentForm) fyne.Focusable { return f.name },
+		func(f *agentForm) fyne.Focusable { return f.key },
+		func(f *agentForm) fyne.Focusable { return f.model },
+		func(f *agentForm) fyne.Focusable { return f.limits[0] },
+	} {
+		test.Tap(a.addB)
+		f := a.form
+		if f == nil {
+			t.Fatal("Add opened no form")
+		}
+		w.Canvas().Focus(field(f))
+		test.Type(field(f), "x")
+		escapeInFocus(w)
+		if a.form != nil || !sh.settings.visible() {
+			t.Fatalf("Escape in %T: the form open %v, the card open %v; want the form closed, the card open", field(f), a.form != nil, sh.settings.visible())
+		}
+		if w.Canvas().Focused() != nil {
+			t.Errorf("the keyboard stayed on the closed form's %T", w.Canvas().Focused())
+		}
+	}
+	if n := len(ch.savesOf()); n != 0 {
+		t.Errorf("Escape saved %d connections", n)
+	}
+	escapeInFocus(w)
+	q.until(t, "the card closed", func() bool { return !sh.settings.visible() })
 }

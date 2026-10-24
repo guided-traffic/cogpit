@@ -203,7 +203,7 @@ func TestPreferencesApplyToTablesEditorsAndTerminals(t *testing.T) {
 
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "terminal"})
 	q.until(t, "the Terminal section", func() bool { return sh.settings.controls["terminalShell"] != nil })
-	shellEntry := sh.settings.controls["terminalShell"].(*widget.Entry)
+	shellEntry := entryOf(sh.settings.controls["terminalShell"])
 	test.Type(shellEntry, "/no/such/shell")
 	q.until(t, "the refusal", func() bool { return sh.settings.errs["terminalShell"].Visible() })
 	shellPath := "/bin/sh"
@@ -211,7 +211,7 @@ func TestPreferencesApplyToTablesEditorsAndTerminals(t *testing.T) {
 		shellPath = filepath.Join(os.Getenv("SystemRoot"), "System32", "cmd.exe")
 	}
 	shellEntry.SetText(shellPath)
-	args := sh.settings.controls["terminalShellArgs"].(*widget.Entry)
+	args := entryOf(sh.settings.controls["terminalShellArgs"])
 	args.SetText("-l\n\n--norc\n")
 	q.until(t, "the shell kept", func() bool {
 		p, _ := s.Preferences()
@@ -287,7 +287,7 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 		t.Errorf("title %q", sh.settings.title.text)
 	}
 
-	name := sh.settings.controls["name"].(*widget.Entry)
+	name := entryOf(sh.settings.controls["name"])
 	if name.PlaceHolder != "kind-dev" {
 		t.Errorf("name placeholder %q", name.PlaceHolder)
 	}
@@ -344,7 +344,7 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 	// Typed with the field focused, as a user types: the page leaves a focused field alone when the
 	// engine's state changes, and an unfocused one could take a part of the path saved meanwhile
 	// back (red on CI under -race, 2026-10-13).
-	dirEntry := sh.settings.controls["terminalDir"].(*fyne.Container).Objects[0].(*widget.Entry)
+	dirEntry := entryOf(sh.settings.controls["terminalDir"].(*fyne.Container).Objects[0])
 	sh.win.Canvas().Focus(dirEntry)
 	test.Type(dirEntry, work)
 	q.until(t, "the working directory kept", func() bool {

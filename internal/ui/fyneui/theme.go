@@ -439,6 +439,19 @@ var iconChevronDown = fyne.NewStaticResource("cogpit-chevron-down.svg", []byte(
 	`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
 		`<path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg>`))
 
+// iconChevronUp is iconChevronDown turned over: the find bar's previous match beside its next one
+// (the owner's VW2 of 2026-10-23: next and previous in one icon family; Fyne's MoveUp is an arrow
+// with a stem).
+var iconChevronUp = fyne.NewStaticResource("cogpit-chevron-up.svg", []byte(
+	`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
+		`<path d="M7.41 15.41 12 10.83l4.59 4.58L18 14l-6-6-6 6z"/></svg>`))
+
+// chevronDownIcon and chevronUpIcon are Cogpit's chevrons as themed icons, drawn in the colour of
+// what holds them: the find bar's next and previous match, and the caret of a button that opens a
+// list (the list filters, the Create tab's templates, the log tab's pickers; the owner's VW4).
+func chevronDownIcon() fyne.Resource { return theme.NewThemedResource(iconChevronDown) }
+func chevronUpIcon() fyne.Resource   { return theme.NewThemedResource(iconChevronUp) }
+
 // Icon implements fyne.Theme.
 func (t *cogTheme) Icon(n fyne.ThemeIconName) fyne.Resource {
 	if n == theme.IconNameMoveDown {

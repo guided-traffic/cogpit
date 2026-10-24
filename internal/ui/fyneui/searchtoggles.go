@@ -43,6 +43,7 @@ func newSearchToggles(tv *tableView) *searchToggles {
 	s.matchCase.Text = "Aa"
 	s.regex = newBareTipButton(tv.sh, nil, tipRegex, func() { s.toggle(true) })
 	s.regex.Text = ".*"
+	oneWidth(s.matchCase, s.regex) // one width, as the find bar's (VW3)
 	// Inset by three points from the field's border and two apart (Cogpit's look).
 	tv.search.ActionItem = container.New(layout.NewCustomPaddedLayout(3, 3, 0, 3),
 		container.New(layout.NewCustomPaddedHBoxLayout(2), s.matchCase, s.regex))

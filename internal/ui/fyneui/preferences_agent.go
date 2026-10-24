@@ -301,23 +301,23 @@ type agentForm struct {
 	conn engine.ChatConnection // as stored; ID empty for a new one
 	root fyne.CanvasObject
 
-	name      *widget.Entry
+	name      *fieldEntry // the form's fields: Escape is the form's Cancel (D-116)
 	kind      *selectField
-	baseURL   *widget.Entry
+	baseURL   *fieldEntry
 	urlHint   *textLine
 	plainWarn *paragraph // plain http to another machine (H-95)
-	caFile    *widget.Entry
+	caFile    *fieldEntry
 	caB       *textButton
-	key       *widget.Entry
+	key       *fieldEntry
 	keyHelp   *textLine
 	removeKey *textButton
 	keyGone   bool // "Remove key" was pressed: saving removes the stored key
-	model     *widget.SelectEntry
+	model     *fieldSelectEntry
 	modelsB   *textButton
 	modelNote *textLine
 	private   *widget.Check
 	allTools  *widget.Check
-	limits    [4]*widget.Entry
+	limits    [4]*fieldEntry
 	def       *widget.Check
 	errLine   *textLine
 	saveB     *textButton
@@ -339,7 +339,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	if c.ID != "" {
 		title = "Edit " + c.Name
 	}
-	f.name = widget.NewEntry()
+	f.name = f.field(newFieldEntry())
 	f.name.SetPlaceHolder("LM Studio on this Mac")
 	f.name.SetText(c.Name)
 
@@ -347,14 +347,14 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	for i, k := range chatKinds {
 		labels[i] = k.label
 	}
-	f.baseURL = widget.NewEntry()
+	f.baseURL = f.field(newFieldEntry())
 	f.baseURL.SetText(c.BaseURL)
 	f.urlHint = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.urlHint.truncate = true
 	textW := settingsColumn - 4*p.sh.app.Settings().Theme().Size(theme.SizeNameInnerPadding)
 	f.plainWarn = newParagraph(engine.ChatPlainHTTPWarning, colorStatusWarning, textW)
 	f.baseURL.OnChanged = func(string) { f.showPlainWarning() }
-	f.caFile = widget.NewEntry()
+	f.caFile = f.field(newFieldEntry())
 	placeholder, _ := caFileExamples(runtime.GOOS)
 	f.caFile.SetPlaceHolder(placeholder)
 	f.caFile.SetText(c.CAFile)
@@ -362,7 +362,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.kind = newSelectField(labels, func(label string) { f.kindChanged(label) })
 	f.kind.SetSelected(chatKindLabel(orKind(c.Kind)))
 
-	f.key = widget.NewPasswordEntry()
+	f.key = f.field(newFieldPasswordEntry())
 	f.keyHelp = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.keyHelp.truncate = true
 	f.removeKey = newTextButton("Remove Key", nil, func() {
@@ -373,7 +373,8 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.key.OnChanged = func(string) { f.showKeyState() }
 	f.showKeyState()
 
-	f.model = widget.NewSelectEntry(nil)
+	f.model = newFieldSelectEntry(nil)
+	f.model.onEscape = f.escape
 	f.model.SetPlaceHolder("qwen3.6-27b")
 	f.model.SetText(c.Model)
 	f.modelNote = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
@@ -400,7 +401,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	limitLabels := [4]string{"Stop at identical tool calls", "Tool calls", "Tokens", "Minutes"}
 	grid := make([]fyne.CanvasObject, 0, len(f.limits))
 	for i := range f.limits {
-		e := widget.NewEntry()
+		e := f.field(newFieldEntry())
 		e.SetPlaceHolder(formatCount(int64(defaults[i])) + " (default)")
 		if values[i] > 0 {
 			e.SetText(strconv.Itoa(values[i]))
@@ -450,6 +451,22 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.testWarn = newParagraph("", colorStatusWarning, textW)
 	f.showPlainWarning()
 	return f
+}
+
+// field makes a text field of the form close the form on Escape, as its Cancel (D-116: Escape
+// closes the innermost thing open; the card closes with the next Escape).
+func (f *agentForm) field(e *fieldEntry) *fieldEntry {
+	e.onEscape = f.escape
+	return e
+}
+
+// escape is Escape in a field of the form: the form's Cancel, the keyboard taken off the field that
+// goes with it.
+func (f *agentForm) escape() {
+	if c := fyne.CurrentApp().Driver().CanvasForObject(f.root); c != nil {
+		c.Unfocus()
+	}
+	f.a.closeForm()
 }
 
 // showPlainWarning shows, while the base URL is plain http to another machine, that not only the

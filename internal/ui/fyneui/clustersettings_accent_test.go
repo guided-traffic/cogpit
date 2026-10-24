@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -116,7 +115,7 @@ func TestClusterSettingsCopyNameAndPath(t *testing.T) {
 	nameCopy := sh.settings.controls["nameCopy"].(*copyButton)
 	pathCopy := sh.settings.controls["kubeconfigCopy"].(*copyButton)
 	q.until(t, "the placeholder and the path", func() bool {
-		return sh.settings.controls["name"].(*widget.Entry).PlaceHolder == "kind-dev" && pathCopy.Visible()
+		return entryOf(sh.settings.controls["name"]).PlaceHolder == "kind-dev" && pathCopy.Visible()
 	})
 	if !nameCopy.Visible() || !nameCopy.pinned {
 		t.Fatal("the name's copy icon is not shown")
@@ -132,7 +131,7 @@ func TestClusterSettingsCopyNameAndPath(t *testing.T) {
 	q.until(t, "the toast", func() bool { return strings.Contains(toastTexts(sh), copiedToast) })
 
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": ctx, "name": "Dev cluster"})
-	q.until(t, "the name shown", func() bool { return sh.settings.controls["name"].(*widget.Entry).Text == "Dev cluster" })
+	q.until(t, "the name shown", func() bool { return entryOf(sh.settings.controls["name"]).Text == "Dev cluster" })
 	test.Tap(nameCopy)
 	if got := sh.app.Clipboard().Content(); got != "Dev cluster" {
 		t.Errorf("copied %q, want the display name", got)
@@ -177,7 +176,7 @@ func renderClusterSettingsAccent(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := openGeneral(t, s, ctx, mode)
 	_, eight, _ := accentSwatches(t, sh)
 	q.until(t, "red selected", func() bool {
-		e, _ := sh.settings.controls["name"].(*widget.Entry)
+		e := entryOf(sh.settings.controls["name"])
 		return eight[4].selected && e != nil && e.Text == "Dev cluster"
 	})
 	test.Tap(sh.settings.controls["nameCopy"].(*copyButton))

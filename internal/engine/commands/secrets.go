@@ -23,7 +23,8 @@ func registerSecrets(g *registrar) {
 		Verbs: []engine.Verb{{Verb: nwVerbList, Resource: kindSecrets}},
 		Description: "Shows the user one value of the Secret open in the drawer, in Cogpit's own window (the drawer lists " +
 			"the keys with their values masked). Only the user's click in the GUI runs it: agents and the CLI are refused " +
-			"and never receive a Secret's value. Makes no request: the value comes from Cogpit's cache.",
+			"and never receive a Secret's value. With base64 it hands the whole value base64-encoded, a binary value's too, " +
+			"for the drawer's b64 button, which copies it to the clipboard. Makes no request: the value comes from Cogpit's cache.",
 		Enabled: func(s *engine.Session, p engine.RevealParams) error {
 			if p.Ref.Kind != kindSecrets {
 				return fmt.Errorf("%w: this action applies to %s", engine.ErrNotApplicable, kindSecrets)

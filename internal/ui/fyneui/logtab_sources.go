@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -45,7 +44,7 @@ type logSourceParams struct {
 // application's tab narrows to one of its workloads, as it narrows to a pod and a container. Hidden
 // in other tabs.
 func (lt *logTab) newWorkloadPicker() *textButton {
-	b := newTextButton("", theme.MenuDropDownIcon(), nil)
+	b := newTextButton("", chevronDownIcon(), nil) // a list's caret: the chevron (VW4)
 	b.IconPlacement = widget.ButtonIconTrailingText
 	b.OnTapped = func() { lt.showWorkloads(b) }
 	b.Hide()
@@ -101,7 +100,7 @@ func (lt *logTab) workloadMenu(src engine.LogSources) *fyne.Menu {
 
 // newPicker returns the pod (pod) or container selector.
 func (lt *logTab) newPicker(pod bool) *textButton {
-	b := newTextButton("", theme.MenuDropDownIcon(), nil)
+	b := newTextButton("", chevronDownIcon(), nil) // a list's caret: the chevron (VW4)
 	b.IconPlacement = widget.ButtonIconTrailingText
 	b.OnTapped = func() { lt.showSources(b, pod) }
 	return b

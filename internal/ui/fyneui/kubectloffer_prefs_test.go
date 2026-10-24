@@ -27,7 +27,7 @@ func TestKubectlPreferencesFields(t *testing.T) {
 	test.Tap(p.controls["kubectlDownload"].(*widget.Check))
 	q.until(t, "downloads off", func() bool { return !prefs().KubectlDownload })
 
-	mirror := p.controls["kubectlMirror"].(*widget.Entry)
+	mirror := entryOf(p.controls["kubectlMirror"])
 	mirror.SetText("http://mirror.example.com/k8s")
 	q.until(t, "the mirror refused", func() bool { return p.errs["kubectlMirror"].Visible() })
 	if prefs().KubectlMirror != "" {
@@ -46,7 +46,7 @@ func TestKubectlPreferencesFields(t *testing.T) {
 	test.Tap(browse[0])
 	q.until(t, "the directory kept", func() bool { return prefs().KubectlDir == folder })
 
-	path := p.controls["kubectlPath"].(*widget.Entry)
+	path := entryOf(p.controls["kubectlPath"])
 	path.SetText(filepath.Join(t.TempDir(), "missing"))
 	q.until(t, "the path refused", func() bool { return p.errs["kubectlPath"].Visible() })
 	k := filepath.Join(t.TempDir(), "kubectl")
@@ -73,8 +73,8 @@ func renderKubectlPreferences(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the page", func() bool {
-		e, ok := sh.settings.controls["kubectlMirror"].(*widget.Entry)
-		return sh.settings.visible() && ok && e.Text != ""
+		e := entryOf(sh.settings.controls["kubectlMirror"])
+		return sh.settings.visible() && e != nil && e.Text != ""
 	})
 	savePNG(t, w, name)
 }

@@ -43,8 +43,8 @@ type amFields struct {
 	widget.BaseWidget
 	p       *settingsPage
 	ctx     string
-	address *widget.Entry
-	prefix  *widget.Entry
+	address *fieldEntry // Escape closes the card (D-116, D-118)
+	prefix  *fieldEntry
 	https   *widget.Check
 	line    *textLine
 	enabled bool
@@ -63,13 +63,13 @@ type alertmanagerSetParams struct {
 // engine's setting into them.
 func alertmanagerAddress(p *settingsPage, ctx string) fyne.CanvasObject {
 	f := &amFields{p: p, ctx: ctx}
-	f.address = widget.NewEntry()
+	f.address = newFieldEntry()
 	f.address.SetPlaceHolder("Auto detect (namespace/service:port)")
 	f.address.OnChanged = func(string) {
 		f.follow()
 		p.typed(amAddressSetting, f.set)
 	}
-	f.prefix = widget.NewEntry()
+	f.prefix = newFieldEntry()
 	f.prefix.SetPlaceHolder("/ (none)")
 	f.prefix.OnChanged = func(string) { p.typed(amPrefixSetting, f.set) }
 	f.https = widget.NewCheck("Use HTTPS", func(bool) { f.set() })
@@ -174,8 +174,8 @@ func (f *amFields) show(set engine.AlertmanagerSetting) {
 	p.syncing = true
 	defer func() { p.syncing = false }()
 	f.https.SetChecked(set.HTTPS)
-	p.setEntry(f.address, f.address, amAddressSetting, set.Address)
-	p.setEntry(f.prefix, f.prefix, amPrefixSetting, set.Prefix)
+	p.setEntry(f.address, &f.address.Entry, amAddressSetting, set.Address)
+	p.setEntry(f.prefix, &f.prefix.Entry, amPrefixSetting, set.Prefix)
 	f.follow()
 	f.line.SetText(alertmanagerInUseLine(set))
 }

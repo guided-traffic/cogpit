@@ -143,10 +143,11 @@ func newTableView(sh *shell) *tableView {
 	tv.scopeLine.truncate = true
 	tv.scopeLine.Hide()
 
-	tv.nsButton = newPlateButton("All namespaces", theme.MenuDropDownIcon(), tv.openNamespaces)
+	tv.nsButton = newPlateButton("All namespaces", chevronDownIcon(), tv.openNamespaces) // the find bar's chevron, at the right edge (VW4)
 	tv.ns = newNSFilter(tv)
 	tv.nsButton.IconPlacement = widget.ButtonIconTrailingText
 	tv.nsButton.Alignment = widget.ButtonAlignLeading
+	tv.nsButton.iconEnd = true
 	tv.search = newSearchEntry(sh)
 	tv.toggles = newSearchToggles(tv) // before anything draws the entry: its renderer takes the switches once
 	tv.search.SetPlaceHolder("Search…")

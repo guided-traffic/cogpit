@@ -105,26 +105,32 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 // Show and Hide are one toggle in one place: each is as wide as the wider of the two (the owner's
 // CW1 of 2026-10-23: "Hide soll genau so groß sein wie Show, damit man mit der Maus nicht erneut
 // auf hide ziehen muss"; the line ends at the right, so a narrower Hide started right of Show's
-// eye).
+// eye). They are one widget too, which setRevealLook turns from one into the other, kept by its
+// owner across rebuilds (the owner's VW1 of 2026-10-23: "wenn man auf Show klickt, ist man ja dann
+// direkt auf dem Hide-Button, dieser ist dann aber erstmal so als ob man nicht darüber ist"): Fyne
+// sends MouseIn only when the pointer moves, so a new Hide put where Show was started without its
+// hover, while the one widget keeps the hover it had as Show.
 func revealButton(label string, tapped func()) *textButton {
-	b := revealLook(label, tapped)
-	other := hideLabel
-	if label == hideLabel {
-		other = showLabel
-	}
-	b.width = revealLook(other, nil).MinSize().Width
+	b := newTextButton("", nil, tapped)
+	setRevealLook(b, showLabel)
+	show := b.MinSize().Width
+	setRevealLook(b, hideLabel)
+	b.width = max(show, b.MinSize().Width)
+	setRevealLook(b, label)
 	return b
 }
 
-// revealLook is Show's or Hide's look.
-func revealLook(label string, tapped func()) *textButton {
-	b := newTextButton(label, nil, tapped)
+// setRevealLook turns b into Show or Hide in place: its word, its eye and its tone.
+func setRevealLook(b *textButton, label string) {
+	icon, tone := theme.VisibilityIcon(), colorStatusWarning
 	if label == hideLabel {
-		b.Icon, b.tone = theme.VisibilityOffIcon(), colorStatusOK
-	} else {
-		b.Icon, b.tone = theme.VisibilityIcon(), colorStatusWarning
+		icon, tone = theme.VisibilityOffIcon(), colorStatusOK
 	}
-	return b
+	if b.Text == label && b.tone == tone {
+		return
+	}
+	b.Text, b.Icon, b.tone = label, icon, tone
+	b.Refresh()
 }
 
 // hideLabel is the word on the button that masks a value Show revealed, showLabel the one that

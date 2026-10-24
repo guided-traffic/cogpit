@@ -178,14 +178,10 @@ func TestRenderNodeShellConfirmLight(t *testing.T) {
 
 // nodeShellField is a shown Node Shell section's field.
 func nodeShellField(sh *shell, setting string) *widget.Entry {
-	switch c := sh.settings.controls[setting].(type) {
-	case *widget.Entry:
-		return c
-	case *fyne.Container:
-		e, _ := c.Objects[0].(*widget.Entry)
-		return e
+	if c, ok := sh.settings.controls[setting].(*fyne.Container); ok {
+		return entryOf(c.Objects[0])
 	}
-	return nil
+	return entryOf(sh.settings.controls[setting])
 }
 
 // TestClusterSettingsNodeShellSection: the image field shows Cogpit's default by its short name as

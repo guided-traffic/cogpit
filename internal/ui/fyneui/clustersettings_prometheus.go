@@ -54,8 +54,8 @@ func init() {
 type promFields struct {
 	format  *selectField
 	filter  *widget.Check
-	address *widget.Entry
-	prefix  *widget.Entry
+	address *fieldEntry // Escape closes the card (D-116, D-118)
+	prefix  *fieldEntry
 	https   *widget.Check
 	line    *textLine
 	enabled bool
@@ -83,13 +83,13 @@ func (p *settingsPage) prometheusSettings() (fyne.CanvasObject, func()) {
 	f.format = newSelectField(labels, func(string) { set() })
 	f.filter = widget.NewCheck("Filter empty containers", func(bool) { set() })
 	f.https = widget.NewCheck("Use HTTPS", func(bool) { set() })
-	f.address = widget.NewEntry()
+	f.address = newFieldEntry()
 	f.address.SetPlaceHolder("Auto detect (namespace/service:port)")
 	f.address.OnChanged = func(string) {
 		f.follow()
 		p.typed(promAddressSetting, set)
 	}
-	f.prefix = widget.NewEntry()
+	f.prefix = newFieldEntry()
 	f.prefix.SetPlaceHolder("/ (none)")
 	f.prefix.OnChanged = func(string) { p.typed(promPrefixSetting, set) }
 	f.line = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
@@ -212,8 +212,8 @@ func (p *settingsPage) showPrometheus(f *promFields, set engine.PrometheusSettin
 	}
 	f.filter.SetChecked(set.FilterEmptyContainers || set.Format == "") // a setting read before 2026-10-16: Lens's default
 	f.https.SetChecked(set.HTTPS)
-	p.setEntry(f.address, f.address, promAddressSetting, set.Address)
-	p.setEntry(f.prefix, f.prefix, promPrefixSetting, set.Prefix)
+	p.setEntry(f.address, &f.address.Entry, promAddressSetting, set.Address)
+	p.setEntry(f.prefix, &f.prefix.Entry, promPrefixSetting, set.Prefix)
 	f.follow()
 	f.line.SetText(prometheusLine(set, p.sh.ui.IntegrationOn(p.shown.Context, engine.IntegrationPrometheus)))
 }

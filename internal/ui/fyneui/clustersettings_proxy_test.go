@@ -21,7 +21,7 @@ func proxyEntry(sh *shell) *widget.Entry {
 	if !ok {
 		return nil
 	}
-	return c.Objects[0].(*widget.Entry)
+	return entryOf(c.Objects[0])
 }
 
 // A cluster's Settings › Proxy, between General and Terminal as captured: the placeholder; a
@@ -116,8 +116,8 @@ func TestPreferencesProxyField(t *testing.T) {
 	if labels := navLabels(sh.settings); !slices.Equal(labels, []string{"App", "Proxy", "Kubernetes", "Editor", "Terminal", "Tables"}) {
 		t.Fatalf("sections %q", labels)
 	}
-	e := sh.settings.controls[httpProxySetting].(*widget.Entry)
-	w.Canvas().Focus(e)
+	e := entryOf(sh.settings.controls[httpProxySetting])
+	w.Canvas().Focus(sh.settings.controls[httpProxySetting].(fyne.Focusable))
 	test.Type(e, "http://bob:"+proxyPassword+"@proxy.example.com:3128")
 	q.until(t, "the proxy kept", func() bool {
 		p, _ := s.Preferences()
@@ -127,8 +127,8 @@ func TestPreferencesProxyField(t *testing.T) {
 	q.until(t, "the App section", func() bool { return sh.settings.controls["theme"] != nil })
 	test.Tap(sh.settings.navItems[engine.SectionProxy])
 	q.until(t, "the redacted proxy", func() bool {
-		e, ok := sh.settings.controls[httpProxySetting].(*widget.Entry)
-		return ok && e.Text == "http://bob:•••@proxy.example.com:3128"
+		e := entryOf(sh.settings.controls[httpProxySetting])
+		return e != nil && e.Text == "http://bob:•••@proxy.example.com:3128"
 	})
 }
 
@@ -147,8 +147,8 @@ func renderPreferencesProxy(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "proxy"})
 	q.until(t, "the Proxy section", func() bool {
-		e, ok := sh.settings.controls[httpProxySetting].(*widget.Entry)
-		return sh.settings.visible() && ok && e.Text == "http://bob:•••@proxy.example.com:3128"
+		e := entryOf(sh.settings.controls[httpProxySetting])
+		return sh.settings.visible() && e != nil && e.Text == "http://bob:•••@proxy.example.com:3128"
 	})
 	q.drain()
 	savePNG(t, w, name)

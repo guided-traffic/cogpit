@@ -92,8 +92,13 @@ func TestSecretDrawerReadsTheCacheAndMasks(t *testing.T) {
 	if len(items) != 3 || items[0].Name != "blob" || items[1].Name != "password" || items[2].Name != "url" {
 		t.Fatalf("data items %+v", items)
 	}
-	if items[0].Value != "binary data, 4 B" || len(items[0].Actions) != 0 {
+	if items[0].Value != "binary data, 4 B" || len(items[0].Actions) != 1 || items[0].Actions[0].Command != RevealCommand ||
+		items[0].Actions[0].Label != Base64ActionLabel {
 		t.Errorf("binary item %+v", items[0])
+	}
+	var bp RevealParams
+	if err := json.Unmarshal(items[0].Actions[0].Params, &bp); err != nil || bp.Key != "blob" || !bp.Base64 || bp.ResourceVersion == "" {
+		t.Errorf("a binary value's base64 params %s", items[0].Actions[0].Params)
 	}
 	if items[1].Value != MaskedValue+" (7 B)" || len(items[1].Actions) != 1 || items[1].Actions[0].Command != RevealCommand {
 		t.Errorf("masked item %+v", items[1])
@@ -130,6 +135,19 @@ func TestSecretDrawerReadsTheCacheAndMasks(t *testing.T) {
 	}
 	if _, err := s.SecretValue(RevealParams{Ref: db0, Key: "blob"}); err == nil {
 		t.Error("a binary value was revealed")
+	}
+	if _, err := s.SecretValue(RevealParams{Ref: db0, Key: "blob", Whole: true}); err == nil {
+		t.Error("a binary value was revealed whole")
+	}
+	// Base64 (the drawer's b64 button, VW7): the whole value encoded, a binary value's too.
+	if v, err := s.SecretValue(bp); err != nil || v.Value != base64Of("\xff\xfe\x00\x01") || !v.Base64 || v.Size != 4 || v.Cut {
+		t.Errorf("a binary value as base64: %+v, %v", v, err)
+	}
+	if err := s.SecretKeyShown(bp); err != nil {
+		t.Errorf("a binary value's base64 read is not enabled: %v", err)
+	}
+	if v, err := s.SecretValue(RevealParams{Ref: db0, Key: "password", Base64: true}); err != nil || v.Value != base64Of("hunter2") || !v.Base64 || v.Size != 7 {
+		t.Errorf("a text value as base64: %+v, %v", v, err)
 	}
 	if err := s.SecretKeyShown(RevealParams{Ref: db0, Key: "nope"}); err == nil || strings.Contains(err.Error(), "hunter2") {
 		t.Errorf("a missing key: %v", err)
@@ -230,6 +248,38 @@ func TestSecretValueCaps(t *testing.T) {
 	}
 	if _, text := measure(42); text {
 		t.Error("a value that is not a string counts as text")
+	}
+}
+
+// TestSecretValueBase64IsWhole (VW7): a base64 read hands the whole value encoded, never the first
+// 4 KiB a Show reveals, whether or not whole is asked for: a value cut short on the clipboard would
+// be wrong; a binary value over the caps too.
+func TestSecretValueBase64IsWhole(t *testing.T) {
+	src := testkit.NewMemorySource()
+	long := strings.Repeat("correct-horse-battery-staple\n", 300) // 8.7 KiB, 300 lines
+	blob := strings.Repeat("\x00\xff", 5000)
+	sec := testkit.Secret("apps", "big", nil, map[string]string{"pem": long})
+	_ = unstructured.SetNestedField(sec.Object, base64Of(blob), "data", "blob")
+	src.Set(testkit.SecretsGVR, sec)
+	s := secretsSession(t, src)
+	s.UpdateUI(func(u *UIState) { u.View = secretsKind })
+	waitTable(t, s, secretsKind, func(ts *TableSnapshot) bool { return ts.Synced && len(ts.Rows) == 1 })
+	ref := model.ObjectRef{Context: "test", Kind: secretsKind, Namespace: "apps", Name: "big"}
+	s.UpdateUI(func(u *UIState) { u.Drawer = &ref })
+	waitData(t, s, ref, func(*DetailModel) bool { return true })
+
+	if v, err := s.SecretValue(RevealParams{Ref: ref, Key: "pem"}); err != nil || !v.Cut {
+		t.Fatalf("Show did not cut the long value: %+v, %v", v.Cut, err)
+	}
+	for _, key := range []string{"pem", "blob"} {
+		want := map[string]string{"pem": long, "blob": blob}[key]
+		v, err := s.SecretValue(RevealParams{Ref: ref, Key: key, Base64: true})
+		if err != nil || v.Cut || !v.Base64 || v.Size != len(want) {
+			t.Fatalf("%s as base64: cut %v, base64 %v, size %d, %v", key, v.Cut, v.Base64, v.Size, err)
+		}
+		if got, err := base64.StdEncoding.DecodeString(v.Value); err != nil || string(got) != want {
+			t.Errorf("%s as base64 does not decode to the whole value (%d bytes, %v)", key, len(got), err)
+		}
 	}
 }
 
