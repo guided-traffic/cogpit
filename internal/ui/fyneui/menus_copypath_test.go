@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -106,7 +107,7 @@ func TestCopyKubeconfigPathOverTheEngine(t *testing.T) {
 	c, ok := sh.contextInfo("kind-dev [.kube/config]")
 	n.rowMenu("kind-dev [.kube/config]", fyne.NewPos(300, 300))
 	copyPathOf(n.menuModel).Action()
-	if got := sh.app.Clipboard().Content(); !ok || got != c.File || !strings.HasSuffix(got, ".kube/config") {
+	if got := sh.app.Clipboard().Content(); !ok || got != c.File || !strings.HasSuffix(got, filepath.FromSlash(".kube/config")) {
 		t.Errorf("copied %q, the context's file %q", got, c.File)
 	}
 }

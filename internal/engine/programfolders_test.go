@@ -4,6 +4,8 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -74,4 +76,37 @@ func stageOf(stages []ConnectStage, name string) ConnectStage {
 		}
 	}
 	return ConnectStage{}
+}
+
+// A folder added is on PATH before anyone reads it in the preferences: a reader that sees the
+// new folder (a connect, the window's settings page) finds it on PATH already (the Windows UI
+// test that read the preferences first and PATH after, 2026-10-24).
+func TestAProgramFolderIsOnPathBeforeThePreferencesSayIt(t *testing.T) {
+	t.Setenv("PATH", filepath.FromSlash("/usr/bin"))
+	s := New(Options{Preferences: NewPreferencesStore(t.TempDir())})
+	defer s.Close()
+	for i := range 40 {
+		dir := filepath.Join(t.TempDir(), "bin")
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		done := make(chan error, 1)
+		go func() { _, err := s.AddProgramFolder(dir); done <- err }()
+		for {
+			p, _ := s.Preferences()
+			if slices.Contains(p.ProgramFolders, dir) {
+				break
+			}
+			runtime.Gosched()
+		}
+		if path := os.Getenv("PATH"); !strings.Contains(path, dir) {
+			t.Fatalf("round %d: the preferences hold %s, PATH %q does not", i, dir, path)
+		}
+		if err := <-done; err != nil {
+			t.Fatal(err)
+		}
+		if _, err := s.RemoveProgramFolder(dir); err != nil {
+			t.Fatal(err)
+		}
+	}
 }

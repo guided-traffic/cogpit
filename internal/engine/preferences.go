@@ -552,14 +552,16 @@ func (s *Session) ChangePreferences(fn func(*Preferences) error) (Preferences, e
 		if err := writePrefsDoc(p.Path(), &p.unreadable, preferencesDoc{Version: preferencesVersion, Preferences: next}); err != nil {
 			return Preferences{}, fmt.Errorf("preferences: %w", err)
 		}
+		if !slices.Equal(old.ProgramFolders, next.ProgramFolders) {
+			// On PATH before anyone reads the new folders: a connect that sees them finds them
+			// (programfolders.go: from the next program started).
+			applyProgramFolders(next.ProgramFolders)
+		}
 		p.prefs, p.loc = next, loc
 		return next.Clone(), nil
 	}()
 	if err != nil {
 		return Preferences{}, err
-	}
-	if !slices.Equal(old.ProgramFolders, next.ProgramFolders) {
-		applyProgramFolders(next.ProgramFolders) // programfolders.go: from the next program started
 	}
 	shown := next.Shown() // the proxy without its password
 	s.UpdateUI(func(u *UIState) { u.Preferences = &shown })
