@@ -112,6 +112,18 @@ func TestListFilterCaretAtTheRightEdge(t *testing.T) {
 		if label.Position().X >= img.Position().X || b.Size().Width-in-img.Size().Width-label.Position().X < label.MinSize().Width/2 {
 			t.Errorf("%s: the word at %v, the caret at %v: want the word at the left, the caret apart from it", name, label.Position().X, img.Position().X)
 		}
+		// Squeezed below its word and caret (beside an open drawer): the caret stays where Fyne puts
+		// it behind the word, never further left onto the word.
+		squeezed := fyne.NewSize(b.MinSize().Width-2*in, b.Size().Height)
+		b.iconEnd = false
+		r.Layout(squeezed)
+		behind := img.Position().X
+		b.iconEnd = true
+		r.Layout(squeezed)
+		if img.Position().X < behind {
+			t.Errorf("%s squeezed to %v: the caret at %v, left of %v behind the word", name, squeezed.Width, img.Position().X, behind)
+		}
+		r.Layout(b.Size())
 	}
 
 	_, _, _, ct := createScene(t, ThemeDark)

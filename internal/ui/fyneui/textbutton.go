@@ -143,7 +143,9 @@ func (r *textButtonRenderer) Refresh() {
 }
 
 // Layout places the outline as a field's: inside the button by half its width; with iconEnd the
-// icon at the trailing edge, as far in as the word stands from the leading one.
+// icon at the trailing edge, as far in as the word stands from the leading one, but never left of
+// where Fyne put it behind the word: a button squeezed below its word and icon (the namespace
+// filter beside an open drawer) keeps the icon clear of the word.
 func (r *textButtonRenderer) Layout(size fyne.Size) {
 	r.WidgetRenderer.Layout(size)
 	th := r.b.Theme()
@@ -155,7 +157,9 @@ func (r *textButtonRenderer) Layout(size fyne.Size) {
 	}
 	for _, o := range r.WidgetRenderer.Objects() {
 		if img, ok := o.(*canvas.Image); ok && img.Visible() {
-			img.Move(fyne.NewPos(size.Width-th.Size(theme.SizeNameInnerPadding)-img.Size().Width, img.Position().Y))
+			if x := size.Width - th.Size(theme.SizeNameInnerPadding) - img.Size().Width; x > img.Position().X {
+				img.Move(fyne.NewPos(x, img.Position().Y))
+			}
 		}
 	}
 }
