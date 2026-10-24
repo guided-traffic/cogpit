@@ -56,8 +56,7 @@ func TestTheWatchWritesReconnectAndLoginAttempts(t *testing.T) {
 		!strings.Contains(text, "WARN error: Class: timeout") || strings.Contains(text, "Reconnected") {
 		t.Errorf("the interruption:\n%s", text)
 	}
-	if text := attemptText(got[2]); !strings.HasPrefix(text, "INFO : Reconnecting to test\n") || strings.Contains(text, "WARN") ||
-		!strings.Contains(text, "INFO : Reconnected to test after ") {
+	if text := attemptText(got[2]); !reconnectOnly(text, "test") {
 		t.Errorf("the reconnect, its own steps and its success only:\n%s", text)
 	}
 	if text := attemptText(got[1]); !strings.Contains(text, "rejected the login (401 Unauthorized)") || !strings.Contains(text, "Login expired") {
@@ -68,6 +67,60 @@ func TestTheWatchWritesReconnectAndLoginAttempts(t *testing.T) {
 	}
 	if s.state.logs.problem("test") {
 		t.Error("a reconnect or login marked the context as a connect problem")
+	}
+}
+
+// reconnectOnly reports whether a reconnect attempt's text holds its own lines only: it begins with
+// "Reconnecting", says "Reconnected" once, and its only warnings are its failed tries before that.
+// A try may fail before the prober is up again (the test turns it up once it saw the interruption,
+// and the first try comes 20 ms after it: a slow runner, Windows on 2026-10-23, tried first); the
+// interruption's own lines never belong here.
+func reconnectOnly(text, ctx string) bool {
+	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	if len(lines) == 0 || lines[0] != "INFO : Reconnecting to "+ctx {
+		return false
+	}
+	reconnected := -1
+	for i, line := range lines {
+		switch {
+		case strings.HasPrefix(line, "INFO : Reconnected to "+ctx+" after "):
+			if reconnected >= 0 {
+				return false
+			}
+			reconnected = i
+		case strings.HasPrefix(line, "WARN : A try to reach the cluster failed: "):
+			if reconnected >= 0 {
+				return false // a failed try after the success
+			}
+		case strings.HasPrefix(line, "WARN"), strings.HasPrefix(line, "ERROR"):
+			return false // the interruption's lines, or anything else that went wrong
+		}
+	}
+	return reconnected > 0
+}
+
+// The check above takes a reconnect's own failed tries and nothing of the interruption.
+func TestReconnectOnly(t *testing.T) {
+	const (
+		begin = "INFO : Reconnecting to test\n"
+		try   = "WARN : A try to reach the cluster failed: dial tcp 10.0.0.1:6443: connect: network is unreachable; the next in 40ms\n"
+		ok    = "INFO : Reconnected to test after 141 ms\n"
+	)
+	for text, want := range map[string]bool{
+		begin + ok:       true,
+		begin + try + ok: true,
+		begin + ok + "INFO : The API server did not confirm the user\n":               true,
+		begin + "WARN : Connection interrupted: no answer from the API server\n" + ok: false,
+		begin + "WARN error: Class: timeout\n" + ok:                                   false,
+		begin + ok + try: false,
+		begin + ok + ok:  false,
+		begin + try:      false,
+		try + begin + ok: false,
+		"":               false,
+	} {
+		if got := reconnectOnly(text, "test"); got != want {
+			t.Errorf("%q: %v, want %v", text, got, want)
+		}
 	}
 }
 
