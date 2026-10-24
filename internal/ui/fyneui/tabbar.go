@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -49,7 +50,7 @@ const doubleClickTime = 500 * time.Millisecond
 // tabBar is the bar of tabs.
 type tabBar struct {
 	sh     *shell
-	root   *fyne.Container // the bar and its divider; hidden while there is no tab
+	root   *fyne.Container // the bar and the light strip under it (lightstrip.go); hidden while there is no tab
 	row    *fyne.Container
 	scroll *container.Scroll
 	shown  []*viewTab // the tab widgets in order
@@ -107,7 +108,9 @@ func newTabBar(sh *shell) *tabBar {
 	}
 	b.drag.lifting = func() { sh.tip.hide() }
 	b.scroll = container.NewHScroll(b.row)
-	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.scroll))
+	// The light strip right under the bar, in the place of its divider and the gap above it, shown
+	// and hidden with it (lightstrip.go).
+	b.root = box(layout.NewCustomPaddedVBoxLayout(0), container.NewStack(newSurface(colorDock), b.scroll), sh.strip)
 	b.root.Hide()
 	b.welcome = newWelcomePage(sh)
 	b.errPage = newErrorPage(sh)

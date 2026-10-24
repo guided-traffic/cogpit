@@ -63,6 +63,10 @@ type Options struct {
 	// <user config dir>/Cogpit/window.json (D-95, windowplace.go); empty keeps nothing, and the
 	// window opens at 1440 × 900 in the middle of the screen.
 	WindowPlace string
+	// LightStripFPS is a development build's frame cap of the light strip's animations, from
+	// COGPIT_LIGHTSTRIP_FPS (cmd/cogpit/demo.go; 1 to 60) for measuring their load; 0: stripFPS
+	// (lightstrip_model.go). A release build has no such variable and never sets it.
+	LightStripFPS int
 	// Quit, when it receives, closes the window as Ctrl+C or SIGTERM does, so that the caller's
 	// cleanup runs: the updater's request on Windows once WinSparkle started the setup, which waits
 	// for Cogpit to quit (internal/update, D-111). nil: nothing asks.
@@ -250,12 +254,18 @@ func Run(s *engine.Session, opts Options) error {
 	// Cogpit's own title bar on macOS needs the window, which exists once the app started: queued
 	// from OnStarted, the install runs after the window's creation (titlebar.go).
 	detachLinks := func() {}
+	// The light strip stands still while another app is active (lightstrip.go): GLFW's focus of the
+	// window, the only one, is Fyne's foreground.
+	a.Lifecycle().SetOnEnteredForeground(func() { sh.do(func() { sh.strip.setActive(true) }) })
+	a.Lifecycle().SetOnExitedForeground(func() { sh.do(func() { sh.strip.setActive(false) }) })
 	a.Lifecycle().SetOnStarted(func() {
 		do(sh.titlebar.install)
 		// After the title bar took its room: the kept frame exactly, full screen, its changes kept (D-95).
 		do(func() { place.follow(w) })
 		do(sh.watchPixelScale) // macOS: texts drawn again when the window's pixel scale changes (D-121)
-		do(sh.installAbout)    // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
+		// macOS: the light strip stands still or moves again when Reduce motion changes (lightstrip.go).
+		watchReduceMotion(func() { sh.do(sh.strip.follow) })
+		do(sh.installAbout) // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
 		if sh.inlineMenus {
 			do(sh.installMenuKeys) // Windows and Linux: the menus' keys, the window up (menubar.go)
 		}

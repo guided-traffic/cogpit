@@ -62,6 +62,9 @@ const (
 	// border drew before fields got an outline of their own that reads on every surface (the
 	// owner's AW1 of 2026-10-22: theme.ColorNameInputBorder is a field's outline since).
 	colorHairline fyne.ThemeColorName = "cogpit.hairline"
+	// colorLightStrip is the light strip's frosted glass under the tabs (lightstrip.go, D-new): the
+	// stage mixed as the owner's lab mixes it at his glass density of 32 % (stripGlassOf).
+	colorLightStrip fyne.ThemeColorName = "cogpit.lightStrip"
 )
 
 // Status colour tokens, one per model.Status.
@@ -202,6 +205,7 @@ var darkPalette = palette{
 		colorBracket:    hex(0x34435c),              // a bracket's line under a group's label
 		colorSlotDim:    hex(0x1c2636),              // an empty token's square
 		colorHairline:   hex(0x263042),              // a well's or a card's edge
+		colorLightStrip: hex(0x1b2027),              // the stage toward white by 5.88 %: dark frosted glass
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x3dd68c), // mint
@@ -277,6 +281,7 @@ var lightPalette = palette{
 		colorBracket:    hex(0xb9c2cf),
 		colorSlotDim:    hex(0xe3e8ef),
 		colorHairline:   hex(0xcdd4df),
+		colorLightStrip: hex(0xeff1f4), // the stage toward #7f8da3 by 9.8 %: light frosted glass
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x138a52),

@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (the second and third groups' counts corrected to their rows, 41 and 37); trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (five rows for the light strip, D-new: its clock's goroutine and ticker, macOS's Reduce motion report and its closure, the app's foreground callbacks); trivial (the second and third groups' counts corrected to their rows, 41 and 37); trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -53,7 +53,7 @@ native code calls (`//export`), `callback` a function another package calls on i
 places of the same kind has one row.
 
 <details>
-<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (57 rows)</summary>
+<summary>The shell, the logs tab, the tables, the pickers and the native callbacks (60 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -109,6 +109,9 @@ places of the same kind has one row.
 | `fyneui/connhints.go` | `shell.startConnectionHints` | callback | B | The `watchConnectionHints` closure that cgo export calls; only `NoteWake` and `NoteNetworkChange`. |
 | `fyneui/pixelscale_darwin.go` | `cogpitBackingScaleChanged` | cgo | A | Called from `dispatch_async` on the main queue, so the main goroutine; reads `backingFn` under `backingMu` and calls it: the closure below (D-121). |
 | `fyneui/pixelscale.go` | `shell.startDensityWatch` | callback | A | The `watchBackingScale` closure that cgo export calls: posts `densityWatch.check` (the density read, the theme applied again) through `sh.do`, nothing else. |
+| `fyneui/reducemotion_darwin.go` | `cogpitReduceMotionChanged` | cgo | A | AppKit posts the display's accessibility options' change on the workspace's notification centre, on the main thread, so the main goroutine; reads `motionFn` under `motionMu` and calls it: the closure below (the light strip, D-new). |
+| `fyneui/fyneui.go` | `Run` | callback | A | The `watchReduceMotion` closure that cgo export calls: posts `lightStrip.follow` through `sh.do`, nothing else (D-new). |
+| `fyneui/fyneui.go` | `Run` | callback | A | `Lifecycle.SetOnEnteredForeground` and `SetOnExitedForeground`: GLFW's focus callback on main; each posts `lightStrip.setActive` through `sh.do` (D-new). |
 | `fyneui/titlebar_darwin.go` | `cogpitTitlebarChanged` | cgo | A | Called from `dispatch_async` on the main queue, so the main goroutine; posts `tb.update` through `sh.do`. |
 | `fyneui/appmenu_darwin.go` | `cogpitAboutChosen` | cgo | A | An AppKit menu action on the main thread; posts `showAbout` through `sh.do`. |
 | `nativedialog/panel_darwin.go` | `cogpitPanelPicked` | cgo | B | The sheet's completion handler on the main thread; appends to the request under `requestsMu`; no Fyne. |
@@ -167,7 +170,7 @@ places of the same kind has one row.
 </details>
 
 <details>
-<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (37 rows)</summary>
+<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (39 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -183,6 +186,8 @@ places of the same kind has one row.
 | `fyneui/helmrollback.go` | `guiConfirmer.takeDialogAnswer` | callback | B | Runs inside `Confirm` on the engine's goroutine and touches only `dialogAnswers` under its mutex, which main's `confirmedByDialog` and `dropDialogAnswer` take too. |
 | `fyneui/conndot.go` | `blinker.runTicker` | go | A | Reads its local `stop` and `sh.stopTickers` only; each tick is `b.sh.do(b.tick)`. |
 | `fyneui/conndot.go` | `blinker.runTicker` | Ticker | A | Made and stopped inside that goroutine; `b.stop` is written on main only. |
+| `fyneui/lightstrip.go` | `lightStrip.runTicker` | go | A | The light strip's clock (D-new): reads its locals `every`, `stop` and `stopAll` and the atomic `pending`; each frame is `s.sh.do(…)`, whose body checks `s.stop` and runs `tick` on main; never a second frame while one waits. |
+| `fyneui/lightstrip.go` | `lightStrip.runTicker` | Ticker | A | Made and stopped inside that goroutine; `s.stop` is written and read on main only. |
 | `fyneui/connbanner.go` | `connBanner.startTicker` | go | A | Reads the locals `t`, `stop` and `sh.stopTickers`; the `Visible` check and `fill` run inside `sh.do`. |
 | `fyneui/connbanner.go` | `connBanner.startTicker` | Ticker | A | Made on main and read by the goroutine above; `Stop` and the field writes happen on main (`hide`). |
 | `fyneui/copy.go` | `shell.copyText` | AfterFunc | A | A Secret's clipboard time-out: `sh.do(sh.clearSecretClipboard)`; the clipboard and `clipTimer` are touched only on main. |

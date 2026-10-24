@@ -108,6 +108,7 @@ type shell struct {
 	palette   *cmdPalette   // the command palette, ⌘⇧P (palette.go)
 	hot       *hotbar       // the pinned clusters at the window's left edge (hotbar.go)
 	tabs      *tabBar       // the tabs of cluster views above the workspace (tabbar.go)
+	strip     *lightStrip   // the light strip under the tabs, in the shown cluster's accent colour (lightstrip.go)
 	kc        *kubeconfigUI // the kubeconfig sources' dialogs (kubeconfigs.go)
 	blink     *blinker      // the connection dots' one clock (conndot.go, F13)
 	settings  *settingsPage // Preferences and Cluster settings (preferences_page.go)
@@ -227,6 +228,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.toasts = box(&toastLayout{})
 	sh.tip = newTooltip(sh)
 	sh.hot = newHotbar(sh)
+	sh.strip = newLightStrip(sh) // before the tab bar, under which it lies
 	sh.tabs = newTabBar(sh)
 
 	sh.drawerLay = &panelLayout{want: func() float32 { return sh.drawerW }, lo: minDrawerWidth, hi: maxDrawerWidth, restMin: minTableRoom,
@@ -599,6 +601,7 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	sh.layoutChanged(old, first)     // the navigator, the dock's open state, the layout toggles (layoutbar.go)
 	sh.top.stateChanged()            // the history arrows and the bell (titlehistory.go)
 	sh.dock.takeFocus()              // a tab the window asked the keys for, once shown (dockfocus.go)
+	sh.strip.follow()                // the shown tab's cluster's accent colour under the tabs (lightstrip.go)
 }
 
 // connectionChanged follows the context or the connection: the header, the status bar, the
