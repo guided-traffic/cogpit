@@ -51,13 +51,14 @@ func TestDebugImagePreferenceShortName(t *testing.T) {
 	q.until(t, "the Kubernetes section", func() bool { return sh.settings.controls[debugImageSetting] != nil })
 	p := sh.settings
 	prefs := func() engine.Preferences { pr, _ := s.Preferences(); return pr }
-	entry := findAll[*widget.Entry](p.controls[debugImageSetting])[0]
+	field := findAll[*fieldEntry](p.controls[debugImageSetting])[0]
+	entry := entryOf(field)
 	note := p.controls["debugImageNote"].(*textLine)
 	q.until(t, "the short name", func() bool {
 		return entry.Text == "registry.example.com/tools/netshoot:v1" && note.text == debugNotePinned
 	})
 
-	w.Canvas().Focus(entry)
+	w.Canvas().Focus(field)
 	entry.SetText("registry.example.com/tools/netshoot:v1 ")
 	entry.SetText("registry.example.com/tools/netshoot:v1")
 	q.until(t, "the pause", func() bool { return p.timers[debugImageSetting] == nil })
