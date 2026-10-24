@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -270,9 +271,17 @@ func (p *pluginHold) begin(lock *sync.Mutex) {
 		// the run's end, the only one client-go lets Cogpit see.
 		lock.Lock()
 		lock.Unlock() //nolint:staticcheck // SA2001: the empty critical section is the point: a wait for the run's end
+		if gate := runEndGate.Load(); gate != nil {
+			(*gate)()
+		}
 		p.finish(run)
 	}()
 }
+
+// runEndGate, set by tests only, runs in the goroutine that notes a run's end, after client-go let
+// its lock go and before the end is noted: a test delays it there to see what a goroutine the
+// scheduler runs late leaves behind.
+var runEndGate atomic.Pointer[func()]
 
 // finish notes that run ended.
 func (p *pluginHold) finish(run *pluginRun) {
@@ -414,6 +423,30 @@ func (p *pluginHold) cancelFor(g *loginGuard) bool {
 	return e != nil && !e.RunsOn
 }
 
+// runEndSettle bounds how long a request that got its answer waits for the end of the plugin run it
+// needed to be noted (settledSince).
+const runEndSettle = time.Second
+
+// settledSince is lastSince for a request that got its answer: client-go ran the plugin under its
+// Authenticator's lock and let the lock go before the request went on, so a run that began at or
+// after t and is still noted under way has ended, and only the goroutine that notes its end (begin)
+// has not run yet. It is waited for, at most wait; zero waits for nothing (a connect cancelled while
+// the run went on).
+func (p *pluginHold) settledSince(t time.Time, wait time.Duration) (pluginRun, bool) {
+	p.mu.Lock()
+	run := p.run
+	p.mu.Unlock()
+	if run != nil && !run.Since.Before(t) && wait > 0 {
+		timer := time.NewTimer(wait)
+		select {
+		case <-run.done:
+		case <-timer.C:
+		}
+		timer.Stop()
+	}
+	return p.lastSince(t)
+}
+
 // lastSince is the last run that began at or after t: the one under way or the last that ended.
 func (p *pluginHold) lastSince(t time.Time) (pluginRun, bool) {
 	p.mu.Lock()
@@ -483,14 +516,24 @@ func endedWithStderr(err error, e *LoginEndedError, sink *pluginStderr, mark int
 	return e
 }
 
-// traceLoginRun reports the plugin's run that began at or after start for the connection log:
-// how long it took, or that Cogpit ended it and why.
-func (c *Conn) traceLoginRun(start time.Time) {
-	if c == nil || c.hold == nil || c.trace == nil {
-		return
+// loginRunSince is the plugin's run that began at or after start, for Connect's first request once
+// it returned: a run noted under way is waited for until its end is noted (settledSince), unless the
+// connect was cancelled, when the request may have left the run going. Without a plugin: none.
+func (c *Conn) loginRunSince(ctx context.Context, start time.Time) (pluginRun, bool) {
+	if c == nil || c.hold == nil {
+		return pluginRun{}, false
 	}
-	run, ok := c.hold.p.lastSince(start)
-	if !ok {
+	wait := runEndSettle
+	if ctx.Err() != nil {
+		wait = 0
+	}
+	return c.hold.p.settledSince(start, wait)
+}
+
+// traceLoginRun reports the plugin's run of Connect's first request (loginRunSince) for the
+// connection log: how long it took, or that Cogpit ended it and why.
+func (c *Conn) traceLoginRun(run pluginRun, ok bool) {
+	if c == nil || c.hold == nil || c.trace == nil || !ok {
 		return
 	}
 	end := run.ended

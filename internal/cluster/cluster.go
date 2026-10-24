@@ -500,8 +500,9 @@ func (c *Conn) checkReachable(ctx context.Context, timeout time.Duration) error 
 	}
 	info, err := c.firstAnswer(rctx, timeout)
 	took := time.Since(start)
-	c.traceLoginRun(start)
-	c.stageLoginRun(start)
+	run, ran := c.loginRunSince(ctx, start) // its end noted, or waited for (loginrun.go)
+	c.traceLoginRun(run, ran)
+	c.stageLoginRun(run, ran)
 	if e := c.loginEndedSince(ended); err != nil && e != nil {
 		err = endedWithStderr(err, e, c.stderr, mark, c.secrets)
 	} else {

@@ -270,12 +270,12 @@ func (s *connectStages) loginRan(run pluginRun, ok bool) {
 	s.login = &st
 }
 
-// stageLoginRun records the credential plugin's run that began at or after start (loginRan).
-func (c *Conn) stageLoginRun(start time.Time) {
+// stageLoginRun records the credential plugin's run of Connect's first request (loginRunSince,
+// loginRan).
+func (c *Conn) stageLoginRun(run pluginRun, ok bool) {
 	if c == nil || c.stages == nil || c.hold == nil {
 		return
 	}
-	run, ok := c.hold.p.lastSince(start)
 	c.stages.loginRan(run, ok)
 }
 
