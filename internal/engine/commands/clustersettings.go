@@ -19,10 +19,9 @@ import (
 // the CLI, set or cleared, engine.ErrClusterIdentityGUIOnly; cluster.settings.resetIcon GUI-only;
 // the icon upload GUI-only, it also reads a file on this computer, engine.ErrIconGUIOnly) and the
 // accent colour (accentcolor.go, D-80). The Prometheus a cluster's metrics come from stays
-// cluster.setPrometheus. Its integrations (D-76) only the user switches on (H-126, the owner's
-// decision of 2026-10-19; engine/integrationsguionly.go): agents and the CLI may switch one off,
-// which only stops reads, on a cluster the user has chosen them for (the lead's decision,
-// 2026-10-19); where an integration is read from when it is not found by name
+// cluster.setPrometheus. Its integrations (D-76) only the user switches, on or off (H-126, the
+// owner's decision of 2026-10-19; H-133, his decision of 2026-10-20; engine/integrationsguionly.go):
+// agents and the CLI read them; where an integration is read from when it is not found by name
 // (cluster.setPrometheus) stays the user's (A16).
 
 type clusterSettingsParams struct {
@@ -39,13 +38,13 @@ type clusterSettingsSetParams struct {
 	TerminalNamespace    *string  `json:"terminalNamespace,omitempty" jsonschema:"kubectl's namespace in the cluster's local terminals; empty: the namespace filter's single namespace, else the context's own"`
 	Proxy                *string  `json:"proxy,omitempty" jsonschema:"the HTTP(S) or SOCKS5 proxy of this cluster's API traffic (http://<address>:<port>, https:// or socks5://, optionally with user:password@), applied at the next connect in place of the kubeconfig's proxy-url; empty: none. Agents and the CLI may only clear it (an empty string): setting one is the user's, in Cogpit's window"`
 	HiddenMetrics        []string `json:"hiddenMetrics,omitempty" jsonschema:"the metrics the window hides for this cluster, and does not ask the cluster for: places (cluster: the Overview's charts; nodes, pods: their lists' CPU and Memory columns and their drawers' charts; containers: a pod's containers' charts) and measures (cpu, memory, network, filesystem), or all; it replaces the list set before, and an empty list shows every metric again. metrics_get still answers"`
-	MetricsSource        *string  `json:"metricsSource,omitempty" jsonschema:"which providers the cluster's metrics come from, as Lens's Metrics source: auto (both: Prometheus's history and the Metrics Server's current values, the default), prometheus (Prometheus alone), metrics-server (the Metrics Server alone: no history, network, filesystem or disk) or none (no metrics: nothing is asked); applied to the connected cluster at once. It sets the metrics-server and prometheus integrations. Agents and the CLI may only set none, and not for a cluster the user has not chosen integrations for: a source that switches a provider on is the user's, in Cogpit's window"`
+	MetricsSource        *string  `json:"metricsSource,omitempty" jsonschema:"which providers the cluster's metrics come from, as Lens's Metrics source: auto (both: Prometheus's history and the Metrics Server's current values, the default), prometheus (Prometheus alone), metrics-server (the Metrics Server alone: no history, network, filesystem or disk) or none (no metrics: nothing is asked); applied to the connected cluster at once. It sets the metrics-server and prometheus integrations. GUI only: refused to agents and the CLI, none included (it switches the metrics integrations, which is the user's, in Cogpit's window)"`
 	AccessibleNamespaces []string `json:"accessibleNamespaces,omitempty" jsonschema:"the namespaces the user may read in, for a user who may not list the cluster's namespaces (Lens: Accessible namespaces), at most 100 namespace names; it replaces the list set before, and an empty list removes them. It only narrows what Cogpit reads: the namespace filter offers them, and a kind the user may not list in all namespaces is watched in each of them instead"`
 	// RenewLoginInBackground: agents and the CLI may only turn it off (engine/connwatch_lapse.go, D-69 item 4).
 	RenewLoginInBackground *bool `json:"renewLoginInBackground,omitempty" jsonschema:"whether the cluster's login is renewed while the cluster is connected but not shown, its credential plugin running (a browser login included) when the login expires (default true). Off: the plugin does not run then, and an expired login lapses (connections' loginLapsed) until the cluster is shown or logged in again. Agents and the CLI may only turn it off"`
-	// Integrations (D-76; engine/integrations.go): agents and the CLI may only switch them off, on a
-	// cluster the user has chosen them for (H-126, engine/integrationsguionly.go).
-	Integrations map[string]bool `json:"integrations,omitempty" jsonschema:"integrations switched on (true) or off (false) for this cluster, by name: metrics-server, prometheus, alertmanager, trivy, kyverno, as {alertmanager: false}; those left out stay as they apply now (for a cluster without a choice of its own: off, but for what the window's question about it ticks), and the result is the cluster's own choice (the window's question about it ends). Off: Cogpit sends the cluster nothing for it and shows nothing of it; on: Cogpit reads what the cluster runs, with the user's identity, and never writes to it. Applied to the connected cluster at once. Not together with metricsSource for metrics-server or prometheus. Agents and the CLI may only switch integrations off (false), and not for a cluster the user has not chosen integrations for (cluster_settings_get's integrationsDecided false): switching one on, and that choice, are the user's, in Cogpit's window"`
+	// Integrations (D-76; engine/integrations.go): agents and the CLI switch none, on or off (H-126,
+	// H-133, engine/integrationsguionly.go).
+	Integrations map[string]bool `json:"integrations,omitempty" jsonschema:"integrations switched on (true) or off (false) for this cluster, by name: metrics-server, prometheus, alertmanager, trivy, kyverno, as {alertmanager: false}; those left out stay as they apply now (for a cluster without a choice of its own: off, but for what the window's question about it ticks), and the result is the cluster's own choice (the window's question about it ends). Off: Cogpit sends the cluster nothing for it and shows nothing of it; on: Cogpit reads what the cluster runs, with the user's identity, and never writes to it. Applied to the connected cluster at once. Not together with metricsSource for metrics-server or prometheus. GUI only: refused to agents and the CLI, on (true) and off (false) alike: switching one on reads with the user's identity, switching one off takes its alerts, ratings or policy marks out of the window; both are the user's, in Cogpit's window"`
 }
 
 type clusterIconParams struct {
@@ -120,45 +119,37 @@ func changeSettings(s *engine.Session, name string, fn func(*engine.ClusterSetti
 
 // refuse refuses what of a cluster settings change only the user may make, in Cogpit's window,
 // for every other origin, before anyone is asked (Dispatch) and again before it runs: the display
-// name and the icon colour (H-125), the renewal of a background login turned on (D-69), an
-// integration switched on or any switch of a cluster the window still asks about (H-126), and a
-// proxy from the CLI (refuseProxy).
-func (p clusterSettingsSetParams) refuse(ctx context.Context, s *engine.Session) error {
+// name and the icon colour (H-125), the renewal of a background login turned on (D-69), any switch
+// of an integration, on or off (H-126, H-133), and a proxy from the CLI (refuseProxy).
+func (p clusterSettingsSetParams) refuse(ctx context.Context) error {
 	if err := engine.RefuseClusterIdentity(ctx, p.Name, p.IconColor, p.IconLetters, p.IconTile); err != nil {
 		return err
 	}
 	if err := engine.RefuseRenewLogin(ctx, p.RenewLoginInBackground); err != nil {
 		return err
 	}
-	if err := p.refuseIntegrations(ctx, s); err != nil {
+	if err := p.refuseIntegrations(ctx); err != nil {
 		return err
 	}
 	return refuseProxy(ctx, p.Proxy)
 }
 
-// refuseIntegrations refuses an integration switched on, by name or by a Metrics source that names
-// a provider, and any switch of a cluster whose question the window still asks, for every origin but
-// the window (H-126).
-func (p clusterSettingsSetParams) refuseIntegrations(ctx context.Context, s *engine.Session) error {
-	if (p.Integrations == nil && p.MetricsSource == nil) || engine.OriginOf(ctx) == engine.OriginGUI {
+// refuseIntegrations refuses any switch of the cluster's integrations, on or off, by name or by a
+// Metrics source, for every origin but the window (H-126, H-133). The names and the source are
+// checked first, so that a misspelt one says which are known.
+func (p clusterSettingsSetParams) refuseIntegrations(ctx context.Context) error {
+	if len(p.Integrations) == 0 && p.MetricsSource == nil {
 		return nil
 	}
-	on, _, err := engine.ParseIntegrationSwitches(p.Integrations)
-	if err != nil {
+	if _, _, err := engine.ParseIntegrationSwitches(p.Integrations); err != nil {
 		return err
 	}
 	if p.MetricsSource != nil {
-		source, err := engine.ParseMetricsSource(*p.MetricsSource)
-		if err != nil {
+		if _, err := engine.ParseMetricsSource(*p.MetricsSource); err != nil {
 			return err
 		}
-		on |= engine.MetricsSourceOn(source)
 	}
-	id, err := settingsContext(s, p.Context)
-	if err != nil {
-		return err
-	}
-	return s.RefuseIntegrationSwitches(ctx, id, on)
+	return engine.RefuseIntegrationSwitches(ctx)
 }
 
 // refuseIconReset refuses resetting a cluster's icon from anywhere but the window (Dispatch refuses
@@ -216,9 +207,9 @@ func registerClusterSettings(g *registrar) {
 			"and a kind the user may not list in all namespaces is watched in each of them, at once; renewLoginInBackground " +
 			"off holds the credential plugin while the cluster is not shown (its login then lapses instead of being renewed), " +
 			"and only the user may turn it on again. Refused for agents and the CLI: the display name and the icon colour, set " +
-			"or cleared (only the user changes what marks which cluster this is), switching an integration on (true, or a " +
-			"metricsSource other than none), and any integration switch on a cluster the user has not chosen integrations " +
-			"for (the window's question is the user's to answer); they may switch integrations off. An agent's proxy " +
+			"or cleared (only the user changes what marks which cluster this is), and switching an integration on or off " +
+			"(integrations and metricsSource: only the user chooses what Cogpit reads with their identity and what " +
+			"the window stops showing). An agent's proxy " +
 			"always waits for the user's acceptance, also where the user allowed agent writes; the CLI may clear the proxy " +
 			"but not set one; the proxy read back has its password shown as •••." +
 			clusterSettingsOnly + " Returns the settings.",
@@ -226,8 +217,8 @@ func registerClusterSettings(g *registrar) {
 			_, err := settingsContext(s, p.Context)
 			return err
 		},
-		Refuse: func(ctx context.Context, s *engine.Session, p clusterSettingsSetParams) error {
-			return p.refuse(ctx, s)
+		Refuse: func(ctx context.Context, _ *engine.Session, p clusterSettingsSetParams) error {
+			return p.refuse(ctx)
 		},
 		// A proxy decides where the user's cluster traffic goes, credentials in it: an agent's always
 		// waits for the user (A20, owner 2026-10-14 evening).
@@ -240,7 +231,7 @@ func registerClusterSettings(g *registrar) {
 			return proxyEffects("the API traffic of "+ctx+", from its next connect", *p.Proxy)
 		},
 		Run: func(ctx context.Context, s *engine.Session, p clusterSettingsSetParams) (any, error) {
-			if err := p.refuse(ctx, s); err != nil {
+			if err := p.refuse(ctx); err != nil {
 				return nil, err
 			}
 			var source string

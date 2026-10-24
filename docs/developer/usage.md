@@ -836,24 +836,27 @@ nothing and reads every integration the default keeps on (H-120).
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks. Agents and the CLI: `false` only, and only once the cluster has a choice |
-| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json`. Agents and the CLI: `false` only |
+| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks. Agents and the CLI: refused, `true` and `false` alike (since 2026-10-24, H-133) |
+| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json`. Agents and the CLI: refused, `true` and `false` alike (since 2026-10-24, H-133) |
 | `cluster.integrations.step` `{context?, step}` | `preChoice` # default | the question's page: `preChoice`, `checkAll`, `choose`, `dontUse`; `cluster.integrations.lookFor` `{context?, integrations}` ticks the rows (`{"prometheus": true}`); both GUI-only |
-| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false` (GUI-only); `cluster.integrations.later` `{context?}` its Later; `cluster.integrations.ask` `{context?}` Ask again (both open to agents); `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
+| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false` (GUI-only); `cluster.integrations.later` `{context?}` its Later (open to agents); `cluster.integrations.ask` `{context?}` Ask again (GUI-only since 2026-10-24: it forgets your choice); `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
 
 A `metricsSource` an older Cogpit kept in `cluster-settings.json` is moved into the two metrics
 switches once (`prometheus`: the Metrics Server off; `metrics-server`: Prometheus off; `none`: both
-off). Security note: since 2026-10-19 only you switch an integration on and answer the question
-([H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user)),
-since switching one on lets Cogpit look for and read it with your identity. Agents (over MCP and the
-built-in one) and `cogpit-cli` are refused `cluster.integrations.step`, `.lookFor` and `.answer`
-(GUI-only), `cluster.settings.set`'s `integrations` naming one `true` and a `metricsSource` other than
-`none`, and `preferences.set`'s `integrationDefaults` naming one `true`, also where you allowed
-agents' writes. They may switch integrations off (`false`, `metricsSource` `none`, a default off) on
-a cluster you have chosen integrations for, not on one whose question is still open, and they may put
-the question off (`cluster.integrations.later`) or ask it again (`cluster.integrations.ask`); each of
-these only makes Cogpit read less. Where an integration is read from when it is not found by name
-stays yours to set ([agents and MCP](../security/agents-and-mcp.md)).
+off). Security note: only you switch an integration, on (since 2026-10-19,
+[H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user))
+and off (since 2026-10-24, [H-133](../security/agents-and-mcp.md#h-133-an-agent-can-switch-an-integration-off-and-so-hide-alerts-or-policy-marks)),
+and only you answer the question: switching one on lets Cogpit look for and read it with your
+identity, and switching one off takes its alerts, image grades or policy marks out of the window
+without the window saying who did it. Agents (over MCP and the built-in one) and `cogpit-cli` are
+refused `cluster.integrations.step`, `.lookFor`, `.answer` and `.ask` (GUI-only; Ask again forgets
+your choice, which switches every integration of the cluster off until you answer), `cluster.settings.set`'s
+`integrations` (`true` or `false`) and `metricsSource` (any value, `none` included), and
+`preferences.set`'s `integrationDefaults` (`true` or `false`), also where you allowed agents' writes;
+the other fields of those commands stay theirs. They may put the question off
+(`cluster.integrations.later`): it only defers a question you have not answered, whose cluster reads
+nothing meanwhile. Where an integration is
+read from when it is not found by name stays yours to set ([agents and MCP](../security/agents-and-mcp.md)).
 `cogpit-cli` does not apply these switches ([H-120](../security/agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)).
 
 ### Deep links (`cogpit://`)

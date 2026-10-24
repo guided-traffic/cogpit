@@ -13,7 +13,7 @@ import (
 // is a UI command that agents run freely (D-2), except the local terminal's shell and its
 // arguments, which name a program Cogpit runs and are refused for every origin but the GUI
 // (engine.ErrShellGUIOnly), and the other fields each refusal below names (the default
-// integrations for new clusters switched on among them: engine.ErrIntegrationsGUIOnly, H-126).
+// integrations for new clusters among them, on or off: engine.ErrIntegrationsGUIOnly, H-126, H-133).
 // The open page is UI state (settings.close closes it).
 
 // PreferencesResult is what preferences.get and preferences.set return.
@@ -57,7 +57,7 @@ type preferencesSetParams struct {
 	// RestoreSession: agents and the CLI may only turn it off (engine/restore.go, D-69 item 8).
 	RestoreSession *bool `json:"restoreSession,omitempty" jsonschema:"whether Cogpit, at its next start, restores the tabs of the last run and connects again to the clusters connected when it quit, the one shown then first, their credential plugins running as on any connect (default false: it starts without tabs and connections). Agents and the CLI may only turn it off"`
 	// IntegrationDefaults: the integrations of clusters without a choice of their own (engine/integrations.go, D-76).
-	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. Agents and the CLI may only switch a default off (false): switching one on is the user's, in Cogpit's window"`
+	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. GUI only: refused to agents and the CLI, on (true) and off (false) alike: the default is what the user's Check all looks for, which is the user's, in Cogpit's window"`
 	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
@@ -91,14 +91,17 @@ func (p preferencesSetParams) refuse(ctx context.Context) error {
 	return nil
 }
 
-// refuseIntegrationDefaults refuses a default integration for new clusters switched on, from every
-// origin but the GUI: it is what the user's Check all looks for with the user's identity (H-126).
+// refuseIntegrationDefaults refuses any change of the default integrations for new clusters, on or
+// off, from every origin but the GUI: it is what the user's Check all looks for with the user's
+// identity (H-126) and what it leaves out (H-133). The names are checked first.
 func (p preferencesSetParams) refuseIntegrationDefaults(ctx context.Context) error {
-	on, _, err := engine.ParseIntegrationSwitches(p.IntegrationDefaults)
-	if err != nil {
+	if len(p.IntegrationDefaults) == 0 {
+		return nil
+	}
+	if _, _, err := engine.ParseIntegrationSwitches(p.IntegrationDefaults); err != nil {
 		return err
 	}
-	return engine.RefuseIntegrationsOn(ctx, on)
+	return engine.RefuseIntegrationSwitches(ctx)
 }
 
 type preferencesOpenParams struct {
@@ -153,8 +156,8 @@ func registerPreferences(g *registrar) {
 			"waits for the user's acceptance; the CLI may only clear it. Refused too: choosing the configmap Helm storage driver for new installs, which they may " +
 			"only set back to secret, turning on chart icons, which they may only turn off, turning off the automatic " +
 			"update checks, which they may only turn on, and turning on the restore of the last session (the next start would " +
-			"connect clusters and run their credential plugins without a click), which they may only turn off, and switching " +
-			"on a default integration for new clusters, which they may only switch off, and setting the debug container's " +
+			"connect clusters and run their credential plugins without a click), which they may only turn off, switching " +
+			"a default integration for new clusters on or off (integrationDefaults), and setting the debug container's " +
 			"image (debugImage), which they may only reset: it decides what the user's next Debug runs beside a pod's processes. The default " +
 			"integrations for new clusters (integrationDefaults) apply at once to every cluster without a choice of its own." +
 			prefsWritesOnly + " Returns the preferences.",

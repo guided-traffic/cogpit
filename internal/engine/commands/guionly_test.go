@@ -22,6 +22,7 @@ var wantGUIOnly = []string{
 	"cluster.remove", "cluster.settings.setAgentWrites", "cluster.settings.setAccentColor", "cluster.settings.uploadIcon", "dock.allowAgentRead",
 	// H-125 and H-126 (the owner's decisions of 2026-10-19).
 	"cluster.settings.resetIcon", "cluster.integrations.step", "cluster.integrations.lookFor", "cluster.integrations.answer",
+	"cluster.integrations.ask",
 	"kubeconfig.addFile", "kubeconfig.addFolder", "kubeconfig.approveExec", "kubeconfig.remove",
 	"kubectl.download", engine.SecretCreateCommand, engine.RevealCommand, "configMap.keepEdits",
 	engine.SecretReviewDataCommand, engine.SecretSaveDataCommand,

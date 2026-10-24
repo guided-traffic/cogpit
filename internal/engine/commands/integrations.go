@@ -18,12 +18,14 @@ import (
 // so they are UI commands. The question asks the user's consent to what Cogpit looks for with the
 // user's identity, so only the user answers it, in Cogpit's window (H-126, the owner's decision of
 // 2026-10-19: "Nein"; engine/integrationsguionly.go): step, lookFor and answer are GUI-only, as is
-// switching an integration on in cluster.settings.set and preferences.set. Later and Ask again stay
-// open to agents and the CLI: both make Cogpit read less, never more (the lead's decision,
-// 2026-10-19).
+// switching an integration on or off in cluster.settings.set and preferences.set (H-133, the
+// owner's decision of 2026-10-20), and Ask again, which forgets the user's choice and so switches
+// every integration of the cluster off until the user answers (the lead's decision, 2026-10-24).
+// Later stays open to agents and the CLI: it only puts off a question nobody has answered, whose
+// cluster reads nothing meanwhile (the lead's decision, 2026-10-19).
 
-// refuseQuestion refuses the question's steps, ticks and answer from anywhere but the window
-// (Dispatch refuses them first, the commands being GUI-only; Run checks again).
+// refuseQuestion refuses the question's steps, ticks, answer and Ask again from anywhere but the
+// window (Dispatch refuses them first, the commands being GUI-only; Run checks again).
 func refuseQuestion(ctx context.Context) error {
 	if engine.OriginOf(ctx) != engine.OriginGUI {
 		return engine.ErrIntegrationsGUIOnly
@@ -206,6 +208,9 @@ func registerIntegrations(g *registrar) {
 
 	add(g, engine.Spec[integrationsAskParams]{
 		ID: "cluster.integrations.ask", Label: "Ask About Integrations Again", Danger: engine.DangerUI,
+		// H-133: forgetting the user's choice switches every integration of the cluster off until the
+		// user answers again (the lead's decision, 2026-10-24).
+		GUIOnly: engine.ErrIntegrationsGUIOnly,
 		Description: "Asks the question about a cluster's integrations again, as Cluster Settings › Integrations' Ask again " +
 			"does: the cluster's choice of integrations is forgotten (and a Later of this run), nothing of its integrations " +
 			"is read from then on, and the window asks again from the pre-choice while the cluster is shown and connected " +
@@ -218,7 +223,10 @@ func registerIntegrations(g *registrar) {
 			}
 			return s.CanAskIntegrationsAgain(id)
 		},
-		Run: func(_ context.Context, s *engine.Session, p integrationsAskParams) (any, error) {
+		Run: func(ctx context.Context, s *engine.Session, p integrationsAskParams) (any, error) {
+			if err := refuseQuestion(ctx); err != nil {
+				return nil, err
+			}
 			id, err := settingsContext(s, p.Context)
 			if err != nil {
 				return nil, err
