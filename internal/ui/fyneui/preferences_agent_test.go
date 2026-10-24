@@ -327,6 +327,7 @@ func TestAgentPreferencesCAFile(t *testing.T) {
 // the plain http warning.
 func plainSteps() [][]engine.ChatTestStep {
 	return [][]engine.ChatTestStep{{
+		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "192.168.1.20 is an address: nothing to resolve"},
 		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "192.168.1.20:1234 answers", Duration: 2 * time.Millisecond},
 		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTP 200, plain http to another machine",
 			Warning: engine.ChatPlainHTTPWarning, Duration: 9 * time.Millisecond},
@@ -419,13 +420,15 @@ func TestAgentPreferencesDefault(t *testing.T) {
 
 func testSteps(final bool) [][]engine.ChatTestStep {
 	running := []engine.ChatTestStep{
-		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers", Duration: 3 * time.Millisecond},
+		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "litellm.example.com: 203.0.113.7, 2001:db8::7", Duration: 4 * time.Millisecond},
+		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers at 203.0.113.7", Duration: 3 * time.Millisecond},
 		{Layer: engine.ChatTestHTTP, State: engine.ChatTestRunning},
 		{Layer: engine.ChatTestAuth, State: engine.ChatTestPending},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestPending},
 	}
 	done := []engine.ChatTestStep{
-		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers", Duration: 3 * time.Millisecond},
+		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "litellm.example.com: 203.0.113.7, 2001:db8::7", Duration: 4 * time.Millisecond},
+		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers at 203.0.113.7", Duration: 3 * time.Millisecond},
 		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTP 200, TLS 1.3", Duration: 41 * time.Millisecond},
 		{Layer: engine.ChatTestAuth, State: engine.ChatTestFail, Detail: "HTTP 401: the API key was refused", Duration: 12 * time.Millisecond},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestNotReached},
@@ -457,6 +460,9 @@ func TestAgentPreferencesConnectionTest(t *testing.T) {
 		t.Errorf("tested %+v with key %v, want the form's values", tried.conn, tried.key)
 	}
 	rows := a.form.stepRows
+	if r := rows[engine.ChatTestDNS]; r.label.text != "DNS" || r.detail.text != "Passed: litellm.example.com: 203.0.113.7, 2001:db8::7" {
+		t.Errorf("DNS: %q %q", r.label.text, r.detail.text)
+	}
 	if r := rows[engine.ChatTestHTTP]; r.detail.text != "Passed: HTTP 200, TLS 1.3" || r.took.text != "41 ms" {
 		t.Errorf("HTTP: %q %q", r.detail.text, r.took.text)
 	}
@@ -496,13 +502,13 @@ func renderAgentPreferences(t *testing.T, mode ThemeMode, name string, conn engi
 	test.Tap(a.form.testB)
 	q.until(t, "the test's result", func() bool { return !a.form.testB.Disabled() && len(a.form.steps.Objects) > 0 })
 	w.Canvas().Unfocus()
-	w.Resize(fyne.NewSize(1440, 1640)) // the list, the whole form and the test without scrolling
+	w.Resize(fyne.NewSize(1440, 2100)) // the list, the whole form and the test without scrolling (in the settings card, D-118)
 	savePNG(t, w, name+"_"+string(mode)+".png")
 }
 
 // TestRenderAgentPreferences: the connections (the LAN one marked plain http), the form of an
-// https one with its CA file, and a finished test whose third layer failed and whose fourth was
-// not reached.
+// https one with its CA file, and a finished test whose DNS layer lists two addresses, whose
+// authentication failed and whose tool use was not reached.
 func TestRenderAgentPreferences(t *testing.T) {
 	conn := litellm()
 	conn.CAFile = "/Users/you/certs/team-ca.pem"

@@ -996,8 +996,15 @@ kept in `llm-connections.json` (its key apart in `llm-keys.json`, [naming](#nami
 | Send all tools | off # default | every Cogpit command the chat may run as a tool of its own with each request (179 tools, about 56,000 tokens, measured 2026-10-15), for large cloud models; off, 20 core tools and a search that finds the rest (about 7,600 tokens). The same rules either way: what the agent reads follows the private mark, every write asks as D-2 says |
 | Limits per turn | 3 identical tool calls, 25 tool calls, 300,000 tokens, 10 minutes # default | a turn that reaches one stops with a note |
 
-Test Connection checks the form's values layer by layer (TCP, HTTP and TLS, authentication, tool
-use) without saving them and without cluster data.
+Test Connection checks the form's values layer by layer (DNS, TCP, HTTP and TLS, authentication,
+tool use) without saving them and without cluster data. DNS lists the addresses the endpoint's name
+resolves to, IPv4 and IPv6, the first four and a count of the rest; it does not say which server
+answered (the system's resolver does not tell). An IP address or `localhost` passes at once
+("nothing to resolve"). TCP then dials those addresses in that order, 5 s for all of them, and names
+the one that answered and any refused before it. With a proxy set for the endpoint in the
+environment (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`; never for localhost), DNS and TCP check the
+proxy, which resolves the endpoint's name itself; the proxy's user and password are never shown
+([D-10](decisions.md#d-10-built-in-agent) item 8).
 
 In the chat column, the pencil at the end of the line under each of your messages opens it for
 editing (since 2026-10-15, F9): Enter or Send sends it again, and that message and everything after

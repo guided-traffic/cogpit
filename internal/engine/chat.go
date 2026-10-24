@@ -165,16 +165,18 @@ func (l ChatLimits) WithDefaults() ChatLimits {
 // ChatTestLayer is one step of the connection test, in this order.
 type ChatTestLayer string
 
-// The connection test's layers (owner, 2026-10-14 late evening).
+// The connection test's layers (owner, 2026-10-14 late evening; DNS since the owner's VW8,
+// 2026-10-23).
 const (
-	ChatTestTCP   ChatTestLayer = "tcp"   // the host and port answer
+	ChatTestDNS   ChatTestLayer = "dns"   // the host name resolves (its addresses listed); an IP address or localhost at once
+	ChatTestTCP   ChatTestLayer = "tcp"   // one of those addresses answers on the port
 	ChatTestHTTP  ChatTestLayer = "http"  // an HTTP(S) answer from the API, TLS included
 	ChatTestAuth  ChatTestLayer = "auth"  // the key is accepted (/models without 401 or 403)
 	ChatTestTools ChatTestLayer = "tools" // a minimal request with one harmless tool returns a tool call
 )
 
 // ChatTestLayers is the connection test's order.
-var ChatTestLayers = []ChatTestLayer{ChatTestTCP, ChatTestHTTP, ChatTestAuth, ChatTestTools}
+var ChatTestLayers = []ChatTestLayer{ChatTestDNS, ChatTestTCP, ChatTestHTTP, ChatTestAuth, ChatTestTools}
 
 // ChatTestState is a test step's outcome.
 type ChatTestState string
