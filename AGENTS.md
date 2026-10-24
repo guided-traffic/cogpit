@@ -8,7 +8,7 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-24:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+**State on 2026-10-25:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
 runs on macOS, extended by eighteen further implementation runs (2026-10-11 to 2026-10-20, night runs and
 day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
@@ -26,12 +26,15 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.44.0 the
-newest, released 2026-10-24 from the AFK session: a b64 button beside a Secret value's copy icon,
-a DNS step in Test Connection, cluster icons rounded as macOS's, Copy Kubeconfig Path, credential
-plugins in more folders (D-120), the blurry text after a wake worked around (D-121), integrations
-GUI-only both ways (H-133), the owner's VW1–VW4; the light strip (VW14) on its branch for his live
-walk; v0.43.0 released 2026-10-23 with the cluster icon designer, an Internal icon of up to five letters
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.45.0 the
+newest, released 2026-10-24 night after the owner's live walk: the light strip under a view's
+header in the shown cluster's accent colour, static or animated (VW14, his LS1–LS23: one static
+colour spreading from the tab, the animations framed with a CPU note, Preferences › App › Light
+strip on battery, the tab bar always shown), cluster icons 50 points in the hotbar and the
+navigator's head (LS19); v0.44.0 released 2026-10-24 from the AFK session: a b64 button beside a
+Secret value's copy icon, a DNS step in Test Connection, cluster icons rounded as macOS's, Copy
+Kubeconfig Path, credential plugins in more folders (D-120), the blurry text after a wake worked
+around (D-121), integrations GUI-only both ways (H-133), the owner's VW1–VW4; v0.43.0 released 2026-10-23 with the cluster icon designer, an Internal icon of up to five letters
 or a Custom icon cut from an image the user places (the owner's VW5, D-119); v0.42.0 the same day
 with Preferences and Cluster Settings as a card over the whole window, Cogpit dimmed behind it (the
 owner's VW6, D-118); v0.41.0 the same day with the owner's button findings (every content button outlined, room
