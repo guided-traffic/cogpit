@@ -162,6 +162,11 @@ type Preferences struct {
 	// fyneui/navigator_slide.go). Agents and the CLI may set it either way: it changes only how the
 	// window moves.
 	ReduceMotion bool `json:"reduceMotion,omitempty"`
+	// ProgramFolders are the folders, absolute paths, Cogpit looks in for the programs a
+	// kubeconfig's credential plugin runs, kubectl's plugins and a terminal's programs, after PATH's
+	// own folders and Cogpit's built-in ones, in this order (programfolders.go, D-120). Only the
+	// user adds one (ErrProgramFoldersGUIOnly); agents and the CLI may remove one.
+	ProgramFolders []string `json:"programFolders,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
@@ -178,6 +183,7 @@ func DefaultPreferences() Preferences {
 // Clone returns a deep copy.
 func (p Preferences) Clone() Preferences {
 	p.TerminalShellArgs = slices.Clone(p.TerminalShellArgs)
+	p.ProgramFolders = slices.Clone(p.ProgramFolders)
 	return p
 }
 
@@ -220,6 +226,9 @@ func (p Preferences) Check() error {
 		return err
 	}
 	if err := CheckDebugImage(p.DebugImage); err != nil { // debugcontainer.go
+		return err
+	}
+	if err := checkProgramFolders(p.ProgramFolders); err != nil { // programfolders.go
 		return err
 	}
 	return p.checkKubectl()
@@ -316,6 +325,7 @@ func (p *Preferences) normalize() {
 	if p.UpdateChannel == "" || CheckUpdateChannel(p.UpdateChannel) != nil {
 		p.UpdateChannel = UpdateChannelStable
 	}
+	p.ProgramFolders = normalProgramFolders(p.ProgramFolders) // programfolders.go
 }
 
 // CheckTheme refuses what is not a theme choice.
@@ -474,6 +484,7 @@ func (p *PreferencesStore) attach(s *Session) {
 	if err != nil {
 		s.log.Warn("preferences", "err", err)
 	}
+	applyProgramFolders(st.ProgramFolders) // the user's program folders on PATH (programfolders.go, D-120)
 	st = st.Shown()
 	s.ui.Preferences = &st
 }
@@ -528,6 +539,9 @@ func (s *Session) ChangePreferences(fn func(*Preferences) error) (Preferences, e
 		if len(next.TerminalShellArgs) == 0 {
 			next.TerminalShellArgs = nil
 		}
+		if len(next.ProgramFolders) == 0 {
+			next.ProgramFolders = nil
+		}
 		if next.HTTPProxy = strings.TrimSpace(next.HTTPProxy); next.HTTPProxy == RedactProxyURL(p.prefs.HTTPProxy) {
 			next.HTTPProxy = p.prefs.HTTPProxy // the redacted form handed back as it was shown: unchanged
 		}
@@ -543,6 +557,9 @@ func (s *Session) ChangePreferences(fn func(*Preferences) error) (Preferences, e
 	}()
 	if err != nil {
 		return Preferences{}, err
+	}
+	if !slices.Equal(old.ProgramFolders, next.ProgramFolders) {
+		applyProgramFolders(next.ProgramFolders) // programfolders.go: from the next program started
 	}
 	shown := next.Shown() // the proxy without its password
 	s.UpdateUI(func(u *UIState) { u.Preferences = &shown })

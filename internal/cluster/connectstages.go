@@ -74,6 +74,10 @@ type Stage struct {
 	Result string        // StageOK, StageFailed, StageNotReached, StageSkipped or StageCancelled
 	Text   string        // the result in a sentence: what was found, or why it failed; never a credential
 	Took   time.Duration // how long it took; zero when it is not timed
+	// Missing is the program a failed login did not find where Cogpit looks for programs
+	// (MissingProgram, D-120): the credential plugin itself, or the kubectl plugin kubectl runs as
+	// the credential plugin did not find; empty for any other result.
+	Missing string
 }
 
 // StagesOf returns the stages a failed connect's error carries, and the cause of the failure in a
@@ -266,12 +270,12 @@ func (s *connectStages) loginRan(run pluginRun, ok bool) {
 	s.login = &st
 }
 
-// stageLoginRun records the credential plugin's run that began at or after start (loginRan).
-func (c *Conn) stageLoginRun(start time.Time) {
+// stageLoginRun records the credential plugin's run of Connect's first request (loginRunSince,
+// loginRan).
+func (c *Conn) stageLoginRun(run pluginRun, ok bool) {
 	if c == nil || c.stages == nil || c.hold == nil {
 		return
 	}
-	run, ok := c.hold.p.lastSince(start)
 	c.stages.loginRan(run, ok)
 }
 
@@ -420,6 +424,7 @@ func (s *connectStages) stagesLocked(err error, cancelled bool) []Stage {
 		var ended *LoginEndedError
 		if login.Result != StageCancelled && (IsPluginFailure(err) || errors.As(err, &ended)) {
 			login.Result, login.Text = StageFailed, s.causeOf(err) // the run answered, its answer did not work
+			login.Missing = MissingProgram(err)
 		}
 		list = append(list, login)
 	}
@@ -669,6 +674,9 @@ func (s *connectStages) causeOf(err error) string {
 	case errors.As(err, &ended):
 		return ended.Error()
 	case IsPluginFailure(err):
+		if missing := MissingProgram(err); missing != "" {
+			return missingProgramText(s.plugin, missing)
+		}
 		return "the credential plugin " + s.plugin + " failed: " + pluginFailure(err.Error())
 	case apierrors.IsUnauthorized(err) || errors.Is(err, ErrLoginRejected):
 		return "the API server rejected the login (401 Unauthorized): log in again or check the user entry"
@@ -692,6 +700,15 @@ func (s *connectStages) causeOf(err error) string {
 		return "the proxy " + s.proxy + " refused or failed the connection: " + innermost(err)
 	}
 	return innermost(err)
+}
+
+// missingProgramText says that a credential plugin's login failed for a program it did not find
+// (MissingProgram): the plugin itself, or the kubectl plugin kubectl looked for.
+func missingProgramText(plugin, missing string) string {
+	if missing == plugin {
+		return "the credential plugin " + plugin + " was not found: no program " + plugin + " on PATH"
+	}
+	return "the credential plugin " + plugin + " failed: it found no " + missing + " on PATH (kubectl: unknown command)"
 }
 
 // innermost is the innermost error's text, made safe.

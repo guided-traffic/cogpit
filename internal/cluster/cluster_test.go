@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -334,45 +333,5 @@ func TestServedResourcesToleratesBrokenGroupsAndCaches(t *testing.T) {
 	}
 	if after := c.Counter().Snapshot().ByVerb[VerbDiscovery]; after == before {
 		t.Error("InvalidateServedResources did not refresh")
-	}
-}
-
-func TestEnsureToolPath(t *testing.T) {
-	home := t.TempDir()
-	for _, d := range []string{filepath.Join(home, "bin"), filepath.Join(home, ".local", "bin")} {
-		if err := os.MkdirAll(d, 0o755); err != nil {
-			t.Fatal(err)
-		}
-	}
-	t.Setenv("HOME", home)
-	t.Setenv("PATH", "/usr/bin"+string(os.PathListSeparator)+filepath.Join(home, "bin"))
-	toolDirsBefore := toolDirs
-	toolDirs = []string{filepath.Join(home, "missing"), "/usr/bin"}
-	defer func() { toolDirs = toolDirsBefore }()
-
-	if runtime.GOOS == "windows" {
-		// A program started from the Start menu or Explorer has the PATH a terminal has (both
-		// read it from the user's environment in the registry): nothing is added there.
-		before := os.Getenv("PATH")
-		EnsureToolPath()
-		if got := os.Getenv("PATH"); got != before {
-			t.Errorf("PATH changed on Windows to %q", got)
-		}
-		return
-	}
-	EnsureToolPath()
-	want := strings.Join([]string{"/usr/bin", filepath.Join(home, "bin"), filepath.Join(home, ".local", "bin")}, string(os.PathListSeparator))
-	if got := os.Getenv("PATH"); got != want {
-		t.Errorf("PATH = %q, want %q", got, want)
-	}
-	EnsureToolPath() // idempotent
-	if got := os.Getenv("PATH"); got != want {
-		t.Errorf("second call changed PATH to %q", got)
-	}
-
-	t.Setenv("PATH", "")
-	EnsureToolPath()
-	if got := os.Getenv("PATH"); !strings.HasPrefix(got, "/usr/bin") {
-		t.Errorf("empty PATH: got %q", got)
 	}
 }

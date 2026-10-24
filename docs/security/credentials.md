@@ -504,11 +504,57 @@ An exec plugin runs with Cogpit's environment plus the variables the kubeconfig 
 app started from the dock or start menu does not see `PATH` entries and variables set in shell
 profiles, so plugins that rely on them (cloud CLIs reading `AWS_PROFILE` and similar) can fail.
 Lens's technical FAQ tells users that exec-plugin binaries must be on `PATH` or named with an
-absolute path ([Lens technical FAQ](https://docs.lenshq.io/faq/technical-faq/)). As a stopgap the
-MVP appends the usual tool directories (`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`,
-`~/.local/bin`, `~/bin`) that exist and are missing from `PATH` at start
-(`cluster.EnsureToolPath`); variables such as `AWS_PROFILE` are still missing. Whether Cogpit reads
-the login shell's environment, and which variables it then passes to plugins, is not designed yet.
+absolute path ([Lens technical FAQ](https://docs.lenshq.io/faq/technical-faq/)).
+
+**Where programs are found** (since 2026-10-24, [D-120](../developer/decisions.md#d-120-credential-plugins-found-in-more-folders),
+the owner's decision of 2026-10-23; [`toolpath.go`](../../internal/cluster/toolpath.go)): Cogpit
+appends two kinds of folders to its own `PATH`, after every folder `PATH` already has: at start, on
+macOS and Linux, the built-in folders of the package managers and installers that leave their folder
+to a shell profile (Homebrew, MacPorts, snap, Nix, `~/.local/bin`, `~/bin`, krew's
+`${KREW_ROOT:-~/.krew}/bin`, go install's, asdf's and mise's shims, Rancher Desktop's, Docker
+Desktop's and the Google Cloud CLI's, each only while it exists, `cluster.BuiltinToolFolders`); and,
+on every platform, after them, the user's program folders (Preferences › Kubernetes › Program
+folders, `programFolders` in `preferences.json`). `PATH` is composed again when the folders change
+and at every connect, so a folder counts from the next login without a restart; `cogpit-cli` reads
+the same folders. What holds:
+
+- **No shadowing.** Every folder is appended, never put first: a program `PATH` finds keeps running,
+  so neither a built-in nor a user's folder can replace a system program, a plugin the user's `PATH`
+  finds, or the program an approval names on `PATH`
+  ([D-26](../developer/decisions.md#d-26-binding-a-credential-plugins-approval-to-its-program))
+  (`TestComposePathAppendsWithoutShadowing`).
+- **Only the user adds a folder**, in Cogpit's window: `preferences.addProgramFolder` is GUI-only
+  (`ErrProgramFoldersGUIOnly`), so no agent and no `cogpit-cli` can put a folder of their choice
+  where the next login looks for its plugin; removing one is anyone's, since it only makes fewer
+  programs found (`TestProgramFoldersAddRemoveAndKeep`, `TestGUIOnlyCommandsRefuseOtherOrigins`).
+- **No folder anyone may write to.** A folder whose mode lets every user of the computer write to it
+  is refused when added and skipped if it becomes so, built-in or the user's (not checked on
+  Windows, where the mode bits say nothing; ACLs are not read) (`TestProgramFolderProblem`).
+- **The failure names the folder setting.** A plugin whose program is not found (client-go's
+  "executable … not found" for a command named without a folder, or kubectl's "unknown command" for
+  a kubectl plugin) says so in the window's error, in the connect's login stage and in Connection
+  Updates, with where to add the folder; the error page offers Program Folders…
+  (`TestAMissingPluginPointsToProgramFolders`).
+
+What remains, live on every computer where it applies:
+
+- **A name not found before can be found now.** A credential plugin's program named without a folder,
+  or a kubectl plugin, that the user's `PATH` lacks is found in a built-in or program folder. An
+  approval binds such a program by its name, as any program on `PATH`, so whoever can write to one of
+  these folders chooses what runs for that name. Each built-in folder is the user's own (in the home
+  folder) or the system's (root's); a writer of either already controls the account (D-26's
+  reasoning). A program folder the user adds inside a folder other people write to (a synced
+  kubeconfig folder, a shared drive writable by a group) hands them that choice; Cogpit refuses only a
+  folder every user may write to, not one a group may.
+- **A kubectl plugin is bound by nothing.** kubectl run as the credential plugin looks up the plugin
+  it names on the `PATH` Cogpit gives it, its program folders included; no approval names or hashes
+  that file (D-26 binds kubectl, not what kubectl runs).
+- **A terminal's programs.** A local terminal opened afterwards inherits the composed `PATH`; its
+  shell profile usually sets `PATH` anew, and folders Cogpit appended stay behind the profile's.
+- **The shell's variables are still missing.** Variables such as `AWS_PROFILE` and `KREW_ROOT` set
+  only in a shell profile do not reach Cogpit or its plugins; whether Cogpit reads the login shell's
+  environment, and which variables it then passes to plugins, is not designed (the owner chose the
+  folders over reading the shell, D-120).
 
 ### H-112: A credential plugin's standard error in the connection log
 

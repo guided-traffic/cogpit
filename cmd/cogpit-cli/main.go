@@ -23,6 +23,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/app"
 	"github.com/guided-traffic/cogpit/internal/buildinfo"
 	"github.com/guided-traffic/cogpit/internal/cluster"
+	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/locale"
 )
@@ -53,6 +54,10 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	dirs, dirsErr := app.UserDirs()
+	if dirsErr == nil {
+		// The program folders of the app's Preferences › Kubernetes (D-120): read, never written.
+		cluster.SetProgramFolders(engine.ReadProgramFolders(dirs.Config))
+	}
 	code := run(ctx, os.Args[1:], &env{
 		stdin: os.Stdin, stdout: os.Stdout, stderr: os.Stderr,
 		logger: logger, level: level,

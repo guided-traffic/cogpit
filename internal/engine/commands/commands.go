@@ -68,6 +68,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerApplications(g)
 	registerArgoCD(g)
 	registerPreferences(g)
+	registerProgramFolders(g) // Preferences › Kubernetes › Program folders (D-120)
 	registerLoginItem(g)
 	registerClusterSettings(g)
 	registerIntegrations(g) // the question of a new cluster's integrations (D-76)

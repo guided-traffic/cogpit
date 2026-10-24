@@ -19,7 +19,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -297,6 +296,9 @@ type Conn struct {
 // discovery request (GET /version, bounded by opts.ConnectTimeout) and returns a *ConnectError a
 // user can act on otherwise. Credentials never appear in the error.
 func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
+	// A program folder that appeared since start, or one the user added, counts from this login on
+	// (toolpath.go, D-120): before the plugin's approval resolves its program.
+	RefreshToolPath()
 	// The connect's stages (connectstages.go, D-114): reported last, on the error the caller sees.
 	stages := &connectStages{secrets: proxySecrets(opts.Proxy)}
 	defer func() { err = stages.finish(ctx, tracer(opts.Trace), err) }()
@@ -498,8 +500,9 @@ func (c *Conn) checkReachable(ctx context.Context, timeout time.Duration) error 
 	}
 	info, err := c.firstAnswer(rctx, timeout)
 	took := time.Since(start)
-	c.traceLoginRun(start)
-	c.stageLoginRun(start)
+	run, ran := c.loginRunSince(ctx, start) // its end noted, or waited for (loginrun.go)
+	c.traceLoginRun(run, ran)
+	c.stageLoginRun(run, ran)
 	if e := c.loginEndedSince(ended); err != nil && e != nil {
 		err = endedWithStderr(err, e, c.stderr, mark, c.secrets)
 	} else {
@@ -761,55 +764,4 @@ func (c *Conn) Close() {
 	if c.httpClient != nil {
 		c.httpClient.CloseIdleConnections()
 	}
-}
-
-// toolDirs are directories where package managers and users put the programs a kubeconfig's exec
-// credential plugins and a terminal's kubectl usually are.
-var toolDirs = []string{"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"}
-
-// EnsureToolPath appends the usual tool directories (/opt/homebrew/bin, /usr/local/bin,
-// /opt/local/bin, $HOME/.local/bin, $HOME/bin) that exist and are missing from PATH. A GUI app
-// started from Finder or a desktop launcher does not inherit the PATH a login shell sets, so exec
-// credential plugins (aws, gcloud, kubelogin) and kubectl would not be found.
-//
-// This is a stopgap for gap H-6 (docs/security/credentials.md): reading the login shell's
-// environment is not designed yet. Call it once at start-up, before the first Connect; it changes
-// the process environment. It does nothing on Windows.
-func EnsureToolPath() {
-	if runtime.GOOS == "windows" {
-		return
-	}
-	dirs := append([]string(nil), toolDirs...)
-	if home, err := os.UserHomeDir(); err == nil && home != "" {
-		dirs = append(dirs, filepath.Join(home, ".local", "bin"), filepath.Join(home, "bin"))
-	}
-	path := os.Getenv("PATH")
-	have := map[string]bool{}
-	for _, d := range filepath.SplitList(path) {
-		if d != "" {
-			have[filepath.Clean(d)] = true
-		}
-	}
-	var added []string
-	for _, d := range dirs {
-		if have[d] {
-			continue
-		}
-		if fi, err := os.Stat(d); err == nil && fi.IsDir() {
-			added = append(added, d)
-			have[d] = true
-		}
-	}
-	if len(added) == 0 {
-		return
-	}
-	parts := added
-	if path != "" {
-		parts = append([]string{path}, added...)
-	}
-	if err := os.Setenv("PATH", strings.Join(parts, string(os.PathListSeparator))); err != nil {
-		slog.Warn("cluster: cannot extend PATH", "err", err)
-		return
-	}
-	slog.Info("cluster: added tool directories to PATH", "dirs", added)
 }
