@@ -265,3 +265,28 @@ func TestLightStripFrameCap(t *testing.T) {
 		}
 	}
 }
+
+// The real clock: while the scanner shows, its ticker posts frames to the main goroutine, one at a
+// time; once the light stands (another app in front, its fade done) the next frame stops it.
+func TestLightStripTickerRuns(t *testing.T) {
+	sh, _, q, _, c := stripShell(t, ThemeDark, "red", engine.LightStripScanner)
+	s := sh.strip
+	frames := 0
+	s.now = func() time.Time { frames++; return c.now }
+	s.ticker = s.runTicker
+	s.follow()
+	if s.stop == nil {
+		t.Fatal("a scanner does not start the clock")
+	}
+	start := frames
+	q.until(t, "frames from the clock", func() bool { return frames >= start+3 })
+	s.setActive(false)
+	c.now = c.now.Add(stripFade + time.Second) // the fade to standing is over
+	q.until(t, "the clock stopped", func() bool { return s.stop == nil })
+	// A frame the goroutine posted as it stopped runs and draws nothing new; then none comes.
+	q.until(t, "no frame waiting", func() bool { return !s.pending.Load() })
+	time.Sleep(50 * time.Millisecond)
+	if q.drain(); s.pending.Load() || s.stop != nil {
+		t.Errorf("after the clock stopped: a frame posted %v, a clock %v", s.pending.Load(), s.stop != nil)
+	}
+}

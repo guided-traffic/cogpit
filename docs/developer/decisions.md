@@ -12056,7 +12056,8 @@ with the hand-over without a jump or a jolt, `TestLightStripFlowsTwoComets`,
 `TestLightStripTransitionClockStartsAtFadeIn`, `TestLightStripMovesOnlyWhileSomethingChanges`,
 `TestLightStripGrainIsTheLabsTexture`, `TestLightStripGlassIsTheLabsMix`); the window
 (`TestLightStripFollowsTheShownTab`, `TestLightStripAnimatesAndChangesThroughGlass`,
-`TestLightStripTickerStopsWhenStill`, `TestLightStripOnTheDemoCluster` with the demo cluster's colour
+`TestLightStripTickerStopsWhenStill`, `TestLightStripTickerRuns` (the real clock, also under the
+race detector), `TestLightStripOnTheDemoCluster` with the demo cluster's colour
 and strip read from `cluster-settings.json`, `TestLightStripFrameCap`,
 `TestClusterSettingsLightStrip`; `cmd/cogpit`'s `TestLightStripFPSFromTheEnvironment`); the PNGs
 `TestRenderLightStrip` draws with the strip's clock set by the test, dark and light: off
