@@ -28,6 +28,13 @@ endif
 
 GO              ?= go
 BIN             := $(CURDIR)/bin
+# One version of every tool (owner, 2026-10-24): bin/'s tools are built with the Go go.mod names and
+# built again when their pinned version or that Go changes, so a local bin/ never holds another
+# version than CI builds (a bin/golangci-lint of v2.14.0 built with Go 1.27.2 linted beside CI's
+# v2.15.0 with Go 1.27.3). A tool's rule depends on its stamp, $(call tool_stamp,<name>,<version>).
+GO_VERSION      := $(shell $(GO) env GOVERSION)
+TOOL_STAMPS     := $(BIN)/.stamps
+tool_stamp       = $(TOOL_STAMPS)/$(1)@$(2)-$(GO_VERSION)
 CACHE           := $(CURDIR)/.cache
 KIND_CLUSTER    ?= cogpit
 KIND_KUBECONFIG ?= $(CACHE)/kind/kubeconfig
@@ -255,8 +262,9 @@ CYCLO_IGNORE    := _test\.go|zz_generated
 
 .PHONY: vuln gosec cyclo cyclo-report
 
-$(GOVULNCHECK):
+$(GOVULNCHECK): $(call tool_stamp,govulncheck,$(GOVULNCHECK_VERSION))
 	GOBIN=$(BIN) $(GO) install golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION)
+	@touch $@
 
 vuln: $(GOVULNCHECK) ## govulncheck: known vulnerabilities in the code paths Cogpit calls
 	$(GOVULNCHECK) ./...
@@ -267,8 +275,9 @@ vuln: $(GOVULNCHECK) ## govulncheck: known vulnerabilities in the code paths Cog
 gosec: $(GOLANGCI_LINT) ## gosec: security findings in the code Cogpit ships (tests excluded)
 	$(GOLANGCI_LINT) run --enable-only gosec --tests=false ./...
 
-$(GOCYCLO):
+$(GOCYCLO): $(call tool_stamp,gocyclo,$(GOCYCLO_VERSION))
 	GOBIN=$(BIN) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
+	@touch $@
 
 cyclo: $(GOCYCLO) ## Cyclomatic complexity: no function above CYCLO_THRESHOLD
 	@echo "Functions above complexity $(CYCLO_THRESHOLD):"
@@ -279,8 +288,16 @@ cyclo-report: $(GOCYCLO) ## The 20 most complex functions
 	@$(GOCYCLO) -top 20 -ignore '$(CYCLO_IGNORE)' $(CYCLO_DIRS)
 
 # golangci-lint built with the project's Go: v2.13.x cannot read Go 1.27.2 export data.
-$(GOLANGCI_LINT):
+$(GOLANGCI_LINT): $(call tool_stamp,golangci-lint,$(GOLANGCI_LINT_VERSION))
 	GOBIN=$(BIN) $(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)
+	@touch $@
+
+# A tool's stamp, made when its version or the Go changed: the stamps of its other versions go, so
+# the tool's rule (which depends on the new stamp) builds it again.
+$(TOOL_STAMPS)/%:
+	@mkdir -p $(TOOL_STAMPS)
+	@rm -f $(TOOL_STAMPS)/$(firstword $(subst @, ,$*))@*
+	@touch $@
 
 # LINT_PKGS narrows the packages: CI's macOS job lints the ones with darwin-only files, which the
 # Linux lint job does not see.
@@ -597,8 +614,9 @@ test-envtest: envtest-bin ## The TestEnvtest* tests against envtest's kube-apise
 	$(TEST_ENV) COGPIT_ENVTEST_ASSETS=$(ENVTEST_DIR) $(GO) test -race -tags envtest -timeout 10m -run '$(ENVTEST_RUN)' \
 		-covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_DIR)/envtest.out $(ENVTEST_PKGS)
 
-$(FYNE):
+$(FYNE): $(call tool_stamp,fyne,$(FYNE_TOOLS))
 	GOBIN=$(BIN) $(GO) install fyne.io/tools/cmd/fyne@$(FYNE_TOOLS)
+	@touch $@
 
 # Sparkle 2, the macOS app's updater (D-4; docs/developer/releasing.md#updates): the release archive
 # pinned by version and SHA-256 (GitHub's digest of the asset), kept in .cache/sparkle/<version>

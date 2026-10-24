@@ -8,7 +8,7 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-23:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+**State on 2026-10-24:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
 runs on macOS, extended by eighteen further implementation runs (2026-10-11 to 2026-10-20, night runs and
 day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
@@ -26,8 +26,12 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.43.0 the
-newest, released 2026-10-23 with the cluster icon designer, an Internal icon of up to five letters
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.44.0 the
+newest, released 2026-10-24 from the AFK session: a b64 button beside a Secret value's copy icon,
+a DNS step in Test Connection, cluster icons rounded as macOS's, Copy Kubeconfig Path, credential
+plugins in more folders (D-120), the blurry text after a wake worked around (D-121), integrations
+GUI-only both ways (H-133), the owner's VW1–VW4; the light strip (VW14) on its branch for his live
+walk; v0.43.0 released 2026-10-23 with the cluster icon designer, an Internal icon of up to five letters
 or a Custom icon cut from an image the user places (the owner's VW5, D-119); v0.42.0 the same day
 with Preferences and Cluster Settings as a card over the whole window, Cogpit dimmed behind it (the
 owner's VW6, D-118); v0.41.0 the same day with the owner's button findings (every content button outlined, room
@@ -177,6 +181,15 @@ Run tests with the race detector.
     below that is decided by whoever builds it and recorded where it lives (question, options,
     choice, why), as the lead's decision, open to revision. Nothing undocumented: a choice only a
     report or a commit names goes into its page in the same change.
+12. **One version of every tool and dependency** (owner, 2026-10-24): when two versions of a
+    control tool, the toolchain or a dependency are in use (locally against CI, or two installs on
+    the machine), the newer one goes in everywhere; code is never bent to satisfy both. bin/'s
+    tools (golangci-lint, gocyclo, govulncheck, fyne) are built with go.mod's Go and rebuilt when
+    their pin or that Go changes (the Makefile's `tool_stamp`); format only through `make fmt`, the
+    pinned golangci-lint, never another `gofmt` from PATH. Found 2026-10-24: a bin/golangci-lint
+    v2.14.0 built with Go 1.27.2 beside CI's v2.15.0 with 1.27.3, and Homebrew's Go 1.26.5 `gofmt`
+    on PATH: a file both CI and Go 1.27.3 accept looked unformatted. Anything stale or broken seen
+    on the way is fixed or written into `plan/next-session-prompt.md`, never left unmentioned.
 
 ## 4. Picking work
 
