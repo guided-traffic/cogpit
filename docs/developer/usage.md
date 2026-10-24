@@ -529,8 +529,7 @@ more folders, always after your `PATH`'s own:
    `/etc/profiles/per-user/<user>/bin`, `~/.nix-profile/bin`; `~/.local/bin`, `~/bin`;
    krew's `~/.krew/bin` (`$KREW_ROOT/bin` when Cogpit sees `KREW_ROOT`); go install's `~/go/bin`
    (`$GOBIN`, or the first folder of `$GOPATH`, when set); `~/.asdf/shims`,
-   `~/.local/share/mise/shims`; `~/.rd/bin` (Rancher Desktop), `~/.docker/bin` (Docker Desktop),
-   `~/google-cloud-sdk/bin`;
+   `~/.local/share/mise/shims`; `~/.rd/bin` (Rancher Desktop), `~/.docker/bin` (Docker Desktop);
 3. the program folders you add in Preferences › Kubernetes › Program folders, in the order added.
 
 Add Folder… opens the system's folder panel with hidden folders listed (⌘⇧. toggles them), so

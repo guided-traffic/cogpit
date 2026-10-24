@@ -124,7 +124,7 @@ func TestBuiltinToolFolders(t *testing.T) {
 	for _, want := range []string{"/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", "/run/current-system/sw/bin",
 		"/nix/var/nix/profiles/default/bin", "/etc/profiles/per-user/ana/bin", home + "/.nix-profile/bin", home + "/.local/bin",
 		home + "/bin", home + "/.krew/bin", home + "/go/bin", home + "/.asdf/shims", home + "/.local/share/mise/shims",
-		home + "/.rd/bin", home + "/.docker/bin", home + "/google-cloud-sdk/bin"} {
+		home + "/.rd/bin", home + "/.docker/bin"} {
 		if !slices.Contains(mac, filepath.FromSlash(want)) {
 			t.Errorf("macOS lacks %s: %q", want, mac)
 		}

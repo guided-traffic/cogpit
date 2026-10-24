@@ -249,11 +249,9 @@ func BuiltinToolFolders(goos, home string, getenv func(string) string) []string 
 		// The version managers' shims: asdf's, mise's.
 		filepath.Join(in("ASDF_DATA_DIR", filepath.Join(home, ".asdf")), "shims"),
 		filepath.Join(in("MISE_DATA_DIR", filepath.Join(dataHome, "mise")), "shims"),
-		// Rancher Desktop's kubectl and helm; Docker Desktop's tools installed per user; the Google
-		// Cloud CLI's own installer (gke-gcloud-auth-plugin).
+		// Rancher Desktop's kubectl and helm; Docker Desktop's tools installed per user.
 		filepath.Join(home, ".rd", "bin"),
 		filepath.Join(home, ".docker", "bin"),
-		filepath.Join(home, "google-cloud-sdk", "bin"),
 	)
 }
 
