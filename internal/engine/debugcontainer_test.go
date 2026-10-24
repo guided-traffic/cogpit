@@ -169,3 +169,41 @@ func TestPodEnded(t *testing.T) {
 		t.Errorf("deleting: %q", why)
 	}
 }
+
+// TestImageFromField (the owner's R30, 2026-10-20: the short name, the pin behind it): an image
+// field shows the short name; while its text is the configured image's short name the configured
+// image runs, its digest included; the default's short name or nothing is the default; anything
+// else runs as typed.
+func TestImageFromField(t *testing.T) {
+	const custom = "registry.example.com/tools/netshoot:v1@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	for _, tc := range []struct{ image, short string }{
+		{DefaultDebugImage, "nicolaka/netshoot:v0.16"},
+		{DefaultNodeShellImage, DefaultNodeShellImageName},
+		{"docker.io/library/busybox:1.37", "busybox:1.37"},
+		{custom, "registry.example.com/tools/netshoot:v1"},
+		{"quay.io/library/x:1", "quay.io/library/x:1"},
+	} {
+		if got := ShortImage(tc.image); got != tc.short {
+			t.Errorf("ShortImage(%q) = %q, want %q", tc.image, got, tc.short)
+		}
+	}
+	if !strings.HasPrefix(DefaultNodeShellImageName, "alpine:") { // Renovate moves the tag
+		t.Errorf("the node shell's default %q", DefaultNodeShellImageName)
+	}
+	for _, tc := range []struct{ text, configured, want string }{
+		{"nicolaka/netshoot:v0.16", "", DefaultDebugImage},                   // the default's name: the pinned default
+		{"  nicolaka/netshoot:v0.16 ", DefaultDebugImage, DefaultDebugImage}, // trimmed
+		{"", "", DefaultDebugImage},
+		{"", custom, DefaultDebugImage},
+		{"registry.example.com/tools/netshoot:v1", custom, custom}, // the configured image's name: its pin
+		{"nicolaka/netshoot:v0.16", custom, DefaultDebugImage},     // the default's name over a custom image
+		{"nicolaka/netshoot:v0.17", "", "nicolaka/netshoot:v0.17"}, // another tag: as typed, floating
+		{"busybox:1.37", custom, "busybox:1.37"},
+		{"docker.io/nicolaka/netshoot:v0.16", "", "docker.io/nicolaka/netshoot:v0.16"}, // not the short name: as typed
+		{custom, "", custom},                                                           // a pinned reference typed whole
+	} {
+		if got := ImageFromField(tc.text, tc.configured, DefaultDebugImage); got != tc.want {
+			t.Errorf("ImageFromField(%q, %q) = %q, want %q", tc.text, tc.configured, got, tc.want)
+		}
+	}
+}

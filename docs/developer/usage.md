@@ -1415,9 +1415,12 @@ does ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in
 - **The dialog** names the context, the namespace and the pod, and asks two things: **Target**, the
   container whose processes the debug container sees (the pod's first preselected; None for no
   shared processes), and **Image**, an ordinary field you can edit, select, copy and paste into,
-  filled with the image Preferences › Kubernetes › Debug container image names. Under them it
-  says what the container sees of the target ("app's processes and files") and the image's digest,
-  or that the image is a floating tag. The dialog is the confirmation: **Debug** adds the container,
+  filled with the image Preferences › Kubernetes › Debug container image names, shown by its short
+  name (`nicolaka/netshoot:v0.16`: no `docker.io/`, no digest). Under them it says what the
+  container sees of the target ("app's processes and files") and the image's digest, or that the
+  image is a floating tag. While the field shows the configured image's short name, that image runs
+  as configured, pinned by the digest the Digest row shows; a name you change runs exactly as typed,
+  and without `@sha256:…` it is a floating tag (since 2026-10-24, the owner's R30). The dialog is the confirmation: **Debug** adds the container,
   and "This cannot be undone." means what it says (below). If the pod was replaced by another of
   its name while the dialog was open, nothing is added.
 - **What is added:** a container `debugger-<5 characters>` from that image with stdin and a
@@ -1454,6 +1457,15 @@ does ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in
 | Field | Default | Meaning |
 |---|---|---|
 | `debugImage` | `""` # default: `docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70` | the image Debug offers; best pinned by digest (`repository:tag@sha256:…`); a floating tag works and is named as one |
+
+The field shows an image by its short name, the digest behind it: the default's,
+`nicolaka/netshoot:v0.16`, as its placeholder, a set image without `docker.io/` and its digest. While
+the text is that name the setting keeps the image as it is, digest included; the default's name typed,
+or an empty field, sets the default (which follows Cogpit's releases); a changed name is kept exactly
+as typed. The line under the field says whether the image in effect is pinned or a floating tag.
+Cluster Settings › Node Shell › Image does the same with the node shell's image, `alpine:3.24` the
+default's name ([D-37](decisions.md#d-37-the-node-shell)); the confirmations of a node shell and of an
+agent's Debug name the whole reference and its digest.
 
 Security note: a debug container with a target reads that container's processes and, through
 them, its files, the Secrets it mounts included, as root with netshoot

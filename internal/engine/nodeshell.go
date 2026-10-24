@@ -74,17 +74,9 @@ var NodeShellLabels = map[string]string{
 var ErrNodeShellGUIOnly = errors.New("the node shell's image, image pull secret and maximum duration are set only by the user, " +
 	"in Cogpit's window (Cluster Settings › Node Shell): an agent or the CLI may reset them to the defaults, not set them")
 
-// DefaultNodeShellImageName is DefaultNodeShellImage without its registry, path and digest
-// (alpine:3.24), as the texts name it.
-var DefaultNodeShellImageName = imageName(DefaultNodeShellImage)
-
-// imageName is an image reference's last path element without its digest.
-func imageName(image string) string {
-	if at := strings.LastIndex(image, "@"); at >= 0 {
-		image = image[:at]
-	}
-	return image[strings.LastIndex(image, "/")+1:]
-}
+// DefaultNodeShellImageName is DefaultNodeShellImage as the texts and the fields name it
+// (alpine:3.24, ShortImage).
+var DefaultNodeShellImageName = ShortImage(DefaultNodeShellImage)
 
 // NodeShellActions are the cluster side of a node shell. *cluster.Conn implements them; tests put
 // a fake in Backend.Actions.

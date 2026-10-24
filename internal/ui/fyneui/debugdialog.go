@@ -29,6 +29,11 @@ import (
 // so the engine's confirmation of exactly that takes it instead of asking a second time; a pod
 // created again under the name meanwhile is refused. One step, not two: a second dialog would only
 // repeat the first's values (the lead's choice, D-102).
+//
+// The image field shows the image's short name (the owner's R30, 2026-10-20: nicolaka/netshoot:v0.16,
+// engine.ShortImage), its digest behind it: while the text is the configured image's short name the
+// configured image runs, pinned as it is, and the Digest row shows its digest; a changed text runs
+// exactly what is typed, a tag without a digest marked as floating (engine.ImageFromField).
 
 func init() { itemActionDialogs[engine.DebugCommand] = openDebugDialog }
 
@@ -84,6 +89,18 @@ type debugDialog struct {
 	image   *fieldEntry
 	confirm *textButton
 	cancel  *textButton
+	// configured is the image the dialog opened with (the Preferences', pinned by digest by
+	// default), which the field shows by its short name.
+	configured string
+}
+
+// chosenImage is the image the field stands for: the configured one while the field shows its
+// short name, Cogpit's default for the default's short name, else what is typed; "" while empty.
+func (dd *debugDialog) chosenImage() string {
+	if strings.TrimSpace(dd.image.Text) == "" {
+		return ""
+	}
+	return engine.ImageFromField(dd.image.Text, dd.configured, engine.DefaultDebugImage)
 }
 
 // chosenTarget is the target picked: "" for None.
@@ -110,7 +127,8 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 		dd.target.SetSelected(debugNoTarget)
 	}
 	dd.image = newFieldEntry() // an ordinary entry: select, copy, paste, edit; Escape cancels (escape.go)
-	dd.image.SetText(p.Image)
+	dd.configured = p.Image
+	dd.image.SetText(engine.ShortImage(p.Image))
 	dd.confirm = newPlateButton("Debug", nil, nil)
 	dd.confirm.Importance = widget.DangerImportance
 	dd.cancel = newPlateButton("Cancel", nil, nil)
@@ -119,7 +137,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	// fields the user sets, each followed by what the engine's confirmation would add (what the
 	// container sees of the target, the image's digest or that it floats).
 	build := func() {
-		target, image := dd.chosenTarget(), strings.TrimSpace(dd.image.Text)
+		target, image := dd.chosenTarget(), dd.chosenImage()
 		dd.rows.Objects = nil
 		placeRows(dd.rows, p.Ref.Context, []string{p.Ref.Namespace}, []namedObject{{kind: "Pod", name: p.Ref.Name}}, valueW)
 		dd.rows.Objects = append(dd.rows.Objects, rowName("Target"), dd.target)
@@ -139,7 +157,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	}
 	armed := false
 	enable := func() {
-		image := strings.TrimSpace(dd.image.Text)
+		image := dd.chosenImage()
 		if armed && image != "" && engine.CheckDebugImage(image) == nil {
 			dd.confirm.Enable()
 		} else {
@@ -159,7 +177,7 @@ func (sh *shell) showDebugDialog(p debugDialogParams, targets []string) *debugDi
 	dd.d.SetButtons([]fyne.CanvasObject{dd.cancel, dd.confirm})
 	dd.cancel.OnTapped = dd.d.Hide
 	dd.confirm.OnTapped = func() {
-		image := strings.TrimSpace(dd.image.Text)
+		image := dd.chosenImage()
 		if image == "" {
 			return
 		}
