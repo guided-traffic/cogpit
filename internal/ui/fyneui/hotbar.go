@@ -18,7 +18,8 @@ import (
 
 // The hotbar (G13; engine/hotbar.go): a narrow bar at the window's left edge, left of the
 // navigator, with one tile per pinned cluster, top to bottom, as captured from Lens (2026-10-11). A
-// tile is the cluster's identity (clusteridentity.go: its initials in its icon colour, the accent by
+// tile, a 50-point square in a 76-point bar (the owner's LS19 of 2026-10-24; 38 in 64 before), is
+// the cluster's identity (clusteridentity.go: its initials in its icon colour, the accent by
 // default, or its uploaded image), its name under it (the display name its Settings give it, else
 // the context's) and a dot with the cluster's mark (clustermarks.go, D-69: live, (re)connecting,
 // cold, its login lapsed, failed); its tooltip is the full context id, the state and its F-key.
@@ -553,7 +554,8 @@ func (r *hotbarTileRenderer) Refresh() {
 	r.bg.CornerRadius = iconCorner(side) // macOS's rounding (VW10); the plate and the glow follow it
 	r.img.CornerRadius = iconCorner(side - 4)
 	r.bg.StrokeWidth = 0
-	r.initials.TextSize = fitTextSize(r.id.initials, th.Size(theme.SizeNameSubHeadingText)*t.zoom(), (th.Size(sizeHotbarTile)-4)*t.zoom()) // up to five letters (D-119)
+	// The letters in proportion to the tile (LS19), up to five fitted (D-119).
+	r.initials.TextSize = fitTextSize(r.id.initials, initialsSize(th, th.Size(sizeHotbarTile))*t.zoom(), (th.Size(sizeHotbarTile)-4)*t.zoom())
 	r.label.TextSize = th.Size(theme.SizeNameCaptionText) * t.zoom()
 	r.label.Color = themeColor(th, colorMuted)
 	r.initials.Color = accent
@@ -753,6 +755,9 @@ func (r *hotbarButtonRenderer) Refresh() {
 	th := b.Theme()
 	r.txt.Text = b.text
 	r.txt.TextSize = th.Size(b.size)
+	if b.square { // the "+" in proportion to its tile, as the letters are: 20 on 38, 26 on 50 (LS19)
+		r.txt.TextSize *= th.Size(sizeHotbarTile) / initialsSide
+	}
 	fg := theme.ColorNameForeground
 	if b.disabled || b.square {
 		fg = colorMuted

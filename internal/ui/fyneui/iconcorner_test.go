@@ -33,8 +33,8 @@ func sameRadius(a, b float32) bool { return math.Abs(float64(a-b)) < 1e-3 }
 
 // TestClusterIconCornersAsMacOS (the owner's VW10): a cluster's icon is rounded as macOS rounds an
 // app icon, Cogpit's own included (22 on a side of 96), at every size it is drawn: the navigator's
-// badge, the hotbar's tile and its "+", the settings' 38-point badge, a tab's; an uploaded image as
-// much as the colour tile, so that the image is no longer drawn square.
+// badge, the hotbar's tile and its "+", the settings' badge at the hotbar's size, a tab's; an
+// uploaded image as much as the colour tile, so that the image is no longer drawn square.
 func TestClusterIconCornersAsMacOS(t *testing.T) {
 	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	if got := iconCorner(96); !sameRadius(got, 22) {

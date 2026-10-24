@@ -85,7 +85,8 @@ const (
 	sizeSidebarWidth   fyne.ThemeSizeName = "cogpit.sidebarWidth"   // the navigator's width
 	sizeHotbarWidth    fyne.ThemeSizeName = "cogpit.hotbarWidth"    // the hotbar's width (hotbar.go)
 	sizeHotbarTile     fyne.ThemeSizeName = "cogpit.hotbarTile"     // a hotbar tile's square
-	sizeNavBadge       fyne.ThemeSizeName = "cogpit.navBadge"       // the cluster's badge at the navigator's root (navigator.go)
+	sizeNavBadge       fyne.ThemeSizeName = "cogpit.navBadge"       // a cluster's badge in the navigator's rows, and its root's smallest (navigator_rootbadge.go)
+	sizeNavHeadBadge   fyne.ThemeSizeName = "cogpit.navHeadBadge"   // the badge at the navigator's root where it has the room (LS19)
 	sizeBarHeight      fyne.ThemeSizeName = "cogpit.barHeight"      // the top bar's height
 	sizeStatusHeight   fyne.ThemeSizeName = "cogpit.statusHeight"   // the status bar's height
 	sizeStatusText     fyne.ThemeSizeName = "cogpit.statusText"     // the status bar's text
@@ -501,11 +502,18 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 	case sizeSidebarWidth:
 		return 216
 	case sizeHotbarWidth:
-		return 64
+		// The tile with the room on either side the 38-point tile had in 64 (LS19): 10.5 points.
+		return 76
 	case sizeHotbarTile:
-		return 38
+		// The owner's LS19 of 2026-10-24: "Auch die Icons der Hotbar dürfen ruhig 50px x 50px"
+		// (38 before).
+		return 50
 	case sizeNavBadge:
 		return 28
+	case sizeNavHeadBadge:
+		// The owner's LS19: the root's badge 50 points "wenn so viel Platz ist"; down to sizeNavBadge
+		// where it is not (navigator_rootbadge.go).
+		return 50
 	case sizeBarHeight:
 		return 40
 	case sizeStatusHeight:
