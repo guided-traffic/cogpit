@@ -17,13 +17,14 @@ import (
 // engine/accentcolor.go): a row of swatches under the icon, as the icon colour has: None first, the
 // eight accents, a colour picked freely (its swatch while one is set) and the picker. A tap
 // dispatches cluster.settings.setAccentColor, which only the window may run: the colour is the
-// user's own mark of which cluster this is. Where the window shows it is not decided yet; the row
-// is the setting alone. Cogpit's own: Lens has no accent colour.
+// user's own mark of which cluster this is. The light strip under a view's header shows it
+// (lightstrip.go, D-new), as the row under this one chooses (clustersettings_lightstrip.go).
+// Cogpit's own: Lens has no accent colour.
 
 const (
 	accentSetting      = "accentColor"
 	accentTitle        = "Accent colour"
-	accentHelp         = "Your mark for this cluster, red for production, say. Only you set it; agents read it."
+	accentHelp         = "Your mark for this cluster, red for production, say: the strip under a view's header shows it. Only you set it; agents read it."
 	accentPickerTitle  = "Accent colour"
 	iconPickerTitle    = "Cluster colour"
 	freeColourHelp     = "Any colour: Cogpit draws it in a shade of its hue that stays legible on the light and the dark theme."

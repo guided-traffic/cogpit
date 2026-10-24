@@ -172,7 +172,7 @@ func tabRenderer(tab *viewTab) *viewTabRenderer { return test.WidgetRenderer(tab
 
 // The bar shows every tab: the cluster's badge, "<view> - <context>" (italic for the preview tab),
 // a close button; the active tab raised, a tab of another connected cluster drawn as the shown
-// one's, a long title cut and shown whole as the tooltip. Without tabs the bar is hidden.
+// one's, a long title cut and shown whole as the tooltip. Without tabs the bar stays, empty (LS11).
 func TestTabBarShowsTheTabs(t *testing.T) {
 	sh, w, q, f := tabsShell(t, ThemeDark)
 	bar := sh.tabs
@@ -208,8 +208,13 @@ func TestTabBarShowsTheTabs(t *testing.T) {
 		t.Errorf("tooltip %q", got)
 	}
 
+	// Without tabs the bar stays, empty, as high as with them (the owner's LS11).
+	high := bar.root.MinSize().Height
 	f.update(func(u *engine.UIState) { u.Tabs, u.ActiveTab = nil, "" })
-	q.until(t, "the bar to hide", func() bool { return !bar.root.Visible() })
+	q.until(t, "the bar empty", func() bool { return len(bar.shown) == 0 })
+	if !bar.root.Visible() || bar.root.MinSize().Height != high {
+		t.Errorf("without tabs the bar: shown %v, %v high; want shown, %v high", bar.root.Visible(), bar.root.MinSize().Height, high)
+	}
 }
 
 // A click activates a tab; a click on the active one does nothing; a double click on the preview

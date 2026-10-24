@@ -28,6 +28,18 @@ import (
 // rounded by a fixed 7 points, rounder than this at the navigator's size and the tab's.
 func iconCorner(side float32) float32 { return side * float32(logoart.CornerRatio) }
 
+// initialsSide is the side on which a cluster icon's letters were drawn at the subheading's size, 16:
+// the hotbar's tile before it grew to 50 (the owner's LS19 of 2026-10-24).
+const initialsSide = 38
+
+// initialsSize is the size of a cluster icon's letters on a square side points wide: in proportion to
+// the side, 16 on 38 and 21 on the hotbar's and the navigator root's 50 (LS19), so that two letters
+// do not sit small in a large square; never below the text's size, the navigator's 28-point badge's
+// 13. fitTextSize makes it smaller where the letters do not fit (up to five, D-119).
+func initialsSize(th fyne.Theme, side float32) float32 {
+	return max(th.Size(theme.SizeNameText), side*th.Size(theme.SizeNameSubHeadingText)/initialsSide)
+}
+
 // clusterIdentity is how a context shows itself.
 type clusterIdentity struct {
 	name     string              // the display name, else the context's name without its file
@@ -111,8 +123,8 @@ func (sh *shell) identitiesChanged() {
 // clusterBadge is a cluster's icon: its initials on a tinted square in its icon colour (the
 // accent by default), or its uploaded image, either with macOS's rounded corners (iconCorner);
 // "–" in the muted colour without a cluster. The
-// navigator's root and rows, the welcome page and the settings page show it; the hotbar's tiles draw the
-// same in their own renderer.
+// navigator's root (as large as its room allows, 28 to 50 points: LS19) and rows, the welcome page
+// and the settings page show it; the hotbar's tiles draw the same in their own renderer.
 type clusterBadge struct {
 	widget.BaseWidget
 	text  string
@@ -120,6 +132,7 @@ type clusterBadge struct {
 	ink   fyne.ThemeColorName // empty: the accent
 	img   fyne.Resource
 	side  fyne.ThemeSizeName // the square's side; sizeNavBadge by default
+	pts   float32            // above zero: the side in points in place of side's (setSide)
 }
 
 func newClusterBadge() *clusterBadge {
@@ -146,6 +159,16 @@ func (b *clusterBadge) setIdentity(id clusterIdentity) {
 	b.Refresh()
 }
 
+// setSide draws the square side points wide, in place of the side's theme size: the navigator's
+// root sizes its badge to its room (navigator_rootbadge.go, LS19).
+func (b *clusterBadge) setSide(side float32) {
+	if side == b.pts {
+		return
+	}
+	b.pts = side
+	b.Refresh()
+}
+
 // CreateRenderer implements fyne.Widget.
 func (b *clusterBadge) CreateRenderer() fyne.WidgetRenderer {
 	r := &clusterBadgeRenderer{b: b, bg: canvas.NewRectangle(color.Transparent), txt: canvas.NewText("", color.Transparent),
@@ -162,7 +185,12 @@ type clusterBadgeRenderer struct {
 	img *canvas.Image
 }
 
-func (r *clusterBadgeRenderer) sideOf() float32 { return r.b.Theme().Size(r.b.side) }
+func (r *clusterBadgeRenderer) sideOf() float32 {
+	if r.b.pts > 0 {
+		return r.b.pts
+	}
+	return r.b.Theme().Size(r.b.side)
+}
 
 func (r *clusterBadgeRenderer) MinSize() fyne.Size {
 	side := r.sideOf()
@@ -196,11 +224,8 @@ func (r *clusterBadgeRenderer) Refresh() {
 	r.img.CornerRadius = r.bg.CornerRadius // the image rounded as the tile (VW10)
 	r.txt.Text = r.b.text
 	r.txt.Color = c
-	base := th.Size(theme.SizeNameText)
-	if r.sideOf() > th.Size(sizeNavBadge) {
-		base = th.Size(theme.SizeNameSubHeadingText)
-	}
-	r.txt.TextSize = fitTextSize(r.b.text, base, r.sideOf()-4) // up to five letters of the user's (D-119)
+	// The letters in proportion to the square (LS19), up to five of the user's fitted (D-119).
+	r.txt.TextSize = fitTextSize(r.b.text, initialsSize(th, r.sideOf()), r.sideOf()-4)
 	if r.b.img != nil && !r.b.muted {
 		r.img.Resource = r.b.img
 		r.img.Show()

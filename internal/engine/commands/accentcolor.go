@@ -30,8 +30,9 @@ func registerAccentColor(g *registrar) {
 		ID: "cluster.settings.setAccentColor", Label: "Set Accent Colour", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrAccentColorGUIOnly,
 		Description: "Sets or clears a context's accent colour, as Cluster Settings › General does: the user's mark of which " +
-			"cluster it is (a production cluster in red, say), meant to mark parts of Cogpit's window so that the user sees " +
-			"at a glance which cluster they act in; where the window shows it is not decided yet. Only the user, in " +
+			"cluster it is (a production cluster in red, say), so that the user sees at a glance which cluster they act in: " +
+			"the light strip under the window's view header shows the shown tab's cluster's colour (cluster_settings_setLightStrip " +
+			"chooses how; without a colour the strip is frosted glass). Only the user, in " +
 			"Cogpit's window, can set or clear it: refused for agents and the CLI, so that no agent can make a production " +
 			"cluster look like a development one. Agents read it as accentColor in cluster_settings_get and in ui_state's " +
 			"clusterSettings." + clusterSettingsOnly + " Returns the settings.",

@@ -108,6 +108,7 @@ type shell struct {
 	palette   *cmdPalette   // the command palette, ⌘⇧P (palette.go)
 	hot       *hotbar       // the pinned clusters at the window's left edge (hotbar.go)
 	tabs      *tabBar       // the tabs of cluster views above the workspace (tabbar.go)
+	strip     *lightStrip   // the light strip under the tabs, in the shown cluster's accent colour (lightstrip.go)
 	kc        *kubeconfigUI // the kubeconfig sources' dialogs (kubeconfigs.go)
 	blink     *blinker      // the connection dots' one clock (conndot.go, F13)
 	settings  *settingsPage // Preferences and Cluster settings (preferences_page.go)
@@ -182,6 +183,10 @@ type shell struct {
 	// systemReduce reads macOS's Reduce motion (reducemotion_darwin.go); tests replace it, so that
 	// the computer's setting does not reach them (shell.reduceMotion, preferences_motion.go).
 	systemReduce func() bool
+	// systemBattery reads whether the computer runs on its battery (power_darwin.go and its
+	// siblings); tests replace it, so that the computer's power source does not reach them
+	// (shell.batteryStopsStrip, preferences_power.go).
+	systemBattery func() bool
 }
 
 // newShell builds every widget. Nothing talks to the engine until start.
@@ -206,10 +211,12 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.loadWidths() // before the drawer, which wraps its values to the width it will have
 
 	sh.systemReduce = systemReduceMotion
+	sh.systemBattery = systemOnBattery
 	sh.blink = newBlinker(sh) // before the bars, whose dots it refreshes
 	sh.inlineMenus = opts.menus.inBar()
 	sh.top = newTopBar(sh)
 	sh.side = newSidebar(sh)
+	sh.strip = newLightStrip(sh) // before the view, under whose header it lies (the owner's LS18, a probe)
 	sh.view = newTableView(sh)
 	sh.drawer = newDrawer(sh)
 	sh.dock = newDock(sh)
@@ -599,6 +606,7 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	sh.layoutChanged(old, first)     // the navigator, the dock's open state, the layout toggles (layoutbar.go)
 	sh.top.stateChanged()            // the history arrows and the bell (titlehistory.go)
 	sh.dock.takeFocus()              // a tab the window asked the keys for, once shown (dockfocus.go)
+	sh.strip.follow()                // the shown tab's cluster's accent colour under the tabs (lightstrip.go)
 }
 
 // connectionChanged follows the context or the connection: the header, the status bar, the

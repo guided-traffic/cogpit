@@ -210,6 +210,7 @@ type sidebar struct {
 	groups    *groupsBox        // the user's groups, beside the subtitle's username (clusteruser.go, D-68)
 	userTip   string            // the subtitle's tooltip: a user not confirmed, or last seen when; "" for none
 	subLine   fyne.CanvasObject // the subtitle and the groups' box
+	userLine  *userLineLayout   // subLine's layout, which the root's badge measures (navigator_rootbadge.go)
 	dot       *connDot          // the root's connection dot (conndot.go, F13)
 	emptyHint *textLine
 	hintRow   fyne.CanvasObject // the hint below the root while no item shows
@@ -230,7 +231,8 @@ func newSidebar(sh *shell) *sidebar {
 	// The sidebar's width is the user's (panelwidths.go): a long context name is cut, not widened.
 	s.name.truncate, s.subtitle.truncate = true, true
 	s.groups = newGroupsBox()
-	s.subLine = box(&userLineLayout{text: s.subtitle, box: s.groups}, s.subtitle, s.groups)
+	s.userLine = &userLineLayout{text: s.subtitle, box: s.groups}
+	s.subLine = box(s.userLine, s.subtitle, s.groups)
 	s.version = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	s.version.truncate = true
 	s.version.Hide() // until the cluster's version is known (clusterversion.go)

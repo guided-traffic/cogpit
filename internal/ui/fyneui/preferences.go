@@ -209,6 +209,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	updates, syncUpdates := p.updatesSettings()       // preferences_updates.go
 	restore, syncRestore := p.restoreSessionSetting() // preferences_restore.go
 	motion, syncMotion := p.reduceMotionSetting()     // preferences_motion.go
+	power, syncPower := p.lightStripPowerSetting()    // preferences_power.go
 	p.sync = func() {
 		pr := p.prefs()
 		for _, c := range themeChoices {
@@ -220,6 +221,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		p.setEntry(zone, &zone.Entry, "timezone", pr.Timezone)
 		syncRestore()
 		syncMotion()
+		syncPower()
 		syncLoginItem()
 	}
 	// Two real groups, one bracket each: what the app is and does, and how it updates.
@@ -227,6 +229,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		p.setting("timezone", "Locale timezone", "Absolute times: the drawer's Created, the charts' time axes and hover. Empty: the computer's.", zone),
 		restore,
 		motion,
+		power,
 	}
 	if loginItem != nil {
 		general = append(general, loginItem)

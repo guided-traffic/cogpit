@@ -31,7 +31,9 @@ import (
 //   - a title wider than the dock's widest tab title is cut with an ellipsis; tabs that do not fit
 //     scroll sideways, the active one scrolled into view;
 //   - a double click on a preview tab fixes it (ui.tab.pin), as editors do;
-//   - the bar is hidden while there is no tab (before the first connect);
+//   - the bar shows while no tab is open too, empty, so that the window's layout does not jump when
+//     the first tab opens or the last closes (the owner's walk, LS11, 2026-10-24: "Ich denke die
+//     tableiste und der Leuchtstreifen sollten immer dargestellt werden");
 //   - the shortcuts are main-menu items of the View menu, so they work whatever has the focus:
 //     ⌘W, ⌘⌥→ and ⌘⌥←, ⌘1–⌘8 and ⌘9 (the last tab), ⌃- and ⌃⇧-; on Windows and Linux they are the
 //     Ctrl forms of the same keys, not Lens's Ctrl+PageUp/PageDown and Alt+←/→ (G22);
@@ -49,10 +51,14 @@ const doubleClickTime = 500 * time.Millisecond
 // tabBar is the bar of tabs.
 type tabBar struct {
 	sh     *shell
-	root   *fyne.Container // the bar and its divider; hidden while there is no tab
+	root   *fyne.Container // the bar and its divider, shown with no tab too (LS11)
 	row    *fyne.Container
 	scroll *container.Scroll
 	shown  []*viewTab // the tab widgets in order
+	// strut keeps the bar a tab high while it shows no tab (LS11), as sample, a tab never shown,
+	// measures it.
+	strut  *canvas.Rectangle
+	sample *viewTab
 	// welcome is the workspace's page while no tab is active (welcome.go).
 	welcome *welcomePage
 	errPage *errorPage // a failed connect's page over the workspace (errorpage.go, D-114)
@@ -107,8 +113,8 @@ func newTabBar(sh *shell) *tabBar {
 	}
 	b.drag.lifting = func() { sh.tip.hide() }
 	b.scroll = container.NewHScroll(b.row)
-	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.scroll))
-	b.root.Hide()
+	b.strut, b.sample = canvas.NewRectangle(color.Transparent), newViewTab(b)
+	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.strut, b.scroll))
 	b.welcome = newWelcomePage(sh)
 	b.errPage = newErrorPage(sh)
 	return b
@@ -133,10 +139,10 @@ func (b *tabBar) sync() {
 	defer b.errPage.sync() // a failed connect's page (errorpage.go, D-114)
 	ui := b.sh.ui
 	tabs := ui.TabsShown()
+	b.strut.SetMinSize(fyne.NewSize(0, b.sample.MinSize().Height))
 	if len(tabs) == 0 {
 		b.drag.cancel()
 		b.shown, b.row.Objects = nil, nil
-		b.root.Hide()
 		b.row.Refresh()
 		return
 	}
@@ -158,11 +164,20 @@ func (b *tabBar) sync() {
 	}
 	b.row.Objects = objs
 	b.drag.follow() // a tab carried or its move pending (stripdrag.go)
-	b.root.Show()
 	b.scroll.Refresh()
 	if active != nil {
 		b.reveal(active)
 	}
+}
+
+// activeWidget is the active tab's widget, nil while the bar shows none.
+func (b *tabBar) activeWidget() *viewTab {
+	for _, t := range b.shown {
+		if t.active {
+			return t
+		}
+	}
+	return nil
 }
 
 // reveal scrolls a tab into view.

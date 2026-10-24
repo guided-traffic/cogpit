@@ -62,6 +62,9 @@ const (
 	// border drew before fields got an outline of their own that reads on every surface (the
 	// owner's AW1 of 2026-10-22: theme.ColorNameInputBorder is a field's outline since).
 	colorHairline fyne.ThemeColorName = "cogpit.hairline"
+	// colorLightStrip is the light strip's frosted glass under the tabs (lightstrip.go, D-new): the
+	// stage mixed as the owner's lab mixes it at his glass density of 32 % (stripGlassOf).
+	colorLightStrip fyne.ThemeColorName = "cogpit.lightStrip"
 )
 
 // Status colour tokens, one per model.Status.
@@ -82,7 +85,8 @@ const (
 	sizeSidebarWidth   fyne.ThemeSizeName = "cogpit.sidebarWidth"   // the navigator's width
 	sizeHotbarWidth    fyne.ThemeSizeName = "cogpit.hotbarWidth"    // the hotbar's width (hotbar.go)
 	sizeHotbarTile     fyne.ThemeSizeName = "cogpit.hotbarTile"     // a hotbar tile's square
-	sizeNavBadge       fyne.ThemeSizeName = "cogpit.navBadge"       // the cluster's badge at the navigator's root (navigator.go)
+	sizeNavBadge       fyne.ThemeSizeName = "cogpit.navBadge"       // a cluster's badge in the navigator's rows, and its root's smallest (navigator_rootbadge.go)
+	sizeNavHeadBadge   fyne.ThemeSizeName = "cogpit.navHeadBadge"   // the badge at the navigator's root where it has the room (LS19)
 	sizeBarHeight      fyne.ThemeSizeName = "cogpit.barHeight"      // the top bar's height
 	sizeStatusHeight   fyne.ThemeSizeName = "cogpit.statusHeight"   // the status bar's height
 	sizeStatusText     fyne.ThemeSizeName = "cogpit.statusText"     // the status bar's text
@@ -202,6 +206,7 @@ var darkPalette = palette{
 		colorBracket:    hex(0x34435c),              // a bracket's line under a group's label
 		colorSlotDim:    hex(0x1c2636),              // an empty token's square
 		colorHairline:   hex(0x263042),              // a well's or a card's edge
+		colorLightStrip: hex(0x1b2027),              // the stage toward white by 5.88 %: dark frosted glass
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x3dd68c), // mint
@@ -277,6 +282,7 @@ var lightPalette = palette{
 		colorBracket:    hex(0xb9c2cf),
 		colorSlotDim:    hex(0xe3e8ef),
 		colorHairline:   hex(0xcdd4df),
+		colorLightStrip: hex(0xeff1f4), // the stage toward #7f8da3 by 9.8 %: light frosted glass
 	},
 	status: map[model.Status]color.Color{
 		model.StatusOK:          hex(0x138a52),
@@ -496,11 +502,18 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 	case sizeSidebarWidth:
 		return 216
 	case sizeHotbarWidth:
-		return 64
+		// The tile with the room on either side the 38-point tile had in 64 (LS19): 10.5 points.
+		return 76
 	case sizeHotbarTile:
-		return 38
+		// The owner's LS19 of 2026-10-24: "Auch die Icons der Hotbar dürfen ruhig 50px x 50px"
+		// (38 before).
+		return 50
 	case sizeNavBadge:
 		return 28
+	case sizeNavHeadBadge:
+		// The owner's LS19: the root's badge 50 points "wenn so viel Platz ist"; down to sizeNavBadge
+		// where it is not (navigator_rootbadge.go).
+		return 50
 	case sizeBarHeight:
 		return 40
 	case sizeStatusHeight:

@@ -147,6 +147,7 @@ func run(previousCrash string) int {
 		opts.StartWarning = crashNotice(previousCrash, at, s.TimeFormat())
 	}
 	demo.autoConnect(&opts)
+	lightStripFPS(&opts, logger) // a development build's COGPIT_LIGHTSTRIP_FPS (lightstripfps.go); a release has none
 	// Preferences › App › Restore the last session (D-69 item 8): with it on, the clusters connected
 	// at the last quit connect again, the one shown then first unless --context names the one to
 	// show; off (the default), nothing connects by itself.

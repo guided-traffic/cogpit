@@ -167,7 +167,9 @@ func registerClusterSettings(g *registrar) {
 		Description: "Returns a context's settings in Cogpit, as its Settings page shows them: the name it shows (the display " +
 			"name set, else the context's name), its icon (iconColor, the tile's iconLetters, an uploaded image's format, " +
 			"iconTile while the tile shows although an image is kept, the image's iconCrop), its accent colour (accentColor: the " +
-			"user's mark of which cluster it is, a production one in red, say; only the user sets it), the kubeconfig file it comes " +
+			"user's mark of which cluster it is, a production one in red, say; only the user sets it) and how the light strip under " +
+			"the tabs shows it (lightStrip: static, breathing, scanner or flow; frosted glass without an accent colour; only the " +
+			"user chooses it), the kubeconfig file it comes " +
 			"from, its terminals' working directory and kubectl namespace (empty: $HOME and the filter's or the " +
 			"context's namespace), the metrics the window hides (hiddenMetrics; empty: all visible), the metrics source (metricsSource: " +
 			"auto, prometheus, metrics-server or none) and, while connected, the providers answering (metricsInUse), the integrations " +

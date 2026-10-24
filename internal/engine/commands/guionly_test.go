@@ -19,7 +19,7 @@ import (
 // parameters (engine.Spec.GUIOnly). A command that drops the mark fails here, and one that gains it
 // is checked by TestGUIOnlyCommandsRefuseOtherOrigins without being listed.
 var wantGUIOnly = []string{
-	"cluster.remove", "cluster.settings.setAgentWrites", "cluster.settings.setAccentColor", "cluster.settings.uploadIcon", "dock.allowAgentRead",
+	"cluster.remove", "cluster.settings.setAgentWrites", "cluster.settings.setAccentColor", "cluster.settings.setLightStrip", "cluster.settings.uploadIcon", "dock.allowAgentRead",
 	// H-125 and H-126 (the owner's decisions of 2026-10-19).
 	"cluster.settings.resetIcon", "cluster.integrations.step", "cluster.integrations.lookFor", "cluster.integrations.answer",
 	"cluster.integrations.ask",

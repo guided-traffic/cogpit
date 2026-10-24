@@ -41,10 +41,10 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 
 - 🖥️ A native macOS app; since 2026-10-20 night a Linux package too, a `.deb` for amd64 and arm64 (Debian 13, Ubuntu 24.04 and later) that sets up Cogpit's signed APT repository ([Install on Linux](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); since 2026-10-21 a Windows setup for Windows 10 (1809) and 11 on x64, installed for your user without an administrator, on the branch `windows-release` and in the first release after its merge ([Install on Windows](#install-on-windows), [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)); on Linux and Windows no `cogpit://` links and no Start at login yet.
 - 🗂️ Every cluster from your kubeconfig files and synced folders, side by side.
-- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level; **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
+- 🧭 Lens's navigator levels: All Clusters (Local Kubeconfigs) lists every cluster, the one list to choose a cluster from, with a + to add kubeconfigs; › drills into one cluster's resources, ‹ All Clusters goes back up. The tab bar shows the tabs of the cluster you are in, the one the status bar and the navigator name, at either level (it stays, empty, while no tab is open, since 2026-10-24); **Mixed environments** at the foot of All Clusters (off by default, its ? says what it does) shows every connected cluster's tabs side by side; a cluster without a connection (connecting, a failed connect, disconnected) shows no tabs until it connects (since 2026-10-20). Going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing another cluster from a cluster's tree (a tab of another cluster, the hotbar) slides vertically, the cluster listed higher in All Clusters coming in from above (since 2026-10-20; [Reduce motion](#preferences--app-reduce-motion) switches at once).
 - ⏳ How long a cluster's client certificate is still valid, where you choose the cluster (since 2026-10-17): for a context that logs in with a certificate in its kubeconfig, the navigator's list says "cert expires in 23 days" under its name, in orange in its last 14 days (or the last fifth of a short-lived one's life), "expired" alone (the owner, 2026-10-17) in red once it ended; the welcome page and the tooltips say it too, the tooltips with the date. It never stops you from connecting. A certificate file in Documents, Downloads or on the Desktop shows after your first connect to it, so that listing your clusters never makes macOS ask for those folders.
 - 🔌 Integrations per cluster (since 2026-10-17): the Metrics Server, Prometheus, Alertmanager, the Trivy Operator and Kyverno, each switched on or off in Cluster Settings, under the list's divider (Integrations for all five, and a section of its own each with its details), with whether Cogpit found it or it needs its address; a new cluster asks at its first connect, nothing looked for before you choose (Check all, Choose, Don't use), with a checkbox to keep the answer as the default and Ask again in its settings; the default checks everything.
-- 📌 A hotbar of pinned clusters at the window's edge, one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
+- 📌 A hotbar of pinned clusters at the window's edge, 50-point tiles in one list that scrolls when it is full: F1–F12 open the first twelve; drag a tile to reorder, the others make room as it moves. Removing a kubeconfig source, or Remove from Cogpit, takes its clusters' tiles off too; a tile whose file went away by itself stays, marked missing, in case it comes back (since 2026-10-19).
 - ➖ The "−" at the right of the navigator's Local Kubeconfigs row opens Kubeconfig Sources…, where you remove synced files and folders (since 2026-10-19; also in that row's menu and the Cluster menu).
 - 🔀 Several clusters connected at once (since 2026-10-16): switching to another cluster leaves the one you were on connected, its logs, shells, port forwards and running jobs going on; switching back within five minutes shows it at once without asking the cluster again, later its lists load anew. A cluster's namespace filter, search and status filter stay with it and its tabs: the next cluster never comes with them. The top bar's three toggles show and hide the navigator (⌘B), the dock (⌘J) and the agent chat (⌘I); with no tab in the dock, ⌘J opens a terminal there. A cluster stays connected until you disconnect it or quit; agents may work on any connected cluster. Every dot of a cluster says how it is: filled while live, a ring while it rests in the background, blinking while it reconnects, red when it needs you; the dock shows the tabs of the cluster you look at ([Several clusters connected](#several-clusters-connected)). A cluster's Settings can keep its login program from running while you look at another cluster (its login then waits, renewed when you show it), and Preferences › App can bring the last session back at start: its tabs and its clusters, connected again.
 - 🪪 One short name per cluster wherever the window names it: the name you gave it in its Settings, else its context's name after the last "@" ("kubernetes-admin@prod-eu" shows as "prod-eu"); the full name in every tooltip, and the navigator's search finds it by either. The navigator's root says who you are logged in as there, as the API server confirms it at every connect (`kubectl auth whoami`'s question), your groups in the tooltip of the small box beside it; "(kubeconfig)" marks the kubeconfig's user name where the API server does not say, and while the cluster connects the last user it confirmed shows dimmed, with when it was last seen ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
@@ -699,6 +699,27 @@ motion (System Settings › Accessibility › Display) does the same, whatever t
 |---|---|---|
 | `reduceMotion` | `false` # default | on: the window switches at once where it would slide or blink; agents may set it either way, it changes only how the window moves |
 
+### Preferences › App: light strip on battery
+
+Since 2026-10-24 (the owner's LS15 and LS16: once for the app, beside Reduce motion): the row
+**Light strip on battery**, a check "Animate the light strip only on the power adapter", **off by
+default**: the [light strip](#the-light-strip) moves as its cluster's setting says (breathing,
+scanner, flow) on battery too. On, while the computer runs on its battery the strip shows its
+colour standing still, as under Reduce motion, and it moves again once the power adapter is
+plugged in. An animation repaints the window at the strip's frame rate, about a fifth of a CPU
+core; static, off and standing still cost nothing.
+
+Where Cogpit reads the power source: on macOS IOKit's providing power source, followed at once
+when it changes (a Mac without a battery, a Mac Studio or an iMac, never runs on battery); on
+Windows `GetSystemPowerStatus` (the line offline), on Linux the power supplies under
+`/sys/class/power_supply` (no adapter or USB charger online, and a battery of the computer's own
+discharging; a wireless mouse's battery does not count), both read again every 30 s, so the strip
+follows a pulled cable there within half a minute.
+
+| Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
+|---|---|---|
+| `lightStripMainsOnly` | `false` # default | on: the light strip animates only on the power adapter and stands still on battery; agents may set it either way, it changes only how the window moves |
+
 ### The window's place and size
 
 Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
@@ -763,7 +784,7 @@ dialog, **Reset** gives back the initials in the accent colour:
 - **Internal icon:** a colour tile with letters. Its dialog takes up to five letters, digits or
   signs (no spaces; empty: the initials of the cluster's name) and one of eight colours or any
   colour. Longer letters are drawn smaller to fit, so the dialog previews the icon at the hotbar's
-  size and at the navigator's.
+  size and at the navigator's rows'.
 - **Custom icon:** a square part of an image. Its dialog shows the image in the icon's square frame,
   the rest dimmed: drag to move it, zoom with the mouse wheel (at the pointer) or the slider (up to
   8×), **Fit** to fill the square from the middle again, **Choose Image…** for another file. The
@@ -774,6 +795,17 @@ again. Both kinds are drawn with rounded corners as macOS draws an app icon, Cog
 the radius is 22/96 of the side wherever the icon shows, the hotbar, the navigator, the welcome page,
 the tabs and the settings (since 2026-10-24, the owner's VW10; before, an image was drawn square).
 The kept image itself stays square; the rounding is drawn.
+
+The icon's size (since 2026-10-24, the owner's LS19; before, 38 points on the hotbar and 28 at the
+navigator's root): a 50-point square on the hotbar's tiles, in a 76-point bar, and in Cluster
+Settings' header; at the navigator's root as tall as its lines, so 50 points beside the name, the
+user and the version, but never at the cost of a line: it gives way, down to 28 points, before it
+would cut the name or the version further than a 28-point icon did, or the user's line when that
+showed whole beside one. At the default navigator width of 216 points a short name such as
+"prod-eu" with a long e-mail address gets 50 points, a name of 14 letters such as "awe-d-pinniped"
+about 31, and 50 once the navigator is about 235 wide; drag the navigator's edge to give it room.
+The navigator's rows and the welcome page keep 28. The letters grow with the square (21 points on
+50).
 
 | Field (in `cluster-settings.json`, per context) | Default | Values |
 |---|---|---|
@@ -786,16 +818,16 @@ The kept image itself stays square; the rounding is drawn.
 Security note: the image file is read once, at most 1 MiB, and checked before anything is kept (a
 PNG or JPEG decoded under bounds, an SVG without scripts or outside references); Cogpit keeps its
 own copies and draws only those. Every change of the icon is yours alone, in Cogpit's window
-([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)).
+([H-125](../security/agents-and-mcp.md#h-125-a-clusters-name-and-icon-colour-are-agents-to-change-and-its-accent-colour-shows-nowhere)).
 
 ### Cluster Settings › General: the accent colour
 
 Since 2026-10-17 ([D-80](decisions.md#d-80-a-clusters-accent-colour), the owner's F26). Beside its
 icon every cluster can carry an **accent colour** you pick, your mark of which cluster it is (red for
-production, say), meant to mark parts of the window so that you see at a glance where you act. **The
-window does not use it anywhere yet:** where it shows is still open, so today you see it only in
-its own row. The row "Accent colour" sits below the icon: None (the crossed square, the default),
-the eight colours of the icon, a colour of your own from the palette button. A click applies it.
+production, say), so that you see at a glance where you act: the **light strip** under a view's
+header shows it (below). The row "Accent colour" sits below the icon: None (the crossed square, the
+default), the eight colours of the icon, a colour of your own from the palette button. A click
+applies it.
 
 | Setting | Default | Meaning |
 |---|---|---|
@@ -805,12 +837,61 @@ Security note: only you set or clear it, in Cogpit's window. `cluster.settings.s
 GUI-only: agents (over MCP and the built-in one) and `cogpit-cli` are refused, also where you allowed
 agents' writes, so no agent can make a production cluster look like a development one. Agents read
 it (`accentColor` in `ui_state` and `cluster_settings_get`). Since 2026-10-19 the cluster's **name
-and icon** are yours alone too ([H-125](../security/agents-and-mcp.md#h-125-until-the-accent-colour-shows-a-clusters-name-and-icon-colour-are-agents-to-change)):
+and icon** are yours alone too ([H-125](../security/agents-and-mcp.md#h-125-a-clusters-name-and-icon-colour-are-agents-to-change-and-its-accent-colour-shows-nowhere)):
 `cluster.settings.set`'s `name`, `iconColor`, `iconLetters` and `iconTile` are refused to agents and
 `cogpit-cli`, whether they set or clear them, and Reset (`cluster.settings.resetIcon`), the image's
 upload (`cluster.settings.uploadIcon`) and its cut (`cluster.settings.cutIcon`) are GUI-only. Agents
 read the name, the icon colour and the letters; the other fields of `cluster.settings.set` (the terminal's
 directory and namespace, hidden metrics, accessible namespaces) stay theirs.
+
+#### The light strip
+
+Since 2026-10-24 ([D-new](decisions.md#d-new-the-light-strip), the owner's VW14 and his walk of
+the same evening). A strip 4 pt high runs right under a view's header (its title and count, the
+filters and the search), above the table's header or a page's part, the width of the view (not
+under the navigator, the drawer or the chat). Off, it is frosted glass with a fine grain, dark or
+light with the theme: for a cluster without an accent colour and while the shown tab's cluster
+connects. The tab bar's active tab decides: with a tab of a
+cluster that has an accent colour shown, the strip shows that colour (an accent in the theme's
+shade, a colour of your own in a shade of its hue legible on the theme, as its swatch shows it),
+the glass's grain over it. Under the accent colour the row **Light strip** chooses how: Static, or
+one of the animations, which stand in a frame of their own whose ⓘ says what they cost (an animated
+strip repaints the window up to 60 times a second while it moves, about a fifth of a CPU core
+measured on an Apple M1 Ultra; static and off cost nothing):
+
+| Light strip | What the strip does |
+|---|---|
+| Static # default | the colour, steady |
+| Breathing | the colour swells and fades, a breath every 4.6 s, never below 48 % |
+| Scanner | a light half the strip wide sweeps in from the left and swings from end to end, 6 s there and back |
+| Flow | a light 46 % of the strip long runs from left to right, 5 s a pass; the next sets off as its head goes under at the right |
+
+A change goes through glass: the light fades out in 350 ms, then the new one fades in in 350 ms
+from its beginning (a scanner or a flow coming in from beyond the left edge), whether you showed a
+tab of another cluster or changed the colour or the strip in Cluster Settings. One static colour
+after another instead spreads from the place of the tab you made active, to both ends, in 700 ms;
+while motion is reduced it crossfades in 700 ms. Two clusters with the same colour and strip show
+no change. The strip stands still, its colour steady
+at full strength, while Cogpit is not the active app, while motion is reduced (Preferences ›
+App › Reduce motion, or macOS's System Settings › Accessibility › Display › Reduce motion, followed
+at once) and, with Preferences › App ›
+[Light strip on battery](#preferences--app-light-strip-on-battery) on, while the computer runs on
+its battery; it fades into and out of standing as into any change, and moves again from its beginning.
+While nothing moves, it costs nothing: its clock runs only while a light fades or an animation
+shows. Under a settings card it is dimmed with the rest of the window. While an animation you chose
+stands still because motion is reduced or the computer runs on battery, a warning under the row
+says so and where to change it. The row is disabled, with
+"Set an accent colour first" beside it, while the cluster has none; clearing the colour keeps your
+choice for when it comes back.
+
+| Setting | Default | Meaning |
+|---|---|---|
+| `lightStrip` in `cluster-settings.json`, per context | absent: static # default | `breathing`, `scanner` or `flow` (e.g. `"scanner"` # example); static is kept as absent; another value is dropped when the file is read. Set with the row, or `cluster.settings.setLightStrip {context?, animation}` from the window (`static`, `breathing`, `scanner`, `flow`; empty: static) |
+
+Security note: only you choose it, in Cogpit's window. `cluster.settings.setLightStrip` is
+GUI-only like the accent colour: agents and `cogpit-cli` are refused, also where you allowed
+agents' writes, so no agent can calm a production cluster's strip down. Agents read it
+(`lightStrip` in `cluster_settings_get`, and in `ui_state`'s `clusterSettings` unless static).
 
 The same page has copy icons (since 2026-10-17, F27): the one by **Cluster name** copies what the
 field shows (your display name, else the context's name in its kubeconfig), the one by
@@ -1672,7 +1753,7 @@ file in `%TEMP%` inherits the same (the lead's policy, 2026-10-21,
 | Kind keys (views, `kind` parameters) | the plural resource name for built-in kinds; `<plural>.<group>` for kinds from custom resource definitions ([why](architecture.md#45-kind-keys)) | `pods`, `services`, `gateways.gateway.networking.k8s.io` |
 | Page keys (views that are not one kind's list, `ui.openView`'s `view`) | `<navigator group>/<page>` | `cluster/overview`, `workloads/overview`, `flux/dashboard` |
 | Annotations the Flux actions set | `reconcile.fluxcd.io/requestedAt` (Reconcile, Resume) and, for a forced Helm release, `reconcile.fluxcd.io/forceAt`: the time in RFC 3339 with nanoseconds, as the flux CLI writes it | `2026-10-13T22:01:02.345678901Z` # example |
-| Environment variables | `COGPIT_<NAME>`; the app reads one, `COGPIT_SYSTEM_TITLEBAR=1` (macOS's own title bar instead of Cogpit's); the others are the tests': `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`, `COGPIT_KIND_DRAIN_KUBECONFIG`, `COGPIT_KIND_DRAIN_CONTEXT`, `COGPIT_KIND_FALLBACK`, `COGPIT_PNG_DIR`, `COGPIT_SIGSTORE_LIVE`, `COGPIT_SPARKLE_FRAMEWORK`, and for a real cluster someone lends for a test run `COGPIT_REAL_KUBECONFIG` (its kubeconfig, passed to Cogpit alone) and `COGPIT_REAL_CONTEXT` (default: the file's current context), never set in CI (and a few that tests set for their own child processes); for measurements on a real cluster (read-only, skipped without them, never in CI) `COGPIT_REAL_KUBECONFIG`, `COGPIT_REAL_CONTEXT`, `COGPIT_REAL_ROUNDS`, `COGPIT_REAL_IDLE`, `COGPIT_REAL_THANOS` ([testing](testing.md#tiers)); for the built-in agent's local tests `COGPIT_LLM_TEST_URL`, `COGPIT_LLM_TEST_MODEL`, `COGPIT_LLM_TEST_KIND`, `COGPIT_LLM_TEST_KEY` (`TestLiveEndpoint` against a real endpoint over the demo cluster; skipped without them) | `COGPIT_LLM_TEST_URL=http://localhost:1234/v1` # example |
+| Environment variables | `COGPIT_<NAME>`; the app reads one, `COGPIT_SYSTEM_TITLEBAR=1` (macOS's own title bar instead of Cogpit's), and a development build (built without the tag `nodemo`) a second: `COGPIT_LIGHTSTRIP_FPS`, the light strip's frame cap from 1 to 60 for measuring its load (default 60; anything else ignored with a warning; a release has no such variable, D-new); the others are the tests': `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`, `COGPIT_KIND_DRAIN_KUBECONFIG`, `COGPIT_KIND_DRAIN_CONTEXT`, `COGPIT_KIND_FALLBACK`, `COGPIT_PNG_DIR`, `COGPIT_SIGSTORE_LIVE`, `COGPIT_SPARKLE_FRAMEWORK`, and for a real cluster someone lends for a test run `COGPIT_REAL_KUBECONFIG` (its kubeconfig, passed to Cogpit alone) and `COGPIT_REAL_CONTEXT` (default: the file's current context), never set in CI (and a few that tests set for their own child processes); for measurements on a real cluster (read-only, skipped without them, never in CI) `COGPIT_REAL_KUBECONFIG`, `COGPIT_REAL_CONTEXT`, `COGPIT_REAL_ROUNDS`, `COGPIT_REAL_IDLE`, `COGPIT_REAL_THANOS` ([testing](testing.md#tiers)); for the built-in agent's local tests `COGPIT_LLM_TEST_URL`, `COGPIT_LLM_TEST_MODEL`, `COGPIT_LLM_TEST_KIND`, `COGPIT_LLM_TEST_KEY` (`TestLiveEndpoint` against a real endpoint over the demo cluster; skipped without them) | `COGPIT_LLM_TEST_URL=http://localhost:1234/v1` # example |
 | Cogpit's `PATH` (where a credential plugin's programs are found) | the `PATH` Cogpit started with, then the built-in folders that exist (macOS and Linux), then Preferences › Kubernetes › Program folders (`programFolders`), each appended, never first ([program folders](#preferences--kubernetes-program-folders), D-120) | `/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/Users/me/.krew/bin:/Users/me/tools/bin` # example |
 | MCP endpoint | `http://127.0.0.1:<port>/mcp`, a free port the first time, kept in `mcp-port` for every later start; another one, kept from then on, when the kept port is taken | `http://127.0.0.1:59449/mcp` # example |
 | MCP bearer token | `<user config dir>/Cogpit/mcp-token`, owner-only (0600, directory 0700), kept across starts and the switch until you click Regenerate token in the MCP details (D-53); a file that holds no token Cogpit wrote, or that other users may read, is replaced at the next start | |
@@ -1688,7 +1769,7 @@ file in `%TEMP%` inherits the same (the lead's policy, 2026-10-21,
 | Node shell journal | `<user config dir>/Cogpit/nodeshells.json`, owner-only (0600, directory 0700): the node shell pods Cogpit created and has not seen deleted (context, namespace, name, UID, the id in the pod's `cogpit.io/node-shell-id` annotation); one a crash left is deleted at the next connect to its context ([H-71](../security/privilege-footprint.md#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) | |
 | Hotbar | `<user config dir>/Cogpit/hotbar.json`, owner-only (0600, directory 0700): the pinned clusters by context id, top to bottom, `{"version": 2, "clusters": [{"context": "kind-dev [.kube/config]"}]}` (example); an unreadable one is moved to `hotbar.json.unreadable` at the first change; a file of an earlier Cogpit with banks (format 1) is merged into one list at the start (the first bank's tiles, then each further bank's, each context once) and kept as `hotbar.json.v1` ([D-83](decisions.md#d-83-one-hotbar-and-a-drag-that-carries-the-tile)) | |
 | A cluster's name in the window | the display name set in its Cluster Settings › General, else the part of its context's name after the last `@` (the whole name without an `@`, or with nothing after it), without the kubeconfig file; commands and `ui_state` keep the full context id ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `kubernetes-admin@prod-eu [dev.yaml]` → `prod-eu` # example |
-| Cluster settings | `<user config dir>/Cogpit/cluster-settings.json`, owner-only (0600, directory 0700): per context id what Cluster Settings sets (name, icon, accent colour, terminal, metrics, integrations, proxy, accessible namespaces, node shell, agent allowance, login renewal), at most 1,024 contexts; uploaded icons in `cluster-icons/`, since 2026-10-23 each with the image it was cut from (at most 1,024 pixels a side, D-119). A cluster removed from Cogpit (Remove from Cogpit, or its kubeconfig source removed) loses its settings, so added again it is a new cluster and is asked its integrations again; a file `$KUBECONFIG` names keeps them (since 2026-10-17 evening, the owner's walk, WF4) | |
+| Cluster settings | `<user config dir>/Cogpit/cluster-settings.json`, owner-only (0600, directory 0700): per context id what Cluster Settings sets (name, icon, accent colour, light strip, terminal, metrics, integrations, proxy, accessible namespaces, node shell, agent allowance, login renewal), at most 1,024 contexts; uploaded icons in `cluster-icons/`, since 2026-10-23 each with the image it was cut from (at most 1,024 pixels a side, D-119). A cluster removed from Cogpit (Remove from Cogpit, or its kubeconfig source removed) loses its settings, so added again it is a new cluster and is asked its integrations again; a file `$KUBECONFIG` names keeps them (since 2026-10-17 evening, the owner's walk, WF4) | |
 | Last known users | `<user config dir>/Cogpit/cluster-users.json`, owner-only (0600, directory 0700): per context id the username the API server last confirmed and when Cogpit last saw it so, for the navigator's root while the cluster is not connected; never the groups, never the kubeconfig's user name; an unreadable one is moved to `cluster-users.json.unreadable` at the next write ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `{"version": 1, "users": {"kubernetes-admin@prod-eu [dev.yaml]": {"username": "alice@example.com", "seen": "2026-10-16T09:12:00Z"}}}` # example |
 | Bookmarks of picked files | `<user config dir>/Cogpit/bookmarks.json`, owner-only (0600, directory 0700), macOS (since 2026-10-16, [D-72](decisions.md#d-72-native-file-panels-and-macos-folder-access)): a security-scoped bookmark of each kubeconfig file and sync folder, folder and CA file you picked in the system's panels, with its path, its use (`kubeconfig`, `folder`, `caFile`) and its access; resolved at every start before the sources are read; a source's goes with the source, the newest 16 folders and CA files stay; removing the file removes the kept access ([file access](../security/file-access.md)) | |
 | Tabs and column layout | `<user config dir>/Cogpit/workspace.json`, owner-only (0600, directory 0700): the tab bar's tabs (context id, view, filters, search, sort, history), each view's hidden columns and column order, and since 2026-10-15 the navigator's collapsed source groups (their folders' and files' labels, A63) and whether the navigator is hidden and the chat column shown (F7, [D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)), and since 2026-10-16 the clusters connected (`connected`, context ids) and the one shown (`shown`) ([D-41](decisions.md#d-41-what-survives-a-restart)); the layout comes back at every start, the tabs and the connections only while Preferences › App › Restore the last session is on ([D-69](decisions.md#d-69-several-clusters-connected-at-once) item 8); format version 1, a file of v0.17.0 loads; an unreadable one is moved to `workspace.json.unreadable` at the first change | `{"version": 1, "tabs": […], "active": 0, "connected": ["kind-dev", "prod-eu"], "shown": "prod-eu"}` # example |

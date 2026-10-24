@@ -96,10 +96,11 @@ func TestStartShowsRestoredTabsWithoutConnecting(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	welcomeShown(t, sh, q)
 	// Every tab is restored, in the UI state; the bar shows none while no cluster is connected (the
-	// owner's GW13; GW11: then the shown cluster's, the others' with their cluster).
+	// owner's GW13; GW11: then the shown cluster's, the others' with their cluster), the bar itself
+	// empty (LS11).
 	q.until(t, "the restored tabs", func() bool { return len(sh.ui.Tabs) == 3 })
 	q.drain()
-	if len(sh.tabs.shown) != 0 || sh.tabs.root.Visible() || sh.ui.Connection.State != engine.Disconnected {
+	if len(sh.tabs.shown) != 0 || !sh.tabs.root.Visible() || sh.ui.Connection.State != engine.Disconnected {
 		t.Errorf("the bar shows %d tabs before a connect, or connected: %+v", len(sh.tabs.shown), sh.ui.Connection)
 	}
 	if sh.ui.ActiveTab != sh.ui.Tabs[0].ID {

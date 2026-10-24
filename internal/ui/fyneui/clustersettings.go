@@ -165,11 +165,13 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	kc := container.NewBorder(nil, nil, nil, container.NewHBox(container.NewCenter(pathCopy), open),
 		container.NewStack(pathBg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewStack(path, sentence))))
 	accent, syncAccent := p.accentColorSetting() // clustersettings_accent.go
+	strip, syncStrip := p.lightStripSetting()    // clustersettings_lightstrip.go
 	login, syncLogin := p.clusterLoginSetting()  // clustersettings_login.go
 
 	p.sync = func() {
 		syncLogin()
 		syncAccent()
+		syncStrip()
 		syncIcon()
 		v := p.clusterView()
 		name.SetPlaceHolder(v.ContextName)
@@ -207,6 +209,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 		nameSetting,
 		icon,
 		accent,
+		strip,
 		p.setting("kubeconfig", "Kubeconfig", "The file this context comes from.", kc),
 		login,
 	)

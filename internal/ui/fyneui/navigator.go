@@ -607,10 +607,11 @@ func newNavRootRow(s *sidebar) *navRootRow {
 	if r.settings = newRootSettings(s); r.settings != nil { // before the dot, as a section row's ↻ (D-92)
 		right.Objects = append([]fyne.CanvasObject{container.NewCenter(r.settings)}, right.Objects...)
 	}
-	r.body = inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
-		container.NewHBox(container.NewCenter(s.badge), newSpace(theme.SizeNamePadding)), // as the section's rows
-		right,
-		container.NewVBox(layout.NewSpacer(), s.name, s.subLine, s.version, layout.NewSpacer())))
+	// The badge as large as the root's room allows, 28 to 50 points (navigator_rootbadge.go, LS19);
+	// at 28 placed as the section's rows place theirs.
+	lines := container.NewVBox(layout.NewSpacer(), s.name, s.subLine, s.version, layout.NewSpacer())
+	r.body = inset(theme.SizeNamePadding, theme.SizeNamePadding, box(&rootHeadLayout{badge: s.badge, text: lines, right: right,
+		keep: []*textLine{s.name, s.version}, sub: s.subLine, user: s.userLine}, s.badge, lines, right))
 	r.ExtendBaseWidget(r)
 	return r
 }

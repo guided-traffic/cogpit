@@ -12,7 +12,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -91,7 +90,7 @@ func TestIconTileDialog(t *testing.T) {
 	q.until(t, "the hotbar's tile", func() bool { return tileRenderer(tileFor(sh, "kind-dev")).initials.Text == "STAGE" })
 	r := tileRenderer(tileFor(sh, "kind-dev"))
 	th := sh.app.Settings().Theme()
-	if size := r.initials.TextSize; size >= th.Size(theme.SizeNameSubHeadingText) || r.initials.MinSize().Width > th.Size(sizeHotbarTile) {
+	if size := r.initials.TextSize; size >= initialsSize(th, th.Size(sizeHotbarTile)) || r.initials.MinSize().Width > th.Size(sizeHotbarTile) {
 		t.Errorf("five letters at %v pt, %v wide: not fitted to the tile", size, r.initials.MinSize().Width)
 	}
 }
