@@ -10,6 +10,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	logoart "github.com/guided-traffic/cogpit/internal/ui/logo"
 )
 
 // A cluster's identity (Lens: Cluster settings › General, the name and the icon, "Upload Icon",
@@ -20,6 +21,12 @@ import (
 // everywhere at once; only the user changes it, in the window, engine.ErrClusterIdentityGUIOnly);
 // the image's bytes come from the engine's kept copy (Session.ClusterIcon), loaded off the main
 // goroutine once per image.
+
+// iconCorner is the corner radius of a cluster's icon drawn side points wide: macOS's rounding, as
+// Cogpit's own app icon has it (logo.CornerRatio, 22 on 96), at every size, an image and a colour
+// tile alike (the owner's VW10 of 2026-10-24, D-119). Before, an image was drawn square and a tile
+// rounded by a fixed 7 points, rounder than this at the navigator's size and the tab's.
+func iconCorner(side float32) float32 { return side * float32(logoart.CornerRatio) }
 
 // clusterIdentity is how a context shows itself.
 type clusterIdentity struct {
@@ -102,7 +109,8 @@ func (sh *shell) identitiesChanged() {
 }
 
 // clusterBadge is a cluster's icon: its initials on a tinted square in its icon colour (the
-// accent by default), or its uploaded image; "–" in the muted colour without a cluster. The
+// accent by default), or its uploaded image, either with macOS's rounded corners (iconCorner);
+// "–" in the muted colour without a cluster. The
 // navigator's root and rows, the welcome page and the settings page show it; the hotbar's tiles draw the
 // same in their own renderer.
 type clusterBadge struct {
@@ -184,7 +192,8 @@ func (r *clusterBadgeRenderer) Refresh() {
 	}
 	c := themeColor(th, ink)
 	r.bg.FillColor = withAlpha(c, 0x2c) // the hotbar tile's tint
-	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
+	r.bg.CornerRadius = iconCorner(r.sideOf())
+	r.img.CornerRadius = r.bg.CornerRadius // the image rounded as the tile (VW10)
 	r.txt.Text = r.b.text
 	r.txt.Color = c
 	base := th.Size(theme.SizeNameText)

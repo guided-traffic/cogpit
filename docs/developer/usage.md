@@ -54,7 +54,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🩺 A connect that fails shows its own error page (since 2026-10-22): why, in a sentence, and the connect stage by stage (the kubeconfig, a login program, DNS with the addresses, TCP to the address and port, TLS, the API server's answer), with Connect Again and Show Connection Updates.
 - 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - 🗂️ Tabs you arrange (since 2026-10-20): drag a tab along the tab bar, or the dock's, to another place, the others making room as it moves; ⌘⌥⇧← and ⌘⌥⇧→ move the shown tab one place, the dock's while you work in the dock (since 2026-10-22); the tab bar's order comes back with your tabs at the next start.
-- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (up to five letters of yours on a colour, or a part of your image you place), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
+- ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; a cluster's titled "Cluster Settings: <name>" since 2026-10-24; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (up to five letters of yours on a colour, or a part of your image you place), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec credential plugins); no local proxy, no login.
 - ⚡ Cache first: views read from a watch-fed cache; switching back to a view costs no API request.
@@ -770,7 +770,10 @@ dialog, **Reset** gives back the initials in the accent colour:
   image always fills the square. Opened again, it shows where you left it.
 
 Choosing one keeps the other: back on the Internal icon, the image stays for when you choose Custom
-again.
+again. Both kinds are drawn with rounded corners as macOS draws an app icon, Cogpit's own included:
+the radius is 22/96 of the side wherever the icon shows, the hotbar, the navigator, the welcome page,
+the tabs and the settings (since 2026-10-24, the owner's VW10; before, an image was drawn square).
+The kept image itself stays square; the rounding is drawn.
 
 | Field (in `cluster-settings.json`, per context) | Default | Values |
 |---|---|---|

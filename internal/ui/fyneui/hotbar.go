@@ -546,7 +546,9 @@ func (r *hotbarTileRenderer) Refresh() {
 	}
 	r.initials.Text = r.id.initials
 	accent := themeColor(th, r.id.ink) // the cluster's icon colour, the accent by default
-	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius) * t.zoom()
+	side, _, _ := r.sizes()
+	r.bg.CornerRadius = iconCorner(side) // macOS's rounding (VW10); the plate and the glow follow it
+	r.img.CornerRadius = iconCorner(side - 4)
 	r.bg.StrokeWidth = 0
 	r.initials.TextSize = fitTextSize(r.id.initials, th.Size(theme.SizeNameSubHeadingText)*t.zoom(), (th.Size(sizeHotbarTile)-4)*t.zoom()) // up to five letters (D-119)
 	r.label.TextSize = th.Size(theme.SizeNameCaptionText) * t.zoom()
@@ -757,7 +759,7 @@ func (r *hotbarButtonRenderer) Refresh() {
 	r.bg.FillColor = color.Transparent
 	r.bg.StrokeWidth = 0
 	if b.square {
-		r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
+		r.bg.CornerRadius = iconCorner(th.Size(sizeHotbarTile)) // as the tiles above it (VW10)
 		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, colorHairline), th.Size(theme.SizeNameInputBorder)
 	}
 	if b.hovered && !b.disabled {

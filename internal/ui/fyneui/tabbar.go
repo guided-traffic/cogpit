@@ -502,13 +502,14 @@ func (r *viewTabRenderer) Refresh() {
 		ink = themeColor(th, colorMuted)
 	}
 	r.badge.FillColor = withAlpha(ink, 0x2c) // the navigator badge's and the hotbar tile's tint
-	r.badge.CornerRadius = th.Size(theme.SizeNameInputRadius)
+	_, side, _, _ := r.dims()
+	r.badge.CornerRadius = iconCorner(side) // macOS's rounding, the image's too (VW10)
+	r.img.CornerRadius = r.badge.CornerRadius
 	r.initials.Text = t.id.initials
 	if r.initials.Text == "" {
 		r.initials.Text = initials(engine.ContextLabel(t.tab.Context))
 	}
 	r.initials.Color = ink
-	_, side, _, _ := r.dims()
 	// Up to five letters of the user's drawn smaller to fit (D-119); two keep their size.
 	r.initials.TextSize = fitTextSize(r.initials.Text, th.Size(theme.SizeNameCaptionText), side)
 	if t.id.image != nil { // the uploaded icon in place of the initials (F25), faded while not connected

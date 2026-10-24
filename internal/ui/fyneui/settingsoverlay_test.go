@@ -68,7 +68,7 @@ func TestSettingsOverlayClosesOnTheShadeOnly(t *testing.T) {
 	q.until(t, "closed by a right-click on the shade", func() bool { return !sh.settings.visible() })
 
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "staging"})
-	q.until(t, "the cluster's card", func() bool { return sh.settings.visible() && sh.settings.title.text == "Settings - staging" })
+	q.until(t, "the cluster's card", func() bool { return sh.settings.visible() && sh.settings.title.text == "Cluster Settings: staging" })
 	if !sh.settings.badge.Visible() || sh.settings.closeB.tip != "Close (Esc)" {
 		t.Errorf("badge shown %v, the ×'s tooltip %q", sh.settings.badge.Visible(), sh.settings.closeB.tip)
 	}
