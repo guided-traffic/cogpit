@@ -152,3 +152,15 @@ Through the `Makefile`, as in the team's other repositories (`make help` lists e
 | Render the README's pictures, dark and light, and optimise them losslessly | `make showcase` ([testing](testing.md#tiers)) |
 | Regenerate the parity checklist page | `go run ./hack/parity` (`make parity` refuses a stale one) |
 | Measure the performance and API-load budgets, write the scorecard | `make scorecard`, on a quiet machine, then commit `docs/parity/scorecard.md` ([testing](testing.md#performance-budgets-proposed-not-measured)) |
+
+The tools in `bin/` (golangci-lint, gocyclo, govulncheck, fyne) are built with the Go of `go.mod`
+and built again when their pin or that Go changes, so a local check runs the version CI runs
+([AGENTS.md rule 12](../../AGENTS.md#the-other-rules)); format with `make fmt`, not a `gofmt` from
+`PATH`, which may belong to another Go.
+
+**A warning every macOS build prints, harmless:** `ld: warning: ignoring duplicate libraries:
+'-lobjc'`. The go command adds `-lobjc` to the link for every cgo package with Objective-C files
+(Cogpit has several, Fyne's GLFW one more), and Apple's linker since Xcode 15 reports the repeat:
+[golang/go#67799](https://github.com/golang/go/issues/67799), open as of 2026-10-24, seen with
+Xcode 27.1's linker (ld-27037.1). It is left visible rather than silenced with
+`-Wl,-no_warn_duplicate_libraries`, which would hide every other duplicate library too.
