@@ -165,6 +165,10 @@ func blinkScene(t *testing.T, mode ThemeMode, state engine.ConnectionState, befo
 	f.ui.Drawer = &ref
 	f.ui.Context = "prod-eu [config]"
 	f.ui.Connection.Demo = false
+	// The cluster's Pods tab, as a cluster that was connected has: without a tab the window shows
+	// the welcome page while the connection is not up (the renders did from 2026-10-21 to 2026-10-24).
+	f.ui.Tabs = []engine.ViewTab{{ID: "tab-1", Context: f.ui.Context, View: "pods", Title: "Pods - prod-eu"}}
+	f.ui.ActiveTab = "tab-1"
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "the shell to settle", func() bool { return len(sh.kinds) > 0 && sh.drawer.last != nil && sh.diag.total > 0 })
 	now := interruptedAt.Add(4 * time.Minute)
