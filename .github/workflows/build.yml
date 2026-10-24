@@ -389,7 +389,7 @@ jobs:
   linux-publish:
     name: Attach to the release (Linux)
     needs: [linux-deb]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: write  # upload the assets, append the note to the release's text
@@ -422,7 +422,7 @@ jobs:
   apt-sign:
     name: APT repository (sign)
     needs: [linux-publish]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     environment: apt
     timeout-minutes: 15
     outputs:
@@ -465,7 +465,7 @@ jobs:
     name: APT repository (deploy to Pages)
     needs: [apt-sign]
     if: needs.apt-sign.outputs.signed == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment:
       name: github-pages
@@ -615,7 +615,7 @@ jobs:
     name: Attach to the release (Windows)
     needs: [windows-setup, linux-publish]
     if: always() && needs.windows-setup.result == 'success'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     permissions:
       contents: write  # upload the asset, append the note to the release's text
@@ -646,7 +646,7 @@ jobs:
   windows-appcast-draft:
     name: Windows appcast (draft)
     needs: [windows-publish]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     outputs:
       drafted: ${{ steps.draft.outputs.drafted }}
@@ -742,7 +742,7 @@ jobs:
     name: Windows appcast (deploy to Pages)
     needs: [windows-appcast-sign]
     if: needs.windows-appcast-sign.outputs.signed == 'true'
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     timeout-minutes: 15
     environment:
       name: github-pages
