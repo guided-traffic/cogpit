@@ -1,6 +1,6 @@
 # The UI's goroutines
 
-> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
+> **Last reviewed:** 2026-10-19 · **Last updated:** 2026-10-24 · **Change:** trivial (the second and third groups' counts corrected to their rows, 41 and 37); trivial (a row for the b64 button's checkmark timer, VW7, D-25); trivial (two rows for the window's density watch, D-121: macOS's backing-properties report and its closure; the first group's count corrected to its rows); trivial (three rows for the Custom icon's dialog, D-119: its source read, a picked file read, the preview cut); trivial (the namespace filter's recheck timer's row removed: EventNamespaces reads the namespaces again, AW11, D-106); trivial (`dock.showAddMenu`'s row removed: the dock's "+" menu is gone, its terminal chip dispatches on the main goroutine's tap); trivial (a row for the namespace filter's recheck timer, GW9, D-106); new (the audit before
 > Fyne's thread check is turned off in releases, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases))
 
 Fyne runs every widget on its main goroutine. Code that runs anywhere else (a goroutine, a timer,
@@ -118,7 +118,7 @@ places of the same kind has one row.
 </details>
 
 <details>
-<summary>The chat, the agent preferences, MCP, the dock and the terminal and log views (42 rows)</summary>
+<summary>The chat, the agent preferences, MCP, the dock and the terminal and log views (41 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
@@ -167,7 +167,7 @@ places of the same kind has one row.
 </details>
 
 <details>
-<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (33 rows)</summary>
+<summary>Dialogs, the drawer, editors, Helm, metrics, settings and the rest (37 rows)</summary>
 
 | File | Function | Kind | Class | What runs off main and why it is safe (or the fix) |
 |---|---|---|---|---|
