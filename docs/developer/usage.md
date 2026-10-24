@@ -672,6 +672,13 @@ WF11): Cogpit opens where you closed it, at every start and whatever Restore the
 To start over, quit Cogpit and delete `window.json` ([files](#naming-conventions)). Agents neither
 read nor move the window: it is not part of `ui_state`.
 
+On macOS, when the window's pixel scale changes (it goes to a display at another scale, or the
+displays go off and come back around a sleep), Cogpit draws its texts again once, as a theme switch
+does, so that none stays drawn at the old resolution, soft
+([D-121](decisions.md#d-121-texts-drawn-again-when-the-windows-pixel-scale-changes)). Should a
+text still look soft, switching the theme twice (the top bar's theme button) draws it again. On
+Windows and Linux Fyne draws the texts again itself.
+
 ### Cluster Settings › General: the login while the cluster is not shown
 
 Since 2026-10-16 ([D-69](decisions.md#d-69-several-clusters-connected-at-once) item 4). **On by

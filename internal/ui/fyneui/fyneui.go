@@ -254,7 +254,8 @@ func Run(s *engine.Session, opts Options) error {
 		do(sh.titlebar.install)
 		// After the title bar took its room: the kept frame exactly, full screen, its changes kept (D-95).
 		do(func() { place.follow(w) })
-		do(sh.installAbout) // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
+		do(sh.watchPixelScale) // macOS: texts drawn again when the window's pixel scale changes (D-121)
+		do(sh.installAbout)    // macOS: About Cogpit in the application menu, GLFW's made by now (appmenu_darwin.go)
 		if sh.inlineMenus {
 			do(sh.installMenuKeys) // Windows and Linux: the menus' keys, the window up (menubar.go)
 		}

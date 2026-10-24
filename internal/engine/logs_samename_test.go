@@ -240,6 +240,91 @@ func TestWorkloadLogsARestartTheCacheShowsLate(t *testing.T) {
 	}
 }
 
+// TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate: the Stateful Set's pod db-0 is deleted and
+// created again under its name with a new UID, no interruption: the server ends the old pod's
+// stream, and the cache shows the new pod only after the resumption's backoff (the lead's note of
+// 2026-10-14: "while the cache lags > 500 ms", the backoff shortened here). The stream opens again
+// by the name, says that the log no longer goes on from its last line, and when the cache shows
+// the new pod under its new UID, no second stream starts for it: every line once, two requests.
+func TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate(t *testing.T) {
+	fastResumes(t, 5)
+	s, src, _ := watchedLogsSession(t)
+	f := newServerLogs()
+	const key = "db-0/db"
+	t0 := time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)
+	line := func(ms int, text string) string {
+		return stamped("db-0/db", t0.Add(time.Duration(ms)*time.Millisecond), text)
+	}
+	f.add(key, t0.Add(100*time.Millisecond), "old pod")
+	tab, _, err := s.OpenWorkloadLogsTab(context.Background(), model.ObjectRef{Kind: "statefulsets", Namespace: "shop", Name: "db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	lr.wait(t, line(100, "old pod"))
+	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
+
+	// db-0 is created again: the old pod's stream ends; the cache still shows the old pod.
+	f.recreate(key, stampedLine{t0.Add(5 * time.Second), "new pod"}, stampedLine{t0.Add(6 * time.Second), "new pod, second line"})
+	lr.wait(t, line(5000, "new pod"), line(6000, "new pod, second line"))
+
+	// The cache catches up: the new pod, its new UID, the same name.
+	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db"))
+	waitCached(t, s, "uid-shop-db-0-again", 0)
+	time.Sleep(4 * workloadLogRescan) // rescans that would start a stream of the new pod's own
+	f.add(key, t0.Add(7*time.Second), "new pod, third line")
+	lr.wait(t, line(7000, "new pod, third line"))
+
+	got := lr.all()
+	want := []string{line(100, "old pod"), NoticePrefix + " db-0/db: " + notContinuedNotice,
+		line(5000, "new pod"), line(6000, "new pod, second line"), line(7000, "new pod, third line")}
+	if !slices.Equal(got, want) {
+		t.Errorf("lines %q, want %q", got, want)
+	}
+	if reqs := f.requestsFor(key); len(reqs) != 2 {
+		t.Errorf("%d log requests, want the first and the resumption: %+v", len(reqs), reqs)
+	}
+}
+
+// TestWorkloadLogsAPodCreatedAgainTheCacheShowsInTime: as above, but the cache shows the new pod
+// before the old pod's stream would open again (the backoff as released): that stream ends without
+// opening again, and the new pod's own stream shows its lines, once, with no notice.
+func TestWorkloadLogsAPodCreatedAgainTheCacheShowsInTime(t *testing.T) {
+	s, src, _ := watchedLogsSession(t)
+	f := newServerLogs()
+	const key = "db-0/db"
+	t0 := time.Date(2026, 10, 24, 9, 0, 0, 0, time.UTC)
+	line := func(ms int, text string) string {
+		return stamped("db-0/db", t0.Add(time.Duration(ms)*time.Millisecond), text)
+	}
+	f.add(key, t0.Add(100*time.Millisecond), "old pod")
+	tab, _, err := s.OpenWorkloadLogsTab(context.Background(), model.ObjectRef{Kind: "statefulsets", Namespace: "shop", Name: "db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	lr.wait(t, line(100, "old pod"))
+	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
+
+	f.recreate(key, stampedLine{t0.Add(5 * time.Second), "new pod"})
+	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db")) // within the 500 ms backoff
+	waitCached(t, s, "uid-shop-db-0-again", 0)
+	lr.wait(t, line(5000, "new pod"))
+	time.Sleep(workloadLogBackoff + 4*workloadLogRescan) // past the old stream's resumption
+	f.add(key, t0.Add(6*time.Second), "new pod, second line")
+	lr.wait(t, line(6000, "new pod, second line"))
+
+	got := lr.all()
+	want := []string{line(100, "old pod"), line(5000, "new pod"), line(6000, "new pod, second line")}
+	if !slices.Equal(got, want) {
+		t.Errorf("lines %q, want %q", got, want)
+	}
+	reqs := f.requestsFor(key)
+	if len(reqs) != 2 || !reqs[1].SinceTime.IsZero() {
+		t.Errorf("log requests %+v: want the old pod's first and the new pod's own", reqs)
+	}
+}
+
 // TestAPodLogCreatedAgainDuringAnInterruption: a pod's tab follows its log by the pod's name; the pod
 // is created again under it while the connection is down. After the marker the log says that it no
 // longer goes on from its last line, and the new pod's lines follow.
