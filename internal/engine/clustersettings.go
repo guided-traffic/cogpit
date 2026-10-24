@@ -108,8 +108,8 @@ type ClusterSettings struct {
 	// IntegrationsOff are the integrations the user switched off for this cluster (integrations.go,
 	// D-76); nil while the user made no choice for it: the window asks, and reads nothing of them
 	// meanwhile but what its question ticks (D-82; the CLI's session: Preferences.IntegrationsOff).
-	// Only the user switches one on or makes the choice; agents and the CLI may switch one off once
-	// it is made (integrationsguionly.go, H-126).
+	// Only the user switches one, on or off, or makes the choice (integrationsguionly.go, H-126,
+	// H-133).
 	IntegrationsOff *IntegrationSet `json:"integrationsOff,omitempty"`
 	// Proxy is the HTTP(S) or SOCKS5 proxy of this cluster's API traffic, as the user typed it
 	// (proxy.go), applied at the next connect in place of the kubeconfig's proxy-url; empty: the

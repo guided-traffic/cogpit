@@ -148,14 +148,15 @@ func TestRenderDebugAgentConfirmation(t *testing.T) {
 	}
 }
 
-// TestDebugDialogIsTheConfirmation: the dialog starts from the Preferences' image and the pod's
-// first container; the user edits the image and picks the other container; Debug adds exactly that
-// to the pod the dialog showed, without a second dialog, and the Attach tab opens on it.
+// TestDebugDialogIsTheConfirmation: the dialog starts from the Preferences' image, shown by its
+// short name (R30), and the pod's first container; the user edits the image and picks the other
+// container; Debug adds exactly that to the pod the dialog showed, without a second dialog, and the
+// Attach tab opens on it.
 func TestDebugDialogIsTheConfirmation(t *testing.T) {
 	sh, w, q, s, writer, _ := debugShell(t, ThemeDark)
 	openDebug(t, sh, w, q)
 	image, target := dialogEntry(t, w), dialogSelect(t, w)
-	if image.Text != engine.DefaultDebugImage || target.Selected != "app" || !slices.Equal(target.Options, []string{"app", "envoy", debugNoTarget}) {
+	if image.Text != engine.DefaultDebugImageName || target.Selected != "app" || !slices.Equal(target.Options, []string{"app", "envoy", debugNoTarget}) {
 		t.Fatalf("starts with %q, target %q of %v", image.Text, target.Selected, target.Options)
 	}
 	if b := findButton(w, "Debug"); b == nil || b.Disabled() {
@@ -248,5 +249,44 @@ func TestPodMenusOfferDebugAndEphemeralContainers(t *testing.T) {
 		if it.Label == "Logs" && (it.ChildMenu == nil || len(it.ChildMenu.Items) != len(want)) {
 			t.Errorf("Logs' submenu %+v", it.ChildMenu)
 		}
+	}
+}
+
+// dialogDigest is the dialog's Digest row's text, "" without one.
+func dialogDigest(w fyne.Window) string {
+	for _, p := range findAll[*paragraph](w.Canvas().Overlays().Top()) {
+		if strings.HasPrefix(p.text, "sha256:") || strings.HasPrefix(p.text, "none: a floating tag") {
+			return p.text
+		}
+	}
+	return ""
+}
+
+// TestDebugDialogShortNamePinBehind (the owner's R30, 2026-10-20: the short name, the pin behind
+// it): the field shows nicolaka/netshoot:v0.16 and the Digest row the default's digest; left so,
+// Debug adds the pinned image; a changed name shows as a floating tag, and the short name typed back
+// brings the pin back.
+func TestDebugDialogShortNamePinBehind(t *testing.T) {
+	sh, w, q, _, writer, _ := debugShell(t, ThemeDark)
+	openDebug(t, sh, w, q)
+	image := dialogEntry(t, w)
+	at := strings.LastIndex(engine.DefaultDebugImage, "@")
+	if image.Text != engine.DefaultDebugImageName || dialogDigest(w) != engine.DefaultDebugImage[at+1:] {
+		t.Fatalf("field %q, digest %q", image.Text, dialogDigest(w))
+	}
+	image.SetText("nicolaka/netshoot:v0.17")
+	q.drain()
+	if d := dialogDigest(w); !strings.HasPrefix(d, "none: a floating tag") {
+		t.Errorf("a changed name's digest row %q", d)
+	}
+	image.SetText(engine.DefaultDebugImageName)
+	q.drain()
+	if d := dialogDigest(w); d != engine.DefaultDebugImage[at+1:] {
+		t.Errorf("the short name typed back: digest row %q", d)
+	}
+	test.Tap(findButton(w, "Debug"))
+	q.until(t, "the container", func() bool { added, _ := writer.calls(); return len(added) == 1 })
+	if added, _ := writer.calls(); added[0].Image != engine.DefaultDebugImage {
+		t.Errorf("added %q, want the pinned %q", added[0].Image, engine.DefaultDebugImage)
 	}
 }

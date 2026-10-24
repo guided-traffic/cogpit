@@ -836,24 +836,27 @@ nothing and reads every integration the default keeps on (H-120).
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks. Agents and the CLI: `false` only, and only once the cluster has a choice |
-| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json`. Agents and the CLI: `false` only |
+| `cluster.settings.set`'s `integrations`, e.g. `{"alertmanager": false}` | every one off until you choose # default | switches integrations on (`true`) or off (`false`) for the cluster; the result is its own choice, the ones left out as they apply now (for a cluster not chosen for: off). Kept as `integrationsOff` (the names switched off) in `cluster-settings.json`; absent: no choice yet, nothing read and the window asks. Agents and the CLI: refused, `true` and `false` alike (since 2026-10-24, H-133) |
+| `preferences.set`'s `integrationDefaults`, e.g. `{"trivy": false}` | every one on # default | what the question's Check all looks for, and what the CLI's session reads; kept as `integrationsOff` in `preferences.json`. Agents and the CLI: refused, `true` and `false` alike (since 2026-10-24, H-133) |
 | `cluster.integrations.step` `{context?, step}` | `preChoice` # default | the question's page: `preChoice`, `checkAll`, `choose`, `dontUse`; `cluster.integrations.lookFor` `{context?, integrations}` ticks the rows (`{"prometheus": true}`); both GUI-only |
-| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false` (GUI-only); `cluster.integrations.later` `{context?}` its Later; `cluster.integrations.ask` `{context?}` Ask again (both open to agents); `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
+| `cluster.integrations.answer` `{context?, integrations?, saveAsDefault?}` | | the dialog's Apply, and the warning's Yes with every one `false` (GUI-only); `cluster.integrations.later` `{context?}` its Later (open to agents); `cluster.integrations.ask` `{context?}` Ask again (GUI-only since 2026-10-24: it forgets your choice); `ui_state`'s `integrationsQuestion`, `integrationsStep` and `integrationsLookFor` show the question |
 
 A `metricsSource` an older Cogpit kept in `cluster-settings.json` is moved into the two metrics
 switches once (`prometheus`: the Metrics Server off; `metrics-server`: Prometheus off; `none`: both
-off). Security note: since 2026-10-19 only you switch an integration on and answer the question
-([H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user)),
-since switching one on lets Cogpit look for and read it with your identity. Agents (over MCP and the
-built-in one) and `cogpit-cli` are refused `cluster.integrations.step`, `.lookFor` and `.answer`
-(GUI-only), `cluster.settings.set`'s `integrations` naming one `true` and a `metricsSource` other than
-`none`, and `preferences.set`'s `integrationDefaults` naming one `true`, also where you allowed
-agents' writes. They may switch integrations off (`false`, `metricsSource` `none`, a default off) on
-a cluster you have chosen integrations for, not on one whose question is still open, and they may put
-the question off (`cluster.integrations.later`) or ask it again (`cluster.integrations.ask`); each of
-these only makes Cogpit read less. Where an integration is read from when it is not found by name
-stays yours to set ([agents and MCP](../security/agents-and-mcp.md)).
+off). Security note: only you switch an integration, on (since 2026-10-19,
+[H-126](../security/agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user))
+and off (since 2026-10-24, [H-133](../security/agents-and-mcp.md#h-133-an-agent-can-switch-an-integration-off-and-so-hide-alerts-or-policy-marks)),
+and only you answer the question: switching one on lets Cogpit look for and read it with your
+identity, and switching one off takes its alerts, image grades or policy marks out of the window
+without the window saying who did it. Agents (over MCP and the built-in one) and `cogpit-cli` are
+refused `cluster.integrations.step`, `.lookFor`, `.answer` and `.ask` (GUI-only; Ask again forgets
+your choice, which switches every integration of the cluster off until you answer), `cluster.settings.set`'s
+`integrations` (`true` or `false`) and `metricsSource` (any value, `none` included), and
+`preferences.set`'s `integrationDefaults` (`true` or `false`), also where you allowed agents' writes;
+the other fields of those commands stay theirs. They may put the question off
+(`cluster.integrations.later`): it only defers a question you have not answered, whose cluster reads
+nothing meanwhile. Where an integration is
+read from when it is not found by name stays yours to set ([agents and MCP](../security/agents-and-mcp.md)).
 `cogpit-cli` does not apply these switches ([H-120](../security/agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)).
 
 ### Deep links (`cogpit://`)
@@ -996,8 +999,15 @@ kept in `llm-connections.json` (its key apart in `llm-keys.json`, [naming](#nami
 | Send all tools | off # default | every Cogpit command the chat may run as a tool of its own with each request (179 tools, about 56,000 tokens, measured 2026-10-15), for large cloud models; off, 20 core tools and a search that finds the rest (about 7,600 tokens). The same rules either way: what the agent reads follows the private mark, every write asks as D-2 says |
 | Limits per turn | 3 identical tool calls, 25 tool calls, 300,000 tokens, 10 minutes # default | a turn that reaches one stops with a note |
 
-Test Connection checks the form's values layer by layer (TCP, HTTP and TLS, authentication, tool
-use) without saving them and without cluster data.
+Test Connection checks the form's values layer by layer (DNS, TCP, HTTP and TLS, authentication,
+tool use) without saving them and without cluster data. DNS lists the addresses the endpoint's name
+resolves to, IPv4 and IPv6, the first four and a count of the rest; it does not say which server
+answered (the system's resolver does not tell). An IP address or `localhost` passes at once
+("nothing to resolve"). TCP then dials those addresses in that order, 5 s for all of them, and names
+the one that answered and any refused before it. With a proxy set for the endpoint in the
+environment (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`; never for localhost), DNS and TCP check the
+proxy, which resolves the endpoint's name itself; the proxy's user and password are never shown
+([D-10](decisions.md#d-10-built-in-agent) item 8).
 
 In the chat column, the pencil at the end of the line under each of your messages opens it for
 editing (since 2026-10-15, F9): Enter or Send sends it again, and that message and everything after
@@ -1405,9 +1415,12 @@ does ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in
 - **The dialog** names the context, the namespace and the pod, and asks two things: **Target**, the
   container whose processes the debug container sees (the pod's first preselected; None for no
   shared processes), and **Image**, an ordinary field you can edit, select, copy and paste into,
-  filled with the image Preferences › Kubernetes › Debug container image names. Under them it
-  says what the container sees of the target ("app's processes and files") and the image's digest,
-  or that the image is a floating tag. The dialog is the confirmation: **Debug** adds the container,
+  filled with the image Preferences › Kubernetes › Debug container image names, shown by its short
+  name (`nicolaka/netshoot:v0.16`: no `docker.io/`, no digest). Under them it says what the
+  container sees of the target ("app's processes and files") and the image's digest, or that the
+  image is a floating tag. While the field shows the configured image's short name, that image runs
+  as configured, pinned by the digest the Digest row shows; a name you change runs exactly as typed,
+  and without `@sha256:…` it is a floating tag (since 2026-10-24, the owner's R30). The dialog is the confirmation: **Debug** adds the container,
   and "This cannot be undone." means what it says (below). If the pod was replaced by another of
   its name while the dialog was open, nothing is added.
 - **What is added:** a container `debugger-<5 characters>` from that image with stdin and a
@@ -1444,6 +1457,15 @@ does ([D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in
 | Field | Default | Meaning |
 |---|---|---|
 | `debugImage` | `""` # default: `docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70` | the image Debug offers; best pinned by digest (`repository:tag@sha256:…`); a floating tag works and is named as one |
+
+The field shows an image by its short name, the digest behind it: the default's,
+`nicolaka/netshoot:v0.16`, as its placeholder, a set image without `docker.io/` and its digest. While
+the text is that name the setting keeps the image as it is, digest included; the default's name typed,
+or an empty field, sets the default (which follows Cogpit's releases); a changed name is kept exactly
+as typed. The line under the field says whether the image in effect is pinned or a floating tag.
+Cluster Settings › Node Shell › Image does the same with the node shell's image, `alpine:3.24` the
+default's name ([D-37](decisions.md#d-37-the-node-shell)); the confirmations of a node shell and of an
+agent's Debug name the whole reference and its digest.
 
 Security note: a debug container with a target reads that container's processes and, through
 them, its files, the Secrets it mounts included, as root with netshoot

@@ -144,8 +144,7 @@ type Preferences struct {
 	// what the window's question looks for at once when the user checks the integrations (Check
 	// all, D-82), and what applies to a cluster without a choice in a session that does not ask
 	// (the CLI's) and on the demo cluster. None, the default: every integration is on (the owner,
-	// 2026-10-17). Agents and the CLI may only add to it, switching a default off
-	// (ErrIntegrationsGUIOnly, H-126).
+	// 2026-10-17). Only the user changes it, in the window (ErrIntegrationsGUIOnly, H-126, H-133).
 	IntegrationsOff IntegrationSet `json:"integrationsOff,omitempty"`
 	// DebugImage is the image Debug (pod.debug, debugcontainer.go, D-102) offers for a pod's
 	// ephemeral container; empty: DefaultDebugImage, nicolaka/netshoot pinned by digest. App-wide,

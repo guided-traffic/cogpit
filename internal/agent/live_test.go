@@ -80,8 +80,8 @@ func TestLiveEndpoint(t *testing.T) {
 		t.Fatal("the connection test did not pass")
 	}
 	// Plain http to another machine (the owner's LM Studio on his network) is warned about (H-95).
-	if warned := steps[1].Warning == engine.ChatPlainHTTPWarning; warned != engine.ChatPlainHTTPRemote(base) {
-		t.Errorf("the HTTP layer's warning %q for %s", steps[1].Warning, base)
+	if warned := steps[2].Warning == engine.ChatPlainHTTPWarning; warned != engine.ChatPlainHTTPRemote(base) {
+		t.Errorf("the HTTP layer's warning %q for %s", steps[2].Warning, base)
 	}
 
 	// A namespace of the demo cluster to ask about, and its pod count as the cache holds it.

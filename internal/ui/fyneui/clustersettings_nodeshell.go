@@ -14,8 +14,10 @@ import (
 
 // A cluster's Settings › Node Shell (G13, D-37; engine/nodeshell.go), as Lens's page holds it (its
 // capture: the image, Lens's default shown as the field's placeholder, and an optional image pull
-// secret in kube-system): the image of the privileged pod a node shell runs, with Cogpit's default,
-// pinned by digest, as the placeholder, and the image pull secret. A line under the image says
+// secret in kube-system): the image of the privileged pod a node shell runs, by its short name with
+// the pin behind it (the owner's R30, 2026-10-20, as Preferences' debug image and the debug dialog
+// show one; imageSetting): Cogpit's default, alpine pinned by digest, as the placeholder, and the
+// image pull secret. A line under the image says
 // whether it is pinned by digest or a floating tag, as the node shell's confirmation does. Cogpit's
 // own (owner, 2026-10-14): Maximum duration, how long the pod lives at most (its
 // activeDeadlineSeconds; engine/nodeshell_duration.go), with a line under it saying it in words.
@@ -37,7 +39,7 @@ func init() { clusterSectionLabels[engine.SectionNodeShell] = nodeShellSectionLa
 
 // nodeShellImageHelp is the image's help line, naming Cogpit's default as the engine pins it.
 var nodeShellImageHelp = "The image of the privileged pod a node shell runs in kube-system; empty: Cogpit's default, " +
-	engine.DefaultNodeShellImageName + " pinned by digest."
+	engine.DefaultNodeShellImageName + " pinned by digest. An image shows by its name, its digest kept behind it until you change the name."
 
 // nodeShellMaxDurationHelp is the maximum duration's help line, with Cogpit's bounds and default.
 var nodeShellMaxDurationHelp = "How long a node shell's pod lives at most, even if Cogpit quits: " +
@@ -56,9 +58,12 @@ func nodeShellMaxDurationNote(set string) string {
 // clusterNodeShellSection builds a cluster's Settings › Node Shell.
 func (p *settingsPage) clusterNodeShellSection() fyne.CanvasObject {
 	image := widget.NewEntry()
-	image.SetPlaceHolder(engine.DefaultNodeShellImage)
+	image.SetPlaceHolder(engine.DefaultNodeShellImageName)
 	image.OnChanged = func(string) {
-		p.typed(nodeShellImageSetting, func() { p.setNodeShell("image", nodeShellImageSetting, strings.TrimSpace(image.Text)) })
+		p.typed(nodeShellImageSetting, func() {
+			value := imageSetting(image.Text, p.clusterView().NodeShellImage, engine.DefaultNodeShellImage)
+			p.setNodeShell("image", nodeShellImageSetting, value)
+		})
 	}
 	secret := widget.NewEntry()
 	secret.SetPlaceHolder("none")
@@ -82,14 +87,11 @@ func (p *settingsPage) clusterNodeShellSection() fyne.CanvasObject {
 	p.controls["nodeShellMaxDurationNote"] = durationNote
 	p.sync = func() {
 		v := p.clusterView()
-		p.setEntry(image, image, nodeShellImageSetting, v.NodeShellImage)
+		p.setEntry(image, image, nodeShellImageSetting, engine.ShortImage(v.NodeShellImage))
 		p.setEntry(secret, secret, nodeShellPullSecretSetting, v.NodeShellPullSecret)
 		p.setEntry(maxDuration, maxDuration, nodeShellMaxDurationSetting, v.NodeShellMaxDuration)
 		durationNote.SetText(nodeShellMaxDurationNote(v.NodeShellMaxDuration))
-		shown := strings.TrimSpace(image.Text)
-		if shown == "" {
-			shown = engine.DefaultNodeShellImage
-		}
+		shown := engine.ImageFromField(image.Text, v.NodeShellImage, engine.DefaultNodeShellImage)
 		switch {
 		case engine.IsDemoContext(p.shown.Context):
 			image.Disable()

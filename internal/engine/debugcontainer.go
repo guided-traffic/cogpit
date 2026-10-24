@@ -50,16 +50,38 @@ const (
 	containerStartTimeout = nodeShellStartTimeout
 )
 
-// DefaultDebugImageName is DefaultDebugImage as the texts name it: nicolaka/netshoot:v0.16.
-var DefaultDebugImageName = shortImage(DefaultDebugImage)
+// DefaultDebugImageName is DefaultDebugImage as the texts and the fields name it:
+// nicolaka/netshoot:v0.16.
+var DefaultDebugImageName = ShortImage(DefaultDebugImage)
 
-// shortImage is an image reference without its digest and Docker Hub's registry and library path.
-func shortImage(image string) string {
+// ShortImage is an image reference as Cogpit's image fields show it (the owner's R30, 2026-10-20:
+// the short name, the pin behind it): without its digest and Docker Hub's registry and library path
+// (docker.io/library/alpine:3.24@sha256:… is alpine:3.24); another registry stays.
+func ShortImage(image string) string {
 	if at := strings.LastIndex(image, "@"); at >= 0 {
 		image = image[:at]
 	}
 	image = strings.TrimPrefix(image, "docker.io/")
 	return strings.TrimPrefix(image, "library/")
+}
+
+// ImageFromField is the image an image field's text stands for (the owner's R30, 2026-10-20: the
+// debug dialog, Preferences › debug image and Cluster Settings › Node Shell): the configured image
+// (def when configured is empty) while the text is its short name, so its digest stays behind the
+// name; def while the text is def's short name or empty; anything else exactly as typed, a tag
+// without a digest a floating one. The text is trimmed.
+func ImageFromField(text, configured, def string) string {
+	text = strings.TrimSpace(text)
+	if configured == "" {
+		configured = def
+	}
+	switch {
+	case text != "" && text == ShortImage(configured):
+		return configured
+	case text == "" || text == ShortImage(def):
+		return def
+	}
+	return text
 }
 
 // ErrDebugImageGUIOnly refuses an agent or the CLI setting the debug container's image: it decides

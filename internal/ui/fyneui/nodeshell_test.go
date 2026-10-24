@@ -188,9 +188,10 @@ func nodeShellField(sh *shell, setting string) *widget.Entry {
 	return nil
 }
 
-// TestClusterSettingsNodeShellSection: the image field shows Cogpit's default as its placeholder
-// and says it is pinned; an image typed is kept, and a tag says it floats; a pull secret typed is
-// kept; what cannot be an image is refused under the field.
+// TestClusterSettingsNodeShellSection: the image field shows Cogpit's default by its short name as
+// its placeholder (R30) and says it is pinned; an image typed is kept, and a tag says it floats; a
+// pull secret typed is kept; what cannot be an image is refused under the field; the default's short
+// name typed sets the default, pinned.
 func TestClusterSettingsNodeShellSection(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{})
@@ -199,7 +200,7 @@ func TestClusterSettingsNodeShellSection(t *testing.T) {
 		return sh.settings.visible() && nodeShellField(sh, nodeShellImageSetting) != nil && sh.settings.view != nil
 	})
 	image, note := nodeShellField(sh, nodeShellImageSetting), sh.settings.controls["nodeShellNote"].(*textLine)
-	if image.PlaceHolder != engine.DefaultNodeShellImage || note.text != nodeShellNotePinned {
+	if image.PlaceHolder != engine.DefaultNodeShellImageName || note.text != nodeShellNotePinned {
 		t.Errorf("placeholder %q, note %q", image.PlaceHolder, note.text)
 	}
 
@@ -226,6 +227,14 @@ func TestClusterSettingsNodeShellSection(t *testing.T) {
 	if text := sh.settings.errs[nodeShellImageSetting].text; !strings.Contains(text, "without spaces") {
 		t.Errorf("refusal %q", text)
 	}
+
+	image.SetText(engine.DefaultNodeShellImageName)
+	q.until(t, "the default", func() bool {
+		cs, _ := s.ClusterSettingsOf("kind-dev")
+		return cs.NodeShellImage == "" && !sh.settings.errs[nodeShellImageSetting].Visible()
+	})
+	w.Canvas().Unfocus()
+	q.until(t, "the pinned note", func() bool { return note.text == nodeShellNotePinned })
 }
 
 // TestClusterSettingsNodeShellMaxDuration: Maximum duration (owner, 2026-10-14, D-37) shows the

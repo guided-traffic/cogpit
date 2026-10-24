@@ -66,7 +66,7 @@ func chatKindLabel(k engine.ChatConnectionKind) string {
 
 // chatTestLabels name the connection test's layers.
 var chatTestLabels = map[engine.ChatTestLayer]string{
-	engine.ChatTestTCP: "TCP", engine.ChatTestHTTP: "HTTP and TLS", engine.ChatTestAuth: "Authentication", engine.ChatTestTools: "Tool use",
+	engine.ChatTestDNS: "DNS", engine.ChatTestTCP: "TCP", engine.ChatTestHTTP: "HTTP and TLS", engine.ChatTestAuth: "Authentication", engine.ChatTestTools: "Tool use",
 }
 
 // Texts of the page.
