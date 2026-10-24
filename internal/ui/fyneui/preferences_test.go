@@ -283,7 +283,7 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 	q.until(t, "the cluster's page", func() bool {
 		return sh.settings.visible() && sh.settings.view != nil && sh.settings.view.Context == "kind-dev"
 	})
-	if sh.settings.title.text != "Settings - kind-dev" || !sh.settings.badge.Visible() {
+	if sh.settings.title.text != "Cluster Settings: kind-dev" || !sh.settings.badge.Visible() {
 		t.Errorf("title %q", sh.settings.title.text)
 	}
 
@@ -293,7 +293,7 @@ func TestClusterSettingsFromTheSectionSetIdentityAndTerminal(t *testing.T) {
 	}
 	test.Type(name, "Dev cluster")
 	q.until(t, "the tile's name", func() bool { return tileRenderer(tileFor(sh, "kind-dev")).id.name == "Dev cluster" })
-	if sh.settings.title.text != "Settings - Dev cluster" {
+	if sh.settings.title.text != "Cluster Settings: Dev cluster" {
 		t.Errorf("title %q", sh.settings.title.text)
 	}
 
@@ -404,7 +404,7 @@ func TestClusterSettingsShortcutAndMenus(t *testing.T) {
 	}
 	item.Action()
 	q.until(t, "the page", sh.settings.visible)
-	if o := openedSoFar(); len(o) != 1 || o[0].Context != "" || sh.settings.title.text != "Settings - demo" {
+	if o := openedSoFar(); len(o) != 1 || o[0].Context != "" || sh.settings.title.text != "Cluster Settings: demo" {
 		t.Errorf("opened %+v, title %q", o, sh.settings.title.text)
 	}
 

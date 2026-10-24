@@ -114,6 +114,50 @@ func (l *clusterLinks) refresh() {
 	}()
 }
 
+// copyPathLabel is a cluster's menu item that copies the path of the kubeconfig file the context
+// comes from (the owner's VW13 of 2026-10-24: "den Pfad zur kube-config in den Zwischenspeicher
+// kopieren", in every menu of a cluster, connected or not). Cogpit's own: Lens's cluster menu is not
+// captured.
+const copyPathLabel = "Copy Kubeconfig Path"
+
+// contextInfo is a context as the window last read the contexts: the navigator's list, else the
+// welcome page's (both cluster.contexts, read off the main goroutine and again on EventContexts).
+func (sh *shell) contextInfo(contextID string) (engine.ContextInfo, bool) {
+	if sh.side != nil && sh.side.sec != nil {
+		if c, ok := sh.side.sec.context(contextID); ok {
+			return c, true
+		}
+	}
+	if sh.tabs != nil && sh.tabs.welcome != nil {
+		for _, c := range sh.tabs.welcome.contexts {
+			if c.Name == contextID {
+				return c, true
+			}
+		}
+	}
+	return engine.ContextInfo{}, false
+}
+
+// copyPathItem is a cluster's "Copy Kubeconfig Path" in its menus (the hotbar's tile, the
+// navigator's root and rows, the welcome page's rows): the path of the file the context comes from
+// (ContextInfo.File) on the clipboard and a toast naming it, a path being no secret. A GUI behaviour,
+// no command (copying never is one, D-25, TestCopyHasNoCommand); an agent reads the path in
+// cluster_contexts' file and cluster_settings_get's kubeconfig. Nil where the context comes from no
+// file of its own: the demo cluster, the contexts kubectl's way merges from the default files
+// (without a configuration directory there are no kubeconfig sources), and a context the window does
+// not know (a hotbar tile whose context went, the list not read yet).
+func (sh *shell) copyPathItem(contextID string) *fyne.MenuItem {
+	c, ok := sh.contextInfo(contextID)
+	if !ok || c.File == "" {
+		return nil
+	}
+	path := c.File
+	return fyne.NewMenuItem(copyPathLabel, func() {
+		sh.copyText(path, false)
+		sh.copyToast("info", "Copied the kubeconfig path "+kubeconfig.DisplayText(path, maxShownPath))
+	})
+}
+
 // cancelConnectingLabel is cluster.disconnect's item while the cluster connects (D-73): it ends the
 // connect and the login it waits for. Lens's item while connecting is not captured (inferred).
 const cancelConnectingLabel = "Cancel Connecting"

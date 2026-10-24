@@ -44,6 +44,12 @@ const (
 	haloR = 48.0
 )
 
+// CornerRatio is the plate's corner radius over its side (22 on 96, about 23 %): a macOS app icon's
+// rounding, which Cogpit's own icon has. The window rounds a cluster's icon by it at every size, an
+// image and a colour tile alike (the owner's VW10 of 2026-10-24: "wie bei MacOS üblich, so wie unser
+// cogpit-icon").
+const CornerRatio = plateRadius / plateSide
+
 // Look is a C helm in the icon lab's terms (D-24): each field is the lab's setting of the same name
 // (in its JSON, docs/developer/assets/logo/*.json), in the lab's units: box units for weights and
 // radii, 0…1 for strengths and opacities.

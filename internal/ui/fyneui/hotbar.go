@@ -259,8 +259,8 @@ func (h *hotbar) showMenu(m *fyne.Menu, pos fyne.Position) {
 	pm.ShowAtPosition(pos)
 }
 
-// tileMenu is a tile's menu: Connect, Settings, Move Up, Move Down, Remove from Hotbar (Cogpit's,
-// inferred).
+// tileMenu is a tile's menu: Connect, Settings, Copy Kubeconfig Path, Move Up, Move Down, Remove
+// from Hotbar (Cogpit's, inferred).
 func (h *hotbar) tileMenu(slot int, pos fyne.Position) {
 	if h.view == nil || slot < 1 || slot > len(h.view.Clusters) {
 		return
@@ -283,6 +283,9 @@ func (h *hotbar) tileMenu(slot int, pos fyne.Position) {
 	items := []*fyne.MenuItem{connect}
 	if settings := h.sh.settingsItem(t.Context); settings != nil { // the cluster's Settings page
 		items = append(items, settings)
+	}
+	if path := h.sh.copyPathItem(t.Context); path != nil { // Copy Kubeconfig Path (menus_cluster.go)
+		items = append(items, path)
 	}
 	items = append(items, h.sh.clusterItems(t.Context)...) // Disconnect, Remove from Cogpit (menus_cluster.go)
 	items = append(items, fyne.NewMenuItemSeparator(), up, down, fyne.NewMenuItemSeparator(), remove)
@@ -546,7 +549,9 @@ func (r *hotbarTileRenderer) Refresh() {
 	}
 	r.initials.Text = r.id.initials
 	accent := themeColor(th, r.id.ink) // the cluster's icon colour, the accent by default
-	r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius) * t.zoom()
+	side, _, _ := r.sizes()
+	r.bg.CornerRadius = iconCorner(side) // macOS's rounding (VW10); the plate and the glow follow it
+	r.img.CornerRadius = iconCorner(side - 4)
 	r.bg.StrokeWidth = 0
 	r.initials.TextSize = fitTextSize(r.id.initials, th.Size(theme.SizeNameSubHeadingText)*t.zoom(), (th.Size(sizeHotbarTile)-4)*t.zoom()) // up to five letters (D-119)
 	r.label.TextSize = th.Size(theme.SizeNameCaptionText) * t.zoom()
@@ -757,7 +762,7 @@ func (r *hotbarButtonRenderer) Refresh() {
 	r.bg.FillColor = color.Transparent
 	r.bg.StrokeWidth = 0
 	if b.square {
-		r.bg.CornerRadius = th.Size(theme.SizeNameInputRadius)
+		r.bg.CornerRadius = iconCorner(th.Size(sizeHotbarTile)) // as the tiles above it (VW10)
 		r.bg.StrokeColor, r.bg.StrokeWidth = themeColor(th, colorHairline), th.Size(theme.SizeNameInputBorder)
 	}
 	if b.hovered && !b.disabled {

@@ -516,8 +516,8 @@ func (w *welcomePage) dispatchConnect(name string) {
 	})
 }
 
-// menu is a cluster row's right-click menu: Connect, Settings, the hotbar's item, Disconnect and
-// Remove from Cogpit, as the navigator's section rows have them.
+// menu is a cluster row's right-click menu: Connect, Settings, the hotbar's item, Copy Kubeconfig
+// Path, Disconnect and Remove from Cogpit, as the navigator's section rows have them.
 func (w *welcomePage) menu(name string, pos fyne.Position) {
 	sh := w.sh
 	items := []*fyne.MenuItem{fyne.NewMenuItem(connectItemLabel(sh.ui, name), func() { w.connect(name) })}
@@ -525,6 +525,9 @@ func (w *welcomePage) menu(name string, pos fyne.Position) {
 		items = append(items, item)
 	}
 	if item := sh.hot.contextItem(name); item != nil {
+		items = append(items, item)
+	}
+	if item := sh.copyPathItem(name); item != nil { // Copy Kubeconfig Path (menus_cluster.go)
 		items = append(items, item)
 	}
 	items = append(items, sh.clusterItems(name)...)

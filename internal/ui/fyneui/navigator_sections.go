@@ -706,16 +706,17 @@ func (n *navSections) FocusLost() {
 func (n *navSections) keyboardOn(id string) bool { return n.focused && n.keys && n.focus == id }
 
 // rowMenu is a cluster's menu (right-click on its row): Connect while it is not the active one
-// (Show for a connected one, D-69), Settings…, the hotbar's item, Disconnect, Remove from Cogpit,
-// as its menus elsewhere have them, and after a failed connect Show Connection Updates…, its log
-// (G2).
+// (Show for a connected one, D-69), Settings…, the hotbar's item, Copy Kubeconfig Path (VW13),
+// Disconnect, Remove from Cogpit, as its menus elsewhere have them, and after a failed connect Show
+// Connection Updates…, its log (G2).
 func (n *navSections) rowMenu(id string, pos fyne.Position) {
 	sh := n.s.sh
 	var items []*fyne.MenuItem
 	if !n.marked(id) {
 		items = append(items, fyne.NewMenuItem(connectItemLabel(sh.ui, id), func() { n.drill(id) }))
 	}
-	for _, item := range append([]*fyne.MenuItem{sh.settingsItem(id), sh.hot.contextItem(id)}, sh.clusterItems(id)...) {
+	for _, item := range append([]*fyne.MenuItem{sh.settingsItem(id), sh.hot.contextItem(id), sh.copyPathItem(id)},
+		sh.clusterItems(id)...) {
 		if item != nil {
 			items = append(items, item)
 		}

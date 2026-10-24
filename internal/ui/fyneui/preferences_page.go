@@ -19,7 +19,8 @@ import (
 
 // The settings pages (G13): Preferences (⌘,) and a cluster's Settings (⌘⇧,). Lens shows both as
 // pages (its cluster settings as a tab "Settings - <context>" with the cluster's icon and a page
-// list on the left, captured 2026-10-11; its Preferences as a page, inferred). Cogpit shows them as
+// list on the left, captured 2026-10-11; its Preferences as a page, inferred); Cogpit's title reads
+// "Cluster Settings: <name>" (the owner's VW11). Cogpit shows them as
 // a card over the whole window, Cogpit dimmed behind it and nothing behind it reachable until the
 // card is closed by its ×, Escape or a click on the shade (the owner's VW6 of 2026-10-23, D-118;
 // settingsoverlay.go): its header across the card holds the cluster's icon and the title at the
@@ -33,6 +34,36 @@ import (
 
 // settingsTyping is the typing pause after which a text field's value is set.
 const settingsTyping = 600 * time.Millisecond
+
+// clusterSettingsTitle begins the card's title on a cluster's settings, the cluster's name after it.
+const clusterSettingsTitle = "Cluster Settings: "
+
+// settingsHeaderRoom is the room around the card's header, in points: the cluster's icon 5 points
+// from the card's top and left edge, the × as far from its right (the owner's VW12 of 2026-10-24,
+// "5px Abstand nach oben und links"). With the icon's rounding (iconCorner, 8.7 points at 38) the
+// icon's corner then follows the card's (14 points) at 5 points all round; before, 4 points above
+// and 6 at the left, a square image's corner came within about a point of the card's rounded edge.
+const settingsHeaderRoom = 5
+
+// roomLayout pads its objects by fixed points, h at the sides and v above and below.
+type roomLayout struct{ h, v float32 }
+
+func (l roomLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var ms fyne.Size
+	for _, o := range objs {
+		if o.Visible() {
+			ms = ms.Max(o.MinSize())
+		}
+	}
+	return ms.AddWidthHeight(2*l.h, 2*l.v)
+}
+
+func (l roomLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objs {
+		o.Move(fyne.NewPos(l.h, l.v))
+		o.Resize(size.SubtractWidthHeight(2*l.h, 2*l.v))
+	}
+}
 
 // settingsPage is the open settings page.
 type settingsPage struct {
@@ -97,7 +128,7 @@ func newSettingsPage(sh *shell) *settingsPage {
 	// It is as high without the icon (Preferences) as with it, so that the card's body does not move
 	// between the two pages.
 	tile := sh.app.Settings().Theme().Size(sizeHotbarTile)
-	header := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(nil, nil,
+	header := box(roomLayout{h: settingsHeaderRoom, v: settingsHeaderRoom}, container.NewBorder(nil, nil,
 		container.NewStack(fixedHeight(tile), p.lead), container.NewCenter(p.closeB),
 		container.NewVBox(layout.NewSpacer(), p.title, layout.NewSpacer())))
 	// The section list on the sidebar's colour, its foot in the card's rounded corner.
@@ -229,8 +260,9 @@ func (p *settingsPage) openSection(section string) {
 	p.sh.dispatch("preferences.open", preferencesOpenParams{Section: section}, nil)
 }
 
-// identityChanged shows the title: "Preferences", or "Settings - <name>" with the cluster's icon,
-// as Lens's tab is titled (captured).
+// identityChanged shows the title: "Preferences", or "Cluster Settings: <name>" with the cluster's
+// icon (the owner's VW11 of 2026-10-24; before, "Settings - <name>", as Lens's tab is titled,
+// captured).
 func (p *settingsPage) identityChanged() {
 	if !p.visible() {
 		return
@@ -242,7 +274,7 @@ func (p *settingsPage) identityChanged() {
 		return
 	}
 	id := p.sh.identity(p.shown.Context)
-	p.title.SetText("Settings - " + id.name)
+	p.title.SetText(clusterSettingsTitle + id.name)
 	p.badge.setIdentity(id)
 	p.badge.Show()
 	p.lead.Show()
