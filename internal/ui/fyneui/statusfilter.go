@@ -48,9 +48,10 @@ type stateCheck struct {
 
 func newStatusFilter(tv *tableView) *statusFilter {
 	f := &statusFilter{tv: tv}
-	f.button = newPlateButton(allStates, theme.MenuDropDownIcon(), f.open)
+	f.button = newPlateButton(allStates, chevronDownIcon(), f.open) // the find bar's chevron, at the right edge (VW4)
 	f.button.IconPlacement = widget.ButtonIconTrailingText
 	f.button.Alignment = widget.ButtonAlignLeading
+	f.button.iconEnd = true
 	f.clear = newPlateButton("", theme.ContentClearIcon(), f.clearAll)
 	f.clear.Importance = widget.LowImportance
 	f.clear.Hide()

@@ -43,7 +43,7 @@ type createTab struct {
 
 func newCreateTab(sh *shell, t engine.DockTab) *createTab {
 	c := &createTab{sh: sh, tab: t, pane: newEditorPane(sh, t.ID)}
-	c.picker = newPlateButton("Select Template …", theme.MenuDropDownIcon(), c.showTemplates)
+	c.picker = newPlateButton("Select Template …", chevronDownIcon(), c.showTemplates) // a list's caret: the chevron (VW4)
 	c.picker.IconPlacement = widget.ButtonIconTrailingText
 	c.status = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	c.status.truncate = true

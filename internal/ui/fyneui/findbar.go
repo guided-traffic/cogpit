@@ -171,9 +171,11 @@ func newFindBar(sh *shell, view *yamlview.View) *findBar {
 		b.toggles[i] = t
 		toggles[i] = t
 	}
+	oneWidth(b.toggles[:]...) // Aa, ab and .* one width (the owner's VW3 of 2026-10-23)
 	b.count = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	b.prev = newTipButton(sh, theme.MoveUpIcon(), "Previous match", func() { b.step(-1) })
-	b.next = newTipButton(sh, theme.MoveDownIcon(), "Next match", func() { b.step(1) })
+	// One icon family (the owner's VW2 of 2026-10-23): Cogpit's chevrons, up and down.
+	b.prev = newTipButton(sh, chevronUpIcon(), "Previous match", func() { b.step(-1) })
+	b.next = newTipButton(sh, chevronDownIcon(), "Next match", func() { b.step(1) })
 	closeBtn := newTipButton(sh, theme.CancelIcon(), "Close", b.close)
 	b.replaceBtn = newPlateButton("Replace", nil, b.replaceOne)
 	b.replaceAllBtn = newPlateButton("Replace all", nil, b.replaceEvery)

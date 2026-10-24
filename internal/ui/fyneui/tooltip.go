@@ -205,6 +205,20 @@ func newBareTipButton(sh *shell, icon fyne.Resource, tip string, tapped func()) 
 	return b
 }
 
+// oneWidth makes buttons that stand side by side as switches one width, the widest one's: the find
+// bar's Aa, ab and .*, the list search's Aa and .* (the owner's VW3 of 2026-10-23: "Die Button …
+// sind nicht gleich breit"). Each keeps its word centred.
+func oneWidth(bs ...*tipButton) {
+	var w float32
+	for _, b := range bs {
+		b.width = 0
+		w = max(w, b.MinSize().Width)
+	}
+	for _, b := range bs {
+		b.width = w
+	}
+}
+
 // setTip changes the tooltip's text; a tooltip shown or pending for the button takes the new one.
 func (b *tipButton) setTip(text string) {
 	if b.tip == text {

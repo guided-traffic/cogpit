@@ -107,8 +107,9 @@ type secData struct {
 	added     []string           // the keys added, in the order added
 	addedRows map[string]*secRow // their editors
 
-	pins map[string]*keyPin    // the copy icons of the keys whose values are in no editor, by key
-	b64s map[string]*b64Button // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
+	pins    map[string]*keyPin     // the copy icons of the keys whose values are in no editor, by key
+	b64s    map[string]*b64Button  // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
+	toggles map[string]*textButton // the Show and Hide toggles of the keys the Secret holds, by key (an added key's is its row's)
 }
 
 // keyPin is the copy icon in the line of a key whose value is in no editor, kept across the
@@ -128,6 +129,7 @@ type secRow struct {
 	copyBtn  *copyButton // the copy icon in the key's line, made with the first line that shows it
 	copyDone *time.Timer // its checkmark's timer
 	b64      *b64Button  // an added key's b64 button (a key the Secret holds has its own in secData.b64s)
+	toggle   *textButton // an added key's Show and Hide (a key the Secret holds has its own in secData.toggles)
 }
 
 // secretDataSection renders a Secret's Data: the section kept for the shown Secret, rebuilt with
@@ -144,7 +146,8 @@ func secretDataSection(d *drawer, ref model.ObjectRef, sec model.DetailSection) 
 
 func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd := &secData{d: d, ref: ref, rows: map[string]*secRow{}, width: d.contentWidth(), listed: map[string]bool{},
-		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}, b64s: map[string]*b64Button{}}
+		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}, b64s: map[string]*b64Button{},
+		toggles: map[string]*textButton{}}
 	sd.list = box(keyedLayout{})
 	sd.save = newPlateButton("Save", theme.DocumentSaveIcon(), sd.openReview)
 	sd.save.Importance = widget.HighImportance
@@ -246,9 +249,10 @@ func (sd *secData) render(sec model.DetailSection) {
 			delete(sd.pins, k)
 		}
 	}
-	for k := range sd.b64s { // and its b64 button, unless its edited value still shows
+	for k := range sd.b64s { // and its b64 button and toggle, unless its edited value still shows
 		if !listed[k] && sd.rows[k] == nil {
 			delete(sd.b64s, k)
+			delete(sd.toggles, k)
 		}
 	}
 	for _, k := range slices.Sorted(maps.Keys(sd.rows)) { // an edited key the cluster dropped: the review shows the conflict
@@ -307,9 +311,31 @@ func (sd *secData) keyLine(r *secRow) fyne.CanvasObject {
 // toggle is Hide for a value in an editor, Show for one Hide masked.
 func (sd *secData) toggle(r *secRow) *textButton {
 	if r.masked {
-		return revealButton("Show", func() { sd.unmask(r.key) })
+		return sd.toggleOf(r.key, r, showLabel, func() { sd.unmask(r.key) })
 	}
-	return revealButton(hideLabel, func() { sd.hide(r.key) })
+	return sd.toggleOf(r.key, r, hideLabel, func() { sd.hide(r.key) })
+}
+
+// toggleOf is key's Show or Hide, one widget for both kept across rebuilds (VW1: the pointer resting
+// on Show after a click keeps its hover on the Hide it turns into), as label with tapped: an added
+// key's in its row (added), a key the Secret holds in toggles.
+func (sd *secData) toggleOf(key string, added *secRow, label string, tapped func()) *textButton {
+	var b *textButton
+	switch {
+	case added != nil && added.added:
+		if added.toggle == nil {
+			added.toggle = revealButton(label, nil)
+		}
+		b = added.toggle
+	default:
+		if sd.toggles[key] == nil {
+			sd.toggles[key] = revealButton(label, nil)
+		}
+		b = sd.toggles[key]
+	}
+	setRevealLook(b, label)
+	b.OnTapped = tapped
+	return b
 }
 
 // buttonsLine is a key's name with its buttons at the end: Show or Hide, the copy icon, the b64
@@ -329,7 +355,7 @@ func (sd *secData) revealLines(it model.DetailItem) []fyne.CanvasObject {
 	d := sd.d
 	a, _ := revealAction(it)
 	shown, revealed := d.revealedItem(it)
-	toggle := revealButton(d.actionLabel(a), func() { d.sh.runItemAction(sd.ref, a) })
+	toggle := sd.toggleOf(it.Name, nil, d.actionLabel(a), func() { d.sh.runItemAction(sd.ref, a) })
 	if !revealed {
 		l := newTextLine(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
 		l.truncate = true

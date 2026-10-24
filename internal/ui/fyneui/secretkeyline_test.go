@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
@@ -357,5 +359,87 @@ func TestButtonOutlineAndRoom(t *testing.T) {
 	icon := newTipButton(sh, theme.DeleteIcon(), "Remove", nil)
 	if got, want := icon.MinSize(), widget.NewButtonWithIcon("", theme.DeleteIcon(), nil).MinSize(); got != want {
 		t.Errorf("an icon button is %v, want Fyne's %v", got, want)
+	}
+}
+
+// keyToggle is the Show or Hide on key's name line.
+func keyToggle(t *testing.T, d *drawer, key string) *textButton {
+	t.Helper()
+	line := keyLineOf(d, key)
+	if line == nil {
+		t.Fatalf("no name line for %s", key)
+	}
+	for _, b := range findAll[*textButton](line.Objects[1]) {
+		if b.Text == showLabel || b.Text == hideLabel {
+			return b
+		}
+	}
+	t.Fatalf("no Show or Hide on %s's line", key)
+	return nil
+}
+
+// buttonPlate is the colour of Fyne's background plate under a text button: transparent while the
+// pointer is off it (a LowImportance button), the hover's blend while it is on it.
+func buttonPlate(b *textButton) color.Color {
+	return test.WidgetRenderer(b).(*textButtonRenderer).WidgetRenderer.Objects()[0].(*canvas.Rectangle).FillColor
+}
+
+// TestSecretShowTurnsIntoHideUnderThePointer (the owner's VW1 of 2026-10-23: "wenn man auf Show
+// klickt, ist man ja dann direkt auf dem Hide-Button, dieser ist dann aber erstmal so als ob man
+// nicht darüber ist … Er soll natürlich direkt schon im richtigen Zustand sein."): Show and Hide
+// are one widget that changes its word, eye and tone, so that the pointer resting on Show after a
+// click is on a Hide that shows its hover at once, without a move (Fyne sends MouseIn only on a
+// move); the same from Hide back to Show, in a Secret the user may save and in a read-only one,
+// and for the MCP details' token.
+func TestSecretShowTurnsIntoHideUnderThePointer(t *testing.T) {
+	sh, w, q, _, _ := secShell(t, ThemeDark)
+	d, sd := sh.drawer, secDataOf(sh)
+	settle(w)
+	show := keyToggle(t, d, "DB_PASSWORD")
+	if buttonPlate(show) != color.Transparent {
+		t.Fatalf("Show has a plate before the pointer is on it: %v", buttonPlate(show))
+	}
+	show.MouseIn(&desktop.MouseEvent{})
+	hovered := buttonPlate(show)
+	if hovered == color.Transparent {
+		t.Fatal("Show shows no hover under the pointer")
+	}
+	test.Tap(show)
+	q.until(t, "the editor", func() bool { return sd.rows["DB_PASSWORD"] != nil && keyToggle(t, d, "DB_PASSWORD").Text == hideLabel })
+	settle(w)
+	hide := keyToggle(t, d, "DB_PASSWORD")
+	if hide != show {
+		t.Fatal("Hide is another widget than Show: it starts without the pointer's hover")
+	}
+	if got := buttonPlate(hide); got != hovered || hide.tone != colorStatusOK || hide.Icon.Name() != theme.VisibilityOffIcon().Name() {
+		t.Errorf("Hide under the pointer: plate %v (want the hover's %v), tone %q", got, hovered, hide.tone)
+	}
+	test.Tap(hide)
+	q.until(t, "the value masked", func() bool { return sd.rows["DB_PASSWORD"] == nil && keyToggle(t, d, "DB_PASSWORD").Text == showLabel })
+	if again := keyToggle(t, d, "DB_PASSWORD"); again != show || buttonPlate(again) != hovered || again.tone != colorStatusWarning {
+		t.Error("Hide turned into a Show without the pointer's hover")
+	}
+
+	f, _ := secretEditFake(t)
+	f.disabled[engine.SecretSaveDataCommand] = "not permitted"
+	sh2, _, q2 := newTestShell(t, f, Options{Theme: ThemeDark})
+	d2 := sh2.drawer
+	q2.until(t, "the read-only drawer", func() bool { return d2.last != nil && len(drawerButtons(d2)["Show"]) == 4 })
+	ro := keyToggle(t, d2, "DB_USER")
+	ro.MouseIn(&desktop.MouseEvent{})
+	test.Tap(ro)
+	q2.until(t, "the value", func() bool { return keyToggle(t, d2, "DB_USER").Text == hideLabel })
+	if got := keyToggle(t, d2, "DB_USER"); got != ro || buttonPlate(got) == color.Transparent {
+		t.Error("a read-only Secret's Hide is another widget, or without the pointer's hover")
+	}
+
+	sh3, _, _ := mcpShell(t, &fakeMCP{token: fakeMCPToken, stdio: fakeStdio})
+	sh3.openMCPDetails()
+	md := sh3.mcp.details
+	token := md.reveal
+	token.MouseIn(&desktop.MouseEvent{})
+	test.Tap(token)
+	if md.reveal != token || token.Text != hideLabel || buttonPlate(token) == color.Transparent {
+		t.Error("the MCP token's Hide is another widget, or without the pointer's hover")
 	}
 }

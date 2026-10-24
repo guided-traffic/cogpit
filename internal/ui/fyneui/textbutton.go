@@ -30,6 +30,9 @@ type textButton struct {
 	bare    bool    // Fyne's look, no outline and no room added: the chrome's icons, the search's switches
 	width   float32 // at least this wide: a toggle as wide as its wider state (revealButton)
 	height  float32 // at least this tall: a word alone as high as the icon buttons beside it (the b64 button)
+	// iconEnd puts the icon at the button's trailing edge, the word at its leading one: a caret on a
+	// button wider than its word (the list filters, the owner's VW4 of 2026-10-23).
+	iconEnd bool
 }
 
 // textButtonSide is the room a button keeps beside its word, beyond Fyne's inner padding (the
@@ -139,12 +142,22 @@ func (r *textButtonRenderer) Refresh() {
 	r.outline.Refresh()
 }
 
-// Layout places the outline as a field's: inside the button by half its width.
+// Layout places the outline as a field's: inside the button by half its width; with iconEnd the
+// icon at the trailing edge, as far in as the word stands from the leading one.
 func (r *textButtonRenderer) Layout(size fyne.Size) {
 	r.WidgetRenderer.Layout(size)
-	w := r.b.Theme().Size(theme.SizeNameInputBorder)
+	th := r.b.Theme()
+	w := th.Size(theme.SizeNameInputBorder)
 	r.outline.Move(fyne.NewSquareOffsetPos(w / 2))
 	r.outline.Resize(fyne.NewSize(size.Width-w-.5, size.Height-w-.5)) // .5: a low DPI rounds down at the trailing edge
+	if !r.b.iconEnd {
+		return
+	}
+	for _, o := range r.WidgetRenderer.Objects() {
+		if img, ok := o.(*canvas.Image); ok && img.Visible() {
+			img.Move(fyne.NewPos(size.Width-th.Size(theme.SizeNameInnerPadding)-img.Size().Width, img.Position().Y))
+		}
+	}
 }
 
 // Objects are Fyne's, the outline over them; Fyne's renderer adds its icon's image when the

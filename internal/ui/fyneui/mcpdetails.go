@@ -72,6 +72,7 @@ type mcpDetails struct {
 
 	// The panel's controls, for tests; rebuilt with the panel's content.
 	switchB, reveal                              *textButton
+	revealB                                      *textButton // the token's Show and Hide, kept across rebuilds (VW1)
 	regenerate                                   *textButton
 	copyEndpoint, copyToken, copyStdio, copyHTTP *tipButton
 }
@@ -232,7 +233,11 @@ func (d *mcpDetails) addRunning(body *fyne.Container, width float32) {
 	if d.revealed {
 		label = hideLabel
 	}
-	d.reveal = revealButton(label, func() { d.revealed = !d.revealed; d.rebuild() }) // the token is a secret: Show marked as exposing (RW3)
+	if d.revealB == nil { // the token is a secret: Show marked as exposing (RW3); one widget for Show and Hide (VW1)
+		d.revealB = revealButton(label, func() { d.revealed = !d.revealed; d.rebuild() })
+	}
+	setRevealLook(d.revealB, label)
+	d.reveal = d.revealB
 	d.copyToken = newTipButton(sh, theme.ContentCopyIcon(), "Copy the token", func() { d.copy(sh.mcp.token, "the token", true) })
 	shown := fyne.CanvasObject(newTextLine(mcpTokenMask, colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	if d.revealed {
