@@ -349,6 +349,23 @@ func TestClosedDropdownHasAnOutline(t *testing.T) {
 	}
 }
 
+// entryOf is the text field a settings page's control or a dialog's field is: Fyne's entry itself,
+// or the one a fieldEntry or a fieldSelectEntry embeds (the settings pages' fields since they hand
+// Escape on, D-116); nil for anything else.
+func entryOf(o fyne.CanvasObject) *widget.Entry {
+	switch e := o.(type) {
+	case *widget.Entry:
+		return e
+	case *fieldEntry:
+		return &e.Entry
+	case *fieldSelectEntry:
+		return &e.Entry
+	case *widget.SelectEntry:
+		return &e.Entry
+	}
+	return nil
+}
+
 // entriesIn, checksIn and slidersIn return the text fields, checks and sliders under root in the
 // tree's order, a dialog's own (fieldEntry, fieldCheck, fieldSlider, escape.go) as Fyne's widget
 // they embed.

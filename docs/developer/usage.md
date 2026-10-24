@@ -1592,7 +1592,8 @@ Escape closes the innermost thing open, and only that; press it again to go one 
 | A dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
 | A list's search (⌘F) | clears it; the list gets the keys |
 | The logs tab's search, Argo CD's activity filter | clears it |
-| A settings page (Preferences, Cluster Settings), a card over the window | closes the card (a text field on it keeps Escape; a menu or dialog opened from it closes first) |
+| A settings page (Preferences, Cluster Settings), a card over the window | closes the card, from a text field on it too (since 2026-10-24; the value you just typed is kept); a menu or dialog opened from it closes first |
+| Preferences › Agent's connection form, a field of it | closes the form as its Cancel does; the next Escape closes the card |
 | The list or the navigator | closes the drawer |
 
 A selected text (a log, a toast, the agent's answer) drops its selection first, and the

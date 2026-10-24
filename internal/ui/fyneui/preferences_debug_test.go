@@ -3,8 +3,6 @@ package fyneui
 import (
 	"testing"
 
-	"fyne.io/fyne/v2/widget"
-
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
@@ -19,7 +17,7 @@ func TestDebugImagePreferenceField(t *testing.T) {
 	q.until(t, "the Kubernetes section", func() bool { return sh.settings.controls[debugImageSetting] != nil })
 	p := sh.settings
 	prefs := func() engine.Preferences { pr, _ := s.Preferences(); return pr }
-	entry := findAll[*widget.Entry](p.controls[debugImageSetting])[0]
+	entry := entryOf(findAll[*fieldEntry](p.controls[debugImageSetting])[0])
 	note := p.controls["debugImageNote"].(*textLine)
 	if entry.PlaceHolder != engine.DefaultDebugImageName || entry.Text != "" || note.text != debugNotePinned {
 		t.Fatalf("placeholder %q, text %q, note %q", entry.PlaceHolder, entry.Text, note.text)

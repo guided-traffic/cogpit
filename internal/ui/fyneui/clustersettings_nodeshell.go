@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -57,7 +56,7 @@ func nodeShellMaxDurationNote(set string) string {
 
 // clusterNodeShellSection builds a cluster's Settings › Node Shell.
 func (p *settingsPage) clusterNodeShellSection() fyne.CanvasObject {
-	image := widget.NewEntry()
+	image := newFieldEntry() // Escape closes the card (D-116, D-118)
 	image.SetPlaceHolder(engine.DefaultNodeShellImageName)
 	image.OnChanged = func(string) {
 		p.typed(nodeShellImageSetting, func() {
@@ -65,14 +64,14 @@ func (p *settingsPage) clusterNodeShellSection() fyne.CanvasObject {
 			p.setNodeShell("image", nodeShellImageSetting, value)
 		})
 	}
-	secret := widget.NewEntry()
+	secret := newFieldEntry()
 	secret.SetPlaceHolder("none")
 	secret.OnChanged = func(string) {
 		p.typed(nodeShellPullSecretSetting, func() {
 			p.setNodeShell("imagePullSecret", nodeShellPullSecretSetting, strings.TrimSpace(secret.Text))
 		})
 	}
-	maxDuration := widget.NewEntry()
+	maxDuration := newFieldEntry()
 	maxDuration.SetPlaceHolder(engine.FormatNodeShellDeadline(engine.DefaultNodeShellDeadline))
 	maxDuration.OnChanged = func(string) {
 		p.typed(nodeShellMaxDurationSetting, func() {
@@ -87,9 +86,9 @@ func (p *settingsPage) clusterNodeShellSection() fyne.CanvasObject {
 	p.controls["nodeShellMaxDurationNote"] = durationNote
 	p.sync = func() {
 		v := p.clusterView()
-		p.setEntry(image, image, nodeShellImageSetting, engine.ShortImage(v.NodeShellImage))
-		p.setEntry(secret, secret, nodeShellPullSecretSetting, v.NodeShellPullSecret)
-		p.setEntry(maxDuration, maxDuration, nodeShellMaxDurationSetting, v.NodeShellMaxDuration)
+		p.setEntry(image, &image.Entry, nodeShellImageSetting, engine.ShortImage(v.NodeShellImage))
+		p.setEntry(secret, &secret.Entry, nodeShellPullSecretSetting, v.NodeShellPullSecret)
+		p.setEntry(maxDuration, &maxDuration.Entry, nodeShellMaxDurationSetting, v.NodeShellMaxDuration)
 		durationNote.SetText(nodeShellMaxDurationNote(v.NodeShellMaxDuration))
 		shown := engine.ImageFromField(image.Text, v.NodeShellImage, engine.DefaultNodeShellImage)
 		switch {

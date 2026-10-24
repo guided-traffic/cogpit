@@ -5,7 +5,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -98,7 +97,7 @@ func renderClusterSettingsCustomColor(t *testing.T, mode ThemeMode, name string)
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev"})
 	q.until(t, "the page", func() bool {
-		e, _ := sh.settings.controls["name"].(*widget.Entry)
+		e := entryOf(sh.settings.controls["name"])
 		return sh.settings.visible() && e != nil && e.Text == "Dev cluster"
 	})
 	sh.settings.openTileDialog("kind-dev")

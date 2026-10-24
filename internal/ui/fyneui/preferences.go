@@ -199,7 +199,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	if p.sh.opts.Theme != "" {
 		themeHelp = "This run was started with --theme " + string(p.sh.opts.Theme) + "; the choice applies from the next start."
 	}
-	zone := widget.NewSelectEntry(timezoneChoices)
+	zone := newFieldSelectEntry(timezoneChoices) // Escape closes the card (D-116, D-118)
 	name, _ := p.sh.now().Zone()
 	zone.SetPlaceHolder("The computer's (" + name + ")")
 	zone.OnChanged = func(string) {
@@ -303,12 +303,12 @@ func (p *settingsPage) editorSection() fyne.CanvasObject {
 
 func (p *settingsPage) terminalSection() fyne.CanvasObject {
 	pr := p.prefs()
-	shell := widget.NewEntry()
+	shell := newFieldEntry()                      // Escape closes the card, the value typed set first (D-116, D-118)
 	shell.SetPlaceHolder(terminal.DefaultShell()) // $SHELL on macOS and Linux, PowerShell's on Windows
 	shell.OnChanged = func(string) {
 		p.typed("terminalShell", func() { p.setPreference("terminalShell", strings.TrimSpace(shell.Text)) })
 	}
-	args := widget.NewMultiLineEntry()
+	args := newFieldMultiLineEntry()
 	args.SetPlaceHolder("one argument per line")
 	args.SetMinRowsVisible(3)
 	args.OnChanged = func(string) {
@@ -318,8 +318,8 @@ func (p *settingsPage) terminalSection() fyne.CanvasObject {
 	rightClick, syncRightClick := p.rightClickSetting() // termpaste.go
 	p.sync = func() {
 		pr := p.prefs()
-		p.setEntry(shell, shell, "terminalShell", pr.TerminalShell)
-		p.setEntry(args, args, "terminalShellArgs", strings.Join(pr.TerminalShellArgs, "\n"))
+		p.setEntry(shell, &shell.Entry, "terminalShell", pr.TerminalShell)
+		p.setEntry(args, &args.Entry, "terminalShellArgs", strings.Join(pr.TerminalShellArgs, "\n"))
 		font.SetSelected(strconv.Itoa(pr.TerminalFontSize))
 		syncRightClick()
 	}

@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // A cluster's Settings › Namespaces (G3, G13; engine/accessiblens.go): Lens's "Accessible
@@ -28,7 +27,7 @@ const accessibleSetting = "accessibleNamespaces"
 // clusterNamespacesSection builds a cluster's Settings › Namespaces.
 func (p *settingsPage) clusterNamespacesSection() fyne.CanvasObject {
 	ctx := p.shown.Context
-	entry := widget.NewEntry()
+	entry := newFieldEntry() // Escape closes the card, a name not added yet dropped as by the × (D-116)
 	entry.SetPlaceHolder("Add a namespace, e.g. team-a")
 	current := func() []string { return p.sh.ui.ClusterSettings[ctx].AccessibleNamespaces }
 	set := func(next []string, done func()) {

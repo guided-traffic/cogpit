@@ -17,12 +17,12 @@ import (
 // other preference, a text field after a typing pause, the refusal under the field.
 func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
 	download := widget.NewCheck("Offer the release that matches the cluster", func(on bool) { p.setPreference("kubectlDownload", on) })
-	mirror := widget.NewEntry()
+	mirror := newFieldEntry() // Escape closes the card (D-116, D-118)
 	mirror.SetPlaceHolder("https://dl.k8s.io/release")
 	mirror.OnChanged = func(string) {
 		p.typed("kubectlMirror", func() { p.setPreference("kubectlMirror", strings.TrimSpace(mirror.Text)) })
 	}
-	dir := widget.NewEntry()
+	dir := newFieldEntry()
 	dir.SetPlaceHolder("Cogpit's own folder")
 	dir.OnChanged = func(string) {
 		p.typed("kubectlDir", func() { p.setPreference("kubectlDir", strings.TrimSpace(dir.Text)) })
@@ -32,7 +32,7 @@ func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
 		p.pickFolder(func(path string) { dir.SetText(path) }) // OnChanged sets it after the pause
 	}
 	enforce := widget.NewCheck("Define kubectl as a shell function in terminals", func(on bool) { p.setPreference("kubectlEnforce", on) })
-	path := widget.NewEntry()
+	path := newFieldEntry()
 	path.SetPlaceHolder("kubectl on PATH")
 	path.OnChanged = func(string) {
 		p.typed("kubectlPath", func() { p.setPreference("kubectlPath", strings.TrimSpace(path.Text)) })
@@ -44,9 +44,9 @@ func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
 		}
 		pr := p.prefs()
 		download.SetChecked(pr.KubectlDownload)
-		p.setEntry(mirror, mirror, "kubectlMirror", pr.KubectlMirror)
-		p.setEntry(dir, dir, "kubectlDir", pr.KubectlDir)
-		p.setEntry(path, path, "kubectlPath", pr.KubectlPath)
+		p.setEntry(mirror, &mirror.Entry, "kubectlMirror", pr.KubectlMirror)
+		p.setEntry(dir, &dir.Entry, "kubectlDir", pr.KubectlDir)
+		p.setEntry(path, &path.Entry, "kubectlPath", pr.KubectlPath)
 		enforce.SetChecked(pr.KubectlEnforce)
 	}
 	return []fyne.CanvasObject{

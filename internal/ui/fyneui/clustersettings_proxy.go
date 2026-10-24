@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -28,7 +27,7 @@ const proxySectionLabel = "Proxy"
 
 // clusterProxySection builds a cluster's Settings › Proxy.
 func (p *settingsPage) clusterProxySection() fyne.CanvasObject {
-	entry := widget.NewEntry()
+	entry := newFieldEntry() // Escape closes the card (D-116, D-118)
 	entry.SetPlaceHolder(engine.ProxyPlaceholder)
 	entry.OnChanged = func(string) {
 		p.typed(proxySetting, func() { p.setCluster(proxySetting, strings.TrimSpace(entry.Text)) })
@@ -38,7 +37,7 @@ func (p *settingsPage) clusterProxySection() fyne.CanvasObject {
 	p.controls["proxyNote"] = note
 	p.sync = func() {
 		v := p.clusterView()
-		p.setEntry(entry, entry, proxySetting, v.Proxy)
+		p.setEntry(entry, &entry.Entry, proxySetting, v.Proxy)
 		switch {
 		case engine.IsDemoContext(p.shown.Context):
 			entry.Disable()
@@ -65,13 +64,13 @@ const httpProxySetting = "httpProxy"
 // cluster's, the Helm repositories' downloads. Lens's "Allow untrusted certificate authorities"
 // beside it is not built (a question for the owner: it weakens TLS for those downloads).
 func (p *settingsPage) preferencesProxySection() fyne.CanvasObject {
-	entry := widget.NewEntry()
+	entry := newFieldEntry() // Escape closes the card (D-116, D-118)
 	entry.SetPlaceHolder("The environment's (HTTPS_PROXY)")
 	entry.OnChanged = func(string) {
 		p.typed(httpProxySetting, func() { p.setPreference(httpProxySetting, strings.TrimSpace(entry.Text)) })
 	}
 	p.sync = func() {
-		p.setEntry(entry, entry, httpProxySetting, p.prefs().HTTPProxy) // the UI state's: its password as •••
+		p.setEntry(entry, &entry.Entry, httpProxySetting, p.prefs().HTTPProxy) // the UI state's: its password as •••
 	}
 	return container.NewVBox(
 		p.setting(httpProxySetting, "HTTP proxy for non-cluster traffic",

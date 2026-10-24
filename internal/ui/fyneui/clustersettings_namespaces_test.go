@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -42,7 +41,7 @@ func TestClusterNamespacesField(t *testing.T) {
 	q.until(t, "the page", sh.settings.visible)
 	test.Tap(sh.settings.navItems[engine.SectionNamespaces])
 	q.until(t, "the Namespaces section", func() bool { return sh.settings.controls["accessibleEntry"] != nil })
-	entry := sh.settings.controls["accessibleEntry"].(*widget.Entry)
+	entry := entryOf(sh.settings.controls["accessibleEntry"])
 	kept := func() []string {
 		cs, _ := s.ClusterSettingsOf("kind-dev")
 		return cs.AccessibleNamespaces

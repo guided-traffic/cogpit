@@ -127,8 +127,8 @@ func renderClusterSettingsLogin(t *testing.T, mode ThemeMode, name string) {
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
 	q.until(t, "the General section", func() bool {
 		c, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
-		name, named := sh.settings.controls["name"].(*widget.Entry)
-		return sh.settings.visible() && ok && !c.Checked && named && name.Text == "Dev cluster" // the settings read back
+		name := entryOf(sh.settings.controls["name"])
+		return sh.settings.visible() && ok && !c.Checked && name != nil && name.Text == "Dev cluster" // the settings read back
 	})
 	q.drain()
 	savePNG(t, w, name)

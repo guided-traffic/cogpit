@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -31,7 +30,7 @@ var debugImageHelp = "Debug adds it to a pod as an ephemeral container; empty: "
 // debugImageSetting returns the debug container's image setting and the function that shows the
 // preference in it.
 func (p *settingsPage) debugImageSetting() (fyne.CanvasObject, func()) {
-	image := widget.NewEntry()
+	image := newFieldEntry() // Escape closes the card (D-116, D-118)
 	image.SetPlaceHolder(engine.DefaultDebugImageName)
 	image.OnChanged = func(string) {
 		p.typed(debugImageSetting, func() {
@@ -43,7 +42,7 @@ func (p *settingsPage) debugImageSetting() (fyne.CanvasObject, func()) {
 	p.controls["debugImageNote"] = note
 	sync := func() {
 		set := p.prefs().DebugImage
-		p.setEntry(image, image, debugImageSetting, engine.ShortImage(set))
+		p.setEntry(image, &image.Entry, debugImageSetting, engine.ShortImage(set))
 		note.SetText(imagePinNote(engine.ImageFromField(image.Text, set, engine.DefaultDebugImage), engine.DefaultDebugImage))
 	}
 	return p.setting(debugImageSetting, "Debug container image", debugImageHelp, container.NewVBox(image, note)), sync

@@ -26,11 +26,12 @@ import (
 //     closes in step 2; the step below stays for a page without one.
 //
 // The widgets that take the keyboard by a click hand an Escape they do not use on to the window's
-// handler (passEscape): Cogpit's dropdown and searches, and the fields, checks and sliders of
-// Cogpit's dialogs (fieldEntry, fieldSelectEntry, fieldCheck, fieldSlider). Fyne's own widgets
-// keep theirs elsewhere: a text field of a settings page, a button reached by Tab, a check group's
-// and a radio group's items (Argo CD's Sync dialog), the fields inside Fyne's file and colour
-// dialogs.
+// handler (passEscape): Cogpit's dropdown and searches, the fields, checks and sliders of Cogpit's
+// dialogs (fieldEntry, fieldSelectEntry, fieldCheck, fieldSlider), and since 2026-10-24 the text
+// fields of a settings page (the owner's decision (a) of 2026-10-23: the card closes, the value
+// typed set first by D-118's flushTyping; the agent connection form's fields close the form, its
+// Cancel). Fyne's own widgets keep theirs elsewhere: a button reached by Tab, a check group's and a
+// radio group's items (Argo CD's Sync dialog), the fields inside Fyne's file and colour dialogs.
 
 // overlayEscape is what Escape does over one overlay of a canvas.
 type overlayEscape struct {
@@ -121,9 +122,10 @@ type fyneDialog interface {
 // again included); Escape over it dismisses it.
 func (sh *shell) showDialog(d fyneDialog) { onShown(sh.win.Canvas(), d.Show, d.Dismiss) }
 
-// fieldEntry is a text field of a dialog: Escape goes on to the window (the dialog's Cancel)
-// instead of stopping in the field, or runs onEscape where the field has a close of its own (a find
-// bar's replace field).
+// fieldEntry is a text field of a dialog or a settings page: Escape goes on to the window (the
+// dialog's Cancel, the settings card's close, which sets the value typed first: D-118's
+// flushTyping) instead of stopping in the field, or runs onEscape where the field has a close of
+// its own (a find bar's replace field, the agent connection form's Cancel).
 type fieldEntry struct {
 	widget.Entry
 	onEscape func()
@@ -133,6 +135,21 @@ func newFieldEntry() *fieldEntry {
 	e := &fieldEntry{}
 	e.Wrapping = fyne.TextWrap(fyne.TextTruncateClip) // as widget.NewEntry
 	e.ExtendBaseWidget(e)
+	return e
+}
+
+// newFieldMultiLineEntry is a fieldEntry of several lines, as widget.NewMultiLineEntry.
+func newFieldMultiLineEntry() *fieldEntry {
+	e := newFieldEntry()
+	e.MultiLine = true
+	return e
+}
+
+// newFieldPasswordEntry is a masked fieldEntry with Fyne's eye to show it, as
+// widget.NewPasswordEntry (the entry's renderer adds the eye to a password field without one).
+func newFieldPasswordEntry() *fieldEntry {
+	e := newFieldEntry()
+	e.Password = true
 	return e
 }
 
@@ -150,9 +167,13 @@ func (e *fieldEntry) TypedKey(ev *fyne.KeyEvent) {
 }
 
 // fieldSelectEntry is an editable field with a list in a dialog (the create dialogs' names and
-// namespaces): Escape goes on to the window; its open list is a menu of its own, which Escape
-// closes first.
-type fieldSelectEntry struct{ widget.SelectEntry }
+// namespaces) or a settings page (Preferences' time zone, the agent form's model): Escape goes on to
+// the window, or runs onEscape where the field has a close of its own; its open list is a menu of
+// its own, which Escape closes first.
+type fieldSelectEntry struct {
+	widget.SelectEntry
+	onEscape func()
+}
 
 func newFieldSelectEntry(options []string) *fieldSelectEntry {
 	e := &fieldSelectEntry{}
@@ -165,7 +186,11 @@ func newFieldSelectEntry(options []string) *fieldSelectEntry {
 // TypedKey implements fyne.Focusable.
 func (e *fieldSelectEntry) TypedKey(ev *fyne.KeyEvent) {
 	if ev.Name == fyne.KeyEscape {
-		passEscape(e)
+		if e.onEscape != nil {
+			e.onEscape()
+		} else {
+			passEscape(e)
+		}
 		return
 	}
 	e.SelectEntry.TypedKey(ev)

@@ -138,7 +138,7 @@ func (p *settingsPage) clusterSection(section string) fyne.CanvasObject {
 
 func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	ctx := p.shown.Context
-	name := widget.NewEntry()
+	name := newFieldEntry() // Escape closes the card, the value typed set first (D-116, D-118)
 	name.OnChanged = func(string) { p.typed("name", func() { p.setCluster("name", strings.TrimSpace(name.Text)) }) }
 
 	icon, syncIcon := p.iconSetting(ctx) // clustericon.go
@@ -160,7 +160,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	}
 	p.controls["openFolder"] = open
 	// The copy icons of the name and the path (F27, clustersettings_copy.go).
-	nameCopy := p.settingCopyIcon("nameCopy", "Copy the cluster name", func() string { return p.shownClusterName(name) })
+	nameCopy := p.settingCopyIcon("nameCopy", "Copy the cluster name", func() string { return p.shownClusterName(&name.Entry) })
 	pathCopy := p.settingCopyIcon("kubeconfigCopy", "Copy the kubeconfig's path", func() string { return p.clusterView().Kubeconfig })
 	kc := container.NewBorder(nil, nil, nil, container.NewHBox(container.NewCenter(pathCopy), open),
 		container.NewStack(pathBg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewStack(path, sentence))))
@@ -177,7 +177,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 		if v.NameSet {
 			set = v.Name
 		}
-		p.setEntry(name, name, "name", set)
+		p.setEntry(name, &name.Entry, "name", set)
 		switch {
 		case v.Kubeconfig != "": // a path in monospace, whole: what is selected is the real path
 			path.setText(v.Kubeconfig)
@@ -213,7 +213,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 }
 
 func (p *settingsPage) clusterTerminalSection() fyne.CanvasObject {
-	dir := widget.NewEntry()
+	dir := newFieldEntry()
 	dir.SetPlaceHolder("$HOME")
 	dir.OnChanged = func(string) {
 		p.typed("terminalDir", func() { p.setCluster("terminalDir", strings.TrimSpace(dir.Text)) })
@@ -224,15 +224,15 @@ func (p *settingsPage) clusterTerminalSection() fyne.CanvasObject {
 			dir.SetText(path) // OnChanged sets it after the pause, as typing does
 		})
 	}
-	ns := widget.NewEntry()
+	ns := newFieldEntry()
 	ns.SetPlaceHolder("default")
 	ns.OnChanged = func(string) {
 		p.typed("terminalNamespace", func() { p.setCluster("terminalNamespace", strings.TrimSpace(ns.Text)) })
 	}
 	p.sync = func() {
 		v := p.clusterView()
-		p.setEntry(dir, dir, "terminalDir", v.TerminalDir)
-		p.setEntry(ns, ns, "terminalNamespace", v.TerminalNamespace)
+		p.setEntry(dir, &dir.Entry, "terminalDir", v.TerminalDir)
+		p.setEntry(ns, &ns.Entry, "terminalNamespace", v.TerminalNamespace)
 	}
 	return container.NewVBox(
 		p.setting("terminalDir", "Working directory", "Where this cluster's terminals start: an absolute path, or one starting with $HOME.",
