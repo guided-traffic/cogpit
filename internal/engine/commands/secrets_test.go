@@ -170,10 +170,14 @@ func TestRevealIsGUIOnly(t *testing.T) {
 	}
 	lists, watches := h.src.Lists(), h.src.Watches()
 
+	asBase64 := reveal
+	asBase64.Base64 = true // the drawer's b64 button's read (VW7): GUI-only as Show
 	for _, origin := range []engine.Origin{engine.OriginExternalAgent, engine.OriginBuiltInAgent, engine.OriginCLI} {
-		res, err := h.dispatch(origin, "secret.reveal", reveal)
-		if err == nil || res != nil || !strings.Contains(err.Error(), "never receive them") {
-			t.Errorf("%s: reveal gave %v, %v", origin, res, err)
+		for _, p := range []engine.RevealParams{reveal, asBase64} {
+			res, err := h.dispatch(origin, "secret.reveal", p)
+			if err == nil || res != nil || !strings.Contains(err.Error(), "never receive them") {
+				t.Errorf("%s: reveal (base64 %v) gave %v, %v", origin, p.Base64, res, err)
+			}
 		}
 	}
 	res, err := h.dispatch(engine.OriginGUI, "secret.reveal", reveal)
@@ -182,6 +186,10 @@ func TestRevealIsGUIOnly(t *testing.T) {
 	}
 	if v := res.(engine.SecretValue); v.Value != "hunter2" || v.Key != "password" || v.Size != 7 {
 		t.Errorf("GUI reveal %+v", v)
+	}
+	res, err = h.dispatch(engine.OriginGUI, "secret.reveal", asBase64)
+	if v, _ := res.(engine.SecretValue); err != nil || v.Value != base64.StdEncoding.EncodeToString([]byte("hunter2")) || !v.Base64 {
+		t.Errorf("GUI reveal as base64 %+v, %v", v, err)
 	}
 	if _, err := h.dispatch(engine.OriginGUI, "secret.reveal", engine.RevealParams{Ref: ref, Key: "nope"}); err == nil {
 		t.Error("a key the Secret does not have was revealed")
@@ -199,8 +207,8 @@ func TestRevealIsGUIOnly(t *testing.T) {
 			refused++
 		}
 	}
-	if refused != 2 {
-		t.Errorf("%d refused agent reveals audited, want 2 (the CLI is not audited)", refused)
+	if refused != 4 {
+		t.Errorf("%d refused agent reveals audited, want 4 (two agents, with and without base64; the CLI is not audited)", refused)
 	}
 
 	// Closing the drawer: the GUI cannot reveal either.

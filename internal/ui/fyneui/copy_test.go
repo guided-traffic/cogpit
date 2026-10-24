@@ -273,6 +273,9 @@ func wholeRevealFake(t *testing.T) *fakeEngine {
 		if p.Key == "DB_PASSWORD" {
 			v = longSecretValue
 		}
+		if p.Base64 {
+			return fakeRevealed(p, v), nil
+		}
 		if cut := 4 << 10; !p.Whole && len(v) > cut {
 			return engine.SecretValue{Key: p.Key, Value: v[:cut], Size: len(v), Cut: true}, nil
 		}

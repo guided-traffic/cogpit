@@ -269,7 +269,7 @@ a kubectl not named `kubectl.exe` and holds a hard link or a copy of it named `k
 | Telemetry | Cogpit sends none. Any network call to something other than a cluster, a Helm repository, the configured LLM endpoint, the release channel or the kubectl release host or mirror ([D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries), a download the user clicked; it sends the version and platform in the URL, no credential) needs a decision entry in [`decisions.md`](../developer/decisions.md). The check of kubectl's signature against sigstore's transparency log is such a call, decided by the owner on 2026-10-14 evening and built 2026-10-15 ([D-50](../developer/decisions.md#d-50-kubectls-signature-check)): during a download the user clicked, one request to `rekor.sigstore.dev` (`POST /api/v1/log/entries/retrieve`) with the release's published SHA-256, signature and certificate, public material and no credential, through the same proxy as the download ([H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)) |
 | The LLM endpoint | Secret values only over a connection the user marked private (decided 2026-10-14 late evening, built in the engine the same night: the private turn reads what the window shows, Secret values, Helm's values, Flux's credential fields and Helm's errors included; an exec plugin's arguments stay withheld from it as from every agent: [H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint), [H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)) |
 | Screenshots taken by automation | Secret values stay masked unless the user revealed them in the GUI |
-| Clipboard | Only on an explicit copy action, of a revealed or (since 2026-10-22) a masked Secret value; a copied Secret value is cleared after 60 seconds if the clipboard still holds it ([H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
+| Clipboard | Only on an explicit copy action, of a revealed or (since 2026-10-22) a masked Secret value, plain or (since 2026-10-24, the b64 button) base64-encoded, a binary value's only so; a copied Secret value is cleared after 60 seconds if the clipboard still holds it ([H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
 
 ## Secret objects
 
@@ -296,9 +296,20 @@ hover over the mask until then) runs `secret.reveal` with `whole` from the windo
 command Show runs, and puts the whole value on the clipboard the same way; the value enters no
 widget and not the drawer's revealed values, so the drawer stays masked, and the toast names the
 key, never the value. An answer for a drawer that has moved on copies nothing. A binary value has
-no Show and no such copy: the engine never hands it out
+no Show and no such copy: the engine never hands its bytes out as text
 ([`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
-`TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`). A copy, as a Show,
+`TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`). Since 2026-10-24 (the
+owner's VW7 and his pick (b), D-25) a "b64" button beside every value's copy icon copies the value
+base64-encoded (standard, padded, one line), the same way and to the same clipboard for Secret
+values, the toast saying "as base64" and naming the key only: a value in no editor whole through
+`secret.reveal` with `base64` (GUI-only as without; the engine encodes the whole value, never the
+4 KiB a Show reveals), a value in an editor as typed. A binary value has the b64 button and nothing
+else: `secret.reveal` hands it out only encoded and only for the GUI, through the "Copy as base64"
+action its item carries in the drawer model with the version the drawer listed it at (an agent
+sees that action in `object_get` as it sees Show, and is refused as for Show). The encoding is no
+protection: the base64 of a value on the clipboard is the value
+(`TestSecretB64CopiesAMaskedValueEncoded`, `TestSecretB64OnABinaryValue`,
+`TestSecretB64OfAValueInAnEditor`, `TestSecretValueBase64IsWhole`, `TestRevealIsGUIOnly`). A copy, as a Show,
 writes no line in the audit log, which records agents' calls; an agent's `secret.reveal` is refused
 and audited with the Secret and the key, never a value (`TestRevealIsGUIOnly`). Copying is a GUI
 behaviour with no command, so no agent can put a Secret on the clipboard (`TestCopyHasNoCommand`). Since 2026-10-13 a list's cells copy
@@ -426,7 +437,8 @@ a Secret's values are edited in its drawer, as a Config Map's are, in the window
   (D-25) a masked value's copy icon (in its key's line since RW1) copies it without showing it and
   opens no editor, and
   an edited or added value hidden again copies what was typed, from the editor's memory, with no
-  reveal (`TestSecretEditorMaskedValueCopiedWithoutShowing`).
+  reveal (`TestSecretEditorMaskedValueCopiedWithoutShowing`). Since 2026-10-24 (VW7) the b64 button
+  beside the copy icon copies the same, base64-encoded, the same way (`TestSecretB64OfAValueInAnEditor`).
 - **To the engine, in the GUI's own process.** `secret.reviewData` (a masked diff: the keys that
   change and their sizes, never a value, and the server's dry run) and `secret.saveData` are marked
   GUI-only: `Dispatch` refuses the CLI and every agent before anything is read, asked or sent, and
@@ -670,7 +682,9 @@ history of the value; any process of the user can read it while it is there; Cog
 ending within the 60 seconds (a crash, `kill -9`) leaves it on the clipboard; on Linux and Windows
 the copy goes through Fyne's clipboard unmarked. Only values the user copied are affected, since
 2026-10-22 masked ones too: one click on the icon over a masked value puts it there, and nothing
-on screen but the checkmark and the toast says so. An agent has no way to copy.
+on screen but the checkmark and the toast says so; since 2026-10-24 the b64 button puts a value
+there base64-encoded, a binary value's too, by the same path and with the same clearing (the
+clearing compares the encoded text the button copied). An agent has no way to copy.
 
 ### H-29: Authenticated Helm repositories
 

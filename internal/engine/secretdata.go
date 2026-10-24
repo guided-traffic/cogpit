@@ -49,8 +49,9 @@ func isSecrets(p *model.KindProfile) bool {
 
 // secretDataSection is a Secret's Data section in the drawer: each key, sorted (at most
 // secretKeysShown), its value masked with its size and a "Show" action beside a text value, a
-// binary value by its size only. It reads the values to measure them and to tell text from binary,
-// and keeps none of them.
+// binary value by its size and a "Copy as base64" action, the read the drawer's b64 button runs
+// for it (the owner's VW7, D-25; a text value's b64 button runs Show's action with base64). It
+// reads the values to measure them and to tell text from binary, and keeps none of them.
 func secretDataSection(ref model.ObjectRef, obj *unstructured.Unstructured) model.DetailSection {
 	sec := model.DetailSection{Title: secretDataTitle}
 	data := model.NestedMap(obj.Object, "data")
@@ -70,12 +71,16 @@ func secretDataSection(ref model.ObjectRef, obj *unstructured.Unstructured) mode
 		}
 		size, text := measure(data[k])
 		it := model.DetailItem{Name: k}
+		p := RevealParams{Ref: ref, Key: k, ResourceVersion: obj.GetResourceVersion()}
 		if text {
 			it.Value = MaskedValue + " (" + byteSize(size) + ")"
-			params, _ := json.Marshal(RevealParams{Ref: ref, Key: k, ResourceVersion: obj.GetResourceVersion()})
+			params, _ := json.Marshal(p)
 			it.Actions = []model.ItemAction{{Label: "Show", Command: RevealCommand, Params: params}}
 		} else {
 			it.Value = "binary data, " + byteSize(size)
+			p.Base64 = true
+			params, _ := json.Marshal(p)
+			it.Actions = []model.ItemAction{{Label: Base64ActionLabel, Command: RevealCommand, Params: params}}
 		}
 		sec.Items = append(sec.Items, it)
 	}
@@ -154,6 +159,10 @@ func wipeBytes(b []byte) {
 // MaskedValue is what the drawer shows in place of a Secret's value.
 const MaskedValue = "••••••••"
 
+// Base64ActionLabel names a binary value's action in the drawer model: secret.reveal with base64,
+// which the drawer's b64 button runs to copy the value base64-encoded (VW7), GUI-only as Show.
+const Base64ActionLabel = "Copy as base64"
+
 // RevealParams are secret.reveal's parameters: the Secret the drawer shows and one of its keys.
 type RevealParams struct {
 	Ref model.ObjectRef `json:"ref" jsonschema:"the Secret the drawer shows: kind secrets, its namespace and name"`
@@ -164,6 +173,9 @@ type RevealParams struct {
 	ResourceVersion string `json:"resourceVersion,omitempty" jsonschema:"the Secret's resourceVersion the drawer listed the key at; a Secret changed since is refused"`
 	// Whole asks for the value uncut: the drawer's editor holds what Save writes back (D-59).
 	Whole bool `json:"whole,omitempty" jsonschema:"the whole value, not cut at 4 KiB and 40 lines: what the drawer's editor needs to save it"`
+	// Base64 asks for the whole value base64-encoded, a binary value's too: what the drawer's b64
+	// button copies (the owner's VW7, D-25).
+	Base64 bool `json:"base64,omitempty" jsonschema:"the whole value base64-encoded (standard, padded), a binary value's too: what the drawer's b64 button copies"`
 }
 
 // SecretValue is one revealed value, for the user's own window only.
@@ -172,6 +184,8 @@ type SecretValue struct {
 	Value string `json:"value"`
 	Size  int    `json:"size"`          // the whole value's size in bytes
 	Cut   bool   `json:"cut,omitempty"` // Value is the beginning only (4 KiB, 40 lines)
+	// Base64 says that Value is the whole value base64-encoded (RevealParams.Base64).
+	Base64 bool `json:"base64,omitempty"`
 }
 
 // ErrNoSecretData refuses a reveal for a Secret the drawer does not show.
@@ -186,7 +200,8 @@ func (s *Session) drawerShows(ref model.ObjectRef) bool {
 }
 
 // secretValueOf returns one value of the Secret the drawer shows, decoded, from the cache; the
-// caller zeroes it. With a version, a Secret the cache holds at another one is refused
+// caller zeroes it. A binary value is handed out only for base64 (VW7): its bytes survive a text
+// clipboard only encoded. With a version, a Secret the cache holds at another one is refused
 // (ErrTargetsChanged). It never puts a value into its error.
 func (s *Session) secretValueOf(p RevealParams) ([]byte, error) {
 	ref, key := p.Ref, p.Key
@@ -205,7 +220,7 @@ func (s *Session) secretValueOf(p RevealParams) ([]byte, error) {
 		return nil, fmt.Errorf("the Secret has no key %q", key)
 	}
 	raw, ok := decodeValue(v)
-	if !ok || !isText(raw) {
+	if !ok || !p.Base64 && !isText(raw) {
 		wipeBytes(raw)
 		return nil, errors.New("binary values are shown by their size only")
 	}
@@ -213,7 +228,7 @@ func (s *Session) secretValueOf(p RevealParams) ([]byte, error) {
 }
 
 // SecretKeyShown reports, without a value, whether the drawer shows ref and the Secret has a text
-// value under key in the cache: secret.reveal's Enabled check.
+// value under key in the cache (any value, for base64): secret.reveal's Enabled check.
 func (s *Session) SecretKeyShown(p RevealParams) error {
 	raw, err := s.secretValueOf(p)
 	wipeBytes(raw)
@@ -221,14 +236,18 @@ func (s *Session) SecretKeyShown(p RevealParams) error {
 }
 
 // SecretValue returns one value of the Secret the drawer shows, from the cache, cut to 4 KiB and
-// 40 lines unless the whole value is asked for (the drawer's editor, D-59). The caller
-// (secret.reveal) hands it to the GUI only.
+// 40 lines unless the whole value is asked for (the drawer's editor, D-59), or the whole value
+// base64-encoded (standard, padded: the string a Secret's data holds; the drawer's b64 button,
+// VW7). The caller (secret.reveal) hands it to the GUI only.
 func (s *Session) SecretValue(p RevealParams) (SecretValue, error) {
 	raw, err := s.secretValueOf(p)
 	if err != nil {
 		return SecretValue{}, err
 	}
 	defer wipeBytes(raw)
+	if p.Base64 {
+		return SecretValue{Key: p.Key, Value: base64.StdEncoding.EncodeToString(raw), Size: len(raw), Base64: true}, nil
+	}
 	shown := raw
 	if !p.Whole {
 		shown = clip(raw)

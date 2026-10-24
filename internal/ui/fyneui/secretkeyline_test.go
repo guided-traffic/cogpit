@@ -31,7 +31,11 @@ func keyLineParts(d *drawer, key string) []string {
 		case *textButton:
 			parts = append(parts, x.Text)
 		case *tipButton:
-			parts = append(parts, "remove")
+			if x.tip == b64Tip {
+				parts = append(parts, "b64")
+			} else {
+				parts = append(parts, "remove")
+			}
 		case *fyne.Container:
 			if len(findAll[*copyButton](x)) == 1 {
 				parts = append(parts, "copy")
@@ -90,10 +94,10 @@ func keyCopyIcon(t *testing.T, d *drawer, key string) *copyButton {
 }
 
 // TestSecretMaskedKeyButtonsOnNameLine (the owner's RW1 of 2026-10-23): a masked key has its
-// buttons where a revealed key has them, "Show [copy] [remove]" at the end of its name line, always
-// shown, and the value line under it holds the mask and the size only, without a copy icon of its
-// own. The same for an edited value hidden again and an added key hidden again; a binary value has
-// no Show and no copy icon.
+// buttons where a revealed key has them, "Show [copy] [b64] [remove]" at the end of its name line
+// (b64 since VW7), always shown, and the value line under it holds the mask and the size only,
+// without a copy icon of its own. The same for an edited value hidden again and an added key hidden
+// again; a binary value has no Show and no copy icon, only the b64 button (VW7).
 func TestSecretMaskedKeyButtonsOnNameLine(t *testing.T) {
 	sh, _, q, _, _ := secShell(t, ThemeDark)
 	d, sd := sh.drawer, secDataOf(sh)
@@ -104,12 +108,12 @@ func TestSecretMaskedKeyButtonsOnNameLine(t *testing.T) {
 		}
 	}
 	for _, k := range []string{"DATABASE_URL", "DB_HOST", "DB_PASSWORD", "DB_USER"} {
-		want(k, "Show", "copy", "remove")
+		want(k, "Show", "copy", "b64", "remove")
 		if icon := keyCopyIcon(t, d, k); !icon.Visible() || icon.tip != maskedCopyTip {
 			t.Errorf("%s's copy icon: shown %v, tooltip %q", k, icon.Visible(), icon.tip)
 		}
 	}
-	want("ca.crt", "remove")
+	want("ca.crt", "b64", "remove")
 	for _, l := range maskedLines(d) {
 		if l.hook != nil {
 			t.Errorf("the masked value %q has a copy icon of its own", l.line.text)
@@ -120,11 +124,11 @@ func TestSecretMaskedKeyButtonsOnNameLine(t *testing.T) {
 	}
 
 	r := showKey(t, sh, q, "DB_USER")
-	want("DB_USER", "Hide", "copy", "remove")
+	want("DB_USER", "Hide", "copy", "b64", "remove")
 	typeIntoRow(r.cmRow, secTyped)
 	sd.hide("DB_USER")
 	q.until(t, "the edited value masked", func() bool { return r.masked && drawerHasText(d, "(edited, not saved)") })
-	want("DB_USER", "Show", "copy", "remove")
+	want("DB_USER", "Show", "copy", "b64", "remove")
 	if l := selLineWith(t, d, engine.MaskedValue+" (edited, not saved)"); l.hook != nil {
 		t.Error("the edited masked value has a copy icon of its own")
 	}
@@ -134,28 +138,31 @@ func TestSecretMaskedKeyButtonsOnNameLine(t *testing.T) {
 
 	addKeyThrough(t, sd.adder, "API_TOKEN")
 	q.until(t, "the added key", func() bool { return sd.addedRows["API_TOKEN"] != nil })
-	want("API_TOKEN", "Hide", "copy", "remove")
+	want("API_TOKEN", "Hide", "copy", "b64", "remove")
 	sd.hide("API_TOKEN")
 	q.until(t, "the added key masked", func() bool { return sd.addedRows["API_TOKEN"].masked })
-	want("API_TOKEN", "Show", "copy", "remove")
+	want("API_TOKEN", "Show", "copy", "b64", "remove")
 }
 
 // TestSecretReadOnlyKeyButtonsOnNameLine (RW1): where the data cannot be saved, a key's name line
-// ends with "Show [copy]", no remove button; Show reveals the value read-only under it and turns
-// into Hide in the same place.
+// ends with "Show [copy] [b64]", no remove button; Show reveals the value read-only under it and
+// turns into Hide in the same place; a binary value's line ends with its b64 button alone.
 func TestSecretReadOnlyKeyButtonsOnNameLine(t *testing.T) {
 	f, _ := secretEditFake(t)
 	f.disabled[engine.SecretSaveDataCommand] = "not permitted: update secrets in namespace checkout"
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
 	d := sh.drawer
 	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
-	if got := keyLineParts(d, "DB_PASSWORD"); !slices.Equal(got, []string{"Show", "copy"}) {
-		t.Fatalf("a read-only key's line ends with %v, want Show, copy", got)
+	if got := keyLineParts(d, "DB_PASSWORD"); !slices.Equal(got, []string{"Show", "copy", "b64"}) {
+		t.Fatalf("a read-only key's line ends with %v, want Show, copy, b64", got)
+	}
+	if got := keyLineParts(d, "ca.crt"); !slices.Equal(got, []string{"b64"}) {
+		t.Errorf("a read-only binary value's line ends with %v, want b64", got)
 	}
 	test.Tap(drawerButtons(d)["Show"][2]) // DB_PASSWORD
 	q.until(t, "the value", func() bool { return drawerHasText(d, fixtureSecretValues["DB_PASSWORD"]) })
-	if got := keyLineParts(d, "DB_PASSWORD"); !slices.Equal(got, []string{"Hide", "copy"}) {
-		t.Errorf("a revealed read-only key's line ends with %v, want Hide, copy", got)
+	if got := keyLineParts(d, "DB_PASSWORD"); !slices.Equal(got, []string{"Hide", "copy", "b64"}) {
+		t.Errorf("a revealed read-only key's line ends with %v, want Hide, copy, b64", got)
 	}
 	if icon := keyCopyIcon(t, d, "DB_PASSWORD"); icon.tip != wholeCopyTip {
 		t.Errorf("a revealed value's copy icon says %q", icon.tip)
@@ -241,7 +248,8 @@ func TestSecretShowMarkedAsExposing(t *testing.T) {
 }
 
 // TestKeyLineButtonsOneHeight (the owner's finding of 2026-10-23 and his CW3): the buttons at the
-// end of a Secret key's name line are one height, Show, the copy icon and the remove button, and
+// end of a Secret key's name line are one height, Show, the copy icon, the b64 button (VW7) and the
+// remove button, a binary value's b64 and remove button too, and
 // Undo on a key marked for removal is as tall as they are; the copy icon is outlined as the remove
 // button is (his pick A), not on a chip.
 func TestKeyLineButtonsOneHeight(t *testing.T) {
@@ -260,7 +268,11 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 			out[b.Text] = b.Size().Height
 		}
 		for _, b := range findAll[*tipButton](line.Objects[1]) {
-			out["remove"] = b.Size().Height
+			if b.tip == b64Tip {
+				out["b64"] = b.Size().Height
+			} else {
+				out["remove"] = b.Size().Height
+			}
 		}
 		for _, b := range findAll[*copyButton](line.Objects[1]) {
 			out["copy"] = b.Size().Height
@@ -277,8 +289,9 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 			}
 		}
 	}
-	alike("DB_USER", "Show", "copy", "remove")
-	alike("DB_PASSWORD", "Hide", "copy", "remove")
+	alike("DB_USER", "Show", "copy", "b64", "remove")
+	alike("DB_PASSWORD", "Hide", "copy", "b64", "remove")
+	alike("ca.crt", "b64", "remove")
 	button := heights("DB_USER")["Show"]
 
 	icon := keyCopyIcon(t, d, "DB_USER")
@@ -288,7 +301,7 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 		t.Errorf("the copy icon's plate %v, stroke %v: want no fill and the field's outline", r.bg.FillColor, r.bg.StrokeColor)
 	}
 
-	remove := findAll[*tipButton](keyLineOf(d, "DB_USER").Objects[1])
+	remove := slices.DeleteFunc(findAll[*tipButton](keyLineOf(d, "DB_USER").Objects[1]), func(b *tipButton) bool { return b.tip == b64Tip })
 	if len(remove) != 1 {
 		t.Fatalf("%d remove buttons on DB_USER's line", len(remove))
 	}

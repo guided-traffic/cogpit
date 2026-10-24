@@ -148,9 +148,9 @@ func keyNameIn(d *drawer, key string, c fyne.ThemeColorName) fyne.CanvasObject {
 }
 
 // addedKeyLine is an added key's line: its name, "new" (or, when the data holds the key by now,
-// that it does), a Secret's Hide or Show (toggle) and copy icon (nil for none), and the button that
-// drops it.
-func addedKeyLine(d *drawer, key string, exists bool, toggle *textButton, copyIcon fyne.CanvasObject, drop func()) fyne.CanvasObject {
+// that it does), a Secret's Hide or Show (toggle) and its copy icon and b64 button (icons; none for a
+// Config Map), and the button that drops it.
+func addedKeyLine(d *drawer, key string, exists bool, toggle *textButton, icons []fyne.CanvasObject, drop func()) fyne.CanvasObject {
 	tag := newTextLine("new", colorStatusOK, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
 	if exists {
 		tag = newTextLine("new, but the cluster holds this key now", colorStatusWarning, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
@@ -159,8 +159,8 @@ func addedKeyLine(d *drawer, key string, exists bool, toggle *textButton, copyIc
 	if toggle != nil {
 		right.Add(toggle)
 	}
-	if copyIcon != nil {
-		right.Add(copyIcon)
+	for _, o := range icons {
+		right.Add(o)
 	}
 	right.Add(newTipButton(d.sh, theme.DeleteIcon(), "Drop the new key "+key, drop))
 	return container.NewBorder(nil, nil, nil, right, container.NewHBox(d.keyName(key), tag))

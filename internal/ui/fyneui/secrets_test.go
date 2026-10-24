@@ -28,14 +28,33 @@ var fixtureSecretValues = map[string]string{
 	"DB_USER": "checkout", "DATABASE_URL": "postgres://checkout:correct-horse-battery-staple@checkout-db:5432/orders?sslmode=verify-full&application_name=checkout-api",
 }
 
-// fixtureSecretObjects are Secrets as the cache holds them: in full.
-func fixtureSecretObjects() []*unstructured.Unstructured {
-	binary := make([]byte, 1229) // a DER certificate's size: binary data, 1.2 KiB
+// fixtureSecretBinary is checkout-db's ca.crt, its one binary value: a DER certificate's size,
+// binary data, 1.2 KiB.
+func fixtureSecretBinary() []byte {
+	binary := make([]byte, 1229)
 	for i := range binary {
 		binary[i] = byte(i)
 	}
+	return binary
+}
+
+// fakeRevealed answers secret.reveal for key's value v as the engine does: with base64 the whole
+// value encoded, the binary ca.crt's too (the b64 button, VW7); else v as it is.
+func fakeRevealed(p engine.RevealParams, v string) engine.SecretValue {
+	if !p.Base64 {
+		return engine.SecretValue{Key: p.Key, Value: v, Size: len(v)}
+	}
+	raw := []byte(v)
+	if p.Key == "ca.crt" {
+		raw = fixtureSecretBinary()
+	}
+	return engine.SecretValue{Key: p.Key, Value: base64.StdEncoding.EncodeToString(raw), Size: len(raw), Base64: true}
+}
+
+// fixtureSecretObjects are Secrets as the cache holds them: in full.
+func fixtureSecretObjects() []*unstructured.Unstructured {
 	enc := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
-	dbData := map[string]any{"ca.crt": base64.StdEncoding.EncodeToString(binary)}
+	dbData := map[string]any{"ca.crt": base64.StdEncoding.EncodeToString(fixtureSecretBinary())}
 	for k, v := range fixtureSecretValues {
 		dbData[k] = enc(v)
 	}
@@ -87,8 +106,7 @@ func secretsFake(t testing.TB) (*fakeEngine, model.ObjectRef) {
 		if inv.Origin != engine.OriginGUI {
 			t.Errorf("secret.reveal dispatched by %s", inv.Origin)
 		}
-		v := fixtureSecretValues[p.Key]
-		return engine.SecretValue{Key: p.Key, Value: v, Size: len(v)}, nil
+		return fakeRevealed(p, fixtureSecretValues[p.Key]), nil
 	}
 	f.ui.View = "secrets"
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref

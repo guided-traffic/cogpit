@@ -20,9 +20,10 @@ import (
 
 // A Secret's Data in the drawer, its values edited as a Config Map's are, in Cogpit's own window
 // only (the owner's audit answer of 2026-10-15; decisions D-59). Each key stands on a line of its
-// own with its value masked below; its buttons end the key's line, "Show [copy] [remove]", always
-// shown, as a revealed key's "Hide [copy] [remove]" (the owner's RW1 of 2026-10-23), the value line
-// holding the mask and the size only. Where the user may save the
+// own with its value masked below; its buttons end the key's line, "Show [copy] [b64] [remove]",
+// always shown, as a revealed key's "Hide [copy] [b64] [remove]" (the owner's RW1 of 2026-10-23; b64,
+// the value base64-encoded, his VW7 of 2026-10-24, secretcopy.go), the value line holding the mask
+// and the size only; a binary value's line holds "[b64] [remove]". Where the user may save the
 // Secret's values (secret.saveData enabled: not the demo cluster, an update right on its Secrets,
 // not immutable, no Helm release record), Show reads the whole value (secret.reveal with whole,
 // GUI-only) into an editor below the key, the Config Map's editor row (configmapdata.go), and Hide
@@ -106,7 +107,8 @@ type secData struct {
 	added     []string           // the keys added, in the order added
 	addedRows map[string]*secRow // their editors
 
-	pins map[string]*keyPin // the copy icons of the keys whose values are in no editor, by key
+	pins map[string]*keyPin    // the copy icons of the keys whose values are in no editor, by key
+	b64s map[string]*b64Button // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
 }
 
 // keyPin is the copy icon in the line of a key whose value is in no editor, kept across the
@@ -125,6 +127,7 @@ type secRow struct {
 
 	copyBtn  *copyButton // the copy icon in the key's line, made with the first line that shows it
 	copyDone *time.Timer // its checkmark's timer
+	b64      *b64Button  // an added key's b64 button (a key the Secret holds has its own in secData.b64s)
 }
 
 // secretDataSection renders a Secret's Data: the section kept for the shown Secret, rebuilt with
@@ -141,7 +144,7 @@ func secretDataSection(d *drawer, ref model.ObjectRef, sec model.DetailSection) 
 
 func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd := &secData{d: d, ref: ref, rows: map[string]*secRow{}, width: d.contentWidth(), listed: map[string]bool{},
-		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}}
+		removed: map[string]bool{}, addedRows: map[string]*secRow{}, pins: map[string]*keyPin{}, b64s: map[string]*b64Button{}}
 	sd.list = box(keyedLayout{})
 	sd.save = newPlateButton("Save", theme.DocumentSaveIcon(), sd.openReview)
 	sd.save.Importance = widget.HighImportance
@@ -226,8 +229,10 @@ func (sd *secData) render(sec model.DetailSection) {
 			objs = append(objs, name, note)
 		case it.Name != "" && r == nil && revealable(it):
 			objs = append(objs, sd.revealLines(it)...)
-		case it.Name == "" || r == nil:
-			objs = append(objs, sd.nameLine(it.Name), d.itemValue(sd.ref, sec, it))
+		case it.Name == "" || r == nil: // a binary value, a note
+			plain := it
+			plain.Actions = nil // its base64 read is the b64 button's, in its name line
+			objs = append(objs, sd.nameLine(it), d.itemValue(sd.ref, sec, plain))
 		case r.masked:
 			objs = append(objs, sd.keyLine(r), sd.maskedLine())
 		default:
@@ -239,6 +244,11 @@ func (sd *secData) render(sec model.DetailSection) {
 	for k := range sd.pins { // a key the Secret no longer holds takes its icon along
 		if !listed[k] {
 			delete(sd.pins, k)
+		}
+	}
+	for k := range sd.b64s { // and its b64 button, unless its edited value still shows
+		if !listed[k] && sd.rows[k] == nil {
+			delete(sd.b64s, k)
 		}
 	}
 	for _, k := range slices.Sorted(maps.Keys(sd.rows)) { // an edited key the cluster dropped: the review shows the conflict
@@ -288,10 +298,10 @@ func (sd *secData) dropStale() {
 	}
 }
 
-// keyLine is the line of a key whose value is in an editor: Hide, the copy icon and the remove
-// button at its end; Show in Hide's place while Hide masks the edited value.
+// keyLine is the line of a key whose value is in an editor: Hide, the copy icon, the b64 button and
+// the remove button at its end; Show in Hide's place while Hide masks the edited value.
 func (sd *secData) keyLine(r *secRow) fyne.CanvasObject {
-	return sd.buttonsLine(r.key, sd.toggle(r), sd.copyIcon(r))
+	return sd.buttonsLine(r.key, sd.toggle(r), sd.copyIcon(r), sd.typedB64(r))
 }
 
 // toggle is Hide for a value in an editor, Show for one Hide masked.
@@ -302,10 +312,10 @@ func (sd *secData) toggle(r *secRow) *textButton {
 	return revealButton(hideLabel, func() { sd.hide(r.key) })
 }
 
-// buttonsLine is a key's name with its buttons at the end: Show or Hide, the copy icon and, where
-// the data can be saved, the remove button (RW1).
-func (sd *secData) buttonsLine(key string, toggle *textButton, copyIcon fyne.CanvasObject) fyne.CanvasObject {
-	right := container.NewHBox(toggle, copyIcon)
+// buttonsLine is a key's name with its buttons at the end: Show or Hide, the copy icon, the b64
+// button (VW7) and, where the data can be saved, the remove button (RW1).
+func (sd *secData) buttonsLine(key string, toggle *textButton, copyIcon, b64 fyne.CanvasObject) fyne.CanvasObject {
+	right := container.NewHBox(toggle, copyIcon, b64)
 	if sd.editable() {
 		right.Add(removeKeyButton(sd.d.sh, key, func() { sd.removeKey(key) }))
 	}
@@ -325,7 +335,7 @@ func (sd *secData) revealLines(it model.DetailItem) []fyne.CanvasObject {
 		l.truncate = true
 		masked := newSelLine(l, nil, func(sel string) { d.sh.copyText(sel, false) })
 		pin := sd.pin(it.Name, maskedCopyTip, func(done func()) { d.copyWhole(sd.ref, a, done) })
-		return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin), masked}
+		return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin, sd.readB64(it.Name, a)), masked}
 	}
 	sd.revealed = true
 	value := newSecretText(shown.Value, nil, func(sel string) { d.sh.copyText(sel, true) })
@@ -337,7 +347,37 @@ func (sd *secData) revealLines(it model.DetailItem) []fyne.CanvasObject {
 		sd.copied(shown.Value)
 		done()
 	})
-	return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin), value}
+	return []fyne.CanvasObject{sd.buttonsLine(it.Name, toggle, pin, sd.readB64(it.Name, a)), value}
+}
+
+// readB64 is the b64 button of a key whose value is in no editor: it copies the whole value the
+// reveal action a names, base64-encoded, read again (secret.reveal with base64), masked or revealed,
+// a binary value's too.
+func (sd *secData) readB64(key string, a model.ItemAction) fyne.CanvasObject {
+	return sd.b64Of(key).set(func(done func()) { sd.d.copyBase64(sd.ref, a, done) })
+}
+
+// typedB64 is the b64 button of a key whose value is in an editor: it copies the value as typed,
+// base64-encoded, as the copy icon beside it copies it as typed.
+func (sd *secData) typedB64(r *secRow) fyne.CanvasObject {
+	b := r.b64
+	if !r.added {
+		b = sd.b64Of(r.key)
+	} else if b == nil {
+		b = newB64Button(sd.d.sh)
+		r.b64 = b
+	}
+	return b.set(func(done func()) { sd.d.copyTypedBase64(r.key, r.view.Text(), done) })
+}
+
+// b64Of is the b64 button of a key the Secret holds, kept across rebuilds.
+func (sd *secData) b64Of(key string) *b64Button {
+	b := sd.b64s[key]
+	if b == nil {
+		b = newB64Button(sd.d.sh)
+		sd.b64s[key] = b
+	}
+	return b
 }
 
 // pin is the copy icon in the line of key, whose value is in no editor, with the tooltip tip;
@@ -355,19 +395,30 @@ func (sd *secData) pin(key, tip string, copyValue func(done func())) fyne.Canvas
 	return container.NewCenter(p.btn)
 }
 
-// nameLine is a key above its value without Show (a binary value): its name and, where the data
-// can be saved, the remove button.
-func (sd *secData) nameLine(key string) fyne.CanvasObject {
-	if key == "" || !sd.editable() {
+// nameLine is a key above its value without Show (a binary value): its name, its b64 button, the
+// only copy of a binary value (VW7), and, where the data can be saved, the remove button.
+func (sd *secData) nameLine(it model.DetailItem) fyne.CanvasObject {
+	key := it.Name
+	if key == "" {
 		return sd.d.keyName(key)
 	}
-	return container.NewBorder(nil, nil, nil, removeKeyButton(sd.d.sh, key, func() { sd.removeKey(key) }), sd.d.keyName(key))
+	right := container.NewHBox()
+	if a, ok := base64Action(it); ok {
+		right.Add(sd.readB64(key, a))
+	}
+	if sd.editable() {
+		right.Add(removeKeyButton(sd.d.sh, key, func() { sd.removeKey(key) }))
+	}
+	if len(right.Objects) == 0 {
+		return sd.d.keyName(key)
+	}
+	return container.NewBorder(nil, nil, nil, right, sd.d.keyName(key))
 }
 
 // addedLines are an added key's lines: its name with Hide, the copy icon and the button that drops
 // it, and its editor; once hidden Show in Hide's place and its value masked.
 func (sd *secData) addedLines(r *secRow, exists bool) []fyne.CanvasObject {
-	line := addedKeyLine(sd.d, r.key, exists, sd.toggle(r), sd.copyIcon(r), func() { sd.dropAdded(r.key) })
+	line := addedKeyLine(sd.d, r.key, exists, sd.toggle(r), []fyne.CanvasObject{sd.copyIcon(r), sd.typedB64(r)}, func() { sd.dropAdded(r.key) })
 	if r.masked {
 		return []fyne.CanvasObject{line, sd.maskedLine()}
 	}

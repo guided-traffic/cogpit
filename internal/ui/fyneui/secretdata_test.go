@@ -60,8 +60,7 @@ func secretEditFake(t testing.TB) (*fakeEngine, *secFake) {
 		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
-		v := s.values[p.Key]
-		return engine.SecretValue{Key: p.Key, Value: v, Size: len(v)}, nil
+		return fakeRevealed(p, s.values[p.Key]), nil
 	}
 	params := func(inv engine.Invocation) (secretDataParams, error) {
 		if inv.Origin != engine.OriginGUI {
