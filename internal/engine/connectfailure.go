@@ -33,6 +33,11 @@ type ConnectStage struct {
 	Text string `json:"text,omitempty"`
 	// TookMS is how long it took, in milliseconds; 0 when it is not timed.
 	TookMS int64 `json:"tookMs,omitempty"`
+	// MissingProgram is the program a failed login did not find where Cogpit looks for programs:
+	// the credential plugin itself, or the kubectl plugin kubectl, run as the plugin, looked for
+	// (kubectl-oidc_login). Text then says where to add its folder (Preferences › Kubernetes ›
+	// Program folders, programfolders.go, D-120); the error page offers to open it.
+	MissingProgram string `json:"missingProgram,omitempty"`
 }
 
 // ConnectFailure is the shown cluster's last connect while it failed: what the window's error
@@ -59,8 +64,12 @@ func connectStages(in []cluster.Stage) []ConnectStage {
 	}
 	out := make([]ConnectStage, len(in))
 	for i, st := range in {
-		out[i] = ConnectStage{Name: st.Name, Result: st.Result, Text: kubeconfig.DisplayText(st.Text, maxConnectLogText),
-			TookMS: st.Took.Milliseconds()}
+		text := st.Text
+		if st.Missing != "" {
+			text += programFoldersHint(st.Missing)
+		}
+		out[i] = ConnectStage{Name: st.Name, Result: st.Result, Text: kubeconfig.DisplayText(text, maxConnectLogText),
+			TookMS: st.Took.Milliseconds(), MissingProgram: kubeconfig.DisplayText(st.Missing, maxConnectLogText)}
 	}
 	return out
 }
@@ -73,7 +82,13 @@ func failedConnection(err error, msg string, override bool) (Connection, []Conne
 	if cause == "" || override {
 		cause = msg
 	}
-	return Connection{State: ConnectError, Error: oneLine(cause)}, connectStages(stages)
+	out := connectStages(stages)
+	for _, st := range out {
+		if st.MissingProgram != "" && st.Result == cluster.StageFailed && !override {
+			cause = st.Text // the cause with where to add the program's folder (D-120)
+		}
+	}
+	return Connection{State: ConnectError, Error: oneLine(cause)}, out
 }
 
 // withConfigStages gives a connect that failed before the cluster layer could run (no source offers

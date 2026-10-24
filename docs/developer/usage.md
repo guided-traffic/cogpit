@@ -514,6 +514,55 @@ anyone who can drop a file into a sync folder chooses them. Without a configurat
 (no `$HOME`) the CLI refuses to connect rather than merging the files as kubectl does, which
 would run their plugins unasked.
 
+### Preferences › Kubernetes: program folders
+
+A kubeconfig's credential plugin (kubelogin, a cloud's plugin, `kubectl oidc-login` and the kubectl
+plugin it runs) is looked up on `PATH`, and Cogpit started from the Dock, Finder or a launcher does
+not get the `PATH` your shell's profile sets (since 2026-10-24,
+[D-120](decisions.md#d-120-credential-plugins-found-in-more-folders)). Cogpit therefore looks in
+more folders, always after your `PATH`'s own:
+
+1. the folders `PATH` has when Cogpit starts;
+2. on macOS and Linux, its built-in folders, each only while it exists: `/opt/homebrew/bin`,
+   `/usr/local/bin`, `/opt/local/bin`; on Linux `/home/linuxbrew/.linuxbrew/bin` and `/snap/bin`;
+   `/run/current-system/sw/bin`, `/nix/var/nix/profiles/default/bin`,
+   `/etc/profiles/per-user/<user>/bin`, `~/.nix-profile/bin`; `~/.local/bin`, `~/bin`;
+   krew's `~/.krew/bin` (`$KREW_ROOT/bin` when Cogpit sees `KREW_ROOT`); go install's `~/go/bin`
+   (`$GOBIN`, or the first folder of `$GOPATH`, when set); `~/.asdf/shims`,
+   `~/.local/share/mise/shims`; `~/.rd/bin` (Rancher Desktop), `~/.docker/bin` (Docker Desktop),
+   `~/google-cloud-sdk/bin`;
+3. the program folders you add in Preferences › Kubernetes › Program folders, in the order added.
+
+Add Folder… opens the system's folder panel with hidden folders listed (⌘⇧. toggles them), so
+`~/.krew/bin` can be chosen; each folder is a row with a remove button. A folder counts from the
+next login on, without a restart: Connect Again after adding it. When a login fails because its
+program is not found, the error page and Connection Updates say which program and where to add its
+folder, and the error page's Program Folders… opens this section.
+
+```json
+{
+  "programFolders": ["/Users/me/tools/bin"]
+}
+```
+
+| Field | Default | Meaning |
+|---|---|---|
+| `programFolders` | `[]` # default | the folders, absolute paths, Cogpit looks in after `PATH` and its built-in folders, at most 32; kept in `preferences.json` and read by `cogpit-cli` too. A folder that is missing is kept and skipped until it exists |
+
+| Command | Who | What it does |
+|---|---|---|
+| `preferences.addProgramFolder {path}` | your click only (GUI only) | adds a folder that exists, is a folder and that not every user of the computer may write to |
+| `preferences.removeProgramFolder {path}` | anyone, agents included | removes a folder |
+
+Security note: a folder is only ever appended, so a program your `PATH` finds keeps running and
+nothing is shadowed; a program a login names without a folder that your `PATH` lacks is found in
+these folders instead, bound by its name as a program on `PATH`
+([H-6](../security/credentials.md#h-6-exec-plugins-inherit-the-environment)). Only you can add a
+folder, in Cogpit's window: a folder an agent added could hold the program your next login runs.
+Add only folders that you alone can write to: a folder others write to (a shared or synced folder)
+lets them choose what runs for a name your `PATH` lacks; a folder every user may write to is
+refused. Variables a profile sets (`AWS_PROFILE`) still do not reach Cogpit.
+
 ### Preferences › Kubernetes: `kubectl` for terminals
 
 Kept in `<user config dir>/Cogpit/preferences.json` (owner-only), set on the Preferences page (⌘,)
@@ -1282,6 +1331,7 @@ Every file chooser of the window is the operating system's own on macOS (since 2
 | Sync Files and Folders… | Cluster menu, the navigator's "+", the welcome page, Kubeconfig Sources | kubeconfig files and folders together, several at once (⌘-click), hidden files listed (`.kube`); the button "Sync"; opens in your home folder; ⌘⇧G types a path |
 | Choose Image… | Cluster Settings › General › Icon, Custom icon › Customize… | one PNG, JPEG or SVG file |
 | The folder buttons | Cluster Settings › Terminal (working directory), Preferences › Kubernetes (directory for binaries) | one folder, the button "Choose" |
+| Add Folder… | Preferences › Kubernetes › Program folders | one folder, hidden folders listed, the button "Add"; a read-only bookmark |
 | Choose… | Preferences › Agent, a connection's CA file | one `.pem`, `.crt` or `.cer` file |
 | The downloads | a table's CSV, the Create tab's save, a log tab's download | a file name, proposed; macOS asks before it replaces a file; a new file is readable by you only |
 
@@ -1602,6 +1652,7 @@ file in `%TEMP%` inherits the same (the lead's policy, 2026-10-21,
 | Page keys (views that are not one kind's list, `ui.openView`'s `view`) | `<navigator group>/<page>` | `cluster/overview`, `workloads/overview`, `flux/dashboard` |
 | Annotations the Flux actions set | `reconcile.fluxcd.io/requestedAt` (Reconcile, Resume) and, for a forced Helm release, `reconcile.fluxcd.io/forceAt`: the time in RFC 3339 with nanoseconds, as the flux CLI writes it | `2026-10-13T22:01:02.345678901Z` # example |
 | Environment variables | `COGPIT_<NAME>`; the app reads one, `COGPIT_SYSTEM_TITLEBAR=1` (macOS's own title bar instead of Cogpit's); the others are the tests': `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`, `COGPIT_KIND_DRAIN_KUBECONFIG`, `COGPIT_KIND_DRAIN_CONTEXT`, `COGPIT_KIND_FALLBACK`, `COGPIT_PNG_DIR`, `COGPIT_SIGSTORE_LIVE`, `COGPIT_SPARKLE_FRAMEWORK`, and for a real cluster someone lends for a test run `COGPIT_REAL_KUBECONFIG` (its kubeconfig, passed to Cogpit alone) and `COGPIT_REAL_CONTEXT` (default: the file's current context), never set in CI (and a few that tests set for their own child processes); for measurements on a real cluster (read-only, skipped without them, never in CI) `COGPIT_REAL_KUBECONFIG`, `COGPIT_REAL_CONTEXT`, `COGPIT_REAL_ROUNDS`, `COGPIT_REAL_IDLE`, `COGPIT_REAL_THANOS` ([testing](testing.md#tiers)); for the built-in agent's local tests `COGPIT_LLM_TEST_URL`, `COGPIT_LLM_TEST_MODEL`, `COGPIT_LLM_TEST_KIND`, `COGPIT_LLM_TEST_KEY` (`TestLiveEndpoint` against a real endpoint over the demo cluster; skipped without them) | `COGPIT_LLM_TEST_URL=http://localhost:1234/v1` # example |
+| Cogpit's `PATH` (where a credential plugin's programs are found) | the `PATH` Cogpit started with, then the built-in folders that exist (macOS and Linux), then Preferences › Kubernetes › Program folders (`programFolders`), each appended, never first ([program folders](#preferences--kubernetes-program-folders), D-120) | `/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/Users/me/.krew/bin:/Users/me/tools/bin` # example |
 | MCP endpoint | `http://127.0.0.1:<port>/mcp`, a free port the first time, kept in `mcp-port` for every later start; another one, kept from then on, when the kept port is taken | `http://127.0.0.1:59449/mcp` # example |
 | MCP bearer token | `<user config dir>/Cogpit/mcp-token`, owner-only (0600, directory 0700), kept across starts and the switch until you click Regenerate token in the MCP details (D-53); a file that holds no token Cogpit wrote, or that other users may read, is replaced at the next start | |
 | MCP port file | `<user config dir>/Cogpit/mcp-port`, beside the token and with its rules: the port the next start binds (not with `--mcp-addr` and a port) | `59449` # example |

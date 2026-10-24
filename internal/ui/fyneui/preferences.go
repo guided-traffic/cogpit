@@ -247,9 +247,11 @@ func (p *settingsPage) kubernetesSection() fyne.CanvasObject {
 	debugImage, syncDebugImage := p.debugImageSetting() // preferences_debug.go (D-102)
 	// Set before kubectlSettings, which chains p.sync.
 	p.sync = func() { syncHelmDriver(); syncChartIcons(); syncIntegrations(); syncDebugImage() }
+	programFolders := p.programFoldersSetting() // preferences_programs.go (D-120); chains p.sync
 	return container.NewVBox(append([]fyne.CanvasObject{
 		p.setting("kubeconfigSyncs", "Kubeconfig syncs", "The files and folders Cogpit reads kubeconfigs from; ~/.kube is synced by default.",
 			container.NewHBox(sources, syncB)),
+		programFolders,
 		helmDriver,
 		chartIcons,
 		integrations,

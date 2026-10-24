@@ -131,7 +131,8 @@ func registerPreferences(g *registrar) {
 			"(restoreSession: its tabs and connections), the integrations off for clusters without a choice of their own " +
 			"(integrationsOff, the default for new clusters; absent: every one on), the image Debug offers for a pod's debug " +
 			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest), whether the tab bar shows " +
-			"every cluster's tabs (mixedEnvironments) and whether the window switches at once instead of sliding (reduceMotion); " +
+			"every cluster's tabs (mixedEnvironments) and whether the window switches at once instead of sliding (reduceMotion), " +
+			"the folders Cogpit looks in for a credential plugin's programs after PATH (programFolders: preferences_addProgramFolder, preferences_removeProgramFolder); " +
 			"kept says whether they outlive this run. " +
 			"ui_state carries the same.",
 		Enabled: func(s *engine.Session, _ struct{}) error { _, err := s.Preferences(); return err },

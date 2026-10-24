@@ -48,6 +48,7 @@ type errorPage struct {
 	list    *fyne.Container // the stages' rows
 	retry   *textButton
 	connLog *textButton
+	folders *textButton // Program Folders…: shown when the login did not find a program (D-120)
 	when    *paragraph
 
 	shown bool
@@ -70,6 +71,11 @@ func newErrorPage(sh *shell) *errorPage {
 	p.retry = newPlateButton(connectAgainLabel, theme.LoginIcon(), func() { sh.tabs.welcome.connect(sh.ui.Context) })
 	p.retry.Importance = widget.HighImportance
 	p.connLog = newPlateButton(strings.TrimSuffix(connectLogItem, "…"), theme.ListIcon(), func() { sh.kc.showConnectLog(sh.ui.Context) })
+	// A credential plugin's program not found: where to add its folder (preferences_programs.go).
+	p.folders = newPlateButton(programFoldersButton, theme.FolderOpenIcon(), func() {
+		sh.dispatch("preferences.open", preferencesOpenParams{Section: engine.SectionKubernetes}, nil)
+	})
+	p.folders.Hide()
 	p.when = newParagraph("", colorMuted, welcomeColumn)
 	p.when.size = theme.SizeNameCaptionText
 	column := container.NewVBox(
@@ -81,13 +87,16 @@ func newErrorPage(sh *shell) *errorPage {
 		p.steps,
 		p.plate,
 		newSpace(theme.SizeNamePadding),
-		container.NewHBox(p.retry, p.connLog),
+		container.NewHBox(p.retry, p.connLog, p.folders),
 		p.when,
 	)
 	p.root = newWelcomeStage(box(welcomeLayout{}, column))
 	p.root.Hide()
 	return p
 }
+
+// programFoldersButton opens Preferences › Kubernetes, where the Program folders setting is.
+const programFoldersButton = "Program Folders…"
 
 // errorPageShown reports whether the workspace shows the error page: the chosen cluster's connect
 // failed and the engine shows no welcome page (engine/welcome.go).
@@ -133,8 +142,12 @@ func (p *errorPage) render() {
 
 	p.title.SetText("Could not connect to " + name)
 	where := "error"
+	p.folders.Hide()
 	if st := failedStage(stages); st != nil {
 		where = "error · " + strings.ToLower(stageLabel(st.Name))
+		if st.MissingProgram != "" {
+			p.folders.Show()
+		}
 	}
 	p.head.SetText(where)
 	cause := ui.Connection.Error

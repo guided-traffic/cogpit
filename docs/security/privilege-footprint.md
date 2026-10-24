@@ -33,7 +33,12 @@ The Preferences and Cluster settings (2026-10-13: `preferences.*`, `cluster.sett
 request either and write only Cogpit's own `preferences.json`, `cluster-settings.json` and
 `cluster-icons/`, never a kubeconfig (`TestClusterSettingsCommandsNeverTouchTheKubeconfig`); a
 cluster's terminal namespace is written into the terminal's own kubeconfig as the filter's
-namespace already was ([credentials](credentials.md#the-terminals-kubeconfig)). Disconnect and
+namespace already was ([credentials](credentials.md#the-terminals-kubeconfig)). The program folders
+(2026-10-24: `preferences.addProgramFolder`, GUI-only, and `preferences.removeProgramFolder`,
+[D-120](../developer/decisions.md#d-120-credential-plugins-found-in-more-folders)) send no request
+either: they change only where Cogpit's own `PATH` looks for the programs a credential plugin runs,
+appended after its folders; what that lets run on the user's computer is in
+[credentials › H-6](credentials.md#h-6-exec-plugins-inherit-the-environment). Disconnect and
 Remove from Cogpit (2026-10-13: `cluster.disconnect`, `cluster.remove`) send no request either:
 Disconnect stops the connection's informers, port forwards, logs and shells, and
 Remove takes out Cogpit's link to a kubeconfig file the user added, never editing or deleting the

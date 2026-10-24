@@ -305,7 +305,10 @@ Content binding is narrower than "everything the plugin runs", by decision (owne
 
 - a program found outside the kubeconfig's folder is bound by its path, not its content: whoever
   can write to a `PATH` directory or to `/usr/local/bin` already controls the user's account, and
-  binding them would ask again after every tool update;
+  binding them would ask again after every tool update; since 2026-10-24 Cogpit's `PATH` also has
+  its built-in and the user's program folders, appended after it, so a name `PATH` lacked may be
+  found there ([D-120](../developer/decisions.md#d-120-credential-plugins-found-in-more-folders),
+  [H-6](credentials.md#h-6-exec-plugins-inherit-the-environment));
 - only the program file itself is hashed: a script in the folder that sources or imports a sibling
   file, or an interpreter that loads libraries, is bound through the script only, and so is a
   binary's own configuration;

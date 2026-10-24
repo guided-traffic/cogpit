@@ -26,6 +26,7 @@ var wantGUIOnly = []string{
 	"kubeconfig.addFile", "kubeconfig.addFolder", "kubeconfig.approveExec", "kubeconfig.remove",
 	"kubectl.download", engine.SecretCreateCommand, engine.RevealCommand, "configMap.keepEdits",
 	engine.SecretReviewDataCommand, engine.SecretSaveDataCommand,
+	"preferences.addProgramFolder", // D-120: a folder an agent added could hold the program a login runs
 }
 
 // guiOnlyParams returns parameters that decode for a command: every required property with a value

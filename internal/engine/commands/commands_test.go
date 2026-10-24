@@ -226,6 +226,8 @@ var wantCommands = map[string]engine.Danger{
 	"kyverno.violations": engine.DangerRead,
 	// An object being deleted loses its finalizers (WF43, D-98) (TestRemoveFinalizersConfirmsWhatItRemoves).
 	"object.removeFinalizers": engine.DangerDestructive,
+	// The program folders of a credential plugin's programs (D-120): adding GUI-only (TestProgramFoldersAddRemoveAndKeep).
+	"preferences.addProgramFolder": engine.DangerUI, "preferences.removeProgramFolder": engine.DangerUI,
 }
 
 func TestRegistryComplete(t *testing.T) {
