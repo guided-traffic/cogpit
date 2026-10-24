@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -54,6 +55,10 @@ func TestSysfsOnBattery(t *testing.T) {
 				devices = root
 			}
 			for name, files := range c.supplies {
+				if !link {
+					// A Windows path holds no colon; the rule reads the type, never the name.
+					name = strings.ReplaceAll(name, ":", "_")
+				}
 				dev := filepath.Join(devices, name)
 				if err := os.MkdirAll(dev, 0o755); err != nil {
 					t.Fatal(err)
