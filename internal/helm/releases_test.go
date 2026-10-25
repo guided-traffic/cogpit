@@ -274,6 +274,38 @@ func TestReleaseDescriptionScrubbed(t *testing.T) {
 	if h := ReleaseHistory(web); strings.Contains(h[0].Description, "hunter2") {
 		t.Errorf("history %q", h[0].Description)
 	}
+
+	// The values repeat the release's name, its namespace and its chart's: the description keeps
+	// what the release object shows anyway, and still withholds a secret, a value that holds the
+	// name whole, and a shorter value elsewhere.
+	vals := map[string]any{
+		"fullnameOverride": "search-prod", "namespaceOverride": "search", "image": map[string]any{"tag": "1.4.0"},
+		"db": map[string]any{"password": "search-prod-db-pw", "user": "searcher"}, "token": "s3cr3t-t0ken",
+	}
+	s = secretFor(t, testRelease{ns: "search", name: "search-prod", rev: 4, status: common.StatusFailed, values: vals})
+	if rls, err = DecodeSecret(s); err != nil {
+		t.Fatal(err)
+	}
+	rls.Info.Description = `Upgrade "search-prod" failed: secret "search-prod-db-pw" in namespace "search" rejected s3cr3t-t0ken for searcher, chart web-1.4.0`
+	s.Object["data"] = map[string]any{"release": base64.StdEncoding.EncodeToString([]byte(encode(t, rls, true)))}
+	got := model.NestedString(NewReleaseProfile().Derive([]*unstructured.Unstructured{s})[0], "description")
+	want := `Upgrade "search-prod" failed: secret "<value withheld>" in namespace "search" rejected <value withheld> for <value withheld>, chart web-1.4.0`
+	if got != want {
+		t.Errorf("description\n%q, want\n%q", got, want)
+	}
+}
+
+// A public string is kept where a value equals it or lies inside it; a value that holds it is
+// replaced whole.
+func TestScrubValuesExcept(t *testing.T) {
+	vals := map[string]any{"a": "shop-web", "b": "shop-web-secret", "c": "shop", "d": "hunter2"}
+	got := ScrubValuesExcept("shop-web; shop-web-secret; shop; shop-web/hunter2", vals, []string{"shop-web", "", "web"})
+	if want := "shop-web; <value withheld>; <value withheld>; shop-web/<value withheld>"; got != want {
+		t.Errorf("%q, want %q", got, want)
+	}
+	if got := ScrubValues("shop-web", vals); got != withheldValue {
+		t.Errorf("without public strings %q", got)
+	}
 }
 
 // Statuses as Lens writes them: capitalized.
