@@ -33,7 +33,7 @@ func (d *drawer) table(ref model.ObjectRef, section string, t *model.DetailTable
 		return model.ColumnText
 	}
 	if t.LastUnder && len(t.Columns) > 2 {
-		return d.underTable(ref, t, colType)
+		return d.underTable(ref, t, colType, nil)
 	}
 	// The cells go into the grid at once: Container.Add lays the grid out on every call, which
 	// for a node's hundreds of pods measures every cell hundreds of times.
@@ -105,8 +105,9 @@ func tableCellAt(t *model.DetailTable, row []model.Cell, r, i int) (model.Cell, 
 // (the owner, 2026-10-25: "so wie die Values in der ConfigMap, nicht als code-Block"): the input
 // background, the text in the plain font wrapped onto lines within it (wrapHard), a failed state's
 // in its colour; each line's copy icon copies the whole text. The last column has no title: the
-// text under a row says what it is ("Upgrade complete").
-func (d *drawer) underTable(ref model.ObjectRef, t *model.DetailTable, colType func(int) model.ColumnType) fyne.CanvasObject {
+// text under a row says what it is ("Upgrade complete"). rowLink, when set, makes each row's first
+// cell a link that runs what it returns for the row (a release's revision opens its Revisions tab).
+func (d *drawer) underTable(ref model.ObjectRef, t *model.DetailTable, colType func(int) model.ColumnType, rowLink func(row int) func()) fyne.CanvasObject {
 	n := len(t.Columns) - 1
 	th := d.sh.app.Settings().Theme()
 	size := th.Size(theme.SizeNameText)
@@ -119,6 +120,12 @@ func (d *drawer) underTable(ref model.ObjectRef, t *model.DetailTable, colType f
 	for r, row := range t.Cells {
 		for i := range n {
 			cell, text := tableCellAt(t, row, r, i)
+			if i == 0 && rowLink != nil {
+				if tap := rowLink(r); tap != nil {
+					cells = append(cells, newLinkText(text, tap))
+					continue
+				}
+			}
 			cells = append(cells, d.tableCell(ref, colType(i), cell, text))
 		}
 		cell, text := tableCellAt(t, row, r, n)

@@ -1,7 +1,9 @@
 // Package demo is a synthetic cluster for `cogpit --demo`: 10,000 pods, a few hundred services
-// with known cluster IPs, deployments, namespaces, nodes and events, and a configurable churn of
-// watch events (default 1,000 per second). It feeds the real cache through a cache.Source, so the
-// demo exercises the same informers, engine and UI as a real cluster.
+// with known cluster IPs, deployments, namespaces, nodes and events, the records of three Helm
+// releases with their history (its only Secrets and ConfigMaps, helm.go), and a configurable
+// churn of watch events (default 1,000 per second) that leaves the release records alone. It
+// feeds the real cache through a cache.Source, so the demo exercises the same informers, engine
+// and UI as a real cluster.
 //
 // The cluster is deterministic: the same Seed (and Now) gives the same objects, and the same
 // sequence of changes, whatever the timing of the churn.
@@ -206,8 +208,8 @@ func New(opts Options) *Cluster {
 // Source returns the cache.Source the cache builds its informers from.
 func (c *Cluster) Source() cache.Source { return source{c: c} }
 
-// Resources returns the resources the synthetic cluster serves, in sidebar order. Other
-// resources answer 404 Not Found, as a cluster without them would.
+// Resources returns the resources the synthetic cluster serves; its Secrets and ConfigMaps are
+// Helm's release records. Other resources answer 404 Not Found, as a cluster without them would.
 func Resources() []schema.GroupVersionResource {
 	out := make([]schema.GroupVersionResource, 0, numKinds)
 	for k := range numKinds {

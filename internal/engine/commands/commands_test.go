@@ -90,6 +90,7 @@ var wantCommands = map[string]engine.Danger{
 	"helm.dismissOperation":   engine.DangerUI,
 	"helm.release.upgradeTab": engine.DangerUI, "helm.release.upgrade": engine.DangerMutating,
 	"helm.release.values": engine.DangerRead, "helm.release.history": engine.DangerRead,
+	"helm.release.revision": engine.DangerRead, "helm.release.diff": engine.DangerRead, "ui.helm.revisions": engine.DangerUI, "ui.helm.revisions.set": engine.DangerUI,
 	// Helm chart repositories (G11, D-29): read from Helm's repositories.yaml, added and removed
 	// with the helm CLI only, so there is no add or remove (TestNoCommandWritesHelmsFile).
 	"helm.repo.list": engine.DangerRead, "helm.repo.update": engine.DangerUI,

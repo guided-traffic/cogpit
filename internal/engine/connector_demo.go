@@ -10,12 +10,14 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
+	"slices"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/demo"
+	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
@@ -30,13 +32,19 @@ type DemoOptions = demo.Options
 
 // demoProfiles keeps the built-in profiles of the kinds the demo cluster serves, as discovery does
 // for a real cluster: a kind the demo has no objects for is not offered, rather than shown as an
-// error.
+// error. Helm's releases and the Applications follow as for a real cluster (Connect): the demo's
+// Secrets and ConfigMaps are Helm's release records, and each call makes a releases profile with
+// its own memo, one per backend.
 func demoProfiles() []*model.KindProfile {
 	served := map[schema.GroupVersionResource]bool{}
 	for _, gvr := range demo.Resources() {
 		served[gvr] = true
 	}
-	return withApplications(servedProfiles(kinds.Builtin(), served))
+	profiles := servedProfiles(kinds.Builtin(), served)
+	if slices.ContainsFunc(profiles, isSecrets) {
+		profiles = append(slices.Clip(profiles), helm.NewReleaseProfile())
+	}
+	return withApplications(profiles)
 }
 
 // connectDemo builds the synthetic cluster and starts its churn.

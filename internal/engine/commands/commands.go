@@ -42,6 +42,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerSecretData(g) // a Secret's values edited in the drawer, the window's only (D-59)
 	registerHelm(g)
 	registerHelmUpgrade(g)
+	registerHelmRevisions(g) // a release's revisions, their values and manifests (a prototype)
 	registerHelmRepos(g)
 	registerHelmHTTP(g)
 	registerHelmInstall(g)

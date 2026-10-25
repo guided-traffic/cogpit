@@ -89,11 +89,19 @@ func receive(t testing.TB, w watch.Interface, n int) []watch.Event {
 
 func gvrOf(k kind) schema.GroupVersionResource { return kindInfo[k].gvr }
 
+// The Helm release records of a cluster with every namespace (helm.go): six revisions of shop-web
+// and two of cache in Secrets, three of search-api in ConfigMaps.
+const (
+	helmSecrets    = 8
+	helmConfigMaps = 3
+)
+
 func TestBuildSizesAndVariety(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1})
 	want := map[kind]int{
 		kindPods: DefaultPods, kindNodes: DefaultNodes, kindNamespaces: DefaultNamespaces,
 		kindDeployments: DefaultDeployments, kindServices: DefaultServices, kindEvents: DefaultEvents,
+		kindSecrets: helmSecrets, kindConfigMaps: helmConfigMaps,
 	}
 	for k, n := range want {
 		if got := len(c.store[k]); got != n {
@@ -503,6 +511,8 @@ func TestObjectsCarryTheColumnFields(t *testing.T) {
 			{"status", "allocatable", "memory"}, {"status", "addresses"}, {"metadata", "labels"},
 		},
 		kindNamespaces: {{"status", "phase"}, {"metadata", "labels"}},
+		kindSecrets:    {{"type"}, {"data", "release"}, {"metadata", "labels"}, {"metadata", "uid"}},
+		kindConfigMaps: {{"data", "release"}, {"metadata", "labels"}, {"metadata", "uid"}},
 		kindEvents: {
 			{"involvedObject", "kind"}, {"involvedObject", "name"}, {"reason"}, {"message"}, {"count"},
 			{"type"}, {"source", "component"}, {"lastTimestamp"}, {"firstTimestamp"},
@@ -532,11 +542,63 @@ func TestObjectsCarryTheColumnFields(t *testing.T) {
 func TestStatsCountsObjectsAndEvents(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1, Pods: 500, Deployments: 40, Services: 20, Events: 50})
 	st := c.Stats()
-	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50 {
+	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps {
 		t.Errorf("Objects = %d", st.Objects)
 	}
 	n := c.stepLocked(100)
 	if got := c.Stats().EventsSent; got != int64(n) {
 		t.Errorf("EventsSent = %d, want %d", got, n)
+	}
+}
+
+// The churn never changes Helm's release records: after it, every record has the resourceVersion
+// the build gave it.
+func TestChurnLeavesHelmRecordsAlone(t *testing.T) {
+	c := newTestCluster(t, Options{Seed: 5, Pods: 1_000, Deployments: 50, Services: 20, Events: 100})
+	snapshot := func() map[string]string {
+		out := map[string]string{}
+		for _, k := range []kind{kindSecrets, kindConfigMaps} {
+			for key, o := range c.store[k] {
+				out[kindInfo[k].kind+" "+key] = o.GetResourceVersion()
+			}
+		}
+		return out
+	}
+	before := snapshot()
+	if len(before) != helmSecrets+helmConfigMaps {
+		t.Fatalf("%d release records, want %d", len(before), helmSecrets+helmConfigMaps)
+	}
+	c.stepLocked(20_000)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if after := snapshot(); !reflect.DeepEqual(after, before) {
+		t.Errorf("release records after the churn %v, before %v", after, before)
+	}
+}
+
+// The release records take nothing from the random generator: building them again leaves its
+// state as it was, so the rest of the cluster and its churn are what they were before the records
+// came. Their uids, made from their kind, namespace and name, are unique.
+func TestHelmRecordsDrawNoRandomNumbers(t *testing.T) {
+	c := newTestCluster(t, Options{Seed: 6, Pods: 300, Deployments: 20, Services: 10, Events: 30})
+	c.mu.Lock()
+	want := c.rng.Uint64()
+	c.mu.Unlock()
+
+	d := newTestCluster(t, Options{Seed: 6, Pods: 300, Deployments: 20, Services: 10, Events: 30})
+	d.mu.Lock()
+	defer d.mu.Unlock()
+	d.buildHelmReleases(d.opts.Now) // a second set of records replaces the first
+	if got := d.rng.Uint64(); got != want {
+		t.Errorf("the generator moved: %d, want %d", got, want)
+	}
+	uids := map[string]string{}
+	for _, k := range []kind{kindSecrets, kindConfigMaps} {
+		for key, o := range d.store[k] {
+			if other, dup := uids[string(o.GetUID())]; dup {
+				t.Errorf("%s and %s share a uid", key, other)
+			}
+			uids[string(o.GetUID())] = key
+		}
 	}
 }

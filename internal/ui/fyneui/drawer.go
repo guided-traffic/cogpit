@@ -458,7 +458,11 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 				newSpace(theme.SizeNamePadding))
 		}
 		group = sec.Group
-		out = append(out, d.sectionTitle(sec))
+		title := d.sectionTitle(sec)
+		if part, ok := drawerTitleParts[m.Ref.Kind+"\x00"+sec.Title]; ok && sec.Group == "" {
+			title = container.NewBorder(nil, nil, nil, part(d, m.Ref), title)
+		}
+		out = append(out, title)
 		if sec.Group != "" {
 			out = append(out, newDivider(false)) // a container under its group's bracket keeps a rule of its own
 		} else {
@@ -516,6 +520,10 @@ func (d *drawer) itemName(text string) fyne.CanvasObject {
 // in an editor, helmdrawer.go). Each feature registers its renderer in an init of its own file. A
 // renderer may keep widgets in drawer.kept across rebuilds of the same object's sections.
 var drawerSections = map[string]func(d *drawer, ref model.ObjectRef, sec model.DetailSection) fyne.CanvasObject{}
+
+// drawerTitleParts are the GUI's own parts at the right end of a section's title, by kind and
+// section title: a release's History opens its Revisions tab (helmrevisions_drawer.go).
+var drawerTitleParts = map[string]func(d *drawer, ref model.ObjectRef) fyne.CanvasObject{}
 
 // drawerHeaderParts are the GUI's own parts of a kind's drawer header, by kind: what shows left of the
 // title and under it (a Helm chart's icon and version picker, helmchartdrawer.go); nil hides the
