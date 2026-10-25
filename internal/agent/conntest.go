@@ -9,9 +9,12 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/netip"
 	"net/url"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,21 +24,26 @@ import (
 // The connection test (the owner's requirement of 2026-10-14 late evening): each layer on its own,
 // in order, never with cluster data. DNS (the owner's VW8, 2026-10-23): the host name resolves, its
 // addresses listed; an IP address or localhost passes at once. TCP: one of those addresses answers
-// on the port. HTTP: an HTTP(S) answer from the API, the TLS handshake included (any status passes,
-// 401 too: the server is there). Auth: the models list answers without 401 or 403, with the key.
-// Tools: a minimal chat request offering one harmless tool (get_time) and asking for it returns a
-// tool call. A failed layer leaves the later ones not reached. Each layer has its own bound. With a
-// proxy configured for the endpoint (Go's default transport: HTTPS_PROXY, HTTP_PROXY, NO_PROXY),
-// DNS and TCP check the proxy, where the chat's requests go; the proxy resolves the endpoint's name.
+// on the port. HTTP: an HTTP or HTTPS answer from the API (any status passes, 401 too: the server is
+// there), and over HTTPS the certificate Go verified, its chain and host name, named with its issuer
+// and end. Auth: the models list asked without the key, so the step says whether the endpoint
+// wants one, then with the key where one is given. Models: how many the list holds and whether the
+// chosen model is among them; the list goes to the settings form. Tools: a minimal chat request
+// offering one harmless tool (get_time) and asking for it returns a tool call. (HTTP's certificate,
+// Auth's two questions and Models: the owner's request of 2026-10-25.) A failed layer leaves the
+// later ones not reached. Each layer has its own bound. With a proxy configured for the endpoint
+// (Go's default transport: HTTPS_PROXY, HTTP_PROXY, NO_PROXY), DNS and TCP check the proxy, where
+// the chat's requests go; the proxy resolves the endpoint's name.
 
 // Bounds of the test's layers. A local model can take half a minute and more to load for the first
 // request, so the tool layer waits longest.
 var (
-	testDNSTimeout   = 5 * time.Second
-	testTCPTimeout   = 5 * time.Second
-	testHTTPTimeout  = 10 * time.Second
-	testAuthTimeout  = 15 * time.Second
-	testToolsTimeout = 120 * time.Second
+	testDNSTimeout    = 5 * time.Second
+	testTCPTimeout    = 5 * time.Second
+	testHTTPTimeout   = 10 * time.Second
+	testAuthTimeout   = 15 * time.Second
+	testModelsTimeout = 5 * time.Second
+	testToolsTimeout  = 120 * time.Second
 )
 
 // testToolName is the harmless tool of the Tools layer.
@@ -83,22 +91,29 @@ func (a *Agent) TestConnection(ctx context.Context, c engine.ChatConnection, api
 	// The CA file is read now; a file that cannot be used fails the TLS layer, after TCP.
 	cl, clErr := a.clientFor(c, key)
 	var addrs []netip.Addr // the DNS layer's, which the TCP layer dials
+	var models []string    // the Auth layer's answer, which the Models layer reads
+	var httpWarn string    // the HTTP layer's: an address of the name that does not answer as the API
 	layers := []func(context.Context) (string, error){
 		func(ctx context.Context) (detail string, err error) {
 			addrs, detail, err = testDNS(ctx, target)
 			return detail, err
 		},
 		func(ctx context.Context) (string, error) { return testTCP(ctx, target, addrs) },
-		func(ctx context.Context) (string, error) {
+		func(ctx context.Context) (detail string, err error) {
 			if clErr != nil {
 				return "", clErr
 			}
-			return a.testHTTP(ctx, cl)
+			detail, httpWarn, err = a.testHTTP(ctx, cl, c.CAFile != "", target, addrs)
+			return detail, err
 		},
-		func(ctx context.Context) (string, error) { return testAuth(ctx, cl, c.Model) },
+		func(ctx context.Context) (detail string, err error) {
+			models, detail, err = testAuth(ctx, cl)
+			return detail, err
+		},
+		func(context.Context) (string, error) { return testModels(models, c.Model) },
 		func(ctx context.Context) (string, error) { return testTools(ctx, cl, c.Model) },
 	}
-	bounds := []time.Duration{testDNSTimeout, testTCPTimeout, testHTTPTimeout, testAuthTimeout, testToolsTimeout}
+	bounds := []time.Duration{testDNSTimeout, testTCPTimeout, testHTTPTimeout, testAuthTimeout, testModelsTimeout, testToolsTimeout}
 	for i, run := range layers {
 		steps[i].State = engine.ChatTestRunning
 		report()
@@ -109,8 +124,18 @@ func (a *Agent) TestConnection(ctx context.Context, c engine.ChatConnection, api
 			return fail(i, err.Error())
 		}
 		steps[i].State, steps[i].Detail = engine.ChatTestPass, detail
-		if engine.ChatTestLayers[i] == engine.ChatTestHTTP && ep.plainRemote {
-			steps[i].Warning = engine.ChatPlainHTTPWarning // the owner's decision of 2026-10-15 (H-95)
+		switch engine.ChatTestLayers[i] {
+		case engine.ChatTestHTTP:
+			warnings := []string{httpWarn}
+			if ep.plainRemote {
+				warnings = append(warnings, engine.ChatPlainHTTPWarning) // the owner's decision of 2026-10-15 (H-95)
+			}
+			steps[i].Warning = strings.TrimSpace(strings.Join(warnings, " "))
+		case engine.ChatTestModels:
+			steps[i].Models = slices.Clone(models)
+			if len(models) == 0 {
+				steps[i].Warning = noModelsWarning
+			}
 		}
 		report()
 	}
@@ -372,26 +397,183 @@ func shortNetError(err error) string {
 	return s
 }
 
-func (a *Agent) testHTTP(ctx context.Context, cl *client) (string, error) {
-	resp, err := cl.get(ctx, cl.ep.models, false)
-	if err != nil {
-		return "", err
+// The HTTP layer asks the models URL without the key. It names the URL and the address the
+// chat's own client reached, and when the name has several addresses it asks each of them, so that
+// one broken address behind a name shows as what it is (the owner's case of 2026-10-25: three
+// ingress addresses, one whose proxy had no server behind it and answered 503 every time, as Go
+// takes the first address of its fixed order, while curl happened to reach the others). An answer
+// of 5xx at the chat's address fails the layer: the API does not answer there; one at another
+// address passes with a warning. maxAddressProbes bounds how many addresses are asked.
+const maxAddressProbes = 4
+
+// addressAnswer is one address's answer to the models URL.
+type addressAnswer struct {
+	ip     netip.Addr
+	status int    // the HTTP status, 0 when none came
+	text   string // what the answer says: an error's reason, a 5xx's page or message
+}
+
+func (a addressAnswer) ok() bool { return a.status > 0 && a.status < http.StatusInternalServerError }
+
+// String is how the step names it: "10.18.15.12 HTTP 401", "10.18.15.11 HTTP 503 (no server …)".
+func (a addressAnswer) String() string {
+	if a.status == 0 {
+		return a.ip.String() + " " + a.text
 	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxModelsBytes))
-	detail := fmt.Sprintf("HTTP %d", resp.StatusCode)
-	switch {
-	case resp.TLS != nil:
-		detail += ", " + tlsVersion(resp.TLS.Version)
-	case cl.ep.plainRemote:
-		detail += ", plain http to another machine" // TestConnection adds the warning
-	default:
-		detail += ", plain http"
-		if cl.key != "" {
-			detail += " (the API key travels unencrypted)"
+	s := fmt.Sprintf("%s HTTP %d", a.ip, a.status)
+	if !a.ok() && a.text != "" {
+		s += " (" + a.text + ")"
+	}
+	return s
+}
+
+func (a *Agent) testHTTP(ctx context.Context, cl *client, caFile bool, t dialTarget, addrs []netip.Addr) (detail, warning string, err error) {
+	var used netip.Addr // the address the chat's client reached
+	trace := &httptrace.ClientTrace{GotConn: func(info httptrace.GotConnInfo) {
+		if ap, err := netip.ParseAddrPort(info.Conn.RemoteAddr().String()); err == nil {
+			used = ap.Addr().Unmap()
+		}
+	}}
+	resp, err := cl.get(httptrace.WithClientTrace(ctx, trace), cl.ep.models, false)
+	if err != nil {
+		return "", "", err
+	}
+	first := answerOf(resp, used, cl.key)
+	scheme := "HTTP, no TLS"
+	if resp.TLS != nil {
+		scheme = fmt.Sprintf("HTTPS, %s, %s", tlsVersion(resp.TLS.Version), certificateOf(resp.TLS, caFile, resp.Request.URL.Hostname()))
+	}
+	server := ""
+	if v := resp.Header.Get("Server"); v != "" {
+		server = ", answered by " + serverMessage([]byte(v), cl.key)
+	}
+	answers := []addressAnswer{first}
+	if t.proxied == "" && slices.Contains(addrs, used) { // the chat's address one the DNS layer listed
+		for _, ip := range addrs {
+			if ip == used || len(answers) == maxAddressProbes {
+				continue
+			}
+			answers = append(answers, a.probeAddress(ctx, cl, ip, t.port))
 		}
 	}
-	return detail, nil
+	at := ""
+	if used.IsValid() {
+		at = " at " + used.String()
+	}
+	var others, broken []string
+	for _, x := range answers[1:] {
+		others = append(others, x.String())
+		if !x.ok() {
+			broken = append(broken, x.String())
+		}
+	}
+	if !first.ok() {
+		msg := fmt.Sprintf("GET %s%s: HTTP %d %s, the API does not answer there", cl.ep.models, at, first.status, http.StatusText(first.status))
+		if first.text != "" {
+			msg += " (" + first.text + ")"
+		}
+		if len(others) > 0 {
+			msg += "; the name's other addresses: " + strings.Join(others, ", ") +
+				". The chat's requests go to " + used.String() + ", the first in Go's order of the name's addresses"
+		}
+		return "", "", errors.New(msg)
+	}
+	detail = fmt.Sprintf("%s; GET %s%s: HTTP %d%s", scheme, cl.ep.models, at, first.status, server)
+	if len(others) > 0 {
+		detail += "; the name's other addresses: " + strings.Join(others, ", ")
+	}
+	if cl.ep.plainRemote {
+		detail += "; plain http to another machine" // TestConnection adds the warning
+	} else if resp.TLS == nil && cl.key != "" {
+		detail += " (the API key travels unencrypted)"
+	}
+	if len(broken) > 0 {
+		warning = "Not every address of the name answers as the API: " + strings.Join(broken, ", ") +
+			". A request that lands there fails; the chat's own go to " + used.String() + "."
+	}
+	return detail, warning, nil
+}
+
+// answerOf reads an answer of the models URL: its status and, for a 5xx, what its page says.
+func answerOf(resp *http.Response, ip netip.Addr, key string) addressAnswer {
+	defer func() { _ = resp.Body.Close() }()
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBody))
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, maxModelsBytes))
+	x := addressAnswer{ip: ip, status: resp.StatusCode}
+	if resp.StatusCode >= http.StatusInternalServerError {
+		x.text = pageText(body, key)
+	}
+	return x
+}
+
+// htmlTag is a tag of an HTML page, dropped from the text a step quotes.
+var htmlTag = regexp.MustCompile(`<[^>]*>`)
+
+// pageText is what an error answer says in one line: an API's message (serverMessage), or the text
+// of an HTML page without its tags, said to come from a proxy or load balancer in front of the API.
+func pageText(body []byte, key string) string {
+	trimmed := strings.TrimSpace(string(body))
+	if !strings.HasPrefix(trimmed, "<") {
+		return serverMessage(body, key)
+	}
+	text := strings.Join(strings.Fields(htmlTag.ReplaceAllString(trimmed, " ")), " ")
+	for _, prefix := range []string{"502 Bad Gateway", "503 Service Unavailable", "504 Gateway Time-out", "504 Gateway Timeout", "500 Internal Server Error"} {
+		text = strings.TrimSpace(strings.TrimPrefix(text, prefix))
+	}
+	if text == "" {
+		return "an HTML page, from a proxy or load balancer in front of the API"
+	}
+	return "an HTML page, from a proxy or load balancer in front of the API: " + strconv.Quote(serverMessage([]byte(text), key))
+}
+
+// probeAddress asks the models URL at one address of the name: the name in the TLS handshake and
+// the Host header, the address dialled; no proxy (a proxied target is not probed).
+func (a *Agent) probeAddress(ctx context.Context, cl *client, ip netip.Addr, port string) addressAnswer {
+	rt := cl.hc.Transport
+	if rt == nil {
+		rt = http.DefaultTransport
+	}
+	tr, ok := rt.(*http.Transport)
+	if !ok {
+		return addressAnswer{ip: ip, text: "not asked: not Cogpit's own transport"}
+	}
+	tr = tr.Clone()
+	tr.Proxy = nil
+	addr := net.JoinHostPort(ip.String(), port)
+	tr.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) { return dialTCP(ctx, network, addr) }
+	defer tr.CloseIdleConnections()
+	probe := *cl
+	probe.hc = &http.Client{Transport: tr, CheckRedirect: cl.hc.CheckRedirect}
+	pctx, cancel := context.WithTimeout(ctx, minAddrDial+time.Second)
+	defer cancel()
+	resp, err := probe.get(pctx, cl.ep.models, false)
+	if err != nil {
+		return addressAnswer{ip: ip, text: shortNetError(err)}
+	}
+	return answerOf(resp, ip, cl.key)
+}
+
+// certificateOf says what Go verified of the endpoint's certificate: its chain to a trusted root
+// (the system's, or the connection's CA file) and its host name, Go never being told to skip either
+// (the owner's "Passt TLS Full Auth?"); with the certificate's issuer and the day it ends.
+func certificateOf(st *tls.ConnectionState, caFile bool, host string) string {
+	trust := "the system's roots"
+	if caFile {
+		trust = "the CA file"
+	}
+	if len(st.VerifiedChains) == 0 || len(st.PeerCertificates) == 0 {
+		return "the certificate not verified" // Go verifies every handshake of the chat's client; kept for the case it did not
+	}
+	leaf := st.PeerCertificates[0]
+	issuer := leaf.Issuer.CommonName
+	if issuer == "" && len(leaf.Issuer.Organization) > 0 {
+		issuer = leaf.Issuer.Organization[0]
+	}
+	if issuer == "" {
+		issuer = "an unnamed issuer"
+	}
+	return fmt.Sprintf("certificate verified (chain to %s, host name %s), issued by %s, valid until %s",
+		trust, host, issuer, leaf.NotAfter.UTC().Format(time.DateOnly))
 }
 
 func tlsVersion(v uint16) string {
@@ -404,28 +586,62 @@ func tlsVersion(v uint16) string {
 	return "TLS " + tls.VersionName(v)
 }
 
-func testAuth(ctx context.Context, cl *client, model string) (string, error) {
-	models, err := cl.listModels(ctx)
-	if err != nil {
-		var he *HTTPError
-		if errors.As(err, &he) && he.Status == http.StatusNotFound {
-			return "", fmt.Errorf("no models list at %s (HTTP 404): check the base URL and the kind", cl.ep.models)
+// testAuth asks for the models list without the key, so that the step can say whether the endpoint
+// wants one (the owner's "will der Endpoint auth? Wenn ja, anzeigen. Wenn nein: endpoint geht auch
+// ohne auth anzeigen"), then with the key where one is given; it returns the list it was given.
+func testAuth(ctx context.Context, cl *client) ([]string, string, error) {
+	open := *cl
+	open.key = ""
+	models, err := open.listModels(ctx)
+	var he *HTTPError
+	switch {
+	case err == nil:
+		if cl.key == "" {
+			return models, "the endpoint answers without a key", nil
 		}
-		if errors.As(err, &he) && (he.Status == http.StatusUnauthorized || he.Status == http.StatusForbidden) && cl.key == "" {
-			return "", fmt.Errorf("the endpoint wants an API key (HTTP %d)", he.Status)
+		if _, err := cl.listModels(ctx); err != nil {
+			return nil, "", fmt.Errorf("the endpoint answers without a key but not with this one: %w", err)
 		}
-		return "", err
+		return models, "the endpoint answers without a key; the key given is accepted too", nil
+	case errors.As(err, &he) && he.Status == http.StatusNotFound:
+		return nil, "", fmt.Errorf("no models list at %s (HTTP 404): check the base URL and the kind", cl.ep.models)
+	case errors.As(err, &he) && (he.Status == http.StatusUnauthorized || he.Status == http.StatusForbidden):
+		wants := fmt.Sprintf("the endpoint wants a key (HTTP %d without one)", he.Status)
+		if cl.key == "" {
+			return nil, "", errors.New(wants + "; none is given")
+		}
+		models, err := cl.listModels(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("%s; with the key given: %w", wants, err)
+		}
+		return models, wants + "; the key given is accepted", nil
 	}
-	detail := fmt.Sprintf("%d models", len(models))
-	if cl.key == "" {
-		detail += ", no key needed"
-	} else {
-		detail += ", key accepted"
-	}
-	if model != "" && !slices.Contains(models, model) {
+	return nil, "", err
+}
+
+// noModelsWarning is the Models layer's warning when the list is empty.
+const noModelsWarning = "The endpoint lists no models: type the model's name as the server knows it."
+
+// testModels says how many models the list holds and whether the chosen one is among them.
+func testModels(models []string, model string) (string, error) {
+	detail := pluralModels(len(models)) + " found"
+	switch {
+	case model == "":
+		detail += "; none chosen yet"
+	case slices.Contains(models, model):
+		detail += fmt.Sprintf("; %q among them", model)
+	case len(models) > 0:
 		detail += fmt.Sprintf("; %q is not among them", model)
 	}
 	return detail, nil
+}
+
+// pluralModels is "1 model" or "n models".
+func pluralModels(n int) string {
+	if n == 1 {
+		return "1 model"
+	}
+	return fmt.Sprintf("%d models", n)
 }
 
 func testTools(ctx context.Context, cl *client, model string) (string, error) {

@@ -234,6 +234,7 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 	sctx, cancel := context.WithCancelCause(st.ctx)
 	defer cancel(nil)
 	streamed := 0
+	sent := time.Now()
 	resp, err := st.cl.complete(sctx, body, func(text string) {
 		streamed = len(text)
 		if st.tokens+estimateTokens(len(body)+streamed) >= st.limits.MaxTokens {
@@ -274,6 +275,11 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 		}
 		a.addNote(c, engine.LevelWarning, note)
 		return nil, false
+	}
+	if t := timingOf(resp, sent); t != nil {
+		a.mu.Lock()
+		c.items[idx].Timing = t // endAssistant keeps the item with it
+		a.mu.Unlock()
 	}
 	a.endAssistant(st, idx, resp.Text)
 	// The assistant's message, thinking removed, is what the model is sent back.
@@ -571,6 +577,23 @@ func (a *Agent) recordSent(st *turnState, body []byte, msgs []message) {
 	c.bump()
 	a.mu.Unlock()
 	a.notify(c, true)
+}
+
+// timingOf is an answer's TTFT and OTPS (the owner's request of 2026-10-25): the time from the
+// request sent to its first part, and its output tokens over the time from its first part to its
+// last; the endpoint's completion tokens, else an estimate from the parts' bytes. Nil when no part
+// came.
+func timingOf(resp response, sent time.Time) *engine.ChatTiming {
+	if resp.First.IsZero() {
+		return nil
+	}
+	t := &engine.ChatTiming{TTFT: resp.First.Sub(sent), Generating: resp.Last.Sub(resp.First)}
+	if resp.Usage != nil && resp.Usage.CompletionTokens > 0 {
+		t.OutputTokens = resp.Usage.CompletionTokens
+	} else {
+		t.OutputTokens, t.Estimated = estimateTokens(resp.OutBytes), true
+	}
+	return t
 }
 
 // estimateTokens is about four bytes a token, for endpoints that report no usage.

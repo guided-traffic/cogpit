@@ -3,8 +3,10 @@ package agent
 import (
 	"context"
 	"errors"
+	"io"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"net/url"
 	"slices"
@@ -41,17 +43,18 @@ func TestConnectionTestLayers(t *testing.T) {
 			reports = append(reports, s)
 			mu.Unlock()
 		})
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" {
 			t.Fatalf("%s (%+v)", got, steps)
 		}
-		if !strings.Contains(steps[2].Detail, "HTTP 200, plain http") || !strings.Contains(steps[3].Detail, "1 models, no key needed") ||
-			!strings.Contains(steps[4].Detail, "test-model called get_time") {
+		if !strings.HasPrefix(steps[2].Detail, "HTTP, no TLS; GET "+h.llm.Base+"/models at 127.0.0.1: HTTP 200") || !strings.Contains(steps[3].Detail, "answers without a key") ||
+			!strings.Contains(steps[4].Detail, `1 model found; "test-model" among them`) || !slices.Equal(steps[4].Models, []string{"test-model"}) ||
+			!strings.Contains(steps[5].Detail, "test-model called get_time") {
 			t.Errorf("details %+v", steps)
 		}
 		mu.Lock()
 		defer mu.Unlock()
-		if len(reports) != 11 || states(reports[0]) != "dns=pending tcp=pending http=pending auth=pending tools=pending" ||
-			states(reports[1]) != "dns=running tcp=pending http=pending auth=pending tools=pending" {
+		if len(reports) != 13 || states(reports[0]) != "dns=pending tcp=pending http=pending auth=pending models=pending tools=pending" ||
+			states(reports[1]) != "dns=running tcp=pending http=pending auth=pending models=pending tools=pending" {
 			t.Errorf("%d reports, first %s", len(reports), states(reports[0]))
 		}
 	})
@@ -60,19 +63,19 @@ func TestConnectionTestLayers(t *testing.T) {
 		h.llm.RequireKey("right-key-123")
 		defer h.llm.RequireKey("")
 		steps := h.a.TestConnection(context.Background(), conn, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail tools=notReached" || !strings.Contains(steps[2].Detail, "HTTP 401") ||
-			!strings.Contains(steps[3].Detail, "wants an API key") {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail models=notReached tools=notReached" || !strings.Contains(steps[2].Detail, "HTTP 401") ||
+			!strings.Contains(steps[3].Detail, "the endpoint wants a key (HTTP 401 without one); none is given") {
 			t.Errorf("%s %+v", got, steps)
 		}
 		wrong := "wrong-key-456"
 		steps = h.a.TestConnection(context.Background(), conn, &wrong, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail tools=notReached" || !strings.Contains(steps[3].Detail, "refused the API key") ||
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail models=notReached tools=notReached" || !strings.Contains(steps[3].Detail, "refused the API key") ||
 			strings.Contains(steps[3].Detail, wrong) {
 			t.Errorf("%s %+v", got, steps)
 		}
 		right := "right-key-123"
 		h.llm.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
-		if got := states(h.a.TestConnection(context.Background(), conn, &right, nil)); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" {
+		if got := states(h.a.TestConnection(context.Background(), conn, &right, nil)); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" {
 			t.Errorf("with the right key: %s", got)
 		}
 	})
@@ -80,7 +83,7 @@ func TestConnectionTestLayers(t *testing.T) {
 	t.Run("tools", func(t *testing.T) {
 		h.llm.Script(fakellm.Reply{Text: []string{"It is noon."}})
 		steps := h.a.TestConnection(context.Background(), conn, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=fail" || !strings.Contains(steps[4].Detail, "without a tool call") {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=fail" || !strings.Contains(steps[5].Detail, "without a tool call") {
 			t.Errorf("%s %+v", got, steps)
 		}
 	})
@@ -89,7 +92,7 @@ func TestConnectionTestLayers(t *testing.T) {
 		wrongBase := conn
 		wrongBase.BaseURL = h.llm.Root + "/openai" // no models list there
 		steps := h.a.TestConnection(context.Background(), wrongBase, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail tools=notReached" || !strings.Contains(steps[3].Detail, "HTTP 404") {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail models=notReached tools=notReached" || !strings.Contains(steps[3].Detail, "HTTP 404") {
 			t.Errorf("%s %+v", got, steps)
 		}
 	})
@@ -104,7 +107,7 @@ func TestConnectionTestLayers(t *testing.T) {
 		closed := conn
 		closed.BaseURL = "http://" + addr + "/v1"
 		steps := h.a.TestConnection(context.Background(), closed, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=fail http=notReached auth=notReached tools=notReached" || !strings.Contains(steps[1].Detail, addr) {
+		if got := states(steps); got != "dns=pass tcp=fail http=notReached auth=notReached models=notReached tools=notReached" || !strings.Contains(steps[1].Detail, addr) {
 			t.Errorf("%s %+v", got, steps)
 		}
 	})
@@ -247,7 +250,7 @@ func TestConnectionTestDNS(t *testing.T) {
 	t.Run("resolved, the second address answers", func(t *testing.T) {
 		dialled := fakeDialer(t, fake.Host, "203.0.113.7:1234")
 		steps := test("http://llm.example.test:1234/v1")
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" {
 			t.Fatalf("%s %+v", got, steps)
 		}
 		if want := "llm.example.test: 203.0.113.7, 2001:db8::7, 203.0.113.8"; steps[0].Detail != want {
@@ -265,7 +268,7 @@ func TestConnectionTestDNS(t *testing.T) {
 		fakeDialer(t, fake.Host, "203.0.113.7:1234", "[2001:db8::7]:1234", "203.0.113.8:1234")
 		steps := test("http://llm.example.test:1234/v1")
 		want := "llm.example.test:1234: 203.0.113.7 connection refused; 2001:db8::7 connection refused; 203.0.113.8 connection refused"
-		if got := states(steps); got != "dns=pass tcp=fail http=notReached auth=notReached tools=notReached" || steps[1].Detail != want {
+		if got := states(steps); got != "dns=pass tcp=fail http=notReached auth=notReached models=notReached tools=notReached" || steps[1].Detail != want {
 			t.Errorf("%s %q", got, steps[1].Detail)
 		}
 	})
@@ -281,7 +284,7 @@ func TestConnectionTestDNS(t *testing.T) {
 	t.Run("not known", func(t *testing.T) {
 		dialled := fakeDialer(t, fake.Host)
 		steps := test("https://nowhere.example.test/v1")
-		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached tools=notReached" ||
+		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached models=notReached tools=notReached" ||
 			steps[0].Detail != "nowhere.example.test: the name is not known" {
 			t.Errorf("%s %q", got, steps[0].Detail)
 		}
@@ -300,7 +303,7 @@ func TestConnectionTestDNS(t *testing.T) {
 		} {
 			fakeDialer(t, fake.Host)
 			steps := test(base)
-			if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" || steps[0].Detail != want[0] || steps[1].Detail != want[1] {
+			if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" || steps[0].Detail != want[0] || steps[1].Detail != want[1] {
 				t.Errorf("%s: %s %q %q", base, got, steps[0].Detail, steps[1].Detail)
 			}
 		}
@@ -342,7 +345,7 @@ func TestConnectionTestDNS(t *testing.T) {
 			return nil, errors.New(`invalid proxy address "http://me:proxy-secret-pw@%zz": bad`)
 		}
 		steps = test("https://llm.example.test/v1")
-		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached tools=notReached" ||
+		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached models=notReached tools=notReached" ||
 			!strings.Contains(steps[0].Detail, "not a valid URL") || strings.Contains(steps[0].Detail, "proxy-secret-pw") {
 			t.Errorf("%s %q", got, steps[0].Detail)
 		}
@@ -357,7 +360,7 @@ func TestConnectionTestDNS(t *testing.T) {
 		testDNSTimeout = 50 * time.Millisecond
 		defer func() { lookupNetIP, testDNSTimeout = old, oldBound }()
 		steps := test("https://slow.example.test/v1")
-		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached tools=notReached" ||
+		if got := states(steps); got != "dns=fail tcp=notReached http=notReached auth=notReached models=notReached tools=notReached" ||
 			steps[0].Detail != "no answer within 50ms" {
 			t.Errorf("%s %q", got, steps[0].Detail)
 		}
@@ -391,5 +394,154 @@ func TestConnectionTestAddressShare(t *testing.T) {
 		}
 		dcancel()
 		cancel()
+	}
+}
+
+// TestConnectionTestAuthAndModels (the owner's request of 2026-10-25): Auth asks without the key
+// first, so it says whether the endpoint wants one; Models counts the list, names the chosen model
+// and hands the list to the form; an empty list passes with a warning.
+func TestConnectionTestAuthAndModels(t *testing.T) {
+	h := newHarness(t, engine.ChatLimits{})
+	conn := engine.ChatConnection{Name: "t", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base, Model: "qwen"}
+	run := func(key *string) []engine.ChatTestStep {
+		h.llm.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
+		return h.a.TestConnection(context.Background(), conn, key, nil)
+	}
+	key := "right-key-123"
+
+	h.llm.Models(0, "llama", "qwen")
+	steps := run(&key)
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" ||
+		steps[3].Detail != "the endpoint answers without a key; the key given is accepted too" ||
+		steps[4].Detail != `2 models found; "qwen" among them` || !slices.Equal(steps[4].Models, []string{"llama", "qwen"}) {
+		t.Errorf("no key needed: %s %+v", got, steps)
+	}
+
+	h.llm.RequireKey(key)
+	steps = run(&key)
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" ||
+		steps[3].Detail != "the endpoint wants a key (HTTP 401 without one); the key given is accepted" {
+		t.Errorf("a key needed: %s %+v", got, steps)
+	}
+	h.llm.RequireKey("")
+
+	conn.Model = "mistral"
+	steps = run(nil)
+	if steps[4].Detail != `2 models found; "mistral" is not among them` || steps[4].Warning != "" {
+		t.Errorf("a model not listed: %+v", steps[4])
+	}
+	conn.Model = ""
+	h.llm.Models(0)
+	steps = run(nil)
+	if steps[4].State != engine.ChatTestPass || steps[4].Detail != "0 models found; none chosen yet" ||
+		steps[4].Warning != noModelsWarning || len(steps[4].Models) != 0 {
+		t.Errorf("no models: %+v", steps[4])
+	}
+	if steps[5].State != engine.ChatTestFail || steps[5].Detail != "no model chosen" {
+		t.Errorf("tools without a model: %+v", steps[5])
+	}
+}
+
+// TestModelsOfTheFormsValues (the owner's request of 2026-10-25, a colleague's empty list): the
+// models of an unsaved connection, with the key typed, or the stored one of a saved connection
+// when none is typed; a key the endpoint wants and none given fails, its key never in the error.
+func TestModelsOfTheFormsValues(t *testing.T) {
+	h := newHarness(t, engine.ChatLimits{})
+	h.llm.Models(0, "llama", "qwen")
+	key := "right-key-123"
+	h.llm.RequireKey(key)
+	unsaved := engine.ChatConnection{Name: "new", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base}
+	if got, err := h.a.ModelsOf(context.Background(), unsaved, &key); err != nil || !slices.Equal(got, []string{"llama", "qwen"}) {
+		t.Fatalf("typed key: %v, %v", got, err)
+	}
+	if _, err := h.a.ModelsOf(context.Background(), unsaved, nil); err == nil {
+		t.Error("no key: listed")
+	}
+	wrong := "wrong-key-456"
+	if _, err := h.a.ModelsOf(context.Background(), unsaved, &wrong); err == nil || strings.Contains(err.Error(), wrong) {
+		t.Errorf("a wrong key: %v", err)
+	}
+	saved, err := h.a.SaveConnection(unsaved, &key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := h.a.ModelsOf(context.Background(), saved, nil); err != nil || len(got) != 2 {
+		t.Errorf("the stored key: %v, %v", got, err)
+	}
+}
+
+// asAddr is a connection that reports another remote address: the address of the name the test's
+// client stands for, while it reaches a server on this computer.
+type asAddr struct {
+	net.Conn
+	remote net.Addr
+}
+
+func (c asAddr) RemoteAddr() net.Addr { return c.remote }
+
+// TestConnectionTestEveryAddress (the owner's case of 2026-10-25): a name with three addresses, one
+// of them a proxy with no server behind it that answers 503 with an HTML page. When the chat's
+// client reaches that one the HTTP layer fails, names the URL, the address and the page's text,
+// and lists the other addresses' answers; when the chat's client reaches a good one the layer passes
+// with a warning naming the broken address.
+func TestConnectionTestEveryAddress(t *testing.T) {
+	h := newHarness(t, engine.ChatLimits{})
+	good, err := url.Parse(h.llm.Root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/html")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		_, _ = io.WriteString(w, "<html><body><h1>503 Service Unavailable</h1>\nNo server is available to handle this request.\n</body></html>\n")
+	}))
+	t.Cleanup(broken.Close)
+	bad, err := url.Parse(broken.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fakeResolver(t, map[string][]string{"llm.three.example": {"192.0.2.11", "192.0.2.12", "192.0.2.13"}})
+	route := func(addr string) string {
+		if strings.HasPrefix(addr, "192.0.2.11:") {
+			return bad.Host
+		}
+		return good.Host
+	}
+	old := dialTCP
+	dialTCP = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, route(addr))
+	}
+	t.Cleanup(func() { dialTCP = old })
+	chatsAddress := "192.0.2.11:1234"
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.Proxy = nil
+	tr.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		c, err := (&net.Dialer{}).DialContext(ctx, network, route(chatsAddress))
+		if err != nil {
+			return nil, err
+		}
+		return asAddr{Conn: c, remote: net.TCPAddrFromAddrPort(netip.MustParseAddrPort(chatsAddress))}, nil
+	}
+	a := New(Options{Session: h.s, Keys: NewMemoryKeyStore(), HTTPClient: &http.Client{Transport: tr, Timeout: 10 * time.Second}})
+	conn := engine.ChatConnection{Name: "three", Kind: engine.ChatLiteLLM, BaseURL: "http://llm.three.example:1234/v1", Model: "test-model"}
+
+	steps := a.TestConnection(context.Background(), conn, nil, nil)
+	want := `GET http://llm.three.example:1234/v1/models at 192.0.2.11: HTTP 503 Service Unavailable, the API does not answer there ` +
+		`(an HTML page, from a proxy or load balancer in front of the API: "No server is available to handle this request."); ` +
+		`the name's other addresses: 192.0.2.12 HTTP 200, 192.0.2.13 HTTP 200. The chat's requests go to 192.0.2.11, ` +
+		`the first in Go's order of the name's addresses`
+	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached models=notReached tools=notReached" || steps[2].Detail != want {
+		t.Fatalf("the chat's address broken: %s\n%q\nwant\n%q", got, steps[2].Detail, want)
+	}
+
+	chatsAddress = "192.0.2.12:1234"
+	tr.CloseIdleConnections()
+	h.llm.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
+	steps = a.TestConnection(context.Background(), conn, nil, nil)
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" ||
+		!strings.Contains(steps[2].Detail, "GET http://llm.three.example:1234/v1/models at 192.0.2.12: HTTP 200; the name's other addresses: 192.0.2.11 HTTP 503 (") ||
+		!strings.Contains(steps[2].Warning, "Not every address of the name answers as the API: 192.0.2.11 HTTP 503") ||
+		!strings.Contains(steps[2].Warning, "the chat's own go to 192.0.2.12.") {
+		t.Fatalf("another address broken: %s %+v", got, steps[2])
 	}
 }

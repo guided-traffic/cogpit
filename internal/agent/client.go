@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -226,6 +227,9 @@ func serverMessage(body []byte, key string) string {
 		}
 	} else {
 		msg = string(body)
+		if strings.HasPrefix(strings.TrimSpace(msg), "<") {
+			msg = htmlTag.ReplaceAllString(msg, " ") // a proxy's error page: its text, not its tags (2026-10-25)
+		}
 	}
 	return cleanMessage(msg, key)
 }
@@ -262,6 +266,10 @@ type response struct {
 	Usage        *usage
 	Bytes        int  // bytes of the answer read
 	Thought      bool // the model thought (reasoning deltas or <think>), which was dropped
+	// First and Last are when the answer's first and last parts came (content, thinking or a tool
+	// call); OutBytes their bytes, for an estimate of the output tokens without usage.
+	First, Last time.Time
+	OutBytes    int
 }
 
 // complete posts body and reads the answer, streamed or not. onText, if not nil, receives the answer
@@ -434,6 +442,10 @@ type accumulator struct {
 	bytes  int
 	shown  string
 	onText func(string)
+	// firstAt and lastAt are when a part of the answer came (TTFT and OTPS, ChatTiming); out its
+	// bytes.
+	firstAt, lastAt time.Time
+	out             int
 }
 
 func newAccumulator(onText func(string)) *accumulator {
@@ -474,11 +486,28 @@ func (a *accumulator) event(data []byte, key string) error {
 }
 
 func (a *accumulator) delta(d *delta) {
+	n := 0
 	if (d.ReasoningContent != nil && *d.ReasoningContent != "") || reasoningText(d.Reasoning) {
 		a.think.thought = true
+		if d.ReasoningContent != nil {
+			n += len(*d.ReasoningContent)
+		} else {
+			n += len(d.Reasoning)
+		}
 	}
 	if d.Content != nil {
 		a.think.write(*d.Content)
+		n += len(*d.Content)
+	}
+	for _, tc := range d.ToolCalls {
+		n += len(tc.Function.Name) + len(tc.Function.Arguments)
+	}
+	if n > 0 {
+		now := time.Now()
+		if a.firstAt.IsZero() {
+			a.firstAt = now
+		}
+		a.lastAt, a.out = now, a.out+n
 	}
 	for _, tc := range d.ToolCalls {
 		idx := a.callIndex(tc.Index, tc.ID)
@@ -535,7 +564,8 @@ func reasoningText(raw json.RawMessage) bool {
 
 func (a *accumulator) result() response {
 	a.think.flush()
-	r := response{Text: a.think.text(), FinishReason: a.finish, Usage: a.usage, Bytes: a.bytes, Thought: a.think.thought}
+	r := response{Text: a.think.text(), FinishReason: a.finish, Usage: a.usage, Bytes: a.bytes, Thought: a.think.thought,
+		First: a.firstAt, Last: a.lastAt, OutBytes: a.out}
 	order := slices.Clone(a.order)
 	sort.Ints(order)
 	for n, i := range order {

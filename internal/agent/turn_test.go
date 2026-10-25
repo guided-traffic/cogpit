@@ -492,3 +492,31 @@ func TestConversationHistory(t *testing.T) {
 }
 
 func ptr[T any](v T) *T { return &v }
+
+// TestAnswerTiming (the owner's request of 2026-10-25): an answer keeps its TTFT and its output
+// tokens over the time they streamed, the endpoint's completion tokens where reported, else an
+// estimate marked as such; it is kept with the conversation.
+func TestAnswerTiming(t *testing.T) {
+	h := newHarness(t, engine.ChatLimits{})
+	h.llm.Script(fakellm.Reply{Text: []string{"Two pods ", "run in shop."}, Usage: &fakellm.Usage{Prompt: 900, Completion: 30},
+		Pace: 60 * time.Millisecond}) // the second part 60 ms after the first
+	c := h.idle(t, h.start(t, "How many pods run in shop?"))
+	tm := c.Items[1].Timing
+	if tm == nil || tm.TTFT <= 0 || tm.TTFT > 5*time.Second || tm.Generating < 50*time.Millisecond || tm.OutputTokens != 30 || tm.Estimated {
+		t.Fatalf("timing %+v", tm)
+	}
+	if otps := tm.OTPS(); otps <= 0 || otps > 30/0.05 {
+		t.Errorf("OTPS %v", otps)
+	}
+
+	h.llm.Script(fakellm.Reply{Text: []string{"Forty bytes of answer, more or less here."}})
+	id := h.start(t, "Again, without usage.")
+	c = h.idle(t, id)
+	last := c.Items[len(c.Items)-1]
+	if last.Timing == nil || !last.Timing.Estimated || last.Timing.OutputTokens != estimateTokens(len("Forty bytes of answer, more or less here.")) {
+		t.Errorf("estimated timing %+v", last.Timing)
+	}
+	if last.Timing != nil && last.Timing.OTPS() != 0 {
+		t.Errorf("one part: OTPS %v, want none", last.Timing.OTPS())
+	}
+}

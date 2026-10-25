@@ -41,7 +41,7 @@ func TestCAFileTrustsAPrivateCA(t *testing.T) {
 	conn := engine.ChatConnection{Name: "private CA", Kind: engine.ChatLMStudio, BaseURL: srv.Base, Model: "test-model"}
 
 	steps := h.a.TestConnection(context.Background(), conn, nil, nil)
-	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached tools=notReached" ||
+	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached models=notReached tools=notReached" ||
 		!strings.Contains(steps[2].Detail, "not trusted") || !strings.Contains(steps[2].Detail, "CA file") {
 		t.Fatalf("without the CA file: %s %+v", got, steps)
 	}
@@ -51,10 +51,12 @@ func TestCAFileTrustsAPrivateCA(t *testing.T) {
 	conn.CAFile = writeFile(t, dir, "ca.pem", ca.PEM())
 	srv.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
 	steps = h.a.TestConnection(context.Background(), conn, nil, nil)
-	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" || !strings.Contains(steps[2].Detail, "TLS 1.") ||
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" || !strings.Contains(steps[2].Detail, "HTTPS, TLS 1.") ||
+		!strings.Contains(steps[2].Detail, "certificate verified (chain to the CA file, host name 127.0.0.1), issued by Cogpit test private CA, valid until ") ||
 		steps[2].Warning != "" {
 		t.Fatalf("with the CA file: %s %+v", got, steps)
 	}
+	t.Logf("with the CA file: %s", steps[2].Detail)
 
 	saved, err := h.a.SaveConnection(conn, nil)
 	if err != nil || saved.CAFile != conn.CAFile {
@@ -80,7 +82,7 @@ func TestCAFileTrustsAPrivateCA(t *testing.T) {
 	other := testkit.NewTestCA(t, "another CA")
 	writeFile(t, dir, "ca.pem", other.PEM())
 	steps = h.a.TestConnection(context.Background(), saved, nil, nil)
-	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached tools=notReached" {
+	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached models=notReached tools=notReached" {
 		t.Errorf("after the file changed: %s %+v", got, steps)
 	}
 }
@@ -101,7 +103,7 @@ func TestCAFileErrorsAreNamed(t *testing.T) {
 	} {
 		conn := engine.ChatConnection{Name: "x", Kind: engine.ChatLMStudio, BaseURL: srv.Base, Model: "test-model", CAFile: tc.path}
 		steps := h.a.TestConnection(context.Background(), conn, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached tools=notReached" || !strings.Contains(steps[2].Detail, tc.path) ||
+		if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached models=notReached tools=notReached" || !strings.Contains(steps[2].Detail, tc.path) ||
 			!strings.Contains(steps[2].Detail, tc.want) || strings.Contains(steps[2].Detail, "SECRET-CONTENT") {
 			t.Errorf("%s: %s %+v", tc.path, got, steps)
 		}
@@ -180,14 +182,14 @@ func TestCAFileRefusesAPublicServer(t *testing.T) {
 	conn := engine.ChatConnection{Name: "public", Kind: engine.ChatLMStudio, BaseURL: srv.Base, Model: "test-model"}
 
 	srv.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
-	if steps := a.TestConnection(context.Background(), conn, nil, nil); states(steps) != "dns=pass tcp=pass http=pass auth=pass tools=pass" {
+	if steps := a.TestConnection(context.Background(), conn, nil, nil); states(steps) != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" {
 		t.Fatalf("without a CA file: %s %+v", states(steps), steps)
 	}
 
 	private := testkit.NewTestCA(t, "Cogpit test private CA")
 	conn.CAFile = writeFile(t, t.TempDir(), "ca.pem", private.PEM())
 	steps := a.TestConnection(context.Background(), conn, nil, nil)
-	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached tools=notReached" ||
+	if got := states(steps); got != "dns=pass tcp=pass http=fail auth=notReached models=notReached tools=notReached" ||
 		!strings.Contains(steps[2].Detail, "this connection trusts only its CA file "+conn.CAFile) ||
 		!strings.Contains(steps[2].Detail, "clear the CA file") {
 		t.Fatalf("with a CA file: %s %+v", got, steps)
@@ -225,7 +227,7 @@ func TestPlainHTTPToAnotherMachineIsWarned(t *testing.T) {
 		h.llm.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{{Name: "get_time", Args: `{}`}}})
 		conn := engine.ChatConnection{Name: "lan", Kind: engine.ChatLMStudio, BaseURL: base, Model: "test-model"}
 		steps := a.TestConnection(context.Background(), conn, nil, nil)
-		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass tools=pass" {
+		if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=pass" {
 			t.Fatalf("%s: %s %+v", base, got, steps)
 		}
 		if warned := steps[2].Warning == engine.ChatPlainHTTPWarning; warned != warn ||

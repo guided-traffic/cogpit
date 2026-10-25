@@ -66,7 +66,8 @@ func chatKindLabel(k engine.ChatConnectionKind) string {
 
 // chatTestLabels name the connection test's layers.
 var chatTestLabels = map[engine.ChatTestLayer]string{
-	engine.ChatTestDNS: "DNS", engine.ChatTestTCP: "TCP", engine.ChatTestHTTP: "HTTP and TLS", engine.ChatTestAuth: "Authentication", engine.ChatTestTools: "Tool use",
+	engine.ChatTestDNS: "DNS", engine.ChatTestTCP: "TCP", engine.ChatTestHTTP: "HTTP or HTTPS", engine.ChatTestAuth: "Authentication",
+	engine.ChatTestModels: "Models", engine.ChatTestTools: "Tool use",
 }
 
 // Texts of the page.
@@ -315,6 +316,8 @@ type agentForm struct {
 	model     *fieldSelectEntry
 	modelsB   *textButton
 	modelNote *textLine
+	modelsSeq int    // the model list asked last; an older answer is dropped
+	listedFor string // the endpoint, CA file and typed key the list was asked with (listKey)
 	private   *widget.Check
 	allTools  *widget.Check
 	limits    [4]*fieldEntry
@@ -327,6 +330,7 @@ type agentForm struct {
 	testWarn  *paragraph // a layer's warning, under the test's rows
 
 	lastKind engine.ChatConnectionKind
+	textW    float32 // the form's text width, for the test rows' details
 	testing  context.CancelFunc
 	testSeq  int
 	saving   bool
@@ -352,6 +356,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.urlHint = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	f.urlHint.truncate = true
 	textW := settingsColumn - 4*p.sh.app.Settings().Theme().Size(theme.SizeNameInnerPadding)
+	f.textW = textW
 	f.plainWarn = newParagraph(engine.ChatPlainHTTPWarning, colorStatusWarning, textW)
 	f.baseURL.OnChanged = func(string) { f.showPlainWarning() }
 	f.caFile = f.field(newFieldEntry())
@@ -381,11 +386,10 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.modelNote.truncate = true
 	f.modelsB = newPlateButton("", theme.ViewRefreshIcon(), f.loadModels)
 	f.modelsB.Importance = widget.LowImportance
+	f.baseURL.onLeave, f.key.onLeave = f.modelsAfterEdit, f.modelsAfterEdit
 	if c.ID == "" {
-		f.modelsB.Disable()
-		f.modelNote.SetText("Save the connection to list its models; any model name may be typed.")
+		f.modelNote.SetText(modelsFirstNote)
 	} else {
-		f.modelNote.SetText("The endpoint's models, as last saved; any model name may be typed.")
 		f.loadModels()
 	}
 
@@ -580,11 +584,36 @@ func (f *agentForm) apiKey() *string {
 
 // values reads the form into a connection; an error names the field that is wrong.
 func (f *agentForm) values() (engine.ChatConnection, error) {
-	c := f.conn
-	c.Name = strings.TrimSpace(f.name.Text)
-	if c.Name == "" {
-		return c, errors.New("the connection needs a name")
+	if strings.TrimSpace(f.name.Text) == "" {
+		return f.conn, errors.New("the connection needs a name")
 	}
+	c, err := f.endpoint()
+	if err != nil {
+		return c, err
+	}
+	c.Name = strings.TrimSpace(f.name.Text)
+	c.Private = f.private.Checked
+	c.AllTools = f.allTools.Checked
+	var n [4]int
+	for i, e := range f.limits {
+		t := strings.NewReplacer(",", "", ".", "", " ", "").Replace(strings.TrimSpace(e.Text))
+		if t == "" {
+			continue
+		}
+		v, err := strconv.Atoi(t)
+		if err != nil || v < 1 {
+			return c, fmt.Errorf("a limit must be a whole number above 0, not %q", e.Text)
+		}
+		n[i] = v
+	}
+	c.Limits = engine.ChatLimits{RepeatStop: n[0], MaxToolCalls: n[1], MaxTokens: n[2], MaxDuration: time.Duration(n[3]) * time.Minute}
+	return c, nil
+}
+
+// endpoint reads what a request to the endpoint needs: the kind, the base URL, the CA file and the
+// model; the model list asks with it before the connection has a name.
+func (f *agentForm) endpoint() (engine.ChatConnection, error) {
+	c := f.conn
 	c.Kind = f.lastKind
 	if c.Kind == "" {
 		c.Kind = engine.ChatLMStudio
@@ -603,21 +632,6 @@ func (f *agentForm) values() (engine.ChatConnection, error) {
 		return c, errors.New("the CA file must be an absolute path, such as " + example)
 	}
 	c.Model = strings.TrimSpace(f.model.Text)
-	c.Private = f.private.Checked
-	c.AllTools = f.allTools.Checked
-	var n [4]int
-	for i, e := range f.limits {
-		t := strings.NewReplacer(",", "", ".", "", " ", "").Replace(strings.TrimSpace(e.Text))
-		if t == "" {
-			continue
-		}
-		v, err := strconv.Atoi(t)
-		if err != nil || v < 1 {
-			return c, fmt.Errorf("a limit must be a whole number above 0, not %q", e.Text)
-		}
-		n[i] = v
-	}
-	c.Limits = engine.ChatLimits{RepeatStop: n[0], MaxToolCalls: n[1], MaxTokens: n[2], MaxDuration: time.Duration(n[3]) * time.Minute}
 	return c, nil
 }
 
@@ -665,33 +679,77 @@ func (f *agentForm) save() {
 	}()
 }
 
-// loadModels fills the model list from the saved connection's endpoint.
+// modelsFirstNote is the model's note in a new connection, before a list was asked for.
+const modelsFirstNote = "With the base URL and the key typed, ↻ lists the endpoint's models; any model name may be typed."
+
+// loadModels fills the model list from the form's values: the base URL, kind and CA file as typed,
+// the key typed or else the stored one (the owner's request of 2026-10-25: a colleague's list
+// stayed empty after he typed his credentials, read from the saved connection only, and its button
+// was off until the connection was saved).
 func (f *agentForm) loadModels() {
-	if f.conn.ID == "" {
+	c, err := f.endpoint()
+	if err != nil {
+		f.showModels(nil, err)
 		return
 	}
+	key := f.apiKey()
+	f.listedFor = f.listKey()
+	f.modelsSeq++
+	seq := f.modelsSeq
 	sh := f.a.p.sh
-	id := f.conn.ID
 	f.modelsB.Disable()
+	f.modelNote.SetColor(colorMuted)
+	f.modelNote.SetText("Listing the endpoint's models…")
 	go func() {
 		defer sh.recoverTo("Preferences › Agent")
-		models, err := sh.chat.modelsFor(id)
+		models, err := sh.chat.modelsOf(c, key)
 		sh.do(func() {
-			f.modelsB.Enable()
-			if err != nil {
-				f.modelNote.SetText("The models could not be listed: " + errorText(err))
-				f.modelNote.SetColor(colorStatusError)
-				return
+			if seq == f.modelsSeq {
+				f.modelsB.Enable()
+				f.showModels(models, err)
 			}
-			f.model.SetOptions(models)
-			f.modelNote.SetColor(colorMuted)
-			if len(models) == 0 {
-				f.modelNote.SetText("The endpoint lists no models; any model name may be typed.")
-				return
-			}
-			f.modelNote.SetText(pluralOf(len(models), "model") + " at the endpoint; any model name may be typed.")
 		})
 	}()
+}
+
+// modelsAfterEdit lists the models again when the base URL or the key field is left changed. Not
+// while the stored key would go to a base URL other than the saved one: that only on ↻ or Test
+// Connection, the user's own request (H-143).
+func (f *agentForm) modelsAfterEdit() {
+	if f.listKey() == f.listedFor {
+		return
+	}
+	if strings.TrimSpace(f.baseURL.Text) == "" {
+		return
+	}
+	if f.key.Text == "" && f.conn.HasKey && !f.keyGone && strings.TrimSpace(f.baseURL.Text) != f.conn.BaseURL {
+		f.modelNote.SetColor(colorMuted)
+		f.modelNote.SetText("A new base URL: ↻ lists its models with the stored key, or type the key.")
+		return
+	}
+	f.loadModels()
+}
+
+// listKey names what a model list depends on, the typed key only by whether one is typed: when it
+// changes, the list is asked for again.
+func (f *agentForm) listKey() string {
+	return strings.Join([]string{string(f.lastKind), strings.TrimSpace(f.baseURL.Text), f.caFilePath(), f.key.Text, strconv.FormatBool(f.keyGone)}, "\x00")
+}
+
+// showModels shows a model list or why there is none.
+func (f *agentForm) showModels(models []string, err error) {
+	if err != nil {
+		f.modelNote.SetText("The models could not be listed: " + errorText(err))
+		f.modelNote.SetColor(colorStatusError)
+		return
+	}
+	f.model.SetOptions(models)
+	f.modelNote.SetColor(colorMuted)
+	if len(models) == 0 {
+		f.modelNote.SetText("The endpoint lists no models; any model name may be typed.")
+		return
+	}
+	f.modelNote.SetText(pluralOf(len(models), "model") + " at the endpoint; any model name may be typed.")
 }
 
 // test runs the connection test with the form's values; each layer shows as it ends.
@@ -736,6 +794,7 @@ func (f *agentForm) test() {
 			f.testB.Enable()
 			f.testB.SetText("Test Connection")
 			f.showSteps(final)
+			f.modelsFromTest(final)
 		})
 	}()
 }
@@ -749,13 +808,28 @@ func (f *agentForm) close() {
 	f.testSeq++
 }
 
+// modelsFromTest fills the model list from a test whose Models layer passed: the list the test read
+// with the same values.
+func (f *agentForm) modelsFromTest(steps []engine.ChatTestStep) {
+	for _, s := range steps {
+		if s.Layer == engine.ChatTestModels && s.State == engine.ChatTestPass {
+			f.modelsSeq++ // a list asked before the test is older
+			f.modelsB.Enable()
+			f.listedFor = f.listKey()
+			f.showModels(s.Models, nil)
+		}
+	}
+}
+
 // showSteps shows the test's layers: passed, failed with the reason, not reached, running.
 func (f *agentForm) showSteps(steps []engine.ChatTestStep) {
 	if len(f.steps.Objects) == 0 {
 		objs := make([]fyne.CanvasObject, 0, len(engine.ChatTestLayers)+2)
 		objs = append(objs, heading("Connection test"))
+		th := f.a.p.sh.app.Settings().Theme()
+		detailW := f.textW - th.Size(sizeCellIcon) - th.Size(sizeDrawerLabel) - agentTestTookWidth - 4*th.Size(theme.SizeNamePadding)
 		for _, l := range engine.ChatTestLayers {
-			r := newAgentTestRow(l)
+			r := newAgentTestRow(l, detailW)
 			f.stepRows[l] = r
 			objs = append(objs, r.root)
 		}
@@ -783,19 +857,22 @@ type agentTestRow struct {
 	root   fyne.CanvasObject
 	icon   *widget.Icon
 	label  *textLine
-	detail *textLine
+	detail *paragraph // wrapped, never cut: a certificate's issuer and end, the auth's two answers (2026-10-25)
 	took   *textLine
 	step   engine.ChatTestStep
 }
 
-func newAgentTestRow(l engine.ChatTestLayer) *agentTestRow {
+// agentTestTookWidth is the room a test row keeps at its right for the time a layer took.
+const agentTestTookWidth float32 = 48
+
+func newAgentTestRow(l engine.ChatTestLayer, detailW float32) *agentTestRow {
 	r := &agentTestRow{icon: widget.NewIcon(nil)}
 	r.label = newTextLine(chatTestLabels[l], theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	r.detail = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	r.detail.truncate = true
+	r.detail = newParagraph("", colorMuted, detailW)
 	r.took = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	label := box(sizedLayout{width: sizeDrawerLabel}, r.label)
-	r.root = container.NewBorder(nil, nil, container.NewHBox(sized(sizeCellIcon, "", r.icon), label), r.took, r.detail)
+	head := container.NewHBox(container.NewVBox(sized(sizeCellIcon, "", r.icon)), container.NewVBox(label))
+	r.root = container.NewBorder(nil, nil, head, container.NewVBox(r.took), r.detail)
 	return r
 }
 
@@ -820,11 +897,11 @@ func (r *agentTestRow) set(s engine.ChatTestStep) {
 		text += ": " + s.Detail
 	}
 	r.icon.SetResource(themedIcon(icon, c))
-	r.detail.SetText(text)
-	r.detail.SetColor(c)
+	r.detail.text, r.detail.color = text, c
 	if s.State == engine.ChatTestFail {
-		r.detail.SetColor(colorStatusError)
+		r.detail.color = colorStatusError
 	}
+	r.detail.Refresh()
 	r.took.SetText("")
 	if s.Duration > 0 && (s.State == engine.ChatTestPass || s.State == engine.ChatTestFail) {
 		r.took.SetText(formatTook(s.Duration))

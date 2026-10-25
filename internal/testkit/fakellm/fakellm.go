@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // ToolCall is a tool call a reply makes.
@@ -52,6 +53,9 @@ type Reply struct {
 	Gate chan struct{}
 	// Started, if set, is closed once the first event is written.
 	Started chan struct{}
+	// Pace, if set, is waited before each text delta after the first: an answer that streams over
+	// time (an answer's OTPS).
+	Pace time.Duration
 }
 
 // Request is one request the server received.
@@ -284,7 +288,10 @@ func (s *Server) serveChat(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	for _, t := range rep.Text {
+	for i, t := range rep.Text {
+		if i > 0 && rep.Pace > 0 {
+			time.Sleep(rep.Pace)
+		}
 		if !send(delta(map[string]any{"content": t}, nil)) {
 			return
 		}
