@@ -26,8 +26,8 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.47.0 the
-newest, released 2026-10-25 with the owner's preview of the day accepted live: the agent's connection debugger, TTFT and OTPS, the wheel over every text field, find in the drawer's YAML (D-10, D-125 to D-127); v0.46.0 the same day with the VW walk's VW15–VW20 (D-123, D-124); v0.45.0 released 2026-10-24 night after the owner's live walk: the light strip under a view's
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.48.0 the
+newest, released 2026-10-25 afternoon: the drawer's row marked by the bar alone (D-124 revised) and a Helm release's History in its drawer (D-128); v0.47.0 the same day with the owner's preview of the day accepted live: the agent's connection debugger, TTFT and OTPS, the wheel over every text field, find in the drawer's YAML (D-10, D-125 to D-127); v0.46.0 the same day with the VW walk's VW15–VW20 (D-123, D-124); v0.45.0 released 2026-10-24 night after the owner's live walk: the light strip under a view's
 header in the shown cluster's accent colour, static or animated (VW14, his LS1–LS23: one static
 colour spreading from the tab, the animations framed with a CPU note, Preferences › App › Light
 strip on battery, the tab bar always shown), cluster icons 50 points in the hotbar and the
