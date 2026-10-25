@@ -106,7 +106,7 @@ func ephemeralPods() map[string]*unstructured.Unstructured {
 func ephemeralEngine(t *testing.T, src *testkit.MemorySource, writer engine.Actions) *engine.Session {
 	t.Helper()
 	conn := enginekit.MemoryConnector{Context: "kind-cogpit", Src: src, Profiles: kinds.Builtin(), Writer: writer}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond,
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond,
 		ClusterSettings: engine.NewClusterSettingsStore(""), Preferences: engine.NewPreferencesStore("")})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

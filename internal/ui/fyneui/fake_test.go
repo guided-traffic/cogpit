@@ -26,6 +26,22 @@ import (
 // fixedNow is the clock of every test, so that ages in the PNGs do not change between runs.
 var fixedNow = time.Date(2026, 10, 11, 14, 30, 0, 0, time.UTC)
 
+// newTestEngine is engine.New with the tests' clock, so that a time the window shows (an object's
+// age, "23d ago") is the same in every run and a render changes only when the window does (the
+// owner, 2026-10-25: renders were updated for a day's turn of an age alone). The clock starts at
+// fixedNow and runs, so timers and deadlines go on as with time.Now; a test's own Now stays. A
+// demo cluster's objects are dated from fixedNow too.
+func newTestEngine(o engine.Options) *engine.Session {
+	if o.Now == nil {
+		start := time.Now()
+		o.Now = func() time.Time { return fixedNow.Add(time.Since(start)) }
+	}
+	if c, ok := o.Connector.(*engine.ClusterConnector); ok && c.IncludeDemo && c.DemoOptions.Now.IsZero() {
+		c.DemoOptions.Now = fixedNow
+	}
+	return engine.New(o)
+}
+
 // fakeEngine is an Engine with canned data. Dispatch changes its UI state the way the real
 // engine's commands do and emits events on the dispatching goroutine, as the real one does.
 type fakeEngine struct {

@@ -30,7 +30,7 @@ func welcomeEngine(t *testing.T) *engine.Session {
 	}
 	conn := &engine.ClusterConnector{KubeconfigPaths: []string{kc}, IncludeDemo: true}
 	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 200, true, 3
-	s := engine.New(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(cfg),
+	s := newTestEngine(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(cfg),
 		Preferences: engine.NewPreferencesStore(cfg), ClusterSettings: engine.NewClusterSettingsStore(cfg)})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
@@ -187,7 +187,7 @@ func sourcesWelcomeEngine(t *testing.T) (s *engine.Session, added string) {
 	if _, _, err := k.AddFile(added); err != nil {
 		t.Fatal(err)
 	}
-	s = engine.New(engine.Options{Connector: &engine.ClusterConnector{Sources: k}})
+	s = newTestEngine(engine.Options{Connector: &engine.ClusterConnector{Sources: k}})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
 	}

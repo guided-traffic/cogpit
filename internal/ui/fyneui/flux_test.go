@@ -198,7 +198,7 @@ func fluxEngineShellOn(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *main
 	rec := &enginekit.FluxRecorder{At: fixedNow}
 	src := fluxFixture()
 	conn := enginekit.MemoryConnector{Context: "kind-flux", Src: src, Profiles: kinds.Builtin(), CustomResources: true, Writer: rec}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

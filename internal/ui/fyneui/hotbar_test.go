@@ -401,7 +401,7 @@ func TestHotbarAddFromTheContextMenus(t *testing.T) {
 // The parameters the bar sends are what the real registry accepts (it refuses unknown fields), and
 // the bank commands are gone (D-83).
 func TestHotbarParamsMatchTheRegistry(t *testing.T) {
-	s := engine.New(engine.Options{Hotbar: engine.NewHotbar(t.TempDir())})
+	s := newTestEngine(engine.Options{Hotbar: engine.NewHotbar(t.TempDir())})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

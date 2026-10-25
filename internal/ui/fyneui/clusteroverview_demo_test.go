@@ -30,7 +30,7 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	}
 	conn.DemoOptions.Pods, conn.DemoOptions.Seed, conn.DemoOptions.EventsPerSecond = 1500, 11, 200
 	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
-	s := engine.New(engine.Options{Connector: conn})
+	s := newTestEngine(engine.Options{Connector: conn})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

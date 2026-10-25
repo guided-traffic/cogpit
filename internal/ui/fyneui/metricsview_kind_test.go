@@ -33,7 +33,7 @@ func TestKindPrometheusDrawer(t *testing.T) {
 	if kubeconfig == "" || contextName == "" {
 		t.Skip("COGPIT_KIND_KUBECONFIG and COGPIT_KIND_CONTEXT are not set; run make test-kind")
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}}})
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}}})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

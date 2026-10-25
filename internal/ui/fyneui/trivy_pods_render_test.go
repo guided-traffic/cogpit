@@ -60,7 +60,7 @@ func trivyPodsFixture() *testkit.MemorySource {
 
 func renderTrivyPods(t *testing.T, mode ThemeMode, name string) {
 	conn := enginekit.MemoryConnector{Context: "kind-trivy", Src: trivyPodsFixture(), Profiles: kinds.Builtin(), CustomResources: true}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond,
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond,
 		ClusterSettings: engine.NewClusterSettingsStore("")})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

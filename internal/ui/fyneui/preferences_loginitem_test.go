@@ -50,7 +50,7 @@ func (f *fakeLoginItem) called() []string {
 func loginItemEngine(t *testing.T, li engine.LoginItem) *engine.Session {
 	t.Helper()
 	cfg := filepath.Join(t.TempDir(), "Cogpit")
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{}, Preferences: engine.NewPreferencesStore(cfg),
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{}, Preferences: engine.NewPreferencesStore(cfg),
 		ClusterSettings: engine.NewClusterSettingsStore(cfg), Hotbar: engine.NewHotbar(cfg), LoginItem: li})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

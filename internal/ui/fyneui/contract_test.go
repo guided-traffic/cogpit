@@ -15,7 +15,7 @@ import (
 // shell sends that a command does not declare would turn a click into an error. The shell's own
 // tests run against a fake engine and cannot see that.
 func TestDispatchedParamsMatchTheRegistry(t *testing.T) {
-	s := engine.New(engine.Options{})
+	s := newTestEngine(engine.Options{})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

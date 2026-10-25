@@ -22,7 +22,7 @@ func TestRenderDemoShowcase(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the 10,000-pod demo cluster")
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

@@ -31,7 +31,7 @@ func demoSettingsShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func
 	}
 	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 200, true, 5
 	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
-	s := engine.New(engine.Options{Connector: conn, ClusterSettings: engine.NewClusterSettingsStore(filepath.Join(t.TempDir(), "Cogpit"))})
+	s := newTestEngine(engine.Options{Connector: conn, ClusterSettings: engine.NewClusterSettingsStore(filepath.Join(t.TempDir(), "Cogpit"))})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

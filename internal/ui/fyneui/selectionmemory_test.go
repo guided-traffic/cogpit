@@ -25,7 +25,7 @@ func TestSelectionBarIsTheShownViews(t *testing.T) {
 	}
 	src.Set(testkit.ServicesGVR, testkit.Service("shop", "checkout", "10.96.0.1"))
 	conn := enginekit.MemoryConnector{Context: "kind-shop", Src: src, Profiles: kinds.Builtin()}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

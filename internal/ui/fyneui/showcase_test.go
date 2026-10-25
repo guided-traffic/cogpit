@@ -625,7 +625,7 @@ func (c renamedConnector) Connect(ctx context.Context, _ string) (*engine.Backen
 // tests' shells do (fluxEngineShell, newArgoShell), connected to showcaseContext.
 func showcaseEngineShell(t *testing.T, conn engine.Connector, mode ThemeMode) (*shell, fyne.Window, *mainQueue) {
 	t.Helper()
-	s := engine.New(engine.Options{Connector: renamedConnector{Connector: conn, name: showcaseContext},
+	s := newTestEngine(engine.Options{Connector: renamedConnector{Connector: conn, name: showcaseContext},
 		SnapshotInterval: 5 * time.Millisecond, Now: func() time.Time { return fixedNow }})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

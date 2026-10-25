@@ -97,7 +97,7 @@ func blockingFixture() *testkit.MemorySource {
 func renderNamespaceBlocking(t *testing.T, mode ThemeMode, drawerPNG, confirmPNG string) {
 	writer := &finalizerWriter{}
 	conn := limitedConnector{enginekit.MemoryConnector{Context: "kind-cogpit", Src: blockingFixture(), Profiles: kinds.Builtin(), Writer: writer}}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond, ClusterSettings: engine.NewClusterSettingsStore("")})
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond, ClusterSettings: engine.NewClusterSettingsStore("")})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

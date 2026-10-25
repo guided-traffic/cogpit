@@ -407,7 +407,7 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater, change func(s *
 	}
 	conn := &engine.ClusterConnector{IncludeDemo: true}
 	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 3
-	s := engine.New(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(t.TempDir())}) // the hotbar stays
+	s := newTestEngine(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(t.TempDir())}) // the hotbar stays
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

@@ -27,7 +27,7 @@ func settingsEngineWithFile(t *testing.T) (s *engine.Session, ctx, file string) 
 		t.Fatal(err)
 	}
 	cfg := filepath.Join(t.TempDir(), "Cogpit")
-	s = engine.New(engine.Options{Connector: &engine.ClusterConnector{Sources: engine.NewKubeconfigSources(cfg, engine.WithDefaultFolder(kube))},
+	s = newTestEngine(engine.Options{Connector: &engine.ClusterConnector{Sources: engine.NewKubeconfigSources(cfg, engine.WithDefaultFolder(kube))},
 		Preferences: engine.NewPreferencesStore(cfg), ClusterSettings: engine.NewClusterSettingsStore(cfg), Hotbar: engine.NewHotbar(cfg)})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

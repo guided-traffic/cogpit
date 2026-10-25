@@ -199,7 +199,7 @@ func TestConnectToClusterOverTheEngine(t *testing.T) {
 	}
 	conn := &engine.ClusterConnector{IncludeDemo: true, KubeconfigPaths: []string{empty}}
 	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 3
-	s := engine.New(engine.Options{Connector: conn})
+	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

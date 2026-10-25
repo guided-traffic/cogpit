@@ -87,7 +87,7 @@ func kyvernoFixture(t *testing.T) *testkit.MemorySource {
 func renderKyverno(t *testing.T, mode ThemeMode, suffix string) {
 	src := kyvernoFixture(t)
 	conn := enginekit.MemoryConnector{Context: "kind-kyverno", Src: src, Profiles: kinds.Builtin(), CustomResources: true}
-	s := engine.New(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

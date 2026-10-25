@@ -54,7 +54,7 @@ func restoredEngineWith(t *testing.T, server string, restore bool) *engine.Sessi
 	if err := os.WriteFile(kc, []byte(config), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}},
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}},
 		Hotbar: engine.NewHotbar(cfg), Preferences: engine.NewPreferencesStore(cfg),
 		ClusterSettings: engine.NewClusterSettingsStore(cfg), Workspace: engine.NewWorkspace(cfg)})
 	if err := commands.RegisterAll(s.Registry()); err != nil {

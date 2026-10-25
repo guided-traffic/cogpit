@@ -47,7 +47,7 @@ func TestStandbyFreeze(t *testing.T) {
 	if dir == "" {
 		dir = t.TempDir()
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}}})
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}}})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
@@ -249,7 +249,7 @@ func TestStandbyPluginWaits(t *testing.T) {
 	_ = os.Remove(block)
 	defer os.Remove(block)
 
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{path}}})
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{path}}})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

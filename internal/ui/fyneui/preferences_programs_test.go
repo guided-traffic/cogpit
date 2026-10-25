@@ -157,7 +157,7 @@ func renderProgramFolders(t *testing.T, mode ThemeMode) {
 	if err := os.WriteFile(kc, []byte(settingsKubeconfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}},
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}},
 		Preferences: engine.NewPreferencesStore(cfg), ClusterSettings: engine.NewClusterSettingsStore(cfg), Hotbar: engine.NewHotbar(cfg)})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

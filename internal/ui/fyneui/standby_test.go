@@ -40,7 +40,7 @@ func TestStandbyWindowStaysUsable(t *testing.T) {
 	}
 	watch := engine.ConnWatchOptions{Heartbeat: time.Second, ProbeTimeout: 400 * time.Millisecond, Confirm: 200 * time.Millisecond,
 		LoginWait: 3 * time.Second, BackoffFirst: 100 * time.Millisecond, BackoffMax: 800 * time.Millisecond}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{path}}, ConnWatch: watch,
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{path}}, ConnWatch: watch,
 		SnapshotInterval: 20 * time.Millisecond})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {

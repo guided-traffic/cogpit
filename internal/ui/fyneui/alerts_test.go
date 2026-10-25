@@ -164,7 +164,7 @@ func alertEngine(t *testing.T) *engine.Session {
 	am := &testkit.FakeAlertmanager{}
 	am.Set(testkit.SampleAlerts(fixedNow)...)
 	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:http-web", am)
-	s := engine.New(engine.Options{
+	s := newTestEngine(engine.Options{
 		Connector:        &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "staging", "default")}},
 		SnapshotInterval: 20 * time.Millisecond, ClusterSettings: engine.NewClusterSettingsStore(""),
 		Alerts: alerting.Options{Interval: time.Hour},

@@ -196,7 +196,7 @@ func newArgoShell(t *testing.T, mode ThemeMode, seed bool) (*shell, fyne.Window,
 		argoFixture(src)
 	}
 	writer := &argoGUIWriter{}
-	s := engine.New(engine.Options{Connector: &argoGUIConnector{src: src, writer: writer}, SnapshotInterval: 5 * time.Millisecond,
+	s := newTestEngine(engine.Options{Connector: &argoGUIConnector{src: src, writer: writer}, SnapshotInterval: 5 * time.Millisecond,
 		Now: func() time.Time { return fixedNow }})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

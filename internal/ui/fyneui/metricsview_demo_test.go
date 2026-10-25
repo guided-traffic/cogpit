@@ -89,7 +89,7 @@ func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what st
 	// The UI may not import the demo package, but it may size the demo cluster through its field.
 	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 1500, true, 11
 	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
-	s := engine.New(engine.Options{Connector: conn})
+	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

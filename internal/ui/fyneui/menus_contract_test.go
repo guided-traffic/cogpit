@@ -21,7 +21,7 @@ import (
 // in a dialog of the window's own that is its confirmation (debugdialog.go).
 func TestRegistryMenusAsLens(t *testing.T) {
 	const rf = engine.RemoveFinalizersCommand
-	s := engine.New(engine.Options{})
+	s := newTestEngine(engine.Options{})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

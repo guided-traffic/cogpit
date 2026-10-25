@@ -185,7 +185,7 @@ func openForm(t *testing.T, sh *shell, q *mainQueue, kind string) *createForm {
 // realRegistry is a session with Cogpit's real commands, to check the parameters a dialog sends.
 func realRegistry(t *testing.T) *engine.Session {
 	t.Helper()
-	s := engine.New(engine.Options{})
+	s := newTestEngine(engine.Options{})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

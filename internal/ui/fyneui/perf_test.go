@@ -24,7 +24,7 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 	}(gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes)
 	gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes = 300*time.Millisecond, 500*time.Millisecond, 300*time.Millisecond, 200<<10
 
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

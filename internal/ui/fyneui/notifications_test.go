@@ -21,7 +21,7 @@ import (
 func notesShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *engine.Session) {
 	t.Helper()
 	var tick atomic.Int64
-	s := engine.New(engine.Options{Now: func() time.Time { return fixedNow.Add(time.Duration(tick.Add(1)) * time.Minute) }})
+	s := newTestEngine(engine.Options{Now: func() time.Time { return fixedNow.Add(time.Duration(tick.Add(1)) * time.Minute) }})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
 	}

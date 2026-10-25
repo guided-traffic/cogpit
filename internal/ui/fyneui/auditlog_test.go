@@ -51,7 +51,7 @@ func auditEngine(t *testing.T) (*engine.Session, string) {
 	if err := os.WriteFile(kc, []byte(settingsKubeconfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}}, Audit: f, AuditPath: path,
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}}, Audit: f, AuditPath: path,
 		ClusterSettings: engine.NewClusterSettingsStore(filepath.Join(t.TempDir(), "Cogpit"))})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
