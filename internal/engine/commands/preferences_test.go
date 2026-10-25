@@ -98,6 +98,21 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("an agent's reduceMotion %v: %v, %v", on, err, got.Preferences.ReduceMotion)
 		}
 	}
+	// So is the way the Revisions tab reads a comparison (D-new): every origin sets it, the default
+	// is kept as empty, an unknown way is refused.
+	for _, way := range []string{engine.RevisionsOlderToNewer, engine.RevisionsShownToCompared, engine.RevisionsComparedToShown} {
+		var got commands.PreferencesResult
+		want := way
+		if way == engine.RevisionsComparedToShown {
+			want = ""
+		}
+		if err := dispatch(t, s, agent, "preferences.set", map[string]any{"revisionsDiff": way}, &got); err != nil || got.Preferences.RevisionsDiff != want {
+			t.Errorf("an agent's revisionsDiff %q: %v, %q", way, err, got.Preferences.RevisionsDiff)
+		}
+	}
+	if err := dispatch(t, s, engine.OriginGUI, "preferences.set", map[string]any{"revisionsDiff": "newerToOlder"}, nil); err == nil {
+		t.Error("an unknown revisionsDiff was kept")
+	}
 	// So is the light strip's stand on battery (LS15), for every origin, and preferences.get shows it.
 	for _, origin := range []engine.Origin{agent, engine.OriginBuiltInAgent, engine.OriginCLI, engine.OriginGUI} {
 		for _, on := range []bool{true, false} {

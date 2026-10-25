@@ -89,6 +89,7 @@ type helmRevisionsTab struct {
 	shown   map[string]bool     // the Secrets the user showed, by object key; rawKey for manifest.yaml
 	syncing bool                // the pickers follow the engine: their changes are not sent back
 	loads   int
+	way     string // the preference the comparison was read by (Preferences.RevisionsDiff)
 	closed  bool
 }
 
@@ -414,6 +415,8 @@ func revisionLabel(e helm.HistoryEntry, newest bool) string {
 func (r *helmRevisionsTab) load() {
 	r.loads++
 	n, st := r.loads, r.st
+	r.way = r.sh.revisionsDiff()
+	from, to := engine.RevisionsDiffSides(r.way, st.Revision, st.Compare)
 	r.setStatus("Reading revision "+strconv.Itoa(st.Revision)+"…", colorMuted)
 	r.sh.dispatch("helm.release.revision", revisionReadParams{refParams: refParams{Ref: r.ref}, Revision: st.Revision, All: st.All}, func(res any, err error) {
 		if r.closed || n != r.loads {
@@ -441,7 +444,7 @@ func (r *helmRevisionsTab) load() {
 			what = engine.DiffAllValues
 		}
 		key := r.selectedKey()
-		p := revisionDiffParams{refParams: refParams{Ref: r.ref}, From: st.Compare, To: st.Revision, What: what, Object: key, Masked: !r.shown[key]}
+		p := revisionDiffParams{refParams: refParams{Ref: r.ref}, From: from, To: to, What: what, Object: key, Masked: !r.shown[key]}
 		r.sh.dispatch("helm.release.diff", p, func(res any, err error) {
 			if r.closed || n != r.loads {
 				return
@@ -509,7 +512,7 @@ func (r *helmRevisionsTab) renderValues() {
 		default:
 			r.keysHead.SetText(fmt.Sprintf("%d keys differ between revision %d and revision %d", n, r.diff.From, r.diff.To))
 		}
-		r.keyCols.titles(r.diff.From, r.diff.To)
+		r.keyCols.titles(r.sideName(r.diff.From), r.sideName(r.diff.To))
 		r.keysList.Refresh()
 		r.valuesDiff.set(r.diff.Lines)
 		parts := []fyne.CanvasObject{r.keysHead}
@@ -530,10 +533,7 @@ func (r *helmRevisionsTab) renderValues() {
 		if len(r.keys) == 0 {
 			r.valuesBody.Objects = []fyne.CanvasObject{container.NewVBox(head)}
 		}
-		r.setStatus(fmt.Sprintf("From revision %d (compared) to revision %d (shown): what rolling back to revision %d would change in the values.", r.diff.From, r.diff.To, r.diff.To), colorMuted)
-		if r.diff.To > r.diff.From {
-			r.setStatus(fmt.Sprintf("From revision %d (compared) to revision %d (shown): what revision %d changed in the values.", r.diff.From, r.diff.To, r.diff.To), colorMuted)
-		}
+		r.setStatus(r.diffMeaning("the values"), colorMuted)
 	}
 	r.valuesBody.Refresh()
 	r.content.Objects = []fyne.CanvasObject{inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewBorder(top, nil, nil, nil, r.valuesBody))}
@@ -592,7 +592,7 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 	shown := r.shown[key]
 	r.objSource.SetText(obj.Kind + " " + obj.Name)
 	tools := []fyne.CanvasObject{}
-	if obj.Change != helm.ObjectRemoved && model.RefTo(obj.APIVersion, obj.Kind, obj.Namespace, obj.Name) != nil {
+	if r.objectYAML(key) != "" && model.RefTo(obj.APIVersion, obj.Kind, obj.Namespace, obj.Name) != nil { // in the revision shown
 		tools = append(tools, centred(fitLink(r.objLive)))
 	}
 	if obj.Secret {
@@ -603,7 +603,7 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 	head := container.NewBorder(nil, nil, nil, container.NewHBox(tools...), r.objSource)
 	var view fyne.CanvasObject
 	switch {
-	case compared && (obj.Change == helm.ObjectChanged || obj.Change == helm.ObjectRemoved):
+	case compared && obj.Change != helm.ObjectSame: // its diff, also for an object one side has not: all + or all −
 		r.objDiff.set(r.diff.Lines)
 		view = container.NewStack(newSurface(theme.ColorNameInputBackground), r.objDiff.list)
 		r.setStatus(changeText(obj, r.diff.From, r.diff.To), colorMuted)
@@ -620,13 +620,50 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		r.objFind.textChanged()
 		view = container.NewBorder(r.objFind.root, nil, nil, nil, yamlWell(r.objView))
 		if compared {
-			r.setStatus(changeText(obj, r.diff.From, r.diff.To), colorMuted)
+			r.setStatus(changeText(obj, r.diff.From, r.diff.To)+" "+r.diffMeaning("its objects"), colorMuted)
 		} else {
 			r.setStatus(fmt.Sprintf("Revision %d: %s %s as Helm rendered it (helm get manifest --revision %d).", r.cur.Revision, obj.Kind, obj.Name, r.cur.Revision), colorMuted)
 		}
 	}
 	r.objBody.Objects = []fyne.CanvasObject{container.NewBorder(head, nil, nil, nil, view)}
 	r.objBody.Refresh()
+}
+
+// sideName names one side of the comparison: "revision 5 (shown)", "revision 6 (compared)".
+func (r *helmRevisionsTab) sideName(rev int) string {
+	role := "compared"
+	if rev == r.st.Revision {
+		role = "shown"
+	}
+	return fmt.Sprintf("revision %d (%s)", rev, role)
+}
+
+// diffMeaning says which way the comparison reads and what it amounts to (Preferences ›
+// App › Revision diffs).
+func (r *helmRevisionsTab) diffMeaning(what string) string {
+	from, to := r.diff.From, r.diff.To
+	head := "From " + r.sideName(from) + " to " + r.sideName(to) + ": "
+	switch {
+	case to == r.st.Revision && from == r.newest:
+		return head + fmt.Sprintf("what rolling back to revision %d would change in %s.", to, what)
+	case to == r.newest && from == r.st.Revision:
+		return head + fmt.Sprintf("what has changed in %s since revision %d.", what, from)
+	case to > from:
+		return head + fmt.Sprintf("what changed in %s from revision %d up to revision %d.", what, from, to)
+	}
+	return head + fmt.Sprintf("%s going back from revision %d to revision %d.", what, from, to)
+}
+
+// diffWayChanged reads the comparison again when the preference now reads it the other way.
+func (r *helmRevisionsTab) diffWayChanged() {
+	if r.closed || r.sh.revisionsDiff() == r.way {
+		return
+	}
+	if r.st.Compare == 0 {
+		r.way = r.sh.revisionsDiff()
+		return
+	}
+	r.load()
 }
 
 // objectYAML is an object's YAML in the revision shown.
@@ -920,11 +957,11 @@ func (r *keyRow) header() {
 	r.arrow.SetText("")
 }
 
-// titles names the columns by the revisions compared.
-func (r *keyRow) titles(from, to int) {
+// titles names the columns by the revisions the comparison goes from and to.
+func (r *keyRow) titles(from, to string) {
 	r.path.SetText("KEY")
-	r.from.SetText(fmt.Sprintf("REVISION %d (COMPARED)", from))
-	r.to.SetText(fmt.Sprintf("REVISION %d (SHOWN)", to))
+	r.from.SetText(strings.ToUpper(from))
+	r.to.SetText(strings.ToUpper(to))
 }
 
 func (r *keyRow) set(c helm.ValueChange) {

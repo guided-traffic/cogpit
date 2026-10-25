@@ -39,7 +39,7 @@ func newRevisionsHarness(t *testing.T, mode ThemeMode) *revisionsHarness {
 	}
 	conn := &engine.ClusterConnector{IncludeDemo: true}
 	conn.DemoOptions.Pods, conn.DemoOptions.Seed, conn.DemoOptions.NoChurn = 400, 7, true
-	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond})
+	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond, Preferences: engine.NewPreferencesStore("")})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
@@ -104,7 +104,8 @@ func (h *revisionsHarness) tab(want engine.HelmRevisionsTab) *helmRevisionsTab {
 			return false
 		}
 		if want.Compare != 0 {
-			return r.diff.From == want.Compare && r.diff.To == want.Revision
+			from, to := engine.RevisionsDiffSides(h.sh.revisionsDiff(), want.Revision, want.Compare)
+			return r.diff.From == from && r.diff.To == to
 		}
 		return true
 	})
@@ -282,5 +283,41 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	h.q.drain()
 	if strings.Contains(r.objView.Text(), helm.MaskedDots) || h.sh.ui.Revision != before {
 		t.Errorf("Show: %q, the engine's state moved %d → %d", r.objView.Text(), before, h.sh.ui.Revision)
+	}
+}
+
+// Preferences › App › Revision diffs turns the open tab's comparison round: from the compared
+// revision to the shown one by default, from the older to the newer, from the shown to the
+// compared; the key list's columns name the sides.
+func TestRevisionsDiffPreference(t *testing.T) {
+	h := newRevisionsHarness(t, ThemeDark)
+	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 6, "compare": 3})
+	id := res.(commands.DockResult).Tab.ID
+	want := engine.HelmRevisionsTab{Revision: 6, Compare: 3, Mode: engine.RevisionsValues}
+	for _, c := range []struct {
+		way            string
+		from, to       int
+		fromCol, toCol string
+	}{
+		{"", 3, 6, "REVISION 3 (COMPARED)", "REVISION 6 (SHOWN)"},
+		{engine.RevisionsShownToCompared, 6, 3, "REVISION 6 (SHOWN)", "REVISION 3 (COMPARED)"},
+		{engine.RevisionsOlderToNewer, 3, 6, "REVISION 3 (COMPARED)", "REVISION 6 (SHOWN)"},
+	} {
+		h.dispatch("preferences.set", map[string]any{"revisionsDiff": c.way})
+		h.until("the preference "+c.way, func() bool { return h.sh.revisionsDiff() == c.way })
+		r := h.tab(want)
+		if r.diff.From != c.from || r.diff.To != c.to || r.keyCols.from.text != c.fromCol || r.keyCols.to.text != c.toCol {
+			t.Errorf("%q: %d → %d, columns %q %q", c.way, r.diff.From, r.diff.To, r.keyCols.from.text, r.keyCols.to.text)
+		}
+		for _, k := range r.diff.Changes {
+			if k.Path == "image.tag" && (k.From != map[bool]string{true: "2.4.0", false: "2.3.1"}[c.from == 6] || k.To != map[bool]string{true: "2.3.1", false: "2.4.0"}[c.from == 6]) {
+				t.Errorf("%q: image.tag %q → %q", c.way, k.From, k.To)
+			}
+		}
+	}
+	h.set(id, map[string]any{"revision": 5, "compare": 6})
+	h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues})
+	if r := h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues}); r.diff.From != 5 || r.diff.To != 6 {
+		t.Errorf("older to newer, revision 5 against 6: %d → %d", r.diff.From, r.diff.To)
 	}
 }

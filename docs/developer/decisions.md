@@ -12686,7 +12686,7 @@ The lead's night decisions (D-74, 2026-10-25/26), open to revision in the review
 
 | Question | Options weighed | Chosen | Why |
 |---|---|---|---|
-| Which way a comparison reads | (a) from the revision compared to the one shown; (b) older to newer always; (c) shown to compared | (a) | One rule for both picks: against the current revision it is what a rollback to the one shown would change, against the revision before what the shown one changed (`helm diff revision A B` reads A → B, A the compared); the key list's columns and the status line name both revisions |
+| Which way a comparison reads | (a) from the revision compared to the one shown; (b) older to newer always; (c) shown to compared | **the user's choice, (a) by default** (the owner, 2026-10-25, at the review of the night's question: "Bau es so, dass der Nutzer in den App Settings Global seinen favorisierten Weg für die Anzeige konfigurieren kann") | Preferences › App › Revision diffs (`Preferences.RevisionsDiff`: `comparedToShown`, the default kept as empty, `olderToNewer`, `shownToCompared`; `engine.RevisionsDiffSides`); the open tab reads its comparison again when it changes. The default is the lead's: one rule for both picks, against the current revision what a rollback to the one shown would change, against the revision before what the shown one changed; the key list's columns and the status line name both sides by their role ("revision 6 (compared)"). Agents and the CLI may set it either way: it changes only how the window shows a comparison |
 | "The current revision" | (a) the release's newest revision, Helm's `helm get` default; (b) the last deployed one | (a) | The one revision Helm calls current; after a rollback it is the deployed one |
 | The line diff's fold | (a) per tab, the engine's state, folded when the tab opens; (b) a preference for every tab; (c) remembered per release | (a) | His pick folds it by default; agents unfold it as the user does |
 | Show on a rendered Secret | (a) the window's alone, per object and for manifest.yaml, forgotten with the tab; (b) the engine's state; (c) one Show for the whole revision | (a) | An agent must never unmask a value on the user's screen; agents read the values withheld either way |
@@ -12709,7 +12709,9 @@ The lead's night decisions (D-74, 2026-10-25/26), open to revision in the review
 Tests: `TestRevisionOf`, `TestValueChanges`, `TestObjectChanges`, `TestMaskManifest` (helm);
 `TestReleaseRevision` (an old revision's values, user-supplied and all, its objects, ConfigMaps,
 a pruned revision, no list or watch), `TestReleaseRevisionWithheldFromAgents`,
-`TestReleaseRevisionDiff`, `TestRevisionsTab` (commands); the demo's `TestDemoHelmReleases`;
+`TestReleaseRevisionDiff`, `TestRevisionsTab`, `TestPreferencesCommands` (revisionsDiff) (commands);
+`TestRevisionsDiffSides` (engine); the demo's `TestDemoHelmReleases`; `TestRevisionsDiffPreference`
+(the open tab turned round by the preference) and `TestPreferencesRevisionsDiff` (the row);
 `TestRevisionsTabFromTheDrawer` (the History's link, "Open revisions", the toolbar, the row menu, an agent moving the tab, Show the window's alone) and `TestRenderHelmRevisions{Dark,Light}` (fyneui, over the real
 engine and the demo cluster): [values](../../internal/ui/fyneui/testdata/helm_revisions_values_dark.png),
 [compared](../../internal/ui/fyneui/testdata/helm_revisions_values_compared_dark.png),

@@ -4047,7 +4047,9 @@ Where it differs from the contract above, this paragraph wins.
   three lines, a Secret masked or withheld on both sides). `helm.release.revision` and
   `helm.release.diff` read (agents: `Revision.Withhold`, the changed keys' values withheld);
   `ui.helm.revisions` opens the Revisions dock tab (`DockHelmRevisions`, its state
-  `DockTab.HelmRevisions`), `ui.helm.revisions.set` changes it; the window's tab
+  `DockTab.HelmRevisions`), `ui.helm.revisions.set` changes it; which way a comparison reads is a
+  preference (`Preferences.RevisionsDiff`, Preferences › App › Revision diffs,
+  `RevisionsDiffSides`), the tab asking `helm.release.diff` for that from and to; the window's tab
   ([`fyneui/helmrevisions.go`](../../internal/ui/fyneui/helmrevisions.go)) reads through those two
   commands and keeps a rendered Secret's Show to itself. The drawer's History links each revision
   into the tab (`drawerTitleParts`, `underTable`'s row links, `helmrevisions_drawer.go`).

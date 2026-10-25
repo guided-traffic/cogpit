@@ -722,6 +722,16 @@ follows a pulled cable there within half a minute.
 |---|---|---|
 | `lightStripMainsOnly` | `false` # default | on: the light strip animates only on the power adapter and stands still on battery; agents may set it either way, it changes only how the window moves |
 
+### Preferences › App: revision diffs
+
+On the branch `proto/helm-revisions` (a prototype, [D-new](decisions.md#d-new-a-releases-revisions)):
+which way a Helm release's Revisions tab reads a comparison of two revisions. **From the compared
+revision to the shown one** (the default), **from the older revision to the newer one**, or **from
+the shown revision to the compared one**: the first is the diff's old side (−), the second its new
+side (+), in the changed keys, the line diff and the objects' marks. Kept in `preferences.json` as
+`revisionsDiff` (`olderToNewer`, `shownToCompared`; absent: the default); `preferences_set` sets
+it from any origin.
+
 ### The window's place and size
 
 Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
@@ -1661,6 +1671,11 @@ number there) opens a dock tab "Revisions · <release>", one per release:
   changed object's diff. **manifest.yaml** is the manifest as Helm stored it
   (`helm get manifest --revision N`). A Secret's values are dots and their size until **Show**.
 - The revisions on the left: ● the shown one, ◆ the compared one; a click shows another.
+- **Which way a comparison reads** is yours: Preferences › App › **Revision diffs**, "From the
+  compared revision to the shown one" (the default: against the current revision, what a rollback
+  to the shown one would change), "From the older revision to the newer one" or "From the shown
+  revision to the compared one". The first revision is the diff's old side (−), the second its new
+  side (+); the open tab follows at once.
 
 It reads the release records Cogpit's cache holds and asks the cluster nothing. `cogpit --demo`
 has releases with a history for it (shop-web in demo-shop, six revisions).

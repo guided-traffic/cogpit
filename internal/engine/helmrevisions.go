@@ -369,3 +369,36 @@ func maskOr(text string, mask func(int) string) string {
 	}
 	return helm.MaskSecretYAML(text, mask)
 }
+
+// The ways a comparison reads (Preferences.RevisionsDiff): which revision is the diff's old side.
+const (
+	// RevisionsComparedToShown: from the revision compared to the one shown, the default ("" too):
+	// against the current revision what a rollback to the one shown would change, against the
+	// revision before what the one shown changed.
+	RevisionsComparedToShown = "comparedToShown"
+	// RevisionsOlderToNewer: from the older of the two to the newer, as a history reads.
+	RevisionsOlderToNewer = "olderToNewer"
+	// RevisionsShownToCompared: from the revision shown to the one compared.
+	RevisionsShownToCompared = "shownToCompared"
+)
+
+// CheckRevisionsDiff refuses a way of reading a comparison Cogpit does not know.
+func CheckRevisionsDiff(way string) error {
+	switch way {
+	case "", RevisionsComparedToShown, RevisionsOlderToNewer, RevisionsShownToCompared:
+		return nil
+	}
+	return fmt.Errorf("revisionsDiff %q: %s, %s or %s (empty: %s)", way, RevisionsComparedToShown, RevisionsOlderToNewer, RevisionsShownToCompared, RevisionsComparedToShown)
+}
+
+// RevisionsDiffSides returns the revisions a comparison goes from and to, as the preference way
+// reads one of the revision shown against the one compared.
+func RevisionsDiffSides(way string, shown, compared int) (from, to int) {
+	switch way {
+	case RevisionsOlderToNewer:
+		return min(shown, compared), max(shown, compared)
+	case RevisionsShownToCompared:
+		return shown, compared
+	}
+	return compared, shown
+}
