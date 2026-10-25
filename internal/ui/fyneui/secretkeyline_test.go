@@ -16,8 +16,8 @@ import (
 )
 
 // keyLineParts names what the end of a Secret key's name line holds, in order: a text button's
-// word, "copy" for the copy icon, "remove" for the remove button. nil when the drawer has no name
-// line for key.
+// word, "copy" for the copy icon, "b64" for the b64 button (an icon since VW19), "remove" for the
+// remove button. nil when the drawer has no name line for key.
 func keyLineParts(d *drawer, key string) []string {
 	line := keyLineOf(d, key)
 	if line == nil {
@@ -33,18 +33,22 @@ func keyLineParts(d *drawer, key string) []string {
 		case *textButton:
 			parts = append(parts, x.Text)
 		case *tipButton:
-			if x.tip == b64Tip {
-				parts = append(parts, "b64")
-			} else {
-				parts = append(parts, "remove")
-			}
+			parts = append(parts, "remove")
 		case *fyne.Container:
-			if len(findAll[*copyButton](x)) == 1 {
+			if icons := findAll[*copyButton](x); len(icons) == 1 && icons[0].tip == b64Tip {
+				parts = append(parts, "b64")
+			} else if len(icons) == 1 {
 				parts = append(parts, "copy")
 			}
 		}
 	}
 	return parts
+}
+
+// copyIcons are the copy icons in o, not the b64 buttons, which are pinned copy icons with their own
+// icon (VW19).
+func copyIcons(o fyne.CanvasObject) []*copyButton {
+	return slices.DeleteFunc(findAll[*copyButton](o), func(b *copyButton) bool { return b.tip == b64Tip })
 }
 
 // keyLineOf is the name line of key in the drawer: the key's name (or the name and its tag) and
@@ -88,7 +92,7 @@ func keyCopyIcon(t *testing.T, d *drawer, key string) *copyButton {
 	if line == nil {
 		t.Fatalf("no name line for %s", key)
 	}
-	icons := findAll[*copyButton](line.Objects[1])
+	icons := copyIcons(line.Objects[1])
 	if len(icons) != 1 {
 		t.Fatalf("%d copy icons on %s's line", len(icons), key)
 	}
@@ -270,14 +274,14 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 			out[b.Text] = b.Size().Height
 		}
 		for _, b := range findAll[*tipButton](line.Objects[1]) {
-			if b.tip == b64Tip {
-				out["b64"] = b.Size().Height
-			} else {
-				out["remove"] = b.Size().Height
-			}
+			out["remove"] = b.Size().Height
 		}
 		for _, b := range findAll[*copyButton](line.Objects[1]) {
-			out["copy"] = b.Size().Height
+			if b.tip == b64Tip { // an icon since VW19
+				out["b64"] = b.Size().Height
+			} else {
+				out["copy"] = b.Size().Height
+			}
 		}
 		return out
 	}
@@ -303,7 +307,7 @@ func TestKeyLineButtonsOneHeight(t *testing.T) {
 		t.Errorf("the copy icon's plate %v, stroke %v: want no fill and the field's outline", r.bg.FillColor, r.bg.StrokeColor)
 	}
 
-	remove := slices.DeleteFunc(findAll[*tipButton](keyLineOf(d, "DB_USER").Objects[1]), func(b *tipButton) bool { return b.tip == b64Tip })
+	remove := findAll[*tipButton](keyLineOf(d, "DB_USER").Objects[1])
 	if len(remove) != 1 {
 		t.Fatalf("%d remove buttons on DB_USER's line", len(remove))
 	}

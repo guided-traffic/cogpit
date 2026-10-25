@@ -517,12 +517,12 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 		return true
 	}
 	sd := secDataOf(sh)
-	if n := len(findAll[*copyButton](sd.list)); n != 4 { // one in each text key's line (RW1)
+	if n := len(copyIcons(sd.list)); n != 4 { // one in each text key's line (RW1)
 		t.Fatalf("%d copy icons before a value is in an editor, want 4", n)
 	}
 	r := showKey(t, sh, q, "DB_PASSWORD")
 	settle(w)
-	if icons := findAll[*copyButton](sd.list); len(icons) != 4 || !slices.Contains(icons, r.copyBtn) || !r.copyBtn.Visible() {
+	if icons := copyIcons(sd.list); len(icons) != 4 || !slices.Contains(icons, r.copyBtn) || !r.copyBtn.Visible() {
 		t.Fatalf("copy icons %d, the editor's shown %v", len(icons), r.copyBtn != nil && r.copyBtn.Visible())
 	}
 	ip, iq := absRect(r.copyBtn)
@@ -566,7 +566,7 @@ func TestSecretEditorCopyIcon(t *testing.T) {
 	a := sd.addedRows["API_TOKEN"]
 	typeIntoRow(a.cmRow, secTyped+"-new")
 	q.until(t, "the added key's icon", func() bool {
-		icons := findAll[*copyButton](sd.list)
+		icons := copyIcons(sd.list)
 		return len(icons) == 5 && slices.Contains(icons, a.copyBtn)
 	})
 	test.Tap(a.copyBtn)
