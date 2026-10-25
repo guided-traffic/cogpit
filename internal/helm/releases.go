@@ -625,13 +625,17 @@ func decodeRevision(o *unstructured.Unstructured) (*revision, *rspb.Release) {
 	if rls.Info != nil {
 		r.status = cmp.Or(string(rls.Info.Status), r.status)
 		r.updated, r.firstDeployed = rls.Info.LastDeployed, rls.Info.FirstDeployed
-		// A failed revision's description quotes the error, which can quote a rendered value
-		// (the API server's "Invalid value: …"); the release object, which agents read, shows it
-		// scrubbed of the revision's own values.
-		r.description = ScrubValues(rls.Info.Description, rls.Config)
 	}
 	if rls.Chart != nil && rls.Chart.Metadata != nil {
 		r.chart, r.chartVersion, r.appVersion = rls.Chart.Metadata.Name, rls.Chart.Metadata.Version, rls.Chart.Metadata.AppVersion
+	}
+	if rls.Info != nil {
+		// A failed revision's description quotes the error, which can quote a rendered value
+		// (the API server's "Invalid value: …"); the release object, which agents read, shows it
+		// scrubbed of the revision's own values, but for what the object shows anyway: Helm's
+		// `Upgrade "<release>" failed` keeps its name though the values repeat it.
+		public := []string{r.name, r.namespace, r.chart, r.chartVersion, r.appVersion, chartText(r.chart, r.chartVersion)}
+		r.description = ScrubValuesExcept(rls.Info.Description, rls.Config, public)
 	}
 	return r, rls
 }

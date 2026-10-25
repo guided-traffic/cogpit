@@ -117,18 +117,56 @@ const withheldValue = "<value withheld>"
 // that a value containing another is replaced whole. Text is then cut to maxErrorText. Values a
 // template transformed otherwise (upper, sha256sum) are not found: a known limit.
 func ScrubValues(text string, values map[string]any) string {
-	secrets := scalars(values, nil)
-	for _, s := range slices.Clone(secrets) {
-		secrets = append(secrets, base64.StdEncoding.EncodeToString([]byte(s)))
+	return ScrubValuesExcept(text, values, nil)
+}
+
+// ScrubValuesExcept is ScrubValues keeping the strings of public: names the reader sees anyway
+// (a release's name, its namespace, its chart's name and version), which a chart's values often
+// repeat. A value equal to one of them is not replaced, and a shorter value inside one of them is
+// not replaced there; a longer value that contains one is still replaced whole.
+func ScrubValuesExcept(text string, values map[string]any, public []string) string {
+	type candidate struct {
+		s    string
+		keep int // the index of a public string, or -1 for a value
+	}
+	var cands []candidate
+	for i, p := range public {
+		if len(p) >= minScrubbed { // a shorter one cannot hold a value that is replaced
+			cands = append(cands, candidate{p, i})
+		}
+	}
+	for _, s := range scalars(values, nil) {
+		if slices.Contains(public, s) {
+			continue
+		}
+		cands = append(cands, candidate{s, -1}, candidate{base64.StdEncoding.EncodeToString([]byte(s)), -1})
 		for _, q := range quotedForms(s) {
 			if q != s && len(q) >= minScrubbed {
-				secrets = append(secrets, q)
+				cands = append(cands, candidate{q, -1})
 			}
 		}
 	}
-	slices.SortFunc(secrets, func(a, b string) int { return cmp.Compare(len(b), len(a)) })
-	for _, s := range slices.Compact(secrets) {
-		text = strings.ReplaceAll(text, s, withheldValue)
+	// Longest first; at equal length a public string before a value of the same text.
+	slices.SortStableFunc(cands, func(a, b candidate) int {
+		return cmp.Or(cmp.Compare(len(b.s), len(a.s)), cmp.Compare(b.keep, a.keep))
+	})
+	cands = slices.CompactFunc(cands, func(a, b candidate) bool { return a.s == b.s })
+	kept := map[string]string{}
+	for _, c := range cands {
+		if c.keep < 0 {
+			text = strings.ReplaceAll(text, c.s, withheldValue)
+			continue
+		}
+		// A public string is held behind a mark no value of minScrubbed characters matches, and put
+		// back after the shorter values are replaced.
+		mark := "\x00\x01" + strconv.Itoa(c.keep) + "\x01\x00"
+		if strings.Contains(text, c.s) {
+			kept[mark] = c.s
+			text = strings.ReplaceAll(text, c.s, mark)
+		}
+	}
+	for mark, s := range kept {
+		text = strings.ReplaceAll(text, mark, s)
 	}
 	if len(text) > maxErrorText {
 		text = text[:maxErrorText] + "… (cut)"
