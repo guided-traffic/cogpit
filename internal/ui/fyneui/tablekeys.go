@@ -17,7 +17,9 @@ import (
 // Tabelle einen Rahmen hat, wenn irgendein Element in der Tabelle selektiert ist"; the lead's
 // detail, D-74): a click on a cell puts the keyboard there without the ring, so that ↑↓ go on from
 // the row clicked; a key the table takes shows the ring, and so does the focus that comes by the
-// keyboard (Tab from another widget), not the one a click gives.
+// keyboard (Tab from another widget), not the one a click gives. On the drawer's row the bar marks
+// the row already and the ring stays off (the owner, 2026-10-25: "Der Balken auf der linken Seite
+// über die ganze Zeilenhöhe würde reichen"); ↑↓ to another row show it there.
 
 var (
 	_ fyne.Tabbable   = (*resourceTable)(nil)
@@ -106,9 +108,10 @@ func (tv *tableView) updateKeyboardCell() {
 }
 
 // keyboardOn reports whether the ring is on a cell: the keyboard is there, the table has the focus,
-// and the keyboard was used last, not the pointer (VW17).
+// the keyboard was used last, not the pointer (VW17), and the row is not the drawer's, which its bar
+// marks.
 func (tv *tableView) keyboardOn(row, col int) bool {
-	return tv.kbOn && tv.kbKeys && row == tv.kbRow && col == tv.kbCol && row >= 0
+	return tv.kbOn && tv.kbKeys && row == tv.kbRow && col == tv.kbCol && row >= 0 && !tv.rowDrawer(row)
 }
 
 // keyed marks the keyboard as used: the ring shows on its cell, which a click may have moved since
@@ -168,9 +171,7 @@ func (t *resourceTable) resetKeyboard() {
 	t.tv.updateKeyboardCell()
 }
 
-// ringInset is how far the keyboard's ring lies inside its cell, for a ring of stroke width: inside
-// the drawer's outline, which lies on the bounds of the row's cells (VW16, rowoutline.go), with a gap
-// between, so that the ring marks a cell and the outline a row, and the two read apart where they
-// meet. Inside the cell, the ring is not cut off either where the table's scroller ends left of the
-// first column and above the first row.
-func ringInset(stroke float32) float32 { return outlineWidth + markGap + stroke/2 }
+// ringInset is how far the keyboard's ring lies inside its cell, for a ring of stroke width: a point
+// inside the cell's bounds, so that the table's scroller does not cut it off where it ends left of
+// the first column and above the first row.
+func ringInset(stroke float32) float32 { return 1 + stroke/2 }

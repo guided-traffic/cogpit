@@ -18,18 +18,17 @@ import (
 // costs not one object more than before.
 //
 // A checked row and the drawer's row are two kinds of mark, not two shades of blue (the owner's
-// VW16 of 2026-10-25, his pick (a): "keinen Unterschied ... zwischen selektierten Einträgen und dem
-// aktuell markierten Eintrag"), as VS Code's lists mark a selection with a fill and the focus with
-// an outline: a checked row has the selection's fill; the drawer's row has an outline round the
-// whole row in the glow blue and the glow blue bar at its left, no fill; a row that is both has the
-// fill, the outline and the bar. The text takes the selection's colour only on the fill.
+// VW16 of 2026-10-25: "keinen Unterschied ... zwischen selektierten Einträgen und dem aktuell
+// markierten Eintrag"): a checked row has the selection's fill; the drawer's row has the glow blue
+// bar at its left edge over the row's whole height, no fill (his look at the outline that came with
+// it, the same day: "Der Balken auf der linken Seite über die ganze Zeilenhöhe würde reichen"); a
+// row that is both has the fill and the bar. The text takes the selection's colour only on the fill.
 
 // Geometry of the marks, in points.
 const (
 	spineWidth   = 3   // a status spine
 	selBarWidth  = 2   // the drawer's row's bar
-	outlineWidth = 1.5 // the drawer's row's outline: heavier than the keyboard's ring (1), so the two read apart
-	markGap      = 1   // between the outline, the spine and the bar at a row's left end
+	markGap      = 1   // between the bar and the spine at a row's left end
 	pillDotSide  = 6   // the dot in a status cell
 	pillPadX     = 8   // inside a pill, before the dot and after the word
 	pillDotGap   = 6   // between the dot and the word
@@ -79,9 +78,8 @@ func (c *tableCell) pillRoom() float32 {
 	return c.pillLead() + pillPadX
 }
 
-// applyRowMarks paints the row's spine and the drawer's bar (the first cell's), the cell's part of
-// the drawer's outline, and the cell's pill and dot, making the objects the first time they are
-// needed.
+// applyRowMarks paints the row's spine and the drawer's bar (the first cell's) and the cell's pill
+// and dot, making the objects the first time they are needed.
 func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	row := c.content.row
 	if c.col == checkColumn && abnormalStatus(row) {
@@ -106,8 +104,7 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	} else if c.selBar != nil {
 		c.selBar.Hide()
 	}
-	c.applyOutline(th)
-	c.layoutLead(c.Size())
+	c.layoutLead(c.Size(), th)
 	if c.pillShows() {
 		if c.pill == nil {
 			c.pill = canvas.NewRectangle(color.Transparent)
@@ -139,8 +136,8 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 }
 
 // rowPlate is the row's plate: the selection's fill on a checked row, the hover, else nothing, or
-// for an error row the faint tint of its status. The drawer's row has no fill of its own: its
-// outline marks it (VW16).
+// for an error row the faint tint of its status. The drawer's row has no fill of its own: its bar
+// marks it (VW16).
 func (c *tableCell) rowPlate(th fyne.Theme) color.Color {
 	switch {
 	case c.checked:
@@ -153,61 +150,31 @@ func (c *tableCell) rowPlate(th fyne.Theme) color.Color {
 	return color.Transparent
 }
 
-// applyOutline shows the cell's part of the drawer's outline (VW16, rowoutline.go), or hides it on
-// another row.
-func (c *tableCell) applyOutline(th fyne.Theme) {
-	if !c.drawer {
-		if c.outline != nil && c.outline.box.Visible() {
-			c.outline.box.Hide()
-		}
-		return
-	}
-	if c.outline == nil {
-		c.outline = newRowOutline()
-		c.objs++
-	}
-	c.outline.paint(themeColor(th, theme.ColorNamePrimary))
-	c.layoutOutline(c.Size(), th) // the outline may be new, or the cell's column another
-	if !c.outline.box.Visible() {
-		c.outline.box.Show()
-	}
-}
-
-// layoutOutline places the cell's part of the drawer's outline in a cell of size.
-func (c *tableCell) layoutOutline(size fyne.Size, th fyne.Theme) {
-	if c.outline == nil || !c.drawer || c.tv == nil {
-		return
-	}
-	c.outline.layout(size, th.Size(theme.SizeNamePadding), th.Size(theme.SizeNameSelectionRadius),
-		c.col == checkColumn, c.col == c.tv.menuColumn())
-}
-
-// layoutLead places the spine and the drawer's bar at the row's left end in a cell of size: right of
-// the drawer's outline on its row (VW16), so that the spine still shows. apply calls it too, since a
-// row that becomes the drawer's moves them without a layout.
-func (c *tableCell) layoutLead(size fyne.Size) {
+// layoutLead places the drawer's bar and the spine at the row's left end in a cell of size: the bar
+// at the edge, as high as the row's plate (the cell and half the gap above and below it), and the
+// spine right of it on the drawer's row. apply calls it too, since a row that becomes the drawer's
+// moves them without a layout.
+func (c *tableCell) layoutLead(size fyne.Size, th fyne.Theme) {
+	gap := th.Size(theme.SizeNamePadding)
 	inset := float32(6)
 	x := float32(0)
-	if c.drawer {
-		x = outlineWidth + markGap
+	if c.selBar != nil {
+		c.selBar.Move(fyne.NewPos(0, -gap/2))
+		c.selBar.Resize(fyne.NewSize(selBarWidth, size.Height+gap))
+		if c.selBar.Visible() {
+			x = selBarWidth + markGap
+		}
 	}
 	if c.spine != nil {
 		c.spine.Move(fyne.NewPos(x, inset))
 		c.spine.Resize(fyne.NewSize(spineWidth, max(0, size.Height-2*inset)))
-		if c.spine.Visible() {
-			x += spineWidth + markGap
-		}
-	}
-	if c.selBar != nil {
-		c.selBar.Move(fyne.NewPos(x, inset))
-		c.selBar.Resize(fyne.NewSize(selBarWidth, max(0, size.Height-2*inset)))
 	}
 }
 
-// layoutRowMarks places the spine, the drawer's bar, the pill and the dot in a cell of size whose
+// layoutRowMarks places the drawer's bar, the spine, the pill and the dot in a cell of size whose
 // text has size ts and starts at x.
-func (c *tableCell) layoutRowMarks(size fyne.Size, ts fyne.Size, pad float32) {
-	c.layoutLead(size)
+func (c *tableCell) layoutRowMarks(th fyne.Theme, size fyne.Size, ts fyne.Size, pad float32) {
+	c.layoutLead(size, th)
 	if c.pill != nil && c.pillShows() {
 		h := min(size.Height-8, ts.Height+6)
 		y := (size.Height - h) / 2

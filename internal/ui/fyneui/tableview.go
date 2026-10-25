@@ -621,10 +621,12 @@ func (tv *tableView) drawerChanged(d *model.ObjectRef) {
 	tv.resolvePending()
 }
 
-// marksChanged re-renders the rows' marks and checkboxes: the cells the table has made.
+// marksChanged re-renders the rows' marks and checkboxes, and the keyboard's ring, which the
+// drawer's row does not show (keyboardOn): the cells the table has made.
 func (tv *tableView) marksChanged() {
 	for _, c := range tv.cells {
 		c.setMarks(tv.rowDrawer(c.row), tv.rowChecked(c.row))
+		c.setFocused(tv.keyboardOn(c.row, c.col))
 	}
 }
 
@@ -664,7 +666,7 @@ func (tv *tableView) layoutTable() {
 	tv.table.Resize(sz)
 }
 
-// rowDrawer reports whether a row is the drawer's object, which its outline marks (VW16). O(1).
+// rowDrawer reports whether a row is the drawer's object, which its bar marks (VW16). O(1).
 func (tv *tableView) rowDrawer(row int) bool {
 	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
 		return false
@@ -1354,21 +1356,20 @@ type tableCell struct {
 	badge *gradeBadge         // an image grade's shield; made when the cell first shows one
 	line  *canvas.Rectangle
 	// The Dark Cockpit's row marks (list_rows.go), each made the first time a cell needs it.
-	spine   *canvas.Rectangle // an abnormal row's status spine, in the first cell
-	selBar  *canvas.Rectangle // the drawer's row's glow blue bar, in the first cell
-	outline *rowOutline       // the cell's part of the drawer's row's outline (VW16, rowoutline.go)
-	pill    *canvas.Rectangle // a status cell's pill, filled for an abnormal state
-	dot     *canvas.Circle    // a status cell's dot
-	under   *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
-	ring    *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
-	objs    int               // bumped when an object is added, so the renderer lists it
+	spine  *canvas.Rectangle // an abnormal row's status spine, in the first cell
+	selBar *canvas.Rectangle // the drawer's row's glow blue bar, in the first cell
+	pill   *canvas.Rectangle // a status cell's pill, filled for an abnormal state
+	dot    *canvas.Circle    // a status cell's dot
+	under  *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
+	ring   *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
+	objs   int               // bumped when an object is added, so the renderer lists it
 
 	content   cellContent
 	full      string // the cell text; text.Text may be a shortened form of it
 	fitWidth  float32
 	truncated bool // the shown text is shorter than full: the tooltip shows full
 	iconRes   fyne.Resource
-	drawer    bool // the row is the drawer's object: outlined, with the bar (VW16)
+	drawer    bool // the row is the drawer's object: the bar marks it (VW16)
 	checked   bool // the row is in the selection: its checkbox is checked, its plate filled
 	hover     bool // the pointer or the keyboard is on the row
 	linkHover bool // the pointer is on this cell, which is a link
@@ -1606,7 +1607,7 @@ func (c *tableCell) apply() {
 		c.ring.FillColor = color.Transparent
 		c.ring.StrokeColor = themeColor(th, colorAccent)
 		c.ring.StrokeWidth = th.Size(theme.SizeNameInputBorder)
-		c.ring.CornerRadius = max(2, th.Size(theme.SizeNameSelectionRadius)-ringInset(c.ring.StrokeWidth)) // nested in the outline's corner
+		c.ring.CornerRadius = max(2, th.Size(theme.SizeNameSelectionRadius)-ringInset(c.ring.StrokeWidth))
 		if c.focused {
 			c.ring.Show()
 		} else {
@@ -1856,7 +1857,6 @@ func (c *tableCell) layout(size fyne.Size) {
 		c.ring.Move(fyne.NewPos(in, in))
 		c.ring.Resize(fyne.NewSize(max(0, size.Width-2*in), max(0, size.Height-2*in)))
 	}
-	c.layoutOutline(size, th)
 	if c.fit(th) {
 		c.colourMore(th)
 		c.text.Refresh() // a column resize shortened or lengthened the text
@@ -1868,7 +1868,7 @@ func (c *tableCell) layout(size fyne.Size) {
 	ts := c.text.MinSize()
 	y := (size.Height - ts.Height) / 2
 	x := c.layoutBar(th, size, pad, ts.Width) + c.pillLead()
-	c.layoutRowMarks(size, ts, pad)
+	c.layoutRowMarks(th, size, ts, pad)
 	if c.content.marks != nil && c.content.kind == cellText {
 		ms, mg := markSize(th)
 		x = pad + float32(c.shown)*(ms+mg) // the count of the squares that do not fit, after the shown (fitMarks)
@@ -1946,9 +1946,6 @@ func (r *tableCellRenderer) Objects() []fyne.CanvasObject {
 	if r.objs == nil || r.nmore != len(c.more) || r.gen != c.objs {
 		r.nmore, r.gen = len(c.more), c.objs
 		r.objs = append(r.objs[:0], c.bg, c.line)
-		if c.outline != nil {
-			r.objs = append(r.objs, c.outline.box) // over the plate, under the spine and the bar
-		}
 		if c.spine != nil {
 			r.objs = append(r.objs, c.spine)
 		}

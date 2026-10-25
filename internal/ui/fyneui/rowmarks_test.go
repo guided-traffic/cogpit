@@ -11,10 +11,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The row marks of the owner's VW16 (a checked row has the fill, the drawer's row an outline and
-// the bar, a row that is both all three) and the keyboard's ring of his VW17 (a click puts the
-// keyboard on the cell clicked without the ring; a key or the keyboard's focus shows it), both of
-// his live walk of 2026-10-25.
+// The row marks of the owner's VW16 (a checked row has the fill, the drawer's row the bar over its
+// whole height, a row that is both the two) and the keyboard's ring of his VW17 (a click puts the
+// keyboard on the cell clicked without the ring; a key or the keyboard's focus shows it, not on the
+// drawer's row), both of his live walk of 2026-10-25.
 
 // rowMarksScene opens Pods with seven columns hidden, so that a row shows from its checkbox to its
 // ⋮ beside the drawer.
@@ -79,9 +79,6 @@ func TestRowMarksTellCheckedFromTheDrawer(t *testing.T) {
 			if got := c.bg.FillColor == fill; got != wantChecked {
 				t.Errorf("row %d, column %d: fill %v, want %v", row, col, got, wantChecked)
 			}
-			if got := c.outline != nil && c.outline.box.Visible(); got != wantDrawer {
-				t.Errorf("row %d, column %d: outline %v, want %v", row, col, got, wantDrawer)
-			}
 			bar := c.selBar != nil && c.selBar.Visible()
 			if want := wantDrawer && col == checkColumn; bar != want {
 				t.Errorf("row %d, column %d: bar %v, want %v", row, col, bar, want)
@@ -91,34 +88,15 @@ func TestRowMarksTellCheckedFromTheDrawer(t *testing.T) {
 	marks(both, true, true)
 	marks(checkedOnly, false, true)
 
-	// The outline is one rounded rectangle across the row: the top and bottom edge in every cell,
-	// the sides and their corners only at the ends, the edges meeting across the gaps.
+	// The bar lies at the row's left edge as high as the row's plate, the cell and half the gap
+	// above and below it; the spine right of it.
 	gap := th.Size(theme.SizeNamePadding)
-	for _, col := range []int{checkColumn, restarts, last} {
-		o := cellAt(t, sh, both, col).outline
-		first, end := col == checkColumn, col == last
-		if !o.top.Visible() || !o.bottom.Visible() || o.left.Visible() != first || o.right.Visible() != end {
-			t.Errorf("column %d: top %v bottom %v left %v right %v", col, o.top.Visible(), o.bottom.Visible(), o.left.Visible(), o.right.Visible())
-		}
-		for i, a := range o.corners {
-			if want := i < 2 && first || i >= 2 && end; a.Visible() != want {
-				t.Errorf("column %d: corner %d shown %v, want %v", col, i, a.Visible(), want)
-			}
-		}
-		if !first && o.top.Position().X > -gap/2 {
-			t.Errorf("column %d: the top edge begins at %v, not in the gap before the cell", col, o.top.Position().X)
-		}
-		if !end && o.top.Position().X+o.top.Size().Width < cellAt(t, sh, both, col).Size().Width+gap/2 {
-			t.Errorf("column %d: the top edge ends short of the next cell", col)
-		}
-	}
-
-	// The spine still shows, right of the outline, and the bar right of the spine.
 	box := cellAt(t, sh, both, checkColumn)
-	if box.spine == nil || !box.spine.Visible() || box.spine.Position().X < outlineWidth ||
-		box.selBar.Position().X < box.spine.Position().X+spineWidth {
-		t.Fatalf("spine %v at %v, bar at %v: want the spine right of the outline and the bar after it",
-			box.spine != nil && box.spine.Visible(), box.spine.Position(), box.selBar.Position())
+	if p, sz := box.selBar.Position(), box.selBar.Size(); p.X != 0 || p.Y != -gap/2 || sz.Height != box.Size().Height+gap {
+		t.Errorf("the bar at %v, %v; want at the edge from %v, %v high", p, sz, -gap/2, box.Size().Height+gap)
+	}
+	if box.spine == nil || !box.spine.Visible() || box.spine.Position().X < selBarWidth {
+		t.Fatalf("spine %v at %v: want it right of the bar", box.spine != nil && box.spine.Visible(), box.spine.Position())
 	}
 
 	// The text takes the selection's colour on the fill only.
@@ -127,7 +105,7 @@ func TestRowMarksTellCheckedFromTheDrawer(t *testing.T) {
 		t.Errorf("text on the filled row in %v", name.text.Color)
 	}
 
-	// The drawer moves to a row nobody checked: an outline and the bar, no fill.
+	// The drawer moves to a row nobody checked: the bar, no fill.
 	drawerOnly := (both + 3) % len(tv.snap.Rows)
 	openRow(t, sh, q, drawerOnly, restarts)
 	settle(w)
@@ -193,7 +171,9 @@ func TestTableClickMovesTheKeyboardWithoutTheRing(t *testing.T) {
 	press(t, w, fyne.KeyUp)
 	press(t, w, fyne.KeyReturn)
 	q.until(t, "row 8's drawer", func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == tv.snap.Rows[8].Ref })
-	wantRing(t, tv, "after ↑↵", 8, age)
+	wantRing(t, tv, "after ↑↵, on the drawer's row with its bar", -1, 0)
+	press(t, w, fyne.KeyDown)
+	wantRing(t, tv, "after ↓ from the drawer's row", 9, age)
 
 	// A checkbox click moves the keyboard too, without scrolling: ↓ goes on from its row. (The GL
 	// driver keeps the table's focus through a click inside it; the test driver's tap takes it, so
@@ -225,14 +205,17 @@ func TestTableFocusByKeyboardShowsTheRing(t *testing.T) {
 	if c.Focused() != tv.table {
 		t.Fatalf("Tab did not reach the table: focused %T", c.Focused())
 	}
-	wantRing(t, tv, "after Tab into the table", 4, firstDataColumn)
+	wantRing(t, tv, "after Tab into the table, on the drawer's row with its bar", -1, 0)
+	sh.closeDrawer()
+	q.until(t, "the drawer closed", func() bool { return sh.ui.Drawer == nil })
+	wantRing(t, tv, "the drawer closed", 4, firstDataColumn)
 	c.Unfocus()
 	wantRing(t, tv, "after leaving the table", -1, 0)
 }
 
 // renderRowMarks shows the marks of VW16 and the ring of VW17 together: two rows checked, the
-// first of them the drawer's too and in an abnormal state (fill, outline, spine and bar), and the
-// ring on the drawer's row after ↓↑ from the click.
+// first of them the drawer's too and in an abnormal state (fill, bar and spine), and the ring on
+// the row below after ↓ from the click.
 func renderRowMarks(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := rowMarksScene(t, mode)
 	both := firstAbnormalRow(t, sh)
@@ -241,7 +224,6 @@ func renderRowMarks(t *testing.T, mode ThemeMode, name string) {
 	}
 	openRow(t, sh, q, both, columnOf(t, sh, "restarts"))
 	press(t, w, fyne.KeyDown)
-	press(t, w, fyne.KeyUp)
 	settle(w)
 	savePNG(t, w, name)
 }
