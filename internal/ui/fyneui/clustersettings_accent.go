@@ -18,7 +18,7 @@ import (
 // eight accents, a colour picked freely (its swatch while one is set) and the picker. A tap
 // dispatches cluster.settings.setAccentColor, which only the window may run: the colour is the
 // user's own mark of which cluster this is. The light strip under a view's header shows it
-// (lightstrip.go, D-new), as the row under this one chooses (clustersettings_lightstrip.go).
+// (lightstrip.go, D-122), as the row under this one chooses (clustersettings_lightstrip.go).
 // Cogpit's own: Lens has no accent colour.
 
 const (

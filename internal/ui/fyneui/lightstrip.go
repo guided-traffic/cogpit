@@ -13,7 +13,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The light strip (D-new, the owner's VW14 of 2026-10-24): a strip of frosted glass under the view's
+// The light strip (D-122, the owner's VW14 of 2026-10-24): a strip of frosted glass under the view's
 // header, above the table's header or the page's part, the width of the view (not under the
 // navigator, the drawer or the chat), that shows the accent colour (D-80) of the cluster whose tab
 // is shown, so that the user knows at a glance where they work: "Bin ich Beispielsweise auf Prod,

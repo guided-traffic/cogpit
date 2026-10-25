@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// A cluster's light strip (D-new, the owner's VW14 of 2026-10-24): the strip under the window's
+// A cluster's light strip (D-122, the owner's VW14 of 2026-10-24): the strip under the window's
 // tabs shows the accent colour (accentcolor.go) of the cluster whose tab is shown, so that the user
 // sees at a glance where they work ("Bin ich Beispielsweise auf Prod, wünsche ich mir einen Roten
 // Akzent umd direkt zu wissen dass ich hier vorsichtig sein muss"). Without an accent colour the

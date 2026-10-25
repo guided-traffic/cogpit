@@ -9,7 +9,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestClusterSettingsLightStrip (D-new): General's Light strip row lies under the accent colour:
+// TestClusterSettingsLightStrip (D-122): General's Light strip row lies under the accent colour:
 // Static, and the animations in their frame (LS15). Without an accent colour it is disabled and
 // says why; with one it shows Static, and a choice in either group sets the cluster's light strip
 // through the GUI-only command, kept and shown at once, the other group cleared. While motion is

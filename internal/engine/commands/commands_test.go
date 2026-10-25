@@ -183,7 +183,7 @@ var wantCommands = map[string]engine.Danger{
 	"cluster.settings.setAgentWrites": engine.DangerUI,
 	// A cluster's accent colour (D-80): GUI-only, Cogpit's own settings (TestAccentColorIsTheUsers).
 	"cluster.settings.setAccentColor": engine.DangerUI,
-	// How the light strip shows it (D-new): GUI-only, Cogpit's own settings (TestLightStripIsTheUsers).
+	// How the light strip shows it (D-122): GUI-only, Cogpit's own settings (TestLightStripIsTheUsers).
 	"cluster.settings.setLightStrip": engine.DangerUI,
 	// The audit log in the window and for agents (TestAuditListNewestFirstAndBounded).
 	"audit.list": engine.DangerRead, "audit.open": engine.DangerUI,
