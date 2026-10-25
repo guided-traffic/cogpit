@@ -733,6 +733,10 @@ func (d *drawer) plainValue(ref model.ObjectRef, it model.DetailItem, copyable b
 	case it.Status != model.StatusNone:
 		return wrapCopy(container.NewHBox(d.statusValuePill(it.Value, it.Status)), d.copyFor(copyOf(it.Value), false))
 	}
+	if it.Wrap { // a long value on lines within the value's width, each copying the whole value
+		lines = wrapHard(it.Value, d.valueWidth(), d.sh.app.Settings().Theme().Size(theme.SizeNameText), fyne.TextStyle{})
+		copyOf = func(string) string { return it.Value }
+	}
 	if len(lines) == 1 {
 		return d.line(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}, true, copyOf(it.Value))
 	}

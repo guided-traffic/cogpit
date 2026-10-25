@@ -3,6 +3,7 @@ package helm
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -22,11 +23,12 @@ var clock = time.Now
 // detail is the profile's Detail: Lens's release drawer (captured 2026-10-12). Properties holds
 // Chart ("<chart>-<version>", with an Upgrade button), Updated, Namespace (plain text), Version
 // (the chart's version, inferred: the list's Version column) and Status (a neutral grey pill,
-// written as Lens writes it; the texts captured 2026-10-12); then the newest revision's
-// user-supplied values, which the GUI shows in an editor with Save and "User-supplied values
-// only"; the chart's notes; and the release's resources, one table per kind. The values and the
-// notes are private: agents read model.Withheld in their place (object_get), because values can
-// hold credentials and notes are rendered from them. The engine adds no generic metadata and no
+// written as Lens writes it; the texts captured 2026-10-12), and Cogpit's Description; then the
+// newest revision's user-supplied values, which the GUI shows in an editor with Save and
+// "User-supplied values only"; the chart's notes; the release's resources, one table per kind; and
+// at the end Cogpit's History (historySection; the owner placed it there, 2026-10-25). The values
+// and the notes are private: agents read model.Withheld in their place (object_get), because values
+// can hold credentials and notes are rendered from them. The engine adds no generic metadata and no
 // events to a virtual kind's drawer (architecture §4.4); the title is "Release: <name>".
 func (m *memo) detail(o *unstructured.Unstructured) []model.DetailSection {
 	status := model.NestedString(o, fieldStatus)
@@ -49,6 +51,7 @@ func (m *memo) detail(o *unstructured.Unstructured) []model.DetailSection {
 	add(model.DetailItem{Name: titleNamespace, Value: ns})
 	add(model.DetailItem{Name: "Version", Value: version})
 	add(model.DetailItem{Name: titleStatus, Value: StatusText(status), Pill: true})
+	add(model.DetailItem{Name: titleDescription, Value: model.NestedString(o, fieldDescription), Wrap: true})
 	add(storageItem(o))
 	add(model.DetailItem{Name: "Error", Value: model.NestedString(o, "error"), Status: model.StatusError})
 	sections := []model.DetailSection{{Title: model.TitleProperties, Items: props}}
@@ -62,13 +65,68 @@ func (m *memo) detail(o *unstructured.Unstructured) []model.DetailSection {
 		}
 	}
 	sections = append(sections, model.DetailSection{Title: TitleValues, Items: []model.DetailItem{{Value: values, Private: true}}})
-	if h == nil {
-		return sections
+	if h != nil {
+		if h.notes != "" {
+			sections = append(sections, model.DetailSection{Title: TitleNotes, Items: []model.DetailItem{{Value: h.notes, Private: true}}})
+		}
+		sections = append(sections, resourceSections(h.resources)...)
 	}
-	if h.notes != "" {
-		sections = append(sections, model.DetailSection{Title: TitleNotes, Items: []model.DetailItem{{Value: h.notes, Private: true}}})
+	if hist, ok := historySection(o); ok {
+		sections = append(sections, hist)
 	}
-	return append(sections, resourceSections(h.resources)...)
+	return sections
+}
+
+// TitleHistory titles the drawer's History, Cogpit's addition (beyond Lens: Lens's drawer, captured
+// 2026-10-12, has none, and its Rollback dialog lists the revisions without their status or
+// description): every revision the release's records hold, newest first, as helm history and
+// k9s's history view list them, so that a failed upgrade a rollback covered stays visible (the
+// owner's colleague, 2026-10-25).
+const TitleHistory = "History"
+
+// titleDescription titles a revision's description: the line Helm writes into its record, "Upgrade
+// complete", "Rollback to 8", or the error a failed install, upgrade or rollback ended with,
+// scrubbed of the revision's values (decodeRevision).
+const titleDescription = "Description"
+
+// historySection is the drawer's History: Revision, Status (in its colour), Chart
+// ("<chart>-<version>"), App Version, Updated (a mark the engine writes in the user's zone and
+// format, D-31) and Description, the last on a line of its own under its row, wrapped rather than
+// cut (a 600-point drawer has no room for Helm's error beside five columns), a failed revision's in
+// the error colour. False for a release object without history.
+func historySection(o *unstructured.Unstructured) (model.DetailSection, bool) {
+	h := ReleaseHistory(o)
+	if len(h) == 0 {
+		return model.DetailSection{}, false
+	}
+	cols := []model.Column{
+		{Title: titleRevision, Type: model.ColumnText}, {Title: titleStatus, Type: model.ColumnText},
+		{Title: titleChart, Type: model.ColumnText}, {Title: titleAppVersion, Type: model.ColumnText},
+		{Title: titleUpdated, Type: model.ColumnText}, {Title: titleDescription, Type: model.ColumnText},
+	}
+	rows := make([][]model.Cell, 0, len(h))
+	for _, e := range h {
+		rows = append(rows, []model.Cell{
+			{Text: strconv.Itoa(e.Revision), Num: int64(e.Revision)},
+			{Text: StatusText(e.Status), Status: StatusToken(e.Status)},
+			{Text: chartText(e.Chart, e.ChartVersion)},
+			{Text: e.AppVersion},
+			{Text: model.MarkTime(e.Updated)},
+			{Text: e.Description, Status: failedStatus(e.Status)},
+		})
+	}
+	t := model.CellTable(cols, rows)
+	t.LastUnder = true
+	return model.DetailSection{Title: TitleHistory, Table: t}, true
+}
+
+// failedStatus colours a revision's description in the History: the error colour for a failed
+// revision's, which is Helm's error message, else none.
+func failedStatus(status string) model.Status {
+	if StatusToken(status) == model.StatusError {
+		return model.StatusError
+	}
+	return model.StatusNone
 }
 
 // TitleStorage titles the drawer's Storage, Cogpit's addition (inferred: Lens's drawer, captured

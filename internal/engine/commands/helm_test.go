@@ -440,14 +440,15 @@ func TestHelmReleasesViewAndDrawer(t *testing.T) {
 	for _, s := range m.Sections {
 		titles = append(titles, s.Group+"/"+s.Title)
 	}
-	if strings.Join(titles, ",") != "/Properties,/Values,/Notes,Resources/ConfigMap,Resources/Secret" {
+	// The History at the end: not private, agents read every revision's status and description.
+	if strings.Join(titles, ",") != "/Properties,/Values,/Notes,Resources/ConfigMap,Resources/Secret,/History" {
 		t.Errorf("sections %v", titles)
 	}
 	var names []string
 	for _, it := range m.Sections[0].Items {
 		names = append(names, it.Name)
 	}
-	if strings.Join(names, ",") != "Chart,Updated,Namespace,Version,Status,Storage" || !strings.Contains(sectionText(m, model.TitleProperties), "Deployed") {
+	if strings.Join(names, ",") != "Chart,Updated,Namespace,Version,Status,Description,Storage" || !strings.Contains(sectionText(m, model.TitleProperties), "Deployed") {
 		t.Errorf("properties %v: %q", names, sectionText(m, model.TitleProperties))
 	}
 	if !strings.Contains(m.YAML, "kind: HelmRelease") || strings.Contains(m.YAML, "adminPassword") {
