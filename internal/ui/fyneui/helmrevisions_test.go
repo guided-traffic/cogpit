@@ -3,6 +3,7 @@ package fyneui
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -249,15 +250,24 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	if tabs != 1 {
 		t.Errorf("%d Revisions tabs, want one per release", tabs)
 	}
-	toolbar := false
+	var toolbar *tipButton
 	for _, b := range findAll[*tipButton](h.sh.drawer.root) {
 		if b.tip == "Revisions" {
-			toolbar = true
+			toolbar = b
 		}
 	}
-	if !toolbar {
-		t.Error("the drawer's toolbar has no Revisions")
+	if toolbar == nil {
+		t.Fatal("the drawer's toolbar has no Revisions")
 	}
+	menu := h.sh.rowMenu(shopWeb, h.sh.evaluateActions(shopWeb, nil))
+	if !slices.ContainsFunc(menu.Items, func(it *fyne.MenuItem) bool { return it.Label == "Revisions" }) {
+		t.Errorf("the row menu has no Revisions: %v", menuLabels(menu))
+	}
+	zero := 0
+	h.set(r.tab.ID, map[string]any{"revision": 2, "compare": zero})
+	h.tab(engine.HelmRevisionsTab{Revision: 2, Mode: engine.RevisionsValues})
+	toolbar.OnTapped() // the newest again, not compared
+	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsValues})
 
 	raw, _ := json.Marshal(map[string]any{"id": r.tab.ID, "mode": "manifest", "object": "Secret./demo-shop/shop-web-db"})
 	if _, err := h.s.Dispatch(context.Background(), engine.Invocation{ID: "ui.helm.revisions.set", Params: raw, Origin: engine.OriginExternalAgent}); err != nil {

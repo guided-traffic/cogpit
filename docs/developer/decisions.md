@@ -12710,7 +12710,7 @@ Tests: `TestRevisionOf`, `TestValueChanges`, `TestObjectChanges`, `TestMaskManif
 `TestReleaseRevision` (an old revision's values, user-supplied and all, its objects, ConfigMaps,
 a pruned revision, no list or watch), `TestReleaseRevisionWithheldFromAgents`,
 `TestReleaseRevisionDiff`, `TestRevisionsTab` (commands); the demo's `TestDemoHelmReleases`;
-`TestRevisionsTabFromTheDrawer` and `TestRenderHelmRevisions{Dark,Light}` (fyneui, over the real
+`TestRevisionsTabFromTheDrawer` (the History's link, "Open revisions", the toolbar, the row menu, an agent moving the tab, Show the window's alone) and `TestRenderHelmRevisions{Dark,Light}` (fyneui, over the real
 engine and the demo cluster): [values](../../internal/ui/fyneui/testdata/helm_revisions_values_dark.png),
 [compared](../../internal/ui/fyneui/testdata/helm_revisions_values_compared_dark.png),
 [line diff](../../internal/ui/fyneui/testdata/helm_revisions_values_linediff_dark.png),
