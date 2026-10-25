@@ -2538,7 +2538,8 @@ not hold for it, and a text value's base64 exposes nothing its plain copy does n
 `copyTypedBase64`; [`secretdata.go`](../../internal/ui/fyneui/secretdata.go) `readB64`, `typedB64`,
 `nameLine`; [`engine/secretdata.go`](../../internal/engine/secretdata.go) `RevealParams.Base64`):
 
-- Every key's line has a small text button "b64" right after its copy icon: "Show [copy] [b64]
+- Every key's line has a b64 button right after its copy icon (since 2026-10-25 an icon, the owner's
+  VW19, below; a small text button "b64" before): "Show [copy] [b64]
   [remove]", "Hide [copy] [b64] [remove]", an added key's too; a binary value's line "[b64]
   [remove]", where the b64 button is its only copy. It copies, base64-encoded, what the copy icon
   beside it copies: a value in no editor, masked or revealed, whole (never the 4 KiB a Show reveals),
@@ -2548,7 +2549,7 @@ not hold for it, and a text value's base64 exposes nothing its plain copy does n
   at).
 - The copy goes to the clipboard for Secret values, as the copy icon's (concealed and this Mac's only
   on macOS, cleared after 60 seconds, at once when the window closes; [H-25](../security/credentials.md#h-25-a-copied-secret-value-reaches-the-clipboard));
-  the word turns into the checkmark in the OK colour for the copy icon's 1.5 s, and the toast says
+  the icon turns into the checkmark in the OK colour for the copy icon's 1.5 s, and the toast says
   "Copied the value of <key> as base64. The clipboard is cleared in 60 seconds.", never the value.
   Nothing is shown: the drawer stays masked.
 - It is no command and no tool (`TestCopyHasNoCommand`): the button runs `secret.reveal`, which agents
@@ -2563,11 +2564,36 @@ The lead's details (D-74, 2026-10-24), open to revision:
 | The encoding | (a) standard base64 with padding (RFC 4648 § 4), one line; (b) the URL-safe alphabet; (c) wrapped at 76 characters as MIME | (a), of the value's bytes | The string a Secret's `data` holds, as `kubectl get secret -o yaml` shows it and a manifest takes it |
 | How a value in no editor is read | (a) `secret.reveal` with `base64`: the engine encodes the whole value; (b) the window reads the text and encodes it | (a) | A binary value's bytes never reach the window as text; one path for masked, revealed and binary values; never cut. An answer that is not encoded (an engine that ignored `base64`) copies nothing and says so ("was not read whole"), never the plain value |
 | Where a binary value's read comes from | (a) an action of its item in the drawer model, with the version; (b) the window builds the parameters from the drawer's object and the key | (a) | The version comes from the engine as Show's does, so a Secret changed since is refused (R-6); a Secret that holds only binary values has no Show to take a version from. Agents see the action in `object_get` as they see Show, and are refused as for Show |
-| Its look | (a) an outlined text button "b64", as high as the copy icon and Show, its tooltip "Copy the value as base64"; (b) an icon | (a) | His "mit b64 darin stehend"; outlined and one height as every button of the line ([D-104](#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)) |
-| After a copy | (a) the word turns into the checkmark for 1.5 s, its width kept, and the toast; (b) the toast alone | (a) | As the copy icon confirms; nothing else on screen changes after a copy |
+| Its look | (a) an outlined text button "b64", as high as the copy icon and Show, its tooltip "Copy the value as base64"; (b) an icon | (a); **changed 2026-10-25 by the owner to (b)**, his VW19 and pick O1, below | His "mit b64 darin stehend"; outlined and one height as every button of the line ([D-104](#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)) |
+| After a copy | (a) the word turns into the checkmark for 1.5 s, its width kept, and the toast; (b) the toast alone | (a); since 2026-10-25 the icon turns into it, as the copy icon's | As the copy icon confirms; nothing else on screen changes after a copy |
 | The clipboard | (a) for Secret values, as the plain copy; (b) a plain copy | (a) | Base64 is the value in another alphabet, not a protection |
 | An empty value | (a) nothing copied, and the toast says so; (b) "" on the clipboard | (a) | As the copy icon: a click must not empty the clipboard |
 | A removed key's line | (a) no b64, as no copy icon; (b) b64 | (a) | It has Undo only, as the row "A removed key's line" above |
+
+**Changed (owner, 2026-10-25, his walk of v0.45.0, D8d.1; VW18 and VW19, verbatim):** "Nachdem man
+ein Icon angeklickt hat, ist es nach der tick annimation gröser als vorher. Außerdem wünsche ich mir
+ein Icon für b64, welches nicht breiter ist als der copy-button oder der papierkorb. Wenn du dazu
+etwas findest, stell mir vor, falls nicht, musst du selbst etwas bauen und mir vorstellen." VW18's
+cause (read in Fyne 2.8.2, `widget/button.go`, `buttonRenderer.MinSize`): a button counts its icon
+once it ever had one (`hasIcon := r.icon != nil`), hidden or not, so the word button kept the
+checkmark's width and room after the word came back. For VW19 no icon set has a base64 icon (an
+Iconify search, 2026-10-25); six open-licensed candidates (Octicons file-binary, Phosphor binary,
+MDI matrix, Tabler number-64-small, Material data_object, Lucide Lab copy-code) and the lead's own
+designs were rendered in the key's line beside copy and trash, each 28 points wide as they are (the
+word was 43). **His pick: O1** ("O1 it is"), the lead's recommendation: the copy icon's back sheet
+with a bold "64" in its front sheet's place, because on a binary value's line b64 is the only copy
+button, so the icon has to say "copy" itself. **Built 2026-10-25:** `iconBase64`
+([`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go), an inline SVG as the package's other own
+icons; the back sheet's path is Fyne's `content-copy.svg`'s, the "64" the lead's drawing), drawn on
+a pinned copy icon ([`copy.go`](../../internal/ui/fyneui/copy.go) `copyButton.icon`), so its size,
+outline, hover and checkmark are the copy icon's and its width cannot drift (the lead's detail:
+neither Fyne's button with an icon, whose MinSize caused VW18, nor a widget of its own); the
+tooltip, the toast and the line's order unchanged; the editor's b64 the same widget. No other button
+of Cogpit swaps a word for an icon and back (searched), so VW18 does not occur elsewhere;
+`textButton`'s height floor, used by the word alone, is gone. Tests: `TestSecretB64ButtonLook` (the
+copy icon's outline, MinSize and size, no wider than the trash, the same through and after the
+checkmark and on a binary value's line), the copy test's icon, checkmark, icon. Not seen in a real
+window yet.
 
 Tests: `TestSecretB64CopiesAMaskedValueEncoded` (a value over 4 KiB copied whole and encoded,
 concealed, the reveal from the GUI with `base64`, the drawer still masked, the checkmark and back,
@@ -10540,10 +10566,10 @@ goldens kept at twice the scale (cluster_overview, edit_diff, helm_charts, shell
 still show the old caret until they are drawn again at that scale.
 
 **Since 2026-10-24** a Secret key's line holds a fourth button, "b64" after the copy icon (the
-owner's VW7, [D-25](#d-25-copying-values)): an outlined `tipButton` with its word, as high as the copy
-icon (`textButton.height`, so that it keeps the line's height where it stands alone, a binary value's
-line without the remove button), its width kept while the checkmark stands in for its word after a
-copy (`TestSecretB64ButtonLook`, `TestKeyLineButtonsOneHeight`).
+owner's VW7, [D-25](#d-25-copying-values)): an outlined `tipButton` with its word until 2026-10-25;
+since then (his VW18 and VW19, D-25) an icon on a pinned copy icon, as wide and high as the copy icon
+and the trash, its width the same through the checkmark (`TestSecretB64ButtonLook`,
+`TestKeyLineButtonsOneHeight`).
 
 **What it does not cover:** the buttons inside Fyne's own dialogs (a `NewConfirm`'s No, a
 `NewCustomConfirm`'s Cancel, a form's Cancel, the file and colour dialogs) keep Fyne's plate without
@@ -11686,9 +11712,25 @@ Tests (the first failing before the change: each tab came back at its top):
 after it or at once, a moment's mix in between), `TestATabsNewViewStartsAtTheTop`,
 `TestAScrollEndsTheWaitForATabsRows`; `TestATabComesBackAsItWasLeft` in the engine.
 
+**Fixed (the owner's VW15, his walk of v0.45.0, 2026-10-25, verbatim):** "der Tab hat sich weiterhin
+gemerkt wo wir waren auch wenn die Vorschau neu geoeffnet wurde": his preview tab scrolled, left for
+another tab and shown again (restored, as it should), then Config Maps and Pods again in it came
+back scrolled, against the rule above. Cause (a test failing before: offset 6141 where the top was
+due): the place kept when the tab was left stayed while the tab opened other views in itself, as
+`leaveTab` writes only a list that is its tab's own and the tab already showed the next view.
+**Built 2026-10-25** ([`tabscroll.go`](../../internal/ui/fyneui/tabscroll.go) `forgetMoved`):
+`leaveTab` first forgets a kept place whose tab is closed or, as the engine has the tab, shows
+another view or cluster since; a tab without a view yet is left alone. The lead's detail (D-74),
+open to revision: the engine's tab state decides, not the list the table showed in between, so a
+view left before its rows came counts too (weighed: comparing in `enterTab`, which misses a view
+that never got a snapshot; a hook in the shell's state handling, which the welcome page would need
+a rule of its own for). `TestATabsViewOpenedAgainStartsAtTheTop` (the same tab, and his sequence
+with a switch to another tab and back first; each with and without Config Maps' rows; a place kept
+afterwards restored again). Not seen in a real window yet.
+
 **What it does not cover:** Lens across clusters (not captured, so the rule is inferred); one
 preview per cluster, a tab's scroll and its filters passed the owner's walk of v0.45.0 in a real window (2026-10-25, D5–D7; his VW15
-there, a preview that opens a view anew kept a stale offset, is fixed below); with mixed environments on, the bar shows one italic preview tab per cluster,
+there, a preview that opens a view anew kept a stale offset, is fixed above); with mixed environments on, the bar shows one italic preview tab per cluster,
 told apart only by its cluster's icon and name; a tab's scroll position is the list's only (a page's,
 the Overview's, and the drawer's are not kept), and not across a restart.
 
