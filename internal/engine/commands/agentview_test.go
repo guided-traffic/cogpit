@@ -134,9 +134,9 @@ func TestAgentViewReplacesCachedSecretValues(t *testing.T) {
 	if !strings.Contains(agentCM, placeholder) {
 		t.Fatalf("the agent's first read was not filtered: %s", agentCM)
 	}
-	if !h.src.Watching(secretScope) {
-		t.Error("no Secrets watch after the agent's read")
-	}
+	// An informer opens its watch after its list, which the read waited for: the watch may come a
+	// moment after the read (testkit.Settled).
+	waitUntil(t, "a Secrets watch after the agent's read", func() bool { return h.src.Watching(secretScope) })
 	if strings.Contains(agentCM, dbPass) {
 		t.Errorf("object.get gives an agent the value: %s", agentCM)
 	}
