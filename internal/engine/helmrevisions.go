@@ -156,7 +156,7 @@ type RevisionDiff struct {
 	Changes    []helm.ValueChange `json:"changes,omitempty"`
 	ChangesCut bool               `json:"changesCut,omitempty"`
 	// Lines is the line diff of the values, or of Object's YAML (manifest), compacted to three
-	// lines of context around each change.
+	// lines of context around each change (none for a Secret masked alike on both sides).
 	Lines []DiffLine `json:"lines,omitempty"`
 	// Objects are both revisions' objects marked (manifest), Added to Same their counts.
 	Objects []helm.ObjectChange `json:"objects,omitempty"`
@@ -234,7 +234,7 @@ func CompareRevisions(ref model.ObjectRef, a, b helm.Revision, what, object stri
 			if mask != nil && c.Secret {
 				was, is = maskOr(was, mask), maskOr(is, mask)
 			}
-			d.Lines = DiffLines(was, is)
+			d.Lines = CompactDiff(DiffLines(was, is), diffContext)
 		}
 		d.Objects[i].YAML, d.Objects[i].Masked, d.Objects[i].Was = "", "", ""
 	}

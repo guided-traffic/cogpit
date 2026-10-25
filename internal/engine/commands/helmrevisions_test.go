@@ -225,7 +225,8 @@ func TestReleaseRevisionDiff(t *testing.T) {
 		t.Errorf("the Deployment's diff %q", lines)
 	}
 
-	for masked, want := range map[bool]string{true: "-  password: •••••••• (7 bytes)|+  password: •••••••• (7 bytes)", false: "-  password: hunter3|+  password: hunter1"} {
+	// Masked, hunter3 and hunter1 are alike (seven bytes each): no line differs.
+	for masked, want := range map[bool]string{true: "", false: "-  password: hunter3|+  password: hunter1"} {
 		res, err = h.dispatch(engine.OriginGUI, "helm.release.diff", map[string]any{"ref": shopRef, "from": 3, "to": 1, "what": "manifest", "object": "Secret./apps/shop-db", "masked": masked})
 		if err != nil {
 			t.Fatal(err)
@@ -236,7 +237,7 @@ func TestReleaseRevisionDiff(t *testing.T) {
 				lines = append(lines, string(l.Op)+l.Text)
 			}
 		}
-		if strings.Join(lines, "|") != want && !(masked && len(lines) == 0) {
+		if strings.Join(lines, "|") != want {
 			t.Errorf("masked %v: the Secret's diff %q", masked, lines)
 		}
 	}

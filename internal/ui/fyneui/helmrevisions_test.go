@@ -130,6 +130,8 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 	name := func(scene string) string { return "helm_revisions_" + scene + "_" + suffix + ".png" }
 
 	if all {
+		h.until("the History's links", func() bool { return revisionLinks(h.sh) >= 6 })
+		settle(h.w)
 		h.sh.drawer.scroll.ScrollToBottom()
 		h.q.drain()
 		savePNG(t, h.w, name("drawer"))
@@ -169,6 +171,9 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 
 	h.set(id, map[string]any{"all": true})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsValues, All: true, Object: "Deployment.apps/demo-shop/shop-web"})
+	if !strings.Contains(r.valuesView.Text(), "autoscaling:") {
+		t.Errorf("revision 3's values, the chart's defaults included: %q", r.valuesView.Text())
+	}
 	savePNG(t, h.w, name("values_all"))
 
 	h.set(id, map[string]any{"all": false, "mode": "manifest"})
@@ -191,4 +196,81 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 		t.Errorf("manifest.yaml %q", r.rawView.Text())
 	}
 	savePNG(t, h.w, name("manifest_yaml"))
+}
+
+// revisionLinks counts the drawer's links into the Revisions tab: one per revision of the History
+// and "Open revisions".
+func revisionLinks(sh *shell) int {
+	n := 0
+	for _, l := range findAll[*linkText](sh.drawer.root) {
+		if l.text == "Open revisions" || isDigits(l.text) {
+			n++
+		}
+	}
+	return n
+}
+
+func isDigits(s string) bool {
+	return s != "" && strings.Trim(s, "0123456789") == ""
+}
+
+// The drawer's ways in: a revision's number in the History opens the tab at that revision,
+// compared with the newest; "Open revisions" opens it at the newest, not compared; the drawer's
+// toolbar offers the command. An agent's ui.helm.revisions.set moves the window's tab. A Secret's
+// Show is the window's: the engine's state does not change, and the object's YAML shows its values.
+func TestRevisionsTabFromTheDrawer(t *testing.T) {
+	h := newRevisionsHarness(t, ThemeDark)
+	h.until("the History's links", func() bool { return revisionLinks(h.sh) >= 6 })
+	link := func(text string) *linkText {
+		for _, l := range findAll[*linkText](h.sh.drawer.root) {
+			if l.text == text {
+				return l
+			}
+		}
+		t.Fatalf("no link %q in the drawer", text)
+		return nil
+	}
+	link("3").Tapped(nil)
+	r := h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues})
+	if !strings.Contains(r.keysHead.text, "between revision 6 and revision 3") {
+		t.Errorf("revision 3 compared: %q", r.keysHead.text)
+	}
+	link("Open revisions").Tapped(nil)
+	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsValues})
+	if !strings.Contains(r.valuesView.Text(), "replicaCount") {
+		t.Errorf("revision 6's values %q", r.valuesView.Text())
+	}
+	tabs := 0
+	for _, d := range h.sh.ui.Dock {
+		if d.Type == engine.DockHelmRevisions {
+			tabs++
+		}
+	}
+	if tabs != 1 {
+		t.Errorf("%d Revisions tabs, want one per release", tabs)
+	}
+	toolbar := false
+	for _, b := range findAll[*tipButton](h.sh.drawer.root) {
+		if b.tip == "Revisions" {
+			toolbar = true
+		}
+	}
+	if !toolbar {
+		t.Error("the drawer's toolbar has no Revisions")
+	}
+
+	raw, _ := json.Marshal(map[string]any{"id": r.tab.ID, "mode": "manifest", "object": "Secret./demo-shop/shop-web-db"})
+	if _, err := h.s.Dispatch(context.Background(), engine.Invocation{ID: "ui.helm.revisions.set", Params: raw, Origin: engine.OriginExternalAgent}); err != nil {
+		t.Fatal(err)
+	}
+	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsManifest, Object: "Secret./demo-shop/shop-web-db"})
+	if strings.Contains(r.objView.Text(), "password: ") && !strings.Contains(r.objView.Text(), helm.MaskedDots) {
+		t.Fatalf("the Secret shows before Show: %q", r.objView.Text())
+	}
+	before := h.sh.ui.Revision
+	r.objShow.OnTapped()
+	h.q.drain()
+	if strings.Contains(r.objView.Text(), helm.MaskedDots) || h.sh.ui.Revision != before {
+		t.Errorf("Show: %q, the engine's state moved %d → %d", r.objView.Text(), before, h.sh.ui.Revision)
+	}
 }

@@ -10,6 +10,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -460,7 +461,8 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		group = sec.Group
 		title := d.sectionTitle(sec)
 		if part, ok := drawerTitleParts[m.Ref.Kind+"\x00"+sec.Title]; ok && sec.Group == "" {
-			title = container.NewBorder(nil, nil, nil, part(d, m.Ref), title)
+			// At the title's right end, over the rule the title draws across the drawer.
+			title = container.NewStack(title, container.NewVBox(container.NewHBox(layout.NewSpacer(), part(d, m.Ref))))
 		}
 		out = append(out, title)
 		if sec.Group != "" {

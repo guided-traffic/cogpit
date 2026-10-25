@@ -258,10 +258,10 @@ func (r *helmRevisionsTab) buildManifest() {
 			}
 		}
 	}
-	r.objSource = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{Monospace: true})
+	r.objSource = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	r.objSource.truncate = true
 	r.objLive = newLinkText("Show live object", r.showLive)
-	r.objShow = newTextButton("Show", theme.VisibilityIcon(), func() { r.toggleShown(r.selectedKey()) })
+	r.objShow = newTextButton(showLabel, theme.VisibilityIcon(), func() { r.toggleShown(r.selectedKey()) })
 	r.objShow.setTone(colorStatusWarning)
 	r.objView = readOnlyYAML()
 	r.objFind = newViewerFindBar(r.sh, r.objView)
@@ -339,8 +339,8 @@ func (r *helmRevisionsTab) showPickers() {
 	r.syncing = true
 	defer func() { r.syncing = false }()
 	r.revLabels, r.cmpLabels = map[string]int{}, map[string]int{}
-	var revs, cmps []string
 	none := "None"
+	revs, cmps := make([]string, 0, len(r.history)), make([]string, 0, len(r.history)+2)
 	cmps = append(cmps, none)
 	r.cmpLabels[none] = 0
 	before := 0
@@ -590,23 +590,27 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		return
 	}
 	shown := r.shown[key]
-	r.objSource.SetText("# Source: " + obj.Source)
+	r.objSource.SetText(obj.Kind + " " + obj.Name)
 	tools := []fyne.CanvasObject{}
+	if obj.Change != helm.ObjectRemoved && model.RefTo(obj.APIVersion, obj.Kind, obj.Namespace, obj.Name) != nil {
+		tools = append(tools, centred(fitLink(r.objLive)))
+	}
 	if obj.Secret {
-		r.objShow.SetText(map[bool]string{true: "Hide", false: "Show"}[shown])
+		r.objShow.SetText(map[bool]string{true: hideLabel, false: showLabel}[shown])
 		r.objShow.SetIcon(map[bool]fyne.Resource{true: theme.VisibilityOffIcon(), false: theme.VisibilityIcon()}[shown])
 		tools = append(tools, r.objShow)
 	}
-	if obj.Change != helm.ObjectRemoved && model.RefTo(obj.APIVersion, obj.Kind, obj.Namespace, obj.Name) != nil {
-		tools = append(tools, centred(r.objLive))
-	}
-	head := container.NewBorder(nil, nil, nil, container.NewHBox(tools...), centred(r.objSource))
+	head := container.NewBorder(nil, nil, nil, container.NewHBox(tools...), r.objSource)
 	var view fyne.CanvasObject
 	switch {
 	case compared && (obj.Change == helm.ObjectChanged || obj.Change == helm.ObjectRemoved):
 		r.objDiff.set(r.diff.Lines)
 		view = container.NewStack(newSurface(theme.ColorNameInputBackground), r.objDiff.list)
 		r.setStatus(changeText(obj, r.diff.From, r.diff.To), colorMuted)
+		if obj.Secret && !shown && !engine.DiffChanged(r.diff.Lines) { // masked, its values' sizes alike
+			view = container.NewStack(newSurface(theme.ColorNameInputBackground), centred(newTextLine(
+				"Its values differ, their sizes do not: Show compares them.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})))
+		}
 	default:
 		yamlText := r.objectYAML(key)
 		if obj.Secret && !shown {
@@ -974,7 +978,6 @@ type objectRow struct {
 	widget.BaseWidget
 	bg                    *canvas.Rectangle
 	kind, name, ns, delta *textLine
-	compared              bool
 }
 
 func newObjectRow() *objectRow {
@@ -1054,5 +1057,23 @@ func (objectRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		o.Resize(fyne.NewSize(ws[i]-theme.Padding(), size.Height))
 		o.Move(fyne.NewPos(x, 0))
 		x += ws[i]
+	}
+}
+
+// linkFit gives a link its text's width: a link asks for none, as a truncating line does, which a
+// row of buttons would squeeze to nothing.
+type linkFit struct{ l *linkText }
+
+func fitLink(l *linkText) fyne.CanvasObject { return box(linkFit{l}, l) }
+
+func (f linkFit) MinSize([]fyne.CanvasObject) fyne.Size {
+	s := fyne.MeasureText(f.l.text, f.l.Theme().Size(f.l.size), fyne.TextStyle{})
+	return fyne.NewSize(s.Width+1, s.Height)
+}
+
+func (f linkFit) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objs {
+		o.Move(fyne.NewPos(0, 0))
+		o.Resize(size)
 	}
 }

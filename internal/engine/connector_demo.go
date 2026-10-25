@@ -10,14 +10,12 @@ import (
 	"context"
 	"fmt"
 	"runtime/debug"
-	"slices"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/demo"
-	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
@@ -40,11 +38,7 @@ func demoProfiles() []*model.KindProfile {
 	for _, gvr := range demo.Resources() {
 		served[gvr] = true
 	}
-	profiles := servedProfiles(kinds.Builtin(), served)
-	if slices.ContainsFunc(profiles, isSecrets) {
-		profiles = append(slices.Clip(profiles), helm.NewReleaseProfile())
-	}
-	return withApplications(profiles)
+	return withApplications(withHelmReleases(servedProfiles(kinds.Builtin(), served)))
 }
 
 // connectDemo builds the synthetic cluster and starts its churn.

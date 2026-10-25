@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 
 	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -17,7 +16,7 @@ import (
 func init() {
 	drawerSections[helm.ReleaseKind+"\x00"+helm.TitleHistory] = releaseHistorySection
 	drawerTitleParts[helm.ReleaseKind+"\x00"+helm.TitleHistory] = func(d *drawer, ref model.ObjectRef) fyne.CanvasObject {
-		return container.NewCenter(newLinkText("Open revisions", func() { openRevisions(d.sh, ref, 0) }))
+		return fitLink(newLinkText("Open revisions", func() { openRevisions(d.sh, ref, 0) }))
 	}
 }
 

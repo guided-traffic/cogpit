@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 75 | 74 | 63 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 76 | 75 | 63 | 12 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -360,6 +360,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Debug containers: ephemeral containers stand out in blue among a pod's containers in the Pods list; a drawer icon adds one, asking for the… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The navigator moves: going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's history in its drawer, as k9s's history view shows it: every revision with its status, chart, app version and time, and th… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| A Helm release's revisions, as k9s shows them (its values v and manifests y per revision): an older revision's values, user-supplied and al… | partial | [Everyday use](beyond-lens.md#everyday-use) |
 | Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window (owner, 2026-10-14 evening) | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |

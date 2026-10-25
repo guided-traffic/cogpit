@@ -283,6 +283,10 @@ window only ([below](#secret-values-edited-in-the-drawer)). As built (2026-10-11
 drawer closes or moves, the engine zeroes the bytes it kept of the opened Secret; the GET's
 response and a revealed value's string wait for the garbage collector, so the wipe is best effort
 ([privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
+A Secret a Helm chart renders is in its release's records too: on the branch
+`proto/helm-revisions` (a prototype, D-new) the Revisions tab shows an older revision's manifest
+with each rendered Secret's values masked as dots and their size until Show, manifest.yaml too,
+and agents read them withheld ([H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
 A revealed value can be copied from the drawer, by its copy icon or by selecting it (D-25, built
 2026-10-12), and the clipboard is emptied 60 seconds after such a copy if it still holds the value
 (`shell.copyText`, `TestSecretRevealedValueCopied`, `TestSecretClipboardKeepsWhatReplacedIt`).
