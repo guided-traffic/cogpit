@@ -91,7 +91,7 @@ func (k *kubeconfigUI) pickWithDialog(done func(path string, folder bool)) {
 
 	listBg := newSurface(theme.ColorNameInputBackground)
 	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
-	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(sp.list)))
+	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, newVScroll(sp.list)))
 	top := container.NewVBox(intro, newSpace(theme.SizeNamePadding), container.NewBorder(nil, nil, sp.upB, nil, sp.pathEntry),
 		newSpace(theme.SizeNamePadding))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(top, sp.status, nil, nil, list))

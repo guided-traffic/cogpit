@@ -41,9 +41,9 @@ type logTab struct {
 	search                                    *searchEntry // F1–F12 are the hotbar's (A64)
 	controller, download                      *tipButton
 	controls                                  []fyne.CanvasObject
-	podPick, containerPick                    *textButton   // the source selectors (logtab_sources.go)
-	workloadPick                              *textButton   // a group's workload selector (logtab_sources.go)
-	jumpField                                 *widget.Entry // the time to jump to (logtab_jump.go)
+	podPick, containerPick                    *textButton // the source selectors (logtab_sources.go)
+	workloadPick                              *textButton // a group's workload selector (logtab_sources.go)
+	jumpField                                 *wheelEntry // the time to jump to (logtab_jump.go)
 	header                                    []fyne.CanvasObject
 	syncing                                   bool // set while the widgets follow engine state
 	searchTimer                               *time.Timer

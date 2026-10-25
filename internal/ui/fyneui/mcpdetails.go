@@ -452,7 +452,7 @@ func newMCPPanel(d *mcpDetails) *mcpPanel {
 // setContent shows o in the card, scrolling when the window is too low for it.
 func (p *mcpPanel) setContent(o fyne.CanvasObject) {
 	p.inner = o
-	p.content.Objects = []fyne.CanvasObject{container.NewVScroll(o)}
+	p.content.Objects = []fyne.CanvasObject{newVScroll(o)}
 	p.content.Refresh()
 	p.Refresh()
 }

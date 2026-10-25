@@ -949,3 +949,23 @@ requests such as watches end when the certificate expires (the pull request's wo
 patch releases v1.153.2, v1.152.2 and v1.151.4, all on 2026-10-22 (checked 2026-10-24: the merge
 commit is in the tag v1.154.0, and the three patch releases' notes name the fix). A landscape on an
 earlier Gardener version keeps the behaviour above until its operator updates it.
+
+### H-143: The stored API key goes to an edited, unsaved base URL
+
+Since the connection test (2026-10-14) and, since 2026-10-25, the model list's ↻ in Preferences ›
+Agent: both run with the form's values, the base URL as typed and the key as typed or, when the
+key field is empty, the connection's stored key (`agentForm.apiKey`,
+[`agent/conntest.go`](../../internal/agent/conntest.go) `testKey`, `Agent.ModelsOf`). So a base
+URL edited and not saved, a typo or another server, gets the stored key with the test's or the
+list's request before the user saved anything. It is the user's own action (a button pressed in
+the form), the redirect rule still holds (no redirect is followed), and the key never leaves for a
+URL the user did not type. **The owner's decision of 2026-10-25: keep it** ("Option B", against the
+lead's recommendation to send the stored key only to the URL it was saved with), recorded here and
+in [D-10](../developer/decisions.md#d-10-built-in-agent) item 10. What limits it, per case:
+
+- **Leaving a field lists nothing with the stored key at a new URL:** the model list asks again
+  by itself when the base URL or the key field is left changed, but not while only the stored key
+  would go to a base URL other than the saved one; then only ↻ or Test Connection send it
+  (`agentForm.modelsAfterEdit`, `TestAgentPreferencesModelsFromTheForm`).
+- **Live for every connection with a stored key** whose base URL is edited in the form; a
+  connection without a key sends none.

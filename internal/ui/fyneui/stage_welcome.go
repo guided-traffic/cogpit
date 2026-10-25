@@ -195,7 +195,7 @@ const (
 )
 
 func newWelcomeStage(page fyne.CanvasObject) *fyne.Container {
-	s := &welcomeStage{horizon: clippedHorizon(0), page: page, scroll: container.NewVScroll(page)}
+	s := &welcomeStage{horizon: clippedHorizon(0), page: page, scroll: newVScroll(page)}
 	s.scrim = canvas.NewRaster(s.drawScrim)
 	s.scrim.ScaleMode = canvas.ImageScaleSmooth
 	s.box = container.New(s, s.horizon, s.scrim, s.scroll)

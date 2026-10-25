@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -329,9 +330,11 @@ func plainSteps() [][]engine.ChatTestStep {
 	return [][]engine.ChatTestStep{{
 		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "192.168.1.20 is an address: nothing to resolve"},
 		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "192.168.1.20:1234 answers", Duration: 2 * time.Millisecond},
-		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTP 200, plain http to another machine",
+		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTP, no TLS; answers HTTP 200; plain http to another machine",
 			Warning: engine.ChatPlainHTTPWarning, Duration: 9 * time.Millisecond},
-		{Layer: engine.ChatTestAuth, State: engine.ChatTestPass, Detail: "7 models, no key needed", Duration: 11 * time.Millisecond},
+		{Layer: engine.ChatTestAuth, State: engine.ChatTestPass, Detail: "the endpoint answers without a key", Duration: 11 * time.Millisecond},
+		{Layer: engine.ChatTestModels, State: engine.ChatTestPass, Detail: `7 models found; "qwen/qwen3.8-27b" among them`,
+			Models: []string{"gemma-3-27b", "llama-3.3-70b", "mistral-small", "phi-4", "qwen/qwen3.8-27b", "qwen3-coder", "qwq-32b"}},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestPass, Detail: "qwen/qwen3.8-27b called get_time", Duration: 3200 * time.Millisecond},
 	}}
 }
@@ -348,7 +351,7 @@ func TestAgentPreferencesTestWarns(t *testing.T) {
 		r := a.form.stepRows[engine.ChatTestTools]
 		return r != nil && r.step.State == engine.ChatTestPass && !a.form.testB.Disabled()
 	})
-	if r := a.form.stepRows[engine.ChatTestHTTP]; r.detail.color != colorStatusWarning || r.detail.text != "Passed: HTTP 200, plain http to another machine" {
+	if r := a.form.stepRows[engine.ChatTestHTTP]; r.detail.color != colorStatusWarning || r.detail.text != "Passed: HTTP, no TLS; answers HTTP 200; plain http to another machine" {
 		t.Errorf("HTTP: %q in %s", r.detail.text, r.detail.color)
 	}
 	if r := a.form.stepRows[engine.ChatTestAuth]; r.detail.color != colorStatusOK {
@@ -424,13 +427,17 @@ func testSteps(final bool) [][]engine.ChatTestStep {
 		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers at 203.0.113.7", Duration: 3 * time.Millisecond},
 		{Layer: engine.ChatTestHTTP, State: engine.ChatTestRunning},
 		{Layer: engine.ChatTestAuth, State: engine.ChatTestPending},
+		{Layer: engine.ChatTestModels, State: engine.ChatTestPending},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestPending},
 	}
 	done := []engine.ChatTestStep{
 		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "litellm.example.com: 203.0.113.7, 2001:db8::7", Duration: 4 * time.Millisecond},
 		{Layer: engine.ChatTestTCP, State: engine.ChatTestPass, Detail: "litellm.example.com:443 answers at 203.0.113.7", Duration: 3 * time.Millisecond},
-		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTP 200, TLS 1.3", Duration: 41 * time.Millisecond},
-		{Layer: engine.ChatTestAuth, State: engine.ChatTestFail, Detail: "HTTP 401: the API key was refused", Duration: 12 * time.Millisecond},
+		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTPS, TLS 1.3, certificate verified (chain to the CA file, host name " +
+			"litellm.example.com), issued by Team CA, valid until 2027-03-01; answers HTTP 401", Duration: 41 * time.Millisecond},
+		{Layer: engine.ChatTestAuth, State: engine.ChatTestFail, Detail: "the endpoint wants a key (HTTP 401 without one); with the key given: " +
+			"the endpoint refused the API key (HTTP 401)", Duration: 12 * time.Millisecond},
+		{Layer: engine.ChatTestModels, State: engine.ChatTestNotReached},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestNotReached},
 	}
 	if !final {
@@ -463,14 +470,17 @@ func TestAgentPreferencesConnectionTest(t *testing.T) {
 	if r := rows[engine.ChatTestDNS]; r.label.text != "DNS" || r.detail.text != "Passed: litellm.example.com: 203.0.113.7, 2001:db8::7" {
 		t.Errorf("DNS: %q %q", r.label.text, r.detail.text)
 	}
-	if r := rows[engine.ChatTestHTTP]; r.detail.text != "Passed: HTTP 200, TLS 1.3" || r.took.text != "41 ms" {
-		t.Errorf("HTTP: %q %q", r.detail.text, r.took.text)
+	if r := rows[engine.ChatTestHTTP]; !strings.HasPrefix(r.detail.text, "Passed: HTTPS, TLS 1.3, certificate verified") || r.took.text != "41 ms" ||
+		!strings.Contains(paragraphShown(r.detail), "valid until 2027-03-01; answers HTTP 401") {
+		t.Errorf("HTTP: %q %q (drawn %q)", r.detail.text, r.took.text, paragraphShown(r.detail))
 	}
-	if r := rows[engine.ChatTestAuth]; !strings.HasPrefix(r.detail.text, "Failed: HTTP 401") || r.detail.color != colorStatusError {
+	if r := rows[engine.ChatTestAuth]; !strings.HasPrefix(r.detail.text, "Failed: the endpoint wants a key") || r.detail.color != colorStatusError {
 		t.Errorf("Auth: %q", r.detail.text)
 	}
-	if r := rows[engine.ChatTestTools]; !strings.HasPrefix(r.detail.text, "Not reached") {
-		t.Errorf("Tools: %q", r.detail.text)
+	for _, l := range []engine.ChatTestLayer{engine.ChatTestModels, engine.ChatTestTools} {
+		if r := rows[l]; r.label.text != chatTestLabels[l] || !strings.HasPrefix(r.detail.text, "Not reached") {
+			t.Errorf("%s: %q %q", l, r.label.text, r.detail.text)
+		}
 	}
 	if len(ch.savesOf()) != 0 {
 		t.Error("the test saved the connection")
@@ -537,4 +547,72 @@ func paragraphShown(p *paragraph) string {
 		lines = append(lines, o.(*canvas.Text).Text)
 	}
 	return strings.Join(lines, " ")
+}
+
+// TestAgentPreferencesModelsFromTheForm (the owner's request of 2026-10-25, a colleague's list that
+// stayed empty after he typed his credentials): ↻ is on in a new connection and lists the models of
+// the values typed, the typed key with them; leaving the key field changed lists them again; a
+// passed test fills the list too. A saved connection whose base URL changed lists with its stored key
+// only on ↻, not on leaving the field (H-143).
+func TestAgentPreferencesModelsFromTheForm(t *testing.T) {
+	sh, _, q, ch := agentPrefsShell(t, ThemeDark)
+	a := sh.settings.agent
+	ch.mu.Lock()
+	ch.modelsOf = map[string][]string{"https://llm.example.com/v1": {"gpt-oss-120b", "qwen3-coder"}}
+	ch.mu.Unlock()
+	listings := func() []fakeSave {
+		ch.mu.Lock()
+		defer ch.mu.Unlock()
+		return slices.Clone(ch.listings)
+	}
+
+	a.edit(engine.ChatConnection{})
+	f := a.form
+	if f.modelsB.Disabled() || f.modelNote.text != modelsFirstNote {
+		t.Fatalf("a new connection: ↻ off %v, note %q", f.modelsB.Disabled(), f.modelNote.text)
+	}
+	f.baseURL.SetText("https://llm.example.com/v1")
+	test.Type(f.key, "sk-typed")
+	f.key.FocusLost()
+	q.until(t, "the list", func() bool { return f.modelNote.text == "2 models at the endpoint; any model name may be typed." })
+	got := listings()
+	if len(got) != 1 || got[0].conn.BaseURL != "https://llm.example.com/v1" || got[0].key == nil || *got[0].key != "sk-typed" {
+		t.Fatalf("listed with %+v", got)
+	}
+	if f.modelNote.text != "2 models at the endpoint; any model name may be typed." {
+		t.Errorf("note %q", f.modelNote.text)
+	}
+	f.key.FocusLost() // unchanged: not asked again
+	if n := len(listings()); n != 1 {
+		t.Errorf("leaving an unchanged field listed again (%d)", n)
+	}
+
+	// A saved connection with a stored key: a new base URL is listed on ↻ only.
+	saved := litellm()
+	saved.HasKey = true
+	a.edit(saved)
+	f = a.form
+	q.until(t, "the saved connection's list", func() bool { return len(listings()) == 2 && !f.modelsB.Disabled() })
+	f.baseURL.SetText("https://llm.example.com/v1")
+	f.baseURL.FocusLost()
+	if n := len(listings()); n != 2 || !strings.HasPrefix(f.modelNote.text, "A new base URL") {
+		t.Fatalf("a new base URL with the stored key listed on leaving the field (%d), note %q", n, f.modelNote.text)
+	}
+	test.Tap(f.modelsB)
+	q.until(t, "the list on ↻", func() bool { return f.modelNote.text == "2 models at the endpoint; any model name may be typed." })
+	if got := listings(); got[len(got)-1].key != nil {
+		t.Errorf("↻ sent a key of its own: %+v", got[len(got)-1])
+	}
+
+	// A passed test fills the list.
+	ch.testSteps = plainSteps()
+	a.edit(lanStudio())
+	f = a.form
+	test.Tap(f.testB)
+	q.until(t, "the test's list", func() bool {
+		return f.modelNote.text == "7 models at the endpoint; any model name may be typed." && !f.testB.Disabled()
+	})
+	if f.modelNote.text != "7 models at the endpoint; any model name may be typed." {
+		t.Errorf("after the test: %q", f.modelNote.text)
+	}
 }

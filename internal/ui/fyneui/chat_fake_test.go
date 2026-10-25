@@ -25,7 +25,8 @@ type fakeChat struct {
 	seq      int
 	now      time.Time
 	models   map[string][]string
-	payloads map[string]string // "id/item" → the request body
+	modelsOf map[string][]string // by base URL: what ModelsOf lists for the form's values
+	payloads map[string]string   // "id/item" → the request body
 
 	// What the window did.
 	sends    []fakeSend
@@ -38,6 +39,7 @@ type fakeChat struct {
 	switched []string // "conversation→connection"
 	reads    map[string]int
 	tests    []fakeSave
+	listings []fakeSave // ModelsOf's calls
 
 	sendErr error
 	// testSteps are the connection test's progress, in order; the last is the result.
@@ -245,6 +247,18 @@ func (c *fakeChat) Models(_ context.Context, id string) ([]string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return slices.Clone(c.models[id]), nil
+}
+
+// ModelsOf lists the models of the form's values: those of its base URL (modelsOf), else of its
+// saved connection; each call is kept (listings).
+func (c *fakeChat) ModelsOf(_ context.Context, cn engine.ChatConnection, apiKey *string) ([]string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.listings = append(c.listings, fakeSave{conn: cn, key: apiKey})
+	if m, ok := c.modelsOf[cn.BaseURL]; ok {
+		return slices.Clone(m), nil
+	}
+	return slices.Clone(c.models[cn.ID]), nil
 }
 
 func (c *fakeChat) TestConnection(_ context.Context, cn engine.ChatConnection, apiKey *string, progress func([]engine.ChatTestStep)) []engine.ChatTestStep {

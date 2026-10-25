@@ -53,7 +53,7 @@ func newDiagnosticsTab(sh *shell) *diagnosticsTab {
 	d.summary.truncate = true
 	column := func(title string, body *fyne.Container) fyne.CanvasObject {
 		return container.NewBorder(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, heading(title)), nil, nil, nil,
-			container.NewVScroll(inset(theme.SizeNameInnerPadding, "", body)))
+			newVScroll(inset(theme.SizeNameInnerPadding, "", body)))
 	}
 	cols := container.NewGridWithColumns(3,
 		column("API requests by verb and resource", d.requests),

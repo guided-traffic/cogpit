@@ -60,11 +60,41 @@ func (d *dock) holdsFocus(c *dockContent, focused fyne.Focusable) bool {
 	return p.X >= at.X && p.Y >= at.Y && p.X < at.X+size.Width && p.Y < at.Y+size.Height
 }
 
-// claimFind opens the shown editor tab's find bar when ⌘F is the dock's (findTarget): true when it
-// did, before any widget is offered the key.
+// claimFind opens the shown editor tab's find bar when ⌘F is the dock's (findTarget), or the
+// drawer's YAML find bar when it is the drawer's (drawerFinds): true when it did, before any widget
+// is offered the key.
 func (sh *shell) claimFind() bool {
-	f := sh.dock.findTarget(sh.win.Canvas().Focused())
-	return f != nil && f.openFind()
+	focused := sh.win.Canvas().Focused()
+	drawer := sh.drawerFinds(focused)
+	if f := sh.dock.findTarget(focused); f != nil && (focused != nil || !drawer) && f.openFind() {
+		return true
+	}
+	if drawer {
+		sh.drawer.find.open()
+		return true
+	}
+	return false
+}
+
+// drawerFinds reports whether ⌘F is the drawer's YAML find bar's (the owner's request of
+// 2026-10-25, "Mit cmd+f wird das Feld dann aktiv"): the drawer shows its YAML, and the keyboard
+// is in the drawer, in the list's table (a click on a row puts it there, VW17) or nowhere. A text
+// field elsewhere keeps its own ⌘F, and with the keys nowhere the drawer's YAML goes before the
+// dock's editor (the lead's details, D-106's addition, open to revision).
+func (sh *shell) drawerFinds(focused fyne.Focusable) bool {
+	if !sh.drawer.yamlShown() {
+		return false
+	}
+	if focused == nil || focused == fyne.Focusable(sh.view.table) {
+		return true
+	}
+	o, ok := focused.(fyne.CanvasObject)
+	if !ok {
+		return false
+	}
+	drv := fyne.CurrentApp().Driver()
+	at, size, p := drv.AbsolutePositionForObject(sh.drawer.root), sh.drawer.root.Size(), drv.AbsolutePositionForObject(o)
+	return p.X >= at.X && p.Y >= at.Y && p.X < at.X+size.Width && p.Y < at.Y+size.Height
 }
 
 // searchKey is the window's ⌘F: the shown editor tab's find bar when ⌘F is the dock's, else the

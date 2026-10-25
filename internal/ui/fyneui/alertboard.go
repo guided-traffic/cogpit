@@ -65,7 +65,7 @@ type alertAge struct {
 func newAlertBoard(sh *shell) *alertBoard {
 	b := &alertBoard{sh: sh, box: container.NewVBox()}
 	b.root = container.NewStack(newSurface(theme.ColorNameBackground),
-		container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, b.box)))
+		newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, b.box)))
 	b.root.Hide()
 	return b
 }

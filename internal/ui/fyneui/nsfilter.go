@@ -54,7 +54,7 @@ func newNSFilter(tv *tableView) *nsFilter {
 	f.search = newNSSearchEntry(f)
 	f.empty = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	f.list = container.NewVBox()
-	f.scroll = container.NewVScroll(f.list)
+	f.scroll = newVScroll(f.list)
 	return f
 }
 
@@ -391,6 +391,11 @@ func (f *nsFilter) set(next []string) {
 type nsSearchEntry struct {
 	widget.Entry
 	f *nsFilter
+}
+
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *nsSearchEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
 }
 
 func newNSSearchEntry(f *nsFilter) *nsSearchEntry {

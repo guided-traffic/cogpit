@@ -146,6 +146,11 @@ type chatEditEntry struct {
 	onStop   func()
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *chatEditEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newChatEditEntry() *chatEditEntry {
 	e := &chatEditEntry{shift: shiftHeld}
 	e.MultiLine = true

@@ -41,6 +41,10 @@ type ChatAgent interface {
 	SetDefaultConnection(id string) error
 	// Models lists the models the connection's endpoint offers (its /models), sorted.
 	Models(ctx context.Context, connectionID string) ([]string, error)
+	// ModelsOf lists the models of a connection that may be unsaved (the settings form's values),
+	// apiKey as in TestConnection: nil means the stored key of c.ID (the owner's request of
+	// 2026-10-25: the list from the credentials just typed).
+	ModelsOf(ctx context.Context, c ChatConnection, apiKey *string) ([]string, error)
 	// TestConnection checks a connection layer by layer (ChatTestLayers), each on its own, and
 	// never sends cluster data. c may be unsaved (the settings form's values); apiKey as in
 	// SaveConnection, nil meaning the stored key of c.ID. progress, if not nil, receives the steps
@@ -166,17 +170,20 @@ func (l ChatLimits) WithDefaults() ChatLimits {
 type ChatTestLayer string
 
 // The connection test's layers (owner, 2026-10-14 late evening; DNS since the owner's VW8,
-// 2026-10-23).
+// 2026-10-23; HTTP's scheme and certificate, Auth asked without and with the key, and Models since
+// his request of 2026-10-25: "Solche Infos brauche ich um die Verbindung schnell, einfach und sicher
+// einschätzen zu können").
 const (
-	ChatTestDNS   ChatTestLayer = "dns"   // the host name resolves (its addresses listed); an IP address or localhost at once
-	ChatTestTCP   ChatTestLayer = "tcp"   // one of those addresses answers on the port
-	ChatTestHTTP  ChatTestLayer = "http"  // an HTTP(S) answer from the API, TLS included
-	ChatTestAuth  ChatTestLayer = "auth"  // the key is accepted (/models without 401 or 403)
-	ChatTestTools ChatTestLayer = "tools" // a minimal request with one harmless tool returns a tool call
+	ChatTestDNS    ChatTestLayer = "dns"    // the host name resolves (its addresses listed); an IP address or localhost at once
+	ChatTestTCP    ChatTestLayer = "tcp"    // one of those addresses answers on the port
+	ChatTestHTTP   ChatTestLayer = "http"   // HTTP or HTTPS; over HTTPS the certificate verified (chain and host name)
+	ChatTestAuth   ChatTestLayer = "auth"   // whether the endpoint wants a key (/models without one), and the key accepted
+	ChatTestModels ChatTestLayer = "models" // the models list read, how many, the chosen model among them
+	ChatTestTools  ChatTestLayer = "tools"  // a minimal request with one harmless tool returns a tool call
 )
 
 // ChatTestLayers is the connection test's order.
-var ChatTestLayers = []ChatTestLayer{ChatTestDNS, ChatTestTCP, ChatTestHTTP, ChatTestAuth, ChatTestTools}
+var ChatTestLayers = []ChatTestLayer{ChatTestDNS, ChatTestTCP, ChatTestHTTP, ChatTestAuth, ChatTestModels, ChatTestTools}
 
 // ChatTestState is a test step's outcome.
 type ChatTestState string
@@ -196,9 +203,11 @@ type ChatTestStep struct {
 	State  ChatTestState `json:"state"`
 	Detail string        `json:"detail,omitempty"` // the reason of a failure, or what passed ("HTTP 200, TLS 1.3")
 	// Warning is a caution about a layer that passed, shown in the warning colour: plain http to
-	// another machine (ChatPlainHTTPWarning).
+	// another machine (ChatPlainHTTPWarning), an endpoint that lists no models.
 	Warning  string        `json:"warning,omitempty"`
 	Duration time.Duration `json:"duration,omitempty"`
+	// Models are the Models layer's: the endpoint's models, for the settings form's list.
+	Models []string `json:"models,omitempty"`
 }
 
 // ChatPlainHTTPWarning is what the window and the connection test say about a connection over plain
@@ -272,6 +281,32 @@ type ChatItem struct {
 	Sent *ChatSent `json:"sent,omitempty"`
 	// NoteLevel is a note's level (LevelInfo, LevelWarning, LevelError).
 	NoteLevel string `json:"noteLevel,omitempty"`
+	// Timing is an answer's speed, set when it ended (the owner's request of 2026-10-25: TTFT and
+	// OTPS under every answer).
+	Timing *ChatTiming `json:"timing,omitempty"`
+}
+
+// ChatTiming is how fast one answer came: the time to its first token and its output tokens over
+// the time they streamed.
+type ChatTiming struct {
+	// TTFT is the time from the request sent to the answer's first streamed part, thinking and
+	// tool calls included.
+	TTFT time.Duration `json:"ttft"`
+	// Generating is the time from the first streamed part to the last.
+	Generating time.Duration `json:"generating"`
+	// OutputTokens are the answer's tokens as the endpoint reported them (usage.completion_tokens),
+	// else estimated at about four bytes a token (Estimated).
+	OutputTokens int  `json:"outputTokens"`
+	Estimated    bool `json:"estimated,omitempty"`
+}
+
+// OTPS is the output tokens per second while the answer streamed; 0 when it cannot be told (no
+// tokens, or the answer came in one part).
+func (t ChatTiming) OTPS() float64 {
+	if t.OutputTokens <= 0 || t.Generating <= 0 {
+		return 0
+	}
+	return float64(t.OutputTokens) / t.Generating.Seconds()
 }
 
 // ChatToolState is a tool call's state.

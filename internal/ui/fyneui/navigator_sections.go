@@ -148,7 +148,7 @@ func newNavSections(s *sidebar) *navSections {
 	n.hint.truncate = true
 	n.hintRow = inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, n.hint)
 	n.list = container.New(layout.NewVBoxLayout(), n.root)
-	n.scroll = container.NewVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, n.list))
+	n.scroll = newVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, n.list))
 	n.mixed = widget.NewCheck("Mixed environments", func(on bool) {
 		if !n.syncing {
 			n.s.sh.dispatch("preferences.set", map[string]bool{"mixedEnvironments": on}, nil)

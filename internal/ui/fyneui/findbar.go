@@ -122,27 +122,40 @@ type findBar struct {
 	matches []findMatch
 	cur     int    // index into matches of the selected one; -1 when none is
 	text    string // the text matches was computed from
+
+	// permanent is the drawer's read-only YAML's bar (the owner's request of 2026-10-25): always
+	// shown, no replace row and no ×; Escape in its field clears it and gives the YAML the keys.
+	permanent bool
 }
 
-func newFindBar(sh *shell, view *yamlview.View) *findBar {
-	b := &findBar{sh: sh, view: view, cur: -1}
+func newFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, false) }
+
+// newViewerFindBar is a read-only viewer's find bar, shown over it for good: the drawer's YAML (the
+// owner, 2026-10-25: "Da dieser Part read-only ist, kann oben über dem YAML permanent ein Suchfeld
+// angezeigt werden. Mit cmd+f wird das Feld dann aktiv.").
+func newViewerFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, true) }
+
+func buildFindBar(sh *shell, view *yamlview.View, permanent bool) *findBar {
+	b := &findBar{sh: sh, view: view, cur: -1, permanent: permanent}
 	view.OnFind = func() { b.open() } // ⌘F in the editor (findkeys.go)
 	b.find = newSearchEntry(sh)
 	b.find.SetPlaceHolder("Find")
 	b.find.OnChanged = func(string) { b.refresh(true) }
 	b.find.OnSubmitted = func(string) { b.step(1) }
 	b.find.escape = b.close // Escape closes the bar from either field and from the editor (AW4)
-	b.replace = newFieldEntry()
-	b.replace.onEscape = b.close
 	view.OnEscape = func() bool {
-		if !b.visible() {
-			return false
+		if permanent || !b.visible() {
+			return false // the drawer's YAML: Escape goes on to the window, which closes the drawer
 		}
 		b.close()
 		return true
 	}
-	b.replace.SetPlaceHolder("Replace")
-	b.replace.OnSubmitted = func(string) { b.replaceOne() }
+	if !permanent {
+		b.replace = newFieldEntry()
+		b.replace.onEscape = b.close
+		b.replace.SetPlaceHolder("Replace")
+		b.replace.OnSubmitted = func(string) { b.replaceOne() }
+	}
 
 	flags := []struct {
 		label, tip string
@@ -176,12 +189,17 @@ func newFindBar(sh *shell, view *yamlview.View) *findBar {
 	// One icon family (the owner's VW2 of 2026-10-23): Cogpit's chevrons, up and down.
 	b.prev = newTipButton(sh, chevronUpIcon(), "Previous match", func() { b.step(-1) })
 	b.next = newTipButton(sh, chevronDownIcon(), "Next match", func() { b.step(1) })
+	tail := append(toggles, container.NewCenter(sized(sizeFindCountWidth, "", b.count)), b.prev, b.next)
+	if permanent {
+		findRow := container.NewBorder(nil, nil, nil, container.NewHBox(tail...), b.find)
+		b.root = container.NewVBox(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, findRow), newDivider(false))
+		return b
+	}
 	closeBtn := newTipButton(sh, theme.CancelIcon(), "Close", b.close)
 	b.replaceBtn = newPlateButton("Replace", nil, b.replaceOne)
 	b.replaceAllBtn = newPlateButton("Replace all", nil, b.replaceEvery)
 
-	findRow := container.NewBorder(nil, nil, nil,
-		container.NewHBox(append(append(toggles, container.NewCenter(sized(sizeFindCountWidth, "", b.count))), b.prev, b.next, closeBtn)...), b.find)
+	findRow := container.NewBorder(nil, nil, nil, container.NewHBox(append(tail, closeBtn)...), b.find)
 	replaceRow := container.NewBorder(nil, nil, nil, container.NewHBox(b.replaceBtn, b.replaceAllBtn), b.replace)
 	b.root = container.NewVBox(newDivider(false),
 		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(findRow, replaceRow)))
@@ -206,8 +224,16 @@ func (b *findBar) open() {
 	b.refresh(true)
 }
 
-// close hides the widget and gives the editor the focus back.
+// close hides the widget and gives the editor the focus back; the permanent bar stays and its
+// search is cleared.
 func (b *findBar) close() {
+	if b.permanent {
+		b.find.SetText("")
+		if c := fyne.CurrentApp().Driver().CanvasForObject(b.view); c != nil {
+			c.Focus(b.view)
+		}
+		return
+	}
 	b.root.Hide()
 	if c := fyne.CurrentApp().Driver().CanvasForObject(b.view); c != nil {
 		c.Focus(b.view)
@@ -344,4 +370,12 @@ func (b *findBar) replaceEvery() {
 	b.view.SetCursorPosition(0, 0)
 	b.refresh(false)
 	b.count.SetText(fmt.Sprintf("%d replaced", n))
+}
+
+// textChanged counts the matches again after the viewer's text changed (the drawer's object
+// updated), keeping the caret where it is.
+func (b *findBar) textChanged() {
+	if b.find.Text != "" {
+		b.refresh(false)
+	}
 }

@@ -221,7 +221,7 @@ func (k *kubeconfigUI) showApproval(g approvalGroupView, done func(bool)) {
 		maxH = th.Size(sizePickerHeight)
 	}
 	if content.MinSize().Height > maxH {
-		scroll = container.NewVScroll(content)
+		scroll = newVScroll(content)
 		scroll.SetMinSize(fyne.NewSize(width+4*pad, maxH)) // room for the scroll bar beside the text
 		body = scroll
 	}

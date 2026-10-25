@@ -99,7 +99,7 @@ func (sh *shell) argoDialog(action string, refs []model.ObjectRef, options fyne.
 		placeRows(rows, context, []string{refs[0].Namespace}, []namedObject{{kind: "Application", name: refs[0].Name}}, valueW)
 	} else {
 		placeRows(rows, context, nil, nil, valueW)
-		list := container.NewVScroll(picker.checks)
+		list := newVScroll(picker.checks)
 		list.SetMinSize(fyne.NewSize(valueW, min(picker.checks.MinSize().Height, th.Size(sizePopupMaxList))))
 		rows.Objects = append(rows.Objects,
 			rowName(fmt.Sprintf("Applications (%d)", len(refs))), list)

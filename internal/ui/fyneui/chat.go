@@ -119,7 +119,7 @@ func newChatPanel(sh *shell) *chatPanel {
 	c.list = newVStack(theme.SizeNameInnerPadding)
 	c.list.gapX = 2
 	c.content = inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, c.list)
-	c.scroll = container.NewVScroll(c.content)
+	c.scroll = newVScroll(c.content)
 	c.scroll.OnScrolled = func(fyne.Position) { c.updatePin() }
 	c.pin = newChatPin(c)
 	c.pin.Hide()
@@ -689,7 +689,7 @@ func (c *chatPanel) showHistoryList(ctx string, list []engine.ChatConversationIn
 		rows = append(rows, newDivider(false), container.NewHBox(clearB))
 	}
 	width := max(c.width, 260)
-	content := container.NewVScroll(container.NewVBox(rows...))
+	content := newVScroll(container.NewVBox(rows...))
 	content.SetMinSize(fyne.NewSize(width, min(float32(len(rows))*32+16, th.Size(sizePopupMaxList))))
 	c.history = widget.NewPopUp(content, c.sh.win.Canvas())
 	pos := fyne.CurrentApp().Driver().AbsolutePositionForObject(c.historyB)
@@ -823,7 +823,7 @@ func (c *chatPanel) payloadDialog(body, endpoint string, private bool) {
 	win := c.sh.win.Canvas().Size()
 	w := max(win.Width*0.6, 480)
 	code.setWidth(w - 24)
-	scroll := container.NewScroll(code)
+	scroll := newScroll(code)
 	scroll.SetMinSize(fyne.NewSize(w, max(win.Height*0.6, 300)))
 	info := newParagraph(note, colorMuted, w)
 	copyB := newPlateButton("Copy", theme.ContentCopyIcon(), func() { c.sh.app.Clipboard().SetContent(body) })
@@ -1069,6 +1069,13 @@ func (c *chatPanel) modelsFor(id string) ([]string, error) {
 	ctx, cancel := context.WithTimeout(c.sh.ctx, chatTestTimeout)
 	defer cancel()
 	return c.agent.Models(ctx, id)
+}
+
+// modelsOf lists the models of the settings form's values, bounded in time; off the main goroutine.
+func (c *chatPanel) modelsOf(cn engine.ChatConnection, apiKey *string) ([]string, error) {
+	ctx, cancel := context.WithTimeout(c.sh.ctx, chatTestTimeout)
+	defer cancel()
+	return c.agent.ModelsOf(ctx, cn, apiKey)
 }
 
 // shortcutStop is ⌘. (Ctrl+. elsewhere): the chat's kill switch, from any focus.

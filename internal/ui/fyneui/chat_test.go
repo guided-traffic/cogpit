@@ -51,7 +51,8 @@ func demoConversation(ch *fakeChat, ctx string) string {
 		engine.ChatItem{Kind: engine.ChatItemTool, Tool: &engine.ChatToolCall{CallID: "t3", Command: "dock.read", Label: "Read Tab Output",
 			Summary: "Logs: " + demoPod + ", the last 200 lines", State: engine.ChatToolDone, Args: `{"id":"logs-3","lines":200}`,
 			Result: "2026-10-11T14:29:58Z dial tcp 10.96.14.7:5432: connect: connection refused"}},
-		engine.ChatItem{Kind: engine.ChatItemAssistant, Text: "<think>The probe fails; check the logs.</think>" + demoAnswer},
+		engine.ChatItem{Kind: engine.ChatItemAssistant, Text: "<think>The probe fails; check the logs.</think>" + demoAnswer,
+			Timing: &engine.ChatTiming{TTFT: 840 * time.Millisecond, Generating: 4200 * time.Millisecond, OutputTokens: 177}},
 		engine.ChatItem{Kind: engine.ChatItemUser, Text: "Restart every deployment in payments.", Sent: sent(6, 71_904, 18_377)},
 		engine.ChatItem{Kind: engine.ChatItemTool, Tool: &engine.ChatToolCall{CallID: "t4", Command: "deployment.restart", Label: "Restart",
 			Summary: "Deployment payments/checkout-api", State: engine.ChatToolRefused, Args: `{"ref":{"kind":"deployments","namespace":"payments","name":"checkout-api"}}`,
@@ -62,7 +63,8 @@ func demoConversation(ch *fakeChat, ctx string) string {
 		engine.ChatItem{Kind: engine.ChatItemNote, NoteLevel: engine.LevelWarning,
 			Text: "The turn stopped at its third identical tool call: Restart, Deployment payments/ledger-writer."},
 		engine.ChatItem{Kind: engine.ChatItemUser, Text: "Then just scale payments-db back to 1.", Sent: sent(2, 22_480, 6_102)},
-		engine.ChatItem{Kind: engine.ChatItemAssistant, Text: "Scaling the StatefulSet `payments-db` to **1** replica. Cogpit asks you first."},
+		engine.ChatItem{Kind: engine.ChatItemAssistant, Text: "Scaling the StatefulSet `payments-db` to **1** replica. Cogpit asks you first.",
+			Timing: &engine.ChatTiming{TTFT: 1260 * time.Millisecond, Generating: 900 * time.Millisecond, OutputTokens: 31, Estimated: true}},
 		engine.ChatItem{Kind: engine.ChatItemTool, Tool: &engine.ChatToolCall{CallID: "t6", Command: "statefulset.scale", Label: "Scale",
 			Summary: "StatefulSet payments/payments-db to 1 replica", State: engine.ChatToolWaiting,
 			Args: `{"ref":{"kind":"statefulsets","namespace":"payments","name":"payments-db"},"replicas":1}`}},
@@ -790,5 +792,23 @@ func TestRenderChatRunning(t *testing.T) {
 					sh.chat.updatePin()
 				})
 		})
+	}
+}
+
+// TestChatTimingText (the owner's request of 2026-10-25): an answer shows its TTFT and OTPS beside
+// its copy icon, ≈ where the tokens are estimated, only TTFT where the speed cannot be told.
+func TestChatTimingText(t *testing.T) {
+	for _, c := range []struct {
+		t    *engine.ChatTiming
+		want string
+	}{
+		{nil, ""},
+		{&engine.ChatTiming{TTFT: 840 * time.Millisecond, Generating: 4200 * time.Millisecond, OutputTokens: 177}, "TTFT 840 ms · OTPS 42.1"},
+		{&engine.ChatTiming{TTFT: 1260 * time.Millisecond, Generating: 900 * time.Millisecond, OutputTokens: 31, Estimated: true}, "TTFT 1.3 s · OTPS ≈34.4"},
+		{&engine.ChatTiming{TTFT: 2 * time.Second, OutputTokens: 12}, "TTFT 2.0 s"},
+	} {
+		if got := chatTimingText(c.t); got != c.want {
+			t.Errorf("%+v: %q, want %q", c.t, got, c.want)
+		}
 	}
 }

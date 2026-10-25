@@ -89,7 +89,7 @@ var (
 func newNavTree(s *sidebar) *navTree {
 	t := &navTree{s: s, rows: map[string]*navRow{}, visible: []string{rootNode}}
 	t.list = container.New(layout.NewVBoxLayout())
-	t.scroll = container.NewVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, t.list))
+	t.scroll = newVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, t.list))
 	t.ExtendBaseWidget(t)
 	return t
 }

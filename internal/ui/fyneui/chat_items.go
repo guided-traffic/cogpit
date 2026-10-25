@@ -43,6 +43,9 @@ func sameItem(a, b engine.ChatItem) bool {
 	if (a.Tool == nil) != (b.Tool == nil) || (a.Tool != nil && *a.Tool != *b.Tool) {
 		return false
 	}
+	if (a.Timing == nil) != (b.Timing == nil) || (a.Timing != nil && *a.Timing != *b.Timing) {
+		return false
+	}
 	return (a.Sent == nil) == (b.Sent == nil) && (a.Sent == nil || *a.Sent == *b.Sent)
 }
 
@@ -447,6 +450,7 @@ type chatAnswerView struct {
 	text     *mdText
 	thinking *textLine
 	copyB    *tipButton
+	timing   *textLine // TTFT and OTPS beside the copy icon (chatTimingText)
 	actions  *fyne.Container
 	// thinkSince is when the thinking line showed; thinkGen ends its ticks when it hides.
 	thinkSince time.Time
@@ -506,7 +510,8 @@ func newChatAnswerView(c *chatPanel) *chatAnswerView {
 		answer, _ := stripThinking(v.item.Text)
 		c.sh.app.Clipboard().SetContent(answer)
 	})
-	v.actions = container.NewHBox(v.copyB)
+	v.timing = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	v.actions = container.NewHBox(v.copyB, container.NewCenter(v.timing))
 	v.actions.Hide()
 	v.vstack = makeVStack(theme.SizeNamePadding, v.text, v.thinking, v.actions)
 	v.extend(v)
@@ -528,7 +533,25 @@ func (v *chatAnswerView) update(it engine.ChatItem, blocks []mdBlock) {
 	v.text.setBlocks(blocks)
 	v.setThinking(len(blocks) == 0 && (thinking || it.Streaming))
 	v.actions.Hidden = it.Streaming || len(blocks) == 0
+	v.timing.SetText(chatTimingText(it.Timing))
 	v.Refresh()
+}
+
+// chatTimingText is an answer's speed under it (the owner's request of 2026-10-25): "TTFT 840 ms ·
+// OTPS 42.1", the OTPS with ≈ where the tokens are estimated, none where it cannot be told.
+func chatTimingText(t *engine.ChatTiming) string {
+	if t == nil {
+		return ""
+	}
+	s := "TTFT " + formatTook(t.TTFT)
+	if otps := t.OTPS(); otps > 0 {
+		approx := ""
+		if t.Estimated {
+			approx = "≈"
+		}
+		s += " · OTPS " + approx + strconv.FormatFloat(otps, 'f', 1, 64)
+	}
+	return s
 }
 
 func (v *chatAnswerView) setWidth(w float32) { v.text.setWidth(max(w-answerIndent, 0)) }

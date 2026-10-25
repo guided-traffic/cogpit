@@ -67,6 +67,7 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🔍 Debug a running pod: Debug in its drawer adds an ephemeral container (by default nicolaka/netshoot:v0.16, pinned by digest, your choice in Preferences) that sees the processes of the container you pick and opens a shell in it; confirmed every time, since it stays in the pod; the Pods list shows such containers as blue squares, outlined once they ended, and Logs, Shell and Attach reach them ([details](#debug-containers)).
 - 🔐 Create Secret from a dialog, values masked as you type, for you alone: agents can neither create a Secret nor read its values.
 - 🗝️ A Secret's values and keys edited in its drawer, for you alone: Show puts a value into an editor, whose copy icon copies the whole value (the clipboard is cleared again after 60 seconds); each key's line ends with Show (amber, with an eye: it exposes the value), the copy icon, a b64 icon (the copy icon's back sheet with "64") and the bin icon, always shown; a masked value's copy icon copies it without showing it, straight into a password field elsewhere (since 2026-10-22), and the b64 icon copies the value base64-encoded the same way, as a manifest's `data` holds it (since 2026-10-24, an icon since 2026-10-25; a binary value, which has no Show and no copy icon, has the b64 icon), Add Key adds a key, each key's bin icon removes it, pills beside Revert and Save count what you edited, added and removed; Save shows which keys change, are added or are removed and their sizes, never a value, checks with the server first and, for a removed key, is your confirmation; agents can neither save nor review a Secret's values, and unsaved ones never touch the disk.
+- 🔎 The drawer's YAML tab has a find bar over it for good (match case, whole word, regular expression, the count, previous and next); ⌘F puts the keys in it while the YAML shows (since 2026-10-25, [D-127](decisions.md#d-127-find-in-the-drawers-yaml)). Over any text field the mouse wheel scrolls the page; a multi-line field scrolls itself first, to its end ([D-126](decisions.md#d-126-a-text-field-passes-the-wheel-on)).
 - 🧰 The terminal's `kubectl` checked against the cluster: more than one minor version off, or none, and one click downloads the matching release from `dl.k8s.io`, verified against its SHA-256, the Kubernetes release's signature and that signature's entry in sigstore's transparency log, for Cogpit's terminals only.
 - ✏️ YAML editing with a diff and a server-side dry-run before every apply; every object's YAML reads as the Kubernetes docs write a manifest, apiVersion, kind and metadata (name and namespace first) on top, status last; ⌘Z undoes and ⇧⌘Z or ⌘Y redo your typing, pastes and indents in every YAML editor, the drawer's values included, and ⌘Z right after Revert to Original brings your text back; ⌘F opens the find bar of the editor tab you work in (Edit, Create, Helm Install and Upgrade), with the keys in its field; an apply that scales a workload to zero or removes a key of a Config Map or a Secret asks you first, naming the keys.
 - 📝 A Config Map's values edited right in its drawer, each key above its editor, keys added with Add Key and removed with their bin icon, what you edited, added and removed counted in coloured pills beside Revert and Save, saved with a diff and a dry run (a removal named in red and confirmed by that review, an agent's always asked); when someone else changed other keys meanwhile, Save moves your edits onto the newer version and shows you the diff again; unsaved values survive a quit or a crash as a draft.
@@ -1131,15 +1132,30 @@ kept in `llm-connections.json` (its key apart in `llm-keys.json`, [naming](#nami
 | Send all tools | off # default | every Cogpit command the chat may run as a tool of its own with each request (179 tools, about 56,000 tokens, measured 2026-10-15), for large cloud models; off, 20 core tools and a search that finds the rest (about 7,600 tokens). The same rules either way: what the agent reads follows the private mark, every write asks as D-2 says |
 | Limits per turn | 3 identical tool calls, 25 tool calls, 300,000 tokens, 10 minutes # default | a turn that reaches one stops with a note |
 
-Test Connection checks the form's values layer by layer (DNS, TCP, HTTP and TLS, authentication,
-tool use) without saving them and without cluster data. DNS lists the addresses the endpoint's name
-resolves to, IPv4 and IPv6, the first four and a count of the rest; it does not say which server
-answered (the system's resolver does not tell). An IP address or `localhost` passes at once
-("nothing to resolve"). TCP then dials those addresses in that order, 5 s for all of them, and names
-the one that answered and any refused before it. With a proxy set for the endpoint in the
+Test Connection checks the form's values layer by layer (DNS, TCP, HTTP or HTTPS, Authentication,
+Models, Tool use) without saving them and without cluster data. DNS lists the addresses the
+endpoint's name resolves to, IPv4 and IPv6, the first four and a count of the rest; it does not say
+which server answered (the system's resolver does not tell). An IP address or `localhost` passes at
+once ("nothing to resolve"). TCP then dials those addresses in that order, 5 s for all of them, and
+names the one that answered and any refused before it. HTTP or HTTPS names the URL asked and the
+address the chat's own requests reach, says HTTP or HTTPS, and over HTTPS the TLS version and the
+certificate Cogpit verified (its chain to your system's roots or the CA file, the host name, its
+issuer, the day it ends); when the name has several addresses it asks each of them and lists their
+answers, fails when the chat's address answers 5xx (a proxy page is quoted as its text) and warns
+when another one does. Authentication first asks without the key, so it says whether the endpoint
+wants one at all, then with the key. Models says how many models the endpoint lists and whether
+yours is among them, and fills the model field's list. With a proxy set for the endpoint in the
 environment (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`; never for localhost), DNS and TCP check the
 proxy, which resolves the endpoint's name itself; the proxy's user and password are never shown
-([D-10](decisions.md#d-10-built-in-agent) item 8).
+([D-10](decisions.md#d-10-built-in-agent)). The model field's ↻ lists the models with the values
+typed (the key typed, else the stored one) and lists them again when you leave the base URL or the
+key field changed; with a new base URL and only the stored key it waits for ↻: the test and ↻ send
+the stored key to a base URL you typed and did not save ([H-143](../security/credentials.md#h-143-the-stored-api-key-goes-to-an-edited-unsaved-base-url)).
+
+Under every answer of the agent, beside its copy icon, its speed: TTFT (the time from the request
+to the first streamed part, thinking included) and OTPS (output tokens per second while it
+streamed; ≈ when the endpoint reported no token count and Cogpit estimated it)
+([D-125](decisions.md#d-125-an-answers-speed-ttft-and-otps)).
 
 In the chat column, the pencil at the end of the line under each of your messages opens it for
 editing (since 2026-10-15, F9): Enter or Send sends it again, and that message and everything after

@@ -31,7 +31,7 @@ import (
 // line that says why a name cannot be added.
 type keyAdder struct {
 	button *textButton
-	entry  *widget.Entry
+	entry  *wheelEntry
 	add    *textButton
 	hint   *paragraph
 	row    *fyne.Container
@@ -42,7 +42,7 @@ type keyAdder struct {
 func newKeyAdder(width float32, taken func(string) string, onAdd func(string)) *keyAdder {
 	a := &keyAdder{taken: taken, onAdd: onAdd}
 	a.button = newTextButton("Add Key", theme.ContentAddIcon(), a.open)
-	a.entry = widget.NewEntry()
+	a.entry = newWheelEntry()
 	a.entry.SetPlaceHolder("New key, e.g. config.yaml")
 	a.entry.OnChanged = func(string) { a.check() }
 	a.entry.OnSubmitted = func(string) { a.submit() }

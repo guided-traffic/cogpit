@@ -251,7 +251,7 @@ func (tv *tableView) openColumns() {
 		list.Add(tv.order.resetButton(tv.colView))
 	}
 	th := tv.table.Theme()
-	scroll := container.NewVScroll(list)
+	scroll := newVScroll(list)
 	header := newHeaderCell(nil).MinSize().Height
 	// The list may reach the table's bottom: a kind has a dozen columns or so, and seeing them all
 	// at once is the point of the list.

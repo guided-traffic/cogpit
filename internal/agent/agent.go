@@ -391,6 +391,29 @@ func (a *Agent) clientFor(c engine.ChatConnection, key string) (*client, error) 
 	return &client{hc: hc, ep: ep, key: key, caFile: c.CAFile}, nil
 }
 
+// ModelsOf implements engine.ChatAgent: the settings form's list from the values typed, the key
+// typed or else the stored one (the owner's request of 2026-10-25: a colleague's list stayed empty
+// after he typed his credentials, as it was read from the saved connection only).
+func (a *Agent) ModelsOf(ctx context.Context, c engine.ChatConnection, apiKey *string) ([]string, error) {
+	if !validKind(c.Kind) {
+		return nil, errors.New("unknown connection kind")
+	}
+	if _, err := normalize(c); errors.Is(err, ErrCAFileScheme) || errors.Is(err, ErrCAFilePath) {
+		return nil, err
+	}
+	key, err := a.testKey(c, apiKey)
+	if err != nil {
+		return nil, err
+	}
+	cl, err := a.clientFor(c, key)
+	if err != nil {
+		return nil, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	return cl.listModels(ctx)
+}
+
 // Models implements engine.ChatAgent.
 func (a *Agent) Models(ctx context.Context, connectionID string) ([]string, error) {
 	a.mu.Lock()
