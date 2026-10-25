@@ -178,6 +178,8 @@ type UIState struct {
 	ActiveTab string    `json:"activeTab,omitempty"`
 	tabSeq    uint64    // the number of the last tab id handed out
 	tabClock  uint64    // counts tab activations, for ViewTab.used
+	placeSeq  uint64    // the number of the last place handed out (ViewTab.Place)
+	step      bool      // the change being made is a step of the active tab's history (MarkStep)
 	connGen   uint64    // the connect that made the connection Connected: its watch writes Connection (connwatch.go)
 }
 

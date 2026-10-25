@@ -135,7 +135,7 @@ func TestWorkspaceRoundTrip(t *testing.T) {
 	svc := u.Tabs[0]
 	if svc.Title != "Services - test" || !slices.Equal(svc.Namespaces, []string{"shop"}) || svc.Filter != "check" ||
 		!svc.FilterOptions.MatchCase || svc.Sort != (SortSpec{Column: "age", Desc: true}) || svc.Selected != nil ||
-		svc.Drawer != nil || !slices.Equal(svc.Back, []string{"pods"}) {
+		svc.Drawer != nil || !slices.Equal(PlaceViews(svc.Back), []string{"pods"}) {
 		t.Errorf("the services tab %+v", svc)
 	}
 	if pods := u.Tabs[1]; pods.Title != "Pods - test" {

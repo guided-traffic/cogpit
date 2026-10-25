@@ -145,7 +145,7 @@ func tabsFake(t testing.TB) *fakeEngine {
 	f := connectedFake(t, 200)
 	f.ui.Tabs = []engine.ViewTab{
 		{ID: "tab-1", Context: "demo", View: "services", Title: "Services - demo", Sort: engine.DefaultSort},
-		{ID: "tab-2", Context: "demo", View: "pods", Title: "Pods - demo", Preview: true, Sort: engine.DefaultSort, Back: []string{"deployments"}},
+		{ID: "tab-2", Context: "demo", View: "pods", Title: "Pods - demo", Preview: true, Sort: engine.DefaultSort, Back: []engine.TabPlace{{View: "deployments"}}},
 		{ID: "tab-3", Context: longContext, View: "validatingadmissionpolicybindings.admissionregistration.k8s.io",
 			Title: "Validating Admission Policy Bindings - " + engine.ContextLabel(longContext), Sort: engine.DefaultSort},
 	}

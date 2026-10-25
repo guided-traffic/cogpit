@@ -69,7 +69,7 @@ func TestOpenTabPreviewAndFixed(t *testing.T) {
 	s.NoteViewTitle("deployments", "Deployments")
 	u := s.OpenTab("services", false)
 	wantTabs(t, u, "tab-1 services@test p *")
-	if back := u.Tabs[0].Back; !slices.Equal(back, []string{"pods"}) || u.View != "services" {
+	if back := PlaceViews(u.Tabs[0].Back); !slices.Equal(back, []string{"pods"}) || u.View != "services" {
 		t.Errorf("history %q, view %q", back, u.View)
 	}
 	u = s.OpenTab("services", true) // the double click's second click: the preview becomes fixed
@@ -91,7 +91,7 @@ func TestOpenTabPreviewAndFixed(t *testing.T) {
 	u = s.OpenTab("pods", false)               // the preview tab shows pods: activated with the view afresh
 	wantTabs(t, u, "tab-1 services@test", "tab-2 pods@test p *", "tab-3 deployments@test")
 	if u.Filter != "" || len(u.Tabs[1].Back) != 0 {
-		t.Errorf("reopened in preview: filter %q, history %q", u.Filter, u.Tabs[1].Back)
+		t.Errorf("reopened in preview: filter %q, history %q", u.Filter, PlaceViews(u.Tabs[1].Back))
 	}
 	// A double click on the active fixed tab's view keeps its search; ui.openView opens it afresh.
 	s.SelectTab(context.Background(), "tab-3") //nolint:errcheck
@@ -209,7 +209,7 @@ func TestCycleAndSelectTabs(t *testing.T) {
 }
 
 // A view changed within a tab by any command goes into its history; back and forward walk it,
-// each a view opened afresh.
+// each place as the tab left it.
 func TestTabHistory(t *testing.T) {
 	s := tabSession(t)
 	if err := s.CheckTabHistory(true); err == nil || err.Error() != "no earlier view in this tab" {
@@ -217,7 +217,7 @@ func TestTabHistory(t *testing.T) {
 	}
 	s.UpdateUI(func(u *UIState) { u.View = "services" }) // as ui.navigate changes it
 	s.OpenTab("deployments", false)
-	if back := s.UIState().Tabs[0].Back; !slices.Equal(back, []string{"pods", "services"}) {
+	if back := PlaceViews(s.UIState().Tabs[0].Back); !slices.Equal(back, []string{"pods", "services"}) {
 		t.Fatalf("history %q", back)
 	}
 	s.UpdateUI(func(u *UIState) { u.Filter = "web" })
@@ -227,32 +227,113 @@ func TestTabHistory(t *testing.T) {
 	}
 	u, _ = s.TabHistory(true)
 	tab := u.Tabs[0]
-	if u.View != "pods" || len(tab.Back) != 0 || !slices.Equal(tab.Forward, []string{"deployments", "services"}) {
-		t.Errorf("back twice: view %q, back %q, forward %q", u.View, tab.Back, tab.Forward)
+	if u.View != "pods" || len(tab.Back) != 0 || !slices.Equal(PlaceViews(tab.Forward), []string{"deployments", "services"}) {
+		t.Errorf("back twice: view %q, back %q, forward %q", u.View, PlaceViews(tab.Back), PlaceViews(tab.Forward))
 	}
 	if _, err := s.TabHistory(true); err == nil {
 		t.Error("back past the start")
 	}
 	u, _ = s.TabHistory(false)
-	if u.View != "services" || !slices.Equal(u.Tabs[0].Forward, []string{"deployments"}) {
-		t.Errorf("forward: view %q, forward %q", u.View, u.Tabs[0].Forward)
+	if u.View != "services" || !slices.Equal(PlaceViews(u.Tabs[0].Forward), []string{"deployments"}) {
+		t.Errorf("forward: view %q, forward %q", u.View, PlaceViews(u.Tabs[0].Forward))
 	}
 	s.OpenTab("events", false) // a new view drops what lay ahead
-	if tab := s.UIState().Tabs[0]; len(tab.Forward) != 0 || !slices.Equal(tab.Back, []string{"pods", "services"}) {
-		t.Errorf("after a new view: back %q, forward %q", tab.Back, tab.Forward)
+	if tab := s.UIState().Tabs[0]; len(tab.Forward) != 0 || !slices.Equal(PlaceViews(tab.Back), []string{"pods", "services"}) {
+		t.Errorf("after a new view: back %q, forward %q", PlaceViews(tab.Back), PlaceViews(tab.Forward))
 	}
 	if err := s.CheckTabHistory(false); err == nil {
 		t.Error("forward without a later view")
 	}
 }
 
-func TestTabHistoryIsBounded(t *testing.T) {
-	var h []string
-	for i := range maxTabHistory + 10 {
-		h = pushHistory(h, strconv.Itoa(i))
+// Back brings the place back as the tab left it, and forward the place back left (the owner's
+// finding of 2026-10-25: a pod opened from a Deployment's drawer, back, and the Deployment's drawer
+// was closed): the view's namespace and API group filters, search, status filter and drawer, and
+// the place's name, by which the window scrolls its list back. ui.navigate within the view
+// (MarkStep) is a step too; a drawer changed otherwise (a click on a row) is not.
+func TestTabHistoryBringsThePlaceBack(t *testing.T) {
+	s := tabSession(t)
+	pod := model.ObjectRef{Context: "test", Kind: "pods", Namespace: "shop", Name: "web-0"}
+	svc := model.ObjectRef{Context: "test", Kind: "services", Namespace: "shop", Name: "checkout"}
+	s.UpdateUI(func(u *UIState) {
+		u.Namespaces, u.Filter, u.Drawer = []string{"shop"}, "web", &pod
+		u.SetStates([]string{"Running"})
+	})
+	podsPlace := s.UIState().Tabs[0].Place
+	if podsPlace == 0 {
+		t.Fatal("the tab's view has no place")
 	}
-	if len(h) != maxTabHistory || h[0] != "10" || h[len(h)-1] != strconv.Itoa(maxTabHistory+9) {
-		t.Errorf("history of %d: %q … %q", len(h), h[0], h[len(h)-1])
+	s.UpdateUI(func(u *UIState) { // as ui.navigate to the pod's service
+		u.View, u.Namespaces, u.Filter, u.Drawer = "services", nil, "", &svc
+		u.MarkStep()
+	})
+	svcPlace := s.UIState().Tabs[0].Place
+	if svcPlace == 0 || svcPlace == podsPlace {
+		t.Fatalf("the new view's place %d, the left one's %d", svcPlace, podsPlace)
+	}
+
+	u, err := s.TabHistory(true)
+	if err != nil || u.View != "pods" || !slices.Equal(u.Namespaces, []string{"shop"}) || u.Filter != "web" ||
+		!slices.Equal(u.States, []string{"Running"}) || u.Drawer == nil || *u.Drawer != pod {
+		t.Fatalf("back: %v, view %q namespaces %v filter %q states %v drawer %v", err, u.View, u.Namespaces, u.Filter, u.States, u.Drawer)
+	}
+	tab := u.Tabs[0]
+	if tab.Place != podsPlace || tab.Drawer == nil || *tab.Drawer != pod || tab.Filter != "web" {
+		t.Errorf("back: the tab %+v, want place %d", tab, podsPlace)
+	}
+	if len(tab.Forward) != 1 || tab.Forward[0].Place != svcPlace || tab.Forward[0].Drawer == nil || *tab.Forward[0].Drawer != svc {
+		t.Errorf("back: forward %+v", tab.Forward)
+	}
+
+	u, err = s.TabHistory(false)
+	if err != nil || u.View != "services" || len(u.Namespaces) != 0 || u.Filter != "" || len(u.States) != 0 ||
+		u.Drawer == nil || *u.Drawer != svc || u.Tabs[0].Place != svcPlace {
+		t.Fatalf("forward: %v, view %q namespaces %v filter %q states %v drawer %v place %d", err, u.View, u.Namespaces,
+			u.Filter, u.States, u.Drawer, u.Tabs[0].Place)
+	}
+
+	// Within one view: ui.navigate to another object is a step, a click on a row is not, and
+	// ui.navigate to the object the drawer shows already is none either.
+	other := svc
+	other.Name = "cart"
+	s.UpdateUI(func(u *UIState) { u.Drawer = &other })
+	if n := len(s.UIState().Tabs[0].Back); n != 1 {
+		t.Errorf("a row's drawer: history of %d, want 1", n)
+	}
+	s.UpdateUI(func(u *UIState) { d := svc; u.Drawer = &d; u.MarkStep() })
+	tab = s.UIState().Tabs[0]
+	if len(tab.Back) != 2 || tab.Back[1].View != "services" || tab.Back[1].Drawer == nil || *tab.Back[1].Drawer != other ||
+		tab.Place == svcPlace || tab.Back[1].Place != svcPlace {
+		t.Errorf("a step within the view: back %+v, place %d", tab.Back, tab.Place)
+	}
+	s.UpdateUI(func(u *UIState) { d := svc; u.Drawer = &d; u.MarkStep() })
+	if n := len(s.UIState().Tabs[0].Back); n != 2 {
+		t.Errorf("a step to the object shown: history of %d, want 2", n)
+	}
+	u, _ = s.TabHistory(true)
+	if u.View != "services" || u.Drawer == nil || *u.Drawer != other || u.Tabs[0].Place != svcPlace {
+		t.Errorf("back within the view: view %q drawer %v place %d", u.View, u.Drawer, u.Tabs[0].Place)
+	}
+}
+
+// A history read back from the workspace file holds views alone: back shows the view and gives
+// its place a name.
+func TestTabHistoryFromTheFileGetsAPlace(t *testing.T) {
+	s := tabSession(t)
+	s.UpdateUI(func(u *UIState) { u.Tabs[0].Back = placesOf([]string{"services"}) })
+	u, err := s.TabHistory(true)
+	if err != nil || u.View != "services" || u.Drawer != nil || u.Tabs[0].Place == 0 {
+		t.Errorf("back to a stored view: %v, view %q drawer %v place %d", err, u.View, u.Drawer, u.Tabs[0].Place)
+	}
+}
+
+func TestTabHistoryIsBounded(t *testing.T) {
+	var h []TabPlace
+	for i := range maxTabHistory + 10 {
+		h = pushHistory(h, TabPlace{View: strconv.Itoa(i)})
+	}
+	if len(h) != maxTabHistory || h[0].View != "10" || h[len(h)-1].View != strconv.Itoa(maxTabHistory+9) {
+		t.Errorf("history of %d: %q … %q", len(h), h[0].View, h[len(h)-1].View)
 	}
 }
 
@@ -332,7 +413,7 @@ func TestSelectingAnotherClustersTabChangesNoTab(t *testing.T) {
 	}
 	wantTabs(t, u, "tab-1 pods@test *", "tab-2 pods@prod [prod.yaml] p", "tab-3 services@prod [prod.yaml]")
 	if u.Context != "test" || u.View != "pods" || len(u.Tabs[1].Back) != 0 {
-		t.Errorf("test shown: %q view %q, prod's preview history %q", u.Context, u.View, u.Tabs[1].Back)
+		t.Errorf("test shown: %q view %q, prod's preview history %q", u.Context, u.View, PlaceViews(u.Tabs[1].Back))
 	}
 	u, err = s.SelectTab(ctx, "tab-3")
 	if err != nil {
@@ -422,10 +503,12 @@ func TestTabTitles(t *testing.T) {
 // Cloning the UI state copies the tabs deeply.
 func TestCloneCopiesTabs(t *testing.T) {
 	ref := model.ObjectRef{Kind: "pods", Name: "a"}
-	u := UIState{Tabs: []ViewTab{{ID: "tab-1", Namespaces: []string{"a"}, Back: []string{"pods"}, Drawer: &ref}}}
+	u := UIState{Tabs: []ViewTab{{ID: "tab-1", Namespaces: []string{"a"}, Back: []TabPlace{{View: "pods", Namespaces: []string{"a"}, Drawer: &ref}}, Drawer: &ref}}}
 	c := u.Clone()
-	c.Tabs[0].Namespaces[0], c.Tabs[0].Back[0], c.Tabs[0].Drawer.Name = "b", "services", "b"
-	if u.Tabs[0].Namespaces[0] != "a" || u.Tabs[0].Back[0] != "pods" || u.Tabs[0].Drawer.Name != "a" {
+	c.Tabs[0].Namespaces[0], c.Tabs[0].Back[0].View, c.Tabs[0].Drawer.Name = "b", "services", "b"
+	c.Tabs[0].Back[0].Namespaces[0], c.Tabs[0].Back[0].Drawer.Name = "b", "c"
+	if u.Tabs[0].Namespaces[0] != "a" || u.Tabs[0].Back[0].View != "pods" || u.Tabs[0].Drawer.Name != "a" ||
+		u.Tabs[0].Back[0].Namespaces[0] != "a" || u.Tabs[0].Back[0].Drawer.Name != "a" {
 		t.Errorf("the clone shares the tabs: %+v", u.Tabs[0])
 	}
 	if (UIState{}).Clone().Tabs != nil {

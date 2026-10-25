@@ -114,8 +114,10 @@ func registerTabs(g *registrar) {
 
 	add(g, engine.Spec[struct{}]{
 		ID: "ui.tab.back", Label: "Go Back", MenuPath: "View/Go Back", Shortcut: "Ctrl+-", Danger: engine.DangerUI, Verbs: cacheReads,
-		Description: "Goes back to the view the active tab showed before (its history: views opened in the preview tab, " +
-			"ui_navigate to another kind). The view opens as ui_openView opens one. Returns the new UI state.",
+		Description: "Goes back to the place the active tab showed before (its history: views opened in the preview tab, " +
+			"objects shown with ui_navigate) and brings it back as the tab left it: the view with its namespace and API " +
+			"group filters, search text, status filter and drawer, and the view's selection as the tab last left it. " +
+			"Returns the new UI state.",
 		Enabled: func(s *engine.Session, _ struct{}) error { return s.CheckTabHistory(true) },
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
 			return s.TabHistory(true)
@@ -124,8 +126,9 @@ func registerTabs(g *registrar) {
 
 	add(g, engine.Spec[struct{}]{
 		ID: "ui.tab.forward", Label: "Go Forward", MenuPath: "View/Go Forward", Shortcut: "Ctrl+Shift+-", Danger: engine.DangerUI, Verbs: cacheReads,
-		Description: "Goes forward again in the active tab's history, after ui_tab_back. Returns the new UI state.",
-		Enabled:     func(s *engine.Session, _ struct{}) error { return s.CheckTabHistory(false) },
+		Description: "Goes forward again in the active tab's history, after ui_tab_back, to the place as the tab left it. " +
+			"Returns the new UI state.",
+		Enabled: func(s *engine.Session, _ struct{}) error { return s.CheckTabHistory(false) },
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
 			return s.TabHistory(false)
 		},

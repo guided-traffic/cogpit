@@ -543,8 +543,10 @@ func (sh *shell) applyUIState(st engine.UIState) {
 		sh.side.selectView(st.View)
 		sh.view.viewChanged()
 		sh.refreshTable()
-	} else if st.ActiveTab != old.ActiveTab || st.Context != old.Context {
-		sh.refreshTable() // another tab's list, kept and brought back where it scrolled (tabscroll.go)
+	} else if st.ActiveTab != old.ActiveTab || st.Context != old.Context || activePlace(st) != activePlace(old) {
+		// Another tab's list, or another place of the tab's on the same list (a step within the
+		// view, back to one): kept and brought back where it scrolled (tabscroll.go).
+		sh.refreshTable()
 	}
 	if first || tableStateChanged(st, old) {
 		sh.view.stateChanged()

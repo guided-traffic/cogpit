@@ -190,7 +190,7 @@ func (s *Session) restoreWorkspace(doc workspaceDoc, tabs bool) []goneTabs {
 		clock = max(clock, st.Used)
 		restored = append(restored, ViewTab{ID: "tab-" + strconv.Itoa(len(restored)+1), Context: st.Context, View: st.View,
 			Preview: st.Preview, Namespaces: st.Namespaces, Groups: st.Groups, Filter: st.Filter,
-			FilterOptions: st.FilterOptions, States: st.States, Sort: st.Sort, Back: st.Back, Forward: st.Forward, used: st.Used})
+			FilterOptions: st.FilterOptions, States: st.States, Sort: st.Sort, Back: placesOf(st.Back), Forward: placesOf(st.Forward), used: st.Used})
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

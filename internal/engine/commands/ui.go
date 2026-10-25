@@ -239,7 +239,8 @@ func registerUI(g *registrar) {
 		Description: "Shows one object to the user: opens its kind's view, makes sure the namespace filter, the search " +
 			"text and the status filter do not hide it (resetting them if they do) and opens its detail drawer. It leaves " +
 			"the selection (the checked rows) as it is in the same view; a view it changes to shows its own selection " +
-			"as the tab last left it, as ui_openView does; to check the object too, call ui_select afterwards. Use it after " +
+			"as the tab last left it, as ui_openView does; to check the object too, call ui_select afterwards. The place it " +
+			"leaves (view, filters, drawer) goes into the active tab's history, which ui_tab_back brings back. Use it after " +
 			"resources_find. An object of another connected cluster shows that cluster in the window first, as cluster_connect " +
 			"of a connected context does (no request, nothing connected anew); one of a context that is not connected is an " +
 			"error. Reads only the cache. Returns {view, ref, found}; found is false when the object is not in the cache.",
@@ -298,6 +299,7 @@ func navigate(ctx context.Context, s *engine.Session, p refParams) (any, error) 
 		// change only through ui.select.
 		d := ref
 		u.Drawer = &d
+		u.MarkStep() // back comes back here, another object of the same view too (engine/tabs.go)
 	})
 	st = s.DropGoneSelected(ctx, st) // a view shown again: its selection without the objects gone meanwhile
 	return NavigateResult{View: st.View, Ref: ref, Found: row != nil}, nil

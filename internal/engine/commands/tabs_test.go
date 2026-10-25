@@ -47,8 +47,8 @@ func TestTabCommands(t *testing.T) {
 	h.must(t, gui, "ui.setNamespace", map[string]any{"namespaces": []string{"shop"}}, nil)
 	h.must(t, gui, "ui.openView", map[string]any{"view": "services"}, nil)
 	u := h.tabs(t, "Services - test (preview) *")
-	if u.View != "services" || !slices.Equal(u.Namespaces, []string{"shop"}) || !slices.Equal(u.Tabs[0].Back, []string{"pods"}) {
-		t.Errorf("openView in the preview tab: view %q namespaces %v history %q", u.View, u.Namespaces, u.Tabs[0].Back)
+	if u.View != "services" || !slices.Equal(u.Namespaces, []string{"shop"}) || !slices.Equal(engine.PlaceViews(u.Tabs[0].Back), []string{"pods"}) {
+		t.Errorf("openView in the preview tab: view %q namespaces %v history %q", u.View, u.Namespaces, engine.PlaceViews(u.Tabs[0].Back))
 	}
 	h.must(t, agent, "ui.tab.open", map[string]any{"view": "deployments", "fixed": true}, nil)
 	h.tabs(t, "Services - test (preview)", "Deployments - test *")
@@ -122,6 +122,41 @@ func TestTabCommands(t *testing.T) {
 	}
 }
 
+// ui.tab.back after a link in a drawer comes back to the drawer the link was in, its view's
+// namespace filter and search as they were (the owner's finding of 2026-10-25: a Deployment's pod
+// opened from its drawer, back, and the Deployment's drawer was closed); ui.tab.forward goes to the
+// link's object again. A link to another object of the same view is a step too.
+func TestBackComesBackToTheDrawer(t *testing.T) {
+	h := newHarness(t, seed(), engine.Options{})
+	gui := engine.OriginGUI
+	deployment := map[string]any{"kind": "deployments", "namespace": "shop", "name": "web"}
+	h.must(t, gui, "ui.navigate", map[string]any{"ref": deployment}, nil)
+	h.must(t, gui, "ui.setNamespace", map[string]any{"namespaces": []string{"shop"}}, nil)
+	h.must(t, gui, "ui.setFilter", map[string]any{"filter": "shop"}, nil)
+	h.must(t, gui, "ui.navigate", map[string]any{"ref": map[string]any{"kind": "pods", "namespace": "infra", "name": "web-0"}}, nil)
+	h.must(t, gui, "ui.navigate", map[string]any{"ref": map[string]any{"kind": "pods", "namespace": "infra", "name": "web-1"}}, nil)
+
+	drawer := func(u engine.UIState) string {
+		if u.Drawer == nil {
+			return u.View + " -"
+		}
+		return u.View + " " + u.Drawer.Namespace + "/" + u.Drawer.Name
+	}
+	var u engine.UIState
+	h.must(t, gui, "ui.tab.back", nil, &u)
+	if got := drawer(u); got != "pods infra/web-0" {
+		t.Errorf("back once: %s", got)
+	}
+	h.must(t, gui, "ui.tab.back", nil, &u)
+	if got := drawer(u); got != "deployments shop/web" || !slices.Equal(u.Namespaces, []string{"shop"}) || u.Filter != "shop" {
+		t.Errorf("back to the deployment: %s, namespaces %v, search %q", got, u.Namespaces, u.Filter)
+	}
+	h.must(t, gui, "ui.tab.forward", nil, &u)
+	if got := drawer(u); got != "pods infra/web-0" || len(u.Namespaces) != 0 || u.Filter != "" {
+		t.Errorf("forward: %s, namespaces %v, search %q", got, u.Namespaces, u.Filter)
+	}
+}
+
 // ui.navigate changes the active tab's view, which goes into its history; selecting a tab of
 // another cluster connects to it.
 func TestTabsFollowNavigateAndConnect(t *testing.T) {
@@ -131,7 +166,7 @@ func TestTabsFollowNavigateAndConnect(t *testing.T) {
 	h.tabs(t, "Pods - test *")
 	h.must(t, gui, "ui.navigate", map[string]any{"ref": map[string]any{"kind": "services", "namespace": "shop", "name": "checkout"}}, nil)
 	u := h.tabs(t, "Services - test *")
-	if !slices.Equal(u.Tabs[0].Back, []string{"pods"}) || u.Tabs[0].Drawer == nil || u.Tabs[0].Drawer.Name != "checkout" {
+	if !slices.Equal(engine.PlaceViews(u.Tabs[0].Back), []string{"pods"}) || u.Tabs[0].Drawer == nil || u.Tabs[0].Drawer.Name != "checkout" {
 		t.Errorf("navigate in a tab: %+v", u.Tabs[0])
 	}
 	h.must(t, gui, "cluster.connect", map[string]any{"context": "other"}, nil)

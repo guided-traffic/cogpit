@@ -47,12 +47,12 @@ func TestTitleHistoryArrows(t *testing.T) {
 
 	// The engine went back: the tab now has a view after it and none before.
 	f.update(func(u *engine.UIState) {
-		u.Tabs[1].View, u.Tabs[1].Back, u.Tabs[1].Forward, u.View = "deployments", nil, []string{"pods"}, "deployments"
+		u.Tabs[1].View, u.Tabs[1].Back, u.Tabs[1].Forward, u.View = "deployments", nil, []engine.TabPlace{{View: "pods"}}, "deployments"
 	})
 	q.until(t, "forward only", func() bool { return h.back.Disabled() && !h.forward.Disabled() })
 	f.update(func(u *engine.UIState) { u.ActiveTab = "tab-1" }) // Services: no history
 	q.until(t, "no history", func() bool { return h.back.Disabled() && h.forward.Disabled() })
-	f.update(func(u *engine.UIState) { u.ActiveTab, u.Tabs[2].Back = "tab-3", []string{"pods"} }) // another cluster's tab
+	f.update(func(u *engine.UIState) { u.ActiveTab, u.Tabs[2].Back = "tab-3", []engine.TabPlace{{View: "pods"}} }) // another cluster's tab
 	q.until(t, "the other cluster's tab", func() bool { return sh.ui.ActiveTab == "tab-3" })
 	if !h.back.Disabled() {
 		t.Error("Back is enabled on a tab of a cluster that is not connected")

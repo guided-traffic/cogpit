@@ -123,16 +123,18 @@ type findBar struct {
 	cur     int    // index into matches of the selected one; -1 when none is
 	text    string // the text matches was computed from
 
-	// permanent is the drawer's read-only YAML's bar (the owner's request of 2026-10-25): always
-	// shown, no replace row and no ×; Escape in its field clears it and gives the YAML the keys.
+	// permanent is the bar over the drawer's YAML and a release's values (the owner's requests of
+	// 2026-10-25): always shown, no replace row and no ×; Escape in its field clears it and gives
+	// the editor the keys.
 	permanent bool
 }
 
 func newFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, false) }
 
-// newViewerFindBar is a read-only viewer's find bar, shown over it for good: the drawer's YAML (the
-// owner, 2026-10-25: "Da dieser Part read-only ist, kann oben über dem YAML permanent ein Suchfeld
-// angezeigt werden. Mit cmd+f wird das Feld dann aktiv.").
+// newViewerFindBar is a find bar shown over its editor for good, without a replace row: the
+// drawer's read-only YAML (the owner, 2026-10-25: "Da dieser Part read-only ist, kann oben über dem
+// YAML permanent ein Suchfeld angezeigt werden. Mit cmd+f wird das Feld dann aktiv.") and, since the
+// same day, a release's values in its drawer (helmdrawer.go).
 func newViewerFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, true) }
 
 func buildFindBar(sh *shell, view *yamlview.View, permanent bool) *findBar {

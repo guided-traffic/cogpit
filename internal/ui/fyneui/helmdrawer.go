@@ -23,6 +23,14 @@ import (
 // revision it read (inferred from Lens: its Save upgrades the release). Unchecked, the editor shows
 // every value, the chart's defaults merged in, and Save makes all of them user-supplied values,
 // which the status line says once the text is edited; checked, it shows the user-supplied ones.
+//
+// Over the editor, for good, the find bar the drawer's YAML has (D-127; the owner's finding of
+// 2026-10-25, "Es gibt keine Suche in Helm-Release Values"): the field, Aa, ab, .*, the count and
+// the chevrons; ⌘F in the editor puts the keys in its field. The lead's details (D-74, open to
+// revision): shown for good as over a drawer's YAML, though the values are editable, so that the
+// search is seen without knowing ⌘F (he looked for one and saw none); no replace row, which the
+// Helm Upgrade tab's bar has for a rewrite of the values; ⌘F from the list or with the keys
+// nowhere stays the list's search, as the editor may lie below the drawer's fold.
 
 func init() {
 	drawerSections[helm.ReleaseKind+"\x00"+helm.TitleValues] = releaseValuesSection
@@ -71,6 +79,7 @@ type releaseValues struct {
 	sh       *shell
 	ref      model.ObjectRef
 	view     *yamlview.View
+	find     *findBar // over the editor for good (newViewerFindBar)
 	userOnly *widget.Check
 	save     *textButton
 	status   *textLine
@@ -114,8 +123,9 @@ func newReleaseValues(sh *shell, ref model.ObjectRef) *releaseValues {
 	rv.save.Disable()
 	rv.status = newTextLine("Loading…", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	rv.status.truncate = true
+	rv.find = newViewerFindBar(sh, rv.view)
 	editor := box(linesHeight{lines: valuesEditorLines}, container.NewStack(newSurface(theme.ColorNameInputBackground), rv.view))
-	rv.root = container.NewVBox(rv.userOnly, editor, rv.save, rv.status)
+	rv.root = container.NewVBox(rv.userOnly, rv.find.root, editor, rv.save, rv.status)
 	return rv
 }
 
@@ -123,6 +133,7 @@ func newReleaseValues(sh *shell, ref model.ObjectRef) *releaseValues {
 func (rv *releaseValues) dirty() bool { return rv.view.Text() != rv.loaded }
 
 func (rv *releaseValues) changed() {
+	rv.find.textChanged()
 	switch {
 	case rv.dirty() && rv.all:
 		rv.setStatus(fmt.Sprintf("Edited, based on revision %d: Save upgrades the release and makes every value in the editor a user-supplied value.", rv.revision), colorStatusWarning)
@@ -152,6 +163,7 @@ func (rv *releaseValues) load() {
 		}
 		rv.loaded, rv.revision = v.YAML, v.Revision
 		rv.view.SetText(v.YAML)
+		rv.find.textChanged()
 		rv.save.Enable()
 		rv.showLoaded()
 	})

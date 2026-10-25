@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // A list that gets shorter while it is scrolled down (the owner's finding of 2026-10-22 on
@@ -203,21 +205,92 @@ func scrollConfigMaps() []*unstructured.Unstructured {
 // them, and runs a frame's pass after each.
 func showTab(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, tab, view, contextID string, snaps ...*engine.TableSnapshot) {
 	t.Helper()
-	f.update(func(u *engine.UIState) { // as the engine's syncTabs: the active tab shows the view
+	// As the engine's syncTabs: the active tab shows the view; a view it opens anew is a new place,
+	// the one it left goes into its history.
+	f.update(func(u *engine.UIState) {
 		u.ActiveTab, u.View, u.Context = tab, view, contextID
 		for i := range u.Tabs {
-			if u.Tabs[i].ID == tab {
-				u.Tabs[i].Context, u.Tabs[i].View = contextID, view
+			if tt := &u.Tabs[i]; tt.ID == tab {
+				if tt.View != view && tt.Place != 0 {
+					tt.Back, tt.Forward = append(tt.Back, engine.TabPlace{View: tt.View, Drawer: tt.Drawer, Place: tt.Place}), nil
+				}
+				if tt.View != view || tt.Place == 0 {
+					tt.Place = nextPlace()
+				}
+				tt.Context, tt.View, tt.Drawer = contextID, view, nil
 			}
 		}
+		u.Drawer = nil
 	})
 	q.until(t, tab+" active", func() bool { return sh.ui.ActiveTab == tab && sh.ui.View == view })
 	p.run(sh.win)
+	showSnapshots(t, f, sh, q, p, view, snaps...)
+}
+
+// showSnapshots sends a view's snapshots one after the other, a frame's pass after each.
+func showSnapshots(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, view string, snaps ...*engine.TableSnapshot) {
+	t.Helper()
 	for i, snap := range snaps {
 		f.setTable(view, snap)
-		q.until(t, fmt.Sprintf("snapshot %d of %s", i, tab), func() bool { return sh.view.snap == snap })
+		q.until(t, fmt.Sprintf("snapshot %d of %s", i, view), func() bool { return sh.view.snap == snap })
 		p.run(sh.win)
 	}
+}
+
+// places counts the places the tests' engines named.
+var places atomic.Uint64
+
+// nextPlace names a new place, as the engine does: never one named before.
+func nextPlace() uint64 { return places.Add(1) }
+
+// openDrawer opens the drawer on a row of the active tab's view; with step set as ui.navigate does
+// (a step of the tab's history, a new place on the same list), else as a click on the row does.
+func openDrawer(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, row int, step bool) model.ObjectRef {
+	t.Helper()
+	ref := sh.view.snap.Rows[row].Ref
+	f.update(func(u *engine.UIState) {
+		for i := range u.Tabs {
+			if tt := &u.Tabs[i]; tt.ID == u.ActiveTab {
+				if step {
+					tt.Back, tt.Forward = append(tt.Back, engine.TabPlace{View: tt.View, Drawer: tt.Drawer, Place: tt.Place}), nil
+					tt.Place = nextPlace()
+				}
+				d := ref
+				tt.Drawer = &d
+			}
+		}
+		d := ref
+		u.Drawer = &d
+	})
+	q.until(t, "the drawer on "+ref.Name, func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == ref })
+	p.run(sh.win)
+	return ref
+}
+
+// stepHistory goes back (or forward) in the active tab's history as the engine's ui.tab.back
+// does: the place comes back with its view and drawer, the one left goes the other way.
+func stepHistory(t *testing.T, f *fakeEngine, sh *shell, q *mainQueue, p *glPass, back bool) {
+	t.Helper()
+	var want uint64
+	f.update(func(u *engine.UIState) {
+		for i := range u.Tabs {
+			tt := &u.Tabs[i]
+			if tt.ID != u.ActiveTab {
+				continue
+			}
+			from, to := &tt.Forward, &tt.Back
+			if back {
+				from, to = &tt.Back, &tt.Forward
+			}
+			pl := (*from)[len(*from)-1]
+			*from = (*from)[:len(*from)-1]
+			*to = append(*to, engine.TabPlace{View: tt.View, Drawer: tt.Drawer, Place: tt.Place})
+			tt.View, tt.Drawer, tt.Place = pl.View, pl.Drawer, pl.Place
+			u.View, u.Drawer, want = pl.View, pl.Drawer, pl.Place
+		}
+	})
+	q.until(t, "the place again", func() bool { return activePlace(sh.ui) == want })
+	p.run(sh.win)
 }
 
 // twoTabs is a shell with the 400 pods of demo in tab-1 and a tab of another cluster's pods.
@@ -374,5 +447,81 @@ func TestATabsViewOpenedAgainStartsAtTheTop(t *testing.T) {
 				t.Errorf("tab-1 shown again at %v, want %v where it was left", got, kept)
 			}
 		})
+	}
+}
+
+// Back and forward bring a place of the tab's history back where its list was scrolled, with its
+// drawer, whose row is not scrolled to (the owner's finding of 2026-10-25: "beim zurück navigieren
+// möchte ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden").
+
+// TestBackBringsTheListBackWhereItWasLeft: Pods with a pod's drawer, scrolled away from its row,
+// then Config Maps in the same tab, scrolled; back shows Pods where they were left and the pod's
+// drawer, forward Config Maps where they were left.
+func TestBackBringsTheListBackWhereItWasLeft(t *testing.T) {
+	f, sh, q, p, all, _ := twoTabs(t)
+	pod := openDrawer(t, f, sh, q, p, 10, false)
+	sh.view.scrollTo(250)
+	p.run(sh.win)
+	left := sh.view.table.body.Offset
+	if left.Y == 0 || drawnRows(sh)[10] {
+		t.Fatalf("Pods at %v with row 10 drawn %v: want scrolled away from it", left, drawnRows(sh)[10])
+	}
+
+	cms := kindSnapshot(t, "configmaps", scrollConfigMaps())
+	showTab(t, f, sh, q, p, "tab-1", "configmaps", "demo", cms)
+	wantTop(t, sh)
+	sh.view.scrollTo(120)
+	p.run(sh.win)
+	cmsLeft := sh.view.table.body.Offset
+
+	stepHistory(t, f, sh, q, p, true)
+	showSnapshots(t, f, sh, q, p, "pods", all)
+	if got := sh.view.table.body.Offset; got != left {
+		t.Errorf("back: Pods at %v, want %v where they were left", got, left)
+	}
+	if sh.ui.Drawer == nil || *sh.ui.Drawer != pod {
+		t.Errorf("back: drawer %v, want %v", sh.ui.Drawer, pod)
+	}
+
+	stepHistory(t, f, sh, q, p, false)
+	showSnapshots(t, f, sh, q, p, "configmaps", cms)
+	if got := sh.view.table.body.Offset; got != cmsLeft {
+		t.Errorf("forward: Config Maps at %v, want %v where they were left", got, cmsLeft)
+	}
+
+	// A view opened anew after back is a new place: it starts at its top, and what lay ahead is
+	// forgotten.
+	stepHistory(t, f, sh, q, p, true)
+	showSnapshots(t, f, sh, q, p, "pods", all)
+	showTab(t, f, sh, q, p, "tab-1", "configmaps", "demo", cms)
+	wantTop(t, sh)
+}
+
+// TestBackWithinTheViewBringsTheListBack: a link to another object of the view the tab shows
+// (ui.navigate, a step) scrolls to its row; back brings the list back where it was and the drawer
+// before, forward the link's place where it was left.
+func TestBackWithinTheViewBringsTheListBack(t *testing.T) {
+	f, sh, q, p, _, _ := twoTabs(t)
+	sh.view.scrollTo(200)
+	p.run(sh.win)
+	first := openDrawer(t, f, sh, q, p, 200, false)
+	left := sh.view.table.body.Offset
+
+	openDrawer(t, f, sh, q, p, 390, true)
+	if !drawnRows(sh)[390] {
+		t.Fatalf("the link's row 390 not drawn: %v", drawnRows(sh))
+	}
+	stepLeft := sh.view.table.body.Offset
+
+	stepHistory(t, f, sh, q, p, true)
+	if got := sh.view.table.body.Offset; got != left {
+		t.Errorf("back: at %v, want %v where the list was", got, left)
+	}
+	if sh.ui.Drawer == nil || *sh.ui.Drawer != first {
+		t.Errorf("back: drawer %v, want %v", sh.ui.Drawer, first)
+	}
+	stepHistory(t, f, sh, q, p, false)
+	if got := sh.view.table.body.Offset; got != stepLeft {
+		t.Errorf("forward: at %v, want %v where the link's place was left", got, stepLeft)
 	}
 }

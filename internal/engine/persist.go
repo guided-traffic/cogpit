@@ -29,7 +29,8 @@ import (
 // view's title, whether it is its cluster's preview tab, its place in the bar, when it was last shown (a
 // rank, so that a cluster connected from the navigator shows its most recently used tab), its
 // namespace and API group filters, its search text with the search's toggles, its status filter
-// (2026-10-14), its sort and its history (view keys); which tab was shown last; and the hidden
+// (2026-10-14), its sort and its history (the places' view keys alone: a place's filters and
+// drawer are the session's, 2026-10-25); which tab was shown last; and the hidden
 // columns and the column order per view key, the same for every cluster, as UIState keeps them;
 // since 2026-10-14 the navigator's collapsed source groups (A63); since 2026-10-15 whether the
 // navigator is hidden and the chat column shown (F7). Never a selection or the drawer's object (they name objects that may be gone at the next start),
@@ -172,7 +173,7 @@ func workspaceDocOf(u *UIState, viewTitle func(string) string) workspaceDoc {
 	for i, t := range u.Tabs {
 		doc.Tabs[i] = storedTab{Context: t.Context, View: t.View, Preview: t.Preview,
 			Namespaces: t.Namespaces, Groups: t.Groups, Filter: t.Filter, FilterOptions: t.FilterOptions,
-			States: t.States, Sort: t.Sort, Back: t.Back, Forward: t.Forward, Used: ranks[i]}
+			States: t.States, Sort: t.Sort, Back: PlaceViews(t.Back), Forward: PlaceViews(t.Forward), Used: ranks[i]}
 		if t.View != "" && viewTitle != nil {
 			doc.Tabs[i].ViewTitle = viewTitle(t.View)
 		}

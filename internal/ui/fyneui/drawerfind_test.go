@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -62,5 +63,52 @@ func TestDrawerYAMLFind(t *testing.T) {
 	}
 	if d.yaml.OnEscape() {
 		t.Error("the YAML's Escape was kept: the window's must close the drawer")
+	}
+}
+
+// TestReleaseValuesFind (the owner's finding of 2026-10-25, "Es gibt keine Suche in Helm-Release
+// Values"): the release drawer's values editor has the drawer's find bar over it for good, without
+// a replace row; ⌘F in the editor puts the keys in its field, a search counts and selects the
+// matches and follows the text as it is typed; ⌘F from the list stays the list's search.
+func TestReleaseValuesFind(t *testing.T) {
+	sh, w, _, _, _ := releaseDrawerShell(t, ThemeDark)
+	rv := sh.drawer.kept[releaseValuesKey].(*releaseValues)
+	if rv.find == nil || rv.find.replace != nil || !rv.find.root.Visible() {
+		t.Fatalf("the values' bar: %+v", rv.find)
+	}
+	settle(w)
+	at := fyne.CurrentApp().Driver().AbsolutePositionForObject
+	if at(rv.find.root).Y >= at(rv.view).Y {
+		t.Errorf("the bar at %v, the editor at %v: want it over the editor", at(rv.find.root), at(rv.view))
+	}
+
+	w.Canvas().Focus(sh.view.table)
+	cmdF(t, sh)
+	if w.Canvas().Focused() == rv.find.find {
+		t.Error("⌘F from the list went to the values' field")
+	}
+	w.Canvas().Focus(rv.view)
+	cmdF(t, sh)
+	if w.Canvas().Focused() != rv.find.find {
+		t.Fatalf("⌘F in the values: the keys are in %T", w.Canvas().Focused())
+	}
+
+	test.Type(rv.find.find, "image")
+	want := strings.Count(strings.ToLower(rv.view.Text()), "image")
+	if want == 0 {
+		t.Fatal("the values name no image")
+	}
+	if got := rv.find.count.text; !strings.HasSuffix(got, " of "+strconv.Itoa(want)) || len(rv.find.matches) != want {
+		t.Errorf("count %q, %d matches, want %d", got, len(rv.find.matches), want)
+	}
+	if sel := rv.view.SelectedText(); !strings.EqualFold(sel, "image") {
+		t.Errorf("selected %q", sel)
+	}
+
+	lines := strings.Count(rv.view.Text(), "\n")
+	rv.view.SetCursorPosition(lines+1, 0)
+	test.Type(rv.view, "\nextra-image: two") // typed into the values
+	if got := len(rv.find.matches); got != want+1 || rv.find.count.text != strconv.Itoa(want+1)+" found" {
+		t.Errorf("after typing: %d matches, count %q, want %d", got, rv.find.count.text, want+1)
 	}
 }

@@ -37,17 +37,21 @@ import (
 //     again; the shown cluster's active tab stays active until the other cluster shows (D-117);
 //     while a connect runs no tab is active; a cluster shown from the navigator or the hotbar shows
 //     its most recently used tab, else its default view in its preview tab;
-//   - a tab's history holds view keys, at most maxTabHistory each way; back and forward open the
-//     view as ui.openView does (drawer and search cleared, the namespace filter kept, the view's
-//     selection as the tab last left it);
+//   - a tab's history holds places, at most maxTabHistory each way: a view as the tab left it, with
+//     its namespace and API group filters, search, status filter and drawer (TabPlace); back and
+//     forward bring the place back as it was left, the view's selection as the tab last left it and
+//     its list where it was scrolled (the window's, tabscroll.go). A place goes into the history
+//     when the tab opens another view, and when ui.navigate shows another object in the view it
+//     shows (MarkStep: a link followed is a step back undoes);
 //   - ⌘9 is the last tab, as browsers have it; next and previous wrap around;
 //   - the tabs of a cluster removed from Cogpit (cluster.remove, kubeconfig.remove) close with it
 //     (Session.RemoveKubeconfigSource, contextlink.go).
 //
 // The engine keeps the tabs in step with the rest of the UI state in one place, UIState.syncTabs,
-// which UpdateUI runs after every change: the active tab's fields follow the live ones, a view
-// changed by any command (ui.navigate, a link) goes into the active tab's history, and a connect
-// shows the cluster's tab. The tab commands (commands/tabs.go) call the Session methods below.
+// which UpdateUI runs after every change: the active tab's fields follow the live ones, the place a
+// view changed by any command (ui.navigate, a link) left goes into the active tab's history, and a
+// connect shows the cluster's tab. The tab commands (commands/tabs.go) call the Session methods
+// below.
 
 // ViewTab is one tab of the tab bar: a view of one cluster with its own state.
 type ViewTab struct {
@@ -74,15 +78,89 @@ type ViewTab struct {
 	FilterOptions FilterOptions `json:"filterOptions,omitzero"`
 	// States is the tab's status filter (statusfilter.go); it ends when its view changes.
 	States []string `json:"states,omitempty"`
-	// Back and Forward are the tab's history: the views before and after the one it shows, the
+	// Back and Forward are the tab's history: the places before and after the one it shows, the
 	// nearest last (ui.tab.back, ui.tab.forward).
-	Back    []string `json:"back,omitempty"`
-	Forward []string `json:"forward,omitempty"`
+	Back    []TabPlace `json:"back,omitempty"`
+	Forward []TabPlace `json:"forward,omitempty"`
+	// Place names the place the tab shows: a new one for each view it opens and each step
+	// (MarkStep), the history's own when back or forward brings one back; 0 until the tab has a
+	// view. The window keeps where each place's list was scrolled by it (tabscroll.go).
+	Place uint64 `json:"-"`
 
 	used uint64 // when the tab was last activated (UIState.tabClock)
 	// selections are the selections of the other views the tab showed, by cluster and view
 	// (selectionmemory.go); ui.state does not list them. Their slices are never changed in place.
 	selections map[viewOf][]model.ObjectRef
+}
+
+// TabPlace is a place in a tab's history: a view as the tab left it, with its filters and its
+// drawer, which back and forward bring back (the owner's finding of 2026-10-25: "beim zurück
+// navigieren möchte ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden.
+// Zurück navigieren heißt eben zurück auf den vorherigen Punkt."). The view's selection comes back
+// from the tab's memory of it (selectionmemory.go), the search's toggles and the sort stay the
+// tab's and the view's, and where its list was scrolled is the window's, by Place (tabscroll.go).
+type TabPlace struct {
+	View       string           `json:"view"`
+	Namespaces []string         `json:"namespaces,omitempty"`
+	Groups     []string         `json:"groups,omitempty"`
+	Filter     string           `json:"filter,omitempty"`
+	States     []string         `json:"states,omitempty"`
+	Drawer     *model.ObjectRef `json:"drawer,omitempty"`
+	// Place names the place for the window (ViewTab.Place); 0 for a place restored from the
+	// workspace file, which keeps the views alone: it gets a new one when it is shown.
+	Place uint64 `json:"-"`
+}
+
+func (p TabPlace) clone() TabPlace {
+	p.Namespaces = slices.Clone(p.Namespaces)
+	p.Groups = slices.Clone(p.Groups)
+	p.States = slices.Clone(p.States)
+	if p.Drawer != nil {
+		d := *p.Drawer
+		p.Drawer = &d
+	}
+	return p
+}
+
+func clonePlaces(h []TabPlace) []TabPlace {
+	if h == nil {
+		return nil
+	}
+	out := make([]TabPlace, len(h))
+	for i, p := range h {
+		out[i] = p.clone()
+	}
+	return out
+}
+
+// PlaceViews lists the views of a history's places.
+func PlaceViews(h []TabPlace) []string {
+	if h == nil {
+		return nil
+	}
+	out := make([]string, len(h))
+	for i, p := range h {
+		out[i] = p.View
+	}
+	return out
+}
+
+// placesOf makes a history of views alone, as the workspace file keeps it.
+func placesOf(views []string) []TabPlace {
+	if views == nil {
+		return nil
+	}
+	out := make([]TabPlace, len(views))
+	for i, v := range views {
+		out[i] = TabPlace{View: v}
+	}
+	return out
+}
+
+// here is the place the tab shows, as its history keeps it.
+func (t *ViewTab) here() TabPlace {
+	return TabPlace{View: t.View, Namespaces: t.Namespaces, Groups: t.Groups, Filter: t.Filter, States: t.States,
+		Drawer: t.Drawer, Place: t.Place}.clone()
 }
 
 // maxTabHistory bounds a tab's history each way (inferred: Lens's bound is not documented).
@@ -107,8 +185,8 @@ func (t ViewTab) clone() ViewTab {
 		d := *t.Drawer
 		out.Drawer = &d
 	}
-	out.Back = slices.Clone(t.Back)
-	out.Forward = slices.Clone(t.Forward)
+	out.Back = clonePlaces(t.Back)
+	out.Forward = clonePlaces(t.Forward)
 	out.selections = maps.Clone(t.selections) // the slices are shared: nothing changes them in place
 	return out
 }
@@ -236,10 +314,10 @@ func (u *UIState) saveTab(i int) {
 	}
 }
 
-// pushHistory appends a view to one direction of a tab's history, dropping the oldest beyond
+// pushHistory appends a place to one direction of a tab's history, dropping the oldest beyond
 // maxTabHistory.
-func pushHistory(h []string, view string) []string {
-	h = append(h, view)
+func pushHistory(h []TabPlace, p TabPlace) []TabPlace {
+	h = append(h, p)
 	if len(h) > maxTabHistory {
 		h = slices.Delete(h, 0, len(h)-maxTabHistory)
 	}
@@ -257,7 +335,8 @@ func (u *UIState) showInPreview(view string) {
 	}
 	t := &u.Tabs[p]
 	if t.View != "" && t.View != view {
-		t.Back, t.Forward = pushHistory(t.Back, t.View), nil
+		t.Back, t.Forward = pushHistory(t.Back, t.here()), nil
+		t.Place = 0 // a new place, named by syncTabs
 	}
 	t.switchSelection(u.Context, view)
 	t.View = view
@@ -275,11 +354,15 @@ func (u *UIState) showInPreview(view string) {
 //   - A view opened while no tab is active goes to the cluster's preview tab; a view that only
 //     stayed while no tab was active does not (D-117: a tab switch never changes another tab).
 //   - A view changed within the active tab by a command that knows nothing of tabs (ui.navigate)
-//     goes into the tab's history.
+//     puts the place it left into the tab's history, and so does a step (MarkStep) that shows
+//     another object in the drawer.
 //   - Either way the view's selection is the tab's for it, as the tab last left it
 //     (selectionmemory.go): a command that changes the view leaves the selection to the tab.
 //   - While the active tab's cluster is connected, the tab's state follows the live state.
+//   - A tab with a view and no place yet gets a new one (ViewTab.Place).
 func (u *UIState) syncTabs(old UIState, viewTitle func(string) string) {
+	step := u.step
+	u.step = false
 	if i := u.activeIndex(); u.ActiveTab != "" && (i < 0 || u.Tabs[i].Context != u.Context) {
 		u.ActiveTab = ""
 	}
@@ -299,11 +382,12 @@ func (u *UIState) syncTabs(old UIState, viewTitle func(string) string) {
 		case i < 0 && u.View != "" && (becameConnected || u.View != old.View):
 			u.showInPreview(u.View)
 			u.Selected = slices.Clone(u.Tabs[u.activeIndex()].Selected)
-		case i >= 0 && u.View != "" && u.Tabs[i].View != "" && u.View != u.Tabs[i].View:
+		case i >= 0 && u.View != "" && u.Tabs[i].View != "" &&
+			(u.View != u.Tabs[i].View || step && !sameRef(u.Drawer, u.Tabs[i].Drawer)):
 			t := &u.Tabs[i]
-			t.Back, t.Forward = pushHistory(t.Back, t.View), nil
-			t.switchSelection(u.Context, u.View)
-			t.View = u.View
+			t.Back, t.Forward = pushHistory(t.Back, t.here()), nil
+			t.switchSelection(u.Context, u.View) // nothing for a step within the view
+			t.View, t.Place = u.View, 0
 			u.Selected = slices.Clone(t.Selected)
 		}
 		if i := u.activeIndex(); i >= 0 {
@@ -311,8 +395,23 @@ func (u *UIState) syncTabs(old UIState, viewTitle func(string) string) {
 		}
 	}
 	for k := range u.Tabs {
-		u.Tabs[k].Title = tabTitle(viewTitle, u.Tabs[k], u.ClusterSettings)
+		t := &u.Tabs[k]
+		if t.Place == 0 && t.View != "" {
+			u.placeSeq++
+			t.Place = u.placeSeq
+		}
+		t.Title = tabTitle(viewTitle, *t, u.ClusterSettings)
 	}
+}
+
+// MarkStep makes the change being made a step of the active tab's history although its view may
+// stay: ui.navigate, a link followed. Showing another object in the drawer of the view the tab
+// shows then puts the place before into the history as a view changed does (syncTabs).
+func (u *UIState) MarkStep() { u.step = true }
+
+// sameRef reports whether two drawers show the same object, or both none.
+func sameRef(a, b *model.ObjectRef) bool {
+	return a == b || a != nil && b != nil && *a == *b
 }
 
 // openTab opens a view of the connected cluster: in its preview tab, or in a new fixed tab when
@@ -403,45 +502,51 @@ func (u *UIState) pinTab(id string) error {
 	return nil
 }
 
-// historyTarget returns the view back (or forward) in the active tab's history, or why there is none.
-func (u *UIState) historyTarget(back bool) (string, error) {
+// historyTarget returns the place back (or forward) in the active tab's history, or why there is
+// none.
+func (u *UIState) historyTarget(back bool) (TabPlace, error) {
 	i := u.activeIndex()
 	if i < 0 {
-		return "", ErrNoTab
+		return TabPlace{}, ErrNoTab
 	}
 	if !u.connected() || u.Tabs[i].Context != u.Context {
-		return "", errors.New("the tab's cluster is not connected")
+		return TabPlace{}, errors.New("the tab's cluster is not connected")
 	}
 	h, what := u.Tabs[i].Forward, "no later view in this tab"
 	if back {
 		h, what = u.Tabs[i].Back, "no earlier view in this tab"
 	}
 	if len(h) == 0 {
-		return "", errors.New(what)
+		return TabPlace{}, errors.New(what)
 	}
-	return h[len(h)-1], nil
+	return h[len(h)-1].clone(), nil
 }
 
-// stepHistory goes back (or forward) in the active tab's history to view, which historyTarget
-// named; the view opens as ui.openView opens one.
-func (u *UIState) stepHistory(back bool, view string, sort SortSpec) error {
+// stepHistory goes back (or forward) in the active tab's history to the place historyTarget named,
+// and brings it back as the tab left it: the view with its filters and drawer, the view's
+// selection as the tab last left it; the place the tab showed goes the other way.
+func (u *UIState) stepHistory(back bool, to TabPlace, sort SortSpec) error {
 	if target, err := u.historyTarget(back); err != nil {
 		return err
-	} else if target != view {
+	} else if target.View != to.View || target.Place != to.Place {
 		return errTabsChanged
 	}
 	t := &u.Tabs[u.activeIndex()]
 	if back {
 		t.Back = t.Back[:len(t.Back)-1]
-		t.Forward = pushHistory(t.Forward, t.View)
+		t.Forward = pushHistory(t.Forward, t.here())
 	} else {
 		t.Forward = t.Forward[:len(t.Forward)-1]
-		t.Back = pushHistory(t.Back, t.View)
+		t.Back = pushHistory(t.Back, t.here())
 	}
-	t.switchSelection(t.Context, view)
-	t.View = view // the history moved already: syncTabs must not add to it
-	u.View, u.Sort, u.Filter = view, sort, ""
-	u.Selected, u.Drawer = slices.Clone(t.Selected), nil
+	t.switchSelection(t.Context, to.View)
+	// The history moved already: syncTabs must not add to it. A place from the workspace file has
+	// none yet, and gets a new one there.
+	t.View, t.Place = to.View, to.Place
+	u.View, u.Sort, u.Filter = to.View, sort, to.Filter
+	u.Namespaces, u.Groups = to.Namespaces, to.Groups
+	u.SetStates(to.States)
+	u.Selected, u.Drawer = slices.Clone(t.Selected), to.Drawer
 	return nil
 }
 
@@ -619,13 +724,13 @@ func (s *Session) CheckTabHistory(back bool) error {
 // TabHistory goes back (or forward) in the active tab's history.
 func (s *Session) TabHistory(back bool) (UIState, error) {
 	u := s.UIState()
-	view, err := u.historyTarget(back)
+	to, err := u.historyTarget(back)
 	if err != nil {
 		return u, err
 	}
-	s.noteKindTitle(view)
-	sort := s.ViewSort(view)
-	st := s.UpdateUI(func(u *UIState) { err = u.stepHistory(back, view, sort) })
+	s.noteKindTitle(to.View)
+	sort := s.ViewSort(to.View)
+	st := s.UpdateUI(func(u *UIState) { err = u.stepHistory(back, to, sort) })
 	if err == nil {
 		st = s.DropGoneSelected(context.Background(), st)
 	}

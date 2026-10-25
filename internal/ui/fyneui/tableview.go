@@ -82,9 +82,10 @@ type tableView struct {
 	root                       fyne.CanvasObject
 
 	snap    *engine.TableSnapshot
-	shows   shownList            // the tab, cluster and view the rows are of (tabscroll.go)
-	scrolls map[string]tabScroll // where each tab left its list, by tab id (tabscroll.go)
-	back    *fyne.Position       // where the tab shown again scrolls to once its rows are in (tabscroll.go)
+	shows   shownList            // the tab, cluster, view and place the rows are of (tabscroll.go)
+	scrolls map[uint64]tabScroll // where each place left its list, by its name (tabscroll.go)
+	back    *fyne.Position       // where the place shown again scrolls to once its rows are in (tabscroll.go)
+	keep    *model.ObjectRef     // the drawer the place shown again came with: its row is not scrolled to (tabscroll.go)
 	backing bool                 // scrollBack is scrolling: not the user
 	cols    []int                // visible column → index in snap.Columns
 	colsKey string               // the view and column ids, to notice a column change
@@ -480,9 +481,11 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 		return
 	}
 	// A view entered: another tab, another view, the same view of another cluster (D-69), or the
-	// first snapshot after none. The view left keeps where its tab scrolled it (tabscroll.go).
-	newView := snap != nil && (tv.snap == nil || shows != tv.shows)
-	if shows != tv.shows {
+	// first snapshot after none; or another place on the same list (a step within the view, back
+	// to one). The place left keeps where its list was scrolled (tabscroll.go).
+	newView := snap != nil && (tv.snap == nil || shows.list() != tv.shows.list())
+	moved := shows != tv.shows
+	if moved {
 		tv.leaveTab()
 		tv.shows = shows
 	}
@@ -533,6 +536,8 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 	if newView {
 		tv.table.resetKeyboard() // a view starts at its first cell
 		tv.scrollToTop()
+	}
+	if moved && snap != nil {
 		tv.enterTab()
 	}
 	if fewer {
@@ -611,7 +616,7 @@ func (tv *tableView) selectionChanged(sel []model.ObjectRef) {
 // scroll target: an agent's ui.navigate opens an object that may be far down the table, or in a
 // view whose snapshot has not arrived yet.
 func (tv *tableView) drawerChanged(d *model.ObjectRef) {
-	if d != nil {
+	if d != nil && !tv.kept(d) {
 		ref := *d
 		tv.pending = &ref
 	} else {
