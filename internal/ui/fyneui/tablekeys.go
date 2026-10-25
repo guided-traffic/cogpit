@@ -11,6 +11,13 @@ import (
 // click does. Fyne's table moves its highlight on the arrows and selects on Space; the resource
 // table adds Tab, ⇧Tab and ↵, and draws the highlighted cell itself, because Cogpit hides Fyne's
 // cell markers (HideSeparators) and draws whole-row bands instead.
+//
+// The ring shows where the keyboard is only while the keyboard is used, as the web's :focus-visible
+// and the navigator's (A53) do (the owner's VW17 of 2026-10-25: "dass immer der erste Eintrag einer
+// Tabelle einen Rahmen hat, wenn irgendein Element in der Tabelle selektiert ist"; the lead's
+// detail, D-74): a click on a cell puts the keyboard there without the ring, so that ↑↓ go on from
+// the row clicked; a key the table takes shows the ring, and so does the focus that comes by the
+// keyboard (Tab from another widget), not the one a click gives.
 
 var (
 	_ fyne.Tabbable   = (*resourceTable)(nil)
@@ -37,10 +44,12 @@ func (t *resourceTable) KeyUp(ev *fyne.KeyEvent) {
 }
 
 // TypedKey adds Escape (close the drawer), Tab, ⇧Tab and ↵ to Fyne's table keys (arrows, Space).
+// Every key the table takes shows the ring (VW17).
 func (t *resourceTable) TypedKey(ev *fyne.KeyEvent) {
 	if t.tv.sh.hot.key(ev.Name, t.shift) { // F1–F12 belong to the hotbar
 		return
 	}
+	t.keyed()
 	switch ev.Name {
 	case fyne.KeyEscape:
 		t.tv.sh.closeDrawer()
@@ -59,9 +68,11 @@ func (t *resourceTable) TypedKey(ev *fyne.KeyEvent) {
 	t.Table.TypedKey(ev)
 }
 
-// FocusGained shows the keyboard's cell; Fyne's table announces it through OnHighlighted.
+// FocusGained shows the keyboard's cell, unless a click gave the focus (VW17); Fyne's table
+// announces the cell through OnHighlighted.
 func (t *resourceTable) FocusGained() {
-	t.tv.kbOn = true
+	t.tv.kbOn, t.tv.kbKeys = true, !t.pointer
+	t.syncHighlight()
 	t.keying = true
 	defer func() { t.keying = false }()
 	t.Table.FocusGained()
@@ -94,22 +105,66 @@ func (tv *tableView) updateKeyboardCell() {
 	}
 }
 
-// keyboardOn reports whether the keyboard is on a cell.
+// keyboardOn reports whether the ring is on a cell: the keyboard is there, the table has the focus,
+// and the keyboard was used last, not the pointer (VW17).
 func (tv *tableView) keyboardOn(row, col int) bool {
-	return tv.kbOn && row == tv.kbRow && col == tv.kbCol && row >= 0
+	return tv.kbOn && tv.kbKeys && row == tv.kbRow && col == tv.kbCol && row >= 0
+}
+
+// keyed marks the keyboard as used: the ring shows on its cell, which a click may have moved since
+// Fyne's highlight last followed (VW17).
+func (t *resourceTable) keyed() {
+	t.syncHighlight()
+	if !t.tv.kbKeys {
+		t.tv.kbKeys = true
+		t.tv.updateKeyboardCell()
+	}
+}
+
+// pointed puts the keyboard on a cell the user clicked and hides the ring (VW17): ↑↓ go on from
+// that row, and the next key shows the ring there. Fyne's highlight follows at the next key or
+// focus (syncHighlight), so that pointed itself scrolls nothing (a checkbox's click).
+func (tv *tableView) pointed(row, col int) {
+	tv.kbRow, tv.kbCol, tv.kbSync, tv.kbKeys = row, col, true, false
+	tv.updateKeyboardCell()
+}
+
+// focusByPointer gives the table the focus for a click: without the ring (VW17).
+func (t *resourceTable) focusByPointer() {
+	cnv := fyne.CurrentApp().Driver().CanvasForObject(t)
+	if cnv == nil {
+		return
+	}
+	t.pointer = true
+	defer func() { t.pointer = false }()
+	cnv.Focus(t)
+}
+
+// syncHighlight moves Fyne's highlight, which its arrows move from, to the keyboard's cell after a
+// click moved that (pointed).
+func (t *resourceTable) syncHighlight() {
+	if t.tv.kbSync {
+		t.tv.kbSync = false
+		t.moveHighlight(t.tv.kbRow, t.tv.kbCol)
+	}
+}
+
+// moveHighlight puts Fyne's highlight on a cell. Fyne keeps its highlight private, and Select is the
+// only way to move it; the table's OnSelected (which would open the drawer) is off meanwhile, and
+// the selection is dropped again.
+func (t *resourceTable) moveHighlight(row, col int) {
+	on := t.OnSelected
+	t.OnSelected = nil
+	t.Select(widget.TableCellID{Row: row, Col: col})
+	t.UnselectAll()
+	t.OnSelected = on
 }
 
 // resetKeyboard moves the keyboard to the first row's first column of the view (right of its
-// checkbox), as for a view just opened. Fyne keeps its highlight private, and Select is the only way
-// to move it; the table's OnSelected (which would open the drawer) is off meanwhile, and the
-// selection is dropped again.
+// checkbox), as for a view just opened.
 func (t *resourceTable) resetKeyboard() {
-	on := t.OnSelected
-	t.OnSelected = nil
-	t.Select(widget.TableCellID{Col: firstDataColumn})
-	t.UnselectAll()
-	t.OnSelected = on
-	t.tv.kbRow, t.tv.kbCol = 0, firstDataColumn
+	t.moveHighlight(0, firstDataColumn)
+	t.tv.kbRow, t.tv.kbCol, t.tv.kbSync = 0, firstDataColumn, false
 	t.tv.updateKeyboardCell()
 }
 

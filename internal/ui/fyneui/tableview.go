@@ -96,6 +96,8 @@ type tableView struct {
 	hoverRow   int
 	hoverCol   int
 	kbOn       bool // the table has the keyboard focus (tablekeys.go)
+	kbKeys     bool // the keyboard was used last, not the pointer: the ring shows (VW17)
+	kbSync     bool // a click moved the keyboard's cell, and Fyne's highlight has not followed yet
 	kbRow      int  // the cell the keyboard is on
 	kbCol      int
 	hoverCell  *tableCell    // the cell under the pointer or the keyboard highlight
@@ -851,12 +853,15 @@ func (tv *tableView) headerTapped(col int) {
 	tv.sh.dispatch("ui.sort", sortParams{Column: id, Desc: cur.Column == id && !cur.Desc}, nil)
 }
 
-// rowTapped opens the drawer on a row's object and keeps the checked rows checked (A73).
+// rowTapped opens the drawer on a row's object and keeps the checked rows checked (A73). Fyne's
+// highlight is on the row now, by a key or a click; the keyboard's cell goes with it (VW17).
 func (tv *tableView) rowTapped(id widget.TableCellID) {
 	tv.table.UnselectAll() // the engine holds the selection; Fyne's own would block a second tap
 	if tv.snap == nil || id.Row < 0 || id.Row >= len(tv.snap.Rows) {
 		return
 	}
+	tv.kbRow, tv.kbCol, tv.kbSync = id.Row, id.Col, false
+	tv.updateKeyboardCell()
 	tv.setHoverCell(id.Row, id.Col)
 	tv.sh.tip.hide()
 	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox: ⇧ is the key's
@@ -935,6 +940,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 	if tv.snap == nil || c.row < 0 || c.row >= len(tv.snap.Rows) {
 		return
 	}
+	tv.pointed(c.row, c.col) // the keyboard goes on from the cell clicked, without the ring (VW17)
 	drv := fyne.CurrentApp().Driver()
 	switch {
 	case c.content.kind == cellMenu:
@@ -951,9 +957,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 		tv.sh.followLink(*c.content.link, tv.snap.Rows[c.row].Ref.Context, nsColumn)
 	case tv.modifiedClick(c.row, mods): // ⌘-click toggles the row, ⇧-click selects a range (tablecheck.go)
 	default:
-		if cnv := drv.CanvasForObject(tv.table); cnv != nil {
-			cnv.Focus(tv.table)
-		}
+		tv.table.focusByPointer()
 		tv.table.Select(widget.TableCellID{Row: c.row, Col: c.col})
 	}
 }
@@ -1188,12 +1192,13 @@ func (tv *tableView) viewNamespaced() bool {
 // has the focus.
 type resourceTable struct {
 	widget.Table
-	tv     *tableView
-	keying bool              // set while a key moves Fyne's highlight (tablekeys.go)
-	shift  bool              // Shift is held, for ⇧Tab
-	offset fyne.Position     // the scroll offset, as the scroller last reported it
-	body   *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
-	hover  fyne.Position     // the pointer in the table, for the cursor over a divider
+	tv      *tableView
+	keying  bool              // set while a key moves Fyne's highlight (tablekeys.go)
+	pointer bool              // set while a click gives the table the focus: no ring (VW17)
+	shift   bool              // Shift is held, for ⇧Tab
+	offset  fyne.Position     // the scroll offset, as the scroller last reported it
+	body    *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
+	hover   fyne.Position     // the pointer in the table, for the cursor over a divider
 	// sepClick is the last click on a header separator, for its double click (tableheader.go).
 	sepClick click
 
