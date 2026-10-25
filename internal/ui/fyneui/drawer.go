@@ -65,6 +65,8 @@ type drawer struct {
 	details  *fyne.Container
 	host     *fyne.Container // details with the copy icon above them (copy.go)
 	yaml     *yamlview.View
+	find     *findBar // over the YAML for good: it is read-only (newViewerFindBar)
+	yamlTab  *container.TabItem
 	yamlText string
 	root     fyne.CanvasObject
 
@@ -100,11 +102,13 @@ func newDrawer(sh *shell) *drawer {
 	d.host = box(d.hostLayout, d.details, d.copyBtn)
 	d.yaml = yamlview.New()
 	d.yaml.SetReadOnly(true)
-	d.scroll = container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, d.host))
+	d.find = newViewerFindBar(sh, d.yaml)
+	d.yamlTab = container.NewTabItem("YAML", container.NewBorder(d.find.root, nil, nil, nil, d.yaml))
+	d.scroll = newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, d.host))
 	d.pane = container.NewStack(d.scroll)
 	d.tabs = container.NewAppTabs(
 		container.NewTabItem("Details", d.pane),
-		container.NewTabItem("YAML", d.yaml),
+		d.yamlTab,
 	)
 	d.body = container.NewStack(d.tabs)
 
@@ -366,6 +370,12 @@ func (d *drawer) setYAML(text string, sameObject bool) {
 		d.yaml.SetText(text)
 	}
 	d.yaml.Refresh()
+	d.find.textChanged()
+}
+
+// yamlShown reports whether the drawer is open on its YAML tab, whose find bar ⌘F then opens.
+func (d *drawer) yamlShown() bool {
+	return d.sh.ui.Drawer != nil && d.root.Visible() && d.tabs.Selected() == d.yamlTab
 }
 
 // showActions puts the object's actions in the title bar as icons, in the row menu's order (Lens:
