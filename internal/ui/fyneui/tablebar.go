@@ -63,8 +63,8 @@ func (c *tableCell) applyBar(th fyne.Theme) {
 		c.objs++
 	}
 	track := theme.ColorNameSeparator
-	if c.selected {
-		track = colorRowHover // the separator's colour sinks into the selection's in the light theme
+	if c.checked {
+		track = colorRowHover // the separator's colour sinks into the selection's fill in the light theme
 	}
 	c.bar.track.FillColor = themeColor(th, track)
 	c.bar.fill.FillColor = themeColor(th, barColorName(c.content.bar.Status))

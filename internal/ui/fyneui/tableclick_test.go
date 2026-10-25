@@ -199,7 +199,7 @@ func TestClickBelowTheRowsClosesTheDrawer(t *testing.T) {
 	if len(sh.ui.Selected) != 1 || sh.ui.Selected[0] != rows[4].Ref {
 		t.Fatalf("the checked rows changed to %v", sh.ui.Selected)
 	}
-	if c := cellAt(t, sh, 2, firstDataColumn+1); c.selected {
+	if c := cellAt(t, sh, 2, firstDataColumn+1); c.drawer {
 		t.Fatal("row 2 is still marked as the drawer's")
 	}
 

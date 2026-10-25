@@ -112,3 +112,10 @@ func (t *resourceTable) resetKeyboard() {
 	t.tv.kbRow, t.tv.kbCol = 0, firstDataColumn
 	t.tv.updateKeyboardCell()
 }
+
+// ringInset is how far the keyboard's ring lies inside its cell, for a ring of stroke width: inside
+// the drawer's outline, which lies on the bounds of the row's cells (VW16, rowoutline.go), with a gap
+// between, so that the ring marks a cell and the outline a row, and the two read apart where they
+// meet. Inside the cell, the ring is not cut off either where the table's scroller ends left of the
+// first column and above the first row.
+func ringInset(stroke float32) float32 { return outlineWidth + markGap + stroke/2 }
