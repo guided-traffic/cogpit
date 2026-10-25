@@ -2650,7 +2650,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   after a longer list was scrolled down, its first snapshots none and then one without rows, kept
   that list's offset past its own end and drew no row; with its rows at once, its first row stayed
   under the header; the same view of another cluster started at the other's offset. A view entered
-  now starts at its top. Not seen in a real window yet.
+  now starts at its top. Passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8).
 - **Found in the owner's use (2026-10-23 evening, v0.40.1); fixed 2026-10-23 (PR #89),
   released in v0.40.2; a tab shown again comes back where its list was scrolled since v0.41.0 (PR #92)** ([D-117](../developer/decisions.md#d-117-one-preview-tab-per-cluster)).
   A view on three clusters, the first two in fixed tabs, the third in the preview tab: a click on the
@@ -2661,7 +2661,8 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   opened and moved it into the one preview tab in all. Fixed: a tab switch changes no other tab, and
   every cluster has a preview tab of its own, the owner's pick of three
   (`TestSelectingAnotherClustersTabChangesNoTab`, `TestThreeClustersKeepTheirPreviewTabs`,
-  `TestWorkspaceKeepsOnePreviewTabPerCluster`). Not seen in a real window yet.
+  `TestWorkspaceKeepsOnePreviewTabPerCluster`). Passed the owner's walk of v0.45.0 in a real window
+  (2026-10-25, D5–D7).
 - **Found in the owner's re-walk of RW1–RW4 (2026-10-23, v0.40.1, the staging cluster); built
   2026-10-23 with his answers and picks (PR #93), released in v0.41.0** ([D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer),
   [D-104](../developer/decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)).

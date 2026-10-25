@@ -1233,7 +1233,8 @@ the options weighed):
      even with a proxy, failing where only the proxy gets out); or resolving the endpoint's name
      anyway (fails on a network whose names only the proxy resolves, which says nothing about the
      chat). The proxy's user and password never reach a step, and a proxy setting that is not a URL
-     fails the DNS step without quoting it.
+     fails the DNS step without quoting it. Passed the owner's walk of v0.45.0 in a real window
+     (2026-10-25, D8d.8: the five steps in order on his connection; the proxy case not tried).
 9. **`stream_options.include_usage`** sent with every chat request; an endpoint that answers 400
    naming it gets the request once more without, remembered for the connection until it changes or
    Cogpit quits (chosen); or never sent (every turn's tokens estimated).
@@ -2430,7 +2431,8 @@ lead's decisions (2026-10-17), open to revision:
 `TestClusterSettingsCopyNameAndPath`, `TestClusterSettingsNoPathNoCopy`; renders
 [`cluster_settings_accent_dark.png`](../../internal/ui/fyneui/testdata/cluster_settings_accent_dark.png)
 and [`_light.png`](../../internal/ui/fyneui/testdata/cluster_settings_accent_light.png) (the name's
-icon just used: its checkmark and the toast). Not tried in a real window.
+icon just used: its checkmark and the toast). Passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8b: the toast over the
+settings card, held by the pointer).
 
 **Added (the owner's VW13, 2026-10-24, verbatim):** "Bei Rechtsklick auf einen Cluster will ich die
 Option haben den Pfad zur kube-config in den Zwischenspeicher zu kopieren." and "Natürlich auch bei
@@ -2455,7 +2457,9 @@ clipboard, as the F27 icon does, and says so in a toast: "Copied the kubeconfig 
 `TestCopyKubeconfigPathInEveryClusterMenu` (the navigator's root and rows, connected, not connected
 and failed, a hotbar tile, a welcome row; the demo cluster and a missing tile without the item; the
 clipboard and the toast), `TestCopyKubeconfigPathOverTheEngine` (a file the user added and
-`~/.kube/config` from real kubeconfig sources, the menu's order). Not tried in a real window.
+`~/.kube/config` from real kubeconfig sources, the menu's order). Passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8d.7:
+the navigator's head, All Clusters, a hotbar tile, the welcome page, a cluster not connected; the
+pasted path the file's).
 
 **Changed (owner, 2026-10-22, verbatim):** "Ich stelle gerade fest, dass man nur Passwörter aus
 Secrets kopieren kann, bei den man vorher auf 'Show' klickt. Das ist so nicht gewünscht. Ich will
@@ -2576,7 +2580,10 @@ the copy icon's height, its width kept by the checkmark); `TestSecretMaskedKeyBu
 `TestSecretReadOnlyKeyButtonsOnNameLine` and `TestKeyLineButtonsOneHeight` with the button; in the
 engine `TestSecretDrawerReadsTheCacheAndMasks` (a binary item's action, a binary and a text value
 encoded), `TestSecretValueBase64IsWhole` (8.7 KiB of text and 10,000 binary bytes encoded whole) and
-`TestRevealIsGUIOnly` (agents and the CLI refused with `base64` too). Not seen in a real window yet.
+`TestRevealIsGUIOnly` (agents and the CLI refused with `base64` too). Passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8d.1:
+a masked and a whole 121-line value, a binary value's line with b64 alone, each decoded from the
+clipboard); his findings there: VW18 (the word button wider after its checkmark) and VW19 (an icon
+instead of the word), below.
 
 ## D-26: Binding a credential plugin's approval to its program
 
@@ -10284,7 +10291,8 @@ the light ones beside them.
 **What it does not cover:** a command for the debug container (kubectl's `-- <command>`): the image's
 own runs; ending a debug container's shell when its tab closes (Kubernetes cannot stop an ephemeral
 container from outside, [H-134](../security/privilege-footprint.md#h-134-a-debug-container-stays-in-the-pod-and-sees-its-target));
-a real window (not verified).
+the dialog passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8d.10: the short name, the digest row, a floating tag's
+"none", the pin back; Cancel, nothing added).
 
 **Checked on a real cluster (2026-10-19 night, the lead; the cluster the owner provides for tests,
 Kubernetes 1.35, Kyverno 1.17.2):** `TestRealDebugContainer` (make test-real) added a debug
@@ -10540,8 +10548,9 @@ copy (`TestSecretB64ButtonLook`, `TestKeyLineButtonsOneHeight`).
 **What it does not cover:** the buttons inside Fyne's own dialogs (a `NewConfirm`'s No, a
 `NewCustomConfirm`'s Cancel, a form's Cancel, the file and colour dialogs) keep Fyne's plate without
 the outline; the find bar's toggles (Aa, ab, .*; one width since VW3, above) and the drawer's metrics switches stay switches;
-the chat's edit icon (`chatIconTap`) stays bare; not seen in a real window yet; Windows and Linux not
-tried.
+the chat's edit icon (`chatIconTap`) stays bare; VW1–VW4 passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8d.2–D8d.4;
+the squeezed filters' × and the narrower list search looked at there, no complaint); Windows and
+Linux not tried.
 
 ## D-105: Reverse video as a state, and a key's modifiers from the key itself
 
@@ -11593,8 +11602,8 @@ Tests (each failing before the change): `TestSettingsEscapeInATextFieldClosesThe
 shell, its arguments over several lines and the time zone, Cluster Settings' name: the card closed
 and each value set), `TestSettingsEscapeInTheAgentFormClosesTheForm` (the name, the key, the model
 and a limit: the form closed, the card open, nothing saved; the next Escape closes the card); the
-settings tests that read a field through `*widget.Entry` read it through `entryOf`. Not seen in a
-real window yet.
+settings tests that read a field through `*widget.Entry` read it through `entryOf`. Passed the owner's walk of v0.45.0 in a real window (2026-10-25,
+D8b and D8d.5: the cluster name, Preferences' time zone field, the agent form then the card).
 
 **What it does not cover:** a button that has the keyboard by Tab, the items of a check group or a
 radio group (Argo CD's Sync and Refresh dialogs), the fields inside Fyne's file and colour dialogs
@@ -11677,8 +11686,9 @@ Tests (the first failing before the change: each tab came back at its top):
 after it or at once, a moment's mix in between), `TestATabsNewViewStartsAtTheTop`,
 `TestAScrollEndsTheWaitForATabsRows`; `TestATabComesBackAsItWasLeft` in the engine.
 
-**What it does not cover:** Lens across clusters (not captured, so the rule is inferred); not seen
-in a real window yet; with mixed environments on, the bar shows one italic preview tab per cluster,
+**What it does not cover:** Lens across clusters (not captured, so the rule is inferred); one
+preview per cluster, a tab's scroll and its filters passed the owner's walk of v0.45.0 in a real window (2026-10-25, D5–D7; his VW15
+there, a preview that opens a view anew kept a stale offset, is fixed below); with mixed environments on, the bar shows one italic preview tab per cluster,
 told apart only by its cluster's icon and name; a tab's scroll position is the list's only (a page's,
 the Overview's, and the drawer's are not kept), and not across a restart.
 
@@ -11737,10 +11747,12 @@ open to revision:
 `TestSettingsCardHeader` (the title; the icon's and the ×'s room measured from the card's corner;
 Preferences' header the same), the title in `TestClusterSettingsShortcutAndMenus`,
 `TestClusterSettingsFromTheSectionSetIdentityAndTerminal` and
-`TestSettingsOverlayClosesOnTheShadeOnly`; the settings goldens drawn again. Not seen in a
-real window.
+`TestSettingsOverlayClosesOnTheShadeOnly`; the settings goldens drawn again. Passed the owner's walk of v0.45.0 in a real window (2026-10-25,
+D8b: the card over the whole window, nothing behind reachable, a click beside it closing it only,
+its header with room round the icon, Tab kept inside, ⌘F, F1 and / silent behind it, a toast and a
+dialog over it, Preferences the same, the card shrinking with the window).
 
-**What it does not cover:** not seen in a real window yet; a card opened while a dialog shows lies
+**What it does not cover:** a card opened while a dialog shows lies
 above that dialog until it closes (the newest overlay is on top, as the palette's); Escape in a text
 field of the page closes the card since 2026-10-24 (the owner's decision (a), built in
 [D-116](#d-116-escape-closes-the-innermost-thing); the agent connection form's fields close the form
@@ -11818,7 +11830,7 @@ square and a tile rounded by 7 points at every size. The lead's details, open to
 image's corner pixels the window's and its middle and edges the image's; fails with the image's
 radius at 0), `TestHotbarAndTabIconCorners` (a tile, its image and the "+"; a tab's badge and image);
 the goldens of every view that shows a hotbar, the navigator's cluster badges or a tab drawn again.
-Not seen in a real window.
+Passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8c).
 
 **The owner's LS19 (2026-10-24, verbatim):** "Das Icon hier in der Leiste ist super klein. Wenn es
 eng wird, darf das Icon ruhig so klein werden, aber wenn so viel Platz ist, wie hier, hätte ich es
@@ -11848,7 +11860,9 @@ beside two, 28 without a cluster; the owner's cluster at 216, 235 and 160 points
 "dex:HFischer"), `TestHotbarTilesFifty`; at 28 the root draws as before (its pixels compared). Not
 seen in a real window.
 
-**What it does not cover:** not seen in a real window yet; a circle frame (his pick: later, if at
+**What it does not cover:** the designer passed the owner's walk of v0.45.0 in a real window (2026-10-25, D8c: letters, the
+six-letter refusal, a cut of a photo dragged and zoomed at the pointer, the cut kept, Internal and
+Custom switched, Reset); a circle frame (his pick: later, if at
 all); the editor's cursor stays the arrow (Fyne has no grab cursor); rotation, as his tool has none;
 an icon kept before 2026-10-23 stays as it was drawn (whole, fitted) until its dialog saves a cut;
 the corners are circular arcs at macOS's radius, not Apple's continuous curve (Fyne draws no other).
@@ -11918,8 +11932,8 @@ not checked. The real check is the colleague's, with the release.
 kubectl plugin is still bound by no approval (D-26); a program folder inside a folder others can
 write to (a synced kubeconfig folder, a shared drive) is the user's choice, refused only when every
 user may write to it ([H-6](../security/credentials.md#h-6-exec-plugins-inherit-the-environment));
-the panel's bookmark for a folder in Desktop, Documents or Downloads and the setting itself not seen
-in a real window yet.
+the panel's bookmark for a folder in Desktop, Documents or Downloads not tried; the setting passed
+the owner's walk of v0.45.0 in a real window (2026-10-25, D8d.9: the list, its help and Add Folder…'s panel).
 
 ## D-121: Texts drawn again when the window's pixel scale changes
 
