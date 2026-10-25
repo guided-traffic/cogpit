@@ -322,3 +322,57 @@ func TestAScrollEndsTheWaitForATabsRows(t *testing.T) {
 		t.Errorf("after the rest came: at %v, want %v where the user scrolled", got, mine)
 	}
 }
+
+// TestATabsViewOpenedAgainStartsAtTheTop (the owner's VW15 of 2026-10-25, his live walk's D6 step
+// 5: "der Tab hat sich weiterhin gemerkt wo wir waren auch wenn die Vorschau neu geoeffnet wurde"):
+// tab-1's Pods scrolled, then Config Maps and Pods again in the same tab: Pods starts at its top,
+// whether the tab was left for another tab and shown again before (it came back where it was left,
+// and the place it kept then is gone once it opens another view), and whether Config Maps' rows
+// came or the tab went back to Pods before they did. A place kept afterwards comes back again.
+func TestATabsViewOpenedAgainStartsAtTheTop(t *testing.T) {
+	for _, tc := range []struct {
+		name          string
+		left, cmsRows bool
+	}{
+		{"same tab", false, true},
+		{"same tab, before Config Maps' rows", false, false},
+		{"left and shown again", true, true},
+		{"left and shown again, before Config Maps' rows", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f, sh, q, p, all, other := twoTabs(t)
+			sh.view.scrollTo(200)
+			p.run(sh.win)
+			left := sh.view.table.body.Offset
+			if left.Y == 0 {
+				t.Fatal("tab-1 did not scroll")
+			}
+			if tc.left {
+				showTab(t, f, sh, q, p, "tab-2", "pods", "other", other)
+				showTab(t, f, sh, q, p, "tab-1", "pods", "demo", all)
+				if got := sh.view.table.body.Offset; got != left {
+					t.Fatalf("tab-1 back at %v, want %v where it was left", got, left)
+				}
+			}
+			if tc.cmsRows {
+				showTab(t, f, sh, q, p, "tab-1", "configmaps", "demo", kindSnapshot(t, "configmaps", scrollConfigMaps()))
+				wantTop(t, sh)
+			} else {
+				showTab(t, f, sh, q, p, "tab-1", "configmaps", "demo") // no snapshot of it yet
+			}
+			again := *all
+			again.Revision++
+			showTab(t, f, sh, q, p, "tab-1", "pods", "demo", &again)
+			wantTop(t, sh)
+
+			sh.view.scrollTo(120) // kept from here on, as before
+			p.run(sh.win)
+			kept := sh.view.table.body.Offset
+			showTab(t, f, sh, q, p, "tab-2", "pods", "other", other)
+			showTab(t, f, sh, q, p, "tab-1", "pods", "demo", &again)
+			if got := sh.view.table.body.Offset; got != kept {
+				t.Errorf("tab-1 shown again at %v, want %v where it was left", got, kept)
+			}
+		})
+	}
+}
