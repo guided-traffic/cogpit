@@ -802,12 +802,14 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		tv.headers = append(tv.headers, h)
 	}
 	if id.Row == -1 && tv.snap != nil && id.Col == checkColumn {
+		h.setFixed(false)      // a cell Fyne used for a fixed column before keeps its divider here
 		tv.check.showHeader(h) // the header's checkbox: every row shown, or none
 		return
 	}
 	vis, data := tv.dataColumn(id.Col)
 	if id.Row != -1 || tv.snap == nil || !data {
 		// The ⋮ column's header is the ⋮ that shows and hides columns.
+		h.setFixed(false)
 		h.setMenu(id.Col, id.Row == -1 && tv.snap != nil && id.Col == tv.menuColumn())
 		return
 	}
