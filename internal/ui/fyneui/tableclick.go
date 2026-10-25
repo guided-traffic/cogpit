@@ -23,8 +23,13 @@ import (
 var _ fyne.Tappable = (*resourceTable)(nil)
 
 // Tapped implements fyne.Tappable: a click below the rows closes the drawer, one on a header
-// separator may be a double click's (tableheader.go); any other click is the table's.
+// separator may be a double click's (tableheader.go); any other click is the table's. A click hides
+// the keyboard's ring, and the focus it gives shows none (VW17, tablekeys.go).
 func (t *resourceTable) Tapped(e *fyne.PointEvent) {
+	if t.tv.kbKeys {
+		t.tv.kbKeys = false
+		t.tv.updateKeyboardCell()
+	}
 	if t.separatorTapped(e.Position) {
 		return
 	}
@@ -33,6 +38,8 @@ func (t *resourceTable) Tapped(e *fyne.PointEvent) {
 		t.tv.sh.closeDrawer()
 		return
 	}
+	t.pointer = true
+	defer func() { t.pointer = false }()
 	t.Table.Tapped(e)
 }
 

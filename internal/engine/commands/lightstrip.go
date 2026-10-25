@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A cluster's light strip (D-new; engine/lightstrip.go): Cluster Settings › General, under the
+// A cluster's light strip (D-122; engine/lightstrip.go): Cluster Settings › General, under the
 // accent colour. Only the user chooses it, in Cogpit's window: the command is GUI-only, so Dispatch
 // refuses agents and the CLI before anything is read or written, and no agent can calm a production
 // cluster's strip down. Agents read it as lightStrip in ui_state and cluster_settings_get.

@@ -744,7 +744,8 @@ func (l cmFrameLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 // shorter.
 type cmGrip struct {
 	widget.BaseWidget
-	r *cmRow
+	r     *cmRow
+	guard dragGuard // a drag pressed outside the grip is not its own (VW20, dragguard.go)
 }
 
 var (
@@ -759,10 +760,14 @@ func newCMGrip(r *cmRow) *cmGrip {
 }
 
 // Dragged implements fyne.Draggable.
-func (g *cmGrip) Dragged(ev *fyne.DragEvent) { g.r.drag(ev.Dragged.DY) }
+func (g *cmGrip) Dragged(ev *fyne.DragEvent) {
+	if g.guard.pass(g, ev) {
+		g.r.drag(ev.Dragged.DY)
+	}
+}
 
 // DragEnd implements fyne.Draggable.
-func (g *cmGrip) DragEnd() {}
+func (g *cmGrip) DragEnd() { g.guard.end() }
 
 // Cursor implements desktop.Cursorable.
 func (g *cmGrip) Cursor() desktop.Cursor { return desktop.VResizeCursor }

@@ -18,7 +18,7 @@ import (
 // Cluster settings (G13, docs/parity/ui-parity.md › Cluster settings): what the user sets for one
 // context in Cogpit, as Lens's cluster settings page holds it: the cluster's display name and
 // identity (an icon colour from the theme's accent palette, or an uploaded image, and since D-80 an
-// accent colour that marks it, shown by the light strip under a view's header (D-new), both the user's
+// accent colour that marks it, shown by the light strip under a view's header (D-122), both the user's
 // alone: accentcolor.go, lightstrip.go), and the working
 // directory and default namespace of that cluster's terminals. They are kept per context id in
 // ClusterSettingsFile under Cogpit's configuration directory, the images in ClusterIconsDir beside
@@ -94,7 +94,7 @@ type ClusterSettings struct {
 	// Cogpit's window (ErrAccentColorGUIOnly).
 	AccentColor string `json:"accentColor,omitempty"`
 	// LightStrip is how the strip under a view's header shows the accent colour while one of the cluster's
-	// tabs is shown (D-new, lightstrip.go): "" static, or LightStripBreathing, LightStripScanner,
+	// tabs is shown (D-122, lightstrip.go): "" static, or LightStripBreathing, LightStripScanner,
 	// LightStripFlow. Without an accent colour the strip is off whatever this says; only the user
 	// chooses it, in Cogpit's window (ErrLightStripGUIOnly).
 	LightStrip string `json:"lightStrip,omitempty"`
@@ -572,7 +572,7 @@ type ClusterSettingsView struct {
 	// which cluster this is (D-80); empty: none. Only the user sets it, in Cogpit's window.
 	AccentColor string `json:"accentColor,omitempty"`
 	// LightStrip is how the strip under a view's header shows the accent colour while the cluster's tab is
-	// shown (D-new): static, breathing, scanner or flow; without an accent colour the strip is off
+	// shown (D-122): static, breathing, scanner or flow; without an accent colour the strip is off
 	// (frosted glass) whatever it says. Only the user chooses it, in Cogpit's window.
 	LightStrip string `json:"lightStrip"`
 	// Kubeconfig is the kubeconfig file the context comes from; empty for the demo cluster.

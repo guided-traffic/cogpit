@@ -292,6 +292,10 @@ type copyButton struct {
 	pinned  bool
 	tip     string
 	hovered bool
+	// icon is drawn in the copy icon's place, nil for the copy icon: the b64 button is a pinned copy
+	// icon with its own icon (secretcopy.go), so that its size, outline, hover and checkmark are the
+	// copy icon's (the owner's VW19 of 2026-10-25).
+	icon fyne.Resource
 
 	// The drawer's: the value that keeps room for the icon at its right end, and how much.
 	roomed fyne.CanvasObject
@@ -507,9 +511,12 @@ func (r *copyButtonRenderer) Refresh() {
 		r.bg.StrokeColor = th.Color(theme.ColorNameInputBorder, fyne.CurrentApp().Settings().ThemeVariant())
 		r.bg.CornerRadius = th.Size(theme.SizeNameButtonRadius)
 	}
-	if r.b.done {
+	switch {
+	case r.b.done:
 		r.img.Resource = themedIcon(theme.ConfirmIcon(), colorStatusOK)
-	} else {
+	case r.b.icon != nil:
+		r.img.Resource = themedIcon(r.b.icon, theme.ColorNameForeground)
+	default:
 		r.img.Resource = themedIcon(theme.ContentCopyIcon(), theme.ColorNameForeground)
 	}
 	r.Layout(r.b.Size())

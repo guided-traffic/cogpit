@@ -11,6 +11,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
+	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -218,5 +219,32 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 	tv.fitColumns(tv.table.Size().Width)
 	if got := tv.setWidths[firstDataColumn+1]; got != 28 {
 		t.Errorf("a kept user width: the warning column %v wide, want its 28", got)
+	}
+}
+
+// TestAReusedHeaderCellKeepsItsDivider: Fyne hands a header cell that showed the warning column to
+// another column; as the ⋮ or the checkbox it draws its divider again (seen 2026-10-25 in the VW17
+// renders: the ⋮'s divider gone in a drawer's render).
+func TestAReusedHeaderCellKeepsItsDivider(t *testing.T) {
+	f := connectedFake(t, 50)
+	pods := f.tables["pods"]
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	for i := range pods.Rows {
+		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
+	}
+	sh, w, q := newTestShell(t, f, Options{})
+	q.until(t, "the pods", func() bool { return sh.view.snap != nil && len(sh.view.cols) > 2 })
+	settle(w)
+	tv := sh.view
+	for _, col := range []int{tv.menuColumn(), checkColumn} {
+		h := headerFor(t, sh, firstDataColumn+1)
+		if !h.fixed {
+			t.Fatal("the warning column's header is not fixed")
+		}
+		tv.updateHeader(widget.TableCellID{Row: -1, Col: col}, h)
+		if h.sep.FillColor == color.Transparent {
+			t.Errorf("the warning column's cell reused for column %d draws no divider", col)
+		}
+		tv.updateHeader(widget.TableCellID{Row: -1, Col: firstDataColumn + 1}, h) // back to the warning column
 	}
 }

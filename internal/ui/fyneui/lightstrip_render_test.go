@@ -7,7 +7,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The light strip's pictures (D-new) for the owner's walk, dark and light: off (frosted glass),
+// The light strip's pictures (D-122) for the owner's walk, dark and light: off (frosted glass),
 // static, each animation at a fixed moment of its clock, a change through glass half-way through its
 // fade-in, and one static colour spreading over another from the tab half way.
 // The clusters' colours are the owner's lab examples (blue static, green breathing, red scanner,

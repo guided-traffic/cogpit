@@ -120,7 +120,7 @@ func TestManifestFileName(t *testing.T) {
 
 func renderCreateTools(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, ct := createScene(t, mode)
-	sh.vsplit.SetOffset(renderDockOffset)
+	setDockOffset(sh, renderDockOffset)
 	test.Tap(ct.searchBtn)
 	test.Type(ct.find.find, "nginx")
 	q.drain()

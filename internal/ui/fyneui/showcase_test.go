@@ -330,7 +330,7 @@ func TestShowcaseLogs(t *testing.T) {
 		showcaseTabs(f, "deployments", "pods")
 		fakeTabCommands(t, f)
 		sh, w, q := startShell(t, newLogsEngine(f), f, Options{Theme: mode})
-		sh.vsplit.SetOffset(0.5)
+		setDockOffset(sh, 0.5)
 		q.until(t, "the log lines", func() bool {
 			lt := logTabOf(sh)
 			return len(sh.kinds) > 0 && lt != nil && lt.view != nil && len(lt.view.ShownLines()) == len(demoMerged) && sh.diag.total > 0
@@ -382,7 +382,7 @@ func TestShowcaseShell(t *testing.T) {
 		fakeTabCommands(t, f)
 		eng := showcaseShellEngine{fakeEngine: f, pod: pod.Name, last: &atomic.Pointer[openStream]{}}
 		sh, w, q := startShell(t, eng, f, Options{Theme: mode})
-		sh.vsplit.SetOffset(0.52)
+		setDockOffset(sh, 0.52)
 		q.until(t, "the terminal to read", func() bool {
 			s := eng.last.Load()
 			return len(sh.kinds) > 0 && sh.view.snap != nil && s != nil && s.reading.Load() && sh.diag.total > 0
@@ -434,7 +434,7 @@ func TestShowcaseEditDiff(t *testing.T) {
 			}
 			return et != nil && et.pane.view.Text() == serviceYAML && len(sh.kinds) > 0 && sh.diag.total > 0
 		})
-		sh.vsplit.SetOffset(renderDockOffset)
+		setDockOffset(sh, renderDockOffset)
 		typeLineAfter(et.pane, 16, "sessionAffinity: ClientIP")
 		et.pane.view.SetCursorPosition(13, 1<<20)
 		for range 4 {
@@ -764,7 +764,7 @@ func TestShowcaseAgents(t *testing.T) {
 		fakeTabCommands(t, f)
 		sh, w, q := newTestShell(t, f, Options{Theme: mode, MCPCommand: "claude mcp add cogpit -- cogpit-cli mcp"})
 		sh.zone = time.UTC
-		sh.vsplit.SetOffset(0.5)
+		setDockOffset(sh, 0.5)
 		q.until(t, "the Audit Log", func() bool {
 			a := auditTabOf(sh)
 			return len(sh.kinds) > 0 && a != nil && len(a.entries) == len(audit.Entries) && sh.diag.total > 0

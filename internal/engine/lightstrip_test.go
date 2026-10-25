@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-// A cluster's light strip (D-new): static, breathing, scanner or flow in any case, static kept as
+// A cluster's light strip (D-122): static, breathing, scanner or flow in any case, static kept as
 // none; anything else refused, and dropped from a file that holds it; kept across a restart, shown
 // in the UI state and the settings' view (static when none is set).
 func TestLightStripKept(t *testing.T) {

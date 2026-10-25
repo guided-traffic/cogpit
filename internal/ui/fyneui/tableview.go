@@ -96,6 +96,8 @@ type tableView struct {
 	hoverRow   int
 	hoverCol   int
 	kbOn       bool // the table has the keyboard focus (tablekeys.go)
+	kbKeys     bool // the keyboard was used last, not the pointer: the ring shows (VW17)
+	kbSync     bool // a click moved the keyboard's cell, and Fyne's highlight has not followed yet
 	kbRow      int  // the cell the keyboard is on
 	kbCol      int
 	hoverCell  *tableCell    // the cell under the pointer or the keyboard highlight
@@ -619,10 +621,10 @@ func (tv *tableView) drawerChanged(d *model.ObjectRef) {
 	tv.resolvePending()
 }
 
-// marksChanged re-renders the rows' highlight and checkboxes: the cells the table has made.
+// marksChanged re-renders the rows' marks and checkboxes: the cells the table has made.
 func (tv *tableView) marksChanged() {
 	for _, c := range tv.cells {
-		c.setMarks(tv.rowSelected(c.row), tv.rowChecked(c.row))
+		c.setMarks(tv.rowDrawer(c.row), tv.rowChecked(c.row))
 	}
 }
 
@@ -662,15 +664,13 @@ func (tv *tableView) layoutTable() {
 	tv.table.Resize(sz)
 }
 
-// rowSelected reports whether a row is highlighted: checked, or the drawer's object. O(1).
-func (tv *tableView) rowSelected(row int) bool {
+// rowDrawer reports whether a row is the drawer's object, which its outline marks (VW16). O(1).
+func (tv *tableView) rowDrawer(row int) bool {
 	if tv.snap == nil || row < 0 || row >= len(tv.snap.Rows) {
 		return false
 	}
-	if d := tv.sh.ui.Drawer; d != nil && keyOf(*d) == keyOf(tv.snap.Rows[row].Ref) {
-		return true
-	}
-	return tv.rowChecked(row)
+	d := tv.sh.ui.Drawer
+	return d != nil && keyOf(*d) == keyOf(tv.snap.Rows[row].Ref)
 }
 
 // rowChecked reports whether a row is in the selection: its checkbox is checked. O(1).
@@ -754,7 +754,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 	}
 	content.row = tv.snap.Rows[id.Row].Status
 	hover := id.Row == tv.hoverRow
-	marks := rowMarks{selected: tv.rowSelected(id.Row), checked: tv.rowChecked(id.Row)}
+	marks := rowMarks{drawer: tv.rowDrawer(id.Row), checked: tv.rowChecked(id.Row)}
 	if c.set(id.Row, id.Col, content, marks, hover, hover && id.Col == tv.hoverCol) && tv.sh.tip.owner == c {
 		tv.sh.tip.hide() // the cell under the tooltip shows something else now
 	}
@@ -802,12 +802,14 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		tv.headers = append(tv.headers, h)
 	}
 	if id.Row == -1 && tv.snap != nil && id.Col == checkColumn {
+		h.setFixed(false)      // a cell Fyne used for a fixed column before keeps its divider here
 		tv.check.showHeader(h) // the header's checkbox: every row shown, or none
 		return
 	}
 	vis, data := tv.dataColumn(id.Col)
 	if id.Row != -1 || tv.snap == nil || !data {
 		// The ⋮ column's header is the ⋮ that shows and hides columns.
+		h.setFixed(false)
 		h.setMenu(id.Col, id.Row == -1 && tv.snap != nil && id.Col == tv.menuColumn())
 		return
 	}
@@ -853,12 +855,15 @@ func (tv *tableView) headerTapped(col int) {
 	tv.sh.dispatch("ui.sort", sortParams{Column: id, Desc: cur.Column == id && !cur.Desc}, nil)
 }
 
-// rowTapped opens the drawer on a row's object and keeps the checked rows checked (A73).
+// rowTapped opens the drawer on a row's object and keeps the checked rows checked (A73). Fyne's
+// highlight is on the row now, by a key or a click; the keyboard's cell goes with it (VW17).
 func (tv *tableView) rowTapped(id widget.TableCellID) {
 	tv.table.UnselectAll() // the engine holds the selection; Fyne's own would block a second tap
 	if tv.snap == nil || id.Row < 0 || id.Row >= len(tv.snap.Rows) {
 		return
 	}
+	tv.kbRow, tv.kbCol, tv.kbSync = id.Row, id.Col, false
+	tv.updateKeyboardCell()
 	tv.setHoverCell(id.Row, id.Col)
 	tv.sh.tip.hide()
 	if id.Col == checkColumn { // Space or ↵ with the keyboard on a checkbox: ⇧ is the key's
@@ -937,6 +942,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 	if tv.snap == nil || c.row < 0 || c.row >= len(tv.snap.Rows) {
 		return
 	}
+	tv.pointed(c.row, c.col) // the keyboard goes on from the cell clicked, without the ring (VW17)
 	drv := fyne.CurrentApp().Driver()
 	switch {
 	case c.content.kind == cellMenu:
@@ -953,9 +959,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 		tv.sh.followLink(*c.content.link, tv.snap.Rows[c.row].Ref.Context, nsColumn)
 	case tv.modifiedClick(c.row, mods): // ⌘-click toggles the row, ⇧-click selects a range (tablecheck.go)
 	default:
-		if cnv := drv.CanvasForObject(tv.table); cnv != nil {
-			cnv.Focus(tv.table)
-		}
+		tv.table.focusByPointer()
 		tv.table.Select(widget.TableCellID{Row: c.row, Col: c.col})
 	}
 }
@@ -1190,16 +1194,18 @@ func (tv *tableView) viewNamespaced() bool {
 // has the focus.
 type resourceTable struct {
 	widget.Table
-	tv     *tableView
-	keying bool              // set while a key moves Fyne's highlight (tablekeys.go)
-	shift  bool              // Shift is held, for ⇧Tab
-	offset fyne.Position     // the scroll offset, as the scroller last reported it
-	body   *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
-	hover  fyne.Position     // the pointer in the table, for the cursor over a divider
+	tv      *tableView
+	keying  bool              // set while a key moves Fyne's highlight (tablekeys.go)
+	pointer bool              // set while a click gives the table the focus: no ring (VW17)
+	shift   bool              // Shift is held, for ⇧Tab
+	offset  fyne.Position     // the scroll offset, as the scroller last reported it
+	body    *container.Scroll // the rows' scroller below the header, for a click below the rows (tableclick.go)
+	hover   fyne.Position     // the pointer in the table, for the cursor over a divider
 	// sepClick is the last click on a header separator, for its double click (tableheader.go).
 	sepClick click
 
-	dragging, dragFixed bool // a drag is under way; it began on the divider of a column that keeps its width
+	dragging, dragFixed bool      // a drag is under way; it began on the divider of a column that keeps its width
+	guard               dragGuard // a drag pressed outside the table is not its own (VW20, dragguard.go)
 }
 
 func newResourceTable(tv *tableView) *resourceTable {
@@ -1261,6 +1267,9 @@ func (t *resourceTable) Cursor() desktop.Cursor {
 // Dragged implements fyne.Draggable: Fyne's table drags a column's divider, except a column's that
 // keeps its width (fixedWidth); where the drag began decides it.
 func (t *resourceTable) Dragged(e *fyne.DragEvent) {
+	if !t.guard.pass(t, e) {
+		return
+	}
 	if !t.dragging {
 		t.dragging = true
 		t.dragFixed = t.tv.fixedAt(t.tv.separatorAt(e.Position.Subtract(e.Dragged)))
@@ -1272,6 +1281,9 @@ func (t *resourceTable) Dragged(e *fyne.DragEvent) {
 
 // DragEnd implements fyne.Draggable.
 func (t *resourceTable) DragEnd() {
+	if !t.guard.end() {
+		return
+	}
 	t.dragging, t.dragFixed = false, false
 	t.Table.DragEnd()
 }
@@ -1342,21 +1354,22 @@ type tableCell struct {
 	badge *gradeBadge         // an image grade's shield; made when the cell first shows one
 	line  *canvas.Rectangle
 	// The Dark Cockpit's row marks (list_rows.go), each made the first time a cell needs it.
-	spine  *canvas.Rectangle // an abnormal row's status spine, in the first cell
-	selBar *canvas.Rectangle // the selected row's glow blue bar, in the first cell
-	pill   *canvas.Rectangle // a status cell's pill, filled for an abnormal state
-	dot    *canvas.Circle    // a status cell's dot
-	under  *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
-	ring   *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
-	objs   int               // bumped when an object is added, so the renderer lists it
+	spine   *canvas.Rectangle // an abnormal row's status spine, in the first cell
+	selBar  *canvas.Rectangle // the drawer's row's glow blue bar, in the first cell
+	outline *rowOutline       // the cell's part of the drawer's row's outline (VW16, rowoutline.go)
+	pill    *canvas.Rectangle // a status cell's pill, filled for an abnormal state
+	dot     *canvas.Circle    // a status cell's dot
+	under   *canvas.Rectangle // a hovered link's underline; made when the cell first shows a link
+	ring    *canvas.Rectangle // the keyboard's focus ring; made when the keyboard first reaches the cell
+	objs    int               // bumped when an object is added, so the renderer lists it
 
 	content   cellContent
 	full      string // the cell text; text.Text may be a shortened form of it
 	fitWidth  float32
 	truncated bool // the shown text is shorter than full: the tooltip shows full
 	iconRes   fyne.Resource
-	selected  bool // the row is highlighted: checked, or the drawer's object
-	checked   bool // the row is in the selection: its checkbox is checked
+	drawer    bool // the row is the drawer's object: outlined, with the bar (VW16)
+	checked   bool // the row is in the selection: its checkbox is checked, its plate filled
 	hover     bool // the pointer or the keyboard is on the row
 	linkHover bool // the pointer is on this cell, which is a link
 	focused   bool // the keyboard is on this cell (tablekeys.go)
@@ -1386,10 +1399,10 @@ func newTableCell(tv *tableView) *tableCell {
 	return c
 }
 
-// rowMarks are how a row is marked: highlighted (selected: checked, or the drawer's object) and
-// checked (in the selection). Since A73 they differ: a plain click opens the drawer on a row and
-// keeps the checked rows, so the drawer's row is highlighted without being checked.
-type rowMarks struct{ selected, checked bool }
+// rowMarks are how a row is marked: the drawer's object (drawer) and in the selection (checked).
+// Since A73 they differ: a plain click opens the drawer on a row and keeps the checked rows, so the
+// drawer's row is marked without being checked; since VW16 they look different too (list_rows.go).
+type rowMarks struct{ drawer, checked bool }
 
 // set gives the cell new content; unchanged content costs a few comparisons. It reports whether
 // the content changed.
@@ -1410,8 +1423,8 @@ func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover
 		changed = true
 	}
 	linkHover = linkHover && content.link != nil
-	if changed || marks.selected != c.selected || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover {
-		c.selected, c.checked, c.hover, c.linkHover = marks.selected, marks.checked, hover, linkHover
+	if changed || marks.drawer != c.drawer || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover {
+		c.drawer, c.checked, c.hover, c.linkHover = marks.drawer, marks.checked, hover, linkHover
 		c.apply()
 	}
 	if changed {
@@ -1420,10 +1433,10 @@ func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover
 	return changed
 }
 
-// setMarks highlights the cell's row (selected) and checks its checkbox (checked).
-func (c *tableCell) setMarks(selected, checked bool) {
-	if selected != c.selected || checked != c.checked {
-		c.selected, c.checked = selected, checked
+// setMarks marks the cell's row as the drawer's (drawer) and checks its checkbox (checked).
+func (c *tableCell) setMarks(drawer, checked bool) {
+	if drawer != c.drawer || checked != c.checked {
+		c.drawer, c.checked = drawer, checked
 		c.apply()
 	}
 }
@@ -1532,14 +1545,14 @@ func (c *tableCell) apply() {
 	if c.content.link != nil {
 		fg = colorLink
 	}
-	if c.selected && (fg == colorLink || fg == theme.ColorNameForeground) {
-		fg = colorRowSelectedText // the plain and link colours are too faint on the selection
+	if c.checked && (fg == colorLink || fg == theme.ColorNameForeground) {
+		fg = colorRowSelectedText // the plain and link colours are too faint on the selection's fill
 	}
 	c.text.Color = themeColor(th, fg)
-	if c.pillShows() && abnormalStatus(c.content.status) && !c.selected {
+	if c.pillShows() && abnormalStatus(c.content.status) && !c.checked {
 		c.text.Color = pillInk(th, themeColor(th, fg), pillFill(th)) // 4.5:1 on its own tint (chrome_tones.go)
 	}
-	if c.content.link != nil && !c.selected && !c.linkHover {
+	if c.content.link != nil && !c.checked && !c.linkHover {
 		// A link is quiet until the pointer is on it: three blue columns would tint every healthy row
 		// and compete with the selection (Dark Cockpit: blue is you, focus and selection).
 		c.text.Color = withAlpha(themeColor(th, theme.ColorNameForeground), 0xeb)
@@ -1593,7 +1606,7 @@ func (c *tableCell) apply() {
 		c.ring.FillColor = color.Transparent
 		c.ring.StrokeColor = themeColor(th, colorAccent)
 		c.ring.StrokeWidth = th.Size(theme.SizeNameInputBorder)
-		c.ring.CornerRadius = th.Size(theme.SizeNameSelectionRadius)
+		c.ring.CornerRadius = max(2, th.Size(theme.SizeNameSelectionRadius)-ringInset(c.ring.StrokeWidth)) // nested in the outline's corner
 		if c.focused {
 			c.ring.Show()
 		} else {
@@ -1839,9 +1852,11 @@ func (c *tableCell) layout(size fyne.Size) {
 	c.line.Move(fyne.NewPos(-gap/2, size.Height+gap/2-1))
 	c.line.Resize(fyne.NewSize(size.Width+gap, 1))
 	if c.ring != nil {
-		c.ring.Move(fyne.NewPos(-gap/2, -gap/2))
-		c.ring.Resize(fyne.NewSize(size.Width+gap, size.Height+gap))
+		in := ringInset(c.ring.StrokeWidth)
+		c.ring.Move(fyne.NewPos(in, in))
+		c.ring.Resize(fyne.NewSize(max(0, size.Width-2*in), max(0, size.Height-2*in)))
 	}
+	c.layoutOutline(size, th)
 	if c.fit(th) {
 		c.colourMore(th)
 		c.text.Refresh() // a column resize shortened or lengthened the text
@@ -1931,6 +1946,9 @@ func (r *tableCellRenderer) Objects() []fyne.CanvasObject {
 	if r.objs == nil || r.nmore != len(c.more) || r.gen != c.objs {
 		r.nmore, r.gen = len(c.more), c.objs
 		r.objs = append(r.objs[:0], c.bg, c.line)
+		if c.outline != nil {
+			r.objs = append(r.objs, c.outline.box) // over the plate, under the spine and the bar
+		}
 		if c.spine != nil {
 			r.objs = append(r.objs, c.spine)
 		}
@@ -2011,6 +2029,7 @@ type headerCell struct {
 	onTap     func(col int)
 	onDrag    func(col int, ev *fyne.DragEvent) // dragging the header moves its column (columnorder.go)
 	onDragEnd func(col int)
+	guard     dragGuard // a drag pressed outside the header is not its own (VW20, dragguard.go)
 	col       int
 	tracked   bool // registered in tableView.headers (tableheadertip.go)
 	title     string

@@ -24,6 +24,6 @@ func TestEditOnTheShownEditTabOpensTheDock(t *testing.T) {
 	sh.dispatch("object.edit", refParams{Ref: checkoutRef}, nil)
 	q.until(t, "the dock open on the Edit tab", func() bool {
 		return sh.dock.open() && sh.dock.active == "edit-1" && len(sh.dock.stripHolder.Objects) == 1 &&
-			sh.vsplit.Trailing == sh.dock.panel && et.pane.view.Visible()
+			sh.body.Objects[0] == sh.dockSplit && et.pane.view.Visible()
 	})
 }

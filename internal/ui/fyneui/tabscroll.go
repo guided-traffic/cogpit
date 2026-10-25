@@ -17,7 +17,8 @@ import (
 //   - per tab: leaving a tab (another tab, another cluster's, the welcome page) keeps its list's
 //     offset with its cluster and view; showing that tab again with the same view scrolls back
 //     there. A view the tab opens anew, back and forward in its history included, starts at its
-//     top: the filters it comes with are new too;
+//     top: the filters it comes with are new too; so the place a tab was left with is forgotten
+//     once it opens another view in itself (the owner's VW15 of 2026-10-25, forgetMoved);
 //   - the rows of a tab shown again may come after it (a cluster shown again from its cache, a list
 //     not synced yet): it scrolls back once they are in, as far as they reach, and again with each
 //     snapshot until its list is synced; a scroll of the user's own ends the wait;
@@ -49,8 +50,9 @@ func (tv *tableView) own(s shownList) bool {
 }
 
 // leaveTab keeps where the tab shown so far left its list: its offset, or where it was still
-// scrolling back to. The tabs closed since are forgotten.
+// scrolling back to. What no longer describes its tab is forgotten first (forgetMoved).
 func (tv *tableView) leaveTab() {
+	tv.forgetMoved()
 	left := tv.shows
 	if !tv.own(left) || tv.table.body == nil {
 		return
@@ -63,8 +65,18 @@ func (tv *tableView) leaveTab() {
 		tv.scrolls = make(map[string]tabScroll)
 	}
 	tv.scrolls[left.tab] = tabScroll{context: left.context, view: left.view, offset: at}
-	for id := range tv.scrolls {
-		if _, ok := tv.sh.ui.Tab(id); !ok {
+}
+
+// forgetMoved forgets where the tabs closed since left their lists, and where each tab left a view
+// it has moved on from within itself since: a view the tab opens anew, the one it was left with
+// included, starts at its top (the owner's VW15 of 2026-10-25: his preview tab, scrolled, shown
+// again after another tab, then Config Maps and Pods again came back scrolled, "der Tab hat sich
+// weiterhin gemerkt wo wir waren auch wenn die Vorschau neu geoeffnet wurde"). The tab's own view as
+// the engine has it decides, not the list the table showed in between: a view left before its rows
+// came never was the table's. A tab without a view yet says nothing.
+func (tv *tableView) forgetMoved() {
+	for id, s := range tv.scrolls {
+		if t, ok := tv.sh.ui.Tab(id); !ok || (t.View != "" && (t.Context != s.context || t.View != s.view)) {
 			delete(tv.scrolls, id)
 		}
 	}

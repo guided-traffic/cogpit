@@ -107,11 +107,11 @@ func TestLayoutTogglesThroughTheEngine(t *testing.T) {
 
 	mustDispatch(t, s, "diagnostics.open", struct{}{})
 	q.until(t, "the dock open", func() bool {
-		return sh.dock.open() && !l.dock.Disabled() && l.dock.Icon == iconDockOpen && sh.body.Objects[0] == sh.vsplit
+		return sh.dock.open() && !l.dock.Disabled() && l.dock.Icon == iconDockOpen && sh.body.Objects[0] == sh.dockSplit
 	})
 	test.Tap(l.dock)
 	q.until(t, "the dock collapsed", func() bool {
-		return !s.UIState().DockOpen && !sh.dock.open() && l.dock.Icon == iconDockClosed && sh.body.Objects[0] != sh.vsplit
+		return !s.UIState().DockOpen && !sh.dock.open() && l.dock.Icon == iconDockClosed && sh.body.Objects[0] != sh.dockSplit
 	})
 	if !strings.HasPrefix(l.dock.tip, "Open Dock") {
 		t.Errorf("the collapsed dock's tooltip %q", l.dock.tip)

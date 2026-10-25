@@ -29,7 +29,6 @@ type textButton struct {
 	focused bool    // the button has the keyboard: its outline in the primary colour
 	bare    bool    // Fyne's look, no outline and no room added: the chrome's icons, the search's switches
 	width   float32 // at least this wide: a toggle as wide as its wider state (revealButton)
-	height  float32 // at least this tall: a word alone as high as the icon buttons beside it (the b64 button)
 	// iconEnd puts the icon at the button's trailing edge, the word at its leading one: a caret on a
 	// button wider than its word (the list filters, the owner's VW4 of 2026-10-23).
 	iconEnd bool
@@ -66,7 +65,6 @@ func (b *textButton) MinSize() fyne.Size {
 		s.Width += 2 * textButtonSide
 	}
 	s.Width = max(s.Width, b.width)
-	s.Height = max(s.Height, b.height)
 	return s
 }
 

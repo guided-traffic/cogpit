@@ -70,8 +70,7 @@ func (s *selParagraph) TypedKey(ev *fyne.KeyEvent) {
 
 // DragEnd implements fyne.Draggable.
 func (s *selParagraph) DragEnd() {
-	s.textSelection.DragEnd()
-	if s.changed != nil {
+	if s.endDrag() && s.changed != nil {
 		s.changed()
 	}
 }

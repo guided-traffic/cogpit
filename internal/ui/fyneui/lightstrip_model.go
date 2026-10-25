@@ -10,7 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The light strip's model and maths (D-new, lightstrip.go): pure functions of time and width, so
+// The light strip's model and maths (D-122, lightstrip.go): pure functions of time and width, so
 // that the tests drive them without a window. Ported from the owner's lab (plan/light-strip-lab.html
 // v8, drawLayer, stepLayers, retarget and NOISE: the maths, not the canvas calls), with his picks of
 // 2026-10-24 as the constants below.

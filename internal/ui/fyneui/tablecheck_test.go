@@ -138,8 +138,8 @@ func TestRowCheckboxes(t *testing.T) {
 		t.Fatalf("checkbox sent %+v", p)
 	}
 	settle(w)
-	if c := cellAt(t, sh, 2, checkColumn); !c.selected || c.iconRes != tv.cellIcon(cellContent{kind: cellCheck}, true) || sh.ui.Drawer != nil {
-		t.Fatalf("checked row: selected %v, checked icon %v, drawer %v", c.selected, c.iconRes == tv.cellIcon(cellContent{kind: cellCheck}, true), sh.ui.Drawer)
+	if c := cellAt(t, sh, 2, checkColumn); !c.checked || c.drawer || c.iconRes != tv.cellIcon(cellContent{kind: cellCheck}, true) || sh.ui.Drawer != nil {
+		t.Fatalf("checked row: checked %v, the drawer's %v, checked icon %v, drawer %v", c.checked, c.drawer, c.iconRes == tv.cellIcon(cellContent{kind: cellCheck}, true), sh.ui.Drawer)
 	}
 	if !tv.check.bar.root.Visible() || tv.check.bar.count.text != "1 selected" { // from one row (owner, 2026-10-15)
 		t.Errorf("selection bar for one object: visible %v, %q", tv.check.bar.root.Visible(), tv.check.bar.count.text)
@@ -232,16 +232,16 @@ func TestPlainClickKeepsTheCheckedRows(t *testing.T) {
 		t.Fatalf("the click sent %+v", p)
 	}
 	for _, r := range []struct {
-		row             int
-		selected, check bool
-	}{{2, true, true}, {4, true, true}, {7, true, false}, {5, false, false}} {
+		row           int
+		drawer, check bool
+	}{{2, false, true}, {4, false, true}, {7, true, false}, {5, false, false}} {
 		box, name := cellAt(t, sh, r.row, checkColumn), cellAt(t, sh, r.row, firstDataColumn+1)
 		icon := unchecked
 		if r.check {
 			icon = checked
 		}
-		if box.iconRes != icon || name.selected != r.selected || box.selected != r.selected {
-			t.Errorf("row %d: checked icon %v (want %v), highlighted %v (want %v)", r.row, box.iconRes == checked, r.check, name.selected, r.selected)
+		if box.iconRes != icon || name.checked != r.check || name.drawer != r.drawer || box.drawer != r.drawer {
+			t.Errorf("row %d: checked icon %v (want %v), the drawer's %v (want %v)", r.row, box.iconRes == checked, r.check, name.drawer, r.drawer)
 		}
 	}
 	if !tv.check.bar.root.Visible() || tv.check.bar.count.text != "2 selected" || tv.check.state != checkSome {
@@ -255,8 +255,8 @@ func TestPlainClickKeepsTheCheckedRows(t *testing.T) {
 	if got := refKeys(sh.ui.Selected); !slices.Equal(got, want) {
 		t.Fatalf("after a click on the checked row 4 the selection is %v, want %v", got, want)
 	}
-	if c := cellAt(t, sh, 7, firstDataColumn+1); c.selected {
-		t.Error("row 7 stays highlighted after the drawer moved on")
+	if c := cellAt(t, sh, 7, firstDataColumn+1); c.drawer {
+		t.Error("row 7 stays marked as the drawer's after the drawer moved on")
 	}
 	if c := cellAt(t, sh, 4, checkColumn); c.iconRes != checked {
 		t.Error("row 4 lost its check with the click")

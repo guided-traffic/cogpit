@@ -141,7 +141,8 @@ func newDock(sh *shell) *dock {
 	d.stripHolder = container.NewStack()
 	d.collapsedBar = container.NewVBox()
 	d.body = container.NewStack()
-	d.panel = container.NewBorder(container.NewVBox(newDivider(false), d.stripHolder, newDivider(false)), nil, nil, nil,
+	// The line above the strip is the handle's over the open dock (dockLayout), as the side panels'.
+	d.panel = container.NewBorder(container.NewVBox(d.stripHolder, newDivider(false)), nil, nil, nil,
 		container.NewStack(newSurface(colorDock), d.body))
 	d.updateToggle()
 	return d
@@ -386,6 +387,7 @@ type tabButton struct {
 	widget.BaseWidget
 	id     string     // the dock tab's id
 	drag   *stripDrag // the dock's: the button drags its tab to another place (stripdrag.go)
+	guard  dragGuard  // a drag pressed outside the button is not its own (VW20, dragguard.go)
 	title  string
 	icon   fyne.Resource
 	active bool
@@ -425,14 +427,14 @@ var _ fyne.Draggable = (*tabButton)(nil)
 
 // Dragged implements fyne.Draggable: the tab is carried to another place in the strip (GW4).
 func (b *tabButton) Dragged(ev *fyne.DragEvent) {
-	if b.drag != nil {
+	if b.drag != nil && b.guard.pass(b, ev) {
 		b.drag.dragged(b, ev)
 	}
 }
 
 // DragEnd implements fyne.Draggable.
 func (b *tabButton) DragEnd() {
-	if b.drag != nil {
+	if b.guard.end() && b.drag != nil {
 		b.drag.ended(b)
 	}
 }

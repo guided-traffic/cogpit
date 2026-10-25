@@ -13,14 +13,23 @@ import (
 // The table row's marks in the Dark Cockpit design (docs/developer/design-language.md): a list is
 // quiet while everything is healthy and lights only where something needs the operator. A healthy
 // row draws nothing beyond its text; a row in an abnormal state gets a status spine at its left
-// edge, a status cell as a pill, and an error row a faint tint. The selected row gets the glow
-// blue bar. Every object is made the first time a cell needs it and reused by Fyne's cell reuse,
-// so the common case (a healthy, unselected row) costs not one object more than before.
+// edge, a status cell as a pill, and an error row a faint tint. Every object is made the first time
+// a cell needs it and reused by Fyne's cell reuse, so the common case (a healthy, unmarked row)
+// costs not one object more than before.
+//
+// A checked row and the drawer's row are two kinds of mark, not two shades of blue (the owner's
+// VW16 of 2026-10-25, his pick (a): "keinen Unterschied ... zwischen selektierten Einträgen und dem
+// aktuell markierten Eintrag"), as VS Code's lists mark a selection with a fill and the focus with
+// an outline: a checked row has the selection's fill; the drawer's row has an outline round the
+// whole row in the glow blue and the glow blue bar at its left, no fill; a row that is both has the
+// fill, the outline and the bar. The text takes the selection's colour only on the fill.
 
 // Geometry of the marks, in points.
 const (
 	spineWidth   = 3   // a status spine
-	selBarWidth  = 2   // the selected row's bar
+	selBarWidth  = 2   // the drawer's row's bar
+	outlineWidth = 1.5 // the drawer's row's outline: heavier than the keyboard's ring (1), so the two read apart
+	markGap      = 1   // between the outline, the spine and the bar at a row's left end
 	pillDotSide  = 6   // the dot in a status cell
 	pillPadX     = 8   // inside a pill, before the dot and after the word
 	pillDotGap   = 6   // between the dot and the word
@@ -70,8 +79,9 @@ func (c *tableCell) pillRoom() float32 {
 	return c.pillLead() + pillPadX
 }
 
-// applyRowMarks paints the row's spine and selection bar (the first cell's) and the cell's pill and
-// dot, making the objects the first time they are needed, and the row's error tint into bg.
+// applyRowMarks paints the row's spine and the drawer's bar (the first cell's), the cell's part of
+// the drawer's outline, and the cell's pill and dot, making the objects the first time they are
+// needed.
 func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	row := c.content.row
 	if c.col == checkColumn && abnormalStatus(row) {
@@ -85,7 +95,7 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	} else if c.spine != nil {
 		c.spine.Hide()
 	}
-	if c.col == checkColumn && c.selected {
+	if c.col == checkColumn && c.drawer {
 		if c.selBar == nil {
 			c.selBar = canvas.NewRectangle(color.Transparent)
 			c.selBar.CornerRadius = selBarWidth / 2
@@ -96,6 +106,8 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	} else if c.selBar != nil {
 		c.selBar.Hide()
 	}
+	c.applyOutline(th)
+	c.layoutLead(c.Size())
 	if c.pillShows() {
 		if c.pill == nil {
 			c.pill = canvas.NewRectangle(color.Transparent)
@@ -126,11 +138,12 @@ func (c *tableCell) applyRowMarks(th fyne.Theme) {
 	}
 }
 
-// bgColorName is the row's plate: the selection, the hover, else nothing, or for an error row the
-// faint tint of its status. It returns the colour to paint.
+// rowPlate is the row's plate: the selection's fill on a checked row, the hover, else nothing, or
+// for an error row the faint tint of its status. The drawer's row has no fill of its own: its
+// outline marks it (VW16).
 func (c *tableCell) rowPlate(th fyne.Theme) color.Color {
 	switch {
-	case c.selected:
+	case c.checked:
 		return themeColor(th, colorRowSelected)
 	case c.hover:
 		return themeColor(th, colorRowHover)
@@ -140,22 +153,61 @@ func (c *tableCell) rowPlate(th fyne.Theme) color.Color {
 	return color.Transparent
 }
 
-// layoutRowMarks places the spine, the selection bar, the pill and the dot in a cell of size whose
-// text has size ts and starts at x.
-func (c *tableCell) layoutRowMarks(size fyne.Size, ts fyne.Size, pad float32) {
+// applyOutline shows the cell's part of the drawer's outline (VW16, rowoutline.go), or hides it on
+// another row.
+func (c *tableCell) applyOutline(th fyne.Theme) {
+	if !c.drawer {
+		if c.outline != nil && c.outline.box.Visible() {
+			c.outline.box.Hide()
+		}
+		return
+	}
+	if c.outline == nil {
+		c.outline = newRowOutline()
+		c.objs++
+	}
+	c.outline.paint(themeColor(th, theme.ColorNamePrimary))
+	c.layoutOutline(c.Size(), th) // the outline may be new, or the cell's column another
+	if !c.outline.box.Visible() {
+		c.outline.box.Show()
+	}
+}
+
+// layoutOutline places the cell's part of the drawer's outline in a cell of size.
+func (c *tableCell) layoutOutline(size fyne.Size, th fyne.Theme) {
+	if c.outline == nil || !c.drawer || c.tv == nil {
+		return
+	}
+	c.outline.layout(size, th.Size(theme.SizeNamePadding), th.Size(theme.SizeNameSelectionRadius),
+		c.col == checkColumn, c.col == c.tv.menuColumn())
+}
+
+// layoutLead places the spine and the drawer's bar at the row's left end in a cell of size: right of
+// the drawer's outline on its row (VW16), so that the spine still shows. apply calls it too, since a
+// row that becomes the drawer's moves them without a layout.
+func (c *tableCell) layoutLead(size fyne.Size) {
 	inset := float32(6)
+	x := float32(0)
+	if c.drawer {
+		x = outlineWidth + markGap
+	}
 	if c.spine != nil {
-		c.spine.Move(fyne.NewPos(0, inset))
+		c.spine.Move(fyne.NewPos(x, inset))
 		c.spine.Resize(fyne.NewSize(spineWidth, max(0, size.Height-2*inset)))
+		if c.spine.Visible() {
+			x += spineWidth + markGap
+		}
 	}
 	if c.selBar != nil {
-		x := float32(0)
-		if c.spine != nil && c.spine.Visible() {
-			x = spineWidth + 1
-		}
 		c.selBar.Move(fyne.NewPos(x, inset))
 		c.selBar.Resize(fyne.NewSize(selBarWidth, max(0, size.Height-2*inset)))
 	}
+}
+
+// layoutRowMarks places the spine, the drawer's bar, the pill and the dot in a cell of size whose
+// text has size ts and starts at x.
+func (c *tableCell) layoutRowMarks(size fyne.Size, ts fyne.Size, pad float32) {
+	c.layoutLead(size)
 	if c.pill != nil && c.pillShows() {
 		h := min(size.Height-8, ts.Height+6)
 		y := (size.Height - h) / 2

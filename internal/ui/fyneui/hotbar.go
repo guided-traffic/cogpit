@@ -352,6 +352,8 @@ type hotbarTile struct {
 	ghost bool    // the carried copy: drawn lifted on a card, no tap, no menu, no tooltip
 	scale float32 // the ghost's size against a tile's; 0 is 1
 	dy    float32 // drawn this far below its place while it slides there (tileStack)
+
+	guard dragGuard // a drag pressed outside the tile is not its own (VW20, dragguard.go)
 }
 
 var (

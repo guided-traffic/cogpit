@@ -136,9 +136,9 @@ func TestRowTapDispatchesSelect(t *testing.T) {
 		t.Fatalf("ui.select %+v, want %v in mode open, with the drawer (A73)", p, want)
 	}
 	q.until(t, "the drawer", func() bool { return sh.drawer.shown != nil && *sh.drawer.shown == want })
-	if !sh.view.rowSelected(3) || sh.view.rowChecked(3) || len(sh.ui.Selected) != 0 {
-		t.Fatalf("row 3 after the click: highlighted %v, checked %v, selection %v; want highlighted only",
-			sh.view.rowSelected(3), sh.view.rowChecked(3), sh.ui.Selected)
+	if !sh.view.rowDrawer(3) || sh.view.rowChecked(3) || len(sh.ui.Selected) != 0 {
+		t.Fatalf("row 3 after the click: the drawer's %v, checked %v, selection %v; want the drawer's only",
+			sh.view.rowDrawer(3), sh.view.rowChecked(3), sh.ui.Selected)
 	}
 
 	// Fyne's own selection would swallow a second tap on the same cell; the shell clears it.
@@ -171,7 +171,7 @@ func TestNavigateScrollsOnceSnapshotHasRow(t *testing.T) {
 	go f.setTable("pods", big)
 	q.until(t, "the scroll", func() bool {
 		for _, c := range sh.view.cells {
-			if c.row == 7000 && c.selected {
+			if c.row == 7000 && (c.drawer || c.checked) {
 				return true
 			}
 		}

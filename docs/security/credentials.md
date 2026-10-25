@@ -299,7 +299,7 @@ key, never the value. An answer for a drawer that has moved on copies nothing. A
 no Show and no such copy: the engine never hands its bytes out as text
 ([`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
 `TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`). Since 2026-10-24 (the
-owner's VW7 and his pick (b), D-25) a "b64" button beside every value's copy icon copies the value
+owner's VW7 and his pick (b), D-25) a b64 button (an icon since 2026-10-25, the owner's VW19) beside every value's copy icon copies the value
 base64-encoded (standard, padded, one line), the same way and to the same clipboard for Secret
 values, the toast saying "as base64" and naming the key only: a value in no editor whole through
 `secret.reveal` with `base64` (GUI-only as without; the engine encodes the whole value, never the

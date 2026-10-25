@@ -167,16 +167,20 @@ func newPanel(l *panelLayout, panel, rest fyne.CanvasObject, h *resizeHandle) *f
 // resizeHandle is the grab area on a panel's edge: a one-point line, highlighted under the pointer,
 // and a horizontal resize cursor. A drag moves the edge by the pointer's total travel; sign is +1 when
 // the panel is on the left of the edge (dragging right widens it) and -1 when it is on the right.
+// A vertical handle (the dock's top edge, dockLayout) is the same turned: a horizontal line, the
+// vertical resize cursor, the pointer's travel up and down; sign is -1 for the dock below it.
 type resizeHandle struct {
 	widget.BaseWidget
 	sign     float32
-	current  func() float32          // the panel's width now
+	vertical bool
+	current  func() float32          // the panel's width (a vertical handle's: its height) now
 	set      func(w float32) float32 // applies a width and returns the one that took effect
 	done     func()                  // a drag ended
 	hovered  bool
 	dragging bool
 	start    float32
 	moved    float32
+	guard    dragGuard // a drag pressed outside the handle is not its own (VW20, dragguard.go)
 }
 
 var (
@@ -192,7 +196,12 @@ func newResizeHandle(sign float32, current func() float32, set func(float32) flo
 }
 
 // Cursor implements desktop.Cursorable.
-func (h *resizeHandle) Cursor() desktop.Cursor { return desktop.HResizeCursor }
+func (h *resizeHandle) Cursor() desktop.Cursor {
+	if h.vertical {
+		return desktop.VResizeCursor
+	}
+	return desktop.HResizeCursor
+}
 
 // MouseIn implements desktop.Hoverable.
 func (h *resizeHandle) MouseIn(*desktop.MouseEvent) { h.hovered = true; h.Refresh() }
@@ -208,16 +217,23 @@ func (h *resizeHandle) MouseOut() { h.hovered = false; h.Refresh() }
 // The travel past a limit is kept, so that after overshooting the edge stays at the limit until
 // the pointer is back over it, and then follows it again.
 func (h *resizeHandle) Dragged(e *fyne.DragEvent) {
+	if !h.guard.pass(h, e) {
+		return
+	}
 	if !h.dragging {
 		h.dragging, h.start, h.moved = true, h.current(), 0
 	}
-	h.moved += e.Dragged.DX
+	if h.vertical {
+		h.moved += e.Dragged.DY
+	} else {
+		h.moved += e.Dragged.DX
+	}
 	h.set(h.start + h.sign*h.moved)
 }
 
 // DragEnd implements fyne.Draggable.
 func (h *resizeHandle) DragEnd() {
-	if !h.dragging {
+	if !h.guard.end() || !h.dragging {
 		return
 	}
 	h.dragging = false
@@ -243,11 +259,22 @@ type handleRenderer struct {
 func (r *handleRenderer) Layout(size fyne.Size) {
 	r.bg.Move(fyne.NewPos(0, 0))
 	r.bg.Resize(size)
+	if r.h.vertical {
+		r.line.Move(fyne.NewPos(0, (size.Height-1)/2))
+		r.line.Resize(fyne.NewSize(size.Width, 1))
+		return
+	}
 	r.line.Move(fyne.NewPos((size.Width-1)/2, 0))
 	r.line.Resize(fyne.NewSize(1, size.Height))
 }
 
-func (r *handleRenderer) MinSize() fyne.Size           { return fyne.NewSize(handleWidth, 0) }
+func (r *handleRenderer) MinSize() fyne.Size {
+	if r.h.vertical {
+		return fyne.NewSize(0, handleWidth)
+	}
+	return fyne.NewSize(handleWidth, 0)
+}
+
 func (r *handleRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObject{r.bg, r.line} }
 func (r *handleRenderer) Destroy()                     {}
 
@@ -307,4 +334,73 @@ func (sh *shell) setChatWidth(w float32) float32 {
 	sh.chatSplit.Layout.Layout(sh.chatSplit.Objects, sh.chatSplit.Size()) // the two sides re-lay themselves
 	canvas.Refresh(sh.chatSplit)
 	return sh.chatW
+}
+
+// The dock's height is the user's as well: the handle between the workspace and the dock is a
+// vertical resizeHandle, as the side panels' edges are (the owner's VW20 of 2026-10-25: Fyne's
+// Split divider, which held the dock before, took a drag pressed anywhere and could not keep a
+// dragGuard). The height is a share of the body's: dockOffset is the workspace's at the start, a
+// drag sets it, and a resized window keeps it, as the Split did. It is not stored.
+
+const (
+	minDockHeight      float32 = 100 // the dock's strip and a few lines of its tab
+	minWorkspaceHeight float32 = 120 // the table's header and a few rows above the dock
+)
+
+// dockLayout lays out the workspace, the handle below it and the dock. The dock's height is its
+// share of what the handle leaves (1-offset), at least minDockHeight or what its tab needs, and at
+// most what leaves the workspace minWorkspaceHeight or what it needs.
+type dockLayout struct {
+	offset float32 // the workspace's share of the height
+	total  float32 // the height of the last layout, for the drag's limit
+	got    float32 // the dock's height at the last layout
+}
+
+// mins are the least heights of the workspace and the dock.
+func (l *dockLayout) mins(objs []fyne.CanvasObject) (work, dock float32) {
+	return max(minWorkspaceHeight, objs[0].MinSize().Height), max(minDockHeight, objs[2].MinSize().Height)
+}
+
+// MinSize is both least heights and the handle, as wide as the wider of the two.
+func (l *dockLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	work, dock := l.mins(objs)
+	return fyne.NewSize(max(objs[0].MinSize().Width, objs[2].MinSize().Width), work+handleWidth+dock)
+}
+
+func (l *dockLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	work, lo := l.mins(objs)
+	free := size.Height - handleWidth
+	h := clampWidth((1-l.offset)*free, lo, free-work, lo)
+	workH := max(free-h, 0)
+	objs[0].Move(fyne.NewPos(0, 0))
+	objs[0].Resize(fyne.NewSize(size.Width, workH))
+	objs[1].Move(fyne.NewPos(0, workH))
+	objs[1].Resize(fyne.NewSize(size.Width, handleWidth))
+	objs[2].Move(fyne.NewPos(0, workH+handleWidth))
+	objs[2].Resize(fyne.NewSize(size.Width, h))
+	l.total, l.got = size.Height, h
+}
+
+// newDockSplit puts the workspace above the dock with the handle between them.
+func (sh *shell) newDockSplit() *fyne.Container {
+	sh.dockLay = &dockLayout{offset: dockOffset}
+	h := newResizeHandle(-1, func() float32 { return sh.dockLay.got }, sh.setDockHeight, nil)
+	h.vertical = true
+	return box(sh.dockLay, sh.workArea, h, sh.dock.panel)
+}
+
+// setDockHeight applies the height of a drag step to the dock and returns the one that took effect,
+// within its minimum and the workspace's.
+func (sh *shell) setDockHeight(h float32) float32 {
+	l := sh.dockLay
+	free := l.total - handleWidth
+	if free <= 0 {
+		return l.got
+	}
+	work, lo := l.mins(sh.dockSplit.Objects)
+	h = clampWidth(h, lo, free-work, lo)
+	l.offset = 1 - h/free
+	l.Layout(sh.dockSplit.Objects, sh.dockSplit.Size()) // the two sides re-lay themselves
+	canvas.Refresh(sh.dockSplit)
+	return h
 }

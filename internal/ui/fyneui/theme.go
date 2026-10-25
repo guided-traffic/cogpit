@@ -62,7 +62,7 @@ const (
 	// border drew before fields got an outline of their own that reads on every surface (the
 	// owner's AW1 of 2026-10-22: theme.ColorNameInputBorder is a field's outline since).
 	colorHairline fyne.ThemeColorName = "cogpit.hairline"
-	// colorLightStrip is the light strip's frosted glass under the tabs (lightstrip.go, D-new): the
+	// colorLightStrip is the light strip's frosted glass under the tabs (lightstrip.go, D-122): the
 	// stage mixed as the owner's lab mixes it at his glass density of 32 % (stripGlassOf).
 	colorLightStrip fyne.ThemeColorName = "cogpit.lightStrip"
 )

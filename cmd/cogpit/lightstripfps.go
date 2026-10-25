@@ -11,7 +11,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui"
 )
 
-// lightStripFPSVar is a development build's frame cap of the light strip's animations (D-new), for
+// lightStripFPSVar is a development build's frame cap of the light strip's animations (D-122), for
 // measuring their load at 60, 30 and 15 frames a second without a rebuild. The release pipeline
 // builds with the tag nodemo, and a release has no such variable (lightstripfps_nodemo.go, D-67).
 const lightStripFPSVar = "COGPIT_LIGHTSTRIP_FPS"

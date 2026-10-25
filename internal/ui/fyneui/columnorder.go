@@ -63,7 +63,7 @@ func newColumnDrag(tv *tableView) *columnDrag {
 
 // Dragged implements fyne.Draggable: dragging a column's header moves the column.
 func (h *headerCell) Dragged(ev *fyne.DragEvent) {
-	if h.onDrag == nil {
+	if h.onDrag == nil || !h.guard.pass(h, ev) {
 		return
 	}
 	if ev.AbsolutePosition.IsZero() { // Fyne's test driver sends the position only
@@ -76,7 +76,7 @@ func (h *headerCell) Dragged(ev *fyne.DragEvent) {
 
 // DragEnd implements fyne.Draggable.
 func (h *headerCell) DragEnd() {
-	if h.onDragEnd != nil {
+	if h.guard.end() && h.onDragEnd != nil {
 		h.onDragEnd(h.col)
 	}
 }

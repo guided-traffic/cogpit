@@ -32,6 +32,7 @@ type textSelection struct {
 	}
 	anchor, caret int // rune offsets into the text; equal when nothing is selected
 	dragging      bool
+	guard         dragGuard // a drag pressed outside the text selects nothing (VW20, dragguard.go)
 	getText       func() string
 	offsetAt      func(fyne.Position) int // the rune offset nearest a point of the widget
 	repaint       func()                  // the selection changed
@@ -96,8 +97,12 @@ func (s *textSelection) MouseDown(ev *desktop.MouseEvent) {
 // MouseUp implements desktop.Mouseable.
 func (s *textSelection) MouseUp(*desktop.MouseEvent) {}
 
-// Dragged implements fyne.Draggable: the drag selects from where it started to the pointer.
+// Dragged implements fyne.Draggable: the drag selects from where it started to the pointer; one
+// pressed outside the text selects nothing and takes no focus.
 func (s *textSelection) Dragged(ev *fyne.DragEvent) {
+	if !s.guard.pass(s.self, ev) {
+		return
+	}
 	if !s.dragging {
 		s.dragging = true
 		s.grab()
@@ -108,7 +113,13 @@ func (s *textSelection) Dragged(ev *fyne.DragEvent) {
 }
 
 // DragEnd implements fyne.Draggable.
-func (s *textSelection) DragEnd() { s.dragging = false }
+func (s *textSelection) DragEnd() { s.endDrag() }
+
+// endDrag ends a drag and reports whether it went on to the text: false for one pressed outside.
+func (s *textSelection) endDrag() bool {
+	s.dragging = false
+	return s.guard.end()
+}
 
 // DoubleTapped implements fyne.DoubleTappable: it selects the word under the pointer, a run of
 // characters that are no white space.

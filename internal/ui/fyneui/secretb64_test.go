@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"encoding/base64"
+	"image/color"
 	"slices"
 	"strings"
 	"testing"
@@ -19,15 +20,15 @@ import (
 
 func enc64(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
-// keyB64 is the b64 button on key's name line.
-func keyB64(t *testing.T, d *drawer, key string) *tipButton {
+// keyB64 is the b64 button on key's name line: a pinned copy icon with the b64 icon (VW19).
+func keyB64(t *testing.T, d *drawer, key string) *copyButton {
 	t.Helper()
 	line := keyLineOf(d, key)
 	if line == nil {
 		t.Fatalf("no name line for %s", key)
 	}
-	var out []*tipButton
-	for _, b := range findAll[*tipButton](line.Objects[1]) {
+	var out []*copyButton
+	for _, b := range findAll[*copyButton](line.Objects[1]) {
 		if b.tip == b64Tip {
 			out = append(out, b)
 		}
@@ -40,9 +41,9 @@ func keyB64(t *testing.T, d *drawer, key string) *tipButton {
 
 // TestSecretB64CopiesAMaskedValueEncoded: a masked value's b64 button reads the whole value
 // base64-encoded from the GUI (a value longer than a reveal shows comes whole) and puts it on the
-// clipboard for Secret values, concealed, without showing it; the drawer stays masked, the word
-// turns into the checkmark and back, and the toast names the key and says "as base64", never the
-// value or its encoding. The clipboard is cleared after the TTL.
+// clipboard for Secret values, concealed, without showing it; the drawer stays masked, the icon
+// turns into the checkmark and back (VW19), and the toast names the key and says "as base64", never
+// the value or its encoding. The clipboard is cleared after the TTL.
 func TestSecretB64CopiesAMaskedValueEncoded(t *testing.T) {
 	f := wholeRevealFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -53,8 +54,8 @@ func TestSecretB64CopiesAMaskedValueEncoded(t *testing.T) {
 	q.until(t, "the drawer", func() bool { return d.last != nil && len(drawerButtons(d)["Show"]) == 4 })
 
 	b := keyB64(t, d, "DB_PASSWORD")
-	if b.Text != b64Label || b.tip != "Copy the value as base64" {
-		t.Errorf("the button reads %q, its tooltip %q", b.Text, b.tip)
+	if got, want := drawnIcon(b), themedIcon(iconBase64, theme.ColorNameForeground).Name(); got != want || b.tip != "Copy the value as base64" {
+		t.Errorf("the button draws %q, its tooltip %q; want %q", got, b.tip, want)
 	}
 	test.Tap(b)
 	q.until(t, "the copy", func() bool { return len(*concealed) == 1 })
@@ -73,15 +74,23 @@ func TestSecretB64CopiesAMaskedValueEncoded(t *testing.T) {
 		t.Errorf("%d masked values after the copy, want 4", n)
 	}
 	b = keyB64(t, d, "DB_PASSWORD")
-	if b.Text != "" || b.Icon == nil || b.Icon.Name() != themedIcon(theme.ConfirmIcon(), colorStatusOK).Name() {
-		t.Errorf("after the copy the button reads %q with %v, want the checkmark", b.Text, b.Icon)
+	if got := drawnIcon(b); !b.done || got != themedIcon(theme.ConfirmIcon(), colorStatusOK).Name() {
+		t.Errorf("after the copy the button draws %q, want the checkmark", got)
 	}
 	if !toastSays(sh, "DB_PASSWORD as base64") || !toastSays(sh, "cleared in") || toastSays(sh, "correct-horse") ||
 		toastSays(sh, enc64(longSecretValue)[:16]) {
 		t.Error("the toast should name the key, say as base64 and that the clipboard is cleared, never show the value")
 	}
-	q.until(t, "the word again", func() bool { return keyB64(t, d, "DB_PASSWORD").Text == b64Label })
+	q.until(t, "the icon again", func() bool {
+		b := keyB64(t, d, "DB_PASSWORD")
+		return !b.done && drawnIcon(b) == themedIcon(iconBase64, theme.ColorNameForeground).Name()
+	})
 	q.until(t, "the clipboard to be cleared", func() bool { return sh.app.Clipboard().Content() == "" })
+}
+
+// drawnIcon names the icon a copy icon draws: the copy icon, the b64 icon or the checkmark.
+func drawnIcon(b *copyButton) string {
+	return test.WidgetRenderer(b).(*copyButtonRenderer).img.Resource.Name()
 }
 
 // TestSecretB64OnABinaryValue (the owner's pick (b) of 2026-10-24): a binary value has the b64
@@ -187,25 +196,46 @@ func TestSecretB64Refusals(t *testing.T) {
 	}
 }
 
-// TestSecretB64ButtonLook (D-104): the b64 button is outlined as the copy icon and Show beside it,
-// keeps its width while the checkmark stands in for its word, and is as high as the copy icon.
+// TestSecretB64ButtonLook (D-104; the owner's VW19 of 2026-10-25, his pick O1): the b64 button is an
+// icon made as the copy icon beside it: outlined as it is, as wide and as high, and no wider than
+// the remove button; with the checkmark in its icon's place it keeps its size (his VW18: the word's
+// button grew after it). A binary value's line holds it and the remove button only, the same size.
 func TestSecretB64ButtonLook(t *testing.T) {
 	sh, w, q, _, _ := secShell(t, ThemeDark)
 	settle(w)
 	d := sh.drawer
 	b := keyB64(t, d, "DB_PASSWORD")
+	icon := keyCopyIcon(t, d, "DB_PASSWORD")
+	r, ir := test.WidgetRenderer(b).(*copyButtonRenderer), test.WidgetRenderer(icon).(*copyButtonRenderer)
 	th, v := sh.app.Settings().Theme(), sh.app.Settings().ThemeVariant()
-	if r := test.WidgetRenderer(b).(*textButtonRenderer); r.outline.StrokeColor != th.Color(theme.ColorNameInputBorder, v) {
-		t.Errorf("the b64 button's outline is %v, want the field's", r.outline.StrokeColor)
+	if r.bg.StrokeColor != th.Color(theme.ColorNameInputBorder, v) || r.bg.FillColor != color.Transparent ||
+		r.bg.CornerRadius != ir.bg.CornerRadius || r.bg.StrokeWidth != ir.bg.StrokeWidth {
+		t.Errorf("the b64 button's plate %v, outline %v: want the copy icon's", r.bg.FillColor, r.bg.StrokeColor)
 	}
-	width, height := b.MinSize().Width, b.MinSize().Height
-	if icon := keyCopyIcon(t, d, "DB_PASSWORD"); height != icon.MinSize().Height {
-		t.Errorf("the b64 button is %v high, the copy icon %v", height, icon.MinSize().Height)
+	size := b.MinSize()
+	if size != icon.MinSize() || b.Size() != icon.Size() {
+		t.Errorf("the b64 button is %v (laid out %v), the copy icon %v (%v)", size, b.Size(), icon.MinSize(), icon.Size())
+	}
+	remove := findAll[*tipButton](keyLineOf(d, "DB_PASSWORD").Objects[1])
+	if len(remove) != 1 || size.Width > remove[0].MinSize().Width {
+		t.Errorf("the b64 button is %v wide, the remove buttons %v", size.Width, remove)
 	}
 	sh.copyConfirm = 20 * time.Millisecond
 	secDataOf(sh).b64Of("DB_PASSWORD").confirm()
-	if got := b.MinSize(); got.Width != width || got.Height != height {
-		t.Errorf("with the checkmark the button is %v, without %vx%v", got, width, height)
+	settle(w)
+	if got := b.MinSize(); !b.done || got != size || b.Size() != icon.Size() {
+		t.Errorf("with the checkmark (%v) the button is %v (laid out %v), without %v", b.done, got, b.Size(), size)
 	}
-	q.until(t, "the word again", func() bool { return b.Text == b64Label })
+	q.until(t, "the icon again", func() bool { return !b.done })
+	settle(w)
+	if got := b.MinSize(); got != size || b.Size() != icon.Size() {
+		t.Errorf("after the checkmark the button is %v (laid out %v), before %v", got, b.Size(), size)
+	}
+
+	if got := keyLineParts(d, "ca.crt"); !slices.Equal(got, []string{"b64", "remove"}) {
+		t.Errorf("the binary value's line ends with %v, want b64 and remove", got)
+	}
+	if bin := keyB64(t, d, "ca.crt"); bin.MinSize() != size {
+		t.Errorf("the binary value's b64 button is %v, the other keys' %v", bin.MinSize(), size)
+	}
 }

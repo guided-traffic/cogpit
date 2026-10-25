@@ -10,7 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestLightStripIsTheUsers (D-new): a cluster's light strip is chosen only in the window. Agents
+// TestLightStripIsTheUsers (D-122): a cluster's light strip is chosen only in the window. Agents
 // and the CLI are refused for every animation, also where the user allowed agent writes, before
 // anything is written or anyone asked; cluster.settings.set has no field for it, and resetting the
 // icon or clearing the accent colour leaves it. Without an accent colour the window's choice is
