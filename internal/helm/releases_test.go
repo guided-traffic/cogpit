@@ -150,7 +150,7 @@ func TestReleaseDetail(t *testing.T) {
 	for i, s := range secs {
 		titles[i] = s.Group + "/" + s.Title
 	}
-	if strings.Join(titles, ",") != "/Properties,/Values,/Notes,Resources/ClusterRole,Resources/ConfigMap,Resources/Deployment,Resources/Widget" {
+	if strings.Join(titles, ",") != "/Properties,/Values,/Notes,Resources/ClusterRole,Resources/ConfigMap,Resources/Deployment,Resources/Widget,/History" {
 		t.Fatalf("sections %v", titles)
 	}
 	var names []string
@@ -159,7 +159,7 @@ func TestReleaseDetail(t *testing.T) {
 		names = append(names, it.Name)
 		props[it.Name] = it
 	}
-	if strings.Join(names, ",") != "Chart,Updated,Namespace,Version,Status,Storage" {
+	if strings.Join(names, ",") != "Chart,Updated,Namespace,Version,Status,Description,Storage" {
 		t.Errorf("properties %v", names)
 	}
 	if st := props[TitleStorage]; st.Value != "Secrets" || st.Status != model.StatusNone {
@@ -179,6 +179,21 @@ func TestReleaseDetail(t *testing.T) {
 	if props["Status"].Value != "Deployed" || !props["Status"].Pill || props["Status"].Status != model.StatusNone ||
 		props["Version"].Value != "1.3.0" || props["Namespace"].Value != "apps" || props["Namespace"].Link != nil {
 		t.Errorf("properties %+v", props)
+	}
+	if d := props["Description"]; d.Value != "Revision 3" || d.Status != model.StatusNone || !d.Wrap {
+		t.Errorf("description %+v", d)
+	}
+	// History: every revision newest first, as helm history lists them, the description under its
+	// row, the time a mark.
+	h := secs[7].Table
+	if h == nil || !h.LastUnder || strings.Join(h.Columns, ",") != "Revision,Status,Chart,App Version,Updated,Description" || len(h.Rows) != 2 {
+		t.Fatalf("history %+v", h)
+	}
+	if got := strings.Join(h.Rows[0][:4], ",") + "," + de.WriteMarks(h.Rows[0][4]) + "," + h.Rows[0][5]; got != "3,Deployed,web-1.3.0,2.0,01.10.2026 17:00:00,Revision 3" {
+		t.Errorf("history's newest row %q", got)
+	}
+	if h.Rows[1][0] != "2" || h.Rows[1][1] != "Superseded" || h.Cells[1][1].Status != model.StatusNone || h.Cells[0][1].Status != model.StatusOK {
+		t.Errorf("history's rows %v", h.Rows)
 	}
 	values := secs[1].Items[0]
 	if !values.Private || !strings.Contains(values.Value, "password: hunter2") || !strings.Contains(values.Value, "replicas: 2") {
@@ -204,6 +219,41 @@ func TestReleaseDetail(t *testing.T) {
 	withheld := model.WithholdPrivate(secs)
 	if withheld[1].Items[0].Value != model.Withheld || withheld[2].Items[0].Value != model.Withheld {
 		t.Errorf("values and notes for agents %+v", withheld[1:3])
+	}
+}
+
+// A failed revision a rollback covered stays in the History, its status and Helm's error in the
+// error colour, as k9s's history view shows it (the owner's colleague, 2026-10-25); a failed newest
+// revision's description is in Properties too, plain as the other values.
+func TestReleaseHistoryShowsAFailedUpgrade(t *testing.T) {
+	failed := secretFor(t, testRelease{ns: "apps", name: "web", rev: 2, status: common.StatusFailed})
+	rls, err := DecodeSecret(failed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := `Upgrade "web" failed: client rate limiter Wait returned an error: context deadline exceeded`
+	rls.Info.Description = msg
+	failed.Object["data"] = map[string]any{"release": base64.StdEncoding.EncodeToString([]byte(encode(t, rls, true)))}
+	p := NewReleaseProfile()
+	recs := []*unstructured.Unstructured{
+		secretFor(t, testRelease{ns: "apps", name: "web", rev: 1, status: common.StatusSuperseded}),
+		failed,
+		secretFor(t, testRelease{ns: "apps", name: "web", rev: 3, status: common.StatusDeployed}),
+	}
+	secs := p.Detail(byKey(p.Derive(recs))["apps/web"])
+	h := secs[len(secs)-1].Table
+	if h == nil || len(h.Rows) != 3 || h.Rows[1][0] != "2" || h.Rows[1][1] != "Failed" || h.Rows[1][5] != msg ||
+		h.Cells[1][1].Status != model.StatusError || h.Cells[1][5].Status != model.StatusError || h.Cells[0][5].Status != model.StatusNone {
+		t.Fatalf("history %+v", h)
+	}
+	var desc model.DetailItem
+	for _, it := range p.Detail(byKey(p.Derive(recs[:2]))["apps/web"])[0].Items {
+		if it.Name == "Description" {
+			desc = it
+		}
+	}
+	if desc.Value != msg || desc.Status != model.StatusNone {
+		t.Errorf("a failed newest revision's description %+v", desc)
 	}
 }
 

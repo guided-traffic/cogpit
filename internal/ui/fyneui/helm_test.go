@@ -79,7 +79,7 @@ func fixtureReleaseSecret(t testing.TB, r fixtureRelease) *unstructured.Unstruct
 func releaseDescription(r fixtureRelease) string {
 	switch {
 	case r.status == "failed":
-		return `Upgrade "` + r.name + `" failed: context deadline exceeded`
+		return `Upgrade "` + r.name + `" failed: client rate limiter Wait returned an error: context deadline exceeded`
 	case r.status == "pending-upgrade":
 		return "Preparing upgrade"
 	case r.rev == 1:

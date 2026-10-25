@@ -62,6 +62,11 @@ func TestDeriveFromConfigMaps(t *testing.T) {
 	if props[TitleStorage].Value != "ConfigMaps" || props["Status"].Value != "Deployed" {
 		t.Errorf("properties %+v", props)
 	}
+	last := secs[len(secs)-1]
+	if h := last.Table; last.Title != TitleHistory || h == nil || len(h.Rows) != 2 || h.Rows[0][0] != "2" ||
+		h.Rows[0][5] != "Revision 2" || h.Rows[1][1] != "Superseded" || h.Rows[1][5] != "Revision 1" {
+		t.Errorf("history %+v", last)
+	}
 	if v := secs[1].Items[0]; !v.Private || !strings.Contains(v.Value, "password: hunter2") {
 		t.Errorf("values %+v", v)
 	}

@@ -71,6 +71,10 @@ type DetailTable struct {
 	// Omitted counts the rows the engine left out of a long sortable table: it shows the first rows
 	// in Sort's order and counts the rest here (a workload's Pods, D-40).
 	Omitted int `json:"omitted,omitempty"`
+	// LastUnder shows the last column's texts on a line of their own under their rows, across the
+	// table's width and wrapped there, where a column would cut them off: a release revision's
+	// description, which holds Helm's error message. Rows and Cells keep the column like any other.
+	LastUnder bool `json:"lastUnder,omitempty"`
 }
 
 // TableSort is the order of a sortable drawer table's rows: by the column with the id Column,
@@ -171,7 +175,10 @@ type DetailItem struct {
 	Actions []ItemAction `json:"actions,omitempty"`
 	// Pill draws the value as a neutral grey pill, carrying no status colour (a Helm release's
 	// Status in Lens's drawer, captured 2026-10-12).
-	Pill    bool `json:"pill,omitempty"`
+	Pill bool `json:"pill,omitempty"`
+	// Wrap breaks a plain value onto lines within the value's width where it is cut off
+	// otherwise: a release's description, which holds Helm's error message.
+	Wrap    bool `json:"wrap,omitempty"`
 	Private bool `json:"-"`
 }
 

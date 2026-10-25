@@ -13,6 +13,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -543,6 +544,98 @@ func TestRenderReleaseDrawerEnd(t *testing.T) {
 		t.Skip("not a committed PNG")
 	}
 	renderReleaseDrawer(t, ThemeLight, "release_drawer_end_light.png", true)
+}
+
+// failedReleaseDrawerShell opens checkout-api's drawer: revision 5 failed, revision 4 deployed.
+func failedReleaseDrawerShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window) {
+	t.Helper()
+	f, _ := releasesFake(t)
+	ref := model.ObjectRef{Context: "demo", Kind: helm.ReleaseKind, Namespace: "checkout", Name: "checkout-api"}
+	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
+	sh, w, q := newTestShell(t, f, Options{Theme: mode})
+	q.until(t, "checkout-api's drawer", func() bool {
+		return sh.view.snap != nil && sh.drawer.last != nil && sh.drawer.last.Ref == ref && sh.diag.total > 0
+	})
+	settle(w)
+	return sh, w
+}
+
+// The History at the drawer's end: every revision newest first, the failed one in the error
+// colour, its description (Helm's error) on a plate under its row across the drawer, wrapped onto
+// lines instead of cut, each line's copy icon copying the whole message (the owner's colleague,
+// 2026-10-25, after k9s's history; the owner placed it and the plate the same day).
+func TestReleaseHistoryShowsTheDescriptionUnderItsRow(t *testing.T) {
+	sh, _ := failedReleaseDrawerShell(t, ThemeDark)
+	d := sh.drawer
+	msg := `Upgrade "checkout-api" failed: client rate limiter Wait returned an error: context deadline exceeded`
+	var parts []*selLine
+	for _, l := range findAll[*selLine](d.details) {
+		if l.hook != nil && l.hook.text == msg && l.line.color == colorStatusError {
+			parts = append(parts, l)
+		}
+	}
+	var words []string
+	for _, l := range parts {
+		words = append(words, l.line.text)
+		if w := fyne.MeasureText(l.line.text, sh.app.Settings().Theme().Size(theme.SizeNameText), fyne.TextStyle{}).Width; w > l.Size().Width+0.5 {
+			t.Errorf("line %q needs %v, has %v: cut", l.line.text, w, l.Size().Width)
+		}
+	}
+	if len(parts) < 2 || strings.Join(words, " ") != msg {
+		t.Fatalf("the failed revision's description in %d lines: %q", len(parts), words)
+	}
+	// Properties' Description: the newest revision's, wrapped within the value's width, not cut.
+	var props []string
+	for _, l := range findAll[*selLine](d.details) {
+		if l.hook != nil && l.hook.text == msg && l.line.color == theme.ColorNameForeground {
+			props = append(props, l.line.text)
+			if fyne.MeasureText(l.line.text, sh.app.Settings().Theme().Size(theme.SizeNameText), fyne.TextStyle{}).Width > d.valueWidth()+0.5 {
+				t.Errorf("Properties' line %q is wider than the value's %v", l.line.text, d.valueWidth())
+			}
+		}
+	}
+	if len(props) < 2 || strings.Join(props, " ") != msg {
+		t.Errorf("Properties' description in %d lines: %q", len(props), props)
+	}
+	// Under its row: below revision 5's status, from the table's left edge.
+	var failed *textLine
+	for _, l := range findAll[*textLine](d.details) {
+		if l.text == "Failed" && l.color == colorStatusError {
+			failed = l
+		}
+	}
+	drv := fyne.CurrentApp().Driver()
+	if failed == nil {
+		t.Fatal("no Failed in the History")
+	}
+	at, top := drv.AbsolutePositionForObject(parts[0]), drv.AbsolutePositionForObject(failed)
+	if at.Y <= top.Y || at.X >= top.X {
+		t.Errorf("the description at %v, the row's status at %v: want it under the row, from the table's left", at, top)
+	}
+	if secs := d.last.Sections; secs[len(secs)-1].Title != helm.TitleHistory {
+		t.Errorf("the last section is %q, want the History", secs[len(secs)-1].Title)
+	}
+	texts := releaseDrawerText(d)
+	for _, s := range []string{"History", "Revision", "Failed", "checkout-api-2.15.0", "checkout-api-2.14.0", "Upgrade complete"} {
+		if !strings.Contains(texts, s) {
+			t.Errorf("the drawer lacks %q", s)
+		}
+	}
+}
+
+// renderReleaseHistory renders checkout-api's drawer scrolled to its end, the History.
+func renderReleaseHistory(t *testing.T, mode ThemeMode, name string) {
+	sh, w := failedReleaseDrawerShell(t, mode)
+	sh.drawer.scroll.ScrollToBottom()
+	savePNG(t, w, name)
+}
+
+func TestRenderReleaseHistoryDark(t *testing.T) {
+	renderReleaseHistory(t, ThemeDark, "release_history_dark.png")
+}
+
+func TestRenderReleaseHistoryLight(t *testing.T) {
+	renderReleaseHistory(t, ThemeLight, "release_history_light.png")
 }
 
 // TestRenderRollbackDialog and its dropdown's renders: render_dialogs_test.go.
