@@ -276,7 +276,8 @@ type ValueChange struct {
 const maxValueChanges = 1000
 
 // ValueChanges returns the values that differ from revision from to revision to, by key path in
-// order; a list or a map that is set on one side only is one change, a list that differs is one.
+// order; a list or a map that is set on one side only is one change, lists on both sides are
+// compared element by element ("hosts[1]").
 func ValueChanges(from, to Revision) ([]ValueChange, bool) {
 	var out []ValueChange
 	walkChanges("", from.values, to.values, &out)
@@ -301,22 +302,41 @@ func walkChanges(path string, a, b map[string]any, out *[]ValueChange) {
 		}
 		av, aok := a[k]
 		bv, bok := b[k]
-		am, amap := asMap(av)
-		bm, bmap := asMap(bv)
-		switch {
-		case amap && bmap:
-			walkChanges(p, am, bm, out)
-		case aok && bok && reflect.DeepEqual(av, bv):
-		default:
-			c := ValueChange{Path: p}
-			if aok {
-				c.From = oneLine(av)
+		changeAt(p, av, aok, bv, bok, out)
+	}
+}
+
+// changeAt compares one value of both revisions: maps key by key, lists element by element
+// ("hosts[1].host"), anything else whole.
+func changeAt(p string, av any, aok bool, bv any, bok bool, out *[]ValueChange) {
+	am, amap := asMap(av)
+	bm, bmap := asMap(bv)
+	al, alist := av.([]any)
+	bl, blist := bv.([]any)
+	switch {
+	case amap && bmap:
+		walkChanges(p, am, bm, out)
+	case alist && blist:
+		for i := range max(len(al), len(bl)) {
+			var x, y any
+			if i < len(al) {
+				x = al[i]
 			}
-			if bok {
-				c.To = oneLine(bv)
+			if i < len(bl) {
+				y = bl[i]
 			}
-			*out = append(*out, c)
+			changeAt(p+"["+strconv.Itoa(i)+"]", x, i < len(al), y, i < len(bl), out)
 		}
+	case aok && bok && reflect.DeepEqual(av, bv):
+	default:
+		c := ValueChange{Path: p}
+		if aok {
+			c.From = oneLine(av)
+		}
+		if bok {
+			c.To = oneLine(bv)
+		}
+		*out = append(*out, c)
 	}
 }
 

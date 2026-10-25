@@ -113,17 +113,21 @@ func TestRevisionOf(t *testing.T) {
 	}
 }
 
-// The changed values between two revisions, by key path: changed, set on one side only, a list
-// as one value.
+// The changed values between two revisions, by key path: changed, set on one side only, lists
+// element by element, a map in a list by its keys.
 func TestValueChanges(t *testing.T) {
-	from := Revision{values: map[string]any{"a": map[string]any{"b": 1, "c": "x"}, "list": []any{1, 2}, "gone": true, "same": "s"}}
-	to := Revision{values: map[string]any{"a": map[string]any{"b": 2, "c": "x", "d": "multi\nline"}, "list": []any{1, 3}, "same": "s", "new": map[string]any{"k": "v"}}}
+	from := Revision{values: map[string]any{"a": map[string]any{"b": 1, "c": "x"}, "list": []any{1, 2}, "gone": true, "same": "s",
+		"hosts": []any{map[string]any{"host": "a.example"}}}}
+	to := Revision{values: map[string]any{"a": map[string]any{"b": 2, "c": "x", "d": "multi\nline"}, "list": []any{1, 3, 4}, "same": "s", "new": map[string]any{"k": "v"},
+		"hosts": []any{map[string]any{"host": "a.example"}, map[string]any{"host": "b.example"}}}}
 	got, cut := ValueChanges(from, to)
 	want := []ValueChange{
 		{Path: "a.b", From: "1", To: "2"},
 		{Path: "a.d", To: `"multi\nline"`},
 		{Path: "gone", From: "true"},
-		{Path: "list", From: "[1,2]", To: "[1,3]"},
+		{Path: "hosts[1]", To: `{"host":"b.example"}`},
+		{Path: "list[1]", From: "2", To: "3"},
+		{Path: "list[2]", To: "4"},
 		{Path: "new", To: `{"k":"v"}`},
 	}
 	if cut || len(got) != len(want) {
