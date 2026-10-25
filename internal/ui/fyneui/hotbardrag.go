@@ -119,14 +119,14 @@ var _ fyne.Draggable = (*hotbarTile)(nil)
 
 // Dragged implements fyne.Draggable: the tile is carried to another place on the bar.
 func (t *hotbarTile) Dragged(ev *fyne.DragEvent) {
-	if !t.ghost {
+	if !t.ghost && t.guard.pass(t, ev) {
 		t.h.drag.dragged(t, ev)
 	}
 }
 
 // DragEnd implements fyne.Draggable.
 func (t *hotbarTile) DragEnd() {
-	if !t.ghost {
+	if t.guard.end() && !t.ghost {
 		t.h.drag.ended(t)
 	}
 }

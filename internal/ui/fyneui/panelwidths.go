@@ -177,6 +177,7 @@ type resizeHandle struct {
 	dragging bool
 	start    float32
 	moved    float32
+	guard    dragGuard // a drag pressed outside the handle is not its own (VW20, dragguard.go)
 }
 
 var (
@@ -208,6 +209,9 @@ func (h *resizeHandle) MouseOut() { h.hovered = false; h.Refresh() }
 // The travel past a limit is kept, so that after overshooting the edge stays at the limit until
 // the pointer is back over it, and then follows it again.
 func (h *resizeHandle) Dragged(e *fyne.DragEvent) {
+	if !h.guard.pass(h, e) {
+		return
+	}
 	if !h.dragging {
 		h.dragging, h.start, h.moved = true, h.current(), 0
 	}
@@ -217,7 +221,7 @@ func (h *resizeHandle) Dragged(e *fyne.DragEvent) {
 
 // DragEnd implements fyne.Draggable.
 func (h *resizeHandle) DragEnd() {
-	if !h.dragging {
+	if !h.guard.end() || !h.dragging {
 		return
 	}
 	h.dragging = false

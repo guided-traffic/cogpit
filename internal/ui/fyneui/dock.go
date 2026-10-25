@@ -386,6 +386,7 @@ type tabButton struct {
 	widget.BaseWidget
 	id     string     // the dock tab's id
 	drag   *stripDrag // the dock's: the button drags its tab to another place (stripdrag.go)
+	guard  dragGuard  // a drag pressed outside the button is not its own (VW20, dragguard.go)
 	title  string
 	icon   fyne.Resource
 	active bool
@@ -425,14 +426,14 @@ var _ fyne.Draggable = (*tabButton)(nil)
 
 // Dragged implements fyne.Draggable: the tab is carried to another place in the strip (GW4).
 func (b *tabButton) Dragged(ev *fyne.DragEvent) {
-	if b.drag != nil {
+	if b.drag != nil && b.guard.pass(b, ev) {
 		b.drag.dragged(b, ev)
 	}
 }
 
 // DragEnd implements fyne.Draggable.
 func (b *tabButton) DragEnd() {
-	if b.drag != nil {
+	if b.guard.end() && b.drag != nil {
 		b.drag.ended(b)
 	}
 }

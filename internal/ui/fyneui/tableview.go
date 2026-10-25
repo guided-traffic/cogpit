@@ -1199,7 +1199,8 @@ type resourceTable struct {
 	// sepClick is the last click on a header separator, for its double click (tableheader.go).
 	sepClick click
 
-	dragging, dragFixed bool // a drag is under way; it began on the divider of a column that keeps its width
+	dragging, dragFixed bool      // a drag is under way; it began on the divider of a column that keeps its width
+	guard               dragGuard // a drag pressed outside the table is not its own (VW20, dragguard.go)
 }
 
 func newResourceTable(tv *tableView) *resourceTable {
@@ -1261,6 +1262,9 @@ func (t *resourceTable) Cursor() desktop.Cursor {
 // Dragged implements fyne.Draggable: Fyne's table drags a column's divider, except a column's that
 // keeps its width (fixedWidth); where the drag began decides it.
 func (t *resourceTable) Dragged(e *fyne.DragEvent) {
+	if !t.guard.pass(t, e) {
+		return
+	}
 	if !t.dragging {
 		t.dragging = true
 		t.dragFixed = t.tv.fixedAt(t.tv.separatorAt(e.Position.Subtract(e.Dragged)))
@@ -1272,6 +1276,9 @@ func (t *resourceTable) Dragged(e *fyne.DragEvent) {
 
 // DragEnd implements fyne.Draggable.
 func (t *resourceTable) DragEnd() {
+	if !t.guard.end() {
+		return
+	}
 	t.dragging, t.dragFixed = false, false
 	t.Table.DragEnd()
 }
@@ -2011,6 +2018,7 @@ type headerCell struct {
 	onTap     func(col int)
 	onDrag    func(col int, ev *fyne.DragEvent) // dragging the header moves its column (columnorder.go)
 	onDragEnd func(col int)
+	guard     dragGuard // a drag pressed outside the header is not its own (VW20, dragguard.go)
 	col       int
 	tracked   bool // registered in tableView.headers (tableheadertip.go)
 	title     string

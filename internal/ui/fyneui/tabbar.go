@@ -356,6 +356,7 @@ type viewTab struct {
 	id      clusterIdentity // its cluster's initials, icon colour and uploaded image (cluster settings)
 	hovered bool
 	close   *widget.Button
+	guard   dragGuard // a drag pressed outside the tab is not its own (VW20, dragguard.go)
 }
 
 var (
@@ -393,10 +394,18 @@ func (t *viewTab) Tapped(*fyne.PointEvent) {
 }
 
 // Dragged implements fyne.Draggable: the tab is carried to another place (stripdrag.go).
-func (t *viewTab) Dragged(ev *fyne.DragEvent) { t.bar.drag.dragged(t, ev) }
+func (t *viewTab) Dragged(ev *fyne.DragEvent) {
+	if t.guard.pass(t, ev) {
+		t.bar.drag.dragged(t, ev)
+	}
+}
 
 // DragEnd implements fyne.Draggable.
-func (t *viewTab) DragEnd() { t.bar.drag.ended(t) }
+func (t *viewTab) DragEnd() {
+	if t.guard.end() {
+		t.bar.drag.ended(t)
+	}
+}
 
 // MouseIn implements desktop.Hoverable: the full title as the tooltip; nothing while a tab is
 // dragged.

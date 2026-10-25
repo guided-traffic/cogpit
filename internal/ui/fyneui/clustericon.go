@@ -458,7 +458,8 @@ type cropEditor struct {
 	crop     engine.IconCrop
 	img      *canvas.Image
 	onChange func(engine.IconCrop)
-	onEmpty  func() // a tap while no image is shown
+	onEmpty  func()    // a tap while no image is shown
+	guard    dragGuard // a drag pressed outside the editor is not its own (VW20, dragguard.go)
 }
 
 var (
@@ -509,7 +510,7 @@ func (e *cropEditor) frameRect() (fyne.Position, fyne.Size) {
 
 // Dragged implements fyne.Draggable: the image moves with the pointer.
 func (e *cropEditor) Dragged(ev *fyne.DragEvent) {
-	if e.src == nil {
+	if !e.guard.pass(e, ev) || e.src == nil {
 		return
 	}
 	s := e.scale()
@@ -520,7 +521,7 @@ func (e *cropEditor) Dragged(ev *fyne.DragEvent) {
 }
 
 // DragEnd implements fyne.Draggable.
-func (e *cropEditor) DragEnd() {}
+func (e *cropEditor) DragEnd() { e.guard.end() }
 
 // Scrolled implements fyne.Scrollable: the wheel zooms at the pointer, a tenth per notch, as the
 // owner's tool does; a trackpad's small steps zoom by as much less.
