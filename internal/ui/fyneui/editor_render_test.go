@@ -12,11 +12,18 @@ import (
 // split would, so that the diff and the picker show in full.
 const renderDockOffset = 0.42
 
+// setDockOffset gives the workspace this share of the body's height above the open dock, as a
+// drag of the dock's edge would (dockLayout).
+func setDockOffset(sh *shell, offset float32) {
+	sh.dockLay.offset = offset
+	sh.dockSplit.Refresh()
+}
+
 // renderEditDiff shows an Edit tab reviewing two changes to a service, a new line and a changed
 // port, after the server's dry run accepted them.
 func renderEditDiff(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _, _, et := editScene(t, mode)
-	sh.vsplit.SetOffset(renderDockOffset)
+	setDockOffset(sh, renderDockOffset)
 	typeLineAfter(et.pane, 16, "sessionAffinity: ClientIP")
 	et.pane.view.SetCursorPosition(13, 1<<20)
 	for range 4 {
@@ -50,7 +57,7 @@ func renderCreate(t *testing.T, mode ThemeMode, name string) {
 		ct, _ = c.editor.(*createTab)
 		return ct != nil && strings.Contains(ct.pane.view.Text(), "kind: Pod") && len(ct.templates) > 0
 	})
-	sh.vsplit.SetOffset(renderDockOffset)
+	setDockOffset(sh, renderDockOffset)
 	settle(w)
 	ct.showTemplates()
 	q.drain()

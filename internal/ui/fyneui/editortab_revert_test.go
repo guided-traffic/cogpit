@@ -157,7 +157,7 @@ func TestReviewRevertsToTheEditor(t *testing.T) {
 func renderEditRevert(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _, ed, et := editScene(t, mode)
 	handleRevert(ed)
-	sh.vsplit.SetOffset(renderDockOffset)
+	setDockOffset(sh, renderDockOffset)
 	typeLineAfter(et.pane, 16, "sessionAffinity: ClientIP")
 	test.Tap(et.revertBtn)
 	q.until(t, "the revert", func() bool { return et.undoBtn.Visible() && !et.busy })

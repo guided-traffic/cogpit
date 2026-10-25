@@ -231,6 +231,28 @@ func TestStrayDragLeavesThePanelEdgeAlone(t *testing.T) {
 	}
 }
 
+// A drag pressed in the workspace that the pointer carries over the dock's edge does not move the
+// edge; one pressed on it does (dockheight_test.go).
+func TestStrayDragLeavesTheDockEdgeAlone(t *testing.T) {
+	sh, w, _, _ := openDockScene(t)
+	h := dockHandle(sh)
+	before, offset := sh.dock.panel.Size().Height, sh.dockLay.offset
+	mid := absolutePos(h).AddXY(200, handleWidth/2)
+
+	strayDrag(h, mid.AddXY(0, -150), mid, mid.AddXY(0, -60))
+	h.DragEnd()
+	settle(w)
+	if got := sh.dock.panel.Size().Height; got != before || sh.dockLay.offset != offset || h.dragging {
+		t.Fatalf("a stray drag moved the dock's edge: %v high (was %v), offset %v (was %v)", got, before, sh.dockLay.offset, offset)
+	}
+
+	dragDockEdge(sh, -60)
+	settle(w)
+	if got := sh.dock.panel.Size().Height; !drawnNear(got, before+60) {
+		t.Fatalf("dragging the dock's edge 60 up: %v high, want %v", got, before+60)
+	}
+}
+
 // A drag pressed below the table's header that the pointer carries onto a column's header moves no
 // column.
 func TestStrayDragLeavesTheColumnsAlone(t *testing.T) {

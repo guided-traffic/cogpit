@@ -131,15 +131,16 @@ type shell struct {
 	drawerW   float32
 	sideLay   *panelLayout
 	drawerLay *panelLayout
-	chat      *chatPanel       // the agent's chat column at the window's right edge (chat.go)
-	chatW     float32          // the user's width of the chat column, stored in the preferences
-	chatLay   *panelLayout     // the chat column beside chatRow's work area
-	chatSplit *fyne.Container  // the work area | the chat column, while the chat is shown
-	chatRow   *fyne.Container  // the work area alone, or chatSplit
-	vsplit    *container.Split // workspace / dock
-	workspace *fyne.Container  // the table view, or hsplit while the drawer is open
-	body      *fyne.Container  // the workspace, with the dock below it
-	root      *fyne.Container  // the window's content; the tooltip layer and the toasts move into a settings page's overlay while it shows
+	chat      *chatPanel      // the agent's chat column at the window's right edge (chat.go)
+	chatW     float32         // the user's width of the chat column, stored in the preferences
+	chatLay   *panelLayout    // the chat column beside chatRow's work area
+	chatSplit *fyne.Container // the work area | the chat column, while the chat is shown
+	chatRow   *fyne.Container // the work area alone, or chatSplit
+	dockSplit *fyne.Container // the work area above the open dock, its height set by the user (panelwidths.go)
+	dockLay   *dockLayout     // the dock's share of dockSplit
+	workspace *fyne.Container // the table view, or hsplit while the drawer is open
+	body      *fyne.Container // the workspace, with the dock below it
+	root      *fyne.Container // the window's content; the tooltip layer and the toasts move into a settings page's overlay while it shows
 
 	workArea fyne.CanvasObject // the workspace with the welcome page over it, not over the dock (auditlog.go)
 
@@ -242,12 +243,11 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 		func() float32 { return sh.drawerLay.got },
 		func(w float32) float32 { return sh.setDrawerWidth(w) },
 		sh.saveWidths))
-	sh.vsplit = container.NewVSplit(widget.NewLabel(""), widget.NewLabel(""))
-	sh.vsplit.SetOffset(dockOffset)
 	sh.workspace = container.NewStack(sh.view.root)
 	// The welcome page lies over the workspace, not the dock: a dock tab of no cluster (the Audit
 	// Log) shows while no cluster is connected.
 	sh.workArea = sh.tabs.workspace(sh.workspace)
+	sh.dockSplit = sh.newDockSplit()
 	sh.body = container.NewStack()
 	sh.layoutBody()
 
@@ -669,10 +669,9 @@ func (sh *shell) drawerChanged() {
 // its tab strip while it is collapsed.
 func (sh *shell) layoutBody() {
 	if sh.dock.open() {
-		sh.vsplit.Leading, sh.vsplit.Trailing = sh.workArea, sh.dock.panel
 		sh.dock.attachStrip(true)
-		sh.body.Objects = []fyne.CanvasObject{sh.vsplit}
-		sh.vsplit.Refresh()
+		sh.body.Objects = []fyne.CanvasObject{sh.dockSplit}
+		sh.dockSplit.Refresh()
 	} else {
 		sh.dock.attachStrip(false)
 		sh.body.Objects = []fyne.CanvasObject{container.NewBorder(nil, sh.dock.collapsedBar, nil, nil, sh.workArea)}

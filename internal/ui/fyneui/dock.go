@@ -141,7 +141,8 @@ func newDock(sh *shell) *dock {
 	d.stripHolder = container.NewStack()
 	d.collapsedBar = container.NewVBox()
 	d.body = container.NewStack()
-	d.panel = container.NewBorder(container.NewVBox(newDivider(false), d.stripHolder, newDivider(false)), nil, nil, nil,
+	// The line above the strip is the handle's over the open dock (dockLayout), as the side panels'.
+	d.panel = container.NewBorder(container.NewVBox(d.stripHolder, newDivider(false)), nil, nil, nil,
 		container.NewStack(newSurface(colorDock), d.body))
 	d.updateToggle()
 	return d
