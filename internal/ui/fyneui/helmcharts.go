@@ -73,7 +73,7 @@ func (sh *shell) showHelmRepos() {
 	rd.file.truncate = true
 	listBg := newSurface(theme.ColorNameInputBackground)
 	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
-	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(rd.list)))
+	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, newVScroll(rd.list)))
 	top := container.NewVBox(intro, newSpace(theme.SizeNamePadding), rd.file, rd.fileMsg, newSpace(theme.SizeNamePadding))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(top, rd.status, nil, nil, list))
 	rd.d = dialog.NewCustomWithoutButtons("Helm Repositories", content, sh.win)

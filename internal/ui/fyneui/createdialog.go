@@ -498,7 +498,7 @@ func (f *createForm) addRows(caption string, columns []string, add string, newRo
 	gap := canvas.NewRectangle(color.Transparent)
 	gap.SetMinSize(removeButton(nil).MinSize())
 	f.content.Add(container.NewBorder(nil, nil, nil, gap, container.NewGridWithColumns(len(columns), heads...)))
-	e.scroll = container.NewVScroll(e.list)
+	e.scroll = newVScroll(e.list)
 	f.content.Add(e.scroll)
 	addButton := newTextButton(add, theme.ContentAddIcon(), func() { e.add(); f.fit() })
 	f.content.Add(container.NewHBox(addButton))

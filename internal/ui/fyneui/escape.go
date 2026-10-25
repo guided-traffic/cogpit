@@ -129,6 +129,12 @@ func (sh *shell) showDialog(d fyneDialog) { onShown(sh.win.Canvas(), d.Show, d.D
 type fieldEntry struct {
 	widget.Entry
 	onEscape func()
+	onLeave  func() // after the field lost the keyboard: the agent form's model list (preferences_agent.go)
+}
+
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *fieldEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
 }
 
 func newFieldEntry() *fieldEntry {
@@ -153,6 +159,14 @@ func newFieldPasswordEntry() *fieldEntry {
 	return e
 }
 
+// FocusLost implements fyne.Focusable: onLeave, where set, after Fyne's.
+func (e *fieldEntry) FocusLost() {
+	e.Entry.FocusLost()
+	if e.onLeave != nil {
+		e.onLeave()
+	}
+}
+
 // TypedKey implements fyne.Focusable.
 func (e *fieldEntry) TypedKey(ev *fyne.KeyEvent) {
 	if ev.Name == fyne.KeyEscape {
@@ -173,6 +187,11 @@ func (e *fieldEntry) TypedKey(ev *fyne.KeyEvent) {
 type fieldSelectEntry struct {
 	widget.SelectEntry
 	onEscape func()
+}
+
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *fieldSelectEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.SelectEntry.CreateRenderer(), func() bool { return e.MultiLine })
 }
 
 func newFieldSelectEntry(options []string) *fieldSelectEntry {

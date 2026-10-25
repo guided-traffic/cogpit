@@ -110,7 +110,7 @@ func newJobTab(sh *shell, t engine.DockTab) *jobTab {
 		})
 	})
 	j.steps = container.NewVBox()
-	j.scroll = container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, j.steps))
+	j.scroll = newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, j.steps))
 	j.scroll.OnScrolled = func(p fyne.Position) { // the user scrolled: the list stays where they put it
 		if p != j.auto {
 			j.follow = false

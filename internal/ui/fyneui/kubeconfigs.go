@@ -226,7 +226,7 @@ func (k *kubeconfigUI) showSources() {
 		"the files $KUBECONFIG names are offered for this run and are removed for this run only.", colorMuted, k.sh.app.Settings().Theme().Size(sizePickerWidth))
 	listBg := newSurface(theme.ColorNameInputBackground)
 	listBg.radius, listBg.stroke = theme.SizeNameInputRadius, colorHairline
-	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewVScroll(sd.list)))
+	list := container.NewStack(listBg, inset(theme.SizeNamePadding, theme.SizeNamePadding, newVScroll(sd.list)))
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewBorder(
 		container.NewVBox(intro, newSpace(theme.SizeNamePadding)), sd.status, nil, nil, list))
 	sd.d = dialog.NewCustomWithoutButtons("Kubeconfig Sources", content, k.sh.win)

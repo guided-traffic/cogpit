@@ -118,7 +118,7 @@ func (k *kubeconfigUI) openConnectLog(contextID string, v connectLogView) {
 		k.connectLog.d.Hide()
 	}
 	cl := &connectLogDialog{ctx: contextID, rows: container.NewVBox()}
-	cl.scroll = container.NewVScroll(cl.rows)
+	cl.scroll = newVScroll(cl.rows)
 	bg := newSurface(theme.ColorNameInputBackground)
 	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	content := sized(sizePickerWidth, sizePickerHeight, container.NewStack(bg, inset(theme.SizeNamePadding, theme.SizeNamePadding, cl.scroll)))

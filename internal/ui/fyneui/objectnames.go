@@ -125,7 +125,7 @@ func objectsRow(objs []namedObject, width float32) (name, value fyne.CanvasObjec
 	}
 	th := fyne.CurrentApp().Settings().Theme()
 	line := fyne.MeasureText("Mg", th.Size(theme.SizeNameText), fyne.TextStyle{}).Height + th.Size(theme.SizeNameLineSpacing)
-	scroll := container.NewVScroll(list)
+	scroll := newVScroll(list)
 	scroll.SetMinSize(fyne.NewSize(width, line*objectListRows))
 	// 8 pt below it: Fyne's scroll shadow at its foot would otherwise crowd the next row.
 	return name, container.New(layout.NewCustomPaddedLayout(0, 8, 0, 0), scroll)

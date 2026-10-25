@@ -131,7 +131,7 @@ func (f *statusFilter) open() {
 	f.list = container.NewVBox()
 	f.fill()
 	th := f.tv.table.Theme()
-	scroll := container.NewVScroll(f.list)
+	scroll := newVScroll(f.list)
 	h := f.list.MinSize().Height
 	if maxH := th.Size(sizePopupMaxList); h > maxH {
 		h = maxH

@@ -112,7 +112,7 @@ func newTabBar(sh *shell) *tabBar {
 		}
 	}
 	b.drag.lifting = func() { sh.tip.hide() }
-	b.scroll = container.NewHScroll(b.row)
+	b.scroll = newHScroll(b.row)
 	b.strut, b.sample = canvas.NewRectangle(color.Transparent), newViewTab(b)
 	b.root = container.NewBorder(nil, newDivider(false), nil, nil, container.NewStack(newSurface(colorDock), b.strut, b.scroll))
 	b.welcome = newWelcomePage(sh)

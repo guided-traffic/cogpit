@@ -140,6 +140,11 @@ type secretEntry struct {
 	sh *shell
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *secretEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newSecretEntry(sh *shell) *secretEntry {
 	e := &secretEntry{sh: sh}
 	e.MultiLine, e.Password, e.Wrapping = true, true, fyne.TextWrapOff

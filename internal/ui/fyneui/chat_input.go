@@ -99,6 +99,11 @@ type chatEntry struct {
 	in *chatInput
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *chatEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newChatEntry(in *chatInput) *chatEntry {
 	e := &chatEntry{in: in}
 	e.MultiLine = true

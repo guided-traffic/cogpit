@@ -35,6 +35,11 @@ type searchEntry struct {
 	back fyne.Focusable
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *searchEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newSearchEntry(sh *shell) *searchEntry {
 	e := &searchEntry{sh: sh}
 	e.ExtendBaseWidget(e)

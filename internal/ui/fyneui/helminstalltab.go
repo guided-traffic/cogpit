@@ -39,8 +39,8 @@ type helmInstallTab struct {
 	searchBtn  *tipButton
 	find       *findBar
 	version    *selectField
-	namespace  *widget.Entry
-	release    *widget.Entry
+	namespace  *wheelEntry
+	release    *wheelEntry
 	createNS   *widget.Check
 	digest     *textLine
 	// origin marks a chart from a repository whose content nothing authenticates beside its name
@@ -104,10 +104,10 @@ func newHelmInstallTab(sh *shell, t engine.DockTab) *helmInstallTab {
 	u.version = newSelectField(hi.Versions, nil)
 	u.version.SetSelected(hi.Version)
 	u.version.OnChanged = u.pickVersion
-	u.namespace = widget.NewEntry()
+	u.namespace = newWheelEntry()
 	u.namespace.SetText(hi.Namespace)
 	u.namespace.SetPlaceHolder("Namespace")
-	u.release = widget.NewEntry()
+	u.release = newWheelEntry()
 	u.release.SetText(hi.ReleaseName)
 	u.release.SetPlaceHolder("Release name")
 	u.createNS = widget.NewCheck("Create namespace", nil)
@@ -395,7 +395,7 @@ func (sh *shell) showInstallPreview(p installPreview, createNamespace bool, answ
 	if len(objs) == 0 {
 		list.Add(newTextLine("The chart renders no objects.", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	}
-	scroll := container.NewVScroll(list)
+	scroll := newVScroll(list)
 	scroll.SetMinSize(fyne.NewSize(width, 220))
 	valueW := width - th.Size(sizeDrawerLabel) - 2*th.Size(theme.SizeNamePadding)
 	rows := box(kvLayout{})

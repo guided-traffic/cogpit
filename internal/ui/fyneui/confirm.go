@@ -49,7 +49,7 @@ const confirmReviewHeight = 240
 func reviewBlock(text string, width float32) fyne.CanvasObject {
 	l := widget.NewLabelWithStyle(text, fyne.TextAlignLeading, fyne.TextStyle{Monospace: true})
 	l.Selectable = true
-	scroll := container.NewScroll(l)
+	scroll := newScroll(l)
 	scroll.SetMinSize(fyne.NewSize(width, min(float32(confirmReviewHeight), l.MinSize().Height)))
 	return container.NewStack(newSurface(theme.ColorNameInputBackground), scroll)
 }

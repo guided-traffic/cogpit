@@ -148,6 +148,11 @@ type navSearchEntry struct {
 	h *navHeader
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *navSearchEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newNavSearchEntry(h *navHeader) *navSearchEntry {
 	e := &navSearchEntry{h: h}
 	e.ExtendBaseWidget(e)

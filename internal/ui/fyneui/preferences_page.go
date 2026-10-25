@@ -76,6 +76,7 @@ type settingsPage struct {
 	lead    *fyne.Container // the badge and its gap: hidden with it, so that the title stands on the header's edge
 	nav     *fyne.Container
 	body    *fyne.Container
+	scroll  *container.Scroll // the body's scroller: a section shown anew starts at its top (build)
 	closeB  *tipButton
 
 	typing  time.Duration       // the typing pause before a text field's value is set (tests shorten it)
@@ -136,7 +137,8 @@ func newSettingsPage(sh *shell) *settingsPage {
 	navBg.radius, navBg.bottomLeftOnly = theme.SizeNameDialogRadius, true
 	navPanel := sized(sizeSidebarWidth, "", navBg,
 		container.NewBorder(nil, nil, nil, newDivider(true), inset(theme.SizeNamePadding, theme.SizeNameInnerPadding, container.NewVBox(p.nav))))
-	content := container.NewVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, box(columnLayout{}, p.body)))
+	p.scroll = newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, box(columnLayout{}, p.body)))
+	content := p.scroll
 	// The card: the window's background, rounded as a dialog, parted from the dimmed window by a
 	// hairline (as dialogFrame's card) and by the overlay's shadow. Its parts stand inside the
 	// hairline.
@@ -219,6 +221,11 @@ func (p *settingsPage) build() {
 	}
 	p.body.Objects = []fyne.CanvasObject{content}
 	p.body.Refresh()
+	// A section shown anew starts at its top. Fyne 2.8's Scroll keeps its offset when its content
+	// changes and checks it again only on a resize, so a section shorter than where the one before
+	// was scrolled drew nothing until a scroll (the owner's finding of 2026-10-25, as the tables'
+	// of 2026-10-23, tableView.scrollToTop).
+	p.scroll.ScrollToTop()
 }
 
 // renderNav shows the page's sections, the shown one highlighted.

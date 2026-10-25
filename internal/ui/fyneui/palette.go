@@ -494,6 +494,11 @@ type keyEntry struct {
 	onKey func(*fyne.KeyEvent) bool // true: taken
 }
 
+// CreateRenderer implements fyne.Widget: the wheel passed on (wheelpass.go).
+func (e *keyEntry) CreateRenderer() fyne.WidgetRenderer {
+	return passWheel(e, e.Entry.CreateRenderer(), func() bool { return e.MultiLine })
+}
+
 func newKeyEntry(onKey func(*fyne.KeyEvent) bool) *keyEntry {
 	e := &keyEntry{onKey: onKey}
 	e.ExtendBaseWidget(e)

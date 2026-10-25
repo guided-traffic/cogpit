@@ -61,7 +61,7 @@ func newHotbar(sh *shell) *hotbar {
 	h.add.square = true
 	h.drag = newTileDrag(h)
 	h.tiles = box(&tileStack{h: h})
-	h.scroll = container.NewVScroll(inset("", theme.SizeNamePadding, h.tiles))
+	h.scroll = newVScroll(inset("", theme.SizeNamePadding, h.tiles))
 	h.root = sized(sizeHotbarWidth, "", newSurface(theme.ColorNameHeaderBackground),
 		container.NewBorder(nil, nil, nil, newDivider(true), h.scroll))
 	h.root.Hide()

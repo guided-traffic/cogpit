@@ -201,7 +201,7 @@ func (n *notificationsUI) content() fyne.CanvasObject {
 		}
 		body = rows
 		if most := th.Size(sizePickerHeight); rows.MinSize().Height > most { // a long list scrolls
-			scroll := container.NewVScroll(rows)
+			scroll := newVScroll(rows)
 			scroll.SetMinSize(fyne.NewSize(width, most))
 			body = scroll
 		}

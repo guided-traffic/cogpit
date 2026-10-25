@@ -231,7 +231,7 @@ func newSelectPopup(s *selectField, c fyne.Canvas) *selectPopup {
 		p.rows = append(p.rows, r)
 		p.list.Objects = append(p.list.Objects, r)
 	}
-	p.scroll = container.NewVScroll(p.list)
+	p.scroll = newVScroll(p.list)
 	p.popup = widget.NewPopUp(p, c)
 	return p
 }

@@ -32,8 +32,8 @@ type jumpState struct {
 }
 
 // newJumpField returns the field a time to jump to is typed into.
-func (lt *logTab) newJumpField() *widget.Entry {
-	e := widget.NewEntry()
+func (lt *logTab) newJumpField() *wheelEntry {
+	e := newWheelEntry()
 	// An example in the user's format, written as typed (no zone to convert from).
 	example, tf := time.Date(2026, 10, 13, 1, 20, 0, 0, time.UTC), lt.sh.ui.TimeFormat.In(time.UTC)
 	e.SetPlaceHolder("Jump to time: " + tf.FormatDate(example) + " " + tf.FormatClock(example) + ", 10m ago")
@@ -51,8 +51,8 @@ type fitPlaceholderLayout struct{}
 func (fitPlaceholderLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	ms := sizedLayout{width: sizeSearchWidth}.MinSize(objs)
 	for _, o := range objs {
-		if e, ok := o.(*widget.Entry); ok && e.Visible() {
-			ms.Width = max(ms.Width, entryWidthFor(e, e.PlaceHolder))
+		if e, ok := o.(*wheelEntry); ok && e.Visible() {
+			ms.Width = max(ms.Width, entryWidthFor(&e.Entry, e.PlaceHolder))
 		}
 	}
 	return ms

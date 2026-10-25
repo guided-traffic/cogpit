@@ -868,7 +868,7 @@ func (sd *secData) openReview() {
 	}
 	cancel := newPlateButton("Cancel", nil, func() { rv.hide() })
 	list := box(sizedMin{size: fyne.NewSize(width, 120)}, container.NewStack(newSurface(theme.ColorNameInputBackground),
-		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVScroll(rv.changes))))
+		inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, newVScroll(rv.changes))))
 	content := container.NewBorder(rv.top, container.NewVBox(newDivider(false), rv.status), nil, nil, list)
 	rv.dlg = newDialogFrame(sd.d.sh, objectDialogTitle("Save", "Secret", sd.ref.Name, "")) // no gap after the arrow (dialogframe.go)
 	rv.dlg.setContent(content)
