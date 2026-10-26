@@ -148,10 +148,10 @@ type ClusterSettings struct {
 	// only set it (turn the renewal off); turning the renewal on again is the user's, in Cogpit's
 	// window (ErrRenewLoginGUIOnly).
 	HoldBackgroundLogin bool `json:"holdBackgroundLogin,omitempty"`
-	// StreamsOff, when set, makes the cluster's reads list and then watch, never stream their
-	// initial lists (D-new, initiallists.go): switched off by the user, or by Cogpit after a stream
-	// stalled while a list answered at once. Nil: Automatic, streamed while streams end in time.
-	StreamsOff *StreamsOff `json:"streamsOff,omitempty"`
+	// Streaming makes the cluster's reads stream their initial lists (Kubernetes' WatchListClient,
+	// beta; D-new, initiallists.go) from its next connect; false, the default: each read lists its
+	// objects once and then watches.
+	Streaming bool `json:"streaming,omitempty"`
 }
 
 // IsZero reports whether the settings are all defaults.
@@ -166,7 +166,7 @@ func (c ClusterSettings) Equal(o ClusterSettings) bool {
 		equalIntegrations(c.IntegrationsOff, o.IntegrationsOff) &&
 		slices.Equal(c.AccessibleNamespaces, o.AccessibleNamespaces) && c.AgentWrites == o.AgentWrites &&
 		c.NodeShellImage == o.NodeShellImage && c.NodeShellPullSecret == o.NodeShellPullSecret && c.NodeShellMaxMinutes == o.NodeShellMaxMinutes &&
-		c.HoldBackgroundLogin == o.HoldBackgroundLogin && equalStreamsOff(c.StreamsOff, o.StreamsOff)
+		c.HoldBackgroundLogin == o.HoldBackgroundLogin && c.Streaming == o.Streaming
 }
 
 // Check says why settings cannot be kept: the first field out of its bounds.
@@ -224,9 +224,6 @@ func (c ClusterSettings) Check() error {
 		return err
 	}
 	if err := CheckNodeShellMaxMinutes(c.NodeShellMaxMinutes); err != nil { // nodeshell_duration.go
-		return err
-	}
-	if err := checkStreamsOff(c.StreamsOff); err != nil { // initiallists.go
 		return err
 	}
 	return CheckProxyURL(c.Proxy)
@@ -289,9 +286,6 @@ func (c *ClusterSettings) normalize() {
 	}
 	if CheckNodeShellMaxMinutes(c.NodeShellMaxMinutes) != nil {
 		c.NodeShellMaxMinutes = 0
-	}
-	if checkStreamsOff(c.StreamsOff) != nil {
-		c.StreamsOff = nil
 	}
 }
 
@@ -452,7 +446,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	c.change.Lock()
 	defer c.change.Unlock()
 	var dropped []string
-	proxyChanged, holdChanged, streamsOff := false, false, false
+	proxyChanged, holdChanged, streamingOff := false, false, false
 	next, all, err := func() (ClusterSettings, map[string]ClusterSettings, error) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -493,7 +487,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 		c.by = all
 		proxyChanged = RedactProxyURL(old.Proxy) != RedactProxyURL(cs.Proxy)
 		holdChanged = old.HoldBackgroundLogin != cs.HoldBackgroundLogin
-		streamsOff = old.StreamsOff == nil && cs.StreamsOff != nil
+		streamingOff = old.Streaming && !cs.Streaming
 		for _, name := range []string{old.Icon, old.IconSource} {
 			if name != "" && name != cs.Icon && name != cs.IconSource && !iconInUse(all, name) {
 				dropped = append(dropped, name)
@@ -517,7 +511,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	if holdChanged {
 		s.applyLoginHolds() // a cluster that is not shown holds its login, or renews a lapsed one (connwatch_lapse.go)
 	}
-	s.streamsOffChanged(context, streamsOff) // the connected cluster lists at once (initiallists.go)
+	s.streamingChanged(context, !streamingOff) // switched off, the connected cluster lists at once (initiallists.go)
 	return next, nil
 }
 

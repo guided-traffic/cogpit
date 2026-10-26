@@ -56,7 +56,7 @@ func TestCacheWarmingIsNoProblem(t *testing.T) {
 	if i < 0 {
 		t.Fatalf("no cache warming line: %+v", r.Log)
 	}
-	if w := r.Log[i]; w.Problem || w.Count != 1 || w.Status != 429 || w.RetryAfter != "1" || !strings.HasPrefix(w.What, "watchlist pods") {
+	if w := r.Log[i]; w.Problem || w.Count != 1 || w.Status != 429 || w.RetryAfter != "1" || !strings.HasPrefix(w.What, "watch pods") {
 		t.Errorf("cache warming line = %+v", w)
 	}
 	if slices.ContainsFunc(r.Log, func(e cluster.DiagEntry) bool { return e.Kind == cluster.DiagTooMany }) {

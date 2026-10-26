@@ -22,6 +22,9 @@ type Backend struct {
 	Namespace string
 	// Cache serves every read.
 	Cache *cache.Cache
+	// Streaming says the connection began streaming its initial lists (the cluster's opt-in,
+	// initiallists.go, D-new); false: it lists them.
+	Streaming bool
 	// Conn is the connection for streams and actions; nil for the demo cluster, where logs,
 	// shells, terminals and mutating commands are disabled.
 	Conn *cluster.Conn

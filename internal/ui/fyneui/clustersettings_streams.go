@@ -1,61 +1,38 @@
 package fyneui
 
 import (
-	"fmt"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-
-	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
 // Cluster Settings › General › Debug (D-new; engine/initiallists.go). Cogpit's own. A switch, "Use
-// initial streaming", and under it a box that describes the way chosen (the owner, 2026-10-26: what
-// streaming is for and that some environments do not offer it; switched off, how Cogpit keeps the
-// objects current then; no line of when and why it was switched off). On by default: each read
-// streams its initial list, and a stream that stays silent before its end makes the connection
-// list. Off: every read lists and then watches; the user switches it off, or Cogpit does after a
-// stream stalled while a list answered at once (Connection Diagnostics' log says why).
+// initial streaming (BETA)", off by default, and under it a box that says what it is (the owner,
+// 2026-10-26: an opt-in beta; a static text that points at Kubernetes' WatchListClient and says it
+// may save API server resources). Off: every read lists its objects once and then watches. On, from
+// the next connect: every read gets its objects over the watch it keeps.
 
 const (
 	streamsTitle = "Debug"
-	streamsCheck = "Use initial streaming"
+	streamsCheck = "Use initial streaming (BETA)"
+	streamsText  = "Streams each read's initial list over its watch instead of listing it first (Kubernetes' " +
+		"WatchListClient, beta). This may save API server resources. Takes effect from the next connect."
 )
 
-// streamingOnText says what streaming is for, and where it may not work.
-var streamingOnText = fmt.Sprintf("Each read asks the API server once: the server sends the objects one after another from "+
-	"its cache, then keeps the same connection open and sends every change as it happens. The server builds no large "+
-	"answer of all objects, Cogpit takes them object by object, and reading many kinds at once does not wait at Cogpit's "+
-	"limit of %d requests a second. Some environments do not offer it (API servers without WatchList) or hold such "+
-	"streams back (gateways, proxies): when a stream stays silent for %s, Cogpit reads that connection without "+
-	"streaming, and switches it off for the cluster when a list then answers at once.",
-	int(engine.RequestsPerSecond), engine.FormatSpan(engine.StreamStall))
-
-// streamingOffText says how Cogpit keeps the objects current without streaming.
-var streamingOffText = fmt.Sprintf("Each read first lists the objects in one answer, then watches from that list's "+
-	"version: the connection stays open and the API server sends every change as it happens. The whole list is read "+
-	"again only when the server no longer knows that version. Lists wait at Cogpit's limit of %d requests a second. "+
-	"Switched on again, streaming applies from the next connect.", int(engine.RequestsPerSecond))
-
 // clusterStreamsSetting returns the row and the function that shows the setting in it, from the UI
-// state's cluster settings, so that it follows a switch Cogpit makes at once.
+// state's cluster settings.
 func (p *settingsPage) clusterStreamsSetting() (fyne.CanvasObject, func()) {
 	check := widget.NewCheck(streamsCheck, func(on bool) { p.setCluster("streamInitialLists", on) })
-	desc := newParagraph(streamingOnText, colorMuted, settingsHelpWidth)
+	desc := newParagraph(streamsText, colorMuted, settingsHelpWidth)
 	desc.size = theme.SizeNameCaptionText
 	p.controls["streamsText"] = desc
 	bg := newSurface(theme.ColorNameInputBackground)
 	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	box := container.NewStack(bg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, desc))
 	ctx := p.shown.Context
-	sync := func() {
-		on := p.sh.ui.ClusterSettings[ctx].StreamsOff == nil
-		check.SetChecked(on)
-		desc.SetText(map[bool]string{true: streamingOnText, false: streamingOffText}[on])
-	}
+	sync := func() { check.SetChecked(p.sh.ui.ClusterSettings[ctx].Streaming) }
 	row := p.setting("streamInitialLists", streamsTitle, "", container.NewVBox(check, box))
-	p.controls["streamInitialLists"] = check // the switch itself, not the box with its texts
+	p.controls["streamInitialLists"] = check // the switch itself, not the box with its text
 	return row, sync
 }

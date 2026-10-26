@@ -796,25 +796,22 @@ Windows and Linux Fyne draws the texts again itself.
 ### Cluster Settings › General: debug, initial streaming
 
 Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). Under **Debug** the switch
-**Use initial streaming**, and under it a box that describes the way chosen.
+**Use initial streaming (BETA)**, off by default, and under it a box that says what it is.
 
-**On (the default):** each read asks the API server once (WatchList): the server sends the objects
-one after another from its cache and keeps the same connection open for every change. The server
-builds no large answer of all objects, and reading many kinds at once does not wait at Cogpit's
-rate limit of 5 requests a second (# default). A stream that receives nothing for 10 s (# default)
-before its end (no answer, or objects and then silence) is ended; the read lists instead, and so
-does every read of the connection after it. When that list answered within 2 s (# default), the
-stream stalled and not the connection: Cogpit switches it off for the cluster, and every later
-connect lists from the start; Connection Diagnostics' log says why (the read, what the stream
-received, how soon the list answered). A list that answered late or failed points at the
-connection: only that connection lists.
+**Off (the default):** each read lists its objects once, then watches from that list's version: the
+connection stays open and the API server sends every change as it happens; the whole list is read
+again only when the server no longer knows that version. The lists have a rate limit of their own,
+50 per second, burst 300 (# default), so that a connect that reads many kinds, several namespaces
+each, does not wait.
 
-**Off** (unchecked, or `cluster.settings.set` with `streamInitialLists` false), at once for the
-connected cluster: each read lists its objects in one answer, then watches from that list's
-version, and the server sends every change as it happens; the whole list is read again only when
-the server no longer knows that version. Lists wait at the rate limit. **On again** applies from
-the next connect. Connection Diagnostics' line of the initial lists ends "streams off, every read
-lists:" and why while a connection lists.
+**On** (checked, or `cluster.settings.set` with `streamInitialLists` true), from the next connect:
+each read gets its objects over the watch it keeps (Kubernetes' WatchListClient, beta), which may
+save API server resources. A stream that receives nothing for 10 s (# default) before its end (no
+answer, or objects and then silence) is ended; the read lists instead, and so does every read of
+that connection; Connection Diagnostics' log says so (the read, what the stream received, how the
+list answered), and its line of the initial lists ends "streams off, every read lists: for this
+connection: a stream stalled". The setting stays on; the next connect streams again. Switched off,
+the connected cluster lists at once.
 
 ### Cluster Settings › General: the login while the cluster is not shown
 
@@ -1549,12 +1546,13 @@ The tab, from the top:
 - the connection: the server, its Kubernetes version, when the latest connect began; **Overview**
   and **Report** beside it, and the copy and save icons;
 - the problems since the latest connect by kind, and how the initial lists of the open watches came:
-  streamed by the server, or listed because the server did not stream them (a server without
-  WatchList: then every list goes through Cogpit's rate limit); "streams off, every read lists" and
-  why while the connection lists instead of streaming (a stall, or the cluster's setting, below);
+  streamed by the server (a cluster's opt-in), listed (the default), or listed because the server
+  did not stream them; "streams off, every read lists" and why while a connection that began
+  streaming lists (a stall, or the setting switched off, below);
 - Cogpit's rate limits with what waited at them: the requests' (5 per second, burst 10 # default;
-  lists, gets and writes; watches never wait), discovery's (50, burst 300 # default) and the access
-  reviews' (10, burst 20 # default), each with how many requests waited, how long together, the
+  gets and writes; watches never wait), the lists' (50, burst 300 # default; the cache's initial
+  lists, D-new), discovery's (50, burst 300 # default) and the access reviews' (10, burst 20
+  # default), each with how many requests waited, how long together, the
   longest wait and how many wait now; orange while a request waits or one waited a second or more;
 - four columns: the **log**, the line seen last first; the API requests by verb and resource; the
   watches with the time each took to load ("loaded in 1.2 s (streamed)"); the objects and memory
@@ -1575,7 +1573,7 @@ a line:
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream answered after 5 s or more |
 | rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
-| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: debug, initial streaming](#cluster-settings--general-debug-initial-streaming)) |
+| not streamed | with streaming switched on (a cluster's opt-in beta): the server did not stream a read's initial list (WatchList), and Cogpit listed it instead; or a stream stalled, nothing came for 10 s (# default) before its end (no answer to its request, or objects and then silence; the line says which, and how the list in its place answered), and that connection lists from then on ([Cluster Settings › General: debug, initial streaming](#cluster-settings--general-debug-initial-streaming)) |
 | slow load | a read took 5 s or more to load |
 | per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
 | connect | a connect began (grey) |

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"slices"
 	"strings"
-	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -45,7 +44,7 @@ type clusterSettingsSetParams struct {
 	RenewLoginInBackground *bool `json:"renewLoginInBackground,omitempty" jsonschema:"whether the cluster's login is renewed while the cluster is connected but not shown, its credential plugin running (a browser login included) when the login expires (default true). Off: the plugin does not run then, and an expired login lapses (connections' loginLapsed) until the cluster is shown or logged in again. Agents and the CLI may only turn it off"`
 	// StreamInitialLists (D-new; engine/initiallists.go): agents and the CLI switch it both ways, as
 	// it changes only how Cogpit reads what it reads anyway.
-	StreamInitialLists *bool `json:"streamInitialLists,omitempty" jsonschema:"whether the cluster's reads use streaming (true, the default): each read gets its objects over one watch that stays open for the changes (WatchList), and a stream that stays silent for 10 s before its end makes the connection list instead, Cogpit switching streaming off for the cluster when a list then answered at once; or not (false): each read lists its objects, then watches from that list's version. Off applies to the connected cluster at once; on from its next connect"`
+	StreamInitialLists *bool `json:"streamInitialLists,omitempty" jsonschema:"whether the cluster's reads stream their initial lists over the watch they keep (true; Kubernetes' WatchListClient, beta; a stream that stays silent for 10 s before its end makes the connection list instead), or list their objects once and then watch (false, the default). On applies from the cluster's next connect; off to the connected cluster at once"`
 	// Integrations (D-76; engine/integrations.go): agents and the CLI switch none, on or off (H-126,
 	// H-133, engine/integrationsguionly.go).
 	Integrations map[string]bool `json:"integrations,omitempty" jsonschema:"integrations switched on (true) or off (false) for this cluster, by name: metrics-server, prometheus, alertmanager, trivy, kyverno, as {alertmanager: false}; those left out stay as they apply now (for a cluster without a choice of its own: off, but for what the window's question about it ticks), and the result is the cluster's own choice (the window's question about it ends). Off: Cogpit sends the cluster nothing for it and shows nothing of it; on: Cogpit reads what the cluster runs, with the user's identity, and never writes to it. Applied to the connected cluster at once. Not together with metricsSource for metrics-server or prometheus. GUI only: refused to agents and the CLI, on (true) and off (false) alike: switching one on reads with the user's identity, switching one off takes its alerts, ratings or policy marks out of the window; both are the user's, in Cogpit's window"`
@@ -212,8 +211,8 @@ func registerClusterSettings(g *registrar) {
 			"namespaces (a list that replaces the last) only narrow what Cogpit reads: the namespace filter offers them, " +
 			"and a kind the user may not list in all namespaces is watched in each of them, at once; renewLoginInBackground " +
 			"off holds the credential plugin while the cluster is not shown (its login then lapses instead of being renewed), " +
-			"and only the user may turn it on again; streamInitialLists off makes the connected cluster list at once instead of " +
-			"streaming its initial lists, back on (Automatic) from its next connect. Refused for agents and the CLI: the display name and the icon colour, set " +
+			"and only the user may turn it on again; streamInitialLists on streams the cluster's initial lists (beta) from its next " +
+			"connect, off makes the connected cluster list at once. Refused for agents and the CLI: the display name and the icon colour, set " +
 			"or cleared (only the user changes what marks which cluster this is), and switching an integration on or off " +
 			"(integrations and metricsSource: only the user chooses what Cogpit reads with their identity and what " +
 			"the window stops showing). An agent's proxy " +
@@ -300,12 +299,8 @@ func registerClusterSettings(g *registrar) {
 				if p.TerminalDir != nil {
 					cs.TerminalDir = strings.TrimSpace(*p.TerminalDir)
 				}
-				switch {
-				case p.StreamInitialLists == nil:
-				case *p.StreamInitialLists:
-					cs.StreamsOff = nil
-				case cs.StreamsOff == nil || cs.StreamsOff.By != engine.StreamsOffByUser:
-					cs.StreamsOff = &engine.StreamsOff{By: engine.StreamsOffByUser, At: time.Now()}
+				if p.StreamInitialLists != nil {
+					cs.Streaming = *p.StreamInitialLists
 				}
 				if p.TerminalNamespace != nil {
 					cs.TerminalNamespace = strings.TrimSpace(*p.TerminalNamespace)

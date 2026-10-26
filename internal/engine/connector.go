@@ -173,8 +173,10 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	profiles = withApplications(withHelmReleases(profiles)) // applications.go
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
-	ch := cache.New(cache.DynamicSource(conn.Dynamic(), conn.Metadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger,
-		StreamStall: c.StreamStall, Lists: c.ClusterSettings.streamsOffOf(settingsID)}) // a cluster whose streams are off lists from the start (initiallists.go, D-new)
+	// Lists by default, at the lists' budget; a cluster that opted in streams them (initiallists.go, D-new).
+	streaming := c.ClusterSettings.streamingOf(settingsID)
+	ch := cache.New(cache.DynamicSource(conn.CacheDynamic(), conn.CacheMetadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger,
+		StreamStall: c.StreamStall, Lists: !streaming})
 	wireDiagnostics(conn, ch) // its reads named, their fallbacks and slow loads noted (diaglogs.go, D-133)
 	ctxName := conn.Context()
 	if ctxName == "" {
@@ -189,7 +191,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	var once sync.Once
 	be := &Backend{
 		Context: ctxName, Namespace: conn.Namespace(), Cache: ch, Conn: conn, Profiles: profiles,
-		CustomResources: customResources, Access: access, SourceFile: sourceFile, CredentialPlugin: conn.CredentialPlugin(),
+		CustomResources: customResources, Access: access, SourceFile: sourceFile, CredentialPlugin: conn.CredentialPlugin(), Streaming: streaming,
 		Close: func() {
 			once.Do(func() {
 				access.stop()

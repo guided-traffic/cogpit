@@ -213,6 +213,7 @@ type BudgetStats struct {
 // Rate limits by name (BudgetStats.Name).
 const (
 	BudgetRequests  = "requests"
+	BudgetLists     = "lists" // the cache's lists (D-new)
 	BudgetDiscovery = "discovery"
 	BudgetReviews   = "access reviews"
 )

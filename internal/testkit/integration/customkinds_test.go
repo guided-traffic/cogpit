@@ -81,8 +81,8 @@ func TestBudgetCustomResourceView(t *testing.T) {
 	conn := s.Backend().Conn
 	synced := conn.Counter().Snapshot()
 	for res, want := range map[string]perResource{
-		"customresourcedefinitions.apiextensions.k8s.io": {watchlist: 1},
-		widgetsKey: {watchlist: 1},
+		"customresourcedefinitions.apiextensions.k8s.io": {list: 1, watch: 1},
+		widgetsKey: {list: 1, watch: 1},
 	} {
 		if got := countFor(synced, res); got != want {
 			t.Errorf("initial cost for %s: %+v, want %+v", res, got, want)
