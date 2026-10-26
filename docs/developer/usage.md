@@ -793,10 +793,10 @@ does, so that none stays drawn at the old resolution, soft
 text still look soft, switching the theme twice (the top bar's theme button) draws it again. On
 Windows and Linux Fyne draws the texts again itself.
 
-### Cluster Settings › General: streaming
+### Cluster Settings › General: debug, initial streaming
 
-Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). The switch **Use streaming**,
-and under it a box that describes the way chosen.
+Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). Under **Debug** the switch
+**Use initial streaming**, and under it a box that describes the way chosen.
 
 **On (the default):** each read asks the API server once (WatchList): the server sends the objects
 one after another from its cache and keeps the same connection open for every change. The server
@@ -804,10 +804,10 @@ builds no large answer of all objects, and reading many kinds at once does not w
 rate limit of 5 requests a second (# default). A stream that receives nothing for 10 s (# default)
 before its end (no answer, or objects and then silence) is ended; the read lists instead, and so
 does every read of the connection after it. When that list answered within 2 s (# default), the
-stream stalled and not the connection: Cogpit switches streaming off for the cluster, and every
-later connect lists from the start; under the box the page then says "Off since …, switched off by
-Cogpit:" and why (the read, what the stream received, how soon the list answered). A list that
-answered late or failed points at the connection: only that connection lists.
+stream stalled and not the connection: Cogpit switches it off for the cluster, and every later
+connect lists from the start; Connection Diagnostics' log says why (the read, what the stream
+received, how soon the list answered). A list that answered late or failed points at the
+connection: only that connection lists.
 
 **Off** (unchecked, or `cluster.settings.set` with `streamInitialLists` false), at once for the
 connected cluster: each read lists its objects in one answer, then watches from that list's
@@ -1575,7 +1575,7 @@ a line:
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream answered after 5 s or more |
 | rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
-| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: streaming](#cluster-settings--general-streaming)) |
+| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: debug, initial streaming](#cluster-settings--general-debug-initial-streaming)) |
 | slow load | a read took 5 s or more to load |
 | per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
 | connect | a connect began (grey) |

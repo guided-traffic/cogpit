@@ -17,9 +17,9 @@ func cogpitStreamsOff() *engine.StreamsOff {
 		Why: "pods in team-a: 33 objects received, then nothing for 10s before the end of the initial list; a list answered in 80 ms"}
 }
 
-// Cluster Settings › General › Streaming (D-new): on by default, a tap switches it off and on, the
-// box under the switch describes the way chosen, and a switch Cogpit makes shows at once with when
-// and why under it.
+// Cluster Settings › General › Debug (D-new): "Use initial streaming" on by default, a tap
+// switches it off and on, the box under the switch describes the way chosen, and a switch Cogpit
+// makes shows at once.
 func TestClusterSettingsStreams(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
@@ -29,22 +29,18 @@ func TestClusterSettingsStreams(t *testing.T) {
 		return ok && c.Checked
 	})
 	check := sh.settings.controls["streamInitialLists"].(*widget.Check)
-	note := sh.settings.controls["streamsOff"].(*paragraph)
 	desc := sh.settings.controls["streamsText"].(*paragraph)
-	if check.Text != "Use streaming" || note.Visible() || desc.text != streamingOnText {
-		t.Errorf("label %q, note shown %v, box %q", check.Text, note.Visible(), desc.text)
+	if check.Text != "Use initial streaming" || desc.text != streamingOnText {
+		t.Errorf("label %q, box %q", check.Text, desc.text)
 	}
 	test.Tap(check)
 	q.until(t, "off", func() bool {
 		off := s.UIState().ClusterSettings["kind-dev"].StreamsOff
-		return off != nil && off.By == engine.StreamsOffByUser && !check.Checked && note.Visible()
+		return off != nil && off.By == engine.StreamsOffByUser && !check.Checked && desc.text == streamingOffText
 	})
-	if !strings.HasSuffix(note.text, "switched off by you.") || desc.text != streamingOffText {
-		t.Errorf("note %q, box %q", note.text, desc.text)
-	}
 	test.Tap(check)
 	q.until(t, "on", func() bool {
-		return s.UIState().ClusterSettings["kind-dev"].StreamsOff == nil && check.Checked && !note.Visible() && desc.text == streamingOnText
+		return s.UIState().ClusterSettings["kind-dev"].StreamsOff == nil && check.Checked && desc.text == streamingOnText
 	})
 	if _, err := s.ChangeClusterSettings("kind-dev", func(cs *engine.ClusterSettings) error {
 		cs.StreamsOff = cogpitStreamsOff()
@@ -52,10 +48,7 @@ func TestClusterSettingsStreams(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	q.until(t, "off by Cogpit", func() bool { return !check.Checked && note.Visible() })
-	if !strings.Contains(note.text, "switched off by Cogpit: pods in team-a: 33 objects received") {
-		t.Errorf("note %q", note.text)
-	}
+	q.until(t, "off by Cogpit", func() bool { return !check.Checked && desc.text == streamingOffText })
 }
 
 // The setting on and switched off by Cogpit, dark and light: the PNGs of the pull request (AGENTS.md
@@ -81,10 +74,7 @@ func TestRenderClusterSettingsStreams(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			q.until(t, "the note", func() bool {
-				n, ok := sh.settings.controls["streamsOff"].(*paragraph)
-				return ok && n.Visible()
-			})
+			q.until(t, "off", func() bool { return sh.settings.controls["streamsText"].(*paragraph).text == streamingOffText })
 			bottom()
 			savePNG(t, w, "cluster_settings_streams_off_"+string(mode)+".png")
 		})

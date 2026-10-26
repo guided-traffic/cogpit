@@ -9,20 +9,19 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
-	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Cluster Settings › General › Streaming (D-new; engine/initiallists.go). Cogpit's own. A switch,
-// "Use streaming", and under it a box that describes the way chosen (the owner, 2026-10-26: what
+// Cluster Settings › General › Debug (D-new; engine/initiallists.go). Cogpit's own. A switch, "Use
+// initial streaming", and under it a box that describes the way chosen (the owner, 2026-10-26: what
 // streaming is for and that some environments do not offer it; switched off, how Cogpit keeps the
-// objects current then). On by default: each read streams its initial list, and a stream that stays
-// silent before its end makes the connection list. Off: every read lists and then watches; the user
-// switches it off, or Cogpit does after a stream stalled while a list answered at once, and then
-// says when and why under the box.
+// objects current then; no line of when and why it was switched off). On by default: each read
+// streams its initial list, and a stream that stays silent before its end makes the connection
+// list. Off: every read lists and then watches; the user switches it off, or Cogpit does after a
+// stream stalled while a list answered at once (Connection Diagnostics' log says why).
 
 const (
-	streamsTitle = "Streaming"
-	streamsCheck = "Use streaming"
+	streamsTitle = "Debug"
+	streamsCheck = "Use initial streaming"
 )
 
 // streamingOnText says what streaming is for, and where it may not work.
@@ -50,31 +49,13 @@ func (p *settingsPage) clusterStreamsSetting() (fyne.CanvasObject, func()) {
 	bg := newSurface(theme.ColorNameInputBackground)
 	bg.radius, bg.stroke = theme.SizeNameInputRadius, colorHairline
 	box := container.NewStack(bg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, desc))
-	note := newParagraph("", colorMuted, settingsHelpWidth)
-	note.size = theme.SizeNameCaptionText
-	p.controls["streamsOff"] = note
 	ctx := p.shown.Context
 	sync := func() {
-		off := p.sh.ui.ClusterSettings[ctx].StreamsOff
-		check.SetChecked(off == nil)
-		if off == nil {
-			desc.SetText(streamingOnText)
-			note.Hide()
-			return
-		}
-		desc.SetText(streamingOffText)
-		note.SetText(streamsOffNote(off, p.sh.timeFormat()))
-		note.Show()
+		on := p.sh.ui.ClusterSettings[ctx].StreamsOff == nil
+		check.SetChecked(on)
+		desc.SetText(map[bool]string{true: streamingOnText, false: streamingOffText}[on])
 	}
-	row := p.setting("streamInitialLists", streamsTitle, "", container.NewVBox(check, box, note))
+	row := p.setting("streamInitialLists", streamsTitle, "", container.NewVBox(check, box))
 	p.controls["streamInitialLists"] = check // the switch itself, not the box with its texts
 	return row, sync
-}
-
-// streamsOffNote says when and by whom streaming was switched off, and Cogpit's reason.
-func streamsOffNote(off *engine.StreamsOff, tf model.TimeFormat) string {
-	if off.By == engine.StreamsOffByCogpit {
-		return "Off since " + tf.Format(off.At) + ", switched off by Cogpit: " + off.Why + "."
-	}
-	return "Off since " + tf.Format(off.At) + ", switched off by you."
 }
