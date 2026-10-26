@@ -279,11 +279,22 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	if strings.Contains(r.objView.Text(), "password: ") && !strings.Contains(r.objView.Text(), helm.MaskedDots) {
 		t.Fatalf("the Secret shows before Show: %q", r.objView.Text())
 	}
-	before := h.sh.ui.Revision
+	// Show is the window's alone: the tab's state in the engine stays as it was. (Not the engine's
+	// whole state: the window reports its navigator's row when it gets to it, which moved it after
+	// the tap now and then, 2026-10-26.)
+	tabState := func() engine.HelmRevisionsTab {
+		for _, d := range h.s.UIState().Dock {
+			if d.ID == r.tab.ID && d.HelmRevisions != nil {
+				return *d.HelmRevisions
+			}
+		}
+		return engine.HelmRevisionsTab{}
+	}
+	before := tabState()
 	r.objShow.OnTapped()
 	h.q.drain()
-	if strings.Contains(r.objView.Text(), helm.MaskedDots) || h.sh.ui.Revision != before {
-		t.Errorf("Show: %q, the engine's state moved %d → %d", r.objView.Text(), before, h.sh.ui.Revision)
+	if strings.Contains(r.objView.Text(), helm.MaskedDots) || tabState() != before {
+		t.Errorf("Show: %q, the tab's state in the engine moved %+v → %+v", r.objView.Text(), before, tabState())
 	}
 }
 
