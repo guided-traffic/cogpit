@@ -351,11 +351,11 @@ func TestAgentPreferencesTestWarns(t *testing.T) {
 		r := a.form.stepRows[engine.ChatTestTools]
 		return r != nil && r.step.State == engine.ChatTestPass && !a.form.testB.Disabled()
 	})
-	if r := a.form.stepRows[engine.ChatTestHTTP]; r.detail.color != colorStatusWarning || r.detail.text != "Passed: HTTP, no TLS; answers HTTP 200; plain http to another machine" {
-		t.Errorf("HTTP: %q in %s", r.detail.text, r.detail.color)
+	if r := a.form.stepRows[engine.ChatTestHTTP]; r.detail.p.color != colorStatusWarning || r.detail.p.text != "Passed: HTTP, no TLS; answers HTTP 200; plain http to another machine" {
+		t.Errorf("HTTP: %q in %s", r.detail.p.text, r.detail.p.color)
 	}
-	if r := a.form.stepRows[engine.ChatTestAuth]; r.detail.color != colorStatusOK {
-		t.Errorf("Auth drawn in %s", r.detail.color)
+	if r := a.form.stepRows[engine.ChatTestAuth]; r.detail.p.color != colorStatusOK {
+		t.Errorf("Auth drawn in %s", r.detail.p.color)
 	}
 	if !a.form.testWarn.Visible() || a.form.testWarn.text != engine.ChatPlainHTTPWarning || a.form.testWarn.color != colorStatusWarning {
 		t.Errorf("the test's warning: shown %v, %q", a.form.testWarn.Visible(), a.form.testWarn.text)
@@ -421,6 +421,22 @@ func TestAgentPreferencesDefault(t *testing.T) {
 	})
 }
 
+// testExchange is the failed Auth layer's request and answer, as the agent writes them (exchange.go).
+const testExchange = `* connected to 203.0.113.7:443
+> GET https://litellm.example.com/models
+> Host: litellm.example.com
+> User-Agent: Go-http-client/1.1
+> Accept: application/json
+> Authorization: Bearer •••
+> Accept-Encoding: gzip
+< HTTP/1.1 401 Unauthorized
+< Content-Length: 61
+< Content-Type: application/json
+< Date: Mon, 26 Oct 2026 08:32:46 GMT
+< Server: uvicorn
+* the body not shown: a refusal may quote a part of the key
+* 6 ms to the answer's header`
+
 func testSteps(final bool) [][]engine.ChatTestStep {
 	running := []engine.ChatTestStep{
 		{Layer: engine.ChatTestDNS, State: engine.ChatTestPass, Detail: "litellm.example.com: 203.0.113.7, 2001:db8::7", Duration: 4 * time.Millisecond},
@@ -436,7 +452,8 @@ func testSteps(final bool) [][]engine.ChatTestStep {
 		{Layer: engine.ChatTestHTTP, State: engine.ChatTestPass, Detail: "HTTPS, TLS 1.3, certificate verified (chain to the CA file, host name " +
 			"litellm.example.com), issued by Team CA, valid until 2027-03-01; answers HTTP 401", Duration: 41 * time.Millisecond},
 		{Layer: engine.ChatTestAuth, State: engine.ChatTestFail, Detail: "the endpoint wants a key (HTTP 401 without one); with the key given: " +
-			"the endpoint refused the API key (HTTP 401)", Duration: 12 * time.Millisecond},
+			"GET https://litellm.example.com/models: the endpoint refused the API key (HTTP 401 Unauthorized)", Duration: 12 * time.Millisecond,
+			Exchange: testExchange},
 		{Layer: engine.ChatTestModels, State: engine.ChatTestNotReached},
 		{Layer: engine.ChatTestTools, State: engine.ChatTestNotReached},
 	}
@@ -467,20 +484,38 @@ func TestAgentPreferencesConnectionTest(t *testing.T) {
 		t.Errorf("tested %+v with key %v, want the form's values", tried.conn, tried.key)
 	}
 	rows := a.form.stepRows
-	if r := rows[engine.ChatTestDNS]; r.label.text != "DNS" || r.detail.text != "Passed: litellm.example.com: 203.0.113.7, 2001:db8::7" {
-		t.Errorf("DNS: %q %q", r.label.text, r.detail.text)
+	if r := rows[engine.ChatTestDNS]; r.label.text != "DNS" || r.detail.p.text != "Passed: litellm.example.com: 203.0.113.7, 2001:db8::7" {
+		t.Errorf("DNS: %q %q", r.label.text, r.detail.p.text)
 	}
-	if r := rows[engine.ChatTestHTTP]; !strings.HasPrefix(r.detail.text, "Passed: HTTPS, TLS 1.3, certificate verified") || r.took.text != "41 ms" ||
-		!strings.Contains(paragraphShown(r.detail), "valid until 2027-03-01; answers HTTP 401") {
-		t.Errorf("HTTP: %q %q (drawn %q)", r.detail.text, r.took.text, paragraphShown(r.detail))
+	if r := rows[engine.ChatTestHTTP]; !strings.HasPrefix(r.detail.p.text, "Passed: HTTPS, TLS 1.3, certificate verified") || r.took.text != "41 ms" ||
+		!strings.Contains(paragraphShown(r.detail.p), "valid until 2027-03-01; answers HTTP 401") {
+		t.Errorf("HTTP: %q %q (drawn %q)", r.detail.p.text, r.took.text, paragraphShown(r.detail.p))
 	}
-	if r := rows[engine.ChatTestAuth]; !strings.HasPrefix(r.detail.text, "Failed: the endpoint wants a key") || r.detail.color != colorStatusError {
-		t.Errorf("Auth: %q", r.detail.text)
+	if r := rows[engine.ChatTestAuth]; !strings.HasPrefix(r.detail.p.text, "Failed: the endpoint wants a key") || r.detail.p.color != colorStatusError {
+		t.Errorf("Auth: %q", r.detail.p.text)
 	}
 	for _, l := range []engine.ChatTestLayer{engine.ChatTestModels, engine.ChatTestTools} {
-		if r := rows[l]; r.label.text != chatTestLabels[l] || !strings.HasPrefix(r.detail.text, "Not reached") {
-			t.Errorf("%s: %q %q", l, r.label.text, r.detail.text)
+		if r := rows[l]; r.label.text != chatTestLabels[l] || !strings.HasPrefix(r.detail.p.text, "Not reached") {
+			t.Errorf("%s: %q %q", l, r.label.text, r.detail.p.text)
 		}
+	}
+	// The failed layer shows its request and answer (the owner, 2026-10-26: which endpoint was
+	// called how), selectable and with a copy icon that copies it whole; a passed layer shows none.
+	auth := rows[engine.ChatTestAuth]
+	if !auth.xRow.Visible() {
+		t.Fatal("the failed layer's exchange is hidden")
+	}
+	sels := findAll[*selParagraph](auth.exchange)
+	glyphs := findAll[*copyGlyph](auth.exchange)
+	if len(sels) != 1 || sels[0].p.text != testExchange || !sels[0].p.style.Monospace || len(glyphs) != 1 {
+		t.Fatalf("the exchange: %d paragraphs, %d copy icons", len(sels), len(glyphs))
+	}
+	test.Tap(glyphs[0])
+	if got := sh.app.Clipboard().Content(); got != testExchange {
+		t.Errorf("the copy icon copied %q", got)
+	}
+	if rows[engine.ChatTestHTTP].xRow.Visible() {
+		t.Error("a passed layer shows an exchange")
 	}
 	if len(ch.savesOf()) != 0 {
 		t.Error("the test saved the connection")
@@ -499,7 +534,7 @@ func TestAgentPreferencesNotACommand(t *testing.T) {
 	}
 }
 
-func renderAgentPreferences(t *testing.T, mode ThemeMode, name string, conn engine.ChatConnection, steps [][]engine.ChatTestStep) {
+func renderAgentPreferences(t *testing.T, mode ThemeMode, name string, conn engine.ChatConnection, steps [][]engine.ChatTestStep, height float32) {
 	sh, w, q, ch := agentPrefsShell(t, mode)
 	ch.mu.Lock()
 	ch.conns = append(ch.conns, lanStudio())
@@ -512,7 +547,7 @@ func renderAgentPreferences(t *testing.T, mode ThemeMode, name string, conn engi
 	test.Tap(a.form.testB)
 	q.until(t, "the test's result", func() bool { return !a.form.testB.Disabled() && len(a.form.steps.Objects) > 0 })
 	w.Canvas().Unfocus()
-	w.Resize(fyne.NewSize(1440, 2100)) // the list, the whole form and the test without scrolling (in the settings card, D-118)
+	w.Resize(fyne.NewSize(1440, height)) // the list, the whole form and the test without scrolling (in the settings card, D-118)
 	savePNG(t, w, name+"_"+string(mode)+".png")
 }
 
@@ -526,7 +561,7 @@ func TestRenderAgentPreferences(t *testing.T) {
 		conn.CAFile = `C:\Users\you\certs\team-ca.pem` // without a drive the form refuses the path there
 	}
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
-		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true)) })
+		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true), 2400) })
 	}
 }
 
@@ -535,7 +570,7 @@ func TestRenderAgentPreferences(t *testing.T) {
 func TestRenderAgentPreferencesPlainHTTP(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		t.Run(string(mode), func(t *testing.T) {
-			renderAgentPreferences(t, mode, "preferences_agent_plainhttp", lanStudio(), plainSteps())
+			renderAgentPreferences(t, mode, "preferences_agent_plainhttp", lanStudio(), plainSteps(), 2100)
 		})
 	}
 }

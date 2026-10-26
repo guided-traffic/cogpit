@@ -828,8 +828,10 @@ func (f *agentForm) showSteps(steps []engine.ChatTestStep) {
 		objs = append(objs, heading("Connection test"))
 		th := f.a.p.sh.app.Settings().Theme()
 		detailW := f.textW - th.Size(sizeCellIcon) - th.Size(sizeDrawerLabel) - agentTestTookWidth - 4*th.Size(theme.SizeNamePadding)
+		exchangeW := f.textW - th.Size(sizeCellIcon) - th.Size(theme.SizeNameInlineIcon) - 2*th.Size(theme.SizeNameInnerPadding) -
+			3*th.Size(theme.SizeNamePadding)
 		for _, l := range engine.ChatTestLayers {
-			r := newAgentTestRow(l, detailW)
+			r := newAgentTestRow(f.a.p.sh, l, detailW, exchangeW)
 			f.stepRows[l] = r
 			objs = append(objs, r.root)
 		}
@@ -852,28 +854,76 @@ func (f *agentForm) showSteps(steps []engine.ChatTestStep) {
 	f.steps.Refresh()
 }
 
-// agentTestRow is one layer of the connection test.
+// agentTestRow is one layer of the connection test. Its detail is selectable, and a failed layer
+// that sent a request shows that request and its answer below it (Exchange, curl -v's form), in a
+// selectable block with a copy icon (the owner, 2026-10-26: "WELCHER ENDPUNKT WURDE WIE
+// AUFGERUFEN???").
 type agentTestRow struct {
-	root   fyne.CanvasObject
-	icon   *widget.Icon
-	label  *textLine
-	detail *paragraph // wrapped, never cut: a certificate's issuer and end, the auth's two answers (2026-10-25)
-	took   *textLine
-	step   engine.ChatTestStep
+	sh        *shell
+	root      fyne.CanvasObject
+	icon      *widget.Icon
+	label     *textLine
+	detail    *selParagraph   // wrapped, never cut: a certificate's issuer and end, the auth's two answers (2026-10-25)
+	detailBox *fyne.Container // holds detail, made anew when its text or colour changes (a selParagraph wraps once)
+	detailW   float32
+	exchange  *fyne.Container // a failed layer's request and answer
+	xRow      *fyne.Container // the exchange under the detail, hidden without one
+	exchangeW float32
+	shownX    string // the exchange shown
+	took      *textLine
+	step      engine.ChatTestStep
 }
 
 // agentTestTookWidth is the room a test row keeps at its right for the time a layer took.
 const agentTestTookWidth float32 = 48
 
-func newAgentTestRow(l engine.ChatTestLayer, detailW float32) *agentTestRow {
-	r := &agentTestRow{icon: widget.NewIcon(nil)}
+func newAgentTestRow(sh *shell, l engine.ChatTestLayer, detailW, exchangeW float32) *agentTestRow {
+	r := &agentTestRow{sh: sh, icon: widget.NewIcon(nil), detailW: detailW, exchangeW: exchangeW}
 	r.label = newTextLine(chatTestLabels[l], theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	r.detail = newParagraph("", colorMuted, detailW)
+	r.detailBox = container.NewStack()
+	r.setDetail("", colorMuted)
 	r.took = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	label := box(sizedLayout{width: sizeDrawerLabel}, r.label)
 	head := container.NewHBox(container.NewVBox(sized(sizeCellIcon, "", r.icon)), container.NewVBox(label))
-	r.root = container.NewBorder(nil, nil, head, container.NewVBox(r.took), r.detail)
+	r.exchange = container.NewStack()
+	line := container.NewBorder(nil, nil, head, container.NewVBox(r.took), r.detailBox)
+	r.xRow = container.NewBorder(nil, nil, box(sizedLayout{width: sizeCellIcon}), nil, r.exchange)
+	r.xRow.Hide()
+	r.root = container.NewVBox(line, r.xRow)
 	return r
+}
+
+// setDetail shows the detail's text in its colour, selectable.
+func (r *agentTestRow) setDetail(text string, c fyne.ThemeColorName) {
+	if r.detail != nil && r.detail.p.text == text && r.detail.p.color == c {
+		return
+	}
+	r.detail = newSelParagraph(newParagraph(text, c, r.detailW), theme.ColorNameSelection, func(sel string) { r.sh.copyText(sel, false) })
+	r.detailBox.Objects = []fyne.CanvasObject{r.detail}
+	r.detailBox.Refresh()
+}
+
+// setExchange shows a failed layer's request and answer, or hides the block when there is none.
+func (r *agentTestRow) setExchange(x string) {
+	if x == r.shownX {
+		return
+	}
+	r.shownX = x
+	if x == "" {
+		r.exchange.Objects = nil
+		r.xRow.Hide()
+		return
+	}
+	p := newParagraphStyled(x, theme.ColorNameForeground, r.exchangeW, fyne.TextStyle{Monospace: true})
+	p.size, p.hard = theme.SizeNameCaptionText, true // a request's JSON body is one long word
+	text := newSelParagraph(p, theme.ColorNameSelection, func(sel string) { r.sh.copyText(sel, false) })
+	glyph := newCopyGlyph(r.sh, x, theme.ColorNameForeground)
+	bg := newSurface(theme.ColorNameInputBackground)
+	bg.radius = theme.SizeNameInputRadius
+	r.exchange.Objects = []fyne.CanvasObject{bg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
+		container.NewBorder(nil, nil, nil, container.NewVBox(glyphSlot(glyph)), text))}
+	r.xRow.Show()
+	r.exchange.Refresh()
 }
 
 // set shows a step.
@@ -897,11 +947,15 @@ func (r *agentTestRow) set(s engine.ChatTestStep) {
 		text += ": " + s.Detail
 	}
 	r.icon.SetResource(themedIcon(icon, c))
-	r.detail.text, r.detail.color = text, c
 	if s.State == engine.ChatTestFail {
-		r.detail.color = colorStatusError
+		c = colorStatusError
 	}
-	r.detail.Refresh()
+	r.setDetail(text, c)
+	x := ""
+	if s.State == engine.ChatTestFail {
+		x = s.Exchange
+	}
+	r.setExchange(x)
 	r.took.SetText("")
 	if s.Duration > 0 && (s.State == engine.ChatTestPass || s.State == engine.ChatTestFail) {
 		r.took.SetText(formatTook(s.Duration))

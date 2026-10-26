@@ -31,7 +31,8 @@ import (
 // chosen model is among them; the list goes to the settings form. Tools: a minimal chat request
 // offering one harmless tool (get_time) and asking for it returns a tool call. (HTTP's certificate,
 // Auth's two questions and Models: the owner's request of 2026-10-25.) A failed layer leaves the
-// later ones not reached. Each layer has its own bound. With a proxy configured for the endpoint
+// later ones not reached, and carries its last request and answer when it sent one (exchange.go).
+// Each layer has its own bound. With a proxy configured for the endpoint
 // (Go's default transport: HTTPS_PROXY, HTTP_PROXY, NO_PROXY), DNS and TCP check the proxy, where
 // the chat's requests go; the proxy resolves the endpoint's name.
 
@@ -93,6 +94,12 @@ func (a *Agent) TestConnection(ctx context.Context, c engine.ChatConnection, api
 	var addrs []netip.Addr // the DNS layer's, which the TCP layer dials
 	var models []string    // the Auth layer's answer, which the Models layer reads
 	var httpWarn string    // the HTTP layer's: an address of the name that does not answer as the API
+	var rec *recorder      // the running layer's requests, shown when it fails (exchange.go)
+	recorded := func() *client {
+		rc, r := recording(cl)
+		rec = r
+		return rc
+	}
 	layers := []func(context.Context) (string, error){
 		func(ctx context.Context) (detail string, err error) {
 			addrs, detail, err = testDNS(ctx, target)
@@ -103,24 +110,26 @@ func (a *Agent) TestConnection(ctx context.Context, c engine.ChatConnection, api
 			if clErr != nil {
 				return "", clErr
 			}
-			detail, httpWarn, err = a.testHTTP(ctx, cl, c.CAFile != "", target, addrs)
+			detail, httpWarn, err = a.testHTTP(ctx, recorded(), c.CAFile != "", target, addrs)
 			return detail, err
 		},
 		func(ctx context.Context) (detail string, err error) {
-			models, detail, err = testAuth(ctx, cl)
+			models, detail, err = testAuth(ctx, recorded())
 			return detail, err
 		},
 		func(context.Context) (string, error) { return testModels(models, c.Model) },
-		func(ctx context.Context) (string, error) { return testTools(ctx, cl, c.Model) },
+		func(ctx context.Context) (string, error) { return testTools(ctx, recorded(), c.Model) },
 	}
 	bounds := []time.Duration{testDNSTimeout, testTCPTimeout, testHTTPTimeout, testAuthTimeout, testModelsTimeout, testToolsTimeout}
 	for i, run := range layers {
 		steps[i].State = engine.ChatTestRunning
 		report()
+		rec = nil
 		start := time.Now()
 		detail, err := a.testLayer(ctx, bounds[i], run)
 		steps[i].Duration = time.Since(start).Round(time.Millisecond)
 		if err != nil {
+			steps[i].Exchange = rec.text(key)
 			return fail(i, err.Error())
 		}
 		steps[i].State, steps[i].Detail = engine.ChatTestPass, detail
@@ -530,6 +539,9 @@ func pageText(body []byte, key string) string {
 // the Host header, the address dialled; no proxy (a proxied target is not probed).
 func (a *Agent) probeAddress(ctx context.Context, cl *client, ip netip.Addr, port string) addressAnswer {
 	rt := cl.hc.Transport
+	if r, ok := rt.(*recorder); ok { // the HTTP layer's own request is recorded, the probes are not
+		rt = r.next
+	}
 	if rt == nil {
 		rt = http.DefaultTransport
 	}
@@ -660,6 +672,13 @@ func testTools(ctx context.Context, cl *client, model string) (string, error) {
 	}
 	body, _ := json.Marshal(req)
 	resp, err := cl.complete(ctx, body, nil)
+	var he *HTTPError
+	if errors.As(err, &he) && he.Status == http.StatusNotFound {
+		// The models list answered (the layers before passed), the chat's path did not: a server
+		// without Chat Completions there, or one that does not know the model (OpenAI's own 404).
+		return "", fmt.Errorf("%w. The models list answered at %s, so either the server has no Chat Completions at "+
+			"this path (check the base URL and the connection's kind) or it does not know the model %q", err, cl.ep.models, model)
+	}
 	if err != nil {
 		return "", err
 	}

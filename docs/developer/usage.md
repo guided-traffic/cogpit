@@ -1154,7 +1154,14 @@ issuer, the day it ends); when the name has several addresses it asks each of th
 answers, fails when the chat's address answers 5xx (a proxy page is quoted as its text) and warns
 when another one does. Authentication first asks without the key, so it says whether the endpoint
 wants one at all, then with the key. Models says how many models the endpoint lists and whether
-yours is among them, and fills the model field's list. With a proxy set for the endpoint in the
+yours is among them, and fills the model field's list. A step that fails after sending a request
+shows that request and the answer under its row, as `curl -v` writes them: the address connected
+to, the method and the whole URL (the chat path is `<base URL>/chat/completions`, Open WebUI's
+`<base URL>/api/chat/completions`), the header fields sent, the body, the status line, the answer's
+header fields and the start of its body. The API key shows as `Bearer •••`; the block and every
+step's text are selectable, and its copy icon copies it whole. Every error of the endpoint, in the
+test and in the chat, starts with the method and URL it answered ("POST
+http://127.0.0.1:4000/chat/completions: the endpoint answered HTTP 404 Not Found: Not Found"). With a proxy set for the endpoint in the
 environment (`HTTPS_PROXY`, `HTTP_PROXY`, `NO_PROXY`; never for localhost), DNS and TCP check the
 proxy, which resolves the endpoint's name itself; the proxy's user and password are never shown
 ([D-10](decisions.md#d-10-built-in-agent)). The model field's ↻ lists the models with the values

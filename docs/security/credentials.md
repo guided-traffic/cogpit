@@ -212,7 +212,12 @@ scanner) is retried for up to a second instead of failing
   ([`fyneui/mcpdetails.go`](../../internal/ui/fyneui/mcpdetails.go)), and shows or copies it only
   on the user's click. An LLM API key is a plain string too while a turn's requests or a
   connection test run, sent only in their `Authorization` header
-  ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)).
+  ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)). The connection test's
+  record of a failed layer's request and answer (since 2026-10-26,
+  [`agent/exchange.go`](../../internal/agent/exchange.go)) writes that header as `Bearer •••`,
+  removes the key from every other header value and from the answer's body, withholds
+  `Set-Cookie` and `Cookie`, and does not read a 401's or 403's body, which may quote a part of the
+  key; it is shown in Preferences › Agent only, never returned to a command or an agent.
 
 ## The terminal's kubeconfig
 

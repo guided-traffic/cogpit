@@ -208,6 +208,11 @@ type ChatTestStep struct {
 	Duration time.Duration `json:"duration,omitempty"`
 	// Models are the Models layer's: the endpoint's models, for the settings form's list.
 	Models []string `json:"models,omitempty"`
+	// Exchange is a failed layer's last request and its answer in curl -v's form (the owner,
+	// 2026-10-26: which endpoint was called how): where the connection went, the request line,
+	// header fields and body, the answer's status line, header fields and the start of its body;
+	// the API key never in it. Empty for a layer that sent no request.
+	Exchange string `json:"exchange,omitempty"`
 }
 
 // ChatPlainHTTPWarning is what the window and the connection test say about a connection over plain

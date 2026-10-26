@@ -545,3 +545,109 @@ func TestConnectionTestEveryAddress(t *testing.T) {
 		t.Fatalf("another address broken: %s %+v", got, steps[2])
 	}
 }
+
+// TestConnectionTestShowsTheExchange (the owner, 2026-10-26: "WELCHER ENDPUNKT WURDE WIE
+// AUFGERUFEN???" after a Tool use step that said only "the endpoint answered HTTP 404 Not Found:
+// Not Found"): a failed layer names the method and URL, and carries its last request and answer in
+// curl -v's form, the key never in it; a passed layer carries none.
+func TestConnectionTestShowsTheExchange(t *testing.T) {
+	h := newHarness(t, engine.ChatLimits{})
+	conn := engine.ChatConnection{Name: "t", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base, Model: "test-model"}
+	chatURL := h.llm.Base + "/chat/completions"
+
+	h.llm.Script(fakellm.Reply{Status: http.StatusNotFound, Body: `{"detail":"Not Found"}`})
+	steps := h.a.TestConnection(context.Background(), conn, nil, nil)
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=pass models=pass tools=fail" {
+		t.Fatalf("%s %+v", got, steps)
+	}
+	for _, s := range steps[:5] {
+		if s.Exchange != "" {
+			t.Errorf("%s passed with an exchange: %q", s.Layer, s.Exchange)
+		}
+	}
+	tools := steps[5]
+	if want := "POST " + chatURL + ": the endpoint answered HTTP 404 Not Found: Not Found. The models list answered at " +
+		h.llm.Base + "/models"; !strings.HasPrefix(tools.Detail, want) || !strings.Contains(tools.Detail, `does not know the model "test-model"`) {
+		t.Errorf("detail %q, want it to start with %q", tools.Detail, want)
+	}
+	for _, want := range []string{
+		"* connected to 127.0.0.1:",
+		"> POST " + chatURL + "\n",
+		"> Content-Type: application/json\n",
+		"> Accept: text/event-stream, application/json\n",
+		"* no Authorization field: no key went\n",
+		`"model":"test-model"`,
+		`"name":"get_time"`,
+		"< HTTP/1.1 404 Not Found\n",
+		"< Content-Type: application/json\n",
+		"<\n< {\"detail\":\"Not Found\"}\n",
+		" to the answer's header",
+	} {
+		if !strings.Contains(tools.Exchange, want) {
+			t.Errorf("the exchange lacks %q:\n%s", want, tools.Exchange)
+		}
+	}
+
+	key := "sk-right-key-123"
+	h.llm.RequireKey(key)
+	defer h.llm.RequireKey("")
+	wrong := "sk-wrong-key-456"
+	steps = h.a.TestConnection(context.Background(), conn, &wrong, nil)
+	auth := steps[3]
+	if got := states(steps); got != "dns=pass tcp=pass http=pass auth=fail models=notReached tools=notReached" ||
+		!strings.Contains(auth.Detail, "GET "+h.llm.Base+"/models: the endpoint refused the API key (HTTP 401 Unauthorized)") {
+		t.Errorf("%s %q", got, auth.Detail)
+	}
+	for _, want := range []string{"> GET " + h.llm.Base + "/models\n", "> Authorization: Bearer •••\n", "< HTTP/1.1 401 Unauthorized\n",
+		"* the body not shown: a refusal may quote a part of the key"} {
+		if !strings.Contains(auth.Exchange, want) {
+			t.Errorf("the auth exchange lacks %q:\n%s", want, auth.Exchange)
+		}
+	}
+	for _, s := range steps {
+		if strings.Contains(s.Exchange, wrong) || strings.Contains(s.Detail, wrong) || strings.Contains(s.Exchange, key) {
+			t.Errorf("%s shows a key: %q %q", s.Layer, s.Detail, s.Exchange)
+		}
+	}
+
+	h.llm.RequireKey("")
+	h.llm.Script(fakellm.Reply{Text: []string{"It is noon, " + key}})
+	steps = h.a.TestConnection(context.Background(), conn, &key, nil)
+	tools = steps[5]
+	if !strings.Contains(tools.Exchange, "< HTTP/1.1 200 OK\n") || !strings.Contains(tools.Exchange, "It is noon, •••") ||
+		strings.Contains(tools.Exchange, key) {
+		t.Errorf("an answer without a tool call: %s", tools.Exchange)
+	}
+}
+
+// TestExchangeText: a body cut at its bound says so, control characters are replaced, a Set-Cookie
+// is withheld, and a request that got no answer says why.
+func TestExchangeText(t *testing.T) {
+	x := &exchange{method: http.MethodGet, url: "https://llm.example/models", addr: "203.0.113.7:443",
+		sent: [][]string{{"Host", "llm.example"}, {"Authorization", "Bearer sk-1"}}, proto: "HTTP/1.1", status: "200 OK",
+		header: http.Header{"Set-Cookie": {"session=abc"}, "X-Echo": {"sk-1"}}, more: true, took: 3 * time.Millisecond}
+	x.answer.WriteString("line\x01one\r\nline two\n")
+	got := x.text("sk-1")
+	want := strings.Join([]string{
+		"* connected to 203.0.113.7:443",
+		"> GET https://llm.example/models",
+		"> Host: llm.example",
+		"> Authorization: Bearer •••",
+		"< HTTP/1.1 200 OK",
+		"< Set-Cookie: (withheld)",
+		"< X-Echo: •••",
+		"<",
+		"< line�one",
+		"< line two",
+		"< … (cut after 2048 bytes)",
+		"* 3 ms to the answer's header",
+	}, "\n")
+	if got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+	failed := &exchange{method: http.MethodPost, url: "http://h:1/chat/completions", err: errors.New("dial tcp: connection refused"),
+		took: 2 * time.Second}
+	if got := failed.text(""); !strings.HasSuffix(got, "* no answer after 2.0 s: dial tcp: connection refused") {
+		t.Errorf("no answer: %q", got)
+	}
+}

@@ -27,9 +27,10 @@ import (
 // ways, and the client takes each the way it comes: tool-call deltas accumulated by index (or by
 // id where a server leaves the index out), a JSON body where an SSE stream was asked for, an
 // error object inside the stream, thinking as reasoning_content or reasoning deltas or as
-// <think>…</think> in the content (dropped, never part of the answer). Errors carry the HTTP status
-// and at most a short message of the server's, with the API key removed; never the key and never
-// the request body.
+// <think>…</think> in the content (dropped, never part of the answer). Errors carry the request's
+// method and URL, the HTTP status and at most a short message of the server's, with the API key
+// removed; never the key and never the request body (the connection test's record of a failed
+// layer, exchange.go, shows its fixed body).
 
 const (
 	// maxEventBytes bounds one server-sent event (and a JSON answer); a model's delta is far smaller.
@@ -171,19 +172,27 @@ func (u *usage) total() int {
 }
 
 // HTTPError is an answer of the endpoint with an error status. Message is at most a short excerpt
-// of the server's own message, with the API key removed; 401 and 403 carry none.
+// of the server's own message, with the API key removed; 401 and 403 carry none. Method and URL
+// are the request's, which the error names first (the owner, 2026-10-26: an error that does not
+// say which endpoint was called how leaves nothing to look for).
 type HTTPError struct {
 	Status  int
 	Message string
+	Method  string
+	URL     string
 }
 
 func (e *HTTPError) Error() string {
 	text := http.StatusText(e.Status)
+	where := ""
+	if e.URL != "" {
+		where = e.Method + " " + e.URL + ": "
+	}
 	switch e.Status {
 	case http.StatusUnauthorized, http.StatusForbidden:
-		return fmt.Sprintf("the endpoint refused the API key (HTTP %d %s)", e.Status, text)
+		return fmt.Sprintf("%sthe endpoint refused the API key (HTTP %d %s)", where, e.Status, text)
 	}
-	msg := fmt.Sprintf("the endpoint answered HTTP %d %s", e.Status, text)
+	msg := fmt.Sprintf("%sthe endpoint answered HTTP %d %s", where, e.Status, text)
 	if e.Message != "" {
 		msg += ": " + e.Message
 	}
@@ -193,6 +202,9 @@ func (e *HTTPError) Error() string {
 // httpErrorFrom reads an error answer's message, bounded and without the key.
 func httpErrorFrom(resp *http.Response, key string) *HTTPError {
 	e := &HTTPError{Status: resp.StatusCode}
+	if resp.Request != nil && resp.Request.URL != nil {
+		e.Method, e.URL = resp.Request.Method, resp.Request.URL.String()
+	}
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return e // the message may quote a part of the key
 	}
