@@ -294,10 +294,12 @@ func TestTrivyNotServedOrForbidden(t *testing.T) {
 		vulnReportsGVR: apierrors.NewForbidden(schema.GroupResource{Group: vulnReportsGVR.Group, Resource: vulnReportsGVR.Resource}, "", errors.New("no")),
 	}}
 	s2 := newCRDSession(t, refused)
-	waitFor(t, "forbidden", func() bool { return trivyStatus(s2).State == IntegrationForbidden })
-	if st := trivyStatus(s2); st.Detail != "list "+trivyReportsKind {
-		t.Errorf("forbidden: %+v", st)
-	}
+	// State and detail read together: between the refusal in all namespaces and the one in each
+	// namespace the plan reads, the state is checking for a moment (the race job, 2026-10-26).
+	waitFor(t, "forbidden, naming the permission", func() bool {
+		st := trivyStatus(s2)
+		return st.State == IntegrationForbidden && st.Detail == "list "+trivyReportsKind
+	})
 }
 
 // A user who may list the reports in team-a alone: the index reads them there, after the refusal
