@@ -626,8 +626,8 @@ $(FYNE): $(call tool_stamp,fyne,$(FYNE_TOOLS))
 # lines stay together, the version a release tag; the update never merges on its own
 # (.github/renovate.json).
 # renovate: datasource=github-release-attachments depName=sparkle-project/Sparkle
-SPARKLE_VERSION := 2.10.0
-SPARKLE_SHA256  := c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
+SPARKLE_VERSION := 2.10.1
+SPARKLE_SHA256  := 1a856d2a9edb8e628de88121d7be04cf0e2167f8641650b78fca00b14244cf27
 SPARKLE_DIR     := $(CACHE)/sparkle/$(SPARKLE_VERSION)
 # The appcast every installed copy keeps (owner, 2026-10-14) and the public half of the update key
 # (base64, as Sparkle's generate_keys prints it). Empty by default: such a build has no
