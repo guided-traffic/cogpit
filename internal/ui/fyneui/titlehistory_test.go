@@ -27,9 +27,13 @@ func TestTitleHistoryArrows(t *testing.T) {
 	if h.back.Disabled() || !h.forward.Disabled() {
 		t.Fatalf("back disabled %v, forward disabled %v; the tab has one view behind it", h.back.Disabled(), h.forward.Disabled())
 	}
-	wantBack, wantForward := "Go Back (Ctrl+-)", "Go Forward (Ctrl+Shift+-)"
-	if runtime.GOOS == "darwin" {
-		wantBack, wantForward = "Go Back (⌃-)", "Go Forward (⌃⇧-)"
+	// VS Code's keys on each platform (D-134).
+	wantBack, wantForward := "Go Back (⌃-)", "Go Forward (⌃⇧-)"
+	switch runtime.GOOS {
+	case "windows":
+		wantBack, wantForward = "Go Back (Alt+Left)", "Go Forward (Alt+Right)"
+	case "linux":
+		wantBack, wantForward = "Go Back (Ctrl+Alt+-)", "Go Forward (Ctrl+Shift+-)"
 	}
 	if h.back.tip != wantBack || h.forward.tip != wantForward {
 		t.Errorf("tooltips %q and %q", h.back.tip, h.forward.tip)
