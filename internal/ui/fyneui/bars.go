@@ -246,7 +246,7 @@ func newDiagView(d engine.Diagnostics) diagView {
 
 // statusBar is the bottom line: the connection's dot and the context, the Connection Diagnostics
 // button (D-133: the API requests and informers it showed before are its tooltip and its tab's), the
-// demo cluster's event rate, the link to the owner and the MCP indicator.
+// window's zoom (D-134), the demo cluster's event rate, the link to the owner and the MCP indicator.
 type statusBar struct {
 	sh      *shell
 	link    *linkText // the link to the owner (D-23), left of the MCP item
@@ -259,6 +259,7 @@ type statusBar struct {
 	// otherwise.
 	tls      *textLine
 	diag     *diagButton
+	zoom     *zoomControl // right of Diagnostics (zoomcontrol.go, D-134)
 	demo     *textLine
 	demoSep  fyne.CanvasObject
 	pulse    *pulse // the event rate's wave beside the demo text (chrome_bar.go)
@@ -274,13 +275,15 @@ func newStatusBar(sh *shell) *statusBar {
 	s.dot = newConnDot(sh)
 	s.context = newTipLine(sh, colorMuted, sizeStatusText, fyne.TextStyle{})
 	s.diag, s.demo = newDiagButton(sh), caption()
+	s.zoom = newZoomControl(sh)
 	s.tls = newTextLine(engine.TLSUncheckedLabel, colorStatusWarning, sizeStatusText, fyne.TextStyle{})
 	s.tls.Hide()
 	s.demoSep = newStatusDivider()
 	s.pulse = newPulse()
 	s.pulseBox = container.NewCenter(s.pulse.w)
 	s.pulseBox.Hide()
-	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.diag, s.demoSep, s.demo, s.pulseBox)
+	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.diag, newStatusDivider(), s.zoom.root,
+		s.demoSep, s.demo, s.pulseBox)
 	right := container.NewHBox()
 	if sh.hasMCP() {
 		s.mcp = newMCPItem(sh, sh.mcp.on)

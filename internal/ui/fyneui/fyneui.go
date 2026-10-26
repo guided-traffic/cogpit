@@ -74,6 +74,9 @@ type Options struct {
 	// menus is where the menus are: this system's place (menusHere), or, for the tests, the
 	// system's menu bar as on macOS (menusNative) or the top bar as elsewhere (menusInBar).
 	menus menuPlace
+	// zoom is the window's zoom as Run set it before the window opened (zoom.go); nil: 100%, no
+	// scale to change (the tests).
+	zoom *windowZoom
 }
 
 // PerfStats is what the jank meter measured: how late callbacks posted to the main goroutine
@@ -202,6 +205,12 @@ func Run(s *engine.Session, opts Options) error {
 		rowHeight = p.TableRowHeight
 	}
 	a.Settings().SetTheme(newThemeFor(mode, rowHeight))
+	// The zoom before the window exists: it opens at the zoom, and its kept frame is read at the
+	// scale it gives (windowplace.go).
+	opts.zoom = newWindowZoom(a.Settings().Scale())
+	if p := s.UIState().Preferences; p != nil {
+		opts.zoom.set(p.ZoomLevel)
+	}
 	title := opts.Title
 	if title == "" {
 		title = appName

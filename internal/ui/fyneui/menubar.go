@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"runtime"
+	"slices"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -46,7 +47,11 @@ const quitLabel = "Quit"
 // menus' keys.
 func (sh *shell) setMainMenu() {
 	m := sh.mainMenu()
+	keys := sh.moreKeysMenu() // the commands' further keys, in a menu nobody sees (menukeys.go)
 	if !sh.inlineMenus {
+		if keys != nil {
+			m.Items = append(m.Items, keys)
+		}
 		sh.win.SetMainMenu(m)
 		return
 	}
@@ -56,6 +61,9 @@ func (sh *shell) setMainMenu() {
 	}
 	sh.top.menus.set(m)
 	sh.menuItems = m.Items
+	if keys != nil {
+		sh.menuItems = append(slices.Clone(m.Items), keys) // the keys looked up, the bar drawn without them
+	}
 	if sh.menuKeys != nil {
 		sh.menuKeys.Items = m.Items // in place: the window reads them when a key comes
 	} else if !sh.deferMenuKeys {

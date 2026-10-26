@@ -615,8 +615,9 @@ func parseShortcut(s string) *desktop.CustomShortcut {
 	return &desktop.CustomShortcut{KeyName: key, Modifier: mod}
 }
 
-// shortcutKey is the key of a shortcut's last part: a letter, a digit, a comma, a minus, Left or
-// Right (the arrows), F1 to F12.
+// shortcutKey is the key of a shortcut's last part: a letter, a digit, a comma, a minus, an equals
+// sign, Plus (the keypad's +, which Fyne also names the + key of a German keyboard), Left or Right
+// (the arrows), F1 to F12.
 func shortcutKey(k string) fyne.KeyName {
 	if len(k) == 1 {
 		switch c := k[0]; {
@@ -626,8 +627,13 @@ func shortcutKey(k string) fyne.KeyName {
 			return fyne.KeyComma
 		case c == '-':
 			return fyne.KeyMinus
+		case c == '=':
+			return fyne.KeyEqual
 		}
 		return ""
+	}
+	if k == "Plus" {
+		return fyne.KeyPlus
 	}
 	if n := functionKey(fyne.KeyName(k)); n > 0 || k == string(fyne.KeyLeft) || k == string(fyne.KeyRight) {
 		return fyne.KeyName(k)
@@ -645,7 +651,7 @@ func shortcutText(s string, mac bool) string {
 		return strings.ReplaceAll(s, "Cmd+", "Ctrl+")
 	}
 	symbols := map[string]string{"Cmd": "⌘", "Shift": "⇧", "Alt": "⌥", "Ctrl": "⌃"}
-	arrows := map[string]string{"Left": "←", "Right": "→"}
+	arrows := map[string]string{"Left": "←", "Right": "→", "Plus": "+"}
 	parts := strings.Split(s, "+")
 	var b strings.Builder
 	for i, part := range parts {

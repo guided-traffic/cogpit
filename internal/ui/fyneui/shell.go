@@ -103,6 +103,7 @@ type shell struct {
 	drawer    *drawer
 	dock      *dock
 	status    *statusBar
+	zoom      *windowZoom // the window's zoom (zoom.go, D-134)
 	toasts    *fyne.Container
 	tip       *tooltip      // the one tooltip: cut-off cells, warning icons, drawer actions
 	palette   *cmdPalette   // the command palette, ⌘⇧P (palette.go)
@@ -204,6 +205,9 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 		})
 	}
 	sh.mcp = mcpState{on: opts.MCP == nil && opts.MCPCommand != "", command: opts.MCPCommand}
+	if sh.zoom = opts.zoom; sh.zoom == nil {
+		sh.zoom = &windowZoom{}
+	}
 	sh.sess, _ = eng.(*engine.Session)
 	sh.ctx, sh.cancel = context.WithCancel(context.Background())
 	sh.files, sh.bookmarks = noPanels{}, opts.Bookmarks
@@ -274,7 +278,9 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 			sh.conn.root, sh.drains.root, sh.helm.root, sh.helmHTTP.root, sh.drafts.root),
 		box(layout.NewCustomPaddedVBoxLayout(0), newDivider(false), sh.status.root), // the line directly on the bar
 		sh.hot.root, nil, sh.chatRow)
-	sh.root = container.NewStack(frame, sh.hot.drag.float, sh.tip.layer, sh.toasts) // a dragged hotbar tile over the window (hotbardrag.go)
+	// A dragged hotbar tile over the window (hotbardrag.go); the window's size followed for the
+	// zoom's fit (zoom.go).
+	sh.root = container.New(&zoomFitLayout{sh: sh}, frame, sh.hot.drag.float, sh.tip.layer, sh.toasts)
 	return sh
 }
 
@@ -1108,6 +1114,10 @@ func (sh *shell) mainMenu() *fyne.MainMenu {
 	view.Items = append(sh.tabs.menuItems(), view.Items...)
 	if keys := sh.windowKeyItems(); len(keys) > 0 { // ⌘F and ⌘⇧T shown, the keys kept by the window (A55, menukeys.go)
 		view.Items = append(append(keys, fyne.NewMenuItemSeparator()), view.Items...)
+	}
+	// ⌘=, ⌘- and ⌘0, from any focus (zoom.go).
+	if zoom := sh.zoomMenuItems(); len(zoom) > 0 {
+		view.Items = append(append(zoom, fyne.NewMenuItemSeparator()), view.Items...)
 	}
 	// ⌘B, ⌘J (layoutbar.go), ⌘I and ⌘. (chat.go), from any focus.
 	if chat := append(sh.layoutMenuItems(), sh.chatMenuItems()...); len(chat) > 0 {

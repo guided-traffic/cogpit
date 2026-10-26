@@ -148,7 +148,7 @@ Refresh and a way into the Argo CD UI.
 Cogpit reads every kubeconfig in `~/.kube` and the files and folders you add, each on its own, and
 follows their changes. Pin clusters to the hotbar (F1–F12), keep tabs of several clusters open
 (they come back after a restart), and reach any view, action or cluster from the command palette
-(⌘⇧P).
+(⌘⇧P). Zoom the whole window as in VS Code, ⌘+ and ⌘-, for your eyes or a presentation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/clusters_dark.png">

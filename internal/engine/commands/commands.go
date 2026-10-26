@@ -86,6 +86,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerNavScope(g)
 	registerNavigator(g)
 	registerLayout(g)
+	registerZoom(g) // the window's zoom, VS Code's (D-134)
 	registerKubectl(g)
 	registerFlux(g)
 	registerUpdates(g)

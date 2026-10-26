@@ -56,6 +56,7 @@ func (sh *shell) preferencesChanged() {
 	if cur, ok := sh.app.Settings().Theme().(*cogTheme); !ok || cur.mode != mode || cur.rowHeight != p.TableRowHeight {
 		sh.app.Settings().SetTheme(newThemeFor(mode, p.TableRowHeight)) // Fyne refreshes every widget
 	}
+	sh.applyZoom(p.ZoomLevel) // zoom.go
 	var zone *time.Location
 	if p.Timezone != "" {
 		zone, _ = engine.LoadTimezone(p.Timezone)
@@ -216,6 +217,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	motion, syncMotion := p.reduceMotionSetting()     // preferences_motion.go
 	power, syncPower := p.lightStripPowerSetting()    // preferences_power.go
 	diffs, syncDiffs := p.revisionsDiffSetting()      // preferences_revisions.go
+	zoom, syncZoom := p.zoomSetting()                 // preferences_zoom.go
 	p.sync = func() {
 		pr := p.prefs()
 		for _, c := range themeChoices {
@@ -229,11 +231,13 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		syncMotion()
 		syncPower()
 		syncDiffs()
+		syncZoom()
 		syncLoginItem()
 	}
 	// Two real groups, one bracket each: what the app is and does, and how it updates.
 	general := []fyne.CanvasObject{p.setting("theme", "Theme", themeHelp, themeSel),
 		p.setting("timezone", "Locale timezone", "Absolute times: the drawer's Created, the charts' time axes and hover. Empty: the computer's.", zone),
+		zoom,
 		restore,
 		motion,
 		power,

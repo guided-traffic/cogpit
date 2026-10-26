@@ -186,6 +186,7 @@ type Session struct {
 	confirmer   Confirmer
 	agentWrites map[string]bool  // contexts where the user allowed agent writes (D-2)
 	dockReader  DockOutputReader // the window's, for dock.read (dockoutput.go)
+	zoomCeiling *int             // the largest zoom level the window's content fits at; nil: no window said (zoom.go)
 	// integrationsLater are the contexts whose integrations question was put off this run
 	// (integrationsask.go, D-76); guarded by mu.
 	integrationsLater map[string]bool
