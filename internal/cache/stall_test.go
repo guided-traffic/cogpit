@@ -155,35 +155,51 @@ func (w *testWatch) send(ev watch.Event) bool {
 
 const testStall = 100 * time.Millisecond
 
-func newStallCache(t *testing.T, src *stallSource) (*cache.Cache, func() []cache.Diagnostic) {
-	t.Helper()
-	c := cache.New(src, cache.Options{StreamStall: testStall})
-	t.Cleanup(func() {
-		src.stop()
-		c.Close()
-	})
-	var mu sync.Mutex
-	var got []cache.Diagnostic
-	c.OnDiagnostic(func(d cache.Diagnostic) {
-		mu.Lock()
-		got = append(got, d)
-		mu.Unlock()
-	})
-	return c, func() []cache.Diagnostic {
-		mu.Lock()
-		defer mu.Unlock()
-		return append([]cache.Diagnostic(nil), got...)
-	}
+// told is what a cache told of its reads: its diagnostics and its stalls.
+type told struct {
+	mu     sync.Mutex
+	diags  []cache.Diagnostic
+	stalls []cache.Stall
 }
 
-func fallbacks(ds []cache.Diagnostic) []cache.Diagnostic {
+func (t *told) fallbacks() []cache.Diagnostic {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	var out []cache.Diagnostic
-	for _, d := range ds {
+	for _, d := range t.diags {
 		if d.Kind == cache.DiagStreamFallback {
 			out = append(out, d)
 		}
 	}
 	return out
+}
+
+func (t *told) stalled() []cache.Stall {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	return append([]cache.Stall(nil), t.stalls...)
+}
+
+func newStallCache(t *testing.T, src *stallSource, opts cache.Options) (*cache.Cache, *told) {
+	t.Helper()
+	opts.StreamStall = testStall
+	c := cache.New(src, opts)
+	t.Cleanup(func() {
+		src.stop()
+		c.Close()
+	})
+	got := &told{}
+	c.OnDiagnostic(func(d cache.Diagnostic) {
+		got.mu.Lock()
+		got.diags = append(got.diags, d)
+		got.mu.Unlock()
+	})
+	c.OnStall(func(st cache.Stall) {
+		got.mu.Lock()
+		got.stalls = append(got.stalls, st)
+		got.mu.Unlock()
+	})
+	return c, got
 }
 
 func initialOf(c *cache.Cache, scope cache.Scope) string {
@@ -205,7 +221,8 @@ func syncs(t *testing.T, h *cache.Handle) {
 }
 
 // A stream that goes silent before its end is ended after the bound, the read lists, and so does
-// every read after it: a later read asks for no stream at all.
+// every read after it: a later read asks for no stream at all. The stall is told once, with the
+// list's answer, and not as a fallback of the server's.
 func TestStalledStreamLists(t *testing.T) {
 	for _, tc := range []struct {
 		name     string
@@ -218,7 +235,7 @@ func TestStalledStreamLists(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			src := newStallSource(map[string]stallMode{"team-a": tc.mode, "team-b": stallHealthy})
-			c, diags := newStallCache(t, src)
+			c, got := newStallCache(t, src, cache.Options{})
 			a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
 			h := c.Acquire(a)
 			defer h.Release()
@@ -239,14 +256,14 @@ func TestStalledStreamLists(t *testing.T) {
 			if h.Err() != nil {
 				t.Errorf("a stall shows as the read's error: %v", h.Err())
 			}
-			waitFor(t, func() bool { return len(fallbacks(diags())) > 0 })
-			fb := fallbacks(diags())
-			var stall *cache.StreamStallError
-			if len(fb) != 1 || !errors.As(fb[0].Err, &stall) {
-				t.Fatalf("fallbacks = %+v, want one stall", fb)
+			waitFor(t, func() bool { return len(got.stalled()) > 0 })
+			st := got.stalled()[0]
+			if st.Scope != a || st.ListErr != nil || st.Listed <= 0 || st.Listed > time.Second {
+				t.Errorf("stall = %+v", st)
 			}
-			if stall.Answered != tc.answered || stall.Objects != tc.objects || stall.Silent != testStall {
-				t.Errorf("stall = %+v", stall)
+			var stall *cache.StreamStallError
+			if !errors.As(st.Err, &stall) || stall.Answered != tc.answered || stall.Objects != tc.objects || stall.Silent != testStall {
+				t.Errorf("stall = %+v", st.Err)
 			}
 
 			// A read started after the stall lists without asking for a stream, even where the
@@ -262,8 +279,8 @@ func TestStalledStreamLists(t *testing.T) {
 				t.Errorf("team-b's initial = %q, want %q", got, cache.InitialList)
 			}
 			time.Sleep(3 * testStall)
-			if n := len(fallbacks(diags())); n != 1 {
-				t.Errorf("%d fallbacks told; one stall, one fallback", n)
+			if n, fb := len(got.stalled()), got.fallbacks(); n != 1 || len(fb) != 0 {
+				t.Errorf("%d stalls and fallbacks %+v told; want the one stall", n, fb)
 			}
 		})
 	}
@@ -273,7 +290,7 @@ func TestStalledStreamLists(t *testing.T) {
 // stall is told once, by the read that stalled.
 func TestStallEndsTheOtherStreams(t *testing.T) {
 	src := newStallSource(map[string]stallMode{"team-a": stallSilent, "team-b": stallTrickle})
-	c, diags := newStallCache(t, src)
+	c, got := newStallCache(t, src, cache.Options{})
 	b := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-b"}
 	hb := c.Acquire(b)
 	defer hb.Release()
@@ -294,8 +311,8 @@ func TestStallEndsTheOtherStreams(t *testing.T) {
 		t.Error("team-b did not list")
 	}
 	time.Sleep(3 * testStall)
-	if fb := fallbacks(diags()); len(fb) != 1 || fb[0].Scope != a {
-		t.Errorf("fallbacks = %+v, want team-a's stall only", fb)
+	if st, fb := got.stalled(), got.fallbacks(); len(st) != 1 || st[0].Scope != a || len(fb) != 0 {
+		t.Errorf("stalls %+v, fallbacks %+v; want team-a's stall only", st, fb)
 	}
 }
 
@@ -303,14 +320,14 @@ func TestStallEndsTheOtherStreams(t *testing.T) {
 // the initial list only, and the stream stays the read's watch.
 func TestHealthyStreamKeepsStreaming(t *testing.T) {
 	src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
-	c, diags := newStallCache(t, src)
+	c, got := newStallCache(t, src, cache.Options{})
 	a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
 	h := c.Acquire(a)
 	defer h.Release()
 	syncs(t, h)
 	time.Sleep(5 * testStall)
-	if c.Listing() || len(fallbacks(diags())) != 0 {
-		t.Fatalf("listing %v, fallbacks %+v after a healthy stream", c.Listing(), fallbacks(diags()))
+	if c.Listing() || len(got.fallbacks()) != 0 || len(got.stalled()) != 0 {
+		t.Fatalf("listing %v, fallbacks %+v, stalls %+v after a healthy stream", c.Listing(), got.fallbacks(), got.stalled())
 	}
 	if got := initialOf(c, a); got != cache.InitialStream {
 		t.Errorf("initial = %q, want %q", got, cache.InitialStream)
@@ -334,4 +351,43 @@ func TestHealthyStreamKeepsStreaming(t *testing.T) {
 	if n := src.count(src.lists, "team-a"); n != 0 {
 		t.Errorf("%d lists, want none", n)
 	}
+}
+
+// A cluster whose streams are off lists from the start (Options.Lists), and ListFromNowOn ends the
+// streams still running: neither is a stall or a fallback.
+func TestListsWithoutStreams(t *testing.T) {
+	t.Run("from the start", func(t *testing.T) {
+		src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
+		c, got := newStallCache(t, src, cache.Options{Lists: true})
+		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+		h := c.Acquire(a)
+		defer h.Release()
+		syncs(t, h)
+		if n := src.count(src.streamed, "team-a"); n != 0 || !c.Listing() {
+			t.Errorf("%d streams asked for, listing %v", n, c.Listing())
+		}
+		if got := initialOf(c, a); got != cache.InitialList {
+			t.Errorf("initial = %q, want %q", got, cache.InitialList)
+		}
+		if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
+			t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
+		}
+	})
+	t.Run("from now on", func(t *testing.T) {
+		src := newStallSource(map[string]stallMode{"team-a": stallTrickle})
+		c, got := newStallCache(t, src, cache.Options{})
+		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+		h := c.Acquire(a)
+		defer h.Release()
+		waitFor(t, func() bool { return src.count(src.streamed, "team-a") > 0 })
+		c.ListFromNowOn()
+		syncs(t, h)
+		if n := src.count(src.lists, "team-a"); n == 0 {
+			t.Error("team-a did not list")
+		}
+		time.Sleep(2 * testStall)
+		if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
+			t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
+		}
+	})
 }

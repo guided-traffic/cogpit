@@ -21,9 +21,9 @@ type DiagnosticKind string
 // The kinds of Diagnostic.
 const (
 	// DiagStreamFallback: the server did not stream a read's initial list (client-go's WatchList),
-	// and client-go listed it instead. Err is the stream's error; a *StreamStallError when the cache
-	// ended a stream that went silent (stall.go); nil when the stream opened and ended before its
-	// initial list was complete.
+	// and client-go listed it instead. Err is the stream's error; nil when the stream opened and
+	// ended before its initial list was complete. A stream the cache ended because it stalled is
+	// told through OnStall instead (stall.go).
 	DiagStreamFallback DiagnosticKind = "streamFallback"
 	// DiagLoaded: a read finished its initial list; Took is the time since its informer started.
 	DiagLoaded DiagnosticKind = "loaded"
@@ -145,23 +145,28 @@ func (r *runner) watchAsked(ctx context.Context, opts metav1.ListOptions, err er
 }
 
 // listAsked notes a list the reflector makes: the first page of a list after a streamed initial
-// list it asked for is a fallback. It returns how the initial list comes, for listed; "" for a
-// later page.
-func (r *runner) listAsked(ctx context.Context, opts metav1.ListOptions) string {
+// list it asked for is a fallback. It returns how the initial list comes, for listed ("" for a
+// later page), and the stall when the cache ended the stream because it stalled (stall.go): the
+// list's answer is told with it (OnStall), not as a fallback of the server's.
+func (r *runner) listAsked(ctx context.Context, opts metav1.ListOptions) (string, *StreamStallError) {
 	if ctx.Err() != nil || opts.Continue != "" {
-		return ""
+		return "", nil
 	}
 	r.diagMu.Lock()
 	fell, cause := r.streaming, r.streamErr
 	r.streaming, r.streamErr = false, nil
 	r.diagMu.Unlock()
-	if fell {
-		if !errors.Is(cause, errListing) { // the stall that made the cache list was told once, by its own read
-			r.tellDiag(Diagnostic{Kind: DiagStreamFallback, Scope: r.scope, Err: cause})
-		}
-		return InitialFallback
+	if !fell {
+		return InitialList, nil
 	}
-	return InitialList
+	var stall *StreamStallError
+	switch {
+	case errors.As(cause, &stall):
+	case errors.Is(cause, errListing): // the cache lists: the stall that made it was told by its own read
+	default:
+		r.tellDiag(Diagnostic{Kind: DiagStreamFallback, Scope: r.scope, Err: cause})
+	}
+	return InitialFallback, stall
 }
 
 // listed notes how a list that worked came (listAsked's answer).

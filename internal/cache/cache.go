@@ -150,6 +150,9 @@ type Options struct {
 	// after it the read lists, and so does every read after it (stall.go). Zero means
 	// DefaultStreamStall.
 	StreamStall time.Duration
+	// Lists makes every read list and then watch from the start, never stream (a cluster whose
+	// streams are off in its settings, stall.go).
+	Lists bool
 }
 
 // InformerStats describe one scope for the diagnostics view: one per scope that a handle holds or
@@ -198,6 +201,7 @@ type Cache struct {
 	listCtx context.Context
 	listNow context.CancelFunc
 
+	stall     atomic.Pointer[func(Stall)]                                  // told of every stalled stream (OnStall, stall.go)
 	refused   atomic.Pointer[func(Scope)]                                  // told of every refused list or watch (OnRefused, nsscope.go)
 	streamErr atomic.Pointer[func(Scope, error)]                           // told of every list or watch that broke (OnStreamError, streamerr.go)
 	diag      atomic.Pointer[func(Diagnostic)]                             // told of loads and fallbacks (OnDiagnostic, diag.go)
@@ -217,10 +221,14 @@ func New(src Source, opts Options) *Cache {
 	}
 	ctx, stop := context.WithCancel(context.Background())
 	listCtx, listNow := context.WithCancel(context.Background())
-	return &Cache{
+	c := &Cache{
 		src: src, opts: opts, log: opts.Logger, ctx: ctx, stop: stop, listCtx: listCtx, listNow: listNow,
 		informers: map[Scope]*entry{}, runners: map[*runner]struct{}{},
 	}
+	if opts.Lists {
+		c.ListFromNowOn()
+	}
+	return c
 }
 
 // entry is one scope that handles hold, or that is warm: its handles' bookkeeping and their
@@ -738,8 +746,12 @@ func (t *trackedLW) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 func (t *trackedLW) ListWithContext(ctx context.Context, opts metav1.ListOptions) (obj runtime.Object, err error) {
 	defer t.recoverInto(&err, "list")
 	ctx = t.r.labelled(ctx)
-	initial := t.r.listAsked(ctx, opts)
+	initial, stall := t.r.listAsked(ctx, opts)
+	start := time.Now()
 	obj, err = toolscache.ToListerWithContext(t.inner).ListWithContext(ctx, opts)
+	if stall != nil && ctx.Err() == nil {
+		t.r.tellStall(Stall{Scope: t.r.scope, Err: stall, Listed: time.Since(start), ListErr: err})
+	}
 	t.observe(ctx, err)
 	if err == nil {
 		t.r.listed(initial)

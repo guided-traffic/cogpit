@@ -164,12 +164,14 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 	pathCopy := p.settingCopyIcon("kubeconfigCopy", "Copy the kubeconfig's path", func() string { return p.clusterView().Kubeconfig })
 	kc := container.NewBorder(nil, nil, nil, container.NewHBox(container.NewCenter(pathCopy), open),
 		container.NewStack(pathBg, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewStack(path, sentence))))
-	accent, syncAccent := p.accentColorSetting() // clustersettings_accent.go
-	strip, syncStrip := p.lightStripSetting()    // clustersettings_lightstrip.go
-	login, syncLogin := p.clusterLoginSetting()  // clustersettings_login.go
+	accent, syncAccent := p.accentColorSetting()      // clustersettings_accent.go
+	strip, syncStrip := p.lightStripSetting()         // clustersettings_lightstrip.go
+	login, syncLogin := p.clusterLoginSetting()       // clustersettings_login.go
+	streams, syncStreams := p.clusterStreamsSetting() // clustersettings_streams.go
 
 	p.sync = func() {
 		syncLogin()
+		syncStreams()
 		syncAccent()
 		syncStrip()
 		syncIcon()
@@ -212,6 +214,7 @@ func (p *settingsPage) clusterGeneralSection() fyne.CanvasObject {
 		strip,
 		p.setting("kubeconfig", "Kubeconfig", "The file this context comes from.", kc),
 		login,
+		streams,
 	)
 }
 

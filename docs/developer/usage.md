@@ -793,6 +793,23 @@ does, so that none stays drawn at the old resolution, soft
 text still look soft, switching the theme twice (the top bar's theme button) draws it again. On
 Windows and Linux Fyne draws the texts again itself.
 
+### Cluster Settings › General: streamed initial lists
+
+Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). **On by default
+(Automatic):** each read streams its initial list (WatchList) and keeps the stream as its watch. A
+stream that receives nothing for 10 s (# default) before its end (no answer, or objects and then
+silence) is ended; the read lists instead, and so does every read of the connection after it, as
+Lens and kubectl read. When that list answered within 2 s (# default), the stream stalled and not
+the connection: Cogpit switches the setting off for the cluster, and every later connect lists from
+the start. The page then says "Off since …, switched off by Cogpit:" and why (the read, what the
+stream received, how soon the list answered). A list that answered late or failed points at the
+connection: only that connection lists.
+
+**Off** ("Stream the initial lists (WatchList)" unchecked, or `cluster.settings.set` with
+`streamInitialLists` false): every read lists and then watches, at once for the connected cluster.
+**On again** applies from the next connect. Connection Diagnostics' line of the initial lists ends
+"streams off, every read lists:" and why while a connection lists.
+
 ### Cluster Settings › General: the login while the cluster is not shown
 
 Since 2026-10-16 ([D-69](decisions.md#d-69-several-clusters-connected-at-once) item 4). **On by
@@ -1527,8 +1544,8 @@ The tab, from the top:
   and **Report** beside it, and the copy and save icons;
 - the problems since the latest connect by kind, and how the initial lists of the open watches came:
   streamed by the server, or listed because the server did not stream them (a server without
-  WatchList: then every list goes through Cogpit's rate limit); "streams off" once a stream stalled
-  and every read of the connection lists (below);
+  WatchList: then every list goes through Cogpit's rate limit); "streams off, every read lists" and
+  why while the connection lists instead of streaming (a stall, or the cluster's setting, below);
 - Cogpit's rate limits with what waited at them: the requests' (5 per second, burst 10 # default;
   lists, gets and writes; watches never wait), discovery's (50, burst 300 # default) and the access
   reviews' (10, burst 20 # default), each with how many requests waited, how long together, the
@@ -1551,7 +1568,7 @@ a line:
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream answered after 5 s or more |
 | rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
-| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 3 s (# default) before its end, no answer to its request or objects and then silence; the line says which. Cogpit then lists that read and every later read of the connection, as Lens does, and ends the streams still running; a reconnect streams again ([D-new](decisions.md#d-new-a-stalled-stream-lists)) |
+| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: streamed initial lists](#cluster-settings--general-streamed-initial-lists)) |
 | slow load | a read took 5 s or more to load |
 | per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
 | connect | a connect began (grey) |

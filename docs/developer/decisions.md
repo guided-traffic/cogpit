@@ -145,7 +145,7 @@ projects' repositories; re-check them before relying on a version number.
 | [D-131](#d-131-a-releases-revisions) | A release's revisions | the owner's colleague via the owner, 2026-10-25 (k9s's values and manifest per revision, D-128's option B), the owner's pick (A), a dock tab, of 2026-10-25 evening: every revision's values (user-supplied or all) and rendered manifest, compared with another revision; built 2026-10-25/26, the owner's look in the window 2026-10-26 (the direction a preference, agents read the changed keys' paths, every text selectable), merged 2026-10-26 (PR #109), released in v0.49.0; after his look at it, only the texts worth copying selectable and a row's text passing its click to the row |
 | [D-132](#d-132-a-cluster-upgraded-while-connected) | A cluster upgraded while connected | the owner's colleague's finding via the owner, 2026-10-26: the version followed from the heartbeat's `GET /version` (taken after two reads in a row), another minor marked with a strip and Reconnect (the owner's option A); built 2026-10-26 |
 | [D-133](#d-133-connection-diagnostics) | Connection Diagnostics | the owner's colleague on a restricted OpenShift cluster via the owner, 2026-10-26; the owner's six choices (a tab of its own replacing Diagnostics and the status bar's counters, a button with the problem count, a log in memory only and bounded, a report with the endpoints replaced, Copy and Save); built 2026-10-26 |
-| [D-new](#d-new-a-stalled-stream-lists) | A stalled stream lists | the owner's colleague's Connection Diagnostics report via the owner, 2026-10-26: every initial list streamed and took 17 s to over 2 min; a stream silent for 3 s before its end makes its read and every later read of the connection list (the lead's option b); built 2026-10-26 on a branch, merged once the owner agrees |
+| [D-new](#d-new-a-stalled-stream-lists) | A stalled stream lists | the owner's colleague's Connection Diagnostics report via the owner, 2026-10-26: every initial list streamed and took 17 s to over 2 min; the owner's choice (a switch per cluster, Automatic by default): a stream silent for 10 s before its end makes the connection list, and a quick list then switches the cluster's streams off for good, shown and reversible in Cluster Settings; built 2026-10-26 on a branch, merged once the owner agrees |
 | [D-134](#d-134-the-windows-zoom) | The window's zoom | the owner, 2026-10-26: VS Code's ⌘- and ⌘+ and magnifiers in the status bar; his four answers (the canvas scale, VS Code's keys on each platform, − percent +, one value kept); built 2026-10-26 |
 
 ## Decision round 2026-10-14 evening
@@ -13155,8 +13155,9 @@ Zoom In; an agent's `ui.zoom.in` reads the fit the window last reported.
 ## D-new: A stalled stream lists
 
 **Status: built** on 2026-10-26 on the branch `fix/stalled-watchlist`, merged once the owner agrees
-(his words: "Diese Arbeit nur auf einem Branch und erst mergen wenn abgesprochen"); the lead's
-details below, open to revision. Not run against the colleague's cluster.
+(his words: "Diese Arbeit nur auf einem Branch und erst mergen wenn abgesprochen"); the owner's
+choice of the same evening and the lead's details below, open to revision. Not run against the
+colleague's cluster.
 
 **The finding (the owner's colleague's Connection Diagnostics report of 2026-10-26, 16:40, via the
 owner; D-133):** "es ist nach wie vor langsam und es spielt auch eigentlich keine Rolle bei welchem
@@ -13186,46 +13187,86 @@ server that sends the ending bookmark late. Upstream knows servers that send tha
 never ([kubernetes#135895](https://github.com/kubernetes/kubernetes/issues/135895)), and projects
 that turned client-go's WatchList off for it.
 
+**The owner's choice (2026-10-26 evening).** The branch's first version bounded a stream's silence
+at 3 s and made the connection list after a stall. His objections, verbatim: "Das führt ja dann bei
+jeden neuen Verbindungsaufbau zu diesem 3s Timeout, richtig? [...] Bei einem Verbindungsproblem kann
+die gesamte Verbindung auf das 'ohne Streaming' zurückfallen. Was hälst du von einem Flag pro Cluster
+für disable Object-Streaming und einen verzicht auf die eben gebaut Timeout logik. Zumindest finde
+ich 3s evtl Fehleranfällig, oder?" Asked how Cogpit should treat clusters whose streams stall:
+
+| Option | What it costs |
+|---|---|
+| (a) A switch per cluster, Automatic by default: a bound of 10 s; a stall that a quick list confirms switches the cluster's streams off for good, shown and reversible ★ | once 10 s per cluster, nothing to do for the user |
+| (b) A flag per cluster alone, no bound | deterministic; without the flag a stalled stream hangs as long as it hangs (his colleague: over 10 min), until someone finds the flag |
+| (c) As built: the bound per connection (3 s), nothing kept | 3 s at every connect on such a cluster; a hang before the server's answer may switch a healthy connection |
+| (d) Streams off for every cluster | the simplest; lists of many kinds and namespaces wait at 5 per second, burst 10, and come as one large answer each |
+
+**The owner chose (a).**
+
+**Built:**
+
+- *The bound* ([`cache/stall.go`](../../internal/cache/stall.go)): a streamed initial list that
+  receives nothing for 10 s (`cache.DefaultStreamStall`: no answer to its request, or no object or
+  bookmark) before the bookmark that ends it is ended; client-go lists in its place, and every read
+  of the connection lists from then on, the streams still running ended at once. A stream that
+  ended its initial list is the read's watch and has no bound.
+- *The confirmation and the switch* ([`engine/initiallists.go`](../../internal/engine/initiallists.go)):
+  the cache tells of the stall once the list in its place answered (`Cache.OnStall`). A list that
+  answered within 2 s (`streamsOffConfirm`) means the stream stalled, not the connection: Cogpit sets
+  `ClusterSettings.StreamsOff` (by Cogpit, when, and why: the read, what the stream received, how
+  soon the list answered), and every later connect of the cluster lists from the start
+  (`cache.Options.Lists`). A list that took longer or failed points at the connection: the
+  connection lists, nothing is kept, the next connect streams again.
+- *The switch for the user* (Cluster Settings › General › Streamed initial lists,
+  [`fyneui/clustersettings_streams.go`](../../internal/ui/fyneui/clustersettings_streams.go);
+  `cluster.settings.set` `streamInitialLists`): on is Automatic; off applies to the connected
+  cluster at once (`Cache.ListFromNowOn`), on again from the next connect. Switched off by Cogpit,
+  the page says when and why under the switch.
+- *Connection Diagnostics*: one "not streamed" line for the read that stalled, with what the stream
+  received, how the list in its place answered and what follows ("streams are off for this cluster
+  from now on", or "this connection lists, the next one streams again"); the reads ended with it
+  count as listed after the server did not stream them; the initial lists' line in the tab and the
+  report ends "streams off, every read lists:" and why (this connection's stall, Cogpit's switch, or
+  the user's).
+- The fake API server's `StallWatchList`.
+
 **The lead's details (D-74), each open to revision:**
 
 | Question | Options | Chosen | Why |
 |---|---|---|---|
-| How Cogpit stops waiting | (a) WatchList off for every cluster, as Lens and kubectl list; (b) a bound on a stream's silence, then the read lists, and every read of the connection after it; (c) diagnostics only | (b) | A healthy cluster keeps streaming: its initial lists wait at no rate limit (client-go never throttles a watch; a list waits at the 5 per second, burst 10 bucket) and come without one large answer; a cluster whose streams stall lists as Lens does, after one bound |
 | What the bound measures | the time to the end; the silence: the time since the request was sent or the last answer, object or bookmark | the silence | A large initial list streams for long and is healthy; a healthy server sends without a pause |
-| The bound | 1 s; 3 s; 5 s (`SlowLoad`) | 3 s (`cache.DefaultStreamStall`) | Healthy streams ended within 758 ms, the bookmark right after the last object; a server that waits for its watch cache answers within its 3 s or fails. A bound met by a healthy stream costs only that the connection lists, as Lens does |
-| What lists after a stall | the read; the connection's cache; the context, kept across connections | the connection's cache | The colleague's cluster stalled for every kind; each read would wait the bound again. A reconnect makes a new cache, which learns it again with one bound |
+| The bound | 3 s (the branch's first version); 10 s | 10 s | Paid once per cluster now, not at every connect: a generous bound costs little and keeps a server that waits before it answers (its watch cache, up to 3 s; its priority queues) from tripping it |
+| What confirms a stall | nothing (switch at every stall); a quick list; the heartbeat as well | a list that answers within 2 s | A path that holds streams back still answers a list at once (Lens and kubectl on his cluster); a connection that hangs does not. A false switch shows on the page and is one click back |
+| What lists while a stall is not confirmed | the read; the connection | the connection, nothing kept | The streams of that connection stalled; a reconnect streams again |
 | The reads still streaming when one stalls | wait for their own bound; end at once | end at once | One cause, one wait |
-| The log | a line per read; a line for the stall | one "not streamed" line for the read that stalled ("…stalled: 33 objects received, then nothing for 3s before the end of the initial list; listed instead, and every read of this connection lists from now on", or "the server did not answer the stream's request within 3s"), counted as a problem; the reads ended with it count as listed after the server did not stream them; the initial lists' line in the tab and the report ends "streams off: a stream stalled, every read lists" | One problem, one count; what the stream received tells the cases apart (no answer, objects then silence) for the next report |
-| How client-go is made to list | a list-watcher that never streams; an error it does not retry | an error event (`Status` 504, reason `Timeout`) that ends the stream, or the request's context ended with the stall as its cause while no answer came: client-go's WatchList gives up on either and lists; after the switch the list-watcher says it does not stream (the reflector asks when its informer starts) and refuses a running reflector's next streamed request before it is sent | No fork of client-go; the reflector's own fallback path, the one a server without WatchList takes |
-
-**Built:** [`cache/stall.go`](../../internal/cache/stall.go) (the bound on the request and on the
-stream until its ending bookmark, `StreamStallError`, `Cache.Listing`), the list-watcher's switch in
-[`cache/cache.go`](../../internal/cache/cache.go) (`trackedLW`), the fallback told once
-([`cache/diag.go`](../../internal/cache/diag.go)); the log line
-([`engine/diaglogs.go`](../../internal/engine/diaglogs.go), `fallbackText`), `Diagnostics.Listing`
-and `DiagStreaming.Off` with the report's and the tab's "streams off"; the fake API server's
-`StallWatchList`.
+| Back to Automatic | at once; from the next connect | from the next connect | The informers running list already; their reflectors decide whether to stream when they start |
+| Who may switch it | the user only; agents and the CLI too | agents and the CLI too, both ways (`cluster.settings.set`) | It changes only how Cogpit reads what it reads anyway: no identity, no write, nothing new shown |
+| Where the switch sits | General; Proxy; a section of its own | General, under the login while not shown | Both say how Cogpit talks to the cluster; one setting is no section |
+| How client-go is made to list | a list-watcher that never streams; an error it does not retry | an error event (`Status` 504, reason `Timeout`) that ends the stream, or the request's context ended with the stall as its cause while no answer came: client-go's WatchList gives up on either and lists; once the cache lists, the list-watcher says it does not stream (the reflector asks when its informer starts) and refuses a running reflector's next streamed request before it is sent | No fork of client-go; the reflector's own fallback path, the one a server without WatchList takes |
 
 **Evidence:** `TestStalledStreamLists` (silent after an object; no answer: the read lists after the
-bound, a later read asks for no stream), `TestStallEndsTheOtherStreams`,
-`TestHealthyStreamKeepsStreaming` (silent after its end for five bounds: still the read's watch),
-`TestStalledStreamsList` (client-go over HTTPS and HTTP/2 against the fake API server whose streams
-never end: pods shown after 3.01 s, services after 106 ms without a stream; the one log line; the
-report's "streams off"), `TestFallbackText`, `TestReportSaysStreamsOff`; the race detector over
-`internal/cache`.
+bound, a later read asks for no stream, the stall told once with the list's answer),
+`TestStallEndsTheOtherStreams`, `TestHealthyStreamKeepsStreaming`, `TestListsWithoutStreams`
+(from the start; from now on), `TestStallText`, `TestStreamStalledSwitchesTheStreamsOff` (a quick
+list switches them off once; a slow or a failed one does not), `TestStreamsOffChecked`,
+`TestReportSaysStreamsOff`, `TestStalledStreamsList` (client-go over HTTPS and HTTP/2 against the
+fake API server whose streams never end: the stall, the switch kept, the next connect without a
+stream, back to Automatic streaming again, the user's off), `TestClusterSettingsStreams`; renders
+`cluster_settings_streams_off_{dark,light}`; the race detector over `internal/cache`.
 
-**What it does not cover:** the cause on the colleague's cluster (his next report says what each
-stream received: no answer, or objects and then silence); the first read of each connection there
-still waits the bound (3 s); the lists wait at the requests' rate limit (5 per second, burst 10): a
-view that reads many kinds in each of several namespaces at once waits there, which the log's "rate
-limited" lines show; if something on the path holds streams back, the plain watches deliver changes
-late as well, which Cogpit cannot see; the switch is not kept across connections or runs.
+**What it does not cover:** the cause on the colleague's cluster (his next report says what the
+stream received: no answer, or objects and then silence); on a cluster whose streams stall, the
+first connect waits 10 s once; the lists wait at the requests' rate limit (5 per second, burst
+10): a view that reads many kinds in each of several namespaces at once waits there, which the
+log's "rate limited" lines show; if something on the path holds streams back, the plain watches
+deliver changes late as well, which Cogpit cannot see; a connection that hangs for 10 s and answers
+a list within 2 s right after switches a healthy cluster off (shown, one click back).
 
 ## Revision history
 
 | Date | Change | Summary |
 |---|---|---|
-| 2026-10-26 | minor | D-new added and built on a branch (the owner's colleague's Connection Diagnostics report: every read streamed and took 17 s to over 2 min): a stream silent for 3 s before its end makes its read and every later read of the connection list; the lead's details recorded; D-133's status points at it |
+| 2026-10-26 | minor | D-new added and built on a branch (the owner's colleague's Connection Diagnostics report: every read streamed and took 17 s to over 2 min): first a 3 s bound per connection, then the owner's choice of the same evening, a switch per cluster with Automatic by default (a 10 s bound; a stall a quick list confirms switches the cluster's streams off for good, in Cluster Settings › General); the lead's details recorded; D-133's status points at it |
 | 2026-10-26 | minor | D-134 (the owner's request: VS Code's zoom, with magnifiers in the status bar): his four answers and "exactly VS Code's keys on each platform" recorded, the lead's details, built |
 | 2026-10-26 | minor | D-40: the pods' Age after Status in the six workloads' drawers (the owner's, from a screenshot), built; the lead's details recorded (every workload's table, not the node's; the text written against the engine's clock, `model.WriteAges`) |
 | 2026-10-26 | minor | D-133 (Connection Diagnostics, the owner's colleague's OpenShift report via the owner): the owner's six choices and the lead's details recorded, built |

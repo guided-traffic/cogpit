@@ -138,6 +138,7 @@ func (s *Session) runConnect(r *connectRun) {
 	s.attachNamespaceWatch(b) // while the namespace filter names namespaces (nswatch.go, AW11)
 	s.attachAccess(b)
 	s.attachRefusals(b) // a refused read in all namespaces is followed, whoever sent it (accessiblens_plan.go)
+	s.attachStreams(b)  // a stalled stream noted, and the cluster's streams switched off when it was the stream (initiallists.go)
 	if line := insecureLogLine(b); line != "" {
 		steps.step(LogWarn, cluster.StepTLS, line, 0) // insecure-skip-tls-verify (tlswarning.go)
 	}

@@ -23,11 +23,14 @@ import (
 // The cache bounds that silence: a streamed initial list that receives nothing for the stall bound
 // (Options.StreamStall) before its end is ended, client-go lists in its place, and from then on
 // every read of the cache lists and then watches, as a server without WatchList is read: the
-// reads still waiting for their streams end at once, and later reads ask for no stream.
+// reads still waiting for their streams end at once, and later reads ask for no stream. OnStall
+// tells of the stall once the list in its place answered, so that the engine can tell a stream
+// that stalls from a connection that does (a quick list) and keep the cluster listing
+// (Options.Lists, ListFromNowOn: its Cluster Settings).
 
 // DefaultStreamStall is how long a streamed initial list may receive nothing (no answer to its
 // request, no object, no bookmark) before its end.
-const DefaultStreamStall = 3 * time.Second
+const DefaultStreamStall = 10 * time.Second
 
 // StreamStallError is why a read's streamed initial list was ended: it received nothing for
 // Silent before its end.
@@ -51,8 +54,45 @@ func (e *StreamStallError) Error() string {
 }
 
 // errListing ends a read's stream, or refuses it before it is asked for, once the cache lists:
-// another read's stream stalled. It is the cache's own, never the server's.
-var errListing = errors.New("another read's stream stalled: this cache lists from now on")
+// another read's stream stalled, or the cluster's streams are off. It is the cache's own, never
+// the server's.
+var errListing = errors.New("this cache lists from now on")
+
+// Stall is a read whose stream the cache ended because it stalled, and how the list client-go
+// made in its place answered: Listed is how long its first page took, ListErr why it failed.
+type Stall struct {
+	Scope   Scope
+	Err     *StreamStallError
+	Listed  time.Duration
+	ListErr error
+}
+
+// OnStall registers fn to be told of every read whose stream stalled, once the list in its place
+// answered; nil unregisters. fn runs on the informer's goroutine and must not block.
+func (c *Cache) OnStall(fn func(Stall)) {
+	if fn == nil {
+		c.stall.Store(nil)
+		return
+	}
+	c.stall.Store(&fn)
+}
+
+// tellStall hands a stall to the OnStall hook, recovering a panic in it.
+func (r *runner) tellStall(st Stall) {
+	if r.c == nil {
+		return
+	}
+	fn := r.c.stall.Load()
+	if fn == nil {
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			r.log.Error("cache: the stall hook panicked", "scope", r.scope.String(), "panic", fmt.Sprint(p))
+		}
+	}()
+	(*fn)(st)
+}
 
 // streamStall is the cache's stall bound.
 func (c *Cache) streamStall() time.Duration {
@@ -62,11 +102,13 @@ func (c *Cache) streamStall() time.Duration {
 	return DefaultStreamStall
 }
 
-// Listing reports whether the cache lists every read's initial list since a stream stalled.
+// Listing reports whether the cache lists every read's initial list: since a stream stalled, since
+// ListFromNowOn, or from the start (Options.Lists).
 func (c *Cache) Listing() bool { return c.lists.Load() }
 
-// listFromNowOn makes every read of the cache list from now on: the streams still running end.
-func (c *Cache) listFromNowOn() {
+// ListFromNowOn makes every read of the cache list from now on, never stream: the streams still
+// running end at once (the user switched the cluster's streams off).
+func (c *Cache) ListFromNowOn() {
 	if c.lists.CompareAndSwap(false, true) {
 		c.listNow()
 	}
@@ -141,7 +183,7 @@ func (r *runner) streamEnded(cause error) {
 	var stall *StreamStallError
 	if errors.As(cause, &stall) {
 		r.log.Warn("cache: the streamed initial list stalled; it and every read after it list", "err", cause)
-		r.c.listFromNowOn()
+		r.c.ListFromNowOn()
 	}
 }
 

@@ -324,11 +324,11 @@ func formatRate(q float32) string {
 	return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", q), "0"), ".")
 }
 
-// StreamsOffText is what the initial lists' line adds once the connection lists every read since a
-// stream stalled (D-new); "" before.
+// StreamsOffText is what the initial lists' line adds while the connection lists every read
+// instead of streaming it, and why (D-new); "" while it streams.
 func StreamsOffText(s DiagStreaming) string {
-	if !s.Off {
+	if s.Off == "" {
 		return ""
 	}
-	return " · streams off: a stream stalled, every read lists"
+	return " · streams off, every read lists: " + s.Off
 }

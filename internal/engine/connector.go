@@ -48,6 +48,9 @@ type ClusterConnector struct {
 	// WarmPeriod is how long the cache keeps an unused informer; zero means
 	// cache.DefaultWarmPeriod.
 	WarmPeriod time.Duration
+	// StreamStall bounds a streamed initial list's silence before its end (cache.Options,
+	// initiallists.go, D-new); zero means cache.DefaultStreamStall.
+	StreamStall time.Duration
 	// MetricsOptions tune the polling of every backend's metrics (intervals, TTL, series bounds);
 	// the zero value is the defaults of architecture §9. Tests shorten the intervals.
 	MetricsOptions metrics.Options
@@ -170,7 +173,8 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	profiles = withApplications(withHelmReleases(profiles)) // applications.go
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
-	ch := cache.New(cache.DynamicSource(conn.Dynamic(), conn.Metadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger})
+	ch := cache.New(cache.DynamicSource(conn.Dynamic(), conn.Metadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger,
+		StreamStall: c.StreamStall, Lists: c.ClusterSettings.streamsOffOf(settingsID)}) // a cluster whose streams are off lists from the start (initiallists.go, D-new)
 	wireDiagnostics(conn, ch) // its reads named, their fallbacks and slow loads noted (diaglogs.go, D-133)
 	ctxName := conn.Context()
 	if ctxName == "" {
