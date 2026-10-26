@@ -365,6 +365,7 @@ func problemsText(r engine.DiagnosticsReport) (string, fyne.ThemeColorName) {
 	if s.FellBack > 0 {
 		lists += fmt.Sprintf(", %d listed after the server did not stream them", s.FellBack)
 	}
+	lists += engine.StreamsOffText(s)
 	return text + " · " + lists, c
 }
 

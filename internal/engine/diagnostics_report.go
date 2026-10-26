@@ -107,8 +107,8 @@ func reportText(r DiagnosticsReport, attempts []ConnectAttempt, now time.Time) s
 	}
 
 	line("\n== Initial lists of the open and warm watches ==")
-	line("streamed by the server %d · listed %d · listed after the server did not stream them %d",
-		r.Streaming.Streamed, r.Streaming.Listed, r.Streaming.FellBack)
+	line("streamed by the server %d · listed %d · listed after the server did not stream them %d%s",
+		r.Streaming.Streamed, r.Streaming.Listed, r.Streaming.FellBack, StreamsOffText(r.Streaming))
 
 	line("\n== Log, the line seen last first (at most %d lines) ==", cluster.DiagLogLimit)
 	if len(r.Log) == 0 {
@@ -322,4 +322,13 @@ func requestsCount(n int64) string {
 // formatRate writes a rate without a needless fraction: "5", "2.5".
 func formatRate(q float32) string {
 	return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", q), "0"), ".")
+}
+
+// StreamsOffText is what the initial lists' line adds once the connection lists every read since a
+// stream stalled (D-new); "" before.
+func StreamsOffText(s DiagStreaming) string {
+	if !s.Off {
+		return ""
+	}
+	return " · streams off: a stream stalled, every read lists"
 }

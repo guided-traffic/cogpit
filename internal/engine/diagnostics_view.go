@@ -131,6 +131,8 @@ type DiagStreaming struct {
 	Streamed int `json:"streamed"` // the server streamed it (WatchList)
 	Listed   int `json:"listed"`   // listed: the source does not stream
 	FellBack int `json:"fellBack"` // listed after the server did not stream it
+	// Off says the connection lists every read since a stream stalled (D-new).
+	Off bool `json:"off,omitempty"`
 }
 
 // DiagCluster is one connected cluster's sums in the Diagnostics view.
@@ -216,6 +218,7 @@ func ReportOf(d Diagnostics, connected bool) DiagnosticsReport {
 		r.Objects += w.Objects
 		r.Bytes += w.Bytes
 	}
+	r.Streaming.Off = d.Listing
 	for _, w := range r.Watches {
 		switch {
 		case w.State == WatchCovered:

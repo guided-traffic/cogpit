@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -20,8 +21,9 @@ type DiagnosticKind string
 // The kinds of Diagnostic.
 const (
 	// DiagStreamFallback: the server did not stream a read's initial list (client-go's WatchList),
-	// and client-go listed it instead. Err is the stream's error; nil when the stream opened and
-	// ended before its initial list was complete.
+	// and client-go listed it instead. Err is the stream's error; a *StreamStallError when the cache
+	// ended a stream that went silent (stall.go); nil when the stream opened and ended before its
+	// initial list was complete.
 	DiagStreamFallback DiagnosticKind = "streamFallback"
 	// DiagLoaded: a read finished its initial list; Took is the time since its informer started.
 	DiagLoaded DiagnosticKind = "loaded"
@@ -154,7 +156,9 @@ func (r *runner) listAsked(ctx context.Context, opts metav1.ListOptions) string 
 	r.streaming, r.streamErr = false, nil
 	r.diagMu.Unlock()
 	if fell {
-		r.tellDiag(Diagnostic{Kind: DiagStreamFallback, Scope: r.scope, Err: cause})
+		if !errors.Is(cause, errListing) { // the stall that made the cache list was told once, by its own read
+			r.tellDiag(Diagnostic{Kind: DiagStreamFallback, Scope: r.scope, Err: cause})
+		}
 		return InitialFallback
 	}
 	return InitialList

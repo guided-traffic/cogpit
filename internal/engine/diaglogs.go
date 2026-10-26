@@ -76,13 +76,7 @@ func wireDiagnostics(conn *cluster.Conn, ch *cache.Cache) {
 	ch.OnDiagnostic(func(d cache.Diagnostic) {
 		switch d.Kind {
 		case cache.DiagStreamFallback:
-			text := "the server did not stream the initial list (WatchList); listed instead"
-			if d.Err != nil {
-				text += ": " + d.Err.Error()
-			} else {
-				text += ": the stream ended before the list was complete"
-			}
-			log.Add(cluster.DiagEntry{Kind: cluster.DiagFallback, What: d.Scope.String(), Text: text})
+			log.Add(cluster.DiagEntry{Kind: cluster.DiagFallback, What: d.Scope.String(), Text: fallbackText(d.Err)})
 		case cache.DiagLoaded:
 			if d.Took >= cluster.SlowLoad {
 				log.Add(cluster.DiagEntry{Kind: cluster.DiagSlowLoad, What: d.Scope.String(), Took: d.Took,
@@ -90,6 +84,20 @@ func wireDiagnostics(conn *cluster.Conn, ch *cache.Cache) {
 			}
 		}
 	})
+}
+
+// fallbackText says why a read's initial list was listed instead of streamed: the server's error,
+// a stream that ended early, or one the cache ended because it stalled (D-new).
+func fallbackText(err error) string {
+	var stall *cache.StreamStallError
+	switch {
+	case errors.As(err, &stall):
+		return "the server's stream of the initial list (WatchList) stalled: " + stall.Error() +
+			"; listed instead, and every read of this connection lists from now on"
+	case err != nil:
+		return "the server did not stream the initial list (WatchList); listed instead: " + err.Error()
+	}
+	return "the server did not stream the initial list (WatchList); listed instead: the stream ended before the list was complete"
 }
 
 // noteNamespaced writes in the diagnostics log that a kind is read namespace by namespace now,

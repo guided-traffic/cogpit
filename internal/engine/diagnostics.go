@@ -33,6 +33,9 @@ func (s *Session) diagnosticsOf(contextID string, b *Backend, memory bool) Diagn
 		d.Discovery = &info
 		d.Problems = b.Conn.DiagLog().Problems()
 	}
+	if b.Cache != nil {
+		d.Listing = b.Cache.Listing()
+	}
 	switch {
 	case b.Cache != nil && memory:
 		d.Informers = b.Cache.StatsWithMemory()

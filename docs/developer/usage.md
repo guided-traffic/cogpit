@@ -1527,7 +1527,8 @@ The tab, from the top:
   and **Report** beside it, and the copy and save icons;
 - the problems since the latest connect by kind, and how the initial lists of the open watches came:
   streamed by the server, or listed because the server did not stream them (a server without
-  WatchList: then every list goes through Cogpit's rate limit);
+  WatchList: then every list goes through Cogpit's rate limit); "streams off" once a stream stalled
+  and every read of the connection lists (below);
 - Cogpit's rate limits with what waited at them: the requests' (5 per second, burst 10 # default;
   lists, gets and writes; watches never wait), discovery's (50, burst 300 # default) and the access
   reviews' (10, burst 20 # default), each with how many requests waited, how long together, the
@@ -1550,7 +1551,7 @@ a line:
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream answered after 5 s or more |
 | rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
-| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead |
+| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 3 s (# default) before its end, no answer to its request or objects and then silence; the line says which. Cogpit then lists that read and every later read of the connection, as Lens does, and ends the streams still running; a reconnect streams again ([D-new](decisions.md#d-new-a-stalled-stream-lists)) |
 | slow load | a read took 5 s or more to load |
 | per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
 | connect | a connect began (grey) |

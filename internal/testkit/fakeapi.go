@@ -46,6 +46,10 @@ type FakeAPIOptions struct {
 	// DisableWatchList makes the server reject watches with sendInitialEvents=true, like a server
 	// without the WatchList feature; client-go then falls back to a list and a watch.
 	DisableWatchList bool
+	// StallWatchList makes streamed initial lists stall, as some clusters' do (D-new): the server
+	// answers and sends the objects, then never the bookmark that ends them. Lists and plain
+	// watches answer as before.
+	StallWatchList bool
 	// BrokenGroups are API groups listed in /apis whose discovery answers 503, like an aggregated
 	// API whose backend is down.
 	BrokenGroups []string
@@ -734,7 +738,7 @@ func (s *FakeAPIServer) serveWatch(w http.ResponseWriter, r *http.Request, req f
 		for _, o := range objs {
 			first = append(first, map[string]any{"type": string(watch.Added), "object": req.render(o)})
 		}
-		if initial {
+		if initial && !s.opts.StallWatchList {
 			bmAPIVersion, bmKind := req.res.GVR.GroupVersion().String(), req.res.Kind
 			if req.metadata {
 				bmAPIVersion, bmKind = "meta.k8s.io/v1", "PartialObjectMetadata"
