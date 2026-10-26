@@ -6,12 +6,12 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 
 	authorizationv1 "k8s.io/api/authorization/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	authorizationclient "k8s.io/client-go/kubernetes/typed/authorization/v1"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/util/flowcontrol"
 
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
@@ -126,9 +126,10 @@ func matchesResource(list []string, resource, subresource string) bool {
 // reviewClient is a connection's client for access reviews, made on first use: on the
 // connection's HTTP client (its connection pool and request counter) with the reviews' own budget.
 type reviewClient struct {
-	once   sync.Once
-	client authorizationclient.AuthorizationV1Interface
-	err    error
+	once    sync.Once
+	client  authorizationclient.AuthorizationV1Interface
+	err     error
+	limiter atomic.Pointer[measuredLimiter] // the reviews' rate limit (D-133); nil until the first review, and in tests
 }
 
 func (c *Conn) reviews() (authorizationclient.AuthorizationV1Interface, error) {
@@ -140,7 +141,9 @@ func (c *Conn) reviews() (authorizationclient.AuthorizationV1Interface, error) {
 		}
 		cfg := rest.CopyConfig(c.config)
 		cfg.QPS, cfg.Burst = reviewQPS, reviewBurst
-		cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(reviewQPS, reviewBurst)
+		limiter := newMeasuredLimiter(BudgetReviews, reviewQPS, reviewBurst, c.diag)
+		c.access.limiter.Store(limiter)
+		cfg.RateLimiter = limiter
 		cl, err := authorizationclient.NewForConfigAndClient(cfg, c.httpClient)
 		if err != nil {
 			c.access.err = fmt.Errorf("context %q: access reviews: %w", c.contextName, kubeconfig.SafeError(err))

@@ -150,6 +150,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	opts.DiscoveryCacheDir = c.DiscoveryCacheDir
 	steps := connectStepsOf(ctx) // the connection log's attempt (connectlog_steps.go, D-66)
 	opts.Trace = steps.traceFunc()
+	opts.Diag = steps.diagLog()                                       // the context's diagnostics log, kept across its connections (D-133)
 	opts.Login, opts.LoginTimeout = loginWatchOf(ctx), c.LoginTimeout // its plugin's runs (loginwait.go, D-73)
 	conn, err := cluster.Connect(ctx, opts)
 	if err != nil {
@@ -170,6 +171,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
 	ch := cache.New(cache.DynamicSource(conn.Dynamic(), conn.Metadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger})
+	wireDiagnostics(conn, ch) // its reads named, their fallbacks and slow loads noted (diaglogs.go, D-133)
 	ctxName := conn.Context()
 	if ctxName == "" {
 		ctxName = name

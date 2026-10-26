@@ -16,7 +16,7 @@ blank line before `</details>`. It moved here from the root README on 2026-10-14
 Cogpit and its flags are in [`usage.md`](usage.md).
 
 <details>
-<summary>All 227 commands</summary>
+<summary>All 228 commands</summary>
 
 | Command | MCP tool | Danger | Parameters | What it does |
 |---|---|---|---|---|
@@ -80,7 +80,8 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `deployment.restart` | `deployment_restart` | destructive | `ref` | Restarts a Deployment the way kubectl rollout restart does: it sets the pod template's restartedAt annotation and the controller replaces every pod |
 | `deployment.scale` | `deployment_scale` | mutating (destructive for some calls) | `ref`, `replicas`? | Sets a deployment's replica count, as kubectl scale does: a patch of spec.replicas on its scale subresource |
 | `diagnostics.get` | `diagnostics_get` | read | `context`? | Returns what Cogpit asked of a connected cluster (context, else the shown one) and holds of it, as the Diagnostics tab shows it: the API requests since connecting, by verb and by verb and resource (list, watch, get, ...; watches included), each watch (informer) with its scope, state (open: a view or lookup holds it; warm: kept a while after its last user; covered: served by another watch), objects, events and errors, the objects per kind with the memory they take (bytes: an estimate, a sample of each watch's objects walked as Go lays them out on the heap and scaled to its objects, within a few percent of the heap for the same objects; client-go's queues and Cogpit's table snapshots not counted) and their sums for the cluster, where the connection's discovery answer came from (discovery.source: disk, the cache Cogpit keeps for the next connection, or server), and the table snapshots built; clusters sums up every connected cluster, shown or not (requests, open and warm watches, objects, bytes) |
-| `diagnostics.open` | `diagnostics_open` | ui |  | Opens the Diagnostics dock tab, or activates it: the shown cluster's API requests by verb and resource, its watches and the objects and memory per kind, and every connected cluster's sums, kept current while it is open, as Help › Diagnostics does |
+| `diagnostics.open` | `diagnostics_open` | ui |  | Opens the Connection Diagnostics dock tab, or activates it: the shown cluster's connection, its problems since the latest connect, Cogpit's rate limits and the diagnostics log, its API requests by verb and resource, its watches and the objects and memory per kind, and every connected cluster's sums, kept current while it is open, as Help › Connection Diagnostics and the status bar's button do |
+| `diagnostics.report` | `diagnostics_report` | read | `context`? | Returns Connection Diagnostics' report of a connected cluster (context, else the shown one) as plain text (text) and the file name it is offered to be saved under (name): the connection, the problems since the latest connect, Cogpit's rate limits, how the initial lists came, the diagnostics log, the watches, the API requests and the context's latest connect attempts, with the endpoints replaced: hosts and addresses become host-1 and ip-1 throughout (a URL keeps its path), ports and file paths go; names of users, namespaces, objects and API groups stay |
 | `dock.activate` | `dock_activate` | ui | `id` | Shows a dock tab |
 | `dock.allowAgentRead` | `dock_allowAgentRead` | ui (GUI only) | `allowed`, `id` | Lets agents read a terminal, shell, attach or node shell tab's output with dock_read, or stops them, as the tab's "Agents may read" switch does; off when a tab opens |
 | `dock.close` | `dock_close` | ui | `id` | Closes a dock tab and ends its stream, shell or job (a job stops; what it wrote stays) |

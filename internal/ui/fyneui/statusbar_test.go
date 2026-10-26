@@ -163,12 +163,13 @@ func TestSnapshotsOnlyInDiagnostics(t *testing.T) {
 		fake      func(t *testing.T) *fakeEngine
 		connected bool
 		bar       []string // texts the status bar shows
+		tip       string   // in the Diagnostics button's tooltip: the counters the bar showed before (D-133)
 		summary   string   // in the Diagnostics tab's first line
 	}{
-		{"connected", diagnosticsFake, true, []string{"kind-dev", "API 41 req · list 6 · watch 7", "6 informers"}, "318 table snapshots"},
+		{"connected", diagnosticsFake, true, []string{"kind-dev", "Diagnostics"}, "41 API requests (list 6, watch 7) · 6 informers", "318 table snapshots"},
 		{"demo", func(t *testing.T) *fakeEngine { return connectedFake(t, 20) }, true,
-			[]string{"demo", "API 1,284 req · list 12 · watch 9", "6 informers", "demo 10,870 objects · 1,000 events/s"}, "5,321 table snapshots"},
-		{"no cluster", noCluster, false, []string{"Not connected", "API 0 req · list 0 · watch 0", "0 informers"}, "Not connected · 42 table snapshots built"},
+			[]string{"demo", "Diagnostics", "demo 10,870 objects · 1,000 events/s"}, "1,284 API requests (list 12, watch 9) · 6 informers", "5,321 table snapshots"},
+		{"no cluster", noCluster, false, []string{"Not connected", "Diagnostics"}, "0 API requests (list 0, watch 0) · 0 informers", "Not connected · 42 table snapshots built"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := tc.fake(t)
@@ -194,6 +195,12 @@ func TestSnapshotsOnlyInDiagnostics(t *testing.T) {
 				if !hasText(shown, want) {
 					t.Errorf("the status bar shows %q, want %q among them", shown, want)
 				}
+			}
+			if hasText(shown, "informers") || hasText(shown, "API ") {
+				t.Errorf("the status bar still shows the counters: %q", shown)
+			}
+			if !strings.Contains(s.diag.tip, tc.tip) {
+				t.Errorf("the Diagnostics button's tooltip %q, want %q in it", s.diag.tip, tc.tip)
 			}
 
 			d := diagnosticsTabOf(sh)
@@ -227,6 +234,8 @@ func visibleTexts(root fyne.CanvasObject) []string {
 			out = append(out, x.text)
 		case *linkText:
 			out = append(out, x.text)
+		case *diagButton:
+			out = append(out, x.pill.text)
 		case *fyne.Container:
 			for _, c := range x.Objects {
 				walk(c)

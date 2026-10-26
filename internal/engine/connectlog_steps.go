@@ -32,6 +32,9 @@ type connectSteps struct {
 	// steps it ended are the user's own act, written INFO, not ERROR (D-66 keeps ERROR for a
 	// connect that failed; the lead's note of the walk of 2026-10-19). Nil: never.
 	cancelled func() bool
+	// diag is the context's diagnostics log the connection notes in (diaglogs.go, D-133); nil: the
+	// connection's own.
+	diag *cluster.DiagLog
 }
 
 // cluster records one of the cluster layer's steps.

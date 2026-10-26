@@ -90,7 +90,7 @@ func (s *Session) runConnect(r *connectRun) {
 		begin += " (restoring the last session, in the background)"
 	}
 	attempt := st.logs.begin(r.name, AttemptConnect, LogInfo, begin)
-	steps := &connectSteps{logs: &st.logs, attempt: attempt,
+	steps := &connectSteps{logs: &st.logs, attempt: attempt, diag: st.diags.of(r.name),
 		cancelled: func() bool { return errors.Is(context.Cause(r.ctx), errConnectCancelled) }}
 	if line := s.proxyLogLine(r.name); line != "" {
 		steps.step(LogInfo, cluster.StepProxy, line, 0) // the proxy of the cluster's settings, its password as ••• (proxy.go)

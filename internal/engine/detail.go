@@ -96,4 +96,7 @@ type Diagnostics struct {
 	// Discovery says where the connection's discovery answer came from (D-65); nil for the demo
 	// cluster.
 	Discovery *cluster.DiscoveryInfo `json:"discovery,omitempty"`
+	// Problems counts the lines of the context's diagnostics log seen since its latest connect
+	// (D-133): the status bar's button shows it.
+	Problems int `json:"problems,omitempty"`
 }

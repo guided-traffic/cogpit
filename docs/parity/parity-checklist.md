@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 76 | 75 | 64 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 77 | 76 | 65 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -330,6 +330,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Package-manager installs: the button runs or shows the manager's command | partial | [Updates](beyond-lens.md#updates) |
 | Signed update manifest verified with a key built into the app, before anything is replaced | done | [Updates](beyond-lens.md#updates) |
 | Diagnostics view: API requests per cluster by verb and resource, open and warm watches, objects and memory per kind | done | [Cache transparency](beyond-lens.md#cache-transparency) |
+| Connection Diagnostics: what a connection's requests ran into, after the connect too, and a report to send with the endpoints replaced | done | [Cache transparency](beyond-lens.md#cache-transparency) |
 | On start, Helm releases left pending-install, pending-upgrade or pending-rollback by Cogpit are shown with "finish" and "roll back" | partial | [Crash recovery](beyond-lens.md#crash-recovery) |
 | On start, nodes Cogpit cordoned for a drain it did not finish are shown with "continue drain" and "uncordon" | done | [Crash recovery](beyond-lens.md#crash-recovery) |
 | Unsaved editor content restored from its local draft | done | [Crash recovery](beyond-lens.md#crash-recovery) |

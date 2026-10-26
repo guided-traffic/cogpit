@@ -127,6 +127,9 @@ func (c *countingRoundTripper) CloseIdleConnections() {
 	}
 }
 
+// watchSegment is the deprecated /watch/ path prefix: GET /api/v1/watch/pods.
+const watchSegment = "watch"
+
 // namespaceSubresources are the subresources of a Namespace object; for them
 // /api/v1/namespaces/<name>/<x> names the namespace, not a resource in it (the API server's
 // request-info rule).
@@ -165,7 +168,7 @@ func Classify(method string, u *url.URL) (verb, resource string) {
 
 	// The deprecated /watch/ path prefix: GET /api/v1/watch/pods.
 	legacyWatch := false
-	if parts[0] == "watch" {
+	if parts[0] == watchSegment {
 		legacyWatch = true
 		parts = parts[1:]
 		if len(parts) == 0 {

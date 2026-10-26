@@ -189,7 +189,7 @@ var wantCommands = map[string]engine.Danger{
 	// The audit log in the window and for agents (TestAuditListNewestFirstAndBounded).
 	"audit.list": engine.DangerRead, "audit.open": engine.DangerUI,
 	// The Diagnostics view (D-13): Cogpit's own counters, no request (TestDiagnosticsReport).
-	"diagnostics.get": engine.DangerRead, "diagnostics.open": engine.DangerUI,
+	"diagnostics.get": engine.DangerRead, "diagnostics.open": engine.DangerUI, "diagnostics.report": engine.DangerRead,
 	// Flux CD (G23, D-33): patches of Flux objects, mutating, so D-2 applies to agents
 	// (TestFluxActionsAgentsNeedAcceptance, TestFluxReconcileWithSourceAgents).
 	"flux.reconcile": engine.DangerMutating, "flux.suspend": engine.DangerMutating, "flux.resume": engine.DangerMutating,

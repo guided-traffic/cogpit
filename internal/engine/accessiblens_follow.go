@@ -169,6 +169,7 @@ func readsAllNamespaces(p *model.KindProfile, h *cache.Handle) bool {
 // is news, has what is open (views, pages, the drawer) read it again namespace by namespace.
 func (b *Backend) followRefused(p *model.KindProfile) {
 	if b.noteRefused(p) {
+		b.noteNamespaced(p) // in Connection Diagnostics' log (diaglogs.go, D-133)
 		b.ns.wakeReplan()
 	}
 }

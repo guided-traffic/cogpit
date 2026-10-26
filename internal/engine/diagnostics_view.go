@@ -58,6 +58,11 @@ type DiagWatch struct {
 	Error     string    `json:"error,omitempty"`
 	// Bytes estimates the memory of the watch's objects (0 for a covered scope: its cover's).
 	Bytes int64 `json:"bytes,omitempty"`
+	// LoadedIn is how long its initial list took (0 while it loads, and for a covered scope);
+	// Initial how the list came: streamed by the server, listed, or listed after the server did
+	// not stream it (cache.InitialStream, InitialList, InitialFallback; D-133).
+	LoadedIn time.Duration `json:"loadedIn,omitempty"`
+	Initial  string        `json:"initial,omitempty"`
 }
 
 // DiagKind is the objects Cogpit holds of one kind: those of its watches (a covered scope's
@@ -98,6 +103,34 @@ type DiagnosticsReport struct {
 	// costs, its requests, watches, objects and memory; the fields above are the reported one's in
 	// full. Empty while nothing is connected.
 	Clusters []DiagCluster `json:"clusters,omitempty"`
+
+	// Connection Diagnostics (D-133): the connection, Cogpit's rate limits and what waited at them,
+	// how the reads' initial lists came, and the context's diagnostics log. Empty for the demo
+	// cluster.
+	//
+	// Server is the API server's URL and ServerVersion its version; Since when the latest connect
+	// of the context began.
+	Server        string    `json:"server,omitempty"`
+	ServerVersion string    `json:"serverVersion,omitempty"`
+	Since         time.Time `json:"since,omitzero"`
+	// Budgets are the connection's rate limits: the requests' (lists, gets, writes; watches never
+	// wait), discovery's and the access reviews'.
+	Budgets   []cluster.BudgetStats `json:"budgets,omitempty"`
+	Streaming DiagStreaming         `json:"streaming"`
+	// Problems counts the log's problem lines seen since the latest connect (the status bar's
+	// button); ProblemCounts how often each kind of problem happened since then, the most first.
+	Problems      int         `json:"problems"`
+	ProblemCounts []DiagCount `json:"problemCounts,omitempty"`
+	// Log is the context's diagnostics log, the line seen last first: at most
+	// cluster.DiagLogLimit lines, each a problem with its count (cluster.DiagEntry).
+	Log []cluster.DiagEntry `json:"log"`
+}
+
+// DiagStreaming counts the open and warm watches by how their initial list came.
+type DiagStreaming struct {
+	Streamed int `json:"streamed"` // the server streamed it (WatchList)
+	Listed   int `json:"listed"`   // listed: the source does not stream
+	FellBack int `json:"fellBack"` // listed after the server did not stream it
 }
 
 // DiagCluster is one connected cluster's sums in the Diagnostics view.
@@ -130,6 +163,7 @@ func (s *Session) DiagnosticsReportOf(contextID string) (DiagnosticsReport, erro
 		}
 	}
 	r := ReportOf(s.diagnosticsOf(s.UIState().Context, b, true), b != nil)
+	r.addConnection(b)
 	for _, c := range s.Backends() {
 		one := r
 		if c != b {
@@ -182,6 +216,17 @@ func ReportOf(d Diagnostics, connected bool) DiagnosticsReport {
 		r.Objects += w.Objects
 		r.Bytes += w.Bytes
 	}
+	for _, w := range r.Watches {
+		switch {
+		case w.State == WatchCovered:
+		case w.Initial == cache.InitialStream:
+			r.Streaming.Streamed++
+		case w.Initial == cache.InitialFallback:
+			r.Streaming.FellBack++
+		case w.Initial == cache.InitialList:
+			r.Streaming.Listed++
+		}
+	}
 	rank := map[string]int{WatchOpen: 0, WatchWarm: 1, WatchCovered: 2}
 	slices.SortFunc(r.Watches, func(a, b DiagWatch) int {
 		return cmp.Or(cmp.Compare(rank[a.State], rank[b.State]), cmp.Compare(a.Scope, b.Scope))
@@ -201,7 +246,7 @@ func diagWatch(inf cache.InformerStats) DiagWatch {
 		kind += "." + g
 	}
 	w := DiagWatch{Scope: inf.Scope.String(), Kind: kind, Handles: inf.Handles, Objects: inf.Objects, Events: inf.Events,
-		Synced: inf.Synced, CoveredBy: inf.CoveredBy, Error: inf.Error, Bytes: inf.Bytes}
+		Synced: inf.Synced, CoveredBy: inf.CoveredBy, Error: inf.Error, Bytes: inf.Bytes, LoadedIn: inf.LoadedIn, Initial: inf.Initial}
 	switch {
 	case inf.CoveredBy != "":
 		w.State = WatchCovered
@@ -211,4 +256,23 @@ func diagWatch(inf cache.InformerStats) DiagWatch {
 		w.State, w.WarmUntil = WatchWarm, inf.WarmUntil
 	}
 	return w
+}
+
+// addConnection fills Connection Diagnostics' part of the report from the backend's connection:
+// nothing for the demo cluster and without a backend.
+func (r *DiagnosticsReport) addConnection(b *Backend) {
+	r.Log = []cluster.DiagEntry{}
+	log := b.diagLog()
+	if log == nil {
+		return
+	}
+	r.Server, r.ServerVersion = b.Conn.Server(), b.Conn.ServerVersion()
+	r.Since = log.Since()
+	r.Budgets = b.Conn.Budgets()
+	r.Problems = log.Problems()
+	for kind, n := range log.Counts() {
+		r.ProblemCounts = append(r.ProblemCounts, DiagCount{Name: string(kind), Count: n})
+	}
+	slices.SortFunc(r.ProblemCounts, func(a, b DiagCount) int { return cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Name, b.Name)) })
+	r.Log = log.Entries()
 }
