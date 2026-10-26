@@ -167,6 +167,8 @@ func DiagKindLabel(kind string) string {
 		return "unauthorized"
 	case cluster.DiagTooMany:
 		return "too many (429)"
+	case cluster.DiagWarming:
+		return "cache warming"
 	case cluster.DiagServerError:
 		return "server error"
 	case cluster.DiagTimeout:
@@ -196,9 +198,20 @@ const (
 	SeverityInfo    = "info"
 )
 
+// DiagEntrySeverity is how bad a diagnostics line is: a line that is no problem is information (a
+// connect, a kind read namespace by namespace, a cache warming up that did not repeat), else its
+// kind's (DiagSeverity).
+func DiagEntrySeverity(e cluster.DiagEntry) string {
+	if !e.Problem {
+		return SeverityInfo
+	}
+	return DiagSeverity(e.Kind)
+}
+
 // DiagSeverity is how bad a kind of diagnostics line is: a refusal, a request without an answer or
-// a server's error is an error; a wait, a slow answer or load, a 429 and an initial list not
-// streamed a warning; a connect and a kind read namespace by namespace information.
+// a server's error is an error; a wait, a slow answer or load, a 429, a cache warming up that
+// repeated and an initial list not streamed a warning; a connect and a kind read namespace by
+// namespace information.
 func DiagSeverity(k cluster.DiagKind) string {
 	switch k {
 	case cluster.DiagRefused, cluster.DiagUnauthorized, cluster.DiagTimeout, cluster.DiagNetwork, cluster.DiagServerError:

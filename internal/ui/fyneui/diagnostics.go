@@ -410,7 +410,7 @@ func (d *diagnosticsTab) showLog(r engine.DiagnosticsReport) {
 	tf := d.sh.timeFormat()
 	var objs []fyne.CanvasObject
 	for _, e := range r.Log {
-		l := newSel(newTextLine(engine.DiagEntryText(e, tf.FormatTime), severityColor(engine.DiagSeverity(e.Kind)), theme.SizeNameText, fyne.TextStyle{}), d.copy)
+		l := newSel(newTextLine(engine.DiagEntryText(e, tf.FormatTime), severityColor(engine.DiagEntrySeverity(e)), theme.SizeNameText, fyne.TextStyle{}), d.copy)
 		l.line.truncate = true
 		objs = append(objs, l)
 	}

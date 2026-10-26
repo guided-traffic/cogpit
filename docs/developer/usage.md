@@ -1563,6 +1563,7 @@ a line:
 | refused | the API server answered 403 Forbidden; its message names the user and what was refused |
 | unauthorized | 401 Unauthorized |
 | too many (429) | the API server asked to slow down (its API Priority and Fairness), with its Retry-After |
+| cache warming | the API server answered a watch 429 "storage is (re)initializing": it was still building its cache of the resource, as it does at the first request for a custom resource and for every resource after it starts; client-go asks again after the Retry-After. Grey and not counted; counted when the same request is answered so again within a minute (# default) |
 | server error | a 5xx, an aggregated API that is down among them (its discovery) |
 | no answer | no answer within the request timeout (30 s # default) |
 | network | the request did not reach the server, or its answer broke off |

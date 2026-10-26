@@ -93,8 +93,20 @@ func (d *diagRoundTripper) observe(req *http.Request, resp *http.Response, err e
 		e.Status = resp.StatusCode
 		e.Text = statusMessage(resp, resource)
 	}
+	if e.Kind == DiagTooMany && e.Text == cacheWarmingMessage {
+		e.Kind, e.Text = DiagWarming, cacheWarmingText
+	}
 	d.log.Add(e)
 }
+
+// cacheWarmingMessage is the API server's message on a 429 while its cache of the resource is
+// being built (k8s.io/apiserver's cacher, ready.go); with ": <error>" after it, the cache is being
+// built again after an error, which stays a 429 line of its own.
+const cacheWarmingMessage = "storage is (re)initializing"
+
+// cacheWarmingText is a cache warming up's line (DiagWarming).
+const cacheWarmingText = cacheWarmingMessage + ": the API server was still building its cache of this resource, " +
+	"as it does at the first request for a custom resource and for every resource after it starts; client-go asks again after the Retry-After"
 
 // statusMessage reads the message of an error answer (a Status object's, else the start of the
 // body) and puts the body back for the caller. A Secret's answer is not read: an admission webhook
