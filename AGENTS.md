@@ -8,7 +8,7 @@ The product name is always written **Cogpit** in user-facing text; machine names
 (module `github.com/guided-traffic/cogpit`, binaries `cogpit` and `cogpit-cli`). Read this file
 first, then `docs/`.
 
-**State on 2026-10-25:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
+**State on 2026-10-26:** implementation has started (owner's go-ahead, 2026-10-11). A local MVP
 runs on macOS, extended by eighteen further implementation runs (2026-10-11 to 2026-10-20, night runs and
 day runs): 46 built-in views and the custom resource views from the cache, the cluster Overview,
 the detail drawer (a Config Map's and a Secret's values and keys edited in it) and row menus, one
@@ -26,8 +26,8 @@ terminal with a verified kubectl download, pod shells,
 `cogpit-cli` with an MCP stdio bridge, Flux CD and Argo CD sections, a node shell, a built-in agent chat
 on OpenAI-compatible endpoints (local models first), CI on every push, releases
 with a signed, notarized disk image in the window the owner chose and Sparkle 2 updates through a
-signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.48.2 the
-newest, released 2026-10-25 late evening: a failed revision's description keeps the release's name its values repeat (D-128, the owner's screenshot); v0.48.1 released 2026-10-25 evening with the owner's findings on v0.48.0: back brings the place back with its filters, drawer and scroll (D-129) and a find bar over a release's values (D-130); v0.48.0 released 2026-10-25 afternoon: the drawer's row marked by the bar alone (D-124 revised) and a Helm release's History in its drawer (D-128); v0.47.0 the same day with the owner's preview of the day accepted live: the agent's connection debugger, TTFT and OTPS, the wheel over every text field, find in the drawer's YAML (D-10, D-125 to D-127); v0.46.0 the same day with the VW walk's VW15–VW20 (D-123, D-124); v0.45.0 released 2026-10-24 night after the owner's live walk: the light strip under a view's
+signed feed, checked at every start (the first installed copy updated on 2026-10-16; v0.49.0 the
+newest, released 2026-10-26 morning: a Helm release's revisions in a dock tab, each revision's values and rendered manifest compared with another, the comparison's direction a preference, every text of the tab selectable (D-131, the owner's colleague's k9s request, walked by the owner before the merge); v0.48.2 released 2026-10-25 late evening: a failed revision's description keeps the release's name its values repeat (D-128, the owner's screenshot); v0.48.1 released 2026-10-25 evening with the owner's findings on v0.48.0: back brings the place back with its filters, drawer and scroll (D-129) and a find bar over a release's values (D-130); v0.48.0 released 2026-10-25 afternoon: the drawer's row marked by the bar alone (D-124 revised) and a Helm release's History in its drawer (D-128); v0.47.0 the same day with the owner's preview of the day accepted live: the agent's connection debugger, TTFT and OTPS, the wheel over every text field, find in the drawer's YAML (D-10, D-125 to D-127); v0.46.0 the same day with the VW walk's VW15–VW20 (D-123, D-124); v0.45.0 released 2026-10-24 night after the owner's live walk: the light strip under a view's
 header in the shown cluster's accent colour, static or animated (VW14, his LS1–LS23: one static
 colour spreading from the tab, the animations framed with a CPU note, Preferences › App › Light
 strip on battery, the tab bar always shown), cluster icons 50 points in the hotbar and the
