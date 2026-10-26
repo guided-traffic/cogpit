@@ -179,6 +179,10 @@ type Preferences struct {
 	// compared to the one shown (RevisionsComparedToShown). Agents and the CLI may set it either
 	// way: it changes only how the window shows a comparison.
 	RevisionsDiff string `json:"revisionsDiff,omitempty"`
+	// ZoomLevel is the window's zoom (zoom.go, D-134): VS Code's zoom level, a factor of 1.2 to its
+	// power, MinZoomLevel to MaxZoomLevel; 0, the default, is 100%. Agents and the CLI may set it
+	// either way: it changes only how large the window draws.
+	ZoomLevel int `json:"zoomLevel,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
@@ -244,6 +248,9 @@ func (p Preferences) Check() error {
 		return err
 	}
 	if err := CheckRevisionsDiff(p.RevisionsDiff); err != nil { // helmrevisions.go
+		return err
+	}
+	if err := CheckZoomLevel(p.ZoomLevel); err != nil { // zoom.go
 		return err
 	}
 	return p.checkKubectl()
@@ -341,6 +348,9 @@ func (p *Preferences) normalize() {
 		p.UpdateChannel = UpdateChannelStable
 	}
 	p.ProgramFolders = normalProgramFolders(p.ProgramFolders) // programfolders.go
+	if CheckZoomLevel(p.ZoomLevel) != nil {
+		p.ZoomLevel = max(MinZoomLevel, min(MaxZoomLevel, p.ZoomLevel)) // a kept level beyond today's range: the nearest
+	}
 }
 
 // CheckTheme refuses what is not a theme choice.

@@ -54,7 +54,8 @@ unless it is marked *(planned)*; how far each one goes is measured row by row in
 - 🩺 A connect that fails shows its own error page (since 2026-10-22): why, in a sentence, and the connect stage by stage (the kubeconfig, a login program, DNS with the addresses, TCP to the address and port, TLS, the API server's answer), with Connect Again and Show Connection Updates.
 - 🪟 The window opens where you closed it (since 2026-10-18): as large, on the same display, in full screen if it was, whatever Restore the last session says; a display that is gone gives 1440 × 900 in the middle of the main one ([details](#the-windows-place-and-size); Windows and Linux: the size and full screen).
 - 🗂️ Tabs you arrange (since 2026-10-20): drag a tab along the tab bar, or the dock's, to another place, the others making room as it moves; ⌘⌥⇧← and ⌘⌥⇧→ move the shown tab one place, the dock's while you work in the dock (since 2026-10-22); the tab bar's order comes back with your tabs at the next start.
-- ↩️ Back and forward (⌃- and ⌃⇧-, the title bar's arrows) walk the shown tab's history and bring each place back as you left it: its namespace filter, search, status filter, the drawer you had open and the list where you had scrolled it; a link in a drawer is a step, to another kind or to another object of the same kind (since 2026-10-25, [D-129](decisions.md#d-129-back-brings-the-place-back)).
+- 🔍 Zoom the whole window as VS Code does (since 2026-10-26): ⌘+ or ⌘= larger, ⌘- smaller, ⌘0 back to 100% (Ctrl on Windows and Linux), or the magnifiers right of Diagnostics in the status bar, where the percent shows and a click on it resets; 50% to 210%, kept across starts ([details](#zoom)).
+- ↩️ Back and forward (⌃- and ⌃⇧- on macOS, Alt+← and Alt+→ on Windows, Ctrl+Alt+- and Ctrl+Shift+- on Linux, VS Code's; the title bar's arrows) walk the shown tab's history and bring each place back as you left it: its namespace filter, search, status filter, the drawer you had open and the list where you had scrolled it; a link in a drawer is a step, to another kind or to another object of the same kind (since 2026-10-25, [D-129](decisions.md#d-129-back-brings-the-place-back)).
 - ⚙️ Preferences on ⌘, and a cluster's Settings on ⌘⇧,, each a card over the whole window with Cogpit dimmed behind it (since 2026-10-23; a cluster's titled "Cluster Settings: <name>" since 2026-10-24; close it with its × at the top right, Escape or a click beside it; a value you just typed is kept): the theme switched live (also with the sun and moon left of the bell in the title bar, since 2026-10-21), the time zone, the editor's and the terminal's settings, a cluster's name and icon (up to five letters of yours on a colour, or a part of your image you place), its terminals' folder and namespace, its Prometheus and how it is asked (a query format, empty containers filtered, HTTPS); never written to a kubeconfig.
 - 🕐 Every timestamp in your time zone and your region's format, as your Mac's region settings write it ("10.09.2026 17:41:01" in Germany): the drawer, events, logs, notifications, charts.
 - 🔐 Your credentials stay yours: kubectl's own authentication code (certificates, tokens, exec credential plugins); no local proxy, no login.
@@ -721,6 +722,39 @@ follows a pulled cable there within half a minute.
 | Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
 |---|---|---|
 | `lightStripMainsOnly` | `false` # default | on: the light strip animates only on the power adapter and stands still on battery; agents may set it either way, it changes only how the window moves |
+
+### Zoom
+
+Since 2026-10-26 ([D-134](decisions.md#d-134-the-windows-zoom), the owner's request: VS Code's
+zoom): the whole window scales, text, icons, room and panels alike, by 1.2 per step, and stays as
+large on the screen; text is drawn again at the new size, sharp. **View › Zoom In**, **Zoom Out**
+and **Reset Zoom** with VS Code's keys, from any focus (a text field and a terminal too):
+
+| | macOS | Windows | Linux |
+|---|---|---|---|
+| Zoom In | ⌘=, ⌘⇧=, ⌘+ (the keypad's, and a German keyboard's + key) | Ctrl+=, Ctrl+Shift+=, Ctrl++ | Ctrl+=, Ctrl+Shift+=, Ctrl++ |
+| Zoom Out | ⌘-, ⌘⇧- | Ctrl+-, Ctrl+Shift+- | Ctrl+- |
+| Reset Zoom (100%) | ⌘0 | Ctrl+0 | Ctrl+0 |
+| Go Back / Go Forward | ⌃- / ⌃⇧- | Alt+← / Alt+→ | Ctrl+Alt+- / Ctrl+Shift+- |
+
+VS Code's Reset Zoom is ⌘ with the keypad's 0; Cogpit cannot tell the keypad's 0 from the other,
+so ⌘0 resets too. On Windows Alt+← is Go Back in the YAML editor as well, as in VS Code; a word to
+the left is Ctrl+← there.
+
+The status bar shows the zoom right of **Diagnostics**: the magnifier with −, the percent, the
+magnifier with +. A click on the percent goes back to 100%. A magnifier at the end of the range is
+greyed, its tooltip says why. The steps are 50%, 60%, 70%, 80%, 100%, 120%, 140%, 170% and 210%.
+Zoom In stops where Cogpit's content would no longer fit the window as it is, since the window
+would have to grow ("the window is too small for 210%: make it larger first"); a larger window or
+full screen zooms further. **Preferences › App › Zoom** shows and sets the same value.
+
+The window applies a zoom through Fyne's scale variable `FYNE_SCALE` in Cogpit's own environment,
+times the scale Cogpit was started with (a `FYNE_SCALE` of your own, else 1). A shell in the local
+terminal gets `FYNE_SCALE` as Cogpit was started with it.
+
+| Preference (`preferences.set`, `ui_state`'s `preferences`) | Default | Meaning |
+|---|---|---|
+| `zoomLevel` | `0` # default (100%) | the window's zoom level as VS Code counts it, `-4` to `4` # example: `1` is 120%; agents may set it and run `ui_zoom_in`, `ui_zoom_out` and `ui_zoom_reset`: it changes only how large the window draws |
 
 ### Preferences › App: revision diffs
 

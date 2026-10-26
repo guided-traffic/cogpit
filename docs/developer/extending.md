@@ -116,7 +116,12 @@ Ordered checklists for the common additions. The packages they name are in
    object (a context, a name, a file) is listed only where
    [`paletteRunners`](../../internal/ui/fyneui/palette.go) opens a dialog for it. A `Shortcut` such as
    `Cmd+Shift+P` (Cmd is Ctrl on Windows and Linux) is shown in the palette; check it against
-   `TestRegistryShortcutsDoNotCollide` and bind it where the window binds the others.
+   `TestRegistryShortcutsDoNotCollide` and `TestKeysDoNotCollideOnAnyPlatform` and bind it where
+   the window binds the others. Further keys that run the command without being shown go in
+   `MoreKeys` (the window binds them from any focus in its menu of further keys,
+   [`menukeys.go`](../../internal/ui/fyneui/menukeys.go) `moreKeyRuns`); keys that differ on one
+   platform in `PlatformKeys`, by GOOS, the first the shown one
+   ([D-134](decisions.md#d-134-the-windows-zoom), [`engine/keys.go`](../../internal/engine/keys.go)).
 8. **Command table:** regenerate the table in [`commands.md`](commands.md) with
    `go run ./hack/readmecmds` and replace the content of its details block with the output (do not
    edit the table by hand).

@@ -68,6 +68,8 @@ type preferencesSetParams struct {
 	RevisionsDiff *string `json:"revisionsDiff,omitempty" jsonschema:"how a Helm release's Revisions tab reads a comparison, which revision is the diff's old side: comparedToShown (the default; empty means it too), olderToNewer, or shownToCompared"`
 	// LightStripMainsOnly: whether the light strip animates on battery (fyneui/preferences_power.go).
 	LightStripMainsOnly *bool `json:"lightStripMainsOnly,omitempty" jsonschema:"whether the light strip under the tabs animates only while the computer runs on its power adapter (true): on battery it shows its colour standing still; false, the default, it animates on battery too"`
+	// ZoomLevel: the window's zoom (engine/zoom.go).
+	ZoomLevel *int `json:"zoomLevel,omitempty" jsonschema:"the window's zoom level as VS Code counts it, -4 to 4: the window scales by 1.2 to its power (50%, 60%, 70%, 80%, 100%, 120%, 140%, 170%, 210%); 0, the default, is 100%; ui_zoom_in, ui_zoom_out and ui_zoom_reset step it"`
 }
 
 // shellChange reports whether the parameters change the local terminal's shell or arguments.
@@ -137,7 +139,7 @@ func registerPreferences(g *registrar) {
 			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest), whether the tab bar shows " +
 			"every cluster's tabs (mixedEnvironments), whether the window switches at once instead of sliding (reduceMotion), " +
 			"how a Helm release's Revisions tab reads a comparison (revisionsDiff: comparedToShown, olderToNewer or shownToCompared; empty: comparedToShown) and " +
-			"whether the light strip animates only on the power adapter (lightStripMainsOnly), " +
+			"whether the light strip animates only on the power adapter (lightStripMainsOnly), the window's zoom level (zoomLevel: -4 to 4, 0 is 100%), " +
 			"the folders Cogpit looks in for a credential plugin's programs after PATH (programFolders: preferences_addProgramFolder, preferences_removeProgramFolder); " +
 			"kept says whether they outlive this run. " +
 			"ui_state carries the same.",
@@ -296,6 +298,7 @@ func registerPreferences(g *registrar) {
 					}
 				}
 				setIf(&pr.LightStripMainsOnly, p.LightStripMainsOnly)
+				setIf(&pr.ZoomLevel, p.ZoomLevel)
 				if p.UpdateChannel != nil {
 					pr.UpdateChannel = strings.TrimSpace(*p.UpdateChannel)
 					if pr.UpdateChannel == "" {

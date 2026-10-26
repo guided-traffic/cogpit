@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"context"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -405,34 +406,42 @@ func TestRegistryShortcutsDoNotCollide(t *testing.T) {
 	for _, sc := range platform {
 		reserved[sc.ShortcutName()] = "the platform or a text field"
 	}
+	editing := []fyne.KeyModifier{sd, fyne.KeyModifierControl}
+	if runtime.GOOS == "darwin" {
+		// ⌥←, ⌥→: a word on macOS. On Windows and Linux a word is Ctrl+← (above); Alt+← and Alt+→
+		// are VS Code's Go Back and Go Forward on Windows (D-134), which take them from the editor too.
+		editing = append(editing, fyne.KeyModifierAlt)
+	}
 	for _, k := range []fyne.KeyName{fyne.KeyLeft, fyne.KeyRight, fyne.KeyUp, fyne.KeyDown, fyne.KeyHome, fyne.KeyEnd, fyne.KeyBackspace, fyne.KeyDelete} {
-		for _, m := range []fyne.KeyModifier{sd, fyne.KeyModifierAlt, fyne.KeyModifierControl} {
+		for _, m := range editing {
 			reserved[(&desktop.CustomShortcut{KeyName: k, Modifier: m}).ShortcutName()] = "the YAML editor"
 			reserved[(&desktop.CustomShortcut{KeyName: k, Modifier: m | fyne.KeyModifierShift}).ShortcutName()] = "the YAML editor"
 		}
 	}
 	bound := map[string]string{}
 	for _, c := range realCommands(t).Commands() {
-		if c.Shortcut == "" {
-			continue
-		}
-		sc := parseShortcut(c.Shortcut)
-		if sc == nil {
-			if !strings.Contains(c.Shortcut, "–") {
-				t.Errorf("%s: shortcut %q cannot be bound", c.ID, c.Shortcut)
+		for _, key := range append([]string{c.Shortcut}, c.MoreKeys...) { // the further keys too (D-134)
+			if key == "" {
+				continue
 			}
-			// A range its owner binds key by key: F1–F12 and ⇧F1–⇧F12, the hotbar's typed keys
-			// (hotbar.go); ⌘1–9, the tab bar's main-menu items (tabbar.go), checked below.
-			continue
+			sc := parseShortcut(key)
+			if sc == nil {
+				if !strings.Contains(key, "–") {
+					t.Errorf("%s: shortcut %q cannot be bound", c.ID, key)
+				}
+				// A range its owner binds key by key: F1–F12 and ⇧F1–⇧F12, the hotbar's typed keys
+				// (hotbar.go); ⌘1–9, the tab bar's main-menu items (tabbar.go), checked below.
+				continue
+			}
+			name := sc.ShortcutName()
+			if who, ok := reserved[name]; ok {
+				t.Errorf("%s: %s is %s's", c.ID, key, who)
+			}
+			if other, ok := bound[name]; ok {
+				t.Errorf("%s and %s share %s", c.ID, other, key)
+			}
+			bound[name] = c.ID
 		}
-		name := sc.ShortcutName()
-		if who, ok := reserved[name]; ok {
-			t.Errorf("%s: %s is %s's", c.ID, c.Shortcut, who)
-		}
-		if other, ok := bound[name]; ok {
-			t.Errorf("%s and %s share %s", c.ID, other, c.Shortcut)
-		}
-		bound[name] = c.ID
 	}
 	for n := '1'; n <= '9'; n++ { // ⌘1–⌘9: the tab bar's
 		name := (&desktop.CustomShortcut{KeyName: fyne.KeyName(string(n)), Modifier: sd}).ShortcutName()

@@ -102,3 +102,46 @@ func (sh *shell) typeWindowShortcut(sc fyne.Shortcut, run func()) {
 	}
 	run()
 }
+
+// A command's further keys (engine Spec.MoreKeys, D-134): VS Code's secondary keybindings, Zoom
+// In's ⌘⇧= and ⌘+ beside its ⌘=, which run the command from any focus as the menu's own shortcut
+// does, and which no menu shows. A menu item has one shortcut, so the further keys ride on
+// separators of a menu of their own at the main menu's end (moreKeysMenu), Cogpit's reading of Fyne
+// 2.8.2's source, verified in a real window on macOS only (D-134):
+//   - Fyne looks a typed shortcut up in the main menu's items, by its name, before the focused
+//     widget is offered it (glfw's triggerMainMenuShortcut), and does not skip separators: a
+//     separator with a shortcut and an action runs it;
+//   - on macOS Fyne leaves a menu of separators alone out of the system's menu bar (addNativeMenu),
+//     and AppKit, having no key equivalent for the key, hands it to the window;
+//   - on Windows and Linux Cogpit's top bar draws the menus without it (setMainMenu), and the
+//     window's main menu, which only serves the keys there, has it.
+
+// moreKeyRuns are the commands whose further keys the window keeps, with what a key does.
+var moreKeyRuns = []struct {
+	id  string
+	run func(sh *shell)
+}{
+	{"ui.zoom.in", (*shell).zoomIn},
+	{"ui.zoom.out", (*shell).zoomOut},
+}
+
+// moreKeysMenu is the menu of the further keys: a separator per key; nil without any.
+func (sh *shell) moreKeysMenu() *fyne.Menu {
+	var items []*fyne.MenuItem
+	for _, k := range moreKeyRuns {
+		c, ok := sh.eng.Registry().Get(k.id)
+		if !ok {
+			continue
+		}
+		run := k.run
+		for _, key := range c.MoreKeys {
+			if sc := parseShortcut(key); sc != nil {
+				items = append(items, &fyne.MenuItem{IsSeparator: true, Shortcut: sc, Action: func() { run(sh) }})
+			}
+		}
+	}
+	if len(items) == 0 {
+		return nil
+	}
+	return fyne.NewMenu("", items...)
+}

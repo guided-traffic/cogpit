@@ -114,6 +114,8 @@ func registerTabs(g *registrar) {
 
 	add(g, engine.Spec[struct{}]{
 		ID: "ui.tab.back", Label: "Go Back", MenuPath: "View/Go Back", Shortcut: "Ctrl+-", Danger: engine.DangerUI, Verbs: cacheReads,
+		// VS Code's Go Back on each platform (D-134): Ctrl+- is Zoom Out on Windows and Linux.
+		PlatformKeys: map[string][]string{"windows": {"Alt+Left"}, "linux": {"Ctrl+Alt+-"}},
 		Description: "Goes back to the place the active tab showed before (its history: views opened in the preview tab, " +
 			"objects shown with ui_navigate) and brings it back as the tab left it: the view with its namespace and API " +
 			"group filters, search text, status filter and drawer, and the view's selection as the tab last left it. " +
@@ -126,6 +128,7 @@ func registerTabs(g *registrar) {
 
 	add(g, engine.Spec[struct{}]{
 		ID: "ui.tab.forward", Label: "Go Forward", MenuPath: "View/Go Forward", Shortcut: "Ctrl+Shift+-", Danger: engine.DangerUI, Verbs: cacheReads,
+		PlatformKeys: map[string][]string{"windows": {"Alt+Right"}}, // VS Code's Go Forward on Windows (D-134)
 		Description: "Goes forward again in the active tab's history, after ui_tab_back, to the place as the tab left it. " +
 			"Returns the new UI state.",
 		Enabled: func(s *engine.Session, _ struct{}) error { return s.CheckTabHistory(false) },

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -55,12 +56,20 @@ type Verb struct {
 // Spec describes a command with typed parameters P. P must be a struct with json tags; its JSON
 // schema, which agents read, is generated from it (jsonschema tags give field descriptions).
 type Spec[P any] struct {
-	ID          string   // "<kind-or-area>.<action>", lowerCamelCase segments: "ui.navigate"
-	Label       string   // menu label: "Navigate to Object"
-	MenuPath    string   // "View/Navigate"; empty: not in a menu
-	Shortcut    string   // Lens's default shortcut, if any: "Cmd+Shift+P"
-	Description string   // one or two sentences for agents (the MCP tool description)
-	Kinds       []string // kind keys the command applies to; empty: not kind-specific
+	ID          string // "<kind-or-area>.<action>", lowerCamelCase segments: "ui.navigate"
+	Label       string // menu label: "Navigate to Object"
+	MenuPath    string // "View/Navigate"; empty: not in a menu
+	Shortcut    string // Lens's default shortcut, if any: "Cmd+Shift+P"
+	Description string // one or two sentences for agents (the MCP tool description)
+	// MoreKeys are further keys that run the command, which menus do not show: VS Code's secondary
+	// keybindings (Zoom In's Cmd+Shift+= and the keypad's +; D-134).
+	MoreKeys []string
+	// PlatformKeys are the keys on one platform, by GOOS ("darwin", "windows", "linux"), when they
+	// differ from Shortcut and MoreKeys there: the first is the shortcut menus show, the others
+	// that platform's MoreKeys. VS Code's Go Back is ⌃- on macOS, Alt+Left on Windows and
+	// Ctrl+Alt+- on Linux (D-134).
+	PlatformKeys map[string][]string
+	Kinds        []string // kind keys the command applies to; empty: not kind-specific
 	// Order places the command among its kinds' actions in the row menu (⋮) and the drawer's
 	// toolbar, ascending: the kind's own actions in Lens's order below OrderEdit, then Edit and
 	// Delete. Zero leaves the command out of row menus and drawers (ui.*, kinds.list, ...).
@@ -128,10 +137,12 @@ type Spec[P any] struct {
 
 // Command is a registered command. Its fields are read-only after registration.
 type Command struct {
-	ID          string   `json:"id"`
-	Label       string   `json:"label"`
-	MenuPath    string   `json:"menuPath,omitempty"`
-	Shortcut    string   `json:"shortcut,omitempty"`
+	ID       string `json:"id"`
+	Label    string `json:"label"`
+	MenuPath string `json:"menuPath,omitempty"`
+	Shortcut string `json:"shortcut,omitempty"` // this platform's (Spec.PlatformKeys)
+	// MoreKeys are this platform's further keys, which menus do not show (Spec.MoreKeys).
+	MoreKeys    []string `json:"moreKeys,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Kinds       []string `json:"kinds,omitempty"`
 	Order       int      `json:"order,omitempty"`
@@ -219,10 +230,16 @@ func (c *Command) agentsAskFor(s *Session, p any) bool {
 type Registry struct {
 	mu   sync.RWMutex
 	cmds map[string]*Command
+	goos string // the platform whose keys the commands carry (keys.go)
 }
 
-// NewRegistry returns an empty registry.
-func NewRegistry() *Registry { return &Registry{cmds: map[string]*Command{}} }
+// NewRegistry returns an empty registry whose commands carry the keys of the platform Cogpit runs
+// on.
+func NewRegistry() *Registry { return NewRegistryFor(runtime.GOOS) }
+
+// NewRegistryFor returns an empty registry whose commands carry the keys of the platform goos
+// ("darwin", "windows", "linux"; keys.go).
+func NewRegistryFor(goos string) *Registry { return &Registry{cmds: map[string]*Command{}, goos: goos} }
 
 // Get returns the command with the given id.
 func (r *Registry) Get(id string) (*Command, bool) {
@@ -275,6 +292,9 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	if spec.DrawerOnly && spec.Order == 0 {
 		return fmt.Errorf("command %s: a drawer-only command needs an order", spec.ID)
 	}
+	if err := checkKeys(spec.Shortcut, spec.MoreKeys, spec.PlatformKeys); err != nil {
+		return fmt.Errorf("command %s: %w", spec.ID, err)
+	}
 	schema, err := jsonschema.For[P](nil)
 	if err != nil {
 		return fmt.Errorf("command %s: params schema: %w", spec.ID, err)
@@ -286,8 +306,9 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	if err := checkDialogFields(schema, spec.Dialog); err != nil {
 		return fmt.Errorf("command %s: %w", spec.ID, err)
 	}
+	shortcut, more := keysOn(r.goos, spec.Shortcut, spec.MoreKeys, spec.PlatformKeys)
 	c := &Command{
-		ID: spec.ID, Label: spec.Label, MenuPath: spec.MenuPath, Shortcut: spec.Shortcut,
+		ID: spec.ID, Label: spec.Label, MenuPath: spec.MenuPath, Shortcut: shortcut, MoreKeys: more,
 		Description: spec.Description, Kinds: spec.Kinds, Order: spec.Order, DrawerOnly: spec.DrawerOnly, Danger: spec.Danger,
 		Escalates: spec.Escalate != nil, AgentsAsk: spec.AgentsAsk != nil, GUIOnly: spec.GUIOnly != nil, guiOnly: spec.GUIOnly, undoable: spec.Undoable, Verbs: spec.Verbs, Schema: schema,
 		resolved: resolved, dialog: spec.Dialog,

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"k8s.io/client-go/tools/clientcmd"
@@ -120,9 +121,23 @@ func localEnv(extra []string, kubeconfigVar string, kubectl ...string) []string 
 }
 
 // baseEnv is the shell's environment before Cogpit's own entries: Cogpit's, the terminal type and
-// opts.Env.
+// opts.Env. FYNE_SCALE is given back as Cogpit was started with it: the window's zoom sets it in
+// Cogpit's own environment for Fyne (fyneui/zoom.go, D-134), and a Fyne program started from the
+// shell would otherwise open at Cogpit's zoom.
 func baseEnv(extra []string) []string {
-	env := os.Environ()
+	env := slices.DeleteFunc(os.Environ(), func(kv string) bool {
+		k, _, _ := strings.Cut(kv, "=")
+		return strings.EqualFold(k, fyneScaleEnv) // Windows' names are any case
+	})
+	if startFyneScaleSet {
+		env = append(env, fyneScaleEnv+"="+startFyneScale)
+	}
 	env = append(env, "TERM=xterm-256color", "COLORTERM=truecolor")
 	return append(env, extra...)
 }
+
+// fyneScaleEnv is Fyne's scale variable; startFyneScale its value when Cogpit started, read before
+// main runs and the window's zoom changes it.
+const fyneScaleEnv = "FYNE_SCALE"
+
+var startFyneScale, startFyneScaleSet = os.LookupEnv(fyneScaleEnv)
