@@ -10,7 +10,7 @@ import (
 // A watch the API server answered while its cache of the resource was still being built (429
 // "storage is (re)initializing") is a grey line, not a problem; answered the same again within
 // WarmingRepeatWithin, it is one (the cache does not come up); the first request at another API
-// server hours later is not (D-new, the owner's option a).
+// server hours later is not (D-135, the owner's option a).
 func TestDiagLogCacheWarming(t *testing.T) {
 	l, clk := newTestDiagLog()
 	l.Connecting("https://api.example.test:6443")

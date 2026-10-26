@@ -49,7 +49,7 @@ type ClusterConnector struct {
 	// cache.DefaultWarmPeriod.
 	WarmPeriod time.Duration
 	// StreamStall bounds a streamed initial list's silence before its end (cache.Options,
-	// initiallists.go, D-new); zero means cache.DefaultStreamStall.
+	// initiallists.go, D-135); zero means cache.DefaultStreamStall.
 	StreamStall time.Duration
 	// MetricsOptions tune the polling of every backend's metrics (intervals, TTL, series bounds);
 	// the zero value is the defaults of architecture §9. Tests shorten the intervals.
@@ -173,7 +173,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	profiles = withApplications(withHelmReleases(profiles)) // applications.go
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
-	// Lists by default, at the lists' budget; a cluster that opted in streams them (initiallists.go, D-new).
+	// Lists by default, at the lists' budget; a cluster that opted in streams them (initiallists.go, D-135).
 	streaming := c.ClusterSettings.streamingOf(settingsID)
 	ch := cache.New(cache.DynamicSource(conn.CacheDynamic(), conn.CacheMetadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger,
 		StreamStall: c.StreamStall, Lists: !streaming})

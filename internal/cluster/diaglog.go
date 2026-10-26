@@ -50,7 +50,7 @@ const (
 
 // Problem reports whether a line of the kind is a problem the status bar counts. A connect is a
 // marker, and a kind read namespace by namespace follows a refusal that counts already. A cache
-// warming up is not, on its own (D-new, the owner's option a of 2026-10-26): the API server builds
+// warming up is not, on its own (D-135, the owner's option a of 2026-10-26): the API server builds
 // its cache of a custom resource at the first request for it, and of every resource after it
 // starts, and answers a watch with 429 and Retry-After meanwhile; client-go asks again. Asked again
 // and answered the same within WarmingRepeatWithin, the line is a problem (DiagLog.Add): the cache

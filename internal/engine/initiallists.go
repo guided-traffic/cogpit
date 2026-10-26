@@ -5,7 +5,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cluster"
 )
 
-// A cluster's initial lists (D-new; cache/stall.go). By default every read lists its objects once
+// A cluster's initial lists (D-135; cache/stall.go). By default every read lists its objects once
 // and then watches from that list's version (cache.Options.Lists), at the connection's lists'
 // budget (cluster: 50 a second, burst 300). Streaming them (client-go's WatchList, Kubernetes'
 // WatchListClient, beta) is an opt-in per cluster (ClusterSettings.Streaming, Cluster Settings ›

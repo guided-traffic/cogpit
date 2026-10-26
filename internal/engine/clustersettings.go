@@ -149,7 +149,7 @@ type ClusterSettings struct {
 	// window (ErrRenewLoginGUIOnly).
 	HoldBackgroundLogin bool `json:"holdBackgroundLogin,omitempty"`
 	// Streaming makes the cluster's reads stream their initial lists (Kubernetes' WatchListClient,
-	// beta; D-new, initiallists.go) from its next connect; false, the default: each read lists its
+	// beta; D-135, initiallists.go) from its next connect; false, the default: each read lists its
 	// objects once and then watches.
 	Streaming bool `json:"streaming,omitempty"`
 }

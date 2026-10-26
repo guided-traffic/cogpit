@@ -7,7 +7,7 @@ import (
 )
 
 // A line that is no problem is grey whatever its kind: a cache warming up once is information, the
-// same line repeated is a warning (D-new, the owner's option a).
+// same line repeated is a warning (D-135, the owner's option a).
 func TestDiagEntrySeverity(t *testing.T) {
 	for _, tc := range []struct {
 		e    cluster.DiagEntry

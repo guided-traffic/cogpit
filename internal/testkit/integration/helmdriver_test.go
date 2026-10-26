@@ -79,7 +79,7 @@ func budgetHelmReleasesWithConfigMaps(t *testing.T, watchList bool) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if watchList { // the cluster's opt-in (D-new): its reads stream their initial lists
+	if watchList { // the cluster's opt-in (D-135): its reads stream their initial lists
 		if _, err := s.ChangeClusterSettings("fake", func(cs *engine.ClusterSettings) error { cs.Streaming = true; return nil }); err != nil {
 			t.Fatal(err)
 		}

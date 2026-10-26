@@ -18,7 +18,7 @@ import (
 // read pods in team-a alone, the server does not stream initial lists (no WatchList), and one
 // aggregated API is down. The log holds the refused read of pods in all namespaces, the kind read
 // namespace by namespace after it, and the broken group's discovery; the reads are listed, as
-// Cogpit reads by default (D-new), so no line says a stream was refused; the report has the
+// Cogpit reads by default (D-135), so no line says a stream was refused; the report has the
 // server's address replaced.
 func TestConnectionDiagnosticsOfALimitedUser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

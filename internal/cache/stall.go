@@ -13,7 +13,7 @@ import (
 	toolscache "k8s.io/client-go/tools/cache"
 )
 
-// Stalled streams (D-new). client-go streams a read's initial list (WatchList: a watch with
+// Stalled streams (D-135). client-go streams a read's initial list (WatchList: a watch with
 // sendInitialEvents) and waits, without a bound, for the bookmark that ends it. A healthy API
 // server sends the objects from its watch cache and that bookmark at once (on a 1.37 cluster, 22 to
 // 758 ms for up to 261 objects, the bookmark right after the last object); on some clusters the

@@ -84,7 +84,7 @@ func TestBudgetAgentReadTakesTheSecrets(t *testing.T) {
 	if n := secretReads(); n != first {
 		t.Errorf("the second agent read within the warm period cost %d more Secrets requests", n-first)
 	}
-	how := "the real client-go stack against the fake API server over HTTPS; Cogpit lists and then watches (D-new), streaming switched off by default"
+	how := "the real client-go stack against the fake API server over HTTPS; Cogpit lists and then watches (D-135), streaming switched off by default"
 	scorecard.Record(t, scorecard.Measurement{Budget: "P16", Metric: "Secrets requests of an agent's first read of a pod", Value: float64(first), Unit: "requests", Limit: 2, How: how})
 	scorecard.Record(t, scorecard.Measurement{Budget: "P16", Metric: "Secrets requests of the second read within the warm period", Value: float64(secretReads() - first), Unit: "requests", How: how})
 	t.Logf("H-82 option b: the first agent read took %v and %d Secrets request(s); requests %v", took, first, srv.Requests())

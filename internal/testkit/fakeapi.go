@@ -46,13 +46,13 @@ type FakeAPIOptions struct {
 	// DisableWatchList makes the server reject watches with sendInitialEvents=true, like a server
 	// without the WatchList feature; client-go then falls back to a list and a watch.
 	DisableWatchList bool
-	// StallWatchList makes streamed initial lists stall, as some clusters' do (D-new): the server
+	// StallWatchList makes streamed initial lists stall, as some clusters' do (D-135): the server
 	// answers and sends the objects, then never the bookmark that ends them. Lists and plain
 	// watches answer as before.
 	StallWatchList bool
 	// WarmingCaches are resources ("pods", "deployments.apps") whose first watch the server
 	// answers 429 "storage is (re)initializing" with Retry-After 1, as an API server does while it
-	// builds its cache of the resource (D-new); every request after it is answered.
+	// builds its cache of the resource (D-135); every request after it is answered.
 	WarmingCaches []string
 	// BrokenGroups are API groups listed in /apis whose discovery answers 503, like an aggregated
 	// API whose backend is down.

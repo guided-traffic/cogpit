@@ -10,7 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Cluster Settings › General › Debug (D-new): "Use initial streaming (BETA)" off by default, a tap
+// Cluster Settings › General › Debug (D-135): "Use initial streaming (BETA)" off by default, a tap
 // switches it on and off, a change from elsewhere shows at once, and the box under it stays as it is.
 func TestClusterSettingsStreams(t *testing.T) {
 	s, _ := settingsEngine(t)

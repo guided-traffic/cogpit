@@ -67,7 +67,7 @@ func reconnect(ctx context.Context, t *testing.T, s *engine.Session) {
 	}
 }
 
-// A server whose streamed initial lists never end (D-new; the OpenShift cluster of 2026-10-26 ended
+// A server whose streamed initial lists never end (D-135; the OpenShift cluster of 2026-10-26 ended
 // them after a minute and more). By default Cogpit lists and asks for no stream. Streaming switched
 // on (the beta opt-in), the next connect streams: the first read lists after the stall bound, every
 // read after it lists without asking for a stream, Connection Diagnostics says so once, and the

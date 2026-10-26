@@ -341,7 +341,7 @@ D-1 is decided for Fyne ([results](../developer/spike-fyne.md#results)).
   snapshots.
 - **Evidence:** built on 2026-10-11 ([`internal/cache`](../../internal/cache/), [`internal/model`](../../internal/model/)):
   shared, reference-counted informers, the warm period, no resync, initial lists (streamed until
-  2026-10-26, since then listed and watched, streaming a cluster's opt-in beta, D-new), the
+  2026-10-26, since then listed and watched, streaming a cluster's opt-in beta, D-135), the
   `managedFields` transform, request counters, the kind-profile framework with status tokens, and
   coalesced snapshots (≤ 10 per second per view). P9–P11 hold in tests
   ([testing](../developer/testing.md#performance-budgets-proposed-not-measured)). Then still

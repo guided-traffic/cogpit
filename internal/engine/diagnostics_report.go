@@ -338,7 +338,7 @@ func formatRate(q float32) string {
 }
 
 // StreamsOffText is what the initial lists' line adds while the connection lists every read
-// instead of streaming it, and why (D-new); "" while it streams.
+// instead of streaming it, and why (D-135); "" while it streams.
 func StreamsOffText(s DiagStreaming) string {
 	if s.Off == "" {
 		return ""

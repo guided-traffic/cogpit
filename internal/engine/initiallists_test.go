@@ -27,7 +27,7 @@ func TestFallbackText(t *testing.T) {
 }
 
 // A stalled stream's line says what the stream received, how the list in its place answered and
-// that the connection lists from now on (D-new).
+// that the connection lists from now on (D-135).
 func TestStallText(t *testing.T) {
 	stall := &cache.StreamStallError{Silent: 10 * time.Second, Answered: true, Objects: 33}
 	for _, tc := range []struct {

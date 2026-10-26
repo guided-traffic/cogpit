@@ -795,7 +795,7 @@ Windows and Linux Fyne draws the texts again itself.
 
 ### Cluster Settings › General: debug, initial streaming
 
-Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). Under **Debug** the switch
+Since 2026-10-26 ([D-135](decisions.md#d-135-a-stalled-stream-lists)). Under **Debug** the switch
 **Use initial streaming (BETA)**, off by default, and under it a box that says what it is.
 
 **Off (the default):** each read lists its objects once, then watches from that list's version: the
@@ -1551,7 +1551,7 @@ The tab, from the top:
   streaming lists (a stall, or the setting switched off, below);
 - Cogpit's rate limits with what waited at them: the requests' (5 per second, burst 10 # default;
   gets and writes; watches never wait), the lists' (50, burst 300 # default; the cache's initial
-  lists, D-new), discovery's (50, burst 300 # default) and the access reviews' (10, burst 20
+  lists, D-135), discovery's (50, burst 300 # default) and the access reviews' (10, burst 20
   # default), each with how many requests waited, how long together, the
   longest wait and how many wait now; orange while a request waits or one waited a second or more;
 - four columns: the **log**, the line seen last first; the API requests by verb and resource; the

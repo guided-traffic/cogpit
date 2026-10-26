@@ -88,7 +88,7 @@ func wireDiagnostics(conn *cluster.Conn, ch *cache.Cache) {
 
 // fallbackText says why a read's initial list was listed instead of streamed: the server's error,
 // or a stream that ended early. A stream the cache ended because it stalled has its own line
-// (initiallists.go, D-new).
+// (initiallists.go, D-135).
 func fallbackText(err error) string {
 	if err != nil {
 		return "the server did not stream the initial list (WatchList); listed instead: " + err.Error()
