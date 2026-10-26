@@ -17,8 +17,9 @@ func cogpitStreamsOff() *engine.StreamsOff {
 		Why: "pods in team-a: 33 objects received, then nothing for 10s before the end of the initial list; a list answered in 80 ms"}
 }
 
-// Cluster Settings › General › Streamed initial lists (D-new): on by default, a tap switches it off
-// and on, and a switch Cogpit makes shows at once with when and why under it.
+// Cluster Settings › General › Streaming (D-new): on by default, a tap switches it off and on, the
+// box under the switch describes the way chosen, and a switch Cogpit makes shows at once with when
+// and why under it.
 func TestClusterSettingsStreams(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
@@ -29,20 +30,21 @@ func TestClusterSettingsStreams(t *testing.T) {
 	})
 	check := sh.settings.controls["streamInitialLists"].(*widget.Check)
 	note := sh.settings.controls["streamsOff"].(*paragraph)
-	if check.Text != streamsCheck || note.Visible() {
-		t.Errorf("label %q, note shown %v", check.Text, note.Visible())
+	desc := sh.settings.controls["streamsText"].(*paragraph)
+	if check.Text != "Use streaming" || note.Visible() || desc.text != streamingOnText {
+		t.Errorf("label %q, note shown %v, box %q", check.Text, note.Visible(), desc.text)
 	}
 	test.Tap(check)
 	q.until(t, "off", func() bool {
 		off := s.UIState().ClusterSettings["kind-dev"].StreamsOff
 		return off != nil && off.By == engine.StreamsOffByUser && !check.Checked && note.Visible()
 	})
-	if !strings.HasSuffix(note.text, "switched off by you.") {
-		t.Errorf("note %q", note.text)
+	if !strings.HasSuffix(note.text, "switched off by you.") || desc.text != streamingOffText {
+		t.Errorf("note %q, box %q", note.text, desc.text)
 	}
 	test.Tap(check)
 	q.until(t, "on", func() bool {
-		return s.UIState().ClusterSettings["kind-dev"].StreamsOff == nil && check.Checked && !note.Visible()
+		return s.UIState().ClusterSettings["kind-dev"].StreamsOff == nil && check.Checked && !note.Visible() && desc.text == streamingOnText
 	})
 	if _, err := s.ChangeClusterSettings("kind-dev", func(cs *engine.ClusterSettings) error {
 		cs.StreamsOff = cogpitStreamsOff()
@@ -56,25 +58,50 @@ func TestClusterSettingsStreams(t *testing.T) {
 	}
 }
 
-// The setting switched off by Cogpit, dark and light: the PNGs of the pull request (AGENTS.md rule 7).
-func TestRenderClusterSettingsStreamsOff(t *testing.T) {
+// The setting on and switched off by Cogpit, dark and light: the PNGs of the pull request (AGENTS.md
+// rule 7).
+func TestRenderClusterSettingsStreams(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		t.Run(string(mode), func(t *testing.T) {
 			s, ctx, _ := settingsEngineWithFile(t)
+			sh, w, q := openGeneral(t, s, ctx, mode)
+			bottom := func() {
+				settle(w)
+				sh.settings.scroll.ScrollToBottom() // the setting is the section's last
+			}
+			q.until(t, "the switch", func() bool {
+				c, ok := sh.settings.controls["streamInitialLists"].(*widget.Check)
+				return ok && c.Checked
+			})
+			bottom()
+			savePNG(t, w, "cluster_settings_streams_on_"+string(mode)+".png")
 			if _, err := s.ChangeClusterSettings(ctx, func(cs *engine.ClusterSettings) error {
 				cs.StreamsOff = cogpitStreamsOff()
 				return nil
 			}); err != nil {
 				t.Fatal(err)
 			}
-			sh, w, q := openGeneral(t, s, ctx, mode)
 			q.until(t, "the note", func() bool {
 				n, ok := sh.settings.controls["streamsOff"].(*paragraph)
 				return ok && n.Visible()
 			})
-			settle(w)
-			sh.settings.scroll.ScrollToBottom() // the setting is the section's last
+			bottom()
 			savePNG(t, w, "cluster_settings_streams_off_"+string(mode)+".png")
 		})
+	}
+}
+
+// The texts name no other product, and their numbers are Cogpit's (the owner, 2026-10-26).
+func TestStreamingTexts(t *testing.T) {
+	for _, text := range []string{streamingOnText, streamingOffText} {
+		if strings.Contains(text, "Lens") || strings.Contains(text, "kubectl") {
+			t.Errorf("a text names another tool: %q", text)
+		}
+		if !strings.Contains(text, "5 requests a second") {
+			t.Errorf("the rate limit is not named: %q", text)
+		}
+	}
+	if !strings.Contains(streamingOnText, "silent for 10 s") {
+		t.Errorf("the bound is not named: %q", streamingOnText)
 	}
 }

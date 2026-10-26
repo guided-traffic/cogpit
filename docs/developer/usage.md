@@ -793,22 +793,28 @@ does, so that none stays drawn at the old resolution, soft
 text still look soft, switching the theme twice (the top bar's theme button) draws it again. On
 Windows and Linux Fyne draws the texts again itself.
 
-### Cluster Settings › General: streamed initial lists
+### Cluster Settings › General: streaming
 
-Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). **On by default
-(Automatic):** each read streams its initial list (WatchList) and keeps the stream as its watch. A
-stream that receives nothing for 10 s (# default) before its end (no answer, or objects and then
-silence) is ended; the read lists instead, and so does every read of the connection after it, as
-Lens and kubectl read. When that list answered within 2 s (# default), the stream stalled and not
-the connection: Cogpit switches the setting off for the cluster, and every later connect lists from
-the start. The page then says "Off since …, switched off by Cogpit:" and why (the read, what the
-stream received, how soon the list answered). A list that answered late or failed points at the
-connection: only that connection lists.
+Since 2026-10-26 ([D-new](decisions.md#d-new-a-stalled-stream-lists)). The switch **Use streaming**,
+and under it a box that describes the way chosen.
 
-**Off** ("Stream the initial lists (WatchList)" unchecked, or `cluster.settings.set` with
-`streamInitialLists` false): every read lists and then watches, at once for the connected cluster.
-**On again** applies from the next connect. Connection Diagnostics' line of the initial lists ends
-"streams off, every read lists:" and why while a connection lists.
+**On (the default):** each read asks the API server once (WatchList): the server sends the objects
+one after another from its cache and keeps the same connection open for every change. The server
+builds no large answer of all objects, and reading many kinds at once does not wait at Cogpit's
+rate limit of 5 requests a second (# default). A stream that receives nothing for 10 s (# default)
+before its end (no answer, or objects and then silence) is ended; the read lists instead, and so
+does every read of the connection after it. When that list answered within 2 s (# default), the
+stream stalled and not the connection: Cogpit switches streaming off for the cluster, and every
+later connect lists from the start; under the box the page then says "Off since …, switched off by
+Cogpit:" and why (the read, what the stream received, how soon the list answered). A list that
+answered late or failed points at the connection: only that connection lists.
+
+**Off** (unchecked, or `cluster.settings.set` with `streamInitialLists` false), at once for the
+connected cluster: each read lists its objects in one answer, then watches from that list's
+version, and the server sends every change as it happens; the whole list is read again only when
+the server no longer knows that version. Lists wait at the rate limit. **On again** applies from
+the next connect. Connection Diagnostics' line of the initial lists ends "streams off, every read
+lists:" and why while a connection lists.
 
 ### Cluster Settings › General: the login while the cluster is not shown
 
@@ -1569,7 +1575,7 @@ a line:
 | network | the request did not reach the server, or its answer broke off |
 | slow answer | a request that is not a stream answered after 5 s or more |
 | rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
-| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: streamed initial lists](#cluster-settings--general-streamed-initial-lists)) |
+| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead. Also when a stream stalled: nothing came for 10 s (# default) before its end, no answer to its request or objects and then silence; the line says which, how the list in its place answered, and what follows: the cluster's streams off from now on (the list answered within 2 s), or this connection only ([Cluster Settings › General: streaming](#cluster-settings--general-streaming)) |
 | slow load | a read took 5 s or more to load |
 | per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
 | connect | a connect began (grey) |

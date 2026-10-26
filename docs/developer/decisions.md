@@ -13243,11 +13243,17 @@ ich 3s evtl Fehleranfällig, oder?" Asked how Cogpit should treat clusters whose
   soon the list answered), and every later connect of the cluster lists from the start
   (`cache.Options.Lists`). A list that took longer or failed points at the connection: the
   connection lists, nothing is kept, the next connect streams again.
-- *The switch for the user* (Cluster Settings › General › Streamed initial lists,
+- *The switch for the user* (Cluster Settings › General › Streaming,
   [`fyneui/clustersettings_streams.go`](../../internal/ui/fyneui/clustersettings_streams.go);
-  `cluster.settings.set` `streamInitialLists`): on is Automatic; off applies to the connected
-  cluster at once (`Cache.ListFromNowOn`), on again from the next connect. Switched off by Cogpit,
-  the page says when and why under the switch.
+  `cluster.settings.set` `streamInitialLists`): "Use streaming", on is Automatic; off applies to the
+  connected cluster at once (`Cache.ListFromNowOn`), on again from the next connect. Under the switch
+  a box describes the way chosen, as the owner asked on 2026-10-26 ("Ich hätte lieber so etwas wie
+  'Use streaming' als Flag und dann eine Box darunter die da aktuell gewählte Verfahren kurz
+  beschreibt", and "Ich möchte nicht, dass wir Lens erwähnen"): on, what streaming is for (one
+  request; no large answer the server builds; reads that do not wait at the 5 requests a second)
+  and that some environments do not offer it or hold its streams back; off, how Cogpit keeps the
+  objects current (a list, then a watch from its version, the whole list again only when the server
+  no longer knows it). Switched off by Cogpit, the page says when and why under the box.
 - *Connection Diagnostics*: one "not streamed" line for the read that stalled, with what the stream
   received, how the list in its place answered and what follows ("streams are off for this cluster
   from now on", or "this connection lists, the next one streams again"); the reads ended with it

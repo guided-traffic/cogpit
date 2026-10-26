@@ -24,6 +24,14 @@ import (
 // switch the cluster's streams off.
 const streamsOffConfirm = 2 * time.Second
 
+// StreamStall is how long a stream may stay silent before its read lists instead
+// (cache.DefaultStreamStall), and RequestsPerSecond the rate lists wait at (cluster.DefaultQPS):
+// the numbers Cluster Settings' description of streaming names.
+const (
+	StreamStall       = cache.DefaultStreamStall
+	RequestsPerSecond = cluster.DefaultQPS
+)
+
 // Who switched a cluster's streams off (StreamsOff.By).
 const (
 	StreamsOffByUser   = "user"
