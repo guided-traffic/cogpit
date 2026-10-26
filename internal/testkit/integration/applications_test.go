@@ -79,7 +79,7 @@ func TestBudgetApplicationsView(t *testing.T) {
 	if err != nil || m.Missing {
 		t.Fatalf("drawer %+v, %v", m, err)
 	}
-	req := workloadRequests()
+	req := settledMap(ctx, workloadRequests) // each list's watch follows it
 	for _, r := range []string{"deployments.apps", "statefulsets.apps", "jobs.batch"} {
 		if req["list "+r] != 1 || req["watch "+r] != 1 || len(req) != 6 {
 			t.Errorf("%s: want one list and one watch: %v", r, req)

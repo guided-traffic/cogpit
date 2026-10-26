@@ -92,6 +92,25 @@ func readsOf(srv *testkit.FakeAPIServer, resource string) map[string]int64 {
 	return out
 }
 
+// readsSettled is readsOf once the reads of resource stopped changing for a moment: a read's watch
+// follows its list (client-go opens it once the list filled the store), later under the race
+// detector (main's race job, 2026-10-26: the list counted, its watch not yet).
+func readsSettled(ctx context.Context, srv *testkit.FakeAPIServer, resource string) map[string]int64 {
+	return settledMap(ctx, func() map[string]int64 { return readsOf(srv, resource) })
+}
+
+// settledMap reads until two reads 300 ms apart agree, or ctx ends.
+func settledMap(ctx context.Context, read func() map[string]int64) map[string]int64 {
+	last, since := read(), time.Now()
+	for ctx.Err() == nil && time.Since(since) < 300*time.Millisecond {
+		time.Sleep(20 * time.Millisecond)
+		if now := read(); !maps.Equal(now, last) {
+			last, since = now, time.Now()
+		}
+	}
+	return last
+}
+
 func agentDispatch(ctx context.Context, t *testing.T, s *engine.Session, id string, params any) any {
 	t.Helper()
 	raw, err := json.Marshal(params)
@@ -187,7 +206,7 @@ func TestHelmReleasesOfANamespaceLimitedUser(t *testing.T) {
 		t.Errorf("row %v", r)
 	}
 	for _, res := range []string{"secrets with owner=helm", "configmaps with owner=helm"} {
-		reads := readsOf(srv, res)
+		reads := readsSettled(ctx, srv, res)
 		wide := reads["list "+res]
 		if wide > 2 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
 			t.Errorf("%s: reads %v, want at most two refused lists in all namespaces, then team-a's list and watch", res, reads)
@@ -231,7 +250,7 @@ func TestPrometheusDetectionFollowsARefusal(t *testing.T) {
 	if d := time.Since(start); d > 6*time.Second {
 		t.Errorf("Prometheus found after %s", d)
 	}
-	reads := readsOf(srv, "services")
+	reads := readsSettled(ctx, srv, "services")
 	if wide := reads["list services"]; wide > 2 || reads["list services in team-a"] != 1 || reads["watch services in team-a"] != 1 {
 		t.Errorf("service reads %v, want at most two refused lists in all namespaces, then team-a's list and watch", reads)
 	}
@@ -252,7 +271,7 @@ func TestBudgetNamespaceLimitedUser(t *testing.T) {
 		// then team-a's list and watch alone; the pods' metrics are listed in team-a alone, never in
 		// all namespaces.
 		for _, res := range []string{"pods", "deployments.apps", "events"} {
-			reads := readsOf(srv, res)
+			reads := readsSettled(ctx, srv, res)
 			wide := reads["list "+res]
 			if wide < 1 || wide > 2 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
 				t.Errorf("%s: reads %v, want one or two refused lists in all namespaces, then team-a's list and watch", res, reads)
@@ -347,7 +366,7 @@ func TestBudgetNamespaceLimitedUser(t *testing.T) {
 			"events":              {"list events": 1, "watch events": 1},
 			"pods.metrics.k8s.io": {"list pods.metrics.k8s.io": 1},
 		} {
-			if got := readsOf(srv, res); !maps.Equal(got, want) {
+			if got := readsSettled(ctx, srv, res); !maps.Equal(got, want) {
 				t.Errorf("%s: reads %v, want %v (as before)", res, got, want)
 			}
 		}

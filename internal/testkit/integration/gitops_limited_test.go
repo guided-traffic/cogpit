@@ -250,7 +250,7 @@ func checkFluxDashboard(t *testing.T, u gitopsUser, page bool) {
 	}
 	settle(ctx, t, s, u)
 	for _, res := range fluxReads {
-		u.reads(t, res, readsOf(srv, res))
+		u.reads(t, res, readsSettled(ctx, srv, res))
 	}
 }
 
@@ -287,7 +287,7 @@ func checkArgoDashboard(t *testing.T, u gitopsUser, page bool) {
 		t.Errorf("Argo CD's Secrets read as %q, want the Repositories' and the Clusters' scopes", secrets)
 	}
 	for _, res := range append(argoReads, secrets...) {
-		u.reads(t, res, readsOf(srv, res))
+		u.reads(t, res, readsSettled(ctx, srv, res))
 	}
 }
 
@@ -373,7 +373,7 @@ func TestGitOpsDashboardsWithoutTheDefinitions(t *testing.T) {
 		}
 		t.Errorf("custom kinds %q, want Kustomizations, Git repositories, Argo CD's three and its settings", keys)
 	}
-	if crds := readsOf(srv, "customresourcedefinitions.apiextensions.k8s.io"); crds["list customresourcedefinitions.apiextensions.k8s.io"] < 1 || len(crds) > 1 {
+	if crds := readsSettled(ctx, srv, "customresourcedefinitions.apiextensions.k8s.io"); crds["list customresourcedefinitions.apiextensions.k8s.io"] < 1 || len(crds) > 1 {
 		t.Errorf("definitions: reads %v, want the refused list alone", crds)
 	}
 }
