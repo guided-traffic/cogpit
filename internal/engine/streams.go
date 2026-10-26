@@ -86,7 +86,7 @@ func (s *Session) OpenTerminal(ctx context.Context, tabID string) (terminal.Sess
 	if err != nil {
 		return nil, err
 	}
-	check, first := s.checkKubectl(ctx, b.Conn.ServerVersion()) // D-3 (kubectl.go)
+	check, first := s.checkKubectl(ctx, b.ServerVersion()) // D-3 (kubectl.go); the version the heartbeats follow (connwatch_version.go)
 	s.setKubectlCheck(tab.ID, check)
 	opts.Kubectl = first
 	if p, err := s.Preferences(); err == nil {

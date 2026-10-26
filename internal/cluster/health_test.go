@@ -133,8 +133,16 @@ func TestAHeldListEndsWithItsContext(t *testing.T) {
 func TestHeartbeatAndReachable(t *testing.T) {
 	c, srv, p := connectThroughProxy(t, testkit.FakeAPIOptions{Token: secretToken}, 0)
 	ctx := context.Background()
+	if v := c.SeenVersion(); v != "" {
+		t.Errorf("a version seen before the first heartbeat: %q", v)
+	}
 	if err := c.Heartbeat(ctx); err != nil {
 		t.Fatalf("heartbeat: %v", err)
+	}
+	// The heartbeat keeps the version it read (the engine follows an upgrade with it); the
+	// connect's stays the discovery's.
+	if v, made := c.SeenVersion(), c.ServerVersion(); v != "v1.37.1-fake" || made != "v1.37.1-fake" {
+		t.Errorf("seen %q, connect's %q", v, made)
 	}
 	// The anonymous probe gets the server's 401: it answered.
 	if err := c.Reachable(ctx); err != nil {

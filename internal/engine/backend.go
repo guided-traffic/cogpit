@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -106,6 +107,9 @@ type Backend struct {
 	overlays overlays
 	// renewal is the kubeconfig login it last reconnected by itself for (reconnect.go, D-81).
 	renewal fileRenewal
+	// live is the API server's version as the heartbeats read it since the connect, once it
+	// changed (connwatch_version.go); nil while it is the connect's.
+	live atomic.Pointer[string]
 }
 
 // Actions are the cluster writes of the MVP's action commands. *cluster.Conn implements them.
@@ -133,17 +137,30 @@ func (b *Backend) Writer() Actions {
 // CanWrite reports whether the backend can run mutating commands: false for the demo cluster.
 func (b *Backend) CanWrite() bool { return b.Writer() != nil }
 
-// ServerVersion returns the API server's version as the connect saw it ("v1.36.1"): the
-// connection's, else Version; "" when neither knows one.
+// ServerVersion returns the API server's version ("v1.36.1"): as the heartbeats read it once it
+// changed while connected (connwatch_version.go), else as the connect saw it (connectVersion); ""
+// when nothing knows one.
 func (b *Backend) ServerVersion() string {
 	if b == nil {
 		return ""
 	}
+	if v := b.live.Load(); v != nil {
+		return *v
+	}
+	return b.connectVersion()
+}
+
+// connectVersion returns the API server's version as the connect saw it, the one the connection's
+// discovery was made for: the connection's, else Version.
+func (b *Backend) connectVersion() string {
 	if b.Conn != nil {
 		return b.Conn.ServerVersion()
 	}
 	return b.Version
 }
+
+// setServerVersion makes v the backend's version (ServerVersion).
+func (b *Backend) setServerVersion(v string) { b.live.Store(&v) }
 
 // close stops the backend's cache and connection, recovering a panicking Close.
 func (b *Backend) close(log *slog.Logger) {

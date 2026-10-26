@@ -23,6 +23,12 @@ import (
 // window stays usable: the views keep the cluster's state as of the interruption, and writes are
 // disabled with the reason in their menus and buttons. Lens's behaviour on a lost connection is not
 // captured: this is Cogpit's own.
+//
+// A connected cluster whose API server was upgraded to another minor since the connect
+// (Connection.Upgraded, the owner's "Option A" of 2026-10-26) shows the strip in the accent colour:
+// the version it runs now, the one Cogpit connected to, that the kinds and API versions are that
+// one's, and Reconnect. A patch shows no strip: the navigator's version follows it. The lines are
+// selectable (drag, ⌘C).
 type connBanner struct {
 	sh        *shell
 	root      *fyne.Container // hidden while the connection works
@@ -48,8 +54,10 @@ func newConnBanner(sh *shell) *connBanner {
 	b.reconnect.Hide()
 	b.icon = widget.NewIcon(themedIcon(theme.WarningIcon(), colorStatusWarning))
 	b.tint = newBannerTint(colorStatusWarning)
+	copied := func(sel string) { b.sh.copyText(sel, false) }
 	content := container.NewBorder(nil, nil, container.NewCenter(b.icon),
-		container.NewCenter(container.NewHBox(b.reconnect, b.action)), container.NewVBox(b.title, b.detail))
+		container.NewCenter(container.NewHBox(b.reconnect, b.action)),
+		container.NewVBox(newSelLine(b.title, nil, copied), newSelLine(b.detail, nil, copied)))
 	b.root = container.NewVBox(container.NewStack(b.tint, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, content)), newDivider(false))
 	b.root.Hide()
 	return b
@@ -58,8 +66,9 @@ func newConnBanner(sh *shell) *connBanner {
 // update follows the UI state's connection. Main goroutine only.
 func (b *connBanner) update() {
 	c := b.sh.ui.Connection
-	switch c.State {
-	case engine.Interrupted, engine.LoginExpired:
+	switch {
+	case c.State == engine.Interrupted, c.State == engine.LoginExpired:
+	case c.State == engine.Connected && c.Upgraded != nil:
 	default:
 		b.hide()
 		return
@@ -78,6 +87,10 @@ func (b *connBanner) fill(c engine.Connection) {
 	tf := b.sh.timeFormat()
 	since := tf.FormatClock(c.Since)
 	b.reconnect.Hide()
+	if c.State == engine.Connected {
+		b.fillUpgraded(name, c)
+		return
+	}
 	if c.State == engine.LoginExpired {
 		b.title.SetText(fmt.Sprintf("The login to %s expired · since %s", name, since))
 		b.tint.color = colorStatusError
@@ -116,6 +129,28 @@ func (b *connBanner) fill(c engine.Connection) {
 		b.action.Enable()
 	}
 	b.tint.Refresh()
+}
+
+// fillUpgraded writes the strip of a cluster upgraded to another minor while connected.
+func (b *connBanner) fillUpgraded(name string, c engine.Connection) {
+	up := c.Upgraded
+	b.title.SetText(fmt.Sprintf("The API server of %s runs %s now · Cogpit connected to %s", name, up.To, up.From))
+	b.detail.SetText(upgradedDetail(up))
+	b.tint.color = colorAccent
+	b.icon.SetResource(themedIcon(theme.InfoIcon(), colorAccent))
+	b.setReconnect()
+	if c.Reconnecting {
+		b.reconnecting()
+	} else {
+		b.action.Enable()
+	}
+	b.tint.Refresh()
+}
+
+// upgradedDetail is the second line of an upgraded cluster's strip.
+func upgradedDetail(up *engine.ServerUpgrade) string {
+	return fmt.Sprintf("The kinds and API versions Cogpit knows are the ones %s served: Reconnect loads %s's · "+
+		"the tabs, views and filters stay · the connection works meanwhile", up.From, up.To)
 }
 
 // setReconnect makes the banner's button Reconnect.
@@ -194,7 +229,7 @@ func upperFirst(s string) string {
 func (b *connBanner) act() {
 	c := b.sh.ui.Connection
 	switch {
-	case c.State == engine.Interrupted, c.State == engine.LoginExpired && !c.CredentialPlugin:
+	case c.State == engine.Interrupted, c.State == engine.Connected, c.State == engine.LoginExpired && !c.CredentialPlugin:
 		b.sh.reconnect(b.sh.ui.Context) // reconnect.go
 	case c.State == engine.LoginExpired:
 		name := b.sh.ui.Context

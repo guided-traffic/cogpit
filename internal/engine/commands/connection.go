@@ -49,7 +49,9 @@ func registerConnection(g *registrar) {
 			"was (the error says why; cluster.connectLog has the attempt). Logs tabs open their streams again on the new " +
 			"connection, port forwards listen on the same local ports again, and shells, attach and node shells end, their tabs " +
 			"offering dock.reconnect. Refused while a job or a Helm action runs on the cluster (it would stop it). Only reads " +
-			"from the cluster. An agent or the CLI may not reconnect a cluster whose login expired while its context logs in " +
+			"from the cluster. A connection whose API server was upgraded to another minor since the connect " +
+			"(connection.upgraded: from, to) still knows the kinds and API versions of the old one; a reconnect loads the new " +
+			"one's. An agent or the CLI may not reconnect a cluster whose login expired while its context logs in " +
 			"through a credential plugin (connection.credentialPlugin): that runs the login program, which may open a " +
 			"browser, and logging in again is the user's in the window. Returns the connection.",
 		Enabled: func(s *engine.Session, p engine.OnCluster) error { return s.ReconnectBlocked(p.Context) },

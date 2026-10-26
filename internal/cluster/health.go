@@ -484,7 +484,7 @@ func (c *Conn) ResetConnections() {
 }
 
 // Heartbeat asks the API server for its version with the connection's credentials, bounded by
-// ctx: nil when it answers, an error wrapping ErrLoginRejected when it rejects the login, and
+// ctx, and keeps the version it read (SeenVersion): nil when it answers, an error wrapping ErrLoginRejected when it rejects the login, and
 // ErrLoginLapsed when it needed the credential plugin while the login is held (HoldLogin). It
 // passes the gates, and it may make client-go's credential plugin run (a login that expired by its
 // time, or a 401 the guard hands on): the call then returns only when the plugin has, or when Cogpit
@@ -494,7 +494,11 @@ func (c *Conn) Heartbeat(ctx context.Context) error {
 		return errors.New("not connected")
 	}
 	mark, lapses, ended := c.stderr.mark(), c.lapseMark(), c.loginEndMark()
-	_, err := discovery.ToDiscoveryInterfaceWithContext(c.disco).ServerVersionWithContext(withProbe(ctx))
+	info, err := discovery.ToDiscoveryInterfaceWithContext(c.disco).ServerVersionWithContext(withProbe(ctx))
+	if err == nil && info != nil && info.GitVersion != "" {
+		v := info.GitVersion
+		c.seen.Store(&v) // the heartbeat's answer, read anyway: an upgrade shows without another request
+	}
 	if err != nil && (errors.Is(err, ErrLoginLapsed) || c.lapsedSince(lapses)) {
 		c.stderr.discard() // the plugin did not run: nothing of it to keep
 		return ErrLoginLapsed

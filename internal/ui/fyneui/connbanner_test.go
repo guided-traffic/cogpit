@@ -215,3 +215,80 @@ func TestRenderConnectionReduceMotionDark(t *testing.T) {
 func TestRenderConnectionLoginExpiredDark(t *testing.T) {
 	savePNG(t, connectionScene(t, ThemeDark, engine.LoginExpired), "connection_login_expired_dark.png")
 }
+
+// upgrade marks the fake's connection as upgraded from v1.35.2 to v1.36.1 while connected, the
+// navigator's version following it.
+func upgrade(f *fakeEngine) {
+	f.update(func(u *engine.UIState) {
+		u.Connection.State = engine.Connected
+		u.Connection.Upgraded = &engine.ServerUpgrade{From: "v1.35.2", To: "v1.36.1", Since: interruptedAt}
+		cv := engine.ClusterVersion{Context: u.Context, Version: "v1.36.1"}
+		u.ClusterVersion = &cv
+	})
+}
+
+// TestConnectionBannerSaysTheClusterWasUpgraded (the owner's "Option A" of 2026-10-26): a connected
+// cluster whose API server runs another minor than the connect's shows the strip in the accent
+// colour with both versions and Reconnect (cluster.reconnect); its lines are selectable; a
+// reconnect under way greys the button; the strip goes with the mark.
+func TestConnectionBannerSaysTheClusterWasUpgraded(t *testing.T) {
+	f := connectedFake(t, 20)
+	sh, _, q := newTestShell(t, f, Options{})
+	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
+	upgrade(f)
+	q.until(t, "the banner", func() bool { return sh.conn.root.Visible() })
+	if got := sh.conn.title.text; got != "The API server of demo runs v1.36.1 now · Cogpit connected to v1.35.2" {
+		t.Errorf("title %q", got)
+	}
+	if got := sh.conn.detail.text; !strings.HasPrefix(got, "The kinds and API versions Cogpit knows are the ones v1.35.2 served: Reconnect loads v1.36.1's") {
+		t.Errorf("detail %q", got)
+	}
+	if sh.conn.tint.color != colorAccent || sh.conn.action.Text != reconnectLabel || sh.conn.action.Disabled() || sh.conn.reconnect.Visible() {
+		t.Errorf("tint %s, button %q (disabled %v)", sh.conn.tint.color, sh.conn.action.Text, sh.conn.action.Disabled())
+	}
+	if n := len(findAll[*selLine](sh.conn.root)); n != 2 {
+		t.Errorf("%d selectable lines in the strip, want 2", n)
+	}
+	if sh.status.dot.color != colorContainerRunning {
+		t.Errorf("the status bar's dot %v while connected", sh.status.dot.color)
+	}
+	test.Tap(sh.conn.action)
+	q.until(t, "cluster.reconnect", func() bool { return len(f.callsOf("cluster.reconnect")) == 1 })
+
+	f.update(func(u *engine.UIState) { u.Connection.Reconnecting = true })
+	q.until(t, "the reconnect", func() bool { return sh.conn.action.Disabled() })
+	if sh.conn.action.Text != reconnectingText {
+		t.Errorf("button %q while reconnecting", sh.conn.action.Text)
+	}
+
+	f.update(func(u *engine.UIState) { u.Connection = engine.Connection{State: engine.Connected, Demo: true} })
+	q.until(t, "the banner to go", func() bool { return !sh.conn.root.Visible() })
+}
+
+// upgradedScene is the shell over the pods view with the drawer open, the cluster upgraded to
+// another minor while connected.
+func upgradedScene(t *testing.T, mode ThemeMode) fyne.Window {
+	f := connectedFake(t, 200)
+	row := f.tables["pods"].Rows[3]
+	ref := row.Ref
+	f.details[ref.String()] = fixturePodDetail(row)
+	f.ui.Selected = []model.ObjectRef{ref}
+	f.ui.Drawer = &ref
+	f.ui.Context = "prod-eu [config]"
+	f.ui.Connection.Demo = false
+	f.ui.Tabs = []engine.ViewTab{{ID: "tab-1", Context: f.ui.Context, View: "pods", Title: "Pods - prod-eu"}}
+	f.ui.ActiveTab = "tab-1"
+	sh, w, q := newTestShell(t, f, Options{Theme: mode})
+	q.until(t, "the shell to settle", func() bool { return len(sh.kinds) > 0 && sh.drawer.last != nil && sh.diag.total > 0 })
+	upgrade(f)
+	q.until(t, "the banner", func() bool { return sh.conn.root.Visible() })
+	return w
+}
+
+func TestRenderConnectionUpgradedDark(t *testing.T) {
+	savePNG(t, upgradedScene(t, ThemeDark), "connection_upgraded_dark.png")
+}
+
+func TestRenderConnectionUpgradedLight(t *testing.T) {
+	savePNG(t, upgradedScene(t, ThemeLight), "connection_upgraded_light.png")
+}

@@ -13,7 +13,8 @@ import (
 
 // The Kubernetes version of the shown cluster and of its nodes against upstream's support (D-91,
 // the owner's WF30 of 2026-10-18). The API server's version is the one its connect read
-// (cluster.Conn's GET /version, Backend.ServerVersion), a kubelet's is its Node's
+// (cluster.Conn's GET /version), and since 2026-10-26 the one its heartbeats read once it changed
+// (Backend.ServerVersion, connwatch_version.go, D-132); a kubelet's is its Node's
 // status.nodeInfo.kubeletVersion in the cache: nothing here asks the cluster. The support is the
 // Kubernetes release table built into this Cogpit (internal/model/k8seol): upstream's dates only,
 // an estimate for a minor newer than the table, never a fetch.
@@ -33,7 +34,8 @@ import (
 type ClusterVersion struct {
 	// Context is the context id the version belongs to.
 	Context string `json:"context"`
-	// Version is the API server's version as its connect read it: "v1.36.1".
+	// Version is the API server's version as its connect read it, or its heartbeats once it
+	// changed (D-132): "v1.36.1".
 	Version string `json:"version"`
 	// The minor, its days and the table's newest minor and fetch day.
 	k8seol.Support
@@ -62,7 +64,7 @@ func newClusterVersion(t *k8seol.Table, contextID, version string, now time.Time
 }
 
 // versionBook keeps each connected cluster's API server version, by context id, as its last
-// connect read it.
+// connect read it or its heartbeats followed it (connwatch_version.go).
 type versionBook struct {
 	mu sync.Mutex
 	by map[string]string

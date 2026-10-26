@@ -85,7 +85,7 @@ func registerUI(g *registrar) {
 			"who Cogpit is logged in as there (user: username and groups with source apiServer when the API server confirmed them at the connect, " +
 			"source kubeconfig with a reason when it did not and username is only the kubeconfig's user entry's name, source lastSeen with lastSeen " +
 			"while the cluster is not connected; absent for the demo cluster and a context never confirmed), " +
-			"its Kubernetes version (clusterVersion: the API server's version as its connect read it, its minor and the minor's upstream " +
+			"its Kubernetes version (clusterVersion: the API server's version as its connect read it, or its heartbeat once it changed; its minor and the minor's upstream " +
 			"support from the Kubernetes release table built into this Cogpit, upstream's dates only: released, maintenanceFrom, endOfLife, " +
 			"estimated for a minor newer than the table (tableNewest, tableFetched), state supported, maintenance, endOfLife or unknown as of now, " +
 			"daysLeft; view_rows' tips say each node's kubelet support and version skew), the open view (kind key), " +

@@ -250,7 +250,8 @@ type Conn struct {
 	namespace   string
 	paths       []string
 	server      string
-	version     string
+	version     string                 // the API server's version as Connect read it, the discovery's
+	seen        atomic.Pointer[string] // the version the last heartbeat read (SeenVersion)
 	config      *rest.Config
 	httpClient  *http.Client
 	kube        kubernetes.Interface
@@ -638,6 +639,17 @@ func (c *Conn) Server() string { return c.server }
 
 // ServerVersion returns the API server's version as Connect saw it ("v1.36.1").
 func (c *Conn) ServerVersion() string { return c.version }
+
+// SeenVersion returns the API server's version as the last heartbeat that answered read it, ""
+// before the first: an upgrade of the cluster while Cogpit stays connected shows here, while
+// ServerVersion stays the version the connection's discovery was made for (the owner's
+// colleague's case of 2026-10-25; the engine takes it, connwatch_version.go).
+func (c *Conn) SeenVersion() string {
+	if v := c.seen.Load(); v != nil {
+		return *v
+	}
+	return ""
+}
 
 // RESTConfig returns a copy of the client configuration, with the counting transport installed.
 func (c *Conn) RESTConfig() *rest.Config { return rest.CopyConfig(c.config) }

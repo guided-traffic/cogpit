@@ -27,10 +27,19 @@ type fakeProber struct {
 	beats     int
 	reaches   []time.Time
 	beatTimes []time.Time
-	expired   bool   // the login expired by its time: the next heartbeat needs the credential plugin
-	held      bool   // the engine holds the plugin (HoldLogin): an expired login lapses instead
-	holds     []bool // every HoldLogin
-	renewals  int    // the plugin's runs that renewed an expired login
+	expired   bool     // the login expired by its time: the next heartbeat needs the credential plugin
+	held      bool     // the engine holds the plugin (HoldLogin): an expired login lapses instead
+	holds     []bool   // every HoldLogin
+	renewals  int      // the plugin's runs that renewed an expired login
+	versions  []string // the versions the heartbeats read, one per heartbeat in turn (SeenVersion); none: ""
+	seen      string
+}
+
+// SeenVersion implements versionSeer: the version the last heartbeat read.
+func (f *fakeProber) SeenVersion() string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.seen
 }
 
 func (f *fakeProber) Heartbeat(ctx context.Context) error {
@@ -41,6 +50,9 @@ func (f *fakeProber) Heartbeat(ctx context.Context) error {
 	if f.rejectN > 0 {
 		f.rejectN--
 		reject = true
+	}
+	if len(f.versions) > 0 {
+		f.seen = f.versions[(f.beats-1)%len(f.versions)]
 	}
 	lapsed := false
 	if f.expired && !down && block == nil {

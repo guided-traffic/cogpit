@@ -79,6 +79,8 @@ type connWatch struct {
 	loggedReason  string                       // the reason the connection log has of the last failed try (connwatch_log.go)
 	held          bool                         // the engine holds the login: the cluster is not shown and its setting is off (loginhold.go)
 	renewing      bool                         // a renewal of a lapsed login runs (showing the cluster, Log in again): the plugin may run
+	candidate     string                       // a version one heartbeat read, which the next confirms (connwatch_version.go)
+	upgrade       *ServerUpgrade               // the server answers with another minor than the connect's (Connection.Upgraded)
 
 	quiet atomic.Bool // a reconnect replaces the connection: the reconnect's attempt is the one the log writes (reconnect.go)
 }
@@ -523,7 +525,7 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 	case err := <-ch:
 		cancel()
 		w.logPluginStderr(err)
-		return classifyCheck(err), err
+		return w.classify(err), err
 	case <-first.C:
 	case <-w.ctx.Done():
 		cancel()
@@ -542,7 +544,7 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 		select {
 		case err := <-again:
 			w.logPluginStderr(err)
-			return classifyCheck(err), err
+			return w.classify(err), err
 		case <-w.ctx.Done():
 			return checkQuit, nil
 		}
@@ -556,6 +558,16 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 		cancel()
 		return checkQuit, nil
 	}
+}
+
+// classify is a heartbeat's result; one that answered also tells the server's version
+// (noteVersion).
+func (w *connWatch) classify(err error) checkResult {
+	res := classifyCheck(err)
+	if res == checkOK {
+		w.noteVersion()
+	}
+	return res
 }
 
 func classifyCheck(err error) checkResult {
@@ -755,7 +767,7 @@ func (w *connWatch) connection(old Connection) Connection {
 	return Connection{
 		State: st, Demo: old.Demo, TLSUnchecked: old.TLSUnchecked, CredentialPlugin: old.CredentialPlugin, Reconnecting: old.Reconnecting,
 		Since: w.since, NextAttempt: w.next, Reason: w.reason, LoggingIn: w.loggingIn || w.renewing, NeedsApproval: w.needsApproval,
-		WaitingForLogin: wait,
+		WaitingForLogin: wait, Upgraded: w.upgrade,
 	}
 }
 

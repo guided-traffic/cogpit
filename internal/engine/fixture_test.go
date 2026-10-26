@@ -142,6 +142,7 @@ type fakeConnector struct {
 	actions  Actions
 	conn     *cluster.Conn
 	health   HealthProber // the connection watch's probes (connwatch_test.go); nil: none
+	version  string       // the API server's version of a backend without conn (connwatch_version_test.go)
 
 	mu       sync.Mutex
 	connects int
@@ -165,7 +166,7 @@ func (f *fakeConnector) Connect(ctx context.Context, name string) (*Backend, err
 	c := cache.New(f.src, cache.Options{WarmPeriod: time.Minute})
 	return &Backend{
 		Context: name, Namespace: "default", Cache: c, Profiles: f.profiles,
-		Actions: f.actions, Conn: f.conn, Close: c.Close, Health: f.health,
+		Actions: f.actions, Conn: f.conn, Close: c.Close, Health: f.health, Version: f.version,
 	}, nil
 }
 

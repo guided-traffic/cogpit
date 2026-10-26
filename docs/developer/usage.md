@@ -1358,6 +1358,20 @@ one, from the kubeconfig file as it is now, without closing the cluster's tabs:
 - Agents may reconnect a cluster too (`cluster_reconnect`), except one whose login expired while its
   context logs in through a login program: that is Log in again, yours, in the window.
 
+### A cluster upgraded while connected
+
+Cogpit follows the API server's version while connected, from the connection's heartbeat (no
+request of its own, [D-132](decisions.md#d-132-a-cluster-upgraded-while-connected)). A patch
+(`v1.35.2` → `v1.35.3`) changes the version in the navigator, its upstream support, the Nodes
+list's version check and a new terminal's kubectl check, and nothing else. Another minor
+(`v1.35.3` → `v1.36.1`) does the same and shows a strip in the accent colour over the view: "The API
+server of prod-eu runs v1.36.1 now · Cogpit connected to v1.35.3", that the kinds and API versions
+Cogpit knows are the ones the old version served, and **Reconnect**, which loads the new version's
+and keeps the tabs, views and filters. The connection works meanwhile; the strip stays until the
+reconnect, or goes when the server answers with the old minor again. Both changes are noted in the
+connection updates. During a rolling upgrade, when the API servers answer with the old and the new
+version in turn, the version changes only once two heartbeats in a row agree.
+
 ### A login that waits: Cancel Connecting and the 5-minute bound
 
 Since 2026-10-16 night ([D-73](decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound),
@@ -1690,8 +1704,11 @@ has releases with a history for it (shop-web in demo-shop, six revisions).
 
 ### The Kubernetes version and upstream support
 
-The navigator's root shows the cluster's Kubernetes version, the API server's as its connect read
-it (`v1.36.1` # example), on a line under your user, while the cluster is connected
+The navigator's root shows the cluster's Kubernetes version, the API server's (`v1.36.1` #
+example), on a line under your user, while the cluster is connected: as the connect read it, and
+after an upgrade while connected as the connection's heartbeat reads it every 15 s, a new version
+taken once two heartbeats in a row read it, so within about half a minute
+([D-132](decisions.md#d-132-a-cluster-upgraded-while-connected))
 ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)). Its colour says how
 upstream supports its minor, by the Kubernetes project's own release dates only:
 

@@ -222,6 +222,11 @@ type Connection struct {
 	// kubeconfig file's login changed) builds a new connection from the kubeconfig file; the
 	// connection it replaces goes on until the new one stands (D-81).
 	Reconnecting bool `json:"reconnecting,omitempty"`
+	// Upgraded is set while the API server answers with another minor version than the one the
+	// connection was made for: its kinds and API versions are the connect's until a reconnect
+	// (cluster.reconnect) makes a connection for the new one (connwatch_version.go; the owner's
+	// "Option A" of 2026-10-26). A patch release changes no API and sets nothing.
+	Upgraded *ServerUpgrade `json:"upgraded,omitempty"`
 }
 
 // LoginWait is a credential plugin's run that a connection waits for (Connection.WaitingForLogin).
