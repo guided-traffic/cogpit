@@ -111,8 +111,8 @@ func TestWorkloadDrawerPods(t *testing.T) {
 				t.Errorf("the drawer's Pods %q, want web-1 and web-2", got)
 			}
 			tbl := findTable(t, sections, "Pods")
-			if !tbl.Sortable || !slices.Equal(tbl.IDs, []string{"name", "warning", "node", "ready", model.ColumnCPU, model.ColumnMemory, "status"}) {
-				t.Errorf("columns %q, ids %q: want the node drawer's without Namespace", tbl.Columns, tbl.IDs)
+			if !tbl.Sortable || !slices.Equal(tbl.IDs, []string{"name", "warning", "node", "ready", model.ColumnCPU, model.ColumnMemory, "status", "age"}) {
+				t.Errorf("columns %q, ids %q: want the node drawer's without Namespace, with Age", tbl.Columns, tbl.IDs)
 			}
 			if len(tbl.Cells[0]) != len(tbl.IDs) {
 				t.Errorf("a row of %d cells for %d columns", len(tbl.Cells[0]), len(tbl.IDs))
@@ -126,6 +126,9 @@ func TestWorkloadDrawerPods(t *testing.T) {
 			}
 			if row[3].Text == "" || row[4] != (model.Cell{}) || row[5] != (model.Cell{}) || row[6].Text == "" {
 				t.Errorf("Ready %+v, CPU and Memory %+v %+v (the engine's to fill), Status %+v", row[3], row[4], row[5], row[6])
+			}
+			if pod := rel["pods"][1]; row[7] != model.AgeCell(pod.GetCreationTimestamp().Time) || row[7].Num == 0 {
+				t.Errorf("Age %+v, want the creation time of %s", row[7], pod.GetName())
 			}
 			if got := podsTableNames(p.DetailSections(owner, nil)); got != nil {
 				t.Errorf("without related objects: Pods %q", got)

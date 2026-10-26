@@ -16,7 +16,8 @@ import (
 )
 
 // A workload's Pods table in its drawer (D-40): the node drawer's table without its Namespace column
-// (the owner's, 2026-10-14: a workload's pods share its namespace), with the pods the workload
+// (the owner's, 2026-10-14: a workload's pods share its namespace) and with the pods' Age after
+// Status (the owner's, 2026-10-26), with the pods the workload
 // controls, their CPU and Memory and the same sorting, built from the real profiles
 // (engine.BuildDetailWith with the fixture's related objects, engine.FillPodTable,
 // engine.SortDrawerTables, engine.LimitDrawerTables). PNGs: testdata/deployment_pods_drawer_*.png,
@@ -149,9 +150,9 @@ func workloadPodsFake(t testing.TB, set bool, sorts map[string]engine.SortSpec) 
 	return f, ref
 }
 
-// A Deployment's drawer ends with its Pods, the node drawer's table without Namespace: the pods of
-// both replica sets during the rollout, their CPU and Memory as the Pods list writes them, the node
-// as a link; a click on CPU sorts by it through the engine's state.
+// A Deployment's drawer ends with its Pods, the node drawer's table without Namespace and with Age:
+// the pods of both replica sets during the rollout, their CPU and Memory as the Pods list writes
+// them, the node as a link, each pod's age; a click on CPU sorts by it through the engine's state.
 func TestDeploymentDrawerPodsTable(t *testing.T) {
 	f, _ := workloadPodsFake(t, false, nil)
 	sh, w, q := newTestShell(t, f, Options{})
@@ -159,7 +160,7 @@ func TestDeploymentDrawerPodsTable(t *testing.T) {
 	settle(w)
 
 	headers := drawerHeaders(sh)
-	for _, title := range []string{"Name", "Node", "Ready", "CPU", "Memory", "Status"} {
+	for _, title := range []string{"Name", "Node", "Ready", "CPU", "Memory", "Status", "Age"} {
 		if headers[title] == nil {
 			t.Errorf("no sortable title %s among %v", title, keys(headers))
 		}
@@ -185,6 +186,9 @@ func TestDeploymentDrawerPodsTable(t *testing.T) {
 	}
 	if l := drawerLinks(sh)["worker-b-01"]; l == nil {
 		t.Errorf("the node is not a link: %v", keys(drawerLinks(sh)))
+	}
+	if ages := podsColumn(t, sh, "Age"); !slices.Equal(ages, []string{"2h", "2h", "9m", "6d"}) { // against the engine's clock
+		t.Errorf("the pods' ages %q", ages)
 	}
 
 	test.Tap(drawerHeaders(sh)["CPU"])

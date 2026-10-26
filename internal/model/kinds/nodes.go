@@ -371,8 +371,9 @@ var nodePodColumns = []model.Column{
 }
 
 // workloadPodColumns are a workload's Pods table's (D-40, owner 2026-10-14): the node drawer's
-// without Namespace, which a workload's pods share with it: Name, the warning icon, Node, Ready,
-// CPU, Memory, Status.
+// without Namespace, which a workload's pods share with it, and with the pods' Age after Status
+// (the owner's, 2026-10-26, on a Deployment's drawer): Name, the warning icon, Node, Ready, CPU,
+// Memory, Status, Age.
 var workloadPodColumns = []model.Column{
 	nameColumn,
 	warningColumn,
@@ -381,6 +382,7 @@ var workloadPodColumns = []model.Column{
 	cpuColumn,
 	memoryColumn,
 	statusColumn,
+	ageColumn,
 }
 
 // nodeDetailWith is nodeDetail with the node's Pods table after Allocatable, from the
@@ -401,7 +403,9 @@ func nodeDetailWith(obj *unstructured.Unstructured, rel model.Related) []model.D
 // podsSection is the drawer's Pods table of pods (a node's, a workload's: workloadpods.go), or
 // false for none: one row per pod, sorted by name, the name and namespace as links, the warning
 // icon and Status as in the Pods view, Ready as ready/all containers, CPU and Memory left to the
-// engine. The Node cell links to the node with nodeLinks; a node's own drawer has it plain.
+// engine. The Node cell links to the node with nodeLinks; a node's own drawer has it plain. A
+// workload's table ends with the pods' Age, whose text the engine writes against its clock
+// (model.WriteAges).
 func podsSection(objs []*unstructured.Unstructured, ofWorkload bool) (model.DetailSection, bool) {
 	if len(objs) == 0 {
 		return model.DetailSection{}, false
@@ -430,6 +434,9 @@ func podsSection(objs []*unstructured.Unstructured, ofWorkload bool) (model.Deta
 			model.Cell{}, // Memory: the same
 			model.Cell{Text: s.text, Status: s.status},
 		)
+		if ofWorkload {
+			row = append(row, model.AgeCell(created(p)))
+		}
 		rows = append(rows, row)
 	}
 	// Sortable: a click on a column's title sorts the rows (ui.sortDrawerTable).

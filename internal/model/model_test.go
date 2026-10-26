@@ -296,6 +296,34 @@ func TestCellTable(t *testing.T) {
 	}
 }
 
+// A table's ages are written against the engine's clock: a section with an Age column is copied
+// with its texts written, the others shared, the input kept.
+func TestWriteAges(t *testing.T) {
+	now := time.Date(2026, 10, 26, 12, 0, 0, 0, time.UTC)
+	ages := CellTable([]Column{
+		{ID: "name", Title: "Name", Type: ColumnText},
+		{ID: "age", Title: "Age", Type: ColumnAge},
+	}, [][]Cell{
+		{{Text: "web-0"}, AgeCell(now.Add(-2 * time.Hour))},
+		{{Text: "web-1"}, {}},
+	})
+	plain := CellTable([]Column{{ID: "name", Title: "Name", Type: ColumnText}}, [][]Cell{{{Text: "web-0"}}})
+	in := []DetailSection{{Title: "Pods", Table: ages}, {Title: "Other", Table: plain}, {Title: "Items"}}
+	out := WriteAges(in, now)
+	if got := out[0].Table.Rows; !slices.Equal(got[0], []string{"web-0", "2h"}) || !slices.Equal(got[1], []string{"web-1", ""}) {
+		t.Errorf("rows %q, want the age against now and an unknown age empty", got)
+	}
+	if ages.Rows[0][1] == "2h" || out[0].Table == ages {
+		t.Error("the input's table was written")
+	}
+	if out[1].Table != plain {
+		t.Error("a table without ages was copied")
+	}
+	if none := []DetailSection{{Title: "Other", Table: plain}}; &WriteAges(none, now)[0] != &none[0] {
+		t.Error("sections without ages were copied")
+	}
+}
+
 func TestPartsCell(t *testing.T) {
 	c := PartsCell(StatusOK, CellPart{Text: "SchedulingDisabled"}, CellPart{}, CellPart{Text: "Ready", Status: StatusOK})
 	if c.Text != "SchedulingDisabled Ready" || c.Status != StatusOK || c.Parts == nil || len(*c.Parts) != 2 {

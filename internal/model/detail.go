@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"time"
 
@@ -143,6 +144,44 @@ func CellTable(columns []Column, rows [][]Cell) *DetailTable {
 	}
 	return t
 }
+
+// WriteAges returns sections with the texts of their tables' relative times (ColumnAge,
+// ColumnUntil) written against now. A kind's Detail has no clock (KindProfile.Detail), so a table
+// of cells built there holds such a time in its cells (Cell.Num) and CellTable's text is not yet
+// the one to show; the engine writes it when it builds the drawer, as it writes the marks
+// (TimeFormat.WriteSections): a workload's pods' Age. Sections without such a column are shared,
+// the others copied; the input is not modified.
+func WriteAges(sections []DetailSection, now time.Time) []DetailSection {
+	var out []DetailSection
+	for i, sec := range sections {
+		t := sec.Table
+		if t == nil || t.Cells == nil || !slices.ContainsFunc(t.Types, relativeTime) {
+			continue
+		}
+		if out == nil {
+			out = append([]DetailSection(nil), sections...)
+		}
+		nt := *t
+		nt.Rows = make([][]string, len(t.Rows))
+		for r, row := range t.Rows {
+			row = slices.Clone(row)
+			for c, typ := range t.Types {
+				if relativeTime(typ) && c < len(row) && r < len(t.Cells) && c < len(t.Cells[r]) {
+					row[c] = CellText(Column{Type: typ}, t.Cells[r][c], now)
+				}
+			}
+			nt.Rows[r] = row
+		}
+		out[i].Table = &nt
+	}
+	if out == nil {
+		return sections
+	}
+	return out
+}
+
+// relativeTime reports whether a column's cells are written relative to now.
+func relativeTime(typ ColumnType) bool { return typ == ColumnAge || typ == ColumnUntil }
 
 // DetailItem is one line of a detail section: a name and a value.
 //

@@ -280,10 +280,11 @@ func BuildDetailWith(p *model.KindProfile, ref model.ObjectRef, obj *unstructure
 }
 
 // BuildDetailIn is BuildDetailWith with the absolute times written in f (D-31): the kinds' and
-// the certificates' times are marks (model.MarkTime) until then.
+// the certificates' times are marks (model.MarkTime) until then. The kinds' tables' ages are
+// written against now (model.WriteAges).
 func BuildDetailIn(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Unstructured, events []*unstructured.Unstructured, now time.Time, rel model.Related, f model.TimeFormat) (*DetailModel, error) {
 	m, err := buildDetail(p, ref, obj, events, now, rel)
-	m.Sections = f.WriteSections(m.Sections)
+	m.Sections = model.WriteAges(f.WriteSections(m.Sections), now)
 	return m, err
 }
 
