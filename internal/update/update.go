@@ -14,18 +14,20 @@
 // simply has no updater. Updater.Unavailable then says why, in the words the Help menu shows.
 //
 // The engine drives it (engine/updates.go): the preference "Check for updates automatically" is
-// Cogpit's, and the engine hands it to Start and SetAutomaticChecks, which set Sparkle's
-// automaticallyChecksForUpdates; with them on, Start also checks once at once, so that every start
-// checks whenever the last check was (the owner, 2026-10-16), where Sparkle's own launch check
-// waits out its interval. Help › Check for Updates… calls CheckForUpdates. Sparkle runs on
-// the main thread: every call is queued onto the main dispatch queue, which the app's event loop
-// drains, so no method blocks and any goroutine may call them.
+// Cogpit's, and the engine hands it to Start and SetAutomaticChecks, which run Cogpit's scheduled
+// checks while it is on: one at once, so that every start checks whenever the last check was (the
+// owner, 2026-10-16), then one every hour. Help › Check for Updates… calls CheckForUpdates. Sparkle
+// runs on the main thread: every call is queued onto the main dispatch queue, which the app's
+// event loop drains, so no method blocks and any goroutine may call them.
 //
-// The Update button (F7): Sparkle's standard user driver gets a delegate that takes over showing
-// the updates scheduled checks find (Sparkle's gentle reminders): Sparkle shows no window by
-// itself, it reports the update, and AvailableUpdate says so until the update session ends, so
-// that the window shows its Update button, whose click brings Sparkle's window with that update up
-// (CheckForUpdates). OnUpdateChange tells the engine.
+// The Update button (F7): Sparkle's own scheduled checks stay off, since a release one of them
+// finds is held for the user (Sparkle's gentle reminders) and no check runs while it is held: a
+// copy running for days offered the first release it found however many followed (the owner's
+// report, 2026-10-26). Cogpit's scheduled checks are Sparkle's probing checks, which read the feed,
+// report the newest release (not the one the user skipped) to the updater's delegate and end;
+// AvailableUpdate says so until a check finds none or the update session of the user's check ends,
+// so that the window shows its Update button, whose click reads the feed again and brings Sparkle's
+// window with the newest release up (CheckForUpdates). OnUpdateChange tells the engine.
 //
 // Layer L4: it imports nothing of Cogpit's but internal/buildinfo (L0, the version this process
 // runs, on Linux and Windows); cmd/cogpit wires it into the engine.
@@ -103,9 +105,9 @@ func (u *Updater) Unavailable() error {
 	return startFailure()
 }
 
-// Start starts Sparkle with its scheduled checks on or off, once; later calls do nothing. Sparkle
-// starts when the app's event loop next runs, after the app finished launching, and with the
-// checks on runs one of them at once, its find for the Update button.
+// Start starts the updater with its scheduled checks on or off, once; later calls do nothing.
+// Sparkle starts when the app's event loop next runs, after the app finished launching, and with
+// the checks on one of them runs at once, its find for the Update button.
 func (u *Updater) Start(automaticChecks bool) {
 	if u.Unavailable() != nil {
 		return
@@ -118,8 +120,9 @@ func (u *Updater) Start(automaticChecks bool) {
 	}
 }
 
-// CheckForUpdates checks the appcast now, as the user asked: Sparkle shows its window with the
-// result, and an update installs only when the user clicks Install in it.
+// CheckForUpdates checks the appcast now, as the user asked, whatever a scheduled check found
+// before: Sparkle shows its window with the result, and an update installs only when the user
+// clicks Install in it.
 func (u *Updater) CheckForUpdates() error {
 	if err := u.Unavailable(); err != nil {
 		return err
@@ -158,8 +161,8 @@ func (u *Updater) InstallUpdate() error {
 // elsewhere.
 var installNow func()
 
-// SetAutomaticChecks turns Sparkle's scheduled checks on or off; before Start it does nothing
-// (Start takes the value).
+// SetAutomaticChecks turns the scheduled checks on or off, one running at once when they come on;
+// before Start it does nothing (Start takes the value).
 func (u *Updater) SetAutomaticChecks(on bool) {
 	if u.Unavailable() != nil {
 		return
@@ -171,11 +174,11 @@ func (u *Updater) SetAutomaticChecks(on bool) {
 	}
 }
 
-// AvailableUpdate returns the version of the newer release Sparkle holds for the user, ok while
-// it holds one: from a scheduled check's find, which Sparkle leaves to Cogpit's Update button
-// instead of showing its window (its gentle reminders, F7), or from a check the user started,
-// until the update session ends (the user installed, skipped or dismissed it, or it failed). Never
-// without an updater.
+// AvailableUpdate returns the version of the newest release the last check found, ok while there
+// is one: from a scheduled check, which shows Cogpit's Update button instead of Sparkle's window
+// (F7) and is replaced by the next one's find, or from a check the user started, until its update
+// session ends (the user installed, skipped or dismissed it, or it failed). Never without an
+// updater.
 func (u *Updater) AvailableUpdate() (version string, ok bool) {
 	if u.Unavailable() != nil {
 		return "", false

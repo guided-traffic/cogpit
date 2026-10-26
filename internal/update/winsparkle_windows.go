@@ -212,8 +212,8 @@ func start(automaticChecks bool) {
 		}
 		return 0
 	})
-	// The update session ended without an install: the button goes, as Sparkle's gentle reminders
-	// end on macOS, and the next scheduled check brings it back unless the release was skipped.
+	// The update session ended without an install: the button goes, as Sparkle's update session
+	// ends on macOS, and the next scheduled check brings it back unless the release was skipped.
 	for _, name := range []string{"win_sparkle_set_did_not_find_update_callback", "win_sparkle_set_update_skipped_callback",
 		"win_sparkle_set_update_postponed_callback", "win_sparkle_set_update_dismissed_callback"} {
 		w.callback(name, func() uintptr { notice.set(false, ""); return 0 })

@@ -13,11 +13,29 @@ import "C"
 import (
 	"errors"
 	"fmt"
+	"sync"
+	"time"
 	"unsafe"
 )
 
 // detailSize bounds the text the Objective-C side hands back.
 const detailSize = 512
+
+var (
+	// checkInterval is how often the scheduled checks read the feed: an hour (owner, 2026-10-16,
+	// D-4), as on Linux and Windows.
+	checkInterval = time.Hour
+	// probe runs Sparkle's probing check (sparkle_darwin.m): it reads the feed and reports what it
+	// found, holding nothing for later.
+	probe = func() { C.cogpitSparkleProbe() }
+)
+
+// scheduled keeps Cogpit's scheduled checks. Sparkle's own stay off (sparkle_darwin.m): a release
+// one of them finds is held until the user acts on it, and no check runs while it is held.
+var scheduled struct {
+	mu   sync.Mutex
+	stop chan struct{} // closed to end the scheduled checks; nil while they are off
+}
 
 // call runs f with a buffer for the detail text and returns its result and the text.
 func call(f func(buf *C.char, size C.size_t) C.int) (int, string) {
@@ -56,15 +74,46 @@ func startFailure() error {
 	return nil
 }
 
-func start(automaticChecks bool) { C.cogpitSparkleStart(C.bool(automaticChecks), C.bool(true)) }
+// start starts Sparkle with its own scheduled checks off, then Cogpit's when they are on: Sparkle
+// starts on the main queue, and the first check, queued after it, runs once it has.
+func start(automaticChecks bool) {
+	C.cogpitSparkleStart(C.bool(true))
+	setAutomaticChecks(automaticChecks)
+}
 
 func check() { C.cogpitSparkleCheck() }
 
-func setAutomaticChecks(on bool) { C.cogpitSparkleSetAutomaticChecks(C.bool(on)) }
+func setAutomaticChecks(on bool) {
+	scheduled.mu.Lock()
+	defer scheduled.mu.Unlock()
+	switch {
+	case on && scheduled.stop == nil:
+		scheduled.stop = make(chan struct{})
+		go scheduledChecks(scheduled.stop, checkInterval, probe)
+	case !on && scheduled.stop != nil:
+		close(scheduled.stop)
+		scheduled.stop = nil
+	}
+}
 
-// cogpitSparkleUpdateChanged is the user driver delegate's report (sparkle_darwin.m): an update is
-// held for the user, with length bytes of its version (at most COGPIT_SPARKLE_VERSION_MAX), or the
-// update session ended. It runs on the main thread inside AppKit's event dispatch, so it only keeps
+// scheduledChecks runs check at once and every interval until stop closes.
+func scheduledChecks(stop <-chan struct{}, interval time.Duration, check func()) {
+	defer func() { _ = recover() }() // D-11: a check's panic never ends the app
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		check()
+		select {
+		case <-stop:
+			return
+		case <-t.C:
+		}
+	}
+}
+
+// cogpitSparkleUpdateChanged is the delegate's report (sparkle_darwin.m): a check found a newer
+// release, with length bytes of its version (at most COGPIT_SPARKLE_VERSION_MAX), or found none,
+// or the update session of the user's check ended. It runs on the main thread inside AppKit's event dispatch, so it only keeps
 // the report: the listeners run on goroutines of their own.
 //
 //export cogpitSparkleUpdateChanged

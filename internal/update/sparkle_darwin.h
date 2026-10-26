@@ -25,10 +25,9 @@ enum {
 enum { COGPIT_SPARKLE_VERSION_MAX = 64 };
 
 int cogpitSparkleLoad(char *detail, size_t detailSize);
-void cogpitSparkleStart(bool automaticChecks, bool startUpdater);
+void cogpitSparkleStart(bool startUpdater);
 void cogpitSparkleCheck(void);
-void cogpitSparkleSetAutomaticChecks(bool on);
+void cogpitSparkleProbe(void);
 int cogpitSparkleState(char *detail, size_t detailSize);
 int cogpitSparkleAutomaticChecks(void);
-void cogpitSparkleCheckInBackground(void);
 int cogpitSparkleSessionInProgress(void);

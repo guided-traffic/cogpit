@@ -19,12 +19,13 @@
 #   - Info.plist: CFBundleVersion set to <bundle version>, the version Sparkle compares with the
 #     appcast's sparkle:version (fyne package writes 1 for every build); SUFeedURL; SUPublicEDKey
 #     when <public key> is given, else none, and the app's updater does not start
-#     (internal/update); SUEnableAutomaticChecks YES, so that Sparkle never asks for permission
-#     itself: Cogpit's preference "Check for updates automatically" drives automaticallyChecksForUpdates
-#     at every start (with them on, the app checks once at every start: internal/update);
-#     SUScheduledCheckInterval 3600, so that the scheduled checks run every hour
-#     (owner, 2026-10-16; Sparkle's default is a day, and an hour is the least it accepts:
-#     minimumUpdateCheckInterval in Sparkle/SPUUpdaterSettings.m); SUVerifyUpdateBeforeExtraction
+#     (internal/update); SUEnableAutomaticChecks NO, so that Sparkle neither asks for permission
+#     nor checks on a schedule of its own: a release its own scheduled check finds is held until
+#     the user acts on it, and Sparkle checks no more while it is held (the owner's report of
+#     2026-10-26); Cogpit's preference "Check for updates automatically" runs Cogpit's scheduled
+#     checks instead, at every start and every hour (internal/update); SUAllowsAutomaticUpdates
+#     NO, so that Sparkle's window offers no automatic download and install: an update is
+#     downloaded only when the user clicks Install Update; SUVerifyUpdateBeforeExtraction
 #     and SURequireSignedFeed YES, so that Sparkle checks the disk image's EdDSA signature before it
 #     extracts anything and accepts only an appcast signed with the same key (Sparkle 2.9 and
 #     later).
@@ -92,8 +93,8 @@ bundle() {
 
 	plutil -replace CFBundleVersion -string "$version" "$plist"
 	plutil -replace SUFeedURL -string "$feed" "$plist"
-	plutil -replace SUEnableAutomaticChecks -bool YES "$plist"
-	plutil -replace SUScheduledCheckInterval -integer 3600 "$plist"
+	plutil -replace SUEnableAutomaticChecks -bool NO "$plist"
+	plutil -replace SUAllowsAutomaticUpdates -bool NO "$plist"
 	plutil -replace SUVerifyUpdateBeforeExtraction -bool YES "$plist"
 	plutil -replace SURequireSignedFeed -bool YES "$plist"
 	if [ -n "$key" ]; then

@@ -58,17 +58,24 @@ is [`internal/update`](../../internal/update/); the pipeline's is
 [`build.yml`](../../.github/workflows/build.yml), [`hack/macos/appcast.sh`](../../hack/macos/appcast.sh)
 and [`hack/appcast`](../../hack/appcast/main.go).
 
-**How often a copy asks** (owner, 2026-10-16): every hour, `SUScheduledCheckInterval` 3600 in the
-`Info.plist` (Sparkle's default is a day; an hour is the least Sparkle 2.10.0 uses), and at every
-start (the owner, 2026-10-16 night; before, at a launch only when the last check was older than the
-hour): the app runs the scheduled check once right after Sparkle started
-(`TestSparkleChecksAtEveryStart`: one request per start, whenever the last check was). Each check is
+**How often a copy asks** (owner, 2026-10-16): every hour and at every start (the owner,
+2026-10-16 night; before, at a launch only when the last check was older than the hour). Since
+2026-10-26 Cogpit schedules the checks itself (`scheduledChecks` in
+[`sparkle_darwin.go`](../../internal/update/sparkle_darwin.go), as on Linux and Windows) and
+Sparkle's own scheduled checks are off (`SUEnableAutomaticChecks` NO), since a release one of them
+found was held and no check ran after it (the owner's report: 0.48.2 offered while 0.49.1 was out,
+[D-4](../developer/decisions.md#d-4-packaging-and-updates)); each check is Sparkle's probing check,
+the same request through the same signature checks (`TestSparkleChecksAtEveryStart`: one request
+per start, whenever the last check was; `TestSparkleScheduledChecksFindTheNewestRelease`). Each check is
 one HTTPS request for the feed to GitHub Pages, which sees the copy's address, the time and the
 User-Agent Sparkle sends, the app's name and version beside Sparkle's (`Cogpit/0.16.0
 Sparkle/2.10.0`), now up to 24 times a day plus one per start instead of once a day. No system profile goes with it: `SUSendProfileInfo` is never set, and Sparkle's
 permission prompt, which would offer it, does not show because the `Info.plist` sets
 `SUEnableAutomaticChecks`. A check involves no kubeconfig, cluster or credential, and one that
-finds a release downloads nothing until the user chooses to install. Preferences › App › Check
+finds a release downloads nothing until the user chooses to install: since 2026-10-26
+`SUAllowsAutomaticUpdates` NO also takes Sparkle's "Automatically download and install updates"
+option out of its window, so no copy downloads or installs a release in the background (a user's
+earlier choice of it, kept in the app's user defaults, no longer counts). Preferences › App › Check
 for updates automatically off stops the scheduled checks and the start check; Help › Check for
 Updates… still asks.
 

@@ -13,7 +13,7 @@ import (
 
 // The Windows updater's own reading of its feed (winsparkle_windows.go, D-111). WinSparkle shows
 // its window as soon as a check of its own finds a release, and tells its host neither that nor
-// which, so the Update button (F7), which macOS gets from Sparkle's gentle reminders, comes from
+// which, so the Update button (F7), which macOS gets from Sparkle's probing checks, comes from
 // Cogpit reading the feed itself: the newest release the feed offers for this system and
 // architecture, newer than the running one. The feed is a Sparkle 2 signed feed, signed with the
 // update key whose public half the release carries; one that the key does not verify offers

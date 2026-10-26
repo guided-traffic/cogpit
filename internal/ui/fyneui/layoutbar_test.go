@@ -18,7 +18,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 )
 
-// uiNotifier is an updater that holds an update for the user, as Sparkle's gentle reminder does
+// uiNotifier is an updater that knows of a newer release, as a check of Sparkle's reports one
 // (internal/update): set changes what it holds and tells the engine on goroutines of their own.
 type uiNotifier struct {
 	uiUpdater

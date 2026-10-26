@@ -4,16 +4,19 @@
 // it then makes SPUStandardUpdaterController from another thread, as a goroutine would, without
 // starting the updater (no update check, no network, no window, nothing written to user
 // defaults), while the main thread pumps AppKit's events as GLFW's loop does, and prints
-// "state <state> <detail>" and "automatic <0|1|-1>". With "probe" it starts the updater (its
-// scheduled checks off), runs the check Sparkle's scheduler runs against the bundle's feed, and
-// prints what the user driver's delegate reports, "update <0|1> <version>", the Update button's
-// signal (F7); Sparkle shows no window for it. With "launch <0|1>" it starts the updater as the app
-// does, its scheduled checks off or on, and only pumps events: it prints every report, then, a few
-// seconds after the first or after the update session ended without one (a check that found
-// nothing reports nothing), "done"; the test counts how often the feed was asked.
+// "state <state> <detail>" and "automatic <0|1|-1>". With "probe <n>" it starts the updater and
+// runs n of Cogpit's scheduled checks (cogpitSparkleProbe) against the bundle's feed, each after
+// the one before ended, prints what the delegate reports, "update <0|1> <version>", the Update
+// button's signal (F7), and at the end "session <0|1>", whether Sparkle still runs an update
+// session; Sparkle shows no window for them. With "launch <0|1>" it starts the updater as the app
+// does, then, with 1, runs the check sparkle_darwin.go's scheduled checks run at once, and only
+// pumps events: it prints every report, then, a few seconds after the first or after the update
+// session ended without one, "automatic <0|1>" (Sparkle's own scheduled checks) and "done"; the
+// test counts how often the feed was asked.
 
 #import <Cocoa/Cocoa.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "sparkle_darwin.h"
@@ -53,14 +56,17 @@ int main(int argc, char **argv) {
 		if (code != COGPIT_SPARKLE_OK || argc < 2) {
 			return 0;
 		}
-		BOOL probe = strcmp(argv[1], "probe") == 0;
+		BOOL probe = strcmp(argv[1], "probe") == 0 && argc > 2;
 		BOOL launch = strcmp(argv[1], "launch") == 0 && argc > 2;
 		if (!probe && !launch && strcmp(argv[1], "create") != 0) {
 			return 0;
 		}
-		bool automatic = launch && strcmp(argv[2], "1") == 0;
+		BOOL automatic = launch && strcmp(argv[2], "1") == 0;
 		dispatch_async(dispatch_get_global_queue(QOS_CLASS_DEFAULT, 0), ^{
-			cogpitSparkleStart(automatic, probe || launch);
+			cogpitSparkleStart(probe || launch);
+			if (automatic) {
+				cogpitSparkleProbe();
+			}
 		});
 		__block int s = COGPIT_SPARKLE_IDLE;
 		int ready = probe || launch ? COGPIT_SPARKLE_RUNNING : COGPIT_SPARKLE_CREATED;
@@ -87,17 +93,23 @@ int main(int argc, char **argv) {
 			pump(4, ^BOOL {
 				return NO;
 			});
+			printf("automatic %d\n", cogpitSparkleAutomaticChecks());
 			printf("done\n");
 			fflush(stdout);
 			return 0;
 		}
-		cogpitSparkleCheckInBackground();
-		pump(20, ^BOOL {
-			return reports > 0;
-		});
-		if (reports == 0) {
-			printf("no report\n");
+		int n = atoi(argv[2]);
+		for (int i = 1; i <= n; i++) {
+			cogpitSparkleProbe();
+			pump(20, ^BOOL {
+				return reports >= i && cogpitSparkleSessionInProgress() == 0;
+			});
+			if (reports < i) {
+				printf("no report\n");
+				break;
+			}
 		}
+		printf("session %d\n", cogpitSparkleSessionInProgress());
 		fflush(stdout);
 		return 0;
 	}

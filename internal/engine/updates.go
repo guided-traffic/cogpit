@@ -61,7 +61,7 @@ type Updater interface {
 }
 
 // UpdateNotifier is an Updater that tells when it knows of a newer release (internal/update:
-// Sparkle's gentle reminders, F7): UIState.Update follows it, and the window shows its Update button
+// Sparkle's probing checks, F7): UIState.Update follows it, and the window shows its Update button
 // while one is available. An Updater without it never shows the button.
 type UpdateNotifier interface {
 	// AvailableUpdate returns the newer release's version while the updater holds one for the

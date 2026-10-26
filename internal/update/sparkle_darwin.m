@@ -1,10 +1,10 @@
 // Sparkle 2 loaded at run time: the AppKit side of sparkle_darwin.go. Cogpit's binary does not
 // link Sparkle, so its headers are not used either: the protocols below declare the few methods of
 // SPUStandardUpdaterController, SPUUpdater and SUAppcastItem that Cogpit calls, and the delegate
-// implements those of SPUStandardUserDriverDelegate it needs, as Sparkle 2.10's headers declare
-// them, so that the compiler knows their argument and return types. Compiled
-// without ARC, like Fyne's Objective-C: the controller is made once and kept for the process's
-// life.
+// implements those of SPUUpdaterDelegate and SPUStandardUserDriverDelegate it needs, as Sparkle
+// 2.10's headers declare them, so that the compiler knows their argument and return types.
+// Compiled without ARC, like Fyne's Objective-C: the controller is made once and kept for the
+// process's life.
 
 #import <Cocoa/Cocoa.h>
 #include <stdatomic.h>
@@ -17,16 +17,19 @@
 @property (nonatomic, readonly) BOOL canCheckForUpdates;
 @property (nonatomic, readonly) BOOL sessionInProgress;
 - (BOOL)startUpdater:(NSError **)error;
-- (void)checkForUpdatesInBackground;
+- (void)checkForUpdateInformation;
 @end
 
-// SUAppcastItem, the update the user driver delegate is told about: only its version is read.
+// SUAppcastItem, the update a check found: only its version is read.
 @protocol CogpitSUAppcastItem <NSObject>
 @property (nonatomic, copy, readonly) NSString *displayVersionString;
 @end
 
-// The Go side's report of an update held for the user, or of the update session's end
-// (sparkle_darwin.go's export; the test harness defines its own).
+// SPUUpdateCheckUpdateInformation of Sparkle's SPUUpdateCheck: the probing check's kind.
+enum { CogpitUpdateCheckUpdateInformation = 2 };
+
+// The Go side's report of a newer release a check found, or of none (sparkle_darwin.go's export;
+// the test harness defines its own).
 extern void cogpitSparkleUpdateChanged(bool available, char *version, int length);
 
 static void reportUpdate(bool available, id item) {
@@ -40,29 +43,53 @@ static void reportUpdate(bool available, id item) {
 	cogpitSparkleUpdateChanged(available, version, (int)strlen(version));
 }
 
-// CogpitSparkleDriverDelegate is the standard user driver's delegate, as SPUStandardUserDriverDelegate
-// in Sparkle 2.10's headers declares its methods: Cogpit takes over showing the updates scheduled
-// checks find (Sparkle's gentle reminders): Sparkle shows no window by itself, the window shows its
-// Update button while Sparkle holds the update, and the button's click (checkForUpdates:) brings
-// Sparkle's window with it up. A check the user started is Sparkle's to show, as always; it is
-// reported too, so the button shows while that window holds an update. Sparkle calls these on the
-// main thread.
-@interface CogpitSparkleDriverDelegate : NSObject
+static BOOL probing;      // a probe of cogpitSparkleProbe runs; main thread only
+static BOOL checkWaiting; // the user asked for a check while it ran; main thread only
+static void checkOnMain(void);
+
+// CogpitSparkleDelegate is the updater's delegate and its standard user driver's, as
+// SPUUpdaterDelegate and SPUStandardUserDriverDelegate in Sparkle 2.10's headers declare their
+// methods. Sparkle's own scheduled checks are off (startOnMain): one that finds a release holds it
+// in an update session until the user acts on it, and while that session lasts Sparkle checks no
+// more, neither on its schedule nor when the user asks (checkForUpdates: brings the held release
+// back up), so a copy that runs for days offers the first release it found however many followed
+// (the owner's report of 2026-10-26: 0.48.2 offered while 0.49.1 was out). Cogpit's scheduled
+// checks are Sparkle's probing checks instead (cogpitSparkleProbe, every hour from
+// sparkle_darwin.go): each reads the feed, reports what it found here and ends, so the window's
+// Update button names the newest release (F7), and the button's click and Help › Check for
+// Updates… read the feed again and bring Sparkle's window up with what it offers then. Sparkle
+// calls these on the main thread.
+@interface CogpitSparkleDelegate : NSObject
 @end
 
-@implementation CogpitSparkleDriverDelegate
-- (BOOL)supportsGentleScheduledUpdateReminders {
-	return YES;
+@implementation CogpitSparkleDelegate
+// A check found a newer release: a probe, or a check the user started.
+- (void)updater:(id)updater didFindValidUpdate:(id)item {
+	reportUpdate(true, item);
 }
 
-- (BOOL)standardUserDriverShouldHandleShowingScheduledUpdate:(id)update andInImmediateFocus:(BOOL)immediateFocus {
-	return NO; // never a window by itself, not even at launch: the Update button (F7)
+// A check found none newer (a probe leaves out the release the user skipped).
+- (void)updaterDidNotFindUpdate:(id)updater error:(NSError *)error {
+	reportUpdate(false, nil);
 }
 
-- (void)standardUserDriverWillHandleShowingUpdate:(BOOL)handleShowingUpdate forUpdate:(id)update state:(id)state {
-	reportUpdate(true, update);
+// A check ended. A probe's end runs the check the user asked for while it ran: Sparkle starts none
+// while another runs.
+- (void)updater:(id)updater didFinishUpdateCycleForUpdateCheck:(NSInteger)updateCheck error:(NSError *)error {
+	if (updateCheck != CogpitUpdateCheckUpdateInformation || !probing) {
+		return;
+	}
+	probing = NO;
+	if (checkWaiting) {
+		checkWaiting = NO;
+		dispatch_async(dispatch_get_main_queue(), ^{
+			checkOnMain();
+		});
+	}
 }
 
+// The update session of a check the user started ended: the release installed, skipped, put off
+// with "Remind Me Later", or the check failed. The button goes until the next probe finds it again.
 - (void)standardUserDriverWillFinishUpdateSession {
 	reportUpdate(false, nil);
 }
@@ -76,7 +103,7 @@ static void reportUpdate(bool available, id item) {
 
 static Class controllerClass;                                // set once by cogpitSparkleLoad
 static id<CogpitSPUStandardUpdaterController> controller;    // main thread only
-static CogpitSparkleDriverDelegate *driverDelegate;          // kept: Sparkle holds its delegates weakly
+static CogpitSparkleDelegate *sparkleDelegate;               // kept: Sparkle holds its delegates weakly
 static _Atomic int state = COGPIT_SPARKLE_IDLE;
 static char failure[512];                                    // written before state is FAILED
 
@@ -145,24 +172,22 @@ static void fail(NSString *why) {
 	atomic_store(&state, COGPIT_SPARKLE_FAILED);
 }
 
-// startOnMain makes the controller with its updater and Sparkle's standard window, sets the
-// scheduled checks as Cogpit's preference says (only when they differ: Sparkle keeps the value in
-// the app's user defaults) and starts the updater, whose error it keeps instead of the alert
-// SPUStandardUpdaterController's own startUpdater would show. With the scheduled checks on it then
-// checks once at once, the check Sparkle's scheduler runs, whenever the last check was: Sparkle's
-// own launch check waits until SUScheduledCheckInterval has passed since the last one, and Cogpit
-// checks at every start (the owner, 2026-10-16). What it finds goes to the user driver's delegate,
-// the Update button, never Sparkle's window by itself. Main thread.
-static void startOnMain(bool automaticChecks, bool startUpdater) {
+// startOnMain makes the controller with its updater and Sparkle's standard window, turns Sparkle's
+// own scheduled checks off (the bundle's Info.plist has them off; an older Cogpit kept them on in
+// the app's user defaults, where Sparkle keeps the value) and starts the updater, whose error it
+// keeps instead of the alert SPUStandardUpdaterController's own startUpdater would show. It checks
+// nothing: Cogpit's scheduled checks (cogpitSparkleProbe) do, the first right after this. Main
+// thread.
+static void startOnMain(bool startUpdater) {
 	@autoreleasepool {
 		if (controllerClass == Nil || controller != nil) {
 			return;
 		}
-		if (driverDelegate == nil) {
-			driverDelegate = [[CogpitSparkleDriverDelegate alloc] init]; // made with alloc: kept
+		if (sparkleDelegate == nil) {
+			sparkleDelegate = [[CogpitSparkleDelegate alloc] init]; // made with alloc: kept
 		}
 		id<CogpitSPUStandardUpdaterController> c =
-			[(id<CogpitSPUStandardUpdaterController>)[controllerClass alloc] initWithStartingUpdater:NO updaterDelegate:nil userDriverDelegate:driverDelegate];
+			[(id<CogpitSPUStandardUpdaterController>)[controllerClass alloc] initWithStartingUpdater:NO updaterDelegate:sparkleDelegate userDriverDelegate:sparkleDelegate];
 		if (c == nil) {
 			fail(@"SPUStandardUpdaterController could not be made");
 			return;
@@ -173,8 +198,8 @@ static void startOnMain(bool automaticChecks, bool startUpdater) {
 			atomic_store(&state, COGPIT_SPARKLE_CREATED);
 			return;
 		}
-		if (updater.automaticallyChecksForUpdates != automaticChecks) {
-			updater.automaticallyChecksForUpdates = automaticChecks;
+		if (updater.automaticallyChecksForUpdates) {
+			updater.automaticallyChecksForUpdates = NO;
 		}
 		NSError *err = nil;
 		if (![updater startUpdater:&err]) {
@@ -182,39 +207,56 @@ static void startOnMain(bool automaticChecks, bool startUpdater) {
 			return;
 		}
 		atomic_store(&state, COGPIT_SPARKLE_RUNNING);
-		if (automaticChecks) {
-			[updater checkForUpdatesInBackground];
-		}
 	}
 }
 
 // cogpitSparkleStart queues the start onto the main queue, which the app's event loop drains once
 // it runs: Sparkle starts after the app finished launching. startUpdater false makes the
 // controller only (the test harness). Any thread.
-void cogpitSparkleStart(bool automaticChecks, bool startUpdater) {
+void cogpitSparkleStart(bool startUpdater) {
 	atomic_store(&state, COGPIT_SPARKLE_STARTING);
 	dispatch_async(dispatch_get_main_queue(), ^{
-		startOnMain(automaticChecks, startUpdater);
+		startOnMain(startUpdater);
 	});
 }
 
-// cogpitSparkleCheck checks for updates with Sparkle's window, as its "Check for Updates…" menu
-// item does; while a check or an update is under way Sparkle's window is already up and nothing
-// more happens. Any thread.
+// checkOnMain checks for updates with Sparkle's window, as its "Check for Updates…" menu item does:
+// the feed is read again, whatever a probe found before. While a probe runs the check waits for
+// its end; while a check the user started or its update is under way, Sparkle's window is up
+// already and comes to the front. Main thread.
+static void checkOnMain(void) {
+	if (controller == nil || atomic_load(&state) != COGPIT_SPARKLE_RUNNING) {
+		return;
+	}
+	if (probing) {
+		checkWaiting = YES;
+		return;
+	}
+	if (controller.updater.canCheckForUpdates) {
+		[controller checkForUpdates:nil];
+	}
+}
+
+// cogpitSparkleCheck checks for updates with Sparkle's window (checkOnMain). Any thread.
 void cogpitSparkleCheck(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (controller != nil && atomic_load(&state) == COGPIT_SPARKLE_RUNNING && controller.updater.canCheckForUpdates) {
-			[controller checkForUpdates:nil];
-		}
+		checkOnMain();
 	});
 }
 
-// cogpitSparkleSetAutomaticChecks turns the scheduled checks on or off. Any thread.
-void cogpitSparkleSetAutomaticChecks(bool on) {
+// cogpitSparkleProbe runs Sparkle's probing check, Cogpit's scheduled check: it reads the feed,
+// tells the delegate what it found (the Update button) and ends, holding nothing; it leaves out the
+// release the user skipped. Nothing happens while another check or the user's update session runs:
+// that one reads the feed itself. Any thread.
+void cogpitSparkleProbe(void) {
 	dispatch_async(dispatch_get_main_queue(), ^{
-		if (controller != nil && atomic_load(&state) == COGPIT_SPARKLE_RUNNING &&
-			controller.updater.automaticallyChecksForUpdates != on) {
-			controller.updater.automaticallyChecksForUpdates = on;
+		if (controller == nil || atomic_load(&state) != COGPIT_SPARKLE_RUNNING || controller.updater.sessionInProgress) {
+			return;
+		}
+		probing = YES;
+		[controller.updater checkForUpdateInformation];
+		if (!controller.updater.sessionInProgress) {
+			probing = NO; // Sparkle did not start it
 		}
 	});
 }
@@ -226,17 +268,6 @@ int cogpitSparkleState(char *detail, size_t detailSize) {
 		strlcpy(detail, failure, detailSize);
 	}
 	return s;
-}
-
-// cogpitSparkleCheckInBackground runs the check Sparkle's scheduler runs, at once: what it finds
-// goes to the user driver's delegate. Any thread (the test harness; the app's start check runs in
-// startOnMain, the rest of the schedule is Sparkle's).
-void cogpitSparkleCheckInBackground(void) {
-	dispatch_async(dispatch_get_main_queue(), ^{
-		if (controller != nil && atomic_load(&state) == COGPIT_SPARKLE_RUNNING) {
-			[controller.updater checkForUpdatesInBackground];
-		}
-	});
 }
 
 // cogpitSparkleAutomaticChecks returns Sparkle's automaticallyChecksForUpdates, -1 without a

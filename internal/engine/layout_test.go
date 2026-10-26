@@ -103,7 +103,7 @@ func TestWorkspaceKeepsTheLayout(t *testing.T) {
 	}
 }
 
-// fakeNotifier is an updater that holds an update for the user, as Sparkle's gentle reminder does.
+// fakeNotifier is an updater that knows of a newer release, as a check of Sparkle's reports one.
 type fakeNotifier struct {
 	mu        sync.Mutex
 	version   string

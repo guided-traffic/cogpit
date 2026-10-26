@@ -1040,9 +1040,13 @@ every hour. A release such a check finds shows as a button at the top bar's righ
 end, left of the alerts pill, the bell and the layout toggles, not as Sparkle's window: "Update to v0.16.0" (# example: the
 version the feed names), "Update" when it names none or the bar has no room for the version (a
 narrow window beside a long context name); the tooltip names the version, and a click opens
-Sparkle's window with the release. The button stays until Sparkle's update session ends (the
-release installed or skipped, or put off with "Remind Me Later" until the next scheduled check)
-([D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)). Kept in
+Sparkle's window with the newest release, read from the feed again at that moment. Each check
+names the newest release, so a copy that runs for days moves the button on to a release that came
+out after the first one it found. The button goes when a check finds nothing newer and when
+Sparkle's update session ends (the release installed or skipped, or put off with "Remind Me Later"
+until the next check, an hour at the most)
+([D-54](decisions.md#d-54-the-layout-toggles-and-the-update-button)). Sparkle's window offers no
+automatic download and install: a release is downloaded when you click Install Update. Kept in
 `<user config dir>/Cogpit/preferences.json` with the other preferences. On Linux apt does the
 updating, with the same preference and button ([below](#updates-on-linux)); on Windows WinSparkle,
 whose button installs at once ([below](#updates-on-windows)).
