@@ -1699,8 +1699,11 @@ number there) opens a dock tab "Revisions · <release>", one per release:
   to the shown one would change), "From the older revision to the newer one" or "From the shown
   revision to the compared one". The first revision is the diff's old side (−), the second its new
   side (+); the open tab follows at once.
-- **Every text is selectable**: drag over it or double click a word, ⌘C (Ctrl+C) copies. The copy
-  icon copies what the tab shows: the values, the changed keys ("path: from → to"), a diff as its
+- **Every text worth copying is selectable**: a chart version, a time, an object's name and
+  namespace, a changed key and its values, the description, the status line, every line of the
+  values, manifests and diffs. Drag over it or double click a word, ⌘C (Ctrl+C) copies; a click on
+  a list row's text still picks the row. A revision's number and status, an object's kind, titles
+  and hints are plain words. The copy icon copies what the tab shows: the values, the changed keys ("path: from → to"), a diff as its
   − and + lines, an object, manifest.yaml; **Save as…** writes the same into a file.
 
 It reads the release records Cogpit's cache holds and asks the cluster nothing. `cogpit --demo`

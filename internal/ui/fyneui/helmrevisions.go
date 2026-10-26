@@ -57,8 +57,8 @@ type helmRevisionsTab struct {
 	valuesSeg   *twoWay
 	valuesView  *yamlview.View
 	valuesFind  *findBar
-	keysHead    *selLine
-	keyCols     *keyRow
+	keysHead    *textLine
+	keyCols     *keyTitles
 	keys        []helm.ValueChange
 	keysList    *widget.List
 	lineDiffBtn *textButton
@@ -67,7 +67,7 @@ type helmRevisionsTab struct {
 
 	// Manifest.
 	manifestSeg *twoWay
-	counts      *selLine
+	counts      *textLine
 	objs        []helm.ObjectChange // the objects listed: the diff's, or the revision's marked "="
 	objList     *widget.List
 	objSource   *selLine
@@ -168,10 +168,14 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 
 	r.revList = widget.NewList(
 		func() int { return len(r.history) },
-		func() fyne.CanvasObject { return newRevisionRow(r.copy) },
+		func() fyne.CanvasObject {
+			return newRevisionRow(r.copy, func(i widget.ListItemID) { r.revList.Select(i) })
+		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			if i >= 0 && i < len(r.history) {
-				o.(*revisionRow).set(r.history[i], r.history[i].Revision == r.st.Revision, r.history[i].Revision == r.st.Compare, r.history[i].Revision == r.newest, r.sh.timeFormat())
+				row := o.(*revisionRow)
+				row.id = i
+				row.set(r.history[i], r.history[i].Revision == r.st.Revision, r.history[i].Revision == r.st.Compare, r.history[i].Revision == r.newest, r.sh.timeFormat())
 			}
 		})
 	r.revList.HideSeparators = true
@@ -188,9 +192,9 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 
 	r.revBox, r.cmpBox = box(fitSelect{}, r.revPick), box(fitSelect{}, r.cmpPick)
 	pickers := container.NewHBox(
-		centred(newSel(newTextLine("Revision", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)), r.revBox,
+		centred(newTextLine("Revision", colorMuted, theme.SizeNameText, fyne.TextStyle{})), r.revBox,
 		gapOf(8),
-		centred(newSel(newTextLine("Compare with", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)), r.cmpBox,
+		centred(newTextLine("Compare with", colorMuted, theme.SizeNameText, fyne.TextStyle{})), r.cmpBox,
 		gapOf(16), r.modeSeg.root)
 	actions := container.NewHBox(r.rollback, r.copyBtn, r.saveBtn)
 	headLine := container.NewBorder(nil, nil, pickers, actions)
@@ -199,7 +203,7 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 	footer := container.NewStack(newSurface(colorDock), inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, r.status))
 	r.content = container.NewStack()
 	left := box(widthOf{revisionsListWidth}, container.NewBorder(
-		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, newSel(newTextLine("Revisions", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}), r.copy)),
+		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, newTextLine("Revisions", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})),
 		nil, nil, nil, r.revList))
 	body := container.NewBorder(nil, nil, container.NewHBox(left, newDivider(true)), nil, r.content)
 	r.root = container.NewBorder(container.NewVBox(header, newDivider(false)), container.NewVBox(newDivider(false), footer), nil, nil, body)
@@ -216,9 +220,8 @@ func (r *helmRevisionsTab) buildValues() {
 	})
 	r.valuesView = readOnlyYAML()
 	r.valuesFind = newViewerFindBar(r.sh, r.valuesView)
-	r.keysHead = newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), r.copy)
-	r.keyCols = newKeyRow(r.copy)
-	r.keyCols.header()
+	r.keysHead = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
+	r.keyCols = newKeyTitles()
 	r.keysList = widget.NewList(
 		func() int { return len(r.keys) },
 		func() fyne.CanvasObject { return newKeyRow(r.copy) },
@@ -242,13 +245,17 @@ func (r *helmRevisionsTab) buildManifest() {
 		raw := i == 1
 		r.set(helmRevisionsParams{Raw: &raw})
 	})
-	r.counts = newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)
+	r.counts = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	r.objList = widget.NewList(
 		func() int { return len(r.objs) },
-		func() fyne.CanvasObject { return newObjectRow(r.copy) },
+		func() fyne.CanvasObject {
+			return newObjectRow(r.copy, func(i widget.ListItemID) { r.objList.Select(i) })
+		},
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			if i >= 0 && i < len(r.objs) {
-				o.(*objectRow).set(r.objs[i], r.objs[i].Key() == r.selectedKey(), r.st.Compare != 0)
+				row := o.(*objectRow)
+				row.id = i
+				row.set(r.objs[i], r.objs[i].Key() == r.selectedKey(), r.st.Compare != 0)
 			}
 		})
 	r.objList.HideSeparators = true
@@ -508,11 +515,11 @@ func (r *helmRevisionsTab) renderValues() {
 		r.keys = r.diff.Changes
 		switch n := len(r.keys); n {
 		case 0:
-			setSel(r.keysHead, fmt.Sprintf("The values of revision %d and revision %d are the same", r.diff.From, r.diff.To))
+			r.keysHead.SetText(fmt.Sprintf("The values of revision %d and revision %d are the same", r.diff.From, r.diff.To))
 		case 1:
-			setSel(r.keysHead, fmt.Sprintf("1 key differs between revision %d and revision %d", r.diff.From, r.diff.To))
+			r.keysHead.SetText(fmt.Sprintf("1 key differs between revision %d and revision %d", r.diff.From, r.diff.To))
 		default:
-			setSel(r.keysHead, fmt.Sprintf("%d keys differ between revision %d and revision %d", n, r.diff.From, r.diff.To))
+			r.keysHead.SetText(fmt.Sprintf("%d keys differ between revision %d and revision %d", n, r.diff.From, r.diff.To))
 		}
 		r.keyCols.titles(r.sideName(r.diff.From), r.sideName(r.diff.To))
 		r.keysList.Refresh()
@@ -553,12 +560,12 @@ func (r *helmRevisionsTab) renderManifest() {
 	r.objs = r.objs[:0]
 	if compared {
 		r.objs = append(r.objs, r.diff.Objects...)
-		setSel(r.counts, fmt.Sprintf("%d changed · %d added · %d removed · %d the same, against revision %d", r.diff.Changed, r.diff.Added, r.diff.Removed, r.diff.Same, r.diff.From))
+		r.counts.SetText(fmt.Sprintf("%d changed · %d added · %d removed · %d the same, against revision %d", r.diff.Changed, r.diff.Added, r.diff.Removed, r.diff.Same, r.diff.From))
 	} else {
 		for _, o := range r.cur.Objects {
 			r.objs = append(r.objs, helm.ObjectChange{ManifestObject: o, Change: helm.ObjectSame})
 		}
-		setSel(r.counts, fmt.Sprintf("%d objects", len(r.objs)))
+		r.counts.SetText(fmt.Sprintf("%d objects", len(r.objs)))
 	}
 	r.objList.Refresh()
 	r.manifestTop.Objects = []fyne.CanvasObject{r.manifestSeg.root, gapOf(12), centred(r.counts)}
@@ -567,7 +574,7 @@ func (r *helmRevisionsTab) renderManifest() {
 		r.renderRaw()
 	} else {
 		r.renderObject(compared)
-		list := box(widthOf{objectsListWidth}, container.NewBorder(objectsHeader(compared, r.copy), nil, nil, nil, r.objList))
+		list := box(widthOf{objectsListWidth}, container.NewBorder(objectsHeader(compared), nil, nil, nil, r.objList))
 		r.manifestBox.Objects = []fyne.CanvasObject{container.NewBorder(nil, nil, container.NewHBox(list, newDivider(true)), nil, r.objBody)}
 	}
 	r.manifestTop.Refresh()
@@ -587,7 +594,7 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		}
 	}
 	if obj == nil {
-		r.objBody.Objects = []fyne.CanvasObject{centred(newSel(newTextLine("No object selected", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy))}
+		r.objBody.Objects = []fyne.CanvasObject{centred(newTextLine("No object selected", colorMuted, theme.SizeNameText, fyne.TextStyle{}))}
 		r.objBody.Refresh()
 		return
 	}
@@ -610,8 +617,8 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		view = container.NewStack(newSurface(theme.ColorNameInputBackground), r.objDiff.list)
 		r.setStatus(changeText(obj, r.diff.From, r.diff.To), colorMuted)
 		if obj.Secret && !shown && !engine.DiffChanged(r.diff.Lines) { // masked, its values' sizes alike
-			view = container.NewStack(newSurface(theme.ColorNameInputBackground), centred(newSel(newTextLine(
-				"Its values differ, their sizes do not: Show compares them.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{}), r.copy)))
+			view = container.NewStack(newSurface(theme.ColorNameInputBackground), centred(newTextLine(
+				"Its values differ, their sizes do not: Show compares them.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})))
 		}
 	default:
 		yamlText := r.objectYAML(key)
@@ -855,10 +862,14 @@ func (r *helmRevisionsTab) setStatus(text string, c fyne.ThemeColorName) {
 }
 
 // objectsHeader titles the objects' table as kubectl get titles its columns.
-func objectsHeader(compared bool, copied func(string)) fyne.CanvasObject {
-	h := newObjectRow(copied)
-	h.header(compared)
-	return h
+func objectsHeader(compared bool) fyne.CanvasObject {
+	delta := columnTitle("")
+	if compared {
+		delta.SetText("Δ")
+	}
+	delta.truncate = false
+	return inset(theme.SizeNameInnerPadding, theme.SizeNameLineSpacing,
+		container.New(&objectRowLayout{}, columnTitle("KIND"), columnTitle("NAME"), columnTitle("NAMESPACE"), delta))
 }
 
 // twoWay is the Overview's segmented control (instrument_segment.go) over two words, one chosen
@@ -940,36 +951,46 @@ func (l heightOf) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 
 func centred(o fyne.CanvasObject) fyne.CanvasObject { return container.NewCenter(o) }
 
-// revisionRow is one revision in the tab's list: its number, status and chart, the marks of the
-// revision shown (●) and compared (◆), and under them when it was deployed and its description.
+// revisionRow is one revision in the tab's list: its number, status and chart version, the marks
+// of the revision shown (●) and compared (◆), and under them when it was deployed. The version and
+// the time are worth copying and selectable, a click on them picks the row as one beside them does;
+// the number and the status are plain words (the owner, 2026-10-26: "Ein Index muss nicht
+// selektierbar sein. Auch Deployed oder Superseded nicht. Eine Version und ein Datum dagegen schon").
 type revisionRow struct {
 	widget.BaseWidget
 	bg            *canvas.Rectangle
-	num, status   *selLine
+	num, status   *textLine
 	chart         *selLine
 	mark          *textLine
+	current       *textLine // "current ·" before the newest's time, outside the time's selection
 	when          *selLine
+	whenBox       *fyne.Container
+	id            widget.ListItemID // the list's row it shows
 	selectedShown bool
 }
 
-func newRevisionRow(copied func(string)) *revisionRow {
+func newRevisionRow(copied func(string), pick func(widget.ListItemID)) *revisionRow {
 	r := &revisionRow{
-		bg:     canvas.NewRectangle(color.Transparent),
-		num:    newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), copied),
-		status: newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
-		chart:  newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), copied),
-		mark:   newTextLine("", colorAccent, theme.SizeNameText, fyne.TextStyle{Bold: true}),
-		when:   newSel(newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), copied),
+		bg:      canvas.NewRectangle(color.Transparent),
+		num:     newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}),
+		status:  newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
+		chart:   newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), copied),
+		mark:    newTextLine("", colorAccent, theme.SizeNameText, fyne.TextStyle{Bold: true}),
+		current: newTextLine("current ·", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+		when:    newSel(newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), copied),
 	}
+	r.whenBox = container.NewBorder(nil, nil, r.current, nil, r.when)
 	r.chart.line.truncate, r.when.line.truncate = true, true
+	r.chart.passClick(func() { pick(r.id) })
+	r.when.passClick(func() { pick(r.id) })
 	r.ExtendBaseWidget(r)
 	return r
 }
 
 func (r *revisionRow) set(e helm.HistoryEntry, shown, compared, newest bool, tf model.TimeFormat) {
-	setSel(r.num, strconv.Itoa(e.Revision))
-	setSel(r.status, helm.StatusText(e.Status))
-	r.status.line.SetColor(statusColorName(helm.StatusToken(e.Status)))
+	r.num.SetText(strconv.Itoa(e.Revision))
+	r.status.SetText(helm.StatusText(e.Status))
+	r.status.SetColor(statusColorName(helm.StatusToken(e.Status)))
 	setSel(r.chart, e.ChartVersion)
 	mark := ""
 	switch {
@@ -979,11 +1000,15 @@ func (r *revisionRow) set(e helm.HistoryEntry, shown, compared, newest bool, tf 
 		mark = "◆"
 	}
 	r.mark.SetText(mark)
-	when := tf.Format(e.Updated)
-	if newest {
-		when = "current · " + when
+	if newest != r.current.Visible() {
+		if newest {
+			r.current.Show()
+		} else {
+			r.current.Hide()
+		}
+		r.whenBox.Refresh()
 	}
-	setSel(r.when, when)
+	setSel(r.when, tf.Format(e.Updated))
 	r.selectedShown = shown
 	if shown {
 		r.bg.FillColor = themeColor(r.Theme(), colorRowSelected)
@@ -995,7 +1020,7 @@ func (r *revisionRow) set(e helm.HistoryEntry, shown, compared, newest bool, tf 
 
 func (r *revisionRow) CreateRenderer() fyne.WidgetRenderer {
 	top := container.NewBorder(nil, nil, container.NewHBox(box(widthOf{28}, r.num), box(widthOf{86}, r.status)), r.mark, r.chart)
-	content := inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVBox(top, r.when))
+	content := inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, container.NewVBox(top, r.whenBox))
 	return widget.NewSimpleRenderer(container.NewStack(r.bg, content))
 }
 
@@ -1019,20 +1044,38 @@ func newKeyRow(copied func(string)) *keyRow {
 	return r
 }
 
-// header makes the row the list's column titles.
-func (r *keyRow) header() {
-	for _, t := range []*textLine{r.path.line, r.from.line, r.arrow, r.to.line} {
-		t.color, t.size, t.style = colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}
-		t.Refresh()
-	}
-	r.arrow.SetText("")
+// keyTitles are the changed keys' column titles, plain words over keyRow's columns: KEY and the
+// revisions the comparison goes from and to.
+type keyTitles struct {
+	widget.BaseWidget
+	from, to *textLine
+	cols     *fyne.Container
+}
+
+func newKeyTitles() *keyTitles {
+	k := &keyTitles{from: columnTitle(""), to: columnTitle("")}
+	arrow := newTextLine("→", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	arrow.Hide() // its room only: the titles stand over the rows' columns
+	k.cols = container.New(&keyRowLayout{}, columnTitle("KEY"), k.from, arrow, k.to)
+	k.ExtendBaseWidget(k)
+	return k
 }
 
 // titles names the columns by the revisions the comparison goes from and to.
-func (r *keyRow) titles(from, to string) {
-	setSel(r.path, "KEY")
-	setSel(r.from, strings.ToUpper(from))
-	setSel(r.to, strings.ToUpper(to))
+func (k *keyTitles) titles(from, to string) {
+	k.from.SetText(strings.ToUpper(from))
+	k.to.SetText(strings.ToUpper(to))
+}
+
+func (k *keyTitles) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(inset(theme.SizeNameInnerPadding, theme.SizeNameLineSpacing, k.cols))
+}
+
+// columnTitle is a table's column title, a word cut off where its column ends.
+func columnTitle(text string) *textLine {
+	t := newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})
+	t.truncate = true
+	return t
 }
 
 func (r *keyRow) set(c helm.ValueChange) {
@@ -1081,43 +1124,34 @@ func (keyRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 // objectRow is one object of a manifest in the tab's table: Kind, Name, Namespace and, compared,
-// its mark.
+// its mark. The name and the namespace are worth copying and selectable, a click on them picks the
+// row; the kind is a plain word, as a revision's status is.
 type objectRow struct {
 	widget.BaseWidget
-	bg             *canvas.Rectangle
-	kind, name, ns *selLine
-	delta          *textLine
+	bg       *canvas.Rectangle
+	kind     *textLine
+	name, ns *selLine
+	delta    *textLine
+	id       widget.ListItemID // the list's row it shows
 }
 
-func newObjectRow(copied func(string)) *objectRow {
+func newObjectRow(copied func(string), pick func(widget.ListItemID)) *objectRow {
 	r := &objectRow{
 		bg:    canvas.NewRectangle(color.Transparent),
-		kind:  newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
+		kind:  newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
 		name:  newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
 		ns:    newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), copied),
 		delta: newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{Bold: true, Monospace: true}),
 	}
-	r.kind.line.truncate, r.name.line.truncate, r.ns.line.truncate = true, true, true
+	r.kind.truncate, r.name.line.truncate, r.ns.line.truncate = true, true, true
+	r.name.passClick(func() { pick(r.id) })
+	r.ns.passClick(func() { pick(r.id) })
 	r.ExtendBaseWidget(r)
 	return r
 }
 
-// header makes the row the table's column titles.
-func (r *objectRow) header(compared bool) {
-	for _, t := range []*textLine{r.kind.line, r.name.line, r.ns.line, r.delta} {
-		t.color, t.size, t.style = colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}
-		t.Refresh()
-	}
-	setSel(r.kind, "KIND")
-	setSel(r.name, "NAME")
-	setSel(r.ns, "NAMESPACE")
-	if compared {
-		r.delta.SetText("Δ")
-	}
-}
-
 func (r *objectRow) set(c helm.ObjectChange, selected, compared bool) {
-	setSel(r.kind, c.Kind)
+	r.kind.SetText(c.Kind)
 	setSel(r.name, c.Name)
 	setSel(r.ns, c.Namespace)
 	r.delta.SetText("")
@@ -1132,7 +1166,7 @@ func (r *objectRow) set(c helm.ObjectChange, selected, compared bool) {
 		nameColor = colorMuted
 	}
 	r.name.line.SetColor(nameColor)
-	r.kind.line.SetColor(nameColor)
+	r.kind.SetColor(nameColor)
 	if selected {
 		r.bg.FillColor = themeColor(r.Theme(), colorRowSelected)
 	} else {
@@ -1169,9 +1203,10 @@ func (objectRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	}
 }
 
-// copy puts a selected text on the clipboard: every text of the tab is selectable, a drag, a double
-// click on a word, ⌘C (the owner, 2026-10-26: "Ich möchte texte markieren können. Überall in diesen
-// Masken", D-25's selection).
+// copy puts a selected text on the clipboard: every text of the tab worth copying is selectable, a
+// drag, a double click on a word, ⌘C (the owner, 2026-10-26: "Ich möchte texte markieren können.
+// Überall in diesen Masken", D-25's selection); a number, a status, a kind, a title or a hint is a
+// plain word, and a list row's selectable text passes its click on to the row (passClick).
 func (r *helmRevisionsTab) copy(text string) { r.sh.copyText(text, false) }
 
 // newSel makes a line of the tab selectable, ⌘C copying its selection through copied.

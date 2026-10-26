@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -142,8 +143,8 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 5})
 	id := res.(commands.DockResult).Tab.ID
 	r := h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues})
-	if len(r.diff.Changes) == 0 || !strings.Contains(r.keysHead.line.text, "differ between revision 6 and revision 5") {
-		t.Errorf("values compared: %+v %q", r.diff.Changes, r.keysHead.line.text)
+	if len(r.diff.Changes) == 0 || !strings.Contains(r.keysHead.text, "differ between revision 6 and revision 5") {
+		t.Errorf("values compared: %+v %q", r.diff.Changes, r.keysHead.text)
 	}
 	savePNG(t, h.w, name("values_compared"))
 
@@ -234,8 +235,8 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	}
 	link("3").Tapped(nil)
 	r := h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues})
-	if !strings.Contains(r.keysHead.line.text, "between revision 6 and revision 3") {
-		t.Errorf("revision 3 compared: %q", r.keysHead.line.text)
+	if !strings.Contains(r.keysHead.text, "between revision 6 and revision 3") {
+		t.Errorf("revision 3 compared: %q", r.keysHead.text)
 	}
 	link("Open revisions").Tapped(nil)
 	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsValues})
@@ -306,8 +307,8 @@ func TestRevisionsDiffPreference(t *testing.T) {
 		h.dispatch("preferences.set", map[string]any{"revisionsDiff": c.way})
 		h.until("the preference "+c.way, func() bool { return h.sh.revisionsDiff() == c.way })
 		r := h.tab(want)
-		if r.diff.From != c.from || r.diff.To != c.to || r.keyCols.from.line.text != c.fromCol || r.keyCols.to.line.text != c.toCol {
-			t.Errorf("%q: %d → %d, columns %q %q", c.way, r.diff.From, r.diff.To, r.keyCols.from.line.text, r.keyCols.to.line.text)
+		if r.diff.From != c.from || r.diff.To != c.to || r.keyCols.from.text != c.fromCol || r.keyCols.to.text != c.toCol {
+			t.Errorf("%q: %d → %d, columns %q %q", c.way, r.diff.From, r.diff.To, r.keyCols.from.text, r.keyCols.to.text)
 		}
 		for _, k := range r.diff.Changes {
 			if k.Path == "image.tag" && (k.From != map[bool]string{true: "2.4.0", false: "2.3.1"}[c.from == 6] || k.To != map[bool]string{true: "2.3.1", false: "2.4.0"}[c.from == 6]) {
@@ -322,9 +323,10 @@ func TestRevisionsDiffPreference(t *testing.T) {
 	}
 }
 
-// Every text of the tab is selectable and ⌘C copies it (the owner, 2026-10-26): a changed key's
-// path and values, a revision in the list, an object's name, a diff's line, the status line; the
-// copy icon copies what the tab shows, the changed keys or the diff, not an older text.
+// Every text of the tab worth copying is selectable and ⌘C copies it (the owner, 2026-10-26): a
+// changed key's path and values, a revision's chart version and time, an object's name, a diff's
+// line, the status line; the copy icon copies what the tab shows, the changed keys or the diff, not
+// an older text.
 func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
 	h := newRevisionsHarness(t, ThemeDark)
 	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 3})
@@ -354,17 +356,9 @@ func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
 		return key != nil
 	})
 	copyOf("a key's path", key.path, key.path.line.text)
-	copyOf("the keys' title", r.keysHead, strings.Fields(r.keysHead.line.text)[0])
-	var rev *revisionRow
-	h.until("a revision's row", func() bool {
-		for _, x := range findAll[*revisionRow](r.revList) {
-			if x.status.line.text != "" {
-				rev = x
-			}
-		}
-		return rev != nil
-	})
-	copyOf("a revision's status", rev.status, rev.status.line.text)
+	rev := h.revisionRow(r, 0)
+	copyOf("a revision's chart version", rev.chart, rev.chart.line.text)
+	copyOf("a revision's time", rev.when, strings.Fields(rev.when.line.text)[0])
 	copyOf("the status line", r.status, strings.Fields(r.status.line.text)[0])
 
 	r.copyShown()
@@ -394,18 +388,81 @@ func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
 
 	h.set(id, map[string]any{"mode": "manifest", "object": "Deployment.apps/demo-shop/shop-web"})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsManifest, LineDiff: true, Object: "Deployment.apps/demo-shop/shop-web"})
-	var obj *objectRow
-	h.until("an object's row", func() bool {
-		for _, x := range findAll[*objectRow](r.objList) {
-			if x.name.line.text != "" {
-				obj = x
-			}
-		}
-		return obj != nil
-	})
+	obj := h.objectRow(r, func(o *objectRow) bool { return o.name.line.text != "" })
 	copyOf("an object's name", obj.name, obj.name.line.text)
 	r.copyShown()
 	if got := clip.Content(); !strings.Contains(got, "- ") || !strings.Contains(got, "+ ") {
 		t.Errorf("the copy icon on an object's diff: %q", got)
 	}
+}
+
+// A click on a row's text worth copying picks the row at once, as a click beside it does (the
+// owner, 2026-10-26: the revisions could hardly be clicked, the rows being selectable text); a
+// drag over it selects and picks nothing.
+func TestRevisionsRowTextsPassTheirClick(t *testing.T) {
+	h := newRevisionsHarness(t, ThemeDark)
+	h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 3})
+	r := h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues})
+	press := &desktop.MouseEvent{Button: desktop.MouseButtonPrimary}
+	press.Position = fyne.NewPos(2, 2)
+	click := func(s *selLine) {
+		s.MouseDown(press)
+		s.MouseUp(press)
+	}
+
+	rev := h.revisionRow(r, 1)
+	want := r.history[rev.id].Revision
+	rev.chart.MouseDown(press)
+	rev.chart.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{Position: fyne.NewPos(30, 2)}, Dragged: fyne.NewDelta(28, 0)})
+	rev.chart.MouseUp(press)
+	rev.chart.DragEnd()
+	h.q.drain()
+	if r.st.Revision != 3 || rev.chart.SelectedText() == "" {
+		t.Errorf("a drag over revision %d's version: revision %d shown, selected %q", want, r.st.Revision, rev.chart.SelectedText())
+	}
+	click(rev.chart)
+	h.until("the revision clicked by its version", func() bool { return r.st.Revision == want && r.cur.Revision == want })
+
+	rev = h.revisionRow(r, 2)
+	want = r.history[rev.id].Revision
+	click(rev.when)
+	h.until("the revision clicked by its time", func() bool { return r.st.Revision == want && r.cur.Revision == want })
+
+	h.set(r.tab.ID, map[string]any{"mode": "manifest", "compare": 0})
+	h.until("the manifest", func() bool { return r.st.Mode == engine.RevisionsManifest && len(r.objs) > 1 })
+	obj := h.objectRow(r, func(o *objectRow) bool { return o.id > 0 && o.name.line.text != "" })
+	key := r.objs[obj.id].Key()
+	click(obj.name)
+	h.until("the object clicked by its name", func() bool { return r.st.Object == key })
+}
+
+// revisionRow is the revision list's row that shows its i-th revision; a list keeps rows it does
+// not show, empty.
+func (h *revisionsHarness) revisionRow(r *helmRevisionsTab, i int) *revisionRow {
+	h.t.Helper()
+	var row *revisionRow
+	h.until("a revision's row", func() bool {
+		for _, x := range findAll[*revisionRow](r.revList) {
+			if x.id == i && x.chart.line.text != "" {
+				row = x
+			}
+		}
+		return row != nil
+	})
+	return row
+}
+
+// objectRow is a row of the objects' table that shows an object as ok asks.
+func (h *revisionsHarness) objectRow(r *helmRevisionsTab, ok func(*objectRow) bool) *objectRow {
+	h.t.Helper()
+	var row *objectRow
+	h.until("an object's row", func() bool {
+		for _, x := range findAll[*objectRow](r.objList) {
+			if ok(x) {
+				row = x
+			}
+		}
+		return row != nil
+	})
+	return row
 }

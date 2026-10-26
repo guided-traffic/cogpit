@@ -191,9 +191,34 @@ func (s *textSelection) Enable() {}
 type selLine struct {
 	widget.BaseWidget
 	textSelection
-	line *textLine
-	hook *copyHook // the copy icon's target; nil: the text has no icon
-	room float32   // kept free of text at the right end: the copy icon is there (copy.go)
+	line    *textLine
+	hook    *copyHook // the copy icon's target; nil: the text has no icon
+	room    float32   // kept free of text at the right end: the copy icon is there (copy.go)
+	tap     func()    // a click that drags nothing: the row's (passClick); nil: it only drops a selection
+	pressed bool      // the primary button went down on the line
+}
+
+// passClick makes a click on the line the click of the row it stands in: a list row's text worth
+// copying (a version, a date, a name) still selects with a drag or a double click, and a click on it
+// picks the row at once, as one beside it does. Fyne hands a click to the line under the pointer,
+// never to the row beneath it, and a double-tappable widget's Tapped comes only after the system's
+// double-click interval (the owner, 2026-10-26: the Revisions tab's rows could hardly be clicked).
+func (s *selLine) passClick(tap func()) { s.tap = tap }
+
+// MouseDown implements desktop.Mouseable: a click takes focus and drops a selection.
+func (s *selLine) MouseDown(ev *desktop.MouseEvent) {
+	s.pressed = ev.Button == desktop.MouseButtonPrimary
+	s.textSelection.MouseDown(ev)
+}
+
+// MouseUp implements desktop.Mouseable: a click that dragged nothing goes on to the row. The driver
+// ends a drag after this, so a drag that selected is still dragging here.
+func (s *selLine) MouseUp(*desktop.MouseEvent) {
+	pressed := s.pressed
+	s.pressed = false
+	if pressed && !s.dragging && s.tap != nil {
+		s.tap()
+	}
 }
 
 // setIconRoom implements iconRoom: a cut-off line shortens its text before the copy icon.
