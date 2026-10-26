@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime"
 	"slices"
 	"strings"
 	"testing"
@@ -277,7 +278,9 @@ func menuItemWithin(m *fyne.MainMenu, sc fyne.Shortcut) *fyne.MenuItem {
 }
 
 // The tab keys are main-menu items, so they work whatever has the focus: ⌘W, ⌘⌥→, ⌘⌥←, ⌘1–⌘8,
-// ⌘9 (the last tab), ⌃- and ⌃⇧-; a key with nothing to do dispatches nothing.
+// ⌘9 (the last tab), and Go Back and Go Forward with VS Code's keys on each platform (D-134: ⌃- and
+// ⌃⇧- on macOS, Ctrl+Alt+- and Ctrl+Shift+- on Linux, Alt+← and Alt+→ on Windows); a key with
+// nothing to do dispatches nothing.
 func TestTabShortcuts(t *testing.T) {
 	sh, _, q, f := tabsShell(t, ThemeDark)
 	sd := fyne.KeyModifierShortcutDefault
@@ -292,8 +295,17 @@ func TestTabShortcuts(t *testing.T) {
 	}
 	press(&desktop.CustomShortcut{KeyName: fyne.KeyRight, Modifier: sd | fyne.KeyModifierAlt})
 	press(&desktop.CustomShortcut{KeyName: fyne.KeyLeft, Modifier: sd | fyne.KeyModifierAlt})
-	press(&desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierControl})                         // tab-2 has a view before
-	press(&desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift}) // and none after
+	back := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierControl}
+	forward := &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierControl | fyne.KeyModifierShift}
+	switch runtime.GOOS {
+	case "windows":
+		back = &desktop.CustomShortcut{KeyName: fyne.KeyLeft, Modifier: fyne.KeyModifierAlt}
+		forward = &desktop.CustomShortcut{KeyName: fyne.KeyRight, Modifier: fyne.KeyModifierAlt}
+	case "linux":
+		back = &desktop.CustomShortcut{KeyName: fyne.KeyMinus, Modifier: fyne.KeyModifierControl | fyne.KeyModifierAlt}
+	}
+	press(back)    // tab-2 has a view before
+	press(forward) // and none after
 	press(&desktop.CustomShortcut{KeyName: fyne.Key1, Modifier: sd})
 	q.until(t, "tab 1", func() bool { return sh.ui.ActiveTab == "tab-1" })
 	press(&desktop.CustomShortcut{KeyName: fyne.Key9, Modifier: sd})

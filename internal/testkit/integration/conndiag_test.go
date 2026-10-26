@@ -82,8 +82,20 @@ func TestConnectionDiagnosticsOfALimitedUser(t *testing.T) {
 	}) {
 		t.Errorf("budgets = %+v", r.Budgets)
 	}
-	if d := s.Diagnostics(); d.Problems != r.Problems {
-		t.Errorf("the status bar's count = %d, the report's %d", d.Problems, r.Problems)
+	// The status bar's count is the report's. The log may still take a line between two reads (a
+	// retried refusal, another namespace's fallback: CI's race job, 2026-10-26, 4 against 3), so
+	// both are read until a pair of reads agrees; counts that differ by design never would.
+	var bar, report int
+	if !testkit.WaitFor(ctx, func() bool {
+		res, err := s.Dispatch(ctx, engine.Invocation{ID: "diagnostics.get", Params: json.RawMessage(`{}`), Origin: gui})
+		if err != nil {
+			t.Fatal(err)
+		}
+		report = res.(engine.DiagnosticsReport).Problems
+		bar = s.Diagnostics().Problems
+		return bar == report
+	}) {
+		t.Errorf("the status bar's count = %d, the report's %d", bar, report)
 	}
 
 	res, err := s.Dispatch(ctx, engine.Invocation{ID: "diagnostics.report", Params: json.RawMessage(`{}`), Origin: engine.OriginExternalAgent})
