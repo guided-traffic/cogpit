@@ -46,6 +46,14 @@ type FakeAPIOptions struct {
 	// DisableWatchList makes the server reject watches with sendInitialEvents=true, like a server
 	// without the WatchList feature; client-go then falls back to a list and a watch.
 	DisableWatchList bool
+	// StallWatchList makes streamed initial lists stall, as some clusters' do (D-135): the server
+	// answers and sends the objects, then never the bookmark that ends them. Lists and plain
+	// watches answer as before.
+	StallWatchList bool
+	// WarmingCaches are resources ("pods", "deployments.apps") whose first watch the server
+	// answers 429 "storage is (re)initializing" with Retry-After 1, as an API server does while it
+	// builds its cache of the resource (D-135); every request after it is answered.
+	WarmingCaches []string
 	// BrokenGroups are API groups listed in /apis whose discovery answers 503, like an aggregated
 	// API whose backend is down.
 	BrokenGroups []string
@@ -85,6 +93,7 @@ type FakeAPIServer struct {
 	history   map[schema.GroupVersionResource][]memEvent
 	watchers  map[*apiWatcher]struct{}
 	requests  map[string]int64
+	warmed    map[string]bool         // the WarmingCaches whose first watch was answered 429
 	proxies   map[string]http.Handler // "namespace/name:port" -> the service behind the proxy
 	scoped    map[string]int64        // resource reads by "verb resource" and namespace (nsrefusing.go)
 	logs      fakeLogs                // the containers' logs (fakelogs.go)
@@ -569,6 +578,10 @@ func (s *FakeAPIServer) serveResource(w http.ResponseWriter, r *http.Request, pa
 	case r.Method != http.MethodGet:
 		s.count("other", resource)
 		writeStatus(w, http.StatusMethodNotAllowed, "MethodNotAllowed", "the fake API server only reads")
+	case watching && s.warming(resource):
+		s.count(map[bool]string{true: "watchlist", false: "watch"}[initial], resource)
+		w.Header().Set("Retry-After", "1")
+		writeStatus(w, http.StatusTooManyRequests, "TooManyRequests", "storage is (re)initializing")
 	case watching && initial:
 		s.count("watchlist", resource)
 		if s.opts.DisableWatchList {
@@ -734,7 +747,7 @@ func (s *FakeAPIServer) serveWatch(w http.ResponseWriter, r *http.Request, req f
 		for _, o := range objs {
 			first = append(first, map[string]any{"type": string(watch.Added), "object": req.render(o)})
 		}
-		if initial {
+		if initial && !s.opts.StallWatchList {
 			bmAPIVersion, bmKind := req.res.GVR.GroupVersion().String(), req.res.Kind
 			if req.metadata {
 				bmAPIVersion, bmKind = "meta.k8s.io/v1", "PartialObjectMetadata"
@@ -798,6 +811,24 @@ func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+// warming reports whether a watch of resource is the first one of a cache that is warming up
+// (FakeAPIOptions.WarmingCaches), and marks it answered.
+func (s *FakeAPIServer) warming(resource string) bool {
+	if !contains(s.opts.WarmingCaches, resource) {
+		return false
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.warmed[resource] {
+		return false
+	}
+	if s.warmed == nil {
+		s.warmed = map[string]bool{}
+	}
+	s.warmed[resource] = true
+	return true
 }
 
 func writeStatus(w http.ResponseWriter, code int, reason, message string) {

@@ -33,6 +33,10 @@ func (s *Session) diagnosticsOf(contextID string, b *Backend, memory bool) Diagn
 		d.Discovery = &info
 		d.Problems = b.Conn.DiagLog().Problems()
 	}
+	if b.Cache != nil && b.Cache.Listing() {
+		cs, _ := s.ClusterSettingsOf(b.Context) // none kept: a stall of this connection's
+		d.Streams = streamsText(b, cs)
+	}
 	switch {
 	case b.Cache != nil && memory:
 		d.Informers = b.Cache.StatsWithMemory()

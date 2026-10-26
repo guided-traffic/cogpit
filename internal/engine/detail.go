@@ -99,4 +99,7 @@ type Diagnostics struct {
 	// Problems counts the lines of the context's diagnostics log seen since its latest connect
 	// (D-133): the status bar's button shows it.
 	Problems int `json:"problems,omitempty"`
+	// Streams says why the connection lists every read's initial list instead of streaming it
+	// (D-135, initiallists.go); empty while it streams.
+	Streams string `json:"streams,omitempty"`
 }

@@ -107,8 +107,8 @@ func reportText(r DiagnosticsReport, attempts []ConnectAttempt, now time.Time) s
 	}
 
 	line("\n== Initial lists of the open and warm watches ==")
-	line("streamed by the server %d · listed %d · listed after the server did not stream them %d",
-		r.Streaming.Streamed, r.Streaming.Listed, r.Streaming.FellBack)
+	line("streamed by the server %d · listed %d · listed after the server did not stream them %d%s",
+		r.Streaming.Streamed, r.Streaming.Listed, r.Streaming.FellBack, StreamsOffText(r.Streaming))
 
 	line("\n== Log, the line seen last first (at most %d lines) ==", cluster.DiagLogLimit)
 	if len(r.Log) == 0 {
@@ -167,6 +167,8 @@ func DiagKindLabel(kind string) string {
 		return "unauthorized"
 	case cluster.DiagTooMany:
 		return "too many (429)"
+	case cluster.DiagWarming:
+		return "cache warming"
 	case cluster.DiagServerError:
 		return "server error"
 	case cluster.DiagTimeout:
@@ -196,9 +198,20 @@ const (
 	SeverityInfo    = "info"
 )
 
+// DiagEntrySeverity is how bad a diagnostics line is: a line that is no problem is information (a
+// connect, a kind read namespace by namespace, a cache warming up that did not repeat), else its
+// kind's (DiagSeverity).
+func DiagEntrySeverity(e cluster.DiagEntry) string {
+	if !e.Problem {
+		return SeverityInfo
+	}
+	return DiagSeverity(e.Kind)
+}
+
 // DiagSeverity is how bad a kind of diagnostics line is: a refusal, a request without an answer or
-// a server's error is an error; a wait, a slow answer or load, a 429 and an initial list not
-// streamed a warning; a connect and a kind read namespace by namespace information.
+// a server's error is an error; a wait, a slow answer or load, a 429, a cache warming up that
+// repeated and an initial list not streamed a warning; a connect and a kind read namespace by
+// namespace information.
 func DiagSeverity(k cluster.DiagKind) string {
 	switch k {
 	case cluster.DiagRefused, cluster.DiagUnauthorized, cluster.DiagTimeout, cluster.DiagNetwork, cluster.DiagServerError:
@@ -322,4 +335,13 @@ func requestsCount(n int64) string {
 // formatRate writes a rate without a needless fraction: "5", "2.5".
 func formatRate(q float32) string {
 	return strings.TrimSuffix(strings.TrimRight(fmt.Sprintf("%.2f", q), "0"), ".")
+}
+
+// StreamsOffText is what the initial lists' line adds while the connection lists every read
+// instead of streaming it, and why (D-135); "" while it streams.
+func StreamsOffText(s DiagStreaming) string {
+	if s.Off == "" {
+		return ""
+	}
+	return " · streams off, every read lists: " + s.Off
 }

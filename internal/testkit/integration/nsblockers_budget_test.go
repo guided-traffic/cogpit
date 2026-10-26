@@ -94,7 +94,7 @@ func TestBudgetTerminatingNamespaceBlockers(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return srv.OpenWatchesBy()["configmaps (metadata)"] == 1 }) {
 		t.Fatalf("open watches %v", srv.OpenWatchesBy())
 	}
-	want := map[string]int64{"watchlist configmaps (metadata) in walk-fin": 1}
+	want := map[string]int64{"list configmaps (metadata) in walk-fin": 1, "watch configmaps (metadata) in walk-fin": 1}
 	if got := reads(); !maps.Equal(got, want) {
 		t.Errorf("reads %v, want %v (metadata only, in walk-fin, no Secrets)", got, want)
 	}

@@ -90,10 +90,10 @@ func TestBudgetAccessibleNamespaces(t *testing.T) {
 		if !testkit.WaitFor(ctx, func() bool { return srv.OpenWatchesBy()["pods"] == 2 }) {
 			t.Fatalf("open pod watches: %v, want 2", srv.OpenWatchesBy())
 		}
-		want := map[string]int64{"watchlist pods in team-a": 1, "watchlist pods in team-b": 1}
+		want := map[string]int64{"list pods in team-a": 1, "watch pods in team-a": 1, "list pods in team-b": 1, "watch pods in team-b": 1}
 		settled := podReads(srv)
 		if !maps.Equal(settled, want) {
-			t.Errorf("pod reads %v, want %v (one watch per namespace, nothing in all namespaces)", settled, want)
+			t.Errorf("pod reads %v, want %v (one list and one watch per namespace, nothing in all namespaces)", settled, want)
 		}
 		conn := s.Backend().Conn
 		r, a := reviews(conn.Counter().Snapshot())
@@ -107,8 +107,8 @@ func TestBudgetAccessibleNamespaces(t *testing.T) {
 			reads += n
 		}
 		how := "the engine against the fake API server, which enforces RBAC and counts reads per namespace"
-		scorecard.Record(t, scorecard.Measurement{Budget: "P15", Metric: "pod reads of a user limited to two named namespaces (one watch each, none cluster-wide)",
-			Value: float64(reads), Unit: "requests", Limit: 2, How: how})
+		scorecard.Record(t, scorecard.Measurement{Budget: "P15", Metric: "pod reads of a user limited to two named namespaces (one list and one watch each, none cluster-wide)",
+			Value: float64(reads), Unit: "requests", Limit: 4, How: how})
 
 		total := settledTotal(ctx, t, conn.Counter().Snapshot)
 		time.Sleep(idle)
@@ -129,7 +129,7 @@ func TestBudgetAccessibleNamespaces(t *testing.T) {
 		if !testkit.WaitFor(ctx, func() bool { return srv.OpenWatchesBy()["pods"] == 1 }) {
 			t.Fatalf("open pod watches: %v, want 1", srv.OpenWatchesBy())
 		}
-		if got, want := podReads(srv), map[string]int64{"watchlist pods": 1}; !maps.Equal(got, want) {
+		if got, want := podReads(srv), map[string]int64{"list pods": 1, "watch pods": 1}; !maps.Equal(got, want) {
 			t.Errorf("pod reads %v, want %v", got, want)
 		}
 		if r, a := reviews(s.Backend().Conn.Counter().Snapshot()); r != 1 || a != 0 {

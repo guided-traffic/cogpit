@@ -59,6 +59,11 @@ const (
 	// discoveryQPS and discoveryBurst are discovery's own budget (kubectl's values).
 	discoveryQPS   = 50
 	discoveryBurst = 300
+	// listQPS and listBurst are the cache's own budget for its lists (D-135, the owner's choice of
+	// 2026-10-26: discovery's values): a read lists its objects once and then watches, and a connect
+	// that reads many kinds, several namespaces each, would wait seconds at DefaultQPS.
+	listQPS   = 50
+	listBurst = 300
 )
 
 // Options say which kubeconfig context to connect to.
@@ -259,6 +264,8 @@ type Conn struct {
 	kube        kubernetes.Interface
 	dyn         dynamic.Interface
 	meta        metadata.Interface
+	cacheDyn    dynamic.Interface  // the cache's, with the lists' budget
+	cacheMeta   metadata.Interface // the cache's metadata-only reads, with the lists' budget
 	disco       discovery.DiscoveryInterface
 	counter     *RequestCounter
 	warnings    *warningLog
@@ -267,6 +274,7 @@ type Conn struct {
 	// the access reviews' limit is theirs (access.go).
 	diag       *DiagLog
 	limiter    *measuredLimiter
+	listLimit  *measuredLimiter
 	discoLimit *measuredLimiter
 
 	// The discovery answer: client-go's memory cache over the disk cache over disco (discocache.go),
@@ -446,6 +454,21 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	if err != nil {
 		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
 	}
+	// The cache's lists get their own, larger budget (D-135): served from the API server's watch
+	// cache (resourceVersion=0), they are cheap for it; gets and writes stay at the requests' budget.
+	// The clients share the HTTP client, and with it the connection, the counters and the gates.
+	listCfg := rest.CopyConfig(cfg)
+	listCfg.QPS, listCfg.Burst = listQPS, listBurst
+	listLimiter := newMeasuredLimiter(BudgetLists, listQPS, listBurst, diag)
+	listCfg.RateLimiter = listLimiter
+	cacheDyn, err := dynamic.NewForConfigAndClient(listCfg, httpClient)
+	if err != nil {
+		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
+	}
+	cacheMeta, err := metadata.NewForConfigAndClient(listCfg, httpClient)
+	if err != nil {
+		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
+	}
 	// Discovery gets its own, larger budget, as kubectl gives it: a cluster without aggregated
 	// discovery answers with one request per group version (and client-go repeats the round once
 	// when a group fails), which at 5 per second would take many seconds.
@@ -468,10 +491,13 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 		kube:        kube,
 		dyn:         dyn,
 		meta:        meta,
+		cacheDyn:    cacheDyn,
+		cacheMeta:   cacheMeta,
 		disco:       disco,
 		counter:     counter,
 		diag:        diag,
 		limiter:     limiter,
+		listLimit:   listLimiter,
 		discoLimit:  discoLimiter,
 		warnings:    warnings,
 		health:      health,
@@ -677,11 +703,29 @@ func (c *Conn) RESTConfig() *rest.Config { return rest.CopyConfig(c.config) }
 // Kube returns the typed clientset.
 func (c *Conn) Kube() kubernetes.Interface { return c.kube }
 
-// Dynamic returns the dynamic client the cache builds its informers from.
+// Dynamic returns the dynamic client of gets and writes, with the requests' budget.
 func (c *Conn) Dynamic() dynamic.Interface { return c.dyn }
 
-// Metadata returns the metadata client the cache builds its metadata-only informers from.
+// Metadata returns the metadata client with the requests' budget.
 func (c *Conn) Metadata() metadata.Interface { return c.meta }
+
+// CacheDynamic returns the dynamic client the cache builds its informers from: the lists' budget
+// (D-135); Dynamic for a connection built around a clientset (tests).
+func (c *Conn) CacheDynamic() dynamic.Interface {
+	if c.cacheDyn != nil {
+		return c.cacheDyn
+	}
+	return c.dyn
+}
+
+// CacheMetadata returns the metadata client the cache builds its metadata-only informers from: the
+// lists' budget (D-135); Metadata for a connection built around a clientset (tests).
+func (c *Conn) CacheMetadata() metadata.Interface {
+	if c.cacheMeta != nil {
+		return c.cacheMeta
+	}
+	return c.meta
+}
 
 // Counter returns the connection's API request counter.
 func (c *Conn) Counter() *RequestCounter { return c.counter }
@@ -691,10 +735,10 @@ func (c *Conn) Counter() *RequestCounter { return c.counter }
 func (c *Conn) DiagLog() *DiagLog { return c.diag }
 
 // Budgets returns the connection's rate limits and what waited at each since it began: the
-// requests', discovery's and, once the first review was asked, the access reviews' (D-133).
+// requests', the cache's lists' (D-135), discovery's and, once the first review was asked, the access reviews' (D-133).
 func (c *Conn) Budgets() []BudgetStats {
 	var out []BudgetStats
-	for _, m := range []*measuredLimiter{c.limiter, c.discoLimit, c.access.limiter.Load()} {
+	for _, m := range []*measuredLimiter{c.limiter, c.listLimit, c.discoLimit, c.access.limiter.Load()} {
 		if m != nil {
 			out = append(out, m.Stats())
 		}

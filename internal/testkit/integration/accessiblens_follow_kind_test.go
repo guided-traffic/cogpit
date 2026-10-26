@@ -161,8 +161,8 @@ func TestKindNamespaceLimitedUser(t *testing.T) {
 	st := b.Conn.Counter().Snapshot()
 	t.Logf("reads: %v", st.ByVerbResource)
 	for _, res := range []string{"pods", "deployments.apps", "replicasets.apps", "events"} {
-		if w, l := st.ByVerbResource["watchlist "+res], st.ByVerbResource["list "+res]; w != 2 || l > 1 {
-			t.Errorf("%s: %d streaming watches and %d lists, want 2 (all namespaces refused, then cogpit-ns-a) and at most 1", res, w, l)
+		if l, w := st.ByVerbResource["list "+res], st.ByVerbResource["watch "+res]; l < 2 || l > 3 || w < 1 {
+			t.Errorf("%s: %d lists and %d watches, want 2 lists (all namespaces refused, then cogpit-ns-a; one retry at most) and cogpit-ns-a's watch", res, l, w)
 		}
 	}
 	if n := st.ByVerbResource["watchlist customresourcedefinitions.apiextensions.k8s.io"] + st.ByVerbResource["list customresourcedefinitions.apiextensions.k8s.io"]; n > 2 {

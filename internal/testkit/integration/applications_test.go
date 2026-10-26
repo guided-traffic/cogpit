@@ -81,8 +81,8 @@ func TestBudgetApplicationsView(t *testing.T) {
 	}
 	req := workloadRequests()
 	for _, r := range []string{"deployments.apps", "statefulsets.apps", "jobs.batch"} {
-		if req["list "+r]+req["watchlist "+r] != 1 || len(req) != 3 {
-			t.Errorf("%s: want one initial request: %v", r, req)
+		if req["list "+r] != 1 || req["watch "+r] != 1 || len(req) != 6 {
+			t.Errorf("%s: want one list and one watch: %v", r, req)
 		}
 	}
 	for k := range req {

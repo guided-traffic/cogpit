@@ -47,7 +47,7 @@ func TestBudgetHelmReleasesWithConfigMaps(t *testing.T) {
 	for _, tt := range []struct {
 		name      string
 		watchList bool
-	}{{"watchlist", true}, {"list and watch", false}} {
+	}{{"streaming switched on (beta)", true}, {"list and watch", false}} {
 		t.Run(tt.name, func(t *testing.T) { budgetHelmReleasesWithConfigMaps(t, tt.watchList) })
 	}
 }
@@ -68,14 +68,22 @@ func budgetHelmReleasesWithConfigMaps(t *testing.T, watchList bool) {
 	srv.Set(configMapsGVR, testkit.Object("v1", "ConfigMap", "apps", "settings", map[string]any{"data": map[string]any{"mode": "fast"}}))
 	srv.Set(testkit.SecretsGVR, testkit.Secret("apps", "db", nil, map[string]string{"password": "hunter2"}))
 
+	store := engine.NewClusterSettingsStore(t.TempDir())
 	s := engine.New(engine.Options{
-		Connector:        &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}, WarmPeriod: 300 * time.Millisecond},
+		Connector: &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}, WarmPeriod: 300 * time.Millisecond,
+			ClusterSettings: store},
+		ClusterSettings:  store,
 		SnapshotInterval: 10 * time.Millisecond,
 	})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
 	}
 	defer s.Close()
+	if watchList { // the cluster's opt-in (D-135): its reads stream their initial lists
+		if _, err := s.ChangeClusterSettings("fake", func(cs *engine.ClusterSettings) error { cs.Streaming = true; return nil }); err != nil {
+			t.Fatal(err)
+		}
+	}
 	if err := s.Connect(ctx, "fake"); err != nil {
 		t.Fatal(err)
 	}

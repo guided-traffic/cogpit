@@ -415,6 +415,7 @@ func (s *Session) swapBackend(old *pooled, b *Backend, steps *connectSteps) (swa
 	s.attachNamespaceWatch(b)     // before the access reviews, whose goroutine pokes it (connect_run.go)
 	s.attachAccess(b)
 	s.attachRefusals(b)
+	s.attachStreams(b)
 	if line := insecureLogLine(b); line != "" {
 		steps.step(LogWarn, cluster.StepTLS, line, 0)
 	}

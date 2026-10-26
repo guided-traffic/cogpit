@@ -169,8 +169,8 @@ func gitopsUsers() []gitopsUser {
 			// race detector that plan can land after a retry or two (CI, 2026-10-16: three refused
 			// reads), so up to three refused attempts pass, never a read beside these three.
 			reads: func(t *testing.T, res string, reads map[string]int64) {
-				wide := reads["watchlist "+res] + reads["list "+res]
-				if wide > 6 || reads["watchlist "+res+" in team-a"] != 1 || len(reads) > 3 {
+				wide := reads["list "+res]
+				if wide > 6 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
 					t.Errorf("%s: reads %v, want the refused reads in all namespaces (and their lists) to end, then team-a's", res, reads)
 				}
 			},
@@ -184,9 +184,10 @@ func gitopsUsers() []gitopsUser {
 			flux:       "Kustomizations 3, Git Repositories 1", argo: "Applications 3, Application Sets 0, Projects 1, Repositories 1, Clusters 0",
 			// The access reviews say no before anything is read: never a read in all namespaces.
 			reads: func(t *testing.T, res string, reads map[string]int64) {
-				want := map[string]int64{"watchlist " + res + " in team-a": 1, "watchlist " + res + " in team-b": 1}
+				want := map[string]int64{"list " + res + " in team-a": 1, "watch " + res + " in team-a": 1,
+					"list " + res + " in team-b": 1, "watch " + res + " in team-b": 1}
 				if !maps.Equal(reads, want) {
-					t.Errorf("%s: reads %v, want %v (one watch per namespace, nothing in all namespaces)", res, reads, want)
+					t.Errorf("%s: reads %v, want %v (one list and one watch per namespace, nothing in all namespaces)", res, reads, want)
 				}
 			},
 		},
@@ -196,7 +197,7 @@ func gitopsUsers() []gitopsUser {
 			wide:   true,
 			flux:   "Kustomizations 4, Git Repositories 1", argo: "Applications 4, Application Sets 0, Projects 1, Repositories 1, Clusters 0",
 			reads: func(t *testing.T, res string, reads map[string]int64) {
-				if want := map[string]int64{"watchlist " + res: 1}; !maps.Equal(reads, want) {
+				if want := map[string]int64{"list " + res: 1, "watch " + res: 1}; !maps.Equal(reads, want) {
 					t.Errorf("%s: reads %v, want %v (as before)", res, reads, want)
 				}
 			},
@@ -372,7 +373,7 @@ func TestGitOpsDashboardsWithoutTheDefinitions(t *testing.T) {
 		}
 		t.Errorf("custom kinds %q, want Kustomizations, Git repositories, Argo CD's three and its settings", keys)
 	}
-	if crds := readsOf(srv, "customresourcedefinitions.apiextensions.k8s.io"); crds["watchlist customresourcedefinitions.apiextensions.k8s.io"] != 1 || len(crds) > 2 {
-		t.Errorf("definitions: reads %v, want one refused read (and its list)", crds)
+	if crds := readsOf(srv, "customresourcedefinitions.apiextensions.k8s.io"); crds["list customresourcedefinitions.apiextensions.k8s.io"] < 1 || len(crds) > 1 {
+		t.Errorf("definitions: reads %v, want the refused list alone", crds)
 	}
 }

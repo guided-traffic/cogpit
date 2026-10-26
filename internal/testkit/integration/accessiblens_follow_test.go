@@ -188,9 +188,9 @@ func TestHelmReleasesOfANamespaceLimitedUser(t *testing.T) {
 	}
 	for _, res := range []string{"secrets with owner=helm", "configmaps with owner=helm"} {
 		reads := readsOf(srv, res)
-		wide := reads["watchlist "+res] + reads["list "+res]
-		if wide > 2 || reads["watchlist "+res+" in team-a"] != 1 || len(reads) > 3 {
-			t.Errorf("%s: reads %v, want at most one refused read in all namespaces (and its list), then team-a's", res, reads)
+		wide := reads["list "+res]
+		if wide > 2 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
+			t.Errorf("%s: reads %v, want at most two refused lists in all namespaces, then team-a's list and watch", res, reads)
 		}
 	}
 }
@@ -232,8 +232,8 @@ func TestPrometheusDetectionFollowsARefusal(t *testing.T) {
 		t.Errorf("Prometheus found after %s", d)
 	}
 	reads := readsOf(srv, "services")
-	if wide := reads["watchlist services"] + reads["list services"]; wide > 2 || reads["watchlist services in team-a"] != 1 {
-		t.Errorf("service reads %v, want at most one refused read in all namespaces (and its list), then team-a's", reads)
+	if wide := reads["list services"]; wide > 2 || reads["list services in team-a"] != 1 || reads["watch services in team-a"] != 1 {
+		t.Errorf("service reads %v, want at most two refused lists in all namespaces, then team-a's list and watch", reads)
 	}
 }
 
@@ -247,14 +247,15 @@ func TestBudgetNamespaceLimitedUser(t *testing.T) {
 		s, srv := connectLimited(ctx, t, access)
 		limitedSteps(ctx, t, s, 3)
 
-		// The first read of each kind in all namespaces is refused (a streaming watch, and the plain
-		// list client-go's reflector falls back to at once: one or two requests), then team-a's alone;
-		// the pods' metrics are listed in team-a alone, never in all namespaces.
+		// The first read of each kind in all namespaces is refused (a list, which client-go may
+		// retry once before the engine reads the kind namespace by namespace: one or two requests),
+		// then team-a's list and watch alone; the pods' metrics are listed in team-a alone, never in
+		// all namespaces.
 		for _, res := range []string{"pods", "deployments.apps", "events"} {
 			reads := readsOf(srv, res)
-			wide := reads["watchlist "+res] + reads["list "+res]
-			if wide < 1 || wide > 2 || reads["watchlist "+res+" in team-a"] != 1 || len(reads) > 3 {
-				t.Errorf("%s: reads %v, want one refused read in all namespaces (and its list), then team-a's", res, reads)
+			wide := reads["list "+res]
+			if wide < 1 || wide > 2 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
+				t.Errorf("%s: reads %v, want one or two refused lists in all namespaces, then team-a's list and watch", res, reads)
 			}
 		}
 		if got, want := readsOf(srv, "pods.metrics.k8s.io"), map[string]int64{"list pods.metrics.k8s.io in team-a": 1}; !maps.Equal(got, want) {
@@ -341,9 +342,9 @@ func TestBudgetNamespaceLimitedUser(t *testing.T) {
 		s, srv := connectLimited(ctx, t, &testkit.FakeAccess{Enforce: true, Rules: map[string][]testkit.FakeRule{"": {all}}})
 		limitedSteps(ctx, t, s, 5)
 		for res, want := range map[string]map[string]int64{
-			"pods":                {"watchlist pods": 1},
-			"deployments.apps":    {"watchlist deployments.apps": 1},
-			"events":              {"watchlist events": 1},
+			"pods":                {"list pods": 1, "watch pods": 1},
+			"deployments.apps":    {"list deployments.apps": 1, "watch deployments.apps": 1},
+			"events":              {"list events": 1, "watch events": 1},
 			"pods.metrics.k8s.io": {"list pods.metrics.k8s.io": 1},
 		} {
 			if got := readsOf(srv, res); !maps.Equal(got, want) {

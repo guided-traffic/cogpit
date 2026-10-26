@@ -17,8 +17,9 @@ import (
 // Connection Diagnostics (D-133) on a cluster as a strongly limited user meets it: the user may
 // read pods in team-a alone, the server does not stream initial lists (no WatchList), and one
 // aggregated API is down. The log holds the refused read of pods in all namespaces, the kind read
-// namespace by namespace after it, the reads listed because the server did not stream them, and the
-// broken group's discovery; the report has the server's address replaced.
+// namespace by namespace after it, and the broken group's discovery; the reads are listed, as
+// Cogpit reads by default (D-135), so no line says a stream was refused; the report has the
+// server's address replaced.
 func TestConnectionDiagnosticsOfALimitedUser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -66,7 +67,7 @@ func TestConnectionDiagnosticsOfALimitedUser(t *testing.T) {
 		}
 		r = res.(engine.DiagnosticsReport)
 		return has(cluster.DiagRefused, "list pods") && has(cluster.DiagNamespaced, "pods") &&
-			has(cluster.DiagFallback, "pods in team-a") && has(cluster.DiagServerError, "/apis/metrics.k8s.io")
+			has(cluster.DiagServerError, "/apis/metrics.k8s.io")
 	}) {
 		t.Fatalf("log = %+v", r.Log)
 	}
@@ -74,7 +75,10 @@ func TestConnectionDiagnosticsOfALimitedUser(t *testing.T) {
 	if refused.Status != 403 || refused.Method != "GET" || !strings.HasPrefix(refused.URL, srv.URL+"/api/v1/pods") || refused.Text == "" {
 		t.Errorf("refused line = %+v", refused)
 	}
-	if r.Problems == 0 || r.Server == "" || r.Since.IsZero() || r.Streaming.FellBack == 0 || r.Streaming.Streamed != 0 {
+	if has(cluster.DiagFallback, "") {
+		t.Errorf("a fallback line where nothing was streamed: %+v", r.Log)
+	}
+	if r.Problems == 0 || r.Server == "" || r.Since.IsZero() || r.Streaming.Listed == 0 || r.Streaming.FellBack != 0 || r.Streaming.Streamed != 0 {
 		t.Errorf("report = problems %d, server %q, since %v, streaming %+v", r.Problems, r.Server, r.Since, r.Streaming)
 	}
 	if !slices.ContainsFunc(r.Budgets, func(b cluster.BudgetStats) bool {

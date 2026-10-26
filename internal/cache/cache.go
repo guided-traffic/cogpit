@@ -146,6 +146,13 @@ type Options struct {
 	HandoverTimeout time.Duration
 	// Logger receives informer errors; nil means slog.Default().
 	Logger *slog.Logger
+	// StreamStall bounds how long a streamed initial list may receive nothing before its end;
+	// after it the read lists, and so does every read after it (stall.go). Zero means
+	// DefaultStreamStall.
+	StreamStall time.Duration
+	// Lists makes every read list and then watch from the start, never stream (a cluster whose
+	// streams are off in its settings, stall.go).
+	Lists bool
 }
 
 // InformerStats describe one scope for the diagnostics view: one per scope that a handle holds or
@@ -188,6 +195,13 @@ type Cache struct {
 	closed    bool
 	entries   uint64 // entries made so far: each entry's seq (peek.go)
 
+	// lists is set once a streamed initial list stalled: every read lists from then on, and
+	// listCtx ends then, which ends the streams still running (stall.go).
+	lists   atomic.Bool
+	listCtx context.Context
+	listNow context.CancelFunc
+
+	stall     atomic.Pointer[func(Stall)]                                  // told of every stalled stream (OnStall, stall.go)
 	refused   atomic.Pointer[func(Scope)]                                  // told of every refused list or watch (OnRefused, nsscope.go)
 	streamErr atomic.Pointer[func(Scope, error)]                           // told of every list or watch that broke (OnStreamError, streamerr.go)
 	diag      atomic.Pointer[func(Diagnostic)]                             // told of loads and fallbacks (OnDiagnostic, diag.go)
@@ -206,10 +220,15 @@ func New(src Source, opts Options) *Cache {
 		opts.Logger = slog.Default()
 	}
 	ctx, stop := context.WithCancel(context.Background())
-	return &Cache{
-		src: src, opts: opts, log: opts.Logger, ctx: ctx, stop: stop,
+	listCtx, listNow := context.WithCancel(context.Background())
+	c := &Cache{
+		src: src, opts: opts, log: opts.Logger, ctx: ctx, stop: stop, listCtx: listCtx, listNow: listNow,
 		informers: map[Scope]*entry{}, runners: map[*runner]struct{}{},
 	}
+	if opts.Lists {
+		c.ListFromNowOn()
+	}
+	return c
 }
 
 // entry is one scope that handles hold, or that is warm: its handles' bookkeeping and their
@@ -695,8 +714,9 @@ func (r *runner) stripManagedFields(obj any) (out any, err error) {
 const LastAppliedAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
 
 // trackedLW wraps a Source's list-watcher: it records list and watch errors on the runner and
-// clears them when a list or a watch succeeds, turns a panic in the source into an error, and
-// passes the WatchList capability through to the reflector.
+// clears them when a list or a watch succeeds, turns a panic in the source into an error, passes
+// the WatchList capability through to the reflector, and bounds a streamed initial list's silence
+// (stall.go).
 type trackedLW struct {
 	r     *runner
 	inner toolscache.ListerWatcher
@@ -705,8 +725,12 @@ type trackedLW struct {
 var _ toolscache.ListerWatcherWithContext = (*trackedLW)(nil)
 
 // IsWatchListSemanticsUnSupported reports what the wrapped list-watcher reports (false when it
-// does not say), so the reflector streams initial lists exactly when the source supports it.
+// does not say), so the reflector streams initial lists exactly when the source supports it, and
+// true once the cache lists (stall.go). The reflector asks once, when its informer starts.
 func (t *trackedLW) IsWatchListSemanticsUnSupported() bool {
+	if t.r.listing() {
+		return true
+	}
 	u, ok := t.inner.(interface{ IsWatchListSemanticsUnSupported() bool })
 	return ok && u.IsWatchListSemanticsUnSupported()
 }
@@ -722,8 +746,12 @@ func (t *trackedLW) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 func (t *trackedLW) ListWithContext(ctx context.Context, opts metav1.ListOptions) (obj runtime.Object, err error) {
 	defer t.recoverInto(&err, "list")
 	ctx = t.r.labelled(ctx)
-	initial := t.r.listAsked(ctx, opts)
+	initial, stall := t.r.listAsked(ctx, opts)
+	start := time.Now()
 	obj, err = toolscache.ToListerWithContext(t.inner).ListWithContext(ctx, opts)
+	if stall != nil && ctx.Err() == nil {
+		t.r.tellStall(Stall{Scope: t.r.scope, Err: stall, Listed: time.Since(start), ListErr: err})
+	}
 	t.observe(ctx, err)
 	if err == nil {
 		t.r.listed(initial)
@@ -734,6 +762,9 @@ func (t *trackedLW) ListWithContext(ctx context.Context, opts metav1.ListOptions
 func (t *trackedLW) WatchWithContext(ctx context.Context, opts metav1.ListOptions) (w watch.Interface, err error) {
 	defer t.recoverInto(&err, "watch")
 	ctx = t.r.labelled(ctx)
+	if isStreamed(opts) {
+		return t.watchStream(ctx, opts)
+	}
 	w, err = toolscache.ToWatcherWithContext(t.inner).WatchWithContext(ctx, opts)
 	if err == nil && w == nil {
 		err = errors.New("the source returned no watch")

@@ -148,6 +148,10 @@ type ClusterSettings struct {
 	// only set it (turn the renewal off); turning the renewal on again is the user's, in Cogpit's
 	// window (ErrRenewLoginGUIOnly).
 	HoldBackgroundLogin bool `json:"holdBackgroundLogin,omitempty"`
+	// Streaming makes the cluster's reads stream their initial lists (Kubernetes' WatchListClient,
+	// beta; D-135, initiallists.go) from its next connect; false, the default: each read lists its
+	// objects once and then watches.
+	Streaming bool `json:"streaming,omitempty"`
 }
 
 // IsZero reports whether the settings are all defaults.
@@ -162,7 +166,7 @@ func (c ClusterSettings) Equal(o ClusterSettings) bool {
 		equalIntegrations(c.IntegrationsOff, o.IntegrationsOff) &&
 		slices.Equal(c.AccessibleNamespaces, o.AccessibleNamespaces) && c.AgentWrites == o.AgentWrites &&
 		c.NodeShellImage == o.NodeShellImage && c.NodeShellPullSecret == o.NodeShellPullSecret && c.NodeShellMaxMinutes == o.NodeShellMaxMinutes &&
-		c.HoldBackgroundLogin == o.HoldBackgroundLogin
+		c.HoldBackgroundLogin == o.HoldBackgroundLogin && c.Streaming == o.Streaming
 }
 
 // Check says why settings cannot be kept: the first field out of its bounds.
@@ -442,7 +446,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	c.change.Lock()
 	defer c.change.Unlock()
 	var dropped []string
-	proxyChanged, holdChanged := false, false
+	proxyChanged, holdChanged, streamingOff := false, false, false
 	next, all, err := func() (ClusterSettings, map[string]ClusterSettings, error) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -483,6 +487,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 		c.by = all
 		proxyChanged = RedactProxyURL(old.Proxy) != RedactProxyURL(cs.Proxy)
 		holdChanged = old.HoldBackgroundLogin != cs.HoldBackgroundLogin
+		streamingOff = old.Streaming && !cs.Streaming
 		for _, name := range []string{old.Icon, old.IconSource} {
 			if name != "" && name != cs.Icon && name != cs.IconSource && !iconInUse(all, name) {
 				dropped = append(dropped, name)
@@ -506,6 +511,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	if holdChanged {
 		s.applyLoginHolds() // a cluster that is not shown holds its login, or renews a lapsed one (connwatch_lapse.go)
 	}
+	s.streamingChanged(context, !streamingOff) // switched off, the connected cluster lists at once (initiallists.go)
 	return next, nil
 }
 

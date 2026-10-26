@@ -698,7 +698,7 @@ What is still not covered, per case:
 - **A Secret Cogpit may not or does not read.** Since 2026-10-14 (the owner's decision, option b of
   [D-44](../developer/decisions.md#d-44-what-agents-read-of-the-docks-logs-and-terminal-tabs)) an
   agent's read that the filter reads first takes the Secrets as the Secrets view reads them and
-  waits for them (`engine/agentsecrets.go`; one streaming watch, then none for the cache's warm
+  waits for them (`engine/agentsecrets.go`; one list and one watch, then none for the cache's warm
   period of 5 minutes after the last agent read; measured in `TestBudgetAgentReadTakesTheSecrets`),
   so the filter no longer depends on the user having opened the Secrets view. Still not replaced:
   every value for a user who may not list Secrets (nothing to read; the read is not delayed); for
