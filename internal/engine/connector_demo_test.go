@@ -14,12 +14,14 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/demo"
+	"github.com/guided-traffic/cogpit/internal/helm"
+	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
 // TestDemoProfilesFollowTheDemo checks that the demo cluster offers exactly the built-in kinds it
 // serves, as discovery decides for a real cluster: a profile the demo has no objects for (Ingresses,
-// Config Maps) must not become a view that only shows a 404.
+// Stateful Sets) must not become a view that only shows a 404.
 func TestDemoProfilesFollowTheDemo(t *testing.T) {
 	served := demo.Resources()
 	offered := demoProfiles()
@@ -76,10 +78,67 @@ func TestClusterConnectorContextsAndDemo(t *testing.T) {
 	if b.ServerVersion() != demo.ServerVersion || demo.ServerVersion == "" {
 		t.Errorf("the demo's API server version %q, want %q", b.ServerVersion(), demo.ServerVersion)
 	}
-	// Only the kinds the demo serves get a view, as discovery decides on a real cluster, and the
-	// Applications made of its deployments (applications.go).
-	if len(b.Profiles) != len(demo.Resources())+1 {
-		t.Errorf("demo offers %d views for %d served kinds and Applications", len(b.Profiles), len(demo.Resources()))
+	// Only the kinds the demo serves get a view, as discovery decides on a real cluster, and Helm's
+	// releases from its Secrets and ConfigMaps and the Applications made of its deployments
+	// (applications.go).
+	if len(b.Profiles) != len(demo.Resources())+2 {
+		t.Errorf("demo offers %d views for %d served kinds, Releases and Applications", len(b.Profiles), len(demo.Resources()))
+	}
+}
+
+// TestDemoOffersHelmReleases: the demo cluster serves Secrets, so it offers Helm's releases, once,
+// with a memo of its own per call (one per backend).
+func TestDemoOffersHelmReleases(t *testing.T) {
+	var found []*model.KindProfile
+	for _, p := range demoProfiles() {
+		if isHelmReleases(p) {
+			found = append(found, p)
+		}
+	}
+	if len(found) != 1 {
+		t.Fatalf("the demo cluster offers Releases %d times", len(found))
+	}
+	for _, p := range demoProfiles() {
+		if isHelmReleases(p) && p == found[0] {
+			t.Error("two demo backends share one releases profile and its memo")
+		}
+	}
+}
+
+// TestDemoHelmReleases: the demo's Releases view lists its three releases, the one kept in
+// ConfigMaps joined with those kept in Secrets as for a real cluster (Backend.Acquire), each at its
+// newest revision.
+func TestDemoHelmReleases(t *testing.T) {
+	c := &ClusterConnector{KubeconfigPaths: []string{filepath.Join(t.TempDir(), "none")}, IncludeDemo: true,
+		DemoOptions: demo.Options{Pods: 50, Deployments: 10, Services: 3, Namespaces: 8, Nodes: 3, Events: 10, NoChurn: true}}
+	s := New(Options{Connector: c, SnapshotInterval: 5 * time.Millisecond})
+	t.Cleanup(s.Close)
+	if err := s.Connect(context.Background(), DemoContext); err != nil {
+		if errors.Is(err, errDemoUnavailable) {
+			t.Skip("the demo package is a stub in this tree")
+		}
+		t.Fatal(err)
+	}
+	p, ok := s.Backend().Profile(helm.ReleaseKind)
+	if !ok {
+		t.Fatal("the demo backend has no Releases")
+	}
+	openView(s, helm.ReleaseKind)
+	snap := waitTable(t, s, helm.ReleaseKind, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 3 })
+	want := map[string]struct {
+		revision int64
+		driver   helm.Driver
+	}{
+		"demo-shop/shop-web": {6, helm.DriverSecret}, "demo-shop/cache": {2, helm.DriverSecret},
+		"demo-search/search-api": {3, helm.DriverConfigMap},
+	}
+	for _, r := range snap.Rows {
+		w, ok := want[r.Ref.Namespace+"/"+r.Ref.Name]
+		obj, err := s.Lookup(r.Ref)
+		if !ok || err != nil || r.Cells[p.ColumnIndex("revision")].Num != w.revision ||
+			r.Cells[p.ColumnIndex("status")].Text != "Deployed" || helm.ReleaseStorage(obj) != w.driver {
+			t.Errorf("row %s: %+v (lookup %v)", r.Ref.Key(), r.Cells, err)
+		}
 	}
 }
 

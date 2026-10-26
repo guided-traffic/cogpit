@@ -30,13 +30,15 @@ type DemoOptions = demo.Options
 
 // demoProfiles keeps the built-in profiles of the kinds the demo cluster serves, as discovery does
 // for a real cluster: a kind the demo has no objects for is not offered, rather than shown as an
-// error.
+// error. Helm's releases and the Applications follow as for a real cluster (Connect): the demo's
+// Secrets and ConfigMaps are Helm's release records, and each call makes a releases profile with
+// its own memo, one per backend.
 func demoProfiles() []*model.KindProfile {
 	served := map[schema.GroupVersionResource]bool{}
 	for _, gvr := range demo.Resources() {
 		served[gvr] = true
 	}
-	return withApplications(servedProfiles(kinds.Builtin(), served))
+	return withApplications(withHelmReleases(servedProfiles(kinds.Builtin(), served)))
 }
 
 // connectDemo builds the synthetic cluster and starts its churn.

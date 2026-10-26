@@ -79,6 +79,11 @@ func (sh *shell) preferencesChanged() {
 	sh.applyTerminalPrefs() // the right mouse button in the open terminals (termpaste.go)
 	// Load chart icons (helmcharticons.go).
 	sh.chartIconsPrefChanged()
+	for _, c := range sh.dock.contents { // a comparison read the other way (helmrevisions.go)
+		if r, ok := c.editor.(*helmRevisionsTab); ok {
+			r.diffWayChanged()
+		}
+	}
 }
 
 // loc is the time zone the window writes absolute times in: the Preferences' time zone, else the
@@ -210,6 +215,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	restore, syncRestore := p.restoreSessionSetting() // preferences_restore.go
 	motion, syncMotion := p.reduceMotionSetting()     // preferences_motion.go
 	power, syncPower := p.lightStripPowerSetting()    // preferences_power.go
+	diffs, syncDiffs := p.revisionsDiffSetting()      // preferences_revisions.go
 	p.sync = func() {
 		pr := p.prefs()
 		for _, c := range themeChoices {
@@ -222,6 +228,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		syncRestore()
 		syncMotion()
 		syncPower()
+		syncDiffs()
 		syncLoginItem()
 	}
 	// Two real groups, one bracket each: what the app is and does, and how it updates.
@@ -230,6 +237,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		restore,
 		motion,
 		power,
+		diffs,
 	}
 	if loginItem != nil {
 		general = append(general, loginItem)

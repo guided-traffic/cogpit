@@ -73,6 +73,7 @@ func (c *Cluster) build() {
 	c.buildWorkloads(now)
 	c.buildServices(now)
 	c.buildEvents(now)
+	c.buildHelmReleases(now) // last, and without the random generator: the rest stays as it was
 }
 
 // Namespaces.

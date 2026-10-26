@@ -58,6 +58,7 @@ func TestCacheSyncsTheDemoCluster(t *testing.T) {
 	want := map[string]int{
 		"pods": demo.DefaultPods, "deployments": demo.DefaultDeployments, "services": demo.DefaultServices,
 		"namespaces": demo.DefaultNamespaces, "nodes": demo.DefaultNodes, "events": demo.DefaultEvents,
+		"secrets": 8, "configmaps": 3, // Helm's release records (helm_test.go)
 	}
 	total := 0
 	for resource, n := range want {

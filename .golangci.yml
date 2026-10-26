@@ -566,6 +566,16 @@ linters:
         text: G115
         source: (byte\(c\.rng\.Uint32\(\)\)|uint8\(rgb >> 16\))
         linters: [gosec]
+      # G101: the demo cluster's Helm release records are synthetic: Helm's record type and a
+      # made-up password its shop-web chart renders; helmcharts.go holds the demo charts' templates
+      # only, whose text names Secrets, tokens and passwords.
+      - path: ^internal/demo/helm\.go$
+        text: G101
+        source: '(helmSecretType|password: "demo-shop-password-)'
+        linters: [gosec]
+      - path: ^internal/demo/helmcharts\.go$
+        text: G101
+        linters: [gosec]
       # G115: len(managers) is the demo's fixed table of four values.
       - path: ^internal/demo/applications\.go$
         text: G115

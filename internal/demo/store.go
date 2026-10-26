@@ -21,6 +21,8 @@ const (
 	kindNamespaces
 	kindNodes
 	kindEvents
+	kindSecrets    // Helm's release records only (helm.go)
+	kindConfigMaps // Helm's release records only (helm.go)
 	numKinds
 )
 
@@ -37,6 +39,8 @@ var kindInfo = [numKinds]struct {
 	kindNamespaces:  {schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}, "v1", "Namespace", false},
 	kindNodes:       {schema.GroupVersionResource{Version: "v1", Resource: "nodes"}, "v1", "Node", false},
 	kindEvents:      {schema.GroupVersionResource{Version: "v1", Resource: "events"}, "v1", "Event", true},
+	kindSecrets:     {schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, "v1", "Secret", true},
+	kindConfigMaps:  {schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "v1", "ConfigMap", true},
 }
 
 // kindOf returns the kind serving gvr.

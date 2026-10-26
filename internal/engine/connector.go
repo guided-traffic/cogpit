@@ -166,12 +166,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 		profiles = servedProfiles(profiles, served)
 		customResources = served[crdsGVR]
 	}
-	// Helm's releases come from the cluster's Secrets: offered wherever Secrets are, each backend
-	// with its own memo of decoded releases.
-	if slices.ContainsFunc(profiles, isSecrets) {
-		profiles = append(slices.Clip(profiles), helm.NewReleaseProfile())
-	}
-	profiles = withApplications(profiles) // applications.go
+	profiles = withApplications(withHelmReleases(profiles)) // applications.go
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
 	ch := cache.New(cache.DynamicSource(conn.Dynamic(), conn.Metadata()), cache.Options{WarmPeriod: c.WarmPeriod, Logger: c.Logger})
@@ -208,6 +203,15 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 		prom.SetQuery(c.MetricsSettings.Query(ctxName))       // and how it is asked (format, filter, HTTPS)
 	}
 	return be, nil
+}
+
+// withHelmReleases adds the Releases kind: Helm's releases come from the cluster's Secrets, so it
+// is offered wherever Secrets are, each backend with its own memo of decoded releases.
+func withHelmReleases(profiles []*model.KindProfile) []*model.KindProfile {
+	if slices.ContainsFunc(profiles, isSecrets) {
+		return append(slices.Clip(profiles), helm.NewReleaseProfile())
+	}
+	return profiles
 }
 
 // servedProfiles keeps the profiles whose group, version and resource the cluster serves. A

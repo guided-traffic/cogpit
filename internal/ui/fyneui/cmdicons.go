@@ -45,8 +45,12 @@ var commandIcons = map[string]fyne.ThemeIconName{
 	"helm.release.rollback":  theme.IconNameHistory,
 	"helm.release.uninstall": theme.IconNameDelete,
 	upgradeTabCommand:        theme.IconNameViewRefresh, // Lens: a circular arrow (captured 2026-10-12)
+	revisionsCommand:         theme.IconNameList,        // a release's revisions (D-131)
 	installTabCommand:        theme.IconNameDownload,    // Cogpit's choice: Lens's chart drawer is not captured
 }
+
+// revisionsCommand opens a release's Revisions tab.
+const revisionsCommand = "ui.helm.revisions"
 
 // upgradeTabCommand opens a release's Helm Upgrade tab.
 const upgradeTabCommand = helm.UpgradeTabCommand

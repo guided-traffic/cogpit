@@ -238,6 +238,10 @@ func (d *dock) openTab(t engine.DockTab) *dockContent {
 		e := newHelmInstallTab(d.sh, t)
 		c.editor = e
 		c.set(e.root)
+	case engine.DockHelmRevisions: // a release's revisions (helmrevisions.go)
+		e := newHelmRevisionsTab(d.sh, t)
+		c.editor = e
+		c.set(e.root)
 	case engine.DockAudit: // the Audit Log (auditlog.go)
 		e := newAuditLogTab(d.sh, t)
 		c.editor = e
@@ -316,6 +320,8 @@ func (d *dock) rebuildStrip() {
 			icon = theme.Icon(commandIcons[upgradeTabCommand])
 		case engine.DockHelmInstall:
 			icon = theme.Icon(commandIcons[installTabCommand])
+		case engine.DockHelmRevisions:
+			icon = theme.Icon(commandIcons[revisionsCommand])
 		case engine.DockAudit:
 			icon = theme.ListIcon()
 		case engine.DockDiagnostics:

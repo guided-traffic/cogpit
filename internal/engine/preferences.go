@@ -173,6 +173,12 @@ type Preferences struct {
 	// own folders and Cogpit's built-in ones, in this order (programfolders.go, D-120). Only the
 	// user adds one (ErrProgramFoldersGUIOnly); agents and the CLI may remove one.
 	ProgramFolders []string `json:"programFolders,omitempty"`
+	// RevisionsDiff is the way a Helm release's Revisions tab reads a comparison: which revision is
+	// the diff's old side (−) and which its new side (+) (helmrevisions.go, D-131; the owner,
+	// 2026-10-25: the user configures his favourite way). Empty, the default: from the revision
+	// compared to the one shown (RevisionsComparedToShown). Agents and the CLI may set it either
+	// way: it changes only how the window shows a comparison.
+	RevisionsDiff string `json:"revisionsDiff,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
@@ -235,6 +241,9 @@ func (p Preferences) Check() error {
 		return err
 	}
 	if err := checkProgramFolders(p.ProgramFolders); err != nil { // programfolders.go
+		return err
+	}
+	if err := CheckRevisionsDiff(p.RevisionsDiff); err != nil { // helmrevisions.go
 		return err
 	}
 	return p.checkKubectl()

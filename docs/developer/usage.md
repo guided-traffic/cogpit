@@ -722,6 +722,15 @@ follows a pulled cable there within half a minute.
 |---|---|---|
 | `lightStripMainsOnly` | `false` # default | on: the light strip animates only on the power adapter and stands still on battery; agents may set it either way, it changes only how the window moves |
 
+### Preferences › App: revision diffs
+
+Since 2026-10-26 ([D-131](decisions.md#d-131-a-releases-revisions)): which way a Helm release's Revisions tab reads a comparison of two revisions. **From the compared
+revision to the shown one** (the default), **from the older revision to the newer one**, or **from
+the shown revision to the compared one**: the first is the diff's old side (−), the second its new
+side (+), in the changed keys, the line diff and the objects' marks. Kept in `preferences.json` as
+`revisionsDiff` (`olderToNewer`, `shownToCompared`; absent: the default); `preferences_set` sets
+it from any origin.
+
 ### The window's place and size
 
 Since 2026-10-18 ([D-95](decisions.md#d-95-the-window-comes-back-where-it-was), the owner's
@@ -1639,6 +1648,38 @@ Security note: a debug container with a target reads that container's processes 
 them, its files, the Secrets it mounts included, as root with netshoot
 ([privilege footprint › Debug container](../security/privilege-footprint.md#debug-container)). Only
 you, in Cogpit's window, set the image; agents and the CLI may only reset it.
+
+### A release's revisions
+
+Since 2026-10-26 ([D-131](decisions.md#d-131-a-releases-revisions)). **Revisions** (the list icon in a release's
+drawer beside Rollback, its row menu, "Open revisions" at the drawer's History, or a revision's
+number there) opens a dock tab "Revisions · <release>", one per release:
+
+- **Revision** and **Compare with** at its top: the revision shown and the one it is compared with,
+  by default the current (newest) revision for an older one, "The revision before" as a quick pick,
+  None. The shown revision's description is under them, a failed one's in red. **Rollback to N**,
+  copy and **Save as…** at the right.
+- **Values**: the revision's **User-supplied** values (`helm get values --revision N`) or **All
+  values** (`--all`), with a find bar. Compared, the keys whose values differ, each one's value in
+  the compared revision and in the shown one; **Show the line diff** unfolds the YAML diff under
+  them.
+- **Manifest**: the rendered **Objects** as `kubectl get` lists them (Kind, Name, Namespace) in the
+  order Helm installs them, the selected one's YAML under its `# Source:` template; compared, each
+  marked + (only in the shown revision), − (only in the compared one), ~ (changed) or =, and a
+  changed object's diff. **manifest.yaml** is the manifest as Helm stored it
+  (`helm get manifest --revision N`). A Secret's values are dots and their size until **Show**.
+- The revisions on the left: ● the shown one, ◆ the compared one; a click shows another.
+- **Which way a comparison reads** is yours: Preferences › App › **Revision diffs**, "From the
+  compared revision to the shown one" (the default: against the current revision, what a rollback
+  to the shown one would change), "From the older revision to the newer one" or "From the shown
+  revision to the compared one". The first revision is the diff's old side (−), the second its new
+  side (+); the open tab follows at once.
+- **Every text is selectable**: drag over it or double click a word, ⌘C (Ctrl+C) copies. The copy
+  icon copies what the tab shows: the values, the changed keys ("path: from → to"), a diff as its
+  − and + lines, an object, manifest.yaml; **Save as…** writes the same into a file.
+
+It reads the release records Cogpit's cache holds and asks the cluster nothing. `cogpit --demo`
+has releases with a history for it (shop-web in demo-shop, six revisions).
 
 ### The Kubernetes version and upstream support
 

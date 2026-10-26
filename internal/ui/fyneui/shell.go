@@ -1298,8 +1298,8 @@ func dockEqual(a, b engine.UIState) bool {
 			return false
 		}
 		// A Helm tab's chart, version and digest change in place (a version picked, its chart
-		// loaded): the tab's editor updates from them (dock.sync).
-		if !reflect.DeepEqual(x.Helm, y.Helm) || !reflect.DeepEqual(x.HelmInstall, y.HelmInstall) {
+		// loaded), a Revisions tab's revision and mode: the tab updates from them (dock.sync).
+		if !reflect.DeepEqual(x.Helm, y.Helm) || !reflect.DeepEqual(x.HelmInstall, y.HelmInstall) || !reflect.DeepEqual(x.HelmRevisions, y.HelmRevisions) {
 			return false
 		}
 		// A terminal's kubectl check and its download change in place (kubectloffer.go).
