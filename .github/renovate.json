@@ -241,12 +241,13 @@
       "automerge": true
     },
     {
-      "description": "Sparkle, the macOS app's updater (Makefile SPARKLE_VERSION, D-4): Renovate proposes a new release but cannot know its archive's SHA-256, so make sparkle fails until SPARKLE_SHA256 is set to the new asset's digest (gh api repos/sparkle-project/Sparkle/releases/tags/<version> --jq '.assets[] | select(.name | endswith(\".tar.xz\")) | .digest'); its code updates installed copies, so a person reads its changes and never merges it on its own",
+      "description": "Sparkle, the macOS app's updater (Makefile SPARKLE_VERSION, D-4), and WinSparkle, the Windows app's (WINSPARKLE_TAG, D-111): Renovate writes the new version and the new archive's SHA-256 (the archive pinned by version and digest, below), so nobody pushes onto its branch; their code updates installed copies, so a person reads the changes and merges the pull request, never Renovate on its own",
       "matchManagers": [
         "custom.regex"
       ],
       "matchPackageNames": [
-        "sparkle-project/Sparkle"
+        "sparkle-project/Sparkle",
+        "vslavik/winsparkle"
       ],
       "automerge": false,
       "labels": [
@@ -368,13 +369,13 @@
       "versioningTemplate": "docker"
     },
     {
-      "description": "Sparkle 2 (D-4): SPARKLE_VERSION in the Makefile under a renovate comment, a release tag without a leading v (2.10.0); its SHA-256 on the next line is updated by hand (the packageRule above)",
+      "description": "A release archive pinned by version and SHA-256 in the Makefile (Sparkle, D-4; WinSparkle, D-111): a renovate comment with datasource=github-release-attachments, the release's tag on the next line (NAME := 2.10.0, or v0.9.4 where the tags carry a v) and the archive's SHA-256 on the one after (NAME_SHA256 := <64 hex digits>). The datasource looks up the release by that tag, finds the asset whose SHA-256 is the pinned one and hashes the asset of the same name in the new release, so the update changes both lines and needs no commit of anyone else on Renovate's branch (a branch someone else pushed to is never rebased by Renovate again and stays in conflict, PR #110).",
       "customType": "regex",
       "managerFilePatterns": [
         "/^Makefile$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>sparkle-project/Sparkle)\\nSPARKLE_VERSION\\s*:=\\s*(?<currentValue>\\d[^\\s]*)"
+        "# renovate: datasource=(?<datasource>github-release-attachments) depName=(?<depName>[^\\s]+)\\n\\w+\\s*:=\\s*(?<currentValue>v?\\d[^\\s]*)\\n\\w+_SHA256\\s*:=\\s*(?<currentDigest>[0-9a-f]{64})"
       ],
       "versioningTemplate": "semver"
     },

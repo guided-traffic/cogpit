@@ -621,10 +621,11 @@ $(FYNE): $(call tool_stamp,fyne,$(FYNE_TOOLS))
 # Sparkle 2, the macOS app's updater (D-4; docs/developer/releasing.md#updates): the release archive
 # pinned by version and SHA-256 (GitHub's digest of the asset), kept in .cache/sparkle/<version>
 # (hack/macos/sparkle.sh). make app bundles its framework; the release pipeline signs the update
-# with its sign_update. Renovate proposes a new version but cannot know the archive's SHA-256: the
-# update pull request fails make sparkle until SPARKLE_SHA256 is set to the new asset's digest, and
-# it never merges on its own (.github/renovate.json).
-# renovate: datasource=github-releases depName=sparkle-project/Sparkle
+# with its sign_update. Renovate updates both lines: its github-release-attachments datasource finds
+# the asset the SHA-256 pins in this release and hashes the same asset of the new one. The three
+# lines stay together, the version a release tag; the update never merges on its own
+# (.github/renovate.json).
+# renovate: datasource=github-release-attachments depName=sparkle-project/Sparkle
 SPARKLE_VERSION := 2.10.0
 SPARKLE_SHA256  := c2bf58aa8387266ac179357b1415d6f2635f044da8be41042af32425dae6da0c
 SPARKLE_DIR     := $(CACHE)/sparkle/$(SPARKLE_VERSION)
@@ -869,13 +870,14 @@ apt-verify: ## Check the signed APT repository in dist/apt with the packages' pu
 # renovate: datasource=go depName=github.com/tc-hib/go-winres
 GO_WINRES_VERSION ?= v0.3.3
 GO_WINRES       := $(BIN)/go-winres$(EXE)
-# WinSparkle (D-111), Sparkle's Windows port: the release archive pinned by version and SHA-256
-# (GitHub's digest of the asset), kept in .cache/winsparkle/<version> (hack/windows/winsparkle.sh).
-# Renovate proposes a new version and never merges it on its own; WINSPARKLE_SHA256 must be set to
-# the new asset's digest by hand, as SPARKLE_SHA256 is.
-# renovate: datasource=github-releases depName=vslavik/winsparkle extractVersion=^v(?<version>.*)$
-WINSPARKLE_VERSION := 0.9.4
+# WinSparkle (D-111), Sparkle's Windows port: the release archive pinned by its release tag and
+# SHA-256 (GitHub's digest of the asset), kept in .cache/winsparkle/<version> (hack/windows/winsparkle.sh).
+# Renovate updates both lines as it does Sparkle's (the tag, since its datasource looks the release
+# up by it) and never merges the update on its own.
+# renovate: datasource=github-release-attachments depName=vslavik/winsparkle
+WINSPARKLE_TAG     := v0.9.4
 WINSPARKLE_SHA256  := 6037df37fc263bd1650a1c4949681a9d40ffe991d01f35892a406cb5d103c976
+WINSPARKLE_VERSION := $(patsubst v%,%,$(WINSPARKLE_TAG))
 WINSPARKLE_DIR     := $(CACHE)/winsparkle/$(WINSPARKLE_VERSION)
 # The setup's architecture names (x64, arm64) for Go's (amd64, arm64).
 WIN_ARCH         = $(if $(filter arm64,$(shell $(GO) env GOARCH)),arm64,x64)

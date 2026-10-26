@@ -519,13 +519,15 @@ SSL.com's serves an individual), then a signing job of its own in an environment
 
 ### H-140: WinSparkle.dll is a third-party binary without a signature
 
-Open, accepted (the lead's choice, 2026-10-21). The setup ships WinSparkle 0.9.4's x64 DLL as its
+Open, accepted (the lead's choice, 2026-10-21). The setup ships the x64 DLL of the WinSparkle release the Makefile pins (`WINSPARKLE_TAG`) as its
 release archive carries it: built by WinSparkle's maintainer, not by Cogpit's pipeline, and without
 an Authenticode signature. It runs inside `cogpit.exe` with the user's rights and decides which
 setup runs as an update. What bounds it: the archive is pinned by its SHA-256 (GitHub's digest of
 the asset, `WINSPARKLE_SHA256`), so a release carries exactly the binary pinned in the
 [`Makefile`](../../Makefile), and a new version comes only through a reviewed change of the pin
-(Renovate proposes it, never merges it). What it does not bound: that the maintainer's build is
+(Renovate proposes it with the new archive's SHA-256, which its github-release-attachments
+datasource hashes from the release's asset, and never merges it; until 2026-10-26 Renovate did not
+see this pin at all, its line matching none of its managers). What it does not bound: that the maintainer's build is
 what its source says. Building WinSparkle from its source in the pipeline (Visual Studio) was
 weighed and left for later.
 
@@ -535,7 +537,9 @@ The Go modules Cogpit is built from, and the GitHub Actions its pipeline runs, a
 of their own. As built: Renovate ([`renovate.yml`](../../.github/workflows/renovate.yml),
 [`.github/renovate.json`](../../.github/renovate.json)) proposes updates, and the minor, patch and
 digest updates of Go modules, the Go version, Actions and the Makefile's tool pins merge on their
-own once CI passes (an Action's major update too), Sparkle's never; govulncheck checks every push
+own once CI passes (an Action's major update too), Sparkle's and WinSparkle's never (Renovate
+writes their archives' new SHA-256 itself since 2026-10-26, so the pull request a person reviews
+is Renovate's alone); govulncheck checks every push
 to `main` for known vulnerabilities in code Cogpit reaches, and GoSec scans the shipped code (the
 jobs "Vulnerability Check" and "GoSec Security Scan" in
 [`release.yml`](../../.github/workflows/release.yml)). The policy is written in

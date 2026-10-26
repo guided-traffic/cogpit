@@ -251,7 +251,7 @@ uninstaller removes it.
 |---|---|
 | `cogpit.exe` | the app, a GUI program (no console window opens), built as a release builds it: the tag `nodemo` (no demo cluster), Fyne's thread check off, the Windows feed's URL and the update key's public half; its icon and version in Explorer's Properties |
 | `cogpit-cli.exe` | the command-line tool and MCP stdio bridge ([`cogpit-cli`](#cogpit-cli)); not put on your `PATH` |
-| `WinSparkle.dll` | WinSparkle 0.9.4, the updater `cogpit.exe` loads from its own folder by its full path; pinned by the SHA-256 of its release archive, unsigned as WinSparkle ships it ([H-140](../security/updates.md#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
+| `WinSparkle.dll` | WinSparkle (the release Cogpit's Makefile pins), the updater `cogpit.exe` loads from its own folder by its full path; pinned by the SHA-256 of its release archive, unsigned as WinSparkle ships it ([H-140](../security/updates.md#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
 | `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | Cogpit's licence; the third-party code in the binaries, WinSparkle's and expat's licences |
 | `uninstall.exe` | the uninstaller (`/S` silently) |
 
