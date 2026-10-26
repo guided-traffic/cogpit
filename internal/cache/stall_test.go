@@ -258,7 +258,8 @@ func TestStalledStreamLists(t *testing.T) {
 			}
 			waitFor(t, func() bool { return len(got.stalled()) > 0 })
 			st := got.stalled()[0]
-			if st.Scope != a || st.ListErr != nil || st.Listed <= 0 || st.Listed > time.Second {
+			// An in-memory list answers at once: Windows' clock measures it as 0 (main's run, 2026-10-26).
+			if st.Scope != a || st.ListErr != nil || st.Listed < 0 || st.Listed > time.Second {
 				t.Errorf("stall = %+v", st)
 			}
 			var stall *cache.StreamStallError
