@@ -850,6 +850,25 @@ and drawers before (2026-10-13, `TestFluxKeepsSecretsOut`). What is still not co
   [H-82](#h-82-secret-values-printed-into-logs-reach-agents)'s rule; in a ConfigMap or another
   object's YAML it reaches agents as stored.
 
+### H-new: A changed value's key path reaches agents
+
+On the branch `proto/helm-revisions` (a prototype, not merged; [D-new](../developer/decisions.md#d-new-a-releases-revisions)).
+`helm_release_diff` gives an agent the key paths of the values that differ between two revisions,
+each value withheld (`model.Withheld`), so that an agent can help find what an upgrade changed
+without reading a value. The owner's choice (2026-10-26, option (a) of two; (b), "the values
+differ" without key paths, weighed and not taken). What it leaves open, per case:
+
+- **A key that is data, not schema.** A chart whose values are maps keyed by user-chosen names
+  (`auth.users.alice`, `ingress.hosts[…]` is a list and shows only indexes) hands those names to an
+  agent as part of the path. Live for every release such a chart installs, once the branch is
+  merged; dormant today (the branch only).
+- **A key a template turns into a value.** A chart that renders a key's name into a Secret
+  (`range $k, $v := .Values.tokens`) puts it into the manifest too; the manifest's Secrets are
+  withheld, its other objects reach agents through the agent view as stored.
+- **What stays out:** every value of the values and of every rendered Secret, in both revisions,
+  and the line diff of the values (dropped for agents); the built-in agent over a private
+  connection reads as the window does ([H-94](#h-94-a-private-connection-gives-the-model-what-the-window-shows)).
+
 ### H-32: An agent can clear the user's notifications
 
 Live from 2026-10-13 until the night run of 2026-10-14 for external agents, over MCP or the stdio

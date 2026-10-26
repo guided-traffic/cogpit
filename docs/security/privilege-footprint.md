@@ -408,8 +408,9 @@ metadata-only design of 2026-10-11 and its one GET per opened drawer are gone. W
   and its rendered manifest, and keeps the decoded text in the tab until it reads another or
   closes; a rendered Secret's `data` and `stringData` are masked in the window until the user's
   Show (the window's alone, never the engine's state), and agents read the values and every
-  rendered Secret's values withheld, the key paths of changed values only, the manifest's other
-  objects through the agent view (H-82); the built-in agent over a private connection reads as the
+  rendered Secret's values withheld, the key paths of changed values only (the owner's choice,
+  2026-10-26; what a key path can still say: [agents and MCP › H-new](agents-and-mcp.md#h-new-a-changed-values-key-path-reaches-agents)),
+  the manifest's other objects through the agent view (H-82); the built-in agent over a private connection reads as the
   window does. No new request: the records are the ones the Releases view lists already.
 - **Helm's release ConfigMaps** (2026-10-13, Helm's ConfigMaps driver): the same payload in a
   ConfigMap's `data.release`, decoded into the same memo under the same rules. The Config Maps
