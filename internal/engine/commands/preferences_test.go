@@ -98,7 +98,7 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("an agent's reduceMotion %v: %v, %v", on, err, got.Preferences.ReduceMotion)
 		}
 	}
-	// So is the way the Revisions tab reads a comparison (D-new): every origin sets it, the default
+	// So is the way the Revisions tab reads a comparison (D-131): every origin sets it, the default
 	// is kept as empty, an unknown way is refused.
 	for _, way := range []string{engine.RevisionsOlderToNewer, engine.RevisionsShownToCompared, engine.RevisionsComparedToShown} {
 		var got commands.PreferencesResult

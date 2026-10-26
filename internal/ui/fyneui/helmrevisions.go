@@ -3,6 +3,7 @@ package fyneui
 import (
 	"fmt"
 	"image/color"
+	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -20,8 +22,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/nativedialog"
 )
 
-// helmRevisionsTab is a release's Revisions dock tab (plan/helm-revisions.md, a prototype for the
-// owner's design review; the owner picked the dock tab, his option A, on 2026-10-25): over the
+// helmRevisionsTab is a release's Revisions dock tab (D-131; the owner picked the dock tab, his
+// option A, on 2026-10-25, and looked at it in the window on 2026-10-26): over the
 // tab the revision shown and the one it is compared with, Values or Manifest, and the actions;
 // on its left the release's revisions; on its right the revision's values (user-supplied or all)
 // or its rendered manifest (its objects as kubectl lists them, or manifest.yaml as Helm stored
@@ -47,15 +49,15 @@ type helmRevisionsTab struct {
 	modeSeg          *twoWay
 	rollback         *textButton
 	copyBtn, saveBtn *tipButton
-	described        *textLine // the shown revision's description
+	described        *selLine // the shown revision's description
 	revList          *widget.List
-	status           *textLine
+	status           *selLine
 
 	// Values.
 	valuesSeg   *twoWay
 	valuesView  *yamlview.View
 	valuesFind  *findBar
-	keysHead    *textLine
+	keysHead    *selLine
 	keyCols     *keyRow
 	keys        []helm.ValueChange
 	keysList    *widget.List
@@ -65,10 +67,10 @@ type helmRevisionsTab struct {
 
 	// Manifest.
 	manifestSeg *twoWay
-	counts      *textLine
+	counts      *selLine
 	objs        []helm.ObjectChange // the objects listed: the diff's, or the revision's marked "="
 	objList     *widget.List
-	objSource   *textLine
+	objSource   *selLine
 	objLive     *linkText
 	objShow     *textButton
 	objView     *yamlview.View
@@ -159,14 +161,14 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 	r.rollback = newTextButton("Rollback", theme.HistoryIcon(), r.rollBack)
 	r.copyBtn = newTipButton(sh, theme.ContentCopyIcon(), "Copy what the tab shows", r.copyShown)
 	r.saveBtn = newTipButton(sh, theme.DocumentSaveIcon(), "Save as…", r.saveShown)
-	r.described = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	r.described.truncate = true
-	r.status = newTextLine("Loading…", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	r.status.truncate = true
+	r.described = newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)
+	r.described.line.truncate = true
+	r.status = newSel(newTextLine("Loading…", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), r.copy)
+	r.status.line.truncate = true
 
 	r.revList = widget.NewList(
 		func() int { return len(r.history) },
-		func() fyne.CanvasObject { return newRevisionRow() },
+		func() fyne.CanvasObject { return newRevisionRow(r.copy) },
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			if i >= 0 && i < len(r.history) {
 				o.(*revisionRow).set(r.history[i], r.history[i].Revision == r.st.Revision, r.history[i].Revision == r.st.Compare, r.history[i].Revision == r.newest, r.sh.timeFormat())
@@ -186,9 +188,9 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 
 	r.revBox, r.cmpBox = box(fitSelect{}, r.revPick), box(fitSelect{}, r.cmpPick)
 	pickers := container.NewHBox(
-		centred(newTextLine("Revision", colorMuted, theme.SizeNameText, fyne.TextStyle{})), r.revBox,
+		centred(newSel(newTextLine("Revision", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)), r.revBox,
 		gapOf(8),
-		centred(newTextLine("Compare with", colorMuted, theme.SizeNameText, fyne.TextStyle{})), r.cmpBox,
+		centred(newSel(newTextLine("Compare with", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)), r.cmpBox,
 		gapOf(16), r.modeSeg.root)
 	actions := container.NewHBox(r.rollback, r.copyBtn, r.saveBtn)
 	headLine := container.NewBorder(nil, nil, pickers, actions)
@@ -197,7 +199,7 @@ func newHelmRevisionsTab(sh *shell, t engine.DockTab) *helmRevisionsTab {
 	footer := container.NewStack(newSurface(colorDock), inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, r.status))
 	r.content = container.NewStack()
 	left := box(widthOf{revisionsListWidth}, container.NewBorder(
-		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, newTextLine("Revisions", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})),
+		inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, newSel(newTextLine("Revisions", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}), r.copy)),
 		nil, nil, nil, r.revList))
 	body := container.NewBorder(nil, nil, container.NewHBox(left, newDivider(true)), nil, r.content)
 	r.root = container.NewBorder(container.NewVBox(header, newDivider(false)), container.NewVBox(newDivider(false), footer), nil, nil, body)
@@ -214,12 +216,12 @@ func (r *helmRevisionsTab) buildValues() {
 	})
 	r.valuesView = readOnlyYAML()
 	r.valuesFind = newViewerFindBar(r.sh, r.valuesView)
-	r.keysHead = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	r.keyCols = newKeyRow()
+	r.keysHead = newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), r.copy)
+	r.keyCols = newKeyRow(r.copy)
 	r.keyCols.header()
 	r.keysList = widget.NewList(
 		func() int { return len(r.keys) },
-		func() fyne.CanvasObject { return newKeyRow() },
+		func() fyne.CanvasObject { return newKeyRow(r.copy) },
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			if i >= 0 && i < len(r.keys) {
 				o.(*keyRow).set(r.keys[i])
@@ -230,7 +232,7 @@ func (r *helmRevisionsTab) buildValues() {
 		on := !r.st.LineDiff
 		r.set(helmRevisionsParams{LineDiff: &on})
 	})
-	r.valuesDiff = newDiffView()
+	r.valuesDiff = newDiffView(r.copy)
 	r.valuesBody = container.NewStack()
 }
 
@@ -240,10 +242,10 @@ func (r *helmRevisionsTab) buildManifest() {
 		raw := i == 1
 		r.set(helmRevisionsParams{Raw: &raw})
 	})
-	r.counts = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	r.counts = newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy)
 	r.objList = widget.NewList(
 		func() int { return len(r.objs) },
-		func() fyne.CanvasObject { return newObjectRow() },
+		func() fyne.CanvasObject { return newObjectRow(r.copy) },
 		func(i widget.ListItemID, o fyne.CanvasObject) {
 			if i >= 0 && i < len(r.objs) {
 				o.(*objectRow).set(r.objs[i], r.objs[i].Key() == r.selectedKey(), r.st.Compare != 0)
@@ -259,14 +261,14 @@ func (r *helmRevisionsTab) buildManifest() {
 			}
 		}
 	}
-	r.objSource = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	r.objSource.truncate = true
+	r.objSource = newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), r.copy)
+	r.objSource.line.truncate = true
 	r.objLive = newLinkText("Show live object", r.showLive)
 	r.objShow = newTextButton(showLabel, theme.VisibilityIcon(), func() { r.toggleShown(r.selectedKey()) })
 	r.objShow.setTone(colorStatusWarning)
 	r.objView = readOnlyYAML()
 	r.objFind = newViewerFindBar(r.sh, r.objView)
-	r.objDiff = newDiffView()
+	r.objDiff = newDiffView(r.copy)
 	r.objBody = container.NewStack()
 	r.rawView = readOnlyYAML()
 	r.rawFind = newViewerFindBar(r.sh, r.rawView)
@@ -395,8 +397,8 @@ func (r *helmRevisionsTab) showPickers() {
 	}
 	for _, e := range r.history {
 		if e.Revision == r.st.Revision {
-			r.described.SetText(e.Description)
-			r.described.SetColor(map[bool]fyne.ThemeColorName{true: colorStatusError, false: colorMuted}[helm.StatusToken(e.Status) == model.StatusError])
+			setSel(r.described, e.Description)
+			r.described.line.SetColor(map[bool]fyne.ThemeColorName{true: colorStatusError, false: colorMuted}[helm.StatusToken(e.Status) == model.StatusError])
 		}
 	}
 }
@@ -506,11 +508,11 @@ func (r *helmRevisionsTab) renderValues() {
 		r.keys = r.diff.Changes
 		switch n := len(r.keys); n {
 		case 0:
-			r.keysHead.SetText(fmt.Sprintf("The values of revision %d and revision %d are the same", r.diff.From, r.diff.To))
+			setSel(r.keysHead, fmt.Sprintf("The values of revision %d and revision %d are the same", r.diff.From, r.diff.To))
 		case 1:
-			r.keysHead.SetText(fmt.Sprintf("1 key differs between revision %d and revision %d", r.diff.From, r.diff.To))
+			setSel(r.keysHead, fmt.Sprintf("1 key differs between revision %d and revision %d", r.diff.From, r.diff.To))
 		default:
-			r.keysHead.SetText(fmt.Sprintf("%d keys differ between revision %d and revision %d", n, r.diff.From, r.diff.To))
+			setSel(r.keysHead, fmt.Sprintf("%d keys differ between revision %d and revision %d", n, r.diff.From, r.diff.To))
 		}
 		r.keyCols.titles(r.sideName(r.diff.From), r.sideName(r.diff.To))
 		r.keysList.Refresh()
@@ -551,12 +553,12 @@ func (r *helmRevisionsTab) renderManifest() {
 	r.objs = r.objs[:0]
 	if compared {
 		r.objs = append(r.objs, r.diff.Objects...)
-		r.counts.SetText(fmt.Sprintf("%d changed · %d added · %d removed · %d the same, against revision %d", r.diff.Changed, r.diff.Added, r.diff.Removed, r.diff.Same, r.diff.From))
+		setSel(r.counts, fmt.Sprintf("%d changed · %d added · %d removed · %d the same, against revision %d", r.diff.Changed, r.diff.Added, r.diff.Removed, r.diff.Same, r.diff.From))
 	} else {
 		for _, o := range r.cur.Objects {
 			r.objs = append(r.objs, helm.ObjectChange{ManifestObject: o, Change: helm.ObjectSame})
 		}
-		r.counts.SetText(fmt.Sprintf("%d objects", len(r.objs)))
+		setSel(r.counts, fmt.Sprintf("%d objects", len(r.objs)))
 	}
 	r.objList.Refresh()
 	r.manifestTop.Objects = []fyne.CanvasObject{r.manifestSeg.root, gapOf(12), centred(r.counts)}
@@ -565,7 +567,7 @@ func (r *helmRevisionsTab) renderManifest() {
 		r.renderRaw()
 	} else {
 		r.renderObject(compared)
-		list := box(widthOf{objectsListWidth}, container.NewBorder(objectsHeader(compared), nil, nil, nil, r.objList))
+		list := box(widthOf{objectsListWidth}, container.NewBorder(objectsHeader(compared, r.copy), nil, nil, nil, r.objList))
 		r.manifestBox.Objects = []fyne.CanvasObject{container.NewBorder(nil, nil, container.NewHBox(list, newDivider(true)), nil, r.objBody)}
 	}
 	r.manifestTop.Refresh()
@@ -585,12 +587,12 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		}
 	}
 	if obj == nil {
-		r.objBody.Objects = []fyne.CanvasObject{centred(newTextLine("No object selected", colorMuted, theme.SizeNameText, fyne.TextStyle{}))}
+		r.objBody.Objects = []fyne.CanvasObject{centred(newSel(newTextLine("No object selected", colorMuted, theme.SizeNameText, fyne.TextStyle{}), r.copy))}
 		r.objBody.Refresh()
 		return
 	}
 	shown := r.shown[key]
-	r.objSource.SetText(obj.Kind + " " + obj.Name)
+	setSel(r.objSource, obj.Kind+" "+obj.Name)
 	tools := []fyne.CanvasObject{}
 	if r.objectYAML(key) != "" && model.RefTo(obj.APIVersion, obj.Kind, obj.Namespace, obj.Name) != nil { // in the revision shown
 		tools = append(tools, centred(fitLink(r.objLive)))
@@ -608,8 +610,8 @@ func (r *helmRevisionsTab) renderObject(compared bool) {
 		view = container.NewStack(newSurface(theme.ColorNameInputBackground), r.objDiff.list)
 		r.setStatus(changeText(obj, r.diff.From, r.diff.To), colorMuted)
 		if obj.Secret && !shown && !engine.DiffChanged(r.diff.Lines) { // masked, its values' sizes alike
-			view = container.NewStack(newSurface(theme.ColorNameInputBackground), centred(newTextLine(
-				"Its values differ, their sizes do not: Show compares them.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})))
+			view = container.NewStack(newSurface(theme.ColorNameInputBackground), centred(newSel(newTextLine(
+				"Its values differ, their sizes do not: Show compares them.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{}), r.copy)))
 		}
 	default:
 		yamlText := r.objectYAML(key)
@@ -745,7 +747,15 @@ func (r *helmRevisionsTab) rollBack() {
 // shownText is what the tab shows as text, and a file name for it.
 func (r *helmRevisionsTab) shownText() (string, string) {
 	base := fmt.Sprintf("%s-revision-%d", r.ref.Name, r.st.Revision)
+	compared := r.st.Compare != 0 && r.diff.To != 0
+	if compared {
+		base = fmt.Sprintf("%s-revision-%d-to-%d", r.ref.Name, r.diff.From, r.diff.To)
+	}
 	switch {
+	case r.st.Mode != engine.RevisionsManifest && compared && r.st.LineDiff:
+		return diffText(r.diff.Lines), base + "-values.diff"
+	case r.st.Mode != engine.RevisionsManifest && compared:
+		return r.keysText(), base + "-values-changed.txt"
 	case r.st.Mode != engine.RevisionsManifest:
 		if r.st.All {
 			return r.cur.Values, base + "-all-values.yaml"
@@ -754,10 +764,46 @@ func (r *helmRevisionsTab) shownText() (string, string) {
 	case r.st.Raw:
 		return r.rawView.Text(), base + "-manifest.yaml"
 	}
-	return r.objView.Text(), base + "-" + strings.ToLower(strings.ReplaceAll(r.selectedKey(), "/", "-")) + ".yaml"
+	name := base + "-" + strings.ToLower(strings.NewReplacer("/", "-", ".", "-").Replace(r.selectedKey()))
+	for _, o := range r.objs {
+		if compared && o.Key() == r.selectedKey() && o.Change != helm.ObjectSame {
+			return diffText(r.diff.Lines), name + ".diff"
+		}
+	}
+	return r.objView.Text(), name + ".yaml"
 }
 
-// copyShown copies what the tab shows: the values, the object or manifest.yaml, a Secret as shown.
+// keysText is the changed keys as the list shows them: a line naming the sides, then one line per
+// key, "path: from → to".
+func (r *helmRevisionsTab) keysText() string {
+	var b strings.Builder
+	b.WriteString(r.sideName(r.diff.From) + " → " + r.sideName(r.diff.To) + "\n")
+	for _, k := range r.diff.Changes {
+		b.WriteString(k.Path + ": " + orNotSet(k.From) + " → " + orNotSet(k.To) + "\n")
+	}
+	return b.String()
+}
+
+// diffText is a line diff as text: "- " before a removed line, "+ " before an added one, two spaces
+// before one the two sides share.
+func diffText(lines []engine.DiffLine) string {
+	var b strings.Builder
+	for _, l := range lines {
+		switch l.Op {
+		case engine.DiffRemoved:
+			b.WriteString("- ")
+		case engine.DiffAdded:
+			b.WriteString("+ ")
+		default:
+			b.WriteString("  ")
+		}
+		b.WriteString(l.Text + "\n")
+	}
+	return b.String()
+}
+
+// copyShown copies what the tab shows: the values, the changed keys or the line diff, the object or
+// its diff, manifest.yaml; a Secret as shown.
 func (r *helmRevisionsTab) copyShown() {
 	text, _ := r.shownText()
 	r.sh.copyText(text, false)
@@ -767,7 +813,11 @@ func (r *helmRevisionsTab) copyShown() {
 // saveShown saves what the tab shows into the file the user picks in the system's save panel.
 func (r *helmRevisionsTab) saveShown() {
 	text, name := r.shownText()
-	if !r.sh.files.save(nativedialog.SaveOptions{Title: "Save as", Name: name, Types: yamlExtensions}, func(path string) {
+	var types []string // a diff or the changed keys: any file
+	if strings.HasSuffix(name, ".yaml") {
+		types = yamlExtensions
+	}
+	if !r.sh.files.save(nativedialog.SaveOptions{Title: "Save as", Name: name, Types: types}, func(path string) {
 		r.sh.writePicked(path, []byte(text), func(err error) {
 			if err != nil {
 				r.setStatus("Not saved: "+err.Error(), colorStatusError)
@@ -776,18 +826,37 @@ func (r *helmRevisionsTab) saveShown() {
 			r.setStatus("Saved to "+path+".", colorStatusOK)
 		})
 	}) {
-		r.setStatus("Save as… needs the system's save panel, which this prototype uses only on macOS.", colorStatusWarning)
+		r.saveWithDialog(name, []byte(text)) // no system panel (Linux, Windows): Fyne's
 	}
 }
 
+// saveWithDialog saves data through Fyne's save dialog, where the system has no panel Cogpit uses.
+func (r *helmRevisionsTab) saveWithDialog(name string, data []byte) {
+	d := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
+		if err == nil && w == nil {
+			return // cancelled
+		}
+		if err == nil {
+			err = writeAndClose(w, data)
+		}
+		if err != nil {
+			r.setStatus("Not saved: "+err.Error(), colorStatusError)
+			return
+		}
+		r.setStatus("Saved to "+filepath.FromSlash(w.URI().Path())+".", colorStatusOK)
+	}, r.sh.win)
+	d.SetFileName(name)
+	r.sh.showDialog(d)
+}
+
 func (r *helmRevisionsTab) setStatus(text string, c fyne.ThemeColorName) {
-	r.status.SetText(text)
-	r.status.SetColor(c)
+	setSel(r.status, text)
+	r.status.line.SetColor(c)
 }
 
 // objectsHeader titles the objects' table as kubectl get titles its columns.
-func objectsHeader(compared bool) fyne.CanvasObject {
-	h := newObjectRow()
+func objectsHeader(compared bool, copied func(string)) fyne.CanvasObject {
+	h := newObjectRow(copied)
 	h.header(compared)
 	return h
 }
@@ -876,31 +945,32 @@ func centred(o fyne.CanvasObject) fyne.CanvasObject { return container.NewCenter
 type revisionRow struct {
 	widget.BaseWidget
 	bg            *canvas.Rectangle
-	num, status   *textLine
-	chart, mark   *textLine
-	when          *textLine
+	num, status   *selLine
+	chart         *selLine
+	mark          *textLine
+	when          *selLine
 	selectedShown bool
 }
 
-func newRevisionRow() *revisionRow {
+func newRevisionRow(copied func(string)) *revisionRow {
 	r := &revisionRow{
 		bg:     canvas.NewRectangle(color.Transparent),
-		num:    newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}),
-		status: newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
-		chart:  newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}),
+		num:    newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}), copied),
+		status: newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
+		chart:  newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), copied),
 		mark:   newTextLine("", colorAccent, theme.SizeNameText, fyne.TextStyle{Bold: true}),
-		when:   newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+		when:   newSel(newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), copied),
 	}
-	r.chart.truncate, r.when.truncate = true, true
+	r.chart.line.truncate, r.when.line.truncate = true, true
 	r.ExtendBaseWidget(r)
 	return r
 }
 
 func (r *revisionRow) set(e helm.HistoryEntry, shown, compared, newest bool, tf model.TimeFormat) {
-	r.num.SetText(strconv.Itoa(e.Revision))
-	r.status.SetText(helm.StatusText(e.Status))
-	r.status.SetColor(statusColorName(helm.StatusToken(e.Status)))
-	r.chart.SetText(e.ChartVersion)
+	setSel(r.num, strconv.Itoa(e.Revision))
+	setSel(r.status, helm.StatusText(e.Status))
+	r.status.line.SetColor(statusColorName(helm.StatusToken(e.Status)))
+	setSel(r.chart, e.ChartVersion)
 	mark := ""
 	switch {
 	case shown:
@@ -913,7 +983,7 @@ func (r *revisionRow) set(e helm.HistoryEntry, shown, compared, newest bool, tf 
 	if newest {
 		when = "current · " + when
 	}
-	r.when.SetText(when)
+	setSel(r.when, when)
 	r.selectedShown = shown
 	if shown {
 		r.bg.FillColor = themeColor(r.Theme(), colorRowSelected)
@@ -933,24 +1003,25 @@ func (r *revisionRow) CreateRenderer() fyne.WidgetRenderer {
 // shown.
 type keyRow struct {
 	widget.BaseWidget
-	path, from, arrow, to *textLine
+	path, from, to *selLine
+	arrow          *textLine
 }
 
-func newKeyRow() *keyRow {
+func newKeyRow(copied func(string)) *keyRow {
 	r := &keyRow{
-		path:  newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Monospace: true}),
-		from:  newTextLine("", colorStatusError, theme.SizeNameText, fyne.TextStyle{Monospace: true}),
+		path:  newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Monospace: true}), copied),
+		from:  newSel(newTextLine("", colorStatusError, theme.SizeNameText, fyne.TextStyle{Monospace: true}), copied),
 		arrow: newTextLine("→", colorMuted, theme.SizeNameText, fyne.TextStyle{}),
-		to:    newTextLine("", colorStatusOK, theme.SizeNameText, fyne.TextStyle{Monospace: true}),
+		to:    newSel(newTextLine("", colorStatusOK, theme.SizeNameText, fyne.TextStyle{Monospace: true}), copied),
 	}
-	r.path.truncate, r.from.truncate, r.to.truncate = true, true, true
+	r.path.line.truncate, r.from.line.truncate, r.to.line.truncate = true, true, true
 	r.ExtendBaseWidget(r)
 	return r
 }
 
 // header makes the row the list's column titles.
 func (r *keyRow) header() {
-	for _, t := range []*textLine{r.path, r.from, r.arrow, r.to} {
+	for _, t := range []*textLine{r.path.line, r.from.line, r.arrow, r.to.line} {
 		t.color, t.size, t.style = colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}
 		t.Refresh()
 	}
@@ -959,15 +1030,15 @@ func (r *keyRow) header() {
 
 // titles names the columns by the revisions the comparison goes from and to.
 func (r *keyRow) titles(from, to string) {
-	r.path.SetText("KEY")
-	r.from.SetText(strings.ToUpper(from))
-	r.to.SetText(strings.ToUpper(to))
+	setSel(r.path, "KEY")
+	setSel(r.from, strings.ToUpper(from))
+	setSel(r.to, strings.ToUpper(to))
 }
 
 func (r *keyRow) set(c helm.ValueChange) {
-	r.path.SetText(c.Path)
-	r.from.SetText(orNotSet(c.From))
-	r.to.SetText(orNotSet(c.To))
+	setSel(r.path, c.Path)
+	setSel(r.from, orNotSet(c.From))
+	setSel(r.to, orNotSet(c.To))
 }
 
 // orNotSet is a value, or a key's absence on that side.
@@ -1013,41 +1084,42 @@ func (keyRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 // its mark.
 type objectRow struct {
 	widget.BaseWidget
-	bg                    *canvas.Rectangle
-	kind, name, ns, delta *textLine
+	bg             *canvas.Rectangle
+	kind, name, ns *selLine
+	delta          *textLine
 }
 
-func newObjectRow() *objectRow {
+func newObjectRow(copied func(string)) *objectRow {
 	r := &objectRow{
 		bg:    canvas.NewRectangle(color.Transparent),
-		kind:  newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
-		name:  newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}),
-		ns:    newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}),
+		kind:  newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
+		name:  newSel(newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{}), copied),
+		ns:    newSel(newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{}), copied),
 		delta: newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{Bold: true, Monospace: true}),
 	}
-	r.kind.truncate, r.name.truncate, r.ns.truncate = true, true, true
+	r.kind.line.truncate, r.name.line.truncate, r.ns.line.truncate = true, true, true
 	r.ExtendBaseWidget(r)
 	return r
 }
 
 // header makes the row the table's column titles.
 func (r *objectRow) header(compared bool) {
-	for _, t := range []*textLine{r.kind, r.name, r.ns, r.delta} {
+	for _, t := range []*textLine{r.kind.line, r.name.line, r.ns.line, r.delta} {
 		t.color, t.size, t.style = colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true}
 		t.Refresh()
 	}
-	r.kind.SetText("KIND")
-	r.name.SetText("NAME")
-	r.ns.SetText("NAMESPACE")
+	setSel(r.kind, "KIND")
+	setSel(r.name, "NAME")
+	setSel(r.ns, "NAMESPACE")
 	if compared {
 		r.delta.SetText("Δ")
 	}
 }
 
 func (r *objectRow) set(c helm.ObjectChange, selected, compared bool) {
-	r.kind.SetText(c.Kind)
-	r.name.SetText(c.Name)
-	r.ns.SetText(c.Namespace)
+	setSel(r.kind, c.Kind)
+	setSel(r.name, c.Name)
+	setSel(r.ns, c.Namespace)
 	r.delta.SetText("")
 	if compared {
 		r.delta.SetText(map[string]string{helm.ObjectRemoved: "−"}[c.Change] + strings.TrimPrefix(c.Change, helm.ObjectRemoved))
@@ -1059,8 +1131,8 @@ func (r *objectRow) set(c helm.ObjectChange, selected, compared bool) {
 	if c.Change == helm.ObjectRemoved {
 		nameColor = colorMuted
 	}
-	r.name.SetColor(nameColor)
-	r.kind.SetColor(nameColor)
+	r.name.line.SetColor(nameColor)
+	r.kind.line.SetColor(nameColor)
 	if selected {
 		r.bg.FillColor = themeColor(r.Theme(), colorRowSelected)
 	} else {
@@ -1095,6 +1167,25 @@ func (objectRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		o.Move(fyne.NewPos(x, 0))
 		x += ws[i]
 	}
+}
+
+// copy puts a selected text on the clipboard: every text of the tab is selectable, a drag, a double
+// click on a word, ⌘C (the owner, 2026-10-26: "Ich möchte texte markieren können. Überall in diesen
+// Masken", D-25's selection).
+func (r *helmRevisionsTab) copy(text string) { r.sh.copyText(text, false) }
+
+// newSel makes a line of the tab selectable, ⌘C copying its selection through copied.
+func newSel(l *textLine, copied func(string)) *selLine { return newSelLine(l, nil, copied) }
+
+// setSel changes a selectable line's text; a new text drops the selection, whose offsets were
+// into the old one (a list row reused for another revision, key or object).
+func setSel(s *selLine, text string) {
+	if s.line.text == text {
+		return
+	}
+	s.anchor, s.caret = 0, 0
+	s.line.SetText(text)
+	s.Refresh()
 }
 
 // linkFit gives a link its text's width: a link asks for none, as a truncating line does, which a

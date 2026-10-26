@@ -17,7 +17,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Revisions tab (plan/helm-revisions.md, a prototype) over the real engine and the demo
+// The Revisions tab (D-131) over the real engine and the demo
 // cluster, whose shop-web release has six revisions: values changed, an image bumped, a chart
 // version that adds a ConfigMap and drops a Service, a failed upgrade, a rollback.
 
@@ -142,8 +142,8 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 5})
 	id := res.(commands.DockResult).Tab.ID
 	r := h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues})
-	if len(r.diff.Changes) == 0 || !strings.Contains(r.keysHead.text, "differ between revision 6 and revision 5") {
-		t.Errorf("values compared: %+v %q", r.diff.Changes, r.keysHead.text)
+	if len(r.diff.Changes) == 0 || !strings.Contains(r.keysHead.line.text, "differ between revision 6 and revision 5") {
+		t.Errorf("values compared: %+v %q", r.diff.Changes, r.keysHead.line.text)
 	}
 	savePNG(t, h.w, name("values_compared"))
 
@@ -234,8 +234,8 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	}
 	link("3").Tapped(nil)
 	r := h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues})
-	if !strings.Contains(r.keysHead.text, "between revision 6 and revision 3") {
-		t.Errorf("revision 3 compared: %q", r.keysHead.text)
+	if !strings.Contains(r.keysHead.line.text, "between revision 6 and revision 3") {
+		t.Errorf("revision 3 compared: %q", r.keysHead.line.text)
 	}
 	link("Open revisions").Tapped(nil)
 	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsValues})
@@ -306,8 +306,8 @@ func TestRevisionsDiffPreference(t *testing.T) {
 		h.dispatch("preferences.set", map[string]any{"revisionsDiff": c.way})
 		h.until("the preference "+c.way, func() bool { return h.sh.revisionsDiff() == c.way })
 		r := h.tab(want)
-		if r.diff.From != c.from || r.diff.To != c.to || r.keyCols.from.text != c.fromCol || r.keyCols.to.text != c.toCol {
-			t.Errorf("%q: %d → %d, columns %q %q", c.way, r.diff.From, r.diff.To, r.keyCols.from.text, r.keyCols.to.text)
+		if r.diff.From != c.from || r.diff.To != c.to || r.keyCols.from.line.text != c.fromCol || r.keyCols.to.line.text != c.toCol {
+			t.Errorf("%q: %d → %d, columns %q %q", c.way, r.diff.From, r.diff.To, r.keyCols.from.line.text, r.keyCols.to.line.text)
 		}
 		for _, k := range r.diff.Changes {
 			if k.Path == "image.tag" && (k.From != map[bool]string{true: "2.4.0", false: "2.3.1"}[c.from == 6] || k.To != map[bool]string{true: "2.3.1", false: "2.4.0"}[c.from == 6]) {
@@ -319,5 +319,93 @@ func TestRevisionsDiffPreference(t *testing.T) {
 	h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues})
 	if r := h.tab(engine.HelmRevisionsTab{Revision: 5, Compare: 6, Mode: engine.RevisionsValues}); r.diff.From != 5 || r.diff.To != 6 {
 		t.Errorf("older to newer, revision 5 against 6: %d → %d", r.diff.From, r.diff.To)
+	}
+}
+
+// Every text of the tab is selectable and ⌘C copies it (the owner, 2026-10-26): a changed key's
+// path and values, a revision in the list, an object's name, a diff's line, the status line; the
+// copy icon copies what the tab shows, the changed keys or the diff, not an older text.
+func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
+	h := newRevisionsHarness(t, ThemeDark)
+	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 3})
+	id := res.(commands.DockResult).Tab.ID
+	r := h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues})
+	clip := h.sh.app.Clipboard()
+	copyOf := func(what string, s interface {
+		DoubleTapped(*fyne.PointEvent)
+		TypedShortcut(fyne.Shortcut)
+		SelectedText() string
+	}, want string) {
+		t.Helper()
+		s.DoubleTapped(&fyne.PointEvent{Position: fyne.NewPos(2, 2)})
+		s.TypedShortcut(&fyne.ShortcutCopy{})
+		if got := clip.Content(); s.SelectedText() == "" || got != want {
+			t.Errorf("%s: selected %q, copied %q, want %q", what, s.SelectedText(), got, want)
+		}
+	}
+	// A list keeps rows it does not show, empty: the ones that show a text.
+	var key *keyRow
+	h.until("a key's row", func() bool {
+		for _, k := range findAll[*keyRow](r.keysList) {
+			if k.path.line.text != "" {
+				key = k
+			}
+		}
+		return key != nil
+	})
+	copyOf("a key's path", key.path, key.path.line.text)
+	copyOf("the keys' title", r.keysHead, strings.Fields(r.keysHead.line.text)[0])
+	var rev *revisionRow
+	h.until("a revision's row", func() bool {
+		for _, x := range findAll[*revisionRow](r.revList) {
+			if x.status.line.text != "" {
+				rev = x
+			}
+		}
+		return rev != nil
+	})
+	copyOf("a revision's status", rev.status, rev.status.line.text)
+	copyOf("the status line", r.status, strings.Fields(r.status.line.text)[0])
+
+	r.copyShown()
+	if got := clip.Content(); !strings.HasPrefix(got, "revision 6 (compared) → revision 3 (shown)\n") || !strings.Contains(got, "image.tag: 2.4.0 → 2.3.1\n") {
+		t.Errorf("the copy icon on the changed keys: %q", got)
+	}
+	h.set(id, map[string]any{"lineDiff": true})
+	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsValues, LineDiff: true})
+	r.copyShown()
+	if got := clip.Content(); !strings.Contains(got, "-   tag: 2.4.0\n") || !strings.Contains(got, "+   tag: 2.3.1\n") {
+		t.Errorf("the copy icon on the line diff: %q", got)
+	}
+	var l *diffLineWidget
+	h.until("a diff line", func() bool {
+		for _, x := range findAll[*diffLineWidget](r.valuesDiff.list) {
+			if x.row.skipped == 0 && strings.TrimSpace(x.text.Text) != "" {
+				l = x
+			}
+		}
+		return l != nil
+	})
+	l.anchor, l.caret = 0, len([]rune(l.text.Text))
+	l.TypedShortcut(&fyne.ShortcutCopy{})
+	if got := clip.Content(); got != l.text.Text || got == "" {
+		t.Errorf("a diff line: copied %q, want %q", got, l.text.Text)
+	}
+
+	h.set(id, map[string]any{"mode": "manifest", "object": "Deployment.apps/demo-shop/shop-web"})
+	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Compare: 6, Mode: engine.RevisionsManifest, LineDiff: true, Object: "Deployment.apps/demo-shop/shop-web"})
+	var obj *objectRow
+	h.until("an object's row", func() bool {
+		for _, x := range findAll[*objectRow](r.objList) {
+			if x.name.line.text != "" {
+				obj = x
+			}
+		}
+		return obj != nil
+	})
+	copyOf("an object's name", obj.name, obj.name.line.text)
+	r.copyShown()
+	if got := clip.Content(); !strings.Contains(got, "- ") || !strings.Contains(got, "+ ") {
+		t.Errorf("the copy icon on an object's diff: %q", got)
 	}
 }

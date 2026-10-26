@@ -8,7 +8,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A release's revisions (plan/helm-revisions.md, a prototype; engine/helmrevisions.go): each
+// A release's revisions (D-131; engine/helmrevisions.go): each
 // revision's values and rendered manifest from the release records in Cogpit's cache, compared
 // with another revision, and the Revisions dock tab that shows them. Reads only; nothing asks the
 // API server. Values and rendered Secrets' values can hold credentials (H-8): agents read them

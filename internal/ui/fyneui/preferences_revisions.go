@@ -8,7 +8,7 @@ import (
 
 // Preferences › App › Revision diffs (the owner, 2026-10-25, at the design review of the Revisions
 // tab: "der Nutzer [soll] in den App Settings Global seinen favorisierten Weg für die Anzeige
-// konfigurieren können"; engine.Preferences.RevisionsDiff, D-new): which revision a comparison in
+// konfigurieren können"; engine.Preferences.RevisionsDiff, D-131): which revision a comparison in
 // a release's Revisions tab goes from, its old side (−), and which to, its new side (+).
 
 // revisionsDiffChoices are the select's choices: its label and the preference's value.

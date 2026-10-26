@@ -846,7 +846,7 @@ func (cd *cmData) openReview() {
 		return
 	}
 	width := min(float32(760), cd.d.sh.win.Canvas().Size().Width-120)
-	rv := &cmReview{cd: cd, values: values, adds: adds, removes: removes, from: cd.froms(), base: cd.base, diff: newDiffView(),
+	rv := &cmReview{cd: cd, values: values, adds: adds, removes: removes, from: cd.froms(), base: cd.base, diff: newDiffView(func(s string) { cd.d.sh.copyText(s, false) }),
 		width: width, opened: time.Now()}
 	rv.banner = newTextLine("", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	rv.banner.truncate = true

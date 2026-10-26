@@ -174,7 +174,7 @@ type Preferences struct {
 	// user adds one (ErrProgramFoldersGUIOnly); agents and the CLI may remove one.
 	ProgramFolders []string `json:"programFolders,omitempty"`
 	// RevisionsDiff is the way a Helm release's Revisions tab reads a comparison: which revision is
-	// the diff's old side (−) and which its new side (+) (helmrevisions.go, D-new; the owner,
+	// the diff's old side (−) and which its new side (+) (helmrevisions.go, D-131; the owner,
 	// 2026-10-25: the user configures his favourite way). Empty, the default: from the revision
 	// compared to the one shown (RevisionsComparedToShown). Agents and the CLI may set it either
 	// way: it changes only how the window shows a comparison.

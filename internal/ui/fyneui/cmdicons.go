@@ -45,7 +45,7 @@ var commandIcons = map[string]fyne.ThemeIconName{
 	"helm.release.rollback":  theme.IconNameHistory,
 	"helm.release.uninstall": theme.IconNameDelete,
 	upgradeTabCommand:        theme.IconNameViewRefresh, // Lens: a circular arrow (captured 2026-10-12)
-	revisionsCommand:         theme.IconNameList,        // a release's revisions (a prototype)
+	revisionsCommand:         theme.IconNameList,        // a release's revisions (D-131)
 	installTabCommand:        theme.IconNameDownload,    // Cogpit's choice: Lens's chart drawer is not captured
 }
 

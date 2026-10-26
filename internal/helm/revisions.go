@@ -22,7 +22,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A release's revisions (the Revisions dock tab, concept plan/helm-revisions.md): each revision's
+// A release's revisions (the Revisions dock tab, D-131): each revision's
 // values, user-supplied and all, and its rendered manifest, from the release record Helm keeps
 // per revision, which the cache holds (the Releases kind's scope). As `helm get values|manifest
 // --revision N` reads them, without asking the cluster. Values and a rendered Secret's data can

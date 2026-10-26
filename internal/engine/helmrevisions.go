@@ -14,7 +14,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Revisions dock tab (plan/helm-revisions.md, a prototype): a release's revisions, each one's
+// The Revisions dock tab (D-131): a release's revisions, each one's
 // values (user-supplied or all) and rendered manifest, compared with another revision. Everything
 // comes from the release records the cache holds, one per revision (the Releases kind's scope):
 // opening a revision decodes its record, comparing decodes a second one, and nothing asks the

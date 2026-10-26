@@ -177,7 +177,7 @@ type editorTab struct {
 }
 
 func newEditorTab(sh *shell, t engine.DockTab) *editorTab {
-	e := &editorTab{sh: sh, tab: t, pane: newEditorPane(sh, t.ID), diff: newDiffView()}
+	e := &editorTab{sh: sh, tab: t, pane: newEditorPane(sh, t.ID), diff: newDiffView(func(s string) { sh.copyText(s, false) })}
 	e.banner = newTextLine("", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	e.banner.truncate = true
 	e.status = newTextLine("Loading…", colorMuted, theme.SizeNameText, fyne.TextStyle{})

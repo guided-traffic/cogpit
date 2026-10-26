@@ -850,9 +850,9 @@ and drawers before (2026-10-13, `TestFluxKeepsSecretsOut`). What is still not co
   [H-82](#h-82-secret-values-printed-into-logs-reach-agents)'s rule; in a ConfigMap or another
   object's YAML it reaches agents as stored.
 
-### H-new: A changed value's key path reaches agents
+### H-144: A changed value's key path reaches agents
 
-On the branch `proto/helm-revisions` (a prototype, not merged; [D-new](../developer/decisions.md#d-new-a-releases-revisions)).
+Live since 2026-10-26 ([D-131](../developer/decisions.md#d-131-a-releases-revisions), PR #109).
 `helm_release_diff` gives an agent the key paths of the values that differ between two revisions,
 each value withheld (`model.Withheld`), so that an agent can help find what an upgrade changed
 without reading a value. The owner's choice (2026-10-26, option (a) of two; (b), "the values
@@ -860,8 +860,7 @@ differ" without key paths, weighed and not taken). What it leaves open, per case
 
 - **A key that is data, not schema.** A chart whose values are maps keyed by user-chosen names
   (`auth.users.alice`, `ingress.hosts[…]` is a list and shows only indexes) hands those names to an
-  agent as part of the path. Live for every release such a chart installs, once the branch is
-  merged; dormant today (the branch only).
+  agent as part of the path. Live for every release such a chart installs.
 - **A key a template turns into a value.** A chart that renders a key's name into a Secret
   (`range $k, $v := .Values.tokens`) puts it into the manifest too; the manifest's Secrets are
   withheld, its other objects reach agents through the agent view as stored.

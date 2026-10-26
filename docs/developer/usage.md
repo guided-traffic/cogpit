@@ -724,8 +724,7 @@ follows a pulled cable there within half a minute.
 
 ### Preferences › App: revision diffs
 
-On the branch `proto/helm-revisions` (a prototype, [D-new](decisions.md#d-new-a-releases-revisions)):
-which way a Helm release's Revisions tab reads a comparison of two revisions. **From the compared
+Since 2026-10-26 ([D-131](decisions.md#d-131-a-releases-revisions)): which way a Helm release's Revisions tab reads a comparison of two revisions. **From the compared
 revision to the shown one** (the default), **from the older revision to the newer one**, or **from
 the shown revision to the compared one**: the first is the diff's old side (−), the second its new
 side (+), in the changed keys, the line diff and the objects' marks. Kept in `preferences.json` as
@@ -1650,10 +1649,9 @@ them, its files, the Secrets it mounts included, as root with netshoot
 ([privilege footprint › Debug container](../security/privilege-footprint.md#debug-container)). Only
 you, in Cogpit's window, set the image; agents and the CLI may only reset it.
 
-### A release's revisions (a prototype on its branch)
+### A release's revisions
 
-On the branch `proto/helm-revisions` only, for the owner's design review, not in a release yet
-([D-new](decisions.md#d-new-a-releases-revisions)). **Revisions** (the list icon in a release's
+Since 2026-10-26 ([D-131](decisions.md#d-131-a-releases-revisions)). **Revisions** (the list icon in a release's
 drawer beside Rollback, its row menu, "Open revisions" at the drawer's History, or a revision's
 number there) opens a dock tab "Revisions · <release>", one per release:
 
@@ -1676,6 +1674,9 @@ number there) opens a dock tab "Revisions · <release>", one per release:
   to the shown one would change), "From the older revision to the newer one" or "From the shown
   revision to the compared one". The first revision is the diff's old side (−), the second its new
   side (+); the open tab follows at once.
+- **Every text is selectable**: drag over it or double click a word, ⌘C (Ctrl+C) copies. The copy
+  icon copies what the tab shows: the values, the changed keys ("path: from → to"), a diff as its
+  − and + lines, an object, manifest.yaml; **Save as…** writes the same into a file.
 
 It reads the release records Cogpit's cache holds and asks the cluster nothing. `cogpit --demo`
 has releases with a history for it (shop-web in demo-shop, six revisions).

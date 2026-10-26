@@ -7,7 +7,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The release drawer's ways into the Revisions tab (plan/helm-revisions.md § 5, a prototype): a
+// The release drawer's ways into the Revisions tab (D-131): a
 // revision's number in the History is a link that opens the tab at that revision, compared with
 // the newest (the newest itself not compared), and "Open revisions" at the History's title opens it
 // at the newest. The drawer's toolbar and the Releases list's row menu offer ui.helm.revisions as a
