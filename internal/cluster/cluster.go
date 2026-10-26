@@ -34,7 +34,6 @@ import (
 	"k8s.io/client-go/metadata"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/client-go/util/flowcontrol"
 
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
@@ -107,6 +106,9 @@ type Options struct {
 	// DiscoveryCacheTTL is how long an answer the cluster's definitions confirmed is reused; zero
 	// means DefaultDiscoveryCacheTTL.
 	DiscoveryCacheTTL time.Duration
+	// Diag, when set, is the context's diagnostics log (diaglog.go, D-133), kept by the caller across
+	// the context's connections; nil gives the connection a log of its own.
+	Diag *DiagLog
 	// Trace, when set, receives Connect's steps for the connection log (connecttrace.go, D-66):
 	// the kubeconfig, the server, the login, the certificate check, the proxy and the first
 	// answer, and the error picture of a failed one. It is called on Connect's goroutine and must
@@ -261,6 +263,12 @@ type Conn struct {
 	counter     *RequestCounter
 	warnings    *warningLog
 
+	// The diagnostics log and the rate limits that note in it (diaglog.go, diagtransport.go, D-133);
+	// the access reviews' limit is theirs (access.go).
+	diag       *DiagLog
+	limiter    *measuredLimiter
+	discoLimit *measuredLimiter
+
 	// The discovery answer: client-go's memory cache over the disk cache over disco (discocache.go),
 	// built on first use; discoCfg says where it is kept.
 	discoMu  sync.Mutex
@@ -372,8 +380,13 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	}
 	// One token bucket for the cluster. Left to client-go, the typed clientset and the dynamic
 	// client would each build their own from QPS and Burst, doubling the budget; copies of
-	// RESTConfig() share this one too.
-	cfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(cfg.QPS, cfg.Burst)
+	// RESTConfig() share this one too. It counts what waits at it (diagtransport.go, D-133).
+	diag := opts.Diag
+	if diag == nil {
+		diag = NewDiagLog()
+	}
+	limiter := newMeasuredLimiter(BudgetRequests, cfg.QPS, cfg.Burst, diag)
+	cfg.RateLimiter = limiter
 	// The API server's warnings, logged once per connection, not once per request (warnings.go).
 	warnings := newWarningLog(name)
 	cfg.WarningHandlerWithContext = warnings
@@ -389,6 +402,9 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	// The request timeout, the login guard and the gate, in every transport built from cfg; the
 	// probe's anonymous client of its own (D-58).
 	health := installHealth(cfg, counter.prefix, opts.RequestTimeout)
+	// The diagnostics log's round-tripper, above the timeout and the gates (D-133).
+	diag.Connecting(server)
+	installDiag(cfg, diag, counter.prefix)
 	if err := health.anonymousProbe(cfg, counter); err != nil {
 		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
 	}
@@ -435,7 +451,8 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 	// when a group fails), which at 5 per second would take many seconds.
 	discoCfg := rest.CopyConfig(cfg)
 	discoCfg.QPS, discoCfg.Burst = discoveryQPS, discoveryBurst
-	discoCfg.RateLimiter = flowcontrol.NewTokenBucketRateLimiter(discoveryQPS, discoveryBurst)
+	discoLimiter := newMeasuredLimiter(BudgetDiscovery, discoveryQPS, discoveryBurst, diag)
+	discoCfg.RateLimiter = discoLimiter
 	disco, err := discovery.NewDiscoveryClientForConfigAndClient(discoCfg, httpClient)
 	if err != nil {
 		return nil, &ConnectError{Context: name, Problem: "cannot build the client: " + kubeconfig.SafeError(err).Error(), Err: err}
@@ -453,6 +470,9 @@ func Connect(ctx context.Context, opts Options) (_ *Conn, err error) {
 		meta:        meta,
 		disco:       disco,
 		counter:     counter,
+		diag:        diag,
+		limiter:     limiter,
+		discoLimit:  discoLimiter,
 		warnings:    warnings,
 		health:      health,
 		stderr:      stderr,
@@ -665,6 +685,22 @@ func (c *Conn) Metadata() metadata.Interface { return c.meta }
 
 // Counter returns the connection's API request counter.
 func (c *Conn) Counter() *RequestCounter { return c.counter }
+
+// DiagLog returns the context's diagnostics log the connection notes in (D-133); nil for a
+// connection built around a clientset (tests).
+func (c *Conn) DiagLog() *DiagLog { return c.diag }
+
+// Budgets returns the connection's rate limits and what waited at each since it began: the
+// requests', discovery's and, once the first review was asked, the access reviews' (D-133).
+func (c *Conn) Budgets() []BudgetStats {
+	var out []BudgetStats
+	for _, m := range []*measuredLimiter{c.limiter, c.discoLimit, c.access.limiter.Load()} {
+		if m != nil {
+			out = append(out, m.Stats())
+		}
+	}
+	return out
+}
 
 // discovery returns the connection's cached discovery (client-go's memory cache over the disk
 // cache, discocache.go) and its disk layer, built on first use.

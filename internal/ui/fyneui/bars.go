@@ -7,7 +7,6 @@ import (
 	"image/color"
 	"math"
 	"net/url"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -215,18 +214,20 @@ func (r *logoRenderer) Objects() []fyne.CanvasObject { return []fyne.CanvasObjec
 func (r *logoRenderer) Destroy()                     {}
 
 // diagView is what the status bar shows from engine.Diagnostics, prepared off the main
-// goroutine. The count of table snapshots is not among it: a developer's diagnostic that only the
-// Diagnostics tab shows (diagnostics.go; owner, 2026-10-14).
+// goroutine: the problems on the Connection Diagnostics button, the requests and informers in its
+// tooltip (D-133). The count of table snapshots is not among it: a developer's diagnostic that only
+// the Diagnostics tab shows (diagnostics.go; owner, 2026-10-14).
 type diagView struct {
 	total, list, watch int64
 	informers          int
+	problems           int
 	demo               bool
 	demoRate           float64
 	demoObjects        int64
 }
 
 func newDiagView(d engine.Diagnostics) diagView {
-	v := diagView{total: d.Requests.Total, informers: len(d.Informers), demo: d.Demo}
+	v := diagView{total: d.Requests.Total, informers: len(d.Informers), demo: d.Demo, problems: d.Problems}
 	if d.Requests.ByVerb != nil {
 		v.list, v.watch = d.Requests.ByVerb["list"], d.Requests.ByVerb["watch"]
 	}
@@ -243,7 +244,8 @@ func newDiagView(d engine.Diagnostics) diagView {
 	return v
 }
 
-// statusBar is the bottom line: the connection's dot and the context, API requests, informers, the
+// statusBar is the bottom line: the connection's dot and the context, the Connection Diagnostics
+// button (D-133: the API requests and informers it showed before are its tooltip and its tab's), the
 // demo cluster's event rate, the link to the owner and the MCP indicator.
 type statusBar struct {
 	sh      *shell
@@ -255,14 +257,13 @@ type statusBar struct {
 	// tls says "TLS not checked" in the warning colour beside the context while the connection does
 	// not check the server's certificate (engine.Connection.TLSUnchecked, the owner's A29); hidden
 	// otherwise.
-	tls       *textLine
-	requests  *textLine
-	informers *textLine
-	demo      *textLine
-	demoSep   fyne.CanvasObject
-	pulse     *pulse // the event rate's wave beside the demo text (chrome_bar.go)
-	pulseBox  fyne.CanvasObject
-	root      fyne.CanvasObject
+	tls      *textLine
+	diag     *diagButton
+	demo     *textLine
+	demoSep  fyne.CanvasObject
+	pulse    *pulse // the event rate's wave beside the demo text (chrome_bar.go)
+	pulseBox fyne.CanvasObject
+	root     fyne.CanvasObject
 }
 
 func newStatusBar(sh *shell) *statusBar {
@@ -272,15 +273,14 @@ func newStatusBar(sh *shell) *statusBar {
 	}
 	s.dot = newConnDot(sh)
 	s.context = newTipLine(sh, colorMuted, sizeStatusText, fyne.TextStyle{})
-	s.requests, s.informers, s.demo = caption(), caption(), caption()
+	s.diag, s.demo = newDiagButton(sh), caption()
 	s.tls = newTextLine(engine.TLSUncheckedLabel, colorStatusWarning, sizeStatusText, fyne.TextStyle{})
 	s.tls.Hide()
 	s.demoSep = newStatusDivider()
 	s.pulse = newPulse()
 	s.pulseBox = container.NewCenter(s.pulse.w)
 	s.pulseBox.Hide()
-	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.requests, newStatusDivider(),
-		s.informers, s.demoSep, s.demo, s.pulseBox)
+	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.diag, s.demoSep, s.demo, s.pulseBox)
 	right := container.NewHBox()
 	if sh.hasMCP() {
 		s.mcp = newMCPItem(sh, sh.mcp.on)
@@ -428,9 +428,7 @@ func (s *statusBar) update() {
 	} else {
 		s.tls.Hide()
 	}
-	s.requests.SetText(fmt.Sprintf("API %s req · list %s · watch %s",
-		formatCount(d.total), formatCount(d.list), formatCount(d.watch)))
-	s.informers.SetText(strconv.Itoa(d.informers) + " informers")
+	s.diag.set(d)
 	if d.demo {
 		s.demo.SetText(fmt.Sprintf("demo %s objects · %s events/s",
 			formatCount(d.demoObjects), formatCount(int64(d.demoRate+0.5))))

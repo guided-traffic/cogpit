@@ -161,6 +161,11 @@ type InformerStats struct {
 	// CoveredBy names the unselected scope whose informer serves this label-selected scope; empty
 	// when the scope has its own informer (and watch).
 	CoveredBy string `json:"coveredBy,omitempty"`
+	// LoadedIn is how long the scope's initial list took, from its informer's start (0 while it
+	// loads, and for a covered scope); Initial how the list came: InitialStream, InitialList or
+	// InitialFallback (diag.go).
+	LoadedIn time.Duration `json:"loadedIn,omitempty"`
+	Initial  string        `json:"initial,omitempty"`
 	// Bytes estimates the memory the scope's objects take in the cache (size.go), filled by
 	// StatsWithMemory only; a covered scope's objects are its cover's, 0 here. Sized is how many
 	// objects' sizes the estimate knows; the others (beyond one read's walk) count at their mean.
@@ -183,8 +188,10 @@ type Cache struct {
 	closed    bool
 	entries   uint64 // entries made so far: each entry's seq (peek.go)
 
-	refused   atomic.Pointer[func(Scope)]        // told of every refused list or watch (OnRefused, nsscope.go)
-	streamErr atomic.Pointer[func(Scope, error)] // told of every list or watch that broke (OnStreamError, streamerr.go)
+	refused   atomic.Pointer[func(Scope)]                                  // told of every refused list or watch (OnRefused, nsscope.go)
+	streamErr atomic.Pointer[func(Scope, error)]                           // told of every list or watch that broke (OnStreamError, streamerr.go)
+	diag      atomic.Pointer[func(Diagnostic)]                             // told of loads and fallbacks (OnDiagnostic, diag.go)
+	label     atomic.Pointer[func(context.Context, Scope) context.Context] // names the requests (LabelRequests, diag.go)
 }
 
 // New returns a cache over src. No informer runs until the first Acquire.
@@ -256,6 +263,15 @@ type runner struct {
 
 	errMu   sync.Mutex
 	lastErr error
+
+	// Connection Diagnostics (diag.go): when the informer started, how long its initial list took
+	// (0 while it loads), and how the list came.
+	started   time.Time
+	loadedIn  atomic.Int64
+	diagMu    sync.Mutex
+	initial   string // InitialStream, InitialList or InitialFallback; "" before the first
+	streaming bool   // a streamed initial list was asked for and no list followed yet
+	streamErr error  // that stream's error
 }
 
 // Acquire returns a handle on the objects of scope, starting an informer if none serves it. The
@@ -310,7 +326,7 @@ func (c *Cache) newEntry(scope Scope) *entry {
 // startRunner creates and runs an informer for scope; dispatch, when given, receives its events.
 // Called with c.mu held.
 func (c *Cache) startRunner(scope Scope, dispatch func(EventType, any)) *runner {
-	r := &runner{scope: scope, done: make(chan struct{}), log: c.log.With("scope", scope.String()), c: c}
+	r := &runner{scope: scope, done: make(chan struct{}), log: c.log.With("scope", scope.String()), c: c, started: time.Now()}
 	lw := &trackedLW{r: r, inner: c.listerWatcher(r, scope)}
 	inf := toolscache.NewSharedIndexInformerWithOptions(lw, &unstructured.Unstructured{}, toolscache.SharedIndexInformerOptions{
 		ResyncPeriod:      0, // no periodic resyncs: only watch events after the initial list
@@ -355,6 +371,7 @@ func (c *Cache) startRunner(scope Scope, dispatch func(EventType, any)) *runner 
 			r.log.Error("cache: informer stopped unexpectedly")
 		}
 	}()
+	go r.timeLoad(ctx)
 	c.runners[r] = struct{}{}
 	return r
 }
@@ -468,6 +485,7 @@ func (c *Cache) stats(memory bool) []InformerStats {
 			}
 		} else {
 			st.Objects, st.Synced, err = len(r.e.run.inf.GetStore().ListKeys()), r.e.run.synced(), r.e.run.err()
+			st.LoadedIn, st.Initial = r.e.run.loadStats()
 			if memory {
 				st.Bytes, st.Sized = r.e.sizes.estimate(storeObjects(r.e.run.inf.GetStore().List()))
 			}
@@ -703,17 +721,24 @@ func (t *trackedLW) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 
 func (t *trackedLW) ListWithContext(ctx context.Context, opts metav1.ListOptions) (obj runtime.Object, err error) {
 	defer t.recoverInto(&err, "list")
+	ctx = t.r.labelled(ctx)
+	initial := t.r.listAsked(ctx, opts)
 	obj, err = toolscache.ToListerWithContext(t.inner).ListWithContext(ctx, opts)
 	t.observe(ctx, err)
+	if err == nil {
+		t.r.listed(initial)
+	}
 	return obj, err
 }
 
 func (t *trackedLW) WatchWithContext(ctx context.Context, opts metav1.ListOptions) (w watch.Interface, err error) {
 	defer t.recoverInto(&err, "watch")
+	ctx = t.r.labelled(ctx)
 	w, err = toolscache.ToWatcherWithContext(t.inner).WatchWithContext(ctx, opts)
 	if err == nil && w == nil {
 		err = errors.New("the source returned no watch")
 	}
+	t.r.watchAsked(ctx, opts, err)
 	t.observe(ctx, err)
 	return w, err
 }

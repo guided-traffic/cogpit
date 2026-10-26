@@ -31,6 +31,7 @@ func (s *Session) diagnosticsOf(contextID string, b *Backend, memory bool) Diagn
 		}
 		info := b.Conn.DiscoveryInfo()
 		d.Discovery = &info
+		d.Problems = b.Conn.DiagLog().Problems()
 	}
 	switch {
 	case b.Cache != nil && memory:
@@ -75,7 +76,7 @@ func (s *Session) diagnosticsLoop(stop <-chan struct{}) {
 			for _, inf := range d.Informers {
 				events += inf.Events
 			}
-			fp += fmt.Sprint(" ", b.Context, d.Requests.Total, len(d.Informers), events)
+			fp += fmt.Sprint(" ", b.Context, d.Requests.Total, len(d.Informers), events, b.diagLog().Changes())
 		}
 		if fp == last {
 			continue

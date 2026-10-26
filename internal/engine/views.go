@@ -66,6 +66,8 @@ type state struct {
 	dockSeq    map[DockType]int
 
 	logs connectLogs // the last connect attempt of each context (connectlog.go); has its own lock
+	// diags are the contexts' diagnostics logs (diaglogs.go, D-133); has its own lock
+	diags diagLogs
 
 	snapshots atomic.Uint64 // table snapshots built since start; also the snapshots' revisions
 	wg        sync.WaitGroup

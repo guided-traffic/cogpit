@@ -1264,12 +1264,13 @@ tooltip names the state, a click on it opens the cluster's connection updates:
 | filled red | needs you: a connect or a login renewal failed |
 | filled grey | not connected |
 
-The dock shows the tabs of the cluster you look at, and the Audit Log and the Diagnostics, which
-belong to no cluster. Another cluster's logs, shells and jobs go on behind it; showing that cluster
+The dock shows the tabs of the cluster you look at, and the Audit Log and Connection Diagnostics,
+which belong to no cluster. Another cluster's logs, shells and jobs go on behind it; showing that cluster
 again shows its tabs with what they printed meanwhile, the tab that was active and the dock open
 or collapsed as you left it. A tab an agent opens on a cluster you do not look at waits in that
-cluster's dock. With more than one cluster connected, the Diagnostics tab (Help › Diagnostics) lists
-what each one costs: its API requests, watches, objects and memory.
+cluster's dock. With more than one cluster connected, the Connection Diagnostics tab (the status
+bar's Diagnostics button, Help › Connection Diagnostics; [below](#connection-diagnostics-what-the-requests-ran-into))
+lists what each one costs: its API requests, watches, objects and memory.
 
 ### When the connection breaks
 
@@ -1472,6 +1473,70 @@ menu), for any context, connected or not; one with nothing recorded says so.
   Copy writes them under "Stages:". Cogpit measures them on the connect's own first request: it
   opens no connection or lookup of its own for them.
 - Agents read the same log with `cluster_connectLog`.
+
+### Connection Diagnostics: what the requests ran into
+
+Since 2026-10-26 ([D-133](decisions.md#d-133-connection-diagnostics)). When a cluster loads slowly
+or rows stay missing, **Connection Diagnostics** says what the requests behind it ran into, after the
+connect too: what the API server refused, what it answered late or not at all, what waited at
+Cogpit's own rate limit, which reads the server did not stream. The status bar's **Diagnostics**
+button opens it (and Help › Connection Diagnostics); the API requests and informers the status bar
+counted before are in its tooltip and in the tab. The button is muted while nothing went wrong since
+the cluster's latest connect, and orange with the number of problem lines once something did
+("Diagnostics 4", "99+" beyond 99).
+
+The tab, from the top:
+
+- the shown cluster's sums: API requests, watches, objects and memory, where discovery came from,
+  the table snapshots built; with several clusters connected a line for each;
+- the connection: the server, its Kubernetes version, when the latest connect began; **Overview**
+  and **Report** beside it, and the copy and save icons;
+- the problems since the latest connect by kind, and how the initial lists of the open watches came:
+  streamed by the server, or listed because the server did not stream them (a server without
+  WatchList: then every list goes through Cogpit's rate limit);
+- Cogpit's rate limits with what waited at them: the requests' (5 per second, burst 10 # default;
+  lists, gets and writes; watches never wait), discovery's (50, burst 300 # default) and the access
+  reviews' (10, burst 20 # default), each with how many requests waited, how long together, the
+  longest wait and how many wait now; orange while a request waits or one waited a second or more;
+- four columns: the **log**, the line seen last first; the API requests by verb and resource; the
+  watches with the time each took to load ("loaded in 1.2 s (streamed)"); the objects and memory
+  per kind.
+
+A log line is one problem with how often it happened: the same refused list retried by client-go
+counts in its line ("12 times since 08:01:04"), so retries do not push other lines out. What gets
+a line:
+
+| Line | When |
+|---|---|
+| refused | the API server answered 403 Forbidden; its message names the user and what was refused |
+| unauthorized | 401 Unauthorized |
+| too many (429) | the API server asked to slow down (its API Priority and Fairness), with its Retry-After |
+| server error | a 5xx, an aggregated API that is down among them (its discovery) |
+| no answer | no answer within the request timeout (30 s # default) |
+| network | the request did not reach the server, or its answer broke off |
+| slow answer | a request that is not a stream answered after 5 s or more |
+| rate limited | a request waited a second or more at one of Cogpit's rate limits, named by the read it was for ("pods in team-a") |
+| not streamed | the server did not stream a read's initial list (WatchList); Cogpit listed it instead |
+| slow load | a read took 5 s or more to load |
+| per namespace | after a refused read in all namespaces, the kind is read namespace by namespace (grey: not counted, the refusal is) |
+| connect | a connect began (grey) |
+
+The log is kept in memory only, per context for the run (a reconnect keeps it; quitting Cogpit drops
+it), at most 500 lines per context and for the 8 contexts used last; the line seen least recently goes
+first. Lines show real values: the server's address, namespaces, the API server's message; a
+Secret's refused request keeps its status, not its message.
+
+**Report** shows the report as the copy icon and **Save Report…** put it out, plain text for a
+ticket or a chat: the connection, the problems, the rate limits, the initial lists, the log, the
+watches, the requests and the context's latest three connect attempts from Connection Updates.
+Endpoints are replaced: a host becomes `host-1`, an address `ip-1` (the same one the same
+placeholder throughout), ports go, a URL keeps its path with the placeholder for its server
+(`https://host-1/api/v1/pods`), file paths become `<path>`, and a server's name in a context's name
+too (OpenShift's `team-a/api-ocp-example-com:6443/jdoe` becomes `team-a/host-1/jdoe`). **Names stay
+readable:** users, groups, namespaces, objects and API groups (the owner's choice: endpoints only).
+Read the Report before you send it. The file is offered as
+`cogpit-connection-diagnostics-2026-10-26-120301.txt` # example. Agents read the tab's content with
+`diagnostics_get` (real values) and the report with `diagnostics_report`.
 
 ### Choosing files: the system's panels
 

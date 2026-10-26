@@ -248,7 +248,7 @@ func (s *Session) reconnect(ctx context.Context, contextID string, expect *Backe
 	s.markReconnecting(contextID, old.gen, true)
 	old.b.watch.setQuiet(true) // its lines would end the reconnect's attempt; the reconnect's are the log's now
 	attempt := st.logs.begin(contextID, AttemptReconnect, LogInfo, why)
-	steps := &connectSteps{logs: &st.logs, attempt: attempt}
+	steps := &connectSteps{logs: &st.logs, attempt: attempt, diag: st.diags.of(contextID)}
 	if line := s.proxyLogLine(contextID); line != "" {
 		steps.step(LogInfo, cluster.StepProxy, line, 0)
 	}
