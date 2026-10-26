@@ -181,23 +181,23 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 
 	h.set(id, map[string]any{"all": false, "mode": "manifest"})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Object: "Deployment.apps/demo-shop/shop-web"})
-	if !strings.HasPrefix(r.objView.Text(), "# Source: shop-web/templates/") {
-		t.Errorf("the object %q", r.objView.Text())
-	}
+	// The object's YAML is filled by the render after the tab's state (Windows' UI tests read it
+	// before that, 2026-10-26): wait for it.
+	h.until("the object", func() bool { return strings.HasPrefix(r.objView.Text(), "# Source: shop-web/templates/") })
 	savePNG(t, h.w, name("manifest"))
 
 	h.set(id, map[string]any{"object": "Secret./demo-shop/shop-web-db"})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Object: "Secret./demo-shop/shop-web-db"})
-	if !strings.Contains(r.objView.Text(), helm.MaskedDots) {
-		t.Errorf("the Secret is not masked: %q", r.objView.Text())
-	}
+	h.until("the Secret masked", func() bool {
+		return strings.Contains(r.objView.Text(), "shop-web-db") && strings.Contains(r.objView.Text(), helm.MaskedDots)
+	})
 	savePNG(t, h.w, name("secret_masked"))
 
 	h.set(id, map[string]any{"raw": true})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Raw: true, Object: "Secret./demo-shop/shop-web-db"})
-	if !strings.Contains(r.rawView.Text(), helm.MaskedDots) || !strings.Contains(r.rawView.Text(), "kind: Deployment") {
-		t.Errorf("manifest.yaml %q", r.rawView.Text())
-	}
+	h.until("manifest.yaml", func() bool {
+		return strings.Contains(r.rawView.Text(), helm.MaskedDots) && strings.Contains(r.rawView.Text(), "kind: Deployment")
+	})
 	savePNG(t, h.w, name("manifest_yaml"))
 }
 
