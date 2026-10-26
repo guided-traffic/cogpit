@@ -25,8 +25,8 @@ import (
 // A connection the user set to send all tools (ChatConnection.AllTools, the owner's decision of
 // 2026-10-15, for large cloud models) gets every command the chat may run as a native tool instead:
 // the core ones first, in their order, then the rest in the registry's, and no meta-tools (nothing
-// is left to find). Measured 2026-10-15 (TestToolsetSize): 179 tools, 223,961 bytes, about 56,000
-// tokens with every request; the core set 22 tools, 30,447 bytes, about 7,600 tokens. The tools
+// is left to find). Measured 2026-10-26 (TestToolsetSize): 197 tools, 280,080 bytes, about 70,000
+// tokens with every request; the core set 22 tools, 34,508 bytes, about 8,600 tokens. The tools
 // resolve and dispatch alike either way, so the rules are the same.
 //
 // Left out of both: GUI-only commands (Dispatch refuses them to every agent anyway, so offering

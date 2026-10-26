@@ -81,11 +81,11 @@ const (
 	// keyKept says where the agent keeps an API key (agent.KeysFile, owner-only; no keychain).
 	keyKept = "Cogpit's settings folder, readable only by you"
 	// allToolsText and allToolsHelp are the setting to send every command as a tool (the owner's
-	// decision of 2026-10-15). The numbers are agent.TestToolsetSize's, measured 2026-10-15: 179
-	// tools, about 56,000 tokens; the core set 22 tools, about 7,600.
+	// decision of 2026-10-15). The numbers are agent.TestToolsetSize's, measured 2026-10-26: 197
+	// tools, about 70,000 tokens; the core set 22 tools, about 8,600.
 	allToolsText = "Send all tools: every Cogpit command as a tool of its own"
-	allToolsHelp = "For large cloud models: each request then carries some 180 tools, about 56,000 tokens, more than " +
-		"many local models' context holds. Off: 20 core tools and a search that finds the rest, about 7,600 tokens. " +
+	allToolsHelp = "For large cloud models: each request then carries some 200 tools, about 70,000 tokens, more than " +
+		"many local models' context holds. Off: 20 core tools and a search that finds the rest, about 8,600 tokens. " +
 		"The same rules either way: reads as the private mark says, writes ask."
 	// caHelp is the CA file's hint (the owner's decisions of 2026-10-15 and, N141, of 2026-10-16: the
 	// file replaces the system's roots for the connection; agent/cafile.go).
