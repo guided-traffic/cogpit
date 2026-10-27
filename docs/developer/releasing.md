@@ -16,11 +16,13 @@ request; a newer push cancels the running run of its ref. Every check is a job o
 own make target, so it runs the same locally; no job should need more than ten minutes (each has a
 30-minute limit for runs without a build cache). Linux jobs run on the organisation's self-hosted
 runners (one shared machine) unless the repository variable `LINUX_RUNNER` names others
-(`ubuntu-latest`); the macOS and Windows jobs run on GitHub's hosted runners. Every job's setup is
-[`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml): Go from `go.mod`, a build
-cache per kind of build (saved by `main`'s pushes only), Fyne's Linux build dependencies installed
-in the background. `GOFLAGS=-count=1` keeps cached test results from passing a gate, and a missing
-prerequisite fails its test instead of skipping it ([testing › Prerequisites](testing.md#prerequisites)).
+(`ubuntu-latest`); the macOS and Windows jobs run on GitHub's hosted runners. Every job but the
+race shards sets up through [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml):
+Go from `go.mod`, a build cache per kind of build (saved by `main`'s pushes only), Fyne's Linux
+build dependencies installed in the background; the race shards run what one job built
+([the UI's shards](#the-uis-shards)), without Go. `GOFLAGS=-count=1` keeps cached test results from
+passing a gate, and a missing prerequisite fails its test instead of skipping it
+([testing › Prerequisites](testing.md#prerequisites)).
 
 | Job | Make target | Runs |
 |---|---|---|
@@ -30,7 +32,8 @@ prerequisite fails its test instead of skipping it ([testing › Prerequisites](
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
 | Cyclomatic Complexity | `make cyclo` | gocyclo over `cmd`, `internal`, `hack`, `third_party`; fails above `CYCLO_THRESHOLD` |
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
-| Race Tests (UI n/5) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=5` | `internal/ui/fyneui` under the race detector without its render tests, one shard of five, balanced by the tests' measured time ([the UI's shards](#the-uis-shards)) |
+| Race Tests (UI build) | `make test-race-ui-build RACE_SHARDS=5` | `internal/ui/fyneui`'s race test binary with coverage, each shard's `-run` pattern and the libraries the binary links, uploaded for the five shards ([the UI's shards](#the-uis-shards)) |
+| Race Tests (UI n/5) | `hack/ci/race-ui.sh run .cache/race-ui n .cache/coverage` (`make test-race-ui RACE_SHARD=n` builds and runs it locally) | `internal/ui/fyneui` under the race detector without its render tests, one shard of five from the build, balanced by the tests' measured time; no Go, make or apt on the runner |
 | Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job); zsh and fish installed for the terminal's shell tests, beside the image's bash, `perl` and `stty` |
 | Integration Tests (kind) | `make kind-up`, `make test-kind` | the cluster tests (`TestKind*`, tag `kind`) on a kind cluster created while they compile; the add-on stacks' tests are skipped (`KIND_ADDONS=1` runs them) |
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
@@ -68,6 +71,14 @@ of its name, so a new test needs no change to a file or the workflow. A race sha
 share (`shard: <n> of <all> tests in shard 2 of 5, <seconds> s by hack/shard/durations/fyneui-race.txt`)
 and how many of its tests the file lacks.
 
+CI's race shards run one build: Race Tests (UI build) runs `make test-race-ui-build`, which puts the
+race test binary with coverage, each shard's `-run` pattern, the timeout and the libraries the binary
+links beside glibc (OpenGL, X11, Wayland's client and theirs, which the runner image lacks) into
+`.cache/race-ui`, and uploads it. Each shard downloads it and runs
+[`hack/ci/race-ui.sh`](../../hack/ci/race-ui.sh) `run`: the binary in the package's folder, as
+`go test` runs it, the libraries through `LD_LIBRARY_PATH`, the tests' output only when they failed.
+Its profile has the blocks and the covered set of `go test -coverprofile`'s.
+
 ```sh
 go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -skip '^TestRender' \
   -durations hack/shard/durations/fyneui-race.txt -of 5 -summary   # each race shard's tests and time
@@ -77,7 +88,7 @@ make ui-durations                                                   # measure ev
 `make ui-durations` runs every test of the package in `UI_SHARDS` shards, under the race detector
 with coverage and then without it, and rewrites both files from what `go test -json` reports; it
 writes nothing when a test fails. Refresh them, and commit both, when the shards' times drift apart.
-Why five race shards, and why each compiles its own test binary:
+Why five race shards, and why one job builds their binary:
 [D-112](decisions.md#d-112-ci-and-test-time).
 
 ### Cyclomatic complexity
@@ -159,7 +170,7 @@ script shows Xvfb's output. CI runs it on what a release ships: Linux Package on
 ```sh
 make lint check-nodemo parity gosec vuln cyclo
 make test-norace-coverage                      # what the race build skips, and the UI's render tests
-make test-race-ui RACE_SHARD=3 RACE_SHARDS=5   # one shard; make test-ui-race runs every UI test in UI_SHARDS shards
+make test-race-ui RACE_SHARD=3 RACE_SHARDS=5   # the build, then one shard; make test-ui-race runs every UI test in UI_SHARDS shards
 make test-race-rest
 make kind-up && make test-kind                 # the cluster tests; make kind-down after
 make test-envtest                              # fetches the pinned binaries first

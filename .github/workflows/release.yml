@@ -157,8 +157,7 @@ jobs:
   # race detector keeps from running, which this job runs without it: internal/ui/logo (left out of
   # race-rest), the UI's render tests (left out of race-ui; four shards at once) and the tests that
   # skip themselves, or part of their checks, under it (hack/shard -norace over ./...: the UI's
-  # terminal tests, the cache's heap measurements). Until 2026-10-21 it ran every package a second
-  # time, the UI's in four processes.
+  # terminal tests, the cache's heap measurements).
   unit-tests:
     name: Unit Tests (no race)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -186,14 +185,46 @@ jobs:
   # The UI's tests under the race detector take about 14 minutes of a Linux runner without the
   # render tests, so they run in shards balanced by the tests' measured time: hack/shard places them
   # by hack/shard/durations/fyneui-race.txt (make ui-durations) and a test the file lacks by a hash
-  # of its name, so a new test lands in a shard without a change here. Five shards (D-112): each
-  # shard's job spends about three minutes on its set-up and compile before its first test, so
-  # every shard fewer saves that much runner time, and five keep each shard's tests near two and a
-  # half minutes. The number of shards is the matrix's length (RACE_SHARDS). The render tests are
-  # left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the race detector);
-  # the unit tests run them without it.
+  # of its name, so a new test lands in a shard without a change here. The render tests are left out
+  # (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the race detector); the unit
+  # tests run them without it.
+  #
+  # One job builds what the shards run (D-112, make test-race-ui-build): the test binary with
+  # coverage, each shard's -run pattern and the libraries the binary links (OpenGL, X11, Wayland's
+  # client), which the runner image lacks. Go, the build cache, Fyne's packages and the compile take
+  # about three minutes of a job before its first test, once here instead of in every shard; a
+  # shard checks out, downloads the build (about 95 MB) and runs its part (hack/ci/race-ui.sh)
+  # without Go, make or apt.
+  race-ui-build:
+    name: Race Tests (UI build)
+    runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: race-ui
+
+      - name: The race test binary of internal/ui/fyneui and the patterns of five shards
+        run: make test-race-ui-build RACE_SHARDS=5
+
+      - name: Upload the build
+        uses: actions/upload-artifact@v7
+        with:
+          name: race-ui-build
+          path: .cache/race-ui
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
+  # Five shards, the matrix's length (RACE_SHARDS in the build above), keep each shard's tests near
+  # two and a half minutes.
   race-ui:
     name: Race Tests (UI ${{ matrix.shard }}/5)
+    needs: race-ui-build
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     strategy:
@@ -204,13 +235,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Set up Go
-        uses: ./.github/actions/go-setup
+      - name: Download the build
+        uses: actions/download-artifact@v8
         with:
-          cache: race-ui
+          name: race-ui-build
+          path: .cache/race-ui
 
       - name: Race tests of internal/ui/fyneui, shard ${{ matrix.shard }} of 5
-        run: make test-race-ui RACE_SHARD=${{ matrix.shard }} RACE_SHARDS=5
+        run: hack/ci/race-ui.sh run .cache/race-ui ${{ matrix.shard }} .cache/coverage
 
       - name: Upload the coverage profile
         uses: actions/upload-artifact@v7
@@ -669,7 +701,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos-tests, macos-app, windows-unit, windows-ui, linux-package, windows-package, coverage]
+    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui-build, race-ui, race-rest, kind, kind-drain, envtest, macos-tests, macos-app, windows-unit, windows-ui, linux-package, windows-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     steps:

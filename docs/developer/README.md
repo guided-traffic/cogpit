@@ -61,7 +61,7 @@ cogpit/
 ├─ hack/
 │  ├─ kind/                   the kind clusters, their seed and optional stacks (make kind-up, kind-drain-up, kind-prometheus …; README.md)
 │  ├─ envtest/                fetch.sh: envtest's etcd and kube-apiserver, pinned by SHA-512 (make envtest-bin)
-│  ├─ shard/                  the UI's tests in shards balanced by durations/ (make test-ui, test-ui-race, CI's test-race-ui; make ui-durations) and the tests -race skips (make test-norace-coverage)
+│  ├─ shard/                  the UI's tests in shards balanced by durations/ (make test-ui, test-ui-race, CI's test-race-ui-build; make ui-durations) and the tests -race skips (make test-norace-coverage)
 │  ├─ coverage/               merges coverage profiles into the badge and the summary (make coverage-report)
 │  ├─ parity/                 checks the parity checklists and their numbers (make parity); go run ./hack/parity writes docs/parity/parity-checklist.md
 │  ├─ scorecard/              make scorecard: the performance and API-load budgets measured into docs/parity/scorecard.md
@@ -75,7 +75,7 @@ cogpit/
 │  ├─ smoke.sh                the smoke test: the shipped app's binary started once with --smoke (make smoke)
 │  ├─ sigstoreroot/           refreshes the sigstore trusted root internal/kubectl embeds (make sigstore-root, D-50)
 │  ├─ k8seol/                 refreshes the Kubernetes release table internal/model/k8seol embeds (make k8s-eol, D-91)
-│  └─ ci/                     apt-install.sh (CI's apt-get with deadlines and tries), sha256sums.sh (a release's SHA256SUMS across jobs)
+│  └─ ci/                     apt-install.sh (CI's apt-get with deadlines and tries), race-ui.sh (the UI's race shards from one build), sha256sums.sh (a release's SHA256SUMS across jobs)
 ├─ packaging/                 icon.png; dmg/ (the disk image's window), linux/ (launcher, AppStream entry, update helper, polkit action, APT key), windows/ (NSIS script, resources)
 └─ docs/
    ├─ developer/              this directory; assets/logo holds every version of the logo (D-24), assets/design-prototype the design's before and after
