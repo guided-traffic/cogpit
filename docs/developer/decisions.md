@@ -146,6 +146,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
+| [D-new](#d-new-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 
 ## D-1: UI toolkit
 
@@ -2847,8 +2848,9 @@ alert board, a page like karma's, tidier; Lens shows no alerts. What the user se
   the board, which says how to set the address. `ui_state`'s `alerts` holds counts and state, not
   the answer's time.
 - The board is a page with a view's header (namespace filter, search), its folds engine state
-  (`alerts.fold`); per alert only the summary, since when, the runbook (an absolute http or https
-  URL without user info) and the namespace and object it names. A card shows 50, counts the rest.
+  (`alerts.fold`); per alert only what its alertname's card does not say once: the cells that tell
+  it apart, since when, the objects it names; its cards, texts, history and links are
+  [D-new](#d-new-the-alert-boards-cards).
 
 **Why:** `internal/metrics` is made for polled series, not a list of alerts. Probing every Service
 sends requests to services that are none (as for Prometheus, D-71); `GET /api/v2/status` would hand
@@ -3514,8 +3516,8 @@ read as a group yet are hit one by one; a click anywhere left of the search butt
   or the icon, its room kept so the head does not move. An answer that shows what the board shows
   rebuilds nothing (`sameBoard`), and a board rebuilt under the pointer shows the icon of the card
   under it at once (`alertBoard.hoverKey`), since a head rebuilt under a still pointer gets no
-  MouseIn. Only the alertname copies: the summary is a tooltip, the namespace and object link to
-  drawers that copy them.
+  MouseIn. The alertname copies with the icon; the rows' values are selectable text; the namespace
+  and object link to drawers that copy them.
 
 **Why:** A toggle that does nothing on an empty dock reads as broken. `terminal.open` is a UI
 command agents run freely already ([D-2](#d-2-agent-interface-scope)), so the toggle gives them no
@@ -5429,3 +5431,95 @@ controller listens on other than 80 and 443 is not known.
 `pointWeb`), [`fyneui/links.go`](../../internal/ui/fyneui/links.go) (`openWebLink`, `nameLink`) ·
 **Tests:** `TestIngressHostLinks`, `TestIngressTexts`, `TestIngressColumns`,
 `TestIngressHostsOpenInTheBrowser`, `TestIngressRuleHostsAreLinks`, `TestOpenWebLinkChecksTheAddress`
+
+## D-new: The alert board's cards
+
+**Status:** built · **By:** owner (a masonry dashboard; less empty room; the severity first, then a
+short description, then a fast list of the instances; no text twice; how often an alert fired;
+links chosen for running the platform); lead (open to revision) the details below
+
+The alert board ([D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board)) is a masonry of
+cards; what the user sees: [usage](usage.md#alerts-the-pill-and-the-alert-board).
+
+- **Layout:** one masonry, the cards in the board's order (severity, then alertname), each in the
+  column that is shortest at its turn; columns at least 360 points, 8 apart, as many as the width
+  holds. Above it a chip per severity with its count; a click hides that severity's cards
+  (`alerts.fold`, the group's key).
+- **Card:** a strip of the last 24 hours, then the head on the severity's colour at 16 %: the
+  severity in its colour (and the rule's label when it says another, "major"), the alertname with
+  its copy icon ([D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)), the
+  count; a click on the head folds the card. Under it the summary once, a line with what all the
+  alerts share, the history in words, Details (the description) and the runbook when all share
+  one; then the table.
+- **One text** (`cardText`): a column's value that stands in an alert's summary or description as a
+  word of its own (not inside a longer name; at least three characters, or a namespace, object,
+  container, node, device, mount point or instance) becomes a slot, shown muted as `‹pod›`; numbers
+  that still differ become value columns (at most two). The card's text must give back each
+  alert's text exactly; an alert it does not keeps its own, under its row (its description only
+  while Details is open). A value all alerts share stays text.
+- **Columns** (`cardColumns`, at most four and the value columns): the namespace (in the head when
+  all share it), the object (in the head when several alerts share it), the pod's container (when
+  it differs, or the card has one alert), then the labels whose values differ, the ones that locate
+  an alert first (node, host, instance, device, mount point); with one alert, the labels its text
+  names. Never a column: the pipeline's labels (alertname, severity, job, service, endpoint,
+  prometheus, uid, metrics_path, receiver, the custom resource's group, kind and version), the
+  scraped exporter's pod and container, the scrape target's instance beside an object, a label that
+  repeats the namespace or the object's name. `exported_<label>` stands for `<label>`. A scraped
+  exporter's namespace is not shown (the search and the namespace filter still find the alert in
+  it). Ten rows, Show all up to 50 (`alerts.fold` with `rows`), then the search.
+- **Links:** the object opens in its view; the namespace narrows the board; the object that controls
+  the alerts' pods, when all share one (a ReplicaSet's Deployment, a CloudNativePG Cluster), opens
+  in its view, read from the pods and ReplicaSets the cache holds (`cache.Peek`, no watch of its
+  own, `alerts_owner.go`); a value without an object (an external host's instance) is selectable
+  text; the runbook opens in the browser, once per card when all share it.
+- **History** (`alerts_history.go`, `metrics/promalerts.go`): per card the starts of firing in each
+  of the last 24 hours, from the cluster's Prometheus while its integration is on: one
+  `query_range` (now − 23 h to now, step 1 h) of
+  `sum by (alertname, severity) (count_over_time((ALERTS{alertstate="firing"} unless ALERTS{alertstate="firing"} offset 1m)[1h:1m]))`
+  and one instant `count by (alertname, severity) (ALERTS{alertstate="firing"})`; a card whose
+  alertname that Prometheus does not fire now has no count ("does not evaluate this rule"). Asked
+  at once and every 5 minutes while the board is the shown view (budget
+  [P18](testing.md#performance-budgets)); the severity labels joined to the cards by `Classify`.
+  A cell is the severity's colour at 35, 55, 75 and 100 % for 1, 2, 3 and 4 or more starts, the
+  chip colour for none, an outline while nothing is known; its tooltip the hour and the count.
+  In words: "fired 7× in 24 h", "flapping: 9× in 24 h" (3 or more in one hour), "no new start in
+  24 h". Without a Prometheus no strips, and the chips' line says why.
+- **Agents:** `alerts.board` carries each card's text parts, columns, rows' values, shared objects
+  and history; `alerts.fold` folds a group or card, shows a card's description (`description`) or
+  all its rows (`rows`); `alerts.list` is unchanged.
+
+**Why:** a full-width row put a summary and its age 1,900 points apart, and alerts of one rule
+repeated one text per alert. Cards of 360 to 480 points hold a table of what tells the alerts
+apart; one masonry in the board's order puts the critical cards at the top of the columns without
+a section's ragged end. Starts per hour answer how often an alert fired; Prometheus' `changes()`
+skips a range's first sample, so karma's `changes(ALERTS_FOR_STATE[1h])` reads a single fire in an
+hour as none. The instant query tells a rule evaluated elsewhere from a quiet one. An absolute
+scale keeps a card that fired once from looking like one that fired forty times. Peeking keeps the
+board within P17's budget: it starts no pods watch.
+
+**Rejected:** a masonry per severity — ragged ends, Warning pushed below the fold on a quiet
+cluster; label chips — every label of every alert, the noise the board leaves out; minutes firing
+per hour — how long, not how often; a history per alert — the series multiply; a card kept in its
+column across answers — a card moves only when one before it changed height; a template that
+drops text it cannot give back.
+
+**Not covered:** the PrometheusRule of an alert, a Grafana `dashboard_url`, the Node behind an
+`instance` address and a logs action per row are no links. Owners only for pods the cache holds
+(a pods view or drawer within the warm period). History: a Prometheus outage of more than 5 minutes
+counts one more start for each alert still firing; silenced and inhibited alerts' starts count; a
+retention under 24 hours reads as quiet hours; a pair of Prometheus replicas behind one Service may
+answer different counts; the subquery's cost on a large Prometheus is not measured; Thanos and
+VictoriaMetrics are not checked. A card whose alert began after the last history poll shows no
+count until the next.
+
+**Code:** [`engine/alerts_card.go`](../../internal/engine/alerts_card.go),
+[`engine/alerts_owner.go`](../../internal/engine/alerts_owner.go),
+[`engine/alerts_history.go`](../../internal/engine/alerts_history.go),
+[`metrics/promalerts.go`](../../internal/metrics/promalerts.go),
+[`fyneui/alertboard.go`](../../internal/ui/fyneui/alertboard.go),
+[`fyneui/alertcard.go`](../../internal/ui/fyneui/alertcard.go),
+[`fyneui/masonry.go`](../../internal/ui/fyneui/masonry.go) · **Tests:** `TestCardSharedText`,
+`TestCardOneAlertNamedLabels`, `TestCardNumbers`, `TestCardOwnText`, `TestCardLabels`,
+`TestMarkSlots`, `TestCardOwner`, `TestPodOwnersFromTheCache`, `TestAlertOnsets`,
+`TestHistoryPollerCadence`, `TestAlertHistoryOnTheBoard`, `TestAlertBoard`,
+`TestRenderAlertBoardPlatformDark`

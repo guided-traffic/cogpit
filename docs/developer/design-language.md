@@ -73,7 +73,7 @@ GPU and not a raster per frame; the wave is one raster, redrawn only on Refresh.
 | Shape | What it draws | Where |
 |---|---|---|
 | `bracketLabel` | a lowercase label in a light above a hairline at about 55 % of it, with 6-point end ticks; 8 points from the label to the line, 12 to what it introduces; 20 points above a head that follows content (`groupGap`) | drawer sections, dialog heads, settings groups, the Overview, dashboards, the chat |
-| `tokenRow`, `tok` | rounded squares, or bars by weight; a healthy (`quiet`) token at about 40 % of its light | the Overview's nodes and pods, the alert board |
+| `tokenRow`, `tok` | rounded squares, or bars by weight; a healthy (`quiet`) token at about 40 % of its light | the Overview's nodes and pods |
 | `glowFrame` | four rounded outlines of falling alpha, 0, 1.5, 3.5 and 6.5 points outside the content | a destructive or agent-asked dialog; the hotbar draws the same rings round the shown cluster's tile |
 | `wave` | a sine or a series, a crisp core and a faint halo | the agent's thinking, the status bar's pulse |
 | `horizon` | the stage light and a perspective grid floor | the welcome page and the failed connect's error page (`newWelcomeStage`) |

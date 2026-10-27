@@ -2,6 +2,8 @@ package fyneui
 
 import (
 	"context"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -9,10 +11,12 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/test"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/alerting"
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
+	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
@@ -151,16 +155,25 @@ func renderTopBarAlerts(t *testing.T, mode ThemeMode) {
 // cluster connected and its Alertmanager answered.
 func alertEngine(t *testing.T) *engine.Session {
 	t.Helper()
+	return alertEngineWith(t, testkit.SampleAlerts(fixedNow))
+}
+
+// alertEngineWith is alertEngine with the Alertmanager serving alerts, and the API server pods.
+func alertEngineWith(t *testing.T, alerts []testkit.FakeAlert, pods ...*unstructured.Unstructured) *engine.Session {
+	t.Helper()
 	all := []testkit.FakeRule{{Verbs: []string{"*"}, APIGroups: []string{"*"}, Resources: []string{"*"}}}
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: &testkit.FakeAccess{Rules: map[string][]testkit.FakeRule{"": all}}})
 	t.Cleanup(srv.Close)
 	srv.Set(testkit.ServicesGVR, testkit.Object("v1", "Service", "monitoring", "kube-prometheus-alertmanager", map[string]any{
 		"spec": map[string]any{"ports": []any{map[string]any{"name": "http-web", "port": int64(9093)}}}}))
-	for _, ns := range []string{"monitoring", "shop", "flux-system", "payments", "search", "reports", "ingress", "rook-ceph", "velero", "iam"} {
+	for _, ns := range []string{"monitoring", "shop", "flux-system", "payments", "search", "reports", "ingress", "rook-ceph", "velero", "iam", "orders"} {
 		srv.Set(testkit.NamespacesGVR, testkit.Namespace(ns))
 	}
+	for _, p := range pods {
+		srv.Set(testkit.PodsGVR, p)
+	}
 	am := &testkit.FakeAlertmanager{}
-	am.Set(testkit.SampleAlerts(fixedNow)...)
+	am.Set(alerts...)
 	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:http-web", am)
 	s := newTestEngine(engine.Options{
 		Connector:        &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "staging", "default")}},
@@ -250,15 +263,149 @@ func renderAlertBoard(t *testing.T, mode ThemeMode) {
 	s := alertEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
 	b := openBoard(t, sh, w, q)
-	fp := b.data.Groups[0].Cards[0].Alerts[0].Fingerprint
+	key := b.data.Groups[0].Cards[0].Key
 	if _, err := s.Dispatch(context.Background(), engine.Invocation{ID: "alerts.fold",
-		Params: []byte(`{"key":"` + fp + `","folded":true,"description":true}`), Origin: engine.OriginGUI}); err != nil {
+		Params: []byte(`{"key":"` + key + `","folded":true,"description":true}`), Origin: engine.OriginGUI}); err != nil {
 		t.Fatal(err)
 	}
-	q.until(t, "the description", func() bool { return b.data.Groups[0].Cards[0].Alerts[0].Expanded })
+	q.until(t, "the description", func() bool { return b.data.Groups[0].Cards[0].Expanded })
 	firstCardHead(t, b).MouseIn(&desktop.MouseEvent{}) // the pointer on the first card: its copy icon after the name (WF34)
 	settle(w)
 	savePNG(t, w, "alert_board_"+string(mode)+".png")
+}
+
+// Renders of the board as a platform cluster shows it, dark and light, 2000 points wide, for review:
+// CloudNativePG's replication alerts on the pods of one database (one text, the pods as rows), a
+// host outside the cluster (its instance and device as the row, its text with their places), a
+// crash loop on many pods (the first rows, then Show all), file systems filling up (the free share
+// a value column), and a history on each card (the cards' hours set as Prometheus would answer).
+func TestRenderAlertBoardPlatformDark(t *testing.T) { renderAlertBoardPlatform(t, ThemeDark) }
+
+func renderAlertBoardPlatform(t *testing.T, mode ThemeMode) {
+	var pods []*unstructured.Unstructured
+	for _, name := range []string{"orders-pg-4", "orders-pg-5", "orders-pg-6"} {
+		pods = append(pods, testkit.Object("v1", "Pod", "orders", name, map[string]any{"metadata": map[string]any{"ownerReferences": []any{
+			map[string]any{"apiVersion": "postgresql.cnpg.io/v1", "kind": "Cluster", "name": "orders-pg", "uid": "u1", "controller": true}}}}))
+	}
+	s := alertEngineWith(t, platformAlerts(fixedNow), pods...)
+	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
+	w.Resize(fyne.NewSize(2000, 1100))
+	// The pods in the cache, as after a look at one of them (its read keeps them warm): the board
+	// peeks, it starts no watch.
+	if _, err := s.Object(context.Background(), model.ObjectRef{Kind: "pods", Namespace: "orders", Name: "orders-pg-4"}); err != nil {
+		t.Fatal(err)
+	}
+	b := openBoard(t, sh, w, q)
+	key := ""
+	for _, g := range b.data.Groups {
+		for _, c := range g.Cards {
+			if c.Name == "NodeNetworkPacketErrors" {
+				key = c.Key
+			}
+		}
+	}
+	if _, err := s.Dispatch(context.Background(), engine.Invocation{ID: "alerts.fold",
+		Params: []byte(`{"key":"` + key + `","folded":true,"description":true}`), Origin: engine.OriginGUI}); err != nil {
+		t.Fatal(err)
+	}
+	q.until(t, "the description", func() bool {
+		for _, g := range b.data.Groups {
+			for _, c := range g.Cards {
+				if c.Key == key {
+					return c.Expanded
+				}
+			}
+		}
+		return false
+	})
+	m := *b.data
+	m.HistoryNote = ""
+	m.Groups = slices.Clone(m.Groups)
+	n := 0
+	for i := range m.Groups {
+		m.Groups[i].Cards = slices.Clone(m.Groups[i].Cards)
+		for j := range m.Groups[i].Cards {
+			m.Groups[i].Cards[j].History = sampleHistory(n)
+			n++
+		}
+	}
+	b.show(&m)
+	savePNG(t, w, "alert_board_platform_"+string(mode)+".png")
+}
+
+// sampleHistory is a card's history as Prometheus could answer it: a pattern per card (quiet, once,
+// a few, flapping, not evaluated here).
+func sampleHistory(n int) *engine.AlertHistory {
+	if n%7 == 5 {
+		return &engine.AlertHistory{State: engine.HistoryNoRule, AsOf: fixedNow}
+	}
+	h := &engine.AlertHistory{State: engine.HistoryOK, Hours: make([]int, engine.HistoryHours), AsOf: fixedNow}
+	for i := range h.Hours {
+		switch n % 4 {
+		case 1:
+			if i == 23 {
+				h.Hours[i] = 1
+			}
+		case 2:
+			if i%6 == 3 {
+				h.Hours[i] = 1 + i%3
+			}
+		case 3:
+			h.Hours[i] = (i * 7 % 5)
+		}
+		h.Total += h.Hours[i]
+	}
+	return h
+}
+
+// platformAlerts are alerts of a platform cluster shaped like the owner's: CloudNativePG, a Proxmox
+// host's node exporter, crash loops, file systems.
+func platformAlerts(now time.Time) []testkit.FakeAlert {
+	ago := func(d time.Duration) time.Time { return now.Add(-d) }
+	var out []testkit.FakeAlert
+	add := func(at time.Duration, ann map[string]string, kv ...string) {
+		l := map[string]string{"cluster": "prod", "prometheus": "monitoring/kube-prometheus-prometheus"}
+		for i := 0; i < len(kv); i += 2 {
+			l[kv[i]] = kv[i+1]
+		}
+		out = append(out, testkit.FakeAlert{Labels: l, Annotations: ann, StartsAt: ago(at)})
+	}
+	for i, pod := range []string{"orders-pg-4", "orders-pg-5", "orders-pg-6"} {
+		add(time.Duration(26+i)*time.Hour, map[string]string{"summary": "The standby is lagging behind the primary",
+			"description": "Standby " + pod + " is lagging behind the primary by more than 300 seconds."},
+			"alertname", "PGReplication", "severity", "warning", "namespace", "orders", "pod", pod, "container", "postgres",
+			"job", "orders/orders-pg", "instance", "10.42.3."+strconv.Itoa(14+i)+":9187")
+	}
+	add(13*time.Hour, map[string]string{"summary": "Checks if the replica is failing to replicate",
+		"description": "Replica orders-pg-4 is failing to replicate"},
+		"alertname", "ReplicaFailingReplication", "severity", "warning", "namespace", "orders", "pod", "orders-pg-4",
+		"container", "postgres", "job", "orders/orders-pg", "instance", "10.42.3.14:9187")
+	add(3*time.Minute, map[string]string{"summary": "One or more NICs reports packet errors",
+		"description": "Node pve.example.net:9100 experiences packet errors > 0.01% or > 10 packets/s on interface enp1s0."},
+		"alertname", "NodeNetworkPacketErrors", "severity", "warning", "instance", "pve.example.net:9100", "device", "enp1s0",
+		"host", "node-a", "job", "external-hosts", "node_type", "external-host", "os", "linux", "architecture", "amd64")
+	for i := range 14 {
+		ns := []string{"shop", "search", "payments"}[i%3]
+		pod := []string{"checkout", "indexer", "ledger"}[i%3] + "-7d9f8c6b5-" + string(rune('a'+i)) + "x2kq"
+		add(time.Duration(5+9*i)*time.Minute, map[string]string{"summary": "Pod is crash looping.",
+			"description": "Pod " + ns + "/" + pod + " (api) is in waiting state (reason: \"CrashLoopBackOff\")."},
+			"alertname", "KubePodCrashLooping", "severity", "warning", "namespace", ns, "pod", pod, "container", "api",
+			"reason", "CrashLoopBackOff", "job", "kube-state-metrics", "service", "kube-state-metrics",
+			"instance", "10.0.4.17:8080")
+	}
+	for i, fs := range [][3]string{{"10.0.1.11:9100", "/dev/sda1", "/"}, {"10.0.1.12:9100", "/dev/sdb1", "/var/lib/longhorn"}} {
+		add(time.Duration(2+i)*time.Hour, map[string]string{"summary": "Filesystem is predicted to run out of space within the next 24 hours.",
+			"description": "Filesystem on " + fs[1] + ", mounted on " + fs[2] + ", at " + fs[0] + " has only " + []string{"14.21", "8.07"}[i] + "% available space left and is filling up."},
+			"alertname", "NodeFilesystemSpaceFillingUp", "severity", "critical", "instance", fs[0], "device", fs[1],
+			"mountpoint", fs[2], "fstype", "ext4", "job", "node-exporter", "namespace", "monitoring",
+			"pod", "node-exporter-"+string(rune('a'+i))+"b2c3", "service", "node-exporter")
+	}
+	add(40*time.Minute, map[string]string{"summary": "Deployment has not matched the expected number of replicas."},
+		"alertname", "KubeDeploymentReplicasMismatch", "severity", "warning", "namespace", "shop", "deployment", "checkout",
+		"job", "kube-state-metrics")
+	add(4*24*time.Hour, map[string]string{"summary": "Namespace quota is going to be full."},
+		"alertname", "KubeQuotaAlmostFull", "severity", "info", "namespace", "shop", "resource", "requests.cpu")
+	return out
 }
 
 // openAlertmanagerSettings shows the cluster's Settings › Alertmanager (D-87) and waits for its
@@ -367,7 +514,7 @@ func TestAlertNameCopyAcrossARebuild(t *testing.T) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	b := openBoard(t, sh, w, q)
 	head := firstCardHead(t, b)
-	row := head.content.(*fyne.Container)
+	row := head.content.(*fyne.Container).Objects[1].(*fyne.Container).Objects[0].(*fyne.Container) // the head row's left part
 	if _, ok := row.Objects[1].(*textLine); !ok || len(findAll[*copyButton](row.Objects[2])) != 1 {
 		t.Fatalf("the head's objects %T: want the chevron, the name and its copy icon first", row.Objects)
 	}
@@ -411,4 +558,50 @@ func firstCardHead(t *testing.T, b *alertBoard) *alertTap {
 	}
 	t.Fatal("no card head")
 	return nil
+}
+
+// A card of more alerts than it shows has Show all, which shows them all through the engine
+// (alerts.fold rows); a severity's chip hides its cards and shows them again.
+func TestAlertBoardShowAllAndChips(t *testing.T) {
+	s := alertEngineWith(t, platformAlerts(fixedNow))
+	sh, w, q := newEngineShell(t, s, Options{})
+	b := openBoard(t, sh, w, q)
+	link := func(text string) *linkText {
+		for _, l := range findAll[*linkText](b.root) {
+			if l.text == text {
+				return l
+			}
+		}
+		return nil
+	}
+	crash := func() engine.AlertCard {
+		for _, g := range b.data.Groups {
+			for _, c := range g.Cards {
+				if c.Name == "KubePodCrashLooping" {
+					return c
+				}
+			}
+		}
+		t.Fatal("no crash loop card")
+		return engine.AlertCard{}
+	}
+	if c := crash(); c.Count != 14 || c.AllRows || link("Show all 14") == nil {
+		t.Fatalf("the card: %d alerts, all rows %v, Show all %v", c.Count, c.AllRows, link("Show all 14") != nil)
+	}
+	test.Tap(link("Show all 14"))
+	q.until(t, "all rows", func() bool { return crash().AllRows && link("Show fewer") != nil })
+
+	cards := len(b.cards.Objects)
+	var warning *alertTap
+	for _, a := range findAll[*alertTap](b.root) {
+		if a.tip == "Hide the warning alerts" {
+			warning = a
+		}
+	}
+	if warning == nil {
+		t.Fatal("no warning chip")
+	}
+	test.Tap(warning)
+	q.until(t, "the warning cards hidden", func() bool { return len(b.cards.Objects) < cards && b.data.Groups[1].Folded })
+	settle(w)
 }

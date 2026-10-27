@@ -1294,12 +1294,25 @@ reads the cluster's Alertmanager
 | grey `warn` | nothing answers: none found, not allowed, not answering (the tooltip says which) |
 | grey `–` | still looking for it |
 
-- **The board** (a click on the pill, or Alerts in the palette, ⌘⇧P): a fold per severity, worst
-  first, with a card per alert name and its count (a copy icon after the name on hover); per alert
-  its summary (a click shows the description), how long it fires, a Runbook link, its namespace (a
-  click narrows the board) and object (a click opens it). Search and namespace filter work as in the
-  lists; the settings link opens Cluster Settings › Alertmanager. Nothing on the board changes
-  Alertmanager: silences stay in its own UI.
+- **The board** (a click on the pill, or Alerts in the palette, ⌘⇧P): a line of the severities with
+  their counts (a click hides or shows that severity's cards), then cards in as many columns as the
+  window holds, the worst severity first
+  ([D-new](decisions.md#d-new-the-alert-boards-cards)). A card is one alert name:
+  - its head in the severity's colour (a click folds the card; a copy icon after the name on hover)
+    under a strip of the last 24 hours, a cell an hour, brighter the more often the alert started
+    firing in it (its tooltip says when and how often; outlined while unknown);
+  - its summary once, the places where the alerts differ shown as `‹pod›`, `‹value›`;
+  - a line with what all its alerts share (the namespace, a click narrows the board; the object or
+    the workload that controls their pods, a click opens it), the history in words ("fired 7× in
+    24 h", "flapping"), **Details** (the description) and **Runbook**;
+  - a table of its alerts: only the columns that tell them apart (namespace, object, container, the
+    labels that differ, a number from the text) and how long each fires; ten rows, then **Show
+    all**. An alert whose text differs from the card's has it under its row.
+
+  The history needs the Prometheus integration and a Prometheus that evaluates the rules (2 requests
+  every 5 minutes while the board is shown); without one the line of severities says why. Search
+  and namespace filter work as in the lists; the settings link opens Cluster Settings ›
+  Alertmanager. Nothing on the board changes Alertmanager: silences stay in its own UI.
 
 ### Kyverno's policy violations
 

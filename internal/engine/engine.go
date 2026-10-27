@@ -172,6 +172,10 @@ type Options struct {
 	// Alerts tunes the polls of each cluster's Alertmanager (alerts.go, D-77); the zero value is
 	// alerting's defaults (every 30 seconds while the cluster is shown). Tests shorten them.
 	Alerts alerting.Options
+	// AlertHistory tunes the polls of each cluster's Prometheus for the alert board's history
+	// (alerts_history.go); the zero value is every 5 minutes while the board is shown. Tests inject
+	// the clock.
+	AlertHistory AlertHistoryOptions
 	// ForwardBackoff is a port forward's first wait before it dials its pod again after a lost
 	// connection or a failed dial, doubled up to 30 s (portforward.go); zero means 1 s. Tests
 	// shorten it.

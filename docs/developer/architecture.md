@@ -2063,7 +2063,18 @@ through the API server's service proxy on the connection's counted clients
   then, on a goroutine of its own, refreshes the pill (`UIState.syncAlerts`) and emits `EventAlerts`
   and, on a status change, `EventIntegrations`. `alerts.board` (grouped, with the UI state's search
   and namespace filter) and `alerts.list` (flat, its own parameters) are built from the snapshot
-  without a request ([`alerts_board.go`](../../internal/engine/alerts_board.go)).
+  without a request ([`alerts_board.go`](../../internal/engine/alerts_board.go)); a card's text,
+  columns and shared objects are `finishCard`'s
+  ([`alerts_card.go`](../../internal/engine/alerts_card.go)), the pods' controllers peeked from the
+  cache ([`alerts_owner.go`](../../internal/engine/alerts_owner.go)).
+- **History** ([`alerts_history.go`](../../internal/engine/alerts_history.go),
+  [D-new](decisions.md#d-new-the-alert-boards-cards)): a second poller per backend
+  (`Backend.history`, run by `followAlertHistory`), active only while the board is the shown view of
+  the shown, connected cluster with both integrations on; it asks the metrics hub's Prometheus
+  (`Hub.Prometheus`, no detection of its own) for `AlertOnsets`
+  ([`promalerts.go`](../../internal/metrics/promalerts.go)) every 5 minutes (budget
+  [P18](testing.md#performance-budgets)), joins the rules' severities to the cards with `Classify`
+  and emits `EventAlerts` when the counts change. `alertHistory` hands the board a snapshot.
 - **Not supported:** a tenant header (Mimir, Cortex) and credentials for an authenticating proxy in
   front of Alertmanager, whose 401 or 403 reads as unavailable.
 

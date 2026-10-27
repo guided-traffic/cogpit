@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 78 | 77 | 66 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 79 | 78 | 67 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -375,5 +375,6 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Agents read every policy violation of a cluster in one call, with each object's reference, from the cache (D-79) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The title bar's alerts pill shows the shown cluster's active alerts while the Alertmanager integration is on: red from a critical alert, or… | done | [Alerts](beyond-lens.md#alerts) |
 | An alert board like karma's, tidier: the alerts grouped by severity and alertname with their counts, each with its summary, its description… | done | [Alerts](beyond-lens.md#alerts) |
+| How often each alert started firing in each of the last 24 hours, from the cluster's Prometheus | done | [Alerts](beyond-lens.md#alerts) |
 | cogpit-cli contexts lists the contexts Cogpit offers, from the app's kubeconfig sources and with its credential plugin approvals, as a tabl… | done | [Command line](beyond-lens.md#command-line) |
 | cogpit-cli get <kind> [name] reads objects from a headless engine's cache, as the views show them, read-only, Secret values never printed | partial | [Command line](beyond-lens.md#command-line) |

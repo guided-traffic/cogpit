@@ -106,6 +106,11 @@ type Backend struct {
 	scrub secretScrub
 	// alerts polls the cluster's Alertmanager while the integration is on (alerts.go, D-77).
 	alerts alertSource
+	// history polls the cluster's Prometheus for the alert board's history while the board is
+	// shown (alerts_history.go).
+	history historySource
+	// owners indexes the cached pods' controllers for the alert board (alerts_owner.go).
+	owners podOwnerIndex
 	// overlays are the integrations' cells and drawer sections on its objects (overlay.go, D-79).
 	overlays overlays
 	// renewal is the kubeconfig login it last reconnected by itself for (reconnect.go, D-81).
@@ -180,6 +185,7 @@ func (b *Backend) close(log *slog.Logger) {
 	b.forwards.stopAll()
 	// The Alertmanager's polls (alerts.go), before the connection closes.
 	b.alerts.stop()
+	b.history.stop()
 	b.overlays.close() // the integrations' reads (overlay.go)
 	b.apps.close()     // before the cluster's cache: it releases its handles on the workloads
 	b.local.close()

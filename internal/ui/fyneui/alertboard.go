@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -18,21 +19,34 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The alert board (D-77; the owner, 2026-10-17: like karma's, tidier, "sparsam bei der
-// Darstellung"): the shown cluster's active alerts in the workspace, as a page (engine.AlertBoard)
-// whose header is a view's (its title, the count, the namespace filter and the search, the UI
-// state's) and whose body replaces the table. The engine groups them (alerts.board): a fold per
-// severity, critical, warning, info, each a line with its colour and count; in it a card per
-// alertname, its count, and per alert one line: the summary (a click unfolds the description
-// under it), since when it fires and the runbook link at the right; under it the namespace and the
-// object it is about, as links (the namespace narrows the board's namespace filter, as a list's
-// Namespace column does; the object opens in its view). No label chips, no cluster or job labels,
-// no silences: read only. The folding is the engine's (alerts.fold), so agents see what the user
-// folded. Karma's layout is the model, not its look: no code, text or asset of it (D-12).
+// The alert board (D-77, its cards D-new): the shown cluster's active alerts in the workspace, as a
+// page (engine.AlertBoard) whose header is a view's (its title, the count, the namespace filter and
+// the search, the UI state's) and whose body replaces the table. Under a line of the severities
+// (each a chip with its count that folds its cards away), a masonry of cards, worst severity first
+// (the owner, 2026-10-27: first the criticality, then a short description of the problem, then a
+// list of the concrete instances, and far less empty room than a full-width list): a card per
+// alertname, its head tinted in the severity's colour with the history of its last 24 hours above
+// it, its text once (the alerts' summaries made one, alerts_card.go), what all its alerts share (the
+// namespace, the object) as links, and a table of its alerts with the columns that tell them apart
+// and since when each fires. The object opens in its view, the namespace narrows the board, the
+// runbook opens in the browser. No silences: read only. The folding is the engine's (alerts.fold),
+// so agents see what the user folded. Karma's layout is the model, not its look: no code, text or
+// asset of it (D-12).
 
-// maxCardAlerts bounds the alerts a card shows: the rest are counted under it, for the search to
-// narrow. A card of thousands would cost thousands of widgets at every refresh.
-const maxCardAlerts = 50
+// maxCardAlerts bounds the rows a card shows with all shown: the rest are counted under it, for the
+// search to narrow. A card of thousands would cost thousands of widgets at every refresh.
+// alertCardRows are the rows it shows before Show all.
+const (
+	maxCardAlerts = 50
+	alertCardRows = 10
+)
+
+// A card is at least alertCardMin points wide (a pod's name, a column, since when), the cards
+// alertCardGap points apart.
+const (
+	alertCardMin = 360
+	alertCardGap = 8
+)
 
 // alertSettingsSection is where Cluster Settings shows the Alertmanager's address: its own section
 // (clustersettings_alertmanager.go, D-87).
@@ -40,12 +54,15 @@ var alertSettingsSection = engine.IntegrationSection(engine.IntegrationAlertmana
 
 // alertBoard is the board's body.
 type alertBoard struct {
-	sh    *shell
-	shown bool
-	box   *fyne.Container // the state line, the groups and cards
-	root  *fyne.Container // the background and the scroll over the table's place
-	data  *engine.AlertBoardModel
-	ages  []alertAge // the since texts, refreshed by the shell's tick (refreshAges)
+	sh     *shell
+	shown  bool
+	box    *fyne.Container // the state lines, the severities and the cards
+	cards  *fyne.Container // the cards, in the masonry
+	grid   *masonry
+	scroll *container.Scroll
+	root   *fyne.Container // the background and the scroll over the table's place
+	data   *engine.AlertBoardModel
+	ages   []alertAge // the since texts, refreshed by the shell's tick (refreshAges)
 
 	// The card head the pointer is on, kept across a rebuild of the board, so that its copy icon
 	// stays shown (the owner's WF34: it showed late or not at all, a rebuilt head getting no
@@ -63,11 +80,35 @@ type alertAge struct {
 }
 
 func newAlertBoard(sh *shell) *alertBoard {
-	b := &alertBoard{sh: sh, box: container.NewVBox()}
-	b.root = container.NewStack(newSurface(theme.ColorNameBackground),
-		newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, b.box)))
+	b := &alertBoard{sh: sh, box: container.NewVBox(), grid: &masonry{min: alertCardMin, gap: alertCardGap}}
+	b.cards = box(b.grid)
+	b.scroll = newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, b.box))
+	b.root = container.New(boardRoot{b}, newSurface(theme.ColorNameBackground), b.scroll)
 	b.root.Hide()
 	return b
+}
+
+// boardRoot lays out the board's background and scroller over the whole place, and tells the
+// masonry its width first: the scroller asks for the cards' height at it.
+type boardRoot struct{ b *alertBoard }
+
+// Layout implements fyne.Layout.
+func (l boardRoot) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	pad := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameInnerPadding)
+	l.b.grid.setWidth(size.Width - 2*pad)
+	for _, o := range objs {
+		o.Move(fyne.NewPos(0, 0))
+		o.Resize(size)
+	}
+}
+
+// MinSize implements fyne.Layout.
+func (l boardRoot) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var ms fyne.Size
+	for _, o := range objs {
+		ms = ms.Max(o.MinSize())
+	}
+	return ms
 }
 
 // setShown shows the board over the table while its page is open.
@@ -82,7 +123,7 @@ func (b *alertBoard) setShown(on bool) {
 	}
 	b.root.Hide()
 	b.data, b.ages = nil, nil
-	b.box.Objects = nil
+	b.box.Objects, b.cards.Objects = nil, nil
 }
 
 // request reads the board off the main goroutine and shows it; requests made while one is in
@@ -156,20 +197,23 @@ func (b *alertBoard) show(m *engine.AlertBoardModel) {
 		objs = append(objs, container.NewCenter(inset("", theme.SizeNameInnerPadding,
 			newTextLine(text, colorMuted, theme.SizeNameText, fyne.TextStyle{}))))
 	}
-	if strip := alertStrip(m.Groups); strip != nil {
-		objs = append(objs, strip)
+	if line := b.severities(m); line != nil {
+		objs = append(objs, line)
 	}
+	var cards []fyne.CanvasObject
 	for _, g := range m.Groups {
-		objs = append(objs, b.groupHeader(g))
 		if g.Folded {
 			continue
 		}
 		for _, c := range g.Cards {
-			objs = append(objs, b.card(g, c))
+			cards = append(cards, b.card(g, c))
 		}
 	}
+	b.cards.Objects = cards
+	objs = append(objs, b.cards)
 	b.box.Objects = objs
 	b.box.Refresh()
+	b.scroll.Refresh()
 	tv := b.sh.view
 	tv.count.SetText(b.countText())
 	tv.showHeadingCount()
@@ -224,9 +268,11 @@ func (b *alertBoard) stateLines(m *engine.AlertBoardModel) []fyne.CanvasObject {
 	return out
 }
 
-// fold dispatches a fold of the board (alerts.fold).
-func (b *alertBoard) fold(key string, folded, description bool) {
-	b.sh.dispatch("alerts.fold", alertFoldParams{Key: key, Folded: folded, Description: description}, nil)
+// fold dispatches a fold of the board (alerts.fold): a group's or card's (engine.FoldCard), a card's
+// description or all its rows.
+func (b *alertBoard) fold(key string, on bool, f engine.AlertFold) {
+	b.sh.dispatch("alerts.fold", alertFoldParams{Key: key, Folded: on, Description: f == engine.FoldDescription,
+		Rows: f == engine.FoldRows}, nil)
 }
 
 // alertFoldParams are alerts.fold's.
@@ -234,6 +280,7 @@ type alertFoldParams struct {
 	Key         string `json:"key"`
 	Folded      bool   `json:"folded,omitempty"`
 	Description bool   `json:"description,omitempty"`
+	Rows        bool   `json:"rows,omitempty"`
 }
 
 // chevron is a fold's icon: down while open, right while folded.
@@ -276,84 +323,300 @@ func alertTone(g engine.AlertGroup) fyne.ThemeColorName {
 	return statusColorName(g.Status)
 }
 
-// alertStrip is the board's overview (Dark Cockpit): a bracket "firing · 24" over one rounded token
-// per alert, worst first, in its severity's colour, one run per severity with a gap between the
-// runs, so that a cascade (many alerts of one severity, or one of each) shows before the list is
-// read and the runs answer to the sections below. Nil without alerts. At most alertStripMax tokens.
-func alertStrip(groups []engine.AlertGroup) fyne.CanvasObject {
-	total, shown := 0, 0
-	var runs []fyne.CanvasObject
-	for _, g := range groups {
-		var toks []tok
-		for range g.Count {
-			if shown < alertStripMax {
-				toks = append(toks, tok{color: alertTone(g)})
-				shown++
-			}
-		}
-		total += g.Count
-		if len(toks) > 0 {
-			runs = append(runs, newTokenRow(alertStripSide, toks...))
-		}
-	}
-	if total == 0 {
+// severities is the board's first line (Dark Cockpit's overview made a line): a chip per severity
+// with alerts, worst first, its dot in the severity's colour and its count; a click folds its cards
+// away, the chip then hollow and muted. At its right why the cards have no history, when they have
+// none. Nil without alerts.
+func (b *alertBoard) severities(m *engine.AlertBoardModel) fyne.CanvasObject {
+	if len(m.Groups) == 0 {
 		return nil
 	}
-	row := box(layout.NewCustomPaddedHBoxLayout(alertStripRunGap), runs...)
-	return inset("", theme.SizeNamePadding, box(layout.NewCustomPaddedVBoxLayout(0),
-		newBracketLabel("firing · "+strconv.Itoa(total), colorAccent), row, gapOf(10)))
+	var chips []fyne.CanvasObject
+	for _, g := range m.Groups {
+		tone := alertTone(g)
+		dot := newSurface(tone)
+		text := theme.ColorNameForeground
+		tip := "Hide the " + strings.ToLower(g.Title) + " alerts"
+		if g.Folded {
+			dot.fill, dot.stroke, text = "", tone, colorMuted
+			tip = "Show the " + strings.ToLower(g.Title) + " alerts"
+		}
+		dot.min = fyne.NewSize(10, 10)
+		dot.radius = sizeChipRadius
+		row := container.NewHBox(container.NewCenter(dot),
+			newTextLine(g.Title, text, theme.SizeNameText, fyne.TextStyle{Bold: true}),
+			newTextLine(strconv.Itoa(g.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{}))
+		chips = append(chips, newAlertTap(b.sh, row, func() { b.fold(g.Key, !g.Folded, engine.FoldCard) }, tip))
+	}
+	var note fyne.CanvasObject
+	if m.HistoryNote != "" {
+		note = container.NewCenter(newTextLine("No history: "+m.HistoryNote, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+	}
+	line := container.NewBorder(nil, nil, box(layout.NewCustomPaddedHBoxLayout(18), chips...), note)
+	return inset("", theme.SizeNamePadding, line)
 }
 
-// The strip's tokens: 14 points, as many as fit a window's width (the list below has every alert),
-// and 14 points between one severity's run and the next.
-const (
-	alertStripMax    = 60
-	alertStripSide   = 14
-	alertStripRunGap = 14
-)
-
-// groupHeader is a severity's line: its fold, a dot in its colour, its title and count.
-func (b *alertBoard) groupHeader(g engine.AlertGroup) fyne.CanvasObject {
-	icon := widget.NewIcon(chevron(g.Folded))
-	dot := newSurface(alertTone(g))
-	dot.min = fyne.NewSize(10, 10)
-	dot.radius = sizeChipRadius
-	title := newTextLine(g.Title, theme.ColorNameForeground, theme.SizeNameSubHeadingText, fyne.TextStyle{Bold: true})
-	count := newTextLine(strconv.Itoa(g.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	row := container.NewHBox(icon, container.NewCenter(dot), title, count)
-	return inset("", theme.SizeNamePadding, newAlertTap(b.sh, row, func() { b.fold(g.Key, !g.Folded, false) }, ""))
-}
-
-// card is an alertname's card: a bar in the severity's colour at its left, its header (fold, name,
-// count, the severity label when the rules wrote another), its alerts.
+// card is an alertname's card: its head (the history strip, the severity, the name, its copy icon
+// and the count, on the severity's tint; a click folds the card), then unless folded its text once,
+// what all its alerts share, its actions (the description, the runbook) and the table of its alerts.
 func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasObject {
+	tone := alertTone(g)
+	sev := strings.ToUpper(g.Title)
+	if c.SeverityLabel != "" {
+		sev += " · " + c.SeverityLabel
+	}
 	name := newTextLine(c.Name, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	copyIcon, attach := b.cardCopy(c.Key, c.Name)
-	head := []fyne.CanvasObject{widget.NewIcon(chevron(c.Folded)), name, copyIcon,
-		newTextLine(strconv.Itoa(c.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{})}
-	if l := cardLabel(c); l != "" {
-		head = append(head, newTextLine(l, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+	count := newTextLine(strconv.Itoa(c.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{})
+	headRow := container.NewBorder(nil, nil, container.NewHBox(widget.NewIcon(chevron(c.Folded)), name, copyIcon), count)
+	tip := "Fold the card"
+	if c.Folded {
+		tip = "Unfold the card"
 	}
-	headTap := newAlertTap(b.sh, container.NewHBox(head...), func() { b.fold(c.Key, !c.Folded, false) }, "")
+	headTap := newAlertTap(b.sh, container.NewVBox(
+		inset(theme.SizeNameInlineIcon, "", newTextLine(sev, tone, theme.SizeNameCaptionText, fyne.TextStyle{Bold: true})), headRow),
+		func() { b.fold(c.Key, !c.Folded, engine.FoldCard) }, tip)
 	attach(headTap)
-	rows := []fyne.CanvasObject{headTap}
-	if !c.Folded {
-		for i, it := range c.Alerts {
-			if i == maxCardAlerts {
-				rows = append(rows, inset(theme.SizeNameInnerPadding, "", newTextLine(
-					"and "+formatCount(int64(len(c.Alerts)-maxCardAlerts))+" more: narrow them with the search",
-					colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})))
-				break
-			}
-			rows = append(rows, newDivider(false), b.alertRow(it))
-		}
+	var head []fyne.CanvasObject
+	if c.History != nil {
+		head = append(head, newHistoryStrip(b.sh, *c.History, tone))
 	}
-	bar := newSurface(statusColorName(g.Status))
-	bar.min = fyne.NewSize(3, 0)
+	head = append(head, headTap)
+	tint := newSurface(tone)
+	tint.alpha = 0.16
+	tint.radius = sizeChipRadius
+	tint.topOnly = true
+	parts := []fyne.CanvasObject{container.NewStack(tint, inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding,
+		box(layout.NewCustomPaddedVBoxLayout(6), head...)))}
+	if !c.Folded {
+		parts = append(parts, inset(theme.SizeNameInnerPadding, theme.SizeNameInnerPadding, b.cardBody(c)))
+	}
 	bg := newSurface(colorSidebar)
 	bg.radius = sizeChipRadius
-	body := container.NewBorder(nil, nil, bar, nil, inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, container.NewVBox(rows...)))
-	return inset("", theme.SizeNamePadding, container.NewStack(bg, body))
+	return container.NewStack(bg, box(layout.NewCustomPaddedVBoxLayout(0), parts...))
+}
+
+// cardBody is an open card's body: its text, what its alerts share, its actions, its description
+// when shown, and its table.
+func (b *alertBoard) cardBody(c engine.AlertCard) fyne.CanvasObject {
+	var body []fyne.CanvasObject
+	if len(c.Summary) > 0 {
+		body = append(body, newSpanText(theme.SizeNameText, cardSpans(c.Summary, c.Columns, theme.ColorNameForeground)...))
+	}
+	if line := b.infoLine(c); line != nil {
+		body = append(body, line)
+	}
+	if c.Expanded && len(c.Description) > 0 {
+		body = append(body, newSpanText(theme.SizeNameCaptionText, cardSpans(c.Description, c.Columns, theme.ColorNameForeground)...))
+	}
+	if t := b.table(c); t != nil {
+		body = append(body, newDivider(false), t)
+	}
+	return box(layout.NewCustomPaddedVBoxLayout(4), body...)
+}
+
+// infoLine is a card's line under its text: at its left what all its alerts name alike, as links
+// (the namespace narrows the board to it, the object opens in its view), since when its one alert
+// fires when it has no table, and its history in words; at its right Details (the description) and
+// its runbook. Nil when there is nothing.
+func (b *alertBoard) infoLine(c engine.AlertCard) fyne.CanvasObject {
+	var left, right []fyne.CanvasObject
+	caption := func(text string) *textLine {
+		return newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	}
+	dot := func() {
+		if len(left) > 0 {
+			left = append(left, caption("·"))
+		}
+	}
+	for _, o := range c.Context {
+		dot()
+		if o.Label == paramNamespace {
+			left = append(left, b.namespaceLink(o.Ref.Name, theme.SizeNameCaptionText))
+			continue
+		}
+		left = append(left, caption(o.Title), b.objectCell(o, theme.SizeNameCaptionText))
+	}
+	if len(c.Columns) == 0 && len(c.Alerts) == 1 {
+		dot()
+		left = append(left, b.age(c.Alerts[0].Since))
+	}
+	if h := historySummary(c.History); h != "" {
+		dot()
+		left = append(left, caption(h))
+	}
+	if len(c.Description) > 0 {
+		label := "Details"
+		if c.Expanded {
+			label = "Hide details"
+		}
+		right = append(right, boardLink(label, func() { b.fold(c.Key, !c.Expanded, engine.FoldDescription) }))
+	}
+	if c.Runbook != "" {
+		runbook := c.Runbook
+		right = append(right, boardLink("Runbook", func() { b.openRunbook(runbook) }))
+	}
+	if len(left) == 0 && len(right) == 0 {
+		return nil
+	}
+	return container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedHBoxLayout(4), left...),
+		container.New(layout.NewCustomPaddedHBoxLayout(12), right...))
+}
+
+// age is a since text of the board, refreshed by the shell's tick.
+func (b *alertBoard) age(since time.Time) *textLine {
+	l := newTextLine(model.FormatAge(b.sh.now().Sub(since)), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	l.align = fyne.TextAlignTrailing
+	b.ages = append(b.ages, alertAge{line: l, since: since})
+	return l
+}
+
+// table is a card's alerts as rows of its columns and since when each fires, a header over them
+// from two rows on; the first alertCardRows rows, all of them up to maxCardAlerts after Show all.
+// An alert whose text the card's does not give back has it in a line under its row (its
+// description only while the card shows its description). Nil for a card of one alert that has no
+// column: its line of actions says since when it fires.
+func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
+	if len(c.Columns) == 0 && len(c.Alerts) == 1 {
+		return nil
+	}
+	th := fyne.CurrentApp().Settings().Theme()
+	textSize, capSize := th.Size(theme.SizeNameText), th.Size(theme.SizeNameCaptionText)
+	limit := min(len(c.Alerts), alertCardRows)
+	if c.AllRows {
+		limit = min(len(c.Alerts), maxCardAlerts)
+	}
+	shown := c.Alerts[:limit]
+	g := &tableGrid{natural: make([]float32, len(c.Columns)+1), gap: 10}
+	measure := func(i int, text string, size float32) {
+		g.natural[i] = max(g.natural[i], fyne.MeasureText(text, size, fyne.TextStyle{}).Width+2)
+	}
+	header := len(c.Alerts) > 1 && len(c.Columns) > 0
+	for i, col := range c.Columns {
+		size := textSize
+		if col.Link == engine.ColumnNamespace {
+			size = capSize
+		}
+		if header {
+			measure(i, col.Title, capSize)
+		}
+		for _, it := range shown {
+			measure(i, it.Values[col.Key], size)
+		}
+	}
+	last := len(c.Columns)
+	for _, it := range shown {
+		w := fyne.MeasureText(model.FormatAge(b.sh.now().Sub(it.Since)), capSize, fyne.TextStyle{}).Width + 2
+		if c.Runbook == "" && it.Runbook != "" {
+			w += fyne.MeasureText("Runbook", capSize, fyne.TextStyle{}).Width + 10
+		}
+		g.natural[last] = max(g.natural[last], w, 30)
+	}
+	var rows []fyne.CanvasObject
+	if header {
+		var cells []fyne.CanvasObject
+		for _, col := range c.Columns {
+			l := newTextLine(col.Title, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+			l.truncate = true
+			cells = append(cells, l)
+		}
+		rows = append(rows, box(gridRow{g}, append(cells, layout.NewSpacer())...))
+	}
+	for _, it := range shown {
+		cells := make([]fyne.CanvasObject, 0, len(c.Columns)+1)
+		for _, col := range c.Columns {
+			cells = append(cells, b.cell(col, it))
+		}
+		end := []fyne.CanvasObject{layout.NewSpacer()}
+		if c.Runbook == "" && it.Runbook != "" {
+			runbook := it.Runbook
+			end = append(end, boardLink("Runbook", func() { b.openRunbook(runbook) }))
+		}
+		end = append(end, b.age(it.Since))
+		cells = append(cells, container.New(layout.NewCustomPaddedHBoxLayout(8), end...))
+		rows = append(rows, box(gridRow{g}, cells...))
+		if it.Message != "" {
+			rows = append(rows, b.ownText(it.Message))
+		}
+		if c.Expanded && it.Detail != "" {
+			rows = append(rows, b.ownText(it.Detail))
+		}
+	}
+	switch {
+	case len(c.Alerts) > limit && !c.AllRows:
+		rows = append(rows, container.NewHBox(boardLink("Show all "+formatCount(int64(len(c.Alerts))),
+			func() { b.fold(c.Key, true, engine.FoldRows) })))
+	case c.AllRows && len(c.Alerts) > alertCardRows:
+		more := []fyne.CanvasObject{boardLink("Show fewer", func() { b.fold(c.Key, false, engine.FoldRows) })}
+		if len(c.Alerts) > limit {
+			more = append(more, newTextLine("and "+formatCount(int64(len(c.Alerts)-limit))+" more: narrow them with the search",
+				colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+		}
+		rows = append(rows, container.New(layout.NewCustomPaddedHBoxLayout(12), more...))
+	}
+	return box(layout.NewCustomPaddedVBoxLayout(2), rows...)
+}
+
+// cell is a row's cell of a column: the object as a link into its view (text when the cluster
+// serves no kind of it), the namespace as a link that narrows the board, a label's or a number's
+// value as selectable text.
+func (b *alertBoard) cell(col engine.AlertColumn, it engine.AlertItem) fyne.CanvasObject {
+	v := it.Values[col.Key]
+	switch col.Link {
+	case engine.ColumnObject:
+		for _, o := range it.Objects {
+			if o.Label != paramNamespace {
+				return b.objectCell(o, theme.SizeNameText)
+			}
+		}
+	case engine.ColumnNamespace:
+		if v != "" {
+			return b.namespaceLink(v, theme.SizeNameCaptionText)
+		}
+	}
+	return b.valueCell(v, theme.SizeNameText)
+}
+
+// objectCell is an object's name as a link that opens it in its view; as selectable text when the
+// cluster serves no kind Cogpit shows for it.
+func (b *alertBoard) objectCell(o engine.AlertObject, size fyne.ThemeSizeName) fyne.CanvasObject {
+	if o.Ref.Kind == "" {
+		cell := b.valueCell(o.Ref.Name, size)
+		w := fyne.MeasureText(o.Ref.Name, fyne.CurrentApp().Settings().Theme().Size(size), fyne.TextStyle{}).Width
+		return container.New(textWidth{w: w + 1}, cell)
+	}
+	ref := o.Ref
+	return sizedLink(o.Ref.Name, size, func() { b.sh.dispatch("ui.navigate", refParams{Ref: ref}, nil) })
+}
+
+// sizedLink is a link as wide as its text where there is room, cut off with an ellipsis where its
+// place is narrower (linkText alone asks for no width).
+func sizedLink(text string, size fyne.ThemeSizeName, onTap func()) fyne.CanvasObject {
+	l := newLinkText(text, onTap)
+	l.size = size
+	w := fyne.MeasureText(text, fyne.CurrentApp().Settings().Theme().Size(size), fyne.TextStyle{}).Width
+	return container.New(textWidth{w: w + 1}, l)
+}
+
+// namespaceLink is a namespace that narrows the board to it, as a list's Namespace column does.
+func (b *alertBoard) namespaceLink(ns string, size fyne.ThemeSizeName) fyne.CanvasObject {
+	return sizedLink(ns, size, func() { b.sh.dispatch("ui.setNamespace", namespacesParams{Namespaces: []string{ns}}, nil) })
+}
+
+// valueCell is a value worth copying: selectable, cut off with an ellipsis where its column is
+// narrower.
+func (b *alertBoard) valueCell(v string, size fyne.ThemeSizeName) fyne.CanvasObject {
+	l := newTextLine(v, theme.ColorNameForeground, size, fyne.TextStyle{})
+	l.truncate = true
+	return newSelLine(l, nil, func(sel string) { b.sh.copyText(sel, false) })
+}
+
+// ownText is an alert's own text under its row, where the card's does not give it back: muted,
+// selectable, one line.
+func (b *alertBoard) ownText(text string) fyne.CanvasObject {
+	l := newTextLine(strings.Join(strings.Fields(text), " "), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
+	l.truncate = true
+	return inset(theme.SizeNameInlineIcon, "", newSelLine(l, nil, func(sel string) { b.sh.copyText(sel, false) }))
 }
 
 // cardCopy is the copy icon of a card's alertname (the owner's WF21, 2026-10-18: "Alarm-Namen
@@ -395,96 +658,6 @@ func (b *alertBoard) cardCopy(key, name string) (icon fyne.CanvasObject, attach 
 		head.in = func() { onHead = true; enter() }
 		head.out = func() { onHead = false; leave() }
 	}
-}
-
-// cardLabel is the severity label a card's alerts carry when it is not their group's name ("major"),
-// "" when they carry none or several.
-func cardLabel(c engine.AlertCard) string {
-	label := ""
-	for i, it := range c.Alerts {
-		if i > 0 && it.SeverityLabel != label {
-			return ""
-		}
-		label = it.SeverityLabel
-	}
-	return label
-}
-
-// alertRow is one alert of a card: its summary (a click unfolds the description), since when and
-// the runbook at the right; its objects under it; the description when unfolded.
-func (b *alertBoard) alertRow(it engine.AlertItem) fyne.CanvasObject {
-	summary := newTipLine(b.sh, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
-	text := it.Summary
-	if text == "" {
-		text = it.Name
-	}
-	summary.SetText(text)
-	summary.truncate = true
-	summary.tip = text
-	lead := newHGap(theme.SizeNameInlineIcon)
-	var line fyne.CanvasObject = summary
-	if it.Description != "" {
-		lead = widget.NewIcon(chevron(!it.Expanded))
-		tip := "Show the description"
-		if it.Expanded {
-			tip = "Hide the description"
-		}
-		line = newAlertTap(b.sh, summary, func() { b.fold(it.Fingerprint, !it.Expanded, true) }, tip)
-	}
-	age := newTextLine(model.FormatAge(b.sh.now().Sub(it.Since)), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	b.ages = append(b.ages, alertAge{line: age, since: it.Since})
-	right := []fyne.CanvasObject{age}
-	if it.Runbook != "" {
-		runbook := it.Runbook
-		right = append(right, boardLink("Runbook", func() { b.openRunbook(runbook) }))
-	}
-	first := container.NewBorder(nil, nil, lead, container.NewHBox(right...), line)
-	parts := []fyne.CanvasObject{first}
-	if objs := b.objectsLine(it); objs != nil {
-		parts = append(parts, container.NewBorder(nil, nil, newHGap(theme.SizeNameInlineIcon), nil, objs))
-	}
-	if it.Expanded && it.Description != "" {
-		d := widget.NewLabel(it.Description)
-		d.Wrapping = fyne.TextWrapWord
-		d.Selectable = true
-		d.SizeName = theme.SizeNameCaptionText
-		parts = append(parts, container.NewBorder(nil, nil, newHGap(theme.SizeNameInlineIcon), nil, d))
-	}
-	return container.NewVBox(parts...)
-}
-
-// objectsLine is the namespace and the object an alert names, as links: the namespace narrows the
-// board to it, the object opens in its view; an object of a kind the cluster does not serve is
-// text. nil when the alert names none.
-func (b *alertBoard) objectsLine(it engine.AlertItem) fyne.CanvasObject {
-	var objs []fyne.CanvasObject
-	caption := func(text string) *textLine {
-		return newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
-	}
-	for _, o := range it.Objects {
-		if len(objs) > 0 {
-			objs = append(objs, caption("·"))
-		}
-		if o.Label == paramNamespace { // the namespace alone, as the lists' Namespace column shows it
-			ns := o.Ref.Name
-			objs = append(objs, boardLink(ns, func() { b.sh.dispatch("ui.setNamespace", namespacesParams{Namespaces: []string{ns}}, nil) }))
-			continue
-		}
-		objs = append(objs, caption(o.Title))
-		if o.Ref.Kind == "" {
-			objs = append(objs, newTextLine(o.Ref.Name, theme.ColorNameForeground, theme.SizeNameCaptionText, fyne.TextStyle{}))
-		} else {
-			ref := o.Ref
-			objs = append(objs, boardLink(o.Ref.Name, func() { b.sh.dispatch("ui.navigate", refParams{Ref: ref}, nil) }))
-		}
-		if o.Container != "" {
-			objs = append(objs, caption("container "+o.Container))
-		}
-	}
-	if len(objs) == 0 {
-		return nil
-	}
-	return container.New(layout.NewCustomPaddedHBoxLayout(4), objs...)
 }
 
 // openRunbook opens a runbook in the browser: an http or https URL only (the engine left out any

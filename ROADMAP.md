@@ -34,7 +34,7 @@ serial foundation, about 80% of the work parallelizes.
 | Remaining to **beta** (macOS, with the Flux CD and Argo CD views) | **~220–600 h** | estimated from the gap entries; plus the testers' calendar time (G16), which agent-hours do not measure |
 | Remaining to **full parity** (free features, macOS) | **~220–620 h** | estimated: the sum of G1–G16 ([gaps](docs/parity/gaps.md#summary)) |
 | Remaining to the **full Lens target** (paid features, Windows and Linux) | **~360–900 h** | estimated: G1–G16 with G18, G22 and G23 |
-| **Beyond Lens** (MCP control of UI and cluster, built-in agent) | **~2–6 h** | estimated (G21; MCP control, G17, has nothing left); not part of the parity numbers; 66 of 78 rows done, 11 partial ([beyond Lens](docs/parity/beyond-lens.md)) |
+| **Beyond Lens** (MCP control of UI and cluster, built-in agent) | **~2–6 h** | estimated (G21; MCP control, G17, has nothing left); not part of the parity numbers; 67 of 79 rows done, 11 partial ([beyond Lens](docs/parity/beyond-lens.md)) |
 
 ### Readiness by audience
 
