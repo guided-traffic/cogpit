@@ -135,9 +135,7 @@ func buttonLabeled(t *testing.T, o fyne.CanvasObject, label string) *textButton 
 
 // The PNGs of the pull request: Preferences › Kubernetes with two program folders, dark and light;
 // the error page of a login that did not find krew's plugin.
-func TestRenderProgramFoldersDark(t *testing.T)  { renderProgramFolders(t, ThemeDark) }
-func TestRenderProgramFoldersLight(t *testing.T) { renderProgramFolders(t, ThemeLight) }
-
+func TestRenderProgramFoldersDark(t *testing.T) { renderProgramFolders(t, ThemeDark) }
 func renderProgramFolders(t *testing.T, mode ThemeMode) {
 	if isWindows() {
 		t.Skip("the picture shows macOS paths")

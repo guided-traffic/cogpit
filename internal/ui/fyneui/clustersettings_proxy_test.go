@@ -88,10 +88,6 @@ func TestRenderClusterSettingsProxyDark(t *testing.T) {
 	renderClusterSettingsProxy(t, ThemeDark, "cluster_settings_proxy_dark.png")
 }
 
-func TestRenderClusterSettingsProxyLight(t *testing.T) {
-	renderClusterSettingsProxy(t, ThemeLight, "cluster_settings_proxy_light.png")
-}
-
 func renderClusterSettingsProxy(t *testing.T, mode ThemeMode, name string) {
 	s, _ := settingsEngine(t)
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev cluster", "iconColor": "violet",
@@ -135,10 +131,6 @@ func TestPreferencesProxyField(t *testing.T) {
 // Preferences › Proxy, dark and light: the PNGs of the pull request (AGENTS.md rule 7).
 func TestRenderPreferencesProxyDark(t *testing.T) {
 	renderPreferencesProxy(t, ThemeDark, "preferences_proxy_dark.png")
-}
-
-func TestRenderPreferencesProxyLight(t *testing.T) {
-	renderPreferencesProxy(t, ThemeLight, "preferences_proxy_light.png")
 }
 
 func renderPreferencesProxy(t *testing.T, mode ThemeMode, name string) {

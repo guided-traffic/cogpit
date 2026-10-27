@@ -423,13 +423,50 @@ func (f *fakeEngine) setTable(view string, snap *engine.TableSnapshot) {
 	f.emit(engine.Event{Type: engine.EventTable, View: view})
 }
 
-// callsOf returns the recorded invocations of a command.
+// callsOf returns the recorded invocations of a command. A call is recorded as its dispatch
+// begins, before its handler and state change run, so that a call waiting for the test (a
+// confirmation, a gate) is seen and a check that nothing was dispatched sees one in flight. A
+// test that waits for a call's effect waits for that effect (the state, the handler's own
+// record), never for the call's record alone.
 func (f *fakeEngine) callsOf(id string) []engine.Invocation {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []engine.Invocation
 	for _, c := range f.calls {
 		if c.ID == id {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// allCalls returns every recorded call: a copy, since the shell's goroutines record more while the
+// test reads.
+func (f *fakeEngine) allCalls() []engine.Invocation {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.calls)
+}
+
+// windowReports are the commands the window sends on its own after a pause (navReport): the
+// navigator's row and search and the palette's text, whenever they settle. None is a test's
+// effect.
+var windowReports = []string{"ui.setNavigatorRow", "ui.setNavigatorSearch", "ui.palette.setText"}
+
+// mark is the place in the recorded calls that callsSince counts from.
+func (f *fakeEngine) mark() int {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return len(f.calls)
+}
+
+// callsSince returns the calls recorded after mark, without the window's own reports.
+func (f *fakeEngine) callsSince(mark int) []engine.Invocation {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	var out []engine.Invocation
+	for _, c := range f.calls[mark:] {
+		if !slices.Contains(windowReports, c.ID) {
 			out = append(out, c)
 		}
 	}
@@ -741,6 +778,37 @@ func (q *mainQueue) untilShows(t testing.TB, what string, cond func() bool, show
 		}
 		time.Sleep(time.Millisecond)
 	}
+}
+
+// fireTimer runs an armed time.AfterFunc's function now, as if its time had come, and reports
+// whether one was armed. A test arms the timer with a long duration, so that a loaded runner cannot
+// let it run before the step that must see it pending, and ends it here.
+func fireTimer(t *time.Timer) bool {
+	if t == nil || !t.Stop() {
+		return false
+	}
+	t.Reset(0)
+	return true
+}
+
+// hoverTip moves the pointer onto at and waits for a tooltip to show there. Anything that hides the
+// pending tooltip on the way (a refresh that rebuilds the cell under the pointer) cancels it, and
+// only the pointer's next move asks again: the pointer leaves for off and comes back whenever none
+// is pending.
+func hoverTip(t testing.TB, sh *shell, w fyne.Window, q *mainQueue, what string, at, off fyne.Position) string {
+	t.Helper()
+	test.MoveMouse(w.Canvas(), at)
+	q.until(t, what, func() bool {
+		if sh.tip.visibleText() != "" {
+			return true
+		}
+		if sh.tip.owner == nil {
+			test.MoveMouse(w.Canvas(), off)
+			test.MoveMouse(w.Canvas(), at)
+		}
+		return false
+	})
+	return sh.tip.visibleText()
 }
 
 // newTestShell starts a shell on f in a 1440×900 offscreen window.

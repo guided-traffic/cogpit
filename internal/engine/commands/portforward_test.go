@@ -172,6 +172,10 @@ func forwardSeed() *testkit.MemorySource {
 	return src
 }
 
+// forwardBackoff is the forwards' first wait before they dial again in these tests: the product's
+// 1 s, a wait on the real clock, made short.
+const forwardBackoff = 10 * time.Millisecond
+
 func newForwardHarness(t testing.TB, opts engine.Options) (*harness, *fakeForwarder) {
 	t.Helper()
 	src := forwardSeed()
@@ -179,6 +183,9 @@ func newForwardHarness(t testing.TB, opts engine.Options) (*harness, *fakeForwar
 	opts.Connector = &forwardConnector{src: src, fw: fw}
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = 10 * time.Millisecond
+	}
+	if opts.ForwardBackoff == 0 {
+		opts.ForwardBackoff = forwardBackoff
 	}
 	s := engine.New(opts)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

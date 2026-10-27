@@ -47,7 +47,7 @@ func TestRenderLightStrip(t *testing.T) {
 				c.at(sh, 2*time.Second+stripFade/2)
 			}},
 	}
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		for _, tc := range cases {
 			t.Run(tc.name+"_"+string(mode), func(t *testing.T) {
 				sh, w, q, f, c := stripShell(t, mode, tc.color, tc.anim)

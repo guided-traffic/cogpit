@@ -176,9 +176,7 @@ func TestChatSelectedTextIsTheText(t *testing.T) {
 }
 
 // The chat with a word of the answer and part of a tool's arguments selected.
-func TestRenderChatSelectionDark(t *testing.T)  { renderChatSelection(t, ThemeDark) }
-func TestRenderChatSelectionLight(t *testing.T) { renderChatSelection(t, ThemeLight) }
-
+func TestRenderChatSelectionDark(t *testing.T) { renderChatSelection(t, ThemeDark) }
 func renderChatSelection(t *testing.T, mode ThemeMode) {
 	sh, w, q, _, _ := chatScene(t, mode, func(ch *fakeChat) string { return demoConversation(ch, "demo") })
 	f := answerFlow(t, sh, "readiness probe fails")

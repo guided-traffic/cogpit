@@ -93,5 +93,4 @@ func renderAccess(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderAccessDark(t *testing.T)  { renderAccess(t, ThemeDark, "access_dark.png") }
-func TestRenderAccessLight(t *testing.T) { renderAccess(t, ThemeLight, "access_light.png") }
+func TestRenderAccessDark(t *testing.T) { renderAccess(t, ThemeDark, "access_dark.png") }

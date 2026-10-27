@@ -460,7 +460,7 @@ func result(t *testing.T, done <-chan connectResult) connectResult {
 // becomes the program's. Cogpit finds it at the run's begin and ends it by its number: the cancel
 // ends the process, and the log says so truthfully.
 func TestCancelEndsAPluginThatExecs(t *testing.T) {
-	time.Sleep(searchWindow) // no other test's run began within the search's window
+	quietSearches(t)
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)

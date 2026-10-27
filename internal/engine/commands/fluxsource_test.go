@@ -198,7 +198,7 @@ func TestFluxReconcileWithSource(t *testing.T) {
 	}
 
 	// The access reviews say the user may not patch the source: greyed with why.
-	h.s.Backend().Access = denyAccess{"patch gitrepositories flux-system": true}
+	h.access.set(denyAccess{"patch gitrepositories flux-system": true})
 	if got := fluxCommandState(t, h, "flux.reconcileWithSource", map[string]any{"ref": ksRef("apps")}); !strings.Contains(got, "may not patch gitrepositories.source.toolkit.fluxcd.io in flux-system, the source of apps") {
 		t.Errorf("denied the source: %s", got)
 	}
@@ -320,10 +320,12 @@ func TestFluxReconcileWithSourceAgents(t *testing.T) {
 		h.src.Set(gitGVR, obj)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		testkit.WaitFor(ctx, func() bool {
+		if !testkit.WaitFor(ctx, func() bool {
 			o, err := h.s.Lookup(model.ObjectRef{Kind: gitKey, Namespace: "flux-system", Name: "flux-system"})
 			return err == nil && o.GetUID() == "uid-new"
-		})
+		}) {
+			t.Error("the cache never showed the replaced source")
+		}
 	}
 	if err := h.run(t, agent, "flux.reconcileWithSource", map[string]any{"ref": ksRef("apps")}, nil); !errors.Is(err, engine.ErrTargetsChanged) {
 		t.Errorf("a source replaced while asked: %v", err)

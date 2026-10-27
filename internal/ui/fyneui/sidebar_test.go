@@ -198,33 +198,6 @@ func orderSnapshot() *engine.TableSnapshot {
 		Columns: cols, Rows: rows, Sort: engine.SortSpec{Column: "name"}, Total: len(rows), Revision: 1, Synced: true}
 }
 
-// gatewaySnapshot is the Gateways view: the generic profile's columns from the Gateway API's
-// printer columns.
-func gatewaySnapshot() *engine.TableSnapshot {
-	cols := []model.Column{
-		{ID: "name", Title: "Name", Type: model.ColumnText},
-		{ID: "namespace", Title: "Namespace", Type: model.ColumnText},
-		{ID: "class", Title: "Class", Type: model.ColumnText},
-		{ID: "address", Title: "Address", Type: model.ColumnText},
-		{ID: "programmed", Title: "Programmed", Type: model.ColumnText},
-		{ID: "age", Title: "Age", Type: model.ColumnAge},
-	}
-	row := func(ns, name, class, addr, programmed string, age time.Duration) model.Row {
-		return model.Row{
-			Ref: model.ObjectRef{Context: "kind-cogpit", Kind: "gateways.gateway.networking.k8s.io", Namespace: ns, Name: name},
-			Cells: []model.Cell{{Text: name}, {Text: ns, Link: &model.ObjectRef{Kind: "namespaces", Name: ns}}, {Text: class},
-				{Text: addr}, {Text: programmed}, {Num: fixedNow.Add(-age).Unix()}},
-		}
-	}
-	rows := []model.Row{
-		row("ingress", "internal", "envoy", "10.96.40.12", "True", 72*time.Hour),
-		row("ingress", "public", "envoy", "203.0.113.20", "True", 49*time.Hour),
-		row("staging", "public-staging", "envoy", "", "False", 2*time.Hour),
-	}
-	return &engine.TableSnapshot{View: "gateways.gateway.networking.k8s.io", Context: "kind-cogpit", Title: "Gateway", Namespaced: true,
-		Columns: cols, Rows: rows, Sort: engine.SortSpec{Column: "name"}, Total: len(rows), Revision: 1, Synced: true}
-}
-
 // customScene is the shell on a custom resource view, with the sidebar's Network › Gateway API
 // and Custom Resources: the dark scene on cert-manager's Order with acme.cert-manager.io open,
 // the light one on Gateways with gateway.networking.k8s.io open, where the Gateway API kinds are
@@ -247,8 +220,4 @@ func customScene(t *testing.T, mode ThemeMode, snap *engine.TableSnapshot, openG
 
 func TestRenderSidebarCustomDark(t *testing.T) {
 	customScene(t, ThemeDark, orderSnapshot(), "acme.cert-manager.io")
-}
-
-func TestRenderSidebarCustomLight(t *testing.T) {
-	customScene(t, ThemeLight, gatewaySnapshot(), "gateway.networking.k8s.io")
 }

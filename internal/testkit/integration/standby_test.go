@@ -128,9 +128,11 @@ func TestStandbyRevokedLogin(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: "standby-token"})
 	defer srv.Close()
 	srv.Set(testkit.PodsGVR, testkit.Pod("shop", "web-0"))
+	watch := standbyWatch
+	watch.Heartbeat = 500 * time.Millisecond // nothing freezes here: the heartbeats only have to come
 	s := engine.New(engine.Options{
 		Connector:        &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}},
-		SnapshotInterval: 20 * time.Millisecond, ConnWatch: standbyWatch,
+		SnapshotInterval: 20 * time.Millisecond, ConnWatch: watch,
 	})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
@@ -144,7 +146,7 @@ func TestStandbyRevokedLogin(t *testing.T) {
 		t.Fatalf("still %s", s.UIState().Connection.State)
 	}
 	before := srv.Requests()["discovery"]
-	time.Sleep(3 * standbyWatch.Heartbeat)
+	time.Sleep(3 * watch.Heartbeat)
 	if after := srv.Requests()["discovery"]; after != before {
 		t.Errorf("%d probes while the login expired", after-before)
 	}

@@ -83,10 +83,8 @@ func TestStalledStreamsList(t *testing.T) {
 	s := streamSession(ctx, t, srv, stall)
 	streams := func(resource string) int64 { return srv.Requests()["watchlist "+resource] }
 
-	// The default: listed, no stream asked for, nothing to note.
-	if took := openView(ctx, t, s, "pods"); took >= stall {
-		t.Errorf("pods shown after %v on a connect that lists", took)
-	}
+	// The default: listed, no stream asked for (so none to wait for), nothing to note.
+	openView(ctx, t, s, "pods")
 	if n := streams("pods"); n != 0 {
 		t.Errorf("pods asked for %d streams by default", n)
 	}

@@ -31,6 +31,14 @@ type FakeRule struct {
 	Resources []string
 }
 
+// AdminAccess is a cluster-admin's RBAC, not enforced: the access reviews answer as a real API
+// server answers them for an administrator. Without Access a FakeAPIServer answers every review 404,
+// and what waits for the reviews' answer (Prometheus detection, 3 seconds per detection) waits its
+// bound.
+func AdminAccess() *FakeAccess {
+	return &FakeAccess{Rules: map[string][]FakeRule{"": {{Verbs: []string{"*"}, APIGroups: []string{"*"}, Resources: []string{"*"}}}}}
+}
+
 // rulesFor returns the rules that apply in a namespace ("": cluster-wide only).
 func (a *FakeAccess) rulesFor(namespace string) []FakeRule {
 	out := slices.Clone(a.Rules[""])

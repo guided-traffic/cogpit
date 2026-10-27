@@ -157,7 +157,9 @@ func TestDrawerCellTable(t *testing.T) {
 	}
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{})
-	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(findAll[*tipIcon](sh.drawer.details)) > 0 })
+	q.until(t, "the drawer and the cluster's kinds", func() bool {
+		return len(sh.kinds) > 0 && sh.drawer.last != nil && len(findAll[*tipIcon](sh.drawer.details)) > 0
+	})
 	settle(w)
 
 	texts := drawerTexts(sh)

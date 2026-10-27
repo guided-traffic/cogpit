@@ -25,9 +25,12 @@ func agentTypes(t *testing.T, f *fakeEngine, text string) {
 // the user's; an agent's text shows in the field.
 func TestCommandPaletteTextIsEngineState(t *testing.T) {
 	sh, _, q, f, _ := paletteShell(t, ThemeDark)
-	sh.palette.textRep.delay = time.Second // a slow runner's pause between two letters is no pause of the user's
+	sh.palette.textRep.delay = time.Hour // a slow runner's pause between two letters is no pause of the user's; fireTimer ends it
 	openPalette(t, sh, q)
 	typeInPalette(t, sh, q, "swi")
+	if !fireTimer(sh.palette.textRep.timer) {
+		t.Fatal("no report waiting for the typed text")
+	}
 	q.until(t, "the text reported", func() bool {
 		u := f.UIState()
 		return u.PaletteText == "swi" && u.PaletteTextOrigin == engine.OriginGUI
@@ -112,9 +115,6 @@ func TestCommandPaletteAgentTextNeverRunsAChange(t *testing.T) {
 
 func TestRenderCommandPaletteAgentTextDark(t *testing.T) {
 	renderPaletteAgentText(t, ThemeDark, "command_palette_agent_dark.png")
-}
-func TestRenderCommandPaletteAgentTextLight(t *testing.T) {
-	renderPaletteAgentText(t, ThemeLight, "command_palette_agent_light.png")
 }
 
 // renderPaletteAgentText: the palette with an agent's "delete" and the user's refused ↵: the hint

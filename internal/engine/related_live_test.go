@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"fmt"
+	"maps"
 	"math/rand/v2"
 	"slices"
 	"sync"
@@ -119,10 +120,18 @@ func TestNodeDrawerSharesItsIndex(t *testing.T) {
 	}
 	rs.release()
 
-	// Another node's pods do not wake the drawer: their events are applied, and the drawer is
-	// woken by the next pod of its own node, which the cache delivers after them.
-	var wakes, others int
+	// Another node's pods do not wake the drawer: its index watches the keys its lookups asked for,
+	// node-1's alone, and a tracking set wakes only for an event that touches a watched key
+	// (TestLiveIndexFollowsEvents); a count of the drawer's coalesced events would depend on when
+	// the last events of its opening arrive. The next pod of its own node wakes it.
+	rs.mu.Lock()
+	watched := slices.Sorted(maps.Keys(rs.indexes[kinds.PodsByNode.ID()].watched))
+	rs.mu.Unlock()
+	if !rs.track || !slices.Equal(watched, []string{"node-1"}) {
+		t.Errorf("the drawer's index watches %q (tracking %v), want node-1's key alone", watched, rs.track)
+	}
 	var mu sync.Mutex
+	wakes := 0
 	cancelSub := s.Subscribe(func(ev Event) {
 		if ev.Type == EventDetail {
 			mu.Lock()
@@ -131,25 +140,20 @@ func TestNodeDrawerSharesItsIndex(t *testing.T) {
 		}
 	})
 	defer cancelSub()
-	// Events of the drawer's opening may still arrive (coalesced every 5 ms): let them, then count
-	// only what the other node's pods cause. Counting both together failed on a slow CI runner
-	// (2026-10-13: 3 events where the burst spread over more coalescing windows).
-	settled := func() int {
-		time.Sleep(200 * time.Millisecond)
+	woken := func() int {
 		mu.Lock()
 		defer mu.Unlock()
 		return wakes
 	}
-	before := settled()
 	for i := range 30 {
 		src.Set(testkit.PodsGVR, podOnNode("apps", fmt.Sprintf("api-%d", i), "node-2"))
-		others++
 	}
-	if n := settled() - before; n != 0 {
-		t.Errorf("%d detail events for %d pods of another node", n, others)
-	}
+	before := woken()
 	src.Set(testkit.PodsGVR, podOnNode("jobs", "batch-0", "node-1"))
 	waitPods("batch-0", "web-0")
+	if !testkit.WaitFor(ctx, func() bool { return woken() > before }) {
+		t.Error("no detail event for a pod of the drawer's node")
+	}
 
 	// A pod that moves off the node (its key changes) leaves the table.
 	src.Set(testkit.PodsGVR, podOnNode("apps", "web-0", "node-2"))

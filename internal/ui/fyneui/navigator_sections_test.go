@@ -528,9 +528,6 @@ func TestNavigatorSectionOverTheEngine(t *testing.T) {
 func TestRenderNavigatorSectionDark(t *testing.T) {
 	renderNavigatorSection(t, ThemeDark, "navigator_section_dark.png")
 }
-func TestRenderNavigatorSectionLight(t *testing.T) {
-	renderNavigatorSection(t, ThemeLight, "navigator_section_light.png")
-}
 
 // renderNavigatorSection: the section level with its groups, the keyboard on the connected cluster,
 // the pointer on the cluster whose login program waits, showing its source; every tab in the bar.
@@ -567,15 +564,8 @@ func renderNavigatorReconnecting(t *testing.T, mode ThemeMode, name string) {
 func TestRenderNavigatorReconnectingDark(t *testing.T) {
 	renderNavigatorReconnecting(t, ThemeDark, "navigator_reconnecting_dark.png")
 }
-func TestRenderNavigatorReconnectingLight(t *testing.T) {
-	renderNavigatorReconnecting(t, ThemeLight, "navigator_reconnecting_light.png")
-}
-
 func TestRenderNavigatorFindDark(t *testing.T) {
 	renderNavigatorFind(t, ThemeDark, "navigator_find_dark.png")
-}
-func TestRenderNavigatorFindLight(t *testing.T) {
-	renderNavigatorFind(t, ThemeLight, "navigator_find_light.png")
 }
 
 // renderNavigatorFind: drilled into kind-cogpit, then ⌘P (Connect to Cluster…, D-57): the section

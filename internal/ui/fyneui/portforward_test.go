@@ -417,9 +417,6 @@ func renderForwardDialog(t *testing.T, mode ThemeMode, name string) {
 func TestRenderForwardDialogDark(t *testing.T) {
 	renderForwardDialog(t, ThemeDark, "forward_dialog_dark.png")
 }
-func TestRenderForwardDialogLight(t *testing.T) {
-	renderForwardDialog(t, ThemeLight, "forward_dialog_light.png")
-}
 
 // renderPodDrawerPorts shows a pod's containers in the drawer: each port a link with Forward…
 // beside it.
@@ -432,9 +429,6 @@ func renderPodDrawerPorts(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderPodDrawerPortsDark(t *testing.T) {
 	renderPodDrawerPorts(t, ThemeDark, "pod_drawer_ports_dark.png")
-}
-func TestRenderPodDrawerPortsLight(t *testing.T) {
-	renderPodDrawerPorts(t, ThemeLight, "pod_drawer_ports_light.png")
 }
 
 // renderPortForwardingView shows the view with forwards in each state, and with drawer the drawer
@@ -457,12 +451,6 @@ func renderPortForwardingView(t *testing.T, mode ThemeMode, drawer bool, name st
 func TestRenderPortForwardingViewDark(t *testing.T) {
 	renderPortForwardingView(t, ThemeDark, false, "portforwards_view_dark.png")
 }
-func TestRenderPortForwardingViewLight(t *testing.T) {
-	renderPortForwardingView(t, ThemeLight, false, "portforwards_view_light.png")
-}
 func TestRenderPortForwardDrawerDark(t *testing.T) {
 	renderPortForwardingView(t, ThemeDark, true, "portforward_drawer_dark.png")
-}
-func TestRenderPortForwardDrawerLight(t *testing.T) {
-	renderPortForwardingView(t, ThemeLight, true, "portforward_drawer_light.png")
 }

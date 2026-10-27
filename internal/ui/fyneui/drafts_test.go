@@ -141,7 +141,3 @@ func renderDraftsBanner(t *testing.T, mode ThemeMode, name string) {
 func TestRenderDraftsBannerDark(t *testing.T) {
 	renderDraftsBanner(t, ThemeDark, "drafts_banner_dark.png")
 }
-
-func TestRenderDraftsBannerLight(t *testing.T) {
-	renderDraftsBanner(t, ThemeLight, "drafts_banner_light.png")
-}

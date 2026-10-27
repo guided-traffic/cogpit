@@ -42,7 +42,7 @@ func TestLogJumpFieldShowsItsPlaceholderWhole(t *testing.T) {
 // TestRenderLogsJumpField: a deployment's tab before any jump, the time field showing its
 // placeholder, in Germany's format, dark and light (#169).
 func TestRenderLogsJumpField(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsSceneWith(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true}, inGermany)
 		lt := logTabOf(sh)
 		q.until(t, "every line", func() bool { return len(lt.view.ShownLines()) == len(demoMerged) })

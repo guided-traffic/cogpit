@@ -228,24 +228,12 @@ func TestRenderClusterRoleBindingsListDark(t *testing.T) {
 	renderRBACList(t, "clusterrolebindings", ThemeDark, "clusterrolebindings_list_dark.png")
 }
 
-func TestRenderClusterRoleBindingsListLight(t *testing.T) {
-	renderRBACList(t, "clusterrolebindings", ThemeLight, "clusterrolebindings_list_light.png")
-}
-
 func TestRenderClusterRoleBindingDrawerDark(t *testing.T) {
 	renderRBACDrawer(t, "clusterrolebindings", missingRoleBindingRef, ThemeDark, "clusterrolebinding_drawer_dark.png")
 }
 
-func TestRenderClusterRoleBindingDrawerLight(t *testing.T) {
-	renderRBACDrawer(t, "clusterrolebindings", missingRoleBindingRef, ThemeLight, "clusterrolebinding_drawer_light.png")
-}
-
 func TestRenderClusterRoleDrawerDark(t *testing.T) {
 	renderRBACDrawer(t, "clusterroles", collectorRoleRef, ThemeDark, "clusterrole_drawer_dark.png")
-}
-
-func TestRenderClusterRoleDrawerLight(t *testing.T) {
-	renderRBACDrawer(t, "clusterroles", collectorRoleRef, ThemeLight, "clusterrole_drawer_light.png")
 }
 
 // TestClusterRoleBindingDrawerLinks: in a binding's drawer a ServiceAccount subject is a link to

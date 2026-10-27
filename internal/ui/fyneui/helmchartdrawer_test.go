@@ -209,6 +209,3 @@ func renderChartDrawer(t *testing.T, mode ThemeMode, name string) {
 func TestRenderHelmChartDrawerDark(t *testing.T) {
 	renderChartDrawer(t, ThemeDark, "helm_chart_drawer_dark.png")
 }
-func TestRenderHelmChartDrawerLight(t *testing.T) {
-	renderChartDrawer(t, ThemeLight, "helm_chart_drawer_light.png")
-}

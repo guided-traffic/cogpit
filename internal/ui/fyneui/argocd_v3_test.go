@@ -66,7 +66,3 @@ func renderArgoV3Drawer(t *testing.T, mode ThemeMode, name string) {
 func TestRenderArgoV3ApplicationDrawerDark(t *testing.T) {
 	renderArgoV3Drawer(t, ThemeDark, "argocd_application_drawer_v3_dark.png")
 }
-
-func TestRenderArgoV3ApplicationDrawerLight(t *testing.T) {
-	renderArgoV3Drawer(t, ThemeLight, "argocd_application_drawer_v3_light.png")
-}

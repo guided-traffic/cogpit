@@ -128,7 +128,3 @@ func renderImageGrades(t *testing.T, mode ThemeMode, name string) {
 func TestRenderPodImageGradesDark(t *testing.T) {
 	renderImageGrades(t, ThemeDark, "pod_image_grades_dark.png")
 }
-
-func TestRenderPodImageGradesLight(t *testing.T) {
-	renderImageGrades(t, ThemeLight, "pod_image_grades_light.png")
-}

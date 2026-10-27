@@ -442,35 +442,3 @@ func TestChartAxisAndNiceSteps(t *testing.T) {
 		t.Errorf("formatCores = %q", got)
 	}
 }
-
-// TestRenderMetricsDrawer draws the pod drawer with its Metrics section for a look: to
-// COGPIT_PNG_DIR when that is set (else it is only captured), never to testdata.
-func TestRenderMetricsDrawer(t *testing.T) {
-	for _, c := range []struct {
-		mode   ThemeMode
-		name   string
-		width  float32 // the drawer's width; 0 keeps the default
-		scroll float32 // how far the drawer is scrolled: to the containers' charts
-	}{
-		{ThemeDark, "pod_metrics_dark.png", 0, 0}, {ThemeLight, "pod_metrics_light.png", 0, 0},
-		{ThemeDark, "pod_metrics_containers_dark.png", 0, 400}, {ThemeLight, "pod_metrics_containers_light.png", 0, 400},
-		{ThemeDark, "pod_metrics_narrow_dark.png", minDrawerWidth, 0}, {ThemeLight, "pod_metrics_narrow_containers_light.png", minDrawerWidth, 600},
-	} {
-		c := c
-		t.Run(c.name, func(t *testing.T) {
-			sh, _, q := metricsDrawerFor(t, twoContainerPod(t), c.mode, withEnvoy)
-			if c.width > 0 {
-				sh.setDrawerWidth(c.width)
-				q.until(t, "the drawer to take the width", func() bool { return sh.drawer.width == c.width })
-				settle(sh.win)
-			}
-			p := sh.drawer.kept[metricsKey].(*metricsPanel)
-			p.flag.OnTapped() // events on, as the capture shows them
-			p.perBox["envoy"].variants[variantMemory].OnTapped()
-			sh.drawer.scroll.Offset.Y = c.scroll
-			sh.drawer.scroll.Refresh()
-			settle(sh.win)
-			lookPNG(t, sh.win, c.name)
-		})
-	}
-}

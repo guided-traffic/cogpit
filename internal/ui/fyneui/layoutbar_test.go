@@ -40,14 +40,18 @@ func (n *uiNotifier) OnUpdateChange(fn func()) {
 	n.fns = append(n.fns, fn)
 }
 
+// set changes the update and tells the engine on goroutines of their own, as the updater does; it
+// returns once the engine has taken the change.
 func (n *uiNotifier) set(available bool, version string) {
 	n.mu.Lock()
 	n.available, n.version = available, version
 	fns := append([]func(){}, n.fns...)
 	n.mu.Unlock()
+	var told sync.WaitGroup
 	for _, fn := range fns {
-		go fn()
+		told.Go(fn)
 	}
+	told.Wait()
 }
 
 // chatEngine is settingsEngine with the fake chat agent.
@@ -220,7 +224,6 @@ func TestUpdateButtonShowsOnlyWithAnUpdate(t *testing.T) {
 	s2.SetUpdater(keyless)
 	sh2, _, q2 := newEngineShell(t, s2, Options{})
 	keyless.set(true, "0.12.0")
-	time.Sleep(20 * time.Millisecond)
 	q2.drain()
 	if sh2.top.layout.update.Visible() || s2.UIState().Update.Available {
 		t.Fatal("a build without the update key shows the Update button")
@@ -400,7 +403,7 @@ func assertUpdateFits(t *testing.T, sh *shell, label string) {
 
 // layoutScene is the demo cluster over a real session with the agent's chat and the given
 // updater: the Diagnostics tab in the dock, the chat column shown; then change runs on the engine.
-func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater, change func(s *engine.Session)) (*shell, fyne.Window, *mainQueue) {
+func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.Window, *mainQueue, *engine.Session) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
@@ -453,58 +456,38 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater, change func(s *
 	mustDispatch(t, s, "hotbar.addCluster", struct{}{})
 	mustDispatch(t, s, "diagnostics.open", struct{}{})
 	mustDispatch(t, s, "chat.toggle", map[string]any{"open": true})
-	if change != nil {
-		change(s)
-	}
+	sh.requestDiagnostics() // the counters now, not at the engine's next EventDiagnostics a second on
 	until("the layout", func() bool {
 		st := s.UIState()
 		return len(sh.ui.Dock) == 1 && sh.ui.Chat && sh.ui.NavigatorHidden == st.NavigatorHidden &&
 			sh.ui.DockOpen == st.DockOpen && sh.dock.open() == st.DockOpen && sh.chat.loaded && sh.diag.informers > 0
 	})
-	return sh, w, q
+	return sh, w, q, s
 }
 
-func renderLayout(t *testing.T, mode ThemeMode, name string, u engine.Updater, change func(s *engine.Session)) {
-	_, w, _ := layoutScene(t, mode, u, change)
-	savePNG(t, w, name)
-}
-
-func hideNavigator(s *engine.Session) { _, _ = s.SetLayout(engine.LayoutNavigator, new(false)) }
-func collapseDock(s *engine.Session)  { _, _ = s.SetLayout(engine.LayoutDock, new(false)) }
-
-// The renders of F7: every part open; the navigator hidden; the dock collapsed; the Update button
-// shown (Cogpit 0.12.0 held by the updater).
-func TestRenderLayoutAllOpenDark(t *testing.T) {
-	renderLayout(t, ThemeDark, "layout_all_open_dark.png", nil, nil)
-}
-func TestRenderLayoutAllOpenLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_all_open_light.png", nil, nil)
-}
-func TestRenderLayoutNavigatorHiddenDark(t *testing.T) {
-	renderLayout(t, ThemeDark, "layout_navigator_hidden_dark.png", nil, hideNavigator)
-}
-func TestRenderLayoutNavigatorHiddenLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_navigator_hidden_light.png", nil, hideNavigator)
-}
-func TestRenderLayoutDockCollapsedDark(t *testing.T) {
-	renderLayout(t, ThemeDark, "layout_dock_collapsed_dark.png", nil, collapseDock)
-}
-func TestRenderLayoutDockCollapsedLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_dock_collapsed_light.png", nil, collapseDock)
-}
-
-// renderUpdate: the Update button left of the toggles.
-func renderUpdate(t *testing.T, mode ThemeMode, name string) {
+// The renders of F7, one scene through its states: every part open; the Update button shown
+// (Cogpit 0.12.0 held by the updater); the navigator hidden; the dock collapsed.
+func TestRenderLayoutDark(t *testing.T) {
 	n := &uiNotifier{}
-	sh, w, q := layoutScene(t, mode, n, nil)
+	sh, w, q, s := layoutScene(t, ThemeDark, n)
+	savePNG(t, w, "layout_all_open_dark.png")
+
 	n.set(true, "0.12.0")
 	q.until(t, "the Update button", func() bool { return sh.top.layout.update.Visible() })
-	savePNG(t, w, name)
-}
+	savePNG(t, w, "layout_update_dark.png")
+	n.set(false, "")
+	q.until(t, "the Update button gone", func() bool { return !sh.top.layout.update.Visible() })
 
-func TestRenderLayoutUpdateDark(t *testing.T) { renderUpdate(t, ThemeDark, "layout_update_dark.png") }
-func TestRenderLayoutUpdateLight(t *testing.T) {
-	renderUpdate(t, ThemeLight, "layout_update_light.png")
+	_, _ = s.SetLayout(engine.LayoutNavigator, new(false))
+	q.until(t, "the navigator hidden", func() bool { return sh.ui.NavigatorHidden })
+	savePNG(t, w, "layout_navigator_hidden_dark.png")
+
+	_, _ = s.SetLayout(engine.LayoutNavigator, new(true))
+	_, _ = s.SetLayout(engine.LayoutDock, new(false))
+	q.until(t, "the navigator back, the dock collapsed", func() bool {
+		return !sh.ui.NavigatorHidden && !sh.ui.DockOpen && !sh.dock.open()
+	})
+	savePNG(t, w, "layout_dock_collapsed_dark.png")
 }
 
 // TestDockToggleOpensATerminal (WF18): with no dock tab, the dock's toggle is enabled on a real

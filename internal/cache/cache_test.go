@@ -8,6 +8,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -22,63 +23,66 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
+// The warm period runs on the bubble's clock (testing/synctest).
 func TestSharedInformerWarmPeriodAndTransform(t *testing.T) {
-	src := testkit.NewMemorySource()
-	pod := testkit.Pod("default", "web-0")
-	pod.Object["metadata"].(map[string]any)["managedFields"] = []any{map[string]any{"manager": "kubectl"}}
-	src.Set(testkit.PodsGVR, pod)
+	synctest.Test(t, func(t *testing.T) {
+		src := testkit.NewMemorySource()
+		pod := testkit.Pod("default", "web-0")
+		pod.Object["metadata"].(map[string]any)["managedFields"] = []any{map[string]any{"manager": "kubectl"}}
+		src.Set(testkit.PodsGVR, pod)
 
-	c := cache.New(src, cache.Options{WarmPeriod: 200 * time.Millisecond})
-	defer c.Close()
-	scope := cache.Scope{GVR: testkit.PodsGVR}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
+		c := cache.New(src, cache.Options{WarmPeriod: 200 * time.Millisecond})
+		defer c.Close()
+		scope := cache.Scope{GVR: testkit.PodsGVR}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
 
-	h1 := c.Acquire(scope)
-	h2 := c.Acquire(scope)
-	if !h1.WaitForSync(ctx) {
-		t.Fatal("not synced")
-	}
-	got, ok := h2.Get("default", "web-0")
-	if !ok {
-		t.Fatal("pod not in cache")
-	}
-	if _, found := got.Object["metadata"].(map[string]any)["managedFields"]; found {
-		t.Error("managedFields not stripped")
-	}
-	if src.Lists() != 1 {
-		t.Errorf("two handles cost %d lists, want 1", src.Lists())
-	}
-
-	events := make(chan cache.Event, 4)
-	unsub := h1.Subscribe(func(ev cache.Event) { events <- ev })
-	src.Set(testkit.PodsGVR, testkit.Pod("default", "web-1"))
-	select {
-	case ev := <-events:
-		if ev.Type != cache.Added || ev.Object.GetName() != "web-1" {
-			t.Errorf("event %+v", ev)
+		h1 := c.Acquire(scope)
+		h2 := c.Acquire(scope)
+		if !h1.WaitForSync(ctx) {
+			t.Fatal("not synced")
 		}
-	case <-ctx.Done():
-		t.Fatal("no event")
-	}
-	unsub()
+		got, ok := h2.Get("default", "web-0")
+		if !ok {
+			t.Fatal("pod not in cache")
+		}
+		if _, found := got.Object["metadata"].(map[string]any)["managedFields"]; found {
+			t.Error("managedFields not stripped")
+		}
+		if src.Lists() != 1 {
+			t.Errorf("two handles cost %d lists, want 1", src.Lists())
+		}
 
-	h1.Release()
-	h1.Release() // idempotent
-	h2.Release()
-	h3 := c.Acquire(scope) // within the warm period: no new list
-	if !h3.HasSynced() || src.Lists() != 1 {
-		t.Errorf("reacquire within warm period: synced=%v lists=%d", h3.HasSynced(), src.Lists())
-	}
-	h3.Release()
-	if !testkit.WaitFor(ctx, func() bool { return len(c.Stats()) == 0 }) {
-		t.Fatal("informer still running after the warm period")
-	}
-	h4 := c.Acquire(scope)
-	defer h4.Release()
-	if !h4.WaitForSync(ctx) || src.Lists() != 2 {
-		t.Errorf("after expiry: lists=%d, want 2", src.Lists())
-	}
+		events := make(chan cache.Event, 4)
+		unsub := h1.Subscribe(func(ev cache.Event) { events <- ev })
+		src.Set(testkit.PodsGVR, testkit.Pod("default", "web-1"))
+		select {
+		case ev := <-events:
+			if ev.Type != cache.Added || ev.Object.GetName() != "web-1" {
+				t.Errorf("event %+v", ev)
+			}
+		case <-ctx.Done():
+			t.Fatal("no event")
+		}
+		unsub()
+
+		h1.Release()
+		h1.Release() // idempotent
+		h2.Release()
+		h3 := c.Acquire(scope) // within the warm period: no new list
+		if !h3.HasSynced() || src.Lists() != 1 {
+			t.Errorf("reacquire within warm period: synced=%v lists=%d", h3.HasSynced(), src.Lists())
+		}
+		h3.Release()
+		if !testkit.WaitFor(ctx, func() bool { return len(c.Stats()) == 0 }) {
+			t.Fatal("informer still running after the warm period")
+		}
+		h4 := c.Acquire(scope)
+		defer h4.Release()
+		if !h4.WaitForSync(ctx) || src.Lists() != 2 {
+			t.Errorf("after expiry: lists=%d, want 2", src.Lists())
+		}
+	})
 }
 
 // TestReacquireWithinWarmPeriodCostsNothing is P10 in memory: a view reopened within the warm
@@ -198,30 +202,33 @@ func (l *gatedLW) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	return toolscache.ToWatcherWithContext(l.inner).WatchWithContext(context.Background(), opts)
 }
 
+// client-go's retry after the failed list runs on the bubble's clock (testing/synctest).
 func TestErrorStateSetThenClearedWithoutEvents(t *testing.T) {
-	// An empty resource: recovery produces no event, so the error must clear on the successful
-	// list itself.
-	src := &flakySource{MemorySource: testkit.NewMemorySource()}
-	src.failLists.Store(1)
-	c := cache.New(src, cache.Options{})
-	defer c.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
+	synctest.Test(t, func(t *testing.T) {
+		// An empty resource: recovery produces no event, so the error must clear on the successful
+		// list itself.
+		src := &flakySource{MemorySource: testkit.NewMemorySource()}
+		src.failLists.Store(1)
+		c := cache.New(src, cache.Options{})
+		defer c.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+		defer cancel()
 
-	h := c.Acquire(cache.Scope{GVR: testkit.ServicesGVR})
-	defer h.Release()
-	if !testkit.WaitFor(ctx, func() bool { return h.Err() != nil }) {
-		t.Fatal("the failed list did not set Err")
-	}
-	if st := c.Stats(); len(st) != 1 || st[0].Error == "" {
-		t.Errorf("stats do not show the error: %+v", st)
-	}
-	if !h.WaitForSync(ctx) {
-		t.Fatal("not synced after the list recovered")
-	}
-	if !testkit.WaitFor(ctx, func() bool { return h.Err() == nil }) {
-		t.Fatalf("Err not cleared after recovery: %v", h.Err())
-	}
+		h := c.Acquire(cache.Scope{GVR: testkit.ServicesGVR})
+		defer h.Release()
+		if !testkit.WaitFor(ctx, func() bool { return h.Err() != nil }) {
+			t.Fatal("the failed list did not set Err")
+		}
+		if st := c.Stats(); len(st) != 1 || st[0].Error == "" {
+			t.Errorf("stats do not show the error: %+v", st)
+		}
+		if !h.WaitForSync(ctx) {
+			t.Fatal("not synced after the list recovered")
+		}
+		if !testkit.WaitFor(ctx, func() bool { return h.Err() == nil }) {
+			t.Fatalf("Err not cleared after recovery: %v", h.Err())
+		}
+	})
 }
 
 // panicSource panics where the cache calls into it.
@@ -447,52 +454,55 @@ func names(objs []*unstructured.Unstructured) []string {
 // TestSyncWaitsForTheInitialListToReachSubscribers: client-go fills the store before it hands the
 // initial list to event handlers, so a store-only sync would let a subscriber that subscribes
 // "after sync" see late initial additions as changes. While a subscriber still blocks the initial
-// list's delivery, the handle is not synced; once it is, a new subscriber sees only changes.
+// list's delivery, the handle is not synced; once it is, a new subscriber sees only changes. The
+// wait for late events is the bubble's time (testing/synctest).
 func TestSyncWaitsForTheInitialListToReachSubscribers(t *testing.T) {
-	src := testkit.NewMemorySource()
-	for i := range 50 {
-		src.Set(testkit.PodsGVR, testkit.Pod("default", fmt.Sprintf("web-%d", i)))
-	}
-	// The list waits until the subscriber is in place: on a slow machine the informer could
-	// otherwise deliver the initial list before Subscribe returns, to no subscriber at all.
-	gate := make(chan struct{})
-	c := cache.New(&gatedSource{MemorySource: src, gate: gate}, cache.Options{})
-	defer c.Close()
-	h := c.Acquire(cache.Scope{GVR: testkit.PodsGVR})
-	defer h.Release()
+	synctest.Test(t, func(t *testing.T) {
+		src := testkit.NewMemorySource()
+		for i := range 50 {
+			src.Set(testkit.PodsGVR, testkit.Pod("default", fmt.Sprintf("web-%d", i)))
+		}
+		// The list waits until the subscriber is in place: on a slow machine the informer could
+		// otherwise deliver the initial list before Subscribe returns, to no subscriber at all.
+		gate := make(chan struct{})
+		c := cache.New(&gatedSource{MemorySource: src, gate: gate}, cache.Options{})
+		defer c.Close()
+		h := c.Acquire(cache.Scope{GVR: testkit.PodsGVR})
+		defer h.Release()
 
-	release := make(chan struct{})
-	var first sync.Once
-	reached := make(chan struct{})
-	unsub := h.Subscribe(func(cache.Event) {
-		first.Do(func() { close(reached) })
-		<-release
+		release := make(chan struct{})
+		var first sync.Once
+		reached := make(chan struct{})
+		unsub := h.Subscribe(func(cache.Event) {
+			first.Do(func() { close(reached) })
+			<-release
+		})
+		defer unsub()
+		close(gate)
+		select {
+		case <-reached:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the initial list never reached the subscriber")
+		}
+		if h.HasSynced() {
+			t.Error("synced while the initial list is still being delivered")
+		}
+		close(release)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if !h.WaitForSync(ctx) {
+			t.Fatal("not synced")
+		}
+		var late atomic.Int64
+		defer h.Subscribe(func(cache.Event) { late.Add(1) })()
+		time.Sleep(200 * time.Millisecond)
+		if n := late.Load(); n != 0 {
+			t.Errorf("a subscriber added after sync saw %d initial-list events", n)
+		}
+		src.Set(testkit.PodsGVR, testkit.Pod("default", "web-new"))
+		if !testkit.WaitFor(ctx, func() bool { return late.Load() == 1 }) {
+			t.Errorf("the change after sync: %d events, want 1", late.Load())
+		}
 	})
-	defer unsub()
-	close(gate)
-	select {
-	case <-reached:
-	case <-time.After(5 * time.Second):
-		t.Fatal("the initial list never reached the subscriber")
-	}
-	if h.HasSynced() {
-		t.Error("synced while the initial list is still being delivered")
-	}
-	close(release)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if !h.WaitForSync(ctx) {
-		t.Fatal("not synced")
-	}
-	var late atomic.Int64
-	defer h.Subscribe(func(cache.Event) { late.Add(1) })()
-	time.Sleep(200 * time.Millisecond)
-	if n := late.Load(); n != 0 {
-		t.Errorf("a subscriber added after sync saw %d initial-list events", n)
-	}
-	src.Set(testkit.PodsGVR, testkit.Pod("default", "web-new"))
-	if !testkit.WaitFor(ctx, func() bool { return late.Load() == 1 }) {
-		t.Errorf("the change after sync: %d events, want 1", late.Load())
-	}
 }

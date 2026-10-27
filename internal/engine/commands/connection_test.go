@@ -3,6 +3,7 @@ package commands_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -134,7 +135,8 @@ func TestConnectionCommands(t *testing.T) {
 
 // TestAPortForwardWaitsForTheConnection is S7's port forwards: the interruption ends the forward's
 // tunnel, no dial goes out while the connection is interrupted, and the forward dials at once when
-// it is back, its local port kept.
+// it is back, its local port kept. The forward's own backoff is an hour: any dial within the wait
+// came at once.
 func TestAPortForwardWaitsForTheConnection(t *testing.T) {
 	src := forwardSeed()
 	fw := &fakeForwarder{fakeWriter: &fakeWriter{}}
@@ -143,6 +145,7 @@ func TestAPortForwardWaitsForTheConnection(t *testing.T) {
 		Connector: &forwardConnector{src: src, fw: fw, health: p}, SnapshotInterval: 10 * time.Millisecond,
 		ConnWatch: engine.ConnWatchOptions{Heartbeat: 20 * time.Millisecond, ProbeTimeout: 50 * time.Millisecond, Confirm: 10 * time.Millisecond,
 			LoginWait: 300 * time.Millisecond, BackoffFirst: 20 * time.Millisecond, BackoffMax: 100 * time.Millisecond},
+		ForwardBackoff: time.Hour,
 	})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
@@ -164,23 +167,22 @@ func TestAPortForwardWaitsForTheConnection(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return fw.open() == 1 }) {
 		t.Fatal("no tunnel")
 	}
+	dials := len(fw.dialed())
 	p.down.Store(true)
 	waitConn(t, s, engine.Interrupted)
 	if !testkit.WaitFor(ctx, func() bool { return fw.open() == 0 }) {
 		t.Fatal("the tunnel stayed open through the interruption")
 	}
-	dials := len(fw.dialed())
-	time.Sleep(300 * time.Millisecond) // the forward's own backoff would have dialled by now
+	waitForward(t, s, f.Ref, "waiting for the connection", func(f engine.Forward) bool {
+		return f.Phase == engine.ForwardReconnecting && strings.Contains(f.Message, "the connection to the cluster is interrupted")
+	})
+	time.Sleep(50 * time.Millisecond) // a loop that did not wait for the connection would have dialled at once
 	if n := len(fw.dialed()); n != dials {
 		t.Fatalf("%d dials while interrupted", n-dials)
 	}
 	p.down.Store(false)
 	waitConn(t, s, engine.Connected)
-	back := time.Now()
 	if !testkit.WaitFor(ctx, func() bool { return fw.open() == 1 }) {
 		t.Fatal("no dial after the reconnect")
-	}
-	if d := time.Since(back); d > 900*time.Millisecond { // at once, not after the forward's 1 s backoff
-		t.Errorf("dialled %v after the reconnect", d)
 	}
 }

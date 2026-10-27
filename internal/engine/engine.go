@@ -172,6 +172,13 @@ type Options struct {
 	// Alerts tunes the polls of each cluster's Alertmanager (alerts.go, D-77); the zero value is
 	// alerting's defaults (every 30 seconds while the cluster is shown). Tests shorten them.
 	Alerts alerting.Options
+	// ForwardBackoff is a port forward's first wait before it dials its pod again after a lost
+	// connection or a failed dial, doubled up to 30 s (portforward.go); zero means 1 s. Tests
+	// shorten it.
+	ForwardBackoff time.Duration
+	// LogRescan is the most often a workload's or a group's logs look at their pods again after a
+	// change (workloadlogs.go); zero means 250 ms. Tests shorten it.
+	LogRescan time.Duration
 }
 
 // Session is the engine for one desktop app or headless process. It is safe for concurrent use.
@@ -217,6 +224,12 @@ type Session struct {
 func New(opts Options) *Session {
 	if opts.SnapshotInterval <= 0 {
 		opts.SnapshotInterval = 100 * time.Millisecond
+	}
+	if opts.ForwardBackoff <= 0 {
+		opts.ForwardBackoff = forwardRetryFirst
+	}
+	if opts.LogRescan <= 0 {
+		opts.LogRescan = workloadLogRescan
 	}
 	if opts.Now == nil {
 		opts.Now = time.Now

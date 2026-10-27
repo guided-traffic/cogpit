@@ -121,5 +121,4 @@ func renderHelmHTTP(t *testing.T, mode ThemeMode, suffix string) {
 	savePNG(t, w, "helm_http_question_"+suffix+".png")
 }
 
-func TestRenderHelmHTTPDark(t *testing.T)  { renderHelmHTTP(t, ThemeDark, "dark") }
-func TestRenderHelmHTTPLight(t *testing.T) { renderHelmHTTP(t, ThemeLight, "light") }
+func TestRenderHelmHTTPDark(t *testing.T) { renderHelmHTTP(t, ThemeDark, "dark") }

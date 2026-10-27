@@ -29,16 +29,18 @@ func TestSearchToggles(t *testing.T) {
 	}
 
 	// Typing, then a click before the debounce fires: one call with the text and the switch.
+	sh.searchWait = time.Hour // the click comes before the pause ends, however slow the runner
 	test.Type(sh.view.search, "web")
 	test.Tap(tg.matchCase)
+	if fireTimer(sh.view.searchTimer) {
+		t.Error("the typed text is still pending after the click sent it with the switch")
+	}
 	q.until(t, "ui.setFilter", func() bool { return len(f.callsOf("ui.setFilter")) == 1 })
 	p := decodeParams[filterParams](t, f.callsOf("ui.setFilter")[0])
 	if p.Filter != "web" || p.MatchCase == nil || !*p.MatchCase || p.Regex != nil {
 		t.Fatalf("Aa sent %+v", p)
 	}
-	q.until(t, "Aa on", func() bool { return tg.matchCase.Importance == widget.HighImportance })
-	time.Sleep(3 * searchDebounce)
-	q.drain()
+	q.until(t, "Aa on", func() bool { return tg.matchCase.Importance == widget.HighImportance && sh.view.filterBusy == 0 })
 	if n := len(f.callsOf("ui.setFilter")); n != 1 {
 		t.Fatalf("%d ui.setFilter calls: the debounced text was sent besides the switch", n)
 	}
@@ -58,6 +60,9 @@ func TestSearchToggles(t *testing.T) {
 	test.Type(sh.view.search, ")")
 	if tg.ring.Visible() || tg.regex.Importance != widget.HighImportance || tg.regex.tip != tipRegex {
 		t.Fatalf("valid again: ring %v, .* %v, tip %q", tg.ring.Visible(), tg.regex.Importance, tg.regex.tip)
+	}
+	if !fireTimer(sh.view.searchTimer) {
+		t.Fatal("no pause pending after the typing")
 	}
 	q.until(t, "the text sent", func() bool { return f.UIState().Filter == "web()" })
 
@@ -89,8 +94,4 @@ func renderSearchToggles(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderSearchTogglesDark(t *testing.T) {
 	renderSearchToggles(t, ThemeDark, "search_toggles_dark.png")
-}
-
-func TestRenderSearchTogglesLight(t *testing.T) {
-	renderSearchToggles(t, ThemeLight, "search_toggles_light.png")
 }

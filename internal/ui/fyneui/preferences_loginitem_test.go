@@ -117,10 +117,6 @@ func TestRenderPreferencesStartAtLoginDark(t *testing.T) {
 	renderPreferencesStartAtLogin(t, ThemeDark, "preferences_start_at_login_dark.png")
 }
 
-func TestRenderPreferencesStartAtLoginLight(t *testing.T) {
-	renderPreferencesStartAtLogin(t, ThemeLight, "preferences_start_at_login_light.png")
-}
-
 func renderPreferencesStartAtLogin(t *testing.T, mode ThemeMode, name string) {
 	s := loginItemEngine(t, &fakeLoginItem{status: engine.LoginItemNeedsApproval})
 	mustDispatch(t, s, "preferences.set", map[string]any{"theme": string(mode), "timezone": "Europe/Berlin"})

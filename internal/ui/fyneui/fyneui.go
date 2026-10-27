@@ -241,11 +241,7 @@ func Run(s *engine.Session, opts Options) error {
 		// on Fyne's lifecycle goroutine. Only Fyne's own SIGINT and SIGTERM handler quits without it,
 		// racing the handler below, which quits through a.Quit.
 		stopped.Store(true)
-		// The dock's streams end here too, while Fyne still queues: the terminal widget calls fyne.Do
-		// itself, not through the funnel, and after the drain its reading goroutines would run
-		// widget code at once, side by side (the -race run of D-103 found it at quit).
-		sh.dock.closeAll()
-		sh.clearSecretClipboard() // a copied Secret value does not outlive the window on the clipboard
+		sh.windowClosed()
 	})
 	// On Windows and Linux the menus are the top bar's; the window keeps them for their keys only
 	// from its start on, when Fyne no longer builds its own menu bar later (menubar.go).

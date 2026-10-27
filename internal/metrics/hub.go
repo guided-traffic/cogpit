@@ -557,13 +557,6 @@ func (h *Hub) bandsLocked(st *scopeState) []band {
 	return append(out, coarse)
 }
 
-// rangeOfLocked is the coarsest query set of an object scope: the longest range its charts show,
-// and its step (bandsLocked).
-func (h *Hub) rangeOfLocked(st *scopeState) (window, step time.Duration) {
-	bs := h.bandsLocked(st)
-	return bs[len(bs)-1].window, bs[len(bs)-1].step
-}
-
 // wantsLocked is what the scope's charts show beyond CPU and memory.
 func (h *Hub) wantsLocked(st *scopeState) Want {
 	var w Want

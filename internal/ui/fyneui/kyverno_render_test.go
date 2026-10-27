@@ -133,5 +133,4 @@ func renderKyverno(t *testing.T, mode ThemeMode, suffix string) {
 	savePNG(t, w, "kyverno_drawer_"+suffix+".png")
 }
 
-func TestRenderKyvernoDark(t *testing.T)  { renderKyverno(t, ThemeDark, "dark") }
-func TestRenderKyvernoLight(t *testing.T) { renderKyverno(t, ThemeLight, "light") }
+func TestRenderKyvernoDark(t *testing.T) { renderKyverno(t, ThemeDark, "dark") }

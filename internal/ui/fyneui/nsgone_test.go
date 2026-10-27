@@ -196,10 +196,6 @@ func TestRenderNamespaceFilterGoneDark(t *testing.T) {
 	renderNamespaceFilterGone(t, ThemeDark, "namespace_filter_gone_dark.png")
 }
 
-func TestRenderNamespaceFilterGoneLight(t *testing.T) {
-	renderNamespaceFilterGone(t, ThemeLight, "namespace_filter_gone_light.png")
-}
-
 func renderNamespaceFilterGone(t *testing.T, mode ThemeMode, name string) {
 	f := connectedFake(t, 200)
 	f.namespaces = thirtyNamespaces

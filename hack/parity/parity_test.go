@@ -41,15 +41,15 @@ func TestParseStatus(t *testing.T) {
 
 func TestHasEvidence(t *testing.T) {
 	for text, want := range map[string]bool{
-		"[`x.go`](../../internal/x.go)":                  true,
-		"`TestThing`":                                    true,
-		"`TestThing/sub_case`":                           true,
-		"issue #12":                                      true,
-		"[PNG](../../internal/ui/testdata/a.png)":        true,
-		"see [decisions](../developer/decisions.md#d-1)": false,
-		"`$KUBECONFIG` only":                             false,
-		"[Lens](https://docs.lenshq.io/)":                false,
-		"–":                                              false,
+		"[`x.go`](../../internal/x.go)":           true,
+		"`TestThing`":                             true,
+		"`TestThing/sub_case`":                    true,
+		"issue #12":                               true,
+		"[PNG](../../internal/ui/testdata/a.png)": true,
+		"see [decisions](../developer/decisions.md#d-1-ui-toolkit)": false,
+		"`$KUBECONFIG` only":              false,
+		"[Lens](https://docs.lenshq.io/)": false,
+		"–":                               false,
 	} {
 		if got := hasEvidence(text); got != want {
 			t.Errorf("%q: %v, want %v", text, got, want)

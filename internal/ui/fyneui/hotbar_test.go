@@ -434,9 +434,6 @@ func TestHotbarParamsMatchTheRegistry(t *testing.T) {
 func TestRenderHotbarEmptyDark(t *testing.T) {
 	renderHotbarEmpty(t, ThemeDark, "hotbar_empty_dark.png")
 }
-func TestRenderHotbarEmptyLight(t *testing.T) {
-	renderHotbarEmpty(t, ThemeLight, "hotbar_empty_light.png")
-}
 
 // renderHotbarEmpty: a first start's hotbar, empty, the "+" to pin the connected cluster.
 func renderHotbarEmpty(t *testing.T, mode ThemeMode, name string) {

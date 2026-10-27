@@ -352,9 +352,9 @@ func renderDrawerCopyValue(t *testing.T, mode ThemeMode, long bool, name string)
 	savePNG(t, w, name)
 }
 
+// TestRenderDrawerCopyIconAfterTheValue: the icon right after a short value, dark, and at the end
+// of a long one, light.
 func TestRenderDrawerCopyIconAfterTheValue(t *testing.T) {
 	renderDrawerCopyValue(t, ThemeDark, false, "drawer_copy_notafter_dark.png")
-	renderDrawerCopyValue(t, ThemeLight, false, "drawer_copy_notafter_light.png")
-	renderDrawerCopyValue(t, ThemeDark, true, "drawer_copy_long_dark.png")
 	renderDrawerCopyValue(t, ThemeLight, true, "drawer_copy_long_light.png")
 }

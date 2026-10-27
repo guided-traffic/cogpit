@@ -3,6 +3,7 @@ package commands_test
 import (
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -17,9 +18,30 @@ func (d denyAccess) Allowed(namespace string, v engine.Verb) (bool, bool) {
 	return !d[v.Verb+" "+v.Resource+" "+namespace], true
 }
 
-// kinds.list reports per kind whether the user may list it: every kind without access reviews;
-// from the backend's Access otherwise, where a namespaced kind the user may not list everywhere
-// stays unknown (listable somewhere, perhaps).
+// swapAccess is the access reviews a test changes while the session runs. The harness's connector
+// puts it on the backend before the engine publishes it, so a test never assigns a field of a live
+// backend, which the engine's goroutines read; set changes what it denies under Allowed's lock.
+// Denying nothing, it answers as no access reviews would: everything allowed.
+type swapAccess struct {
+	mu   sync.Mutex
+	deny denyAccess
+}
+
+func (a *swapAccess) Allowed(namespace string, v engine.Verb) (bool, bool) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.deny.Allowed(namespace, v)
+}
+
+func (a *swapAccess) set(deny denyAccess) {
+	a.mu.Lock()
+	a.deny = deny
+	a.mu.Unlock()
+}
+
+// kinds.list reports per kind whether the user may list it, from the backend's Access: every kind
+// while it denies nothing; a namespaced kind the user may not list everywhere stays unknown
+// (listable somewhere, perhaps).
 func TestKindsListListable(t *testing.T) {
 	h := newHarness(t, seed(), engine.Options{})
 	listable := func() map[string]*bool {
@@ -33,10 +55,10 @@ func TestKindsListListable(t *testing.T) {
 	}
 	for kind, l := range listable() {
 		if l == nil || !*l {
-			t.Errorf("%s: listable %v without access reviews, want true", kind, l)
+			t.Errorf("%s: listable %v while nothing is denied, want true", kind, l)
 		}
 	}
-	h.s.Backend().Access = denyAccess{"list namespaces ": true, "list deployments ": true}
+	h.access.set(denyAccess{"list namespaces ": true, "list deployments ": true})
 	got := listable()
 	if l := got["namespaces"]; l == nil || *l {
 		t.Errorf("namespaces: %v, want false", l)
@@ -55,7 +77,7 @@ func TestEditAndDeleteFollowAccessReviews(t *testing.T) {
 	h := newHarness(t, seed(), engine.Options{})
 	ref := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-0"}
 	waitTable(t, h.s, "pods", func(ts *engine.TableSnapshot) bool { return ts.Synced })
-	h.s.Backend().Access = denyAccess{"update pods shop": true, "delete pods shop": true}
+	h.access.set(denyAccess{"update pods shop": true, "delete pods shop": true})
 	for _, id := range []string{"object.edit", "object.delete"} {
 		err := h.run(t, engine.OriginGUI, id, map[string]any{"ref": ref}, nil)
 		var dis *engine.DisabledError

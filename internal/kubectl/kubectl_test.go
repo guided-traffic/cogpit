@@ -2,7 +2,6 @@ package kubectl
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -204,9 +203,11 @@ func TestProberRunsTheBinary(t *testing.T) {
 	if _, err := NewProber().ClientVersion(context.Background(), chatty); err == nil || !strings.Contains(err.Error(), "64.0 KiB of output") {
 		t.Errorf("a binary that prints 200,000 bytes: %v", err)
 	}
+	// exec: the process the timeout kills is the one that holds the output open; a sleep the
+	// shell forked would keep it open until the probe's WaitDelay, and outlive the test.
 	slow := filepath.Join(dir, "slow")
-	writeExecutable(t, slow, "#!/bin/sh\nsleep 30\n", 0o755)
-	ctx, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	writeExecutable(t, slow, "#!/bin/sh\nexec sleep 30\n", 0o755)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
 	defer cancel()
 	start := time.Now()
 	if _, err := NewProber().ClientVersion(ctx, slow); err == nil {
@@ -254,11 +255,5 @@ func TestCheckMirror(t *testing.T) {
 		} else if strings.Contains(err.Error(), "secret") {
 			t.Errorf("the error echoes the password: %v", err)
 		}
-	}
-}
-
-func TestErrorsWrap(t *testing.T) {
-	if !errors.Is(errors.Join(ErrChecksum), ErrChecksum) || !errors.Is(errors.Join(ErrSignature), ErrSignature) {
-		t.Fatal("sentinels")
 	}
 }

@@ -54,7 +54,7 @@ func (l *queryLog) has(sub string) bool {
 func TestPrometheusQuerySettings(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{})
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess()})
 	defer srv.Close()
 	pod := testkit.Pod("web", "a")
 	if err := unstructured.SetNestedSlice(pod.Object, []any{map[string]any{"name": "app", "image": "registry.example/app:1.0"}}, "spec", "containers"); err != nil {

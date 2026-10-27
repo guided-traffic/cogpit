@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -42,9 +43,7 @@ func TestConnectLifecycle(t *testing.T) {
 	if snap.Context != "test" || snap.Title != "Pods" || snap.Rows[0].Ref.Context != "test" {
 		t.Errorf("snapshot %+v", snap)
 	}
-	if rec.count(EventTable, "pods") == 0 {
-		t.Error("no table event")
-	}
+	waitFor(t, "the snapshot's table event", func() bool { return rec.announced("pods", snap.Revision) })
 
 	// A failing connect leaves no backend and the error in the UI state.
 	err := s.Connect(context.Background(), "broken")
@@ -247,14 +246,15 @@ func TestSnapshotsCoalesce(t *testing.T) {
 	for i := range 100 {
 		src.Set(testkit.PodsGVR, testkit.Pod("default", fmt.Sprintf("web-%03d", i)))
 	}
-	const interval = 100 * time.Millisecond
+	const interval = 30 * time.Millisecond
 	s, _ := newTestSession(t, src, interval)
+	rec := record(s)
 	connectTest(t, s)
 	settled := waitTable(t, s, "pods", func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 100 })
-	time.Sleep(2 * interval) // let a trailing snapshot pass
-	rec := record(s)
+	waitFor(t, "the synced snapshot's event", func() bool { return rec.announced("pods", settled.Revision) })
+	before := rec.count(EventTable, "pods")
 
-	const updates = 1000
+	const updates = 300
 	start := time.Now()
 	for i := range updates {
 		time.Sleep(time.Until(start.Add(time.Duration(i) * time.Millisecond)))
@@ -263,16 +263,16 @@ func TestSnapshotsCoalesce(t *testing.T) {
 		src.Set(testkit.PodsGVR, p)
 	}
 	elapsed := time.Since(start)
-	// The source numbers resource versions 1, 2, ...: the last update is version 1100.
+	// The source numbers resource versions 1, 2, ...: the last update is version 400.
 	lastName, lastRV := fmt.Sprintf("web-%03d", (updates-1)%100), fmt.Sprint(100+updates)
-	waitTable(t, s, "pods", func(snap *TableSnapshot) bool {
+	last := waitTable(t, s, "pods", func(snap *TableSnapshot) bool {
 		i := snap.IndexOf(model.ObjectRef{Kind: "pods", Namespace: "default", Name: lastName})
 		return snap.Revision > settled.Revision && i >= 0 && snap.Rows[i].ResourceVersion == lastRV
 	})
-	time.Sleep(2 * interval)
-	n := rec.count(EventTable, "pods")
-	// One snapshot when the burst starts, then at most one per interval, and a trailing one
-	// within an interval of the last update: 11 for a burst of one second.
+	waitFor(t, "the last snapshot's event", func() bool { return rec.announced("pods", last.Revision) })
+	n := rec.count(EventTable, "pods") - before
+	// One snapshot when the burst starts, then at most one per interval (runCoalesced never builds
+	// sooner), and a trailing one with the last update: 11 for a burst of 300 ms.
 	bound := int(elapsed/interval) + 2
 	t.Logf("%d updates over %v: %d snapshots (bound %d)", updates, elapsed.Round(time.Millisecond), n, bound)
 	if n > bound {
@@ -317,23 +317,27 @@ func TestUIChangedIgnoresOlderRevisions(t *testing.T) {
 	}
 }
 
+// The session runs in a testing/synctest bubble: the diagnostics' ticker of a second passes on the
+// bubble's clock.
 func TestDiagnosticsCountSnapshotsAndInformers(t *testing.T) {
-	src := testkit.NewMemorySource()
-	src.Set(testkit.PodsGVR, testkit.Pod("default", "web-0"))
-	s, _ := newTestSession(t, src, 10*time.Millisecond)
-	if d := s.Diagnostics(); d.Snapshots != 0 || len(d.Informers) != 0 {
-		t.Errorf("diagnostics before connect: %+v", d)
-	}
-	rec := record(s)
-	connectTest(t, s)
-	waitTable(t, s, "pods", func(t *TableSnapshot) bool { return t.Synced })
-	d := s.Diagnostics()
-	if d.Context != "test" || d.Snapshots == 0 || len(d.Informers) != 1 || d.Informers[0].Objects != 1 {
-		t.Errorf("diagnostics %+v", d)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if !testkit.WaitFor(ctx, func() bool { return rec.count(EventDiagnostics, "") > 0 }) {
-		t.Error("no diagnostics event")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		src := testkit.NewMemorySource()
+		src.Set(testkit.PodsGVR, testkit.Pod("default", "web-0"))
+		s, _ := newTestSession(t, src, 10*time.Millisecond)
+		if d := s.Diagnostics(); d.Snapshots != 0 || len(d.Informers) != 0 {
+			t.Errorf("diagnostics before connect: %+v", d)
+		}
+		rec := record(s)
+		connectTest(t, s)
+		waitTable(t, s, "pods", func(t *TableSnapshot) bool { return t.Synced })
+		d := s.Diagnostics()
+		if d.Context != "test" || d.Snapshots == 0 || len(d.Informers) != 1 || d.Informers[0].Objects != 1 {
+			t.Errorf("diagnostics %+v", d)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if !testkit.WaitFor(ctx, func() bool { return rec.count(EventDiagnostics, "") > 0 }) {
+			t.Error("no diagnostics event")
+		}
+	})
 }

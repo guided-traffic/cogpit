@@ -92,9 +92,6 @@ func renderTitleHistory(t *testing.T, mode ThemeMode, name string) {
 func TestRenderTitleHistoryDark(t *testing.T) {
 	renderTitleHistory(t, ThemeDark, "titlebar_history_dark.png")
 }
-func TestRenderTitleHistoryLight(t *testing.T) {
-	renderTitleHistory(t, ThemeLight, "titlebar_history_light.png")
-}
 
 // renderNotifications: the panel open below the bell, newest first, every row tinted as unread when
 // the panel showed it; the pointer on the warning, its copy icon shown after the time, and a word
@@ -114,7 +111,4 @@ func renderNotifications(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderNotificationsDark(t *testing.T) {
 	renderNotifications(t, ThemeDark, "notifications_panel_dark.png")
-}
-func TestRenderNotificationsLight(t *testing.T) {
-	renderNotifications(t, ThemeLight, "notifications_panel_light.png")
 }

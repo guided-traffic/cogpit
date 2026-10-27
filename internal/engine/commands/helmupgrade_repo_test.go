@@ -60,7 +60,8 @@ func newRepoUpgradeHarness(t *testing.T, journal *engine.MemoryHelmJournal, seed
 	h.repo = testkit.NewHelmRepo(t, webChartV("0.1.0"), webChartV("0.2.0"))
 	// httptest's TLS servers share one certificate: the first repository's client trusts them all.
 	h.helmFile = testkit.NewHelmRepoFile(t)
-	repos := engine.NewHelmRepos(h.helmFile.Path, t.TempDir(), engine.WithChartFetcher(&helm.Fetcher{Client: h.repo.Client()}))
+	repos := engine.NewHelmRepos(h.helmFile.Path, t.TempDir(), engine.WithChartFetcher(&helm.Fetcher{Client: h.repo.Client()}),
+		engine.WithRepositoryFilePoll(20*time.Millisecond))
 	h.s = engine.New(engine.Options{
 		Connector: &chartConnector{src: src, actions: h.server}, SnapshotInterval: 10 * time.Millisecond,
 		Audit: h.audit, Helm: engine.NewHelmOps(journal), HelmRepos: repos,

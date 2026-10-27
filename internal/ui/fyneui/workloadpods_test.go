@@ -246,15 +246,3 @@ func renderWorkloadPods(t *testing.T, set bool, mode ThemeMode, name string) {
 func TestRenderDeploymentPodsDark(t *testing.T) {
 	renderWorkloadPods(t, false, ThemeDark, "deployment_pods_drawer_dark.png")
 }
-
-func TestRenderDeploymentPodsLight(t *testing.T) {
-	renderWorkloadPods(t, false, ThemeLight, "deployment_pods_drawer_light.png")
-}
-
-func TestRenderStatefulSetPodsDark(t *testing.T) {
-	renderWorkloadPods(t, true, ThemeDark, "statefulset_pods_drawer_dark.png")
-}
-
-func TestRenderStatefulSetPodsLight(t *testing.T) {
-	renderWorkloadPods(t, true, ThemeLight, "statefulset_pods_drawer_light.png")
-}

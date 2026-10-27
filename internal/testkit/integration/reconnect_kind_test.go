@@ -70,7 +70,8 @@ contexts:
 			t.Fatal(err)
 		}
 	}
-	const shortLife = 20 * time.Second
+	// Long enough to connect and list the Pods view on a loaded runner, which takes a second or two.
+	const shortLife = 8 * time.Second
 	write(issue(shortLife))
 
 	s := engine.New(engine.Options{

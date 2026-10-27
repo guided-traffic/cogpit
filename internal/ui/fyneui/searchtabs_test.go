@@ -23,10 +23,13 @@ func TestPendingSearchStaysWithItsTab(t *testing.T) {
 	sh, _, q := newTestShell(t, f, Options{})
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
 
+	sh.searchWait = time.Hour // pending until the tab switch, however slow the runner
 	test.Type(sh.view.search, "web")
 	f.update(func(u *engine.UIState) { u.ActiveTab, u.View, u.Filter = "tab-2", "deployments", "api" })
 	q.drain()
-	time.Sleep(3 * searchDebounce)
+	if fireTimer(sh.view.searchTimer) || sh.view.filterBusy != 0 {
+		t.Errorf("tab-1's search is still pending after tab-2 became active (%d pending)", sh.view.filterBusy)
+	}
 	q.drain()
 	if calls := f.callsOf("ui.setFilter"); len(calls) != 0 {
 		t.Errorf("tab-1's search was sent after tab-2 became active: %+v", decodeParams[filterParams](t, calls[0]))

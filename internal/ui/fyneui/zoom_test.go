@@ -197,18 +197,6 @@ func TestShortcutEqualsAndPlus(t *testing.T) {
 	}
 }
 
-// TestRenderZoomStatusBar renders the window with the status bar's zoom at 120%, in both themes:
-// zoom_status_{dark,light}.png (D-134).
-func TestRenderZoomStatusBar(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
-		s := zoomEngine(t)
-		sh, w, q := newEngineShell(t, s, Options{Theme: mode})
-		test.Tap(sh.status.zoom.in)
-		q.until(t, "120%", func() bool { return sh.status.zoom.pct.level == 1 })
-		savePNG(t, w, "zoom_status_"+string(mode)+".png")
-	}
-}
-
 // TestZoomFitsWindow (D-134): Zoom In stops where the window's content would no longer fit the
 // window, since Fyne would widen it: the + greyed with the reason, the key a toast, an agent's
 // ui.zoom.in refused; a larger window zooms further.

@@ -64,10 +64,14 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	until("the demo cluster", func() bool { return sh.ui.Connection.State == engine.Connected && len(sh.kinds) > 0 })
 	s.UpdateUI(func(u *engine.UIState) { u.View, u.Sort = engine.ClusterOverview, s.ViewSort(engine.ClusterOverview) })
 	p := sh.view.cluster
+	cpuPoints := 3 // the checks below hold from the first points on
+	if pngKept() {
+		cpuPoints = 40 // a CPU line with a shape, over more than two seconds
+	}
 	until("the charts and the issues", func() bool {
 		tbl := s.Table(engine.ClusterOverview)
 		return tbl != nil && tbl.Synced && len(tbl.Rows) > 0 && p.data != nil && len(p.data.Charts) == 3 &&
-			len(p.data.Charts[0].Samples) >= 40 && len(p.data.Charts[2].Samples) >= 3
+			len(p.data.Charts[0].Samples) >= cpuPoints && len(p.data.Charts[2].Samples) >= 3
 	})
 	m := *p.data
 	cpu := m.Charts[0].Samples
@@ -89,8 +93,4 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderClusterOverviewDemoDark(t *testing.T) {
 	renderClusterOverviewDemo(t, ThemeDark, "cluster_overview_demo_dark.png")
-}
-
-func TestRenderClusterOverviewDemoLight(t *testing.T) {
-	renderClusterOverviewDemo(t, ThemeLight, "cluster_overview_demo_light.png")
 }

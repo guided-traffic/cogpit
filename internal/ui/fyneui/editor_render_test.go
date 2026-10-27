@@ -65,5 +65,4 @@ func renderCreate(t *testing.T, mode ThemeMode, name string) {
 	ct.menu.Hide()
 }
 
-func TestRenderCreateDark(t *testing.T)  { renderCreate(t, ThemeDark, "create_dark.png") }
-func TestRenderCreateLight(t *testing.T) { renderCreate(t, ThemeLight, "create_light.png") }
+func TestRenderCreateDark(t *testing.T) { renderCreate(t, ThemeDark, "create_dark.png") }

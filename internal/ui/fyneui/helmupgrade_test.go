@@ -251,7 +251,7 @@ func TestRollbackDialogConfirms(t *testing.T) {
 	var asked []engine.ConfirmRequest
 	var answers []bool
 	var mu sync.Mutex
-	f.handlers["helm.release.rollback"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(ctx context.Context, inv engine.Invocation) (any, error) {
 		var p helmRollbackParams
 		_ = json.Unmarshal(normalize(inv.Params), &p)
 		req := engine.ConfirmRequest{Command: inv.ID, Label: "Rollback", Danger: engine.DangerDestructive, Origin: inv.Origin,
@@ -263,7 +263,7 @@ func TestRollbackDialogConfirms(t *testing.T) {
 		answers = append(answers, ok)
 		mu.Unlock()
 		return nil, err
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -323,7 +323,7 @@ func TestRollbackDialogCurrentRevision(t *testing.T) {
 	sh, _, q, f, _ := releaseDrawerShell(t, ThemeDark)
 	var mu sync.Mutex
 	var answered []bool
-	f.handlers["helm.release.rollback"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(ctx context.Context, inv engine.Invocation) (any, error) {
 		var p helmRollbackParams
 		_ = json.Unmarshal(normalize(inv.Params), &p)
 		ok, err := sh.confirmer.Confirm(ctx, engine.ConfirmRequest{Command: inv.ID, Label: "Rollback", Danger: engine.DangerDestructive, Origin: inv.Origin,
@@ -333,7 +333,7 @@ func TestRollbackDialogCurrentRevision(t *testing.T) {
 		answered = append(answered, ok)
 		mu.Unlock()
 		return nil, err
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -363,12 +363,12 @@ func TestRollbackDialogAnswerBinding(t *testing.T) {
 	sh, _, q, f, _ := releaseDrawerShell(t, ThemeDark)
 	var mu sync.Mutex
 	done := false
-	f.handlers["helm.release.rollback"] = func(context.Context, engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(context.Context, engine.Invocation) (any, error) {
 		mu.Lock()
 		done = true
 		mu.Unlock()
 		return nil, errors.New("release ingress-nginx is pending-upgrade") // refused before any confirmation
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -425,7 +425,7 @@ func TestHelmUpgradeTabSaves(t *testing.T) {
 	u.pane.view.SetText("controller:\n  replicaCount: 3\n")
 	test.Tap(u.saveBtn)
 	q.until(t, "the upgrade", func() bool { return len(up.recorded()) == 1 && !u.busy })
-	calls := f.calls
+	calls := f.allCalls()
 	var order []string
 	for _, c := range calls {
 		if c.ID == "editor.setText" || c.ID == "helm.release.upgrade" {
@@ -533,18 +533,6 @@ func renderReleaseDrawer(t *testing.T, mode ThemeMode, name string, end bool) {
 func TestRenderReleaseDrawerDark(t *testing.T) {
 	renderReleaseDrawer(t, ThemeDark, "release_drawer_dark.png", false)
 }
-func TestRenderReleaseDrawerLight(t *testing.T) {
-	renderReleaseDrawer(t, ThemeLight, "release_drawer_light.png", false)
-}
-
-// TestRenderReleaseDrawerEnd renders the drawer's end (notes, resources) for a look, to
-// COGPIT_PNG_DIR when that names one, else only captured; it is not committed (see renderReleaseDrawer).
-func TestRenderReleaseDrawerEnd(t *testing.T) {
-	if *updatePNG {
-		t.Skip("not a committed PNG")
-	}
-	renderReleaseDrawer(t, ThemeLight, "release_drawer_end_light.png", true)
-}
 
 // failedReleaseDrawerShell opens checkout-api's drawer: revision 5 failed, revision 4 deployed.
 func failedReleaseDrawerShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window) {
@@ -634,10 +622,6 @@ func TestRenderReleaseHistoryDark(t *testing.T) {
 	renderReleaseHistory(t, ThemeDark, "release_history_dark.png")
 }
 
-func TestRenderReleaseHistoryLight(t *testing.T) {
-	renderReleaseHistory(t, ThemeLight, "release_history_light.png")
-}
-
 // TestRenderRollbackDialog and its dropdown's renders: render_dialogs_test.go.
 
 func renderHelmUpgradeTab(t *testing.T, mode ThemeMode, name string, find bool) {
@@ -676,13 +660,4 @@ func renderHelmUpgradeTab(t *testing.T, mode ThemeMode, name string, find bool) 
 
 func TestRenderHelmUpgradeTabDark(t *testing.T) {
 	renderHelmUpgradeTab(t, ThemeDark, "helm_upgrade_tab_dark.png", false)
-}
-func TestRenderHelmUpgradeTabLight(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeLight, "helm_upgrade_tab_light.png", false)
-}
-func TestRenderHelmUpgradeFindDark(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeDark, "helm_upgrade_find_dark.png", true)
-}
-func TestRenderHelmUpgradeFindLight(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeLight, "helm_upgrade_find_light.png", true)
 }

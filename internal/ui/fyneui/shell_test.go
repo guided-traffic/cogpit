@@ -280,20 +280,79 @@ func TestSearchIsDebounced(t *testing.T) {
 	f := connectedFake(t, 20)
 	sh, _, q := newTestShell(t, f, Options{})
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
+	sh.searchWait = time.Hour // the pause ends with fireTimer, not with a slow runner's gap between keys
 	test.Type(sh.view.search, "web")
-	q.until(t, "ui.setFilter", func() bool { return len(f.callsOf("ui.setFilter")) == 1 })
-	if p := decodeParams[filterParams](t, f.callsOf("ui.setFilter")[0]); p.Filter != "web" {
-		t.Fatalf("filter %q, want the whole word", p.Filter)
-	}
-	time.Sleep(3 * searchDebounce)
 	q.drain()
-	if n := len(f.callsOf("ui.setFilter")); n != 1 {
-		t.Fatalf("%d ui.setFilter calls for one burst of typing", n)
+	if n := len(f.callsOf("ui.setFilter")); n != 0 || sh.view.filterBusy != 1 {
+		t.Fatalf("while typing: %d ui.setFilter, %d searches pending", n, sh.view.filterBusy)
+	}
+	if !fireTimer(sh.view.searchTimer) {
+		t.Fatal("no pause pending after the typing")
+	}
+	q.until(t, "ui.setFilter", func() bool { return sh.view.filterBusy == 0 })
+	if calls := f.callsOf("ui.setFilter"); len(calls) != 1 || decodeParams[filterParams](t, calls[0]).Filter != "web" {
+		t.Fatalf("one burst of typing sent %+v, want the whole word once", calls)
 	}
 
 	// A filter set elsewhere (an agent) shows in the entry.
 	go f.update(func(u *engine.UIState) { u.Filter = "checkout" })
 	q.until(t, "the entry to follow", func() bool { return sh.view.search.Text == "checkout" })
+}
+
+// Closing the window ends the dock's streams (fyneui.go runs windowClosed).
+func TestWindowCloseEndsTheDocksStreams(t *testing.T) {
+	f := connectedFake(t, 20)
+	sh, _, q := newTestShell(t, f, Options{})
+	ref := f.tables["pods"].Rows[0].Ref
+	go func() {
+		_, _ = f.Dispatch(context.Background(), engine.Invocation{ID: "pod.logs", Origin: engine.OriginGUI,
+			Params: mustJSON(t, containerParams{Ref: ref, Container: "api"})})
+	}()
+	streams := func(of map[string]int) int {
+		f.mu.Lock()
+		defer f.mu.Unlock()
+		return of["logs-1"]
+	}
+	q.until(t, "the log stream", func() bool { return streams(f.opened) == 1 })
+	sh.windowClosed()
+	q.until(t, "the stream closed", func() bool { return streams(f.closed) == 1 })
+}
+
+// A fresh destructive confirmation gives none of its buttons the keyboard: Return and Enter, the
+// keys that press a focused button, confirm nothing, even with the button armed at once.
+func TestReturnConfirmsNoDestructiveCommand(t *testing.T) {
+	f := connectedFake(t, 10)
+	sh, w, q := newTestShell(t, f, Options{}) // armDelay 0: only the focus keeps Return from it
+	req := engine.ConfirmRequest{Command: "object.delete", Label: "Delete", Danger: engine.DangerDestructive,
+		Origin: engine.OriginGUI, Context: "demo", Namespaces: []string{"default"},
+		Objects: []model.ObjectRef{{Kind: "pods", Namespace: "default", Name: "web-0"}}}
+	answer := make(chan bool, 1)
+	go func() {
+		ok, _ := sh.confirmer.Confirm(context.Background(), req)
+		answer <- ok
+	}()
+	q.until(t, "the dialog", func() bool { return sh.confirmer.current != nil })
+	cd := sh.confirmer.current
+	c := w.Canvas()
+	if foc := c.Focused(); foc == cd.confirm || foc == cd.cancel {
+		t.Fatalf("a button of the fresh confirmation has the keyboard: %T", foc)
+	}
+	for _, key := range []fyne.KeyName{fyne.KeyReturn, fyne.KeyEnter} {
+		ev := &fyne.KeyEvent{Name: key}
+		if foc := c.Focused(); foc != nil {
+			foc.TypedKey(ev)
+		} else if h := c.OnTypedKey(); h != nil {
+			h(ev)
+		}
+		q.drain()
+	}
+	if sh.confirmer.current != cd {
+		t.Fatal("Return answered the destructive confirmation")
+	}
+	test.Tap(cd.cancel)
+	if ok := <-answer; ok {
+		t.Error("Cancel confirmed")
+	}
 }
 
 func TestDockOpensAndClosesStreams(t *testing.T) {
@@ -517,9 +576,7 @@ func TestConfirmationShowsTheReviewText(t *testing.T) {
 func TestConfirmationsOneAtATimeAndArmed(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, _, q := newTestShell(t, f, Options{})
-	// Far above what the steps before the unarmed tap take: with 150 ms, a loaded Windows runner had
-	// the button armed before the tap (CI, 2026-10-22), and the tap answered as it should.
-	sh.confirmer.armDelay = time.Second
+	sh.confirmer.armDelay = time.Hour // unarmed until fireTimer arms it, however slow the steps before
 	mk := func(name string) engine.ConfirmRequest {
 		return engine.ConfirmRequest{Command: "object.delete", Label: "Delete", Danger: engine.DangerDestructive,
 			Origin: engine.OriginExternalAgent, Context: "demo", Namespaces: []string{"default"},
@@ -542,10 +599,12 @@ func TestConfirmationsOneAtATimeAndArmed(t *testing.T) {
 		t.Fatal("a second dialog opened while the first was on screen")
 	}
 	test.Tap(first.confirm) // not armed yet: ignored
-	select {
-	case a := <-answers:
-		t.Fatalf("an unarmed confirm button answered: %s", a)
-	case <-time.After(30 * time.Millisecond):
+	q.drain()
+	if sh.confirmer.current != first || !first.confirm.Disabled() {
+		t.Fatal("an unarmed confirm button answered")
+	}
+	if !fireTimer(first.arm) {
+		t.Fatal("no arming timer")
 	}
 	q.until(t, "the confirm button to arm", func() bool { return !first.confirm.Disabled() })
 	test.Tap(first.confirm)

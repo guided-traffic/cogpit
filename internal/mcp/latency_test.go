@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"context"
 	"testing"
 	"time"
 
@@ -28,28 +27,6 @@ func TestToolCallLatency(t *testing.T) {
 		t.Logf("%s: ui_state takes %v per call (mean of %d)", name, mean, n)
 		if mean > 50*time.Millisecond {
 			t.Errorf("%s: %v per cache-only call", name, mean)
-		}
-	}
-}
-
-func BenchmarkToolCallInMemory(b *testing.B) {
-	f := newFixture(b, nil, Options{Logger: discardLogger()})
-	benchmarkCalls(b, f.connect(b))
-}
-
-func BenchmarkToolCallHTTP(b *testing.B) {
-	f := newFixture(b, nil, Options{Logger: discardLogger()})
-	u, tok := f.start(b)
-	benchmarkCalls(b, connectHTTP(b, u, tok, ""))
-}
-
-func benchmarkCalls(b *testing.B, cs *sdk.ClientSession) {
-	params := &sdk.CallToolParams{Name: "ui_state"}
-	b.ReportAllocs()
-	for b.Loop() {
-		res, err := cs.CallTool(context.Background(), params)
-		if err != nil || res.IsError {
-			b.Fatal(err, res)
 		}
 	}
 }

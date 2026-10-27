@@ -229,8 +229,8 @@ func TestSparkleScheduledChecksFindTheNewestRelease(t *testing.T) {
 	}
 }
 
-// launchID is the bundle identifier of the launch test's app, whose user defaults and caches the
-// test removes again, as the probe's.
+// launchID begins the bundle identifiers of the launch test's apps, one per case: their user
+// defaults and caches are their own, and the test removes them again, as the probe's.
 const launchID = "io.guided-traffic.cogpit.test-sparkle-launch"
 
 // Cogpit checks for updates at every start while "Check for updates automatically" is on (the
@@ -240,8 +240,9 @@ const launchID = "io.guided-traffic.cogpit.test-sparkle-launch"
 // defaults and the last check is older than the interval that older release set (an hour), so
 // that Sparkle would check at once. With the preference off, no check at all. The harness starts
 // the updater as the app does and pumps events a few seconds past the first report or the
-// session's end; the test counts the feed's requests. Skipped without clang or make sparkle's
-// framework.
+// session's end; the test counts the feed's requests. The cases run in parallel, each an app of its
+// own with its own feed and user defaults, as each mostly waits. Skipped without clang or make
+// sparkle's framework.
 func TestSparkleChecksAtEveryStart(t *testing.T) {
 	framework := sparkleFramework(t)
 	harness := buildHarness(t)
@@ -249,7 +250,7 @@ func TestSparkleChecksAtEveryStart(t *testing.T) {
 	// The interval releases before 2026-10-26 set (hack/macos/sparkle.sh), an hour: Sparkle's own
 	// check would be due two hours after the last one.
 	interval := "\t<key>SUScheduledCheckInterval</key>\n\t<integer>3600</integer>\n"
-	for _, tc := range []struct {
+	for i, tc := range []struct {
 		name      string
 		automatic bool
 		lastCheck time.Time // zero: Sparkle never checked (the first launch)
@@ -268,24 +269,26 @@ func TestSparkleChecksAtEveryStart(t *testing.T) {
 		{"checks off, first launch", false, time.Time{}, false, "99.1.0", 0, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			id := fmt.Sprintf("%s-%d", launchID, i+1)
 			srv, feedHits := feedServer(t, tc.feed)
-			t.Cleanup(func() { forgetBundle(t, launchID) })
-			forgetBundle(t, launchID)
+			t.Cleanup(func() { forgetBundle(t, id) })
+			forgetBundle(t, id)
 			var writes [][]string
 			if !tc.lastCheck.IsZero() {
 				writes = append(writes,
-					[]string{"write", launchID, "SUHasLaunchedBefore", "-bool", "YES"},
-					[]string{"write", launchID, "SULastCheckTime", "-date", tc.lastCheck.Format("2006-01-02 15:04:05 +0000")})
+					[]string{"write", id, "SUHasLaunchedBefore", "-bool", "YES"},
+					[]string{"write", id, "SULastCheckTime", "-date", tc.lastCheck.Format("2006-01-02 15:04:05 +0000")})
 			}
 			if tc.olderOn {
-				writes = append(writes, []string{"write", launchID, "SUEnableAutomaticChecks", "-bool", "YES"})
+				writes = append(writes, []string{"write", id, "SUEnableAutomaticChecks", "-bool", "YES"})
 			}
 			for _, args := range writes {
 				if out, err := exec.Command("defaults", args...).CombinedOutput(); err != nil {
 					t.Fatalf("defaults %v: %v\n%s", args, err, out)
 				}
 			}
-			exe := makeFeedApp(t, harness, framework, srv.URL, launchID, interval)
+			exe := makeFeedApp(t, harness, framework, srv.URL, id, interval)
 			arg := "0"
 			if tc.automatic {
 				arg = "1"

@@ -135,6 +135,7 @@ func (f *fakeProber) get() fakeProber {
 var fastWatch = ConnWatchOptions{
 	Heartbeat: 20 * time.Millisecond, ProbeTimeout: 50 * time.Millisecond, Confirm: 10 * time.Millisecond,
 	LoginWait: 300 * time.Millisecond, BackoffFirst: 20 * time.Millisecond, BackoffMax: 160 * time.Millisecond,
+	ProbeSlack: 50 * time.Millisecond,
 }
 
 // watchedSession connects a session whose backend the fake prober answers for.

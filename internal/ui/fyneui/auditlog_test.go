@@ -155,9 +155,7 @@ func TestAuditLogTab(t *testing.T) {
 }
 
 // The Audit Log, dark and light: the PNGs of the pull request (AGENTS.md rule 7).
-func TestRenderAuditLogDark(t *testing.T)  { renderAuditLog(t, ThemeDark, "auditlog_dark.png") }
-func TestRenderAuditLogLight(t *testing.T) { renderAuditLog(t, ThemeLight, "auditlog_light.png") }
-
+func TestRenderAuditLogDark(t *testing.T) { renderAuditLog(t, ThemeDark, "auditlog_dark.png") }
 func renderAuditLog(t *testing.T, mode ThemeMode, name string) {
 	s, _ := auditEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})

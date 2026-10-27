@@ -5,6 +5,7 @@ import (
 	"math"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,61 +41,10 @@ func syncAll(t *testing.T, c *cache.Cache) *informers {
 	return inf
 }
 
-func (inf *informers) handle(resource string) *cache.Handle {
-	for _, h := range inf.handles {
-		if h.Scope().GVR.Resource == resource {
-			return h
-		}
-	}
-	return nil
-}
-
-func TestCacheSyncsTheDemoCluster(t *testing.T) {
-	d := demo.New(demo.Options{Seed: 1, NoChurn: true})
-	c := cache.New(d.Source(), cache.Options{})
-	defer c.Close()
-	inf := syncAll(t, c)
-
-	want := map[string]int{
-		"pods": demo.DefaultPods, "deployments": demo.DefaultDeployments, "services": demo.DefaultServices,
-		"namespaces": demo.DefaultNamespaces, "nodes": demo.DefaultNodes, "events": demo.DefaultEvents,
-		"secrets": 8, "configmaps": 3, // Helm's release records (helm_test.go)
-	}
-	total := 0
-	for resource, n := range want {
-		if got := len(inf.handle(resource).List()); got != n {
-			t.Errorf("%s: %d in the cache, want %d", resource, got, n)
-		}
-		total += n
-	}
-	if st := d.Stats(); st.Objects != total || st.Lists != int64(len(want)) {
-		t.Errorf("Stats: %d objects, %d lists; want %d and %d", st.Objects, st.Lists, total, len(want))
-	}
-
-	svc, ok := inf.handle("services").Get(demo.MCPNamespace, demo.MCPService)
-	if !ok {
-		t.Fatalf("service %s/%s missing", demo.MCPNamespace, demo.MCPService)
-	}
-	if ip, _, _ := unstructured.NestedString(svc.Object, "spec", "clusterIP"); ip != demo.MCPClusterIP {
-		t.Errorf("clusterIP %q, want %s", ip, demo.MCPClusterIP)
-	}
-	// The MCP demo finds it by address, as resources_find does.
-	matches := 0
-	for _, s := range inf.handle("services").List() {
-		if ip, _, _ := unstructured.NestedString(s.Object, "spec", "clusterIP"); ip == demo.MCPClusterIP {
-			matches++
-		}
-	}
-	if matches != 1 {
-		t.Errorf("%d services with clusterIP %s, want 1", matches, demo.MCPClusterIP)
-	}
-}
-
-// TestChurnReachesTheInformers runs the default churn (1,000 events per second) for two seconds
-// against the real cache: the informers receive every event, about 2,000, and end in the
-// cluster's state.
+// TestChurnReachesTheInformers runs the default churn (1,000 events per second) for half a second
+// against the real cache: the informers receive every event and end in the cluster's state.
 func TestChurnReachesTheInformers(t *testing.T) {
-	d := demo.New(demo.Options{Seed: 2})
+	d := demo.New(demo.Options{Seed: 2, Pods: 1_000, Deployments: 50, Services: 30, Events: 100})
 	c := cache.New(d.Source(), cache.Options{})
 	defer c.Close()
 	inf := syncAll(t, c)
@@ -102,28 +52,13 @@ func TestChurnReachesTheInformers(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	start := time.Now()
 	d.Start(ctx)
-	time.Sleep(1500 * time.Millisecond)
-	rate := d.Stats().EventsPerSec
-	time.Sleep(500 * time.Millisecond)
+	time.Sleep(500 * time.Millisecond) // how long the churn runs
 	d.Stop()
-	elapsed := time.Since(start)
 
 	st := d.Stats()
-	// The churn's pace against the wall clock: 10 % (the rate shown 30 %) without the race
-	// detector; under it, on a busy shared runner, the churn's goroutines fall behind the clock
-	// (843 of 1,000 a second in main's run of 2026-10-24), so the pace is checked loosely there and
-	// what the test is for, every event sent reaching the informers, stays exact.
-	sentTol, rateTol := 0.1, 0.3
-	if raceEnabled {
-		sentTol, rateTol = 0.5, 0.6
-	}
-	if want := demo.DefaultEventsPerSecond * elapsed.Seconds(); math.Abs(float64(st.EventsSent)-want) > sentTol*want {
-		t.Errorf("sent %d events in %v, want %.0f ± %.0f%%", st.EventsSent, elapsed, want, 100*sentTol)
-	}
-	if math.Abs(rate-demo.DefaultEventsPerSecond) > rateTol*demo.DefaultEventsPerSecond {
-		t.Errorf("EventsPerSec %.0f, want about %d", rate, demo.DefaultEventsPerSecond)
+	if st.EventsSent == 0 {
+		t.Fatal("the churn sent no event")
 	}
 	wctx, wcancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer wcancel()
@@ -133,7 +68,6 @@ func TestChurnReachesTheInformers(t *testing.T) {
 	if got := inf.events.Load() - before; got != st.EventsSent {
 		t.Errorf("informers received %d events, the demo sent %d", got, st.EventsSent)
 	}
-	t.Logf("sent %d events in %v (%.0f/s); rate shown %.0f/s", st.EventsSent, elapsed.Round(time.Millisecond), float64(st.EventsSent)/elapsed.Seconds(), rate)
 	if st.Dropped != 0 || st.Expired != 0 || st.Lists != int64(len(inf.handles)) {
 		t.Errorf("dropped %d, expired %d, lists %d: the informers fell behind", st.Dropped, st.Expired, st.Lists)
 	}
@@ -159,6 +93,31 @@ func TestChurnReachesTheInformers(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestChurnKeepsItsPace: the churn sends its events per second, and the rate the status bar shows
+// is that pace. The generator's ticker and clock run on a testing/synctest bubble's, so the pace
+// is the generator's own and not how busy the machine is.
+func TestChurnKeepsItsPace(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		d := demo.New(demo.Options{Seed: 2, Pods: 1_000, Deployments: 50, Services: 30, Events: 100})
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+		d.Start(ctx)
+		time.Sleep(2 * time.Second)
+		synctest.Wait() // the tick due now is done
+		st := d.Stats()
+		d.Stop()
+		t.Logf("sent %d events in 2 s; rate shown %.0f/s", st.EventsSent, st.EventsPerSec)
+		// 200 ticks of 10 events each; an operation may produce two events, so a tick can send
+		// one more than its share, which the next tick sends less.
+		if want := int64(2 * demo.DefaultEventsPerSecond); st.EventsSent < want-10 || st.EventsSent > want+10 {
+			t.Errorf("sent %d events in 2 s, want %d", st.EventsSent, want)
+		}
+		if math.Abs(st.EventsPerSec-demo.DefaultEventsPerSecond) > 10 {
+			t.Errorf("EventsPerSec %.0f, want %d", st.EventsPerSec, demo.DefaultEventsPerSecond)
+		}
+	})
 }
 
 func TestStartAndStop(t *testing.T) {

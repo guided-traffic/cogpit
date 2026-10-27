@@ -133,7 +133,7 @@ func render(budgets []budget, lines []scorecard.Line, m machine, date time.Time)
 	b.WriteString("> **Generated** by `make scorecard` ([`hack/scorecard`](../../hack/scorecard/main.go)) from what the budget\n")
 	b.WriteString("> tests and benchmarks measured; do not edit. Not run in CI ([D-15](../developer/decisions.md#d-15-progress-generators)):\n")
 	b.WriteString("> run it on the machine named below and commit the page. The budgets and how each is measured:\n")
-	b.WriteString("> [testing › Performance budgets](../developer/testing.md#performance-budgets-proposed-not-measured); the work list:\n")
+	b.WriteString("> [testing › Performance budgets](../developer/testing.md#performance-budgets); the work list:\n")
 	b.WriteString("> [G15](gaps.md#g15-performance-and-api-load-at-scale).\n\n")
 	fmt.Fprintf(&b, "**Measured %s** on %s,\n", date.Format("2006-01-02"), m)
 	b.WriteString("the race detector off. A budget passes when every bounded measurement of it is within its limit;\n")
@@ -145,8 +145,11 @@ func render(budgets []budget, lines []scorecard.Line, m machine, date time.Time)
 	b.WriteString("## Summary\n\n| Budget | Scenario | Proposed target | Result | Measured by |\n|---|---|---|---|---|\n")
 	for _, bud := range budgets {
 		ls := byBudget[bud.id]
-		fmt.Fprintf(&b, "| [%s](#%s) | %s | %s | %s | %s |\n", bud.id, strings.ToLower(bud.id), cell(bud.scenario, 110),
-			cell(bud.target, 110), verdict(ls), measuredBy(ls))
+		id := bud.id
+		if len(ls) > 0 { // only a measured budget has a section of its own below
+			id = fmt.Sprintf("[%s](#%s)", bud.id, strings.ToLower(bud.id))
+		}
+		fmt.Fprintf(&b, "| %s | %s | %s | %s | %s |\n", id, cell(bud.scenario, 110), cell(bud.target, 110), verdict(ls), measuredBy(ls))
 	}
 
 	b.WriteString("\n## Measurements\n")

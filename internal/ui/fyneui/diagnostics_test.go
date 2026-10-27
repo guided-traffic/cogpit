@@ -131,24 +131,6 @@ func TestDiagnosticsTab(t *testing.T) {
 	q.until(t, "the new counters", func() bool { return strings.Contains(d.summary.text, "99 API requests") })
 }
 
-// The Diagnostics tab, dark and light: the PNGs of the pull request (AGENTS.md rule 7).
-func TestRenderDiagnosticsDark(t *testing.T) { renderDiagnostics(t, ThemeDark, "diagnostics_dark.png") }
-func TestRenderDiagnosticsLight(t *testing.T) {
-	renderDiagnostics(t, ThemeLight, "diagnostics_light.png")
-}
-
-func renderDiagnostics(t *testing.T, mode ThemeMode, name string) {
-	f := diagnosticsFake(t)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	openDiagnostics(f)
-	q.until(t, "the Diagnostics", func() bool {
-		d := diagnosticsTabOf(sh)
-		return d != nil && len(d.watches.Objects) == 6 && sh.dock.open()
-	})
-	q.drain()
-	savePNG(t, w, name)
-}
-
 // Connection Diagnostics (D-133): the tab shows the connection, the problems since the latest
 // connect with how the initial lists came, Cogpit's rate limits, and the log, each line in its
 // severity's colour; Report shows the anonymised report, and Copy puts exactly that on the

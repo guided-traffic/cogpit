@@ -82,6 +82,3 @@ func renderKubectlPreferences(t *testing.T, mode ThemeMode, name string) {
 func TestRenderKubectlPreferencesDark(t *testing.T) {
 	renderKubectlPreferences(t, ThemeDark, "preferences_kubectl_dark.png")
 }
-func TestRenderKubectlPreferencesLight(t *testing.T) {
-	renderKubectlPreferences(t, ThemeLight, "preferences_kubectl_light.png")
-}

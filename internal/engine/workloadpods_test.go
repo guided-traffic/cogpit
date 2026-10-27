@@ -234,23 +234,26 @@ func TestWorkloadPodsIndexOnlyWithTheDrawer(t *testing.T) {
 			})
 		}
 	}
-	// sentinel changes web itself and waits for the list to show it: every wake before it has been
-	// built by then.
+	// sentinel changes api and waits for the list to show it and for that snapshot's event: every
+	// wake before it has been built and announced by then. Each count opens and closes with one, so
+	// no event of the set-up lands in it (api: web's drawer does not wake for it).
 	sentinel := func(n int) {
 		t.Helper()
-		d := testkit.Object("apps/v1", "Deployment", "shop", "web", map[string]any{"spec": map[string]any{"replicas": int64(n)}})
+		d := testkit.Object("apps/v1", "Deployment", "shop", "api", map[string]any{"spec": map[string]any{"replicas": int64(n)}})
 		src.Set(wpDeployments, d)
 		col := builtinProfile(t, "deployments").ColumnIndex("replicas")
-		waitTable(t, s, "deployments", func(ts *TableSnapshot) bool {
-			return slices.ContainsFunc(ts.Rows, func(r model.Row) bool { return r.Ref.Name == "web" && r.Cells[col].Num == int64(n) })
+		snap := waitTable(t, s, "deployments", func(ts *TableSnapshot) bool {
+			return slices.ContainsFunc(ts.Rows, func(r model.Row) bool { return r.Ref.Name == "api" && r.Cells[col].Num == int64(n) })
 		})
+		waitFor(t, "the snapshot's table event", func() bool { return rec.announced("deployments", snap.Revision) })
 	}
 
+	sentinel(6)
 	before := tables()
 	changePods("closed", 10)
 	sentinel(7)
 	if got := tables() - before; got != 1 {
-		t.Errorf("%d Deployments snapshots for ten pod changes and one change of web, want 1 (web's)", got)
+		t.Errorf("%d Deployments snapshots for ten pod changes and one change of api, want 1 (api's)", got)
 	}
 
 	// The drawer open: it holds the pods and the replica sets and wakes for web's pods; the list
@@ -261,12 +264,13 @@ func TestWorkloadPodsIndexOnlyWithTheDrawer(t *testing.T) {
 	if n, m := scopeHandles(s, "pods"), scopeHandles(s, "replicasets"); n != 2 || m != 1 {
 		t.Errorf("with the drawer open: %d handles on the pods (want 2: the drawer's and the test's), %d on the replica sets (want 1)", n, m)
 	}
+	sentinel(8)
 	before, details := tables(), rec.count(EventDetail, "deployments")
 	changePods("open", 5)
 	waitFor(t, "the drawer to wake for its pod", func() bool { return rec.count(EventDetail, "deployments") > details })
-	sentinel(8)
+	sentinel(9)
 	if got := tables() - before; got != 1 {
-		t.Errorf("%d Deployments snapshots with the drawer open, want 1 (web's)", got)
+		t.Errorf("%d Deployments snapshots with the drawer open, want 1 (api's)", got)
 	}
 
 	s.UpdateUI(func(u *UIState) { u.Drawer = nil })

@@ -407,7 +407,7 @@ func within(root, o fyne.CanvasObject) bool {
 }
 
 func TestRenderIntegrationsSection(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			_, w, _, _ := openIntegrationsSection(t, mode)
 			savePNG(t, w, "cluster_settings_integrations_"+string(mode)+".png")

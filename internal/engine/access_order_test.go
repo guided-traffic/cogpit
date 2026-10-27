@@ -33,11 +33,11 @@ func TestAccessDenialAfterNotApplicable(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	connectTest(t, s)
-	s.Backend().Access = fakeAccess{deny: map[string]bool{
+	fc.access = fakeAccess{deny: map[string]bool{
 		"patch pods/ apps":   true,
 		"delete secrets/ ns": true,
 	}}
+	connectTest(t, s)
 	enabled := func(id string, ref model.ObjectRef) error {
 		params, _ := json.Marshal(accessParams{Ref: ref})
 		cmd, _ := s.Registry().Get(id)

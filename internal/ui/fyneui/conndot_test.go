@@ -260,23 +260,19 @@ func TestDotClickOpensTheConnectionLog(t *testing.T) {
 	if tile == nil {
 		t.Fatal("no tile")
 	}
-	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
-	before := len(f.calls)
-	f.mu.Unlock()
+	before := f.mark()
 	test.TapCanvas(w.Canvas(), middleOf(test.WidgetRenderer(tile).(*hotbarTileRenderer).dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
-	f.mu.Lock()
-	var calls []engine.Invocation
-	for _, c := range f.calls[before:] {
-		// The navigator reports its row on its own goroutine whenever it settles; a report landing
-		// after before was read is not the click's (a race job, 2026-10-22).
-		if c.ID != "ui.setNavigatorRow" {
-			calls = append(calls, c)
+	// What the click on prod's dot sent: its log, and nothing that connects, opens or shows the
+	// cluster.
+	var clicked []engine.Invocation
+	for _, c := range f.callsSince(before) {
+		if strings.HasPrefix(c.ID, "cluster.") || strings.HasPrefix(c.ID, "hotbar.") || strings.Contains(string(c.Params), "prod-eu-central") {
+			clicked = append(clicked, c)
 		}
 	}
-	f.mu.Unlock()
-	if len(calls) != 1 || !strings.Contains(string(calls[0].Params), "prod-eu-central") {
-		t.Errorf("the tile's dot dispatched %v", calls)
+	if len(clicked) != 1 || clicked[0].ID != "cluster.connectLog" || !strings.Contains(string(clicked[0].Params), "prod-eu-central") {
+		t.Errorf("the tile's dot dispatched %v", clicked)
 	}
 
 	// The shown cluster's connection log is reached from the status bar's dot (the top bar has none,
@@ -300,17 +296,12 @@ func TestSectionDotOpensTheLogNotTheRow(t *testing.T) {
 	if row == nil || !row.Visible() {
 		t.Fatal("no row")
 	}
-	f.mu.Lock() // the shell's goroutines append to calls (a navigator report, a click)
-	before := len(f.calls)
-	f.mu.Unlock()
+	before := f.mark()
 	test.TapCanvas(w.Canvas(), middleOf(row.dot))
 	q.until(t, "the log", func() bool { return len(f.callsOf("cluster.connectLog")) == 1 })
-	f.mu.Lock()
-	calls := f.calls[before:]
-	f.mu.Unlock()
-	// The navigator reports its keyboard row from goroutines of its own, another cluster's row
-	// among them (kind-cogpit's, a CI run of 2026-10-21): what counts is what the click on the
-	// prod cluster's dot sent, its log and nothing that drills into it or connects it.
+	calls := f.callsSince(before)
+	// What the click on the prod cluster's dot sent: its log, and nothing that drills into it or
+	// connects it.
 	var clicked []engine.Invocation
 	for _, c := range calls {
 		if strings.HasPrefix(c.ID, "cluster.") || strings.Contains(string(c.Params), secProd) {

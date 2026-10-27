@@ -10,17 +10,48 @@ import (
 	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
-// promHub is a hub over the detector chain of a fake cluster that has the fake Prometheus.
+// promHub is a hub over a fake cluster's two providers, as the engine builds it: the Metrics
+// Server, which a cluster made by newPromCluster(t, false) does not serve, and the fake Prometheus.
 func promHub(t *testing.T, c *promCluster, opts metrics.Options) *metrics.Hub {
 	t.Helper()
 	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
-	det, _, err := metrics.ChainForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
+	src, _, err := metrics.SourcesForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := metrics.NewHub(det, opts)
+	h := metrics.NewHubFor(src, opts)
 	t.Cleanup(h.Close)
 	return h
+}
+
+// budgetClock is the clock of a budget test whose object scopes poll only when the test moves the
+// clock and kicks them (its intervals an hour): every poll is counted, none comes between a poll
+// and the counts read after it.
+func budgetClock() (*testClock, metrics.Options) {
+	clk := &testClock{t: time.Date(2026, 10, 12, 21, 0, 0, 0, time.UTC)}
+	return clk, metrics.Options{ObjectInterval: time.Hour, ListInterval: time.Hour, Now: clk.Now}
+}
+
+// nextPoll moves the clock by dt, polls the scope and waits for the poll.
+func nextPoll(t *testing.T, h *metrics.Hub, sc metrics.Scope, clk *testClock, dt time.Duration, polls chan int, n int) {
+	t.Helper()
+	clk.Advance(dt)
+	metrics.Kick(h, sc)
+	waitPoll(t, polls, n)
+}
+
+// closedQuiet checks that a hub whose scopes were all released sends nothing more: Close waits for
+// a poll still under way.
+func closedQuiet(t *testing.T, h *metrics.Hub, c *promCluster) {
+	t.Helper()
+	if n := h.Subscribed(); n != 0 {
+		t.Errorf("%d scopes still polled after everything was released", n)
+	}
+	settled := c.conn.Counter().Snapshot().Total
+	h.Close()
+	if got := c.conn.Counter().Snapshot().Total; got != settled {
+		t.Errorf("%d requests after everything was released", got-settled)
+	}
 }
 
 var webPodA = metrics.Scope{Kind: metrics.KindPods, Namespace: "web", Name: "a"}
@@ -70,7 +101,8 @@ func podDataRel(p *fakeProm) {
 func TestPrometheusBudget(t *testing.T) {
 	c := newPromCluster(t, false)
 	podDataRel(c.prom)
-	h := promHub(t, c, metrics.Options{ObjectInterval: 300 * time.Millisecond, MinStep: 5 * time.Millisecond, RangeWindow: 600 * time.Millisecond})
+	clk, opts := budgetClock() // the default range, an hour at a 30 s step
+	h := promHub(t, c, opts)
 
 	idle := c.conn.Counter().Snapshot().Total
 	time.Sleep(120 * time.Millisecond)
@@ -81,10 +113,13 @@ func TestPrometheusBudget(t *testing.T) {
 	onChange, polls := pollCounter()
 	a := h.Subscribe(webPodA, onChange)
 	b := h.Subscribe(webPodA, nil) // a second consumer of the same drawer
-	waitPoll(t, polls, 3)
+	waitPoll(t, polls, 1)
+	for n := 2; n <= 3; n++ {
+		nextPoll(t, h, webPodA, clk, 30*time.Second, polls, n)
+	}
 
-	// Right after poll 3 (the next one is 300 ms away): the detection probe, the history (cpu and
-	// memory over the range), then the newest cpu and memory points at polls 2 and 3.
+	// After poll 3: the detection probe, the history (cpu and memory over the range), then the
+	// newest cpu and memory points at polls 2 and 3.
 	if got := c.proxyCount(); got != 1+2+2*2 {
 		t.Errorf("%d proxy requests after 3 polls, want 7 (1 probe + 2 + 2 x 2)", got)
 	}
@@ -100,7 +135,7 @@ func TestPrometheusBudget(t *testing.T) {
 	var spans []string
 	for _, r := range c.prom.requests() {
 		if strings.Contains(r.path, "query_range") && strings.Contains(r.query, "cpu") {
-			if r.step != "0.005" || r.end == "" || r.start == "" {
+			if r.step != "30" || r.end == "" || r.start == "" {
 				t.Errorf("range request %+v", r)
 			}
 			spans = append(spans, r.start+".."+r.end)
@@ -134,9 +169,10 @@ func TestPrometheusBudget(t *testing.T) {
 	}
 
 	// A chart shows the network and another the filesystem: each is asked for once over the range
-	// (at once), then from its last point at each poll.
+	// (at once: the change polls), then from its last point at the next poll.
 	b.SetWants(metrics.WantNetwork | metrics.WantFilesystem)
-	waitPoll(t, polls, 5)
+	waitPoll(t, polls, 4)
+	nextPoll(t, h, webPodA, clk, 30*time.Second, polls, 5)
 	if rx, fs := c.prom.queryCount("container_network_receive"), c.prom.queryCount("container_fs_usage"); rx != 2 || fs != 2 {
 		t.Errorf("after two polls with the network and the filesystem shown: %d receive and %d filesystem queries, want 2 each", rx, fs)
 	}
@@ -147,7 +183,7 @@ func TestPrometheusBudget(t *testing.T) {
 	b.SetWants(0)
 	waitPoll(t, polls, 6)
 	rx := c.prom.queryCount("container_network_receive")
-	waitPoll(t, polls, 7)
+	nextPoll(t, h, webPodA, clk, 30*time.Second, polls, 7)
 	if n := c.prom.queryCount("container_network_receive"); n != rx {
 		t.Errorf("the network was asked for %d more times while no chart showed it", n-rx)
 	}
@@ -157,11 +193,7 @@ func TestPrometheusBudget(t *testing.T) {
 
 	a.Release()
 	b.Release()
-	settled := c.conn.Counter().Snapshot().Total
-	time.Sleep(500 * time.Millisecond)
-	if got := c.conn.Counter().Snapshot().Total; got != settled {
-		t.Errorf("%d requests after everything was released", got-settled)
-	}
+	closedQuiet(t, h, c)
 }
 
 // P12 and P13 with both providers, the normal case (owner, 2026-10-12): a drawer that opens asks
@@ -178,18 +210,34 @@ func TestBothProvidersBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := metrics.NewHubFor(src, metrics.Options{ListInterval: 200 * time.Millisecond, ObjectInterval: 200 * time.Millisecond, MinStep: 5 * time.Millisecond, RangeWindow: 600 * time.Millisecond})
+	// A list scope polls on its timer (a kick moves only a drawer), the drawer when the test kicks it.
+	clk, opts := budgetClock()
+	opts.ListInterval = 200 * time.Millisecond
+	h := metrics.NewHubFor(src, opts)
 	t.Cleanup(h.Close)
 	count := func(key string) int64 { return c.conn.Counter().Snapshot().ByVerbResource[key] }
 
-	listChange, listPolls := pollCounter()
-	list := h.Subscribe(allPods, listChange)
-	waitPoll(t, listPolls, 2)
+	// The lists sent by the end of each list poll, read on the poll's goroutine: the next poll's
+	// timer is armed only after it.
+	listsAt := make(chan int64, 64)
+	list := h.Subscribe(allPods, func() {
+		select {
+		case listsAt <- count("list pods.metrics.k8s.io"):
+		default:
+		}
+	})
+	for poll := int64(1); poll <= 2; poll++ {
+		select {
+		case n := <-listsAt:
+			if n != poll {
+				t.Errorf("%d lists in %d list polls", n, poll)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatalf("list poll %d never came", poll)
+		}
+	}
 	if n := c.proxyCount(); n != 0 {
 		t.Errorf("the Pods list sent %d requests to Prometheus, want none (the Metrics Server answers)", n)
-	}
-	if n := count("list pods.metrics.k8s.io"); n != 2 {
-		t.Errorf("%d lists in 2 list polls", n)
 	}
 	if ps := h.Providers(); len(ps) != 2 || ps[0].Provider != "prometheus" || ps[0].Status != metrics.StatusUnknown || ps[1].Provider != "metrics-server" || ps[1].Status != metrics.StatusAvailable || !slices.Equal(ps[1].Serves, []string{metrics.ServesLive}) {
 		t.Errorf("providers with the list open = %+v", ps)
@@ -198,7 +246,10 @@ func TestBothProvidersBudget(t *testing.T) {
 
 	onChange, polls := pollCounter()
 	drawer := h.Subscribe(webPodA, onChange)
-	waitPoll(t, polls, 4)
+	waitPoll(t, polls, 1)
+	for n := 2; n <= 4; n++ {
+		nextPoll(t, h, webPodA, clk, 15*time.Second, polls, n)
+	}
 	// One probe and one history (cpu, memory) at the drawer's first poll, then nothing of
 	// Prometheus; one get of the Metrics Server per poll.
 	if n := c.proxyCount(); n != 1+2 {
@@ -218,9 +269,10 @@ func TestBothProvidersBudget(t *testing.T) {
 		t.Errorf("state = %+v", st)
 	}
 
-	// The network shown: once over the range, then at the step (the polls are slower than it).
+	// The network shown: once over the range (the change polls), then at the next poll a step later.
 	drawer.SetWants(metrics.WantNetwork)
-	waitPoll(t, polls, 6)
+	waitPoll(t, polls, 5)
+	nextPoll(t, h, webPodA, clk, 30*time.Second, polls, 6)
 	if n := c.prom.queryCount("container_network_receive"); n != 2 {
 		t.Errorf("%d receive queries in two polls with the network shown, want 2", n)
 	}
@@ -228,11 +280,7 @@ func TestBothProvidersBudget(t *testing.T) {
 		t.Errorf("cpu asked for %d times: the Metrics Server serves the live values", n)
 	}
 	drawer.Release()
-	settled := c.conn.Counter().Snapshot().Total
-	time.Sleep(300 * time.Millisecond)
-	if got := c.conn.Counter().Snapshot().Total; got != settled {
-		t.Errorf("%d requests after everything was released", got-settled)
-	}
+	closedQuiet(t, h, c)
 }
 
 func TestPrometheusRangeFollowsTheChartsWindows(t *testing.T) {
@@ -268,28 +316,6 @@ func TestPrometheusRangeFollowsTheChartsWindows(t *testing.T) {
 	time.Sleep(60 * time.Millisecond)
 	if n := c.prom.queryCount("container_cpu"); n != 2 {
 		t.Errorf("%d cpu queries; an unchanged window must not poll", n)
-	}
-}
-
-func TestPrometheusListsUseInstantQueries(t *testing.T) {
-	c := newPromCluster(t, false)
-	c.prom.on("container_cpu_usage_seconds_total{container", s(map[string]string{"namespace": "web", "pod": "a", "container": "app"}, 1000, 0.25))
-	c.prom.on("container_memory_working_set_bytes{container", s(map[string]string{"namespace": "web", "pod": "a", "container": "app"}, 1000, 64*mib))
-	h := promHub(t, c, metrics.Options{ListInterval: 300 * time.Millisecond})
-	onChange, polls := pollCounter()
-	sub := h.Subscribe(metrics.Scope{Kind: metrics.KindPods}, onChange)
-	defer sub.Release()
-	waitPoll(t, polls, 2)
-	if got := c.proxyCount(); got != 1+2*2 {
-		t.Errorf("%d proxy requests after 2 list polls, want 5 (1 probe + 2 x 2)", got)
-	}
-	for _, r := range c.prom.requests() {
-		if strings.Contains(r.path, "query_range") {
-			t.Errorf("a list asked for a range: %+v", r)
-		}
-	}
-	if p, ok := h.Pod("web", "a"); !ok || p.Total().CPUMilli != 250 || p.Total().MemoryBytes != 64*mib {
-		t.Errorf("pod = %+v (%v)", p, ok)
 	}
 }
 

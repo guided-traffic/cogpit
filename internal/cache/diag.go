@@ -112,7 +112,9 @@ func (r *runner) timeLoad(ctx context.Context) {
 		case <-t.C:
 		}
 		if r.synced() {
-			took := time.Since(r.started)
+			// At least a nanosecond: 0 means still loading, and Windows' clock reads 0 for a load
+			// within one of its ticks.
+			took := max(time.Since(r.started), time.Nanosecond)
 			r.loadedIn.Store(int64(took))
 			r.tellDiag(Diagnostic{Kind: DiagLoaded, Scope: r.scope, Took: took})
 			return

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -36,74 +37,77 @@ func nsNames(h *cache.Handle) []string {
 // A scope read in several namespaces is one informer per namespace, shared with every other
 // handle on the same namespace's scope and released one by one: the merged handle lists, gets and
 // tells about its namespaces' objects only, and each namespace's informer stays warm on its own.
+// The warm period runs on the bubble's clock (testing/synctest).
 func TestNamespacedScopesSharedAndReleased(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	src := testkit.NewMemorySource()
-	podsIn(src, "team-a", "team-b", "team-c")
-	c := cache.New(src, cache.Options{WarmPeriod: 300 * time.Millisecond})
-	defer c.Close()
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		src := testkit.NewMemorySource()
+		podsIn(src, "team-a", "team-b", "team-c")
+		c := cache.New(src, cache.Options{WarmPeriod: 300 * time.Millisecond})
+		defer c.Close()
 
-	scope := cache.Scope{GVR: testkit.PodsGVR, Namespace: "ignored"}
-	merged := c.AcquireNamespaces(scope, []string{"team-b", "team-a", "team-a", ""})
-	if got := merged.Namespaces(); !slices.Equal(got, []string{"team-a", "team-b"}) {
-		t.Fatalf("namespaces %q", got)
-	}
-	if merged.Scope().Namespace != "" {
-		t.Errorf("the merged scope names a namespace: %v", merged.Scope())
-	}
-	if !merged.WaitForSync(ctx) {
-		t.Fatalf("not synced: %v", merged.Err())
-	}
-	if got, want := nsNames(merged), []string{"team-a/web-0", "team-a/web-1", "team-b/web-0", "team-b/web-1"}; !slices.Equal(got, want) {
-		t.Errorf("list %q, want %q", got, want)
-	}
-	if len(merged.ListNamespace("team-a")) != 2 || len(merged.ListNamespace("team-c")) != 0 {
-		t.Error("ListNamespace reads outside the namespaces")
-	}
-	if _, ok := merged.Get("team-b", "web-1"); !ok {
-		t.Error("Get in a namespace of the set")
-	}
-	if _, ok := merged.Get("team-c", "web-1"); ok {
-		t.Error("Get outside the set")
-	}
-	if got := cache.Runners(c); !slices.Equal(got, []string{"pods in team-a", "pods in team-b"}) {
-		t.Errorf("informers %q, want one per namespace", got)
-	}
-
-	// Another consumer of one namespace shares its informer: no list.
-	lists := src.Lists()
-	one := c.Acquire(cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"})
-	defer one.Release()
-	if !one.HasSynced() || src.Lists() != lists {
-		t.Errorf("a shared namespace cost %d lists, synced=%v", src.Lists()-lists, one.HasSynced())
-	}
-
-	events := make(chan cache.Event, 8)
-	unsub := merged.Subscribe(func(ev cache.Event) { events <- ev })
-	src.Set(testkit.PodsGVR, testkit.Pod("team-c", "late"))
-	src.Set(testkit.PodsGVR, testkit.Pod("team-b", "late"))
-	select {
-	case ev := <-events:
-		if ev.Object.GetNamespace() != "team-b" || ev.Type != cache.Added {
-			t.Errorf("event %s %s/%s", ev.Type, ev.Object.GetNamespace(), ev.Object.GetName())
+		scope := cache.Scope{GVR: testkit.PodsGVR, Namespace: "ignored"}
+		merged := c.AcquireNamespaces(scope, []string{"team-b", "team-a", "team-a", ""})
+		if got := merged.Namespaces(); !slices.Equal(got, []string{"team-a", "team-b"}) {
+			t.Fatalf("namespaces %q", got)
 		}
-	case <-ctx.Done():
-		t.Fatal("no event from team-b")
-	}
-	unsub()
+		if merged.Scope().Namespace != "" {
+			t.Errorf("the merged scope names a namespace: %v", merged.Scope())
+		}
+		if !merged.WaitForSync(ctx) {
+			t.Fatalf("not synced: %v", merged.Err())
+		}
+		if got, want := nsNames(merged), []string{"team-a/web-0", "team-a/web-1", "team-b/web-0", "team-b/web-1"}; !slices.Equal(got, want) {
+			t.Errorf("list %q, want %q", got, want)
+		}
+		if len(merged.ListNamespace("team-a")) != 2 || len(merged.ListNamespace("team-c")) != 0 {
+			t.Error("ListNamespace reads outside the namespaces")
+		}
+		if _, ok := merged.Get("team-b", "web-1"); !ok {
+			t.Error("Get in a namespace of the set")
+		}
+		if _, ok := merged.Get("team-c", "web-1"); ok {
+			t.Error("Get outside the set")
+		}
+		if got := cache.Runners(c); !slices.Equal(got, []string{"pods in team-a", "pods in team-b"}) {
+			t.Errorf("informers %q, want one per namespace", got)
+		}
 
-	merged.Release()
-	merged.Release() // idempotent
-	if !testkit.WaitFor(ctx, func() bool { return slices.Equal(cache.Runners(c), []string{"pods in team-a"}) }) {
-		t.Fatalf("after the warm period: %q, want team-a's alone (still held)", cache.Runners(c))
-	}
+		// Another consumer of one namespace shares its informer: no list.
+		lists := src.Lists()
+		one := c.Acquire(cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"})
+		defer one.Release()
+		if !one.HasSynced() || src.Lists() != lists {
+			t.Errorf("a shared namespace cost %d lists, synced=%v", src.Lists()-lists, one.HasSynced())
+		}
 
-	empty := c.AcquireNamespaces(scope, nil)
-	if !empty.HasSynced() || len(empty.List()) != 0 || empty.Err() != nil {
-		t.Error("a merged handle without namespaces is not an empty, synced one")
-	}
-	empty.Release()
+		events := make(chan cache.Event, 8)
+		unsub := merged.Subscribe(func(ev cache.Event) { events <- ev })
+		src.Set(testkit.PodsGVR, testkit.Pod("team-c", "late"))
+		src.Set(testkit.PodsGVR, testkit.Pod("team-b", "late"))
+		select {
+		case ev := <-events:
+			if ev.Object.GetNamespace() != "team-b" || ev.Type != cache.Added {
+				t.Errorf("event %s %s/%s", ev.Type, ev.Object.GetNamespace(), ev.Object.GetName())
+			}
+		case <-ctx.Done():
+			t.Fatal("no event from team-b")
+		}
+		unsub()
+
+		merged.Release()
+		merged.Release() // idempotent
+		if !testkit.WaitFor(ctx, func() bool { return slices.Equal(cache.Runners(c), []string{"pods in team-a"}) }) {
+			t.Fatalf("after the warm period: %q, want team-a's alone (still held)", cache.Runners(c))
+		}
+
+		empty := c.AcquireNamespaces(scope, nil)
+		if !empty.HasSynced() || len(empty.List()) != 0 || empty.Err() != nil {
+			t.Error("a merged handle without namespaces is not an empty, synced one")
+		}
+		empty.Release()
+	})
 }
 
 // A namespace the server refuses does not hold the others back: the merged handle syncs, lists
@@ -132,57 +136,60 @@ func TestMergedHandleWithARefusedNamespace(t *testing.T) {
 
 // A scope the server refuses (403) is not kept warm: released, it stops at once instead of
 // retrying for the warm period; refused while only warm, it stops then. A scope a handle holds
-// keeps retrying, and its error shows.
+// keeps retrying, and its error shows. client-go's backoff runs on the bubble's clock
+// (testing/synctest).
 func TestRefusedScopeIsNotKeptWarm(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	mem := testkit.NewMemorySource()
-	podsIn(mem, "team-a")
-	src := &testkit.NamespacedOnlySource{Inner: mem, GVRs: []schema.GroupVersionResource{testkit.PodsGVR}}
-	c := cache.New(src, cache.Options{WarmPeriod: time.Minute})
-	defer c.Close()
-	all := cache.Scope{GVR: testkit.PodsGVR}
+	synctest.Test(t, func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		mem := testkit.NewMemorySource()
+		podsIn(mem, "team-a")
+		src := &testkit.NamespacedOnlySource{Inner: mem, GVRs: []schema.GroupVersionResource{testkit.PodsGVR}}
+		c := cache.New(src, cache.Options{WarmPeriod: time.Minute})
+		defer c.Close()
+		all := cache.Scope{GVR: testkit.PodsGVR}
 
-	h := c.Acquire(all)
-	if !testkit.WaitFor(ctx, func() bool { return cache.IsRefused(h.Err()) }) {
-		t.Fatalf("no refusal: %v", h.Err())
-	}
-	if h.HasSynced() || len(c.Stats()) != 1 {
-		t.Errorf("a held refused scope: synced=%v stats=%d", h.HasSynced(), len(c.Stats()))
-	}
-	h.Release()
-	if n := len(c.Stats()); n != 0 || len(cache.Runners(c)) != 0 {
-		t.Fatalf("released, the refused scope is still kept: %d scopes, informers %q", n, cache.Runners(c))
-	}
-	before := src.Calls()["list pods"]
-	time.Sleep(1200 * time.Millisecond) // longer than client-go's first backoff step (800 ms)
-	if after := src.Calls()["list pods"]; after != before {
-		t.Errorf("a stopped refused scope listed %d more times", after-before)
-	}
+		h := c.Acquire(all)
+		if !testkit.WaitFor(ctx, func() bool { return cache.IsRefused(h.Err()) }) {
+			t.Fatalf("no refusal: %v", h.Err())
+		}
+		if h.HasSynced() || len(c.Stats()) != 1 {
+			t.Errorf("a held refused scope: synced=%v stats=%d", h.HasSynced(), len(c.Stats()))
+		}
+		h.Release()
+		if n := len(c.Stats()); n != 0 || len(cache.Runners(c)) != 0 {
+			t.Fatalf("released, the refused scope is still kept: %d scopes, informers %q", n, cache.Runners(c))
+		}
+		before := src.Calls()["list pods"]
+		time.Sleep(5 * time.Second) // a held one lists again by then: client-go's backoff starts at 800 ms
+		if after := src.Calls()["list pods"]; after != before {
+			t.Errorf("a stopped refused scope listed %d more times", after-before)
+		}
 
-	// Released before its first answer: warm, then refused, then stopped.
-	gated := &gatedAny{inner: src, gate: make(chan struct{})}
-	c2 := cache.New(gated, cache.Options{WarmPeriod: time.Minute})
-	defer c2.Close()
-	h2 := c2.Acquire(all)
-	h2.Release()
-	if len(c2.Stats()) != 1 {
-		t.Fatal("not warm while its list is pending")
-	}
-	close(gated.gate)
-	if !testkit.WaitFor(ctx, func() bool { return len(c2.Stats()) == 0 && len(cache.Runners(c2)) == 0 }) {
-		t.Fatalf("refused while warm, it kept running: %+v", c2.Stats())
-	}
+		// Released before its first answer: warm, then refused, then stopped.
+		gated := &gatedAny{inner: src, gate: make(chan struct{})}
+		c2 := cache.New(gated, cache.Options{WarmPeriod: time.Minute})
+		defer c2.Close()
+		h2 := c2.Acquire(all)
+		h2.Release()
+		if len(c2.Stats()) != 1 {
+			t.Fatal("not warm while its list is pending")
+		}
+		close(gated.gate)
+		if !testkit.WaitFor(ctx, func() bool { return len(c2.Stats()) == 0 && len(cache.Runners(c2)) == 0 }) {
+			t.Fatalf("refused while warm, it kept running: %+v", c2.Stats())
+		}
 
-	// A namespace the server allows stays warm as before.
-	ok := c.Acquire(cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"})
-	if !ok.WaitForSync(ctx) {
-		t.Fatal(ok.Err())
-	}
-	ok.Release()
-	if st := c.Stats(); len(st) != 1 || st[0].WarmUntil.IsZero() {
-		t.Errorf("an allowed scope is not warm: %+v", st)
-	}
+		// A namespace the server allows stays warm as before.
+		ok := c.Acquire(cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"})
+		if !ok.WaitForSync(ctx) {
+			t.Fatal(ok.Err())
+		}
+		ok.Release()
+		if st := c.Stats(); len(st) != 1 || st[0].WarmUntil.IsZero() {
+			t.Errorf("an allowed scope is not warm: %+v", st)
+		}
+	})
 }
 
 // gatedAny holds every list of any source until gate closes (gatedLW, cache_test.go).

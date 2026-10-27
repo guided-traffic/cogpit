@@ -196,8 +196,15 @@ func TestPrometheusSettingsOnThePage(t *testing.T) {
 func TestPrometheusAddressTypedAsThePauseEnds(t *testing.T) {
 	sh, pf, q, f := openPromSettings(t, ThemeDark, engine.PrometheusSetting{Context: "kind-dev", Auto: true, Format: autoSetting,
 		FilterEmptyContainers: true, Kept: true, InUse: "Prometheus monitoring/prometheus-k8s:web", InUseStatus: metrics.StatusAvailable})
+	sh.settings.typing = time.Hour // each pause lasts until the test ends it or the next key comes
 	sh.win.Canvas().Focus(f.address)
+	q.drain()
 	test.Type(f.address, "m")
+	// The first key's pause ends: its set is on its way to the main goroutine when the second key
+	// comes.
+	if p := sh.settings.timers[promAddressSetting]; p == nil || !fireTimer(p.timer) {
+		t.Fatal("no pause after the first key")
+	}
 	deadline := time.Now().Add(15 * time.Second)
 	for waiting := 0; waiting == 0; {
 		q.mu.Lock()
@@ -208,7 +215,6 @@ func TestPrometheusAddressTypedAsThePauseEnds(t *testing.T) {
 		}
 		time.Sleep(time.Millisecond)
 	}
-	sh.settings.typing = time.Hour // the pause after the second key lasts until the third key
 	test.Type(f.address, "o")
 	q.drain() // the first pause's set, on the main goroutine after the second key
 	if sh.settings.timers[promAddressSetting] == nil {
@@ -257,7 +263,7 @@ func TestPrometheusInUseLine(t *testing.T) {
 // cluster, a service address set, in both themes, to COGPIT_PNG_DIR when that is set (else only
 // captured).
 func TestRenderPrometheusSettings(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		name := "metrics_prometheus_settings_" + string(mode) + ".png"
 		t.Run(name, func(t *testing.T) {
 			sh, _, _, _ := openPromSettings(t, mode, engine.PrometheusSetting{Context: "kind-dev", Address: "observability/thanos-query:9090",

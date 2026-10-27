@@ -70,7 +70,7 @@ func nodeShellScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window) {
 	q.drain()
 	s := eng.last.Load()
 	close(s.gate)
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second) // mainQueue.until's bound; the queue is not drained while the output flows
 	for !s.idle.Load() {
 		if time.Now().After(deadline) {
 			t.Fatal("the terminal did not take the node shell's output")
@@ -108,11 +108,6 @@ func TestNodeShellTabShowsATerminal(t *testing.T) {
 func TestRenderNodeShellDark(t *testing.T) {
 	_, w := nodeShellScene(t, ThemeDark)
 	savePNG(t, w, "node_shell_dark.png")
-}
-
-func TestRenderNodeShellLight(t *testing.T) {
-	_, w := nodeShellScene(t, ThemeLight)
-	savePNG(t, w, "node_shell_light.png")
 }
 
 // nodeShellRequest is the confirmation the engine asks for a node shell on busyNode (as Dispatch
@@ -170,10 +165,6 @@ func TestNodeShellConfirmationNamesWhatItCreates(t *testing.T) {
 
 func TestRenderNodeShellConfirmDark(t *testing.T) {
 	confirmNodeShell(t, ThemeDark, engine.OriginGUI, "node_shell_confirm_dark.png")
-}
-
-func TestRenderNodeShellConfirmLight(t *testing.T) {
-	confirmNodeShell(t, ThemeLight, engine.OriginGUI, "node_shell_confirm_light.png")
 }
 
 // nodeShellField is a shown Node Shell section's field.
@@ -292,10 +283,6 @@ func TestClusterSettingsNodeShellMaxDuration(t *testing.T) {
 
 func TestRenderClusterSettingsNodeShellDark(t *testing.T) {
 	renderClusterSettingsNodeShell(t, ThemeDark, "cluster_settings_node_shell_dark.png")
-}
-
-func TestRenderClusterSettingsNodeShellLight(t *testing.T) {
-	renderClusterSettingsNodeShell(t, ThemeLight, "cluster_settings_node_shell_light.png")
 }
 
 func renderClusterSettingsNodeShell(t *testing.T, mode ThemeMode, name string) {

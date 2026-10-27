@@ -27,9 +27,10 @@ const configNamespace = "cogpit-c"
 
 // TestKindConfigViews fills the Config views from watches on the shared kind cluster. In its own
 // namespace it creates a Deployment with a PodDisruptionBudget, a ResourceQuota, a LimitRange and a
-// HorizontalPodAutoscaler, and checks the rows the profiles make of what the controllers report;
-// the cluster-scoped kinds (priority classes and their pod counts, runtime classes, webhook
-// configurations, admission policies and bindings) and the leases are read, never written.
+// HorizontalPodAutoscaler, and checks the rows the profiles make of what the controllers report
+// (of the autoscaler, its spec alone); the cluster-scoped kinds (priority classes and their pod
+// counts, runtime classes, webhook configurations, admission policies and bindings) and the leases
+// are read, never written.
 func TestKindConfigViews(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
 	if kubeconfig == "" || contextName == "" {
@@ -151,13 +152,14 @@ func TestKindConfigViews(t *testing.T) {
 	if !hasTableRow(lr, "Limits", []string{"Container", "cpu", "", "500m"}) {
 		t.Errorf("limit range drawer: %+v", lr.Sections)
 	}
-	hpa := row("horizontalpodautoscalers", in("horizontalpodautoscalers", "web"), "the autoscaler's conditions",
-		func(cell func(string) model.Cell, r model.Row) bool {
+	// The autoscaler's spec: its conditions come with the HPA controller's sync, 15 s after it was
+	// created; how a row shows them is the goldens' (kinds/testdata/horizontalpodautoscalers).
+	hpa := row("horizontalpodautoscalers", in("horizontalpodautoscalers", "web"), "the autoscaler's target and bounds",
+		func(cell func(string) model.Cell, _ model.Row) bool {
 			return strings.HasPrefix(cell("metrics").Text, "cpu: ") && strings.HasSuffix(cell("metrics").Text, "/80%") &&
-				cell("minPods").Num == 1 && cell("maxPods").Num == 3 &&
-				strings.Contains(cell("status").Text, "AbleToScale") && r.Status != model.StatusPending
+				cell("minPods").Num == 1 && cell("maxPods").Num == 3
 		})
-	t.Logf("autoscaler: status %q", hpa.Status) // an error without a metrics server, as on kind
+	t.Logf("autoscaler: status %q", hpa.Status)
 
 	// Pod counts of priority classes: the pods that name the class, from the cached pods.
 	for _, class := range []string{"system-cluster-critical", "system-node-critical"} {

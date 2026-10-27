@@ -204,18 +204,15 @@ func (a allKeys) Objects(ix model.RelatedIndex, _ string) []*unstructured.Unstru
 // TestRelatedTypeConfusion feeds every recorded object of a related kind, with every field
 // replaced by each hostile value in turn, to the profiles that read that kind.
 func TestRelatedTypeConfusion(t *testing.T) {
+	if raceEnabled {
+		t.Skip("one goroutine: the build without the race detector runs it (make test-norace-coverage)")
+	}
 	for _, rp := range relatedProfiles {
 		own := recorded(t, rp.key, rp.own)
 		for _, c := range loadCases(t, rp.relatedKind) {
-			var paths [][]any
-			collectPaths(c.obj.Object, nil, &paths)
-			for _, path := range paths {
-				for _, v := range hostile {
-					obj := c.obj.DeepCopy()
-					setPath(obj.Object, path, v)
-					exerciseRelated(t, rp.key, rp.relatedKind, own, obj)
-				}
-			}
+			confuse(t, rp.key+" with "+rp.relatedKind+"/"+c.name, c.obj, func([]any, any) {
+				exerciseRelated(t, rp.key, rp.relatedKind, own, c.obj)
+			})
 		}
 	}
 }

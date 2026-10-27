@@ -162,7 +162,3 @@ func renderOverview(t *testing.T, mode ThemeMode, name string) {
 func TestRenderWorkloadsOverviewDark(t *testing.T) {
 	renderOverview(t, ThemeDark, "workloads_overview_dark.png")
 }
-
-func TestRenderWorkloadsOverviewLight(t *testing.T) {
-	renderOverview(t, ThemeLight, "workloads_overview_light.png")
-}

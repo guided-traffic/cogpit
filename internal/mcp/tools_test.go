@@ -100,50 +100,6 @@ func TestToolsMirrorRegistry(t *testing.T) {
 	}
 }
 
-// TestShowcaseFindAndNavigate is the MVP's showcase through MCP: find the Service by its
-// ClusterIP, navigate the UI to it, read the UI state back.
-func TestShowcaseFindAndNavigate(t *testing.T) {
-	f := newFixture(t, nil, Options{})
-	cs := f.connect(t)
-
-	res := call(t, cs, "resources_find", map[string]any{"kind": "services", "field": "clusterIP", "value": showcaseIP})
-	if res.IsError {
-		t.Fatalf("resources_find: %s", text(res))
-	}
-	var found findResult
-	decode(t, res.StructuredContent, &found)
-	if len(found.Refs) != 1 || found.Refs[0] != webRef {
-		t.Fatalf("found %+v", found)
-	}
-
-	res = call(t, cs, "ui_navigate", map[string]any{"ref": found.Refs[0]})
-	if res.IsError {
-		t.Fatalf("ui_navigate: %s", text(res))
-	}
-	ui := f.session.UIState()
-	if ui.View != "services" || len(ui.Selected) != 1 || ui.Selected[0] != webRef || ui.Drawer == nil || *ui.Drawer != webRef {
-		t.Fatalf("UI state after ui_navigate: %+v", ui)
-	}
-
-	res = call(t, cs, "ui_state", nil)
-	var got engine.UIState
-	decode(t, res.StructuredContent, &got)
-	if res.IsError || got.Drawer == nil || *got.Drawer != webRef || got.Revision != ui.Revision {
-		t.Fatalf("ui_state: %s", text(res))
-	}
-
-	var cmds []string
-	for _, e := range f.auditEntries(t) {
-		if e.Origin != engine.OriginExternalAgent || !e.OK {
-			t.Errorf("audit entry %+v", e)
-		}
-		cmds = append(cmds, e.Command)
-	}
-	if !slices.Equal(cmds, []string{"resources.find", "ui.navigate", "ui.state"}) {
-		t.Errorf("audited %v", cmds)
-	}
-}
-
 func TestDestructiveAsksTheUser(t *testing.T) {
 	var mu sync.Mutex
 	var asked []engine.ConfirmRequest

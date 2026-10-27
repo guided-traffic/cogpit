@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -61,17 +62,30 @@ func TestMCPControlSwitch(t *testing.T) {
 	if _, err := os.Lstat(tokenFile); err != nil {
 		t.Errorf("token file after Stop: %v, want it kept", err)
 	}
-	if conn, err := net.DialTimeout("tcp", addr, time.Second); err == nil {
-		_ = conn.Close()
-		t.Error("the port still accepts connections")
+	// Stopped, nothing of Cogpit's answers there; another process may have bound the port since.
+	if resp, err := (&http.Client{Timeout: time.Second}).Post("http://"+addr+"/mcp", "application/json", strings.NewReader("{}")); err == nil {
+		_ = resp.Body.Close()
+		if resp.Header.Get("WWW-Authenticate") == `Bearer realm="cogpit"` {
+			t.Error("the endpoint still answers after Stop")
+		}
 	}
 
 	ep2, err := c.Start(true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if ep2.Command != ep.Command || ep2.Token != ep.Token {
-		t.Error("the switch changed the registration: the token and the port are kept (F6)")
+	_, oldPort, _ := net.SplitHostPort(addr)
+	switch {
+	case ep2.PortTaken == 0:
+		if ep2.Command != ep.Command || ep2.Token != ep.Token {
+			t.Error("the switch changed the registration: the token and the port are kept (F6)")
+		}
+	case strconv.Itoa(ep2.PortTaken) == oldPort: // another process took the freed port meanwhile
+		if ep2.Token != ep.Token || ep2.URL == ep.URL {
+			t.Errorf("port %d taken: URL %s (was %s), token kept %v; want another port and the token", ep2.PortTaken, ep2.URL, ep.URL, ep2.Token == ep.Token)
+		}
+	default:
+		t.Errorf("the restart found port %d taken, want %s or none", ep2.PortTaken, oldPort)
 	}
 
 	var lines []engine.AuditEntry

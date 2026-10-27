@@ -152,11 +152,11 @@ func TestChartIconsInTheWindow(t *testing.T) {
 	if img := findAll[*canvas.Image](sh.drawer.lead); len(img) != 1 || img[0].Resource != sh.charts.res[fixtureIconNginx] {
 		t.Errorf("the drawer's icon %v", img)
 	}
-	calls := len(f.calls)
+	before := f.mark()
 	sh.view.headerTapped(firstDataColumn) // the icon column
 	q.drain()
-	if len(f.calls) != calls {
-		t.Errorf("the icon column sorted: %v", f.calls[calls:])
+	if calls := f.callsSince(before); len(calls) != 0 {
+		t.Errorf("the icon column sorted: %v", calls)
 	}
 
 	f.update(func(u *engine.UIState) {
@@ -195,9 +195,6 @@ func renderChartIcons(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderHelmChartIconsDark(t *testing.T) {
 	renderChartIcons(t, ThemeDark, "helm_chart_icons_dark.png")
-}
-func TestRenderHelmChartIconsLight(t *testing.T) {
-	renderChartIcons(t, ThemeLight, "helm_chart_icons_light.png")
 }
 
 // Preferences › Kubernetes › Load chart icons: on at first; unchecking keeps it off through

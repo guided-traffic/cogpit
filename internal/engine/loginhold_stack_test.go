@@ -26,11 +26,10 @@ func heldPluginRuns(t *testing.T, path string) int {
 	return strings.Count(string(data), "run\n")
 }
 
-// writeCredential makes the test plugin hand out token, expiring at exp.
-func writeCredential(t *testing.T, path, token string, exp time.Time) {
+// writeCredential makes the test plugin hand out token, without an expiry.
+func writeCredential(t *testing.T, path, token string) {
 	t.Helper()
-	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + token +
-		`","expirationTimestamp":"` + exp.UTC().Format(time.RFC3339) + `"}}`
+	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + token + `"}}`
 	if err := os.WriteFile(path, []byte(cred), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -38,8 +37,10 @@ func writeCredential(t *testing.T, path, token string, exp time.Time) {
 
 // TestHeldPluginOnARealStack is D-69 item 4 end to end on client-go: cluster alpha logs in with a
 // credential plugin (a script that notes each run), its setting off. Shown, it connects with one
-// run; left for beta, it holds its login, and when the credential expires no plugin process starts:
-// the login lapses (not red). Shown again, the plugin runs once and the cluster works.
+// run; left for beta, it holds its login, and when the server stops taking the token (a 401, as for
+// a revoked or expired login) no plugin process starts: the login lapses (not red). Shown again, the
+// plugin runs once and the cluster works. A held credential's expiry is the cluster package's
+// TestHeldPluginDoesNotRun.
 func TestHeldPluginOnARealStack(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the test plugin is a shell script")
@@ -57,7 +58,7 @@ func TestHeldPluginOnARealStack(t *testing.T) {
 	if err := os.WriteFile(plugin, []byte("#!/bin/sh\necho run >> \"$PLUGIN_RUNS\"\ncat \"$PLUGIN_CRED\"\n"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeCredential(t, cred, token, time.Now().Add(3*time.Second))
+	writeCredential(t, cred, token)
 	alphaCfg := filepath.Join(dir, "alpha.yaml")
 	if err := os.WriteFile(alphaCfg, []byte(`apiVersion: v1
 kind: Config
@@ -101,10 +102,12 @@ contexts:
 		t.Fatal(err)
 	}
 	if n := heldPluginRuns(t, runs); n != 1 {
-		t.Fatalf("alpha's plugin ran %d times before its credential expired, want once (the connect)", n)
+		t.Fatalf("alpha's plugin ran %d times before its token was revoked, want once (the connect)", n)
 	}
-	// What the plugin hands out next lasts: a renewal later is one run.
-	writeCredential(t, cred, token, time.Now().Add(time.Hour))
+	// What the plugin hands out next is the token the server takes: a renewal later is one run.
+	const rotated = "held-plugin-token-0043"
+	writeCredential(t, cred, rotated)
+	alphaSrv.SetToken(rotated)
 	if !testkit.WaitFor(ctx, func() bool { return entryOf(s, "alpha").LoginLapsed }) {
 		t.Fatalf("alpha's login did not lapse: %+v", entryOf(s, "alpha"))
 	}

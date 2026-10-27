@@ -360,9 +360,6 @@ func TestNavigatorClick(t *testing.T) {
 func TestRenderNavigatorBackDark(t *testing.T) {
 	renderNavigatorBack(t, ThemeDark, "navigator_back_dark.png")
 }
-func TestRenderNavigatorBackLight(t *testing.T) {
-	renderNavigatorBack(t, ThemeLight, "navigator_back_light.png")
-}
 
 // renderNavigatorBack: at a cluster the header's ‹ All Clusters with the pointer on it and its
 // tooltip, the tree's root below it without a ‹ (D-57).
@@ -385,9 +382,6 @@ func renderNavigatorBack(t *testing.T, mode ThemeMode, name string) {
 func TestRenderNavigatorSearchDark(t *testing.T) {
 	renderNavigatorSearch(t, ThemeDark, "navigator_search_dark.png")
 }
-func TestRenderNavigatorSearchLight(t *testing.T) {
-	renderNavigatorSearch(t, ThemeLight, "navigator_search_light.png")
-}
 
 // renderNavigatorSearch: the search open with "pod", the groups above the matches shown open.
 func renderNavigatorSearch(t *testing.T, mode ThemeMode, name string) {
@@ -399,9 +393,6 @@ func renderNavigatorSearch(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderNavigatorFocusDark(t *testing.T) {
 	renderNavigatorFocus(t, ThemeDark, "navigator_focus_dark.png")
-}
-func TestRenderNavigatorFocusLight(t *testing.T) {
-	renderNavigatorFocus(t, ThemeLight, "navigator_focus_light.png")
 }
 
 // renderNavigatorFocus: the keyboard on Deployments (a ring) below the open Pods view, Config

@@ -36,7 +36,7 @@ func watchedLogsSession(t *testing.T) (*Session, *testkit.MemorySource, *fakePro
 	}
 	p := &fakeProber{}
 	fc := &fakeConnector{src: src, profiles: append(testProfiles(), sts), conn: &cluster.Conn{}, health: p}
-	s := New(Options{Connector: fc, SnapshotInterval: 10 * time.Millisecond, ConnWatch: fastWatch})
+	s := New(Options{Connector: fc, SnapshotInterval: 10 * time.Millisecond, ConnWatch: fastWatch, LogRescan: logRescan})
 	t.Cleanup(s.Close)
 	connectTest(t, s)
 	return s, src, p
@@ -85,6 +85,32 @@ func countOf(lines []string, line string) int {
 	return n
 }
 
+// waitAdopted waits until a rescan has handed db-0/db's stream, opened again by the name, the
+// instance key the cache now shows (adopt), and checks that it is the container's one stream: a
+// stream of that instance's own would show its lines again.
+func waitAdopted(t *testing.T, wl *workloadLogs, key string) {
+	t.Helper()
+	waitUntil(t, "the stream to follow "+key, func() bool {
+		wl.mu.Lock()
+		defer wl.mu.Unlock()
+		_, ok := wl.streaming[key]
+		return ok
+	})
+	if got := streamsOf(wl); !slices.Equal(got, []string{"db-0/db"}) {
+		t.Errorf("streams %q, want db-0/db's one", got)
+	}
+}
+
+// workloadLogsOf opens a tab's logs with the fake streamer, as openTabLogs does, and returns them.
+func workloadLogsOf(t *testing.T, s *Session, id string, f logStreamer) *workloadLogs {
+	t.Helper()
+	wl, ok := openTabLogs(t, s, id, f).(*workloadLogs)
+	if !ok {
+		t.Fatal("not a workload's logs")
+	}
+	return wl
+}
+
 // TestWorkloadLogsAPodCreatedAgainDuringAnInterruption: the Stateful Set's pod db-0 is deleted and
 // created again under its name while the connection is down. At the reconnect the cache still
 // shows the old pod, so the stream opens again by the name and gets the new pod's log: it says that
@@ -103,7 +129,8 @@ func TestWorkloadLogsAPodCreatedAgainDuringAnInterruption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	wl := workloadLogsOf(t, s, tab.ID, f)
+	lr := readLines(wl)
 	lr.wait(t, line(100, "old pod"))
 	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
 
@@ -119,7 +146,7 @@ func TestWorkloadLogsAPodCreatedAgainDuringAnInterruption(t *testing.T) {
 	// The cache catches up.
 	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db"))
 	waitCached(t, s, "uid-shop-db-0-again", 0)
-	time.Sleep(4 * workloadLogRescan) // rescans that would start a stream of the new pod's own
+	waitAdopted(t, wl, "uid-shop-db-0-again/db/0")
 	waitUntil(t, "a stream to follow", func() bool { return f.opened(key) })
 	f.add(key, t0.Add(7*time.Second), "new pod, third line")
 	lr.wait(t, line(7000, "new pod, third line"))
@@ -155,10 +182,7 @@ func TestWorkloadLogsAPodCreatedAgainSeenBeforeTheResume(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wl, ok := openTabLogs(t, s, tab.ID, f).(*workloadLogs)
-	if !ok {
-		t.Fatal("not a workload's logs")
-	}
+	wl := workloadLogsOf(t, s, tab.ID, f)
 	lr := readLines(wl)
 	lr.wait(t, line(100, "old pod"))
 	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
@@ -175,13 +199,16 @@ func TestWorkloadLogsAPodCreatedAgainSeenBeforeTheResume(t *testing.T) {
 	lr.wait(t, line(5000, "new pod"))
 	p.set(func(f *fakeProber) { f.down = false })
 	waitState(t, s, Connected)
-	waitUntil(t, "the old pod's stream to end", func() bool {
+	// A rescan forgets an instance the cache no longer shows only once its stream ended: the scan
+	// after the old pod's stream ended has run, and started nothing.
+	waitUntil(t, "the old pod's stream to end and a rescan after it", func() bool {
 		wl.mu.Lock()
 		defer wl.mu.Unlock()
-		_, running := wl.streaming["uid-shop-db-0/db/0"]
-		return !running
+		return !wl.started["uid-shop-db-0/db/0"]
 	})
-	time.Sleep(4 * workloadLogRescan)
+	if got := streamsOf(wl); !slices.Equal(got, []string{"db-0/db"}) {
+		t.Errorf("streams %q, want the new pod's own", got)
+	}
 	f.add(key, t0.Add(6*time.Second), "new pod, second line")
 	lr.wait(t, line(6000, "new pod, second line"))
 
@@ -218,7 +245,8 @@ func TestWorkloadLogsARestartTheCacheShowsLate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	wl := workloadLogsOf(t, s, tab.ID, f)
+	lr := readLines(wl)
 	lr.wait(t, line(100, "first instance"))
 	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
 
@@ -226,7 +254,7 @@ func TestWorkloadLogsARestartTheCacheShowsLate(t *testing.T) {
 	lr.wait(t, line(3000, "second instance"))
 	src.Set(testkit.PodsGVR, owned(logPod("shop", "db-0", "db:running#1"), "apps/v1", "StatefulSet", "db", "uid-shop-db"))
 	waitCached(t, s, "uid-shop-db-0", 1)
-	time.Sleep(4 * workloadLogRescan)
+	waitAdopted(t, wl, "uid-shop-db-0/db/1")
 	f.add(key, t0.Add(4*time.Second), "second instance, second line")
 	lr.wait(t, line(4000, "second instance, second line"))
 
@@ -260,7 +288,8 @@ func TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	wl := workloadLogsOf(t, s, tab.ID, f)
+	lr := readLines(wl)
 	lr.wait(t, line(100, "old pod"))
 	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
 
@@ -271,7 +300,7 @@ func TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate(t *testing.T) {
 	// The cache catches up: the new pod, its new UID, the same name.
 	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db"))
 	waitCached(t, s, "uid-shop-db-0-again", 0)
-	time.Sleep(4 * workloadLogRescan) // rescans that would start a stream of the new pod's own
+	waitAdopted(t, wl, "uid-shop-db-0-again/db/0")
 	f.add(key, t0.Add(7*time.Second), "new pod, third line")
 	lr.wait(t, line(7000, "new pod, third line"))
 
@@ -287,9 +316,12 @@ func TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate(t *testing.T) {
 }
 
 // TestWorkloadLogsAPodCreatedAgainTheCacheShowsInTime: as above, but the cache shows the new pod
-// before the old pod's stream would open again (the backoff as released): that stream ends without
-// opening again, and the new pod's own stream shows its lines, once, with no notice.
+// before the old pod's stream would open again: the new pod's own stream shows its lines, once,
+// with no notice. The old pod's stream waits a minute here before it would open again, so that the
+// cache is first however slow the runner; that it then ends, its instance gone, is resume's, as in
+// TestWorkloadLogsAPodCreatedAgainSeenBeforeTheResume.
 func TestWorkloadLogsAPodCreatedAgainTheCacheShowsInTime(t *testing.T) {
+	slowResumes(t)
 	s, src, _ := watchedLogsSession(t)
 	f := newServerLogs()
 	const key = "db-0/db"
@@ -307,10 +339,9 @@ func TestWorkloadLogsAPodCreatedAgainTheCacheShowsInTime(t *testing.T) {
 	waitUntil(t, "the stream to follow", func() bool { return f.opened(key) })
 
 	f.recreate(key, stampedLine{t0.Add(5 * time.Second), "new pod"})
-	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db")) // within the 500 ms backoff
+	src.Set(testkit.PodsGVR, dbPod("uid-shop-db-0-again", "db")) // within the old pod's stream's backoff
 	waitCached(t, s, "uid-shop-db-0-again", 0)
 	lr.wait(t, line(5000, "new pod"))
-	time.Sleep(workloadLogBackoff + 4*workloadLogRescan) // past the old stream's resumption
 	f.add(key, t0.Add(6*time.Second), "new pod, second line")
 	lr.wait(t, line(6000, "new pod, second line"))
 

@@ -510,31 +510,40 @@ func TestSecretRevealedValueCopied(t *testing.T) {
 }
 
 // TestSecretClipboardKeepsWhatReplacedIt: when something else was copied meanwhile, the clearing
-// leaves it alone; a second Secret copy restarts the clearing.
+// leaves it alone; a plain copy arms none; closing the window clears a Secret's value, never a
+// plain copy.
 func TestSecretClipboardKeepsWhatReplacedIt(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
-	sh.secretClipTTL = 40 * time.Millisecond
+	sh.secretClipTTL = time.Hour // fireTimer ends it
 
 	sh.copyText("secret-one", true)
 	sh.app.Clipboard().SetContent("something the user copied elsewhere")
-	time.Sleep(120 * time.Millisecond)
-	q.drain()
+	if !fireTimer(sh.clipTimer) {
+		t.Fatal("no clearing armed for a Secret's value")
+	}
+	q.until(t, "the clearing", func() bool { return sh.clipSecret == "" })
 	if got := sh.app.Clipboard().Content(); got != "something the user copied elsewhere" {
 		t.Errorf("the clearing took the user's own copy: %q", got)
 	}
 
 	sh.copyText("secret-two", false) // a plain copy: never cleared
-	time.Sleep(120 * time.Millisecond)
-	q.drain()
+	if sh.clipTimer != nil || sh.clipSecret != "" {
+		t.Error("a plain copy armed the clearing")
+	}
 	if got := sh.app.Clipboard().Content(); got != "secret-two" {
 		t.Errorf("a plain copy was cleared: %q", got)
 	}
 
 	sh.copyText("secret-three", true)
-	sh.clearSecretClipboard() // as the window's close does
+	sh.windowClosed() // what the window's close runs (fyneui.go)
 	if got := sh.app.Clipboard().Content(); got != "" {
-		t.Errorf("clearing on close left %q", got)
+		t.Errorf("closing the window left %q on the clipboard", got)
+	}
+	sh.copyText("secret-four", false)
+	sh.windowClosed()
+	if got := sh.app.Clipboard().Content(); got != "secret-four" {
+		t.Errorf("closing the window took a plain copy: %q", got)
 	}
 }
 
@@ -622,9 +631,6 @@ func TestCopyHasNoCommand(t *testing.T) {
 
 func TestRenderDrawerCopyIconDark(t *testing.T) {
 	renderCopyIcon(t, ThemeDark, "drawer_copyicon_dark.png")
-}
-func TestRenderDrawerCopyIconLight(t *testing.T) {
-	renderCopyIcon(t, ThemeLight, "drawer_copyicon_light.png")
 }
 
 // renderCopyIcon shows the pod drawer with its labels unfolded, the pointer over one label and the

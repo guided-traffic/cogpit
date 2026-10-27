@@ -39,7 +39,8 @@ func TestDiscoveryCacheAcrossConnects(t *testing.T) {
 	// the definitions, and returns its connection's discovery requests and answer.
 	connect := func(name, key string) (*engine.Session, *cluster.Conn, int64) {
 		t.Helper()
-		s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}, DiscoveryCacheDir: dir}})
+		s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig}, DiscoveryCacheDir: dir},
+			SnapshotInterval: 10 * time.Millisecond}) // the custom kinds' rebuild coalesces five intervals
 		if err := s.Connect(ctx, "fake"); err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

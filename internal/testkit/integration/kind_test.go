@@ -55,9 +55,20 @@ func TestKindIdleViewsCostNoLists(t *testing.T) {
 			t.Fatalf("%v not synced: %v", h.Scope(), h.Err())
 		}
 	}
-	// In list-and-watch mode the watch request follows the synced list; give it a moment.
-	time.Sleep(500 * time.Millisecond)
-	synced := conn.Counter().Snapshot()
+	// The idle window opens once each scope's watch is open: a stream is its own watch; after a
+	// list (a refused stream's fallback) the watch follows the synced list.
+	var synced cluster.RequestStats
+	if !testkit.WaitFor(ctx, func() bool {
+		synced = conn.Counter().Snapshot()
+		for _, res := range []string{"pods", "services"} {
+			if got := countFor(synced, res); got.watch < 1 && (got.watchlist < 1 || got.list > 0) {
+				return false
+			}
+		}
+		return true
+	}) {
+		t.Fatalf("the watches never opened: %v", synced.ByVerbResource)
+	}
 	for _, res := range []string{"pods", "services"} {
 		got := countFor(synced, res)
 		// Either one streaming watch, or one list and one watch (after a refused streaming

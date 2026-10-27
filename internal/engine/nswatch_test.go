@@ -113,12 +113,17 @@ func TestNamespaceEventsCoalesced(t *testing.T) {
 	s.UpdateUI(func(u *UIState) { u.Namespaces = []string{"orders"} })
 	waitFor(t, "the first namespaces event", func() bool { return r.count(EventNamespaces, "test") == 1 })
 	w := s.Backend().nsWatch
+	start := time.Now()
 	for i := range 300 {
 		src.Set(testkit.NamespacesGVR, nsObject(fmt.Sprintf("ns-%03d", i), false, nil))
 	}
-	waitFor(t, "the 301 namespaces read", func() bool { return w.seen.Load() == 301 })
-	if n := r.count(EventNamespaces, "test") - 1; n < 1 || n > 5 {
-		t.Fatalf("%d events for 300 new namespaces, want a few", n)
+	waitFor(t, "the 301 namespaces read and announced", func() bool { return w.seen.Load() == 301 && r.count(EventNamespaces, "test") > 1 })
+	elapsed := time.Since(start)
+	// At most one event per coalescing interval (runCoalesced), however long the informer took to
+	// deliver the burst: a few, not one per watch event.
+	interval := 5 * time.Millisecond * nsWatchCoalesce
+	if n, bound := r.count(EventNamespaces, "test")-1, int(elapsed/interval)+2; n > bound {
+		t.Fatalf("%d events for 300 new namespaces over %v, want at most %d", n, elapsed, bound)
 	}
 }
 

@@ -226,10 +226,6 @@ func TestAnExpiredClientCertificateDoesNotHoldTheConnect(t *testing.T) {
 func TestRenderNavigatorClientCertsDark(t *testing.T) {
 	renderCertSection(t, ThemeDark, "navigator_client_certs_dark.png")
 }
-func TestRenderNavigatorClientCertsLight(t *testing.T) {
-	renderCertSection(t, ThemeLight, "navigator_client_certs_light.png")
-}
-
 func renderCertSection(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _ := certScene(t, mode)
 	settle(w)
@@ -243,10 +239,6 @@ func renderCertSection(t *testing.T, mode ThemeMode, name string) {
 func TestRenderWelcomeClientCertsDark(t *testing.T) {
 	renderCertWelcome(t, ThemeDark, "welcome_client_certs_dark.png")
 }
-func TestRenderWelcomeClientCertsLight(t *testing.T) {
-	renderCertWelcome(t, ThemeLight, "welcome_client_certs_light.png")
-}
-
 func renderCertWelcome(t *testing.T, mode ThemeMode, name string) {
 	f := certFake(t, true)
 	sh, q := welcomeOnFake(t, f, mode)

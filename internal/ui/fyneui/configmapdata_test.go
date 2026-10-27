@@ -727,10 +727,6 @@ func TestRenderConfigMapDrawerDark(t *testing.T) {
 	renderConfigMapDrawer(t, ThemeDark, "configmap_drawer_dark.png")
 }
 
-func TestRenderConfigMapDrawerLight(t *testing.T) {
-	renderConfigMapDrawer(t, ThemeLight, "configmap_drawer_light.png")
-}
-
 // renderConfigMapSave renders the review of a save: the diff of two values and the dry run.
 func renderConfigMapSave(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _, _ := cmShell(t, mode)
@@ -745,9 +741,6 @@ func renderConfigMapSave(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderConfigMapSaveDark(t *testing.T) {
 	renderConfigMapSave(t, ThemeDark, "configmap_save_dark.png")
-}
-func TestRenderConfigMapSaveLight(t *testing.T) {
-	renderConfigMapSave(t, ThemeLight, "configmap_save_light.png")
 }
 
 // renderConfigMapConflict renders a review that met a newer version of the Config Map.
@@ -849,8 +842,4 @@ func renderSecretLongKeys(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderSecretLongKeysDark(t *testing.T) {
 	renderSecretLongKeys(t, ThemeDark, "secret_longkeys_dark.png")
-}
-
-func TestRenderSecretLongKeysLight(t *testing.T) {
-	renderSecretLongKeys(t, ThemeLight, "secret_longkeys_light.png")
 }

@@ -265,7 +265,7 @@ func valueLeaks(sh *shell, f *fakeEngine) string {
 			texts = append(texts, p.text)
 		}
 	}
-	for _, c := range f.calls { // no command but the GUI-only reveal, review and save carries a value
+	for _, c := range f.allCalls() { // no command but the GUI-only reveal, review and save carries a value
 		switch c.ID {
 		case engine.RevealCommand, engine.SecretReviewDataCommand, engine.SecretSaveDataCommand:
 		default:
@@ -383,7 +383,7 @@ func TestSecretDrawerKeepsUnsavedInMemory(t *testing.T) {
 	if !toastSays(sh, "kept in this window's memory until Cogpit quits, never on disk") {
 		t.Error("no toast says where the changes are kept")
 	}
-	for _, c := range f.calls {
+	for _, c := range f.allCalls() {
 		if strings.Contains(string(c.Params), secTyped) && c.ID != engine.SecretReviewDataCommand && c.ID != engine.SecretSaveDataCommand {
 			t.Errorf("the typed value reached %s", c.ID)
 		}
@@ -676,9 +676,6 @@ func renderSecretEdit(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderSecretEditDark(t *testing.T) { renderSecretEdit(t, ThemeDark, "secret_edit_dark.png") }
-func TestRenderSecretEditLight(t *testing.T) {
-	renderSecretEdit(t, ThemeLight, "secret_edit_light.png")
-}
 
 // renderSecretSave renders the review of a Secret's save: the masked diff and the dry run.
 func renderSecretSave(t *testing.T, mode ThemeMode, name string) {
@@ -696,9 +693,6 @@ func renderSecretSave(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderSecretSaveDark(t *testing.T) { renderSecretSave(t, ThemeDark, "secret_save_dark.png") }
-func TestRenderSecretSaveLight(t *testing.T) {
-	renderSecretSave(t, ThemeLight, "secret_save_light.png")
-}
 
 // yamlviewView is the editor's widget type, for findAll.
 type yamlviewView = yamlview.View

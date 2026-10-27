@@ -168,8 +168,7 @@ func TestCmdFInAnEditTabsReview(t *testing.T) {
 	}
 }
 
-func TestRenderEditFindDark(t *testing.T)  { renderEditFind(t, ThemeDark, "edit_find_dark.png") }
-func TestRenderEditFindLight(t *testing.T) { renderEditFind(t, ThemeLight, "edit_find_light.png") }
+func TestRenderEditFindDark(t *testing.T) { renderEditFind(t, ThemeDark, "edit_find_dark.png") }
 
 // renderEditFind: an Edit tab whose find bar ⌘F opened from the editor, a search typed.
 func renderEditFind(t *testing.T, mode ThemeMode, name string) {

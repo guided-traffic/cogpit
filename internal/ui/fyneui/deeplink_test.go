@@ -4,7 +4,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -77,13 +76,12 @@ func TestDeepLinksOpenInTheWindow(t *testing.T) {
 		t.Errorf("notifications %+v", notes.Notifications)
 	}
 
-	// A fake engine without OpenDeepLink leaves the links waiting.
+	// A fake engine without OpenDeepLink leaves the links waiting: it attaches nothing to the queue.
 	f := newFakeEngine(t)
 	fsh, _, _ := newTestShell(t, f, Options{})
 	later := engine.NewDeepLinkQueue(nil)
 	later.Deliver("cogpit://open?view=pods")
 	fsh.attachDeepLinks(later)()
-	time.Sleep(10 * time.Millisecond)
 	if later.Pending() != 1 {
 		t.Errorf("a fake engine took the link")
 	}

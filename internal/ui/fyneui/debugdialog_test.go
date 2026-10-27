@@ -122,9 +122,6 @@ func renderDebugDialog(t *testing.T, mode ThemeMode, name string) {
 func TestRenderDebugDialogDark(t *testing.T) {
 	renderDebugDialog(t, ThemeDark, "debug_dialog_dark.png")
 }
-func TestRenderDebugDialogLight(t *testing.T) {
-	renderDebugDialog(t, ThemeLight, "debug_dialog_light.png")
-}
 
 // TestRenderDebugAgentConfirmation: an agent's Debug asks with the engine's confirmation, the same
 // rows as the window's dialog, and adds nothing when the user cancels. PNG:

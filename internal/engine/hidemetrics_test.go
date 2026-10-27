@@ -132,7 +132,7 @@ func noRequestsFor(t *testing.T, s *Session, what string) {
 	t.Helper()
 	time.Sleep(60 * time.Millisecond) // a poll that started before the change may still answer
 	before := metricsRequests(t, s)
-	time.Sleep(400 * time.Millisecond) // four list intervals, ten object intervals
+	time.Sleep(150 * time.Millisecond) // past a list interval and three object intervals; the hub holds no subscription
 	if after := metricsRequests(t, s); after != before {
 		t.Errorf("%s: %d metrics requests while every metric it shows is hidden", what, after-before)
 	}

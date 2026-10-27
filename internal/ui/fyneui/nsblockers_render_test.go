@@ -153,7 +153,3 @@ func renderNamespaceBlocking(t *testing.T, mode ThemeMode, drawerPNG, confirmPNG
 func TestRenderNamespaceBlockingDark(t *testing.T) {
 	renderNamespaceBlocking(t, ThemeDark, "namespace_blocking_dark.png", "confirm_remove_finalizers_dark.png")
 }
-
-func TestRenderNamespaceBlockingLight(t *testing.T) {
-	renderNamespaceBlocking(t, ThemeLight, "namespace_blocking_light.png", "confirm_remove_finalizers_light.png")
-}

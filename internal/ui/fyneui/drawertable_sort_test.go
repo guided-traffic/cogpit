@@ -269,7 +269,3 @@ func renderNodePodsSorted(t *testing.T, mode ThemeMode, name string) {
 func TestRenderNodePodsSortedDark(t *testing.T) {
 	renderNodePodsSorted(t, ThemeDark, "node_pods_metrics_dark.png")
 }
-
-func TestRenderNodePodsSortedLight(t *testing.T) {
-	renderNodePodsSorted(t, ThemeLight, "node_pods_metrics_light.png")
-}

@@ -304,15 +304,19 @@ func TestClusterBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := metrics.NewHubFor(src, metrics.Options{ListInterval: 200 * time.Millisecond, ObjectInterval: 200 * time.Millisecond, MinStep: 5 * time.Millisecond, RangeWindow: 600 * time.Millisecond})
+	clk, opts := budgetClock()
+	h := metrics.NewHubFor(src, opts)
 	t.Cleanup(h.Close)
 	count := func(key string) int64 { return c.conn.Counter().Snapshot().ByVerbResource[key] }
 
 	onChange, polls := pollCounter()
 	sc := metrics.ClusterScope([]string{"m1"})
 	sub := h.Subscribe(sc, onChange)
-	waitPoll(t, polls, 4)
-	how := "the hub over the real client-go stack against the fake API server and a fake Prometheus (no node-exporter) behind its service proxy, the intervals shortened to 0.2 s"
+	waitPoll(t, polls, 1)
+	for n := 2; n <= 4; n++ {
+		nextPoll(t, h, sc, clk, 15*time.Second, polls, n)
+	}
+	how := "the hub over the real client-go stack against the fake API server and a fake Prometheus (no node-exporter) behind its service proxy, the polls driven by the test"
 	scorecard.Record(t, scorecard.Measurement{Budget: "P14", Metric: "Prometheus requests of the open Overview in 4 polls: 1 probe, 4 range queries and the root cgroups' 4",
 		Value: float64(c.proxyCount()), Unit: "requests", Limit: 1 + 4 + 4, How: how})
 	if n := c.proxyCount(); n != 1+4+4 {
@@ -329,17 +333,22 @@ func TestClusterBudget(t *testing.T) {
 		t.Errorf("workers %+v", w)
 	}
 
-	// A range change: one query set more, from cAdvisor only (this Prometheus's nodes come from it).
-	sub.SetWindows(1200 * time.Millisecond)
-	waitPoll(t, polls, 6)
+	// A range change: one query set more, at once, from cAdvisor only (this Prometheus's nodes
+	// come from it); the next poll asks Prometheus nothing.
+	sub.SetWindows(2 * time.Hour)
+	waitPoll(t, polls, 5)
+	nextPoll(t, h, sc, clk, 15*time.Second, polls, 6)
 	scorecard.Record(t, scorecard.Measurement{Budget: "P14", Metric: "Prometheus requests of a range change", Value: float64(c.proxyCount() - 9), Unit: "requests", Limit: 4, How: how})
 	if n := c.proxyCount(); n != 1+8+4 {
 		t.Errorf("%d Prometheus requests after a range change, want 13", n)
 	}
 	sub.Release()
+	if n := h.Subscribed(); n != 0 {
+		t.Errorf("%d scopes still polled after the Overview closed", n)
+	}
 	settled := c.conn.Counter().Snapshot().Total
-	time.Sleep(450 * time.Millisecond)
-	scorecard.Record(t, scorecard.Measurement{Budget: "P14", Metric: "requests in 450 ms after the Overview closed", Value: float64(c.conn.Counter().Snapshot().Total - settled), Unit: "requests", How: how})
+	h.Close() // waits for a poll still under way
+	scorecard.Record(t, scorecard.Measurement{Budget: "P14", Metric: "requests after the Overview closed", Value: float64(c.conn.Counter().Snapshot().Total - settled), Unit: "requests", How: how})
 	if got := c.conn.Counter().Snapshot().Total; got != settled {
 		t.Errorf("%d requests after the release", got-settled)
 	}

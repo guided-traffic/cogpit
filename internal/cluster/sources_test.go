@@ -17,12 +17,9 @@ import (
 
 // execPluginScript writes an exec credential plugin into dir: a shell script that appends a line
 // to the file $COGPIT_TEST_MARKER (so a test sees whether it ran) and prints an ExecCredential
-// with token. It returns the script's path.
+// with token. It returns the script's path. Windows cannot run it.
 func execPluginScript(t *testing.T, dir, token string) string {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
 	p := filepath.Join(dir, "bin", "cred-plugin")
 	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
 		t.Fatal(err)
@@ -89,7 +86,10 @@ func TestConnectAsksTheExecPolicyBeforeThePluginRuns(t *testing.T) {
 	script := execPluginScript(t, dir, secretToken)
 	marker := filepath.Join(dir, "marker")
 	path := filepath.Join(dir, "kubeconfig")
-	if err := os.WriteFile(path, []byte(execKubeconfig(srv, "plugged", "./bin/cred-plugin", marker, "--flag", "x")), 0o600); err != nil {
+	// client-go resolves a command against the kubeconfig's folder when it holds the system's
+	// separator (Windows': a backslash).
+	command := "." + string(filepath.Separator) + filepath.Join("bin", "cred-plugin")
+	if err := os.WriteFile(path, []byte(execKubeconfig(srv, "plugged", command, marker, "--flag", "x")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -117,6 +117,10 @@ func TestConnectAsksTheExecPolicyBeforeThePluginRuns(t *testing.T) {
 		t.Fatalf("the policy saw %+v, InspectFile listed %+v", seen, listed)
 	}
 
+	// The refusal runs nothing, on Windows too; what follows runs the plugin, a shell script.
+	if runtime.GOOS == "windows" {
+		t.Skip("the test plugin is a shell script")
+	}
 	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{path}, Context: "plugged",
 		ExecPolicy: func(*kubeconfig.ExecPlugin) error { return nil }})
 	if err != nil {

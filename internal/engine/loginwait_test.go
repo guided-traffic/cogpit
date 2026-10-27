@@ -20,7 +20,9 @@ import (
 const loginToken = "login-wait-token-0042"
 
 // loginStack is a session whose context "oidc" logs in with a test plugin against a fake API server.
-func loginStack(t *testing.T, bound time.Duration) (*Session, *testkit.LoginPlugin) {
+// The plugin's credential does not expire: a test makes the connection renew its login by
+// revoking the token on the server (SetToken), which answers 401.
+func loginStack(t *testing.T, bound time.Duration) (*Session, *testkit.LoginPlugin, *testkit.FakeAPIServer) {
 	t.Helper()
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: loginToken})
 	t.Cleanup(srv.Close)
@@ -33,7 +35,7 @@ func loginStack(t *testing.T, bound time.Duration) (*Session, *testkit.LoginPlug
 			LoginWait: 10 * time.Second, BackoffFirst: 100 * time.Millisecond, BackoffMax: 400 * time.Millisecond},
 	})
 	t.Cleanup(s.Close)
-	return s, p
+	return s, p, srv
 }
 
 func within(t *testing.T, d time.Duration) context.Context {
@@ -78,7 +80,7 @@ func startConnect(t *testing.T, s *Session, p *testkit.LoginPlugin) (<-chan erro
 // until, and the connection log says it; (a) Disconnect (Cancel Connecting) ends the plugin's
 // process at once and leaves the cluster disconnected, the attempt cancelled.
 func TestCancelConnectingEndsTheLogin(t *testing.T) {
-	s, p := loginStack(t, 0)
+	s, p, _ := loginStack(t, 0)
 	p.Block(true)
 	before := time.Now()
 	done, pid := startConnect(t, s, p)
@@ -135,7 +137,7 @@ func TestCancelConnectingEndsTheLogin(t *testing.T) {
 // (b) A login that does not finish within its bound fails the connect with a plain reason, its
 // process ended and the step in the connection log.
 func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
-	s, p := loginStack(t, 2*time.Second) // room for a race-enabled binary to start the plugin
+	s, p, _ := loginStack(t, time.Second) // the plugin is a shell script: the race detector does not slow its start
 	p.Block(true)
 	err := s.Connect(within(t, 10*time.Second), "oidc")
 	var ended *cluster.LoginEndedError
@@ -143,7 +145,7 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 		t.Fatalf("the connect: %v, want a timed-out login", err)
 	}
 	c := s.UIState().Connection
-	if c.State != ConnectError || !strings.Contains(c.Error, "the login through login-plugin did not finish within 2s; Connect starts it again") {
+	if c.State != ConnectError || !strings.Contains(c.Error, "the login through login-plugin did not finish within 1s; Connect starts it again") {
 		t.Errorf("the state: %+v", c)
 	}
 	if pid := p.LastPID(); !testkit.WaitFor(within(t, 5*time.Second), func() bool { return testkit.ProcessGone(pid) }) {
@@ -151,7 +153,7 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 	}
 	a := lastAttempt(t, s, "oidc", AttemptConnect)
 	if text := attemptText(a); a.Outcome != OutcomeFailed ||
-		!strings.Contains(text, "login: Login: the login through login-plugin did not finish within 2s; Cogpit ended it") {
+		!strings.Contains(text, "login: Login: the login through login-plugin did not finish within 1s; Cogpit ended it") {
 		t.Errorf("the attempt: %s\n%s", a.Outcome, text)
 	}
 }
@@ -159,12 +161,12 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 // Item 4: a renewal of a connection that stands, waiting for its plugin, says so, is bounded the
 // same way (Login expired, with the reason), and its process ends.
 func TestARenewalThatWaitsIsBounded(t *testing.T) {
-	s, p := loginStack(t, 1500*time.Millisecond)
-	p.Give(loginToken, time.Now().Add(2*time.Second)) // the connect's credential expires soon
+	s, p, srv := loginStack(t, time.Second)
 	if err := s.Connect(within(t, 10*time.Second), "oidc"); err != nil {
 		t.Fatal(err)
 	}
 	p.Block(true)
+	srv.SetToken("revoked-" + loginToken) // the next heartbeat's 401 renews the login: the plugin's second run
 	if !testkit.WaitFor(within(t, 15*time.Second), func() bool {
 		return s.UIState().Connection.WaitingForLogin.Program == "login-plugin" && p.Runs() == 2
 	}) {
@@ -177,7 +179,7 @@ func TestARenewalThatWaitsIsBounded(t *testing.T) {
 	}) {
 		t.Fatalf("the renewal past its bound: %+v", s.UIState().Connection)
 	}
-	if r := s.UIState().Connection.Reason; r != "the login through login-plugin did not finish within 1.5s; Log in again starts it again" {
+	if r := s.UIState().Connection.Reason; r != "the login through login-plugin did not finish within 1s; Log in again starts it again" {
 		t.Errorf("the reason: %q", r)
 	}
 	if !testkit.WaitFor(within(t, 5*time.Second), func() bool { return testkit.ProcessGone(pid) }) {
@@ -189,7 +191,7 @@ func TestARenewalThatWaitsIsBounded(t *testing.T) {
 
 	// Log in again starts it again.
 	p.Block(false)
-	p.Give(loginToken, time.Time{})
+	p.Give("revoked-"+loginToken, time.Time{})
 	if err := s.Login(); err != nil {
 		t.Fatal(err)
 	}
@@ -200,15 +202,13 @@ func TestARenewalThatWaitsIsBounded(t *testing.T) {
 
 // Item 4: Disconnect of a connection whose renewal waits for its plugin ends the plugin.
 func TestDisconnectEndsAWaitingRenewal(t *testing.T) {
-	s, p := loginStack(t, 0)
-	p.Give(loginToken, time.Now().Add(2*time.Second))
+	s, p, srv := loginStack(t, 0)
 	if err := s.Connect(within(t, 10*time.Second), "oidc"); err != nil {
 		t.Fatal(err)
 	}
 	p.Block(true)
-	// At least one renewal, not exactly one: a slow connect (the race detector, a busy runner) may
-	// outlive the first token, and the renewal that blocks is then the third run.
-	if !testkit.WaitFor(within(t, 15*time.Second), func() bool { return p.Runs() >= 2 && s.UIState().Connection.WaitingForLogin.Program != "" }) {
+	srv.SetToken("revoked-" + loginToken) // the next heartbeat's 401 renews the login
+	if !testkit.WaitFor(within(t, 15*time.Second), func() bool { return p.Runs() == 2 && s.UIState().Connection.WaitingForLogin.Program != "" }) {
 		t.Fatalf("the renewal never ran: %+v", s.UIState().Connection)
 	}
 	pid := p.LastPID()
@@ -223,7 +223,7 @@ func TestDisconnectEndsAWaitingRenewal(t *testing.T) {
 // A background connect of the restore that waits for its plugin shows it in its entry and is
 // cancelled by Disconnect of its context: the entry goes, the process ends, no toast.
 func TestCancelABackgroundConnect(t *testing.T) {
-	s, p := loginStack(t, 0)
+	s, p, _ := loginStack(t, 0)
 	p.Block(true)
 	done := make(chan error, 1)
 	go func() { done <- s.ConnectBackground(context.Background(), "oidc") }()
@@ -262,7 +262,7 @@ func TestCancelABackgroundConnect(t *testing.T) {
 // run. Before, the connect said nothing of what it waited for. Cancel Connecting stops its wait;
 // that run goes on, and the cancelled connect starts no run when it ends.
 func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
-	s, p := loginStack(t, 0)
+	s, p, _ := loginStack(t, 0)
 	p.Stray(true)
 	done := make(chan error, 1)
 	go func() { done <- s.Connect(context.Background(), "oidc") }()

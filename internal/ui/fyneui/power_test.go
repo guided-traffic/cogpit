@@ -114,7 +114,7 @@ func TestPollPowerCallsOnAChangeOnly(t *testing.T) {
 	reads0 := func() int { mu.Lock(); defer mu.Unlock(); return n }
 	changes := make(chan struct{}, 10)
 	stop := make(chan struct{})
-	pollPower(stop, time.Millisecond, read, func() { changes <- struct{}{} })
+	done := pollPower(stop, time.Millisecond, read, func() { changes <- struct{}{} })
 	for i := range 2 {
 		select {
 		case <-changes:
@@ -129,11 +129,10 @@ func TestPollPowerCallsOnAChangeOnly(t *testing.T) {
 		t.Errorf("%d calls more than the two changes", len(changes))
 	}
 	close(stop)
-	time.Sleep(10 * time.Millisecond)
-	before := reads0()
-	time.Sleep(20 * time.Millisecond)
-	if after := reads0(); after != before {
-		t.Errorf("the poll read %d times after its stop", after-before)
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the poll did not end with its stop")
 	}
 }
 
@@ -142,13 +141,17 @@ func TestPollPowerSurvivesAPanic(t *testing.T) {
 	var n atomic.Int32
 	stop := make(chan struct{})
 	defer close(stop)
-	pollPower(stop, time.Millisecond, func() bool {
+	done := pollPower(stop, time.Millisecond, func() bool {
 		if n.Add(1) == 2 {
 			panic("the power source")
 		}
 		return false
 	}, func() { t.Error("a change after a panic") })
-	time.Sleep(30 * time.Millisecond)
+	select {
+	case <-done: // with its stop still open
+	case <-time.After(5 * time.Second):
+		t.Fatal("the watch went on after the panic")
+	}
 	if got := n.Load(); got != 2 {
 		t.Errorf("%d reads, want the watch ended at the panic's second", got)
 	}

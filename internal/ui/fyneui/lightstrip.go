@@ -3,6 +3,7 @@ package fyneui
 import (
 	"image"
 	"image/color"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -59,8 +60,9 @@ type lightStrip struct {
 	model  stripModel
 	// ticker runs the clock while on and stops it otherwise (runTicker; a test records it).
 	ticker  func(on bool)
-	stop    chan struct{} // the running ticker's; nil while none runs
-	pending atomic.Bool   // a frame is posted and has not run yet
+	stop    chan struct{}  // the running ticker's; nil while none runs
+	pending atomic.Bool    // a frame is posted and has not run yet
+	ticking sync.WaitGroup // the ticker's goroutine until it has returned
 
 	glass   *canvas.Rectangle
 	slots   [stripSlots]*stripSlot
@@ -191,7 +193,9 @@ func (s *lightStrip) runTicker(on bool) {
 		stop := make(chan struct{})
 		s.stop = stop
 		every, stopAll := time.Second/time.Duration(max(1, s.fps)), s.sh.stopTickers
+		s.ticking.Add(1)
 		go func() {
+			defer s.ticking.Done()
 			t := time.NewTicker(every)
 			defer t.Stop()
 			for {

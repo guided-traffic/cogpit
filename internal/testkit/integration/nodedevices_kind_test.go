@@ -18,6 +18,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
 // What TestKindNodeDevices creates on the shared kind cluster: one cluster-scoped resource slice of a
@@ -102,17 +103,24 @@ func TestKindNodeDevices(t *testing.T) {
 		}
 		return out
 	}
-	waitFor(ctx, t, "the slice in the node's Devices", func() bool { return len(devices()) == 1 })
-	sec := devices()[0]
-	var slice *model.ObjectRef
-	for _, it := range sec.Items {
-		if it.Name == "Slice" {
-			slice = it.Link
+	// The section can come before its Claim column, which waits for the claims' index to be listed:
+	// wait for the section as asserted.
+	var sec []model.DetailSection
+	if !testkit.WaitFor(ctx, func() bool {
+		if sec = devices(); len(sec) != 1 {
+			return false
 		}
-	}
-	if slice == nil || slice.Name != nodeDevicesSlice || sec.Table == nil || len(sec.Table.Rows) != 1 ||
-		!slices.Equal(sec.Table.Rows[0], []string{"accel-0", "model: X1", "memory: 16.0 GiB", ""}) {
-		t.Errorf("the node's Devices: %+v, table %+v", sec, sec.Table)
+		var slice *model.ObjectRef
+		for _, it := range sec[0].Items {
+			if it.Name == "Slice" {
+				slice = it.Link
+			}
+		}
+		tbl := sec[0].Table
+		return slice != nil && slice.Name == nodeDevicesSlice && tbl != nil && len(tbl.Rows) == 1 &&
+			slices.Equal(tbl.Rows[0], []string{"accel-0", "model: X1", "memory: 16.0 GiB", ""})
+	}) {
+		t.Fatalf("the node's Devices: %+v", sec)
 	}
 
 	cleanup()

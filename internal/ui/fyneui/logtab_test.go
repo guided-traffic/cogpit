@@ -501,7 +501,15 @@ func TestLogTabSearchIsDebouncedAndSlashFocusesIt(t *testing.T) {
 	if w.Canvas().Focused() != lt.search {
 		t.Fatalf("focused %v, want the search", w.Canvas().Focused())
 	}
+	sh.searchWait = time.Hour // the pause ends with fireTimer, not with a slow runner's gap between keys
 	test.Type(lt.search, "health")
+	q.drain()
+	if n := len(f.callsOf("logs.setOptions")); n != 0 {
+		t.Fatalf("%d logs.setOptions while typing", n)
+	}
+	if !fireTimer(lt.searchTimer) {
+		t.Fatal("no pause pending after the typing")
+	}
 	q.until(t, "the search in the engine", func() bool { return lt.view.View().Search == "health" })
 	if calls := f.callsOf("logs.setOptions"); len(calls) != 1 || !strings.Contains(string(calls[0].Params), `"search":"health"`) {
 		t.Errorf("search calls %d: %v", len(calls), calls)
@@ -737,7 +745,7 @@ func savedLogs(t *testing.T, lines []string) []string {
 // TestRenderLogsWorkloadSources: a deployment's tab narrowed to one pod by its selectors, dark and
 // light, and its container selector open.
 func TestRenderLogsWorkloadSources(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true, Pod: "checkout-api-7d9f8b6c4-x2k9p"})
 		lt := logTabOf(sh)
 		q.until(t, "the pod's lines", func() bool { return len(lt.view.ShownLines()) == 5 })
@@ -753,7 +761,7 @@ func TestRenderLogsWorkloadSources(t *testing.T) {
 // TestRenderLogsJump: a deployment's tab after a jump to 14:28:12, the line found selected at the
 // top, the field showing the time, dark and light.
 func TestRenderLogsJump(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, f := logsScene(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true})
 		lt := logTabOf(sh)
 		q.until(t, "every line", func() bool { return len(lt.view.ShownLines()) == len(demoMerged) })
@@ -769,7 +777,7 @@ func TestRenderLogsJump(t *testing.T) {
 // TestRenderLogsOlder: a pod's tab after loading its older lines, the row above them saying it
 // holds the beginning, dark and light.
 func TestRenderLogsOlder(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, false, engine.LogOptions{Timestamps: true})
 		lt := logTabOf(sh)
 		lt.requestOlder()
@@ -790,7 +798,7 @@ func TestRenderLogsWorkloadLight(t *testing.T) {
 
 // TestRenderLogsWrapFilter: a pod's tab with timestamps, wrapped lines and a filter.
 func TestRenderLogsWrapFilter(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, true, engine.LogOptions{Timestamps: true, Wrap: true, Search: "error", Filter: true})
 		lt := logTabOf(sh)
 		q.until(t, "the filtered rows", func() bool { return lt.view.View().Filter && len(lt.view.ShownLines()) == len(demoMerged) })

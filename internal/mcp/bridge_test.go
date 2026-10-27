@@ -303,11 +303,18 @@ func TestBridgeFollowsARegenerate(t *testing.T) {
 	app.server.mu.Lock()
 	g := app.server.guard
 	app.server.mu.Unlock()
+	refusals := func() int { return strings.Count(app.logs.String(), "status=401") }
+	before := refusals()
 	g.rotate(newer)
-	go func() {
-		time.Sleep(100 * time.Millisecond)
+	written := make(chan struct{})
+	go func() { // once the server refused the token the bridge holds
+		defer close(written)
+		for deadline := time.Now().Add(10 * time.Second); refusals() == before && time.Now().Before(deadline); {
+			time.Sleep(5 * time.Millisecond)
+		}
 		_ = writeTokenFile(tokenPath, newer, false)
 	}()
+	t.Cleanup(func() { <-written })
 	if res := call(t, cs, "ui_state", nil); res.IsError {
 		t.Fatalf("ui_state after a refused token: %s", text(res))
 	}

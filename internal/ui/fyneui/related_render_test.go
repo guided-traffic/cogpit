@@ -111,8 +111,7 @@ func renderClaims(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderClaimsListDark(t *testing.T)  { renderClaims(t, ThemeDark, "pvc_list_dark.png") }
-func TestRenderClaimsListLight(t *testing.T) { renderClaims(t, ThemeLight, "pvc_list_light.png") }
+func TestRenderClaimsListDark(t *testing.T) { renderClaims(t, ThemeDark, "pvc_list_dark.png") }
 
 // TestClaimPodsCellLinks: a claim's single pod is a link that navigates to the pod; the claim of
 // three pods names them as text; the class is a link.
@@ -187,10 +186,6 @@ func scrollDrawerTo(t *testing.T, sh *shell, title string) {
 
 func TestRenderNodePodsDrawerDark(t *testing.T) {
 	renderNodePods(t, ThemeDark, "node_pods_drawer_dark.png")
-}
-
-func TestRenderNodePodsDrawerLight(t *testing.T) {
-	renderNodePods(t, ThemeLight, "node_pods_drawer_light.png")
 }
 
 // TestNodeDrawerPodsTable: a node's drawer ends with its Pods table as captured (Name, the

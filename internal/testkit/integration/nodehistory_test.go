@@ -83,7 +83,7 @@ func (p *kpsProm) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func TestNodeHistoryOnKubePrometheusStack(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess(), Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
 		testkit.FakeResource{GVR: testkit.NodesGVR, Kind: "Node"},
 		testkit.FakeResource{GVR: nodeMetricsGVR, Kind: "NodeMetrics"})})
 	defer srv.Close()

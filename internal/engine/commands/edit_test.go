@@ -497,7 +497,10 @@ func TestCreateTabAndTemplates(t *testing.T) {
 	got := make(chan engine.Event, 4)
 	cancel := h.s.Subscribe(func(ev engine.Event) {
 		if ev.Type == engine.EventEditor {
-			got <- ev
+			select { // never block the engine's goroutine that emits
+			case got <- ev:
+			default:
+			}
 		}
 	})
 	defer cancel()

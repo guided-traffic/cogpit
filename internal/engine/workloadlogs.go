@@ -47,7 +47,8 @@ const (
 	workloadLogMinTail = 100
 	// workloadLogLineBytes cuts longer lines (the log view keeps 64 KiB of a line too).
 	workloadLogLineBytes = 64 << 10
-	// workloadLogRescan is the most often the pods are looked at again after a change.
+	// workloadLogRescan is the most often the pods are looked at again after a change, unless the
+	// session's options say otherwise (Options.LogRescan).
 	workloadLogRescan = 250 * time.Millisecond
 )
 
@@ -276,7 +277,7 @@ func (s *Session) newWorkloadLogs(ctx context.Context, tab DockTab, ref model.Ob
 	}
 	go func() {
 		defer s.recoverTo("workload logs")
-		runCoalesced(wl.stop, wl.wake, workloadLogRescan, nil, func() { wl.start(wl.scan(), int64(bounds.tail)) })
+		runCoalesced(wl.stop, wl.wake, s.opts.LogRescan, nil, func() { wl.start(wl.scan(), int64(bounds.tail)) })
 	}()
 	return wl, nil
 }

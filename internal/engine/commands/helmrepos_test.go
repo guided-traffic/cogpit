@@ -272,11 +272,15 @@ func TestHelmReposFromHelmsFile(t *testing.T) {
 }
 
 // Helm's file is taken over as it changes: a repository added, given another URL or removed there
-// is in Cogpit within 5 seconds at the default poll (2 s), with the Charts view open: a new
-// repository's index downloads at once, a changed URL never shows the old URL's charts, a removed
-// repository's charts leave the helmcharts kind.
+// is in Cogpit within 5 seconds, with the Charts view open: a new repository's index downloads at
+// once, a changed URL never shows the old URL's charts, a removed repository's charts leave the
+// helmcharts kind. The changes are followed at the harness's poll; the 5 seconds (D-29) are the
+// default poll and the file's settle of at most 250 ms.
 func TestHelmRepoFileChangesWithinFiveSeconds(t *testing.T) {
-	h := newChartHarness(t, nil, engine.WithRepositoryFilePoll(engine.DefaultHelmRepositoryFilePoll))
+	if took := engine.DefaultHelmRepositoryFilePoll + 250*time.Millisecond; took >= 5*time.Second {
+		t.Errorf("a change of Helm's file is read %s after it was written, want under 5 s", took)
+	}
+	h := newChartHarness(t, nil)
 	other := testkit.NewHelmRepo(t, testkit.TestChart{Name: "api", Version: "1.0.0",
 		Templates: map[string]string{"templates/cm.yaml": "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: x\n"}})
 	if _, err := h.dispatch(engine.OriginGUI, "ui.openView", map[string]any{"view": kinds.HelmChartsKey}); err != nil {
@@ -284,14 +288,11 @@ func TestHelmRepoFileChangesWithinFiveSeconds(t *testing.T) {
 	}
 	h.list(t, engine.OriginGUI)
 
-	start := time.Now()
 	h.helmFile.Write(h.repo.Entry("test"))
 	if names := h.chartsWithin(t, 1, 5*time.Second); names[0] != "test.web" {
 		t.Errorf("added: %v", names)
 	}
-	t.Logf("added and its index downloaded after %s", time.Since(start).Round(time.Millisecond))
 
-	start = time.Now()
 	h.helmFile.Write(&repo.Entry{Name: "test", URL: other.URL})
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -301,15 +302,12 @@ func TestHelmRepoFileChangesWithinFiveSeconds(t *testing.T) {
 	}) {
 		t.Errorf("the changed URL's charts are not listed within 5 s: %v", h.chartsWithin(t, 1, time.Second))
 	}
-	t.Logf("its URL changed after %s", time.Since(start).Round(time.Millisecond))
 	if other.Requests("/index.yaml") != 1 {
 		t.Errorf("the new URL's index was downloaded %d times", other.Requests("/index.yaml"))
 	}
 
-	start = time.Now()
 	h.helmFile.Write()
 	h.chartsWithin(t, 0, 5*time.Second)
-	t.Logf("removed after %s", time.Since(start).Round(time.Millisecond))
 	if l := h.list(t, engine.OriginGUI); len(l.Repositories) != 0 || l.Status != engine.HelmFileOK || l.Hint == "" {
 		t.Errorf("after the removal: %+v", l)
 	}
@@ -463,8 +461,18 @@ func TestHelmIndexRefreshedOnlyWhileShown(t *testing.T) {
 	if _, err := h.dispatch(engine.OriginGUI, "ui.openView", map[string]any{"view": "pods"}); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(60 * time.Millisecond) // a download that had started ends
-	n := h.repo.Requests("/index.yaml")
+	// A download under way as the view closed may still reach the server: counted once the
+	// downloads stayed the same for longer than an index lives (40 ms), which polls that went on
+	// would not allow.
+	n, since := h.repo.Requests("/index.yaml"), time.Now()
+	if !testkit.WaitFor(ctx, func() bool {
+		if m := h.repo.Requests("/index.yaml"); m != n {
+			n, since = m, time.Now()
+		}
+		return time.Since(since) >= 60*time.Millisecond
+	}) {
+		t.Fatalf("the downloads went on after the Charts view closed: %d", n)
+	}
 	time.Sleep(200 * time.Millisecond)
 	if m := h.repo.Requests("/index.yaml"); m != n {
 		t.Errorf("%d downloads after the Charts view closed", m-n)

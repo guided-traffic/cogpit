@@ -114,8 +114,7 @@ func TestCopyIconSurvivesARebuild(t *testing.T) {
 	}
 }
 
-func TestRenderCopyIconPlacementDark(t *testing.T)  { renderCopyPlacement(t, ThemeDark, "dark") }
-func TestRenderCopyIconPlacementLight(t *testing.T) { renderCopyPlacement(t, ThemeLight, "light") }
+func TestRenderCopyIconPlacementDark(t *testing.T) { renderCopyPlacement(t, ThemeDark, "dark") }
 
 // renderCopyPlacement renders the pod drawer with a label chip, a Pod IPs chip and a text value
 // hovered in turn.

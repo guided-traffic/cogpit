@@ -228,12 +228,21 @@ func TestWindowPlaceKeeper(t *testing.T) {
 		mu.Unlock()
 		return err
 	}
-	k.delay = 20 * time.Millisecond
+	k.delay = time.Hour // the window stays put once fireTimer says so, not after a slow runner's pause
 	t.Cleanup(k.finish) // no timer's write after the test
 	written := func() int { mu.Lock(); defer mu.Unlock(); return writes }
 
 	for i := range 10 { // a drag: ten moves, one write
 		k.changed(placeFrameOn(placeRect{X: float64(100 + i), Y: 100, Width: 900, Height: 700}, &placeBuiltIn, false))
+	}
+	if n := written(); n != 0 {
+		t.Fatalf("%d writes during the drag", n)
+	}
+	k.mu.Lock()
+	pause := k.timer
+	k.mu.Unlock()
+	if !fireTimer(pause) {
+		t.Fatal("no pause pending after the drag")
 	}
 	waitForPlace(t, "the first write", func() bool { return written() == 1 })
 	want := placeFrameOn(placeRect{X: 109, Y: 100, Width: 900, Height: 700}, &placeBuiltIn, false)

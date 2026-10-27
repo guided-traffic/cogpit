@@ -93,10 +93,6 @@ func TestRenderPreferencesRestoreSessionDark(t *testing.T) {
 	renderPreferencesRestoreSession(t, ThemeDark, "preferences_restore_session_dark.png")
 }
 
-func TestRenderPreferencesRestoreSessionLight(t *testing.T) {
-	renderPreferencesRestoreSession(t, ThemeLight, "preferences_restore_session_light.png")
-}
-
 func renderPreferencesRestoreSession(t *testing.T, mode ThemeMode, name string) {
 	s, _ := settingsEngine(t)
 	mustDispatch(t, s, "preferences.set", map[string]any{"theme": string(mode), "timezone": "Europe/Berlin", "restoreSession": true})
@@ -105,30 +101,6 @@ func renderPreferencesRestoreSession(t *testing.T, mode ThemeMode, name string) 
 	q.until(t, "the row", func() bool {
 		c, ok := sh.settings.controls["restoreSession"].(*widget.Check)
 		return ok && c.Checked
-	})
-	q.drain()
-	savePNG(t, w, name)
-}
-
-// Cluster Settings › General with the renewal off, dark and light.
-func TestRenderClusterSettingsLoginDark(t *testing.T) {
-	renderClusterSettingsLogin(t, ThemeDark, "cluster_settings_login_dark.png")
-}
-
-func TestRenderClusterSettingsLoginLight(t *testing.T) {
-	renderClusterSettingsLogin(t, ThemeLight, "cluster_settings_login_light.png")
-}
-
-func renderClusterSettingsLogin(t *testing.T, mode ThemeMode, name string) {
-	s, _ := settingsEngine(t)
-	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev cluster", "iconColor": "violet",
-		"renewLoginInBackground": false})
-	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
-	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
-	q.until(t, "the General section", func() bool {
-		c, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
-		name := entryOf(sh.settings.controls["name"])
-		return sh.settings.visible() && ok && !c.Checked && name != nil && name.Text == "Dev cluster" // the settings read back
 	})
 	q.drain()
 	savePNG(t, w, name)

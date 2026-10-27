@@ -56,6 +56,10 @@ func relayout(o fyne.CanvasObject) {
 	}
 }
 
+// pngKept reports whether the renders' pictures are written (-update, COGPIT_PNG_DIR): a scene that
+// waits only to give its picture a shape (a chart's series) waits that long only then.
+func pngKept() bool { return *updatePNG || os.Getenv("COGPIT_PNG_DIR") != "" }
+
 // lookPNG captures the window, which paints every renderer (the check), and writes the picture to
 // COGPIT_PNG_DIR when that is set, for a look, never to testdata: the pictures a test only shows,
 // as against the ones writePNG keeps in testdata. Before D-112 it went to a temporary folder the

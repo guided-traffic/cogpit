@@ -76,7 +76,28 @@ func TestStartLocalUsesCurrentContextAndItsNamespace(t *testing.T) {
 	}
 }
 
+// ownTempDir makes a directory of the test's own the temporary directory, where a local start
+// writes the terminal's kubeconfig and kubectl's directory, and returns it.
+func ownTempDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} { // Unix's, then Windows' (GetTempPath)
+		t.Setenv(name, dir)
+	}
+	return dir
+}
+
+// noSessionFiles fails the test when a failed start left a terminal kubeconfig or kubectl's
+// directory in dir: the kubeconfig holds the user's credentials.
+func noSessionFiles(t *testing.T, dir, what string) {
+	t.Helper()
+	if left, _ := filepath.Glob(filepath.Join(dir, "cogpit-terminal-*")); len(left) > 0 {
+		t.Errorf("%s left %v behind", what, left)
+	}
+}
+
 func TestStartLocalErrors(t *testing.T) {
+	tmp := ownTempDir(t)
 	user := writeUserKubeconfig(t)
 	cases := map[string]LocalOptions{
 		"unknown context": {KubeconfigPaths: []string{user}, Context: "nope", Shell: plainShell()},
@@ -94,20 +115,15 @@ func TestStartLocalErrors(t *testing.T) {
 			if strings.Contains(err.Error(), "secret-token") {
 				t.Errorf("error leaks a credential: %v", err)
 			}
+			noSessionFiles(t, tmp, "the failed start")
 		})
-	}
-	// No terminal kubeconfig is left behind by a failed start.
-	left, _ := filepath.Glob(filepath.Join(os.TempDir(), "cogpit-terminal-*.kubeconfig"))
-	for _, f := range left {
-		if data, err := os.ReadFile(f); err == nil && strings.Contains(string(data), `"nope"`) {
-			t.Errorf("failed start left %s behind", f)
-		}
 	}
 }
 
 // A kubectl that is not a file, or not given as an absolute path, is refused before the shell
 // starts.
 func TestStartLocalRefusesABadKubectl(t *testing.T) {
+	tmp := ownTempDir(t)
 	user := writeUserKubeconfig(t)
 	for _, bad := range []string{binaryName(), filepath.Join(t.TempDir(), "missing", binaryName()), t.TempDir()} {
 		sess, err := StartLocal(LocalOptions{KubeconfigPaths: []string{user}, Shell: plainShell(), Dir: t.TempDir(), Kubectl: bad})
@@ -115,5 +131,7 @@ func TestStartLocalRefusesABadKubectl(t *testing.T) {
 			_ = sess.Close()
 			t.Errorf("kubectl %q accepted", bad)
 		}
+		// The terminal's kubeconfig was written before kubectl was refused.
+		noSessionFiles(t, tmp, "refusing kubectl "+bad)
 	}
 }

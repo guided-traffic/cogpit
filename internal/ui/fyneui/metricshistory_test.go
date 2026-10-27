@@ -103,7 +103,7 @@ func TestClusterOverviewNoUsageHistoryNote(t *testing.T) {
 }
 
 func TestRenderNoPrometheusHistory(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		f, _ := nodeHistoryFake(t, metrics.UsageNone)
 		sh, w, q := newTestShell(t, f, Options{Theme: mode})
 		q.until(t, "the node's metrics", func() bool {

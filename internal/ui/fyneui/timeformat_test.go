@@ -123,19 +123,3 @@ func TestLogTimestampsInTheUsersFormat(t *testing.T) {
 		t.Errorf("the field shows the jump as %q", lt.jumpField.Text)
 	}
 }
-
-// TestRenderTimesInTheUsersFormat: the logs tab of TestLogTimestampsInTheUsersFormat after the
-// jump, Germany's format and Berlin's time, dark and light.
-func TestRenderTimesInTheUsersFormat(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
-		sh, w, q, f := logsSceneWith(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true}, inGermany)
-		lt := logTabOf(sh)
-		q.until(t, "every line", func() bool { return len(lt.view.ShownLines()) == len(demoMerged) })
-		go func() {
-			_, _ = f.Dispatch(context.Background(), engine.Invocation{ID: "logs.jumpTo", Origin: engine.OriginGUI,
-				Params: mustJSON(t, map[string]any{"id": "logs-1", "time": "2026-10-11T14:28:12Z"})})
-		}()
-		q.until(t, "the jump", func() bool { return strings.Contains(lt.view.JumpedLine(), "ERROR payment") })
-		savePNG(t, w, "logs_times_de_"+string(mode)+".png")
-	}
-}

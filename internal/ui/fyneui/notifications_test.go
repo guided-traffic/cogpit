@@ -20,6 +20,12 @@ import (
 // moves a minute per notification, the times shown in UTC.
 func notesShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *engine.Session) {
 	t.Helper()
+	return notesShellWith(t, Options{Theme: mode})
+}
+
+// notesShellWith is notesShell with the window's options.
+func notesShellWith(t *testing.T, opts Options) (*shell, fyne.Window, *mainQueue, *engine.Session) {
+	t.Helper()
 	var tick atomic.Int64
 	s := newTestEngine(engine.Options{Now: func() time.Time { return fixedNow.Add(time.Duration(tick.Add(1)) * time.Minute) }})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
@@ -27,11 +33,11 @@ func notesShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue, 
 	}
 	t.Cleanup(s.Close)
 	a := test.NewTempApp(t)
-	a.Settings().SetTheme(newTheme(mode))
+	a.Settings().SetTheme(newTheme(opts.Theme))
 	w := test.NewTempWindow(t, nil)
 	w.SetPadded(false)
 	q := &mainQueue{}
-	sh := newShell(s, a, w, Options{Theme: mode}, q.do)
+	sh := newShell(s, a, w, opts, q.do)
 	sh.now = func() time.Time { return fixedNow.Add(time.Hour) }
 	sh.zone = time.UTC
 	sh.confirmer.armDelay = 0
@@ -177,9 +183,13 @@ func TestNotificationBellAndPanel(t *testing.T) {
 
 // The crash report the last run left (D-11) is a warning toast at start, and in the list.
 func TestCrashNoticeInTheList(t *testing.T) {
-	sh, _, q, _ := notesShell(t, ThemeDark)
 	notice := "Cogpit ended unexpectedly on 2026-10-11 14:00. The crash report is in /tmp/crashes/crash-1.log; please attach it when you report the problem."
-	sh.toast("warning", notice) // what Run does with Options.StartWarning
+	// As Run starts the window after a crash (D-11), and shows the start's notices once it is up.
+	sh, _, q, _ := notesShellWith(t, Options{Theme: ThemeDark, StartWarning: notice})
+	sh.showStartNotices()
+	if n := len(toastCards(sh)); n != 1 {
+		t.Errorf("%d toasts at the start, want the crash notice's", n)
+	}
 	q.until(t, "one unread", func() bool { return sh.ui.Notifications.Unread == 1 })
 	test.Tap(sh.top.notes.bell)
 	q.until(t, "the notice", func() bool { return slices.Equal(shownNotes(sh.top.notes), []string{"warning: " + notice}) })

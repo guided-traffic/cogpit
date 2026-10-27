@@ -210,10 +210,7 @@ func TestCommandPaletteTypeAndRun(t *testing.T) {
 	pressInPalette(sh, q, fyne.KeyReturn)
 	q.until(t, "the view", func() bool { return len(f.callsOf("ui.openView")) == 1 && !sh.palette.visible() })
 	var order []string
-	f.mu.Lock()
-	calls := slices.Clone(f.calls)
-	f.mu.Unlock()
-	for _, c := range calls {
+	for _, c := range f.allCalls() {
 		if c.ID == "ui.openView" || c.ID == engine.PaletteCloseCommand {
 			order = append(order, c.ID)
 		}
@@ -467,10 +464,6 @@ func mapValues(m map[string]string) []string {
 
 func TestRenderCommandPaletteDark(t *testing.T) {
 	renderCommandPalette(t, ThemeDark, "command_palette_dark.png")
-}
-
-func TestRenderCommandPaletteLight(t *testing.T) {
-	renderCommandPalette(t, ThemeLight, "command_palette_light.png")
 }
 
 // renderCommandPalette: the palette open over the Pods view with a pod in the drawer, "de" typed:

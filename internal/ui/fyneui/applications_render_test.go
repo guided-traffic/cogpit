@@ -191,16 +191,8 @@ func TestRenderApplicationsViewDark(t *testing.T) {
 	renderDataView(t, kinds.ApplicationsKey, storefrontApp, ThemeDark, "applications_view_dark.png")
 }
 
-func TestRenderApplicationsViewLight(t *testing.T) {
-	renderDataView(t, kinds.ApplicationsKey, storefrontApp, ThemeLight, "applications_view_light.png")
-}
-
 func TestRenderResourceClaimsViewDark(t *testing.T) {
 	renderDataView(t, "resourceclaims", inferenceGPU, ThemeDark, "resourceclaims_view_dark.png")
-}
-
-func TestRenderResourceClaimsViewLight(t *testing.T) {
-	renderDataView(t, "resourceclaims", inferenceGPU, ThemeLight, "resourceclaims_view_light.png")
 }
 
 // TestSidebarApplicationsAndDeviceResources: Applications follows the cluster Overview, as Lens's

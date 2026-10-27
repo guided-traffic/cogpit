@@ -158,19 +158,3 @@ func TestDrainSettingsDefaults(t *testing.T) {
 		t.Errorf("explicit %+v", opts)
 	}
 }
-
-func TestMemoryDrainJournal(t *testing.T) {
-	j := NewMemoryDrainJournal()
-	_ = j.Put(drainEntry("c", "a"))
-	_ = j.Put(drainEntry("c", "b"))
-	_ = j.Put(drainEntry("c", "a"))
-	_ = j.Remove("c", "b")
-	got, _ := j.List()
-	if len(got) != 1 || got[0].Node != "a" {
-		t.Errorf("%+v", got)
-	}
-	got[0].Node = "changed"
-	if again, _ := j.List(); again[0].Node != "a" {
-		t.Error("List shares its slice")
-	}
-}

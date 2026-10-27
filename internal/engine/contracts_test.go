@@ -288,7 +288,7 @@ type accessParams struct {
 func TestAccessReviewsDisableCommands(t *testing.T) {
 	src := testkit.NewMemorySource()
 	src.Set(testkit.PodsGVR, testkit.Pod("apps", "web"))
-	s, _ := newTestSession(t, src, 5*time.Millisecond)
+	s, fc := newTestSession(t, src, 5*time.Millisecond)
 	for _, spec := range []Spec[accessParams]{
 		{ID: "test.evict", Danger: DangerRead, Verbs: []Verb{{Verb: "create", Resource: "pods", Subresource: "eviction"}}},
 		{ID: "test.del", Danger: DangerRead, Verbs: []Verb{{Verb: "delete", Resource: "*"}}},
@@ -303,12 +303,12 @@ func TestAccessReviewsDisableCommands(t *testing.T) {
 		Run: func(context.Context, *Session, struct{}) (any, error) { return "ran", nil }}); err != nil {
 		t.Fatal(err)
 	}
-	connectTest(t, s)
-	s.Backend().Access = fakeAccess{deny: map[string]bool{
+	fc.access = fakeAccess{deny: map[string]bool{
 		"create pods/eviction apps": true,
 		"delete pods/ apps":         true,
 		"delete pods/ ":             true,
 	}}
+	connectTest(t, s)
 	params, _ := json.Marshal(accessParams{Ref: model.ObjectRef{Kind: "pods", Namespace: "apps", Name: "web"}})
 	for id, wantDenied := range map[string]bool{"test.evict": true, "test.del": true, "test.logs": false, "test.noref": false} {
 		cmd, _ := s.Registry().Get(id)

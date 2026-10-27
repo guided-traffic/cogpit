@@ -2,8 +2,6 @@ package metrics_test
 
 import (
 	"context"
-	"maps"
-	"slices"
 	"testing"
 	"time"
 
@@ -30,7 +28,9 @@ func connectFake(t *testing.T, opts testkit.FakeAPIOptions) (*testkit.FakeAPISer
 	t.Helper()
 	srv := testkit.NewFakeAPIServer(opts)
 	t.Cleanup(srv.Close)
-	conn, err := cluster.Connect(context.Background(), cluster.Options{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "default")}})
+	// A limiter that never waits: the tests count requests, the cluster's default 5 a second would
+	// only delay them.
+	conn, err := cluster.Connect(context.Background(), cluster.Options{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "default")}, QPS: 1000, Burst: 1000})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,14 +93,15 @@ func TestHubOverTheCountingTransport(t *testing.T) {
 	list.Release()
 	drawer.Release()
 	nodes.Release()
+	// Close waits for the polls under way, so the counts below are final.
+	h.Close()
 
 	// The counting transport sees every request once: the server's own count of the Metrics API
 	// requests is the counter's, not twice it (the typed client is built on the connection's client).
-	// The counter counts a request when it is sent and the server when it handles it: a poll still
-	// in flight when the subscriptions ended lands later, so wait for the two to agree (a CI flake).
-	// A poll cancelled by the release while in flight is counted by the client and may never reach
-	// the server (seen once under -race -count=2, 2026-10-12): one more on the client's side, per
-	// key, is that poll, not a request counted twice.
+	// The counter counts a request when it is sent and the server when it handles it, so wait for
+	// the server's side. A poll that Close cancelled in flight is counted by the client and may never
+	// reach the server: one more on the client's side, per key, is that poll, not a request counted
+	// twice.
 	keys := []string{"list pods.metrics.k8s.io", "get pods.metrics.k8s.io", "list nodes.metrics.k8s.io"}
 	agree := func() bool {
 		snap := conn.Counter().Snapshot()
@@ -112,22 +113,6 @@ func TestHubOverTheCountingTransport(t *testing.T) {
 		return true
 	}
 	eventually(t, "the counter and the server to agree", agree)
-	// A poll sent before the release may still wait in client-go's client-side rate limiter and be
-	// counted after it (CI's race job, 2026-10-17: "Waited before sending request" 1.2 s, then one
-	// more list): wait until the polls already under way have landed, a quiet 150 ms.
-	metricsKeys := func() map[string]int64 {
-		snap := conn.Counter().Snapshot()
-		out := map[string]int64{}
-		for _, key := range keys {
-			out[key] = snap.ByVerbResource[key]
-		}
-		return out
-	}
-	eventually(t, "the polls under way to land", func() bool {
-		a := metricsKeys()
-		time.Sleep(150 * time.Millisecond)
-		return maps.Equal(a, metricsKeys())
-	})
 	snap := conn.Counter().Snapshot()
 	if snap.ByVerb["watch"] != 0 || snap.ByVerb["watchlist"] != 0 {
 		t.Errorf("metrics were watched: %v", snap.ByVerb)
@@ -135,21 +120,6 @@ func TestHubOverTheCountingTransport(t *testing.T) {
 	// One discovery request for the group, however many polls followed.
 	if n := snap.ByVerbResource["discovery"]; n > 6 {
 		t.Errorf("%d discovery requests (connect and the group's): detection must be kept", n)
-	}
-	// After the release no poll: the metrics requests stay as they were. A late discovery request
-	// of the connect is not a poll (CI 2026-10-14 counted one more request in all), so the total is
-	// not compared; what changed is named.
-	time.Sleep(120 * time.Millisecond)
-	after := conn.Counter().Snapshot()
-	for _, key := range keys {
-		if got := after.ByVerbResource[key]; got != snap.ByVerbResource[key] {
-			t.Errorf("%d more %q after everything was released", got-snap.ByVerbResource[key], key)
-		}
-	}
-	for key, n := range after.ByVerbResource {
-		if n != snap.ByVerbResource[key] && !slices.Contains(keys, key) {
-			t.Logf("after the release: %d more %q (not a metrics poll)", n-snap.ByVerbResource[key], key)
-		}
 	}
 }
 

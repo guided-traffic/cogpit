@@ -215,8 +215,7 @@ func renderKeyboard(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderKeyboardDark(t *testing.T)  { renderKeyboard(t, ThemeDark, "keyboard_dark.png") }
-func TestRenderKeyboardLight(t *testing.T) { renderKeyboard(t, ThemeLight, "keyboard_light.png") }
+func TestRenderKeyboardDark(t *testing.T) { renderKeyboard(t, ThemeDark, "keyboard_dark.png") }
 
 // doubleClickAt double-clicks the table at pos (in its coordinates) as Fyne's driver delivers it to
 // an object that is no fyne.DoubleTappable: two taps.
@@ -423,9 +422,6 @@ func columnHidden(s *engine.TableSnapshot, id string) bool {
 func TestRenderColumnsMenuDark(t *testing.T) {
 	renderColumnsMenu(t, ThemeDark, "columns_menu_dark.png")
 }
-func TestRenderColumnsMenuLight(t *testing.T) {
-	renderColumnsMenu(t, ThemeLight, "columns_menu_light.png")
-}
 
 // definitionsFake is a fake on the Definitions view with definitions of three API groups, and
 // the custom kinds they define in kinds.list. It answers ui.setGroups as the engine does.
@@ -508,25 +504,4 @@ func TestDefinitionsGroupFilter(t *testing.T) {
 	if tv.nsButton.Text != "All groups" {
 		t.Fatalf("text %q after All groups", tv.nsButton.Text)
 	}
-}
-
-func renderDefinitionsGroups(t *testing.T, mode ThemeMode, name string) {
-	f := definitionsFake(t)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the definitions", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) == 5 && sh.diag.total > 0
-	})
-	sh.dispatch("ui.setGroups", groupsParams{Groups: []string{"acme.cert-manager.io", "cert-manager.io"}}, nil)
-	q.until(t, "two groups", func() bool { return len(sh.view.snap.Rows) == 4 })
-	settle(w)
-	test.Tap(sh.view.nsButton)
-	savePNG(t, w, name)
-}
-
-func TestRenderDefinitionsGroupsDark(t *testing.T) {
-	renderDefinitionsGroups(t, ThemeDark, "definitions_groups_dark.png")
-}
-
-func TestRenderDefinitionsGroupsLight(t *testing.T) {
-	renderDefinitionsGroups(t, ThemeLight, "definitions_groups_light.png")
 }

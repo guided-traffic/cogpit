@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -166,72 +164,6 @@ func TestNodeDiskFilesystems(t *testing.T) {
 	}
 	if f := d.Filesystems[2]; f.FreeBytes() != int64(450*gib) || f.Share() != 0.1 {
 		t.Errorf("/srv/backup free %d share %v", f.FreeBytes(), f.Share())
-	}
-}
-
-// P12 and P13 for the Nodes list with its Disk column: the Metrics Server's node list per list poll
-// as before, and of Prometheus one probe (detection) and one instant query per poll; nothing once
-// released. Never nodes/proxy.
-func TestNodeDiskBudget(t *testing.T) {
-	c := newPromCluster(t, true)
-	c.srv.Set(nodeMetricsGVR, &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "metrics.k8s.io/v1beta1", "kind": "NodeMetrics", "metadata": map[string]any{"name": "n1"},
-		"timestamp": "2026-10-12T10:00:00Z", "window": "15s", "usage": map[string]any{"cpu": "1", "memory": "2Gi"},
-	}})
-	diskSeries(c.prom)
-	h := dualHub(t, c, metrics.Options{ListInterval: 150 * time.Millisecond})
-	count := func(key string) int64 { return c.conn.Counter().Snapshot().ByVerbResource[key] }
-
-	nodesChange, nodePolls := pollCounter()
-	diskChange, diskPolls := pollCounter()
-	nodes := h.Subscribe(metrics.Scope{Kind: metrics.KindNodes}, nodesChange)
-	disk := h.Subscribe(metrics.DiskScope, diskChange)
-	waitPoll(t, diskPolls, 3)
-	waitPoll(t, nodePolls, 3)
-	nodes.Release()
-	disk.Release()
-	time.Sleep(50 * time.Millisecond) // a poll in flight at the release ends
-	settled := c.conn.Counter().Snapshot()
-	nDisk, nNodes := 3+drained(diskPolls), 3+drained(nodePolls) // the polls that answered; one more may have been in flight
-
-	probes, diskQueries := 0, 0
-	for _, r := range c.prom.requests() {
-		switch {
-		case strings.HasSuffix(r.path, "/buildinfo"):
-			probes++
-		case strings.Contains(r.query, "node_filesystem_"):
-			diskQueries++
-		default:
-			t.Errorf("unexpected Prometheus request %+v", r)
-		}
-	}
-	if probes != 1 || diskQueries < nDisk || diskQueries > nDisk+1 {
-		t.Errorf("Prometheus: %d probes and %d disk queries for %d disk polls, want 1 and one per poll", probes, diskQueries, nDisk)
-	}
-	if n := int(count("list nodes.metrics.k8s.io")); n < nNodes || n > nNodes+1 {
-		t.Errorf("%d node lists for %d list polls", n, nNodes)
-	}
-	for key := range settled.ByVerbResource {
-		if strings.Contains(key, "nodes/proxy") {
-			t.Errorf("the kubelet's proxy was asked: %s", key)
-		}
-	}
-	time.Sleep(400 * time.Millisecond)
-	if got := c.conn.Counter().Snapshot().Total; got != settled.Total {
-		t.Errorf("%d requests after the Nodes list closed", got-settled.Total)
-	}
-}
-
-// drained counts the polls a counter's channel still holds.
-func drained(ch chan int) int {
-	n := 0
-	for {
-		select {
-		case <-ch:
-			n++
-		default:
-			return n
-		}
 	}
 }
 

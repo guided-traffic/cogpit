@@ -303,7 +303,7 @@ func TestDeleteManyRefusals(t *testing.T) {
 	if err := cmd.Enabled(h.s, engine.SelectionParams(refs)); err != nil {
 		t.Errorf("three cached Services: %v", err)
 	}
-	h.s.Backend().Access = denyAccess{"delete services shop": true}
+	h.access.set(denyAccess{"delete services shop": true})
 	if err := cmd.Enabled(h.s, engine.SelectionParams(refs)); !errors.Is(err, engine.ErrNotPermitted) {
 		t.Errorf("denied delete in shop: %v", err)
 	}

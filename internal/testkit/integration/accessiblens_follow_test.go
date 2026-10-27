@@ -250,9 +250,24 @@ func TestPrometheusDetectionFollowsARefusal(t *testing.T) {
 	if d := time.Since(start); d > 6*time.Second {
 		t.Errorf("Prometheus found after %s", d)
 	}
-	reads := readsSettled(ctx, srv, "services")
-	if wide := reads["list services"]; wide > 2 || reads["list services in team-a"] != 1 || reads["watch services in team-a"] != 1 {
-		t.Errorf("service reads %v, want at most two refused lists in all namespaces, then team-a's list and watch", reads)
+	// client-go's backoff retries the refused list until the engine's plan lets its scope go: how
+	// often depends on the scheduler, so the end is asserted, not the retries. The scope in all
+	// namespaces is gone, and the Services are read in team-a once, nothing else; the watch follows
+	// the list once the list filled the store.
+	wide := func() bool {
+		for _, st := range s.Backend().Cache.Stats() {
+			if st.Scope.GVR.Resource == "services" && st.Scope.Namespace == "" {
+				return true
+			}
+		}
+		return false
+	}
+	var reads map[string]int64
+	if !testkit.WaitFor(ctx, func() bool {
+		reads = readsOf(srv, "services")
+		return !wide() && reads["list services in team-a"] == 1 && reads["watch services in team-a"] == 1 && len(reads) <= 3
+	}) {
+		t.Errorf("service reads %v (the read in all namespaces left: %v), want the refused lists in all namespaces, then team-a's list and watch", reads, wide())
 	}
 }
 

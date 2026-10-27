@@ -43,6 +43,9 @@ func clusterVersionOf(version string) *engine.ClusterVersion {
 // changes alone (a reconnect, a day) is shown at once.
 func TestRootRowShowsTheClusterVersion(t *testing.T) {
 	const asOf = "\nUpstream dates as of 2026-10-18"
+	f := userFake(t, confirmedUser, engine.Connected)
+	sh, w, q := userScene(t, f, ThemeDark)
+	s := sh.side
 	for _, c := range []struct {
 		version, text string
 		color         fyne.ThemeColorName
@@ -54,10 +57,9 @@ func TestRootRowShowsTheClusterVersion(t *testing.T) {
 		{"v1.39.2-gke.100", "v1.39.2-gke.100", colorMuted, "Upstream support until about 2028-06-28 (626 days), estimated: this Cogpit's table ends at 1.37" + asOf},
 		{"v2.0.0", "v2.0.0", colorMuted, "No upstream support dates for this version" + asOf},
 	} {
-		f := userFake(t, confirmedUser, engine.Connected)
-		f.ui.ClusterVersion = clusterVersionOf(c.version)
-		sh, _, _ := userScene(t, f, ThemeDark)
-		s := sh.side
+		f.update(func(u *engine.UIState) { u.ClusterVersion = clusterVersionOf(c.version) }) // the context and connection as they were
+		q.until(t, c.version, func() bool { return s.version.text == c.text })
+		settle(w)
 		if !s.version.Visible() || s.version.text != c.text || s.version.color != c.color {
 			t.Errorf("%s: shown %v %q in %s", c.version, s.version.Visible(), s.version.text, s.version.color)
 		}
@@ -76,10 +78,7 @@ func TestRootRowShowsTheClusterVersion(t *testing.T) {
 		}
 	}
 
-	f := userFake(t, confirmedUser, engine.Connected)
-	f.ui.ClusterVersion = clusterVersionOf("v1.37.1")
-	sh, _, q := userScene(t, f, ThemeDark)
-	f.update(func(u *engine.UIState) { u.ClusterVersion = clusterVersionOf("v1.33.9") }) // the context and connection as they were
+	f.update(func(u *engine.UIState) { u.ClusterVersion = clusterVersionOf("v1.33.9") })
 	q.until(t, "the new version", func() bool { return sh.side.version.text == "v1.33.9 ⚠" })
 	f.update(func(u *engine.UIState) {
 		cv := *clusterVersionOf("v1.37.1")
@@ -225,8 +224,6 @@ func versionsFake(t testing.TB, view string) *fakeEngine {
 
 func TestRenderNavigatorVersionDark(t *testing.T) { renderNavigatorVersion(t, ThemeDark, "dark") }
 
-func TestRenderNavigatorVersionLight(t *testing.T) { renderNavigatorVersion(t, ThemeLight, "light") }
-
 // renderNavigatorVersion: the root row of a cluster whose API server's minor is past its upstream
 // end of life, the pointer on the version and its tooltip shown, dates in a German computer's
 // format; the gear before the dot.
@@ -246,8 +243,6 @@ func renderNavigatorVersion(t *testing.T, mode ThemeMode, suffix string) {
 
 func TestRenderNodesVersionsDark(t *testing.T) { renderNodesVersions(t, ThemeDark, "dark") }
 
-func TestRenderNodesVersionsLight(t *testing.T) { renderNodesVersions(t, ThemeLight, "light") }
-
 // renderNodesVersions: the Nodes list with a kubelet in maintenance mode (pending colour), one past
 // its end of life and four minors behind and one newer than the API server (⚠), the pointer on
 // the one past its end of life and its tooltip shown.
@@ -265,10 +260,6 @@ func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 }
 
 func TestRenderNodeDrawerVersionsDark(t *testing.T) { renderNodeDrawerVersions(t, ThemeDark, "dark") }
-
-func TestRenderNodeDrawerVersionsLight(t *testing.T) {
-	renderNodeDrawerVersions(t, ThemeLight, "light")
-}
 
 // renderNodeDrawerVersions: the drawer of the node whose kubelet is past its end of life and four
 // minors behind: its Kubelet version in the warning colour, Upstream support and Version skew after

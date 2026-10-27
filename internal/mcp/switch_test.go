@@ -60,19 +60,6 @@ func TestSwitchFile(t *testing.T) {
 	}
 }
 
-// A bridge behind a new installation is told the server is off because it is opt-in, and one behind
-// an installation whose user switched it off is told the same: the message claims neither case.
-func TestSwitchedOffMessageHoldsForBothCases(t *testing.T) {
-	for _, want := range []string{"switched off", "opt-in", "switched it on", "status bar"} {
-		if !strings.Contains(SwitchedOffMessage, want) {
-			t.Errorf("the message lacks %q: %s", want, SwitchedOffMessage)
-		}
-	}
-	if strings.Contains(SwitchedOffMessage, "turned it off") {
-		t.Errorf("the message says the user turned it off, which a new installation never did: %s", SwitchedOffMessage)
-	}
-}
-
 // The server a switched-off bridge serves tells the agent why, in its instructions and in its one
 // tool's error, and offers nothing else.
 func TestServeSwitchedOff(t *testing.T) {

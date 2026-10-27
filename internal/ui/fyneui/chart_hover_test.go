@@ -260,9 +260,9 @@ func TestDrawerChartsHoverPerChartAndVariant(t *testing.T) {
 	}
 }
 
-// TestRenderChartHover draws the pod drawer's charts with the crosshair and the panel, once over a
-// point and once next to an event marker, for a look: to COGPIT_PNG_DIR when that is set (else it
-// is only captured), never to testdata.
+// TestRenderChartHover draws the pod drawer's charts with the crosshair and the panel, inside the
+// chart: next to an event marker, over a point in the narrowest drawer, and in the Memory variant,
+// for a look: to COGPIT_PNG_DIR when that is set (else it is only captured), never to testdata.
 func TestRenderChartHover(t *testing.T) {
 	for _, c := range []struct {
 		mode   ThemeMode
@@ -271,9 +271,8 @@ func TestRenderChartHover(t *testing.T) {
 		event  bool
 		memory bool // the Memory variant: bytes on the axis and in the panel (D-32)
 	}{
-		{ThemeDark, "chart_hover_dark.png", 0, false, false}, {ThemeLight, "chart_hover_light.png", 0, false, false},
-		{ThemeDark, "chart_hover_event_dark.png", 0, true, false}, {ThemeLight, "chart_hover_event_light.png", 0, true, false},
-		{ThemeDark, "chart_hover_narrow_dark.png", minDrawerWidth, false, false}, {ThemeLight, "chart_hover_narrow_event_light.png", minDrawerWidth, true, false},
+		{ThemeDark, "chart_hover_event_dark.png", 0, true, false},
+		{ThemeDark, "chart_hover_narrow_dark.png", minDrawerWidth, false, false},
 		{ThemeDark, "chart_hover_memory_dark.png", 0, false, true}, {ThemeLight, "chart_hover_memory_light.png", 0, false, true},
 	} {
 		c := c
@@ -306,6 +305,11 @@ func TestRenderChartHover(t *testing.T) {
 				t.Errorf("memory hover: %s", p.plot.Hover().Text())
 			}
 			settle(sh.win)
+			for _, o := range p.plot.rend.overlay {
+				if r, ok := o.(*canvas.Rectangle); ok && r.StrokeWidth > 0 && (r.Position().X < 0 || r.Position().X+r.Size().Width > p.plot.Size().Width+0.5) {
+					t.Errorf("the panel lies at %v..%v of the chart's %v", r.Position().X, r.Position().X+r.Size().Width, p.plot.Size().Width)
+				}
+			}
 			lookPNG(t, sh.win, c.name)
 		})
 	}

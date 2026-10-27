@@ -330,8 +330,13 @@ func TestLightStripTickerRuns(t *testing.T) {
 	c.now = c.now.Add(stripFade + time.Second) // the fade to standing is over
 	q.until(t, "the clock stopped", func() bool { return s.stop == nil })
 	// A frame the goroutine posted as it stopped runs and draws nothing new; then none comes.
-	q.until(t, "no frame waiting", func() bool { return !s.pending.Load() })
-	time.Sleep(50 * time.Millisecond)
+	ended := make(chan struct{})
+	go func() { s.ticking.Wait(); close(ended) }()
+	select {
+	case <-ended:
+	case <-time.After(15 * time.Second):
+		t.Fatal("the clock's goroutine did not end")
+	}
 	if q.drain(); s.pending.Load() || s.stop != nil {
 		t.Errorf("after the clock stopped: a frame posted %v, a clock %v", s.pending.Load(), s.stop != nil)
 	}

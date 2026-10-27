@@ -153,7 +153,7 @@ func TestTerminal_AddListener(t *testing.T) {
 	go term.onConfigure()
 	select {
 	case <-listen: // passed
-	case <-time.After(time.Millisecond * 100):
+	case <-time.After(5 * time.Second): // Cogpit patch: a bound only a missing callback reaches
 		t.Error("Failed waiting for configure callback")
 	}
 	term.RemoveListener(listen)

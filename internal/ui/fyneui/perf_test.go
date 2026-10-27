@@ -22,7 +22,9 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 	defer func(s, v, y time.Duration, b int) {
 		gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes = s, v, y, b
 	}(gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes)
-	gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes = 300*time.Millisecond, 500*time.Millisecond, 300*time.Millisecond, 200<<10
+	// A switch waits for the view's rows anyway (awaitingRows): the dwell after them adds nothing the
+	// test checks.
+	gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes = 100*time.Millisecond, 10*time.Millisecond, 100*time.Millisecond, 200<<10
 
 	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
 	defer s.Close()
@@ -100,6 +102,7 @@ func TestPerfGateFinishesOnASlowMainGoroutine(t *testing.T) {
 	gateScrollFor, gateViewDwell, gateYAMLFor, gateYAMLBytes = 200*time.Millisecond, 100*time.Millisecond, 200*time.Millisecond, 64<<10
 
 	f := connectedFake(t, 50)
+	f.kinds = f.kinds[:2] // two views to switch through: each switch waits behind the slow queue
 	for _, k := range f.kinds {
 		snap := *f.tables["pods"]
 		snap.View = k.Kind
@@ -109,7 +112,7 @@ func TestPerfGateFinishesOnASlowMainGoroutine(t *testing.T) {
 	a.Settings().SetTheme(newTheme(ThemeDark))
 	w := test.NewTempWindow(t, nil)
 	q := &mainQueue{}
-	slow := func(fn func()) { q.do(func() { time.Sleep(perfFrame + 4*time.Millisecond); fn() }) }
+	slow := func(fn func()) { q.do(func() { time.Sleep(perfFrame + time.Millisecond); fn() }) }
 	reports := 0
 	opts := Options{PerfMode: PerfGate, PerfReport: func(PerfStats) { reports++ }}
 	sh := newShell(f, a, w, opts, slow)

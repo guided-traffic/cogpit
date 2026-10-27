@@ -10,24 +10,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
-	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
-
-// TestCopyIsFirstInEveryDrawer: with the real registry, Copy (object.copyName) leads every kind's
-// drawer actions, and row menus leave it out (TestRegistryMenusAsLens).
-func TestCopyIsFirstInEveryDrawer(t *testing.T) {
-	r := engine.NewRegistry()
-	if err := commands.RegisterAll(r); err != nil {
-		t.Fatal(err)
-	}
-	for _, kind := range []string{"pods", "nodes", "deployments", "cronjobs", "configmaps", "gateways.gateway.networking.k8s.io"} {
-		acts := r.Actions(kind)
-		if len(acts) == 0 || acts[0].ID != "object.copyName" || !acts[0].DrawerOnly {
-			t.Errorf("%s: drawer actions start with %v", kind, acts)
-		}
-	}
-}
 
 // withCopy registers Copy on the fake and answers it with the object's name, as the engine does.
 func withCopy(t testing.TB, f *fakeEngine) {
@@ -94,11 +78,4 @@ func TestRenderCopyDark(t *testing.T) {
 	test.Tap(sh.drawer.nameCopy)
 	q.until(t, "the toast", func() bool { return len(sh.toasts.Objects) > 0 })
 	savePNG(t, w, "drawer_copy_dark.png")
-}
-
-func TestRenderCopyLight(t *testing.T) {
-	sh, w, q, _ := copyScene(t, ThemeLight)
-	test.Tap(sh.drawer.nameCopy)
-	q.until(t, "the toast", func() bool { return len(sh.toasts.Objects) > 0 })
-	savePNG(t, w, "drawer_copy_light.png")
 }

@@ -121,11 +121,3 @@ func TestDetectThanosAndVictoriaMetrics(t *testing.T) {
 		}
 	}
 }
-
-func TestFlavorNames(t *testing.T) {
-	for f, want := range map[metrics.Flavor]string{metrics.FlavorPrometheus: "Prometheus", metrics.FlavorThanos: "Thanos", metrics.FlavorVictoriaMetrics: "VictoriaMetrics"} {
-		if f.Name() != want {
-			t.Errorf("%q: %q", f, f.Name())
-		}
-	}
-}

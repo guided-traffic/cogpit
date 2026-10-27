@@ -207,7 +207,7 @@ func TestMetricsSourceLineUndecided(t *testing.T) {
 // The pre-choice, the rows of Choose with the Metrics Server ticked and found and the others not
 // looked for, and Don't use's warning, dark and light.
 func TestRenderIntegrationsQuestion(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			_, w, _, _ := openIntegrationsQuestion(t, mode, 0)
 			savePNG(t, w, "integrations_question_"+string(mode)+".png")

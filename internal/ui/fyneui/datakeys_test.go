@@ -158,7 +158,7 @@ func TestConfigMapDrawerAddsAndRemovesKeys(t *testing.T) {
 // the confirmation's delay, as the confirmation dialog does; one that only adds a key at once.
 func TestConfigMapDrawerRemovalArms(t *testing.T) {
 	sh, _, q, _, _ := cmShell(t, ThemeDark)
-	sh.confirmer.armDelay = 300 * time.Millisecond
+	sh.confirmer.armDelay = time.Hour // unarmed however long the dry run takes; TestArmSaveAfterTheDelay arms one
 	cd := cmDataOf(sh)
 	test.Tap(removeButtonOf(t, cd.list, "allow-localhost"))
 	test.Tap(cd.save)
@@ -166,7 +166,6 @@ func TestConfigMapDrawerRemovalArms(t *testing.T) {
 	if !cd.review.save.Disabled() {
 		t.Error("Save of a removal armed at once")
 	}
-	q.until(t, "Save armed", func() bool { return !cd.review.save.Disabled() })
 	cd.review.hide()
 	test.Tap(cd.revert)
 	addKeyThrough(t, cd.adder, "log-level")
@@ -174,6 +173,23 @@ func TestConfigMapDrawerRemovalArms(t *testing.T) {
 	q.until(t, "the review of an added key", func() bool { return cd.review != nil && cd.review.ready })
 	if cd.review.save.Disabled() {
 		t.Error("Save of an added key waits for the delay")
+	}
+}
+
+// TestArmSaveAfterTheDelay: a review's Save of a removal arms once the confirmation's delay has
+// passed since the review opened, if the review is still ready; one that removes nothing at once.
+func TestArmSaveAfterTheDelay(t *testing.T) {
+	sh, _, q := newTestShell(t, connectedFake(t, 1), Options{})
+	sh.confirmer.armDelay = time.Millisecond
+	removal := newTextButton("Save", nil, nil)
+	armSave(sh, removal, true, time.Now(), func() bool { return true })
+	q.until(t, "Save of a removal armed", func() bool { return !removal.Disabled() })
+	sh.confirmer.armDelay = time.Hour
+	added := newTextButton("Save", nil, nil)
+	added.Disable()
+	armSave(sh, added, false, time.Now(), func() bool { return true })
+	if added.Disabled() {
+		t.Error("Save of a review without a removal waits for the delay")
 	}
 }
 
@@ -351,10 +367,6 @@ func TestRenderConfigMapKeysDark(t *testing.T) {
 	renderConfigMapKeys(t, ThemeDark, "configmap_keys_review_dark.png")
 }
 
-func TestRenderConfigMapKeysLight(t *testing.T) {
-	renderConfigMapKeys(t, ThemeLight, "configmap_keys_review_light.png")
-}
-
 func renderSecretKeys(t *testing.T, mode ThemeMode, name string) {
 	sh, _, q, _, _ := secShell(t, mode)
 	sh.confirmer.armDelay = 0
@@ -368,7 +380,4 @@ func renderSecretKeys(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderSecretKeysDark(t *testing.T) {
 	renderSecretKeys(t, ThemeDark, "secret_keys_review_dark.png")
-}
-func TestRenderSecretKeysLight(t *testing.T) {
-	renderSecretKeys(t, ThemeLight, "secret_keys_review_light.png")
 }

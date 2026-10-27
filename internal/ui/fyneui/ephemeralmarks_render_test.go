@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"fyne.io/fyne/v2/test"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -136,8 +135,8 @@ func renderEphemeralMarks(t *testing.T, mode ThemeMode, listPNG, drawerPNG strin
 		}
 	}
 	sh.tip.delay = time.Millisecond
-	test.MoveMouse(w.Canvas(), middleOf(cellAt(t, sh, row, col)))
-	q.until(t, "the Containers cell's tooltip", func() bool { return sh.tip.visibleText() != "" })
+	hoverTip(t, sh, w, q, "the Containers cell's tooltip", middleOf(cellAt(t, sh, row, col)),
+		middleOf(cellAt(t, sh, row, columnOf(t, sh, "name"))))
 	savePNG(t, w, listPNG)
 	sh.tip.hide()
 
@@ -151,8 +150,4 @@ func renderEphemeralMarks(t *testing.T, mode ThemeMode, listPNG, drawerPNG strin
 
 func TestRenderEphemeralMarksDark(t *testing.T) {
 	renderEphemeralMarks(t, ThemeDark, "ephemeral_marks_pods_dark.png", "ephemeral_containers_drawer_dark.png")
-}
-
-func TestRenderEphemeralMarksLight(t *testing.T) {
-	renderEphemeralMarks(t, ThemeLight, "ephemeral_marks_pods_light.png", "ephemeral_containers_drawer_light.png")
 }

@@ -222,24 +222,3 @@ func diff(before, after cluster.RequestStats) map[string]int64 {
 	}
 	return out
 }
-
-// settledTotal waits until the connection has made no request for half a second and returns its
-// total then: one-off work after a connect (the curated kinds' discovery that follows a refused
-// list of the definitions, A90) can land late under the race job's load. A poll faster than the
-// half second never settles and fails here; a slower one still shows in the idle window after it.
-func settledTotal(ctx context.Context, t *testing.T, snap func() cluster.RequestStats) int64 {
-	t.Helper()
-	const quiet = 500 * time.Millisecond
-	last, since := snap().Total, time.Now()
-	for time.Since(since) < quiet {
-		select {
-		case <-ctx.Done():
-			t.Fatalf("the connection never went quiet for %v: %d requests", quiet, snap().Total)
-		case <-time.After(50 * time.Millisecond):
-		}
-		if now := snap().Total; now != last {
-			last, since = now, time.Now()
-		}
-	}
-	return last
-}
