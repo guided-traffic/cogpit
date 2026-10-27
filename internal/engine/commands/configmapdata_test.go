@@ -230,23 +230,36 @@ func TestConfigMapDataNeverOverwritesUnasked(t *testing.T) {
 		t.Fatalf("a stale save wrote: %v", calls)
 	}
 
-	// The server's 409 while the cache has not seen the change: nothing written either.
+	// The server's 409 for a change the cache had not seen when the save began: nothing written
+	// either, and the conflict names the version the cache then gets.
 	params["resourceVersion"] = newer
 	srv.mu.Lock()
 	srv.failNext = conflictErr()
+	srv.afterFail = func() {
+		obj, err := srv.current(configMapsGVR, "shop", "cilium-config")
+		if err == nil {
+			err = unstructured.SetNestedField(obj.Object, "true", "data", "enable-bpf-masquerade")
+		}
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		h.src.Set(configMapsGVR, obj)
+	}
 	srv.mu.Unlock()
-	if err := h.run(t, gui, "configMap.saveData", params, nil); !errors.As(err, &ce) {
-		t.Fatalf("a save the server refuses with 409: %v", err)
+	if err := h.run(t, gui, "configMap.saveData", params, nil); !errors.As(err, &ce) || ce.CurrentResourceVersion == "" || ce.CurrentResourceVersion == newer {
+		t.Fatalf("a save the server refuses with 409: %v (%+v)", err, ce)
 	}
 	if calls := h.writer.Calls(); !slices.Equal(calls, []string{"update(dry) shop/cilium-config"}) {
 		t.Fatalf("a save the server refused wrote: %v", calls)
 	}
 
-	// The second, explicit save over the newer version.
+	// The second, explicit save over the version the conflict names.
+	params["resourceVersion"] = ce.CurrentResourceVersion
 	var saved engine.ConfigMapDataSaved
 	h.must(t, gui, "configMap.saveData", params, &saved)
 	got, _, _ := unstructured.NestedStringMap(srv.lastUpdate().Object, "data")
-	if got["enable-ipv4"] != "false" || got["bpf-lb-acceleration"] != "enabled" {
+	if got["enable-ipv4"] != "false" || got["bpf-lb-acceleration"] != "enabled" || got["enable-bpf-masquerade"] != "true" {
 		t.Errorf("the save over the newer version: %v", got)
 	}
 }

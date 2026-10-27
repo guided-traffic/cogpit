@@ -66,7 +66,10 @@ func TestDraftRestoredAfterARestart(t *testing.T) {
 	offers := make(chan string, 4)
 	h2.s.Subscribe(func(ev engine.Event) {
 		if ev.Type == engine.EventDrafts && ev.Message != "" {
-			offers <- ev.Message
+			select { // never block the engine's goroutine that emits
+			case offers <- ev.Message:
+			default:
+			}
 		}
 	})
 	if err := h2.s.Disconnect(); err != nil { // a connect again would only show the open connection (D-69)

@@ -184,6 +184,15 @@ func fastResumes(t *testing.T, resumes int) {
 	t.Cleanup(func() { workloadLogBackoff, workloadLogMaxBackoff, workloadLogResumes = b, m, n })
 }
 
+// slowResumes makes a stream the server ended wait a minute before it opens again, so that what
+// the cache shows meanwhile comes first. Called before the session, as fastResumes.
+func slowResumes(t *testing.T) {
+	t.Helper()
+	b, m := workloadLogBackoff, workloadLogMaxBackoff
+	workloadLogBackoff, workloadLogMaxBackoff = time.Minute, time.Minute
+	t.Cleanup(func() { workloadLogBackoff, workloadLogMaxBackoff = b, m })
+}
+
 func waitUntil(t *testing.T, what string, cond func() bool) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -277,7 +286,11 @@ func TestWorkloadLogsNoResumeAfterTheContainerEnded(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	wl, ok := openTabLogs(t, s, tab.ID, f).(*workloadLogs)
+	if !ok {
+		t.Fatal("not a workload's logs")
+	}
+	lr := readLines(wl)
 	lr.wait(t, stamped("db-0/db", time.Date(2026, 10, 12, 9, 0, 0, 0, time.UTC), "bye"))
 	src.Set(testkit.PodsGVR, owned(logPod("shop", "db-0", "db:terminated#1"), "apps/v1", "StatefulSet", "db", "uid-shop-db"))
 	waitUntil(t, "the cache to show the container ended", func() bool {
@@ -285,7 +298,12 @@ func TestWorkloadLogsNoResumeAfterTheContainerEnded(t *testing.T) {
 		return err == nil && model.NestedMap(model.NestedSlice(pod, "status", "containerStatuses")[0], "state", "terminated") != nil
 	})
 	f.drop(key)
-	time.Sleep(20 * workloadLogMaxBackoff)
+	// A stream that resumes stays in the set through its backoff; this one ended, and a rescan
+	// does not start the ended instance again.
+	waitUntil(t, "the stream to end", func() bool { return len(streamsOf(wl)) == 0 })
+	if targets := wl.scan(); len(targets) != 0 {
+		t.Errorf("a rescan starts %+v", targets)
+	}
 	if n := len(f.requestsFor(key)); n != 1 {
 		t.Errorf("%d requests: a stream whose container ended was opened again", n)
 	}

@@ -382,7 +382,16 @@ func TestCustomKindsStopAfterARefusal(t *testing.T) {
 	if !testkit.WaitFor(ctx, refused) {
 		t.Fatalf("timed out waiting for the custom kinds' refusal: definition calls %v, set %+v", callsOf(src, "customresourcedefinitions"), b.customSet())
 	}
-	time.Sleep(2500 * time.Millisecond) // longer than client-go's first two backoff steps (0.8 s, 1.6 s)
+	// The refused scope is not kept warm: once the custom kinds let it go, its informer has stopped,
+	// before client-go's first backoff step (0.8 s) could list again.
+	waitCond(t, "the definitions' informer stopped", func() bool {
+		for _, st := range b.Cache.Stats() {
+			if st.Scope.GVR == crdsGVR {
+				return false
+			}
+		}
+		return true
+	})
 	if calls := callsOf(src, "customresourcedefinitions"); calls["list customresourcedefinitions.apiextensions.k8s.io"] != 1 {
 		t.Errorf("definition calls %v: want the refused list once", calls)
 	}

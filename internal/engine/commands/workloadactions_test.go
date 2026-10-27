@@ -204,14 +204,11 @@ func TestRestartRefusesARecreatedObject(t *testing.T) {
 	} {
 		t.Run(tc.id, func(t *testing.T) {
 			h := newWorkloadHarness(t, nil, nil, engine.Options{})
-			c := &confirmations{answer: true, during: func(ctx context.Context) {
+			c := &confirmations{answer: true, during: func(context.Context) {
 				obj := testkit.Object("apps/v1", tc.kind, tc.ref.Namespace, tc.ref.Name, nil)
 				obj.SetUID("uid-again")
 				h.src.Set(tc.gvr, obj)
-				testkit.WaitFor(ctx, func() bool {
-					o, err := h.s.Lookup(tc.ref)
-					return err == nil && o.GetUID() == "uid-again"
-				})
+				waitRecreated(t, h, tc.ref)
 			}}
 			h.s.SetConfirmer(c)
 			err := h.run(t, engine.OriginGUI, tc.id, map[string]any{"ref": tc.ref}, nil)
@@ -222,6 +219,20 @@ func TestRestartRefusesARecreatedObject(t *testing.T) {
 				t.Errorf("writes %v", calls)
 			}
 		})
+	}
+}
+
+// waitRecreated waits, in a confirmation's hook, until the cache shows ref created again with the
+// UID uid-again; t.Error, not Fatal: the hook runs inside the command.
+func waitRecreated(t *testing.T, h *harness, ref model.ObjectRef) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if !testkit.WaitFor(ctx, func() bool {
+		o, err := h.s.Lookup(ref)
+		return err == nil && o.GetUID() == "uid-again"
+	}) {
+		t.Errorf("the cache never showed %s created again", ref.Name)
 	}
 }
 
@@ -241,14 +252,11 @@ func TestScaleToZeroRefusesARecreatedObject(t *testing.T) {
 	} {
 		t.Run(tc.id, func(t *testing.T) {
 			h := newWorkloadHarness(t, nil, nil, engine.Options{})
-			c := &confirmations{answer: true, during: func(ctx context.Context) {
+			c := &confirmations{answer: true, during: func(context.Context) {
 				obj := testkit.Object("apps/v1", tc.kind, tc.ref.Namespace, tc.ref.Name, map[string]any{"spec": map[string]any{"replicas": int64(2)}})
 				obj.SetUID("uid-again")
 				h.src.Set(tc.gvr, obj)
-				testkit.WaitFor(ctx, func() bool {
-					o, err := h.s.Lookup(tc.ref)
-					return err == nil && o.GetUID() == "uid-again"
-				})
+				waitRecreated(t, h, tc.ref)
 			}}
 			h.s.SetConfirmer(c)
 			err := h.run(t, engine.OriginGUI, tc.id, scaleTo(tc.ref, 0), nil)
@@ -313,7 +321,11 @@ func TestRestartAndScaleDisabled(t *testing.T) {
 	}
 	ref := actionRef("statefulsets", "shop", "db")
 	cmd, _ = s.Registry().Get("statefulset.restart")
-	testkit.WaitFor(context.Background(), func() bool { _, err := s.Lookup(ref); return err == nil })
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if !testkit.WaitFor(ctx, func() bool { _, err := s.Lookup(ref); return err == nil }) {
+		t.Fatalf("the demo cluster's %s never reached the cache", ref.Name)
+	}
 	if _, err := s.Objects(context.Background(), "statefulsets", nil); err != nil {
 		t.Fatal(err)
 	}

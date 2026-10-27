@@ -234,7 +234,7 @@ func TestSecretCreateErrorsNeverQuoteValues(t *testing.T) {
 // dialog's Create with the reason.
 func TestSecretCreateFollowsAccessReviews(t *testing.T) {
 	h, srv := createHarness(t, engine.Options{})
-	h.s.Backend().Access = denyAccess{"create secrets shop": true}
+	h.access.set(denyAccess{"create secrets shop": true})
 	err := h.run(t, engine.OriginGUI, engine.SecretCreateCommand, tlsSecretParams("shop"), nil)
 	var dis *engine.DisabledError
 	if !errors.As(err, &dis) || dis.Reason != "not permitted: you may not create secrets in shop" {

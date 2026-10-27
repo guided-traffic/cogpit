@@ -81,8 +81,8 @@ func (c createConnector) Connect(ctx context.Context, name string) (*engine.Back
 func createHarness(t *testing.T, opts engine.Options) (*harness, *objectServer) {
 	t.Helper()
 	src := seed()
-	h := &harness{src: src, writer: &fakeWriter{}}
-	opts.Connector = createConnector{&fakeConnector{src: src, writer: h.writer}}
+	h := &harness{src: src, writer: &fakeWriter{}, access: &swapAccess{}}
+	opts.Connector = createConnector{&fakeConnector{src: src, writer: h.writer, access: h.access}}
 	opts.SnapshotInterval = 10 * time.Millisecond
 	h.s = engine.New(opts)
 	if err := commands.RegisterAll(h.s.Registry()); err != nil {
@@ -361,7 +361,7 @@ func TestRoleBindingToAWildcardRoleEscalates(t *testing.T) {
 // in the namespace it would land in, for every origin; elsewhere it is offered.
 func TestCreateDialogsFollowAccessReviews(t *testing.T) {
 	h, _ := createHarness(t, engine.Options{})
-	h.s.Backend().Access = denyAccess{"create rolebindings shop": true, "create namespaces ": true}
+	h.access.set(denyAccess{"create rolebindings shop": true, "create namespaces ": true})
 	for _, tt := range []struct {
 		id     string
 		params map[string]any

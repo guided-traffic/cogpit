@@ -74,6 +74,7 @@ type fakeConnector struct {
 	writer *fakeWriter
 	demo   bool
 	health engine.HealthProber // the connection watch's probes (connection_test.go); nil: no watch
+	access engine.Access       // the backends' access reviews; nil: none
 }
 
 func (f *fakeConnector) Contexts() ([]engine.ContextInfo, error) {
@@ -85,7 +86,7 @@ func (f *fakeConnector) Connect(_ context.Context, name string) (*engine.Backend
 		return nil, errors.New("dial tcp 127.0.0.1:1: connect: connection refused")
 	}
 	c := cache.New(f.src, cache.Options{WarmPeriod: time.Minute})
-	b := &engine.Backend{Context: name, Namespace: "default", Cache: c, Profiles: testProfiles(), Close: c.Close, Demo: f.demo}
+	b := &engine.Backend{Context: name, Namespace: "default", Cache: c, Profiles: testProfiles(), Close: c.Close, Demo: f.demo, Access: f.access}
 	if !f.demo {
 		b.Conn = &cluster.Conn{}
 		b.Actions = f.writer
@@ -162,12 +163,13 @@ type harness struct {
 	s      *engine.Session
 	src    *testkit.MemorySource
 	writer *fakeWriter
+	access *swapAccess // the connected backend's access reviews, where the harness installs them
 }
 
 func newHarness(t testing.TB, src *testkit.MemorySource, opts engine.Options) *harness {
 	t.Helper()
-	h := &harness{src: src, writer: &fakeWriter{}}
-	opts.Connector = &fakeConnector{src: src, writer: h.writer}
+	h := &harness{src: src, writer: &fakeWriter{}, access: &swapAccess{}}
+	opts.Connector = &fakeConnector{src: src, writer: h.writer, access: h.access}
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = 10 * time.Millisecond
 	}

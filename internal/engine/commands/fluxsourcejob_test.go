@@ -263,9 +263,19 @@ func TestFluxReconcileWithSourceStopsWithItsTab(t *testing.T) {
 	h.must(t, engine.OriginGUI, "flux.reconcileWithSource", map[string]any{"ref": ksRef("apps")}, &res)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	testkit.WaitFor(ctx, func() bool { return len(w.Patches()) == 1 })
+	if !testkit.WaitFor(ctx, func() bool { return len(w.Patches()) == 1 }) {
+		t.Fatalf("the source was not asked: %v", w.Patches())
+	}
 	h.must(t, engine.OriginGUI, "dock.close", map[string]any{"id": res.Job.ID}, nil)
 	ctl.release("flux-system")
+	// The source's controller answered and the cache shows it: a job still waiting would ask the
+	// object now.
+	if !testkit.WaitFor(ctx, func() bool {
+		obj, err := h.s.Lookup(model.ObjectRef{Kind: "gitrepositories.source.toolkit.fluxcd.io", Namespace: "flux-system", Name: "flux-system"})
+		return err == nil && model.NestedString(obj.Object, "status", "lastHandledReconcileAt") != ""
+	}) {
+		t.Fatal("the source's answer never reached the cache")
+	}
 	time.Sleep(100 * time.Millisecond)
 	if p := w.Patches(); len(p) != 1 {
 		t.Errorf("patched after the tab closed: %v", p)

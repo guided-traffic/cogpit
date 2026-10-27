@@ -116,7 +116,8 @@ func actionProfiles() []*model.KindProfile {
 type actionsConnector struct {
 	src    *testkit.MemorySource
 	writer engine.Actions
-	demo   bool // a demo cluster: no connection, no writer
+	demo   bool          // a demo cluster: no connection, no writer
+	access engine.Access // the backends' access reviews; nil: none
 }
 
 func (c *actionsConnector) Contexts() ([]engine.ContextInfo, error) {
@@ -125,7 +126,7 @@ func (c *actionsConnector) Contexts() ([]engine.ContextInfo, error) {
 
 func (c *actionsConnector) Connect(_ context.Context, name string) (*engine.Backend, error) {
 	ch := cache.New(c.src, cache.Options{WarmPeriod: time.Minute})
-	b := &engine.Backend{Context: name, Namespace: "default", Cache: ch, Profiles: actionProfiles(), Close: ch.Close, Demo: c.demo}
+	b := &engine.Backend{Context: name, Namespace: "default", Cache: ch, Profiles: actionProfiles(), Close: ch.Close, Demo: c.demo, Access: c.access}
 	if !c.demo {
 		b.Conn, b.Actions = &cluster.Conn{}, c.writer
 	}
@@ -216,7 +217,8 @@ func newActionsHarness(t testing.TB, src *testkit.MemorySource, opts engine.Opti
 		src = seedActions()
 	}
 	w := &actionsWriter{fakeWriter: &fakeWriter{}, src: src}
-	opts.Connector = &actionsConnector{src: src, writer: w}
+	access := &swapAccess{}
+	opts.Connector = &actionsConnector{src: src, writer: w, access: access}
 	if opts.SnapshotInterval == 0 {
 		opts.SnapshotInterval = 10 * time.Millisecond
 	}
@@ -229,7 +231,7 @@ func newActionsHarness(t testing.TB, src *testkit.MemorySource, opts engine.Opti
 		t.Fatal(err)
 	}
 	warmActionKinds(t, s)
-	return &harness{s: s, src: src, writer: w.fakeWriter}, w
+	return &harness{s: s, src: src, writer: w.fakeWriter, access: access}, w
 }
 
 func warmActionKinds(t testing.TB, s *engine.Session) {

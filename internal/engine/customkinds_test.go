@@ -340,13 +340,14 @@ func TestCustomKindsRace(t *testing.T) {
 	waitFor(t, "the Order kind", func() bool { return hasKind(s, orderKey) })
 	openView(s, orderKey)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	var wg sync.WaitGroup
 	wg.Add(1)
-	go func() { // definitions come and go, change versions and columns
+	go func() { // definitions come and go, change versions and columns: every shape (i%8) dozens of times
 		defer wg.Done()
-		for i := 0; ctx.Err() == nil; i++ {
+		defer cancel() // the readers stop with the churn
+		for i := range 300 {
 			group := fmt.Sprintf("g%d.example.com", i%7)
 			switch i % 4 {
 			case 0:

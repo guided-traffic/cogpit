@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"sync"
 	"testing"
@@ -143,6 +144,7 @@ type fakeConnector struct {
 	conn     *cluster.Conn
 	health   HealthProber // the connection watch's probes (connwatch_test.go); nil: none
 	version  string       // the API server's version of a backend without conn (connwatch_version_test.go)
+	access   Access       // the backends' access reviews, set before the session publishes them; nil: none
 
 	mu       sync.Mutex
 	connects int
@@ -166,7 +168,7 @@ func (f *fakeConnector) Connect(ctx context.Context, name string) (*Backend, err
 	c := cache.New(f.src, cache.Options{WarmPeriod: time.Minute})
 	return &Backend{
 		Context: name, Namespace: "default", Cache: c, Profiles: f.profiles,
-		Actions: f.actions, Conn: f.conn, Close: c.Close, Health: f.health, Version: f.version,
+		Actions: f.actions, Conn: f.conn, Close: c.Close, Health: f.health, Version: f.version, Access: f.access,
 	}, nil
 }
 
@@ -250,6 +252,14 @@ func (r *recorder) count(typ EventType, view string) int {
 		}
 	}
 	return n
+}
+
+// announced reports whether the recorder holds the table event of a view's snapshot: the view's
+// worker stores a snapshot before it emits its event, so a snapshot read may still be unannounced.
+func (r *recorder) announced(view string, revision uint64) bool {
+	return slices.ContainsFunc(r.all(), func(ev Event) bool {
+		return ev.Type == EventTable && ev.View == view && ev.Revision == revision
+	})
 }
 
 // event builds a core v1 event about an object.

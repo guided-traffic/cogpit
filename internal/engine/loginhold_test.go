@@ -120,19 +120,17 @@ func TestABackgroundLoginLapsesWhileHeld(t *testing.T) {
 	}
 
 	mustConnect(t, s, "alpha") // shown: renewed as the shown cluster's login is (D-58)
+	// Not logging in any more: the reconnect publishes Connected while the renewal still runs.
 	waitUntil(t, "alpha renewed", func() bool {
 		u := s.UIState()
 		e := entryOf(s, "alpha")
-		return u.Context == "alpha" && u.Connection.State == Connected && !e.LoginLapsed && u.Connection.Reason == ""
+		return u.Context == "alpha" && u.Connection.State == Connected && !e.LoginLapsed && u.Connection.Reason == "" && !u.Connection.LoggingIn
 	})
 	if got := alpha.get(); got.renewals != 1 || got.held {
 		t.Errorf("after showing alpha: renewals %d, held %v", got.renewals, got.held)
 	}
 	if err := s.writeBlocked(DangerMutating, "alpha"); err != nil {
 		t.Errorf("a write to the renewed alpha: %v", err)
-	}
-	if c := s.UIState().Connection; c.LoggingIn {
-		t.Errorf("still logging in: %+v", c)
 	}
 }
 

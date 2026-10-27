@@ -35,6 +35,9 @@ type objectServer struct {
 	creates  []*unstructured.Unstructured
 	deletes  []string // "namespace/name uid"
 	failNext error    // returned by the next write, then cleared
+	// afterFail, when set, runs once with the write that returns failNext, outside the lock: a test
+	// makes there the change of the other client whose write the server's 409 stands for.
+	afterFail func()
 	// beforeDelete, when set, runs before each delete request is served, outside the lock: a test
 	// holds a delete there (a job's step under way).
 	beforeDelete func(namespace, name string)
@@ -114,9 +117,15 @@ func (srv *objectServer) current(gvr schema.GroupVersionResource, namespace, nam
 
 func (srv *objectServer) takeFailure() error {
 	srv.mu.Lock()
-	defer srv.mu.Unlock()
-	err := srv.failNext
+	err, after := srv.failNext, srv.afterFail
 	srv.failNext = nil
+	if err != nil {
+		srv.afterFail = nil
+	}
+	srv.mu.Unlock()
+	if err != nil && after != nil {
+		after()
+	}
 	return err
 }
 

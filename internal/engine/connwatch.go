@@ -85,7 +85,8 @@ type connWatch struct {
 	quiet atomic.Bool // a reconnect replaces the connection: the reconnect's attempt is the one the log writes (reconnect.go)
 }
 
-// ConnWatchOptions tune the connection watch; zero fields are the owner's values.
+// ConnWatchOptions tune the connection watch; zero fields are the owner's values (D-58), and
+// Cogpit's for ProbeSlack.
 type ConnWatchOptions struct {
 	// Heartbeat is the time between two heartbeats while connected (15 s).
 	Heartbeat time.Duration
@@ -98,6 +99,9 @@ type ConnWatchOptions struct {
 	LoginWait time.Duration
 	// BackoffFirst and BackoffMax bound the waits between reconnect attempts (1 s doubling to 30 s).
 	BackoffFirst, BackoffMax time.Duration
+	// ProbeSlack is how much longer than ProbeTimeout a heartbeat may take before it counts as
+	// waiting for its credential plugin, which client-go runs outside the request (1 s).
+	ProbeSlack time.Duration
 }
 
 // The owner's values (D-58).
@@ -109,6 +113,9 @@ const (
 	DefaultBackoffFirst = time.Second
 	DefaultBackoffMax   = 30 * time.Second
 )
+
+// defaultProbeSlack is ProbeSlack's value (Cogpit's: room for client-go to run the plugin).
+const defaultProbeSlack = time.Second
 
 func (o ConnWatchOptions) withDefaults() ConnWatchOptions {
 	def := func(d *time.Duration, v time.Duration) {
@@ -122,6 +129,7 @@ func (o ConnWatchOptions) withDefaults() ConnWatchOptions {
 	def(&o.LoginWait, DefaultLoginWait)
 	def(&o.BackoffFirst, DefaultBackoffFirst)
 	def(&o.BackoffMax, DefaultBackoffMax)
+	def(&o.ProbeSlack, defaultProbeSlack)
 	return o
 }
 
@@ -507,10 +515,6 @@ func (w *connWatch) heartbeat(ctx context.Context, ch chan<- error) {
 	}()
 }
 
-// probeSlack is how much longer than its own deadline a heartbeat may take before it counts as
-// waiting for its credential plugin, which client-go runs outside the request.
-const probeSlack = time.Second
-
 // check runs a heartbeat bounded by ProbeTimeout. One that does not return although its request's
 // deadline passed waits for its credential plugin: check waits for it up to bound, and asks again
 // once it returned (its own answer came after its deadline); past bound the heartbeat is kept as
@@ -519,7 +523,7 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 	ch := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(w.ctx, w.o.ProbeTimeout)
 	w.heartbeat(ctx, ch)
-	first := time.NewTimer(w.o.ProbeTimeout + probeSlack)
+	first := time.NewTimer(w.o.ProbeTimeout + w.o.ProbeSlack)
 	defer first.Stop()
 	select {
 	case err := <-ch:
@@ -531,7 +535,7 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 		cancel()
 		return checkQuit, nil
 	}
-	rest := time.NewTimer(max(bound-w.o.ProbeTimeout-probeSlack, 0))
+	rest := time.NewTimer(max(bound-w.o.ProbeTimeout-w.o.ProbeSlack, 0))
 	defer rest.Stop()
 	select {
 	case _ = <-ch:

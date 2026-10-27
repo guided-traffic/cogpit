@@ -74,7 +74,10 @@ func TestIntegrationsShownDetectOnce(t *testing.T) {
 	heard := make(chan string, 4)
 	defer s.Subscribe(func(ev Event) {
 		if ev.Type == EventIntegrations {
-			heard <- ev.View
+			select { // never block the goroutine that emits
+			case heard <- ev.View:
+			default:
+			}
 		}
 	})()
 	st := &state{s: s}

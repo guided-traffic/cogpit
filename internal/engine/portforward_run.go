@@ -117,7 +117,8 @@ func (r *forwardRun) run(ctx context.Context) {
 	}
 	defer watch.release()
 
-	backoff, connected := forwardRetryFirst, false
+	first := r.s.opts.ForwardBackoff
+	backoff, connected := first, false
 	var cur forwardTarget
 	for ctx.Err() == nil {
 		t, why := r.resolve(watch, cur.pod)
@@ -135,7 +136,7 @@ func (r *forwardRun) run(ctx context.Context) {
 		if waited, ok := r.awaitConnection(ctx, t); !ok {
 			return
 		} else if waited {
-			backoff = forwardRetryFirst
+			backoff = first
 		}
 		phase := ForwardStarting
 		if connected {
@@ -179,7 +180,7 @@ func (r *forwardRun) run(ctx context.Context) {
 			continue // the pod went or another is preferred: connect to the next one at once
 		}
 		if time.Since(since) >= forwardStable {
-			backoff = forwardRetryFirst
+			backoff = first
 		}
 		if !r.sleep(ctx, backoff) {
 			return

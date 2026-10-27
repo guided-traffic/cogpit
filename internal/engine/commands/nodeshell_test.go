@@ -333,13 +333,13 @@ func TestNodeShellBoundToWhatWasConfirmed(t *testing.T) {
 // greyed with the reason; a pod is not a node.
 func TestNodeShellFollowsAccessReviews(t *testing.T) {
 	h, _ := nodeShellHarness(t)
-	h.s.Backend().Access = denyAccess{"create pods kube-system": true}
+	h.access.set(denyAccess{"create pods kube-system": true})
 	cmd, _ := h.s.Registry().Get(engine.NodeShellCommand)
 	err := cmd.Enabled(h.s, []byte(`{"ref":{"kind":"nodes","name":"worker-1"}}`))
 	if !errors.Is(err, engine.ErrNotPermitted) || !strings.Contains(err.Error(), "you may not create pods in kube-system") {
 		t.Errorf("denied: %v", err)
 	}
-	h.s.Backend().Access = denyAccess{"create pods ": true} // cluster-wide only: kube-system is what counts
+	h.access.set(denyAccess{"create pods ": true}) // cluster-wide only: kube-system is what counts
 	if err := cmd.Enabled(h.s, []byte(`{"ref":{"kind":"nodes","name":"worker-1"}}`)); err != nil {
 		t.Errorf("allowed in kube-system: %v", err)
 	}

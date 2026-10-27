@@ -187,14 +187,12 @@ func TestAccessReviewsAnswerWithoutBlocking(t *testing.T) {
 	rec := record(s)
 	a := s.Backend().Access
 
-	start := time.Now()
+	// The review is held at its gate until after these: an Allowed that waited for it would not
+	// return.
 	for range 100 {
 		if _, known := a.Allowed("apps", listPods); known {
 			t.Fatal("an answer before the review landed")
 		}
-	}
-	if took := time.Since(start); took > 50*time.Millisecond {
-		t.Errorf("100 unanswered Allowed calls took %s: they must not wait for the review", took)
 	}
 	kindsBefore, detailBefore := rec.count(EventKinds, ""), rec.count(EventDetail, "")
 
@@ -566,7 +564,12 @@ func TestAccessReviewsStopAskingAfterAFailure(t *testing.T) {
 		_, access := rev.calls()
 		return len(access) == 1
 	})
-	time.Sleep(20 * time.Millisecond) // let it land
+	a := b.Access.(*accessReviews)
+	waitCond(t, "the failure recorded", func() bool {
+		a.mu.Lock()
+		defer a.mu.Unlock()
+		return a.failing
+	})
 	for _, v := range []Verb{listPods, deletePods, listNodes, listNamespace} {
 		for _, ns := range []string{"default", "", "apps"} {
 			if _, known := b.Access.Allowed(ns, v); known {
@@ -575,7 +578,12 @@ func TestAccessReviewsStopAskingAfterAFailure(t *testing.T) {
 		}
 		b.Listable(testDeployments, nil)
 	}
-	time.Sleep(20 * time.Millisecond)
+	waitCond(t, "the rules review of apps answered", func() bool {
+		rules, _ := rev.calls()
+		rev.mu.Lock()
+		defer rev.mu.Unlock()
+		return rules["apps"] == 1 && rev.inFlight == 0
+	})
 	rules, access := rev.calls()
 	if len(access) != 1 || rules["default"] != 1 || rules["apps"] != 1 || len(rules) != 2 {
 		t.Errorf("reviews after the failure: rules %v, access %v", rules, access)

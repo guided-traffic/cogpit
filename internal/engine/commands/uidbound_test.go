@@ -58,14 +58,11 @@ func TestRestartAndScaleCarryTheUID(t *testing.T) {
 	}
 
 	// An agent's scale whose stateful set is created again while the user looks at the request.
-	c.during = func(ctx context.Context) {
+	c.during = func(context.Context) {
 		obj := testkit.Object("apps/v1", "StatefulSet", "shop", "db", nil)
 		obj.SetUID("uid-again")
 		h.src.Set(statefulSetsGVR, obj)
-		testkit.WaitFor(ctx, func() bool {
-			o, err := h.s.Lookup(sts)
-			return err == nil && o.GetUID() == "uid-again"
-		})
+		waitRecreated(t, h, sts)
 	}
 	n := len(h.writer.Calls())
 	if err := h.run(t, engine.OriginExternalAgent, "statefulset.scale", scaleTo(sts, 5), nil); !errors.Is(err, engine.ErrTargetsChanged) {

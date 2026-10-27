@@ -256,10 +256,9 @@ func TestApplicationsListable(t *testing.T) {
 		{"one not known yet", listAccess{"deployments": false, "statefulsets": false, "jobs": false}, true, false},
 	}
 	for _, tt := range tests {
-		b.Access = tt.access
-		if l, known := b.Listable(apps, nil); l != tt.listable || known != tt.kno {
+		d := &Backend{Profiles: b.Profiles, Access: tt.access} // detached: the session's goroutines read the live backend's Access
+		if l, known := d.Listable(apps, nil); l != tt.listable || known != tt.kno {
 			t.Errorf("%s: listable %v known %v, want %v %v", tt.name, l, known, tt.listable, tt.kno)
 		}
 	}
-	b.Access = nil
 }

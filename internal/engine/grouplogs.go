@@ -149,7 +149,7 @@ func (s *Session) openGroupLogs(ctx context.Context, tab DockTab, b *Backend, st
 	}
 	go func() {
 		defer s.recoverTo("group logs")
-		runCoalesced(g.stop, g.wake, workloadLogRescan, nil, g.rescan)
+		runCoalesced(g.stop, g.wake, s.opts.LogRescan, nil, g.rescan)
 	}()
 	return g, nil
 }

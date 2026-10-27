@@ -137,12 +137,16 @@ func TestRemoveFinalizersRefusals(t *testing.T) {
 	}
 
 	// A finalizer added while the dialog was open: the cache has it before Run, which refuses.
-	h.s.SetConfirmer(engine.ConfirmFunc(func(ctx context.Context, _ engine.ConfirmRequest) (bool, error) {
+	h.s.SetConfirmer(engine.ConfirmFunc(func(context.Context, engine.ConfirmRequest) (bool, error) {
 		h.src.Set(testkit.PodsGVR, beingDeleted("shop", "web-0", "example.com/x", "example.com/y", "example.com/z"))
-		testkit.WaitFor(ctx, func() bool {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if !testkit.WaitFor(ctx, func() bool {
 			obj, err := h.s.Lookup(ref)
 			return err == nil && len(obj.GetFinalizers()) == 3
-		})
+		}) {
+			t.Error("the cache never showed the added finalizer")
+		}
 		return true, nil
 	}))
 	if err := h.run(t, engine.OriginGUI, engine.RemoveFinalizersCommand, map[string]any{"ref": ref}, nil); !errors.Is(err, engine.ErrTargetsChanged) {

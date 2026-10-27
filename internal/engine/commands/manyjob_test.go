@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -212,10 +213,16 @@ func manyDeployments(t *testing.T, h *harness, n int) []model.ObjectRef {
 }
 
 // TestRestartManyDirectOrJob (G4): Restart of at most ten workloads returns what it restarted, as
-// before; of eleven it starts a job, which restarts each bound to its confirmed UID.
+// before; of eleven it starts a job, which restarts each bound to its confirmed UID: one created
+// again under its name while the user was asked fails its step, the others are restarted.
 func TestRestartManyDirectOrJob(t *testing.T) {
-	h := newHarness(t, seed(), engine.Options{Confirmer: &recorder{answer: true}})
+	conf := &recorder{answer: true}
+	h := newHarness(t, seed(), engine.Options{Confirmer: conf})
 	refs := manyDeployments(t, h, engine.DirectSelection+1)
+	uids := make([]string, len(refs))
+	for i, r := range refs {
+		uids[i] = "uid-shop-" + r.Name
+	}
 	var direct commands.RestartManyResult
 	h.must(t, engine.OriginGUI, "workload.restartMany", map[string]any{"refs": refs[:engine.DirectSelection]}, &direct)
 	if len(direct.Restarted) != engine.DirectSelection {
@@ -236,6 +243,32 @@ func TestRestartManyDirectOrJob(t *testing.T) {
 	}
 	if n != 2*engine.DirectSelection+1 {
 		t.Errorf("%d restarts: %v", n, h.writer.Calls())
+	}
+	if got, want := h.writer.UIDs(), append(slices.Clone(uids[:engine.DirectSelection]), uids...); !slices.Equal(got, want) {
+		t.Errorf("the restarts carried the UIDs %q, want the confirmed ones %q", got, want)
+	}
+
+	// d05 is created again under its name while the user is asked.
+	conf.mu.Lock()
+	conf.during = func(engine.ConfirmRequest) {
+		again := testkit.Object("apps/v1", "Deployment", "shop", "d05", nil)
+		again.SetUID("uid-shop-d05-again")
+		h.src.Set(testkit.DeploymentsGVR, again)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if !testkit.WaitFor(ctx, func() bool { o, err := h.s.Lookup(refs[5]); return err == nil && o.GetUID() == "uid-shop-d05-again" }) {
+			t.Error("the cache never showed d05 created again") // inside the command: no Fatal
+		}
+	}
+	conf.mu.Unlock()
+	before := len(h.writer.UIDs())
+	h.must(t, engine.OriginGUI, "workload.restartMany", map[string]any{"refs": refs}, &res)
+	j = waitJobEnd(t, h.s, res.Job.ID)
+	if j.State != engine.JobFailed || j.Steps[5].State != engine.JobFailed || !strings.Contains(j.Steps[5].Detail, "no longer the object that was confirmed") {
+		t.Errorf("job with a recreated workload %+v", j)
+	}
+	if got, want := h.writer.UIDs()[before:], slices.Delete(slices.Clone(uids), 5, 6); !slices.Equal(got, want) {
+		t.Errorf("restarts after the recreation carried %q, want %q", got, want)
 	}
 }
 

@@ -244,8 +244,9 @@ func TestHelmUpgradeOriginMarked(t *testing.T) {
 }
 
 // The origin a chart object carries follows Helm's file: an entry that gains or loses
-// insecure_skip_tls_verify is marked anew when Cogpit reads the file (every 2 seconds), without
-// waiting for its next index download (the Charts view is not open: nothing downloads).
+// insecure_skip_tls_verify is marked anew when Cogpit reads the file (every 2 seconds, the harness's
+// 20 ms), without waiting for its next index download (the Charts view is not open: nothing
+// downloads).
 func TestHelmChartOriginFollowsHelmsFile(t *testing.T) {
 	h := originHarness(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

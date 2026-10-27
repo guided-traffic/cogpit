@@ -78,6 +78,7 @@ func (w *fluxWriter) Patches() []string {
 type fluxConnector struct {
 	src    *testkit.MemorySource
 	writer *fluxWriter
+	access engine.Access // the backend's access reviews; nil: none
 }
 
 func (c fluxConnector) Contexts() ([]engine.ContextInfo, error) {
@@ -87,7 +88,7 @@ func (c fluxConnector) Contexts() ([]engine.ContextInfo, error) {
 func (c fluxConnector) Connect(context.Context, string) (*engine.Backend, error) {
 	ch := cache.New(c.src, cache.Options{WarmPeriod: time.Minute})
 	return &engine.Backend{Context: "test", Namespace: "default", Cache: ch, Profiles: testProfiles(),
-		CustomResources: true, Close: ch.Close, Conn: &cluster.Conn{}, Actions: c.writer}, nil
+		CustomResources: true, Close: ch.Close, Conn: &cluster.Conn{}, Actions: c.writer, Access: c.access}, nil
 }
 
 // fluxObject builds a Flux object; suspended sets spec.suspend, ready the Ready condition.
@@ -130,8 +131,8 @@ func newFluxHarness(t *testing.T, opts engine.Options) (*harness, *fluxWriter) {
 func newFluxHarnessOn(t *testing.T, opts engine.Options, src *testkit.MemorySource) (*harness, *fluxWriter) {
 	t.Helper()
 	w := &fluxWriter{}
-	h := &harness{src: src, writer: &w.fakeWriter}
-	opts.Connector = fluxConnector{src: src, writer: w}
+	h := &harness{src: src, writer: &w.fakeWriter, access: &swapAccess{}}
+	opts.Connector = fluxConnector{src: src, writer: w, access: h.access}
 	opts.SnapshotInterval = 5 * time.Millisecond
 	h.s = engine.New(opts)
 	if err := commands.RegisterAll(h.s.Registry()); err != nil {
@@ -258,7 +259,7 @@ func TestFluxActionsApply(t *testing.T) {
 			t.Errorf("%s takes force: %v", id, got)
 		}
 	}
-	h.s.Backend().Access = denyAccess{"patch kustomizations flux-system": true}
+	h.access.set(denyAccess{"patch kustomizations flux-system": true})
 	if got := state("flux.reconcile", ksRef("apps")); !strings.Contains(got, "not permitted") || !strings.Contains(got, "patch") {
 		t.Errorf("denied: %s", got)
 	}
@@ -312,7 +313,9 @@ func TestFluxActionsAgentsNeedAcceptance(t *testing.T) {
 		h.src.Set(ksGVR, obj)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		testkit.WaitFor(ctx, func() bool { o, err := h.s.Lookup(ksRef("infra")); return err == nil && o.GetUID() == "uid-new" })
+		if !testkit.WaitFor(ctx, func() bool { o, err := h.s.Lookup(ksRef("infra")); return err == nil && o.GetUID() == "uid-new" }) {
+			t.Error("the cache never showed the replacement")
+		}
 	}
 	if err := h.run(t, agent, "flux.reconcile", map[string]any{"ref": ksRef("infra")}, nil); !errors.Is(err, engine.ErrTargetsChanged) {
 		t.Errorf("replaced while asked: %v", err)

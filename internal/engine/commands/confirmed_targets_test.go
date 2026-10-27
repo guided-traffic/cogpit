@@ -99,10 +99,12 @@ func TestDeleteKeepsTheConfirmedUID(t *testing.T) {
 		h.src.Set(testkit.ServicesGVR, repl)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
-		testkit.WaitFor(ctx, func() bool {
+		if !testkit.WaitFor(ctx, func() bool {
 			o, err := h.s.Lookup(cart)
 			return err == nil && string(o.GetUID()) == "uid-replacement"
-		})
+		}) {
+			t.Error("the cache never showed the replacement") // the delete would carry the original's UID untested
+		}
 		return true, nil
 	})}
 	h = newHarness(t, seed(), opts)

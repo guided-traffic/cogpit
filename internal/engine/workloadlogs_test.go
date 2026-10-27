@@ -182,6 +182,10 @@ func logPod(namespace, name string, containers ...string) *unstructured.Unstruct
 	})
 }
 
+// logRescan is how soon the logs of these tests look at their pods again after a change: the tests
+// wait for what a rescan does, not for the product's 250 ms.
+const logRescan = 5 * time.Millisecond
+
 // logsSession is a session connected to a cluster with a deployment web (its replica set web-1
 // and two pods), a stateful set db with one pod, and a pod nobody controls.
 func logsSession(t *testing.T) (*Session, *testkit.MemorySource) {
@@ -210,7 +214,7 @@ func logsSessionWith(t *testing.T, opts Options) (*Session, *testkit.MemorySourc
 		profiles = append(profiles, p)
 	}
 	fc := &fakeConnector{src: src, profiles: profiles, conn: &cluster.Conn{}}
-	opts.Connector, opts.SnapshotInterval = fc, 10*time.Millisecond
+	opts.Connector, opts.SnapshotInterval, opts.LogRescan = fc, 10*time.Millisecond, logRescan
 	s := New(opts)
 	t.Cleanup(s.Close)
 	connectTest(t, s)
@@ -228,7 +232,12 @@ func openTabLogs(t *testing.T, s *Session, id string, f logStreamer) io.ReadClos
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = rc.Close() })
+	t.Cleanup(func() {
+		_ = rc.Close()
+		if wl, ok := rc.(*workloadLogs); ok {
+			wl.wg.Wait() // its streams read the resumptions' timings, which fastResumes puts back after
+		}
+	})
 	return rc
 }
 
@@ -277,15 +286,31 @@ func TestWorkloadLogsFollowNewPodsAndRestarts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	lr := readLines(openTabLogs(t, s, tab.ID, f))
+	wl, ok := openTabLogs(t, s, tab.ID, f).(*workloadLogs)
+	if !ok {
+		t.Fatal("not a workload's logs")
+	}
+	lr := readLines(wl)
 	waitRequests(t, f, 3)
+	// startsNothing checks, once the cache shows what changed, that a rescan has nothing to start
+	// and that no stream of pod runs: what the stream's own rescan decides from the same cache.
+	startsNothing := func(what, pod string, shown func(*unstructured.Unstructured) bool) {
+		t.Helper()
+		waitUntil(t, "the cache to show "+what, func() bool {
+			obj, err := s.Lookup(model.ObjectRef{Kind: "pods", Namespace: "shop", Name: pod})
+			return err == nil && shown(obj)
+		})
+		if targets := wl.scan(); len(targets) != 0 || slices.ContainsFunc(streamsOf(wl), func(s string) bool { return strings.HasPrefix(s, pod+"/") }) {
+			t.Errorf("%s: a rescan starts %+v; streams %q", what, targets, streamsOf(wl))
+		}
+	}
 
 	// A new pod: waiting first (no request), then running.
 	f.mu.Lock()
 	f.content["web-1-c/app"] = "c started\n"
 	f.mu.Unlock()
 	src.Set(testkit.PodsGVR, owned(logPod("shop", "web-1-c", "app:waiting"), "apps/v1", "ReplicaSet", "web-1", "uid-shop-web-1"))
-	time.Sleep(3 * workloadLogRescan)
+	startsNothing("web-1-c waiting", "web-1-c", func(*unstructured.Unstructured) bool { return true })
 	if n := len(f.requests()); n != 3 {
 		t.Errorf("a waiting container was streamed: %+v", f.requests())
 	}
@@ -310,7 +335,9 @@ func TestWorkloadLogsFollowNewPodsAndRestarts(t *testing.T) {
 	}
 	// Other pods' updates start nothing more.
 	src.Set(testkit.PodsGVR, logPod("shop", "loner", "app", "sidecar"))
-	time.Sleep(3 * workloadLogRescan)
+	startsNothing("loner's sidecar", "loner", func(pod *unstructured.Unstructured) bool {
+		return len(model.NestedSlice(pod, "status", "containerStatuses")) == 2
+	})
 	if n := len(f.requests()); n != 6 {
 		t.Errorf("requests after an unrelated change: %+v", f.requests())
 	}
@@ -421,12 +448,25 @@ func TestWorkloadLogsBoundsStreams(t *testing.T) {
 			t.Errorf("tail %d", r.TailLines)
 		}
 	}
-	// One ends (its container stops): the one left out starts.
+	// One ends with its container: the one left out starts. (A stream the server ends while the
+	// cache shows its container running is resumed instead, and keeps its place.)
+	streamed := map[string]bool{}
+	for _, r := range f.requests() {
+		streamed[r.Pod] = true
+	}
+	src.Set(testkit.PodsGVR, owned(logPod("shop", "db-0", "db:terminated#1"), "apps/v1", "StatefulSet", "db", "uid-shop-db"))
+	waitUntil(t, "the cache to show db-0's container ended", func() bool {
+		pod, err := s.Lookup(model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "db-0"})
+		return err == nil && model.NestedMap(model.NestedSlice(pod, "status", "containerStatuses")[0], "state", "terminated") != nil
+	})
 	f.mu.Lock()
 	pw := f.open["db-0/db"]
 	f.mu.Unlock()
 	_ = pw.Close()
 	waitRequests(t, f, workloadLogStreams+1)
+	if r := f.requests()[workloadLogStreams]; streamed[r.Pod] {
+		t.Errorf("the next stream is %s's, which streamed already; want one left out", r.Pod)
+	}
 
 	// Closing the stream ends every container's stream.
 	_ = rc.Close()

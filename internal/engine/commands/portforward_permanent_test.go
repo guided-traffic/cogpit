@@ -19,10 +19,15 @@ import (
 
 var podsResource = schema.GroupResource{Resource: "pods"}
 
+// wsaECONNREFUSED is Winsock's refused connection: on Windows a dial fails with it, never with
+// syscall.ECONNREFUSED, which Go invents there.
+const wsaECONNREFUSED syscall.Errno = 10061
+
 // portFree reports whether nothing listens on the forward's local address any more.
 // The forward's port comes from the ephemeral range, so once it is freed another test process may
 // take it for an outgoing connection and make Listen fail (a CI flake): a refused dial says no
-// listener is left just as well. Either is retried for a moment.
+// listener is left just as well. Either is retried for a moment. The dial waits long enough for
+// Windows, which answers a refused local connection only after retrying it for about 2 s.
 func portFree(t *testing.T, addr string) bool {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -31,8 +36,8 @@ func portFree(t *testing.T, addr string) bool {
 			_ = ln.Close()
 			return true
 		}
-		conn, err := net.DialTimeout("tcp4", addr, 200*time.Millisecond)
-		if err != nil && errors.Is(err, syscall.ECONNREFUSED) {
+		conn, err := net.DialTimeout("tcp4", addr, 3*time.Second)
+		if err != nil && (errors.Is(err, syscall.ECONNREFUSED) || errors.Is(err, wsaECONNREFUSED)) {
 			return true
 		}
 		if conn != nil {
@@ -46,60 +51,50 @@ func portFree(t *testing.T, addr string) bool {
 }
 
 // TestPortForwardFailsAtOncePermanentErrors (D-20): a connection that cannot be made, and that
-// waiting does not cure, ends a forward that was active (or had waited for its pod) as Failed at
-// once, names the cause and frees the local port; no dial follows.
+// waiting does not cure, ends a forward that was active as Failed at once, names the cause and
+// frees the local port; no dial follows. Which API errors waiting does not cure is
+// TestDialErrorsAreClassified's (internal/cluster); the forward treats each alike, and the one that
+// waited for its pod is TestPortForwardThatWaitedFailsOnAPermanentError's.
 func TestPortForwardFailsAtOncePermanentErrors(t *testing.T) {
-	for name, cause := range map[string]error{
-		"forbidden":    apierrors.NewForbidden(podsResource, "web-0", errors.New(`User "dev" cannot create resource "pods/portforward"`)),
-		"unauthorized": apierrors.NewUnauthorized("token expired"),
-		"not found":    apierrors.NewNotFound(podsResource, "web-0"),
-	} {
-		t.Run(name, func(t *testing.T) {
-			h, fw := newForwardHarness(t, engine.Options{})
-			var f engine.Forward
-			h.must(t, engine.OriginGUI, "pod.portForward", map[string]any{"ref": web0, "port": 8080}, &f)
-			fw.fail(cause)
-			fw.cut()
-			failed := waitForward(t, h.s, f.Ref, "failed", func(f engine.Forward) bool { return f.Phase == engine.ForwardFailed })
-			if failed.Listening() || !strings.Contains(failed.Message, "not retried") || !strings.Contains(failed.Message, cause.Error()) {
-				t.Errorf("failed forward %+v", failed)
-			}
-			if !portFree(t, f.Address) {
-				t.Errorf("the local port %s is not freed", f.Address)
-			}
-			n := len(fw.dialed())
-			time.Sleep(2*time.Second + 200*time.Millisecond) // longer than the first backoff
-			if got := len(fw.dialed()); got != n {
-				t.Errorf("%d dials after the failure, was %d", got, n)
-			}
-		})
+	cause := apierrors.NewUnauthorized("token expired")
+	h, fw := newForwardHarness(t, engine.Options{})
+	var f engine.Forward
+	h.must(t, engine.OriginGUI, "pod.portForward", map[string]any{"ref": web0, "port": 8080}, &f)
+	fw.fail(cause)
+	fw.cut()
+	failed := waitForward(t, h.s, f.Ref, "failed", func(f engine.Forward) bool { return f.Phase == engine.ForwardFailed })
+	if failed.Listening() || !strings.Contains(failed.Message, "not retried") || !strings.Contains(failed.Message, cause.Error()) {
+		t.Errorf("failed forward %+v", failed)
+	}
+	if !portFree(t, f.Address) {
+		t.Errorf("the local port %s is not freed", f.Address)
+	}
+	n := len(fw.dialed())
+	time.Sleep(20 * forwardBackoff) // a loop that went on after the failure dials again after one backoff
+	if got := len(fw.dialed()); got != n {
+		t.Errorf("%d dials after the failure, was %d", got, n)
 	}
 }
 
-// TestPortForwardRetriesTransientErrors: a network error, a server error and a pod that is not
-// running yet (400) keep the forward Reconnecting, and it connects again once they pass.
+// TestPortForwardRetriesTransientErrors: a pod that is not running yet (400), an error that passes,
+// keeps the forward Reconnecting through its retries, and it connects again once it passes. Which
+// API errors pass is TestDialErrorsAreClassified's (internal/cluster); the forward retries each
+// alike.
 func TestPortForwardRetriesTransientErrors(t *testing.T) {
-	for name, cause := range map[string]error{
-		"network":     errors.New("dial tcp 10.0.0.1:443: connect: connection refused"),
-		"unavailable": apierrors.NewServiceUnavailable("the apiserver is restarting"),
-		"timeout":     apierrors.NewTimeoutError("too slow", 1),
-		"not running": apierrors.NewBadRequest("pod does not have a host assigned"),
-	} {
-		t.Run(name, func(t *testing.T) {
-			h, fw := newForwardHarness(t, engine.Options{})
-			var f engine.Forward
-			h.must(t, engine.OriginGUI, "pod.portForward", map[string]any{"ref": web0, "port": 8080}, &f)
-			fw.fail(cause)
-			fw.cut()
-			waitForward(t, h.s, f.Ref, "reconnecting", func(f engine.Forward) bool { return f.Phase == engine.ForwardReconnecting })
-			time.Sleep(100 * time.Millisecond)
-			if cur, err := h.s.ForwardOf(f.Ref); err != nil || cur.Phase == engine.ForwardFailed {
-				t.Fatalf("a transient error failed the forward: %+v %v", cur, err)
-			}
-			fw.fail(nil)
-			waitForward(t, h.s, f.Ref, "active again", func(f engine.Forward) bool { return f.Phase == engine.ForwardActive })
-		})
+	h, fw := newForwardHarness(t, engine.Options{})
+	var f engine.Forward
+	h.must(t, engine.OriginGUI, "pod.portForward", map[string]any{"ref": web0, "port": 8080}, &f)
+	fw.fail(apierrors.NewBadRequest("pod does not have a host assigned"))
+	n := len(fw.dialed())
+	fw.cut()
+	waitForward(t, h.s, f.Ref, "two failed retries", func(f engine.Forward) bool {
+		return f.Phase == engine.ForwardReconnecting && len(fw.dialed()) >= n+2
+	})
+	if cur, err := h.s.ForwardOf(f.Ref); err != nil || cur.Phase == engine.ForwardFailed {
+		t.Fatalf("a transient error failed the forward: %+v %v", cur, err)
 	}
+	fw.fail(nil)
+	waitForward(t, h.s, f.Ref, "active again", func(f engine.Forward) bool { return f.Phase == engine.ForwardActive })
 }
 
 // TestPortForwardThatWaitedFailsOnAPermanentError is the case D-20 names: a forward that first
