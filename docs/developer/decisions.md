@@ -120,7 +120,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-109](#d-109-the-menus-in-the-top-bar-on-windows-and-linux) | The menus in the top bar on Windows and Linux | built: menu titles in Cogpit's top bar, native title bar |
 | [D-110](#d-110-dark-cockpit-cogpits-design-language) | Dark Cockpit, Cogpit's design language | built: Dark Cockpit replaces Solarized; first outlook topic open |
 | [D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle) | Cogpit for Windows: an NSIS setup and WinSparkle | built: per-user NSIS setup, WinSparkle updates, x64 |
-| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, lint and GoSec per system, the shipped app's smoke test; one item open |
+| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, one build for the race shards, lint and GoSec per system, the shipped app's smoke test |
 | [D-113](#d-113-image-grades-shields-from-trivys-reports) | Image grades, shields from Trivy's reports | built: S–E and N/A shields; D/E thresholds provisional |
 | [D-114](#d-114-a-failed-connects-error-page-and-its-stages) | A failed connect's error page and its stages | built: error page with the connect's stages |
 | [D-115](#d-115-a-dock-tab-the-user-opens-takes-the-keys) | A dock tab the user opens takes the keys | built: user-opened dock tabs take the keyboard |
@@ -4247,7 +4247,16 @@ CI and local test runs are kept short at the same coverage.
   refresh.
 - **Five race shards on CI** (`RACE_SHARDS`, the race-ui matrix), each a fifth of the race tests'
   time.
-- **No job that builds the race test binary once** for the shards: each shard compiles its own.
+- **One build for the race shards:** the job Race Tests (UI build) compiles `internal/ui/fyneui`'s
+  race test binary with coverage once (`make test-race-ui-build`), with each shard's `-run` pattern,
+  the timeout and the libraries the binary links beside glibc (OpenGL, X11, Wayland's client and
+  theirs, about 5 MB, which the runner image lacks), and uploads them (about 95 MB). Each shard
+  downloads them and runs its part through [`hack/ci/race-ui.sh`](../../hack/ci/race-ui.sh) without
+  Go, the build cache, make or apt; the libraries load through `LD_LIBRARY_PATH`, from runners of
+  the same image. The profile has `go test -coverprofile`'s blocks and covered set, and the tests'
+  output shows only when they failed, as with `go test`. `make test-race-ui` builds and runs a shard
+  on one machine. The no-race job's render shards keep their own build: that job needs Go and
+  Fyne's packages for its other tests, and the render binary compiles in 3 to 4 s from its cache.
 - **Render tests** encode a PNG only for `-update` or `COGPIT_PNG_DIR`; the capture, which paints
   every renderer, is the check (`writePNG`).
 - **The logo's tile** is drawn once per pixel size and shared (`logoTile`).
@@ -4304,32 +4313,53 @@ CI and local test runs are kept short at the same coverage.
     pipeline's Windows job, which ships the setup it builds, runs no third-party binary Renovate
     merges on its own.
 
-**Open:** a runner image that carries Fyne's build dependencies, and with it one job building the
-UI's race test binary for all shards.
-
 **Why:** Job set-up (checkout, Go, a slow cache restore, apt) and a full second pass without the race
 detector, which covered about 0.3 % of statements no race run covered, took most of a run. In one
 process the UI tests' garbage collection dominated as the heap grew; shards in processes of their own
 keep heaps small. A higher `GOGC` bought little time for much more memory. Measured times split the
 race tests evenly where a hash of the names did not (66 to 163 s of tests across eight shards on
-CI), so fewer shards need not make the longest one longer. A race-ui job spends about three minutes
-before its first test (checkout, Go, the 500 MB build cache, the modules, the compile), and every
-shard fewer saves that: five balanced shards hold about 155 s of tests each, a fifth of the 760 to
-775 s the race tests take without the render tests (an M1 Ultra, 815 s on CI; one shard alone took
-158 s, none more than 4.1 GB), about the 163 s of the longest hashed shard on CI; four would hold
-about 190 s each, six would spend three minutes more on set-up. A job building the race test binary
-once for the shards (about 95 MB compressed) would spare each shard Go, the cache and the compile,
-but not the libraries the cgo binary links (OpenGL, X11, Wayland, xkbcommon), which apt installs
-while Go sets up: each shard would wait for apt instead, after a second wait for a runner behind the
-build job. With a runner image that carries the libraries, a shard's set-up would shrink to the
-checkout and the download. A pass for Windows takes
+CI), so fewer shards need not make the longest one longer: five balanced shards hold about 155 s of
+tests each, a fifth of the 760 to 775 s the race tests take without the render tests (an M1 Ultra,
+815 s on CI; one shard alone took 158 s, none more than 4.1 GB), about the 163 s of the longest
+hashed shard on CI; four would hold about 190 s each.
+
+A shard that builds its own binary spends half its job before its first test (15 race-ui jobs of
+three runs on the self-hosted runners; seconds, median and range):
+
+| Step of a race-ui job | Seconds |
+|---|---|
+| Checkout | 10 (8–20) |
+| Go, the build cache (501 MB) and the modules, Fyne's packages from apt meanwhile | 110 (66–182); the cache 73 (37–133), the wait for apt 0 in every job |
+| Compile and link under `-race` | 60 (52–90) |
+| The tests | 151 (126–212) |
+| The whole job | 356 (278–444) |
+
+The self-hosted runners took at most nine of a run's 17 Linux jobs (about 4,900 runner-seconds) at
+once, so the last race shard waited for a runner and ended just before the coverage report.
+Estimated from these numbers, one build spares four of the five set-ups and compiles: the build
+takes about 215 s and a shard its tests and about 35 s (the checkout and the download), so the race
+shards' runner time falls from 1,715–1,971 s to about 1,120–1,335 s a run; a model of the three runs
+on nine runners puts a run's median at 690 to 725 s instead of 860 to 890 s, and with free runners
+the race path is 30 to 50 s longer, the build coming before the shards. The libraries travel with
+the build, as apt would bring them with Mesa's drivers (33 packages, 43 MB) for a binary that opens
+no window. A pass for Windows takes
 about 1.5 s with a warm lint cache and, with an empty one, 3 s (GoSec) and 30 s (lint);
 `make gosec-darwin` 2 to 4 s (Apple M1 Ultra, four workers). golangci-lint's defaults show three
 findings of a text and one per line, so a run's log would not list all a change has to fix.
 
+**Rejected:**
+
+- A CI image with Go and Fyne's packages, built here or as the organisation's runner image (the
+  owner's infrastructure): apt installs while Go and the cache come, so an image saves Go's 12 to
+  41 s against a pull on every ephemeral runner, and neither the cache's restore nor the compile.
+  It would spare the shared machine apt's work (98 MB fetched and 393 MB unpacked per job with
+  Fyne's packages), not time; the race shards need neither.
+- A compile in every race shard: four set-ups and compiles a run, about ten runner-minutes.
+
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
 [`.golangci.yml`](../../.golangci.yml) `issues`,
 [`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
+[`race-ui.sh`](../../hack/ci/race-ui.sh),
 [`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
 [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile`,
 [`prereq.go`](../../internal/testkit/prereq/prereq.go),

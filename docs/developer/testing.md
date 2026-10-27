@@ -9,7 +9,7 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 | Tier | Runs where | Command | What it proves |
 |---|---|---|---|
 | Unit | everywhere | `make test-unit` (the UI's package in parallel shards, `make test-ui`) | logic in isolation; `model` and `kubeconfig` are fully testable without I/O |
-| Race | Linux CI, locally on demand | `make test-race-ui` (five shards balanced by the tests' measured time, the render tests left out), `make test-race-rest`, `make test-unit-race` | no data races; a concurrent map write would end the process |
+| Race | Linux CI, locally on demand | `make test-race-ui` (five shards of one build, balanced by the tests' measured time, the render tests left out), `make test-race-rest`, `make test-unit-race` | no data races; a concurrent map write would end the process |
 | No race | Linux CI | `make test-norace-coverage` | what the race build skips (tests that read `raceEnabled`, `internal/ui/logo`) and the UI's render tests, with coverage |
 | macOS | CI's macOS Tests job, locally | `make test-darwin` | every `*_darwin_test.go` (title bar, window place, concealed clipboard, updater and file-panel harnesses, locale), `internal/cluster` and `internal/terminal` (PTY, shells, the credential plugin's process search, login runs and waits), the login-wait tests, and the tests whose expectations branch on macOS, under the race detector |
 | Windows | CI's Unit Tests (windows) and UI Tests (windows), locally in MSYS2's MINGW64 shell | `make test-windows-unit`, `make test-windows-ui` | every package's tests on Windows, without the race detector; PowerShell for the terminal's and the registration's tests |

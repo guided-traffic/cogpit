@@ -1,10 +1,11 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
-# lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
-# test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with
-# dist-app, dist-linux with smoke and test-linux-package, and on Windows test-windows-unit,
-# test-windows-ui and dist-windows with test-windows-package WINDOWS_SMOKE=on, the installed app's
-# smoke test (docs/developer/releasing.md#ci).
+# lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui-build (its
+# shards run hack/ci/race-ui.sh, as test-race-ui does), test-race-rest, kind-up with test-kind,
+# kind-drain-up with test-kind-drain, envtest-bin with test-envtest, coverage-report, on macOS
+# test-darwin and lint-darwin and gosec-darwin with dist-app, dist-linux with smoke and
+# test-linux-package, and on Windows test-windows-unit, test-windows-ui and dist-windows with
+# test-windows-package WINDOWS_SMOKE=on, the installed app's smoke test
+# (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -214,9 +215,9 @@ UNIT_TIMEOUT    ?= 20m
 # tests that skip themselves, or part of their checks, under it (they read raceEnabled, directly or
 # through a helper) or that only the build without the race tag compiles (hack/shard -norace): the
 # terminal tests of internal/ui/fyneui (their rendering races Fyne's test driver), the heap
-# measurements of internal/cache, the log view's budget. Until 2026-10-21 the job ran every package
-# a second time without the race detector, twelve minutes of a runner, for 240 of 79,744 statements
-# no other profile covered: those are covered here. Coverage mode set: the profiles are merged as
+# measurements of internal/cache, the log view's budget. Every package a second time without the
+# race detector would take twelve minutes of a runner for 240 of 79,744 statements no other profile
+# covers: those are covered here. Coverage mode set: the profiles are merged as
 # covered or not (hack/coverage), and atomic counting, which only the race detector needs, made the
 # logo's tests four times slower (33 s against 8.4 s, an M1 Ultra, 2026-10-27).
 NORACE_LIST      = $(CACHE)/norace-tests.txt
@@ -247,20 +248,35 @@ test-norace-coverage: ## The tests the race detector keeps from running and the 
 # unseen, a risk the behaviour tests keep small: they drive the same widgets under the race
 # detector. test-norace-coverage runs the render tests without it, with coverage, and Windows' UI
 # job with every other test.
+#
+# The shards run one build (D-112): test-race-ui-build compiles the test binary with coverage once
+# into RACE_UI_DIR, with every shard's -run pattern, the timeout and, on Linux, the libraries the
+# binary links (hack/ci/race-ui.sh libs); hack/ci/race-ui.sh run runs a shard from that folder
+# without Go or make. CI's build job uploads the folder for the five race-ui jobs; test-race-ui
+# builds and runs one shard here.
 UI_PKG            := ./internal/ui/fyneui
 UI_RENDER_TESTS   := ^TestRender
 UI_DURATIONS      := hack/shard/durations/fyneui.txt
 UI_RACE_DURATIONS := hack/shard/durations/fyneui-race.txt
 RACE_SHARDS       ?= 5
 RACE_SHARD        ?= 1
+RACE_UI_DIR       ?= $(CACHE)/race-ui
 
-test-race-ui: ## Race tests of internal/ui/fyneui but its render tests, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
-	@mkdir -p $(COVERAGE_DIR)
-	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -durations $(UI_RACE_DURATIONS) \
-		-shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
-		echo "$(GO) test -race $(UI_PKG) -run <shard $(RACE_SHARD) of $(RACE_SHARDS)>" && \
-		$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) -covermode=atomic \
-			-coverprofile=$(COVERAGE_DIR)/race-ui-$(RACE_SHARD).out -run "$$run" $(UI_PKG)
+.PHONY: test-race-ui-build
+
+test-race-ui-build: ## Build internal/ui/fyneui's race test binary with coverage once, with each of RACE_SHARDS shards' -run pattern and (Linux) the libraries it links, into RACE_UI_DIR
+	@rm -rf $(RACE_UI_DIR) && mkdir -p $(RACE_UI_DIR)
+	$(GO) test -c -race -covermode=atomic -o $(RACE_UI_DIR)/fyneui.test $(UI_PKG)
+	@for n in $$(seq 1 $(RACE_SHARDS)); do \
+		$(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -durations $(UI_RACE_DURATIONS) \
+			-shard $$n -of $(RACE_SHARDS) > $(RACE_UI_DIR)/shard-$$n.run 2> $(RACE_UI_DIR)/shard-$$n.log; \
+		s=$$?; cat $(RACE_UI_DIR)/shard-$$n.log; test $$s = 0 || exit $$s; \
+	done
+	@echo '$(RACE_TIMEOUT)' > $(RACE_UI_DIR)/timeout
+	hack/ci/race-ui.sh libs $(RACE_UI_DIR)
+
+test-race-ui: test-race-ui-build ## Race tests of internal/ui/fyneui but its render tests, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
+	hack/ci/race-ui.sh run $(RACE_UI_DIR) $(RACE_SHARD) $(COVERAGE_DIR)
 
 # internal/ui/logo is left out: it rasterises the logo in pure Go, on one goroutine, and took nine of
 # the job's fifteen minutes under the race detector (2026-10-17); the unit tests run it, coverage
