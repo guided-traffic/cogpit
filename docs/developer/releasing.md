@@ -19,7 +19,8 @@ runners (one shared machine) unless the repository variable `LINUX_RUNNER` names
 (`ubuntu-latest`); the macOS and Windows jobs run on GitHub's hosted runners. Every job's setup is
 [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml): Go from `go.mod`, a build
 cache per kind of build (saved by `main`'s pushes only), Fyne's Linux build dependencies installed
-in the background. `GOFLAGS=-count=1` keeps cached test results from passing a gate.
+in the background. `GOFLAGS=-count=1` keeps cached test results from passing a gate, and a missing
+prerequisite fails its test instead of skipping it ([testing › Prerequisites](testing.md#prerequisites)).
 
 | Job | Make target | Runs |
 |---|---|---|
@@ -30,13 +31,13 @@ in the background. `GOFLAGS=-count=1` keeps cached test results from passing a g
 | Cyclomatic Complexity | `make cyclo` | gocyclo over `cmd`, `internal`, `hack`, `third_party`; fails above `CYCLO_THRESHOLD` |
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
 | Race Tests (UI n/5) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=5` | `internal/ui/fyneui` under the race detector without its render tests, one shard of five, balanced by the tests' measured time ([the UI's shards](#the-uis-shards)) |
-| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job) |
+| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job); zsh and fish installed for the terminal's shell tests, beside the image's bash, `perl` and `stty` |
 | Integration Tests (kind) | `make kind-up`, `make test-kind` | the cluster tests (`TestKind*`, tag `kind`) on a kind cluster created while they compile; the add-on stacks' tests are skipped (`KIND_ADDONS=1` runs them) |
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
-| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector |
+| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh, bash and `perl` |
 | macOS Lint and App | `make lint-darwin gosec-darwin`, `make app` | lint and gosec of the packages with darwin-only files; the app bundle |
-| Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector |
+| Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector; WinSparkle.dll fetched, beside Windows PowerShell, `ping` and MSYS2's `sh` |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |
 | Linux Package | `make dist-linux`, `make test-linux-package` | the `.deb` as releases build it, lintian, the APT repository's scripts end to end with a throwaway key |
 | Windows Package | `make dist-windows`, `make test-windows-package` | the setup as releases build it, a silent install and uninstall for the runner's user |

@@ -408,8 +408,8 @@ on macOS `path_helper`, which `/etc/zprofile` and `/etc/profile` run, moves inhe
 `/etc/paths` and `/etc/paths.d`. zsh, bash and fish get the directory first again after their
 startup files ([D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries),
 [`terminal/kubectl.go`](../../internal/terminal/kubectl.go); `TestZshKubectlFirstAfterTheProfile`,
-`TestBashKubectlFirstAfterTheProfile`, `TestFishKubectlFirstAfterTheConfig`, which runs only where
-fish is installed; no CI workflow installs it). What remains:
+`TestBashKubectlFirstAfterTheProfile`, `TestFishKubectlFirstAfterTheConfig`, on Linux and macOS in
+CI). What remains:
 
 - **A later change:** a tool that changes `PATH` at a later prompt (direnv, asdf, a typed
   `export`), a `.zshrc` that empties `precmd_functions`, and a Preferences shell argument

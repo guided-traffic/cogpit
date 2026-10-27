@@ -15,19 +15,19 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // sparkleFramework is the Sparkle.framework make sparkle keeps in .cache (or
-// $COGPIT_SPARKLE_FRAMEWORK); the test is skipped without one.
+// $COGPIT_SPARKLE_FRAMEWORK); the test needs one.
 func sparkleFramework(t *testing.T) string {
 	t.Helper()
 	if p := os.Getenv("COGPIT_SPARKLE_FRAMEWORK"); p != "" {
 		return p
 	}
 	found, _ := filepath.Glob(filepath.Join("..", "..", ".cache", "sparkle", "*", "Sparkle.framework"))
-	if len(found) == 0 {
-		t.Skip("no Sparkle.framework in .cache/sparkle: make sparkle")
-	}
+	prereq.Need(t, len(found) > 0, "Sparkle.framework in .cache/sparkle: make sparkle")
 	abs, err := filepath.Abs(found[len(found)-1])
 	if err != nil {
 		t.Fatal(err)
@@ -38,10 +38,7 @@ func sparkleFramework(t *testing.T) string {
 // buildHarness builds testdata/sparkle_harness.m with sparkle_darwin.m.
 func buildHarness(t *testing.T) string {
 	t.Helper()
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-I.", "-o", bin,
 		filepath.Join("testdata", "sparkle_harness.m"), "sparkle_darwin.m")

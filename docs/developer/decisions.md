@@ -4208,6 +4208,18 @@ CI and local test runs are kept short at the same coverage.
 - **macOS** runs, besides the darwin files, the tests of `internal/cluster` and `internal/terminal`
   and the login waits (the PTY, the shells, the credential plugin's process search), split into the
   jobs macOS Tests and macOS Lint and App.
+- **A missing prerequisite fails CI:** a test takes what it needs of the machine through
+  [`testkit/prereq`](../../internal/testkit/prereq/prereq.go), which skips without it and fails
+  where `CI` is set: CI runs `go test` without `-v`, which reports a skip as its package's `ok`.
+  CI installs what its runners lack: zsh and fish in Race Tests (other packages), from apt without
+  recommendations (about 18 MB instead of 30; no other Linux job runs a shell test), and fish in
+  macOS Tests from Homebrew rather than a skip there, since fish on macOS orders `PATH` from
+  `/etc/paths` as `path_helper` does
+  ([H-36](../security/trust-boundaries.md#h-36-a-shells-profile-can-put-another-kubectl-first));
+  each system's own fish, unpinned, as its users get it. `prereq` imports only the standard
+  library, so that every package's tests can use it (`testkit` depends on `cache`, `kubectl` and
+  `model`). A prerequisite no job can promise stays a plain skip with its reason: PowerShell off
+  Windows, an IPv6 loopback in the Linux runners' pods.
 - **Tests without value of their own are removed:** a render's light twin of a dark render of the
   same layout (one light render per major surface stays), a test whose behaviour another asserts as
   strongly, a change detector of a literal, a measurement nothing reads; each removal checked by a
@@ -4273,9 +4285,11 @@ findings of a text and one per line, so a run's log would not list all a change 
 [`.golangci.yml`](../../.golangci.yml) `issues`,
 [`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
 [`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
-[`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · `TestSplitIsStableAndComplete`,
+[`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile`,
+[`prereq.go`](../../internal/testkit/prereq/prereq.go) · `TestSplitIsStableAndComplete`,
 `TestSplitBalancesByDurations`, `TestDurationsFile`, `TestReadTestJSON`, `TestSelection`,
-`TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`
+`TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`, `TestNeed`,
+`TestLookPath`
 
 ## D-113: Image grades, shields from Trivy's reports
 

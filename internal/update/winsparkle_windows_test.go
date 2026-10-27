@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // fakeSetup puts the Windows updater's surroundings in place for one test: a release build of
@@ -61,8 +63,7 @@ func fakeSetup(t *testing.T, running, dll string) (string, ed25519.PrivateKey) {
 	return dir, priv
 }
 
-// winSparkleDLL is the x64 WinSparkle.dll make winsparkle fetched, or "" (the test then skips the
-// parts that need it).
+// winSparkleDLL is the x64 WinSparkle.dll make winsparkle fetched, or "".
 func winSparkleDLL(t *testing.T) string {
 	t.Helper()
 	matches, _ := filepath.Glob(filepath.Join("..", "..", ".cache", "winsparkle", "*", "x64", "WinSparkle.dll"))
@@ -101,9 +102,7 @@ func TestWindowsUpdaterUnavailable(t *testing.T) {
 // function Cogpit calls.
 func TestWindowsUpdaterLoadsWinSparkle(t *testing.T) {
 	dll := winSparkleDLL(t)
-	if dll == "" {
-		t.Skip("no WinSparkle.dll in .cache/winsparkle: run make winsparkle")
-	}
+	prereq.Need(t, dll != "", "WinSparkle.dll in .cache/winsparkle: make winsparkle")
 	fakeSetup(t, "0.35.0", dll)
 	if err := New().Unavailable(); err != nil {
 		t.Fatalf("Unavailable() = %v, want nil", err)

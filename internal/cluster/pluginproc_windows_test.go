@@ -3,16 +3,15 @@ package cluster
 import (
 	"os/exec"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // The Toolhelp search on Windows itself (pluginproc_windows.go): a child started after the run's
 // begin is found by its program's file name with its start time, may be ended, and is gone once
 // TerminateProcess ended it.
 func TestWindowsChildIsFoundAndEnded(t *testing.T) {
-	ping, err := exec.LookPath("ping")
-	if err != nil {
-		t.Skip("no ping")
-	}
+	ping := prereq.LookPath(t, "ping")
 	command := []string{ping, "-n", "900", "127.0.0.1"}
 	before := childSet()
 	cmd := exec.Command(command[0], command[1:]...) // #nosec G204 -- the test's own command

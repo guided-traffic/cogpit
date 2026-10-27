@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // deeplink_darwin.m itself, built with a native harness into a process of its own (an app's
@@ -16,15 +17,12 @@ import (
 // before AppKit finished launching and after (its own handlers did not replace Cogpit's), a second
 // install changes nothing, and a link longer than Cogpit reads arrives cut to one byte more than
 // engine.MaxDeepLink, which the queue then drops. The harness sends its events to itself only:
-// nothing is registered with Launch Services and no URL is opened. Skipped without clang.
+// nothing is registered with Launch Services and no URL is opened. Needs clang.
 func TestDeepLinkAppleEvents(t *testing.T) {
 	if maxReceivedLink != engine.MaxDeepLink+1 {
 		t.Fatalf("COGPIT_MAX_DEEPLINK is %d, want engine.MaxDeepLink+1 (%d)", maxReceivedLink, engine.MaxDeepLink+1)
 	}
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "deeplink_harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-framework", "CoreServices", "-I.", "-o", bin,
 		filepath.Join("testdata", "deeplink_harness.m"), "deeplink_darwin.m")

@@ -275,10 +275,10 @@ test-race-rest: test-fork ## Race tests of every package but internal/ui/fyneui 
 # expectations branch on runtime.GOOS for macOS (DARWIN_GOOS_TESTS: its keys and shortcut glyphs),
 # and what macOS runs its own way beneath the window, which the Linux jobs test on Linux only
 # (DARWIN_UNIX_FILES): every test of internal/terminal (the local shell's PTY, its kubectl bindings
-# for zsh and bash, and fish where it is installed) and of internal/cluster (a credential plugin's
-# process search, pluginproc_darwin.go, and the login's run and end above it), and the engine's
-# waits for a login. One go test run with one pattern, so that tests run while other packages
-# compile: a test of another package listed that has one of these names runs too.
+# for zsh, bash and fish) and of internal/cluster (a credential plugin's process search,
+# pluginproc_darwin.go, and the login's run and end above it), and the engine's waits for a login.
+# One go test run with one pattern, so that tests run while other packages compile: a test of
+# another package listed that has one of these names runs too. CI's job installs fish first.
 DARWIN_TEST_FILES = $(shell find cmd internal -name '*_darwin_test.go')
 DARWIN_GOOS_TESTS := TestTitleHistoryArrows TestTabShortcuts TestRegistryShortcutsDoNotCollide TestClickModifiers \
 	TestRootRowGearOpensClusterSettings TestHelpAndWindowMenus TestTerminalCopyAndPaste

@@ -14,6 +14,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // harnessDir holds the harness the tests share; TestMain removes it.
@@ -53,9 +55,7 @@ var harnessBuild = sync.OnceValues(func() (string, error) {
 func buildHarness(t *testing.T) string {
 	t.Helper()
 	bin, err := harnessBuild()
-	if errors.Is(err, errNoClang) {
-		t.Skip("no clang")
-	}
+	prereq.Need(t, !errors.Is(err, errNoClang), "clang on PATH")
 	if err != nil {
 		t.Fatalf("building the harness: %v", err)
 	}

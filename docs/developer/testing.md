@@ -50,6 +50,17 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 - **Credential plugins:** [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) writes a
   shell-script plugin (macOS and Linux).
 
+## Prerequisites
+
+A test takes what it needs of the machine (a program, a window server, the Sparkle.framework or
+WinSparkle.dll a make target fetches) through
+[`testkit/prereq`](../../internal/testkit/prereq/prereq.go): `prereq.LookPath(t, "zsh")` for a
+program, `prereq.Need(t, ok, what)` for anything else. Without it the test skips on a developer's
+machine and fails where `CI` is set, since CI runs `go test` without `-v` and a skip there would
+read as a pass. The CI job that runs the test provides it ([releasing › CI](releasing.md#ci)).
+What no job can promise stays a plain `t.Skip` with its reason beside it: PowerShell off Windows,
+an IPv6 loopback in the Linux runners' pods.
+
 ## Asynchronous results
 
 CI runs on loaded machines (self-hosted runner pods sharing one machine, GitHub's small macOS and

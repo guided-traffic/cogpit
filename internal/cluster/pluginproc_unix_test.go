@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/testkit"
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // startChild starts a child of the test's that ends with the test; setpgid puts it in a process
@@ -125,10 +126,7 @@ func TestListChildren(t *testing.T) {
 // had no process (CI, 2026-10-19: TestSearchFindsAWrapperAfterItsExec found pid 0). The shell here
 // stays in the group for 100 ms, and the plugin's command line never matches.
 func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
-	perl, err := exec.LookPath("perl")
-	if err != nil {
-		t.Skip("no perl to leave the process group with")
-	}
+	perl := prereq.LookPath(t, "perl") // to leave the process group with
 	quietSearches(t)
 	stop := make(chan struct{})
 	defer close(stop)

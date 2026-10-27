@@ -31,7 +31,7 @@ inputs:
     required: false
     default: "true"
   packages:
-    description: More Debian packages the job needs (Linux), installed after the build dependencies in the same background run, with their recommendations.
+    description: More Debian packages the job needs (Linux), installed after the build dependencies in the same background run, with their recommendations unless the list starts with --no-install-recommends (apt-get options may lead it).
     required: false
     default: ""
 

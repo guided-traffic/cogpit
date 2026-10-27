@@ -8,16 +8,15 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // macOS's application menu has one About Cogpit, which calls Cogpit's dialog instead of AppKit's
 // standard panel and keeps its place when Fyne builds the menu bar again (A60): appmenu_darwin.m
-// itself, built with a native harness into a process of its own and run. Skipped without clang.
+// itself, built with a native harness into a process of its own and run. Needs clang.
 func TestAppMenuAbout(t *testing.T) {
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "appmenu_harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-I.", "-o", bin,
 		filepath.Join("testdata", "appmenu_harness.m"), "appmenu_darwin.m")

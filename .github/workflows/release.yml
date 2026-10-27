@@ -220,7 +220,10 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # Every other package under the race detector, and the patched terminal widget's tests.
+  # Every other package under the race detector, and the patched terminal widget's tests. zsh and
+  # fish for the terminal's shell tests, which fail in CI without them (internal/testkit/prereq);
+  # bash, perl, stty and sh come with Ubuntu. fish depends on python3 and man-db: about 18 MB
+  # without the recommendations, 30 MB with them (measured in ubuntu:24.04).
   race-rest:
     name: Race Tests (other packages)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -233,6 +236,7 @@ jobs:
         uses: ./.github/actions/go-setup
         with:
           cache: race-rest
+          packages: --no-install-recommends zsh fish
 
       - name: Race tests
         run: make test-race-rest
@@ -440,6 +444,15 @@ jobs:
         uses: ./.github/actions/go-setup
         with:
           cache: macos
+
+      # fish for the terminal's fish test, which fails in CI without it (internal/testkit/prereq):
+      # the runner image has none. clang, the window server, zsh, bash and perl come with it, and
+      # Sparkle.framework with make sparkle.
+      - name: Install fish
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install fish
 
       - name: The macOS-only tests (race detector on)
         run: make test-darwin

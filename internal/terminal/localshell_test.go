@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // plainShell is the shell the tests start where they need one that reads no profile: /bin/sh.
@@ -121,9 +123,7 @@ func TestStartLocalBindsKubectlToContextAndNamespace(t *testing.T) {
 }
 
 func TestStartLocalResize(t *testing.T) {
-	if _, err := exec.LookPath("stty"); err != nil {
-		t.Skip("stty not on PATH")
-	}
+	prereq.LookPath(t, "stty")
 	sess, out, home := startTestShell(t, LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}})
 	if err := sess.Resize(123, 45); err != nil {
 		t.Fatalf("Resize: %v", err)
