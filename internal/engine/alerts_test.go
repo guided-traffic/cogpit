@@ -204,8 +204,9 @@ func TestAlertmanagerIntegration(t *testing.T) {
 	// The search, the namespace filter and the folding are the UI state's.
 	s.UpdateUI(func(u *UIState) {
 		u.Filter, u.Namespaces = "checkout", []string{"shop"}
-		u.AlertBoard.SetFold("info", true, false)
-		u.AlertBoard.SetFold(kust.Alerts[0].Fingerprint, true, true)
+		u.AlertBoard.SetFold("info", true, FoldCard)
+		u.AlertBoard.SetFold(kust.Key, true, FoldDescription)
+		u.AlertBoard.SetFold(kust.Key, true, FoldRows)
 	})
 	board, _ = s.AlertBoard("")
 	if board.Matched != 4 || board.Total != 24 || len(board.Groups) != 1 || board.Groups[0].Key != "warning" {
@@ -218,10 +219,8 @@ func TestAlertmanagerIntegration(t *testing.T) {
 			t.Errorf("group %s folded %v", g.Key, g.Folded)
 		}
 		for _, c := range g.Cards {
-			for _, it := range c.Alerts {
-				if it.Expanded != (it.Fingerprint == kust.Alerts[0].Fingerprint) {
-					t.Errorf("%s expanded %v", it.Name, it.Expanded)
-				}
+			if c.Expanded != (c.Key == kust.Key) || c.AllRows != (c.Key == kust.Key) {
+				t.Errorf("%s expanded %v, all rows %v", c.Key, c.Expanded, c.AllRows)
 			}
 		}
 	}
@@ -368,13 +367,14 @@ func TestNoAlertmanager(t *testing.T) {
 		t.Error("a backend without a connection reads an Alertmanager")
 	}
 	var a AlertBoardState
-	a.SetFold("critical", true, false)
-	a.SetFold("critical", true, false)
-	a.SetFold("fp", true, true)
-	if !slices.Equal(a.Folded, []string{"critical"}) || !slices.Equal(a.Expanded, []string{"fp"}) {
+	a.SetFold("critical", true, FoldCard)
+	a.SetFold("critical", true, FoldCard)
+	a.SetFold("warning/X", true, FoldDescription)
+	a.SetFold("warning/Y", true, FoldRows)
+	if !slices.Equal(a.Folded, []string{"critical"}) || !slices.Equal(a.Expanded, []string{"warning/X"}) || !slices.Equal(a.Rows, []string{"warning/Y"}) {
 		t.Errorf("%+v", a)
 	}
-	a.SetFold("critical", false, false)
+	a.SetFold("critical", false, FoldCard)
 	if len(a.Folded) != 0 || a.IsZero() {
 		t.Errorf("%+v", a)
 	}

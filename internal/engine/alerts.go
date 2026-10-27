@@ -436,35 +436,52 @@ func (s *Session) RefreshAlerts(contextID string) error {
 	return nil
 }
 
-// alertFoldKeys bounds AlertBoardState's lists: a key per group, card or description.
+// alertFoldKeys bounds AlertBoardState's lists: a key per group or card.
 const maxAlertFoldKeys = 500
 
 // AlertBoardState is the alert board's folding (UIState.AlertBoard): the keys of the severity groups
-// and alert cards folded ("critical", "warning/KubePodCrashLooping") and the fingerprints of the
-// alerts whose description is unfolded. It outlives a cluster: a key whose group or alert is gone
-// does nothing.
+// and alert cards folded ("critical", "warning/KubePodCrashLooping"), of the cards whose
+// description is unfolded, and of the cards that show all their rows. It outlives a cluster: a key
+// whose group or card is gone does nothing.
 type AlertBoardState struct {
 	Folded   []string `json:"folded,omitempty"`
 	Expanded []string `json:"expanded,omitempty"`
+	Rows     []string `json:"rows,omitempty"`
 }
 
 func (a AlertBoardState) clone() AlertBoardState {
-	return AlertBoardState{Folded: slices.Clone(a.Folded), Expanded: slices.Clone(a.Expanded)}
+	return AlertBoardState{Folded: slices.Clone(a.Folded), Expanded: slices.Clone(a.Expanded), Rows: slices.Clone(a.Rows)}
 }
 
 // IsZero reports whether nothing is folded or unfolded.
-func (a AlertBoardState) IsZero() bool { return len(a.Folded) == 0 && len(a.Expanded) == 0 }
+func (a AlertBoardState) IsZero() bool {
+	return len(a.Folded) == 0 && len(a.Expanded) == 0 && len(a.Rows) == 0
+}
 
-// SetFold folds (true) or unfolds a group or card by its key, or with description set unfolds
-// (true) or folds an alert's description by its fingerprint.
-func (a *AlertBoardState) SetFold(key string, on, description bool) {
+// AlertFold is what alerts.fold changes: a group or card folded (the default), a card's description
+// shown, or all of a card's rows shown.
+type AlertFold int
+
+// The folds of AlertFold.
+const (
+	FoldCard AlertFold = iota
+	FoldDescription
+	FoldRows
+)
+
+// SetFold turns a fold of a group or card on (true: folded; a description or all rows shown) or
+// off, by its key.
+func (a *AlertBoardState) SetFold(key string, on bool, fold AlertFold) {
 	key = strings.TrimSpace(key)
 	if key == "" {
 		return
 	}
 	list := &a.Folded
-	if description {
+	switch fold {
+	case FoldDescription:
 		list = &a.Expanded
+	case FoldRows:
+		list = &a.Rows
 	}
 	*list = slices.DeleteFunc(*list, func(k string) bool { return k == key })
 	if on {

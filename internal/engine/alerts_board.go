@@ -41,6 +41,8 @@ type AlertBoardModel struct {
 	Filter      string   `json:"filter,omitempty"`
 	FilterError string   `json:"filterError,omitempty"`
 	Namespaces  []string `json:"namespaces,omitempty"`
+	// HistoryNote says why no card has a history ("no Prometheus found"); "" while they have one.
+	HistoryNote string `json:"historyNote,omitempty"`
 	// Groups are the severities that have alerts the filters keep, worst first.
 	Groups []AlertGroup `json:"groups"`
 }
@@ -57,15 +59,70 @@ type AlertGroup struct {
 	Cards  []AlertCard  `json:"cards"`
 }
 
-// AlertCard is one alertname within a severity.
+// AlertCard is one alertname within a severity: the problem once, its alerts as the rows of a table
+// of what tells them apart (alerts_card.go).
 type AlertCard struct {
 	// Key is the card's fold key: "<severity>/<alertname>".
-	Key    string      `json:"key"`
-	Name   string      `json:"alertname"`
-	Count  int         `json:"count"`
-	Folded bool        `json:"folded,omitempty"`
-	Alerts []AlertItem `json:"alerts"`
+	Key    string `json:"key"`
+	Name   string `json:"alertname"`
+	Count  int    `json:"count"`
+	Folded bool   `json:"folded,omitempty"`
+	// SeverityLabel is the severity label its alerts carry when it says something else than the
+	// group's name and all carry the same ("major"); "" otherwise.
+	SeverityLabel string `json:"severityLabel,omitempty"`
+	// Summary and Description are the card's texts, once for all its alerts: text and slots, a slot
+	// the place of a value each row holds (AlertItem.Values). Empty when its alerts have none.
+	Summary     []AlertTextPart `json:"summary,omitempty"`
+	Description []AlertTextPart `json:"description,omitempty"`
+	// Expanded says the board shows the description; AllRows that it shows every row, not the
+	// first few (alerts.fold).
+	Expanded bool `json:"expanded,omitempty"`
+	AllRows  bool `json:"allRows,omitempty"`
+	// Runbook is the runbook its alerts share; "" when they have none or differ (each row has its
+	// own then).
+	Runbook string `json:"runbook,omitempty"`
+	// Context are the objects all its alerts name alike, shown once in its head: the namespace, the
+	// object.
+	Context []AlertObject `json:"context,omitempty"`
+	// Columns are its rows' columns, in their order: what tells its alerts apart.
+	Columns []AlertColumn `json:"columns,omitempty"`
+	Alerts  []AlertItem   `json:"alerts"`
+	// History is how often the alertname started firing in the last 24 hours, from the cluster's
+	// Prometheus (alerts_history.go); nil while Cogpit has none to ask.
+	History *AlertHistory `json:"history,omitempty"`
 }
+
+// AlertHistory is how often a card's alert started firing in the last 24 hours, an hour each: the
+// onsets of its firing ALERTS series in the cluster's Prometheus.
+type AlertHistory struct {
+	// State is HistoryOK, or why there is no count: the Prometheus does not evaluate this alert's
+	// rule (HistoryNoRule), does not answer (HistoryUnavailable), or has not been asked yet
+	// (HistoryChecking).
+	State HistoryState `json:"state"`
+	// Hours are the onsets per hour, oldest first, 24 of them, the last the hour up to AsOf; only
+	// with HistoryOK.
+	Hours []int `json:"hours,omitempty"`
+	// Total is their sum: how often it started firing in 24 hours.
+	Total int `json:"total"`
+	// AsOf is when Prometheus answered.
+	AsOf time.Time `json:"asOf,omitzero"`
+	// Detail says why there is no count.
+	Detail string `json:"detail,omitempty"`
+}
+
+// HistoryState is what a card's history holds.
+type HistoryState string
+
+// The states of AlertHistory.
+const (
+	HistoryOK          HistoryState = "ok"
+	HistoryChecking    HistoryState = "checking"
+	HistoryNoRule      HistoryState = "noRule"
+	HistoryUnavailable HistoryState = "unavailable"
+)
+
+// HistoryHours is how many hours a card's history covers.
+const HistoryHours = 24
 
 // AlertItem is one active alert as the board and alerts.list show it.
 type AlertItem struct {
@@ -76,11 +133,16 @@ type AlertItem struct {
 	// wrote it, when it says something else ("major", or none: "").
 	Severity      string `json:"severity"`
 	SeverityLabel string `json:"severityLabel,omitempty"`
-	// Summary and Description are the rule's annotations, as written: text from the cluster.
+	// Summary and Description are the rule's annotations, as written: text from the cluster. On the
+	// board they are the card's (AlertCard.Summary), and an alert has its own only where the card's
+	// does not fit it: Message and Detail.
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
-	// Expanded says the board shows the description (alerts.fold).
-	Expanded bool `json:"expanded,omitempty"`
+	Message     string `json:"message,omitempty"`
+	Detail      string `json:"detail,omitempty"`
+	// Values are its cells on the board, by column key (AlertCard.Columns): label values, the
+	// subject's name, a number its text holds.
+	Values map[string]string `json:"values,omitempty"`
 	// Since is when it started firing.
 	Since time.Time `json:"since"`
 	// Objects are what its labels name: the namespace, then the object the alert is about, as
@@ -88,7 +150,34 @@ type AlertItem struct {
 	Objects []AlertObject `json:"objects,omitempty"`
 	// Runbook is the runbook_url annotation when it is an http or https URL; others are left out.
 	Runbook string `json:"runbook,omitempty"`
+
+	labels map[string]string // its labels, exported_ ones read as the label they shadow (cardLabels)
 }
+
+// AlertTextPart is a piece of a card's text: text, or a slot that each row fills with its value of
+// the column the slot names.
+type AlertTextPart struct {
+	Text string `json:"text,omitempty"`
+	Slot string `json:"slot,omitempty"`
+}
+
+// AlertColumn is a column of a card's rows.
+type AlertColumn struct {
+	// Key is its key in AlertItem.Values: a label ("pod", "device"), or "value" for a number the
+	// alerts' texts hold.
+	Key string `json:"key"`
+	// Title is its header: the subject's kind ("Pod"), the label, "value".
+	Title string `json:"title"`
+	// Link says what a cell links to: ColumnObject the row's subject, ColumnNamespace its
+	// namespace; "" for text.
+	Link string `json:"link,omitempty"`
+}
+
+// The links of a column (AlertColumn.Link).
+const (
+	ColumnObject    = "object"
+	ColumnNamespace = "namespace"
+)
 
 // AlertObject is an object an alert's labels name.
 type AlertObject struct {
@@ -172,8 +261,11 @@ func (s *Session) AlertBoard(contextID string) (AlertBoardModel, error) {
 	if snap.Target != (alerting.Target{}) {
 		out.Where = snap.Target.Where()
 	}
-	items := s.alertItems(b, snap.Alerts, u.AlertBoard)
+	items := s.alertItems(b, snap.Alerts)
 	folded := func(key string) bool { return slices.Contains(u.AlertBoard.Folded, key) }
+	hist := s.alertHistory(b)
+	out.HistoryNote = hist.note()
+	ownerOf := b.alertOwners()
 	for _, sv := range alertSeverities {
 		g := AlertGroup{Key: string(sv.sev), Title: severityTitle(sv.sev), Status: sv.status, Folded: folded(string(sv.sev))}
 		for _, it := range items {
@@ -188,6 +280,17 @@ func (s *Session) AlertBoard(contextID string) (AlertBoardModel, error) {
 			c.Alerts = append(c.Alerts, it)
 			c.Count++
 			g.Count++
+		}
+		for i := range g.Cards {
+			c := &g.Cards[i]
+			c.Expanded = slices.Contains(u.AlertBoard.Expanded, c.Key)
+			c.AllRows = slices.Contains(u.AlertBoard.Rows, c.Key)
+			c.History = hist.card(g.Key, c.Name)
+			if h := c.History; h != nil && h.State == HistoryNoRule && slices.ContainsFunc(c.Alerts, func(it AlertItem) bool { return it.Since.After(h.AsOf) }) {
+				// It began to fire after Prometheus was last asked: not known yet, rather than "no rule".
+				c.History = &AlertHistory{State: HistoryChecking}
+			}
+			finishCard(c, ownerOf)
 		}
 		if g.Count > 0 {
 			out.Matched += g.Count
@@ -225,7 +328,7 @@ func (s *Session) AlertList(contextID string, p AlertListParams) (AlertList, err
 	}
 	limit = min(limit, maxAlertList)
 	m, _ := NewRowMatcher(strings.TrimSpace(p.Filter), FilterOptions{})
-	for _, it := range s.alertItems(b, snap.Alerts, AlertBoardState{}) {
+	for _, it := range s.alertItems(b, snap.Alerts) {
 		if len(p.Severities) > 0 && !slices.Contains(p.Severities, it.Severity) {
 			continue
 		}
@@ -243,16 +346,38 @@ func (s *Session) AlertList(contextID string, p AlertListParams) (AlertList, err
 	return out, nil
 }
 
+// alertOwners returns the lookup of the object that controls an alert's pod (alerts_owner.go): nil
+// for an object that is no pod or a pod whose controller the cache does not know.
+func (b *Backend) alertOwners() func(AlertObject) *AlertObject {
+	owners := b.podOwners()
+	if owners == nil {
+		return nil
+	}
+	ix := alertKinds(b)
+	return func(o AlertObject) *AlertObject {
+		if o.Label != labelPod {
+			return nil
+		}
+		r := owners(o.Ref.Namespace, o.Ref.Name)
+		if r.kind == "" {
+			return nil
+		}
+		obj := ix.ownerObject(o.Ref.Namespace, r)
+		return &obj
+	}
+}
+
 // alertItems turns a snapshot's alerts into the board's items, sorted as the board lists them.
-func (s *Session) alertItems(b *Backend, alerts []alerting.Alert, fold AlertBoardState) []AlertItem {
+func (s *Session) alertItems(b *Backend, alerts []alerting.Alert) []AlertItem {
 	sorted := slices.Clone(alerts)
 	alerting.SortAlerts(sorted)
 	kinds := alertKinds(b)
 	out := make([]AlertItem, 0, len(sorted))
 	for _, a := range sorted {
+		labels := cardLabels(a.Labels)
 		it := AlertItem{Fingerprint: a.Fingerprint, Name: a.Name, Severity: string(a.Severity), Summary: a.Summary,
-			Description: a.Description, Since: a.StartsAt, Objects: alertObjects(a.Labels, kinds), Runbook: webURL(a.Runbook),
-			Expanded: slices.Contains(fold.Expanded, a.Fingerprint)}
+			Description: a.Description, Since: a.StartsAt, Objects: alertObjects(labels, kinds), Runbook: webURL(a.Runbook),
+			labels: labels}
 		if !strings.EqualFold(a.SeverityLabel, string(a.Severity)) {
 			it.SeverityLabel = a.SeverityLabel
 		}
@@ -319,7 +444,7 @@ var alertSubjects = []struct {
 	{"persistentvolumeclaim", "", false},
 	{"ingress", "ingresses", false},
 	{"persistentvolume", "", true},
-	{"node", "", true},
+	{labelNode, "", true},
 }
 
 // alertKindIndex finds a kind's key and title by the label's kind key, or by a custom resource's
@@ -376,7 +501,7 @@ func alertObjects(labels map[string]string, ix alertKindIndex) []AlertObject {
 	}
 	var out []AlertObject
 	if ns != "" {
-		out = append(out, ix.object(namespaceKey, "namespaces", "", ns, "Namespace"))
+		out = append(out, ix.object(namespaceKey, "namespaces", "", ns, titleNamespace))
 	}
 	if subject != nil {
 		out = append(out, *subject)
@@ -385,7 +510,7 @@ func alertObjects(labels map[string]string, ix alertKindIndex) []AlertObject {
 }
 
 func alertSubject(labels map[string]string, ix alertKindIndex, ns string) *AlertObject {
-	if kind, name := labels["customresource_kind"], labels["name"]; kind != "" && name != "" {
+	if kind, name := labels["customresource_kind"], labels[labelCRName]; kind != "" && name != "" {
 		o := AlertObject{Label: "customresource", Ref: model.ObjectRef{Namespace: ns, Name: name}, Title: kind}
 		if p := ix.byGroup[labels["customresource_group"]+"/"+kind]; p != nil {
 			o.Ref.Kind = p.Key
@@ -412,9 +537,9 @@ func alertSubject(labels map[string]string, ix alertKindIndex, ns string) *Alert
 		o := ix.object("secret", "secrets", sns, name, "Secret")
 		return &o
 	}
-	if pod := labels["pod"]; pod != "" && ns != "" && !scrapedPod(pod, labels) {
-		o := ix.object("pod", "pods", ns, pod, "Pod")
-		o.Container = labels["container"]
+	if pod := labels[labelPod]; pod != "" && ns != "" && !scrapedPod(pod, labels) {
+		o := ix.object(labelPod, resourcePods, ns, pod, "Pod")
+		o.Container = labels[labelContainer]
 		return &o
 	}
 	return nil
@@ -423,7 +548,7 @@ func alertSubject(labels map[string]string, ix alertKindIndex, ns string) *Alert
 // scrapedPod reports whether a pod label names the scraped target's pod (an exporter's): its name
 // begins with the job's or the service's name and a dash.
 func scrapedPod(pod string, labels map[string]string) bool {
-	for _, k := range []string{"job", "service"} {
+	for _, k := range []string{"job", labelService} {
 		if v := labels[k]; v != "" && strings.HasPrefix(pod, v+"-") {
 			return true
 		}

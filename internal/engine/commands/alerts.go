@@ -24,9 +24,10 @@ type alertListParams struct {
 }
 
 type alertFoldParams struct {
-	Key         string `json:"key" jsonschema:"a group's key (critical, warning, info), a card's key (<severity>/<alertname>, as alerts_board returns them) or, with description, an alert's fingerprint"`
-	Folded      bool   `json:"folded,omitempty" jsonschema:"true folds the group or card; with description, true unfolds the alert's description and false folds it"`
-	Description bool   `json:"description,omitempty" jsonschema:"the key is an alert's fingerprint: fold or unfold its description"`
+	Key         string `json:"key" jsonschema:"a group's key (critical, warning, info) or a card's key (<severity>/<alertname>, as alerts_board returns them)"`
+	Folded      bool   `json:"folded,omitempty" jsonschema:"true folds the group or card; with description, true shows the card's description and false hides it; with rows, true shows all the card's rows and false the first few"`
+	Description bool   `json:"description,omitempty" jsonschema:"the key is a card's: show or hide its description"`
+	Rows        bool   `json:"rows,omitempty" jsonschema:"the key is a card's: show all its rows or the first few"`
 }
 
 type alertmanagerParams struct {
@@ -69,9 +70,12 @@ func registerAlerts(g *registrar) {
 		ID: "alerts.board", Label: "Alert Board", Danger: engine.DangerRead,
 		Description: "Reads the alert board as the window shows it: the shown cluster's active alerts (as alerts_list " +
 			"counts them) with the search (ui_setFilter) and the namespace filter applied, grouped by severity (critical, " +
-			"warning, info) and in each a card per alertname with its count and its alerts, each group, card and " +
-			"description folded or not (alerts_fold). Reads what Cogpit's last poll answered: no request. alerts_open " +
-			"shows the board to the user.",
+			"warning, info) and in each a card per alertname: its count, its summary and description once (text and " +
+			"slots, a slot the place of a column's value), what all its alerts share (namespace, object, the controller " +
+			"of their pods), the columns that tell them apart and each alert's values, how often it started firing in " +
+			"each of the last 24 hours (from the cluster's Prometheus), each group and card folded or not and its " +
+			"description and rows shown or not (alerts_fold). Reads what Cogpit's last polls answered: no request. " +
+			"alerts_open shows the board to the user.",
 		Enabled: func(s *engine.Session, p engine.OnCluster) error { return ready(s, p.Context) },
 		Run: func(_ context.Context, s *engine.Session, p engine.OnCluster) (any, error) {
 			return s.AlertBoard(p.Context)
@@ -88,14 +92,25 @@ func registerAlerts(g *registrar) {
 	})
 	add(g, engine.Spec[alertFoldParams]{
 		ID: "alerts.fold", Label: "Fold Alerts", Danger: engine.DangerUI,
-		Description: "Folds or unfolds a group (a severity) or a card (an alertname) of the alert board, or unfolds or " +
-			"folds an alert's description, as a click on its header or its summary does. The folding is the window's and " +
-			"stays for the session. Returns the new UI state (alertBoard).",
+		Description: "Folds or unfolds a group (a severity) or a card (an alertname) of the alert board, shows or hides a " +
+			"card's description, or shows all of a card's rows or its first few, as a click on a severity chip, a card's " +
+			"head, its Details or its Show all does. The folding is the window's and stays for the session. Returns the " +
+			"new UI state (alertBoard).",
 		Run: func(_ context.Context, s *engine.Session, p alertFoldParams) (any, error) {
 			if strings.TrimSpace(p.Key) == "" {
-				return nil, fmt.Errorf("a key is needed: a group's, a card's or an alert's fingerprint")
+				return nil, fmt.Errorf("a key is needed: a group's or a card's")
 			}
-			return s.UpdateUI(func(u *engine.UIState) { u.AlertBoard.SetFold(p.Key, p.Folded, p.Description) }), nil
+			if p.Description && p.Rows {
+				return nil, fmt.Errorf("description and rows: one fold at a time")
+			}
+			fold := engine.FoldCard
+			switch {
+			case p.Description:
+				fold = engine.FoldDescription
+			case p.Rows:
+				fold = engine.FoldRows
+			}
+			return s.UpdateUI(func(u *engine.UIState) { u.AlertBoard.SetFold(p.Key, p.Folded, fold) }), nil
 		},
 	})
 	add(g, engine.Spec[engine.OnCluster]{

@@ -105,9 +105,9 @@ func TestRootBadgeFillsItsRoom(t *testing.T) {
 	}
 	lookPNG(t, w, "ls19_root_user_whole_dark.png")
 
-	// The owner's cluster: its 14 letters, 101 points in bold, keep their room; at the narrowest
+	// A long cluster name: its 14 letters, 101 points in bold, keep their room; at the narrowest
 	// navigator it is cut beside 28 as before.
-	const long = "awe-d-pinniped"
+	const long = "ewa-d-pinniped"
 	for _, c := range []struct {
 		width    float32
 		png      string

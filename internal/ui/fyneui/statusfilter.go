@@ -259,7 +259,8 @@ func (f *statusFilter) set(states []string) {
 func tableStateChanged(st, old engine.UIState) bool {
 	return !slices.Equal(st.Namespaces, old.Namespaces) || !slices.Equal(st.Groups, old.Groups) ||
 		st.Filter != old.Filter || st.FilterOptions != old.FilterOptions || st.Sort != old.Sort || !slices.Equal(st.States, old.States) ||
-		!slices.Equal(st.AlertBoard.Folded, old.AlertBoard.Folded) || !slices.Equal(st.AlertBoard.Expanded, old.AlertBoard.Expanded) // the alert board's folding (alertboard.go)
+		!slices.Equal(st.AlertBoard.Folded, old.AlertBoard.Folded) || !slices.Equal(st.AlertBoard.Expanded, old.AlertBoard.Expanded) ||
+		!slices.Equal(st.AlertBoard.Rows, old.AlertBoard.Rows) // the alert board's folding (alertboard.go)
 }
 
 // statusFilterParams are ui.setStatusFilter's.

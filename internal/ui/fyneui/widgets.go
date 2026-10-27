@@ -161,6 +161,10 @@ type surface struct {
 	// bottomLeftOnly rounds the bottom left corner alone: a column that ends in a card's corner (the
 	// settings overlay's section list, settingsoverlay.go).
 	bottomLeftOnly bool
+	// topOnly rounds the top corners alone: a band at the top of a card (an alert card's head).
+	topOnly bool
+	// alpha, when above 0, draws the fill at that share of its opacity: a tint of a status colour.
+	alpha float32
 }
 
 func newSurface(fill fyne.ThemeColorName) *surface {
@@ -202,9 +206,14 @@ func (r *surfaceRenderer) Refresh() {
 	r.rect.FillColor = color.Transparent // no fill: an outline alone (the light strip's animations' frame)
 	if r.s.fill != "" {
 		r.rect.FillColor = themeColor(th, r.s.fill)
+		if r.s.alpha > 0 {
+			r.rect.FillColor = fadeColor(r.rect.FillColor, r.s.alpha)
+		}
 	}
 	if r.s.radius != "" && r.s.bottomLeftOnly {
 		r.rect.BottomLeftCornerRadius = th.Size(r.s.radius)
+	} else if r.s.radius != "" && r.s.topOnly {
+		r.rect.TopLeftCornerRadius, r.rect.TopRightCornerRadius = th.Size(r.s.radius), th.Size(r.s.radius)
 	} else if r.s.radius != "" {
 		r.rect.CornerRadius = th.Size(r.s.radius)
 	}
