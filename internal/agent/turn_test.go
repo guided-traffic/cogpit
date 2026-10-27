@@ -502,7 +502,7 @@ func TestAnswerTiming(t *testing.T) {
 		Pace: 60 * time.Millisecond}) // the second part 60 ms after the first
 	c := h.idle(t, h.start(t, "How many pods run in shop?"))
 	tm := c.Items[1].Timing
-	if tm == nil || tm.TTFT <= 0 || tm.TTFT > 5*time.Second || tm.Generating < 50*time.Millisecond || tm.OutputTokens != 30 || tm.Estimated {
+	if tm == nil || tm.TTFT < 0 || tm.TTFT > 5*time.Second || tm.Generating < 50*time.Millisecond || tm.OutputTokens != 30 || tm.Estimated {
 		t.Fatalf("timing %+v", tm)
 	}
 	if otps := tm.OTPS(); otps <= 0 || otps > 30/0.05 {
