@@ -144,6 +144,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-133](#d-133-connection-diagnostics) | Connection Diagnostics | built: one diagnostics tab, in-memory log, anonymised report |
 | [D-134](#d-134-the-windows-zoom) | The window's zoom | built: VS Code's zoom via Fyne's canvas scale, 50-210% |
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
+| [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 
 ## D-1: UI toolkit
 
@@ -4284,15 +4285,17 @@ CI and local test runs are kept short at the same coverage.
     through the standard log package; Linux therefore runs in a D-Bus session, without which Fyne's
     theme watch logs one;
   - the bound is the flag's value (`2m` in `make smoke`), a watchdog's `os.Exit` whatever the main
-    goroutine does; once the frame is drawn, Cogpit has 15 s to quit (`smokeQuitGrace`), and a
-    failed run says how far its reads got and where the main goroutine is;
+    goroutine does; once the frame is drawn, Cogpit has 15 s to quit (`smokeQuitGrace`, the app's
+    quit bound and 10 s), and a failed run says how far its reads got and where the main goroutine
+    is;
   - the run quits through Fyne rather than exiting at the frame, so that a quit that hangs or logs
     an error fails it; two races in Fyne 2.8.2's stop are named and not counted instead: its
     preferences' save at the stop against its watch of their file (`Preferences load error:` after
-    the frame) and its lifecycle queue's last event against the main loop's last drain (both
-    goroutines' stacks waiting there, `fyneQuitDeadlock`). In the container, 240 runs under load
-    (30 or 40 busy loops, up to three runs at once) met the first 27 times and the second 3 times,
-    60 runs without load neither;
+    the frame) and its lifecycle queue's last event against the main loop's last drain, which the
+    app's quit bound ends after 5 s ([D-136](#d-136-the-quit-bound)) and the run recognises by both
+    goroutines' stacks waiting there at that moment (`fyneQuitDeadlock`). In the container, 240
+    runs under load (30 or 40 busy loops, up to three runs at once) met the first 27 times and the
+    second 3 times, 60 runs without load neither;
   - macOS is smoked by hand only: GLFW asks NSOpenGL for an accelerated pixel format only, which
     GitHub's macOS VMs do not offer (a panic in `glfw.CreateWindow`, CI run 40491453904). macOS
     Lint and App builds the bundle as releases do (`make dist-app VERSION=0.0.1`) without starting
@@ -4338,7 +4341,8 @@ findings of a text and one per line, so a run's log would not list all a change 
 `TestLookPath`,
 `TestSmokeReportsTheFirstDrawnFrame`, `TestSmokeFrameHoldsMoreThanOneColour`, `TestSmokeWindowWithoutASurface`,
 `TestSmokeEnvLeavesTheUsersHome`, `TestSmokeVerdict`, `TestSmokeCountsLoggedErrors`, `TestSmokeProgress`,
-`TestSmokeFyneQuitDeadlock`, `TestSmokeExpired`, `TestSmokeWatchdogEndsAStuckRun`, `TestSmokeXChannel`
+`TestSmokeFyneQuitDeadlock`, `TestSmokeExpired`, `TestSmokeQuitBound`, `TestSmokeWatchdogEndsAStuckRun`,
+`TestSmokeXChannel`
 
 ## D-113: Image grades, shields from Trivy's reports
 
@@ -5274,3 +5278,59 @@ too, unseen by Cogpit; with streaming on, a cluster whose streams stall waits 10
 [`fyneui/clustersettings_streams.go`](../../internal/ui/fyneui/clustersettings_streams.go) ·
 **Tests:** `TestStalledStreamLists`, `TestStallEndsTheOtherStreams`, `TestListsWithoutStreams`,
 `TestStalledStreamsList`, `TestStreamingOptIn`
+
+## D-136: The quit bound
+
+**Status:** built · **By:** owner (the bound's time and where it starts: lead, open to revision)
+
+Fyne gets **5 s** to end its run once Cogpit has handed it the quit (the constant in
+[`cmd/cogpit/quit.go`](../../cmd/cogpit/quit.go); the watchdog in
+[`fyneui/quitbound.go`](../../internal/ui/fyneui/quitbound.go)).
+
+- **Where it starts:** at the window's close, once Cogpit's own part of it ran (the dock's streams
+  ended, a copied Secret value cleared): the close button, ⌘Q, Quit in the first menu on Windows and
+  Linux, and the `a.Quit` of a signal, of the updater's request, of `--perf` and of `--smoke`. For a
+  signal or the updater's request also once Fyne's queue ran or released that `a.Quit`
+  (`fyne.DoAndWait`): Fyne's own SIGINT and SIGTERM handler can end the run without the window's
+  close. The first of the two starts it.
+- **Fyne returns in time:** the bound ends, and Cogpit's own shutdown runs on the main goroutine
+  without a bound of this one: `fyneui.Run`'s end (the window's place written, the deep links
+  detached, the `--perf` report, the shell stopped, the engine's confirmer and dock reader unset),
+  then `run`'s end, the last opened first (the MCP server closed and its endpoint file removed, the
+  kubeconfig watch stopped, `Session.Close`: drafts and tabs written, node shell pods deleted, jobs
+  stopped, connections closed; the audit log closed; the CPU profile written), then the crash
+  capture's end and the exit.
+- **The bound passes first:** one line in the log, `level=WARN msg="Fyne did not end its run within
+  the quit bound; Cogpit ends the process after its own shutdown" bound=5s`; the bound's goroutine
+  runs that same shutdown in the main goroutine's place and exits with code 0, a normal quit's.
+  Whichever of the two gets there first runs it, once; a late return of Fyne's run then waits.
+- **A smoke run** judges the bound's passing by every goroutine's stack at that moment: Fyne's
+  deadlock on its lifecycle queue is named and not counted, any other hang fails the run; its own
+  grace after the frame, the bound and 10 s (`smokeQuitGrace`), catches a quit Cogpit did not finish
+  ([D-112](#d-112-ci-and-test-time)).
+
+**Why:** Fyne 2.8.2's stop hook can reach the main loop's queue after the loop's last drain, and the
+process then waits for good with its window gone
+([G16](../parity/gaps.md#g16-stability-and-the-user-bug-backlog)); an update's setup on Windows and
+its restart on Linux wait for the process to end. The owner chose a bound in Cogpit and the fix in
+Fyne. With a development build on an Apple M1 Ultra, Fyne's teardown took 6 to 34 ms after a SIGTERM
+or the system's quit and about 100 ms at a quit at the first frame, the same with every CPU busy; in
+the smoke test's container under load a whole quit took up to 1.8 s. 5 s lies far above all of them
+and keeps a hung quit short.
+
+**Rejected:** waiting for Fyne's fix alone — the hang stays until a release carries it; a bound from
+the quit's request over the whole quit — it would cut off Cogpit's own shutdown, whose node shell
+deletions and informer stops carry bounds of their own; an exit at the bound without that shutdown
+— it would lose what the shutdown writes and removes; starting the bound when a signal arrives — a
+signal during the start or a busy main loop would start it before Fyne has the quit; Fyne's stop
+hooks cleared through its internal lifecycle type, which avoids both races — it reaches into a
+Fyne internal any release may change, and drops Fyne's own save of its preferences at the stop.
+
+**Not covered:** a main loop that never takes the quit (a hang in Cogpit's own code) is not bounded;
+Fyne's preferences race at the stop still logs `Preferences load error:` (G16).
+
+**Code:** [`fyneui/fyneui.go`](../../internal/ui/fyneui/fyneui.go) `Run`,
+[`cmd/cogpit/main.go`](../../cmd/cogpit/main.go), [`cmd/cogpit/smoke.go`](../../cmd/cogpit/smoke.go)
+`quitBoundPassed` · **Tests:** `TestQuitBoundEndsAHungTeardown`,
+`TestQuitBoundDisarmedByFynesReturn`, `TestQuitBoundUnarmed`, `TestQuitHungEndsAsANormalQuit`,
+`TestSmokeQuitBound`

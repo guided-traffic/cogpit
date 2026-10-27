@@ -47,9 +47,13 @@ func main() {
 	// Not deferred: on a panic of the main goroutine the defers run before the runtime writes the
 	// crash, and done would remove the report (crash.go).
 	previousCrash, done := captureCrashes(crashReportDir())
-	code := run(previousCrash, f, smoke)
-	done()
-	os.Exit(smoke.end(code))
+	// The process's end: after run's return, or on the quit bound's goroutine when Fyne's teardown
+	// hangs and run never returns (quit.go).
+	exit := func(code int) {
+		done()
+		os.Exit(smoke.end(code))
+	}
+	exit(run(previousCrash, f, smoke, exit))
 }
 
 // cliFlags are cogpit's command-line flags (docs/developer/usage.md#cogpit-flags).
@@ -79,14 +83,18 @@ func parseFlags() cliFlags {
 	return f
 }
 
-func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
+// run runs Cogpit until its window's run ended; exit ends the process when Fyne's teardown hangs
+// (quitHung).
+func run(previousCrash string, f cliFlags, smoke *smokeRun, exit func(code int)) int {
+	var end runEnd // run's deferred closes, which the quit bound's goroutine may run instead (quit.go)
+	defer end.run()
 	if *f.cpuProfile != "" {
 		stop, err := startCPUProfile(*f.cpuProfile, *f.cpuFor)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "cogpit:", err)
 			return 1
 		}
-		defer stop()
+		end.add(stop)
 	}
 
 	// Helm values never reach the log; Fyne's thread-check warnings, which come through the
@@ -112,7 +120,7 @@ func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
 	cluster.EnsureToolPath()
 
 	audit, auditPath, closeAudit := openAuditLog(logger)
-	defer closeAudit()
+	end.add(closeAudit)
 
 	clusterSettings := openClusterSettings(logger) // the session's, and the connector's proxies
 	kubeconfigs := filepath.SplitList(*f.kubeconfig)
@@ -148,8 +156,8 @@ func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
 		Preferences: openPreferences(logger), ClusterSettings: clusterSettings, Kubectl: openKubectl(logger),
 		Drafts: openDrafts(logger), Workspace: openWorkspace(logger), TimeLayout: timeFormat.Layout,
 		LoginItem: loginItem})
-	defer s.Close()
-	defer s.WatchKubeconfigs(0)() // sync folders: files that appear or leave are picked up
+	end.add(s.Close)
+	end.add(s.WatchKubeconfigs(0)) // sync folders: files that appear or leave are picked up
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		fmt.Fprintln(os.Stderr, "cogpit:", err)
 		return 1
@@ -176,7 +184,8 @@ func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
 	}
 
 	opts := fyneui.Options{AutoConnect: *f.contextName, Theme: fyneui.ThemeMode(*f.themeName),
-		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath(), Quit: quit}
+		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath(), Quit: quit,
+		QuitBound: quitBound, QuitHung: quitHung(smoke, &end, exit)}
 	if previousCrash != "" {
 		at := time.Now()
 		if fi, err := os.Stat(previousCrash); err == nil {
@@ -205,7 +214,7 @@ func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
 			// choice is kept where cogpit-cli mcp reads it too. Quitting closes it for good. --no-mcp
 			// wins over the stored choice for this run: no server, no item, the stored choice left
 			// as it is.
-			defer func() { _ = srv.Close() }()
+			end.add(func() { _ = srv.Close() })
 			ctl := &mcpControl{srv: srv, session: s, logger: logger, out: os.Stdout, cli: bundledCLI()}
 			if dirs, err := app.UserDirs(); err == nil {
 				ctl.config = dirs.Config

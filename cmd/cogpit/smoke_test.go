@@ -239,36 +239,66 @@ func TestSmokeFyneQuitDeadlock(t *testing.T) {
 	}
 }
 
-// TestSmokeExpired: the watchdog's verdict. Without a drawn frame it fails with how far the reads
-// got and the main goroutine's stack; with one and a quit stuck in Fyne's shutdown deadlock it
-// passes and names it, unless an error was logged; with one and a quit stuck elsewhere it fails.
+// TestSmokeExpired: the watchdog's verdict, a failure either way. Without a drawn frame it says how
+// far the reads got; with one, that Cogpit did not quit within the grace; both with the main
+// goroutine's stack. A hang of Fyne's teardown ends sooner, through the quit bound
+// (TestSmokeQuitBound).
 func TestSmokeExpired(t *testing.T) {
-	deadlock := strings.Join([]string{stackMainWaitsForEvents, stackQueueWaitsForMain}, "\n\n")
 	elsewhere := strings.Join([]string{stackMainInSwap, stackOther}, "\n\n")
 	for _, c := range []struct {
 		name    string
 		prepare func(s *smokeRun)
-		stacks  string
-		code    int
 		want    []string
 	}{
-		{"no frame", func(s *smokeRun) { s.read(fyneui.SmokeFrame{From: drawn.From, Width: 1440, Height: 900}) }, elsewhere, 1,
+		{"no frame", func(s *smokeRun) { s.read(fyneui.SmokeFrame{From: drawn.From, Width: 1440, Height: 900}) },
 			[]string{"failed: the window drew no frame within 1h0m0s; 1 read of the window's frame from the X server's", "of one colour #00000000",
 				"the main goroutine, which runs Fyne's event loop:\n" + stackMainInSwap}},
-		{"Fyne's quit deadlock", func(s *smokeRun) { s.read(drawn) }, deadlock, 0,
-			[]string{"passed: a frame of 1440×900 pixels after", "not counted: Fyne's shutdown deadlocked on its lifecycle queue"}},
-		{"Fyne's quit deadlock and a logged error", func(s *smokeRun) { s.read(drawn); s.noteError("boom") }, deadlock, 1,
-			[]string{"failed: errors logged (1): boom", "not counted: Fyne's shutdown deadlocked"}},
-		{"a quit stuck elsewhere", func(s *smokeRun) { s.read(drawn) }, elsewhere, 1,
+		{"a quit Cogpit did not finish", func(s *smokeRun) { s.read(drawn) },
 			[]string{"failed: the window drew a frame of 1440×900 pixels after", "but Cogpit did not quit within",
 				"the main goroutine, which runs Fyne's event loop:\n" + stackMainInSwap}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := newTestSmoke(t)
 			c.prepare(s)
-			msg, code := s.expired(c.stacks)
-			if code != c.code {
-				t.Errorf("exit code %d, want %d: %s", code, c.code, msg)
+			msg := s.expired(elsewhere)
+			for _, w := range c.want {
+				if !strings.Contains(msg, w) {
+					t.Errorf("the verdict does not say %q:\n%s", w, msg)
+				}
+			}
+		})
+	}
+}
+
+// TestSmokeQuitBound: the quit bound's report. Fyne's shutdown deadlocked on its lifecycle queue is
+// named and not counted, so the run passes unless an error was logged; a teardown that hangs
+// elsewhere fails it, naming the bound, with the main goroutine's stack.
+func TestSmokeQuitBound(t *testing.T) {
+	deadlock := strings.Join([]string{stackMainWaitsForEvents, stackQueueWaitsForMain}, "\n\n")
+	elsewhere := strings.Join([]string{stackMainInSwap, stackOther}, "\n\n")
+	for _, c := range []struct {
+		name    string
+		prepare func(s *smokeRun)
+		stacks  string
+		exit    int
+		want    []string
+	}{
+		{"Fyne's quit deadlock", func(s *smokeRun) { s.read(drawn) }, deadlock, 0,
+			[]string{"cogpit: smoke: passed: a frame of 1440×900 pixels after",
+				"; not counted: Fyne's shutdown deadlocked on its lifecycle queue, ended by the quit bound of 5s (home "}},
+		{"Fyne's quit deadlock and a logged error", func(s *smokeRun) { s.read(drawn); s.noteError("boom") }, deadlock, 1,
+			[]string{"cogpit: smoke: failed: errors logged (1): boom; not counted: Fyne's shutdown deadlocked"}},
+		{"a teardown stuck elsewhere", func(s *smokeRun) { s.read(drawn) }, elsewhere, 1,
+			[]string{"cogpit: smoke: failed: Fyne did not end its run within the quit bound of 5s (home ",
+				"cogpit: smoke: the main goroutine, which runs Fyne's event loop:\n" + stackMainInSwap}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := newTestSmoke(t)
+			c.prepare(s)
+			s.quitBoundPassed(c.stacks)
+			msg, exit := s.verdict(0)
+			if exit != c.exit {
+				t.Errorf("exit code %d, want %d: %s", exit, c.exit, msg)
 			}
 			for _, w := range c.want {
 				if !strings.Contains(msg, w) {
@@ -277,6 +307,8 @@ func TestSmokeExpired(t *testing.T) {
 			}
 		})
 	}
+	var none *smokeRun
+	none.quitBoundPassed(deadlock) // without a smoke run, nothing
 }
 
 // smokeStuckEnv makes the test binary a smoke run whose window never comes

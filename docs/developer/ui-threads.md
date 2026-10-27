@@ -26,7 +26,7 @@ call races, and a `fyne.DoAndWait` made on the main goroutine never returns.
 ## The audit
 
 No place makes a stray call or a `fyne.DoAndWait` reachable from the main goroutine: every place is
-A or B, but for the `do` funnel's end at quit (C).
+A or B, but for the `do` funnel's end at quit and the quit bound's end (C).
 
 Kinds: `go` a goroutine; `AfterFunc`, `Ticker`, `Timer` and `After` package time's; `cgo` a function
 native code calls (`//export`); `callback` a function another package calls on its own goroutine
@@ -53,10 +53,11 @@ places of the same kind has one row.
 | `fyneui/shell.go` | `shell.dispatchInOrder` | go | A | Waits for the previous dispatch or `sh.ctx` (`orderTail` under `orderMu`), then `sh.run`. |
 | `fyneui/shell.go` | `toastCard.arm` | AfterFunc | A | `card.expire` is `sh.do(dismissToast)`; timer and hover state under `card.mu`. |
 | `fyneui/shell.go` | `shell.onEvent` | callback | A | The engine's `Subscribe` (`shell.start`): coalesces under atomics and `pendingMu`; widget work through `sh.do`. |
-| `fyneui/fyneui.go` | `Run` | go | A | The signal wait: `do(a.Quit)`, the `fyne.Do` funnel; it ends with `Run`. |
+| `fyneui/fyneui.go` | `Run` | go | A | The quit request's wait (a signal, `Options.Quit`): `fyne.DoAndWait(a.Quit)` from this goroutine, never the main one, unless `stopped`; then `quitBound.arm`. It ends with `Run`. |
 | `fyneui/fyneui.go` | `Run` | callback | B | `Lifecycle.SetOnStopped`, on Fyne's lifecycle goroutine: an atomic store only. |
 | `fyneui/fyneui.go` | `Run` | callback | A | `Lifecycle.SetOnStarted`, on main at the loop's start: queued `fyne.Do` calls and native watches registered, no Fyne. |
 | `fyneui/fyneui.go` | `Run` | callback | C | The `do` funnel: after Fyne's drain `fyne.Do` runs at once on the caller's goroutine; the window's close sets `stopped` first and ends the dock's streams. |
+| `fyneui/quitbound.go` | `quitBound.arm` | AfterFunc | C | The quit bound (D-136): runs Run's end (`finishWindow`, `sh.stop`, the engine's confirmer and dock reader unset) and `Options.QuitHung` only when Fyne's run has not returned within the bound after the quit was handed to it, claimed under the bound's lock against that return, so the end runs once, here or on main. The guard: by then the main goroutine is in Fyne's teardown, past the window's close or its drain, and the `do` funnel drops work. |
 | `fyneui/logtab.go` | `logTab.open` | go | A | `OpenLogs` with values fixed on main; widget steps inside `sh.do`; the inner goroutines only `Close` a stream. |
 | `fyneui/logtab.go` | `logTab.open` | callback | A | `termview.NewLogsOn(stream, sh.do)` hands termview the funnel; termview's goroutines have rows of their own. |
 | `fyneui/logtab.go` | `logTab.searchChanged` | AfterFunc | A | `sh.dispatch` with id and text copied; `done` runs through `sh.do`. |
@@ -220,12 +221,16 @@ places of the same kind has one row.
   `fyne.Do` itself, from running widget code on its reading goroutines side by side at quit. Open: a
   chunk of terminal output being drawn when the window closes is drawn to its end, so a race at quit
   remains possible; a SIGINT or SIGTERM can reach Fyne's own handler first, which quits without
-  closing the window. Both end a process that is ending, and Fyne's caches keep their locks in
-  releases (D-103).
+  closing the window (its drain releases Cogpit's `a.Quit` unrun, which starts the quit bound). Both
+  end a process that is ending, and Fyne's caches keep their locks in releases (D-103). Read in the
+  code, not seen: a quit request that reaches Fyne's queue only after that drain, with `stopped`
+  not yet set, runs `a.Quit` at once on the request's goroutine, whose window close asks the
+  terminated GLFW to close the window, which panics.
 - **Goroutines without a recover of their own:** the ticker loops, the waits for `sh.ctx` and the
-  signal wait in `Run`, the goroutines that only `Close` a stream or a session, and `startPerf`'s
-  YAML builder. `StoreMCP`, a file write, runs after the recover in `shell.toggleMCP`, which covers
-  `Start` and `Stop` only.
+  quit request's wait in `Run`, the quit bound's end (the code the main goroutine runs after Fyne's
+  return, which has none there either), the goroutines that only `Close` a stream or a session, and
+  `startPerf`'s YAML builder. `StoreMCP`, a file write, runs after the recover in
+  `shell.toggleMCP`, which covers `Start` and `Stop` only.
 - **`shell.dispatch` off main:** a parameter that does not marshal becomes a toast at once, a
   main-only call. The timers that dispatch (`logTab.searchChanged`, `tableView.searchChanged`,
   `navReport.send`) pass structs of strings, which always marshal.
