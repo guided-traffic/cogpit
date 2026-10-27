@@ -417,7 +417,7 @@ Restart, Delete and the pod shell wait for your confirmation
 | `--perf-mode <mode>` | empty # default | `scroll` with `--perf`, or `gate`: start-up, scrolling, every view and typing into 5 MB of YAML ([spike](spike-fyne.md)) |
 | `--cpuprofile <file>` | empty # default | write a CPU profile of the first `--cpuprofile-for` to this file |
 | `--cpuprofile-for <duration>` | `5s` # default | how long `--cpuprofile` records |
-| `--smoke <duration>` | `0`: off # default | a smoke test ([releasing › the smoke test](releasing.md#the-smoke-test)): start in a temporary, empty home of its own, without MCP server, update check, login item or cluster connection (`--kubeconfig` and `--context` have no effect), quit once the window drew its first frame; exit 1 on a logged error or after `<duration>`. The home stays; the last line names it |
+| `--smoke <duration>` | `0`: off # default | a smoke test ([releasing › the smoke test](releasing.md#the-smoke-test)): start in a temporary, empty home of its own, without MCP server, update check, login item or cluster connection (`--kubeconfig` and `--context` have no effect), quit once the window drew its first frame; exit 1 on a logged error, after `<duration>`, or when it does not quit within 15 s of the frame. The home stays; the last line names it |
 | `--theme <mode>` | empty: the Preferences' theme, `system` until set # default | `dark`, `light` or `system` for this run ([D-22](decisions.md#d-22-colour-theme)) |
 | `-v` | `false` # default | debug logging |
 

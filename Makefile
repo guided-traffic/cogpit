@@ -1,8 +1,8 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with dist-app
-# and smoke, dist-linux with smoke and test-linux-package, and on Windows test-windows-unit,
+# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with
+# dist-app, dist-linux with smoke and test-linux-package, and on Windows test-windows-unit,
 # test-windows-ui and dist-windows with test-windows-package WINDOWS_SMOKE=on, the installed app's
 # smoke test (docs/developer/releasing.md#ci).
 #
@@ -1057,15 +1057,17 @@ test-windows-package: $(if $(filter on,$(WINDOWS_SMOKE)),$(if $(SMOKE_MESA),mesa
 # The smoke test (D-112): the app's binary SMOKE_BIN started once with --smoke SMOKE_BOUND
 # (hack/smoke.sh): the window with the real driver in a home of its own until it drew a frame, no
 # MCP server, updater, login item or cluster; on Linux without a display under xvfb-run, on Windows
-# x64 with Mesa's llvmpipe (SMOKE_MESA). CI runs it on what a release ships: macOS Lint and App on
-# dist-app's bundle, Linux Package on dist-linux's binary, Windows Package on the installed
-# cogpit.exe (test-windows-package WINDOWS_SMOKE=on).
+# x64 with Mesa's llvmpipe (SMOKE_MESA). CI runs it on what a release ships: Linux Package on
+# dist-linux's binary, Windows Package on the installed cogpit.exe (test-windows-package
+# WINDOWS_SMOKE=on). macOS runs it by hand only (bin/cogpit, or after dist-app
+# SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit): GLFW asks NSOpenGL for an accelerated pixel
+# format only, which GitHub's macOS VMs do not offer.
 SMOKE_BIN       ?= $(BIN)/cogpit$(EXE)
 SMOKE_BOUND     ?= 2m
 
 .PHONY: smoke
 
-smoke: $(if $(SMOKE_MESA),mesa) ## Start the app's binary SMOKE_BIN (bin/cogpit) with --smoke: its window in a home of its own until the first frame, then quit; fails on a logged error or after SMOKE_BOUND (D-112)
+smoke: $(if $(SMOKE_MESA),mesa) ## Start the app's binary SMOKE_BIN (bin/cogpit) with --smoke: its window in a home of its own until the first frame, then quit; fails on a logged error, a quit that hangs or after SMOKE_BOUND (D-112)
 	SMOKE_MESA='$(SMOKE_MESA)' hack/smoke.sh '$(SMOKE_BIN)' '$(SMOKE_BOUND)'
 
 clean: ## Remove build output

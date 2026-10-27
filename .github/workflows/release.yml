@@ -459,10 +459,11 @@ jobs:
 
   # Lint and GoSec of the packages with darwin-only files, which the Linux jobs never compile (found
   # by the files' names), and the app bundle with Sparkle as releases build it (make dist-app at
-  # version 0.0.1, below every release: the release's build tags, Fyne's thread check off), started
-  # once (make smoke, D-112): its window with the real driver in a home of its own until it drew a
-  # frame. Its build cache is a kind of its own (lint, no race detector): app-macos, as the tests'
-  # restore key (gobuild-<os>-<arch>-macos-) would match macos-app.
+  # version 0.0.1, below every release: the release's build tags, Fyne's thread check off), not
+  # started (make smoke, D-112): GLFW asks NSOpenGL for an accelerated pixel format only, which
+  # GitHub's macOS VMs do not offer (NSGL: Failed to find a suitable pixel format). Its build cache
+  # is a kind of its own (lint, no race detector): app-macos, as the tests' restore key
+  # (gobuild-<os>-<arch>-macos-) would match macos-app.
   macos-app:
     name: macOS Lint and App
     runs-on: macos-latest
@@ -481,9 +482,6 @@ jobs:
 
       - name: Build and package Cogpit.app as releases build it
         run: make dist-app VERSION=0.0.1
-
-      - name: Start the app once (smoke test)
-        run: make smoke SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit
 
   # The tests on Windows (D-111): every package's, in two jobs on GitHub's runner in MSYS2's MINGW64
   # shell (MinGW-w64 gcc for cgo and Fyne, make), without the race detector; the window's

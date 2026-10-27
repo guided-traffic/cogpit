@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -22,10 +23,24 @@ import (
 // of its own and removes it once the process ended. The run starts nothing that reaches beyond the
 // process: no MCP server, no updater (loaded, not started), no login item, no cluster connection
 // (run). It fails, exit 1, when the window drew no frame, when an error reached the log, or when it
-// took longer than its bound (the watchdog's exit, whatever the main goroutine is doing).
+// took longer than its bound or, once the window drew its frame, than smokeQuitGrace to quit (the
+// watchdog's exit, whatever the main goroutine is doing); then it says how far the reads of the
+// window's frame got and where the main goroutine was. Two races in Fyne 2.8.2's own stop are named
+// and not counted (fynePrefsLoadError, fyneQuitDeadlock); any other error or hang while quitting is.
 
 // smokeErrorsShown bounds the logged errors a failed smoke run repeats.
 const smokeErrorsShown = 5
+
+// smokeQuitGrace is how long a smoke run gives Cogpit to quit once its window drew a frame, within
+// the run's bound.
+const smokeQuitGrace = 15 * time.Second
+
+// fynePrefsLoadError is the line Fyne logs when it cannot read its preferences file. Its save of
+// the preferences when the app stops races its own watch of that file: the watch can reload the
+// file between the save's truncation and its write and read nothing (cause EOF; fyne.io/fyne/v2/app
+// preferences.go, save and watch). A smoke run quits once its frame was drawn, so this line, logged
+// after the frame, comes from that quit: the run names it and does not count it.
+const fynePrefsLoadError = "Preferences load error:"
 
 // smokeRun is a smoke run's state; a nil one is no smoke run.
 type smokeRun struct {
@@ -35,10 +50,14 @@ type smokeRun struct {
 	watchdog *time.Timer
 
 	mu      sync.Mutex
-	frame   string   // "a frame of <w>×<h> pixels after <d>", once the window drew one
-	noFrame error    // why the window had no frame to read
+	frame   string            // "a frame of <w>×<h> pixels after <d>, read from <where>", once the window drew one
+	noFrame error             // why the window had no frame to read
+	reads   int               // the reads of the window's frame so far
+	last    fyneui.SmokeFrame // the last one
+	lastAt  time.Time
 	errs    []string // the first smokeErrorsShown errors logged
 	nErrs   int
+	nQuit   int // Fyne's preferences load errors after the frame, from the quit (fynePrefsLoadError)
 }
 
 // startSmoke starts a smoke run bounded by bound: its home in the system's temporary folder, the
@@ -110,19 +129,24 @@ func fileExists(path string) bool {
 // first drawn frame ends the run.
 func (s *smokeRun) apply(opts *fyneui.Options) {
 	opts.AutoConnect = ""
-	opts.Smoke = s.frameDrawn
+	opts.Smoke = s.read
 }
 
-// frameDrawn is fyneui.Options.Smoke: the size of the window's first drawn frame, or why it had
-// none to read.
-func (s *smokeRun) frameDrawn(width, height int, err error) {
+// read is fyneui.Options.Smoke: one read of the window's presented frame, the run's end when it
+// holds a drawn window or there was none to read.
+func (s *smokeRun) read(f fyneui.SmokeFrame) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err != nil {
-		s.noFrame = err
-		return
+	s.reads++
+	s.last, s.lastAt = f, time.Now()
+	switch {
+	case f.Err != nil:
+		s.noFrame = f.Err
+	case f.Drawn:
+		s.frame = fmt.Sprintf("a frame of %d×%d pixels after %s, read from %s", f.Width, f.Height,
+			time.Since(s.begin).Round(time.Millisecond), f.From)
+		s.watchdog.Reset(min(smokeQuitGrace, time.Until(s.begin.Add(s.bound))))
 	}
-	s.frame = fmt.Sprintf("a frame of %d×%d pixels after %s", width, height, time.Since(s.begin).Round(time.Millisecond))
 }
 
 // watch wraps the app log's handler so that the run counts the errors that reach the log: records
@@ -160,6 +184,10 @@ func (h smokeLog) WithGroup(name string) slog.Handler {
 func (s *smokeRun) noteError(msg string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.frame != "" && strings.Contains(msg, fynePrefsLoadError) {
+		s.nQuit++
+		return
+	}
 	s.nErrs++
 	if len(s.errs) < smokeErrorsShown {
 		s.errs = append(s.errs, msg)
@@ -174,18 +202,17 @@ func (s *smokeRun) end(code int) int {
 	}
 	s.watchdog.Stop()
 	s.mu.Lock()
-	why := s.failure(code)
-	frame := s.frame
+	why, note, frame := s.failure(code), s.uncounted(), s.frame
 	s.mu.Unlock()
 	if why != "" {
-		fmt.Fprintf(os.Stderr, "cogpit: smoke: failed: %s (home %s)\n", why, s.home)
+		fmt.Fprintf(os.Stderr, "cogpit: smoke: failed: %s%s (home %s)\n", why, note, s.home)
 		if code == 0 {
 			code = 1
 		}
 		return code
 	}
-	fmt.Fprintf(os.Stderr, "cogpit: smoke: passed: %s, quit after %s (home %s)\n", frame,
-		time.Since(s.begin).Round(time.Millisecond), s.home)
+	fmt.Fprintf(os.Stderr, "cogpit: smoke: passed: %s, quit after %s%s (home %s)\n", frame,
+		time.Since(s.begin).Round(time.Millisecond), note, s.home)
 	return code
 }
 
@@ -212,14 +239,103 @@ func (s *smokeRun) loggedErrors() string {
 	return fmt.Sprintf("; errors logged (%d): %s", s.nErrs, strings.Join(s.errs, " | "))
 }
 
-// expire is the watchdog: the run took longer than its bound. It ends the process.
-func (s *smokeRun) expire() {
-	s.mu.Lock()
-	what := "the window drew no frame"
-	if s.frame != "" {
-		what = "the window drew " + s.frame + ", but Cogpit did not quit"
+// uncounted names the errors the run did not count, "" for none; s.mu held.
+func (s *smokeRun) uncounted() string {
+	if s.nQuit == 0 {
+		return ""
 	}
-	fmt.Fprintf(os.Stderr, "cogpit: smoke: failed: %s within %s%s (home %s)\n", what, s.bound, s.loggedErrors(), s.home)
-	s.mu.Unlock()
-	os.Exit(1)
+	return fmt.Sprintf("; not counted: Fyne's %q while quitting (%d), its preferences save at the stop racing its file watch",
+		fynePrefsLoadError, s.nQuit)
+}
+
+// progress says how far the reads of the window's frame got, "" once one held a drawn window;
+// s.mu held. No read at all: the main goroutine, which runs them between Fyne's frames, never got
+// to one. Reads whose last is long ago: it stopped after that one.
+func (s *smokeRun) progress() string {
+	switch {
+	case s.frame != "":
+		return ""
+	case s.reads == 0:
+		return "; no read of the window's frame ran"
+	}
+	f := s.last
+	what := fmt.Sprintf("%d×%d pixels of one colour #%02x%02x%02x%02x", f.Width, f.Height, f.Colour.R, f.Colour.G, f.Colour.B, f.Colour.A)
+	switch {
+	case f.Unread != "":
+		what = f.Unread
+	case f.Width == 0 || f.Height == 0:
+		what = "no pixels, the canvas had no size"
+	}
+	reads := fmt.Sprintf("%d reads", s.reads)
+	if s.reads == 1 {
+		reads = "1 read"
+	}
+	return fmt.Sprintf("; %s of the window's frame from %s, the last %s ago: %s", reads, f.From,
+		time.Since(s.lastAt).Round(time.Millisecond), what)
+}
+
+// expire is the watchdog: the run took longer than its bound, or than smokeQuitGrace to quit once
+// its window drew a frame. It says so, with the main goroutine's stack, and ends the process.
+func (s *smokeRun) expire() {
+	msg, code := s.expired(goroutineStacks())
+	fmt.Fprint(os.Stderr, msg)
+	os.Exit(code)
+}
+
+// expired is the watchdog's verdict, given every goroutine's stack: what it says and the exit
+// code. A run whose window drew its frame and whose quit is stuck in Fyne's own shutdown
+// (fyneQuitDeadlock) is judged as one whose app ended with exit code 0.
+func (s *smokeRun) expired(stacks string) (msg string, code int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.frame != "" && fyneQuitDeadlock(stacks) {
+		note := s.uncounted() + "; not counted: Fyne's shutdown deadlocked on its lifecycle queue, ended by the run"
+		if why := s.failure(0); why != "" {
+			return fmt.Sprintf("cogpit: smoke: failed: %s%s (home %s)\n", why, note, s.home), 1
+		}
+		return fmt.Sprintf("cogpit: smoke: passed: %s%s (home %s)\n", s.frame, note, s.home), 0
+	}
+	what := fmt.Sprintf("the window drew no frame within %s%s", s.bound, s.progress())
+	if s.frame != "" {
+		what = fmt.Sprintf("the window drew %s, but Cogpit did not quit within %s of it", s.frame,
+			time.Since(s.lastAt).Round(time.Second))
+	}
+	return fmt.Sprintf("cogpit: smoke: failed: %s%s%s (home %s)\ncogpit: smoke: the main goroutine, which runs Fyne's event loop:\n%s\n",
+		what, s.loggedErrors(), s.uncounted(), s.home, goroutine(stacks, 1)), 1
+}
+
+// goroutineStacks is every goroutine's stack, as Go prints them.
+func goroutineStacks() string {
+	buf := make([]byte, 1<<20)
+	return string(buf[:runtime.Stack(buf, true)])
+}
+
+// goroutine is goroutine id's stack in stacks.
+func goroutine(stacks string, id int) string {
+	head := fmt.Sprintf("goroutine %d [", id)
+	for g := range strings.SplitSeq(stacks, "\n\n") {
+		if strings.HasPrefix(g, head) {
+			return g
+		}
+	}
+	return "(not found)"
+}
+
+// fyneQuitDeadlock reports whether stacks, every goroutine's, show Fyne's shutdown deadlocked on
+// its own lifecycle queue: the main goroutine waits in Lifecycle.WaitForEvents for the queue to
+// run its last event, and the queue's goroutine waits in runOnMainWithWait for an event it handed
+// the main loop after the loop's last drain, which nothing runs any more (fyne.io/fyne/v2 2.8,
+// internal/driver/glfw loop.go: runGL's drain and runOnMainWithWait's check of drained race).
+func fyneQuitDeadlock(stacks string) bool {
+	var mainWaits, queueWaits bool
+	for g := range strings.SplitSeq(stacks, "\n\n") {
+		switch {
+		case strings.HasPrefix(g, "goroutine 1 ["):
+			mainWaits = strings.Contains(g, "fyne.io/fyne/v2/internal/app.(*Lifecycle).WaitForEvents")
+		case strings.Contains(g, "fyne.io/fyne/v2/internal/driver/glfw.runOnMainWithWait") &&
+			strings.Contains(g, "fyne.io/fyne/v2/internal/app.(*Lifecycle).RunEventQueue"):
+			queueWaits = true
+		}
+	}
+	return mainWaits && queueWaits
 }

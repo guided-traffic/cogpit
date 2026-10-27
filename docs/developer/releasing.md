@@ -36,7 +36,7 @@ prerequisite fails its test instead of skipping it ([testing › Prerequisites](
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
 | macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh, bash and `perl` |
-| macOS Lint and App | `make lint-darwin gosec-darwin`, `make dist-app VERSION=0.0.1`, `make smoke SMOKE_BIN=…` | lint and gosec of the packages with darwin-only files; the app bundle as releases build it, started once ([the smoke test](#the-smoke-test)) |
+| macOS Lint and App | `make lint-darwin gosec-darwin`, `make dist-app VERSION=0.0.1` | lint and gosec of the packages with darwin-only files; the app bundle as releases build it, not started ([the smoke test](#the-smoke-test)) |
 | Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector; WinSparkle.dll fetched, beside Windows PowerShell, `ping` and MSYS2's `sh` |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |
 | Linux Package | `make dist-linux`, `make smoke`, `make test-linux-package` | the `.deb` as releases build it, its app started once ([the smoke test](#the-smoke-test)), lintian, the APT repository's scripts end to end with a throwaway key |
@@ -112,28 +112,47 @@ runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](..
 `--smoke SMOKE_BOUND` (`2m` # default; [usage › flags](usage.md#cogpit-flags)): the window with the
 real GL driver, in a home of its own, until it drew its first frame; then the app quits. The run
 fails on a logged error (a record at level ERROR, or a line of Fyne's errors), on a window without a
-GL surface, and after the bound. CI runs it on what a release ships: macOS Lint and App on
-`dist-app`'s bundle (`SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit`), Linux Package on
-`dist-linux`'s `bin/cogpit`, Windows Package on the `cogpit.exe` the setup installed
+GL surface, after the bound, and when Cogpit does not quit within 15 s of the frame
+(`smokeQuitGrace`). A failed run says how far its reads of the frame got (how many, from where, what
+the last one held); a run the watchdog ends also shows the main goroutine's stack, and on Linux the
+script shows Xvfb's output. CI runs it on what a release ships: Linux Package on `dist-linux`'s
+`bin/cogpit`, Windows Package on the `cogpit.exe` the setup installed
 (`test-windows-package WINDOWS_SMOKE=on`, [`setup-test.sh`](../../hack/windows/setup-test.sh)).
 
-- **A drawn frame:** the frame the window presented, read back from the GL driver's front buffer
-  (Fyne's `Capture`), holds more than one colour.
+- **A drawn frame:** the frame the window presented holds more than one colour. On X11 the run reads
+  it where the X server holds it (`XGetImage` on the window,
+  [`smoke_linux.go`](../../internal/ui/fyneui/smoke_linux.go)), elsewhere back from the GL driver's
+  front buffer (Fyne's `Capture`): under Xvfb, Mesa's llvmpipe presents a desktop GL window's back
+  buffer to the X window and leaves its front buffer empty, so that Fyne's desktop GL build (amd64)
+  reads one colour there whatever was drawn; its GLES build (arm64) reads the frame.
+- **Fyne's quit:** two races in Fyne 2.8.2's stop are named in the verdict and not counted: its save
+  of the preferences at the stop against its watch of their file, which can read the file between
+  its truncation and its write (`Preferences load error:` after the frame), and its lifecycle
+  queue's last event against the main loop's last drain, which leaves the quit waiting for good (the
+  watchdog finds both goroutines' stacks waiting there). Any other error or hang while quitting
+  fails the run.
 - **The run's home** is a folder in a temporary folder of the script's, which it removes once the
   app ended: `HOME`, the configuration and cache folders and `$KUBECONFIG` point there; Helm's
   variables and a pod's in-cluster ones are removed.
 - **Linux:** where the caller has none, the script supplies what a desktop session gives: an X
   server in memory (`xvfb-run`, a 1920×1200 screen of 24 bits), a D-Bus session bus
   (`dbus-run-session`; without one Fyne logs an error for its theme watch) and `XDG_RUNTIME_DIR`.
-  CI installs `xvfb`, `xauth` and `dbus`.
+  CI installs `xvfb`, `xauth` and `dbus`; the window's frame is read through `libX11`, which the
+  binary links for GLFW already.
 - **Windows:** GitHub's runners have no OpenGL 2.1 driver, Fyne's minimum; Mesa's `opengl32.dll`
   and `libgallium_wgl.dll` (the llvmpipe driver, `make mesa`: pinned by `MESA_VERSION` and
   `MESA_SHA256`, [`mesa.sh`](../../hack/windows/mesa.sh), unpacked with MSYS2's `p7zip`) lie beside
   the binary for the run, the first place Windows looks for them. The release pipeline's Windows job
   runs `test-windows-package` without it: that job ships the setup it builds, and Mesa is a
   third-party binary Renovate merges on its own.
-- **Not covered:** the GPU drivers users have (Linux and Windows draw in software here), anything
-  after the first frame, and the release pipeline's own builds (they come from the same commit).
+- **macOS:** by hand only (`make smoke` on `bin/cogpit`, or after `make dist-app` with
+  `SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit`): GLFW asks NSOpenGL for an accelerated pixel
+  format only, which GitHub's macOS VMs do not offer
+  (`NSGL: Failed to find a suitable pixel format`, then a panic in `glfw.CreateWindow`), so macOS
+  Lint and App builds the bundle and does not start it.
+- **Not covered:** the GPU drivers users have (Linux and Windows draw in software here), the macOS
+  app in CI, what Cogpit does between the first frame and its quit, and the release pipeline's own
+  builds (they come from the same commit).
 
 ### Running a job locally
 

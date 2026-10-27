@@ -51,10 +51,10 @@ type Options struct {
 	// PerfMode, with PerfReport, picks the measurement: PerfScroll (the default) or PerfGate.
 	PerfMode string
 	// Smoke, when set, makes the run a smoke test (cogpit --smoke, D-112; smoke.go): Run reads the
-	// window's presented frame back from the GL driver until it holds a drawn window, then calls
-	// Smoke once with the frame's size in pixels, or with the error when there is no frame to read,
-	// and quits. The caller bounds the wait.
-	Smoke func(width, height int, err error)
+	// window's presented frame (on X11 the X server's copy, else the GL driver's front buffer) and
+	// hands Smoke each read, until one holds a drawn window or there is no frame to read; then it
+	// quits. The caller bounds the wait.
+	Smoke func(SmokeFrame)
 	// Theme picks the palette for the run (--theme), over the Preferences' theme; empty: the
 	// Preferences' theme, ThemeDark without one.
 	Theme ThemeMode

@@ -13,49 +13,50 @@ import (
 )
 
 // TestSmokeReportsTheFirstDrawnFrame: a smoke run (cogpit --smoke, Options.Smoke) reads the
-// window's frame back until it holds a drawn window, reports its size in pixels once, without an
-// error, and its reads end; the shell's window at its start is a drawn one.
+// window's frame back and reports each read until one holds a drawn window, at its size in pixels,
+// without an error; then its reads end. The shell's window at its start is a drawn one.
 func TestSmokeReportsTheFirstDrawnFrame(t *testing.T) {
-	type report struct {
-		w, h int
-		err  error
-	}
-	var got []report
-	sh, w, q := newTestShell(t, newFakeEngine(t), Options{Smoke: func(width, height int, err error) {
-		got = append(got, report{width, height, err})
-	}})
+	var got []SmokeFrame
+	sh, w, q := newTestShell(t, newFakeEngine(t), Options{Smoke: func(f SmokeFrame) { got = append(got, f) }})
 	ended := sh.startSmoke()
-	q.until(t, "the smoke run's report", func() bool { return len(got) > 0 })
+	q.until(t, "the smoke run's drawn frame", func() bool { return len(got) > 0 && got[len(got)-1].Drawn })
 	select {
 	case <-ended:
 	case <-time.After(15 * time.Second):
-		t.Fatal("the smoke run's reads go on after its report")
+		t.Fatal("the smoke run's reads go on after its drawn frame")
 	}
 	q.drain()
 	size := w.Canvas().Size()
-	want := report{int(size.Width * w.Canvas().Scale()), int(size.Height * w.Canvas().Scale()), nil}
-	if len(got) != 1 || got[0] != want {
-		t.Fatalf("reports %+v, want one: %+v", got, want)
+	want := SmokeFrame{From: smokeFromGL, Width: int(size.Width * w.Canvas().Scale()),
+		Height: int(size.Height * w.Canvas().Scale()), Drawn: true}
+	if last := got[len(got)-1]; last != want {
+		t.Fatalf("the last read %+v, want %+v", last, want)
+	}
+	for _, f := range got[:len(got)-1] {
+		if f.Drawn || f.Err != nil {
+			t.Fatalf("reads %+v: one ended the run before the last", got)
+		}
 	}
 }
 
-// TestSmokeFrameHoldsMoreThanOneColour: a frame of one colour is no drawn window yet, one with
-// anything on it is, at its size in pixels.
+// TestSmokeFrameHoldsMoreThanOneColour: a frame of one colour is no drawn window yet, and the read
+// names that colour; one with anything on it is drawn; both at their size in pixels.
 func TestSmokeFrameHoldsMoreThanOneColour(t *testing.T) {
 	test.NewTempApp(t)
-	bg := canvas.NewRectangle(color.NRGBA{R: 0x20, G: 0x40, B: 0x60, A: 0xff})
+	fill := color.NRGBA{R: 0x20, G: 0x40, B: 0x60, A: 0xff}
+	bg := canvas.NewRectangle(fill)
 	w := test.NewTempWindow(t, bg)
 	w.SetPadded(false)
 	w.Resize(fyne.NewSize(200, 100))
-	if fw, fh, err := presentedFrame(w.Canvas()); fw != 0 || fh != 0 || err != nil {
-		t.Fatalf("a frame of one colour: %d×%d, %v; want 0×0 and no error", fw, fh, err)
+	if f := presentedFrame(w); f != (SmokeFrame{From: smokeFromGL, Width: 200, Height: 100, Colour: fill}) {
+		t.Fatalf("a frame of one colour: %+v; want 200×100, not drawn, of %v", f, fill)
 	}
 	dot := canvas.NewRectangle(color.White)
 	dot.Resize(fyne.NewSize(2, 2))
 	dot.Move(fyne.NewPos(150, 70))
 	w.SetContent(container.NewStack(bg, container.NewWithoutLayout(dot)))
-	if fw, fh, err := presentedFrame(w.Canvas()); fw != 200 || fh != 100 || err != nil {
-		t.Fatalf("a frame with a dot on it: %d×%d, %v; want 200×100 and no error", fw, fh, err)
+	if f := presentedFrame(w); f != (SmokeFrame{From: smokeFromGL, Width: 200, Height: 100, Drawn: true}) {
+		t.Fatalf("a frame with a dot on it: %+v; want 200×100, drawn", f)
 	}
 }
 
@@ -64,11 +65,16 @@ type noSurface struct{ fyne.Canvas }
 
 func (noSurface) Capture() image.Image { return nil }
 
+// noSurfaceWindow is a window with that canvas.
+type noSurfaceWindow struct{ fyne.Window }
+
+func (noSurfaceWindow) Canvas() fyne.Canvas { return noSurface{} }
+
 // TestSmokeWindowWithoutASurface: a window the driver could not give a GL surface (its creation
 // failed) has no frame to read back, which ends the smoke run with that error at once instead of
 // at its bound.
 func TestSmokeWindowWithoutASurface(t *testing.T) {
-	if fw, fh, err := presentedFrame(noSurface{}); fw != 0 || fh != 0 || err == nil {
-		t.Fatalf("no surface: %d×%d, %v; want 0×0 and an error", fw, fh, err)
+	if f := presentedFrame(noSurfaceWindow{}); f.Width != 0 || f.Height != 0 || f.Drawn || f.Err == nil {
+		t.Fatalf("no surface: %+v; want 0×0, not drawn, and an error", f)
 	}
 }

@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# The smoke test of the app as it ships (D-112; make smoke, and through it CI's macOS Lint and App
-# and Linux Package; hack/windows/setup-test.sh for the installed cogpit.exe in Windows Package):
-# the app's binary started with --smoke, which opens the window with the real driver in a home of
-# its own, quits once the window drew a frame and fails on a logged error or after the bound.
+# The smoke test of the app as it ships (D-112; make smoke, and through it CI's Linux Package;
+# hack/windows/setup-test.sh for the installed cogpit.exe in Windows Package; on macOS by hand
+# only, as GitHub's macOS VMs offer GLFW no accelerated OpenGL pixel format): the app's binary
+# started with --smoke, which opens the window with the real driver in a home of its own, quits
+# once the window drew a frame and fails on a logged error or after the bound.
 #
 #   [SMOKE_MESA=<dir>] hack/smoke.sh <cogpit binary> [<bound, 2m>]
 #
 # The run's home lands in a temporary folder of this script's (TMPDIR, and TMP and TEMP on
 # Windows), removed once the app ended. On Linux the app gets what a desktop session gives it,
 # where the caller has none: an X server in memory (xvfb-run) on a 1920×1200 screen of 24 bits, as
-# xvfb-run's own 640×480×8 offers GLFW no GLX visual; a D-Bus session bus (dbus-run-session),
-# without which Fyne logs an error for its theme watch; and XDG_RUNTIME_DIR. On Windows with
-# SMOKE_MESA naming a folder with Mesa's opengl32.dll and libgallium_wgl.dll (make mesa), the two
-# lie beside the binary for the run, the first place Windows looks for them, and Mesa's llvmpipe
-# driver draws: GitHub's Windows runners have no OpenGL 2.1 driver, Fyne's minimum.
+# xvfb-run's own 640×480×8 offers GLFW no GLX visual, its output shown when the run failed; a D-Bus
+# session bus (dbus-run-session), without which Fyne logs an error for its theme watch; and
+# XDG_RUNTIME_DIR. On Windows with SMOKE_MESA naming a folder with Mesa's opengl32.dll and
+# libgallium_wgl.dll (make mesa), the two lie beside the binary for the run, the first place
+# Windows looks for them, and Mesa's llvmpipe driver draws: GitHub's Windows runners have no
+# OpenGL 2.1 driver, Fyne's minimum.
 set -euo pipefail
 
 die() {
@@ -41,7 +43,7 @@ case "$(uname -s)" in
 Linux)
 	if [ -z "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]; then
 		command -v xvfb-run >/dev/null || die "no display, and no xvfb-run (Debian's packages xvfb and xauth)"
-		run=(xvfb-run -a -s '-screen 0 1920x1200x24' "${run[@]}")
+		run=(xvfb-run -a -e "$tmp/xvfb.log" -s '-screen 0 1920x1200x24' "${run[@]}")
 	fi
 	if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
 		command -v dbus-run-session >/dev/null || die "no D-Bus session bus, and no dbus-run-session (Debian's package dbus)"
@@ -68,4 +70,10 @@ MINGW* | MSYS* | CYGWIN*)
 esac
 
 echo "smoke test: ${run[*]}"
-TMPDIR=$tmp TMP=$tmp_native TEMP=$tmp_native "${run[@]}"
+rc=0
+TMPDIR=$tmp TMP=$tmp_native TEMP=$tmp_native "${run[@]}" || rc=$?
+if [ "$rc" -ne 0 ] && [ -s "$tmp/xvfb.log" ]; then
+	echo "Xvfb's output:" >&2
+	cat "$tmp/xvfb.log" >&2
+fi
+[ "$rc" -eq 0 ] || exit "$rc"

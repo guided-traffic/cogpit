@@ -426,6 +426,14 @@ update rows.
   since Fyne's driver applies its unfocus rule on the release as on the press. The YAML editor takes
   the keyboard back (`yamlview.View.DragEnd`); each of Fyne's fields would need a wrapper type or a
   Fyne fix.
+- **A quit can hang or log an error:** Fyne 2.8.2's stop races itself. Its lifecycle queue's last
+  event, the stop hook with the preferences' save, can miss the main loop's last drain and leave the
+  process waiting in `Lifecycle.WaitForEvents` with the window gone; the save also races the
+  preferences' file watch, whose reload can read the file emptied for the write and log
+  `Preferences load error:` (EOF). Under load in the smoke test's container 240 quits hung 3 times
+  and logged it 27 times; the smoke run names both
+  ([D-112](../developer/decisions.md#d-112-ci-and-test-time)), the app has no bound on its quit. The
+  fix belongs in Fyne's driver.
 - **Estimate:** 100–200 h to beta.
 
 ## Beyond Lens

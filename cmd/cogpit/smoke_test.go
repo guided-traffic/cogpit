@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"image/color"
 	"io"
 	"log/slog"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/app"
 	"github.com/guided-traffic/cogpit/internal/helm"
+	"github.com/guided-traffic/cogpit/internal/ui/fyneui"
 )
 
 // within reports whether path lies in dir.
@@ -83,9 +85,14 @@ func newTestSmoke(t *testing.T) *smokeRun {
 	return s
 }
 
+// drawn is the read of a drawn frame of 1440 × 900 pixels.
+var drawn = fyneui.SmokeFrame{From: "the X server's copy of the window", Width: 1440, Height: 900, Drawn: true}
+
 // TestSmokeVerdict: a run passes with a drawn frame, no logged error and the app's own exit code
-// 0; anything else fails it, exit code 1 unless the app's own is another.
+// 0; anything else fails it, exit code 1 unless the app's own is another. Fyne's preferences load
+// error after the frame comes from the quit and does not count; before it, it does.
 func TestSmokeVerdict(t *testing.T) {
+	prefs := "Fyne error:  " + fynePrefsLoadError
 	for _, c := range []struct {
 		name    string
 		prepare func(s *smokeRun)
@@ -93,13 +100,18 @@ func TestSmokeVerdict(t *testing.T) {
 		want    string // in the failure; "" passes
 		exit    int
 	}{
-		{"a drawn frame", func(s *smokeRun) { s.frameDrawn(1440, 900, nil) }, 0, "", 0},
+		{"a drawn frame", func(s *smokeRun) { s.read(drawn) }, 0, "", 0},
 		{"no frame", func(*smokeRun) {}, 0, "the window closed before it drew a frame", 1},
-		{"no surface", func(s *smokeRun) { s.frameDrawn(0, 0, errors.New("the window has no GL surface")) }, 0,
+		{"no drawn frame", func(s *smokeRun) { s.read(fyneui.SmokeFrame{Width: 1440, Height: 900}) }, 0,
+			"the window closed before it drew a frame", 1},
+		{"no surface", func(s *smokeRun) { s.read(fyneui.SmokeFrame{Err: errors.New("the window has no GL surface")}) }, 0,
 			"the window has no GL surface", 1},
-		{"a logged error", func(s *smokeRun) { s.frameDrawn(1440, 900, nil); s.noteError("boom") }, 0,
+		{"a logged error", func(s *smokeRun) { s.read(drawn); s.noteError("boom") }, 0,
 			"errors logged (1): boom", 1},
-		{"the app's exit code", func(s *smokeRun) { s.frameDrawn(1440, 900, nil) }, 2, "exit code 2", 2},
+		{"Fyne's preferences race while quitting", func(s *smokeRun) { s.read(drawn); s.noteError(prefs) }, 0, "", 0},
+		{"a preferences load error before the frame", func(s *smokeRun) { s.noteError(prefs); s.read(drawn) }, 0,
+			"errors logged (1): " + prefs, 1},
+		{"the app's exit code", func(s *smokeRun) { s.read(drawn) }, 2, "exit code 2", 2},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			s := newTestSmoke(t)
@@ -144,6 +156,129 @@ func TestSmokeCountsLoggedErrors(t *testing.T) {
 	}
 }
 
+// TestSmokeProgress: a run without a drawn frame says how far its reads got: none, or how many,
+// from where, how long ago the last was and what it held.
+func TestSmokeProgress(t *testing.T) {
+	s := newTestSmoke(t)
+	if got := s.progress(); got != "; no read of the window's frame ran" {
+		t.Errorf("no read: %q", got)
+	}
+	gl := "the GL front buffer"
+	s.read(fyneui.SmokeFrame{From: gl})
+	s.read(fyneui.SmokeFrame{From: gl, Width: 1440, Height: 900, Colour: color.NRGBA{R: 0x1e, G: 0x1f, B: 0x22, A: 0xff}})
+	got := s.progress()
+	if !strings.HasPrefix(got, "; 2 reads of the window's frame from the GL front buffer, the last ") ||
+		!strings.HasSuffix(got, " ago: 1440×900 pixels of one colour #1e1f22ff") {
+		t.Errorf("two reads: %q", got)
+	}
+	s.read(fyneui.SmokeFrame{From: gl})
+	if got := s.progress(); !strings.HasSuffix(got, " ago: no pixels, the canvas had no size") {
+		t.Errorf("a read without pixels: %q", got)
+	}
+	s.read(fyneui.SmokeFrame{From: drawn.From, Unread: "the window is not viewable"})
+	if got := s.progress(); !strings.Contains(got, "from the X server's copy of the window, the last ") ||
+		!strings.HasSuffix(got, " ago: the window is not viewable") {
+		t.Errorf("an unread frame: %q", got)
+	}
+	s.read(drawn)
+	if got := s.progress(); got != "" {
+		t.Errorf("a drawn frame: %q", got)
+	}
+	if !strings.HasSuffix(s.frame, ", read from the X server's copy of the window") {
+		t.Errorf("the drawn frame is %q", s.frame)
+	}
+}
+
+// Goroutine stacks as Go prints them, from a smoke run whose quit hung in Fyne 2.8.2's shutdown
+// (CI-like container, 2026-10-27), shortened.
+const (
+	stackMainWaitsForEvents = `goroutine 1 [chan receive, locked to thread]:
+fyne.io/fyne/v2/internal/app.(*Lifecycle).WaitForEvents(...)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/app/lifecycle.go:120
+fyne.io/fyne/v2/internal/driver/glfw.(*gLDriver).Run(0x7a3caaf92160)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/driver/glfw/driver.go:199 +0x130
+main.main()
+	/home/runner/exp/cmd/cogpit/main.go:50 +0x110`
+	stackQueueWaitsForMain = `goroutine 114 [chan receive]:
+fyne.io/fyne/v2/internal/driver/glfw.runOnMainWithWait(0x7a3caaac04c8, 0x1)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/driver/glfw/loop.go:53 +0x108
+fyne.io/fyne/v2/internal/driver/glfw.(*gLDriver).DoFromGoroutine(0x7a3caa5698f0?, 0x7a3caaac04c8, 0x1?)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/driver/glfw/driver.go:102 +0x68
+fyne.io/fyne/v2/internal/app.(*Lifecycle).RunEventQueue(...)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/app/lifecycle.go:111
+created by fyne.io/fyne/v2/app.(*fyneApp).Run in goroutine 1
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/app/app.go:77 +0xc8`
+	stackMainInSwap = `goroutine 1 [syscall, locked to thread]:
+github.com/go-gl/glfw/v3.4/glfw._Cfunc_glfwSwapBuffers(0x2a0f1c0)
+	_cgo_gotypes.go:1872 +0x30
+main.main()
+	/home/runner/exp/cmd/cogpit/main.go:50 +0x110`
+	stackOther = `goroutine 100 [select]:
+fyne.io/fyne/v2/internal/async.(*UnboundedChan[...]).processing(0xaaaacaf62480)
+	/go/pkg/mod/fyne.io/fyne/v2@v2.8.2/internal/async/chan.go:43 +0xa8`
+)
+
+// TestSmokeFyneQuitDeadlock: Fyne's shutdown deadlocked on its lifecycle queue is the main
+// goroutine waiting in Lifecycle.WaitForEvents and the queue's goroutine in runOnMainWithWait,
+// both; either alone is not.
+func TestSmokeFyneQuitDeadlock(t *testing.T) {
+	join := func(gs ...string) string { return strings.Join(gs, "\n\n") + "\n" }
+	for _, c := range []struct {
+		name   string
+		stacks string
+		want   bool
+	}{
+		{"both", join(stackMainWaitsForEvents, stackOther, stackQueueWaitsForMain), true},
+		{"the main goroutine alone", join(stackMainWaitsForEvents, stackOther), false},
+		{"the queue alone", join(stackMainInSwap, stackQueueWaitsForMain), false},
+		{"neither", join(stackMainInSwap, stackOther), false},
+	} {
+		if got := fyneQuitDeadlock(c.stacks); got != c.want {
+			t.Errorf("%s: %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+// TestSmokeExpired: the watchdog's verdict. Without a drawn frame it fails with how far the reads
+// got and the main goroutine's stack; with one and a quit stuck in Fyne's shutdown deadlock it
+// passes and names it, unless an error was logged; with one and a quit stuck elsewhere it fails.
+func TestSmokeExpired(t *testing.T) {
+	deadlock := strings.Join([]string{stackMainWaitsForEvents, stackQueueWaitsForMain}, "\n\n")
+	elsewhere := strings.Join([]string{stackMainInSwap, stackOther}, "\n\n")
+	for _, c := range []struct {
+		name    string
+		prepare func(s *smokeRun)
+		stacks  string
+		code    int
+		want    []string
+	}{
+		{"no frame", func(s *smokeRun) { s.read(fyneui.SmokeFrame{From: drawn.From, Width: 1440, Height: 900}) }, elsewhere, 1,
+			[]string{"failed: the window drew no frame within 1h0m0s; 1 read of the window's frame from the X server's", "of one colour #00000000",
+				"the main goroutine, which runs Fyne's event loop:\n" + stackMainInSwap}},
+		{"Fyne's quit deadlock", func(s *smokeRun) { s.read(drawn) }, deadlock, 0,
+			[]string{"passed: a frame of 1440×900 pixels after", "not counted: Fyne's shutdown deadlocked on its lifecycle queue"}},
+		{"Fyne's quit deadlock and a logged error", func(s *smokeRun) { s.read(drawn); s.noteError("boom") }, deadlock, 1,
+			[]string{"failed: errors logged (1): boom", "not counted: Fyne's shutdown deadlocked"}},
+		{"a quit stuck elsewhere", func(s *smokeRun) { s.read(drawn) }, elsewhere, 1,
+			[]string{"failed: the window drew a frame of 1440×900 pixels after", "but Cogpit did not quit within",
+				"the main goroutine, which runs Fyne's event loop:\n" + stackMainInSwap}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			s := newTestSmoke(t)
+			c.prepare(s)
+			msg, code := s.expired(c.stacks)
+			if code != c.code {
+				t.Errorf("exit code %d, want %d: %s", code, c.code, msg)
+			}
+			for _, w := range c.want {
+				if !strings.Contains(msg, w) {
+					t.Errorf("the verdict does not say %q:\n%s", w, msg)
+				}
+			}
+		})
+	}
+}
+
 // smokeStuckEnv makes the test binary a smoke run whose window never comes
 // (TestSmokeWatchdogEndsAStuckRun).
 const smokeStuckEnv = "COGPIT_SMOKE_STUCK_HELPER"
@@ -161,7 +296,8 @@ func TestSmokeStuckHelper(t *testing.T) {
 }
 
 // TestSmokeWatchdogEndsAStuckRun: a smoke run that takes longer than its bound ends with exit code
-// 1 and says so, whatever its main goroutine does.
+// 1 and says so, whatever its main goroutine does, with how far its reads got and that goroutine's
+// stack.
 func TestSmokeWatchdogEndsAStuckRun(t *testing.T) {
 	if testing.Short() {
 		t.Skip("starts a process")
@@ -174,7 +310,12 @@ func TestSmokeWatchdogEndsAStuckRun(t *testing.T) {
 	if !errors.As(err, &exit) || exit.ExitCode() != 1 {
 		t.Fatalf("the stuck run ended with %v, want exit code 1:\n%s", err, out)
 	}
-	if !strings.Contains(string(out), "cogpit: smoke: failed: the window drew no frame within 50ms") {
-		t.Errorf("the stuck run said:\n%s", out)
+	for _, want := range []string{
+		"cogpit: smoke: failed: the window drew no frame within 50ms; no read of the window's frame ran",
+		"cogpit: smoke: the main goroutine, which runs Fyne's event loop:\ngoroutine 1 [",
+	} {
+		if !strings.Contains(string(out), want) {
+			t.Errorf("the stuck run did not say %q:\n%s", want, out)
+		}
 	}
 }

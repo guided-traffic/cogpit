@@ -4258,9 +4258,10 @@ CI and local test runs are kept short at the same coverage.
   `internal/ui/fyneui`'s Windows file stays out: its package needs cgo for Fyne, and a lint on the
   Windows runners would build golangci-lint there and analyse Fyne with MinGW for one system call;
   moving the power read into a package without Fyne would bring it in. A run lists every finding.
-- **The smoke test** ([releasing › the smoke test](releasing.md#the-smoke-test)): CI starts each
-  platform's shipped binary once with `--smoke <bound>`, so that a release variant that panics at
-  start, misses a library or fails in the GL driver fails CI. Each choice against its alternative:
+- **The smoke test** ([releasing › the smoke test](releasing.md#the-smoke-test)): CI starts the
+  shipped binary of Linux and Windows once with `--smoke <bound>`, so that a release variant that
+  panics at start, misses a library or fails in the GL driver fails CI. Each choice against its
+  alternative:
   - a flag, not an environment variable such as `COGPIT_SMOKE=1`: it shows in the command and in
     `-h`, as `--perf` does, and no exported variable turns every start into a smoke run;
   - the binary makes its own home (`smokeEnv`, before the crash capture reads the configuration
@@ -4268,16 +4269,28 @@ CI and local test runs are kept short at the same coverage.
     user's files either; it leaves the home, since Fyne's settings watcher makes its folder again
     and logs an error while the process lives and Windows keeps the open log; `hack/smoke.sh`
     removes it once the app ended;
-  - a drawn frame is read back from the front buffer, more than one colour, rather than inferred
-    from a callback: it is what the driver presented;
+  - a drawn frame, more than one colour, is read where the driver presented it rather than inferred
+    from a callback: on X11 the X server's copy of the window (`XGetImage`), elsewhere the GL front
+    buffer (`Capture`). Under Xvfb, Mesa's llvmpipe leaves a desktop GL window's front buffer empty,
+    so Linux Package (amd64) saw no frame within the bound (CI run 40491453904; the same in an arm64
+    Ubuntu 24.04 container with CI's packages, Mesa 25.2.8, Fyne built for desktop GL as on amd64);
   - an error is a record at level ERROR or a line of Fyne's errors, which reach the log at INFO
     through the standard log package; Linux therefore runs in a D-Bus session, without which Fyne's
     theme watch logs one;
   - the bound is the flag's value (`2m` in `make smoke`), a watchdog's `os.Exit` whatever the main
-    goroutine does;
-  - macOS Lint and App builds the bundle as releases do (`make dist-app VERSION=0.0.1`), so that
-    macOS smokes the release variant as Linux and Windows do; the development variant of
-    `cmd/cogpit` compiles in macOS Tests;
+    goroutine does; once the frame is drawn, Cogpit has 15 s to quit (`smokeQuitGrace`), and a
+    failed run says how far its reads got and where the main goroutine is;
+  - the run quits through Fyne rather than exiting at the frame, so that a quit that hangs or logs
+    an error fails it; two races in Fyne 2.8.2's stop are named and not counted instead: its
+    preferences' save at the stop against its watch of their file (`Preferences load error:` after
+    the frame) and its lifecycle queue's last event against the main loop's last drain (both
+    goroutines' stacks waiting there, `fyneQuitDeadlock`). In the container, 240 runs under load
+    (30 or 40 busy loops, up to three runs at once) met the first 27 times and the second 3 times,
+    60 runs without load neither;
+  - macOS is smoked by hand only: GLFW asks NSOpenGL for an accelerated pixel format only, which
+    GitHub's macOS VMs do not offer (a panic in `glfw.CreateWindow`, CI run 40491453904). macOS
+    Lint and App builds the bundle as releases do (`make dist-app VERSION=0.0.1`) without starting
+    it; the development variant of `cmd/cogpit` compiles in macOS Tests;
   - Windows draws with Mesa's llvmpipe beside the installed `cogpit.exe`, in CI only: the release
     pipeline's Windows job, which ships the setup it builds, runs no third-party binary Renovate
     merges on its own.
@@ -4312,12 +4325,14 @@ findings of a text and one per line, so a run's log would not list all a change 
 [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile`,
 [`prereq.go`](../../internal/testkit/prereq/prereq.go),
 [`hack/smoke.sh`](../../hack/smoke.sh), [`cmd/cogpit/smoke.go`](../../cmd/cogpit/smoke.go),
-[`fyneui/smoke.go`](../../internal/ui/fyneui/smoke.go), [`mesa.sh`](../../hack/windows/mesa.sh) · `TestSplitIsStableAndComplete`,
+[`fyneui/smoke.go`](../../internal/ui/fyneui/smoke.go), [`smoke_linux.go`](../../internal/ui/fyneui/smoke_linux.go),
+[`mesa.sh`](../../hack/windows/mesa.sh) · `TestSplitIsStableAndComplete`,
 `TestSplitBalancesByDurations`, `TestDurationsFile`, `TestReadTestJSON`, `TestSelection`,
 `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`, `TestNeed`,
 `TestLookPath`,
 `TestSmokeReportsTheFirstDrawnFrame`, `TestSmokeFrameHoldsMoreThanOneColour`, `TestSmokeWindowWithoutASurface`,
-`TestSmokeEnvLeavesTheUsersHome`, `TestSmokeVerdict`, `TestSmokeCountsLoggedErrors`, `TestSmokeWatchdogEndsAStuckRun`
+`TestSmokeEnvLeavesTheUsersHome`, `TestSmokeVerdict`, `TestSmokeCountsLoggedErrors`, `TestSmokeProgress`,
+`TestSmokeFyneQuitDeadlock`, `TestSmokeExpired`, `TestSmokeWatchdogEndsAStuckRun`, `TestSmokeXChannel`
 
 ## D-113: Image grades, shields from Trivy's reports
 
