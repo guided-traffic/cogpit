@@ -24,8 +24,18 @@
       "text": "203.0.113.30"
     },
     {
-      "column": "rules",
-      "text": "shop.example.com/api -> api:8080, shop.example.com/ -> web:80, www.shop.example.com/ -> web:http, (default) -> web:http"
+      "column": "hosts",
+      "text": "shop.example.com, www.shop.example.com",
+      "web": [
+        {
+          "text": "shop.example.com",
+          "url": "https://shop.example.com"
+        },
+        {
+          "text": "www.shop.example.com",
+          "url": "https://www.shop.example.com"
+        }
+      ]
     },
     {
       "column": "age",
@@ -88,11 +98,13 @@
       "items": [
         {
           "name": "shop.example.com",
-          "value": "/api (Prefix) -> api:8080\n/ (Prefix) -> web:80"
+          "value": "/api (Prefix) -> api:8080\n/ (Prefix) -> web:80",
+          "nameURL": "https://shop.example.com"
         },
         {
           "name": "www.shop.example.com",
-          "value": "/ (Prefix) -> web:http"
+          "value": "/ (Prefix) -> web:http",
+          "nameURL": "https://www.shop.example.com"
         }
       ]
     },

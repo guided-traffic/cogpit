@@ -24,8 +24,14 @@
       "text": "-"
     },
     {
-      "column": "rules",
-      "text": "admin.example.internal/ -> admin-ui:3000"
+      "column": "hosts",
+      "text": "admin.example.internal",
+      "web": [
+        {
+          "text": "admin.example.internal",
+          "url": "https://admin.example.internal"
+        }
+      ]
     },
     {
       "column": "age",
@@ -71,7 +77,8 @@
       "items": [
         {
           "name": "admin.example.internal",
-          "value": "/ (Prefix) -> admin-ui:3000"
+          "value": "/ (Prefix) -> admin-ui:3000",
+          "nameURL": "https://admin.example.internal"
         }
       ]
     },

@@ -749,7 +749,8 @@ and a shell tab's Reconnect row ([`dockreconnect.go`](../../internal/ui/fyneui/d
   hold a Unix time written when drawn (`model.CellText`), so rows never go stale.
 - **Links** (`followLink`, [`links.go`](../../internal/ui/fyneui/links.go)): a link in a list's
   Namespace column runs `ui.setNamespace`, one without a name `ui.openView`, any other
-  `ui.navigate`.
+  `ui.navigate`. A web address (`model.WebLink` in a cell, a run per address; `DetailItem.NameURL`)
+  opens in the browser on the user's click through `openWebLink`, no command.
 - **`view.rows`** ([`viewrows.go`](../../internal/engine/viewrows.go),
   [`commands/viewrows.go`](../../internal/engine/commands/viewrows.go)): a page of the open view's
   snapshot as the table draws it, after waiting up to 2 s for the snapshot to follow the UI state

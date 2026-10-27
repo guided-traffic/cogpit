@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 77 | 76 | 65 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 78 | 77 | 66 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -347,6 +347,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Every connect, reconnect, login and disconnect documented step by step, the successful ones too, with times, durations and a failure's erro… | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
 | Every value in the detail drawer can be selected, and has a copy icon on hover; an entry of a value with several entries is copied in YAML… | partial | [Everyday use](beyond-lens.md#everyday-use) |
 | Names in the lists (Pods, Deployments and every other view) are copyable: a list's cells get the drawer's copy icon on hover, at least the… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| An Ingress's hosts open in the browser: the Ingresses list's Hosts column lists each host of the rules, a click opens it, https where the I… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Certificates in Secrets decoded, in the drawer and for agents: for every key that holds a PEM certificate, each certificate's information i… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Certificates in Secrets: whether the chain leads to a public CA, to a CA the computer trusts (a corporate root counts here) or to an intern… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A status filter in every view: the states the view's rows carry (Status, Not Ready, Degraded, …), several at once, cleared with one click,… | done | [Everyday use](beyond-lens.md#everyday-use) |

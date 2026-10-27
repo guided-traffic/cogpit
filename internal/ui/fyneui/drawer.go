@@ -484,7 +484,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		if len(sec.Items) > 0 {
 			grid := box(kvLayout{})
 			for _, it := range sec.Items {
-				grid.Objects = append(grid.Objects, d.itemName(it.Name), d.itemValue(m.Ref, sec, it))
+				grid.Objects = append(grid.Objects, d.itemName(it), d.itemValue(m.Ref, sec, it))
 			}
 			out = append(out, grid)
 		}
@@ -508,9 +508,14 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 // wider than the column ("Pod Management Policy", "Volume Claim Templates" of a Stateful Set),
 // wrapped onto lines within it, so that it never runs into its value: at its spaces, a word without
 // them after - . _ / and, failing those, by characters (wrapName; the owner's F3, 2026-10-15:
-// "agent-not-ready-taint-key" ran under its value). A name that fits is drawn as before.
-func (d *drawer) itemName(text string) fyne.CanvasObject {
+// "agent-not-ready-taint-key" ran under its value). A name that fits is drawn as before. A name
+// that is a web link (an Ingress rule's host) is drawn as a link, wrapped the same way.
+func (d *drawer) itemName(it model.DetailItem) fyne.CanvasObject {
+	text := it.Name
 	th := d.sh.app.Settings().Theme()
+	if it.NameURL != "" {
+		return nameLink(text, th.Size(sizeDrawerLabel), func() { d.sh.openWebLink(it.NameURL) })
+	}
 	if w := th.Size(sizeDrawerLabel); fyne.MeasureText(text, th.Size(theme.SizeNameText), fyne.TextStyle{}).Width > w {
 		return newNameParagraph(text, colorMuted, w)
 	}

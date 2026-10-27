@@ -24,8 +24,14 @@
       "text": "legacy-lb.example.net"
     },
     {
-      "column": "rules",
-      "text": "legacy.example.com/ -> legacy:80"
+      "column": "hosts",
+      "text": "legacy.example.com",
+      "web": [
+        {
+          "text": "legacy.example.com",
+          "url": "http://legacy.example.com"
+        }
+      ]
     },
     {
       "column": "age",
@@ -77,7 +83,8 @@
       "items": [
         {
           "name": "legacy.example.com",
-          "value": "/ (Prefix) -> legacy:80"
+          "value": "/ (Prefix) -> legacy:80",
+          "nameURL": "http://legacy.example.com"
         }
       ]
     }

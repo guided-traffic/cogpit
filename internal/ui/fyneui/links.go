@@ -2,10 +2,14 @@ package fyneui
 
 import (
 	"image/color"
+	"net/url"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
@@ -33,6 +37,21 @@ func (sh *shell) followLink(link model.ObjectRef, rowContext string, namespaceCo
 			ref.Context = rowContext
 		}
 		sh.dispatch("ui.navigate", refParams{Ref: ref}, nil)
+	}
+}
+
+// openWebLink opens a web address a cell or a drawer name links (model.WebLink, DetailItem.NameURL:
+// an Ingress's hosts) in the browser, on the user's click only: no agent opens a browser. The
+// address comes from the cluster, so the window checks it again: an absolute http or https URL
+// with a host and without user information, else a warning and nothing opens.
+func (sh *shell) openWebLink(raw string) {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != schemeWeb && u.Scheme != schemeWebSecure) || u.Host == "" || u.User != nil {
+		sh.toast("warning", "Cogpit opens only http and https addresses, not "+shorten(strings.ToValidUTF8(raw, "?"), 120)+".")
+		return
+	}
+	if err := openBrowser(sh.app, u); err != nil {
+		sh.toast("error", "Could not open "+u.Redacted()+": "+err.Error())
 	}
 }
 
@@ -67,6 +86,9 @@ type linkText struct {
 	hovered bool
 	hook    *copyHook // the copy icon's target (drawer values); nil: none
 	room    float32   // kept free of text at the right end: the copy icon is there (copy.go)
+	// peers are the lines of one link wrapped onto several (nameLink), this one among them: the
+	// pointer on any of them underlines them all.
+	peers []*linkText
 }
 
 // setIconRoom implements iconRoom: a cut-off link shortens its text before the copy icon.
@@ -95,8 +117,7 @@ func (l *linkText) Cursor() desktop.Cursor { return desktop.PointerCursor }
 
 // MouseIn implements desktop.Hoverable.
 func (l *linkText) MouseIn(*desktop.MouseEvent) {
-	l.hovered = true
-	l.Refresh()
+	l.setHovered(true)
 	if l.hook != nil {
 		l.hook.enter(l, fyne.MeasureText(l.text, l.Theme().Size(l.size), fyne.TextStyle{}).Width)
 	}
@@ -107,11 +128,42 @@ func (l *linkText) MouseMoved(*desktop.MouseEvent) {}
 
 // MouseOut implements desktop.Hoverable.
 func (l *linkText) MouseOut() {
-	l.hovered = false
-	l.Refresh()
+	l.setHovered(false)
 	if l.hook != nil {
 		l.hook.leave(l)
 	}
+}
+
+// setHovered underlines the link, all its lines when it is wrapped, or takes the underline away.
+func (l *linkText) setHovered(on bool) {
+	lines := l.peers
+	if lines == nil {
+		lines = []*linkText{l}
+	}
+	for _, p := range lines {
+		p.hovered = on
+		p.Refresh()
+	}
+}
+
+// nameLink is a drawer name that is a web link (DetailItem.NameURL): one line, or, wider than the
+// name column (width), wrapped as other names are (wrapName), its lines one link.
+func nameLink(text string, width float32, onTap func()) fyne.CanvasObject {
+	th := fyne.CurrentApp().Settings().Theme()
+	lines := wrapName(text, width, th.Size(theme.SizeNameText), fyne.TextStyle{})
+	if len(lines) <= 1 {
+		return newLinkText(text, onTap)
+	}
+	peers := make([]*linkText, len(lines))
+	objs := make([]fyne.CanvasObject, len(lines))
+	for i, line := range lines {
+		peers[i] = newLinkText(line, onTap)
+		objs[i] = peers[i]
+	}
+	for _, p := range peers {
+		p.peers = peers
+	}
+	return container.New(layout.NewCustomPaddedVBoxLayout(th.Size(theme.SizeNameLineSpacing)), objs...)
 }
 
 // CreateRenderer implements fyne.Widget.

@@ -24,8 +24,13 @@
       "text": "198.51.100.7"
     },
     {
-      "column": "rules",
-      "text": "(default) -> StorageBucket/static-assets"
+      "column": "hosts",
+      "text": "*",
+      "web": [
+        {
+          "text": "*"
+        }
+      ]
     },
     {
       "column": "age",

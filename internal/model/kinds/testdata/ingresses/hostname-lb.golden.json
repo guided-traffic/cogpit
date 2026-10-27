@@ -24,8 +24,20 @@
       "text": "k8s-saas-tenants-0123456789.elb.example.net"
     },
     {
-      "column": "rules",
-      "text": "*.tenants.example.com -> tenant-router:8443, */healthz -> health:8080, parked.example.com"
+      "column": "hosts",
+      "text": "*.tenants.example.com, *, parked.example.com",
+      "web": [
+        {
+          "text": "*.tenants.example.com"
+        },
+        {
+          "text": "*"
+        },
+        {
+          "text": "parked.example.com",
+          "url": "http://parked.example.com"
+        }
+      ]
     },
     {
       "column": "age",
@@ -87,7 +99,8 @@
         },
         {
           "name": "parked.example.com",
-          "value": "no paths: requests go to the default backend"
+          "value": "no paths: requests go to the default backend",
+          "nameURL": "http://parked.example.com"
         }
       ]
     }
