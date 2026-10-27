@@ -3,7 +3,7 @@
 > **Generated** by `make scorecard` ([`hack/scorecard`](../../hack/scorecard/main.go)) from what the budget
 > tests and benchmarks measured; do not edit. Not run in CI ([D-15](../developer/decisions.md#d-15-progress-generators)):
 > run it on the machine named below and commit the page. The budgets and how each is measured:
-> [testing › Performance budgets](../developer/testing.md#performance-budgets-proposed-not-measured); the work list:
+> [testing › Performance budgets](../developer/testing.md#performance-budgets); the work list:
 > [G15](gaps.md#g15-performance-and-api-load-at-scale).
 
 **Measured 2026-10-16** on darwin/arm64 (Apple M1 Ultra, 20 CPUs, macOS 26.6.2) with go1.27.2,
@@ -19,11 +19,11 @@ trips or a GPU frame.
 |---|---|---|---|---|
 | [P1](#p1) | Open a context to the first rows of the Pods list, 1,000-pod cluster | ≤ 1 s | **pass** (2 of 2) | `TestBudgetFirstRows` |
 | [P2](#p2) | Sort a 10,000-pod list by a column | ≤ 50 ms | **pass** (2 of 2) | `BenchmarkSortChange10k`, `BenchmarkSortCommand10k` |
-| [P3](#p3) | Scroll a 10,000-pod list | every frame ≤ 16 ms | not measured | – |
+| P3 | Scroll a 10,000-pod list | every frame ≤ 16 ms | not measured | – |
 | [P4](#p4) | Apply a burst of 1,000 watch events per second to an open list | no frame over 16 ms | **pass** (3 of 3) | `BenchmarkSnapshot10k` |
 | [P5](#p5) | Follow a log stream at 10,000 lines per second | no frame over 16 ms; memory bounded by the scrollback limit | **pass** (1 of 1) | `TestLogsP5` |
-| [P6](#p6) | Resident memory with three clusters open on their Pods lists | track only until measured against Lens | not measured | – |
-| [P7](#p7) | Cold start to an interactive window | ≤ 1 s | not measured | – |
+| P6 | Resident memory with three clusters open on their Pods lists | track only until measured against Lens | not measured | – |
+| P7 | Cold start to an interactive window | ≤ 1 s | not measured | – |
 | [P8](#p8) | Type into a 5 MB YAML document in the editor, highlighting on | keystroke to repaint ≤ 16 ms | **pass** (1 of 1) | `BenchmarkKeystroke5MB`, `BenchmarkKeystrokeLayout5MB` |
 | [P9](#p9) | A view stays open on an idle cluster for 10 minutes | 0 list requests; only the view's watches, and since 2026-10-16 the connection's heartbeat, one `get` of … | **pass** (2 of 2) | `TestBudgetIdleViewAndWarmReopen` |
 | [P10](#p10) | Reopen a view within the warm period | 0 list requests; rows shown ≤ 100 ms | **pass** (4 of 4) | `TestBudgetIdleViewAndWarmReopen` |
