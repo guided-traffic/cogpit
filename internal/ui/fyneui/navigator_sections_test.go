@@ -406,7 +406,11 @@ func TestNavigatorSectionRowMenu(t *testing.T) {
 		}}, nil
 	}
 	sh, _, q := newTestShell(t, f, Options{})
-	q.until(t, "the clusters", func() bool { return sh.side.sec.loaded && len(sh.side.sec.visible) == 7 })
+	// The hotbar too: its item is in the menu once hotbar.list answered, which the clusters' read
+	// does not wait for.
+	q.until(t, "the clusters and the hotbar", func() bool {
+		return sh.side.sec.loaded && len(sh.side.sec.visible) == 7 && sh.hot.root.Visible()
+	})
 	n := sh.side.sec
 	labels := func() []string {
 		var out []string

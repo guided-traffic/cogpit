@@ -276,7 +276,7 @@ func TestCSVSavePanel(t *testing.T) {
 	dir := t.TempDir()
 	p.savePath = filepath.Join(dir, "nodes.csv")
 	test.Tap(sh.view.csvButton)
-	q.until(t, "the file", func() bool { fi, err := os.Stat(p.savePath); return err == nil && fi.Size() > 0 })
+	untilSaved(t, q, sh, "nodes.csv")
 	data, _ := os.ReadFile(p.savePath)
 	if !strings.HasPrefix(string(data), "Name,") {
 		t.Errorf("saved %q", data)
@@ -318,8 +318,9 @@ func TestLogSavePanel(t *testing.T) {
 	lt := logTabOf(sh)
 	p := installPicker(sh)
 	p.savePath = filepath.Join(t.TempDir(), "checkout.log")
+	want := lt.view.DownloadLines()
 	test.Tap(lt.download)
-	q.until(t, "the file", func() bool { fi, err := os.Stat(p.savePath); return err == nil && fi.Size() > 0 })
+	untilSaved(t, q, sh, "checkout.log")
 	if o := p.lastSave(t); o.Name != "Deployment_checkout-api-demo.log" || len(o.Types) != 0 {
 		t.Errorf("save panel %+v", o)
 	}
@@ -332,9 +333,23 @@ func TestLogSavePanel(t *testing.T) {
 	for sc := bufio.NewScanner(fh); sc.Scan(); {
 		lines = append(lines, sc.Text())
 	}
-	if want := lt.view.DownloadLines(); !slices.Equal(lines, want) {
+	if !slices.Equal(lines, want) {
 		t.Errorf("saved %d lines, want %d", len(lines), len(want))
 	}
+}
+
+// untilSaved waits for a download's end, its toast "Saved … to <name>" once the file is written
+// and closed; a "Could not save" toast fails the test. The file's size says nothing of the end:
+// the file grows write by write.
+func untilSaved(t *testing.T, q *mainQueue, sh *shell, name string) {
+	t.Helper()
+	q.until(t, "the save's toast", func() bool {
+		toasts := toastTexts(sh)
+		if strings.Contains(toasts, "Could not save") {
+			t.Fatalf("the save failed: %s", toasts)
+		}
+		return strings.Contains(toasts, " to "+name)
+	})
 }
 
 func assertOwnerOnly(t *testing.T, path string) {
