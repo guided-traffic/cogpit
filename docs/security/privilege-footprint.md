@@ -240,52 +240,53 @@ Prometheus like any other ([H-26](#h-26-prometheus-is-found-by-name)).
 
 ### H-64: A Flux action is carried out with the controller's identity
 
-Live wherever the user may `patch` a Flux kind: the patch is the user's, the reconciliation the
-controller's, with its service account (often cluster-wide) unless the object names a
+Live wherever the user may `patch` a Flux kind: the patch is the user's, the reconciliation runs
+with the controller's service account (often cluster-wide) unless the object names a
 `spec.serviceAccountName` or the controller enforces impersonation. Reconcile and Resume apply what
 the source holds now; a forced Helm release runs its hooks again. Cogpit adds no power, since who
-may patch the object may already change what it applies; an agent makes it real where agent writes
-are allowed ([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)): a steered agent
+may patch the object may already change what it applies; it becomes real where agent writes are
+allowed ([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)): a steered agent
 ([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)) can then reconcile, resume or
-force without a dialog. A confirmation shown names the identity in rows "Runs as" and "Your rights"
+force without a dialog. A confirmation names the identity in rows "Runs as" and "Your rights"
 (`fluxIdentityEffects` in [`commands/fluxidentity.go`](../../internal/engine/commands/fluxidentity.go),
 `TestFluxConfirmationNamesTheIdentity`). What remains: the name says whose rights are used, not what
 they allow, and a controller's `--default-service-account` is not read.
 
+
 ### H-7: Node shell is root on the node
 
-A node shell is full root on the node while its pod lives; the rules above bound and announce it,
-they cannot make it less powerful. Live: whoever may create pods in `kube-system` and exec into
-them, and confirms, is root on any node Cogpit lists. After a crash the pod lives until the next
-connect ([H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) or its deadline,
-up to 24 hours where the user set that. A non-privileged `kubectl debug`-style profile (host
-namespaces, the root filesystem at `/host`) is not built; it would still be root on the node's
-files, narrowing the risk without removing it.
+Live: whoever may create pods in `kube-system`, exec into them and confirm is root on any node
+Cogpit lists, while the pod lives; the rules above bound and announce it, they cannot make it less
+powerful. After a crash the pod lives until the next connect
+([H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) or its deadline, up to 24
+hours where the user set that. Not built: a non-privileged `kubectl debug`-style profile (host
+namespaces, the root filesystem at `/host`), which would still be root on the node's files.
+
 
 ### H-71: A crash leaves the node shell's pod until the next connect
 
-A crash, a `kill -9`, a sleeping laptop or a lost connection during the delete leave the pod
+Live. A crash, a `kill -9`, a sleeping laptop or a lost connection during the delete leave the pod
 running, privileged and idle, until its deadline, after which its object stays `Failed`
-(`DeadlineExceeded`). Whoever may exec into pods in `kube-system` can use it meanwhile, as they
-could a pod of their own. Live.
+(`DeadlineExceeded`); meanwhile whoever may exec into pods in `kube-system` can use it, as they
+could a pod of their own.
 
 What narrows it ([`engine/nodeshelljournal.go`](../../internal/engine/nodeshelljournal.go),
 [`engine/nodeshellsweep.go`](../../internal/engine/nodeshellsweep.go)): each pod is recorded in
 `<user config dir>/Cogpit/nodeshells.json` (owner-only, replaced atomically, under the journals'
 lock) **before** its create is sent, with a random id the pod carries as `cogpit.io/node-shell-id`,
-and gets its UID once created; a journal that cannot be written refuses the node shell. The next
-connect to the context deletes the pods its journal names, each by its UID (an entry without one
-is matched by name and id), and says so; a refused delete is tried again at the following connect
+and gets its UID once created; a journal that cannot be written refuses the node shell. The
+context's next connect deletes the pods its journal names by UID (an entry without one by name and
+id), says so, and tries a refused delete again at the following connect
 (`TestNodeShellSweepDeletesOwnPodsOnly`, `TestNodeShellJournalBeforeTheCreate`,
 `TestFileNodeShellJournal`).
 
-What remains: the pod lives until the user connects to that context again with the same
-configuration directory, or until its deadline; one who never does leaves the `Failed` object, and
-one without `delete pods` in `kube-system` cannot delete it later either. An entry without a UID on
-a connection that cannot read single pods waits for the deadline. A process that can write the
-journal can name only a pod carrying the id it names, which anyone who may read pods in
-`kube-system` can copy: that delete is then the user's own write where the attacker already creates
-pods.
+What remains: the pod lives until the next connect to that context with the same configuration
+directory, or until its deadline; a user who never connects again, or lacks `delete pods` in
+`kube-system`, leaves the `Failed` object. An entry without a UID on a connection that cannot read
+single pods waits for the deadline. A process that can write the journal can name only a pod
+carrying the id it names, which whoever may read pods in `kube-system` can copy: that delete is then
+the user's own write where the attacker already creates pods.
+
 
 ### H-72: The default node shell image ages with the build that pins it
 
@@ -307,12 +308,12 @@ Live wherever the user may `patch pods/ephemeralcontainers`: Kubernetes never re
 before the pod goes and lets no one change it. With a target it reads that container's environment
 and, through `/proc/<pid>/root`, its files, mounted Secrets and service account token; the default
 image runs as root with network tools. Closing the Attach tab only detaches: the shell runs until
-someone types `exit` or the pod is deleted, and anyone who may attach to the pod reaches it. What
-stands in the way: the destructive confirmation with its target, what it sees and "This cannot be
-undone."; Pod Security and admission policies (restricted refuses netshoot). What remains: Cogpit
-cannot end the shell when the tab closes (Kubernetes stops an ephemeral container only through its
-own process), and the image ages as the node shell's does
-([H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)).
+someone types `exit` or the pod is deleted, and whoever may attach to the pod reaches it. In the
+way: the destructive confirmation with its target, what it sees and "This cannot be undone."; Pod
+Security and admission policies (restricted refuses netshoot). What remains: Cogpit cannot end the
+shell when the tab closes (Kubernetes stops an ephemeral container only through its own process),
+and the image ages as the node shell's ([H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)).
+
 
 ### H-8: Secret data arrives with the list
 
@@ -357,13 +358,14 @@ Secrets view shows Keys and Type as Lens does ([D-13](../developer/decisions.md#
 
 Removing finalizers deletes the object without its controllers' cleanup (cloud load balancers,
 volumes, DNS records), and Cogpit cannot know what a finalizer guards. Live wherever the user may
-`patch` an object being deleted (`object.removeFinalizers`), offered on such an object and beside
-each one in a Terminating namespace's Blocking Deletion list. What bounds it: the destructive
-confirmation names the object, each finalizer and a warning that the owning controllers' cleanup is
-skipped; the patch removes exactly those finalizers from exactly that object, or nothing; a
-namespace's own finalizer is never removed and `/finalize` never called, so a namespace goes only
-once its controller found it empty. What is left is the user's judgement. An edit that deletes
-finalizers from an object's YAML is an apply like any other.
+`patch` an object being deleted (`object.removeFinalizers`, offered on such an object and in a
+Terminating namespace's Blocking Deletion list). Bounded by: the destructive confirmation names the
+object, each finalizer and a warning that the controllers' cleanup is skipped; the patch removes
+exactly those finalizers from exactly that object, or nothing; a namespace's own finalizer is never
+removed and `/finalize` never called, so a namespace goes only once its controller found it empty.
+The rest is the user's judgement. Deleting finalizers in an object's YAML is an apply like any
+other.
+
 
 ### H-22: Two Cogpit processes share the journals
 
