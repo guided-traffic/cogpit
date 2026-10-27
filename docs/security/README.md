@@ -1,9 +1,9 @@
 # Security architecture
 
-Cogpit's security architecture, one page per perspective; the file names are the index. The pages
-describe the boundaries that exist in the problem itself (kubeconfig, the Kubernetes API,
-credential plugins, terminals, agents, updates, the user's files) and the check each one needs. No
-page tries to cover everything: a document nobody finishes is a document nobody checks.
+Cogpit's security architecture, one page per perspective; the file names are the index. Each page
+covers boundaries that exist in the problem itself (kubeconfig, the Kubernetes API, credential
+plugins, terminals, agents, updates, the user's files) and the check each one needs; none tries to
+cover everything, since a document nobody finishes is a document nobody checks.
 
 | Page | Perspective |
 |---|---|
@@ -28,8 +28,8 @@ Reporting a vulnerability: [`SECURITY.md`](../../SECURITY.md).
   needs), and what would close it. Identifiers are never reused and never collected in a central
   list.
 - A risk the owner accepted stays in its gap, marked "Accepted.", with what remains. A closed gap's
-  section goes; where the closing mechanism matters, the main text describes it with `(H-<n>)`
-  beside it once, so the id stays findable.
+  section goes; where the closing mechanism matters, the main text names it with `(H-<n>)` once,
+  so the id stays findable.
 - A decided change that is not built stands where the mechanism it changes is described: what is
   decided, with its `D-<n>`, then "Not built." and today's behaviour, live or dormant. Its gap stays
   open until the change is built; decided and built never share a sentence.
@@ -38,29 +38,27 @@ Reporting a vulnerability: [`SECURITY.md`](../../SECURITY.md).
 
 ## What this does not cover
 
-**Isolation between clusters** has no page of its own. Cogpit is a single-user desktop app with no
-hosted service, so the isolation that matters is between the clusters connected in one process: an
-action, an editor apply, a terminal or an agent's tool call must reach only the cluster it was
-started for. Several clusters stay connected at once
+**Isolation between clusters** has no page of its own: Cogpit is a single-user desktop app with no
+hosted service, so the isolation that matters is between the clusters connected in one process
 ([D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once),
-[architecture §4.3](../developer/architecture.md#d-69-several-clusters-connected)); what keeps them
-apart:
+[architecture §4.3](../developer/architecture.md#d-69-several-clusters-connected)). An action, an
+editor apply, a terminal or an agent's tool call reaches only the cluster it was started for:
 
 - A command acts on one cluster: its `context` parameter's, else its dock tab's, else its
   references', else the shown one (`targetContext` in
   [`target.go`](../../internal/engine/target.go)). References of two clusters in one command are
   refused before anything is checked or asked (`oneCluster`).
-- That cluster's connection, access reviews and allowance of agent writes decide for the command,
-  and its confirmation names that context; a write confirmed for one context refuses to run on
-  another (`CheckConfirmedContext` in [`confirm.go`](../../internal/engine/confirm.go)).
+- That cluster's connection, access reviews and allowance of agent writes decide; its confirmation
+  names that context, and a write confirmed for one context refuses to run on another
+  (`CheckConfirmedContext` in [`confirm.go`](../../internal/engine/confirm.go)).
 - A local terminal is bound to its context by a kubeconfig of its own, first on `KUBECONFIG`
-  ([`terminal/local.go`](../../internal/terminal/local.go)).
+  ([credentials › The terminal's kubeconfig](credentials.md#the-terminals-kubeconfig)).
 - The dock shows only the shown cluster's tabs and those of no cluster
   ([`dockscope.go`](../../internal/engine/dockscope.go)), so a terminal of one cluster never stands
   beside another cluster's view; every connected cluster's dot shows that it is connected
   ([`clustermarks.go`](../../internal/ui/fyneui/clustermarks.go)).
 
-What agents can do on connected clusters the window does not show is
+What agents do on connected clusters the window does not show:
 [H-115](agents-and-mcp.md#h-115-agents-read-and-act-on-connected-clusters-the-window-does-not-show).
 Several windows ([D-52](../developer/decisions.md#d-52-several-windows), open, not built) would add
 one UI state per window, the window an agent's `ui_*` call drives and the window a confirmation

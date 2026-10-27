@@ -238,9 +238,10 @@ func (r *tokenRowRenderer) Objects() []fyne.CanvasObject {
 }
 func (r *tokenRowRenderer) Destroy() {}
 
-// glowFrame lays a glow around its content: the logo's glow without blur, as three rounded
-// outlines of falling alpha, 0, 2 and 4 points outside the content. It marks what matters now
-// (the active hotbar tile, a destructive dialog, the agent's running reply): one per region.
+// glowFrame lays a glow around its content: the logo's glow without blur, as four rounded
+// outlines of falling alpha, 0, 1.5, 3.5 and 6.5 points outside the content. It marks what
+// matters now (the active hotbar tile, a destructive dialog, the agent's running reply): one per
+// region.
 type glowFrame struct {
 	widget.BaseWidget
 	content fyne.CanvasObject
