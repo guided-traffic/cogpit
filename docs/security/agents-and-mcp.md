@@ -198,10 +198,9 @@ agent command writes a file it names.
 
 No agent changes what tells the user which cluster they act in: its name, icon, accent colour or
 light strip ([rules](#integrations-and-a-clusters-identity)). The colour shows only in the light
-strip under a cluster's view (D-122): not on the
-welcome page, not while no tab of a connected cluster is shown, and not in a confirmation dialog,
-which names the context by its id (`dev [config]`) instead. Live for every confirmation: there the
-context id alone tells the cluster.
+strip under a cluster's view (D-122): not on the welcome page, not while no tab of a connected
+cluster is shown, and not in a confirmation dialog, which names the context by its id
+(`dev [config]`) instead. Live for every confirmation: there the context id alone tells the cluster.
 
 ### H-120: The CLI's headless engine does not apply a cluster's integration switches
 
@@ -210,19 +209,16 @@ The engine `cogpit-cli` builds for `get`, `contexts` and `mcp` (without a runnin
 no preferences (`newSession` in [`env.go`](../../cmd/cogpit-cli/env.go)), so every integration is
 on in it (`integrationsOffOf` in [`integrations.go`](../../internal/engine/integrations.go)): one
 the user switched off, and one of a cluster whose integrations question is unanswered, of which the
-window reads nothing
-(D-82).
-Live for an agent on the bridge without a running app: `metrics_get` asks a Prometheus or Metrics
-Server the user switched off, and alerts or policy messages switched off to keep them from agents
-are read for them. Bounded by the user's identity and RBAC, and by the audit log, which
-`cogpit-cli mcp` writes. Would close it: the CLI's engine reading the cluster settings and the
-preferences read-only into its UI state.
+window reads nothing (D-82). Live for an agent on the bridge without a running app: `metrics_get`
+asks a Prometheus or Metrics Server the user switched off, and alerts or policy messages switched
+off to keep them from agents are read for them. Bounded by the user's identity and RBAC, and by the
+audit log, which `cogpit-cli mcp` writes. Would close it: the CLI's engine reading the cluster
+settings and the preferences read-only into its UI state.
 
 ### H-115: Agents read and act on connected clusters the window does not show
 
-A cluster the user left stays connected
-(D-69); an agent reaches it
-with a `context` parameter or a reference that names it. Per case, live today:
+A cluster the user left stays connected (D-69); an agent reaches it with a `context` parameter or a
+reference that names it. Per case, live today:
 
 - **Reads** (`resources_list`, `object_get`, `metrics_get`, the overviews) run without asking, with
   the user's identity. Bounded by RBAC and the audit log, which names each call's context.
@@ -242,43 +238,39 @@ with a `context` parameter or a reference that names it. Per case, live today:
 
 `ui_state` names the shown cluster's username (often an e-mail address, or
 `system:serviceaccount:<namespace>:<name>`) and the groups the API server confirmed in a
-SelfSubjectReview (Kubernetes 1.27 and later;
-D-68);
-the connect log says the same. Every agent that calls `ui_state` reads them, the built-in agent and
-so its LLM endpoint too ([H-13](#h-13-cluster-data-leaves-for-the-llm-endpoint)); its compact window
-state sent with each message leaves them out (`uiFrame` in
-[`prompt.go`](../../internal/agent/prompt.go)). Group names can tell an organisation's teams and who
-administers what. Nothing withholds them, per connection or context, private ones included. Real
-with an endpoint or agent provider that keeps what it is sent, and confidential group names.
+SelfSubjectReview (Kubernetes 1.27 and later; D-68); the connect log says the same. Every agent that
+calls `ui_state` reads them, the built-in agent and so its LLM endpoint too
+([H-13](#h-13-cluster-data-leaves-for-the-llm-endpoint)); the compact window frame sent with each
+message leaves them out (`uiFrame` in [`prompt.go`](../../internal/agent/prompt.go)). Group names
+can tell an organisation's teams and who administers what. Nothing withholds them, per connection or
+context, private ones included. Real with an endpoint or agent provider that keeps what it is sent,
+and confidential group names.
 
 **Accepted** (D-68: agents read the username and the groups).
 
 ### H-111: An agent can stop a drain the user confirmed
 
-A drain runs as a background job
-(D-63); `job_cancel` and
-`dock_close`, UI commands that run without asking, stop any job, a confirmed drain included. The
-drain stops between two requests: the node stays cordoned and partly drained. The stop writes and
-undoes nothing; the outcome says "Stopped: cancelled by an agent." (or that its tab was closed), the
-journal keeps the drain `stopped`, the banner offers Finish drain, Uncordon and Dismiss as after a
-crash ([`drainjob.go`](../../internal/engine/commands/drainjob.go)), and the call is audited. Live
-for every agent: a node can stay half-drained until the user notices the banner.
+A drain runs as a background job (D-63); `job_cancel` and `dock_close`, UI commands that run without
+asking, stop any job, a confirmed drain included. The drain stops between two requests: the node
+stays cordoned and partly drained. The stop writes and undoes nothing; the outcome says "Stopped:
+cancelled by an agent." (or that its tab was closed), the journal keeps the drain `stopped`, the
+banner offers Finish drain, Uncordon and Dismiss as after a crash
+([`drainjob.go`](../../internal/engine/commands/drainjob.go)), and the call is audited. Live for
+every agent: a node can stay half-drained until the user notices the banner.
 
 **Accepted** (D-63: any origin cancels any job; closing its tab stops it anyway).
 
 ### H-102: An agent may act after the reconnect on what it read during the interruption
 
-While a connection is interrupted
-(D-58), an agent reads the cache as
-of the interruption, each read noted with that time (`StaleNote` in
-[`connwatch.go`](../../internal/engine/connwatch.go)), and its writes are refused; after the
-reconnect they run, and nothing ties a write to the time of the reads behind it. In the way:
-deletes, restarts, scales and evictions carry the UID the user confirmed, an apply the
-resourceVersion its edit is based on, a Config Map's save the version its values were read at
-(rebased only onto a version none of its edited keys changed in); a mutating write asks unless
-agent writes are allowed, and the confirmation shows the objects as cached after the reconnect.
-Live under an allowance of agent writes, for a scale or a patch whose object kept its UID but
-changed meanwhile.
+While a connection is interrupted (D-58), an agent reads the cache as of the interruption, each
+read noted with that time (`StaleNote` in [`connwatch.go`](../../internal/engine/connwatch.go)),
+and its writes are refused; after the reconnect they run, and nothing ties a write to the time of
+the reads behind it. In the way: deletes, restarts, scales and evictions carry the UID the user
+confirmed, an apply the resourceVersion its edit is based on, a Config Map's save the version its
+values were read at (rebased only onto a version none of its edited keys changed in); a mutating
+write asks unless agent writes are allowed, and the confirmation shows the objects as cached after
+the reconnect. Live under an allowance of agent writes, for a scale or a patch whose object kept its
+UID but changed meanwhile.
 
 ### H-11: Instructions hidden in cluster data
 
@@ -317,22 +309,19 @@ unless an agent asks for it by a parameter of its own.
 The token file is owner-only ([`token.go`](../../internal/mcp/token.go)): that keeps other users
 out, not other programs of the same user, which can read the token and drive Cogpit under an
 agent's rules. Loopback HTTP cannot bind the endpoint to one client process. A token exists once
-the user first switched the server on or regenerated it
-(D-49)
-and stays valid until regenerated
+the user first switched the server on or regenerated it (D-49) and stays valid until regenerated
 ([H-98](#h-98-a-leaked-token-stays-valid-until-the-user-regenerates-it)). Live wherever the user
 switched the server on.
 
 ### H-98: A leaked token stays valid until the user regenerates it
 
 The token is kept across starts and switches until the user clicks Regenerate token in the MCP
-details
-(D-53);
-whoever obtains it drives Cogpit as an external agent until then. Bounded: loopback only (open to
-every local account, though); the `Host` and `Origin` checks keep web pages out even with the token;
-a file other users may read, or that holds no token Cogpit wrote, is replaced at the next start
-(`loadToken`); while the switch is off nothing listens; Regenerate token refuses the old token at
-once and ends every connection it admitted. Where it can leak, per case:
+details (D-53); whoever obtains it drives Cogpit as an external agent until then. Bounded
+([rules](#the-mcp-endpoint-its-token-and-the-stdio-bridge)): loopback only, though open to every
+local account; the `Host` and `Origin` checks keep web pages out even with the token; a token file
+others may read, or that Cogpit did not write, is replaced at the next start; while the switch is
+off nothing listens; Regenerate token refuses the old token at once and ends every connection it
+admitted. Where it can leak, per case:
 
 - **Claude Code's configuration:** the HTTP registration (`ClaudeAddCommand` in
   [`server.go`](../../internal/mcp/server.go)) puts the token in `--header "Authorization: Bearer
@@ -349,8 +338,7 @@ once and ends every connection it admitted. Where it can leak, per case:
   cleared after 1 minute ([credentials](credentials.md#cogpits-own-secrets)); a manager that ignores
   the mark, or an app reading the clipboard within the minute, gets it.
 - **The screen:** Show reveals it until Hide or the details close; a screen share carries it.
-- **Other processes of the same user**
-  ([H-12](#h-12-every-local-process-of-the-user-can-read-the-token)).
+- **Other processes of the same user** ([H-12](#h-12-every-local-process-of-the-user-can-read-the-token)).
 
 Not built: an expiry or a rotation at launch (either breaks a registration made once), binding the
 token to a client (H-12), noticing an old token presented after a regenerate.
@@ -365,22 +353,19 @@ unless the connection is marked private
 outside the computer; real when the cluster's data is confidential (names, images, environment
 variables, ConfigMaps) and the user does not look at what a turn sent.
 
-**Accepted** (D-10: no restriction to certain
-contexts, no mark for production clusters; the private mark decides how much leaves).
+**Accepted** (D-10: no restriction to certain contexts, no mark for production clusters; the
+private mark decides how much leaves).
 
 ### H-94: A private connection gives the model what the window shows
 
-On a connection the user marked private, the built-in agent reads what the window shows: Secret
-values, Helm's user-supplied values, Flux's credential fields, Helm's error texts
-(D-10; the mechanism in the private row of
-[rules](#the-built-in-agent), [`readslikeuser.go`](../../internal/engine/readslikeuser.go): the
-mark is set afresh for every `Dispatch`, so a nested call of another origin does not inherit it,
-and a failed Helm action's error is audited as what failed, `engine.UserOnlyError`). Cogpit takes
-the mark as given: a remote model behind a local proxy gets Secret values wherever it forwards
-them. A steered model ([H-11](#h-11-instructions-hidden-in-cluster-data)) can put a value it read
-into a write others can read (a ConfigMap's data, an annotation); writes still ask unless allowed
+On a connection the user marked private, the built-in agent reads what the window shows (the mark:
+[rules](#the-built-in-agent)). Cogpit takes the mark as given: a remote model behind a local proxy
+gets Secret values wherever it forwards them. A steered model
+([H-11](#h-11-instructions-hidden-in-cluster-data)) can put a value it read into a write others can
+read (a ConfigMap's data, an annotation); writes still ask unless allowed
 ([H-14](#h-14-allowing-agent-writes-for-a-context)). The audit line says that a call read like the
-user, not what it read. Live for every connection marked private.
+user, not what it read; a failed Helm action's error is audited as what failed
+(`engine.UserOnlyError`). Live for every connection marked private.
 
 | A private turn reads as the window shows it | Where |
 |---|---|
@@ -398,13 +383,12 @@ Verified over every reader (external agents, the built-in agent with and without
 window) by `TestPrivateTurnReadsLikeTheUser`, `TestPrivateTurnReadsASecret`,
 `TestPrivateTurnReadsHelmValues`, `TestPrivateTurnReadsAHelmError`. **As for every agent**
 (`TestPrivateTurnKeepsTheWriteRules`, `TestPrivateTurnReadmeStaysFramed`): every write rule; the
-GUI-only commands (`secret_reveal`, `secret_create`, `secret_reviewData`, `secret_saveData`,
-`configMap_keepEdits`, the settings only the user sets); a Secret's or Helm release record's Edit
-and Create tabs beyond reading their text (`ErrSecretGUIOnly`); a placeholder or `<withheld…>`
-written back (`ErrAgentMarkerWrite`); a terminal tab without its switch
+GUI-only commands and settings ([only the user's own action](#only-the-users-own-action)); a
+Secret's or Helm release record's Edit and Create tabs beyond reading their text
+(`ErrSecretGUIOnly`); a placeholder or `<withheld…>` written back (`ErrAgentMarkerWrite`); a
+terminal tab without its switch
 ([H-83](#h-83-an-allowed-terminal-tab-gives-agents-everything-it-shows-from-then-on)); a chart's
 README, framed; an exec plugin's arguments (`kubeconfig_execPlugin`, `kubeconfig_pendingApprovals`).
-That the mark never comes from outside is the private row of [rules](#the-built-in-agent).
 
 **Accepted** (D-10).
 
@@ -414,15 +398,14 @@ A private turn reads more than the H-82 scrubber (`Session.ScrubSecretValues`) k
 10 bytes or under name keys, Helm's values (release records are not scrubbed), Flux's inline
 credentials, a Helm error quoting `lookup`, a notification's inline values. So a conversation is
 not kept on disk once a turn over a private connection starts in it, and stays so for good, since
-its history holds what that turn read; loading `chat-conversations.json` drops any such
-conversation it holds and rewrites it at once, 0600 and atomically
-(D-10; the rule at the `conversation` type in
+its history holds what that turn read: it lives in memory until Cogpit quits, and loading
+`chat-conversations.json` drops any such conversation and rewrites the file at once, 0600 and
+atomically (D-10; the rule at the `conversation` type in
 [`conversation.go`](../../internal/agent/conversation.go), applied in
-[`turn.go`](../../internal/agent/turn.go) and [`store.go`](../../internal/agent/store.go); the
-tests in the kept-conversations row of [rules](#the-built-in-agent)). Preferences › Agent and the
-chat's history ("not saved") say so (`TestAgentPreferencesPrivateHint`,
-`TestChatHistoryMarksUnsaved`). The chat is no command, so no agent reads a conversation over MCP.
-What remains, per case:
+[`turn.go`](../../internal/agent/turn.go) and [`store.go`](../../internal/agent/store.go); tests:
+[rules](#the-built-in-agent)). Preferences › Agent and the chat's history ("not saved") say so
+(`TestAgentPreferencesPrivateHint`, `TestChatHistoryMarksUnsaved`). The chat is no command, so no
+agent reads a conversation over MCP. What remains, per case:
 
 - **Memory:** while Cogpit runs, the conversation's items, history and request bodies
   (`SentPayload`) are readable by a process that can read Cogpit's memory (a debugger running as the
@@ -433,7 +416,7 @@ What remains, per case:
 - **The audit log:** a value the turn read and the model put into a parameter (a search text, a
   ConfigMap's data in a proposed apply) is logged as for every agent, the line marked `readsLikeUser`
   ([H-39](#h-39-every-agent-reads-what-agents-did-before)); Helm's values, a Secret's manifest and a
-  proxy's password are redacted (`auditParams` in [`audit.go`](../../internal/engine/audit.go)).
+  proxy's password are redacted ([the audit log](#the-audit-log)).
 - **Crash reports:** `crash.log` holds a fatal error's text and the stacks, whose arguments are
   machine words ([credentials](credentials.md#where-credentials-must-never-end-up)); a panic message
   formatted from a conversation would carry its text. The agent and the chat column call no `panic`
@@ -441,19 +424,17 @@ What remains, per case:
 
 ### H-100: A cut part's tool calls leave the model's view
 
-A user's message edited and sent again is cut with everything after it (the kept-conversations
-row in [rules](#the-built-in-agent); `cut` in
-[`conversation.go`](../../internal/agent/conversation.go), `TestResendCutsTheConversation`), and
-the model learns nothing of the cut part, whose writes stay done. Per case:
+A user's message edited and sent again is cut with everything after it
+([rules](#the-built-in-agent); `cut` in [`conversation.go`](../../internal/agent/conversation.go),
+`TestResendCutsTheConversation`), and the model learns nothing of the cut part, whose writes stay
+done. Per case:
 
 - **A write repeated unasked:** under an allowance of agent writes
   ([H-14](#h-14-allowing-agent-writes-for-a-context)), the model, asked again, can repeat a
   `Mutating` command it no longer knows it ran (a scale, an apply, a cordon), which runs unasked
   again: a scale applied twice where the user changed it between. Live only under the allowance;
-  `Destructive` commands (delete, drain, evict, restart, scale to zero, a removed data key, Helm
-  uninstall and rollback, `object_removeFinalizers`,
-  [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers))
-  and the writes agents always ask for ([rules](#commands-and-confirmations)) ask each time.
+  `Destructive` commands and the writes agents always ask for ([rules](#commands-and-confirmations))
+  ask each time.
 - **A history older than the cluster:** the reads before the cut saw the cluster before the cut
   part's writes, until the model reads again.
 - **Where it stays:** the audit log keeps every call (origin `builtInAgent`), which every agent reads
@@ -491,15 +472,12 @@ filter by agent, or keeping the log from agents. Open: whether agents read it at
 
 ### H-82: Secret values printed into logs reach agents
 
-The cached Secrets' values are replaced by `«secret <namespace>/<name>/<key>»` in what agents read,
-a logs tab's lines included (the filter's row in
-[rules](#secrets-and-credentials-in-what-agents-read); the minimums and rules weighed in
-D-44). In
+The filter ([rules](#secrets-and-credentials-in-what-agents-read); its minimums weighed in D-44)
+replaces the cached Secrets' values in what agents read, a logs tab's lines included. In
 `TestSecretScrubMeasure`'s corpus (10,000 log lines of the kinds a cluster prints, 100 leaking a
-value; `-v` prints the table), every leak of at least 10 bytes (`MinScrubbedValue` in
-[`secretscrub.go`](../../internal/engine/secretscrub.go)) is caught, 80 of 100, and no line without a
-leak is altered; that real clusters behave alike is inferred. Cost: `BenchmarkSecretScrub`,
-`BenchmarkSecretMatcherBuild`. Not covered, per case:
+value; `-v` prints the table) every leak of at least 10 bytes is caught, 80 of 100, and no line
+without a leak is altered; that real clusters behave alike is inferred. Cost:
+`BenchmarkSecretScrub`, `BenchmarkSecretMatcherBuild`. Not covered, per case:
 
 - **A Secret Cogpit may not or does not read** (the read takes the Secrets first:
   [`agentsecrets.go`](../../internal/engine/agentsecrets.go), `TestBudgetAgentReadTakesTheSecrets`).
@@ -526,21 +504,19 @@ leak is altered; that real clusters behave alike is inferred. Cost: `BenchmarkSe
 
 ### H-83: An allowed terminal tab gives agents everything it shows from then on
 
-While a terminal tab's "Agents may read" switch is on (the `dock_read` row in
-[rules](#what-agents-read-of-the-window-and-the-cluster);
-D-44), every
-agent reads whatever the tab shows, credentials included (a pasted token, a revealed Secret value
-pasted into a shell, `env`'s output), and its whole scrollback since it opened, up to 256 MiB
-(D-56), cached Secrets' values replaced
-([H-82](#h-82-secret-values-printed-into-logs-reach-agents)). Bounded by the switch: the user's
-only, off when a tab opens, off by itself after 15 minutes without a read and an hour after it
-went on (`TestAgentReadExpiryUnderConcurrentReads`); by its marker that flashes at each read
-([`dockagentread.go`](../../internal/ui/fyneui/dockagentread.go)); by `clear` (erase saved lines),
-which empties the scrollback; each read is audited. What remains: within the hour everything the
-tab holds reaches agents, and one click starts another; the marker tells only a user who looks at
-the dock; every non-GUI read counts as an agent's, the CLI's forwarded `dock_read` included. A
-private turn is no exception (`TestPrivateTurnKeepsTheWriteRules`). Not built: a switch per agent
-or per read, a notification outside the dock.
+While a terminal tab's "Agents may read" switch is on
+([rules](#what-agents-read-of-the-window-and-the-cluster), D-44), every agent reads whatever the tab
+shows, credentials included (a pasted token, a revealed Secret value pasted into a shell, `env`'s
+output), and its whole scrollback since it opened, up to 256 MiB (D-56), cached Secrets' values
+replaced ([H-82](#h-82-secret-values-printed-into-logs-reach-agents)). Bounded by the switch (the
+user's only; off at a tab's opening, after 15 minutes without a read and an hour after it went on;
+`TestAgentReadExpiryUnderConcurrentReads`), by its marker that flashes at each read
+([`dockagentread.go`](../../internal/ui/fyneui/dockagentread.go)), by `clear` (erase saved lines),
+which empties the scrollback, and by the audit of each read. What remains: within the hour
+everything the tab holds reaches agents, and one click starts another; the marker tells only a user
+who looks at the dock; every non-GUI read counts as an agent's, the CLI's forwarded `dock_read`
+included. A private turn is no exception (`TestPrivateTurnKeepsTheWriteRules`). Not built: a switch
+per agent or per read, a notification outside the dock.
 
 ### H-14: Allowing agent writes for a context
 
@@ -548,20 +524,19 @@ The allowance (Cluster Settings › Agents, kept in `cluster-settings.json` unti
 off) has no expiry, no scope finer than a context and no per-command form. Live for every allowed
 context while an agent is connected: its `Mutating` commands there (scale, cordon, apply, create, a
 pod shell or attach) run without a dialog, a steered agent's too
-([H-11](#h-11-instructions-hidden-in-cluster-data)). Bounded: `Destructive` commands still ask, and
-so do the writes agents always ask for ([rules](#commands-and-confirmations): the four RBAC kinds,
-Helm install and upgrade, `cluster.setPrometheus`
-([H-26](privilege-footprint.md#h-26-prometheus-is-found-by-name)), `cluster.setAlertmanager`, a
-proxy); no command installs anything into a cluster for Cogpit's own features; every command is
-audited. A process of the user that edits the file sets the allowance, as it can read the token
+([H-11](#h-11-instructions-hidden-in-cluster-data)). Bounded: `Destructive` commands and the writes
+agents always ask for ([rules](#commands-and-confirmations); Prometheus:
+[H-26](privilege-footprint.md#h-26-prometheus-is-found-by-name)) still ask; no command installs
+anything into a cluster for Cogpit's own features; every command is audited. A process of the user
+that edits the file sets the allowance, as it can read the token
 ([H-12](#h-12-every-local-process-of-the-user-can-read-the-token)); the window reads it at start.
 Open: whether an allowance expires, or lasts one run.
 
 ### H-23: Secret annotations other than kubectl's reach agents
 
-The cache drops `kubectl.kubernetes.io/last-applied-configuration`, which repeats the values, from
-every Secret (`stripManagedFields` in [`cache.go`](../../internal/cache/cache.go)); agents never get a
-Secret's data. Another tool's copy of a manifest in an annotation (a candidate: Carvel kapp's
+Agents never get a Secret's data, and the cache drops kubectl's last-applied annotation from every
+Secret ([credentials › H-103](credentials.md#h-103-a-secret-saved-from-cogpit-loses-kubectls-last-applied-annotation)).
+Another tool's copy of a manifest in an annotation (a candidate: Carvel kapp's
 `kapp.k14s.io/original`; whether any copies a Secret's data is not verified) shows as stored in the
 Secrets view and `object_get` (Properties' Annotations, `metadata.annotations`; lists, the CSV and
 `resources_find` show no annotations). For agents the H-82 filter replaces its copied values whose
@@ -573,10 +548,9 @@ turn's read stay. Live for every Secret a tool deployed with such a copy, read w
 
 ### H-63: Credentials in Flux objects reach agents through their YAML
 
-Flux's known credential fields are withheld from the YAML agents read (the Flux row in
-[rules](#secrets-and-credentials-in-what-agents-read);
-[`flux_withhold.go`](../../internal/model/kinds/flux_withhold.go)), and Flux's views keep them out
-of their cells, searches and drawers (`TestFluxKeepsSecretsOut`). Not covered:
+Flux's known credential fields are withheld from the YAML agents read
+([rules](#secrets-and-credentials-in-what-agents-read)), and Flux's views keep them out of their
+cells, searches and drawers (`TestFluxKeepsSecretsOut`). Not covered:
 
 - **Other fields:** a HelmRelease's `spec.postRenderers` (a Kustomize patch can carry a value), a
   Kustomization's `spec.postBuild.substitute`, an Alert's or image automation's fields, a field a
