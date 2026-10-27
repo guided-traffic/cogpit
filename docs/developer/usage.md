@@ -24,8 +24,8 @@ Ctrl on Windows and Linux.
 - Every context of your kubeconfig files and synced folders (`~/.kube` and what you add) in the
   navigator's All Clusters: `+` adds kubeconfigs, `−` opens Kubeconfig Sources…, `›` enters a
   cluster. Remove from Cogpit unlinks a file you added and never touches it.
-- A cluster's short name: the name set in its Settings, else its context's name after the last `@`
-  (`kubernetes-admin@prod-eu` → `prod-eu`); tooltips and the navigator's search know the full name.
+- A cluster's short name (`kubernetes-admin@prod-eu` → `prod-eu`, [rule](#naming-conventions));
+  tooltips and the navigator's search know the full name.
 - The navigator's root: the user the API server confirms at every connect (a SelfSubjectReview),
   the groups in a tooltip; `(kubeconfig)` where the server does not say; the last confirmed user,
   dimmed, while not connected. Below it the Kubernetes version against upstream support
@@ -1467,12 +1467,11 @@ user, SYSTEM, Administrators), a temporary file those of `%TEMP%`
 | Go module | `github.com/guided-traffic/cogpit` |
 | Binaries | `cogpit` (desktop app), `cogpit-cli` (headless CLI, MCP stdio bridge) |
 | App bundle | `Cogpit.app`, bundle id `io.guided-traffic.cogpit`; `Contents/MacOS/cogpit-cli` with signing identifier `io.guided-traffic.cogpit.cli` |
-| Linux package | `cogpit`; app id `io.guided-traffic.cogpit` (launcher, icon, AppStream entry, Wayland app id), `WM_CLASS` `Cogpit`, polkit action `io.guided-traffic.cogpit.update` ([files](#install-on-linux), [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)) |
-| Windows setup | `cogpit.exe`, `cogpit-cli.exe`, `WinSparkle.dll` in `%LOCALAPPDATA%\Programs\Cogpit` (for every user `C:\Program Files\Cogpit`); Start menu entry `Cogpit.lnk`; uninstall entry `…\CurrentVersion\Uninstall\io.guided-traffic.cogpit` in HKCU (for every user HKLM, 64-bit view) ([files](#install-on-windows)) |
-| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (signed; `Cogpit_<version>_darwin_<arch>.zip` from a pipeline without the signing secrets), `cogpit_<version>_<arch>.deb` (`amd64`, `arm64`), `Cogpit-<version>-windows-x64-setup.exe`, each with both binaries, and `SHA256SUMS` over every file ([D-16](decisions.md#d-16-releases-and-what-they-carry)); e.g. `Cogpit-1.2.3-macos-arm64.dmg` # example |
-| Not built | a universal macOS disk image (`Cogpit-<version>-macos-universal.dmg`); a Windows ARM64 setup among the release artifacts |
-| Update feeds | `https://guided-traffic.github.io/cogpit/appcast.xml` # default (the `SUFeedURL` of an app built with the update key, [D-4](decisions.md#d-4-packaging-and-updates)); `https://guided-traffic.github.io/cogpit/appcast-windows.xml` # default (built into `cogpit.exe`; items `sparkle:os="windows-x64"`) |
-| APT repository | `https://guided-traffic.github.io/cogpit/apt/` # default, named by `/etc/apt/sources.list.d/cogpit.sources`: suite `stable`, component `main`, `Origin` and `Label` `Cogpit`, Ed25519 key `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, the two newest releases per architecture |
+| Linux package | `cogpit`; app id `io.guided-traffic.cogpit` (launcher, icon, AppStream entry, Wayland app id), `WM_CLASS` `Cogpit`, polkit action `io.guided-traffic.cogpit.update` ([files](#install-on-linux)) |
+| Windows setup | `%LOCALAPPDATA%\Programs\Cogpit` (for every user `C:\Program Files\Cogpit`); Start menu entry `Cogpit.lnk`; uninstall entry `…\CurrentVersion\Uninstall\io.guided-traffic.cogpit` in HKCU (for every user HKLM, 64-bit view) ([files](#install-on-windows)) |
+| Release artifacts | `Cogpit-<version>-macos-<arch>.dmg` (`Cogpit_<version>_darwin_<arch>.zip`, signed ad hoc, from a pipeline without the signing secrets), `cogpit_<version>_<arch>.deb` (`amd64`, `arm64`), `Cogpit-<version>-windows-x64-setup.exe`, `SHA256SUMS` ([download](#download-a-release)) |
+| Update feeds | `https://guided-traffic.github.io/cogpit/appcast.xml` # default (the `SUFeedURL` of an app built with the update key); `https://guided-traffic.github.io/cogpit/appcast-windows.xml` # default (built into `cogpit.exe`; items `sparkle:os="windows-x64"`) |
+| APT repository | `https://guided-traffic.github.io/cogpit/apt/` # default, named by `/etc/apt/sources.list.d/cogpit.sources`: suite `stable`, component `main`, `Origin` and `Label` `Cogpit` ([its key](#install-on-linux)) |
 
 </details>
 
@@ -1493,12 +1492,27 @@ user, SYSTEM, Administrators), a temporary file those of `%TEMP%`
 | Debug container | `debugger-<5 lowercase characters>`, never a name the pod has ([why](../security/privilege-footprint.md#debug-container)) | `debugger-x7k2q` |
 | Dock tabs | node shell `nodeShell-<n>`, title `Node shell: <node>`; Attach (Debug's too) `attach-<n>`, title `Attach: <pod>/<container>` | `Attach: web-0/debugger-x7k2q` |
 | Deep links (macOS) | `cogpit://open?context=<context id>&view=<view key>&namespace=<namespace>&name=<name>`, registered in the app's `CFBundleURLTypes` (name `io.guided-traffic.cogpit`); audit log entry `deeplink.open`, origin `deeplink` ([deep links](#deep-links-cogpit)) | `cogpit://open?view=pods&namespace=team-a` |
-| Demo context | `demo`, the synthetic cluster of development builds; in a release an ordinary context name ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) | |
+| Demo context | `demo`, the synthetic cluster of development builds; in a release an ordinary context name | |
 | Local kind cluster | cluster `cogpit`, context `kind-cogpit`, kubeconfig `.cache/kind/kubeconfig` | |
-| Build tags | `nodemo` (release builds, the Makefile's `DIST_TAGS`; `make dist-app`, `dist-linux`, `dist-windows` check both binaries carry it); `nothreadcheck` (Fyne's thread check off: `FYNE_THREAD_CHECKS=off`; empty means off for the `dist-*` targets, on for every other; the repository variable `FYNE_THREAD_CHECKS` sets it for the release pipeline, [D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)) | `go version -m bin/cogpit` shows `-tags=nodemo,nothreadcheck` for a release |
-| Cogpit's `PATH` | the `PATH` Cogpit started with, then the built-in folders that exist (macOS, Linux), then Preferences › Kubernetes › Program folders, each appended, never first ([program folders](#preferences--kubernetes-program-folders)) | `/usr/bin:/bin:/opt/homebrew/bin:/Users/me/.krew/bin` |
+| Build tags | `nodemo` (release builds: the Makefile's `DIST_TAGS`), `nothreadcheck` (Fyne's thread check off: `FYNE_THREAD_CHECKS=off`, the `dist-*` targets' default) ([releasing › What gets built](releasing.md#what-gets-built)) | `go version -m bin/cogpit` shows `-tags=nodemo,nothreadcheck` for a release |
+| Cogpit's `PATH` | `PATH` at start, then the built-in folders and the program folders, appended ([order](#preferences--kubernetes-program-folders)) | `/usr/bin:/bin:/opt/homebrew/bin:/Users/me/.krew/bin` |
 | MCP endpoint | `http://127.0.0.1:<port>/mcp`: the port kept in `mcp-port`, a free one (then kept) the first time or when it is taken | `http://127.0.0.1:59449/mcp` |
-| Environment variables | `COGPIT_<NAME>`. The app: `COGPIT_SYSTEM_TITLEBAR` (set: macOS's own title bar); in development builds `COGPIT_LIGHTSTRIP_FPS` (the light strip's frame cap, 1 to 60, else ignored with a warning; 60 # default; [D-122](decisions.md#d-122-the-light-strip)). A terminal whose kubectl Cogpit chose gets `COGPIT_KUBECTL_DIR`, `COGPIT_KUBECTL_ENFORCE`, `COGPIT_ZDOTDIR`, `COGPIT_ZDOTDIR_SET`, removed by its shell's start-up. Tests: `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`, `COGPIT_KIND_DRAIN_KUBECONFIG`, `COGPIT_KIND_DRAIN_CONTEXT`, `COGPIT_KIND_FALLBACK`, `COGPIT_ENVTEST_ASSETS`, `COGPIT_PNG_DIR`, `COGPIT_SCORECARD`, `COGPIT_SIGSTORE_LIVE`, `COGPIT_SPARKLE_FRAMEWORK`; `COGPIT_REAL_*` for a lent real cluster, never in CI (`COGPIT_REAL_KUBECONFIG`, passed to Cogpit alone; `COGPIT_REAL_CONTEXT` defaulting to the file's current context, `COGPIT_REAL_ROUNDS`, `COGPIT_REAL_IDLE`, `COGPIT_REAL_THANOS`, …); `COGPIT_LLM_TEST_URL`, `_MODEL`, `_KIND`, `_KEY` for `TestLiveEndpoint` (skipped without them) ([testing](testing.md#tiers)) | `COGPIT_LLM_TEST_URL=http://localhost:1234/v1` |
+| Environment variables | `COGPIT_<NAME>` (below) | `COGPIT_LLM_TEST_URL=http://localhost:1234/v1` |
+
+Environment variables:
+
+- **The app:** `COGPIT_SYSTEM_TITLEBAR` (set: macOS's own title bar); in development builds
+  `COGPIT_LIGHTSTRIP_FPS` (the light strip's frame cap, 1 to 60, else ignored with a warning; 60 #
+  default; [D-122](decisions.md#d-122-the-light-strip)).
+- **A terminal whose kubectl Cogpit chose:** `COGPIT_KUBECTL_DIR`, `COGPIT_KUBECTL_ENFORCE`,
+  `COGPIT_ZDOTDIR`, `COGPIT_ZDOTDIR_SET`, removed by its shell's start-up.
+- **Tests** ([testing](testing.md#tiers)): `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`,
+  `COGPIT_KIND_DRAIN_KUBECONFIG`, `COGPIT_KIND_DRAIN_CONTEXT`, `COGPIT_KIND_FALLBACK`,
+  `COGPIT_ENVTEST_ASSETS`, `COGPIT_PNG_DIR`, `COGPIT_SCORECARD`, `COGPIT_SIGSTORE_LIVE`,
+  `COGPIT_SPARKLE_FRAMEWORK`; `COGPIT_LLM_TEST_URL`, `_MODEL`, `_KIND`, `_KEY` for
+  `TestLiveEndpoint` (skipped without them); `COGPIT_REAL_*` for a lent real cluster, never in CI:
+  `COGPIT_REAL_KUBECONFIG` (passed to Cogpit alone), `COGPIT_REAL_CONTEXT` (default: the file's
+  current context), `COGPIT_REAL_ROUNDS`, `COGPIT_REAL_IDLE`, `COGPIT_REAL_THANOS`, ….
 
 </details>
 
@@ -1515,22 +1529,22 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 | `cluster-users.json` | per context the username the API server last confirmed, for the navigator while disconnected |
 | `metrics.json` | per context the Prometheus (namespace, service, port, path prefix, `format`, `keepEmptyContainers`, `https`) and the Alertmanager you named; never the kubeconfig |
 | `hotbar.json` | the pinned clusters, top to bottom ([D-83](decisions.md#d-83-one-hotbar-and-a-drag-that-carries-the-tile)) |
-| `workspace.json` | tabs, column layout, navigator and chat column, the clusters connected and shown: the layout comes back at every start, tabs and connections only with Restore the last session ([D-41](decisions.md#d-41-what-survives-a-restart)) |
-| `window.json` | the window's place ([its section](#the-windows-place-and-size)); delete it for the first start's window |
+| `workspace.json` | tabs, column layout, navigator and chat column, the clusters connected and shown: the layout comes back at every start, tabs and connections only with [Restore the last session](#preferences--app-restore-the-last-session) ([D-41](decisions.md#d-41-what-survives-a-restart)) |
+| `window.json` | the window's place ([its section](#the-windows-place-and-size)) |
 | `bookmarks.json` (macOS) | access to what you picked in the system's panels; deleting it removes that access ([file access](../security/file-access.md)) |
 | `drafts/` | unsaved Edit and Create tab text and Config Map drawer edits, offered again at the next connect; never a Secret's or Helm values ([D-11](decisions.md#d-11-crash-stance), [D-55](decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) |
 | `drains.json`, `helm.json`, `nodeshells.json`, `journals.lock`, `owners/` | the drains, Helm actions and node shell pods Cogpit started and has not finished or seen deleted, and which Cogpit process owns each; a node shell pod a crash left is deleted at the next connect ([H-71](../security/privilege-footprint.md#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) |
 | `audit.log` | a JSON line per agent-initiated command, read newest first by Help › Audit Log and `audit_list` (its last 4 MiB) |
-| `connection-logs/` | a file per context of its connect attempts (7 days, at most 1 MiB), shared with `cogpit-cli`, read by Connection Updates and `cluster_connectLog`; no credential ([D-66](decisions.md#d-66-the-connection-log), [H-112](../security/credentials.md#h-112-a-credential-plugins-standard-error-in-the-connection-log)) |
+| `connection-logs/` | a file per context of its [connect attempts](#connection-updates-the-connection-log), shared with `cogpit-cli`; no credential ([H-112](../security/credentials.md#h-112-a-credential-plugins-standard-error-in-the-connection-log)) |
 | `llm-connections.json`, `llm-keys.json` | the chat connections (never a key); their API keys in plain text ([H-99](../security/credentials.md#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)) |
 | `chat-conversations.json` | the last 20 conversations per context, Secret values replaced; never one with a turn over a private connection ([H-96](../security/agents-and-mcp.md#h-96-a-private-turns-reads-are-kept-where-the-scrubber-does-not-know-them)) |
 | `helm-http-approvals.json` | the Helm repositories you allowed to send credentials over plain http; no credential ([H-40](../security/credentials.md#h-40-credentials-over-plain-http)) |
-| `mcp-token`, `mcp-port`, `mcp-endpoint`, `mcp-switch` | the MCP bearer token, kept until Regenerate token; the port the next start binds; the endpoint URL while the server listens; the switch, `on` or `off`, no file meaning off ([D-49](decisions.md#d-49-the-external-mcp-servers-switch-honoured-by-cogpit-cli-mcp)) |
-| `kubectl/<version>/kubectl` | kubectl downloaded for terminals, unless Preferences › Kubernetes names another directory for binaries ([D-3](decisions.md#d-3-helm-and-kubectl-binaries)) |
+| `mcp-token`, `mcp-port`, `mcp-endpoint`, `mcp-switch` | the MCP bearer token, kept until Regenerate token; the port the next start binds; the endpoint URL while the server listens; the switch, `on` or `off`, no file meaning off |
+| `kubectl/<version>/kubectl` | kubectl downloaded for terminals, unless `kubectlDir` names another folder ([kubectl](#preferences--kubernetes-kubectl-for-terminals)) |
 | `crash.log`, `crashes/` | the crash output; the next start keeps the newest 10 reports in `crashes/` and says where |
 | `<user cache dir>/Cogpit/cogpit.log` | the app log (also on stderr) |
 | `<user cache dir>/Cogpit/discovery/` | discovery answers per API server and identity, shared with `cogpit-cli`; deleting it costs the next connect its discovery requests ([D-65](decisions.md#d-65-discovery-cached-on-disk)) |
-| `<user cache dir>/Cogpit/helm/` | repository indexes, chart READMEs and chart icons; Helm's own cache is not touched ([D-46](decisions.md#d-46-chart-icons-from-the-hosts-that-serve-them)) |
+| `<user cache dir>/Cogpit/helm/` | repository indexes, chart READMEs and chart icons; Helm's own cache is not touched |
 | `<temp dir>/cogpit-terminal-<random>.kubeconfig`, `<temp dir>/cogpit-terminal-<random>/` | a terminal's kubeconfig with its context only, and the folder that puts Cogpit's kubectl first; removed on close ([why](../security/credentials.md#the-terminals-kubeconfig)) |
 | Helm's `repositories.yaml` | read every 2 s, never written: `$HELM_REPOSITORY_CONFIG`, else `$HELM_CONFIG_HOME/repositories.yaml`, else Helm's folder (`~/Library/Preferences/helm/repositories.yaml` # default on macOS); manage it with `helm repo add` and `helm repo remove` ([D-29](decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)) |
 | `~/Library/Preferences/io.guided-traffic.cogpit.plist` | Sparkle's state: automatic checks (`SUEnableAutomaticChecks`, set from Cogpit's preference), the last check, a skipped version |
@@ -1554,22 +1568,20 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 
 ## Development
 
-Locally, check what a change touches and leave the full gate to CI
-([testing › Before a pull request](testing.md#before-a-pull-request)); CI runs each check as a job
-with its own make target, and semantic-release publishes every `feat:` and `fix:` on a green `main`
-([releasing](releasing.md)). Everything else: [docs/developer/](README.md).
+Working on Cogpit: [docs/developer/](README.md); what to check before a pull request:
+[testing](testing.md#before-a-pull-request); CI and releases: [releasing](releasing.md).
 
 ### Make targets
 
-`make help` lists every target; [testing](testing.md), [releasing](releasing.md) and
-[hack/kind](../../hack/kind/README.md) have the details.
+`make help` lists every target; details: [testing](testing.md), [releasing](releasing.md),
+[hack/kind](../../hack/kind/README.md).
 
 | Target | What it does |
 |---|---|
 | `make build` | `bin/cogpit` (cgo, Fyne) and `bin/cogpit-cli` (pure Go), a development build: demo cluster and Fyne's thread check on; `GO_TAGS=nodemo` and `FYNE_THREAD_CHECKS=off` give a release's variant |
 | `make run`, `make run-demo` | run against the kind cluster, or the demo cluster |
 | `make app` | `bin/Cogpit.app` with Sparkle and `cogpit-cli` inside; `SPARKLE_PUBLIC_ED_KEY=<base64>` for an app that updates itself |
-| `make lint`, `make lint-darwin`, `make fmt` | golangci-lint v2.15.0 (built into `bin/`): the team's linters and the `depguard` layering, for this system's build and Windows' (`lint-darwin`: the packages with darwin-only files, macOS only); formatting |
+| `make lint`, `make lint-darwin`, `make fmt` | golangci-lint at the Makefile's `GOLANGCI_LINT_VERSION` (built into `bin/`): the team's linters and the `depguard` layering, for this system's build and Windows' (`lint-darwin`: the packages with darwin-only files, macOS only); formatting |
 | `make test-unit`, `make test-unit-race` (`make test`) | every test that needs no cluster, without and with the race detector (the latter with `make test-fork`, the patched terminal widget's); `internal/ui/fyneui` in `UI_SHARDS` (eight) shards balanced by the tests' measured time, `UI_JOBS` at once |
 | `make test-ui`, `make test-ui-race` | `internal/ui/fyneui` alone, sharded the same way ([D-112](decisions.md#d-112-ci-and-test-time)) |
 | `make ui-durations` | measures `internal/ui/fyneui`'s tests with and without the race detector into the files that balance its shards ([releasing › The UI's shards](releasing.md#the-uis-shards)) |
@@ -1580,7 +1592,7 @@ with its own make target, and semantic-release publishes every `feat:` and `fix:
 | `make vuln`, `make gosec`, `make gosec-darwin`, `make cyclo`, `make cyclo-report` | govulncheck over the code paths Cogpit calls, gosec over the shipped code (this system's build and Windows'; `gosec-darwin`: the packages with darwin-only files, macOS only), no function above `CYCLO_THRESHOLD` (56 # default), the 20 most complex functions |
 | `make parity`, `make scorecard`, `make bench` | the parity checks ([rules](../parity/README.md#make-parity)); the performance budgets measured into `docs/parity/scorecard.md` (not in CI); the benchmarks, the spike's S1 and S2 included |
 | `make kind-up`, `make kind-seed`, `make kind-down`, `make kind-drain-up`, `make kind-drain-down` | the local kind cluster (with the Metrics Server) and its seed; the three-node drain cluster `cogpit-drain` (`.cache/kind-drain/kubeconfig`) |
-| `make kind-prometheus`, `kind-kps`, `kind-vm`, `kind-alertmanager`, `kind-kyverno`, `kind-trivy` (each with `-down`) | optional stacks in the kind cluster: Prometheus, kube-prometheus-stack, VictoriaMetrics, Alertmanager, Kyverno 3.9.1 with test policies, Trivy Operator |
+| `make kind-prometheus`, `kind-kps`, `kind-vm`, `kind-alertmanager`, `kind-kyverno`, `kind-trivy` (each with `-down`) | optional stacks in the kind cluster: Prometheus, kube-prometheus-stack, VictoriaMetrics, Alertmanager, Kyverno with test policies, Trivy Operator |
 | `make sigstore-root`, `make k8s-eol` | refresh the sigstore trusted root `internal/kubectl` embeds ([D-50](decisions.md#d-50-kubectls-signature-check)) and the Kubernetes release table `internal/model/k8seol` embeds ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life); `K8SEOL_FLAGS=-fallback` keeps the committed one on a failure) |
 | `make icon`, `make showcase` | redraw `packaging/icon.png` ([extending](extending.md#changing-the-logo)); render the README's pictures into `docs/images`, dark and light, optimised with oxipng (`OXIPNG_FLAGS` without `--zopfli` for a quick look) |
 | `make sparkle`, `make oxipng`, `make winsparkle`, `make mesa` | the pinned release into `.cache/`, SHA-256 checked (oxipng: macOS on Apple silicon and Linux on x86-64; Mesa: the Windows smoke test's software OpenGL) |
