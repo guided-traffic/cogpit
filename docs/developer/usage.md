@@ -1297,7 +1297,7 @@ reads the cluster's Alertmanager
 - **The board** (a click on the pill, or Alerts in the palette, ⌘⇧P): a line of the severities with
   their counts (a click hides or shows that severity's cards), then cards in as many columns as the
   window holds, the worst severity first
-  ([D-new](decisions.md#d-new-the-alert-boards-cards)). A card is one alert name:
+  ([D-138](decisions.md#d-138-the-alert-boards-cards)). A card is one alert name:
   - its head in the severity's colour (a click folds the card; a copy icon after the name on hover)
     under a strip of the last 24 hours, a cell an hour, brighter the more often the alert started
     firing in it (its tooltip says when and how often; outlined while unknown);

@@ -146,7 +146,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
-| [D-new](#d-new-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
+| [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 
 ## D-1: UI toolkit
 
@@ -2850,7 +2850,7 @@ alert board, a page like karma's, tidier; Lens shows no alerts. What the user se
 - The board is a page with a view's header (namespace filter, search), its folds engine state
   (`alerts.fold`); per alert only what its alertname's card does not say once: the cells that tell
   it apart, since when, the objects it names; its cards, texts, history and links are
-  [D-new](#d-new-the-alert-boards-cards).
+  [D-138](#d-138-the-alert-boards-cards).
 
 **Why:** `internal/metrics` is made for polled series, not a list of alerts. Probing every Service
 sends requests to services that are none (as for Prometheus, D-71); `GET /api/v2/status` would hand
@@ -5432,7 +5432,7 @@ controller listens on other than 80 and 443 is not known.
 **Tests:** `TestIngressHostLinks`, `TestIngressTexts`, `TestIngressColumns`,
 `TestIngressHostsOpenInTheBrowser`, `TestIngressRuleHostsAreLinks`, `TestOpenWebLinkChecksTheAddress`
 
-## D-new: The alert board's cards
+## D-138: The alert board's cards
 
 **Status:** built · **By:** owner (a masonry dashboard; less empty room; the severity first, then a
 short description, then a fast list of the instances; no text twice; how often an alert fired;

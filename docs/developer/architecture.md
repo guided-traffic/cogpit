@@ -2068,7 +2068,7 @@ through the API server's service proxy on the connection's counted clients
   ([`alerts_card.go`](../../internal/engine/alerts_card.go)), the pods' controllers peeked from the
   cache ([`alerts_owner.go`](../../internal/engine/alerts_owner.go)).
 - **History** ([`alerts_history.go`](../../internal/engine/alerts_history.go),
-  [D-new](decisions.md#d-new-the-alert-boards-cards)): a second poller per backend
+  [D-138](decisions.md#d-138-the-alert-boards-cards)): a second poller per backend
   (`Backend.history`, run by `followAlertHistory`), active only while the board is the shown view of
   the shown, connected cluster with both integrations on; it asks the metrics hub's Prometheus
   (`Hub.Prometheus`, no detection of its own) for `AlertOnsets`

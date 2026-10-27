@@ -19,7 +19,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The alert board (D-77, its cards D-new): the shown cluster's active alerts in the workspace, as a
+// The alert board (D-77, its cards D-138): the shown cluster's active alerts in the workspace, as a
 // page (engine.AlertBoard) whose header is a view's (its title, the count, the namespace filter and
 // the search, the UI state's) and whose body replaces the table. Under a line of the severities
 // (each a chip with its count that folds its cards away), a masonry of cards, worst severity first
