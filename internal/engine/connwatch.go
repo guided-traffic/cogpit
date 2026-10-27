@@ -422,7 +422,8 @@ func (w *connWatch) afterReach() bool {
 }
 
 // expired is one step while the login is expired: a login the user asks for, or the answer of a
-// heartbeat whose plugin still ran (the user logged in in the browser after all).
+// heartbeat whose plugin still ran (the user logged in in the browser after all, or Cogpit ended
+// the run at its bound, whose reason then replaces "has not answered").
 func (w *connWatch) expired() bool {
 	w.mu.Lock()
 	pending := w.pending
@@ -431,10 +432,15 @@ func (w *connWatch) expired() bool {
 		select {
 		case <-w.ctx.Done():
 			return false
-		case _ = <-pending: // nil blocks; whatever it says, afterReach asks again
+		case err := <-pending: // nil blocks
 			w.mu.Lock()
 			w.pending = nil
 			w.mu.Unlock()
+			if pluginRunEnded(err) {
+				w.logPluginStderr(err)
+				w.expire(endedReason(err), false)
+				return true
+			}
 			return w.afterReach() // the plugin answered: what does the login say now
 		case k := <-w.kicks:
 			if k == kickLogin {
@@ -466,12 +472,18 @@ func (w *connWatch) login() {
 		ch = make(chan error, 1)
 		w.heartbeat(w.ctx, ch)
 	}
+	var first error
 	select {
 	case <-w.ctx.Done():
 		return
-	case _ = <-ch:
+	case first = <-ch:
 	}
-	// Whatever the first answer was, it came with or before the plugin's run: ask again.
+	if pluginRunEnded(first) {
+		w.logPluginStderr(first)
+		w.expire(endedReason(first), false)
+		return
+	}
+	// Any other first answer came with or before the plugin's run: ask again.
 	switch res, err := w.check(w.o.LoginWait); res {
 	case checkOK:
 		w.reconnect()
@@ -515,10 +527,16 @@ func (w *connWatch) heartbeat(ctx context.Context, ch chan<- error) {
 	}()
 }
 
+// overdueGate, set by tests only, runs in check once its heartbeat has not answered by the first
+// deadline (ProbeTimeout and ProbeSlack), before check waits on for the credential plugin: a test
+// answers the heartbeat there, so that its answer comes after that deadline.
+var overdueGate atomic.Pointer[func()]
+
 // check runs a heartbeat bounded by ProbeTimeout. One that does not return although its request's
 // deadline passed waits for its credential plugin: check waits for it up to bound, and asks again
-// once it returned (its own answer came after its deadline); past bound the heartbeat is kept as
-// pending and the result is checkWaiting.
+// once it returned (its own answer came after its deadline), unless that answer is a run Cogpit
+// ended (pluginRunEnded); past bound the heartbeat is kept as pending and the result is
+// checkWaiting.
 func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 	ch := make(chan error, 1)
 	ctx, cancel := context.WithTimeout(w.ctx, w.o.ProbeTimeout)
@@ -531,6 +549,9 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 		w.logPluginStderr(err)
 		return w.classify(err), err
 	case <-first.C:
+		if gate := overdueGate.Load(); gate != nil {
+			(*gate)()
+		}
 	case <-w.ctx.Done():
 		cancel()
 		return checkQuit, nil
@@ -538,8 +559,12 @@ func (w *connWatch) check(bound time.Duration) (checkResult, error) {
 	rest := time.NewTimer(max(bound-w.o.ProbeTimeout-w.o.ProbeSlack, 0))
 	defer rest.Stop()
 	select {
-	case _ = <-ch:
+	case err := <-ch:
 		cancel()
+		if pluginRunEnded(err) {
+			w.logPluginStderr(err)
+			return checkEnded, err
+		}
 		// The plugin answered within the bound; this heartbeat's own request ran out of time.
 		again := make(chan error, 1)
 		ctx2, cancel2 := context.WithTimeout(w.ctx, w.o.ProbeTimeout)
@@ -588,6 +613,13 @@ func classifyCheck(err error) checkResult {
 	}
 	return checkDown
 }
+
+// pluginRunEnded reports whether a heartbeat's answer is that Cogpit ended its credential plugin's
+// run, or did not start it again (D-73). Such an answer is the login's whenever it comes, after the
+// heartbeat's own deadline too: a heartbeat asked after the end meets only the login guard's 401
+// (cluster.ErrLoginRejected), which would say the API server rejects the login instead of why
+// Cogpit did not renew it.
+func pluginRunEnded(err error) bool { return classifyCheck(err) == checkEnded }
 
 // rejectedReason is LoginExpired's reason for a rejected login.
 func rejectedReason(err error) string {

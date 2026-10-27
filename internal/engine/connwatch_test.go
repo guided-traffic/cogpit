@@ -21,6 +21,7 @@ type fakeProber struct {
 	reject    bool          // heartbeats are rejected (401)
 	rejectN   int           // reject only the next n heartbeats
 	block     chan struct{} // heartbeats wait for it, ignoring their context (a plugin that waits)
+	endNext   error         // the next heartbeat's plugin run is one Cogpit ends (D-73): it answers this, after block if set
 	health    []cluster.Health
 	resets    int
 	armed     int
@@ -46,7 +47,8 @@ func (f *fakeProber) Heartbeat(ctx context.Context) error {
 	f.mu.Lock()
 	f.beats++
 	f.beatTimes = append(f.beatTimes, time.Now())
-	block, down, reject := f.block, f.down, f.reject
+	block, down, reject, end := f.block, f.down, f.reject, f.endNext
+	f.endNext = nil
 	if f.rejectN > 0 {
 		f.rejectN--
 		reject = true
@@ -69,9 +71,11 @@ func (f *fakeProber) Heartbeat(ctx context.Context) error {
 	}
 	if block != nil {
 		<-block
-		return nil
+		return end
 	}
 	switch {
+	case end != nil:
+		return end
 	case down:
 		<-ctx.Done()
 		return ctx.Err()
@@ -141,14 +145,20 @@ var fastWatch = ConnWatchOptions{
 // watchedSession connects a session whose backend the fake prober answers for.
 func watchedSession(t *testing.T, opts ConnWatchOptions) (*Session, *fakeProber) {
 	t.Helper()
+	p := &fakeProber{}
+	return watchedSessionOf(t, opts, p), p
+}
+
+// watchedSessionOf is watchedSession with a prober the test set up before the first heartbeat.
+func watchedSessionOf(t *testing.T, opts ConnWatchOptions, p *fakeProber) *Session {
+	t.Helper()
 	src := testkit.NewMemorySource()
 	src.Set(testkit.PodsGVR, testkit.Pod("default", "web-1"))
-	p := &fakeProber{}
 	fc := &fakeConnector{src: src, profiles: testProfiles(), conn: &cluster.Conn{}, health: p}
 	s := New(Options{Connector: fc, SnapshotInterval: 10 * time.Millisecond, ConnWatch: opts})
 	t.Cleanup(s.Close)
 	connectTest(t, s)
-	return s, p
+	return s
 }
 
 func waitState(t *testing.T, s *Session, want ConnectionState) Connection {
