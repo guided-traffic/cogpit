@@ -595,7 +595,8 @@ cannot guard it; no agent can copy. What remains, for every copied value:
 - a clipboard manager that ignores the concealed and transient types keeps the value in its own
   history;
 - any process of the user can read it while it is there;
-- Cogpit's end within the 60 seconds (a crash, `kill -9`) leaves it there;
+- Cogpit's end within the 60 seconds leaves it there: a crash, `kill -9`, or a SIGINT or SIGTERM
+  whose quit Fyne's own handler ends before Cogpit's closes the window;
 - on Linux and Windows the copy goes through Fyne's clipboard unmarked;
 - a masked value is copied by one click on its icon, shown only by the checkmark and the toast.
 

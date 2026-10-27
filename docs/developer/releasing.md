@@ -114,10 +114,11 @@ real GL driver, in a home of its own, until it drew its first frame; then the ap
 fails on a logged error (a record at level ERROR, or a line of Fyne's errors), on a window without a
 GL surface, after the bound, and when Cogpit does not quit within 15 s of the frame
 (`smokeQuitGrace`). A failed run says how far its reads of the frame got (how many, from where, what
-the last one held); a run the watchdog ends also shows the main goroutine's stack, and on Linux the
-script shows Xvfb's output. CI runs it on what a release ships: Linux Package on `dist-linux`'s
-`bin/cogpit`, Windows Package on the `cogpit.exe` the setup installed
-(`test-windows-package WINDOWS_SMOKE=on`, [`setup-test.sh`](../../hack/windows/setup-test.sh)).
+the last one held); a run the watchdog or the quit bound ends with a failure also shows the main
+goroutine's stack, and on Linux the script shows Xvfb's output. CI runs it on what a release ships:
+Linux Package on `dist-linux`'s `bin/cogpit`, Windows Package on the `cogpit.exe` the setup
+installed (`test-windows-package WINDOWS_SMOKE=on`,
+[`setup-test.sh`](../../hack/windows/setup-test.sh)).
 
 - **A drawn frame:** the frame the window presented holds more than one colour. On X11 the run reads
   it where the X server holds it (`XGetImage` on the window,
@@ -128,8 +129,9 @@ script shows Xvfb's output. CI runs it on what a release ships: Linux Package on
 - **Fyne's quit:** two races in Fyne 2.8.2's stop are named in the verdict and not counted: its save
   of the preferences at the stop against its watch of their file, which can read the file between
   its truncation and its write (`Preferences load error:` after the frame), and its lifecycle
-  queue's last event against the main loop's last drain, which leaves the quit waiting for good (the
-  watchdog finds both goroutines' stacks waiting there). Any other error or hang while quitting
+  queue's last event against the main loop's last drain, which leaves Fyne waiting for good until
+  the app's quit bound ends the quit after 5 s ([D-136](decisions.md#d-136-the-quit-bound)); the run
+  finds both goroutines' stacks waiting there at that moment. Any other error or hang while quitting
   fails the run.
 - **The run's home** is a folder in a temporary folder of the script's, which it removes once the
   app ended: `HOME`, the configuration and cache folders and `$KUBECONFIG` point there; Helm's

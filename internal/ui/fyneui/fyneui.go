@@ -76,6 +76,13 @@ type Options struct {
 	// cleanup runs: the updater's request on Windows once WinSparkle started the setup, which waits
 	// for Cogpit to quit (internal/update, D-111). nil: nothing asks.
 	Quit <-chan struct{}
+	// QuitBound is how long Fyne gets to end its run once Cogpit handed it the quit (D-136,
+	// quitbound.go); 0, or no QuitHung: no bound.
+	QuitBound time.Duration
+	// QuitHung ends the process when Fyne's run has not returned within QuitBound. It runs on the
+	// bound's goroutine after Run's own end ran there, does what follows Run's return and exits with
+	// the code a normal quit has; it does not return. Run then never returns.
+	QuitHung func()
 	// menus is where the menus are: this system's place (menusHere), or, for the tests, the
 	// system's menu bar as on macOS (menusNative) or the top bar as elsewhere (menusInBar).
 	menus menuPlace
@@ -196,7 +203,8 @@ func appMetadata(checks bool) (m fyne.AppMetadata, ok bool) {
 }
 
 // Run builds the window for the session, installs the GUI confirmer and runs Fyne's event loop
-// until the window closes.
+// until the window closes. When Fyne's teardown does not end within Options.QuitBound, Run does not
+// return: Options.QuitHung ends the process (quitbound.go).
 func Run(s *engine.Session, opts Options) error {
 	if m, ok := appMetadata(buildinfo.FyneThreadChecks); ok {
 		app.SetMetadata(m) // before the app exists: Fyne reads it at the first canvas refresh
@@ -238,6 +246,7 @@ func Run(s *engine.Session, opts Options) error {
 	s.SetConfirmer(sh.confirmer)
 	s.SetDockOutputReader(dockOutputReader{sh}) // what the dock's tabs show, for dock.read (dockoutput.go)
 	w.SetContent(sh.root)
+	var bound *quitBound // the quit bound (quitbound.go), made below
 	w.SetOnClosed(func() {
 		// The app quits with its window: Fyne then drains its queue and from then on runs a fyne.Do
 		// at once on the caller's goroutine (or panics on its closed queue), so nothing more may reach
@@ -247,6 +256,7 @@ func Run(s *engine.Session, opts Options) error {
 		// racing the handler below, which quits through a.Quit.
 		stopped.Store(true)
 		sh.windowClosed()
+		bound.arm() // Cogpit's part of the close ran: Fyne's teardown from here on is bounded
 	})
 	// On Windows and Linux the menus are the top bar's; the window keeps them for their keys only
 	// from its start on, when Fyne no longer builds its own menu bar later (menubar.go).
@@ -293,6 +303,25 @@ func Run(s *engine.Session, opts Options) error {
 	if opts.Smoke != nil {
 		sh.startSmoke()
 	}
+	// What follows Fyne's run, once: on the main goroutine after its return, or on the quit bound's
+	// goroutine, before the caller's QuitHung, when the bound passed first.
+	end := func() {
+		stopped.Store(true)
+		place.finishWindow(w) // what is pending written now; Windows and Linux keep the size here
+		detachLinks()
+		if sh.perf != nil {
+			sh.perf.finish() // the window closed before PerfDuration ended, or there is none
+		}
+		sh.stop()
+		s.SetConfirmer(nil)
+		s.SetDockOutputReader(nil)
+	}
+	if opts.QuitHung != nil {
+		bound = newQuitBound(opts.QuitBound, func() {
+			end()
+			opts.QuitHung()
+		})
+	}
 	// Ctrl+C or SIGTERM quits the way closing the window does, so the caller's cleanup runs (the
 	// MCP token file is removed, the informers stop) instead of the process ending mid-way.
 	sig := make(chan os.Signal, 1)
@@ -300,24 +329,25 @@ func Run(s *engine.Session, opts Options) error {
 	defer signal.Stop(sig)
 	ran := make(chan struct{})
 	defer close(ran)
+	loop := goroutineID() // Run's goroutine runs Fyne's loop (ShowAndRun below)
 	go func() {
 		select {
 		case <-sig:
-			do(a.Quit)
 		case <-opts.Quit: // a nil channel never receives
-			do(a.Quit)
 		case <-ran:
+			return
 		}
+		// Waiting, so that the bound starts once Fyne has the quit: a.Quit runs on the main
+		// goroutine, whose window's close starts it, or Fyne's drain releases the call unrun when
+		// Fyne's own signal handler ended the run first. After that drain Fyne runs the call at once
+		// here, where a.Quit would close the window beside Run's end and then panic in the
+		// terminated GLFW: it runs only on the loop's goroutine (quitbound.go).
+		bound.handQuit(stopped.Load, fyne.DoAndWait, onGoroutine(loop, a.Quit))
 	}()
 	w.ShowAndRun()
-	stopped.Store(true)
-	place.finishWindow(w) // what is pending written now; Windows and Linux keep the size here
-	detachLinks()
-	if sh.perf != nil {
-		sh.perf.finish() // the window closed before PerfDuration ended, or there is none
+	if !bound.returned() {
+		select {} // the bound passed first: its goroutine runs the end and ends the process
 	}
-	sh.stop()
-	s.SetConfirmer(nil)
-	s.SetDockOutputReader(nil)
+	end()
 	return nil
 }

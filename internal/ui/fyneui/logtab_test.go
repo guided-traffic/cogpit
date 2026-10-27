@@ -140,6 +140,12 @@ func (e logsEngine) OpenLogs(_ context.Context, tabID string) (io.ReadCloser, er
 	if tab.Logs.Previous && tab.Ref.Kind == kindPods {
 		return nil, errors.New(`logs of checkout/` + tab.Ref.Name + `: previous terminated container "api" in pod "` + tab.Ref.Name + `" not found`)
 	}
+	return newOpenStream(e.fakeEngine, tabID, demoStream(tab)), nil
+}
+
+// demoStream is what a tab's stream writes: demoMerged's lines of a pod's container, or all of
+// them with their source before each for a workload.
+func demoStream(tab engine.DockTab) string {
 	var b strings.Builder
 	for _, l := range demoMerged {
 		if tab.Ref.Kind != kindPods {
@@ -149,7 +155,7 @@ func (e logsEngine) OpenLogs(_ context.Context, tabID string) (io.ReadCloser, er
 		}
 		b.WriteString(l.ts + " " + l.msg + "\n")
 	}
-	return newOpenStream(e.fakeEngine, tabID, b.String()), nil
+	return b.String()
 }
 
 // demoSources are what the deployment's tab offers: its two pods, their containers, an init
@@ -285,7 +291,8 @@ func withLogCommands(t testing.TB, f *fakeEngine, deployment model.ObjectRef) {
 	}
 }
 
-// logsScene is the pods view with a logs tab in the dock: on a pod, or on its deployment.
+// logsScene is the pods view with a logs tab in the dock: on a pod, or on its deployment, holding
+// every line of its stream.
 func logsScene(t *testing.T, mode ThemeMode, workload bool, opts engine.LogOptions) (*shell, fyne.Window, *mainQueue, *fakeEngine) {
 	t.Helper()
 	return logsSceneWith(t, mode, workload, opts, nil)
@@ -308,9 +315,12 @@ func logsSceneWith(t *testing.T, mode ThemeMode, workload bool, opts engine.LogO
 	}
 	f.ui.Dock, f.ui.ActiveDock = []engine.DockTab{tab}, "logs-1"
 	sh, w, q := startShell(t, newLogsEngine(f), f, Options{Theme: mode})
+	// Every line, not the first: the view shows the stream in batches as its reader gets to the
+	// lines, so a first batch can hold some of them only.
+	want := strings.Count(demoStream(tab), "\n")
 	q.until(t, "the log lines", func() bool {
 		lt := logTabOf(sh)
-		return len(sh.kinds) > 0 && lt != nil && lt.view != nil && len(lt.view.ShownLines()) > 0
+		return len(sh.kinds) > 0 && lt != nil && lt.view != nil && lt.view.HeldLines() == want
 	})
 	return sh, w, q, f
 }

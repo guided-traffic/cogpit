@@ -912,6 +912,15 @@ On macOS a change of the window's pixel scale (another display, displays off and
 draws every text again once, so none stays soft
 ([D-121](decisions.md#d-121-texts-drawn-again-when-the-windows-pixel-scale-changes)).
 
+### Quitting
+
+Closing the window, ⌘Q, Quit in the first menu (Windows, Linux), Ctrl+C and SIGTERM quit Cogpit
+alike: drafts and tabs are written, the node shell pods it made are deleted, the MCP endpoint file
+is removed, and the process exits with code 0. Should Fyne, the window's toolkit, not end its run
+within 5 s, Cogpit finishes the same quit itself and logs a warning, `Fyne did not end its run
+within the quit bound` with `bound=5s` ([`cogpit.log`](#naming-conventions),
+[D-136](decisions.md#d-136-the-quit-bound)).
+
 ### A cluster's right-click menu
 
 On a cluster's hotbar tile, its row in All Clusters or on the welcome page, or the navigator's root:
