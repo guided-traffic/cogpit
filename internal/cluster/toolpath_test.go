@@ -258,41 +258,34 @@ func TestMissingProgram(t *testing.T) {
 // folder is a program folder, the next Connect finds it, without a restart. kubectl run as the
 // plugin, without the kubectl plugin it names, fails it with kubectl-<name>.
 func TestConnectNamesTheMissingProgram(t *testing.T) {
-	if runtime.GOOS == goosWindows {
-		t.Skip("the test plugins are shell scripts")
-	}
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
+	const name = "cogpit-test-login-0815"
+	plugin := testkit.NewPlugin(t, name)
+	plugin.Give(secretToken, time.Time{})
+	kubectl := testkit.NewPlugin(t, "kubectl")
+	kubectl.Output("", `error: unknown command "oidc-login" for "kubectl"`+"\n", 1)
 	isolateToolPath(t)
-	t.Setenv("PATH", "/usr/bin:/bin")
+	path := "/usr/bin:/bin"
+	if runtime.GOOS == goosWindows {
+		path = filepath.Join(os.Getenv("SystemRoot"), "System32")
+	}
+	t.Setenv("PATH", path) // neither plugin's folder
 	EnsureToolPath()
 
-	dir := t.TempDir()
-	const name = "cogpit-test-login-0815"
-	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + secretToken + `"}}`
-	script := "#!/bin/sh\necho '" + cred + "'\n"
-	if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	path := writeFile(t, "kubeconfig", stderrKubeconfig(srv, name))
-
-	_, _, err := traceConnect(t, path)
+	kubeconfig := writeFile(t, "kubeconfig", stderrKubeconfig(srv, name, plugin))
+	_, _, err := traceConnect(t, kubeconfig)
 	login := stageNamed(t, err, StageLogin)
 	if login.Result != StageFailed || login.Missing != name || !strings.Contains(login.Text, "no program "+name+" on PATH") {
 		t.Errorf("login stage %+v", login)
 	}
 
-	SetProgramFolders([]string{dir})
-	if _, _, err := traceConnect(t, path); err != nil {
+	SetProgramFolders([]string{filepath.Dir(plugin.Command)})
+	if _, _, err := traceConnect(t, kubeconfig); err != nil {
 		t.Fatalf("with its folder a program folder: %v", err)
 	}
 
-	kubectl := filepath.Join(t.TempDir(), "kubectl")
-	stub := "#!/bin/sh\necho 'error: unknown command \"oidc-login\" for \"kubectl\"' >&2\nexit 1\n"
-	if err := os.WriteFile(kubectl, []byte(stub), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	_, err = Connect(context.Background(), Options{KubeconfigPaths: []string{writeFile(t, "kubeconfig", stderrKubeconfig(srv, kubectl))},
+	_, err = Connect(context.Background(), Options{KubeconfigPaths: []string{writeFile(t, "kubeconfig", stderrKubeconfig(srv, kubectl.Command, kubectl))},
 		ConnectTimeout: 5 * time.Second})
 	login = stageNamed(t, err, StageLogin)
 	if login.Missing != "kubectl-oidc_login" || !strings.Contains(login.Text, "it found no kubectl-oidc_login on PATH") {

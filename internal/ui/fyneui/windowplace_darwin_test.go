@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // The window's place on macOS (D-95): windowplace_darwin.m itself, built with a native harness into
@@ -16,12 +18,9 @@ import (
 // displays, measures GLFW's title bar, gives the window its frame exactly, reports each move and
 // resize, keeps the frame before full screen through full screen (AppKit's resizes between the
 // notifications are not the place), takes one observer however often it is installed, and stops
-// at the window's close. Skipped without clang or a window server.
+// at the window's close. Needs clang and a window server.
 func TestWindowPlaceFollowsTheWindow(t *testing.T) {
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "windowplace_harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-I.", "-o", bin,
 		filepath.Join("testdata", "windowplace_harness.m"), "windowplace_darwin.m")
@@ -30,9 +29,7 @@ func TestWindowPlaceFollowsTheWindow(t *testing.T) {
 	}
 	out, err := exec.Command(bin).Output()
 	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() == 3 {
-		t.Skip("no display: no window server")
-	}
+	prereq.Need(t, !errors.As(err, &exit) || exit.ExitCode() != 3, "a window server (AppKit described no display)")
 	if err != nil {
 		t.Fatalf("the harness: %v\n%s", err, out)
 	}

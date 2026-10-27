@@ -4,6 +4,7 @@ package terminal
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,8 @@ import (
 	"unsafe"
 
 	"golang.org/x/sys/windows"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // plainShell is the shell the tests start where they need one that reads no profile: cmd.exe
@@ -149,9 +152,7 @@ func TestStartLocalWindowsBindsKubectlToContextAndNamespace(t *testing.T) {
 // PowerShell reports it; cmd's mode con says it in the system's language.
 func TestStartLocalWindowsResize(t *testing.T) {
 	ps := filepath.Join(os.Getenv("SystemRoot"), "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-	if !isFile(ps) {
-		t.Skip("no Windows PowerShell")
-	}
+	prereq.Need(t, isFile(ps), "Windows PowerShell, "+ps)
 	home := t.TempDir()
 	sess, err := StartLocal(LocalOptions{
 		KubeconfigPaths: []string{writeUserKubeconfig(t)}, Shell: ps, Args: []string{"-NoLogo", "-NoProfile"}, Dir: home,
@@ -395,9 +396,7 @@ func TestStartLocalWindowsKubectlByAnotherName(t *testing.T) {
 // once the session has ended. The kubectl is a copy of ping, which runs long.
 func TestStartLocalWindowsRemovesHeldFiles(t *testing.T) {
 	ping, err := os.ReadFile(filepath.Join(os.Getenv("SystemRoot"), "System32", "PING.EXE"))
-	if err != nil {
-		t.Skip("no ping:", err)
-	}
+	prereq.Need(t, err == nil, fmt.Sprint("System32's PING.EXE: ", err))
 	target := filepath.Join(t.TempDir(), "kubectl-ping.exe")
 	if err := os.WriteFile(target, ping, 0o700); err != nil {
 		t.Fatal(err)

@@ -120,7 +120,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-109](#d-109-the-menus-in-the-top-bar-on-windows-and-linux) | The menus in the top bar on Windows and Linux | built: menu titles in Cogpit's top bar, native title bar |
 | [D-110](#d-110-dark-cockpit-cogpits-design-language) | Dark Cockpit, Cogpit's design language | built: Dark Cockpit replaces Solarized; first outlook topic open |
 | [D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle) | Cogpit for Windows: an NSIS setup and WinSparkle | built: per-user NSIS setup, WinSparkle updates, x64 |
-| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, sharded UI tests; two items open |
+| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, lint and GoSec per system, the shipped app's smoke test; one item open |
 | [D-113](#d-113-image-grades-shields-from-trivys-reports) | Image grades, shields from Trivy's reports | built: S–E and N/A shields; D/E thresholds provisional |
 | [D-114](#d-114-a-failed-connects-error-page-and-its-stages) | A failed connect's error page and its stages | built: error page with the connect's stages |
 | [D-115](#d-115-a-dock-tab-the-user-opens-takes-the-keys) | A dock tab the user opens takes the keys | built: user-opened dock tabs take the keyboard |
@@ -914,7 +914,8 @@ binary value survives a text clipboard in.
 [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
 [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m) · 
 `TestCopyHasNoCommand`, `TestListCopyIconByColumn`, `TestSecretMaskedValueCopiedWithoutShowing`,
-`TestSecretB64OnABinaryValue`, `TestCopyKubeconfigPathInEveryClusterMenu`
+`TestSecretB64OnABinaryValue`, `TestConcealedClipboardMarkedForThisMacOnly`,
+`TestCopyKubeconfigPathInEveryClusterMenu`
 
 ## D-26: Binding a credential plugin's approval to its program
 
@@ -4208,6 +4209,18 @@ CI and local test runs are kept short at the same coverage.
 - **macOS** runs, besides the darwin files, the tests of `internal/cluster` and `internal/terminal`
   and the login waits (the PTY, the shells, the credential plugin's process search), split into the
   jobs macOS Tests and macOS Lint and App.
+- **A missing prerequisite fails CI:** a test takes what it needs of the machine through
+  [`testkit/prereq`](../../internal/testkit/prereq/prereq.go), which skips without it and fails
+  where `CI` is set: CI runs `go test` without `-v`, which reports a skip as its package's `ok`.
+  CI installs what its runners lack: zsh and fish in Race Tests (other packages), from apt without
+  recommendations (about 18 MB instead of 30; no other Linux job runs a shell test), and fish in
+  macOS Tests from Homebrew rather than a skip there, since fish on macOS orders `PATH` from
+  `/etc/paths` as `path_helper` does
+  ([H-36](../security/trust-boundaries.md#h-36-a-shells-profile-can-put-another-kubectl-first));
+  each system's own fish, unpinned, as its users get it. `prereq` imports only the standard
+  library, so that every package's tests can use it (`testkit` depends on `cache`, `kubectl` and
+  `model`). A prerequisite no job can promise stays a plain skip with its reason: PowerShell off
+  Windows, an IPv6 loopback in the Linux runners' pods.
 - **Tests without value of their own are removed:** a render's light twin of a dark render of the
   same layout (one light render per major surface stays), a test whose behaviour another asserts as
   strongly, a change detector of a literal, a measurement nothing reads; each removal checked by a
@@ -4215,8 +4228,19 @@ CI and local test runs are kept short at the same coverage.
 - **The UI's tests in parallel shards:** `internal/ui/fyneui`'s tests cannot share a process (one
   Fyne app at a time); `hack/shard -exec` compiles them once and runs the shards as processes of their
   own, `UI_JOBS` at once (default: half the CPUs, at most what three quarters of the memory holds at
-  about 3 GB a shard, 8 GB under the race detector): `make test-ui`, `test-ui-race`, `test-unit`,
-  `test-unit-race`. On Windows four shards, two at once (`make test-windows-ui`; 4 CPUs, 16 GB).
+  about 3 GB a shard, 8 GB under the race detector), `UI_SHARDS` (eight) of them for `make test-ui`,
+  `test-ui-race`, `test-unit` and `test-unit-race`. On Windows four shards, two at once (`make
+  test-windows-ui`; 4 CPUs, 16 GB).
+- **Shards balanced by measured time:** every split of the UI's tests (CI's race shards, the render
+  tests' shards, Windows', the local targets) reads a durations file of
+  [`hack/shard/durations`](../../hack/shard/durations/), each test's seconds under the race detector
+  with coverage (`fyneui-race.txt`) or without it (`fyneui.txt`), as `make ui-durations` measures
+  them. The tests go longest first to the shard with the least time so far, each counting at least
+  a hundredth of a second; a test the file lacks goes by its name's hash, so a new test needs no
+  refresh.
+- **Five race shards on CI** (`RACE_SHARDS`, the race-ui matrix), each a fifth of the race tests'
+  time.
+- **No job that builds the race test binary once** for the shards: each shard compiles its own.
 - **Render tests** encode a PNG only for `-update` or `COGPIT_PNG_DIR`; the capture, which paints
   every renderer, is the check (`writePNG`).
 - **The logo's tile** is drawn once per pixel size and shared (`logoTile`).
@@ -4227,20 +4251,88 @@ CI and local test runs are kept short at the same coverage.
   [fyne#6620](https://github.com/fyne-io/fyne/pull/6620) (both open).
 - **Linux runners:** the organisation's self-hosted ones; the repository variable `LINUX_RUNNER`
   names others (GitHub's hosted runners take load off the shared machine but do not shorten a run).
+- **Lint and GoSec per system:** each sees one system's build, so `make lint` and `make gosec` add
+  a pass for Windows without cgo, and the macOS job runs `make lint-darwin` and `make gosec-darwin`;
+  the Makefile finds their packages by the files' names, so a new system file is analysed without a
+  list to keep ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
+  `internal/ui/fyneui`'s Windows file stays out: its package needs cgo for Fyne, and a lint on the
+  Windows runners would build golangci-lint there and analyse Fyne with MinGW for one system call;
+  moving the power read into a package without Fyne would bring it in. A run lists every finding.
+- **The smoke test** ([releasing › the smoke test](releasing.md#the-smoke-test)): CI starts the
+  shipped binary of Linux and Windows once with `--smoke <bound>`, so that a release variant that
+  panics at start, misses a library or fails in the GL driver fails CI. Each choice against its
+  alternative:
+  - a flag, not an environment variable such as `COGPIT_SMOKE=1`: it shows in the command and in
+    `-h`, as `--perf` does, and no exported variable turns every start into a smoke run;
+  - the binary makes its own home (`smokeEnv`, before the crash capture reads the configuration
+    folder) rather than relying on the caller's variables, so that a run by hand cannot touch the
+    user's files either; it leaves the home, since Fyne's settings watcher makes its folder again
+    and logs an error while the process lives and Windows keeps the open log; `hack/smoke.sh`
+    removes it once the app ended;
+  - a drawn frame, more than one colour, is read where the driver presented it rather than inferred
+    from a callback: on X11 the X server's copy of the window (`XGetImage`), elsewhere the GL front
+    buffer (`Capture`). Under Xvfb, Mesa's llvmpipe leaves a desktop GL window's front buffer empty,
+    so Linux Package (amd64) saw no frame within the bound (CI run 40491453904; the same in an arm64
+    Ubuntu 24.04 container with CI's packages, Mesa 25.2.8, Fyne built for desktop GL as on amd64);
+  - an error is a record at level ERROR or a line of Fyne's errors, which reach the log at INFO
+    through the standard log package; Linux therefore runs in a D-Bus session, without which Fyne's
+    theme watch logs one;
+  - the bound is the flag's value (`2m` in `make smoke`), a watchdog's `os.Exit` whatever the main
+    goroutine does; once the frame is drawn, Cogpit has 15 s to quit (`smokeQuitGrace`), and a
+    failed run says how far its reads got and where the main goroutine is;
+  - the run quits through Fyne rather than exiting at the frame, so that a quit that hangs or logs
+    an error fails it; two races in Fyne 2.8.2's stop are named and not counted instead: its
+    preferences' save at the stop against its watch of their file (`Preferences load error:` after
+    the frame) and its lifecycle queue's last event against the main loop's last drain (both
+    goroutines' stacks waiting there, `fyneQuitDeadlock`). In the container, 240 runs under load
+    (30 or 40 busy loops, up to three runs at once) met the first 27 times and the second 3 times,
+    60 runs without load neither;
+  - macOS is smoked by hand only: GLFW asks NSOpenGL for an accelerated pixel format only, which
+    GitHub's macOS VMs do not offer (a panic in `glfw.CreateWindow`, CI run 40491453904). macOS
+    Lint and App builds the bundle as releases do (`make dist-app VERSION=0.0.1`) without starting
+    it; the development variant of `cmd/cogpit` compiles in macOS Tests;
+  - Windows draws with Mesa's llvmpipe beside the installed `cogpit.exe`, in CI only: the release
+    pipeline's Windows job, which ships the setup it builds, runs no third-party binary Renovate
+    merges on its own.
 
-**Open:** one job building the UI's race test binary for all shards (each builds its own); six
-shards instead of eight, or shards balanced by measured duration; a runner image that carries Fyne's
-build dependencies; lint and GoSec of the Windows-only files.
+**Open:** a runner image that carries Fyne's build dependencies, and with it one job building the
+UI's race test binary for all shards.
 
 **Why:** Job set-up (checkout, Go, a slow cache restore, apt) and a full second pass without the race
 detector, which covered about 0.3 % of statements no race run covered, took most of a run. In one
 process the UI tests' garbage collection dominated as the heap grew; shards in processes of their own
-keep heaps small. A higher `GOGC` bought little time for much more memory.
+keep heaps small. A higher `GOGC` bought little time for much more memory. Measured times split the
+race tests evenly where a hash of the names did not (66 to 163 s of tests across eight shards on
+CI), so fewer shards need not make the longest one longer. A race-ui job spends about three minutes
+before its first test (checkout, Go, the 500 MB build cache, the modules, the compile), and every
+shard fewer saves that: five balanced shards hold about 155 s of tests each, a fifth of the 760 to
+775 s the race tests take without the render tests (an M1 Ultra, 815 s on CI; one shard alone took
+158 s, none more than 4.1 GB), about the 163 s of the longest hashed shard on CI; four would hold
+about 190 s each, six would spend three minutes more on set-up. A job building the race test binary
+once for the shards (about 95 MB compressed) would spare each shard Go, the cache and the compile,
+but not the libraries the cgo binary links (OpenGL, X11, Wayland, xkbcommon), which apt installs
+while Go sets up: each shard would wait for apt instead, after a second wait for a runner behind the
+build job. With a runner image that carries the libraries, a shard's set-up would shrink to the
+checkout and the download. A pass for Windows takes
+about 1.5 s with a warm lint cache and, with an empty one, 3 s (GoSec) and 30 s (lint);
+`make gosec-darwin` 2 to 4 s (Apple M1 Ultra, four workers). golangci-lint's defaults show three
+findings of a text and one per line, so a run's log would not list all a change has to fix.
 
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
-[`hack/shard`](../../hack/shard/main.go), [`render_test.go`](../../internal/ui/fyneui/render_test.go)
-`writePNG`, [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · 
-`TestSplitIsStableAndComplete`, `TestSelection`, `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestDefaultJobs`
+[`.golangci.yml`](../../.golangci.yml) `issues`,
+[`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
+[`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
+[`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile`,
+[`prereq.go`](../../internal/testkit/prereq/prereq.go),
+[`hack/smoke.sh`](../../hack/smoke.sh), [`cmd/cogpit/smoke.go`](../../cmd/cogpit/smoke.go),
+[`fyneui/smoke.go`](../../internal/ui/fyneui/smoke.go), [`smoke_linux.go`](../../internal/ui/fyneui/smoke_linux.go),
+[`mesa.sh`](../../hack/windows/mesa.sh) · `TestSplitIsStableAndComplete`,
+`TestSplitBalancesByDurations`, `TestDurationsFile`, `TestReadTestJSON`, `TestSelection`,
+`TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`, `TestNeed`,
+`TestLookPath`,
+`TestSmokeReportsTheFirstDrawnFrame`, `TestSmokeFrameHoldsMoreThanOneColour`, `TestSmokeWindowWithoutASurface`,
+`TestSmokeEnvLeavesTheUsersHome`, `TestSmokeVerdict`, `TestSmokeCountsLoggedErrors`, `TestSmokeProgress`,
+`TestSmokeFyneQuitDeadlock`, `TestSmokeExpired`, `TestSmokeWatchdogEndsAStuckRun`, `TestSmokeXChannel`
 
 ## D-113: Image grades, shields from Trivy's reports
 

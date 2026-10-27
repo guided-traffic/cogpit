@@ -52,7 +52,7 @@ type preferencesSetParams struct {
 	// LoadChartIcons: agents and the CLI may only turn it off (engine/helmicons.go, D-46).
 	LoadChartIcons *bool `json:"loadChartIcons,omitempty" jsonschema:"whether the Charts view and a chart's drawer fetch the icon a chart repository's index names, from whatever host serves it (default true); off: Cogpit's own glyph. Agents and the CLI may only turn it off"`
 	// CheckForUpdates and UpdateChannel: the app's updater (engine/updates.go, D-4).
-	CheckForUpdates *bool   `json:"checkForUpdates,omitempty" jsonschema:"whether the macOS app checks Cogpit's update feed once a day and offers a new release with one click (default true). Agents and the CLI may only turn it on"`
+	CheckForUpdates *bool   `json:"checkForUpdates,omitempty" jsonschema:"whether Cogpit looks for a new release at start and every hour and offers it (default true). Agents and the CLI may only turn it on"`
 	UpdateChannel   *string `json:"updateChannel,omitempty" jsonschema:"the update channel the app follows: stable, the only one until Cogpit publishes prereleases (empty means stable)"`
 	// RestoreSession: agents and the CLI may only turn it off (engine/restore.go, D-69 item 8).
 	RestoreSession *bool `json:"restoreSession,omitempty" jsonschema:"whether Cogpit, at its next start, restores the tabs of the last run and connects again to the clusters connected when it quit, the one shown then first, their credential plugins running as on any connect (default false: it starts without tabs and connections). Agents and the CLI may only turn it off"`

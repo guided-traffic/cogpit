@@ -9,10 +9,11 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 | Tier | Runs where | Command | What it proves |
 |---|---|---|---|
 | Unit | everywhere | `make test-unit` (the UI's package in parallel shards, `make test-ui`) | logic in isolation; `model` and `kubeconfig` are fully testable without I/O |
-| Race | Linux CI, locally on demand | `make test-race-ui` (eight shards, the render tests left out), `make test-race-rest`, `make test-unit-race` | no data races; a concurrent map write would end the process |
+| Race | Linux CI, locally on demand | `make test-race-ui` (five shards balanced by the tests' measured time, the render tests left out), `make test-race-rest`, `make test-unit-race` | no data races; a concurrent map write would end the process |
 | No race | Linux CI | `make test-norace-coverage` | what the race build skips (tests that read `raceEnabled`, `internal/ui/logo`) and the UI's render tests, with coverage |
-| macOS | CI's macOS Tests job, locally | `make test-darwin` | every `*_darwin_test.go` (title bar, window place, updater and file-panel harnesses, locale), `internal/cluster` and `internal/terminal` (PTY, shells, the credential plugin's process search, login runs and waits), the login-wait tests, and the tests whose expectations branch on macOS, under the race detector |
+| macOS | CI's macOS Tests job, locally | `make test-darwin` | every `*_darwin_test.go` (title bar, window place, concealed clipboard, updater and file-panel harnesses, locale), `internal/cluster` and `internal/terminal` (PTY, shells, the credential plugin's process search, login runs and waits), the login-wait tests, and the tests whose expectations branch on macOS, under the race detector |
 | Windows | CI's Unit Tests (windows) and UI Tests (windows), locally in MSYS2's MINGW64 shell | `make test-windows-unit`, `make test-windows-ui` | every package's tests on Windows, without the race detector; PowerShell for the terminal's and the registration's tests |
+| Smoke | CI's Linux Package and Windows Package, locally (macOS by hand only: GitHub's macOS VMs offer GLFW no accelerated pixel format) | `make smoke` (`SMOKE_BIN`, `SMOKE_BOUND`), `make test-windows-package WINDOWS_SMOKE=on` | the binary a release ships starts, its window draws a frame with the real GL driver (on X11 read from the X server), in a home of its own, without a logged error, and it quits ([releasing › the smoke test](releasing.md#the-smoke-test)) |
 | Kind-profile goldens | everywhere | part of Unit | an object becomes the row and detail model Lens would show ([`kinds/golden_test.go`](../../internal/model/kinds/golden_test.go) `TestGolden`, `TestLocalGolden`) |
 | Cache | everywhere | part of Unit and Race | watches, warm period, error states, transforms, stalls, and the API requests each scenario costs (against an in-memory source and testkit's fake API server over HTTPS) |
 | Engine | everywhere | part of Unit and Race | commands, snapshots, the drawer, confirmation per origin and what it binds (context, objects, UIDs), the audit log's redaction, custom kinds, the drain journal across a simulated crash |
@@ -47,8 +48,44 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 - **The real engine under the window:** the window's tests may not import the cache or the cluster
   layer (depguard), so a test that runs the real engine under the shell takes its connector from
   [`testkit/enginekit`](../../internal/testkit/enginekit/enginekit.go) (`MemoryConnector`).
-- **Credential plugins:** [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) writes a
-  shell-script plugin (macOS and Linux).
+- **Credential plugins:** [`testkit.Plugin`](../../internal/testkit/plugin.go) is the test binary
+  itself: client-go starts it as the program a kubeconfig's exec section names, and
+  `testkit.Main`, which the package's `TestMain` calls, runs it as the plugin when the section's
+  environment sets `COGPIT_TEST_PLUGIN` to the plugin's folder. The files there set what a run
+  does: hand out a credential, print and exit with a code, wait until ended (a browser login),
+  replace itself with `/bin/sleep` (macOS, Linux), leave a child that holds its output (H-118),
+  answer late; every run notes itself and its process number. The program carries the plugin's
+  name: a symbolic link on macOS and Linux; on Windows, whose process search goes by the program's
+  file name, a copy, one per name and test process (or of its own where a test places it), started
+  once when it is made so that the malware scan of a new program falls on no test's timing. It
+  starts in about 0.3 s under the race detector (the packages' `init`s), so a test that waits for
+  a run's bound gives it 3 s. A run notes its stray child before it exits, and the binary may take
+  long to exit on a loaded runner: a test that needs a run whose process Cogpit cannot find cancels
+  once that process ended (`strayed` in
+  [`loginrun_test.go`](../../internal/cluster/loginrun_test.go), `ProcessGone` in the engine's
+  `loginwait_test.go`), and one that needs a request queued behind a run waits until the request
+  is at client-go's lock (`queuedAtPluginLock`, read from a goroutine dump). On Windows one copy
+  serves every test of a name, so a test reads its plugin's hold through its connection's watch,
+  never by the program's path.
+  [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) adds a kubeconfig that runs it.
+  Shell scripts stay where a test needs one: a `#!` script's command line and a wrapper that execs,
+  for the process search (`pluginproc_unix_test.go`). The plugin a binary swap replaces
+  (`TestExecApprovalRefusedAfterPluginBinaryChanged`) is small, so that it is bound by its content
+  (`MaxBoundProgramSize`): a script, on Windows a copy of the system's `whoami.exe`. The test
+  binary is the plugin (the lead's decision, open to revision) rather than a script per system, as
+  a `.cmd` runs as `cmd.exe`, which the search does not take for the plugin, or a helper program
+  the tests build, which needs a Go toolchain and a build per package.
+
+## Prerequisites
+
+A test takes what it needs of the machine (a program, a window server, the Sparkle.framework or
+WinSparkle.dll a make target fetches) through
+[`testkit/prereq`](../../internal/testkit/prereq/prereq.go): `prereq.LookPath(t, "zsh")` for a
+program, `prereq.Need(t, ok, what)` for anything else. Without it the test skips on a developer's
+machine and fails where `CI` is set, since CI runs `go test` without `-v` and a skip there would
+read as a pass. The CI job that runs the test provides it ([releasing › CI](releasing.md#ci)).
+What no job can promise stays a plain `t.Skip` with its reason beside it: PowerShell off Windows,
+an IPv6 loopback in the Linux runners' pods.
 
 ## Asynchronous results
 
@@ -88,7 +125,12 @@ depends on timing passes locally and fails there. The rules:
   (register the wait with `t.Cleanup` after `t.TempDir`, so it runs first); a simulated second
   process stays alive with `runtime.KeepAlive`.
 - **The machine's environment is not the test's.** A test that needs a shell or a namespace names
-  it; a test never asserts that a freed port stays free.
+  it; a test never asserts that a freed port stays free. A test never reads or changes the user's
+  clipboard: the concealed-copy harness hands `clipboard_darwin.m` a pasteboard of its own in the
+  general pasteboard's place (`TestConcealedClipboardMarkedForThisMacOnly`). Saving and restoring
+  the user's clipboard instead would read other apps' contents, which macOS can ask the user about
+  or deny (`NSPasteboard.accessBehavior`), lose what it could not read, and reach clipboard managers
+  as a new copy.
 - **Reproduce before fixing.** Run the test many times under load (`go test -race -count=50 -cpu
   1,2` while other packages run), or widen the suspected window on purpose (a delay in a fake's List,
   Watch or handler). A race-job failure is a product race until a forced interleaving shows
@@ -112,11 +154,14 @@ depends on timing passes locally and fails there. The rules:
   for up to a second (`retryHeld` in [`privatefile.go`](../../internal/engine/privatefile.go)), a
   terminal's files for up to two seconds after its shell ended; a test that reads a file the product
   rewrites retries its read too.
+- **A program is named without `.exe`:** os/exec adds it as `PATHEXT` says, so a kubeconfig names
+  `testkit.Plugin.Command` and a test that compares the file found compares `Path`.
 - **Expectations that differ per platform branch on `runtime.GOOS`** (shortcut glyphs, keys).
 
-Not run on Windows: the race detector, the kind, drain and envtest tiers, and the macOS harnesses.
-Lint and GoSec analyse the Linux build, so a file built only for Windows is vetted (`go vet`) but
-not linted.
+Not run on Windows: the race detector, the kind, drain and envtest tiers, the macOS harnesses, and
+the process search's tests of what Windows lacks (command lines, process groups, exec). Lint and
+GoSec analyse the Windows build on Linux, without cgo, so `internal/ui/fyneui`'s Windows file is
+vetted (`go vet`) but not linted ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
 
 ## Performance budgets
 

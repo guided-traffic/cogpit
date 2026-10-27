@@ -1,12 +1,15 @@
 package buildinfo
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // TestTheThreadCheckTag: the Makefile's FYNE_THREAD_CHECKS=off passes FYNE_NOCHECK_TAG,
@@ -37,9 +40,7 @@ func TestTheThreadCheckTag(t *testing.T) {
 	}
 
 	out, err := exec.Command("go", "list", "-m", "-f", "{{.Dir}}", "fyne.io/fyne/v2").Output()
-	if err != nil {
-		t.Skipf("go list -m fyne.io/fyne/v2: %v", err)
-	}
+	prereq.Need(t, err == nil, fmt.Sprintf("the go command to find fyne.io/fyne/v2 (go list -m: %v)", err))
 	b, err := os.ReadFile(filepath.Join(strings.TrimSpace(string(out)), "internal", "build", "build.go"))
 	if err != nil {
 		t.Fatalf("Fyne's build package: %v", err)

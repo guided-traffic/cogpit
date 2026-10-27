@@ -271,6 +271,8 @@ func assertLoopbackOnly(t *testing.T, f engine.Forward) {
 func TestForwardURLReachesTheForward(t *testing.T) {
 	squatter, err := net.Listen("tcp6", "[::1]:0")
 	if err != nil {
+		// A plain skip in CI too: the Linux runners are pods, whose node decides whether they
+		// have IPv6, not the job.
 		t.Skip("no IPv6 loopback:", err)
 	}
 	t.Cleanup(func() { _ = squatter.Close() })

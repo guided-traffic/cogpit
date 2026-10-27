@@ -8,10 +8,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -174,21 +174,9 @@ func TestKubeconfigCommandsAreGUIOnly(t *testing.T) {
 	}
 }
 
-// pluginScript writes an exec credential plugin that marks $COGPIT_TEST_MARKER and prints token.
-func pluginScript(t *testing.T, dir, token string) {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
-	script := "#!/bin/sh\necho ran >> \"$COGPIT_TEST_MARKER\"\n" +
-		`echo '{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + token + `"}}'` + "\n"
-	if err := os.WriteFile(filepath.Join(dir, "cred-plugin"), []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
-}
-
-// pluginKubeconfig is a kubeconfig for srv whose user runs ./cred-plugin (next to the file).
-func pluginKubeconfig(srv *testkit.FakeAPIServer, marker string, args ...string) string {
+// pluginKubeconfig is a kubeconfig for srv whose user runs plugin as ./cred-plugin (next to the
+// file).
+func pluginKubeconfig(srv *testkit.FakeAPIServer, plugin *testkit.Plugin, args ...string) string {
 	return `apiVersion: v1
 kind: Config
 clusters:
@@ -201,28 +189,21 @@ users:
   user:
     exec:
       apiVersion: client.authentication.k8s.io/v1
-      command: ./cred-plugin
+      command: ` + testkit.YAMLQuote("."+string(filepath.Separator)+"cred-plugin") + `
       args: ["` + strings.Join(args, `", "`) + `"]
       interactiveMode: Never
       env:
-      - name: COGPIT_TEST_MARKER
-        value: ` + marker + `
-contexts:
+` + plugin.EnvYAML("      ") + `contexts:
 - name: plugged
   context: {cluster: fake, user: plugin}
 `
 }
 
-func pluginRuns(t *testing.T, marker string) int {
-	t.Helper()
-	data, err := os.ReadFile(marker)
-	if errors.Is(err, os.ErrNotExist) {
-		return 0
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.Count(string(data), "ran")
+// holds reports whether text holds value, as it is or as JSON writes it (a Windows path's
+// backslashes doubled).
+func holds(text, value string) bool {
+	quoted, _ := json.Marshal(value)
+	return strings.Contains(text, value) || strings.Contains(text, strings.Trim(string(quoted), `"`))
 }
 
 // TestExecPluginRunsOnlyOnceAllowed is the H-1 flow on a sync folder: a kubeconfig dropped into it
@@ -235,10 +216,10 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 	defer srv.Close()
 	s, _, audit := sourcesSession(t)
 	folder := t.TempDir()
-	pluginScript(t, folder, sourceToken)
-	marker := filepath.Join(t.TempDir(), "marker")
+	plugin := testkit.NewPluginAt(t, filepath.Join(folder, "cred-plugin"))
+	plugin.Give(sourceToken, time.Time{})
 	kubeconfig := filepath.Join(folder, "team.yaml")
-	if err := os.WriteFile(kubeconfig, []byte(pluginKubeconfig(srv, marker, "get-token", "--cluster", "prod")), 0o600); err != nil {
+	if err := os.WriteFile(kubeconfig, []byte(pluginKubeconfig(srv, plugin, "get-token", "--cluster", "prod")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	before, err := os.ReadFile(kubeconfig)
@@ -264,11 +245,11 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 	for _, origin := range []engine.Origin{engine.OriginExternalAgent, engine.OriginGUI} {
 		res := connect(origin)
 		if res.State != engine.ConnectError || !strings.Contains(res.Error, "which you have not allowed yet") ||
-			!strings.Contains(res.Error, filepath.Join(folder, "cred-plugin")) || strings.Contains(res.Error, marker) {
+			!strings.Contains(res.Error, plugin.Command) || holds(res.Error, plugin.Dir) {
 			t.Fatalf("connect from %s before approval: %+v", origin, res)
 		}
 	}
-	if n := pluginRuns(t, marker); n != 0 {
+	if n := plugin.Runs(); n != 0 {
 		t.Fatalf("the plugin ran %d times before it was allowed", n)
 	}
 
@@ -277,11 +258,11 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 		t.Fatal(err)
 	}
 	if forAgent.State != engine.ExecRequired || forAgent.Plugin == nil || forAgent.Plugin.Args != nil || forAgent.ArgsWithheld != 3 ||
-		forAgent.Plugin.Command != filepath.Join(folder, "cred-plugin") || forAgent.Found != forAgent.Plugin.Command ||
-		!slices.Equal(forAgent.Plugin.EnvNames, []string{"COGPIT_TEST_MARKER"}) {
+		forAgent.Plugin.Command != plugin.Command || forAgent.Found != plugin.Path ||
+		!slices.Equal(forAgent.Plugin.EnvNames, []string{testkit.PluginEnv}) {
 		t.Fatalf("execPlugin for an agent: %+v", forAgent)
 	}
-	if out, _ := json.Marshal(forAgent); strings.Contains(string(out), marker) {
+	if out, _ := json.Marshal(forAgent); holds(string(out), plugin.Dir) {
 		t.Errorf("the plugin's environment value reached the agent: %s", out)
 	}
 	if err := sourcesDispatch(t, s, engine.OriginGUI, "kubeconfig.execPlugin", map[string]string{"context": id}, &forGUI); err != nil {
@@ -308,7 +289,7 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 	if res := connect(engine.OriginExternalAgent); res.State != engine.Connected {
 		t.Fatalf("connect after approval: %+v", res)
 	}
-	runs := pluginRuns(t, marker)
+	runs := plugin.Runs()
 	if runs < 1 {
 		t.Fatal("the allowed plugin did not run")
 	}
@@ -318,7 +299,7 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 	}
 
 	// The arguments change: the approval no longer applies, and nothing runs.
-	if err := os.WriteFile(kubeconfig, []byte(pluginKubeconfig(srv, marker, "get-token", "--cluster", "other")), 0o600); err != nil {
+	if err := os.WriteFile(kubeconfig, []byte(pluginKubeconfig(srv, plugin, "get-token", "--cluster", "other")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	before, _ = os.ReadFile(kubeconfig)
@@ -331,13 +312,13 @@ func TestExecPluginRunsOnlyOnceAllowed(t *testing.T) {
 	if res := connect(engine.OriginGUI); res.State != engine.ConnectError || !strings.Contains(res.Error, "changed since you allowed it") {
 		t.Fatalf("connect after the change: %+v", res)
 	}
-	if n := pluginRuns(t, marker); n != runs {
+	if n := plugin.Runs(); n != runs {
 		t.Fatalf("the changed plugin ran (%d → %d)", runs, n)
 	}
 	if after, _ := os.ReadFile(kubeconfig); !bytes.Equal(before, after) {
 		t.Error("Cogpit wrote the synced kubeconfig")
 	}
-	if strings.Contains(audit.String(), sourceToken) || strings.Contains(audit.String(), marker) {
+	if strings.Contains(audit.String(), sourceToken) || holds(audit.String(), plugin.Dir) {
 		t.Errorf("the audit log carries the token or the plugin's environment:\n%s", audit.String())
 	}
 }

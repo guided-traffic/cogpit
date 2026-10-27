@@ -4,10 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
-	"os"
-	"path/filepath"
-	"runtime"
-	"strings"
 	"testing"
 	"time"
 
@@ -16,27 +12,19 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// countingPlugin is a credential plugin that notes each run in a file and hands out the
-// ExecCredential the test wrote: what the plugin would do, without a browser.
+// countingPlugin is a credential plugin (testkit.Plugin) named login-plugin that hands out the
+// ExecCredential the test gave it: what the plugin would do, without a browser.
 type countingPlugin struct {
+	*testkit.Plugin
 	t     *testing.T
-	runs  string // one line per run
-	cred  string // the ExecCredential it prints
-	path  string // the plugin
+	path  string // the plugin's command
 	kconf string // a kubeconfig of context "held" running it against the fake API server
 }
 
 func newCountingPlugin(t *testing.T, srv *testkit.FakeAPIServer) *countingPlugin {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
-	dir := t.TempDir()
-	p := &countingPlugin{t: t, runs: filepath.Join(dir, "runs"), cred: filepath.Join(dir, "cred.json"), path: filepath.Join(dir, "login-plugin")}
-	script := "#!/bin/sh\necho run >> \"$PLUGIN_RUNS\"\ncat \"$PLUGIN_CRED\"\n"
-	if err := os.WriteFile(p.path, []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	tp := testkit.NewPlugin(t, "login-plugin")
+	p := &countingPlugin{Plugin: tp, t: t, path: tp.Command}
 	p.kconf = writeFile(t, "kubeconfig", `apiVersion: v1
 kind: Config
 current-context: held
@@ -50,14 +38,10 @@ users:
   user:
     exec:
       apiVersion: client.authentication.k8s.io/v1
-      command: `+p.path+`
+      command: `+testkit.YAMLQuote(p.path)+`
       interactiveMode: Never
       env:
-      - name: PLUGIN_RUNS
-        value: `+p.runs+`
-      - name: PLUGIN_CRED
-        value: `+p.cred+`
-contexts:
+`+tp.EnvYAML("      ")+`contexts:
 - name: held
   context: {cluster: fake, user: plugin}
 `)
@@ -68,27 +52,15 @@ contexts:
 // needs a run), else without an expiry.
 func (p *countingPlugin) give(token string, expired bool) {
 	p.t.Helper()
-	status := `"token":"` + token + `"`
+	var exp time.Time
 	if expired {
-		status += `,"expirationTimestamp":"2000-01-01T00:00:00Z"`
+		exp = time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
 	}
-	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{` + status + `}}`
-	if err := os.WriteFile(p.cred, []byte(cred), 0o600); err != nil {
-		p.t.Fatal(err)
-	}
+	p.Give(token, exp)
 }
 
 // count is how often the plugin ran.
-func (p *countingPlugin) count() int {
-	data, err := os.ReadFile(p.runs)
-	if errors.Is(err, os.ErrNotExist) {
-		return 0
-	}
-	if err != nil {
-		p.t.Fatal(err)
-	}
-	return strings.Count(string(data), "run\n")
-}
+func (p *countingPlugin) count() int { return p.Runs() }
 
 func (p *countingPlugin) connect() *Conn {
 	p.t.Helper()

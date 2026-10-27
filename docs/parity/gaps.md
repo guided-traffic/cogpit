@@ -80,7 +80,7 @@ G21) add **~2–6 h**. G19 and G20 are not targets and not counted.
   [D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound)); a `.bat`
   or `.cmd` plugin runs as `cmd.exe`, is not found, and a cancel only stops waiting for it.
 - **Not checked against the real thing:** a forward proxy and a cloud cluster's own CA (1–3 h); an
-  OIDC login program with its browser, cancelled and failing (the tests use scripts that wait).
+  OIDC login program with its browser, cancelled and failing (the tests use a program that waits).
 - **Not captured:** Lens's dialogs for adding kubeconfigs; Cogpit's are inferred.
 - **Security gaps:** [H-4](../security/credentials.md#h-4-auth-provider-token-refresh) (the legacy
   `oidc` provider's refreshed tokens stay in memory, `memoryPersister`; not decided),
@@ -365,8 +365,9 @@ update rows.
 - **Windows proxy:** the Update button reads the feed through Go's HTTP client, which follows
   `HTTPS_PROXY`, not Windows' proxy settings
   ([`winsparkle_windows.go`](../../internal/update/winsparkle_windows.go)).
-- **Windows lint:** golangci-lint and GoSec never see the `_windows.go` files; CI lints on Linux,
-  and on macOS for the darwin-only packages ([`release.yml`](../../.github/workflows/release.yml)).
+- **Windows lint:** golangci-lint and GoSec never see `internal/ui/fyneui`'s Windows file
+  ([`power_windows.go`](../../internal/ui/fyneui/power_windows.go)): its package needs cgo, which
+  their Windows pass runs without ([releasing › Lint and GoSec per system](../developer/releasing.md#lint-and-gosec-per-system)).
 - **Windows, untried:** an install for all users through UAC, PowerShell 7, Windows 10, ARM64.
 - **Estimate:** 20–45 h. **Human:** Authenticode signing material; a person's check of the Linux
   package on a desktop.
@@ -395,9 +396,8 @@ update rows.
 - **Missing:** a reserve for the bugs testers and users report on the way to beta. PhotoCraft's
   first public week brought hundreds of issues on features its tests counted as done. The known
   items below fall within it.
-- **Two tests fail under load:** `TestConnectCommandsAnswerABackgroundConnect` and
-  `TestAConnectBehindARunCogpitCouldNotEndHasNoEnd` fail rarely under a parallel test load and have
-  not failed when run alone; cause not found.
+- **A test fails under load:** `TestConnectCommandsAnswerABackgroundConnect` fails rarely under a
+  parallel test load and has not failed when run alone; cause not found.
 - **`services` answering 401:** on one real cluster `services` alone answered 401 every 5 minutes
   for two hours while every other kind worked; cause not found.
 - **Stray drags reach Fyne's own draggables:** a drag pressed elsewhere and moved onto a list's
@@ -426,6 +426,14 @@ update rows.
   since Fyne's driver applies its unfocus rule on the release as on the press. The YAML editor takes
   the keyboard back (`yamlview.View.DragEnd`); each of Fyne's fields would need a wrapper type or a
   Fyne fix.
+- **A quit can hang or log an error:** Fyne 2.8.2's stop races itself. Its lifecycle queue's last
+  event, the stop hook with the preferences' save, can miss the main loop's last drain and leave the
+  process waiting in `Lifecycle.WaitForEvents` with the window gone; the save also races the
+  preferences' file watch, whose reload can read the file emptied for the write and log
+  `Preferences load error:` (EOF). Under load in the smoke test's container 240 quits hung 3 times
+  and logged it 27 times; the smoke run names both
+  ([D-112](../developer/decisions.md#d-112-ci-and-test-time)), the app has no bound on its quit. The
+  fix belongs in Fyne's driver.
 - **Estimate:** 100–200 h to beta.
 
 ## Beyond Lens

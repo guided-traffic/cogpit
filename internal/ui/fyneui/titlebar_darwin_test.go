@@ -12,6 +12,8 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // terminatedWindow is a window after GLFW terminated: asking for its native handle panics, as
@@ -40,13 +42,10 @@ func TestTitlebarStopAfterTheRunEnded(t *testing.T) {
 // The window buttons sit centred in Cogpit's 40-point top bar, not where AppKit's own title bar
 // has them (owner, 2026-10-13: "too high"), and stay there when AppKit lays the title bar out
 // again: titlebar_darwin.m itself, built with a native harness into a process of its own (a window
-// needs its process's main thread) and run. Their x stays AppKit's. Skipped without clang or a
-// window server.
+// needs its process's main thread) and run. Their x stays AppKit's. Needs clang and a window
+// server.
 func TestTitlebarButtonsCentred(t *testing.T) {
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "titlebar_harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-I.", "-o", bin,
 		filepath.Join("testdata", "titlebar_harness.m"), "titlebar_darwin.m")
@@ -55,9 +54,7 @@ func TestTitlebarButtonsCentred(t *testing.T) {
 	}
 	out, err := exec.Command(bin).Output()
 	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() == 3 {
-		t.Skip("no window buttons: no window server")
-	}
+	prereq.Need(t, !errors.As(err, &exit) || exit.ExitCode() != 3, "a window server (AppKit gave the window no buttons)")
 	if err != nil {
 		t.Fatalf("the harness: %v\n%s", err, out)
 	}

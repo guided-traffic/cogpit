@@ -96,7 +96,7 @@ func DefaultShell() string { return defaultShell(exec.LookPath, isFile) }
 
 // isFile reports whether path is a regular file; Windows has no executable bit to look at.
 func isFile(path string) bool {
-	fi, err := os.Stat(path)
+	fi, err := os.Stat(path) // #nosec G703 -- defaultShell's shells under %SystemRoot%, from Cogpit's own environment; only looked at
 	return err == nil && fi.Mode().IsRegular()
 }
 
@@ -192,7 +192,9 @@ func linkKubectl(kubectl, link string) error {
 		return err
 	}
 	defer func() { _ = src.Close() }()
-	dst, err := os.OpenFile(link, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o700)
+	// Windows runs kubectl.exe by its name; of the mode it keeps only whether the file is read-only.
+	// #nosec G304 -- kubectl.exe in the session's own temporary folder (kubectlFirst), created here.
+	dst, err := os.OpenFile(link, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
 	if err != nil {
 		return err
 	}

@@ -1,132 +1,75 @@
-//go:build darwin || linux
-
 package cluster
 
 import (
 	"context"
 	"errors"
 	"os"
-	"os/exec"
-	"path/filepath"
-	"strconv"
+	"runtime"
+	"runtime/pprof"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"testing"
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// waitingPlugin is a credential plugin that, while its block file exists, waits for ever as a
-// browser login nobody finishes does (a loop of short sleeps, so that its own children never
-// outlive it by more than 100 ms); while its exec file exists, it is a wrapper that replaces itself
-// with /bin/sleep 900 (WF38: its number stays, its command line becomes sleep's); while its stray
-// file exists, it leaves /bin/sleep 900 running with its standard output and exits, so that
-// client-go's run goes on without a process of Cogpit's to end (H-118); otherwise it hands out the
-// ExecCredential the test wrote, after the delay its delay file names. It notes the number of each
-// of its processes, and of each stray sleep; the test's cleanup ends what still runs.
-type waitingPlugin struct {
-	*countingPlugin
-	pids   string
-	strays string
-	block  string
-	exec   string
-	stray  string
-	delay  string
-}
+// waitingPlugin is a countingPlugin whose runs, while it blocks, print a login URL with a code to
+// their standard error and wait as a browser login nobody finishes does; its other modes are
+// testkit.Plugin's: a wrapper that execs (Exec), a run that leaves a child holding its output and
+// exits (Stray, H-118), an answer after a delay (Delay).
+type waitingPlugin struct{ *countingPlugin }
 
 func newWaitingPlugin(t *testing.T, srv *testkit.FakeAPIServer) *waitingPlugin {
 	t.Helper()
-	p := &waitingPlugin{countingPlugin: newCountingPlugin(t, srv)}
-	dir := filepath.Dir(p.path)
-	p.pids, p.strays = filepath.Join(dir, "pids"), filepath.Join(dir, "strays")
-	p.block, p.exec, p.stray, p.delay = filepath.Join(dir, "block"), filepath.Join(dir, "exec"), filepath.Join(dir, "stray"), filepath.Join(dir, "delay")
-	script := `#!/bin/sh
-echo $$ >> "` + p.pids + `"
-echo run >> "$PLUGIN_RUNS"
-if [ -f "` + p.block + `" ]; then
-  echo "Log in at http://127.0.0.1:1/callback?code=secret-code-0042 to continue" >&2
-  while :; do sleep 0.1; done
-fi
-if [ -f "` + p.exec + `" ]; then exec /bin/sleep 900; fi
-if [ -f "` + p.stray + `" ]; then
-  /bin/sleep 900 &
-  echo $! >> "` + p.strays + `"
-  exit 0
-fi
-if [ -f "` + p.delay + `" ]; then sleep "$(cat "` + p.delay + `")"; fi
-cat "$PLUGIN_CRED"
-`
-	if err := os.WriteFile(p.path, []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(p.endLeftovers)
+	p := &waitingPlugin{newCountingPlugin(t, srv)}
+	p.BlockText = "Log in at http://127.0.0.1:1/callback?code=secret-code-0042 to continue\n"
 	return p
 }
 
-// endLeftovers kills what the plugin left running: its processes that are still children of the
-// test's, and its stray sleeps that still run sleep (a number the system gave to another process
-// meanwhile is not hit).
-func (p *waitingPlugin) endLeftovers() {
-	for _, pid := range p.numbers(p.pids) {
-		for _, c := range listChildren() {
-			if c.id.pid == pid {
-				_ = syscall.Kill(pid, syscall.SIGKILL)
+// blocking makes the plugin wait for ever, or answer again.
+func (p *waitingPlugin) blocking(on bool) { p.t.Helper(); p.Block(on) }
+
+// loginBound bounds the runs of the tests that wait for a run's bound: room for the plugin, the
+// test binary (race-enabled in CI's race jobs), to start and note its run before Cogpit ends it.
+const loginBound = 3 * time.Second
+
+// gone reports whether process pid has ended (testkit.ProcessGone).
+func gone(pid int) bool { return testkit.ProcessGone(pid) }
+
+// endChildren kills those of pids that are still children of the test's.
+func endChildren(pids []int) {
+	for _, c := range listChildren() {
+		if slices.Contains(pids, c.id.pid) {
+			if proc, err := os.FindProcess(c.id.pid); err == nil {
+				_ = proc.Kill()
 			}
 		}
 	}
-	for _, pid := range p.numbers(p.strays) {
-		if argv := commandLine(pid); len(argv) == 2 && argv[0] == "/bin/sleep" && argv[1] == "900" {
-			_ = syscall.Kill(pid, syscall.SIGKILL)
+}
+
+// quietSearches waits until no plugin run of an earlier test that is still under way began within
+// searchWindow: a search with such a neighbour may take the neighbour's process for its own.
+func quietSearches(t *testing.T) {
+	t.Helper()
+	for {
+		now := time.Now()
+		var wait time.Duration
+		searches.mu.Lock()
+		for _, o := range searches.recent {
+			if o.ended.IsZero() || o.ended.After(now) {
+				wait = max(wait, searchWindow-now.Sub(o.at))
+			}
 		}
-	}
-}
-
-// mode switches one of the plugin's files on or off.
-func (p *waitingPlugin) mode(file string, on bool) {
-	p.t.Helper()
-	if !on {
-		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
-			p.t.Fatal(err)
+		searches.mu.Unlock()
+		if wait <= 0 {
+			return
 		}
-		return
-	}
-	if err := os.WriteFile(file, nil, 0o600); err != nil {
-		p.t.Fatal(err)
+		time.Sleep(wait)
 	}
 }
-
-// blocking makes the plugin wait for ever, or answer again.
-func (p *waitingPlugin) blocking(on bool) { p.t.Helper(); p.mode(p.block, on) }
-
-// numbers are the process numbers noted in file, oldest first.
-func (p *waitingPlugin) numbers(file string) []int {
-	data, err := os.ReadFile(file) // #nosec G304 -- the test's own file
-	if err != nil {
-		return nil
-	}
-	var out []int
-	for _, f := range strings.Fields(string(data)) {
-		if pid, err := strconv.Atoi(f); err == nil {
-			out = append(out, pid)
-		}
-	}
-	return out
-}
-
-// lastPID is the number of the plugin's latest process; 0 before its first run.
-func (p *waitingPlugin) lastPID() int {
-	pids := p.numbers(p.pids)
-	if len(pids) == 0 {
-		return 0
-	}
-	return pids[len(pids)-1]
-}
-
-// gone reports whether process pid has ended (and was reaped).
-func gone(pid int) bool { return pid > 0 && errors.Is(syscall.Kill(pid, 0), syscall.ESRCH) }
 
 func waitCtx(t *testing.T, d time.Duration) context.Context {
 	t.Helper()
@@ -161,14 +104,14 @@ func TestCancelledConnectEndsThePlugin(t *testing.T) {
 		done <- result{c, err}
 	}()
 	wait := waitCtx(t, 10*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && p.lastPID() != 0 }) {
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && p.LastPID() != 0 }) {
 		t.Fatal("the connect never waited for the plugin")
 	}
 	run, _ := watch.Current()
 	if run.Program != "login-plugin" || run.Until.Sub(run.Since) != DefaultLoginTimeout {
 		t.Errorf("the run under way: %+v, want login-plugin bounded by %s", run, DefaultLoginTimeout)
 	}
-	pid := p.lastPID()
+	pid := p.LastPID()
 
 	cancel()
 	var r result
@@ -221,7 +164,7 @@ func TestLoginTimeoutEndsThePlugin(t *testing.T) {
 	p.blocking(true)
 	var steps []ConnectStep
 	start := time.Now()
-	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{p.kconf}, LoginTimeout: time.Second, // room for a race-enabled binary to start the plugin
+	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{p.kconf}, LoginTimeout: loginBound,
 		Trace: func(s ConnectStep) { steps = append(steps, s) }})
 	if c != nil {
 		c.Close()
@@ -231,13 +174,13 @@ func TestLoginTimeoutEndsThePlugin(t *testing.T) {
 	if !errors.As(err, &ce) || !errors.As(err, &ended) || !ended.TimedOut() {
 		t.Fatalf("the connect: %v, want a timed-out login", err)
 	}
-	if want := "the login through login-plugin did not finish within 1s; Connect starts it again"; ce.Problem != want {
+	if want := "the login through login-plugin did not finish within 3s; Connect starts it again"; ce.Problem != want {
 		t.Errorf("the problem: %q, want %q", ce.Problem, want)
 	}
-	if took := time.Since(start); took > 5*time.Second {
-		t.Errorf("the connect took %s with a bound of 1s", took)
+	if took := time.Since(start); took > loginBound+4*time.Second {
+		t.Errorf("the connect took %s with a bound of %s", took, loginBound)
 	}
-	if pid := p.lastPID(); !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool { return gone(pid) }) {
+	if pid := p.LastPID(); !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool { return gone(pid) }) {
 		t.Fatalf("the plugin's process %d still runs after its bound", pid)
 	}
 	var text strings.Builder
@@ -245,8 +188,8 @@ func TestLoginTimeoutEndsThePlugin(t *testing.T) {
 		text.WriteString(s.Name + ": " + s.Text + "\n")
 	}
 	got := text.String()
-	for _, want := range []string{"login: Login: the login through login-plugin did not finish within 1s; Cogpit ended it",
-		"Class: timeout: the login through login-plugin did not finish within 1s", "Log in at http://127.0.0.1:1/callback"} {
+	for _, want := range []string{"login: Login: the login through login-plugin did not finish within 3s; Cogpit ended it",
+		"Class: timeout: the login through login-plugin did not finish within 3s", "Log in at http://127.0.0.1:1/callback"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the steps lack %q:\n%s", want, got)
 		}
@@ -263,7 +206,7 @@ func TestEndedLoginDoesNotRunAgainUntilLogInAgain(t *testing.T) {
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, true) // expired at once: every request needs a run
-	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{p.kconf}, LoginTimeout: time.Second})
+	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{p.kconf}, LoginTimeout: loginBound})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -320,7 +263,7 @@ func TestCloseEndsARenewalsPlugin(t *testing.T) {
 	if !testkit.WaitFor(wait, func() bool { _, on := c.LoginRun(); return on && p.count() >= 2 }) {
 		t.Fatal("the renewal never ran the plugin")
 	}
-	pid := p.lastPID()
+	pid := p.LastPID()
 	c.Close()
 	select {
 	case err := <-done:
@@ -350,7 +293,7 @@ func TestSharedRunEndsWithTheLastConnection(t *testing.T) {
 	if !testkit.WaitFor(wait, func() bool { _, on := b.LoginRun(); return on && p.count() > base }) {
 		t.Fatal("the shared login never ran")
 	}
-	pid, ends := p.lastPID(), a.loginEndMark()
+	pid, ends := p.LastPID(), a.loginEndMark()
 	if b.CancelLogin() {
 		t.Fatal("one connection's cancel ended a run the other one needs")
 	}
@@ -372,9 +315,7 @@ func TestConnectTimeoutDoesNotCountTheLogin(t *testing.T) {
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, false)
-	if err := os.WriteFile(p.delay, []byte("1.5"), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	p.Delay(1500 * time.Millisecond)
 	var steps []ConnectStep
 	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{p.kconf}, ConnectTimeout: 500 * time.Millisecond,
 		Trace: func(s ConnectStep) { steps = append(steps, s) }})
@@ -388,39 +329,6 @@ func TestConnectTimeoutDoesNotCountTheLogin(t *testing.T) {
 	}
 	if !logged {
 		t.Errorf("no step says how long the login took: %+v", steps)
-	}
-}
-
-// The plugin's process is found among Cogpit's children by its command line, a #! script's too.
-func TestFindPluginByItsCommandLine(t *testing.T) {
-	dir := t.TempDir()
-	script := filepath.Join(dir, "find-me")
-	if err := os.WriteFile(script, []byte("#!/bin/sh\nwhile :; do sleep 0.1; done\n"), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(script, "oidc", "--issuer=https://issuer.example")
-	if err := cmd.Start(); err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
-	want := cmd.Process.Pid
-	if !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool {
-		id, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, nil)
-		return n == 1 && id.pid == want
-	}) {
-		t.Fatalf("the plugin's process %d was not found among %+v", want, listChildren())
-	}
-	if id, n := findPlugin([]string{script, "oidc", "--issuer=https://other.example"}, nil); n != 0 {
-		t.Errorf("another command line found process %d", id.pid)
-	}
-	// A plugin of the same name elsewhere is another context's, or another test's (CI run
-	// 38975936330: a cancel's search ended the next test's plugin).
-	if id, n := findPlugin([]string{filepath.Join(t.TempDir(), "find-me"), "oidc", "--issuer=https://issuer.example"}, nil); n != 0 {
-		t.Errorf("a program of the same name in another folder found process %d", id.pid)
-	}
-	// A process that ran before the run began is not the run's (findPlugin's before).
-	if _, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, childSet()); n != 0 {
-		t.Error("a process older than the run was taken for its plugin")
 	}
 }
 
@@ -460,12 +368,16 @@ func result(t *testing.T, done <-chan connectResult) connectResult {
 // becomes the program's. Cogpit finds it at the run's begin and ends it by its number: the cancel
 // ends the process, and the log says so truthfully.
 func TestCancelEndsAPluginThatExecs(t *testing.T) {
+	if runtime.GOOS == goosWindows {
+		t.Skip("Windows has no exec")
+	}
 	quietSearches(t)
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, false)
-	p.mode(p.exec, true)
+	p.Exec(true)
+	t.Cleanup(func() { endChildren(p.PIDs()) }) // sleep does not end with the test's files
 	var mu sync.Mutex
 	var steps []ConnectStep
 	watch := NewLoginWatch(func() {})
@@ -476,7 +388,7 @@ func TestCancelEndsAPluginThatExecs(t *testing.T) {
 	var pid int
 	if !testkit.WaitFor(wait, func() bool {
 		_, on := watch.Current()
-		pid = p.lastPID()
+		pid = p.LastPID()
 		argv := commandLine(pid)
 		return on && pid != 0 && len(argv) > 0 && argv[0] == "/bin/sleep"
 	}) {
@@ -507,21 +419,41 @@ func TestCancelEndsAPluginThatExecs(t *testing.T) {
 	}
 }
 
-// holdOf is the hold of the Authenticator that runs plugin.
-func holdOf(t *testing.T, plugin string) *pluginHold {
-	t.Helper()
-	patchMu.Lock()
-	defer patchMu.Unlock()
-	for _, h := range holds {
-		h.mu.Lock()
-		match := len(h.command) > 0 && h.command[0] == plugin
-		h.mu.Unlock()
-		if match {
-			return h
+// strayed reports whether p's run left its stray child and its own process ended: no child of the
+// test's has its number any more (listChildren, what Cogpit's search looks at), the state a stray
+// test cancels in. The plugin notes its stray before it exits, and a race-enabled test binary
+// takes a while to exit on a loaded runner: a cancel in that moment found the run's process, said
+// Cogpit ended it and waited for its request as for an ended run (abandonAfter), which the stray
+// child kept going (CI run 40491453904).
+func strayed(p *waitingPlugin) bool {
+	pid := p.LastPID()
+	return pid != 0 && len(p.Strays()) == 1 &&
+		!slices.ContainsFunc(listChildren(), func(c childProcess) bool { return c.id.pid == pid })
+}
+
+// queuedAtPluginLock is how many goroutines wait for the lock of a client-go exec Authenticator
+// (getCreds): requests queued behind a plugin's run, where their contexts no longer reach them.
+func queuedAtPluginLock() int {
+	var dump strings.Builder
+	if err := pprof.Lookup("goroutine").WriteTo(&dump, 2); err != nil {
+		return 0
+	}
+	n := 0
+	for g := range strings.SplitSeq(dump.String(), "\n\n") {
+		if strings.Contains(g, "sync.(*Mutex).Lock") && strings.Contains(g, "exec.(*Authenticator).getCreds") {
+			n++
 		}
 	}
-	t.Fatalf("no hold runs %s", plugin)
-	return nil
+	return n
+}
+
+// waitQueued waits until more requests than before (queuedAtPluginLock) queue behind the plugin's
+// run: a connect's first request there is not taken back by the connect's cancel.
+func waitQueued(t *testing.T, before int) {
+	t.Helper()
+	if !testkit.WaitFor(waitCtx(t, 10*time.Second), func() bool { return queuedAtPluginLock() > before }) {
+		t.Fatalf("the connect's request did not queue behind the run: %d wait at client-go's lock, %d before", queuedAtPluginLock(), before)
+	}
 }
 
 // WF38, parts 1 and 2. A run whose process Cogpit cannot end (the plugin left a child that holds
@@ -535,7 +467,7 @@ func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, false)
-	p.mode(p.stray, true)
+	p.Stray(true)
 	var mu sync.Mutex
 	var steps []ConnectStep
 	watch := NewLoginWatch(func() {})
@@ -543,10 +475,9 @@ func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
 	defer cancel()
 	done := p.connectAsync(ctx, watch, func(s ConnectStep) { mu.Lock(); steps = append(steps, s); mu.Unlock() })
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
-	stray := p.numbers(p.strays)[0]
 
 	cancel()
 	r := result(t, done)
@@ -574,23 +505,26 @@ func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
 	}
 
 	// Two connects whose requests queue behind the stray run, each cancelled.
-	p.mode(p.stray, false)
 	for range 2 {
 		w := NewLoginWatch(func() {})
 		cctx, ccancel := context.WithCancel(context.Background())
+		queued := queuedAtPluginLock()
 		d := p.connectAsync(cctx, w, nil)
 		if !testkit.WaitFor(wait, func() bool { _, on := w.Current(); return on }) {
 			ccancel()
 			t.Fatal("a later connect does not see the run under way")
 		}
-		time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+		waitQueued(t, queued)
 		ccancel()
 		if r := result(t, d); r.err == nil {
 			t.Fatal("a cancelled connect connected")
 		}
 	}
-	hold := holdOf(t, p.path)
-	_ = syscall.Kill(stray, syscall.SIGKILL) // the run ends: the queued requests take the lock
+	// The connect's hold, by its watch: on Windows the tests' plugins of a name are one program
+	// (testkit.Plugin), and every earlier test's hold runs its path too (CI run 40491453904 read
+	// another test's).
+	hold := watch.hold.Load()
+	p.Stray(false) // the stray child ends, and the run with it: the queued requests take the lock
 	refused := func() int { hold.mu.Lock(); defer hold.mu.Unlock(); return hold.notAsked }
 	if !testkit.WaitFor(wait, func() bool { return refused() >= 2 }) {
 		t.Fatalf("the cancelled connects' requests were refused %d times, want 2", refused())
@@ -637,14 +571,14 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, false)
-	p.mode(p.stray, true)
+	p.Stray(true)
 	watch := NewLoginWatch(func() {})
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := p.connectAsync(ctx, watch, nil)
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
 	if run, _ := watch.Current(); run.RunsOn || run.Until.Sub(run.Since) != DefaultLoginTimeout {
 		t.Errorf("the run before the cancel: %+v, want its end after %s", run, DefaultLoginTimeout)
@@ -653,13 +587,13 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	if r := result(t, done); !errors.Is(r.err, ErrLoginCancelled) {
 		t.Fatalf("the cancelled connect: %v, want a cancelled login", r.err)
 	}
-	stray := p.numbers(p.strays)[0]
-	p.mode(p.stray, false)
+	stray := p.Strays()[0]
 
 	var told atomic.Int32
 	later := NewLoginWatch(func() { told.Add(1) })
 	lctx, lcancel := context.WithCancel(context.Background())
 	defer lcancel()
+	queued := queuedAtPluginLock()
 	ldone := p.connectAsync(lctx, later, nil)
 	if !testkit.WaitFor(wait, func() bool { return told.Load() > 0 }) {
 		t.Fatal("the later connect was not told of the run it waits behind")
@@ -668,7 +602,7 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	if !on || run.Program != "login-plugin" || !run.RunsOn || !run.Until.IsZero() {
 		t.Fatalf("the run the later connect waits behind: %+v (under way %v), want login-plugin, RunsOn, no end", run, on)
 	}
-	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+	waitQueued(t, queued)
 	lcancel()
 	r := result(t, ldone)
 	var ce *ConnectError
@@ -682,12 +616,13 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	// A connect behind the run that is not cancelled goes on once the stray child ends: with a run
 	// of its own (the stray run handed out no credential), bounded as any.
 	third := NewLoginWatch(func() {})
+	queued = queuedAtPluginLock()
 	tdone := p.connectAsync(context.Background(), third, nil)
 	if !testkit.WaitFor(wait, func() bool { run, on := third.Current(); return on && run.RunsOn }) {
 		t.Fatal("the third connect does not see the run it waits behind")
 	}
-	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
-	_ = syscall.Kill(stray, syscall.SIGKILL)
+	waitQueued(t, queued)
+	p.Stray(false) // the stray child ends, and the run with it
 	if r := result(t, tdone); r.err != nil {
 		t.Fatalf("the connect behind the run, once it ended: %v", r.err)
 	}
@@ -707,19 +642,19 @@ func TestARunPastItsBoundThatCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	defer srv.Close()
 	p := newWaitingPlugin(t, srv)
 	p.give(secretToken, false)
-	p.mode(p.stray, true)
+	p.Stray(true)
 	var told atomic.Int32
 	watch := NewLoginWatch(func() { told.Add(1) })
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan connectResult, 1)
 	go func() {
-		c, err := Connect(ctx, Options{KubeconfigPaths: []string{p.kconf}, Login: watch, LoginTimeout: time.Second})
+		c, err := Connect(ctx, Options{KubeconfigPaths: []string{p.kconf}, Login: watch, LoginTimeout: loginBound})
 		done <- connectResult{c, err}
 	}()
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.numbers(p.strays)) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
 	begun := told.Load()
 	if !testkit.WaitFor(wait, func() bool { run, _ := watch.Current(); return run.RunsOn }) {

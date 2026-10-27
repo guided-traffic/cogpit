@@ -10,31 +10,24 @@ import (
 	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// execPluginScript writes an exec credential plugin into dir: a shell script that appends a line
-// to the file $COGPIT_TEST_MARKER (so a test sees whether it ran) and prints an ExecCredential
-// with token. It returns the script's path. Windows cannot run it.
-func execPluginScript(t *testing.T, dir, token string) string {
+// execPlugin makes a credential plugin whose program is dir/bin/cred-plugin and that hands out an
+// ExecCredential with token.
+func execPlugin(t *testing.T, dir, token string) *testkit.Plugin {
 	t.Helper()
-	p := filepath.Join(dir, "bin", "cred-plugin")
-	if err := os.MkdirAll(filepath.Dir(p), 0o700); err != nil {
-		t.Fatal(err)
-	}
-	script := "#!/bin/sh\necho ran >> \"$COGPIT_TEST_MARKER\"\n" +
-		`echo '{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + token + `"}}'` + "\n"
-	if err := os.WriteFile(p, []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	p := testkit.NewPluginAt(t, filepath.Join(dir, "bin", "cred-plugin"))
+	p.Give(token, time.Time{})
 	return p
 }
 
-// execKubeconfig is a kubeconfig for srv whose user runs command (relative to the file's folder
-// when it starts with ./) with args, telling it to mark marker.
-func execKubeconfig(srv *testkit.FakeAPIServer, contextName, command, marker string, args ...string) string {
+// execKubeconfig is a kubeconfig for srv whose user runs plugin as command (relative to the file's
+// folder when it starts with ./) with args.
+func execKubeconfig(srv *testkit.FakeAPIServer, contextName, command string, plugin *testkit.Plugin, args ...string) string {
 	quoted := make([]string, len(args))
 	for i, a := range args {
 		quoted[i] = fmt.Sprintf("%q", a)
@@ -51,28 +44,14 @@ users:
   user:
     exec:
       apiVersion: client.authentication.k8s.io/v1
-      command: ` + command + `
+      command: ` + testkit.YAMLQuote(command) + `
       args: [` + strings.Join(quoted, ", ") + `]
       interactiveMode: Never
       env:
-      - name: COGPIT_TEST_MARKER
-        value: ` + marker + `
-contexts:
+` + plugin.EnvYAML("      ") + `contexts:
 - name: ` + contextName + `
   context: {cluster: fake, user: plugin}
 `
-}
-
-func ran(t *testing.T, marker string) int {
-	t.Helper()
-	data, err := os.ReadFile(marker)
-	if errors.Is(err, os.ErrNotExist) {
-		return 0
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.Count(string(data), "ran")
 }
 
 // TestConnectAsksTheExecPolicyBeforeThePluginRuns: a policy that refuses keeps the plugin from
@@ -83,13 +62,12 @@ func TestConnectAsksTheExecPolicyBeforeThePluginRuns(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
 	dir := t.TempDir()
-	script := execPluginScript(t, dir, secretToken)
-	marker := filepath.Join(dir, "marker")
+	plugin := execPlugin(t, dir, secretToken)
 	path := filepath.Join(dir, "kubeconfig")
 	// client-go resolves a command against the kubeconfig's folder when it holds the system's
 	// separator (Windows': a backslash).
 	command := "." + string(filepath.Separator) + filepath.Join("bin", "cred-plugin")
-	if err := os.WriteFile(path, []byte(execKubeconfig(srv, "plugged", command, marker, "--flag", "x")), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(execKubeconfig(srv, "plugged", command, plugin, "--flag", "x")), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -98,8 +76,8 @@ func TestConnectAsksTheExecPolicyBeforeThePluginRuns(t *testing.T) {
 		t.Fatal(err)
 	}
 	listed := in.Exec["plugged"]
-	if listed == nil || listed.Command != script || listed.File != path || listed.Server != srv.URL {
-		t.Fatalf("InspectFile's plugin: %+v (want command %s)", listed, script)
+	if listed == nil || listed.Command != plugin.Command || listed.File != path || listed.Server != srv.URL {
+		t.Fatalf("InspectFile's plugin: %+v (want command %s)", listed, plugin.Command)
 	}
 
 	refusal := errors.New("not allowed in this test")
@@ -110,24 +88,20 @@ func TestConnectAsksTheExecPolicyBeforeThePluginRuns(t *testing.T) {
 	if !errors.As(err, &ce) || !errors.Is(err, refusal) || !strings.Contains(err.Error(), "not allowed in this test") {
 		t.Fatalf("Connect with a refusing policy: %v", err)
 	}
-	if n := ran(t, marker); n != 0 {
+	if n := plugin.Runs(); n != 0 {
 		t.Fatalf("the plugin ran %d times although the policy refused it", n)
 	}
 	if seen == nil || seen.Fingerprint() != listed.Fingerprint() {
 		t.Fatalf("the policy saw %+v, InspectFile listed %+v", seen, listed)
 	}
 
-	// The refusal runs nothing, on Windows too; what follows runs the plugin, a shell script.
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
 	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{path}, Context: "plugged",
 		ExecPolicy: func(*kubeconfig.ExecPlugin) error { return nil }})
 	if err != nil {
 		t.Fatalf("Connect with an allowing policy: %v", err)
 	}
 	defer c.Close()
-	if n := ran(t, marker); n < 1 {
+	if n := plugin.Runs(); n < 1 {
 		t.Fatal("the plugin did not run")
 	}
 

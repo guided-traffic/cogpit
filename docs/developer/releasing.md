@@ -19,27 +19,28 @@ runners (one shared machine) unless the repository variable `LINUX_RUNNER` names
 (`ubuntu-latest`); the macOS and Windows jobs run on GitHub's hosted runners. Every job's setup is
 [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml): Go from `go.mod`, a build
 cache per kind of build (saved by `main`'s pushes only), Fyne's Linux build dependencies installed
-in the background. `GOFLAGS=-count=1` keeps cached test results from passing a gate.
+in the background. `GOFLAGS=-count=1` keeps cached test results from passing a gate, and a missing
+prerequisite fails its test instead of skipping it ([testing › Prerequisites](testing.md#prerequisites)).
 
 | Job | Make target | Runs |
 |---|---|---|
-| Code Linting | `make lint`, `make check-nodemo` | golangci-lint with the team's linters and depguard's layering; the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests |
+| Code Linting | `make lint`, `make check-nodemo` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests |
 | Parity | `make parity` | [`hack/parity`](../../hack/parity/main.go) with `-check` ([parity README](../parity/README.md#make-parity)) |
-| GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out |
+| GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out, for Linux and Windows |
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
 | Cyclomatic Complexity | `make cyclo` | gocyclo over `cmd`, `internal`, `hack`, `third_party`; fails above `CYCLO_THRESHOLD` |
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
-| Race Tests (UI n/8) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=8` | `internal/ui/fyneui` under the race detector without its render tests, one shard of eight (hack/shard: a test's shard is a hash of its name) |
-| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job) |
+| Race Tests (UI n/5) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=5` | `internal/ui/fyneui` under the race detector without its render tests, one shard of five, balanced by the tests' measured time ([the UI's shards](#the-uis-shards)) |
+| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job); zsh and fish installed for the terminal's shell tests, beside the image's bash, `perl` and `stty` |
 | Integration Tests (kind) | `make kind-up`, `make test-kind` | the cluster tests (`TestKind*`, tag `kind`) on a kind cluster created while they compile; the add-on stacks' tests are skipped (`KIND_ADDONS=1` runs them) |
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
-| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector |
-| macOS Lint and App | `make lint LINT_PKGS=…`, `make app` | lint of the packages with darwin-only files; the app bundle |
-| Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector |
+| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh, bash and `perl` |
+| macOS Lint and App | `make lint-darwin gosec-darwin`, `make dist-app VERSION=0.0.1` | lint and gosec of the packages with darwin-only files; the app bundle as releases build it, not started ([the smoke test](#the-smoke-test)) |
+| Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector; WinSparkle.dll fetched, beside Windows PowerShell, `ping` and MSYS2's `sh` |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |
-| Linux Package | `make dist-linux`, `make test-linux-package` | the `.deb` as releases build it, lintian, the APT repository's scripts end to end with a throwaway key |
-| Windows Package | `make dist-windows`, `make test-windows-package` | the setup as releases build it, a silent install and uninstall for the runner's user |
+| Linux Package | `make dist-linux`, `make smoke`, `make test-linux-package` | the `.deb` as releases build it, its app started once ([the smoke test](#the-smoke-test)), lintian, the APT repository's scripts end to end with a throwaway key |
+| Windows Package | `make dist-windows`, `make test-windows-package WINDOWS_SMOKE=on` | the setup as releases build it, a silent install for the runner's user, the installed app started once ([the smoke test](#the-smoke-test)), an install over it and an uninstall |
 | Combined Coverage Report | `make coverage-report` | merges every job's profile |
 | Semantic Release | – | needs every job above; publishes the release ([release flow](#release-flow)) |
 
@@ -55,22 +56,116 @@ the README's badge (≥ 90 % brightgreen, ≥ 80 % green, ≥ 70 % yellow, ≥ 6
 which Semantic Release commits with the release. Two runs of `main` differ by a few dozen
 statements that only some runs reach (a cancellation, a retry): no change of coverage.
 
+### The UI's shards
+
+`internal/ui/fyneui`'s tests run as [`hack/shard`](../../hack/shard/main.go)'s shards, each a
+process of its own: CI's five race shards, the render tests' four in the no-race job, Windows' four,
+and locally `make test-ui` and `test-ui-race` in `UI_SHARDS` (eight). Every split is balanced by the
+tests' measured time in [`hack/shard/durations`](../../hack/shard/durations/): `fyneui-race.txt`
+under the race detector with coverage, as the race shards run, and `fyneui.txt` without it. The
+tests go longest first to the shard with the least time so far; a test a file lacks goes by a hash
+of its name, so a new test needs no change to a file or the workflow. A race shard's log names its
+share (`shard: <n> of <all> tests in shard 2 of 5, <seconds> s by hack/shard/durations/fyneui-race.txt`)
+and how many of its tests the file lacks.
+
+```sh
+go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -skip '^TestRender' \
+  -durations hack/shard/durations/fyneui-race.txt -of 5 -summary   # each race shard's tests and time
+make ui-durations                                                   # measure every test again, both files
+```
+
+`make ui-durations` runs every test of the package in `UI_SHARDS` shards, under the race detector
+with coverage and then without it, and rewrites both files from what `go test -json` reports; it
+writes nothing when a test fails. Refresh them, and commit both, when the shards' times drift apart.
+Why five race shards, and why each compiles its own test binary:
+[D-112](decisions.md#d-112-ci-and-test-time).
+
 ### Cyclomatic complexity
 
 `CYCLO_THRESHOLD` is a ratchet (the owner's decision): a change that makes the most complex function
 simpler lowers it to the new maximum in the same commit (`make cyclo-report` shows it); no
 refactoring of its own for it.
 
+### Lint and GoSec per system
+
+golangci-lint and gosec analyse the build of one system, so each system's own files get a run of
+their own. A system's packages are those with a file named for it (`*_windows.go`, `*_darwin.go`,
+with `_test` or an architecture after the name; the [convention](conventions.md#style)), found by
+the Makefile at each run.
+
+| Build | Packages | Make targets | Job |
+|---|---|---|---|
+| Linux, with cgo | all | `make lint`, `make gosec` (first pass) | Code Linting, GoSec Security Scan |
+| Windows, without cgo | those with Windows files but `internal/ui/fyneui` | `make lint`, `make gosec` (second pass) | Code Linting, GoSec Security Scan |
+| macOS, with cgo | those with darwin-only files | `make lint-darwin`, `make gosec-darwin` | macOS Lint and App |
+
+`internal/ui/fyneui`'s Windows file, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go),
+is vetted by Unit Tests (windows) and neither linted nor scanned: its package needs cgo for Fyne
+([D-112](decisions.md#d-112-ci-and-test-time)). The patched terminal widget, a module of its own
+([`third_party/fyne-terminal`](../../third_party/fyne-terminal/PATCHES.md)), is in none of these
+runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](../../.golangci.yml)
+`issues`).
+
+### The smoke test
+
+`make smoke` ([`hack/smoke.sh`](../../hack/smoke.sh)) starts the app's binary `SMOKE_BIN` once with
+`--smoke SMOKE_BOUND` (`2m` # default; [usage › flags](usage.md#cogpit-flags)): the window with the
+real GL driver, in a home of its own, until it drew its first frame; then the app quits. The run
+fails on a logged error (a record at level ERROR, or a line of Fyne's errors), on a window without a
+GL surface, after the bound, and when Cogpit does not quit within 15 s of the frame
+(`smokeQuitGrace`). A failed run says how far its reads of the frame got (how many, from where, what
+the last one held); a run the watchdog ends also shows the main goroutine's stack, and on Linux the
+script shows Xvfb's output. CI runs it on what a release ships: Linux Package on `dist-linux`'s
+`bin/cogpit`, Windows Package on the `cogpit.exe` the setup installed
+(`test-windows-package WINDOWS_SMOKE=on`, [`setup-test.sh`](../../hack/windows/setup-test.sh)).
+
+- **A drawn frame:** the frame the window presented holds more than one colour. On X11 the run reads
+  it where the X server holds it (`XGetImage` on the window,
+  [`smoke_linux.go`](../../internal/ui/fyneui/smoke_linux.go)), elsewhere back from the GL driver's
+  front buffer (Fyne's `Capture`): under Xvfb, Mesa's llvmpipe presents a desktop GL window's back
+  buffer to the X window and leaves its front buffer empty, so that Fyne's desktop GL build (amd64)
+  reads one colour there whatever was drawn; its GLES build (arm64) reads the frame.
+- **Fyne's quit:** two races in Fyne 2.8.2's stop are named in the verdict and not counted: its save
+  of the preferences at the stop against its watch of their file, which can read the file between
+  its truncation and its write (`Preferences load error:` after the frame), and its lifecycle
+  queue's last event against the main loop's last drain, which leaves the quit waiting for good (the
+  watchdog finds both goroutines' stacks waiting there). Any other error or hang while quitting
+  fails the run.
+- **The run's home** is a folder in a temporary folder of the script's, which it removes once the
+  app ended: `HOME`, the configuration and cache folders and `$KUBECONFIG` point there; Helm's
+  variables and a pod's in-cluster ones are removed.
+- **Linux:** where the caller has none, the script supplies what a desktop session gives: an X
+  server in memory (`xvfb-run`, a 1920×1200 screen of 24 bits), a D-Bus session bus
+  (`dbus-run-session`; without one Fyne logs an error for its theme watch) and `XDG_RUNTIME_DIR`.
+  CI installs `xvfb`, `xauth` and `dbus`; the window's frame is read through `libX11`, which the
+  binary links for GLFW already.
+- **Windows:** GitHub's runners have no OpenGL 2.1 driver, Fyne's minimum; Mesa's `opengl32.dll`
+  and `libgallium_wgl.dll` (the llvmpipe driver, `make mesa`: pinned by `MESA_VERSION` and
+  `MESA_SHA256`, [`mesa.sh`](../../hack/windows/mesa.sh), unpacked with MSYS2's `p7zip`) lie beside
+  the binary for the run, the first place Windows looks for them. The release pipeline's Windows job
+  runs `test-windows-package` without it: that job ships the setup it builds, and Mesa is a
+  third-party binary Renovate merges on its own.
+- **macOS:** by hand only (`make smoke` on `bin/cogpit`, or after `make dist-app` with
+  `SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit`): GLFW asks NSOpenGL for an accelerated pixel
+  format only, which GitHub's macOS VMs do not offer
+  (`NSGL: Failed to find a suitable pixel format`, then a panic in `glfw.CreateWindow`), so macOS
+  Lint and App builds the bundle and does not start it.
+- **Not covered:** the GPU drivers users have (Linux and Windows draw in software here), the macOS
+  app in CI, what Cogpit does between the first frame and its quit, and the release pipeline's own
+  builds (they come from the same commit).
+
 ### Running a job locally
 
 ```sh
 make lint check-nodemo parity gosec vuln cyclo
 make test-norace-coverage                      # what the race build skips, and the UI's render tests
-make test-race-ui RACE_SHARD=3 RACE_SHARDS=8   # one shard; make test-ui-race runs all eight in parallel
+make test-race-ui RACE_SHARD=3 RACE_SHARDS=5   # one shard; make test-ui-race runs every UI test in UI_SHARDS shards
 make test-race-rest
 make kind-up && make test-kind                 # the cluster tests; make kind-down after
 make test-envtest                              # fetches the pinned binaries first
 make test-darwin                               # macOS only
+make lint-darwin gosec-darwin                  # macOS only
+make smoke                                     # bin/cogpit once, its window until the first frame
 make coverage-report                           # merges what is in .cache/coverage
 ```
 
@@ -94,7 +189,9 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
 - Sparkle and WinSparkle are pinned in the Makefile by release tag and SHA-256 (`SPARKLE_VERSION`,
   `SPARKLE_SHA256`, `WINSPARKLE_TAG`, `WINSPARKLE_SHA256`) under a
   `# renovate: datasource=github-release-attachments` comment; Renovate's pull request updates both
-  lines. Neither merges on its own: their code installs Cogpit's updates.
+  lines. Neither merges on its own: their code installs Cogpit's updates. Mesa, the Windows smoke
+  test's software OpenGL (`MESA_VERSION`, `MESA_SHA256`), is pinned the same way and merges on its
+  own once CI passes, a major version after review: it runs in CI only.
 - The node shell's and the debug container's default images (`DefaultNodeShellImage` in
   [`nodeshell.go`](../../internal/engine/nodeshell.go), `DefaultDebugImage` in
   [`debugcontainer.go`](../../internal/engine/debugcontainer.go)), pinned by tag and digest, have
@@ -583,7 +680,8 @@ uninstall entry `…\Uninstall\io.guided-traffic.cogpit` (HKCU, or HKLM's 64-bit
 running `cogpit.exe` to quit (silently up to a minute, then it fails; interactively it asks), moves
 a running `cogpit-cli.exe` aside, and with `/relaunch` starts Cogpit as the desktop's user.
 `make test-windows-package` ([`setup-test.sh`](../../hack/windows/setup-test.sh); CI's job Windows
-Package, [CI](#ci)) installs a setup silently into a folder of its own, checks it, installs it again
+Package, [CI](#ci)) installs a setup silently into a folder of its own, checks it, starts the
+installed app once with `WINDOWS_SMOKE=on` ([the smoke test](#the-smoke-test)), installs it again
 over itself and uninstalls it; it refuses to run where Cogpit is installed for the user.
 
 **The feed** `https://guided-traffic.github.io/cogpit/appcast-windows.xml` sits beside

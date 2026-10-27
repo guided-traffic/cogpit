@@ -59,10 +59,10 @@ has no account, login or cloud service of its own.
   Authenticator's `interactiveFunc`) and sends that process alone SIGTERM, then SIGKILL after 3 s
   (TerminateProcess on Windows), never Cogpit's process group or a browser the plugin opened
   ([`loginrun.go`](../../internal/cluster/loginrun.go),
-  [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin`,
-  `TestLoginTimeoutEndsThePlugin`, `TestCancelEndsAPluginThatExecs`). No run of it starts again until
-  the user connects or logs in again; what stays running:
-  [H-118](#h-118-what-a-cancelled-login-leaves-running).
+  [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin` and
+  `TestLoginTimeoutEndsThePlugin` on macOS, Linux and Windows, `TestCancelEndsAPluginThatExecs` on
+  macOS and Linux). No run of it starts again until the user connects or logs in again; what stays
+  running: [H-118](#h-118-what-a-cancelled-login-leaves-running).
 - A cluster not shown whose setting "Renew the login while the cluster is not shown" is off holds its
   plugin: the wrapper refuses before client-go builds the command, and an expiring login lapses until
   the cluster is shown or the user logs in again
@@ -372,7 +372,10 @@ Secrets are data the user's identity may read, handled with the care of Cogpit's
   transient types, which clipboard managers that honour them neither show nor record, and kept on
   this Mac, out of Universal Clipboard (`NSPasteboardContentsCurrentHostOnly`,
   [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m);
-  `TestSecretCopyGoesThroughTheConcealedClipboard` covers the routing, the AppKit side has no test).
+  `TestSecretCopyGoesThroughTheConcealedClipboard` the routing,
+  `TestConcealedClipboardMarkedForThisMacOnly` the AppKit side: the whole value beside both types on
+  the pasteboard, in contents prepared with that option, which AppKit reads back nowhere, so the
+  harness records the call).
   Copying has no command (`TestCopyHasNoCommand`); a copy or Show writes no audit line, and an
   agent's `secret.reveal` is refused and audited without a value (`TestRevealIsGUIOnly`); an agent
   sees a binary value's "Copy as base64" action in `object_get` and is refused as for Show. What

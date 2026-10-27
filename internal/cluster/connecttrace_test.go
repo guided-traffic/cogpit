@@ -8,8 +8,6 @@ import (
 	"net"
 	"net/url"
 	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -239,23 +237,18 @@ const (
 	envSecret      = "env-secret-value-0815"
 )
 
-// stderrPlugin writes a plugin that prints a credential-like text to its standard error, a token to
+// stderrPlugin makes a plugin that prints a credential-like text to its standard error, stdout to
 // its standard output, and exits with code.
-func stderrPlugin(t *testing.T, dir string, stderrText string, code int, stdout string) string {
+func stderrPlugin(t *testing.T, stderrText string, code int, stdout string) *testkit.Plugin {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
-	p := filepath.Join(dir, "login-plugin")
-	script := "#!/bin/sh\ncat >&2 <<'EOF'\n" + stderrText + "\nEOF\necho '" + stdout + "'\nexit " + string(rune('0'+code)) + "\n"
-	if err := os.WriteFile(p, []byte(script), 0o700); err != nil {
-		t.Fatal(err)
-	}
+	p := testkit.NewPlugin(t, "login-plugin")
+	p.Output(stdout+"\n", stderrText+"\n", code)
 	return p
 }
 
-// stderrKubeconfig runs plugin for srv with envSecret in its environment.
-func stderrKubeconfig(srv *testkit.FakeAPIServer, plugin string) string {
+// stderrKubeconfig runs plugin for srv, as command (its path, or its name looked up on PATH), with
+// envSecret in its environment.
+func stderrKubeconfig(srv *testkit.FakeAPIServer, command string, plugin *testkit.Plugin) string {
 	return `apiVersion: v1
 kind: Config
 current-context: plug
@@ -269,12 +262,12 @@ users:
   user:
     exec:
       apiVersion: client.authentication.k8s.io/v1
-      command: ` + plugin + `
+      command: ` + testkit.YAMLQuote(command) + `
       interactiveMode: Never
       env:
       - name: LOGIN_SECRET
         value: ` + envSecret + `
-contexts:
+` + plugin.EnvYAML("      ") + `contexts:
 - name: plug
   context: {cluster: fake, user: plugin}
 `
@@ -283,14 +276,13 @@ contexts:
 func TestPluginStderrOnFailureIsScrubbed(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
-	dir := t.TempDir()
 	stderr := "error: login failed for alice\n" +
 		"token " + stderrJWT + " was rejected\n" +
 		"open https://idp.example/authorize?code=" + stderrCode + "&state=x to retry\n" +
 		"password=" + stderrPassword + " session " + stderrOpaque + "\n" +
 		"the kubeconfig gave " + envSecret
-	plugin := stderrPlugin(t, dir, stderr, 1, stdoutToken)
-	log, _, err := traceConnect(t, writeFile(t, "kubeconfig", stderrKubeconfig(srv, plugin)))
+	plugin := stderrPlugin(t, stderr, 1, stdoutToken)
+	log, _, err := traceConnect(t, writeFile(t, "kubeconfig", stderrKubeconfig(srv, plugin.Command, plugin)))
 	if err == nil {
 		t.Fatal("connected with a plugin that failed")
 	}
@@ -301,7 +293,7 @@ func TestPluginStderrOnFailureIsScrubbed(t *testing.T) {
 	text := log.text()
 	for _, want := range []string{
 		"login: Login: credential plugin login-plugin (runs without an approval, as kubectl runs it)",
-		"error: Class: the credential plugin failed: exec: executable " + plugin + " failed with exit code 1",
+		"error: Class: the credential plugin failed: exec: executable " + plugin.Command + " failed with exit code 1",
 		"plugin: The credential plugin's standard error (scrubbed, at most 4 KiB):",
 		"plugin:   error: login failed for alice",
 		"plugin:   token ••• was rejected",
@@ -325,10 +317,9 @@ func TestPluginStderrOnFailureIsScrubbed(t *testing.T) {
 func TestPluginStderrOfASuccessfulRunIsNotKept(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
-	dir := t.TempDir()
 	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + secretToken + `"}}`
-	plugin := stderrPlugin(t, dir, "note: SUCCESS-STDERR-0042 refreshed", 0, cred)
-	log, c, err := traceConnect(t, writeFile(t, "kubeconfig", stderrKubeconfig(srv, plugin)))
+	plugin := stderrPlugin(t, "note: SUCCESS-STDERR-0042 refreshed", 0, cred)
+	log, c, err := traceConnect(t, writeFile(t, "kubeconfig", stderrKubeconfig(srv, plugin.Command, plugin)))
 	if err != nil {
 		t.Fatal(err)
 	}

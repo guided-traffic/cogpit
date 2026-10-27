@@ -50,6 +50,11 @@ type Options struct {
 	PerfDuration time.Duration
 	// PerfMode, with PerfReport, picks the measurement: PerfScroll (the default) or PerfGate.
 	PerfMode string
+	// Smoke, when set, makes the run a smoke test (cogpit --smoke, D-112; smoke.go): Run reads the
+	// window's presented frame (on X11 the X server's copy, else the GL driver's front buffer) and
+	// hands Smoke each read, until one holds a drawn window or there is no frame to read; then it
+	// quits. The caller bounds the wait.
+	Smoke func(SmokeFrame)
 	// Theme picks the palette for the run (--theme), over the Preferences' theme; empty: the
 	// Preferences' theme, ThemeDark without one.
 	Theme ThemeMode
@@ -284,6 +289,9 @@ func Run(s *engine.Session, opts Options) error {
 	sh.startConnectionHints() // macOS's wake and network changes check the connection at once (D-58)
 	if opts.PerfReport != nil {
 		sh.startPerf()
+	}
+	if opts.Smoke != nil {
+		sh.startSmoke()
 	}
 	// Ctrl+C or SIGTERM quits the way closing the window does, so the caller's cleanup runs (the
 	// MCP token file is removed, the informers stop) instead of the process ending mid-way.

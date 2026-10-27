@@ -108,6 +108,9 @@ holds on every platform CI runs ([testing › Asynchronous results](testing.md#a
 - `gofmt` and `goimports` through `make fmt`; golangci-lint with the team's linter set (errcheck,
   govet, ineffassign, staticcheck, unused, misspell, unconvert, unparam, goconst, prealloc, revive)
   plus `depguard` for the layering.
+- A file for one system only is named for it (`*_darwin.go`, `*_windows.go`, `*_linux.go`, with
+  `_test` or an architecture after the name): lint and GoSec find the packages they analyse for
+  Windows and macOS by these names ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
 - Doc comments on every exported identifier (revive's `exported` rule). Comments explain *why*.
 - Names: packages short and lowercase (`cache`, `engine`); command ids `<kind-or-area>.<action>` in
   lowerCamelCase segments (`deployment.restart`, `helm.release.rollback`), their MCP tool names with

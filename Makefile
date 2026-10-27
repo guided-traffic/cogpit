@@ -1,9 +1,10 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, on macOS test-darwin and lint with app, dist-linux with
-# test-linux-package, and on Windows test-windows-unit, test-windows-ui and dist-windows with
-# test-windows-package (docs/developer/releasing.md#ci).
+# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with
+# dist-app, dist-linux with smoke and test-linux-package, and on Windows test-windows-unit,
+# test-windows-ui and dist-windows with test-windows-package WINDOWS_SMOKE=on, the installed app's
+# smoke test (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -113,25 +114,27 @@ test: test-unit-race ## All tests that need no cluster (race detector on); test-
 
 # The UI's package (internal/ui/fyneui) holds most of the tests' time, and its tests cannot run in
 # parallel within one process (one Fyne app at a time), so the local targets run it as hack/shard's
-# shards, each a go test run of its own, UI_JOBS at once (D-112): compiled once, then RACE_SHARDS shards,
-# whose results Go's test cache keeps.
+# shards, each a go test run of its own, UI_JOBS at once (D-112): compiled once, then UI_SHARDS shards
+# balanced by the tests' measured time (UI_DURATIONS, UI_RACE_DURATIONS; make ui-durations), whose
+# results Go's test cache keeps.
 # One process for the whole package took 344 s and 15.6 GB without the race detector (an M1 Ultra,
 # 2026-10-21; Fyne parses its fonts again for every test's app and go-text keeps every parsed face);
 # eight at once take about a fifth of the time. UI_JOBS empty: half the CPUs, and no more shards at
 # once than three quarters of the memory holds (about 3 GB a shard, 8 GB under the race detector).
 UI_JOBS         ?=
-UI_SHARD_RUN     = $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(RACE_SHARDS) -exec $(if $(UI_JOBS),-jobs $(UI_JOBS))
+UI_SHARDS       ?= 8
+UI_SHARD_RUN     = $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(UI_SHARDS) -exec $(if $(UI_JOBS),-jobs $(UI_JOBS))
 NOT_UI_PKGS      = $$($(GO) list ./... | grep -v -x -e 'github.com/guided-traffic/cogpit/internal/ui/fyneui')
 
-.PHONY: test-ui test-ui-race
+.PHONY: test-ui test-ui-race ui-durations
 
 # Both halves run, and the target fails at the end if either failed, as go test ./... reports every
 # package.
 test-unit: ## Unit tests without the race detector, the UI's package in parallel shards (UI_JOBS)
-	$(TEST_ENV) $(GO) test $(NOT_UI_PKGS); s=$$?; $(TEST_ENV) $(UI_SHARD_RUN) && exit $$s
+	$(TEST_ENV) $(GO) test $(NOT_UI_PKGS); s=$$?; $(TEST_ENV) $(UI_SHARD_RUN) -durations $(UI_DURATIONS) && exit $$s
 
-test-ui: ## internal/ui/fyneui's tests without the race detector, RACE_SHARDS shards, UI_JOBS at once
-	$(TEST_ENV) $(UI_SHARD_RUN)
+test-ui: ## internal/ui/fyneui's tests without the race detector, UI_SHARDS shards, UI_JOBS at once
+	$(TEST_ENV) $(UI_SHARD_RUN) -durations $(UI_DURATIONS)
 
 # The race detector makes the UI's tests (internal/ui/fyneui) take about 18 minutes in one process
 # (night run 2026-10-13) and more than 25 on CI's macOS runner; RACE_TIMEOUT bounds a package
@@ -140,10 +143,21 @@ RACE_TIMEOUT ?= 40m
 
 test-unit-race: test-fork ## Unit tests with the race detector, the terminal widget's included, the UI's package in parallel shards (UI_JOBS)
 	$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) $(NOT_UI_PKGS); s=$$?; \
-		$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) && exit $$s
+		$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -durations $(UI_RACE_DURATIONS) && exit $$s
 
-test-ui-race: ## internal/ui/fyneui's tests with the race detector, RACE_SHARDS shards, UI_JOBS at once
-	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT)
+test-ui-race: ## internal/ui/fyneui's tests with the race detector, UI_SHARDS shards, UI_JOBS at once
+	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -durations $(UI_RACE_DURATIONS)
+
+# The files that balance the UI's shards (hack/shard -durations): each test's seconds in its shard's
+# process, under the race detector with coverage as CI's race shards run it (UI_RACE_DURATIONS) and
+# without it (UI_DURATIONS), measured on this machine in UI_SHARDS shards. A test the files lack goes
+# to a shard by its name's hash, so they need a refresh only when the shards' times drift apart
+# (hack/shard -summary -durations sums each shard): make ui-durations, then commit both files.
+ui-durations: ## Measure internal/ui/fyneui's tests with and without the race detector into the files that balance the shards (UI_RACE_DURATIONS, UI_DURATIONS)
+	@mkdir -p $(CACHE)/durations
+	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -coverdir $(CACHE)/durations -covername race \
+		$(if $(wildcard $(UI_RACE_DURATIONS)),-durations $(UI_RACE_DURATIONS)) -record $(UI_RACE_DURATIONS)
+	$(TEST_ENV) $(UI_SHARD_RUN) $(if $(wildcard $(UI_DURATIONS)),-durations $(UI_DURATIONS)) -record $(UI_DURATIONS)
 
 # The patched terminal widget (third_party/fyne-terminal, D-14) is a module of its own, which
 # go test ./... from the root leaves out: its tests and fuzz seeds run here, all of them under the
@@ -212,7 +226,8 @@ test-norace-coverage: ## The tests the race detector keeps from running and the 
 	@mkdir -p $(COVERAGE_DIR)
 	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=set -coverprofile=$(COVERAGE_DIR)/unit-logo.out ./internal/ui/logo
 	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -run '$(UI_RENDER_TESTS)' -of $(UI_RENDER_SHARDS) -exec \
-		-timeout $(UNIT_TIMEOUT) -coverdir $(COVERAGE_DIR) -covername unit-render $(if $(UI_JOBS),-jobs $(UI_JOBS))
+		-durations $(UI_DURATIONS) -timeout $(UNIT_TIMEOUT) -coverdir $(COVERAGE_DIR) -covername unit-render \
+		$(if $(UI_JOBS),-jobs $(UI_JOBS))
 	$(GO) run ./hack/shard -norace -pkg ./... > $(NORACE_LIST)
 	@while read -r pkg run; do \
 		name=$$(echo "$$pkg" | sed -e 's|^github.com/guided-traffic/cogpit/||' -e 's|/|-|g'); \
@@ -221,24 +236,28 @@ test-norace-coverage: ## The tests the race detector keeps from running and the 
 			-coverprofile=$(COVERAGE_DIR)/unit-$$name.out -run "$$run" $$pkg || exit 1; \
 	done < $(NORACE_LIST)
 
-# The UI's race tests in RACE_SHARDS shards: hack/shard assigns each test of internal/ui/fyneui to a
-# shard by a hash of its name, so a new test lands in one without a change here or in CI. The
-# number of shards is CI's (release.yml's matrix); locally any shard runs alone. The render tests
-# (UI_RENDER_TESTS) are left out before the split, so the others keep their shards: each paints a
-# scene with Fyne's software painter, pure Go on the test's goroutine, which the race detector
+# The UI's race tests in RACE_SHARDS shards, CI's race-ui jobs (release.yml's matrix; five, D-112);
+# locally any shard runs alone. hack/shard balances the tests of internal/ui/fyneui by their time
+# under the race detector (UI_RACE_DURATIONS) and places a test the file lacks by a hash of its
+# name, so a new test lands in a shard without a change here or in CI. The render tests
+# (UI_RENDER_TESTS) are left out before the split, the others balanced among themselves: each paints
+# a scene with Fyne's software painter, pure Go on the test's goroutine, which the race detector
 # instruments access by access, so that under it they took two thirds of the shards' time (1,411 of
 # 2,111 s for 262 of 1,139 tests, an M1 Ultra, 2026-10-27). A race only a render test reaches goes
 # unseen, a risk the behaviour tests keep small: they drive the same widgets under the race
 # detector. test-norace-coverage runs the render tests without it, with coverage, and Windows' UI
 # job with every other test.
-UI_PKG          := ./internal/ui/fyneui
-UI_RENDER_TESTS := ^TestRender
-RACE_SHARDS     ?= 8
-RACE_SHARD      ?= 1
+UI_PKG            := ./internal/ui/fyneui
+UI_RENDER_TESTS   := ^TestRender
+UI_DURATIONS      := hack/shard/durations/fyneui.txt
+UI_RACE_DURATIONS := hack/shard/durations/fyneui-race.txt
+RACE_SHARDS       ?= 5
+RACE_SHARD        ?= 1
 
 test-race-ui: ## Race tests of internal/ui/fyneui but its render tests, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
 	@mkdir -p $(COVERAGE_DIR)
-	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
+	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -durations $(UI_RACE_DURATIONS) \
+		-shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
 		echo "$(GO) test -race $(UI_PKG) -run <shard $(RACE_SHARD) of $(RACE_SHARDS)>" && \
 		$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) -covermode=atomic \
 			-coverprofile=$(COVERAGE_DIR)/race-ui-$(RACE_SHARD).out -run "$$run" $(UI_PKG)
@@ -257,10 +276,10 @@ test-race-rest: test-fork ## Race tests of every package but internal/ui/fyneui 
 # expectations branch on runtime.GOOS for macOS (DARWIN_GOOS_TESTS: its keys and shortcut glyphs),
 # and what macOS runs its own way beneath the window, which the Linux jobs test on Linux only
 # (DARWIN_UNIX_FILES): every test of internal/terminal (the local shell's PTY, its kubectl bindings
-# for zsh and bash, and fish where it is installed) and of internal/cluster (a credential plugin's
-# process search, pluginproc_darwin.go, and the login's run and end above it), and the engine's
-# waits for a login. One go test run with one pattern, so that tests run while other packages
-# compile: a test of another package listed that has one of these names runs too.
+# for zsh, bash and fish) and of internal/cluster (a credential plugin's process search,
+# pluginproc_darwin.go, and the login's run and end above it), and the engine's waits for a login.
+# One go test run with one pattern, so that tests run while other packages compile: a test of
+# another package listed that has one of these names runs too. CI's job installs fish first.
 DARWIN_TEST_FILES = $(shell find cmd internal -name '*_darwin_test.go')
 DARWIN_GOOS_TESTS := TestTitleHistoryArrows TestTabShortcuts TestRegistryShortcutsDoNotCollide TestClickModifiers \
 	TestRootRowGearOpensClusterSettings TestHelpAndWindowMenus TestTerminalCopyAndPaste
@@ -304,11 +323,12 @@ $(GOVULNCHECK): $(call tool_stamp,govulncheck,$(GOVULNCHECK_VERSION))
 vuln: $(GOVULNCHECK) ## govulncheck: known vulnerabilities in the code paths Cogpit calls
 	$(GOVULNCHECK) ./...
 
-# gosec through golangci-lint (the same build of it as lint), the shipped code only; an accepted
-# finding is excluded in .golangci.yml with its reason, a real one is fixed or an H-gap in
-# docs/security.
-gosec: $(GOLANGCI_LINT) ## gosec: security findings in the code Cogpit ships (tests excluded)
+# gosec through golangci-lint (the same build of it as lint), the shipped code only, for this
+# system's build and Windows' (WINDOWS_LINT_PKGS, at lint); an accepted finding is excluded in
+# .golangci.yml or marked #nosec with its reason, a real one is fixed or an H-gap in docs/security.
+gosec: $(GOLANGCI_LINT) ## gosec: security findings in the code Cogpit ships (tests excluded), for this system's build and Windows'
 	$(GOLANGCI_LINT) run --enable-only gosec --tests=false ./...
+	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run --enable-only gosec --tests=false $(WINDOWS_LINT_PKGS))
 
 $(GOCYCLO): $(call tool_stamp,gocyclo,$(GOCYCLO_VERSION))
 	GOBIN=$(BIN) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
@@ -334,12 +354,30 @@ $(TOOL_STAMPS)/%:
 	@rm -f $(TOOL_STAMPS)/$(firstword $(subst @, ,$*))@*
 	@touch $@
 
-# LINT_PKGS narrows the packages: CI's macOS job lints the ones with darwin-only files, which the
-# Linux lint job does not see.
-LINT_PKGS       ?= ./...
+# A lint or GoSec run sees one system's build: lint and gosec run a second pass for Windows over
+# the packages with Windows files, and CI's macOS job runs lint-darwin and gosec-darwin over the
+# packages with darwin-only files. A system's packages are found by its files' names,
+# *_<system>.go and *_<system>_*.go (docs/developer/conventions.md#style). The Windows pass runs
+# without cgo, which internal/ui/fyneui needs for Fyne: its Windows file is vetted on Windows
+# (test-windows-unit), not linted (docs/developer/releasing.md#lint-and-gosec-per-system).
+goos_pkgs          = $(sort $(addprefix ./,$(dir $(shell find cmd internal hack -name '*_$(1).go' -o -name '*_$(1)_*.go'))))
+WINDOWS_LINT_PKGS  = $(filter-out $(UI_PKG)/,$(call goos_pkgs,windows))
+DARWIN_LINT_PKGS   = $(call goos_pkgs,darwin)
+WINDOWS_LINT_ENV  := GOOS=windows CGO_ENABLED=0
 
-lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering
-	$(GOLANGCI_LINT) run $(LINT_PKGS)
+.PHONY: lint-darwin gosec-darwin
+
+lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'
+	$(GOLANGCI_LINT) run ./...
+	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run $(WINDOWS_LINT_PKGS))
+
+lint-darwin: $(GOLANGCI_LINT) ## golangci-lint over the packages with darwin-only files (macOS only); CI's macOS Lint and App
+	@test "$$($(GO) env GOOS)" = darwin || { echo "lint-darwin runs on macOS only"; exit 1; }
+	$(GOLANGCI_LINT) run $(DARWIN_LINT_PKGS)
+
+gosec-darwin: $(GOLANGCI_LINT) ## gosec over the packages with darwin-only files (macOS only, tests excluded); CI's macOS Lint and App
+	@test "$$($(GO) env GOOS)" = darwin || { echo "gosec-darwin runs on macOS only"; exit 1; }
+	$(GOLANGCI_LINT) run --enable-only gosec --tests=false $(DARWIN_LINT_PKGS)
 
 # The release build's variant (DIST_TAGS, D-67), which no other check builds, for CI's lint job:
 # internal/demo is linked into neither binary with the tags and into both without them (so the
@@ -927,13 +965,32 @@ WINDOWS_FEED_URL := https://guided-traffic.github.io/cogpit/appcast-windows.xml
 UPDATE_PKG       := github.com/guided-traffic/cogpit/internal/update
 WIN_APP_LDFLAGS   = -H=windowsgui -X $(UPDATE_PKG).windowsFeedURL=$(WINDOWS_FEED_URL) \
 	$(if $(SPARKLE_PUBLIC_ED_KEY),-X $(UPDATE_PKG).edPublicKey=$(SPARKLE_PUBLIC_ED_KEY))
+# Mesa's software OpenGL for the smoke test of a Windows x64 build (D-112; smoke, SMOKE_MESA):
+# pal1000/mesa-dist-win's MSVC build, of which hack/windows/mesa.sh keeps the x64 opengl32.dll and
+# libgallium_wgl.dll (the llvmpipe driver) in .cache/mesa/<version>; GitHub's Windows runners have
+# no OpenGL 2.1 driver, Fyne's minimum. The release archive pinned by its tag and SHA-256 (GitHub's
+# digest of the asset); CI's tool only, never in a setup.
+# renovate: datasource=github-release-attachments depName=pal1000/mesa-dist-win
+MESA_VERSION    := 26.2.4
+MESA_SHA256     := 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+MESA_DIR        := $(CACHE)/mesa/$(MESA_VERSION)
+SMOKE_MESA       = $(if $(and $(filter windows,$(APP_OS)),$(filter x64,$(WIN_ARCH))),$(MESA_DIR)/x64)
+# The installed app's smoke test in test-windows-package (D-112): on for CI's job Windows Package;
+# off by default, as in the release pipeline's Windows job, which ships the setup it builds and runs
+# no Mesa beside it.
+WINDOWS_SMOKE   ?= off
 
-.PHONY: winsparkle dist-windows test-windows-package
+.PHONY: winsparkle mesa dist-windows test-windows-package
 
 winsparkle: $(WINSPARKLE_DIR)/.verified ## Download the pinned WinSparkle release into .cache/winsparkle (checksum verified)
 
 $(WINSPARKLE_DIR)/.verified:
 	hack/windows/winsparkle.sh fetch '$(WINSPARKLE_VERSION)' '$(WINSPARKLE_SHA256)' '$(WINSPARKLE_DIR)'
+
+mesa: $(MESA_DIR)/.verified ## Download the pinned Mesa for Windows into .cache/mesa (checksum verified): the Windows smoke test's software OpenGL
+
+$(MESA_DIR)/.verified:
+	hack/windows/mesa.sh fetch '$(MESA_VERSION)' '$(MESA_SHA256)' '$(MESA_DIR)'
 
 $(GO_WINRES):
 	GOBIN=$(BIN) $(GO) install github.com/tc-hib/go-winres@$(GO_WINRES_VERSION)
@@ -989,11 +1046,29 @@ WINDOWS_UI_SHARDS ?= 4
 WINDOWS_UI_JOBS   ?= 2
 
 test-windows-ui: ## The window's tests (internal/ui/fyneui) on Windows, WINDOWS_UI_SHARDS shards, WINDOWS_UI_JOBS at once; CI's UI Tests (windows)
-	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(WINDOWS_UI_SHARDS) -jobs $(WINDOWS_UI_JOBS) -exec -timeout 20m
+	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(WINDOWS_UI_SHARDS) -jobs $(WINDOWS_UI_JOBS) -exec -timeout 20m \
+		-durations $(UI_DURATIONS)
 
-test-windows-package: ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
+test-windows-package: $(if $(filter on,$(WINDOWS_SMOKE)),$(if $(SMOKE_MESA),mesa)) ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, with WINDOWS_SMOKE=on the installed app's smoke test, an update over it, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
 	@n=$$(ls $(DIST)/windows/Cogpit-*-windows-*-setup.exe 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/windows holds $$n setups: run make dist-windows VERSION=x.y.z first, once"; exit 1; }
-	hack/windows/setup-test.sh $(DIST)/windows/Cogpit-*-windows-*-setup.exe
+	SMOKE_BOUND='$(if $(filter on,$(WINDOWS_SMOKE)),$(SMOKE_BOUND))' SMOKE_MESA='$(SMOKE_MESA)' \
+		hack/windows/setup-test.sh $(DIST)/windows/Cogpit-*-windows-*-setup.exe
+
+# The smoke test (D-112): the app's binary SMOKE_BIN started once with --smoke SMOKE_BOUND
+# (hack/smoke.sh): the window with the real driver in a home of its own until it drew a frame, no
+# MCP server, updater, login item or cluster; on Linux without a display under xvfb-run, on Windows
+# x64 with Mesa's llvmpipe (SMOKE_MESA). CI runs it on what a release ships: Linux Package on
+# dist-linux's binary, Windows Package on the installed cogpit.exe (test-windows-package
+# WINDOWS_SMOKE=on). macOS runs it by hand only (bin/cogpit, or after dist-app
+# SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit): GLFW asks NSOpenGL for an accelerated pixel
+# format only, which GitHub's macOS VMs do not offer.
+SMOKE_BIN       ?= $(BIN)/cogpit$(EXE)
+SMOKE_BOUND     ?= 2m
+
+.PHONY: smoke
+
+smoke: $(if $(SMOKE_MESA),mesa) ## Start the app's binary SMOKE_BIN (bin/cogpit) with --smoke: its window in a home of its own until the first frame, then quit; fails on a logged error, a quit that hangs or after SMOKE_BOUND (D-112)
+	SMOKE_MESA='$(SMOKE_MESA)' hack/smoke.sh '$(SMOKE_BIN)' '$(SMOKE_BOUND)'
 
 clean: ## Remove build output
 	rm -rf $(BIN) dist

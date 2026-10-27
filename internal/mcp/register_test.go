@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"unicode/utf16"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // TestClaudeAddStdioCommand: the registration names the bundled cogpit-cli by its absolute path,
@@ -64,10 +66,7 @@ func TestClaudeAddStdioCommandForEachShell(t *testing.T) {
 // TestShellQuoteRoundTrips: a POSIX shell reads every quoted path back as the same one word,
 // whatever it holds, and expands nothing in it.
 func TestShellQuoteRoundTrips(t *testing.T) {
-	sh, err := exec.LookPath("sh")
-	if err != nil {
-		t.Skip("no sh")
-	}
+	sh := prereq.LookPath(t, "sh") // on Windows MSYS2's, as CI's Windows jobs run in it
 	for _, s := range []string{
 		"/Applications/Cogpit.app/Contents/MacOS/cogpit-cli",
 		"/Users/a b/My Apps/Cogpit.app/Contents/MacOS/cogpit-cli",
@@ -95,10 +94,13 @@ func TestShellQuoteRoundTrips(t *testing.T) {
 func TestPowerShellQuoteRoundTrips(t *testing.T) {
 	ps, err := exec.LookPath("powershell")
 	if err != nil {
-		if ps, err = exec.LookPath("pwsh"); err != nil {
-			t.Skip("no PowerShell")
-		}
+		ps, err = exec.LookPath("pwsh")
 	}
+	if err != nil && runtime.GOOS != goosWindows {
+		// CI's Windows jobs run this; a Linux or macOS runner need not have pwsh.
+		t.Skip("no PowerShell")
+	}
+	prereq.Need(t, err == nil, "Windows PowerShell on PATH")
 	words := []string{
 		`C:\Users\a\AppData\Local\Programs\Cogpit\cogpit-cli.exe`,
 		`C:\Program Files\Cogpit\cogpit-cli.exe`,

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/testkit"
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // startChild starts a child of the test's that ends with the test; setpgid puts it in a process
@@ -25,27 +26,6 @@ func startChild(t *testing.T, setpgid bool, name string, args ...string) *exec.C
 	}
 	t.Cleanup(func() { _ = cmd.Process.Kill(); _ = cmd.Wait() })
 	return cmd
-}
-
-// quietSearches waits until no plugin run of an earlier test that is still under way began within
-// searchWindow: a search with such a neighbour may take the neighbour's process for its own.
-func quietSearches(t *testing.T) {
-	t.Helper()
-	for {
-		now := time.Now()
-		var wait time.Duration
-		searches.mu.Lock()
-		for _, o := range searches.recent {
-			if o.ended.IsZero() || o.ended.After(now) {
-				wait = max(wait, searchWindow-now.Sub(o.at))
-			}
-		}
-		searches.mu.Unlock()
-		if wait <= 0 {
-			return
-		}
-		time.Sleep(wait)
-	}
 }
 
 // WF38: a wrapper that replaces itself with the login program (exec) is found as the child that
@@ -97,6 +77,39 @@ func TestSearchFindsAWrapperAfterItsExec(t *testing.T) {
 	}
 }
 
+// The plugin's process is found among Cogpit's children by its command line, a #! script's too.
+func TestFindPluginByItsCommandLine(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "find-me")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nwhile :; do sleep 0.1; done\n"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(script, "oidc", "--issuer=https://issuer.example")
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = cmd.Process.Kill(); _ = cmd.Wait() }()
+	want := cmd.Process.Pid
+	if !testkit.WaitFor(waitCtx(t, 5*time.Second), func() bool {
+		id, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, nil)
+		return n == 1 && id.pid == want
+	}) {
+		t.Fatalf("the plugin's process %d was not found among %+v", want, listChildren())
+	}
+	if id, n := findPlugin([]string{script, "oidc", "--issuer=https://other.example"}, nil); n != 0 {
+		t.Errorf("another command line found process %d", id.pid)
+	}
+	// A plugin of the same name elsewhere is another context's, or another test's (CI run
+	// 38975936330: a cancel's search ended the next test's plugin).
+	if id, n := findPlugin([]string{filepath.Join(t.TempDir(), "find-me"), "oidc", "--issuer=https://issuer.example"}, nil); n != 0 {
+		t.Errorf("a program of the same name in another folder found process %d", id.pid)
+	}
+	// A process that ran before the run began is not the run's (findPlugin's before).
+	if _, n := findPlugin([]string{script, "oidc", "--issuer=https://issuer.example"}, childSet()); n != 0 {
+		t.Error("a process older than the run was taken for its plugin")
+	}
+}
+
 // Cogpit's children carry their start time and whether they are in its process group.
 func TestListChildren(t *testing.T) {
 	same := startChild(t, false, "/bin/sleep", "900")
@@ -125,10 +138,7 @@ func TestListChildren(t *testing.T) {
 // had no process (CI, 2026-10-19: TestSearchFindsAWrapperAfterItsExec found pid 0). The shell here
 // stays in the group for 100 ms, and the plugin's command line never matches.
 func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
-	perl, err := exec.LookPath("perl")
-	if err != nil {
-		t.Skip("no perl to leave the process group with")
-	}
+	perl := prereq.LookPath(t, "perl") // to leave the process group with
 	quietSearches(t)
 	stop := make(chan struct{})
 	defer close(stop)

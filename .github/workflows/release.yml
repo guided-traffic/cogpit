@@ -45,7 +45,8 @@ env:
 
 jobs:
   # golangci-lint with the team's linters and depguard's layering (the import rules of
-  # docs/developer/architecture.md §3), and the release build's variant.
+  # docs/developer/architecture.md §3), for the Linux build and, without cgo, Windows' (make lint's
+  # second pass, over the packages with Windows files), and the release build's variant.
   lint:
     name: Code Linting
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -86,8 +87,8 @@ jobs:
       - name: Parity checklists
         run: make parity
 
-  # gosec through golangci-lint, the shipped code only; accepted findings are excluded in
-  # .golangci.yml with their reason.
+  # gosec through golangci-lint, the shipped code only, for the Linux build and Windows' (as make
+  # lint); accepted findings are excluded in .golangci.yml or marked #nosec, with their reason.
   gosec:
     name: GoSec Security Scan
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -182,19 +183,23 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # The UI's tests under the race detector take 18 minutes on a Linux runner, so they run in
-  # shards: hack/shard assigns each test to one by a hash of its name, so a new test lands in a
-  # shard without a change here. The number of shards is the matrix's length (RACE_SHARDS). The
-  # render tests are left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the
-  # race detector); the unit tests run them without it.
+  # The UI's tests under the race detector take about 14 minutes of a Linux runner without the
+  # render tests, so they run in shards balanced by the tests' measured time: hack/shard places them
+  # by hack/shard/durations/fyneui-race.txt (make ui-durations) and a test the file lacks by a hash
+  # of its name, so a new test lands in a shard without a change here. Five shards (D-112): each
+  # shard's job spends about three minutes on its set-up and compile before its first test, so
+  # every shard fewer saves that much runner time, and five keep each shard's tests near two and a
+  # half minutes. The number of shards is the matrix's length (RACE_SHARDS). The render tests are
+  # left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the race detector);
+  # the unit tests run them without it.
   race-ui:
-    name: Race Tests (UI ${{ matrix.shard }}/8)
+    name: Race Tests (UI ${{ matrix.shard }}/5)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -204,8 +209,8 @@ jobs:
         with:
           cache: race-ui
 
-      - name: Race tests of internal/ui/fyneui, shard ${{ matrix.shard }} of 8
-        run: make test-race-ui RACE_SHARD=${{ matrix.shard }} RACE_SHARDS=8
+      - name: Race tests of internal/ui/fyneui, shard ${{ matrix.shard }} of 5
+        run: make test-race-ui RACE_SHARD=${{ matrix.shard }} RACE_SHARDS=5
 
       - name: Upload the coverage profile
         uses: actions/upload-artifact@v7
@@ -215,7 +220,10 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # Every other package under the race detector, and the patched terminal widget's tests.
+  # Every other package under the race detector, and the patched terminal widget's tests. zsh and
+  # fish for the terminal's shell tests, which fail in CI without them (internal/testkit/prereq);
+  # bash, perl, stty and sh come with Ubuntu. fish depends on python3 and man-db: about 18 MB
+  # without the recommendations, 30 MB with them (measured in ubuntu:24.04).
   race-rest:
     name: Race Tests (other packages)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -228,6 +236,7 @@ jobs:
         uses: ./.github/actions/go-setup
         with:
           cache: race-rest
+          packages: --no-install-recommends zsh fish
 
       - name: Race tests
         run: make test-race-rest
@@ -436,10 +445,23 @@ jobs:
         with:
           cache: macos
 
+      # fish for the terminal's fish test, which fails in CI without it (internal/testkit/prereq):
+      # the runner image has none. clang, the window server, zsh, bash and perl come with it, and
+      # Sparkle.framework with make sparkle.
+      - name: Install fish
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install fish
+
       - name: The macOS-only tests (race detector on)
         run: make test-darwin
 
-  # The lint of the packages with darwin-only files and the app bundle with Sparkle. Its build cache
+  # Lint and GoSec of the packages with darwin-only files, which the Linux jobs never compile (found
+  # by the files' names), and the app bundle with Sparkle as releases build it (make dist-app at
+  # version 0.0.1, below every release: the release's build tags, Fyne's thread check off), not
+  # started (make smoke, D-112): GLFW asks NSOpenGL for an accelerated pixel format only, which
+  # GitHub's macOS VMs do not offer (NSGL: Failed to find a suitable pixel format). Its build cache
   # is a kind of its own (lint, no race detector): app-macos, as the tests' restore key
   # (gobuild-<os>-<arch>-macos-) would match macos-app.
   macos-app:
@@ -455,11 +477,11 @@ jobs:
         with:
           cache: app-macos
 
-      - name: Lint the packages with darwin-only files
-        run: make lint LINT_PKGS="./internal/locale/... ./internal/ui/fyneui/... ./internal/ui/nativedialog/... ./internal/update/..."
+      - name: Lint and GoSec of the packages with darwin-only files
+        run: make lint-darwin gosec-darwin
 
-      - name: Build and package Cogpit.app
-        run: make app
+      - name: Build and package Cogpit.app as releases build it
+        run: make dist-app VERSION=0.0.1
 
   # The tests on Windows (D-111): every package's, in two jobs on GitHub's runner in MSYS2's MINGW64
   # shell (MinGW-w64 gcc for cgo and Fyne, make), without the race detector; the window's
@@ -535,9 +557,10 @@ jobs:
 
   # Cogpit for Linux (D-108) as the release pipeline builds it, for this commit: make dist-linux
   # (the release's build tags, the package with its launcher, icons, update helper and APT
-  # repository) at version 0.0.1, below every release, then lintian on it and the APT repository's
-  # scripts end to end with a throwaway key (make test-linux-package). A change that breaks the
-  # release's Linux jobs fails here, before a release.
+  # repository) at version 0.0.1, below every release; its app started once (make smoke, D-112:
+  # the window under Xvfb in a D-Bus session until it drew a frame), then lintian on the package and
+  # the APT repository's scripts end to end with a throwaway key (make test-linux-package). A change
+  # that breaks the release's Linux jobs fails here, before a release.
   linux-package:
     name: Linux Package
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -546,24 +569,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The packaging tools install with Go's build dependencies, in the background.
+      # The packaging tools and the smoke test's X server and D-Bus install with Go's build
+      # dependencies, in the background.
       - name: Set up Go
         uses: ./.github/actions/go-setup
         with:
           cache: linux-package
-          packages: dpkg-dev lintian apt-utils gnupg curl python3
+          packages: dpkg-dev lintian apt-utils gnupg curl python3 xvfb xauth dbus
 
       - name: Build the package
         run: make dist-linux VERSION=0.0.1
+
+      - name: Start the app once (smoke test)
+        run: make smoke
 
       - name: Check the package and the APT repository's scripts
         run: make test-linux-package
 
   # Cogpit for Windows (D-111) as the release pipeline builds it, for this commit: make dist-windows
-  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make and NSIS
-  # from its signed packages), then make test-windows-package: the setup installs for the runner's
-  # user, installs again over itself and uninstalls. A change that breaks the release's Windows job
-  # fails here, before a release.
+  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make, NSIS and
+  # 7-Zip from its signed packages), then make test-windows-package WINDOWS_SMOKE=on: the setup
+  # installs for the runner's user, the installed app starts once (the smoke test, D-112: its window
+  # until it drew a frame, with Mesa's software OpenGL beside it, as the runner has no OpenGL 2.1
+  # driver), the setup installs again over itself and uninstalls. A change that breaks the
+  # release's Windows job fails here, before a release.
   windows-package:
     name: Windows Package
     runs-on: windows-latest
@@ -580,19 +609,19 @@ jobs:
         with:
           cache: windows-package
 
-      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS)
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS, 7-Zip for make mesa)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: false
           path-type: inherit
-          install: make unzip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
+          install: make unzip p7zip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
 
       - name: Build the setup
         run: make dist-windows VERSION=0.0.1
 
-      - name: Install, update and uninstall it
-        run: make test-windows-package
+      - name: Install it, start it once (smoke test), update and uninstall it
+        run: make test-windows-package WINDOWS_SMOKE=on
 
   # The unit, race and cluster profiles merged: the job summary, and the README's badge, which
   # Semantic Release commits with the release.

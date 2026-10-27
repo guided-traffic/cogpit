@@ -4,11 +4,12 @@ package terminal
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // fakeKubectl writes a kubectl that prints its name, so that a test sees which one ran.
@@ -143,10 +144,7 @@ func TestStartLocalKubectlFirst(t *testing.T) {
 // choice at the prompt, that the user's own startup files ran from the user's ZDOTDIR, and that
 // zsh's ZDOTDIR is the user's again.
 func TestZshKubectlFirstAfterTheProfile(t *testing.T) {
-	zsh, err := exec.LookPath("zsh")
-	if err != nil {
-		t.Skip("no zsh")
-	}
+	zsh := prereq.LookPath(t, "zsh")
 	home := t.TempDir()
 	userZdot := filepath.Join(home, ".config", "zsh")
 	if err := os.MkdirAll(userZdot, 0o700); err != nil {
@@ -240,10 +238,7 @@ func shellKubectlScene(t *testing.T, shell string, files map[string]string, env 
 // still runs Cogpit's at the prompt; the profile ran; Cogpit's variables are gone. With enforce
 // (A27), an alias the user's rc defines does not win either.
 func TestBashKubectlFirstAfterTheProfile(t *testing.T) {
-	bash, err := exec.LookPath("bash")
-	if err != nil {
-		t.Skip("no bash")
-	}
+	bash := prereq.LookPath(t, "bash")
 	files := map[string]string{".bash_profile": "export PATH=SHADOW:$PATH\nexport COGPIT_TEST_PROFILE=ran\nPS1='$ '\n"}
 	home := shellKubectlScene(t, bash, files, nil, false)
 	if got := readTrimmed(t, filepath.Join(home, "which.txt")); got != "cogpit-kubectl" {
@@ -262,10 +257,7 @@ func TestBashKubectlFirstAfterTheProfile(t *testing.T) {
 // TestZshKubectlEnforced (A27): with enforce, an alias in the user's .zshrc does not win over
 // Cogpit's kubectl.
 func TestZshKubectlEnforced(t *testing.T) {
-	zsh, err := exec.LookPath("zsh")
-	if err != nil {
-		t.Skip("no zsh")
-	}
+	zsh := prereq.LookPath(t, "zsh")
 	files := map[string]string{".zshrc": "PS1='$ '\nexport COGPIT_TEST_PROFILE=ran\nalias kubectl=SHADOW/kubectl\n"}
 	home := shellKubectlScene(t, zsh, files, nil, true)
 	if got := readTrimmed(t, filepath.Join(home, "which.txt")); got != "cogpit-kubectl" {
@@ -277,12 +269,8 @@ func TestZshKubectlEnforced(t *testing.T) {
 }
 
 // TestFishKubectlFirstAfterTheConfig (A26, A27): fish runs Cogpit's -C after its configuration.
-// Skipped where no fish is installed.
 func TestFishKubectlFirstAfterTheConfig(t *testing.T) {
-	fish, err := exec.LookPath("fish")
-	if err != nil {
-		t.Skip("no fish")
-	}
+	fish := prereq.LookPath(t, "fish")
 	files := map[string]string{".config/fish/config.fish": "set -gx PATH SHADOW $PATH\nset -gx COGPIT_TEST_PROFILE ran\nalias kubectl SHADOW/kubectl\n"}
 	// fish 4.1 and later query the terminal at start and wait ten seconds for an answer, which
 	// Cogpit's widget gives and the test's recorder does not.

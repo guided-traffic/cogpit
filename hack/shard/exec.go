@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -24,8 +25,11 @@ type execConfig struct {
 	race      bool      // build with the race detector
 	of, jobs  int       // the number of shards, and how many run at once
 	timeout   time.Duration
-	coverDir  string // write each shard's coverage profile here, if set
-	coverName string // the profiles' name before -<n>.out
+	coverDir  string                   // write each shard's coverage profile here, if set
+	coverName string                   // the profiles' name before -<n>.out
+	times     map[string]time.Duration // the durations file's times, which balance the split
+	durations string                   // the durations file's path, for messages
+	record    string                   // run the shards with go test -json and write the tests' times here, if set
 }
 
 // shardMemory is what one shard of the UI's tests (internal/ui/fyneui, an eighth of them) takes at
@@ -92,6 +96,7 @@ type shardResult struct {
 	err      error
 	out      []byte
 	cached   bool
+	times    map[string]time.Duration // with -record: its tests' times
 }
 
 // windowsCommandLine is the length of a command line Windows' CreateProcess takes; a shard's -run
@@ -104,7 +109,9 @@ const windowsCommandLine = 32767
 // its -run pattern (a repeated make test-ui with nothing changed is answered from it, unless GOFLAGS
 // says -count=1, as on CI), and go test's own guards apply (-test.paniconexit0, its wait for the
 // binary's output). It prints a line per shard as it ends, then the output of every shard that
-// failed, and reports whether all passed. Interrupting it (Ctrl-C) ends the running shards.
+// failed, and reports whether all passed. Interrupting it (Ctrl-C) ends the running shards. With
+// c.record the shards run with -json and -count=1, and once all passed every test's time is
+// written to that durations file.
 func execShards(c execConfig, w io.Writer) (bool, error) {
 	names, err := testNames(c.pkg, c.tags)
 	if err != nil {
@@ -129,7 +136,7 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 		}
 		flags = append(flags, "-covermode="+mode)
 	}
-	shards := split(names, c.of)
+	shards := split(names, c.of, c.times)
 	runs := make([][]string, len(shards))
 	for i, mine := range shards {
 		if len(mine) == 0 {
@@ -152,6 +159,9 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 			}
 			args = append(args, "-coverprofile", profile)
 		}
+		if c.record != "" {
+			args = append(args, "-json", "-count=1")
+		}
 		runs[i] = append(args, c.pkg)
 	}
 
@@ -163,8 +173,12 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 		_, _ = w.Write(out)
 		return false, fmt.Errorf("go %s: %w", strings.Join(build, " "), err)
 	}
-	fmt.Fprintf(w, "shard: built %s in %.1f s; %d tests%s in %d shards, %d at once\n",
-		c.pkg, time.Since(start).Seconds(), len(names), c.sel, c.of, min(c.jobs, c.of))
+	balanced := ""
+	if c.durations != "" {
+		balanced = ", balanced by " + c.durations
+	}
+	fmt.Fprintf(w, "shard: built %s in %.1f s; %d tests%s in %d shards%s, %d at once\n",
+		c.pkg, time.Since(start).Seconds(), len(names), c.sel, c.of, balanced, min(c.jobs, c.of))
 
 	results := make([]shardResult, len(shards))
 	var mu sync.Mutex
@@ -185,6 +199,13 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 			err := run.Run()
 			r := shardResult{n: i + 1, tests: len(mine), took: time.Since(began), err: err, out: out.Bytes(),
 				cached: bytes.Contains(out.Bytes(), []byte("(cached)"))}
+			if c.record != "" {
+				var jerr error
+				r.times, r.out, jerr = readTestJSON(out.Bytes())
+				if jerr != nil && r.err == nil {
+					r.err = fmt.Errorf("its go test -json output: %w", jerr)
+				}
+			}
 			results[i] = r
 			mu.Lock()
 			defer mu.Unlock()
@@ -218,7 +239,46 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 		verdict = "FAILED"
 	}
 	fmt.Fprintf(w, "shard: %s, %d shards of %s in %.1f s\n", verdict, c.of, c.pkg, time.Since(start).Seconds())
+	if c.record != "" {
+		if !passed {
+			fmt.Fprintf(w, "shard: %s not written, as a shard failed\n", c.record)
+			return false, nil
+		}
+		if err := recordTimes(c, names, results); err != nil {
+			return false, err
+		}
+		fmt.Fprintf(w, "shard: the times of %d tests written to %s\n", len(names), c.record)
+	}
 	return passed, nil
+}
+
+// recordTimes writes the shards' times to c.record: every test of names must have one, or the
+// measurement missed a test and nothing is written.
+func recordTimes(c execConfig, names []string, results []shardResult) error {
+	times := map[string]time.Duration{}
+	for _, r := range results {
+		maps.Copy(times, r.times)
+	}
+	var missing []string
+	for _, n := range names {
+		if _, ok := times[n]; !ok {
+			missing = append(missing, n)
+		}
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("%s not written: no time for %d tests (%s)", c.record, len(missing), strings.Join(missing[:min(5, len(missing))], ", "))
+	}
+	how := "without the race detector"
+	if c.race {
+		how = "under the race detector"
+	}
+	if c.coverDir != "" {
+		how += ", with coverage"
+	}
+	header := fmt.Sprintf("Seconds per top-level test of %s%s, %s, on %s/%s.\n"+
+		"Written by hack/shard -exec -record (make ui-durations); hack/shard -durations balances the shards by them.",
+		c.pkg, c.sel, how, runtime.GOOS, runtime.GOARCH)
+	return writeDurationsFile(c.record, header, times)
 }
 
 // joinTags adds tag to the comma-separated tags unless it is there already.
