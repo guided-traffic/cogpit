@@ -1,9 +1,8 @@
 # Using Cogpit
 
-The user reference: getting and running Cogpit on each platform, what it does, its flags,
-preferences and cluster settings, what it shows in special situations, and the files and names it
-uses. Contributors start at the [developer documentation](README.md); every command and MCP tool,
-with its danger and parameters, is in [`commands.md`](commands.md), generated from the registry.
+What a user sees and does. Contributors start at the [developer documentation](README.md); every
+command and MCP tool, with its danger and parameters: [`commands.md`](commands.md), generated from
+the registry.
 
 ## What Cogpit is and its status
 
@@ -30,7 +29,8 @@ Ctrl on Windows and Linux.
 - The navigator's root: the user the API server confirms at every connect (a SelfSubjectReview),
   the groups in a tooltip; `(kubeconfig)` where the server does not say; the last confirmed user,
   dimmed, while not connected. Below it the Kubernetes version against upstream support
-  ([details](#the-kubernetes-version-and-upstream-support)); a gear opens the cluster's Settings.
+  ([details](#the-kubernetes-version-and-upstream-support)); a gear before the root's dot opens the
+  cluster's Settings ([D-92](decisions.md#d-92-a-gear-in-the-navigators-cluster-row)).
 - A client certificate's validity under the cluster's name: orange in its last 14 days or the last
   fifth of its lifetime, "expired" in red; it never blocks a connect.
 - A hotbar of pinned clusters, scrolling when full: F1–F12 open the first twelve, drag a tile to
@@ -41,9 +41,8 @@ Ctrl on Windows and Linux.
 - Several clusters connected at once, one shown: each stays connected until you disconnect it or
   quit, keeps its own namespace filter, search and status filter, and agents may work on any of
   them ([details](#several-clusters-connected)).
-- A failed connect shows an error page with each stage (kubeconfig, login program, DNS, TCP, TLS,
-  the API server's answer) and its result, Connect Again and Show Connection Updates
-  ([details](#several-clusters-connected)).
+- A failed connect shows an error page with each stage's result, Connect Again and Show Connection
+  Updates ([details](#several-clusters-connected)).
 - A lost connection (sleep, a network or VPN change, a cluster that stops answering) keeps views
   and tabs, disables changes and reconnects by itself ([details](#when-the-connection-breaks)).
 - Integrations per cluster: the Metrics Server, Prometheus, Alertmanager, the Trivy Operator,
@@ -194,11 +193,10 @@ spctl -a -t open --context context:primary-signature -vv Cogpit-<version>-macos-
 
 The top bar shows the running version right of the wordmark: `v<version>` for a release, `dev` for
 a build from source, its commit in the tooltip (`dev 0123456789ab-dirty` # example); About Cogpit
-says the same ([which build reports what](releasing.md#the-version-a-build-reports)). Releases run
-with Fyne's thread check off, builds from source with it on
-([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)); the app log names
-the mode at every start, and a build from source shows a toast for each place that calls Fyne off
-its main goroutine.
+says the same ([which build reports what](releasing.md#the-version-a-build-reports)). Fyne's thread
+check is off in releases, on in builds from source, where each call to Fyne off its main goroutine
+shows a toast; the app log names the mode at every start
+([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)).
 
 **Not built:** an app for Intel Macs, a Homebrew cask, Linux packages other than the `.deb`, a
 Windows setup signed with Authenticode or for ARM64, winget and Scoop.
@@ -215,9 +213,9 @@ cogpit-cli version
 
 Cogpit is then in the desktop's applications; `cogpit` starts it from a terminal. The package sets
 up Cogpit's APT repository `https://guided-traffic.github.io/cogpit/apt/` (suite `stable`, component
-`main`, the two newest releases per architecture), so `apt upgrade` and the Software Updater offer
-every release and Cogpit's Update button installs it ([updates on Linux](#updates-on-linux)). apt
-checks the repository against its Ed25519 key, inline in the sources file: fingerprint
+`main`, the two newest releases per architecture), so `apt upgrade`, the Software Updater and
+Cogpit's Update button offer every release ([updates on Linux](#updates-on-linux)). apt checks it
+against its Ed25519 key, inline in the sources file: fingerprint
 `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, valid until 2031-10-19, public half in
 [`packaging/linux/cogpit-archive-keyring.asc`](../../packaging/linux/cogpit-archive-keyring.asc)
 ([security › updates › Linux](../security/updates.md#linux), [releasing › Linux](releasing.md#linux)).
@@ -237,9 +235,8 @@ Nothing upgrades by itself: unattended-upgrades installs Cogpit only when its
 
 The package depends on the libraries the app links and loads, libdecor with its GTK plugin
 included (the title bar's buttons on a Wayland desktop without XWayland), recommends `pkexec`
-(without it only apt and the Software Updater update) and has no maintainer scripts. Settings
-live in `~/.config/Cogpit`, logs and caches in `~/.cache/Cogpit`
-([naming conventions](#naming-conventions)).
+(without it only apt and the Software Updater update) and has no maintainer scripts. Removing it
+keeps your files ([naming conventions](#naming-conventions)):
 
 ```sh
 sudo apt remove cogpit                    # the app; the sources file stays
@@ -247,11 +244,12 @@ sudo apt purge cogpit                     # also the sources file
 rm -rf ~/.config/Cogpit ~/.cache/Cogpit   # your settings, logs and caches
 ```
 
-Below the desktop's title bar, Cogpit's bar holds the menus (Cluster, View, Helm, Window, Help)
-before the logo ([D-109](decisions.md#d-109-the-menus-in-the-top-bar-on-windows-and-linux)); their
-keys work from any focus, Alt does not open them. **Not on Linux:** `cogpit://` links, Start at
-login, the window's position (size and full screen come back), the system's file panels (Fyne's
-dialogs instead).
+**On Linux and Windows** the system's title bar stays and Cogpit's bar below it holds the menus
+(Cluster, View, Helm, Window, Help) before the logo
+([D-109](decisions.md#d-109-the-menus-in-the-top-bar-on-windows-and-linux)); their keys work from
+any focus, Alt does not open them. Not on either: `cogpit://` links, Start at login, the window's
+position (size and full screen come back, [D-95](decisions.md#d-95-the-window-comes-back-where-it-was)),
+the system's file panels (Fyne's dialogs instead, [choosers](#choosing-files-the-systems-panels)).
 
 ### Install on Windows
 
@@ -288,17 +286,16 @@ moves a running `cogpit-cli.exe` aside; a later setup or the uninstaller removes
 | `uninstall.exe` | the uninstaller (`/S` silently) |
 
 The setup adds the Start menu entry Cogpit and the uninstall entry `io.guided-traffic.cogpit`.
-Settings live in `%APPDATA%\Cogpit`, logs and caches in `%LOCALAPPDATA%\Cogpit`
-([naming conventions](#naming-conventions)). Uninstalling (Settings › Apps) removes the program, its
-entries and WinSparkle's state (`HKCU\Software\guided-traffic\Cogpit\WinSparkle`) and keeps your
-files:
+Uninstalling (Settings › Apps) removes the program, its entries and WinSparkle's state
+(`HKCU\Software\guided-traffic\Cogpit\WinSparkle`) and keeps your files
+([naming conventions](#naming-conventions)):
 
 ```powershell
 Remove-Item -Recurse "$env:APPDATA\Cogpit", "$env:LOCALAPPDATA\Cogpit"   # your settings, logs and caches
 ```
 
-Below Windows' title bar, Cogpit's bar holds the menus before the logo; the window follows each
-monitor's scaling.
+The window follows each monitor's scaling. The menus and what Windows lacks are as on Linux
+([above](#install-on-linux)), and `~\` in a path field is not your home folder (only `~/` is).
 
 **The terminal on Windows.** A local terminal runs the shell Preferences › Terminal names, else
 PowerShell 7 (`pwsh.exe` on `PATH`), else Windows PowerShell, else `%ComSpec%`; `$SHELL` is not
@@ -309,11 +306,6 @@ read. It runs on a pseudo console (ConPTY) with
 it is named `kubectl.exe`, else gets a hard link or copy named so. Enforce kubectl has no effect
 (PowerShell and cmd get no function). Closing the terminal ends every program started from it, the
 shell running in a job object of its own.
-
-**Not on Windows:** `cogpit://` links, Start at login, the window's position (size and full screen
-come back, [D-95](decisions.md#d-95-the-window-comes-back-where-it-was)), the system's file dialogs
-(Fyne's instead), the region settings' date format (`LC_ALL`, `LC_TIME` or `LANG`, else ISO 8601),
-`~\` in a path field (only `~/` means your home folder).
 
 ### Build and run from source
 
@@ -338,13 +330,11 @@ make dist-linux VERSION=x.y.z     # Linux: the .deb for this machine's architect
 make dist-windows VERSION=x.y.z   # Windows: the setup in dist/windows
 ```
 
-A build from source offers the demo cluster as the context `demo`; releases are built with the tag
-`nodemo` (`DIST_TAGS`), which leaves it and its flags out; `make build GO_TAGS=nodemo` builds that
-variant ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)). Nothing writes
+A build from source offers the demo cluster as the context `demo`; a release leaves it and its
+flags out ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)). Nothing writes
 `~/.kube/config`. `make kind-up` seeds the namespace `cogpit-demo`
 ([hack/kind](../../hack/kind/README.md)), the Service `web` with ClusterIP `10.96.100.100` among it.
-`make test-unit-race` runs every test that needs no cluster, `make test-kind` the cluster tests;
-every target: [Make targets](#make-targets).
+Every target: [Make targets](#make-targets).
 
 <details>
 <summary>Clean up</summary>
@@ -363,16 +353,17 @@ Remove-Item -Recurse "$env:LOCALAPPDATA\Cogpit", "$env:APPDATA\Cogpit"   # Windo
 
 ### Drive it with an agent
 
-Cogpit's external MCP server, for other programs on this computer, is off until you switch it on
-([D-49](decisions.md#d-49-the-external-mcp-servers-switch-honoured-by-cogpit-cli-mcp)): click the MCP
-item at the right end of the status bar; the choice is kept. Its gear opens the MCP details: the
-switch, the endpoint, the token (masked until Show), the registration commands and Regenerate token
+Cogpit's external MCP server, for other programs on this computer, is off until you click the MCP
+item at the right end of the status bar; the choice is kept
+([D-49](decisions.md#d-49-the-external-mcp-servers-switch-honoured-by-cogpit-cli-mcp)). Its gear
+opens the MCP details: the switch, the endpoint, the token (masked until Show), the registration
+commands and Regenerate token
 ([D-53](decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it)). Help ›
 Copy MCP command copies the command; Cogpit also prints it to the terminal that started it.
 
 Where Cogpit came with its `cogpit-cli` (the app in Applications, the Linux package, a Windows
 release), the details offer the stdio registration, run once
-([D-2](decisions.md#d-2-agent-interface-scope)):
+([D-2](decisions.md#d-2-agent-interface-scope)); on Windows in PowerShell's form:
 
 ```sh
 claude mcp remove --scope user cogpit >/dev/null 2>&1; claude mcp add --scope user cogpit -- /Applications/Cogpit.app/Contents/MacOS/cogpit-cli mcp   # example
@@ -384,8 +375,8 @@ claude mcp remove --scope user cogpit *> $null; claude mcp add --scope user cogp
 
 Claude Code then starts `cogpit-cli mcp`, which reads the running app's port and token before every
 call, so the registration survives restarts, updates and a new token; run it again only after
-moving the app. On Windows the commands are PowerShell's (`*> $null`, `;`, a path quoted in single
-quotes). A build from source and the app running from its disk image offer the HTTP registration:
+moving the app. A build from source and the app running from its disk image offer the HTTP
+registration:
 
 ```sh
 claude mcp remove --scope user cogpit >/dev/null 2>&1; claude mcp add --scope user --transport http cogpit http://127.0.0.1:<port>/mcp --header "Authorization: Bearer <token>"
@@ -504,11 +495,10 @@ only you, in Cogpit's window, turn it on, and agents may only turn it off.
 
 ### Preferences › App: restore the last session
 
-Off by default: Cogpit starts on the welcome page without tabs or connections. On, the next start
-reopens the last run's tabs and connects the clusters connected at quit: the one shown then first,
-the others one by one in the background
-([D-69](decisions.md#d-69-several-clusters-connected-at-once)). The welcome page's checkbox "Restore
-this session at the next start" is the same preference.
+Off, Cogpit starts on the welcome page without tabs or connections. On, the next start reopens the
+last run's tabs and connects the clusters connected at quit: the one shown then first, the others
+one by one in the background ([D-69](decisions.md#d-69-several-clusters-connected-at-once)). The
+welcome page's checkbox "Restore this session at the next start" is the same preference.
 
 - Login programs run as on any connect; one not allowed yet, or changed since, does not run and the
   cluster says why. `--context` shows its own cluster first.
@@ -521,13 +511,13 @@ this session at the next start" is the same preference.
 
 | Preference (`preferences.set`) | Default | Meaning |
 |---|---|---|
-| `restoreSession` | `false` # default | on: restore tabs and connections at the next start. It runs login programs without a click, so agents and the CLI may only turn it off |
+| `restoreSession` | `false` # default | on, login programs run without a click, so agents and the CLI may only turn it off |
 | `mixedEnvironments` | `false` # default | on: the tab bar shows every connected cluster's tabs; off: only the shown cluster's. The check "Mixed environments" at the foot of the navigator's All Clusters; agents may set it |
 
 ### Preferences › App: reduce motion
 
-Off by default, the navigator slides: a cluster's tree comes in from the right over All Clusters,
-another cluster's tree vertically in All Clusters' order
+Off, the navigator slides: a cluster's tree comes in from the right over All Clusters, another
+cluster's tree vertically in All Clusters' order
 ([D-107](decisions.md#d-107-the-navigator-slides-and-reduce-motion)). On, nothing moves: the
 navigator switches at once, dragged tiles and tabs jump into place, a reconnecting cluster's dot is
 steady at half strength, and the [light strip](#the-light-strip) stands still. macOS's Reduce motion
@@ -535,19 +525,16 @@ steady at half strength, and the [light strip](#the-light-strip) stands still. m
 
 | Preference | Default | Meaning |
 |---|---|---|
-| `reduceMotion` | `false` # default | on: switch at once instead of sliding or blinking; agents may set it |
+| `reduceMotion` | `false` # default | on: nothing slides or blinks; agents may set it |
 
 ### Preferences › App: light strip on battery
 
-"Animate the light strip only on the power adapter", off by default. On, the
-[light strip](#the-light-strip) shows its colour standing still while the computer runs on battery;
-an animation costs about a fifth of a CPU core. macOS follows the power source at once; Windows and
-Linux read it every 30 s (on Linux a peripheral's battery, such as a wireless mouse's, does not
-count).
-
 | Preference | Default | Meaning |
 |---|---|---|
-| `lightStripMainsOnly` | `false` # default | on: animate the light strip only on the power adapter; agents may set it |
+| `lightStripMainsOnly` | `false` # default | "Animate the light strip only on the power adapter": on, the [light strip](#the-light-strip) stands still in its colour while the computer runs on battery; agents may set it |
+
+macOS follows the power source at once; Windows and Linux read it every 30 s (on Linux a
+peripheral's battery, such as a wireless mouse's, does not count).
 
 ### Zoom
 
@@ -583,31 +570,30 @@ Which way a Helm release's Revisions tab compares two revisions: the first is th
 
 ### Preferences › App: updates
 
-On macOS Sparkle 2 checks Cogpit's signed appcast at every start and every hour while "Check for
-updates automatically" is on ([D-4](decisions.md#d-4-packaging-and-updates)); Help › Check for
-Updates… checks now. A newer release shows a button at the top bar's right end,
-"Update to v<version>", which opens Sparkle's window with the newest release
-([D-54](decisions.md#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle)); it goes
-when a check finds nothing newer or Sparkle's session ends. Sparkle downloads only when you click
-Install Update, and installs only a disk image and feed signed with the update key and an app
-carrying Cogpit's Developer ID ([updates](../security/updates.md)).
-
 | Field (`preferences.json`) | Default | Meaning |
 |---|---|---|
-| `checkForUpdates` | `true` # default | check at start and hourly: macOS `https://guided-traffic.github.io/cogpit/appcast.xml`, Windows `https://guided-traffic.github.io/cogpit/appcast-windows.xml`, Linux apt's lists. Off: only Help › Check for Updates… checks. Agents and `cogpit-cli` may turn it on, never off |
+| `checkForUpdates` | `true` # default | "Check for updates automatically": at every start and every hour, against the platform's update feed ([names](#naming-conventions)), on Linux apt's lists; off: only Help › Check for Updates… checks. Agents and `cogpit-cli` may turn it on, never off |
 | `updateChannel` | `"stable"` # default | the only channel; `beta` is refused |
 
-A Cogpit that cannot update itself says why: a build without the update key (every local build), an
-app still on its disk image, on Linux not the package's `/usr/bin/cogpit`, on Windows not the
-setup's `cogpit.exe`. `cogpit-cli` has no updater; it comes with the app, the package or the setup.
+A newer release shows a button at the top bar's right end, "Update to v<version>"
+([D-54](decisions.md#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle)). A Cogpit
+that cannot update itself says why: a build without the update key (every local build), an app
+still on its disk image, on Linux not the package's `/usr/bin/cogpit`, on Windows not the setup's
+`cogpit.exe`. `cogpit-cli` has no updater; it comes with the app, the package or the setup.
+
+On macOS Sparkle 2 reads Cogpit's signed appcast ([D-4](decisions.md#d-4-packaging-and-updates)).
+The button opens Sparkle's window with the newest release and goes when a check finds nothing newer
+or Sparkle's session ends. Sparkle downloads only when you click Install Update, and installs only a
+disk image and feed signed with the update key and an app carrying Cogpit's Developer ID
+([updates](../security/updates.md)).
 
 #### Updates on Linux
 
 apt updates Cogpit from the repository the package set up and checks its signature
 ([Install on Linux](#install-on-linux),
 [D-108](decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
-[updates › Linux](../security/updates.md#linux)). Cogpit reads `apt-cache policy cogpit` at start and
-every hour, without a request or a password.
+[updates › Linux](../security/updates.md#linux)). Cogpit's check reads `apt-cache policy cogpit`,
+without a request or a password.
 
 | apt's lists say | Button | Its click |
 |---|---|---|
@@ -624,10 +610,9 @@ repository" when `/etc/apt/sources.list.d/cogpit.sources` is gone.
 WinSparkle updates the `cogpit.exe` the setup installed, in a release build with `WinSparkle.dll`
 beside it ([Install on Windows](#install-on-windows),
 [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
-[updates › Windows](../security/updates.md#windows)). Cogpit reads the signed feed at start and
-every hour; a newer x64 release not skipped in WinSparkle's window shows the Update button, which
-installs at once (`app.installUpdate`): download, signature check, silent setup, restart into the
-new release. A per-user installation needs no administrator; an all-users one asks UAC. Help › Check
+[updates › Windows](../security/updates.md#windows)). Cogpit's check reads the signed feed; a
+newer x64 release not skipped in WinSparkle's window shows the Update button, which installs at
+once (`app.installUpdate`): download, signature check, silent setup, restart into the new release. A per-user installation needs no administrator; an all-users one asks UAC. Help › Check
 for Updates… shows WinSparkle's window (Install update, Skip this version, Remind me later). Only
 your click runs `app.installUpdate`; `app.checkForUpdates`, open to agents, only shows the window.
 Cogpit's own feed read follows `HTTPS_PROXY`, not Windows' proxy settings or Preferences › Proxy:
@@ -635,10 +620,11 @@ behind a proxy only Windows knows, the button stays away and Help › Check for 
 
 ### Preferences › Kubernetes: program folders
 
-Cogpit started from the Dock, Finder, a launcher or the Start menu lacks the `PATH` your shell's
-profile sets, where credential plugins (kubelogin, krew's `kubectl oidc-login`) live
+Cogpit started from the Dock, Finder, a launcher or the Start menu lacks the `PATH` and the
+variables (`AWS_PROFILE`) your shell's profile sets; credential plugins (kubelogin, krew's
+`kubectl oidc-login`) live there
 ([D-120](decisions.md#d-120-folders-searched-for-credential-plugins)). It looks for a plugin's
-program in, in this order:
+program in this order:
 
 1. the folders `PATH` has when Cogpit starts;
 2. on macOS and Linux, the built-in folders that exist: `/opt/homebrew/bin`, `/usr/local/bin`,
@@ -646,13 +632,13 @@ program in, in this order:
    `/run/current-system/sw/bin`, `/nix/var/nix/profiles/default/bin`,
    `/etc/profiles/per-user/<user>/bin`, `~/.nix-profile/bin`; `~/.local/bin`, `~/bin`;
    `~/.krew/bin` (`$KREW_ROOT/bin`); `~/go/bin` (`$GOBIN`, or `$GOPATH`'s first folder);
-   `~/.asdf/shims`, `~/.local/share/mise/shims`; `~/.rd/bin` (Rancher Desktop), `~/.docker/bin`;
+   `~/.asdf/shims` (`$ASDF_DATA_DIR/shims`), `~/.local/share/mise/shims` (`$MISE_DATA_DIR/shims`,
+   or below `$XDG_DATA_HOME`); `~/.rd/bin` (Rancher Desktop), `~/.docker/bin`;
 3. the program folders you add here, on every platform, in the order added.
 
 Add Folder… adds one (on macOS its panel lists hidden folders, so that `~/.krew/bin` can be
-chosen); it counts from the next login (Connect Again). When a login's program is not found, the
-error page and Connection Updates name it, and the error page's Program Folders… opens this
-section.
+chosen); it counts from the next login (Connect Again). A login's program not found is named on the
+error page, whose Program Folders… opens this section, and in Connection Updates.
 
 | Field | Default | Meaning |
 |---|---|---|
@@ -664,11 +650,10 @@ section.
 | `preferences.removeProgramFolder {path}` | anyone, agents included | removes a folder |
 
 Security note: folders are only appended, so nothing your `PATH` finds is shadowed; a program a
-login names is bound by its name as one on `PATH`
-([H-6](../security/credentials.md#h-6-exec-plugins-inherit-the-environment)). Only you add folders
-(an agent's folder could hold the program your next login runs); add only folders you alone can
-write to. One every user may write to is refused, or skipped once it becomes so. Variables a
-profile sets (`AWS_PROFILE`) do not reach Cogpit either.
+login names is found by its name as on `PATH`
+([H-6](../security/credentials.md#h-6-exec-plugins-inherit-the-environment)). Only you add folders,
+since an agent's folder could hold the program your next login runs; add only folders you alone can
+write to (one every user may write to is refused, or skipped once it becomes so).
 
 ### Preferences › Kubernetes: `kubectl` for terminals
 
@@ -752,15 +737,14 @@ was cut, so an allowed agent write of the cut part can run again unasked
 
 ### Cluster Settings › General: debug, initial streaming
 
-**Debug › Use initial streaming (BETA)**, off by default
-([D-135](decisions.md#d-135-a-stalled-stream-lists)). Off, each read lists its objects once and
-then watches from that list's version; lists have a rate limit of their own
-([rate limits](#connection-diagnostics-what-the-requests-ran-into)). On, from the next connect,
-each read gets its objects over the watch it keeps (Kubernetes' WatchListClient, beta), which may
-save API server resources. A stream that receives nothing for 10 s (# default) before its end makes
-that read and every later read of the connection list instead; Connection Diagnostics logs it
-("streams off, every read lists: for this connection: a stream stalled"), and the next connect
-streams again. Switched off, the connected cluster lists at once.
+**Debug › Use initial streaming (BETA)** ([D-135](decisions.md#d-135-a-stalled-stream-lists)). Off,
+each read lists its objects once and then watches from that list's version; lists have a rate limit
+of their own ([rate limits](#connection-diagnostics-what-the-requests-ran-into)). On, from the next
+connect, each read gets its objects over the watch it keeps (Kubernetes' WatchListClient, beta),
+which may save API server resources. A stream that receives nothing for 10 s (# default) before its
+end makes that read and every later read of the connection list instead; Connection Diagnostics
+logs it ("streams off, every read lists: for this connection: a stream stalled"), and the next
+connect streams again. Switched off, the connected cluster lists at once.
 
 | Setting (`cluster.settings.set`) | Default | Meaning |
 |---|---|---|
@@ -1124,9 +1108,10 @@ wakes or its network changes; two checks in a row without an answer (one after a
 A rejected login is renewed once by the context's login program. If that is rejected too, or takes
 longer than 30 s (a browser login), the dot turns red (**Login expired**) and the banner offers
 **Log in again** and **Reconnect**; Cogpit does not run the program again by itself. A context
-without a login program is renewed in its kubeconfig file, and Cogpit reconnects once the file holds
-another login. After a reconnect or Log in again the navigator's root names the renewed login's
-user ([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
+without a login program is renewed in its kubeconfig file: Cogpit reconnects by itself once the
+file (checked every 2 s) holds another login. After a reconnect or Log in again the navigator's
+root names the renewed login's user
+([D-68](decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)).
 
 ### Reconnect: a new connection from the kubeconfig file
 
@@ -1142,8 +1127,6 @@ connection banner and the Connection Updates dialog.
 - Refused while a drain or a Helm action runs on the cluster.
 - **Log in again** reconnects too when the context has no login program, or its login in the file
   changed.
-- A rejected login without a login program reconnects by itself once the file (checked every 2 s)
-  holds another login.
 - Agents may run `cluster_reconnect`, except for a cluster whose login expired and whose context uses
   a login program: that is Log in again, in the window.
 
@@ -1171,7 +1154,8 @@ A login program that opens your browser (kubelogin, pinniped) waits for you
   finish within 5 minutes; Connect starts it again".
 - When Cogpit cannot find the program's process it only stops waiting; a later connect waits behind
   that login, without an end time, until its process ends, and says so.
-- A connected cluster's login renewal waits the same way; after 5 minutes it is **Login expired**.
+- A connected cluster's login renewal shows **Login expired** after 30 s
+  ([above](#when-the-connection-breaks)); a login you finish within the 5 minutes still reconnects.
 - Only Connect or Log in again starts an ended login program again, so browser tabs do not pile up.
 - The connect's 15 s limit for the API server's first answer excludes the time spent in the browser.
 
