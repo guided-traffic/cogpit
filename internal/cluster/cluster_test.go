@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -215,13 +214,7 @@ func TestConnectNamespaceDefaultsAndExplicitContext(t *testing.T) {
 }
 
 func TestConnectErrorsNameTheContextNeverTheCredential(t *testing.T) {
-	// An address nobody listens on.
-	l, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	refused := "http://" + l.Addr().String()
-	_ = l.Close()
+	refused := "http://" + testkit.RefusedAddr
 
 	// A server that rejects every credential.
 	unauthorized := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: "the-right-token"})

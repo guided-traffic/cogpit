@@ -233,9 +233,7 @@ func TestMCPForwardsToTheRunningApp(t *testing.T) {
 func TestMCPStaleFilesServeHeadless(t *testing.T) {
 	te := newTestEnv(t)
 	te.switchMCPOn(t)
-	// Port 1 is closed, and below 1024 no test process can bind it; a freed ephemeral port can be
-	// bound again by another package's tests meanwhile.
-	writeAppFiles(t, te, "http://127.0.0.1:1/mcp")
+	writeAppFiles(t, te, "http://"+testkit.RefusedAddr+"/mcp")
 
 	cs, stop := te.serveMCP(t)
 	var ctxs []engine.ContextInfo

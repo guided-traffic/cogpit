@@ -287,7 +287,7 @@ func TestKubeconfigProxyPasswordNeverInErrors(t *testing.T) {
 	for _, tt := range []struct{ name, proxy, secret string }{
 		{"unsupported scheme", "ftp://carol:" + proxyPassword + "@127.0.0.1:1", proxyPassword},
 		{"unparseable", "http://carol:pw%zz" + proxyPassword + "@127.0.0.1:1", proxyPassword},
-		{"refused", "http://carol:" + proxyPassword + "@127.0.0.1:1", proxyPassword},
+		{"refused", "http://carol:" + proxyPassword + "@" + testkit.RefusedAddr, proxyPassword},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := connectTLS(t, writeTLSKubeconfig(t, tlsCluster{server: srv.URL, caData: srv.CAData(), proxyURL: tt.proxy}))

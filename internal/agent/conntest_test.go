@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/testkit"
 	"github.com/guided-traffic/cogpit/internal/testkit/fakellm"
 )
 
@@ -99,12 +100,7 @@ func TestConnectionTestLayers(t *testing.T) {
 	})
 
 	t.Run("tcp", func(t *testing.T) {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		addr := l.Addr().String()
-		_ = l.Close()
+		addr := testkit.RefusedAddr
 		closed := conn
 		closed.BaseURL = "http://" + addr + "/v1"
 		steps := h.a.TestConnection(context.Background(), closed, nil, nil)

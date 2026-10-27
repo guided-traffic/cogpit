@@ -18,6 +18,7 @@ import (
 	sdk "github.com/modelcontextprotocol/go-sdk/mcp"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
+	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
 func TestEndpointFileLifecycle(t *testing.T) {
@@ -376,13 +377,7 @@ func TestDialAppWithoutARunningApp(t *testing.T) {
 	}
 
 	// The files of a Cogpit that crashed: nothing listens at the address.
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := ln.Addr().String()
-	_ = ln.Close()
-	writeEndpointFiles(t, tokenPath, "http://"+addr+"/mcp")
+	writeEndpointFiles(t, tokenPath, "http://"+testkit.RefusedAddr+"/mcp")
 	if _, err := DialApp(context.Background(), BridgeOptions{TokenFile: tokenPath, Logger: discardLogger()}); !errors.Is(err, ErrAppNotRunning) {
 		t.Errorf("stale files: %v, want ErrAppNotRunning", err)
 	}

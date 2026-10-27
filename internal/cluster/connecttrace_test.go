@@ -107,7 +107,7 @@ kind: Config
 current-context: cert
 clusters:
 - name: c
-  cluster: {server: "https://127.0.0.1:1"}
+  cluster: {server: "https://` + testkit.RefusedAddr + `"}
 users:
 - name: u
   user:
@@ -134,12 +134,7 @@ contexts:
 // with their error picture: the class, the presented certificate's public facts, the HTTP status.
 func TestConnectTraceErrorPicture(t *testing.T) {
 	t.Run("refused", func(t *testing.T) {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		addr := l.Addr().String()
-		_ = l.Close()
+		addr := testkit.RefusedAddr
 		log, _, err := traceConnect(t, writeFile(t, "kubeconfig", kubeconfigFor("x", "https://"+addr, "")))
 		if err == nil {
 			t.Fatal("connected")
