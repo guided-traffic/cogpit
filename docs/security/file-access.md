@@ -25,7 +25,7 @@ On macOS every chooser is the system's panel
 | The folder for kubectl's binaries | Downloaded releases written there, run in terminals (D-3) | Picked: a read-write bookmark |
 | Program folders | Searched for credential plugins' programs and on the `PATH` of every program Cogpit starts, after `PATH` and Cogpit's built-in folders; one every user may write to is refused (D-120, [`programfolders.go`](../../internal/engine/programfolders.go)) | Picked: a read-only bookmark |
 | A saved table, manifest, log, diagnostics report or revision text | Written once to the file named in the save panel, which asks before replacing it (what a save refuses: [credentials](credentials.md#where-credentials-must-never-end-up)) | None. A new file is 0600 through the system's panel (`createPicked`), the umask's mode through Fyne's dialog |
-| Helm's `repositories.yaml` (`~/Library/Preferences/helm` on macOS, or `$HELM_*`) | Checked every 2 s, read when changed, never written; an entry's CA file, certificate and key read at each download ([architecture §8](../developer/architecture.md#8-helm-internalhelm)) | None needed outside the protected places |
+| Helm's `repositories.yaml` (`~/Library/Preferences/helm` on macOS, or `$HELM_*`) | Checked every 2 s, read when changed or when the last read failed, never written; an entry's CA file, certificate and key read at each download ([architecture §8](../developer/architecture.md#8-helm-internalhelm)) | None needed outside the protected places |
 
 Where no system panel shows (Windows and Linux, D-72; Fyne's test driver) each chooser is Fyne's
 dialog, which reads the user's standard folders for its sidebar whenever it opens (`loadFavorites`

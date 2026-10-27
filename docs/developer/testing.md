@@ -150,10 +150,11 @@ depends on timing passes locally and fails there. The rules:
 - **The clock moves in steps** of 0.5 to 16 ms: two `time.Now()` a moment apart can be equal and a
   measured duration can be 0. Assert durations `>= 0`, never use 0 as a marker value, never rely on
   a later event having a strictly later time.
-- **A file held open cannot be renamed over or removed:** Cogpit retries such a rename or removal
-  for up to a second (`retryHeld` in [`privatefile.go`](../../internal/engine/privatefile.go)), a
-  terminal's files for up to two seconds after its shell ended; a test that reads a file the product
-  rewrites retries its read too.
+- **A file held open cannot be renamed over or removed, and one held unshared cannot be read:**
+  Cogpit retries such a rename or removal, and a read of Helm's `repositories.yaml`, for up to a
+  second (`retryHeld` in [`privatefile.go`](../../internal/engine/privatefile.go);
+  `testkit.HelmRepoFile` retries its rename the same way), a terminal's files for up to two seconds
+  after its shell ended; a test that reads a file the product rewrites retries its read too.
 - **A program is named without `.exe`:** os/exec adds it as `PATHEXT` says, so a kubeconfig names
   `testkit.Plugin.Command` and a test that compares the file found compares `Path`.
 - **Expectations that differ per platform branch on `runtime.GOOS`** (shortcut glyphs, keys).

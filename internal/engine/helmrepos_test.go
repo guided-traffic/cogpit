@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"io/fs"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -115,6 +116,55 @@ func TestHelmRepoFileReadWhenSettled(t *testing.T) {
 	}
 	if l, _ := h.List(); len(l.Repositories) != 3 {
 		t.Errorf("listed %+v", l.Repositories)
+	}
+}
+
+// A read that did not reach Helm's file (on Windows: the file held by another program for longer
+// than heldRetry) is not taken for the file: the list says why, and the next look reads the file
+// again though it did not change. A missing file, one read and one that does not parse are read
+// again only once they change.
+func TestHelmRepoFileReadAgainAfterAFailedRead(t *testing.T) {
+	r := webRepo(t)
+	h, f, _ := helmReposOn(t, r, WithRepositoryFilePoll(20*time.Millisecond)) // settle 5 ms
+	reads := 0
+	var fail error
+	h.read = func(path string) ([]helm.RepositoryEntry, error) {
+		reads++
+		if fail != nil {
+			return nil, fail
+		}
+		return helm.ReadRepositoryFile(path)
+	}
+	readOnce := func(what string) {
+		t.Helper()
+		mustSync(t, h)
+		n := reads
+		mustSync(t, h)
+		if reads != n {
+			t.Errorf("%s was read again unchanged", what)
+		}
+	}
+	readOnce("a missing file")
+
+	f.Write(r.Entry("test"))
+	fail = &fs.PathError{Op: "open", Path: f.Path, Err: errors.New("held by another program")}
+	mustSync(t, h)
+	if l, _ := h.List(); l.Status != HelmFileError || !strings.Contains(l.Error, "held by another program") || len(l.Repositories) != 0 {
+		t.Fatalf("after a failed read: %+v", l)
+	}
+	fail = nil
+	if !mustSync(t, h) {
+		t.Fatal("the file was not read again after a failed read")
+	}
+	if l, _ := h.List(); l.Status != HelmFileOK || len(l.Repositories) != 1 {
+		t.Fatalf("after the next read: %+v", l)
+	}
+	readOnce("a file read")
+
+	f.WriteText("repositories: [unclosed\n")
+	readOnce("a file that does not parse")
+	if l, _ := h.List(); l.Status != HelmFileError || len(l.Repositories) != 1 {
+		t.Errorf("a file that does not parse: %+v", l)
 	}
 }
 

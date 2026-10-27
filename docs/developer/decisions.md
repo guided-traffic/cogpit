@@ -1023,7 +1023,9 @@ ask; unlinking what the folder holds at the click — a file synced in meanwhile
 Cogpit uses the repositories of Helm's own `repositories.yaml` (resolved as the helm CLI resolves
 it, `helm.RepositoryConfigPath`) and never writes Helm's file or folders: repositories are added
 and removed with the helm CLI. The file is looked at every 2 s and read once it held still for
-250 ms, so a change shows within 5 s; a file that does not parse keeps the last good list.
+250 ms, so a change shows within 5 s; a file that does not parse keeps the last good list, and a
+read that fails keeps it too and is tried again at the next look (on Windows a read of the file
+another program holds runs again for up to 1 s, `retryHeld`).
 `helm.repo.list` returns the file, its status (`ok`, `missing`, `error`) and its repositories.
 
 - **Indexes** go to Cogpit's own cache, keyed by name and URL: on `helm.repo.update` and, while the

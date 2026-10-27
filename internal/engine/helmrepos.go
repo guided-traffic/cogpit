@@ -28,7 +28,8 @@ import (
 // modification time are looked at every 2 seconds (as the kubeconfig sync folders are) and the file
 // read again when they changed, so a repository added, changed or removed there is in Cogpit within
 // 5 seconds (the owner's bound); a file that does not parse keeps the last good list and says why,
-// a missing file is an empty list. The credentials of an entry stay in memory (helm.Repository).
+// a missing file is an empty list, a read that failed is tried again at the next look. The
+// credentials of an entry stay in memory (helm.Repository).
 //
 // The indexes are downloaded into Cogpit's own cache folder (<cache>/helm/indexes/<key>-index.yaml,
 // the key made of the repository's name and URL, so a changed URL never reuses the old index; the
@@ -154,7 +155,8 @@ type HelmRepos struct {
 	syncMu                    sync.Mutex // one read of Helm's file at a time
 	fetchMu                   sync.Mutex // one download at a time
 	kick                      chan struct{}
-	settling                  func() // tests: called when a changed file starts to settle
+	settling                  func()                                       // tests: called when a changed file starts to settle
+	read                      func(string) ([]helm.RepositoryEntry, error) // reads Helm's file: helm.ReadRepositoryFile (tests: one that fails)
 	mu                        sync.Mutex
 	loaded, parsed            bool   // Helm's file was looked at; a list was taken from it
 	sig                       string // Helm's file's size and modification time at the last read
@@ -198,7 +200,7 @@ func NewHelmRepos(repoFile, cacheDir string, opts ...HelmReposOption) *HelmRepos
 	h := &HelmRepos{
 		file: repoFile, cacheDir: filepath.Join(cacheDir, filepath.FromSlash(helmIndexDir)),
 		fetcher: &helm.Fetcher{}, ttl: DefaultIndexTTL, pollEvery: indexPollEvery, fileEvery: DefaultHelmRepositoryFilePoll,
-		now: time.Now, state: map[string]*repoState{}, kick: make(chan struct{}, 1),
+		now: time.Now, state: map[string]*repoState{}, kick: make(chan struct{}, 1), read: helm.ReadRepositoryFile,
 		readmes: readmeStore{dir: filepath.Join(cacheDir, filepath.FromSlash(helmReadmeDir))},
 		http:    newHTTPApprovals(""),
 	}
@@ -228,13 +230,16 @@ func (h *HelmRepos) settle() time.Duration {
 	return min(h.fileEvery/4, 250*time.Millisecond)
 }
 
+// missingSignature is fileSignature's for a file that does not exist.
+const missingSignature = "missing"
+
 // fileSignature describes Helm's file as stat sees it (size, modification time), without reading
-// it; "missing" when it does not exist.
+// it; missingSignature when it does not exist.
 func (h *HelmRepos) fileSignature() string {
 	fi, err := os.Stat(h.file)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return "missing"
+		return missingSignature
 	case err != nil:
 		return "unreadable " + err.Error()
 	}
@@ -244,7 +249,9 @@ func (h *HelmRepos) fileSignature() string {
 // Sync reads Helm's repositories file again when its size or modification time changed since the
 // last read (or it was never read) and takes over what changed. It reports whether the
 // repositories changed. A file that does not parse keeps the last good list; a missing file is an
-// empty list.
+// empty list. A read that did not reach the file (on Windows: the file held by another program for
+// longer than heldRetry) keeps the last good list too and is tried again at the next look, whether
+// or not the file changed.
 //
 // helm repo add rewrites the file in place (truncated, then written), so a file seen changing is
 // read only once its size and modification time stayed the same for a moment, and its list is
@@ -272,10 +279,13 @@ func (h *HelmRepos) Sync() (bool, error) {
 		}
 	}
 
-	entries, err := helm.ReadRepositoryFile(h.file)
+	entries, err := h.readFile()
 	if !first && h.fileSignature() != sig {
 		return false, nil // written while it was read
 	}
+	// A read that failed to open or read the file, or did not find the file stat found, did not
+	// reach it: its signature is not kept, so the next look reads the file again.
+	reached := !errors.As(err, new(*fs.PathError)) || (sig == missingSignature && errors.Is(err, fs.ErrNotExist))
 	status, fileErr := HelmFileOK, ""
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
@@ -290,6 +300,9 @@ func (h *HelmRepos) Sync() (bool, error) {
 
 	h.mu.Lock()
 	h.sig, h.loaded = sig, true
+	if !reached {
+		h.sig = ""
+	}
 	changed := h.fileStatus != status || h.fileErr != fileErr
 	h.fileStatus, h.fileErr = status, fileErr
 	if err == nil {
@@ -303,6 +316,19 @@ func (h *HelmRepos) Sync() (bool, error) {
 		h.logger().Warn("helm: Helm's repositories file was not read; the repositories stay as they were", "err", err)
 	}
 	return changed, nil
+}
+
+// readFile reads Helm's file. On Windows a read fails while another program holds the file open
+// without sharing it (the moment a program renames it into place, a virus scanner); it runs again
+// for up to heldRetry then, as Cogpit's own renames do (retryHeld).
+func (h *HelmRepos) readFile() ([]helm.RepositoryEntry, error) {
+	var entries []helm.RepositoryEntry
+	err := retryHeld(func() error {
+		var rerr error
+		entries, rerr = h.read(h.file)
+		return rerr
+	})
+	return entries, err
 }
 
 // diskIndex is an index Cogpit downloaded in an earlier run, read from its cache.

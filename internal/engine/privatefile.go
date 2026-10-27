@@ -89,13 +89,15 @@ func writePrivateFile(path string, data []byte) error {
 	return nil
 }
 
-// heldRetry bounds how long retryHeld runs a rename or a removal again on Windows.
+// heldRetry bounds how long retryHeld runs a rename, a removal or a read again on Windows.
 const heldRetry = time.Second
 
-// retryHeld runs op, a rename or a removal. On Windows those fail while another process has the
-// file open without sharing its deletion (another Cogpit reading it, an editor, a virus scanner),
-// which macOS and Linux allow. Such a hold lasts moments, so there op runs again for up to
-// heldRetry, as in Go's own cmd/go (robustio), rather than the change being lost.
+// retryHeld runs op, a rename, a removal or a read. On Windows a rename or a removal fails while
+// another process has the file open without sharing its deletion (another Cogpit reading it, an
+// editor, a virus scanner), and a read while one holds it without sharing reading (a program
+// renaming it into place, a virus scanner), which macOS and Linux allow. Such a hold lasts
+// moments, so there op runs again for up to heldRetry, as in Go's own cmd/go (robustio), rather
+// than the change being lost.
 func retryHeld(op func() error) error {
 	err := op()
 	deadline := time.Now().Add(heldRetry)
