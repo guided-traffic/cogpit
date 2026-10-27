@@ -1092,7 +1092,7 @@ open, warm or covered, with its load time; objects and estimated memory per kind
 (`Cache.StatsWithMemory`, [`size.go`](../../internal/cache/size.go): the heap layout of each object,
 memoized by UID and resourceVersion, at most 1,000 objects walked per scope and read); a sum per
 connected cluster. The `TestBudget*` tests pin request counts at the HTTP level (budgets P9–P11 in
-[testing](testing.md#performance-budgets-proposed-not-measured)).
+[testing](testing.md#performance-budgets)).
 
 **Connection Diagnostics** ([D-133](decisions.md#d-133-connection-diagnostics)). Each context has an
 in-memory log ([`diaglog.go`](../../internal/cluster/diaglog.go): at most 500 lines, a repeated
@@ -1768,7 +1768,7 @@ about 13 ms a write on macOS); a file that does not parse is reported, never ove
 
 Metrics cannot be watched, so they are polled ([§5](#5-cache)), and only while a view, a drawer or
 the Overview shows them; their request budgets are P13 (a Pods list and a pod's drawer) and P14 (the
-Overview) in [testing](testing.md#performance-budgets-proposed-not-measured). No provider, a refusal
+Overview) in [testing](testing.md#performance-budgets). No provider, a refusal
 and a provider that does not answer are a `State` the UI shows, never an error. A cluster has two
 providers: the Kubernetes Metrics Server for current values, and a Prometheus (or Thanos,
 VictoriaMetrics) the cluster runs, read through the API server's service proxy, for history,
@@ -2039,7 +2039,7 @@ Alerts cannot be watched, so a poller asks for them
 ([D-77](decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)). Every request is a GET
 through the API server's service proxy on the connection's counted clients
 ([`client.go`](../../internal/alerting/client.go); budget
-[P17](testing.md#performance-budgets-proposed-not-measured)).
+[P17](testing.md#performance-budgets)).
 
 - **Detection** ([`detect.go`](../../internal/alerting/detect.go)): `Candidates` ranks the cached
   Services by the names charts and operators give Alertmanager, the port by name, else 9093, else 80.

@@ -592,7 +592,7 @@ section, and the counts); under `-check`, as `make parity` runs it, a page that 
 
 `make scorecard` ([`hack/scorecard`](../../hack/scorecard/main.go)) writes
 [`scorecard.md`](../parity/scorecard.md) from the budget tests and benchmarks of
-[testing › Performance budgets](testing.md#performance-budgets-proposed-not-measured), run without
+[testing › Performance budgets](testing.md#performance-budgets), run without
 the race detector: per budget its proposed target, every measurement with its limit and result,
 the date, the machine (GOOS/GOARCH, CPU model and count, OS version, Go; no host name) and the
 budgets nothing measures. It runs by hand and the page is committed; a run in CI on a fixed

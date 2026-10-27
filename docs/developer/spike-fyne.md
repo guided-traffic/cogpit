@@ -27,7 +27,7 @@ Measured on an Apple M1 Ultra (macOS) with Fyne v2.8.1, on the demo cluster (10,
 watch events per second); frames in a real window with `cogpit --demo --perf-mode gate` (a
 development build). Fyne has no frame callback, so the jank meter posts a function to the main
 goroutine every 16 ms and records how late it runs ([`perf.go`](../../internal/ui/fyneui/perf.go)).
-The numbers are the budgets' in [testing](testing.md#performance-budgets-proposed-not-measured).
+The numbers are the budgets' in [testing](testing.md#performance-budgets).
 
 | # | Result | Evidence |
 |---|---|---|

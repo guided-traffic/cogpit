@@ -25,7 +25,7 @@ here, adjust the estimate and update the checklist row it points to
 | G12 | Metrics and cluster overview | features | blocks beta | 1–4 h | [ui-parity](ui-parity.md#cluster-overview-and-charts) |
 | G13 | Clusters, hotbar, palette, menus, shortcuts and preferences | UI | partly alpha, rest beta | 28–96 h | [ui-parity](ui-parity.md#clusters) |
 | G14 | Packaging, signing and updates (macOS) | platforms | blocks beta (M10) | 12–30 h | [platform-parity](platform-parity.md#operating-systems-and-packages) |
-| G15 | Performance and API load at scale | performance | blocks beta | 28–66 h | [testing](../developer/testing.md#performance-budgets-proposed-not-measured) |
+| G15 | Performance and API load at scale | performance | blocks beta | 28–66 h | [testing](../developer/testing.md#performance-budgets) |
 | G16 | Stability and the user bug backlog | stability | blocks beta | 100–200 h | this page |
 | G17 | MCP control | beyond Lens | nothing open (M9 done) | 0 h | [beyond-lens](beyond-lens.md#mcp-control-of-ui-and-cluster) |
 | G18 | Paid Lens Desktop features | features | low-medium | 110–220 h + human | [resource-parity](resource-parity.md#paid-lens-desktop-views) |
@@ -376,7 +376,7 @@ update rows.
 ### G15. Performance and API load at scale
 
 - **Against Lens:** no budget is measured beside Lens on the same machine
-  ([testing › budgets](../developer/testing.md#performance-budgets-proposed-not-measured)).
+  ([testing › budgets](../developer/testing.md#performance-budgets)).
 - **Not measured:** the window's paint in P1, GPU frames in P5, Cogpit's resident memory with three
   clusters (P6), and the time before the window in P7 (logger, engine, MCP). P3, P6 and P7 are
   outside `make scorecard` (`notMeasured` in [`main.go`](../../hack/scorecard/main.go)); its

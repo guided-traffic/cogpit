@@ -224,7 +224,7 @@ columns; a built-in kind without a profile gets no view
 4. Add a test that asserts the API requests your consumer costs: `testkit.MemorySource`'s `Lists`
    and `Watches` ([`memsource.go`](../../internal/testkit/memsource.go)), or a connection's
    `cluster.RequestCounter` ([`counter.go`](../../internal/cluster/counter.go)); budgets P9–P11 in
-   [`testing.md`](testing.md#performance-budgets-proposed-not-measured).
+   [`testing.md`](testing.md#performance-budgets).
 
 ## Adding a package
 

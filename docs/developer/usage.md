@@ -1562,7 +1562,7 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 | `M<n>` | A milestone | [docs/parity/roadmap.md](../parity/roadmap.md) |
 | `D-<n>` | A decision | [docs/developer/decisions.md](decisions.md) |
 | `H-<n>` | An open security gap | [docs/security/](../security/README.md) |
-| `P<n>` | A performance or API-load budget | [docs/developer/testing.md](testing.md#performance-budgets-proposed-not-measured) |
+| `P<n>` | A performance or API-load budget | [docs/developer/testing.md](testing.md#performance-budgets) |
 | `S<n>` | A gate criterion of the Fyne spike | [docs/developer/spike-fyne.md](spike-fyne.md#gate-criteria) |
 
 </details>

@@ -55,7 +55,7 @@ Each audience is a subset of the one above; the percentages are estimates
 | Interface fidelity and feel | 45% (about half the rows seen in a real window, the rest offscreen only) | 42–148 | [ui-parity](docs/parity/ui-parity.md) |
 | Cluster connectivity and authentication | 55% (sleep and wake, exec plugins and several clusters at once tried on real clusters) | 8–26 | [platform-parity](docs/parity/platform-parity.md#cluster-authentication-and-connectivity) |
 | Logs, terminal, shells, port forwarding | 65% (logs, pod shells, kubectl and a port forward tried on a real cluster) | 9–31 | [ui-parity](docs/parity/ui-parity.md#logs) |
-| Performance and API load | 40% (13 of 16 budgets measured offscreen against fakes, all met; fast scrolling at 60 frames per second; no comparison with Lens) | 28–66 | [testing](docs/developer/testing.md#performance-budgets-proposed-not-measured) |
+| Performance and API load | 40% (13 of 16 budgets measured offscreen against fakes, all met; fast scrolling at 60 frames per second; no comparison with Lens) | 28–66 | [testing](docs/developer/testing.md#performance-budgets) |
 | Stability | 30% (one tester on real clusters, whose use still finds defects) | 100–200 | [gaps](docs/parity/gaps.md#g16-stability-and-the-user-bug-backlog) |
 | Helm releases and metrics | 55% (upgrade, rollback and the metrics tried on a real cluster) | 3–12 | [gaps](docs/parity/gaps.md#g11-helm) |
 | Platforms and distribution | 60% (measures macOS: the signed, notarized disk image and Sparkle's updates; no Intel app, no Homebrew cask) | 32–75 + human | [platform-parity](docs/parity/platform-parity.md#operating-systems-and-packages) |
