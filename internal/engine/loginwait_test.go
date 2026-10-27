@@ -268,11 +268,15 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	p.Stray(true)
 	done := make(chan error, 1)
 	go func() { done <- s.Connect(context.Background(), "oidc") }()
+	// Cancelled only once the run left its stray child and its own process ended: a cancel while
+	// that process still exits finds it and says Cogpit ended it (strayed in internal/cluster's
+	// loginrun_test.go).
 	if !testkit.WaitFor(within(t, 10*time.Second), func() bool {
 		c := s.UIState().Connection
-		return c.State == Connecting && c.WaitingForLogin.Program == "login-plugin" && p.Runs() == 1
+		return c.State == Connecting && c.WaitingForLogin.Program == "login-plugin" && len(p.Strays()) == 1 &&
+			testkit.ProcessGone(p.LastPID())
 	}) {
-		t.Fatalf("the connect never said it waits for the login: %+v", s.UIState().Connection)
+		t.Fatalf("the connect never said it waits for the login of the stray child alone: %+v", s.UIState().Connection)
 	}
 	first := s.UIState().Connection.WaitingForLogin
 	if err := s.Disconnect(); err != nil {

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"slices"
 	"strings"
 	"sync"
@@ -418,21 +419,41 @@ func TestCancelEndsAPluginThatExecs(t *testing.T) {
 	}
 }
 
-// holdOf is the hold of the Authenticator that runs plugin.
-func holdOf(t *testing.T, plugin string) *pluginHold {
-	t.Helper()
-	patchMu.Lock()
-	defer patchMu.Unlock()
-	for _, h := range holds {
-		h.mu.Lock()
-		match := len(h.command) > 0 && h.command[0] == plugin
-		h.mu.Unlock()
-		if match {
-			return h
+// strayed reports whether p's run left its stray child and its own process ended: no child of the
+// test's has its number any more (listChildren, what Cogpit's search looks at), the state a stray
+// test cancels in. The plugin notes its stray before it exits, and a race-enabled test binary
+// takes a while to exit on a loaded runner: a cancel in that moment found the run's process, said
+// Cogpit ended it and waited for its request as for an ended run (abandonAfter), which the stray
+// child kept going (CI run 40491453904).
+func strayed(p *waitingPlugin) bool {
+	pid := p.LastPID()
+	return pid != 0 && len(p.Strays()) == 1 &&
+		!slices.ContainsFunc(listChildren(), func(c childProcess) bool { return c.id.pid == pid })
+}
+
+// queuedAtPluginLock is how many goroutines wait for the lock of a client-go exec Authenticator
+// (getCreds): requests queued behind a plugin's run, where their contexts no longer reach them.
+func queuedAtPluginLock() int {
+	var dump strings.Builder
+	if err := pprof.Lookup("goroutine").WriteTo(&dump, 2); err != nil {
+		return 0
+	}
+	n := 0
+	for g := range strings.SplitSeq(dump.String(), "\n\n") {
+		if strings.Contains(g, "sync.(*Mutex).Lock") && strings.Contains(g, "exec.(*Authenticator).getCreds") {
+			n++
 		}
 	}
-	t.Fatalf("no hold runs %s", plugin)
-	return nil
+	return n
+}
+
+// waitQueued waits until more requests than before (queuedAtPluginLock) queue behind the plugin's
+// run: a connect's first request there is not taken back by the connect's cancel.
+func waitQueued(t *testing.T, before int) {
+	t.Helper()
+	if !testkit.WaitFor(waitCtx(t, 10*time.Second), func() bool { return queuedAtPluginLock() > before }) {
+		t.Fatalf("the connect's request did not queue behind the run: %d wait at client-go's lock, %d before", queuedAtPluginLock(), before)
+	}
 }
 
 // WF38, parts 1 and 2. A run whose process Cogpit cannot end (the plugin left a child that holds
@@ -454,8 +475,8 @@ func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
 	defer cancel()
 	done := p.connectAsync(ctx, watch, func(s ConnectStep) { mu.Lock(); steps = append(steps, s); mu.Unlock() })
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.Strays()) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
 
 	cancel()
@@ -487,18 +508,22 @@ func TestCancelledConnectsStartNoRunAfterAStrayOne(t *testing.T) {
 	for range 2 {
 		w := NewLoginWatch(func() {})
 		cctx, ccancel := context.WithCancel(context.Background())
+		queued := queuedAtPluginLock()
 		d := p.connectAsync(cctx, w, nil)
 		if !testkit.WaitFor(wait, func() bool { _, on := w.Current(); return on }) {
 			ccancel()
 			t.Fatal("a later connect does not see the run under way")
 		}
-		time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+		waitQueued(t, queued)
 		ccancel()
 		if r := result(t, d); r.err == nil {
 			t.Fatal("a cancelled connect connected")
 		}
 	}
-	hold := holdOf(t, p.path)
+	// The connect's hold, by its watch: on Windows the tests' plugins of a name are one program
+	// (testkit.Plugin), and every earlier test's hold runs its path too (CI run 40491453904 read
+	// another test's).
+	hold := watch.hold.Load()
 	p.Stray(false) // the stray child ends, and the run with it: the queued requests take the lock
 	refused := func() int { hold.mu.Lock(); defer hold.mu.Unlock(); return hold.notAsked }
 	if !testkit.WaitFor(wait, func() bool { return refused() >= 2 }) {
@@ -552,8 +577,8 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	defer cancel()
 	done := p.connectAsync(ctx, watch, nil)
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.Strays()) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
 	if run, _ := watch.Current(); run.RunsOn || run.Until.Sub(run.Since) != DefaultLoginTimeout {
 		t.Errorf("the run before the cancel: %+v, want its end after %s", run, DefaultLoginTimeout)
@@ -568,6 +593,7 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	later := NewLoginWatch(func() { told.Add(1) })
 	lctx, lcancel := context.WithCancel(context.Background())
 	defer lcancel()
+	queued := queuedAtPluginLock()
 	ldone := p.connectAsync(lctx, later, nil)
 	if !testkit.WaitFor(wait, func() bool { return told.Load() > 0 }) {
 		t.Fatal("the later connect was not told of the run it waits behind")
@@ -576,7 +602,7 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	if !on || run.Program != "login-plugin" || !run.RunsOn || !run.Until.IsZero() {
 		t.Fatalf("the run the later connect waits behind: %+v (under way %v), want login-plugin, RunsOn, no end", run, on)
 	}
-	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
+	waitQueued(t, queued)
 	lcancel()
 	r := result(t, ldone)
 	var ce *ConnectError
@@ -590,12 +616,13 @@ func TestAWaitBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	// A connect behind the run that is not cancelled goes on once the stray child ends: with a run
 	// of its own (the stray run handed out no credential), bounded as any.
 	third := NewLoginWatch(func() {})
+	queued = queuedAtPluginLock()
 	tdone := p.connectAsync(context.Background(), third, nil)
 	if !testkit.WaitFor(wait, func() bool { run, on := third.Current(); return on && run.RunsOn }) {
 		t.Fatal("the third connect does not see the run it waits behind")
 	}
-	time.Sleep(300 * time.Millisecond) // its first request reaches client-go's lock
-	p.Stray(false)                     // the stray child ends, and the run with it
+	waitQueued(t, queued)
+	p.Stray(false) // the stray child ends, and the run with it
 	if r := result(t, tdone); r.err != nil {
 		t.Fatalf("the connect behind the run, once it ended: %v", r.err)
 	}
@@ -626,8 +653,8 @@ func TestARunPastItsBoundThatCogpitCouldNotEndHasNoEnd(t *testing.T) {
 		done <- connectResult{c, err}
 	}()
 	wait := waitCtx(t, 20*time.Second)
-	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && len(p.Strays()) == 1 }) {
-		t.Fatal("the connect never waited for the plugin's stray child")
+	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && strayed(p) }) {
+		t.Fatal("the connect never waited for the plugin's stray child alone")
 	}
 	begun := told.Load()
 	if !testkit.WaitFor(wait, func() bool { run, _ := watch.Current(); return run.RunsOn }) {

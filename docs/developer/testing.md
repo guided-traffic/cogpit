@@ -59,7 +59,14 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
   file name, a copy, one per name and test process (or of its own where a test places it), started
   once when it is made so that the malware scan of a new program falls on no test's timing. It
   starts in about 0.3 s under the race detector (the packages' `init`s), so a test that waits for
-  a run's bound gives it 3 s.
+  a run's bound gives it 3 s. A run notes its stray child before it exits, and the binary may take
+  long to exit on a loaded runner: a test that needs a run whose process Cogpit cannot find cancels
+  once that process ended (`strayed` in
+  [`loginrun_test.go`](../../internal/cluster/loginrun_test.go), `ProcessGone` in the engine's
+  `loginwait_test.go`), and one that needs a request queued behind a run waits until the request
+  is at client-go's lock (`queuedAtPluginLock`, read from a goroutine dump). On Windows one copy
+  serves every test of a name, so a test reads its plugin's hold through its connection's watch,
+  never by the program's path.
   [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) adds a kubeconfig that runs it.
   Shell scripts stay where a test needs one: a `#!` script's command line and a wrapper that execs,
   for the process search (`pluginproc_unix_test.go`). The plugin a binary swap replaces
