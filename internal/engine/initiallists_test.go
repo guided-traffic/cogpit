@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
-	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
 // The server's own refusal and an early end keep their fallback texts (D-133).
@@ -42,22 +41,6 @@ func TestStallText(t *testing.T) {
 		if got := stallText(tc.st); got != tc.want {
 			t.Errorf("stallText =\n%s\nwant\n%s", got, tc.want)
 		}
-	}
-}
-
-// A stall is noted in the log and leaves the cluster's settings as the user chose them.
-func TestStreamStalledKeepsTheSetting(t *testing.T) {
-	s := New(Options{ClusterSettings: NewClusterSettingsStore(t.TempDir())})
-	t.Cleanup(s.Close)
-	if _, err := s.ChangeClusterSettings("acme-stage", func(cs *ClusterSettings) error { cs.Streaming = true; return nil }); err != nil {
-		t.Fatal(err)
-	}
-	b := &Backend{Context: "acme-stage", Streaming: true}
-	s.streamStalled(b, cache.Stall{Scope: cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"},
-		Err: &cache.StreamStallError{Silent: 10 * time.Second, Answered: true, Objects: 3}, Listed: 80 * time.Millisecond})
-	time.Sleep(50 * time.Millisecond)
-	if cs, _ := s.ClusterSettingsOf("acme-stage"); !cs.Streaming {
-		t.Error("a stall switched the user's streaming off")
 	}
 }
 

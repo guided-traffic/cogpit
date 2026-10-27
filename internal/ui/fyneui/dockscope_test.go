@@ -99,10 +99,6 @@ func TestDockShowsTheShownClustersTabs(t *testing.T) {
 func TestRenderDockPerClusterDark(t *testing.T) {
 	renderDockPerCluster(t, ThemeDark, "dock_cluster_before_dark.png", "dock_cluster_after_dark.png")
 }
-func TestRenderDockPerClusterLight(t *testing.T) {
-	renderDockPerCluster(t, ThemeLight, "dock_cluster_before_light.png", "dock_cluster_after_light.png")
-}
-
 func renderDockPerCluster(t *testing.T, mode ThemeMode, before, after string) {
 	f := dockClustersFake(t)
 	f.ui.Hotbar = nil

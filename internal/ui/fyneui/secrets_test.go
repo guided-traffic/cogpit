@@ -236,8 +236,7 @@ func renderSecrets(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderSecretsDark(t *testing.T)  { renderSecrets(t, ThemeDark, "secrets_dark.png") }
-func TestRenderSecretsLight(t *testing.T) { renderSecrets(t, ThemeLight, "secrets_light.png") }
+func TestRenderSecretsDark(t *testing.T) { renderSecrets(t, ThemeDark, "secrets_dark.png") }
 
 // TestRenderSecretsListDark renders the Secrets list without the drawer: the Keys and Type columns
 // the full watch fills (D-13 revised, 2026-10-12).

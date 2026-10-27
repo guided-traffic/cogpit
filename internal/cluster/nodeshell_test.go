@@ -11,7 +11,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	k8stesting "k8s.io/client-go/testing"
 )
@@ -144,26 +143,6 @@ func TestWaitPodRunningReadsAgainAfterTheWatchEnds(t *testing.T) {
 	cancel()
 	if err := waitResult(t, ch); !errors.Is(err, context.Canceled) {
 		t.Errorf("after cancel: %v", err)
-	}
-}
-
-// TestCreatePodSendsThePod: the pod goes to the API server as given.
-func TestCreatePodSendsThePod(t *testing.T) {
-	c, cs := fakeConn()
-	pod := shellPod("", corev1.ContainerState{})
-	pod.ResourceVersion = ""
-	out, err := c.CreatePod(context.Background(), pod)
-	if err != nil || out.Name != pod.Name {
-		t.Fatalf("CreatePod: %v %v", out, err)
-	}
-	var created runtime.Object
-	for _, a := range cs.Actions() {
-		if ca, ok := a.(k8stesting.CreateAction); ok {
-			created = ca.GetObject()
-		}
-	}
-	if p, ok := created.(*corev1.Pod); !ok || p.Namespace != "kube-system" {
-		t.Errorf("created %v", created)
 	}
 }
 

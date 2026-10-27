@@ -282,22 +282,3 @@ func nodeDiskDrawerOn(t *testing.T, f *fakeEngine, mode ThemeMode) (*shell, mode
 	settle(w)
 	return sh, ref
 }
-
-func renderNodeBars(t *testing.T, mode ThemeMode, name string) {
-	f := kindsFake(t, "nodes")
-	withNodeBars(t, f)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the nodes view", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" && sh.diag.total > 0
-	})
-	settle(w)
-	savePNG(t, w, name)
-}
-
-func TestRenderNodesUsageBarsDark(t *testing.T) {
-	renderNodeBars(t, ThemeDark, "nodes_usage_bars_dark.png")
-}
-
-func TestRenderNodesUsageBarsLight(t *testing.T) {
-	renderNodeBars(t, ThemeLight, "nodes_usage_bars_light.png")
-}

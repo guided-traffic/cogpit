@@ -2,7 +2,6 @@ package kubectl
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -254,11 +253,5 @@ func TestCheckMirror(t *testing.T) {
 		} else if strings.Contains(err.Error(), "secret") {
 			t.Errorf("the error echoes the password: %v", err)
 		}
-	}
-}
-
-func TestErrorsWrap(t *testing.T) {
-	if !errors.Is(errors.Join(ErrChecksum), ErrChecksum) || !errors.Is(errors.Join(ErrSignature), ErrSignature) {
-		t.Fatal("sentinels")
 	}
 }

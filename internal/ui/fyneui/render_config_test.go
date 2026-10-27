@@ -83,5 +83,4 @@ func renderPDBList(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderPDBListDark(t *testing.T)  { renderPDBList(t, ThemeDark, "pdbs_list_dark.png") }
-func TestRenderPDBListLight(t *testing.T) { renderPDBList(t, ThemeLight, "pdbs_list_light.png") }
+func TestRenderPDBListDark(t *testing.T) { renderPDBList(t, ThemeDark, "pdbs_list_dark.png") }

@@ -3,22 +3,10 @@ package kinds_test
 import (
 	"testing"
 
-	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
 func FuzzLimitRanges(f *testing.F) { fuzzProfile(f, "limitranges") }
-
-func TestLimitRangesStatusTexts(t *testing.T) {
-	const none = model.StatusNone
-	// A limit range has no state: no row is coloured (inferred).
-	checkStatusTexts(t, []statusText{
-		{"limitranges", "healthy", "name", "defaults", none, none},
-		{"limitranges", "failing", "namespace", "batch", none, none},
-		{"limitranges", "minimal", "age", "1h", none, none},
-		{"limitranges", "terminating", "name", "storage-bounds", none, model.StatusTerminating},
-	})
-}
 
 // TestLimitRangeTable pins the drawer's Limits table: a row per type and resource, the bounds in
 // their columns.

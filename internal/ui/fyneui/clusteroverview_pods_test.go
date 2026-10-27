@@ -61,18 +61,3 @@ func TestClusterOverviewPodsHistoryNote(t *testing.T) {
 		}
 	}
 }
-
-func renderClusterOverviewPods(t *testing.T, mode ThemeMode, name string) {
-	f := clusterFakeWithPodsHistory(t, metrics.PodsFromKubeStateMetrics)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the page", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.cluster.data != nil && sh.diag.total > 0
-	})
-	settle(w)
-	savePNG(t, w, name)
-}
-
-func TestRenderClusterOverviewPodsHistory(t *testing.T) {
-	renderClusterOverviewPods(t, ThemeDark, "cluster_overview_pods_history_dark.png")
-	renderClusterOverviewPods(t, ThemeLight, "cluster_overview_pods_history_light.png")
-}

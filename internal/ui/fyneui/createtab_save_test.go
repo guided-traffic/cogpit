@@ -130,6 +130,3 @@ func renderCreateTools(t *testing.T, mode ThemeMode, name string) {
 func TestRenderCreateToolsDark(t *testing.T) {
 	renderCreateTools(t, ThemeDark, "create_tools_dark.png")
 }
-func TestRenderCreateToolsLight(t *testing.T) {
-	renderCreateTools(t, ThemeLight, "create_tools_light.png")
-}

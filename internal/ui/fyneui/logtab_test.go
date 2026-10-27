@@ -737,7 +737,7 @@ func savedLogs(t *testing.T, lines []string) []string {
 // TestRenderLogsWorkloadSources: a deployment's tab narrowed to one pod by its selectors, dark and
 // light, and its container selector open.
 func TestRenderLogsWorkloadSources(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true, Pod: "checkout-api-7d9f8b6c4-x2k9p"})
 		lt := logTabOf(sh)
 		q.until(t, "the pod's lines", func() bool { return len(lt.view.ShownLines()) == 5 })
@@ -753,7 +753,7 @@ func TestRenderLogsWorkloadSources(t *testing.T) {
 // TestRenderLogsJump: a deployment's tab after a jump to 14:28:12, the line found selected at the
 // top, the field showing the time, dark and light.
 func TestRenderLogsJump(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, f := logsScene(t, mode, true, engine.LogOptions{ResourceNames: true, Timestamps: true})
 		lt := logTabOf(sh)
 		q.until(t, "every line", func() bool { return len(lt.view.ShownLines()) == len(demoMerged) })
@@ -769,7 +769,7 @@ func TestRenderLogsJump(t *testing.T) {
 // TestRenderLogsOlder: a pod's tab after loading its older lines, the row above them saying it
 // holds the beginning, dark and light.
 func TestRenderLogsOlder(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, false, engine.LogOptions{Timestamps: true})
 		lt := logTabOf(sh)
 		lt.requestOlder()
@@ -790,7 +790,7 @@ func TestRenderLogsWorkloadLight(t *testing.T) {
 
 // TestRenderLogsWrapFilter: a pod's tab with timestamps, wrapped lines and a filter.
 func TestRenderLogsWrapFilter(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		sh, w, q, _ := logsScene(t, mode, true, engine.LogOptions{Timestamps: true, Wrap: true, Search: "error", Filter: true})
 		lt := logTabOf(sh)
 		q.until(t, "the filtered rows", func() bool { return lt.view.View().Filter && len(lt.view.ShownLines()) == len(demoMerged) })

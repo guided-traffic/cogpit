@@ -90,7 +90,3 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 func TestRenderClusterOverviewDemoDark(t *testing.T) {
 	renderClusterOverviewDemo(t, ThemeDark, "cluster_overview_demo_dark.png")
 }
-
-func TestRenderClusterOverviewDemoLight(t *testing.T) {
-	renderClusterOverviewDemo(t, ThemeLight, "cluster_overview_demo_light.png")
-}

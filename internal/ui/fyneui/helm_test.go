@@ -234,21 +234,6 @@ func TestReleasesViewAndDrawer(t *testing.T) {
 	}
 }
 
-func renderReleases(t *testing.T, mode ThemeMode, name string) {
-	f, _ := releasesFake(t)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the releases, the drawer and its values", func() bool {
-		rv, _ := sh.drawer.kept[releaseValuesKey].(*releaseValues)
-		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.drawer.last != nil && len(sh.drawer.actions.Objects) > 0 && sh.diag.total > 0 &&
-			rv != nil && rv.status.text != "Loading…" // the values arrive after the drawer: wait for them, not for time
-	})
-	settle(w)
-	savePNG(t, w, name)
-}
-
-func TestRenderReleasesDark(t *testing.T)  { renderReleases(t, ThemeDark, "releases_dark.png") }
-func TestRenderReleasesLight(t *testing.T) { renderReleases(t, ThemeLight, "releases_light.png") }
-
 // helmEngine is the fake engine with the commands the Helm banner dispatches: it answers
 // helm.pendingOperations with canned actions and records the others.
 type helmEngine struct {
@@ -468,6 +453,3 @@ func renderHelmBanner(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderHelmBannerDark(t *testing.T) { renderHelmBanner(t, ThemeDark, "helm_banner_dark.png") }
-func TestRenderHelmBannerLight(t *testing.T) {
-	renderHelmBanner(t, ThemeLight, "helm_banner_light.png")
-}

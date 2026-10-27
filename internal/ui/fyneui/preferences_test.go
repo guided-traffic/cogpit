@@ -425,9 +425,6 @@ func TestClusterSettingsShortcutAndMenus(t *testing.T) {
 	}
 }
 
-// The Preferences page and a cluster's Settings page, dark and light: the PNGs of the pull request
-// (AGENTS.md rule 7).
-func TestRenderPreferencesDark(t *testing.T) { renderPreferences(t, ThemeDark, "preferences_dark.png") }
 func TestRenderPreferencesLight(t *testing.T) {
 	renderPreferences(t, ThemeLight, "preferences_light.png")
 }

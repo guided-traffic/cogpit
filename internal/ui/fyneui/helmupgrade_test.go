@@ -533,18 +533,6 @@ func renderReleaseDrawer(t *testing.T, mode ThemeMode, name string, end bool) {
 func TestRenderReleaseDrawerDark(t *testing.T) {
 	renderReleaseDrawer(t, ThemeDark, "release_drawer_dark.png", false)
 }
-func TestRenderReleaseDrawerLight(t *testing.T) {
-	renderReleaseDrawer(t, ThemeLight, "release_drawer_light.png", false)
-}
-
-// TestRenderReleaseDrawerEnd renders the drawer's end (notes, resources) for a look, to
-// COGPIT_PNG_DIR when that names one, else only captured; it is not committed (see renderReleaseDrawer).
-func TestRenderReleaseDrawerEnd(t *testing.T) {
-	if *updatePNG {
-		t.Skip("not a committed PNG")
-	}
-	renderReleaseDrawer(t, ThemeLight, "release_drawer_end_light.png", true)
-}
 
 // failedReleaseDrawerShell opens checkout-api's drawer: revision 5 failed, revision 4 deployed.
 func failedReleaseDrawerShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window) {
@@ -634,10 +622,6 @@ func TestRenderReleaseHistoryDark(t *testing.T) {
 	renderReleaseHistory(t, ThemeDark, "release_history_dark.png")
 }
 
-func TestRenderReleaseHistoryLight(t *testing.T) {
-	renderReleaseHistory(t, ThemeLight, "release_history_light.png")
-}
-
 // TestRenderRollbackDialog and its dropdown's renders: render_dialogs_test.go.
 
 func renderHelmUpgradeTab(t *testing.T, mode ThemeMode, name string, find bool) {
@@ -676,13 +660,4 @@ func renderHelmUpgradeTab(t *testing.T, mode ThemeMode, name string, find bool) 
 
 func TestRenderHelmUpgradeTabDark(t *testing.T) {
 	renderHelmUpgradeTab(t, ThemeDark, "helm_upgrade_tab_dark.png", false)
-}
-func TestRenderHelmUpgradeTabLight(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeLight, "helm_upgrade_tab_light.png", false)
-}
-func TestRenderHelmUpgradeFindDark(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeDark, "helm_upgrade_find_dark.png", true)
-}
-func TestRenderHelmUpgradeFindLight(t *testing.T) {
-	renderHelmUpgradeTab(t, ThemeLight, "helm_upgrade_find_light.png", true)
 }

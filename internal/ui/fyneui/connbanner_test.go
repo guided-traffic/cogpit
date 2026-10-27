@@ -186,32 +186,6 @@ func TestRenderConnectionInterruptedDark(t *testing.T) {
 	savePNG(t, connectionScene(t, ThemeDark, engine.Interrupted), "connection_interrupted_dark.png")
 }
 
-func TestRenderConnectionInterruptedLight(t *testing.T) {
-	savePNG(t, connectionScene(t, ThemeLight, engine.Interrupted), "connection_interrupted_light.png")
-}
-
-// The dots' second phase: dimmed (F13).
-func renderInterruptedDim(t *testing.T, mode ThemeMode, name string) {
-	w, _, clk := blinkScene(t, mode, engine.Interrupted, nil)
-	clk.after(blinkPhase)
-	savePNG(t, w, name)
-}
-
-func TestRenderConnectionInterruptedDimDark(t *testing.T) {
-	renderInterruptedDim(t, ThemeDark, "connection_interrupted_dim_dark.png")
-}
-
-func TestRenderConnectionInterruptedDimLight(t *testing.T) {
-	renderInterruptedDim(t, ThemeLight, "connection_interrupted_dim_light.png")
-}
-
-// Under Reduce motion: a steady half-alpha dot (F13).
-func TestRenderConnectionReduceMotionDark(t *testing.T) {
-	w, _, clk := blinkScene(t, ThemeDark, engine.Interrupted, func(sh *shell) { sh.blink.reduce = func() bool { return true } })
-	clk.after(blinkPhase)
-	savePNG(t, w, "connection_reduce_motion_dark.png")
-}
-
 func TestRenderConnectionLoginExpiredDark(t *testing.T) {
 	savePNG(t, connectionScene(t, ThemeDark, engine.LoginExpired), "connection_login_expired_dark.png")
 }
@@ -287,8 +261,4 @@ func upgradedScene(t *testing.T, mode ThemeMode) fyne.Window {
 
 func TestRenderConnectionUpgradedDark(t *testing.T) {
 	savePNG(t, upgradedScene(t, ThemeDark), "connection_upgraded_dark.png")
-}
-
-func TestRenderConnectionUpgradedLight(t *testing.T) {
-	savePNG(t, upgradedScene(t, ThemeLight), "connection_upgraded_light.png")
 }

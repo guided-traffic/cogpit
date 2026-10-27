@@ -168,14 +168,6 @@ func TestRenderConnectingLoginWaitDark(t *testing.T) {
 	renderConnecting(t, ThemeDark, "connecting_login_wait_dark.png")
 }
 
-func TestRenderConnectingLoginWaitLight(t *testing.T) {
-	renderConnecting(t, ThemeLight, "connecting_login_wait_light.png")
-}
-
 func TestRenderConnectingBehindAStrayLoginDark(t *testing.T) {
 	renderConnectingWith(t, ThemeDark, strayWaitConnection(), "connecting_stray_login_dark.png")
-}
-
-func TestRenderConnectingBehindAStrayLoginLight(t *testing.T) {
-	renderConnectingWith(t, ThemeLight, strayWaitConnection(), "connecting_stray_login_light.png")
 }

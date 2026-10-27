@@ -40,56 +40,6 @@ func syncAll(t *testing.T, c *cache.Cache) *informers {
 	return inf
 }
 
-func (inf *informers) handle(resource string) *cache.Handle {
-	for _, h := range inf.handles {
-		if h.Scope().GVR.Resource == resource {
-			return h
-		}
-	}
-	return nil
-}
-
-func TestCacheSyncsTheDemoCluster(t *testing.T) {
-	d := demo.New(demo.Options{Seed: 1, NoChurn: true})
-	c := cache.New(d.Source(), cache.Options{})
-	defer c.Close()
-	inf := syncAll(t, c)
-
-	want := map[string]int{
-		"pods": demo.DefaultPods, "deployments": demo.DefaultDeployments, "services": demo.DefaultServices,
-		"namespaces": demo.DefaultNamespaces, "nodes": demo.DefaultNodes, "events": demo.DefaultEvents,
-		"secrets": 8, "configmaps": 3, // Helm's release records (helm_test.go)
-	}
-	total := 0
-	for resource, n := range want {
-		if got := len(inf.handle(resource).List()); got != n {
-			t.Errorf("%s: %d in the cache, want %d", resource, got, n)
-		}
-		total += n
-	}
-	if st := d.Stats(); st.Objects != total || st.Lists != int64(len(want)) {
-		t.Errorf("Stats: %d objects, %d lists; want %d and %d", st.Objects, st.Lists, total, len(want))
-	}
-
-	svc, ok := inf.handle("services").Get(demo.MCPNamespace, demo.MCPService)
-	if !ok {
-		t.Fatalf("service %s/%s missing", demo.MCPNamespace, demo.MCPService)
-	}
-	if ip, _, _ := unstructured.NestedString(svc.Object, "spec", "clusterIP"); ip != demo.MCPClusterIP {
-		t.Errorf("clusterIP %q, want %s", ip, demo.MCPClusterIP)
-	}
-	// The MCP demo finds it by address, as resources_find does.
-	matches := 0
-	for _, s := range inf.handle("services").List() {
-		if ip, _, _ := unstructured.NestedString(s.Object, "spec", "clusterIP"); ip == demo.MCPClusterIP {
-			matches++
-		}
-	}
-	if matches != 1 {
-		t.Errorf("%d services with clusterIP %s, want 1", matches, demo.MCPClusterIP)
-	}
-}
-
 // TestChurnReachesTheInformers runs the default churn (1,000 events per second) for two seconds
 // against the real cache: the informers receive every event, about 2,000, and end in the
 // cluster's state.

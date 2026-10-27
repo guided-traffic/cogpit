@@ -135,7 +135,3 @@ func renderSecretCertificates(t *testing.T, mode ThemeMode, name string) {
 func TestRenderSecretCertificatesDark(t *testing.T) {
 	renderSecretCertificates(t, ThemeDark, "secret_certs_dark.png")
 }
-
-func TestRenderSecretCertificatesLight(t *testing.T) {
-	renderSecretCertificates(t, ThemeLight, "secret_certs_light.png")
-}

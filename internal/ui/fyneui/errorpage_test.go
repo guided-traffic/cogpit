@@ -235,9 +235,7 @@ func TestStageMarks(t *testing.T) {
 
 // The PNGs of the pull request: the error page after the failed restore, dark and light; the
 // welcome page on a first start ("Your clusters"); Connection Updates with a connect's stages.
-func TestRenderConnectFailedPageDark(t *testing.T)  { renderConnectFailedPage(t, ThemeDark) }
-func TestRenderConnectFailedPageLight(t *testing.T) { renderConnectFailedPage(t, ThemeLight) }
-
+func TestRenderConnectFailedPageDark(t *testing.T) { renderConnectFailedPage(t, ThemeDark) }
 func renderConnectFailedPage(t *testing.T, mode ThemeMode) {
 	sh, w, q, f, _ := marksScene(t, mode, false)
 	failRestored(f, cFailed)

@@ -398,10 +398,6 @@ func TestRenderAFailedConnectStaysDark(t *testing.T) {
 	renderFailedConnect(t, ThemeDark, "connect_failed_stays_dark.png")
 }
 
-func TestRenderAFailedConnectStaysLight(t *testing.T) {
-	renderFailedConnect(t, ThemeLight, "connect_failed_stays_light.png")
-}
-
 // Without another connected cluster a failed connect stays shown, as before: the welcome page says
 // why, nothing connects by itself.
 func TestAFailedConnectWithoutAnotherClusterStays(t *testing.T) {
@@ -489,23 +485,9 @@ func TestDiagnosticsListsEachCluster(t *testing.T) {
 	}
 }
 
-// The marks on the hotbar and in the navigator's section, dark and light (D-69 item 5): kind-cogpit
-// shown, prod-eu-central reconnecting in the background (the blink's dimmed phase), staging-us-east
-// cold (a green ring), dev-hfi's login lapsed (a grey ring), demo warm, qa-eu-west's connect failed
-// (red), legacy-onprem missing; the tooltip of the cold tile, and of the lapsed row's dot.
-func TestRenderHotbarMarksDark(t *testing.T) {
-	renderMarks(t, ThemeDark, false, "hotbar_marks_dark.png")
-}
-func TestRenderHotbarMarksLight(t *testing.T) {
-	renderMarks(t, ThemeLight, false, "hotbar_marks_light.png")
-}
 func TestRenderNavigatorSectionMarksDark(t *testing.T) {
 	renderMarks(t, ThemeDark, true, "navigator_section_marks_dark.png")
 }
-func TestRenderNavigatorSectionMarksLight(t *testing.T) {
-	renderMarks(t, ThemeLight, true, "navigator_section_marks_light.png")
-}
-
 func renderMarks(t *testing.T, mode ThemeMode, section bool, name string) {
 	sh, w, q, f, clk := marksScene(t, mode, section)
 	q.until(t, "diagnostics", func() bool { return sh.diag.total > 0 })

@@ -165,10 +165,6 @@ func TestRenderClusterSettingsAccentDark(t *testing.T) {
 	renderClusterSettingsAccent(t, ThemeDark, "cluster_settings_accent_dark.png")
 }
 
-func TestRenderClusterSettingsAccentLight(t *testing.T) {
-	renderClusterSettingsAccent(t, ThemeLight, "cluster_settings_accent_light.png")
-}
-
 func renderClusterSettingsAccent(t *testing.T, mode ThemeMode, name string) {
 	s, ctx, _ := settingsEngineWithFile(t)
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": ctx, "name": "Dev cluster", "iconColor": "violet"})

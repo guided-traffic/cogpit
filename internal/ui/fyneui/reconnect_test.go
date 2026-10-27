@@ -173,9 +173,6 @@ func TestReconnectInTheConnectionLogAndOverview(t *testing.T) {
 func TestRenderReconnectListDark(t *testing.T) {
 	renderReconnectList(t, ThemeDark, "reconnect_section_dark.png")
 }
-func TestRenderReconnectListLight(t *testing.T) {
-	renderReconnectList(t, ThemeLight, "reconnect_section_light.png")
-}
 
 // renderReconnectList: the list of all clusters, the connected kind-cogpit with its ↻, the pointer
 // on it and its tooltip.
@@ -195,9 +192,6 @@ func renderReconnectList(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderReconnectBannerDark(t *testing.T) {
 	renderReconnectBanner(t, ThemeDark, "reconnect_banner_dark.png")
-}
-func TestRenderReconnectBannerLight(t *testing.T) {
-	renderReconnectBanner(t, ThemeLight, "reconnect_banner_light.png")
 }
 
 // renderReconnectBanner: a client certificate's login expired (the owner's F28), the banner with

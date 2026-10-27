@@ -300,23 +300,6 @@ func TestRenderRemoveConfirmation(t *testing.T) {
 	savePNG(t, w, "kubeconfig_remove_confirm_dark.png")
 }
 
-func TestRenderConnectionUpdates(t *testing.T) {
-	f, _ := kubeconfigFake(t, engine.ExecRequired)
-	at := time.Date(2026, 10, 12, 14, 3, 9, 0, time.UTC)
-	f.handlers["cluster.connectLog"] = func(context.Context, engine.Invocation) (any, error) {
-		return map[string]any{"context": "team [kubeconfigs/team.yaml]", "lines": []map[string]any{
-			{"time": at, "level": "INFO", "text": "Connecting to team [kubeconfigs/team.yaml]"},
-			{"time": at.Add(time.Second), "level": "ERROR", "text": "cannot connect to https://team.example:6443: dial tcp 10.0.0.7:6443: i/o timeout"},
-			{"time": at.Add(2 * time.Second), "level": "ERROR", "text": "Disconnected from team [kubeconfigs/team.yaml]: its kubeconfig file /Users/me/kubeconfigs/team.yaml is gone."},
-		}}, nil
-	}
-	sh, w, q := newTestShell(t, f, Options{})
-	q.until(t, "the section's rows", func() bool { return sh.side.sec.loaded && len(sh.side.sec.rows) == len(f.contexts) })
-	sh.kc.showConnectLog("team [kubeconfigs/team.yaml]")
-	q.until(t, "the log dialog", func() bool { return sh.kc.connectLog != nil })
-	savePNG(t, w, "connection_updates_dark.png")
-}
-
 func TestRenderDisconnectedPlaceholder(t *testing.T) {
 	f, _ := kubeconfigFake(t, engine.ExecRequired)
 	sh, w, q := newTestShell(t, f, Options{})

@@ -228,5 +228,4 @@ func renderRowMarks(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderRowMarksDark(t *testing.T)  { renderRowMarks(t, ThemeDark, "row_marks_dark.png") }
-func TestRenderRowMarksLight(t *testing.T) { renderRowMarks(t, ThemeLight, "row_marks_light.png") }
+func TestRenderRowMarksDark(t *testing.T) { renderRowMarks(t, ThemeDark, "row_marks_dark.png") }

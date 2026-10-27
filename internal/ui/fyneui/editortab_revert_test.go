@@ -165,6 +165,3 @@ func renderEditRevert(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderEditRevertDark(t *testing.T) { renderEditRevert(t, ThemeDark, "edit_revert_dark.png") }
-func TestRenderEditRevertLight(t *testing.T) {
-	renderEditRevert(t, ThemeLight, "edit_revert_light.png")
-}

@@ -196,9 +196,6 @@ func renderChartIcons(t *testing.T, mode ThemeMode, name string) {
 func TestRenderHelmChartIconsDark(t *testing.T) {
 	renderChartIcons(t, ThemeDark, "helm_chart_icons_dark.png")
 }
-func TestRenderHelmChartIconsLight(t *testing.T) {
-	renderChartIcons(t, ThemeLight, "helm_chart_icons_light.png")
-}
 
 // Preferences › Kubernetes › Load chart icons: on at first; unchecking keeps it off through
 // preferences.set, and the check follows a change made elsewhere.

@@ -26,19 +26,6 @@ func BenchmarkNew(b *testing.B) {
 	b.ReportMetric(float64(c.Stats().Objects), "objects")
 }
 
-// BenchmarkStep measures the generator alone: changes rendered and published per second with no
-// watcher attached.
-func BenchmarkStep(b *testing.B) {
-	c := New(Options{Seed: 1, NoChurn: true})
-	b.ResetTimer()
-	start := time.Now()
-	produced := 0
-	for produced < b.N {
-		produced += c.tick(time.Now(), min(1_000, b.N-produced), false)
-	}
-	b.ReportMetric(float64(produced)/time.Since(start).Seconds(), "events/s")
-}
-
 // BenchmarkChurn measures the events per second the demo and the real cache sustain together: one
 // informer per resource, every event delivered to a subscriber. The generator runs flat out in
 // batches of 1,000 and waits while the informers are more than 2,000 events behind, so no watcher

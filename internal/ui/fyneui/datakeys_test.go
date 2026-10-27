@@ -351,10 +351,6 @@ func TestRenderConfigMapKeysDark(t *testing.T) {
 	renderConfigMapKeys(t, ThemeDark, "configmap_keys_review_dark.png")
 }
 
-func TestRenderConfigMapKeysLight(t *testing.T) {
-	renderConfigMapKeys(t, ThemeLight, "configmap_keys_review_light.png")
-}
-
 func renderSecretKeys(t *testing.T, mode ThemeMode, name string) {
 	sh, _, q, _, _ := secShell(t, mode)
 	sh.confirmer.armDelay = 0
@@ -368,7 +364,4 @@ func renderSecretKeys(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderSecretKeysDark(t *testing.T) {
 	renderSecretKeys(t, ThemeDark, "secret_keys_review_dark.png")
-}
-func TestRenderSecretKeysLight(t *testing.T) {
-	renderSecretKeys(t, ThemeLight, "secret_keys_review_light.png")
 }

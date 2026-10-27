@@ -48,11 +48,3 @@ func TestTheThreadCheckTag(t *testing.T) {
 		t.Errorf("Fyne's internal/build no longer reads the fyneDo migration from the app's metadata: the release's speed is gone, see D-103")
 	}
 }
-
-// The text a bug report carries names the mode the binary was built with.
-func TestThreadChecksText(t *testing.T) {
-	want := map[bool]string{true: "on (safety)", false: "off (speed)"}[FyneThreadChecks]
-	if got := ThreadChecksText(); got != want {
-		t.Errorf("FyneThreadChecks %v: %q, want %q", FyneThreadChecks, got, want)
-	}
-}

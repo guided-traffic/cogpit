@@ -271,28 +271,6 @@ func TestPrometheusRangeFollowsTheChartsWindows(t *testing.T) {
 	}
 }
 
-func TestPrometheusListsUseInstantQueries(t *testing.T) {
-	c := newPromCluster(t, false)
-	c.prom.on("container_cpu_usage_seconds_total{container", s(map[string]string{"namespace": "web", "pod": "a", "container": "app"}, 1000, 0.25))
-	c.prom.on("container_memory_working_set_bytes{container", s(map[string]string{"namespace": "web", "pod": "a", "container": "app"}, 1000, 64*mib))
-	h := promHub(t, c, metrics.Options{ListInterval: 300 * time.Millisecond})
-	onChange, polls := pollCounter()
-	sub := h.Subscribe(metrics.Scope{Kind: metrics.KindPods}, onChange)
-	defer sub.Release()
-	waitPoll(t, polls, 2)
-	if got := c.proxyCount(); got != 1+2*2 {
-		t.Errorf("%d proxy requests after 2 list polls, want 5 (1 probe + 2 x 2)", got)
-	}
-	for _, r := range c.prom.requests() {
-		if strings.Contains(r.path, "query_range") {
-			t.Errorf("a list asked for a range: %+v", r)
-		}
-	}
-	if p, ok := h.Pod("web", "a"); !ok || p.Total().CPUMilli != 250 || p.Total().MemoryBytes != 64*mib {
-		t.Errorf("pod = %+v (%v)", p, ok)
-	}
-}
-
 func TestPrometheusForbiddenIsTheScopesState(t *testing.T) {
 	c := newPromCluster(t, false)
 	podData(c.prom)

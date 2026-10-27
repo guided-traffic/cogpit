@@ -104,7 +104,6 @@ func TestRenderInsecureApproval(t *testing.T) {
 		name  string
 	}{
 		{ThemeDark, engine.ExecRequired, "insecure_approval_dark.png"},
-		{ThemeLight, engine.ExecRequired, "insecure_approval_light.png"},
 		{ThemeLight, engine.ExecChanged, "insecure_approval_changed_light.png"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

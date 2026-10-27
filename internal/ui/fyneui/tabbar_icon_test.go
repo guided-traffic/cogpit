@@ -71,10 +71,6 @@ func TestRenderTabBarClusterIconsDark(t *testing.T) {
 	renderTabBarClusterIcons(t, ThemeDark, "tabbar_cluster_icons_dark.png")
 }
 
-func TestRenderTabBarClusterIconsLight(t *testing.T) {
-	renderTabBarClusterIcons(t, ThemeLight, "tabbar_cluster_icons_light.png")
-}
-
 // renderTabBarClusterIcons: the shown cluster's tab with its uploaded image (the owner's case) and a
 // tab of a cluster connected in the background with its icon colour; the failed cluster's tab is
 // not in the bar (GW13); the navigator shows the same identities.

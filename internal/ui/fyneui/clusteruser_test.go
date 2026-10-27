@@ -188,8 +188,6 @@ func TestShortClusterNameEverywhere(t *testing.T) {
 
 func TestRenderNavigatorUserDark(t *testing.T) { renderNavigatorUser(t, ThemeDark, "dark") }
 
-func TestRenderNavigatorUserLight(t *testing.T) { renderNavigatorUser(t, ThemeLight, "light") }
-
 // renderNavigatorUser: the root row in its three states, each with its tooltip shown: connected (the
 // pointer on the groups' box), the kubeconfig fallback and not connected (the pointer on the name).
 func renderNavigatorUser(t *testing.T, mode ThemeMode, suffix string) {

@@ -623,9 +623,6 @@ func TestCopyHasNoCommand(t *testing.T) {
 func TestRenderDrawerCopyIconDark(t *testing.T) {
 	renderCopyIcon(t, ThemeDark, "drawer_copyicon_dark.png")
 }
-func TestRenderDrawerCopyIconLight(t *testing.T) {
-	renderCopyIcon(t, ThemeLight, "drawer_copyicon_light.png")
-}
 
 // renderCopyIcon shows the pod drawer with its labels unfolded, the pointer over one label and the
 // copy icon beside it, and one line selected.

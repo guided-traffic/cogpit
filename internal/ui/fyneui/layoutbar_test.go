@@ -477,20 +477,11 @@ func collapseDock(s *engine.Session)  { _, _ = s.SetLayout(engine.LayoutDock, ne
 func TestRenderLayoutAllOpenDark(t *testing.T) {
 	renderLayout(t, ThemeDark, "layout_all_open_dark.png", nil, nil)
 }
-func TestRenderLayoutAllOpenLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_all_open_light.png", nil, nil)
-}
 func TestRenderLayoutNavigatorHiddenDark(t *testing.T) {
 	renderLayout(t, ThemeDark, "layout_navigator_hidden_dark.png", nil, hideNavigator)
 }
-func TestRenderLayoutNavigatorHiddenLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_navigator_hidden_light.png", nil, hideNavigator)
-}
 func TestRenderLayoutDockCollapsedDark(t *testing.T) {
 	renderLayout(t, ThemeDark, "layout_dock_collapsed_dark.png", nil, collapseDock)
-}
-func TestRenderLayoutDockCollapsedLight(t *testing.T) {
-	renderLayout(t, ThemeLight, "layout_dock_collapsed_light.png", nil, collapseDock)
 }
 
 // renderUpdate: the Update button left of the toggles.
@@ -503,9 +494,6 @@ func renderUpdate(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderLayoutUpdateDark(t *testing.T) { renderUpdate(t, ThemeDark, "layout_update_dark.png") }
-func TestRenderLayoutUpdateLight(t *testing.T) {
-	renderUpdate(t, ThemeLight, "layout_update_light.png")
-}
 
 // TestDockToggleOpensATerminal (WF18): with no dock tab, the dock's toggle is enabled on a real
 // cluster, says so in its tooltip and runs ui.toggleDock, which opens a terminal there; on the demo

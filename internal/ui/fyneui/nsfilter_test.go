@@ -282,10 +282,6 @@ func TestRenderNamespaceFilterSearchDark(t *testing.T) {
 	renderNamespaceFilterSearch(t, ThemeDark, "namespace_filter_search_dark.png")
 }
 
-func TestRenderNamespaceFilterSearchLight(t *testing.T) {
-	renderNamespaceFilterSearch(t, ThemeLight, "namespace_filter_search_light.png")
-}
-
 func renderNamespaceFilterSearch(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _ := nsFilterShell(t, mode, "kube-system")
 	q.until(t, "the diagnostics", func() bool { return sh.diag.total > 0 })

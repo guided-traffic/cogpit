@@ -152,9 +152,7 @@ func TestStartWithoutTheRestoreShowsNoTabs(t *testing.T) {
 
 // The start screen with the tabs of the last run, before a connect: the welcome page, no tab bar
 // (GW13).
-func TestRenderStartRestoredDark(t *testing.T)  { renderStartRestored(t, ThemeDark) }
-func TestRenderStartRestoredLight(t *testing.T) { renderStartRestored(t, ThemeLight) }
-
+func TestRenderStartRestoredDark(t *testing.T) { renderStartRestored(t, ThemeDark) }
 func renderStartRestored(t *testing.T, mode ThemeMode) {
 	s := restoredEngine(t, "")
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})

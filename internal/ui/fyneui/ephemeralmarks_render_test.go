@@ -152,7 +152,3 @@ func renderEphemeralMarks(t *testing.T, mode ThemeMode, listPNG, drawerPNG strin
 func TestRenderEphemeralMarksDark(t *testing.T) {
 	renderEphemeralMarks(t, ThemeDark, "ephemeral_marks_pods_dark.png", "ephemeral_containers_drawer_dark.png")
 }
-
-func TestRenderEphemeralMarksLight(t *testing.T) {
-	renderEphemeralMarks(t, ThemeLight, "ephemeral_marks_pods_light.png", "ephemeral_containers_drawer_light.png")
-}

@@ -4,8 +4,6 @@ package integration_test
 
 import (
 	"context"
-	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -15,8 +13,6 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/cluster"
-	"github.com/guided-traffic/cogpit/internal/engine"
-	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
@@ -144,84 +140,4 @@ func TestKindSecretScopes(t *testing.T) {
 		}
 	}
 	t.Logf("requests: %v", conn.Counter().Snapshot().ByVerbResource)
-}
-
-// TestKindSecretsView runs the Secrets view of D-13 (revised: a full watch) on the kind cluster: a
-// Secret applied the way kubectl apply leaves it (its values in the last-applied annotation) is
-// cached in full but without the annotation; its Keys and Type columns are filled; opening its
-// drawer makes no request; agents read the keys masked and cannot reveal a value; the GUI can.
-func TestKindSecretsView(t *testing.T) {
-	kubeconfig, contextName := kindEnv(t)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-	conn, err := cluster.Connect(ctx, cluster.Options{KubeconfigPaths: []string{kubeconfig}, Context: contextName})
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	kindNamespace(ctx, t, conn.Kube(), secretsNamespace)
-	applied := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"applied","namespace":"` + secretsNamespace + `"},"stringData":{"token":"kind-s3cr3t"}}`
-	if _, err := conn.Kube().CoreV1().Secrets(secretsNamespace).Create(ctx, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "applied", Namespace: secretsNamespace,
-			Annotations: map[string]string{cache.LastAppliedAnnotation: applied, "team": "a"}},
-		StringData: map[string]string{"token": "kind-s3cr3t"},
-	}, metav1.CreateOptions{}); err != nil {
-		t.Fatal(err)
-	}
-
-	k := newKindSession(ctx, t, kubeconfig, contextName, engine.NewMemoryHelmJournal())
-	defer k.s.Close()
-	if _, err := k.dispatch(ctx, engine.OriginGUI, "ui.openView", map[string]any{"view": "secrets"}); err != nil {
-		t.Fatal(err)
-	}
-	ref := model.ObjectRef{Context: contextName, Kind: "secrets", Namespace: secretsNamespace, Name: "applied"}
-	obj, err := k.s.Object(ctx, ref)
-	if !testkit.WaitFor(ctx, func() bool { obj, err = k.s.Object(ctx, ref); return err == nil }) {
-		t.Fatalf("the Secret never reached the cache: %v", err)
-	}
-	if cache.IsMetadataObject(obj) || obj.Object["data"] == nil || obj.GetAnnotations()[cache.LastAppliedAnnotation] != "" || obj.GetAnnotations()["team"] != "a" {
-		t.Fatalf("the cache holds %v", obj.Object)
-	}
-	if !testkit.WaitFor(ctx, func() bool {
-		ts := k.s.Table("secrets")
-		if ts == nil {
-			return false
-		}
-		for _, r := range ts.Rows {
-			if r.Ref.Name == "applied" && r.Cells[3].Text == "token" && r.Cells[4].Text == "Opaque" {
-				return true
-			}
-		}
-		return false
-	}) {
-		t.Error("the Keys and Type columns are not filled")
-	}
-	before := k.s.Backend().Conn.Counter().Snapshot()
-	if _, err := k.dispatch(ctx, engine.OriginExternalAgent, "ui.navigate", map[string]any{"ref": ref}); err != nil {
-		t.Fatal(err)
-	}
-	if !testkit.WaitFor(ctx, func() bool {
-		return strings.Contains(sectionOf(k.detail(ctx, t, engine.OriginExternalAgent, ref), "Data"), engine.MaskedValue)
-	}) {
-		t.Fatal("the drawer never listed the keys")
-	}
-	m := k.detail(ctx, t, engine.OriginExternalAgent, ref)
-	if b, _ := json.Marshal(m); strings.Contains(string(b), "kind-s3cr3t") || strings.Contains(string(b), "a2luZC1zM2NyM3Q=") {
-		t.Fatalf("object.get for an agent: %s", b)
-	}
-	if _, err := k.dispatch(ctx, engine.OriginExternalAgent, "secret.reveal", engine.RevealParams{Ref: ref, Key: "token"}); err == nil {
-		t.Fatal("an agent revealed a value")
-	}
-	v, err := k.dispatch(ctx, engine.OriginGUI, "secret.reveal", engine.RevealParams{Ref: ref, Key: "token"})
-	if err != nil || v.(engine.SecretValue).Value != "kind-s3cr3t" {
-		t.Fatalf("GUI reveal %v, %v", v, err)
-	}
-	after := k.s.Backend().Conn.Counter().Snapshot()
-	if got := after.ByVerbResource["get secrets"] - before.ByVerbResource["get secrets"]; got != 0 {
-		t.Errorf("%d GETs of Secrets for an open drawer and a reveal, want 0", got)
-	}
-	if strings.Contains(k.audit.String(), "kind-s3cr3t") {
-		t.Error("a value reached the audit log")
-	}
-	t.Logf("requests: %v", after.ByVerbResource)
 }

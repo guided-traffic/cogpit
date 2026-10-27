@@ -119,7 +119,3 @@ func renderTerminalPreferences(t *testing.T, mode ThemeMode, name string) {
 func TestRenderTerminalPreferencesDark(t *testing.T) {
 	renderTerminalPreferences(t, ThemeDark, "preferences_terminal_dark.png")
 }
-
-func TestRenderTerminalPreferencesLight(t *testing.T) {
-	renderTerminalPreferences(t, ThemeLight, "preferences_terminal_light.png")
-}

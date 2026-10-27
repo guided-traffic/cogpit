@@ -214,10 +214,6 @@ func TestRenderClusterSettingsMetricsDark(t *testing.T) {
 	renderClusterSettingsMetrics(t, ThemeDark, "cluster_settings_metrics_dark.png")
 }
 
-func TestRenderClusterSettingsMetricsLight(t *testing.T) {
-	renderClusterSettingsMetrics(t, ThemeLight, "cluster_settings_metrics_light.png")
-}
-
 func renderClusterSettingsMetrics(t *testing.T, mode ThemeMode, name string) {
 	s, _ := settingsEngine(t)
 	mustDispatch(t, s, "cluster.settings.set", map[string]any{"context": "kind-dev", "name": "Dev cluster", "iconColor": "violet",

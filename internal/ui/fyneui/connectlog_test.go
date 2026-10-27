@@ -161,17 +161,6 @@ func TestConnectLogDialogEmpty(t *testing.T) {
 	}
 }
 
-// The dialog's PNGs (AGENTS.md rule 7): a connect that worked, and one whose credential plugin
-// failed above an older one that worked.
-func TestRenderConnectionUpdatesSuccess(t *testing.T) {
-	lf := newLogFake(t, successAttempt(logAt))
-	sh, w, q := newTestShell(t, lf.fakeEngine, Options{})
-	q.until(t, "the section's rows", func() bool { return sh.side.sec.loaded })
-	sh.kc.showConnectLog(logCtx)
-	q.until(t, "the dialog", func() bool { return sh.kc.connectLog != nil })
-	savePNG(t, w, "connection_updates_success_dark.png")
-}
-
 func TestRenderConnectionUpdatesFailure(t *testing.T) {
 	lf := newLogFake(t, failedAttempt(logAt.Add(26*time.Hour)), successAttempt(logAt))
 	sh, w, q := newTestShell(t, lf.fakeEngine, Options{})

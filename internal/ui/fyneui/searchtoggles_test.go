@@ -90,7 +90,3 @@ func renderSearchToggles(t *testing.T, mode ThemeMode, name string) {
 func TestRenderSearchTogglesDark(t *testing.T) {
 	renderSearchToggles(t, ThemeDark, "search_toggles_dark.png")
 }
-
-func TestRenderSearchTogglesLight(t *testing.T) {
-	renderSearchToggles(t, ThemeLight, "search_toggles_light.png")
-}

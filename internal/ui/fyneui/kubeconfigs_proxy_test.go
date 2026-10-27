@@ -50,7 +50,7 @@ func TestRenderExecApprovalClusterProxy(t *testing.T) {
 	for _, tc := range []struct {
 		mode ThemeMode
 		name string
-	}{{ThemeDark, "exec_approval_cluster_proxy_dark.png"}, {ThemeLight, "exec_approval_cluster_proxy_light.png"}} {
+	}{{ThemeDark, "exec_approval_cluster_proxy_dark.png"}} {
 		t.Run(tc.name, func(t *testing.T) {
 			_, w := openApproval(t, approvalFake(t, engine.ExecChanged, clusterProxied), tc.mode)
 			savePNG(t, w, tc.name)

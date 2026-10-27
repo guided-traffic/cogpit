@@ -476,20 +476,6 @@ func BenchmarkSecretScrub(b *testing.B) {
 	}
 }
 
-// BenchmarkSecretScrubPlainSearch is what a search per value and line costs over the same corpus,
-// for comparison: the O(values × lines) way the matcher avoids.
-func BenchmarkSecretScrubPlainSearch(b *testing.B) {
-	ms := newMeasuredSecrets(b)
-	lines, _ := measuredLogs(ms)
-	cands, _ := secretCandidates(ms.objs, MinScrubbedValue, true)
-	b.ResetTimer()
-	for b.Loop() {
-		for _, l := range lines {
-			scrubNaive(l, cands, true)
-		}
-	}
-}
-
 // BenchmarkSecretMatcherBuild is the cost of a rebuild after the cached Secrets changed, for the
 // corpus's Secrets and for ten times as many.
 func BenchmarkSecretMatcherBuild(b *testing.B) {

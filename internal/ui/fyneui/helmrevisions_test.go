@@ -125,9 +125,6 @@ func (h *revisionsHarness) set(id string, p map[string]any) {
 // diff unfolded, the manifest's objects, a changed object's diff, a masked Secret, manifest.yaml.
 func TestRenderHelmRevisionsDark(t *testing.T) { renderHelmRevisions(t, ThemeDark, "dark", true) }
 
-// The light theme once, the two compared views.
-func TestRenderHelmRevisionsLight(t *testing.T) { renderHelmRevisions(t, ThemeLight, "light", false) }
-
 func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) {
 	h := newRevisionsHarness(t, mode)
 	name := func(scene string) string { return "helm_revisions_" + scene + "_" + suffix + ".png" }

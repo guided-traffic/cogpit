@@ -263,10 +263,6 @@ func TestRenderContainersReusedDark(t *testing.T) {
 	renderContainersReused(t, ThemeDark, "containers_reused_dark.png")
 }
 
-func TestRenderContainersReusedLight(t *testing.T) {
-	renderContainersReused(t, ThemeLight, "containers_reused_light.png")
-}
-
 // A scroll shows the rows that come into view in cells from the table's pool. The driver's nodes
 // follow the cells' order, which a scroll changes, so it lays the cells out again: the squares are
 // right with or without the update path placing them.

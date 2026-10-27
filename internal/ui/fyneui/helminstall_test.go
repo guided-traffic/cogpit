@@ -367,9 +367,7 @@ func renderCharts(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderHelmChartsDark(t *testing.T)  { renderCharts(t, ThemeDark, "helm_charts_dark.png") }
-func TestRenderHelmChartsLight(t *testing.T) { renderCharts(t, ThemeLight, "helm_charts_light.png") }
-
+func TestRenderHelmChartsDark(t *testing.T) { renderCharts(t, ThemeDark, "helm_charts_dark.png") }
 func renderInstallTab(t *testing.T, mode ThemeMode, name string, preview bool) {
 	f := chartsFake(t)
 	tab := installTabFixture(t, f, true)
@@ -388,9 +386,6 @@ func renderInstallTab(t *testing.T, mode ThemeMode, name string, preview bool) {
 func TestRenderHelmInstallTabDark(t *testing.T) {
 	renderInstallTab(t, ThemeDark, "helm_install_tab_dark.png", false)
 }
-func TestRenderHelmInstallTabLight(t *testing.T) {
-	renderInstallTab(t, ThemeLight, "helm_install_tab_light.png", false)
-}
 func TestRenderHelmInstallPreviewDark(t *testing.T) {
 	renderInstallTab(t, ThemeDark, "helm_install_preview_dark.png", true)
 }
@@ -406,9 +401,6 @@ func renderHelmReposDialog(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderHelmReposDialog(t *testing.T) {
 	renderHelmReposDialog(t, ThemeDark, "helm_repos_dialog_dark.png")
-}
-func TestRenderHelmReposDialogLight(t *testing.T) {
-	renderHelmReposDialog(t, ThemeLight, "helm_repos_dialog_light.png")
 }
 
 // A version picked for the Install tab reaches the window when the engine has loaded its chart:

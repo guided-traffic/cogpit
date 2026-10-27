@@ -55,16 +55,6 @@ func BenchmarkSnapshot10k(b *testing.B) {
 	}
 }
 
-// BenchmarkSnapshot10kCold measures the first snapshot of a 10,000-pod view: every row built.
-func BenchmarkSnapshot10kCold(b *testing.B) {
-	objs := benchPods(10_000)
-	b.ReportAllocs()
-	for b.Loop() {
-		rc := &rowCache{}
-		rc.build(testPods, "bench", objs, viewParams{sort: SortSpec{Column: "name"}}, nil, 0)
-	}
-}
-
 // BenchmarkSortChange10k measures re-sorting a 10,000-pod view by another column, from a warm
 // row cache: what a click on a column header costs. Gate criterion S2, budget P2 (≤ 50 ms).
 func BenchmarkSortChange10k(b *testing.B) {

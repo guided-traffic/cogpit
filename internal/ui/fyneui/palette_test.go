@@ -469,10 +469,6 @@ func TestRenderCommandPaletteDark(t *testing.T) {
 	renderCommandPalette(t, ThemeDark, "command_palette_dark.png")
 }
 
-func TestRenderCommandPaletteLight(t *testing.T) {
-	renderCommandPalette(t, ThemeLight, "command_palette_light.png")
-}
-
 // renderCommandPalette: the palette open over the Pods view with a pod in the drawer, "de" typed:
 // the pod's Delete (greyed: the access reviews deny it), Close Details, the hotbar's demo tile with
 // its key, Switch to Deployments and Nodes, the second row highlighted.

@@ -138,9 +138,7 @@ func TestMenuKeysWaitForTheWindow(t *testing.T) {
 
 // The top bar with the View menu open under its title, the menus before the logo (Windows and
 // Linux; the system's title bar above it is not Cogpit's).
-func TestRenderMenuBarDark(t *testing.T)  { renderMenuBar(t, ThemeDark, "menubar_dark.png") }
-func TestRenderMenuBarLight(t *testing.T) { renderMenuBar(t, ThemeLight, "menubar_light.png") }
-
+func TestRenderMenuBarDark(t *testing.T) { renderMenuBar(t, ThemeDark, "menubar_dark.png") }
 func renderMenuBar(t *testing.T, mode ThemeMode, name string) {
 	sh, w, _ := menuBarScene(t, mode)
 	test.Tap(sh.top.menus.titles[1])

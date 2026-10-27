@@ -48,10 +48,6 @@ func TestRenderPreferencesHelmDriverDark(t *testing.T) {
 	renderPreferencesHelmDriver(t, ThemeDark, "preferences_helm_driver_dark.png")
 }
 
-func TestRenderPreferencesHelmDriverLight(t *testing.T) {
-	renderPreferencesHelmDriver(t, ThemeLight, "preferences_helm_driver_light.png")
-}
-
 func renderPreferencesHelmDriver(t *testing.T, mode ThemeMode, name string) {
 	s, _ := settingsEngine(t)
 	mustDispatch(t, s, "preferences.set", map[string]any{"theme": string(mode), "helmDriver": "configmap"})

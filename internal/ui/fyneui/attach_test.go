@@ -143,8 +143,3 @@ func TestRenderAttachDark(t *testing.T) {
 	_, w, _, _ := attachScene(t, ThemeDark)
 	savePNG(t, w, "attach_dark.png")
 }
-
-func TestRenderAttachLight(t *testing.T) {
-	_, w, _, _ := attachScene(t, ThemeLight)
-	savePNG(t, w, "attach_light.png")
-}

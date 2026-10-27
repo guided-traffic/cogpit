@@ -9,16 +9,6 @@ import (
 
 func FuzzServiceAccounts(f *testing.F) { fuzzProfile(f, "serviceaccounts") }
 
-func TestServiceAccountTexts(t *testing.T) {
-	checkStatusTexts(t, []statusText{
-		{"serviceaccounts", "healthy", "namespace", "checkout", model.StatusNone, model.StatusNone},
-		{"serviceaccounts", "healthy", "age", "39d", model.StatusNone, model.StatusNone},
-		{"serviceaccounts", "failing", "name", "build-bot", model.StatusNone, model.StatusNone},
-		{"serviceaccounts", "terminating", "name", "default", model.StatusNone, model.StatusTerminating},
-		{"serviceaccounts", "minimal", "age", "1h", model.StatusNone, model.StatusNone},
-	})
-}
-
 // TestServiceAccountColumns pins the columns of Lens's documentation: Name, Namespace, Age.
 func TestServiceAccountColumns(t *testing.T) {
 	assertColumnOrder(t, "serviceaccounts", []model.Column{

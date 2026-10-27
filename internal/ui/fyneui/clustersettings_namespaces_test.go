@@ -130,10 +130,6 @@ func TestRenderNamespaceFilterAccessibleDark(t *testing.T) {
 	renderNamespaceFilterAccessible(t, ThemeDark, "namespace_filter_accessible_dark.png")
 }
 
-func TestRenderNamespaceFilterAccessibleLight(t *testing.T) {
-	renderNamespaceFilterAccessible(t, ThemeLight, "namespace_filter_accessible_light.png")
-}
-
 func renderNamespaceFilterAccessible(t *testing.T, mode ThemeMode, name string) {
 	f := connectedFake(t, 0)
 	f.namespaces = nil
@@ -160,10 +156,6 @@ func renderNamespaceFilterAccessible(t *testing.T, mode ThemeMode, name string) 
 // The Namespaces section, dark and light: the PNGs of the pull request (AGENTS.md rule 7).
 func TestRenderClusterSettingsNamespacesDark(t *testing.T) {
 	renderClusterSettingsNamespaces(t, ThemeDark, "cluster_settings_namespaces_dark.png")
-}
-
-func TestRenderClusterSettingsNamespacesLight(t *testing.T) {
-	renderClusterSettingsNamespaces(t, ThemeLight, "cluster_settings_namespaces_light.png")
 }
 
 func renderClusterSettingsNamespaces(t *testing.T, mode ThemeMode, name string) {

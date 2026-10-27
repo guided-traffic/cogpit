@@ -175,6 +175,3 @@ func renderColumnDrag(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderColumnDragDark(t *testing.T) { renderColumnDrag(t, ThemeDark, "column_drag_dark.png") }
-func TestRenderColumnDragLight(t *testing.T) {
-	renderColumnDrag(t, ThemeLight, "column_drag_light.png")
-}

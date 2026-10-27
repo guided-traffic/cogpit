@@ -225,8 +225,6 @@ func versionsFake(t testing.TB, view string) *fakeEngine {
 
 func TestRenderNavigatorVersionDark(t *testing.T) { renderNavigatorVersion(t, ThemeDark, "dark") }
 
-func TestRenderNavigatorVersionLight(t *testing.T) { renderNavigatorVersion(t, ThemeLight, "light") }
-
 // renderNavigatorVersion: the root row of a cluster whose API server's minor is past its upstream
 // end of life, the pointer on the version and its tooltip shown, dates in a German computer's
 // format; the gear before the dot.
@@ -246,8 +244,6 @@ func renderNavigatorVersion(t *testing.T, mode ThemeMode, suffix string) {
 
 func TestRenderNodesVersionsDark(t *testing.T) { renderNodesVersions(t, ThemeDark, "dark") }
 
-func TestRenderNodesVersionsLight(t *testing.T) { renderNodesVersions(t, ThemeLight, "light") }
-
 // renderNodesVersions: the Nodes list with a kubelet in maintenance mode (pending colour), one past
 // its end of life and four minors behind and one newer than the API server (⚠), the pointer on
 // the one past its end of life and its tooltip shown.
@@ -265,10 +261,6 @@ func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 }
 
 func TestRenderNodeDrawerVersionsDark(t *testing.T) { renderNodeDrawerVersions(t, ThemeDark, "dark") }
-
-func TestRenderNodeDrawerVersionsLight(t *testing.T) {
-	renderNodeDrawerVersions(t, ThemeLight, "light")
-}
 
 // renderNodeDrawerVersions: the drawer of the node whose kubelet is past its end of life and four
 // minors behind: its Kubelet version in the warning colour, Upstream support and Version skew after

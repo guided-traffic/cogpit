@@ -739,7 +739,7 @@ func renderChat(t *testing.T, mode ThemeMode, name string, script func(*fakeChat
 
 // TestRenderChatEmpty: the column of a new conversation, with examples.
 func TestRenderChatEmpty(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) { renderChat(t, mode, "chat_empty", nil, nil) })
 	}
 }
@@ -763,7 +763,7 @@ func TestRenderChatConversation(t *testing.T) {
 // TestRenderChatHistory: the history of the cluster's conversations: the shown one (private, its
 // turns ran over the local connection) bold and marked not saved, two kept ones.
 func TestRenderChatHistory(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			renderChat(t, mode, "chat_history", func(ch *fakeChat) string {
 				team := &engine.ChatSent{Requests: 1, Endpoint: "litellm.example.com"}
@@ -781,7 +781,7 @@ func TestRenderChatHistory(t *testing.T) {
 // TestRenderChatRunning: scrolled to the end: the pinned message, a refused call and a failed one
 // opened to its error, the limit's note, a call waiting for the user's confirmation, and Stop.
 func TestRenderChatRunning(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			renderChat(t, mode, "chat_running", func(ch *fakeChat) string { return demoConversation(ch, "demo") },
 				func(sh *shell, w fyne.Window, q *mainQueue) {

@@ -115,10 +115,6 @@ func TestRenderPreferencesUpdatesDark(t *testing.T) {
 	renderPreferencesUpdates(t, ThemeDark, "preferences_updates_dark.png")
 }
 
-func TestRenderPreferencesUpdatesLight(t *testing.T) {
-	renderPreferencesUpdates(t, ThemeLight, "preferences_updates_light.png")
-}
-
 func renderPreferencesUpdates(t *testing.T, mode ThemeMode, name string) {
 	s, _ := settingsEngine(t)
 	mustDispatch(t, s, "preferences.set", map[string]any{"theme": string(mode), "timezone": "Europe/Berlin"})

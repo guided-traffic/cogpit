@@ -113,9 +113,6 @@ func TestCommandPaletteAgentTextNeverRunsAChange(t *testing.T) {
 func TestRenderCommandPaletteAgentTextDark(t *testing.T) {
 	renderPaletteAgentText(t, ThemeDark, "command_palette_agent_dark.png")
 }
-func TestRenderCommandPaletteAgentTextLight(t *testing.T) {
-	renderPaletteAgentText(t, ThemeLight, "command_palette_agent_light.png")
-}
 
 // renderPaletteAgentText: the palette with an agent's "delete" and the user's refused ↵: the hint
 // in the warning colour says how to run the change.

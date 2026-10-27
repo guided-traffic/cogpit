@@ -110,11 +110,6 @@ func TestRenderNodeShellDark(t *testing.T) {
 	savePNG(t, w, "node_shell_dark.png")
 }
 
-func TestRenderNodeShellLight(t *testing.T) {
-	_, w := nodeShellScene(t, ThemeLight)
-	savePNG(t, w, "node_shell_light.png")
-}
-
 // nodeShellRequest is the confirmation the engine asks for a node shell on busyNode (as Dispatch
 // builds it from node.shell: its label, the node, the context, the effects and their text).
 func nodeShellRequest(origin engine.Origin) engine.ConfirmRequest {
@@ -170,10 +165,6 @@ func TestNodeShellConfirmationNamesWhatItCreates(t *testing.T) {
 
 func TestRenderNodeShellConfirmDark(t *testing.T) {
 	confirmNodeShell(t, ThemeDark, engine.OriginGUI, "node_shell_confirm_dark.png")
-}
-
-func TestRenderNodeShellConfirmLight(t *testing.T) {
-	confirmNodeShell(t, ThemeLight, engine.OriginGUI, "node_shell_confirm_light.png")
 }
 
 // nodeShellField is a shown Node Shell section's field.
@@ -292,10 +283,6 @@ func TestClusterSettingsNodeShellMaxDuration(t *testing.T) {
 
 func TestRenderClusterSettingsNodeShellDark(t *testing.T) {
 	renderClusterSettingsNodeShell(t, ThemeDark, "cluster_settings_node_shell_dark.png")
-}
-
-func TestRenderClusterSettingsNodeShellLight(t *testing.T) {
-	renderClusterSettingsNodeShell(t, ThemeLight, "cluster_settings_node_shell_light.png")
 }
 
 func renderClusterSettingsNodeShell(t *testing.T, mode ThemeMode, name string) {

@@ -431,10 +431,6 @@ func TestRenderArgoDashboardDark(t *testing.T) {
 	renderArgoDashboard(t, ThemeDark, "argocd_dashboard_dark.png")
 }
 
-func TestRenderArgoDashboardLight(t *testing.T) {
-	renderArgoDashboard(t, ThemeLight, "argocd_dashboard_light.png")
-}
-
 func renderArgoApplications(t *testing.T, mode ThemeMode, name string, drawer bool) {
 	argoRender(t, mode, name, func(sh *shell, q *mainQueue) {
 		sh.dispatch("ui.openView", openViewParams{View: kinds.ArgoApplicationsKey}, nil)
@@ -453,16 +449,8 @@ func TestRenderArgoApplicationsDark(t *testing.T) {
 	renderArgoApplications(t, ThemeDark, "argocd_applications_dark.png", false)
 }
 
-func TestRenderArgoApplicationsLight(t *testing.T) {
-	renderArgoApplications(t, ThemeLight, "argocd_applications_light.png", false)
-}
-
 func TestRenderArgoApplicationDrawerDark(t *testing.T) {
 	renderArgoApplications(t, ThemeDark, "argocd_application_drawer_dark.png", true)
-}
-
-func TestRenderArgoApplicationDrawerLight(t *testing.T) {
-	renderArgoApplications(t, ThemeLight, "argocd_application_drawer_light.png", true)
 }
 
 // TestArgoOpenUIOpensTheForward: the Dashboard's Open Argo CD UI runs argocd.openUI and opens the

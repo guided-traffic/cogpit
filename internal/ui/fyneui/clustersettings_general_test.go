@@ -57,7 +57,7 @@ func TestKubeconfigPathSelectable(t *testing.T) {
 // The General section with a long kubeconfig path, wrapped and all of it selected (⌘A), dark and
 // light: the PNGs of the pull request (WF28).
 func TestRenderKubeconfigPathSelected(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			s, ctx, _ := settingsEngineWithFile(t)
 			sh, w, q := openGeneral(t, s, ctx, mode)

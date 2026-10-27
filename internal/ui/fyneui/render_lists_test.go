@@ -21,6 +21,3 @@ func renderList(t *testing.T, view string, mode ThemeMode, name string) {
 func TestRenderPodsListDark(t *testing.T)  { renderList(t, "pods", ThemeDark, "pods_list_dark.png") }
 func TestRenderPodsListLight(t *testing.T) { renderList(t, "pods", ThemeLight, "pods_list_light.png") }
 func TestRenderNodesListDark(t *testing.T) { renderList(t, "nodes", ThemeDark, "nodes_list_dark.png") }
-func TestRenderNodesListLight(t *testing.T) {
-	renderList(t, "nodes", ThemeLight, "nodes_list_light.png")
-}

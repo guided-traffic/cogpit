@@ -47,10 +47,6 @@ func TestRenderNodeDrawerDark(t *testing.T) {
 	renderDrawer(t, "nodes", nodeDrawerRef, ThemeDark, "node_drawer_dark.png")
 }
 
-func TestRenderNodeDrawerLight(t *testing.T) {
-	renderDrawer(t, "nodes", nodeDrawerRef, ThemeLight, "node_drawer_light.png")
-}
-
 // renderRowMenu opens a pod's actions menu with a right-click and its Shell submenu by hovering.
 func renderRowMenu(t *testing.T, mode ThemeMode, name string) {
 	f := kindsFake(t, "pods")
@@ -81,34 +77,7 @@ func renderRowMenu(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderRowMenuDark(t *testing.T)  { renderRowMenu(t, ThemeDark, "row_menu_dark.png") }
-func TestRenderRowMenuLight(t *testing.T) { renderRowMenu(t, ThemeLight, "row_menu_light.png") }
-
-// renderScaleDialog opens the schema-generated dialog of the Scale probe, prefilled with the
-// replicas from the cache.
-func renderScaleDialog(t *testing.T, mode ThemeMode, name string) {
-	f := kindsFake(t, "deployments")
-	registerProbes(t, f)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the deployments view", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && sh.diag.total > 0 })
-	settle(w)
-	m := openMenu(t, sh, q, rowOf(t, f, "deployments", "checkout-api"))
-	sh.view.menu.Hide() // as a click on the item does
-	item(t, m, "Scale").Action()
-	q.until(t, "the dialog", func() bool {
-		top := w.Canvas().Overlays().Top()
-		return top != nil && len(entriesIn(top)) == 1
-	})
-	settle(w)
-	savePNG(t, w, name)
-}
-
-func TestRenderScaleDialogDark(t *testing.T) {
-	renderScaleDialog(t, ThemeDark, "scale_dialog_dark.png")
-}
-func TestRenderScaleDialogLight(t *testing.T) {
-	renderScaleDialog(t, ThemeLight, "scale_dialog_light.png")
-}
+func TestRenderRowMenuDark(t *testing.T) { renderRowMenu(t, ThemeDark, "row_menu_dark.png") }
 
 // renderTooltip hovers an event message that is cut off: its full text shows in a tooltip.
 func renderTooltip(t *testing.T, mode ThemeMode, name string) {
@@ -134,5 +103,4 @@ func renderTooltip(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderTooltipDark(t *testing.T)  { renderTooltip(t, ThemeDark, "tooltip_dark.png") }
-func TestRenderTooltipLight(t *testing.T) { renderTooltip(t, ThemeLight, "tooltip_light.png") }
+func TestRenderTooltipDark(t *testing.T) { renderTooltip(t, ThemeDark, "tooltip_dark.png") }

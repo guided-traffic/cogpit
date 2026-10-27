@@ -92,5 +92,4 @@ func renderToasts(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-func TestRenderToastsDark(t *testing.T)  { renderToasts(t, ThemeDark, "toasts_dark.png") }
-func TestRenderToastsLight(t *testing.T) { renderToasts(t, ThemeLight, "toasts_light.png") }
+func TestRenderToastsDark(t *testing.T) { renderToasts(t, ThemeDark, "toasts_dark.png") }

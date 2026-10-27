@@ -312,10 +312,6 @@ func TestRenderRemoveFolderConfirmationDark(t *testing.T) {
 	renderRemoveFolderConfirmation(t, ThemeDark, "remove_folder_confirm_dark.png")
 }
 
-func TestRenderRemoveFolderConfirmationLight(t *testing.T) {
-	renderRemoveFolderConfirmation(t, ThemeLight, "remove_folder_confirm_light.png")
-}
-
 // renderRemoveFolderConfirmation draws it over the fake engine, whose paths are fixed (a session's
 // would name the test's temporary folder).
 func renderRemoveFolderConfirmation(t *testing.T, mode ThemeMode, name string) {

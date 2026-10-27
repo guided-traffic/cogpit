@@ -196,8 +196,3 @@ func TestRenderKubectlOfferDark(t *testing.T) {
 	_, w, _, _ := kubectlScene(t, ThemeDark, offerCheck())
 	savePNG(t, w, "terminal_kubectl_offer_dark.png")
 }
-
-func TestRenderKubectlOfferLight(t *testing.T) {
-	_, w, _, _ := kubectlScene(t, ThemeLight, offerCheck())
-	savePNG(t, w, "terminal_kubectl_offer_light.png")
-}

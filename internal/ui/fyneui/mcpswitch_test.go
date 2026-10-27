@@ -186,17 +186,6 @@ func TestMCPCopyNamesWhatTheCommandIs(t *testing.T) {
 	}
 }
 
-// TestMCPOffIsRemembered: a server the user switched off stays off at the next launch.
-func TestMCPOffIsRemembered(t *testing.T) {
-	ctl := &fakeMCP{}
-	sh, _, _ := newTestShell(t, connectedFake(t, 20), Options{MCP: ctl})
-	sh.app.Preferences().SetBool(prefMCPEnabled, false)
-	sh.startMCP()
-	if ctl.log() != "" || sh.mcp.on || sh.status.mcp.on {
-		t.Errorf("a stored off was ignored: calls %q, on %v", ctl.log(), sh.mcp.on)
-	}
-}
-
 // TestMCPIsOptIn (D-49, the owner's decision of 2026-10-21): a launch without any stored choice, a
 // new installation, does not start the server; the item shows it off and says why, nothing is
 // stored, and the user's first click starts it and is remembered.

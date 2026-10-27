@@ -257,7 +257,7 @@ func TestPrometheusInUseLine(t *testing.T) {
 // cluster, a service address set, in both themes, to COGPIT_PNG_DIR when that is set (else only
 // captured).
 func TestRenderPrometheusSettings(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		name := "metrics_prometheus_settings_" + string(mode) + ".png"
 		t.Run(name, func(t *testing.T) {
 			sh, _, _, _ := openPromSettings(t, mode, engine.PrometheusSetting{Context: "kind-dev", Address: "observability/thanos-query:9090",

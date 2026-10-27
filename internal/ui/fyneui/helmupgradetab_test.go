@@ -209,6 +209,3 @@ func renderHelmUpgradePicker(t *testing.T, mode ThemeMode, name string) {
 func TestRenderHelmUpgradePickerDark(t *testing.T) {
 	renderHelmUpgradePicker(t, ThemeDark, "helm_upgrade_picker_dark.png")
 }
-func TestRenderHelmUpgradePickerLight(t *testing.T) {
-	renderHelmUpgradePicker(t, ThemeLight, "helm_upgrade_picker_light.png")
-}

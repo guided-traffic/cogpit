@@ -415,10 +415,6 @@ func renderFluxDashboard(t *testing.T, mode ThemeMode, name string) {
 func TestRenderFluxDashboardDark(t *testing.T) {
 	renderFluxDashboard(t, ThemeDark, "flux_dashboard_dark.png")
 }
-func TestRenderFluxDashboardLight(t *testing.T) {
-	renderFluxDashboard(t, ThemeLight, "flux_dashboard_light.png")
-}
-
 func renderFluxKustomizations(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _, _ := fluxEngineShell(t, mode)
 	openFluxView(t, sh, q, "kustomizations.kustomize.toolkit.fluxcd.io", 5)
@@ -429,10 +425,6 @@ func renderFluxKustomizations(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderFluxKustomizationsDark(t *testing.T) {
 	renderFluxKustomizations(t, ThemeDark, "flux_kustomizations_dark.png")
-}
-
-func TestRenderFluxKustomizationsLight(t *testing.T) {
-	renderFluxKustomizations(t, ThemeLight, "flux_kustomizations_light.png")
 }
 
 func renderFluxHelmReleaseDrawer(t *testing.T, mode ThemeMode, name string) {
@@ -451,8 +443,4 @@ func renderFluxHelmReleaseDrawer(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderFluxHelmReleaseDrawerDark(t *testing.T) {
 	renderFluxHelmReleaseDrawer(t, ThemeDark, "flux_helmrelease_drawer_dark.png")
-}
-
-func TestRenderFluxHelmReleaseDrawerLight(t *testing.T) {
-	renderFluxHelmReleaseDrawer(t, ThemeLight, "flux_helmrelease_drawer_light.png")
 }

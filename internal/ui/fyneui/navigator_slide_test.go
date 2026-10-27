@@ -111,10 +111,6 @@ func TestPreferencesReduceMotion(t *testing.T) {
 func TestRenderNavigatorSlideDark(t *testing.T) {
 	renderNavigatorSlide(t, ThemeDark, "navigator_slide_dark.png")
 }
-func TestRenderNavigatorSlideLight(t *testing.T) {
-	renderNavigatorSlide(t, ThemeLight, "navigator_slide_light.png")
-}
-
 func renderNavigatorSlide(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _ := sectionScene(t, mode)
 	s := sh.side
@@ -134,10 +130,6 @@ func renderNavigatorSlide(t *testing.T, mode ThemeMode, name string) {
 func TestRenderNavigatorSwapDark(t *testing.T) {
 	renderNavigatorSwap(t, ThemeDark, "navigator_swap_dark.png")
 }
-func TestRenderNavigatorSwapLight(t *testing.T) {
-	renderNavigatorSwap(t, ThemeLight, "navigator_swap_light.png")
-}
-
 func renderNavigatorSwap(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q, _ := sectionScene(t, mode)
 	s := sh.side

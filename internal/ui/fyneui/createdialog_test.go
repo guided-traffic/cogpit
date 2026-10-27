@@ -454,10 +454,6 @@ func TestRenderCreateNamespaceDialogDark(t *testing.T) {
 	renderCreateDialog(t, kindNamespaces, ThemeDark, "create_namespace_dialog_dark.png", fillNamespace)
 }
 
-func TestRenderCreateNamespaceDialogLight(t *testing.T) {
-	renderCreateDialog(t, kindNamespaces, ThemeLight, "create_namespace_dialog_light.png", fillNamespace)
-}
-
 func fillRoleBinding(form *createForm, q *mainQueue) {
 	form.roleKind.SetSelected(roleKindClusterRole)
 	form.roleName.SetText("view")
@@ -475,10 +471,6 @@ func fillRoleBinding(form *createForm, q *mainQueue) {
 
 func TestRenderCreateRoleBindingDialogDark(t *testing.T) {
 	renderCreateDialog(t, "rolebindings", ThemeDark, "create_rolebinding_dialog_dark.png", fillRoleBinding)
-}
-
-func TestRenderCreateRoleBindingDialogLight(t *testing.T) {
-	renderCreateDialog(t, "rolebindings", ThemeLight, "create_rolebinding_dialog_light.png", fillRoleBinding)
 }
 
 func TestRenderCreateRoleDialogDark(t *testing.T) {

@@ -134,7 +134,7 @@ func logTabOfAfter(t *testing.T, sh *shell, q *mainQueue, f *fakeEngine) *logTab
 // TestRenderLogsApplication: the storefront application's logs tab, its workload selector open,
 // dark and light (A81).
 func TestRenderLogsApplication(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		f := connectedFake(t, 200)
 		dep := model.ObjectRef{Context: "demo", Kind: "deployments", Namespace: "checkout", Name: "checkout-api"}
 		withLogCommands(t, f, dep)

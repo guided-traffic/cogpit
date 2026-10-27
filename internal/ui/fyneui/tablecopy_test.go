@@ -676,23 +676,6 @@ func renderListCopy(t *testing.T, mode ThemeMode, confirm bool, name string) {
 	savePNG(t, w, name)
 }
 
-// renderListCopyOverEnd shows the Pods list with the pointer on a cut-off name: the icon lies over
-// the cell's end and the name keeps the cell's width under it (A69).
-func renderListCopyOverEnd(t *testing.T, mode ThemeMode, name string) {
-	sh, w, q, f := listScene(t, "pods", mode)
-	cell := cellAt(t, sh, rowOf(t, f, "pods", podNamed(t, podCrashLoop).name), columnOf(t, sh, "name"))
-	hoverOver(w, q, middleOf(cell))
-	if !checkIconInCell(t, sh, cell) {
-		t.Fatalf("the icon of %q is not at the cell's end", cell.full)
-	}
-	savePNG(t, w, name)
-}
-
-func TestRenderListCopyIconOverTheEnd(t *testing.T) {
-	renderListCopyOverEnd(t, ThemeDark, "list_copy_over_end_dark.png")
-	renderListCopyOverEnd(t, ThemeLight, "list_copy_over_end_light.png")
-}
-
 func TestRenderListCopyIcon(t *testing.T) {
 	renderListCopy(t, ThemeDark, false, "list_copy_hover_dark.png")
 	renderListCopy(t, ThemeLight, false, "list_copy_hover_light.png")

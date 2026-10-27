@@ -128,8 +128,6 @@ func TestAlertsPill(t *testing.T) {
 // info, warning, critical, and "warn" in grey while none answers.
 func TestRenderTopBarAlertsDark(t *testing.T) { renderTopBarAlerts(t, ThemeDark) }
 
-func TestRenderTopBarAlertsLight(t *testing.T) { renderTopBarAlerts(t, ThemeLight) }
-
 func renderTopBarAlerts(t *testing.T, mode ThemeMode) {
 	for _, c := range []struct {
 		name string
@@ -248,8 +246,6 @@ func TestAlertBoard(t *testing.T) {
 // one description unfolded.
 func TestRenderAlertBoardDark(t *testing.T) { renderAlertBoard(t, ThemeDark) }
 
-func TestRenderAlertBoardLight(t *testing.T) { renderAlertBoard(t, ThemeLight) }
-
 func renderAlertBoard(t *testing.T, mode ThemeMode) {
 	s := alertEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{Theme: mode})
@@ -314,8 +310,6 @@ func TestAlertmanagerAddressFields(t *testing.T) {
 
 // Renders of Alertmanager's section with its address, dark and light, for review.
 func TestRenderAlertmanagerFieldsDark(t *testing.T) { renderAlertmanagerFields(t, ThemeDark) }
-
-func TestRenderAlertmanagerFieldsLight(t *testing.T) { renderAlertmanagerFields(t, ThemeLight) }
 
 func renderAlertmanagerFields(t *testing.T, mode ThemeMode) {
 	s := alertEngine(t)

@@ -142,20 +142,3 @@ func TestBarDragArea(t *testing.T) {
 		t.Fatalf("bar min height %v", sh.top.root.MinSize().Height)
 	}
 }
-
-// renderTitlebarRoom shows the top bar as on macOS with Cogpit's title bar: the room the window
-// buttons take (AppKit draws them; offscreen it stays empty) before the logo.
-func renderTitlebarRoom(t *testing.T, mode ThemeMode, name string) {
-	f := connectedFake(t, 200)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode, MCPCommand: "claude mcp add cogpit -- cogpit-cli mcp"})
-	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 && sh.diag.total > 0 })
-	sh.applyTitlebar(titlebarGeometry{ButtonsMinX: 7.5, ButtonsMaxX: 66.5, Height: 28})
-	savePNG(t, w, name)
-}
-
-func TestRenderTitlebarRoomDark(t *testing.T) {
-	renderTitlebarRoom(t, ThemeDark, "titlebar_room_dark.png")
-}
-func TestRenderTitlebarRoomLight(t *testing.T) {
-	renderTitlebarRoom(t, ThemeLight, "titlebar_room_light.png")
-}

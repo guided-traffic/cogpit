@@ -676,9 +676,6 @@ func renderSecretEdit(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderSecretEditDark(t *testing.T) { renderSecretEdit(t, ThemeDark, "secret_edit_dark.png") }
-func TestRenderSecretEditLight(t *testing.T) {
-	renderSecretEdit(t, ThemeLight, "secret_edit_light.png")
-}
 
 // renderSecretSave renders the review of a Secret's save: the masked diff and the dry run.
 func renderSecretSave(t *testing.T, mode ThemeMode, name string) {
@@ -696,9 +693,6 @@ func renderSecretSave(t *testing.T, mode ThemeMode, name string) {
 }
 
 func TestRenderSecretSaveDark(t *testing.T) { renderSecretSave(t, ThemeDark, "secret_save_dark.png") }
-func TestRenderSecretSaveLight(t *testing.T) {
-	renderSecretSave(t, ThemeLight, "secret_save_light.png")
-}
 
 // yamlviewView is the editor's widget type, for findAll.
 type yamlviewView = yamlview.View

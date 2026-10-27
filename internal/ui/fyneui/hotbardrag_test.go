@@ -377,9 +377,6 @@ func TestHotbarDragScrollsAtTheEdge(t *testing.T) {
 }
 
 func TestRenderHotbarDragDark(t *testing.T) { renderHotbarDrag(t, ThemeDark, "hotbar_drag_dark.png") }
-func TestRenderHotbarDragLight(t *testing.T) {
-	renderHotbarDrag(t, ThemeLight, "hotbar_drag_light.png")
-}
 
 // renderHotbarDrag: prod-eu-central (second) carried down onto dev-hfi's place (fifth): the ghost
 // under the pointer on its card, its empty slot fifth, the tiles between moved up one place.

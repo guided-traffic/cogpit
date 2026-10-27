@@ -111,8 +111,3 @@ func TestRenderTerminalPasteHighlightDark(t *testing.T) {
 	}
 	savePNG(t, w, "terminal_paste_highlight_dark.png")
 }
-
-func TestRenderTerminalPasteHighlightLight(t *testing.T) {
-	_, w, _ := pasteScene(t, ThemeLight)
-	savePNG(t, w, "terminal_paste_highlight_light.png")
-}

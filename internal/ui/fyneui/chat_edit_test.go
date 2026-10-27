@@ -153,7 +153,7 @@ func TestChatEditFailureKeepsTheText(t *testing.T) {
 
 // TestRenderChatEdit: a sent message open in the editor, its text changed, under the turn before it.
 func TestRenderChatEdit(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) {
 			renderChat(t, mode, "chat_edit", func(ch *fakeChat) string {
 				id := demoConversation(ch, "demo")

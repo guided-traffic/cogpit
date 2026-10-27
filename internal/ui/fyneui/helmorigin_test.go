@@ -226,9 +226,6 @@ func renderOriginCharts(t *testing.T, mode ThemeMode, name string, drawer bool) 
 func TestRenderHelmChartsOriginDark(t *testing.T) {
 	renderOriginCharts(t, ThemeDark, "helm_charts_origin_dark.png", false)
 }
-func TestRenderHelmChartsOriginLight(t *testing.T) {
-	renderOriginCharts(t, ThemeLight, "helm_charts_origin_light.png", false)
-}
 func TestRenderHelmChartDrawerOriginDark(t *testing.T) {
 	renderOriginCharts(t, ThemeDark, "helm_chart_drawer_origin_dark.png", true)
 }
@@ -250,9 +247,6 @@ func renderOriginInstallTab(t *testing.T, mode ThemeMode, name string, preview b
 
 func TestRenderHelmInstallTabOriginDark(t *testing.T) {
 	renderOriginInstallTab(t, ThemeDark, "helm_install_tab_origin_dark.png", false)
-}
-func TestRenderHelmInstallTabOriginLight(t *testing.T) {
-	renderOriginInstallTab(t, ThemeLight, "helm_install_tab_origin_light.png", false)
 }
 func TestRenderHelmInstallPreviewOriginDark(t *testing.T) {
 	renderOriginInstallTab(t, ThemeDark, "helm_install_preview_origin_dark.png", true)

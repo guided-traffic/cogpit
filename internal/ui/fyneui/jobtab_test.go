@@ -89,7 +89,7 @@ func TestJobTabFollowsTheEngine(t *testing.T) {
 // TestRenderJobTab: Reconcile with Source's job tab in the dock while it waits for a
 // Kustomization's controller, dark and light (A91).
 func TestRenderJobTab(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		f := connectedFake(t, 200)
 		f.ui.Dock, f.ui.ActiveDock = []engine.DockTab{reconcileJob()}, "job-1"
 		sh, w, q := newTestShell(t, f, Options{Theme: mode})
@@ -165,7 +165,7 @@ func TestJobTabCancel(t *testing.T) {
 // TestRenderJobTabDelete: Delete of 24 pods as a job in the dock while it runs, a failed step and
 // Cancel, dark and light (G4).
 func TestRenderJobTabDelete(t *testing.T) {
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		f := connectedFake(t, 200)
 		f.ui.Dock, f.ui.ActiveDock = []engine.DockTab{deleteJob()}, "job-2"
 		sh, w, q := newTestShell(t, f, Options{Theme: mode})

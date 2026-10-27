@@ -67,9 +67,6 @@ func renderScaleHint(t *testing.T, mode ThemeMode, name string) {
 func TestRenderScaleHintDark(t *testing.T) {
 	renderScaleHint(t, ThemeDark, "scale_dialog_hint_dark.png")
 }
-func TestRenderScaleHintLight(t *testing.T) {
-	renderScaleHint(t, ThemeLight, "scale_dialog_hint_light.png")
-}
 
 // renderRollback shows the Rollback dialog of a release with four revisions, the current one
 // chosen; open taps its dropdown, which lists them over the field, the current one checked at the
@@ -94,15 +91,6 @@ func renderRollback(t *testing.T, mode ThemeMode, name string, open bool) {
 	savePNG(t, w, name)
 }
 
-func TestRenderRollbackDialog(t *testing.T) {
-	renderRollback(t, ThemeDark, "rollback_dialog_dark.png", false)
-}
-func TestRenderRollbackDialogLight(t *testing.T) {
-	renderRollback(t, ThemeLight, "rollback_dialog_light.png", false)
-}
 func TestRenderRollbackDropdownDark(t *testing.T) {
 	renderRollback(t, ThemeDark, "rollback_dropdown_dark.png", true)
-}
-func TestRenderRollbackDropdownLight(t *testing.T) {
-	renderRollback(t, ThemeLight, "rollback_dropdown_light.png", true)
 }

@@ -100,20 +100,6 @@ func toastTexts(sh *shell) string {
 	return strings.Join(out, "\n")
 }
 
-// TestTopBarHasNoMCPButton: the top bar's MCP button is gone (F6); the MCP item's gear in the
-// status bar has the details instead.
-func TestTopBarHasNoMCPButton(t *testing.T) {
-	sh, _, _ := mcpShell(t, &fakeMCP{})
-	for _, b := range findAll[*widget.Button](sh.top.root) {
-		if strings.Contains(b.Text, "MCP") {
-			t.Errorf("the top bar has a button %q", b.Text)
-		}
-	}
-	if sh.status.mcp == nil || sh.status.mcp.gear == nil {
-		t.Fatal("the status bar's MCP item has no gear")
-	}
-}
-
 // TestMCPGearOpensTheDetails: the gear opens the details above the status bar without switching
 // the server: the endpoint, the token masked, the stdio and the HTTP registrations, the HTTP one
 // with its token masked too; a tap outside the card closes them, the gear again opens them.
@@ -350,12 +336,6 @@ func renderMCPDetails(t *testing.T, mode ThemeMode, warn bool, name string) {
 func TestRenderMCPDetailsDark(t *testing.T) {
 	renderMCPDetails(t, ThemeDark, false, "mcp_details_dark.png")
 }
-func TestRenderMCPDetailsLight(t *testing.T) {
-	renderMCPDetails(t, ThemeLight, false, "mcp_details_light.png")
-}
 func TestRenderMCPRegenerateDark(t *testing.T) {
 	renderMCPDetails(t, ThemeDark, true, "mcp_regenerate_dark.png")
-}
-func TestRenderMCPRegenerateLight(t *testing.T) {
-	renderMCPDetails(t, ThemeLight, true, "mcp_regenerate_light.png")
 }

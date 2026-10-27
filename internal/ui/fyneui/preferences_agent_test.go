@@ -560,7 +560,7 @@ func TestRenderAgentPreferences(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		conn.CAFile = `C:\Users\you\certs\team-ca.pem` // without a drive the form refuses the path there
 	}
-	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
+	for _, mode := range []ThemeMode{ThemeDark} {
 		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true), 2400) })
 	}
 }

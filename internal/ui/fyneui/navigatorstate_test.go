@@ -221,9 +221,6 @@ func TestNavigatorStaleReportIsQuiet(t *testing.T) {
 func TestRenderNavigatorSectionCollapsedDark(t *testing.T) {
 	renderNavigatorSectionCollapsed(t, ThemeDark, "navigator_section_collapsed_dark.png")
 }
-func TestRenderNavigatorSectionCollapsedLight(t *testing.T) {
-	renderNavigatorSectionCollapsed(t, ThemeLight, "navigator_section_collapsed_light.png")
-}
 
 // renderNavigatorSectionCollapsed: the section with .kube/ collapsed (its heading counting two
 // clusters), the keyboard's ring on it from the keyboard, and the pointer on it showing its tooltip.

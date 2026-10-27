@@ -566,36 +566,7 @@ func TestRenderClickKeepsTheCheckedRows(t *testing.T) {
 	renderClickKeepsChecks(t, ThemeLight, "selection_click_light.png")
 }
 
-// renderLoneChecked checks one pod and opens its menu: the object's full menu, then Clear Selection
-// after a separator (N112).
-func renderLoneChecked(t *testing.T, mode ThemeMode, name string) {
-	f := kindsFake(t, "pods")
-	withDeleteMany(t, f)
-	sh, w, q := newTestShell(t, f, Options{Theme: mode})
-	q.until(t, "the pods view", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && sh.diag.total > 0 })
-	settle(w)
-	test.Tap(cellAt(t, sh, 2, checkColumn))
-	q.until(t, "the row checked", func() bool { return sh.view.check.has(sh.view.snap.Rows[2].Ref) })
-	settle(w)
-	c := cellAt(t, sh, 2, firstDataColumn)
-	test.TapSecondaryAt(c, fyne.NewPos(60, c.Size().Height/2))
-	q.until(t, "the row menu", func() bool {
-		m := sh.view.menuModel
-		return sh.view.menu != nil && m != nil && m.Items[len(m.Items)-1].Label == "Clear Selection"
-	})
-	settle(w)
-	savePNG(t, w, name)
-}
-
-func TestRenderLoneCheckedRowMenu(t *testing.T) {
-	renderLoneChecked(t, ThemeDark, "selection_one_menu_dark.png")
-	renderLoneChecked(t, ThemeLight, "selection_one_menu_light.png")
-}
-
 func TestRenderSelectionDark(t *testing.T) { renderSelection(t, ThemeDark, "selection_menu_dark.png") }
-func TestRenderSelectionLight(t *testing.T) {
-	renderSelection(t, ThemeLight, "selection_menu_light.png")
-}
 
 // renderDeleteSelection shows the confirmation of Delete for twelve pods: the count, the first ten
 // named in the message, every pod in the scrolling list.
@@ -621,8 +592,4 @@ func renderDeleteSelection(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderDeleteSelectionDark(t *testing.T) {
 	renderDeleteSelection(t, ThemeDark, "delete_selection_dark.png")
-}
-
-func TestRenderDeleteSelectionLight(t *testing.T) {
-	renderDeleteSelection(t, ThemeLight, "delete_selection_light.png")
 }

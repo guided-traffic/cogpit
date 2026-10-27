@@ -154,14 +154,6 @@ func TestRenderDockAgentReadDark(t *testing.T) {
 	savePNG(t, w, "dock_agent_read_dark.png")
 }
 
-func TestRenderDockAgentReadLight(t *testing.T) {
-	skipTerminalUnderRace(t)
-	sh, w, q, f := kubectlScene(t, ThemeLight, nil)
-	f.update(func(u *engine.UIState) { u.Dock[0].AgentRead = true })
-	q.until(t, "the switch", func() bool { return sh.dock.agentRead.Checked })
-	savePNG(t, w, "dock_agent_read_light.png")
-}
-
 // agentReadButton returns the strip's button of a tab. Main goroutine (the test's, under the queue).
 func agentReadButton(t *testing.T, sh *shell, id string) *tabButton {
 	t.Helper()
@@ -219,9 +211,7 @@ func TestAgentReadMarkerFlashes(t *testing.T) {
 
 // The strip while an agent's read flashes the tab, and after the switch turned itself off: the
 // PNGs of the pull request (AGENTS.md rule 7).
-func TestRenderDockAgentReadFlashDark(t *testing.T)  { renderDockAgentReadFlash(t, ThemeDark) }
-func TestRenderDockAgentReadFlashLight(t *testing.T) { renderDockAgentReadFlash(t, ThemeLight) }
-
+func TestRenderDockAgentReadFlashDark(t *testing.T) { renderDockAgentReadFlash(t, ThemeDark) }
 func renderDockAgentReadFlash(t *testing.T, mode ThemeMode) {
 	skipTerminalUnderRace(t)
 	sh, w, q, f := kubectlScene(t, mode, nil)
@@ -233,9 +223,7 @@ func renderDockAgentReadFlash(t *testing.T, mode ThemeMode) {
 	savePNG(t, w, "dock_agent_read_flash_"+string(mode)+".png")
 }
 
-func TestRenderDockAgentReadExpiredDark(t *testing.T)  { renderDockAgentReadExpired(t, ThemeDark) }
-func TestRenderDockAgentReadExpiredLight(t *testing.T) { renderDockAgentReadExpired(t, ThemeLight) }
-
+func TestRenderDockAgentReadExpiredDark(t *testing.T) { renderDockAgentReadExpired(t, ThemeDark) }
 func renderDockAgentReadExpired(t *testing.T, mode ThemeMode) {
 	skipTerminalUnderRace(t)
 	sh, w, q, f := kubectlScene(t, mode, nil)

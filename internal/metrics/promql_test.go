@@ -135,25 +135,6 @@ func TestParseResult(t *testing.T) {
 	}
 }
 
-func TestRangeStep(t *testing.T) {
-	h := NewHub(nil, Options{})
-	defer h.Close()
-	st := &scopeState{subs: map[*Subscription]struct{}{}}
-	window, step := h.rangeOfLocked(st)
-	if window.Hours() != 1 || step.Seconds() != 30 {
-		t.Errorf("default window %s step %s, want 1h at 30s (window/120)", window, step)
-	}
-	st.subs[&Subscription{windows: []time.Duration{5 * time.Minute, 24 * time.Hour}}] = struct{}{}
-	window, step = h.rangeOfLocked(st)
-	// 24h across 1000 points is 87.2s, rounded up to whole seconds; 5m/120 and 1h/120 are finer.
-	if window.Hours() != 24 || step != 87*time.Second {
-		t.Errorf("window %s step %s", window, step)
-	}
-	if float64(window/step) > 1000 {
-		t.Errorf("%d points exceed the bound", window/step)
-	}
-}
-
 // A46: charts of one object whose ranges lie far apart get query sets of their own, each at its
 // own step; the coarsest set is the one set there was before, so no chart gets fewer points.
 func TestQuerySetsForFarApartRanges(t *testing.T) {

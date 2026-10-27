@@ -113,7 +113,3 @@ func renderNodeDevices(t *testing.T, mode ThemeMode, name string) {
 func TestRenderNodeDevicesDrawerDark(t *testing.T) {
 	renderNodeDevices(t, ThemeDark, "node_devices_drawer_dark.png")
 }
-
-func TestRenderNodeDevicesDrawerLight(t *testing.T) {
-	renderNodeDevices(t, ThemeLight, "node_devices_drawer_light.png")
-}

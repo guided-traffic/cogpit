@@ -256,16 +256,6 @@ func TestDockTabDragMovesTheTab(t *testing.T) {
 // The tab bar with a tab carried (Services held over the bar's end, the others slid aside), and
 // after the drop, dark and light (GW4, rule 7).
 func TestRenderTabDragDark(t *testing.T) { renderTabDrag(t, ThemeDark, "tabbar_drag_dark.png", true) }
-func TestRenderTabDragLight(t *testing.T) {
-	renderTabDrag(t, ThemeLight, "tabbar_drag_light.png", true)
-}
-func TestRenderTabMovedDark(t *testing.T) {
-	renderTabDrag(t, ThemeDark, "tabbar_moved_dark.png", false)
-}
-func TestRenderTabMovedLight(t *testing.T) {
-	renderTabDrag(t, ThemeLight, "tabbar_moved_light.png", false)
-}
-
 func renderTabDrag(t *testing.T, mode ThemeMode, name string, hold bool) {
 	sh, w, q, _ := tabsShell(t, mode)
 	q.until(t, "the view", func() bool { return sh.view.snap != nil && sh.diag.total > 0 })

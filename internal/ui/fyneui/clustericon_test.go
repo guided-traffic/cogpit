@@ -208,30 +208,9 @@ func TestFitTextSize(t *testing.T) {
 	}
 }
 
-// The two dialogs over the settings card, dark and light: the PNGs of the pull request.
-func TestRenderIconTileDialogDark(t *testing.T) {
-	renderIconTileDialog(t, ThemeDark, "icon_tile_dialog_dark.png")
-}
-func TestRenderIconTileDialogLight(t *testing.T) {
-	renderIconTileDialog(t, ThemeLight, "icon_tile_dialog_light.png")
-}
-
-func renderIconTileDialog(t *testing.T, mode ThemeMode, name string) {
-	_, sh, w, q := iconScene(t, mode)
-	td := sh.settings.openTileDialog("kind-dev")
-	td.letters.SetText("PROD")
-	test.Tap(td.swatches[4])
-	q.drain()
-	savePNG(t, w, name)
-}
-
 func TestRenderIconImageDialogDark(t *testing.T) {
 	renderIconImageDialog(t, ThemeDark, "icon_image_dialog_dark.png")
 }
-func TestRenderIconImageDialogLight(t *testing.T) {
-	renderIconImageDialog(t, ThemeLight, "icon_image_dialog_light.png")
-}
-
 func renderIconImageDialog(t *testing.T, mode ThemeMode, name string) {
 	_, sh, w, q := iconScene(t, mode)
 	file := wideImageFile(t)
