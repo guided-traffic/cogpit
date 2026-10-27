@@ -248,8 +248,8 @@ rm -rf ~/.config/Cogpit ~/.cache/Cogpit   # your settings, logs and caches
 (Cluster, View, Helm, Window, Help) before the logo
 ([D-109](decisions.md#d-109-the-menus-in-the-top-bar-on-windows-and-linux)); their keys work from
 any focus, Alt does not open them. Not on either: `cogpit://` links, Start at login, the window's
-position (size and full screen come back, [D-95](decisions.md#d-95-the-window-comes-back-where-it-was)),
-the system's file panels (Fyne's dialogs instead, [choosers](#choosing-files-the-systems-panels)).
+position ([size and full screen come back](#the-windows-place-and-size)), the system's file panels
+([Fyne's dialogs instead](#choosing-files-the-systems-panels)).
 
 ### Install on Windows
 
@@ -752,8 +752,8 @@ connect streams again. Switched off, the connected cluster lists at once.
 
 ### Cluster Settings › General: the login while the cluster is not shown
 
-"Renew the login while the cluster is not shown", **on by default**
-([D-69](decisions.md#d-69-several-clusters-connected-at-once)): a connected cluster in the
+"Renew the login while the cluster is not shown"
+([D-69](decisions.md#d-69-several-clusters-connected-at-once)): on, a connected cluster in the
 background renews its login like the shown one, so its login program (a browser login included) may
 run. Off, the program does not run while the cluster is not shown, and an expiring login
 **lapses**:
@@ -804,8 +804,8 @@ copies.
 ### Cluster Settings › General: the accent colour
 
 Your mark of which cluster it is (red for production, say), shown by the
-[light strip](#the-light-strip) ([D-80](decisions.md#d-80-a-clusters-accent-colour)): None
-(default), the icon's eight colours, or any colour.
+[light strip](#the-light-strip) ([D-80](decisions.md#d-80-a-clusters-accent-colour)): None, the
+icon's eight colours, or any colour.
 
 | Field (`cluster-settings.json`, per context) | Default | Values |
 |---|---|---|
@@ -887,12 +887,11 @@ holds the default. `cogpit-cli` asks nothing and reads what the default keeps on
 
 Security note: only you switch integrations and answer the question (H-126, H-133,
 [agents and MCP](../security/agents-and-mcp.md)): on reads with your identity, off hides alerts,
-ratings or policy marks. Agents and `cogpit-cli` are refused `cluster.integrations.step`,
-`cluster.integrations.lookFor`, `cluster.integrations.answer` and `cluster.integrations.ask`,
-`cluster.settings.set`'s `integrations` and `metricsSource`, and `preferences.set`'s
-`integrationDefaults`, even where agents' writes are allowed; they may only put the question off
-(`cluster.integrations.later`). An agent's `cluster.setPrometheus` or `cluster.setAlertmanager`
-always waits for your acceptance.
+ratings or policy marks. Agents and `cogpit-cli` are refused every `cluster.integrations.*` command
+but `later` (putting the question off), `cluster.settings.set`'s `integrations` and
+`metricsSource`, and `preferences.set`'s `integrationDefaults`, even where agents' writes are
+allowed. An agent's `cluster.setPrometheus` or `cluster.setAlertmanager` always waits for your
+acceptance.
 
 ## The window
 
@@ -1078,8 +1077,6 @@ tooltip; a click opens the connection log.
 The dock shows the shown cluster's tabs plus the Audit Log and Connection Diagnostics; other
 clusters' logs, shells and jobs go on behind and come back as you left them. An agent's tab on
 another cluster waits in that cluster's dock.
-[Connection Diagnostics](#connection-diagnostics-what-the-requests-ran-into) lists each connected
-cluster's requests, watches, objects and memory.
 
 ### When the connection breaks
 
@@ -1219,6 +1216,9 @@ The tab, from the top:
 A log line is one problem with its count: a request client-go retries counts in its line ("12
 times since 08:01:04") instead of pushing other lines out.
 
+<details>
+<summary>The log's lines</summary>
+
 | Line | When |
 |---|---|
 | refused | 403 Forbidden; the message names the user and what was refused |
@@ -1234,6 +1234,8 @@ times since 08:01:04") instead of pushing other lines out.
 | slow load | a read took 5 s or more to load |
 | per namespace | a refused read in all namespaces is read namespace by namespace (grey, not counted: the refusal is) |
 | connect | a connect began (grey) |
+
+</details>
 
 The log is kept in memory per context across reconnects and dropped at quit: at most 500 lines per
 context (the least recently seen goes first), for the 8 contexts used last. Lines show real values
@@ -1309,9 +1311,6 @@ a report names with a violation
   settings or the namespace filter name. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
 
-`make kind-kyverno` installs Kyverno with test policies into the kind cluster
-([hack/kind](../../hack/kind/README.md#kyverno)).
-
 ### A namespace stuck in Terminating
 
 A deleted namespace stays Terminating while objects in it remain, usually one whose finalizers no
@@ -1371,17 +1370,18 @@ container to a running pod, as `kubectl debug -it <pod> --target=<container>` do
 - **Agents** run `pod_debug` with an image and target of their choice; it always waits for your
   confirmation, with the same rows.
 
-**Preferences › Kubernetes › Debug container image** (`debugImage`): `""` # default, which means
-`docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70`
-and follows Cogpit's releases. Best pinned by digest (`repository:tag@sha256:…`); a floating tag
-works and is named as one. Image fields show the short name (`nicolaka/netshoot:v0.16`: no
-`docker.io/`, no digest); while the text is the configured image's short name, that image runs
-pinned as configured; the default's name or an empty field sets the default; a changed name runs
-exactly as typed. The line under the field says whether the image in effect is pinned. Cluster
-Settings › Node Shell › Image works the same, `alpine:3.24` the default's name
-([D-37](decisions.md#d-37-the-node-shell)); the confirmations of a node shell and of an agent's Debug
-name the whole reference and its digest. Only you, in Cogpit's window, set the image; agents and
-the CLI may only reset it.
+**Preferences › Kubernetes › Debug container image** (`debugImage`): `""` # default, meaning
+`docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70`,
+which follows Cogpit's releases. Cluster Settings › Node Shell › Image works the same, its default's
+short name `alpine:3.24` ([D-37](decisions.md#d-37-the-node-shell)). Only you, in Cogpit's window,
+set either image; agents and the CLI may only reset it.
+
+- Best pinned by digest (`repository:tag@sha256:…`); a floating tag works and is named as one. The
+  line under the field says whether the image in effect is pinned.
+- The field shows the short name (`nicolaka/netshoot:v0.16`: no `docker.io/`, no digest). Left at
+  the configured image's short name, that image runs pinned as configured; the default's name or an
+  empty field sets the default; a changed name runs exactly as typed.
+- The confirmations of a node shell and of an agent's Debug name the whole reference and its digest.
 
 Security note: with a target, the debug container reads that container's processes and through them
 its files, mounted Secrets included, as root with netshoot
@@ -1446,9 +1446,6 @@ the end of life on the 28th of the fourteenth month after the release month.
   `resources_list`, `object_get`'s drawer items.
 - **Offline:** the table is built into each release; Cogpit fetches nothing at run time.
   `make k8s-eol` refreshes it ([releasing](releasing.md#the-kubernetes-release-table)).
-
-The gear before the root's dot opens the cluster's Settings, as ⌘⇧, does
-([D-92](decisions.md#d-92-a-gear-in-the-navigators-cluster-row)).
 
 ## Naming conventions
 
