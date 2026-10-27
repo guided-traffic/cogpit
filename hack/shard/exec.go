@@ -19,9 +19,10 @@ import (
 
 // execConfig is what -exec runs: the package's shards as the split assigns them, compiled once.
 type execConfig struct {
-	pkg, tags string // the package, and the build tags its files are listed with (race with -race)
-	race      bool   // build with the race detector
-	of, jobs  int    // the number of shards, and how many run at once
+	pkg, tags string    // the package, and the build tags its files are listed with (race with -race)
+	sel       selection // the tests to split (-run, -skip)
+	race      bool      // build with the race detector
+	of, jobs  int       // the number of shards, and how many run at once
 	timeout   time.Duration
 	coverDir  string // write each shard's coverage profile here, if set
 	coverName string // the profiles' name before -<n>.out
@@ -109,8 +110,8 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if len(names) == 0 {
-		return false, fmt.Errorf("%s has no tests", c.pkg)
+	if names = c.sel.keep(names); len(names) == 0 {
+		return false, fmt.Errorf("%s has no tests%s", c.pkg, c.sel)
 	}
 	flags := []string{"test", "-timeout", c.timeout.String()}
 	if c.race {
@@ -120,7 +121,13 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 		flags = append(flags, "-tags", t)
 	}
 	if c.coverDir != "" {
-		flags = append(flags, "-covermode=atomic")
+		// atomic only under the race detector, which would report the counters' plain writes: the
+		// profiles are merged as covered or not (hack/coverage), and set costs the least.
+		mode := "set"
+		if c.race {
+			mode = "atomic"
+		}
+		flags = append(flags, "-covermode="+mode)
 	}
 	shards := split(names, c.of)
 	runs := make([][]string, len(shards))
@@ -129,7 +136,8 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 			continue
 		}
 		args := slices.Clone(flags)
-		if c.of > 1 { // one shard is the whole package: no pattern, which Windows might find too long
+		// One shard of every test is the whole package: no pattern, which Windows might find too long.
+		if c.of > 1 || c.sel.narrows() {
 			p := pattern(mine)
 			if runtime.GOOS == "windows" && len(p) > windowsCommandLine-1024 {
 				return false, fmt.Errorf("shard %d of %d: its -run pattern of %d tests is %d characters, longer than a "+
@@ -155,8 +163,8 @@ func execShards(c execConfig, w io.Writer) (bool, error) {
 		_, _ = w.Write(out)
 		return false, fmt.Errorf("go %s: %w", strings.Join(build, " "), err)
 	}
-	fmt.Fprintf(w, "shard: built %s in %.1f s; %d tests in %d shards, %d at once\n",
-		c.pkg, time.Since(start).Seconds(), len(names), c.of, min(c.jobs, c.of))
+	fmt.Fprintf(w, "shard: built %s in %.1f s; %d tests%s in %d shards, %d at once\n",
+		c.pkg, time.Since(start).Seconds(), len(names), c.sel, c.of, min(c.jobs, c.of))
 
 	results := make([]shardResult, len(shards))
 	var mu sync.Mutex

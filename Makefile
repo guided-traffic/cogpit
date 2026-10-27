@@ -1,9 +1,9 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, test-darwin with app on macOS, dist-linux with test-linux-package,
-# and on Windows test-windows-unit, test-windows-ui and dist-windows with test-windows-package
-# (docs/developer/releasing.md#ci).
+# test-envtest, coverage-report, on macOS test-darwin and lint with app, dist-linux with
+# test-linux-package, and on Windows test-windows-unit, test-windows-ui and dist-windows with
+# test-windows-package (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -158,17 +158,28 @@ test-fork: ## Tests and fuzz seeds of the patched terminal widget, a module of i
 # The cluster tests: the TestKind* functions of the packages with files tagged kind, race detector on,
 # with the coverage of every package they reach (-coverpkg). The drain tests have their own cluster
 # and target (test-kind-drain). KIND_RUN narrows the run, e.g. KIND_RUN='^TestKindHelm'.
-KIND_PKGS        = $(sort $(addprefix ./,$(dir $(shell grep -rl --include='*_test.go' '^//go:build kind' cmd internal))))
+# The add-on tests (KIND_ADDON_TESTS) need a stack kind-up does not install and skip without it,
+# most after connecting to the cluster: test-kind leaves them out, and with them internal/ui/fyneui,
+# whose one kind test is the Prometheus drawer's (a race build of the UI's package for a skip).
+# KIND_ADDONS=1 runs them after their add-on's target (kind-prometheus; TestKindKubePrometheusStack
+# kind-kps, TestKindVictoriaMetrics kind-vm, TestKindAlertmanager kind-alertmanager, TestKindKyverno
+# kind-kyverno, TestKindTrivy kind-trivy; TestKindMetricsFallback also COGPIT_KIND_FALLBACK=1), e.g.
+# make kind-prometheus && make test-kind KIND_ADDONS=1 KIND_RUN='^TestKindPrometheus'.
+KIND_ALL_PKGS    = $(sort $(addprefix ./,$(dir $(shell grep -rl --include='*_test.go' '^//go:build kind' cmd internal))))
+KIND_PKGS        = $(if $(KIND_ADDONS),$(KIND_ALL_PKGS),$(filter-out ./internal/ui/fyneui/,$(KIND_ALL_PKGS)))
 KIND_RUN        ?= ^TestKind
+KIND_ADDON_TESTS := TestKindPrometheus TestKindPrometheusDrawer TestKindNodeExporterByAddress TestKindMetricsFallback \
+	TestKindKubePrometheusStack TestKindVictoriaMetrics TestKindAlertmanager TestKindKyverno TestKindTrivy
+KIND_SKIP        = ^(TestKindDrain.*$(if $(KIND_ADDONS),,|$(subst $(space),|,$(strip $(KIND_ADDON_TESTS)))))$$
 
 test-kind-compile: ## Compile the cluster tests without a cluster or a run (CI does it while the cluster starts)
 	$(GO) test -race -tags kind -covermode=atomic -coverpkg=./... -run '^$$' $(KIND_PKGS)
 
-test-kind: ## Cluster tests against the kind cluster (make kind-up first), with coverage (.cache/coverage/integration.out)
+test-kind: ## Cluster tests against the kind cluster (make kind-up first), with coverage (.cache/coverage/integration.out); KIND_ADDONS=1 with the add-ons' tests
 	@test -s $(KIND_KUBECONFIG) || { echo "no kubeconfig at $(KIND_KUBECONFIG): run make kind-up first"; exit 1; }
 	@mkdir -p $(COVERAGE_DIR)
 	$(TEST_ENV) COGPIT_KIND_KUBECONFIG=$(KIND_KUBECONFIG) COGPIT_KIND_CONTEXT=$(KIND_CONTEXT) \
-		$(GO) test -race -timeout $(RACE_TIMEOUT) -tags kind -run '$(KIND_RUN)' -skip '^TestKindDrain' \
+		$(GO) test -race -timeout $(RACE_TIMEOUT) -tags kind -run '$(KIND_RUN)' -skip '$(KIND_SKIP)' \
 		-covermode=atomic -coverpkg=./... -coverprofile=$(COVERAGE_DIR)/integration.out $(KIND_PKGS)
 
 bench: ## Benchmarks: demo churn and build, and the gate criteria S1 (snapshots under churn) and S2 (sort)
@@ -184,35 +195,50 @@ UNIT_TIMEOUT    ?= 20m
 
 # On Linux every test runs under the race detector (test-race-ui, test-race-rest), and here, without
 # it, what the race detector keeps from running (D-112): internal/ui/logo, which test-race-rest
-# leaves out, and in every package the tests that skip themselves, or part of their checks, under it
-# (they read raceEnabled, directly or through a helper) or that only the build without the race tag
-# compiles (hack/shard -norace): the terminal tests of internal/ui/fyneui (their rendering races
-# Fyne's test driver), the heap measurements of internal/cache, the log view's budget. Until
-# 2026-10-21 the job ran every package a second time without the race detector, twelve minutes of a
-# runner, for 240 of 79,744 statements no other profile covered: those are covered here.
+# leaves out, the UI's render tests, which test-race-ui leaves out (UI_RENDER_TESTS, below), as
+# UI_RENDER_SHARDS of hack/shard's shards that run at once (UI_JOBS), and in every package the
+# tests that skip themselves, or part of their checks, under it (they read raceEnabled, directly or
+# through a helper) or that only the build without the race tag compiles (hack/shard -norace): the
+# terminal tests of internal/ui/fyneui (their rendering races Fyne's test driver), the heap
+# measurements of internal/cache, the log view's budget. Until 2026-10-21 the job ran every package
+# a second time without the race detector, twelve minutes of a runner, for 240 of 79,744 statements
+# no other profile covered: those are covered here. Coverage mode set: the profiles are merged as
+# covered or not (hack/coverage), and atomic counting, which only the race detector needs, made the
+# logo's tests four times slower (33 s against 8.4 s, an M1 Ultra, 2026-10-27).
 NORACE_LIST      = $(CACHE)/norace-tests.txt
+UI_RENDER_SHARDS ?= 4
 
-test-norace-coverage: ## The tests the race detector keeps from running, without it, with coverage profiles (.cache/coverage/unit-*.out)
+test-norace-coverage: ## The tests the race detector keeps from running and the UI's render tests, without it, with coverage profiles (.cache/coverage/unit-*.out)
 	@mkdir -p $(COVERAGE_DIR)
-	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=atomic -coverprofile=$(COVERAGE_DIR)/unit-logo.out ./internal/ui/logo
+	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=set -coverprofile=$(COVERAGE_DIR)/unit-logo.out ./internal/ui/logo
+	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -run '$(UI_RENDER_TESTS)' -of $(UI_RENDER_SHARDS) -exec \
+		-timeout $(UNIT_TIMEOUT) -coverdir $(COVERAGE_DIR) -covername unit-render $(if $(UI_JOBS),-jobs $(UI_JOBS))
 	$(GO) run ./hack/shard -norace -pkg ./... > $(NORACE_LIST)
 	@while read -r pkg run; do \
 		name=$$(echo "$$pkg" | sed -e 's|^github.com/guided-traffic/cogpit/||' -e 's|/|-|g'); \
 		echo "$(GO) test $$pkg -run '$$run'"; \
-		$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=atomic \
+		$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=set \
 			-coverprofile=$(COVERAGE_DIR)/unit-$$name.out -run "$$run" $$pkg || exit 1; \
 	done < $(NORACE_LIST)
 
 # The UI's race tests in RACE_SHARDS shards: hack/shard assigns each test of internal/ui/fyneui to a
 # shard by a hash of its name, so a new test lands in one without a change here or in CI. The
-# number of shards is CI's (release.yml's matrix); locally any shard runs alone.
+# number of shards is CI's (release.yml's matrix); locally any shard runs alone. The render tests
+# (UI_RENDER_TESTS) are left out before the split, so the others keep their shards: each paints a
+# scene with Fyne's software painter, pure Go on the test's goroutine, which the race detector
+# instruments access by access, so that under it they took two thirds of the shards' time (1,411 of
+# 2,111 s for 262 of 1,139 tests, an M1 Ultra, 2026-10-27). A race only a render test reaches goes
+# unseen, a risk the behaviour tests keep small: they drive the same widgets under the race
+# detector. test-norace-coverage runs the render tests without it, with coverage, and Windows' UI
+# job with every other test.
 UI_PKG          := ./internal/ui/fyneui
+UI_RENDER_TESTS := ^TestRender
 RACE_SHARDS     ?= 8
 RACE_SHARD      ?= 1
 
-test-race-ui: ## Race tests of internal/ui/fyneui, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
+test-race-ui: ## Race tests of internal/ui/fyneui but its render tests, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
 	@mkdir -p $(COVERAGE_DIR)
-	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
+	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
 		echo "$(GO) test -race $(UI_PKG) -run <shard $(RACE_SHARD) of $(RACE_SHARDS)>" && \
 		$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) -covermode=atomic \
 			-coverprofile=$(COVERAGE_DIR)/race-ui-$(RACE_SHARD).out -run "$$run" $(UI_PKG)
@@ -225,18 +251,27 @@ test-race-rest: test-fork ## Race tests of every package but internal/ui/fyneui 
 	$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) -covermode=atomic -coverprofile=$(COVERAGE_DIR)/race-rest.out \
 		$$($(GO) list ./... | grep -v -x -e 'github.com/guided-traffic/cogpit/internal/ui/fyneui' -e 'github.com/guided-traffic/cogpit/internal/ui/logo')
 
-# What only macOS can test, for CI's macOS job: every test of a *_darwin_test.go file (the title
-# bar's AppKit harness, the updater's harness with make sparkle's framework, the locale's
-# CoreFoundation read), and the tests whose expectations branch
-# on runtime.GOOS for the macOS shortcut glyphs (the terminal view's package, the title history).
+# What only macOS can test, for CI's job macOS Tests, race detector on: every test of a
+# *_darwin_test.go file (the title bar's AppKit harness, the updater's harness with make sparkle's
+# framework, the file panels' harness, the locale's CoreFoundation read), the tests whose
+# expectations branch on runtime.GOOS for macOS (DARWIN_GOOS_TESTS: its keys and shortcut glyphs),
+# and what macOS runs its own way beneath the window, which the Linux jobs test on Linux only
+# (DARWIN_UNIX_FILES): every test of internal/terminal (the local shell's PTY, its kubectl bindings
+# for zsh and bash, and fish where it is installed) and of internal/cluster (a credential plugin's
+# process search, pluginproc_darwin.go, and the login's run and end above it), and the engine's
+# waits for a login. One go test run with one pattern, so that tests run while other packages
+# compile: a test of another package listed that has one of these names runs too.
 DARWIN_TEST_FILES = $(shell find cmd internal -name '*_darwin_test.go')
-DARWIN_TESTS      = $(shell sed -n -E 's/^func (Test[A-Za-z0-9_]*).*/\1/p' $(DARWIN_TEST_FILES)) TestTitleHistoryArrows
+DARWIN_GOOS_TESTS := TestTitleHistoryArrows TestTabShortcuts TestRegistryShortcutsDoNotCollide TestClickModifiers \
+	TestRootRowGearOpensClusterSettings TestHelpAndWindowMenus TestTerminalCopyAndPaste
+DARWIN_UNIX_FILES  = $(wildcard internal/terminal/*_test.go internal/cluster/*_test.go) internal/engine/loginwait_test.go
+DARWIN_TESTS       = $(shell sed -n -E 's/^func (Test[A-Za-z0-9_]*).*/\1/p' $(DARWIN_TEST_FILES) $(DARWIN_UNIX_FILES)) \
+	$(DARWIN_GOOS_TESTS)
+DARWIN_PKGS        = $(sort $(addprefix ./,$(dir $(DARWIN_TEST_FILES) $(DARWIN_UNIX_FILES))) $(UI_PKG)/ $(UI_PKG)/termview/)
 
-test-darwin: sparkle ## The macOS-only tests, race detector on (macOS only); Sparkle for the updater's harness
+test-darwin: sparkle ## The macOS-only tests, and the terminal's and the logins' beneath the window, race detector on (macOS only); Sparkle for the updater's harness
 	@test "$$($(GO) env GOOS)" = darwin || { echo "test-darwin runs on macOS only"; exit 1; }
-	$(TEST_ENV) $(GO) test -race -run '^($(subst $(space),|,$(strip $(DARWIN_TESTS))))$$' \
-		$(sort $(addprefix ./,$(dir $(DARWIN_TEST_FILES))) $(UI_PKG)/)
-	$(TEST_ENV) $(GO) test -race ./internal/ui/fyneui/termview/
+	$(TEST_ENV) $(GO) test -race -run '^($(subst $(space),|,$(strip $(DARWIN_TESTS))))$$' $(DARWIN_PKGS)
 
 coverage-report: ## Merge the profiles in .cache/coverage into combined.out, the badge (.github/badges/coverage.json) and summary.md
 	@ls $(COVERAGE_DIR)/*.out >/dev/null 2>&1 || { echo "no profiles in $(COVERAGE_DIR): run a test target with coverage first"; exit 1; }

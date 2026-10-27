@@ -12,8 +12,8 @@
 # Linux jobs run on the organisation's self-hosted runners (ephemeral pods, Ubuntu 24.04, 16 CPUs,
 # Docker; no make or C compiler until .github/actions/go-setup installs them), as the team's other
 # repositories do, unless the repository variable LINUX_RUNNER names other runners (ubuntu-latest:
-# GitHub's hosted ones, which take the load off the shared self-hosted machine). The macOS job and
-# the Windows compile run on GitHub's hosted runners, free for a public repository.
+# GitHub's hosted ones, which take the load off the shared self-hosted machine). The macOS and
+# Windows jobs run on GitHub's hosted runners, free for a public repository.
 #
 # Semantic Release creates the tag and the GitHub release with the organisation's GitHub App token,
 # so the release's "published" event starts the release pipeline (build.yml).
@@ -154,9 +154,10 @@ jobs:
 
   # On Linux every test runs under the race detector (D-112), in the race jobs below, but what the
   # race detector keeps from running, which this job runs without it: internal/ui/logo (left out of
-  # race-rest) and the tests that skip themselves, or part of their checks, under it (hack/shard
-  # -norace over ./...: the UI's terminal tests, the cache's heap measurements). Until 2026-10-21 it
-  # ran every package a second time, the UI's in four processes.
+  # race-rest), the UI's render tests (left out of race-ui; four shards at once) and the tests that
+  # skip themselves, or part of their checks, under it (hack/shard -norace over ./...: the UI's
+  # terminal tests, the cache's heap measurements). Until 2026-10-21 it ran every package a second
+  # time, the UI's in four processes.
   unit-tests:
     name: Unit Tests (no race)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -183,7 +184,9 @@ jobs:
 
   # The UI's tests under the race detector take 18 minutes on a Linux runner, so they run in
   # shards: hack/shard assigns each test to one by a hash of its name, so a new test lands in a
-  # shard without a change here. The number of shards is the matrix's length (RACE_SHARDS).
+  # shard without a change here. The number of shards is the matrix's length (RACE_SHARDS). The
+  # render tests are left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the
+  # race detector); the unit tests run them without it.
   race-ui:
     name: Race Tests (UI ${{ matrix.shard }}/8)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -240,7 +243,8 @@ jobs:
   # The cluster tests against a real API server and kubelet: views, logs, exec, kubectl in the
   # terminal, Helm, metrics. make kind-up writes the cluster's kubeconfig to .cache/kind/kubeconfig;
   # nothing in this job reads or writes ~/.kube. The cluster's name carries the run's id, so two
-  # runs on one Docker host cannot meet.
+  # runs on one Docker host cannot meet. The tests of add-ons kind-up does not install (Prometheus,
+  # Alertmanager, Kyverno, Trivy, VictoriaMetrics) are left out: make test-kind KIND_ADDONS=1 by hand.
   kind:
     name: Integration Tests (kind)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -414,12 +418,13 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # What only macOS can test or build: the darwin-only tests (the title bar's AppKit harness, the
-  # updater's Sparkle harness, the locale's CoreFoundation read), the lint of the packages with
-  # darwin-only files, and the app bundle with Sparkle. A Fyne app with cgo and AppKit does not
-  # cross-compile from Linux.
-  macos:
-    name: macOS
+  # What only macOS can test or build, in two jobs that each stay under ten minutes. The tests: the
+  # darwin-only ones (the title bar's AppKit harness, the updater's Sparkle harness, the locale's
+  # CoreFoundation read), the ones that expect macOS's keys, and the terminal's local shell and the
+  # credential plugins' logins, which macOS runs its own way (make test-darwin). A Fyne app with cgo
+  # and AppKit does not cross-compile from Linux.
+  macos-tests:
+    name: macOS Tests
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -433,6 +438,22 @@ jobs:
 
       - name: The macOS-only tests (race detector on)
         run: make test-darwin
+
+  # The lint of the packages with darwin-only files and the app bundle with Sparkle. Its build cache
+  # is a kind of its own (lint, no race detector): app-macos, as the tests' restore key
+  # (gobuild-<os>-<arch>-macos-) would match macos-app.
+  macos-app:
+    name: macOS Lint and App
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: ./.github/actions/go-setup
+        with:
+          cache: app-macos
 
       - name: Lint the packages with darwin-only files
         run: make lint LINT_PKGS="./internal/locale/... ./internal/ui/fyneui/... ./internal/ui/nativedialog/... ./internal/update/..."
@@ -619,7 +640,7 @@ jobs:
   semantic-release:
     name: Semantic Release
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos, windows-unit, windows-ui, linux-package, windows-package, coverage]
+    needs: [lint, parity, gosec, govulncheck, cyclomatic-complexity, unit-tests, race-ui, race-rest, kind, kind-drain, envtest, macos-tests, macos-app, windows-unit, windows-ui, linux-package, windows-package, coverage]
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     steps:

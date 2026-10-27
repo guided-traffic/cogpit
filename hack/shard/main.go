@@ -5,6 +5,10 @@
 // pattern of one shard. A test added later lands in a shard without a change to the workflow, and a
 // name keeps its shard as long as the number of shards stays the same.
 //
+// -run and -skip narrow the tests before the split, as go test's flags of those names select
+// top-level tests, so the tests they leave keep their shards (the race jobs leave the render tests
+// to a run without the race detector: make test-race-ui and test-norace-coverage).
+//
 // With -exec it runs the shards itself: it compiles the package's tests once and runs every shard
 // as a go test run of its own, -jobs of them at once (make test-ui; docs/developer/releasing.md).
 // With -norace it prints, a line per package, the -run pattern of the tests the race detector keeps
@@ -14,6 +18,7 @@
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -of 6 -summary   # the tests per shard
 //	go run ./hack/shard ... -summary -durations race.json                     # and their time, from go test -json
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -of 8 -jobs 8 -exec         # run all eight shards, eight at once
+//	go run ./hack/shard -pkg ./internal/ui/fyneui -run '^TestRender' -of 4 -exec  # only the render tests, in four
 //	go run ./hack/shard -pkg ./... -norace                                    # per package, the tests -race keeps from running
 package main
 
@@ -31,7 +36,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -53,9 +58,20 @@ func main() {
 	timeout := flag.Duration("timeout", 30*time.Minute, "with -exec: each shard's -test.timeout")
 	cover := flag.String("coverdir", "", "with -exec: build with coverage and write each shard's profile to <dir>/<name>-<n>.out")
 	coverName := flag.String("covername", "shard", "with -coverdir: the profiles' name before -<n>.out")
+	runRE := flag.String("run", "", "split only the tests whose name matches this regular expression, as go test -run selects a top-level test")
+	skipRE := flag.String("skip", "", "leave out the tests whose name matches this regular expression, as go test -skip does a top-level test")
 	flag.Parse()
 
+	sel, err := newSelection(*runRE, *skipRE)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "shard:", err)
+		os.Exit(2)
+	}
 	if *norace {
+		if sel.narrows() {
+			fmt.Fprintln(os.Stderr, "shard: -norace takes neither -run nor -skip")
+			os.Exit(2)
+		}
 		if *pkg == "" {
 			fmt.Fprintln(os.Stderr, "shard: -norace needs -pkg (a package or a pattern such as ./...)")
 			os.Exit(2)
@@ -84,7 +100,7 @@ func main() {
 		if *jobs == 0 {
 			*jobs = defaultJobs(*race, totalMemory())
 		}
-		ok, err := execShards(execConfig{pkg: *pkg, tags: *tags, race: *race, of: *of, jobs: *jobs,
+		ok, err := execShards(execConfig{pkg: *pkg, tags: *tags, sel: sel, race: *race, of: *of, jobs: *jobs,
 			timeout: *timeout, coverDir: *cover, coverName: *coverName}, os.Stdout)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "shard:", err)
@@ -105,8 +121,8 @@ func main() {
 		fmt.Fprintln(os.Stderr, "shard:", err)
 		os.Exit(2)
 	}
-	if len(names) == 0 {
-		fmt.Fprintf(os.Stderr, "shard: %s has no tests\n", *pkg)
+	if names = sel.keep(names); len(names) == 0 {
+		fmt.Fprintf(os.Stderr, "shard: %s has no tests%s\n", *pkg, sel)
 		os.Exit(1)
 	}
 	shards := split(names, *of)
@@ -148,6 +164,57 @@ func split(names []string, n int) [][]string {
 // run with them).
 func pattern(names []string) string {
 	return "^(" + strings.Join(names, "|") + ")$"
+}
+
+// selection is what -run and -skip leave of a package's tests; nil expressions select all.
+type selection struct{ run, skip *regexp.Regexp }
+
+// newSelection compiles -run and -skip. They match top-level names only: a slash, which go test
+// reads as a subtest's level, is refused.
+func newSelection(run, skip string) (selection, error) {
+	var s selection
+	for _, f := range []struct {
+		flag, expr string
+		re         **regexp.Regexp
+	}{{"-run", run, &s.run}, {"-skip", skip, &s.skip}} {
+		if f.expr == "" {
+			continue
+		}
+		if strings.Contains(f.expr, "/") {
+			return s, fmt.Errorf("%s %q: the expression matches a top-level test's name, which has no slash", f.flag, f.expr)
+		}
+		re, err := regexp.Compile(f.expr)
+		if err != nil {
+			return s, fmt.Errorf("%s: %w", f.flag, err)
+		}
+		*f.re = re
+	}
+	return s, nil
+}
+
+// narrows reports whether -run or -skip was given, so that the shards' patterns must name their tests.
+func (s selection) narrows() bool { return s.run != nil || s.skip != nil }
+
+// keep is the names the selection leaves, in their order.
+func (s selection) keep(names []string) []string {
+	return slices.DeleteFunc(slices.Clone(names), func(n string) bool {
+		return (s.run != nil && !s.run.MatchString(n)) || (s.skip != nil && s.skip.MatchString(n))
+	})
+}
+
+// String names the selection for a message: empty, or " selected by -run … and -skip …".
+func (s selection) String() string {
+	var parts []string
+	if s.run != nil {
+		parts = append(parts, "-run "+s.run.String())
+	}
+	if s.skip != nil {
+		parts = append(parts, "-skip "+s.skip.String())
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	return " selected by " + strings.Join(parts, " and ")
 }
 
 // testNames lists the package's top-level Test, Example and Fuzz functions, sorted, from the test

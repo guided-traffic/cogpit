@@ -59,6 +59,46 @@ func TestSplitIsStableAndComplete(t *testing.T) {
 	}
 }
 
+// -run keeps the names it matches and -skip leaves out those it matches, as go test selects
+// top-level tests; what they leave keeps its shard. A slash, a subtest's level for go test, is
+// refused, and so is an expression that does not compile.
+func TestSelection(t *testing.T) {
+	names := []string{"TestRenderA", "TestRenderB", "TestRendered", "TestShell", "TestTabs", "ExampleRender"}
+	for _, c := range []struct {
+		run, skip string
+		want      []string
+	}{
+		{"", "", names},
+		{"^TestRender", "", []string{"TestRenderA", "TestRenderB", "TestRendered"}},
+		{"", "^TestRender", []string{"TestShell", "TestTabs", "ExampleRender"}},
+		{"Render", "ed$", []string{"TestRenderA", "TestRenderB", "ExampleRender"}},
+	} {
+		sel, err := newSelection(c.run, c.skip)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := sel.keep(names)
+		if !slices.Equal(got, c.want) {
+			t.Errorf("-run %q -skip %q kept %v, want %v", c.run, c.skip, got, c.want)
+		}
+		if sel.narrows() != (c.run != "" || c.skip != "") {
+			t.Errorf("-run %q -skip %q: narrows() = %v", c.run, c.skip, sel.narrows())
+		}
+		all, left := split(names, 3), split(got, 3)
+		for i := range left {
+			kept := slices.DeleteFunc(slices.Clone(all[i]), func(n string) bool { return !slices.Contains(got, n) })
+			if !slices.Equal(left[i], kept) {
+				t.Errorf("-run %q -skip %q: shard %d holds %v, want %v as without them", c.run, c.skip, i+1, left[i], kept)
+			}
+		}
+	}
+	for _, c := range [][2]string{{"^TestRender/dark", ""}, {"", "TestA/x"}, {"(", ""}, {"", "["}} {
+		if _, err := newSelection(c[0], c[1]); err == nil {
+			t.Errorf("-run %q -skip %q: no error", c[0], c[1])
+		}
+	}
+}
+
 // The package's own tests are found from its files, TestMain left out.
 func TestTestNamesOfThisPackage(t *testing.T) {
 	names, err := testNames(".", "")
@@ -66,7 +106,7 @@ func TestTestNamesOfThisPackage(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := []string{"TestDefaultJobs", "TestExecShardsRunsEveryShard", "TestIsTest", "TestRaceKept",
-		"TestSplitIsStableAndComplete", "TestTags", "TestTestNamesOfThisPackage"}
+		"TestSelection", "TestSplitIsStableAndComplete", "TestTags", "TestTestNamesOfThisPackage"}
 	if !slices.Equal(names, want) {
 		t.Errorf("testNames = %v, want %v", names, want)
 	}
@@ -113,25 +153,26 @@ func TestTags(t *testing.T) {
 }
 
 // -exec runs every shard as a go test run of its own (in the package's directory, as go test runs
-// a test binary), a line and a coverage profile per shard; a failing test fails its shard, whose
-// output follows, and the run.
+// a test binary), a line and a coverage profile per shard (mode set without the race detector); a
+// failing test fails its shard, whose output follows, and the run. With -run or -skip a single shard
+// runs what they select, not the whole package.
 func TestExecShardsRunsEveryShard(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a test binary")
 	}
 	t.Setenv("GOFLAGS", "-count=1") // every shard runs: a cached result would print "ok (cached)"
-	run := func(fail string) (bool, string, string) {
+	run := func(fail string, of int, sel selection) (bool, string, string) {
 		t.Setenv("SHARD_FIXTURE_FAIL", fail)
 		var out bytes.Buffer
 		dir := t.TempDir()
-		ok, err := execShards(execConfig{pkg: "./testdata/execfixture", of: 3, jobs: 2, timeout: time.Minute,
+		ok, err := execShards(execConfig{pkg: "./testdata/execfixture", sel: sel, of: of, jobs: 2, timeout: time.Minute,
 			coverDir: dir, coverName: "fixture"}, &out)
 		if err != nil {
 			t.Fatalf("execShards: %v\n%s", err, &out)
 		}
 		return ok, out.String(), dir
 	}
-	ok, out, dir := run("")
+	ok, out, dir := run("", 3, selection{})
 	if !ok || !strings.Contains(out, "all passed, 3 shards") {
 		t.Fatalf("all six tests pass, yet:\n%s", out)
 	}
@@ -147,14 +188,22 @@ func TestExecShardsRunsEveryShard(t *testing.T) {
 		if !line.MatchString(out) {
 			t.Errorf("no line %q:\n%s", line, out)
 		}
-		_, err := os.Stat(fmt.Sprintf("%s/fixture-%d.out", dir, i+1))
-		if (err == nil) != (len(mine) > 0) {
-			t.Errorf("shard %d of %d tests: its coverage profile: %v", i+1, len(mine), err)
+		profile, err := os.ReadFile(fmt.Sprintf("%s/fixture-%d.out", dir, i+1))
+		if (err == nil) != (len(mine) > 0) || (err == nil && !strings.HasPrefix(string(profile), "mode: set\n")) {
+			t.Errorf("shard %d of %d tests: its coverage profile: %v, %.20q", i+1, len(mine), err, profile)
 		}
 	}
-	ok, out, _ = run("TestD")
+	ok, out, _ = run("TestD", 3, selection{})
 	if ok || !strings.Contains(out, "FAILED") || !strings.Contains(out, "failed on purpose") {
 		t.Errorf("TestD fails, yet:\n%s", out)
+	}
+	sel, err := newSelection("^Test[A-D]$", "^TestD$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, out, _ = run("TestD", 1, sel) // TestD would fail: the whole package ran
+	if !ok || !regexp.MustCompile(`(?m)^shard 1/1: ok, 3 tests`).MatchString(out) {
+		t.Errorf("TestA to TestC selected, yet:\n%s", out)
 	}
 }
 
