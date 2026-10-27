@@ -3,11 +3,13 @@ package cluster
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -257,6 +259,9 @@ func TestMissingProgram(t *testing.T) {
 // A credential plugin that is not found fails the login stage with the program it missed; once its
 // folder is a program folder, the next Connect finds it, without a restart. kubectl run as the
 // plugin, without the kubectl plugin it names, fails it with kubectl-<name>.
+// loginNames numbers the test plugins of TestConnectNamesTheMissingProgram's runs.
+var loginNames atomic.Int64
+
 func TestConnectNamesTheMissingProgram(t *testing.T) {
 	if runtime.GOOS == goosWindows {
 		t.Skip("the test plugins are shell scripts")
@@ -268,7 +273,9 @@ func TestConnectNamesTheMissingProgram(t *testing.T) {
 	EnsureToolPath()
 
 	dir := t.TempDir()
-	const name = "cogpit-test-login-0815"
+	// A name of its own per run: client-go keeps an exec plugin's credential for the process, keyed
+	// by the exec configuration, so a second run with the same name would log in from that cache.
+	name := fmt.Sprintf("cogpit-test-login-%d", loginNames.Add(1))
 	cred := `{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"` + secretToken + `"}}`
 	script := "#!/bin/sh\necho '" + cred + "'\n"
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o700); err != nil {
