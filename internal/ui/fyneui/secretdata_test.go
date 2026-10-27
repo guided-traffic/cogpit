@@ -265,7 +265,7 @@ func valueLeaks(sh *shell, f *fakeEngine) string {
 			texts = append(texts, p.text)
 		}
 	}
-	for _, c := range f.calls { // no command but the GUI-only reveal, review and save carries a value
+	for _, c := range f.allCalls() { // no command but the GUI-only reveal, review and save carries a value
 		switch c.ID {
 		case engine.RevealCommand, engine.SecretReviewDataCommand, engine.SecretSaveDataCommand:
 		default:
@@ -383,7 +383,7 @@ func TestSecretDrawerKeepsUnsavedInMemory(t *testing.T) {
 	if !toastSays(sh, "kept in this window's memory until Cogpit quits, never on disk") {
 		t.Error("no toast says where the changes are kept")
 	}
-	for _, c := range f.calls {
+	for _, c := range f.allCalls() {
 		if strings.Contains(string(c.Params), secTyped) && c.ID != engine.SecretReviewDataCommand && c.ID != engine.SecretSaveDataCommand {
 			t.Errorf("the typed value reached %s", c.ID)
 		}

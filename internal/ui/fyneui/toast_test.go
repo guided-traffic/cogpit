@@ -45,17 +45,28 @@ func TestToastLifetimeAndHover(t *testing.T) {
 	if toastLifetimes["error"] <= toastLifetimes["warning"] || toastLifetimes["warning"] <= toastLifetimes["info"] {
 		t.Errorf("lifetimes %v: an error should outlast a warning, a warning an info", toastLifetimes)
 	}
-	sh.toastTime = 40 * time.Millisecond
+	sh.toastTime = time.Hour // the pointer reaches the toast before its time can run out
 	sh.toast("info", "first")
 	c := toastCards(sh)[0]
-	c.MouseIn(mouse())
-	time.Sleep(150 * time.Millisecond)
-	q.drain()
-	if len(toastCards(sh)) != 1 {
-		t.Fatal("the toast went while the pointer was over it")
+	if !toastArmed(c) {
+		t.Fatal("a new toast's time does not run")
 	}
+	c.MouseIn(mouse())
+	if toastArmed(c) {
+		t.Fatal("the toast's time runs while the pointer is over it")
+	}
+	c.mu.Lock()
+	c.life = time.Millisecond // leaving starts the lifetime again: a short one now
+	c.mu.Unlock()
 	c.MouseOut()
 	q.until(t, "the toast to expire", func() bool { return len(toastCards(sh)) == 0 })
+}
+
+// toastArmed reports whether a toast's time runs: a toast with none armed never goes by itself.
+func toastArmed(c *toastCard) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.timer != nil
 }
 
 // TestToastSurfaceWidth: a toast is wide, and its text keeps the normal text size.

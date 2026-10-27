@@ -59,6 +59,7 @@ type confirmDialog struct {
 	d       *dialogFrame
 	confirm *textButton
 	cancel  *textButton
+	arm     *time.Timer // enables confirm armDelay after the dialog appears; nil: enabled at once
 }
 
 // Confirm implements engine.Confirmer. It returns the user's answer, or ctx's error when ctx ends
@@ -180,7 +181,7 @@ func (c *guiConfirmer) show(req engine.ConfirmRequest, reply func(bool)) *confir
 	cd.confirm.OnTapped = func() { reply(true); cd.d.Hide() }
 	if c.armDelay > 0 {
 		cd.confirm.Disable()
-		time.AfterFunc(c.armDelay, func() { c.sh.do(cd.confirm.Enable) })
+		cd.arm = time.AfterFunc(c.armDelay, func() { c.sh.do(cd.confirm.Enable) })
 	}
 	cd.cancel.OnTapped = func() { reply(false); cd.d.Hide() }
 	c.current = cd

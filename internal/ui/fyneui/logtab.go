@@ -259,7 +259,7 @@ func (lt *logTab) searchChanged(text string) {
 	}
 	lt.searchBusy++
 	id, sh := lt.tab.ID, lt.sh
-	lt.searchTimer = time.AfterFunc(searchDebounce, func() {
+	lt.searchTimer = time.AfterFunc(sh.searchWait, func() {
 		sh.dispatch("logs.setOptions", logOptionsParams{ID: id, Search: &text}, func(_ any, err error) {
 			lt.searchBusy--
 			sh.showError(err)

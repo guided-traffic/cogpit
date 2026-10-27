@@ -113,7 +113,7 @@ func TestToastTextSelectable(t *testing.T) {
 // pointer on the toast does; leaving them lets its time run.
 func TestToastHoverOnItsIcons(t *testing.T) {
 	sh, _, q := newTestShell(t, connectedFake(t, 3), Options{Theme: ThemeDark})
-	sh.toastTime = 40 * time.Millisecond
+	sh.toastTime = time.Hour // no time runs out between the moves below, however slow the runner
 	sh.toast("info", "Port forward started: http://127.0.0.1:8080")
 	card := toastCards(sh)[0]
 	glyph := findAll[*copyGlyph](card)[0]
@@ -122,15 +122,17 @@ func TestToastHoverOnItsIcons(t *testing.T) {
 	card.MouseIn(mouse())
 	card.MouseOut()
 	glyph.MouseIn(mouse())
-	time.Sleep(120 * time.Millisecond)
-	q.drain()
+	if toastArmed(card) {
+		t.Error("the toast's time runs while the pointer is on its copy icon")
+	}
 	glyph.MouseOut()
 	closeBtn.MouseIn(mouse())
-	time.Sleep(120 * time.Millisecond)
-	q.drain()
-	if len(toastCards(sh)) != 1 {
-		t.Fatal("the toast went while the pointer was on its icons")
+	if toastArmed(card) {
+		t.Error("the toast's time runs while the pointer is on its ×")
 	}
+	card.mu.Lock()
+	card.life = time.Millisecond
+	card.mu.Unlock()
 	closeBtn.MouseOut()
 	q.until(t, "the toast to expire", func() bool { return len(toastCards(sh)) == 0 })
 }

@@ -91,7 +91,9 @@ func (h *revisionsHarness) dispatch(id string, params any) any {
 	return res
 }
 
-// tab is the Revisions tab once it shows what the engine's state asks for.
+// tab is the Revisions tab once it shows what the engine's state asks for: the state taken, and
+// the read it started for it rendered (a step that changes only All or Mode keeps the revision, so
+// r.cur still holds the previous read's).
 func (h *revisionsHarness) tab(want engine.HelmRevisionsTab) *helmRevisionsTab {
 	h.t.Helper()
 	var r *helmRevisionsTab
@@ -101,7 +103,8 @@ func (h *revisionsHarness) tab(want engine.HelmRevisionsTab) *helmRevisionsTab {
 				r = t
 			}
 		}
-		if r == nil || r.st != want || r.cur.Revision != want.Revision || len(r.history) == 0 {
+		if r == nil || r.st != want || r.cur.Revision != want.Revision || len(r.history) == 0 ||
+			strings.HasPrefix(r.status.line.text, "Reading revision ") {
 			return false
 		}
 		if want.Compare != 0 {
@@ -178,23 +181,23 @@ func renderHelmRevisions(t *testing.T, mode ThemeMode, suffix string, all bool) 
 
 	h.set(id, map[string]any{"all": false, "mode": "manifest"})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Object: "Deployment.apps/demo-shop/shop-web"})
-	// The object's YAML is filled by the render after the tab's state (Windows' UI tests read it
-	// before that, 2026-10-26): wait for it.
-	h.until("the object", func() bool { return strings.HasPrefix(r.objView.Text(), "# Source: shop-web/templates/") })
+	if !strings.HasPrefix(r.objView.Text(), "# Source: shop-web/templates/") {
+		t.Errorf("the object %q", r.objView.Text())
+	}
 	savePNG(t, h.w, name("manifest"))
 
 	h.set(id, map[string]any{"object": "Secret./demo-shop/shop-web-db"})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Object: "Secret./demo-shop/shop-web-db"})
-	h.until("the Secret masked", func() bool {
-		return strings.Contains(r.objView.Text(), "shop-web-db") && strings.Contains(r.objView.Text(), helm.MaskedDots)
-	})
+	if !strings.Contains(r.objView.Text(), "shop-web-db") || !strings.Contains(r.objView.Text(), helm.MaskedDots) {
+		t.Errorf("the Secret, masked: %q", r.objView.Text())
+	}
 	savePNG(t, h.w, name("secret_masked"))
 
 	h.set(id, map[string]any{"raw": true})
 	r = h.tab(engine.HelmRevisionsTab{Revision: 3, Mode: engine.RevisionsManifest, Raw: true, Object: "Secret./demo-shop/shop-web-db"})
-	h.until("manifest.yaml", func() bool {
-		return strings.Contains(r.rawView.Text(), helm.MaskedDots) && strings.Contains(r.rawView.Text(), "kind: Deployment")
-	})
+	if !strings.Contains(r.rawView.Text(), helm.MaskedDots) || !strings.Contains(r.rawView.Text(), "kind: Deployment") {
+		t.Errorf("manifest.yaml %q", r.rawView.Text())
+	}
 	savePNG(t, h.w, name("manifest_yaml"))
 }
 
@@ -273,8 +276,8 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 		t.Fatal(err)
 	}
 	r = h.tab(engine.HelmRevisionsTab{Revision: 6, Mode: engine.RevisionsManifest, Object: "Secret./demo-shop/shop-web-db"})
-	if strings.Contains(r.objView.Text(), "password: ") && !strings.Contains(r.objView.Text(), helm.MaskedDots) {
-		t.Fatalf("the Secret shows before Show: %q", r.objView.Text())
+	if !strings.Contains(r.objView.Text(), "shop-web-db") || !strings.Contains(r.objView.Text(), helm.MaskedDots) {
+		t.Fatalf("the Secret before Show, not masked: %q", r.objView.Text())
 	}
 	// Show is the window's alone: the tab's state in the engine stays as it was. (Not the engine's
 	// whole state: the window reports its navigator's row when it gets to it, which moved it after

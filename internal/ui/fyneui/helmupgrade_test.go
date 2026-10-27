@@ -251,7 +251,7 @@ func TestRollbackDialogConfirms(t *testing.T) {
 	var asked []engine.ConfirmRequest
 	var answers []bool
 	var mu sync.Mutex
-	f.handlers["helm.release.rollback"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(ctx context.Context, inv engine.Invocation) (any, error) {
 		var p helmRollbackParams
 		_ = json.Unmarshal(normalize(inv.Params), &p)
 		req := engine.ConfirmRequest{Command: inv.ID, Label: "Rollback", Danger: engine.DangerDestructive, Origin: inv.Origin,
@@ -263,7 +263,7 @@ func TestRollbackDialogConfirms(t *testing.T) {
 		answers = append(answers, ok)
 		mu.Unlock()
 		return nil, err
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -323,7 +323,7 @@ func TestRollbackDialogCurrentRevision(t *testing.T) {
 	sh, _, q, f, _ := releaseDrawerShell(t, ThemeDark)
 	var mu sync.Mutex
 	var answered []bool
-	f.handlers["helm.release.rollback"] = func(ctx context.Context, inv engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(ctx context.Context, inv engine.Invocation) (any, error) {
 		var p helmRollbackParams
 		_ = json.Unmarshal(normalize(inv.Params), &p)
 		ok, err := sh.confirmer.Confirm(ctx, engine.ConfirmRequest{Command: inv.ID, Label: "Rollback", Danger: engine.DangerDestructive, Origin: inv.Origin,
@@ -333,7 +333,7 @@ func TestRollbackDialogCurrentRevision(t *testing.T) {
 		answered = append(answered, ok)
 		mu.Unlock()
 		return nil, err
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -363,12 +363,12 @@ func TestRollbackDialogAnswerBinding(t *testing.T) {
 	sh, _, q, f, _ := releaseDrawerShell(t, ThemeDark)
 	var mu sync.Mutex
 	done := false
-	f.handlers["helm.release.rollback"] = func(context.Context, engine.Invocation) (any, error) {
+	setHandler(f, "helm.release.rollback", func(context.Context, engine.Invocation) (any, error) {
 		mu.Lock()
 		done = true
 		mu.Unlock()
 		return nil, errors.New("release ingress-nginx is pending-upgrade") // refused before any confirmation
-	}
+	})
 	var rd *rollbackDialog
 	sh.dispatch("helm.release.history", refParams{Ref: *sh.drawer.shown}, func(res any, err error) {
 		var h releaseHistory
@@ -425,7 +425,7 @@ func TestHelmUpgradeTabSaves(t *testing.T) {
 	u.pane.view.SetText("controller:\n  replicaCount: 3\n")
 	test.Tap(u.saveBtn)
 	q.until(t, "the upgrade", func() bool { return len(up.recorded()) == 1 && !u.busy })
-	calls := f.calls
+	calls := f.allCalls()
 	var order []string
 	for _, c := range calls {
 		if c.ID == "editor.setText" || c.ID == "helm.release.upgrade" {

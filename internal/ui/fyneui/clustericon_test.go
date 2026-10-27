@@ -99,7 +99,7 @@ func TestIconTileDialog(t *testing.T) {
 // previews follow; Save keeps it; opened again it shows where it was left; the Internal icon
 // chosen keeps the image, and Custom chosen again shows it without a dialog.
 func TestIconImageDialog(t *testing.T) {
-	s, sh, _, q := iconScene(t, ThemeDark)
+	s, sh, w, q := iconScene(t, ThemeDark)
 	file := wideImageFile(t)
 	sh.settings.pickIcon = func(done func(string)) { done(file) }
 	sh.settings.controls["iconKind"].(*widget.RadioGroup).SetSelected(iconKindImage)
@@ -121,6 +121,7 @@ func TestIconImageDialog(t *testing.T) {
 		t.Errorf("a drag to the right moved the cut to %v", want.X)
 	}
 	q.until(t, "the previews cut", func() bool { return id.big.img != nil && id.small.img != nil })
+	savePNG(t, w, "icon_image_dialog_dark.png") // the zoomed cut and its previews
 	test.Tap(id.save)
 	q.until(t, "the cut kept", func() bool {
 		cs, _ := s.ClusterSettingsOf("kind-dev")
@@ -206,19 +207,4 @@ func TestFitTextSize(t *testing.T) {
 	if got >= 13 || fyne.MeasureText("STAGE", got, fyne.TextStyle{Bold: true}).Width > 24.5 {
 		t.Errorf("five letters at %v", got)
 	}
-}
-
-func TestRenderIconImageDialogDark(t *testing.T) {
-	renderIconImageDialog(t, ThemeDark, "icon_image_dialog_dark.png")
-}
-func renderIconImageDialog(t *testing.T, mode ThemeMode, name string) {
-	_, sh, w, q := iconScene(t, mode)
-	file := wideImageFile(t)
-	sh.settings.pickIcon = func(done func(string)) { done(file) }
-	id := sh.settings.openImageDialog("kind-dev")
-	q.until(t, "the image", func() bool { return id.editor.src != nil })
-	id.editor.zoomAt(1.5, fyne.NewPos(-40, 0))
-	q.until(t, "the previews", func() bool { return id.big.img != nil })
-	q.drain()
-	savePNG(t, w, name)
 }

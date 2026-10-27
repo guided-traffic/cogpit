@@ -269,7 +269,7 @@ func TestHelmInstallTabInstalls(t *testing.T) {
 		t.Errorf("install %+v", in)
 	}
 	var order []string
-	for _, c := range f.calls {
+	for _, c := range f.allCalls() {
 		if c.ID == "editor.setText" || strings.HasPrefix(c.ID, "helm.chart.") {
 			order = append(order, c.ID)
 		}

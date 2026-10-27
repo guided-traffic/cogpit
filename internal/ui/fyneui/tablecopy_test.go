@@ -395,7 +395,7 @@ func TestListCopyIconPlaceholders(t *testing.T) {
 // band and the icon; off the table both go.
 func TestListCopyIconCopiesTheFullText(t *testing.T) {
 	sh, w, q, f := listScene(t, "events", ThemeDark)
-	sh.copyConfirm = 80 * time.Millisecond
+	sh.copyConfirm = time.Hour // the checkmark outlasts the steps below; fireTimer ends it
 	tv := sh.view
 	btn := tv.copyIcon.btn
 	var cut *tableCell
@@ -450,6 +450,9 @@ func TestListCopyIconCopiesTheFullText(t *testing.T) {
 	hoverOver(w, q, middleOf(cut))
 	if !btn.Visible() || !btn.done {
 		t.Errorf("back on the cell: visible %v, checkmark %v", btn.Visible(), btn.done)
+	}
+	if !fireTimer(tv.copyIcon.done) {
+		t.Fatal("no checkmark timer armed")
 	}
 	q.until(t, "the copy icon to return", func() bool { return !btn.done })
 	if !btn.Visible() {
@@ -643,18 +646,13 @@ func TestListCopyIconHasNoCommand(t *testing.T) {
 	sh, w, q, f := listScene(t, "pods", ThemeDark)
 	hoverOver(w, q, middleOf(cellAt(t, sh, 1, columnOf(t, sh, "name"))))
 	hoverOver(w, q, middleOf(sh.view.copyIcon.btn))
-	calls := func() []engine.Invocation {
-		f.mu.Lock()
-		defer f.mu.Unlock()
-		return append([]engine.Invocation(nil), f.calls...)
-	}
-	before := len(calls())
+	before := f.mark()
 	test.TapCanvas(w.Canvas(), middleOf(sh.view.copyIcon.btn))
 	q.drain()
 	if sh.app.Clipboard().Content() == "" {
 		t.Fatal("nothing copied")
 	}
-	for _, c := range calls()[before:] {
+	for _, c := range f.callsSince(before) {
 		t.Errorf("copying a cell dispatched %s", c.ID)
 	}
 }

@@ -374,6 +374,8 @@ func TestLinkClicks(t *testing.T) {
 	if n := len(f.callsOf("ui.select")); n != 0 {
 		t.Errorf("a link click selected the row (%d ui.select)", n)
 	}
+	// The navigate's own state first, so that the switch back below comes after it.
+	q.until(t, "the owner's view", func() bool { return sh.ui.View == "replicasets" })
 
 	// A link to a kind the cluster does not serve (or Cogpit has no view for) is plain text; one
 	// that fails anyway ends in an error toast, not a crash.

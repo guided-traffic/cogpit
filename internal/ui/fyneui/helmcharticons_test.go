@@ -152,11 +152,11 @@ func TestChartIconsInTheWindow(t *testing.T) {
 	if img := findAll[*canvas.Image](sh.drawer.lead); len(img) != 1 || img[0].Resource != sh.charts.res[fixtureIconNginx] {
 		t.Errorf("the drawer's icon %v", img)
 	}
-	calls := len(f.calls)
+	before := f.mark()
 	sh.view.headerTapped(firstDataColumn) // the icon column
 	q.drain()
-	if len(f.calls) != calls {
-		t.Errorf("the icon column sorted: %v", f.calls[calls:])
+	if calls := f.callsSince(before); len(calls) != 0 {
+		t.Errorf("the icon column sorted: %v", calls)
 	}
 
 	f.update(func(u *engine.UIState) {

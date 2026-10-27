@@ -41,15 +41,17 @@ func lastParams[P any](t *testing.T, f *fakeEngine, id string) P {
 func TestNavigatorReportsAndShowsItsState(t *testing.T) {
 	sh, w, q, f := navScene(t, ThemeDark)
 	s, h, tr, c := sh.side, sh.side.head, sh.side.tree, w.Canvas()
-	s.searchRep.delay = time.Second // a slow runner's pause between two letters is no pause of the user's
+	s.searchRep.delay = time.Hour // a slow runner's pause between two letters is no pause of the user's; fireTimer ends it
 
 	test.Tap(h.searchB)
 	test.Type(h.entry, "dep")
+	fireTimer(s.searchRep.timer)
 	q.until(t, "the search reported", func() bool { return f.UIState().Navigator.Search == "dep" })
 	if n := len(f.callsOf("ui.setNavigatorSearch")); n != 1 {
 		t.Errorf("%d reports for one word typed, want one after the pause", n)
 	}
 	h.entry.TypedKey(&fyne.KeyEvent{Name: fyne.KeyEscape})
+	fireTimer(s.searchRep.timer)
 	q.until(t, "the cleared search reported", func() bool { return f.UIState().Navigator.Search == "" })
 
 	c.Focus(tr)
@@ -88,8 +90,8 @@ func TestNavigatorReportsAndShowsItsState(t *testing.T) {
 	navSettled(t, sh, q)
 	f.update(func(u *engine.UIState) { u.Navigator.Search = "" })
 	q.until(t, "the search closed", func() bool { return !h.searching() && s.filter == "" })
-	if got := f.callsOf("ui.setNavigatorSearch"); len(got) != 2 {
-		t.Errorf("the window reported an agent's search back: %d reports", len(got))
+	if got := f.callsOf("ui.setNavigatorSearch"); len(got) != 2 || s.searchRep.busy != 0 {
+		t.Errorf("the window reported an agent's search back: %d reports, %d waiting", len(got), s.searchRep.busy)
 	}
 }
 
@@ -98,13 +100,16 @@ func TestNavigatorReportsAndShowsItsState(t *testing.T) {
 func TestNavigatorTypingWinsOverAnEcho(t *testing.T) {
 	sh, _, q, f := navScene(t, ThemeDark)
 	h := sh.side.head
-	sh.side.searchRep.delay = 2 * time.Second // the agent's value surely lands while the report waits
+	sh.side.searchRep.delay = time.Hour // the agent's value lands while the report waits; fireTimer ends the wait
 	test.Tap(h.searchB)
 	test.Type(h.entry, "po")
 	f.update(func(u *engine.UIState) { u.Navigator.Search = "p" }) // an older value arriving late
 	q.drain()
 	if h.entry.Text != "po" {
 		t.Fatalf("the field shows %q while the user types", h.entry.Text)
+	}
+	if !fireTimer(sh.side.searchRep.timer) {
+		t.Fatal("no report waiting for the user's word")
 	}
 	q.until(t, "the user's word", func() bool { return f.UIState().Navigator.Search == "po" })
 	if h.entry.Text != "po" {

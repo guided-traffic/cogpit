@@ -76,6 +76,7 @@ func TestSyncPickerTakesFilesAndFoldersInOneDialog(t *testing.T) {
 	if want := "Sync file: " + filepath.Join(dir, ".dev.kubeconfig"); sp.status.text != want {
 		t.Errorf("status %q, want %q", sp.status.text, want)
 	}
+	savePNG(t, w, "sync_picker_dark.png")
 	test.Tap(sp.syncB)
 	q.until(t, "kubeconfig.addFile", func() bool { return slices.Contains(rec.ids(), "kubeconfig.addFile") })
 	if p := rec.params("kubeconfig.addFile"); p["path"] != filepath.Join(dir, ".dev.kubeconfig") {
@@ -267,7 +268,7 @@ func TestSectionMarksAFailedConnectAndOpensItsLog(t *testing.T) {
 // away leaves the workspace saying so, with the way to connect again; the toast reaches the user.
 func TestDisconnectedByAGoneFileSaysWhy(t *testing.T) {
 	f, _ := kubeconfigFake(t, engine.ExecRequired)
-	sh, _, q := newTestShell(t, f, Options{})
+	sh, w, q := newTestShell(t, f, Options{})
 	reason := "Disconnected from kind-cogpit [kind.yaml]: its kubeconfig file /Users/me/kind.yaml is gone."
 	f.update(func(u *engine.UIState) {
 		u.Context = "kind-cogpit [kind.yaml]"
@@ -277,17 +278,9 @@ func TestDisconnectedByAGoneFileSaysWhy(t *testing.T) {
 	if !sh.view.connectButton.Visible() {
 		t.Error("no way to connect again")
 	}
+	savePNG(t, w, "disconnected_file_gone_dark.png")
 	f.emit(engine.Event{Type: engine.EventToast, Level: engine.LevelWarning, Message: reason})
 	q.drain()
-}
-
-func TestRenderSyncPicker(t *testing.T) {
-	f, _ := kubeconfigFake(t, engine.ExecRequired)
-	dir := syncTree(t)
-	sh, w, q := newTestShell(t, f, Options{})
-	sp := openSyncPicker(t, sh, q, dir)
-	test.Tap(sp.rows[".dev.kubeconfig"])
-	savePNG(t, w, "sync_picker_dark.png")
 }
 
 func TestRenderRemoveConfirmation(t *testing.T) {
@@ -298,18 +291,6 @@ func TestRenderRemoveConfirmation(t *testing.T) {
 	q.until(t, "the sources", func() bool { return len(sd.rows) == 5 })
 	test.Tap(sd.removeB[".kube/"])
 	savePNG(t, w, "kubeconfig_remove_confirm_dark.png")
-}
-
-func TestRenderDisconnectedPlaceholder(t *testing.T) {
-	f, _ := kubeconfigFake(t, engine.ExecRequired)
-	sh, w, q := newTestShell(t, f, Options{})
-	reason := "Disconnected from kind-cogpit [kind.yaml]: its kubeconfig file /Users/me/kind.yaml is gone."
-	f.update(func(u *engine.UIState) {
-		u.Context = "kind-cogpit [kind.yaml]"
-		u.Connection = engine.Connection{State: engine.Disconnected, Error: reason}
-	})
-	q.until(t, "the placeholder", func() bool { return sh.view.placeholderText.text == reason })
-	savePNG(t, w, "disconnected_file_gone_dark.png")
 }
 
 // A path typed or pasted into the entry and not opened with Enter is what Sync adds, not the folder
@@ -332,7 +313,7 @@ func TestSyncPickerSyncsATypedPath(t *testing.T) {
 		t.Errorf("status %q does not name the typed path", sp.status.text)
 	}
 	test.Tap(sp.syncB)
-	q.until(t, "kubeconfig.addFolder", func() bool { return len(f.callsOf("kubeconfig.addFolder")) == 1 })
+	q.until(t, "kubeconfig.addFolder", func() bool { return slices.Contains(rec.ids(), "kubeconfig.addFolder") })
 	if p := rec.params("kubeconfig.addFolder"); p["path"] != other {
 		t.Errorf("addFolder %v, want the typed %s", p, other)
 	}
@@ -348,7 +329,7 @@ func TestSyncPickerSyncsATypedPath(t *testing.T) {
 	sp.pathEntry.SetText(other)
 	test.Tap(sp.rows["team.yaml"]) // a tap chooses from the list
 	test.Tap(sp.syncB)
-	q.until(t, "kubeconfig.addFile", func() bool { return len(f.callsOf("kubeconfig.addFile")) == 1 })
+	q.until(t, "kubeconfig.addFile", func() bool { return slices.Contains(rec.ids(), "kubeconfig.addFile") })
 	if p := rec.params("kubeconfig.addFile"); p["path"] != filepath.Join(dir, "team.yaml") {
 		t.Errorf("addFile %v", p)
 	}
@@ -377,7 +358,7 @@ func TestSyncWithoutClustersSaysWhy(t *testing.T) {
 		}
 	}
 	test.Tap(findButton(w, "Remove"))
-	q.until(t, "kubeconfig.remove", func() bool { return len(f.callsOf("kubeconfig.remove")) == 1 })
+	q.until(t, "kubeconfig.remove", func() bool { return slices.Contains(rec.ids(), "kubeconfig.remove") })
 	if p := rec.params("kubeconfig.remove"); p["source"] != "configs/" {
 		t.Errorf("remove %v", p)
 	}

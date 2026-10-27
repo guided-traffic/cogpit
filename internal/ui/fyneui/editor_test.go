@@ -146,13 +146,16 @@ func newEditorFake(f *fakeEngine) *editorFake {
 		if err != nil {
 			return nil, err
 		}
+		f.mu.Lock()
+		id := fmt.Sprintf("create-%d", len(f.ui.Dock)+1)
+		f.mu.Unlock()
+		e.setText(id, tpl.Text) // before the tab appears: the window reads it when it opens the tab
 		var tab engine.DockTab
 		f.update(func(u *engine.UIState) {
-			tab = engine.DockTab{ID: fmt.Sprintf("create-%d", len(u.Dock)+1), Type: engine.DockCreate, Title: "Create resource", Context: u.Context}
+			tab = engine.DockTab{ID: id, Type: engine.DockCreate, Title: "Create resource", Context: u.Context}
 			u.Dock = append(u.Dock, tab)
 			u.ActiveDock = tab.ID
 		})
-		e.setText(tab.ID, tpl.Text)
 		return commands.EditResult{Tab: tab, Created: true, Text: tpl.Text}, nil // as the engine answers (commands/edit.go)
 	}
 	reg := func(id string, d engine.Danger) {

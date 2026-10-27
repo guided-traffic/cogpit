@@ -129,6 +129,7 @@ func TestAlertsPill(t *testing.T) {
 func TestRenderTopBarAlertsDark(t *testing.T) { renderTopBarAlerts(t, ThemeDark) }
 
 func renderTopBarAlerts(t *testing.T, mode ThemeMode) {
+	sh, w, _ := newEngineShell(t, chatEngine(t), Options{Theme: mode})
 	for _, c := range []struct {
 		name string
 		sum  engine.AlertsSummary
@@ -139,7 +140,6 @@ func renderTopBarAlerts(t *testing.T, mode ThemeMode) {
 		{"critical", engine.AlertsSummary{State: engine.AlertsFound, Answered: true, Total: 24, Critical: 3, Warning: 18, Info: 3, Worst: "critical"}},
 		{"notfound", engine.AlertsSummary{State: engine.AlertsNotFound}},
 	} {
-		sh, w, _ := newEngineShell(t, chatEngine(t), Options{Theme: mode})
 		sum := c.sum
 		sh.top.alerts.set(&sum)
 		savePNG(t, w, "topbar_alerts_"+c.name+"_"+string(mode)+".png")

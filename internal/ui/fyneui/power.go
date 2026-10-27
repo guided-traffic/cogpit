@@ -24,10 +24,13 @@ import (
 const powerPoll = 30 * time.Second
 
 // pollPower reads the power source every period and calls fn whenever it changed, until stop
-// closes. A panic in read or fn ends the watch with a log line instead of the process (D-11); the
-// strip then follows the power source with its next change of state instead of at once.
-func pollPower(stop <-chan struct{}, every time.Duration, read func() bool, fn func()) {
+// closes; the channel it returns closes when the watch has ended. A panic in read or fn ends the
+// watch with a log line instead of the process (D-11); the strip then follows the power source
+// with its next change of state instead of at once.
+func pollPower(stop <-chan struct{}, every time.Duration, read func() bool, fn func()) <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		defer func() {
 			if r := recover(); r != nil {
 				slog.Error("the power source watch panicked", "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
@@ -48,6 +51,7 @@ func pollPower(stop <-chan struct{}, every time.Duration, read func() bool, fn f
 			}
 		}
 	}()
+	return done
 }
 
 // acLineOnBattery is Windows's rule: SYSTEM_POWER_STATUS's ACLineStatus 0 is offline, the computer

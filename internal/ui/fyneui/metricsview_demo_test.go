@@ -53,9 +53,13 @@ func TestRenderDemoMetrics(t *testing.T) {
 		t.Fatal("no demo pod with requests and limits")
 	}
 	s.UpdateUI(func(u *engine.UIState) { u.Drawer = &ref; u.Selected = []model.ObjectRef{ref} })
+	points := 3 // a series; the requests and limits lines need no more
+	if pngKept() {
+		points = 30 // a curve with a shape, for the picture
+	}
 	until("a series in the drawer", func() bool {
 		p, ok := sh.drawer.kept[metricsKey].(*metricsPanel)
-		return ok && p.data != nil && p.data.Status == metrics.StatusAvailable && len(p.data.Targets) > 0 && len(p.data.Targets[0].Samples) >= 30
+		return ok && p.data != nil && p.data.Status == metrics.StatusAvailable && len(p.data.Targets) > 0 && len(p.data.Targets[0].Samples) >= points
 	})
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
 	// The polls are shortened, so the series is seconds long: a window that shows its shape, with the
@@ -87,7 +91,7 @@ func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what st
 		},
 	}
 	// The UI may not import the demo package, but it may size the demo cluster through its field.
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 1500, true, 11
+	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 11
 	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
 	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)

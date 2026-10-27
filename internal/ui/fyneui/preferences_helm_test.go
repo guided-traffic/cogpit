@@ -1,8 +1,8 @@
 package fyneui
 
 import (
+	"fmt"
 	"testing"
-	"time"
 )
 
 // Preferences › Kubernetes › Helm storage driver: the select shows the HELM_DRIVER preference
@@ -26,17 +26,18 @@ func TestPreferencesHelmDriverSelect(t *testing.T) {
 		return p.HelmDriver == "configmap" && sh.ui.Preferences != nil && sh.ui.Preferences.HelmDriver == "configmap"
 	})
 	mustDispatch(t, s, "preferences.set", map[string]any{"helmDriver": "secret"})
-	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(time.Millisecond) {
-		q.drain()
+	q.untilShows(t, "the select back on Secrets", func() bool {
 		sel, ok := sh.settings.controls["helmDriver"].(*selectField)
-		if ok && sel.Selected == "Secrets (Helm's default)" {
-			break
+		return ok && sel.Selected == "Secrets (Helm's default)"
+	}, func() string {
+		sel, _ := sh.settings.controls["helmDriver"].(*selectField)
+		p, _ := s.Preferences()
+		selected := ""
+		if sel != nil {
+			selected = sel.Selected
 		}
-		if time.Now().After(deadline) {
-			p, _ := s.Preferences()
-			t.Fatalf("the select shows %q, the preference is %q, the UI state's %+v", sel.Selected, p.HelmDriver, sh.ui.Preferences)
-		}
-	}
+		return fmt.Sprintf("the select %q, the preference %q, the UI state's %+v", selected, p.HelmDriver, sh.ui.Preferences)
+	})
 	if p, _ := s.Preferences(); p.HelmDriver != "" {
 		t.Errorf("kept %q, want the default", p.HelmDriver)
 	}

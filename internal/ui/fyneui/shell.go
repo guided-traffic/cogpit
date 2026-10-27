@@ -152,6 +152,9 @@ type shell struct {
 	secretClipTTL time.Duration
 	// copyConfirm is how long the copy icon shows a checkmark after a copy (a test shortens it).
 	copyConfirm time.Duration
+	// searchWait is the typing pause before a list's or a log's search is sent (searchDebounce; a
+	// test lengthens it and ends the pause itself).
+	searchWait time.Duration
 	// toastTime, when set, replaces every toast's lifetime (a test shortens it).
 	toastTime time.Duration
 	// setConcealed puts a Secret's value on the system clipboard marked for clipboard managers to
@@ -194,7 +197,7 @@ type shell struct {
 // newShell builds every widget. Nothing talks to the engine until start.
 func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func())) *shell {
 	sh := &shell{eng: eng, app: a, win: w, opts: opts, now: time.Now, stopTickers: make(chan struct{}), secretClipTTL: secretClipboardTTL, copyConfirm: copyConfirmTime,
-		menuKey: platformMenuKey}
+		searchWait: searchDebounce, menuKey: platformMenuKey}
 	// Work that reaches the main goroutine after stop would apply engine state to a window that
 	// is gone, possibly under another app and theme (tests run shells one after another).
 	sh.do = func(fn func()) {
@@ -342,6 +345,15 @@ func (sh *shell) showStartNotices() {
 	}
 	sh.early = nil
 	sh.mcpStartNotice() // the MCP server's kept port was taken (mcp.go)
+}
+
+// windowClosed ends what must not outlive the window, while Fyne still queues: the dock's streams
+// (the terminal widget calls fyne.Do itself, not through the funnel, and after the drain its reading
+// goroutines would run widget code at once, side by side: the -race run of D-103 found it at quit),
+// and a Secret value copied to the clipboard.
+func (sh *shell) windowClosed() {
+	sh.dock.closeAll()
+	sh.clearSecretClipboard()
 }
 
 // stop ends everything start began: the subscription, tickers, dispatches and dock streams, and

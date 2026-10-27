@@ -1094,7 +1094,7 @@ func (tv *tableView) searchChanged(text string) {
 		tv.filterBusy--
 	}
 	tv.filterBusy++
-	tv.searchTimer = time.AfterFunc(searchDebounce, func() {
+	tv.searchTimer = time.AfterFunc(tv.sh.searchWait, func() {
 		tv.sh.dispatch("ui.setFilter", filterParams{Filter: text}, func(_ any, err error) {
 			tv.filterBusy--
 			tv.sh.showError(err)

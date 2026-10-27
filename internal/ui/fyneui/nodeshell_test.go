@@ -70,7 +70,7 @@ func nodeShellScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window) {
 	q.drain()
 	s := eng.last.Load()
 	close(s.gate)
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := time.Now().Add(15 * time.Second) // mainQueue.until's bound; the queue is not drained while the output flows
 	for !s.idle.Load() {
 		if time.Now().After(deadline) {
 			t.Fatal("the terminal did not take the node shell's output")

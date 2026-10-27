@@ -501,7 +501,15 @@ func TestLogTabSearchIsDebouncedAndSlashFocusesIt(t *testing.T) {
 	if w.Canvas().Focused() != lt.search {
 		t.Fatalf("focused %v, want the search", w.Canvas().Focused())
 	}
+	sh.searchWait = time.Hour // the pause ends with fireTimer, not with a slow runner's gap between keys
 	test.Type(lt.search, "health")
+	q.drain()
+	if n := len(f.callsOf("logs.setOptions")); n != 0 {
+		t.Fatalf("%d logs.setOptions while typing", n)
+	}
+	if !fireTimer(lt.searchTimer) {
+		t.Fatal("no pause pending after the typing")
+	}
 	q.until(t, "the search in the engine", func() bool { return lt.view.View().Search == "health" })
 	if calls := f.callsOf("logs.setOptions"); len(calls) != 1 || !strings.Contains(string(calls[0].Params), `"search":"health"`) {
 		t.Errorf("search calls %d: %v", len(calls), calls)
