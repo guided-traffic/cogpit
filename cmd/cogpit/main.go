@@ -33,32 +33,55 @@ import (
 )
 
 func main() {
+	f := parseFlags()
+	var smoke *smokeRun // nil: no smoke run
+	if *f.smoke > 0 {
+		// Its home, configuration and cache folders are its own from here on: the crash capture
+		// below already reads the configuration folder (smoke.go).
+		var err error
+		if smoke, err = startSmoke(*f.smoke); err != nil {
+			fmt.Fprintln(os.Stderr, "cogpit: smoke:", err)
+			os.Exit(1)
+		}
+	}
 	// Not deferred: on a panic of the main goroutine the defers run before the runtime writes the
 	// crash, and done would remove the report (crash.go).
 	previousCrash, done := captureCrashes(crashReportDir())
-	code := run(previousCrash)
+	code := run(previousCrash, f, smoke)
 	done()
-	os.Exit(code)
+	os.Exit(smoke.end(code))
 }
 
-func run(previousCrash string) int {
-	var (
-		kubeconfig  = flag.String("kubeconfig", "", "kubeconfig files, separated by '"+string(os.PathListSeparator)+"', offered as sources of their own for this run; default: the files $KUBECONFIG lists. ~/.kube is always a sync folder")
-		contextName = flag.String("context", "", "connect to this context at start; without it Cogpit starts on the welcome page")
-		demo        = registerDemoFlags() // a development build's --demo, --demo-pods, --demo-events (demo.go); a release has none (D-67)
-		mcpAddr     = flag.String("mcp-addr", "127.0.0.1:0", "MCP listen address; loopback only")
-		noMCP       = flag.Bool("no-mcp", false, "leave the MCP server and its status bar item out of this run (otherwise the server is off until you switch it on there)")
-		perf        = flag.Duration("perf", 0, "measure main-loop latency while auto-scrolling the table for this long, print the result as JSON and quit")
-		perfMode    = flag.String("perf-mode", "", "with --perf (or alone for gate): scroll, or gate for start-up, scrolling, every view and typing into 5 MB of YAML in one run")
-		cpuProfile  = flag.String("cpuprofile", "", "write a CPU profile of the first --cpuprofile-for to this file")
-		cpuFor      = flag.Duration("cpuprofile-for", 5*time.Second, "how long --cpuprofile records")
-		themeName   = flag.String("theme", "", "colour theme for this run: dark, light or system; default: the Preferences' theme (system until set)")
-		verbose     = flag.Bool("v", false, "debug logging")
-	)
-	flag.Parse()
+// cliFlags are cogpit's command-line flags (docs/developer/usage.md#cogpit-flags).
+type cliFlags struct {
+	kubeconfig, contextName, mcpAddr, perfMode, cpuProfile, themeName *string
+	demo                                                              demoFlags
+	noMCP, verbose                                                    *bool
+	perf, cpuFor, smoke                                               *time.Duration
+}
 
-	if *cpuProfile != "" {
-		stop, err := startCPUProfile(*cpuProfile, *cpuFor)
+func parseFlags() cliFlags {
+	f := cliFlags{
+		kubeconfig:  flag.String("kubeconfig", "", "kubeconfig files, separated by '"+string(os.PathListSeparator)+"', offered as sources of their own for this run; default: the files $KUBECONFIG lists. ~/.kube is always a sync folder"),
+		contextName: flag.String("context", "", "connect to this context at start; without it Cogpit starts on the welcome page"),
+		demo:        registerDemoFlags(), // a development build's --demo, --demo-pods, --demo-events (demo.go); a release has none (D-67)
+		mcpAddr:     flag.String("mcp-addr", "127.0.0.1:0", "MCP listen address; loopback only"),
+		noMCP:       flag.Bool("no-mcp", false, "leave the MCP server and its status bar item out of this run (otherwise the server is off until you switch it on there)"),
+		perf:        flag.Duration("perf", 0, "measure main-loop latency while auto-scrolling the table for this long, print the result as JSON and quit"),
+		perfMode:    flag.String("perf-mode", "", "with --perf (or alone for gate): scroll, or gate for start-up, scrolling, every view and typing into 5 MB of YAML in one run"),
+		cpuProfile:  flag.String("cpuprofile", "", "write a CPU profile of the first --cpuprofile-for to this file"),
+		cpuFor:      flag.Duration("cpuprofile-for", 5*time.Second, "how long --cpuprofile records"),
+		themeName:   flag.String("theme", "", "colour theme for this run: dark, light or system; default: the Preferences' theme (system until set)"),
+		verbose:     flag.Bool("v", false, "debug logging"),
+		smoke:       flag.Duration("smoke", 0, "smoke test: start with a temporary, empty home of its own and no MCP server, updater, login item or cluster, quit once the window drew a frame; exit 1 on a logged error or when that takes longer than this"),
+	}
+	flag.Parse()
+	return f
+}
+
+func run(previousCrash string, f cliFlags, smoke *smokeRun) int {
+	if *f.cpuProfile != "" {
+		stop, err := startCPUProfile(*f.cpuProfile, *f.cpuFor)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "cogpit:", err)
 			return 1
@@ -67,8 +90,9 @@ func run(previousCrash string) int {
 	}
 
 	// Helm values never reach the log; Fyne's thread-check warnings, which come through the
-	// standard log package that slog.SetDefault routes here, reach the window too (D-103).
-	logger := slog.New(fyneui.WatchThreadChecks(helm.RedactSDKLog(newLogger(*verbose).Handler())))
+	// standard log package that slog.SetDefault routes here, reach the window too (D-103); a smoke
+	// run counts the errors that reach the log.
+	logger := slog.New(fyneui.WatchThreadChecks(helm.RedactSDKLog(smoke.watch(newLogger(*f.verbose).Handler()))))
 	slog.SetDefault(logger)
 	klog.SetSlogLogger(logger)
 	logger.Info("cogpit started", "version", buildinfo.Read().String(), "fyneThreadCheck", buildinfo.ThreadChecksText())
@@ -91,12 +115,18 @@ func run(previousCrash string) int {
 	defer closeAudit()
 
 	clusterSettings := openClusterSettings(logger) // the session's, and the connector's proxies
-	sources := openKubeconfigSources(logger, cluster.NamedKubeconfigFiles(filepath.SplitList(*kubeconfig)))
+	kubeconfigs := filepath.SplitList(*f.kubeconfig)
+	named := cluster.NamedKubeconfigFiles(kubeconfigs)
+	if smoke != nil {
+		// A smoke run reads no kubeconfig: $KUBECONFIG names a file in its home, which holds none.
+		kubeconfigs, named = nil, nil
+	}
+	sources := openKubeconfigSources(logger, named)
 	// macOS's grants of the files and folders the user picked in the system's panels, before
 	// anything reads a source (D-72, fileaccess.go).
 	bookmarks := restoreFileAccess(logger, sources)
 	connector := &engine.ClusterConnector{
-		KubeconfigPaths: filepath.SplitList(*kubeconfig),
+		KubeconfigPaths: kubeconfigs,
 		Logger:          logger,
 		Sources:         sources,
 		MetricsSettings: openMetricsSettings(logger),
@@ -104,16 +134,20 @@ func run(previousCrash string) int {
 		// Discovery answers kept for the next connection, shared with cogpit-cli (D-65).
 		DiscoveryCacheDir: discoveryCacheDir(),
 	}
-	demo.offer(connector) // the demo cluster, in a development build only
+	f.demo.offer(connector) // the demo cluster, in a development build only
 	// Every time the window writes is in the computer's region format (D-31), read once here.
 	timeFormat := locale.System()
 	logger.Debug("time format", "source", timeFormat.Source, "date", timeFormat.Layout.Date, "time", timeFormat.Layout.Time)
+	var loginItem engine.LoginItem
+	if smoke == nil {
+		loginItem = newLoginItem() // macOS: Preferences › App › Start at login (loginitem_darwin.go); elsewhere none
+	}
 	s := engine.New(engine.Options{Connector: connector, Audit: audit, AuditPath: auditPath, ConnectLogDir: connectLogDir(),
 		Logger: logger, Drains: openDrainJournal(logger),
 		NodeShells: openNodeShellJournal(logger), Helm: openHelmJournal(logger), Hotbar: openHotbar(logger), HelmRepos: openHelmRepos(logger),
 		Preferences: openPreferences(logger), ClusterSettings: clusterSettings, Kubectl: openKubectl(logger),
 		Drafts: openDrafts(logger), Workspace: openWorkspace(logger), TimeLayout: timeFormat.Layout,
-		LoginItem: newLoginItem()}) // macOS: Preferences › App › Start at login (loginitem_darwin.go); elsewhere none
+		LoginItem: loginItem})
 	defer s.Close()
 	defer s.WatchKubeconfigs(0)() // sync folders: files that appear or leave are picked up
 	if err := commands.RegisterAll(s.Registry()); err != nil {
@@ -134,9 +168,14 @@ func run(previousCrash string) int {
 		default: // asked already
 		}
 	})
-	s.SetUpdater(updater)
+	if smoke == nil {
+		s.SetUpdater(updater)
+	} else {
+		// Loaded, which finds its framework or DLL, and not started: nothing reaches the network.
+		logger.Info("smoke run: the updater is not started", "unavailable", updater.Unavailable())
+	}
 
-	opts := fyneui.Options{AutoConnect: *contextName, Theme: fyneui.ThemeMode(*themeName),
+	opts := fyneui.Options{AutoConnect: *f.contextName, Theme: fyneui.ThemeMode(*f.themeName),
 		DeepLinks: deepLinkQueue, Bookmarks: bookmarks, WindowPlace: windowPlacePath(), Quit: quit}
 	if previousCrash != "" {
 		at := time.Now()
@@ -146,14 +185,18 @@ func run(previousCrash string) int {
 		logger.Warn("the last run of Cogpit crashed", "report", previousCrash)
 		opts.StartWarning = crashNotice(previousCrash, at, s.TimeFormat())
 	}
-	demo.autoConnect(&opts)
+	f.demo.autoConnect(&opts)
 	lightStripFPS(&opts, logger) // a development build's COGPIT_LIGHTSTRIP_FPS (lightstripfps.go); a release has none
-	// Preferences › App › Restore the last session (D-69 item 8): with it on, the clusters connected
-	// at the last quit connect again, the one shown then first unless --context names the one to
-	// show; off (the default), nothing connects by itself.
-	s.RestoreLastSession(opts.AutoConnect)
-	if !*noMCP {
-		srv, err := mcp.New(s, mcp.Options{Addr: *mcpAddr, Version: buildinfo.Version(), Logger: logger})
+	if smoke != nil {
+		smoke.apply(&opts) // no connection at start; the window's first frame ends the run
+	} else {
+		// Preferences › App › Restore the last session (D-69 item 8): with it on, the clusters
+		// connected at the last quit connect again, the one shown then first unless --context names
+		// the one to show; off (the default), nothing connects by itself.
+		s.RestoreLastSession(opts.AutoConnect)
+	}
+	if !*f.noMCP && smoke == nil {
+		srv, err := mcp.New(s, mcp.Options{Addr: *f.mcpAddr, Version: buildinfo.Version(), Logger: logger})
 		if err != nil {
 			logger.Warn("MCP server not started", "err", err)
 		} else {
@@ -170,9 +213,9 @@ func run(previousCrash string) int {
 			opts.MCP = ctl
 		}
 	}
-	if *perf > 0 || *perfMode != "" {
-		opts.PerfDuration = *perf
-		opts.PerfMode = *perfMode
+	if *f.perf > 0 || *f.perfMode != "" {
+		opts.PerfDuration = *f.perf
+		opts.PerfMode = *f.perfMode
 		opts.PerfReport = func(ps fyneui.PerfStats) {
 			b, _ := json.Marshal(ps)
 			fmt.Println(string(b))

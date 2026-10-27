@@ -36,11 +36,11 @@ prerequisite fails its test instead of skipping it ([testing › Prerequisites](
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
 | macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh, bash and `perl` |
-| macOS Lint and App | `make lint-darwin gosec-darwin`, `make app` | lint and gosec of the packages with darwin-only files; the app bundle |
+| macOS Lint and App | `make lint-darwin gosec-darwin`, `make dist-app VERSION=0.0.1`, `make smoke SMOKE_BIN=…` | lint and gosec of the packages with darwin-only files; the app bundle as releases build it, started once ([the smoke test](#the-smoke-test)) |
 | Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector; WinSparkle.dll fetched, beside Windows PowerShell, `ping` and MSYS2's `sh` |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |
-| Linux Package | `make dist-linux`, `make test-linux-package` | the `.deb` as releases build it, lintian, the APT repository's scripts end to end with a throwaway key |
-| Windows Package | `make dist-windows`, `make test-windows-package` | the setup as releases build it, a silent install and uninstall for the runner's user |
+| Linux Package | `make dist-linux`, `make smoke`, `make test-linux-package` | the `.deb` as releases build it, its app started once ([the smoke test](#the-smoke-test)), lintian, the APT repository's scripts end to end with a throwaway key |
+| Windows Package | `make dist-windows`, `make test-windows-package WINDOWS_SMOKE=on` | the setup as releases build it, a silent install for the runner's user, the installed app started once ([the smoke test](#the-smoke-test)), an install over it and an uninstall |
 | Combined Coverage Report | `make coverage-report` | merges every job's profile |
 | Semantic Release | – | needs every job above; publishes the release ([release flow](#release-flow)) |
 
@@ -106,6 +106,35 @@ is vetted by Unit Tests (windows) and neither linted nor scanned: its package ne
 runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](../../.golangci.yml)
 `issues`).
 
+### The smoke test
+
+`make smoke` ([`hack/smoke.sh`](../../hack/smoke.sh)) starts the app's binary `SMOKE_BIN` once with
+`--smoke SMOKE_BOUND` (`2m` # default; [usage › flags](usage.md#cogpit-flags)): the window with the
+real GL driver, in a home of its own, until it drew its first frame; then the app quits. The run
+fails on a logged error (a record at level ERROR, or a line of Fyne's errors), on a window without a
+GL surface, and after the bound. CI runs it on what a release ships: macOS Lint and App on
+`dist-app`'s bundle (`SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit`), Linux Package on
+`dist-linux`'s `bin/cogpit`, Windows Package on the `cogpit.exe` the setup installed
+(`test-windows-package WINDOWS_SMOKE=on`, [`setup-test.sh`](../../hack/windows/setup-test.sh)).
+
+- **A drawn frame:** the frame the window presented, read back from the GL driver's front buffer
+  (Fyne's `Capture`), holds more than one colour.
+- **The run's home** is a folder in a temporary folder of the script's, which it removes once the
+  app ended: `HOME`, the configuration and cache folders and `$KUBECONFIG` point there; Helm's
+  variables and a pod's in-cluster ones are removed.
+- **Linux:** where the caller has none, the script supplies what a desktop session gives: an X
+  server in memory (`xvfb-run`, a 1920×1200 screen of 24 bits), a D-Bus session bus
+  (`dbus-run-session`; without one Fyne logs an error for its theme watch) and `XDG_RUNTIME_DIR`.
+  CI installs `xvfb`, `xauth` and `dbus`.
+- **Windows:** GitHub's runners have no OpenGL 2.1 driver, Fyne's minimum; Mesa's `opengl32.dll`
+  and `libgallium_wgl.dll` (the llvmpipe driver, `make mesa`: pinned by `MESA_VERSION` and
+  `MESA_SHA256`, [`mesa.sh`](../../hack/windows/mesa.sh), unpacked with MSYS2's `p7zip`) lie beside
+  the binary for the run, the first place Windows looks for them. The release pipeline's Windows job
+  runs `test-windows-package` without it: that job ships the setup it builds, and Mesa is a
+  third-party binary Renovate merges on its own.
+- **Not covered:** the GPU drivers users have (Linux and Windows draw in software here), anything
+  after the first frame, and the release pipeline's own builds (they come from the same commit).
+
 ### Running a job locally
 
 ```sh
@@ -117,6 +146,7 @@ make kind-up && make test-kind                 # the cluster tests; make kind-do
 make test-envtest                              # fetches the pinned binaries first
 make test-darwin                               # macOS only
 make lint-darwin gosec-darwin                  # macOS only
+make smoke                                     # bin/cogpit once, its window until the first frame
 make coverage-report                           # merges what is in .cache/coverage
 ```
 
@@ -140,7 +170,9 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
 - Sparkle and WinSparkle are pinned in the Makefile by release tag and SHA-256 (`SPARKLE_VERSION`,
   `SPARKLE_SHA256`, `WINSPARKLE_TAG`, `WINSPARKLE_SHA256`) under a
   `# renovate: datasource=github-release-attachments` comment; Renovate's pull request updates both
-  lines. Neither merges on its own: their code installs Cogpit's updates.
+  lines. Neither merges on its own: their code installs Cogpit's updates. Mesa, the Windows smoke
+  test's software OpenGL (`MESA_VERSION`, `MESA_SHA256`), is pinned the same way and merges on its
+  own once CI passes, a major version after review: it runs in CI only.
 - The node shell's and the debug container's default images (`DefaultNodeShellImage` in
   [`nodeshell.go`](../../internal/engine/nodeshell.go), `DefaultDebugImage` in
   [`debugcontainer.go`](../../internal/engine/debugcontainer.go)), pinned by tag and digest, have
@@ -629,7 +661,8 @@ uninstall entry `…\Uninstall\io.guided-traffic.cogpit` (HKCU, or HKLM's 64-bit
 running `cogpit.exe` to quit (silently up to a minute, then it fails; interactively it asks), moves
 a running `cogpit-cli.exe` aside, and with `/relaunch` starts Cogpit as the desktop's user.
 `make test-windows-package` ([`setup-test.sh`](../../hack/windows/setup-test.sh); CI's job Windows
-Package, [CI](#ci)) installs a setup silently into a folder of its own, checks it, installs it again
+Package, [CI](#ci)) installs a setup silently into a folder of its own, checks it, starts the
+installed app once with `WINDOWS_SMOKE=on` ([the smoke test](#the-smoke-test)), installs it again
 over itself and uninstalls it; it refuses to run where Cogpit is installed for the user.
 
 **The feed** `https://guided-traffic.github.io/cogpit/appcast-windows.xml` sits beside

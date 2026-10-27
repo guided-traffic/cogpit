@@ -1,9 +1,10 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with app,
-# dist-linux with test-linux-package, and on Windows test-windows-unit, test-windows-ui and
-# dist-windows with test-windows-package (docs/developer/releasing.md#ci).
+# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with dist-app
+# and smoke, dist-linux with smoke and test-linux-package, and on Windows test-windows-unit,
+# test-windows-ui and dist-windows with test-windows-package WINDOWS_SMOKE=on, the installed app's
+# smoke test (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -964,13 +965,32 @@ WINDOWS_FEED_URL := https://guided-traffic.github.io/cogpit/appcast-windows.xml
 UPDATE_PKG       := github.com/guided-traffic/cogpit/internal/update
 WIN_APP_LDFLAGS   = -H=windowsgui -X $(UPDATE_PKG).windowsFeedURL=$(WINDOWS_FEED_URL) \
 	$(if $(SPARKLE_PUBLIC_ED_KEY),-X $(UPDATE_PKG).edPublicKey=$(SPARKLE_PUBLIC_ED_KEY))
+# Mesa's software OpenGL for the smoke test of a Windows x64 build (D-112; smoke, SMOKE_MESA):
+# pal1000/mesa-dist-win's MSVC build, of which hack/windows/mesa.sh keeps the x64 opengl32.dll and
+# libgallium_wgl.dll (the llvmpipe driver) in .cache/mesa/<version>; GitHub's Windows runners have
+# no OpenGL 2.1 driver, Fyne's minimum. The release archive pinned by its tag and SHA-256 (GitHub's
+# digest of the asset); CI's tool only, never in a setup.
+# renovate: datasource=github-release-attachments depName=pal1000/mesa-dist-win
+MESA_VERSION    := 26.2.4
+MESA_SHA256     := 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695
+MESA_DIR        := $(CACHE)/mesa/$(MESA_VERSION)
+SMOKE_MESA       = $(if $(and $(filter windows,$(APP_OS)),$(filter x64,$(WIN_ARCH))),$(MESA_DIR)/x64)
+# The installed app's smoke test in test-windows-package (D-112): on for CI's job Windows Package;
+# off by default, as in the release pipeline's Windows job, which ships the setup it builds and runs
+# no Mesa beside it.
+WINDOWS_SMOKE   ?= off
 
-.PHONY: winsparkle dist-windows test-windows-package
+.PHONY: winsparkle mesa dist-windows test-windows-package
 
 winsparkle: $(WINSPARKLE_DIR)/.verified ## Download the pinned WinSparkle release into .cache/winsparkle (checksum verified)
 
 $(WINSPARKLE_DIR)/.verified:
 	hack/windows/winsparkle.sh fetch '$(WINSPARKLE_VERSION)' '$(WINSPARKLE_SHA256)' '$(WINSPARKLE_DIR)'
+
+mesa: $(MESA_DIR)/.verified ## Download the pinned Mesa for Windows into .cache/mesa (checksum verified): the Windows smoke test's software OpenGL
+
+$(MESA_DIR)/.verified:
+	hack/windows/mesa.sh fetch '$(MESA_VERSION)' '$(MESA_SHA256)' '$(MESA_DIR)'
 
 $(GO_WINRES):
 	GOBIN=$(BIN) $(GO) install github.com/tc-hib/go-winres@$(GO_WINRES_VERSION)
@@ -1029,9 +1049,24 @@ test-windows-ui: ## The window's tests (internal/ui/fyneui) on Windows, WINDOWS_
 	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(WINDOWS_UI_SHARDS) -jobs $(WINDOWS_UI_JOBS) -exec -timeout 20m \
 		-durations $(UI_DURATIONS)
 
-test-windows-package: ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
+test-windows-package: $(if $(filter on,$(WINDOWS_SMOKE)),$(if $(SMOKE_MESA),mesa)) ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, with WINDOWS_SMOKE=on the installed app's smoke test, an update over it, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
 	@n=$$(ls $(DIST)/windows/Cogpit-*-windows-*-setup.exe 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/windows holds $$n setups: run make dist-windows VERSION=x.y.z first, once"; exit 1; }
-	hack/windows/setup-test.sh $(DIST)/windows/Cogpit-*-windows-*-setup.exe
+	SMOKE_BOUND='$(if $(filter on,$(WINDOWS_SMOKE)),$(SMOKE_BOUND))' SMOKE_MESA='$(SMOKE_MESA)' \
+		hack/windows/setup-test.sh $(DIST)/windows/Cogpit-*-windows-*-setup.exe
+
+# The smoke test (D-112): the app's binary SMOKE_BIN started once with --smoke SMOKE_BOUND
+# (hack/smoke.sh): the window with the real driver in a home of its own until it drew a frame, no
+# MCP server, updater, login item or cluster; on Linux without a display under xvfb-run, on Windows
+# x64 with Mesa's llvmpipe (SMOKE_MESA). CI runs it on what a release ships: macOS Lint and App on
+# dist-app's bundle, Linux Package on dist-linux's binary, Windows Package on the installed
+# cogpit.exe (test-windows-package WINDOWS_SMOKE=on).
+SMOKE_BIN       ?= $(BIN)/cogpit$(EXE)
+SMOKE_BOUND     ?= 2m
+
+.PHONY: smoke
+
+smoke: $(if $(SMOKE_MESA),mesa) ## Start the app's binary SMOKE_BIN (bin/cogpit) with --smoke: its window in a home of its own until the first frame, then quit; fails on a logged error or after SMOKE_BOUND (D-112)
+	SMOKE_MESA='$(SMOKE_MESA)' hack/smoke.sh '$(SMOKE_BIN)' '$(SMOKE_BOUND)'
 
 clean: ## Remove build output
 	rm -rf $(BIN) dist

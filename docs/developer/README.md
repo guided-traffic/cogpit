@@ -71,7 +71,8 @@ cogpit/
 │  ├─ macos/                  release.sh (signs, images and notarizes the download: make dist-macos), the disk image's template, Sparkle, the appcast
 │  ├─ appcast/                drafts and checks the appcasts (make appcast-draft, appcast-verify, appcast-windows-*)
 │  ├─ linux/                  the .deb (make dist-linux), the APT repository (make apt-repo, apt-verify), their test (make test-linux-package)
-│  ├─ windows/                the setup with NSIS (make dist-windows), its resources, WinSparkle, the appcast, the setup's test
+│  ├─ windows/                the setup with NSIS (make dist-windows), its resources, WinSparkle, the appcast, the setup's test, Mesa for its smoke test (make mesa)
+│  ├─ smoke.sh                the smoke test: the shipped app's binary started once with --smoke (make smoke)
 │  ├─ sigstoreroot/           refreshes the sigstore trusted root internal/kubectl embeds (make sigstore-root, D-50)
 │  ├─ k8seol/                 refreshes the Kubernetes release table internal/model/k8seol embeds (make k8s-eol, D-91)
 │  └─ ci/                     apt-install.sh (CI's apt-get with deadlines and tries), sha256sums.sh (a release's SHA256SUMS across jobs)

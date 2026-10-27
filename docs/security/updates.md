@@ -412,6 +412,11 @@ What remains, per case:
   ([releasing › the disk image's window](../developer/releasing.md#the-disk-images-window)). Not
   covered: the bytes of its `.DS_Store`, `.background.tiff` and `.VolumeIcon.icns`, which Finder
   reads on every Mac that opens the image; a crafted one would ship signed and notarized.
+- **Mesa's DLLs run in CI's job Windows Package,** beside the installed `cogpit.exe` for the smoke
+  test ([releasing › the smoke test](../developer/releasing.md#the-smoke-test)): a third-party
+  build, pinned by SHA-256 and merged by Renovate on its own once CI passes, in a job that holds no
+  secret and whose build cache no release reads (the release pipeline builds without one). The
+  release pipeline's Windows job, whose setup ships, does not load them.
 - **What Renovate cannot see,** each moved by hand: sigstore's trusted root (`make sigstore-root`,
   [H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
   the terminal widget's copy in `third_party/`

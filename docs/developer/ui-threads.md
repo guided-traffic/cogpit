@@ -65,6 +65,8 @@ places of the same kind has one row.
 | `fyneui/logtab_older.go` | `logTab.loadOlder` | go | A | `OlderLogs` with a request built on main; `Prepend`, head row and toast inside `sh.do`. |
 | `fyneui/perf.go` | `shell.startPerf` | go | A | `perfYAML` builds a string into a buffered channel, no Fyne; `go m.run()` (`perfMeter.run`). |
 | `fyneui/perf.go` | `perfMeter.run` | Ticker | A | Every frame posts `m.sample` through `sh.do`; reads only the stop channels. |
+| `fyneui/smoke.go` | `shell.startSmoke` | go | A | A smoke run's reads of the window's frame: each `Capture`, the report and `Quit` inside `sh.do`; off main it reads an atomic and `sh.ctx` only. |
+| `fyneui/smoke.go` | `shell.startSmoke` | Ticker | A | Paces those reads every `smokePoll`; runs nothing itself. |
 | `fyneui/syncpicker.go` | `syncPicker.goTo` | go | A | `os.ReadDir`; entries, rows and status set inside `sh.do`. |
 | `fyneui/syncpicker.go` | `syncPicker.goToTyped` | go | A | `os.Stat` of a path expanded on main; status or `goTo` inside `sh.do`. |
 | `fyneui/syncpicker.go` | `syncPicker.sync` | go | A | `os.Stat` of the path read on main; `Hide` and `done` inside `sh.do`. |

@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 # Checks a Windows setup end to end (D-111; make test-windows-package, CI's job Windows Package):
 # a silent install for this user into a folder of its own, the files, both executables' version
-# information, `cogpit-cli version`, the uninstall entry and the Start menu entry; then a second
+# information, `cogpit-cli version`, the uninstall entry and the Start menu entry; with SMOKE_BOUND
+# set, the installed cogpit.exe's smoke test (hack/smoke.sh, D-112: its window until the first
+# frame within that bound, with Mesa's DLLs from SMOKE_MESA beside it for the run); then a second
 # silent install over it (an update, as WinSparkle runs it, without /relaunch), then a silent
 # uninstall, after which the folder, the entry and the shortcut are gone.
 #
-#   hack/windows/setup-test.sh <Cogpit-<version>-windows-<arch>-setup.exe>
+#   [SMOKE_BOUND=<duration> [SMOKE_MESA=<dir>]] hack/windows/setup-test.sh <Cogpit-<version>-windows-<arch>-setup.exe>
 #
 # It installs into the user's profile and registry of the machine it runs on and removes it again:
 # on CI a throwaway runner; locally an existing per-user Cogpit is refused, since the setup would
@@ -73,6 +75,10 @@ check_installed() {
 echo "install $name into $win_dir"
 "$setup" /S /currentuser "/D=$win_dir" || die "the setup failed: exit $?"
 check_installed
+if [ -n "${SMOKE_BOUND:-}" ]; then
+	echo "start the installed cogpit.exe once (smoke test)"
+	"$(dirname "$0")/../smoke.sh" "$dir/Cogpit/cogpit.exe" "$SMOKE_BOUND" || die "the installed cogpit.exe's smoke test failed: exit $?"
+fi
 echo "install it again over itself, as an update does"
 "$setup" /S "/D=$win_dir" || die "the second setup failed: exit $?"
 check_installed

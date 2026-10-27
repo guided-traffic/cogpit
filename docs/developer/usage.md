@@ -417,6 +417,7 @@ Restart, Delete and the pod shell wait for your confirmation
 | `--perf-mode <mode>` | empty # default | `scroll` with `--perf`, or `gate`: start-up, scrolling, every view and typing into 5 MB of YAML ([spike](spike-fyne.md)) |
 | `--cpuprofile <file>` | empty # default | write a CPU profile of the first `--cpuprofile-for` to this file |
 | `--cpuprofile-for <duration>` | `5s` # default | how long `--cpuprofile` records |
+| `--smoke <duration>` | `0`: off # default | a smoke test ([releasing › the smoke test](releasing.md#the-smoke-test)): start in a temporary, empty home of its own, without MCP server, update check, login item or cluster connection (`--kubeconfig` and `--context` have no effect), quit once the window drew its first frame; exit 1 on a logged error or after `<duration>`. The home stays; the last line names it |
 | `--theme <mode>` | empty: the Preferences' theme, `system` until set # default | `dark`, `light` or `system` for this run ([D-22](decisions.md#d-22-colour-theme)) |
 | `-v` | `false` # default | debug logging |
 
@@ -1598,8 +1599,9 @@ with its own make target, and semantic-release publishes every `feat:` and `fix:
 | `make kind-prometheus`, `kind-kps`, `kind-vm`, `kind-alertmanager`, `kind-kyverno`, `kind-trivy` (each with `-down`) | optional stacks in the kind cluster: Prometheus, kube-prometheus-stack, VictoriaMetrics, Alertmanager, Kyverno 3.9.1 with test policies, Trivy Operator |
 | `make sigstore-root`, `make k8s-eol` | refresh the sigstore trusted root `internal/kubectl` embeds ([D-50](decisions.md#d-50-kubectls-signature-check)) and the Kubernetes release table `internal/model/k8seol` embeds ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life); `K8SEOL_FLAGS=-fallback` keeps the committed one on a failure) |
 | `make icon`, `make showcase` | redraw `packaging/icon.png` ([extending](extending.md#changing-the-logo)); render the README's pictures into `docs/images`, dark and light, optimised with oxipng (`OXIPNG_FLAGS` without `--zopfli` for a quick look) |
-| `make sparkle`, `make oxipng`, `make winsparkle` | the pinned release into `.cache/`, SHA-256 checked (oxipng: macOS on Apple silicon and Linux on x86-64) |
+| `make sparkle`, `make oxipng`, `make winsparkle`, `make mesa` | the pinned release into `.cache/`, SHA-256 checked (oxipng: macOS on Apple silicon and Linux on x86-64; Mesa: the Windows smoke test's software OpenGL) |
+| `make smoke` | starts `SMOKE_BIN` (`bin/cogpit` # default) once with `--smoke SMOKE_BOUND` (`2m` # default): its window until the first frame ([releasing › the smoke test](releasing.md#the-smoke-test)) |
 | `make dist-app`, `dist-macos`, `dist-macos-sign`, `dist-macos-notarize`, `dist-checksums`, `appcast-draft`, `appcast-sign`, `appcast-verify` | the macOS release and its appcast (`MACOS_SIGN=adhoc` for a local check) ([releasing](releasing.md#running-the-signing-locally)) |
 | `make dist-linux VERSION=x.y.z`, `test-linux-package`, `apt-repo`, `apt-verify` | the `.deb` for this machine's architecture (Debian or Ubuntu with `dpkg-dev`), its check (lintian, `hack/linux/apt-test.sh`), the APT repository ([releasing › Linux](releasing.md#linux)) |
-| `make dist-windows VERSION=x.y.z`, `test-windows-package`, `appcast-windows-draft`, `appcast-windows-sign`, `appcast-windows-verify` | the Windows setup (on Windows, with MinGW-w64 gcc and NSIS 3), its silent install check (`hack/windows/setup-test.sh`), its appcast ([releasing › Windows](releasing.md#windows)) |
+| `make dist-windows VERSION=x.y.z`, `test-windows-package`, `appcast-windows-draft`, `appcast-windows-sign`, `appcast-windows-verify` | the Windows setup (on Windows, with MinGW-w64 gcc and NSIS 3), its silent install check (`hack/windows/setup-test.sh`; `WINDOWS_SMOKE=on` starts the installed app once), its appcast ([releasing › Windows](releasing.md#windows)) |
 | `make clean` | removes `bin/` and `dist/` |

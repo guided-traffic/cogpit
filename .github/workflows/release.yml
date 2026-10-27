@@ -458,9 +458,11 @@ jobs:
         run: make test-darwin
 
   # Lint and GoSec of the packages with darwin-only files, which the Linux jobs never compile (found
-  # by the files' names), and the app bundle with Sparkle. Its build cache is a kind of its own
-  # (lint, no race detector): app-macos, as the tests' restore key (gobuild-<os>-<arch>-macos-)
-  # would match macos-app.
+  # by the files' names), and the app bundle with Sparkle as releases build it (make dist-app at
+  # version 0.0.1, below every release: the release's build tags, Fyne's thread check off), started
+  # once (make smoke, D-112): its window with the real driver in a home of its own until it drew a
+  # frame. Its build cache is a kind of its own (lint, no race detector): app-macos, as the tests'
+  # restore key (gobuild-<os>-<arch>-macos-) would match macos-app.
   macos-app:
     name: macOS Lint and App
     runs-on: macos-latest
@@ -477,8 +479,11 @@ jobs:
       - name: Lint and GoSec of the packages with darwin-only files
         run: make lint-darwin gosec-darwin
 
-      - name: Build and package Cogpit.app
-        run: make app
+      - name: Build and package Cogpit.app as releases build it
+        run: make dist-app VERSION=0.0.1
+
+      - name: Start the app once (smoke test)
+        run: make smoke SMOKE_BIN=bin/Cogpit.app/Contents/MacOS/cogpit
 
   # The tests on Windows (D-111): every package's, in two jobs on GitHub's runner in MSYS2's MINGW64
   # shell (MinGW-w64 gcc for cgo and Fyne, make), without the race detector; the window's
@@ -554,9 +559,10 @@ jobs:
 
   # Cogpit for Linux (D-108) as the release pipeline builds it, for this commit: make dist-linux
   # (the release's build tags, the package with its launcher, icons, update helper and APT
-  # repository) at version 0.0.1, below every release, then lintian on it and the APT repository's
-  # scripts end to end with a throwaway key (make test-linux-package). A change that breaks the
-  # release's Linux jobs fails here, before a release.
+  # repository) at version 0.0.1, below every release; its app started once (make smoke, D-112:
+  # the window under Xvfb in a D-Bus session until it drew a frame), then lintian on the package and
+  # the APT repository's scripts end to end with a throwaway key (make test-linux-package). A change
+  # that breaks the release's Linux jobs fails here, before a release.
   linux-package:
     name: Linux Package
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -565,24 +571,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The packaging tools install with Go's build dependencies, in the background.
+      # The packaging tools and the smoke test's X server and D-Bus install with Go's build
+      # dependencies, in the background.
       - name: Set up Go
         uses: ./.github/actions/go-setup
         with:
           cache: linux-package
-          packages: dpkg-dev lintian apt-utils gnupg curl python3
+          packages: dpkg-dev lintian apt-utils gnupg curl python3 xvfb xauth dbus
 
       - name: Build the package
         run: make dist-linux VERSION=0.0.1
+
+      - name: Start the app once (smoke test)
+        run: make smoke
 
       - name: Check the package and the APT repository's scripts
         run: make test-linux-package
 
   # Cogpit for Windows (D-111) as the release pipeline builds it, for this commit: make dist-windows
-  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make and NSIS
-  # from its signed packages), then make test-windows-package: the setup installs for the runner's
-  # user, installs again over itself and uninstalls. A change that breaks the release's Windows job
-  # fails here, before a release.
+  # at version 0.0.1, below every release, in MSYS2's MINGW64 shell (MinGW-w64 gcc, make, NSIS and
+  # 7-Zip from its signed packages), then make test-windows-package WINDOWS_SMOKE=on: the setup
+  # installs for the runner's user, the installed app starts once (the smoke test, D-112: its window
+  # until it drew a frame, with Mesa's software OpenGL beside it, as the runner has no OpenGL 2.1
+  # driver), the setup installs again over itself and uninstalls. A change that breaks the
+  # release's Windows job fails here, before a release.
   windows-package:
     name: Windows Package
     runs-on: windows-latest
@@ -599,19 +611,19 @@ jobs:
         with:
           cache: windows-package
 
-      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS)
+      - name: Set up MSYS2 (MinGW-w64 gcc, make, NSIS, 7-Zip for make mesa)
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: false
           path-type: inherit
-          install: make unzip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
+          install: make unzip p7zip mingw-w64-x86_64-gcc mingw-w64-x86_64-nsis
 
       - name: Build the setup
         run: make dist-windows VERSION=0.0.1
 
-      - name: Install, update and uninstall it
-        run: make test-windows-package
+      - name: Install it, start it once (smoke test), update and uninstall it
+        run: make test-windows-package WINDOWS_SMOKE=on
 
   # The unit, race and cluster profiles merged: the job summary, and the README's badge, which
   # Semantic Release commits with the release.

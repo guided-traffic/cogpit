@@ -176,7 +176,8 @@ none longer than ten minutes: [releasing › CI](docs/developer/releasing.md#ci)
 and pull request: lint (depguard layering included), parity, GoSec, govulncheck, cyclomatic
 complexity, the race tests (the UI's package in five shards), the tests the race detector keeps
 from running, the kind, drain and envtest cluster tests, the macOS-only tests and the app, every
-test on Windows, the Linux and Windows packages, and the combined coverage. Read its result when
+test on Windows, the Linux and Windows packages, on each platform the shipped app started once
+(`make smoke`), and the combined coverage. Read its result when
 you next push (`gh run list`, then `gh run view <id> --log-failed`) and fix what is red first. Once
 every job on `main` is green, semantic-release publishes a release for the `feat:` and `fix:`
 commits since the last one and pushes a release commit to `main`, so `git pull --rebase` before

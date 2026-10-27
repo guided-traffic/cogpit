@@ -120,7 +120,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-109](#d-109-the-menus-in-the-top-bar-on-windows-and-linux) | The menus in the top bar on Windows and Linux | built: menu titles in Cogpit's top bar, native title bar |
 | [D-110](#d-110-dark-cockpit-cogpits-design-language) | Dark Cockpit, Cogpit's design language | built: Dark Cockpit replaces Solarized; first outlook topic open |
 | [D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle) | Cogpit for Windows: an NSIS setup and WinSparkle | built: per-user NSIS setup, WinSparkle updates, x64 |
-| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, lint and GoSec per system; one item open |
+| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, lint and GoSec per system, the shipped app's smoke test; one item open |
 | [D-113](#d-113-image-grades-shields-from-trivys-reports) | Image grades, shields from Trivy's reports | built: S–E and N/A shields; D/E thresholds provisional |
 | [D-114](#d-114-a-failed-connects-error-page-and-its-stages) | A failed connect's error page and its stages | built: error page with the connect's stages |
 | [D-115](#d-115-a-dock-tab-the-user-opens-takes-the-keys) | A dock tab the user opens takes the keys | built: user-opened dock tabs take the keyboard |
@@ -4258,6 +4258,29 @@ CI and local test runs are kept short at the same coverage.
   `internal/ui/fyneui`'s Windows file stays out: its package needs cgo for Fyne, and a lint on the
   Windows runners would build golangci-lint there and analyse Fyne with MinGW for one system call;
   moving the power read into a package without Fyne would bring it in. A run lists every finding.
+- **The smoke test** ([releasing › the smoke test](releasing.md#the-smoke-test)): CI starts each
+  platform's shipped binary once with `--smoke <bound>`, so that a release variant that panics at
+  start, misses a library or fails in the GL driver fails CI. Each choice against its alternative:
+  - a flag, not an environment variable such as `COGPIT_SMOKE=1`: it shows in the command and in
+    `-h`, as `--perf` does, and no exported variable turns every start into a smoke run;
+  - the binary makes its own home (`smokeEnv`, before the crash capture reads the configuration
+    folder) rather than relying on the caller's variables, so that a run by hand cannot touch the
+    user's files either; it leaves the home, since Fyne's settings watcher makes its folder again
+    and logs an error while the process lives and Windows keeps the open log; `hack/smoke.sh`
+    removes it once the app ended;
+  - a drawn frame is read back from the front buffer, more than one colour, rather than inferred
+    from a callback: it is what the driver presented;
+  - an error is a record at level ERROR or a line of Fyne's errors, which reach the log at INFO
+    through the standard log package; Linux therefore runs in a D-Bus session, without which Fyne's
+    theme watch logs one;
+  - the bound is the flag's value (`2m` in `make smoke`), a watchdog's `os.Exit` whatever the main
+    goroutine does;
+  - macOS Lint and App builds the bundle as releases do (`make dist-app VERSION=0.0.1`), so that
+    macOS smokes the release variant as Linux and Windows do; the development variant of
+    `cmd/cogpit` compiles in macOS Tests;
+  - Windows draws with Mesa's llvmpipe beside the installed `cogpit.exe`, in CI only: the release
+    pipeline's Windows job, which ships the setup it builds, runs no third-party binary Renovate
+    merges on its own.
 
 **Open:** a runner image that carries Fyne's build dependencies, and with it one job building the
 UI's race test binary for all shards.
@@ -4287,10 +4310,14 @@ findings of a text and one per line, so a run's log would not list all a change 
 [`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
 [`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
 [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile`,
-[`prereq.go`](../../internal/testkit/prereq/prereq.go) · `TestSplitIsStableAndComplete`,
+[`prereq.go`](../../internal/testkit/prereq/prereq.go),
+[`hack/smoke.sh`](../../hack/smoke.sh), [`cmd/cogpit/smoke.go`](../../cmd/cogpit/smoke.go),
+[`fyneui/smoke.go`](../../internal/ui/fyneui/smoke.go), [`mesa.sh`](../../hack/windows/mesa.sh) · `TestSplitIsStableAndComplete`,
 `TestSplitBalancesByDurations`, `TestDurationsFile`, `TestReadTestJSON`, `TestSelection`,
 `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`, `TestNeed`,
-`TestLookPath`
+`TestLookPath`,
+`TestSmokeReportsTheFirstDrawnFrame`, `TestSmokeFrameHoldsMoreThanOneColour`, `TestSmokeWindowWithoutASurface`,
+`TestSmokeEnvLeavesTheUsersHome`, `TestSmokeVerdict`, `TestSmokeCountsLoggedErrors`, `TestSmokeWatchdogEndsAStuckRun`
 
 ## D-113: Image grades, shields from Trivy's reports
 
