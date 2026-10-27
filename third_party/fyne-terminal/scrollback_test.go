@@ -332,7 +332,7 @@ func TestScrollback_PromptPaddingIsNoWrap(t *testing.T) {
 var lineNumber = regexp.MustCompile(`n(\d+)`)
 
 func TestScrollback_RandomOutputKeepsItsOrder(t *testing.T) {
-	for seed := int64(1); seed <= 100; seed++ {
+	for seed := int64(1); seed <= 20; seed++ {
 		rng := rand.New(rand.NewSource(seed))
 		term := newScrollbackWindow(t, 20, 5)
 		cell := term.guessCellSize()

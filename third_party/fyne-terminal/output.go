@@ -412,8 +412,12 @@ func (t *Terminal) ringBell() {
 	go func() {
 		time.Sleep(time.Millisecond * 300)
 		// Cogpit patch: the bell is read on Fyne's main goroutine when the cursor is drawn;
-		// cleared on this goroutine, it raced it.
+		// cleared on this goroutine, it raced it. A closed terminal is left alone: its renderers
+		// may be gone, and the refresh would make them again.
 		fyne.Do(func() {
+			if t.isStopping() {
+				return
+			}
 			t.bell = false
 			t.Refresh()
 		})

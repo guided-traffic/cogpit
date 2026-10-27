@@ -75,7 +75,6 @@ func FuzzHandleOutput(f *testing.F) {
 	// The output is parsed on this goroutine, as on the goroutine reading a connection, and the
 	// widget changes on the main loop, as in an app.
 	loop := useMainLoop(f)
-	var ringing []ringingTerm
 	f.Fuzz(func(t *testing.T, data []byte, cols, rows uint8, split uint16, cols2, rows2 uint8, debugOn bool) {
 		if debugOn {
 			log.SetOutput(io.Discard)
@@ -128,36 +127,19 @@ func FuzzHandleOutput(f *testing.F) {
 		}
 
 		// Refreshes queue more work on the main loop: it has to be done before the renderers are
-		// collected, or it makes them again after the test has dropped them.
-		var rang bool
+		// collected, or it makes them again after the test has dropped them. Closed, the terminal
+		// is left alone by a bell that clears itself later (ringBell).
 		loop.flush()
 		loop.do(func() {
+			term.Close()
 			releaseRenderers(t, term)
-			rang = term.bell
 			// A blinking cell keeps a goroutine refreshing the grid until none is left. Emptied
 			// before the renderers are collected, the grid would hide its rows from them.
 			term.content.Rows = nil
 			term.content.Refresh()
 		})
 		loop.flush()
-		// A bell clears itself 300 ms later and redraws the terminal, which makes its renderers
-		// again; those are collected once that has happened.
-		if rang {
-			ringing = append(ringing, ringingTerm{term, time.Now()})
-		}
-		for len(ringing) > 0 && time.Since(ringing[0].since) > 400*time.Millisecond {
-			old := ringing[0].term
-			ringing = ringing[1:]
-			loop.do(func() { releaseRenderers(t, old) })
-			loop.flush()
-		}
 	})
-}
-
-// ringingTerm is a fuzzed terminal whose bell rang.
-type ringingTerm struct {
-	term  *Terminal
-	since time.Time
 }
 
 // resizeTo resizes the terminal to the given number of columns and rows.
