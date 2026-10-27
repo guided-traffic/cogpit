@@ -372,7 +372,10 @@ Secrets are data the user's identity may read, handled with the care of Cogpit's
   transient types, which clipboard managers that honour them neither show nor record, and kept on
   this Mac, out of Universal Clipboard (`NSPasteboardContentsCurrentHostOnly`,
   [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m);
-  `TestSecretCopyGoesThroughTheConcealedClipboard` covers the routing, the AppKit side has no test).
+  `TestSecretCopyGoesThroughTheConcealedClipboard` the routing,
+  `TestConcealedClipboardMarkedForThisMacOnly` the AppKit side: the whole value beside both types on
+  the pasteboard, in contents prepared with that option, which AppKit reads back nowhere, so the
+  harness records the call).
   Copying has no command (`TestCopyHasNoCommand`); a copy or Show writes no audit line, and an
   agent's `secret.reveal` is refused and audited without a value (`TestRevealIsGUIOnly`); an agent
   sees a binary value's "Copy as base64" action in `object_get` and is refused as for Show. What

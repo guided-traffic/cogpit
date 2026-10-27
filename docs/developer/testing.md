@@ -11,7 +11,7 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 | Unit | everywhere | `make test-unit` (the UI's package in parallel shards, `make test-ui`) | logic in isolation; `model` and `kubeconfig` are fully testable without I/O |
 | Race | Linux CI, locally on demand | `make test-race-ui` (five shards balanced by the tests' measured time, the render tests left out), `make test-race-rest`, `make test-unit-race` | no data races; a concurrent map write would end the process |
 | No race | Linux CI | `make test-norace-coverage` | what the race build skips (tests that read `raceEnabled`, `internal/ui/logo`) and the UI's render tests, with coverage |
-| macOS | CI's macOS Tests job, locally | `make test-darwin` | every `*_darwin_test.go` (title bar, window place, updater and file-panel harnesses, locale), `internal/cluster` and `internal/terminal` (PTY, shells, the credential plugin's process search, login runs and waits), the login-wait tests, and the tests whose expectations branch on macOS, under the race detector |
+| macOS | CI's macOS Tests job, locally | `make test-darwin` | every `*_darwin_test.go` (title bar, window place, concealed clipboard, updater and file-panel harnesses, locale), `internal/cluster` and `internal/terminal` (PTY, shells, the credential plugin's process search, login runs and waits), the login-wait tests, and the tests whose expectations branch on macOS, under the race detector |
 | Windows | CI's Unit Tests (windows) and UI Tests (windows), locally in MSYS2's MINGW64 shell | `make test-windows-unit`, `make test-windows-ui` | every package's tests on Windows, without the race detector; PowerShell for the terminal's and the registration's tests |
 | Kind-profile goldens | everywhere | part of Unit | an object becomes the row and detail model Lens would show ([`kinds/golden_test.go`](../../internal/model/kinds/golden_test.go) `TestGolden`, `TestLocalGolden`) |
 | Cache | everywhere | part of Unit and Race | watches, warm period, error states, transforms, stalls, and the API requests each scenario costs (against an in-memory source and testkit's fake API server over HTTPS) |
@@ -99,7 +99,12 @@ depends on timing passes locally and fails there. The rules:
   (register the wait with `t.Cleanup` after `t.TempDir`, so it runs first); a simulated second
   process stays alive with `runtime.KeepAlive`.
 - **The machine's environment is not the test's.** A test that needs a shell or a namespace names
-  it; a test never asserts that a freed port stays free.
+  it; a test never asserts that a freed port stays free. A test never reads or changes the user's
+  clipboard: the concealed-copy harness hands `clipboard_darwin.m` a pasteboard of its own in the
+  general pasteboard's place (`TestConcealedClipboardMarkedForThisMacOnly`). Saving and restoring
+  the user's clipboard instead would read other apps' contents, which macOS can ask the user about
+  or deny (`NSPasteboard.accessBehavior`), lose what it could not read, and reach clipboard managers
+  as a new copy.
 - **Reproduce before fixing.** Run the test many times under load (`go test -race -count=50 -cpu
   1,2` while other packages run), or widen the suspected window on purpose (a delay in a fake's List,
   Watch or handler). A race-job failure is a product race until a forced interleaving shows

@@ -914,7 +914,8 @@ binary value survives a text clipboard in.
 [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
 [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m) · 
 `TestCopyHasNoCommand`, `TestListCopyIconByColumn`, `TestSecretMaskedValueCopiedWithoutShowing`,
-`TestSecretB64OnABinaryValue`, `TestCopyKubeconfigPathInEveryClusterMenu`
+`TestSecretB64OnABinaryValue`, `TestConcealedClipboardMarkedForThisMacOnly`,
+`TestCopyKubeconfigPathInEveryClusterMenu`
 
 ## D-26: Binding a credential plugin's approval to its program
 
