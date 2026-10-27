@@ -29,7 +29,7 @@ in the background. `GOFLAGS=-count=1` keeps cached test results from passing a g
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
 | Cyclomatic Complexity | `make cyclo` | gocyclo over `cmd`, `internal`, `hack`, `third_party`; fails above `CYCLO_THRESHOLD` |
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
-| Race Tests (UI n/8) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=8` | `internal/ui/fyneui` under the race detector without its render tests, one shard of eight (hack/shard: a test's shard is a hash of its name) |
+| Race Tests (UI n/5) | `make test-race-ui RACE_SHARD=n RACE_SHARDS=5` | `internal/ui/fyneui` under the race detector without its render tests, one shard of five, balanced by the tests' measured time ([the UI's shards](#the-uis-shards)) |
 | Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job) |
 | Integration Tests (kind) | `make kind-up`, `make test-kind` | the cluster tests (`TestKind*`, tag `kind`) on a kind cluster created while they compile; the add-on stacks' tests are skipped (`KIND_ADDONS=1` runs them) |
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
@@ -55,6 +55,30 @@ the README's badge (≥ 90 % brightgreen, ≥ 80 % green, ≥ 70 % yellow, ≥ 6
 which Semantic Release commits with the release. Two runs of `main` differ by a few dozen
 statements that only some runs reach (a cancellation, a retry): no change of coverage.
 
+### The UI's shards
+
+`internal/ui/fyneui`'s tests run as [`hack/shard`](../../hack/shard/main.go)'s shards, each a
+process of its own: CI's five race shards, the render tests' four in the no-race job, Windows' four,
+and locally `make test-ui` and `test-ui-race` in `UI_SHARDS` (eight). Every split is balanced by the
+tests' measured time in [`hack/shard/durations`](../../hack/shard/durations/): `fyneui-race.txt`
+under the race detector with coverage, as the race shards run, and `fyneui.txt` without it. The
+tests go longest first to the shard with the least time so far; a test a file lacks goes by a hash
+of its name, so a new test needs no change to a file or the workflow. A race shard's log names its
+share (`shard: <n> of <all> tests in shard 2 of 5, <seconds> s by hack/shard/durations/fyneui-race.txt`)
+and how many of its tests the file lacks.
+
+```sh
+go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -skip '^TestRender' \
+  -durations hack/shard/durations/fyneui-race.txt -of 5 -summary   # each race shard's tests and time
+make ui-durations                                                   # measure every test again, both files
+```
+
+`make ui-durations` runs every test of the package in `UI_SHARDS` shards, under the race detector
+with coverage and then without it, and rewrites both files from what `go test -json` reports; it
+writes nothing when a test fails. Refresh them, and commit both, when the shards' times drift apart.
+Why five race shards, and why each compiles its own test binary:
+[D-112](decisions.md#d-112-ci-and-test-time).
+
 ### Cyclomatic complexity
 
 `CYCLO_THRESHOLD` is a ratchet (the owner's decision): a change that makes the most complex function
@@ -66,7 +90,7 @@ refactoring of its own for it.
 ```sh
 make lint check-nodemo parity gosec vuln cyclo
 make test-norace-coverage                      # what the race build skips, and the UI's render tests
-make test-race-ui RACE_SHARD=3 RACE_SHARDS=8   # one shard; make test-ui-race runs all eight in parallel
+make test-race-ui RACE_SHARD=3 RACE_SHARDS=5   # one shard; make test-ui-race runs every UI test in UI_SHARDS shards
 make test-race-rest
 make kind-up && make test-kind                 # the cluster tests; make kind-down after
 make test-envtest                              # fetches the pinned binaries first

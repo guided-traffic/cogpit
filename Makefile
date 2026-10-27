@@ -113,25 +113,27 @@ test: test-unit-race ## All tests that need no cluster (race detector on); test-
 
 # The UI's package (internal/ui/fyneui) holds most of the tests' time, and its tests cannot run in
 # parallel within one process (one Fyne app at a time), so the local targets run it as hack/shard's
-# shards, each a go test run of its own, UI_JOBS at once (D-112): compiled once, then RACE_SHARDS shards,
-# whose results Go's test cache keeps.
+# shards, each a go test run of its own, UI_JOBS at once (D-112): compiled once, then UI_SHARDS shards
+# balanced by the tests' measured time (UI_DURATIONS, UI_RACE_DURATIONS; make ui-durations), whose
+# results Go's test cache keeps.
 # One process for the whole package took 344 s and 15.6 GB without the race detector (an M1 Ultra,
 # 2026-10-21; Fyne parses its fonts again for every test's app and go-text keeps every parsed face);
 # eight at once take about a fifth of the time. UI_JOBS empty: half the CPUs, and no more shards at
 # once than three quarters of the memory holds (about 3 GB a shard, 8 GB under the race detector).
 UI_JOBS         ?=
-UI_SHARD_RUN     = $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(RACE_SHARDS) -exec $(if $(UI_JOBS),-jobs $(UI_JOBS))
+UI_SHARDS       ?= 8
+UI_SHARD_RUN     = $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(UI_SHARDS) -exec $(if $(UI_JOBS),-jobs $(UI_JOBS))
 NOT_UI_PKGS      = $$($(GO) list ./... | grep -v -x -e 'github.com/guided-traffic/cogpit/internal/ui/fyneui')
 
-.PHONY: test-ui test-ui-race
+.PHONY: test-ui test-ui-race ui-durations
 
 # Both halves run, and the target fails at the end if either failed, as go test ./... reports every
 # package.
 test-unit: ## Unit tests without the race detector, the UI's package in parallel shards (UI_JOBS)
-	$(TEST_ENV) $(GO) test $(NOT_UI_PKGS); s=$$?; $(TEST_ENV) $(UI_SHARD_RUN) && exit $$s
+	$(TEST_ENV) $(GO) test $(NOT_UI_PKGS); s=$$?; $(TEST_ENV) $(UI_SHARD_RUN) -durations $(UI_DURATIONS) && exit $$s
 
-test-ui: ## internal/ui/fyneui's tests without the race detector, RACE_SHARDS shards, UI_JOBS at once
-	$(TEST_ENV) $(UI_SHARD_RUN)
+test-ui: ## internal/ui/fyneui's tests without the race detector, UI_SHARDS shards, UI_JOBS at once
+	$(TEST_ENV) $(UI_SHARD_RUN) -durations $(UI_DURATIONS)
 
 # The race detector makes the UI's tests (internal/ui/fyneui) take about 18 minutes in one process
 # (night run 2026-10-13) and more than 25 on CI's macOS runner; RACE_TIMEOUT bounds a package
@@ -140,10 +142,21 @@ RACE_TIMEOUT ?= 40m
 
 test-unit-race: test-fork ## Unit tests with the race detector, the terminal widget's included, the UI's package in parallel shards (UI_JOBS)
 	$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) $(NOT_UI_PKGS); s=$$?; \
-		$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) && exit $$s
+		$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -durations $(UI_RACE_DURATIONS) && exit $$s
 
-test-ui-race: ## internal/ui/fyneui's tests with the race detector, RACE_SHARDS shards, UI_JOBS at once
-	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT)
+test-ui-race: ## internal/ui/fyneui's tests with the race detector, UI_SHARDS shards, UI_JOBS at once
+	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -durations $(UI_RACE_DURATIONS)
+
+# The files that balance the UI's shards (hack/shard -durations): each test's seconds in its shard's
+# process, under the race detector with coverage as CI's race shards run it (UI_RACE_DURATIONS) and
+# without it (UI_DURATIONS), measured on this machine in UI_SHARDS shards. A test the files lack goes
+# to a shard by its name's hash, so they need a refresh only when the shards' times drift apart
+# (hack/shard -summary -durations sums each shard): make ui-durations, then commit both files.
+ui-durations: ## Measure internal/ui/fyneui's tests with and without the race detector into the files that balance the shards (UI_RACE_DURATIONS, UI_DURATIONS)
+	@mkdir -p $(CACHE)/durations
+	$(TEST_ENV) $(UI_SHARD_RUN) -race -timeout $(RACE_TIMEOUT) -coverdir $(CACHE)/durations -covername race \
+		$(if $(wildcard $(UI_RACE_DURATIONS)),-durations $(UI_RACE_DURATIONS)) -record $(UI_RACE_DURATIONS)
+	$(TEST_ENV) $(UI_SHARD_RUN) $(if $(wildcard $(UI_DURATIONS)),-durations $(UI_DURATIONS)) -record $(UI_DURATIONS)
 
 # The patched terminal widget (third_party/fyne-terminal, D-14) is a module of its own, which
 # go test ./... from the root leaves out: its tests and fuzz seeds run here, all of them under the
@@ -212,7 +225,8 @@ test-norace-coverage: ## The tests the race detector keeps from running and the 
 	@mkdir -p $(COVERAGE_DIR)
 	$(TEST_ENV) $(GO) test -timeout $(UNIT_TIMEOUT) -covermode=set -coverprofile=$(COVERAGE_DIR)/unit-logo.out ./internal/ui/logo
 	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -run '$(UI_RENDER_TESTS)' -of $(UI_RENDER_SHARDS) -exec \
-		-timeout $(UNIT_TIMEOUT) -coverdir $(COVERAGE_DIR) -covername unit-render $(if $(UI_JOBS),-jobs $(UI_JOBS))
+		-durations $(UI_DURATIONS) -timeout $(UNIT_TIMEOUT) -coverdir $(COVERAGE_DIR) -covername unit-render \
+		$(if $(UI_JOBS),-jobs $(UI_JOBS))
 	$(GO) run ./hack/shard -norace -pkg ./... > $(NORACE_LIST)
 	@while read -r pkg run; do \
 		name=$$(echo "$$pkg" | sed -e 's|^github.com/guided-traffic/cogpit/||' -e 's|/|-|g'); \
@@ -221,24 +235,28 @@ test-norace-coverage: ## The tests the race detector keeps from running and the 
 			-coverprofile=$(COVERAGE_DIR)/unit-$$name.out -run "$$run" $$pkg || exit 1; \
 	done < $(NORACE_LIST)
 
-# The UI's race tests in RACE_SHARDS shards: hack/shard assigns each test of internal/ui/fyneui to a
-# shard by a hash of its name, so a new test lands in one without a change here or in CI. The
-# number of shards is CI's (release.yml's matrix); locally any shard runs alone. The render tests
-# (UI_RENDER_TESTS) are left out before the split, so the others keep their shards: each paints a
-# scene with Fyne's software painter, pure Go on the test's goroutine, which the race detector
+# The UI's race tests in RACE_SHARDS shards, CI's race-ui jobs (release.yml's matrix; five, D-112);
+# locally any shard runs alone. hack/shard balances the tests of internal/ui/fyneui by their time
+# under the race detector (UI_RACE_DURATIONS) and places a test the file lacks by a hash of its
+# name, so a new test lands in a shard without a change here or in CI. The render tests
+# (UI_RENDER_TESTS) are left out before the split, the others balanced among themselves: each paints
+# a scene with Fyne's software painter, pure Go on the test's goroutine, which the race detector
 # instruments access by access, so that under it they took two thirds of the shards' time (1,411 of
 # 2,111 s for 262 of 1,139 tests, an M1 Ultra, 2026-10-27). A race only a render test reaches goes
 # unseen, a risk the behaviour tests keep small: they drive the same widgets under the race
 # detector. test-norace-coverage runs the render tests without it, with coverage, and Windows' UI
 # job with every other test.
-UI_PKG          := ./internal/ui/fyneui
-UI_RENDER_TESTS := ^TestRender
-RACE_SHARDS     ?= 8
-RACE_SHARD      ?= 1
+UI_PKG            := ./internal/ui/fyneui
+UI_RENDER_TESTS   := ^TestRender
+UI_DURATIONS      := hack/shard/durations/fyneui.txt
+UI_RACE_DURATIONS := hack/shard/durations/fyneui-race.txt
+RACE_SHARDS       ?= 5
+RACE_SHARD        ?= 1
 
 test-race-ui: ## Race tests of internal/ui/fyneui but its render tests, shard RACE_SHARD of RACE_SHARDS, with coverage (.cache/coverage/race-ui-<n>.out)
 	@mkdir -p $(COVERAGE_DIR)
-	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
+	@run="$$($(GO) run ./hack/shard -pkg $(UI_PKG) -tags race -skip '$(UI_RENDER_TESTS)' -durations $(UI_RACE_DURATIONS) \
+		-shard $(RACE_SHARD) -of $(RACE_SHARDS))" && test -n "$$run" && \
 		echo "$(GO) test -race $(UI_PKG) -run <shard $(RACE_SHARD) of $(RACE_SHARDS)>" && \
 		$(TEST_ENV) $(GO) test -race -timeout $(RACE_TIMEOUT) -covermode=atomic \
 			-coverprofile=$(COVERAGE_DIR)/race-ui-$(RACE_SHARD).out -run "$$run" $(UI_PKG)
@@ -989,7 +1007,8 @@ WINDOWS_UI_SHARDS ?= 4
 WINDOWS_UI_JOBS   ?= 2
 
 test-windows-ui: ## The window's tests (internal/ui/fyneui) on Windows, WINDOWS_UI_SHARDS shards, WINDOWS_UI_JOBS at once; CI's UI Tests (windows)
-	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(WINDOWS_UI_SHARDS) -jobs $(WINDOWS_UI_JOBS) -exec -timeout 20m
+	$(TEST_ENV) $(GO) run ./hack/shard -pkg $(UI_PKG) -of $(WINDOWS_UI_SHARDS) -jobs $(WINDOWS_UI_JOBS) -exec -timeout 20m \
+		-durations $(UI_DURATIONS)
 
 test-windows-package: ## Check the setup dist-windows built: a silent install for this user into a folder of its own, its files, versions and uninstall entry, then a silent uninstall (hack/windows/setup-test.sh); CI's job Windows Package
 	@n=$$(ls $(DIST)/windows/Cogpit-*-windows-*-setup.exe 2>/dev/null | wc -l); test "$$n" = 1 || { echo "dist/windows holds $$n setups: run make dist-windows VERSION=x.y.z first, once"; exit 1; }

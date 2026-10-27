@@ -1585,8 +1585,9 @@ with its own make target, and semantic-release publishes every `feat:` and `fix:
 | `make run`, `make run-demo` | run against the kind cluster, or the demo cluster |
 | `make app` | `bin/Cogpit.app` with Sparkle and `cogpit-cli` inside; `SPARKLE_PUBLIC_ED_KEY=<base64>` for an app that updates itself |
 | `make lint`, `make fmt` | golangci-lint v2.15.0 (built into `bin/`): the team's linters and the `depguard` layering; formatting |
-| `make test-unit`, `make test-unit-race` (`make test`) | every test that needs no cluster, without and with the race detector (the latter with `make test-fork`, the patched terminal widget's); `internal/ui/fyneui` as eight shards, `UI_JOBS` at once |
+| `make test-unit`, `make test-unit-race` (`make test`) | every test that needs no cluster, without and with the race detector (the latter with `make test-fork`, the patched terminal widget's); `internal/ui/fyneui` in `UI_SHARDS` (eight) shards balanced by the tests' measured time, `UI_JOBS` at once |
 | `make test-ui`, `make test-ui-race` | `internal/ui/fyneui` alone, sharded the same way ([D-112](decisions.md#d-112-ci-and-test-time)) |
+| `make ui-durations` | measures `internal/ui/fyneui`'s tests with and without the race detector into the files that balance its shards ([releasing › The UI's shards](releasing.md#the-uis-shards)) |
 | `make test-kind`, `make test-kind-drain`, `make test-envtest`, `make test-real` | cluster tests against the kind cluster, the drain cluster, envtest's API server, a real cluster you name (`REAL_KUBECONFIG`, `REAL_CONTEXT`; never in CI) |
 | `make test-norace-coverage`, `make test-race-ui`, `make test-race-rest`, `make test-darwin`, `make test-windows-unit`, `make test-windows-ui` | CI's test jobs ([releasing › CI](releasing.md#ci)) |
 | `make check-nodemo` | the release variant (CI's lint job): `internal/demo` in both binaries without `-tags nodemo` and in neither with it, the `nodemo` files linted with the tag, `TestNoDemoInARelease` ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |

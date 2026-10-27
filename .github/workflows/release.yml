@@ -182,19 +182,23 @@ jobs:
           include-hidden-files: true
           retention-days: 7
 
-  # The UI's tests under the race detector take 18 minutes on a Linux runner, so they run in
-  # shards: hack/shard assigns each test to one by a hash of its name, so a new test lands in a
-  # shard without a change here. The number of shards is the matrix's length (RACE_SHARDS). The
-  # render tests are left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the
-  # race detector); the unit tests run them without it.
+  # The UI's tests under the race detector take about 14 minutes of a Linux runner without the
+  # render tests, so they run in shards balanced by the tests' measured time: hack/shard places them
+  # by hack/shard/durations/fyneui-race.txt (make ui-durations) and a test the file lacks by a hash
+  # of its name, so a new test lands in a shard without a change here. Five shards (D-112): each
+  # shard's job spends about three minutes on its set-up and compile before its first test, so
+  # every shard fewer saves that much runner time, and five keep each shard's tests near two and a
+  # half minutes. The number of shards is the matrix's length (RACE_SHARDS). The render tests are
+  # left out (UI_RENDER_TESTS: pure-Go drawing, most of the shards' time under the race detector);
+  # the unit tests run them without it.
   race-ui:
-    name: Race Tests (UI ${{ matrix.shard }}/8)
+    name: Race Tests (UI ${{ matrix.shard }}/5)
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2, 3, 4, 5]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -204,8 +208,8 @@ jobs:
         with:
           cache: race-ui
 
-      - name: Race tests of internal/ui/fyneui, shard ${{ matrix.shard }} of 8
-        run: make test-race-ui RACE_SHARD=${{ matrix.shard }} RACE_SHARDS=8
+      - name: Race tests of internal/ui/fyneui, shard ${{ matrix.shard }} of 5
+        run: make test-race-ui RACE_SHARD=${{ matrix.shard }} RACE_SHARDS=5
 
       - name: Upload the coverage profile
         uses: actions/upload-artifact@v7

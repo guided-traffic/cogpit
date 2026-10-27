@@ -119,7 +119,7 @@ Beside the path to beta:
     upstream follow after the app ([PATCHES.md](../../third_party/fyne-terminal/PATCHES.md)).
     [fyne#6620](https://github.com/fyne-io/fyne/pull/6620), the fix for the fonts a font cache clear
     leaves alive ([fyne#6619](https://github.com/fyne-io/fyne/issues/6619)), waits for review; once a
-    Fyne release carries it, the UI test shards are measured again.
+    Fyne release carries it, the UI test shards are measured again (`make ui-durations`).
 13. **Postponed and deferred:** several windows
     ([D-52](../developer/decisions.md#d-52-several-windows): model (a) is the direction, the design
     questions are open). Until the feature is taken up: OCI registries and `helm registry login`

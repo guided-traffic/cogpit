@@ -120,7 +120,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-109](#d-109-the-menus-in-the-top-bar-on-windows-and-linux) | The menus in the top bar on Windows and Linux | built: menu titles in Cogpit's top bar, native title bar |
 | [D-110](#d-110-dark-cockpit-cogpits-design-language) | Dark Cockpit, Cogpit's design language | built: Dark Cockpit replaces Solarized; first outlook topic open |
 | [D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle) | Cogpit for Windows: an NSIS setup and WinSparkle | built: per-user NSIS setup, WinSparkle updates, x64 |
-| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, sharded UI tests; two items open |
+| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time; two items open |
 | [D-113](#d-113-image-grades-shields-from-trivys-reports) | Image grades, shields from Trivy's reports | built: S–E and N/A shields; D/E thresholds provisional |
 | [D-114](#d-114-a-failed-connects-error-page-and-its-stages) | A failed connect's error page and its stages | built: error page with the connect's stages |
 | [D-115](#d-115-a-dock-tab-the-user-opens-takes-the-keys) | A dock tab the user opens takes the keys | built: user-opened dock tabs take the keyboard |
@@ -4215,8 +4215,19 @@ CI and local test runs are kept short at the same coverage.
 - **The UI's tests in parallel shards:** `internal/ui/fyneui`'s tests cannot share a process (one
   Fyne app at a time); `hack/shard -exec` compiles them once and runs the shards as processes of their
   own, `UI_JOBS` at once (default: half the CPUs, at most what three quarters of the memory holds at
-  about 3 GB a shard, 8 GB under the race detector): `make test-ui`, `test-ui-race`, `test-unit`,
-  `test-unit-race`. On Windows four shards, two at once (`make test-windows-ui`; 4 CPUs, 16 GB).
+  about 3 GB a shard, 8 GB under the race detector), `UI_SHARDS` (eight) of them for `make test-ui`,
+  `test-ui-race`, `test-unit` and `test-unit-race`. On Windows four shards, two at once (`make
+  test-windows-ui`; 4 CPUs, 16 GB).
+- **Shards balanced by measured time:** every split of the UI's tests (CI's race shards, the render
+  tests' shards, Windows', the local targets) reads a durations file of
+  [`hack/shard/durations`](../../hack/shard/durations/), each test's seconds under the race detector
+  with coverage (`fyneui-race.txt`) or without it (`fyneui.txt`), as `make ui-durations` measures
+  them. The tests go longest first to the shard with the least time so far, each counting at least
+  a hundredth of a second; a test the file lacks goes by its name's hash, so a new test needs no
+  refresh.
+- **Five race shards on CI** (`RACE_SHARDS`, the race-ui matrix), each a fifth of the race tests'
+  time.
+- **No job that builds the race test binary once** for the shards: each shard compiles its own.
 - **Render tests** encode a PNG only for `-update` or `COGPIT_PNG_DIR`; the capture, which paints
   every renderer, is the check (`writePNG`).
 - **The logo's tile** is drawn once per pixel size and shared (`logoTile`).
@@ -4228,19 +4239,32 @@ CI and local test runs are kept short at the same coverage.
 - **Linux runners:** the organisation's self-hosted ones; the repository variable `LINUX_RUNNER`
   names others (GitHub's hosted runners take load off the shared machine but do not shorten a run).
 
-**Open:** one job building the UI's race test binary for all shards (each builds its own); six
-shards instead of eight, or shards balanced by measured duration; a runner image that carries Fyne's
-build dependencies; lint and GoSec of the Windows-only files.
+**Open:** a runner image that carries Fyne's build dependencies, and with it one job building the
+UI's race test binary for all shards; lint and GoSec of the Windows-only files.
 
 **Why:** Job set-up (checkout, Go, a slow cache restore, apt) and a full second pass without the race
 detector, which covered about 0.3 % of statements no race run covered, took most of a run. In one
 process the UI tests' garbage collection dominated as the heap grew; shards in processes of their own
-keep heaps small. A higher `GOGC` bought little time for much more memory.
+keep heaps small. A higher `GOGC` bought little time for much more memory. Measured times split the
+race tests evenly where a hash of the names did not (66 to 163 s of tests across eight shards on
+CI), so fewer shards need not make the longest one longer. A race-ui job spends about three minutes
+before its first test (checkout, Go, the 500 MB build cache, the modules, the compile), and every
+shard fewer saves that: five balanced shards hold about 155 s of tests each, a fifth of the 760 to
+775 s the race tests take without the render tests (an M1 Ultra, 815 s on CI; one shard alone took
+158 s, none more than 4.1 GB), about the 163 s of the longest hashed shard on CI; four would hold
+about 190 s each, six would spend three minutes more on set-up. A job building the race test binary
+once for the shards (about 95 MB compressed) would spare each shard Go, the cache and the compile,
+but not the libraries the cgo binary links (OpenGL, X11, Wayland, xkbcommon), which apt installs
+while Go sets up: each shard would wait for apt instead, after a second wait for a runner behind the
+build job. With a runner image that carries the libraries, a shard's set-up would shrink to the
+checkout and the download.
 
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
-[`hack/shard`](../../hack/shard/main.go), [`render_test.go`](../../internal/ui/fyneui/render_test.go)
-`writePNG`, [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · 
-`TestSplitIsStableAndComplete`, `TestSelection`, `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestDefaultJobs`
+[`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
+[`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
+[`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · `TestSplitIsStableAndComplete`,
+`TestSplitBalancesByDurations`, `TestDurationsFile`, `TestReadTestJSON`, `TestSelection`,
+`TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestExecShardsRecordsTimes`, `TestDefaultJobs`
 
 ## D-113: Image grades, shields from Trivy's reports
 

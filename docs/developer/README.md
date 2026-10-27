@@ -61,7 +61,7 @@ cogpit/
 ├─ hack/
 │  ├─ kind/                   the kind clusters, their seed and optional stacks (make kind-up, kind-drain-up, kind-prometheus …; README.md)
 │  ├─ envtest/                fetch.sh: envtest's etcd and kube-apiserver, pinned by SHA-512 (make envtest-bin)
-│  ├─ shard/                  the UI's tests in shards (make test-ui, test-ui-race, CI's test-race-ui) and the tests -race skips (make test-norace-coverage)
+│  ├─ shard/                  the UI's tests in shards balanced by durations/ (make test-ui, test-ui-race, CI's test-race-ui; make ui-durations) and the tests -race skips (make test-norace-coverage)
 │  ├─ coverage/               merges coverage profiles into the badge and the summary (make coverage-report)
 │  ├─ parity/                 checks the parity checklists and their numbers (make parity); go run ./hack/parity writes docs/parity/parity-checklist.md
 │  ├─ scorecard/              make scorecard: the performance and API-load budgets measured into docs/parity/scorecard.md

@@ -1,29 +1,35 @@
-// Command shard splits one package's tests into stable shards for CI's sharded race jobs
+// Command shard splits one package's tests into shards for CI's sharded race jobs
 // (docs/developer/releasing.md#ci). It reads the package's top-level tests, examples and fuzz
 // targets from the test files the build would compile (go list with the given tags decides which
-// files count), assigns each name to a shard by an FNV-1a hash of the name, and prints the -run
-// pattern of one shard. A test added later lands in a shard without a change to the workflow, and a
-// name keeps its shard as long as the number of shards stays the same.
+// files count), assigns each name to a shard, and prints the -run pattern of one shard. With
+// -durations, a durations file of the package's measured tests (make ui-durations), the tests it
+// holds go longest first to the shard with the least time so far, which balances the shards' time;
+// a test it lacks, or every test without one, goes by an FNV-1a hash of its name. A test added
+// later lands in a shard without a change to the workflow; the split depends on the names, the
+// file and the number of shards only, so every shard's job computes the same one.
 //
 // -run and -skip narrow the tests before the split, as go test's flags of those names select
-// top-level tests, so the tests they leave keep their shards (the race jobs leave the render tests
-// to a run without the race detector: make test-race-ui and test-norace-coverage).
+// top-level tests (the race jobs leave the render tests to a run without the race detector: make
+// test-race-ui and test-norace-coverage); the tests they leave are balanced among themselves.
 //
 // With -exec it runs the shards itself: it compiles the package's tests once and runs every shard
 // as a go test run of its own, -jobs of them at once (make test-ui; docs/developer/releasing.md).
 // With -norace it prints, a line per package, the -run pattern of the tests the race detector keeps
 // from running, for the job that runs them without it (make test-norace-coverage).
 //
+// With -exec -record it runs the shards with go test -json and writes every test's time to a
+// durations file (make ui-durations).
+//
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -shard 2 -of 6   # the -run pattern of shard 2
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -tags race -of 6 -summary   # the tests per shard
-//	go run ./hack/shard ... -summary -durations race.json                     # and their time, from go test -json
+//	go run ./hack/shard ... -summary -durations hack/shard/durations/fyneui-race.txt  # balanced, with their time
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -of 8 -jobs 8 -exec         # run all eight shards, eight at once
 //	go run ./hack/shard -pkg ./internal/ui/fyneui -run '^TestRender' -of 4 -exec  # only the render tests, in four
+//	go run ./hack/shard -pkg ./internal/ui/fyneui -of 8 -exec -record d.txt   # measure every test into d.txt
 //	go run ./hack/shard -pkg ./... -norace                                    # per package, the tests -race keeps from running
 package main
 
 import (
-	"bufio"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -31,7 +37,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"hash/fnv"
 	"io"
 	"os"
 	"os/exec"
@@ -50,13 +55,14 @@ func main() {
 	shard := flag.Int("shard", 0, "the shard to print the -run pattern of, 1 to -of")
 	of := flag.Int("of", 0, "the number of shards")
 	summary := flag.Bool("summary", false, "print the number of tests per shard instead of a pattern")
-	durations := flag.String("durations", "", "with -summary: a go test -json file of the package, to sum each shard's time")
+	durations := flag.String("durations", "", "a durations file of the package's tests (make ui-durations): balance the shards by their time")
 	norace := flag.Bool("norace", false, "print, a line per package of -pkg, the package and the -run pattern of its tests the race detector keeps from running")
 	run := flag.Bool("exec", false, "build the test binary once and run every shard, -jobs at once")
 	jobs := flag.Int("jobs", 0, "with -exec: how many shards run at once (0: as many as the CPUs and the memory allow)")
 	race := flag.Bool("race", false, "with -exec: build with the race detector (and split the files of the race build)")
 	timeout := flag.Duration("timeout", 30*time.Minute, "with -exec: each shard's -test.timeout")
 	cover := flag.String("coverdir", "", "with -exec: build with coverage and write each shard's profile to <dir>/<name>-<n>.out")
+	record := flag.String("record", "", "with -exec: run the shards with go test -json and write every test's time to this durations file")
 	coverName := flag.String("covername", "shard", "with -coverdir: the profiles' name before -<n>.out")
 	runRE := flag.String("run", "", "split only the tests whose name matches this regular expression, as go test -run selects a top-level test")
 	skipRE := flag.String("skip", "", "leave out the tests whose name matches this regular expression, as go test -skip does a top-level test")
@@ -67,9 +73,13 @@ func main() {
 		fmt.Fprintln(os.Stderr, "shard:", err)
 		os.Exit(2)
 	}
+	if *record != "" && !*run {
+		fmt.Fprintln(os.Stderr, "shard: -record needs -exec")
+		os.Exit(2)
+	}
 	if *norace {
-		if sel.narrows() {
-			fmt.Fprintln(os.Stderr, "shard: -norace takes neither -run nor -skip")
+		if sel.narrows() || *durations != "" {
+			fmt.Fprintln(os.Stderr, "shard: -norace takes none of -run, -skip and -durations")
 			os.Exit(2)
 		}
 		if *pkg == "" {
@@ -89,6 +99,13 @@ func main() {
 		fmt.Fprintf(os.Stderr, "shard: %d tests in %d packages of %s run only without the race detector\n", n, len(kept), *pkg)
 		return
 	}
+	times := map[string]time.Duration{}
+	if *durations != "" {
+		if times, err = readDurationsFile(*durations); err != nil {
+			fmt.Fprintln(os.Stderr, "shard:", err)
+			os.Exit(2)
+		}
+	}
 	if *run {
 		if *pkg == "" || *of < 1 || *jobs < 0 {
 			fmt.Fprintln(os.Stderr, "shard: -exec needs -pkg, -of >= 1 and -jobs >= 0")
@@ -101,7 +118,8 @@ func main() {
 			*jobs = defaultJobs(*race, totalMemory())
 		}
 		ok, err := execShards(execConfig{pkg: *pkg, tags: *tags, sel: sel, race: *race, of: *of, jobs: *jobs,
-			timeout: *timeout, coverDir: *cover, coverName: *coverName}, os.Stdout)
+			timeout: *timeout, coverDir: *cover, coverName: *coverName, times: times, durations: *durations,
+			record: *record}, os.Stdout)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "shard:", err)
 			os.Exit(2)
@@ -125,15 +143,8 @@ func main() {
 		fmt.Fprintf(os.Stderr, "shard: %s has no tests%s\n", *pkg, sel)
 		os.Exit(1)
 	}
-	shards := split(names, *of)
+	shards := split(names, *of, times)
 	if *summary {
-		times := map[string]float64{}
-		if *durations != "" {
-			if times, err = readDurations(*durations); err != nil {
-				fmt.Fprintln(os.Stderr, "shard:", err)
-				os.Exit(2)
-			}
-		}
 		printSummary(os.Stdout, shards, times)
 		return
 	}
@@ -144,20 +155,23 @@ func main() {
 		fmt.Println("^$")
 		return
 	}
-	fmt.Fprintf(os.Stderr, "shard: %d of %d tests in shard %d of %d\n", len(mine), len(names), *shard, *of)
+	fmt.Fprintf(os.Stderr, "shard: %d of %d tests in shard %d of %d%s\n", len(mine), len(names), *shard, *of,
+		balance(mine, times, *durations))
 	fmt.Println(pattern(mine))
 }
 
-// split assigns every name to one of n shards by its hash; each shard keeps the names' order.
-func split(names []string, n int) [][]string {
-	shards := make([][]string, n)
-	for _, name := range names {
-		h := fnv.New32a()
-		_, _ = h.Write([]byte(name))
-		i := int(h.Sum32() % uint32(n))
-		shards[i] = append(shards[i], name)
+// balance describes a shard's measured time for a message: empty without a durations file, else
+// ", <seconds> s by <file>" and how many of its tests the file lacks.
+func balance(names []string, times map[string]time.Duration, file string) string {
+	if file == "" {
+		return ""
 	}
-	return shards
+	sum, unknown := shardTime(names, times)
+	s := fmt.Sprintf(", %.0f s by %s", sum.Seconds(), file)
+	if unknown > 0 {
+		s += fmt.Sprintf(" (%d not in it, placed by their name's hash)", unknown)
+	}
+	return s
 }
 
 // pattern is the -run pattern that matches exactly the given top-level names (their subtests
@@ -292,46 +306,26 @@ func isTest(name, prefix string) bool {
 	return !unicode.IsLower(r)
 }
 
-// readDurations sums the elapsed seconds of each top-level test in a go test -json file.
-func readDurations(path string) (map[string]float64, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	times := map[string]float64{}
-	sc := bufio.NewScanner(f)
-	sc.Buffer(make([]byte, 1<<20), 1<<24)
-	for sc.Scan() {
-		var ev struct {
-			Action  string
-			Test    string
-			Elapsed float64
-		}
-		if json.Unmarshal(sc.Bytes(), &ev) != nil || ev.Test == "" || strings.Contains(ev.Test, "/") {
-			continue
-		}
-		if ev.Action == "pass" || ev.Action == "fail" || ev.Action == "skip" {
-			times[ev.Test] = ev.Elapsed
-		}
-	}
-	return times, sc.Err()
-}
-
-func printSummary(w io.Writer, shards [][]string, times map[string]float64) {
+// printSummary prints a line per shard: its number of tests and, with times, their sum, the
+// longest of them and how many the times lack.
+func printSummary(w io.Writer, shards [][]string, times map[string]time.Duration) {
 	for i, names := range shards {
-		var sum, longest float64
-		slowest := ""
-		for _, n := range names {
-			sum += times[n]
-			if times[n] > longest {
-				longest, slowest = times[n], n
-			}
-		}
 		if len(times) == 0 {
 			fmt.Fprintf(w, "shard %d: %d tests\n", i+1, len(names))
 			continue
 		}
-		fmt.Fprintf(w, "shard %d: %d tests, %.0f s (longest %s, %.0f s)\n", i+1, len(names), sum, slowest, longest)
+		sum, unknown := shardTime(names, times)
+		var longest time.Duration
+		slowest := "none"
+		for _, n := range names {
+			if d, ok := times[n]; ok && (d > longest || slowest == "none") {
+				longest, slowest = d, n
+			}
+		}
+		line := fmt.Sprintf("shard %d: %d tests, %.0f s (longest %s, %.0f s)", i+1, len(names), sum.Seconds(), slowest, longest.Seconds())
+		if unknown > 0 {
+			line += fmt.Sprintf(", %d without a time", unknown)
+		}
+		fmt.Fprintln(w, line)
 	}
 }
