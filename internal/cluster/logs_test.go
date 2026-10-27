@@ -54,6 +54,16 @@ func TestStreamLogsPassesOptions(t *testing.T) {
 
 func TestStreamLogsDefaultsTail(t *testing.T) {
 	client := fake.NewClientset()
+	// The log reactor keeps the request off the object tracker's fallback, which formats the
+	// action into an error it then drops, and in doing so calls String on the options' nil
+	// SinceTime: a nil-pointer fault that fmt recovers. On Windows hosts with AMX that fault's
+	// exception frame overruns the goroutine's stack and corrupts the heap (golang/go#81238).
+	client.PrependReactor("get", "pods", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		if action.GetSubresource() != "log" {
+			return false, nil, nil
+		}
+		return true, &runtime.Unknown{Raw: []byte("line 1\n")}, nil
+	})
 	c := &Conn{kube: client}
 	stream, err := c.StreamLogs(context.Background(), LogOptions{Namespace: "shop", Pod: "web-0"})
 	if err != nil {
