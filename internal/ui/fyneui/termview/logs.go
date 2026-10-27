@@ -26,7 +26,7 @@ const (
 	logScrollback   = 10_000                 // lines kept
 	logMaxBytes     = 32 << 20               // bytes kept over all lines; the oldest go first
 	logMaxLineBytes = 64 << 10               // longer lines are cut here
-	logFlushEvery   = 100 * time.Millisecond // at most one UI update per interval
+	logFlushPeriod  = 100 * time.Millisecond // at most one UI update per interval
 	logTabWidth     = 8
 	// logMaxShownBytes bounds the text one row renders. It is wider than any screen (the row is
 	// clipped anyway), and measuring a 64 KiB line on every refresh would cost the main goroutine.
@@ -35,6 +35,9 @@ const (
 
 // truncatedMark ends a line cut at logMaxLineBytes.
 const truncatedMark = " …"
+
+// logFlushEvery is the flusher's interval, logFlushPeriod; the package's tests shorten it.
+var logFlushEvery = logFlushPeriod
 
 // Logs shows a log stream, following it by default.
 //
@@ -398,7 +401,7 @@ func (l *Logs) startReading() {
 		return
 	}
 	go l.read()
-	go l.flush()
+	go l.flush(logFlushEvery)
 }
 
 // read splits the stream into cleaned lines.
@@ -444,17 +447,17 @@ func (l *Logs) add(line string) {
 	l.mu.Unlock()
 }
 
-// flush publishes queued lines to the main goroutine at most every logFlushEvery. It waits for
-// each update to finish, so a slow main goroutine slows the flusher down instead of queueing
-// updates; the reader keeps reading and the bounded queue drops the oldest lines.
-func (l *Logs) flush() {
+// flush publishes queued lines to the main goroutine at most once per interval. It waits for each
+// update to finish, so a slow main goroutine slows the flusher down instead of queueing updates;
+// the reader keeps reading and the bounded queue drops the oldest lines.
+func (l *Logs) flush(interval time.Duration) {
 	defer close(l.flushed)
 	defer func() {
 		if r := recover(); r != nil {
 			slog.Error("termview: log flusher panicked", "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
 		}
 	}()
-	tick := time.NewTicker(logFlushEvery)
+	tick := time.NewTicker(interval)
 	defer tick.Stop()
 	var shownReceived int64
 	for {

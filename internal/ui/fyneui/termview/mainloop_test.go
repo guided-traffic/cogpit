@@ -9,7 +9,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -50,8 +49,7 @@ func useMainLoop(tb testing.TB) *mainLoop {
 	fyne.SetCurrentApp(&mainLoopApp{App: app, loop: loop})
 	go loop.run()
 	tb.Cleanup(func() {
-		time.Sleep(400 * time.Millisecond) // a bell clears itself after 300 ms
-		loop.do(func() {})
+		loop.flush()
 		fyne.SetCurrentApp(prev)
 		if n := loop.waitedOnLoop.Load(); n > 0 {
 			tb.Errorf("fyne.DoAndWait called %d times on the main goroutine: a release build (Fyne's thread check off) never returns from it", n)

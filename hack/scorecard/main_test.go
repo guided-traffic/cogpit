@@ -77,7 +77,7 @@ func line(budget, test string, value, limit float64, bound scorecard.Bound) scor
 // its reason; testing.md's links become their text.
 func TestRenderJudgesEachBudget(t *testing.T) {
 	budgets := []budget{
-		{id: "P1", scenario: "Open a context ([D-1](decisions.md#d-1))", target: "≤ 1 s"},
+		{id: "P1", scenario: "Open a context ([D-1](decisions.md#d-1-ui-toolkit))", target: "≤ 1 s"},
 		{id: "P2", scenario: "Sort", target: "≤ 50 ms"},
 		{id: "P3", scenario: "Scroll", target: "every frame ≤ 16 ms"},
 		{id: "P5", scenario: "Logs", target: "no frame over 16 ms"},

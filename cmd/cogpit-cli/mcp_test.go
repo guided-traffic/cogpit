@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"net"
 	"os"
 	"path/filepath"
 	"strings"
@@ -234,13 +233,9 @@ func TestMCPForwardsToTheRunningApp(t *testing.T) {
 func TestMCPStaleFilesServeHeadless(t *testing.T) {
 	te := newTestEnv(t)
 	te.switchMCPOn(t)
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatal(err)
-	}
-	addr := ln.Addr().String()
-	_ = ln.Close()
-	writeAppFiles(t, te, "http://"+addr+"/mcp")
+	// Port 1 is closed, and below 1024 no test process can bind it; a freed ephemeral port can be
+	// bound again by another package's tests meanwhile.
+	writeAppFiles(t, te, "http://127.0.0.1:1/mcp")
 
 	cs, stop := te.serveMCP(t)
 	var ctxs []engine.ContextInfo

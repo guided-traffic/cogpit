@@ -284,7 +284,9 @@ func TestFishKubectlFirstAfterTheConfig(t *testing.T) {
 		t.Skip("no fish")
 	}
 	files := map[string]string{".config/fish/config.fish": "set -gx PATH SHADOW $PATH\nset -gx COGPIT_TEST_PROFILE ran\nalias kubectl SHADOW/kubectl\n"}
-	home := shellKubectlScene(t, fish, files, nil, true)
+	// fish 4.1 and later query the terminal at start and wait ten seconds for an answer, which
+	// Cogpit's widget gives and the test's recorder does not.
+	home := shellKubectlScene(t, fish, files, []string{"fish_features=no-query-term"}, true)
 	if got := readTrimmed(t, filepath.Join(home, "which.txt")); got != "cogpit-kubectl" {
 		t.Errorf("fish: kubectl is %q", got)
 	}

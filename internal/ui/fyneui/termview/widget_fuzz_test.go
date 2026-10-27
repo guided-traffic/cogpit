@@ -35,8 +35,7 @@ type rawRun struct {
 	sess     *fakeSession
 	failed   chan string
 	returned chan struct{}
-	what     string    // what the input was, for failures
-	rang     time.Time // when the widget last processed a chunk with a bell (BEL) in it
+	what     string // what the input was, for failures
 }
 
 // startRaw shows a bare widget in a window of the given size on loop and starts
@@ -83,9 +82,6 @@ func (r *rawRun) feed(chunk []byte, step string) {
 	r.t.Helper()
 	r.sess.chunks <- chunk
 	r.await(step)
-	if strings.Contains(string(chunk), "\a") {
-		r.rang = time.Now()
-	}
 }
 
 // end closes the widget on the main loop as termview does, ends the session's output, waits for
@@ -107,13 +103,7 @@ func (r *rawRun) end() {
 	if msg := r.loop.panicked(); msg != "" {
 		r.t.Fatalf("%s: %s", r.what, msg)
 	}
-	// A bell clears itself 300 ms after it rang and refreshes the view (ringBell), which fills the
-	// grid from the terminal's rows again and, with a blinking cell among them, starts the blink
-	// timer again. That has to be over before the renderers are released, or the refresh runs on
-	// the main loop while the test's cleanups destroy the renderers on the test's goroutine.
-	if !r.rang.IsZero() {
-		time.Sleep(time.Until(r.rang.Add(400 * time.Millisecond)))
-	}
+	// A bell that clears itself after the Close leaves the closed widget alone (ringBell).
 	// Refreshes queue more work on the main loop: it has to be done before the renderers are
 	// collected, or it makes them again after the test has dropped them.
 	r.loop.flush()

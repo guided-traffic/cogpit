@@ -60,19 +60,16 @@ func TestCuratedGolden(t *testing.T) {
 }
 
 func TestCuratedTypeConfusion(t *testing.T) {
+	if raceEnabled {
+		t.Skip("one goroutine: the build without the race detector runs it (make test-norace-coverage)")
+	}
 	for _, p := range kinds.Curated() {
 		for _, c := range loadCases(t, p.Key) {
-			var paths [][]any
-			collectPaths(c.obj.Object, nil, &paths)
-			for _, path := range paths {
-				for _, v := range hostile {
-					obj := c.obj.DeepCopy()
-					setPath(obj.Object, path, v)
-					if err := exercise(p, obj); err != nil {
-						t.Errorf("%s/%s with %v = %#v: %v", p.Key, c.name, path, v, err)
-					}
+			confuse(t, p.Key+"/"+c.name, c.obj, func(path []any, v any) {
+				if err := exercise(p, c.obj); err != nil {
+					t.Errorf("%s/%s with %v = %#v: %v", p.Key, c.name, path, v, err)
 				}
-			}
+			})
 		}
 	}
 }

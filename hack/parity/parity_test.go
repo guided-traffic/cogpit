@@ -46,7 +46,7 @@ func TestHasEvidence(t *testing.T) {
 		"`TestThing/sub_case`":                           true,
 		"issue #12":                                      true,
 		"[PNG](../../internal/ui/testdata/a.png)":        true,
-		"see [decisions](../developer/decisions.md#d-1)": false,
+		"see [decisions](../developer/decisions.md#d-1-ui-toolkit)": false,
 		"`$KUBECONFIG` only":                             false,
 		"[Lens](https://docs.lenshq.io/)":                false,
 		"–":                                              false,

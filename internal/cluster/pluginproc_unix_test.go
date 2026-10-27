@@ -27,12 +27,33 @@ func startChild(t *testing.T, setpgid bool, name string, args ...string) *exec.C
 	return cmd
 }
 
+// quietSearches waits until no plugin run of an earlier test that is still under way began within
+// searchWindow: a search with such a neighbour may take the neighbour's process for its own.
+func quietSearches(t *testing.T) {
+	t.Helper()
+	for {
+		now := time.Now()
+		var wait time.Duration
+		searches.mu.Lock()
+		for _, o := range searches.recent {
+			if o.ended.IsZero() || o.ended.After(now) {
+				wait = max(wait, searchWindow-now.Sub(o.at))
+			}
+		}
+		searches.mu.Unlock()
+		if wait <= 0 {
+			return
+		}
+		time.Sleep(wait)
+	}
+}
+
 // WF38: a wrapper that replaces itself with the login program (exec) is found as the child that
 // appeared at the run's begin, and keeps its identity (number and start time) after the exec; a
 // child in a process group of its own (a terminal's shell) that starts alongside is not taken for
 // it, and neither is a child older than the run.
 func TestSearchFindsAWrapperAfterItsExec(t *testing.T) {
-	time.Sleep(searchWindow) // no other test's run began within the search's window
+	quietSearches(t)
 	older := startChild(t, false, "/bin/sleep", "900")
 	dir := t.TempDir()
 	wrapper := filepath.Join(dir, "wrapper")
@@ -108,7 +129,7 @@ func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
 	if err != nil {
 		t.Skip("no perl to leave the process group with")
 	}
-	time.Sleep(searchWindow) // no other test's run began within the search's window
+	quietSearches(t)
 	stop := make(chan struct{})
 	defer close(stop)
 	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, childSet())

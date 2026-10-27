@@ -416,7 +416,8 @@ func TestTerminalFilterNeutralisesHazards(t *testing.T) {
 	sess.feed(t, "\x1b]52;c;"+strings.Repeat("QUFB", 1000)+"\x07")
 	start := time.Now()
 	sess.feed(t, "x\x1b[999999999b") // clamped to 9999 repeats
-	if d := time.Since(start); d > 2*time.Second {
+	// Timed without the race detector only; TestEscFilter asserts the clamp itself.
+	if d := time.Since(start); d > 2*time.Second && !raceEnabled {
 		t.Errorf("a huge repeat count took %v", d)
 	}
 	sess.feed(t, "\r\nstill alive")

@@ -5,6 +5,7 @@ package terminal
 import (
 	"context"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -106,12 +107,34 @@ func TestKindPodExec(t *testing.T) {
 	if err := sess.Resize(100, 30); err != nil {
 		t.Fatalf("Resize: %v", err)
 	}
-	// Give the resize message a moment to reach the container's TTY before asking for it.
-	time.Sleep(300 * time.Millisecond)
-	if _, err := sess.Write([]byte("stty size\n")); err != nil {
-		t.Fatal(err)
+	// The resize and the typed line travel on streams of their own: ask again, once the last
+	// answer came, until the container's TTY has the new size.
+	sizes := regexp.MustCompile(`\n(\d+ \d+)\r`)
+	deadline := time.Now().Add(15 * time.Second)
+	answer := func(n int) string { // stty's n-th answer, once it came
+		t.Helper()
+		for {
+			if m := sizes.FindAllStringSubmatch(out.String(), -1); len(m) >= n {
+				return m[n-1][1]
+			}
+			if time.Now().After(deadline) {
+				t.Fatalf("stty size did not answer; output:\n%s", out.String())
+			}
+			time.Sleep(20 * time.Millisecond)
+		}
 	}
-	out.waitFor(t, "\n30 100\r", 15*time.Second)
+	for asked := 1; ; asked++ {
+		if _, err := sess.Write([]byte("stty size\n")); err != nil {
+			t.Fatal(err)
+		}
+		if answer(asked) == "30 100" {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the TTY kept its old size; output:\n%s", out.String())
+		}
+		time.Sleep(100 * time.Millisecond) // a pause between asks, not their order
+	}
 
 	if err := sess.Close(); err != nil {
 		t.Errorf("Close: %v", err)

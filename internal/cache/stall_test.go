@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -153,6 +154,9 @@ func (w *testWatch) send(ev watch.Event) bool {
 	}
 }
 
+// testStall is the tests' stall bound. They run in testing/synctest bubbles, where it is the
+// bubble's time: a goroutine the race detector or a loaded runner holds up cannot look like a
+// silent stream, and a sleep that shows nothing more happens costs no time.
 const testStall = 100 * time.Millisecond
 
 // told is what a cache told of its reads: its diagnostics and its stalls.
@@ -234,55 +238,56 @@ func TestStalledStreamLists(t *testing.T) {
 		{name: "no answer", mode: stallUnanswered},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			src := newStallSource(map[string]stallMode{"team-a": tc.mode, "team-b": stallHealthy})
-			c, got := newStallCache(t, src, cache.Options{})
-			a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
-			h := c.Acquire(a)
-			defer h.Release()
-			start := time.Now()
-			syncs(t, h)
-			if took := time.Since(start); took > 2*time.Second {
-				t.Errorf("synced after %v; the stall bound is %v", took, testStall)
-			}
-			if !c.Listing() {
-				t.Error("the cache does not list after a stall")
-			}
-			if got := initialOf(c, a); got != cache.InitialFallback {
-				t.Errorf("initial = %q, want %q", got, cache.InitialFallback)
-			}
-			if _, ok := h.Get("team-a", "web-0"); !ok {
-				t.Error("the listed pod is not in the store")
-			}
-			if h.Err() != nil {
-				t.Errorf("a stall shows as the read's error: %v", h.Err())
-			}
-			waitFor(t, func() bool { return len(got.stalled()) > 0 })
-			st := got.stalled()[0]
-			// An in-memory list answers at once: Windows' clock measures it as 0 (main's run, 2026-10-26).
-			if st.Scope != a || st.ListErr != nil || st.Listed < 0 || st.Listed > time.Second {
-				t.Errorf("stall = %+v", st)
-			}
-			var stall *cache.StreamStallError
-			if !errors.As(st.Err, &stall) || stall.Answered != tc.answered || stall.Objects != tc.objects || stall.Silent != testStall {
-				t.Errorf("stall = %+v", st.Err)
-			}
+			synctest.Test(t, func(t *testing.T) {
+				src := newStallSource(map[string]stallMode{"team-a": tc.mode, "team-b": stallHealthy})
+				c, got := newStallCache(t, src, cache.Options{})
+				a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+				h := c.Acquire(a)
+				defer h.Release()
+				start := time.Now()
+				syncs(t, h)
+				if took := time.Since(start); took > 2*time.Second {
+					t.Errorf("synced after %v; the stall bound is %v", took, testStall)
+				}
+				if !c.Listing() {
+					t.Error("the cache does not list after a stall")
+				}
+				if got := initialOf(c, a); got != cache.InitialFallback {
+					t.Errorf("initial = %q, want %q", got, cache.InitialFallback)
+				}
+				if _, ok := h.Get("team-a", "web-0"); !ok {
+					t.Error("the listed pod is not in the store")
+				}
+				if h.Err() != nil {
+					t.Errorf("a stall shows as the read's error: %v", h.Err())
+				}
+				waitFor(t, func() bool { return len(got.stalled()) > 0 })
+				st := got.stalled()[0]
+				if st.Scope != a || st.ListErr != nil || st.Listed < 0 || st.Listed > time.Second {
+					t.Errorf("stall = %+v", st)
+				}
+				var stall *cache.StreamStallError
+				if !errors.As(st.Err, &stall) || stall.Answered != tc.answered || stall.Objects != tc.objects || stall.Silent != testStall {
+					t.Errorf("stall = %+v", st.Err)
+				}
 
-			// A read started after the stall lists without asking for a stream, even where the
-			// server would stream.
-			b := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-b"}
-			hb := c.Acquire(b)
-			defer hb.Release()
-			syncs(t, hb)
-			if n := src.count(src.streamed, "team-b"); n != 0 {
-				t.Errorf("team-b asked for %d streams after the cache lists", n)
-			}
-			if got := initialOf(c, b); got != cache.InitialList {
-				t.Errorf("team-b's initial = %q, want %q", got, cache.InitialList)
-			}
-			time.Sleep(3 * testStall)
-			if n, fb := len(got.stalled()), got.fallbacks(); n != 1 || len(fb) != 0 {
-				t.Errorf("%d stalls and fallbacks %+v told; want the one stall", n, fb)
-			}
+				// A read started after the stall lists without asking for a stream, even where the
+				// server would stream.
+				b := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-b"}
+				hb := c.Acquire(b)
+				defer hb.Release()
+				syncs(t, hb)
+				if n := src.count(src.streamed, "team-b"); n != 0 {
+					t.Errorf("team-b asked for %d streams after the cache lists", n)
+				}
+				if got := initialOf(c, b); got != cache.InitialList {
+					t.Errorf("team-b's initial = %q, want %q", got, cache.InitialList)
+				}
+				time.Sleep(3 * testStall)
+				if n, fb := len(got.stalled()), got.fallbacks(); n != 1 || len(fb) != 0 {
+					t.Errorf("%d stalls and fallbacks %+v told; want the one stall", n, fb)
+				}
+			})
 		})
 	}
 }
@@ -290,105 +295,113 @@ func TestStalledStreamLists(t *testing.T) {
 // A stream that still delivers when another read's stream stalls ends at once and lists too; the
 // stall is told once, by the read that stalled.
 func TestStallEndsTheOtherStreams(t *testing.T) {
-	src := newStallSource(map[string]stallMode{"team-a": stallSilent, "team-b": stallTrickle})
-	c, got := newStallCache(t, src, cache.Options{})
-	b := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-b"}
-	hb := c.Acquire(b)
-	defer hb.Release()
-	waitFor(t, func() bool { return src.count(src.streamed, "team-b") > 0 })
-	time.Sleep(2 * testStall) // team-b keeps delivering: no stall of its own
-	if c.Listing() || hb.HasSynced() {
-		t.Fatalf("listing %v, team-b synced %v before any stall", c.Listing(), hb.HasSynced())
-	}
-	a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
-	ha := c.Acquire(a)
-	defer ha.Release()
-	syncs(t, ha)
-	syncs(t, hb)
-	if got := initialOf(c, b); got != cache.InitialFallback {
-		t.Errorf("team-b's initial = %q, want %q", got, cache.InitialFallback)
-	}
-	if n := src.count(src.lists, "team-b"); n == 0 {
-		t.Error("team-b did not list")
-	}
-	time.Sleep(3 * testStall)
-	if st, fb := got.stalled(), got.fallbacks(); len(st) != 1 || st[0].Scope != a || len(fb) != 0 {
-		t.Errorf("stalls %+v, fallbacks %+v; want team-a's stall only", st, fb)
-	}
+	synctest.Test(t, func(t *testing.T) {
+		src := newStallSource(map[string]stallMode{"team-a": stallSilent, "team-b": stallTrickle})
+		c, got := newStallCache(t, src, cache.Options{})
+		b := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-b"}
+		hb := c.Acquire(b)
+		defer hb.Release()
+		waitFor(t, func() bool { return src.count(src.streamed, "team-b") > 0 })
+		time.Sleep(2 * testStall) // team-b keeps delivering: no stall of its own
+		if c.Listing() || hb.HasSynced() {
+			t.Fatalf("listing %v, team-b synced %v before any stall", c.Listing(), hb.HasSynced())
+		}
+		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+		ha := c.Acquire(a)
+		defer ha.Release()
+		syncs(t, ha)
+		syncs(t, hb)
+		if got := initialOf(c, b); got != cache.InitialFallback {
+			t.Errorf("team-b's initial = %q, want %q", got, cache.InitialFallback)
+		}
+		if n := src.count(src.lists, "team-b"); n == 0 {
+			t.Error("team-b did not list")
+		}
+		time.Sleep(3 * testStall)
+		if st, fb := got.stalled(), got.fallbacks(); len(st) != 1 || st[0].Scope != a || len(fb) != 0 {
+			t.Errorf("stalls %+v, fallbacks %+v; want team-a's stall only", st, fb)
+		}
+	})
 }
 
 // A stream that ended its initial list may stay silent as long as nothing changes: the bound is for
 // the initial list only, and the stream stays the read's watch.
 func TestHealthyStreamKeepsStreaming(t *testing.T) {
-	src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
-	c, got := newStallCache(t, src, cache.Options{})
-	a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
-	h := c.Acquire(a)
-	defer h.Release()
-	syncs(t, h)
-	time.Sleep(5 * testStall)
-	if c.Listing() || len(got.fallbacks()) != 0 || len(got.stalled()) != 0 {
-		t.Fatalf("listing %v, fallbacks %+v, stalls %+v after a healthy stream", c.Listing(), got.fallbacks(), got.stalled())
-	}
-	if got := initialOf(c, a); got != cache.InitialStream {
-		t.Errorf("initial = %q, want %q", got, cache.InitialStream)
-	}
-	src.mu.Lock()
-	w := src.watches[len(src.watches)-1]
-	src.mu.Unlock()
-	changed := testkit.Pod("team-a", "web-0")
-	changed.SetResourceVersion("6")
-	changed.SetLabels(map[string]string{"changed": "yes"})
-	if !w.send(watch.Event{Type: watch.Modified, Object: changed}) {
-		t.Fatal("the stream was stopped")
-	}
-	waitFor(t, func() bool {
-		p, ok := h.Get("team-a", "web-0")
-		return ok && p.GetLabels()["changed"] == "yes"
+	synctest.Test(t, func(t *testing.T) {
+		src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
+		c, got := newStallCache(t, src, cache.Options{})
+		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+		h := c.Acquire(a)
+		defer h.Release()
+		syncs(t, h)
+		time.Sleep(5 * testStall)
+		if c.Listing() || len(got.fallbacks()) != 0 || len(got.stalled()) != 0 {
+			t.Fatalf("listing %v, fallbacks %+v, stalls %+v after a healthy stream", c.Listing(), got.fallbacks(), got.stalled())
+		}
+		if got := initialOf(c, a); got != cache.InitialStream {
+			t.Errorf("initial = %q, want %q", got, cache.InitialStream)
+		}
+		src.mu.Lock()
+		w := src.watches[len(src.watches)-1]
+		src.mu.Unlock()
+		changed := testkit.Pod("team-a", "web-0")
+		changed.SetResourceVersion("6")
+		changed.SetLabels(map[string]string{"changed": "yes"})
+		if !w.send(watch.Event{Type: watch.Modified, Object: changed}) {
+			t.Fatal("the stream was stopped")
+		}
+		waitFor(t, func() bool {
+			p, ok := h.Get("team-a", "web-0")
+			return ok && p.GetLabels()["changed"] == "yes"
+		})
+		if n := src.count(src.streamed, "team-a"); n != 1 {
+			t.Errorf("%d streams asked for, want one", n)
+		}
+		if n := src.count(src.lists, "team-a"); n != 0 {
+			t.Errorf("%d lists, want none", n)
+		}
 	})
-	if n := src.count(src.streamed, "team-a"); n != 1 {
-		t.Errorf("%d streams asked for, want one", n)
-	}
-	if n := src.count(src.lists, "team-a"); n != 0 {
-		t.Errorf("%d lists, want none", n)
-	}
 }
 
 // A cluster whose streams are off lists from the start (Options.Lists), and ListFromNowOn ends the
 // streams still running: neither is a stall or a fallback.
 func TestListsWithoutStreams(t *testing.T) {
 	t.Run("from the start", func(t *testing.T) {
-		src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
-		c, got := newStallCache(t, src, cache.Options{Lists: true})
-		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
-		h := c.Acquire(a)
-		defer h.Release()
-		syncs(t, h)
-		if n := src.count(src.streamed, "team-a"); n != 0 || !c.Listing() {
-			t.Errorf("%d streams asked for, listing %v", n, c.Listing())
-		}
-		if got := initialOf(c, a); got != cache.InitialList {
-			t.Errorf("initial = %q, want %q", got, cache.InitialList)
-		}
-		if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
-			t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
-		}
+		synctest.Test(t, func(t *testing.T) {
+			src := newStallSource(map[string]stallMode{"team-a": stallHealthy})
+			c, got := newStallCache(t, src, cache.Options{Lists: true})
+			a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+			h := c.Acquire(a)
+			defer h.Release()
+			syncs(t, h)
+			if n := src.count(src.streamed, "team-a"); n != 0 || !c.Listing() {
+				t.Errorf("%d streams asked for, listing %v", n, c.Listing())
+			}
+			if got := initialOf(c, a); got != cache.InitialList {
+				t.Errorf("initial = %q, want %q", got, cache.InitialList)
+			}
+			if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
+				t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
+			}
+		})
 	})
 	t.Run("from now on", func(t *testing.T) {
-		src := newStallSource(map[string]stallMode{"team-a": stallTrickle})
-		c, got := newStallCache(t, src, cache.Options{})
-		a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
-		h := c.Acquire(a)
-		defer h.Release()
-		waitFor(t, func() bool { return src.count(src.streamed, "team-a") > 0 })
-		c.ListFromNowOn()
-		syncs(t, h)
-		if n := src.count(src.lists, "team-a"); n == 0 {
-			t.Error("team-a did not list")
-		}
-		time.Sleep(2 * testStall)
-		if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
-			t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
-		}
+		synctest.Test(t, func(t *testing.T) {
+			src := newStallSource(map[string]stallMode{"team-a": stallTrickle})
+			c, got := newStallCache(t, src, cache.Options{})
+			a := cache.Scope{GVR: testkit.PodsGVR, Namespace: "team-a"}
+			h := c.Acquire(a)
+			defer h.Release()
+			waitFor(t, func() bool { return src.count(src.streamed, "team-a") > 0 })
+			c.ListFromNowOn()
+			syncs(t, h)
+			if n := src.count(src.lists, "team-a"); n == 0 {
+				t.Error("team-a did not list")
+			}
+			time.Sleep(2 * testStall)
+			if len(got.stalled()) != 0 || len(got.fallbacks()) != 0 {
+				t.Errorf("stalls %+v, fallbacks %+v", got.stalled(), got.fallbacks())
+			}
+		})
 	})
 }

@@ -512,49 +512,38 @@ func FuzzCustomResources(f *testing.F) {
 // TestCustomTypeConfusion replaces every field of every recorded definition and object, one at a
 // time, with each hostile value: parsing the definition and running the profile never panic.
 func TestCustomTypeConfusion(t *testing.T) {
+	if raceEnabled {
+		t.Skip("one goroutine: the build without the race detector runs it (make test-norace-coverage)")
+	}
 	variants := 0
 	defer func() { t.Logf("%d variants exercised", variants) }()
 	for _, cc := range loadCustomCases(t) {
-		var paths [][]any
-		collectPaths(cc.crd.obj.Object, nil, &paths)
-		for _, path := range paths {
-			for _, v := range hostile {
-				crd := cc.crd.obj.DeepCopy()
-				setPath(crd.Object, path, v)
-				variants++
-				k, err := parseSafely(crd)
-				if err != nil {
-					t.Fatalf("%s with %v = %#v: %v", cc.name, path, v, err)
-				}
-				if k == nil {
-					continue
-				}
-				p := k.Profile()
-				for _, o := range cc.objects {
-					if err := exercise(p, o.obj); err != nil {
-						t.Errorf("%s with %v = %#v: %v", cc.name, path, v, err)
-					}
+		variants += confuse(t, cc.name+"/crd", cc.crd.obj, func(path []any, v any) {
+			k, err := parseSafely(cc.crd.obj)
+			if err != nil {
+				t.Fatalf("%s with %v = %#v: %v", cc.name, path, v, err)
+			}
+			if k == nil {
+				return
+			}
+			p := k.Profile()
+			for _, o := range cc.objects {
+				if err := exercise(p, o.obj); err != nil {
+					t.Errorf("%s with %v = %#v: %v", cc.name, path, v, err)
 				}
 			}
-		}
+		})
 		k, err := kinds.ParseCRD(cc.crd.obj)
 		if err != nil {
 			continue
 		}
 		p := k.Profile()
 		for _, c := range cc.objects {
-			var objPaths [][]any
-			collectPaths(c.obj.Object, nil, &objPaths)
-			for _, path := range objPaths {
-				for _, v := range hostile {
-					obj := c.obj.DeepCopy()
-					setPath(obj.Object, path, v)
-					variants++
-					if err := exercise(p, obj); err != nil {
-						t.Errorf("%s/%s with %v = %#v: %v", cc.name, c.name, path, v, err)
-					}
+			variants += confuse(t, cc.name+"/"+c.name, c.obj, func(path []any, v any) {
+				if err := exercise(p, c.obj); err != nil {
+					t.Errorf("%s/%s with %v = %#v: %v", cc.name, c.name, path, v, err)
 				}
-			}
+			})
 		}
 	}
 }

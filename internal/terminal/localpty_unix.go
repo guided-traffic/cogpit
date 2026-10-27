@@ -17,13 +17,13 @@ import (
 	"github.com/creack/pty"
 )
 
-const (
-	// closeGrace is how long a shell has to exit after SIGHUP before its process group is killed.
-	closeGrace = 2 * time.Second
-	// drainAfterExit is how long output is still read after the shell exited. A background
-	// process can keep the PTY open after its shell is gone; the session ends regardless.
-	drainAfterExit = 500 * time.Millisecond
-)
+// drainAfterExit is how long output is still read after the shell exited. A background process can
+// keep the PTY open after its shell is gone; the session ends regardless.
+const drainAfterExit = 500 * time.Millisecond
+
+// closeGrace is how long a shell has to exit after SIGHUP before its process group is killed. A
+// session takes it when it starts; tests shorten it.
+var closeGrace = 2 * time.Second
 
 // localSession is a shell on a PTY that Cogpit started itself.
 type localSession struct {
@@ -37,6 +37,7 @@ type localSession struct {
 	// exited is set as soon as the shell is reaped. From then on its pid may belong to another
 	// process, so nothing signals it any more.
 	exited atomic.Bool
+	grace  time.Duration // closeGrace when the session started
 
 	closeOnce  sync.Once
 	closeErr   error
@@ -158,6 +159,7 @@ func startLocal(opts LocalOptions) (Session, error) {
 		cfgPath: cfgPath,
 		ownDir:  ownDir,
 		input:   newInputQueue(),
+		grace:   closeGrace,
 		done:    make(chan struct{}),
 	}
 	go s.pumpInput()
@@ -236,7 +238,7 @@ func (s *localSession) Resize(cols, rows uint16) error {
 func (s *localSession) Done() <-chan struct{} { return s.done }
 
 // Close hangs up the shell's process group, closes the PTY and removes the terminal kubeconfig.
-// It does not wait: a shell that ignores SIGHUP is killed after closeGrace in the background.
+// It does not wait: a shell that ignores SIGHUP is killed after its grace in the background.
 func (s *localSession) Close() error {
 	s.closeOnce.Do(func() {
 		if !s.exited.Load() {
@@ -256,7 +258,7 @@ func (s *localSession) killAfterGrace() {
 	defer recoverTo("local shell kill", nil)
 	select {
 	case <-s.done:
-	case <-time.After(closeGrace):
+	case <-time.After(s.grace):
 		if !s.exited.Load() {
 			_ = syscall.Kill(-s.pid, syscall.SIGKILL)
 		}

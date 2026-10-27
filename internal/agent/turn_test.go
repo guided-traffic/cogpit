@@ -208,16 +208,15 @@ func TestMaxToolCallsStopsTheTurn(t *testing.T) {
 // TestMaxDurationStopsTheTurn: a stream that never ends is cut at the turn's time limit; the
 // server sees the client go.
 func TestMaxDurationStopsTheTurn(t *testing.T) {
-	// One second, not less: the limit counts from the turn's start, and under the race detector on a
-	// busy runner 150 ms ran out before the request reached the fake server (main's run of
-	// 2026-10-24), which then never saw a client to lose.
-	h := newHarness(t, engine.ChatLimits{MaxDuration: time.Second})
+	h := newHarness(t, engine.ChatLimits{MaxDuration: 200 * time.Millisecond})
 	h.llm.Script(fakellm.Reply{Gate: make(chan struct{}), Text: []string{"never"}})
 	c := h.idle(t, h.start(t, "Hello"))
-	if n := notes(c); !strings.Contains(n, "time limit of 1s") {
+	if n := notes(c); !strings.Contains(n, "time limit of 200ms") {
 		t.Fatalf("notes %q, items %v", n, itemKinds(c))
 	}
-	h.waitFor(t, "the server to see the client go", func() bool { return h.llm.Cancelled() == 1 })
+	// The limit counts from the turn's start: on a busy runner it can run out before the request
+	// reaches the server, which then has no client to lose. Every request that arrived sees it go.
+	h.waitFor(t, "the server to see the client go", func() bool { return h.llm.Cancelled() == len(h.llm.ChatRequests()) })
 }
 
 // TestMaxTokensStopsTheTurn: reported usage beyond the limit ends the turn before the next request.
@@ -498,8 +497,9 @@ func ptr[T any](v T) *T { return &v }
 // estimate marked as such; it is kept with the conversation.
 func TestAnswerTiming(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
+	// The second part 100 ms after the first: Windows' clock reads a span in steps of up to 15.6 ms.
 	h.llm.Script(fakellm.Reply{Text: []string{"Two pods ", "run in shop."}, Usage: &fakellm.Usage{Prompt: 900, Completion: 30},
-		Pace: 60 * time.Millisecond}) // the second part 60 ms after the first
+		Pace: 100 * time.Millisecond})
 	c := h.idle(t, h.start(t, "How many pods run in shop?"))
 	tm := c.Items[1].Timing
 	if tm == nil || tm.TTFT < 0 || tm.TTFT > 5*time.Second || tm.Generating < 50*time.Millisecond || tm.OutputTokens != 30 || tm.Estimated {

@@ -4,29 +4,60 @@ package nativedialog
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-// buildHarness builds testdata/panel_harness.m with panel_darwin.m into a process of its own:
-// AppKit's panels need an NSApplication on the main thread, which a test binary's goroutines do
-// not have.
-func buildHarness(t *testing.T) string {
-	t.Helper()
+// harnessDir holds the harness the tests share; TestMain removes it.
+var harnessDir string
+
+func TestMain(m *testing.M) {
+	code := m.Run()
+	if harnessDir != "" {
+		_ = os.RemoveAll(harnessDir)
+	}
+	os.Exit(code)
+}
+
+// errNoClang: the harness cannot be built here.
+var errNoClang = errors.New("no clang")
+
+// harnessBuild builds testdata/panel_harness.m with panel_darwin.m once per test binary.
+var harnessBuild = sync.OnceValues(func() (string, error) {
 	clang, err := exec.LookPath("clang")
 	if err != nil {
-		t.Skip("no clang")
+		return "", errNoClang
 	}
-	bin := filepath.Join(t.TempDir(), "harness")
+	if harnessDir, err = os.MkdirTemp("", "cogpit-panel-harness-*"); err != nil {
+		return "", err
+	}
+	bin := filepath.Join(harnessDir, "harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-framework", "UniformTypeIdentifiers",
 		"-I.", "-o", bin, filepath.Join("testdata", "panel_harness.m"), "panel_darwin.m")
 	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("building the harness: %v\n%s", err, out)
+		return "", fmt.Errorf("%w\n%s", err, out)
+	}
+	return bin, nil
+})
+
+// buildHarness returns the harness, a process of its own: AppKit's panels need an NSApplication
+// on the main thread, which a test binary's goroutines do not have.
+func buildHarness(t *testing.T) string {
+	t.Helper()
+	bin, err := harnessBuild()
+	if errors.Is(err, errNoClang) {
+		t.Skip("no clang")
+	}
+	if err != nil {
+		t.Fatalf("building the harness: %v", err)
 	}
 	return bin
 }
@@ -109,6 +140,7 @@ func TestPanelConfiguration(t *testing.T) {
 			map[string]string{"kind": "save", "name": "web-1.log", "types": ""}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel() // each is a process of its own, which mostly waits for AppKit to start
 			got := fields(t, runHarness(t, harness, tc.args...))
 			for k, want := range tc.want {
 				if got[k] != want {

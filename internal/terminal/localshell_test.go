@@ -32,10 +32,6 @@ func startTestShell(t *testing.T, opts LocalOptions) (Session, *outputRecorder, 
 }
 
 func TestStartLocalBindsKubectlToContextAndNamespace(t *testing.T) {
-	kubectl, err := exec.LookPath("kubectl")
-	if err != nil {
-		t.Skip("kubectl not on PATH")
-	}
 	userPath := writeUserKubeconfig(t)
 	userBefore, _ := os.ReadFile(userPath)
 
@@ -46,27 +42,22 @@ func TestStartLocalBindsKubectlToContextAndNamespace(t *testing.T) {
 	})
 
 	// Results go to files, not through the TTY; the marker is computed by the shell so that the
-	// echo of the typed line does not contain it.
-	script := strings.Join([]string{
-		"k='" + kubectl + "'",
-		`printf '%s\n' "$KUBECONFIG" > env.txt`,
-		`"$k" config current-context > ctx.txt 2>&1`,
-		`"$k" config view --minify -o jsonpath='{.contexts[0].context.namespace}' > ns.txt 2>&1`,
-		`"$k" config use-context ctx-b > /dev/null 2>&1`,
-		`"$k" config current-context > ctx2.txt 2>&1`,
-		`echo "__DONE$((40+2))__"`,
-	}, "\n") + "\n"
+	// echo of the typed line does not contain it. Only kubectl's own reads need a kubectl.
+	lines := []string{`printf '%s\n' "$KUBECONFIG" > env.txt`}
+	kubectl, kubectlErr := exec.LookPath("kubectl")
+	if kubectlErr == nil {
+		lines = append(lines,
+			"k='"+kubectl+"'",
+			`"$k" config current-context > ctx.txt 2>&1`,
+			`"$k" config view --minify -o jsonpath='{.contexts[0].context.namespace}' > ns.txt 2>&1`,
+			`"$k" config use-context ctx-b > /dev/null 2>&1`,
+			`"$k" config current-context > ctx2.txt 2>&1`)
+	}
+	script := strings.Join(append(lines, `echo "__DONE$((40+2))__"`), "\n") + "\n"
 	if _, err := sess.Write([]byte(script)); err != nil {
 		t.Fatalf("Write: %v", err)
 	}
 	out.waitFor(t, "__DONE42__", 20*time.Second)
-
-	if got := readTrimmed(t, filepath.Join(home, "ctx.txt")); got != "ctx-a" {
-		t.Errorf("kubectl config current-context = %q, want ctx-a", got)
-	}
-	if got := readTrimmed(t, filepath.Join(home, "ns.txt")); got != "team-x" {
-		t.Errorf("namespace = %q, want team-x", got)
-	}
 
 	// KUBECONFIG = <own file>:<user's file>.
 	env := strings.Split(readTrimmed(t, filepath.Join(home, "env.txt")), string(os.PathListSeparator))
@@ -85,13 +76,27 @@ func TestStartLocalBindsKubectlToContextAndNamespace(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(ownData), "secret-token") || strings.Contains(string(ownData), "token") {
+	if strings.Contains(string(ownData), "token") {
 		t.Errorf("terminal kubeconfig holds a credential:\n%s", ownData)
 	}
 
-	// A context switch inside the terminal lands in the terminal's file, never in the user's.
-	if got := readTrimmed(t, filepath.Join(home, "ctx2.txt")); got != "ctx-b" {
-		t.Errorf("after use-context: current-context = %q, want ctx-b", got)
+	if kubectlErr == nil {
+		if got := readTrimmed(t, filepath.Join(home, "ctx.txt")); got != "ctx-a" {
+			t.Errorf("kubectl config current-context = %q, want ctx-a", got)
+		}
+		if got := readTrimmed(t, filepath.Join(home, "ns.txt")); got != "team-x" {
+			t.Errorf("namespace = %q, want team-x", got)
+		}
+		// A context switch inside the terminal lands in the terminal's file, never in the user's.
+		if got := readTrimmed(t, filepath.Join(home, "ctx2.txt")); got != "ctx-b" {
+			t.Errorf("after use-context: current-context = %q, want ctx-b", got)
+		}
+	} else {
+		// The file as Cogpit wrote it: no kubectl rewrote it.
+		if !strings.Contains(string(ownData), `current-context: "ctx-a"`) || !strings.Contains(string(ownData), `namespace: "team-x"`) {
+			t.Errorf("terminal kubeconfig does not name ctx-a and team-x:\n%s", ownData)
+		}
+		t.Log("kubectl not on PATH: KUBECONFIG and the terminal's file checked, kubectl's reading of them not")
 	}
 	if userAfter, _ := os.ReadFile(userPath); string(userAfter) != string(userBefore) {
 		t.Errorf("the user's kubeconfig changed:\n%s", userAfter)
@@ -147,20 +152,23 @@ func TestStartLocalShellExitEndsSession(t *testing.T) {
 }
 
 func TestStartLocalCloseKillsShellIgnoringHangup(t *testing.T) {
+	grace := closeGrace
+	t.Cleanup(func() { closeGrace = grace })
+	closeGrace = time.Second
 	sess, out, _ := startTestShell(t, LocalOptions{KubeconfigPaths: []string{writeUserKubeconfig(t)}})
 	// The shell becomes a process that ignores SIGHUP and does not touch the terminal, so
-	// neither the hangup nor the closed PTY ends it; only the SIGKILL after the grace does.
+	// neither the hangup nor the closed PTY ends it; only the SIGKILL after the grace does. The
+	// trap is set before the marker, and nothing after the marker reads or writes the terminal.
 	if _, err := sess.Write([]byte("trap '' HUP; echo \"__TRAP$((2+3))__\"; exec sleep 60 </dev/null >/dev/null 2>&1\n")); err != nil {
 		t.Fatal(err)
 	}
 	out.waitFor(t, "__TRAP5__", 10*time.Second)
-	time.Sleep(200 * time.Millisecond) // let the exec happen
 	start := time.Now()
 	if err := sess.Close(); err != nil {
 		t.Errorf("Close: %v", err)
 	}
-	if d := time.Since(start); d > 200*time.Millisecond {
-		t.Errorf("Close blocked for %v", d)
+	if d := time.Since(start); d > closeGrace/2 {
+		t.Errorf("Close blocked for %v; the kill comes after a grace of %v", d, closeGrace)
 	}
 	waitClosed(t, sess.Done(), closeGrace+3*time.Second, "Done after SIGKILL")
 	if d := time.Since(start); d < closeGrace-100*time.Millisecond {

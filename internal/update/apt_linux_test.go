@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 )
 
@@ -252,37 +253,42 @@ func TestAptNoticeFollowsApt(t *testing.T) {
 }
 
 // The scheduled checks read apt at once and every interval, start once, and stop when turned off.
+// The interval runs on the bubble's clock (testing/synctest): turned off, the loop has finished a
+// check it was in once every goroutine waits, and five intervals later nothing has run since.
 func TestAptScheduledChecks(t *testing.T) {
-	at := newAptTest(t, "0.33.0")
-	if err := load(); err != nil {
-		t.Fatal(err)
-	}
-	checkInterval = 20 * time.Millisecond
-	changed := make(chan struct{}, 10)
-	notice.listen(func() { changed <- struct{}{} })
-	at.f.set("0.33.0", "0.34.0")
-	start(true)
-	setAutomaticChecks(true) // a second start starts nothing more
-	select {
-	case <-changed:
-	case <-time.After(5 * time.Second):
-		t.Fatal("no check at the start")
-	}
-	if v, ok := notice.get(); !ok || v != "0.34.0" {
-		t.Errorf("after the first check: %q %v", v, ok)
-	}
-	at.f.set("0.35.0", "0.35.0") // the system's updater installed a newer one meanwhile
-	waitFor(t, "the next check", notice.restartPending)
-	setAutomaticChecks(false)
-	at.f.mu.Lock()
-	n := len(at.f.calls)
-	at.f.mu.Unlock()
-	time.Sleep(100 * time.Millisecond)
-	at.f.mu.Lock()
-	defer at.f.mu.Unlock()
-	if len(at.f.calls) != n {
-		t.Errorf("checks after they were turned off: %v", at.f.calls[n:])
-	}
+	synctest.Test(t, func(t *testing.T) {
+		at := newAptTest(t, "0.33.0")
+		if err := load(); err != nil {
+			t.Fatal(err)
+		}
+		checkInterval = 20 * time.Millisecond
+		changed := make(chan struct{}, 10)
+		notice.listen(func() { changed <- struct{}{} })
+		at.f.set("0.33.0", "0.34.0")
+		start(true)
+		setAutomaticChecks(true) // a second start starts nothing more
+		select {
+		case <-changed:
+		case <-time.After(5 * time.Second):
+			t.Fatal("no check at the start")
+		}
+		if v, ok := notice.get(); !ok || v != "0.34.0" {
+			t.Errorf("after the first check: %q %v", v, ok)
+		}
+		at.f.set("0.35.0", "0.35.0") // the system's updater installed a newer one meanwhile
+		waitFor(t, "the next check", notice.restartPending)
+		setAutomaticChecks(false)
+		synctest.Wait()
+		at.f.mu.Lock()
+		n := len(at.f.calls)
+		at.f.mu.Unlock()
+		time.Sleep(5 * checkInterval)
+		at.f.mu.Lock()
+		defer at.f.mu.Unlock()
+		if len(at.f.calls) != n {
+			t.Errorf("checks after they were turned off: %v", at.f.calls[n:])
+		}
+	})
 }
 
 // The Update button installs through pkexec and the helper, says so, and offers the restart; its
@@ -388,20 +394,27 @@ func TestAptOneUpdateAtATime(t *testing.T) {
 
 // The restart script waits for the process to end, then starts the program with its arguments.
 func TestRestartScriptWaitsThenStarts(t *testing.T) {
-	sleeper := exec.Command("sleep", "0.3")
-	if err := sleeper.Start(); err != nil {
+	// The process ends when the test closes its input, never on its own.
+	waited := exec.Command("/bin/sh", "-c", "read x")
+	in, err := waited.StdinPipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := waited.Start(); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan struct{})
-	go func() { _ = sleeper.Wait(); close(done) }()
+	go func() { _ = waited.Wait(); close(done) }()
+	t.Cleanup(func() { _ = in.Close(); <-done })
 	out := filepath.Join(t.TempDir(), "started")
-	if err := startDetached(sleeper.Process.Pid, "/bin/sh", []string{"-c", `echo "$0" > "$1"`, "restarted", out}); err != nil {
+	if err := startDetached(waited.Process.Pid, "/bin/sh", []string{"-c", `echo "$0" > "$1"`, "restarted", out}); err != nil {
 		t.Fatal(err)
 	}
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(100 * time.Millisecond) // a script that did not wait would have started by now
 	if _, err := os.Stat(out); err == nil {
 		t.Fatal("started before the process ended")
 	}
+	_ = in.Close()
 	<-done
 	waitFor(t, "the start", func() bool { b, _ := os.ReadFile(out); return strings.TrimSpace(string(b)) == "restarted" })
 }

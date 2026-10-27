@@ -3,6 +3,7 @@ package termview
 import (
 	"fmt"
 	"io"
+	"os"
 	"runtime"
 	"slices"
 	"strings"
@@ -15,6 +16,13 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/testkit/scorecard"
 )
+
+// TestMain shortens the log flusher's interval: most tests wait for a flush or two, and none
+// depends on the app's interval but TestLogsP5, which sets it for its own run.
+func TestMain(m *testing.M) {
+	logFlushEvery = 5 * time.Millisecond
+	os.Exit(m.Run())
+}
 
 // showLogs lays a Logs view for stream out in an offscreen window of the given size.
 func showLogs(t *testing.T, stream io.ReadCloser, size fyne.Size) (*Logs, fyne.Window) {
@@ -198,18 +206,26 @@ func appliedWaiter(t *testing.T, l *Logs) func(want int) {
 	}
 }
 
-// TestLogsP5 feeds 10,000 lines per second for three seconds and measures the time each batch
-// spends on the main goroutine (the test driver runs fyne.Do on the caller, so the flusher's
-// apply stands in for the main goroutine) and the heap once the scrollback is full.
+// TestLogsP5 feeds 10,000 lines per second, for three seconds in make scorecard, and measures the
+// time each batch spends on the main goroutine (the test driver runs fyne.Do on the caller, so the
+// flusher's apply stands in for the main goroutine) and the heap once the scrollback is full.
 func TestLogsP5(t *testing.T) {
 	if testing.Short() {
-		t.Skip("P5 runs for three seconds")
+		t.Skip("P5 runs for seconds")
+	}
+	if raceEnabled {
+		t.Skip("P5 is measured without the race detector (Unit Tests (no race), make scorecard)")
 	}
 	const (
-		rate     = 10_000 // lines per second
-		duration = 3 * time.Second
-		tick     = 10 * time.Millisecond
+		rate = 10_000 // lines per second
+		tick = 10 * time.Millisecond
 	)
+	duration := 3 * time.Second
+	if os.Getenv(scorecard.DirEnv) == "" {
+		duration = 1200 * time.Millisecond // still more lines than the scrollback keeps
+	}
+	defer func(d time.Duration) { logFlushEvery = d }(logFlushEvery)
+	logFlushEvery = logFlushPeriod // the app's batches
 	pr, pw := io.Pipe()
 	l, _ := showLogs(t, pr, fyne.NewSize(1200, 800))
 	var batches []time.Duration
@@ -270,10 +286,10 @@ func TestLogsP5(t *testing.T) {
 		}
 	}
 	heap := int64(after.HeapAlloc) - int64(before.HeapAlloc)
-	t.Logf("P5: %d lines in %v (%.0f lines/s), %d batches, %.0f lines/batch; main goroutine per batch: p50 %v, p99 %v, max %v, over 16 ms: %d; heap growth %.1f MiB for %d kept lines (race detector: %v)",
+	t.Logf("P5: %d lines in %v (%.0f lines/s), %d batches, %.0f lines/batch; main goroutine per batch: p50 %v, p99 %v, max %v, over 16 ms: %d; heap growth %.1f MiB for %d kept lines",
 		total, elapsed.Round(time.Millisecond), float64(total)/elapsed.Seconds(), len(batches),
 		float64(total)/float64(len(batches)), pct(0.5), pct(0.99), sorted[len(sorted)-1], over16,
-		float64(heap)/(1<<20), l.lines.len(), raceEnabled)
+		float64(heap)/(1<<20), l.lines.len())
 	how := "offscreen: Fyne's test driver, the flusher's apply on the caller standing in for the main goroutine; no GPU frame"
 	scorecard.Record(t, scorecard.Measurement{Budget: "P5", Metric: "the slowest log batch on the main goroutine at 10,000 lines/s",
 		Value: scorecard.Millis(sorted[len(sorted)-1]), Unit: "ms", Limit: 16, How: how})
@@ -282,19 +298,9 @@ func TestLogsP5(t *testing.T) {
 	scorecard.Record(t, scorecard.Measurement{Budget: "P5", Metric: fmt.Sprintf("heap growth with %d kept lines, the scrollback's limit", l.lines.len()),
 		Value: float64(heap) / (1 << 20), Unit: "MiB", Bound: scorecard.Context, How: how})
 
-	// Generous bounds: the budget (16 ms) is judged from a run without the race detector. Under the
-	// race detector on CI's shared node one batch of 43 took 629 ms (run 38808178422), and in run
-	// 39339230267 the p99 of 35 batches (the second slowest) 529 ms and the slowest 1.09 s while the
-	// other race jobs shared the node: there the 99th percentile is held to 1 s and the slowest batch
-	// to 2 s, which still catch a flusher that blocks the main goroutine for good.
-	maxD, bound := sorted[len(sorted)-1], 500*time.Millisecond
-	if raceEnabled {
-		if p99 := pct(0.99); p99 > time.Second {
-			t.Errorf("p99 of the batches took %v on the main goroutine", p99)
-		}
-		bound = 2 * time.Second
-	}
-	if maxD > bound {
+	// A generous bound on a loaded runner: make scorecard judges the budget (16 ms); this catches a
+	// flusher that blocks the main goroutine for good.
+	if maxD := sorted[len(sorted)-1]; maxD > 500*time.Millisecond {
 		t.Errorf("a batch took %v on the main goroutine", maxD)
 	}
 	if heap > 64<<20 {

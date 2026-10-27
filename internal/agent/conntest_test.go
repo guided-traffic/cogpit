@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -374,27 +375,30 @@ func TestConnectionTestDNS(t *testing.T) {
 }
 
 // TestConnectionTestAddressShare: each address of the TCP layer gets an equal share of the time left,
-// at least two seconds while that much is left, as Go's dialer shares it.
+// at least two seconds while that much is left, as Go's dialer shares it. The bubble's clock
+// (testing/synctest) stands still while the test runs, so the share is exact.
 func TestConnectionTestAddressShare(t *testing.T) {
-	for _, tc := range []struct {
-		bound time.Duration
-		left  int
-		want  time.Duration
-	}{
-		{5 * time.Second, 1, 5 * time.Second},
-		{5 * time.Second, 2, 2500 * time.Millisecond},
-		{5 * time.Second, 4, 2 * time.Second},
-		{time.Second, 3, time.Second},
-	} {
-		ctx, cancel := context.WithTimeout(context.Background(), tc.bound)
-		dctx, dcancel := addrContext(ctx, tc.left)
-		deadline, _ := dctx.Deadline()
-		if got := time.Until(deadline); got > tc.want || got < tc.want-200*time.Millisecond {
-			t.Errorf("%s for %d addresses: %s each, want %s", tc.bound, tc.left, got, tc.want)
+	synctest.Test(t, func(t *testing.T) {
+		for _, tc := range []struct {
+			bound time.Duration
+			left  int
+			want  time.Duration
+		}{
+			{5 * time.Second, 1, 5 * time.Second},
+			{5 * time.Second, 2, 2500 * time.Millisecond},
+			{5 * time.Second, 4, 2 * time.Second},
+			{time.Second, 3, time.Second},
+		} {
+			ctx, cancel := context.WithTimeout(context.Background(), tc.bound)
+			dctx, dcancel := addrContext(ctx, tc.left)
+			deadline, _ := dctx.Deadline()
+			if got := time.Until(deadline); got != tc.want {
+				t.Errorf("%s for %d addresses: %s each, want %s", tc.bound, tc.left, got, tc.want)
+			}
+			dcancel()
+			cancel()
 		}
-		dcancel()
-		cancel()
-	}
+	})
 }
 
 // TestConnectionTestAuthAndModels (the owner's request of 2026-10-25): Auth asks without the key

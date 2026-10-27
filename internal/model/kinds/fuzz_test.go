@@ -3,6 +3,7 @@ package kinds_test
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"runtime/debug"
 	"testing"
 
@@ -34,10 +35,9 @@ func exercise(p *model.KindProfile, obj *unstructured.Unstructured) (err error) 
 	for _, f := range p.Fields {
 		_ = f(obj)
 	}
-	for _, name := range p.FieldNames() {
+	for _, name := range []string{"name", "namespace", "label"} { // the profile's own fields ran above
 		_ = model.FieldValues(p, name, obj)
 	}
-	_ = detailOf(p, obj)
 	_ = model.MergeProperties(model.PropertiesSection(obj, now), detailOf(p, obj))
 	return nil
 }
@@ -88,24 +88,41 @@ var hostile = []any{
 // hostile value and runs the whole profile. Byte-level fuzzing rarely produces well-formed
 // objects with one wrong type deep inside; this does it exhaustively.
 func TestTypeConfusion(t *testing.T) {
+	if raceEnabled {
+		t.Skip("one goroutine: the build without the race detector runs it (make test-norace-coverage)")
+	}
 	variants := 0
 	defer func() { t.Logf("%d object variants exercised", variants) }()
 	for _, p := range kinds.Builtin() {
 		for _, c := range loadCases(t, p.Key) {
-			var paths [][]any
-			collectPaths(c.obj.Object, nil, &paths)
-			for _, path := range paths {
-				for _, v := range hostile {
-					obj := c.obj.DeepCopy() // before setPath: DeepCopy rejects Go-only types
-					setPath(obj.Object, path, v)
-					variants++
-					if err := exercise(p, obj); err != nil {
-						t.Errorf("%s/%s with %v = %#v: %v", p.Key, c.name, path, v, err)
-					}
+			variants += confuse(t, p.Key+"/"+c.name, c.obj, func(path []any, v any) {
+				if err := exercise(p, c.obj); err != nil {
+					t.Errorf("%s/%s with %v = %#v: %v", p.Key, c.name, path, v, err)
 				}
-			}
+			})
 		}
 	}
+}
+
+// confuse puts each hostile value in place of each value of obj in turn, calls try with obj so
+// changed, and puts the value back; it returns the number of variants. A profile that changed the
+// object it was given otherwise fails the test: the cache's objects are shared.
+func confuse(t *testing.T, what string, obj *unstructured.Unstructured, try func(path []any, v any)) int {
+	t.Helper()
+	pristine := obj.DeepCopy() // before any hostile value: DeepCopy rejects Go-only types
+	var paths [][]any
+	collectPaths(obj.Object, nil, &paths)
+	for _, path := range paths {
+		for _, v := range hostile {
+			was := setPath(obj.Object, path, v)
+			try(path, v)
+			setPath(obj.Object, path, was)
+		}
+	}
+	if !reflect.DeepEqual(obj.Object, pristine.Object) {
+		t.Errorf("%s: a profile changed the object it was given", what)
+	}
+	return len(paths) * len(hostile)
 }
 
 // collectPaths lists the path to every value in a JSON tree: map keys as strings, list indices
@@ -127,7 +144,8 @@ func collectPaths(v any, prefix []any, out *[][]any) {
 	}
 }
 
-func setPath(root any, path []any, v any) {
+// setPath puts v at path in root and returns the value it replaced.
+func setPath(root any, path []any, v any) (was any) {
 	cur := root
 	for i, step := range path {
 		last := i == len(path)-1
@@ -135,17 +153,18 @@ func setPath(root any, path []any, v any) {
 		case string:
 			m := cur.(map[string]any)
 			if last {
-				m[s] = v
-				return
+				was, m[s] = m[s], v
+				return was
 			}
 			cur = m[s]
 		case int:
 			l := cur.([]any)
 			if last {
-				l[s] = v
-				return
+				was, l[s] = l[s], v
+				return was
 			}
 			cur = l[s]
 		}
 	}
+	return nil
 }

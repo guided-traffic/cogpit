@@ -61,16 +61,19 @@ func TestExecSessionStreamsInputOutputAndSizes(t *testing.T) {
 	out := record(sess)
 
 	// Keystrokes and a size set while the stream is still connecting must neither block nor
-	// get lost.
-	start := time.Now()
-	if _, err := sess.Write([]byte("hello\n")); err != nil {
-		t.Fatalf("Write: %v", err)
-	}
-	if err := sess.Resize(80, 24); err != nil {
-		t.Fatalf("Resize: %v", err)
-	}
-	if d := time.Since(start); d > 100*time.Millisecond {
-		t.Errorf("Write and Resize blocked for %v while connecting", d)
+	// get lost: they return while it still connects.
+	returned := make(chan error, 1)
+	go func() {
+		_, err := sess.Write([]byte("hello\n"))
+		returned <- errors.Join(err, sess.Resize(80, 24))
+	}()
+	select {
+	case err := <-returned:
+		if err != nil {
+			t.Fatalf("Write and Resize: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Write and Resize blocked while the stream connects")
 	}
 	close(connected)
 
