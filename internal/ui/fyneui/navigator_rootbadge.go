@@ -23,10 +23,10 @@ import (
 //     always.
 //
 // The lead's decision (D-74 option a; decisions.md, D-119): the lines keep what they showed over a
-// larger icon. At the default width of 216 the owner's cluster, "awe-d-pinniped" (101 points in
+// larger icon. At the default width of 216 a cluster named "ewa-d-pinniped" (101 points in
 // bold) as "dex:HFischer", has a 31-point badge, and 50 from a width of 235. The navigator's width
 // alone (50 at 216 and wider, 28 at 160) was the other option, stable per width but cutting that
-// name to "awe-d-pin…" at the default width.
+// name to "ewa-d-pin…" at the default width.
 
 // rootHeadLayout lays the root's badge, its lines and its right-hand column (the gear, the dot and
 // the ›) out as the container.NewBorder before it did, the badge sized first (rootBadgeSide): the
