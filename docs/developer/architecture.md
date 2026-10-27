@@ -2257,13 +2257,13 @@ setup waits for `cogpit.exe` to end, installs and starts the new release.
   block; the shell applies events and results with `fyne.Do`.
 - Once the window closes (`SetOnClosed`), nothing more is posted to Fyne's queue and the dock's
   streams end: Fyne then drains its queue and runs a `fyne.Do` at once on the caller's goroutine.
-- The quit ([D-136](decisions.md#d-136-the-quit-bound)): from the window's close, or a quit
-  request's `a.Quit` that Fyne's queue ran or released, Fyne has 5 s to return from its run
-  ([`quitbound.go`](../../internal/ui/fyneui/quitbound.go)). Then the main goroutine runs Cogpit's
-  own shutdown: `fyneui.Run`'s end, `run`'s list of closes in [`main.go`](../../cmd/cogpit/main.go)
-  (the last opened first), the crash capture's end, the exit. When the bound passes first, its
-  goroutine runs that shutdown instead and exits with code 0 (`quitHung`,
-  [`quit.go`](../../cmd/cogpit/quit.go)).
+- The quit ([D-136](decisions.md#d-136-the-quit-bound)): from the window's close, or once Fyne took
+  a quit request's `a.Quit` (which runs only in Fyne's loop: after it GLFW is gone), Fyne has 5 s
+  to return from its run ([`quitbound.go`](../../internal/ui/fyneui/quitbound.go)). Then the main
+  goroutine runs Cogpit's own shutdown: `fyneui.Run`'s end, `run`'s list of closes in
+  [`main.go`](../../cmd/cogpit/main.go) (the last opened first), the crash capture's end, the exit.
+  When the bound passes first, its goroutine runs that shutdown instead and exits with code 0
+  (`quitHung`, [`quit.go`](../../cmd/cogpit/quit.go)).
 - Fyne's thread check is a build parameter, `FYNE_THREAD_CHECKS`
   ([D-103](decisions.md#d-103-fynes-thread-check-a-build-parameter-off-in-releases)): on in
   development builds, which show a call off the main goroutine as a toast

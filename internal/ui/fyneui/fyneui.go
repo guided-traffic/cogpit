@@ -329,6 +329,7 @@ func Run(s *engine.Session, opts Options) error {
 	defer signal.Stop(sig)
 	ran := make(chan struct{})
 	defer close(ran)
+	loop := goroutineID() // Run's goroutine runs Fyne's loop (ShowAndRun below)
 	go func() {
 		select {
 		case <-sig:
@@ -336,13 +337,12 @@ func Run(s *engine.Session, opts Options) error {
 		case <-ran:
 			return
 		}
-		if !stopped.Load() {
-			// Waiting, so that the bound starts once Fyne has the quit: a.Quit runs on the main
-			// goroutine, whose window's close starts it, or Fyne's drain releases the call unrun
-			// when Fyne's own signal handler ended the run first.
-			fyne.DoAndWait(a.Quit)
-		}
-		bound.arm()
+		// Waiting, so that the bound starts once Fyne has the quit: a.Quit runs on the main
+		// goroutine, whose window's close starts it, or Fyne's drain releases the call unrun when
+		// Fyne's own signal handler ended the run first. After that drain Fyne runs the call at once
+		// here, where a.Quit would close the window beside Run's end and then panic in the
+		// terminated GLFW: it runs only on the loop's goroutine (quitbound.go).
+		bound.handQuit(stopped.Load, fyne.DoAndWait, onGoroutine(loop, a.Quit))
 	}()
 	w.ShowAndRun()
 	if !bound.returned() {

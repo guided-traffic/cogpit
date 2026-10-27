@@ -5281,7 +5281,8 @@ too, unseen by Cogpit; with streaming on, a cluster whose streams stall waits 10
 
 ## D-136: The quit bound
 
-**Status:** built · **By:** owner (the bound's time and where it starts: lead, open to revision)
+**Status:** built · **By:** owner (the bound's time, where it starts and the guard of a late quit
+request: lead, open to revision)
 
 Fyne gets **5 s** to end its run once Cogpit has handed it the quit (the constant in
 [`cmd/cogpit/quit.go`](../../cmd/cogpit/quit.go); the watchdog in
@@ -5291,8 +5292,18 @@ Fyne gets **5 s** to end its run once Cogpit has handed it the quit (the constan
   ended, a copied Secret value cleared): the close button, ⌘Q, Quit in the first menu on Windows and
   Linux, and the `a.Quit` of a signal, of the updater's request, of `--perf` and of `--smoke`. For a
   signal or the updater's request also once Fyne's queue ran or released that `a.Quit`
-  (`fyne.DoAndWait`): Fyne's own SIGINT and SIGTERM handler can end the run without the window's
-  close. The first of the two starts it.
+  (`fyne.DoAndWait`), or ran the call after its drain (below): Fyne's own SIGINT and SIGTERM handler
+  can end the run without the window's close. The first of the two starts it.
+- **A request after Fyne's drain:** when Fyne's own handler ended the run, a request whose call
+  reaches Fyne after the loop's drain, with `stopped` not yet set (Fyne's stop hook sets it later,
+  or never once the drain released the hook unrun), is run at once on the request's goroutine. There
+  `a.Quit` would close the window off the main goroutine: the dock's `closeAll` beside `Run`'s end,
+  then go-gl/glfw's `NotInitialized` panic in the terminated GLFW. So the call carries an `a.Quit`
+  that runs only on the goroutine of Fyne's loop, the one that called `Run` (`onGoroutine`: the
+  goroutine's number from its stack's first line, as Fyne tells its own main goroutine); anywhere
+  else it does nothing. A panic on the request's goroutine (Fyne's queue closing under the call's
+  send) is logged once, `level=ERROR msg="the quit request panicked in Fyne"`. Either way the bound
+  starts.
 - **Fyne returns in time:** the bound ends, and Cogpit's own shutdown runs on the main goroutine
   without a bound of this one: `fyneui.Run`'s end (the window's place written, the deep links
   detached, the `--perf` report, the shell stopped, the engine's confirmer and dock reader unset),
@@ -5316,7 +5327,8 @@ its restart on Linux wait for the process to end. The owner chose a bound in Cog
 Fyne. With a development build on an Apple M1 Ultra, Fyne's teardown took 6 to 34 ms after a SIGTERM
 or the system's quit and about 100 ms at a quit at the first frame, the same with every CPU busy; in
 the smoke test's container under load a whole quit took up to 1.8 s. 5 s lies far above all of them
-and keeps a hung quit short.
+and keeps a hung quit short. A panic left on the request's goroutine would end the process with a
+crash report in the middle of Cogpit's own shutdown.
 
 **Rejected:** waiting for Fyne's fix alone — the hang stays until a release carries it; a bound from
 the quit's request over the whole quit — it would cut off Cogpit's own shutdown, whose node shell
@@ -5324,13 +5336,22 @@ deletions and informer stops carry bounds of their own; an exit at the bound wit
 — it would lose what the shutdown writes and removes; starting the bound when a signal arrives — a
 signal during the start or a busy main loop would start it before Fyne has the quit; Fyne's stop
 hooks cleared through its internal lifecycle type, which avoids both races — it reaches into a
-Fyne internal any release may change, and drops Fyne's own save of its preferences at the stop.
+Fyne internal any release may change, and drops Fyne's own save of its preferences at the stop. For
+the late request: a recover alone — the window's close would still run the dock's `closeAll` beside
+`Run`'s end, a concurrent map access no recover catches; a check of `stopped`, or of anything else,
+before `fyne.DoAndWait` — the drain can come between the check and the call; Cogpit's part of the
+close locked against `Run`'s end — Fyne's close of a terminated window would still run off main;
+signals left to Fyne's own handler — Cogpit's `a.Quit`, which usually comes first, would no longer
+close the window (the dock's streams, a copied Secret value).
 
 **Not covered:** a main loop that never takes the quit (a hang in Cogpit's own code) is not bounded;
-Fyne's preferences race at the stop still logs `Preferences load error:` (G16).
+Fyne's preferences race at the stop still logs `Preferences load error:` (G16); a request whose call
+is still on its way into Fyne's queue when the drain looks last is neither run nor released, and
+after Fyne's own handler nothing starts the bound (from Fyne's code, not seen).
 
 **Code:** [`fyneui/fyneui.go`](../../internal/ui/fyneui/fyneui.go) `Run`,
+[`fyneui/quitbound.go`](../../internal/ui/fyneui/quitbound.go) `quitBound.handQuit`, `onGoroutine`,
 [`cmd/cogpit/main.go`](../../cmd/cogpit/main.go), [`cmd/cogpit/smoke.go`](../../cmd/cogpit/smoke.go)
 `quitBoundPassed` · **Tests:** `TestQuitBoundEndsAHungTeardown`,
-`TestQuitBoundDisarmedByFynesReturn`, `TestQuitBoundUnarmed`, `TestQuitHungEndsAsANormalQuit`,
-`TestSmokeQuitBound`
+`TestQuitBoundDisarmedByFynesReturn`, `TestQuitBoundUnarmed`, `TestQuitRequestAfterFynesDrain`,
+`TestQuitHungEndsAsANormalQuit`, `TestSmokeQuitBound`
