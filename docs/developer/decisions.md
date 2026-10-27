@@ -4196,10 +4196,22 @@ CI and local test runs are kept short at the same coverage.
 - **Fyne's Linux build dependencies:** the 14 packages cgo and GLFW 3.4 need, without
   recommendations, installed in the background while Go, the cache and the modules download; dpkg
   runs without fsync ([`apt-install.sh`](../../hack/ci/apt-install.sh)).
-- **No second pass without the race detector:** Linux runs every test under it, and without it only
-  what it keeps from running (`make test-norace-coverage`): `internal/ui/logo` and the tests that
-  read `raceEnabled` or compile only without the race tag (`hack/shard -norace`). States that only
-  timing reached are reached on purpose by the `*_states_test.go` files, under the race detector too.
+- **What runs under the race detector:** on Linux every test but the UI's render tests
+  (`TestRender*`): they paint on one goroutine and took two thirds of the race shards' test time, so
+  they run without it in the no-race job (`make test-norace-coverage`, `UI_RENDER_SHARDS` shards,
+  `hack/shard -run`/`-skip`), beside what the race detector keeps from running: `internal/ui/logo`
+  and the tests that read `raceEnabled` or compile only without the race tag (`hack/shard -norace`).
+  States that only timing reached are reached on purpose by the `*_states_test.go` files. The no-race
+  coverage uses `-covermode=set`, which `hack/coverage` merges.
+- **The kind job** compiles no UI package, and skips the add-on stacks' tests by name (they need
+  stacks CI does not install; `KIND_ADDONS=1` runs them by hand).
+- **macOS** runs, besides the darwin files, the tests of `internal/cluster` and `internal/terminal`
+  and the login waits (the PTY, the shells, the credential plugin's process search), split into the
+  jobs macOS Tests and macOS Lint and App.
+- **Tests without value of their own are removed:** a render's light twin of a dark render of the
+  same layout (one light render per major surface stays), a test whose behaviour another asserts as
+  strongly, a change detector of a literal, a measurement nothing reads; each removal checked by a
+  second, adversarial review.
 - **The UI's tests in parallel shards:** `internal/ui/fyneui`'s tests cannot share a process (one
   Fyne app at a time); `hack/shard -exec` compiles them once and runs the shards as processes of their
   own, `UI_JOBS` at once (default: half the CPUs, at most what three quarters of the memory holds at
@@ -4216,8 +4228,9 @@ CI and local test runs are kept short at the same coverage.
 - **Linux runners:** the organisation's self-hosted ones; the repository variable `LINUX_RUNNER`
   names others (GitHub's hosted runners take load off the shared machine but do not shorten a run).
 
-**Open:** one job building the UI's race test binary for all eight shards (each shard builds its
-own); a runner image that carries Fyne's build dependencies.
+**Open:** one job building the UI's race test binary for all shards (each builds its own); six
+shards instead of eight, or shards balanced by measured duration; a runner image that carries Fyne's
+build dependencies; lint and GoSec of the Windows-only files.
 
 **Why:** Job set-up (checkout, Go, a slow cache restore, apt) and a full second pass without the race
 detector, which covered about 0.3 % of statements no race run covered, took most of a run. In one
@@ -4227,7 +4240,7 @@ keep heaps small. A higher `GOGC` bought little time for much more memory.
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
 [`hack/shard`](../../hack/shard/main.go), [`render_test.go`](../../internal/ui/fyneui/render_test.go)
 `writePNG`, [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · 
-`TestSplitIsStableAndComplete`, `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestDefaultJobs`
+`TestSplitIsStableAndComplete`, `TestSelection`, `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestDefaultJobs`
 
 ## D-113: Image grades, shields from Trivy's reports
 
