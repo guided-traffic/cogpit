@@ -5,10 +5,10 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
@@ -17,19 +17,8 @@ import (
 // 2026-10-14 evening; D-26, H-34): the dialog's listing names it, its password as •••, and a
 // changed proxy asks again, at listing and at connect time alike.
 
-// proxyPluginKubeconfig is a kubeconfig for srv whose user runs a shell script that counts its runs
-// in marker and prints an ExecCredential with the fake server's token.
-func proxyPluginKubeconfig(t *testing.T, srv *testkit.FakeAPIServer, dir, marker string) string {
-	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("the test plugin is a shell script")
-	}
-	script := filepath.Join(dir, "bin", "cred-plugin")
-	writeUserFile(t, script, "#!/bin/sh\necho ran >> '"+marker+"'\n"+
-		`echo '{"apiVersion":"client.authentication.k8s.io/v1","kind":"ExecCredential","status":{"token":"tok"}}'`+"\n")
-	if err := os.Chmod(script, 0o700); err != nil {
-		t.Fatal(err)
-	}
+// proxyPluginKubeconfig is a kubeconfig for srv whose user runs plugin.
+func proxyPluginKubeconfig(srv *testkit.FakeAPIServer, plugin *testkit.Plugin) string {
 	return `apiVersion: v1
 kind: Config
 clusters:
@@ -42,24 +31,13 @@ users:
   user:
     exec:
       apiVersion: client.authentication.k8s.io/v1
-      command: ` + script + `
+      command: ` + testkit.YAMLQuote(plugin.Command) + `
       interactiveMode: Never
-contexts:
+      env:
+` + plugin.EnvYAML("      ") + `contexts:
 - name: eks
   context: {cluster: fake, user: plugin}
 `
-}
-
-func pluginRuns(t *testing.T, marker string) int {
-	t.Helper()
-	data, err := os.ReadFile(marker)
-	if errors.Is(err, os.ErrNotExist) {
-		return 0
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	return strings.Count(string(data), "ran")
 }
 
 // TestPluginApprovalBindsTheClusterProxy: approved without a proxy, the plugin runs and the
@@ -72,10 +50,10 @@ func pluginRuns(t *testing.T, marker string) int {
 func TestPluginApprovalBindsTheClusterProxy(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{})
 	defer srv.Close()
-	dir := t.TempDir()
-	marker := filepath.Join(dir, "marker")
-	file := filepath.Join(dir, "eks.yaml")
-	writeUserFile(t, file, proxyPluginKubeconfig(t, srv, dir, marker))
+	plugin := testkit.NewPlugin(t, "login-plugin")
+	plugin.Give("tok", time.Time{})
+	file := filepath.Join(t.TempDir(), "eks.yaml")
+	writeUserFile(t, file, proxyPluginKubeconfig(srv, plugin))
 	cfg := filepath.Join(t.TempDir(), "Cogpit")
 	k := NewKubeconfigSources(cfg)
 	if _, _, err := k.AddFile(file); err != nil {
@@ -125,8 +103,8 @@ func TestPluginApprovalBindsTheClusterProxy(t *testing.T) {
 	if err := s.Connect(t.Context(), id); err != nil {
 		t.Fatalf("connect without a proxy: %v", err)
 	}
-	if pluginRuns(t, marker) != 1 {
-		t.Fatalf("the plugin ran %d times", pluginRuns(t, marker))
+	if plugin.Runs() != 1 {
+		t.Fatalf("the plugin ran %d times", plugin.Runs())
 	}
 
 	proxy := testkit.NewForwardProxy(t, "alice", proxySecret)
@@ -145,8 +123,8 @@ func TestPluginApprovalBindsTheClusterProxy(t *testing.T) {
 	if !errors.Is(err, ErrExecNotApproved) {
 		t.Fatalf("connect through a proxy the approval did not name: %v", err)
 	}
-	if pluginRuns(t, marker) != 1 || proxy.Total() != 0 {
-		t.Fatalf("refused, yet the plugin ran (%d) or the proxy was used (%d)", pluginRuns(t, marker), proxy.Total())
+	if plugin.Runs() != 1 || proxy.Total() != 0 {
+		t.Fatalf("refused, yet the plugin ran (%d) or the proxy was used (%d)", plugin.Runs(), proxy.Total())
 	}
 
 	c := approve()

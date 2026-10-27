@@ -1,5 +1,3 @@
-//go:build darwin || linux
-
 package cluster
 
 import (
@@ -45,7 +43,7 @@ func TestCancelledConnectLogsASharedLoginThatStillRuns(t *testing.T) {
 	if !testkit.WaitFor(wait, func() bool { _, on := watch.Current(); return on && p.count() > base }) {
 		t.Fatal("the connect never ran the plugin")
 	}
-	pid, ends := p.lastPID(), other.loginEndMark()
+	pid, ends := p.LastPID(), other.loginEndMark()
 
 	cancel()
 	var r result

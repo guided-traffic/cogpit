@@ -80,7 +80,7 @@ G21) add **~2–6 h**. G19 and G20 are not targets and not counted.
   [D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound)); a `.bat`
   or `.cmd` plugin runs as `cmd.exe`, is not found, and a cancel only stops waiting for it.
 - **Not checked against the real thing:** a forward proxy and a cloud cluster's own CA (1–3 h); an
-  OIDC login program with its browser, cancelled and failing (the tests use scripts that wait).
+  OIDC login program with its browser, cancelled and failing (the tests use a program that waits).
 - **Not captured:** Lens's dialogs for adding kubeconfigs; Cogpit's are inferred.
 - **Security gaps:** [H-4](../security/credentials.md#h-4-auth-provider-token-refresh) (the legacy
   `oidc` provider's refreshed tokens stay in memory, `memoryPersister`; not decided),

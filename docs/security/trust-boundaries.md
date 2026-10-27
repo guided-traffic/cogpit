@@ -130,7 +130,7 @@ allowed exactly that login in the window, the engine refuses the connect for eve
   does not ask again (`TestProgramOutsideTheFolderIsBoundByPathOnly`); a link in the folder is
   bound by its target too; on Windows the program bound is the file `os/exec` runs (a path without
   one of `PATHEXT`'s extensions runs as the first match beside it, so `plug` binds `plug.exe`:
-  `TestProgramIsBoundByTheFileThatRuns`,
+  `TestProgramIsBoundByTheFileThatRuns`, `TestExecApprovalRefusedAfterPluginBinaryChanged`,
   [D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). Only
   regular files are hashed, at most 32 MiB for a program and 1 MiB for a CA file; a larger or
   unreadable one is bound by a note (a large one's size and modification time). At connect time

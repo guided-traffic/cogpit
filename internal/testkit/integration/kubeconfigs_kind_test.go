@@ -6,8 +6,10 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -170,4 +172,17 @@ contexts:
 		t.Fatalf("connect after approval: %+v, plugin runs %d", res, pluginRuns(t, marker))
 	}
 	t.Logf("connected through the exec plugin: Kubernetes %s", s.Backend().Conn.ServerVersion())
+}
+
+// pluginRuns is how often the plugin noted a run in marker.
+func pluginRuns(t *testing.T, marker string) int {
+	t.Helper()
+	data, err := os.ReadFile(marker)
+	if errors.Is(err, os.ErrNotExist) {
+		return 0
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return strings.Count(string(data), "ran")
 }

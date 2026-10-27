@@ -1,5 +1,3 @@
-//go:build darwin || linux
-
 package engine
 
 import (
@@ -18,6 +16,10 @@ import (
 // credential plugin waits for a login nobody finishes, as an OIDC login in the browser does.
 
 const loginToken = "login-wait-token-0042"
+
+// loginBound bounds the runs of the tests that wait for a run's bound: room for the plugin, the
+// test binary (race-enabled in CI's race jobs), to start and note its run before Cogpit ends it.
+const loginBound = 3 * time.Second
 
 // loginStack is a session whose context "oidc" logs in with a test plugin against a fake API server.
 // The plugin's credential does not expire: a test makes the connection renew its login by
@@ -137,7 +139,7 @@ func TestCancelConnectingEndsTheLogin(t *testing.T) {
 // (b) A login that does not finish within its bound fails the connect with a plain reason, its
 // process ended and the step in the connection log.
 func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
-	s, p, _ := loginStack(t, time.Second) // the plugin is a shell script: the race detector does not slow its start
+	s, p, _ := loginStack(t, loginBound)
 	p.Block(true)
 	err := s.Connect(within(t, 10*time.Second), "oidc")
 	var ended *cluster.LoginEndedError
@@ -145,7 +147,7 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 		t.Fatalf("the connect: %v, want a timed-out login", err)
 	}
 	c := s.UIState().Connection
-	if c.State != ConnectError || !strings.Contains(c.Error, "the login through login-plugin did not finish within 1s; Connect starts it again") {
+	if c.State != ConnectError || !strings.Contains(c.Error, "the login through login-plugin did not finish within 3s; Connect starts it again") {
 		t.Errorf("the state: %+v", c)
 	}
 	if pid := p.LastPID(); !testkit.WaitFor(within(t, 5*time.Second), func() bool { return testkit.ProcessGone(pid) }) {
@@ -153,7 +155,7 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 	}
 	a := lastAttempt(t, s, "oidc", AttemptConnect)
 	if text := attemptText(a); a.Outcome != OutcomeFailed ||
-		!strings.Contains(text, "login: Login: the login through login-plugin did not finish within 1s; Cogpit ended it") {
+		!strings.Contains(text, "login: Login: the login through login-plugin did not finish within 3s; Cogpit ended it") {
 		t.Errorf("the attempt: %s\n%s", a.Outcome, text)
 	}
 }
@@ -161,7 +163,7 @@ func TestALoginThatDoesNotFinishFailsTheConnect(t *testing.T) {
 // Item 4: a renewal of a connection that stands, waiting for its plugin, says so, is bounded the
 // same way (Login expired, with the reason), and its process ends.
 func TestARenewalThatWaitsIsBounded(t *testing.T) {
-	s, p, srv := loginStack(t, time.Second)
+	s, p, srv := loginStack(t, loginBound)
 	if err := s.Connect(within(t, 10*time.Second), "oidc"); err != nil {
 		t.Fatal(err)
 	}
@@ -179,7 +181,7 @@ func TestARenewalThatWaitsIsBounded(t *testing.T) {
 	}) {
 		t.Fatalf("the renewal past its bound: %+v", s.UIState().Connection)
 	}
-	if r := s.UIState().Connection.Reason; r != "the login through login-plugin did not finish within 1s; Log in again starts it again" {
+	if r := s.UIState().Connection.Reason; r != "the login through login-plugin did not finish within 3s; Log in again starts it again" {
 		t.Errorf("the reason: %q", r)
 	}
 	if !testkit.WaitFor(within(t, 5*time.Second), func() bool { return testkit.ProcessGone(pid) }) {

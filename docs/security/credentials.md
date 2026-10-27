@@ -59,10 +59,10 @@ has no account, login or cloud service of its own.
   Authenticator's `interactiveFunc`) and sends that process alone SIGTERM, then SIGKILL after 3 s
   (TerminateProcess on Windows), never Cogpit's process group or a browser the plugin opened
   ([`loginrun.go`](../../internal/cluster/loginrun.go),
-  [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin`,
-  `TestLoginTimeoutEndsThePlugin`, `TestCancelEndsAPluginThatExecs`). No run of it starts again until
-  the user connects or logs in again; what stays running:
-  [H-118](#h-118-what-a-cancelled-login-leaves-running).
+  [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin` and
+  `TestLoginTimeoutEndsThePlugin` on macOS, Linux and Windows, `TestCancelEndsAPluginThatExecs` on
+  macOS and Linux). No run of it starts again until the user connects or logs in again; what stays
+  running: [H-118](#h-118-what-a-cancelled-login-leaves-running).
 - A cluster not shown whose setting "Renew the login while the cluster is not shown" is off holds its
   plugin: the wrapper refuses before client-go builds the command, and an expiring login lapses until
   the cluster is shown or the user logs in again

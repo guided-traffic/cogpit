@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
@@ -34,16 +35,24 @@ func connectError(k *KubeconfigSources, file, kctx string) error {
 }
 
 // TestExecApprovalRefusedAfterPluginBinaryChanged (review R-5): a plugin inside the kubeconfig's
-// folder is bound by its content; replacing it asks again, at listing and at connect.
+// folder is bound by its content; replacing it asks again, at listing and at connect. The program
+// is small, as a plugin is (testkit.Plugin's test binary is larger than MaxBoundProgramSize and
+// would be bound by its size and time): a shell script; on Windows, where ./plug runs plug.exe
+// (PATHEXT), a copy of the system's whoami.exe.
 func TestExecApprovalRefusedAfterPluginBinaryChanged(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("a shell script is the plugin")
-	}
 	dir := t.TempDir()
 	file := filepath.Join(dir, "team.yaml")
-	writeUserFile(t, file, execSourceKubeconfig("e", "./plug"))
-	plug := filepath.Join(dir, "plug")
-	if err := os.WriteFile(plug, []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+	writeUserFile(t, file, execSourceKubeconfig("e", "."+string(filepath.Separator)+"plug"))
+	plug, program, replaced := filepath.Join(dir, "plug"), []byte("#!/bin/sh\nexit 1\n"), []byte("#!/bin/sh\nexit 2\n")
+	if runtime.GOOS == "windows" {
+		whoami, err := os.ReadFile(filepath.Join(os.Getenv("SystemRoot"), "System32", "whoami.exe"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		plug, program, replaced = plug+".exe", whoami, bytes.Clone(whoami)
+		replaced[len(replaced)/2] ^= 0xff
+	}
+	if err := os.WriteFile(plug, program, 0o755); err != nil {
 		t.Fatal(err)
 	}
 	k := sourcesWith(t, file)
@@ -62,8 +71,14 @@ func TestExecApprovalRefusedAfterPluginBinaryChanged(t *testing.T) {
 		t.Fatalf("an approved, unchanged plugin was refused: %v", err)
 	}
 
-	// The writer of the folder replaces the program (same size, same name).
-	if err := os.WriteFile(plug, []byte("#!/bin/sh\nexit 2\n"), 0o755); err != nil {
+	// The writer of the folder replaces the program (same size, same name). On Windows the file
+	// may stay held for a moment after the run that used it.
+	err = os.WriteFile(plug, replaced, 0o755)
+	for try := 0; err != nil && runtime.GOOS == "windows" && try < 200; try++ {
+		time.Sleep(10 * time.Millisecond)
+		err = os.WriteFile(plug, replaced, 0o755)
+	}
+	if err != nil {
 		t.Fatal(err)
 	}
 	f, kctx, _, _ = k.Find(id)

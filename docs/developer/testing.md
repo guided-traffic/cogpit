@@ -47,8 +47,26 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 - **The real engine under the window:** the window's tests may not import the cache or the cluster
   layer (depguard), so a test that runs the real engine under the shell takes its connector from
   [`testkit/enginekit`](../../internal/testkit/enginekit/enginekit.go) (`MemoryConnector`).
-- **Credential plugins:** [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) writes a
-  shell-script plugin (macOS and Linux).
+- **Credential plugins:** [`testkit.Plugin`](../../internal/testkit/plugin.go) is the test binary
+  itself: client-go starts it as the program a kubeconfig's exec section names, and
+  `testkit.Main`, which the package's `TestMain` calls, runs it as the plugin when the section's
+  environment sets `COGPIT_TEST_PLUGIN` to the plugin's folder. The files there set what a run
+  does: hand out a credential, print and exit with a code, wait until ended (a browser login),
+  replace itself with `/bin/sleep` (macOS, Linux), leave a child that holds its output (H-118),
+  answer late; every run notes itself and its process number. The program carries the plugin's
+  name: a symbolic link on macOS and Linux; on Windows, whose process search goes by the program's
+  file name, a copy, one per name and test process (or of its own where a test places it), started
+  once when it is made so that the malware scan of a new program falls on no test's timing. It
+  starts in about 0.3 s under the race detector (the packages' `init`s), so a test that waits for
+  a run's bound gives it 3 s.
+  [`testkit.LoginPlugin`](../../internal/testkit/loginplugin.go) adds a kubeconfig that runs it.
+  Shell scripts stay where a test needs one: a `#!` script's command line and a wrapper that execs,
+  for the process search (`pluginproc_unix_test.go`). The plugin a binary swap replaces
+  (`TestExecApprovalRefusedAfterPluginBinaryChanged`) is small, so that it is bound by its content
+  (`MaxBoundProgramSize`): a script, on Windows a copy of the system's `whoami.exe`. The test
+  binary is the plugin (the lead's decision, open to revision) rather than a script per system, as
+  a `.cmd` runs as `cmd.exe`, which the search does not take for the plugin, or a helper program
+  the tests build, which needs a Go toolchain and a build per package.
 
 ## Prerequisites
 
@@ -128,11 +146,14 @@ depends on timing passes locally and fails there. The rules:
   for up to a second (`retryHeld` in [`privatefile.go`](../../internal/engine/privatefile.go)), a
   terminal's files for up to two seconds after its shell ended; a test that reads a file the product
   rewrites retries its read too.
+- **A program is named without `.exe`:** os/exec adds it as `PATHEXT` says, so a kubeconfig names
+  `testkit.Plugin.Command` and a test that compares the file found compares `Path`.
 - **Expectations that differ per platform branch on `runtime.GOOS`** (shortcut glyphs, keys).
 
-Not run on Windows: the race detector, the kind, drain and envtest tiers, and the macOS harnesses.
-Lint and GoSec analyse the Windows build on Linux, without cgo, so `internal/ui/fyneui`'s Windows
-file is vetted (`go vet`) but not linted ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
+Not run on Windows: the race detector, the kind, drain and envtest tiers, the macOS harnesses, and
+the process search's tests of what Windows lacks (command lines, process groups, exec). Lint and
+GoSec analyse the Windows build on Linux, without cgo, so `internal/ui/fyneui`'s Windows file is
+vetted (`go vet`) but not linted ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
 
 ## Performance budgets
 
