@@ -95,6 +95,34 @@ type Cell struct {
 	Tip string `json:"tip,omitempty"`
 	// Grade is the image grade a ColumnGrade cell draws as its shield; GradeNone draws nothing.
 	Grade ImageGrade `json:"grade,omitempty"`
+	// Web, when set, draws the cell as a list of web addresses separated by [WebSeparator], each
+	// one a link that opens its URL in the browser on the user's click; an entry without a URL is
+	// plain text (an Ingress's wildcard host). Text stays the entries' texts joined, for sorting,
+	// search, CSV and agents, who read the URLs beside it. A pointer, so that Cell stays
+	// comparable; shared and immutable like Parts. Build it with [WebCell].
+	Web *[]WebLink `json:"web,omitempty"`
+}
+
+// WebLink is one entry of a cell drawn as web addresses: Text is what the cell shows, URL the
+// absolute http or https URL a click opens; empty, the entry is no link.
+type WebLink struct {
+	Text string `json:"text"`
+	URL  string `json:"url,omitempty"`
+}
+
+// WebSeparator stands between the entries of a cell of web addresses.
+const WebSeparator = ", "
+
+// WebCell returns a cell that lists web addresses; no entries return an empty cell.
+func WebCell(links []WebLink) Cell {
+	if len(links) == 0 {
+		return Cell{}
+	}
+	texts := make([]string, len(links))
+	for i, l := range links {
+		texts[i] = l.Text
+	}
+	return Cell{Text: strings.Join(texts, WebSeparator), Web: &links}
 }
 
 // CellBar is a usage bar: Share is the part of the whole in use (0 to 1; more is drawn full),

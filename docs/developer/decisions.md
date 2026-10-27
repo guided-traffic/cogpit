@@ -145,6 +145,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-134](#d-134-the-windows-zoom) | The window's zoom | built: VS Code's zoom via Fyne's canvas scale, 50-210% |
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
+| [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
 
 ## D-1: UI toolkit
 
@@ -5387,3 +5388,44 @@ after Fyne's own handler nothing starts the bound (from Fyne's code, not seen).
 `quitBoundPassed` · **Tests:** `TestQuitBoundEndsAHungTeardown`,
 `TestQuitBoundDisarmedByFynesReturn`, `TestQuitBoundUnarmed`, `TestQuitRequestAfterFynesDrain`,
 `TestQuitHungEndsAsANormalQuit`, `TestSmokeQuitBound`
+
+## D-137: An Ingress's hosts, links to the browser
+
+**Status:** built · **By:** owner (Hosts in place of Rules, hosts as links in the list and the
+drawer); lead (open to revision) the details below
+
+- **List:** the Ingresses view's Hosts column stands where Lens has Rules: each rule's host once,
+  in the rules' order, a comma apart (`model.WebCell`), 340 points wide by default. A rule without
+  a host reads `*`, and so does an Ingress without rules whose default backend answers every host.
+  The paths and backends are the drawer's.
+- **Drawer:** each rule's host in Rules is a link to the same address (`DetailItem.NameURL`); a
+  host wider than the name column wraps, its lines one link.
+- **Address:** `https://<host>` when a TLS entry of the Ingress covers the host (it names it, its
+  wildcard covers the host's first label, or it lists no hosts and so takes the controller's
+  default certificate for all), else `http://<host>`; no path, no port. Only a host that is a DNS
+  name links: `*` and a wildcard host (`*.example.com`) are text.
+- **Opening:** on the user's click only, in the window, no command: no agent opens a browser
+  ([D-23](#d-23-the-status-bars-owner-link-and-mcp-switch)). The window checks the address again
+  (absolute http or https, a host, no user information) and warns otherwise. Agents read the
+  addresses in the rows (`web`) and the drawer (`nameURL`).
+- **Look:** a host is as quiet as the lists' other links until the pointer is on it; then that host
+  alone takes the link colour, the underline and the hand, and its address is the tooltip.
+
+**Why:** the rules on one line ("host/path -> service:port, …") were too long to read in a list and
+hid what one looks for there, the hosts the Ingress serves; the paths and backends need the drawer
+anyway. https by TLS entry is what the Ingress itself says about a host.
+
+**Rejected:** a link per path (`https://host/path`) — the cell would grow back into the rules;
+https for every host — a host without TLS would open a certificate warning or nothing; the TLS
+section's hosts as links too — they repeat the rules' hosts.
+
+**Not covered:** a controller that serves TLS for a host the Ingress gives none (a default
+certificate) is opened with http, which such a controller usually redirects; a port the
+controller listens on other than 80 and 443 is not known.
+
+**Code:** [`kinds/ingresses.go`](../../internal/model/kinds/ingresses.go),
+[`model/row.go`](../../internal/model/row.go) (`WebLink`, `WebCell`),
+[`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) (`colourWeb`, `webIndexAt`,
+`pointWeb`), [`fyneui/links.go`](../../internal/ui/fyneui/links.go) (`openWebLink`, `nameLink`) ·
+**Tests:** `TestIngressHostLinks`, `TestIngressTexts`, `TestIngressColumns`,
+`TestIngressHostsOpenInTheBrowser`, `TestIngressRuleHostsAreLinks`, `TestOpenWebLinkChecksTheAddress`

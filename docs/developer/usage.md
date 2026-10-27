@@ -78,6 +78,9 @@ Ctrl on Windows and Linux.
   custom resources), each with a word search (match case, regular expression), filters by the rows'
   states and a namespace filter with its own search; a filtered namespace being deleted shows red.
   A click below the rows closes the drawer.
+- Ingresses list their hosts in place of Lens's Rules; a click on a host, there or in the drawer's
+  rules, opens it in the browser, https where the Ingress has TLS for it. `*` and wildcard hosts
+  are text.
 - Certificates in Secrets decoded in the drawer (PEM or DER, each of a chain): subject, issuer,
   serial, validity (a warning 30 days before the end), names, key, usages, fingerprint; whether
   `tls.key` belongs to `tls.crt` and the chain is in order. Agents read the fields, never the PEM

@@ -1,9 +1,12 @@
 package kinds
 
 import (
+	"net/url"
+	"slices"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -17,9 +20,10 @@ const (
 	anyHost = "*"
 )
 
-// ingresses has the columns of Lens's documentation (not captured). It has no status token: Lens
-// shows none, and an Ingress without an address is not necessarily broken, because some
-// controllers never publish one (inferred).
+// ingresses has the columns of Lens's documentation (not captured), with Hosts in the place of
+// Lens's Rules (the owner's choice, D-137): the rules' paths and backends are the drawer's. It has
+// no status token: Lens shows none, and an Ingress without an address is not necessarily broken,
+// because some controllers never publish one (inferred).
 var ingresses = &model.KindProfile{
 	Key:        "ingresses",
 	Group:      groupNetworking,
@@ -32,7 +36,8 @@ var ingresses = &model.KindProfile{
 		nameColumn,
 		namespaceColumn,
 		{ID: "loadBalancers", Title: "Load Balancers", Type: model.ColumnText},
-		{ID: "rules", Title: "Rules", Type: model.ColumnText},
+		// Room for two or three hosts before the cell cuts off; the full list is the tooltip.
+		{ID: "hosts", Title: "Hosts", Type: model.ColumnText, Width: 340},
 		ageColumn,
 	},
 	Cells: ingressCells,
@@ -74,36 +79,59 @@ func ingressCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
 		nameCell(obj),
 		namespaceCell(obj),
 		{Text: orDash(loadBalancerIngress(obj))},
-		// The cell names several objects (backend services), so it stays text without a link.
-		{Text: strings.Join(ingressRules(obj), ", ")},
+		model.WebCell(ingressHostLinks(obj)),
 		model.AgeCell(created(obj)),
 	}, model.StatusNone
 }
 
-// ingressRules renders each path of each rule as "host/path -> backend" (ASCII: Fyne's bundled
-// font has no arrow glyph), a rule without paths as its host, and the default backend last as
-// "(default) -> backend". A rule without a host matches every host and reads "*".
-func ingressRules(obj any) []string {
-	var out []string
+// ingressHostLinks are the hosts the rules name, each once in the rules' order, as links that open
+// the host in the browser: a rule without a host reads "*", and so does an Ingress without rules
+// whose default backend answers every host. "*" and a wildcard host are no links.
+func ingressHostLinks(obj any) []model.WebLink {
+	var out []model.WebLink
 	for _, r := range model.NestedSlice(obj, "spec", "rules") {
 		host := ingressHost(r)
-		paths := model.NestedSlice(r, "http", "paths")
-		if len(paths) == 0 {
-			out = append(out, host)
-			continue
-		}
-		for _, p := range paths {
-			line := host + model.NestedString(p, "path")
-			if b := ingressBackend(model.NestedMap(p, "backend")); b != "" {
-				line += " -> " + b
-			}
-			out = append(out, line)
+		if !slices.ContainsFunc(out, func(l model.WebLink) bool { return l.Text == host }) {
+			out = append(out, model.WebLink{Text: host, URL: ingressHostURL(obj, host)})
 		}
 	}
-	if b := ingressBackend(model.NestedMap(obj, "spec", "defaultBackend")); b != "" {
-		out = append(out, "(default) -> "+b)
+	if len(out) == 0 && ingressBackend(model.NestedMap(obj, "spec", "defaultBackend")) != "" {
+		out = append(out, model.WebLink{Text: anyHost})
 	}
 	return out
+}
+
+// ingressHostURL is the address a click on a rule's host opens: https when a TLS entry of the
+// Ingress covers the host, else http, without a path; "" for what is no DNS name ("*", a
+// wildcard host).
+func ingressHostURL(obj any, host string) string {
+	if len(validation.IsDNS1123Subdomain(host)) > 0 {
+		return ""
+	}
+	scheme := "http"
+	if ingressTLSCovers(obj, host) {
+		scheme = "https"
+	}
+	return (&url.URL{Scheme: scheme, Host: host}).String()
+}
+
+// ingressTLSCovers reports whether a TLS entry serves host: one that names it, one whose wildcard
+// ("*.example.com") covers its first label, or one without hosts, which serves every host with the
+// controller's default.
+func ingressTLSCovers(obj any, host string) bool {
+	_, parent, _ := strings.Cut(host, ".")
+	for _, t := range model.NestedSlice(obj, "spec", "tls") {
+		hosts := model.NestedStrings(t, "hosts")
+		if len(hosts) == 0 {
+			return true
+		}
+		for _, h := range hosts {
+			if h == host || parent != "" && h == "*."+parent {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func ingressHost(rule any) string {
@@ -199,7 +227,8 @@ func ingressDetail(obj *unstructured.Unstructured) []model.DetailSection {
 		if len(lines) == 0 {
 			lines = append(lines, "no paths: requests go to the default backend")
 		}
-		rules.add(ingressHost(r), strings.Join(lines, "\n"))
+		host := ingressHost(r)
+		rules.put(model.DetailItem{Name: host, Value: strings.Join(lines, "\n"), NameURL: ingressHostURL(obj, host)})
 	}
 	sections = withSection(sections, "Rules", rules)
 

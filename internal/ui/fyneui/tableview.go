@@ -736,7 +736,7 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if status == model.StatusNone && col.ID == columnStatus {
 			status = tv.snap.Rows[id.Row].Status
 		}
-		content = cellContent{text: tv.tf.CellText(*col, cell, tv.now), status: status, link: cell.Link, parts: cell.Parts, marks: cell.Marks, bar: cell.Bar, tip: cell.Tip}
+		content = cellContent{text: tv.tf.CellText(*col, cell, tv.now), status: status, link: cell.Link, parts: cell.Parts, web: cell.Web, marks: cell.Marks, bar: cell.Bar, tip: cell.Tip}
 		if content.link != nil && !tv.serves(content.link.Kind) {
 			content.link = nil // nowhere to go: plain text
 		}
@@ -924,6 +924,20 @@ func (tv *tableView) cellUnderPointer(row, col int) *tableCell {
 	return nil
 }
 
+// pointWeb marks the web address under the pointer in the hovered cell, so that only that address
+// is a link to the eye and the hand (tableCell.webHover), and its tooltip shows where it goes.
+func (tv *tableView) pointWeb() {
+	c := tv.hoverCell
+	if c == nil || c.content.web == nil {
+		return
+	}
+	at := fyne.CurrentApp().Driver().AbsolutePositionForObject(c)
+	if i := c.webIndexAt(tv.pointer.Subtract(at)); i != c.webHover {
+		c.setWebHover(i)
+		tv.requestTip()
+	}
+}
+
 // requestTip asks for the tooltip of the cell under the pointer, or hides the tooltip.
 func (tv *tableView) requestTip() {
 	if tv.hoverCell == nil && tv.headerTipShown() {
@@ -956,6 +970,8 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 		tv.openRowMenu(c.row, drv.AbsolutePositionForObject(c).AddXY(0, c.Size().Height))
 	case c.content.kind == cellCheck:
 		tv.checkTapped(c.row, mods)
+	case c.webIndexAt(e.Position) >= 0:
+		tv.sh.openWebLink((*c.content.web)[c.webIndexAt(e.Position)].URL)
 	case c.onLink(e.Position) && c.content.link.Same(tv.snap.Rows[c.row].Ref):
 		// A link to the row's own object (an issue's name on the cluster Overview) opens its
 		// details over the page, as a click on the row does.
@@ -1259,6 +1275,7 @@ func (t *resourceTable) MouseIn(ev *desktop.MouseEvent) {
 	t.hover = ev.Position
 	t.tv.pointer, t.tv.pointerIn = ev.AbsolutePosition, true
 	t.Table.MouseIn(ev)
+	t.tv.pointWeb()
 }
 
 // Cursor implements desktop.Cursorable: Fyne's resize arrows over a header divider, but none over
@@ -1300,6 +1317,7 @@ func (t *resourceTable) MouseMoved(ev *desktop.MouseEvent) {
 	t.hover = ev.Position
 	t.tv.pointer, t.tv.pointerIn = ev.AbsolutePosition, true
 	t.Table.MouseMoved(ev)
+	t.tv.pointWeb()
 	t.tv.requestTip()
 	t.tv.copyIcon.moved()
 }
@@ -1331,6 +1349,7 @@ type cellContent struct {
 	status model.Status
 	link   *model.ObjectRef
 	parts  *[]model.CellPart
+	web    *[]model.WebLink  // web addresses, each a link to the browser (an Ingress's hosts)
 	marks  *[]model.CellMark // squares in place of the text (a pod's containers)
 	bar    *model.CellBar    // a usage bar beside the text (a node's CPU, Memory, Disk; tablebar.go)
 	tip    string            // the cell's own tooltip (model.Cell.Tip: a kubelet's support, D-91)
@@ -1341,7 +1360,7 @@ type cellContent struct {
 }
 
 // tableCell is one body cell: text in the cell's status colour (a link in the link colour, a cell
-// in coloured parts run by run), or an icon (the warning triangle, the ⋮), and a background and
+// in coloured parts run by run, a cell of web addresses one run per address), or an icon (the warning triangle, the ⋮), and a background and
 // bottom line that reach into the table's cell gaps so that a row reads as one band.
 //
 // The cell handles its own taps, so that a click on a link follows it instead of selecting the
@@ -1351,8 +1370,8 @@ type tableCell struct {
 	widget.BaseWidget
 	tv    *tableView
 	bg    *canvas.Rectangle
-	text  *canvas.Text        // the text, or the first part
-	more  []*canvas.Text      // the further parts of a cell in coloured parts; grown on demand
+	text  *canvas.Text        // the text, or the first run
+	more  []*canvas.Text      // the further runs of a cell in parts or of web addresses; grown on demand
 	runX  []float32           // each part's x offset, set by fit
 	marks []*canvas.Rectangle // the squares of a cell in marks; grown on demand
 	shown int                 // the squares that fit, set by fit
@@ -1378,6 +1397,7 @@ type tableCell struct {
 	checked   bool // the row is in the selection: its checkbox is checked, its plate filled
 	hover     bool // the pointer or the keyboard is on the row
 	linkHover bool // the pointer is on this cell, which is a link
+	webHover  int  // the web address the pointer is on (webIndexAt); -1: none
 	focused   bool // the keyboard is on this cell (tablekeys.go)
 	tracked   bool // registered in tableView.cells
 	row, col  int
@@ -1399,7 +1419,7 @@ func newTableCell(tv *tableView) *tableCell {
 		bg:   canvas.NewRectangle(color.Transparent),
 		text: canvas.NewText("", color.Transparent),
 		line: canvas.NewRectangle(color.Transparent),
-		row:  -1, col: -1,
+		row:  -1, col: -1, webHover: -1,
 	}
 	c.ExtendBaseWidget(c)
 	return c
@@ -1428,9 +1448,13 @@ func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover
 		c.content, c.full, c.fitWidth = content, content.text, -1
 		changed = true
 	}
+	web := c.webHover
+	if changed || !linkHover {
+		web = -1 // the next move of the pointer finds its address again (tableView.pointWeb)
+	}
 	linkHover = linkHover && content.link != nil
-	if changed || marks.drawer != c.drawer || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover {
-		c.drawer, c.checked, c.hover, c.linkHover = marks.drawer, marks.checked, hover, linkHover
+	if changed || marks.drawer != c.drawer || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover || web != c.webHover {
+		c.drawer, c.checked, c.hover, c.linkHover, c.webHover = marks.drawer, marks.checked, hover, linkHover, web
 		c.apply()
 	}
 	if changed {
@@ -1462,9 +1486,22 @@ func (c *tableCell) setFocused(on bool) {
 
 // setHover marks the row as hovered and, for a link, the cell itself.
 func (c *tableCell) setHover(row, cell bool) {
+	web := c.webHover
+	if !cell {
+		web = -1
+	}
 	cell = cell && c.content.link != nil
-	if row != c.hover || cell != c.linkHover {
-		c.hover, c.linkHover = row, cell
+	if row != c.hover || cell != c.linkHover || web != c.webHover {
+		c.hover, c.linkHover, c.webHover = row, cell, web
+		c.apply()
+	}
+}
+
+// setWebHover marks the web address the pointer is on (-1: none): it alone takes the link colour,
+// the underline and the hand.
+func (c *tableCell) setWebHover(i int) {
+	if i != c.webHover {
+		c.webHover = i
 		c.apply()
 	}
 }
@@ -1496,7 +1533,7 @@ func (c *tableCell) TappedSecondary(e *fyne.PointEvent) { c.tv.openRowMenu(c.row
 
 // Cursor implements desktop.Cursorable: a hand over a link the pointer is on and over the ⋮.
 func (c *tableCell) Cursor() desktop.Cursor {
-	if c.linkHover || c.content.kind == cellMenu || c.content.kind == cellCheck {
+	if c.linkHover || c.webHover >= 0 || c.content.kind == cellMenu || c.content.kind == cellCheck {
 		return desktop.PointerCursor
 	}
 	return desktop.DefaultCursor
@@ -1509,6 +1546,59 @@ func (c *tableCell) onLink(p fyne.Position) bool {
 	}
 	x := c.text.Position().X
 	return p.X >= x && p.X <= x+c.text.Size().Width
+}
+
+// webIndexAt returns the web address a point in the cell lies on, -1 for none: a separator, an
+// address without a link, one cut off from the cell.
+func (c *tableCell) webIndexAt(p fyne.Position) int {
+	if c.content.web == nil || c.content.kind != cellText {
+		return -1
+	}
+	for i, l := range *c.content.web {
+		t := c.run(2 * i)
+		if l.URL == "" || t == nil || t.Text == "" {
+			continue
+		}
+		if x := t.Position().X; p.X >= x && p.X <= x+t.Size().Width {
+			return i
+		}
+	}
+	return -1
+}
+
+// run is the canvas text of a cell's run i (fit): text, then more; nil for one not made yet.
+func (c *tableCell) run(i int) *canvas.Text {
+	switch {
+	case i == 0:
+		return c.text
+	case i > 0 && i-1 < len(c.more):
+		return c.more[i-1]
+	}
+	return nil
+}
+
+// runCount is how many runs a cell draws side by side: its coloured parts, or its web addresses
+// and the separators between them; 0 for a plain text.
+func (c *tableCell) runCount() int {
+	switch {
+	case c.content.web != nil && len(*c.content.web) > 0:
+		return 2*len(*c.content.web) - 1
+	case c.content.parts != nil:
+		return len(*c.content.parts)
+	}
+	return 0
+}
+
+// runText is run i's text: a part, or a web address on the even runs and the separator between two
+// on the odd ones.
+func (c *tableCell) runText(i int) string {
+	switch {
+	case c.content.web == nil:
+		return (*c.content.parts)[i].Text
+	case i%2 == 1:
+		return model.WebSeparator
+	}
+	return (*c.content.web)[i/2].Text
 }
 
 // tipText is the cell's tooltip: a warning's reason, the cell's own (model.Cell.Tip), or the full
@@ -1529,6 +1619,8 @@ func (c *tableCell) tipText() string {
 		return strings.Join(lines, "\n") // a square stands for a container: say which, and how it is
 	case c.content.kind == cellText && c.content.bar != nil && c.content.bar.Detail != "":
 		return c.content.bar.Detail + " (" + c.full + ")" // the amounts behind the bar
+	case c.content.kind == cellText && c.webHover >= 0 && c.content.web != nil && c.webHover < len(*c.content.web):
+		return (*c.content.web)[c.webHover].URL // where a click goes, http or https
 	case c.content.kind == cellText && c.content.tip != "" && c.truncated:
 		return c.full + "\n" + c.content.tip // the text cut off, then the cell's own tooltip
 	case c.content.kind == cellText && c.content.tip != "":
@@ -1592,15 +1684,19 @@ func (c *tableCell) apply() {
 			}
 		}
 	}
+	if c.content.web != nil && c.content.kind == cellText {
+		c.colourWeb(th, size)
+	}
 	c.applyBar(th)
 	c.applyRowMarks(th)
-	if c.under == nil && c.content.link != nil {
+	if c.under == nil && (c.content.link != nil || c.content.web != nil) {
 		c.under = canvas.NewRectangle(color.Transparent)
 		c.objs++
 	}
 	if c.under != nil {
 		c.under.FillColor = themeColor(th, colorLink)
-		if c.linkHover {
+		if c.linkHover || c.webHover >= 0 {
+			c.placeUnder()
 			c.under.Show()
 		} else {
 			c.under.Hide()
@@ -1633,6 +1729,42 @@ func (c *tableCell) apply() {
 		r.Refresh()
 	}
 	c.refreshBar()
+}
+
+// colourWeb colours a cell of web addresses run by run: an address that is a link as quiet as a
+// link cell, in the link colour while the pointer is on it; the separators and an address without a
+// link in the text colour.
+func (c *tableCell) colourWeb(th fyne.Theme, size float32) {
+	links := *c.content.web
+	for len(c.more) < 2*len(links)-2 {
+		c.more = append(c.more, canvas.NewText("", color.Transparent))
+	}
+	plain := themeColor(th, theme.ColorNameForeground)
+	if c.checked {
+		plain = themeColor(th, colorRowSelectedText) // as a checked link cell: the link colour is too faint on the fill
+	}
+	for i := range c.runCount() {
+		t := c.run(i)
+		t.TextSize, t.Color = size, plain
+		switch {
+		case i%2 == 1 || links[i/2].URL == "" || c.checked:
+		case c.webHover == i/2:
+			t.Color = themeColor(th, colorLink)
+		default:
+			t.Color = withAlpha(plain, 0xeb)
+		}
+	}
+}
+
+// placeUnder puts the underline under the link the pointer is on: the web address, else the text.
+func (c *tableCell) placeUnder() {
+	t := c.text
+	if c.webHover >= 0 && c.run(2*c.webHover) != nil {
+		t = c.run(2 * c.webHover)
+	}
+	p, s := t.Position(), t.Size()
+	c.under.Move(fyne.NewPos(p.X, p.Y+s.Height-2))
+	c.under.Resize(fyne.NewSize(s.Width, 1))
 }
 
 // setGrade shows a grade cell's shield, or hides the shield of a cell that shows something else.
@@ -1707,7 +1839,8 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 		return changed
 	}
 	c.shown = 0
-	if c.content.parts == nil || len(*c.content.parts) == 0 {
+	n := c.runCount()
+	if n == 0 {
 		shown := ellipsize(c.full, avail, c.text.TextSize, c.text.TextStyle)
 		c.truncated = shown != c.full
 		c.hideMore(0)
@@ -1717,29 +1850,29 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 		c.text.Text = shown
 		return true
 	}
-	parts := *c.content.parts
+	// Parts stand a space apart; web addresses have their separators as runs of their own.
 	space := fyne.MeasureText(" ", c.text.TextSize, c.text.TextStyle).Width
+	if c.content.web != nil {
+		space = 0
+	}
 	c.runX = c.runX[:0]
 	x := float32(0)
 	c.truncated = false
-	for i, p := range parts {
-		t := c.text
-		if i > 0 {
-			t = c.more[i-1]
-		}
+	for i := range n {
+		t, text := c.run(i), c.runText(i)
 		c.runX = append(c.runX, x)
-		w := fyne.MeasureText(p.Text, t.TextSize, t.TextStyle).Width
+		w := fyne.MeasureText(text, t.TextSize, t.TextStyle).Width
 		switch {
 		case avail-x <= 0:
 			t.Text, c.truncated = "", true
 		case x+w > avail:
-			t.Text, c.truncated = ellipsize(p.Text, avail-x, t.TextSize, t.TextStyle), true
+			t.Text, c.truncated = ellipsize(text, avail-x, t.TextSize, t.TextStyle), true
 		default:
-			t.Text = p.Text
+			t.Text = text
 		}
 		x += w + space
 	}
-	c.hideMore(len(parts) - 1)
+	c.hideMore(n - 1)
 	return true
 }
 
@@ -1887,8 +2020,7 @@ func (c *tableCell) layout(size fyne.Size) {
 		}
 	}
 	if c.under != nil {
-		c.under.Move(fyne.NewPos(pad, y+ts.Height-2))
-		c.under.Resize(fyne.NewSize(ts.Width, 1))
+		c.placeUnder()
 	}
 	if c.icon != nil {
 		is := th.Size(sizeCellIcon)

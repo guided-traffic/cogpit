@@ -77,6 +77,7 @@ type goldenCell struct {
 	Status model.Status     `json:"status,omitempty"`
 	Link   *model.ObjectRef `json:"link,omitempty"`
 	Parts  []model.CellPart `json:"parts,omitempty"`
+	Web    []model.WebLink  `json:"web,omitempty"`
 }
 
 type golden struct {
@@ -111,6 +112,7 @@ func render(t *testing.T, p *model.KindProfile, obj *unstructured.Unstructured) 
 			Status: c.Status,
 			Link:   c.Link,
 			Parts:  partsOf(c),
+			Web:    webOf(c),
 		})
 	}
 	for name, f := range p.Fields {
@@ -145,12 +147,20 @@ func detailOf(p *model.KindProfile, obj *unstructured.Unstructured) []model.Deta
 	return model.TimeLayout{}.In(time.UTC).WriteSections(p.DetailSections(obj, model.NoRelated))
 }
 
-// sameCell compares cells by value, links and parts included.
+// sameCell compares cells by value, links, parts and web links included.
 func sameCell(a, b model.Cell) bool {
 	if a.Text != b.Text || a.Num != b.Num || a.Status != b.Status || (a.Link == nil) != (b.Link == nil) {
 		return false
 	}
-	return (a.Link == nil || *a.Link == *b.Link) && slices.Equal(partsOf(a), partsOf(b))
+	return (a.Link == nil || *a.Link == *b.Link) && slices.Equal(partsOf(a), partsOf(b)) && slices.Equal(webOf(a), webOf(b))
+}
+
+// webOf returns a cell's web links, nil when it has none.
+func webOf(c model.Cell) []model.WebLink {
+	if c.Web == nil {
+		return nil
+	}
+	return *c.Web
 }
 
 // partsOf returns a cell's coloured parts, nil when it has none.
