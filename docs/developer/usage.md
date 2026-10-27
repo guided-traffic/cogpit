@@ -613,9 +613,10 @@ beside it ([Install on Windows](#install-on-windows),
 [D-111](decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
 [updates › Windows](../security/updates.md#windows)). Cogpit's check reads the signed feed; a
 newer x64 release not skipped in WinSparkle's window shows the Update button, which installs at
-once (`app.installUpdate`): download, signature check, silent setup, restart into the new release. A per-user installation needs no administrator; an all-users one asks UAC. Help › Check
-for Updates… shows WinSparkle's window (Install update, Skip this version, Remind me later). Only
-your click runs `app.installUpdate`; `app.checkForUpdates`, open to agents, only shows the window.
+once (`app.installUpdate`): download, signature check, silent setup, restart into the new release.
+A per-user installation needs no administrator; an all-users one asks UAC. Help › Check for
+Updates… shows WinSparkle's window (Install update, Skip this version, Remind me later). Only your
+click runs `app.installUpdate`; `app.checkForUpdates`, open to agents, only shows the window.
 Cogpit's own feed read follows `HTTPS_PROXY`, not Windows' proxy settings or Preferences › Proxy:
 behind a proxy only Windows knows, the button stays away and Help › Check for Updates… still works.
 
@@ -1257,7 +1258,7 @@ namespaces, objects and API groups stay readable: read it before you send it. Ag
 ### Alerts: the pill and the alert board
 
 While the Alertmanager integration is on for a cluster (Cluster Settings › Integrations), Cogpit
-reads the cluster's Alertmanager; it installs none
+reads the cluster's Alertmanager
 ([D-77](decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)).
 
 - **Source:** a Service named as kube-prometheus-stack, kube-prometheus, the Prometheus Operator,
@@ -1274,7 +1275,7 @@ reads the cluster's Alertmanager; it installs none
 
 | Pill | Means |
 |---|---|
-| warning sign in the worst severity's colour (red critical, orange warning, yellow info), then per severity a bar (red, amber, blue) wider with more alerts, and its count (`99+` beyond 99) | alerts fire |
+| warning sign in the worst severity's colour (red critical, orange warning, amber info), then per severity a bar (red, orange, blue) wider with more alerts, and its count (`99+` beyond 99) | alerts fire |
 | green `0` | the Alertmanager answers with none |
 | grey `warn` | nothing answers: none found, not allowed, not answering (the tooltip says which) |
 | grey `–` | still looking for it |
