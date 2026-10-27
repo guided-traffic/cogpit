@@ -125,7 +125,9 @@ depends on timing passes locally and fails there. The rules:
   (register the wait with `t.Cleanup` after `t.TempDir`, so it runs first); a simulated second
   process stays alive with `runtime.KeepAlive`.
 - **The machine's environment is not the test's.** A test that needs a shell or a namespace names
-  it; a test never asserts that a freed port stays free. A test never reads or changes the user's
+  it; a test never asserts that a freed port stays free: a connection it needs refused goes to
+  [`testkit.RefusedAddr`](../../internal/testkit/refusedaddr.go), a port no listener on port 0
+  gets, never to a port it freed by closing a listener. A test never reads or changes the user's
   clipboard: the concealed-copy harness hands `clipboard_darwin.m` a pasteboard of its own in the
   general pasteboard's place (`TestConcealedClipboardMarkedForThisMacOnly`). Saving and restoring
   the user's clipboard instead would read other apps' contents, which macOS can ask the user about

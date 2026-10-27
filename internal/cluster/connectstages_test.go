@@ -221,12 +221,7 @@ func TestConnectStagesOfAFailure(t *testing.T) {
 			[3]string{StageTCP, StageNotReached, ""}, [3]string{StageTLS, StageNotReached, ""}, [3]string{StageAPI, StageNotReached, ""})
 	})
 	t.Run("port closed", func(t *testing.T) {
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			t.Fatal(err)
-		}
-		addr := l.Addr().String()
-		_ = l.Close()
+		addr := testkit.RefusedAddr
 		got, err := stagesConnect(t, writeFile(t, "kubeconfig", kubeconfigFor("x", "https://"+addr, "")), nil)
 		if err == nil {
 			t.Fatal("connected")
