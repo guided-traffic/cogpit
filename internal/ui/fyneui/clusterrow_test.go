@@ -44,6 +44,20 @@ func hasPill(r *clusterRow, text string) bool {
 	return false
 }
 
+// tapWelcomeRow clicks a welcome row once a click at its centre reaches it: a row the page rebuilt
+// is placed by the next layout, and a click before it lands on whatever lies there.
+func tapWelcomeRow(t *testing.T, sh *shell, q *mainQueue, title string) *clusterRow {
+	t.Helper()
+	var row *clusterRow
+	q.until(t, title+"'s row under the click", func() bool {
+		settle(sh.win)
+		row = welcomeRowOf(t, sh, title)
+		return clickTarget(sh.win.Canvas().Content(), centre(row)) == row
+	})
+	driverTap(t, sh.win, centre(row))
+	return row
+}
+
 // welcomeOnFake shows the welcome page over a fake engine and waits for every context's row.
 func welcomeOnFake(t *testing.T, f *fakeEngine, mode ThemeMode) (*shell, *mainQueue) {
 	t.Helper()
@@ -226,10 +240,7 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	}
 	settle(sh.win) // the page laid out: a click finds what it shows
 
-	row := welcomeRowOf(t, sh, "kind-cogpit")
-	if got := driverTap(t, sh.win, centre(row)); got != row {
-		t.Fatalf("a click on kind-cogpit's row reached %T, not the row", got)
-	}
+	row := tapWelcomeRow(t, sh, q, "kind-cogpit")
 	q.until(t, "the connect", func() bool { return connects() == 1 })
 	driverTap(t, sh.win, centre(row)) // the double click's second click: the engine has not answered
 	close(shown)
@@ -239,8 +250,7 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	if n := connects(); n != 1 {
 		t.Fatalf("a second click before the engine answered connected %d times", n)
 	}
-	settle(sh.win)
-	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "kind-cogpit"))) // an impatient click on the new row
+	tapWelcomeRow(t, sh, q, "kind-cogpit") // an impatient click on the new row
 	close(done)
 	q.until(t, "the connect returned", func() bool { return sh.tabs.welcome.pending == "" })
 	if n := connects(); n != 1 {
@@ -249,8 +259,7 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 
 	f.update(func(u *engine.UIState) { u.Context, u.Connection = "", engine.Connection{} })
 	q.until(t, "no cluster shown", func() bool { return sh.ui.Context == "" })
-	settle(sh.win)
-	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "kind-cogpit")))
+	tapWelcomeRow(t, sh, q, "kind-cogpit")
 	q.until(t, "a connect again", func() bool { return connects() == 2 })
 	q.until(t, "that connect returned", func() bool { return sh.tabs.welcome.pending == "" })
 
@@ -261,9 +270,8 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	})
 	f.update(func(u *engine.UIState) { u.Welcome = true }) // keepPage
 	q.until(t, "prod-eu-central connecting", func() bool { return sh.ui.Context == "prod-eu-central" && sh.tabs.welcome.shown })
-	settle(sh.win)
-	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "prod-eu-central")))
-	driverTap(t, sh.win, centre(welcomeRowOf(t, sh, "staging-us-east")))
+	tapWelcomeRow(t, sh, q, "prod-eu-central")
+	tapWelcomeRow(t, sh, q, "staging-us-east")
 	q.until(t, "staging-us-east's connect", func() bool { return connectsOf("staging-us-east") == 1 })
 	q.until(t, "its connect returned", func() bool { return sh.tabs.welcome.pending == "" })
 	if n := connectsOf("prod-eu-central"); n != 0 {
@@ -271,8 +279,7 @@ func TestWelcomeRowConnectsOnce(t *testing.T) {
 	}
 
 	// The login program's review: one for two clicks, then one connect.
-	dev := welcomeRowOf(t, sh, "dev-hfi")
-	driverTap(t, sh.win, centre(dev))
+	dev := tapWelcomeRow(t, sh, q, "dev-hfi")
 	q.until(t, "the review", func() bool { return len(f.callsOf("kubeconfig.pendingApprovals")) == 1 })
 	driverTap(t, sh.win, centre(dev))
 	close(review)
