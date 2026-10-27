@@ -2666,9 +2666,11 @@ cannot be copied.
   window labels it Cancel Connecting in the cluster's menus and on a button in the connecting
   workspace. The cluster ends disconnected without an error, its attempt `cancelled`.
 - **A bound.** Each run of a plugin (a connect's, a renewal's, Log in again's) is ended after 5
-  minutes (`DefaultLoginTimeout`): the connect fails, or a renewal leaves the login expired. The
-  plugin's standard error is kept as after a failed login (D-66), but dropped after a cancel. The
-  connect's 15 s timeout bounds its first request below the plugin, not the login.
+  minutes (`DefaultLoginTimeout`): the connect fails, or a renewal leaves the login expired with the
+  bound's reason, also when the heartbeat that waited for the run answers after its own deadline or
+  after the 30 s that expired the login already; no check after the end is asked. The plugin's
+  standard error is kept as after a failed login (D-66), but dropped after a cancel. The connect's
+  15 s timeout bounds its first request below the plugin, not the login.
 - **Ending a run.** Cogpit finds the plugin's process among its own children at the run's begin and
   follows it by pid and start time, so a wrapper that `exec`s is ended too (macOS, Linux, Windows;
   no cgo). It signals that process alone: SIGTERM, then SIGKILL after 3 s. It says "Cogpit ended
@@ -2697,15 +2699,19 @@ running the plugin in Cogpit — certificate plugins need client-go's TLS callba
 in the plugin's place — it changes the approved command (D-26); abandoning only the waiting request
 — the plugin keeps the lock and the next connect waits behind it; signalling the process group —
 the plugin runs in Cogpit's own group; a connection state of its own — the dots, the menus and
-agents' checks of the state keep working when it stays.
+agents' checks of the state keep working when it stays; asking the login again after a run Cogpit
+ended — the check meets only the login guard's 401 and says the API server rejects the login.
 
 **Code:** [`loginrun.go`](../../internal/cluster/loginrun.go),
 [`loginhold.go`](../../internal/cluster/loginhold.go) `admit`,
 [`pluginproc.go`](../../internal/cluster/pluginproc.go),
-[`engine/loginwait.go`](../../internal/engine/loginwait.go) · 
+[`engine/loginwait.go`](../../internal/engine/loginwait.go),
+[`engine/connwatch.go`](../../internal/engine/connwatch.go) `pluginRunEnded` · 
 `TestCancelledConnectEndsThePlugin`, `TestLoginTimeoutEndsThePlugin`,
 `TestEndedLoginDoesNotRunAgainUntilLogInAgain`, `TestCancelEndsAPluginThatExecs`,
-`TestCancelledConnectsStartNoRunAfterAStrayOne`, `TestCancelConnectingFromTheWindowAndAnAgent`
+`TestCancelledConnectsStartNoRunAfterAStrayOne`, `TestCancelConnectingFromTheWindowAndAnAgent`,
+`TestAnEndedRunAnsweredAfterTheDeadlineExpiresTheLogin`, `TestAnEndedRunAnsweredAfterTheLoginWaitSaysSo`,
+`TestLogInAgainWhoseRunEndedSaysSo`
 
 ## D-74: How the lead's decisions are reviewed
 

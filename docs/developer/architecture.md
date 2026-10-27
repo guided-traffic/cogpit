@@ -716,7 +716,7 @@ cluster is not shown" off) holds its plugin (`applyLoginHolds`,
 | connected | heartbeat tick; wake; network change; `cache.OnStreamError` ([`streamerr.go`](../../internal/cache/streamerr.go)) | `Heartbeat`; not back after 6 s: waits for its plugin, at most 30 s | two failures in a row (one at wake): **interrupted**; two 401s in a row or a plugin silent 30 s: **loginExpired**; at wake, a plugin whose program changed (D-26): **loginExpired** without running it |
 | interrupted | backoff; wake or network change at once | `Reachable` (no credentials), then `Heartbeat` | **connected**; **loginExpired**; next attempt |
 | loginExpired | `cluster.login` (GUI-only) | one `Heartbeat` as long as the user takes | **connected**; **interrupted**; **loginExpired** |
-| a plugin run under way | its 5-minute bound (`cluster.LoginEndedError`) | none | **loginExpired** |
+| a plugin run under way | its 5-minute bound (`cluster.LoginEndedError`) | none: the waiting heartbeat's answer stands whenever it comes (`pluginRunEnded`) | **loginExpired** with the bound's reason |
 | plugin held | a check that needed it (`cluster.ErrLoginLapsed`) | none | **lapsed**: requests held or refused, heartbeat paused |
 | lapsed | hold ends (shown, setting on); `cluster.login` | one `Heartbeat` | **connected**; **interrupted**; **loginExpired** |
 

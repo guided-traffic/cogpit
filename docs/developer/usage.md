@@ -1153,8 +1153,10 @@ A login program that opens your browser (kubelogin, pinniped) waits for you
   finish within 5 minutes; Connect starts it again".
 - When Cogpit cannot find the program's process it only stops waiting; a later connect waits behind
   that login, without an end time, until its process ends, and says so.
-- A connected cluster's login renewal shows **Login expired** after 30 s
+- A connected cluster's login renewal (Log in again's too) shows **Login expired** after 30 s
   ([above](#when-the-connection-breaks)); a login you finish within the 5 minutes still reconnects.
+  Cogpit ends the program after 5 minutes, and **Login expired** then says "the login through
+  <program> did not finish within 5 minutes; Log in again starts it again".
 - Only Connect or Log in again starts an ended login program again, so browser tabs do not pile up.
 - The connect's 15 s limit for the API server's first answer excludes the time spent in the browser.
 
