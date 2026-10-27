@@ -162,13 +162,13 @@ Cogpit (winsparkle_windows.go), the setup's cogpit.exe in a release build
 | Check | Where | Prevents |
 |---|---|---|
 | The setup's EdDSA signature with the key built into the app (`win_sparkle_set_eddsa_public_key`) | WinSparkle, before it runs the setup | a setup swapped on GitHub, on Pages or in transit running as the user (or as an administrator for an installation for all users) |
-| The feed's signature with the same key ([`appcast.go`](../../internal/update/appcast.go)) | Cogpit, before the Update button shows a release | the button offering a release the key did not sign; WinSparkle checks only the setup's ([H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)) |
+| The feed's signature with the same key ([`appcast.go`](../../internal/update/appcast.go)) | Cogpit, before the Update button shows a release | the button offering a release the key did not sign; WinSparkle checks only the setup's ([H-146](#h-146-winsparkle-installs-from-a-feed-it-does-not-verify)) |
 | `WinSparkle.dll` loaded by its full path, only in a release build running from the folder an uninstall entry names | Cogpit (`load` in [`winsparkle_windows.go`](../../internal/update/winsparkle_windows.go)) | a DLL found through the DLL search order; a copy outside the setup's folder installing a second Cogpit |
 | `WinSparkle.dll` pinned by the SHA-256 of WinSparkle's release archive (`WINSPARKLE_SHA256`) | `make winsparkle` | another DLL than the reviewed release ([H-140](#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
 | `app.installUpdate` runs only from the window ([agents and MCP](agents-and-mcp.md)) | the engine | an agent or the CLI installing a release and restarting Cogpit |
 
 Neither Authenticode ([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)) nor the
-feed WinSparkle acts on ([H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)) nor the
+feed WinSparkle acts on ([H-146](#h-146-winsparkle-installs-from-a-feed-it-does-not-verify)) nor the
 host ([H-93](#h-93-the-feeds-host-can-withhold-updates)) vouches for an update. A per-user
 installation updates without an administrator; one for all users asks UAC at each update.
 
@@ -251,7 +251,7 @@ window.
 Live. The signed feeds have no expiry, and every feed ever deployed is public. The host can serve
 nothing ([H-16](#h-16-availability-of-the-release-host)) or an older signed feed (a freeze): copies
 older than its newest item are offered at most that item, newer ones nothing; a Mac is not
-downgraded (Windows: [H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)). The
+downgraded (Windows: [H-146](#h-146-winsparkle-installs-from-a-feed-it-does-not-verify)). The
 deploy jobs' `hack/appcast verify -live` keeps the pipeline from freezing a feed; a workflow that
 skips it can. Dormant while every release has the same `LSMinimumSystemVersion` (`MACOS_MIN`): if
 one raised it, a left-out older item would be the newest a Mac on the older macOS may install.
@@ -353,7 +353,7 @@ new version comes only through a reviewed change of the pin (Renovate proposes, 
 not bounded: that the maintainer's build is what its source says. Not built: WinSparkle built from
 source in the pipeline.
 
-### H-new: WinSparkle installs from a feed it does not verify
+### H-146: WinSparkle installs from a feed it does not verify
 
 Live. WinSparkle checks the EdDSA signature of the setup it downloads, not the feed's: the version
 it compares, the download's URL and signature, the installer arguments and the notes link all come
