@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // A Secret value's copy on macOS (H-25): clipboard_darwin.m itself, built with a native harness
@@ -19,12 +21,9 @@ import (
 // nspasteboard.org's concealed and transient types, which clipboard managers read, in contents
 // prepared for this Mac only, out of Universal Clipboard: the harness records the options the copy
 // asked for (AppKit reads none back), and the change count shows that nothing replaced those
-// contents after. Skipped without clang or a pasteboard server.
+// contents after. Needs clang and a pasteboard server.
 func TestConcealedClipboardMarkedForThisMacOnly(t *testing.T) {
-	clang, err := exec.LookPath("clang")
-	if err != nil {
-		t.Skip("no clang")
-	}
+	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "clipboard_harness")
 	build := exec.Command(clang, "-fno-objc-arc", "-framework", "Cocoa", "-I.", "-o", bin,
 		filepath.Join("testdata", "clipboard_harness.m"), "clipboard_darwin.m")
@@ -34,9 +33,7 @@ func TestConcealedClipboardMarkedForThisMacOnly(t *testing.T) {
 	const value = "first line: wört\nsecond line, a key 🔑 and a trailing space \n"
 	out, err := exec.Command(bin, value).Output()
 	var exit *exec.ExitError
-	if errors.As(err, &exit) && exit.ExitCode() == 3 {
-		t.Skip("no pasteboard server")
-	}
+	prereq.Need(t, !errors.As(err, &exit) || exit.ExitCode() != 3, "a pasteboard server")
 	if err != nil {
 		t.Fatalf("the harness: %v\n%s", err, out)
 	}
