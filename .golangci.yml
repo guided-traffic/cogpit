@@ -4,6 +4,13 @@ run:
   timeout: 10m
   tests: true
 
+# Every finding is shown, so that a run's log lists all a change has to fix: by default
+# golangci-lint stops at three findings of one text and shows one per line.
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false
+
 linters:
   default: none
   enable:
@@ -442,10 +449,10 @@ linters:
           - prealloc
           - unparam
 
-      # gosec runs only in the GoSec job (`make gosec`: --enable-only gosec --tests=false), never
-      # in `make lint`, and not on tests. Every exclusion below carries its reason. A real finding
-      # is fixed in the code, or, when too large for that, recorded as an H-gap in the docs/security
-      # page of its mechanism, and its exclusion names that H-number.
+      # gosec runs only in `make gosec` and `make gosec-darwin` (--enable-only gosec --tests=false),
+      # never in a lint run, and not on tests. Every exclusion below carries its reason. A real
+      # finding is fixed in the code, or, when too large for that, recorded as an H-gap in the
+      # docs/security page of its mechanism, and its exclusion names that H-number.
 
       # gosec judges the code that ships, so two folders are left out whole, as --tests=false
       # leaves out the tests. internal/testkit is test-only code: depguard's no-testkit-in-product

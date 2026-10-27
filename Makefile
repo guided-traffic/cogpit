@@ -1,9 +1,9 @@
 # Cogpit — developer targets. CI (.github/workflows/release.yml) runs the same ones, one job each:
 # lint with check-nodemo, parity, gosec, vuln, cyclo, test-norace-coverage, test-race-ui (sharded),
 # test-race-rest, kind-up with test-kind, kind-drain-up with test-kind-drain, envtest-bin with
-# test-envtest, coverage-report, on macOS test-darwin and lint with app, dist-linux with
-# test-linux-package, and on Windows test-windows-unit, test-windows-ui and dist-windows with
-# test-windows-package (docs/developer/releasing.md#ci).
+# test-envtest, coverage-report, on macOS test-darwin and lint-darwin and gosec-darwin with app,
+# dist-linux with test-linux-package, and on Windows test-windows-unit, test-windows-ui and
+# dist-windows with test-windows-package (docs/developer/releasing.md#ci).
 #
 # Go: go.mod declares go 1.27.3 (1.27.2 before 2026-10-21: GO-2026-6809 in crypto/x509); GOTOOLCHAIN=auto
 # fetches it when the local Go is older.
@@ -322,11 +322,12 @@ $(GOVULNCHECK): $(call tool_stamp,govulncheck,$(GOVULNCHECK_VERSION))
 vuln: $(GOVULNCHECK) ## govulncheck: known vulnerabilities in the code paths Cogpit calls
 	$(GOVULNCHECK) ./...
 
-# gosec through golangci-lint (the same build of it as lint), the shipped code only; an accepted
-# finding is excluded in .golangci.yml with its reason, a real one is fixed or an H-gap in
-# docs/security.
-gosec: $(GOLANGCI_LINT) ## gosec: security findings in the code Cogpit ships (tests excluded)
+# gosec through golangci-lint (the same build of it as lint), the shipped code only, for this
+# system's build and Windows' (WINDOWS_LINT_PKGS, at lint); an accepted finding is excluded in
+# .golangci.yml or marked #nosec with its reason, a real one is fixed or an H-gap in docs/security.
+gosec: $(GOLANGCI_LINT) ## gosec: security findings in the code Cogpit ships (tests excluded), for this system's build and Windows'
 	$(GOLANGCI_LINT) run --enable-only gosec --tests=false ./...
+	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run --enable-only gosec --tests=false $(WINDOWS_LINT_PKGS))
 
 $(GOCYCLO): $(call tool_stamp,gocyclo,$(GOCYCLO_VERSION))
 	GOBIN=$(BIN) $(GO) install github.com/fzipp/gocyclo/cmd/gocyclo@$(GOCYCLO_VERSION)
@@ -352,12 +353,30 @@ $(TOOL_STAMPS)/%:
 	@rm -f $(TOOL_STAMPS)/$(firstword $(subst @, ,$*))@*
 	@touch $@
 
-# LINT_PKGS narrows the packages: CI's macOS job lints the ones with darwin-only files, which the
-# Linux lint job does not see.
-LINT_PKGS       ?= ./...
+# A lint or GoSec run sees one system's build: lint and gosec run a second pass for Windows over
+# the packages with Windows files, and CI's macOS job runs lint-darwin and gosec-darwin over the
+# packages with darwin-only files. A system's packages are found by its files' names,
+# *_<system>.go and *_<system>_*.go (docs/developer/conventions.md#style). The Windows pass runs
+# without cgo, which internal/ui/fyneui needs for Fyne: its Windows file is vetted on Windows
+# (test-windows-unit), not linted (docs/developer/releasing.md#lint-and-gosec-per-system).
+goos_pkgs          = $(sort $(addprefix ./,$(dir $(shell find cmd internal hack -name '*_$(1).go' -o -name '*_$(1)_*.go'))))
+WINDOWS_LINT_PKGS  = $(filter-out $(UI_PKG)/,$(call goos_pkgs,windows))
+DARWIN_LINT_PKGS   = $(call goos_pkgs,darwin)
+WINDOWS_LINT_ENV  := GOOS=windows CGO_ENABLED=0
 
-lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering
-	$(GOLANGCI_LINT) run $(LINT_PKGS)
+.PHONY: lint-darwin gosec-darwin
+
+lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'
+	$(GOLANGCI_LINT) run ./...
+	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run $(WINDOWS_LINT_PKGS))
+
+lint-darwin: $(GOLANGCI_LINT) ## golangci-lint over the packages with darwin-only files (macOS only); CI's macOS Lint and App
+	@test "$$($(GO) env GOOS)" = darwin || { echo "lint-darwin runs on macOS only"; exit 1; }
+	$(GOLANGCI_LINT) run $(DARWIN_LINT_PKGS)
+
+gosec-darwin: $(GOLANGCI_LINT) ## gosec over the packages with darwin-only files (macOS only, tests excluded); CI's macOS Lint and App
+	@test "$$($(GO) env GOOS)" = darwin || { echo "gosec-darwin runs on macOS only"; exit 1; }
+	$(GOLANGCI_LINT) run --enable-only gosec --tests=false $(DARWIN_LINT_PKGS)
 
 # The release build's variant (DIST_TAGS, D-67), which no other check builds, for CI's lint job:
 # internal/demo is linked into neither binary with the tags and into both without them (so the

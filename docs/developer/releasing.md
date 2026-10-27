@@ -23,9 +23,9 @@ in the background. `GOFLAGS=-count=1` keeps cached test results from passing a g
 
 | Job | Make target | Runs |
 |---|---|---|
-| Code Linting | `make lint`, `make check-nodemo` | golangci-lint with the team's linters and depguard's layering; the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests |
+| Code Linting | `make lint`, `make check-nodemo` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests |
 | Parity | `make parity` | [`hack/parity`](../../hack/parity/main.go) with `-check` ([parity README](../parity/README.md#make-parity)) |
-| GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out |
+| GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out, for Linux and Windows |
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
 | Cyclomatic Complexity | `make cyclo` | gocyclo over `cmd`, `internal`, `hack`, `third_party`; fails above `CYCLO_THRESHOLD` |
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
@@ -35,7 +35,7 @@ in the background. `GOFLAGS=-count=1` keeps cached test results from passing a g
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
 | macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector |
-| macOS Lint and App | `make lint LINT_PKGS=…`, `make app` | lint of the packages with darwin-only files; the app bundle |
+| macOS Lint and App | `make lint-darwin gosec-darwin`, `make app` | lint and gosec of the packages with darwin-only files; the app bundle |
 | Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |
 | Linux Package | `make dist-linux`, `make test-linux-package` | the `.deb` as releases build it, lintian, the APT repository's scripts end to end with a throwaway key |
@@ -85,6 +85,26 @@ Why five race shards, and why each compiles its own test binary:
 simpler lowers it to the new maximum in the same commit (`make cyclo-report` shows it); no
 refactoring of its own for it.
 
+### Lint and GoSec per system
+
+golangci-lint and gosec analyse the build of one system, so each system's own files get a run of
+their own. A system's packages are those with a file named for it (`*_windows.go`, `*_darwin.go`,
+with `_test` or an architecture after the name; the [convention](conventions.md#style)), found by
+the Makefile at each run.
+
+| Build | Packages | Make targets | Job |
+|---|---|---|---|
+| Linux, with cgo | all | `make lint`, `make gosec` (first pass) | Code Linting, GoSec Security Scan |
+| Windows, without cgo | those with Windows files but `internal/ui/fyneui` | `make lint`, `make gosec` (second pass) | Code Linting, GoSec Security Scan |
+| macOS, with cgo | those with darwin-only files | `make lint-darwin`, `make gosec-darwin` | macOS Lint and App |
+
+`internal/ui/fyneui`'s Windows file, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go),
+is vetted by Unit Tests (windows) and neither linted nor scanned: its package needs cgo for Fyne
+([D-112](decisions.md#d-112-ci-and-test-time)). The patched terminal widget, a module of its own
+([`third_party/fyne-terminal`](../../third_party/fyne-terminal/PATCHES.md)), is in none of these
+runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](../../.golangci.yml)
+`issues`).
+
 ### Running a job locally
 
 ```sh
@@ -95,6 +115,7 @@ make test-race-rest
 make kind-up && make test-kind                 # the cluster tests; make kind-down after
 make test-envtest                              # fetches the pinned binaries first
 make test-darwin                               # macOS only
+make lint-darwin gosec-darwin                  # macOS only
 make coverage-report                           # merges what is in .cache/coverage
 ```
 

@@ -45,7 +45,8 @@ env:
 
 jobs:
   # golangci-lint with the team's linters and depguard's layering (the import rules of
-  # docs/developer/architecture.md §3), and the release build's variant.
+  # docs/developer/architecture.md §3), for the Linux build and, without cgo, Windows' (make lint's
+  # second pass, over the packages with Windows files), and the release build's variant.
   lint:
     name: Code Linting
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -86,8 +87,8 @@ jobs:
       - name: Parity checklists
         run: make parity
 
-  # gosec through golangci-lint, the shipped code only; accepted findings are excluded in
-  # .golangci.yml with their reason.
+  # gosec through golangci-lint, the shipped code only, for the Linux build and Windows' (as make
+  # lint); accepted findings are excluded in .golangci.yml or marked #nosec, with their reason.
   gosec:
     name: GoSec Security Scan
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
@@ -443,9 +444,10 @@ jobs:
       - name: The macOS-only tests (race detector on)
         run: make test-darwin
 
-  # The lint of the packages with darwin-only files and the app bundle with Sparkle. Its build cache
-  # is a kind of its own (lint, no race detector): app-macos, as the tests' restore key
-  # (gobuild-<os>-<arch>-macos-) would match macos-app.
+  # Lint and GoSec of the packages with darwin-only files, which the Linux jobs never compile (found
+  # by the files' names), and the app bundle with Sparkle. Its build cache is a kind of its own
+  # (lint, no race detector): app-macos, as the tests' restore key (gobuild-<os>-<arch>-macos-)
+  # would match macos-app.
   macos-app:
     name: macOS Lint and App
     runs-on: macos-latest
@@ -459,8 +461,8 @@ jobs:
         with:
           cache: app-macos
 
-      - name: Lint the packages with darwin-only files
-        run: make lint LINT_PKGS="./internal/locale/... ./internal/ui/fyneui/... ./internal/ui/nativedialog/... ./internal/update/..."
+      - name: Lint and GoSec of the packages with darwin-only files
+        run: make lint-darwin gosec-darwin
 
       - name: Build and package Cogpit.app
         run: make app

@@ -115,8 +115,8 @@ depends on timing passes locally and fails there. The rules:
 - **Expectations that differ per platform branch on `runtime.GOOS`** (shortcut glyphs, keys).
 
 Not run on Windows: the race detector, the kind, drain and envtest tiers, and the macOS harnesses.
-Lint and GoSec analyse the Linux build, so a file built only for Windows is vetted (`go vet`) but
-not linted.
+Lint and GoSec analyse the Windows build on Linux, without cgo, so `internal/ui/fyneui`'s Windows
+file is vetted (`go vet`) but not linted ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
 
 ## Performance budgets
 

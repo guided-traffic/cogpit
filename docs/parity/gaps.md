@@ -365,8 +365,9 @@ update rows.
 - **Windows proxy:** the Update button reads the feed through Go's HTTP client, which follows
   `HTTPS_PROXY`, not Windows' proxy settings
   ([`winsparkle_windows.go`](../../internal/update/winsparkle_windows.go)).
-- **Windows lint:** golangci-lint and GoSec never see the `_windows.go` files; CI lints on Linux,
-  and on macOS for the darwin-only packages ([`release.yml`](../../.github/workflows/release.yml)).
+- **Windows lint:** golangci-lint and GoSec never see `internal/ui/fyneui`'s Windows file
+  ([`power_windows.go`](../../internal/ui/fyneui/power_windows.go)): its package needs cgo, which
+  their Windows pass runs without ([releasing › Lint and GoSec per system](../developer/releasing.md#lint-and-gosec-per-system)).
 - **Windows, untried:** an install for all users through UAC, PowerShell 7, Windows 10, ARM64.
 - **Estimate:** 20–45 h. **Human:** Authenticode signing material; a person's check of the Linux
   package on a desktop.

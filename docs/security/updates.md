@@ -394,8 +394,9 @@ The Go modules, the GitHub Actions and the pinned tools are a supply chain of th
 of Go modules, the Go version, Actions (their majors too) and the Makefile's tool pins on its own
 once CI passes, Sparkle's, WinSparkle's and dmgbuild's never
 ([releasing › Renovate](../developer/releasing.md#renovate)); govulncheck and GoSec run on every
-push to `main` and every pull request ("Vulnerability Check", "GoSec Security Scan" in
-[`release.yml`](../../.github/workflows/release.yml)). What remains, per case:
+push to `main` and every pull request ("Vulnerability Check", "GoSec Security Scan", and GoSec for
+the darwin-only files in "macOS Lint and App", in [`release.yml`](../../.github/workflows/release.yml)).
+What remains, per case:
 
 - **An automerged update is reviewed by nobody:** it ships signed in the next release
   ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), an Action's in the next run.

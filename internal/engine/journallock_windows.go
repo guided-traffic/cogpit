@@ -64,6 +64,7 @@ func createOwnerFile(path string) (*os.File, error) {
 // unlockFile releases f's lock.
 func unlockFile(f *os.File) error {
 	var ol syscall.Overlapped
+	// #nosec G103 -- the address of ol for the duration of the call.
 	r, _, err := procUnlockFileEx.Call(f.Fd(), 0, 1, 0, uintptr(unsafe.Pointer(&ol)))
 	if r == 0 {
 		return err
@@ -73,6 +74,7 @@ func unlockFile(f *os.File) error {
 
 func lockFileEx(f *os.File, flags uint32) error {
 	var ol syscall.Overlapped
+	// #nosec G103 -- the address of ol for the duration of the call.
 	r, _, err := procLockFileEx.Call(f.Fd(), uintptr(flags), 0, 1, 0, uintptr(unsafe.Pointer(&ol)))
 	if r == 0 {
 		return err

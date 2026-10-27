@@ -26,6 +26,7 @@ type systemPowerStatus struct {
 // battery: not on battery.
 func systemOnBattery() bool {
 	var st systemPowerStatus
+	// #nosec G103 -- the address of st, which the call fills, for the duration of the call.
 	if r, _, _ := procGetSystemPowerStatus.Call(uintptr(unsafe.Pointer(&st))); r == 0 {
 		return false
 	}

@@ -175,6 +175,7 @@ func readRegString(root syscall.Handle, path, name string) string {
 		return ""
 	}
 	buf := make([]uint16, size/2+1)
+	// #nosec G103 -- buf's array as the bytes RegQueryValueEx fills, bounded by size, for the duration of the call.
 	if syscall.RegQueryValueEx(h, n, nil, &typ, (*byte)(unsafe.Pointer(&buf[0])), &size) != nil {
 		return ""
 	}
@@ -326,8 +327,8 @@ func (w *winSparkleState) cstr(name, s string) {
 	if err != nil {
 		return
 	}
-	w.strs = append(w.strs, unsafe.Pointer(b))
-	w.call(name, uintptr(unsafe.Pointer(b)))
+	w.strs = append(w.strs, unsafe.Pointer(b)) // #nosec G103 -- held for the process's life, as WinSparkle may keep the pointer
+	w.call(name, uintptr(unsafe.Pointer(b)))   // #nosec G103 -- the string's address, valid while w.strs holds it
 }
 
 // wstr is s as a wide C string, kept for the process's life; w.mu is held.
@@ -336,8 +337,8 @@ func (w *winSparkleState) wstr(s string) uintptr {
 	if err != nil {
 		p, _ = syscall.UTF16PtrFromString("")
 	}
-	w.strs = append(w.strs, unsafe.Pointer(p))
-	return uintptr(unsafe.Pointer(p))
+	w.strs = append(w.strs, unsafe.Pointer(p)) // #nosec G103 -- held for the process's life, as WinSparkle may keep the pointer
+	return uintptr(unsafe.Pointer(p))          // #nosec G103 -- the string's address, valid while w.strs holds it
 }
 
 // callback hands fn to WinSparkle through set (one of its callback setters); WinSparkle calls it

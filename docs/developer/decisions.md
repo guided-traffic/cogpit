@@ -120,7 +120,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-109](#d-109-the-menus-in-the-top-bar-on-windows-and-linux) | The menus in the top bar on Windows and Linux | built: menu titles in Cogpit's top bar, native title bar |
 | [D-110](#d-110-dark-cockpit-cogpits-design-language) | Dark Cockpit, Cogpit's design language | built: Dark Cockpit replaces Solarized; first outlook topic open |
 | [D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle) | Cogpit for Windows: an NSIS setup and WinSparkle | built: per-user NSIS setup, WinSparkle updates, x64 |
-| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time; two items open |
+| [D-112](#d-112-ci-and-test-time) | CI and test time | built: main-only caches, UI tests in shards balanced by measured time, lint and GoSec per system; one item open |
 | [D-113](#d-113-image-grades-shields-from-trivys-reports) | Image grades, shields from Trivy's reports | built: S–E and N/A shields; D/E thresholds provisional |
 | [D-114](#d-114-a-failed-connects-error-page-and-its-stages) | A failed connect's error page and its stages | built: error page with the connect's stages |
 | [D-115](#d-115-a-dock-tab-the-user-opens-takes-the-keys) | A dock tab the user opens takes the keys | built: user-opened dock tabs take the keyboard |
@@ -4238,9 +4238,16 @@ CI and local test runs are kept short at the same coverage.
   [fyne#6620](https://github.com/fyne-io/fyne/pull/6620) (both open).
 - **Linux runners:** the organisation's self-hosted ones; the repository variable `LINUX_RUNNER`
   names others (GitHub's hosted runners take load off the shared machine but do not shorten a run).
+- **Lint and GoSec per system:** each sees one system's build, so `make lint` and `make gosec` add
+  a pass for Windows without cgo, and the macOS job runs `make lint-darwin` and `make gosec-darwin`;
+  the Makefile finds their packages by the files' names, so a new system file is analysed without a
+  list to keep ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
+  `internal/ui/fyneui`'s Windows file stays out: its package needs cgo for Fyne, and a lint on the
+  Windows runners would build golangci-lint there and analyse Fyne with MinGW for one system call;
+  moving the power read into a package without Fyne would bring it in. A run lists every finding.
 
 **Open:** a runner image that carries Fyne's build dependencies, and with it one job building the
-UI's race test binary for all shards; lint and GoSec of the Windows-only files.
+UI's race test binary for all shards.
 
 **Why:** Job set-up (checkout, Go, a slow cache restore, apt) and a full second pass without the race
 detector, which covered about 0.3 % of statements no race run covered, took most of a run. In one
@@ -4257,9 +4264,13 @@ once for the shards (about 95 MB compressed) would spare each shard Go, the cach
 but not the libraries the cgo binary links (OpenGL, X11, Wayland, xkbcommon), which apt installs
 while Go sets up: each shard would wait for apt instead, after a second wait for a runner behind the
 build job. With a runner image that carries the libraries, a shard's set-up would shrink to the
-checkout and the download.
+checkout and the download. A pass for Windows takes
+about 1.5 s with a warm lint cache and, with an empty one, 3 s (GoSec) and 30 s (lint);
+`make gosec-darwin` 2 to 4 s (Apple M1 Ultra, four workers). golangci-lint's defaults show three
+findings of a text and one per line, so a run's log would not list all a change has to fix.
 
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
+[`.golangci.yml`](../../.golangci.yml) `issues`,
 [`hack/shard`](../../hack/shard/main.go), [`durations.go`](../../hack/shard/durations.go) `split`,
 [`render_test.go`](../../internal/ui/fyneui/render_test.go) `writePNG`,
 [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · `TestSplitIsStableAndComplete`,
