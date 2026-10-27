@@ -107,14 +107,19 @@ func TestClusterPodsHistoryBudget(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	h := metrics.NewHubFor(src, metrics.Options{ListInterval: 200 * time.Millisecond, ObjectInterval: 200 * time.Millisecond, MinStep: 5 * time.Millisecond, RangeWindow: 600 * time.Millisecond})
+	clk, opts := budgetClock()
+	h := metrics.NewHubFor(src, opts)
 	t.Cleanup(h.Close)
 
 	onChange, polls := pollCounter()
 	sc := metrics.ClusterScope([]string{"m1"})
 	sub := h.Subscribe(sc, onChange)
-	sub.SetWants(metrics.WantPods)
-	waitPoll(t, polls, 4)
+	waitPoll(t, polls, 1)
+	sub.SetWants(metrics.WantPods) // polls at once
+	waitPoll(t, polls, 2)
+	for n := 3; n <= 4; n++ {
+		nextPoll(t, h, sc, clk, 15*time.Second, polls, n)
+	}
 	if n := c.prom.queryCount("kube_pod_info"); n != 2 {
 		t.Errorf("%d pod-count queries in 4 polls, want 2 (every node and the master, once)", n)
 	}
@@ -129,14 +134,16 @@ func TestClusterPodsHistoryBudget(t *testing.T) {
 		t.Errorf("the workers' pods %+v, want every node's 32 less the master's 2", w)
 	}
 
-	sub.SetWindows(1200 * time.Millisecond)
-	waitPoll(t, polls, 6)
+	sub.SetWindows(2 * time.Hour)
+	waitPoll(t, polls, 5)
+	nextPoll(t, h, sc, clk, 15*time.Second, polls, 6)
 	if n := c.prom.queryCount("kube_pod_info"); n != 4 {
 		t.Errorf("%d pod-count queries after a range change, want 4", n)
 	}
 	// Without the Pods chart (SetWants without pods): nothing more of them, the counts dropped.
 	sub.SetWants(0)
-	waitPoll(t, polls, 8)
+	waitPoll(t, polls, 7)
+	nextPoll(t, h, sc, clk, 15*time.Second, polls, 8)
 	if n := c.prom.queryCount("kube_pod_info"); n != 4 {
 		t.Errorf("%d pod-count queries once the pods are not wanted, want 4", n)
 	}

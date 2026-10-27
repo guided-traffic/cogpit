@@ -63,7 +63,7 @@ func promHandler(w http.ResponseWriter, r *http.Request) {
 func TestPrometheusInTheDrawer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{})
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess()})
 	defer srv.Close()
 	pod := testkit.Pod("web", "a")
 	if err := unstructured.SetNestedSlice(pod.Object, []any{map[string]any{
@@ -93,7 +93,6 @@ func TestPrometheusInTheDrawer(t *testing.T) {
 
 	// The Pods list is the open view: its CPU and Memory columns cost the detection's probe and
 	// two instant queries (cpu, memory) for all pods, once per 60 s.
-	// (This fake API server answers no access reviews, so detection waits its 3 seconds for them.)
 	if !testkit.WaitFor(ctx, func() bool { return proxy() >= 3 }) {
 		t.Fatalf("%d proxy requests with the Pods list open, want 3 (probe + 2 queries)", proxy())
 	}

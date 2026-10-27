@@ -110,7 +110,14 @@ func TestBudgetAccessibleNamespaces(t *testing.T) {
 		scorecard.Record(t, scorecard.Measurement{Budget: "P15", Metric: "pod reads of a user limited to two named namespaces (one list and one watch each, none cluster-wide)",
 			Value: float64(reads), Unit: "requests", Limit: 4, How: how})
 
-		total := settledTotal(ctx, t, conn.Counter().Snapshot)
+		// The idle window opens once the connection's one-off work is done: the reviews counted
+		// above, the pods' watches open, and the custom kinds settled (on a cluster that serves the
+		// definitions to a user who may not list them, the curated kinds' discovery that follows the
+		// refusal, A90).
+		if !testkit.WaitFor(ctx, s.Backend().CustomKindsSettled) {
+			t.Fatal("the custom kinds never settled")
+		}
+		total := conn.Counter().Snapshot().Total
 		time.Sleep(idle)
 		scorecard.Record(t, scorecard.Measurement{Budget: "P15", Metric: fmt.Sprintf("requests of that user's open Pods view idle for %s", idle),
 			Value: float64(conn.Counter().Snapshot().Total - total), Unit: "requests", How: how})

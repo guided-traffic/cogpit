@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"regexp"
 	"strconv"
@@ -88,6 +89,9 @@ func connectGitOps(ctx context.Context, t *testing.T, access *testkit.FakeAccess
 	s := engine.New(engine.Options{
 		Connector:       &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "team-a")}},
 		ClusterSettings: engine.NewClusterSettingsStore(t.TempDir()),
+		// The custom kinds' rebuild coalesces five snapshot intervals: 50 ms instead of half a
+		// second before the GitOps kinds come.
+		SnapshotInterval: 10 * time.Millisecond,
 	})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
@@ -147,8 +151,9 @@ type gitopsUser struct {
 	accessible []string
 	flux, argo string
 	wide       bool // the user may list everything in all namespaces
-	// reads checks the server's reads of one resource the dashboards read.
-	reads func(t *testing.T, resource string, reads map[string]int64)
+	// reads judges the server's reads of one resource the dashboards read: nil once they are what
+	// the user's should be.
+	reads func(resource string, reads map[string]int64) error
 }
 
 func gitopsUsers() []gitopsUser {
@@ -162,17 +167,16 @@ func gitopsUsers() []gitopsUser {
 			name:   "a RoleBinding in the context's namespace alone",
 			access: &testkit.FakeAccess{Enforce: true, Rules: map[string][]testkit.FakeRule{"": {crds}, "team-a": {gitops}}},
 			flux:   "Kustomizations 2, Git Repositories 1", argo: "Applications 2, Application Sets 0, Projects 1, Repositories 1, Clusters 0",
-			// The rules of team-a allow the kinds, so the plan reads them in all namespaces first:
-			// a refused read (a streaming watch, and the plain list client-go falls back to), then
-			// team-a's alone, whoever met the refusal. A scope a handle holds is retried by
-			// client-go's backoff (800 ms first) until the engine's new plan lets it go; under the
-			// race detector that plan can land after a retry or two (CI, 2026-10-16: three refused
-			// reads), so up to three refused attempts pass, never a read beside these three.
-			reads: func(t *testing.T, res string, reads map[string]int64) {
-				wide := reads["list "+res]
-				if wide > 6 || reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
-					t.Errorf("%s: reads %v, want the refused reads in all namespaces (and their lists) to end, then team-a's", res, reads)
+			// The rules of team-a allow the kinds, so the plan reads them in all namespaces first, a
+			// list the server refuses, then team-a's alone, whoever met the refusal. client-go's
+			// backoff retries the refused list until the engine's new plan lets its scope go: how
+			// often depends on the scheduler, and settle has seen the scope go. Never a read beside
+			// these three.
+			reads: func(res string, reads map[string]int64) error {
+				if reads["list "+res+" in team-a"] != 1 || reads["watch "+res+" in team-a"] != 1 || len(reads) > 3 {
+					return fmt.Errorf("%s: reads %v, want the refused lists in all namespaces to end, then team-a's list and watch", res, reads)
 				}
+				return nil
 			},
 		},
 		{
@@ -183,12 +187,13 @@ func gitopsUsers() []gitopsUser {
 			accessible: []string{"team-a", "team-b"},
 			flux:       "Kustomizations 3, Git Repositories 1", argo: "Applications 3, Application Sets 0, Projects 1, Repositories 1, Clusters 0",
 			// The access reviews say no before anything is read: never a read in all namespaces.
-			reads: func(t *testing.T, res string, reads map[string]int64) {
+			reads: func(res string, reads map[string]int64) error {
 				want := map[string]int64{"list " + res + " in team-a": 1, "watch " + res + " in team-a": 1,
 					"list " + res + " in team-b": 1, "watch " + res + " in team-b": 1}
 				if !maps.Equal(reads, want) {
-					t.Errorf("%s: reads %v, want %v (one list and one watch per namespace, nothing in all namespaces)", res, reads, want)
+					return fmt.Errorf("%s: reads %v, want %v (one list and one watch per namespace, nothing in all namespaces)", res, reads, want)
 				}
+				return nil
 			},
 		},
 		{
@@ -196,10 +201,11 @@ func gitopsUsers() []gitopsUser {
 			access: &testkit.FakeAccess{Enforce: true, Rules: map[string][]testkit.FakeRule{"": {all}}},
 			wide:   true,
 			flux:   "Kustomizations 4, Git Repositories 1", argo: "Applications 4, Application Sets 0, Projects 1, Repositories 1, Clusters 0",
-			reads: func(t *testing.T, res string, reads map[string]int64) {
+			reads: func(res string, reads map[string]int64) error {
 				if want := map[string]int64{"list " + res: 1, "watch " + res: 1}; !maps.Equal(reads, want) {
-					t.Errorf("%s: reads %v, want %v (as before)", res, reads, want)
+					return fmt.Errorf("%s: reads %v, want %v (as before)", res, reads, want)
 				}
+				return nil
 			},
 		},
 	}
@@ -249,9 +255,7 @@ func checkFluxDashboard(t *testing.T, u gitopsUser, page bool) {
 		t.Errorf("the dashboard took %s", d)
 	}
 	settle(ctx, t, s, u)
-	for _, res := range fluxReads {
-		u.reads(t, res, readsSettled(ctx, srv, res))
-	}
+	checkReads(ctx, t, srv, u, fluxReads)
 }
 
 // checkArgoDashboard is checkFluxDashboard for Argo CD's.
@@ -286,8 +290,18 @@ func checkArgoDashboard(t *testing.T, u gitopsUser, page bool) {
 	if len(secrets) != 2 {
 		t.Errorf("Argo CD's Secrets read as %q, want the Repositories' and the Clusters' scopes", secrets)
 	}
-	for _, res := range append(argoReads, secrets...) {
-		u.reads(t, res, readsSettled(ctx, srv, res))
+	checkReads(ctx, t, srv, u, append(argoReads, secrets...))
+}
+
+// checkReads waits for the server's reads of each resource to be what the user's should be: a
+// read's watch follows its list, opened by client-go once the list filled the store.
+func checkReads(ctx context.Context, t *testing.T, srv *testkit.FakeAPIServer, u gitopsUser, resources []string) {
+	t.Helper()
+	for _, res := range resources {
+		var err error
+		if !testkit.WaitFor(ctx, func() bool { err = u.reads(res, readsOf(srv, res)); return err == nil }) {
+			t.Error(err)
+		}
 	}
 }
 

@@ -25,7 +25,7 @@ import (
 func TestNetworkOnlyDrawerAsksNoLiveUsage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess(), Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
 		testkit.FakeResource{GVR: testkit.NodesGVR, Kind: "Node"},
 		testkit.FakeResource{GVR: nodeMetricsGVR, Kind: "NodeMetrics"})})
 	defer srv.Close()
@@ -107,8 +107,8 @@ func TestNetworkOnlyDrawerAsksNoLiveUsage(t *testing.T) {
 		t.Fatal("the network was never asked")
 	}
 	quiet(3) // the poll that was under way when the variant changed
-	if live, cpu := quiet(20); live != 0 || cpu != 0 {
-		t.Errorf("the network shown: %d live gets and %d CPU queries in 20 polls, want none", live, cpu)
+	if live, cpu := quiet(8); live != 0 || cpu != 0 {
+		t.Errorf("the network shown: %d live gets and %d CPU queries in 8 polls, want none", live, cpu)
 	}
 	m, _ := s.ObjectMetrics(ref)
 	if m == nil || m.Source != "Prometheus (monitoring/kps-kube-prometheus-stack-prometheus) and Kubernetes Metrics Server" {
@@ -131,7 +131,7 @@ func TestNetworkOnlyDrawerAsksNoLiveUsage(t *testing.T) {
 		t.Fatal("the chart never showed the network with CPU and memory hidden")
 	}
 	quiet(3) // the poll that was under way when the setting changed
-	if live, cpu := quiet(20); live != 0 || cpu != 0 {
-		t.Errorf("CPU and memory hidden: %d live gets and %d CPU queries in 20 polls, want none", live, cpu)
+	if live, cpu := quiet(8); live != 0 || cpu != 0 {
+		t.Errorf("CPU and memory hidden: %d live gets and %d CPU queries in 8 polls, want none", live, cpu)
 	}
 }

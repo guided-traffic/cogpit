@@ -29,6 +29,8 @@ func unsetEnv(t *testing.T, name string) {
 func TestRepositoryConfigPath(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("APPDATA", filepath.Join(home, "AppData", "Roaming")) // a home on Windows (testing.md)
+	t.Setenv("LOCALAPPDATA", filepath.Join(home, "AppData", "Local"))
 	t.Setenv("HELM_CACHE_HOME", filepath.Join(home, "cache"))
 	t.Setenv("HELM_DATA_HOME", filepath.Join(home, "data"))
 	unsetEnv(t, "XDG_CONFIG_HOME")
@@ -49,6 +51,8 @@ func TestRepositoryConfigPath(t *testing.T) {
 		want = filepath.Join(home, "Library", "Preferences", "helm", "repositories.yaml")
 	case "linux":
 		want = filepath.Join(home, ".config", "helm", "repositories.yaml")
+	case "windows":
+		want = filepath.Join(home, "AppData", "Roaming", "helm", "repositories.yaml")
 	default:
 		t.Skip("Helm's default folder on " + runtime.GOOS + " is not under HOME")
 	}

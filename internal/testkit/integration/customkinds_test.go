@@ -36,7 +36,7 @@ func widgetFields(color string, size int64) map[string]any {
 func TestBudgetCustomResourceView(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess(), Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
 		testkit.FakeResource{GVR: testkit.CRDsGVR, Kind: "CustomResourceDefinition"},
 		testkit.FakeResource{GVR: widgetsGVR, Kind: "Widget", Namespaced: true},
 	)})
@@ -47,7 +47,8 @@ func TestBudgetCustomResourceView(t *testing.T) {
 			widgetFields("blue", int64(i))))
 	}
 
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}}})
+	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}},
+		SnapshotInterval: 10 * time.Millisecond}) // the custom kinds' rebuild coalesces five intervals
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

@@ -83,7 +83,7 @@ func diskNode(name, ip string) *unstructured.Unstructured {
 func TestNodesListDiskBudget(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()
-	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: testkit.AdminAccess(), Resources: append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
 		testkit.FakeResource{GVR: testkit.NodesGVR, Kind: "Node"},
 		testkit.FakeResource{GVR: nodeMetricsGVR, Kind: "NodeMetrics"})})
 	defer srv.Close()
@@ -128,12 +128,15 @@ func TestNodesListDiskBudget(t *testing.T) {
 		t.Errorf("the Disk header's tooltip = %q", tip)
 	}
 
-	// The budget over a few list polls: the Metrics Server's node list and one disk query per poll,
+	// The budget over three list polls: the Metrics Server's node list and one disk query per poll,
 	// the detection's probe once, the Services read once by the cache (list and watch), and nothing
-	// else of Prometheus: CPU and Memory come from the Metrics Server, which answers.
+	// else of Prometheus: CPU and Memory come from the Metrics Server, which answers. The node
+	// lists' poll runs beside the disks' at the same interval, so it may be one ahead or behind.
 	reqs0 := srv.Requests()
 	_, disks0, _ := prom.counts()
-	time.Sleep(2200 * time.Millisecond) // about three list polls
+	if !testkit.WaitFor(ctx, func() bool { _, d, _ := prom.counts(); return d >= disks0+3 }) {
+		t.Fatal("three list polls never came")
+	}
 	reqs := srv.Requests()
 	probes, disks, another := prom.counts()
 	polls := disks - disks0
@@ -141,8 +144,8 @@ func TestNodesListDiskBudget(t *testing.T) {
 		t.Errorf("Prometheus: %d probes and other queries %q, want 1 probe and the disk query alone", probes, another)
 	}
 	lists := reqs["list nodes.metrics.k8s.io"] - reqs0["list nodes.metrics.k8s.io"]
-	if polls < 2 || polls > 4 || lists < int64(polls)-1 || lists > int64(polls)+1 {
-		t.Errorf("in about three list polls: %d disk queries and %d node lists, want one of each per poll", polls, lists)
+	if lists < int64(polls)-1 || lists > int64(polls)+1 {
+		t.Errorf("in %d list polls: %d disk queries and %d node lists, want one of each per poll", polls, polls, lists)
 	}
 	if n := reqs["list services"] + reqs["watchlist services"]; n != 1 {
 		t.Errorf("services read %d times (%v): the detection reads the cache's one list", n, reqs)
@@ -164,8 +167,17 @@ func TestNodesListDiskBudget(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return s.Backend().Metrics.Subscribed() <= 1 }) {
 		t.Fatalf("%d scopes still polled after the Nodes list closed", s.Backend().Metrics.Subscribed())
 	}
-	time.Sleep(200 * time.Millisecond)
-	_, settled, _ := prom.counts()
+	// A disk query under way when the view changed may still land: two reads apart must agree
+	// before the two list intervals that must pass without one.
+	var settled int
+	if !testkit.WaitFor(ctx, func() bool {
+		_, before, _ := prom.counts()
+		time.Sleep(200 * time.Millisecond)
+		_, settled, _ = prom.counts()
+		return settled == before
+	}) {
+		t.Fatal("the disk queries never stopped")
+	}
 	time.Sleep(1500 * time.Millisecond)
 	if _, now, _ := prom.counts(); now != settled {
 		t.Errorf("%d disk queries after the Nodes list closed", now-settled)

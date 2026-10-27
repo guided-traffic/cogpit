@@ -21,6 +21,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
 // nsLimited is the namespace of the namespace-limited user's test on the shared kind cluster: it
@@ -154,20 +155,11 @@ func TestKindNamespaceLimitedUser(t *testing.T) {
 		t.Errorf("metrics.get: %+v", mr)
 	}
 
-	// Each kind: one refused streaming watch in all namespaces (and the plain list client-go falls
-	// back to), then one in cogpit-ns-a; the definitions, which the user may not list, once and no
-	// more (customkinds.go drop).
+	// Each kind: a list in all namespaces the server refuses, then cogpit-ns-a's list and watch.
+	// client-go's backoff retries the refused list until the engine's plan lets its scope go: how
+	// often depends on the scheduler, so the end is asserted, not the retries. The definitions,
+	// which the user may not list, are read once and no more (customkinds.go drop).
 	b := s.Backend()
-	st := b.Conn.Counter().Snapshot()
-	t.Logf("reads: %v", st.ByVerbResource)
-	for _, res := range []string{"pods", "deployments.apps", "replicasets.apps", "events"} {
-		if l, w := st.ByVerbResource["list "+res], st.ByVerbResource["watch "+res]; l < 2 || l > 3 || w < 1 {
-			t.Errorf("%s: %d lists and %d watches, want 2 lists (all namespaces refused, then cogpit-ns-a; one retry at most) and cogpit-ns-a's watch", res, l, w)
-		}
-	}
-	if n := st.ByVerbResource["watchlist customresourcedefinitions.apiextensions.k8s.io"] + st.ByVerbResource["list customresourcedefinitions.apiextensions.k8s.io"]; n > 2 {
-		t.Errorf("%d reads of the definitions the user may not list, want at most 2", n)
-	}
 	waitFor(ctx, t, "no read in all namespaces left", func() bool {
 		for _, sc := range b.Cache.Stats() {
 			if sc.Scope.Namespace == "" && sc.Scope.GVR.Resource != "customresourcedefinitions" && sc.Scope.GVR.Resource != "namespaces" {
@@ -177,4 +169,20 @@ func TestKindNamespaceLimitedUser(t *testing.T) {
 		}
 		return true
 	})
+	var st cluster.RequestStats
+	if !testkit.WaitFor(ctx, func() bool { // a watch follows its list
+		st = b.Conn.Counter().Snapshot()
+		for _, res := range []string{"pods", "deployments.apps", "replicasets.apps", "events"} {
+			if st.ByVerbResource["list "+res] < 2 || st.ByVerbResource["watch "+res] < 1 {
+				return false
+			}
+		}
+		return true
+	}) {
+		t.Errorf("reads %v: want for each kind a refused list in all namespaces, then cogpit-ns-a's list and watch", st.ByVerbResource)
+	}
+	t.Logf("reads: %v", st.ByVerbResource)
+	if n := st.ByVerbResource["watchlist customresourcedefinitions.apiextensions.k8s.io"] + st.ByVerbResource["list customresourcedefinitions.apiextensions.k8s.io"]; n > 2 {
+		t.Errorf("%d reads of the definitions the user may not list, want at most 2", n)
+	}
 }

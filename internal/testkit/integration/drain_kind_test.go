@@ -191,8 +191,9 @@ func TestKindDrainCrashFinishUncordon(t *testing.T) {
 		t.Fatalf("pending drains after the restart: %+v", pending)
 	}
 
-	// Finishing while the budget stands times out, keeps the entry and names the budget.
-	d.must("node.drain", map[string]any{"ref": node, "timeoutSeconds": 20, "deleteEmptyDirData": true}, &res)
+	// Finishing while the budget stands times out, keeps the entry and names the budget: the
+	// eviction's first attempt meets the budget's refusal.
+	d.must("node.drain", map[string]any{"ref": node, "timeoutSeconds": 5, "deleteEmptyDirData": true}, &res)
 	job := drainJobEnd(ctx, t, second, res.Job.ID)
 	if job.State != engine.JobFailed || !strings.Contains(job.Outcome, "guarded-pdb") || !strings.Contains(job.Outcome, "Timed out") {
 		t.Fatalf("finish under the budget: %+v", job)

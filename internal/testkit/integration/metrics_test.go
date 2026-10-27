@@ -15,6 +15,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
+// metricsListInterval is metricsSession's list interval.
+const metricsListInterval = 150 * time.Millisecond
+
 // metricsSession connects the small demo cluster with short poll intervals.
 func metricsSession(t *testing.T) (*engine.Session, context.Context) {
 	t.Helper()
@@ -24,7 +27,7 @@ func metricsSession(t *testing.T) (*engine.Session, context.Context) {
 		IncludeDemo: true,
 		DemoOptions: demo.Options{Pods: 300, NoChurn: true, Seed: 7, MetricsResolution: 30 * time.Millisecond},
 		MetricsOptions: metrics.Options{
-			ListInterval: 150 * time.Millisecond, ObjectInterval: 40 * time.Millisecond, TTL: 30 * time.Millisecond,
+			ListInterval: metricsListInterval, ObjectInterval: 40 * time.Millisecond, TTL: 30 * time.Millisecond,
 		},
 	}})
 	t.Cleanup(s.Close)
@@ -44,6 +47,22 @@ func demoRequests(t *testing.T, s *engine.Session) int64 {
 		t.Fatal("no demo stats")
 	}
 	return stats.MetricsRequests
+}
+
+// quietRequests waits until the demo's Metrics Server served no request for a list interval and
+// returns its count: a poll under way when the last scope was released may still land.
+func quietRequests(ctx context.Context, t *testing.T, s *engine.Session) int64 {
+	t.Helper()
+	var n int64
+	if !testkit.WaitFor(ctx, func() bool {
+		before := demoRequests(t, s)
+		time.Sleep(metricsListInterval)
+		n = demoRequests(t, s)
+		return n == before
+	}) {
+		t.Fatal("the metrics requests never stopped")
+	}
+	return n
 }
 
 func cellOf(tbl *engine.TableSnapshot, row int, col string) model.Cell {
@@ -112,8 +131,7 @@ func TestPodsListMetricsFollowTheOpenView(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return s.Backend().Metrics.Subscribed() == 0 }) {
 		t.Fatalf("%d scopes still polled after leaving the Pods view", s.Backend().Metrics.Subscribed())
 	}
-	time.Sleep(60 * time.Millisecond)
-	before := demoRequests(t, s)
+	before := quietRequests(ctx, t, s)
 	time.Sleep(500 * time.Millisecond) // more than three list intervals
 	if after := demoRequests(t, s); after != before {
 		t.Errorf("%d metrics requests while no view showed metrics", after-before)
@@ -239,8 +257,7 @@ func TestMetricsGetCommand(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { return s.Backend().Metrics.Subscribed() == 0 }) {
 		t.Fatal("polls still running")
 	}
-	time.Sleep(200 * time.Millisecond)
-	base := demoRequests(t, s)
+	base := quietRequests(ctx, t, s)
 
 	call := func(params string) *engine.MetricsResult {
 		t.Helper()

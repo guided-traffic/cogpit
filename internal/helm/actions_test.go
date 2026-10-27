@@ -119,6 +119,7 @@ func TestUninstallThroughTheSDK(t *testing.T) {
 	for _, states := range [][]common.Status{
 		{common.StatusSuperseded, common.StatusDeployed},
 		{common.StatusDeployed, common.StatusUninstalling},
+		{common.StatusPendingInstall}, // an install a crash interrupted: what the journal offers to uninstall
 	} {
 		a, store := sdkFixture(t, states...)
 		if err := a.Uninstall("apps", "web"); err != nil {

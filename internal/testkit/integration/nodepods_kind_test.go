@@ -28,8 +28,9 @@ func TestKindNodeDrawerPods(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
+	const interval = time.Second // the pods' metrics list, polled while the drawer shows the table
 	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kubeconfig},
-		MetricsOptions: metrics.Options{ListInterval: 5 * time.Second, TTL: 5 * time.Second}}})
+		MetricsOptions: metrics.Options{ListInterval: interval, TTL: interval}}})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
@@ -144,15 +145,23 @@ func TestKindNodeDrawerPods(t *testing.T) {
 		t.Errorf("the table's sort %+v", tbl.Sort)
 	}
 
-	// Polled while open (every 5 s here); closed, no more pod metrics lists.
+	// Polled while open; closed, no more pod metrics lists.
 	if !testkit.WaitFor(ctx, func() bool { return lists()-before >= 2 }) {
 		t.Fatalf("%d pod metrics lists while the drawer showed the table", lists()-before)
 	}
 	t.Logf("%d pod metrics lists while the drawer was open", lists()-before)
 	dispatch("ui.closeDrawer", struct{}{}, nil)
-	time.Sleep(2 * time.Second) // a poll that started before may still answer
-	closed := lists()
-	time.Sleep(12 * time.Second) // more than two list intervals
+	// A poll that started before may still answer: two reads apart agree first.
+	var closed int64
+	if !testkit.WaitFor(ctx, func() bool {
+		was := lists()
+		time.Sleep(interval / 2)
+		closed = lists()
+		return closed == was
+	}) {
+		t.Fatal("the pod metrics lists never stopped")
+	}
+	time.Sleep(5 * interval / 2) // more than two list intervals
 	if after := lists(); after != closed {
 		t.Errorf("%d pod metrics lists after the drawer closed", after-closed)
 	}

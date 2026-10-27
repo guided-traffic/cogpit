@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -152,7 +153,9 @@ func detectorFor(p metrics.Provider) *countingDetector {
 	return &countingDetector{prov: p, st: metrics.State{Status: metrics.StatusAvailable, Provider: p.ID(), Label: p.Label()}}
 }
 
-// fast are intervals short enough for tests that wait on real timers.
+// fast are short intervals. The tests that wait for polls or for nothing to happen run in a
+// testing/synctest bubble: the hub's timers and the waits run on the bubble's clock, which moves
+// only while every goroutine of the test waits.
 func fast() metrics.Options {
 	return metrics.Options{ListInterval: 30 * time.Millisecond, ObjectInterval: 10 * time.Millisecond, TTL: 10 * time.Millisecond}
 }
@@ -175,156 +178,241 @@ var (
 )
 
 func TestNothingOpenNothingRequested(t *testing.T) {
-	f := newFake()
-	det := detectorFor(f)
-	h := metrics.NewHub(det, fast())
-	defer h.Close()
-	time.Sleep(100 * time.Millisecond)
-	if f.total() != 0 || det.n.Load() != 0 || h.Subscribed() != 0 {
-		t.Errorf("an idle hub asked the cluster: %d requests, %d detections, %d scopes polled", f.total(), det.n.Load(), h.Subscribed())
-	}
-	// Reads ask nothing either.
-	if _, ok := h.Pod("web", "a"); ok {
-		t.Error("an idle hub knows a pod")
-	}
-	if st := h.State(allPods); st.Status != metrics.StatusUnknown {
-		t.Errorf("state of an idle hub = %q, want unknown", st.Status)
-	}
-	if f.total() != 0 || det.n.Load() != 0 {
-		t.Errorf("reads asked the cluster: %d requests, %d detections", f.total(), det.n.Load())
-	}
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		det := detectorFor(f)
+		h := metrics.NewHub(det, fast())
+		defer h.Close()
+		time.Sleep(100 * time.Millisecond)
+		if f.total() != 0 || det.n.Load() != 0 || h.Subscribed() != 0 {
+			t.Errorf("an idle hub asked the cluster: %d requests, %d detections, %d scopes polled", f.total(), det.n.Load(), h.Subscribed())
+		}
+		// Reads ask nothing either.
+		if _, ok := h.Pod("web", "a"); ok {
+			t.Error("an idle hub knows a pod")
+		}
+		if st := h.State(allPods); st.Status != metrics.StatusUnknown {
+			t.Errorf("state of an idle hub = %q, want unknown", st.Status)
+		}
+		if f.total() != 0 || det.n.Load() != 0 {
+			t.Errorf("reads asked the cluster: %d requests, %d detections", f.total(), det.n.Load())
+		}
+	})
 }
 
 func TestPollsOnlyWhileSubscribed(t *testing.T) {
-	f := newFake()
-	h := metrics.NewHub(detectorFor(f), fast())
-	defer h.Close()
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		h := metrics.NewHub(detectorFor(f), fast())
+		defer h.Close()
 
-	sub := h.Subscribe(allPods, nil)
-	eventually(t, "the first polls", func() bool { return f.count("list pods") >= 3 })
-	if h.Subscribed() != 1 {
-		t.Errorf("polled scopes = %d, want 1", h.Subscribed())
-	}
-	sub.Release()
-	sub.Release() // harmless
-	time.Sleep(20 * time.Millisecond)
-	stopped := f.total()
-	time.Sleep(150 * time.Millisecond) // five list intervals
-	if f.total() != stopped {
-		t.Errorf("polls continued after the release: %d, then %d", stopped, f.total())
-	}
-	if h.Subscribed() != 0 {
-		t.Errorf("polled scopes after the release = %d", h.Subscribed())
-	}
+		sub := h.Subscribe(allPods, nil)
+		eventually(t, "the first polls", func() bool { return f.count("list pods") >= 3 })
+		if h.Subscribed() != 1 {
+			t.Errorf("polled scopes = %d, want 1", h.Subscribed())
+		}
+		sub.Release()
+		sub.Release()   // harmless
+		synctest.Wait() // a poll under way at the release has ended
+		stopped := f.total()
+		time.Sleep(150 * time.Millisecond) // five list intervals
+		if f.total() != stopped {
+			t.Errorf("polls continued after the release: %d, then %d", stopped, f.total())
+		}
+		if h.Subscribed() != 0 {
+			t.Errorf("polled scopes after the release = %d", h.Subscribed())
+		}
+	})
 }
 
 func TestOnePollServesEveryConsumerOfAScope(t *testing.T) {
-	f := newFake()
-	h := metrics.NewHub(detectorFor(f), fast())
-	defer h.Close()
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		h := metrics.NewHub(detectorFor(f), fast())
+		defer h.Close()
 
-	var n1, n2 atomic.Int64
-	s1 := h.Subscribe(allPods, func() { n1.Add(1) })
-	s2 := h.Subscribe(allPods, func() { n2.Add(1) })
-	defer s1.Release()
-	defer s2.Release()
-	eventually(t, "five polls", func() bool { return f.count("list pods") >= 5 })
+		var n1, n2 atomic.Int64
+		s1 := h.Subscribe(allPods, func() { n1.Add(1) })
+		s2 := h.Subscribe(allPods, func() { n2.Add(1) })
+		defer s1.Release()
+		defer s2.Release()
+		eventually(t, "five polls", func() bool { return f.count("list pods") >= 5 })
 
-	polls := int64(f.count("list pods"))
-	if a, b := n1.Load(), n2.Load(); a < polls-1 || a > polls || b < polls-1 || b > polls {
-		t.Errorf("%d polls, %d and %d notifications: each consumer hears every poll, and there is one poll per interval, not one per consumer", polls, a, b)
-	}
-	if h.Subscribed() != 1 {
-		t.Errorf("polled scopes = %d, want 1", h.Subscribed())
-	}
-	// Releasing one consumer keeps the poll for the other.
-	s1.Release()
-	before := f.count("list pods")
-	eventually(t, "polls after the first release", func() bool { return f.count("list pods") > before })
+		polls := int64(f.count("list pods"))
+		if a, b := n1.Load(), n2.Load(); a < polls-1 || a > polls || b < polls-1 || b > polls {
+			t.Errorf("%d polls, %d and %d notifications: each consumer hears every poll, and there is one poll per interval, not one per consumer", polls, a, b)
+		}
+		if h.Subscribed() != 1 {
+			t.Errorf("polled scopes = %d, want 1", h.Subscribed())
+		}
+		// Releasing one consumer keeps the poll for the other.
+		s1.Release()
+		before := f.count("list pods")
+		eventually(t, "polls after the first release", func() bool { return f.count("list pods") > before })
+	})
 }
 
 func TestDetectionIsKeptAndShared(t *testing.T) {
-	f := newFake()
-	det := detectorFor(f)
-	h := metrics.NewHub(det, fast())
-	defer h.Close()
-	s1 := h.Subscribe(allPods, nil)
-	s2 := h.Subscribe(allNode, nil)
-	s3 := h.Subscribe(podA, nil)
-	defer s1.Release()
-	defer s2.Release()
-	defer s3.Release()
-	eventually(t, "many polls", func() bool { return f.total() >= 12 })
-	if n := det.n.Load(); n != 1 {
-		t.Errorf("%d detections for %d requests, want 1 (kept for the detection TTL)", n, f.total())
-	}
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		det := detectorFor(f)
+		h := metrics.NewHub(det, fast())
+		defer h.Close()
+		s1 := h.Subscribe(allPods, nil)
+		s2 := h.Subscribe(allNode, nil)
+		s3 := h.Subscribe(podA, nil)
+		defer s1.Release()
+		defer s2.Release()
+		defer s3.Release()
+		eventually(t, "many polls", func() bool { return f.total() >= 12 })
+		if n := det.n.Load(); n != 1 {
+			t.Errorf("%d detections for %d requests, want 1 (kept for the detection TTL)", n, f.total())
+		}
+	})
 }
 
 func TestNotServedIsAStateAndAsksNothingElse(t *testing.T) {
-	det := &countingDetector{st: metrics.State{Status: metrics.StatusNotServed, Message: "the cluster serves no metrics.k8s.io API"}}
-	opts := fast()
-	opts.RetryDetectTTL = time.Hour
-	h := metrics.NewHub(det, opts)
-	defer h.Close()
-	var polls atomic.Int64
-	sub := h.Subscribe(allPods, func() { polls.Add(1) })
-	defer sub.Release()
-	eventually(t, "three polls", func() bool { return polls.Load() >= 3 })
-	st := h.State(allPods)
-	if st.Status != metrics.StatusNotServed || st.Usable() || st.Message == "" {
-		t.Errorf("state = %+v", st)
-	}
-	if n := det.n.Load(); n != 1 {
-		t.Errorf("%d detections while the API is missing, want 1 within the retry TTL", n)
-	}
-	if _, ok := h.Pod("web", "a"); ok {
-		t.Error("a pod has metrics without a provider")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		det := &countingDetector{st: metrics.State{Status: metrics.StatusNotServed, Message: "the cluster serves no metrics.k8s.io API"}}
+		opts := fast()
+		opts.RetryDetectTTL = time.Hour
+		h := metrics.NewHub(det, opts)
+		defer h.Close()
+		var polls atomic.Int64
+		sub := h.Subscribe(allPods, func() { polls.Add(1) })
+		defer sub.Release()
+		eventually(t, "three polls", func() bool { return polls.Load() >= 3 })
+		st := h.State(allPods)
+		if st.Status != metrics.StatusNotServed || st.Usable() || st.Message == "" {
+			t.Errorf("state = %+v", st)
+		}
+		if n := det.n.Load(); n != 1 {
+			t.Errorf("%d detections while the API is missing, want 1 within the retry TTL", n)
+		}
+		if _, ok := h.Pod("web", "a"); ok {
+			t.Error("a pod has metrics without a provider")
+		}
+	})
 }
 
 func TestMissingAPIIsDetectedAgain(t *testing.T) {
-	det := &countingDetector{st: metrics.State{Status: metrics.StatusNotServed, Message: "none"}}
-	opts := fast()
-	opts.RetryDetectTTL = 20 * time.Millisecond
-	h := metrics.NewHub(det, opts)
-	defer h.Close()
-	sub := h.Subscribe(allPods, nil)
-	defer sub.Release()
-	eventually(t, "a second detection", func() bool { return det.n.Load() >= 2 })
+	synctest.Test(t, func(t *testing.T) {
+		det := &countingDetector{st: metrics.State{Status: metrics.StatusNotServed, Message: "none"}}
+		opts := fast()
+		opts.RetryDetectTTL = 20 * time.Millisecond
+		h := metrics.NewHub(det, opts)
+		defer h.Close()
+		sub := h.Subscribe(allPods, nil)
+		defer sub.Release()
+		eventually(t, "a second detection", func() bool { return det.n.Load() >= 2 })
 
-	// The metrics-server gets installed.
-	f := newFake()
-	det.set(f, metrics.State{Status: metrics.StatusAvailable, Provider: "fake", Label: "Fake"})
-	eventually(t, "polls after the install", func() bool { return f.count("list pods") > 0 })
-	// The state is stored after the list returns: wait for it, not for the call (testing.md).
-	eventually(t, "the state available", func() bool { return h.State(allPods).Usable() })
+		// The metrics-server gets installed.
+		f := newFake()
+		det.set(f, metrics.State{Status: metrics.StatusAvailable, Provider: "fake", Label: "Fake"})
+		eventually(t, "polls after the install", func() bool { return f.count("list pods") > 0 })
+		// The state is stored after the list returns: wait for it, not for the call (testing.md).
+		eventually(t, "the state available", func() bool { return h.State(allPods).Usable() })
+	})
 }
 
 func TestErrorsAreStates(t *testing.T) {
-	f := newFake()
-	h := metrics.NewHub(detectorFor(f), fast())
-	defer h.Close()
-	f.setErr(apierrors.NewForbidden(schema.GroupResource{Group: "metrics.k8s.io", Resource: "pods"}, "", errors.New("denied")))
-	sub := h.Subscribe(allPods, nil)
-	defer sub.Release()
-	eventually(t, "forbidden", func() bool { return h.State(allPods).Status == metrics.StatusForbidden })
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		h := metrics.NewHub(detectorFor(f), fast())
+		defer h.Close()
+		f.setErr(apierrors.NewForbidden(schema.GroupResource{Group: "metrics.k8s.io", Resource: "pods"}, "", errors.New("denied")))
+		sub := h.Subscribe(allPods, nil)
+		defer sub.Release()
+		eventually(t, "forbidden", func() bool { return h.State(allPods).Status == metrics.StatusForbidden })
 
-	f.setErr(errors.New("connection reset"))
-	eventually(t, "unavailable", func() bool { return h.State(allPods).Status == metrics.StatusUnavailable })
+		f.setErr(errors.New("connection reset"))
+		eventually(t, "unavailable", func() bool { return h.State(allPods).Status == metrics.StatusUnavailable })
 
-	f.setErr(nil)
-	eventually(t, "recovery", func() bool { return h.State(allPods).Usable() })
-	eventually(t, "data", func() bool { _, ok := h.Pod("web", "a"); return ok })
+		f.setErr(nil)
+		eventually(t, "recovery", func() bool { return h.State(allPods).Usable() })
+		eventually(t, "data", func() bool { _, ok := h.Pod("web", "a"); return ok })
+	})
 }
 
 func TestProviderPanicIsContained(t *testing.T) {
-	f := newFake()
-	f.panics = true
-	h := metrics.NewHub(detectorFor(f), fast())
-	defer h.Close()
-	sub := h.Subscribe(allPods, nil)
-	defer sub.Release()
-	eventually(t, "a state for the panic", func() bool { return h.State(allPods).Status == metrics.StatusUnavailable })
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		f.panics = true
+		h := metrics.NewHub(detectorFor(f), fast())
+		defer h.Close()
+		sub := h.Subscribe(allPods, nil)
+		defer sub.Release()
+		eventually(t, "a state for the panic", func() bool { return h.State(allPods).Status == metrics.StatusUnavailable })
+	})
+}
+
+// panicky is a provider with history and the nodes' disks whose range queries or disk list
+// panic, as one with a bug would.
+type panicky struct {
+	*fakeProvider
+	rangePanics, diskPanics bool
+}
+
+func (p panicky) Capabilities() metrics.Capabilities { return metrics.Capabilities{History: true} }
+
+func (p panicky) ObjectRange(context.Context, metrics.RangeQuery) (*metrics.ObjectSeries, error) {
+	if p.rangePanics {
+		panic("provider bug")
+	}
+	return &metrics.ObjectSeries{Targets: map[string]*metrics.TargetSeries{"": {}}}, nil
+}
+
+func (p panicky) ListNodeDisks(context.Context) ([]model.NodeDisk, error) {
+	if p.diskPanics {
+		panic("provider bug")
+	}
+	return nil, nil
+}
+
+// A panic at each of the hub's other boundaries (a detection, a range query, the disks' list, the
+// detection DetectUnknown starts) is a state: unavailable, with a class. The scope's polls go on,
+// and Close returns (in the bubble a goroutine left behind fails the test).
+func TestPanicsAreStatesAtEveryBoundary(t *testing.T) {
+	panics := metrics.DetectorFunc(func(context.Context) (metrics.Provider, metrics.State) { panic("detector bug") })
+	opts := fast()
+	opts.MinStep, opts.RangeWindow = 5*time.Millisecond, 600*time.Millisecond // a drawer of a provider with history polls at its step
+	for _, tc := range []struct {
+		name  string
+		det   metrics.Detector
+		scope metrics.Scope
+	}{
+		{"detection", panics, allPods},
+		{"range query", detectorFor(panicky{fakeProvider: newFake(), rangePanics: true}), podA},
+		{"disks", detectorFor(panicky{fakeProvider: newFake(), diskPanics: true}), metrics.DiskScope},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				h := metrics.NewHub(tc.det, opts)
+				var polls atomic.Int64
+				sub := h.Subscribe(tc.scope, func() { polls.Add(1) })
+				eventually(t, "two polls", func() bool { return polls.Load() >= 2 })
+				if st := h.State(tc.scope); st.Status != metrics.StatusUnavailable || st.Reason == "" {
+					t.Errorf("state = %+v, want unavailable with a class", st)
+				}
+				sub.Release()
+				h.Close()
+			})
+		})
+	}
+	t.Run("DetectUnknown", func(t *testing.T) {
+		synctest.Test(t, func(t *testing.T) {
+			h := metrics.NewHub(panics, opts)
+			done := make(chan struct{})
+			if !h.DetectUnknown(func() { close(done) }) {
+				t.Fatal("no detection started")
+			}
+			<-done
+			if ps := h.Providers(); len(ps) != 1 || ps[0].Status != metrics.StatusUnavailable || ps[0].LastError == "" {
+				t.Errorf("providers = %+v, want the one unavailable with a class", ps)
+			}
+			h.Close()
+		})
+	})
 }
 
 func TestReadsServeTheFreshestAndExpire(t *testing.T) {
@@ -400,60 +488,64 @@ func TestFetchCachesForTheTTL(t *testing.T) {
 }
 
 func TestSubscribeOnAFreshResultWaitsForItToGoStale(t *testing.T) {
-	f := newFake()
-	opts := fast()
-	opts.TTL = 300 * time.Millisecond
-	opts.ListInterval = 20 * time.Millisecond
-	h := metrics.NewHub(detectorFor(f), opts)
-	defer h.Close()
-	h.Fetch(context.Background(), allNode)
-	if f.count("list nodes") != 1 {
-		t.Fatal("the fetch sent no request")
-	}
-	sub := h.Subscribe(allNode, nil)
-	defer sub.Release()
-	time.Sleep(150 * time.Millisecond)
-	if n := f.count("list nodes"); n != 1 {
-		t.Errorf("%d requests 150 ms after a fetch with a 300 ms TTL, want the one", n)
-	}
-	eventually(t, "the poll after the TTL", func() bool { return f.count("list nodes") >= 2 })
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		opts := fast()
+		opts.TTL = 300 * time.Millisecond
+		opts.ListInterval = 20 * time.Millisecond
+		h := metrics.NewHub(detectorFor(f), opts)
+		defer h.Close()
+		h.Fetch(context.Background(), allNode)
+		if f.count("list nodes") != 1 {
+			t.Fatal("the fetch sent no request")
+		}
+		sub := h.Subscribe(allNode, nil)
+		defer sub.Release()
+		time.Sleep(150 * time.Millisecond)
+		if n := f.count("list nodes"); n != 1 {
+			t.Errorf("%d requests 150 ms after a fetch with a 300 ms TTL, want the one", n)
+		}
+		eventually(t, "the poll after the TTL", func() bool { return f.count("list nodes") >= 2 })
+	})
 }
 
 func TestSeriesWhileWatched(t *testing.T) {
-	f := newFake()
-	opts := fast()
-	opts.SeriesPoints = 5
-	h := metrics.NewHub(detectorFor(f), opts)
-	defer h.Close()
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		opts := fast()
+		opts.SeriesPoints = 5
+		h := metrics.NewHub(detectorFor(f), opts)
+		defer h.Close()
 
-	if got := h.Series(podA); got != nil {
-		t.Errorf("series of an unwatched pod = %v", got)
-	}
-	sub := h.Subscribe(podA, nil)
-	eventually(t, "twelve polls", func() bool { return f.count("get pods") >= 12 })
-	series := h.Series(podA)
-	if len(series) != 3 || series[0].Container != "" || series[1].Container != "app" || series[2].Container != "sidecar" {
-		t.Fatalf("series = %+v, want the pod, then its containers by name", series)
-	}
-	for _, s := range series {
-		if len(s.Samples) > 5 {
-			t.Errorf("series %q holds %d samples, the bound is 5", s.Container, len(s.Samples))
+		if got := h.Series(podA); got != nil {
+			t.Errorf("series of an unwatched pod = %v", got)
 		}
-		for i := 1; i < len(s.Samples); i++ {
-			if !s.Samples[i].At.After(s.Samples[i-1].At) {
-				t.Errorf("series %q is not in time order: %v", s.Container, s.Samples)
+		sub := h.Subscribe(podA, nil)
+		eventually(t, "twelve polls", func() bool { return f.count("get pods") >= 12 })
+		series := h.Series(podA)
+		if len(series) != 3 || series[0].Container != "" || series[1].Container != "app" || series[2].Container != "sidecar" {
+			t.Fatalf("series = %+v, want the pod, then its containers by name", series)
+		}
+		for _, s := range series {
+			if len(s.Samples) > 5 {
+				t.Errorf("series %q holds %d samples, the bound is 5", s.Container, len(s.Samples))
+			}
+			for i := 1; i < len(s.Samples); i++ {
+				if !s.Samples[i].At.After(s.Samples[i-1].At) {
+					t.Errorf("series %q is not in time order: %v", s.Container, s.Samples)
+				}
 			}
 		}
-	}
-	// The pod's line is the sum of its containers'.
-	last := len(series[0].Samples) - 1
-	if got, want := series[0].Samples[last].CPUMilli, series[1].Samples[last].CPUMilli+series[2].Samples[last].CPUMilli; got != want {
-		t.Errorf("pod cpu %d != containers' %d", got, want)
-	}
-	sub.Release()
-	if got := h.Series(podA); got != nil {
-		t.Errorf("series after the last release = %v, want none", got)
-	}
+		// The pod's line is the sum of its containers'.
+		last := len(series[0].Samples) - 1
+		if got, want := series[0].Samples[last].CPUMilli, series[1].Samples[last].CPUMilli+series[2].Samples[last].CPUMilli; got != want {
+			t.Errorf("pod cpu %d != containers' %d", got, want)
+		}
+		sub.Release()
+		if got := h.Series(podA); got != nil {
+			t.Errorf("series after the last release = %v, want none", got)
+		}
+	})
 }
 
 func TestSeriesIsSeededFromAFreshList(t *testing.T) {
@@ -511,20 +603,22 @@ func TestSeriesBounds(t *testing.T) {
 }
 
 func TestCloseStopsEverything(t *testing.T) {
-	f := newFake()
-	h := metrics.NewHub(detectorFor(f), fast())
-	h.Subscribe(allPods, nil)
-	h.Subscribe(podA, nil)
-	eventually(t, "polls", func() bool { return f.total() >= 4 })
-	h.Close()
-	n := f.total()
-	time.Sleep(80 * time.Millisecond)
-	if f.total() != n {
-		t.Error("polls continued after Close")
-	}
-	h.Subscribe(allPods, nil) // inert
-	time.Sleep(50 * time.Millisecond)
-	if f.total() != n {
-		t.Error("a subscription after Close polled")
-	}
+	synctest.Test(t, func(t *testing.T) {
+		f := newFake()
+		h := metrics.NewHub(detectorFor(f), fast())
+		h.Subscribe(allPods, nil)
+		h.Subscribe(podA, nil)
+		eventually(t, "polls", func() bool { return f.total() >= 4 })
+		h.Close()
+		n := f.total()
+		time.Sleep(80 * time.Millisecond)
+		if f.total() != n {
+			t.Error("polls continued after Close")
+		}
+		h.Subscribe(allPods, nil) // inert
+		time.Sleep(50 * time.Millisecond)
+		if f.total() != n {
+			t.Error("a subscription after Close polled")
+		}
+	})
 }
