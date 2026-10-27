@@ -17,9 +17,9 @@ you, not behind your back.**
 Cogpit gives every standard Kubernetes object, every custom resource your cluster serves, Helm,
 Flux CD and Argo CD a navigator, searchable lists, detail drawers, actions and shortcuts, in an
 open-source app written in Go. Every list reads from a cache that the cluster's watches keep
-current, so lists of 10,000 pods stay quick and opening a view again costs your API server
-nothing. And every action is also a tool an agent can use over MCP, with you deciding what it may
-change.
+current, so lists of 10,000 pods stay quick and going back to a view you just had open costs your
+API server nothing. And every action is also a tool an agent can use over MCP, with you deciding
+what it may change.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/hero_dark.png">
@@ -28,10 +28,9 @@ change.
 </picture>
 
 > **Alpha.** Cogpit runs on macOS on Apple silicon, on Debian and Ubuntu (amd64 and arm64) and on
-> Windows 10 and 11 (x64). Every core workflow has been walked end to end on real clusters; some
-> views and actions are still partial and rough edges remain, so try it on a test cluster first.
-> Where it stands, feature by feature:
-> [ROADMAP.md](ROADMAP.md).
+> Windows 10 and 11 (x64). Every core workflow works end to end on real clusters; some views and
+> actions are still partial and rough edges remain, so try it on a test cluster first. Where it
+> stands, feature by feature: [ROADMAP.md](ROADMAP.md).
 
 ## ✨ Features
 
@@ -147,8 +146,9 @@ Refresh and a way into the Argo CD UI.
 
 Cogpit reads every kubeconfig in `~/.kube` and the files and folders you add, each on its own, and
 follows their changes. Pin clusters to the hotbar (F1–F12), keep tabs of several clusters open
-(they come back after a restart), and reach any view, action or cluster from the command palette
-(⌘⇧P). Zoom the whole window as in VS Code, ⌘+ and ⌘-, for your eyes or a presentation.
+(and, if you like, have them and their connections back at the next start), and reach any view,
+action or cluster from the command palette (⌘⇧P). Zoom the whole window as in VS Code, ⌘+ and ⌘-,
+for your eyes or a presentation.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/clusters_dark.png">
@@ -187,10 +187,11 @@ unless you chose it.
 ### 💬 An agent chat in the window
 
 Cogpit has an agent of its own: a chat column at the window's right edge (⌘I) that talks to a
-model you choose, LM Studio on your Mac, a LiteLLM proxy or Open WebUI. Ask about the pod you
-selected and it reads the object and its logs and answers in Markdown, tables included; each of its
-tool calls is a row you can open, a change waits for your OK as an MCP agent's does, and what a
-turn sent to the model is one click away. Escape or ⌘. stops it at any time.
+model you choose: LM Studio on your computer, a LiteLLM proxy, Open WebUI or another
+OpenAI-compatible endpoint. Ask about the pod you selected and it reads the object and its logs and
+answers in Markdown, tables included; each of its tool calls is a row you can open, a change waits
+for your OK as an MCP agent's does, and what a turn sent to the model is one click away. Escape or
+⌘. stops it at any time.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/agent_chat_dark.png">
@@ -200,10 +201,10 @@ turn sent to the model is one click away. Escape or ⌘. stops it at any time.
 
 ### 🌗 Dark or light
 
-A calm navy stage where only what needs you lights up, dark or light, or following your Mac's
-appearance, switched live with the sun and moon in the title bar or in Preferences; every
-time in your own time zone and your region's format. The pictures on this page follow your light or
-dark theme too.
+A calm navy stage where only what needs you lights up, dark or light, or following your system's
+appearance, switched live with the sun and moon in the title bar or in Preferences; every time in
+your own time zone and your region's format. The pictures on this page follow your light or dark
+theme too.
 
 ## 🛡️ Safe by design
 
@@ -220,17 +221,17 @@ dark theme too.
   reach a log.
 - **Your credentials stay yours.** Cogpit authenticates the way `kubectl` does, with your
   kubeconfig, and runs a credential plugin only after you allowed it.
-- **Light on the API server.** Views read from a watch-fed cache: opening a view again costs no
-  request.
+- **Light on the API server.** Views read from a watch-fed cache: going back to a view you just had
+  open costs no request.
 
 ## 🚀 Get Cogpit
 
 **Download** the latest [release](https://github.com/guided-traffic/cogpit/releases):
-`Cogpit-<version>-macos-arm64.dmg`, Cogpit for Apple silicon, signed and notarized by Apple. Open it
-and drag Cogpit into Applications.
+`Cogpit-<version>-macos-arm64.dmg`, Cogpit for Apple silicon (macOS 13 or later), signed and
+notarized by Apple. Open it and drag Cogpit into Applications.
 
-**On Linux** (Debian 13, Ubuntu 24.04 or later; from the release after v0.32.0 on), download
-`cogpit_<version>_amd64.deb` (or `_arm64.deb`) from the same release and install it:
+**On Linux** (Debian 13, Ubuntu 24.04 or later), download `cogpit_<version>_amd64.deb` (or
+`_arm64.deb`) from the same release and install it:
 
 ```sh
 sudo apt install ./cogpit_<version>_amd64.deb
@@ -241,23 +242,24 @@ every new release, and Cogpit's own Update button installs it after your passwor
 install by themselves is your system's setting, never Cogpit's
 ([installing on Linux](docs/developer/usage.md#install-on-linux)).
 
-**On Windows** (Windows 10 1809 or 11, x64; from the first release after the branch
-`windows-release` is merged), download `Cogpit-<version>-windows-x64-setup.exe` from the same
-release and run it: it installs for you alone, without an administrator (`/allusers` for every
-user, `/S` silently). It is not signed with Authenticode yet, so SmartScreen warns the first time:
-More info, then Run anyway. Cogpit then updates itself: a click on its Update button downloads the
-next release, checks its signature and installs it
+**On Windows** (Windows 10 1809 or 11, x64), download `Cogpit-<version>-windows-x64-setup.exe` from
+the same release and run it: it installs for you alone, without an administrator (`/allusers` for
+every user, `/S` silently). It is not signed with Authenticode, so SmartScreen warns the first
+time: More info, then Run anyway. Cogpit then updates itself: a click on its Update button
+downloads the next release, checks its signature and installs it
 ([installing on Windows](docs/developer/usage.md#install-on-windows)).
 
 **`cogpit-cli` comes inside the app**, at `/Applications/Cogpit.app/Contents/MacOS/cogpit-cli`
-(in the Linux package at `/usr/bin/cogpit-cli`, on Windows as `cogpit-cli.exe` beside `cogpit.exe`): it lists your contexts, prints any kind's objects
-as Cogpit's views show them, and connects agents to Cogpit's MCP tools. Once you switched the MCP
-server on, Help › Copy MCP command gives you the one command that registers it with Claude Code,
-once ([reference](docs/developer/usage.md#cogpit-cli)).
+(in the Linux package at `/usr/bin/cogpit-cli`, on Windows as `cogpit-cli.exe` beside
+`cogpit.exe`): it lists your contexts, prints any kind's objects as Cogpit's views show them, and
+connects agents to Cogpit's MCP tools. Once you switched the MCP server on, Help › Copy MCP command
+gives you the one command that registers it with Claude Code, once
+([reference](docs/developer/usage.md#cogpit-cli)).
 
 **Build from source** with Go and the Xcode Command Line Tools (on Linux a C compiler and the GL,
-X11 and Wayland headers, on Windows MSYS2's MinGW-w64 gcc and make): `make run-demo` starts a development build on its synthetic demo cluster
-([run from source](docs/developer/usage.md#run-the-mvp)).
+X11 and Wayland headers, on Windows MSYS2's MinGW-w64 gcc and make): `make run-demo` starts a
+development build on its synthetic demo cluster
+([run from source](docs/developer/usage.md#build-and-run-from-source)).
 
 ## 📚 Documentation
 
@@ -275,5 +277,5 @@ X11 and Wayland headers, on Windows MSYS2's MinGW-w64 gcc and make): `make run-d
 ## License
 
 [Apache-2.0](LICENSE). Cogpit is an independent project: it contains no code, text or assets from
-other Kubernetes IDEs and is not affiliated with their makers. Third-party material, including the documentation method
-adapted from PhotoCraft, is listed in [ATTRIBUTION.md](ATTRIBUTION.md).
+other Kubernetes IDEs and is not affiliated with their makers. Third-party material, including the
+documentation method adapted from PhotoCraft, is listed in [ATTRIBUTION.md](ATTRIBUTION.md).

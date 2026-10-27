@@ -1,996 +1,832 @@
 # Credentials
 
 Where cluster credentials and Cogpit's own secrets come from, where they live while Cogpit runs,
-and where they must never end up. Rules that are built link to their code and test; the others
-are the plan. Cluster authentication is client-go's, the code `kubectl` uses
+and where they must never end up. Cluster authentication is client-go's, as `kubectl`'s
 ([D-6](../developer/decisions.md#d-6-kubernetes-libraries)), loaded in
-[`internal/cluster/cluster.go`](../../internal/cluster/cluster.go). The owner's decision round of
-2026-10-14 evening confirms H-33, H-40 and H-66 as they are and decides changes to who sets a
-proxy and to what the certificate checks show; each is marked where it applies, beside what is
-built.
+[`internal/cluster/cluster.go`](../../internal/cluster/cluster.go).
 
 ## Where credentials come from
 
-All cluster credentials come from kubeconfig files the user adds. The kubeconfig format carries
-them in these forms ([kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/),
-[authentication](https://kubernetes.io/docs/reference/access-authn-authz/authentication/)):
+Cluster credentials come only from kubeconfig files the user adds
+([kubeconfig](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/),
+[authentication](https://kubernetes.io/docs/reference/access-authn-authz/authentication/)); Cogpit
+has no account, login or cloud service of its own.
 
 | Form | Lives in | Cogpit's handling |
 |---|---|---|
-| Client certificate and key (`client-certificate[-data]`, `client-key[-data]`) | the kubeconfig, or a file it names | Read when connecting; held in memory by the TLS stack. Since 2026-10-17 ([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists)) the certificate, not the key, also whenever the contexts are listed: of the leaf (the first CERTIFICATE block) Cogpit keeps NotBefore and NotAfter and nothing else, the window and `cluster.contexts` show them; the key (`client-key-data`, `client-key`) is never looked at outside client-go's connect (`TestClientCertificateDates`: a garbage key gives the same dates; `TestListingNeverOpensTheKey`). A file in a place macOS protects is read only after the connect read it ([file access › H-119](file-access.md#h-119-a-client-certificate-file-is-read-while-the-contexts-are-listed)). A connection keeps the certificate and key it read at its connect: client-go re-reads only a certificate and a key that are both files (every 5 minutes), never ones in the kubeconfig itself, so a certificate renewed there reaches Cogpit only through a new connection (the owner's F28, 2026-10-17): since then ([D-81](../developer/decisions.md#d-81-reconnect-and-what-log-in-again-does)) Reconnect, Log in again of a context without a credential plugin, and, by itself, a connection whose login the API server rejects once its file holds another, connect anew from the file, with every approval a connect asks for (an unchecked certificate, a token file outside the folder). To tell that the file holds another login, each connection keeps a fingerprint of the context's login as the file held it at the connect: an HMAC-SHA-256 under a key made at random for the process, over the user entry's credentials, its plugin's configuration, the cluster entry it is sent to and the size and modification time of the files they name (stat only, none opened; in a place macOS protects not even that); compared, never logged, never sent (`TestLoginFingerprintNamesNoCredential`). The new connection presents the new certificate to the server the file names; a working connection is not reconnected when its file changes, nor ended at its certificate's notAfter: the server refuses an expired certificate, or, behind a proxy that checks it at the handshake only, serves it on ([H-142](#h-142-a-connection-outlives-its-client-certificate-where-a-proxy-checks-it-at-the-handshake-only)) |
-| Static bearer token (`token`, `tokenFile`) | the kubeconfig, or a file it names | Read when connecting; held in memory. A `token` renewed in the kubeconfig reaches Cogpit through a new connection as a certificate does (since 2026-10-17, D-81, above); a `tokenFile` client-go re-reads every minute |
-| Exec credential plugin (`exec`) | a program the kubeconfig names | Run on connect and on expiry; the returned credential is held in memory only, never written to disk. Since 2026-10-16 ([D-58](../developer/decisions.md#d-58-standby-and-lost-connections)) client-go runs it on a 401 only once after a request that worked (the login guard), Cogpit runs it by itself once after an interruption or a rejected heartbeat (an approved plugin only), and a run that waits longer than 30 s (a browser login) makes the login "expired" until the user logs in again; a run Cogpit stopped waiting for goes on, and the connection is back by itself if it ends with a working login. Since 2026-10-16 night ([D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound), the owner's finding) **Cogpit ends a run**: one that has not returned within 5 minutes, and one the user cancels (Disconnect, the window's Cancel Connecting, of a connect or a connection that waits for it). client-go starts the plugin without a context and offers no handle on the process, so Cogpit notes each run where client-go starts it (the same `interactiveFunc` wrapper) and finds the process among its own child processes as the one that appears then (by its command line, or as the one new child in Cogpit's process group; since 2026-10-19, WF38, followed by its number and start time, so that a wrapper that `exec`s the login program is found too), then sends it SIGTERM, and SIGKILL after 3 s if it still runs ([`loginrun.go`](../../internal/cluster/loginrun.go), [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin`, `TestLoginTimeoutEndsThePlugin`, `TestCancelEndsAPluginThatExecs`); a process it does not find it only stops waiting for, and says so. Only the plugin's own process, never its process group (Cogpit's own) nor a browser it opened; after that no run of the plugin starts until the user connects or logs in again ([H-118](#h-118-what-a-cancelled-login-leaves-running)). Nothing of it reaches the cluster. The checks of the connection send its credential with `GET /version` every 15 s; the reconnect attempts send none ([H-101](trust-boundaries.md#h-101-a-credential-plugin-runs-again-during-a-connection-without-being-checked-again)). Since 2026-10-16 ([D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once) item 4) a cluster the window does not show, whose setting "Renew the login while the cluster is not shown" is off, **holds its plugin**: client-go's authenticator is kept from starting it (Cogpit wraps the Authenticator's `interactiveFunc`, which client-go asks before it builds the command, [`loginhold.go`](../../internal/cluster/loginhold.go)), so a credential that expires is not renewed and the login lapses until the cluster is shown or the user logs in again; while held, no run happens at all (`TestHeldPluginDoesNotRun`). Two contexts whose plugin runs with the same command, arguments and environment share client-go's one login: it is held only while both are. The plugin's standard output, the credential, goes to a buffer of client-go's own that Cogpit never reads. Its standard error goes to Cogpit's standard error as client-go always sent it, and since 2026-10-16 ([D-66](../developer/decisions.md#d-66-the-connection-log)) a copy of the newest 64 KiB is held in memory: after a connect or a heartbeat that failed because the plugin failed, it is scrubbed, cut to 4 KiB and written to the [connection log](#where-credentials-must-never-end-up); after a request that worked it is dropped ([`pluginstderr.go`](../../internal/cluster/pluginstderr.go), [H-112](#h-112-a-credential-plugins-standard-error-in-the-connection-log)) |
-| A proxy's user and password in the cluster's `proxy-url` (`http://user:password@proxy:3128`) | the kubeconfig | Handed to client-go, which sends it to the proxy alone (Basic `Proxy-Authorization` on the CONNECT; in clear for an `http://` proxy); shown nowhere: the plugin approval dialog strips it, and since 2026-10-13 connect errors replace it with `•••` ([`proxyurl.go`](../../internal/cluster/proxyurl.go), `TestKubeconfigProxyPasswordNeverInErrors`) |
-| Legacy auth provider `oidc` | the kubeconfig | Refreshed tokens go through a persister Cogpit supplies; see [H-4](#h-4-auth-provider-token-refresh) |
-| Legacy auth providers `azure` and `gcp` | the kubeconfig | client-go 0.37.1 rejects `azure` and points to kubelogin; the user replaces them with exec plugins |
+| Client certificate and key (`client-certificate[-data]`, `client-key[-data]`) | the kubeconfig, or a file it names | Read at connect, held by the TLS stack |
+| Bearer token (`token`, `tokenFile`) | the kubeconfig, or a file it names | Read at connect, held in memory; a `tokenFile` outside the kubeconfig's folder only once the user allowed it ([D-17](../developer/decisions.md#d-17-token-files-outside-the-kubeconfigs-folder), [trust boundaries › H-24](trust-boundaries.md#h-24-a-dropped-kubeconfig-can-send-a-local-file-as-its-token)) |
+| Exec credential plugin (`exec`) | a program the kubeconfig names | Runs only once approved ([trust boundaries › H-1](trust-boundaries.md#h-1-kubeconfig-files-added-by-sync-folders)); its credential stays in memory, never on disk (below) |
+| User and password in the cluster's `proxy-url` (`http://user:password@proxy:3128`) | the kubeconfig | client-go sends them to the proxy alone (Basic `Proxy-Authorization` on the CONNECT, in clear for `http://`); the approval dialog strips them, connect errors show `•••` ([`proxyurl.go`](../../internal/cluster/proxyurl.go), `TestKubeconfigProxyPasswordNeverInErrors`) |
+| Legacy `auth-provider` (`oidc`, `azure`, `gcp`) | the kubeconfig | Not linked: the connect fails ([H-4](#h-4-auth-provider-token-refresh)) |
 
-Cogpit adds no cluster credential source of its own: no account, no login, no cloud service.
+**Client certificates and renewed logins**
+([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists),
+[D-81](../developer/decisions.md#d-81-reconnect-and-what-log-in-again-does)):
 
-Since 2026-10-13 ([D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml))
-Cogpit also reads the credentials of Helm chart repositories, from the file the helm CLI keeps
-them in:
+- Listing the contexts keeps only the leaf certificate's NotBefore and NotAfter, which the window and
+  `cluster.contexts` show; the key is never looked at (`TestClientCertificateDates`,
+  `TestListingNeverOpensTheKey`). A file in a place macOS protects is read only after the connect
+  read it ([file access › H-119](file-access.md#h-119-a-client-certificate-file-is-read-while-the-contexts-are-listed)).
+- A connection keeps what it read at its connect; client-go re-reads only a certificate and key that
+  are both files (every 5 minutes) and a `tokenFile` (every minute). A certificate or token renewed
+  in the kubeconfig itself reaches Cogpit through a new connection made from the file, with every
+  approval a connect asks for: Reconnect; Log in again when the context runs no credential plugin or
+  its login in the file changed; by itself for a context without a plugin whose login the API server
+  rejects while the file holds another ([`reconnect.go`](../../internal/engine/reconnect.go)
+  `loginByReconnect`, `renewFromFile`). A working connection is neither reconnected when its file
+  changes nor ended at notAfter
+  ([H-142](#h-142-a-connection-outlives-its-client-certificate-where-a-proxy-checks-it-at-the-handshake-only)).
+- "Holds another login" compares a fingerprint taken at the connect: an HMAC-SHA-256 under a random
+  per-process key over the user entry's credentials and plugin configuration, the cluster entry, and
+  the size and modification time of the files they name (stat only; in a place macOS protects not
+  even that); never logged or sent ([`loginfile.go`](../../internal/cluster/loginfile.go),
+  `TestLoginFingerprintNamesNoCredential`).
+
+**Credential plugins** ([D-58](../developer/decisions.md#d-58-standby-and-lost-connections),
+[D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound),
+[D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once) item 4):
+
+- client-go runs the plugin at connect and when the credential expires; on a 401, only once after a
+  request that worked (the login guard, [`health.go`](../../internal/cluster/health.go)). Cogpit runs
+  an approved plugin itself once after an interruption or a rejected heartbeat. A run unanswered
+  after 30 s (a browser login) makes the login expired until the user logs in again; a later working
+  login brings the connection back ([`connwatch.go`](../../internal/engine/connwatch.go)). The
+  heartbeat sends the credential (`GET /version`, every 15 s); reconnect attempts send none
+  ([trust boundaries › H-101](trust-boundaries.md#h-101-a-credential-plugin-runs-again-during-a-connection-without-being-checked-again)).
+- Cogpit ends a run after 5 minutes, or when the user cancels it (Disconnect, Cancel Connecting): it
+  finds the plugin's process among its children where client-go starts it (a wrapper of the
+  Authenticator's `interactiveFunc`) and sends that process alone SIGTERM, then SIGKILL after 3 s
+  (TerminateProcess on Windows), never Cogpit's process group or a browser the plugin opened
+  ([`loginrun.go`](../../internal/cluster/loginrun.go),
+  [`pluginproc.go`](../../internal/cluster/pluginproc.go); `TestCancelledConnectEndsThePlugin`,
+  `TestLoginTimeoutEndsThePlugin`, `TestCancelEndsAPluginThatExecs`). No run of it starts again until
+  the user connects or logs in again; what stays running:
+  [H-118](#h-118-what-a-cancelled-login-leaves-running).
+- A cluster not shown whose setting "Renew the login while the cluster is not shown" is off holds its
+  plugin: the wrapper refuses before client-go builds the command, and an expiring login lapses until
+  the cluster is shown or the user logs in again
+  ([`loginhold.go`](../../internal/cluster/loginhold.go), `TestHeldPluginDoesNotRun`). Contexts with
+  the same plugin command, arguments and environment share one client-go login, held only while all
+  of them hold it.
+- Standard output, the credential, goes to a client-go buffer Cogpit never reads. Standard error goes
+  to Cogpit's, and after a connect or heartbeat the plugin failed also to the
+  [connection log](#where-credentials-must-never-end-up), scrubbed
+  ([`pluginstderr.go`](../../internal/cluster/pluginstderr.go),
+  [H-112](#h-112-a-credential-plugins-standard-error-in-the-connection-log)).
+
+**Where plugin programs are found**
+([D-120](../developer/decisions.md#d-120-folders-searched-for-credential-plugins),
+[`toolpath.go`](../../internal/cluster/toolpath.go)). Cogpit appends to its `PATH`, after every folder
+already there, the folders of package managers and installers that rely on a shell profile (macOS and
+Linux: Homebrew, MacPorts, snap, Nix, `~/.local/bin`, `~/bin`, krew's `${KREW_ROOT:-~/.krew}/bin`, go
+install's, asdf's and mise's shims, Rancher Desktop's, Docker Desktop's; each while it exists,
+`cluster.BuiltinToolFolders`), then the user's program folders on every platform (Preferences ›
+Kubernetes › Program folders, `programFolders` in `preferences.json`). `PATH` is composed again when
+they change and at every connect; `cogpit-cli` reads the same folders.
+
+- Appended, never first: no folder shadows a system program, a plugin the user's `PATH` finds, or a
+  program an approval names on `PATH`
+  ([D-26](../developer/decisions.md#d-26-binding-a-credential-plugins-approval-to-its-program),
+  `TestComposePathAppendsWithoutShadowing`).
+- Only the user adds a folder (`preferences.addProgramFolder` is GUI-only,
+  `ErrProgramFoldersGUIOnly`); any origin may remove one (`TestProgramFoldersAddRemoveAndKeep`,
+  `TestGUIOnlyCommandsRefuseOtherOrigins`).
+- A folder every user may write to is refused when added and skipped if it becomes so (not on
+  Windows, where ACLs are not read; `TestProgramFolderProblem`).
+- A program not found ("executable … not found", kubectl's "unknown command") points to the setting
+  in the error, the connect's login stage and Connection Updates
+  (`TestAMissingPluginPointsToProgramFolders`).
+
+Helm chart repositories' credentials come from the helm CLI's own file
+([D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)), where
+the helm CLI adds them; Cogpit never writes Helm's files nor copies a credential into its own.
 
 | Form | Lives in | Cogpit's handling |
 |---|---|---|
-| A repository's `username` and `password`, or a user and password in its `url` | Helm's `repositories.yaml` (plain text, written by `helm repo add`), resolved as the helm CLI resolves it | Read with the file (every 2 seconds when it changed, at most 1 MiB) into memory only, unexported in `helm.Repository`; sent as basic auth to the repository's own scheme, host and port only, unless the entry says `pass_credentials_all` (below) |
-| A client certificate and key (`certFile`, `keyFile`), a CA file (`caFile`) | files the entry names by absolute path | Read at every download, at most 1 MiB each, into that download's TLS configuration; an error names the path, never the content |
-
-Cogpit never writes Helm's file or anything in Helm's folders, and never copies a repository's
-credential into its own files.
+| `username` and `password`, or a user and password in the `url` | Helm's `repositories.yaml` (plain text), found as the helm CLI finds it | Read when it changed (looked at every 2 s, at most 1 MiB), held unexported in `helm.Repository`; sent as basic auth to the repository's own scheme, host and port only, unless the entry says `pass_credentials_all` ([below](#where-they-live-inside-cogpit)) |
+| `certFile`, `keyFile`, `caFile` | files the entry names by absolute path | Read at every download (at most 1 MiB each) into its TLS configuration; errors name the path, never the content |
 
 ## Cogpit's own secrets
 
 | Secret | Lives in | Rule |
 |---|---|---|
-| MCP bearer token | `<user config dir>/Cogpit/mcp-token` (macOS: `~/Library/Application Support/Cogpit/mcp-token`), file 0600 in a 0700 directory, written atomically, never through a symlink, kept across starts and the status bar's switch since 2026-10-15 (until then removed on exit and when switched off); written when the server first starts or the user clicks Regenerate token, so a new installation has none until the user does one of them (the server is opt-in since 2026-10-21, D-49); a file that holds no token Cogpit wrote, or that other users may read, is replaced at the next start ([`internal/mcp/token.go`](../../internal/mcp/token.go), `TestTokenFileLifecycle`, `TestTokenKeptAcrossStarts`, `TestTokenFileNotKept`, `TestStartRefusesSymlinks`) | 32 random bytes, new only when the user clicks Regenerate token in the MCP details (the gear in the status bar's MCP item; F6, [D-53](../developer/decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it), `TestRegenerateToken`), until then valid across starts ([agents and MCP › H-98](agents-and-mcp.md#h-98-a-leaked-token-stays-valid-until-the-user-regenerates-it)); shown there masked until the user shows it, copied on request as a Secret's value (kept from clipboard managers on macOS, cleared after 1 minute; `TestMCPDetailsTokenShownAndCopied`), never in a toast or a notification; printed to the terminal that started Cogpit inside the HTTP `claude mcp add` command, at start and after a regenerate, never logged; an app whose bundle carries `cogpit-cli` prints and copies the stdio registration of that `cogpit-cli` instead, which names no token (since 2026-10-14, [D-2](../developer/decisions.md#d-2-agent-interface-scope), `TestMCPControlOffersTheBundledCLI`) (`TestTokenNeverLogged`) ([agents and MCP](agents-and-mcp.md)). Since 2026-10-13 the endpoint's URL is written beside it, `mcp-endpoint`, with the same rules (not a secret: a loopback URL), while the server listens, for the stdio bridge `cogpit-cli mcp`, which reads both before every call and sends the token to that loopback URL only, and nothing while the file is missing (`TestEndpointFileLifecycle`, `TestReadEndpointTakesOnlyWhatCogpitWrites`, `TestBridgeFollowsARestart`); since 2026-10-15 the port is kept beside them, `mcp-port`, with the same rules (not a secret) (`TestPortKeptAcrossStarts`) |
-| LLM API key (built-in agent) | `<user config dir>/Cogpit/llm-keys.json` (macOS: `~/Library/Application Support/Cogpit/llm-keys.json`), the connection's id to its key, file 0600 in a 0700 directory, written atomically through the engine's owner-only writer, never through a symlink, read and written anew on every call, on every platform; a file other users may access is made owner-only again before its keys are used, the log naming the file and its mode, never a key ([`agent/keystore.go`](../../internal/agent/keystore.go), `TestKeyFileKeepsTheKey`, `TestKeyFileAccessibleByOthersIsRepaired`, `TestFileKeyStoreRefuses`). Never in a keychain since 2026-10-15 (the owner's decision, [D-10](../developer/decisions.md#d-10-built-in-agent) item 12: every self-built binary made macOS ask for the login password). Until then the macOS login keychain held it (service `io.guided-traffic.cogpit.llm`, label "Cogpit LLM connection"); Cogpit no longer reads that item, not even to move a key out of it, and has no keychain code left (`TestNoKeychainCode`): such a connection shows "no API key" and its turn asks for the key again until the user enters it once more (`TestKeyFromTheKeychainIsAskedForAgain`); the item stays for the user to delete in Keychain Access | never in `llm-connections.json`, which holds whether a key was given (`TestConnectionsKeepTheKeyInTheKeyStore`); never logged; never in an error (a key file that does not decode is named, not quoted), a note, the audit log, the conversations or a request body (`TestTurnErrors`, `TestKeyFileKeepsTheKey`); sent only in the `Authorization` header to the configured endpoint, which no redirect can change ([D-10](../developer/decisions.md#d-10-built-in-agent)), over `https` checked against the system's roots or, since 2026-10-15, a connection's own CA file, which since 2026-10-16 replaces them for that connection (the owner's decision in the audit of 2026-10-16) ([trust boundaries › H-104](trust-boundaries.md#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier)); over plain `http` to another machine the window warns (H-95); removed from the file by Remove Key and with its connection; plain text protected by the file's mode ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)) |
-| Update public key (Sparkle's EdDSA key) | the app bundle's `Info.plist` (`SUPublicEDKey`), written at build time by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh) from the repository variable `SPARKLE_PUBLIC_ED_KEY`; on Windows (since 2026-10-21, D-111) the same key written into `cogpit.exe` by the linker (`make dist-windows`); a build without it has no update key and its updater does not start | not secret; its private counterpart never touches a user's machine ([updates](updates.md)) |
+| MCP bearer token | `<user config dir>/Cogpit/mcp-token` (macOS: `~/Library/Application Support/Cogpit/`) | 32 random bytes, valid across starts until Regenerate token ([D-53](../developer/decisions.md#d-53-the-mcp-details-and-a-token-kept-until-the-user-regenerates-it), [agents and MCP › H-98](agents-and-mcp.md#h-98-a-leaked-token-stays-valid-until-the-user-regenerates-it)) |
+| LLM API keys (built-in agent) | `<user config dir>/Cogpit/llm-keys.json`, connection id to key | Plain text under the file's mode ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)) |
+| Update public key (Sparkle's EdDSA key) | `Info.plist`'s `SUPublicEDKey` ([`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh)); linked into `cogpit.exe` (`make dist-windows`) | Not secret, from the repository variable `SPARKLE_PUBLIC_ED_KEY`; without it no updater; the private key never reaches a user's machine ([updates](updates.md)) |
 
-**On Windows** (since 2026-10-21, on the branch `windows-release`,
-[D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle); the
-lead's policy, open to revision) the modes on this page (0600, 0700) are neither set nor checked:
-a mode there says only whether a file is read-only. Cogpit's files live in the user's profile,
-`%APPDATA%\Cogpit` and `%LOCALAPPDATA%\Cogpit`, whose inherited ACLs give the user, SYSTEM and
-the Administrators access and no other user; the terminal's kubeconfig in `%TEMP%` inherits the
-same (checked with `icacls` on the owner's Windows 11). Cogpit does not check those ACLs: a profile
-whose ACLs someone widened exposes the token, the API keys and the drafts as a widened mode would
-on macOS ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)). A rename over one of
-these files, or a removal, that another process holds open (another Cogpit, an editor, a virus
-scanner) is retried for up to a second instead of failing
-([`privatefile.go`](../../internal/engine/privatefile.go)).
+- **MCP token** ([`internal/mcp/token.go`](../../internal/mcp/token.go);
+  [agents and MCP](agents-and-mcp.md)): 0600 in a 0700 directory, written atomically, never through a
+  symlink, at the server's first start (it is opt-in,
+  [D-49](../developer/decisions.md#d-49-the-external-mcp-servers-switch-honoured-by-cogpit-cli-mcp))
+  or on Regenerate token; a file Cogpit did not write, or that others may read, is replaced at the
+  next start (`TestTokenFileLifecycle`, `TestTokenKeptAcrossStarts`, `TestTokenFileNotKept`,
+  `TestStartRefusesSymlinks`, `TestRegenerateToken`). The MCP details show it masked until shown and
+  copy it as a Secret's value (`TestMCPDetailsTokenShownAndCopied`). It is printed to the terminal
+  that started Cogpit inside the HTTP `claude mcp add` command, unless the app bundle carries
+  `cogpit-cli`, whose stdio registration names no token
+  ([D-2](../developer/decisions.md#d-2-agent-interface-scope), `TestMCPControlOffersTheBundledCLI`);
+  never in a toast, a notification or a log (`TestTokenNeverLogged`). Beside it, under the same rules
+  and not secret: `mcp-endpoint` while the server listens, for the stdio bridge
+  (`TestEndpointFileLifecycle`, `TestReadEndpointTakesOnlyWhatCogpitWrites`,
+  `TestBridgeFollowsARestart`), and `mcp-port`, kept across starts (`TestPortKeptAcrossStarts`).
+- **LLM API keys** ([`agent/keystore.go`](../../internal/agent/keystore.go)): 0600 in a 0700
+  directory through the engine's owner-only writer, never through a symlink, read and written anew on
+  every call; a file others may access is made owner-only before its keys are used, the log naming
+  file and mode, never a key (`TestKeyFileKeepsTheKey`, `TestKeyFileAccessibleByOthersIsRepaired`,
+  `TestFileKeyStoreRefuses`). Never in a keychain ([D-10](../developer/decisions.md#d-10-built-in-agent)
+  item 12, `TestNoKeychainCode`) or in `llm-connections.json`
+  (`TestConnectionsKeepTheKeyInTheKeyStore`); never logged, nor in an error (a key file that does not
+  decode is named, not quoted), a note, the audit log, a conversation or a request body
+  (`TestTurnErrors`). Sent only in the `Authorization` header to the configured endpoint, no redirect
+  followed, over `https` checked against the system's roots or a connection's own CA file, which
+  replaces them
+  ([trust boundaries › H-104](trust-boundaries.md#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier));
+  plain `http` to another machine is warned about ([H-95](#h-95-an-llm-api-key-over-plain-http)).
+  Removed by Remove key and with its connection. The connection test's record of a failed request
+  ([`agent/exchange.go`](../../internal/agent/exchange.go)) writes the header as `Bearer •••`, removes
+  the key from other headers and the answer, withholds `Set-Cookie` and `Cookie`, skips a 401's or
+  403's body (it may quote part of the key), and stays in Preferences › Agent, out of every command's
+  result.
+
+**On Windows** ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle))
+the modes on this page are neither set nor checked. Cogpit's files sit in `%APPDATA%\Cogpit` and
+`%LOCALAPPDATA%\Cogpit`, whose inherited ACLs admit the user, SYSTEM and the Administrators; the
+terminal's kubeconfig in `%TEMP%` inherits the same. Cogpit does not check those ACLs: a widened
+profile exposes the token, the keys and the drafts as a widened mode would
+([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)). A rename or removal blocked by
+another process's open handle (another Cogpit, an editor, a virus scanner) is retried for up to a
+second ([`privatefile.go`](../../internal/engine/privatefile.go)).
 
 ## Where they live inside Cogpit
 
-- **Kubeconfig files stay where they are.** Cogpit stores the paths the user added, not copies
-  (built 2026-10-12: `<user config dir>/Cogpit/kubeconfigs.json`, 0600, lists the added files and
-  sync folders; Cogpit never writes the files themselves, `TestAddedFilesAreNeverWritten`).
-  Since 2026-10-12 Cogpit also reads every regular file of at most 1 MiB in `~/.kube` (a default
-  sync folder, dot files and `config` included), each on its own, and the files `$KUBECONFIG` and
-  `--kubeconfig` name (D-28: nothing is merged any more); the list holds only the folder's removal,
-  the files named for a run are not stored. A credential plugin or an outside token file of any of
-  them waits for the user's approval ([H-1](trust-boundaries.md#h-1-kubeconfig-files-added-by-sync-folders)).
-  The MVP switches off client-go's two implicit writes: the migration of a legacy
-  `~/.kube/.kubeconfig` into `~/.kube/config`, and the persister that writes refreshed `oidc` tokens
-  back into the file ([`cluster.go`](../../internal/cluster/cluster.go), `memoryPersister`).
-- **Cogpit does not store kubeconfig text.** Pasting a kubeconfig is not a target
-  ([D-21](../developer/decisions.md#d-21-pasting-a-kubeconfig), owner, 2026-10-12): a copy of a
-  kubeconfig is a second place for a credential to live, and the files the user adds already
-  stay where they are. A build from 2026-10-12 that still had the paste feature wrote the text to
-  `<user config dir>/Cogpit/kubeconfigs/pasted-<16 hex>.yaml` (0600 in a 0700 directory) and an
-  entry of kind `pasted` to `kubeconfigs.json`. Cogpit no longer lists, reads or deletes them
-  (`TestPastedSourcesOfEarlierBuildsAreNotOffered`); the files hold credentials in clear text and
-  are the user's to delete or to add as files again. The entry in `kubeconfigs.json` goes with
-  the next change of the list of sources.
-- **Exec plugin approvals** live in `<user config dir>/Cogpit/exec-approvals.json` (0600): the
-  fingerprint of what each allowed plugin runs and where its credential goes (including the content
-  digest of a program or CA file inside the kubeconfig's folder, and the path of a token file
-  outside it), no credential.
-- **Helm repositories allowed over plain http** (2026-10-14, [H-40](#h-40-credentials-over-plain-http))
-  live in `<user config dir>/Cogpit/helm-http-approvals.json` (0600): per repository its name, its
-  URL as Cogpit shows it (no user, password or query values), a SHA-256 of its name, URL and user
-  name, and when; no credential (`TestHelmCredentialsOverHTTPWaitForTheUser`).
-- **Token files** (`tokenFile`) of an added or synced kubeconfig are read by client-go when the
-  user connects, and only after the user allowed a file outside the kubeconfig's folder
-  (since 2026-10-12, D-17, [trust boundaries › H-24](trust-boundaries.md#h-24-a-dropped-kubeconfig-can-send-a-local-file-as-its-token)).
-- **Helm chart repositories' credentials stay in Helm's file and Cogpit's memory** (built
-  2026-10-13, [D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)):
-  Cogpit reads the repositories of Helm's own `repositories.yaml` and keeps an entry's user and
-  password in a `helm.Repository` whose credentials are unexported; `%v`, `%+v`, `%#v`, slog and
-  JSON print its name and redacted URL (`TestReadRepositoryFile`). Agents, the dialog and
-  `helm.repo.list` see the name, the URL without user, password or query values, and whether
-  credentials, a client certificate, a CA file, `insecure_skip_tls_verify`,
-  `pass_credentials_all` or plain http are present, never a credential. Basic auth is added per
-  request by a transport that compares the request's scheme, host and port with the repository's,
-  so a redirect to another host or port, a subdomain included, and a chart URL the index points
-  elsewhere get none, unless the entry says `pass_credentials_all` (helm's own option)
-  (`TestCredentialsStayOnTheRepositoryHost`, `TestCredentialsNotSentToAChartElsewhere`). Download
-  errors show URLs redacted and are scrubbed of the password and user name as a guard
-  (`TestScrubbedErrors`); the list, the install tab, events, toasts and notifications, the audit log
-  and the log are checked for them (`TestHelmRepoCredentialsNeverShown`; on kind
-  `TestKindHelmInstall`). The indexes Cogpit downloads are written to its own
-  `<user cache dir>/Cogpit/helm/indexes/` (0600 in a 0700 folder): an index of a repository behind a
-  login is what that login protects, readable to the user's own processes as Helm's cache is. The
-  night run's `<user config dir>/Cogpit/helm/repositories.json` (public repositories, no
-  credential) is left on disk, unread. Since 2026-10-14 the chart drawer's README is read from the
-  chart's archive through the same download, so the same rules apply to it, and kept in
-  `<user cache dir>/Cogpit/helm/readmes/` (owner-only) like the indexes; the charts' icons are fetched
-  with no credential at all, not the repository's whatever `pass_credentials_all` says, no cookies
+The files below sit in `<user config dir>/Cogpit` unless a path says otherwise, each 0600 in a 0700
+directory and replaced atomically.
+
+- **Kubeconfig files stay where they are.** `kubeconfigs.json` lists the added files' and sync
+  folders' paths, never copies; Cogpit never writes the files (`TestAddedFilesAreNeverWritten`).
+  `~/.kube` is a default sync folder: each regular file of at most 1 MiB, dot files included, is
+  read on its own, as are the files `$KUBECONFIG` and `--kubeconfig` name (nothing is merged,
+  [D-28](../developer/decisions.md#d-28-the-default-kubeconfig-as-sources-as-lens-has-it)); the
+  list holds `~/.kube` only by its removal and the files named for a run not at all.
+  client-go's implicit writes are off: the legacy `~/.kube/.kubeconfig` migration and the
+  auth-provider token persister ([`cluster.go`](../../internal/cluster/cluster.go),
+  `memoryPersister`). Pasting a kubeconfig is not a target
+  ([D-21](../developer/decisions.md#d-21-pasting-a-kubeconfig)): no second copy of a credential.
+- **Exec plugin approvals** (`exec-approvals.json`): the fingerprint of what each allowed plugin runs
+  and where its credential goes (with the digest of a program or CA file inside the kubeconfig's
+  folder and the path of a token file outside it); no credential.
+- **Helm repositories allowed over plain http** (`helm-http-approvals.json`,
+  [H-40](#h-40-credentials-over-plain-http)): per repository its name, its URL as shown (no user,
+  password or query values), a SHA-256 of name, URL and user name, and when; no credential
+  (`TestHelmCredentialsOverHTTPWaitForTheUser`).
+- **Helm repositories' credentials** (D-29) sit unexported in `helm.Repository`, whose `%v`, `%+v`,
+  `%#v`, slog and JSON forms are its name and redacted URL (`TestReadRepositoryFile`). Agents, the
+  dialog and `helm.repo.list` see only whether credentials, a client certificate, a CA file,
+  `insecure_skip_tls_verify`, `pass_credentials_all` or plain http are present. The transport adds
+  basic auth only when a request's scheme, host and port are the repository's, so a redirect
+  elsewhere (a subdomain included) and a chart URL on another host get none, unless
+  `pass_credentials_all` (`TestCredentialsStayOnTheRepositoryHost`,
+  `TestCredentialsNotSentToAChartElsewhere`). Errors show URLs redacted and are scrubbed of password
+  and user name (`TestScrubbedErrors`); the list, the install tab, events, toasts, notifications, the
+  audit log and the log are checked (`TestHelmRepoCredentialsNeverShown`, on kind
+  `TestKindHelmInstall`). Indexes and chart READMEs, fetched under the same rules, are cached in
+  `<user cache dir>/Cogpit/helm/indexes/` and `helm/readmes/`, as readable to the user's processes
+  as Helm's own cache. Chart icons go without any credential or cookie
   ([D-46](../developer/decisions.md#d-46-chart-icons-from-the-hosts-that-serve-them),
-  `TestChartIconRefusals`: an icon behind the repository's login gets a 401). What remains is
-  [H-29](#h-29-authenticated-helm-repositories) and [H-40](#h-40-credentials-over-plain-http).
-- **A proxy's user and password** (built 2026-10-13, G13): a cluster's proxy (Cluster Settings ›
-  Proxy) and the proxy of the Helm repositories' and kubectl's downloads (Preferences › Proxy) may each be
-  `http://user:password@host:port`, as Lens's fields allow. Cogpit keeps each as typed in one place
-  only, `<user config dir>/Cogpit/cluster-settings.json` and `preferences.json` (0600 in a 0700
-  directory, replaced atomically), and hands it to the HTTP client that uses it (client-go's
-  `rest.Config.Proxy` for the connection, the Helm fetcher's transport for a download), which sends
-  it to the proxy alone: as Basic `Proxy-Authorization` on the CONNECT for an http or https
-  proxy (in clear on the network for an `http://` proxy, over TLS for an `https://` one), as SOCKS5's
-  user and password for a socks5 proxy; never to the API server or the repository. Everywhere else
-  the password is `•••` (`engine.RedactProxyURL`): the UI state (so `ui_state` and the window),
-  `cluster.settings.get`, `preferences.get` and their setters' results, the audit log's parameters
-  (`auditParams`), the connection log ("Through the proxy http://alice:•••@proxy:3128"); a value
-  typed in the window with `•••` keeps
-  the stored password (`MergeProxyPassword`). No error quotes a proxy value: the checks name the
-  problem only, and `cluster.Connect` scrubs the password from any connect error as a guard
-  (`TestCheckProxyURL`, `TestClusterProxyKeptPrivately`, `TestClusterProxyCommands`,
-  `TestProxyRefusalNeverQuotesThePassword`, `TestConnectThroughTheClusterProxy`). The user sets
-  a proxy in the window ([agents and MCP](agents-and-mcp.md)); decided (owner, 2026-10-14 evening,
-  A20) and built the same night: an agent may set one as a write the user confirms, whatever the
-  allowance of agent writes, its password `•••` in the confirmation, the audit log and every
-  result, the same redaction as above; the CLI is still refused (`TestClusterProxyCommands`,
-  `TestNonClusterProxyCommands`). The file is plaintext
-  ([H-33](#h-33-proxy-passwords-are-plaintext-in-cogpits-settings), confirmed by the owner the same
-  evening).
-- **Drafts of unsaved editor text** (built 2026-10-13, G9, [D-11](../developer/decisions.md#d-11-crash-stance)):
-  the unsaved text of an Edit or Create resource tab is written to
-  `<user config dir>/Cogpit/drafts/<32 hex>.json`, 0600 in a 0700 folder, replaced atomically,
-  never through a symlink (`writePrivateFile`); with it the tab's context, object, the version the
-  text is based on, the time and the writing Cogpit process. It is removed when the text is saved
-  again or the tab is closed. **Never a Secret's values** ([D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)):
-  a Secret's Edit tab has no draft, nor has a tab whose text holds a Secret's manifest (a list's
-  items and text that does not parse included) or may become one while it is typed (a `kind:` that
-  is a beginning of `Secret` or `SecretList`, in any case); a draft whose text turns into one is
-  removed, and a draft file found holding one is deleted unread. **Never Helm values**: the Helm
-  Upgrade and Install tabs have no drafts ([`drafts.go`](../../internal/engine/drafts.go),
-  `TestNoDraftsForSecretsOrHelmValues`, `TestNoDraftsOfSecretTabs`, `TestDraftFilesReadBack`).
-  Agents list drafts without their text; a restored tab's text follows `editor.get`'s rules. What
-  other kinds' text a user types is kept as typed ([H-38](#h-38-drafts-keep-typed-text-in-plain-text)).
-  Since 2026-10-15 (the owner's audit answer, [D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer))
-  **a Config Map's values edited in the drawer** and not saved are kept the same way: one file per
-  Config Map (type `configMapData`) with the edited keys' text, the values they are based on and
-  the version, since 2026-10-16 also the keys added with their text and the keys removed (the
-  owner's audit decision), removed when the user saves or reverts them
-  ([`drafts_drawer.go`](../../internal/engine/drafts_drawer.go), `TestConfigMapDrawerDrafts`). Only
-  the window keeps or reads them (`configMap.keepEdits` is GUI-only, `configMap.readData` returns
-  them to the window only); agents list such a draft with its keys, never a value. **A Secret's
-  values edited in the drawer are never on disk**: the window keeps them in its memory only
+  `TestChartIconRefusals`). Open: [H-29](#h-29-authenticated-helm-repositories),
+  [H-40](#h-40-credentials-over-plain-http).
+- **Proxy passwords.** A cluster's proxy (Cluster Settings › Proxy) and the downloads' proxy
+  (Preferences › Proxy) may carry `user:password`; each is kept as typed only in
+  `cluster-settings.json` or `preferences.json` and handed to the client that uses it
+  (`rest.Config.Proxy`, the Helm fetcher's transport), which sends it to the proxy alone: Basic
+  `Proxy-Authorization` on the CONNECT (in clear for `http://`), SOCKS5's user and password for
+  `socks5://`. Everywhere else the password is `•••` (`engine.RedactProxyURL`): the UI state
+  (`ui_state`, the window), `cluster.settings.get`, `preferences.get` and the setters' results, the
+  audit log (`auditParams`), the connection log; a value typed with `•••` keeps the stored password
+  (`MergeProxyPassword`). No error quotes a proxy value (`TestCheckProxyURL`,
+  `TestClusterProxyKeptPrivately`, `TestProxyRefusalNeverQuotesThePassword`,
+  `TestConnectThroughTheClusterProxy`). An agent's proxy always waits for the user's acceptance,
+  whatever the agent-write allowance, `•••` in the question; the CLI and a deep link may only clear
+  one ([`commands/proxy.go`](../../internal/engine/commands/proxy.go) `refuseProxy`;
+  `TestClusterProxyCommands`, `TestNonClusterProxyCommands`). Plain text:
+  [H-33](#h-33-proxy-passwords-are-plaintext-in-cogpits-settings).
+- **Drafts** ([D-11](../developer/decisions.md#d-11-crash-stance)): an Edit or Create tab's unsaved
+  text goes to `drafts/<32 hex>.json` (never through a symlink, `writePrivateFile`) with its context,
+  object, base version, time and writing process, removed on save or close. Never a Secret's values
+  ([D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)): no draft for a
+  Secret's Edit tab or for text that holds, or while typed may become, a Secret's manifest (a `kind:`
+  beginning `Secret` or `SecretList` in any case; list items and unparsable text included); such a
+  draft is removed, such a file deleted unread. Never Helm values: the Helm Upgrade and Install tabs
+  keep none ([`drafts.go`](../../internal/engine/drafts.go), `TestNoDraftsForSecretsOrHelmValues`,
+  `TestNoDraftsOfSecretTabs`, `TestDraftFilesReadBack`). Agents list drafts without text; a restored
+  tab follows `editor.get`'s rules; other kinds' text is kept as typed
+  ([H-38](#h-38-drafts-keep-typed-text-in-plain-text)). A Config Map's unsaved drawer values
+  ([D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) are kept likewise
+  (type `configMapData`: edited and added keys' text, base values and version, removed keys;
+  [`drafts_drawer.go`](../../internal/engine/drafts_drawer.go), `TestConfigMapDrawerDrafts`), for the
+  window only (`configMap.keepEdits` is GUI-only, `configMap.readData` returns them to the window
+  only); agents see such a draft's keys. A Secret's drawer edits are never on disk
   ([D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)).
-- **The tabs and the tables' layout** (built 2026-10-13, night build,
-  [D-41](../developer/decisions.md#d-41-what-survives-a-restart)): `<user config dir>/Cogpit/workspace.json`,
-  0600 in a 0700 directory, replaced atomically through `writePrivateFile`, holds per tab a context
-  id, view keys and titles, namespace and API group names, the search text as typed and the sort,
-  column ids per view, and since 2026-10-15 the navigator's collapsed source groups (the labels of
-  synced folders and added files, A63): names of contexts, kubeconfig files and namespaces, no credential, no
-  object's value, no selection and no drawer object
-  ([`persist.go`](../../internal/engine/persist.go), `TestWorkspaceRoundTrip`); since 2026-10-16 the
-  context ids of the clusters connected and the one shown (`connected`, `shown`,
-  [D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once) item 8), whatever the
-  restore preference says. A context read back from it connects only when the user shows its tab,
-  through the same path as a connect from the navigator (its credential plugin still needs the
-  approval), and only a context a kubeconfig source still offers keeps its tab. **With Preferences ›
-  App › Restore the last session on** (off by default; only the user turns it on, agents and the CLI
-  may turn it off, `ErrRestoreSessionGUIOnly`) the start connects the contexts of `connected`
-  without a click, the one of `shown` first, the others one after another, through the same connect:
-  each one's credential plugin runs if it is approved and unchanged (D-26), one not allowed or
-  changed is refused with its reason, a context no source offers any more is not connected
-  ([`restore.go`](../../internal/engine/restore.go), `TestRestoreOnConnectsTheLastSession`). So a
-  login program, a browser login included, may run at start, one after another, for every cluster
-  of the last session: what the user asked for by turning the preference on. Someone who can write
-  `workspace.json` can name contexts there, which then connect at the next start: only contexts a
-  kubeconfig source offers, only with their approved plugins, and that person holds the user's
-  account already (the file is the user's own, 0600).
-- **The discovery cache holds no credential** (built 2026-10-16, G3,
-  [D-65](../developer/decisions.md#d-65-discovery-cached-on-disk)): `<user cache dir>/Cogpit/discovery/<32 hex digits>.json`,
-  0600 in a 0700 directory, written through a temporary file renamed over it, holds a server's URL
-  (without user information) and version, when its answer was fetched, a digest of the custom
-  resource definitions, and the groups and resources it serves; no object, no token, certificate
-  or key. The file's name is a SHA-256 over the server URL, its TLS server name, the kubeconfig
-  files, the context's cluster and user entry names and the impersonated user, never over a
-  credential (`TestDiscoveryCacheServesTheNextConnection` looks for the token in the name and the
-  content). The answer decides which kinds the navigator offers and which resource a manifest's
-  kind maps to when it is written; a file is Cogpit's own, so whoever can change it runs as the
-  local user, whom [trust boundaries](trust-boundaries.md#roles) trust already.
-- **In memory:** credentials are held by the connection that uses them and dropped when it closes.
-  Rule for Cogpit's own credential types: they implement `slog.LogValuer` and `fmt.Stringer` as
-  `"<redacted>"`, so a stray log statement cannot print them. The first such type is
-  `helm.Repository` (2026-10-13), which also implements `fmt.GoStringer` and `json.Marshaler`
-  (its name and redacted URL; its user and password in an unexported value that prints as
-  `<redacted>`). Cluster credentials stay inside client-go's `rest.Config`, which Cogpit never
-  logs, and the MCP token is a plain string that only `cmd/cogpit` prints, inside the
-  `claude mcp add` command; the window holds it while the server runs, for the MCP details
-  ([`fyneui/mcpdetails.go`](../../internal/ui/fyneui/mcpdetails.go)), and shows or copies it only
-  on the user's click. An LLM API key is a plain string too while a turn's requests or a
-  connection test run, sent only in their `Authorization` header
-  ([H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)). The connection test's
-  record of a failed layer's request and answer (since 2026-10-26,
-  [`agent/exchange.go`](../../internal/agent/exchange.go)) writes that header as `Bearer •••`,
-  removes the key from every other header value and from the answer's body, withholds
-  `Set-Cookie` and `Cookie`, and does not read a 401's or 403's body, which may quote a part of the
-  key; it is shown in Preferences › Agent only, never returned to a command or an agent.
+- **Workspace** ([D-41](../developer/decisions.md#d-41-what-survives-a-restart)): `workspace.json`
+  holds names and ids only (the tabs' contexts, views, filters, search text and sort, the column
+  layout, the navigator's and chat column's layout, the clusters connected and shown: `connected`,
+  `shown`, D-69 item 8); no credential, value, selection or drawer object
+  ([`persist.go`](../../internal/engine/persist.go), `TestWorkspaceRoundTrip`; contents:
+  [usage › Naming conventions](../developer/usage.md#naming-conventions)).
+  With Preferences › App › Restore the last session off (the default) Cogpit starts without tabs or
+  connections. On (only the user turns it on, agents and the CLI only off:
+  `ErrRestoreSessionGUIOnly`), the tabs come back and the start connects `connected`, `shown` first,
+  one after another, as a click would: an approved, unchanged plugin runs (D-26), one not allowed or
+  changed is refused, a context no source offers is skipped; another restored tab connects when shown
+  ([`restore.go`](../../internal/engine/restore.go), `TestRestoreOnConnectsTheLastSession`). Login
+  programs, browser logins included, may thus run at start: what the user turned on. Whoever writes
+  `workspace.json` can only name contexts a source offers, with their approved plugins, and holds the
+  user's account already.
+- **Discovery cache** ([D-65](../developer/decisions.md#d-65-discovery-cached-on-disk)):
+  `<user cache dir>/Cogpit/discovery/<32 hex>.json` holds a server's URL (no user information) and
+  version and the groups and resources it serves; no object, token, certificate or key. Its name is a
+  SHA-256 over an identity (server URL, TLS server name, kubeconfig files, cluster and user entry
+  names, impersonated user), never a credential (`TestDiscoveryCacheServesTheNextConnection` searches
+  name and content for the token). It decides the kinds offered and how a manifest's kind maps when
+  written; whoever can change it runs as the user already
+  ([trust boundaries](trust-boundaries.md#roles)).
+- **The built-in agent's files** ([D-10](../developer/decisions.md#d-10-built-in-agent)):
+  `llm-connections.json` holds each connection's name, kind, base URL, model, limits, private mark,
+  whether it sends all tools, its CA file's path and whether a key was given; a base URL with a user
+  or password is refused (`parseBaseURL` in [`agent/client.go`](../../internal/agent/client.go)), so
+  no credential lands there. `chat-conversations.json` keeps the last 20 conversations per context,
+  scrubbed of the cached Secrets' values, and none in which a private turn ran
+  ([agents and MCP › H-96](agents-and-mcp.md#h-96-a-private-turns-reads-are-kept-where-the-scrubber-does-not-know-them)).
+  Both go through the engine's owner-only writer, as `llm-keys.json` does.
+- **In memory** credentials live with the connection that uses them and go when it closes; cluster
+  credentials stay in client-go's `rest.Config`, which Cogpit never logs. Rule for Cogpit's own
+  credential types: they print as `<redacted>` through `String`, `GoString`, `LogValue` and
+  `MarshalJSON`, so a stray log statement cannot print them (`helm.Repository`: its name and redacted
+  URL). The MCP token and the LLM keys are plain strings: the window holds the token for the MCP
+  details ([`fyneui/mcpdetails.go`](../../internal/ui/fyneui/mcpdetails.go)), a key lives while a
+  turn's requests or a connection test run.
 
 ## The terminal's kubeconfig
 
-A terminal opened for a cluster must make `kubectl` in it talk to that cluster and namespace,
-without copying credentials and without a local proxy that serves the user's identity to other
-processes. Kubeconfig merging gives this for free: when `KUBECONFIG` lists several files, the
-first file that sets a value wins
-([merging rules](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#merging-kubeconfig-files)).
-Each terminal therefore gets
+A cluster's terminal points `kubectl` at that cluster and namespace without copying credentials or
+running a local proxy that would serve the user's identity to other processes. Kubeconfig merging
+takes each value from the first file that sets it
+([merging rules](https://kubernetes.io/docs/concepts/configuration/organize-cluster-access-kubeconfig/#merging-kubeconfig-files)),
+so each terminal gets
 
 ```text
 KUBECONFIG=<temp file>:<the user's kubeconfig files>
 ```
 
-where the temp file holds only a `current-context` and one context entry naming the cluster and
-user entries that the user's own files define, plus the namespace. The temp file contains no
-credential, is owner-only, and is deleted when the terminal closes. Implemented in
-[`internal/kubeconfig/terminal.go`](../../internal/kubeconfig/terminal.go) and
-[`internal/terminal/local.go`](../../internal/terminal/local.go); `TestStartLocalBindsKubectlToContextAndNamespace`
-checks that `kubectl` in the shell sees the context and namespace, that the file is 0600, holds no
-token and is gone after close, and that `kubectl config use-context` in the terminal leaves the
-user's file byte-identical. A shell profile can still override `KUBECONFIG`
+where the temp file holds only a `current-context` and one context entry naming the cluster and user
+entries of the user's own files, plus the namespace: no credential, owner-only, deleted at close
+([`internal/kubeconfig/terminal.go`](../../internal/kubeconfig/terminal.go),
+[`internal/terminal/local.go`](../../internal/terminal/local.go)).
+`TestStartLocalBindsKubectlToContextAndNamespace` checks the context and namespace, mode 0600, no
+token, the removal, and that `kubectl config use-context` leaves the user's file byte-identical. A
+shell profile can override `KUBECONFIG`
 ([H-20](#h-20-shell-profiles-can-override-the-terminals-kubeconfig)).
 
-On Windows (since 2026-10-21, D-111) the list is joined with `;`,
-`KUBECONFIG=<temp file>;<the user's kubeconfig files>`, and the temp file
-(`%TEMP%\cogpit-terminal-<random>.kubeconfig`) has no Unix mode to speak of: it inherits the
-`%TEMP%` folder's ACL in the user's profile (the user, SYSTEM, the Administrators). It is removed when
-the terminal closes, retried for up to 2 seconds, since Windows deletes no file that a program the
-terminal started (kubectl reads it) still holds; the job object that holds the shell ends those
-programs first ([`localpty_windows.go`](../../internal/terminal/localpty_windows.go),
+On Windows the list is joined with `;`; the file (`%TEMP%\cogpit-terminal-<random>.kubeconfig`)
+inherits `%TEMP%`'s ACL (the user, SYSTEM, the Administrators), and its removal is retried for up to
+2 s after the shell's job object ended the programs that hold it
+([`localpty_windows.go`](../../internal/terminal/localpty_windows.go),
 `TestStartLocalWindowsBindsKubectlToContextAndNamespace`, `TestStartLocalWindowsRemovesHeldFiles`).
 
-When Cogpit puts a `kubectl` first for the terminal (since 2026-10-13, [D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries)),
-the terminal also gets a temporary directory of its own (0700, removed with the terminal) holding a
-link named `kubectl` and, for zsh, a `.zshenv` that hands over to the user's own: names and a
-script of Cogpit's, no credential ([`terminal/kubectl.go`](../../internal/terminal/kubectl.go)).
-That `kubectl` reads the same `KUBECONFIG` as any other. On Windows the directory exists only for
-a kubectl not named `kubectl.exe` and holds a hard link or a copy of it named `kubectl.exe`; a
-`kubectl.exe` has its own folder put first on `PATH` instead (D-111).
+When Cogpit puts a `kubectl` first ([D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries)),
+the terminal also gets a 0700 directory, removed with it, holding a `kubectl` link and, for zsh and
+bash, a start-up file (`.zshenv`, `rc`) that hands over to the user's own; no credential
+([`terminal/kubectl.go`](../../internal/terminal/kubectl.go)). On Windows the directory exists only
+for a kubectl not named `kubectl.exe` (a hard link or copy named so); otherwise that kubectl's folder
+goes first on `PATH`.
 
 ## Where credentials must never end up
 
 | Place | Rule |
 |---|---|
-| Application log | No tokens, keys, certificates, a credential plugin's output or Secret data, at any log level |
-| Connection log | One file per context, `<user config dir>/Cogpit/connection-logs/<first 32 hex digits of the context id's SHA-256>.jsonl`, 0600 in a 0700 directory, never through a symlink, 7 days and 1 MiB per context ([D-66](../developer/decisions.md#d-66-the-connection-log), [`connectlog_files.go`](../../internal/engine/connectlog_files.go)); read back by the Connection Updates dialog and by `cluster.connectLog` for every origin, agents included. Its lines are built from what the configuration and the errors say, never from a credential: a login is named by its method (a client certificate by its subject CN and expiry date, public facts; a token "not shown"; a plugin by its program's name), URLs lose their user information, query and fragment, a proxy's password is `•••`, error texts pass `kubeconfig.SafeError` (`TestConnectTraceRecordsTheSteps`, `TestConnectTraceNamesTheClientCertificate`, `TestConnectTraceErrorPicture`). Since 2026-10-22 a connect's stages too ([D-114](../developer/decisions.md#d-114-the-alpha-walks-decisions-a-failed-connects-page-and-its-stages), [`connectstages.go`](../../internal/cluster/connectstages.go)), which `ui_state`'s `connectFailure` and the window's error page also show: file paths, the API server's and a proxy's host names and the addresses they resolved to, the address and port dialled, the TLS version and the certificate check, a plugin's program; never a token, key, password or plugin output, error texts through the same URL sanitiser, the user entry's secrets and the kubeconfig's and Cogpit's proxy passwords replaced by `•••` (`TestConnectStagesOfAFailure`, `TestConnectStagesBehindAProxy`). They are measured on client-go's own first request (`net/http/httptrace`): Cogpit makes no lookup or connection of its own for them, and behind a proxy none past it. A credential plugin's standard error is in it only after a failed login, scrubbed (the user entry's token, password, the plugin's environment values and `--flag=value` arguments and the proxy's password replaced; a JWT, a PEM block, a `Bearer` or `Basic` value, a value after a key naming a secret and a run of 32 or more token characters with letters and digits replaced; URL queries dropped) and cut to 4 KiB; its standard output never (`TestPluginStderrOnFailureIsScrubbed`, `TestPluginStderrOfASuccessfulRunIsNotKept`, `TestScrubPluginOutput`; what the scrubber can miss: [H-112](#h-112-a-credential-plugins-standard-error-in-the-connection-log)) |
-| Connection Diagnostics' log and report | The log is in memory only, never on disk, per context for the run, at most 500 lines for the 8 contexts used last ([D-133](../developer/decisions.md#d-133-connection-diagnostics), [`diaglog.go`](../../internal/cluster/diaglog.go)); it holds what requests ran into with real values (the server's address, namespaces, the API server's messages), never a header or a body other than an error answer's message: URLs lose their user information, error texts pass `kubeconfig.SafeError`, and a refused or failed request on Secrets keeps its status, not its message, which an admission webhook may fill with what it refused (`TestDiagRoundTripperNotesProblems`). `diagnostics.get` gives agents the log as the tab shows it. The report (`diagnostics.report`, the tab's Report, copy icon and Save Report…) replaces hosts, addresses, ports, the servers of URLs and file paths ([`diagscrub.go`](../../internal/engine/diagscrub.go), `TestEndpointScrubber`); what it keeps readable: [H-145](#h-145-a-diagnostics-report-names-users-namespaces-and-objects) |
-| Audit log | An agent's parameters are logged (D-2), with Secret values, Helm values and a proxy's password redacted ([`audit.go`](../../internal/engine/audit.go) `auditParams`) |
-| Error messages and toasts | Same rule; errors name the context, never the credential. client-go's own errors can echo a kubeconfig's `users` entries; `kubeconfig.SafeError` ([`kubeconfig.go`](../../internal/kubeconfig/kubeconfig.go)) strips them, and connect errors are tested not to contain a known token. client-go's validation also quotes a `proxy-url` it cannot use whole (`invalid 'proxy-url' "http://user:password@…"`, "could not parse: …"): fixed 2026-10-13, `cluster.Connect` replaces the user information of every `proxy-url` of the kubeconfig, as written, as `%q` writes it, and the password alone, with `•••` (`TestKubeconfigProxyPasswordNeverInErrors`, `TestKubeconfigProxySecrets`). A certificate the server presents is checked, not a secret: a failed check names the kubeconfig field to look at (`TestConnectTrustsTheKubeconfigCA`) |
-| Drafts of unsaved editor text | Never a Secret's values, never Helm values (2026-10-13, see [above](#where-they-live-inside-cogpit)); the drafts' listing for agents carries no text; a Config Map's drawer values (since 2026-10-15) listed by their keys only |
-| Files saved from the window | The Create resource tab's save (2026-10-13) writes the tab's text only to the file the user picks in the system's save panel (on macOS since 2026-10-16, [D-72](../developer/decisions.md#d-72-native-file-panels-and-macos-folder-access); Fyne's dialog elsewhere), created owner-only when new ([file access](file-access.md)), a GUI action no agent can start, and refuses a text that holds a Secret's manifest ([`createtab_save.go`](../../internal/ui/fyneui/createtab_save.go), `TestCreateTabKeepsSecretsOffDisk`) |
-| Crash reports | Cogpit has no crash upload. Since 2026-10-12 the Go runtime writes an unhandled panic or fatal error into `<user config dir>/Cogpit/crash.log` (0600) as well as to standard error ([`crash.go`](../../cmd/cogpit/crash.go)); the next start moves it to `crashes/crash-<time>.log`, keeps the newest ten and names it in the window. Its text is the runtime's: the panic's message and the goroutines' stacks (function names, file lines, argument words, no strings' contents); a panic message the code formats from a value could carry it, so the file follows the log rule: local, owner-only, never sent anywhere |
-| Helm repositories' credentials | In memory only, sent to the repository's own scheme, host and port unless its entry says `pass_credentials_all` (2026-10-13, [above](#where-they-live-inside-cogpit)); never in a result, error, toast, the audit log or the log |
-| Telemetry | Cogpit sends none. Any network call to something other than a cluster, a Helm repository, the configured LLM endpoint, the release channel or the kubectl release host or mirror ([D-3](../developer/decisions.md#d-3-helm-and-kubectl-binaries), a download the user clicked; it sends the version and platform in the URL, no credential) needs a decision entry in [`decisions.md`](../developer/decisions.md). The check of kubectl's signature against sigstore's transparency log is such a call, decided by the owner on 2026-10-14 evening and built 2026-10-15 ([D-50](../developer/decisions.md#d-50-kubectls-signature-check)): during a download the user clicked, one request to `rekor.sigstore.dev` (`POST /api/v1/log/entries/retrieve`) with the release's published SHA-256, signature and certificate, public material and no credential, through the same proxy as the download ([H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)) |
-| The LLM endpoint | Secret values only over a connection the user marked private (decided 2026-10-14 late evening, built in the engine the same night: the private turn reads what the window shows, Secret values, Helm's values, Flux's credential fields and Helm's errors included; an exec plugin's arguments stay withheld from it as from every agent: [H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint), [H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)) |
-| Screenshots taken by automation | Secret values stay masked unless the user revealed them in the GUI |
-| Clipboard | Only on an explicit copy action, of a revealed or (since 2026-10-22) a masked Secret value, plain or (since 2026-10-24, the b64 button) base64-encoded, a binary value's only so; a copied Secret value is cleared after 60 seconds if the clipboard still holds it ([H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
+| Application log | No token, key, certificate, credential plugin output or Secret data, at any level |
+| Connection log | `<user config dir>/Cogpit/connection-logs/<first 32 hex digits of the context id's SHA-256>.jsonl`, 0600 in 0700, never through a symlink, 7 days and 1 MiB per context ([D-66](../developer/decisions.md#d-66-the-connection-log), [`connectlog_files.go`](../../internal/engine/connectlog_files.go)); read by Connection Updates and `cluster.connectLog` for every origin, agents included; built from the configuration and the errors, never from a credential (below) |
+| Connection Diagnostics | The log: in memory only, at most 500 lines per context for the 8 used last ([D-133](../developer/decisions.md#d-133-connection-diagnostics), [`diaglog.go`](../../internal/cluster/diaglog.go)); real values (the server's address, namespaces, API messages), no header or body beyond an error's message; URLs without user information, errors through `kubeconfig.SafeError`, a refused or failed request on Secrets with its status only, never the message a webhook may fill (`TestDiagRoundTripperNotesProblems`); `diagnostics.get` gives agents the tab's log. The report (`diagnostics.report`, Report, its copy icon, Save Report…) replaces hosts, addresses, ports, URL servers and file paths ([`diagscrub.go`](../../internal/engine/diagscrub.go), `TestEndpointScrubber`); what stays: [H-145](#h-145-a-diagnostics-report-names-users-namespaces-and-objects) |
+| Audit log | Agents' parameters (D-2), with Secret values, Helm values and proxy passwords redacted ([`audit.go`](../../internal/engine/audit.go) `auditParams`) |
+| Errors and toasts | Name the context, never the credential. `kubeconfig.SafeError` ([`kubeconfig.go`](../../internal/kubeconfig/kubeconfig.go)) drops the list client-go's duplicate-name error prints (tokens included) and the value go-yaml quotes; connect errors are tested against a known token. `cluster.Connect` replaces each kubeconfig `proxy-url`'s user information, as written and as `%q` quotes it, and its password with `•••` (`TestKubeconfigProxySecrets`). A failed check of the server's certificate names the kubeconfig field to look at (`TestConnectTrustsTheKubeconfigCA`) |
+| Drafts | No Secret or Helm values ([above](#where-they-live-inside-cogpit)); agents see no text, a Config Map draft's keys only |
+| Saved files | The Create tab's save writes only to the file the user picks (macOS's save panel, [D-72](../developer/decisions.md#d-72-native-file-panels-and-macos-folder-access); Fyne's dialog elsewhere), is GUI-only, and refuses a Secret's manifest ([`createtab_save.go`](../../internal/ui/fyneui/createtab_save.go), `TestCreateTabKeepsSecretsOffDisk`). macOS's panel creates a new file 0600 ([file access](file-access.md)); Fyne's dialog uses the default mode (0666 less the umask) |
+| Crash reports | No upload. The runtime writes a panic or fatal error to `<user config dir>/Cogpit/crash.log` (0600) and to standard error ([`crash.go`](../../cmd/cogpit/crash.go)); the next start moves it to `crashes/crash-<time>.log`, keeps ten and names it in the window. Messages and stacks only (function names, file lines, argument words, no strings' contents), but a message formatted from a value could carry it: local, owner-only, never sent |
+| Helm repositories' credentials | Memory only; sent only to the repository's own scheme, host and port unless `pass_credentials_all`; in no result, error, toast, audit line or log ([above](#where-they-live-inside-cogpit)) |
+| Telemetry | None. A network call beyond a cluster, a Helm repository, the LLM endpoint, the release channel and the kubectl release host or mirror (D-3: a download the user clicked, version and platform in the URL) needs a decision in [`decisions.md`](../developer/decisions.md): the chart icons' hosts (D-46); sigstore's log ([D-50](../developer/decisions.md#d-50-kubectls-signature-check): per kubectl download, one `POST /api/v1/log/entries/retrieve` to `rekor.sigstore.dev` with the release's published SHA-256, signature and certificate, through the download's proxy; [trust boundaries › H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)) |
+| The LLM endpoint | Secret values only over a connection the user marked private, whose turn reads what the window shows (Helm values, Flux credential fields and Helm errors included); exec plugin arguments never ([agents and MCP › H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint), [H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)) |
+| Screenshots taken by automation | Secret values masked unless the user revealed them in the GUI |
+| Clipboard | Only on the user's explicit copy of a revealed or masked Secret value, plain or base64 (a binary value only so); cleared after 60 s if still there ([below](#secret-objects), [H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)) |
+
+**What the connection log names.** A login by its method: a client certificate by subject CN and
+expiry (public facts), a token as "not shown", a plugin by its program's name. URLs lose user
+information, query and fragment, proxy passwords are `•••`, errors pass `kubeconfig.SafeError`
+(`TestConnectTraceRecordsTheSteps`, `TestConnectTraceNamesTheClientCertificate`,
+`TestConnectTraceErrorPicture`). A connect's stages
+([D-114](../developer/decisions.md#d-114-a-failed-connects-error-page-and-its-stages),
+[`connectstages.go`](../../internal/cluster/connectstages.go)), shown too in `ui_state`'s
+`connectFailure` and the error page, name file paths, the API server's and a proxy's host names and
+resolved addresses, the address and port dialled, the TLS version and certificate check, a plugin's
+program; never a token, key, password or plugin output (`TestConnectStagesOfAFailure`,
+`TestConnectStagesBehindAProxy`). They are measured on client-go's own first request
+(`net/http/httptrace`), with no lookup or connection of Cogpit's own, and behind a proxy none past
+it. A plugin's standard error (its newest 64 KiB, held in memory until the request ends) appears
+only after a failed login, scrubbed (the user entry's token and password, the plugin's environment
+values and `=` argument values, the proxy password; JWTs, PEM blocks, `Bearer` and `Basic` values,
+values after a key naming a secret, runs of 32 or more token characters mixing letters and digits;
+URL queries dropped) and cut to 4 KiB; its standard output never
+(`TestPluginStderrOnFailureIsScrubbed`, `TestPluginStderrOfASuccessfulRunIsNotKept`,
+`TestScrubPluginOutput`; what it misses:
+[H-112](#h-112-a-credential-plugins-standard-error-in-the-connection-log)).
 
 ## Secret objects
 
-Kubernetes Secrets are data the user's identity may read, not Cogpit's own credentials, but they
-are handled with the same care: the list holds metadata only, an opened Secret's values are
-masked until the user reveals one field, decoded values are never logged, and a Secret is edited or
-created from YAML in the GUI only (since 2026-10-12, D-19: the editor shows its values to the user;
-agents and the CLI are refused, and no value reaches the audit log, an error or a toast; since
-2026-10-13 nor a draft on disk), and since 2026-10-15 its values are edited in the drawer, in the
-window only ([below](#secret-values-edited-in-the-drawer)). As built (2026-10-11): when the
-drawer closes or moves, the engine zeroes the bytes it kept of the opened Secret; the GET's
-response and a revealed value's string wait for the garbage collector, so the wipe is best effort
-([privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
-A Secret a Helm chart renders is in its release's records too: since 2026-10-26 (D-131) the
-Revisions tab shows an older revision's manifest
-with each rendered Secret's values masked as dots and their size until Show, manifest.yaml too,
-and agents read them withheld ([H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
-A revealed value can be copied from the drawer, by its copy icon or by selecting it (D-25, built
-2026-10-12), and the clipboard is emptied 60 seconds after such a copy if it still holds the value
-(`shell.copyText`, `TestSecretRevealedValueCopied`, `TestSecretClipboardKeepsWhatReplacedIt`).
-Since 2026-10-22 the icon of a revealed value that Show cut (4 KiB, 40 lines) copies the whole
-value, read again as a masked value's copy is (below), while the drawer keeps the cut text; a
-selection copies exactly the selection (`TestSecretCutRevealedValueCopiedWhole`).
-Since 2026-10-22 (the owner's decision, reversing "copyable only once revealed",
-[D-25](../developer/decisions.md#d-25-copying-values)) a masked value is copied too, without being
-shown: its copy icon (in its key's line, always shown, since the owner's RW1 of 2026-10-23; on
-hover over the mask until then) runs `secret.reveal` with `whole` from the window, the GUI-only
-command Show runs, and puts the whole value on the clipboard the same way; the value enters no
-widget and not the drawer's revealed values, so the drawer stays masked, and the toast names the
-key, never the value. An answer for a drawer that has moved on copies nothing. A binary value has
-no Show and no such copy: the engine never hands its bytes out as text
-([`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
-`TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`). Since 2026-10-24 (the
-owner's VW7 and his pick (b), D-25) a b64 button (an icon since 2026-10-25, the owner's VW19) beside every value's copy icon copies the value
-base64-encoded (standard, padded, one line), the same way and to the same clipboard for Secret
-values, the toast saying "as base64" and naming the key only: a value in no editor whole through
-`secret.reveal` with `base64` (GUI-only as without; the engine encodes the whole value, never the
-4 KiB a Show reveals), a value in an editor as typed. A binary value has the b64 button and nothing
-else: `secret.reveal` hands it out only encoded and only for the GUI, through the "Copy as base64"
-action its item carries in the drawer model with the version the drawer listed it at (an agent
-sees that action in `object_get` as it sees Show, and is refused as for Show). The encoding is no
-protection: the base64 of a value on the clipboard is the value
-(`TestSecretB64CopiesAMaskedValueEncoded`, `TestSecretB64OnABinaryValue`,
-`TestSecretB64OfAValueInAnEditor`, `TestSecretValueBase64IsWhole`, `TestRevealIsGUIOnly`). A copy, as a Show,
-writes no line in the audit log, which records agents' calls; an agent's `secret.reveal` is refused
-and audited with the Secret and the key, never a value (`TestRevealIsGUIOnly`). Copying is a GUI
-behaviour with no command, so no agent can put a Secret on the clipboard (`TestCopyHasNoCommand`). Since 2026-10-13 a list's cells copy
-with the same icon (D-25): the Secrets list shows Name, Namespace, Labels, the names of the keys,
-Type and Age, never a value (`TestSecretDetailShowsNoValue`), so a copy from it is a plain one and
-carries no value (`TestSecretsListCopiesNoValue`). Since 2026-10-19 a log tab's lines and a toast's
-text copy too (by a selection or a copy icon, [D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)),
-as plain copies: a Secret's value that an application printed into its log reaches the clipboard
-as the user copied it, neither marked concealed nor cleared, as Download writes it into a file;
-Cogpit cannot tell such a value from the rest of a line (the filter that replaces the cached
-Secrets' values in what agents read, [H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents),
-does not apply to the user's own copy). Since 2026-10-13 the drawer decodes the
-certificates a Secret's keys hold into separate fields, for the window and agents alike
-([D-30](../developer/decisions.md#d-30-certificates-in-secrets-decoded),
-[`secretcerts.go`](../../internal/engine/secretcerts.go)): a certificate is public material; only
-certificates are decoded (PEM `CERTIFICATE` blocks, a private key block beside one never handed to
-the decoder; DER certificates, a DER private key never handed to the certificate parser), a key
-named like a private key (`tls.key`, `*.key`, `*key.pem`, `*key.der`) is never searched for
-certificates, and the decoded value is zeroed after parsing as the Data section's are
-(`TestParseCertificatesOnlyCertificateBlocks`, `TestDecodeDERCertificates`,
-`TestObjectGetDecodesCertificatesForAgents`).
+Secrets are data the user's identity may read, handled with the care of Cogpit's own credentials
+([`engine/secretdata.go`](../../internal/engine/secretdata.go)):
 
-**A private key is parsed in memory, for one check (since 2026-10-13, the owner's answer on
-D-30).** The owner asked for the drawer to say whether `tls.key` belongs to `tls.crt`, which
-cannot be known without the key: Cogpit decodes the private key of a key that pairs with a
-certificate key (`tls.key` with `tls.crt`, and the other unambiguous pairs D-30 lists) from the
-cached Secret, at most 64 KiB, parses it (PKCS #1, PKCS #8, SEC 1; RSA, ECDSA, Ed25519, X25519),
-compares its public half with the first certificate's public key, and drops it. What keeps it in:
-the parsed key lives in one function call ([`model/keymatch.go`](../../internal/model/keymatch.go),
-`MatchPrivateKey`) and is never returned, stored or cached, not even for the next rebuild of the
-drawer, which parses it again; the outcome is yes, no or a fixed reason (`encrypted`, `unsupported
-key type`, `not readable`, `too large`), and no error of a parser leaves the check, so no section,
-`object_get` result, error, log line or audit line can quote the key; the decoded value and the PEM
-block are zeroed after, an Ed25519 key too, while an RSA or ECDSA key's numbers wait for the
-garbage collector (best effort, as for the values: Go cannot wipe them). An encrypted key is not
-decrypted (`TestSecretKeyMatchesCertificate`, `TestMatchPrivateKeyReasons`,
-`TestObjectGetDecodesCertificatesForAgents`, which searches the result, the audit log, the events
-and the log for the key's PEM, base64 and DER).
-
-**Decided (owner, 2026-10-14 evening), two changes to these checks, both built the same night
-(A99, R1):**
-
-- **A combined PEM** (a certificate and its private key in one value) gets the key-matches-certificate
-  check too ([D-30](../developer/decisions.md#d-30-certificates-in-secrets-decoded),
-  `TestSecretCombinedPEMKeyCheck`): the value's key is parsed in memory for the check, under the
-  rules of the paragraph above, and only the outcome leaves it; the certificate parser still never
-  sees the key block, and finding it reads the blocks' types only, zeroing each block decoded
-  (`model.HoldsPrivateKeyBlock`).
-- **The chain's anchor** (a new requirement): beside the key match and the chain's order, the
-  drawer and agents say whether the chain leads to a public certificate authority or an internal
-  (private) one, with the root's name. Built 2026-10-14 night as the lead's design (D-30;
-  `TestCertAnchor`, `TestSecretChainAnchor`): a root of
-  a public root program that Cogpit carries itself (Mozilla's NSS bundle, independent of the Mac);
-  a root this Mac trusts (its trust store, a corporate root included); no known root (internal or
-  self-signed). Certificates are
-  public material (D-30), so a root's name adds nothing secret about the cluster. What would be new
-  for agents, and through the built-in agent for its LLM endpoint
-  ([agents and MCP › H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint)), is
-  the second answer: it tells them about this computer's trust settings, not the cluster's.
+- **Drawer.** Reads the cached Secret (no request) and lists its keys masked, with sizes; a value
+  shows only on the user's Show (`secret.reveal`, GUI-only). Decoded values are never logged and are
+  zeroed after use; the cached base64 text and a revealed string wait for the garbage collector
+  (best effort,
+  [privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
+- **YAML.** A Secret is edited or created from YAML in the GUI only (D-19); no value reaches the
+  audit log, an error, a toast or a draft. Drawer editing:
+  [below](#secret-values-edited-in-the-drawer).
+- **Helm revisions** ([D-131](../developer/decisions.md#d-131-a-releases-revisions)): a revision's
+  manifest, as objects or as the stored `manifest.yaml`, shows each rendered Secret's values as dots
+  and size until Show; agents get them withheld (H-8).
+- **Copying** ([D-25](../developer/decisions.md#d-25-copying-values);
+  [`copy.go`](../../internal/ui/fyneui/copy.go) `shell.copyText`,
+  [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)). Only the user's own copy (a copy icon,
+  a selection) puts a value on the clipboard, revealed or masked, whole (a masked one read through
+  `secret.reveal` with `whole`, entering no widget, the toast naming the key only) or base64-encoded
+  by the b64 button (a binary value only so, through `secret.reveal` with `base64`, GUI-only;
+  `TestSecretRevealedValueCopied`, `TestSecretCutRevealedValueCopiedWhole`,
+  `TestSecretMaskedValueCopiedWithoutShowing`, `TestSecretMaskedCopyRefusals`,
+  `TestSecretB64CopiesAMaskedValueEncoded`, `TestSecretB64OnABinaryValue`,
+  `TestSecretB64OfAValueInAnEditor`, `TestSecretValueBase64IsWhole`). Base64 protects nothing. Such a
+  copy goes through the clipboard for Secret values: cleared after 60 s if the clipboard still holds
+  it (for a b64 copy, the encoded text) and when the window closes
+  (`TestSecretClipboardKeepsWhatReplacedIt`); on macOS marked with nspasteboard.org's concealed and
+  transient types, which clipboard managers that honour them neither show nor record, and kept on
+  this Mac, out of Universal Clipboard (`NSPasteboardContentsCurrentHostOnly`,
+  [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m);
+  `TestSecretCopyGoesThroughTheConcealedClipboard` covers the routing, the AppKit side has no test).
+  Copying has no command (`TestCopyHasNoCommand`); a copy or Show writes no audit line, and an
+  agent's `secret.reveal` is refused and audited without a value (`TestRevealIsGUIOnly`); an agent
+  sees a binary value's "Copy as base64" action in `object_get` and is refused as for Show. What
+  remains: [H-25](#h-25-a-copied-secret-value-reaches-the-clipboard).
+- **Lists and logs.** The Secrets list shows Name, Namespace, Labels, the keys' names, Type and Age,
+  never a value (`TestSecretDetailShowsNoValue`), so its cells copy none
+  (`TestSecretsListCopiesNoValue`). A log tab's lines and a toast's text copy plainly
+  ([D-99](../developer/decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)): a
+  value an application logged reaches the clipboard unconcealed and uncleared, as Download writes it;
+  the agents' value filter
+  ([agents and MCP › H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents))
+  does not apply to the user's copy.
+- **Certificates** ([D-30](../developer/decisions.md#d-30-certificates-in-secrets-decoded),
+  [`secretcerts.go`](../../internal/engine/secretcerts.go)) are decoded into fields for the window and
+  agents: public material. Only PEM `CERTIFICATE` blocks and DER certificates reach a parser, never a
+  private key; a key named like one (`tls.key`, `*.key`, `*key.pem`, `*key.der`) is never searched;
+  the decoded bytes are zeroed (`TestParseCertificatesOnlyCertificateBlocks`,
+  `TestDecodeDERCertificates`, `TestObjectGetDecodesCertificatesForAgents`).
+- **Key match.** Whether `tls.key` (or another pair D-30 lists, or a combined PEM's key) belongs to
+  the certificate: the key, at most 64 KiB, is parsed in memory (PKCS #1, PKCS #8, SEC 1; RSA, ECDSA,
+  Ed25519, X25519) within one call ([`model/keymatch.go`](../../internal/model/keymatch.go)
+  `MatchPrivateKey`), compared by its public half and dropped, never returned, stored or cached. The
+  outcome is yes, no or a fixed reason (`encrypted`, `unsupported key type`, `not readable`,
+  `too large`) and no parser error escapes, so no result, error or log line can quote the key. PEM
+  blocks and Ed25519 keys are zeroed; RSA and ECDSA numbers wait for the garbage collector; an
+  encrypted key is not decrypted. A combined PEM's key is found by block types only
+  (`model.HoldsPrivateKeyBlock`) (`TestSecretKeyMatchesCertificate`, `TestMatchPrivateKeyReasons`,
+  `TestSecretCombinedPEMKeyCheck`; `TestObjectGetDecodesCertificatesForAgents` searches the result,
+  the audit log, the events and the log for the key's PEM, base64 and DER).
+- **Chain anchor:** a public certificate authority (a root of Mozilla's NSS program, which Cogpit
+  carries), a root this computer's trust store holds (a corporate one included), or none (internal or
+  self-signed), with the root's name (`TestCertAnchor`, `TestSecretChainAnchor`). Nothing secret
+  about the cluster; the second answer tells agents, and the built-in agent's LLM endpoint
+  ([agents and MCP › H-13](agents-and-mcp.md#h-13-cluster-data-leaves-for-the-llm-endpoint)), about
+  this computer's trust settings.
+- **Argo CD's repository and cluster Secrets**
+  ([D-35](../developer/decisions.md#d-35-what-argo-cds-repository-and-cluster-secrets-show)): the
+  Argo CD settings views read only an allowlist (a repository's `name`, `url`, `type`, `project`; a
+  cluster's `name`, `server`, `namespaces`, `clusterResources`, `project`) from the Secrets labelled
+  `argocd.argoproj.io/secret-type`, name the other keys unread and replace a URL's user information
+  with `<redacted>`, for the window and agents alike; the Secret stays masked in its own drawer
+  ([`kinds/argocd_settings.go`](../../internal/model/kinds/argocd_settings.go),
+  `TestArgoSettingsNeverShowCredentials`, `TestArgoSettingsNeverReachAgents`). In memory meanwhile:
+  [H-66](#h-66-argo-cds-credentials-are-in-cogpits-memory-while-its-settings-are-read).
 
 ### Secret values in the Create Secret dialog
 
-Since 2026-10-13 (G9, [D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml))
-the Secrets view's "+" opens Create Secret: name, namespace, type, the data as rows of a key and a
-value, labels and annotations ([`createdialog_secret.go`](../../internal/ui/fyneui/createdialog_secret.go),
-[`commands/secretcreate.go`](../../internal/engine/commands/secretcreate.go)). Where a value goes,
-as built:
+Name, namespace, type, the data as key and value rows, labels and annotations (D-19;
+[`createdialog_secret.go`](../../internal/ui/fyneui/createdialog_secret.go),
+[`commands/secretcreate.go`](../../internal/engine/commands/secretcreate.go)):
 
-- **Typed into a masked field.** Each value is a Fyne entry in password mode (one dot per
-  character, a line per line), whose eye shows that value only. A masked entry neither copies nor
-  cuts; a shown one does, through the clipboard for Secret values the drawer uses (since
-  2026-10-14, H-70 closed): marked concealed on macOS, cleared after 60 seconds if the clipboard
-  still holds it, a toast that says so; ⌘C, ⌘X and the field's menu take that one path
-  ([`createdialog_secret.go`](../../internal/ui/fyneui/createdialog_secret.go) `secretEntry`,
-  `TestSecretDialogCopiesAShownValueConcealed`; [H-25](#h-25-a-copied-secret-value-reaches-the-clipboard)
-  for what remains of any copy). A masked field still copies nothing since the drawer's masked
-  values copy (2026-10-22, D-25, the lead's decision): the value came from the user, and the eye
-  shows it to copy. The widgets,
-  and the entry's undo history, hold the text until the dialog is gone and the garbage collector
-  takes it, as a revealed value in the drawer does.
-- **To the engine, in the GUI's own process.** The dialog dispatches `secret.create` with origin
-  `gui`; the user's own commands are not audited, and the command refuses every other origin
-  before anything is asked or sent (`engine.ErrSecretCreateGUIOnly`). An agent's refused call is
-  audited with the Secret's name, namespace, type, its keys and the annotations' keys, each value
-  replaced by `<redacted>`, and only the names of parameters the command does not have
-  (`engine.auditSecretCreateParams`, `TestSecretCreateIsGUIOnly`).
-- **To the API server, base64-encoded in `data`** (Cogpit's default, not `stringData`: what is sent
-  is what the server keeps and returns, as `kubectl create secret` sends it), first in a server-side
-  dry run, then the create. The checks before it name keys and positions, never values; an API
-  message that quotes a value comes back with it removed, raw, base64 and decoded alike
+- **Masked fields** (password entries, one dot per character, an eye per value) neither copy nor
+  cut; a shown one copies through the clipboard for Secret values ([above](#secret-objects), H-70),
+  a toast saying so; ⌘C, ⌘X and the field's menu alike (`secretEntry`,
+  `TestSecretDialogCopiesAShownValueConcealed`). The widgets and the undo history hold the text until
+  the dialog is gone and collected.
+- **Engine:** `secret.create` runs for origin `gui` only and refuses every other origin before
+  anything is asked or sent (`engine.ErrSecretCreateGUIOnly`). The user's call is not audited; an
+  agent's refused one is, with name, namespace, type, labels and the keys of data and annotations,
+  each value `<redacted>`, other parameters by name only (`engine.auditSecretCreateParams`,
+  `TestSecretCreateIsGUIOnly`).
+- **API server:** base64 in `data` (not `stringData`: what is sent is what the server keeps, as
+  `kubectl create secret` sends it), a server-side dry run, then the create. The checks name keys and
+  positions, never values; an API message loses any value it quotes, raw, base64 or decoded
   (`TestSecretCreateChecksBeforeSending`, `TestSecretCreateErrorsNeverQuoteValues`).
-- **Nowhere else.** No draft (a dialog keeps none, and it opens no dock tab whose text would), no
-  toast beyond "Created secrets/<namespace>/<name>", no log line.
-**Argo CD's repository and cluster Secrets (since 2026-10-13, [D-35](../developer/decisions.md#d-35-what-argo-cds-repository-and-cluster-secrets-show),
-decided by the owner 2026-10-14).** Settings › Repositories and Settings › Clusters of
-the Argo CD section read the Secrets Argo CD labels `argocd.argoproj.io/secret-type`, which hold
-repository passwords, SSH and TLS keys, GitHub App keys, bearer tokens and whole cluster client
-configurations. Of each, Cogpit reads only an allowlist of configuration keys (a repository's
-`name`, `url`, `type`, `project`; a cluster's `name`, `server`, `namespaces`, `clusterResources`,
-`project`) into objects of its own kind and names the other keys without reading them; user
-information in a URL is replaced with `<redacted>`. The window and agents see the same allowlist;
-the Secret itself stays a Secret, masked in its own drawer
-([`kinds/argocd_settings.go`](../../internal/model/kinds/argocd_settings.go),
-`TestArgoSettingsNeverShowCredentials`, `TestArgoSettingsNeverReachAgents`). Where those values
-live meanwhile: [H-66](#h-66-argo-cds-credentials-are-in-cogpits-memory-while-its-settings-are-read).
+- **Nowhere else:** no draft or dock tab, no toast beyond "Created secrets/<namespace>/<name>", no
+  log line.
 
 ### Secret values edited in the drawer
 
-Since 2026-10-15 (the owner's audit answer, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer))
-a Secret's values are edited in its drawer, as a Config Map's are, in the window only
-([`secretdata.go`](../../internal/ui/fyneui/secretdata.go),
-[`engine/secretdataedit.go`](../../internal/engine/secretdataedit.go)). Where a value goes, as built:
+In the window only (D-59; [`secretdata.go`](../../internal/ui/fyneui/secretdata.go),
+[`engine/secretdataedit.go`](../../internal/engine/secretdataedit.go)):
 
-- **Read whole into an editor, after Show.** Where the user may save the Secret (not the demo
-  cluster, `update secrets` allowed, not immutable, no Helm release record), Show runs
-  `secret.reveal` with `whole` (GUI-only) and the value goes into a `yamlview` editor below its key;
-  elsewhere Show reveals it read-only as before. Hide masks it again; an edited value stays, masked,
-  until it is saved or reverted. A Secret that changed (a rotation) masks every unedited value
-  revealed at the older version (R-6). ⌘C and ⌘X in the editor go through the clipboard for Secret
-  values (concealed, cleared after 60 seconds, [H-25](#h-25-a-copied-secret-value-reaches-the-clipboard);
-  yamlview's `OnCopy`, `TestSecretEditorCopiesAsASecret`). Since 2026-10-16 (the owner's choice in
-  the audit of 2026-10-16, D-59) the copy icon in the key's line above each editor copies the whole
-  value the same way, never through the plain clipboard; an empty value copies nothing, so a click
-  does not empty the clipboard (`secData.copyIcon`, `TestSecretEditorCopyIcon`). Since 2026-10-22
-  (D-25) a masked value's copy icon (in its key's line since RW1) copies it without showing it and
-  opens no editor, and
-  an edited or added value hidden again copies what was typed, from the editor's memory, with no
-  reveal (`TestSecretEditorMaskedValueCopiedWithoutShowing`). Since 2026-10-24 (VW7) the b64 button
-  beside the copy icon copies the same, base64-encoded, the same way (`TestSecretB64OfAValueInAnEditor`).
-- **To the engine, in the GUI's own process.** `secret.reviewData` (a masked diff: the keys that
-  change and their sizes, never a value, and the server's dry run) and `secret.saveData` are marked
-  GUI-only: `Dispatch` refuses the CLI and every agent before anything is read, asked or sent, and
-  `Refuse`, `Run` and the engine refuse again (`ErrSecretDataGUIOnly`); a save refuses a Secret the
-  drawer does not show. The window's own calls are not audited, as none of the user's writes are;
-  an agent's refused call is, with the Secret, the version and the keys of `data` and `from`, each
-  value `<redacted>`, and only the names of other parameters (`auditSecretDataParams`,
-  `TestSecretDrawerDataIsGUIOnly`). The review's `from` (the values the edit is based on, for the
-  rebase) is compared base64-encoded: nothing is decoded for it.
-- **To the API server, base64-encoded in `data`**, in the cached Secret written back whole: a
-  server-side dry run, then the update with the version the values are based on as precondition. An
-  API message that quotes a value, the old or the new one, comes back with it removed; a conflict
-  carries the masked changes only (`TestSecretDrawerDataRefusals`,
-  `TestSecretDrawerDataConflictAndRebase`, on kind `TestKindSecretDataSave`). What the update also
-  does: [H-103](#h-103-a-secret-saved-from-cogpit-loses-kubectls-last-applied-annotation).
-- **Nowhere else.** No draft: edited values the drawer moves away from stay in the window's memory
-  until Cogpit quits (`drawer.secretUnsaved`) and come back masked; no toast beyond
-  "Secret <namespace>/<name> saved", no status line or review line with a value, no log line
-  (`TestSecretDrawerEditAndSave`, `TestSecretDrawerKeepsUnsavedInMemory`). Since 2026-10-17 each
-  editor has an undo history (⌘Z, [D-84](../developer/decisions.md#d-84-undo-and-redo-in-the-yaml-editor)),
-  which holds every value typed, those deleted again too: in the editor widget's memory only, never
-  on disk, in a draft, in `ui_state` or a log, and dropped when the drawer moves to another object
-  or closes (`secData.close`); the kept values come back without it
-  (`TestSecretDrawerKeepsUnsavedInMemory`).
-- **Keys added and removed** (since 2026-10-16, the owner's audit decision,
-  [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)). An added key's
-  value is typed into the same editor as a revealed one and takes the same ways: the GUI-only
-  commands' `add`, base64-encoded in `data` on the update, the window's memory while unsaved (back
-  masked), never a draft; the masked diff names the key and its size. A removal sends no value at
-  all; its review base (`from`) is the value only when it was shown, else the removal never rebases.
-  An agent's refused call is audited with the keys of `add`, each value `<redacted>`, and the keys of
-  `remove` (`TestSecretDrawerDataKeysAudit`); the confirmation of a removal names the keys and "The
-  values are not shown." (`TestSecretDrawerDataAddsAndRemovesKeys`, `TestSecretDrawerAddsAndRemovesKeys`).
+- **Show** reads the whole value (`secret.reveal` with `whole`) into a `yamlview` editor where the
+  user may save (not the demo cluster, `update secrets` allowed, not immutable, no Helm release
+  record), read-only elsewhere. Hide masks it; an edit stays, masked, until saved or reverted. A
+  Secret that changed masks every unedited value revealed at the older version
+  (`TestRevealedValueDroppedWhenSecretChanges`). ⌘C, ⌘X and the key's copy icon copy the whole value
+  through the clipboard for Secret values, an empty one nothing (yamlview's `OnCopy`,
+  `secData.copyIcon`; `TestSecretEditorCopiesAsASecret`, `TestSecretEditorCopyIcon`); a masked value,
+  or an edited one hidden again, copies without a reveal
+  (`TestSecretEditorMaskedValueCopiedWithoutShowing`); the b64 button likewise
+  (`TestSecretB64OfAValueInAnEditor`).
+- **Engine:** `secret.reviewData` (a masked diff of the keys that change and their sizes, and the
+  server's dry run) and `secret.saveData` are GUI-only: `Dispatch` refuses the CLI and every agent
+  before anything is read, asked or sent, and `Refuse`, `Run` and the engine check again
+  (`ErrSecretDataGUIOnly`); a save refuses a Secret the drawer does not show. An agent's refused call
+  is audited with the Secret, the version and the keys of `data` and `from`, each value `<redacted>`,
+  other parameters by name only (`auditSecretDataParams`, `TestSecretDrawerDataIsGUIOnly`). `from`,
+  the rebase's base, is compared base64-encoded, never decoded.
+- **API server:** base64 in `data` of the cached Secret written back whole, a dry run, then the
+  update with the base version as precondition; an API message loses any value it quotes, old or
+  new, and a conflict carries masked changes only (`TestSecretDrawerDataRefusals`,
+  `TestSecretDrawerDataConflictAndRebase`, on kind `TestKindSecretDataSave`). Side effect:
+  [H-103](#h-103-a-secret-saved-from-cogpit-loses-kubectls-last-applied-annotation).
+- **Nowhere else:** unsaved edits stay in the window's memory until Cogpit quits
+  (`drawer.secretUnsaved`) and come back masked, never in a draft; no toast beyond
+  "Secret <namespace>/<name> saved", no value in a status line, review line or log
+  (`TestSecretDrawerEditAndSave`, `TestSecretDrawerKeepsUnsavedInMemory`). An editor's undo history
+  ([D-84](../developer/decisions.md#d-84-undo-and-redo-in-the-yaml-editor)), deleted text included,
+  lives in the widget's memory only and goes when the drawer moves or closes (`secData.close`).
+- **Keys added and removed:** an added value takes the same ways (the commands' `add`, base64 in
+  `data`, memory while unsaved, never a draft; the diff names key and size). A removal sends no
+  value; its `from` is the value only when it was shown, else it never rebases. An agent's refused
+  call is audited with the keys of `add` (each value `<redacted>`) and of `remove`
+  (`TestSecretDrawerDataKeysAudit`); the confirmation of a removal lists the keys and that the values
+  are not shown (`TestSecretDrawerDataAddsAndRemovesKeys`, `TestSecretDrawerAddsAndRemovesKeys`).
 
 ## What this does not cover
 
 ### H-145: A diagnostics report names users, namespaces and objects
 
-Connection Diagnostics' report ([D-133](../developer/decisions.md#d-133-connection-diagnostics))
-replaces endpoints only, the owner's choice of 2026-10-26 ("Nur Endpunkte"): hosts, addresses,
-ports, the servers of URLs and file paths. What stays readable in a report a colleague pastes into
-a ticket or a chat: the user's name and groups as the API server's refusals name them ("User
-\"jdoe\" cannot list …"), the context's name less the server's name in it, namespaces, object and
-release names, API groups (a company's own, `billing.example.com`, among them), the server's
-Kubernetes version, Cogpit's version and the operating system. Live today, for every report. What
-limits it: the report is written only on the user's act, and the tab's Report shows exactly the text
-the copy icon and Save Report… put out, to read first; agents get the same text with
-`diagnostics_report`, and the log itself, with the endpoints, with `diagnostics_get`. A host name
-that appears only bare, never in a URL or as the server's, is not known to the replacement and
-stays (none of Cogpit's own lines writes one; an API server's or a webhook's message could).
+The report (D-133) replaces endpoints only. Readable in a report pasted into a ticket or a chat: the
+user's name and groups as the API server's refusals name them ("User \"jdoe\" cannot list …"), the
+context's name less the server's, namespaces, object and release names, API groups (a company's own,
+`billing.example.com`), the Kubernetes, Cogpit and operating system versions, and a host name that
+appears only bare (an API server's or a webhook's message could carry one). Live for every report;
+it is made only on the user's act, and Report shows the very text the copy icon and Save Report… put
+out. Agents get it with `diagnostics_report`, the log with its endpoints with `diagnostics_get`.
+Accepted.
 
 ### H-66: Argo CD's credentials are in Cogpit's memory while its settings are read
 
-The settings views of the Argo CD section read Argo CD's labelled Secrets through a watch that
-holds them in full (D-13's covering scopes: from the Secrets view's watch while that runs, else a
-watch of their own with the label selector), so their passwords, private keys, tokens and cluster
-configurations are in Cogpit's memory while a settings view, its drawer or an agent's read uses
-them and for the cache's warm period after (five minutes), though nothing shows them. RBAC cannot
-narrow `list secrets` by label, so the verbs are the Secrets view's. Dropping the other keys'
-values in the informer's transform for these scopes would keep them out of memory; it is not built,
-because a covering scope serves the same objects to the Secrets view, whose drawer needs the
-values.
-
-Confirmed by the owner (2026-10-14 evening): Argo CD's labelled Secrets stay whole in the cache.
-The reason given with it: the filter that replaces cached Secret values in what agents read ([H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents)) is built
-from the values the cache holds, so a value dropped from the cache would reach agents unreplaced
-where a log or an object prints it. What remains, live while a settings view, its drawer or an
-agent's read uses them and for five minutes after: the values are in Cogpit's memory, shown
-nowhere.
+The Argo CD settings views read the labelled Secrets through a watch that holds them whole
+([D-13](../developer/decisions.md#d-13-cache)'s covering scopes: the Secrets view's watch while it
+runs, else one with the label selector), so passwords, keys, tokens and cluster configurations sit in
+Cogpit's memory, shown nowhere, while a settings view, its drawer or an agent's read uses them and
+for the cache's five-minute warm period after. RBAC cannot narrow `list secrets` by label. Dropping
+the other keys' values in the informer's transform would keep them out; it is not built, since a
+covering scope serves the Secrets view's drawer too, and the agents' value filter (H-82) is built
+from the values the cache holds. Accepted.
 
 ### H-4: Auth-provider token refresh
 
-client-go's legacy `oidc` auth provider hands refreshed tokens to a persister, which in `kubectl`
-writes them back into the kubeconfig file (client-go 0.37.1,
-`plugin/pkg/client/auth/oidc`). Cogpit supplies the persister, so it decides: write through
-(kubectl-compatible, but writes the user's file) or keep refreshed tokens in memory (no write, but
-`kubectl` in a terminal then refreshes on its own). The rule "no implicit kubeconfig writes" in
-[conventions](../developer/conventions.md#never-surprise-a-cluster) argues for memory only, and
-the MVP's code keeps them in memory; the owner has not decided, so the behaviour may change.
+Neither binary links client-go's `oidc`, `azure` or `gcp` auth provider, so a context whose user
+entry names an `auth-provider` fails at connect (`no Auth Provider found for name "oidc"`); the
+persister Cogpit sets (`memoryPersister`) would keep refreshed tokens in memory only. Live for every
+kubeconfig with a legacy provider. Not decided: link client-go's `oidc` provider (refresh in memory;
+`kubectl` in a terminal refreshes and writes the file on its own; writing through would break
+[no implicit kubeconfig writes](../developer/conventions.md#never-surprise-a-cluster)), or keep
+legacy providers unsupported with an error that points to exec plugins.
 
 ### H-5: Kubeconfig files are plaintext
 
-Credentials embedded in kubeconfig files are plaintext files protected only by file permissions.
-Cogpit does not change that and does not move them into the operating system's keychain. Cogpit
-does not check or warn about world-readable kubeconfig files.
+Credentials embedded in kubeconfig files are plain text under file permissions only. Cogpit neither
+moves them into the operating system's keychain nor checks or warns about files others can read.
+Live for every kubeconfig with embedded credentials.
 
 ### H-6: Exec plugins inherit the environment
 
-An exec plugin runs with Cogpit's environment plus the variables the kubeconfig declares. A GUI
-app started from the dock or start menu does not see `PATH` entries and variables set in shell
-profiles, so plugins that rely on them (cloud CLIs reading `AWS_PROFILE` and similar) can fail.
-Lens's technical FAQ tells users that exec-plugin binaries must be on `PATH` or named with an
-absolute path ([Lens technical FAQ](https://docs.lenshq.io/faq/technical-faq/)).
+A plugin runs with Cogpit's environment plus the kubeconfig's variables; an app started from the
+Dock, a launcher or the Start menu lacks the shell profile's `PATH` and variables. The program
+folders ([above](#where-credentials-come-from)) cover `PATH`. What remains, live wherever it applies:
 
-**Where programs are found** (since 2026-10-24, [D-120](../developer/decisions.md#d-120-credential-plugins-found-in-more-folders),
-the owner's decision of 2026-10-23; [`toolpath.go`](../../internal/cluster/toolpath.go)): Cogpit
-appends two kinds of folders to its own `PATH`, after every folder `PATH` already has: at start, on
-macOS and Linux, the built-in folders of the package managers and installers that leave their folder
-to a shell profile (Homebrew, MacPorts, snap, Nix, `~/.local/bin`, `~/bin`, krew's
-`${KREW_ROOT:-~/.krew}/bin`, go install's, asdf's and mise's shims, Rancher Desktop's, Docker
-Desktop's and the Google Cloud CLI's, each only while it exists, `cluster.BuiltinToolFolders`); and,
-on every platform, after them, the user's program folders (Preferences › Kubernetes › Program
-folders, `programFolders` in `preferences.json`). `PATH` is composed again when the folders change
-and at every connect, so a folder counts from the next login without a restart; `cogpit-cli` reads
-the same folders. What holds:
-
-- **No shadowing.** Every folder is appended, never put first: a program `PATH` finds keeps running,
-  so neither a built-in nor a user's folder can replace a system program, a plugin the user's `PATH`
-  finds, or the program an approval names on `PATH`
-  ([D-26](../developer/decisions.md#d-26-binding-a-credential-plugins-approval-to-its-program))
-  (`TestComposePathAppendsWithoutShadowing`).
-- **Only the user adds a folder**, in Cogpit's window: `preferences.addProgramFolder` is GUI-only
-  (`ErrProgramFoldersGUIOnly`), so no agent and no `cogpit-cli` can put a folder of their choice
-  where the next login looks for its plugin; removing one is anyone's, since it only makes fewer
-  programs found (`TestProgramFoldersAddRemoveAndKeep`, `TestGUIOnlyCommandsRefuseOtherOrigins`).
-- **No folder anyone may write to.** A folder whose mode lets every user of the computer write to it
-  is refused when added and skipped if it becomes so, built-in or the user's (not checked on
-  Windows, where the mode bits say nothing; ACLs are not read) (`TestProgramFolderProblem`).
-- **The failure names the folder setting.** A plugin whose program is not found (client-go's
-  "executable … not found" for a command named without a folder, or kubectl's "unknown command" for
-  a kubectl plugin) says so in the window's error, in the connect's login stage and in Connection
-  Updates, with where to add the folder; the error page offers Program Folders…
-  (`TestAMissingPluginPointsToProgramFolders`).
-
-What remains, live on every computer where it applies:
-
-- **A name not found before can be found now.** A credential plugin's program named without a folder,
-  or a kubectl plugin, that the user's `PATH` lacks is found in a built-in or program folder. An
-  approval binds such a program by its name, as any program on `PATH`, so whoever can write to one of
-  these folders chooses what runs for that name. Each built-in folder is the user's own (in the home
-  folder) or the system's (root's); a writer of either already controls the account (D-26's
-  reasoning). A program folder the user adds inside a folder other people write to (a synced
-  kubeconfig folder, a shared drive writable by a group) hands them that choice; Cogpit refuses only a
-  folder every user may write to, not one a group may.
-- **A kubectl plugin is bound by nothing.** kubectl run as the credential plugin looks up the plugin
-  it names on the `PATH` Cogpit gives it, its program folders included; no approval names or hashes
-  that file (D-26 binds kubectl, not what kubectl runs).
-- **A terminal's programs.** A local terminal opened afterwards inherits the composed `PATH`; its
-  shell profile usually sets `PATH` anew, and folders Cogpit appended stay behind the profile's.
-- **The shell's variables are still missing.** Variables such as `AWS_PROFILE` and `KREW_ROOT` set
-  only in a shell profile do not reach Cogpit or its plugins; whether Cogpit reads the login shell's
-  environment, and which variables it then passes to plugins, is not designed (the owner chose the
-  folders over reading the shell, D-120).
+- **Names found anew.** A program named without a folder, or a kubectl plugin, that the user's
+  `PATH` lacks is found in a built-in or program folder and bound by its name, so whoever writes
+  there chooses what runs. Built-in folders are the user's own or root's, whose writer owns the
+  account already (D-26); a program folder a group may write to (a synced kubeconfig folder, a shared
+  drive) hands that group the choice: only a folder every user may write to is refused.
+- **A kubectl plugin is bound by nothing:** kubectl, run as the credential plugin, looks its plugin
+  up on Cogpit's `PATH`; no approval names or hashes it (D-26 binds kubectl only).
+- **Terminals** inherit the composed `PATH`; a profile that sets `PATH` anew keeps Cogpit's folders
+  behind its own.
+- **Profile variables** (`KREW_ROOT`, a profile name a plugin reads) reach neither Cogpit nor its
+  plugins; reading the login shell's environment is not designed (D-120 chose the folders).
 
 ### H-112: A credential plugin's standard error in the connection log
 
-Since 2026-10-16 ([D-66](../developer/decisions.md#d-66-the-connection-log), the owner's "only on
-failure, filtered") the standard error of a credential plugin whose login failed is written to the
-context's connection log, scrubbed and cut to 4 KiB ([above](#where-credentials-must-never-end-up)).
-The scrubber replaces what it knows (the user entry's own values) and what has the shape of a
-credential; it cannot know a secret the plugin prints in another shape: a short password, a
-one-time code in prose, a token of fewer than 32 characters or of letters only, a value after a
-word it does not take for a secret's name. Such a value then stays, live for every context whose
-credential plugin fails with it on its standard error:
-
-- in the file, owner-only, for up to 7 days (or until 1 MiB of newer attempts pushes it out);
-- in what `cluster.connectLog` returns to agents, external ones and the built-in agent alike,
-  and so possibly at the LLM endpoint;
-- on the clipboard after the dialog's Copy, as the user chose.
-
-A plugin that prints its secrets on standard error on failure is the case that makes it real; the
-plugins' usual messages (the error, a URL to open, a device code's instructions) are what the
-filter is for. Since 2026-10-16 night ([D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound))
-a run Cogpit ended after its 5-minute bound counts as a failed login: what it wrote is kept the same
-way (a browser login's "open this URL" line, its query removed); a run the user cancelled keeps
-nothing. A successful plugin's standard error is not kept, and its standard output, the
-credential, is never read. The capture also rests on an unexported field of client-go's
-Authenticator (`stderr`, client-go v0.37.1): a client-go that renames it leaves the plugin's
-standard error on Cogpit's own standard error, as before, and fails the capture's test.
+A failed login's plugin standard error is logged scrubbed and cut to 4 KiB (D-66,
+[above](#where-credentials-must-never-end-up)); a run Cogpit ended at its 5-minute bound counts as
+failed (a browser login's URL line stays, its query removed), a cancelled or successful run keeps
+nothing, and standard output, the credential, is never read. The scrubber misses a secret of another
+shape: a short password, a one-time code in prose, a token of fewer than 32 characters or of letters
+only, a value after a word it does not take for a secret's name. Such a value stays in the file
+(owner-only, up to 7 days or 1 MiB), in what `cluster.connectLog` returns to agents, external and
+built-in (so possibly at the LLM endpoint), and on the clipboard after the dialog's Copy; live for
+every context whose plugin prints one on failure. The capture uses client-go's unexported
+Authenticator field `stderr` (v0.37.1): a rename leaves the output on Cogpit's standard error and
+fails the capture's test.
 
 ### H-118: What a cancelled login leaves running
 
-Since 2026-10-16 night ([D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound))
-Cogpit ends a credential plugin's run that the user cancels or that passes its 5-minute bound
-([above](#where-credentials-come-from)). client-go gives it no handle on the process, so Cogpit
-finds the process itself ([`pluginproc.go`](../../internal/cluster/pluginproc.go)), and what it does
-not end stays. Since 2026-10-19 (WF38, the lead's walk W44) the connection log and the error say
-"Cogpit ended <program>" only when Cogpit found the process and may signal it; otherwise "Cogpit
-stopped waiting for <program>; its process was not found and may run on"
-(`LoginEndedError.RunsOn`). Before, they said it was ended while a wrapper's process ran on.
+A run the user cancels, or one past its 5-minute bound, ends only where Cogpit finds its process
+among its own children ([above](#where-credentials-come-from),
+[D-73](../developer/decisions.md#d-73-a-login-that-waits-cancel-connecting-and-a-bound),
+[`pluginproc.go`](../../internal/cluster/pluginproc.go)). The error and the connection log say
+"Cogpit ended <program>" only when Cogpit found the process and may signal it, otherwise that it
+stopped waiting and the process may run on (`LoginEndedError.RunsOn`). What is not ended:
 
-- **Its children run on.** Cogpit signals the plugin's own process only (the plugin shares Cogpit's
-  process group, and a browser it starts must never be ended). A helper the plugin started keeps
-  running until it ends by itself. If such a child keeps the plugin's output open, client-go's run
-  does not end with the plugin, its lock stays taken, and every connection with that plugin
-  configuration waits behind it: a new connect of the context waits too, and can be cancelled
-  again, with no process left to end. That wait has no bound: the 5 minutes act on a run Cogpit can
-  still end, and a connect has no deadline of its own, so it lasts until the stray process ends
-  (then the connect goes on: with the credential that run handed out, if it did, else with a run
-  of its own, bounded as any) or until the user cancels it. Since
-  2026-10-20 its waiting line says so, with no end time: "Waiting behind the login through
-  <program>, running since 14:28, which Cogpit stopped waiting for and could not end. It has no end
-  time: it lasts until its process ends.", and "Cancel Connecting stops this wait; that login goes
-  on" (for agents `waitingForLogin` with `runsOn` and no `until`; [`loginrun.go`](../../internal/cluster/loginrun.go)
-  `LoginRun.RunsOn`, `TestAWaitBehindARunCogpitCouldNotEndHasNoEnd`,
-  `TestAConnectBehindARunCogpitCouldNotEndHasNoEnd`). Before, a connect that registered behind the
-  run said nothing of what it waited for, and a connection that already showed the run kept its
-  passed end ("Cogpit ends it at …") after the bound had failed to end it. Since 2026-10-19 the
-  requests of such cancelled connects that queued behind the run start no run of their own once it
-  ends: client-go's `getCreds` waits for the lock without the request's context,
-  and before, each started the plugin anew (a browser tab each) with nobody waiting; now the hold
-  admits a run only while an open connection the user did not cancel asks for one
-  ([`loginhold.go`](../../internal/cluster/loginhold.go) `admit`, `TestCancelledConnectsStartNoRunAfterAStrayOne`).
-  Live where a plugin starts a long-running child; on macOS pinniped and kubelogin open the browser
-  through `open`, which hands the URL to the system and leaves no child, so it is dormant there as
-  far as the code shows (not tried with a real plugin).
-- **Found at the run's begin, not always.** The wrapper of client-go's `interactiveFunc` notes
-  Cogpit's children just before client-go starts the plugin; for half a second Cogpit looks at each
-  child that is new since, and takes the one seen running the plugin's command line (its arguments
-  after its program, or a script's path after its interpreter; a program the kubeconfig names by its
-  path only under that path), else the one new child in Cogpit's own process group when no other
-  plugin run was under way alongside. From then on the process is the same number with the same
-  start time, whatever its command line becomes: a wrapper that replaces itself with the login
-  program (`exec`) is found and ended (`TestCancelEndsAPluginThatExecs`), and SIGTERM and SIGKILL go
-  to no number the system gave another process meanwhile. A run whose process was not found at its
-  begin falls back to a child that is new since and runs the plugin's command line. Not found, and
-  so not ended: two runs that begin within half a second of each other (the restore that connects
-  several clusters at once) when a wrapper replaced itself before Cogpit saw its command line, or
-  when both run the same command line; a process that appears more than half a second after its
-  run began and replaces itself; a wrapper that runs the login program as its child (the case
-  above). Then the cancel or the bound only stops waiting, and no run of that plugin starts again
-  until the user connects or logs in again. Taken for the plugin wrongly, a child of Cogpit's would
-  be signalled: only if the plugin's own process did not appear within the half second while exactly
-  one other child in Cogpit's process group did. Cogpit starts one other such child, `kubectl version
-  --client` ([`kubectl/client.go`](../../internal/kubectl/client.go)), which ends within a second; a
-  terminal's shell runs in a session of its own and is never taken, nor counted as a second child in
-  the group: a child's group is the one at Cogpit's last look, and the shell leaves Cogpit's group
-  right after its fork (fixed 2026-10-20: seen there first, a shell started within the half second
-  left a run whose wrapper replaced itself before Cogpit saw its command line without a process,
-  `TestSearchCountsTheGroupAChildEndsIn`). Dormant as far as the code
-  shows: client-go starts the plugin microseconds after it asked, and a plugin that cannot start
-  ends the run at once, before anything is signalled.
-- **Windows** finds the plugin by its program's file name among the children that are new since
-  the run's begin (another process's command line is not readable without its memory; Windows has
-  no `exec` that keeps a process's number), so another new child with the same program would be
-  ended in its place. Tried on Windows since 2026-10-21 (D-111): a new child found by its name and
-  ended (`TestWindowsChildIsFoundAndEnded`). A plugin that is a `.bat` or `.cmd` file runs as
-  `cmd.exe`, so the search by its name finds nothing, and a cancel or the bound ends in "Cogpit
-  stopped waiting …; its process was not found and may run on". Systems other than
-  macOS, Linux and Windows find no process: Cogpit stops waiting, says so, and the login is not
-  used until the user acts.
+- **The plugin's children.** Cogpit signals the plugin's own process only (it shares Cogpit's
+  process group; a browser it opened must not be ended). A child that keeps the plugin's output
+  open keeps client-go's run and its lock going: every connection with that plugin configuration
+  waits behind it, unbounded (the 5 minutes act on a run Cogpit can still end; a connect's own
+  limit does not count a login), until that process ends or the user cancels. Then a connect
+  behind it goes on with the credential the run handed out or a bounded run of its own, while a
+  request of a cancelled connect, which client-go's `getCreds` kept waiting for the lock without its
+  context, starts none ([`loginhold.go`](../../internal/cluster/loginhold.go) `admit`,
+  `TestCancelledConnectsStartNoRunAfterAStrayOne`). Where Cogpit did not find the run's process,
+  the waiting line says it has no end time
+  ([usage](../developer/usage.md#a-login-that-waits-cancel-connecting-and-the-5-minute-bound);
+  agents: `waitingForLogin` with `runsOn`, no `until`;
+  [`loginrun.go`](../../internal/cluster/loginrun.go) `LoginRun.RunsOn`,
+  `TestAWaitBehindARunCogpitCouldNotEndHasNoEnd`,
+  `TestAConnectBehindARunCogpitCouldNotEndHasNoEnd`,
+  `TestARunPastItsBoundThatCogpitCouldNotEndHasNoEnd`). Where Cogpit found and ended the plugin but
+  a child of it holds the output (a wrapper script that runs the login program as its child), the
+  error says "Cogpit ended <program>", the run goes on, and a connection waiting behind it shows
+  "Cogpit ends it at <time>", a time at which nothing happens. Live where a plugin starts a
+  long-running child; dormant on macOS for a plugin that opens the browser through `open`, which
+  leaves no child (not tried with a real plugin).
+- **A process not found.** The `interactiveFunc` wrapper notes Cogpit's children just before
+  client-go starts the plugin; for half a second after, Cogpit takes the new child seen running the
+  plugin's command line (its arguments after its program, or a script's path after its
+  interpreter; a program named by its path only under that path), else the one new child in
+  Cogpit's process group when no other plugin run began within half a second of it, and follows it
+  by number and start time: a wrapper that `exec`s the login program is ended
+  (`TestCancelEndsAPluginThatExecs`), and no signal reaches a number the system gave another
+  process. Without such a process, a cancel or the bound takes the one new child that runs the
+  plugin's command line. Not found: two runs that begin within half a second (two connects or
+  renewals at once) when a wrapper replaced itself before Cogpit saw its command line or both run
+  the same command line; a process that appears after the half second and replaces itself.
+- **Another child taken for the plugin's**, only if the plugin's own process did not appear within
+  the half second while exactly one other child in Cogpit's group did. Cogpit's other children in
+  its group: `kubectl version --client` ([`kubectl/client.go`](../../internal/kubectl/client.go)),
+  `open` or `xdg-open` for a link or folder the user opens (Fyne's `OpenURL`), and in the Linux
+  package apt's queries and an update's `pkexec`
+  ([`update/apt_linux.go`](../../internal/update/apt_linux.go)). A terminal's shell runs in a
+  session of its own and is never taken: a child counts by its group at Cogpit's last look
+  (`TestSearchCountsTheGroupAChildEndsIn`). Dormant: client-go starts the plugin microseconds after
+  it asked, and a plugin that cannot start ends the run at once.
+- **Windows** ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle))
+  matches new children by their program's file name only (another process's command line is not
+  readable; no `exec` keeps a process's number), so a new child with the same program name can be
+  taken for the plugin's (`TestWindowsChildIsFoundAndEnded`); a `.bat` or `.cmd` plugin runs as
+  `cmd.exe` and is never found. Other systems find no process: Cogpit stops waiting and says so.
 
 ### H-25: A copied Secret value reaches the clipboard
 
-A Secret's value that the user copies from the drawer, revealed or (since 2026-10-22, the owner's
-decision, [D-25](../developer/decisions.md#d-25-copying-values)) masked, or a value shown in the Create Secret dialog (since 2026-10-14), goes on
-the system clipboard, where Cogpit
-cannot guard it. It clears the clipboard after 60 seconds if the clipboard still holds the value,
-and when the window closes. On macOS (owner's decision, 2026-10-12) the copy is marked with
-nspasteboard.org's concealed and transient types, which clipboard managers that honour them
-neither show nor record, and is kept to this Mac, out of Universal Clipboard
-(`NSPasteboardContentsCurrentHostOnly`; [`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m),
-`TestSecretCopyGoesThroughTheConcealedClipboard` for the routing; the AppKit side is checked by
-hand, not by a test). What remains: a clipboard manager that ignores those types keeps its own
-history of the value; any process of the user can read it while it is there; Cogpit's process
-ending within the 60 seconds (a crash, `kill -9`) leaves it on the clipboard; on Linux and Windows
-the copy goes through Fyne's clipboard unmarked. Only values the user copied are affected, since
-2026-10-22 masked ones too: one click on the icon over a masked value puts it there, and nothing
-on screen but the checkmark and the toast says so; since 2026-10-24 the b64 button puts a value
-there base64-encoded, a binary value's too, by the same path and with the same clearing (the
-clearing compares the encoded text the button copied). An agent has no way to copy.
+A Secret value the user copies ([above](#secret-objects): from the drawer, revealed or masked,
+plain or base64; a value shown in the Create Secret dialog;
+[D-25](../developer/decisions.md#d-25-copying-values)) sits on the system clipboard, where Cogpit
+cannot guard it; no agent can copy. What remains, for every copied value:
+
+- a clipboard manager that ignores the concealed and transient types keeps the value in its own
+  history;
+- any process of the user can read it while it is there;
+- Cogpit's end within the 60 seconds (a crash, `kill -9`) leaves it there;
+- on Linux and Windows the copy goes through Fyne's clipboard unmarked;
+- a masked value is copied by one click on its icon, shown only by the checkmark and the toast.
 
 ### H-29: Authenticated Helm repositories
 
-Built 2026-10-13 ([D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)):
-Cogpit reads Helm's own `repositories.yaml`, credentials included, keeps them in memory, sends
-basic auth only to the repository's own scheme, host and port (unless `pass_credentials_all`),
-reads a CA file, client certificate and key at every download, and keeps every credential out of
-results, errors, toasts, the audit log and the log ([above](#where-they-live-inside-cogpit)).
-Cogpit never writes Helm's file: repositories and their credentials are added with the helm CLI
-(owner, 2026-10-13). What remains, per case:
+Cogpit reads the credentials of Helm's own `repositories.yaml`, never writes it, and keeps them out
+of every output ([above](#where-they-live-inside-cogpit),
+[D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)). What
+remains:
 
-- **Helm's file is plain text.** The password sits in `repositories.yaml` as `helm repo add` wrote
-  it, readable to the user's own processes and carried by a backup, as kubeconfig files keep
-  their tokens ([H-5](#h-5-kubeconfig-files-are-plaintext)); Cogpit adds no copy but does not
-  improve it. Live for every repository added with `--username`/`--password`.
-- **In memory for the session.** The user and password are Go strings in `helm.Repository` for as
-  long as the entry is in the file, and a client key's bytes for the length of a download (cleared
-  after use, best effort: the TLS stack keeps its parsed key until the download's transport is
-  dropped). Nothing writes them out; a core dump of the process would hold them.
-- **OCI registries.** Credentials of `helm registry login` (Helm's `registry/config.json`) are not
-  read; an `oci://` entry is listed as not used (G11).
-- **Plain http** sends the credentials readable on the network once the user allowed it for the
-  repository (2026-10-14; nothing is sent before): [H-40](#h-40-credentials-over-plain-http).
+- **Helm's file is plain text**, as `helm repo add` wrote it: readable to the user's processes and
+  carried by a backup, as kubeconfig files keep their tokens
+  ([H-5](#h-5-kubeconfig-files-are-plaintext)); Cogpit adds no copy. Live for every repository
+  added with `--username`/`--password`.
+- **In memory for the session.** The user and password are Go strings in `helm.Repository` while
+  the entry is in the file; a client key's bytes last one download and are cleared after use (best
+  effort: the TLS stack keeps its parsed key until the download's transport is dropped;
+  [`helm/repo.go`](../../internal/helm/repo.go)). A core dump of the process would hold them.
+- **OCI registries.** The credentials of `helm registry login` (Helm's `registry/config.json`) are
+  not read; an `oci://` entry is listed as not used (G11).
+- **Plain http**: [H-40](#h-40-credentials-over-plain-http).
 
 ### H-40: Credentials over plain http
 
-Narrowed 2026-10-14 (owner's answer; [D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)):
-a repository in Helm's file whose URL is `http://` and that has a user and password downloads
-nothing, neither its index nor a chart nor a README, on an update or in the background, until the
-user allowed it once in Cogpit's window: the Charts view (and a Helm Install tab) shows a banner per
-such repository, and Allow… says what crosses the network before
-`helm.repo.allowHTTPCredentials` records it. The helm package refuses the request by itself
-(`helm.ErrCredentialsOverHTTP`, before any connection; its authorization transport never adds the
-credentials to a plain http request it was not allowed for), so neither the credentials nor a
-request without them leave Cogpit (`TestPlainHTTPRepository`, `TestHTTPBinding`,
-`TestHelmCredentialsOverHTTPWaitForTheUser`). The allowance is kept like a credential plugin's,
-in `<user config dir>/Cogpit/helm-http-approvals.json` (0600), bound to the repository's name, URL
-and user name (a SHA-256, no credential); a changed URL or user name asks again, a changed password
-does not. It is the user's only: the command is GUI-only, and an agent or the CLI is refused
-whatever it passes, reads why the repository waits in `helm.repo.list` (`httpCredentials`,
-`error`) and its refusal is audited (`TestAllowHTTPCredentialsIsTheUsers`). A repository over http
-without credentials needs no allowance (only [H-41](trust-boundaries.md#h-41-repositories-whose-content-nothing-authenticates)
-applies). What remains, per case:
+A repository whose URL is `http://` and that has a user and password downloads nothing (no index,
+chart or README, on an update or in the background) until the user allowed it once in Cogpit's
+window ([D-29](../developer/decisions.md#d-29-helm-chart-repositories-from-helms-repositoriesyaml)).
+The Charts view and a Helm Install tab show a row per such repository; its Allow… says what crosses
+the network before `helm.repo.allowHTTPCredentials` records it. The helm package refuses the request
+before any connection (`helm.ErrCredentialsOverHTTP`), and its auth transport adds no credentials
+to a plain http request it was not allowed for, so neither the credentials nor a request without
+them leave Cogpit (`TestPlainHTTPRepository`, `TestHTTPBinding`,
+`TestHelmCredentialsOverHTTPWaitForTheUser`). The allowance is kept in `helm-http-approvals.json`
+([above](#where-they-live-inside-cogpit); for the session only without a configuration directory),
+bound to the repository's name, URL and user name: a changed URL or user name asks again, a changed
+password does not ([`engine/helmhttp.go`](../../internal/engine/helmhttp.go)). The command is
+GUI-only: an agent or the CLI is refused and audited, and reads why a repository waits in
+`helm.repo.list` (`httpCredentials`, `error`; `TestAllowHTTPCredentialsIsTheUsers`). A repository
+over http without credentials needs no allowance
+([H-41](trust-boundaries.md#h-41-repositories-whose-content-nothing-authenticates) applies).
+Accepted. What remains:
 
-- **Once allowed, the credentials travel in clear.** Every download of that repository, the
-  background refresh while the Charts view or a Helm Install tab is open included, sends the
-  basic auth readable to anyone on the network path, a proxy included, as helm sends it; the index
-  and charts can be changed on the way (H-41). Live for every repository the user allowed.
-- **The allowance does not expire** and binds no password: a rotated password keeps it (the
-  owner's binding). A repository removed from Helm's file and added again under the same name, URL
-  and user name is allowed again without asking. Confirmed by the owner (2026-10-14 evening): no
-  expiry; the allowance stays bound to the name, the URL and the user name. Live for every
-  repository the user allowed.
-- **The file is the user's own.** A process of the user that writes
-  `helm-http-approvals.json` can allow a repository without the window, as it can write
-  `exec-approvals.json` or read Helm's file itself
+- **Once allowed, the credentials travel in clear** on every download of that repository, the
+  background refresh while the Charts view or a Helm Install tab is open included: readable on the
+  network path, a proxy included, and the index and charts can be changed on the way (H-41). Live
+  for every allowed repository.
+- **The allowance does not expire and binds no password**: a rotated password keeps it, and a
+  repository removed from Helm's file and added again under the same name, URL and user name is
+  allowed without asking.
+- **The file is the user's own.** A process of the user that writes `helm-http-approvals.json` can
+  allow a repository without the window, as it can write `exec-approvals.json` or read Helm's file
   ([agents and MCP › H-12](agents-and-mcp.md#h-12-every-local-process-of-the-user-can-read-the-token)).
-- **Without a configuration directory** the allowances last for the session (in memory).
-- **The built-in agent's files** (2026-10-14, [D-10](../developer/decisions.md#d-10-built-in-agent)):
-  `<user config dir>/Cogpit/llm-connections.json` (0600 in 0700: each connection's name, kind,
-  base URL, model, limits, private mark, whether it sends all tools, its CA file's path (not
-  secret, since 2026-10-15), and whether a key was given; a base URL with a user or
-  password is refused, so no credential lands there; the keys sit beside it in `llm-keys.json`
-  since 2026-10-15, [H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)) and
-  `chat-conversations.json`
-  (0600: the last 20 conversations per context, every text scrubbed of the cached Secrets' values
-  as D-19 keeps them out of drafts; the request bodies sent stay in memory). Both are written
-  through the engine's owner-only writer (atomic, symlinks refused). A private connection's turns
-  read more than the scrubber knows (Helm's values, Flux's inline credentials, a Secret's value
-  under 10 bytes), so a conversation in which such a turn ran is not kept at all (the owner's
-  decision of 2026-10-15, built the same day): it lives in memory only and is gone when Cogpit
-  quits, and a file of v0.8.0 to v0.10.0 that holds one is rewritten without it at the next start
-  ([H-96](agents-and-mcp.md#h-96-a-private-turns-reads-are-kept-where-the-scrubber-does-not-know-them)).
 
 ### H-95: An LLM API key over plain http
 
-Since 2026-10-14 (the built-in agent's engine side): a connection whose base URL is `http://` sends
-its API key in the clear to whoever is on the path, a LiteLLM or Open WebUI on the local network
-for example; and not only the key: the whole conversation, every tool result and every Secret or
-other secret the agent reads go over the network unencrypted, so a private connection over plain
-http hands the window's Secret values to the path. Cogpit allows it (the lead's decision of
-2026-10-14, kept by the owner on 2026-10-15: refusing it would block such a set-up).
-
-**Built 2026-10-15 (the owner's audit answer (6), [D-10](../developer/decisions.md#d-10-built-in-agent)):**
-for a base URL that is plain http to another machine (any host but `localhost` and the loopback
-addresses, `engine.ChatPlainHTTPRemote`) Preferences › Agent says so in the warning colour under
-the base URL while it is typed ("Plain http to another machine: not only the API key but the whole
-conversation, and every Secret or other secret the agent reads, travel unencrypted over the
-network."), the list marks the connection "plain http", and the connection test's HTTP layer passes
-with the same warning ([`agent/conntest.go`](../../internal/agent/conntest.go),
+A connection whose base URL is `http://` sends its API key in clear to whoever is on the path, and
+with it the whole conversation, every tool result and every Secret the agent reads: a private
+connection over plain http hands the window's Secret values to the path. Accepted: refusing it
+would block a LiteLLM or Open WebUI on the local network
+([D-10](../developer/decisions.md#d-10-built-in-agent) item 10). For plain http to another machine
+(any host but `localhost` and the loopback addresses, `engine.ChatPlainHTTPRemote`) Preferences ›
+Agent warns in the warning colour under the base URL while it is typed
+(`engine.ChatPlainHTTPWarning`: the key, the conversation and every secret the agent reads travel
+unencrypted), the list marks the connection "plain http", and the connection test's HTTP layer
+passes with the same warning ([`agent/conntest.go`](../../internal/agent/conntest.go),
 `TestPlainHTTPToAnotherMachineIsWarned`, `TestAgentPreferencesPlainHTTPWarning`,
-`TestAgentPreferencesTestWarns`); an http connection on this computer keeps the line "plain http
-(the API key travels unencrypted)" for a key. Checked against the owner's LM Studio on another
-machine of his network over plain http (`TestLiveEndpoint`, 2026-10-15: the HTTP layer passed with
-the warning). What remains, per case:
+`TestAgentPreferencesTestWarns`; against a real endpoint, local only, `TestLiveEndpoint`). Plain
+http on this computer adds "(the API key travels unencrypted)" to that layer's line when a key is
+set. What remains:
 
-- **It is still sent.** The warning informs, it does not stop: every turn over such a connection
-  sends the key, the conversation and what the agent read in the clear. Live for every
-  `http://` connection to another machine; a local LM Studio sends nothing over the network.
-- **The chat itself does not repeat it:** the warning is in Preferences › Agent and the test, not
-  in the chat column or per turn (the lead's decision, D-10 (6), confirmed by the owner in the
-  audit of 2026-10-16); a user who set the connection up
-  long ago is not reminded. The message's "Sent … to <host>" names the host only.
+- **It is still sent.** The warning informs, it does not stop: every turn sends the key, the
+  conversation and what the agent read in clear. Live for every `http://` connection to another
+  machine.
+- **The chat does not repeat it**: no warning in the chat column or per turn, so a connection set
+  up long ago reminds no one; a message's "Sent … to <host>" names the host only.
 - **A name that resolves to this computer** (`*.localhost`, a hosts-file entry) is warned about
-  although nothing leaves the computer; the opposite, a name for another machine that the warning
-  misses, does not occur: only `localhost` and loopback addresses are exempt.
+  although nothing leaves it; no name of another machine escapes the warning, since only
+  `localhost` and loopback addresses are exempt.
 
 What would close it: refusing a key or a private connection over `http://` to another machine, or
 asking once per connection.
 
 ### H-99: LLM API keys are plaintext in Cogpit's settings folder
 
-Since 2026-10-15 (the owner's decision, [D-10](../developer/decisions.md#d-10-built-in-agent) item
-12, built the same day): the built-in agent's API keys sit in `llm-keys.json` as the user typed
-them, protected by the file's mode only (0600 in a 0700 directory), as kubeconfig files keep their
-tokens ([H-5](#h-5-kubeconfig-files-are-plaintext)) and Cogpit's settings the proxy passwords
-([H-33](#h-33-proxy-passwords-are-plaintext-in-cogpits-settings)). Until then the macOS login
-keychain held them; the owner accepted the trade-off to end the keychain's password prompts
-("übertrieben, erzeugt Reibung"). What remains, per case:
+The built-in agent's API keys sit in `llm-keys.json` as typed, protected by the file's mode only
+(0600 in a 0700 directory), as kubeconfig files keep their tokens
+([H-5](#h-5-kubeconfig-files-are-plaintext)) and Cogpit's settings the proxy passwords
+([H-33](#h-33-proxy-passwords-are-plaintext-in-cogpits-settings)). Accepted: a keychain would ask
+for the login password whenever the binary's signature changes
+([D-10](../developer/decisions.md#d-10-built-in-agent) item 12). The other agent files hold no key
+([above](#where-they-live-inside-cogpit)). What remains:
 
-- **Any process of the user reads it.** Whatever runs as the user (a script, an editor extension,
-  an agent with file access, malware in the user's session) can read the file and every key in it
-  without a prompt; the keychain asked before it gave a key to another program. Live for every
-  connection with a key, on every platform.
+- **Any process of the user reads it** without a prompt: a script, an editor extension, an agent
+  with file access, malware in the user's session. Live for every connection with a key, on every
+  platform.
 - **A backup of the configuration folder carries it** in plain text, as it carries the proxy
   passwords and the drafts ([H-38](#h-38-drafts-keep-typed-text-in-plain-text)). Live wherever the
-  user's backup includes that folder (not checked per backup tool).
-- **A key others may have read stays valid.** A key file that other users could access (group or
-  other bits set: a copy restored without its mode, a `chmod` by hand) is made owner-only again
-  before its keys are used, and the log names the file and its mode and says to replace keys that
-  others may have read; Cogpit cannot revoke a key at its provider (the lead's decision, D-10 item
-  12: repaired rather than refused, since a key entered again is the same key). Confirmed by the
-  owner (2026-10-15): repaired to 0600 and its keys used, with a Warn line in `cogpit.log` and on
-  stderr advising to replace the keys, and no notice in the window, chosen over the lead's
-  recommendation of the repair plus a bell notification; also weighed: refusing until the keys
-  are entered again (the MCP token's rule; friction, and it revokes nothing). What remains: the
-  advice reaches only a user who reads the log. Dormant: Cogpit itself always writes 0600; live
-  only after a change outside Cogpit, and only on a computer with other users.
-- **On Windows** file modes do not express access: the user profile's ACLs protect the file, as
-  they protect the MCP token, and Cogpit neither sets nor checks a mode there, so the repair above
-  does not happen on Windows (since 2026-10-21, D-111, the lead's policy:
-  [Cogpit's own secrets](#cogpits-own-secrets)). Cogpit ships for Windows from the first release
-  after the branch `windows-release` is merged; live there wherever the profile's ACLs were widened.
-- **The old keychain item** of a version up to 2026-10-15 stays in the login keychain until the
-  user deletes it in Keychain Access; Cogpit never reads or removes it (reading it would ask for the
-  login password). Confirmed by the owner (2026-10-15): no migration, such a key is entered once
-  again and the old item left in the keychain; weighed: migrating once at the first start (one
-  prompt per connection, the cgo Security code kept for macOS only), an "Import from Keychain"
-  button. Dormant: it holds a key Cogpit no longer uses, as safe as the keychain keeps it.
-- **In memory** a key is a Go string while a turn's requests and a connection test run, and in the
+  backup includes that folder.
+- **A key others may have read stays valid.** A key file with group or other bits set (a copy
+  restored without its mode, a `chmod` by hand) is made owner-only again before its keys are used
+  ([above](#cogpits-own-secrets)); the advice to replace the keys at their providers is a Warn line
+  in `cogpit.log` and on stderr, no notice in the window, and Cogpit cannot revoke a key. Dormant:
+  Cogpit itself writes 0600; live after a change outside Cogpit on a computer with other users.
+- **On Windows** the repair does not happen: the profile's ACLs protect the file, and Cogpit checks
+  neither them nor a mode ([above](#cogpits-own-secrets)). Live where the profile's ACLs were
+  widened.
+- **In memory** a key is a Go string while a turn's requests or a connection test run, and in the
   key store's read buffers until they are collected; a core dump of the process would hold it.
 
-What would close it: the file encrypted with a key from the operating system's keychain (a
-keychain prompt again whenever the binary's signature changes, which the owner declined), or a
-passphrase at every start.
+What would close it: the file encrypted with a key from the operating system's keychain (its
+prompts again) or a passphrase at every start.
 
 ### H-33: Proxy passwords are plaintext in Cogpit's settings
 
-A proxy's password (a cluster's in `cluster-settings.json`, the Helm downloads' in
-`preferences.json`) is kept as the user typed it, in a file
-protected by its permissions only (0600 in a 0700 directory), as kubeconfig files keep their tokens
-([H-5](#h-5-kubeconfig-files-are-plaintext)). Cogpit does not move it into the operating system's
-keychain (the LLM keys, there from 2026-10-14, moved into a file of the same kind on 2026-10-15,
-[H-99](#h-99-llm-api-keys-are-plaintext-in-cogpits-settings-folder)), and a backup of the
-configuration folder carries it.
-The password reaches the proxy in clear when the proxy's URL is `http://` (Basic authentication on
-the CONNECT, as every HTTP client sends it); Cogpit does not warn about that.
+A proxy's password (a cluster's in `cluster-settings.json`, that of the Helm and kubectl downloads
+in `preferences.json`) is kept as typed, protected by the file's mode only (0600 in a 0700
+directory), as kubeconfig files keep their tokens ([H-5](#h-5-kubeconfig-files-are-plaintext));
+everywhere else it is `•••` ([above](#where-they-live-inside-cogpit)). Cogpit gives no warning for
+an `http://` proxy with a password. Accepted. What remains:
 
-Confirmed by the owner (2026-10-14 evening): proxy passwords stay in the 0600 settings files, and an
-`http://` proxy with a password gets no warning. What remains, per case: every proxy with a
-password sits in plain text in `cluster-settings.json` or `preferences.json`, readable to the
-user's own processes and carried by a backup (live wherever the user typed one); an `http://`
-proxy's password crosses the network in clear on every CONNECT (live for each such proxy). Since
-an agent may set a proxy (decided the same evening, A20, built the same night,
-[above](#where-they-live-inside-cogpit)), the password an agent passes lands in the same file once
-the user accepted it.
+- the password sits in plain text in those files, readable to the user's processes and carried by a
+  backup; live wherever the user typed one;
+- an `http://` proxy's password crosses the network in clear on every CONNECT (Basic
+  `Proxy-Authorization`); live for each such proxy;
+- a proxy an agent sets lands in the same file with its password once the user accepted it.
 
 ### H-103: A Secret saved from Cogpit loses kubectl's last-applied annotation
 
-Cogpit's cache drops `kubectl.kubernetes.io/last-applied-configuration` from every Secret, because
-it repeats the values in plain text ([privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
-A save from the drawer (since 2026-10-15, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)),
-like an apply from a Secret's Edit tab (since 2026-10-12, D-19), writes the cached Secret back whole
-with an update, so the annotation is gone from the Secret afterwards (measured on kind:
-`TestKindSecretDataSave`). What it means: the next `kubectl apply` of that Secret's manifest finds no
-last-applied state, warns, writes it again, and cannot prune a key the manifest dropped meanwhile; a
-tool that reads the annotation reads nothing. Nothing of a value leaks by it (it removes a plain
-copy of the values); it is a change the user did not make. Live wherever a Secret was applied with
-`kubectl apply` and is saved from Cogpit. Closing it needs a write that leaves the annotation alone
-(a patch of `data`, or the live object read for the save), which the writer does not offer today.
+The cache drops `kubectl.kubernetes.io/last-applied-configuration` from every Secret, because it
+repeats the values in plain text ([`cache.go`](../../internal/cache/cache.go) `stripManagedFields`,
+[privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)). A save
+from the drawer ([D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) and
+an apply from a Secret's Edit tab (D-19) write the cached Secret back whole with an update, so the
+annotation is gone afterwards (on kind: `TestKindSecretDataSave`). The next `kubectl apply` of that
+Secret's manifest finds no last-applied state, warns, writes it again, and cannot prune a key the
+manifest dropped meanwhile; a tool that reads the annotation reads nothing. No value leaks by it; it
+is a change the user did not make. Live wherever a Secret applied with `kubectl apply` is saved
+from Cogpit. What would close it: a write that leaves the annotation alone (a patch of `data`, or
+the live object read for the save); not built.
 
 ### H-38: Drafts keep typed text in plain text
 
-A draft of unsaved editor text (2026-10-13) holds what the user typed into an Edit or Create
-resource tab of any kind but a Secret, as typed: a password pasted into a ConfigMap, a token in a
-Deployment's `env`, a manifest that names a Secret's values under another kind's fields. Since
-2026-10-15 a Config Map's values edited in the drawer are kept so too, each edited key's text and
-the value it is based on, and since 2026-10-16 an added key's text (live: a value a user keeps a
-credential in reaches the file). It sits
-in `<user config dir>/Cogpit/drafts/` protected by its permissions only (0600 in a 0700
-directory) until the text is saved, the tab closed or the draft discarded, and a crash leaves it
-there until the next connect of its context offers it; a backup of the configuration folder
-carries it. Before drafts that text lived in memory only. A draft is not encrypted, and the
-Secret check reads kinds, not values. Whether drafts are encrypted (a key in the operating
-system's keychain), expire, or can be switched off in the Preferences is not decided.
+A draft holds what the user typed into an Edit or Create resource tab of any kind but a Secret, as
+typed (a password pasted into a ConfigMap, a token in a Deployment's `env`, a manifest that names a
+Secret's values under another kind's fields), and a Config Map's values edited or added in the
+drawer ([above](#where-they-live-inside-cogpit), [`drafts.go`](../../internal/engine/drafts.go)).
+It sits unencrypted in `<user config dir>/Cogpit/drafts/` (0600 in a 0700 directory) until the
+text is saved, the tab closed or the draft discarded; after a crash, until the next connect of its
+context offers it; a backup of the configuration folder carries it. The Secret check reads kinds,
+not values. Live for every unsaved text that holds a credential. Not decided: encrypting drafts (a
+key in the operating system's keychain), an expiry, or a preference that switches them off.
 
 ### H-20: Shell profiles can override the terminal's kubeconfig
 
-The terminal starts a login shell, so the user's shell profile runs after Cogpit set `KUBECONFIG`.
-A profile that exports `KUBECONFIG` (common with tools that manage several kubeconfig files)
-replaces Cogpit's value, and `kubectl` in that terminal then talks to whatever context the profile
-selects, not to the cluster whose view opened the terminal. Lens has the same behaviour. Cogpit
-does not detect it; a check after the profile ran, or a prompt hook, is not designed.
+The terminal's shell reads the user's profile after Cogpit set `KUBECONFIG`: a login shell on macOS
+and Linux ([`localpty_unix.go`](../../internal/terminal/localpty_unix.go)), PowerShell's profile or
+cmd's AutoRun on Windows. A profile that exports `KUBECONFIG` (common with tools that manage
+several kubeconfig files) replaces Cogpit's value, and `kubectl` in that terminal talks to whatever
+context the profile selects, not to the cluster whose view opened the terminal. Cogpit does not
+detect it. What would close it: a check after the profile ran, or a prompt hook; not designed.
 
 ### H-142: A connection outlives its client certificate where a proxy checks it at the handshake only
 
 Cogpit presents a context's client certificate in its connection's TLS handshake and keeps that
-connection while it works: client-go holds one HTTP/2 connection per cluster, and Cogpit does not
-end it at the certificate's notAfter. Whether requests on it are still served after notAfter is the
-server's decision:
+connection while it works (client-go holds one HTTP/2 connection per cluster); it does not end it
+at the certificate's notAfter. Whether requests on it are served after notAfter is the server's
+decision:
 
 - **kube-apiserver checks the certificate on every request** (`k8s.io/apiserver` v0.37.1,
-  `pkg/authentication/request/x509`: `AuthenticateRequest` verifies the presented certificate at
-  the time of each request). After notAfter the next request is refused (401); Cogpit's heartbeat
-  (every 15 seconds) makes the connection "Login expired" and writes stop
-  ([D-58](../developer/decisions.md#d-58-standby-and-lost-connections), S6); a watch opened before
-  runs on until client-go opens it again (after 5 to 10 minutes, client-go v0.37.1's reflector)
-  and is refused then. A certificate renewed in the file reaches Cogpit through a new connection
+  `pkg/authentication/request/x509`, `AuthenticateRequest`): after notAfter the next request gets a
+  401, within two heartbeats (15 s apart) the connection is "Login expired" and writes stop
+  ([D-58](../developer/decisions.md#d-58-standby-and-lost-connections)); a watch opened before runs
+  on until client-go's reflector opens it again (after 5 to 10 minutes) and is refused then. A
+  certificate renewed in the file reaches Cogpit through a new connection
   ([D-81](../developer/decisions.md#d-81-reconnect-and-what-log-in-again-does); on kind:
   `TestKindReconnectWithARenewedCertificate` in
   [`reconnect_kind_test.go`](../../internal/testkit/integration/reconnect_kind_test.go)).
 - **A proxy that terminates TLS in front of it may check the certificate at the handshake only.**
-  Seen on a Gardener-managed cluster whose kube-apiserver is reached through Gardener's
-  `IstioTLSTermination` (beta, on by default since Gardener v1.144,
-  [feature gates](https://github.com/gardener/gardener/blob/master/docs/deployment/feature_gates.md)):
-  the Istio ingress gateway terminates TLS and checks the client certificate when the connection
-  is made; an Envoy Lua filter then sets kube-apiserver's authenticating-proxy headers from the
-  certificate's subject on every request without looking at its validity. Cogpit's established
-  connection was served 74 minutes past the certificate's notAfter, reads and a pod's delete alike,
-  while a new connection with the same certificate failed at its handshake (`remote error: tls:
-  expired certificate`). So Reconnect, a restart of Cogpit and `kubectl` in a terminal fail there
-  while the open window goes on.
+  Gardener's `IstioTLSTermination` (beta, on by default from Gardener v1.144,
+  [feature gates](https://github.com/gardener/gardener/blob/master/docs/deployment/feature_gates.md))
+  does so: its Istio gateway checks the client certificate when the connection is made, and an Envoy
+  Lua filter sets kube-apiserver's authenticating-proxy headers from its subject on every request
+  without looking at its validity. An established connection is then served past notAfter, reads
+  and writes alike, while a new one fails at its handshake (`remote error: tls: expired
+  certificate`): Reconnect, a restart of Cogpit and `kubectl` in a terminal fail while the open
+  window goes on. Gardener v1.154.0 and the patch releases v1.153.2, v1.152.2 and v1.151.4 check
+  notBefore and notAfter in the filter on every request and end long-running requests such as
+  watches at notAfter ([gardener/gardener#16055](https://github.com/gardener/gardener/pull/16055)).
 
 Live for a context that logs in with a client certificate
 ([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists)'s
-contexts) whose API server sits behind such a proxy, for writes as well as reads: an action the user
-confirms after notAfter is carried out with the expired identity. Dormant against an API server that
-checks every request, and for contexts whose credential is a token or comes from a credential
-plugin. What the user sees meanwhile: "expired" in the navigator and on the welcome page (D-75); the
-connection log's warning comes only with the next connect.
-
-Decided (owner, 2026-10-20): Cogpit keeps its connection; refusing an expired certificate is the
-server's business: "Wir bleiben bei unserer bestehenden Implementierung. Wir beenden unsere
-Verbindung nicht. Das ist eindeutig Server Angelegenheit." The options were ending the connection
-at notAfter (the lead's recommendation), a warning only, and leaving it as it is; recorded in
-[D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists).
-
-Fixed in Gardener: [gardener/gardener#16055](https://github.com/gardener/gardener/pull/16055)
-(merged 2026-10-21) checks notBefore and notAfter in the filter on every request (401 outside them)
-and caps the upstream request timeout at the certificate's remaining lifetime, so that long-running
-requests such as watches end when the certificate expires (the pull request's words). Released in Gardener v1.154.0 and, backported, in the
-patch releases v1.153.2, v1.152.2 and v1.151.4, all on 2026-10-22 (checked 2026-10-24: the merge
-commit is in the tag v1.154.0, and the three patch releases' notes name the fix). A landscape on an
-earlier Gardener version keeps the behaviour above until its operator updates it.
+contexts) whose API server sits behind such a proxy (a Gardener landscape on an earlier version),
+for writes as well as reads: an action the user confirms after notAfter runs with the expired
+identity. Dormant against an API server that checks every request, and for a token or a credential
+plugin's credential. Meanwhile the navigator and the welcome page show "expired" (D-75); the
+connection log warns only at the next connect. Accepted: Cogpit keeps its connection, and refusing
+an expired certificate is the server's business (D-75).
 
 ### H-143: The stored API key goes to an edited, unsaved base URL
 
-Since the connection test (2026-10-14) and, since 2026-10-25, the model list's ↻ in Preferences ›
-Agent: both run with the form's values, the base URL as typed and the key as typed or, when the
-key field is empty, the connection's stored key (`agentForm.apiKey`,
-[`agent/conntest.go`](../../internal/agent/conntest.go) `testKey`, `Agent.ModelsOf`). So a base
-URL edited and not saved, a typo or another server, gets the stored key with the test's or the
-list's request before the user saved anything. It is the user's own action (a button pressed in
-the form), the redirect rule still holds (no redirect is followed), and the key never leaves for a
-URL the user did not type. **The owner's decision of 2026-10-25: keep it** ("Option B", against the
-lead's recommendation to send the stored key only to the URL it was saved with), recorded here and
-in [D-10](../developer/decisions.md#d-10-built-in-agent) item 10. What limits it, per case:
-
-- **Leaving a field lists nothing with the stored key at a new URL:** the model list asks again
-  by itself when the base URL or the key field is left changed, but not while only the stored key
-  would go to a base URL other than the saved one; then only ↻ or Test Connection send it
-  (`agentForm.modelsAfterEdit`, `TestAgentPreferencesModelsFromTheForm`).
-- **Live for every connection with a stored key** whose base URL is edited in the form; a
-  connection without a key sends none.
+Test Connection and the model list's ↻ in Preferences › Agent run with the form's values: the base
+URL as typed, and the key as typed or, when the key field is empty, the connection's stored key
+(`agentForm.apiKey`, [`agent/conntest.go`](../../internal/agent/conntest.go) `testKey`,
+`Agent.ModelsOf`). So an edited, unsaved base URL (a typo, another server) gets the stored key with
+that request. It is the user's own action, no redirect is followed, and the key goes only to a URL
+the user typed. Accepted ([D-10](../developer/decisions.md#d-10-built-in-agent) item 10). What
+limits it: leaving a changed base URL or key field lists the models again by itself, but not while
+only the stored key would go to a base URL other than the saved one; then only ↻ or Test
+Connection send it (`agentForm.modelsAfterEdit`, `TestAgentPreferencesModelsFromTheForm`). Live for
+every connection with a stored key whose base URL is edited in the form.

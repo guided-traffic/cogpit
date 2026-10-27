@@ -31,8 +31,8 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Copy name (object.copyName) in the detail drawer | partial | [Every kind](resource-parity.md#every-kind) |
 | Edit (object.edit): YAML in a dock tab, offered when the user may patch | partial | [Every kind](resource-parity.md#every-kind) |
 | Delete (object.delete): confirm, offered when the user may delete; acts on the selection | partial | [Every kind](resource-parity.md#every-kind) |
-| Row menu (⋮): Show Details, Edit, Delete for a custom resource; the kinds' own actions are added for built-in kinds (capture, 2026-10-11, o… | partial | [Every kind](resource-parity.md#every-kind) |
-| Right-click on a row opens the actions menu (since 2025.10.230725) | done | [Every kind](resource-parity.md#every-kind) |
+| Row menu (⋮): Show Details, Edit, Delete for a custom resource; the kinds' own actions are added for built-in kinds (captured, of a custom… | partial | [Every kind](resource-parity.md#every-kind) |
+| Right-click on a row opens the actions menu | done | [Every kind](resource-parity.md#every-kind) |
 | Overview | partial | [Cluster](resource-parity.md#cluster) |
 | Applications | partial | [Cluster](resource-parity.md#cluster) |
 | Nodes | partial | [Cluster](resource-parity.md#cluster) |
@@ -47,8 +47,8 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Jobs | partial | [Workloads](resource-parity.md#workloads) |
 | Replication Controllers | partial | [Workloads](resource-parity.md#workloads) |
 | Cron Jobs | partial | [Workloads](resource-parity.md#workloads) |
-| Config Maps; checked against a real cluster, 2026-10-16: 210 config maps, Keys naming as many keys as kubectl's Data counts (165 for one) | partial | [Config](resource-parity.md#config) |
-| Secrets; checked against a real cluster, 2026-10-16: 261 secrets, Type and Keys as kubectl's Type and Data; a TLS Secret's drawer decodes a… | partial | [Config](resource-parity.md#config) |
+| Config Maps | partial | [Config](resource-parity.md#config) |
+| Secrets | partial | [Config](resource-parity.md#config) |
 | Resource Quotas | partial | [Config](resource-parity.md#config) |
 | Limit Ranges | partial | [Config](resource-parity.md#config) |
 | Horizontal Pod Autoscalers | partial | [Config](resource-parity.md#config) |
@@ -102,7 +102,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 
 | Row | Status | Section |
 |---|---|---|
-| Title bar with history back and forward, notifications and a context menu with Preferences; captured (2026-10-11): back and forward arrows,… | partial | [Layout](ui-parity.md#layout) |
+| Title bar with history back and forward, notifications and a context menu with Preferences; captured: back and forward arrows, an "Update"… | partial | [Layout](ui-parity.md#layout) |
 | Hotbar down the left edge (Hotbar); captured: one tile per cluster with its icon or image and a short label, and a bank switcher ("‹ 1 ›")… | partial | [Layout](ui-parity.md#layout) |
 | Navigator with the cluster's resource tree (Cluster sidebar) | partial | [Layout](ui-parity.md#layout) |
 | Navigator header: a dropdown of the scope the tree shows, one cluster or a section such as "Local Kubeconfigs", and a search button; the tr… | partial | [Layout](ui-parity.md#layout) |
@@ -127,7 +127,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Banks: create, rename, remove, switch from the command palette | not a target | [Hotbar](ui-parity.md#hotbar) |
 | F1–F12 switch to a cluster in the bank, ⇧F1–⇧F12 switch bank | partial | [Hotbar](ui-parity.md#hotbar) |
 | Add a cluster from its menu ("Add to hotbar") | partial | [Hotbar](ui-parity.md#hotbar) |
-| Reorder tiles by dragging them within the hotbar (Lens: tiles are dragged to reorder, as the first row of this table notes; capture needed) | partial | [Hotbar](ui-parity.md#hotbar) |
+| Reorder tiles by dragging them within the hotbar (Lens: tiles are dragged to reorder; capture needed) | partial | [Hotbar](ui-parity.md#hotbar) |
 | The tree above | partial | [Cluster sidebar](ui-parity.md#cluster-sidebar) |
 | A group or item appears only when the cluster serves its kinds (Admission Policies, Gateway API, Device Resources) | partial | [Cluster sidebar](ui-parity.md#cluster-sidebar) |
 | Groups expand and collapse | partial | [Cluster sidebar](ui-parity.md#cluster-sidebar) |
@@ -136,21 +136,21 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Double-click a column separator to fit its content | partial | [Tables](ui-parity.md#tables) |
 | Reorder columns by dragging | partial | [Tables](ui-parity.md#tables) |
 | Show and hide columns (⋮ at the end of the header row) | partial | [Tables](ui-parity.md#tables) |
-| Search field per view, with toggles for match case ("Aa") and regular expressions (".*") (capture, 2026-10-11) | partial | [Tables](ui-parity.md#tables) |
-| A cell too narrow for its text shows the full text in a tooltip on hover (capture of an event message, 2026-10-11) | done | [Tables](ui-parity.md#tables) |
+| Search field per view, with toggles for match case ("Aa") and regular expressions (".*") (capture) | partial | [Tables](ui-parity.md#tables) |
+| A cell too narrow for its text shows the full text in a tooltip on hover (capture of an event message) | done | [Tables](ui-parity.md#tables) |
 | Namespace filter: multi-select, default "All namespaces", Space toggles without closing; none on cluster-scoped views (captures of Nodes, I… | partial | [Tables](ui-parity.md#tables) |
 | Actions menu per row (⋮ at the row's end), starting with Show Details and ending with Edit and Delete, the kind's own actions between; item… | partial | [Tables](ui-parity.md#tables) |
 | Right-click on a row opens the actions menu (since 2025.10.230725) | done | [Tables](ui-parity.md#tables) |
 | Keyboard: ↑↓ rows, Tab columns, ↵ or Space opens the details | done | [Tables](ui-parity.md#tables) |
 | Export the table as CSV (a download button beside the item count, "18 items"; the format is inferred) | partial | [Tables](ui-parity.md#tables) |
-| Select rows with a checkbox column, all rows with the header's checkbox (capture, 2026-10-11) | partial | [Tables](ui-parity.md#tables) |
+| Select rows with a checkbox column, all rows with the header's checkbox (capture) | partial | [Tables](ui-parity.md#tables) |
 | A warning column right after Name in built-in views (Pods, Pod Disruption Budgets, Cron Jobs): an orange triangle on rows with a problem (s… | partial | [Tables](ui-parity.md#tables) |
-| A floating "+" button at the bottom right of every list opens a Create resource tab in the dock (capture, 2026-10-11) | partial | [Tables](ui-parity.md#tables) |
+| A floating "+" button at the bottom right of every list opens a Create resource tab in the dock (capture) | partial | [Tables](ui-parity.md#tables) |
 | The sorted column shows an arrow beside its title | partial | [Tables](ui-parity.md#tables) |
-| Cells that name another object are links: Namespace, Controlled By, Node, Involved Object, a definition's resource (captures, 2026-10-11);… | partial | [Tables](ui-parity.md#tables) |
+| Cells that name another object are links: Namespace, Controlled By, Node, Involved Object, a definition's resource (captures); a Namespace… | partial | [Tables](ui-parity.md#tables) |
 | Row line height (preference) | partial | [Tables](ui-parity.md#tables) |
 | Status colours per state (palette: capture needed; seen: "Running" green, "Evicted" red) | partial | [Tables](ui-parity.md#tables) |
-| Opens from the right when a row is selected, beside the narrowed table; titled "<Kind>: <name>" (capture, 2026-10-11) | partial | [Detail drawer](ui-parity.md#detail-drawer) |
+| Opens from the right when a row is selected, beside the narrowed table; titled "<Kind>: <name>" (capture) | partial | [Detail drawer](ui-parity.md#detail-drawer) |
 | Actions at the top: Copy, Edit, Delete and the kind's own actions; captured as icons in the drawer's title bar: for a pod seven icons endin… | partial | [Detail drawer](ui-parity.md#detail-drawer) |
 | Drawer sections in order: Metrics, Properties, the kind's own sections, Events ("No events found" when none) (capture of a pod and a node) | partial | [Detail drawer](ui-parity.md#detail-drawer) |
 | Long values fold: Labels, Annotations, Tolerations, environment variables, mounts and volumes show a count ("6 Labels") and expand on click… | partial | [Detail drawer](ui-parity.md#detail-drawer) |
@@ -282,7 +282,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Users who may list only some namespaces (accessible namespaces) | partial | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Cluster Connect: reach clusters through Lens's relay (paid) | – | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
 | Cloud account integrations: list and add EKS, AKS, GKE clusters (paid) | not a target | [Cluster authentication and connectivity](platform-parity.md#cluster-authentication-and-connectivity) |
-| Every minor version the Kubernetes project supports (1.35, 1.36 and 1.37 on 2026-10-11) | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
+| Every minor version the Kubernetes project supports | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
 | Older clusters | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
 | Kinds and fields newer than the client libraries | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
 | The sidebar follows the served APIs, version by version | partial | [Kubernetes versions](platform-parity.md#kubernetes-versions) |
@@ -322,9 +322,9 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Navigates the UI for the user ("show me the Service with ClusterIP 1.2.3.4") | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Runs cluster actions under the confirmation rules of D-2 | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | LLM through an OpenAI-compatible Chat Completions endpoint with tool calling and streaming: LM Studio, LiteLLM, Open WebUI or any compatibl… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
-| Settings: base URL, API key (kept owner-only; the owner's requirement named the operating system's keychain until he dropped it on 2026-10-… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
+| Settings: base URL, API key (kept owner-only), model picked from the endpoint's model list | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Limits per turn: tool calls, tokens, time | done | [Built-in agent](beyond-lens.md#built-in-agent) |
-| Data sent to the endpoint is visible to the user; Secret values are never sent unless the user marked the connection private (owner, 2026-1… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
+| Data sent to the endpoint is visible to the user; Secret values are never sent unless the user marked the connection private | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | ⌘I / Ctrl+I opens the chat for the current cluster (Lens's Ask AI shortcut) | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | One click updates the macOS app through Sparkle 2, the Linux deb through apt and the Windows setup through WinSparkle; AppImage and tar.xz… | partial | [Updates](beyond-lens.md#updates) |
 | Package-manager installs: the button runs or shows the manager's command | partial | [Updates](beyond-lens.md#updates) |
@@ -335,7 +335,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | On start, nodes Cogpit cordoned for a drain it did not finish are shown with "continue drain" and "uncordon" | done | [Crash recovery](beyond-lens.md#crash-recovery) |
 | Unsaved editor content restored from its local draft | done | [Crash recovery](beyond-lens.md#crash-recovery) |
 | An interrupted connection noticed within seconds: on a wake, a network change, a watch that broke, and by a heartbeat every 15 s | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
-| "Reconnecting…" with an amber dot, a banner saying since when and the next attempt, Reconnect (Reconnect now until 2026-10-17, D-81); the w… | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
+| Reconnecting shown on the cluster's dots, a banner saying since when and the next attempt, Reconnect; the window usable throughout | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
 | The views keep the cache's state; every write disabled with the reason, for the window and agents | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
 | Reconnecting by itself, at once on a wake or a network change, then after 1 to 30 s without end | done | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
 | A login that expired renewed once by itself, then "Login expired" and Log in again, never a pile of plugin runs | partial | [Standby and lost connections](beyond-lens.md#standby-and-lost-connections) |
@@ -348,13 +348,13 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Every value in the detail drawer can be selected, and has a copy icon on hover; an entry of a value with several entries is copied in YAML… | partial | [Everyday use](beyond-lens.md#everyday-use) |
 | Names in the lists (Pods, Deployments and every other view) are copyable: a list's cells get the drawer's copy icon on hover, at least the… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Certificates in Secrets decoded, in the drawer and for agents: for every key that holds a PEM certificate, each certificate's information i… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| Certificates in Secrets: whether the chain leads to a public CA, to a CA this Mac trusts (a corporate root counts here) or to an internal o… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| Certificates in Secrets: whether the chain leads to a public CA, to a CA the computer trusts (a corporate root counts here) or to an intern… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A status filter in every view: the states the view's rows carry (Status, Not Ready, Degraded, …), several at once, cleared with one click,… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| A link to the owner at the status bar's left end, opening hans-fischer.com in the browser on a click, a GUI link and not a command (D-23) | done | [Everyday use](beyond-lens.md#everyday-use) |
+| A link to the owner in the status bar, opening hans-fischer.com in the browser on a click, a GUI link and not a command (D-23) | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The window's layout from the top bar, as VS Code's title bar has it: three toggles at its right end that show and hide the navigator (⌘B),… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Restore the last session at start, a preference that is off by default: on, the tabs of the last run come back and the clusters connected a… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| How long a context's client certificate is valid, where the user chooses a cluster: the time left or "expired" (just that, the owner, 2026-… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| Every cluster has an accent colour beside its icon that the user configures, to mark parts of the window later so that the user sees at a g… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| How long a context's client certificate is valid, where the user chooses a cluster: the time left or "expired", for a context that logs in… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| Every cluster has an accent colour beside its icon that the user configures, to mark parts of the window so that the user sees at a glance… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A node's disks at a glance: a small usage bar per real filesystem the node mounts (the root first, then a data disk such as /data), the num… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The cluster's Kubernetes version in the navigator's cluster row with a warning symbol when it is past its end of life and how long it has l… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A namespace stuck in Terminating says what holds it: its drawer lists the objects whose finalizers keep it, with links, deleted ones vanish… | done | [Everyday use](beyond-lens.md#everyday-use) |
@@ -362,12 +362,12 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | The navigator moves: going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's history in its drawer, as k9s's history view shows it: every revision with its status, chart, app version and time, and th… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's revisions, as k9s shows them (its values v and manifests y per revision): an older revision's values, user-supplied and al… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window (owner, 2026-10-14 evening) | missing | [Everyday use](beyond-lens.md#everyday-use) |
+| Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| Every integration on by default, the default for new clusters the user's to change (the owner, 2026-10-17, I3) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "check all integrations" looks f… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| The question can be shown again after it was answered (the owner's WF4, 2026-10-17: "Gibt es eine Möglichkeit den Dialog nochmal angezeigt… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| Every integration on by default, the default for new clusters the user's to change | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "Check all integrations" looks f… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| The question can be shown again after it was answered | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A pod's drawer grades each container's image from Trivy Operator's reports, in the container's own section, as a symbol and a detail view,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Kyverno: the objects that violate a policy show it, in their lists and their drawer: an Audit policy's fail, and an Enforce policy's on an… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |

@@ -1,614 +1,441 @@
 # Updates
 
-The update channel: how Cogpit learns about a new version and replaces itself, one of the two
-places where Cogpit downloads code that then runs. Since 2026-10-14 the macOS app carries Sparkle 2
-and the release pipeline signs and publishes its appcast
-([D-4](../developer/decisions.md#d-4-packaging-and-updates),
-[releasing › the appcast](../developer/releasing.md#the-appcast)); the owner set up the update
-key on 2026-10-15 and every release since v0.11.0 is built with it; v0.14.0 to v0.16.0 passed
-notarization on 2026-10-16, and since ~06:20 UTC that day Pages serves the signed feed with 0.16.0
-and 0.15.0 (the owner approved the appcasts; checked: the feed's signature and the 0.16.0 disk
-image's EdDSA signature against the public key); v0.17.0 to v0.19.0 followed the same day with their disk images, each appcast approved in release order, so by the evening the feed holds 0.19.0, 0.18.0, 0.17.0, 0.16.0 and 0.15.0; v0.20.0 (2026-10-16 19:21 UTC) and v0.21.0 (23:39 UTC) followed in the night and v0.22.0 (08:14 UTC) and v0.22.1 (09:32 UTC) on 2026-10-17, their appcasts waiting for the owner's approval. The first installed copy updated on 2026-10-16:
-the owner's, from 0.15.0 to 0.16.0, through the signed feed and Sparkle's install (a person's
-observation; [setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). `cogpit-cli` has no
-updater of its own: since 2026-10-14 it is part of the app bundle
-([D-16](../developer/decisions.md#d-16-the-first-real-release)), so Sparkle's update replaces it
-with the app under the same checks. On Linux, since 2026-10-20, apt updates
-Cogpit from Cogpit's signed APT repository, which the package sets up
-([Linux](#linux), [D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)).
-On Windows, from the first release after the branch `windows-release` is merged, WinSparkle updates
-the setup's installation from its own feed, signed with the same update key
-([Windows](#windows), [D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). The other place, built 2026-10-13, is the
-`kubectl` a terminal offers for its cluster: downloaded only on the user's click and verified against
-the Kubernetes release's own sigstore signature and, since 2026-10-15, that signature's entry in
-sigstore's transparency log, not Cogpit's update key
+How a Cogpit copy learns of a new release and replaces itself: Sparkle 2 on macOS, apt on Linux,
+WinSparkle on Windows ([D-4](../developer/decisions.md#d-4-packaging-and-updates),
+[D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
+[D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)).
+`cogpit-cli` has no updater of its own: the app bundle
+([D-16](../developer/decisions.md#d-16-releases-and-what-they-carry)), the package or the setup replaces
+it under the same checks. The update channel is one of the two places where Cogpit downloads code
+that then runs; the other, the `kubectl` a terminal offers on the user's click, is checked against
+the Kubernetes release's sigstore signature and its transparency-log entry, not Cogpit's keys
 ([trust boundaries](trust-boundaries.md#boundaries-and-required-checks),
 [H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)).
-
-The owner's decision round of 2026-10-14 evening confirms the failed-signing behaviour and the
-20-day failsafe ([H-91](#h-91-after-20-days-of-unverifiable-feeds-sparkle-presents-items-again))
-and decides two GitHub settings for the release environment ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released);
-decided further on 2026-10-15), which are made only with the owner's explicit OK and are not made
-yet (checked 2026-10-15). The rest of the Sparkle set-up was not put to the
-owner and stands as built: the signed feed, the preference driving Sparkle, checks from any origin,
-Beta refused until prereleases exist, Sparkle's XPC services removed, no entitlements on Sparkle's
-parts, the three appcast jobs, the history from the signed feed.
 
 ## Chain of trust
 
 ```text
-release pipeline ─► Cogpit-<v>-macos-arm64.dmg (the app, its cogpit-cli inside), Developer ID-signed, notarized, stapled
-   "Appcast (draft)", no secret ─► the feed from Pages (only if the update key signed it) + this release's item
-   "Appcast (sign)", environment sparkle, tags v* only, no approval (since 2026-10-22)
-        ─► EdDSA signature over the disk image, then over the feed (Sparkle's sign_update)
-   "Appcast (deploy)" ─► checked with the public key ─► https://guided-traffic.github.io/cogpit/appcast.xml
+release pipeline ─► Cogpit-<v>-macos-arm64.dmg (cogpit-cli inside the app): Developer ID-signed, notarized, stapled
+   "Appcast (draft)", no secret ─► the served feed (only if the update key signed it) + this release's item
+   "Appcast (sign)", environment sparkle ─► EdDSA signatures over the disk image, then the feed (sign_update)
+   "Appcast (deploy to Pages)" ─► checked with the public key ─► https://guided-traffic.github.io/cogpit/appcast.xml
                                    │
-Cogpit.app (Sparkle 2) ─► fetch the feed over HTTPS at every start and every hour, or on Help › Check for Updates…
-       ─► the feed's EdDSA signature with SUPublicEDKey from the app's Info.plist
-       ─► an item newer than the running CFBundleVersion, for this macOS? ─► Sparkle's window, the user's click
-       ─► download the disk image from the release ─► its EdDSA signature, before anything is extracted
-       ─► Apple's code signature of the new app (the running app's Developer ID team)
-       ─► replace the app and relaunch
+Cogpit.app (Sparkle 2) ─► reads the feed over HTTPS: at every start, every hour, on Help › Check for Updates…
+       ─► the feed's EdDSA signature with SUPublicEDKey ─► an item newer than CFBundleVersion, for this macOS?
+       ─► Cogpit's Update button ─► the user's click: Sparkle's window, Install Update
+       ─► the disk image from the release ─► its EdDSA signature, before anything is extracted
+       ─► Apple's code signature of the new app (the running app's team) ─► replace the app, relaunch
 ```
 
-The chain is Sparkle 2's ([D-4](../developer/decisions.md#d-4-packaging-and-updates); its
-[documentation](https://sparkle-project.org/documentation/#segue-for-security-concerns)), set up
-in the app's `Info.plist` by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh). The app's side
-is [`internal/update`](../../internal/update/); the pipeline's is
+The chain is Sparkle 2's ([documentation](https://sparkle-project.org/documentation/#segue-for-security-concerns)),
+set up in the app's `Info.plist` by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle.sh); the
+app's side is [`internal/update`](../../internal/update/), the pipeline's
 [`build.yml`](../../.github/workflows/build.yml), [`hack/macos/appcast.sh`](../../hack/macos/appcast.sh)
-and [`hack/appcast`](../../hack/appcast/main.go).
+and [`hack/appcast`](../../hack/appcast/main.go)
+([releasing › the appcast](../developer/releasing.md#the-appcast)).
 
-**How often a copy asks** (owner, 2026-10-16): every hour and at every start (the owner,
-2026-10-16 night; before, at a launch only when the last check was older than the hour). Since
-2026-10-26 Cogpit schedules the checks itself (`scheduledChecks` in
-[`sparkle_darwin.go`](../../internal/update/sparkle_darwin.go), as on Linux and Windows) and
-Sparkle's own scheduled checks are off (`SUEnableAutomaticChecks` NO), since a release one of them
-found was held and no check ran after it (the owner's report: 0.48.2 offered while 0.49.1 was out,
-[D-4](../developer/decisions.md#d-4-packaging-and-updates)); each check is Sparkle's probing check,
-the same request through the same signature checks (`TestSparkleChecksAtEveryStart`: one request
-per start, whenever the last check was; `TestSparkleScheduledChecksFindTheNewestRelease`). Each check is
-one HTTPS request for the feed to GitHub Pages, which sees the copy's address, the time and the
-User-Agent Sparkle sends, the app's name and version beside Sparkle's (`Cogpit/0.16.0
-Sparkle/2.10.0`), now up to 24 times a day plus one per start instead of once a day. No system profile goes with it: `SUSendProfileInfo` is never set, and Sparkle's
-permission prompt, which would offer it, does not show because the `Info.plist` sets
-`SUEnableAutomaticChecks`. A check involves no kubeconfig, cluster or credential, and one that
-finds a release downloads nothing until the user chooses to install: since 2026-10-26
-`SUAllowsAutomaticUpdates` NO also takes Sparkle's "Automatically download and install updates"
-option out of its window, so no copy downloads or installs a release in the background (a user's
-earlier choice of it, kept in the app's user defaults, no longer counts). Preferences › App › Check
-for updates automatically off stops the scheduled checks and the start check; Help › Check for
-Updates… still asks.
+**How often a copy asks:** at every start and every hour while Preferences › App › Check for
+updates automatically is on; Help › Check for Updates… asks in any case. On macOS these are
+Cogpit's own probing checks (`scheduledChecks` in
+[`sparkle_darwin.go`](../../internal/update/sparkle_darwin.go)); Sparkle's own are off
+(`SUEnableAutomaticChecks` NO), since a release one of them finds is held and no check runs while
+it is held ([D-4](../developer/decisions.md#d-4-packaging-and-updates);
+`TestSparkleChecksAtEveryStart`, `TestSparkleScheduledChecksFindTheNewestRelease`). Each check is
+one HTTPS request to GitHub Pages, which sees the copy's address, the time and the User-Agent
+Sparkle sends with the app's version; no system profile (`SUSendProfileInfo` is never set, and
+`SUEnableAutomaticChecks` being set keeps away Sparkle's prompt that would offer it), no
+kubeconfig, cluster or credential, and no download before the user clicks Install Update
+(`SUAllowsAutomaticUpdates` NO). On Windows Cogpit reads the feed itself on the same schedule; on
+Linux a check reads apt's local lists only.
 
 | Check | Where | Prevents |
 |---|---|---|
-| The feed's EdDSA signature with the key in the app (`SURequireSignedFeed`, Sparkle 2.9) | every copy, on every check | a feed changed on or by the host: forged release notes or links, a critical or informational mark, an item pointing elsewhere ([H-91](#h-91-after-20-days-of-unverifiable-feeds-sparkle-presents-items-again) for when it fails for long) |
-| The disk image's EdDSA signature, before extraction (`SUVerifyUpdateBeforeExtraction`) | every copy, per update | a swapped download; nothing of an unsigned archive is unpacked |
-| Apple's code signature of the new app against the running app's | every copy, per update | an app that is not Cogpit's team's |
-| Only a newer `CFBundleVersion` is offered; `sparkle:minimumSystemVersion` | every copy | a downgrade to a version with known flaws; an update the Mac cannot run |
-| The update key in an environment that admits tags `v*` only, the rule checked before signing (no approval since 2026-10-22, [H-141](#h-141-the-update-key-signs-without-an-approval)) | "Appcast (sign)", "Windows appcast (sign)" | a run of a branch, or of an environment without rules, signing a feed ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)) |
-| The history taken from Pages only when the update key signed it | "Appcast (draft)" | a feed altered on Pages being signed again with the next release |
-| The signed feed and the disk image checked with the public key before Pages gets them | "Appcast (deploy)" | a feed every copy would refuse (a secret that does not match the app's key) |
-| The new feed keeps every item the feed on Pages serves, unless its channel's newest were kept (the owner's decision, 2026-10-16) | "Appcast (deploy)" | an older release's appcast, approved after a newer one's, putting the feed back to the older version (2026-10-16): a freeze made by the pipeline itself ([H-93](#h-93-the-feeds-host-can-withhold-updates)) |
-| HTTPS | the feed and the download | eavesdroppers learning which version a user runs (not integrity: the signatures provide that) |
-| Package-manager installs hand over to the manager | not built: no package manager installs Cogpit ([H-17](#h-17-installs-owned-by-a-package-manager)) | Cogpit overwriting files a package manager owns |
+| The feed's EdDSA signature with the key in the app (`SURequireSignedFeed`) | every copy, every check | a feed changed on or by the host: forged notes or links, an item pointing elsewhere (long failures: [H-91](#h-91-after-20-days-of-unverifiable-feeds-sparkle-presents-items-again)) |
+| The disk image's EdDSA signature before extraction (`SUVerifyUpdateBeforeExtraction`) | every copy, each update | a swapped download; nothing of an unsigned archive is unpacked |
+| Apple's code signature of the new app against the running app's | every copy, each update | an app that is not Cogpit's team's |
+| Only a newer `CFBundleVersion` is offered; `sparkle:minimumSystemVersion` | every copy | a downgrade; an update the Mac cannot run |
+| The environment `sparkle` admits tags `v*` only, checked before signing (`check_environment` in `appcast.sh`) | "Appcast (sign)", "Windows appcast (sign)" | a branch's run, or one in an environment without rules, signing ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)) |
+| The history kept only from a served feed the update key signed | both feeds' draft jobs | a feed altered on Pages being signed again with the next release |
+| The signed feed and the disk image checked with the public key before Pages gets them | "Appcast (deploy to Pages)" | a feed every copy would refuse (a secret that does not match the app's key) |
+| No channel's newest item older than the newest Pages serves (`hack/appcast verify -live`) | both feeds' deploy jobs | an older release's run, ending after a newer one's, taking the feed back ([H-93](#h-93-the-feeds-host-can-withhold-updates)) |
+| HTTPS | the feed and the download | eavesdroppers learning which version a user runs (integrity is the signatures') |
 
-## What a release holds today
+**Tests:** `TestSparkleScriptWritesTheSettings` (the `Info.plist` settings),
+`TestAddRefusesAnUnsignedHistory`, `TestVerify`, `TestVerifyKeepsTheServedFeed`. No test runs a
+whole Sparkle update.
 
-Since 2026-10-13 ([D-16](../developer/decisions.md#d-16-the-first-real-release)) semantic-release
-creates a tag and a GitHub release once every gate on `main` is green, and the release pipeline
-([`build.yml`](../../.github/workflows/build.yml)) builds the artifacts from that tag and attaches
-them ([releasing › the release pipeline](../developer/releasing.md#the-release-pipeline)). Since
-2026-10-14 (the owner, D-16 revised) a release carries only the complete product: the disk image
-with `cogpit-cli` inside the app, since the release after v0.32.0 the Linux packages with both
-binaries ([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
-from the first release after the branch `windows-release` is merged the Windows setup with both
-([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)),
-and `SHA256SUMS`. The `cogpit-cli` archives for six platforms
-that releases up to v0.6.0 carry (unsigned for Linux and Windows) are not built any more:
+A build without the update key (every local `make app`) has no updater and says so in Preferences
+› App and Help › Check for Updates…; it moves onto the chain only by installing a release's
+download.
 
-| Artifact | Built by | What vouches for it today |
-|---|---|---|
-| `Cogpit-<v>-macos-arm64.dmg`, the app bundle in a disk image (from the first release after v0.4.0 on: v0.6.0, v0.7.0 and v0.8.0 carry it, v0.5.0 and v0.9.0 to v0.12.0 have no files; checked 2026-10-15) | `make dist-app` on GitHub's `macos-latest`, signed and imaged by `make dist-macos-sign` ([`hack/macos/release.sh`](../../hack/macos/release.sh)) in the job "Sign and submit (macOS)", notarized and stapled by `make dist-macos-notarize` in "Notarize and staple (macOS)" | the app and the disk image signed with the Developer ID "Developer ID Application: Hans Fischer (6L57P2HXN6)", the hardened runtime and Apple's timestamp; the disk image notarized by Apple, its ticket stapled, so Gatekeeper accepts it offline as `Notarized Developer ID`; its SHA-256 in `SHA256SUMS`. When a signature, the notarization or a check fails, the job fails and the release gets no files until the failed jobs are re-run, never unsigned files under a signed note; the notarization job waits 330 minutes at most for Apple's verdict on the one submission the signing job made, and a re-run waits for the same one; it staples only the disk image whose SHA-256 the signing job recorded with the submission ([`build.yml`](../../.github/workflows/build.yml), [`release.sh`](../../hack/macos/release.sh); the lead's default, confirmed by the owner on 2026-10-14 evening) |
-| `cogpit-cli` in the app, `Cogpit.app/Contents/MacOS/cogpit-cli` (from the first release after v0.6.0 on) | `make app` from `make build`'s binary, in the same job | the same as the app: signed with the same Developer ID before the bundle (identifier `io.guided-traffic.cogpit.cli`, the hardened runtime, the timestamp), sealed into the app's signature, so changing it breaks the app's; notarized with the disk image, whose stapled ticket covers it; replaced by Sparkle's update with the bundle. Not verified (the signed releases v0.7.0 and v0.8.0 carry it): that it runs from a terminal in a quarantined copy, before the app was ever opened, without a prompt |
-| `Cogpit_<v>_darwin_arm64.zip`, the app bundle (v0.4.0 and earlier, and any build without the signing secrets) | `make dist-app` on GitHub's `macos-latest` | its SHA-256 in `SHA256SUMS`; an ad-hoc signature (`codesign --sign -`), which seals the bundle but names nobody: **no Developer ID, not notarized**, so Gatekeeper blocks the first start until the user allows it |
-| `cogpit_<v>_amd64.deb`, `cogpit_<v>_arm64.deb` (from the release after v0.32.0 on) | `make dist-linux` on GitHub's `ubuntu-24.04` and `ubuntu-24.04-arm`, attached by "Attach to the release (Linux)" | as downloaded from the release: nothing but HTTPS from GitHub and its line in `SHA256SUMS` (Debian's packages carry no signature of their own; [H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)); as installed from Cogpit's APT repository: the repository's OpenPGP signature, which apt checks ([Linux](#linux)) |
-| `Cogpit-<v>-windows-x64-setup.exe` (from the first release after the branch `windows-release` is merged) | `make dist-windows` on GitHub's `windows-latest` in MSYS2, attached by "Attach to the release (Windows)" | as downloaded from the release: nothing but HTTPS from GitHub and its line in `SHA256SUMS`; **not signed with Authenticode**, so SmartScreen warns at its first start ([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); as WinSparkle downloads it for an update: the update key's EdDSA signature over its bytes, which WinSparkle checks before it runs it ([Windows](#windows)) |
-| `SHA256SUMS` | the release pipeline's attach jobs, the macOS, the Linux and the Windows one, each merging its lines into the release's file | nothing: it is not signed, so it shows that a download matches what CI attached to the release, not who attached it |
-| The release's item in `https://guided-traffic.github.io/cogpit/appcast.xml` (from the first release built with the update key that passes notarization; none yet on 2026-10-15: v0.11.0 to v0.13.0 are built with the key, v0.11.0 and v0.12.0 have no files, v0.13.0's notarization was in progress) | the three appcast jobs after "Attach to the release" ([releasing › the appcast](../developer/releasing.md#the-appcast)) | the update key's EdDSA signature over the feed and over the disk image it names, made after the owner approved the run; checked with the public key before Pages gets it |
+## What a release holds
+
+semantic-release creates a tag and a GitHub release once every gate on `main` is green; the release
+pipeline ([`build.yml`](../../.github/workflows/build.yml)) builds from that tag and attaches the
+complete product only ([D-16](../developer/decisions.md#d-16-releases-and-what-they-carry),
+[releasing › the release pipeline](../developer/releasing.md#the-release-pipeline)):
+
+| Artifact | What vouches for it |
+|---|---|
+| `Cogpit-<v>-macos-arm64.dmg`, the app with `Contents/MacOS/cogpit-cli` (`make dist-app`, then `make dist-macos-sign` and `make dist-macos-notarize`, [`release.sh`](../../hack/macos/release.sh)) | the Developer ID signature (hardened runtime, Apple's timestamp) on the app, its `cogpit-cli` (sealed into the app's signature) and the disk image; Apple's notarization with the ticket stapled, so Gatekeeper accepts it offline as `Notarized Developer ID`. A failed signature, notarization or check leaves the release without files until the failed jobs are re-run, never with unsigned files under a signed note ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) |
+| `Cogpit_<v>_darwin_arm64.zip`, in place of the disk image when a build lacks the signing secrets (a fork) | an ad-hoc signature, which seals the bundle but names nobody: not notarized, so Gatekeeper blocks the first start until the user allows it |
+| `cogpit_<v>_amd64.deb`, `cogpit_<v>_arm64.deb` (`make dist-linux`) | from the release: HTTPS only ([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)); from the APT repository: its OpenPGP signature, which apt checks ([Linux](#linux)) |
+| `Cogpit-<v>-windows-x64-setup.exe` (`make dist-windows`) | from the release: HTTPS only, no Authenticode ([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); as WinSparkle downloads it: the update key's EdDSA signature ([Windows](#windows)) |
+| `SHA256SUMS`, each of the three attach jobs merging its lines | nothing: unsigned, it shows that a download matches what CI attached, not who attached it ([H-61](#h-61-sha256sums-is-not-signed)) |
+| The release's items in `appcast.xml` and `appcast-windows.xml` | the update key's EdDSA signature over the feed and over the download it names, made without an approval ([H-141](#h-141-the-update-key-signs-without-an-approval)), checked with the public key before Pages gets it |
 
 **What the Developer ID signature and the notarization vouch for:** that the code was signed with
-the key of team 6L57P2HXN6's certificate and has not changed since, and that Apple's automated
-check found no known malware in it when it was submitted. They do not say which commit it was
-built from, and they reach as far as the key: whoever runs a workflow on a `v*` tag in this
-repository can have that key sign what the workflow built
-([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). The release page says what was
-signed, naming the certificate the signature carries, or that the build was unsigned.
+team `6L57P2HXN6`'s key and is unchanged since, and that Apple's automated check found no known
+malware in it at submission; not which commit it was built from. Any run on a `v*` tag can have the
+key sign what the run built ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)).
+The release page names the certificate the signature carries, or says the build is unsigned.
 
-The owner set up the update key on 2026-10-15 (checked with `gh` that day, ~19:00 UTC: the secret
-`SPARKLE_ED_PRIVATE_KEY` in the environment `sparkle` since 07:00 UTC, the repository variable
-`SPARKLE_PUBLIC_ED_KEY` set), and v0.11.0, v0.12.0 and v0.13.0 are built with it (the app job's
-log of v0.11.0 and v0.12.0: "Sparkle bundled with the update key"). No appcast was signed before 2026-10-16, when
-`https://guided-traffic.github.io/cogpit/appcast.xml` first served one: v0.9.0 to v0.12.0
-got no files (Apple kept each notarization "In Progress" beyond the old job's 45 minutes);
-v0.13.0's first wait gave up after 330 minutes (2026-10-15 23:43 UTC); a re-run of its failed jobs found the same submission accepted and attached its disk image at 23:52 UTC;
-v0.14.0 to v0.16.0 passed, and the owner approved the appcasts of v0.15.0 and v0.16.0 (the feed
-holds both since ~06:20 UTC). The first update went through the same morning: the owner's MacBook
-(0.15.0 installed from its disk image) updated to 0.16.0; after `defaults delete
-io.guided-traffic.cogpit SULastCheckTime` and a relaunch, the launch check found 0.16.0 at once and
-showed the Update button (Sparkle's gentle reminder), and its click handed the update to Sparkle,
-which installed it and started Cogpit again (a person's observation, not a test). Sparkle requires
-the feed's signature and the disk image's (`SURequireSignedFeed`, `SUVerifyUpdateBeforeExtraction`),
-so the update passed both checks with the key built into the app. A build without the key (a
-local `make app`; the releases with files, v0.8.0 and earlier) says "this build has no update key"
-under Preferences › App › Check for updates automatically and greys Help › Check for Updates….
-Copies installed before the first release built with the key never update themselves (no updater,
-or none with a key): one manual download moves them onto the chain above.
-
-**What vouches for an update once a signed feed is served:** the update key's EdDSA signatures over the
-feed and over the disk image, computed in a job on a release's tag (approved by the owner until
-2026-10-22, since then without an approval, [H-141](#h-141-the-update-key-signs-without-an-approval)), checked by Sparkle in every
-copy; Apple's Developer ID signature and notarization of the app inside, checked by Sparkle against
-the running app's and by Gatekeeper. **What does not:** the host. GitHub Pages serves the feed and
-GitHub's release storage the disk image; either can withhold an update or serve an older signed
-feed ([H-93](#h-93-the-feeds-host-can-withhold-updates)), and neither can make a copy install
-anything the key did not sign.
+Gatekeeper checks the Developer ID signature at the first start of a download, Sparkle against
+the running app's team at each update. **What does not vouch for an update:** the hosts (Pages,
+GitHub's release storage), which can withhold one or serve an older signed feed
+([H-93](#h-93-the-feeds-host-can-withhold-updates)), not make a copy install anything the key did
+not sign.
 
 ### Keys and who holds them
 
 | Key | Where it lives | What it can do | If it leaks |
 |---|---|---|---|
-| The organisation's GitHub App private key (`APP_CLIENT_ID`, `APP_PRIVATE_KEY`) | organisation secrets of `guided-traffic`, visible to this repository; used by the Semantic Release job (token with `contents: write`) and by Renovate | push to `main`, create tags and releases; a release it creates starts the release pipeline, which builds whatever the tag points at | rotate the App's private key in the App's settings and replace the organisation secret; delete the releases and tags it made. Secrets are not handed to workflows of pull requests from forks |
-| The release pipeline's `GITHUB_TOKEN` | per job; `contents: write` only in its last job, to attach the artifacts | upload assets to and edit the text of this repository's releases | expires with the job |
-| Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the GitHub environment `release` (created 2026-10-13; the material in it since 2026-10-14), which only tag workflows may use (deployment rule: tags `v*`), so that no pull request workflow can read them (decided by the owner on 2026-10-14 evening and further on 2026-10-15, GitHub settings made 2026-10-22: only the semantic-release GitHub App may create `v*` tags, as the tag ruleset's only bypass, and the environment's administrator bypass off; [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). Two jobs read them (since 2026-10-15; before, one job "Sign and notarize (macOS)"): "Sign and submit (macOS)" with the certificate and the API key, "Notarize and staple (macOS)" with the API key only. Neither builds anything or runs Go; the first imports the certificate into a temporary keychain (key not extractable, usable by `codesign` only), both write the API key into an owner-only file, and each deletes them when it ends ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize code as team 6L57P2HXN6: whatever is signed and notarized with the two passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple, and the key in App Store Connect; releases notarized before stay valid (the owner's note, 2026-10-13; not checked against Apple's documentation) |
-| The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19; made on 2026-10-20 on the owner's machine) | `APT_SIGNING_KEY`, a secret of the environment `apt` (tags `v*` only, no required reviewer: the owner's choice, 2026-10-20); one job reads it, "APT repository (sign)", on GitHub's hosted runner, which runs no Go and nothing of the packages and hands the key to gpg on its standard input in a temporary keyring and ends gpg's agent once it signed; a copy, with the revocation certificate, kept by the owner outside GitHub. Its public half is in every package's sources file | sign a repository whose packages every Linux copy installs as Cogpit's updates, by apt as root | [H-135](#h-135-the-apt-key-signs-without-an-approval), [Linux](#linux) |
-| The update key (Sparkle's EdDSA key; made by the owner on 2026-10-15) | decided (owner, 2026-10-13) and set up 2026-10-15 (the secret since 07:00 UTC; the environment with the owner as required reviewer, the tag rule `v*` only and no administrator bypass; checked with `gh` that day): `SPARKLE_ED_PRIVATE_KEY`, a secret of the environment `sparkle` with tags `v*` only; until 2026-10-22 the owner was its required reviewer and CI signed a release's feed only after he approved that run, since then it signs in every run on a `v*` tag (the owner's choice, [H-141](#h-141-the-update-key-signs-without-an-approval)); made by the owner with Sparkle's `generate_keys`, which keeps it in his login keychain ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). Two jobs read it, "Appcast (sign)" and "Windows appcast (sign)": each refuses while the environment lacks its tag rule, hands the key to Sparkle's `sign_update` on its standard input only and runs no Go and no dependency's code. Its public half is the repository variable `SPARKLE_PUBLIC_ED_KEY`, built into every copy as `SUPublicEDKey` | sign appcasts and disk images that every copy with this key accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
+| The organisation's GitHub App private key (`APP_CLIENT_ID`, `APP_PRIVATE_KEY`) | organisation secrets of `guided-traffic`, visible to this repository; Semantic Release makes a `contents: write` token from it, the Renovate job ([`renovate.yml`](../../.github/workflows/renovate.yml)) one with all of the App's permissions | push to `main`; create tags (the `v*` tag ruleset's only bypass) and releases, which start the release pipeline on whatever the tag points at | rotate the key in the App's settings, replace the secret, delete the tags and releases it made. Pull requests from forks get no secrets |
+| The release pipeline's `GITHUB_TOKEN` | per job: `contents: write` only in the three attach jobs, `pages: write` only in the three Pages deploy jobs | upload assets to and edit this repository's releases; deploy to Pages | expires with the job |
+| Developer ID Application certificate, App Store Connect team API key (role Developer) | secrets of the environment `release` (tags `v*` only, administrator bypass off). "Sign and submit (macOS)" reads both, "Notarize and staple (macOS)" the API key only; neither builds anything or runs Go. A temporary keychain (key not extractable, usable by `codesign` only) and an owner-only key file, deleted at the job's end ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize as team `6L57P2HXN6`: the result passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple and the key in App Store Connect. Not verified: that releases notarized before stay valid |
+| The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19) | `APT_SIGNING_KEY` in the environment `apt` (tags `v*` only, no required reviewer, administrator bypass on). Only "APT repository (sign)" reads it, on GitHub's hosted runner; it runs no Go and nothing of the packages, hands the key to gpg on its standard input in a temporary keyring and ends gpg's agent after signing. The owner keeps a copy and the revocation certificate outside GitHub; the public half is in every package's sources file | sign a repository whose packages every Linux copy installs, as root, as Cogpit's updates | [H-135](#h-135-the-apt-key-signs-without-an-approval) |
+| The update key (Sparkle's EdDSA key) | `SPARKLE_ED_PRIVATE_KEY` in the environment `sparkle` (tags `v*` only, no required reviewer, administrator bypass off), and the owner's login keychain, where Sparkle's `generate_keys` keeps it ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)). Only "Appcast (sign)" and "Windows appcast (sign)" read it: each refuses while the environment lacks its tag rule, hands the key to `sign_update` on its standard input and runs no Go and no dependency's code. The public half, the repository variable `SPARKLE_PUBLIC_ED_KEY`, is built into every copy (`SUPublicEDKey`; on Windows `edPublicKey`) | sign feeds, disk images and Windows setups that every copy accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
 
 ## Linux
 
-Since 2026-10-20 ([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
-[releasing › Linux](../developer/releasing.md#linux)) Cogpit for Linux is a Debian package, and apt
-updates it: the package installs `/etc/apt/sources.list.d/cogpit.sources`, which names Cogpit's
-APT repository on GitHub Pages and carries its public key inline, so apt trusts that key for that
-repository only, not for the system's other sources.
+The package installs `/etc/apt/sources.list.d/cogpit.sources` ([`deb.sh`](../../hack/linux/deb.sh)),
+a conffile naming Cogpit's APT repository on Pages with its public key inline, so apt trusts that
+key for that repository only
+([D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages),
+[releasing › Linux](../developer/releasing.md#linux)).
 
 ```text
 release pipeline ─► cogpit_<v>_<arch>.deb (both binaries), attached to the release, its line in SHA256SUMS
-   "APT repository (sign)", environment apt ─► the repository Pages serves, checked against the key
+   "APT repository (sign)", environment apt ─► the served repository, checked against the key
         ─► this release's packages beside the newest served ones ─► Release, signed: InRelease, Release.gpg
-   "APT repository (deploy)" ─► checked with the public key, refused if Pages serves a newer one
-        ─► https://guided-traffic.github.io/cogpit/apt (beside appcast.xml)
+   "APT repository (deploy to Pages)" ─► checked with the public key, refused if Pages serves a newer one
+        ─► https://guided-traffic.github.io/cogpit/apt
                                    │
-apt on the user's machine (apt update: the system's timer, the Software Updater, or Cogpit's helper)
+apt (apt update: the system's timer, the Software Updater, or Cogpit's helper)
        ─► InRelease's signature with the key in cogpit.sources ─► Packages by the hash InRelease names
-       ─► a package's SHA-256 as Packages names it ─► dpkg installs it as root
-Cogpit (internal/update, apt_linux.go) ─► apt-cache policy cogpit at every start and every hour: no network, no root
+       ─► each package's SHA-256 as Packages names it ─► dpkg installs it as root
+Cogpit (apt_linux.go) ─► apt-cache policy cogpit at every start and every hour: no network, no root
        ─► the Update button ─► pkexec /usr/libexec/cogpit/update (polkit: an administrator's password)
        ─► apt-get update of Cogpit's list only, apt-get install --only-upgrade cogpit ─► Restart to Update
 ```
 
 | Check | Where | Prevents |
 |---|---|---|
-| InRelease's OpenPGP signature with the key in `cogpit.sources` (`Signed-By`) | apt, on every update of the list | a repository changed on or by the host: another package, another version, another index |
-| The index files by the hash InRelease names (`Acquire-By-Hash`), the packages by Packages' SHA-256 and size | apt | a swapped index or package; a client mixing an index cached from before a deploy with a newer one |
-| Only a newer version is installed by `apt upgrade` and the helper's `--only-upgrade` | apt | a downgrade by an older signed repository (not a freeze: [H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)) |
+| InRelease's OpenPGP signature with the key in `cogpit.sources` (`Signed-By`) | apt, at every update of the list | a repository changed on or by the host: another package, version or index |
+| The index files by the hash InRelease names (`Acquire-By-Hash`), the packages by Packages' SHA-256 and size | apt | a swapped index or package; an index cached from before a deploy mixed with a newer one |
+| Only a newer version is installed (`apt upgrade`, the helper's `--only-upgrade`) | apt | a downgrade by an older signed repository (a freeze stays possible: [H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)) |
 | The key's fingerprint is the packages' before anything is signed (`apt.sh sign`) | "APT repository (sign)" | a secret replaced with another key, whose repository every copy would refuse |
-| The repository served now is fetched, checked against the key and kept only then (`apt.sh mirror`) | "APT repository (sign)", "Appcast (deploy to Pages)" | a repository altered on Pages being signed again with the next release, or deployed again with the appcast |
-| The new repository checked with the public key, and refused when Pages serves a newer release (`apt.sh verify`, `newer`) | "APT repository (deploy to Pages)" | a repository every copy would refuse; an older release's run, ending after a newer one's, taking the newer release back for new installs |
-| The helper takes no argument, upgrades only the package `cogpit` from Cogpit's list, and is the polkit action's only program (`org.freedesktop.policykit.exec.path`) | pkexec, the helper | the Update button running anything else as root |
-| On Linux only the window runs `app.checkForUpdates` | the engine | an agent or the CLI putting a password prompt or a restart in front of the user |
+| The served repository is fetched and checked against the key before it is kept (`apt.sh mirror`) | "APT repository (sign)", both feeds' deploy jobs | a repository altered on Pages being signed again, or deployed again with a feed |
+| The new repository checked with the public key, refused when Pages serves a newer release (`apt.sh verify`, `newer`) | "APT repository (deploy to Pages)" | a repository every copy would refuse; an older release's run taking a newer one back |
+| The [helper](../../packaging/linux/update) takes no argument and nothing from the caller's environment, upgrades only the package `cogpit` from Cogpit's list, and is the polkit action's only program (`org.freedesktop.policykit.exec.path`) | pkexec, the helper | the Update button running anything else as root |
+| On Linux only the window runs `app.checkForUpdates` ([agents and MCP](agents-and-mcp.md)) | the engine ([`updates.go`](../../internal/engine/updates.go)) | an agent or the CLI putting a password prompt or a restart in front of the user |
 
-**What vouches for an update on Linux:** the repository key's signature over the index, made in the
-job "APT repository (sign)", checked by apt on every copy; the hashes in it, over every package.
-**What does not:** the host, as for the appcast: Pages can withhold the repository or serve an
-older signed one, but not make apt install a package the key did not sign
-([H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)). Whether an update installs without
-the user is the user's own setting (unattended-upgrades does not take third-party repositories
-unless the user adds them), never the package's (the owner, 2026-10-20).
+**What does not vouch for an update:** the host, which can withhold the repository or serve an
+older signed one ([H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)). Whether an update
+installs without the user is the user's own setting (unattended-upgrades takes a third-party
+repository only when the user adds it), never the package's.
 
-**Checked 2026-10-20:** in containers of Ubuntu 24.04, Ubuntu 26.04 and Debian 13, apt read the
-package's sources file with its key inline, refused nothing it should accept, and the helper
-upgraded the package from a repository signed with a test key; `hack/linux/apt-test.sh` (CI, every
-push) shows `verify` refusing a tampered package and another key, `mirror` refusing a tampered
-repository and leaving nothing, `sign` refusing a key that is not the packages', and `newer`
-refusing an older repository. Checked the same night with the real key: the repository Pages serves
-since v0.33.0, which `apt update` on Ubuntu 26.04 (apt 3, sqv) accepted and from which apt upgraded
-the owner's workstation from 0.33.0 to 0.34.0. Not checked yet: polkit's dialog in a desktop
-session.
+**Tests:** [`hack/linux/apt-test.sh`](../../hack/linux/apt-test.sh) (CI's job "Linux Package",
+every push): `verify` refuses a tampered package and another key, `mirror` a tampered repository
+(leaving nothing), `sign` a key that is not the packages', `newer` an older repository. No test
+runs polkit's password dialog in a desktop session.
 
 ## Windows
 
-From the first release after the branch `windows-release` is merged
+Cogpit for Windows is an NSIS setup ([`cogpit.nsi`](../../packaging/windows/cogpit.nsi)), and
+WinSparkle, Sparkle's Windows port, updates it from a second Sparkle feed signed with the same
+update key in the same environment `sparkle`
 ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle),
-[releasing › Windows](../developer/releasing.md#windows)) Cogpit for Windows is an NSIS setup, and
-WinSparkle, Sparkle's Windows port, updates it. Its feed is a second Sparkle feed beside the first,
-signed with the same update key in the same environment `sparkle`, without an approval since
-2026-10-22 ([H-141](#h-141-the-update-key-signs-without-an-approval)).
+[releasing › Windows](../developer/releasing.md#windows)).
 
 ```text
-release pipeline ─► Cogpit-<v>-windows-x64-setup.exe (cogpit.exe with the feed URL and the update key's public half,
-                    cogpit-cli.exe, WinSparkle.dll pinned by SHA-256), attached, its line in SHA256SUMS
-   "Windows appcast (draft)" ─► builds only on the feed Pages serves if the key verifies it
-   "Windows appcast (sign)", environment sparkle, no approval ─► sign_update over the setup and the feed
-   "Windows appcast (deploy)" ─► both checked with the public key, refused if Pages serves a newer release
-        ─► https://guided-traffic.github.io/cogpit/appcast-windows.xml (beside appcast.xml and apt/)
+release pipeline ─► Cogpit-<v>-windows-x64-setup.exe (cogpit.exe carrying the feed URL and the update key's
+                    public half, cogpit-cli.exe, WinSparkle.dll pinned by SHA-256), attached, in SHA256SUMS
+   "Windows appcast (draft)" ─► builds only on a served feed the key verifies
+   "Windows appcast (sign)", environment sparkle ─► sign_update over the setup and the feed
+   "Windows appcast (deploy to Pages)" ─► both checked with the public key, refused if Pages serves a newer release
+        ─► https://guided-traffic.github.io/cogpit/appcast-windows.xml
                                    │
-Cogpit (internal/update, winsparkle_windows.go), the setup's cogpit.exe in a release build:
-       ─► reads the feed at every start and every hour, verifies its signature with the key ─► the Update button
-       ─► the click: WinSparkle's window ─► downloads the setup ─► its EdDSA signature with the key
+Cogpit (winsparkle_windows.go), the setup's cogpit.exe in a release build
+       ─► reads the feed at every start and every hour, verifies it with the key ─► the Update button
+       ─► the click installs at once (Help › Check for Updates… asks first, in WinSparkle's window):
+          WinSparkle reads the feed again, unverified ─► downloads the setup ─► its EdDSA signature
        ─► runs it as "/S /relaunch" ─► asks Cogpit to quit ─► the setup waits, installs, starts the new release
 ```
 
 | Check | Where | Prevents |
 |---|---|---|
-| The setup's EdDSA signature with the key built into the app (`win_sparkle_set_eddsa_public_key`) | WinSparkle, before it runs the setup | a setup swapped on GitHub's release, on Pages or in transit running as the user (or as an administrator for an installation for all users) |
-| The feed's signature with the same key | Cogpit, before the Update button shows a release | the button offering a release the key did not sign (a feed altered on or by the host); WinSparkle itself does not check the feed's signature, only the setup's |
-| The feed and the setup checked with the public key before Pages gets them, refused when Pages serves a newer release | "Windows appcast (deploy to Pages)" (`hack/appcast verify`) | a feed every copy would refuse; an older release's run taking a newer one back |
-| WinSparkle.dll loaded by its full path from the app's folder, only in a release build that runs from the folder an uninstall entry names | Cogpit (`load`) | a `WinSparkle.dll` found elsewhere through the DLL search order; a copy outside the setup's folder installing a second Cogpit |
-| `WinSparkle.dll` pinned by the SHA-256 of WinSparkle's release archive | `make winsparkle` (`WINSPARKLE_SHA256`) | another DLL than the reviewed release in a setup ([H-140](#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
+| The setup's EdDSA signature with the key built into the app (`win_sparkle_set_eddsa_public_key`) | WinSparkle, before it runs the setup | a setup swapped on GitHub, on Pages or in transit running as the user (or as an administrator for an installation for all users) |
+| The feed's signature with the same key ([`appcast.go`](../../internal/update/appcast.go)) | Cogpit, before the Update button shows a release | the button offering a release the key did not sign; WinSparkle checks only the setup's signature ([H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)) |
+| The feed and the setup checked with the public key, refused when Pages serves a newer release (`hack/appcast verify -live`) | "Windows appcast (deploy to Pages)" | a feed every copy would refuse; an older release's run taking a newer one back |
+| `WinSparkle.dll` loaded by its full path, only in a release build that runs from the folder an uninstall entry names | Cogpit (`load` in [`winsparkle_windows.go`](../../internal/update/winsparkle_windows.go)) | a `WinSparkle.dll` found elsewhere through the DLL search order; a copy outside the setup's folder installing a second Cogpit |
+| `WinSparkle.dll` pinned by the SHA-256 of WinSparkle's release archive (`WINSPARKLE_SHA256`) | `make winsparkle` | another DLL than the reviewed release in a setup ([H-140](#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
+| Only the window runs `app.installUpdate` ([agents and MCP](agents-and-mcp.md)) | the engine | an agent or the CLI installing a release and restarting Cogpit |
 
-**What vouches for an update on Windows:** the update key's signature over the setup, checked by
-WinSparkle on every copy. **What does not:** Authenticode, until signing material exists
-([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); the host, which can withhold
-the feed or serve an older signed one, as for the macOS feed
-([H-93](#h-93-the-feeds-host-can-withhold-updates)); the first download, which trusts GitHub's HTTPS
-and the release page as on Linux. A per-user installation updates without an administrator; one for
-all users asks UAC for each update, since its setup runs again elevated.
+**What does not vouch for an update:** Authenticode
+([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); the feed WinSparkle acts on
+([H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)); the host, which can withhold
+the feed ([H-93](#h-93-the-feeds-host-can-withhold-updates)). A per-user installation updates
+without an administrator; one for all users asks UAC at each update, since its setup runs again
+elevated.
 
-**Checked 2026-10-21** on the owner's Windows 11: the updater's unit tests (the feed's signature, a
-feed of another key refused, the real WinSparkle 0.9.4's functions), the setup built, installed,
-installed again and uninstalled. Not checked yet: a release through the pipeline and Pages.
+**Tests:** `TestNewestReleaseRefusesAFeedTheKeyDoesNotVerify` (the Update button's feed check),
+`TestWindowsUpdaterLoadsWinSparkle` (the pinned DLL has every function Cogpit calls; CI's "Unit
+Tests (windows)"), and CI's job "Windows Package", which installs the setup, installs it again over
+itself and uninstalls it. No test runs a WinSparkle update end to end.
 
 ## What this does not cover
 
 ### H-97: The feed URL follows the repository's name
 
-Every installed copy keeps the feed URL its `Info.plist` was built with (`SUFeedURL`,
-`SPARKLE_FEED_URL` in the [`Makefile`](../../Makefile)): `https://guided-traffic.github.io/cogpit/appcast.xml`.
-GitHub Pages serves a project site under the repository's name, case-sensitively (checked
-2026-10-15: another spelling of the name answers 404); the repository is `guided-traffic/cogpit`
-(renamed back from `Cogpit` on 2026-10-15, before any build with the update key). Renaming the repository, or moving it to
-another owner, moves the feed: the copies installed before stop finding updates, without an
-error the user sees, and only a manual download brings them back. Dormant until a release built
-with the update key has files to install (the environment `sparkle`, Pages and the key set up
-2026-10-15; every release since v0.11.0 is built with the key: v0.11.0 and v0.12.0 have no files,
-v0.13.0 has its disk image since 2026-10-15 23:52 UTC, v0.14.0 to v0.20.0 theirs since 2026-10-16, the signed feed serves 0.19.0 to 0.15.0 until the owner approves v0.20.0's and v0.21.0's appcasts).
-What bounds it: nothing in the code; the rename is a GitHub setting. A custom domain for Pages, or
-a redirect page at the old path, would keep the URL stable; neither is set up.
+Live. Every copy keeps the URLs it was built with, all under
+`https://guided-traffic.github.io/cogpit/`: `SPARKLE_FEED_URL` and `WINDOWS_FEED_URL` in the
+[`Makefile`](../../Makefile), the APT repository in `cogpit.sources`. Pages serves a project site
+under the repository's name, case-sensitively, so renaming or transferring the repository moves all
+three: macOS and Windows copies stop finding updates without an error the user sees, apt reports a
+missing repository, and only a manual download brings a copy back. A custom domain for Pages (none
+is set) or a redirect page at the old path would keep the URLs.
 
-### H-61: Releases are unsigned
+### H-61: `SHA256SUMS` is not signed
 
-Live since the first release (2026-10-13); narrowed twice on 2026-10-14. v0.4.0 and earlier carry
-no code signature that names Cogpit, and the `cogpit-cli` archives for Linux and Windows of every
-release up to v0.6.0 none at all. Since 2026-10-14 the release pipeline signs the macOS app with
-its `cogpit-cli` and the disk image with the Developer ID and has them notarized
-([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)),
-and a release carries nothing else but `SHA256SUMS` and, since the release after v0.32.0, the
-Linux packages ([D-16](../developer/decisions.md#d-16-the-first-real-release),
-[D-108](../developer/decisions.md#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)); v0.6.0, v0.7.0 and v0.8.0 carry
-that signed, notarized disk image (v0.5.0 and v0.9.0 to v0.12.0 no files; checked 2026-10-15), so
-the unsigned case holds for v0.4.0 and earlier and for the archives up to v0.6.0. What stays live:
-`SHA256SUMS` is not signed, and the unsigned archives of the releases up to v0.6.0 stay on their
-release pages, so whoever can change a release's assets (the GitHub App's key, a maintainer's
-account) can replace one of those archives and its checksum together, and a user has nothing to
-check them against. A swapped macOS download would need the Developer ID key as well. Signing the
-checksums is not designed. The Linux packages carry no signature of their own either (Debian's
-convention): what vouches for an update is the APT repository's signature, which apt checks, and a
-first install trusts the download ([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own)).
-The Windows setup is not signed with Authenticode yet
-([H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)); its updates carry the update
-key's signature.
+Live. Whoever can change a release's assets (the GitHub App's key, a maintainer's account, a
+release job's `contents: write` token) can replace a download and its checksum line together where
+nothing else vouches for it: the Linux packages and the Windows setup at a first install
+([H-136](#h-136-the-first-linux-install-has-no-signature-of-its-own),
+[H-139](#h-139-the-windows-setup-is-not-signed-with-authenticode)), an unsigned build's app zip,
+and the unsigned `cogpit-cli` archives and app zips the earliest releases carry. A swapped
+macOS disk image would need the Developer ID key as well. Not built: signed checksums.
 
 ### H-62: Every push to `main` that passes the gates is released
 
-Live since 2026-10-13. `main` has no branch protection and no required review (checked
-2026-10-13), agents and maintainers push to it directly, and semantic-release releases every
-`fix:` and `feat:` commit once CI is green, so the checks are the only gate between a commit and a
-published release. Since 2026-10-14 that release's macOS downloads are signed with the owner's
-Developer ID and notarized, so a commit that passes the gates ships as code Gatekeeper accepts
-without a warning. The environment `release` admits any tag `v*`: whoever may create a release in
-this repository can also have an arbitrary commit, tagged `v<anything>`, built, signed and
-notarized; the environment has no required reviewer. Renovate's automerged dependency updates are `build(deps):` commits and release
-nothing of their own (owner, 2026-10-13); they ship with the next `feat:` or `fix:`, unreviewed like
-every automerged update.
+Live. `main` has no branch protection and no required review, agents and maintainers push to it
+directly, and semantic-release releases every `feat:`, `fix:` or `perf:` commit once CI is green:
+the gates are the only check before a signed release that Sparkle and WinSparkle offer and apt
+installs. Renovate's automerged updates ship with the next release
+([H-18](#h-18-dependencies)). What bounds the tags: the ruleset "Release tags v*" (id 25618416)
+lets only the semantic-release GitHub App (`guided-traffic-automation`, app id 5070048) create,
+move or delete `v*` tags, and `release` has the administrator bypass off; an emergency tag means an
+administrator switches the ruleset off, which the organisation's audit log records. What remains:
 
-Decided (owner, 2026-10-14 evening): a repository ruleset lets only the semantic-release GitHub App
-(as a bypass actor) and the owner create `v*` tags, and "Allow administrators to bypass" is off on
-the environment `release`. Both are GitHub settings, an outward change made with the owner's
-approval. The ruleset is made 2026-10-22 with the owner's OK: the ruleset "Release tags v*" (id 25618416) restricts creating, moving and deleting `refs/tags/v*`, its only bypass the App (always); a probe tag pushed from the owner's account was refused ("push declined due to repository rule violations"), so the arbitrary-tag case above is closed for everyone
-but the App and an administrator who switches the ruleset off; and the environment `release`'s admin bypass off since 2026-10-22 (with the owner's OK; its tag policy `v*`, five secrets and one variable kept, checked with `gh`).
-Decided further (owner, 2026-10-15 afternoon): the ruleset's only bypass actor is the
-semantic-release GitHub App (`guided-traffic-automation`, app id 5070048, the releases' author);
-nobody creates a `v*` tag by hand, and an emergency tag means an administrator switches the
-ruleset off for the moment, which the organisation's audit log records. Options weighed: the App
-plus a team holding only the owner (a team to keep, for a path nobody uses); the App plus the
-Repository admin role (the bot's token alone could start a signed release). Not verified: whether
-a ruleset accepts a single user as a bypass actor, which is why the owner is not named directly.
-What remains with the ruleset, per case:
-
-- **A commit on `main`.** Branch protection is not part of the decision: a commit that passes the
-  gates is still released and, since semantic-release tags it through the App, built, signed and
-  notarized, as the first paragraph says.
-- **The App's private key.** It is an organisation secret that the Semantic Release job and
-  Renovate use ([keys](#keys-and-who-holds-them)); whoever holds it can create a `v*` tag on any
-  commit, which the ruleset admits as the App's. Live for every holder of the key.
-- **An administrator's account** can switch the ruleset off and then create such a tag: the
-  emergency path the owner decided on 2026-10-15; the organisation's audit log records the switch.
-  Live for every administrator since 2026-10-22.
+- **A commit on `main`:** released, tagged through the App, built, signed and notarized.
+- **The App's private key:** whoever holds it, or a token made from it (Semantic Release's, or
+  Renovate's with all of the App's permissions), can tag any commit `v*`.
+- **An administrator's account:** can switch the ruleset off and then create such a tag.
 
 ### H-15: Update key compromise and rotation
 
-Dormant until a copy built with the key is installed: the key exists since 2026-10-15, and v0.11.0
-to v0.13.0 are built with it, but none of them had passed notarization on 2026-10-15 ~19:00 UTC.
-Whoever holds the update key and can serve the feed (Pages) can offer
-every copy an update Sparkle accepts. Sparkle's documentation says a release may change either the
-Apple code signing certificate or the EdDSA key, but not both, so the key alone lets an update
-carry another team's Developer ID ([rotating signing keys](https://sparkle-project.org/documentation/#rotating-signing-keys);
-not tried). Where it lives is decided (owner, 2026-10-13: an environment secret that CI may use only
-after the owner approved the run; the approval off since 2026-10-22, [H-141](#h-141-the-update-key-signs-without-an-approval)), which leaves a
-workflow on a `v*` tag able to sign whatever it built
-([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)).
-Replacing a leaked key: a release whose app carries the new public key, offered in a feed and a
-disk image still signed with the old one; with `SUVerifyUpdateBeforeExtraction` a change of the
-EdDSA key needs a Developer ID-signed disk image, which Cogpit's is. A lost key: no feed can be
-signed again; after 20 days Sparkle shows the items of an unsigned feed
-([H-91](#h-91-after-20-days-of-unverifiable-feeds-sparkle-presents-items-again)). No second, offline
-rotation key exists.
+Live. Whoever holds the update key and can serve the feeds can offer every copy an update it
+accepts: on Windows the key is the only check, and on macOS a release may change either the Apple
+signing certificate or the EdDSA key, so the key alone lets an update carry another team's
+Developer ID ([Sparkle: rotating signing keys](https://sparkle-project.org/documentation/#rotating-signing-keys);
+not tried). Replacing a leaked key: a release whose app carries the new public key, offered in a
+feed and an update still signed with the old one; on macOS, with `SUVerifyUpdateBeforeExtraction`,
+a change of the EdDSA key needs a Developer ID-signed disk image, which Cogpit's is. A lost key: no
+feed can be signed again, and after 20 days Sparkle shows an unsigned feed's items
+([H-91](#h-91-after-20-days-of-unverifiable-feeds-sparkle-presents-items-again)). No second,
+offline rotation key exists.
 
 ### H-16: Availability of the release host
 
-Updates depend on two GitHub hosts: Pages for the feed (`guided-traffic.github.io`) and the release
-storage for the disk image. If either is unreachable, Cogpit keeps running and offers no update; a
-scheduled check fails silently, Help › Check for Updates… shows Sparkle's error. There is no
-mirror.
+Updates depend on GitHub Pages (both feeds, the APT repository with its packages) and GitHub's
+release storage (the disk image, the setup). If either is unreachable, Cogpit keeps running and
+offers no update: a scheduled check fails silently, Help › Check for Updates… shows Sparkle's or
+WinSparkle's error (on Linux a notification with apt's last line). There is no mirror.
 
 ### H-92: An environment `sparkle` without rules hands the update key to any run
 
-Dormant: since 2026-10-15 the environment `sparkle` holds the secret (since 07:00 UTC), and it has
-its rules: the tag rule `v*` only and no administrator bypass; the owner was its required reviewer
-from 2026-10-15 (checked with `gh` 2026-10-15 ~19:00 UTC) until 2026-10-22, when he had the
-approval removed ([H-141](#h-141-the-update-key-signs-without-an-approval)). It turns live if the rules are removed or loosened while the
-secret is there. GitHub creates an environment the moment a
-workflow run names it, without a reviewer and without a deployment rule; the first release run
-after 2026-10-14 does so ("Appcast (sign)"). Live from the moment the owner stores
-`SPARKLE_ED_PRIVATE_KEY` in it before the reviewer and the tag rule: then any workflow run in this
-repository that names `environment: sparkle`, on any branch (agents and maintainers push to `main`
-and branches directly, [H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), gets the
-key without anyone's approval. Cogpit's own job refuses to sign until it reads exactly the tag
-rule `v*` from the API (until 2026-10-22 also a required reviewer), but a workflow written to take
-the key does not ask.
-The owner's steps put the rules first ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)).
-What stays live with the rules: a run on a tag `v*` does with the key what the workflow at that
-tag says, and since 2026-10-22 no one approves it first ([H-141](#h-141-the-update-key-signs-without-an-approval)); whoever may create such a
-tag (the GitHub App's key, a maintainer) has a run of a changed workflow sign. The feed also signs the release's text as it stood
-when the job ran: whoever can edit it before then (the same actors) has their text and links shown
-in Sparkle's window. Administrators could bypass a reviewer while "Allow administrators to bypass"
-is on (GitHub's default; `sparkle` has no reviewer to bypass since 2026-10-22). Decided (owner, 2026-10-14 evening): the bypass goes
-off on `release`, made 2026-10-22 with the owner's OK ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released));
-the decision names `release`, not `sparkle`; `sparkle` has the bypass off since its set-up on
-2026-10-15 (checked with `gh` that day), and `github-pages` keeps its bypass (the owner, 2026-10-15:
-the feed is signed).
+Dormant: `sparkle` admits tags `v*` only, administrator bypass off. Live if the rules are removed or
+loosened while the secret is there: GitHub creates an environment a workflow names without any
+rule, and then any run naming `environment: sparkle`, on any branch, gets the key. Cogpit's sign
+jobs refuse unless they read exactly the tag rule `v*`; a workflow written to take the key does not
+ask. Live with the rules: a run on a `v*` tag does with the key what the workflow at that tag says
+([H-141](#h-141-the-update-key-signs-without-an-approval)), and the feed signs the release's text
+as the draft job read it, so whoever edits that text first has their text and links in Sparkle's
+window.
 
 ### H-93: The feed's host can withhold updates
 
-Live once a signed feed is on Pages. The signed feed has no expiry, and every feed ever deployed
-is public. Per case: the host serves nothing or an error, and copies stay on their version without
-a notice ([H-16](#h-16-availability-of-the-release-host)); the host serves an older signed feed (a
-freeze), and copies older than its newest item are offered at most that item, a version with flaws
-fixed since, while newer copies see nothing; a downgrade is not possible, since Sparkle offers only
-a `CFBundleVersion` newer than the running one. The pipeline no longer freezes the feed by
-accident: since 2026-10-16 "Appcast (deploy)" refuses a feed that would take back a newer release
-Pages serves (`hack/appcast verify -live`); a workflow that skips the check still can. A newer
-release's feed that lacks an older served item (its draft ran before that item was deployed) is
-deployed with a warning, which freezes nothing: copies are offered the newer release. Dormant
-while every release has the same `LSMinimumSystemVersion` (`MACOS_MIN`): if a release raised it, a
-left-out older item would be the newest a copy on the older macOS may install, and such a copy
-would be offered nothing newer than its own version. The two runs that waited
-for an approval with such a workflow, v0.13.0's and v0.14.0's (their tags predate the check, their
-drafts held their own release alone), were cancelled on 2026-10-16 (the owner's choice), so neither
-can put the feed back. Who can change what Pages serves: a workflow run
-with `pages: write` that the environment `github-pages` admits (by default the default branch, and
-the tag rule the owner adds), so whoever may push a workflow to `main` (H-62). No expiry or
-freshness check is designed.
+Live. The signed feeds have no expiry, and every feed ever deployed is public. The host can serve
+nothing ([H-16](#h-16-availability-of-the-release-host)) or an older signed feed (a freeze): copies
+older than its newest item are offered at most that item, newer copies nothing; a Mac is not
+downgraded, since Sparkle offers only a newer `CFBundleVersion` (Windows:
+[H-new](#h-new-winsparkle-installs-from-a-feed-it-does-not-verify)). The deploy jobs' `hack/appcast
+verify -live` keeps the pipeline from freezing a feed; a workflow that skips it can. Dormant while
+every release has the same `LSMinimumSystemVersion` (`MACOS_MIN`): if one raised it, a left-out
+older item would be the newest a Mac on the older macOS may install. Who can change what Pages
+serves: a run with `pages: write` that the environment `github-pages` admits (`main` and tags `v*`,
+administrator bypass on), so whoever may push a workflow to `main`
+([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)); "Appcast (deploy to Pages)"
+runs on the organisation's self-hosted runners. Not built: an expiry or freshness check.
 
 ### H-91: After 20 days of unverifiable feeds, Sparkle presents items again
 
-Dormant until a signed feed is served (the key exists since 2026-10-15; `appcast.xml` answered 404
-on 2026-10-15 ~19:00 UTC); then live by design. Sparkle's `SUSignedFeedFailureExpirationInterval`
-(default 20 days, Cogpit keeps it) lets a copy that has not validated a feed for that long present
-the items of an unverified feed, without their release notes and links, as a failsafe for a lost
-key ([Sparkle's security settings](https://sparkle-project.org/documentation/customization/#security-settings)).
-Such an item still needs a disk image the update key signed, or, for a change of the key, a
-Developer ID-signed disk image. Per case: an attacker who can serve the feed (H-93) and get a disk
-image signed with this team's Developer ID (any run on a tag `v*` in the environment `release`,
-which has no reviewer, H-62) could, after 20 days of failing feeds, have copies offer an update
-that changes the update key; the copies' logs show the failures, the user still clicks Install.
-Setting the interval to 0 closes this and turns a lost key into one manual download per copy.
-
-Confirmed by the owner (2026-10-14 evening): Sparkle's 20 days stay (the owner declined setting the
-interval to 0). What remains, dormant until the first signed feed is served and live by design
-after: the case above. Since the tag ruleset is made (2026-10-22,
-[H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), the Developer ID-signed disk
-image it needs comes only from a run on a tag the GitHub App created, or one an administrator
-created with the ruleset switched off.
+Accepted. Live by design: Sparkle's `SUSignedFeedFailureExpirationInterval` (default 20 days,
+which Cogpit keeps) lets a copy that has not validated a feed for that long present an unverified
+feed's items, without notes and links, as a failsafe for a lost key
+([Sparkle's security settings](https://sparkle-project.org/documentation/customization/#security-settings)).
+Such an item still needs a disk image the update key signed or, for a change of the key, a
+Developer ID-signed one. An attacker who can serve the feed
+([H-93](#h-93-the-feeds-host-can-withhold-updates)) and get a disk image signed with this team's
+Developer ID (a run on a `v*` tag in `release`, which has no reviewer,
+[H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)) could, after 20 days of failing
+feeds, have copies offer an update that changes the update key; the user still clicks Install.
+Setting the interval to 0 would close this and turn a lost key into one manual download per copy.
 
 ### H-17: Installs owned by a package manager
 
-For Homebrew (and, later, winget, Flathub and Linux repositories) the integrity of an update is
-the package manager's, not Cogpit's. For Linux this is built (2026-10-20,
-[Linux](#linux)): the .deb is apt's, and Cogpit's Update button hands the install to apt through
-the package's helper; Cogpit never writes a file the package owns. Dormant for the rest: no
-Homebrew cask, winget or Flathub package exists (checked 2026-10-20 in the `Makefile`, `packaging/`
-and the workflows).
+Where a package manager installs Cogpit, an update's integrity is the manager's. Built for Linux:
+the .deb is apt's, the Update button hands the install to apt through the package's helper, and
+Cogpit never writes a file the package owns ([Linux](#linux)). Dormant for the rest: no Homebrew
+cask (decided in [D-4](../developer/decisions.md#d-4-packaging-and-updates), not built), winget or
+Flathub package exists.
 
 ### H-135: The APT key signs without an approval
 
-Open, accepted by the owner (2026-10-20: the environment `apt` without a required reviewer, so that
-a release reaches Linux users without waiting for anyone). Like the update key since 2026-10-22, which signed only after the owner approved the run until
-then ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)),
-the APT key signs in every run on a `v*` tag, as the update key does since 2026-10-22 ([H-141](#h-141-the-update-key-signs-without-an-approval)): whoever can create such a tag, or change the workflow
-a tag runs, can publish a package that every Linux copy installs as root with its next upgrade, and
-silently where the user allowed unattended-upgrades for it. What bounds it is what bounds the
-release itself: tags come from the semantic-release GitHub App once the gates pass, and since
-2026-10-22 the tag ruleset makes it the only one, but for an administrator who switches the ruleset
-off ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). A leaked key needs a new key
-and every user's manual install of a new package, since apt trusts only the key in the sources file;
-the revocation certificate the owner keeps withdraws the old one for anyone who imports it, which
-apt does not.
+Accepted, so that a release reaches Linux users without waiting for anyone. `apt` has no required
+reviewer: whoever can create a `v*` tag, or change the workflow a tag runs, can publish a package
+that every Linux copy installs as root with its next upgrade, silently where the user allowed
+unattended-upgrades for it. Bounded as the release is
+([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). A leaked key needs a new key
+and every user's manual install of a new package, since apt trusts only the key in the sources
+file; the revocation certificate withdraws the old key only for whoever imports it, which apt does
+not.
 
 ### H-141: The update key signs without an approval
 
-Open, accepted by the owner (2026-10-22: "Appcast (sign)" and "Windows appcast (sign)" run without a
-manual click; the environment `sparkle`'s required reviewer removed the same day, its tag rule `v*`
-and its administrator bypass off kept, checked with `gh`). Until then the owner's approval of each
-run was the one person's step between a green `main` and an update every macOS and Windows copy
-offers; now the update key signs in every run on a `v*` tag, as the APT key does
-([H-135](#h-135-the-apt-key-signs-without-an-approval)). Whoever can create such a tag, or change
-the workflow a tag runs, can have a disk image and a Windows setup signed and their items put in the
-feeds, which Sparkle's and WinSparkle's windows then offer to every installed copy; the tags come
-from the semantic-release GitHub App once the gates on `main` pass, and agents and maintainers push
-to `main` directly ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)). What the
-approval held back was narrower than it looks: its page named the run and its tag, not what changed
-(H-92). What bounds it now is what bounds the release: the gates, and the tag ruleset that lets only the
-GitHub App create `v*` tags, made the same day with the owner's OK (H-62); so the holders of the
-App's key and an administrator who switches the ruleset off remain. The job's own check keeps the tag rule: an environment
-without it is still refused (H-92).
+Accepted: "Appcast (sign)" and "Windows appcast (sign)" run without a manual click, as the APT key
+does ([H-135](#h-135-the-apt-key-signs-without-an-approval)). Whoever can create a `v*` tag, or
+change the workflow a tag runs, can have a disk image and a setup signed and put in the feeds that
+every copy offers. A required reviewer would see the run and its tag, not what changed. Bounded as
+the release is ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)); the sign jobs
+refuse an environment without its tag rule
+([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)).
 
 ### H-136: The first Linux install has no signature of its own
 
-Open. The .deb a user downloads from the release carries no signature (Debian's convention; apt's
-trust is in the repository's index), and `SHA256SUMS` is not signed
-([H-61](#h-61-releases-are-unsigned)), so the first install trusts GitHub's HTTPS and the release
-page, and the package it installs brings the repository key every later update is checked against.
-A user can compare the key's fingerprint in `/etc/apt/sources.list.d/cogpit.sources` with the one the
-release note and this page name, `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, before the
-first `apt update`; a signed `SHA256SUMS` would cover the download itself.
+Live. The .deb from the release carries no signature (Debian's convention: apt trusts the
+repository's index), and `SHA256SUMS` is unsigned ([H-61](#h-61-sha256sums-is-not-signed)), so a
+first install trusts GitHub's HTTPS and the release page, and the package brings the key every
+later update is checked against. A user can compare the key in
+`/etc/apt/sources.list.d/cogpit.sources` with the fingerprint the release note and this page name,
+`BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, before the first `apt update`. A signed
+`SHA256SUMS` would cover the download itself.
 
 ### H-137: The APT repository's host can withhold updates
 
-Open, as [H-93](#h-93-the-feeds-host-can-withhold-updates) for the appcast. The repository's
-`Release` carries no `Valid-Until`, so apt accepts an old signed index indefinitely: GitHub Pages,
-or someone who controls what it serves, can keep a copy on an older release (a freeze), though not
-make it install a package the key did not sign. A `Valid-Until` would turn a pause between releases
-longer than its period into apt errors on every machine; none was set (the lead's choice,
-2026-10-20). A user who changed `cogpit.sources` keeps its old key through a package update that
-carries a renewed one, and sees apt's error once that key expires (2031-10-19).
+Live, as [H-93](#h-93-the-feeds-host-can-withhold-updates). The repository's `Release` carries no
+`Valid-Until`, so apt accepts an old signed index indefinitely: Pages can keep a copy on an older
+release, not make it install a package the key did not sign. A `Valid-Until` would turn every pause
+between releases longer than its period into apt errors on every machine, so none is set. A user
+who changed `cogpit.sources` keeps its old key through a package update that renews it (a
+conffile) and sees apt's error once that key expires (2031-10-19).
 
 ### H-138: polkit keeps the password for the update helper a few minutes
 
-Open, accepted (the lead's choice, 2026-10-20). The helper's polkit action is `auth_admin_keep`:
-after the user typed the password, any process of the same user may run the helper again without it
-for polkit's keep time (five minutes by default). The helper takes no argument and does nothing but
-refresh Cogpit's list and upgrade the package `cogpit` from the signed repository, so the most such a
-process can do is start that upgrade. `auth_admin` would ask again for each click, also when
-Help › Check for Updates… runs after the Update button.
+Accepted. The helper's polkit action is `auth_admin_keep`
+([policy](../../packaging/linux/io.guided-traffic.cogpit.update.policy)): after the password, any
+process of the same user may run the helper again without it for polkit's keep time (five minutes
+by default). The helper takes no argument and only upgrades the package `cogpit` from the signed
+repository, so the most such a process can do is start that upgrade. `auth_admin` would ask at
+every click, also for Help › Check for Updates… right after the Update button.
 
 ### H-139: The Windows setup is not signed with Authenticode
 
-Open, accepted by the owner for the first Windows releases (2026-10-21,
-[D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)). Neither
-the setup nor `cogpit.exe`, `cogpit-cli.exe` or the uninstaller carries an Authenticode signature,
-so SmartScreen shows "Windows protected your PC" at the downloaded setup's first start (More info,
-then Run anyway), Windows names no publisher in UAC's prompt for `/allusers`, and a company's
-application control (WDAC, AppLocker) that admits signed publishers only refuses Cogpit. A first
-install trusts GitHub's HTTPS and the release page; `SHA256SUMS` is not signed
-([H-61](#h-61-releases-are-unsigned)). Updates are not affected: WinSparkle runs only a setup the
-update key signed. What closes it: signing material, a human's step (Azure Artifact Signing takes
-organisations in the EU, not individuals there; a certificate in a cloud HSM such as Certum's or
-SSL.com's serves an individual), then a signing job of its own in an environment, as Apple's is
-(the secret's row in [releasing › secrets](../developer/releasing.md#secrets)).
+Accepted ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)).
+Neither the setup nor `cogpit.exe`, `cogpit-cli.exe` or the uninstaller carries an Authenticode
+signature: SmartScreen shows "Windows protected your PC" at the downloaded setup's first start
+(More info, then Run anyway), UAC names no publisher for `/allusers`, and application control that
+admits signed publishers only (WDAC, AppLocker) refuses Cogpit. A first install trusts GitHub's
+HTTPS and the release page ([H-61](#h-61-sha256sums-is-not-signed)); updates carry the update
+key's signature. What closes it: signing material (Azure Artifact Signing takes EU organisations,
+not EU individuals; a cloud-HSM certificate such as Certum's or SSL.com's serves an individual) and
+a signing job in an environment of its own, as Apple's
+([releasing › secrets](../developer/releasing.md#secrets)).
 
 ### H-140: WinSparkle.dll is a third-party binary without a signature
 
-Open, accepted (the lead's choice, 2026-10-21). The setup ships the x64 DLL of the WinSparkle release the Makefile pins (`WINSPARKLE_TAG`) as its
-release archive carries it: built by WinSparkle's maintainer, not by Cogpit's pipeline, and without
-an Authenticode signature. It runs inside `cogpit.exe` with the user's rights and decides which
-setup runs as an update. What bounds it: the archive is pinned by its SHA-256 (GitHub's digest of
-the asset, `WINSPARKLE_SHA256`), so a release carries exactly the binary pinned in the
-[`Makefile`](../../Makefile), and a new version comes only through a reviewed change of the pin
-(Renovate proposes it with the new archive's SHA-256, which its github-release-attachments
-datasource hashes from the release's asset, and never merges it; until 2026-10-26 Renovate did not
-see this pin at all, its line matching none of its managers). What it does not bound: that the maintainer's build is
-what its source says. Building WinSparkle from its source in the pipeline (Visual Studio) was
-weighed and left for later.
+Accepted. The setup ships the x64 DLL of the WinSparkle release the [`Makefile`](../../Makefile)
+pins (`WINSPARKLE_TAG`) as its archive carries it: built by WinSparkle's maintainer, not by
+Cogpit's pipeline, without an Authenticode signature. It runs inside `cogpit.exe` with the user's
+rights and decides which setup runs as an update. The archive's SHA-256 is pinned
+(`WINSPARKLE_SHA256`), and a new version comes only through a reviewed change of the pin (Renovate
+proposes it and never merges it); not bounded: that the maintainer's build is what its source says.
+Not built: WinSparkle built from source in the pipeline.
+
+### H-new: WinSparkle installs from a feed it does not verify
+
+Live. WinSparkle checks the EdDSA signature of the setup it downloads, not the feed's: the version
+it compares with the running one, the download's URL and signature, the installer arguments and
+the notes link all come from `appcast-windows.xml` as served. Cogpit verifies the feed only for the
+Update button, which keeps its release when a later read fails to verify; the button's click
+(`win_sparkle_check_update_with_ui_and_install`, which installs without asking) and Help › Check
+for Updates… have WinSparkle read the feed again. Whoever can change what Pages serves
+([H-93](#h-93-the-feeds-host-can-withhold-updates)) can list an older setup the key signed, with
+its genuine signature, under a newer version: WinSparkle runs it, the setup compares no versions,
+and the copy goes back to a release with flaws fixed since. A downgrade check in the setup would not
+close it, since every older signed setup lacks it; an install that acts only on the item Cogpit
+verified (Cogpit downloading and checking the setup itself) would.
 
 ### H-18: Dependencies
 
-The Go modules Cogpit is built from, and the GitHub Actions its pipeline runs, are a supply chain
-of their own. As built: Renovate ([`renovate.yml`](../../.github/workflows/renovate.yml),
-[`.github/renovate.json`](../../.github/renovate.json)) proposes updates, and the minor, patch and
-digest updates of Go modules, the Go version, Actions and the Makefile's tool pins merge on their
-own once CI passes (an Action's major update too), Sparkle's and WinSparkle's never (Renovate
-writes their archives' new SHA-256 itself since 2026-10-26, so the pull request a person reviews
-is Renovate's alone); govulncheck checks every push
-to `main` for known vulnerabilities in code Cogpit reaches, and GoSec scans the shipped code (the
-jobs "Vulnerability Check" and "GoSec Security Scan" in
-[`release.yml`](../../.github/workflows/release.yml)). The policy is written in
-[releasing › Renovate](../developer/releasing.md#renovate). What remains, per case:
+The Go modules, the GitHub Actions and the pinned tools are a supply chain of their own. Renovate
+([`renovate.yml`](../../.github/workflows/renovate.yml),
+[`.github/renovate.json`](../../.github/renovate.json)) merges the minor, patch and digest updates
+of Go modules, the Go version, Actions (their majors too) and the Makefile's tool pins on its own
+once CI passes, Sparkle's, WinSparkle's and dmgbuild's never
+([releasing › Renovate](../developer/releasing.md#renovate)); govulncheck and GoSec run on every
+push to `main` and every pull request ("Vulnerability Check", "GoSec Security Scan" in
+[`release.yml`](../../.github/workflows/release.yml)). What remains, per case:
 
-- **An automerged update is reviewed by nobody.** A module's minor or patch release that passes
-  CI ships in the next `feat:` or `fix:` release, signed and notarized
-  ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), and an Action's runs in the
-  next workflow run. Live for every update Renovate merges on its own.
-- **Actions are named by a version tag, not by a commit** (`actions/checkout@v7`,
-  `actions/download-artifact@v8`, `actions/upload-artifact@v7`), also in the jobs that hold the
-  Developer ID certificate and the API key (environment `release`) and the update key (environment
-  `sparkle`) in [`build.yml`](../../.github/workflows/build.yml): whoever can move such a tag in its
-  repository runs code in those jobs. Live for every release run.
-- **The disk image's window is made by code from PyPI** (since 2026-10-16,
-  [D-70](../developer/decisions.md#d-70-the-disk-images-window)): dmgbuild and its two
-  dependencies, pinned by version and hash ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt),
-  never merged by Renovate on its own), run in the app's job "Cogpit.app (macOS arm64)", which
-  holds no secret, and make a template without the app. The signing job runs none of it: it checks
-  that the template is a writable image of the volume "Cogpit <version>" holding exactly
-  `.DS_Store`, `.background.tiff`, `.VolumeIcon.icns` and the link to `/Applications`, then copies
-  the signed app in with Apple's tools. What the check does not cover: the bytes of those three
-  files, which Finder reads on every Mac that opens the disk image (a crafted `.DS_Store`, TIFF or
-  icon from a compromised release of these packages, or of the app job's own dependencies, would
-  reach users inside a signed, notarized image). Live for every release built since this change.
-- **What Renovate cannot see:** sigstore's trusted root, refreshed by hand
-  ([trust boundaries › H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
-  the terminal widget's copy in `third_party/`, which moves to a new upstream commit by hand
-  ([PATCHES.md](../../third_party/fyne-terminal/PATCHES.md)), and, since 2026-10-16, the envtest
-  binaries (etcd and kube-apiserver of Kubernetes 1.37.0), pinned in the `Makefile` by version
-  and SHA-512 and moved by hand ([D-64](../developer/decisions.md#d-64-envtest-a-real-api-server-in-ci-without-docker)).
-  They run only in tests, never ship: a changed archive fails `make envtest-bin`; the archive the
-  pin names runs in CI's envtest job, which holds no secret beyond the read-only `GITHUB_TOKEN`.
-- **A release names no inputs.** It carries no SBOM and no provenance attestation of the build
-  (none in the workflows, checked 2026-10-15).
-- **The Kubernetes release table** (since 2026-10-18, [D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)):
-  data, not code, which Renovate cannot see either; each release fetches it at build time
+- **An automerged update is reviewed by nobody:** it ships signed in the next release
+  ([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)), an Action's in the next run.
+- **Actions are named by a version tag, not a commit** (`actions/checkout@v7`,
+  `actions/download-artifact@v8`, `actions/upload-artifact@v7`), also in the jobs of
+  [`build.yml`](../../.github/workflows/build.yml) that hold the Developer ID material, the update
+  key and the APT key: whoever can move such a tag runs code in those jobs.
+- **The disk image's window is made by code from PyPI**
+  ([D-70](../developer/decisions.md#d-70-the-disk-images-window)): dmgbuild and its two
+  dependencies, pinned by version and hash
+  ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt)), run in the app's
+  job, which holds no secret; the signing job checks only the template's file list
+  ([releasing › the disk image's window](../developer/releasing.md#the-disk-images-window)). Not
+  covered: the bytes of its `.DS_Store`, `.background.tiff` and `.VolumeIcon.icns`, which Finder
+  reads on every Mac that opens the image; a crafted one would ship signed and notarized.
+- **What Renovate cannot see,** each moved by hand: sigstore's trusted root (`make sigstore-root`,
+  [H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
+  the terminal widget's copy in `third_party/`
+  ([PATCHES.md](../../third_party/fyne-terminal/PATCHES.md)), and the envtest binaries of
+  Kubernetes 1.37.0, pinned by SHA-512 in the `Makefile`
+  ([D-64](../developer/decisions.md#d-64-envtest-a-real-api-server-in-ci-without-docker); CI only,
+  never shipped); and the Kubernetes release table
   ([H-130](#h-130-the-releases-kubernetes-release-table-is-fetched-unreviewed)).
+- **A release names no inputs:** no SBOM, no provenance attestation of the build.
 
 ### H-130: The release's Kubernetes release table is fetched unreviewed
 
-The window marks a cluster's Kubernetes version and its kubelets by upstream's end-of-life dates
-from a table built into both binaries ([releasing › the Kubernetes release table](../developer/releasing.md#the-kubernetes-release-table)).
-The owner decided (2026-10-18) that it is fetched at build time so that every release carries the
-table of its day, and never at run time: the app makes no connection for it. The release job
-"Cogpit.app (macOS arm64)" downloads `kubernetes/website`'s `data/releases/schedule.yaml` and
-`eol.yaml` from `raw.githubusercontent.com` over HTTPS, unpinned (they change about monthly; no
-hash can name next month's file, and upstream signs neither), and builds what it gets into the
-signed, notarized release, without a person reading the diff first. Live for every release built
-since this change.
-
-- **Who can change what ships:** whoever can change the two files on `kubernetes/website`'s
-  `main` (the Kubernetes project's reviewers and its schedule-builder automation), and whoever can
-  alter what GitHub's raw host serves to the job.
-- **What a changed file can do:** shift dates, nothing else. The files are parsed into a fixed
-  structure of strings in a job that holds no secret, written as JSON and embedded; Cogpit reads
-  them as dates. A ⚠ can show too early, or a minor past its end of life can show as supported,
-  which may delay a user's upgrade. The generator's checks bound it: every date parses, the minors
-  follow one another without a gap and end in their order, each 12 to 18 months after its release,
-  and against the committed table no minor is lost and no known minor's end of life moves by more
-  than 120 days; anything else keeps the committed table. Within those bounds a false date ships.
-- **What remains visible:** the step's log lists every minor that changed against the committed
-  table, so a release's table can be reviewed after the fact; a build of the tag carries the
-  committed table, and the release's binaries record `vcs.modified=true` when the two differ.
-- **Not built:** a second source to compare with (endoflife.date was weighed and left out, a third
-  party with a quality record of its own, [D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)),
-  a person's approval of the table's diff before a release.
-
-Accepted by the owner (2026-10-19 afternoon, asked as one question: "lassen"): the table stays
-fetched as built (option (a)), an accepted risk that this entry keeps documented. Showing the
-table's diff in the release notes, so that it is reviewed after the fact (option (c)), is not wanted
-for now.
+Accepted. Both binaries embed upstream's end-of-life dates, by which the window marks a cluster's
+and its kubelets' versions
+([D-91](../developer/decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)); the app
+makes no connection for them. Each platform's build job of a release fetches
+`kubernetes/website`'s `data/releases/schedule.yaml` and `eol.yaml` from `raw.githubusercontent.com`
+over HTTPS, unpinned (no hash can name next month's file, upstream signs neither), and builds them
+in without a person reading the diff. Whoever can change those files on `kubernetes/website`'s
+`main`, or what GitHub's raw host serves the job, can shift dates, nothing else: the generator
+([`hack/k8seol`](../../hack/k8seol/main.go)) keeps the committed table unless the new one is
+plausible against it (no minor lost, no end of life moved by more than 120 days;
+[releasing › the Kubernetes release table](../developer/releasing.md#the-kubernetes-release-table)).
+Within those bounds a false date ships: a ⚠ too early, or a minor past its end of life shown as
+supported. The step's log lists every changed minor, and the binaries record `vcs.modified=true`
+when the table differs from the committed one. Not built: a second source to compare with (D-91
+rejects endoflife.date, a third-party mirror), a person's approval of the diff, or the diff in the
+release notes.

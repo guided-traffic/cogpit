@@ -1,133 +1,137 @@
 # File access on the user's computer
 
-What Cogpit reads and writes of the user's own files outside its own folders, how it gets macOS's
-permission for the places macOS's privacy settings protect (the Desktop, Documents and Downloads
-folders, iCloud Drive, removable and network volumes), and the bookmarks that carry that
-permission into later runs ([D-72](../developer/decisions.md#d-72-native-file-panels-and-macos-folder-access),
-built 2026-10-16 night). Cogpit is not sandboxed: macOS's Files and Folders privacy (TCC) is the
-one check between Cogpit and these places; everywhere else the user's file permissions decide.
+What Cogpit reads and writes of the user's own files outside its own folders
+([usage › Naming conventions](../developer/usage.md#naming-conventions)), how macOS grants it the
+places its privacy settings protect (the Desktop, Documents and Downloads folders, iCloud Drive,
+removable and network volumes), and the bookmarks that keep that grant
+([D-72](../developer/decisions.md#d-72-native-file-panels-and-macos-folder-access)). Cogpit is not
+sandboxed (signed without entitlements, `check_signature` in
+[`release.sh`](../../hack/macos/release.sh)): macOS's Files and Folders privacy (TCC) is the one
+check before these places; elsewhere the user's file permissions decide.
 
 ## What Cogpit reads and writes of the user's files
 
-| Item | What Cogpit does with it | How it is chosen | Access kept for later runs |
-|---|---|---|---|
-| Kubeconfig sources: files and sync folders | Read at start, a sync folder's files again every 2 s, a file when a cluster connects; never written ([trust boundaries](trust-boundaries.md), [credentials](credentials.md)) | `~/.kube` from the start (removable); `--kubeconfig` or `$KUBECONFIG` for the run; the rest in Sync Files and Folders, on macOS the system's open panel ([`filepicker_choosers.go`](../../internal/ui/fyneui/filepicker_choosers.go)) | A picked file or folder: a read-only security-scoped bookmark, kept while it is a source; none for `~/.kube` (not protected) and the run's files (in a protected folder macOS asks once) |
-| Files a kubeconfig names: client certificates, token files, a credential plugin's program | Read when the cluster connects; a plugin's program hashed for its approval and run on connect (H-1, D-17). Since 2026-10-17 a `client-certificate` file also whenever the contexts are listed, for its two dates ([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists)): not when it lies in a protected place, or a link on the way leads into one (then read right after client-go read it to connect, and remembered for the run), and never its key file ([`cluster/clientcert.go`](../../internal/cluster/clientcert.go), `TestProtectedClientCertificateIsReadAtConnect`, `TestListingNeverOpensTheKey`) | By the kubeconfig, never in a panel | None: in a protected folder macOS asks Cogpit once |
-| A chat connection's CA file | Read for the connection's test and its turns ([trust boundaries › H-104](trust-boundaries.md#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier)) | Preferences › Agent › Choose…, the system's open panel (or typed) | A picked file: a read-only bookmark |
-| A cluster's icon | Read once (at most 1 MiB), checked and copied into `<user config dir>/Cogpit/cluster-icons/` as the icon's source (at most 1,024 pixels a side) and the square icon cut from it; the window draws the copies; the Custom icon's dialog reads the file once more to show it before anything is kept ([trust boundaries](trust-boundaries.md#boundaries-and-required-checks), D-119) | Choose Image… in the Custom icon's dialog, the system's open panel | None: the copies are Cogpit's own |
-| A cluster's terminal working directory | A local shell is started there; the shell and what the user runs in it reach whatever the user does | Cluster Settings › Terminal, the system's folder panel (or typed) | A picked folder: a read-write bookmark |
-| The folder for kubectl's binaries | Downloaded releases written there and run in terminals (D-3) | Preferences › Kubernetes, the system's folder panel (or typed) | A picked folder: a read-write bookmark |
-| A saved table, manifest or log | Written once, to the file the user named ([credentials](credentials.md#where-credentials-must-never-end-up) for what a save refuses) | The system's save panel, which asks before replacing a file | None. A new file is created owner-only (0600) |
-| Helm's `repositories.yaml` | Read every 2 seconds, never written ([architecture §8](../developer/architecture.md#8-helm-internalhelm)) | Helm's own location (`~/Library/Preferences/helm` on macOS) or `$HELM_*` | None needed outside the protected places |
-| Cogpit's own files | `<user config dir>/Cogpit` and `<user cache dir>/Cogpit`, owner-only ([usage › Naming conventions](../developer/usage.md#naming-conventions)) | — | — (not protected) |
+On macOS every chooser is the system's panel
+([`filepicker_choosers.go`](../../internal/ui/fyneui/filepicker_choosers.go); which one sits where:
+[usage › Choosing files](../developer/usage.md#choosing-files-the-systems-panels)).
 
-Where the system has no panel (Windows and Linux until M11, Fyne's test driver) each chooser shows
-Fyne's dialog, and Sync Files and Folders Cogpit's own browser, which lists only the folders the
-user opens. Fyne's file dialog reads the user's Desktop, Documents, Downloads, Music, Pictures and
-Videos folders for its sidebar each time it opens (`fyne.io/fyne/v2/dialog/file.go`,
-`loadFavorites`): on macOS that raised up to three privacy prompts before the user chose anything,
-which is why no Fyne file dialog opens on macOS since D-72. Windows and Linux have no such prompts.
+| Item | What Cogpit does with it | Access kept for later runs |
+|---|---|---|
+| Kubeconfig sources: files and sync folders | Checked every 2 s for changes (size, modification time, a sync folder's listing); read when the contexts are listed and at connect; never written ([trust boundaries](trust-boundaries.md)) | Picked in Sync Files and Folders: a read-only security-scoped bookmark while it is a source. `~/.kube` (a source from the start, not protected) and the run's `--kubeconfig` or `$KUBECONFIG` files: none |
+| Files a kubeconfig names: certificates, keys, token files, a credential plugin's program | Read by client-go at connect; a plugin runs once approved (H-1, D-17). Hashed for that approval at every listing and connect: a program or CA file in the kubeconfig's folder (D-26, [`pluginfiles.go`](../../internal/cluster/pluginfiles.go)). A `client-certificate` file is also read at every listing for its dates (H-119), its key only by client-go | None; in a protected folder macOS asks once |
+| A chat connection's CA file | Read (at most 1 MiB) for every turn, connection test and models list ([trust boundaries › H-104](trust-boundaries.md#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier)) | Picked: a read-only bookmark |
+| A cluster's icon | Read when the Custom icon's dialog shows it and when it is kept; checked and copied, with the square cut from it, into `<user config dir>/Cogpit/cluster-icons/`; only the copies are drawn ([trust boundaries](trust-boundaries.md#boundaries-and-required-checks), D-119) | None |
+| A cluster's terminal working directory | A local shell starts there and reaches whatever the user can | Picked: a read-write bookmark |
+| The folder for kubectl's binaries | Downloaded releases written there, run in terminals (D-3) | Picked: a read-write bookmark |
+| Program folders | Searched for credential plugins' programs and on the `PATH` of every program Cogpit starts, after `PATH` and Cogpit's own folders; one every user may write to is refused (D-120, [`programfolders.go`](../../internal/engine/programfolders.go)) | Picked: a read-only bookmark |
+| A saved table, manifest, log, diagnostics report or revision text | Written once to the file named in the save panel, which asks before replacing it ([credentials](credentials.md#where-credentials-must-never-end-up): what a save refuses) | None. A new file is 0600 through the system's panel (`createPicked`), the umask's mode through Fyne's dialog |
+| Helm's `repositories.yaml` (`~/Library/Preferences/helm` on macOS, or `$HELM_*`) | Checked every 2 s, read when changed, never written; an entry's CA file, certificate and key read at each download ([architecture §8](../developer/architecture.md#8-helm-internalhelm)) | None needed outside the protected places |
 
-Only the user picks: adding a kubeconfig source, uploading an icon and the saves are the window's
-own actions, the kubectl folder is refused for agents (`ErrKubectlGUIOnly`), and no panel opens
-for an agent ([agents and MCP](agents-and-mcp.md)). A cluster's terminal working directory is a
-setting agents can set too (`cluster.settings.set`, a path typed, no panel, no bookmark); a
-terminal started there runs as one the user started.
+Where no system panel can show (on Windows and Linux, whose panels are not built, D-72, and under
+Fyne's test driver) each chooser is Fyne's dialog, which reads the user's standard folders for its
+sidebar whenever it opens (`loadFavorites` in Fyne's `dialog/file.go`; on macOS that would
+prompt), and Sync Files and Folders is Cogpit's own browser
+([`syncpicker.go`](../../internal/ui/fyneui/syncpicker.go)). Only the user picks: no panel opens
+for an agent, adding a source, an icon or a program folder and setting the kubectl folder
+(`ErrKubectlGUIOnly`) are GUI-only, and a chat connection and the saves exist only in the window
+([agents and MCP](agents-and-mcp.md)). Agents can set a cluster's terminal working directory
+(`cluster.settings.set`: a typed path, no bookmark); a terminal started there runs as one the user
+started.
 
 ## How macOS grants access
 
-Documented by Apple, not tried on a real Mac in the run that built it (D-72 lists the sources and
-the walk steps that check it):
+From Apple's documentation, unless marked observed:
 
-- **A pick in the system's panel is granted without a prompt.** Since macOS 10.15 the open and save
-  panels run in a separate process, sandboxed app or not, and the chosen item is granted to the app
-  ("user intent"). Browsing the panel lists folders outside Cogpit's process and costs no prompt.
-  macOS records the grant on the item (the `com.apple.macl` extended attribute, which SIP
-  protects); how long it lasts is not documented and is reported differently (until a restart of
-  the Mac; until `tccutil reset`). It does not cover iCloud Drive (Howard Oakley, 2026).
-- **Anything else in a protected place asks once.** The prompt names Cogpit and says why with the
-  bundle's usage descriptions (`NSDesktopFolderUsageDescription`, `NSDocumentsFolderUsageDescription`,
-  `NSDownloadsFolderUsageDescription`, `NSRemovableVolumesUsageDescription`,
-  `NSNetworkVolumesUsageDescription`, written by `make app`). macOS keeps the answer for the app's
-  code signing identity: the release (Developer ID) is asked once, a build of `make app` or
-  `make build` (ad hoc) after every build again. The answer is shown and changed in System
-  Settings › Privacy & Security › Files and Folders, or reset with `tccutil reset
-  SystemPolicyDocumentsFolder io.guided-traffic.cogpit` # example.
-- **A security-scoped bookmark** of a pick is made while the panel's grant is fresh, kept, and
-  resolved at the next start before anything reads a source, its item accessed for the process's
-  life ([`internal/ui/nativedialog`](../../internal/ui/nativedialog/), [`cmd/cogpit/fileaccess.go`](../../cmd/cogpit/fileaccess.go)).
-  Apple documents these bookmarks for sandboxed apps; Apple DTS names them among what the
-  user-intent check considers. Whether macOS honours them for an app without a sandbox is not
-  documented. **Observed 2026-10-19** (the owner's walk, the v0.26.1 release): with Cogpit's
-  Downloads grant reset (`tccutil reset SystemPolicyDownloadsFolder io.guided-traffic.cogpit`), a
-  source picked in Downloads earlier was read at the next start of Cogpit without a prompt, and no
-  grant was recorded afterwards; a log saved to the Desktop through the save panel without a grant
-  for the Desktop raised none either. Whether the bookmark or the item's own grant from the pick
-  (`com.apple.macl`, above) carried it is not told apart, and a restart of the Mac was not tried
-  (D-72). Verified: Cogpit's process makes, resolves and starts accessing them
-  (`TestBookmarkHarness`, `TestBookmarkRoundTrip`).
+- **A pick in the system's panel needs no prompt.** The panels run outside the app's process and
+  grant it the chosen item ("user intent": [NSOpenPanel][nsopenpanel], [WWDC 2019][tsai]);
+  browsing them costs none. The grant is recorded in the item's SIP-protected `com.apple.macl`
+  attribute ([Apple DTS][dts-intent]); its lifetime is undocumented (reported: until a restart, or
+  until `tccutil reset`). iCloud Drive and File Provider storage are not covered: they ask whatever
+  was picked ([Oakley][oakley]).
+- **Anything else in a protected place asks once**, naming Cogpit and the reason `make app` writes
+  into `NSDesktopFolderUsageDescription`, `NSDocumentsFolderUsageDescription`,
+  `NSDownloadsFolderUsageDescription`, `NSRemovableVolumesUsageDescription` and
+  `NSNetworkVolumesUsageDescription` (`TCC_WHAT` in the [`Makefile`](../../Makefile)). The answer
+  is kept per code signing identity ([Apple DTS][dts-perms]): once for the release (Developer ID),
+  again after every ad hoc `make app` build. It shows in System Settings › Privacy & Security ›
+  Files and Folders; reset:
+  `tccutil reset SystemPolicyDocumentsFolder io.guided-traffic.cogpit` # example.
+- **Security-scoped bookmarks** of the picks Cogpit reads again are made while the grant is fresh
+  and resolved at the next start, without UI or mounting, before any source is read; their items
+  stay accessed for the process's life ([`nativedialog`](../../internal/ui/nativedialog/),
+  [`fileaccess.go`](../../cmd/cogpit/fileaccess.go)). Apple documents them for sandboxed apps
+  ([`withSecurityScope`][scope]); outside the sandbox their effect is undocumented. Verified:
+  Cogpit makes, resolves and accesses them (`TestBookmarkHarness`, `TestBookmarkRoundTrip`).
+  **Observed** on a Mac with a release: with the Downloads grant reset
+  (`tccutil reset SystemPolicyDownloadsFolder io.guided-traffic.cogpit`), a source picked in
+  Downloads was read at the next start without a prompt or a new grant; a log saved to the Desktop
+  through the save panel raised none. Bookmark or `com.apple.macl`: not told apart; across a
+  restart of the Mac: not tried.
+
+[nsopenpanel]: https://developer.apple.com/documentation/appkit/nsopenpanel
+[tsai]: https://mjtsai.com/blog/2019/12/18/persistent-file-access-via-com-apple-macl-xattr
+[dts-intent]: https://developer.apple.com/forums/thread/750962
+[dts-perms]: https://developer.apple.com/forums/thread/678819
+[oakley]: https://eclecticlight.co/2026/04/21/the-macl-extended-attribute/
+[scope]: https://developer.apple.com/documentation/foundation/nsurl/bookmarkcreationoptions/withsecurityscope
 
 ## The bookmarks file
 
-`<user config dir>/Cogpit/bookmarks.json`, macOS only in practice (no other build makes a
-bookmark), owner-only: 0600 in a 0700 directory, written whole and atomically through
-`engine.WritePrivateFile`, never through a symlink, read through `engine.ReadPrivateJSON` (a
-regular file of at most 4 MiB) ([`store.go`](../../internal/ui/nativedialog/store.go),
-`TestStoreKeep`, `TestStoreUnreadable`). Each entry holds the item's path, its use (`kubeconfig`,
-`folder`, `caFile`), its access (read-only or read-write) and the bookmark's data. It holds no
-credential, but it names where the user keeps kubeconfigs and CA files. A bookmark resolves with
-its scope only for the app and user that made it (Apple's App Sandbox design guide for
-app-scoped bookmarks; not verified here outside the sandbox), so a copied or edited file grants
-another program nothing it did not have; Cogpit resolves only what its own window put there, and
-an entry someone else wrote is at worst an item Cogpit starts accessing without reading it. Bounds:
-a kubeconfig source's bookmark goes with the source at the next start; of the folders and the CA
-files the newest 16 each stay; a bookmark that does not resolve (an item gone, a volume not
-mounted) stays within those bounds. An unreadable file is replaced by the next pick. Removing the
-file removes the kept access; the next pick makes it again.
+`<user config dir>/Cogpit/bookmarks.json` ([`store.go`](../../internal/ui/nativedialog/store.go)),
+written on macOS only, holds per pick its path, use (`kubeconfig`, `folder`, `caFile`), access,
+bookmark data and time: no credential, but where kubeconfigs, folders and CA files are. It is 0600
+in a 0700 directory, written whole and atomically by `engine.WritePrivateFile`, never through a
+symlink, and read by `engine.ReadPrivateJSON`, a regular file of at most 4 MiB (`TestStoreKeep`,
+`TestStoreUnreadable`). A bookmark's scope resolves only for the app and user that made it (Apple's
+App Sandbox design guide; not verified outside the sandbox): a copied or edited file grants another
+program nothing it did not have, and an entry someone else wrote is at worst an item Cogpit starts
+accessing without reading it.
+
+- **Bounds:** a kubeconfig bookmark goes at the next start once its path is no source (at most
+  256); of the folders (terminal, kubectl and program folders together) and the CA files the newest
+  16 each stay, unresolvable ones (an item gone, a volume not mounted) included (`TestStoreBounds`,
+  `TestKeptSource`).
+- **Loss and revoking:** an unreadable file is replaced by the next pick; removing it removes the
+  kept access. A pick's grant may not show in Privacy & Security ([Oakley][oakley]): revoking it
+  takes `tccutil reset` and removing `bookmarks.json`.
 
 ## What this does not cover
 
+The Local Network privacy prompt for clusters on the local network is not file access.
+
 ### H-116: Programs Cogpit starts act with Cogpit's folder access
 
-A local terminal's shell, the programs the user runs in it, a credential plugin and the kubectl
-Cogpit offers are processes Cogpit starts, and macOS treats Cogpit as the app responsible for them
-(Apple DTS, "On File System Permissions": the prompt and the decision belong to the responsible
-app). Live today, for every terminal and every credential plugin: once the user has allowed Cogpit
-a protected folder (a prompt answered OK, a source picked there), such a program reads that folder
-without asking, and a prompt a program raises names Cogpit and Cogpit's reason, not the program.
-A credential plugin is run only after the user approved it (H-1), and a terminal runs what the user
-types, as Terminal.app's shells do under Terminal's grants; what is not checked is that a program
-uses only the folder the user meant. Documented, not verified on a real Mac.
+A terminal's shell and what the user runs in it, a credential plugin and the kubectl Cogpit runs
+and offers are Cogpit's child processes, and macOS makes Cogpit their responsible app ([Apple
+DTS][dts-perms]). Live today, for every terminal and credential plugin: once Cogpit is allowed a
+protected folder (a prompt answered, a source picked there), such a program reads it unasked, and
+a prompt it raises names Cogpit and Cogpit's reason. A plugin runs only once approved (H-1), a
+terminal what the user types, as Terminal.app's shells do under its grants; nothing checks that a
+program keeps to the folder the user meant. Documented, not verified on a real Mac.
 
 ### H-119: A client certificate file is read while the contexts are listed
 
-Since 2026-10-17 ([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists))
-Cogpit opens a context's `client-certificate` file whenever it lists the contexts (at start, when
-a kubeconfig changes, when the section shows), before the user connects, to show how long the
-certificate is valid. It keeps the leaf certificate's two dates and nothing else; the key file is
-never opened. What remains, per case:
+At every listing of the contexts (at start, after a kubeconfig changed, when the navigator's
+cluster list shows), before any connect, Cogpit opens each `client-certificate` file and keeps the
+first certificate's two dates, never opening the key
+([D-75](../developer/decisions.md#d-75-a-client-certificates-validity-in-the-cluster-lists),
+`fillClientCerts` in [`clientcert.go`](../../internal/cluster/clientcert.go),
+`TestListingNeverOpensTheKey`). A file in a protected place waits until client-go read it to
+connect, then is remembered for the run (`TestProtectedClientCertificateIsReadAtConnect`). Open:
 
-- **A protected place the list does not know.** Cogpit skips a file in the Desktop, Documents and
-  Downloads folders, iCloud Drive, `~/Library/CloudStorage`, `~/Library/Containers`,
-  `~/Library/Group Containers` and `/Volumes`, and one a link leads into them, checking each
-  component before it looks at it. A place macOS protects that is not in that list (a network
-  share mounted elsewhere than `/Volumes`, a folder a later macOS adds) is read at listing and can
-  raise a prompt there that names Cogpit before the user chose to connect. Dormant unless a
-  kubeconfig names a certificate in such a place; the list is Cogpit's reading of Apple's
-  documentation, not verified on a real Mac, nor is whether looking at a path's metadata inside a
-  protected folder prompts at all (the walk avoids it either way).
-- **A file that does not answer.** A certificate on a network mount that hangs holds the listing
-  (off the window's goroutine; the section says "Reading the kubeconfigs…") as a kubeconfig on
-  such a mount would. Dormant unless a kubeconfig names one.
-- **Any file the user can read.** A kubeconfig dropped into a sync folder can name any file as its
-  `client-certificate` ([trust boundaries › H-24](trust-boundaries.md#h-24-a-dropped-kubeconfig-can-send-a-local-file-as-its-token)):
-  Cogpit opens it at listing (regular files of at most 256 KiB only, never a FIFO or a device) and
-  parses it as PEM; nothing of it is kept but a CERTIFICATE block's two dates, and a file that is no
-  certificate gives a debug log line naming its path and a fixed problem, never its content. Live
-  for every listed context whose user names a certificate file.
-
-Also outside this page: the files a kubeconfig names in a protected folder (a certificate, a token
-file) are not picked in a panel and ask once; iCloud Drive asks whatever the user picked; macOS's
-Privacy & Security settings may not list an access granted by a pick (Oakley, 2026), so revoking it
-takes `tccutil reset` and removing `bookmarks.json`; the Local Network privacy prompt for clusters on
-the local network is not file access.
+- **A protected place the list misses** (dormant unless a kubeconfig names a certificate there).
+  Skipped are the Desktop, Documents and Downloads folders, `~/Library/Mobile Documents` (iCloud
+  Drive), `~/Library/CloudStorage`, `~/Library/Containers`, `~/Library/Group Containers` and
+  `/Volumes`, links into them included, each path component checked before it is looked at
+  (`protectedPlace`, `TestProtectedPlaces`). A certificate in another protected place (a share
+  mounted outside `/Volumes`, a folder a later macOS protects) can prompt at listing, naming
+  Cogpit. The list follows Apple's documentation, not verified on a real Mac; whether a metadata
+  look inside a protected folder prompts is unknown (the component check avoids one).
+- **A hanging mount** (dormant unless a kubeconfig names a file there): a certificate on it holds
+  the listing, off the window's goroutine, as a kubeconfig there would.
+- **Any file the user can read** (live for every context naming a certificate file): a kubeconfig
+  dropped into a sync folder can name any file
+  ([trust boundaries › H-24](trust-boundaries.md#h-24-a-dropped-kubeconfig-can-send-a-local-file-as-its-token)).
+  The listing opens it (a regular file of at most 256 KiB, never a FIFO or device), keeps only a
+  CERTIFICATE block's dates, and logs a file that is none at debug level with its path and a fixed
+  problem, never its content (`TestUnreadableClientCertificateFile`).

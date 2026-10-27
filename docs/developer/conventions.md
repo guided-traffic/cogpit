@@ -89,7 +89,7 @@ New user-visible behaviour is an engine command with tests; the UI and MCP call 
 [`extending.md`](extending.md#adding-a-command).
 
 The exceptions are GUI-only on purpose, so that no agent can reach them: the status bar's link to
-the owner's page and its MCP switch ([D-23](decisions.md#d-23-a-link-to-the-owner-in-the-status-bar)),
+the owner's page and its MCP switch ([D-23](decisions.md#d-23-the-status-bars-owner-link-and-mcp-switch)),
 selecting and copying text (the drawer's values, the lists' cells, a log tab's lines, a toast's
 text: [D-25](decisions.md#d-25-copying-values), [D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)),
 and the MCP details with Regenerate token
@@ -144,7 +144,7 @@ holds on every platform CI runs ([testing › Asynchronous results](testing.md#a
 - Every dropdown is a `selectField` (`newSelectField`, [`selectfield.go`](../../internal/ui/fyneui/selectfield.go)),
   never Fyne's `widget.NewSelect`: it opens over its field with the current entry checked at the
   field's place, as a macOS pop-up button
-  ([D-104](decisions.md#d-104-dialog-fields-their-hints-and-dropdowns-the-gate-walks-gw2-gw5-gw6)).
+  ([D-104](decisions.md#d-104-dialog-fields-hints-dropdowns-and-button-outlines)).
 
 ### Dialogs, reviews and status lines
 

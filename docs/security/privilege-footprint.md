@@ -1,657 +1,527 @@
 # Privilege footprint
 
-What Cogpit does inside a cluster with the user's identity, verb by verb, and what each action
-changes. Cogpit installs no cluster-side component for its own features ([below](#nothing-installed-for-cogpits-own-features),
-owner 2026-10-16) and holds no identity of its own: every request
-is made with the credentials of the kubeconfig context the user opened, so Cogpit can never do
-more than `kubectl` and `helm` with the same context could. Commands from agents use the same verbs
-under the confirmation rules of [agents and MCP](agents-and-mcp.md). The table is the contract the
-command registry's `verbs` field must match
-([architecture §4.2](../developer/architecture.md#42-the-command-registry)). Implemented on
-2026-10-11, in [`internal/engine/commands`](../../internal/engine/commands/): Connect (discovery,
-the watch on custom resource definitions, access reviews), list views (Secrets in full since
-2026-10-12, Helm releases from their Secrets, and since 2026-10-13 from their ConfigMaps too), Logs (a pod's and a workload's), Pod shell, Attach,
-Port forward, Edit and apply, Create, Delete (every kind; a selection since 2026-10-13), Restart (Deployment, Daemon Set,
-Stateful Set), Scale (Deployment, Stateful Set, Replica Set), Cordon, Uncordon, Drain, Trigger,
-Suspend and Resume (Cron Job), Evict, a Secret's drawer, Helm rollback and uninstall, Helm
-upgrade (2026-10-12), Helm install (2026-10-13), the Flux actions and the Flux dashboard's reads
-(2026-10-13: `list` and `watch` on each Flux kind the cluster serves while the dashboard is open,
-as a view of the kind would), and the create dialogs of Namespaces, Service Accounts, the four RBAC kinds
-and Resource Quotas (2026-10-12) and Secrets (2026-10-13, the user's only), the node shell
-(2026-10-13, [below](#node-shell)), Argo CD's Refresh, Sync and Open UI (2026-10-13), Restart on a
-selection (2026-10-14), the logs of an application, an Argo CD Application or a Flux Kustomization
-in one tab and a Config Map's values saved in the drawer (2026-10-15), a Terminating namespace's
-Blocking Deletion list and Remove finalizers (2026-10-19, [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)),
-a pod's debug container (2026-10-19, [below](#debug-container)). The rows below say which.
-Reading Helm's chart repositories, updating their indexes and listing their charts (2026-10-13) sends no request to a cluster either:
-it reads Helm's own `repositories.yaml`, which the helm CLI writes and Cogpit never does, and
-downloads the indexes from those repositories with the credentials the file names (D-29,
-[architecture §8](../developer/architecture.md#8-helm-internalhelm)). Adding and syncing kubeconfigs
-(2026-10-12) sends no request to a cluster; what they let run on the user's computer is in
-[credentials](credentials.md) and [trust boundaries](trust-boundaries.md#h-1-kubeconfig-files-added-by-sync-folders).
-The Preferences and Cluster settings (2026-10-13: `preferences.*`, `cluster.settings.*`) send no
-request either and write only Cogpit's own `preferences.json`, `cluster-settings.json` and
-`cluster-icons/`, never a kubeconfig (`TestClusterSettingsCommandsNeverTouchTheKubeconfig`); a
-cluster's terminal namespace is written into the terminal's own kubeconfig as the filter's
-namespace already was ([credentials](credentials.md#the-terminals-kubeconfig)). The program folders
-(2026-10-24: `preferences.addProgramFolder`, GUI-only, and `preferences.removeProgramFolder`,
-[D-120](../developer/decisions.md#d-120-credential-plugins-found-in-more-folders)) send no request
-either: they change only where Cogpit's own `PATH` looks for the programs a credential plugin runs,
-appended after its folders; what that lets run on the user's computer is in
-[credentials › H-6](credentials.md#h-6-exec-plugins-inherit-the-environment). Disconnect and
-Remove from Cogpit (2026-10-13: `cluster.disconnect`, `cluster.remove`) send no request either:
-Disconnect stops the connection's informers, port forwards, logs and shells, and
-Remove takes out Cogpit's link to a kubeconfig file the user added, never editing or deleting the
-file (`TestDisconnectAndWelcomeCommands`, `TestClusterRemove`); since 2026-10-17 evening it also
-forgets the cluster settings of the contexts that leave, the agents' write allowance among them, so
-a cluster added again starts with none (`TestRemovingASourceForgetsItsClustersSettings`). **Several clusters connected**
-(since 2026-10-16, [D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once) stage 1):
-switching to another cluster no longer ends a connection. A cluster the window left keeps sending
-what a connection sends on its own (the checks below, about 4 requests a minute; the watch of its
-custom resource definitions; its access reviews when they are refreshed; its port forwards, logs and
-shells), and its views' watches stay open for the cache's warm period (5 minutes) and then close;
-showing it again within that time sends nothing, afterwards the views list again
-(`TestSwitchingClustersOnARealStack`). It stays connected until `cluster.disconnect {context}` or
-quitting. Every command runs with the identity of the cluster it acts on (its reference's context,
-its dock tab's or its `context` parameter), never of the cluster the window happens to show.
-The notification list (2026-10-13: `notifications.*`) is the session's memory of its toasts: it
-sends no request and writes no file.
-
-The owner's decision round of 2026-10-14 evening changes what asks and what is sent for several
-rows below (RBAC kinds and Helm from agents, `cluster.setPrometheus`, the Flux confirmations, Argo
-CD's sync windows, the interrupted Helm install, Prometheus' node history) and confirms the node
-shell's bounds; each change is marked in its row or gap, beside what was built before it, and each
-was built in the night run of 2026-10-14 (checked against the code on 2026-10-15).
-
-Verbs and subresources follow Kubernetes RBAC
+What Cogpit sends to a cluster, verb by verb, and what each action changes; the tables are the
+contract the `verbs` of the commands in [`internal/engine/commands`](../../internal/engine/commands/)
+must match ([architecture §4.2](../developer/architecture.md#42-the-command-registry)). Cogpit holds
+no identity of its own and installs nothing for its own features
+([below](#nothing-installed-for-cogpits-own-features)): it acts with the credentials of the
+kubeconfig context a command acts on, so it can do no more than `kubectl` and `helm` with that
+context, and agents use the same verbs under the rules of [agents and MCP](agents-and-mcp.md).
+Verbs and subresources are Kubernetes RBAC's
 ([RBAC](https://kubernetes.io/docs/reference/access-authn-authz/rbac/),
-[request verbs](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#determine-the-request-verb)).
-The actions are Lens's (see [resource parity](../parity/resource-parity.md)).
+[request verbs](https://kubernetes.io/docs/reference/access-authn-authz/authorization/#determine-the-request-verb));
+the actions are Lens's ([resource parity](../parity/resource-parity.md)).
 
 ## On connect and while browsing
 
 | Action | Requests | Notes |
 |---|---|---|
-| Connect (`cluster.connect`, and `hotbar.openCluster` from a hotbar tile or F1–F12; the other `hotbar.*` commands send no request; since 2026-10-16 also at start, without a click, for every cluster of the last session while Preferences › App › Restore the last session is on, the shown one first and the others in the background with the same requests but their views' lists, D-69 item 8; since 2026-10-19 a connect the user started goes on when another cluster is shown, with the same requests, until it ends or the user cancels it, D-97) | `get` on the discovery endpoints; `create selfsubjectrulesreviews` (one per namespace: the context's default namespace at connect, the namespace filter's on every change, the cluster's accessible namespaces at connect and on every change (2026-10-13), and, when the user may list namespaces, up to 32 of the namespaces the cache lists) and `create selfsubjectaccessreviews` (where the rules cannot answer: cluster-scoped kinds named only by a RoleBinding's rules, incomplete rules, wildcards; and once for "may the user list namespaces"); with that answer yes, a `list` and `watch` on `namespaces` for the life of the connection, shared with the namespace filter (which since 2026-10-22, while the shown cluster's filter names namespaces, the engine holds as well to see a namespace come, go or begin terminating, AW11, [`nswatch.go`](../../internal/engine/nswatch.go): the same watch, never for a user the access reviews do not let list namespaces) | The default `system:basic-user` and `system:discovery` roles grant the reviews to every authenticated user. Built 2026-10-11 ([`access.go`](../../internal/cluster/access.go), [`accessreviews.go`](../../internal/engine/accessreviews.go)): reviews have a budget of their own (10 per second, burst 20) so that they never delay a view's list; the server stores nothing; the answers live in memory per connection until `cluster.refreshAccess` or the next connect, with no time-to-live and no polling; after a review fails, no more are sent until a refresh; the answers are bounded at 512 namespaces and 2,048 questions, past which the answer is unknown and the API server decides (`TestBudgetAccessReviews`, `TestKindAccessReviews`, `TestAccessReviewsAreBounded`) |
-| Reconnect (`cluster.reconnect`, since 2026-10-17, [D-81](../developer/decisions.md#d-81-reconnect-and-what-log-in-again-does); Log in again of a context without a credential plugin or whose login in the file changed; and, without a click, a connection whose login the API server rejects once its kubeconfig file holds another and its context runs no plugin) | the requests of a connect (above) on a new connection, then the open views' lists and watches again; the old connection's watches end; a port forward that listened dials again (`create pods/portforward`) | It writes nothing. The forwards' dials are those of a forward after a lost connection; a shell, attach or node shell is not opened again (`dock.reconnect`, a write, asks as it always does). Refused while a job (a drain) or a Helm action runs on the cluster. One reconnect at a time per cluster; the file's new login is tried once per version of the file |
-| Who the user is (no command: at every connect of a real cluster, and after every reconnect, an interruption's or Log in again's; built 2026-10-16, [D-68](../developer/decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `create selfsubjectreviews` (`authentication.k8s.io/v1`; on an API server without it, 404, once more on `v1beta1`, Kubernetes 1.27): one request at a connect, two on a 1.27 API server; bounded by 5 s at the connect, which waits for it | The review stores nothing: the API server answers with the user it authenticated the request as, `kubectl auth whoami`'s question. The default RBAC allows it to every authenticated user: the `system:basic-user` ClusterRole, bound to `system:authenticated`, grants `create` on `selfsubjectreviews` (verified in k8s.io/kubernetes v1.37.1's bootstrap policy, `plugin/pkg/auth/authorizer/rbac/bootstrappolicy/policy.go`; since which release the role carries the rule is per KEP-3325, not verified here). The answer carries the username, the groups, the UID and extra fields (which can hold a ServiceAccount token's credential id or an identity provider's claims): package `cluster` keeps the username and the groups and drops the rest ([`whoami.go`](../../internal/cluster/whoami.go)). A 404, a 403 or a failure never fails the connect: the window shows the kubeconfig's user entry's name, marked "(kubeconfig)", and the connect log says why (`TestReviewUserAsksTheAPIServer`, `TestReviewUserFallsBackToV1beta1`, `TestReviewUserFallsBackToTheKubeconfigUser`, `TestConnectLearnsTheUser`; on kind `TestKindWhoAmI`: one review per connect). Only the username the API server confirmed is kept, per context, in Cogpit's `cluster-users.json` (owner-only), never the groups |
-| The connection's checks (no command: while a real cluster is connected, each connected cluster its own whether the window shows it or not (D-69), built 2026-10-15/16, [D-58](../developer/decisions.md#d-58-standby-and-lost-connections); `cluster.login` renews the login; `cluster.reconnect` connects anew, below) | `get` on `/version` with the user's credentials every 15 s, and at once on a wake, a network change or a watch that broke (5 s to answer; a second 2 s after one that failed); while the connection is interrupted one `get` on `/version` **without credentials** per attempt (after 1, 2, 4, 8, 16, then every 30 s), and once the server answers one with them; while the login is expired nothing until the user logs in; while the login of a cluster not shown lapsed (its setting "Renew the login while the cluster is not shown" off, D-69 item 4) nothing until it is shown or the user logs in again | `/version` is discovery, open to every authenticated user (`system:discovery`) and usually to anonymous requests; the anonymous probe sends no credential and counts a 401 or 403 as an answer, so it never runs a credential plugin. About 4 requests a minute per connected cluster that a view did not cause (`TestStandbyFrozenControlPlane`, `TestStandbyRevokedLogin`). While interrupted or with an expired login, Cogpit sends nothing else: the informers' lists and watches wait at a gate and go out when the cluster answers again, every other request is refused before it is sent, every mutating and destructive command is disabled for every origin ("connection interrupted", "login expired: log in again first"), and a drain or a Helm action that was running stops and stays in its journal ([`cluster/health.go`](../../internal/cluster/health.go), [`engine/connwatch.go`](../../internal/engine/connwatch.go)) |
-| Custom resource kinds | `list` once, then `watch` on `customresourcedefinitions.apiextensions.k8s.io` (cluster-scoped), for as long as the context is connected | Built: the kinds of established definitions become views and follow the definitions live ([`customkinds.go`](../../internal/engine/customkinds.go)). A user without these verbs gets no custom resource views and no error; since 2026-10-13 the refused list ends the watch until `cluster.refreshAccess` or the next connect (one refused streaming watch and its fallback list), where before the informer retried with client-go's backoff for as long as the context was connected (measured on kind: 10 refused requests in 20 s; `TestCustomKindsStopAfterARefusal`, `TestKindNamespaceLimitedUser`). The objects carry their full schemas, which Cogpit holds in memory |
-| Open a list view | `list` once, then `watch` on the kind, cluster-wide or per accessible namespace | One watch per kind and scope, shared by every view and agent query; it stays open for the warm period after the last consumer (default five minutes), then closes ([architecture §5](../developer/architecture.md#5-cache)). A user who may not list namespaces names them in cluster settings (Lens: "Accessible Namespaces"; built 2026-10-13, Cluster Settings › Namespaces, `cluster.settings.set`'s `accessibleNamespaces`). **Per-namespace watches** (built 2026-10-13, G3): when the access reviews say the user may not list a namespaced kind in all namespaces, the view sends no cluster-wide `list` or `watch` and reads the kind with one `list` (or streaming `watch`) and one `watch` per named namespace (the accessible namespaces and the namespace filter's, else the context's namespace), skipping a namespace whose rules deny it; until the context's rules review answers, the view sends nothing, and since 2026-10-13 neither do the drawer and the menus' checks (before, they read in all namespaces then). Deciding it costs no request for a user who names no accessible namespaces; one who does may cost one `create selfsubjectaccessreviews` per kind ("list it in all namespaces") when the rules reviews cannot tell (`TestBudgetAccessibleNamespaces`, budget P15). Where the rules allow the kind in the context's namespace and no accessible namespace is named, the first read of the kind tries the cluster-wide read once (a streaming `watch`, and the plain `list` client-go falls back to after a refusal), and a 403 switches every reader of the kind to namespaces (the context's, or a target's own) until the access reviews are refreshed; since 2026-10-13 that holds whoever sent the read (a view, a page, the drawer, a related-objects index, a logs tab, a port forward, an agent's read: `cache.Cache.OnRefused`), where before only a view's refusal counted and the others retried the refused watch while open or failed after 15 s (`TestTargetReadsFollowARefusedClusterWideList`). For such a user one object's drawer, `object_get` and `cogpit-cli get` read the object's namespace alone, its events there and a namespaced object's related objects there, shared with the view's informer of that namespace (since 2026-10-13; before, the named namespaces, which can miss the object's: `TestDetailWaitReadsTheObjectsNamespace`). A scope the server refuses with 403 is no longer retried during the warm period: it stops when its last consumer leaves (`TestRefusedScopeIsNotKeptWarm`). The accessible namespaces only narrow what Cogpit reads; they grant nothing, and the API server still decides every request. Decided (owner, 2026-10-14 evening, A98) and built the same night: the Overviews wait for the access reviews as the dashboards do, so a namespace-limited user's Overview sends no cluster-wide read the server refuses; before, they read in all namespaces first and started again when the plan changed ([`overview.go`](../../internal/engine/overview.go), [`clusteroverview.go`](../../internal/engine/clusteroverview.go): nothing while a plan is pending; `TestPagesFollowTheAccessReviews`) |
-| A Terminating namespace's drawer, Blocking Deletion (no command of its own: the drawer while it shows a namespace being deleted, and `object.get` of one; 2026-10-19, [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)) | `list` once, then `watch`, **metadata only** (`PartialObjectMetadata`), of each kind the namespace's `NamespaceContentRemaining` condition names, **in that namespace only**, while the drawer shows it and the condition names the kind; `create selfsubjectrulesreviews` in that namespace when it was not reviewed yet; while `NamespaceDeletionDiscoveryFailure` is True, `list` and `watch` on `apiservices.apiregistration.k8s.io` (cluster-scoped, whole) | Read only. The kinds come from the namespace's own object, which anyone who may read the namespace reads (the controller names kinds and counts, never objects). A kind the namespace's rules review denies is not read at all: its row counts the objects from the condition; one the review cannot tell is read, and a 403 ends that read for as long as the drawer shows the namespace. Metadata only: no Secret value and no custom resource's spec crosses the wire for the list, and no cluster-wide list starts (`TestBudgetTerminatingNamespaceBlockers`: one metadata-only streaming list of the Config Maps in the namespace, none for the Secrets the rules deny, nothing more while it stays open). The API services are read only when the reviews do not deny listing them. The reads go back when the drawer closes, warm for the cache's five minutes as every read |
-| Secrets list | `list`, `watch` on `secrets` in full, values included; no `get` | Built (2026-10-12, [D-13](../developer/decisions.md#d-13-cache) revised to option a, replacing the metadata-only scope of 2026-10-11): one full list or watchlist and its watch events for every Secret of every namespace while the scope runs (the Secrets view, a Secret's drawer, or an agent's read of kind `secrets`), plus the warm period; the Keys (names) and Type columns are filled as in Lens; a drawer and a reveal send nothing (`TestBudgetSecretScopes`, `TestBudgetSecretsViewAndDrawer`, `TestKindSecretScopes`, `TestKindSecretsView`). The cache still drops the `kubectl.kubernetes.io/last-applied-configuration` annotation of every Secret before the store, because it repeats the values in plain text (`TestSecretsLoseTheLastAppliedAnnotation`, `TestSecretDrawerRedactsTheLastAppliedAnnotation`). `resources.find` without a kind does not start this watch (`TestBudgetFindWithoutKindStartsNoReleaseWatch`). RBAC's `list secrets` now actually transfers every value ([H-8](#h-8-secret-data-arrives-with-the-list)) |
-| Helm releases | `list`, `watch` on `secrets` with label `owner=helm`, or nothing while the full Secrets watch runs; since 2026-10-13 also `list`, `watch` on `configmaps` with label `owner=helm` (Helm's ConfigMaps driver, `HELM_DRIVER=configmap`) on a cluster that serves ConfigMaps, or nothing while the full Config Maps watch runs (`TestBudgetHelmReleasesWithConfigMaps`: one initial list of each, nothing else); a user who may list only one of the two sees that one's releases; since 2026-10-13 a user who may not list Secrets (ConfigMaps) in all namespaces has each read in the namespaces the Secrets' (ConfigMaps') plan reads, one `list`, `watch` per namespace, never in all namespaces once the access reviews said no (`TestHelmReleasesOfANamespaceLimitedUser`) | Helm keeps releases in Secrets by default ([Helm storage backends](https://helm.sh/docs/topics/advanced/#storage-backends)); RBAC cannot narrow `list secrets` by label, so seeing releases needs the right to read every Secret in that namespace. Built (2026-10-11): the label-selected watch keeps exactly these Secrets in full in the cache while the Releases view, a release's drawer or a search across kinds uses them, plus the warm period; their payloads are decoded with a bounded memo that forgets everything 5 minutes after the last read ([`releases.go`](../../internal/helm/releases.go), `TestDeriveMemoForgetsWhenIdle`); a search across kinds does not start this watch (`TestBudgetFindWithoutKindStartsNoReleaseWatch`). Since 2026-10-12 the label-selected scope is served from the full Secrets watch while that one runs, with no second request, and never keeps it alive: when the full watch's warm period ends while releases are open, the `owner=helm` watch starts and the full one stops once it has caught up, at most a minute later ([architecture §5](../developer/architecture.md#scopes-local-and-virtual-kinds), `TestBudgetSecretsAndReleasesShareOneWatch`, `TestCoverExpiryHandsOverToOwnInformer`). The release ConfigMaps (2026-10-13) are held and decoded the same way; RBAC cannot narrow `list configmaps` by label either, and every ConfigMap a user may list holds no more than the Config Maps view shows already; their payloads are kept from agents as release Secrets' values are ([H-8](#h-8-secret-data-arrives-with-the-list)) |
-| A cluster's integrations before the user chose them (no command: a cluster without a choice of integrations, 2026-10-17 evening, [D-82](../developer/decisions.md#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again)) | **none**: no discovery request for `metrics.k8s.io`, no `list` of `pods.metrics.k8s.io` or `nodes.metrics.k8s.io`, no `get` on `services/proxy` for a Prometheus or an Alertmanager, no `list` or `watch` of `vulnerabilityreports` or `policyreports` | Built: in the window's session (the one that keeps cluster settings) every integration of a cluster the user made no choice for is off, so none of the rows below sends anything for it: before the question's pre-choice is answered, while it is put off with Later, and while the cluster is connected in the background. Check all looks at once for what the default for new clusters keeps on, Choose for each row as it is ticked, with the requests of the rows below; Don't use and Back look for nothing. The connect's own requests (above) are unchanged. Not so in `cogpit-cli`'s session, which keeps no cluster settings and reads the default ([H-120](agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)), and on the demo cluster, which sends nothing anyway. Only the user answers the question and switches an integration on, in the window, since 2026-10-19, and off since 2026-10-24: an agent's step, tick, answer, Ask again, or switch either way is refused ([H-126](agents-and-mcp.md#h-126-an-agent-can-answer-the-integrations-question-for-the-user) and [H-133](agents-and-mcp.md#h-133-an-agent-can-switch-an-integration-off-and-so-hide-alerts-or-policy-marks), closed; `TestIntegrationsOnAreTheUsers`) (`TestIntegrationsQuestionSteps`: no metrics detection with a Pods view open before the pre-choice; `TestIntegrationsOffUntilAnswered`; `TestKindIntegrationsQuestion`: no metrics provider on before the pre-choice, on kind) |
-| Kyverno's policy reports (the Kyverno integration while it is on for the cluster, as Check all turns it on, D-82; 2026-10-17, [D-79](../developer/decisions.md#d-79-kyvernos-policy-violations-on-the-objects)) | `list`, `watch` on `policyreports.wgpolicyk8s.io` (all namespaces, or in each namespace the user named for a user who may not list them everywhere, as a view reads a kind) and on `clusterpolicyreports.wgpolicyk8s.io`, for as long as the cluster is connected and the integration on; nothing while it is off, or while the cluster serves neither kind (the custom kinds' watch, or API discovery for a user who may not list the definitions, says so) | Built ([`kyverno.go`](../../internal/engine/kyverno.go)): one watch per kind, trimmed in the cache to the reports' fail and warn results (another engine's reports keep none); Kyverno's policies themselves are not read. Agents' `kyverno.violations` reads what these watches hold and sends no request. A refused list is a state the settings show ("may not list …"), and a refusal in all namespaces is followed namespace by namespace as for every kind. Only reads: Cogpit never writes a report or a policy, and installs nothing (the kind cluster's Kyverno is a test setup, `make kind-kyverno`) |
-| Argo CD (2026-10-13, G23) | `list`, `watch` on `applications`, `applicationsets` and `appprojects` of `argoproj.io` while their views, the dashboard, a drawer or an agent's read use them; for Settings › Repositories and Clusters `list`, `watch` on `secrets` with the label selector `argocd.argoproj.io/secret-type in (repo-creds,repository)` or `=cluster`, or nothing while the full Secrets watch runs | The kinds come and go with Argo CD's definitions (the custom kinds watch above); the settings views only while `applications.argoproj.io` is served. The labelled Secrets arrive in full, values included, as every Secret watch's do ([H-8](#h-8-secret-data-arrives-with-the-list)); Cogpit shows an allowlist of their keys ([D-35](../developer/decisions.md#d-35-what-argo-cds-repository-and-cluster-secrets-show), [H-66](credentials.md#h-66-argo-cds-credentials-are-in-cogpits-memory-while-its-settings-are-read)). RBAC cannot narrow `list secrets` by label |
-| Metrics (metrics-server) | `get` on the discovery endpoint `/apis/metrics.k8s.io/v1beta1`; `list` on `pods.metrics.k8s.io` (all namespaces, or since 2026-10-13 in each namespace the Pods view reads pods in for a user who may not list pods everywhere, [D-39](../developer/decisions.md#d-39-pod-metrics-for-a-user-who-may-list-pods-in-some-namespaces-only)) and `nodes.metrics.k8s.io`; `get` on one `pods.metrics.k8s.io` or `nodes.metrics.k8s.io` object | Built 2026-10-12 ([`internal/metrics`](../../internal/metrics/), [architecture §9](../developer/architecture.md#9-metrics-internalmetrics)). Metrics cannot be watched, so they are polled, and only while a view or a drawer that shows them is open: a Pods or Nodes list every 60 s (one `list`), a pod's or node's drawer every 15 s (one `get`), and since 2026-10-13 a node's drawer while it shows its Pods table every 60 s (the Pods list's `list` of `pods.metrics.k8s.io`, in all namespaces or per namespace as above, shared with it when both are open; [architecture §9](../developer/architecture.md#9-metrics-internalmetrics)); with nothing of that open Cogpit sends nothing, discovery included (but for the one discovery request when Cluster Settings › Integrations or the window's question about a new cluster's integrations shows the cluster and nothing looked yet, since 2026-10-17, [D-76](../developer/decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)), and since 2026-10-13 nothing either for what a cluster's settings hide (Cluster Settings › Metrics: a list, drawer or Overview whose metrics are all hidden polls nothing, `TestHiddenMetricsAreNotPolled`). The group is detected with one discovery request, kept for 10 minutes (2 minutes while the API is missing). Agents' `metrics.get` reads a fresh result or sends one `list` or `get`, and starts no poll. The Metrics API is read-only and aggregated: a user without `list` on `pods.metrics.k8s.io` sees empty columns and the state "forbidden", not an error (`TestErrorsAreStates`); since 2026-10-13 a user who may list pods in some namespaces only is asked for those namespaces' metrics, one `list` each per poll, never for all namespaces, which RBAC refuses them, and the view's poll starts only once its pods have listed, so a read refused in all namespaces costs no metrics request (`TestBudgetNamespaceLimitedUser`: 1 `list pods.metrics.k8s.io in team-a`, 0 in all namespaces; a cluster-admin 1 in all namespaces, as before); RBAC on the Metrics API is separate from RBAC on `pods`, so a user who may list pods may still be refused their usage: since 2026-10-14 (D-39, owner) such a refusal affects only its namespace: its pods' cells stay empty with the state "forbidden" for that namespace (`metrics.get` names it in `forbidden`), the other namespaces keep their values, the Metrics Server's status is not touched and Prometheus is not asked in its place (`TestBudgetNamespaceLimitedUser`: 1 refused `list pods.metrics.k8s.io in team-b`, kept for the TTL, no read of `services`). Request counts: [testing P12](../developer/testing.md#performance-budgets-proposed-not-measured) |
-| Metrics (Prometheus through the API server) | `get` on `services/proxy` of **the one Service detection found** (`GET /api/v1/namespaces/<ns>/services/<name>:<port>/proxy/api/v1/status/buildinfo`, `…/query`, `…/query_range`; since 2026-10-16 `…/services/https:<name>:<port>/proxy/…` with Cluster Settings › Prometheus › Use HTTPS (Metrics until 2026-10-18), the same verb, the TLS connection the API server's); up to 3 candidate Services probed with `…/status/buildinfo` while looking, each with its port spelled by its number and, when that is refused, by its name (since 2026-10-18, [D-96](../developer/decisions.md#d-96-the-service-proxys-port-spelled-by-its-number-first): a role granting `services/proxy` by `resourceNames` matches `<name>:<port>` as written, as the roles written for Lens name `prometheus-operated:9090`), so up to 6 probes, and a refusal no longer ends the search: each refused spelling is a 403 in the cluster's audit log, again at every new detection while nothing is granted; `list` and `watch` on `services` (cluster-wide, or since 2026-10-13 in each namespace the user named for a user who may not list Services everywhere) through the cache while looking, which happens when a pod's or node's drawer opens, or for a Pods or Nodes view only while the Metrics Server fails or is missing (since 2026-10-12, G12 fourth slice), and since 2026-10-14 while the Nodes view shows its Disk column ([D-43](../developer/decisions.md#d-43-where-the-nodes-disk-comes-from)), and since 2026-10-17 once when Cluster Settings › Integrations or the window's question about a new cluster's integrations shows the cluster and nothing looked for it yet ([D-76](../developer/decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect); a look the request timeout cut short not again before 2 minutes) | Built 2026-10-12 ([`internal/metrics`](../../internal/metrics/), [architecture §9](../developer/architecture.md#9-metrics-internalmetrics)). Only `GET`, never `create`. **Not limited by namespace:** RBAC decides whether the user may use the service's proxy at all, not which namespaces' series Prometheus hands back; where Prometheus stands in for the Metrics Server for a user who may list pods in some namespaces only, Cogpit asks it for those namespaces (the namespace is part of the query), but nothing on the server narrows the answer ([D-39](../developer/decisions.md#d-39-pod-metrics-for-a-user-who-may-list-pods-in-some-namespaces-only)). **Candidates are found by name among the cached Services** (kube-prometheus-stack's, `prometheus-k8s`, `prometheus-operated`, `prometheus-server`, `prometheus`, and since the night of 2026-10-16/17 Thanos's Querier and query frontend and VictoriaMetrics' `vmsingle-…` and `vmselect-…`, the last probed under `/select/0/prometheus`: [D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus)) and nothing else is ever probed; the user can name the service instead (since 2026-10-12: `cluster.setPrometheus`; since the night of 2026-10-16/17 the service address on Cluster Settings › Metrics, which the drawer's metrics status line links to, before a dialog), which probes that service alone and is kept in Cogpit's preferences per context (`metrics.json`, owner-only), never in the kubeconfig; its address is checked to be a namespace, a service, a port and a path prefix without `.` or `..` segments, so it can only name a path on that service behind the proxy. Agents may set it too (Cogpit's default; it writes no cluster object); decided (owner, 2026-10-14 evening, A16) and built the same night: an agent's `cluster.setPrometheus` is a write the user confirms, whatever the allowance of agent writes, the window's as before ([H-26](#h-26-prometheus-is-found-by-name); `TestAgentSetPrometheusAsks`). Queries run only while a drawer that shows metrics is open, and the Metrics Server is asked first for everything it has (since 2026-10-12, G12 fourth slice): a drawer costs 2 range queries when it opens and when a chart's range changes (CPU and memory: the history), then none while only CPU or Memory is shown; 2 per step (30 s for the default hour) while a chart shows the network and 1 to 3 while one shows the filesystem; 2 per step for the live values while the Metrics Server fails or is missing; a Pods or Nodes list 2 per 60 s only while the Metrics Server fails or is missing; since 2026-10-14 the Nodes list's Disk column 1 instant query per 60 s while it shows (node-exporter's `node_filesystem_size_bytes` and `node_filesystem_avail_bytes` of the mountpoint `/`, every node in one answer), a node's drawer the same poll, shared; the cluster Overview its history (4 range queries, 2 without control-plane nodes) and since 2026-10-14 the Pods chart's history from kube-state-metrics (`kube_pod_info`, `kube_pod_status_phase`: 2 range queries, 1 without control-plane nodes) once when it opens and per range change; with nothing open Cogpit sends nothing. The pod counts are not limited by namespace either: they count every namespace's pods on the nodes, as the cache's Pods chart does for a user who may list pods everywhere; for a user who may not, the history counts pods the cache does not show them (the numbers only, never a name). Since 2026-10-14 Cluster Settings › Metrics › Metrics source can turn Prometheus, the Metrics Server or both off for a cluster: an off provider gets no request at all, detection included. Since 2026-10-17 these are the two metrics integrations' switches (Cluster Settings › Integrations, [D-76](../developer/decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)), which only the user switches, on and off (H-126, [H-133](agents-and-mcp.md#h-133-an-agent-can-switch-an-integration-off-and-so-hide-alerts-or-policy-marks)); where Prometheus is read from when it is not found by name stays the user's (A16). **Never `nodes/proxy`:** the disk is not read from the kubelet's summary API (`/api/v1/nodes/<node>/proxy/stats/summary`), which every cluster has: `get nodes/proxy` reaches the kubelet's whole API, running commands in the node's pods included, a grant Cogpit must not need for a column; without Prometheus and node-exporter the column stays empty and says why ([D-43](../developer/decisions.md#d-43-where-the-nodes-disk-comes-from)). A failure is shown and handed to agents as the API server's own Status message or a class (`unavailable (HTTP 503)`), never as the proxied service's response body, which client-go would otherwise quote in its errors (`TestErrorClassesCarryNoBodies`). Query text carries pod, namespace and node names, quoted (`FuzzQuoteLabel`); no credential is part of a query or a log line. `services/proxy` lets the caller send any HTTP request to that service, but Cogpit sends only these read-only Prometheus API paths, and the API server's service proxy is the only door: a user who may not use it sees the state "forbidden" (`TestDetectForbiddenIsAStateAndStopsProbing`) and the Metrics Server takes over if there is one. The service proxy also reaches whatever the Service points at: if the name is a lookalike (a `prometheus-server` in a namespace the user can create Services in), the queries, which contain pod names, go to it ([H-26](#h-26-prometheus-is-found-by-name)). Detection needs `list` and `watch` on `services`; a user known not to have them gets no watch and the state "unavailable" with the reason. Request counts: [testing P13](../developer/testing.md#performance-budgets-proposed-not-measured). Built 2026-10-14 night (A43, the owner's finding F1), the same verb on the same one Service: a node's and the Overview's CPU and memory history from node-exporter where it is present (`node_cpu_seconds_total`, `node_memory_MemTotal_bytes`, `…MemFree…`, `…Inactive_file…`), cAdvisor otherwise; on a Prometheus without node-exporter that costs 2 range queries more per node history and 4 per Overview history, once per detection (10 minutes); the queries name the node's addresses from the cache besides its name, quoted like names (`TestQueries`). Built 2026-10-14 night (A46): the charts of one object whose ranges lie far apart as separate query sets, each at its own step: a chart split from the others costs one set more (2 range queries, more with the network or the filesystem shown) once per range change. The counts above are today's |
-| Trivy Operator's reports (no command: the Trivy integration while it is on, built 2026-10-17, [D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)) | `list` once, then `watch` on `vulnerabilityreports.aquasecurity.github.io` in all namespaces, or in each namespace the user named for a user who may not list them everywhere (nothing while the access reviews have not said which), for as long as the integration is on and the cluster connected, each connected cluster its own whether the window shows it or not | Read only. Only while the cluster serves the reports' kind (the custom kinds watch above) and the integration is on for the cluster (D-76's switch, on by default); switched off, the handle goes back and the watch ends after the cache's warm period (5 minutes), as after a closed view, with nothing asked again. A watch of its own, trimmed: the reports arrive whole, each image's vulnerability list included (186 KB of JSON for one old Debian image, measured on kind), and the cache keeps them without that list for the Pods list's column and a pod's drawer, in memory only ([`trivy.go`](../../internal/engine/trivy.go)); with the reports' own view open too, they are watched twice, trimmed and whole (D-79's trimmed scopes). No Jobs, Pods or other kinds are read for it beyond what the drawer reads anyway. A user without `list` on them sees the integration's state "forbidden" with the verb and the resource (`TestTrivyNotServedOrForbidden`); Cogpit installs no scanner ([below](#nothing-installed-for-cogpits-own-features)) |
-| Alerts (Alertmanager through the API server, [D-77](../developer/decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)) | `get` on `services/proxy` of **the one Service detection found or the user set** (`GET /api/v1/namespaces/<ns>/services/<name>:<port>/proxy/api/v2/alerts?active=true&silenced=false&inhibited=false`, or `…/services/https:<name>:<port>/proxy/…` with Use HTTPS); up to 3 candidate Services asked while looking, each by its port's number and, refused, by its name (D-96), so up to 6 such GETs (the alerts request is the probe: `/api/v2/status`, which returns Alertmanager's configuration, is never asked); `list` and `watch` on `services` through the cache while looking, as Prometheus's detection reads them | Built 2026-10-17 ([`internal/alerting`](../../internal/alerting/), [architecture §9 › Alertmanager](../developer/architecture.md#alertmanager-internalalerting-d-77)). Only `GET`, never `POST`: silences and acknowledgements are not Cogpit's. One request per 30 s **only while the Alertmanager integration is on for the cluster and the cluster is the one shown and connected**; nothing for a cluster connected in the background, nothing while the integration is off (D-76), a backoff to one request in 5 minutes while it fails, no request while none is found (detection reads the cache) ([testing P17](../developer/testing.md#performance-budgets-proposed-not-measured)). **Not limited by namespace:** Alertmanager answers every namespace's alerts to whoever may use its service proxy, so a user who may read some namespaces only sees every alert if RBAC grants them `get services/proxy` on that Service; Cogpit adds nothing to what the user could ask Alertmanager for, and the user's identity and RBAC decide. A failure is shown and handed to agents as the API server's own Status message or a class, never as the service's response body (`TestErrorText`). **Candidates are found by name** ([H-121](#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents)); the user can name the service instead (`cluster.setAlertmanager`, the address on Cluster Settings), kept in `metrics.json` (owner-only) and checked as the Prometheus address is; an agent's change always waits for the user (`TestAlertCommands`). |
+| Connect (`cluster.connect`; `hotbar.openCluster`, a tile or F1–F12; at start the last session's clusters while Preferences › App › Restore the last session is on, [D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once)) | `get /version`; discovery, unless the discovery cache on disk answers ([D-65](../developer/decisions.md#d-65-discovery-cached-on-disk)); `create selfsubjectrulesreviews` per namespace Cogpit knows of (the context's, the accessible ones, the filter's on each change, and the cached namespaces while 32 or fewer if the user may list them); `create selfsubjectaccessreviews` where the rules cannot answer (a cluster-scoped or all-namespaces question they name, such as listing namespaces; incomplete rules; wildcards); if the user may list namespaces, `list`, `watch` on `namespaces` for the connection's life, shared with the filter and the engine's watch of its namespaces ([`nswatch.go`](../../internal/engine/nswatch.go)) | `system:basic-user` grants the reviews, `system:discovery` the discovery endpoints, to every authenticated user; the server stores nothing. Reviews: own budget (10/s, burst 20), never polled, kept until `cluster.refreshAccess` or the next connect, no access review after a failed one until a refresh or a lost connection's return, at most 512 namespaces and 2,048 questions ([`access.go`](../../internal/cluster/access.go), [`accessreviews.go`](../../internal/engine/accessreviews.go); `TestBudgetAccessReviews`, `TestKindAccessReviews`, `TestAccessReviewsAreBounded`). A started connect goes on while another cluster is shown ([D-97](../developer/decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)). Restore is off by default; only the user turns it on (`ErrRestoreSessionGUIOnly`) |
+| Reconnect (`cluster.reconnect`, [D-81](../developer/decisions.md#d-81-reconnect-and-what-log-in-again-does); `cluster.login` of a context without a credential plugin or whose file login changed; by itself when the server rejects the login, the file holds another and no plugin runs) | a connect's requests on a new connection, then the open views' lists and watches; the old watches end; port forwards listen again (`create pods/portforward`) | Writes nothing; shells, attach and node shells are not reopened (`dock.reconnect` asks). Refused while a drain or Helm action runs; one at a time per cluster; a file's new login tried once per file version. Refused to agents and the CLI while the login expired or lapsed and a credential plugin would run (`ErrReconnectLoginGUIOnly`) |
+| Who the user is (no command: each connect of a real cluster, each return from an interruption or renewed login; [D-68](../developer/decisions.md#d-68-one-short-name-for-a-cluster-and-the-user-cogpit-is-logged-in-as)) | `create selfsubjectreviews` (`authentication.k8s.io/v1`, after a 404 `v1beta1` for Kubernetes 1.27), bounded by 5 s at the connect | `kubectl auth whoami`'s question; stores nothing; granted to every authenticated user (`system:basic-user`). Package `cluster` keeps username and groups, drops UID and extra fields, which can hold a token's credential id or identity-provider claims ([`whoami.go`](../../internal/cluster/whoami.go)). A 404, 403 or failure never fails the connect; the kubeconfig's user name stands in, marked (`TestReviewUserAsksTheAPIServer`, `TestReviewUserFallsBackToV1beta1`, `TestReviewUserFallsBackToTheKubeconfigUser`, `TestConnectLearnsTheUser`, `TestKindWhoAmI`). Only a confirmed username is kept, per context, in `cluster-users.json` (owner-only) |
+| The connection's checks (no command: each connected real cluster, shown or not; [D-58](../developer/decisions.md#d-58-standby-and-lost-connections)) | `get /version` with credentials every 15 s and at once on wake, network change or a broken watch (5 s to answer, a second 2 s after a failure); while interrupted one `get /version` **without credentials** per attempt (after 1, 2, 4, 8, 16, then every 30 s), one with them once answered; nothing while the login is expired, or lapsed on a hidden cluster with "Renew the login while the cluster is not shown" off | The anonymous probe counts 401 or 403 as an answer and never runs a credential plugin. About 4 requests a minute per cluster (`TestStandbyFrozenControlPlane`, `TestStandbyRevokedLogin`). Interrupted or expired, nothing else goes out: lists and watches wait at a gate, other requests are refused unsent, mutating commands are disabled for every origin, a running drain or Helm action stops in its journal ([`health.go`](../../internal/cluster/health.go), [`connwatch.go`](../../internal/engine/connwatch.go)); a lapsed login disables writes too |
+| A connected cluster the window does not show (D-69) | its checks, the custom resource definitions' watch, access reviews when refreshed, port forwards, logs, shells, running jobs; its views' watches until the warm period (5 minutes) ends | Shown again within it: no request; later its views list again (`TestSwitchingClustersOnARealStack`). Connected until `cluster.disconnect` or quit. A command uses the context it acts on (its object reference's, dock tab's or `context` parameter, else the shown cluster's); a read never connects a cluster. Kyverno, Trivy and Alertmanager read the shown cluster only |
+| Custom resource kinds | `list`, `watch` on `customresourcedefinitions.apiextensions.k8s.io` (cluster-scoped) while connected; after a refused list, API discovery | Definitions become views live ([`customkinds.go`](../../internal/engine/customkinds.go)); objects, schemas included, are held in memory. A refused list ends the watch until `cluster.refreshAccess` or the next connect, not one refusal per backoff step (`TestCustomKindsStopAfterARefusal`, `TestKindNamespaceLimitedUser`); that user gets the curated kinds discovery says are served (Flux, Argo CD, Vertical Pod Autoscalers), no other custom views ([`customkinds_discovery.go`](../../internal/engine/customkinds_discovery.go)) |
+| Open a list view | `list`, `watch` on the kind, in all namespaces or per namespace; with the cluster's Streaming opt-in a streaming `watch` instead of the `list` ([D-135](../developer/decisions.md#d-135-a-stalled-stream-lists)) | One watch per kind and scope, shared by views and agents, until the warm period after its last reader ([architecture §5](../developer/architecture.md#5-cache)); a scope refused with 403 is not kept warm (`TestRefusedScopeIsNotKeptWarm`). A user the reviews deny a kind in all namespaces gets no cluster-wide read: one `list`, `watch` per named namespace (the accessible ones, Cluster Settings › Namespaces or `cluster.settings.set`'s `accessibleNamespaces`, and the filter's; else the context's), none whose rules deny it ([`accessiblens_plan.go`](../../internal/engine/accessiblens_plan.go)); deciding costs at most one `create selfsubjectaccessreviews` per kind, and none without named namespaces (`TestBudgetAccessibleNamespaces`, budget P15). Until the context's rules review answers, the window's views, drawer, menus, Overviews and dashboards read nothing of the kind ([`overview.go`](../../internal/engine/overview.go), [`clusteroverview.go`](../../internal/engine/clusteroverview.go), `TestPagesFollowTheAccessReviews`); an agent's or the CLI's read waits up to 10 s, then reads all namespaces. A 403 to a cluster-wide read, whoever sent it, moves every reader of the kind to namespaces until a refresh (`cache.Cache.OnRefused`, `TestTargetReadsFollowARefusedClusterWideList`). For a user denied the kind in all namespaces, one object's drawer, `object.get` and `cogpit-cli get` read its namespace alone (`TestDetailWaitReadsTheObjectsNamespace`). Accessible namespaces narrow reads, they grant nothing |
+| A Terminating namespace's Blocking Deletion (its drawer, `object.get`; [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)) | per kind its `NamespaceContentRemaining` condition names, `list`, `watch`, **metadata only**, **in that namespace only**, while the drawer shows it; its rules review if not asked; while `NamespaceDeletionDiscoveryFailure` is True, `list`, `watch` on `apiservices.apiregistration.k8s.io` | Read only ([`nsblockers.go`](../../internal/engine/nsblockers.go)); the condition names kinds and counts, never objects. A kind the rules deny is not read (counted from the condition); a 403 ends a read while the drawer stays; API services only unless denied. No Secret value or custom spec crosses the wire, no cluster-wide list starts (`TestBudgetTerminatingNamespaceBlockers`) |
+| Secrets list (the view, a Secret's drawer, an agent's read of `secrets`) | `list`, `watch` on `secrets` in full, values included; no `get` | Every Secret of the namespaces read stays in memory, values included ([H-8](#h-8-secret-data-arrives-with-the-list)); drawer and reveal send nothing (`TestBudgetSecretScopes`, `TestBudgetSecretsViewAndDrawer`, `TestKindSecretScopes`). The cache drops each Secret's `kubectl.kubernetes.io/last-applied-configuration`, which repeats the values (`TestSecretsLoseTheLastAppliedAnnotation`, `TestSecretDrawerRedactsTheLastAppliedAnnotation`). `resources.find` without a kind starts no such watch (`TestBudgetFindWithoutKindStartsNoReleaseWatch`) |
+| Helm releases (the view, a release's drawer, an agent's read) | `list`, `watch` on `secrets` and, where served, `configmaps` labelled `owner=helm`; none while the full Secrets or Config Maps watch runs; per namespace for a user who may not list them everywhere (`TestHelmReleasesOfANamespaceLimitedUser`) | RBAC cannot narrow `list secrets` or `list configmaps` by label: releases need every Secret (ConfigMap) of the namespace ([Helm storage backends](https://helm.sh/docs/topics/advanced/#storage-backends)); either driver alone shows its releases. The label scope reads from a running full watch and never keeps it alive ([architecture §5](../developer/architecture.md#scopes-local-and-virtual-kinds); `TestBudgetSecretsAndReleasesShareOneWatch`, `TestCoverExpiryHandsOverToOwnInformer`, `TestBudgetHelmReleasesWithConfigMaps`). Payloads decode into a memo cleared 5 minutes after the last read ([`releases.go`](../../internal/helm/releases.go), `TestDeriveMemoForgetsWhenIdle`), kept from agents ([H-8](#h-8-secret-data-arrives-with-the-list)) |
+| Integrations before the user chose them (the window's session; [D-82](../developer/decisions.md#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again)) | **none**: no `metrics.k8s.io` discovery or list, no `services/proxy`, no `vulnerabilityreports` or `policyreports` | Off until the pre-choice is answered, also while put off with Later or connected in the background; Check all and Choose look for what they tick (`TestIntegrationsQuestionSteps`, `TestIntegrationsOffUntilAnswered`, `TestKindIntegrationsQuestion`). Only the user, in the window, switches an integration either way, answers or re-asks; other origins are refused before any read (`RefuseIntegrationSwitches`, H-126, H-133; `TestIntegrationsOnAreTheUsers`) but may put the question off (`cluster.integrations.later`). `cogpit-cli` applies none of the user's switches ([H-120](agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)) |
+| Kyverno's policy reports ([D-79](../developer/decisions.md#d-79-kyvernos-policy-violations-on-the-objects)) | `list`, `watch` on `policyreports.wgpolicyk8s.io` (all or named namespaces) and `clusterpolicyreports.wgpolicyk8s.io` while the integration is on and the cluster shown; nothing when neither is served | Read only; trimmed to fail and warn results ([`kyverno.go`](../../internal/engine/kyverno.go)); policies are not read. `kyverno.violations` reads the cache and refuses a hidden cluster. A refused list is a state Cluster Settings shows |
+| Argo CD | `list`, `watch` on `applications`, `applicationsets`, `appprojects` of `argoproj.io` while used; for Settings › Repositories and Clusters `secrets` labelled `argocd.argoproj.io/secret-type in (repo-creds,repository)` or `=cluster`, none while the full Secrets watch runs | Kinds follow Argo CD's definitions; settings views only while `applications.argoproj.io` is served. The Secrets arrive in full ([H-8](#h-8-secret-data-arrives-with-the-list)), shown through an allowlist of keys ([D-35](../developer/decisions.md#d-35-what-argo-cds-repository-and-cluster-secrets-show), [H-66](credentials.md#h-66-argo-cds-credentials-are-in-cogpits-memory-while-its-settings-are-read)) |
+| Metrics (Metrics Server) | discovery `get` on `/apis/metrics.k8s.io/v1beta1`, again after 10 minutes (2 while not served, forbidden or unavailable); `list` of `pods.metrics.k8s.io` (all namespaces, or those the Pods view reads, [D-39](../developer/decisions.md#d-39-pod-metrics-for-a-user-who-may-list-pods-in-some-namespaces-only)) and `nodes.metrics.k8s.io`; `get` of one object | Polled, never watched, only while something shows them (lists 60 s, drawers 15 s; [`internal/metrics`](../../internal/metrics/), [architecture §9](../developer/architecture.md#9-metrics-internalmetrics)); all hidden, no poll (`TestHiddenMetricsAreNotPolled`); with nothing open no request, discovery included, but one detection while the integrations question or Cluster Settings show them ([D-76](../developer/decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)). `metrics.get` starts no poll. Without `list` the state is "forbidden" (`TestErrorsAreStates`); a namespace's refusal blanks only its pods, keeps the provider and does not ask Prometheus instead (`TestBudgetNamespaceLimitedUser`). Counts: [testing P12](../developer/testing.md#performance-budgets-proposed-not-measured) |
+| Metrics (Prometheus, Thanos, VictoriaMetrics through the API server) | `get services/proxy` of **the one Service found or set**: `GET /api/v1/namespaces/<ns>/services/<name>:<port>/proxy/api/v1/status/buildinfo`, `…/query`, `…/query_range` (`https:<name>:<port>` with Use HTTPS); while looking, up to 3 candidates, each port by number then name ([D-96](../developer/decisions.md#d-96-the-service-proxys-port-spelled-by-its-number-first)): up to 6 probes, each refusal a 403 in the audit log; `list`, `watch` on `services` through the cache | Only `GET`, only these read-only paths, though `services/proxy` would carry any request. Only while a drawer, list, Overview or the Nodes' Disk column ([D-43](../developer/decisions.md#d-43-where-the-nodes-disk-comes-from)) needs it, the Metrics Server first, and one detection while the integrations question or Cluster Settings show it (D-76); counts: [testing P13, P14](../developer/testing.md#performance-budgets-proposed-not-measured). Queries carry pod, namespace and node names and node addresses, quoted (`FuzzQuoteLabel`, `TestQueries`), never a credential. **Not limited by namespace:** RBAC gates the proxy, not the series; a namespace-limited user's queries name their namespaces, nothing narrows the answer, and Overview pod counts include pods they cannot list (numbers only, D-39). **Found by name** among cached Services ([D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus), [H-26](#h-26-prometheus-is-found-by-name)); `cluster.setPrometheus` pins a service, kept in `metrics.json` (owner-only), checked to be a namespace, service, port and path prefix without `.` or `..`. A metrics integration off gets no request. **Never `nodes/proxy`**, the kubelet's whole API. Failures show the API server's Status or a class, never the body (`errorClass` in [`status.go`](../../internal/metrics/status.go), `TestErrorClassesCarryNoBodies`); a refused proxy is "forbidden" (`TestDetectForbiddenIsAState`, `TestDetectTriesThePortsNumberThenName`); a user known not to list Services gets no watch and "unavailable" |
+| Trivy Operator's reports ([D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)) | `list`, `watch` on `vulnerabilityreports.aquasecurity.github.io` (all or named namespaces, nothing before the reviews decide) while the integration is on, the cluster shown and the kind served | Read only; no scanner installed. Off or hidden: released, ends after the warm period. Kept without the vulnerability lists, in memory ([`trivy.go`](../../internal/engine/trivy.go)); the reports' own view adds a whole watch. Without `list`: "forbidden" with verb and resource (`TestTrivyNotServedOrForbidden`) |
+| Alerts (Alertmanager through the API server, [D-77](../developer/decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)) | `get services/proxy` of **the one Service found or set**: `GET /api/v1/namespaces/<ns>/services/<name>:<port>/proxy/api/v2/alerts?active=true&silenced=false&inhibited=false` (`https:` with Use HTTPS); this request is the probe, up to 3 candidates × 2 port spellings (D-96); never `/api/v2/status`, which returns the configuration; `list`, `watch` on `services` through the cache | Only `GET`: silences are not Cogpit's ([`internal/alerting`](../../internal/alerting/), [architecture › Alertmanager](../developer/architecture.md#d-77-alertmanager-internalalerting)). One request per 30 s **only while the integration is on and the cluster shown and connected**; failing, backoff to 5 minutes; none found, none ([testing P17](../developer/testing.md#performance-budgets-proposed-not-measured)). **Not limited by namespace.** Failures show the Status or a class, never the body (`TestErrorText`). **Found by name** ([H-121](#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents)); `cluster.setAlertmanager` pins a service, kept in `metrics.json` (owner-only), checked as Prometheus's |
 
 ## Actions that write
 
-`Danger` is the registry's level: `Destructive` requires a confirmation naming the objects, the
-namespace and the context ([conventions](../developer/conventions.md#never-surprise-a-cluster)).
+`Danger` is the registry's level: `Destructive` asks every origin for a confirmation that names the
+objects, the namespace and the context ([conventions](../developer/conventions.md#never-surprise-a-cluster)).
+Rules every row follows:
+
+- **Field manager.** Cogpit's own writes name `cogpit`
+  ([`cluster/actions.go`](../../internal/cluster/actions.go) `FieldManager`), the node shell pod's
+  create excepted; the Helm SDK's writes carry Helm's default, the executable's file name.
+- **Bound to the confirmed object.** A patch, eviction or delete carries the UID the user confirmed
+  (else the cache's) as `metadata.uid`, a `test` or a precondition, so the API server refuses it on
+  an object created again under the name (`cluster.ErrReplaced`,
+  [`cluster/uidbound.go`](../../internal/cluster/uidbound.go); `TestKindPatchesBoundToTheUID`,
+  `TestPatchesCarryTheUID`, `TestRestartAndScaleCarryTheUID`). Suspend, Resume, Cordon and Uncordon
+  carry none; Helm's actions are bound to the release's newest record (their rows).
+- **Agents always ask** for a Role, ClusterRole, RoleBinding or ClusterRoleBinding in `object.apply`,
+  `object.create` and the create dialogs, and for every Helm install and upgrade, also where agent
+  writes are allowed ([D-2](../developer/decisions.md#d-2-agent-interface-scope); the paths and what
+  the rule misses: [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache)).
+- **A Secret's values are the user's.** `secret.reveal`, `secret.reviewData`, `secret.saveData`,
+  `secret.create`, a Secret's Edit tab and a Secret in a Create text are GUI only: agents and the
+  CLI are refused before anything is asked or sent (`Spec.Refuse`, `ErrSecretGUIOnly`;
+  `TestSecretWritesFromAgentsRefusedBeforeAsking`). No value reaches the audit log (a Secret's
+  logged `yaml` is redacted), an error, a toast or a draft; an API message quoting one is scrubbed in
+  raw, base64 and decoded forms (`TestSecretWriteErrorsNeverQuoteValues`;
+  [D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)).
+- **Removing a data key** of a Config Map or Secret, in its drawer or Edit tab, is destructive: the
+  confirmation names the keys, never a value ([D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer);
+  `TestApplyRemovingADataKeyIsDestructive`, `TestAgentApplyRemovingADataKeyAlwaysAsks`,
+  `TestApplyRemovingASecretKeyIsDestructive`, `TestConfigMapDataAgentRemovalAsks`).
+- **Reviewed text.** An apply, install or upgrade from a tab names the `textRevision` the user
+  reviewed; a text an agent changed since, also while the confirmation was open, is refused
+  (`TestApplyFromTabBoundToTheReviewedText`, `TestHelmUpgradeTabBoundToTheReviewedText`).
+- **Selections.** At most 500 objects (`engine.MaxSelection`) under one confirmation; more than 10
+  (`engine.DirectSelection`) run as a background job, one request per object in turn, `job.cancel`
+  (any origin) stopping before the next request; nothing is retried or undone
+  ([`commands/manyjob.go`](../../internal/engine/commands/manyjob.go),
+  [D-63](../developer/decisions.md#d-63-long-commands-as-background-jobs)).
+- **No answer.** A request that is not a stream ends after 30 s without an answer
+  (`cluster.DefaultRequestTimeout`, [`cluster/health.go`](../../internal/cluster/health.go)): a
+  write whose answer never came ends as `cluster.OutcomeUnknownError` and is never sent again
+  (`TestARequestWithoutAnAnswerEndsAfterTheTimeout`,
+  [D-58](../developer/decisions.md#d-58-standby-and-lost-connections)).
 
 | Action | Requests | Danger | What changes |
 |---|---|---|---|
-| Logs (`pod.logs`, `workload.logs`, `logs.controller`; a group's logs in one tab, `application.logs`, `argocd.logs`, `flux.logs`, 2026-10-15, A81; a tab's source `logs.setSource`, its choices `logs.sources`; older lines `logs.loadOlder`; a jump to a time `logs.jumpTo`) | `get pods/log`; for a workload's logs the pods (and, for a Deployment, its Replica Sets) from the cache, as for the choices; for a group's logs also the group's object (an application's workloads, an Argo CD Application's `status.resources`, a Kustomization's `status.inventory`) and its workloads' kinds through the cache (`list`, `watch`) | Read | nothing; previous container and timestamps are request parameters (every stream asks for timestamps since 2026-10-13); a workload's logs stream at most 40 containers at once, a group's tab about 40 containers of at most 20 workloads ([`engine/grouplogs.go`](../../internal/engine/grouplogs.go)), and a narrowed tab only the containers it selects; older lines are one request per container the tab shows, for its tail with 1,000 more lines than the tab holds (at most 10,000), and a jump to a time the tab holds no lines of one request per such container with `sinceTime`, bounded the same way, only when the user or an agent asks |
-| Secret drawer, reveal (`secret.reveal`) | none: the drawer and a revealed value come from the cache of the full Secrets watch (declared verbs `list secrets`) | Read, GUI only | nothing; a revealed value (cut to 4 KiB or 40 lines; whole with `whole`, since 2026-10-15 for the drawer's editor of a Secret the user may save, D-59) lives only in the window's widgets until Hide, another object, closing the drawer or a change of the Secret (the reveal names the Secret's `resourceVersion`; a changed or recreated Secret is refused and its old value masked and forgotten, `TestRevealedValueDroppedWhenSecretChanges`, R-6); agents and the CLI are refused, and a refused reveal is audited with the key name only (`TestRevealIsGUIOnly`) |
-| Refresh access (`cluster.refreshAccess`) | `create selfsubjectrulesreviews`, `create selfsubjectaccessreviews` as on connect | Read | nothing; drops and refetches the cached answers |
-| Pod shell, attach (`pod.shell`, `pod.attach`; a tab's Reconnect after an interruption `dock.reconnect`, 2026-10-16, [D-58](../developer/decisions.md#d-58-standby-and-lost-connections): the same request again, into the same container, or into a node shell's pod while it runs) | `create pods/exec`, `create pods/attach` (on API servers from 1.35 with `AuthorizePodWebsocketUpgradeCreatePermission`, on by default, `create` is checked for the WebSocket upgrade too, verified in the Kubernetes 1.36 source) | Mutating | Runs a process in the container, or attaches to its main process: with stdin, everything typed reaches that process, and with a TTY that includes Ctrl+C and Ctrl+D, which can end the main process and restart the container; closing an attach tab detaches and the process keeps running (`TestKindWorkloadLogsAttachRestartScale`) |
-| Port forward (`pod.portForward`, `service.portForward`, `portforward.edit`; Argo CD's `argocd.openUI`, 2026-10-13, to the Service labelled `app.kubernetes.io/name=argocd-server`, found among the cached Services, which it reads through a `list`, `watch` on `services`) | `create pods/portforward`, sent as a WebSocket upgrade first (counted as `get pods/portforward`) and as an SPDY `POST` when the server refuses it; on API servers from 1.35 the upgrade is checked for `create` too (`AuthorizePodWebsocketUpgradeCreatePermission`, verified in the Kubernetes 1.36 source); `list`, `watch` on `pods` (and the Service from the cache) for reconnects, through the shared cache | Mutating; `portforward.open`, `stop` and `remove` are UI | Opens a local socket into the pod on `127.0.0.1` only ([H-2](trust-boundaries.md#h-2-local-processes-and-forwarded-ports)); nothing in the cluster changes and no object is created. Built 2026-10-11 ([`portforward.go`](../../internal/cluster/portforward.go)): Cogpit owns the listener for the forward's whole life, a service forward moves to another ready pod when its pod goes, and a forward ends with Stop, Delete, disconnecting its context (since 2026-10-16 showing another cluster leaves it running, D-69) or quitting; after a crash the operating system closes the listeners and there is nothing to clean up in the cluster (`TestKindPortForward`) |
-| Edit and apply (`object.apply`) | `update` on the kind, first with `dryRun=All`, then for real; no `get`: the editor's text comes from the cache | Mutating; Destructive when it sets `spec.replicas` to 0 or removes a key of a Config Map's or a Secret's data (2026-10-16 night); an agent's apply of a Role, ClusterRole, RoleBinding or ClusterRoleBinding always asks, also where agent writes are allowed (2026-10-14, [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache); the roles since the owner's A1, built 2026-10-14) | The object, replaced by the edited text with the resourceVersion the tab started from as precondition: a concurrent change fails with a conflict and is never overwritten. An update without `managedFields` keeps every manager's entries and records Cogpit's under `cogpit`. A Secret is editable in the GUI only (built 2026-10-12, [D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)): the Edit tab shows its values (base64 in `data`, plain text in `stringData`), and the diff, dry run and apply work as for any kind, with the resourceVersion precondition; agents and the CLI cannot open the tab, read its text (`<withheld>`), set it, diff, dry run or apply it, nor give a yaml that holds a Secret, each refused with `ErrSecretGUIOnly` in the engine function the command calls, never after a read (`TestSecretEditAndCreateAreGUIOnly`). The values never reach the audit log (a Secret's manifest is redacted in every logged `yaml`), an error or a toast: an API message that quotes a value is scrubbed, raw, base64 and decoded forms (`TestSecretWriteErrorsNeverQuoteValues`). An agent's apply of a Secret tab, or create of a Secret, is refused before the user is asked (`Spec.Refuse`, which sees the origin; `TestSecretWritesFromAgentsRefusedBeforeAsking`). An edit that sets `spec.replicas` to 0 is confirmed as destructive, as Scale to zero is. So is, since 2026-10-16 night (the owner's decision of that evening, [D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)), an edit that removes a key of a Config Map's `data` or `binaryData` or of a Secret's `data` (a key in `stringData` counting as kept) against the cached object and the version the edit is based on: the user confirms it for every origin, the window's own apply included, an agent's always asks even where agent writes are allowed, and the confirmation names the object, its namespace, its context and the removed keys, never a value (`TestApplyRemovingADataKeyIsDestructive`, `TestAgentApplyRemovingADataKeyAlwaysAsks`, `TestApplyRemovingASecretKeyIsDestructive`). An apply from the tab's text (no `yaml`) names the tab's text revision the user reviewed (`textRevision`, required): a text an agent changed since, while the confirmation was open, is refused (`TestApplyFromTabBoundToTheReviewedText`, R-10) |
-| Server-side dry run (`object.dryRun`) | `update` (or `create`) with `dryRun=All` | Read | Nothing is stored; RBAC still asks for the write verb. Admission webhooks with side effects refuse dry runs. A dry run that meets a conflict reports it but never moves the edit's base version, so an agent's check cannot make the user's next apply overwrite a concurrent change |
-| A Config Map's values saved in the drawer (`configMap.saveData`; its review `configMap.reviewData`, its read `configMap.readData`; 2026-10-15, the owner's F3, [D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) | `update configmaps`, first with `dryRun=All`, then for real, as `object.apply`; the review's dry run is an `update` with `dryRun=All` too, nothing stored; the read is the cache's (`list`, `watch configmaps`), no request | Mutating; Destructive when it removes a key (2026-10-16) (the review and the read: Read) | The Config Map's `data` values the call names, set on the object as the cache holds it and sent with the resourceVersion the values are based on as precondition: a Config Map that changed since is not sent when the cache holds the newer version, and a 409 is reported, never retried; either way nothing is written and the error names the version it is at, which a second call must name to write over it (`TestConfigMapDataNeverOverwritesUnasked`). Since 2026-10-15 night (the owner's audit answer) a review given the edited keys' values at the base version (`from`, the drawer always sends them) rebases onto a newer version none of those keys changed in: its dry run is the same `update` with `dryRun=All`, with the newer version as precondition, and a dry run that meets a still newer one is reviewed once more; the save itself never rebases, so nothing the user has not seen is written (`TestConfigMapDataRebases`, `TestKindConfigMapDataSave`). The drawer's unsaved values (`configMap.keepEdits`, GUI-only) stay in Cogpit: memory and an owner-only draft, no request. A key of `data` the data does not hold, binary data, a Helm release record (Helm's ConfigMaps driver; its payload is never returned by the read) and an immutable Config Map are refused before anything is sent (`TestConfigMapDataRefusals`). Since 2026-10-16 (the owner's audit decision) the same update adds the keys of `add` (named as the API server allows, not held by the data) and removes the keys of `remove`; a save that removes a key is **destructive**: the user confirms it for every origin (the drawer's review is that confirmation in the window), an agent's always asks even where agent writes are allowed, the confirmation names the keys, and the update acts only on the Config Map with the UID the user confirmed (`TestConfigMapDataAddsAndRemovesKeys`, `TestConfigMapDataKeyRefusals`, `TestConfigMapDataAgentRemovalAsks`, on kind `TestKindConfigMapDataSave`). An agent's save that adds keys or changes values waits for the user unless agent writes are allowed for the context (D-2); the confirmation shows the diff it writes; a value that holds a placeholder Cogpit showed in place of a Secret's value is refused before anyone is asked (`TestConfigMapDataAgents`) |
-| A Secret's values saved in the drawer (`secret.saveData`; its review `secret.reviewData`, the whole value read by `secret.reveal` with `whole`; 2026-10-15, the owner's audit answer, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) | `update secrets`, first with `dryRun=All`, then for real; the review's dry run is an `update` with `dryRun=All`, nothing stored; the read is the cache's full Secrets watch (`list`, `watch secrets`), no request | Mutating; Destructive when it removes a key (2026-10-16) (the review and the read: Read); GUI only | The Secret's `data` values the call names, base64-encoded, set on the Secret as the cache holds it and sent whole with the resourceVersion the values are based on as precondition; a Secret that changed since is not written (a conflict with the masked changes, written over only by a second save naming the newer version), and a review given the edited keys' old values rebases onto a newer version none of them changed in, as a Config Map's does. The cached Secret lacks kubectl's last-applied annotation, so the update removes it ([credentials › H-103](credentials.md#h-103-a-secret-saved-from-cogpit-loses-kubectls-last-applied-annotation)). A key of `data` the data does not hold, a binary value to change, an immutable Secret, a Helm release record and a Secret the drawer does not show are refused before anything is sent. Since 2026-10-16 (the owner's audit decision) the same update adds the keys of `add` (their values typed as text, base64-encoded) and removes the keys of `remove`, a binary one included; a save that removes a key is destructive, confirmed by the drawer's review with the keys named, and acts only on the Secret with the UID the user confirmed (`TestSecretDrawerDataAddsAndRemovesKeys`). Both commands are GUI-only: an agent or the CLI is refused before anything is read, asked or sent (`TestSecretDrawerDataSave`, `TestSecretDrawerDataIsGUIOnly`, `TestSecretDrawerDataRefusals`, on kind `TestKindSecretDataSave`) |
-| Create from template (`object.create`) | discovery `get` to map apiVersion and kind; `create` on the kind, first with `dryRun=All` | Mutating; an agent's text that holds a Role, ClusterRole, RoleBinding or ClusterRoleBinding always asks, also where agent writes are allowed (2026-10-14, [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache); the roles since the owner's A1, built 2026-10-14) | New objects, one per document; a Secret only from the GUI (built 2026-10-12, [D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)): for an agent or the CLI each Secret in the text is refused as an item error, and a Create tab or `editor.setText` holding a Secret is refused likewise; the error of a failed Secret create is scrubbed of its values. Objects whose namespace comes from the namespace filter are created only in the namespace the confirmation named: a filter changed while the dialog was open refuses the create |
-| Create dialogs (`namespace.create`, `serviceAccount.create`, `role.create`, `clusterRole.create`, `roleBinding.create`, `clusterRoleBinding.create`, `resourceQuota.create`; `secret.create` since 2026-10-13) | discovery `get` to map the kind; `create` on `namespaces`, `serviceaccounts`, `resourcequotas` or `secrets`, or on `roles`, `clusterroles`, `rolebindings` or `clusterrolebindings` of `rbac.authorization.k8s.io`, first with `dryRun=All`; a binding dialog lists and watches `roles`, `clusterroles` and `serviceaccounts` through the shared cache (`resources.list`), as their views do, to offer their names. The API server's escalation check applies to the dry run too: a role whose rules the user does not hold needs `escalate` on roles or cluster roles, a binding to a role whose permissions the user does not hold needs `bind` on it; Cogpit declares neither, since only those calls need them | Mutating; `clusterRoleBinding.create` Destructive; `roleBinding.create` Destructive when it binds the cluster role `cluster-admin`, or a role Cogpit's cache already holds whose rules allow every verb on every resource of every group (escalated), and for an agent always asked, also where agent writes are allowed (owner, 2026-10-14, [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache)); decided (owner, 2026-10-14 evening, A1) and built the same night: an agent's `role.create` and `clusterRole.create` always asked too (`AgentsAsk` in [`commands/createdialogs.go`](../../internal/engine/commands/createdialogs.go), `TestAgentRoleBindingsAlwaysAsk`) | One new object (built 2026-10-12, [`commands/createdialogs.go`](../../internal/engine/commands/createdialogs.go)), checked before anything is sent (names, required fields, quantities) and created as a Create resource tab creates it, bound to the confirmed context and object. Greyed "not permitted" when the access reviews deny `create` in the namespace the object would land in (`CreatePermitted`, `TestCreateDialogsFollowAccessReviews`). **A binding is a privilege grant**: its subjects hold the role's permissions the moment it exists. So every agent's create waits for the user's acceptance (D-2), whose rows name the rules, the limits, or the role and the subjects a binding grants (`Effects`, a row each since 2026-10-19, D-100; `TestCreateDialogsAgentsNeedAcceptance`); an agent's role binding waits for it even where the user allowed agent writes (the owner's decision, 2026-10-14); and two grants are confirmed for every origin, the GUI too and also where the user allowed agent writes for the context. The lead's default (2026-10-12), not the owner's decision: a cluster role binding acts in every namespace and on cluster-scoped resources, which no namespace bounds; `cluster-admin` (or a wildcard role) bound in a namespace is full control of it, its Secrets and its RBAC included. Roles and cluster roles grant nothing until bound and stay mutating (for an agent always asked since the owner's decision of 2026-10-14 evening, A1, built the same night; before, unasked where agent writes are allowed). What the rule misses: [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache). **Create Secret** (`secret.create`, built 2026-10-13): one Secret with the type, data, labels and annotations the user typed, the values base64-encoded in `data`; the user's only ([D-19](../developer/decisions.md#d-19-editing-and-creating-secrets-from-yaml)): agents and the CLI are refused before anything is asked or sent, and no value reaches the audit log, an error, a toast or a draft ([credentials](credentials.md#secret-values-in-the-create-secret-dialog); `TestSecretCreateIsGUIOnly`, `TestSecretCreateErrorsNeverQuoteValues`) |
-| Scale (`deployment.scale`, `statefulset.scale`, `replicaset.scale`) | `patch` on `deployments/scale`, `statefulsets/scale` or `replicasets/scale`, with `metadata.uid` in the patch | Mutating; `Destructive` when scaling to zero (the engine escalates that call) | Replica count; a Replica Set a Deployment controls is set back by its controller, which the GUI says after scaling it. Since 2026-10-12 every scale patch carries the UID the user confirmed (else the cache's), and the API server refuses an object created again under its name (409, "Precondition failed: UID"; verified on Kubernetes 1.36.1, `TestKindPatchesBoundToTheUID`), so no gap remains between a check and the write; a mutating confirmation records the UIDs of the targets the cache holds, so an agent's scale to a non-zero count is bound too (`TestRestartAndScaleCarryTheUID`) |
-| Restart (`deployment.restart`, `daemonset.restart`, `statefulset.restart`) | `patch` on the workload, with `metadata.uid` in the patch | Destructive (owner, 2026-10-11: confirmed for every origin, because it replaces every pod) | A rolling restart of every pod: kubectl's `rollout restart` sets a pod-template annotation, which the controller rolls out (the patch body equals kubectl's plus the UID, `TestRestartWorkloadSendsKubectlsPatch`, `TestPatchesCarryTheUID`); with the OnDelete strategy pods are replaced only as they are deleted, which the confirmation says. Since 2026-10-12 the patch carries the confirmed UID and the API server refuses an object created again under its name (422, "field is immutable"; verified on Kubernetes 1.36.1, `TestKindPatchesBoundToTheUID`), which closes the gap between the cache check and the write. Decided (owner, 2026-10-14 evening, A74) and built the same night: Restart on a selection of workloads, `workload.restartMany` (Scale stays one object): one confirmation for every origin naming every workload of the selection, then each restarted in turn, bound to the UID the user confirmed ([`commands/restartmany.go`](../../internal/engine/commands/restartmany.go), `TestRestartMany`); more than ten as a background job since 2026-10-16, the same patches, Cancel stopping before the next ([D-63](../developer/decisions.md#d-63-long-commands-as-background-jobs)) |
-| Suspend / resume (`cronjob.suspend`, `cronjob.resume`; Jobs have none) | `patch cronjobs` (a JSON merge patch of `spec.suspend` alone, without the UID; [`cluster/workloads.go`](../../internal/cluster/workloads.go) `SetCronJobSuspend`) | Mutating | `spec.suspend` |
-| Flux actions (`flux.reconcile`, `flux.reconcileWithSource`, `flux.reset`, `flux.suspend`, `flux.resume`; on a selection `flux.reconcileMany`, `flux.reconcileWithSourceMany`, `flux.resetMany`, `flux.suspendMany`, `flux.resumeMany`; 2026-10-13, Reconcile with Source and Reset 2026-10-14, [D-33](../developer/decisions.md#d-33-the-flux-actions), decided by the owner) | `patch` on the object's Flux kind (`kustomizations.kustomize.toolkit.fluxcd.io`, `helmreleases.helm.toolkit.fluxcd.io`, `gitrepositories.source.toolkit.fluxcd.io`, …, at the version the cluster serves): one JSON merge patch per object, with `metadata.uid` in it (refused on another object under the name: 422, verified on Kubernetes 1.36.1, `TestKindFlux`); the object is read from the cache; for a selection one patch per object, one after the other (more than ten as a background job since 2026-10-16, Cancel stopping before the next patch, [D-63](../developer/decisions.md#d-63-long-commands-as-background-jobs)). Reconcile with Source also `patch` on the object's sources, in their namespaces: a Kustomization's `gitrepositories`, `ocirepositories` or `buckets` (`source.toolkit.fluxcd.io`), a Helm release's `helmrepositories` (not an OCI one), `gitrepositories` or `buckets` and its `helmcharts`, or its chartRef's `ocirepositories` or `helmcharts`; the sources read from the cache too (their kinds' informers started when they are not running) | Mutating (D-33) | Reconcile: the annotation `reconcile.fluxcd.io/requestedAt` (with `force`, a Helm release's `reconcile.fluxcd.io/forceAt` too), so the controller reconciles the object now rather than at its next interval: a Kustomization applies its source's current revision, a Helm release installs or upgrades as its spec says (forced, even without a change, hooks included). Reconcile with Source: the same annotation on the source first (the source controller fetches the repository, bucket or chart again), then on the object; nothing patched when the object or a source is suspended or a source is missing. Reset: `reconcile.fluxcd.io/resetAt` with requestedAt's token on a Helm release, so helm-controller forgets its failure counts and installs or upgrades again after it ran out of retries (its remediation, a rollback or uninstall, can follow again). Suspend: `spec.suspend: true`, the controller leaves the object alone (drift is not corrected) until Resume: `spec.suspend: false` and a reconcile request. Cogpit writes nothing else; what the controller then does, it does with its own identity ([H-64](#h-64-a-flux-action-is-carried-out-with-the-controllers-identity)). Decided (owner, 2026-10-14 evening, A34), built 2026-10-14: the confirmation names that identity (the controller's service account, or the object's `spec.serviceAccountName`). Reconcile with Source waits as the flux CLI does (A91, built 2026-10-15): after the confirmation, a background job patches the first source, waits through the cache (no further request) until its controller handled the request and reports it ready, at most 5 minutes, and only then patches what depends on it; a source that ends not ready stops the job before the object, so the writes are those listed, or fewer ([`commands/fluxsourcejob.go`](../../internal/engine/commands/fluxsourcejob.go)) |
-| Trigger CronJob (`cronjob.trigger`) | `create jobs`; the CronJob is read from the cache | Mutating | A new Job from the CronJob's template, as `kubectl create job --from=cronjob/<name>`: the template's labels and annotations, the CronJob as controller, `cronjob.kubernetes.io/instantiate: manual`, a generated name `<cronjob>-manual-<suffix>` (inferred) |
-| Cordon / uncordon (`node.cordon`, `node.uncordon`) | `patch nodes` (a patch of its own, never the `update` kubectl's helper can fall back to) | Mutating | `spec.unschedulable` |
-| Evict a pod (`pod.evict`) | `create pods/eviction`, with the UID Cogpit's cache held when the user confirmed as precondition | Destructive | Pod deleted, honouring PodDisruptionBudgets ([API-initiated eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/api-eviction/)); a budget's refusal is an error naming the budget, without retries |
-| Drain (`node.drain`) | `patch nodes`; `list pods` in every namespace (field selector `spec.nodeName`); `get pods` while waiting; `get daemonsets.apps` (to skip their pods); `create pods/eviction` for each pod; discovery `get /api/v1`. Never `delete pods`: a server without the eviction API is refused | Destructive | Node cordoned and every evictable pod evicted, through the kubectl drain library ([safely drain a node](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/)). Options with their defaults (inferred): DaemonSet pods ignored; pods with emptyDir data and pods without a controller refused unless the caller allows it (both lose data); each pod's own grace period; a 300 s timeout. A drain journal in `<user config dir>/Cogpit/drains.json` (0600) records each drain before the cordon and drops it when the drain finishes: a crash, failure or timeout leaves a cordoned, half-drained node, which the next connect offers to finish, uncordon or dismiss (tested on a three-node kind cluster, `TestKindDrainCrashFinishUncordon`). The confirmation names the options that lose data (`force`, `deleteEmptyDirData`), for Finish drain too. Since 2026-10-16 ([D-63](../developer/decisions.md#drain-as-a-job-built-2026-10-16-night-run)) the drain runs as a background job after the confirmation: the same requests, each pod's progress in the job's dock tab; Cancel (`job.cancel`, any origin, [H-111](agents-and-mcp.md#h-111-an-agent-can-stop-a-drain-the-user-confirmed)), closing the tab, another cluster or an interrupted connection stop it between requests (an eviction under way may be cut), sending nothing more and uncordoning nothing; the journal keeps such a drain as `stopped`, offered like an interrupted one; an agent's call that ends no longer stops it |
-| Delete (`object.delete`, every kind; `object.deleteMany`, the table's selection, 2026-10-13) | `delete`, with the UID Cogpit's cache held when the user confirmed as precondition; for a selection one `delete` per object, one after the other, the same verb on each object's resource | Destructive | The object, and its dependents through garbage collection; a replacement created under the same name while the dialog was open is never deleted, and an object that was not in the cache when the user confirmed is refused. A selection (at most 500 objects, Cogpit's bound) is confirmed once, for every origin: the dialog lists every object, its message names the first ten and the count, with their namespaces and the context; each object is bound to its own confirmed UID, an object that fails is reported with its reason while the others are still deleted, and nothing is retried (`TestDeleteManyOneConfirmation`, `TestDeleteManyPartialFailure`, `TestDeleteManyNeedsTheAgentsAcceptance`; on Kubernetes 1.36.1 `TestKindDeleteSelection`: a ConfigMap created again under its name while the dialog was open is refused by the API server's UID precondition, the others are deleted). A denied access review on any object greys the whole action. Since 2026-10-16 ([D-63](../developer/decisions.md#d-63-long-commands-as-background-jobs)) more than ten objects are deleted by a background job: the same requests, one after the other, each object's progress in the job's dock tab; Cancel (`job.cancel`, any origin) stops before the next request and lets the one under way finish, so the objects deleted are exactly the steps the job shows done (`TestDeleteManyJobCancelled`; on Kubernetes 1.36.1 `TestKindDeleteSelectionAsAJob`) |
-| Argo CD Refresh (`argocd.application.refresh`, `argocd.application.refreshMany`, 2026-10-13) | `patch` on `applications.argoproj.io` (a JSON merge patch, Cogpit's field manager), with `metadata.uid` in the patch; one per Application of a selection, one after the other (for Sync too; more than ten as a background job since 2026-10-16, Cancel stopping before the next write, [D-63](../developer/decisions.md#d-63-long-commands-as-background-jobs)) | Mutating | The annotation `argocd.argoproj.io/refresh` (`normal` or `hard`), which Argo CD's controller acts on and removes; nothing else. Cogpit never talks to Argo CD's own API server |
-| Argo CD Sync (`argocd.application.sync`, `argocd.application.syncMany`, 2026-10-13) | `patch` on `applications.argoproj.io` (a JSON merge patch), with `metadata.uid` and `metadata.resourceVersion` in the patch ([D-36](../developer/decisions.md#d-36-how-argo-cds-sync-writes-the-operation)); after a conflict (the Application changed since the check) the cache's newer version is checked and the patch sent again, at most three times in all; refused while the Application has an operation requested or running | Mutating; `Destructive` with prune (the engine escalates that call: confirmed for every origin, saying that the resources no longer in Git are deleted) | The Application's `operation` (the source the user confirmed, a copy of the spec's, and the revisions its sources target, its own sync options and retry, `initiatedBy: cogpit`; since 2026-10-16 the source as `argocd app sync` writes it), which Argo CD's controller runs with **its** service account, not the user's: what the sync applies and, with prune, deletes in the destination is decided by Argo CD's project and RBAC, not by the user's Kubernetes permissions. The user's identity needs only `patch` on the Application. Decided (owner, 2026-10-14 evening, A33) and built the same night: a sync respects the Application's AppProject's sync windows, refused or greyed with the reason inside a deny window (`kinds.ArgoSyncBlocked`, `TestArgoSyncRespectsSyncWindows`); Argo CD's RBAC is not emulated (confirmed), so it stays unchecked on this path ([H-67](#h-67-a-sync-acts-with-argo-cds-rights-not-the-users)) |
-| Force delete (pod): not built, no command sends it | `delete` with grace period 0 | Destructive | The API object goes at once; the container may keep running on an unreachable node |
-| Remove finalizers (`object.removeFinalizers`, built 2026-10-19, the owner's yes to Q1, [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)) | `patch` on the object's resource, one JSON patch (RFC 6902, Cogpit's field manager): `test` `/metadata/uid` (the UID the user confirmed), `test` `/metadata/finalizers` (exactly the finalizers the confirmation's row named, in order), `remove` `/metadata/finalizers`; the object is read from the cache first (its kind's own read, as Delete binds its UID). Never `spec.finalizers`, never a subresource, never the kinds `namespaces` and `customresourcedefinitions` (whose own finalizers guard their content in etcd), never `/finalize` | Destructive, confirmed for every origin; an agent's request always waits for the user (D-2) | The object's finalizers, all of them, so the API server deletes it at once: the cleanup its finalizers' controllers would have done is skipped, and what they guard outside the cluster (a cloud disk, a load balancer, a DNS record) can be left behind ([H-9](#h-9-force-finalize-skips-cleanup)). Only an object being deleted (a deletionTimestamp) that holds finalizers; another object under its name, or a finalizer added or removed since the confirmation, makes a `test` fail and the API server refuses the whole patch (422 Invalid, verified on kind v1.36.1), so nothing the user did not see is removed (`TestRemoveFinalizersSendsTheGuardedPatch`, `TestRemoveFinalizersRefusals`, `TestKindTerminatingNamespaceBlockers`) |
-| Helm rollback, uninstall (`helm.release.rollback`, `helm.release.uninstall`); install below | through the Helm SDK in Cogpit's process with the same context: `list`, `get`, `create`, `update`, `delete` on the release's Secrets, discovery, and whatever the release's manifests and hooks need (which no static list can name; the commands' descriptions say so). For a release Helm keeps in ConfigMaps (2026-10-13) the same on its `configmaps` instead, through the SDK's ConfigMaps driver: the commands declare the verbs on both, and the access check asks only for those of the release's own driver (`TestHelmVerbsFollowTheReleasesDriver`, `TestHelmConfigMapReleaseActions`, `TestActionsUseTheReleasesDriver`; on kind `TestKindHelmConfigMapDriver`) | Destructive | The release's objects and its release Secrets; rollback prunes the history to 10 revisions, as `helm rollback` does and as Lens Desktop does (captured 2026-10-12 on a real cluster: 12 revisions before a Lens rollback, 10 after). Confirmations bind the newest release Secret's UID, so a release that moved to another revision while the dialog was open is refused; a rollback also names the cached newest revision to the SDK, which refuses it before anything changes when the server holds a newer one the cache has not seen yet (`TestActionsRefuseWhenTheServerMoved`, review of the fourth run, R-1; an uninstall removes every revision, a newer one included, which is what its confirmation names: the release); since 2026-10-12 the GUI's Rollback dialog (Lens's, with every revision) is that confirmation, answered for the GUI origin, that release, context and picked revision only, within 10 s and once, and dropped when its dispatch ends without taking it (`TestRollbackDialogAnswerBinding`, R-3). The newest revision is a valid target since 2026-10-12 (Lens's dialog leaves Rollback enabled with it selected): helm then writes a new revision equal to it and applies its manifest again, which the confirmation's detail names like any other target (`TestRollbackDialogCurrentRevision`, `TestHelmRollbackAndUninstall`). Crash-safe (decided 2026-10-11, [D-11](../developer/decisions.md#d-11-crash-stance)): a journal (`<user config dir>/Cogpit/helm.json`, 0600) records the action before the SDK runs and drops it after; a release left `pending-rollback` or `uninstalling` by a Cogpit that died midway is offered on the next connect, to finish (run again) or dismiss (`TestHelmCrashJournalOffer`, `TestKindHelmReleases`). Rollback and uninstall take no context: an action runs until its 5-minute timeout |
-| A release's revisions (`helm.release.revision`, `helm.release.diff`; the tab `ui.helm.revisions` and `ui.helm.revisions.set` are UI; D-131, 2026-10-26) | none of its own: each revision's record from the cache the Releases view holds (`list`, `watch` on `secrets`, and on `configmaps` for Helm's ConfigMaps driver, labelled `owner=helm`, above) | Read | Nothing is written (`TestReleaseRevision`: no list or watch after the first); values and rendered Secrets as [H-8](#h-8-secret-data-arrives-with-the-list) says |
-| Helm upgrade (`helm.release.upgrade`; the tab `helm.release.upgradeTab` is UI) | through the Helm SDK as above (a release kept in ConfigMaps: its records' requests on `configmaps`, 2026-10-13); measured on kind for a release with one ConfigMap and one Secret (`TestKindHelmUpgrade`): `list secrets` 3 (the release history), `create secrets` 1 (the new revision), `update secrets` 2 (the old revision superseded, the new one deployed), `get` and `patch` on each of the release's objects, discovery; `create` and `delete` on objects the new values or another chart version add or remove; `delete secrets` once more than 10 revisions exist. An upgrade to another chart version (2026-10-13) first downloads the chart over https from the user's computer, from the repository the user added (no request to the cluster); measured on kind 2026-10-13 for a chart of one ConfigMap whose version 0.2.0 adds a second (`TestKindHelmUpgradeFromRepository`): the upgrade from 0.1.0 to 0.2.0 sent `list secrets` 3, `create secrets` 1, `update secrets` 2, `get configmaps` 3, `patch configmaps` 2 (server-side apply: the added ConfigMap is created by its patch) and discovery 6; an agent's upgrade back to 0.1.0 the same with `patch configmaps` 1, `get configmaps` 2 and `delete configmaps` 1 (the ConfigMap 0.1.0 does not have) | Mutating | The release's objects and a new release revision with the new values and the release's own chart, or since 2026-10-13 a version of it that a chart repository the user added lists (matched by the chart's name; downloaded before anything is recorded, checked against the SHA-256 its index lists when it lists one, the archive holding the chart and version the index names; provenance is not checked, [H-30](trust-boundaries.md#h-30-chart-provenance-is-not-verified)); an older version is allowed, as helm allows it; history kept to 10 revisions as Lens keeps it. The confirmation names the chart version from and to, the repository and the digest check, and the command refuses with `ErrTargetsChanged` when that sentence would read differently when it runs (an agent changed the tab's choice, or the index changed, while the user was asked: `TestHelmUpgradeFromARepositoryAgents`); an archive that does not match its digest is refused before the journal records anything (`TestHelmUpgradeRepositoryRefusals`). Values are templates too where a chart renders them with `tpl`, as for the install: an agent's values can make the accepted upgrade read through `lookup` and copy what it reads into an object ([H-31](#h-31-an-agents-helm-values-can-copy-what-lookup-reads)); the error of a failed install or upgrade is withheld from agents and the CLI since 2026-10-13 (they learn that it failed; the window's toast shows the text, and `helm_pendingOperations` gives them no error text: `TestHelmInstallErrorStaysInTheWindow`); the upgrade has no preview, so nothing renders an agent's values before the user accepts. Agents need the user's acceptance (D-2), also where agent writes are allowed for the context: an agent's upgrade always asks, whatever the chart holds (decided by the owner on 2026-10-14 evening, A2, built the same night: `AgentsAsk` in [`commands/helmupgrade.go`](../../internal/engine/commands/helmupgrade.go), `TestHelmUpgradeAgents`; unasked there before, [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache)); the confirmation shows the values an agent passes inline, never serialised ([D-27](../developer/decisions.md#d-27-an-agents-helm-values-in-the-confirmation)); the audit log records the values by size only. Bound when it runs to the revision its values were read from (a tab's revision and release Secret UID, or the required `revision` parameter): a release that moved is refused (`TestHelmUpgradeRefusedWhenTheReleaseMoved`). The revision is checked again against the server's newest one right before the SDK runs, so a cache that lags does not let the values replace a revision nobody saw (`TestActionsRefuseWhenTheServerMoved`, `TestHelmActionsRefusedWhenTheServerMovedUnseen`; R-1). An upgrade from a tab is also bound to the tab's text revision the user reviewed (`textRevision`): text an agent changes while the confirmation is open, or between the GUI Save's two steps, refuses it (`TestHelmUpgradeTabBoundToTheReviewedText`, `TestHelmUpgradeTabSaves`; review of the fourth run, R-2). Values are scrubbed from errors, toasts, the journal, failed revisions' descriptions Cogpit shows and the SDK's log lines (best effort: values of 4 characters or more, also in base64, in the escaped forms error texts quote them (Go's `%q`, JSON) and numbers as a template renders them (`1e+06`); a value a template transforms is not found, `TestUpgradeScrubsValuesFromErrors`, `TestScrubValuesEscapedForms`, `TestRedactSDKLog`). Crash-safe: the journal records `upgrade` with the revision it started from and the chart (a repository's as `<repository>/<chart>`) and version it upgrades to, never the values; an upgrade interrupted with the release `pending-upgrade` is offered on the next connect as a rollback to that revision, the SDK's remedy (its upgrade refuses a pending release) (`TestHelmUpgradeCrashJournal`, `TestHelmUpgradeRepositoryCrashJournal`, `TestKindHelmUpgrade`). The upgrade takes a context |
-| Helm install (`helm.chart.install`; the tab `helm.chart.installTab` is UI, the preview `helm.chart.preview` reads) | through the Helm SDK in Cogpit's process with the same context. Preview in Cogpit's window (`--dry-run=server`): discovery, a `get` of every object the chart renders, and whatever the chart's templates `lookup` (any `get` or `list` the user may make); nothing is written. An agent's or the CLI's preview renders offline (helm template: no request, no lookup), because a chart reaches `lookup` from values through `tpl` and would otherwise hand the caller what the cluster holds, Secrets included, in the names or the error the preview returns (`TestKindHelmInstall`). Install: `list secrets` (the release name's history, before the SDK runs and inside it), `create secrets` (revision 1, pending-install), `update secrets` (deployed or failed), and for every object the chart renders a server-side apply, which the API server authorises as `patch` and, for an object that does not exist, `create`; `create customresourcedefinitions.apiextensions.k8s.io` (cluster-scoped) when the chart has a `crds/` folder, before anything else; a server-side apply of the namespace with `createNamespace` (`patch namespaces`, and `create` when it does not exist); hooks create and delete their objects (a hook's Job or Pod). Measured on kind 2026-10-13 for a chart of two ConfigMaps (one named from a `lookup` of a namespace) and one Secret, installed with `createNamespace` (`TestKindHelmInstall`): the preview in the window sent discovery 7, `get configmaps` 2, `get secrets` 1 and `get namespaces` 1 (the chart's lookup) and nothing that writes; an agent's preview sent nothing (offline); the install sent `list secrets` 2, `get configmaps` 2, `get secrets` 1, `get namespaces` 1 (the lookup), `patch namespaces` 1, `create secrets` 1 (revision 1), `patch configmaps` 2, `patch secrets` 1, `update secrets` 1 (deployed) and discovery 7. What a chart renders is unknown until it is rendered: the command declares the release records' verbs, its description names the rest, and the preview names the objects. With the Preferences' Helm storage driver set to `configmap` (2026-10-13) the release's records are ConfigMaps: `list`, `create`, `update configmaps` in place of the Secrets' requests (`TestKindHelmConfigMapDriver`) | Mutating | A new release and every object of the chart, created with the user's identity; a chart is untrusted content that runs as templates in Cogpit's process (no plugins, post-renderers or DNS lookups) and can read through `lookup` what the user may read, putting it into an object of the release. Values are templates too where a chart renders them with `tpl`: an agent's values can make the install read and copy such data, which is one more reason the user reads them in the confirmation. The archive is checked against its repository index's SHA-256 digest when the index lists one (`TestRepositoryRefusesWhatDoesNotFit`); an index without digests installs an unverified archive, which the confirmation and the tab say. Agents need the user's acceptance (D-2), also where agent writes are allowed for the context: an agent's install always asks, whatever the chart holds (decided by the owner on 2026-10-14 evening, A2, built the same night: `AgentsAsk` in [`commands/helminstall.go`](../../internal/engine/commands/helminstall.go), `TestHelmInstallAgents`; unasked there before, [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache)); the confirmation names the release, namespace, context, chart, version and the digest check, and shows inline values (D-27); the audit log records values by size only. Bound when it runs to the tab's text revision the user reviewed (`TestHelmInstallFromTab`). Refused when the release exists. Values the user changed from the chart's defaults are scrubbed from errors, toasts, the journal and the SDK's log lines (`TestInstallRefusalsAndScrubbing`, `TestHelmInstallFailures`). Crash-safe: the journal records `install` before the SDK runs; an install interrupted with the release `pending-install` or failed was offered on the next connect as an uninstall until 2026-10-14. Decided (owner, 2026-10-14 evening, A17) and built the same night: nothing is offered after an interrupted install; Cogpit shows the release's state only (the banner offers Show release and Dismiss), and the user cleans up in the Helm Releases view, whose uninstall is destructive and confirmed for every origin ([`helmjournal.go`](../../internal/engine/helmjournal.go); `TestHelmInstallCrashJournal`, `TestHelmBannerOffersNothingAfterAnInstall`). The install takes a context, whose cancellation does not reach the SDK. A release installed into ConfigMaps (the `configmap` storage driver) has its values readable by whoever may get ConfigMaps in its namespace, often more people than may read Secrets: only the user chooses that driver, in the window (agents and the CLI are refused and may set it back to Secrets, Cogpit's default), and an agent's install confirmation says where the values go (`TestHelmDriverPreference`, `TestHelmInstallUsesTheDriverPreference`) |
-| Node shell (`node.shell`, built 2026-10-13; its settings `cluster.settings.setNodeShell` send nothing) | all in `kube-system`: `create pods` (the node shell's pod), `get pods` and `watch pods` on that one pod (field selector `metadata.name`) while it starts, `create pods/exec` (a WebSocket upgrade, else SPDY, as the pod shell), `delete pods` with its UID as precondition; the access reviews are asked in `kube-system` (`Verb.Namespace`), so a user who may create pods there only is not greyed | Destructive (for every origin) | A privileged pod on the node, root on it for as long as the pod lives, at most the cluster's maximum duration (2 hours unless the user set 5 minutes to 24 hours; [H-7](#h-7-node-shell-is-root-on-the-node)); built as [D-37](../developer/decisions.md#d-37-the-node-shell) records it, under the rules below (`TestNodeShellPodAndConfirmation`, `TestNodeShellNeedsEveryOriginsConfirmation`, `TestNodeShellPodGoesWithItsTab`, `TestNodeShellBoundToWhatWasConfirmed`, `TestNodeShellFollowsAccessReviews`, `TestNodeShellMaxDurationSetting`; on kind `TestKindNodeShell`) |
-| Debug container (`pod.debug`, built 2026-10-19, [D-102](../developer/decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach); its image the Preferences' `debugImage`, which sends nothing) | `patch pods/ephemeralcontainers` (a strategic merge patch naming the new container alone, with the pod's UID as `metadata.uid`, as Cogpit's field manager), then `create pods/attach` for the Attach tab on it (a WebSocket upgrade, else SPDY); the access reviews grey Debug "not permitted" when either is denied | Destructive (for every origin, the owner 2026-10-19) | An ephemeral container `debugger-<5 characters>` in the pod, from the confirmed image, with stdin and a TTY and, with a target, sharing that container's process namespace: it sees the target's processes and, through `/proc/<pid>/root`, its files, mounted Secrets and service account token included, as root when the image runs as root (netshoot does). It stays in the pod's spec and status as long as the pod object: the API refuses its removal or change, the pod's container restarts keep it, it is never restarted; closing the Attach tab detaches and its shell runs on until it exits or the pod goes ([below](#debug-container), [H-134](#h-134-a-debug-container-stays-in-the-pod-and-sees-its-target)). Pod Security admission checks it: a namespace enforcing restricted refuses netshoot with the API server's message, which is Debug's error (verified on kind v1.36.1, `TestKindDebugContainer`); an admission webhook refuses it the same way: Kyverno's message, shown unchanged (verified 2026-10-19 night on a real cluster with Kyverno 1.17.2, `TestRealDebugContainer`). Another pod under the name is refused by its UID (`cluster.ErrReplaced`, verified on kind) (`TestDebugAddsTheConfirmedContainer`, `TestDebugNeedsEveryOriginsConfirmation`, `TestDebugRefusals`, `TestAddEphemeralContainerSendsTheGuardedPatch`, `TestAddEphemeralContainerRefusals`; on kind `TestKindDebugContainer`; on a real cluster `TestRealDebugContainer`) |
-| A write on a connection that stops answering (every row above; built 2026-10-15/16, [D-58](../developer/decisions.md#d-58-standby-and-lost-connections)) | the row's own requests, each bounded: a request that is not a stream (a watch, a log, exec, attach, a port forward) ends after 30 s without an answer (`cluster.DefaultRequestTimeout`, [`health.go`](../../internal/cluster/health.go)) | the row's | Nothing more than the row says, but possibly less: a write whose request may have reached the API server and whose answer never came (the connection broke, or 30 s passed) ends as `cluster.OutcomeUnknownError`, "outcome unknown: … the view shows the object's state once reconnected", and is never sent again by Cogpit; one whose connection could not even be opened ends with its own error and changed nothing (`TestARequestWithoutAnAnswerEndsAfterTheTimeout`). Before, such a write could wait until the operating system gave the connection up |
-| Node shell pods an earlier run left (no command: on each connect to a context, 2026-10-14, [H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect); `NodeShellCleanupVerbs`) | all in `kube-system`: `delete pods` with the UID the journal recorded as precondition, for each pod Cogpit's node shell journal names for the context; `get pods` on one pod by name only for an entry recorded without its UID, to check the pod's `cogpit.io/node-shell-id` before its UID is used | Not asked: it follows the connect and deletes only Cogpit's own pods; each delete is in the audit log (`cogpit.nodeShellCleanup`, origin gui) and the notification names the pods | The node shell pods a crash, a kill or a failed delete left, Running or `Failed`, deleted; a pod of the name with another UID, a gone one, and another live Cogpit process's are untouched; a forbidden delete keeps its entry and is tried again at the next connect (`TestNodeShellSweepDeletesOwnPodsOnly`) |
+| Logs (`pod.logs`, `workload.logs`, `logs.controller`, `application.logs`, `argocd.logs`, `flux.logs`; `logs.setSource`, `logs.sources`, `logs.loadOlder`, `logs.jumpTo`) | `get pods/log`; the pods, Replica Sets and a group's object and workloads from the cache | Read | Nothing. A tab streams at most 40 containers at once (a group's of at most 20 workloads, [`engine/grouplogs.go`](../../internal/engine/grouplogs.go)); older lines and a jump to a time are one request per container, only on the user's or an agent's action, bounded by the tab's 10,000 lines ([`engine/logsolder.go`](../../internal/engine/logsolder.go)) |
+| Secret drawer, reveal (`secret.reveal`) | none: the full Secrets watch's cache (declared `list secrets`) | Read, GUI only | Nothing. A value (4 KiB or 40 lines; whole with `whole`, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) lives only in the window's widgets until Hide, another object or the drawer's close; the reveal names the Secret's `resourceVersion`, so a changed Secret is refused (`TestRevealedValueDroppedWhenSecretChanges`). An agent's refused reveal is audited without the value (`TestRevealIsGUIOnly`) |
+| Refresh access (`cluster.refreshAccess`) | the access reviews of a connect | Read | Nothing; the cached answers are fetched again |
+| Pod shell, attach (`pod.shell`, `pod.attach`; `dock.reconnect` after an interruption) | `create pods/exec`, `create pods/attach`; from Kubernetes 1.35 the WebSocket upgrade is authorised as `create` too (`AuthorizePodWebsocketUpgradeCreatePermission`) | Mutating; `dock.reconnect` of a node shell Destructive | A process in the container, or an attach to its main process: typed input reaches it, Ctrl+C and Ctrl+D included, which can end the main process and restart the container. Closing an attach tab detaches; the process runs on (`TestKindWorkloadLogsAttachRestartScale`) |
+| Port forward (`pod.portForward`, `service.portForward`, `portforward.edit`; `argocd.openUI`, to the Service labelled `app.kubernetes.io/name=argocd-server`) | `create pods/portforward` (a WebSocket upgrade, counted as `get pods/portforward`, else an SPDY `POST`); pods and Services from the cache | Mutating; `portforward.open`, `portforward.stop`, `portforward.remove` UI | A listener on `127.0.0.1` only ([H-2](trust-boundaries.md#h-2-local-processes-and-forwarded-ports)); nothing in the cluster changes and a crash leaves nothing there ([`cluster/portforward.go`](../../internal/cluster/portforward.go)). A service forward moves to another ready pod; a forward ends with Stop, Delete, its context's disconnect or quitting, not when another cluster is shown ([D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once); `TestKindPortForward`) |
+| Edit and apply (`object.apply`) | `update` with `dryRun=All`, then for real; the text comes from the cache | Mutating; Destructive when it sets `spec.replicas` to 0 or removes a data key | The object, with the tab's base resourceVersion as precondition: a concurrent change is a conflict, never overwritten; every manager's `managedFields` entries are kept. A Secret's tab shows its values (base64 in `data`, plain in `stringData`; `TestSecretEditAndCreateAreGUIOnly`) |
+| Server-side dry run (`object.dryRun`) | `update` with `dryRun=All` of an Edit tab's text | Read | Nothing stored; RBAC still asks for `update`, and admission webhooks with side effects refuse it. A conflict never moves the edit's base version, so an agent's check cannot make the user's next apply overwrite a concurrent change |
+| A Config Map's values in the drawer (`configMap.saveData`, `configMap.reviewData`, `configMap.readData`, `configMap.keepEdits`; [D-55](../developer/decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) | `update configmaps` with `dryRun=All`, then for real; the review: the dry run alone; the read: the cache | Mutating; Destructive when it removes a key; `configMap.keepEdits` UI, GUI only | Named keys' values, keys added and removed (`TestConfigMapDataAddsAndRemovesKeys`), on the cached object with the values' base resourceVersion as precondition: a changed Config Map is not written, and the error names the version a second call must name to write over it (`TestConfigMapDataNeverOverwritesUnasked`). A review given the keys' base values (`from`) rebases onto a version none of them changed in; the save never rebases (`TestConfigMapDataRebases`, `TestKindConfigMapDataSave`). Refused before sending: an unknown key, binary data, a Helm release record, an immutable Config Map, a placeholder Cogpit showed for a Secret's value (`TestConfigMapDataRefusals`, `TestConfigMapDataKeyRefusals`, `TestConfigMapDataAgents`). An agent's save shows its diff in the confirmation. Unsaved edits stay in memory and an owner-only draft |
+| A Secret's values in the drawer (`secret.saveData`, `secret.reviewData`; [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) | `update secrets` with `dryRun=All`, then for real; the read: the cache | Mutating; Destructive when it removes a key | As a Config Map's, base64-encoded, the Secret sent whole. The update drops kubectl's last-applied annotation, which the cache does not hold ([credentials › H-103](credentials.md#h-103-a-secret-saved-from-cogpit-loses-kubectls-last-applied-annotation)). Also refused: a binary value to change, a Secret the drawer does not show (`TestSecretDrawerDataSave`, `TestSecretDrawerDataAddsAndRemovesKeys`, `TestSecretDrawerDataRefusals`, `TestSecretDrawerDataIsGUIOnly`, `TestKindSecretDataSave`) |
+| Create (`object.create`) | discovery `get`; per object `create` with `dryRun=All`, then for real | Mutating | New objects in order; a failure is reported and the next one tried; a Secret in an agent's or the CLI's text is an item error, and a Create tab or `editor.setText` holding one is refused. An object whose namespace comes from the namespace filter lands only in the namespace the confirmation named |
+| Create dialogs (`namespace.create`, `serviceAccount.create`, `role.create`, `clusterRole.create`, `roleBinding.create`, `clusterRoleBinding.create`, `resourceQuota.create`, `secret.create`; [`commands/createdialogs.go`](../../internal/engine/commands/createdialogs.go)) | discovery `get`; `create` of the kind, with `dryRun=All` first; a binding dialog reads `roles`, `clusterroles` and `serviceaccounts` from the cache. A role with rules the user lacks needs `escalate`, a binding to one `bind`, the dry run too; Cogpit declares neither | Mutating; `clusterRoleBinding.create` Destructive; `roleBinding.create` Destructive for `cluster-admin` or a cached role allowing every verb on every resource of every group; agents always ask for roles and bindings (`TestAgentRoleBindingsAlwaysAsk`) | One object, checked before sending and bound to the confirmed context and object; greyed "not permitted" when the access reviews deny `create` (`CreatePermitted`, `TestCreateDialogsFollowAccessReviews`). A binding is a privilege grant: the confirmation's rows name the role and the subjects, a role's its rules (`Effects`, [D-100](../developer/decisions.md#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save); `TestCreateDialogsAgentsNeedAcceptance`). A cluster role binding acts in every namespace, and `cluster-admin` bound in a namespace is full control of it: both are confirmed for every origin; what the rule misses: [H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache). Create Secret is GUI only ([credentials](credentials.md#secret-values-in-the-create-secret-dialog); `TestSecretCreateIsGUIOnly`, `TestSecretCreateErrorsNeverQuoteValues`) |
+| Scale (`deployment.scale`, `statefulset.scale`, `replicaset.scale`) | `patch` on the `scale` subresource | Mutating; Destructive to zero | The replica count; a Replica Set a Deployment controls is set back by it, which the GUI says |
+| Restart (`deployment.restart`, `daemonset.restart`, `statefulset.restart`; a selection: `workload.restartMany`, [`commands/restartmany.go`](../../internal/engine/commands/restartmany.go)) | `patch`: kubectl's `rollout restart` patch plus `metadata.uid` (`TestRestartWorkloadSendsKubectlsPatch`) | Destructive: it replaces every pod | The template's `kubectl.kubernetes.io/restartedAt` annotation; with the OnDelete strategy pods change only as they are deleted, which the confirmation says. A selection: one confirmation naming every workload (`TestRestartMany`) |
+| Suspend, resume (`cronjob.suspend`, `cronjob.resume`) | `patch cronjobs` of `spec.suspend` alone ([`cluster/workloads.go`](../../internal/cluster/workloads.go) `SetCronJobSuspend`) | Mutating | `spec.suspend`; running Jobs go on |
+| Flux actions (`flux.reconcile`, `flux.reconcileWithSource`, `flux.reset`, `flux.suspend`, `flux.resume`; on a selection `flux.reconcileMany`, `flux.reconcileWithSourceMany`, `flux.resetMany`, `flux.suspendMany`, `flux.resumeMany`; [D-33](../developer/decisions.md#d-33-the-flux-actions)) | `patch` on the object's Flux kind, a JSON merge patch (`TestKindFlux`); Reconcile with Source also on its sources (Git, OCI and Helm repositories but OCI Helm ones, buckets, Helm charts) in their namespaces | Mutating | Reconcile: `reconcile.fluxcd.io/requestedAt` (with `force` also `forceAt`: a Helm release installs or upgrades, hooks included, even without a change); Reset: `resetAt` (a Helm release's failure counts); Suspend, Resume: `spec.suspend`. Reconcile with Source is a job that waits through the cache, at most 5 minutes, for each source to be ready before the next; a suspended or missing source refuses the whole action ([`commands/fluxsourcejob.go`](../../internal/engine/commands/fluxsourcejob.go)). The controller then acts with its own identity ([H-64](#h-64-a-flux-action-is-carried-out-with-the-controllers-identity)) |
+| Trigger (`cronjob.trigger`) | `create jobs` | Mutating | A Job as `kubectl create job --from=cronjob/<name>` makes it, with `cronjob.kubernetes.io/instantiate: manual`, named `<cronjob>-manual-<5 random characters>` |
+| Cordon, uncordon (`node.cordon`, `node.uncordon`) | `patch nodes`, never an `update` | Mutating | `spec.unschedulable` |
+| Evict (`pod.evict`) | `create pods/eviction` | Destructive | The pod deleted, honouring PodDisruptionBudgets; a budget's refusal is an error naming it, not retried |
+| Drain (`node.drain`) | `patch nodes`; discovery `get /api/v1`; `list pods` in all namespaces (field selector `spec.nodeName`); `get daemonsets.apps`; `create pods/eviction` per pod; `get pods` while waiting; never `delete pods` | Destructive | A cordon, then every evictable pod evicted (kubectl's drain library). Defaults ([`engine/drainjournal.go`](../../internal/engine/drainjournal.go) `DrainSettings`): DaemonSet pods left; pods with emptyDir data or without a controller refuse the drain unless `deleteEmptyDirData` or `force`, which the confirmation names; each pod's grace period; 300 s. A job: `job.cancel` (any origin, [H-111](agents-and-mcp.md#h-111-an-agent-can-stop-a-drain-the-user-confirmed)), closing its tab or the cluster's disconnect or interruption stop it between requests, uncordoning nothing. `<user config dir>/Cogpit/drains.json` (0600) records it before the cordon: a crash, failure or stop leaves a cordoned node that the next connect offers to finish, uncordon or dismiss (`TestKindDrainCrashFinishUncordon`) |
+| Delete (`object.delete`, `object.deleteMany`) | `delete`, one per object | Destructive | The object and its garbage-collected dependents; one the cache did not hold at the confirmation is refused. A selection's dialog lists every object; a failure is reported while the others go on; a denied access review on any object greys the action (`TestDeleteManyOneConfirmation`, `TestDeleteManyPartialFailure`, `TestDeleteManyNeedsTheAgentsAcceptance`, `TestDeleteManyJobCancelled`, `TestKindDeleteSelection`, `TestKindDeleteSelectionAsAJob`) |
+| Argo CD Refresh (`argocd.application.refresh`, `argocd.application.refreshMany`) | `patch applications.argoproj.io` | Mutating | The annotation `argocd.argoproj.io/refresh` (`normal`, `hard`). Cogpit never talks to Argo CD's API server |
+| Argo CD Sync (`argocd.application.sync`, `argocd.application.syncMany`) | `patch applications.argoproj.io` with `metadata.resourceVersion` too ([D-36](../developer/decisions.md#d-36-how-argo-cds-sync-writes-the-operation)), three attempts at most after conflicts; refused while an operation is requested or running | Mutating; Destructive with prune | The `operation` as `argocd app sync` writes it (`initiatedBy: cogpit`), which Argo CD's controller runs with **its** service account, applying and pruning what the Application's project allows; refused inside a deny sync window ([H-67](#h-67-a-sync-acts-with-argo-cds-rights-not-the-users)) |
+| Force delete (pod) | none: not built, no `delete` with grace period 0 | – | – |
+| Remove finalizers (`object.removeFinalizers`, [D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)) | one JSON patch: `test /metadata/uid`, `test /metadata/finalizers` (exactly those confirmed, in order), `remove /metadata/finalizers`; never `/finalize`, `spec.finalizers`, namespaces or custom resource definitions | Destructive | Every finalizer of an object being deleted, so it goes at once without its controllers' cleanup ([H-9](#h-9-force-finalize-skips-cleanup)); a changed object or finalizer list fails a `test` and nothing is removed (`TestRemoveFinalizersSendsTheGuardedPatch`, `TestRemoveFinalizersRefusals`, `TestKindTerminatingNamespaceBlockers`) |
+| Helm rollback, uninstall (`helm.release.rollback`, `helm.release.uninstall`) | the Helm SDK with the user's context: `list`, `get`, `create` (rollback), `update`, `delete` on the release records (`secrets`, or `configmaps` for that driver, the access check asking for the release's own: `TestHelmVerbsFollowTheReleasesDriver`, `TestHelmConfigMapReleaseActions`, `TestActionsUseTheReleasesDriver`, `TestKindHelmConfigMapDriver`), discovery, and whatever its manifests and hooks need | Destructive | The release's objects and records; 10 revisions kept, as `helm rollback` and Lens keep them. Bound to the newest record's UID and refused when the server holds a newer revision (`TestActionsRefuseWhenTheServerMoved`); the newest revision as target applies its manifest again (`TestRollbackDialogCurrentRevision`, `TestHelmRollbackAndUninstall`). The window's Rollback dialog is the confirmation, its answer used once, within 10 s, for that release, context and revision (`TestRollbackDialogAnswerBinding`). `<user config dir>/Cogpit/helm.json` (0600) records each action before the SDK runs; an interrupted one is offered on the next connect ([D-11](../developer/decisions.md#d-11-crash-stance); `TestHelmCrashJournalOffer`, `TestKindHelmReleases`). The SDK runs to its 5-minute timeout |
+| A release's revisions (`helm.release.revision`, `helm.release.diff`, `ui.helm.revisions`, `ui.helm.revisions.set`; [D-131](../developer/decisions.md#d-131-a-releases-revisions)) | none: the cached release records | Read | Nothing (`TestReleaseRevision`); values and rendered Secrets as [H-8](#h-8-secret-data-arrives-with-the-list) says |
+| Helm upgrade (`helm.release.upgrade`, `helm.release.upgradeTab`) | the Helm SDK: `list`, `create`, `update` and, past 10 revisions, `delete` on the release records; `get` and `patch` (server-side apply) on its objects, `create` and `delete` for objects added or dropped; discovery (`TestKindHelmUpgrade`, `TestKindHelmUpgradeFromRepository`). Another chart version is first downloaded from a repository of Helm's repositories file | Mutating; agents always ask (`AgentsAsk` in [`commands/helmupgrade.go`](../../internal/engine/commands/helmupgrade.go), `TestHelmUpgradeAgents`) | A new revision with the new values and the release's chart or another version a repository lists, checked against the index's SHA-256 when it has one (provenance is not: [H-30](trust-boundaries.md#h-30-chart-provenance-is-not-verified)). The confirmation names the versions, the repository, the digest check (`ErrTargetsChanged` when they changed) and an agent's inline values ([D-27](../developer/decisions.md#d-27-an-agents-helm-values-in-the-confirmation); `TestHelmUpgradeFromARepositoryAgents`, `TestHelmUpgradeRepositoryRefusals`); no preview renders them, and through `tpl` they reach `lookup` ([H-31](#h-31-an-agents-helm-values-can-copy-what-lookup-reads)). Bound to the revision the values were read from, rechecked right before the SDK runs (`TestHelmUpgradeRefusedWhenTheReleaseMoved`, `TestHelmActionsRefusedWhenTheServerMovedUnseen`, `TestHelmUpgradeTabSaves`). Values are scrubbed from errors, toasts, the journal and the SDK's log, best effort ([`helm/values.go`](../../internal/helm/values.go) `ScrubValues`; `TestUpgradeScrubsValuesFromErrors`, `TestScrubValuesEscapedForms`, `TestRedactSDKLog`), and audited by size; a failed upgrade's error is withheld from agents and the CLI (H-31). An interrupted upgrade is offered as a rollback to the revision it started from (`TestHelmUpgradeCrashJournal`, `TestHelmUpgradeRepositoryCrashJournal`) |
+| Helm install (`helm.chart.install`, `helm.chart.installTab`, `helm.chart.preview`) | the Helm SDK. The window's preview (`--dry-run=server`): discovery, a `get` per rendered object and what the templates `lookup`, nothing written; an agent's or the CLI's renders offline, no request and no `lookup` (the built-in agent over a private connection previews as the window, [H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows); `TestKindHelmInstall`). The install: `list`, `create`, `update` on the release records, a server-side apply (`patch`, `create`) of every rendered object, `create customresourcedefinitions` for `crds/`, the namespace with `createNamespace`, and the hooks' objects | Mutating; agents always ask (`AgentsAsk` in [`commands/helminstall.go`](../../internal/engine/commands/helminstall.go), `TestHelmInstallAgents`) | A new release and every object of the chart, made with the user's identity. A chart is untrusted templates run in Cogpit's process (no plugins, post-renderers or DNS lookups) that can read through `lookup` what the user may read and copy it into an object. Digest check, scrubbing and audit as for an upgrade (an unverified archive is said so; `TestRepositoryRefusesWhatDoesNotFit`, `TestInstallRefusalsAndScrubbing`, `TestHelmInstallFailures`); refused when the release exists (`TestHelmInstallFromTab`). After an interrupted install nothing is offered: the banner shows the release's state, the user uninstalls it ([`engine/helmjournal.go`](../../internal/engine/helmjournal.go); `TestHelmInstallCrashJournal`, `TestHelmBannerOffersNothingAfterAnInstall`). The `configmap` storage driver makes values readable by whoever may read ConfigMaps in the namespace: only the user chooses it (`ErrHelmDriverGUIOnly`; `TestHelmDriverPreference`, `TestHelmInstallUsesTheDriverPreference`) |
+| Node shell (`node.shell`; `cluster.settings.setNodeShell` sends nothing) | in `kube-system`: `create pods`; `get`, `watch` on that pod; `create pods/exec`; `delete pods`; the access reviews are asked there (`Verb.Namespace`, `TestNodeShellFollowsAccessReviews`) | Destructive | A privileged pod, root on the node for at most the maximum duration ([below](#node-shell), [H-7](#h-7-node-shell-is-root-on-the-node); `TestNodeShellPodAndConfirmation`, `TestNodeShellPodGoesWithItsTab`, `TestKindNodeShell`) |
+| Debug container (`pod.debug`, [D-102](../developer/decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach)) | `patch pods/ephemeralcontainers` (the new container alone), then `create pods/attach` (`TestAddEphemeralContainerSendsTheGuardedPatch`, `TestAddEphemeralContainerRefusals`) | Destructive | An ephemeral container that stays as long as the pod and, with a target, sees its processes and files ([below](#debug-container), [H-134](#h-134-a-debug-container-stays-in-the-pod-and-sees-its-target); `TestDebugAddsTheConfirmedContainer`, `TestDebugRefusals`, `TestKindDebugContainer`) |
+| Node shell pods a crash left (no command: each connect, [H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect); `NodeShellCleanupVerbs`) | in `kube-system`: `delete pods` with the journaled UID; `get pods` by name for an entry without one | Not asked: only Cogpit's own pods, audited as `cogpit.nodeShellCleanup` | Those pods deleted; another UID, a gone pod or another live Cogpit process's are left alone (`TestNodeShellSweepDeletesOwnPodsOnly`) |
 
 ## Node shell
 
-Lens opens a node shell through a pod; its cluster settings name the image and an image pull
-secret in `kube-system` ([Lens cluster settings](https://docs.lenshq.io/k8slens/cluster/cluster-settings/));
-its default image is a tag, `docker.io/alpine:3.19` (captured 2026-10-11).
-A shell in the node's own namespaces cannot be had from the Kubernetes API without such a pod: it
-must share the host PID namespace and be privileged to enter PID 1's namespaces, or, as
-`kubectl debug node/<name>` does, share the host namespaces and mount the host's root filesystem
-([debug a node with kubectl](https://kubernetes.io/docs/tasks/debug/debug-cluster/kubectl-node-debug/)).
-Both violate the Baseline Pod Security Standard
-([pod security standards](https://kubernetes.io/docs/concepts/security/pod-security-standards/)),
-so the target namespace must allow privileged pods. Rules for Cogpit's node shell:
+A shell in a node's namespaces needs a privileged pod sharing the host PID namespace, or one that
+shares the host namespaces and mounts the host's root filesystem
+([`kubectl debug node/<name>`](https://kubernetes.io/docs/tasks/debug/debug-cluster/kubectl-node-debug/));
+both violate the Baseline [Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/).
+Lens runs the first in `kube-system`, its image (by default the tag `docker.io/alpine:3.19`) and
+pull secret set in its [cluster settings](https://docs.lenshq.io/k8slens/cluster/cluster-settings/);
+so does Cogpit
+([D-37](../developer/decisions.md#d-37-the-node-shell),
+[`engine/nodeshell.go`](../../internal/engine/nodeshell.go)):
 
-- The confirmation says that the action creates a privileged pod with root access to the node, and
-  names the namespace, the image and the node.
-- The image is a setting with a pinned default (by digest), not a floating tag.
-- The pod carries `activeDeadlineSeconds`, so it ends even if Cogpit dies, and is deleted when the
-  shell closes.
-
-**Built 2026-10-13** (night build, [D-37](../developer/decisions.md#d-37-the-node-shell), Lens's
-behaviour, decided by the owner 2026-10-14), each rule as follows:
-
-- **Confirmed for every origin.** `node.shell` is destructive: the user confirms it from the
-  window, the CLI and agents alike, also where agents' writes are allowed (D-2). The dialog says
-  "It creates a privileged pod in namespace kube-system on node <node> with root access to the
-  node", names the image (pinned by digest, or "a floating tag, not pinned by digest") and an image
-  pull secret, and says how long the pod lives at most (its maximum duration). What runs is bound
-  to what was confirmed: a change of the image, the pull secret or the maximum duration, a node
-  created again under its name, or another context refuses it before anything is created
-  ([`engine/nodeshell.go`](../../internal/engine/nodeshell.go) `StartNodeShell`).
-- **The image.** Cluster Settings › Node Shell (`cluster.settings.setNodeShell`); the default is
-  the newest supported Alpine release pinned to its index digest (owner, 2026-10-14): on
-  2026-10-14 `docker.io/library/alpine:3.24@sha256:294b683c…eaec77e6` (3.24.2, supported until
-  2028-06-01). Renovate keeps it current: it reads the pin in `DefaultNodeShellImage` and opens a
-  pull request for a new Alpine release or a new digest of the tag, which merges once CI, whose
-  kind job opens a node shell with it, passes ([D-37](../developer/decisions.md#d-37-the-node-shell);
-  what remains: [H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)). Lens's
-  default is the tag `docker.io/alpine:3.19`. A floating tag is accepted and named as one in the
-  confirmation and on the page (Cogpit's default). Only the user sets the image or the pull
-  secret; agents and the CLI may only reset them to the defaults
+- **Confirmation.** Destructive for every origin; its rows name the privileged pod in `kube-system`
+  on the node, root access, the image and its digest (or "a floating tag"), the pull secret and when
+  the pod ends at the latest (`NodeShellEffects`). A changed image, pull secret or maximum duration,
+  a node created again under its name or another context refuses it before anything is created
+  (`StartNodeShell`; `TestNodeShellNeedsEveryOriginsConfirmation`,
+  `TestNodeShellBoundToWhatWasConfirmed`).
+- **Image.** Cluster Settings › Node Shell; the default `DefaultNodeShellImage` is the newest
+  supported Alpine (3.24) pinned by its index digest; Renovate moves the pin for a new release or a
+  rebuilt tag once CI's kind node shell passes
+  ([H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)). Only the
+  user sets the image and the pull secret; agents and the CLI may reset them
   ([D-38](../developer/decisions.md#d-38-who-sets-the-node-shells-image), `ErrNodeShellGUIOnly`).
-- **The pod.** In `kube-system` (Lens's), `nodeName` set, one toleration `operator: Exists` (every
-  taint), `hostPID: true`, the container `privileged: true`, no service account token
-  (`automountServiceAccountToken: false`), no service links, `restartPolicy: Never`, a 1-second
-  grace period, labels `app.kubernetes.io/name: cogpit-node-shell` and
-  `app.kubernetes.io/managed-by: cogpit`, a name with eight random characters, and since 2026-10-14
-  the annotation `cogpit.io/node-shell-id` with the random id of its journal entry (H-71). The shell is
-  `nsenter -t 1 -m -u -i -n -p` into the node's mount, UTS, IPC, network and PID namespaces, then
-  the node's own bash (else sh) as root.
-- **Its lifetime.** `activeDeadlineSeconds` and the container's `sleep` are the cluster's maximum
-  duration, Cluster Settings › Node Shell › Maximum duration (owner, 2026-10-14): 2 hours
-  (`7200`) unless the user sets whole minutes from 5 minutes to 24 hours (Cogpit's bounds, confirmed by the owner on 2026-10-14 evening). Like
-  the image it is the user's only: agents and the CLI may reset it to 2 hours but not set it, so an
-  agent cannot stretch the life of the root pod it asks for (`ErrNodeShellGUIOnly`,
-  `TestNodeShellMaxDurationSetting`).
-- **Its end.** Deleted, with its UID as precondition, when the shell ends, its tab closes or
-  Cogpit quits (at most 10 seconds of waiting); a pod that cannot pull its image or fails within 3
-  minutes ends the session with the reason and is deleted. Since 2026-10-14 every pod is recorded
-  in a journal before its create is sent, and one a crash leaves is deleted at the next connect to
-  its context, or ends by its deadline before that
+- **Pod.** `nodeName`, a toleration `operator: Exists`, `hostPID: true`, `privileged: true`, no
+  service account token, no service links, `restartPolicy: Never`, a 1-second grace period, labels
+  `app.kubernetes.io/name: cogpit-node-shell` and `app.kubernetes.io/managed-by: cogpit`, the name
+  `cogpit-node-shell-<8 random characters>`, the annotation `cogpit.io/node-shell-id` (H-71). The
+  shell is `nsenter -t 1 -m -u -i -n -p`, then the node's bash (else sh) as root
+  ([`terminal/nodeshell.go`](../../internal/terminal/nodeshell.go)).
+- **Lifetime.** `activeDeadlineSeconds` and the container's `sleep` are Cluster Settings › Node
+  Shell › Maximum duration: 2 hours, or whole minutes from 5 minutes to 24 hours, set only by the
+  user ([`engine/nodeshell_duration.go`](../../internal/engine/nodeshell_duration.go);
+  `TestNodeShellMaxDurationSetting`). The pod is deleted with its UID when the shell ends, its tab
+  closes or Cogpit quits (10 s at most); one that cannot start within 3 minutes ends the session
+  and is deleted; one a crash leaves goes at the next connect
   ([H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)).
-- **What `kube-system` must allow.** Privileged pods violate the Baseline Pod Security Standard: a
-  cluster that enforces Baseline or Restricted in `kube-system` refuses the pod, and the API
-  server's message is the node shell's error.
+- **`kube-system`** must allow privileged pods: under Baseline or Restricted the API server's
+  refusal is the node shell's error.
 
 ## Debug container
 
-`kubectl debug -it <pod> --image=<image> --target=<container>` adds an ephemeral container to a
-running pod through its `ephemeralcontainers` subresource and attaches to it
+`kubectl debug -it <pod> --image=<image> --target=<container>` adds an ephemeral container through
+the pod's `ephemeralcontainers` subresource and attaches to it
 ([ephemeral containers](https://kubernetes.io/docs/concepts/workloads/pods/ephemeral-containers/)).
-Cogpit's Debug (`pod.debug`, the owner's request of 2026-10-19,
-[D-102](../developer/decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach))
-does the same, under these rules:
+Cogpit's Debug does the same ([D-102](../developer/decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach),
+[`engine/debugcontainer.go`](../../internal/engine/debugcontainer.go)):
 
-- **Confirmed for every origin.** Destructive (the owner): the window's Debug dialog is the
-  confirmation, its rows Context › Namespace › Pod, Target, what the container sees of it
-  ("app's processes and files"), Image and Digest, and "This cannot be undone."; its answer is bound
-  to the pod's UID as the dialog read it, the target and the image. Agents and the CLI get the
-  engine's confirmation with the same rows, also where agents' writes are allowed (D-2). What runs
-  is bound to what was confirmed: a pod created again under the name, another image (the
-  Preferences' changed while the user was asked) or another context refuses it before anything is
-  sent.
-- **The image.** Preferences › Kubernetes › Debug container image, app-wide (the owner); the
-  default `nicolaka/netshoot:v0.16` pinned to its multi-arch index's digest
-  (`docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21…6f48e70`, read by the lead on 2026-10-19),
-  kept current by Renovate as the node shell's is, and run in CI's kind job on every change
-  (`TestKindDebugContainer`). A floating tag is accepted and named as one. Only the user sets the
-  image; agents and the CLI may only reset it (`ErrDebugImageGUIOnly`): it decides what the user's
-  next Debug runs beside a pod's processes. An agent's `pod.debug` may name any image, which its
-  confirmation shows with its digest or "a floating tag".
-- **The container.** `debugger-<5 lowercase characters>` (kubectl's form), `stdin: true`,
-  `tty: true`, `terminationMessagePolicy: File`, the image's own command, `targetContainerName` the
-  container the user picked (none: no shared processes). No security context of its own: what the
-  image runs as, and the namespace's Pod Security level, decide.
-- **What it refuses.** A pod that has ended or is being deleted is greyed with the reason (the API
-  server itself takes an ephemeral container on a finished pod, verified on kind v1.36.1; it would
-  never run); a target that is none of the pod's containers or init containers; an image that is
-  no reference. The API server's refusals (Pod Security admission, an admission webhook, RBAC)
-  are Debug's error, unchanged.
-- **Cache first.** The new container reaches the window through the pod's watch; Debug waits for
-  it there (at most 30 s) before it opens the Attach tab, which waits through the cache too (at
-  most 3 minutes) while the image is pulled.
+- **Confirmation.** Destructive for every origin; rows Context › Namespace › Pod, Target, what the
+  container sees of it, Image and Digest, and "This cannot be undone." (`DebugEffects`). The
+  window's Debug dialog is the confirmation, its answer bound to the pod's UID, the target and the
+  image; another pod under the name, another image or another context refuses it before anything is
+  sent (`TestDebugNeedsEveryOriginsConfirmation`).
+- **Image.** Preferences › Kubernetes › Debug container image; the default `DefaultDebugImage`,
+  `nicolaka/netshoot:v0.16` pinned by its index digest, which Renovate moves as the node shell's.
+  Only the user sets it (`ErrDebugImageGUIOnly`); an agent's `pod.debug` may name any image, which
+  its confirmation shows with its digest or as a floating tag.
+- **Container.** `debugger-<5 characters>`, stdin and a TTY, `terminationMessagePolicy: File`, the
+  image's command, `targetContainerName` the picked container. No security context of its own: the
+  image's user and the namespace's Pod Security level decide, and Pod Security admission, webhooks
+  and RBAC refuse with their own message (`TestRealDebugContainer`).
+- **Refused:** a pod that has ended or is being deleted, a target that is none of its containers or
+  init containers, an image that is no reference.
+- **Cache first.** Debug waits for the new container in the pod's watch (30 s at most); the Attach
+  tab waits through the cache while the image is pulled (3 minutes at most).
+
+## Commands that send no request
+
+| Commands | What they touch instead |
+|---|---|
+| Helm's chart repositories (`helm.repo.list`, `helm.repo.update`) | Helm's own `repositories.yaml`, read, never written; the indexes come from those repositories with the credentials the file names (D-29, [architecture §8](../developer/architecture.md#8-helm-internalhelm)) |
+| Kubeconfig sources (`kubeconfig.*`) | Cogpit's source list and approvals; what they let run locally: [credentials](credentials.md), [trust boundaries › H-1](trust-boundaries.md#h-1-kubeconfig-files-added-by-sync-folders) |
+| Preferences, Cluster Settings (`preferences.*`, `cluster.settings.*`) | Cogpit's `preferences.json`, `cluster-settings.json`, `cluster-icons/`, never a kubeconfig (`TestClusterSettingsCommandsNeverTouchTheKubeconfig`); a terminal namespace goes into the terminal's own kubeconfig ([credentials](credentials.md#the-terminals-kubeconfig)); `preferences.setStartAtLogin` sets the app's macOS login item, on only from the window |
+| Program folders (`preferences.addProgramFolder`, GUI only; `preferences.removeProgramFolder`; [D-120](../developer/decisions.md#d-120-folders-searched-for-credential-plugins)) | where Cogpit's own `PATH` looks for a credential plugin's programs, after its own folders ([credentials › H-6](credentials.md#h-6-exec-plugins-inherit-the-environment)) |
+| Disconnect (`cluster.disconnect`) | ends the connection's informers, port forwards, logs and shells (`TestDisconnectAndWelcomeCommands`) |
+| Remove from Cogpit (`cluster.remove`, GUI only) | Cogpit's link to a kubeconfig file or folder, never the file; its contexts lose their plugin approvals and cluster settings, the agents' write allowance included (`TestClusterRemove`, `TestRemovingASourceForgetsItsClustersSettings`) |
+| Hotbar (`hotbar.*` but `hotbar.openCluster`), notifications (`notifications.*`) | Cogpit's `hotbar.json`; the session's memory of its toasts |
 
 ## Nothing installed for Cogpit's own features
 
-Cogpit installs nothing into a cluster for its own features (metrics, agents, exporters): it finds
-and reads what the cluster runs, and installing is the user's own action on their charts (owner,
-2026-10-16; [AGENTS.md](../../AGENTS.md#never-surprise-a-cluster-outranks-feature-work)). Cluster
-Settings › Cogpit Metrics, built in the night of 2026-10-15/16 and released in v0.16.0 and v0.17.0
-([D-61](../developer/decisions.md#d-61-cogpit-metrics-the-bundled-metrics-stack)), installed Prometheus,
-kube-state-metrics and node-exporter from a chart embedded in the binary, with their ClusterRoles
-and ClusterRoleBindings, in a namespace `cogpit-metrics` Cogpit created and deleted; the owner
-withdrew it on 2026-10-16 and it is removed, with its commands `cluster.metricsStack` and
-`cluster.setMetricsStack` and their verbs (`create` and `delete namespaces`; `create`, `patch` and
-`delete` of Deployments, DaemonSets, Services, ConfigMaps, ServiceAccounts,
-PersistentVolumeClaims, ClusterRoles and ClusterRoleBindings). H-105, the stack's cluster-wide
-reads gathered in one namespace, is closed with it. A stack that v0.16.0 or v0.17.0 installed (the
-releases `cogpit-prometheus`, `cogpit-kube-state-metrics` and `cogpit-node-exporter` in
-`cogpit-metrics`) stays in the cluster as the user's own Helm releases, which grant what their
-chart grants: the Helm Releases view lists and uninstalls them (`helm.release.uninstall`, above),
-and detection reads its Prometheus like any other ([H-26](#h-26-prometheus-is-found-by-name)).
+Cogpit installs nothing into a cluster for its own features (metrics, agents, exporters): it reads
+what the cluster runs, and installing is the user's action on their own charts
+([AGENTS.md](../../AGENTS.md#never-surprise-a-cluster-outranks-feature-work)), so no namespace,
+role or workload of Cogpit's gathers cluster-wide reads (H-105). The releases `cogpit-prometheus`,
+`cogpit-kube-state-metrics` and `cogpit-node-exporter` in `cogpit-metrics`, which the withdrawn
+Cogpit Metrics stack installed ([D-61](../developer/decisions.md#d-61-cogpit-metrics-the-bundled-metrics-stack)),
+are the user's own Helm releases: the Helm Releases view uninstalls them, and detection reads that
+Prometheus like any other ([H-26](#h-26-prometheus-is-found-by-name)).
 
 ## What this does not cover
 
 ### H-64: A Flux action is carried out with the controller's identity
 
-Live since 2026-10-13 on every context where the user may `patch` a Flux kind: Cogpit's patch is
-the user's, but the reconciliation it asks for is the Flux controller's, with the controller's
-service account (often cluster-wide, unless the object names a `serviceAccountName` or the
-controller enforces impersonation). Reconcile and Resume apply whatever the source holds now, and
-a forced Helm release runs its hooks again. Cogpit adds no power here: who may patch a
-Kustomization or Helm release may already change what it applies. What makes it real is an
-agent: the actions are mutating ([D-33](../developer/decisions.md#d-33-the-flux-actions)), so an
-agent's call needs the user's acceptance, unless agent writes are allowed for the context
-([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)); then a steered agent
-([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)) can reconcile or resume, and
-force a Helm release, without a dialog. A forced reconcile stays mutating like the others (the
-owner's decision on D-33, 2026-10-14: Force included).
-
-Decided (owner, 2026-10-14 evening) and built the same night: the confirmation of a Flux action
-names the identity the controller acts as, the controller's service account or the object's
-`spec.serviceAccountName` (`fluxIdentityEffects`, a row "Runs as" since 2026-10-19; `TestFluxConfirmationNamesTheIdentity`). What
-remains: the name tells the user whose rights the reconciliation uses, not what they allow; a
-controller that enforces a default service account (`--default-service-account`) is named by its
-own account, since Cogpit does not read the controller's flags; and under the allowance of agent writes an agent's
-action still runs without a dialog, so the name reaches the user only where a confirmation is
-shown.
+Live wherever the user may `patch` a Flux kind: the patch is the user's, the reconciliation the
+controller's, with its service account (often cluster-wide) unless the object names a
+`spec.serviceAccountName` or the controller enforces impersonation. Reconcile and Resume apply what
+the source holds now; a forced Helm release runs its hooks again. Cogpit adds no power, since who
+may patch the object may already change what it applies; an agent makes it real where agent writes
+are allowed ([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)): a steered agent
+([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)) can then reconcile, resume or
+force without a dialog. Where a confirmation is shown, it names the identity in rows "Runs as" and
+"Your rights" (`fluxIdentityEffects` in [`commands/fluxidentity.go`](../../internal/engine/commands/fluxidentity.go),
+`TestFluxConfirmationNamesTheIdentity`). What remains: the name says whose rights are used, not what
+they allow, and a controller's `--default-service-account` is not read.
 
 ### H-7: Node shell is root on the node
 
-A node shell is full root on the node for as long as its pod lives. The rules above bound its
-lifetime and make it explicit; they cannot make it less powerful. If Cogpit crashes, the pod lives
-until `activeDeadlineSeconds` ends it: the maximum duration, up to 24 hours where the user set
-that (the bounds of 5 minutes to 24 hours, 2 hours by default, confirmed by the owner on
-2026-10-14 evening). Since 2026-10-13 the node shell is built as Lens's
-privileged pod with nsenter ([D-37](../developer/decisions.md#d-37-the-node-shell), decided by the
-owner 2026-10-14), so this is live: whoever may create pods in `kube-system` and
-exec into them, and confirms the dialog, is root on any node Cogpit lists. A non-privileged
-`kubectl debug`-style profile (the host's namespaces and its root filesystem at `/host`, no
-privileged flag) is not built; it would still be root on the node's files, so it narrows the risk,
-it does not remove it.
+A node shell is full root on the node while its pod lives; the rules above bound and announce it,
+they cannot make it less powerful. Live: whoever may create pods in `kube-system` and exec into
+them, and confirms, is root on any node Cogpit lists. After a crash the pod lives until the next
+connect ([H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) or its deadline,
+up to 24 hours where the user set that. A non-privileged `kubectl debug`-style profile (host
+namespaces, the root filesystem at `/host`) is not built; it would still be root on the node's
+files, narrowing the risk without removing it.
 
 ### H-71: A crash leaves the node shell's pod until the next connect
 
-Cogpit deletes a node shell's pod when the shell ends, its tab closes and at quit; a crash, a
-`kill -9`, a sleeping laptop or a lost connection during the delete leave it running, privileged and
-idle, until `activeDeadlineSeconds` ends it (the cluster's maximum duration: 2 hours by default,
-from 5 minutes to 24 hours as the user sets it, since 2026-10-14), and after its deadline its
-object stays, `Failed` with reason `DeadlineExceeded`. Whoever may exec into pods in `kube-system`
-can use it meanwhile, which they could do with a pod of their own anyway. Live since 2026-10-13.
+A crash, a `kill -9`, a sleeping laptop or a lost connection during the delete leave the pod
+running, privileged and idle, until its deadline, after which its object stays `Failed`
+(`DeadlineExceeded`). Whoever may exec into pods in `kube-system` can use it meanwhile, as they
+could a pod of their own. Live.
 
-Narrowed on 2026-10-14 (the owner's decision;
-[`engine/nodeshelljournal.go`](../../internal/engine/nodeshelljournal.go),
-[`engine/nodeshellsweep.go`](../../internal/engine/nodeshellsweep.go)): every node shell pod Cogpit
-creates is recorded in `<user config dir>/Cogpit/nodeshells.json` (owner-only, written atomically,
-under the journals' lock that every Cogpit process of the user shares) **before** its create is
-sent, with its context, namespace, name and a random id the pod carries as the annotation
-`cogpit.io/node-shell-id`, and gets its UID once the create returned; a journal that cannot be
-written refuses the node shell before anything is created, a failed create drops the entry, and the
-pod's delete drops it (also when the pod is gone or its name is another pod's). On the next connect
-to that context Cogpit deletes the pods its journal still names, Running or `Failed`, each with its
-UID as the delete's precondition, and says so in a notification; a pod recorded without its UID (a
-crash between the create and the journal's second write) is read by name and deleted by the UID
-read only when it carries the entry's id. A pod that is gone, or whose name another pod has now,
-only clears its entry; a refused delete (forbidden, a lost connection) keeps the entry, says so,
-and is tried again at the next connect. It never touches a pod another machine's or user's Cogpit
-created, nor one another live Cogpit process of the user holds. Each delete is in the audit log
-(`cogpit.nodeShellCleanup`) (`TestNodeShellSweepDeletesOwnPodsOnly`,
-`TestNodeShellJournalBeforeTheCreate`, `TestFileNodeShellJournal`).
+What narrows it ([`engine/nodeshelljournal.go`](../../internal/engine/nodeshelljournal.go),
+[`engine/nodeshellsweep.go`](../../internal/engine/nodeshellsweep.go)): each pod is recorded in
+`<user config dir>/Cogpit/nodeshells.json` (owner-only, replaced atomically, under the journals'
+lock) **before** its create is sent, with a random id the pod carries as `cogpit.io/node-shell-id`,
+and gets its UID once created; a journal that cannot be written refuses the node shell. The next
+connect to the context deletes the pods its journal names, each by its UID (an entry without one
+is matched by name and id), and says so; a refused delete is tried again at the following connect
+(`TestNodeShellSweepDeletesOwnPodsOnly`, `TestNodeShellJournalBeforeTheCreate`,
+`TestFileNodeShellJournal`).
 
-What remains: the pod lives, privileged, from the crash until the user connects to that context
-again in a Cogpit with the same configuration directory, or until its deadline, whichever comes
-first (the deadline's bounds, 5 minutes to 24 hours with 2 hours by default, confirmed by the owner
-on 2026-10-14 evening); a user who never connects to it again leaves the `Failed` object behind. A delete the user
-may not make (no `delete pods` in `kube-system`) cannot be made later either; the entry stays and
-the notification repeats at each connect until the pod is gone. A pod recorded without its UID on
-a connection that cannot read single pods stays for its deadline. A process of the user that can
-write the journal can name a pod there, but only one that carries the id it names, which anyone
-who may read pods in `kube-system` can copy: that pod's delete is then the user's own write in a
-namespace where the attacker already creates pods.
+What remains: the pod lives until the user connects to that context again with the same
+configuration directory, or until its deadline; one who never does leaves the `Failed` object, and
+one without `delete pods` in `kube-system` cannot delete it later either. An entry without a UID
+on a connection that cannot read single pods waits for the deadline. A process that can write the
+journal can name only a pod carrying the id it names, which anyone who may read pods in
+`kube-system` can copy: that delete is then the user's own write where the attacker already creates
+pods.
 
 ### H-72: The default node shell image ages with the build that pins it
 
-From 2026-10-13 to 2026-10-14 Cogpit's default image was Lens's, Alpine 3.19, out of support since
-2025-11. Since 2026-10-14 it is the newest supported Alpine release, 3.24 (supported until
-2028-06-01), pinned by the digest of its index, and Renovate keeps the pin current: a new Alpine
-release or a rebuilt tag becomes a pull request that merges once CI, the kind job's node shell
-included, passes ([D-37](../developer/decisions.md#d-37-the-node-shell), the owner's decision). It
-is no longer out of support. What remains, live for every released build:
+What the default image's digest pin and Renovate's updates of it ([above](#node-shell),
+[D-37](../developer/decisions.md#d-37-the-node-shell)) leave open, live for every released build:
 
-- **A build keeps its pin.** The digest is compiled into the binary: a Cogpit that is not updated
-  runs the image of its build day, which falls out of support once its Alpine branch does (3.24 on
-  2028-06-01) and misses the fixes of every later build of the tag meanwhile.
-- **Renovate's update ships with the next release, not at once.** Its commits are `build(deps):`,
-  which semantic-release does not release; until a `feat:` or `fix:` follows, the newest release
-  carries the older pin. Renovate's pull request also waits until every check on it is green, so a
-  flaky test holds it back ([releasing › Renovate](../developer/releasing.md#renovate): 44 were open
-  on 2026-10-12).
-- **Nothing scans the image.** Cogpit's CI checks that the image runs `nsenter` on a node, not its
-  packages' advisories; it relies on the Alpine release being supported.
+- **A build keeps its pin.** A Cogpit that is not updated runs its build's image, out of support
+  once its Alpine branch is (3.24 on 2028-06-01), without the tag's later fixes.
+- **Renovate's update waits for a release.** Its `build(deps):` commits are not released; the pin
+  ships with the next `feat:` or `fix:`, and a flaky check holds the pull request back
+  ([releasing › Renovate](../developer/releasing.md#renovate)).
+- **Nothing scans the image.** CI checks that it runs `nsenter` on a node, not its advisories.
 
-What it runs in the pod is BusyBox's `sleep` and `nsenter`; the shell itself is the node's own
-bash, so the image's packages are not the shell's. An image the user sets in Cluster Settings ›
-Node Shell is the user's to keep current; Renovate moves only Cogpit's default.
+Only BusyBox's `sleep` and `nsenter` run from the image; the shell is the node's own bash. An image
+the user sets is the user's to keep current.
 
 ### H-134: A debug container stays in the pod and sees its target
 
-Live since 2026-10-19 wherever the user may `patch pods/ephemeralcontainers`: Debug adds a
-container that Kubernetes never removes before the pod goes and never lets anyone change. With a
-target, it shares that container's process namespace and so reads its environment and, through
-`/proc/<pid>/root`, its files, the Secrets it mounts and its service account token among them; Cogpit's
-default image runs as root with network tools. Closing the Attach tab detaches only: the shell, with
-stdin held open, runs until someone types `exit` or the pod is deleted, and anyone who may attach to
-the pod reaches it. What stands in the way: Debug is destructive for every origin, its confirmation
-names the target and what the container sees of it and says "This cannot be undone."; the namespace's
-Pod Security level and the cluster's admission policies apply to it (restricted refuses netshoot).
-What remains: Cogpit does not end a debug container's shell when the tab closes (Kubernetes offers
-no way to stop an ephemeral container but its own process); the image ages with the build that
-pins it, as the node shell's does ([H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)),
-and nothing scans it.
+Live wherever the user may `patch pods/ephemeralcontainers`: Kubernetes never removes the container
+before the pod goes and lets no one change it. With a target it reads that container's environment
+and, through `/proc/<pid>/root`, its files, mounted Secrets and service account token; the default
+image runs as root with network tools. Closing the Attach tab only detaches: the shell runs until
+someone types `exit` or the pod is deleted, and anyone who may attach to the pod reaches it. What
+stands in the way: the destructive confirmation with its target, what it sees and "This cannot be
+undone."; Pod Security and admission policies (restricted refuses netshoot). What remains: Cogpit
+cannot end the shell when the tab closes (Kubernetes stops an ephemeral container only through its
+own process), and the image ages as the node shell's does
+([H-72](#h-72-the-default-node-shell-image-ages-with-the-build-that-pins-it)).
 
 ### H-8: Secret data arrives with the list
 
-Listing or watching Secrets returns their data, and since 2026-10-12 Cogpit asks for it: the owner
-revised [D-13](../developer/decisions.md#d-13-cache) to a full watch on Secrets (option a), so that
-the Secrets view fills its Keys and Type columns as Lens does. Built the same day; the
-metadata-only design of 2026-10-11 and its one GET per opened drawer are gone. What remains:
+Listing or watching Secrets returns their data, and Cogpit watches them in full so that the
+Secrets view shows Keys and Type as Lens does ([D-13](../developer/decisions.md#d-13-cache)):
 
-- **Every value of every Secret in memory while the scope runs.** The full Secrets watch holds
-  every Secret of all namespaces, `data` included, while the Secrets view, a Secret's drawer or an
-  agent's read of kind `secrets` (`resources_list`, `resources_find` with a kind, `object_get`,
-  `ui_navigate`) holds it, plus the warm period (5 minutes by default). Helm's releases read the
-  same objects while the full watch runs (no copy); when its warm period ends while releases are
-  open, it stays until Helm's own `owner=helm` watch has caught up, at most a minute.
-- **RBAC cannot narrow `list secrets`,** and Cogpit now uses all of it: a user who may list Secrets
-  transfers every value of the namespaces the watch covers.
-- **What is wiped and what is not.** The drawer keeps no copy: each build decodes each value to
-  measure it and zeroes those bytes; a reveal decodes the value, cuts it to 4 KiB or 40 lines and
-  hands a Go string to the GUI. The base64 strings in the cache and a revealed string cannot be
-  overwritten and wait for the garbage collector.
-- **What agents get.** Names, namespaces, labels, annotations (except last-applied), key names,
-  the type, and per key its size and whether it is text: never a value. The YAML redacts `data`
-  and `stringData`, the drawer's Data section is masked, a list filter matches the cells only, and
-  `secret.reveal` refuses every origin but the GUI. Verified through every read path an agent has
-  (`kinds.list`, `resources.list` with a filter probe, `resources.find` by kind, by label and
-  without a kind, `object.get`, `ui.openView`, `ui.navigate`, `ui.state`, `table.exportCsv`,
-  `workloads.overview`), the audit log, events and the log (`TestAgentsReadSecretsRedacted`).
-- **The last-applied annotation** still crosses the wire and is decoded before the transform drops
-  it; should one reach the drawer another way, its Annotations read `<redacted>`.
-- **Helm's release Secrets** (chart values, which can hold credentials, and manifests, which
-  render Secrets with their data): the decoded newest revision of each release stays in a bounded
-  memo until 5 minutes after the last read; the drawer shows the values in the GUI and withholds
-  them from agents. The Helm upgrade scrubs values from what it shows and logs, best effort
-  ([Helm upgrade](#actions-that-write)). Since 2026-10-26 (D-131, a
-  release's revisions): the Revisions tab decodes an older revision's record
-  from the same cache when it shows it (`helm.release.revision`, `helm.release.diff`), its values
-  and its rendered manifest, and keeps the decoded text in the tab until it reads another or
-  closes; a rendered Secret's `data` and `stringData` are masked in the window until the user's
-  Show (the window's alone, never the engine's state), and agents read the values and every
-  rendered Secret's values withheld, the key paths of changed values only (the owner's choice,
-  2026-10-26; what a key path can still say: [agents and MCP › H-144](agents-and-mcp.md#h-144-a-changed-values-key-path-reaches-agents)),
-  the manifest's other objects through the agent view (H-82); the built-in agent over a private connection reads as the
-  window does. No new request: the records are the ones the Releases view lists already.
-- **Helm's release ConfigMaps** (2026-10-13, Helm's ConfigMaps driver): the same payload in a
-  ConfigMap's `data.release`, decoded into the same memo under the same rules. The Config Maps
-  kind, which agents read freely, does not hand it out: `object_get`'s YAML has `data.release`
-  of a ConfigMap labelled `owner=helm` redacted (`model.Redact`, for the window too), its drawer
-  shows the payload's size only, `resources_list`, the CSV and `resources_find` show the key's
-  name only, an agent cannot open an Edit tab on such a ConfigMap, read the user's
-  (`<withheld>`), set, apply or create one, and the audit log redacts it
-  (`TestHelmConfigMapPayloadsKeptFromAgents`, `TestBudgetHelmReleasesWithConfigMaps`, on kind
-  `TestKindHelmConfigMapDriver`). A ConfigMap is recognised by its label only: one Helm did not
-  write but labelled `owner=helm` is treated as a record too.
+- **Every value in memory while the scope runs.** The full watch holds every Secret of the
+  namespaces it covers while the Secrets view, a Secret's drawer or an agent's read of kind
+  `secrets` uses it, plus the warm period (5 minutes by default); Helm's releases read it too, and
+  their own `owner=helm` watch takes over within a minute of its end.
+- **RBAC cannot narrow `list secrets`:** a user who may list Secrets transfers every value.
+- **Wiping.** The drawer decodes each value to measure it and zeroes the bytes; a reveal hands a Go
+  string to the GUI. The cache's base64 strings and a revealed string wait for the garbage
+  collector.
+- **What agents get.** Names, namespaces, labels, annotations but last-applied, key names, the type,
+  and per key its size and whether it is text: never a value (`model.Redact`, the drawer's masked
+  Data section, `secret.reveal` GUI-only), on every read path an agent has (`kinds.list`,
+  `resources.list`, `resources.find` with and without a kind, `object.get`, `ui.openView`,
+  `ui.navigate`, `ui.state`, `table.exportCsv`, `workloads.overview`), the audit log, events and
+  the log (`TestAgentsReadSecretsRedacted`). The built-in agent over a connection the user
+  marked private reads as the window does
+  ([agents and MCP › H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)).
+  The last-applied annotation is decoded before the cache's transform drops it; one that reaches
+  the drawer another way reads `<redacted>`.
+- **Helm's release Secrets** hold values (credentials, often) and manifests that render Secrets: the
+  newest revision of each stays decoded in the releases' memo
+  ([above](#on-connect-and-while-browsing)), shown in the GUI, withheld from agents. The Revisions
+  tab ([D-131](../developer/decisions.md#d-131-a-releases-revisions)) keeps an older revision's
+  decoded text until it shows another or closes, a rendered Secret masked
+  until the user's Show, which only the window holds. Agents read values and rendered Secrets
+  withheld, the changed values' key paths only
+  ([agents and MCP › H-144](agents-and-mcp.md#h-144-a-changed-values-key-path-reaches-agents)), the
+  manifest's other objects through the agent view (H-82).
+- **Helm's release ConfigMaps** (the ConfigMaps driver) carry the same payload in `data.release`,
+  decoded under the same rules. A ConfigMap labelled `owner=helm` has it redacted in every YAML
+  (`model.Redact`), its drawer, lists, CSV and search show its size or key only, and an agent can
+  neither read nor write it through an Edit or Create tab (`TestHelmConfigMapPayloadsKeptFromAgents`,
+  `TestBudgetHelmReleasesWithConfigMaps`, `TestKindHelmConfigMapDriver`).
+  The label alone decides: a ConfigMap Helm did not write but labelled `owner=helm` is treated as a
+  record too.
 
 ### H-9: Force finalize skips cleanup
 
-Removing finalizers deletes the object without the cleanup its controllers would have done
-(cloud load balancers, volumes, DNS records). Cogpit cannot know what a finalizer guards; the
-confirmation can only name the finalizers being removed. **Live since 2026-10-19**
-(`object.removeFinalizers`, the owner's yes to Q1 of WF43,
-[D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)):
-offered on any object being deleted that finalizers hold, and beside each such object in a
-Terminating namespace's Blocking Deletion list. What bounds it: it is Destructive for every origin,
-an agent's request waits for the user; the confirmation names the object, each finalizer it
-removes (red) and "Skips the cleanup of the controllers that own them (a cloud disk or a DNS record
-may stay)" (amber), and the patch removes exactly those finalizers from exactly that object or
-nothing; a namespace's own finalizer is never removed and `/finalize` never called, so a namespace
-goes only once the namespace controller found it empty. What is left is the user's judgement of
-what the controller would have cleaned up. A user's own edit that deletes finalizers from an
-object's YAML is an apply like any other.
+Removing finalizers deletes the object without its controllers' cleanup (cloud load balancers,
+volumes, DNS records), and Cogpit cannot know what a finalizer guards. Live wherever the user may
+`patch` an object being deleted (`object.removeFinalizers`,
+[D-98](../developer/decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)),
+offered on such an object and beside each one in a Terminating namespace's Blocking Deletion list.
+What bounds it: the destructive confirmation names the object, each finalizer and a warning that
+the owning controllers' cleanup is skipped; the patch removes exactly those finalizers from exactly
+that object, or nothing; a namespace's own finalizer is never removed and `/finalize` never called,
+so a namespace goes only once its controller found it empty. What is left is the user's judgement.
+An edit that deletes finalizers from an object's YAML is an apply like any other.
 
 ### H-22: Two Cogpit processes share the journals
 
-The drain and Helm journals (`drains.json`, `helm.json` in the user's config directory) are
-shared by every Cogpit process of the user. Built (2026-10-12): every read and every
-read-modify-write of either journal takes an exclusive lock on `<dir>/journals.lock` (0600;
-`flock` on macOS and Linux, `LockFileEx` on Windows); the kernel drops the lock when a process
-dies, so a stale lock cannot exist, and a writer that waits more than 10 s gets an error and the
-action does not start. On its first write a process creates `<dir>/owners/<random 128-bit id>.lock`
-and keeps it locked for its life; each entry records that owner and its PID, and "the owner is
-alive" means "its lock file is locked", so a reused PID or a crash cannot fake it. An action
-running in another live Cogpit process shows as running there ("in another Cogpit window") and is
-neither offered as interrupted nor finished or dismissed from here; entries of a dead owner, and
-older entries without one, are offered as interrupted as before. The node shell journal
-(`nodeshells.json`, 2026-10-14, [H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect))
-takes the same lock and records the same owner: a node shell pod another live Cogpit process of the
-user recorded is left to it, one a dead process recorded is deleted at the next connect. Tested with real processes (with
-the lock taken out, 35 of 120 entries were lost; with it, none) and with a process killed by
-SIGKILL (`TestJournalsKeepEveryProcessesEntries`, `TestJournalEntryOfAKilledProcess`). What
-remains:
+Every Cogpit process of the user shares the drain, Helm and node shell journals (`drains.json`,
+`helm.json`, `nodeshells.json`) in the user's config directory. A lock on `<dir>/journals.lock`
+around every read-modify-write (a writer that waits more than 10 s gets `ErrJournalBusy`, and the
+action does not start) and an owner file each process keeps locked for its life
+([architecture §8.6](../developer/architecture.md#86-journals),
+[`journallock.go`](../../internal/engine/journallock.go); `TestJournalsKeepEveryProcessesEntries`,
+`TestJournalEntryOfAKilledProcess`) keep the processes from losing each other's entries. The lock
+is `flock` on macOS and Linux and `LockFileEx` on Windows
+([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)), where
+the owner file shares its deletion, so its folder can be removed while Cogpit runs, and a journal's
+rename retries for up to a second while another process holds the file open. A running action of
+another live process shows as running "in another Cogpit window" and is neither offered, finished
+nor dismissed here; a node shell pod it recorded is left to it
+([H-71](#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)). Open:
 
-- The Windows lock (`LockFileEx`) runs in the journals' tests on Windows since 2026-10-21
-  ([D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)),
-  where the owner file is created sharing its deletion (`FILE_SHARE_DELETE`), so that its folder
-  can be removed while Cogpit runs as on macOS and Linux, while whether its owner lives stays the
-  lock's matter; a journal's write, a rename over the file, retries for up to a second while
-  another process holds it open. Two Cogpit processes on Windows have not been tried by a person;
-  other platforms get no lock.
-- A config directory on a network file system, where `flock` may not hold across machines, is not
-  covered.
-- Entries are keyed by context name: two kubeconfigs that name one cluster with different context
-  names, or a source file renamed (its contexts' ids change), leave a journal entry that the
-  other name does not see.
-- Helm itself does not refuse a second rollback of the same release by another tool.
+- A config directory on a network file system, where `flock` may not hold across machines.
+- A missing owner file counts as an ended process (`ownerFileAlive`): an `owners/` folder removed
+  while Cogpit runs makes its running actions look interrupted to another Cogpit process.
+- Entries are keyed by context id, the context's name and its file (`SourceContextID` in
+  [`kubeconfigs.go`](../../internal/engine/kubeconfigs.go)): the same cluster reached through
+  another context or file, or a renamed file of a sync folder, does not see them.
+- Helm itself does not refuse a second rollback of a release by another tool: the SDK's `Rollback`
+  has no pending check, unlike its `Upgrade`.
+- Dormant: a build for a platform without `flock` or `LockFileEx` gets no lock
+  ([`journallock_other.go`](../../internal/engine/journallock_other.go)).
 
 ### H-26: Prometheus is found by name
 
-Detection probes Services by their well-known names (`prometheus-server` and, since 2026-10-16,
-`<release>-prometheus-server`, `prometheus-operated`, `prometheus-k8s`,
-`<release>-kube-prometheus-prometheus`, `prometheus`) and takes the first that
-answers `GET /api/v1/status/buildinfo` like a Prometheus. A name proves nothing: anyone who may
-create Services in a namespace can create a `prometheus-server` that answers buildinfo and
-sends back series, and Cogpit would draw them as the cluster's metrics (the ranking prefers the
-namespaces `monitoring`, `prometheus` and `lens-metrics` for equal scores, but a higher-scoring name
-anywhere wins). The queries it receives contain the names of the pods and nodes the user opens and
-nothing else (no credential, no Secret value), and Cogpit only ever reads its answers as numbers,
-so the harm is false charts and the disclosure of those names to that service. Until 2026-10-18
-the source line under the charts named the namespace and service (`Prometheus
-(monitoring/prometheus-server)`), from the night of 2026-10-16/17 as links, and the status line
-the port too (`Prometheus monitoring/prometheus-server:http`), always in view. Since 2026-10-18
-([D-88](../developer/decisions.md#d-88-the-metrics-source-row-and-links-to-the-settings-only-when-needed), the owner's choice of less text) the source row names the provider only
-("Prometheus ● 30 s ago"); where it runs is in its tooltip (`Prometheus
-monitoring/prometheus-server:http`) and on Cluster Settings › Prometheus, whose status line names
-the namespace and the service as links that open them (its selector and endpoints are a click
-away): the check the user can make is a hover or a click away rather than always in view; an
-answer's text never reaches the window or an agent (a failure is a class), so a lookalike cannot
-put words there either; the user's setting (`cluster.setPrometheus`, since 2026-10-12) pins the
-service and turns detection off. An agent may set it as well, so an agent could point the
-queries (pod and node names) at a lookalike it names; it could read those names through MCP anyway.
+Live for every cluster with the Prometheus integration on and no address set. Detection probes at
+most three cached Services ranked by well-known names, Thanos's and VictoriaMetrics' after
+Prometheus's ([D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus)),
+and takes the first that answers `GET /api/v1/status/buildinfo` like a Prometheus (`promNames` in
+[`promdetect.go`](../../internal/metrics/promdetect.go),
+[architecture §9](../developer/architecture.md#9-metrics-internalmetrics)). A name proves nothing:
+whoever may create a Service can take one, any name ending in `prometheus-server` included, and a
+higher-ranked name in any namespace wins (`monitoring`, `prometheus` and `lens-metrics` only break
+ties).
 
-Decided (owner, 2026-10-14 evening) and built the same night: an agent's `cluster.setPrometheus`
-is a write the user confirms, the question naming the service; the window's stays as it is. It asks
-whatever the allowance of agent writes ([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context);
-the lead's night decision, D-2: UI commands that declare `AgentsAsk` always ask). What remains:
-detection by name, the case above, is unchanged.
+- **What a lookalike learns:** the names of the namespaces, pods and nodes the user opens, and the
+  nodes' addresses ([`promql.go`](../../internal/metrics/promql.go)); no credential or Secret value.
+- **What it makes Cogpit say:** false numbers in charts and columns. Failures are a class
+  ([above](#on-connect-and-while-browsing)), but label values are not checked: where Prometheus
+  serves `metrics.get`, the namespace, pod, container and node names an agent reads are the
+  answer's (`podUsages` in [`prom.go`](../../internal/metrics/prom.go)), text a lookalike chooses
+  ([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
+- **The user's check:** the source row's tooltip names the provider and its service
+  (`Prometheus monitoring/prometheus-server:http`, likewise Thanos and VictoriaMetrics;
+  [D-88](../developer/decisions.md#d-88-the-metrics-source-row)),
+  and the status line of Cluster Settings › Prometheus links its namespace and service. Use HTTPS
+  authenticates no service: the TLS connection is the API server's proxy's, which does not verify
+  the service's certificate (`InsecureSkipVerify` in kube-apiserver's `CreateProxyTransport`).
+- **Closing it per cluster:** `cluster.setPrometheus` pins a service and turns detection off; an
+  agent's call always waits for the user, whatever the allowance of agent writes, the confirmation
+  naming the service and what it sees (`AgentsAsk` in
+  [`metricsprometheus.go`](../../internal/engine/commands/metricsprometheus.go),
+  `TestAgentSetPrometheusAsks`; [H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)).
 
-Since 2026-10-16 the prometheus chart's server is found under any release's name (a name ending
-in `prometheus-server`, score 80, as `prometheus-server` scored before), so a lookalike may take
-any such name, as it could take `prometheus-server` before. Since the night of 2026-10-16/17
-Thanos's and VictoriaMetrics' names are found too (`<release>-thanos-query`, `thanos-querier`,
-`…-thanos-query-frontend`, `vmsingle-<name>`, `vmselect-<name>` and their charts' names, scores 73
-to 76, after every Prometheus name; [D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus)):
-more names a lookalike may take, the same harm (false charts, the pod and node names the queries
-carry), the same check (the source row's tooltip and Cluster Settings › Prometheus name "Thanos" or
-"VictoriaMetrics" with the namespace and the service, the section as links to them). One more case that is not a lookalike: a real Querier or
-VictoriaMetrics that holds several clusters' series answers Cogpit's queries with all of them, so
-the Overview's sums can count other clusters' nodes; it returns numbers only, no names Cogpit
-shows, and anyone who may use its service proxy can query it anyway. The night of 2026-10-16 had ranked the
-Prometheus Cogpit Metrics installed, `cogpit-metrics/cogpit-prometheus-server`, first (score 110);
-that preference went with Cogpit Metrics the same day
-([above](#nothing-installed-for-cogpits-own-features)): no name ranks first for being Cogpit's.
-The query settings since 2026-10-16 ask over https when the user says so (Use HTTPS); the TLS connection
-is the API server's, which Cogpit does not see, so https names no service more surely than the name
-does (whether the API server checks the service's certificate is not verified here).
+Not a lookalike: a real Thanos Querier or VictoriaMetrics holding several clusters' series answers
+with all of them, since Cogpit's queries carry no cluster label, so the Overview's sums can count
+other clusters' nodes; anyone who may use its service proxy can query it anyway.
 
 ### H-121: Alertmanager is found by name, and its texts reach the window and agents
 
-Live since 2026-10-17 for every cluster with the Alertmanager integration on (as Check all turns it on, D-76, D-82)
-and no address set ([D-77](../developer/decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)).
-Detection asks the Services whose names rank highest (`<release>-kube-prometheus-alertmanager` 100,
+Live for every cluster with the Alertmanager integration on (the question's Check all integrations
+turns it on, D-76, D-82) and no address set
+([D-77](../developer/decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)).
+Detection asks at most three cached Services and takes the first whose answer to
+`GET /api/v2/alerts` reads as Alertmanager's list (`amNames` in
+[`detect.go`](../../internal/alerting/detect.go)): `<release>-kube-prometheus-alertmanager` 100,
 `alertmanager-main` 95, `alertmanager-operated` 90, `vmalertmanager-<name>` 85, any
-`<release>-alertmanager` 80, `alertmanager` 70 or 40) and takes the first whose answer to
-`GET /api/v2/alerts` reads as Alertmanager's list. As with Prometheus ([H-26](#h-26-prometheus-is-found-by-name)),
-a name proves nothing: whoever may create a Service in a namespace can name it so (the preferred
-namespaces `monitoring`, `prometheus` and `alertmanager` win ties only), and a higher-ranked
-lookalike wins over the cluster's own Alertmanager (an `x-kube-prometheus-alertmanager` in a team's
-namespace over a bare `alertmanager-operated`). Unlike a lookalike Prometheus, whose numbers only
-draw charts, a lookalike Alertmanager writes text the user and agents read: the pill's count and
-colour, the board's summaries and descriptions, the objects its labels name (links into Cogpit's
-own views, nothing outside) and **the Runbook links**, which open in the browser on the user's
-click (only http and https URLs without user information, checked in the engine and again in the
-window). The request carries no credential of the user's beyond what the API server's service proxy
-sends, and no data of the user's: the alerts request has no parameter but the three filters. What
-makes it real: someone who may create Services but not read the monitoring namespace, and a user
-who follows a runbook link to a page that asks for something. The check the user can make: the
-board's state line and Cluster Settings name the service in use (`monitoring/kube-prometheus-alertmanager:9093`),
-and setting the address pins it and turns detection off.
+`<release>-alertmanager` 80, `alertmanager` 70 in `monitoring`, `prometheus` or `alertmanager`, 40
+elsewhere; the namespaces only break ties. As with [H-26](#h-26-prometheus-is-found-by-name), a
+higher-ranked lookalike wins over the cluster's own (an `x-kube-prometheus-alertmanager` in a
+team's namespace over a bare `alertmanager-operated`).
 
-The cluster's own Alertmanager is no more trusted in what it says: an alert's summary and
-description are the alerting rules' templates, filled with label values that whoever runs a
-workload can set through the labels of the metrics it exports. Cogpit shows them as text (never
-markup, the boundary "Cluster text to UI" of [trust boundaries](trust-boundaries.md)) and hands
-them to agents as data ([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
-Not decided: a mark on the board for an Alertmanager found by name in a namespace other than the
-preferred ones; framing the alert texts for agents as a chart's README is framed.
+A lookalike writes text the user and agents read: the pill's count and colour, the board's
+summaries and descriptions, the objects its labels name (links into Cogpit's own views only) and
+the runbook links, opened in the browser on a click (the engine keeps absolute http and https URLs
+without user information, `webURL` in [`alerts_board.go`](../../internal/engine/alerts_board.go);
+the window checks the scheme again). The request carries nothing of the user's: no parameter but
+the three filters, and the API server drops the user's `Authorization` header before it proxies.
+What makes it real: someone who may create Services but not read the monitoring namespace, and a
+user who follows a runbook link to a page that asks for something.
+
+The cluster's own Alertmanager is no more trusted: summaries and descriptions are the alerting
+rules' templates, filled with label values that whoever runs a workload sets through the metrics it
+exports. Cogpit shows them as text, never markup ("Cluster text to UI" in
+[trust boundaries](trust-boundaries.md#boundaries-and-required-checks)), and hands them to agents as
+data without a frame ([H-11](agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
+
+The user's check: the status line of Cluster Settings › Alertmanager names the service in use, its
+namespace and service as links
+(`Found automatically: monitoring/kube-prometheus-alertmanager:9093`); the board and the pill do
+not (agents read it as `where` in `alerts.board` and `alerts.list`). `cluster.setAlertmanager`
+pins the service and turns detection off; an agent's call always waits for the user
+(`TestAlertCommands`). Would narrow it, not decided: a mark on the board for an Alertmanager found
+outside the preferred namespaces; a frame around alert texts for agents like a chart README's
+([H-86](agents-and-mcp.md#h-86-a-charts-readme-reaches-agents)).
 
 ### H-27: A binding is judged by its role's name and the cache
 
-Narrowed on 2026-10-14 (the owner's decisions, H-27 and that evening's A1 and A2, built the same
-night): **a Role, ClusterRole, RoleBinding or ClusterRoleBinding an agent asks for, and an agent's
-Helm install or upgrade, always wait for the user**, also in a context where the user allowed agent writes
-([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)), whatever role it names. A
-command declares it per call (`AgentsAsk` in [`registry.go`](../../internal/engine/registry.go),
-judged in [`agentsask.go`](../../internal/engine/agentsask.go); `NeedsConfirmation` asks when it is
-set), and the confirmation says that the allowance does not skip this question. The paths by
-which an agent writes a binding, and what each does now:
+An agent's Role, ClusterRole, RoleBinding or ClusterRoleBinding, and an agent's Helm install or
+upgrade, always wait for the user, also where agent writes are allowed
+([H-14](agents-and-mcp.md#h-14-allowing-agent-writes-for-a-context)), and the confirmation says
+that the allowance does not skip the question. A command declares it per call (`AgentsAsk` in
+[`registry.go`](../../internal/engine/registry.go); `RBACKind`, `TextHoldsRBAC` and
+`EditorHoldsRBAC` in [`agentsask.go`](../../internal/engine/agentsask.go); `NeedsConfirmation` in
+[`engine.go`](../../internal/engine/engine.go)).
 
-| Path | Covered | How |
+| An agent's path to RBAC | Waits for the user | Evidence |
 |---|---|---|
-| `roleBinding.create`, `role.create`, `clusterRole.create` | yes | every call by an agent asks (`TestCreateDialogsAgentsNeedAcceptance`; the roles since A1) |
-| `clusterRoleBinding.create` | yes, as before | destructive: asks every origin |
-| `object.create` (one or more documents, a v1 List) | yes | asks when any document or List item is a `Role`, `ClusterRole`, `RoleBinding` or `ClusterRoleBinding` of `rbac.authorization.k8s.io` (the kind matched without regard to case, so that nothing slips past; a text that does not parse asks too and is then refused) (`TestAgentRoleBindingsAlwaysAsk`, `TestTextHoldsRBAC`) |
-| `object.apply` (an Edit tab, from `yaml` or the tab's text after `editor.setText`) | yes | asks when the tab edits an RBAC object or the text holds one (`TestAgentRoleBindingsAlwaysAsk`) |
-| `helm.chart.install`, `helm.release.upgrade` | yes (A2, built 2026-10-14) | every call by an agent asks, whatever the chart holds, so the rendered manifest need not be inspected (`TestHelmInstallAgents`, `TestHelmUpgradeAgents`); rollback and uninstall are destructive and ask anyway |
-| `argocd.application.sync`, `flux.reconcile` and their selections | **no** | the controller writes what its source holds, bindings included, with its own identity ([H-64](#h-64-a-flux-action-is-carried-out-with-the-controllers-identity), [H-67](#h-67-a-sync-acts-with-argo-cds-rights-not-the-users)) |
+| `role.create`, `clusterRole.create`, `roleBinding.create` | always | `TestCreateDialogsAgentsNeedAcceptance` |
+| `clusterRoleBinding.create` | always, for every origin (destructive) | [`createdialogs.go`](../../internal/engine/commands/createdialogs.go) |
+| `object.create` (documents, items of a v1 List) | when one is an RBAC kind, matched ignoring case; text that does not parse asks, then is refused | `TestAgentRoleBindingsAlwaysAsk`, `TestTextHoldsRBAC` |
+| `object.apply` (from `yaml`, or the tab's text after `editor.setText`) | when the tab edits an RBAC object or the text holds one | `TestAgentRoleBindingsAlwaysAsk` |
+| `helm.chart.install`, `helm.release.upgrade` | always, whatever the chart renders; rollback and uninstall are destructive | `TestHelmInstallAgents`, `TestHelmUpgradeAgents` |
+| `argocd.application.sync`, the Flux actions and their `…Many` forms | **no**: the controller writes what its source holds, bindings included, with its own identity | [H-64](#h-64-a-flux-action-is-carried-out-with-the-controllers-identity), [H-67](#h-67-a-sync-acts-with-argo-cds-rights-not-the-users) |
 
-The user's own commands in the window are unchanged: the dialogs and the editor create and apply
-a binding without a further question, except the two grants below.
+Open, live today:
 
-Decided (owner, 2026-10-14 evening) and built the same night, two answers that closed rows of this
-gap: (1) every Role, ClusterRole, RoleBinding and ClusterRoleBinding an agent creates or changes
-waits for the user, also where agent writes are allowed; (2) an agent's Helm install or upgrade
-always waits for the user (the table's Helm row). The Argo CD and Flux row stays as it is: the
-controller writes with its own identity, and the decisions of that evening on those paths name the controller's identity in Flux's
-confirmations ([H-64](#h-64-a-flux-action-is-carried-out-with-the-controllers-identity)) and
-respect Argo CD's sync windows ([H-67](#h-67-a-sync-acts-with-argo-cds-rights-not-the-users)).
+- **Which grant asks every origin is judged by the role's name and the cache.** `roleBinding.create`
+  is confirmed for every origin, the GUI too, only when it binds the cluster role `cluster-admin` by
+  name, or a role the cache already holds whose rules allow every verb on every resource of every
+  group (`grantsAll`; it starts no watch). Missed: `admin` or `edit`, a role that grants nearly
+  everything without the triple wildcard (`pods/exec` and `secrets`), a role not cached yet, a role
+  changed after the check (the binding names the role, not its rules).
+- **The every-origin confirmation is the dialogs' alone.** `clusterRoleBinding.create` and
+  `roleBinding.create`'s escalation ask the user; the window's Create and Edit tabs
+  (`object.create`, `object.apply`) write any binding, a cluster role binding or one to
+  `cluster-admin` included, without a question.
 
-What remains, live today:
-
-- **Which grant asks every origin is judged by the role's name and the cache.** A role binding is
-  confirmed for every origin, the GUI too, only when its role is the cluster role `cluster-admin`,
-  by name, or a role Cogpit's cache already holds whose rules allow every verb on every resource of
-  every group; for the user's own binding this decides whether the window asks again at all. Missed:
-  a binding to `admin` or `edit`, or to a role that grants nearly everything without the triple
-  wildcard (`pods/exec` and `secrets`); a binding to a role that does allow everything but is not in
-  the cache yet (the check starts no watch); a role changed after the check (the binding names the
-  role, not its rules).
-
-A cluster role binding is always confirmed, whatever its role. The API server's own escalation
-check still refuses a binding to a role whose permissions the user does not hold, unless the user
-may `bind` that role: without `bind`, a binding only hands on what the user's identity holds.
+The API server still refuses a binding to a role whose permissions the user does not hold unless
+the user may `bind` it: without `bind`, a binding hands on only what the user's identity holds.
 
 ### H-31: An agent's Helm values can copy what lookup reads
 
-Live today for `helm.chart.install` and `helm.release.upgrade` started by an agent. A chart that
-renders values through `tpl` lets the values call `lookup`, which reads whatever the user may read,
-Secrets included; an accepted install or upgrade can then write what it read into an object the
-chart creates (a ConfigMap's data, a label), and the agent reads that object like any other. The
-preview an agent asks for renders offline and a failed action's error is withheld from it in the
-command's result (2026-10-13); the toast that quotes it reaches the notification list filtered
-(below), but the action itself runs with the user's identity. What stands in the way: the
-confirmation shows an agent's values inline ([D-27](../developer/decisions.md#d-27-an-agents-helm-values-in-the-confirmation)),
-where a `lookup` or a `tpl` is visible to a user who reads them; nothing flags it. Since
-2026-10-14 (A2) every agent's install or upgrade asks, also where the user allowed agent writes.
+Live for `helm.chart.install` and `helm.release.upgrade` started by an agent. A chart that renders
+values through `tpl` lets the values call `lookup`, which reads whatever the user may read, Secrets
+included; the accepted action can write what it read into an object the chart creates (a
+ConfigMap's data, a label), which the agent then reads like any other. Every such call waits for
+the user ([H-27](#h-27-a-binding-is-judged-by-its-roles-name-and-the-cache)) and the confirmation
+shows an agent's inline values
+([D-27](../developer/decisions.md#d-27-an-agents-helm-values-in-the-confirmation)), where a
+`lookup` or a `tpl` is visible to a user who reads them; nothing flags it. An agent's preview
+renders offline and cannot `lookup`, except over a private connection, where it renders as the
+window's.
 
-Decided (owner, 2026-10-14 evening), both built the same night:
+The action's error can quote what `lookup` read:
 
-- **An agent's install or upgrade always waits for the user**, whatever the chart holds (A2): the
-  unasked case above is closed; every agent's values pass the user's eyes in the confirmation.
-- **A window-only notification reaches agents as text**, after the filter of
-  [H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents) and with the action's
-  inline Helm values removed, instead of withheld (A19). This widens the gap, live since: a failed
-  action's error that quotes what `lookup` read reaches the agent through the notification list
-  wherever that value is neither the value of a Secret the cache holds (of at least the filter's
-  minimum) nor one of the inline values: a ConfigMap's data, a Secret the cache does not hold, a
-  value the chart transformed. The command's result and `helm_pendingOperations` keep the error
-  from agents as before. Whether to keep Helm's error toasts withheld as an exception is the
-  open follow-up of the round (the lead built the answer as given).
+- The command's result and `helm.pendingOperations` withhold it from agents and the CLI
+  (`forCaller`, `withheldHelmError` in [`commands/helm.go`](../../internal/engine/commands/helm.go),
+  `TestHelmInstallErrorStaysInTheWindow`); the built-in agent over a private
+  connection reads it in full
+  ([H-94](agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)).
+- A failed Helm action's toast, whoever started it, reaches agents in `notifications.list` as text,
+  the action's inline values of 4 bytes or more removed and the cached Secrets' values of 10 bytes
+  or more replaced (`EmitWindowToast`, `Notifications` in
+  [`notifications.go`](../../internal/engine/notifications.go);
+  [H-82](agents-and-mcp.md#h-82-secret-values-printed-into-logs-reach-agents)): a ConfigMap's
+  data, a Secret the cache does not hold, a shorter value or one the chart transformed passes.
+  Would close it, not decided: withholding Helm's error toasts from agents.
 
 ### H-67: A Sync acts with Argo CD's rights, not the user's
 
-Live since 2026-10-13 for `argocd.application.sync` and `argocd.application.syncMany`. Cogpit's
-request needs only `patch` on the Application; the sync itself, and with prune the deletions, are
-run by Argo CD's application controller with its own service account, in whatever destination the
-Application's project allows. A user (or an agent the user allowed) who may patch Applications in
-Argo CD's namespace can so change objects in namespaces and clusters their own identity cannot
-touch: that is Argo CD's model, and Cogpit's access reviews, which ask only about the patch, say
-nothing about it. Sync windows and Argo CD's own RBAC, which its API server checks for `argocd app
-sync`, are not checked on this path (the controller still honours sync windows). Decided (owner,
-2026-10-14 evening): a sync respects the AppProject's sync windows, refused, or greyed with the
-reason, inside a deny window; Argo CD's RBAC is not emulated. Built the same night
-(`kinds.ArgoSyncBlocked`, `TestArgoSyncRespectsSyncWindows`): Cogpit checks the windows as Argo CD
-checks a manual sync, since 2026-10-16 as Argo CD 3.5.5's `CanSync` does (its source read, and
-checked against a live Argo CD controller on a real cluster: an operation written inside a deny
-window waits in the controller, "Sync operation blocked by sync window", until someone terminates
-it, so the check before the write is what spares the user that). The same check found that an
-Application outside Argo CD's namespace was not held to its project's windows (Cogpit looked for
-the project in the Application's namespace); the project is now looked up where the controller
-says it runs (`status.controllerNamespace`). What remains: a project Cogpit
-may not read blocks nothing on Cogpit's side (the controller still honours it), nor does one of an
-Application the controller has not reconciled yet in another namespace (no
-`status.controllerNamespace` yet); the sync still runs with Argo CD's service account in whatever destination the project
-allows, and Argo CD's RBAC, which `argocd app sync` would check, stays unchecked by decision. What
-stands in the way: a sync with prune is destructive and confirmed for every origin; the confirmation names the
-resources the Application's status marks `requiresPruning` (the controller's last comparison,
-which can be older than Git's latest state), at most ten by name and the count of the rest.
+Live for `argocd.application.sync` and `argocd.application.syncMany`. Cogpit's request needs only
+`patch` on the Application; the sync, and with prune its deletions, are run by Argo CD's
+application controller with its own service account, in whatever destination the Application's
+project allows. Whoever may patch Applications in Argo CD's namespace, or an agent the user allowed
+writes, can so change objects in namespaces and clusters their own identity cannot touch, and
+Cogpit's access reviews, which ask only about the patch, say nothing about it. Argo CD's RBAC,
+which its API server checks for `argocd app sync`, is not emulated (accepted). What stands in the
+way:
+
+- **Sync windows.** Cogpit checks the AppProject's windows as Argo CD 3.5.5's `CanSync` checks a
+  manual sync (`kinds.ArgoSyncBlocked` in
+  [`argocd_syncwindow.go`](../../internal/model/kinds/argocd_syncwindow.go),
+  `TestArgoSyncRespectsSyncWindows`): inside a deny window Sync is greyed with the reason and the
+  write refused, since an operation written there waits in the controller until someone terminates
+  it; a window Cogpit cannot parse blocks. The project is looked up in the namespace the controller
+  runs in (`status.controllerNamespace`, `ArgoProjectNamespace` in
+  [`argocd.go`](../../internal/model/kinds/argocd.go)).
+- **Prune.** A sync with prune is destructive and confirmed for every origin; the confirmation names
+  the resources the Application's status marks `requiresPruning` (the controller's last comparison,
+  which can be older than Git's latest state), ten by name and the count of the rest.
+
+Open: a project Cogpit may not read, or does not find, blocks nothing on Cogpit's side (the
+controller still honours its windows), and an Application outside Argo CD's namespace that the
+controller has not reconciled yet has no `status.controllerNamespace`, so Cogpit looks for its
+project in the Application's own namespace
+([`argosyncwindow.go`](../../internal/engine/commands/argosyncwindow.go)).

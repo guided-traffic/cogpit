@@ -173,7 +173,7 @@ on all three platforms.
 - Wails — Lens's web stack in a webview, TypeScript as a second language, three browser engines.
 - Rust with egui — the team writes no Rust; kept as the fallback UI process.
 
-**Code:** [`internal/ui/fyneui`](../../internal/ui/fyneui/) · **Tests:**
+**Code:** [`internal/ui/fyneui`](../../internal/ui/fyneui/) · 
 `TestStartLocalWindowsBindsKubectlToContextAndNamespace`, `TestStartLocalWindowsResize`,
 `TestStartLocalWindowsShellExitEndsSession`
 
@@ -223,7 +223,7 @@ Every agent command, refused ones included, is audited (`audit.list`). Without t
 ([Lens MCP server](https://docs.lenshq.io/k8slens/mcp-server/)). The rules sit in the engine so no
 origin bypasses them.
 
-**Code:** [`engine.go`](../../internal/engine/engine.go) `NeedsConfirmation` · **Tests:**
+**Code:** [`engine.go`](../../internal/engine/engine.go) `NeedsConfirmation` · 
 `TestAgentsAskDispatch`, `TestTextHoldsRBAC`, `TestGUIOnlyCommandsRefuseOtherOrigins`
 
 ## D-3: Helm and kubectl binaries
@@ -280,7 +280,7 @@ Cogpit shows when an update is available and installs it with one click, as Lens
 through Sparkle 2, Linux through apt ([D-108](#d-108-cogpit-for-linux-a-deb-and-an-apt-repository-on-pages)),
 Windows through WinSparkle ([D-111](#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)).
 AppImage and tar.gz are not offered; winget, Flathub and rpm are open. The macOS download,
-`Cogpit-<v>-macos-arm64.dmg`, is signed, notarized and stapled ([D-16](#d-16-the-first-real-release));
+`Cogpit-<v>-macos-arm64.dmg`, is signed, notarized and stapled ([D-16](#d-16-releases-and-what-they-carry));
 a failed signature or notarization leaves a release without it, never with an unsigned one. Not
 built: the universal (Intel) bundle and a Homebrew cask of the disk image that leaves updates to
 Sparkle (`auto_updates true`, [G14](../parity/gaps.md#g14-packaging-signing-and-updates-macos)).
@@ -291,7 +291,7 @@ Sparkle (`auto_updates true`, [G14](../parity/gaps.md#g14-packaging-signing-and-
   accepts only a signed feed.
 - **Checks:** Sparkle's own scheduled checks are off. While Preferences › App › Check for updates
   automatically is on (the default, as in Lens), Cogpit runs Sparkle's probing check at every start
-  and every hour: it feeds the Update button ([D-54](#d-54-the-layout-toggles-and-the-update-button))
+  and every hour: it feeds the Update button ([D-54](#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle))
   and holds nothing, so the button, Help › Check for Updates… and `app.checkForUpdates` (any origin)
   read the feed afresh in Sparkle's window. Agents and the CLI may only turn the checks on. The
   channel is Stable; Beta is refused until Cogpit publishes prereleases.
@@ -460,7 +460,7 @@ keychain asked for the login password at every new code signature.
 **Rejected:** the chat as a dock tab — it vanishes when its agent opens a logs or terminal tab; a
 question per cluster and connection before sending — stricter than an external agent.
 
-**Code:** [`internal/agent`](../../internal/agent/), [`engine/chat.go`](../../internal/engine/chat.go) · **Tests:**
+**Code:** [`internal/agent`](../../internal/agent/), [`engine/chat.go`](../../internal/engine/chat.go) · 
 `TestToolsetSize`, `TestConnectionTestShowsTheExchange`, `TestPrivateConversationIsNotKept`
 
 ## D-11: Crash stance
@@ -540,7 +540,7 @@ persisting non-sensitive kinds marked stale — complexity, and which kinds are 
 user's call; Secrets as metadata only, with a GET per drawer — empty Keys and Type columns; no
 cache for Secrets — a request per view, against cache-first.
 
-**Code:** [`internal/cache`](../../internal/cache/cache.go) · **Tests:**
+**Code:** [`internal/cache`](../../internal/cache/cache.go) · 
 `TestBudgetSecretsViewAndDrawer`, `TestBudgetSecretsAndReleasesShareOneWatch`,
 `TestSecretsLoseTheLastAppliedAnnotation`, `TestAgentsReadSecretsRedacted`
 
@@ -683,7 +683,7 @@ kubeconfigs that name certificate files, which send nothing that matters.
 
 **Code:** [`sources.go`](../../internal/cluster/sources.go) `checkTokenFilePolicy`,
 [`pluginfiles.go`](../../internal/cluster/pluginfiles.go) `BindPluginFiles`,
-[`exec.go`](../../internal/kubeconfig/exec.go) `AsksForTokenFile` · **Tests:**
+[`exec.go`](../../internal/kubeconfig/exec.go) `AsksForTokenFile` · 
 `TestTokenFileOutsideTheFolderIsAskedFor`, `TestTokenFileOutsideTheFolderNeedsApproval`,
 `TestApprovalDialogAsksForATokenFile`
 
@@ -705,7 +705,7 @@ without knowing every tool that writes them.
 certificate's issuer); an allowlist of harmless annotations — a list to maintain; a denylist of
 known manifest copies — an unknown tool slips through.
 
-**Code:** [`cache.go`](../../internal/cache/cache.go) `stripManagedFields` · **Tests:**
+**Code:** [`cache.go`](../../internal/cache/cache.go) `stripManagedFields` · 
 `TestSecretsLoseTheLastAppliedAnnotation`
 
 ## D-19: Editing and creating Secrets from YAML
@@ -774,7 +774,7 @@ under `<user config dir>/Cogpit/kubeconfigs/` stays, being the user's.
 **Why:** a stored copy of a kubeconfig is a second place for a credential to live
 ([credentials](../security/credentials.md)).
 
-**Code:** [`kubeconfigs.go`](../../internal/engine/kubeconfigs.go) `legacyPastedKind` · **Tests:**
+**Code:** [`kubeconfigs.go`](../../internal/engine/kubeconfigs.go) `legacyPastedKind` · 
 `TestPastedSourcesOfEarlierBuildsAreNotOffered`
 
 ## D-22: Colour theme
@@ -789,7 +789,7 @@ The window's palettes are Dark Cockpit's ([D-110](#d-110-dark-cockpit-cogpits-de
 
 The theme is a preference (Preferences › App › Theme: Sync with computer, the default, Dark or
 Light), applied at once; `--theme dark|light|system` overrides it for one run, and the title bar's
-toggle sets it ([D-54](#d-54-the-layout-toggles-and-the-update-button)).
+toggle sets it ([D-54](#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle)).
 
 A cluster's icon colour is one of eight named colours (`engine.IconColors`), each in a shade per
 theme that reads at 3:1 where identities are drawn (`identityColors`), or any colour from Fyne's
@@ -811,7 +811,7 @@ dark colours.
 
 **Code:** [`termview.go`](../../internal/ui/fyneui/termview/termview.go),
 [`theme.go`](../../internal/ui/fyneui/theme.go) `identityColors`,
-[`identitycolor.go`](../../internal/ui/fyneui/identitycolor.go) `legibleShade` · **Tests:**
+[`identitycolor.go`](../../internal/ui/fyneui/identitycolor.go) `legibleShade` · 
 `TestSetANSIColors`, `TestIdentityColorsContrast`, `TestCustomIdentityColorContrast`
 
 ## D-23: The status bar's owner link and MCP switch
@@ -912,7 +912,7 @@ binary value survives a text clipboard in.
 **Code:** [`copy.go`](../../internal/ui/fyneui/copy.go),
 [`tablecopy.go`](../../internal/ui/fyneui/tablecopy.go),
 [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go),
-[`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m) · **Tests:**
+[`clipboard_darwin.m`](../../internal/ui/fyneui/clipboard_darwin.m) · 
 `TestCopyHasNoCommand`, `TestListCopyIconByColumn`, `TestSecretMaskedValueCopiedWithoutShowing`,
 `TestSecretB64OnABinaryValue`, `TestCopyKubeconfigPathInEveryClusterMenu`
 
@@ -928,13 +928,13 @@ program asks again. A CA file there is bound the same way, a symlink there by it
 over 32 MiB by its size and modification time. A program elsewhere is bound by the command as the
 kubeconfig names it (a name looked up on `PATH`, or a path), so a tool update does not ask again.
 Cogpit appends its tool folders and the user's program folders after the `PATH` it started with
-([D-120](#d-120-credential-plugins-found-in-more-folders)), so a name `PATH` finds keeps resolving
+([D-120](#d-120-folders-searched-for-credential-plugins)), so a name `PATH` finds keeps resolving
 to the same program. On Windows the bound file is the one `os/exec` runs: a path without a
 `PATHEXT` extension binds the `plug.exe` that runs, not a `plug` beside it.
 
 The approval also shows and binds the proxy Cogpit sets for the cluster (Cluster Settings ›
 Proxy), the kubeconfig's own `proxy-url` beside it marked as not used; a changed proxy asks again
-([H-34](../security/trust-boundaries.md#h-34-the-plugin-approval-shows-the-kubeconfigs-proxy-not-cogpits)).
+([H-34](../security/trust-boundaries.md#login-approval)).
 It is bound as shown, its password as `•••`: another scheme, user, host or port asks again, a new
 password alone does not, and `exec-approvals.json` holds no hash over the password. Without a
 proxy of Cogpit's the field is left out of the fingerprint. A proxy change sends `EventContexts`,
@@ -949,7 +949,7 @@ cluster; host and port only — a changed proxy user would not ask.
 
 **Code:** [`pluginfiles.go`](../../internal/cluster/pluginfiles.go) `BindPluginFiles`,
 [`exec.go`](../../internal/kubeconfig/exec.go) `Fingerprint`, `SetClusterProxy`,
-[`proxy.go`](../../internal/engine/proxy.go) `proxyBoundPolicy`, `RedactProxyURL` · **Tests:**
+[`proxy.go`](../../internal/engine/proxy.go) `proxyBoundPolicy`, `RedactProxyURL` · 
 `TestProgramIsBoundByTheFileThatRuns`, `TestPluginApprovalBindsTheClusterProxy`,
 `TestFingerprintBindsCogpitsProxy`, `TestApprovalDialogShowsCogpitsProxy`
 
@@ -970,7 +970,7 @@ the upgrade is bound to its text revision.
 read them.
 
 **Code:** [`confirm.go`](../../internal/engine/confirm.go) `ConfirmRequest.Review`,
-[`helmupgrade.go`](../../internal/engine/commands/helmupgrade.go) · **Tests:**
+[`helmupgrade.go`](../../internal/engine/commands/helmupgrade.go) · 
 `TestConfirmationShowsTheReviewText`, `TestHelmUpgradeAgents`
 
 ## D-28: The default kubeconfig as sources, as Lens has it
@@ -1131,7 +1131,7 @@ source because a Finder-started app has no `$LANG`.
 **Code:** [`internal/locale`](../../internal/locale/), [`model/timefmt.go`](../../internal/model/timefmt.go)
 · **Tests:** `TestGoLayout`, `TestEnvironment`, `TestTimeFormatZoneAndSummerTime`,
 `TestMarksWrittenInTheFormat`, `TestAgentsReadTimesAsDrawn`,
-`TestTheWindowWritesTimesInTheUsersFormat`, `TestRenderTimesInTheUsersFormat`
+`TestTheWindowWritesTimesInTheUsersFormat`
 
 ## D-32: Every byte amount in binary units with one decimal
 
@@ -1287,7 +1287,7 @@ credential stays where the Secrets view keeps it.
   specs already tell them.
 - Parsing a cluster's `config` for its authentication method — it would read the credentials.
 
-**Code:** [`kinds/argocd_settings.go`](../../internal/model/kinds/argocd_settings.go) · **Tests:**
+**Code:** [`kinds/argocd_settings.go`](../../internal/model/kinds/argocd_settings.go) · 
 `TestArgoSettingsNeverShowCredentials`, `TestRedactURLUserinfo`, `TestArgoSettingsNeverReachAgents`,
 `TestKindArgoCD`
 
@@ -1372,7 +1372,7 @@ Five minutes allow the image pull; a day covers a long session, never an idle ro
 - Recording the pod only after its create — a crash between the two leaves it unrecorded.
 
 **Code:** [`engine/nodeshell.go`](../../internal/engine/nodeshell.go),
-[`engine/nodeshellsweep.go`](../../internal/engine/nodeshellsweep.go) · **Tests:**
+[`engine/nodeshellsweep.go`](../../internal/engine/nodeshellsweep.go) · 
 `TestNodeShellBoundToWhatWasConfirmed`, `TestNodeShellSweepDeletesOwnPodsOnly`, `TestKindNodeShell`
 
 ## D-38: Who sets the node shell's image
@@ -1433,7 +1433,7 @@ one namespace's 403 says nothing about the provider.
   capacity that pods they cannot see share.
 
 **Code:** [`engine/metrics.go`](../../internal/engine/metrics.go) `usageListScopes`,
-[`metrics/hub.go`](../../internal/metrics/hub.go) `namespaceRefusal` · **Tests:**
+[`metrics/hub.go`](../../internal/metrics/hub.go) `namespaceRefusal` · 
 `TestPodMetricsPerNamespaceOfThePlan`, `TestPodMetricsRefusalStaysInItsNamespace`,
 `TestBudgetNamespaceLimitedUser`
 
@@ -1473,7 +1473,7 @@ an open drawer holds.
 
 **Code:** [`kinds/workloadpods.go`](../../internal/model/kinds/workloadpods.go),
 [`kinds/nodes.go`](../../internal/model/kinds/nodes.go) `workloadPodColumns`,
-[`engine/drawerlimit.go`](../../internal/engine/drawerlimit.go) · **Tests:**
+[`engine/drawerlimit.go`](../../internal/engine/drawerlimit.go) · 
 `TestWorkloadDrawerPodsPerKind`, `TestWorkloadPodsIndexOnlyWithTheDrawer`,
 `TestDeploymentDrawerPodsTable`, `TestKindWorkloadDrawerPods`
 
@@ -1585,7 +1585,7 @@ kube-prometheus-stack the Nodes list then has no CPU and Memory.
   step, so the discovery would cost queries the window shows nothing of.
 
 **Code:** [`metrics/disk.go`](../../internal/metrics/disk.go),
-[`metrics/promrange.go`](../../internal/metrics/promrange.go) `nodePlan` · **Tests:**
+[`metrics/promrange.go`](../../internal/metrics/promrange.go) `nodePlan` · 
 `TestNodeDisksFromNodeExporter`, `TestKindNodeExporterByAddress`,
 `TestNodeHistoryOnKubePrometheusStack`, `TestNodeNetworkAndFilesystemFromNodeExporter`
 
@@ -1626,7 +1626,7 @@ stored form; the 10-byte minimum keeps common words whole (H-82's measurement).
 
 **Code:** [`engine/dockoutput.go`](../../internal/engine/dockoutput.go),
 [`engine/secretscrub.go`](../../internal/engine/secretscrub.go),
-[`engine/agentsecrets.go`](../../internal/engine/agentsecrets.go) · **Tests:**
+[`engine/agentsecrets.go`](../../internal/engine/agentsecrets.go) · 
 `TestDockReadTerminalNeedsTheUsersSwitch`, `TestAgentReadSwitchEndsAfterAnHour`,
 `TestAgentViewReplacesCachedSecretValues`, `TestSecretScrubMeasure`
 
@@ -1666,7 +1666,7 @@ nothing but the URL; the switch turns it off.
 
 **Code:** [`helm/icon.go`](../../internal/helm/icon.go),
 [`engine/helmicons.go`](../../internal/engine/helmicons.go),
-[`fyneui/helmcharticons.go`](../../internal/ui/fyneui/helmcharticons.go) · **Tests:**
+[`fyneui/helmcharticons.go`](../../internal/ui/fyneui/helmcharticons.go) · 
 `TestFetchIconRefusesPrivateAddresses`, `TestChartIconRefusals`, `TestChartIconsPreference`,
 `TestChartIconsInTheWindow`
 
@@ -1707,7 +1707,7 @@ in a loop into questions, not connections
 - The login approval dialog raised by a link — a page could raise it at a moment of its choosing.
 
 **Code:** [`engine/deeplink.go`](../../internal/engine/deeplink.go),
-[`cmd/cogpit/deeplink_darwin.m`](../../cmd/cogpit/deeplink_darwin.m) · **Tests:**
+[`cmd/cogpit/deeplink_darwin.m`](../../cmd/cogpit/deeplink_darwin.m) · 
 `TestParseDeepLinkRefusals`, `FuzzParseDeepLink`, `TestDeepLinkCommandsOnlyNavigate`,
 `TestDeepLinkGuardsAnAlteredCommand`, `TestDeepLinkAsksBeforeItConnects`, `TestDeepLinkQueue`
 
@@ -1740,7 +1740,7 @@ user's own act. Lens has the preference ("Automatic start-up", inferred from its
 
 **Code:** [`engine/loginitem.go`](../../internal/engine/loginitem.go),
 [`commands/loginitem.go`](../../internal/engine/commands/loginitem.go),
-[`cmd/cogpit/loginitem_darwin.m`](../../cmd/cogpit/loginitem_darwin.m) · **Tests:**
+[`cmd/cogpit/loginitem_darwin.m`](../../cmd/cogpit/loginitem_darwin.m) · 
 `TestStartAtLogin`, `TestStartAtLoginOutcomes`, `TestLoginItemOutsideTheAppBundle`
 
 ## D-49: The external MCP server's switch, honoured by `cogpit-cli mcp`
@@ -1826,7 +1826,7 @@ KMS client) in both binaries; one request to `rekor.sigstore.dev` per download.
 
 **Code:** [`kubectl/verify.go`](../../internal/kubectl/verify.go),
 [`kubectl/rekor.go`](../../internal/kubectl/rekor.go), the tests' own sigstore
-[`testkit/sigstoretest`](../../internal/testkit/sigstoretest/sigstoretest.go) · **Tests:**
+[`testkit/sigstoretest`](../../internal/testkit/sigstoretest/sigstoretest.go) · 
 `TestRealReleaseSignature`, `TestRealReleaseRefused`, `TestDownloadWithoutTheLog`,
 `TestLiveRelease` (opt-in, `COGPIT_SIGSTORE_LIVE=1`)
 
@@ -1866,7 +1866,7 @@ from choosing the change the user's next ↵ runs, while it can still show the u
 
 **Code:** [`engine/navigator.go`](../../internal/engine/navigator.go),
 [`engine/palettetext.go`](../../internal/engine/palettetext.go),
-[`fyneui/palette.go`](../../internal/ui/fyneui/palette.go) `enter` · **Tests:**
+[`fyneui/palette.go`](../../internal/ui/fyneui/palette.go) `enter` · 
 `TestNavigatorAndPaletteStateCommands`, `TestNavigatorReportsAndShowsItsState`,
 `TestCommandPaletteAgentTextNeverRunsAChange`, `TestNavigatorSectionGroupsCollapse`
 
@@ -1957,7 +1957,7 @@ the one way to cut every client off. What a stable token costs:
 
 **Code:** [`mcp/server.go`](../../internal/mcp/server.go) `RegenerateToken`, `keepPort`;
 [`mcp/token.go`](../../internal/mcp/token.go) `loadToken`; [`mcp/bridge.go`](../../internal/mcp/bridge.go)
-`followed`; [`fyneui/mcpdetails.go`](../../internal/ui/fyneui/mcpdetails.go) · **Tests:**
+`followed`; [`fyneui/mcpdetails.go`](../../internal/ui/fyneui/mcpdetails.go) · 
 `TestTokenKeptAcrossStarts`, `TestPortTakenMovesAndKeepsTheNewOne`, `TestBridgeFollowsARegenerate`,
 `TestRegenerateEndsPendingConfirmation`, `TestMCPRegenerateWarnsFirst`
 
@@ -2046,7 +2046,7 @@ only the review refuses an added name matching a key beyond the first 100; Fyne 
 can let a pointer over the drawer's header reach an editor scrolled under it (read in its source).
 
 **Code:** [`engine/configmapdata.go`](../../internal/engine/configmapdata.go), [`datakeys.go`](../../internal/engine/datakeys.go), [`drafts_drawer.go`](../../internal/engine/drafts_drawer.go),
-[`editdatakeys.go`](../../internal/engine/editdatakeys.go), [`fyneui/configmapdata.go`](../../internal/ui/fyneui/configmapdata.go) · **Tests:**
+[`editdatakeys.go`](../../internal/engine/editdatakeys.go), [`fyneui/configmapdata.go`](../../internal/ui/fyneui/configmapdata.go) · 
 `TestConfigMapDataNeverOverwritesUnasked`, `TestConfigMapDataRebases`, `TestKindConfigMapDataSave`,
 `TestConfigMapDataAgentRemovalAsks`, `TestConfigMapDrawerRemovalArms`
 
@@ -2086,7 +2086,7 @@ while the window is resized with the mouse ([PATCHES.md › Known and not patche
 
 **Code:** [`history.go`](../../third_party/fyne-terminal/history.go), [`scrollback.go`](../../third_party/fyne-terminal/scrollback.go),
 [`scrollbar.go`](../../third_party/fyne-terminal/scrollbar.go) ([PATCHES.md › Scrollback](../../third_party/fyne-terminal/PATCHES.md#scrollback)),
-[`termview/output.go`](../../internal/ui/fyneui/termview/output.go) `Terminal.Output` · **Tests:**
+[`termview/output.go`](../../internal/ui/fyneui/termview/output.go) `Terminal.Output` · 
 [`scrollback_test.go`](../../third_party/fyne-terminal/scrollback_test.go), `TestOutputNumbersStayWithTheirLines`
 
 ## D-57: Choosing a cluster
@@ -2110,7 +2110,7 @@ the title bar has no cluster switcher.
   log), whether a login program, token file or unchecked connection is not allowed yet or changed,
   and which server an `insecure-skip-tls-verify` context's credential goes to (also a warning icon).
 - A `--context` refused before connecting also shows a toast "Could not connect to <name>: …". A
-  failed connect shows its error page ([D-114](#d-114-the-alpha-walks-decisions-a-failed-connects-page-and-its-stages)).
+  failed connect shows its error page ([D-114](#d-114-a-failed-connects-error-page-and-its-stages)).
   The welcome page lists the hotbar's and recent clusters and has no connect button.
 - The section, the navigator's visibility and the search text are engine state
   (`ui.setNavigatorScope`, `ui.toggleNavigator`, `ui.setNavigatorSearch`). The search field's focus
@@ -2136,7 +2136,7 @@ Cluster dropped from the palette — the palette lists every command.
 
 Cogpit notices a connected cluster that stops answering (sleep, network, VPN) or rejects its login,
 says so, and reconnects by itself; the window never blocks
-([usage](usage.md#when-the-connection-breaks), [architecture](architecture.md#the-connections-states-d-58)).
+([usage](usage.md#when-the-connection-breaks), [architecture](architecture.md#d-58-the-connections-states)).
 
 - **Detection:** macOS's wake and network-path signals and a broken watch check at once; a heartbeat
   runs every 15 s with 5 s to answer. Two failed checks 2 s apart interrupt (one lost packet is no
@@ -2270,7 +2270,7 @@ journal keeps no count); custom owners are linked by inference, as Lens's captur
 in the Events list only; none of this is compared with a running Lens.
 
 **Code:** [`kinds/related.go`](../../internal/model/kinds/related.go) `RefToWith`,
-[`commands/nodes.go`](../../internal/engine/commands/nodes.go) `drainLeft` · **Tests:**
+[`commands/nodes.go`](../../internal/engine/commands/nodes.go) `drainLeft` · 
 `TestFluxStatusTexts`, `TestEventInvolvedCustomResourceLinks`, `TestDrawerLinksCustomOwners`,
 `TestKindNamespaceLimitedUser`, `TestDrainLeft`, `TestConfirmMessageNamesKinds`
 
@@ -2352,7 +2352,7 @@ every release); setup-envtest or envtest's own download (they check an archive a
 that changes with it); `testkit.FreezableProxy` (already the fake API server's test); `docker
 pause` (needs Docker).
 
-**Code:** [`envtest.go`](../../internal/testkit/envtest/envtest.go) · **Tests:**
+**Code:** [`envtest.go`](../../internal/testkit/envtest/envtest.go) · 
 `TestEnvtestStandbyAPIServerStopped`
 
 **Not covered:** pods do not run (no kubelet, scheduler or controller manager), so logs, exec,
@@ -2395,7 +2395,7 @@ with that digest until the next change or the time-to-live; the folder is never 
 is harmless).
 
 **Code:** [`discocache.go`](../../internal/cluster/discocache.go),
-[`customkinds_digest.go`](../../internal/engine/customkinds_digest.go) · **Tests:**
+[`customkinds_digest.go`](../../internal/engine/customkinds_digest.go) · 
 `TestDiscoveryCacheFileIsCheckedBeforeUse`, `TestDiscoveryCacheIsPerIdentity`,
 `TestDefinitionsConfirmOrDropTheDiscoveryCache`, `TestDiscoveryCacheAcrossConnects`
 
@@ -2405,7 +2405,7 @@ is harmless).
 
 Every connect, reconnect, login, disconnect and interruption of a context is an attempt in its
 connection log, successful ones too: kind, start, steps with times, outcome, duration, a connect's
-stages ([D-114](#d-114-the-alpha-walks-decisions-a-failed-connects-page-and-its-stages)), and for a
+stages ([D-114](#d-114-a-failed-connects-error-page-and-its-stages)), and for a
 failure the error picture (error chain, HTTP status and message, a class such as DNS, TCP, TLS or
 forbidden). No line holds a credential: a login is named by its method, a proxy password as •••.
 
@@ -2465,7 +2465,7 @@ release targets set ([Makefile](../../Makefile) `DIST_TAGS`: `dist-app`, `dist-l
 or CI job runs; a positive `demo` tag — every untagged build (`go test`, gopls, golangci-lint) would
 lose the demo; tagged file pairs in every package that names the demo — more cut points to keep.
 
-**Code:** [`connector.go`](../../internal/engine/connector.go) `IsDemoContext` · **Tests:**
+**Code:** [`connector.go`](../../internal/engine/connector.go) `IsDemoContext` · 
 `TestReleaseBuildsLeaveTheDemoOut`, `TestNoDemoInARelease`
 
 ## D-68: One short name for a cluster, and the user Cogpit is logged in as
@@ -2506,7 +2506,7 @@ identity's; the last users in `cluster-settings.json` — they are no setting, a
 [`engine/whoami.go`](../../internal/engine/whoami.go),
 [`whoami_store.go`](../../internal/engine/whoami_store.go),
 [`cluster/whoami.go`](../../internal/cluster/whoami.go) `Conn.ReviewUser`,
-[`fyneui/clusteruser.go`](../../internal/ui/fyneui/clusteruser.go) · **Tests:**
+[`fyneui/clusteruser.go`](../../internal/ui/fyneui/clusteruser.go) · 
 `TestShortContextName`, `TestShortClusterNameEverywhere`, `TestConnectLearnsTheUser`,
 `TestUserFallsBackToTheKubeconfig`, `TestLoginRenewsTheUser`, `TestKindWhoAmI`
 
@@ -2610,8 +2610,8 @@ Not verified: detection on a real cluster without a Prometheus (fakes only); Vic
 charts point by point against Prometheus (MetricsQL's `rate` does not extrapolate).
 
 **Code:** [`promflavor.go`](../../internal/metrics/promflavor.go),
-[`promdetect.go`](../../internal/metrics/promdetect.go) · **Tests:**
-`TestCandidatesThanosAndVictoriaMetrics`, `TestDetectThanosAndVictoriaMetrics`, `TestFlavorNames`,
+[`promdetect.go`](../../internal/metrics/promdetect.go) · 
+`TestCandidatesThanosAndVictoriaMetrics`, `TestDetectThanosAndVictoriaMetrics`,
 `TestKindVictoriaMetrics` (`make kind-vm`), `TestRealThanos` (`COGPIT_REAL_THANOS`)
 
 ## D-72: Native file panels and macOS folder access
@@ -2652,7 +2652,7 @@ cannot be copied.
 **Code:** [`panel_darwin.m`](../../internal/ui/nativedialog/panel_darwin.m),
 [`store.go`](../../internal/ui/nativedialog/store.go),
 [`filepicker_choosers.go`](../../internal/ui/fyneui/filepicker_choosers.go),
-[`cmd/cogpit/fileaccess.go`](../../cmd/cogpit/fileaccess.go) · **Tests:**
+[`cmd/cogpit/fileaccess.go`](../../cmd/cogpit/fileaccess.go) · 
 `TestPanelConfiguration`, `TestBookmarkHarness`, `TestStoreRestore`, `TestSyncPanelSyncsEveryPick`,
 `TestSyncFallsBackToCogpitsPicker`, `TestKeptSource`
 
@@ -2701,7 +2701,7 @@ agents' checks of the state keep working when it stays.
 **Code:** [`loginrun.go`](../../internal/cluster/loginrun.go),
 [`loginhold.go`](../../internal/cluster/loginhold.go) `admit`,
 [`pluginproc.go`](../../internal/cluster/pluginproc.go),
-[`engine/loginwait.go`](../../internal/engine/loginwait.go) · **Tests:**
+[`engine/loginwait.go`](../../internal/engine/loginwait.go) · 
 `TestCancelledConnectEndsThePlugin`, `TestLoginTimeoutEndsThePlugin`,
 `TestEndedLoginDoesNotRunAgainUntilLogInAgain`, `TestCancelEndsAPluginThatExecs`,
 `TestCancelledConnectsStartNoRunAfterAStrayOne`, `TestCancelConnectingFromTheWindowAndAnAgent`
@@ -2762,7 +2762,7 @@ Login line's dates; ending the connection at notAfter, or a warning only — the
 
 **Code:** [`kubeconfig/clientcert.go`](../../internal/kubeconfig/clientcert.go) `ParseCertValidity`,
 [`cluster/clientcert.go`](../../internal/cluster/clientcert.go),
-[`fyneui/clientcert.go`](../../internal/ui/fyneui/clientcert.go) · **Tests:**
+[`fyneui/clientcert.go`](../../internal/ui/fyneui/clientcert.go) · 
 `TestClientCertificateState`, `TestProtectedClientCertificateIsReadAtConnect`,
 `TestListingNeverOpensTheKey`, `TestContextsCarryTheClientCertificate`,
 `TestAnExpiredClientCertificateDoesNotHoldTheConnect`, `TestAnExpiredClientCertificateWarnsInTheLog`
@@ -2809,7 +2809,7 @@ drawer opens — "found" would not show at once; a toast instead of the dialog �
 **Code:** [`engine/integrations.go`](../../internal/engine/integrations.go),
 [`engine/integrationsask.go`](../../internal/engine/integrationsask.go),
 [`engine/integrationsguionly.go`](../../internal/engine/integrationsguionly.go),
-[`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · **Tests:**
+[`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · 
 `TestIntegrationSettings`, `TestIntegrationsQuestionLifecycle`, `TestIntegrationsOnAreTheUsers`,
 `TestIntegrationsShownDetectOnce`, `TestIntegrationsSection`, `TestKindIntegrationsQuestion`
 
@@ -3051,7 +3051,7 @@ reconnect relists or ends.
 **Code:** [`engine/reconnect.go`](../../internal/engine/reconnect.go),
 [`cluster/loginfile.go`](../../internal/cluster/loginfile.go),
 [`commands/connection.go`](../../internal/engine/commands/connection.go),
-[`fyneui/reconnect.go`](../../internal/ui/fyneui/reconnect.go) · **Tests:**
+[`fyneui/reconnect.go`](../../internal/ui/fyneui/reconnect.go) · 
 `TestReconnectKeepsTheUIStateAndSwapsTheBackend`, `TestReconnectThatFailsKeepsTheConnection`,
 `TestReconnectRestartsLogsAndEndsShells`, `TestLogInAgainChoosesHowToRenew`,
 `TestARenewedCertificateReconnectsByItself`, `TestReconnectRefusedToAgentsForAnExpiredPluginLogin`,
@@ -3100,7 +3100,7 @@ background. Only what the question ticks is read, while it asks.
 **Code:** [`engine/integrationsconsent.go`](../../internal/engine/integrationsconsent.go),
 [`engine/integrationsguionly.go`](../../internal/engine/integrationsguionly.go),
 [`commands/integrations.go`](../../internal/engine/commands/integrations.go),
-[`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · **Tests:**
+[`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · 
 `TestIntegrationsOffUntilAnswered`, `TestIntegrationsQuestionSteps`,
 `TestIntegrationsOnAreTheUsers`, `TestIntegrationsQuestionPreChoice`,
 `TestIntegrationsQuestionDontUse`, `TestKindIntegrationsQuestion`
@@ -3137,7 +3137,7 @@ lands while the others make room.
 
 **Code:** [`engine/hotbar.go`](../../internal/engine/hotbar.go) `mergeBanks`,
 [`commands/hotbar.go`](../../internal/engine/commands/hotbar.go),
-[`fyneui/hotbardrag.go`](../../internal/ui/fyneui/hotbardrag.go) · **Tests:**
+[`fyneui/hotbardrag.go`](../../internal/ui/fyneui/hotbardrag.go) · 
 `TestHotbarMergesBanks`, `TestHotbarCommands`, `TestHotbarFunctionKeys`,
 `TestHotbarPastTwelveScrolls`, `TestHotbarDragCarriesTheTile`, `TestHotbarTileDragCancels`,
 `TestHotbarDragScrollsAtTheEdge`, `TestHotbarTilesFifty`
@@ -3178,7 +3178,7 @@ without the conflict warning.
 - a wrapper type for every Fyne text field to add ⇧⌘Z — ⌘Y already redoes there.
 
 **Code:** [`yamlview/history.go`](../../internal/ui/fyneui/yamlview/history.go),
-[`fyneui/editortab_revert.go`](../../internal/ui/fyneui/editortab_revert.go) · **Tests:**
+[`fyneui/editortab_revert.go`](../../internal/ui/fyneui/editortab_revert.go) · 
 `TestUndoTypingRun`, `TestTypingRunBreaks`, `TestUndoRestoresTheSelection`,
 `TestTextFromOutsideClearsTheHistory`, `TestHistoryBounds`, `TestUndoRedoRoundTrip`,
 `TestEditTabUndoShortcuts`, `TestSecretDrawerKeepsUnsavedInMemory`
@@ -3219,7 +3219,7 @@ jumping; it tells a person only whether the object moved since the edit began, w
 [`fyneui/datakeys.go`](../../internal/ui/fyneui/datakeys.go) `reviewHead`,
 [`fyneui/objectnames.go`](../../internal/ui/fyneui/objectnames.go) `placeRows`,
 [`commands/tables.go`](../../internal/engine/commands/tables.go) `csvFilename`,
-[`fyneui/logtab.go`](../../internal/ui/fyneui/logtab.go) `logFileName` · **Tests:**
+[`fyneui/logtab.go`](../../internal/ui/fyneui/logtab.go) `logFileName` · 
 `TestSelectionMenu`, `TestContextRowMutesTheSourceLabel`, `TestCSVFilenameNamesTheCluster`
 
 ## D-86: The order of an object's YAML
@@ -3246,7 +3246,7 @@ top-level field (and each of `metadata`'s) is marshalled on its own by `sigs.k8s
 exactly as a whole-object marshal does.
 
 **Code:** [`model/objectyaml.go`](../../internal/model/objectyaml.go),
-[`engine/manifest.go`](../../internal/engine/manifest.go) `EditableYAML` · **Tests:**
+[`engine/manifest.go`](../../internal/engine/manifest.go) `EditableYAML` · 
 `TestObjectYAMLOrder`, `TestObjectYAMLRoundTrip`
 
 ## D-87: Cluster Settings: the integrations under a divider, a section each, Metrics their consumer
@@ -3360,7 +3360,7 @@ lie up to half a pixel off the pixel grid.
 
 **Code:** [`chartpath.go`](../../internal/ui/fyneui/chartpath.go) `chartLayer`, `seriesPaths`;
 [`chart.go`](../../internal/ui/fyneui/chart.go);
-[`chart_hover.go`](../../internal/ui/fyneui/chart_hover.go) `refreshOverlay` · **Tests:**
+[`chart_hover.go`](../../internal/ui/fyneui/chart_hover.go) `refreshOverlay` · 
 `TestChartLineKeepsItsWidth`, `TestChartLayerReusesItsImage`, `TestChartFillsUnderTheSeries`
 
 ## D-90: A node's disks: a usage bar per real filesystem
@@ -3445,7 +3445,7 @@ number of Cogpit's.
 - the version beside the user or the name — the navigator's default width cuts either.
 
 **Code:** [`k8seol.go`](../../internal/model/k8seol/k8seol.go) `SupportOf`, `KubeletSkew`;
-[`k8sversion.go`](../../internal/engine/k8sversion.go) `learnVersion`, `versionCheck` · **Tests:**
+[`k8sversion.go`](../../internal/engine/k8sversion.go) `learnVersion`, `versionCheck` · 
 `TestSupportOf`, `TestStateAtTheEdges`, `TestKubeletSkew`, `TestEstimateRuleAgainstUpstream`,
 `TestCompare`, `TestNodesVersionCheck`, `TestKindClusterVersion`
 
@@ -3465,7 +3465,7 @@ name's tooltip holds it whole (`subtitleTip`). The All Clusters section's rows g
 list and narrows every name; a gear on hover only — an icon must be seen to be found.
 
 **Code:** [`clusterversion.go`](../../internal/ui/fyneui/clusterversion.go) `newRootSettings`;
-[`navigator.go`](../../internal/ui/fyneui/navigator.go) `newNavRootRow` · **Tests:**
+[`navigator.go`](../../internal/ui/fyneui/navigator.go) `newNavRootRow` · 
 `TestRootRowGearOpensClusterSettings`
 
 ## D-93: Room in the data footer and the layout bar, and a full-row back button
@@ -3486,8 +3486,8 @@ read as a group yet are hit one by one; a click anywhere left of the search butt
 
 **Code:** [`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `dataGap`, `newKeyAdder`;
 [`layoutbar.go`](../../internal/ui/fyneui/layoutbar.go);
-[`navigator_header.go`](../../internal/ui/fyneui/navigator_header.go) · **Tests:**
-`TestRenderConfigMapDrawerFooterDark`, `TestRenderLayoutAllOpenDark`, `TestRenderNavigatorBackDark`
+[`navigator_header.go`](../../internal/ui/fyneui/navigator_header.go) · 
+`TestRenderConfigMapDrawerFooterDark`, `TestRenderNavigatorBackDark`
 (asserts the button ends at the search button)
 
 ## D-94: The empty dock's toggle opens a terminal, and alert names copy
@@ -3514,7 +3514,7 @@ new power. An icon always shown on every card would add a column of noise.
 does.
 
 **Code:** [`commands/layout.go`](../../internal/engine/commands/layout.go);
-[`alertboard.go`](../../internal/ui/fyneui/alertboard.go) `cardCopy`, `sameBoard` · **Tests:**
+[`alertboard.go`](../../internal/ui/fyneui/alertboard.go) `cardCopy`, `sameBoard` · 
 `TestLayoutToggles`, `TestDockToggleOpensATerminal`, `TestAlertNameCopy`,
 `TestAlertNameCopyAcrossARebuild`
 
@@ -3588,7 +3588,7 @@ nothing is granted.
 
 **Code:** [`promdetect.go`](../../internal/metrics/promdetect.go) `portForms`, `PrometheusDetector`;
 [`alerting/poller.go`](../../internal/alerting/poller.go);
-[`fakeapi.go`](../../internal/testkit/fakeapi.go) · **Tests:**
+[`fakeapi.go`](../../internal/testkit/fakeapi.go) · 
 `TestDetectTriesThePortsNumberThenName`, `TestDetectARefusedCandidateDoesNotStopTheNext`,
 `TestDetectForbiddenIsAState`, `TestPollerTriesThePortsNumberThenName`
 
@@ -3600,7 +3600,7 @@ What the user sees: [usage](usage.md#several-clusters-connected).
 
 - **A failed connect stays:** the window stays on the failed cluster (`UIState.Context` names it,
   `Connection` is `error`), its error page
-  ([D-114](#d-114-the-alpha-walks-decisions-a-failed-connects-page-and-its-stages)) over the
+  ([D-114](#d-114-a-failed-connects-error-page-and-its-stages)) over the
   workspace; the cluster shown before stays connected behind it. The window never shows another
   cluster by itself.
 - **Every connect is a run of its own** (`connectRun`): the window's connect starts one, or joins
@@ -3635,7 +3635,7 @@ reported to agents as `failed` — invites a retry of what the user stopped.
 **Code:** [`connect_run.go`](../../internal/engine/connect_run.go) `connectRun`, `awaitRun`,
 `ConnectNotFailed`; [`connect_join.go`](../../internal/engine/connect_join.go) `windowConnect`;
 [`commands/cluster.go`](../../internal/engine/commands/cluster.go) `connectAnswer`;
-[`mcp/tools.go`](../../internal/mcp/tools.go) · **Tests:**
+[`mcp/tools.go`](../../internal/mcp/tools.go) · 
 `TestShowingAnotherClusterLeavesTheConnectRunning`, `TestAFailedConnectStaysOnItsCluster`,
 `TestACancelledConnectIsNoFailureOnEveryPath`, `TestAConnectOfTheSameClusterJoinsTheWait`,
 `TestConnectOutcomesAreNoFailures`, `TestConnectOutcomesThatAreNoFailureRaiseNoToast`
@@ -3678,7 +3678,7 @@ which lists the kind as its view would.
 
 **Code:** [`nsblockers.go`](../../internal/engine/nsblockers.go);
 [`engine/finalizers.go`](../../internal/engine/finalizers.go) `RemoveFinalizers`;
-[`cluster/finalizers.go`](../../internal/cluster/finalizers.go) `FinalizersPatch` · **Tests:**
+[`cluster/finalizers.go`](../../internal/cluster/finalizers.go) `FinalizersPatch` · 
 `TestNamespaceDeletionFromTheControllersConditions`, `TestTerminatingNamespaceListsWhatBlocksIt`,
 `TestRemoveFinalizersSendsTheGuardedPatch`, `TestRemoveFinalizersConfirmsWhatItRemoves`,
 `TestRemoveFinalizersRefusals`, `TestBudgetTerminatingNamespaceBlockers`,
@@ -3721,7 +3721,7 @@ selectable text only Copy); a selection ends when the tab's stream opens again.
 **Code:** [`logselect.go`](../../internal/ui/fyneui/termview/logselect.go),
 [`logsfollow.go`](../../internal/ui/fyneui/termview/logsfollow.go),
 [`toastcopy.go`](../../internal/ui/fyneui/toastcopy.go),
-[`chat_select.go`](../../internal/ui/fyneui/chat_select.go) · **Tests:**
+[`chat_select.go`](../../internal/ui/fyneui/chat_select.go) · 
 `TestLogSelectionKeepsItsLines`, `TestLogSelectionKeysGoOn`, `TestToastTextSelectable`,
 `TestNotificationRowCopy`, `TestChatTextSelectsBlockByBlock`, `TestLogsFollowOffByScrollingUp`
 
@@ -3760,7 +3760,7 @@ tab's title and the drawer's head keep their own form.
 
 **Code:** [`objectnames.go`](../../internal/ui/fyneui/objectnames.go),
 [`confirm.go`](../../internal/engine/confirm.go) `Effect`,
-[`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `editCounts` · **Tests:**
+[`datakeys.go`](../../internal/ui/fyneui/datakeys.go) `editCounts` · 
 `TestObjectNamesSetTheKindApart`, `TestConfirmationEffectsAreRows`,
 `TestConfirmationShowsADetailWithoutEffects`, `TestDataFooterLayout`, `TestDataKeysDetail`
 
@@ -3782,7 +3782,7 @@ come back (a sync tool, an editor's save by rename, an unmounted volume), and it
 place. A source can hold several clusters, so the "−" opens the dialog instead of removing one.
 
 **Code:** [`navigator_sections.go`](../../internal/ui/fyneui/navigator_sections.go),
-[`contextlink.go`](../../internal/engine/contextlink.go) `RemoveKubeconfigSource` · **Tests:**
+[`contextlink.go`](../../internal/engine/contextlink.go) `RemoveKubeconfigSource` · 
 `TestRemovedSourceLeavesTheHotbar`, `TestSectionRootMinusOpensTheSources`,
 `TestNavigatorSectionRowMenu`
 
@@ -3823,7 +3823,7 @@ default stores empty, so it follows the pinned default as Renovate moves it.
 **Not covered:** a command of its own (kubectl's `-- <command>`); stopping it when its tab closes.
 
 **Code:** [`engine/debugcontainer.go`](../../internal/engine/debugcontainer.go),
-[`cluster/debugcontainer.go`](../../internal/cluster/debugcontainer.go) · **Tests:**
+[`cluster/debugcontainer.go`](../../internal/cluster/debugcontainer.go) · 
 `TestDebugNeedsEveryOriginsConfirmation`, `TestAddEphemeralContainerSendsTheGuardedPatch`,
 `TestImageFromField`, `TestEphemeralContainerMarks`, `TestKindDebugContainer`
 
@@ -3866,7 +3866,7 @@ own handler takes quits without the window's close.
 **Code:** [`fyneui.go`](../../internal/ui/fyneui/fyneui.go) `appMetadata`,
 [`buildinfo.go`](../../internal/buildinfo/buildinfo.go) · **Tests:** `TestTheThreadCheckTag` (the
 Makefile's tag against `internal/buildinfo`'s, and Fyne still reading the `fyneDo` migration),
-`TestThreadChecksText`, `TestEveryGoroutineSiteIsAudited`
+`TestEveryGoroutineSiteIsAudited`
 
 ## D-104: Dialog fields, hints, dropdowns and button outlines
 
@@ -3983,7 +3983,7 @@ written, across a switch between dark and light.
 **Code:** [`tableclick.go`](../../internal/ui/fyneui/tableclick.go),
 [`findkeys.go`](../../internal/ui/fyneui/findkeys.go),
 [`tabmove.go`](../../internal/engine/tabmove.go), [`nsgone.go`](../../internal/ui/fyneui/nsgone.go),
-[`nswatch.go`](../../internal/engine/nswatch.go) · **Tests:**
+[`nswatch.go`](../../internal/engine/nswatch.go) · 
 `TestClickBelowTheRowsClosesTheDrawer`, `TestListClicksAreNotHeld`, `TestWelcomeRowConnectsOnce`,
 `TestCmdFOpensTheEditorTabsFindBar`, `TestTabMoveCommands`, `TestTabDragMovesTheTab`,
 `TestNamespaceDeletedWhileFiltered`
@@ -4058,7 +4058,7 @@ update it; unattended installs are each user's own system setting, never the pac
 
 **Code:** [`deb.sh`](../../hack/linux/deb.sh), [`apt.sh`](../../hack/linux/apt.sh),
 [`packaging/linux`](../../packaging/linux), [`apt_linux.go`](../../internal/update/apt_linux.go),
-[`engine/updates.go`](../../internal/engine/updates.go) `UpdateActor` · **Tests:**
+[`engine/updates.go`](../../internal/engine/updates.go) `UpdateActor` · 
 `TestAptScheduledChecks`, `TestAptUpdateThenRestart`, `TestAptInstallFailures`,
 `TestCheckForUpdatesThatActs`; [`apt-test.sh`](../../hack/linux/apt-test.sh) and lintian in
 `make test-linux-package`
@@ -4092,9 +4092,9 @@ while open, so the pointer could not move on to the next menu.
 Fyne's menu bar back or takes the keys' precedence away; the tests below show part of that.
 
 **Code:** [`menubar.go`](../../internal/ui/fyneui/menubar.go) `shell.setMainMenu`,
-`installMenuKeys`, [`bars.go`](../../internal/ui/fyneui/bars.go) · **Tests:**
+`installMenuKeys`, [`bars.go`](../../internal/ui/fyneui/bars.go) · 
 `TestMenusInTheTopBar`, `TestMenuOpensUnderItsTitle`, `TestMenuItemRunsAndCloses`,
-`TestMenuKeysWaitForTheWindow`, `TestRenderMenuBarDark`, `TestRenderMenuBarLight`
+`TestMenuKeysWaitForTheWindow`, `TestRenderMenuBarDark`
 
 ## D-110: Dark Cockpit, Cogpit's design language
 
@@ -4106,7 +4106,7 @@ meaning each (glow blue for Cogpit and the user, cyan for the cluster's data, vi
 agent). Its palettes in [`theme.go`](../../internal/ui/fyneui/theme.go) replace D-22's Solarized in
 the window, which is not offered as a palette; the terminal keeps Solarized's sixteen colours
 ([ATTRIBUTION.md](../../ATTRIBUTION.md)). Dark, light and the system's setting remain
-([D-54](#d-54-the-layout-toggles-and-the-update-button)).
+([D-54](#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle)).
 
 Decided with it:
 
@@ -4127,9 +4127,9 @@ each make what deviates stand out against a quiet rest.
 receipt, two lanes, ambient triage, semantic zoom); none is built.
 
 **Code:** [`theme.go`](../../internal/ui/fyneui/theme.go),
-[`chat_input.go`](../../internal/ui/fyneui/chat_input.go) `flatEntryTheme` · **Tests:**
+[`chat_input.go`](../../internal/ui/fyneui/chat_input.go) `flatEntryTheme` · 
 `TestPaletteContrast`, `TestStatusColoursAreDistinct`, `TestChartColoursAreDistinct`,
-`TestIdentityColorsContrast`, `TestRenderGlowPrimitives`, `TestBearingStates`,
+`TestIdentityColorsContrast`, `TestBearingStates`,
 `TestOverviewHealthHeader`, `TestAlertsPillSegments`
 
 ## D-111: Cogpit for Windows: an NSIS setup and WinSparkle
@@ -4178,7 +4178,7 @@ drives.
 
 **Code:** [`cogpit.nsi`](../../packaging/windows/cogpit.nsi),
 [`winsparkle_windows.go`](../../internal/update/winsparkle_windows.go),
-[`localpty_windows.go`](../../internal/terminal/localpty_windows.go) · **Tests:**
+[`localpty_windows.go`](../../internal/terminal/localpty_windows.go) · 
 `TestWindowsUpdaterLoadsWinSparkle`, `TestWindowsScheduledCheckShowsTheButton`, `TestAddWindowsFeed`,
 `TestStartLocalWindowsCloseEndsTheTree`, `TestProgramIsBoundByTheFileThatRuns`
 
@@ -4226,7 +4226,7 @@ keep heaps small. A higher `GOGC` bought little time for much more memory.
 
 **Code:** [`release.yml`](../../.github/workflows/release.yml), [`Makefile`](../../Makefile),
 [`hack/shard`](../../hack/shard/main.go), [`render_test.go`](../../internal/ui/fyneui/render_test.go)
-`writePNG`, [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · **Tests:**
+`writePNG`, [`bars.go`](../../internal/ui/fyneui/bars.go) `logoTile` · 
 `TestSplitIsStableAndComplete`, `TestRaceKept`, `TestExecShardsRunsEveryShard`, `TestDefaultJobs`
 
 ## D-113: Image grades, shields from Trivy's reports
@@ -4329,7 +4329,7 @@ resolver) or be skipped; Help › Welcome doing nothing over the error page — 
 **Code:** [`connectstages.go`](../../internal/cluster/connectstages.go),
 [`connectfailure.go`](../../internal/engine/connectfailure.go),
 [`errorpage.go`](../../internal/ui/fyneui/errorpage.go),
-[`welcome.go`](../../internal/ui/fyneui/welcome.go) `groups` · **Tests:**
+[`welcome.go`](../../internal/ui/fyneui/welcome.go) `groups` · 
 `TestConnectStagesOfAFailure`, `TestConnectStagesBehindAProxy`,
 `TestALoginThatAnsweredIsNotStillRunning`, `TestARestoreThatFailsShowsTheErrorPage`,
 `TestTheWelcomePageHasNoOtherClusters`, `TestWelcomeNoteNamesItsLevel`
@@ -4369,7 +4369,7 @@ context; each call site asking — misses the generic paths (row menu, palette, 
 
 **Code:** [`dockfocus.go`](../../internal/ui/fyneui/dockfocus.go) `focusOpened`, `takeFocus`;
 [`commands/dock.go`](../../internal/engine/commands/dock.go) `DockResult.OpenedTab`;
-[`findbar.go`](../../internal/ui/fyneui/findbar.go) `findBar.open` · **Tests:**
+[`findbar.go`](../../internal/ui/fyneui/findbar.go) `findBar.open` · 
 `TestRowMenuEditGivesTheEditorTheKeys`, `TestNewTerminalGetsTheKeys`,
 `TestStripTabClickGivesTheTabTheKeys`, `TestATerminalStillOpeningLeavesKeysMovedMeanwhile`,
 `TestAnAgentsTabLeavesTheKeys`, `TestFindBarOpensThroughTheWindowsCanvas`
@@ -4420,7 +4420,7 @@ under another name than it was assigned to passes it.
 
 **Code:** [`escape.go`](../../internal/ui/fyneui/escape.go),
 [`searchkeys.go`](../../internal/ui/fyneui/searchkeys.go) `searchEntry`,
-[`findbar.go`](../../internal/ui/fyneui/findbar.go) · **Tests:**
+[`findbar.go`](../../internal/ui/fyneui/findbar.go) · 
 `TestEscapeCancelsTheRollbackDialog`, `TestEscapeCancelsEveryDialog`,
 `TestEscapeClosesTheConnectionUpdates`, `TestEscapeClosesTheFindBar`,
 `TestEscapeLeavesTheListSearch`, `TestEveryDialogTakesEscape`,
@@ -4468,7 +4468,7 @@ scroll (the Overview's) and the drawer's are not kept.
 
 **Code:** [`tabs.go`](../../internal/engine/tabs.go) `SelectTab`, `syncTabs`, `showInPreview`;
 [`persist_restore.go`](../../internal/engine/persist_restore.go) `normalize`;
-[`tabscroll.go`](../../internal/ui/fyneui/tabscroll.go) · **Tests:**
+[`tabscroll.go`](../../internal/ui/fyneui/tabscroll.go) · 
 `TestSelectingAnotherClustersTabChangesNoTab`, `TestThreeClustersKeepTheirPreviewTabs`,
 `TestWorkspaceKeepsOnePreviewTabPerCluster`, `TestATabComesBackAsItWasLeft`,
 `TestATabComesBackWhereItWasLeft`, `TestATabsViewOpenedAgainStartsAtTheTop`,
@@ -4516,7 +4516,7 @@ newest overlay is on top); where Tab starts inside the card is Fyne's.
 
 **Code:** [`settingsoverlay.go`](../../internal/ui/fyneui/settingsoverlay.go),
 [`preferences_page.go`](../../internal/ui/fyneui/preferences_page.go) `flushTyping`,
-[`menukeys.go`](../../internal/ui/fyneui/menukeys.go) `heldUnderSettings` · **Tests:**
+[`menukeys.go`](../../internal/ui/fyneui/menukeys.go) `heldUnderSettings` · 
 `TestSettingsOverlayKeepsThePointerFromTheWindow`, `TestSettingsOverlayKeepsTabInTheCard`,
 `TestSettingsOverlayTypedValueIsSetOnClose`, `TestSettingsOverlayShowsToastsAndTooltipsAboveIt`,
 `TestSettingsOverlayHoldsTheWindowKeys`, `TestSettingsCardHeader`,
@@ -4629,7 +4629,7 @@ login, [D-66](#d-66-the-connection-log)).
 
 **Code:** [`toolpath.go`](../../internal/cluster/toolpath.go),
 [`programfolders.go`](../../internal/engine/programfolders.go),
-[`preferences_programs.go`](../../internal/ui/fyneui/preferences_programs.go) · **Tests:**
+[`preferences_programs.go`](../../internal/ui/fyneui/preferences_programs.go) · 
 `TestComposePathAppendsWithoutShadowing`, `TestProgramFolderProblem`, `TestBuiltinToolFolders`,
 `TestConnectNamesTheMissingProgram`, `TestProgramFoldersAddRemoveAndKeep`,
 `TestGUIOnlyCommandsRefuseOtherOrigins`, `TestErrorPageOffersProgramFolders`
@@ -4672,7 +4672,7 @@ calling `DeleteTextTexturesFor` — Fyne-internal.
 the theme still does); the Objective-C side runs in no test.
 
 **Code:** [`pixelscale.go`](../../internal/ui/fyneui/pixelscale.go) `densityWatch`, `reapplyTheme`,
-[`pixelscale_darwin.go`](../../internal/ui/fyneui/pixelscale_darwin.go) · **Tests:**
+[`pixelscale_darwin.go`](../../internal/ui/fyneui/pixelscale_darwin.go) · 
 `TestThemeAppliedAgainWhenThePixelScaleChanges`, `TestCanvasDensity`; the cgo export's row in
 [ui-threads.md](ui-threads.md)
 
@@ -4778,7 +4778,7 @@ The first event decides because a tile, a tab or an edge moves under its own dra
 the fix for them is Fyne's driver looking up the draggable at the press point.
 
 **Code:** [`dragguard.go`](../../internal/ui/fyneui/dragguard.go),
-[`panelwidths.go`](../../internal/ui/fyneui/panelwidths.go) `dockLayout` · **Tests:**
+[`panelwidths.go`](../../internal/ui/fyneui/panelwidths.go) `dockLayout` · 
 `TestDragGuardDecidesOnTheFirstEvent`, `TestStrayDragLeavesTheHotbarAlone`,
 `TestStrayDragLeavesTheColumnsAlone`, `TestStrayDragLeavesTheDockEdgeAlone`,
 `TestStrayDragSelectsNothing`, `TestDockHeightByDraggingItsEdge`
@@ -4811,9 +4811,9 @@ drawer's row — three marks on one row where the bar suffices.
 
 **Code:** [`list_rows.go`](../../internal/ui/fyneui/list_rows.go) `rowPlate`, `layoutLead`,
 [`tablekeys.go`](../../internal/ui/fyneui/tablekeys.go),
-[`tableclick.go`](../../internal/ui/fyneui/tableclick.go) · **Tests:**
+[`tableclick.go`](../../internal/ui/fyneui/tableclick.go) · 
 `TestRowMarksTellCheckedFromTheDrawer`, `TestTableClickMovesTheKeyboardWithoutTheRing`,
-`TestTableFocusByKeyboardShowsTheRing`, `TestRenderRowMarksDark`, `TestRenderRowMarksLight`
+`TestTableFocusByKeyboardShowsTheRing`, `TestRenderRowMarksDark`
 
 ## D-125: An answer's speed: TTFT and OTPS
 
@@ -4837,7 +4837,7 @@ later.
 
 **Code:** [`agent/client.go`](../../internal/agent/client.go),
 [`agent/turn.go`](../../internal/agent/turn.go) `timingOf`,
-[`chat_items.go`](../../internal/ui/fyneui/chat_items.go) `chatTimingText` · **Tests:**
+[`chat_items.go`](../../internal/ui/fyneui/chat_items.go) `chatTimingText` · 
 `TestAnswerTiming`, `TestChatTimingText`
 
 ## D-126: A text field passes the wheel on
@@ -4863,7 +4863,7 @@ the window's tree for the outer scroller — Fyne's tree walk is internal.
 **Not covered:** fields inside Fyne's own dialogs (their scroller is not Cogpit's); the YAML editor
 (its own widget).
 
-**Code:** [`wheelpass.go`](../../internal/ui/fyneui/wheelpass.go) · **Tests:**
+**Code:** [`wheelpass.go`](../../internal/ui/fyneui/wheelpass.go) · 
 `TestATextFieldPassesTheWheelOn`, `TestEveryTextFieldPassesTheWheel`
 
 ## D-127: Find in the drawer's YAML
@@ -4917,7 +4917,7 @@ which Helm does not keep.
 
 **Code:** [`helm/detail.go`](../../internal/helm/detail.go) `historySection`,
 [`helm/values.go`](../../internal/helm/values.go) `ScrubValuesExcept`,
-[`fyneui/drawertable.go`](../../internal/ui/fyneui/drawertable.go) `underTable` · **Tests:**
+[`fyneui/drawertable.go`](../../internal/ui/fyneui/drawertable.go) `underTable` · 
 `TestReleaseHistoryShowsAFailedUpgrade`, `TestScrubValuesExcept`, `TestDeriveFromConfigMaps`,
 `TestReleaseHistoryShowsTheDescriptionUnderItsRow`
 
@@ -4946,7 +4946,7 @@ Toggles and sort brought back would undo what the user set since.
 dashboard); a place's filters and drawer across a restart.
 
 **Code:** [`engine/tabs.go`](../../internal/engine/tabs.go) `TabPlace`, `stepHistory`, `MarkStep`;
-[`fyneui/tabscroll.go`](../../internal/ui/fyneui/tabscroll.go) · **Tests:**
+[`fyneui/tabscroll.go`](../../internal/ui/fyneui/tabscroll.go) · 
 `TestTabHistoryBringsThePlaceBack`, `TestBackComesBackToTheDrawer`,
 `TestBackBringsTheListBackWhereItWasLeft`, `TestBackWithinTheViewBringsTheListBack`
 
@@ -4966,7 +4966,7 @@ editor lies below Properties, often out of view, so ⌘F from the list keeps its
 **Not covered:** a search in the release's Notes (selectable text, not an editor).
 
 **Code:** [`fyneui/helmdrawer.go`](../../internal/ui/fyneui/helmdrawer.go) `releaseValues`,
-[`fyneui/findbar.go`](../../internal/ui/fyneui/findbar.go) `newViewerFindBar` · **Tests:**
+[`fyneui/findbar.go`](../../internal/ui/fyneui/findbar.go) `newViewerFindBar` · 
 `TestReleaseValuesFind`
 
 ## D-131: A release's revisions
@@ -5006,7 +5006,7 @@ the tab does not follow a revision added while it is open.
 
 **Code:** [`helm/revisions.go`](../../internal/helm/revisions.go),
 [`engine/helmrevisions.go`](../../internal/engine/helmrevisions.go),
-[`fyneui/helmrevisions.go`](../../internal/ui/fyneui/helmrevisions.go) · **Tests:**
+[`fyneui/helmrevisions.go`](../../internal/ui/fyneui/helmrevisions.go) · 
 `TestRevisionOf`, `TestValueChanges`, `TestReleaseRevisionWithheldFromAgents`,
 `TestRevisionsDiffSides`, `TestRevisionsTabFromTheDrawer`, `TestRevisionsRowTextsPassTheirClick`
 
@@ -5039,7 +5039,7 @@ event of a few times a year; the version alone — new kinds would be missing wi
 reconnect; a cluster whose heartbeat pauses (a lapsed login) is not followed meanwhile.
 
 **Code:** [`engine/connwatch_version.go`](../../internal/engine/connwatch_version.go) `noteVersion`;
-[`fyneui/connbanner.go`](../../internal/ui/fyneui/connbanner.go) `fillUpgraded` · **Tests:**
+[`fyneui/connbanner.go`](../../internal/ui/fyneui/connbanner.go) `fillUpgraded` · 
 `TestTheServerVersionFollowsTheHeartbeat`, `TestAVersionThatAlternatesIsNotTaken`,
 `TestHeartbeatAndReachable`, `TestConnectionBannerSaysTheClusterWasUpgraded`
 
@@ -5080,7 +5080,7 @@ while it builds its cache of a resource, and client-go asks again: no fault unle
 reachability probe's requests; QPS and burst are fixed, no preference.
 
 **Code:** [`engine/diaglogs.go`](../../internal/engine/diaglogs.go),
-[`fyneui/diagnostics.go`](../../internal/ui/fyneui/diagnostics.go) · **Tests:**
+[`fyneui/diagnostics.go`](../../internal/ui/fyneui/diagnostics.go) · 
 `TestDiagLogFoldsTheSameProblem`, `TestDiagLogIsBounded`, `TestDiagRoundTripperNotesProblems`,
 `TestEndpointScrubber`, `TestConnectionDiagnosticsOfALimitedUser`, `TestCacheWarmingIsNoProblem`
 
@@ -5162,4 +5162,4 @@ too, unseen by Cogpit; with streaming on, a cluster whose streams stall waits 10
 **Code:** [`cluster/cluster.go`](../../internal/cluster/cluster.go),
 [`fyneui/clustersettings_streams.go`](../../internal/ui/fyneui/clustersettings_streams.go) ·
 **Tests:** `TestStalledStreamLists`, `TestStallEndsTheOtherStreams`, `TestListsWithoutStreams`,
-`TestStreamStalledKeepsTheSetting`, `TestStalledStreamsList`, `TestStreamingOptIn`
+`TestStalledStreamsList`, `TestStreamingOptIn`
