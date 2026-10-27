@@ -166,8 +166,8 @@ Ctrl on Windows and Linux.
   proxy, no login to Cogpit. Views read from the cache; switching back to a view costs no API
   request.
 - Updates with one click: Sparkle on macOS, apt on Linux, WinSparkle on Windows
-  ([updates](#preferences--app-updates)). Not on Linux and Windows: `cogpit://` links, Start at
-  login.
+  ([updates](#preferences--app-updates)). macOS only: [`cogpit://` links](#deep-links-cogpit),
+  [Start at login](#preferences--app-start-at-login).
 
 ## Get it and run it
 
@@ -224,7 +224,7 @@ Nothing upgrades by itself: unattended-upgrades installs Cogpit only when its
 
 | File the package installs | What it is |
 |---|---|
-| `/usr/bin/cogpit`, `/usr/bin/cogpit-cli` | the app and the command-line tool, built as a release (tag `nodemo`, Fyne's thread check off) |
+| `/usr/bin/cogpit`, `/usr/bin/cogpit-cli` | the app and the command-line tool, built as a release ([how](releasing.md#linux)) |
 | `/usr/share/applications/io.guided-traffic.cogpit.desktop` | the launcher (`StartupWMClass=Cogpit`; Wayland app id `io.guided-traffic.cogpit`) |
 | `/usr/share/icons/hicolor/<n>x<n>/apps/io.guided-traffic.cogpit.png` | the icon, 16 to 512 pixels |
 | `/usr/share/metainfo/io.guided-traffic.cogpit.metainfo.xml` | the AppStream entry |
@@ -263,8 +263,8 @@ Select-String windows-x64-setup .\SHA256SUMS
 
 The setup is not signed with Authenticode
 ([H-139](../security/updates.md#h-139-the-windows-setup-is-not-signed-with-authenticode)): at its
-first start SmartScreen says "Windows protected your PC"; More info, then Run anyway. Updates are
-vouched for by Cogpit's update key: WinSparkle runs only a setup that key signed
+first start SmartScreen says "Windows protected your PC"; More info, then Run anyway. Updates rest
+on Cogpit's update key instead: WinSparkle runs only a setup that key signed
 ([updates on Windows](#updates-on-windows)).
 
 ```text
@@ -274,12 +274,13 @@ Cogpit-<version>-windows-x64-setup.exe /S /D=D:\Tools\Cogpit   silently, into a 
 ```
 
 Without `/allusers` or `/currentuser` an existing installation is updated where and as it was
-installed. The setup waits for a running Cogpit to quit (silently up to a minute, else it asks) and
-moves a running `cogpit-cli.exe` aside; a later setup or the uninstaller removes it.
+installed. A running Cogpit is waited for (a silent setup up to a minute, then it stops; otherwise
+it asks); a running `cogpit-cli.exe` is moved aside, and a later setup or the uninstaller removes
+it.
 
 | File the setup installs | What it is |
 |---|---|
-| `cogpit.exe` | the app, a GUI program, built as a release (tag `nodemo`, Fyne's thread check off, the Windows feed's URL and the update key's public half) |
+| `cogpit.exe` | the app, a GUI program, built as a release ([how](releasing.md#windows)) |
 | `cogpit-cli.exe` | the command-line tool and MCP stdio bridge; not on your `PATH` |
 | `WinSparkle.dll` | the updater, loaded by full path; the release the Makefile pins by its archive's SHA-256, unsigned ([H-140](../security/updates.md#h-140-winsparkledll-is-a-third-party-binary-without-a-signature)) |
 | `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt` | the licences |
@@ -1209,7 +1210,7 @@ The tab, from the top:
 | Rate limit | Rate | For |
 |---|---|---|
 | requests | 5/s, burst 10 # default | gets and writes; watches never wait |
-| lists | 50/s, burst 300 # default | the cache's initial lists ([D-135](decisions.md#d-135-a-stalled-stream-lists)) |
+| lists | 50/s, burst 300 # default | the cache's initial lists |
 | discovery | 50/s, burst 300 # default | discovery |
 | access reviews | 10/s, burst 20 # default | access reviews |
 
@@ -1499,8 +1500,8 @@ user, SYSTEM, Administrators), a temporary file those of `%TEMP%`
 Environment variables:
 
 - **The app:** `COGPIT_SYSTEM_TITLEBAR` (set: macOS's own title bar); in development builds
-  `COGPIT_LIGHTSTRIP_FPS` (the light strip's frame cap, 1 to 60, else ignored with a warning; 60 #
-  default; [D-122](decisions.md#d-122-the-light-strip)).
+  `COGPIT_LIGHTSTRIP_FPS` (the [light strip](#the-light-strip)'s frame cap, 1 to 60, else ignored
+  with a warning; 60 # default).
 - **A terminal whose kubectl Cogpit chose:** `COGPIT_KUBECTL_DIR`, `COGPIT_KUBECTL_ENFORCE`,
   `COGPIT_ZDOTDIR`, `COGPIT_ZDOTDIR_SET`, removed by its shell's start-up.
 - **Tests** ([testing](testing.md#tiers)): `COGPIT_KIND_KUBECONFIG`, `COGPIT_KIND_CONTEXT`,
@@ -1584,13 +1585,13 @@ Working on Cogpit: [docs/developer/](README.md); what to check before a pull req
 | `make ui-durations` | measures `internal/ui/fyneui`'s tests with and without the race detector into the files that balance its shards ([releasing › The UI's shards](releasing.md#the-uis-shards)) |
 | `make test-kind`, `make test-kind-drain`, `make test-envtest`, `make test-real` | cluster tests against the kind cluster, the drain cluster, envtest's API server, a real cluster you name (`REAL_KUBECONFIG`, `REAL_CONTEXT`; never in CI) |
 | `make test-norace-coverage`, `make test-race-ui`, `make test-race-rest`, `make test-darwin`, `make test-windows-unit`, `make test-windows-ui` | CI's test jobs ([releasing › CI](releasing.md#ci)) |
-| `make check-nodemo` | the release variant (CI's lint job): `internal/demo` in both binaries without `-tags nodemo` and in neither with it, the `nodemo` files linted with the tag, `TestNoDemoInARelease` ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |
+| `make check-nodemo` | the release variant (CI's lint job): `internal/demo` in both binaries without `-tags nodemo` and in neither with it, the `nodemo` files linted with the tag, `TestNoDemoInARelease` |
 | `make coverage-report` | merges the profiles in `.cache/coverage` into `combined.out`, `summary.md` and the badge `.github/badges/coverage.json` |
 | `make vuln`, `make gosec`, `make gosec-darwin`, `make cyclo`, `make cyclo-report` | govulncheck over the code paths Cogpit calls, gosec over the shipped code (this system's build and Windows'; `gosec-darwin`: the packages with darwin-only files, macOS only), no function above `CYCLO_THRESHOLD` (56 # default), the 20 most complex functions |
 | `make parity`, `make scorecard`, `make bench` | the parity checks ([rules](../parity/README.md#make-parity)); the performance budgets measured into `docs/parity/scorecard.md` (not in CI); the benchmarks, the spike's S1 and S2 included |
 | `make kind-up`, `make kind-seed`, `make kind-down`, `make kind-drain-up`, `make kind-drain-down` | the local kind cluster (with the Metrics Server) and its seed; the three-node drain cluster `cogpit-drain` (`.cache/kind-drain/kubeconfig`) |
 | `make kind-prometheus`, `kind-kps`, `kind-vm`, `kind-alertmanager`, `kind-kyverno`, `kind-trivy` (each with `-down`) | optional stacks in the kind cluster: Prometheus, kube-prometheus-stack, VictoriaMetrics, Alertmanager, Kyverno with test policies, Trivy Operator |
-| `make sigstore-root`, `make k8s-eol` | refresh the sigstore trusted root `internal/kubectl` embeds ([D-50](decisions.md#d-50-kubectls-signature-check)) and the Kubernetes release table `internal/model/k8seol` embeds ([D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life); `K8SEOL_FLAGS=-fallback` keeps the committed one on a failure) |
+| `make sigstore-root`, `make k8s-eol` | refresh the sigstore trusted root `internal/kubectl` embeds and the Kubernetes release table `internal/model/k8seol` embeds (`K8SEOL_FLAGS=-fallback` keeps the committed one on a failure) |
 | `make icon`, `make showcase` | redraw `packaging/icon.png` ([extending](extending.md#changing-the-logo)); render the README's pictures into `docs/images`, dark and light, optimised with oxipng (`OXIPNG_FLAGS` without `--zopfli` for a quick look) |
 | `make sparkle`, `make oxipng`, `make winsparkle`, `make mesa` | the pinned release into `.cache/`, SHA-256 checked (oxipng: macOS on Apple silicon and Linux on x86-64; Mesa: the Windows smoke test's software OpenGL) |
 | `make smoke` | starts `SMOKE_BIN` (`bin/cogpit` # default) once with `--smoke SMOKE_BOUND` (`2m` # default): its window until the first frame ([releasing › the smoke test](releasing.md#the-smoke-test)) |
