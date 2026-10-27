@@ -588,8 +588,9 @@ stopped waiting and the process may run on (`LoginEndedError.RunsOn`). What is n
 ### H-25: A copied Secret value reaches the clipboard
 
 A Secret value the user copies ([above](#secret-objects): from the drawer, revealed or masked,
-plain or base64; a value shown in the Create Secret dialog; D-25) sits on the system clipboard,
-where Cogpit cannot guard it; no agent can copy. What remains, for every copied value:
+plain or base64; a value shown in the Create Secret dialog;
+[D-25](../developer/decisions.md#d-25-copying-values)) sits on the system clipboard, where Cogpit
+cannot guard it; no agent can copy. What remains, for every copied value:
 
 - a clipboard manager that ignores the concealed and transient types keeps the value in its own
   history;
