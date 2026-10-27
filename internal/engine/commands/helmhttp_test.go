@@ -26,10 +26,12 @@ func TestAllowHTTPCredentialsIsTheUsers(t *testing.T) {
 	h.helmFile.Write(&repo.Entry{Name: "plain", URL: plain.URL, Username: user, Password: pass})
 
 	var info engine.HelmRepoInfo
+	var last engine.HelmReposList
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if !testkit.WaitFor(ctx, func() bool {
-		for _, r := range h.list(t, engine.OriginExternalAgent).Repositories {
+		last = h.list(t, engine.OriginExternalAgent)
+		for _, r := range last.Repositories {
 			if r.Name == "plain" {
 				info = r
 				return true
@@ -37,7 +39,7 @@ func TestAllowHTTPCredentialsIsTheUsers(t *testing.T) {
 		}
 		return false
 	}) {
-		t.Fatal("the repository was not listed")
+		t.Fatalf("the repository was not listed: Helm's file %s %q", last.Status, last.Error)
 	}
 	if info.HTTPCredentials != engine.HTTPCredentialsRequired || info.HTTPToken == "" || !strings.Contains(info.Error, "agents cannot allow it") {
 		t.Fatalf("an agent's list: %+v", info)

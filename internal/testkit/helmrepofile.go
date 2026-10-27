@@ -3,6 +3,7 @@ package testkit
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -64,7 +65,13 @@ func (f *HelmRepoFile) WriteRaw(data []byte, rf *repo.File) {
 	if err := os.Chtimes(tmp, at, at); err != nil {
 		f.t.Fatal(err)
 	}
-	if err := os.Rename(tmp, f.Path); err != nil {
+	// On Windows a rename over the file fails while Cogpit's poller has it open for a read: it runs
+	// again for up to a second, as Cogpit's own renames do (engine's retryHeld).
+	err := os.Rename(tmp, f.Path)
+	for deadline := time.Now().Add(time.Second); err != nil && runtime.GOOS == "windows" && time.Now().Before(deadline); err = os.Rename(tmp, f.Path) {
+		time.Sleep(5 * time.Millisecond)
+	}
+	if err != nil {
 		f.t.Fatal(err)
 	}
 }

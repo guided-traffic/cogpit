@@ -481,8 +481,9 @@ func TestHelmIndexRefreshedOnlyWhileShown(t *testing.T) {
 	// A repository new in Helm's file is not downloaded while nothing shows charts.
 	other := testkit.NewHelmRepo(t, webChartV("0.9.0"))
 	h.helmFile.Write(h.repo.Entry("test"), other.Entry("other"))
-	if !testkit.WaitFor(ctx, func() bool { return len(h.list(t, engine.OriginGUI).Repositories) == 2 }) {
-		t.Fatal("the new repository is not listed")
+	var last engine.HelmReposList
+	if !testkit.WaitFor(ctx, func() bool { last = h.list(t, engine.OriginGUI); return len(last.Repositories) == 2 }) {
+		t.Fatalf("the new repository is not listed: Helm's file %s %q", last.Status, last.Error)
 	}
 	time.Sleep(100 * time.Millisecond)
 	if n := other.Requests("/index.yaml"); n != 0 {
