@@ -81,7 +81,11 @@
       "items": [
         {
           "name": "Class",
-          "value": "nginx"
+          "value": "nginx",
+          "link": {
+            "kind": "ingressclasses",
+            "name": "nginx"
+          }
         },
         {
           "name": "Load Balancers",
@@ -228,12 +232,37 @@
     },
     {
       "title": "TLS",
-      "items": [
-        {
-          "name": "shop-tls",
-          "value": "shop.example.com\nwww.shop.example.com"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Secret",
+          "Hosts"
+        ],
+        "rows": [
+          [
+            "shop-tls",
+            "shop.example.com\nwww.shop.example.com"
+          ]
+        ],
+        "types": [
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "shop-tls",
+              "link": {
+                "kind": "secrets",
+                "namespace": "shop",
+                "name": "shop-tls"
+              }
+            },
+            {
+              "text": "shop.example.com\nwww.shop.example.com"
+            }
+          ]
+        ]
+      }
     }
   ]
 }

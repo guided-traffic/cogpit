@@ -70,7 +70,11 @@
       "items": [
         {
           "name": "Class",
-          "value": "external-lb"
+          "value": "external-lb",
+          "link": {
+            "kind": "ingressclasses",
+            "name": "external-lb"
+          }
         },
         {
           "name": "Load Balancers",

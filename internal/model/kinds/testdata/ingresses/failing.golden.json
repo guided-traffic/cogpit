@@ -68,7 +68,11 @@
       "items": [
         {
           "name": "Class",
-          "value": "traefik"
+          "value": "traefik",
+          "link": {
+            "kind": "ingressclasses",
+            "name": "traefik"
+          }
         }
       ]
     },
@@ -133,12 +137,32 @@
     },
     {
       "title": "TLS",
-      "items": [
-        {
-          "name": "(no secret)",
-          "value": "admin.example.internal"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Secret",
+          "Hosts"
+        ],
+        "rows": [
+          [
+            "(no secret)",
+            "admin.example.internal"
+          ]
+        ],
+        "types": [
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "(no secret)"
+            },
+            {
+              "text": "admin.example.internal"
+            }
+          ]
+        ]
+      }
     }
   ]
 }
