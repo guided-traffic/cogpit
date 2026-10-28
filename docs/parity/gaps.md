@@ -433,8 +433,9 @@ update rows.
   ([D-136](../developer/decisions.md#d-136-the-quit-bound)). The save also races the preferences'
   file watch, whose reload can read the file emptied for the write and log `Preferences load error:`
   (EOF). Under load in the smoke test's container 240 quits hung 3 times and logged it 27 times; the
-  smoke run names both ([D-112](../developer/decisions.md#d-112-ci-and-test-time)). The fix belongs
-  in Fyne's driver and is not upstream yet.
+  smoke run names both ([D-112](../developer/decisions.md#d-112-ci-and-test-time)). The fixes are
+  Fyne's, filed and open: [fyne#6633](https://github.com/fyne-io/fyne/pull/6633) for the save,
+  [fyne#6635](https://github.com/fyne-io/fyne/pull/6635) for the stop hook.
 - **Estimate:** 100–200 h to beta.
 
 ## Beyond Lens
