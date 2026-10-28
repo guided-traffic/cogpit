@@ -15,6 +15,7 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/test"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -333,6 +334,95 @@ func TestForwardPortLink(t *testing.T) {
 	}
 }
 
+// forwardedPodFake is forwardsFake whose healthy pod has a forward of its first port (8080, the
+// app container's) on 127.0.0.1:54321, in phase, as the session's drawer model shows it.
+func forwardedPodFake(t *testing.T, phase string) (*fakeEngine, model.ObjectRef) {
+	t.Helper()
+	f := forwardsFake(t, "pods")
+	ref := healthyPodRef(t)
+	fwd := fixtureForwardObjects()[0].DeepCopy()
+	fwd.SetNamespace(ref.Namespace)
+	fwd.SetName("pod-" + ref.Name + "-8080")
+	_ = unstructured.SetNestedField(fwd.Object, ref.Name, "spec", "name")
+	_ = unstructured.SetNestedField(fwd.Object, phase, "status", "phase")
+	pods := fixturePodObjects()
+	var pod *unstructured.Unstructured
+	for _, o := range pods {
+		if o.GetNamespace() == ref.Namespace && o.GetName() == ref.Name {
+			pod = o
+		}
+	}
+	p, _ := kinds.ByKey("pods")
+	m, err := engine.BuildDetailWith(p, ref, pod, fixtureEventObjects(), fixedNow, fixtureRelated{"pods": pods, kindPortForwards: {fwd}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.details[ref.String()] = m
+	return f, ref
+}
+
+// A forwarded port shows its forward: the local address, selectable and copyable, and a stop icon
+// in place of Forward…; the port opens the forward in the browser instead of forwarding again, and
+// the icon stops it. The other container's port, not forwarded, keeps its Forward….
+func TestForwardedPortInPodDrawer(t *testing.T) {
+	browser := recordBrowser(t)
+	f, ref := forwardedPodFake(t, "Active")
+	sh, _, q := openPodDrawer(t, f, ref, ThemeDark)
+	if n := len(forwardButtons(sh)); n != 1 {
+		t.Errorf("%d Forward… buttons, want the unforwarded port's only", n)
+	}
+	var address *selLine
+	for _, l := range findAll[*selLine](sh.drawer.details) {
+		if l.line.text == "127.0.0.1:54321" {
+			address = l
+		}
+	}
+	if address == nil {
+		t.Fatal("the forwarded port shows no local address")
+	}
+	if address.hook == nil || address.hook.text != "127.0.0.1:54321" {
+		t.Errorf("the address's copy hook %+v", address.hook)
+	}
+	var stop *tipButton
+	for _, b := range findAll[*tipButton](sh.drawer.details) {
+		if b.tip == "Stop forwarding" {
+			stop = b
+		}
+	}
+	if stop == nil {
+		t.Fatal("the forwarded port has no stop icon")
+	}
+	// The address stands between the port and the icon, whole.
+	d := fyne.CurrentApp().Driver()
+	ax, sx := d.AbsolutePositionForObject(address).X, d.AbsolutePositionForObject(stop).X
+	if want := fyne.MeasureText("127.0.0.1:54321", theme.TextSize(), fyne.TextStyle{}).Width; ax >= sx || address.Size().Width < want {
+		t.Errorf("address at x %v width %v (text %v), stop at x %v", ax, address.Size().Width, want, sx)
+	}
+
+	var link *linkText
+	for _, l := range findAll[*linkText](sh.drawer.details) {
+		if l.text == "http: 8080/TCP" {
+			link = l
+		}
+	}
+	if link == nil {
+		t.Fatal("the forwarded port is not a link")
+	}
+	test.Tap(link)
+	q.until(t, "the forward opened", func() bool { return len(f.callsOf("portforward.open")) == 1 && len(browser.opened()) == 1 })
+	test.Tap(stop)
+	q.until(t, "the forward stopped", func() bool { return len(f.callsOf("portforward.stop")) == 1 })
+	for _, id := range []string{"portforward.open", "portforward.stop"} {
+		var p probeRef
+		if err := json.Unmarshal(f.callsOf(id)[0].Params, &p); err != nil || p.Ref.Kind != kindPortForwards || p.Ref.Name != "pod-"+ref.Name+"-8080" {
+			t.Errorf("%s dispatched %s: %v", id, f.callsOf(id)[0].Params, err)
+		}
+	}
+	if n := len(f.callsOf("pod.portForward")); n != 0 {
+		t.Errorf("the forwarded port forwarded again (%d)", n)
+	}
+}
+
 // The Port Forwarding view is in the sidebar's Network group after Gateway API, and its row menu
 // is Lens's: Open, Edit, Stop, Delete. Open opens the browser; Edit opens the forward dialog with
 // the forward's settings.
@@ -429,6 +519,22 @@ func renderPodDrawerPorts(t *testing.T, mode ThemeMode, name string) {
 
 func TestRenderPodDrawerPortsDark(t *testing.T) {
 	renderPodDrawerPorts(t, ThemeDark, "pod_drawer_ports_dark.png")
+}
+
+// renderPodDrawerForwarded shows a forwarded port in the pod drawer: the port, its local address
+// and the stop icon, the other container's port with Forward…; the address in phase's colour.
+func renderPodDrawerForwarded(t *testing.T, mode ThemeMode, phase, name string) {
+	f, ref := forwardedPodFake(t, phase)
+	sh, w, _ := openPodDrawer(t, f, ref, mode)
+	scrollDrawerToObject(sh, w, forwardButtons(sh)[0])
+	savePNG(t, w, name)
+}
+
+func TestRenderPodDrawerForwardedDark(t *testing.T) {
+	renderPodDrawerForwarded(t, ThemeDark, "Active", "pod_drawer_forwarded_dark.png")
+}
+func TestRenderPodDrawerForwardReconnectingDark(t *testing.T) {
+	renderPodDrawerForwarded(t, ThemeDark, "Reconnecting", "pod_drawer_forward_reconnecting_dark.png")
 }
 
 // renderPortForwardingView shows the view with forwards in each state, and with drawer the drawer

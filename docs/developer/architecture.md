@@ -803,7 +803,10 @@ drawer is its profile's sections alone.
   (`model.WithholdPrivate`).
 - An `ItemAction` is a command with the item's parameters ("Forward…" on a container port): agents
   dispatch it from `object_get`, the GUI runs it as the row menu does or through a dialog registered
-  in `itemActionDialogs` ([`itemactions.go`](../../internal/ui/fyneui/itemactions.go)). The GUI may
+  in `itemActionDialogs` ([`itemactions.go`](../../internal/ui/fyneui/itemactions.go)); one marked
+  `icon` is drawn as its command's icon (a forwarded port's stop). An item's `aside` stands between
+  its value and its actions (a forwarded port's local address,
+  [D-140](decisions.md#d-140-a-forwarded-port-in-the-drawer)). The GUI may
   also draw a whole section itself (`drawerSections`, by kind and section title).
 - Config Map values ([D-55](decisions.md#d-55-a-config-maps-values-edited-in-the-drawer),
   [`configmapdata.go`](../../internal/engine/configmapdata.go); the editors in
@@ -911,7 +914,8 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
   [`kinds/related.go`](../../internal/model/kinds/related.go): `PodsByNode`, `PodsByClaim`, ...),
   never a list of its own. A profile names its indexes in `Needs` (rows and drawer) or `DetailNeeds`
   (drawer only: the workloads' Pods tables, `PodsByOwner`, `ReplicaSetsByOwner`, `JobsByOwner`,
-  [`workloadpods.go`](../../internal/model/kinds/workloadpods.go); a volume's `PodsByClaim`) and reads
+  [`workloadpods.go`](../../internal/model/kinds/workloadpods.go); a volume's `PodsByClaim`; a pod's
+  and a service's port forwards, `ForwardsByTarget`, an index over a local kind) and reads
   them with `rel.Objects(index, key)` in `CellsWith` and `DetailWith`; a volume's Metrics section
   reads the claim's pods from the drawer's set too
   ([`volumemetrics.go`](../../internal/engine/volumemetrics.go)).

@@ -148,6 +148,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service, the class to its IngressClass, a TLS entry to its Secret |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
+| [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 
 ## D-1: UI toolkit
 
@@ -5641,3 +5642,53 @@ cluster serves no claims, so `--demo` shows none of it.
 `TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestClaimDrawerShowsItsVolume`,
 `TestVolumeDrawerShowsItsClaimsUsage`, `TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`,
 `TestClaimDrawerShowsItsVolumesUsage`
+
+## D-140: A forwarded port in the drawer
+
+**Status:** built · **By:** owner (a forwarded port in the pod's drawer has a stop icon that ends
+its forward; no Forward… while it is forwarded, unless forwarding a port twice has a use; the
+local port shown and copyable); lead (open to revision) the details below
+
+- **One forward per port:** a forward is named by its pod or service and port
+  (`engine.ForwardName`); starting it again only restarts it, on another free port when none was
+  asked for, and the old address stops answering. Forwarding a port twice has no use that a second
+  local port would serve, so a forwarded port offers no Forward… and its link forwards nothing.
+- **The line:** while the port's forward listens (Starting, Active, Waiting, Reconnecting), the
+  port is a link that opens the forward in the browser (`portforward.open`), the local address
+  follows it, then a stop icon in Forward…'s place (`portforward.stop`, tooltip "Stop forwarding").
+  A stopped or failed forward listens on nothing: the port reads as one without a forward.
+- **The address:** `127.0.0.1:<port>`, where the forward listens (not `localhost`, which resolves
+  to `::1` first), selectable, its copy icon copying it whole; the line keeps room for the icon
+  after it, so that it covers none of the port. Plain while the forward is active, amber while it
+  starts, orange while it waits for its pod or reconnects (`DetailItem.Aside`, `AsideStatus`).
+- **Stop, not Delete:** the forward stays in the Port Forwarding view, stopped; Edit there starts
+  it again with its settings, Delete removes it.
+- **Services too:** a service's ports in its drawer show its forwards the same way.
+- **Which forwards:** the pod's own forward of the port. A service's forward that happens to
+  reach the pod is the service's and shows in its drawer. Containers that declare the same port
+  show the same forward: a pod's containers share its ports.
+- **Agents:** `object_get` gives the port item's `aside` (the address) and its actions, open and
+  stop with the forward's reference.
+
+**Why:** the drawer started a forward but could not end it; the stop belongs where the forward was
+started. A random local port is only usable once it is visible: the Port Forwarding view had it,
+the drawer did not. Clicking a forwarded port again moved it to another local port and broke
+whatever used the old one.
+
+**Rejected:** Delete at the icon — the forward's settings would go with it, and "stop" is what
+was asked; the address as a status pill — a pill's text is not selectable; the copy icon over the
+address's end, as a value with buttons has it ([D-25](#d-25-copying-values)) — it would cover the
+port digits one copies; the phase as a word after the address — the colour says it, and the Port
+Forwarding view has the word and the message; a service's forward that reaches the pod in the
+pod's drawer — stopping it there would end the service's forward from a place that does not name
+it.
+
+**Not covered:** changing a forwarded port's local port from the drawer: stop it and forward it
+again, or Edit in the Port Forwarding view.
+
+**Code:** [`kinds/portforwards.go`](../../internal/model/kinds/portforwards.go) (`forwardPort`,
+`listeningForwards`, `ForwardsByTarget`), [`model/detail.go`](../../internal/model/detail.go)
+(`DetailItem.Aside`, `ItemAction.Icon`), [`fyneui/drawer.go`](../../internal/ui/fyneui/drawer.go)
+(`itemValue`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
+`TestForwardedPortInPodDrawer`, `TestRenderPodDrawerForwardedDark`,
+`TestRenderPodDrawerForwardReconnectingDark`

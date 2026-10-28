@@ -23,8 +23,8 @@ on screenshots of an activated Lens Desktop, *capture needed* rows still need su
 **Plan:** *free* (Lens Desktop's Personal plan) or *paid* (Plus, Pro or Enterprise). Keys are
 macOS's (⌘ ⌥ ⇧ ⌃); Windows and Linux use Ctrl and Alt. A row without evidence is missing.
 
-**Summary (counted by `make parity`):** 127 of 132 rows exist: 119 of the 122
-free-plan rows (111 partial, 8 done: the cell tooltip, right-click on a row, keyboard navigation in
+**Summary (counted by `make parity`):** 128 of 133 rows exist: 120 of the 123
+free-plan rows (112 partial, 8 done: the cell tooltip, right-click on a row, keyboard navigation in
 tables and its shortcut row, the drawer's links with Forward…, the container port's link, the
 forward dialog and the terminal's scrollback) and 8 of the 10 paid rows (the hotbar's six, the diff
 view and the Ask AI shortcut, which opens Cogpit's agent chat; all partial). Missing: Reload,
@@ -246,6 +246,7 @@ Every list view is one table ([resource views](resource-parity.md)).
 |---|---|---|---|
 | A container port link ("<name>: <port>/<protocol>" in the drawer, captured) forwards to a random local port and opens the browser | free | done: each TCP port of a container, init containers too, links to `pod.portForward` on a free local port, opening the browser; UDP and SCTP ports get no link (the protocol carries TCP only) | `TestForwardPortLink`, `TestContainerPortsForward`, `TestDrawerPortActionsDispatch`; [`kinds/portforwards.go`](../../internal/model/kinds/portforwards.go) `containerPortItems`; [PNG](../../internal/ui/fyneui/testdata/pod_drawer_ports_dark.png) |
 | Forward dialog, from the "Forward…" button beside a container port (init containers too): titled "Port Forwarding for <pod>", a local port field ("Random" when empty), an "https" checkbox (off), an "Open in Browser" checkbox (on), Cancel and Start; the window behind is dimmed (captured) | free | done: as captured; the label "Local port" and the port check (1 to 65535) are Cogpit's; a service's ports offer the same dialog (`service.portForward`, inferred) | `TestForwardDialogFromPodDrawer`, `TestParseLocalPort`; [`fyneui/portforward.go`](../../internal/ui/fyneui/portforward.go); [PNG](../../internal/ui/fyneui/testdata/forward_dialog_dark.png) |
+| A forwarded port in the drawer ends its forward there (Lens's look: capture needed) | free | partial: while a port's forward listens, the port opens it in the browser, its local address `127.0.0.1:<port>` follows, selectable and copyable, coloured while the forward waits or reconnects, and a stop icon stands in Forward…'s place (`portforward.stop`; the forward stays in the Port Forwarding view, stopped); a service's ports alike ([D-140](../developer/decisions.md#d-140-a-forwarded-port-in-the-drawer)) | `TestForwardedPortShowsItsForward`, `TestForwardedPortInPodDrawer`; [`kinds/portforwards.go`](../../internal/model/kinds/portforwards.go) `forwardPort`; [PNG](../../internal/ui/fyneui/testdata/pod_drawer_forwarded_dark.png) |
 | Port Forwarding view to open, edit, stop and delete forwards ([resource parity](resource-parity.md#network)) | free | partial: the captured columns and row menu; Open goes to `127.0.0.1`, not Lens's `localhost`, whose `::1` another process may hold; Edit, the status texts and their colours inferred; no "+" button | `TestPortForwardingView`, `TestPortForwardLifecycle`, `TestForwardURLReachesTheForward`, `TestKindPortForward`; PNGs [view](../../internal/ui/fyneui/testdata/portforwards_view_dark.png), [drawer](../../internal/ui/fyneui/testdata/portforward_drawer_dark.png) |
 
 ## Command palette

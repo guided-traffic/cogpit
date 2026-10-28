@@ -87,9 +87,10 @@ var pods = &model.KindProfile{
 			return nonEmpty(model.NestedString(obj, "status", "qosClass"))
 		},
 	},
-	Detail:      podDetail,
-	DetailWith:  podDetailWith,                      // the claims' state (A105, resourceclaims_pods.go)
-	DetailNeeds: []model.RelatedIndex{ClaimsByName}, // only the open drawer reads them
+	Detail:     podDetail,
+	DetailWith: podDetailWith, // the claims' state (A105, resourceclaims_pods.go), the ports' forwards
+	// Only the open drawer reads them.
+	DetailNeeds: []model.RelatedIndex{ClaimsByName, ForwardsByTarget},
 }
 
 func podCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
@@ -662,12 +663,13 @@ func podDetailRel(obj *unstructured.Unstructured, rel model.Related) []model.Det
 		{model.GroupEphemeralContainers, fieldEphemeralContainers, "ephemeralContainerStatuses", false},
 	}
 	podRef := model.ObjectRef{Kind: podsResource, Namespace: ns, Name: obj.GetName()}
+	forwards := listeningForwards(rel, ns, "Pod", obj.GetName()) // shown by each container that declares the port
 	for _, g := range groups {
 		statuses := model.NestedSlice(obj, "status", g.status)
 		for _, c := range model.NestedSlice(obj, "spec", g.spec) {
 			name := model.NestedString(c, "name")
 			probed := g.probed || isSidecar(c)
-			sec := containerSection(podRef, name, c, byName(statuses, name), probed)
+			sec := containerSection(podRef, name, c, byName(statuses, name), probed, forwards)
 			sec.Group = g.title
 			sections = append(sections, sec)
 		}
@@ -808,8 +810,8 @@ func podConditionToken(c condition) model.Status {
 // container's Target after its Status (Cogpit's, D-102). Environment
 // values from Secrets and ConfigMaps are named, never resolved. probed says whether readiness
 // applies to the container; a running probed container's status says whether it is ready. Each
-// port is an item of its own, which forwards it (portforwards.go).
-func containerSection(pod model.ObjectRef, name string, spec, status any, probed bool) model.DetailSection {
+// port is an item of its own, which forwards it or shows its forward from forwards (portforwards.go).
+func containerSection(pod model.ObjectRef, name string, spec, status any, probed bool, forwards map[int64]*unstructured.Unstructured) model.DetailSection {
 	var d detailItems
 	if status != nil {
 		ready, _ := model.NestedBool(status, "ready")
@@ -832,7 +834,7 @@ func containerSection(pod model.ObjectRef, name string, spec, status any, probed
 	if isSidecar(spec) {
 		d.add("Restart Policy", "Always")
 	}
-	for _, it := range containerPortItems(pod, name, spec) {
+	for _, it := range containerPortItems(pod, name, spec, forwards) {
 		d.put(it)
 	}
 	d.put(model.DetailItem{Name: "Environment", Value: containerEnv(spec), Fold: "variables"})
