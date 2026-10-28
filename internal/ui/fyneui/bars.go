@@ -257,14 +257,12 @@ type statusBar struct {
 	// tls says "TLS not checked" in the warning colour beside the context while the connection does
 	// not check the server's certificate (engine.Connection.TLSUnchecked, the owner's A29); hidden
 	// otherwise.
-	tls      *textLine
-	diag     *diagButton
-	zoom     *zoomControl // right of Diagnostics (zoomcontrol.go, D-134)
-	demo     *textLine
-	demoSep  fyne.CanvasObject
-	pulse    *pulse // the event rate's wave beside the demo text (chrome_bar.go)
-	pulseBox fyne.CanvasObject
-	root     fyne.CanvasObject
+	tls     *textLine
+	diag    *diagButton
+	zoom    *zoomControl // right of Diagnostics (zoomcontrol.go, D-134)
+	demo    *textLine
+	demoSep fyne.CanvasObject
+	root    fyne.CanvasObject
 }
 
 func newStatusBar(sh *shell) *statusBar {
@@ -279,11 +277,8 @@ func newStatusBar(sh *shell) *statusBar {
 	s.tls = newTextLine(engine.TLSUncheckedLabel, colorStatusWarning, sizeStatusText, fyne.TextStyle{})
 	s.tls.Hide()
 	s.demoSep = newStatusDivider()
-	s.pulse = newPulse()
-	s.pulseBox = container.NewCenter(s.pulse.w)
-	s.pulseBox.Hide()
 	left := container.NewHBox(s.dot, s.context, s.tls, newStatusDivider(), s.diag, newStatusDivider(), s.zoom.root,
-		s.demoSep, s.demo, s.pulseBox)
+		s.demoSep, s.demo)
 	right := container.NewHBox()
 	if sh.hasMCP() {
 		s.mcp = newMCPItem(sh, sh.mcp.on)
@@ -437,11 +432,8 @@ func (s *statusBar) update() {
 			formatCount(d.demoObjects), formatCount(int64(d.demoRate+0.5))))
 		s.demo.Show()
 		s.demoSep.Show()
-		s.pulse.add(d.demoRate)
-		s.pulseBox.Show()
 	} else {
 		s.demo.Hide()
 		s.demoSep.Hide()
-		s.pulseBox.Hide()
 	}
 }
