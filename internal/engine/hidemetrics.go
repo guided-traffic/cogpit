@@ -51,9 +51,12 @@ const (
 	HideMemory
 	HideNetwork
 	HideFilesystem
+	// HideVolumes hides the volume's chart and usage bar in a persistent volume claim's and a
+	// persistent volume's drawer (Cogpit's: Lens's list is not captured).
+	HideVolumes
 
 	// HideAll is every hideable metric: "Hide all metrics".
-	HideAll = HideCluster | HideNodes | HidePods | HideContainers | HideCPU | HideMemory | HideNetwork | HideFilesystem
+	HideAll = HideCluster | HideNodes | HidePods | HideContainers | HideCPU | HideMemory | HideNetwork | HideFilesystem | HideVolumes
 )
 
 // HideableMetric is one entry of the Hide metrics setting.
@@ -70,6 +73,7 @@ var HideableMetrics = []HideableMetric{
 	{HideNodes, string(model.UsageNodes), "Nodes", true},
 	{HidePods, string(model.UsagePods), "Pods", true},
 	{HideContainers, "containers", "Containers", true},
+	{HideVolumes, "volumes", "Volumes", true},
 	{HideCPU, "cpu", "CPU", false},
 	{HideMemory, "memory", "Memory", false},
 	{HideNetwork, "network", "Network", false},
@@ -163,6 +167,18 @@ func (m MetricSet) listColumns(k model.UsageKind) (cpu, memory bool) {
 // column and a node drawer's disk, hidden with the nodes or the filesystem.
 func (m MetricSet) diskShown(k model.UsageKind) bool {
 	return k == model.UsageNodes && m&(HideNodes|HideFilesystem) == 0
+}
+
+// drawerVariantsOf are the chart variants a kind's drawer shows: a volume's filesystem alone,
+// unless the volumes or the filesystem are hidden; a usage kind's drawerVariants.
+func (m MetricSet) drawerVariantsOf(p *model.KindProfile) []string {
+	if p.Volume != nil {
+		if m&(HideVolumes|HideFilesystem) != 0 {
+			return nil
+		}
+		return []string{VariantFilesystem}
+	}
+	return m.drawerVariants(p.Usage)
 }
 
 // drawerVariants are the chart variants a usage kind's drawer shows, in the buttons' order; none
@@ -320,7 +336,7 @@ func (d *drawerWatch) followHidden(s *Session, hidden MetricSet) {
 	if cpu, memory := hidden.listColumns(model.UsagePods); !cpu && !memory {
 		d.showPods(false) // its pod table's CPU and Memory are hidden: not polled (drawerpods.go)
 	}
-	if d.profile.Usage == "" {
+	if d.profile.Usage == "" && d.profile.Volume == nil {
 		// A drawer without charts may still list pods: its table shows or hides their columns.
 		d.wmu.Lock()
 		changed := d.hidden != hidden || !d.hiddenSet
@@ -332,29 +348,41 @@ func (d *drawerWatch) followHidden(s *Session, hidden MetricSet) {
 		}
 		return
 	}
-	want := len(hidden.drawerVariants(d.profile.Usage)) > 0
+	scope, bound := d.metricsScope() // a volume's: its claim's while bound (volumemetrics.go)
+	want := len(hidden.drawerVariantsOf(d.profile)) > 0 && bound
 	names, known := d.chartNames()
 	d.wmu.Lock()
 	changed := d.hidden != hidden || !d.hiddenSet
 	d.hidden, d.hiddenSet = hidden, true
-	cur := d.usage
+	cur, curScope := d.usage, d.usageScope
 	d.wmu.Unlock()
 	switch {
 	case !want && cur != nil:
 		d.wmu.Lock()
-		d.usage = nil
+		if d.usage == cur { // else another call moved it meanwhile
+			d.usage, d.usageScope = nil, metrics.Scope{}
+		}
 		d.wmu.Unlock()
 		cur.Release()
-	case want && cur == nil:
+	case want && (cur == nil || curScope != scope):
+		// The first poll, or a volume bound to another claim since: the new scope's poll, then the
+		// old one released. The drawer's model calls this too (followDrawerVolume), so a call that
+		// finds the drawer stopped or the poll moved by another meanwhile drops its own.
 		d.setNodeAddresses()
-		sub := s.startDrawerUsage(d.backend, d.profile, d.ref)
+		sub := s.startDrawerUsage(d.backend, scope, d.ref.Kind)
 		d.wmu.Lock()
-		d.usage = sub
+		if d.stopped.Load() || d.usage != cur {
+			d.wmu.Unlock()
+			sub.Release()
+			break
+		}
+		d.usage, d.usageScope = sub, scope
 		windows, wants, usage := d.windowListLocked(names, known), d.wantsLocked(), d.usageShownLocked(names, known)
 		d.wmu.Unlock()
 		sub.SetWindows(windows...)
 		sub.SetWants(wants)
 		sub.SetUsage(usage)
+		cur.Release()
 	case cur != nil && changed:
 		d.wmu.Lock()
 		windows, wants, usage := d.windowListLocked(names, known), d.wantsLocked(), d.usageShownLocked(names, known) // the containers' charts may have come or gone
@@ -427,6 +455,12 @@ func (d *drawerWatch) windowListLocked(names []string, known bool) []time.Durati
 // wantsLocked is what the drawer's visible charts show beyond CPU and memory: the network and the
 // filesystem of a chart that shows them, unless they are hidden. d.wmu is held.
 func (d *drawerWatch) wantsLocked() metrics.Want {
+	if d.profile.Volume != nil { // a volume's chart shows its filesystem alone
+		if len(d.hidden.drawerVariantsOf(d.profile)) == 0 {
+			return 0
+		}
+		return metrics.WantFilesystem
+	}
 	shows := slices.Collect(maps.Values(d.variants))
 	if visible := d.hidden.drawerVariants(d.profile.Usage); len(visible) > 0 && d.hidden.Has(HideCPU|HideMemory) {
 		shows = append(shows, visible[0]) // a chart left at its default shows the first visible variant
@@ -453,7 +487,7 @@ func (d *drawerWatch) wantsLocked() metrics.Want {
 // A pod whose containers the cache does not know yet counts their charts at the default. names
 // and known are chartNames'; d.wmu is held.
 func (d *drawerWatch) usageShownLocked(names []string, known bool) bool {
-	if d.hidden.Has(HideCPU | HideMemory) {
+	if d.hidden.Has(HideCPU|HideMemory) || d.profile.Volume != nil {
 		return false
 	}
 	containers := d.hidden&HideContainers == 0

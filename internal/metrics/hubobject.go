@@ -69,7 +69,11 @@ type objectResults struct {
 
 // pollObject polls a drawer's object once and stores the outcome in its chart and current values.
 func (h *Hub) pollObject(ctx context.Context, sc Scope) State {
-	h.detectAll(ctx)
+	if sc.Kind == KindClaims {
+		h.detectNotLive(ctx) // a volume's usage is Prometheus's alone (volume.go)
+	} else {
+		h.detectAll(ctx)
+	}
 	if ctx.Err() != nil {
 		return State{Status: StatusUnavailable, Message: msgCancelled}
 	}
@@ -394,6 +398,8 @@ func (h *Hub) applyObjectLocked(ctx context.Context, st *scopeState, sc Scope, p
 		state = State{Status: StatusAvailable, Provider: id, Label: ch.source()}
 	} else if refused {
 		state = refusal
+	} else if sc.Kind == KindClaims {
+		state = h.volumeMissingLocked() // Prometheus's state, never the Metrics Server's
 	} else {
 		state = h.worstLocked()
 	}

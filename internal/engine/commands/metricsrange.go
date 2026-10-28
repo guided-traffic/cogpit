@@ -15,14 +15,14 @@ import (
 // range control and an agent set the same thing; ui.state lists every chart's range.
 
 type metricsRangeParams struct {
-	Ref       model.ObjectRef `json:"ref" jsonschema:"the pod or node the detail drawer shows (ui_state's drawer)"`
-	Container string          `json:"container,omitempty" jsonschema:"a container's chart in a pod's drawer; omitted: the pod's or node's own chart"`
+	Ref       model.ObjectRef `json:"ref" jsonschema:"the pod, node, persistent volume claim or persistent volume the detail drawer shows (ui_state's drawer)"`
+	Container string          `json:"container,omitempty" jsonschema:"a container's chart in a pod's drawer; omitted: the object's own chart"`
 	Range     string          `json:"range,omitempty" jsonschema:"the time range, 1m to 30d, as 15m, 6h or 7d; omitted or default: the default 1h"`
 }
 
 // ChartRange is one chart of the drawer's Metrics section, its time range and its variant.
 type ChartRange struct {
-	// Container is the container's name; empty for the pod's or node's own chart.
+	// Container is the container's name; empty for the object's own chart.
 	Container string `json:"container,omitempty"`
 	Range     string `json:"range"`
 	// Variant is what the chart shows: cpu, memory, network or filesystem (ui.setMetricsVariant).
@@ -41,7 +41,8 @@ func registerMetricsRange(g *registrar) {
 	add(g, engine.Spec[metricsRangeParams]{
 		ID: "ui.setMetricsRange", Label: "Metrics Time Range", Danger: engine.DangerUI,
 		Description: "Sets the time range of one chart in the detail drawer's Metrics section, as the chart's range " +
-			"control does: the pod's or node's own chart, or with container one container's chart. The drawer must show " +
+			"control does: the pod's, node's, persistent volume claim's or persistent volume's own chart, or with container " +
+			"one container's chart. The drawer must show " +
 			"the object (ui_navigate opens it). With Prometheus the chart then shows that much history; the Metrics " +
 			"Server keeps none, so its charts show at most the time since the drawer opened. Every chart's range is the " +
 			"drawer's: it ends when the drawer closes or shows another object. ui_state lists the charts' ranges. " +
@@ -57,7 +58,7 @@ func registerMetricsRange(g *registrar) {
 				return nil, err
 			}
 			if m == nil {
-				return nil, fmt.Errorf("%w: %s has no metrics charts; pods and nodes have", engine.ErrNotApplicable, p.Ref.Kind)
+				return nil, fmt.Errorf("%w: %s has no metrics charts; pods, nodes, persistent volume claims and persistent volumes have", engine.ErrNotApplicable, p.Ref.Kind)
 			}
 			if names := chartNames(m); len(m.Targets) > 0 && !slices.Contains(names, p.Container) {
 				return nil, fmt.Errorf("%s has no chart for container %q; its charts: %s", m.Ref.String(), p.Container, strings.Join(quoted(names), ", "))

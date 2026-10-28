@@ -151,6 +151,8 @@ Ctrl on Windows and Linux.
 
 - CPU and memory from the Metrics Server and Prometheus in the Pods and Nodes lists, the drawers'
   charts and the cluster Overview; a node's history, network and disks from node-exporter.
+- A persistent volume claim's and a persistent volume's fill level, now and over time, from the
+  kubelet through Prometheus ([details](#a-volumes-usage)).
 - Cogpit installs nothing: it finds the cluster's Prometheus by its Service's name
   (kube-prometheus-stack, the `prometheus` chart, the Prometheus Operator, Thanos's Querier,
   VictoriaMetrics single-node or vmselect), a Prometheus first. Name another in Cluster Settings ›
@@ -1339,6 +1341,25 @@ a report names with a violation
 - **Reads:** a user who may list the reports only in some namespaces gets those the cluster's
   settings or the namespace filter name. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
+
+### A volume's usage
+
+A bound persistent volume claim's drawer shows how full its volume is, in a Metrics section above
+Properties ([D-new](decisions.md#d-new-a-volumes-usage-in-its-claims-and-its-own-drawer)). A claim
+holds no data itself; the line above the chart says the numbers are its volume's. The volume's own
+drawer shows the same numbers, found by its claim.
+
+- **Chart:** the bytes in use and, as an outline over them, the filesystem's size: a resize is a
+  step. The time range as on every chart (1h at first, up to 30d); no CPU or Memory buttons.
+- **Usage bar** under it: "Volume", the bar (warning from 80 %, error from 90 %) and the share of
+  the filesystem's size, which is a little smaller than the claim's request (196.7 GiB of 200 GiB on
+  ext4). Its tooltip: the volume, used of size, and what is still available for writing.
+- **Where the numbers come from:** the kubelet's volume stats (`kubelet_volume_stats_*`) in the
+  cluster's Prometheus. Without Prometheus the section says so. The kubelet reports a volume only
+  while a pod mounts it, and only when its driver reports usage (not raw block volumes, some CSI
+  drivers, NFS): then the chart is empty and the note under it says why.
+- **Not bound** (Pending, Lost, a Released volume): the section says so and nothing is asked.
+- **Hidden** with Cluster Settings › Metrics › Volumes or Filesystem.
 
 ### A namespace stuck in Terminating
 

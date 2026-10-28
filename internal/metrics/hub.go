@@ -34,6 +34,7 @@ const (
 //	{nodes, "", ""}     every node; {nodes, "", "n1"} one node
 //	{cluster, "", "m1"} the cluster's totals, m1 its control-plane node (ClusterScope, hubcluster.go)
 //	{nodeDisk, "", ""}  every node's root filesystem, from Prometheus (DiskScope, disk.go)
+//	{volumeClaims, "web", "data"} claim web/data's volume, from Prometheus (ClaimScope, volume.go)
 type Scope struct {
 	Kind      Kind
 	Namespace string
@@ -389,12 +390,13 @@ func (h *Hub) intervalOf(s Scope) time.Duration {
 }
 
 // intervalLocked is how often a scope is polled: the list or object interval, and for a drawer
-// whose live values come from the provider with history (no Metrics Server answers) the range
-// query's step (a new point exists only once per step).
+// whose live values come from the provider with history (no Metrics Server answers), and a claim's
+// volume, which only that provider knows, the range query's step (a new point exists only once per
+// step).
 func (h *Hub) intervalLocked(st *scopeState) time.Duration {
 	iv := h.intervalOf(st.scope)
 	if !st.scope.IsList() {
-		if live, hist := h.rolesLocked(h.opts.Now()); live != nil && live == hist {
+		if live, hist := h.rolesLocked(h.opts.Now()); live != nil && live == hist || st.scope.Kind == KindClaims {
 			iv = max(iv, h.bandsLocked(st)[0].step) // the finest query set's
 		}
 	}
@@ -557,8 +559,12 @@ func (h *Hub) bandsLocked(st *scopeState) []band {
 	return append(out, coarse)
 }
 
-// wantsLocked is what the scope's charts show beyond CPU and memory.
+// wantsLocked is what the scope's charts show beyond CPU and memory: a claim's chart its volume's
+// filesystem alone.
 func (h *Hub) wantsLocked(st *scopeState) Want {
+	if st.scope.Kind == KindClaims {
+		return WantFilesystem
+	}
 	var w Want
 	for s := range st.subs {
 		w |= s.wants
@@ -627,10 +633,13 @@ func (s *Subscription) SetUsage(shown bool) {
 }
 
 // usageLocked reports whether an object scope's charts show CPU or memory: the cluster's always,
-// a drawer's when any subscription's does (and with none, as before). Charts that show the network
-// or the filesystem while no provider has them (Prometheus went away) fall back to CPU, in the
-// engine and the window: then CPU and memory are asked again.
+// a claim's volume never, a drawer's when any subscription's does (and with none, as before).
+// Charts that show the network or the filesystem while no provider has them (Prometheus went away)
+// fall back to CPU, in the engine and the window: then CPU and memory are asked again.
 func (h *Hub) usageLocked(st *scopeState) bool {
+	if st.scope.Kind == KindClaims {
+		return false
+	}
 	if st.scope.Kind == KindCluster || len(st.subs) == 0 {
 		return true
 	}

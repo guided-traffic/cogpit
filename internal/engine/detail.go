@@ -54,9 +54,12 @@ type DetailModel struct {
 	// NoEvents is true for a kind whose objects no event is about (a virtual kind: Helm
 	// releases): the drawer shows no Events section, as Lens's release drawer has none.
 	NoEvents bool `json:"noEvents,omitempty"`
-	// Metrics is true for a kind with a Metrics section (a pod, a node): the drawer shows it above
-	// the Properties, from Session.ObjectMetrics, which follows the open drawer (EventMetrics).
-	Metrics bool `json:"metrics,omitempty"`
+	// Metrics is true for a kind with a Metrics section (a pod, a node, a persistent volume claim,
+	// a persistent volume): the drawer shows it above the Properties, from Session.ObjectMetrics,
+	// which follows the open drawer (EventMetrics). VolumeMetrics says the section is a volume's:
+	// one chart, of the volume's filesystem alone (volumemetrics.go).
+	Metrics       bool `json:"metrics,omitempty"`
+	VolumeMetrics bool `json:"volumeMetrics,omitempty"`
 	// Plain is true for a kind whose drawer is Lens's flat one (a virtual kind: Helm releases,
 	// captured 2026-10-12): the title on one line, no Details and YAML tabs, no status pill in the
 	// title bar.

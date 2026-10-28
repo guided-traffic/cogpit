@@ -226,12 +226,12 @@ func withDisk(p *model.KindProfile, row model.Row, obj *unstructured.Unstructure
 
 // startDrawerUsage subscribes to the open drawer's object: one poll of that pod or node every 15
 // seconds, which also feeds the chart's series, for as long as the drawer shows it.
-func (s *Session) startDrawerUsage(b *Backend, p *model.KindProfile, ref model.ObjectRef) *metrics.Subscription {
-	if p.Usage == "" || b.Metrics == nil {
+func (s *Session) startDrawerUsage(b *Backend, scope metrics.Scope, kind string) *metrics.Subscription {
+	if b.Metrics == nil {
 		return nil
 	}
-	return b.Metrics.Subscribe(usageScope(p.Usage, ref.Namespace, ref.Name), func() {
-		s.emit(Event{Type: EventMetrics, View: ref.Kind})
+	return b.Metrics.Subscribe(scope, func() {
+		s.emit(Event{Type: EventMetrics, View: kind})
 	})
 }
 
@@ -286,9 +286,10 @@ const (
 // MetricsVariants are the variants a chart can show, in the order of its buttons.
 var MetricsVariants = []string{VariantCPU, VariantMemory, VariantNetwork, VariantFilesystem}
 
-// ObjectMetrics is the drawer's Metrics section for a pod or a node: where the numbers come from,
-// or why there are none, and for each target its latest measurement, its requests and limits and
-// the series since the drawer opened.
+// ObjectMetrics is the drawer's Metrics section for a pod, a node, a persistent volume claim or a
+// persistent volume: where the numbers come from, or why there are none, and for each target its
+// latest measurement, its requests and limits and the series since the drawer opened. A claim's and
+// a volume's section has one target, the volume's filesystem (volumemetrics.go).
 type ObjectMetrics struct {
 	Ref model.ObjectRef `json:"ref"`
 	// Status is the metrics state: "available", "notServed" (no metrics-server), "forbidden",
@@ -327,9 +328,18 @@ type ObjectMetrics struct {
 	// cluster's settings hide the disk.
 	Disk     *model.NodeDisk `json:"disk,omitempty"`
 	DiskNote string          `json:"diskNote,omitempty"`
+	// Volume is the claim and the volume a claim's or a volume's drawer shows the usage of, while
+	// the two are bound; nil otherwise (Message then says the object is not bound). Fill is the
+	// newest point of the volume's usage while the kubelet reports it: the usage bar under the
+	// chart. VolumeNote says why there is none (no pod mounts the volume, or its driver reports no
+	// usage).
+	Volume     *model.VolumeClaim      `json:"volume,omitempty"`
+	Fill       *model.FilesystemSample `json:"fill,omitempty"`
+	VolumeNote string                  `json:"volumeNote,omitempty"`
 }
 
-// ObjectMetrics returns the Metrics section of a pod or node, or nil, nil for a kind without one.
+// ObjectMetrics returns the Metrics section of a pod, a node, a claim or a volume, or nil, nil for a
+// kind without one.
 // It reads the hub's latest results and the cached object and sends no request; the open drawer
 // keeps the numbers coming.
 func (s *Session) ObjectMetrics(ref model.ObjectRef) (*ObjectMetrics, error) {
@@ -337,17 +347,20 @@ func (s *Session) ObjectMetrics(ref model.ObjectRef) (*ObjectMetrics, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.Usage == "" {
+	if p.Usage == "" && p.Volume == nil {
 		return nil, nil
 	}
 	out := &ObjectMetrics{Ref: ref, Status: metrics.StatusNotServed, Message: "this cluster has no metrics provider", Targets: []MetricsTarget{}}
 	hidden := s.hiddenMetrics(b.Context)
-	visible := hidden.drawerVariants(p.Usage)
+	visible := hidden.drawerVariantsOf(p)
 	if len(visible) == 0 {
 		out.Status, out.Message = StatusHidden, msgHidden
 		return out, nil
 	}
 	out.Variants = visible
+	if p.Volume != nil {
+		return s.volumeMetrics(b, p, ref, out), nil // volumemetrics.go
+	}
 	if b.Metrics == nil {
 		return out, nil
 	}
@@ -567,7 +580,10 @@ func (s *Session) SetMetricsVariant(ref model.ObjectRef, target, variant string)
 		return ErrDrawerNotOpen
 	}
 	st.mu.Unlock()
-	if !reset && !slices.Contains(s.hiddenMetrics(d.backend.Context).drawerVariants(d.profile.Usage), variant) {
+	if d.profile.Volume != nil && !reset && variant != VariantFilesystem {
+		return fmt.Errorf("%w: a volume's chart shows its filesystem alone", ErrNotApplicable)
+	}
+	if !reset && !slices.Contains(s.hiddenMetrics(d.backend.Context).drawerVariantsOf(d.profile), variant) {
 		return fmt.Errorf("%w: the %s chart is %s", ErrNotApplicable, variant, msgHidden)
 	}
 	if b := d.backend; variant == VariantNetwork || variant == VariantFilesystem {

@@ -12,8 +12,7 @@ user's own action in Cogpit's window runs: agents and the CLI are refused, whate
 The table is generated from the registry and spliced in, so do not edit it by hand: when a
 command is added or changed, `GOFLAGS=-p=4 go run ./hack/readmecmds` prints the `<summary>` line
 and the table, and that output replaces the block's content, from its `<summary>` line to the
-blank line before `</details>`. It moved here from the root README on 2026-10-14; how to run
-Cogpit and its flags are in [`usage.md`](usage.md).
+blank line before `</details>`. How to run Cogpit and its flags are in [`usage.md`](usage.md).
 
 <details>
 <summary>All 231 commands</summary>
@@ -217,8 +216,8 @@ Cogpit and its flags are in [`usage.md`](usage.md).
 | `ui.setColumns` | `ui_setColumns` | ui | `hidden`?, `reset`?, `view`? | Shows and hides the columns of a view, as the ⋮ at the end of the table's header does: hidden lists the column ids to hide, every other column is shown |
 | `ui.setFilter` | `ui_setFilter` | ui | `filter`?, `matchCase`?, `regex`? | Sets the search text of the open view, and its toggles as the search field's Aa and .* do: a row is shown when every whitespace-separated term occurs in one of its cells, ignoring case unless matchCase; with regex the text is one regular expression (RE2 syntax, at most 1000 bytes) that must match in one of its cells |
 | `ui.setGroups` | `ui_setGroups` | ui | `groups`? | Sets the API group filter of the Definitions view (customresourcedefinitions), which Lens shows in place of the namespace filter: only the definitions of these groups are listed |
-| `ui.setMetricsRange` | `ui_setMetricsRange` | ui | `container`?, `range`?, `ref` | Sets the time range of one chart in the detail drawer's Metrics section, as the chart's range control does: the pod's or node's own chart, or with container one container's chart |
-| `ui.setMetricsVariant` | `ui_setMetricsVariant` | ui | `container`?, `ref`, `variant` | Sets what one chart in the detail drawer's Metrics section shows, as the chart's variant buttons do: cpu, memory, network or filesystem, for the pod's or node's own chart or with container one container's chart |
+| `ui.setMetricsRange` | `ui_setMetricsRange` | ui | `container`?, `range`?, `ref` | Sets the time range of one chart in the detail drawer's Metrics section, as the chart's range control does: the pod's, node's, persistent volume claim's or persistent volume's own chart, or with container one container's chart |
+| `ui.setMetricsVariant` | `ui_setMetricsVariant` | ui | `container`?, `ref`, `variant` | Sets what one chart in the detail drawer's Metrics section shows, as the chart's variant buttons do: cpu, memory, network or filesystem, for the pod's or node's own chart or with container one container's chart; a persistent volume claim's or persistent volume's chart shows the volume's filesystem alone |
 | `ui.setNamespace` | `ui_setNamespace` | ui | `namespaces`? | Sets the namespace filter of the namespaced views; an empty list shows all namespaces |
 | `ui.setNavigatorGroup` | `ui_setNavigatorGroup` | ui | `collapsed`, `group` | Collapses or opens a source group of the navigator's Local Kubeconfigs section, as a click on its heading (or ← and →) does: a collapsed group shows its heading only |
 | `ui.setNavigatorRow` | `ui_setNavigatorRow` | ui | `row` | Puts the navigator's keyboard on a row of the level it shows, as the arrow keys and a click do: where the ring is while the navigator has the keyboard focus, and the row Enter opens (a view, in the preview tab) or drills into (a cluster) once the user presses it |

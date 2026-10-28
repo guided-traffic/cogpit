@@ -228,12 +228,34 @@ type NetworkSample struct {
 	TransmitBytesPerSec float64   `json:"transmitBytesPerSec"`
 }
 
-// FilesystemSample is one point of a container's, pod's or node's filesystem: the bytes in use
-// when the provider has the usage metric, else (the series' FilesystemSource says "io") the read
-// and write rates in bytes per second. The fields the source does not give are 0.
+// FilesystemSample is one point of a container's, pod's, node's or persistent volume's filesystem:
+// the bytes in use when the provider has the usage metric, else (the series' FilesystemSource says
+// "io") the read and write rates in bytes per second. A persistent volume's point also has the
+// filesystem's size and the bytes still free for writing, as the kubelet reports them
+// (kubelet_volume_stats_*). The fields the source does not give are 0.
 type FilesystemSample struct {
 	At               time.Time `json:"at"`
 	UsageBytes       float64   `json:"usageBytes,omitempty"`
 	ReadBytesPerSec  float64   `json:"readBytesPerSec,omitempty"`
 	WriteBytesPerSec float64   `json:"writeBytesPerSec,omitempty"`
+	CapacityBytes    float64   `json:"capacityBytes,omitempty"`
+	AvailableBytes   float64   `json:"availableBytes,omitempty"`
+}
+
+// Share is the part of a persistent volume's filesystem in use: the bytes in use of its size; 0
+// without a size.
+func (s FilesystemSample) Share() float64 {
+	if s.CapacityBytes <= 0 {
+		return 0
+	}
+	return s.UsageBytes / s.CapacityBytes
+}
+
+// VolumeClaim names a bound persistent volume claim and its volume: what a claim's or a volume's
+// drawer shows the usage of (KindProfile.Volume). The kubelet labels a volume's usage with its
+// claim (namespace, persistentvolumeclaim), so the volume is found by its claim.
+type VolumeClaim struct {
+	Namespace string `json:"namespace"`
+	Claim     string `json:"claim"`
+	Volume    string `json:"volume"`
 }

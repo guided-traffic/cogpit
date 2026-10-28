@@ -55,11 +55,7 @@ const (
 // detection's. A Prometheus without node-exporter's series answers, and the scope's state says so
 // (not served) while the provider stays found for the charts.
 func (h *Hub) pollDisks(ctx context.Context, sc Scope) (*dataSet, State) {
-	for _, sl := range h.slots {
-		if sl.role != roleLive {
-			h.detect(ctx, sl)
-		}
-	}
+	h.detectNotLive(ctx)
 	if ctx.Err() != nil {
 		return nil, State{Status: StatusUnavailable, Message: msgCancelled}
 	}
@@ -103,9 +99,16 @@ func (h *Hub) pollDisks(ctx context.Context, sc Scope) (*dataSet, State) {
 // diskMissingLocked is the disk scope's state without a provider that knows disks: Prometheus's
 // own state when it was looked for and is forbidden or does not answer, else not served.
 func (h *Hub) diskMissingLocked() State {
+	return h.prometheusMissingLocked(msgDiskNoPrometheus, msgDiskSourceOff)
+}
+
+// prometheusMissingLocked is the state of a scope only Prometheus serves when it did not answer:
+// off (the cluster's settings switch it off), Prometheus's own state when it was looked for and is
+// forbidden or does not answer, else not served (none was found).
+func (h *Hub) prometheusMissingLocked(notFound, off string) State {
 	for _, sl := range h.slots {
 		if sl.role != roleLive && sl.off {
-			return State{Status: StatusNotServed, Message: msgDiskSourceOff}
+			return State{Status: StatusNotServed, Message: off}
 		}
 		if sl.role == roleLive || !sl.asked {
 			continue
@@ -115,7 +118,7 @@ func (h *Hub) diskMissingLocked() State {
 			return sl.state
 		}
 	}
-	return State{Status: StatusNotServed, Message: msgDiskNoPrometheus}
+	return State{Status: StatusNotServed, Message: notFound}
 }
 
 // listDisks asks a provider, recovering a panic at the boundary.

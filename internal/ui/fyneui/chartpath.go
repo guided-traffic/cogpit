@@ -62,6 +62,9 @@ func (r *chartRenderer) seriesPaths(g chartGeom) (lines, glows, fills []chartPat
 				top = min(top, path[i].Y)
 			}
 			lines = append(lines, chartPath{pts: path, color: c, top: top})
+			if s.Outline {
+				continue
+			}
 			glows = append(glows, chartPath{pts: path, color: withAlpha(c, chartGlowAlpha), top: top})
 			fills = append(fills, chartPath{pts: path, color: withAlpha(c, chartFillAlpha), top: top})
 		}

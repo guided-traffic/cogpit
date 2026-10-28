@@ -349,7 +349,7 @@ func newOverviewChartCard(title string) *overviewChartCard {
 func (c *overviewChartCard) set(ch engine.OverviewChart, window time.Duration, now time.Time, tf model.TimeFormat) {
 	axis, detail, binary := overviewFormats(ch.Metric)
 	d := chartData{From: now.Add(-window), To: now, Time: tf, Empty: chartNoData, Format: axis, Detail: detail, Binary: binary}
-	usage := chartSeries{Name: "Usage", Color: colorAccent}
+	usage := chartSeries{Name: seriesUsage, Color: colorAccent}
 	for _, s := range ch.Samples {
 		usage.Points = append(usage.Points, chartPoint{At: s.At, Value: s.Value})
 	}
@@ -365,7 +365,7 @@ func (c *overviewChartCard) set(ch engine.OverviewChart, window time.Duration, n
 	}
 	d.Lines = append(d.Lines,
 		chartLine{Name: "Allocatable", Color: colorChartSecond, Value: ch.Allocatable, Soft: true},
-		chartLine{Name: "Capacity", Color: colorMuted, Value: ch.Capacity, Soft: true})
+		chartLine{Name: seriesCapacity, Color: colorMuted, Value: ch.Capacity, Soft: true})
 	c.plot.Set(d)
 	c.headline.SetText(overviewHeadline(ch, detail))
 }

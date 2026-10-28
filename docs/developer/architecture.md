@@ -1768,12 +1768,12 @@ about 13 ms a write on macOS); a file that does not parse is reported, never ove
 ## 9. Metrics (`internal/metrics`)
 
 Metrics cannot be watched, so they are polled ([§5](#5-cache)), and only while a view, a drawer or
-the Overview shows them; their request budgets are P13 (a Pods list and a pod's drawer) and P14 (the
-Overview) in [testing](testing.md#performance-budgets). No provider, a refusal
+the Overview shows them; their request budgets are P13 (a Pods list and a pod's drawer), P14 (the
+Overview) and P-new (a claim's or a volume's drawer) in [testing](testing.md#performance-budgets). No provider, a refusal
 and a provider that does not answer are a `State` the UI shows, never an error. A cluster has two
 providers: the Kubernetes Metrics Server for current values, and a Prometheus (or Thanos,
 VictoriaMetrics) the cluster runs, read through the API server's service proxy, for history,
-network, filesystem and disks. Cogpit installs nothing.
+network, filesystem, disks and volumes. Cogpit installs nothing.
 
 | File | Responsibility |
 |---|---|
@@ -1782,6 +1782,7 @@ network, filesystem and disks. Cogpit installs nothing.
 | [`hub.go`](../../internal/metrics/hub.go), [`hubobject.go`](../../internal/metrics/hubobject.go), [`chart.go`](../../internal/metrics/chart.go), [`retain.go`](../../internal/metrics/retain.go) | `Hub`: subscriptions, polls, the result cache, provider roles; an object's poll plan and series; series kept after a drawer closed |
 | [`hubcluster.go`](../../internal/metrics/hubcluster.go), [`promcluster.go`](../../internal/metrics/promcluster.go), [`promclusterpods.go`](../../internal/metrics/promclusterpods.go) | The cluster's totals (the Overview) |
 | [`disk.go`](../../internal/metrics/disk.go), [`diskfs.go`](../../internal/metrics/diskfs.go) | The nodes' filesystems |
+| [`volume.go`](../../internal/metrics/volume.go) | A claim's volume: `ClaimScope`, `claimQuery`, `claimRange` |
 | [`prom.go`](../../internal/metrics/prom.go), [`promrange.go`](../../internal/metrics/promrange.go), [`promql.go`](../../internal/metrics/promql.go) | The Prometheus provider: proxy requests, range queries, every PromQL string |
 | [`promdetect.go`](../../internal/metrics/promdetect.go), [`promflavor.go`](../../internal/metrics/promflavor.go), [`promquery.go`](../../internal/metrics/promquery.go) | Detection by Service name; Thanos and VictoriaMetrics; the per-cluster query settings |
 | [`source.go`](../../internal/metrics/source.go), [`detectunknown.go`](../../internal/metrics/detectunknown.go), [`status.go`](../../internal/metrics/status.go) | Providers switched off per cluster; one detection for the integrations' state; the source row's data |
@@ -1790,7 +1791,7 @@ network, filesystem and disks. Cogpit installs nothing.
 ### The hub
 
 A `Scope` is `{Kind, Namespace, Name}`: `pods` and `nodes` (a list when `Name` is empty, else one
-object), `cluster` (an object) and `nodeDisk` (a list). `Hub.Subscribe(scope, onChange)` starts the
+object), `cluster` and `volumeClaims` (objects) and `nodeDisk` (a list). `Hub.Subscribe(scope, onChange)` starts the
 scope's one poll goroutine, shared by every subscriber; the last `Release` stops it. Nothing
 subscribed polls nothing, not even discovery (`TestNothingOpenNothingRequested`); only `Hub.Fetch`
 and `Hub.DetectUnknown` ask outside a subscription.
@@ -1957,6 +1958,15 @@ drawn by [`metricsdisk.go`](../../internal/ui/fyneui/metricsdisk.go)). Nothing s
 `Hub.DisksPossible` (a Prometheus slot, or the demo's provider). The kubelet's summary API is never
 used: it needs `nodes/proxy`.
 
+`ClaimScope(namespace, claim)` is an object scope polled like a drawer's chart, by the provider
+with history alone ([D-new](decisions.md#d-new-a-volumes-usage-in-its-claims-and-its-own-drawer)):
+`usageLocked` is false and `wantsLocked` the filesystem for it, so the plan asks the claim's range
+once and then from its last point at the step, and the poll's interval is the step. Detection
+skips the Metrics Server (`detectNotLive`, shared with the disks); without Prometheus the state is
+`volumeMissingLocked`'s, never the Metrics Server's. `claimRange` sends `claimQuery`: the kubelet's
+used, capacity and available bytes of the claim in one `query_range`, told apart by a `part` label,
+joined by time into `FilesystemSample`s (`volumeSamples`).
+
 ### Settings that narrow what is asked
 
 - **Metrics source** (`Hub.SetSource`): the two metrics integrations' switches (§4.7) turn slots
@@ -1982,6 +1992,7 @@ used: it needs `nodes/proxy`.
 | The open pod or node drawer | the object; each poll emits `EventMetrics` | `startDrawerUsage` |
 | A drawer's pod table (a node's, a workload's, [D-40](decisions.md#d-40-a-pods-table-in-the-workloads-drawers)) | the pods' namespace scopes; each poll wakes the drawer | [`drawerpods.go`](../../internal/engine/drawerpods.go) |
 | The Nodes list's Disk column, a node's drawer | `DiskScope` | `startListFeed`, `drawerWatch.followDisk` |
+| A claim's or a volume's drawer while bound (the profile's `Volume`) | the claim's `ClaimScope`, followed when the binding changes (`followDrawerVolume`) | [`volumemetrics.go`](../../internal/engine/volumemetrics.go) `metricsScope` |
 | `metrics.get` | `Hub.Fetch`; every pod: the Pods view's scopes, at most four at once | `MetricsGet`, `fetchPodLists` |
 
 - **Cells.** The profile's `UsageCells` and `DiskCell` fill CPU, Memory and Disk; `Cells` leaves
@@ -1991,7 +2002,9 @@ used: it needs `nodes/proxy`.
 - **The drawer's data.** `Session.ObjectMetrics(ref)` reads the hub and the cache, sends nothing:
   status, providers, capabilities, variants, history source, a node's disk, and one `MetricsTarget`
   per chart (the object, then each container) with requests and limits (`model.PodTotals`) or a
-  node's allocatable and capacity, and its series cut to the chart's range.
+  node's allocatable and capacity, and its series cut to the chart's range. A claim's or a
+  volume's (`volumeMetrics`): one target of the filesystem, the claim and volume (`Volume`), the
+  newest point (`Fill`) or why there is none (`VolumeNote`).
 - **Range and variant are engine state** (rule 2), per chart in `drawerWatch`: `ui.setMetricsRange`
   (1 min to 30 d, [`commands/metricsrange.go`](../../internal/engine/commands/metricsrange.go)) and
   `ui.setMetricsVariant` (network and filesystem only with a provider that has them,
@@ -2017,6 +2030,10 @@ used: it needs `nodes/proxy`.
   ([`chartgap.go`](../../internal/ui/fyneui/chartgap.go) `gapLimit`). Hover
   ([`chart_hover.go`](../../internal/ui/fyneui/chart_hover.go)) implements only `desktop.Hoverable`,
   so clicks and scrolls pass through, and repaints its overlay alone (`refreshOverlay`).
+- **A volume's section** ([`metricsvolume.go`](../../internal/ui/fyneui/metricsvolume.go),
+  `DetailModel.VolumeMetrics`): a wrapped line above the chart, no variant buttons, the size as an
+  outline series (`chartSeries.Outline`: no glow, no fill) over the filled usage, and the disks'
+  bar widget with its own title and tooltip under it.
 - **Source row** ([`metricsstatus.go`](../../internal/ui/fyneui/metricsstatus.go),
   [D-88](decisions.md#d-88-the-metrics-source-row)): a chip per `ProviderStatus`; an unreachable
   provider links to its Cluster Settings section (`cluster.settings.open`), an undecided cluster to
