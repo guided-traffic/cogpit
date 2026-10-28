@@ -5566,7 +5566,11 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
 - **Line above the chart:** "Display metrics from PV: <volume>" in a claim's drawer, "Display
   metrics from PVC: <namespace>/<claim>" in a volume's, the name a link to that object's drawer, one
   caption line cut with an ellipsis where the drawer is narrow (the owner's wording; the PVC form is
-  the lead's, open to revision).
+  the lead's, open to revision). Under it, in both drawers, the pods that mount the claim (the
+  owner's), each a link to its drawer: "Mounted by pod: <name>" for one, "Mounted by pods: <a>,
+  <b>" for several, one line cut the same way; none, no line. One or several is the count of pods
+  that mount it, from the cache (`PodsByClaim`, `VolumeClaim.pods`), not the access mode (the
+  owner's pick): ReadWriteOnce is one node, and two pods on it may mount the claim.
 - **Source row:** the Metrics Server shows "not used" with a grey dot and no link, whatever its
   state elsewhere: a claim's scope never asks it (`ProviderStatus.unused`, `Hub.ProvidersFor`), and
   "waiting" would wait for nothing.
@@ -5607,6 +5611,8 @@ One query with three parts costs a third of three queries per step.
 - The kubelet's summary API — `get nodes/proxy`, the kubelet's whole API, as for the nodes' disks
   ([D-43](#d-43-where-the-nodes-disk-comes-from)).
 - The Metrics Server — it measures no volume.
+- One pod or a list by the access mode (ReadWriteOnce one, ReadWriteMany a list) — a
+  ReadWriteOnce claim that two pods on one node mount would show one of them.
 - The claim's requested size as the bar's whole — the filesystem is smaller than the request
   (its own metadata), so a full volume would read below 100 %.
 - The size as a dashed reference line — it hides a resize; an outline series shows it.

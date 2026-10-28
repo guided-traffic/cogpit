@@ -328,14 +328,14 @@ func providerTip(ps metrics.ProviderStatus, now time.Time, tf model.TimeFormat) 
 	}
 	since := func(t time.Time) string { return agoText(now.Sub(t)) }
 	var state string
-	switch {
-	case ps.Status == metrics.StatusAvailable:
+	switch ps.Status {
+	case metrics.StatusAvailable:
 		state = "Found and answering."
-	case ps.Status == metrics.StatusUnavailable:
+	case metrics.StatusUnavailable:
 		state = "Found, but it does not answer: its charts keep what they have."
-	case ps.Status == metrics.StatusForbidden:
+	case metrics.StatusForbidden:
 		state = "The current user may not read it."
-	case ps.Status == metrics.StatusNotServed:
+	case metrics.StatusNotServed:
 		state = "Not found in this cluster."
 	default:
 		state = "Not looked for yet: Cogpit looks for it when a chart needs it."

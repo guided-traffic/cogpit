@@ -1350,7 +1350,10 @@ A bound persistent volume claim's drawer shows how full its volume is, in a Metr
 Properties ([D-139](decisions.md#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer)). A claim
 holds no data itself: the line above the chart, "Display metrics from PV: pvc-…", names the volume
 whose numbers they are, the name a link to its drawer. The volume's own drawer shows the same
-numbers, found by its claim: "Display metrics from PVC: namespace/claim", the claim a link.
+numbers, found by its claim: "Display metrics from PVC: namespace/claim", the claim a link. Under
+it, in both drawers, the pods that mount the claim, each a link to its drawer: "Mounted by pod:
+web-0", or "Mounted by pods: web-0, web-1" (a ReadWriteMany claim, or a ReadWriteOnce claim that
+two pods on one node mount); no line while none does.
 
 - **Chart:** the bytes in use and, as an outline over them, the filesystem's size: a resize is a
   step. The time range as on every chart (1h at first, up to 30d); no CPU or Memory buttons.

@@ -63,7 +63,7 @@ func newClusterPanel(sh *shell) *clusterPanel {
 	p.master.Text, p.worker.Text = "Master", "Worker"
 	p.rangeSel = newSelectField(rangeLabels(false), p.setRange)
 	p.rangeSel.Selected = engine.FormatChartRange(engine.DefaultOverviewWindow)
-	p.caption = newSourceLine("Loading metrics…", colorMuted, theme.SizeNameCaptionText)
+	p.caption = newSourceLine("Loading metrics…")
 	p.note = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	p.note.truncate = true
 	p.note.Hide()

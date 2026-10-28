@@ -1,6 +1,7 @@
 package kinds
 
 import (
+	"reflect"
 	"testing"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -43,7 +44,7 @@ func TestVolumeOfClaimsAndVolumes(t *testing.T) {
 		"volume without fields": {persistentVolumes, &unstructured.Unstructured{Object: map[string]any{"spec": map[string]any{"claimRef": 7}}}, false},
 	} {
 		got, ok := tc.p.Volume(tc.obj)
-		if ok != tc.bound || ok && got != want {
+		if ok != tc.bound || ok && !reflect.DeepEqual(got, want) {
 			t.Errorf("%s: %+v, %v; want %+v, %v", name, got, ok, want, tc.bound)
 		}
 	}

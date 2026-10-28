@@ -911,8 +911,10 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
   [`kinds/related.go`](../../internal/model/kinds/related.go): `PodsByNode`, `PodsByClaim`, ...),
   never a list of its own. A profile names its indexes in `Needs` (rows and drawer) or `DetailNeeds`
   (drawer only: the workloads' Pods tables, `PodsByOwner`, `ReplicaSetsByOwner`, `JobsByOwner`,
-  [`workloadpods.go`](../../internal/model/kinds/workloadpods.go)) and reads them with
-  `rel.Objects(index, key)` in `CellsWith` and `DetailWith`.
+  [`workloadpods.go`](../../internal/model/kinds/workloadpods.go); a volume's `PodsByClaim`) and reads
+  them with `rel.Objects(index, key)` in `CellsWith` and `DetailWith`; a volume's Metrics section
+  reads the claim's pods from the drawer's set too
+  ([`volumemetrics.go`](../../internal/engine/volumemetrics.go)).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the
   keys it looked up (`TestWorkloadDrawerWakesOnlyForItsPods`).

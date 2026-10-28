@@ -10,7 +10,8 @@ import (
 // A volume's usage in a persistent volume claim's or a persistent volume's drawer (D-139): above
 // the chart a line that names whose usage it is, the name a link to its drawer ("Display metrics
 // from PV: pvc-…" in a claim's, which holds no data itself; "Display metrics from PVC: ns/claim" in a
-// volume's, the claim the kubelet reports it by); the chart shows the bytes in use, filled, and the
+// volume's, the claim the kubelet reports it by), and under it the pods that mount the claim, each a
+// link ("Mounted by pod: web-0", "Mounted by pods: web-0, web-1"); the chart shows the bytes in use, filled, and the
 // filesystem's size as an outline over them, so a resize is a step and the fill's height against
 // the outline reads as the fill level; under it a usage bar of the newest point in the disks' look
 // (metricsdisk.go): "Volume", the bar in the table's colours and the share, the numbers in its
@@ -29,11 +30,35 @@ func (p *metricsPanel) showIntro(m *engine.ObjectMetrics) {
 	prefix, link := volumeIntro(v, p.ref.Kind)
 	if prefix == "" {
 		p.intro.Hide()
+		p.pods.Hide()
 		return
 	}
-	ctx := p.ref.Context
-	p.intro.setSegs([]lineSeg{{text: prefix}, {text: link.Key(), onTap: func() { p.d.sh.followLink(link, ctx, false) }}})
+	ctx, sh := p.ref.Context, p.d.sh
+	p.intro.setSegs([]lineSeg{{text: prefix}, {text: link.Key(), onTap: func() { sh.followLink(link, ctx, false) }}})
 	p.intro.Show()
+	if len(v.Pods) == 0 {
+		p.pods.Hide()
+		return
+	}
+	p.pods.setSegs(podSegs(v, func(ref model.ObjectRef) { sh.followLink(ref, ctx, false) }))
+	p.pods.Show()
+}
+
+// podSegs is the line of the pods that mount a claim: "Mounted by pod: " and its name, or "Mounted
+// by pods: " and their names, comma-separated, each a link to the pod.
+func podSegs(v *model.VolumeClaim, open func(model.ObjectRef)) []lineSeg {
+	segs := []lineSeg{{text: "Mounted by pod: "}}
+	if len(v.Pods) > 1 {
+		segs[0].text = "Mounted by pods: "
+	}
+	for i, name := range v.Pods {
+		if i > 0 {
+			segs = append(segs, lineSeg{text: ", "})
+		}
+		ref := model.ObjectRef{Kind: kindPods, Namespace: v.Namespace, Name: name}
+		segs = append(segs, lineSeg{text: name, onTap: func() { open(ref) }})
+	}
+	return segs
 }
 
 // volumeIntro is the line above a volume's chart: its words, and the object it names as a link. In
