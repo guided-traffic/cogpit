@@ -1348,8 +1348,12 @@ a report names with a violation
 
 A bound persistent volume claim's drawer shows how full its volume is, in a Metrics section above
 Properties ([D-139](decisions.md#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer)). A claim
-holds no data itself; the line above the chart says the numbers are its volume's. The volume's own
-drawer shows the same numbers, found by its claim.
+holds no data itself: the line above the chart, "Display metrics from PV: pvc-…", names the volume
+whose numbers they are, the name a link to its drawer. The volume's own drawer shows the same
+numbers, found by its claim: "Display metrics from PVC: namespace/claim", the claim a link. Under
+it, in both drawers, the pods that mount the claim, each a link to its drawer: "Mounted by pod:
+web-0", or "Mounted by pods: web-0, web-1" (a ReadWriteMany claim, or a ReadWriteOnce claim that
+two pods on one node mount); no line while none does.
 
 - **Chart:** the bytes in use and, as an outline over them, the filesystem's size: a resize is a
   step. The time range as on every chart (1h at first, up to 30d); no CPU or Memory buttons.
@@ -1359,7 +1363,8 @@ drawer shows the same numbers, found by its claim.
 - **Where the numbers come from:** the kubelet's volume stats (`kubelet_volume_stats_*`) in the
   cluster's Prometheus. Without Prometheus the section says so. The kubelet reports a volume only
   while a pod mounts it, and only when its driver reports usage (not raw block volumes, some CSI
-  drivers, NFS): then the chart is empty and the note under it says why.
+  drivers, NFS): then the chart is empty and the note under it says why. The source row under the
+  chart says "Metrics Server ● not used": it measures no volume.
 - **Not bound** (Pending, Lost, a Released volume): the section says so and nothing is asked.
 - **Hidden** with Cluster Settings › Metrics › Volumes or Filesystem.
 

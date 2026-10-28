@@ -105,6 +105,21 @@ func claimPods(obj *unstructured.Unstructured, rel model.Related) []*unstructure
 	return pods
 }
 
+// ClaimPodNames are the names of the pods that mount a claim, sorted: PodsByClaim's objects, nil
+// while the pods are still listing or none mounts it.
+func ClaimPodNames(namespace, claim string, rel model.Related) []string {
+	pods := rel.Objects(PodsByClaim, ClaimKey(namespace, claim))
+	if len(pods) == 0 {
+		return nil
+	}
+	names := make([]string, len(pods))
+	for i, p := range pods {
+		names[i] = p.GetName()
+	}
+	slices.Sort(names)
+	return names
+}
+
 // sortByName sorts related objects by name, then namespace: the index returns them in no
 // particular order.
 func sortByName(objs []*unstructured.Unstructured) {

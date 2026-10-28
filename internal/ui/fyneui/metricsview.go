@@ -88,7 +88,8 @@ type metricsPanel struct {
 	// the volume's filesystem, no variant buttons, a line above it that says whose usage it shows
 	// (intro) and a usage bar under it (metricsvolume.go).
 	volume bool
-	intro  *paragraph // wrapped at the drawer's width: the volume's name is long
+	intro  *sourceLine // the other object's name a link
+	pods   *sourceLine // the pods that mount the claim, each a link
 
 	root    *fyne.Container
 	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
@@ -136,14 +137,15 @@ var metricsVariants = []struct {
 func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel {
 	p := &metricsPanel{d: d, ref: ref, perBox: map[string]*chartCtl{}, volume: volume}
 	p.chartCtl = newChartCtl(p, "", false)
-	p.intro = newParagraph("", colorMuted, d.contentWidth())
-	p.intro.size = theme.SizeNameCaptionText
+	p.intro = newSourceLine("")
 	p.intro.Hide()
+	p.pods = newSourceLine("")
+	p.pods.Hide()
 	if volume {
 		p.variant = variantFilesystem
 		p.showVariants([]string{}) // its one variant needs no button
 	}
-	p.caption = newSourceLine("Loading metrics…", colorMuted, theme.SizeNameCaptionText)
+	p.caption = newSourceLine("Loading metrics…")
 	p.note = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	p.note.truncate = true
 	p.status = newProviderStatusLine(d.sh)
@@ -151,7 +153,7 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel 
 	p.status.setAvail(d.contentWidth)
 	p.status.root.Hide()
 	p.disk = newDiskBars()
-	p.root = container.NewVBox(p.intro, p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
+	p.root = container.NewVBox(p.intro, p.pods, p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
 	p.render()
 	return p
 }
@@ -758,6 +760,8 @@ func (d *drawer) metricsPanel(m *engine.DetailModel) *metricsPanel {
 		p = newMetricsPanel(d, m.Ref, m.VolumeMetrics)
 		d.kept[metricsKey] = p
 		p.refresh()
+	} else if p.volume {
+		p.refresh() // the pods that mount the claim changed, or its binding: the engine says which
 	}
 	p.setEvents(m.Events)
 	return p

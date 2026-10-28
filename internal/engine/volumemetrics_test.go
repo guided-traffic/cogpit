@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"sync"
 	"testing"
@@ -154,7 +155,7 @@ func TestClaimDrawerShowsItsVolume(t *testing.T) {
 	}
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
 	want := model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}
-	if om.Status != metrics.StatusAvailable || om.Volume == nil || *om.Volume != want || om.VolumeNote != "" ||
+	if om.Status != metrics.StatusAvailable || om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) || om.VolumeNote != "" ||
 		!slices.Equal(om.Variants, []string{VariantFilesystem}) || om.FilesystemSource != metrics.FilesystemUsage {
 		t.Fatalf("metrics = %+v", om)
 	}
@@ -194,12 +195,35 @@ func TestVolumeDrawerShowsItsClaimsUsage(t *testing.T) {
 	ref := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-f0327b26"}
 	openVolumeDrawer(t, s, ref)
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
-	if want := (model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}); om.Volume == nil || *om.Volume != want {
+	if want := (model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}); om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) {
 		t.Errorf("volume = %+v", om.Volume)
 	}
 	if qs := prov.asked(); len(qs) == 0 || qs[0].Namespace != "bezon-prod" || qs[0].Name != "pg-1" {
 		t.Errorf("Prometheus was asked %+v, want the claim's scope", qs)
 	}
+}
+
+// Both drawers name the pods that mount the claim, sorted, and follow them: one pod (a
+// ReadWriteOnce claim's), a second on the same node, none.
+func TestVolumePodsFollowTheMounts(t *testing.T) {
+	s, src, _ := volumeSession(t)
+	claim := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "pg-1"}
+	volume := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-f0327b26"}
+	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "pg-1-b", "worker-a", "pg-1"))
+	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "web-0", "worker-a", "other"))
+	for _, ref := range []model.ObjectRef{claim, volume} {
+		openVolumeDrawer(t, s, ref)
+		waitVolume(t, s, ref, ref.Kind+": one pod", func(om *ObjectMetrics) bool {
+			return om.Volume != nil && slices.Equal(om.Volume.Pods, []string{"pg-1-b"})
+		})
+	}
+	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "pg-1-a", "worker-a", "pg-1"))
+	waitVolume(t, s, volume, "two pods on one node", func(om *ObjectMetrics) bool {
+		return om.Volume != nil && slices.Equal(om.Volume.Pods, []string{"pg-1-a", "pg-1-b"})
+	})
+	src.Delete(testkit.PodsGVR, "bezon-prod", "pg-1-a")
+	src.Delete(testkit.PodsGVR, "bezon-prod", "pg-1-b")
+	waitVolume(t, s, volume, "no pod", func(om *ObjectMetrics) bool { return om.Volume != nil && om.Volume.Pods == nil })
 }
 
 // A volume the kubelet does not report (no pod mounts it) has an empty chart and says why; a claim

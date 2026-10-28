@@ -3,8 +3,10 @@ package engine
 import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
+	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
+	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
 // A persistent volume claim's and a persistent volume's drawer show the volume's usage (D-139): a
@@ -84,6 +86,7 @@ func (s *Session) volumeMetrics(b *Backend, p *model.KindProfile, ref model.Obje
 		}
 		return out
 	}
+	vc.Pods = s.volumePods(b, p, ref, vc)
 	out.Volume = &vc
 	if b.Metrics == nil {
 		return out
@@ -96,7 +99,7 @@ func (s *Session) volumeMetrics(b *Backend, p *model.KindProfile, ref model.Obje
 		// Not polled yet: the hub's state is then the providers', not the volume's.
 		out.Status, out.Message, out.Source = metrics.StatusUnknown, "", ""
 	}
-	out.Providers = b.Metrics.Providers()
+	out.Providers = b.Metrics.ProvidersFor(scope)
 	if out.Status == metrics.StatusAvailable {
 		out.Message = ""
 		out.Capabilities = b.Metrics.Capabilities()
@@ -111,6 +114,19 @@ func (s *Session) volumeMetrics(b *Backend, p *model.KindProfile, ref model.Obje
 		}
 	}
 	return out
+}
+
+// volumePods are the pods that mount a bound claim: from the open drawer's related objects, whose
+// lookup makes a pod that starts or stops mounting it rebuild the drawer (both profiles' drawers
+// hold PodsByClaim), else from the cache for this call, in the claim's namespace.
+func (s *Session) volumePods(b *Backend, p *model.KindProfile, ref model.ObjectRef, vc model.VolumeClaim) []string {
+	rs := s.drawerRelated(b, p, ref)
+	if rs == nil {
+		rs = newRelatedSetWith(b, drawerNeeds(b, p), nil, false, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, vc.Namespace) })
+	}
+	defer rs.release()
+	rel, _ := rs.view()
+	return kinds.ClaimPodNames(vc.Namespace, vc.Claim, rel)
 }
 
 // volumeFill is the newest point of a volume's usage while the kubelet reports it: no more than two

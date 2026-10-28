@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -45,8 +46,10 @@ var (
 	_ desktop.Cursorable = (*sourceLine)(nil)
 )
 
-func newSourceLine(text string, c fyne.ThemeColorName, size fyne.ThemeSizeName) *sourceLine {
-	l := &sourceLine{color: c, size: size, hover: -1}
+// newSourceLine is a line in the captions' look: muted, at the caption size; SetColor changes the
+// plain text's colour.
+func newSourceLine(text string) *sourceLine {
+	l := &sourceLine{color: colorMuted, size: theme.SizeNameCaptionText, hover: -1}
 	l.ExtendBaseWidget(l)
 	l.SetText(text)
 	return l

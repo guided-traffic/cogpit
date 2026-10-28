@@ -73,6 +73,8 @@ var persistentVolumes = &model.KindProfile{
 	},
 	Detail: pvDetail,
 	Volume: pvVolume,
+	// The pods that mount the volume's claim, named above its chart (engine/volumemetrics.go).
+	DetailNeeds: []model.RelatedIndex{PodsByClaim},
 }
 
 // pvVolume is the volume and the claim it is bound to: the drawer shows the volume's usage, which

@@ -76,7 +76,7 @@ func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integ
 	r.title.truncate = true
 	r.dot = newSurface(colorStatusOK)
 	r.dot.radius, r.dot.min = theme.SizeNameSelectionRadius, fyne.NewSize(6, 6)
-	r.status = newSourceLine("", colorMuted, theme.SizeNameCaptionText)
+	r.status = newSourceLine("")
 	r.adds = newTextLine(in.Adds, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	r.adds.truncate = true
 	r.slot = container.NewStack(r.status)

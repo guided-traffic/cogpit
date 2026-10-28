@@ -132,6 +132,18 @@ func (h *Hub) detectNotLive(ctx context.Context) {
 	}
 }
 
+// ProvidersFor is Providers as the status line under sc's charts shows them: a claim's volume never
+// asks the Metrics Server, which measures no volume, so it is unused there.
+func (h *Hub) ProvidersFor(sc Scope) []ProviderStatus {
+	out := h.Providers()
+	if sc.Kind == KindClaims {
+		for i := range out {
+			out[i].Unused = out[i].Provider == ServerID
+		}
+	}
+	return out
+}
+
 // volumeMissingLocked is a claim scope's state when Prometheus did not answer: Prometheus's own
 // state when it was looked for and is forbidden or does not answer, else not served.
 func (h *Hub) volumeMissingLocked() State {

@@ -253,9 +253,13 @@ func (s FilesystemSample) Share() float64 {
 
 // VolumeClaim names a bound persistent volume claim and its volume: what a claim's or a volume's
 // drawer shows the usage of (KindProfile.Volume). The kubelet labels a volume's usage with its
-// claim (namespace, persistentvolumeclaim), so the volume is found by its claim.
+// claim (namespace, persistentvolumeclaim), so the volume is found by its claim. Pods are the
+// pods that mount the claim, by name in its namespace, sorted: the engine's, from the cache (one
+// for most ReadWriteOnce claims, though several on one node may mount it; any number for
+// ReadWriteMany); nil while the pods are still listing or none mounts it.
 type VolumeClaim struct {
-	Namespace string `json:"namespace"`
-	Claim     string `json:"claim"`
-	Volume    string `json:"volume"`
+	Namespace string   `json:"namespace"`
+	Claim     string   `json:"claim"`
+	Volume    string   `json:"volume"`
+	Pods      []string `json:"pods,omitempty"`
 }

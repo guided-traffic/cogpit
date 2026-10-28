@@ -192,13 +192,17 @@ func TestSourceChipStates(t *testing.T) {
 			"Metrics Server ● not found · " + settingsLink, dotAbsent},
 		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusAvailable, LastOK: fixedNow},
 			"Metrics Server ● now", dotAnswering},
+		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusUnknown, Unused: true},
+			"Metrics Server ● not used", dotAbsent},
+		{metrics.ProviderStatus{Provider: metrics.ServerID, Label: metrics.ServerLabel, Status: metrics.StatusUnavailable, LastError: "timeout", Unused: true},
+			"Metrics Server ● not used", dotAbsent},
 	} {
 		c := newSourceChip(&shell{app: a})
 		c.set(tc.ps, fixedNow, germanTime, nil)
 		if c.text() != tc.text || c.look != tc.look || !strings.HasPrefix(c.tip, tc.ps.Label) {
 			t.Errorf("%s %s: %q %+v (tip %q), want %q %+v", tc.ps.Label, tc.ps.Status, c.text(), c.look, c.tip, tc.text, tc.look)
 		}
-		if tc.ps.LastError != "" && !strings.Contains(c.tip, "Last error: "+tc.ps.LastError) {
+		if tc.ps.LastError != "" && !tc.ps.Unused && !strings.Contains(c.tip, "Last error: "+tc.ps.LastError) {
 			t.Errorf("%s: tooltip without the failure's class: %q", tc.ps.Label, c.tip)
 		}
 	}

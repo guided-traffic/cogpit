@@ -37,8 +37,11 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	}
 	last := fs[len(fs)-1]
 	vc := pgClaim
+	vc.Pods = []string{"pg-bezon-timescale-1-0"}
+	providers := bothAnswering()
+	providers[1].Unused = true // a claim's chart never asks the Metrics Server
 	return &engine.ObjectMetrics{
-		Ref: ref, Status: metrics.StatusAvailable, Source: promSource, Providers: bothAnswering(),
+		Ref: ref, Status: metrics.StatusAvailable, Source: promSource, Providers: providers,
 		Capabilities: metrics.Capabilities{History: true, Network: true, Filesystem: true},
 		Variants:     []string{engine.VariantFilesystem}, FilesystemSource: metrics.FilesystemUsage,
 		Targets: []engine.MetricsTarget{{Variant: engine.VariantFilesystem, Filesystem: fs, Window: time.Hour, Range: "1h"}},
@@ -48,6 +51,12 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 
 // volumeDrawer opens the claim's drawer with the canned numbers, changed by mutate.
 func volumeDrawer(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string)) {
+	sh, p, png, _, _ := volumeDrawerOf(t, mode, mutate)
+	return sh, p, png
+}
+
+// volumeDrawerOf is volumeDrawer with the fake engine and the main queue.
+func volumeDrawerOf(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string), *fakeEngine, *mainQueue) {
 	t.Helper()
 	f := kindsFake(t, "pods")
 	f.kinds = append(f.kinds, kindInfo{Kind: "persistentvolumeclaims", Title: "Persistent Volume Claims", APIKind: "PersistentVolumeClaim", Version: "v1", Namespaced: true},
@@ -81,15 +90,21 @@ func volumeDrawer(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetric
 		return ok && pm.data != nil && sh.drawer.last != nil
 	})
 	settle(w)
-	return sh, sh.drawer.kept[metricsKey].(*metricsPanel), func(name string) { savePNG(t, w, name) }
+	return sh, sh.drawer.kept[metricsKey].(*metricsPanel), func(name string) { savePNG(t, w, name) }, f, q
 }
 
 func TestClaimDrawerShowsItsVolumesUsage(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		sh, p, png := volumeDrawer(t, mode, nil)
 		texts := drawerTexts(sh)
-		if texts[0] != "Metrics" || !p.intro.Visible() || !strings.HasPrefix(p.intro.text, "A claim holds no data itself: this is the usage of its volume pvc-f0327b26") {
+		if texts[0] != "Metrics" || !p.intro.Visible() || p.intro.text != "Display metrics from PV: "+pgClaim.Volume || p.intro.links()[pgClaim.Volume] == nil {
 			t.Fatalf("the section begins %q, intro %q (shown %v)", texts[:min(3, len(texts))], p.intro.text, p.intro.Visible())
+		}
+		if !p.pods.Visible() || p.pods.text != "Mounted by pod: pg-bezon-timescale-1-0" || p.pods.links()["pg-bezon-timescale-1-0"] == nil {
+			t.Errorf("pods line %q (shown %v)", p.pods.text, p.pods.Visible())
+		}
+		if got := chipTexts(p.status); len(got) != 2 || got[1] != "Metrics Server ● not used" {
+			t.Errorf("source row %q", got)
 		}
 		for id, b := range p.variants {
 			if b.Visible() {
@@ -138,8 +153,51 @@ func TestUnboundClaimSaysSo(t *testing.T) {
 	}
 }
 
+// The volume's name above the chart is a link to the volume's drawer, each pod's to the pod's.
+func TestClaimIntroLinksTheVolume(t *testing.T) {
+	_, p, _, f, q := volumeDrawerOf(t, ThemeDark, nil)
+	p.intro.links()[pgClaim.Volume]()
+	p.pods.links()["pg-bezon-timescale-1-0"]()
+	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 2 })
+	var got []model.ObjectRef
+	for _, c := range f.callsOf("ui.navigate") {
+		got = append(got, decodeParams[refParams](t, c).Ref)
+	}
+	for _, want := range []model.ObjectRef{
+		{Context: "demo", Kind: "persistentvolumes", Name: pgClaim.Volume},
+		{Context: "demo", Kind: "pods", Namespace: pgClaim.Namespace, Name: "pg-bezon-timescale-1-0"},
+	} {
+		if !slices.Contains(got, want) {
+			t.Errorf("links went to %+v, not %+v", got, want)
+		}
+	}
+}
+
+// Several pods are a list, each a link; none, no line.
+func TestVolumePodsLine(t *testing.T) {
+	v := pgClaim
+	v.Pods = []string{"web-0", "web-1", "web-2"}
+	var opened []string
+	segs := podSegs(&v, func(ref model.ObjectRef) { opened = append(opened, ref.Key()) })
+	var text strings.Builder
+	for _, s := range segs {
+		text.WriteString(s.text)
+		if s.onTap != nil {
+			s.onTap()
+		}
+	}
+	if text.String() != "Mounted by pods: web-0, web-1, web-2" || !slices.Equal(opened, []string{"bezon-prod/web-0", "bezon-prod/web-1", "bezon-prod/web-2"}) {
+		t.Errorf("line %q, links %q", text.String(), opened)
+	}
+	_, p, _ := volumeDrawer(t, ThemeDark, func(m *engine.ObjectMetrics) { m.Volume.Pods = nil })
+	if !p.intro.Visible() || p.pods.Visible() {
+		t.Errorf("without pods: intro %v, pods line %v", p.intro.Visible(), p.pods.Visible())
+	}
+}
+
 func TestVolumeIntroInAVolumesDrawer(t *testing.T) {
-	if got := volumeIntro(&pgClaim, "persistentvolumes"); got != "The usage of this volume, as the kubelet reports it for its claim bezon-prod/pg-bezon-timescale-1." {
-		t.Errorf("intro = %q", got)
+	prefix, link := volumeIntro(&pgClaim, "persistentvolumes")
+	if prefix != "Display metrics from PVC: " || link != (model.ObjectRef{Kind: "persistentvolumeclaims", Namespace: pgClaim.Namespace, Name: pgClaim.Claim}) {
+		t.Errorf("intro = %q %+v", prefix, link)
 	}
 }

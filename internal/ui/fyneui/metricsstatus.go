@@ -22,9 +22,10 @@ import (
 // at the right, each as "<name> ● <when>": the dot in the cluster dots' colours (conndot.go: green
 // while it answers, red while it fails or may not be read, grey while it is not found, a grey ring
 // while nothing has asked it yet) and when it last answered ("30 s ago", "now"), else in a word why
-// not ("not answering", "no permission", "not found", "waiting"). Where it runs, what it serves
-// now, the last good answer and the last failure (a class, never a response body) are in each
-// one's tooltip. While one is not reachable its part of the row links to its section of Cluster
+// not ("not answering", "no permission", "not found", "waiting"), or "not used" with a grey dot
+// where the charts never ask it (the Metrics Server under a volume's: it measures no volume). Where
+// it runs, what it serves now, the last good answer and the last failure (a class, never a response
+// body) are in each one's tooltip. While one is not reachable its part of the row links to its section of Cluster
 // Settings (D-87): "Set its address…" for a Prometheus not found, "Settings…" otherwise; while both
 // answer the row holds nothing more. Before 2026-10-18 there were a source line in prose with the
 // Prometheus's namespace and service as links, a line per provider and a "Prometheus…" button;
@@ -162,9 +163,12 @@ var (
 )
 
 // providerDot is a metrics provider's dot: answering, failing (not answering, no permission), not
-// found, or not asked yet.
-func providerDot(s metrics.Status) dotLook {
-	switch s {
+// found or not used by these charts, or not asked yet.
+func providerDot(ps metrics.ProviderStatus) dotLook {
+	if ps.Unused {
+		return dotAbsent
+	}
+	switch ps.Status {
 	case metrics.StatusAvailable:
 		return dotAnswering
 	case metrics.StatusUnavailable, metrics.StatusForbidden:
@@ -262,6 +266,9 @@ func shortProviderName(label string) string {
 
 // providerWhen is the word after a provider's dot: when it last answered, else why not.
 func providerWhen(ps metrics.ProviderStatus, now time.Time) string {
+	if ps.Unused {
+		return "not used"
+	}
 	switch ps.Status {
 	case metrics.StatusAvailable:
 		if ps.LastOK.IsZero() {
@@ -278,9 +285,13 @@ func providerWhen(ps metrics.ProviderStatus, now time.Time) string {
 	return "waiting"
 }
 
-// providerLink is the link a provider not reachable offers to its settings, "" while it answers or
-// is not asked yet (WF25): a Prometheus not found by name needs its address.
+// providerLink is the link a provider not reachable offers to its settings, "" while it answers, is
+// not asked yet (WF25) or is not used by these charts: a Prometheus not found by name needs its
+// address.
 func providerLink(ps metrics.ProviderStatus) string {
+	if ps.Unused {
+		return ""
+	}
 	switch ps.Status {
 	case metrics.StatusNotServed:
 		if ps.Provider == metrics.PrometheusID {
@@ -306,11 +317,14 @@ func servesText(serves []string) string {
 }
 
 // providerTip is a provider's tooltip on the row: where it runs, its state, what it serves, the last
-// good answer and the last failure; the times of day in tf, the user's zone and format (D-31).
+// good answer and the last failure (only that it is not used, where it is not); the times of day in tf, the user's zone and format (D-31).
 func providerTip(ps metrics.ProviderStatus, now time.Time, tf model.TimeFormat) string {
 	name := ps.Label
 	if ps.Service != "" {
 		name += " " + ps.Service
+	}
+	if ps.Unused {
+		return name + "\nNot used here: it measures nothing these charts show."
 	}
 	since := func(t time.Time) string { return agoText(now.Sub(t)) }
 	var state string
@@ -475,7 +489,7 @@ func newSourceChip(sh *shell) *sourceChip {
 
 // set shows a provider's state as of now; the same state costs nothing (a poll sets it every 15 s).
 func (c *sourceChip) set(ps metrics.ProviderStatus, now time.Time, tf model.TimeFormat, onLink func(string)) {
-	name, when, look, tip, link := shortProviderName(ps.Label), providerWhen(ps, now), providerDot(ps.Status), providerTip(ps, now, tf), providerLink(ps)
+	name, when, look, tip, link := shortProviderName(ps.Label), providerWhen(ps, now), providerDot(ps), providerTip(ps, now, tf), providerLink(ps)
 	c.onLink = onLink
 	if c.provider == ps.Provider && c.name == name && c.when == when && c.look == look && c.tip == tip && c.link == link {
 		return
