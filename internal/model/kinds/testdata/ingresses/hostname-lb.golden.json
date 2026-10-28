@@ -78,7 +78,11 @@
       "items": [
         {
           "name": "Class",
-          "value": "alb"
+          "value": "alb",
+          "link": {
+            "kind": "ingressclasses",
+            "name": "alb"
+          }
         },
         {
           "name": "Load Balancers",

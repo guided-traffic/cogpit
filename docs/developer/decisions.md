@@ -145,7 +145,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-134](#d-134-the-windows-zoom) | The window's zoom | built: VS Code's zoom via Fyne's canvas scale, 50-210% |
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
-| [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service |
+| [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service, the class to its IngressClass, a TLS entry to its Secret |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 
@@ -5398,8 +5398,8 @@ after Fyne's own handler nothing starts the bound (from Fyne's code, not seen).
 
 **Status:** built · **By:** owner (Hosts in place of Rules, hosts as links in the list and the
 drawer; in the drawer each host once across the details with its paths under it in columns, each
-path a link to the host's address with the path, the backend a link to its Service); lead (open to
-revision) the details below
+path a link to the host's address with the path, the backend a link to its Service; the class and
+each TLS entry's Secret as links to their objects); lead (open to revision) the details below
 
 - **List:** the Ingresses view's Hosts column stands where Lens has Rules: each rule's host once,
   in the rules' order, a comma apart (`model.WebCell`), 340 points wide by default. A rule without
@@ -5413,6 +5413,13 @@ revision) the details below
   port follows as text. A resource backend links whole when it is a built-in kind. A rule without
   paths reads `(no paths)` and the Ingress's default backend, else `(the controller's default
   backend)`. The section's head counts the rules (`DetailSection.Count`), not the rows.
+- **Class and TLS:** the Ingress section's Class is a link to the IngressClass of that name, also
+  when only the older `kubernetes.io/ingress.class` annotation names it; where no such object
+  exists the drawer it opens says the object is missing. TLS is a table with a row per entry
+  (Secret, Hosts): the Secret's name is a link to the Secret in the Ingress's namespace, the hosts
+  are text, a line each (`*` for an entry without hosts); an entry without a Secret reads
+  `(no secret)`, as text. Like every drawer link, both are links only where the cluster serves the
+  kind.
 - **Address:** a host's is `https://<host>` when a TLS entry of the Ingress covers the host (it
   names it, its wildcard covers the host's first label, or it lists no hosts and so takes the
   controller's default certificate for all), else `http://<host>`; no path, no port. Only a host
@@ -5444,7 +5451,11 @@ the rules; in the drawer, the paths as lines of text after the host (`/api (Pref
 — the types and backends do not line up; the full address on each path's row — the host on every
 line again, cut off in the drawer; the port in the Service's link — it names no object;
 https for every host — a host without TLS would open a certificate warning or nothing; the TLS
-section's hosts as links too — they repeat the rules' hosts.
+section's hosts as links too — they repeat the rules' hosts; the TLS Secret as the name of an item
+with the hosts as its value, as before — a drawer item links its value, not its name; the hosts as
+the name and the Secret as the value — the hosts wrap in the 128-point name column; the class
+linked only when an IngressClass of that name exists — the drawer would need the Ingress Classes
+listed for every Ingress, and a missing class is worth seeing.
 
 **Not covered:** a controller that serves TLS for a host the Ingress gives none (a default
 certificate) is opened with http, which such a controller usually redirects; a port the
@@ -5459,7 +5470,8 @@ where a controller reads it otherwise.
 `pointWeb`), [`fyneui/links.go`](../../internal/ui/fyneui/links.go) (`openWebLink`, `nameLink`),
 [`fyneui/ingressrules.go`](../../internal/ui/fyneui/ingressrules.go) ·
 **Tests:** `TestIngressHostLinks`, `TestIngressRulesTable`, `TestIngressTexts`, `TestIngressColumns`,
-`TestIngressHostsOpenInTheBrowser`, `TestIngressRulesLinks`, `TestOpenWebLinkChecksTheAddress`
+`TestIngressHostsOpenInTheBrowser`, `TestIngressRulesLinks`, `TestIngressClassAndTLSSecretLinks`,
+`TestOpenWebLinkChecksTheAddress`, `TestGolden`
 
 ## D-138: The alert board's cards
 

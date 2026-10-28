@@ -63,7 +63,11 @@
       "items": [
         {
           "name": "Class",
-          "value": "gce"
+          "value": "gce",
+          "link": {
+            "kind": "ingressclasses",
+            "name": "gce"
+          }
         },
         {
           "name": "Load Balancers",

@@ -15,6 +15,8 @@ const (
 	// scopeCluster is what the API server defaults spec.parameters.scope to.
 	scopeCluster = "Cluster"
 	idDefault    = "default"
+	// keyIngressClasses is the kind key and resource of Ingress Classes.
+	keyIngressClasses = "ingressclasses"
 )
 
 // ingressClasses has the columns captured from Lens on 2026-10-11: Name, a star column, an empty
@@ -24,10 +26,10 @@ const (
 // colour emoji font, which ignores theme colours), so the column is titled Default and reads
 // "Yes". Ingress classes have no state, so no status token.
 var ingressClasses = &model.KindProfile{
-	Key:      "ingressclasses",
+	Key:      keyIngressClasses,
 	Group:    groupNetworking,
 	Version:  "v1",
-	Resource: "ingressclasses",
+	Resource: keyIngressClasses,
 	Kind:     "IngressClass",
 	Title:    "Ingress Classes",
 	Columns: []model.Column{

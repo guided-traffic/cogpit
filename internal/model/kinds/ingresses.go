@@ -18,6 +18,8 @@ const (
 	ingressClassAnnotation = "kubernetes.io/ingress.class"
 	// anyHost stands for a rule without a host: it matches every host.
 	anyHost = "*"
+	// fieldHosts is the hosts of a TLS entry and the id of the columns that list hosts.
+	fieldHosts = "hosts"
 )
 
 // ingresses has the columns of Lens's documentation (not captured), with Hosts in the place of
@@ -37,7 +39,7 @@ var ingresses = &model.KindProfile{
 		namespaceColumn,
 		{ID: "loadBalancers", Title: "Load Balancers", Type: model.ColumnText},
 		// Room for two or three hosts before the cell cuts off; the full list is the tooltip.
-		{ID: "hosts", Title: "Hosts", Type: model.ColumnText, Width: 340},
+		{ID: fieldHosts, Title: "Hosts", Type: model.ColumnText, Width: 340},
 		ageColumn,
 	},
 	Cells: ingressCells,
@@ -129,7 +131,7 @@ func ingressHostAddress(obj any, host string) *url.URL {
 func ingressTLSCovers(obj any, host string) bool {
 	_, parent, _ := strings.Cut(host, ".")
 	for _, t := range model.NestedSlice(obj, "spec", "tls") {
-		hosts := model.NestedStrings(t, "hosts")
+		hosts := model.NestedStrings(t, fieldHosts)
 		if len(hosts) == 0 {
 			return true
 		}
@@ -188,7 +190,7 @@ func ingressHosts(obj any) []string {
 		out = appendUnique(out, model.NestedString(r, "host"))
 	}
 	for _, t := range model.NestedSlice(obj, "spec", "tls") {
-		out = appendUnique(out, model.NestedStrings(t, "hosts")...)
+		out = appendUnique(out, model.NestedStrings(t, fieldHosts)...)
 	}
 	return out
 }
@@ -216,7 +218,10 @@ func ingressAddresses(obj any) []string {
 
 func ingressDetail(obj *unstructured.Unstructured) []model.DetailSection {
 	var d detailItems
-	d.add("Class", ingressClassName(obj))
+	// The class links to its IngressClass even when only the older annotation names it and no
+	// such object exists: the drawer then says the object is missing.
+	class := ingressClassName(obj)
+	d.put(linkedItem("Class", class, linkTo(keyIngressClasses, "", class)))
 	d.add("Load Balancers", strings.Join(ingressLoadBalancerLines(obj), "\n"))
 	d.add("Default Backend", ingressBackendDetail(model.NestedMap(obj, "spec", "defaultBackend")))
 	sections := withSection(nil, "Ingress", d)
@@ -226,21 +231,33 @@ func ingressDetail(obj *unstructured.Unstructured) []model.DetailSection {
 			Count: len(model.NestedSlice(obj, "spec", "rules"))})
 	}
 
-	// TLS entries name the Secret that holds the certificate; Cogpit shows the name, never the
-	// Secret's data.
-	var tls detailItems
-	for _, t := range model.NestedSlice(obj, "spec", "tls") {
-		secret := model.NestedString(t, "secretName")
-		if secret == "" {
-			secret = "(no secret)"
+	// TLS entries name the Secret that holds the certificate, a link to it; Cogpit shows the
+	// name, never the Secret's data. An entry without one takes the controller's default
+	// certificate.
+	entries := model.NestedSlice(obj, "spec", "tls")
+	rows := make([][]model.Cell, 0, len(entries))
+	for _, t := range entries {
+		secret := model.Cell{Text: "(no secret)"}
+		if name := model.NestedString(t, "secretName"); name != "" {
+			secret = model.Cell{Text: name, Link: linkTo(keySecrets, obj.GetNamespace(), name)}
 		}
-		hosts := model.NestedStrings(t, "hosts")
+		hosts := model.NestedStrings(t, fieldHosts)
 		if len(hosts) == 0 {
 			hosts = []string{anyHost}
 		}
-		tls.add(secret, strings.Join(hosts, "\n"))
+		rows = append(rows, []model.Cell{secret, {Text: strings.Join(hosts, "\n")}})
 	}
-	return withSection(sections, "TLS", tls)
+	if len(rows) > 0 {
+		sections = append(sections, model.DetailSection{Title: "TLS", Table: model.CellTable(ingressTLSColumns, rows)})
+	}
+	return sections
+}
+
+// ingressTLSColumns are the columns of the TLS section: a row per entry, its Secret and its hosts
+// a line each.
+var ingressTLSColumns = []model.Column{
+	{ID: "tlsSecret", Title: titleSecret, Type: model.ColumnText},
+	{ID: fieldHosts, Title: "Hosts", Type: model.ColumnText},
 }
 
 // TitleIngressRules is the title of an Ingress's Rules section, which the GUI draws in its own way.

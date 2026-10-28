@@ -19,8 +19,8 @@ import (
 )
 
 // The Ingresses view's Hosts column and an Ingress's drawer, whose hosts link to the browser
-// (model.WebLink, DetailItem.NameURL; D-137). Every host is made up. PNGs:
-// testdata/{ingresses,ingress_drawer}_dark.png.
+// (model.WebLink; D-137) and whose class and TLS Secrets link to their objects. Every host is made
+// up. PNGs: testdata/{ingresses,ingress_drawer}_dark.png.
 
 // fixtureIngressObjects: hosts with and without TLS, two rules and two paths, a wildcard host and a
 // rule without a host, a host wider than the drawer's name column.
@@ -63,7 +63,10 @@ func fixtureIngressObjects() []*unstructured.Unstructured {
 // ingressFake is a connected cluster that serves Ingresses, the fixture's in its list and drawers.
 func ingressFake(t testing.TB) *fakeEngine {
 	f := connectedFake(t, 1)
-	f.kinds = append(f.kinds, kindInfo{Kind: "ingresses", Title: "Ingresses", APIKind: "Ingress", Group: "networking.k8s.io", Version: "v1", Namespaced: true})
+	f.kinds = append(f.kinds,
+		kindInfo{Kind: "ingresses", Title: "Ingresses", APIKind: "Ingress", Group: "networking.k8s.io", Version: "v1", Namespaced: true},
+		kindInfo{Kind: "ingressclasses", Title: "Ingress Classes", APIKind: "IngressClass", Group: "networking.k8s.io", Version: "v1"},
+		kindInfo{Kind: "secrets", Title: "Secrets", APIKind: "Secret", Version: "v1", Namespaced: true})
 	objs := fixtureIngressObjects()
 	f.tables["ingresses"] = kindSnapshot(t, "ingresses", objs)
 	p, _ := kinds.ByKey("ingresses")
@@ -219,6 +222,38 @@ func TestIngressRulesLinks(t *testing.T) {
 	test.Tap(lines[len(lines)-1])
 	if got := (*opened)[len(*opened)-1]; got != "http://"+long {
 		t.Fatalf("opened %q", got)
+	}
+}
+
+// TestIngressClassAndTLSSecretLinks: the drawer's Class links to the IngressClass and a TLS
+// entry's Secret to the Secret in the Ingress's namespace; the hosts beside it stay text.
+func TestIngressClassAndTLSSecretLinks(t *testing.T) {
+	f := ingressFake(t)
+	ref := withIngressDetail(t, f, "workspace", []any{"workspace.example.net"},
+		map[string]any{"host": "workspace.example.net", "http": map[string]any{"paths": []any{ingressPath("/", "Prefix", "web", int64(80))}}})
+	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
+	sh, _, q := newTestShell(t, f, Options{})
+	q.until(t, "the drawer", func() bool { return drawerLinks(sh)["workspace-tls"] != nil })
+
+	links := drawerLinks(sh)
+	if links["nginx"] == nil || links["workspace.example.net"] == nil {
+		t.Fatalf("links %q", slices.Collect(maps.Keys(links)))
+	}
+	if !slices.Contains(drawerTexts(sh), "workspace.example.net") {
+		t.Errorf("the TLS entry's host is not text: %q", drawerTexts(sh))
+	}
+	test.Tap(links["nginx"])
+	q.until(t, "the class's ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 1 })
+	test.Tap(links["workspace-tls"])
+	q.until(t, "the Secret's ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 2 })
+	want := []model.ObjectRef{
+		{Context: "demo", Kind: "ingressclasses", Name: "nginx"},
+		{Context: "demo", Kind: "secrets", Namespace: "apps", Name: "workspace-tls"},
+	}
+	for i, c := range f.callsOf("ui.navigate") {
+		if got := decodeParams[refParams](t, c).Ref; got != want[i] {
+			t.Errorf("link %d went to %+v, want %+v", i, got, want[i])
+		}
 	}
 }
 
