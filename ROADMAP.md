@@ -103,5 +103,8 @@ are the gap entries'; the ranked list is the [current focus](docs/parity/roadmap
   [D-112](docs/developer/decisions.md#d-112-ci-and-test-time)): Cogpit's terminal scrollback
   offered to upstream's scroll support
   ([fyne-io/terminal#147](https://github.com/fyne-io/terminal/pull/147), through
-  [andydotxyz/terminal#2](https://github.com/andydotxyz/terminal/pull/2)) and Fyne's font cache
-  fix ([fyne#6620](https://github.com/fyne-io/fyne/pull/6620)), all open.
+  [andydotxyz/terminal#2](https://github.com/andydotxyz/terminal/pull/2)); Fyne's font cache fix
+  ([fyne#6620](https://github.com/fyne-io/fyne/pull/6620)), drag fix
+  ([fyne#6629](https://github.com/fyne-io/fyne/pull/6629)) and quit fixes
+  ([fyne#6633](https://github.com/fyne-io/fyne/pull/6633),
+  [fyne#6635](https://github.com/fyne-io/fyne/pull/6635)), all open.

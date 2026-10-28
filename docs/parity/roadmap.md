@@ -120,6 +120,11 @@ Beside the path to beta:
     [fyne#6620](https://github.com/fyne-io/fyne/pull/6620), the fix for the fonts a font cache clear
     leaves alive ([fyne#6619](https://github.com/fyne-io/fyne/issues/6619)), waits for review; once a
     Fyne release carries it, the UI test shards are measured again (`make ui-durations`).
+    [fyne#6629](https://github.com/fyne-io/fyne/pull/6629) (a drag only on the object under the
+    press, [D-123](../developer/decisions.md#d-123-a-drag-starts-where-the-button-went-down)) and
+    [fyne#6633](https://github.com/fyne-io/fyne/pull/6633),
+    [fyne#6635](https://github.com/fyne-io/fyne/pull/6635) (the quit's two races,
+    [D-136](../developer/decisions.md#d-136-the-quit-bound)) wait for review.
 13. **Postponed and deferred:** several windows
     ([D-52](../developer/decisions.md#d-52-several-windows): model (a) is the direction, the design
     questions are open). Until the feature is taken up: OCI registries and `helm registry login`
