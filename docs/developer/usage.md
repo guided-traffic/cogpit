@@ -1345,7 +1345,7 @@ a report names with a violation
 ### A volume's usage
 
 A bound persistent volume claim's drawer shows how full its volume is, in a Metrics section above
-Properties ([D-new](decisions.md#d-new-a-volumes-usage-in-its-claims-and-its-own-drawer)). A claim
+Properties ([D-139](decisions.md#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer)). A claim
 holds no data itself; the line above the chart says the numbers are its volume's. The volume's own
 drawer shows the same numbers, found by its claim.
 

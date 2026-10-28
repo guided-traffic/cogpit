@@ -1769,7 +1769,7 @@ about 13 ms a write on macOS); a file that does not parse is reported, never ove
 
 Metrics cannot be watched, so they are polled ([§5](#5-cache)), and only while a view, a drawer or
 the Overview shows them; their request budgets are P13 (a Pods list and a pod's drawer), P14 (the
-Overview) and P-new (a claim's or a volume's drawer) in [testing](testing.md#performance-budgets). No provider, a refusal
+Overview) and P19 (a claim's or a volume's drawer) in [testing](testing.md#performance-budgets). No provider, a refusal
 and a provider that does not answer are a `State` the UI shows, never an error. A cluster has two
 providers: the Kubernetes Metrics Server for current values, and a Prometheus (or Thanos,
 VictoriaMetrics) the cluster runs, read through the API server's service proxy, for history,
@@ -1959,7 +1959,7 @@ drawn by [`metricsdisk.go`](../../internal/ui/fyneui/metricsdisk.go)). Nothing s
 used: it needs `nodes/proxy`.
 
 `ClaimScope(namespace, claim)` is an object scope polled like a drawer's chart, by the provider
-with history alone ([D-new](decisions.md#d-new-a-volumes-usage-in-its-claims-and-its-own-drawer)):
+with history alone ([D-139](decisions.md#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer)):
 `usageLocked` is false and `wantsLocked` the filesystem for it, so the plan asks the claim's range
 once and then from its last point at the step, and the poll's interval is the step. Detection
 skips the Metrics Server (`detectNotLive`, shared with the disks); without Prometheus the state is

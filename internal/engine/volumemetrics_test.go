@@ -17,7 +17,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A claim's and a volume's drawer show the volume's usage (D-new): the claim's scope polled while
+// A claim's and a volume's drawer show the volume's usage (D-139): the claim's scope polled while
 // the two are bound and the settings show it, a chart of the filesystem alone and a usage bar.
 
 var volumesGVR = schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumes"}

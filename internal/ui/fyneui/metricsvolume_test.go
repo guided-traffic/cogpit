@@ -13,7 +13,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A volume's usage in a claim's drawer (D-new): the line above the chart, the chart of the bytes in
+// A volume's usage in a claim's drawer (D-139): the line above the chart, the chart of the bytes in
 // use under the filesystem's size, no variant buttons, the usage bar. The numbers are canned, as
 // the engine reports them from the claim's range queries. The PNGs, dark and light, are the pull
 // request's (AGENTS.md rule 7): to testdata with -update.

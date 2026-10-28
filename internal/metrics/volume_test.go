@@ -10,7 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A claim's volume (D-new): the kubelet's volume stats through Prometheus, one range query per
+// A claim's volume (D-139): the kubelet's volume stats through Prometheus, one range query per
 // poll, never the Metrics Server.
 
 func part(name string) map[string]string {
@@ -165,7 +165,7 @@ func TestClaimWithoutPrometheus(t *testing.T) {
 	}
 }
 
-// P-new: a claim's or a volume's drawer costs one range query over the chart's range when it
+// P19: a claim's or a volume's drawer costs one range query over the chart's range when it
 // opens, then one per step for the newest points; nothing reaches the Metrics API; nothing once it
 // closes.
 func TestVolumeBudget(t *testing.T) {

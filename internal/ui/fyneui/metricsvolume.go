@@ -7,7 +7,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A volume's usage in a persistent volume claim's or a persistent volume's drawer (D-new): above
+// A volume's usage in a persistent volume claim's or a persistent volume's drawer (D-139): above
 // the chart a line that says whose usage it is (a claim holds no data itself; its volume does, and
 // the claim's drawer shows it for completeness); the chart shows the bytes in use, filled, and the
 // filesystem's size as an outline over them, so a resize is a step and the fill's height against

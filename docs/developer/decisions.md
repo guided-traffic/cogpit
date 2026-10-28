@@ -147,7 +147,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
-| [D-new](#d-new-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
+| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 
 ## D-1: UI toolkit
 
@@ -5526,7 +5526,7 @@ count until the next.
 `TestHistoryPollerCadence`, `TestAlertHistoryOnTheBoard`, `TestAlertBoard`,
 `TestRenderAlertBoardPlatformDark`
 
-## D-new: A volume's usage in its claim's and its own drawer
+## D-139: A volume's usage in its claim's and its own drawer
 
 **Status:** built · **By:** owner (a claim's fill level now and over time, a chart and a usage bar
 as a node's disk has; the claim's drawer says it shows its volume's numbers); lead (open to
@@ -5545,7 +5545,7 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
 - **Poll:** a scope per claim (`metrics.ClaimScope`), polled like a drawer's chart while the drawer
   shows the claim or its volume, the two are bound and Cluster Settings › Metrics shows Volumes and
   Filesystem: the chart's range once, then from its last point at the range's step (budget
-  [P-new](testing.md#performance-budgets)). The binding is read from the cache; a claim bound later,
+  [P19](testing.md#performance-budgets)). The binding is read from the cache; a claim bound later,
   or a volume bound to another claim, moves the poll when the drawer's model is built again.
 - **Chart:** the bytes in use, filled, and the filesystem's size as an outline over them, so a resize
   shows as a step; the range control as every chart's, no variant buttons (one variant,

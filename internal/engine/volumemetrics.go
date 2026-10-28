@@ -7,7 +7,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A persistent volume claim's and a persistent volume's drawer show the volume's usage (D-new): a
+// A persistent volume claim's and a persistent volume's drawer show the volume's usage (D-139): a
 // chart of the bytes in use and the filesystem's size over the chart's range, and a usage bar of the
 // newest point. A claim holds no data itself; the drawer shows its volume's for completeness, and
 // the volume's drawer the same numbers. Both come from the kubelet's volume stats through

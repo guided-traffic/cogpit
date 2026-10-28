@@ -9,7 +9,7 @@ import (
 )
 
 // A claim's and a volume's drawer show the volume's usage while the two are bound, found by the
-// claim (D-new).
+// claim (D-139).
 func TestVolumeOfClaimsAndVolumes(t *testing.T) {
 	claim := func(phase, volume string) *unstructured.Unstructured {
 		o := &unstructured.Unstructured{Object: map[string]any{
