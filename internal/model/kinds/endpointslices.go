@@ -282,7 +282,7 @@ var serviceSliceColumns = []model.Column{
 // endpoint slices in a detail tab (documented, not captured); the section is Cogpit's form of it
 // (inferred). A Service without slices, or whose slices are still listing, has no section.
 func serviceDetailWith(obj *unstructured.Unstructured, rel model.Related) []model.DetailSection {
-	sections := serviceDetail(obj)
+	sections := serviceDetailRel(obj, rel)
 	slices := append([]*unstructured.Unstructured(nil), rel.Objects(EndpointSlicesByService, obj.GetNamespace()+"/"+obj.GetName())...)
 	if len(slices) == 0 {
 		return sections

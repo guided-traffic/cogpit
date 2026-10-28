@@ -204,6 +204,8 @@ func relativeTime(typ ColumnType) bool { return typ == ColumnAge || typ == Colum
 //   - Actions are buttons beside the value that run a command for it: "Forward…" beside a
 //     container port. An action marked Link is the value itself: the value is a link that runs
 //     it (a container port forwards at once and opens the browser).
+//   - Aside is a short text between the value and its buttons, coloured by AsideStatus: a
+//     forwarded port's local address.
 //   - Private marks a value agents must not read (Helm's user-supplied values, which can hold
 //     credentials): object_get gives agents [Withheld] in its place (WithholdPrivate), the user's
 //     own window shows it. It is not part of the JSON.
@@ -215,6 +217,11 @@ type DetailItem struct {
 	Chips   []Chip       `json:"chips,omitempty"`
 	Fold    string       `json:"fold,omitempty"`
 	Actions []ItemAction `json:"actions,omitempty"`
+	// Aside is a short text after the value, before its buttons, selectable and copyable on its
+	// own: the local address a forwarded port listens on. AsideStatus colours it (a forward that
+	// waits or reconnects); a healthy status draws it plain.
+	Aside       string `json:"aside,omitempty"`
+	AsideStatus Status `json:"asideStatus,omitempty"`
 	// Pill draws the value as a neutral grey pill, carrying no status colour (a Helm release's
 	// Status in Lens's drawer, captured 2026-10-12).
 	Pill bool `json:"pill,omitempty"`
@@ -272,6 +279,9 @@ type ItemAction struct {
 	// renders the value as a link that runs the action; Label says what it does, for agents. At
 	// most one action of an item is a link.
 	Link bool `json:"link,omitempty"`
+	// Icon shows the button as its command's icon, Label as its tooltip, instead of a word: a
+	// forwarded port's Stop.
+	Icon bool `json:"icon,omitempty"`
 }
 
 // Chip is one entry of a list value shown as a chip.

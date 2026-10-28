@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
@@ -168,6 +169,78 @@ func TestContainerPortsForward(t *testing.T) {
 		"app dns: 53/UDP": "Ports|",
 		"app http: 8080/TCP": `|pod.portForward:{"container":"app","openInBrowser":true,"port":8080,"ref":{"kind":"pods","namespace":"shop","name":"web-0"}}:link;` +
 			`pod.portForward:{"container":"app","port":8080,"ref":{"kind":"pods","namespace":"shop","name":"web-0"}}:button;`,
+	}
+	for k, w := range want {
+		if got[k] != w {
+			t.Errorf("%s:\n got %s\nwant %s", k, got[k], w)
+		}
+	}
+}
+
+// TestForwardedPortShowsItsForward: a port whose forward listens shows the forward's local
+// address, opens the forward and stops it, and has no Forward…; a port whose forward stopped, and
+// the forward of another pod at the same port, leave a port as it is without one. A service's port
+// does the same, its address coloured while the forward reconnects.
+func TestForwardedPortShowsItsForward(t *testing.T) {
+	active := recorded(t, "portforwards", "active-pod") // web-0 port 8080, Active on 127.0.0.1:54321
+	stopped := recorded(t, "portforwards", "stopped")
+	stopped.SetName("pod-web-0-9090")
+	_ = unstructured.SetNestedField(stopped.Object, "web-0", "spec", "name")
+	_ = unstructured.SetNestedField(stopped.Object, int64(9090), "spec", "port")
+	other := recorded(t, "portforwards", "active-pod")
+	other.SetName("pod-web-1-8080")
+	_ = unstructured.SetNestedField(other.Object, "web-1", "spec", "name")
+	_ = unstructured.SetNestedField(other.Object, int64(61000), "status", "localPort")
+	_ = unstructured.SetNestedField(other.Object, "127.0.0.1:61000", "status", "address")
+	rel := fakeRelated{"portforwards": {active, stopped, other, recorded(t, "portforwards", "reconnecting")}}
+
+	if keys := kinds.ForwardsByTarget.Keys(active); !slices.Equal(keys, []string{"shop/Pod/web-0"}) {
+		t.Errorf("keys %v", keys)
+	}
+	pods, _ := kinds.ByKey("pods")
+	pod := &unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{"name": "web-0", "namespace": "shop"},
+		"spec": map[string]any{"containers": []any{map[string]any{"name": "app", "ports": []any{
+			map[string]any{"name": "http", "containerPort": int64(8080)},
+			map[string]any{"name": "metrics", "containerPort": int64(9090)},
+		}}}},
+	}}
+	svc := &unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{"name": "api", "namespace": "shop"},
+		"spec": map[string]any{"selector": map[string]any{"app": "api"}, "ports": []any{
+			map[string]any{"name": "http", "port": int64(80), "targetPort": int64(8080)},
+		}},
+	}}
+	services, _ := kinds.ByKey("services")
+	got := map[string]string{}
+	for _, sec := range append(pods.DetailSections(pod, rel), services.DetailSections(svc, rel)...) {
+		for _, it := range sec.Items {
+			if !strings.Contains(it.Value, "/TCP") {
+				continue
+			}
+			desc := it.Aside + "|" + string(it.AsideStatus) + "|"
+			for _, a := range it.Actions {
+				kind := "button"
+				switch {
+				case a.Link:
+					kind = "link"
+				case a.Icon:
+					kind = "icon"
+				}
+				desc += a.Command + ":" + string(a.Params) + ":" + kind + ";"
+			}
+			got[it.Value] = desc
+		}
+	}
+	want := map[string]string{
+		"http: 8080/TCP": `127.0.0.1:54321|` + string(model.StatusOK) + `|` +
+			`portforward.open:{"ref":{"kind":"portforwards","namespace":"shop","name":"pod-web-0-8080"}}:link;` +
+			`portforward.stop:{"ref":{"kind":"portforwards","namespace":"shop","name":"pod-web-0-8080"}}:icon;`,
+		"metrics: 9090/TCP": `||pod.portForward:{"container":"app","openInBrowser":true,"port":9090,"ref":{"kind":"pods","namespace":"shop","name":"web-0"}}:link;` +
+			`pod.portForward:{"container":"app","port":9090,"ref":{"kind":"pods","namespace":"shop","name":"web-0"}}:button;`,
+		"http: 80/TCP -> 8080": `127.0.0.1:61002|` + string(model.StatusWarning) + `|` +
+			`portforward.open:{"ref":{"kind":"portforwards","namespace":"shop","name":"service-api-80"}}:link;` +
+			`portforward.stop:{"ref":{"kind":"portforwards","namespace":"shop","name":"service-api-80"}}:icon;`,
 	}
 	for k, w := range want {
 		if got[k] != w {

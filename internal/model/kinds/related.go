@@ -23,6 +23,9 @@ var (
 	// EndpointSlicesByService indexes endpoint slices by the Service they belong to (their
 	// kubernetes.io/service-name label), as "<namespace>/<service>": a Service's slices.
 	EndpointSlicesByService = model.RelatedIndex{Kind: keyEndpointSlices, Name: "byService", Keys: sliceServiceKeys}
+	// ForwardsByTarget indexes the port forwards by what they forward, as "<namespace>/Pod/<name>"
+	// or "<namespace>/Service/<name>": the forwards a pod's or a service's ports show.
+	ForwardsByTarget = model.RelatedIndex{Kind: keyPortForwards, Name: "byTarget", Keys: forwardTargetKeys}
 	// CustomKindsByGroupKind indexes the custom resource definitions Cogpit shows a view for by
 	// "<group>/<Kind>": a reference to a custom resource (an event's involved object) carries its
 	// API version and Kind, and only the definition knows the plural its kind key needs.

@@ -18,7 +18,8 @@ import (
 // Port forwarding in the GUI (ui-parity › Port forwarding): the forward dialog after Lens's
 // (capture, 2026-10-11), opened by "Forward…" beside a pod's or a service's port and by Edit in
 // the Port Forwarding view; a port's link, which forwards at once to a free port and opens the
-// browser; and Open, which opens a forward's URL. The engine's commands do the work
+// browser; and Open, which opens a forward's URL, also from a forwarded port's link in the drawer,
+// whose stop icon runs portforward.stop (D-140). The engine's commands do the work
 // (internal/engine/commands/portforward.go); the GUI only asks and opens the browser.
 
 // kindPortForwards is the Port Forwarding view's kind key (engine.PortForwardKind).

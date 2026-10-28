@@ -49,9 +49,10 @@ var services = &model.KindProfile{
 			return model.SortedPairs(model.NestedStringMap(obj, "spec", "selector"))
 		},
 	},
-	Detail:     serviceDetail,
-	Needs:      []model.RelatedIndex{EndpointSlicesByService},
-	DetailWith: serviceDetailWith, // in endpointslices.go
+	Detail:      serviceDetail,
+	Needs:       []model.RelatedIndex{EndpointSlicesByService},
+	DetailNeeds: []model.RelatedIndex{ForwardsByTarget}, // the ports' forwards, only the open drawer reads them
+	DetailWith:  serviceDetailWith,                      // in endpointslices.go
 }
 
 func serviceCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
@@ -149,6 +150,11 @@ func clusterIPs(obj any) []string {
 }
 
 func serviceDetail(obj *unstructured.Unstructured) []model.DetailSection {
+	return serviceDetailRel(obj, model.NoRelated)
+}
+
+// serviceDetailRel is serviceDetail with rel for the ports' forwards (model.NoRelated: none).
+func serviceDetailRel(obj *unstructured.Unstructured, rel model.Related) []model.DetailSection {
 	var d detailItems
 	typ := serviceType(obj)
 	d.add("Type", typ)
@@ -165,7 +171,7 @@ func serviceDetail(obj *unstructured.Unstructured) []model.DetailSection {
 		}
 		d.add("Load Balancer Ingress", ingress)
 	}
-	for _, it := range servicePortItems(obj) {
+	for _, it := range servicePortItems(obj, listeningForwards(rel, obj.GetNamespace(), "Service", obj.GetName())) {
 		d.put(it)
 	}
 	d.add("Selector", strings.Join(model.SortedPairs(model.NestedStringMap(obj, "spec", "selector")), "\n"))

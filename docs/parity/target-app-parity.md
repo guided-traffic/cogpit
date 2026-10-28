@@ -80,11 +80,11 @@ counted rows are done (one view, eight interface rows), the rest partial.
 |---|---:|---|---:|---|
 | Resource views | 30% | 64 / 64 | 100.0% | measured ([resource-parity](resource-parity.md)); ten of them the Gateway API views, generic until captured |
 | Resource actions | 20% | 42 / 42 | 100.0% | measured ([resource-parity](resource-parity.md)) |
-| Interface: layout, navigation, tables, drawer, dock, editor, logs, terminal, palette, menus, shortcuts, preferences | 25% | 119 / 122 | 97.5% | measured ([ui-parity](ui-parity.md), free rows) |
+| Interface: layout, navigation, tables, drawer, dock, editor, logs, terminal, palette, menus, shortcuts, preferences | 25% | 120 / 123 | 97.6% | measured ([ui-parity](ui-parity.md), free rows) |
 | Cluster authentication and connectivity | 10% | 7 / 10 | 70.0% | measured ([platform-parity](platform-parity.md#cluster-authentication-and-connectivity)); the cloud providers' three plugin rows not a target (D-9) |
 | Platforms and packages | 5% | 9 / 13 | 69.2% | measured ([platform-parity](platform-parity.md#operating-systems-and-packages)), the Linux deb (D-108) and the Windows setup (D-111) among them |
 | Paid Lens Desktop features | 10% | 3 / 10 | 30.0% | counted by hand from the [premium list](https://docs.lenshq.io/k8slens/premium-features/) without extensions (D-5) and the cloud account integrations (D-9): the editor's diff, the Flux CD and Argo CD sections (G23), partial |
-| **Weighted** | 100% | | **87.8%** | |
+| **Weighted** | 100% | | **87.9%** | |
 
 ## Ready for real work
 

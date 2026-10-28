@@ -137,9 +137,11 @@ func forwardPhase(obj any) (string, model.Status) {
 
 // containerPortItems are a container's ports in the pod drawer, an item each (the first named
 // Ports), as captured: the port is a link that forwards it to a free local port and opens the
-// browser, and "Forward…" beside it opens the forward dialog (pod.portForward). The port-forward
-// protocol carries TCP only: a UDP or SCTP port has no actions.
-func containerPortItems(pod model.ObjectRef, container string, spec any) []model.DetailItem {
+// browser, and "Forward…" beside it opens the forward dialog (pod.portForward); a forwarded port
+// shows its forward instead (forwardPort). forwards are the pod's listening forwards by port
+// (listeningForwards). The port-forward protocol carries TCP only: a UDP or SCTP port has no
+// actions.
+func containerPortItems(pod model.ObjectRef, container string, spec any, forwards map[int64]*unstructured.Unstructured) []model.DetailItem {
 	var out []model.DetailItem
 	for _, p := range model.NestedSlice(spec, "ports") {
 		text := containerPortText(p)
@@ -152,7 +154,7 @@ func containerPortItems(pod model.ObjectRef, container string, spec any) []model
 		}
 		n, _ := model.NestedInt64(p, "containerPort")
 		if protocol(p) == protocolTCP && n > 0 && n <= 65535 {
-			it.Actions = forwardActions("pod.portForward", map[string]any{paramRef: pod, "container": container, fieldPort: n})
+			forwardPort(&it, "pod.portForward", map[string]any{paramRef: pod, "container": container, fieldPort: n}, forwards[n])
 		}
 		out = append(out, it)
 	}
@@ -162,7 +164,7 @@ func containerPortItems(pod model.ObjectRef, container string, spec any) []model
 // servicePortItems are a service's ports in its drawer, an item each (the first named Ports),
 // with the same actions as a container's ports (service.portForward; inferred: Lens's service
 // drawer is not captured). A service without a selector has no pods to forward to.
-func servicePortItems(svc any) []model.DetailItem {
+func servicePortItems(svc any, forwards map[int64]*unstructured.Unstructured) []model.DetailItem {
 	var out []model.DetailItem
 	ref := model.ObjectRef{Kind: keyServices, Namespace: model.NestedString(svc, "metadata", "namespace"), Name: model.NestedString(svc, "metadata", "name")}
 	selector := len(model.NestedStringMap(svc, "spec", "selector")) > 0
@@ -177,11 +179,58 @@ func servicePortItems(svc any) []model.DetailItem {
 		}
 		n, _ := model.NestedInt64(p, fieldPort)
 		if selector && protocol(p) == protocolTCP && n > 0 && n <= 65535 {
-			it.Actions = forwardActions("service.portForward", map[string]any{paramRef: ref, fieldPort: n})
+			forwardPort(&it, "service.portForward", map[string]any{paramRef: ref, fieldPort: n}, forwards[n])
 		}
 		out = append(out, it)
 	}
 	return out
+}
+
+// forwardTargetKeys finds a forward under its pod or service, "<namespace>/<Kind>/<name>"
+// (ForwardsByTarget).
+func forwardTargetKeys(obj *unstructured.Unstructured) []string {
+	kind, name := model.NestedString(obj, fieldSpec, idForwardKind), model.NestedString(obj, fieldSpec, "name")
+	if kind == "" || name == "" {
+		return nil
+	}
+	return []string{obj.GetNamespace() + "/" + kind + "/" + name}
+}
+
+// listeningForwards are the forwards of a pod (kind "Pod") or a service ("Service") that have a
+// local port, by the port they forward: at most one per port (engine.ForwardName). A stopped or
+// failed forward listens on nothing and is left out.
+func listeningForwards(rel model.Related, namespace, kind, name string) map[int64]*unstructured.Unstructured {
+	out := map[int64]*unstructured.Unstructured{}
+	for _, f := range rel.Objects(ForwardsByTarget, namespace+"/"+kind+"/"+name) {
+		if local, _ := model.NestedInt64(f, "status", idLocalPort); local > 0 {
+			port, _ := model.NestedInt64(f, fieldSpec, fieldPort)
+			out[port] = f
+		}
+	}
+	return out
+}
+
+// forwardPort gives a port item its actions. Without a forward (fwd nil): the port forwards at
+// once, and "Forward…" asks first (forwardActions). While its forward listens: the port opens the
+// forward in the browser (portforward.open), the local address follows it (Aside, coloured while
+// the forward waits or reconnects), and a stop icon ends it (portforward.stop). A port has one
+// forward (engine.ForwardName): starting it again only restarts it on another local port, so a
+// forwarded port offers no "Forward…" (D-140).
+func forwardPort(it *model.DetailItem, command string, params map[string]any, fwd *unstructured.Unstructured) {
+	if fwd == nil {
+		it.Actions = forwardActions(command, params)
+		return
+	}
+	ref, err := json.Marshal(map[string]any{paramRef: model.ObjectRef{Kind: keyPortForwards, Namespace: fwd.GetNamespace(), Name: fwd.GetName()}})
+	if err != nil {
+		return
+	}
+	_, token := forwardPhase(fwd)
+	it.Aside, it.AsideStatus = model.NestedString(fwd, "status", "address"), token
+	it.Actions = []model.ItemAction{
+		{Label: "Open the port forward in the browser", Command: "portforward.open", Params: ref, Link: true},
+		{Label: "Stop forwarding", Command: "portforward.stop", Params: ref, Icon: true},
+	}
 }
 
 // forwardActions are a port's two actions: the port itself, a link that forwards it to a free

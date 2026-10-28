@@ -605,8 +605,10 @@ func foldKey(sec model.DetailSection, it model.DetailItem) string {
 
 // itemValue renders one value: a folded list as its count ("6 Labels", a link that unfolds it),
 // chips, a link to the object it names, a status pill, else one line per line. An item's actions
-// follow the value as buttons; an action marked Link is the value itself, a link that runs it. A
-// Secret's values, whose Show reveals them, are its Data section's (secretdata.go).
+// follow the value as buttons, an action marked Icon as its command's icon; an action marked Link
+// is the value itself, a link that runs it. The item's aside (a forwarded port's local address)
+// stands between the value and the buttons. A Secret's values, whose Show reveals them, are its
+// Data section's (secretdata.go).
 func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it model.DetailItem) fyne.CanvasObject {
 	if len(it.Actions) == 0 {
 		return d.foldedValue(ref, sec, it, true)
@@ -616,14 +618,17 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 	objs := []fyne.CanvasObject{nil}
 	for _, a := range it.Actions {
 		act := a
-		if act.Link && v == nil {
-			l := newLinkText(it.Value, func() { d.sh.runItemAction(ref, act) })
+		run := func() { d.sh.runItemAction(ref, act) }
+		switch {
+		case act.Link && v == nil:
+			l := newLinkText(it.Value, run)
 			d.hookLink(l, it.Value)
 			v = l
-			continue
+		case act.Icon:
+			objs = append(objs, newTipButton(d.sh, commandIcon(act.Command), act.Label, run))
+		default:
+			objs = append(objs, newTextButton(act.Label, nil, run))
 		}
-		b := newTextButton(act.Label, nil, func() { d.sh.runItemAction(ref, act) })
-		objs = append(objs, b)
 	}
 	if v == nil {
 		v = d.foldedValue(ref, sec, it, true)
@@ -649,14 +654,32 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 		// its icon right after its text, as a chip does.
 		icon = d.copyBtn.MinSize().Width + d.sh.app.Settings().Theme().Size(theme.SizeNamePadding)
 	}
-	return box(actionRowLayout{natural: natural, icon: icon}, objs...)
+	l := actionRowLayout{natural: natural, icon: icon}
+	if it.Aside != "" {
+		// Selectable, in its status colour, whole, with the room for its copy icon after it: the
+		// icon covers none of its text, which is what one copies.
+		aside := d.line(it.Aside, statusPillInk(it.AsideStatus), theme.SizeNameText, fyne.TextStyle{}, false, it.Aside)
+		objs = slices.Insert(objs, 1, fyne.CanvasObject(aside))
+		l.aside = d.copyBtn.MinSize().Width + d.sh.app.Settings().Theme().Size(theme.SizeNamePadding)
+	}
+	return box(l, objs...)
 }
 
 // actionRowLayout puts a drawer value and its action buttons on one line: the value as wide as
 // its text (natural; 0 takes what the buttons leave) and, without buttons, the room for its copy
 // icon (icon), shortened when the drawer is narrower, the buttons right after it. The value's own
-// widgets ask for no width, since they shorten to fit.
-type actionRowLayout struct{ natural, icon float32 }
+// widgets ask for no width, since they shorten to fit. With aside set, the first object after the
+// value is the item's aside, which keeps that much room after its text for its copy icon.
+type actionRowLayout struct{ natural, icon, aside float32 }
+
+// width is the room the object after the value at index i takes.
+func (l actionRowLayout) width(i int, o fyne.CanvasObject) float32 {
+	w := o.MinSize().Width
+	if i == 0 {
+		w += l.aside
+	}
+	return w
+}
 
 func (actionRowLayout) gap() float32 {
 	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)
@@ -664,8 +687,11 @@ func (actionRowLayout) gap() float32 {
 
 func (l actionRowLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	var w, h float32
-	for _, o := range objs {
+	for i, o := range objs {
 		ms := o.MinSize()
+		if i > 0 {
+			ms.Width = l.width(i-1, o)
+		}
 		w += ms.Width + l.gap()
 		h = fyne.Max(h, ms.Height)
 	}
@@ -677,8 +703,8 @@ func (l actionRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 		return
 	}
 	var buttons float32
-	for _, b := range objs[1:] {
-		buttons += b.MinSize().Width + l.gap()
+	for i, b := range objs[1:] {
+		buttons += l.width(i, b) + l.gap()
 	}
 	vw := fyne.Max(size.Width-buttons, 0)
 	if l.natural > 0 {
@@ -688,11 +714,11 @@ func (l actionRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	objs[0].Move(fyne.NewPos(0, (size.Height-vh)/2))
 	objs[0].Resize(fyne.NewSize(vw, vh))
 	x := vw + l.gap()
-	for _, b := range objs[1:] {
-		ms := b.MinSize()
-		b.Move(fyne.NewPos(x, (size.Height-ms.Height)/2))
-		b.Resize(ms)
-		x += ms.Width + l.gap()
+	for i, b := range objs[1:] {
+		w, h := l.width(i, b), b.MinSize().Height
+		b.Move(fyne.NewPos(x, (size.Height-h)/2))
+		b.Resize(fyne.NewSize(w, h))
+		x += w + l.gap()
 	}
 }
 

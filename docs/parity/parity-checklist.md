@@ -14,7 +14,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 |---|---|---|---|---|---|
 | Resource views (free) | 64 | 64 | 1 | 63 | 0 |
 | Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
-| Interface rows, free plan | 122 | 119 | 8 | 111 | 3 |
+| Interface rows, free plan | 123 | 120 | 8 | 112 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
 | Beyond Lens (not in feature breadth) | 79 | 78 | 67 | 11 | 1 |
@@ -183,6 +183,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Shell path and shell arguments (2026.10: one argument per line) | partial | [Terminal and shells](ui-parity.md#terminal-and-shells) |
 | A container port link ("<name>: <port>/<protocol>" in the drawer, captured) forwards to a random local port and opens the browser | done | [Port forwarding](ui-parity.md#port-forwarding) |
 | Forward dialog, from the "Forward…" button beside a container port (init containers too): titled "Port Forwarding for <pod>", a local port… | done | [Port forwarding](ui-parity.md#port-forwarding) |
+| A forwarded port in the drawer ends its forward there (Lens's look: capture needed) | partial | [Port forwarding](ui-parity.md#port-forwarding) |
 | Port Forwarding view to open, edit, stop and delete forwards (resource parity) | partial | [Port forwarding](ui-parity.md#port-forwarding) |
 | ⌘⇧P opens it | partial | [Command palette](ui-parity.md#command-palette) |
 | "Switch to *resource*" from a cluster view | partial | [Command palette](ui-parity.md#command-palette) |
