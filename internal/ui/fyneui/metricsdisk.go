@@ -21,12 +21,15 @@ import (
 // none ("Disk: … no Prometheus was found"). The filesystems are the Nodes list's Disk column's:
 // node-exporter through Prometheus; which count, D-90.
 
-// diskBars is the drawer's disks: the rows, or the note.
+// diskBars is the drawer's disks: the rows, or the note. A volume's drawer shows its usage bar
+// with it, under its own title and tooltip (metricsvolume.go).
 type diskBars struct {
 	widget.BaseWidget
-	sh   *shell
-	fs   []model.NodeFilesystem
-	note string // why there is no disk, while there are no filesystems
+	sh    *shell
+	fs    []model.NodeFilesystem
+	note  string // why there is no disk, while there are no filesystems
+	title string // before the first row and the note: diskTitle, or a volume's
+	tip   func(model.NodeFilesystem) string
 
 	rowsTop, rowH float32 // where the rows lie, from the last layout: the hover finds its row by them
 }
@@ -43,7 +46,7 @@ const (
 )
 
 func newDiskBars() *diskBars {
-	b := &diskBars{}
+	b := &diskBars{title: diskTitle, tip: diskTip}
 	b.ExtendBaseWidget(b)
 	b.Hide()
 	return b
@@ -59,6 +62,10 @@ func (b *diskBars) set(fs []model.NodeFilesystem, note string) {
 func (p *metricsPanel) showDisk(m *engine.ObjectMetrics) {
 	b := p.disk
 	b.sh = p.d.sh
+	if p.volume {
+		p.showVolume(m) // metricsvolume.go
+		return
+	}
 	var fs []model.NodeFilesystem
 	if m != nil && m.Disk != nil {
 		fs = diskFilesystems(*m.Disk)
@@ -125,7 +132,7 @@ func (b *diskBars) MouseMoved(ev *desktop.MouseEvent) {
 		b.sh.tip.hideFor(b)
 		return
 	}
-	b.sh.tip.hover(b, diskTip(f), ev.AbsolutePosition)
+	b.sh.tip.hover(b, b.tip(f), ev.AbsolutePosition)
 	b.sh.tip.moved(b, ev.AbsolutePosition)
 }
 
@@ -197,9 +204,9 @@ func (r *diskBarsRenderer) Refresh() {
 	r.objs, r.rows = r.objs[:0], r.rows[:0]
 	switch {
 	case len(b.fs) == 0:
-		r.title = mk(diskTitle+": "+b.note, colorMuted)
+		r.title = mk(b.title+": "+b.note, colorMuted)
 	default:
-		r.title = mk(diskTitle, theme.ColorNameForeground)
+		r.title = mk(b.title, theme.ColorNameForeground)
 	}
 	r.objs = append(r.objs, r.title)
 	for _, f := range b.fs {
@@ -227,14 +234,14 @@ func (r *diskBarsRenderer) Layout(size fyne.Size) {
 	}
 	ts := r.title.MinSize()
 	if len(r.rows) == 0 {
-		r.title.Text = ellipsize(diskTitle+": "+b.note, size.Width, text, fyne.TextStyle{})
+		r.title.Text = ellipsize(b.title+": "+b.note, size.Width, text, fyne.TextStyle{})
 		r.title.Move(fyne.Position{})
 		r.title.Resize(fyne.NewSize(size.Width, ts.Height))
 		b.rowH = 0
 		return
 	}
 	th := b.Theme()
-	titleW := fyne.MeasureText(diskTitle, text, fyne.TextStyle{}).Width
+	titleW := fyne.MeasureText(b.title, text, fyne.TextStyle{}).Width
 	mountW := float32(0)
 	for _, f := range b.fs {
 		mountW = max(mountW, fyne.MeasureText(f.Mountpoint, text, fyne.TextStyle{}).Width)

@@ -65,6 +65,17 @@ var persistentVolumeClaims = &model.KindProfile{
 	},
 	Detail:     pvcDetail,
 	DetailWith: pvcDetailWith,
+	Volume:     pvcVolume,
+}
+
+// pvcVolume is the claim and its volume while it is bound: the drawer shows the volume's usage, which
+// the kubelet reports by the claim's name.
+func pvcVolume(obj *unstructured.Unstructured) (model.VolumeClaim, bool) {
+	vol := model.NestedString(obj, "spec", "volumeName")
+	if vol == "" || model.NestedString(obj, "status", "phase") != pvcBound {
+		return model.VolumeClaim{}, false
+	}
+	return model.VolumeClaim{Namespace: obj.GetNamespace(), Claim: obj.GetName(), Volume: vol}, true
 }
 
 // pvcCells are the claim's cells without the related objects: the Pods column stays empty.

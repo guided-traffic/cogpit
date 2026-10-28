@@ -147,6 +147,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
+| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 
 ## D-1: UI toolkit
 
@@ -5524,3 +5525,66 @@ count until the next.
 `TestMarkSlots`, `TestCardOwner`, `TestPodOwnersFromTheCache`, `TestAlertOnsets`,
 `TestHistoryPollerCadence`, `TestAlertHistoryOnTheBoard`, `TestAlertBoard`,
 `TestRenderAlertBoardPlatformDark`
+
+## D-139: A volume's usage in its claim's and its own drawer
+
+**Status:** built · **By:** owner (a claim's fill level now and over time, a chart and a usage bar
+as a node's disk has; the claim's drawer says it shows its volume's numbers); lead (open to
+revision) the details below
+
+A persistent volume claim's drawer and a persistent volume's drawer have a Metrics section while the
+two are bound: what the user sees, [usage](usage.md#a-volumes-usage). A claim holds no data itself;
+the section says it shows its volume's usage, and the volume's drawer shows the same numbers.
+
+- **Source:** the kubelet's volume gauges through the cluster's Prometheus,
+  `kubelet_volume_stats_used_bytes`, `_capacity_bytes` and `_available_bytes`, matched by
+  `namespace` and `persistentvolumeclaim` (a volume's drawer by its `spec.claimRef`). One
+  `query_range` per poll carries all three, each marked by a `part` label;
+  `max by (namespace, persistentvolumeclaim)` keeps one series per gauge however many kubelets mount
+  a ReadWriteMany volume or jobs scrape them. The Metrics Server is never asked, not even detected.
+- **Poll:** a scope per claim (`metrics.ClaimScope`), polled like a drawer's chart while the drawer
+  shows the claim or its volume, the two are bound and Cluster Settings › Metrics shows Volumes and
+  Filesystem: the chart's range once, then from its last point at the range's step (budget
+  [P19](testing.md#performance-budgets)). The binding is read from the cache; a claim bound later,
+  or a volume bound to another claim, moves the poll when the drawer's model is built again.
+- **Chart:** the bytes in use, filled, and the filesystem's size as an outline over them, so a resize
+  shows as a step; the range control as every chart's, no variant buttons (one variant,
+  `filesystem`; `ui.setMetricsVariant` refuses another).
+- **Usage bar:** "Volume", a bar of the newest point's bytes in use of the filesystem's size in the
+  table's colours (warning from 80 %, error from 90 %, as a node's disk), the share; the tooltip
+  names the volume, the bytes used of the size and what is still available. The share is the
+  kubelet's used of its capacity, the filesystem's size (196.7 GiB of a 200 GiB claim on ext4),
+  not the claim's request. A newest point more than two steps before the chart's end counts as
+  none: the kubelet stopped reporting the volume.
+- **Without numbers:** not bound ("the claim is not bound to a volume", "the volume is not bound to
+  a claim"); no Prometheus, or its integration off (the section says so, as a node's disk does); a
+  bound volume the kubelet does not report ("no pod mounts it, or its driver reports none"): an
+  empty chart and that note under it.
+- **Hidden:** Cluster Settings › Metrics has a place "Volumes"; Volumes or Filesystem hidden leaves
+  out the section and polls nothing.
+
+**Why:** the kubelet's volume stats are the only usage of a claim's filesystem a cluster's
+Prometheus has by default (kube-prometheus-stack and the prometheus chart scrape the kubelet's
+`/metrics`), labelled by the claim, so one query answers a claim without joining it to its volume.
+One query with three parts costs a third of three queries per step.
+
+**Rejected:**
+- The kubelet's summary API — `get nodes/proxy`, the kubelet's whole API, as for the nodes' disks
+  ([D-43](#d-43-where-the-nodes-disk-comes-from)).
+- The Metrics Server — it measures no volume.
+- The claim's requested size as the bar's whole — the filesystem is smaller than the request
+  (its own metadata), so a full volume would read below 100 %.
+- The size as a dashed reference line — it hides a resize; an outline series shows it.
+- The volume's own name in the query — the kubelet labels its gauges by the claim only.
+
+**Not covered:** a Usage column in the claims' and volumes' lists; a volume's inodes; a raw block
+volume and drivers that report no usage (some CSI drivers, NFS) show the note only; the demo
+cluster serves no claims, so `--demo` shows none of it.
+
+**Code:** [`metrics/volume.go`](../../internal/metrics/volume.go),
+[`engine/volumemetrics.go`](../../internal/engine/volumemetrics.go),
+[`fyneui/metricsvolume.go`](../../internal/ui/fyneui/metricsvolume.go) · **Tests:**
+`TestObjectRangeOfAClaim`, `TestClaimChartAsksPrometheusAlone`, `TestClaimWithoutPrometheus`,
+`TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestClaimDrawerShowsItsVolume`,
+`TestVolumeDrawerShowsItsClaimsUsage`, `TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`,
+`TestClaimDrawerShowsItsVolumesUsage`

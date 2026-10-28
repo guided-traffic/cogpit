@@ -72,6 +72,17 @@ var persistentVolumes = &model.KindProfile{
 		},
 	},
 	Detail: pvDetail,
+	Volume: pvVolume,
+}
+
+// pvVolume is the volume and the claim it is bound to: the drawer shows the volume's usage, which
+// the kubelet reports by the claim's name.
+func pvVolume(obj *unstructured.Unstructured) (model.VolumeClaim, bool) {
+	ns, name := pvClaim(obj)
+	if ns == "" || name == "" || model.NestedString(obj, "status", "phase") != pvcBound {
+		return model.VolumeClaim{}, false
+	}
+	return model.VolumeClaim{Namespace: ns, Claim: name, Volume: obj.GetName()}, true
 }
 
 func pvCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {

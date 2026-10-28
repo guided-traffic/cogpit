@@ -70,10 +70,19 @@ type chartData struct {
 	Compact bool
 }
 
+// The names of a chart's usage and of its capacity, in the legend and the hover panel.
+const (
+	seriesUsage    = "Usage"
+	seriesCapacity = "Capacity"
+)
+
 type chartSeries struct {
 	Name   string
 	Color  fyne.ThemeColorName
 	Points []chartPoint
+	// Outline draws the line alone, without the glow and the area under it: a ceiling that changes
+	// over time (a volume's size), which must not cover the series under it.
+	Outline bool
 }
 
 type chartPoint struct {

@@ -111,7 +111,7 @@ func (p *settingsPage) hideMetricsSetting() (fyne.CanvasObject, func()) {
 const metricsSourcesSetting = "metricsSources"
 
 // metricsSourcesHelp says where each part of the metrics comes from and where the sources are set.
-const metricsSourcesHelp = "Current values come from the Metrics Server; history, network, filesystem and disks from Prometheus."
+const metricsSourcesHelp = "Current values come from the Metrics Server; history, network, filesystem, disks and volumes from Prometheus."
 
 // metricsSourceIntegrations are the integrations Metrics reads, in the rows' order.
 var metricsSourceIntegrations = []engine.Integration{engine.IntegrationMetricsServer, engine.IntegrationPrometheus}

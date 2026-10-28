@@ -220,7 +220,8 @@ Helm's views and actions count in G6 and G7.
 - **Inferred, to check against a capture of Lens:** the Overview's layout, its Master/Worker toggle
   and default group, the Issues' rule and look; the charts' range values beyond 1h and their Network
   and Filesystem series; the entries of Cluster Settings › Metrics › Hide metrics from the UI, check
-  rows where Lens has a multi-select.
+  rows where Lens has a multi-select; whether Lens's claim and volume drawers chart the volume's
+  usage ([D-139](../developer/decisions.md#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer)).
 - **Short charts are smoothed:** every `rate()` spans at least four minutes, sized for a one-minute
   scrape (`rateWindow` in [`promql.go`](../../internal/metrics/promql.go)); reading the scrape
   interval from Prometheus would sharpen the 5–15 minute charts on a faster scrape.

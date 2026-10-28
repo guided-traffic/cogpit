@@ -147,7 +147,8 @@ func (e *StateError) Error() string {
 func (e *StateError) Unwrap() error { return e.Err }
 
 // RangeQuery asks a history provider for an object's series between From and To, one point per
-// Step. Kind is KindPods or KindNodes; Namespace is empty for a node. Want says which series; zero
+// Step. Kind is KindPods, KindNodes, KindCluster or KindClaims (a claim's volume: its filesystem
+// alone, volume.go); Namespace is empty for a node. Want says which series; zero
 // asks for all of them. Addresses are the addresses of the node (or of the cluster's control-plane
 // nodes) besides their names (Hub.SetNodeAddresses): a Prometheus whose series name a node by
 // its address as the instance (kube-prometheus-stack's node-exporter) is matched by them.

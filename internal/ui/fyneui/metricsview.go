@@ -84,6 +84,12 @@ type metricsPanel struct {
 	loads  int
 	closed bool
 
+	// volume says the section is a persistent volume claim's or a persistent volume's: one chart of
+	// the volume's filesystem, no variant buttons, a line above it that says whose usage it shows
+	// (intro) and a usage bar under it (metricsvolume.go).
+	volume bool
+	intro  *paragraph // wrapped at the drawer's width: the volume's name is long
+
 	root    *fyne.Container
 	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
 	note    *textLine
@@ -127,9 +133,16 @@ var metricsVariants = []struct {
 	{variantNetwork, "Network", networkIcon}, {variantFilesystem, "Filesystem", filesystemIcon},
 }
 
-func newMetricsPanel(d *drawer, ref model.ObjectRef) *metricsPanel {
-	p := &metricsPanel{d: d, ref: ref, perBox: map[string]*chartCtl{}}
+func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel {
+	p := &metricsPanel{d: d, ref: ref, perBox: map[string]*chartCtl{}, volume: volume}
 	p.chartCtl = newChartCtl(p, "", false)
+	p.intro = newParagraph("", colorMuted, d.contentWidth())
+	p.intro.size = theme.SizeNameCaptionText
+	p.intro.Hide()
+	if volume {
+		p.variant = variantFilesystem
+		p.showVariants([]string{}) // its one variant needs no button
+	}
 	p.caption = newSourceLine("Loading metrics…", colorMuted, theme.SizeNameCaptionText)
 	p.note = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	p.note.truncate = true
@@ -138,7 +151,7 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef) *metricsPanel {
 	p.status.setAvail(d.contentWidth)
 	p.status.root.Hide()
 	p.disk = newDiskBars()
-	p.root = container.NewVBox(p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
+	p.root = container.NewVBox(p.intro, p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
 	p.render()
 	return p
 }
@@ -267,7 +280,11 @@ func (c *chartCtl) follow() {
 		c.variant = t.Variant // the engine's, whoever set it (ui.setMetricsVariant)
 	}
 	visible := p.variantsShown() // the cluster's settings may hide some (clustersettings_metrics.go)
-	c.showVariants(visible)
+	if p.volume {
+		c.showVariants([]string{}) // a volume's one variant needs no button
+	} else {
+		c.showVariants(visible)
+	}
 	if (!c.enableVariants(caps) || visible != nil && !slices.Contains(visible, c.variant)) && available {
 		c.variant = variantCPU
 		if len(visible) > 0 && !slices.Contains(visible, variantCPU) {
@@ -448,6 +465,7 @@ func (p *metricsPanel) render() {
 	if m != nil {
 		p.status.set(m.Providers, p.d.sh.now())
 	}
+	p.showIntro(m) // a volume's: whose usage it shows (metricsvolume.go)
 	p.showDisk(m)
 	for _, c := range p.charts() {
 		c.update()
@@ -572,7 +590,11 @@ func (c *chartCtl) renderTarget() {
 			hint = networkPerPod
 		}
 	case variantFilesystem:
-		d.Series, d.Format, d.Detail = filesystemSeries(t.Filesystem, p.data.FilesystemSource)
+		if p.volume {
+			d.Series, d.Format, d.Detail = volumeSeries(t.Filesystem) // metricsvolume.go
+		} else {
+			d.Series, d.Format, d.Detail = filesystemSeries(t.Filesystem, p.data.FilesystemSource)
+		}
 	default:
 		d.Series, d.Lines, d.Format, d.Detail = usageSeries(t, c.variant == variantCPU, p.ref.Kind == string(model.UsageNodes))
 	}
@@ -648,7 +670,7 @@ func usageSeries(t *engine.MetricsTarget, cpu, node bool) ([]chartSeries, []char
 	if node {
 		lines = []chartLine{
 			{Name: "Allocatable capacity", Color: colorStatusWarning, Value: value(t.Allocatable)},
-			{Name: "Capacity", Color: colorStatusError, Value: value(t.Capacity)},
+			{Name: seriesCapacity, Color: colorStatusError, Value: value(t.Capacity)},
 		}
 	}
 	axis, detail := variantFormats(variant, "")
@@ -680,7 +702,7 @@ func filesystemSeries(samples []model.FilesystemSample, source string) ([]chartS
 		}
 		return []chartSeries{rd, wr}, axis, detail
 	}
-	u := chartSeries{Name: "Usage", Color: colorAccent}
+	u := chartSeries{Name: seriesUsage, Color: colorAccent}
 	for _, sm := range samples {
 		u.Points = append(u.Points, chartPoint{At: sm.At, Value: sm.UsageBytes})
 	}
@@ -732,8 +754,8 @@ func (d *drawer) metricsPanel(m *engine.DetailModel) *metricsPanel {
 		return nil
 	}
 	p, ok := d.kept[metricsKey].(*metricsPanel)
-	if !ok || p.ref != m.Ref {
-		p = newMetricsPanel(d, m.Ref)
+	if !ok || p.ref != m.Ref || p.volume != m.VolumeMetrics {
+		p = newMetricsPanel(d, m.Ref, m.VolumeMetrics)
 		d.kept[metricsKey] = p
 		p.refresh()
 	}

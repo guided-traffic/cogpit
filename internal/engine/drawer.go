@@ -32,18 +32,20 @@ type drawerWatch struct {
 	ref     model.ObjectRef
 	profile *model.KindProfile
 	obj     *cache.Handle
-	events  *cache.Handle            // nil when the cluster serves no events
-	related *relatedSet              // the indexes of the profile's Needs; nil without
-	usage   *metrics.Subscription    // the pod's or node's metrics poll (metrics.go); nil without or while its metrics are hidden. Guarded by wmu
-	pods    []*metrics.Subscription  // the polls of the metrics of the pods its table lists (drawerpods.go); nil while it shows none. Guarded by wmu
-	disk    *metrics.Subscription    // a node's poll of the disks (drawerdisk.go); nil without or while hidden. Guarded by wmu
-	wmu     sync.Mutex               // guards windows, variants, usage, pods and hidden
-	windows map[string]time.Duration // the time range of each chart, by target name (metrics.go)
-	unsubs  []func()
-	wake    chan struct{}
-	quit    chan struct{}
-	stopped atomic.Bool
-	planKey string // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
+	events  *cache.Handle         // nil when the cluster serves no events
+	related *relatedSet           // the indexes of the profile's Needs; nil without
+	usage   *metrics.Subscription // the pod's or node's metrics poll (metrics.go), a volume's (volumemetrics.go); nil without or while its metrics are hidden. Guarded by wmu
+	// usageScope is the scope usage polls: the object's, or a volume's claim's. Guarded by wmu.
+	usageScope metrics.Scope
+	pods       []*metrics.Subscription  // the polls of the metrics of the pods its table lists (drawerpods.go); nil while it shows none. Guarded by wmu
+	disk       *metrics.Subscription    // a node's poll of the disks (drawerdisk.go); nil without or while hidden. Guarded by wmu
+	wmu        sync.Mutex               // guards windows, variants, usage, pods and hidden
+	windows    map[string]time.Duration // the time range of each chart, by target name (metrics.go)
+	unsubs     []func()
+	wake       chan struct{}
+	quit       chan struct{}
+	stopped    atomic.Bool
+	planKey    string // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
 
 	// blockers are a Terminating namespace's Blocking Deletion reads (nsblockers.go); nil for
 	// other kinds.
@@ -230,10 +232,11 @@ func (s *Session) detail(ctx context.Context, ref model.ObjectRef, wait bool) (*
 	m.Sections = append(m.Sections, b.overlays.sections(p, obj, s.TimeFormat())...) // the integrations' (overlay.go)
 	m.Sections = b.overlays.amend(p, obj, m.Sections, s.TimeFormat())               // and what they add to the kind's own
 	s.markNodeVersion(b, p, obj, m)                                                 // a kubelet's upstream support and skew (k8sversion.go, D-91)
-	if m.Metrics && len(s.hiddenMetrics(b.Context).drawerVariants(p.Usage)) == 0 {
-		m.Metrics = false // the cluster's settings hide every chart of the kind (hidemetrics.go)
+	if m.Metrics && len(s.hiddenMetrics(b.Context).drawerVariantsOf(p)) == 0 {
+		m.Metrics, m.VolumeMetrics = false, false // the cluster's settings hide every chart of the kind (hidemetrics.go)
 	}
 	s.drawerPods(b, ref, m)                  // the CPU and Memory of the pods a table lists, and their poll (drawerpods.go)
+	s.followDrawerVolume(b, p, ref)          // a volume's poll follows its binding (volumemetrics.go)
 	SortDrawerTables(m, s.drawerSorts())     // the sortable tables in the drawer's order (drawersort.go)
 	LimitDrawerTables(m, MaxDrawerTableRows) // the first rows of a long one, the rest counted (drawerlimit.go)
 	switch {
@@ -294,7 +297,8 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 		Sections: []model.DetailSection{}, Events: []EventItem{},
 	}
 	m.Status = model.BuildRowWith(p, ref.Context, obj, rel).Status
-	m.Metrics = p.Usage != ""
+	m.Metrics = p.Usage != "" || p.Volume != nil
+	m.VolumeMetrics = p.Volume != nil
 	m.NoEvents = p.Local // no event involves an object Cogpit makes itself (port forwards, Helm charts)
 	kind, err := profileSections(p, obj, rel)
 	if p.Derive != nil { // a virtual kind's drawer is the profile's alone (model.KindProfile.Detail)

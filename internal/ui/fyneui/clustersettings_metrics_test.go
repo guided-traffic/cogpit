@@ -111,7 +111,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 	places := sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup)
 	measures := sh.settings.controls["hiddenMeasures"].(*widget.CheckGroup)
 	line := sh.settings.controls["hiddenMetricsLine"].(*textLine)
-	if line.text != "All metrics are visible." || !slices.Equal(places.Options, []string{"Cluster", "Nodes", "Pods", "Containers"}) ||
+	if line.text != "All metrics are visible." || !slices.Equal(places.Options, []string{"Cluster", "Nodes", "Pods", "Containers", "Volumes"}) ||
 		!slices.Equal(measures.Options, []string{"CPU", "Memory", "Network", "Filesystem"}) {
 		t.Fatalf("line %q, places %q, measures %q", line.text, places.Options, measures.Options)
 	}
@@ -180,7 +180,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 		cs, _ := s.ClusterSettingsOf(engine.DemoContext)
 		l := sh.settings.controls["hiddenMetricsLine"].(*textLine)
 		return cs.HiddenMetrics == engine.HideAll && l.text == "All metrics are hidden." &&
-			len(sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup).Selected) == 4
+			len(sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup).Selected) == 5
 	})
 	if !sh.settings.controls["hideAllMetrics"].(*textButton).Disabled() {
 		t.Error("Hide all metrics is enabled with everything hidden")

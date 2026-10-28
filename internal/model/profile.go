@@ -106,6 +106,11 @@ type KindProfile struct {
 	// empty; while the view is open and Prometheus is found the engine polls it and fills it
 	// through DiskCell. It must tolerate any content without panicking.
 	DiskCell func(obj *unstructured.Unstructured, d NodeDisk) Cell
+	// Volume, when set, says the kind's drawer shows the usage of a persistent volume: its chart
+	// over time and a usage bar, from the kubelet's volume stats through Prometheus (architecture
+	// §9). It returns the claim and the volume of an object that is bound, false while it is not.
+	// It must tolerate any content without panicking.
+	Volume func(obj *unstructured.Unstructured) (VolumeClaim, bool)
 }
 
 // LocalGroup is the API group of the local kinds, the objects Cogpit makes itself (port forwards).
