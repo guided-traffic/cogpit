@@ -80,13 +80,62 @@
     },
     {
       "title": "Rules",
-      "items": [
-        {
-          "name": "legacy.example.com",
-          "value": "/ (Prefix) -> legacy:80",
-          "nameURL": "http://legacy.example.com"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Host",
+          "Path",
+          "Type",
+          "Backend"
+        ],
+        "rows": [
+          [
+            "legacy.example.com",
+            "/",
+            "Prefix",
+            "legacy:80"
+          ]
+        ],
+        "types": [
+          "text",
+          "text",
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "legacy.example.com",
+              "web": [
+                {
+                  "text": "legacy.example.com",
+                  "url": "http://legacy.example.com"
+                }
+              ]
+            },
+            {
+              "text": "/",
+              "web": [
+                {
+                  "text": "/",
+                  "url": "http://legacy.example.com/"
+                }
+              ]
+            },
+            {
+              "text": "Prefix"
+            },
+            {
+              "text": "legacy:80",
+              "link": {
+                "kind": "services",
+                "namespace": "edge",
+                "name": "legacy"
+              }
+            }
+          ]
+        ]
+      },
+      "count": 1
     }
   ]
 }

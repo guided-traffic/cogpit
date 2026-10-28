@@ -508,14 +508,10 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 // wider than the column ("Pod Management Policy", "Volume Claim Templates" of a Stateful Set),
 // wrapped onto lines within it, so that it never runs into its value: at its spaces, a word without
 // them after - . _ / and, failing those, by characters (wrapName; the owner's F3, 2026-10-15:
-// "agent-not-ready-taint-key" ran under its value). A name that fits is drawn as before. A name
-// that is a web link (an Ingress rule's host) is drawn as a link, wrapped the same way.
+// "agent-not-ready-taint-key" ran under its value). A name that fits is drawn as before.
 func (d *drawer) itemName(it model.DetailItem) fyne.CanvasObject {
 	text := it.Name
 	th := d.sh.app.Settings().Theme()
-	if it.NameURL != "" {
-		return nameLink(text, th.Size(sizeDrawerLabel), func() { d.sh.openWebLink(it.NameURL) })
-	}
 	if w := th.Size(sizeDrawerLabel); fyne.MeasureText(text, th.Size(theme.SizeNameText), fyne.TextStyle{}).Width > w {
 		return newNameParagraph(text, colorMuted, w)
 	}
@@ -918,32 +914,34 @@ func (l *detailTableLayout) widths(objs []fyne.CanvasObject) (w, rowH []float32,
 	rowGap = gap / 3
 	w = make([]float32, l.cols)
 	rowH = make([]float32, (len(objs)+l.cols-1)/l.cols)
-	var measure func(o fyne.CanvasObject) float32
-	measure = func(o fyne.CanvasObject) float32 {
-		switch t := o.(type) {
-		case *textLine:
-			return fyne.MeasureText(t.text, size, t.style).Width
-		case *selLine:
-			return fyne.MeasureText(t.line.text, size, t.line.style).Width
-		case *linkText:
-			return fyne.MeasureText(t.text, size, fyne.TextStyle{}).Width
-		case *fyne.Container:
-			widest := float32(0)
-			for _, c := range t.Objects {
-				widest = fyne.Max(widest, measure(c))
-			}
-			return widest
-		}
-		return o.MinSize().Width // an icon
-	}
 	for i, o := range objs {
-		w[i%l.cols] = fyne.Max(w[i%l.cols], measure(o))
+		w[i%l.cols] = fyne.Max(w[i%l.cols], cellTextWidth(o, size))
 		rowH[i/l.cols] = fyne.Max(rowH[i/l.cols], o.MinSize().Height)
 	}
 	if len(rowH) > 1 && slices.Max(rowH[1:]) > rowH[0] { // a row of several lines
 		rowGap = gap * 2 / 3
 	}
 	return w, rowH, gap, rowGap
+}
+
+// cellTextWidth is the width a table cell's text takes uncut at text size size: a line's, a link's,
+// the widest line of a box of lines; another object's (an icon) is its minimum width.
+func cellTextWidth(o fyne.CanvasObject, size float32) float32 {
+	switch t := o.(type) {
+	case *textLine:
+		return fyne.MeasureText(t.text, size, t.style).Width
+	case *selLine:
+		return fyne.MeasureText(t.line.text, size, t.line.style).Width
+	case *linkText:
+		return fyne.MeasureText(t.text, size, fyne.TextStyle{}).Width
+	case *fyne.Container:
+		widest := float32(0)
+		for _, c := range t.Objects {
+			widest = fyne.Max(widest, cellTextWidth(c, size))
+		}
+		return widest
+	}
+	return o.MinSize().Width
 }
 
 func (l *detailTableLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {

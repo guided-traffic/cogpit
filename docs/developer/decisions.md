@@ -145,7 +145,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-134](#d-134-the-windows-zoom) | The window's zoom | built: VS Code's zoom via Fyne's canvas scale, 50-210% |
 | [D-135](#d-135-a-stalled-stream-lists) | A stalled stream lists | built: lists by default; streaming opt-in beta, 10 s stall bound |
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
-| [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts open on a click |
+| [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 
@@ -5396,43 +5396,69 @@ after Fyne's own handler nothing starts the bound (from Fyne's code, not seen).
 ## D-137: An Ingress's hosts, links to the browser
 
 **Status:** built · **By:** owner (Hosts in place of Rules, hosts as links in the list and the
-drawer); lead (open to revision) the details below
+drawer; in the drawer each host once across the details with its paths under it in columns, each
+path a link to the host's address with the path, the backend a link to its Service); lead (open to
+revision) the details below
 
 - **List:** the Ingresses view's Hosts column stands where Lens has Rules: each rule's host once,
   in the rules' order, a comma apart (`model.WebCell`), 340 points wide by default. A rule without
   a host reads `*`, and so does an Ingress without rules whose default backend answers every host.
   The paths and backends are the drawer's.
-- **Drawer:** each rule's host in Rules is a link to the same address (`DetailItem.NameURL`); a
-  host wider than the name column wraps, its lines one link.
-- **Address:** `https://<host>` when a TLS entry of the Ingress covers the host (it names it, its
-  wildcard covers the host's first label, or it lists no hosts and so takes the controller's
-  default certificate for all), else `http://<host>`; no path, no port. Only a host that is a DNS
-  name links: `*` and a wildcard host (`*.example.com`) are text.
+- **Drawer:** Rules is a table with a row per path (Host, Path, Type, Backend), its rule's host
+  repeated on each. The window draws each host once on a line across the details, a link to the
+  same address as in the list, wrapped when it is wider; under it, indented, its paths in columns
+  that all hosts share: the path, a link to the host's address with the path; the type, muted; an
+  arrow and the backend, whose Service's name is a link to the Service (`ui.navigate`) and whose
+  port follows as text. A resource backend links whole when it is a built-in kind. A rule without
+  paths reads `(no paths)` and the Ingress's default backend, else `(the controller's default
+  backend)`. The section's head counts the rules (`DetailSection.Count`), not the rows.
+- **Address:** a host's is `https://<host>` when a TLS entry of the Ingress covers the host (it
+  names it, its wildcard covers the host's first label, or it lists no hosts and so takes the
+  controller's default certificate for all), else `http://<host>`; no path, no port. Only a host
+  that is a DNS name links: `*` and a wildcard host (`*.example.com`) are text. A path's is the
+  host's with the path: an `Exact` or `Prefix` path is a literal path and links; an
+  `ImplementationSpecific` path with a character of a regular expression (`( ) [ ] { } * + ? ^ $ |
+  \`) is text, since the controller may read it as one (ingress-nginx's `use-regex`); so is a path
+  that does not start with `/`, and every path of a host that is no link.
 - **Opening:** on the user's click only, in the window, no command: no agent opens a browser
   ([D-23](#d-23-the-status-bars-owner-link-and-mcp-switch)). The window checks the address again
   (absolute http or https, a host, no user information) and warns otherwise. Agents read the
-  addresses in the rows (`web`) and the drawer (`nameURL`).
-- **Look:** a host is as quiet as the lists' other links until the pointer is on it; then that host
-  alone takes the link colour, the underline and the hand, and its address is the tooltip.
+  addresses in the rows and in the Rules table's cells (`web`), and a backend's object in its cell
+  (`link`).
+- **Look:** in the list a host is as quiet as the lists' other links until the pointer is on it;
+  then that host alone takes the link colour, the underline and the hand, and its address is the
+  tooltip. In the drawer a host, a path and a Service are in the link colour, as the drawer's other
+  links; a host's and a path's tooltip is its address, and its copy icon copies the address; the
+  path column keeps room for that icon, so that it shortens no path.
 
 **Why:** the rules on one line ("host/path -> service:port, …") were too long to read in a list and
 hid what one looks for there, the hosts the Ingress serves; the paths and backends need the drawer
-anyway. https by TLS entry is what the Ingress itself says about a host.
+anyway. https by TLS entry is what the Ingress itself says about a host. In the drawer a host in the
+name column (128 points) wrapped as soon as it was longer than about 20 characters; columns keep
+the paths, types and backends of many paths readable; a path's address and a backend's Service are
+the next steps when a route answers 404 or 502.
 
-**Rejected:** a link per path (`https://host/path`) — the cell would grow back into the rules;
+**Rejected:** a link per path in the list (`https://host/path`) — the cell would grow back into
+the rules; in the drawer, the paths as lines of text after the host (`/api (Prefix) -> svc:port`)
+— the types and backends do not line up; the full address on each path's row — the host on every
+line again, cut off in the drawer; the port in the Service's link — it names no object;
 https for every host — a host without TLS would open a certificate warning or nothing; the TLS
 section's hosts as links too — they repeat the rules' hosts.
 
 **Not covered:** a controller that serves TLS for a host the Ingress gives none (a default
 certificate) is opened with http, which such a controller usually redirects; a port the
-controller listens on other than 80 and 443 is not known.
+controller listens on other than 80 and 443 is not known. A path's link shows where the route
+leads, not that the backend answers at that path: a `Prefix` path such as `/api/` may have no page
+of its own. An `ImplementationSpecific` path without a character of a regular expression links even
+where a controller reads it otherwise.
 
 **Code:** [`kinds/ingresses.go`](../../internal/model/kinds/ingresses.go),
 [`model/row.go`](../../internal/model/row.go) (`WebLink`, `WebCell`),
 [`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) (`colourWeb`, `webIndexAt`,
-`pointWeb`), [`fyneui/links.go`](../../internal/ui/fyneui/links.go) (`openWebLink`, `nameLink`) ·
-**Tests:** `TestIngressHostLinks`, `TestIngressTexts`, `TestIngressColumns`,
-`TestIngressHostsOpenInTheBrowser`, `TestIngressRuleHostsAreLinks`, `TestOpenWebLinkChecksTheAddress`
+`pointWeb`), [`fyneui/links.go`](../../internal/ui/fyneui/links.go) (`openWebLink`, `nameLink`),
+[`fyneui/ingressrules.go`](../../internal/ui/fyneui/ingressrules.go) ·
+**Tests:** `TestIngressHostLinks`, `TestIngressRulesTable`, `TestIngressTexts`, `TestIngressColumns`,
+`TestIngressHostsOpenInTheBrowser`, `TestIngressRulesLinks`, `TestOpenWebLinkChecksTheAddress`
 
 ## D-138: The alert board's cards
 

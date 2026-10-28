@@ -74,13 +74,62 @@
     },
     {
       "title": "Rules",
-      "items": [
-        {
-          "name": "admin.example.internal",
-          "value": "/ (Prefix) -> admin-ui:3000",
-          "nameURL": "https://admin.example.internal"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Host",
+          "Path",
+          "Type",
+          "Backend"
+        ],
+        "rows": [
+          [
+            "admin.example.internal",
+            "/",
+            "Prefix",
+            "admin-ui:3000"
+          ]
+        ],
+        "types": [
+          "text",
+          "text",
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "admin.example.internal",
+              "web": [
+                {
+                  "text": "admin.example.internal",
+                  "url": "https://admin.example.internal"
+                }
+              ]
+            },
+            {
+              "text": "/",
+              "web": [
+                {
+                  "text": "/",
+                  "url": "https://admin.example.internal/"
+                }
+              ]
+            },
+            {
+              "text": "Prefix"
+            },
+            {
+              "text": "admin-ui:3000",
+              "link": {
+                "kind": "services",
+                "namespace": "backoffice",
+                "name": "admin-ui"
+              }
+            }
+          ]
+        ]
+      },
+      "count": 1
     },
     {
       "title": "TLS",

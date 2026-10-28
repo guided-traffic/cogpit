@@ -46,6 +46,7 @@ const (
 	titleKind    = "Kind"
 	titleTarget  = "Target"
 	fieldService = "service"
+	fieldPath    = "path"
 )
 
 // Columns several kinds share.

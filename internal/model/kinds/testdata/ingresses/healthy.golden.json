@@ -95,18 +95,136 @@
     },
     {
       "title": "Rules",
-      "items": [
-        {
-          "name": "shop.example.com",
-          "value": "/api (Prefix) -> api:8080\n/ (Prefix) -> web:80",
-          "nameURL": "https://shop.example.com"
-        },
-        {
-          "name": "www.shop.example.com",
-          "value": "/ (Prefix) -> web:http",
-          "nameURL": "https://www.shop.example.com"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Host",
+          "Path",
+          "Type",
+          "Backend"
+        ],
+        "rows": [
+          [
+            "shop.example.com",
+            "/api",
+            "Prefix",
+            "api:8080"
+          ],
+          [
+            "shop.example.com",
+            "/",
+            "Prefix",
+            "web:80"
+          ],
+          [
+            "www.shop.example.com",
+            "/",
+            "Prefix",
+            "web:http"
+          ]
+        ],
+        "types": [
+          "text",
+          "text",
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "shop.example.com",
+              "web": [
+                {
+                  "text": "shop.example.com",
+                  "url": "https://shop.example.com"
+                }
+              ]
+            },
+            {
+              "text": "/api",
+              "web": [
+                {
+                  "text": "/api",
+                  "url": "https://shop.example.com/api"
+                }
+              ]
+            },
+            {
+              "text": "Prefix"
+            },
+            {
+              "text": "api:8080",
+              "link": {
+                "kind": "services",
+                "namespace": "shop",
+                "name": "api"
+              }
+            }
+          ],
+          [
+            {
+              "text": "shop.example.com",
+              "web": [
+                {
+                  "text": "shop.example.com",
+                  "url": "https://shop.example.com"
+                }
+              ]
+            },
+            {
+              "text": "/",
+              "web": [
+                {
+                  "text": "/",
+                  "url": "https://shop.example.com/"
+                }
+              ]
+            },
+            {
+              "text": "Prefix"
+            },
+            {
+              "text": "web:80",
+              "link": {
+                "kind": "services",
+                "namespace": "shop",
+                "name": "web"
+              }
+            }
+          ],
+          [
+            {
+              "text": "www.shop.example.com",
+              "web": [
+                {
+                  "text": "www.shop.example.com",
+                  "url": "https://www.shop.example.com"
+                }
+              ]
+            },
+            {
+              "text": "/",
+              "web": [
+                {
+                  "text": "/",
+                  "url": "https://www.shop.example.com/"
+                }
+              ]
+            },
+            {
+              "text": "Prefix"
+            },
+            {
+              "text": "web:http",
+              "link": {
+                "kind": "services",
+                "namespace": "shop",
+                "name": "web"
+              }
+            }
+          ]
+        ]
+      },
+      "count": 2
     },
     {
       "title": "TLS",

@@ -45,11 +45,11 @@ var ingresses = &model.KindProfile{
 		"host": func(obj *unstructured.Unstructured) []string {
 			return ingressHosts(obj)
 		},
-		"path": func(obj *unstructured.Unstructured) []string {
+		fieldPath: func(obj *unstructured.Unstructured) []string {
 			var out []string
 			for _, r := range model.NestedSlice(obj, "spec", "rules") {
 				for _, p := range model.NestedSlice(r, "http", "paths") {
-					out = appendUnique(out, model.NestedString(p, "path"))
+					out = appendUnique(out, model.NestedString(p, fieldPath))
 				}
 			}
 			return out
@@ -105,14 +105,22 @@ func ingressHostLinks(obj any) []model.WebLink {
 // Ingress covers the host, else http, without a path; "" for what is no DNS name ("*", a
 // wildcard host).
 func ingressHostURL(obj any, host string) string {
+	if u := ingressHostAddress(obj, host); u != nil {
+		return u.String()
+	}
+	return ""
+}
+
+// ingressHostAddress is ingressHostURL as a URL, nil for what is no DNS name.
+func ingressHostAddress(obj any, host string) *url.URL {
 	if len(validation.IsDNS1123Subdomain(host)) > 0 {
-		return ""
+		return nil
 	}
 	scheme := "http"
 	if ingressTLSCovers(obj, host) {
 		scheme = "https"
 	}
-	return (&url.URL{Scheme: scheme, Host: host}).String()
+	return &url.URL{Scheme: scheme, Host: host}
 }
 
 // ingressTLSCovers reports whether a TLS entry serves host: one that names it, one whose wildcard
@@ -213,24 +221,10 @@ func ingressDetail(obj *unstructured.Unstructured) []model.DetailSection {
 	d.add("Default Backend", ingressBackendDetail(model.NestedMap(obj, "spec", "defaultBackend")))
 	sections := withSection(nil, "Ingress", d)
 
-	var rules detailItems
-	for _, r := range model.NestedSlice(obj, "spec", "rules") {
-		paths := model.NestedSlice(r, "http", "paths")
-		lines := make([]string, 0, len(paths))
-		for _, p := range paths {
-			line := ingressPathDetail(model.NestedString(p, "path"), model.NestedString(p, "pathType"))
-			if b := ingressBackendDetail(model.NestedMap(p, "backend")); b != "" {
-				line += " -> " + b
-			}
-			lines = append(lines, line)
-		}
-		if len(lines) == 0 {
-			lines = append(lines, "no paths: requests go to the default backend")
-		}
-		host := ingressHost(r)
-		rules.put(model.DetailItem{Name: host, Value: strings.Join(lines, "\n"), NameURL: ingressHostURL(obj, host)})
+	if t := ingressRulesTable(obj); t != nil {
+		sections = append(sections, model.DetailSection{Title: TitleIngressRules, Table: t,
+			Count: len(model.NestedSlice(obj, "spec", "rules"))})
 	}
-	sections = withSection(sections, "Rules", rules)
 
 	// TLS entries name the Secret that holds the certificate; Cogpit shows the name, never the
 	// Secret's data.
@@ -249,17 +243,98 @@ func ingressDetail(obj *unstructured.Unstructured) []model.DetailSection {
 	return withSection(sections, "TLS", tls)
 }
 
-// ingressPathDetail renders a path with its type: "/api (Prefix)", "(no path, ImplementationSpecific)".
-func ingressPathDetail(path, typ string) string {
-	switch {
-	case path != "" && typ != "":
-		return path + " (" + typ + ")"
-	case path != "":
-		return path
-	case typ != "":
-		return "(no path, " + typ + ")"
+// TitleIngressRules is the title of an Ingress's Rules section, which the GUI draws in its own way.
+const TitleIngressRules = "Rules"
+
+// The path types whose path is a literal path; ImplementationSpecific leaves it to the controller.
+const (
+	pathTypeExact  = "Exact"
+	pathTypePrefix = "Prefix"
+)
+
+// ingressRuleColumns are the columns of the Rules table: one row per path of each rule.
+var ingressRuleColumns = []model.Column{
+	{ID: "host", Title: "Host", Type: model.ColumnText},
+	{ID: fieldPath, Title: "Path", Type: model.ColumnText},
+	{ID: "pathType", Title: "Type", Type: model.ColumnText},
+	{ID: "backend", Title: "Backend", Type: model.ColumnText},
+}
+
+// ingressRulesTable is the Rules section's table, nil without rules: a row per path, its rule's
+// host repeated on each, the host and the path links to the browser (ingressHostURL,
+// ingressPathURL) and the backend a link to its Service. A rule without paths is one row whose
+// requests go to the Ingress's default backend, or, without one, to the controller's. The drawer
+// draws each host once across its width with its paths under it (fyneui's ingressrules.go).
+func ingressRulesTable(obj any) *model.DetailTable {
+	ns := model.NestedString(obj, "metadata", "namespace")
+	var rows [][]model.Cell
+	for _, r := range model.NestedSlice(obj, "spec", "rules") {
+		host := ingressHost(r)
+		hostCell := webCell(host, ingressHostURL(obj, host))
+		paths := model.NestedSlice(r, "http", "paths")
+		if len(paths) == 0 {
+			backend := ingressBackendCell(model.NestedMap(obj, "spec", "defaultBackend"), ns)
+			if backend.Text == "" {
+				backend.Text = "(the controller's default backend)"
+			}
+			rows = append(rows, []model.Cell{hostCell, {Text: "(no paths)"}, {}, backend})
+			continue
+		}
+		for _, p := range paths {
+			path, typ := model.NestedString(p, fieldPath), model.NestedString(p, "pathType")
+			text := path
+			if text == "" {
+				text = "(no path)"
+			}
+			rows = append(rows, []model.Cell{hostCell, webCell(text, ingressPathURL(obj, host, path, typ)),
+				{Text: typ}, ingressBackendCell(model.NestedMap(p, "backend"), ns)})
+		}
 	}
-	return "(no path)"
+	if len(rows) == 0 {
+		return nil
+	}
+	return model.CellTable(ingressRuleColumns, rows)
+}
+
+// webCell is a cell of one web address, plain text without one.
+func webCell(text, url string) model.Cell {
+	if url == "" {
+		return model.Cell{Text: text}
+	}
+	return model.WebCell([]model.WebLink{{Text: text, URL: url}})
+}
+
+// ingressPathURL is the address a click on a rule's path opens: the host's (ingressHostURL) with
+// the path. An Exact or Prefix path is a literal path; an ImplementationSpecific one may be the
+// controller's regular expression (ingress-nginx's use-regex), so one with a character of a
+// regular expression is no link. Nor is a path that does not start with "/", nor one of a host
+// that is no link.
+func ingressPathURL(obj any, host, path, typ string) string {
+	u := ingressHostAddress(obj, host)
+	if u == nil || !strings.HasPrefix(path, "/") {
+		return ""
+	}
+	if typ != pathTypeExact && typ != pathTypePrefix && strings.ContainsAny(path, `()[]{}*+?^$|\`) {
+		return ""
+	}
+	u.Path = path
+	return u.String()
+}
+
+// ingressBackendCell is a backend's text (ingressBackendDetail) with a link to its Service, or to
+// its resource when that is a built-in kind.
+func ingressBackendCell(b map[string]any, ns string) model.Cell {
+	c := model.Cell{Text: ingressBackendDetail(b)}
+	if svc := model.NestedString(b, "service", "name"); svc != "" {
+		c.Link = linkTo(keyServices, ns, svc)
+	} else if res := model.NestedMap(b, "resource"); res != nil {
+		apiVersion := "v1" // a resource backend without an API group is of the core group
+		if g := model.NestedString(res, "apiGroup"); g != "" {
+			apiVersion = g + "/"
+		}
+		c.Link = model.RefTo(apiVersion, model.NestedString(res, "kind"), ns, model.NestedString(res, "name"))
+	}
+	return c
 }
 
 // ingressBackendDetail is ingressBackend with a resource backend's API group: "Kind/name
