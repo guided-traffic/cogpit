@@ -96,7 +96,7 @@ func (s *Session) volumeMetrics(b *Backend, p *model.KindProfile, ref model.Obje
 		// Not polled yet: the hub's state is then the providers', not the volume's.
 		out.Status, out.Message, out.Source = metrics.StatusUnknown, "", ""
 	}
-	out.Providers = b.Metrics.Providers()
+	out.Providers = b.Metrics.ProvidersFor(scope)
 	if out.Status == metrics.StatusAvailable {
 		out.Message = ""
 		out.Capabilities = b.Metrics.Capabilities()

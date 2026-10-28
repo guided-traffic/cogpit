@@ -2,6 +2,7 @@ package metrics_test
 
 import (
 	"context"
+	"maps"
 	"strings"
 	"testing"
 	"time"
@@ -130,6 +131,19 @@ func TestClaimChartAsksPrometheusAlone(t *testing.T) {
 	}
 	if hist := d.h.History(claimPG1); hist == nil || hist.FilesystemSource != metrics.FilesystemUsage {
 		t.Errorf("history = %+v", hist)
+	}
+	// Its status line says the Metrics Server is not used; a pod's says nothing of the kind.
+	for sc, want := range map[metrics.Scope]map[string]bool{
+		claimPG1: {metrics.PrometheusID: false, metrics.ServerID: true},
+		podA:     {metrics.PrometheusID: false, metrics.ServerID: false},
+	} {
+		got := map[string]bool{}
+		for _, ps := range d.h.ProvidersFor(sc) {
+			got[ps.Provider] = ps.Unused
+		}
+		if !maps.Equal(got, want) {
+			t.Errorf("%s: unused %v, want %v", sc.Kind, got, want)
+		}
 	}
 
 	// The next poll asks from the last point on.

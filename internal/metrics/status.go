@@ -54,6 +54,9 @@ type ProviderStatus struct {
 	// Serves is what it serves now: "history", "live", "network", "filesystem"; empty while it
 	// serves nothing (not found, failing, or not needed).
 	Serves []string `json:"serves,omitempty"`
+	// Unused says the charts the status line is under never ask it, whatever its state: the
+	// Metrics Server under a volume's (ProvidersFor).
+	Unused bool `json:"unused,omitempty"`
 }
 
 // Identified is a Detector that knows which provider it looks for, so that the status line can name

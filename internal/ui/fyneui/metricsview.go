@@ -88,7 +88,7 @@ type metricsPanel struct {
 	// the volume's filesystem, no variant buttons, a line above it that says whose usage it shows
 	// (intro) and a usage bar under it (metricsvolume.go).
 	volume bool
-	intro  *paragraph // wrapped at the drawer's width: the volume's name is long
+	intro  *sourceLine // the other object's name a link
 
 	root    *fyne.Container
 	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
@@ -136,8 +136,7 @@ var metricsVariants = []struct {
 func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel {
 	p := &metricsPanel{d: d, ref: ref, perBox: map[string]*chartCtl{}, volume: volume}
 	p.chartCtl = newChartCtl(p, "", false)
-	p.intro = newParagraph("", colorMuted, d.contentWidth())
-	p.intro.size = theme.SizeNameCaptionText
+	p.intro = newSourceLine("", colorMuted, theme.SizeNameCaptionText)
 	p.intro.Hide()
 	if volume {
 		p.variant = variantFilesystem

@@ -3319,7 +3319,8 @@ right of it, any other provider after them; where they do not fit side by side t
 
 - **Dot and word**, in the cluster dots' colours: green and the age of the last answer as the
   charts' hover writes ages ("now", "30 s ago"); red and "not answering" or "no permission"; grey
-  and "not found"; a grey ring and "waiting" while not asked yet. Cluster Settings' integration dots
+  and "not found"; a grey ring and "waiting" while not asked yet; grey and "not used" where the
+  charts never ask it (the Metrics Server under a volume's, D-139). Cluster Settings' integration dots
   ([D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer))
   use the same colours.
 - **Tooltip:** where it runs, its state, what it serves, the last good answer and the last failure
@@ -5561,6 +5562,14 @@ revision) the details below
 A persistent volume claim's drawer and a persistent volume's drawer have a Metrics section while the
 two are bound: what the user sees, [usage](usage.md#a-volumes-usage). A claim holds no data itself;
 the section says it shows its volume's usage, and the volume's drawer shows the same numbers.
+
+- **Line above the chart:** "Display metrics from PV: <volume>" in a claim's drawer, "Display
+  metrics from PVC: <namespace>/<claim>" in a volume's, the name a link to that object's drawer, one
+  caption line cut with an ellipsis where the drawer is narrow (the owner's wording; the PVC form is
+  the lead's, open to revision).
+- **Source row:** the Metrics Server shows "not used" with a grey dot and no link, whatever its
+  state elsewhere: a claim's scope never asks it (`ProviderStatus.unused`, `Hub.ProvidersFor`), and
+  "waiting" would wait for nothing.
 
 - **Source:** the kubelet's volume gauges through the cluster's Prometheus,
   `kubelet_volume_stats_used_bytes`, `_capacity_bytes` and `_available_bytes`, matched by

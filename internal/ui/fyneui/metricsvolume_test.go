@@ -37,8 +37,10 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	}
 	last := fs[len(fs)-1]
 	vc := pgClaim
+	providers := bothAnswering()
+	providers[1].Unused = true // a claim's chart never asks the Metrics Server
 	return &engine.ObjectMetrics{
-		Ref: ref, Status: metrics.StatusAvailable, Source: promSource, Providers: bothAnswering(),
+		Ref: ref, Status: metrics.StatusAvailable, Source: promSource, Providers: providers,
 		Capabilities: metrics.Capabilities{History: true, Network: true, Filesystem: true},
 		Variants:     []string{engine.VariantFilesystem}, FilesystemSource: metrics.FilesystemUsage,
 		Targets: []engine.MetricsTarget{{Variant: engine.VariantFilesystem, Filesystem: fs, Window: time.Hour, Range: "1h"}},
@@ -48,6 +50,12 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 
 // volumeDrawer opens the claim's drawer with the canned numbers, changed by mutate.
 func volumeDrawer(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string)) {
+	sh, p, png, _, _ := volumeDrawerOf(t, mode, mutate)
+	return sh, p, png
+}
+
+// volumeDrawerOf is volumeDrawer with the fake engine and the main queue.
+func volumeDrawerOf(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string), *fakeEngine, *mainQueue) {
 	t.Helper()
 	f := kindsFake(t, "pods")
 	f.kinds = append(f.kinds, kindInfo{Kind: "persistentvolumeclaims", Title: "Persistent Volume Claims", APIKind: "PersistentVolumeClaim", Version: "v1", Namespaced: true},
@@ -81,15 +89,18 @@ func volumeDrawer(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetric
 		return ok && pm.data != nil && sh.drawer.last != nil
 	})
 	settle(w)
-	return sh, sh.drawer.kept[metricsKey].(*metricsPanel), func(name string) { savePNG(t, w, name) }
+	return sh, sh.drawer.kept[metricsKey].(*metricsPanel), func(name string) { savePNG(t, w, name) }, f, q
 }
 
 func TestClaimDrawerShowsItsVolumesUsage(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		sh, p, png := volumeDrawer(t, mode, nil)
 		texts := drawerTexts(sh)
-		if texts[0] != "Metrics" || !p.intro.Visible() || !strings.HasPrefix(p.intro.text, "A claim holds no data itself: this is the usage of its volume pvc-f0327b26") {
+		if texts[0] != "Metrics" || !p.intro.Visible() || p.intro.text != "Display metrics from PV: "+pgClaim.Volume || p.intro.links()[pgClaim.Volume] == nil {
 			t.Fatalf("the section begins %q, intro %q (shown %v)", texts[:min(3, len(texts))], p.intro.text, p.intro.Visible())
+		}
+		if got := chipTexts(p.status); len(got) != 2 || got[1] != "Metrics Server ● not used" {
+			t.Errorf("source row %q", got)
 		}
 		for id, b := range p.variants {
 			if b.Visible() {
@@ -138,8 +149,19 @@ func TestUnboundClaimSaysSo(t *testing.T) {
 	}
 }
 
+// The volume's name above the chart is a link to the volume's drawer.
+func TestClaimIntroLinksTheVolume(t *testing.T) {
+	_, p, _, f, q := volumeDrawerOf(t, ThemeDark, nil)
+	p.intro.links()[pgClaim.Volume]()
+	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 1 })
+	if got := decodeParams[refParams](t, f.callsOf("ui.navigate")[0]).Ref; got != (model.ObjectRef{Context: "demo", Kind: "persistentvolumes", Name: pgClaim.Volume}) {
+		t.Errorf("volume link %+v", got)
+	}
+}
+
 func TestVolumeIntroInAVolumesDrawer(t *testing.T) {
-	if got := volumeIntro(&pgClaim, "persistentvolumes"); got != "The usage of this volume, as the kubelet reports it for its claim bezon-prod/pg-bezon-timescale-1." {
-		t.Errorf("intro = %q", got)
+	prefix, link := volumeIntro(&pgClaim, "persistentvolumes")
+	if prefix != "Display metrics from PVC: " || link != (model.ObjectRef{Kind: "persistentvolumeclaims", Namespace: pgClaim.Namespace, Name: pgClaim.Claim}) {
+		t.Errorf("intro = %q %+v", prefix, link)
 	}
 }
