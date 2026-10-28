@@ -123,7 +123,7 @@ const (
 // "Dark Cockpit") the palettes are Cogpit's own, drawn from the logo and the owner's reference image:
 // a deep navy stage whose surfaces step up in luminance instead of carrying borders, and three
 // lights on it, each with one meaning: the logo's glow blue is Cogpit itself (primary actions, focus,
-// selection, links), cyan is the cluster's live data ("the writing": charts, the pulse, info), violet
+// selection, links), cyan is the cluster's live data ("the writing": charts, info), violet
 // is the agent ("the thinking": the chat, its suggestions and runs). Status hues are spread so that no
 // two tokens are confused at a glance; glow is kept for what needs attention.
 type palette struct {
@@ -141,7 +141,7 @@ func alpha(c color.NRGBA, a uint8) color.NRGBA { c.A = a; return c }
 // hover and header surfaces and 2.5:1 on a selected row (TestPaletteContrast).
 const (
 	glowBlue   = 0x4aa8ff // the logo's C: primary buttons, focus
-	glowCyan   = 0x5ad1e3 // the cluster: charts' first series, the pulse, info
+	glowCyan   = 0x5ad1e3 // the cluster: charts' first series, info
 	glowViolet = 0xa48bff // the agent: the chat, its runs and suggestions
 )
 

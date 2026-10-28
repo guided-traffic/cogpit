@@ -10,12 +10,12 @@ shapes: [`glow.go`](../../internal/ui/fyneui/glow.go); adding a colour:
 1. **Quiet when healthy, lit where it matters.** Healthy rows, running pods and ready conditions
    draw no extra colour; a failing row gets a status spine, a destructive dialog a coral rim, the
    object you work on the glow blue. At most one glow per region. Life comes from the cluster (a
-   pulse, a changed row, a firing alert, the agent at work), not from decoration.
+   changed row, a firing alert, the agent at work), not from decoration.
 2. **A stage and plates, not boxes.** Surfaces part by luminance (the chrome darker than the stage,
    the drawer and dialogs a step lighter); hairlines only where luminance is not enough.
 3. **Three lights, one meaning each:** glow blue (`theme.ColorNamePrimary`, the logo's C) is Cogpit
    and you: primary actions, focus, selection, links. Cyan (`colorAccent`) is the cluster's live
-   data: charts' first series, the pulse, info. Violet (`colorAgent`) is the agent: its chat, runs
+   data: charts' first series, info. Violet (`colorAgent`) is the agent: its chat, runs
    and requests; besides the agent it draws only a chart's second series (`colorChartSecond`).
 4. **Tokens for things you count.** Containers, nodes and integrations are rounded squares; a count
    too large for squares becomes bars as wide as their share.
@@ -75,7 +75,7 @@ GPU and not a raster per frame; the wave is one raster, redrawn only on Refresh.
 | `bracketLabel` | a lowercase label in a light above a hairline at about 55 % of it, with 6-point end ticks; 8 points from the label to the line, 12 to what it introduces; 20 points above a head that follows content (`groupGap`) | drawer sections, dialog heads, settings groups, the Overview, dashboards, the chat |
 | `tokenRow`, `tok` | rounded squares, or bars by weight; a healthy (`quiet`) token at about 40 % of its light | the Overview's nodes and pods |
 | `glowFrame` | four rounded outlines of falling alpha, 0, 1.5, 3.5 and 6.5 points outside the content | a destructive or agent-asked dialog; the hotbar draws the same rings round the shown cluster's tile |
-| `wave` | a sine or a series, a crisp core and a faint halo | the agent's thinking, the status bar's pulse |
+| `wave` | a sine, a crisp core and a faint halo | the agent's thinking |
 | `horizon` | the stage light and a perspective grid floor | the welcome page and the failed connect's error page (`newWelcomeStage`) |
 
 ## Instruments (cluster Overview, integrations, dashboards)
@@ -102,7 +102,6 @@ GPU and not a raster per frame; the wave is one raster, redrawn only on Refresh.
 | Row marks | a checked row: the selection fill; the drawer's row: a 2-point glow-blue bar at its left edge, no fill ([D-124](decisions.md#d-124-checked-rows-the-drawers-row-and-the-keyboards-cell)); the navigator's open item: the fill as an inset plate with the bar | lists, navigator ([`chrome_nav.go`](../../internal/ui/fyneui/chrome_nav.go)) |
 | Hotbar plates | the identity colour (the hue its user picked) as a vertical gradient from about 22 % to 10 % with an 8 % white inner highlight; the shown cluster's tile in the glow blue's rings; the connection dot as a badge at the corner | hotbar ([`chrome_plate.go`](../../internal/ui/fyneui/chrome_plate.go), [`hotbar.go`](../../internal/ui/fyneui/hotbar.go)) |
 | Active tab | the stage's colour with a crisp 2-point glow-blue underline over a faint, wider one | tab bar ([`tabbar.go`](../../internal/ui/fyneui/tabbar.go)) |
-| Pulse | an 80×14 cyan wave of the last 24 event rates, beside the demo cluster's counter only | status bar ([`chrome_bar.go`](../../internal/ui/fyneui/chrome_bar.go)) |
 | Appearance toggle | a sun in the dark theme, a moon in the light (the look a click goes to), at the bell's size, left of the bell; greyed out in a run started with `--theme` | top bar ([`themetoggle.go`](../../internal/ui/fyneui/themetoggle.go), [D-54](decisions.md#d-54-the-top-bar-layout-toggles-the-update-button-the-theme-toggle)) |
 | Strip chips, Delete | 28-point chips with a glyph in the accent colour at the ends of the dock's strip: the terminal chip after the tabs (a shell window drawn 18 by 14 of its 24 units, as heavy as the "+"), the create chip at the right end; the selection's Delete a coral outline on a 12 % plate | dock strip, list toolbar ([`stripchip.go`](../../internal/ui/fyneui/stripchip.go), [`terminalbutton.go`](../../internal/ui/fyneui/terminalbutton.go), [`chrome_actions.go`](../../internal/ui/fyneui/chrome_actions.go)) |
 

@@ -328,15 +328,14 @@ func (r *glowFrameRenderer) Objects() []fyne.CanvasObject {
 }
 func (r *glowFrameRenderer) Destroy() {}
 
-// wave is a glowing line: a sine (the agent's thinking, the cluster's pulse) or a series of values
-// (a sparkline). It is drawn twice, a wide faint stroke under a crisp one, as the reference's
-// violet wave. Phase moves a sine; an animation that sets it honours Reduce motion at its caller.
+// wave is a glowing sine (the agent's thinking). It is drawn twice, a wide faint stroke under a
+// crisp one, as the reference's violet wave. Phase moves it; an animation that sets it honours
+// Reduce motion at its caller.
 type wave struct {
 	widget.BaseWidget
 	tone      fyne.ThemeColorName
-	values    []float64 // nil: a sine
-	cycles    float64   // a sine's periods across the width
-	amplitude float32   // a sine's height as a share of the widget's, 0 to 1
+	cycles    float64 // a sine's periods across the width
+	amplitude float32 // a sine's height as a share of the widget's, 0 to 1
 	phase     float64
 	min       fyne.Size
 }
@@ -345,12 +344,6 @@ func newWave(tone fyne.ThemeColorName, cycles float64, amplitude float32) *wave 
 	w := &wave{tone: tone, cycles: cycles, amplitude: amplitude, min: fyne.NewSize(60, 14)}
 	w.ExtendBaseWidget(w)
 	return w
-}
-
-// SetValues draws the series instead of a sine.
-func (w *wave) SetValues(v []float64) {
-	w.values = v
-	w.Refresh()
 }
 
 // SetPhase moves the sine; 2π is one period.
@@ -381,24 +374,7 @@ func (r *waveRenderer) MinSize() fyne.Size { return r.w.min }
 // point is the line's y (0 at the top) at x in [0, 1], for a height h.
 func (r *waveRenderer) point(x float64, h float64) float64 {
 	mid := h / 2
-	if len(r.w.values) < 2 {
-		return mid - math.Sin(2*math.Pi*r.w.cycles*x+r.w.phase)*mid*float64(r.w.amplitude)
-	}
-	lo, hi := r.w.values[0], r.w.values[0]
-	for _, v := range r.w.values {
-		lo, hi = min(lo, v), max(hi, v)
-	}
-	f := x * float64(len(r.w.values)-1)
-	i := min(int(f), len(r.w.values)-2)
-	// A smooth step between two values, so the series reads as a wave and not a zigzag.
-	t := f - float64(i)
-	t = t * t * (3 - 2*t)
-	v := r.w.values[i] + (r.w.values[i+1]-r.w.values[i])*t
-	if hi == lo {
-		return mid
-	}
-	pad := h * 0.18
-	return h - pad - (v-lo)/(hi-lo)*(h-2*pad)
+	return mid - math.Sin(2*math.Pi*r.w.cycles*x+r.w.phase)*mid*float64(r.w.amplitude)
 }
 
 func (r *waveRenderer) draw(pw, ph int) image.Image {
