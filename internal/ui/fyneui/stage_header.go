@@ -242,11 +242,14 @@ func (h *sectionHead) CreateRenderer() fyne.WidgetRenderer {
 	return widget.NewSimpleRenderer(newBracketLabel(headText(h.title, h.n), colorAccent))
 }
 
-// sectionHeadOf is an ungrouped section's head: its title and its rows.
+// sectionHeadOf is an ungrouped section's head: its title and its items and rows, or its Count.
 func sectionHeadOf(sec model.DetailSection) fyne.CanvasObject {
 	n := len(sec.Items)
 	if sec.Table != nil {
 		n += len(sec.Table.Rows)
+	}
+	if sec.Count > 0 {
+		n = sec.Count
 	}
 	return newSectionHead(sec.Title, n)
 }

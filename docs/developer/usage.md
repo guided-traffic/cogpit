@@ -80,7 +80,9 @@ Ctrl on Windows and Linux.
   A click below the rows closes the drawer.
 - Ingresses list their hosts in place of Lens's Rules; a click on a host, there or in the drawer's
   rules, opens it in the browser, https where the Ingress has TLS for it. `*` and wildcard hosts
-  are text.
+  are text. The drawer shows each host across its width with its paths under it: a click on a path
+  opens the host with that path (a path the controller may read as a regular expression is text),
+  a click on a backend's Service shows the Service.
 - Certificates in Secrets decoded in the drawer (PEM or DER, each of a chain): subject, issuer,
   serial, validity (a warning 30 days before the end), names, key, usages, fingerprint; whether
   `tls.key` belongs to `tls.crt` and the chain is in order. Agents read the fields, never the PEM

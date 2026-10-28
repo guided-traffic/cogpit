@@ -21,14 +21,14 @@ var kustomizationsSpec = &fluxSpec{
 	suspend: true, reconcile: true,
 	columns: []fluxColumn{
 		{Column: model.Column{ID: idSource, Title: titleSource, Type: model.ColumnText}, cell: fluxRefCell("", fieldSpec, "sourceRef"), field: true},
-		{Column: model.Column{ID: "path", Title: "Path", Type: model.ColumnText}, cell: fluxTextCell("", fieldSpec, "path"), field: true},
+		{Column: model.Column{ID: fieldPath, Title: "Path", Type: model.ColumnText}, cell: fluxTextCell("", fieldSpec, fieldPath), field: true},
 	},
 	revision: func(obj *unstructured.Unstructured) string {
 		return model.NestedString(obj, "status", "lastAppliedRevision")
 	},
 	properties: func(obj *unstructured.Unstructured, d *detailItems) {
 		d.put(fluxRefItem(obj, titleSource, "", fieldSpec, "sourceRef"))
-		d.add("Path", model.NestedString(obj, fieldSpec, "path"))
+		d.add("Path", model.NestedString(obj, fieldSpec, fieldPath))
 		d.add("Target Namespace", model.NestedString(obj, fieldSpec, "targetNamespace"))
 		d.add("Service Account", model.NestedString(obj, fieldSpec, "serviceAccountName"))
 		d.add("Prune", fluxBool(obj, fieldSpec, "prune"))

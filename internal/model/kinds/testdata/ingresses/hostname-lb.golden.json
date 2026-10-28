@@ -88,21 +88,99 @@
     },
     {
       "title": "Rules",
-      "items": [
-        {
-          "name": "*.tenants.example.com",
-          "value": "(no path, ImplementationSpecific) -> tenant-router:8443"
-        },
-        {
-          "name": "*",
-          "value": "/healthz (Exact) -> health:8080"
-        },
-        {
-          "name": "parked.example.com",
-          "value": "no paths: requests go to the default backend",
-          "nameURL": "http://parked.example.com"
-        }
-      ]
+      "table": {
+        "columns": [
+          "Host",
+          "Path",
+          "Type",
+          "Backend"
+        ],
+        "rows": [
+          [
+            "*.tenants.example.com",
+            "(no path)",
+            "ImplementationSpecific",
+            "tenant-router:8443"
+          ],
+          [
+            "*",
+            "/healthz",
+            "Exact",
+            "health:8080"
+          ],
+          [
+            "parked.example.com",
+            "(no paths)",
+            "",
+            "(the controller's default backend)"
+          ]
+        ],
+        "types": [
+          "text",
+          "text",
+          "text",
+          "text"
+        ],
+        "cells": [
+          [
+            {
+              "text": "*.tenants.example.com"
+            },
+            {
+              "text": "(no path)"
+            },
+            {
+              "text": "ImplementationSpecific"
+            },
+            {
+              "text": "tenant-router:8443",
+              "link": {
+                "kind": "services",
+                "namespace": "saas",
+                "name": "tenant-router"
+              }
+            }
+          ],
+          [
+            {
+              "text": "*"
+            },
+            {
+              "text": "/healthz"
+            },
+            {
+              "text": "Exact"
+            },
+            {
+              "text": "health:8080",
+              "link": {
+                "kind": "services",
+                "namespace": "saas",
+                "name": "health"
+              }
+            }
+          ],
+          [
+            {
+              "text": "parked.example.com",
+              "web": [
+                {
+                  "text": "parked.example.com",
+                  "url": "http://parked.example.com"
+                }
+              ]
+            },
+            {
+              "text": "(no paths)"
+            },
+            {},
+            {
+              "text": "(the controller's default backend)"
+            }
+          ]
+        ]
+      },
+      "count": 3
     }
   ]
 }

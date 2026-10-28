@@ -32,6 +32,9 @@ type DetailSection struct {
 	// Grade, when set, is the image grade of the container the section is about (the Trivy
 	// integration, D-113): a shield beside the section's title and a card under its items.
 	Grade *GradeCard `json:"grade,omitempty"`
+	// Count, when set, is the number the section's head shows in place of its items and rows: an
+	// Ingress's rules, whose table has a row per path.
+	Count int `json:"count,omitempty"`
 }
 
 // The groups of a pod's container sections, one section per container titled by its name.
@@ -201,8 +204,6 @@ func relativeTime(typ ColumnType) bool { return typ == ColumnAge || typ == Colum
 //   - Actions are buttons beside the value that run a command for it: "Forward…" beside a
 //     container port. An action marked Link is the value itself: the value is a link that runs
 //     it (a container port forwards at once and opens the browser).
-//   - NameURL, when set, makes the name a web link: the drawer draws it as a link that opens the
-//     absolute http or https URL in the browser on the user's click (an Ingress rule's host).
 //   - Private marks a value agents must not read (Helm's user-supplied values, which can hold
 //     credentials): object_get gives agents [Withheld] in its place (WithholdPrivate), the user's
 //     own window shows it. It is not part of the JSON.
@@ -219,9 +220,8 @@ type DetailItem struct {
 	Pill bool `json:"pill,omitempty"`
 	// Wrap breaks a plain value onto lines within the value's width where it is cut off
 	// otherwise: a release's description, which holds Helm's error message.
-	Wrap    bool   `json:"wrap,omitempty"`
-	NameURL string `json:"nameURL,omitempty"`
-	Private bool   `json:"-"`
+	Wrap    bool `json:"wrap,omitempty"`
+	Private bool `json:"-"`
 }
 
 // Withheld is what agents read in place of a private item's value.

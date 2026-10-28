@@ -66,7 +66,7 @@ const (
 	idArgoRevision    = "revision"
 	idArgoRepository  = "repository"
 	idArgoTarget      = "targetRevision"
-	idArgoPath        = "path"
+	idArgoPath        = fieldPath
 	idArgoMessage     = "message"
 	idArgoGenerators  = "generators"
 	idArgoApps        = "applications"

@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"maps"
 	"net/url"
 	"slices"
 	"testing"
@@ -156,17 +157,51 @@ func TestIngressHostsOpenInTheBrowser(t *testing.T) {
 	}
 }
 
-// TestIngressRuleHostsAreLinks: in the drawer each rule's host is a link that opens it in the
-// browser; a host wider than the name column wraps, and the pointer on any line underlines all.
-func TestIngressRuleHostsAreLinks(t *testing.T) {
+// TestIngressRulesLinks: in the drawer each rule's host is a link on a line of its own, its paths
+// under it: a path links to the host's address with the path, its address the tooltip, and the
+// backend's Service name links to the Service while the port stays text. A host wider than the
+// details wraps, and the pointer on any line underlines all.
+func TestIngressRulesLinks(t *testing.T) {
 	opened := stubBrowser(t)
 	f := ingressFake(t)
-	ref := model.ObjectRef{Context: "demo", Kind: "ingresses", Namespace: "monitoring", Name: "status-board"}
+	long := "a-very-long-subdomain-name-for-the-status-board-of-the-platform.monitoring-and-observability.platform-team.k8s-main.example.net"
+	longRef := withIngressDetail(t, f, "long-host", nil, map[string]any{"host": long, "http": map[string]any{"paths": []any{
+		ingressPath("/", "Prefix", "web", int64(80))}}})
+
+	ref := model.ObjectRef{Context: "demo", Kind: "ingresses", Namespace: "git", Name: "gitlab-kas"}
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 })
 	settle(w)
 
+	links := drawerLinks(sh)
+	host, path, service := links["kas.example.net"], links["/k8s-proxy/"], links["web"]
+	if host == nil || path == nil || service == nil {
+		t.Fatalf("links %q, texts %q", slices.Collect(maps.Keys(links)), drawerTexts(sh))
+	}
+	if host.peers != nil {
+		t.Error("a host that fits the details is wrapped")
+	}
+	if !slices.Contains(drawerTexts(sh), ":80") {
+		t.Errorf("the port is not text after the Service's link: %q", drawerTexts(sh))
+	}
+	path.MouseIn(&desktop.MouseEvent{})
+	q.until(t, "the path's tooltip", func() bool { return sh.tip.visibleText() == "https://kas.example.net/k8s-proxy/" })
+	path.MouseOut()
+	test.Tap(host)
+	test.Tap(path)
+	if !slices.Equal(*opened, []string{"https://kas.example.net", "https://kas.example.net/k8s-proxy/"}) {
+		t.Fatalf("opened %q", *opened)
+	}
+	test.Tap(service)
+	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 1 })
+	if got := decodeParams[refParams](t, f.callsOf("ui.navigate")[0]).Ref; got != (model.ObjectRef{Context: "demo", Kind: "services", Namespace: "git", Name: "web"}) {
+		t.Errorf("backend link %+v", got)
+	}
+
+	sh.dispatch("ui.navigate", refParams{Ref: longRef}, nil)
+	q.until(t, "the long host's drawer", func() bool { return drawerLinks(sh)["/"] != nil && sh.drawer.last.Ref == longRef })
+	settle(w)
 	var lines []*linkText
 	for _, l := range findAll[*linkText](sh.drawer.details) {
 		if l.peers != nil {
@@ -182,9 +217,39 @@ func TestIngressRuleHostsAreLinks(t *testing.T) {
 	}
 	lines[0].MouseOut()
 	test.Tap(lines[len(lines)-1])
-	if !slices.Equal(*opened, []string{"https://status-board.monitoring.k8s-main.example.net"}) {
-		t.Fatalf("opened %q", *opened)
+	if got := (*opened)[len(*opened)-1]; got != "http://"+long {
+		t.Fatalf("opened %q", got)
 	}
+}
+
+// withIngressDetail gives the fake the drawer of an Ingress in namespace apps that is not in the
+// list: name, its TLS hosts and its rules.
+func withIngressDetail(t *testing.T, f *fakeEngine, name string, tlsHosts []any, rules ...any) model.ObjectRef {
+	t.Helper()
+	spec := map[string]any{"ingressClassName": "nginx", "rules": rules}
+	if tlsHosts != nil {
+		spec["tls"] = []any{map[string]any{"hosts": tlsHosts, "secretName": name + "-tls"}}
+	}
+	obj := &unstructured.Unstructured{Object: map[string]any{"apiVersion": "networking.k8s.io/v1", "kind": "Ingress",
+		"metadata": map[string]any{"name": name, "namespace": "apps", "uid": "uid-ing-" + name, "creationTimestamp": ts(40 * 24 * time.Hour)},
+		"spec":     spec}}
+	p, _ := kinds.ByKey("ingresses")
+	ref := model.ObjectRef{Context: "demo", Kind: "ingresses", Namespace: "apps", Name: name}
+	m, err := engine.BuildDetailWith(p, ref, obj, nil, fixedNow, model.NoRelated)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.details[ref.String()] = m
+	return ref
+}
+
+// ingressPath is a rule's path to a Service's port, a number or a name.
+func ingressPath(path, typ, service string, port any) any {
+	p := map[string]any{"name": port}
+	if n, ok := port.(int64); ok {
+		p = map[string]any{"number": n}
+	}
+	return map[string]any{"path": path, "pathType": typ, "backend": map[string]any{"service": map[string]any{"name": service, "port": p}}}
 }
 
 // TestOpenWebLinkChecksTheAddress: an address from the cluster opens only as an absolute http or
@@ -216,17 +281,25 @@ func TestRenderIngressesDark(t *testing.T) {
 	savePNG(t, w, "ingresses_dark.png")
 }
 
-// TestRenderIngressDrawerDark: gitlab-kas's drawer: two rules, one of them with two paths, the
-// pointer on the first rule's host.
+// TestRenderIngressDrawerDark: an Ingress's drawer with two rules: one host with four paths to two
+// Services, its paths of different lengths and types, and one with a path the controller reads as
+// a regular expression, which is no link; the pointer on the first path.
 func TestRenderIngressDrawerDark(t *testing.T) {
 	f := ingressFake(t)
-	ref := model.ObjectRef{Context: "demo", Kind: "ingresses", Namespace: "git", Name: "gitlab-kas"}
+	ref := withIngressDetail(t, f, "workspace", []any{"workspace.k8s-main.example.net"},
+		map[string]any{"host": "workspace.k8s-main.example.net", "http": map[string]any{"paths": []any{
+			ingressPath("/api/", "Prefix", "workspace-backend", "http"),
+			ingressPath("/auth/", "Prefix", "workspace-backend", "http"),
+			ingressPath("/healthz", "Exact", "workspace-backend", int64(8080)),
+			ingressPath("/", "Prefix", "workspace-frontend", "http")}}},
+		map[string]any{"host": "legacy.example.net", "http": map[string]any{"paths": []any{
+			ingressPath("/old(/|$)(.*)", "ImplementationSpecific", "workspace-frontend", int64(80))}}})
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 && sh.diag.total > 0 })
-	link := drawerLinks(sh)["kas.example.net"]
+	link := drawerLinks(sh)["/api/"]
 	if link == nil {
-		t.Fatalf("no link on the rule's host: %q", drawerTexts(sh))
+		t.Fatalf("no link on the path: %q", drawerTexts(sh))
 	}
 	link.MouseIn(&desktop.MouseEvent{})
 	savePNG(t, w, "ingress_drawer_dark.png")

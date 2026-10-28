@@ -40,8 +40,8 @@ func (sh *shell) followLink(link model.ObjectRef, rowContext string, namespaceCo
 	}
 }
 
-// openWebLink opens a web address a cell or a drawer name links (model.WebLink, DetailItem.NameURL:
-// an Ingress's hosts) in the browser, on the user's click only: no agent opens a browser. The
+// openWebLink opens a web address a cell links (model.WebLink: an Ingress's hosts and paths) in
+// the browser, on the user's click only: no agent opens a browser. The
 // address comes from the cluster, so the window checks it again: an absolute http or https URL
 // with a host and without user information, else a warning and nothing opens.
 func (sh *shell) openWebLink(raw string) {
@@ -89,6 +89,8 @@ type linkText struct {
 	// peers are the lines of one link wrapped onto several (nameLink), this one among them: the
 	// pointer on any of them underlines them all.
 	peers []*linkText
+	tips  *tooltip // shows tip while the pointer is on the link; nil: no tooltip
+	tip   string
 }
 
 // setIconRoom implements iconRoom: a cut-off link shortens its text before the copy icon.
@@ -116,21 +118,31 @@ func (l *linkText) Tapped(*fyne.PointEvent) {
 func (l *linkText) Cursor() desktop.Cursor { return desktop.PointerCursor }
 
 // MouseIn implements desktop.Hoverable.
-func (l *linkText) MouseIn(*desktop.MouseEvent) {
+func (l *linkText) MouseIn(ev *desktop.MouseEvent) {
 	l.setHovered(true)
 	if l.hook != nil {
 		l.hook.enter(l, fyne.MeasureText(l.text, l.Theme().Size(l.size), fyne.TextStyle{}).Width)
 	}
+	if l.tips != nil {
+		l.tips.hover(l, l.tip, ev.AbsolutePosition)
+	}
 }
 
 // MouseMoved implements desktop.Hoverable.
-func (l *linkText) MouseMoved(*desktop.MouseEvent) {}
+func (l *linkText) MouseMoved(ev *desktop.MouseEvent) {
+	if l.tips != nil {
+		l.tips.moved(l, ev.AbsolutePosition)
+	}
+}
 
 // MouseOut implements desktop.Hoverable.
 func (l *linkText) MouseOut() {
 	l.setHovered(false)
 	if l.hook != nil {
 		l.hook.leave(l)
+	}
+	if l.tips != nil {
+		l.tips.hideFor(l)
 	}
 }
 
@@ -146,8 +158,8 @@ func (l *linkText) setHovered(on bool) {
 	}
 }
 
-// nameLink is a drawer name that is a web link (DetailItem.NameURL): one line, or, wider than the
-// name column (width), wrapped as other names are (wrapName), its lines one link.
+// nameLink is a link that is one line, or, wider than width, wrapped as the drawer's names are
+// (wrapName), its lines one link: an Ingress rule's host across the drawer (ingressrules.go).
 func nameLink(text string, width float32, onTap func()) fyne.CanvasObject {
 	th := fyne.CurrentApp().Settings().Theme()
 	lines := wrapName(text, width, th.Size(theme.SizeNameText), fyne.TextStyle{})
