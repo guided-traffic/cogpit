@@ -2,9 +2,9 @@
 // the main thread of its own process): it creates a window as GLFW does, installs Cogpit's title
 // bar, centres the buttons in a 40-point bar, lets AppKit lay the title bar out again (a resize, a
 // style change) and prints each step's button centres from the window's top and their x, one line
-// per step: "<step> <close centre> <close x> <zoom centre> <zoom x>", and the content view's layer
-// contents placement against AppKit's top left ("placement <got> <top left>"). Exit status 3: no window
-// buttons (no window server).
+// per step: "<step> <close centre> <close x> <zoom centre> <zoom x>", the content view's layer
+// contents placement against AppKit's top left ("placement <got> <top left>") and the window's
+// colour space by name ("colorspace <name>"). Exit status 3: no window buttons (no window server).
 
 #import <Cocoa/Cocoa.h>
 #include "titlebar_darwin.h"
@@ -58,6 +58,12 @@ int main(void) {
 		report(w, "appkit");
 		cogpitWindowKeepContentPlaced((uintptr_t)w);
 		printf("placement %ld %ld\n", (long)w.contentView.layerContentsPlacement, (long)NSViewLayerContentsPlacementTopLeft);
+		cogpitWindowUseSRGB((uintptr_t)w);
+		CFStringRef space = CGColorSpaceCopyName(w.colorSpace.CGColorSpace);
+		printf("colorspace %s\n", space != NULL ? [(NSString *)space UTF8String] : "none");
+		if (space != NULL) {
+			CFRelease(space);
+		}
 		cogpitTitlebarInstall((uintptr_t)w, 1);
 		cogpitTitlebarCentreButtons((uintptr_t)w, 40);
 		settle(w);

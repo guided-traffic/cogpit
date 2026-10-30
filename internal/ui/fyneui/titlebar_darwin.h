@@ -15,6 +15,9 @@ typedef struct {
 // cogpitWindowKeepContentPlaced keeps the window's last frame anchored at the top left while a
 // resize is dragged, instead of scaled to the new size until the next frame is drawn.
 void cogpitWindowKeepContentPlaced(uintptr_t window);
+// cogpitWindowUseSRGB declares the window's content sRGB, the theme's colour space, so that AppKit
+// converts every frame to the profile of the display the window is on.
+void cogpitWindowUseSRGB(uintptr_t window);
 // cogpitTitlebarInstall lets the window's content fill the title bar's area under a transparent
 // title bar without a title, and reports layout changes (full screen, resizes, a new screen) to the
 // Go function cogpitTitlebarChanged with id.

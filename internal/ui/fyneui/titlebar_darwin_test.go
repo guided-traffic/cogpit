@@ -42,8 +42,8 @@ func TestTitlebarStopAfterTheRunEnded(t *testing.T) {
 // The window buttons sit centred in Cogpit's 40-point top bar, not where AppKit's own title bar
 // has them (owner, 2026-10-13: "too high"), and stay there when AppKit lays the title bar out
 // again: titlebar_darwin.m itself, built with a native harness into a process of its own (a window
-// needs its process's main thread) and run. Their x stays AppKit's. Needs clang and a window
-// server.
+// needs its process's main thread) and run. Their x stays AppKit's, and the window's colour space
+// is sRGB. Needs clang and a window server.
 func TestTitlebarButtonsCentred(t *testing.T) {
 	clang := prereq.LookPath(t, "clang")
 	bin := filepath.Join(t.TempDir(), "titlebar_harness")
@@ -59,6 +59,7 @@ func TestTitlebarButtonsCentred(t *testing.T) {
 		t.Fatalf("the harness: %v\n%s", err, out)
 	}
 	steps := map[string][4]float64{}
+	var space string
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		var got, topLeft int
 		if _, err := fmt.Sscanf(line, "placement %d %d", &got, &topLeft); err == nil {
@@ -68,12 +69,22 @@ func TestTitlebarButtonsCentred(t *testing.T) {
 			}
 			continue
 		}
+		if _, err := fmt.Sscanf(line, "colorspace %s", &space); err == nil {
+			// The theme's colours are sRGB, converted to each display's profile (D-141).
+			if space != "kCGColorSpaceSRGB" {
+				t.Errorf("the window's colour space is %s, want kCGColorSpaceSRGB", space)
+			}
+			continue
+		}
 		var name string
 		var v [4]float64
 		if _, err := fmt.Sscan(line, &name, &v[0], &v[1], &v[2], &v[3]); err != nil {
 			t.Fatalf("a line of the harness %q: %v", line, err)
 		}
 		steps[name] = v
+	}
+	if space == "" {
+		t.Errorf("no colorspace line in %q", out)
 	}
 	appkit := steps["appkit"]
 	for _, step := range []string{"centred", "resized", "restyled"} {
