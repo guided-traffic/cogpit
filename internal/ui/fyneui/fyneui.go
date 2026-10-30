@@ -206,7 +206,6 @@ func appMetadata(checks bool) (m fyne.AppMetadata, ok bool) {
 // until the window closes. When Fyne's teardown does not end within Options.QuitBound, Run does not
 // return: Options.QuitHung ends the process (quitbound.go).
 func Run(s *engine.Session, opts Options) error {
-	preferSoftGL() // before the window, whose GL context Mesa's driver is chosen for (softgl.go)
 	if m, ok := appMetadata(buildinfo.FyneThreadChecks); ok {
 		app.SetMetadata(m) // before the app exists: Fyne reads it at the first canvas refresh
 	}

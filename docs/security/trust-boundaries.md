@@ -22,6 +22,7 @@ its checks, the package that owns them, and the code and tests that hold them.
 | Built-in agent and its LLM endpoint | the endpoint's output is untrusted | [agents and MCP](agents-and-mcp.md) |
 | Update feeds, release host, APT repository (GitHub Pages) | trusted after signature verification | The update key's EdDSA signatures, on macOS also Cogpit's Developer ID; for apt its OpenPGP check, and apt reads the repository, never Cogpit ([updates](updates.md)) |
 | kubectl release host (`dl.k8s.io`) or the mirror set in Preferences | untrusted; a binary counts once its release signature and that signature's transparency-log entry verify | A downloaded `kubectl` runs whenever the user types `kubectl` in a Cogpit terminal, with the user's privileges and credentials ([kubectl downloads](#kubectl-downloads)) |
+| Mesa's release host (`github.com/pal1000/mesa-dist-win`; Windows) | untrusted; the archive counts once its SHA-256 is the one the release carries | Its two DLLs run inside `cogpit.exe` at every later start ([updates › Mesa on Windows](updates.md#mesa-on-windows), [H-147](updates.md#h-147-mesas-dlls-are-a-third-party-build-without-a-signature)) |
 | sigstore's transparency log (`rekor.sigstore.dev`) | untrusted transport; its answer counts once its signatures verify against the log key in the embedded trusted root | It vouches that a kubectl release's signature was published while its certificate was valid ([H-35](#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)) |
 | The Kubernetes project's release schedule (`kubernetes/website`'s `schedule.yaml`, `eol.yaml`) | data at build time only | Built into each release, checked and bounded, never code; the app never contacts its host ([updates › H-130](updates.md#h-130-the-releases-kubernetes-release-table-is-fetched-unreviewed)) |
 
@@ -55,6 +56,8 @@ UNTRUSTED                                   BOUNDARY                          TR
                                             by-hash, SHA-256, newer only      (the user's password)
   kubectl release (dl.k8s.io or mirror)  ─► GUI click, https, size bound, ──► first on PATH in
                                             SHA-256, sigstore signature       Cogpit's terminals
+  Mesa's archive (github.com; Windows)   ─► OK in a message box, https, ───► opengl32.dll beside
+                                            size bound, pinned SHA-256        cogpit.exe
   Rekor's entry (rekor.sigstore.dev)     ─► its proofs against the
                                             embedded trusted root (sigstore-go)
 ```
@@ -83,6 +86,7 @@ UNTRUSTED                                   BOUNDARY                          TR
 | The LLM endpoint's certificate to the chat | `internal/agent`, `internal/ui/fyneui` | An `https://` endpoint's certificate is verified against the system's roots (on macOS and Windows through the platform verifier) or, when the user named a CA file for the connection in Preferences › Agent, against that file alone, read for each request ([`agent/cafile.go`](../../internal/agent/cafile.go); `TestCAFileTrustsAPrivateCA`, `TestCAFileReplacesTheSystemRoots`, `TestCAFileRefusesAPublicServer`, `TestCAFileErrorsAreNamed`); no redirect is followed. A plain `http://` endpoint on another machine is allowed and warned about in Preferences › Agent and the connection test ([credentials › H-95](credentials.md#h-95-an-llm-api-key-over-plain-http)). What the CA file leaves open: [H-104](#h-104-a-connections-ca-file-replaces-the-systems-roots-checked-by-gos-verifier) |
 | Download to installed app or package | `internal/update` (Sparkle 2, WinSparkle; apt on Linux) | Signatures over feed and download, Developer ID on macOS, newer versions only; on Linux apt's checks and an install only through pkexec on the user's click: [updates](updates.md) |
 | kubectl download to a terminal's `PATH` | `internal/kubectl`, `internal/engine`, `internal/terminal` | Only on the user's click; https; the release's sigstore signature and its transparency-log entry before the binary is fetched; size bound and digest; first on `PATH` in Cogpit's terminals only: [kubectl downloads](#kubectl-downloads) |
+| Mesa's archive to `cogpit.exe`'s folder (Windows) | `internal/mesa`, `internal/mesa/fetch` | Only after the user's OK in the box Fyne's report of no OpenGL opens, never for an agent or the CLI; the archive's SHA-256 against the release's pin before the 7z decoder reads it; the two files renamed into place, the driver first ([updates › Mesa on Windows](updates.md#mesa-on-windows)) |
 
 ### kubectl downloads
 

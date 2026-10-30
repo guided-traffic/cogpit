@@ -28,6 +28,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/locale"
 	"github.com/guided-traffic/cogpit/internal/mcp"
+	"github.com/guided-traffic/cogpit/internal/mesa"
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui"
 	"github.com/guided-traffic/cogpit/internal/update"
 )
@@ -100,10 +101,17 @@ func run(previousCrash string, f cliFlags, smoke *smokeRun, exit func(code int))
 	// Helm values never reach the log; Fyne's thread-check warnings, which come through the
 	// standard log package that slog.SetDefault routes here, reach the window too (D-103); a smoke
 	// run counts the errors that reach the log.
-	logger := slog.New(fyneui.WatchThreadChecks(helm.RedactSDKLog(smoke.watch(newLogger(*f.verbose).Handler()))))
+	handler := fyneui.WatchThreadChecks(helm.RedactSDKLog(smoke.watch(newLogger(*f.verbose).Handler())))
+	if mesa.Offers && smoke == nil {
+		// Fyne's report of no OpenGL to draw with, which reaches the log the same way, opens the
+		// offer of Mesa on Windows (D-142); a smoke run fails on it instead.
+		handler = mesa.Watch(handler, func(fl mesa.Failure) { mesa.Offer(fl, exit) })
+	}
+	logger := slog.New(handler)
 	slog.SetDefault(logger)
 	klog.SetSlogLogger(logger)
 	logger.Info("cogpit started", "version", buildinfo.Read().String(), "fyneThreadCheck", buildinfo.ThreadChecksText())
+	mesa.Prefer() // before the window, whose GL context Mesa's driver is chosen for
 	// cogpit:// links (D-47): the handler must be in place before the app finishes launching, when
 	// macOS delivers the link that started it; the links wait in the queue for the window.
 	deepLinkQueue := installDeepLinks(logger)

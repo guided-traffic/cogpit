@@ -150,7 +150,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
-| [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: Cogpit names llvmpipe for itself |
+| [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
 
 ## D-1: UI toolkit
 
@@ -5722,32 +5722,75 @@ not the frames.
 
 ## D-142: Mesa's OpenGL beside cogpit.exe
 
-**Status:** built · **By:** lead (open to revision)
+**Status:** built · **By:** owner (Cogpit offers to download mesa-dist-win's own archive; without
+internet a message and the steps by hand), lead (open to revision) the rest
 
-When the `opengl32.dll` Cogpit's process loaded lies in `cogpit.exe`'s folder (Mesa's software
-OpenGL, put there on a computer without an OpenGL 2.1 driver), Cogpit sets `GALLIUM_DRIVER=llvmpipe`
-in its own environment before its window exists, unless the variable is set, and logs `software
-rendering` with the DLL's path and the driver. With any other `opengl32.dll`, and on macOS and
-Linux, it does nothing.
+On Windows, Mesa's software OpenGL beside `cogpit.exe` draws Cogpit on a computer without an OpenGL
+Fyne can draw with:
+
+- **Mesa beside `cogpit.exe`:** when the `opengl32.dll` Cogpit's process loaded lies in
+  `cogpit.exe`'s folder, Cogpit sets `GALLIUM_DRIVER=llvmpipe` in its own environment before its
+  window exists, unless the variable is set, and logs `software rendering` with the DLL's path and
+  the driver.
+- **No OpenGL to draw with:** when Fyne logs that GLFW refused the context (`window creation
+  error`), that go-gl found a function missing (`failed to initialise OpenGL`) or that a shader did
+  not compile, Cogpit hides the window Fyne left and opens a Windows message box (`MessageBoxW`, no
+  OpenGL needed) with Fyne's reason and cause. It asks to download the Mesa release the build pins
+  (the Makefile's `MESA_VERSION` and `MESA_SHA256`, written into a release `cogpit.exe` by the
+  linker) from mesa-dist-win's GitHub release, check the archive's SHA-256 before reading it as an
+  archive, unpack the x64 `opengl32.dll` and `libgallium_wgl.dll` into `cogpit.exe`'s folder (the
+  driver first, each renamed into place) and start Cogpit again with its arguments. A second box
+  shows the download and unpacking; its Cancel stops them. A build without the pin, a folder the
+  user may not write to (an installation for all users) and Mesa beside `cogpit.exe` that did not
+  draw either each get a box that says what to do by hand. Without internet, or behind a proxy
+  Cogpit does not know, the download fails: the box says that downloading failed (or, once the
+  archive came, unpacking), with the error, which names the request, and the steps by hand. Cogpit
+  then quits; a smoke run fails on Fyne's report instead.
+- **On macOS and Linux** none of this runs: the 7z decoder and the download are linked into
+  `cogpit.exe` alone (`make check-windows-only` in CI's lint job).
 
 **Why:** Fyne draws through OpenGL 2.1. Windows Server and virtual machines without a GPU driver
-offer less, and Cogpit's window stays white or closes. Mesa's `opengl32.dll` and
-`libgallium_wgl.dll` beside the executable draw instead: go-gl links `opengl32.dll`, and Windows
-loads it with the process, looking in the executable's folder first. Without `GALLIUM_DRIVER`,
-Mesa tries d3d12, then zink, then llvmpipe (`src/gallium/targets/wgl/wgl.c`); on a Windows Server
-without a GPU the window closed at once without the variable and drew with it. Mesa reads it with
+offer less: GLFW refuses a context below 2.1 and Fyne quits before its window shows, or a driver
+claims 2.1 and the window stays white. Mesa's `opengl32.dll` beside the executable draws instead:
+go-gl links `opengl32.dll`, and Windows loads it with the process, looking in the executable's
+folder first, so Mesa takes effect only in a new process. Without `GALLIUM_DRIVER`, Mesa tries
+d3d12, then zink, then llvmpipe (`src/gallium/targets/wgl/wgl.c`); on a Windows Server without a
+GPU the window closed at once without the variable and drew with it. Mesa reads it with
 `GetEnvironmentVariableA` when it sets up its driver for the first window, so the process's own
-setting reaches it.
+setting reaches it. Fyne's report reaches the watch through the standard log package, which
+`slog.SetDefault` routes to Cogpit's handlers, on Fyne's main goroutine before Fyne quits; the
+offer runs there. mesa-dist-win ships the DLLs only as a 7z archive;
+`github.com/bodgit/sevenzip` reads it in Go and unpacks the two files as `bsdtar` does, byte for
+byte.
 
 **Rejected:** `LIBGL_ALWAYS_SOFTWARE=1` — skips d3d12 and zink too, but leaves the software driver
 to Mesa, while CI's smoke test draws with llvmpipe; leaving the variable to the user — a step every
 such computer needs and Cogpit can take; Mesa in the setup — an `opengl32.dll` beside `cogpit.exe`
-replaces every user's GPU driver.
+replaces every user's GPU driver; the two DLLs repacked into Cogpit's own release (owner) — Cogpit
+would distribute Mesa's build itself; only the steps by hand (owner); without internet, the archive
+taken from `cogpit.exe`'s folder or the Downloads folder, or picked in a file dialog (owner: the
+message and the steps by hand); Windows' `tar.exe` for the 7z
+archive — not checked to read LZMA2 on every supported Windows; a Task Dialog with a progress bar —
+`TASKDIALOGCONFIG` is packed to one byte, which Go's structs do not express without cgo; a check of
+the first drawn frame — reading the frame calls go-gl's functions, which can be missing after `failed
+to initialise OpenGL`.
 
-**Not covered:** Cogpit does not tell a computer without an OpenGL 2.1 driver what is missing: its
-window stays white or closes. The uninstaller leaves the two DLLs and the folder.
+**Not covered:** a window that draws nothing without any of Fyne's three reports gets no offer. The
+download reads `HTTPS_PROXY` and the other proxy variables, not Windows' proxy settings. Without
+internet the steps by hand need the archive unpacked: the Explorer opens 7z archives only from
+Windows 11 23H2 on, and whether Windows' `tar.exe` reads this one is not checked, so a computer
+without 7-Zip needs another one to unpack it. Silently dropped connections fail after Go's 30 s
+connect timeout. The
+uninstaller leaves the two DLLs and the folder. The message boxes and the download run on no test
+machine: CI's Windows runners never lack OpenGL with Mesa beside the app, and a box waits for a
+person ([updates › Mesa on Windows](../security/updates.md#mesa-on-windows)).
 
-**Code:** [`softgl.go`](../../internal/ui/fyneui/softgl.go) `softGL`,
-[`softgl_windows.go`](../../internal/ui/fyneui/softgl_windows.go) `preferSoftGL`, `loadedModule` ·
-`TestSoftGLOnlyForMesaBesideCogpit`, `TestLoadedModuleFindsOpenGL`; CI's Windows Package smoke test
-draws through it ([`smoke.sh`](../../hack/smoke.sh) sets no `GALLIUM_DRIVER`)
+**Code:** [`mesa.go`](../../internal/mesa/mesa.go) `softGL`, `Watch`, the boxes' texts,
+[`mesa_windows.go`](../../internal/mesa/mesa_windows.go) `Prefer`, `Offer`,
+[`fetch.go`](../../internal/mesa/fetch/fetch.go) `Install`,
+[`main.go`](../../cmd/cogpit/main.go) `run` · `TestSoftGLOnlyForMesaBesideCogpit`,
+`TestWatchFiresOnFyneGLFailures`, `TestFyneGLFailureReachesTheMesaOffer` (Fyne's line format),
+`TestDialogTexts` (the failed step named),
+`TestInstallPutsTheTwoFilesInPlace`, `TestInstallRefusesAnotherArchive`,
+`TestMakefileBuildsThePinIntoTheApp`, `TestUser32HasTheBoxesFunctions`; CI's Windows Package smoke
+test draws through `Prefer` ([`smoke.sh`](../../hack/smoke.sh) sets no `GALLIUM_DRIVER`)

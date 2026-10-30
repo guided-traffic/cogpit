@@ -412,6 +412,22 @@ check-nodemo: $(GOLANGCI_LINT) ## The release build's variant (DIST_TAGS): no in
 	$(GOLANGCI_LINT) run --build-tags '$(DIST_TAGS)' $(NODEMO_PKGS)
 	$(TEST_ENV) $(GO) test -tags '$(DIST_TAGS)' -run '^TestNoDemo' ./internal/engine/ ./cmd/cogpit-cli/
 
+# The packages only the Windows app links (D-142): Mesa's download and its 7z decoder, imported
+# from internal/mesa's Windows file alone, are in cogpit.exe and in no other binary, the apps for
+# macOS and Linux and every cogpit-cli; the Windows app must link them, so the check is not empty.
+# go list reads each system's build without compiling it; CGO_ENABLED=1 keeps the app's cgo files.
+WINDOWS_ONLY_PKGS := github.com/guided-traffic/cogpit/internal/mesa/fetch github.com/bodgit/sevenzip
+
+.PHONY: check-windows-only
+check-windows-only: ## The packages only cogpit.exe links (WINDOWS_ONLY_PKGS): in the Windows app, in no other binary
+	@win=$$(CGO_ENABLED=1 GOOS=windows $(GO) list -deps ./cmd/cogpit) || exit 1; \
+	others=$$(for os in darwin linux; do CGO_ENABLED=1 GOOS=$$os $(GO) list -deps ./cmd/cogpit || exit 1; done; \
+		for os in darwin linux windows; do CGO_ENABLED=1 GOOS=$$os $(GO) list -deps ./cmd/cogpit-cli || exit 1; done) || exit 1; \
+	for p in $(WINDOWS_ONLY_PKGS); do \
+		echo "$$win" | grep -qx "$$p" || { echo "$$p: not in cogpit.exe"; exit 1; }; \
+		if echo "$$others" | grep -qx "$$p"; then echo "$$p: in a binary other than cogpit.exe"; exit 1; fi; \
+	done; echo "$(WINDOWS_ONLY_PKGS): in cogpit.exe only"
+
 parity: ## Check the parity checklists and the numbers the progress pages report (D-15); PARITY_FLAGS=-rows skips the numbers
 	$(GO) run ./hack/parity -check $(PARITY_FLAGS)
 
@@ -980,12 +996,17 @@ WIN_ICON_SIZES  := 16,20,24,32,40,48,64,256
 WINDOWS_FEED_URL := https://guided-traffic.github.io/cogpit/appcast-windows.xml
 UPDATE_PKG       := github.com/guided-traffic/cogpit/internal/update
 WIN_APP_LDFLAGS   = -H=windowsgui -X $(UPDATE_PKG).windowsFeedURL=$(WINDOWS_FEED_URL) \
-	$(if $(SPARKLE_PUBLIC_ED_KEY),-X $(UPDATE_PKG).edPublicKey=$(SPARKLE_PUBLIC_ED_KEY))
-# Mesa's software OpenGL for the smoke test of a Windows x64 build (D-112; smoke, SMOKE_MESA):
-# pal1000/mesa-dist-win's MSVC build, of which hack/windows/mesa.sh keeps the x64 opengl32.dll and
-# libgallium_wgl.dll (the llvmpipe driver) in .cache/mesa/<version>; GitHub's Windows runners have
-# no OpenGL 2.1 driver, Fyne's minimum. The release archive pinned by its tag and SHA-256 (GitHub's
-# digest of the asset); CI's tool only, never in a setup.
+	$(if $(SPARKLE_PUBLIC_ED_KEY),-X $(UPDATE_PKG).edPublicKey=$(SPARKLE_PUBLIC_ED_KEY)) \
+	-X $(MESA_PKG).version=$(MESA_VERSION) -X $(MESA_PKG).archiveSHA256=$(MESA_SHA256)
+# Mesa's software OpenGL for Windows: pal1000/mesa-dist-win's MSVC build, the release archive
+# pinned by its tag and SHA-256 (GitHub's digest of the asset). The smoke test of a Windows x64
+# build draws with it (D-112; smoke, SMOKE_MESA): hack/windows/mesa.sh keeps the x64 opengl32.dll
+# and libgallium_wgl.dll (the llvmpipe driver) in .cache/mesa/<version>, as GitHub's Windows runners
+# have no OpenGL 2.1 driver, Fyne's minimum. The linker writes the pin into a release cogpit.exe
+# (WIN_APP_LDFLAGS; internal/mesa's version and archiveSHA256), which offers to download it on a
+# computer without an OpenGL to draw with (D-142); no setup carries it. Renovate's update of the pin
+# waits for a person.
+MESA_PKG        := github.com/guided-traffic/cogpit/internal/mesa
 # renovate: datasource=github-release-attachments depName=pal1000/mesa-dist-win
 MESA_VERSION    := 26.2.4
 MESA_SHA256     := 351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695

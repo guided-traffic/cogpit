@@ -15,7 +15,7 @@
 # XDG_RUNTIME_DIR. On Windows with SMOKE_MESA naming a folder with Mesa's opengl32.dll and
 # libgallium_wgl.dll (make mesa), the two lie beside the binary for the run, the first place
 # Windows looks for them, and Mesa's llvmpipe driver draws, which Cogpit names itself when it finds
-# them there (GALLIUM_DRIVER, internal/ui/fyneui/softgl.go): GitHub's Windows runners have no
+# them there (GALLIUM_DRIVER, internal/mesa/mesa.go): GitHub's Windows runners have no
 # OpenGL 2.1 driver, Fyne's minimum.
 set -euo pipefail
 

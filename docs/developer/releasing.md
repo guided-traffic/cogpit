@@ -26,7 +26,7 @@ passing a gate, and a missing prerequisite fails its test instead of skipping it
 
 | Job | Make target | Runs |
 |---|---|---|
-| Code Linting | `make lint`, `make check-nodemo` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests |
+| Code Linting | `make lint`, `make check-nodemo`, `make check-windows-only` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests; Mesa's download and its 7z decoder are in `cogpit.exe` and no other binary ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)) |
 | Parity | `make parity` | [`hack/parity`](../../hack/parity/main.go) with `-check` ([parity README](../parity/README.md#make-parity)) |
 | GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out, for Linux and Windows |
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
@@ -110,9 +110,8 @@ the Makefile at each run.
 | Windows, without cgo | those with Windows files but `internal/ui/fyneui` | `make lint`, `make gosec` (second pass) | Code Linting, GoSec Security Scan |
 | macOS, with cgo | those with darwin-only files | `make lint-darwin`, `make gosec-darwin` | macOS Lint and App |
 
-`internal/ui/fyneui`'s Windows files, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go)
-and [`softgl_windows.go`](../../internal/ui/fyneui/softgl_windows.go), are vetted by Unit Tests
-(windows) and neither linted nor scanned: their package needs cgo for Fyne
+`internal/ui/fyneui`'s Windows file, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go),
+is vetted by Unit Tests (windows) and neither linted nor scanned: its package needs cgo for Fyne
 ([D-112](decisions.md#d-112-ci-and-test-time)). The patched terminal widget, a module of its own
 ([`third_party/fyne-terminal`](../../third_party/fyne-terminal/PATCHES.md)), is in none of these
 runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](../../.golangci.yml)
@@ -171,7 +170,7 @@ installed (`test-windows-package WINDOWS_SMOKE=on`,
 ### Running a job locally
 
 ```sh
-make lint check-nodemo parity gosec vuln cyclo
+make lint check-nodemo check-windows-only parity gosec vuln cyclo
 make test-norace-coverage                      # what the race build skips, and the UI's render tests
 make test-race-ui RACE_SHARD=3 RACE_SHARDS=5   # the build, then one shard; make test-ui-race runs every UI test in UI_SHARDS shards
 make test-race-rest

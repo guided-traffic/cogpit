@@ -69,6 +69,10 @@ jobs:
       - name: The release build's variant (-tags nodemo)
         run: make check-nodemo
 
+      # Mesa's download and its 7z decoder (D-142) are linked into cogpit.exe and no other binary.
+      - name: The packages only the Windows app links
+        run: make check-windows-only
+
   # The parity checklists and the numbers the progress pages report (D-15).
   parity:
     name: Parity

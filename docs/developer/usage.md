@@ -305,15 +305,21 @@ Remove-Item -Recurse "$env:APPDATA\Cogpit", "$env:LOCALAPPDATA\Cogpit"   # your 
 The window follows each monitor's scaling. The menus and what Windows lacks are as on Linux
 ([above](#install-on-linux)), and `~\` in a path field is not your home folder (only `~/` is).
 
-**Without an OpenGL 2.1 driver** (Windows Server, a virtual machine without a GPU driver) the
-window stays white or closes at once: Cogpit draws through OpenGL 2.1. Mesa's software OpenGL draws
-instead: put `opengl32.dll` and `libgallium_wgl.dll` from the `x64` folder of
-[mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases)'s
-`mesa3d-<version>-release-msvc.7z` (CI draws with the Makefile's `MESA_VERSION`) beside
-`cogpit.exe`. Cogpit then names Mesa's llvmpipe driver for itself (`GALLIUM_DRIVER=llvmpipe`,
-unless you set the variable) and logs `software rendering`
-([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)). Drawing then takes CPU time, and the
-uninstaller leaves the two files and the folder behind.
+**Without an OpenGL to draw with** (Windows Server, a virtual machine without a GPU driver) Fyne
+finds no OpenGL 2.1 it can draw with. Cogpit then says so in a Windows message box, with Fyne's
+reason, and offers Mesa's software OpenGL
+([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)): OK downloads the Mesa release the
+Cogpit release pins (`mesa3d-<version>-release-msvc.7z` from
+[mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases)), checks its
+SHA-256, puts `opengl32.dll` and `libgallium_wgl.dll` beside `cogpit.exe` and starts Cogpit again; a
+second box shows the download, and its Cancel stops it. In an installation for all users
+(`C:\Program Files\Cogpit`, which Cogpit may not write to) and in a build from source, the box
+says what to do by hand; when the download fails (no internet, a proxy only Windows' settings name),
+it says so, with the error, and the same: put the two files from the archive's `x64` folder beside
+`cogpit.exe` and start Cogpit again. With Mesa beside it, Cogpit names Mesa's llvmpipe
+driver for itself (`GALLIUM_DRIVER=llvmpipe`, unless you set the variable) and logs `software
+rendering`. Drawing then takes CPU time; removing the two files brings back the computer's own
+OpenGL, and the uninstaller leaves them and the folder behind.
 
 **The terminal on Windows.** A local terminal runs the shell Preferences › Terminal names, else
 PowerShell 7 (`pwsh.exe` on `PATH`), else Windows PowerShell, else `%ComSpec%`; `$SHELL` is not
@@ -1607,6 +1613,7 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 | `kubectl/<version>/kubectl` | kubectl downloaded for terminals, unless `kubectlDir` names another folder ([kubectl](#preferences--kubernetes-kubectl-for-terminals)) |
 | `crash.log`, `crashes/` | the crash output; the next start keeps the newest 10 reports in `crashes/` and says where |
 | `<user cache dir>/Cogpit/cogpit.log` | the app log (also on stderr) |
+| `opengl32.dll`, `libgallium_wgl.dll` beside `cogpit.exe` | Windows, after your OK only: Mesa's software OpenGL, which Cogpit offers when it finds no OpenGL to draw with ([above](#install-on-windows)); not removed on uninstall |
 | `<user cache dir>/Cogpit/discovery/` | discovery answers per API server and identity, shared with `cogpit-cli`; deleting it costs the next connect its discovery requests ([D-65](decisions.md#d-65-discovery-cached-on-disk)) |
 | `<user cache dir>/Cogpit/helm/` | repository indexes, chart READMEs and chart icons; Helm's own cache is not touched |
 | `<temp dir>/cogpit-terminal-<random>.kubeconfig`, `<temp dir>/cogpit-terminal-<random>/` | a terminal's kubeconfig with its context only, and the folder that puts Cogpit's kubectl first; removed on close ([why](../security/credentials.md#the-terminals-kubeconfig)) |
