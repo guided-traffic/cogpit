@@ -150,6 +150,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
+| [D-new](#d-new-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: Cogpit names llvmpipe for itself |
 
 ## D-1: UI toolkit
 
@@ -5718,3 +5719,35 @@ not the frames.
 **Code:** [`titlebar_darwin.m`](../../internal/ui/fyneui/titlebar_darwin.m) `cogpitWindowUseSRGB`,
 [`titlebar_darwin.go`](../../internal/ui/fyneui/titlebar_darwin.go) `install` ·
 `TestTitlebarButtonsCentred`
+
+## D-new: Mesa's OpenGL beside cogpit.exe
+
+**Status:** built · **By:** lead (open to revision)
+
+When the `opengl32.dll` Cogpit's process loaded lies in `cogpit.exe`'s folder (Mesa's software
+OpenGL, put there on a computer without an OpenGL 2.1 driver), Cogpit sets `GALLIUM_DRIVER=llvmpipe`
+in its own environment before its window exists, unless the variable is set, and logs `software
+rendering` with the DLL's path and the driver. With any other `opengl32.dll`, and on macOS and
+Linux, it does nothing.
+
+**Why:** Fyne draws through OpenGL 2.1. Windows Server and virtual machines without a GPU driver
+offer less, and Cogpit's window stays white or closes. Mesa's `opengl32.dll` and
+`libgallium_wgl.dll` beside the executable draw instead: go-gl links `opengl32.dll`, and Windows
+loads it with the process, looking in the executable's folder first. Without `GALLIUM_DRIVER`,
+Mesa tries d3d12, then zink, then llvmpipe (`src/gallium/targets/wgl/wgl.c`); on a Windows Server
+without a GPU the window closed at once without the variable and drew with it. Mesa reads it with
+`GetEnvironmentVariableA` when it sets up its driver for the first window, so the process's own
+setting reaches it.
+
+**Rejected:** `LIBGL_ALWAYS_SOFTWARE=1` — skips d3d12 and zink too, but leaves the software driver
+to Mesa, while CI's smoke test draws with llvmpipe; leaving the variable to the user — a step every
+such computer needs and Cogpit can take; Mesa in the setup — an `opengl32.dll` beside `cogpit.exe`
+replaces every user's GPU driver.
+
+**Not covered:** Cogpit does not tell a computer without an OpenGL 2.1 driver what is missing: its
+window stays white or closes. The uninstaller leaves the two DLLs and the folder.
+
+**Code:** [`softgl.go`](../../internal/ui/fyneui/softgl.go) `softGL`,
+[`softgl_windows.go`](../../internal/ui/fyneui/softgl_windows.go) `preferSoftGL`, `loadedModule` ·
+`TestSoftGLOnlyForMesaBesideCogpit`, `TestLoadedModuleFindsOpenGL`; CI's Windows Package smoke test
+draws through it ([`smoke.sh`](../../hack/smoke.sh) sets no `GALLIUM_DRIVER`)
