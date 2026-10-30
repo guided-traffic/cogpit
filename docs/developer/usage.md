@@ -305,6 +305,16 @@ Remove-Item -Recurse "$env:APPDATA\Cogpit", "$env:LOCALAPPDATA\Cogpit"   # your 
 The window follows each monitor's scaling. The menus and what Windows lacks are as on Linux
 ([above](#install-on-linux)), and `~\` in a path field is not your home folder (only `~/` is).
 
+**Without an OpenGL 2.1 driver** (Windows Server, a virtual machine without a GPU driver) the
+window stays white or closes at once: Cogpit draws through OpenGL 2.1. Mesa's software OpenGL draws
+instead: put `opengl32.dll` and `libgallium_wgl.dll` from the `x64` folder of
+[mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases)'s
+`mesa3d-<version>-release-msvc.7z` (CI draws with the Makefile's `MESA_VERSION`) beside
+`cogpit.exe`. Cogpit then names Mesa's llvmpipe driver for itself (`GALLIUM_DRIVER=llvmpipe`,
+unless you set the variable) and logs `software rendering`
+([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)). Drawing then takes CPU time, and the
+uninstaller leaves the two files and the folder behind.
+
 **The terminal on Windows.** A local terminal runs the shell Preferences › Terminal names, else
 PowerShell 7 (`pwsh.exe` on `PATH`), else Windows PowerShell, else `%ComSpec%`; `$SHELL` is not
 read. It runs on a pseudo console (ConPTY) with

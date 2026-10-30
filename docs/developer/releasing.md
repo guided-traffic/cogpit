@@ -110,8 +110,9 @@ the Makefile at each run.
 | Windows, without cgo | those with Windows files but `internal/ui/fyneui` | `make lint`, `make gosec` (second pass) | Code Linting, GoSec Security Scan |
 | macOS, with cgo | those with darwin-only files | `make lint-darwin`, `make gosec-darwin` | macOS Lint and App |
 
-`internal/ui/fyneui`'s Windows file, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go),
-is vetted by Unit Tests (windows) and neither linted nor scanned: its package needs cgo for Fyne
+`internal/ui/fyneui`'s Windows files, [`power_windows.go`](../../internal/ui/fyneui/power_windows.go)
+and [`softgl_windows.go`](../../internal/ui/fyneui/softgl_windows.go), are vetted by Unit Tests
+(windows) and neither linted nor scanned: their package needs cgo for Fyne
 ([D-112](decisions.md#d-112-ci-and-test-time)). The patched terminal widget, a module of its own
 ([`third_party/fyne-terminal`](../../third_party/fyne-terminal/PATCHES.md)), is in none of these
 runs; `make test-fork` tests it. A run lists every finding ([`.golangci.yml`](../../.golangci.yml)

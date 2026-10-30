@@ -267,23 +267,41 @@ func connectLogDir() string {
 	return dirs.ConnectLogDir()
 }
 
-// newLogger logs to stderr and to <user cache dir>/Cogpit/cogpit.log, so a Cogpit.app started
+// newLogger logs to <user cache dir>/Cogpit/cogpit.log and to stderr, so a Cogpit.app started
 // from Finder keeps its log too.
 func newLogger(verbose bool) *slog.Logger {
 	level := slog.LevelInfo
 	if verbose {
 		level = slog.LevelDebug
 	}
-	var w io.Writer = os.Stderr
+	var file io.Writer // nil: no log file
 	if dir, err := os.UserCacheDir(); err == nil {
 		dir = filepath.Join(dir, "Cogpit")
 		if err := os.MkdirAll(dir, 0o700); err == nil {
 			if f, err := os.OpenFile(filepath.Join(dir, "cogpit.log"), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600); err == nil {
-				w = io.MultiWriter(os.Stderr, f)
+				file = f
 			}
 		}
 	}
-	return slog.New(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}))
+	return slog.New(slog.NewTextHandler(logWriter(file, os.Stderr), &slog.HandlerOptions{Level: level}))
+}
+
+// logWriter writes to file, when there is one, and then to stderr, whose errors it drops:
+// cogpit.exe, a Windows GUI program, has no standard error when started from the Start menu or
+// Explorer, so every write to it fails, and io.MultiWriter stops at the first writer that fails.
+func logWriter(file, stderr io.Writer) io.Writer {
+	if file == nil {
+		return stderr
+	}
+	return io.MultiWriter(file, dropErrors{stderr})
+}
+
+// dropErrors writes to w and reports every write as done, whatever w answers.
+type dropErrors struct{ w io.Writer }
+
+func (d dropErrors) Write(p []byte) (int, error) {
+	_, _ = d.w.Write(p)
+	return len(p), nil
 }
 
 // openAuditLog opens <user config dir>/Cogpit/audit.log, owner-only, for agent-initiated
