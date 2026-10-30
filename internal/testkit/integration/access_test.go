@@ -111,6 +111,15 @@ func TestBudgetAccessReviews(t *testing.T) {
 		if !testkit.WaitFor(ctx, func() bool { _, err := s.Lookup(ref); return err == nil }) {
 			t.Fatal("the pod never reached the cache")
 		}
+		// The pods' informer, started with the connect's view, watches after its list on a goroutine
+		// of its own: its watch is the listing's cost, not browsing's, so browsing counts from there.
+		if !testkit.WaitFor(ctx, func() bool {
+			b := conn.Counter().Snapshot().ByVerbResource
+			return b["watch pods"]+b["watchlist pods"] > 0
+		}) {
+			t.Fatalf("the pods' watch never came: %v", conn.Counter().Snapshot().ByVerbResource)
+		}
+		browsing := conn.Counter().Snapshot()
 		for range 5 {
 			settledKinds(ctx, t, s, "pods")
 			for _, cmd := range s.Registry().Actions("pods") {
@@ -124,8 +133,8 @@ func TestBudgetAccessReviews(t *testing.T) {
 		}
 		// A discovery request still on its way from the connect is not browsing (see
 		// TestBudgetWithoutAccessReviews), so discovery is left out of the count.
-		if after := conn.Counter().Snapshot(); len(withoutDiscovery(diff(settled, after))) > 0 {
-			t.Errorf("browsing cost %d requests: %v", after.Total-settled.Total, diff(settled, after))
+		if after := conn.Counter().Snapshot(); len(withoutDiscovery(diff(browsing, after))) > 0 {
+			t.Errorf("browsing cost %d requests: %v", after.Total-browsing.Total, diff(browsing, after))
 		}
 
 		// A refresh asks again: the default namespace at once, the access review when the
