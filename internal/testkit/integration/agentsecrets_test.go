@@ -74,6 +74,14 @@ func TestBudgetAgentReadTakesTheSecrets(t *testing.T) {
 	if strings.Contains(got, pass) || !strings.Contains(got, "«secret shop/db/password»") {
 		t.Fatalf("the agent's first read: %s", got)
 	}
+	// The read returns once the Secrets' list is in the cache; the informer's watch, or the one
+	// streaming watch, follows on its own goroutine and is the first read's cost, not the second's.
+	if !testkit.WaitFor(ctx, func() bool {
+		r := srv.Requests()
+		return r["watch secrets"]+r["watchlist secrets"] > 0
+	}) {
+		t.Fatalf("the Secrets' watch never came: requests %v", srv.Requests())
+	}
 	first := secretReads()
 	if first < 1 || first > 2 {
 		t.Errorf("the agent's first read cost %d Secrets requests, want a list and a watch (or one streaming watch)", first)
