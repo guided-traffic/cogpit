@@ -312,7 +312,7 @@ instead: put `opengl32.dll` and `libgallium_wgl.dll` from the `x64` folder of
 `mesa3d-<version>-release-msvc.7z` (CI draws with the Makefile's `MESA_VERSION`) beside
 `cogpit.exe`. Cogpit then names Mesa's llvmpipe driver for itself (`GALLIUM_DRIVER=llvmpipe`,
 unless you set the variable) and logs `software rendering`
-([D-new](decisions.md#d-new-mesas-opengl-beside-cogpitexe)). Drawing then takes CPU time, and the
+([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)). Drawing then takes CPU time, and the
 uninstaller leaves the two files and the folder behind.
 
 **The terminal on Windows.** A local terminal runs the shell Preferences › Terminal names, else

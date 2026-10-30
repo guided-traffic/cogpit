@@ -150,7 +150,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
-| [D-new](#d-new-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: Cogpit names llvmpipe for itself |
+| [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: Cogpit names llvmpipe for itself |
 
 ## D-1: UI toolkit
 
@@ -5720,7 +5720,7 @@ not the frames.
 [`titlebar_darwin.go`](../../internal/ui/fyneui/titlebar_darwin.go) `install` ·
 `TestTitlebarButtonsCentred`
 
-## D-new: Mesa's OpenGL beside cogpit.exe
+## D-142: Mesa's OpenGL beside cogpit.exe
 
 **Status:** built · **By:** lead (open to revision)
 

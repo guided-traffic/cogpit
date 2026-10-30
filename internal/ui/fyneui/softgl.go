@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// Mesa's OpenGL beside cogpit.exe (D-new): a Windows computer without an OpenGL 2.1 driver, Fyne's
+// Mesa's OpenGL beside cogpit.exe (D-142): a Windows computer without an OpenGL 2.1 driver, Fyne's
 // minimum (Windows Server, a virtual machine without a GPU), draws with Mesa's opengl32.dll and
 // libgallium_wgl.dll put beside cogpit.exe, the first place Windows looks for them. Without
 // GALLIUM_DRIVER, Mesa tries its d3d12 and zink drivers before its software one, llvmpipe, and on
