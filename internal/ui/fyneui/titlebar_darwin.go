@@ -59,7 +59,9 @@ func (tb *titlebar) install() {
 	if win == 0 {
 		return
 	}
-	C.cogpitWindowKeepContentPlaced(C.uintptr_t(win)) // with the system's title bar too
+	// With the system's title bar too:
+	C.cogpitWindowKeepContentPlaced(C.uintptr_t(win))
+	C.cogpitWindowUseSRGB(C.uintptr_t(win))
 	if os.Getenv(systemTitlebarEnv) != "" {
 		return
 	}

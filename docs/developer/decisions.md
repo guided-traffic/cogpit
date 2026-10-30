@@ -149,6 +149,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
 | [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
+| [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
 
 ## D-1: UI toolkit
 
@@ -5692,3 +5693,28 @@ again, or Edit in the Port Forwarding view.
 (`itemValue`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
 `TestForwardedPortInPodDrawer`, `TestRenderPodDrawerForwardedDark`,
 `TestRenderPodDrawerForwardReconnectingDark`
+
+## D-141: The window's colour space is sRGB
+
+**Status:** built · **By:** lead (open to revision)
+
+On macOS Cogpit declares its window's content sRGB (`NSWindow.colorSpace`, `cogpitWindowUseSRGB`),
+with Cogpit's title bar and with the system's, so that AppKit converts every frame from sRGB to the
+profile of the display the window is on. Linux and Windows set no colour space.
+
+**Why:** the theme's colours are sRGB values, as the render tests' images are. Neither Fyne 2.8.2
+nor GLFW 3.4 gives the window a colour space; it then takes its screen's profile, and AppKit showed
+the OpenGL frames now converted from sRGB, now as the display's own values (bluer, more saturated),
+alternating from frame to frame, on either display.
+
+**Rejected:** no colour space (AppKit's default) — the frames' look is AppKit's choice, and it
+alternated; the device colour space — the theme's values unconverted, more saturated than meant,
+and entering full screen hangs with it (kitty's GLFW fork); Display P3 — the theme's values are not
+P3; a change in Fyne or GLFW — Cogpit reaches the `NSWindow` already, for its title bar.
+
+**Not covered:** no test sees what reaches a display: the harness checks the window's colour space,
+not the frames.
+
+**Code:** [`titlebar_darwin.m`](../../internal/ui/fyneui/titlebar_darwin.m) `cogpitWindowUseSRGB`,
+[`titlebar_darwin.go`](../../internal/ui/fyneui/titlebar_darwin.go) `install` ·
+`TestTitlebarButtonsCentred`

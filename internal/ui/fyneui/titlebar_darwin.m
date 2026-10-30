@@ -113,6 +113,15 @@ void cogpitWindowKeepContentPlaced(uintptr_t window) {
 	v.layerContentsPlacement = NSViewLayerContentsPlacementTopLeft;
 }
 
+void cogpitWindowUseSRGB(uintptr_t window) {
+	// The theme's colours are sRGB. Without a colour space of its own the window takes its screen's,
+	// and AppKit showed GLFW's OpenGL frames now converted from sRGB, now as the display's own values
+	// (bluer, more saturated), alternating from frame to frame on either display (measured on macOS
+	// 27: the two looks were exactly the theme's values and their conversion to the display's
+	// profile). Not the device colour space: entering full screen hangs with it (kitty's GLFW).
+	windowOf(window).colorSpace = [NSColorSpace sRGBColorSpace];
+}
+
 void cogpitTitlebarInstall(uintptr_t window, uintptr_t id) {
 	NSWindow *w = windowOf(window);
 	w.styleMask |= NSWindowStyleMaskFullSizeContentView;
