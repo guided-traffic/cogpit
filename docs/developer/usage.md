@@ -313,9 +313,10 @@ Cogpit release pins (`mesa3d-<version>-release-msvc.7z` from
 [mesa-dist-win](https://github.com/pal1000/mesa-dist-win/releases)), checks its
 SHA-256, puts `opengl32.dll` and `libgallium_wgl.dll` beside `cogpit.exe` and starts Cogpit again; a
 second box shows the download, and its Cancel stops it. In an installation for all users
-(`C:\Program Files\Cogpit`, which Cogpit may not write to), in a build from source, and when the
-download fails, the box says what to do by hand: put the two files from the archive's `x64` folder
-beside `cogpit.exe` and start Cogpit again. With Mesa beside it, Cogpit names Mesa's llvmpipe
+(`C:\Program Files\Cogpit`, which Cogpit may not write to) and in a build from source, the box
+says what to do by hand; when the download fails (no internet, a proxy only Windows' settings name),
+it says so, with the error, and the same: put the two files from the archive's `x64` folder beside
+`cogpit.exe` and start Cogpit again. With Mesa beside it, Cogpit names Mesa's llvmpipe
 driver for itself (`GALLIUM_DRIVER=llvmpipe`, unless you set the variable) and logs `software
 rendering`. Drawing then takes CPU time; removing the two files brings back the computer's own
 OpenGL, and the uninstaller leaves them and the folder behind.

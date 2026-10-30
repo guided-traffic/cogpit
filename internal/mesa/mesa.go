@@ -189,6 +189,16 @@ func manualText(f Failure, p Pin, dir, why string) string {
 		"beside cogpit.exe in\n%s\nand start Cogpit again.", f, why, p.Archive(), releasesURL, dir)
 }
 
+// failedWhy says which step of putting Mesa in place failed, the download (no internet, a proxy
+// Cogpit does not know, an answer that is not the pinned archive) or the unpacking, with the error,
+// which names the request.
+func failedWhy(err error, unpacking bool) string {
+	if unpacking {
+		return "Cogpit downloaded Mesa, but unpacking it failed:\n" + err.Error()
+	}
+	return "Downloading Mesa failed:\n" + err.Error()
+}
+
 // besideText says that Mesa beside cogpit.exe did not draw either.
 func besideText(f Failure, dll, log string) string {
 	return fmt.Sprintf("Cogpit found no OpenGL it can draw with:\n%s\n\n"+

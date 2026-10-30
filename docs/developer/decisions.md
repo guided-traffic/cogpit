@@ -5722,8 +5722,8 @@ not the frames.
 
 ## D-142: Mesa's OpenGL beside cogpit.exe
 
-**Status:** built · **By:** owner (Cogpit offers to download mesa-dist-win's own archive), lead (open
-to revision) the rest
+**Status:** built · **By:** owner (Cogpit offers to download mesa-dist-win's own archive; without
+internet a message and the steps by hand), lead (open to revision) the rest
 
 On Windows, Mesa's software OpenGL beside `cogpit.exe` draws Cogpit on a computer without an OpenGL
 Fyne can draw with:
@@ -5741,9 +5741,11 @@ Fyne can draw with:
   archive, unpack the x64 `opengl32.dll` and `libgallium_wgl.dll` into `cogpit.exe`'s folder (the
   driver first, each renamed into place) and start Cogpit again with its arguments. A second box
   shows the download and unpacking; its Cancel stops them. A build without the pin, a folder the
-  user may not write to (an installation for all users), a failed download and Mesa beside
-  `cogpit.exe` that did not draw either each get a box that says what to do by hand. Cogpit then
-  quits; a smoke run fails on Fyne's report instead.
+  user may not write to (an installation for all users) and Mesa beside `cogpit.exe` that did not
+  draw either each get a box that says what to do by hand. Without internet, or behind a proxy
+  Cogpit does not know, the download fails: the box says that downloading failed (or, once the
+  archive came, unpacking), with the error, which names the request, and the steps by hand. Cogpit
+  then quits; a smoke run fails on Fyne's report instead.
 - **On macOS and Linux** none of this runs: the 7z decoder and the download are linked into
   `cogpit.exe` alone (`make check-windows-only` in CI's lint job).
 
@@ -5765,14 +5767,20 @@ byte.
 to Mesa, while CI's smoke test draws with llvmpipe; leaving the variable to the user — a step every
 such computer needs and Cogpit can take; Mesa in the setup — an `opengl32.dll` beside `cogpit.exe`
 replaces every user's GPU driver; the two DLLs repacked into Cogpit's own release (owner) — Cogpit
-would distribute Mesa's build itself; only the steps by hand (owner); Windows' `tar.exe` for the 7z
+would distribute Mesa's build itself; only the steps by hand (owner); without internet, the archive
+taken from `cogpit.exe`'s folder or the Downloads folder, or picked in a file dialog (owner: the
+message and the steps by hand); Windows' `tar.exe` for the 7z
 archive — not checked to read LZMA2 on every supported Windows; a Task Dialog with a progress bar —
 `TASKDIALOGCONFIG` is packed to one byte, which Go's structs do not express without cgo; a check of
 the first drawn frame — reading the frame calls go-gl's functions, which can be missing after `failed
 to initialise OpenGL`.
 
 **Not covered:** a window that draws nothing without any of Fyne's three reports gets no offer. The
-download reads `HTTPS_PROXY` and the other proxy variables, not Windows' proxy settings. The
+download reads `HTTPS_PROXY` and the other proxy variables, not Windows' proxy settings. Without
+internet the steps by hand need the archive unpacked: the Explorer opens 7z archives only from
+Windows 11 23H2 on, and whether Windows' `tar.exe` reads this one is not checked, so a computer
+without 7-Zip needs another one to unpack it. Silently dropped connections fail after Go's 30 s
+connect timeout. The
 uninstaller leaves the two DLLs and the folder. The message boxes and the download run on no test
 machine: CI's Windows runners never lack OpenGL with Mesa beside the app, and a box waits for a
 person ([updates › Mesa on Windows](../security/updates.md#mesa-on-windows)).
@@ -5782,6 +5790,7 @@ person ([updates › Mesa on Windows](../security/updates.md#mesa-on-windows)).
 [`fetch.go`](../../internal/mesa/fetch/fetch.go) `Install`,
 [`main.go`](../../cmd/cogpit/main.go) `run` · `TestSoftGLOnlyForMesaBesideCogpit`,
 `TestWatchFiresOnFyneGLFailures`, `TestFyneGLFailureReachesTheMesaOffer` (Fyne's line format),
+`TestDialogTexts` (the failed step named),
 `TestInstallPutsTheTwoFilesInPlace`, `TestInstallRefusesAnotherArchive`,
 `TestMakefileBuildsThePinIntoTheApp`, `TestUser32HasTheBoxesFunctions`; CI's Windows Package smoke
 test draws through `Prefer` ([`smoke.sh`](../../hack/smoke.sh) sets no `GALLIUM_DRIVER`)

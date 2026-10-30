@@ -2,6 +2,7 @@ package mesa
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"os"
@@ -141,6 +142,13 @@ func TestDialogTexts(t *testing.T) {
 	}
 	if !strings.Contains(manualText(f, p, dir, "why"), releasesURL) {
 		t.Error("the steps by hand name no release page")
+	}
+	offline := errors.New(`Get "https://github.com/pal1000/mesa-dist-win/releases/download/26.2.4/mesa3d-26.2.4-release-msvc.7z": dial tcp: lookup github.com: no such host`)
+	if w := failedWhy(offline, false); !strings.HasPrefix(w, "Downloading Mesa failed:\n") || !strings.Contains(w, "lookup github.com: no such host") {
+		t.Errorf("a failed download: %q", w)
+	}
+	if w := failedWhy(errors.New("mesa3d-26.2.4-release-msvc.7z holds no x64/opengl32.dll"), true); !strings.HasPrefix(w, "Cogpit downloaded Mesa, but unpacking it failed:\n") {
+		t.Errorf("a failed unpacking: %q", w)
 	}
 	if b := besideText(f, dir+`\opengl32.dll`, `C:\x\cogpit.log`); !strings.Contains(b, dir+`\opengl32.dll`) || !strings.Contains(b, `C:\x\cogpit.log`) {
 		t.Errorf("beside:\n%s", b)

@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"time"
 	"unsafe"
 
@@ -130,10 +131,10 @@ func Offer(f Failure, exit func(code int)) {
 		exit(1)
 		return
 	}
-	if err := download(p, dir); err != nil {
-		slog.Error("Mesa not put in place", "dir", dir, "err", err)
+	if unpacking, err := download(p, dir); err != nil {
+		slog.Error("Mesa not put in place", "dir", dir, "unpacking", unpacking, "err", err)
 		if !errors.Is(err, context.Canceled) {
-			box(askTitle, manualText(f, p, dir, "Mesa could not be put in place: "+err.Error()), windows.MB_ICONERROR)
+			box(askTitle, manualText(f, p, dir, failedWhy(err, unpacking)), windows.MB_ICONERROR)
 		}
 		exit(1)
 		return
@@ -150,17 +151,21 @@ func Offer(f Failure, exit func(code int)) {
 
 // download puts p into dir while a box shows how far it got; its Cancel stops the download. The
 // box's OK button is disabled: the download's goroutine presses it when Mesa is in place, or when
-// putting it in place failed.
-func download(p Pin, dir string) error {
+// putting it in place failed. unpacking is whether the archive had come and matched its SHA-256.
+func download(p Pin, dir string) (unpacking bool, err error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	done := make(chan error, 1)
+	var unpacked atomic.Bool
 	go func() {
 		hwnd := waitForBox(downloadTitle, 10*time.Second)
 		if hwnd != 0 {
 			enableOK(hwnd, false)
 		}
 		err := fetch.Install(ctx, fetch.Client(), fetch.Source{URL: p.URL(), SHA256: p.SHA256}, dir, func(pr fetch.Progress) {
+			if pr.Step == fetch.Unpacking {
+				unpacked.Store(true)
+			}
 			setBoxText(hwnd, progressText(p, pr.String()))
 		})
 		if err == nil {
@@ -174,7 +179,8 @@ func download(p Pin, dir string) error {
 	if box(downloadTitle, progressText(p, "Starting the download"), windows.MB_OKCANCEL|windows.MB_ICONINFORMATION) != idOK {
 		cancel()
 	}
-	return <-done
+	err = <-done
+	return unpacked.Load(), err
 }
 
 // box shows a MessageBox in front and returns the button pressed (0 when it could not show).
