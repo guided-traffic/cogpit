@@ -206,7 +206,7 @@ Fyne's report of no OpenGL to draw with ─► a message box: OK, or Cancel and 
 | The download and its 7z decoder linked into `cogpit.exe` alone | `make check-windows-only`, CI's lint job | the code reaching the macOS and Linux apps or `cogpit-cli` |
 
 What the pin does not vouch for:
-[H-new](#h-new-mesas-dlls-are-a-third-party-build-without-a-signature).
+[H-147](#h-147-mesas-dlls-are-a-third-party-build-without-a-signature).
 
 **Tests:** `TestInstallPutsTheTwoFilesInPlace`, `TestInstallRefusesAnotherArchive`,
 `TestInstallNamesTheRequest`, `TestInstallNeedsBothMembers`, `TestMakefileBuildsThePinIntoTheApp`,
@@ -388,7 +388,7 @@ new version comes only through a reviewed change of the pin (Renovate proposes, 
 not bounded: that the maintainer's build is what its source says. Not built: WinSparkle built from
 source in the pipeline.
 
-### H-new: Mesa's DLLs are a third-party build without a signature
+### H-147: Mesa's DLLs are a third-party build without a signature
 
 Accepted (owner). After the user's OK, a release `cogpit.exe` puts the x64 `opengl32.dll` and
 `libgallium_wgl.dll` of the mesa-dist-win release the [`Makefile`](../../Makefile) pins
@@ -445,7 +445,7 @@ What remains:
   build pinned by SHA-256, in a job that holds no secret and whose build cache no release reads; the
   release pipeline's Windows job does not load them. The same pin goes into every release
   `cogpit.exe`, which offers the download, so its update waits for a person
-  ([H-new](#h-new-mesas-dlls-are-a-third-party-build-without-a-signature)).
+  ([H-147](#h-147-mesas-dlls-are-a-third-party-build-without-a-signature)).
 - **Moved by hand, invisible to Renovate:** sigstore's trusted root (`make sigstore-root`,
   [H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
   the terminal widget's copy in `third_party/` ([PATCHES.md](../../third_party/fyne-terminal/PATCHES.md)),
