@@ -6,9 +6,11 @@ WinSparkle on Windows ([D-4](../developer/decisions.md#d-4-packaging-and-updates
 [D-111](../developer/decisions.md#d-111-cogpit-for-windows-an-nsis-setup-and-winsparkle)).
 `cogpit-cli` has no updater: the app bundle
 ([D-16](../developer/decisions.md#d-16-releases-and-what-they-carry)), the package or the setup
-replaces it under the same checks. The only other code Cogpit downloads, a terminal's `kubectl`, is
+replaces it under the same checks. The only other code Cogpit downloads is a terminal's `kubectl`,
 checked against the Kubernetes release's sigstore signature
-([H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)).
+([H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
+and on Windows, after the user's OK, Mesa's software OpenGL, checked against the SHA-256 the release
+carries ([Mesa on Windows](#mesa-on-windows)).
 
 ## Chain of trust
 
@@ -176,6 +178,39 @@ installation updates without an administrator; one for all users asks UAC at eac
 `TestWindowsUpdaterLoadsWinSparkle` (the pinned DLL has every function Cogpit calls; CI's "Unit
 Tests (windows)"), and CI's "Windows Package", which installs the setup, installs it again over
 itself and uninstalls it. No test runs a WinSparkle update end to end.
+
+## Mesa on Windows
+
+On a computer without an OpenGL Fyne can draw with, `cogpit.exe` offers to download Mesa's software
+OpenGL and loads it into its own process from the next start on
+([D-142](../developer/decisions.md#d-142-mesas-opengl-beside-cogpitexe)).
+
+```text
+Makefile MESA_VERSION, MESA_SHA256 (Renovate proposes, a person merges)
+   ─► the linker writes both into a release cogpit.exe (internal/mesa's version, archiveSHA256)
+Fyne's report of no OpenGL to draw with ─► a message box: OK, or Cancel and quit
+   ─► GET https://github.com/pal1000/mesa-dist-win/releases/download/<v>/mesa3d-<v>-release-msvc.7z
+      (redirects to https only, at most 256 MiB) into a temporary file beside cogpit.exe
+   ─► its SHA-256 against the pin, before a byte of it is read as an archive
+   ─► x64/libgallium_wgl.dll, then x64/opengl32.dll, unpacked and renamed into cogpit.exe's folder
+   ─► cogpit.exe started again ─► Windows loads that opengl32.dll with the process
+```
+
+| Check | Where | Prevents |
+|---|---|---|
+| Nothing downloads without the user's OK in the box, which only Fyne's report through the log opens | `Offer` in [`mesa_windows.go`](../../internal/mesa/mesa_windows.go) | a download nobody asked for; an agent, the CLI or MCP starting one |
+| The archive's SHA-256 against the pin in the release (`MESA_SHA256`) before it is read as an archive | `download` in [`fetch.go`](../../internal/mesa/fetch/fetch.go) | another archive than the reviewed release; the 7z decoder reading bytes nobody vouched for |
+| https, redirects to https only and at most ten; at most 256 MiB downloaded and 256 MiB per file unpacked | `fetch.Client`, `Install` | a plain-http hop; an answer that fills the disk |
+| Only the two x64 files, each through a temporary file renamed into place, the driver first; every temporary file removed on failure | `unpack` | a half-written `opengl32.dll`, or one without its driver, loaded at the next start |
+| Only the running `cogpit.exe`'s folder, only when the user may write to it; an installation for all users gets the steps by hand | `Offer`, `fetch.Writable` | Cogpit writing into an administrator's installation |
+| The download and its 7z decoder linked into `cogpit.exe` alone | `make check-windows-only`, CI's lint job | the code reaching the macOS and Linux apps or `cogpit-cli` |
+
+What the pin does not vouch for:
+[H-new](#h-new-mesas-dlls-are-a-third-party-build-without-a-signature).
+
+**Tests:** `TestInstallPutsTheTwoFilesInPlace`, `TestInstallRefusesAnotherArchive`,
+`TestInstallNamesTheRequest`, `TestInstallNeedsBothMembers`, `TestMakefileBuildsThePinIntoTheApp`,
+`TestFyneGLFailureReachesTheMesaOffer`. No test opens the boxes or downloads the real archive.
 
 ## What this does not cover
 
@@ -353,6 +388,19 @@ new version comes only through a reviewed change of the pin (Renovate proposes, 
 not bounded: that the maintainer's build is what its source says. Not built: WinSparkle built from
 source in the pipeline.
 
+### H-new: Mesa's DLLs are a third-party build without a signature
+
+Accepted (owner). After the user's OK, a release `cogpit.exe` puts the x64 `opengl32.dll` and
+`libgallium_wgl.dll` of the mesa-dist-win release the [`Makefile`](../../Makefile) pins
+(`MESA_VERSION`) beside itself and loads them into its process at every later start, with the
+user's rights and everything Cogpit holds in memory, credentials among it: built by mesa-dist-win's
+maintainer, not by Cogpit's pipeline, without an Authenticode signature. The archive's SHA-256 is
+pinned (`MESA_SHA256`), and a new version comes only through a reviewed change of the pin
+(Renovate proposes, never merges it). Not bounded: that the maintainer's build is what Mesa's
+source says. In an installation for the user, any program running with the user's rights can put
+another `opengl32.dll` beside `cogpit.exe`, as it can replace `cogpit.exe` itself; Cogpit names
+llvmpipe for whichever one lies there.
+
 ### H-146: WinSparkle installs from a feed it does not verify
 
 Live. WinSparkle checks the EdDSA signature of the setup it downloads, not the feed's: the version
@@ -394,8 +442,10 @@ What remains:
   reads on every Mac that opens the image; a crafted one would ship signed and notarized.
 - **Mesa's DLLs run in CI's "Windows Package"** beside the installed `cogpit.exe` for the smoke
   test ([releasing › the smoke test](../developer/releasing.md#the-smoke-test)): a third-party
-  build pinned by SHA-256 and automerged once CI passes, in a job that holds no secret and whose
-  build cache no release reads; the release pipeline's Windows job does not load them.
+  build pinned by SHA-256, in a job that holds no secret and whose build cache no release reads; the
+  release pipeline's Windows job does not load them. The same pin goes into every release
+  `cogpit.exe`, which offers the download, so its update waits for a person
+  ([H-new](#h-new-mesas-dlls-are-a-third-party-build-without-a-signature)).
 - **Moved by hand, invisible to Renovate:** sigstore's trusted root (`make sigstore-root`,
   [H-35](trust-boundaries.md#h-35-kubectls-signature-check-rests-on-an-embedded-trusted-root-and-rekor-v1s-search)),
   the terminal widget's copy in `third_party/` ([PATCHES.md](../../third_party/fyne-terminal/PATCHES.md)),

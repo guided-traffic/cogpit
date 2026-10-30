@@ -256,6 +256,20 @@
       ]
     },
     {
+      "description": "Mesa for Windows (Makefile MESA_VERSION, D-142): pinned by version and the archive's SHA-256, which Renovate writes. A release cogpit.exe offers to download it on a computer without an OpenGL to draw with and loads it into its process, so a person reads the changes and merges the pull request, never Renovate on its own; the Windows Package job's smoke test draws with the new release",
+      "matchManagers": [
+        "custom.regex"
+      ],
+      "matchPackageNames": [
+        "pal1000/mesa-dist-win"
+      ],
+      "automerge": false,
+      "labels": [
+        "dependencies",
+        "mesa"
+      ]
+    },
+    {
       "description": "dmgbuild and its dependencies (hack/macos/dmgbuild-requirements.txt, D-70), pinned with their hashes: they make the template of the disk image's window in the app's job, outside the signing job, but their output ships in every disk image, so a person reads the changes and never merges them on their own. If Renovate cannot write the new hashes, take them from PyPI (https://pypi.org/pypi/<name>/<version>/json, the wheel's sha256).",
       "matchManagers": [
         "pip_requirements"
@@ -369,7 +383,7 @@
       "versioningTemplate": "docker"
     },
     {
-      "description": "A release archive pinned by version and SHA-256 in the Makefile (Sparkle, D-4; WinSparkle, D-111): a renovate comment with datasource=github-release-attachments, the release's tag on the next line (NAME := 2.10.0, or v0.9.4 where the tags carry a v) and the archive's SHA-256 on the one after (NAME_SHA256 := <64 hex digits>). The datasource looks up the release by that tag, finds the asset whose SHA-256 is the pinned one and hashes the asset of the same name in the new release, so the update changes both lines and needs no commit of anyone else on Renovate's branch (a branch someone else pushed to is never rebased by Renovate again and stays in conflict, PR #110).",
+      "description": "A release archive pinned by version and SHA-256 in the Makefile (Sparkle, D-4; WinSparkle, D-111; Mesa, D-142): a renovate comment with datasource=github-release-attachments, the release's tag on the next line (NAME := 2.10.0, or v0.9.4 where the tags carry a v) and the archive's SHA-256 on the one after (NAME_SHA256 := <64 hex digits>). The datasource looks up the release by that tag, finds the asset whose SHA-256 is the pinned one and hashes the asset of the same name in the new release, so the update changes both lines and needs no commit of anyone else on Renovate's branch (a branch someone else pushed to is never rebased by Renovate again and stays in conflict, PR #110).",
       "customType": "regex",
       "managerFilePatterns": [
         "/^Makefile$/"

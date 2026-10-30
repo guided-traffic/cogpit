@@ -41,6 +41,7 @@ internal/ui/fyneui            L4 the Fyne shell; the only package that imports F
 internal/ui/logo              L4 the logo, every version of it, rasterised for the app icon and the GUI (pure Go)
 internal/ui/nativedialog      L4 the system's file panels (macOS: NSOpenPanel, NSSavePanel; cgo) and the bookmarks of what they grant (no Fyne)
 internal/mcp agent update     L4 MCP server; built-in agent; update check and install
+internal/mesa                 L4 Mesa's software OpenGL on Windows: llvmpipe named, its download offered without OpenGL (D-142); fetch/ only in cogpit.exe
 internal/app                  L4 the wiring both binaries share: Cogpit's directories, kubeconfig sources, audit log
 internal/engine               L3 Session, command registry, UI state, jobs, events, confirmation, audit log
 internal/engine/commands      L3 the commands, one file per area
