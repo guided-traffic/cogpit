@@ -187,8 +187,12 @@ func detailOf(t *testing.T, s *Session, ref model.ObjectRef) *DetailModel {
 // report reaches the open drawer.
 func TestTrivyImageGrades(t *testing.T) {
 	src := trivyFixture()
-	s := newCRDSession(t, src, gradedPods)
+	// Subscribed before the connect, as newCRDSession would subscribe after it: the source's
+	// announcements can come before the test reads the reports as listed.
+	s := New(Options{Connector: &crdConnector{src: src, extra: []*model.KindProfile{gradedPods}}, SnapshotInterval: 5 * time.Millisecond})
+	t.Cleanup(s.Close)
 	rec := record(s)
+	connectTest(t, s)
 	b := s.Backend()
 	waitFor(t, "the reports listed", func() bool { return trivyOn(b).synced() })
 

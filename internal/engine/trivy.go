@@ -206,7 +206,10 @@ func startTrivy(s *Session, b *Backend, p *model.KindProfile, key string) *trivy
 // knows changed (the reports listed, a refusal), and the session when a plan that was pending is
 // decided (the follower then reads as it says), until the overlay stops.
 func (t *trivySource) run() {
-	settled, replanned := t.settled(), false
+	// The settled state starts unknown, so that the loop announces the first one it reads: the
+	// reports may have listed before this goroutine runs (a busy machine, a scope another reader
+	// holds listed), and a start read from the handle would then never change.
+	settled, replanned := "", false
 	poll := func() bool {
 		return t.settled() != settled || (!replanned && t.planSettled())
 	}
