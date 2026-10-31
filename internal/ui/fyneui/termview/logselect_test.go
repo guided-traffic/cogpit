@@ -306,8 +306,9 @@ func TestLogSelectionHeadRowActs(t *testing.T) {
 	}
 }
 
-// TestLogSelectionLongLine: a line cut for its row is copied whole; the pointer past the row's
-// mark is the line's end.
+// TestLogSelectionLongLine: a line wider than the view is copied whole; its row draws the
+// characters in view (logsside.go), selected up to the line's end; the pointer past them is
+// their end.
 func TestLogSelectionLongLine(t *testing.T) {
 	long := "start " + strings.Repeat("0123456789", 400) + " end"
 	l, _ := showMerged(t, []string{"first", long, "last"}, LogView{}, fyne.NewSize(600, 300))
@@ -315,12 +316,14 @@ func TestLogSelectionLongLine(t *testing.T) {
 	if got := l.SelectedText(); got != "first\n"+long+"\nlast" {
 		t.Errorf("selected %d bytes, want the whole long line", len(got))
 	}
-	// The row renders the line's first logMaxShownBytes and the mark: all of it selected.
-	if r, want := l.shownRows[1], (rowSel{to: logMaxShownBytes + len(truncatedMark), eol: true, cont: true}); r == nil || r.sel != want {
+	if _, _, from, to := l.rowSpan(1); from != 0 || to != 2*l.cols+2 {
+		t.Errorf("the long row draws [%d, %d) at %d columns, want twice the view's", from, to, l.cols)
+	}
+	if r, want := l.shownRows[1], (rowSel{to: len(long), eol: true, cont: true}); r == nil || r.sel != want {
 		t.Errorf("the long row's selection %+v, want %+v", r.sel, want)
 	}
-	if off := l.offsetIn(1, 1e6); off != len(long) {
-		t.Errorf("past the mark: offset %d, want %d", off, len(long))
+	if off := l.offsetIn(1, 1e6); off != 2*l.cols+2 {
+		t.Errorf("past the row's characters: offset %d, want %d", off, 2*l.cols+2)
 	}
 }
 

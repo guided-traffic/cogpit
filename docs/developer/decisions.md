@@ -151,6 +151,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
 | [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
+| [D-143](#d-143-scrolling-a-log-tab-sideways) | Scrolling a log tab sideways | built: unwrapped rows scroll together, Fyne's bar along the bottom, a row draws what is in view |
 
 ## D-1: UI toolkit
 
@@ -5794,3 +5795,37 @@ person ([updates › Mesa on Windows](../security/updates.md#mesa-on-windows)).
 `TestInstallPutsTheTwoFilesInPlace`, `TestInstallRefusesAnotherArchive`,
 `TestMakefileBuildsThePinIntoTheApp`, `TestUser32HasTheBoxesFunctions`; CI's Windows Package smoke
 test draws through `Prefer` ([`smoke.sh`](../../hack/smoke.sh) sets no `GALLIUM_DRIVER`)
+
+## D-143: Scrolling a log tab sideways
+
+**Status:** built · **By:** owner (a line wider than the tab readable without Wrap), lead (open to
+revision) the rest
+
+While a logs tab's lines do not wrap, its rows scroll sideways together: a sideways swipe or wheel
+over the lines (⇧ and the wheel where the system makes that a sideways one, as macOS does) and a
+scroll bar along the bottom, Fyne's own, as wide as the widest line the tab holds and there while a
+line is wider than the tab; the surface that selects text ends above it. The head row ("Load older
+lines") stays in place. A row draws only the characters in view: from the first the offset reaches,
+as many as twice the tab's width holds, so a line shows whole up to the stream's bound of 64 KiB a
+line. Wrapped, nothing scrolls sideways and the offset goes back to the start. Selecting, a double
+click and copying work on the scrolled rows as on the others.
+
+**Why:** Fyne's list lays every row out at the list's own width, and a list made as wide as its
+widest line would scroll its vertical bar out of view. A scroller of its own over the list holds the
+rows' width alone, keeps Fyne's look, hover and drag for the bar, and the rows follow its offset.
+Drawing the characters in view keeps a row's cost to the tab's width whatever its line's length.
+
+**Rejected:** a wider list in a horizontal scroller — its vertical bar leaves the view; a bar drawn
+by Cogpit — Fyne's has the hover, the drag and the track's click; drawing each row whole, or its
+first 2048 bytes — measuring and drawing a long line on every refresh costs the main goroutine, and
+a cut leaves the rest of the line out of reach without Wrap.
+
+**Not covered:** a column is a character of the monospace font: a line of wider characters (CJK)
+ends before the bar's end, one of narrower ones (combining marks) after it. A drag that selects past
+the tab's left or right edge does not scroll sideways (past its top or bottom it scrolls). Fyne turns
+⇧ and the wheel into no sideways scroll on Windows and Linux: the bar, a trackpad or a tilting wheel
+do.
+
+**Code:** [`termview/logsside.go`](../../internal/ui/fyneui/termview/logsside.go),
+[`termview/logselect.go`](../../internal/ui/fyneui/termview/logselect.go) `rowSpan`, `surfaceLayout` ·
+`TestLogsScrollSideways`, `TestLogsSideBar`, `TestLogSelectionLongLine`

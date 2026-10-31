@@ -59,6 +59,7 @@ const (
 type displayRow struct {
 	line     int64 // the line's absolute number: lines dropped before it plus its index
 	from, to int32 // to < 0: to the end
+	cols     int32 // the line's characters while it does not wrap (logsside.go)
 }
 
 // shownSpans are a shown line's parts: the resource name [0, nameEnd) and the timestamp
@@ -298,6 +299,7 @@ type logRow struct {
 	runs []logRun
 	sel  rowSel
 	item widget.ListItemID // the list item it shows (Logs.updateItem)
+	left float32           // where its runs begin, left of the row while scrolled sideways (logsside.go)
 	rend *logRowRenderer   // nil until rendered
 }
 
@@ -343,7 +345,7 @@ func (lr *logRowRenderer) MinSize() fyne.Size {
 }
 
 func (lr *logRowRenderer) Layout(size fyne.Size) {
-	x := float32(0)
+	x := lr.row.left
 	for i, run := range lr.row.runs {
 		if i >= len(lr.texts) {
 			break
@@ -364,7 +366,7 @@ func (lr *logRowRenderer) Layout(size fyne.Size) {
 
 // xAt is where the byte off of the row's text (its runs one after another) is drawn.
 func (lr *logRowRenderer) xAt(off int) float32 {
-	x, pos := float32(0), 0
+	x, pos := lr.row.left, 0
 	for i, run := range lr.row.runs {
 		if i >= len(lr.texts) {
 			break

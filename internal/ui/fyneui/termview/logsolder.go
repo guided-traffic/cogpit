@@ -246,6 +246,7 @@ func (l *Logs) Prepend(lines []string) int {
 	l.rowLines += shown
 	l.prepended += int64(added)
 	l.updateStatus()
+	l.updateSide()
 	if l.follow {
 		l.list.Refresh()
 		l.toEnd()

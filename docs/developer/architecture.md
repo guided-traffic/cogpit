@@ -900,7 +900,10 @@ and close them too.
   once lines are prepended: never use -1 as "none" (`TestLogsEvictPrependedLines`). Text selection
   is the window's, not engine state
   ([`logselect.go`](../../internal/ui/fyneui/termview/logselect.go),
-  [D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)).
+  [D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts)), and so is how far
+  unwrapped rows are scrolled sideways: a row draws only the characters in view
+  ([`logsside.go`](../../internal/ui/fyneui/termview/logsside.go),
+  [D-143](decisions.md#d-143-scrolling-a-log-tab-sideways)).
 
 **Absolute times** ([D-31](decisions.md#d-31-every-timestamp-in-the-local-time-zone-and-format),
 [`timefmt.go`](../../internal/model/timefmt.go)): one formatter, `model.TimeFormat`. The binaries

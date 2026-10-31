@@ -194,20 +194,19 @@ func (l *Logs) firstRowOf(line int64) int {
 }
 
 // rowSpan returns row i's line as the view shows it, and the part of it the row renders:
-// [from, to), cut when a line too long for one row is shortened (no wrap).
-func (l *Logs) rowSpan(i int) (text string, sp shownSpans, from, to int, cut bool) {
+// [from, to), the characters in view while the lines do not wrap (logsside.go).
+func (l *Logs) rowSpan(i int) (text string, sp shownSpans, from, to int) {
 	r := l.rows[i]
 	text, sp = l.view.shown(l.lines.at(int(r.line - l.lines.evicted)))
+	if !l.view.Wrap {
+		from, to = l.window(text)
+		return text, sp, from, to
+	}
 	from, to = int(r.from), int(r.to)
 	if to < 0 || to > len(text) {
 		to = len(text)
 	}
-	from = min(from, to)
-	if !l.view.Wrap && to-from > logMaxShownBytes {
-		to = from + len(shownText(text[from:to])) - len(truncatedMark)
-		cut = true
-	}
-	return text, sp, from, to, cut
+	return text, sp, min(from, to), to
 }
 
 // rowEnd is where row i ends in its line of n bytes: the next row's start, or the line's end.
@@ -229,7 +228,7 @@ func (l *Logs) itemSel(id widget.ListItemID) rowSel {
 	if line < lo.line || line > hi.line {
 		return rowSel{}
 	}
-	text, _, from, to, cut := l.rowSpan(i)
+	text, _, from, _ := l.rowSpan(i)
 	end := l.rowEnd(i, len(text))
 	a, b := from, end
 	if line == lo.line {
@@ -242,16 +241,7 @@ func (l *Logs) itemSel(id widget.ListItemID) rowSel {
 	if a > end || b < from || a > b {
 		return rowSel{eol: eol && a <= end}
 	}
-	sa, sb := a-from, b-from
-	if cut { // the row renders [from, to) and the mark: past it is the mark
-		if b > to {
-			sb = to - from + len(truncatedMark)
-		}
-		if a > to {
-			sa = to - from
-		}
-	}
-	return rowSel{from: sa, to: sb, eol: eol, cont: line < hi.line || hi.off > end}
+	return rowSel{from: a - from, to: b - from, eol: eol, cont: line < hi.line || hi.off > end}
 }
 
 // posAt returns the place in the lines nearest a point of the surface: a point on the head row or
@@ -268,10 +258,10 @@ func (l *Logs) posAt(p fyne.Position) (logPos, bool) {
 		return logPos{line: l.rows[0].line, off: int(l.rows[0].from)}, true
 	case i >= len(l.rows):
 		i = len(l.rows) - 1
-		text, _, _, _, _ := l.rowSpan(i)
+		text, _, _, _ := l.rowSpan(i)
 		return logPos{line: l.rows[i].line, off: l.rowEnd(i, len(text))}, true
 	}
-	return logPos{line: l.rows[i].line, off: l.offsetIn(i, p.X)}, true
+	return logPos{line: l.rows[i].line, off: l.offsetIn(i, p.X-l.leftOf(item))}, true
 }
 
 // onHead reports whether a point of the surface is on the head row.
@@ -279,10 +269,10 @@ func (l *Logs) onHead(p fyne.Position) bool {
 	return l.headRows() == 1 && p.Y >= 0 && p.Y+l.list.GetScrollOffset() < l.stride()
 }
 
-// offsetIn returns the byte offset in row i's line nearest x: the boundary between two characters
-// closest to it; right of the row's text, the row's end (the line's end past a cut line's mark).
+// offsetIn returns the byte offset in row i's line nearest x, from where the row's text begins:
+// the boundary between two characters closest to it; right of the row's text, the row's end.
 func (l *Logs) offsetIn(i int, x float32) int {
-	text, _, from, to, cut := l.rowSpan(i)
+	text, _, from, to := l.rowSpan(i)
 	if x <= 0 {
 		return from
 	}
@@ -291,10 +281,7 @@ func (l *Logs) offsetIn(i int, x float32) int {
 	size, style := th.Size(theme.SizeNameText), fyne.TextStyle{Monospace: true}
 	width := func(n int) float32 { return fyne.MeasureText(part[:n], size, style).Width }
 	if x >= width(len(part)) {
-		if cut {
-			return len(text)
-		}
-		return l.rowEnd(i, len(text))
+		return to
 	}
 	if isPlainText([]byte(part)) { // monospace ASCII: a column per character
 		return from + min(int(x/charWidth(th)+0.5), len(part))
@@ -622,16 +609,23 @@ func (s *logSurface) TypedShortcut(sc fyne.Shortcut) {
 	}
 }
 
-// surfaceLayout lays the list out over the whole area and the surface over it but for the list's
-// scroll bar, which keeps its drag.
-type surfaceLayout struct{}
+// surfaceLayout lays the list out over the whole area, the sideways scroller over it but for the
+// list's scroll bar (logsside.go), and the surface over both but for their scroll bars, which keep
+// their drags.
+type surfaceLayout struct{ l *Logs }
 
 func (surfaceLayout) MinSize(objs []fyne.CanvasObject) fyne.Size { return objs[0].MinSize() }
 
-func (surfaceLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+func (s surfaceLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 	objs[0].Move(fyne.Position{})
 	objs[0].Resize(size)
 	bar := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameScrollBar)
+	inner := fyne.NewSize(max(size.Width-bar, 0), size.Height)
 	objs[1].Move(fyne.Position{})
-	objs[1].Resize(fyne.NewSize(max(size.Width-bar, 0), size.Height))
+	objs[1].Resize(inner)
+	if s.l.sideWidth() > inner.Width { // the sideways bar shows
+		inner.Height = max(inner.Height-bar, 0)
+	}
+	objs[2].Move(fyne.Position{})
+	objs[2].Resize(inner)
 }

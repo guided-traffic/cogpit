@@ -28,9 +28,6 @@ const (
 	logMaxLineBytes = 64 << 10               // longer lines are cut here
 	logFlushPeriod  = 100 * time.Millisecond // at most one UI update per interval
 	logTabWidth     = 8
-	// logMaxShownBytes bounds the text one row renders. It is wider than any screen (the row is
-	// clipped anyway), and measuring a 64 KiB line on every refresh would cost the main goroutine.
-	logMaxShownBytes = 2048
 )
 
 // truncatedMark ends a line cut at logMaxLineBytes.
@@ -81,8 +78,16 @@ type Logs struct {
 	prepended   int64 // lines Prepend added
 	jumped      int64 // the line the last jump found (logsjump.go), if hasJumped
 	hasJumped   bool
-	cols        int      // characters per row while wrapping; 0 until laid out
+	cols        int      // characters the view's width holds; 0 until laid out
 	runs        []logRun // scratch for rendering a row
+	// Scrolling sideways while the lines do not wrap (logsside.go): the widest line in characters,
+	// how far the rows are scrolled, the scroller they follow and its content, and the container
+	// of the list, the scroller and the surface.
+	widest   int32
+	shift    float32
+	side     *container.Scroll
+	sideFill *canvas.Rectangle
+	rowsBox  *fyne.Container
 	// Selecting text (logselect.go): the selection, the surface over the list that makes it, the
 	// copy's target, and the rows the list set up last, by item.
 	sel       logSel
@@ -133,6 +138,7 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	l.followCheck.OnChanged = l.setFollow
 	l.status = widget.NewLabel("0 lines")
 	l.surface = newLogSurface(l)
+	l.newSide()
 	l.shownRows = map[widget.ListItemID]*logRow{}
 	l.ExtendBaseWidget(l)
 	l.startReading()
@@ -158,8 +164,10 @@ func (l *Logs) Close() error {
 // CreateRenderer implements fyne.Widget.
 func (l *Logs) CreateRenderer() fyne.WidgetRenderer {
 	bar := container.NewHBox(l.followCheck, l.controls, layout.NewSpacer(), l.status)
-	rows := container.New(surfaceLayout{}, l.list, l.surface) // the surface selects text (logselect.go)
-	return &logsRenderer{l: l, root: container.NewBorder(container.NewVBox(l.header, bar), nil, nil, nil, rows)}
+	// The surface selects text (logselect.go), the scroller under it scrolls the rows sideways
+	// (logsside.go).
+	l.rowsBox = container.New(surfaceLayout{l}, l.list, l.side, l.surface)
+	return &logsRenderer{l: l, root: container.NewBorder(container.NewVBox(l.header, bar), nil, nil, nil, l.rowsBox)}
 }
 
 // logsRenderer lays the bar and the list out and, while wrapping, re-wraps when the width in
@@ -171,6 +179,7 @@ type logsRenderer struct {
 
 func (r *logsRenderer) Layout(size fyne.Size) {
 	r.root.Resize(size)
+	r.l.followSide()
 	r.l.widthChanged(r.l.list.Size().Width)
 	if r.l.follow && r.l.list.scroll != nil {
 		r.l.toEnd() // a followed view resized stays at its newest line
@@ -252,7 +261,8 @@ func (r *lineRing) shown(v LogView, filtered bool) []string {
 	return out
 }
 
-// widthChanged re-wraps the rows when the width in characters changed while wrapping.
+// widthChanged re-wraps the rows when the width in characters changed while wrapping, and else
+// draws as many characters as it holds.
 func (l *Logs) widthChanged(width float32) {
 	th := l.list.Theme()
 	// The scroll bar and the row's inner padding take from the text's room.
@@ -265,12 +275,14 @@ func (l *Logs) widthChanged(width float32) {
 	if l.view.Wrap {
 		l.rebuildRows()
 		l.refreshKeepingPlace(0)
+	} else {
+		l.redrawRows()
 	}
 }
 
 // rebuildRows indexes every kept line again under the current view.
 func (l *Logs) rebuildRows() {
-	l.rows, l.rowLines = l.rows[:0], 0
+	l.rows, l.rowLines, l.widest = l.rows[:0], 0, 0
 	for i := range l.lines.len() {
 		l.addRows(l.lines.evicted + int64(i))
 	}
@@ -296,7 +308,9 @@ func (l *Logs) appendRows(dst []displayRow, abs int64) ([]displayRow, bool) {
 		return dst, false
 	}
 	if !l.view.Wrap {
-		return append(dst, displayRow{line: abs, to: -1}), true
+		cols := int32(utf8.RuneCountInString(text))
+		l.widest = max(l.widest, cols)
+		return append(dst, displayRow{line: abs, to: -1, cols: cols}), true
 	}
 	wrapLine(text, l.cols, func(from, to int) {
 		dst = append(dst, displayRow{line: abs, from: int32(from), to: int32(to)})
@@ -316,6 +330,10 @@ func (l *Logs) trimRows() int {
 	}
 	if n > 0 {
 		l.rows = append(l.rows[:0], l.rows[n:]...)
+		l.widest = 0 // a dropped line may have been the widest
+		for _, r := range l.rows {
+			l.widest = max(l.widest, r.cols)
+		}
 	}
 	return n
 }
@@ -329,6 +347,7 @@ func (l *Logs) updateItem(id widget.ListItemID, o fyne.CanvasObject) {
 	}
 	l.shownRows[id] = r
 	r.item = id
+	r.left = l.leftOf(id)
 	r.set(l.itemRuns(id), l.itemSel(id))
 	if len(l.shownRows) > maxShownRows {
 		first, last := l.onScreen()
@@ -356,11 +375,8 @@ func (l *Logs) rowRuns(id widget.ListItemID) []logRun {
 	if id < 0 || id >= len(l.rows) {
 		return nil
 	}
-	text, sp, from, to, cut := l.rowSpan(id)
+	text, sp, from, to := l.rowSpan(id)
 	l.runs = runsOf(text, sp, from, to, l.view.Search, l.runs)
-	if cut {
-		l.runs = append(l.runs, logRun{text: truncatedMark, color: theme.ColorNamePlaceHolder})
-	}
 	return l.runs
 }
 
@@ -368,6 +384,7 @@ func (l *Logs) rowRuns(id widget.ListItemID) []logRun {
 // stays at the newest row (or as far behind it as the user scrolled, logsfollow.go); else the rows
 // in view stay where they are.
 func (l *Logs) refreshKeepingPlace(dropped int) {
+	l.updateSide()
 	if l.follow {
 		l.list.Refresh()
 		l.toEnd()
@@ -612,18 +629,6 @@ func cleanLogLine(line []byte) string {
 		col++
 	}
 	return b.String()
-}
-
-// shownText is the part of a line a row renders.
-func shownText(s string) string {
-	if len(s) <= logMaxShownBytes {
-		return s
-	}
-	cut := logMaxShownBytes
-	for cut > 0 && !utf8.RuneStart(s[cut]) {
-		cut--
-	}
-	return s[:cut] + truncatedMark
 }
 
 func trimEOL(line []byte) []byte {

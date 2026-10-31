@@ -308,20 +308,6 @@ func TestLogsP5(t *testing.T) {
 	}
 }
 
-func TestShownTextCutsOnRuneBoundary(t *testing.T) {
-	s := strings.Repeat("集", logMaxShownBytes) // 3 bytes each
-	got := shownText(s)
-	if !strings.HasSuffix(got, truncatedMark) || len(got) > logMaxShownBytes+len(truncatedMark) {
-		t.Errorf("shownText kept %d bytes", len(got))
-	}
-	if body := strings.TrimSuffix(got, truncatedMark); strings.Count(body, "集")*3 != len(body) {
-		t.Error("shownText split a rune")
-	}
-	if shownText("short") != "short" {
-		t.Error("shownText changed a short line")
-	}
-}
-
 // demoLogs is a container log as the screenshot shows it: colours and an OSC title (stripped),
 // a tab, a JSON line.
 var demoLogs = []string{

@@ -1052,6 +1052,10 @@ the log stays where you scrolled. A smaller scroll up keeps following that far b
 back down to the newest line turns it on. New lines never turn it on. Ticking Follow jumps to the
 newest line.
 
+Without **Wrap**, lines wider than the tab scroll sideways: a sideways swipe or wheel over the lines
+(⇧ and the wheel on macOS) or the bar along the bottom
+([D-143](decisions.md#d-143-scrolling-a-log-tab-sideways)).
+
 The selection survives Wrap, a new width, a search and a filter; toggling Resource names or
 Timestamps drops it. A tab keeps its newest 10,000 lines; a selection loses its part in dropped
 lines. Copying shows no toast. `/` jumps to the search.
