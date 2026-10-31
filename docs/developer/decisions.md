@@ -152,6 +152,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
 | [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
 | [D-143](#d-143-scrolling-a-log-tab-sideways) | Scrolling a log tab sideways | built: unwrapped rows scroll together, Fyne's bar along the bottom, a row draws what is in view |
+| [D-144](#d-144-closing-several-tabs-at-once) | Closing several tabs at once | built: a tab's right-click menu in the tab bar and the dock; the bar's tabs only, a running job's tab stays |
 
 ## D-1: UI toolkit
 
@@ -5829,3 +5830,31 @@ do.
 **Code:** [`termview/logsside.go`](../../internal/ui/fyneui/termview/logsside.go),
 [`termview/logselect.go`](../../internal/ui/fyneui/termview/logselect.go) `rowSpan`, `surfaceLayout` ·
 `TestLogsScrollSideways`, `TestLogsSideBar`, `TestLogSelectionLongLine`
+
+## D-144: Closing several tabs at once
+
+**Status:** built · **By:** owner (Close, Close Others and Close All on a tab's right-click, in the
+tab bar and in the dock; the dock keeps a tab whose job runs), lead (open to revision) the rest
+
+A right-click on a tab, in the tab bar and in the dock, opens a menu: Close, Close Others and Close
+All. Close is the tab's close button (`ui.tab.close`, `dock.close`). Close Others
+(`ui.tab.closeOthers`, `dock.closeOthers`) closes every other tab the bar shows and makes the tab
+clicked the active one, as a click on it does; it is greyed while the bar shows no other tab. Close
+All (`ui.tab.closeAll`, `dock.closeAll`) closes every tab the bar shows. Both close only the tabs the
+bar shows: another cluster's tabs, hidden, stay
+([D-69](#d-69-several-clusters-connected-at-once); every connected cluster's tabs show with Mixed
+environments). The dock keeps a tab whose job still runs, since closing it stops the job; its own
+close button and Cancel do that. They are UI commands, which agents run freely (D-2).
+
+**Why:** a tab's right-click is where editors offer these. Closing hidden tabs would close what the
+user does not see. A job stopped by Close All could leave a drain half done: a cordoned node, some of
+its pods still on it.
+
+**Rejected:** closing every cluster's tabs — the user does not see what goes; asking before closing a
+running job's tab — a dialog the window shows and an agent's call does not; closing it as its close
+button does (owner); Close to the Right — not asked for.
+
+**Code:** [`engine/tabclose.go`](../../internal/engine/tabclose.go),
+[`commands/tabclose.go`](../../internal/engine/commands/tabclose.go),
+[`fyneui/tabmenu.go`](../../internal/ui/fyneui/tabmenu.go) · `TestCloseTabs`, `TestCloseDockTabs`,
+`TestTabCloseCommands`, `TestTabMenus`

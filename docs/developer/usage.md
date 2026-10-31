@@ -56,6 +56,9 @@ Ctrl on Windows and Linux.
 - The tab bar shows the shown cluster's tabs, none until it connects; Mixed environments (foot of
   All Clusters, off by default) shows every connected cluster's. Reorder tabs by dragging or with
   ⌘⌥⇧← and ⌘⌥⇧→ (the dock's tab while you work in the dock); the order is kept with the tabs.
+- Right-click a tab, in the tab bar or the dock: Close, Close Others, Close All. They close the tabs
+  the bar shows; the dock keeps a tab whose job still runs
+  ([D-144](decisions.md#d-144-closing-several-tabs-at-once)).
 - Back and forward restore each place of the tab's history with its filters, search, drawer and
   scroll position ([D-129](decisions.md#d-129-back-brings-the-place-back)): ⌃- and ⌃⇧- or the title
   bar's arrows ([keys per platform](#zoom)).

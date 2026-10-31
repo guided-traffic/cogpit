@@ -577,7 +577,11 @@ names its cluster by `engine.ClusterName` (the display name, else the context's 
 [`tabmovekeys.go`](../../internal/ui/fyneui/tabmovekeys.go),
 [D-106](decisions.md#d-106-a-click-below-the-rows-f-in-editor-tabs-moving-tabs-a-deleted-namespace))
 places the tab among the tabs the bar shows, the other clusters' keeping their places
-([`tabmove.go`](../../internal/engine/tabmove.go)); `dock.move` does the same in the dock.
+([`tabmove.go`](../../internal/engine/tabmove.go)); `dock.move` does the same in the dock. Close
+Others and Close All (`ui.tab.closeOthers`, `ui.tab.closeAll`, `dock.closeOthers`, `dock.closeAll`;
+a tab's right-click menu, [`tabmenu.go`](../../internal/ui/fyneui/tabmenu.go)) close the tabs the bar
+shows; the dock keeps a tab whose job runs ([`tabclose.go`](../../internal/engine/tabclose.go),
+[D-144](decisions.md#d-144-closing-several-tabs-at-once)).
 
 **Leaving a cluster clears its filters:** namespaces, API groups, status filter, search and its
 toggles never cross to the next cluster, which brings its own tab's or none (`UIState.leaveCluster`

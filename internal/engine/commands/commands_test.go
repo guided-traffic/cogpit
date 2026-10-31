@@ -156,6 +156,9 @@ var wantCommands = map[string]engine.Danger{
 	"ui.tab.back": engine.DangerUI, "ui.tab.forward": engine.DangerUI,
 	// Moving the tab bar's and the dock's tabs (GW4, TestTabMoveCommands).
 	"ui.tab.move": engine.DangerUI, "ui.tab.moveLeft": engine.DangerUI, "ui.tab.moveRight": engine.DangerUI, "dock.move": engine.DangerUI,
+	// Closing several tabs at once (D-144, TestTabCloseCommands).
+	"ui.tab.closeOthers": engine.DangerUI, "ui.tab.closeAll": engine.DangerUI,
+	"dock.closeOthers": engine.DangerUI, "dock.closeAll": engine.DangerUI,
 	// The welcome page and a cluster's menu (G5, G13): the window and Cogpit's own links, never a
 	// cluster or a kubeconfig file; cluster.remove GUI-only (TestClusterRemove).
 	"ui.welcome.open": engine.DangerUI, "cluster.disconnect": engine.DangerUI, "cluster.links": engine.DangerRead,

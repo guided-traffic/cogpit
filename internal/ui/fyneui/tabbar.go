@@ -67,6 +67,8 @@ type tabBar struct {
 	tabClick click            // the last click on a tab
 	navClick click            // the last click on a navigator item
 	drag     *stripDrag       // a tab dragged to another place (stripdrag.go, GW4)
+	// menuModel is the tab menu shown last, for tests (tabmenu.go).
+	menuModel *fyne.Menu
 }
 
 // click is a click on something with an id, for telling a double click.

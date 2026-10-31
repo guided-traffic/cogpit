@@ -80,6 +80,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerDiagnostics(g)
 	registerTabs(g)
 	registerTabMoves(g) // tabmove.go: ui.tab.move, ui.tab.moveLeft and Right, dock.move (GW4)
+	registerTabClose(g) // tabclose.go: Close Others and Close All, the tab bar's and the dock's
 	registerWelcome(g)
 	registerClusterMenu(g)
 	registerNotifications(g)

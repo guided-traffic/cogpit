@@ -60,6 +60,8 @@ type dock struct {
 	// focusReq is the tab the window asked the keys for, until its main widget takes them
 	// (dockfocus.go, AW5, AW8).
 	focusReq *focusRequest
+	// menuModel is the tab menu shown last, for tests (tabmenu.go).
+	menuModel *fyne.Menu
 	// keysLast: a dock tab was clicked after the tab bar's last click or key, so that Move Tab's
 	// keys move the dock's tab while nothing is focused: the clicked tab takes no keys, or not yet
 	// (tabmovekeys.go, AW10).
@@ -342,6 +344,7 @@ func (d *dock) rebuildStrip() {
 			func() { d.sh.dispatch("dock.close", dockParams{ID: id}, nil) })
 		d.agentReadMarks.mark(b, t) // agents may read it: the marker, flashing at a read (dockagentread.go)
 		b.id, b.drag = id, d.drag
+		b.onMenu = func(at fyne.Position) { d.tabMenu(id, at) } // tabmenu.go
 		objs = append(objs, b)
 	}
 	d.tabRow.Objects = objs
@@ -398,6 +401,7 @@ type tabButton struct {
 	icon   fyne.Resource
 	active bool
 	onTap  func()
+	onMenu func(at fyne.Position) // the right-click menu (tabmenu.go)
 
 	bg    *canvas.Rectangle
 	under *canvas.Rectangle

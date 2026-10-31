@@ -251,7 +251,8 @@ and confidential group names.
 ### H-111: An agent can stop a drain the user confirmed
 
 A drain runs as a background job (D-63); `job_cancel` and `dock_close`, UI commands that run without
-asking, stop any job, a confirmed drain included. The drain stops between two requests: the node
+asking, stop any job, a confirmed drain included (`dock_closeOthers` and `dock_closeAll` leave a
+running job's tab, [D-144](../developer/decisions.md#d-144-closing-several-tabs-at-once)). The drain stops between two requests: the node
 stays cordoned and partly drained. The stop writes and undoes nothing; the outcome says "Stopped:
 cancelled by an agent." (or that its tab was closed), the journal keeps the drain `stopped`, the
 banner offers Finish drain, Uncordon and Dismiss as after a crash
