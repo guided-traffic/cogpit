@@ -490,7 +490,7 @@ kind-seed: ## Apply the seed manifests (namespace cogpit-demo) and wait for web 
 # The Kubernetes Metrics Server, as the clusters Cogpit users have it: the release's manifest, with
 # --kubelet-insecure-tls because kind's kubelets serve self-signed certificates.
 # renovate: datasource=github-releases depName=kubernetes-sigs/metrics-server
-METRICS_SERVER_VERSION ?= v0.9.0
+METRICS_SERVER_VERSION ?= v0.9.1
 
 .PHONY: kind-metrics-server
 kind-metrics-server: ## Install the Metrics Server into the kind cluster and wait for its API
