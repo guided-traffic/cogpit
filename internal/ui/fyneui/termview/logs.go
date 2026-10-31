@@ -308,7 +308,7 @@ func (l *Logs) appendRows(dst []displayRow, abs int64) ([]displayRow, bool) {
 		return dst, false
 	}
 	if !l.view.Wrap {
-		cols := int32(utf8.RuneCountInString(text))
+		cols := int32(utf8.RuneCountInString(text)) // #nosec G115 -- a line is cut at logMaxLineBytes
 		l.widest = max(l.widest, cols)
 		return append(dst, displayRow{line: abs, to: -1, cols: cols}), true
 	}
