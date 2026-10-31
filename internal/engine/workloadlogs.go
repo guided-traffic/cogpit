@@ -250,7 +250,9 @@ func (s *Session) newWorkloadLogs(ctx context.Context, tab DockTab, ref model.Ob
 			}
 		}))
 		if t, ok := s.UIState().DockTab(wl.tabID); ok {
+			wl.mu.Lock() // the subscription above may run setSelection already
 			wl.sel = selectionOf(t)
+			wl.mu.Unlock()
 		}
 	}
 	wl.ctx, wl.cancel = context.WithCancel(ctx)
