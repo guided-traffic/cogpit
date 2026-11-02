@@ -20,7 +20,7 @@ import (
 
 const fixGiB = float64(1 << 30)
 
-var pgClaim = model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-bezon-timescale-1", Volume: "pvc-f0327b26-9407-4238-ad1b-45a2d7a09dcd"}
+var pgClaim = model.VolumeClaim{Namespace: "acme-prod", Claim: "acme-pg-timescale-1", Volume: "pvc-f0327b26-9407-4238-ad1b-45a2d7a09dcd"}
 
 // volumeMetricsFixture is a claim's volume over the last hour: filling up to 61 % of a 196.7 GiB
 // filesystem, resized from 150 GiB twenty minutes ago.
@@ -37,7 +37,7 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	}
 	last := fs[len(fs)-1]
 	vc := pgClaim
-	vc.Pods = []string{"pg-bezon-timescale-1-0"}
+	vc.Pods = []string{"acme-pg-timescale-1-0"}
 	providers := bothAnswering()
 	providers[1].Unused = true // a claim's chart never asks the Metrics Server
 	return &engine.ObjectMetrics{
@@ -108,7 +108,7 @@ func TestClaimDrawerShowsItsVolumesUsage(t *testing.T) {
 		if texts[0] != "Metrics" || !p.intro.Visible() || p.intro.text != "Display metrics from PV: "+pgClaim.Volume || p.intro.links()[pgClaim.Volume] == nil {
 			t.Fatalf("the section begins %q, intro %q (shown %v)", texts[:min(3, len(texts))], p.intro.text, p.intro.Visible())
 		}
-		if !p.pods.Visible() || p.pods.text != "Mounted by pod: pg-bezon-timescale-1-0" || p.pods.links()["pg-bezon-timescale-1-0"] == nil {
+		if !p.pods.Visible() || p.pods.text != "Mounted by pod: acme-pg-timescale-1-0" || p.pods.links()["acme-pg-timescale-1-0"] == nil {
 			t.Errorf("pods line %q (shown %v)", p.pods.text, p.pods.Visible())
 		}
 		if got := chipTexts(p.status); len(got) != 2 || got[1] != "Metrics Server ● not used" {
@@ -165,7 +165,7 @@ func TestUnboundClaimSaysSo(t *testing.T) {
 func TestClaimIntroLinksTheVolume(t *testing.T) {
 	_, p, _, f, q := volumeDrawerOf(t, ThemeDark, nil)
 	p.intro.links()[pgClaim.Volume]()
-	p.pods.links()["pg-bezon-timescale-1-0"]()
+	p.pods.links()["acme-pg-timescale-1-0"]()
 	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 2 })
 	var got []model.ObjectRef
 	for _, c := range f.callsOf("ui.navigate") {
@@ -173,7 +173,7 @@ func TestClaimIntroLinksTheVolume(t *testing.T) {
 	}
 	for _, want := range []model.ObjectRef{
 		{Context: "demo", Kind: "persistentvolumes", Name: pgClaim.Volume},
-		{Context: "demo", Kind: "pods", Namespace: pgClaim.Namespace, Name: "pg-bezon-timescale-1-0"},
+		{Context: "demo", Kind: "pods", Namespace: pgClaim.Namespace, Name: "acme-pg-timescale-1-0"},
 	} {
 		if !slices.Contains(got, want) {
 			t.Errorf("links went to %+v, not %+v", got, want)
@@ -194,7 +194,7 @@ func TestVolumePodsLine(t *testing.T) {
 			s.onTap()
 		}
 	}
-	if text.String() != "Mounted by pods: web-0, web-1, web-2" || !slices.Equal(opened, []string{"bezon-prod/web-0", "bezon-prod/web-1", "bezon-prod/web-2"}) {
+	if text.String() != "Mounted by pods: web-0, web-1, web-2" || !slices.Equal(opened, []string{"acme-prod/web-0", "acme-prod/web-1", "acme-prod/web-2"}) {
 		t.Errorf("line %q, links %q", text.String(), opened)
 	}
 	_, p, _ := volumeDrawer(t, ThemeDark, func(m *engine.ObjectMetrics) { m.Volume.Pods = nil })

@@ -16,7 +16,7 @@ func TestVolumeOfClaimsAndVolumes(t *testing.T) {
 		o := &unstructured.Unstructured{Object: map[string]any{
 			"spec": map[string]any{"volumeName": volume}, "status": map[string]any{"phase": phase},
 		}}
-		o.SetNamespace("bezon-prod")
+		o.SetNamespace("acme-prod")
 		o.SetName("pg-1")
 		return o
 	}
@@ -27,8 +27,8 @@ func TestVolumeOfClaimsAndVolumes(t *testing.T) {
 		o.SetName("pvc-f0327b26")
 		return o
 	}
-	ref := map[string]any{"namespace": "bezon-prod", "name": "pg-1"}
-	want := model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}
+	ref := map[string]any{"namespace": "acme-prod", "name": "pg-1"}
+	want := model.VolumeClaim{Namespace: "acme-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}
 	for name, tc := range map[string]struct {
 		p     *model.KindProfile
 		obj   *unstructured.Unstructured

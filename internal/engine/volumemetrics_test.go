@@ -25,7 +25,7 @@ var volumesGVR = schema.GroupVersionResource{Version: "v1", Resource: "persisten
 
 const volGiB = float64(1 << 30)
 
-// volumeProm is a Prometheus that knows the volume of claim bezon-prod/pg-1 and no other.
+// volumeProm is a Prometheus that knows the volume of claim acme-prod/pg-1 and no other.
 type volumeProm struct {
 	mu      sync.Mutex
 	queries []metrics.RangeQuery
@@ -50,7 +50,7 @@ func (p *volumeProm) ObjectRange(_ context.Context, q metrics.RangeQuery) (*metr
 	p.queries = append(p.queries, q)
 	p.mu.Unlock()
 	out := &metrics.ObjectSeries{Targets: map[string]*metrics.TargetSeries{}, From: q.From, To: q.To, Step: q.Step}
-	if q.Kind != metrics.KindClaims || q.Namespace != "bezon-prod" || q.Name != "pg-1" {
+	if q.Kind != metrics.KindClaims || q.Namespace != "acme-prod" || q.Name != "pg-1" {
 		return out, nil
 	}
 	var fs []model.FilesystemSample
@@ -82,7 +82,7 @@ func (c *volumeConnector) Connect(ctx context.Context, name string) (*Backend, e
 }
 
 func claimObject(name, phase, volume string) *unstructured.Unstructured {
-	return testkit.Object("v1", "PersistentVolumeClaim", "bezon-prod", name, map[string]any{
+	return testkit.Object("v1", "PersistentVolumeClaim", "acme-prod", name, map[string]any{
 		"spec":   map[string]any{"volumeName": volume, "storageClassName": "default"},
 		"status": map[string]any{"phase": phase, "capacity": map[string]any{"storage": "200Gi"}},
 	})
@@ -90,7 +90,7 @@ func claimObject(name, phase, volume string) *unstructured.Unstructured {
 
 func volumeObject(name, claim string) *unstructured.Unstructured {
 	return testkit.Object("v1", "PersistentVolume", "", name, map[string]any{
-		"spec":   map[string]any{"claimRef": map[string]any{"namespace": "bezon-prod", "name": claim}, "capacity": map[string]any{"storage": "200Gi"}},
+		"spec":   map[string]any{"claimRef": map[string]any{"namespace": "acme-prod", "name": claim}, "capacity": map[string]any{"storage": "200Gi"}},
 		"status": map[string]any{"phase": "Bound"},
 	})
 }
@@ -155,12 +155,12 @@ func waitVolume(t *testing.T, s *Session, ref model.ObjectRef, what string, cond
 
 func TestClaimDrawerShowsItsVolume(t *testing.T) {
 	s, _, prov := volumeSession(t)
-	ref := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "pg-1"}
+	ref := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-prod", Name: "pg-1"}
 	if m := openVolumeDrawer(t, s, ref); !m.Metrics {
 		t.Fatal("a claim's drawer has no Metrics section")
 	}
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
-	want := model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}
+	want := model.VolumeClaim{Namespace: "acme-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}
 	if om.Status != metrics.StatusAvailable || om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) || om.VolumeNote != "" ||
 		!slices.Equal(om.Variants, []string{VariantFilesystem}) || om.FilesystemSource != metrics.FilesystemUsage {
 		t.Fatalf("metrics = %+v", om)
@@ -172,7 +172,7 @@ func TestClaimDrawerShowsItsVolume(t *testing.T) {
 		t.Errorf("fill = %+v", f)
 	}
 	for _, q := range prov.asked() {
-		if q.Kind != metrics.KindClaims || q.Namespace != "bezon-prod" || q.Name != "pg-1" || q.Want != metrics.WantFilesystem {
+		if q.Kind != metrics.KindClaims || q.Namespace != "acme-prod" || q.Name != "pg-1" || q.Want != metrics.WantFilesystem {
 			t.Errorf("Prometheus was asked %+v", q)
 		}
 	}
@@ -201,10 +201,10 @@ func TestVolumeDrawerShowsItsClaimsUsage(t *testing.T) {
 	ref := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-f0327b26"}
 	openVolumeDrawer(t, s, ref)
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
-	if want := (model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}); om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) {
+	if want := (model.VolumeClaim{Namespace: "acme-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}); om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) {
 		t.Errorf("volume = %+v", om.Volume)
 	}
-	if qs := prov.asked(); len(qs) == 0 || qs[0].Namespace != "bezon-prod" || qs[0].Name != "pg-1" {
+	if qs := prov.asked(); len(qs) == 0 || qs[0].Namespace != "acme-prod" || qs[0].Name != "pg-1" {
 		t.Errorf("Prometheus was asked %+v, want the claim's scope", qs)
 	}
 }
@@ -213,22 +213,22 @@ func TestVolumeDrawerShowsItsClaimsUsage(t *testing.T) {
 // ReadWriteOnce claim's), a second on the same node, none.
 func TestVolumePodsFollowTheMounts(t *testing.T) {
 	s, src, _ := volumeSession(t)
-	claim := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "pg-1"}
+	claim := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-prod", Name: "pg-1"}
 	volume := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-f0327b26"}
-	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "pg-1-b", "worker-a", "pg-1"))
-	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "web-0", "worker-a", "other"))
+	src.Set(testkit.PodsGVR, podOnNode("acme-prod", "pg-1-b", "worker-a", "pg-1"))
+	src.Set(testkit.PodsGVR, podOnNode("acme-prod", "web-0", "worker-a", "other"))
 	for _, ref := range []model.ObjectRef{claim, volume} {
 		openVolumeDrawer(t, s, ref)
 		waitVolume(t, s, ref, ref.Kind+": one pod", func(om *ObjectMetrics) bool {
 			return om.Volume != nil && slices.Equal(om.Volume.Pods, []string{"pg-1-b"})
 		})
 	}
-	src.Set(testkit.PodsGVR, podOnNode("bezon-prod", "pg-1-a", "worker-a", "pg-1"))
+	src.Set(testkit.PodsGVR, podOnNode("acme-prod", "pg-1-a", "worker-a", "pg-1"))
 	waitVolume(t, s, volume, "two pods on one node", func(om *ObjectMetrics) bool {
 		return om.Volume != nil && slices.Equal(om.Volume.Pods, []string{"pg-1-a", "pg-1-b"})
 	})
-	src.Delete(testkit.PodsGVR, "bezon-prod", "pg-1-a")
-	src.Delete(testkit.PodsGVR, "bezon-prod", "pg-1-b")
+	src.Delete(testkit.PodsGVR, "acme-prod", "pg-1-a")
+	src.Delete(testkit.PodsGVR, "acme-prod", "pg-1-b")
 	waitVolume(t, s, volume, "no pod", func(om *ObjectMetrics) bool { return om.Volume != nil && om.Volume.Pods == nil })
 }
 
@@ -236,14 +236,14 @@ func TestVolumePodsFollowTheMounts(t *testing.T) {
 // that is not bound polls nothing until it is.
 func TestVolumeWithoutUsageAndUnboundClaim(t *testing.T) {
 	s, src, prov := volumeSession(t)
-	idle := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "idle"}
+	idle := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-prod", Name: "idle"}
 	openVolumeDrawer(t, s, idle)
 	om := waitVolume(t, s, idle, "the idle volume's answer", func(om *ObjectMetrics) bool { return om.Status == metrics.StatusAvailable })
 	if om.Fill != nil || om.VolumeNote != msgNoVolumeStats || len(om.Targets) != 1 || len(om.Targets[0].Filesystem) != 0 {
 		t.Errorf("an unreported volume = %+v", om)
 	}
 
-	pending := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "new"}
+	pending := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-prod", Name: "new"}
 	openVolumeDrawer(t, s, pending)
 	om = waitVolume(t, s, pending, "the pending claim's state", func(om *ObjectMetrics) bool { return om.Message == msgClaimNotBound })
 	if om.Status != metrics.StatusNotServed || om.Volume != nil {
@@ -272,7 +272,7 @@ func TestVolumesHidden(t *testing.T) {
 		}); err != nil {
 			t.Fatal(err)
 		}
-		ref := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "bezon-prod", Name: "pg-1"}
+		ref := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-prod", Name: "pg-1"}
 		if m := openVolumeDrawer(t, s, ref); m.Metrics {
 			t.Errorf("%v hidden: the drawer has a Metrics section", hide.Labels())
 		}
