@@ -226,7 +226,8 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
    minor release, `fix:` and `perf:` a patch release, other types none.
 2. Once every job of a push run on `main` passed, the job Semantic Release
    ([`release.yml`](../../.github/workflows/release.yml)) takes a token of the organisation's GitHub
-   App (`permission-contents: write`), runs `npm ci` and `npm audit signatures`, puts the combined
+   App (`permission-contents: write`), runs `npm ci` and `npm audit signatures` on Node 24 (pinned in
+   the job), puts the combined
    coverage badge in place and runs `npx semantic-release`: the version from the commits since the
    last tag, the notes, the badge committed as `chore(release): <version> [skip ci]` with the notes
    in its body when the badge changed, the tag `v<version>` on that commit (else on the released
