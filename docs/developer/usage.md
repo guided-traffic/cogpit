@@ -502,6 +502,7 @@ the Preferences page or by an agent with `preferences.set`, except where a field
 | `theme` | `system` # default | `system` (follows the computer), `dark` or `light`; also the title bar's sun and moon; `--theme` overrides it for one run |
 | `timezone` | `""`: the computer's # default | the IANA time zone every absolute time is written in (`Europe/Berlin` # example) |
 | `tableRowHeight` | `0`: the text's height and 6 points above and below # default | a table row's height, 20 to 48 points |
+| `tableSpreadWidth` | `true` # default | Preferences › Tables › Free width: when a table opens, the columns whose text is cut widen to show it (their widest in the first 500 rows) before Name takes the rest; measured once, not while the table stays open; a column you sized keeps your width ([D-145](decisions.md#d-145-a-tables-free-width-goes-to-its-cut-columns-first)). Off: Name takes all the free width. Agents may set it |
 | `editorFontSize`, `editorLineNumbers`, `editorTabSize` | `13`, `true`, `2` # default | the YAML editor of the Edit, Create, Helm Install and Upgrade tabs: text size (8 to 32 points), line numbers, spaces per Tab (1 to 8) |
 | `terminalShell`, `terminalShellArgs` | `""`: `$SHELL`, else `/bin/zsh`, `/bin/bash`, `/bin/sh` ([Windows](#install-on-windows)); `[]` # default | the local terminal's shell (an absolute path) and its arguments; pod shells are not affected. Only you set them |
 | `terminalFontSize` | `13` # default | the text size of terminals, pod shells and attached sessions opened afterwards, 8 to 32 points |

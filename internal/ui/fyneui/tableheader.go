@@ -75,9 +75,17 @@ func (tv *tableView) fitToContent(col int) {
 	if tv.snap == nil || col < 0 || col >= len(tv.cols) {
 		return
 	}
+	c := tv.snap.Columns[tv.cols[col]]
+	tv.userWidths[tv.snap.View+"/"+c.ID] = tv.contentWidth(tv.cols[col], len(tv.snap.Rows))
+	tv.fitWidth = 0
+	tv.fitColumns(tv.table.Size().Width)
+}
+
+// contentWidth is the width that shows the column ci of the snapshot whole: its title (with the
+// sort arrow) and the text of its first n rows as the table shows it, with the cell's padding.
+func (tv *tableView) contentWidth(ci, n int) float32 {
 	th := tv.table.Theme()
 	pad := th.Size(sizeCellPadding)
-	ci := tv.cols[col]
 	c := tv.snap.Columns[ci]
 	size := th.Size(theme.SizeNameText)
 	w := fyne.MeasureText(c.Title, size, fyne.TextStyle{Bold: true}).Width
@@ -90,7 +98,7 @@ func (tv *tableView) fitToContent(col int) {
 	case model.ColumnIcon:
 		w = chartIconMaxSide // a chart's icon (helmcharticons.go); the column has no title
 	default:
-		rows := tv.snap.Rows
+		rows := tv.snap.Rows[:min(n, len(tv.snap.Rows))]
 		w = max(w, widestText(len(rows), func(i int) string {
 			var cell model.Cell
 			if ci < len(rows[i].Cells) {
@@ -102,9 +110,7 @@ func (tv *tableView) fitToContent(col int) {
 	if c.ID == columnStatus {
 		w += pillPadX*2 + pillDotSide + pillDotGap // the pill's padding and dot (list_rows.go)
 	}
-	tv.userWidths[tv.snap.View+"/"+c.ID] = w + 2*pad + 1 // a point of slack against rounding
-	tv.fitWidth = 0
-	tv.fitColumns(tv.table.Size().Width)
+	return w + 2*pad + 1 // a point of slack against rounding
 }
 
 // fitCandidates is how many of the widest texts by estimate widestText measures exactly.

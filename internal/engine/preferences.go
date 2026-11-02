@@ -20,10 +20,10 @@ import (
 
 // Preferences (G13, docs/parity/ui-parity.md › Preferences): Cogpit's own settings that are not a
 // cluster's, as Lens's Preferences page holds them: the theme, the time zone absolute times are
-// shown in, the tables' row height, the editor's font size, line numbers and tab size, and the
-// local terminal's font size, shell and shell arguments, the proxy of the traffic that is no
-// cluster's (the Helm repositories' downloads), Helm's storage driver for new installs
-// (HelmDriver, helmdriver.go), and the image of the debug containers Debug adds to a pod
+// shown in, the tables' row height and how they share their free width, the editor's font size,
+// line numbers and tab size, and the local terminal's font size, shell and shell arguments, the
+// proxy of the traffic that is no cluster's (the Helm repositories' downloads), Helm's storage
+// driver for new installs (HelmDriver, helmdriver.go), and the image of the debug containers Debug adds to a pod
 // (DebugImage, debugcontainer.go). They are engine state (UIState.Preferences, the
 // proxy's password redacted: Shown) so that agents see and change what the user sees; the GUI
 // changes them only through preferences.set. They are kept in PreferencesFile under Cogpit's
@@ -81,6 +81,12 @@ type Preferences struct {
 	Timezone string `json:"timezone,omitempty"`
 	// TableRowHeight is the height of a table row in points; 0: Cogpit's default.
 	TableRowHeight int `json:"tableRowHeight,omitempty"`
+	// TableSpreadWidth: a table, when it opens, gives the width its columns leave free first to
+	// the columns whose content is cut, each up to its widest text in the first rows, and the rest
+	// to Name; off, Name takes all of it (D-145, fyneui/tablespread.go). On by default (the owner's
+	// finding, QW7). It is measured once at the open, never while the table stays open. Agents and
+	// the CLI may set it either way: it changes only how the window lays out a table.
+	TableSpreadWidth bool `json:"tableSpreadWidth"`
 	// EditorFontSize, EditorLineNumbers and EditorTabSize set the YAML editor of the Edit, Create
 	// resource, Helm Upgrade and Helm Install tabs: its text size in points, whether it shows line
 	// numbers, and how many spaces Tab indents by.
@@ -187,13 +193,13 @@ type Preferences struct {
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
 // (Sync with computer; the owner's A94 of 2026-10-14 evening, dark before; a stored choice stays),
-// the computer's time zone, the default row height, 13-point text,
-// line numbers on, two-space tabs, the user's own shell, kubectl downloads offered, chart icons
-// loaded (D-46), updates checked automatically on the stable channel (D-4).
+// the computer's time zone, the default row height, a table's free width to its cut columns
+// (D-145), 13-point text, line numbers on, two-space tabs, the user's own shell, kubectl downloads
+// offered, chart icons loaded (D-46), updates checked automatically on the stable channel (D-4).
 func DefaultPreferences() Preferences {
-	return Preferences{Theme: ThemeSystem, EditorFontSize: DefaultFontSize, EditorLineNumbers: true,
-		EditorTabSize: DefaultTabSize, TerminalFontSize: DefaultFontSize, KubectlDownload: true, LoadChartIcons: true,
-		CheckForUpdates: true, UpdateChannel: UpdateChannelStable}
+	return Preferences{Theme: ThemeSystem, TableSpreadWidth: true, EditorFontSize: DefaultFontSize,
+		EditorLineNumbers: true, EditorTabSize: DefaultTabSize, TerminalFontSize: DefaultFontSize,
+		KubectlDownload: true, LoadChartIcons: true, CheckForUpdates: true, UpdateChannel: UpdateChannelStable}
 }
 
 // Clone returns a deep copy.

@@ -25,7 +25,8 @@ import (
 // every open editor tab, the terminal's font size in the terminals opened afterwards (a running
 // terminal keeps the size its grid was laid out in). The page's sections: App (theme, time zone),
 // Proxy (the proxy of the traffic that is no cluster's, clustersettings_proxy.go), Kubernetes (the
-// kubeconfig syncs, Cogpit's existing dialogs; kubectl for terminals), Editor, Terminal, Tables.
+// kubeconfig syncs, Cogpit's existing dialogs; kubectl for terminals), Editor, Terminal, Tables
+// (the row height, the free width: preferences_spread.go).
 
 // preferencesSectionLabels are the Preferences page's section titles (Cogpit's grouping, inferred).
 var preferencesSectionLabels = map[string]string{
@@ -57,6 +58,9 @@ func (sh *shell) preferencesChanged() {
 		sh.app.Settings().SetTheme(newThemeFor(mode, p.TableRowHeight)) // Fyne refreshes every widget
 	}
 	sh.applyZoom(p.ZoomLevel) // zoom.go
+	if sh.view != nil {
+		sh.view.spreadChanged() // how the open table shares its free width (tablespread.go)
+	}
 	var zone *time.Location
 	if p.Timezone != "" {
 		zone, _ = engine.LoadTimezone(p.Timezone)
@@ -368,15 +372,18 @@ func (p *settingsPage) tablesSection() fyne.CanvasObject {
 			p.setPreference("tableRowHeight", n)
 		}
 	})
+	spread, syncSpread := p.spreadWidthSetting() // preferences_spread.go
 	p.sync = func() {
 		if h := p.prefs().TableRowHeight; h > 0 {
 			row.SetSelected(strconv.Itoa(h))
 		} else {
 			row.SetSelected(def)
 		}
+		syncSpread()
 	}
 	return container.NewVBox(
 		p.setting("tableRowHeight", "Row line height", "The height of a row in every table, in points.", row),
+		spread,
 	)
 }
 

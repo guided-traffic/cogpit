@@ -33,6 +33,7 @@ type preferencesSetParams struct {
 	Theme             *string  `json:"theme,omitempty" jsonschema:"system (follow the computer's light or dark setting), dark or light; Cogpit's window switches at once unless it was started with --theme"`
 	Timezone          *string  `json:"timezone,omitempty" jsonschema:"IANA time zone absolute times are shown in, such as Europe/Berlin or UTC; empty: the computer's own"`
 	TableRowHeight    *int     `json:"tableRowHeight,omitempty" jsonschema:"a table row's height in points, 20 to 48; 0: Cogpit's default"`
+	TableSpreadWidth  *bool    `json:"tableSpreadWidth,omitempty" jsonschema:"whether a table, when it opens, gives the width its columns leave free first to the columns whose content is cut (each up to its widest text in the first 500 rows) and the rest to Name (true, the default); false: Name takes all of it. Measured once when the table opens, never while it stays open; a column the user sized keeps its width"`
 	EditorFontSize    *int     `json:"editorFontSize,omitempty" jsonschema:"the YAML editor's text size in points, 8 to 32 (default 13)"`
 	EditorLineNumbers *bool    `json:"editorLineNumbers,omitempty" jsonschema:"whether the YAML editor shows line numbers (default true)"`
 	EditorTabSize     *int     `json:"editorTabSize,omitempty" jsonschema:"how many spaces Tab indents by in the YAML editor, 1 to 8 (default 2)"`
@@ -127,7 +128,8 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.get", Label: "Show Preferences", Danger: engine.DangerRead,
 		Description: "Returns Cogpit's preferences as the Preferences page (⌘,) shows them: the theme (system, dark, light), " +
 			"the time zone absolute times are shown in (empty: the computer's) and the zone in effect, the tables' row " +
-			"height, the YAML editor's font size, line numbers and tab size, the terminal's font size, the local " +
+			"height, whether a table gives its free width to the columns that are cut when it opens (tableSpreadWidth), " +
+			"the YAML editor's font size, line numbers and tab size, the terminal's font size, the local " +
 			"terminal's shell and arguments (empty: the system's default shell, $SHELL or on Windows PowerShell), whether a right click in a terminal copies and pastes, the " +
 			"HTTP proxy of the traffic that is no cluster's (empty: the environment's; its password shown as •••), and " +
 			"kubectl for terminals: downloads offered or not, the mirror, the directory for binaries (kubectlDir: the one " +
@@ -157,7 +159,8 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.set", Label: "Set Preferences", Danger: engine.DangerUI,
 		Description: "Changes some of Cogpit's preferences, as the Preferences page does; the fields left out stay as they are. " +
 			"The window follows at once: the theme, the time zone of the drawer's Created and the charts, the tables' row " +
-			"height, the open editors; the HTTP proxy at the next download from a Helm repository or of kubectl. The " +
+			"height and how the open table shares its free width (tableSpreadWidth), the open editors; the HTTP proxy " +
+			"at the next download from a Helm repository or of kubectl. The " +
 			"local terminal's shell and its arguments are refused for agents and the CLI: they name a program Cogpit " +
 			"runs on this computer; so are the path to kubectl, the directory for binaries and the kubectl download " +
 			"mirror, which decide what the terminals run as kubectl, and the terminals' right mouse button, which decides " +
@@ -264,6 +267,7 @@ func registerPreferences(g *registrar) {
 					pr.Timezone = strings.TrimSpace(*p.Timezone)
 				}
 				setIf(&pr.TableRowHeight, p.TableRowHeight)
+				setIf(&pr.TableSpreadWidth, p.TableSpreadWidth)
 				setIf(&pr.EditorFontSize, p.EditorFontSize)
 				setIf(&pr.EditorLineNumbers, p.EditorLineNumbers)
 				setIf(&pr.EditorTabSize, p.EditorTabSize)

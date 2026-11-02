@@ -153,6 +153,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
 | [D-143](#d-143-scrolling-a-log-tab-sideways) | Scrolling a log tab sideways | built: unwrapped rows scroll together, Fyne's bar along the bottom, a row draws what is in view |
 | [D-144](#d-144-closing-several-tabs-at-once) | Closing several tabs at once | built: a tab's right-click menu in the tab bar and the dock; the bar's tabs only, a running job's tab stays |
+| [D-145](#d-145-a-tables-free-width-goes-to-its-cut-columns-first) | A table's free width goes to its cut columns first | built: measured once when a table opens, never while it stays open; Preferences › Tables › Free width, on |
 
 ## D-1: UI toolkit
 
@@ -5908,3 +5909,62 @@ button does (owner); Close to the Right — not asked for.
 [`commands/tabclose.go`](../../internal/engine/commands/tabclose.go),
 [`fyneui/tabmenu.go`](../../internal/ui/fyneui/tabmenu.go) · `TestCloseTabs`, `TestCloseDockTabs`,
 `TestTabCloseCommands`, `TestTabMenus`
+
+## D-145: A table's free width goes to its cut columns first
+
+**Status:** built · **By:** owner (the free width to the columns that need it, a preference for it, and
+measured when a table opens, never while it stays open), lead (open to revision) the rest
+
+Every column of a table gets its width (the user's, the kind's hint, the default for its id or
+type). When a table opens (another view, tab or cluster, or its first snapshot after none), what
+its frame leaves free goes first to the columns whose text is cut, each up to the width that shows
+its title and the widest text of the list's first 500 rows, as sorted, whole; the rest goes to the
+flex column (Name; Message where a view hides Name), which before took all of it. When the free
+width does not reach, each cut column gets an equal share in whole points, at most what it needs,
+and what one needs less is shared among the others, so the columns cut by a little show whole first.
+Name's own need takes part like any column's; beyond it Name gets only what is left.
+
+- The measure is taken once, when the opened view's rows are in (the first snapshot with rows, or a
+  synced one without any). Rows that change, come or go while the table stays open, a sort or a
+  search are not measured again.
+- The split follows the frame: a resized window or an opened drawer lays the same measure out at the
+  new width, the flex column's share giving way first; below the columns' own widths Name shrinks as
+  before.
+- A column shown while the table stays open is measured as it shows; a column hidden is forgotten.
+- A column the user sized (dragged, or fitted by a double click) keeps the user's width and takes no
+  share; so does the flex column, and then what is left stays free. The warning and grade columns and
+  icon columns take no share.
+- Preferences › Tables › Free width (`tableSpreadWidth`, on by default; agents and the CLI may set it
+  either way: it changes only the window's layout) turns it off, and Name takes all the free width.
+  Turning it on or off lays the open table out at once.
+
+**Why:** a wide window gave Name hundreds of empty points while an Ingress's Hosts were cut. Widths
+that move while the user reads would only confuse, so they are measured at the open alone. Equal
+shares up to each need show the most columns whole for the width there is. 500 rows are many times
+what a window shows and cost about 1 ms on the main goroutine for a list of 10,000 pods, every row
+about 24 ms (`BenchmarkSpreadMeasure10k`). Following the frame keeps a drawer opened over a wide
+table from scrolling it sideways sooner than before; the widths move then only on the user's own
+resize. On by default: the owner asked for the behaviour, the preference is the way back. In
+Preferences › Tables: the section of the tables' other preference, the row height.
+
+**Rejected:** measuring with every snapshot (the widths would move under the user's eyes); shares in
+proportion to the need (one column of long label lists would take nearly all, the columns cut by a
+few points staying cut); widths fixed at the open whatever the frame (an opened drawer would squeeze
+Name to its minimum and scroll the table sideways while the cut columns kept their shares); measuring
+every row (24 ms at every open of a list of 10,000 for texts no window shows); Preferences › App
+(Tables holds the tables' preferences).
+
+**Not covered:** a view that opens while its search or status filter shows no row is measured without
+rows, and Name takes the free width until the next open. Only text is measured, as the double click's
+fit measures it: a cell's squares (a pod's containers) and usage bars are not. The shares are not kept
+across a restart, and neither are the user's widths
+([D-41](#d-41-what-survives-a-restart)).
+
+**Code:** [`fyneui/tablespread.go`](../../internal/ui/fyneui/tablespread.go) `spreadSnapshot`,
+`spread`, `spreadExtra`, [`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) `fitColumns`,
+[`fyneui/tableheader.go`](../../internal/ui/fyneui/tableheader.go) `contentWidth`,
+[`fyneui/preferences_spread.go`](../../internal/ui/fyneui/preferences_spread.go),
+[`engine/preferences.go`](../../internal/engine/preferences.go) `TableSpreadWidth` · `TestSpreadExtra`,
+`TestFitColumnsSpreadsTheFreeWidth`, `TestFitColumnsNoneCut`, `TestFitColumnsSpreadsTooLittle`,
+`TestSpreadWidthOnlyWhenTheViewOpens`, `TestSpreadMeasuresAColumnShown`,
+`TestPreferencesTableSpreadWidth`, `TestRenderIngressesSpreadDark`, `BenchmarkSpreadMeasure10k`

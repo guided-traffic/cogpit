@@ -230,6 +230,9 @@ func doubleClickAt(tbl *resourceTable, pos fyne.Position) {
 // double click between body cells change nothing.
 func TestDoubleClickSeparatorFitsColumn(t *testing.T) {
 	f := connectedFake(t, 200)
+	prefs := engine.DefaultPreferences()
+	prefs.TableSpreadWidth = false // Name stretched over all the free width, wider than its content (tablespread.go)
+	f.ui.Preferences = &prefs
 	sh, w, q := newTestShell(t, f, Options{})
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil })
 	settle(w)
