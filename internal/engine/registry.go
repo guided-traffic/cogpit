@@ -34,6 +34,14 @@ const (
 // command.
 var ErrNotApplicable = errors.New("does not apply")
 
+// NotAPIObject is ErrNotApplicable for an object of a kind the cluster's API does not serve: Cogpit's
+// own (a port forward) or made from other objects (a Helm release). It reads after the object's
+// reference: "portforwards/shop/web-8080: an entry of Port Forwarding is not an object of the
+// cluster's API".
+func NotAPIObject(p *model.KindProfile) error {
+	return fmt.Errorf("an entry of %s is not an object of the cluster's API: %w", p.Title, ErrNotApplicable)
+}
+
 // Positions of the actions every kind shares, for Spec.Order: Lens's row menus and drawers end
 // with Edit and Delete, the kind's own actions come before them.
 const (

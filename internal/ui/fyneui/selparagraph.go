@@ -4,6 +4,7 @@ import (
 	"image/color"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -18,8 +19,9 @@ import (
 // that tests and layouts still see a paragraph.
 //
 // The selection is in the text as the paragraph shows it: its wrapped lines joined by a space
-// where a line wraps and by a line break where the text has one (a run of spaces shows as one, as
-// the paragraph draws it). A copy icon beside it copies the text as it came.
+// where a line wraps at a space, without one where a long word breaks (a toast's reference), and
+// by a line break where the text has one (a run of spaces shows as one, as the paragraph draws
+// it). A copy icon beside it copies the text as it came.
 type selParagraph struct {
 	widget.BaseWidget
 	textSelection
@@ -96,14 +98,17 @@ func (s *selParagraph) wrap() {
 			b.WriteByte('\n')
 			n++
 		}
+		rest := para
 		for j, line := range fn(para, p.width, size, p.style) {
-			if j > 0 {
+			t := strings.TrimLeft(rest, " \t")
+			if j > 0 && len(t) < len(rest) { // a wrap at a space
 				b.WriteByte(' ')
 				n++
 			}
 			s.lines = append(s.lines, pline{text: line, start: n})
 			b.WriteString(line)
 			n += len([]rune(line))
+			rest = consumeLine(t, line)
 		}
 	}
 	s.shown = b.String()
@@ -210,3 +215,20 @@ func (r *selParagraphRenderer) Objects() []fyne.CanvasObject {
 }
 
 func (r *selParagraphRenderer) Destroy() {}
+
+// consumeLine returns what is left of src after the wrapped line made of its start: the line's
+// words, a run of spaces between two of them shown as one.
+func consumeLine(src, line string) string {
+	for _, r := range line {
+		if r == ' ' {
+			src = strings.TrimLeft(src, " \t")
+			continue
+		}
+		c, size := utf8.DecodeRuneInString(src)
+		if size == 0 || c != r {
+			return src
+		}
+		src = src[size:]
+	}
+	return src
+}

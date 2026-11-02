@@ -73,12 +73,13 @@ var wantCommands = map[string]engine.Danger{
 
 	"cluster.prometheus": engine.DangerRead, "cluster.setPrometheus": engine.DangerUI,
 
-	"pod.portForward":     engine.DangerMutating,
-	"service.portForward": engine.DangerMutating,
-	"portforward.open":    engine.DangerUI,
-	"portforward.edit":    engine.DangerMutating,
-	"portforward.stop":    engine.DangerUI,
-	"portforward.remove":  engine.DangerUI,
+	"pod.portForward":        engine.DangerMutating,
+	"service.portForward":    engine.DangerMutating,
+	"portforward.open":       engine.DangerUI,
+	"portforward.edit":       engine.DangerMutating,
+	"portforward.stop":       engine.DangerUI,
+	"portforward.remove":     engine.DangerUI,
+	"portforward.removeMany": engine.DangerUI,
 
 	"secret.reveal": engine.DangerRead, // GUI only: refused for agents and the CLI
 	// A Secret's values edited in the drawer (D-59): GUI only (TestSecretDrawerDataIsGUIOnly).

@@ -96,6 +96,9 @@ func registerForwardProbes(t testing.TB, f *fakeEngine) {
 	}{{"portforward.open", "Open", 100}, {"portforward.stop", "Stop", 300}, {"portforward.remove", "Delete", engine.OrderDelete}} {
 		must(engine.Register(f.reg, engine.Spec[probeRef]{ID: c.id, Label: c.label, Kinds: []string{kindPortForwards}, Order: c.order, Danger: engine.DangerUI, Run: ref}))
 	}
+	must(engine.Register(f.reg, engine.Spec[selectionRefs]{ID: "portforward.removeMany", Label: "Delete", Kinds: []string{kindPortForwards},
+		Order: engine.OrderDelete, Danger: engine.DangerUI,
+		Run: func(context.Context, *engine.Session, selectionRefs) (any, error) { return nil, nil }}))
 	must(engine.Register(f.reg, engine.Spec[probeForwardEdit]{ID: "portforward.edit", Label: "Edit", Kinds: []string{kindPortForwards}, Order: 200,
 		Danger: engine.DangerMutating,
 		Targets: func(_ *engine.Session, p probeForwardEdit) ([]model.ObjectRef, error) {

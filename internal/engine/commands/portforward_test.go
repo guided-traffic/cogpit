@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -390,6 +391,48 @@ func TestPortForwardLifecycle(t *testing.T) {
 	}
 	if got := fw.dialed(); len(got) != 3 {
 		t.Errorf("dials %v, want 3 (start, edit, start again)", got)
+	}
+}
+
+// Delete on the Port Forwarding view's selection (the owner's QW12): portforward.removeMany stops
+// and removes each forward, as Delete of one does, and is the selection's delete for port forwards;
+// object.deleteMany, the cluster's delete, does not apply to them.
+func TestPortForwardRemoveMany(t *testing.T) {
+	h, _ := newForwardHarness(t, engine.Options{})
+	gui := engine.OriginGUI
+	var pod, svc engine.Forward
+	h.must(t, gui, "pod.portForward", map[string]any{"ref": web0, "container": "app", "port": 8080}, &pod)
+	h.must(t, gui, "service.portForward", map[string]any{"ref": webService, "port": 80}, &svc)
+	h.must(t, gui, "ui.openView", map[string]any{"view": engine.PortForwardKind}, nil)
+	waitTable(t, h.s, engine.PortForwardKind, func(ts *engine.TableSnapshot) bool { return len(ts.Rows) == 2 })
+
+	refs := []model.ObjectRef{pod.Ref, svc.Ref}
+	var ids []string
+	for _, c := range h.s.Registry().SelectionActions([]string{engine.PortForwardKind}) {
+		if c.Order == engine.OrderDelete {
+			ids = append(ids, c.ID)
+		}
+	}
+	if !slices.Contains(ids, "portforward.removeMany") {
+		t.Fatalf("the selection's deletes: %v", ids)
+	}
+	if err := h.run(t, gui, "object.deleteMany", map[string]any{"refs": refs}, nil); err == nil ||
+		!strings.Contains(err.Error(), "an entry of Port Forwarding is not an object of the cluster's API") {
+		t.Errorf("the cluster's delete on port forwards: %v", err)
+	}
+	var res commands.DeleteManyResult
+	h.must(t, gui, "portforward.removeMany", map[string]any{"refs": refs}, &res)
+	if len(res.Deleted) != 2 {
+		t.Errorf("deleted %v", res.Deleted)
+	}
+	waitTable(t, h.s, engine.PortForwardKind, func(ts *engine.TableSnapshot) bool { return len(ts.Rows) == 0 })
+	for _, a := range []string{pod.Address, svc.Address} {
+		if _, err := ask(t, a); err == nil {
+			t.Errorf("%s still answers", a)
+		}
+	}
+	if err := h.run(t, gui, "portforward.removeMany", map[string]any{"refs": refs}, nil); err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Errorf("removed twice: %v", err)
 	}
 }
 

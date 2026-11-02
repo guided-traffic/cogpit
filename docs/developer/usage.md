@@ -107,7 +107,9 @@ Ctrl on Windows and Linux.
   values.
 - Delete, Restart and the Flux and Argo CD actions on checked rows (each view keeps its own): up to
   500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
-  agents see and may cancel in `ui_state`.
+  agents see and may cancel in `ui_state`. On Port Forwarding the selection bar's Delete removes
+  the checked forwards at once, as their own Delete does; Helm Releases' bar has no Delete (uninstall
+  one at a time from its menu).
 - Scale a Deployment, StatefulSet or ReplicaSet with a slider from 1 to 30 or a typed count; 0 is
   confirmed first.
 - Drain a node in a dock tab with Cancel, a pod a PodDisruptionBudget holds retried until the

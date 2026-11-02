@@ -224,8 +224,9 @@ func (n *notificationsUI) row(it engine.Notification, width float32) fyne.Canvas
 	head := container.NewBorder(nil, nil, nil,
 		container.NewHBox(newTextLine(n.timeText(it.Time), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}), glyphSlot(glyph)),
 		newTextLine(title, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true}))
-	text := newSelParagraph(newParagraph(it.Message, theme.ColorNameForeground, textW), theme.ColorNameSelection,
-		func(sel string) { sh.copyText(sel, false) })
+	msg := newParagraph(it.Message, theme.ColorNameForeground, textW)
+	msg.names = true // a reference breaks after its / - . _, as in the toast (toastcopy.go)
+	text := newSelParagraph(msg, theme.ColorNameSelection, func(sel string) { sh.copyText(sel, false) })
 	ic := widget.NewIcon(themedIcon(icon, c))
 	line := inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
 		container.NewBorder(nil, nil, container.NewVBox(ic), nil, container.NewVBox(head, text)))

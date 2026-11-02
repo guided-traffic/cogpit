@@ -20,7 +20,9 @@ import (
 
 // newToastText is a toast's text: selectable, and holding the toast while it is selected.
 func (sh *shell) newToastText(card *toastCard, msg string, width float32) *selParagraph {
-	t := newSelParagraph(newParagraph(msg, colorToastText, width), colorToastSelection, func(sel string) { sh.copyText(sel, false) })
+	p := newParagraph(msg, colorToastText, width)
+	p.names = true // a reference has no space to wrap at (the owner's QW13): it breaks after its / - . _
+	t := newSelParagraph(p, colorToastSelection, func(sel string) { sh.copyText(sel, false) })
 	t.changed = func() { card.setSelecting(t.selecting()) }
 	card.text = t
 	return t

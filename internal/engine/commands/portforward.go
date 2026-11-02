@@ -284,6 +284,59 @@ func registerPortForward(g *registrar) {
 			return f, nil
 		},
 	})
+
+	add(g, engine.Spec[selectionParams]{
+		ID: "portforward.removeMany", Label: labelDelete, MenuPath: "PortForward/Delete Selected", Kinds: []string{engine.PortForwardKind},
+		Order: engine.OrderDelete, Danger: engine.DangerUI,
+		Description: "Stops several port forwards and removes them from the list, as Delete on the Port Forwarding " +
+			"view's selection does (object_deleteMany is for objects of the cluster's API). Nothing in the cluster " +
+			"changes. When one is not removed the others still are. At most 500.",
+		Enabled: func(s *engine.Session, p selectionParams) error {
+			if len(p.Refs) == 0 {
+				return errors.New("no port forwards are selected")
+			}
+			if len(p.Refs) > engine.MaxSelection {
+				return fmt.Errorf("at most %d port forwards at once, %d are selected", engine.MaxSelection, len(p.Refs))
+			}
+			for _, r := range p.Refs {
+				if _, err := cachedForward(s, r); err != nil {
+					return fmt.Errorf("%s: %w", r.String(), err)
+				}
+			}
+			return nil
+		},
+		Run: removeForwards,
+	})
+}
+
+// removeForwards implements portforward.removeMany: each forward stopped and removed, one after the
+// other; a failure is kept for the report and the others still go.
+func removeForwards(_ context.Context, s *engine.Session, p selectionParams) (any, error) {
+	var removed []model.ObjectRef
+	var failed []DeleteFailure
+	var last engine.Forward
+	for _, r := range p.Refs {
+		f, err := s.RemoveForward(r)
+		if err != nil {
+			failed = append(failed, DeleteFailure{Ref: r, Error: err.Error()})
+			continue
+		}
+		removed, last = append(removed, r), f
+	}
+	switch {
+	case len(removed) == 1:
+		userToast(s, engine.LevelInfo, "Port forward of "+forwardTargetText(last.Spec)+" deleted")
+	case len(removed) > 1:
+		userToast(s, engine.LevelInfo, fmt.Sprintf("%d port forwards deleted", len(removed)))
+	}
+	if len(failed) > 0 {
+		parts := make([]string, len(failed))
+		for i, f := range failed {
+			parts[i] = f.Ref.String() + ": " + f.Error
+		}
+		return nil, fmt.Errorf("%d of %d port forwards deleted; not deleted: %s", len(removed), len(p.Refs), strings.Join(parts, "; "))
+	}
+	return DeleteManyResult{Deleted: removed}, nil
 }
 
 // startForward starts a forward for a confirmed command and says so.
