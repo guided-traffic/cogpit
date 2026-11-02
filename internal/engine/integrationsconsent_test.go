@@ -125,8 +125,8 @@ func consentSession(t *testing.T) (*Session, *atomic.Int64) {
 }
 
 // The pre-choice and consent before looking (D-82): a new cluster's question opens on the
-// pre-choice and nothing is looked for, a Pods view open behind it included; Check all looks for
-// the default's integrations at once, the pre-choice again for none; Choose ticks one at a time;
+// pre-choice and nothing is looked for, a Pods view open behind it included; Choose looks for what
+// is ticked at once, the pre-choice again for none, and ticks one at a time;
 // Don't use's Yes answers with every one off; Ask again forgets the choice and asks from the
 // pre-choice; Later reads nothing, and Ask again brings the question back.
 func TestIntegrationsQuestionSteps(t *testing.T) {
@@ -143,16 +143,19 @@ func TestIntegrationsQuestionSteps(t *testing.T) {
 	if err := s.LookForIntegrations("test", IntTrivy, 0); !errors.Is(err, ErrIntegrationsNotRows) {
 		t.Errorf("a tick on the pre-choice: %v", err)
 	}
-	if err := s.StepIntegrationsQuestion("other", IntegrationsCheckAll); !errors.Is(err, ErrNoIntegrationsQuestion) {
+	if err := s.StepIntegrationsQuestion("other", IntegrationsChoose); !errors.Is(err, ErrNoIntegrationsQuestion) {
 		t.Errorf("a step for a cluster not asked: %v", err)
 	}
 
-	// Check all: the default's integrations (all but Kyverno) ticked and looked for at once.
-	if err := s.StepIntegrationsQuestion("test", IntegrationsCheckAll); err != nil {
+	// Choose, every one but Kyverno ticked: looked for at once.
+	if err := s.StepIntegrationsQuestion("test", IntegrationsChoose); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.LookForIntegrations("test", IntAll&^IntKyverno, 0); err != nil {
 		t.Fatal(err)
 	}
 	if u := s.UIState(); u.IntegrationsLookFor != IntAll&^IntKyverno || !u.IntegrationOn("test", IntegrationTrivy) || u.IntegrationOn("test", IntegrationKyverno) {
-		t.Errorf("Check all: %v", IntegrationNames(u.IntegrationsLookFor))
+		t.Errorf("ticked: %v", IntegrationNames(u.IntegrationsLookFor))
 	}
 	waitUntil(t, "the metrics looked for", func() bool { return detected.Load() > 0 })
 
@@ -211,7 +214,10 @@ func TestIntegrationsQuestionSteps(t *testing.T) {
 	}
 
 	// Later: nothing read; Ask again brings the question back this run.
-	if err := s.StepIntegrationsQuestion("test", IntegrationsCheckAll); err != nil {
+	if err := s.StepIntegrationsQuestion("test", IntegrationsChoose); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.LookForIntegrations("test", IntAll, 0); err != nil {
 		t.Fatal(err)
 	}
 	if err := s.PutOffIntegrationsQuestion("test"); err != nil {

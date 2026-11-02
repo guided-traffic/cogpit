@@ -2818,9 +2818,9 @@ has what the user sees, [architecture](architecture.md) §4.7 the switch, probes
 **Why:** an absent choice tells "not chosen" from "all on", and an integration added later is on
 for clusters chosen before it. Switching one on reads with the user's identity, so it is the user's
 consent; switching one off hides alerts, grades or marks without the window saying who did it
-(H-126, H-133: [agents and MCP](../security/agents-and-mcp.md)). The default is what the next Check
-all looks for, and Ask again turns every integration off until answered, so both are switches; Later
-only delays a question whose cluster reads nothing meanwhile.
+(H-126, H-133: [agents and MCP](../security/agents-and-mcp.md)). The default is what the next "Use
+my default integrations" turns on, and Ask again turns every integration off until answered, so both
+are switches; Later only delays a question whose cluster reads nothing meanwhile.
 
 **Rejected:** detection at every connect — probes clusters nobody looks at; detection only when a
 drawer opens — "found" would not show at once; a toast instead of the dialog — easy to miss.
@@ -3090,11 +3090,12 @@ nothing is looked for before the user answers its question
 the question is put off with Later (until the next start), or while the cluster is connected in the
 background. Only what the question ticks is read, while it asks.
 
-- The question opens on a pre-choice that looks for nothing: **Check all integrations** ticks and
-  looks for what the default for new clusters keeps on; **Choose integrations** ticks none and
-  looks for each one ticked; **Don't use integrations** warns what goes (metrics, alerts, image
-  ratings, policy marks; the resources still show), and its Yes answers with every integration off.
-  The rows lead Back to the pre-choice.
+- The question opens on a pre-choice that looks for nothing: **Use my default integrations**
+  answers at once with the default for new clusters (Preferences › Kubernetes), no page of rows
+  between, its line naming what it turns on; **Choose integrations** ticks none and looks for each
+  one ticked; **Don't use integrations (no metrics will be displayed)** warns what goes (metrics,
+  alerts, image ratings, policy marks; the resources still show), and its Yes answers with every
+  integration off. The rows lead Back to the pre-choice.
 - **Ask again** (Cluster Settings › Integrations, `cluster.integrations.ask`) forgets the cluster's
   choice and a Later of this run; nothing is read until the window asks again.
 - The metrics line of a cluster without a choice, in the drawers and the Overview, reads "No
@@ -3113,7 +3114,10 @@ background. Only what the question ticks is read, while it asks.
 - a detection-only mode for a ticked integration — for Alertmanager, Trivy and Kyverno the looking
   is the reading, so it would be a second code path per integration;
 - a warning that no resources show without integrations — untrue, and it would push the user to
-  Check all;
+  turn everything on;
+- a first choice that ticks the default's integrations on a page of rows and looks for them before
+  Apply — one page more for the answer most users give; Choose is the page for a choice of one's
+  own;
 - Ask again keeping the old choice until the new answer — the reads would go on behind the
   question.
 
@@ -3123,7 +3127,8 @@ background. Only what the question ticks is read, while it asks.
 [`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · 
 `TestIntegrationsOffUntilAnswered`, `TestIntegrationsQuestionSteps`,
 `TestIntegrationsOnAreTheUsers`, `TestIntegrationsQuestionPreChoice`,
-`TestIntegrationsQuestionDontUse`, `TestKindIntegrationsQuestion`
+`TestIntegrationsQuestionUseDefaults`, `TestIntegrationsQuestionDontUse`,
+`TestKindIntegrationsQuestion`
 
 ## D-83: One hotbar, and a drag that carries the tile
 

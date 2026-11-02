@@ -22,7 +22,7 @@ import (
 //     anything is read, written or asked: cluster.settings.set's integrations (true or false) and
 //     its metricsSource (any value, none included: it switches the metrics integrations), and
 //     preferences.set's integrationDefaults (true or false: the default for new clusters is what
-//     the question's Check all looks for) (RefuseIntegrationSwitches).
+//     the question's Use my default integrations turns on) (RefuseIntegrationSwitches).
 //
 // The question's Later (cluster.integrations.later) stays open to agents: it only puts off a
 // question nobody has answered, whose cluster reads nothing meanwhile, so it hides nothing the user

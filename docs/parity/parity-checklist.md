@@ -368,7 +368,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every integration on by default, the default for new clusters the user's to change | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "Check all integrations" looks f… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "Use my default integrations" tu… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The question can be shown again after it was answered | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A pod's drawer grades each container's image from Trivy Operator's reports, in the container's own section, as a symbol and a detail view,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |

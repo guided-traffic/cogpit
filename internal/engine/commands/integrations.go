@@ -10,7 +10,7 @@ import (
 // for a connected cluster the user made no choice of integrations for, which ones Cogpit reads;
 // ui_state carries it as integrationsQuestion, with its step and its ticks. Since D-82
 // (engine/integrationsconsent.go) it opens on a pre-choice and nothing is looked for before:
-// cluster.integrations.step moves it (Check all, Choose, Don't use, back to the pre-choice),
+// cluster.integrations.step moves it (Choose, Don't use, back to the pre-choice),
 // cluster.integrations.lookFor ticks the rows (a ticked integration is looked for at once),
 // cluster.integrations.answer answers it (the choice becomes the cluster's, and with saveAsDefault
 // the default for new clusters too), cluster.integrations.later puts it off for this run, and
@@ -36,7 +36,7 @@ func refuseQuestion(ctx context.Context) error {
 type integrationsAnswerParams struct {
 	Context       string          `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it (a bare context name works when one file only defines it); empty or omitted: the connected context, which is the one the window asks about (ui_state's integrationsQuestion)"`
 	Integrations  map[string]bool `json:"integrations,omitempty" jsonschema:"the integrations switched on (true) or off (false), by name: metrics-server, prometheus, alertmanager, trivy, kyverno; those left out stay as they apply now: as the question ticks them (ui_state's integrationsLookFor), none for a cluster the window does not ask about"`
-	SaveAsDefault bool            `json:"saveAsDefault,omitempty" jsonschema:"also keep the answer as the default for new clusters (the question's checkbox Save as the default for new clusters), which the question's Check all looks for"`
+	SaveAsDefault bool            `json:"saveAsDefault,omitempty" jsonschema:"also keep the answer as the default for new clusters (the question's checkbox Save as the default for new clusters), which the question's Use my default integrations answers with"`
 }
 
 type integrationsLaterParams struct {
@@ -45,7 +45,7 @@ type integrationsLaterParams struct {
 
 type integrationsStepParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as ui_state's integrationsQuestion names it; empty or omitted: the connected context"`
-	Step    string `json:"step" jsonschema:"one of preChoice, checkAll, choose, dontUse: the question's page: preChoice the three choices (nothing looked for); checkAll the rows with every integration the default for new clusters keeps on ticked and looked for at once; choose the rows with none ticked; dontUse the warning of what goes without integrations"`
+	Step    string `json:"step" jsonschema:"one of preChoice, choose, dontUse: the question's page: preChoice the three choices (nothing looked for); choose the rows with none ticked; dontUse the warning of what goes without integrations"`
 }
 
 type integrationsLookForParams struct {
@@ -133,12 +133,11 @@ func registerIntegrations(g *registrar) {
 
 	add(g, engine.Spec[integrationsStepParams]{
 		ID: "cluster.integrations.step", Label: "Integrations Question Step", Danger: engine.DangerUI,
-		GUIOnly: engine.ErrIntegrationsGUIOnly, // H-126: Check all looks for the integrations with the user's identity
+		GUIOnly: engine.ErrIntegrationsGUIOnly, // H-126: the question's pages lead to looking with the user's identity
 		Description: "Moves the window's question about a cluster's integrations (ui_state's integrationsQuestion and " +
 			"integrationsStep) to a page, as its buttons do: preChoice, the three choices, where nothing is looked for (the " +
-			"rows' Back, the warning's No); checkAll, Check all integrations: the rows, every integration the default for " +
-			"new clusters keeps on ticked and looked for at once, with the user's identity; choose, Choose integrations: the " +
-			"rows, none ticked, each looked for once ticked (cluster_integrations_lookFor); dontUse, Don't use integrations: " +
+			"rows' Back, the warning's No); choose, Choose integrations: the rows, none ticked, each looked for once ticked " +
+			"(cluster_integrations_lookFor), with the user's identity; dontUse, Don't use integrations: " +
 			"the warning that the cluster then shows no metrics, alerts, image ratings or policy marks (its resources still " +
 			"show), whose Yes is cluster_integrations_answer with every one off. Changes nothing but the window and what is " +
 			"looked for. Only the user, in Cogpit's window, moves it: refused for agents and the CLI. Returns the new UI state.",
@@ -171,7 +170,7 @@ func registerIntegrations(g *registrar) {
 		ID: "cluster.integrations.lookFor", Label: "Look for Integrations", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrIntegrationsGUIOnly, // H-126: a tick looks for the integration with the user's identity
 		Description: "Ticks or unticks rows of the window's question about a cluster's integrations (ui_state's " +
-			"integrationsLookFor), as its checkboxes do, after Check all or Choose: a ticked integration is looked for at " +
+			"integrationsLookFor), as its checkboxes do, after Choose integrations: a ticked integration is looked for at " +
 			"once with the user's identity and read as one switched on until the question ends; an unticked one is asked " +
 			"nothing more. cluster_settings_get lists what Cogpit found of each; cluster_integrations_answer applies the " +
 			"ticks. Changes nothing but the window and what is looked for. Only the user, in Cogpit's window, ticks them: " +

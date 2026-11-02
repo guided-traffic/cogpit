@@ -38,7 +38,7 @@ type palette struct {
 	// findMatch tints a find bar's matches, findCurrent fills its selected one and findStroke
 	// outlines it (View.SetMarks).
 	findMatch, findCurrent, findStroke color.Color
-	kinds                                   [numTokKinds]color.Color
+	kinds                              [numTokKinds]color.Color
 }
 
 // resolvePalette derives the palette from th in variant v.

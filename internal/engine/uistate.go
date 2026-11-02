@@ -150,7 +150,7 @@ type UIState struct {
 	// window's only, H-126), .later puts it off; cluster.settings.get lists each integration's status. The engine derives it after every change.
 	IntegrationsQuestion string `json:"integrationsQuestion,omitempty"`
 	// IntegrationsStep is the page the question shows (D-82, integrationsconsent.go): preChoice,
-	// checkAll, choose or dontUse; empty while there is no question.
+	// choose or dontUse; empty while there is no question.
 	IntegrationsStep IntegrationsStep `json:"integrationsStep,omitempty"`
 	// IntegrationsLookFor are the integrations the question ticks, looked for and read while it asks.
 	IntegrationsLookFor IntegrationSet `json:"integrationsLookFor,omitempty"`

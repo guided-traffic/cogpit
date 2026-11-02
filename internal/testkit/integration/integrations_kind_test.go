@@ -18,7 +18,7 @@ import (
 // TestKindIntegrationsQuestion checks the question of a new cluster's integrations (D-76, D-82)
 // against the kind cluster: its first connect asks (ui_state's integrationsQuestion) on the
 // pre-choice, where nothing is looked for: every integration off, the metrics hub with no provider
-// on. Check all integrations looks for them: the Metrics Server and the Prometheus `make
+// on. Choose integrations with both ticked looks for them: the Metrics Server and the Prometheus `make
 // kind-prometheus` installs are detected once without a drawer or a list that shows metrics, so
 // that the question says "found" with where; an answer decides the cluster and ends the question.
 // Cluster settings and preferences in a temporary folder: the cluster is new to this Cogpit.
@@ -67,9 +67,13 @@ func TestKindIntegrationsQuestion(t *testing.T) {
 	if b := s.BackendOf(contextName); b != nil && b.Metrics != nil && len(b.Metrics.Providers()) != 0 {
 		t.Errorf("metrics providers on before the pre-choice was answered: %+v", b.Metrics.Providers())
 	}
-	step := []byte(`{"step":"checkAll"}`)
-	if _, err := s.Dispatch(ctx, engine.Invocation{ID: "cluster.integrations.step", Params: step, Origin: engine.OriginGUI}); err != nil {
-		t.Fatal(err)
+	for _, inv := range []engine.Invocation{
+		{ID: "cluster.integrations.step", Params: []byte(`{"step":"choose"}`), Origin: engine.OriginGUI},
+		{ID: "cluster.integrations.lookFor", Params: []byte(`{"integrations":{"metrics-server":true,"prometheus":true}}`), Origin: engine.OriginGUI},
+	} {
+		if _, err := s.Dispatch(ctx, inv); err != nil {
+			t.Fatal(err)
+		}
 	}
 	for {
 		st := statuses()

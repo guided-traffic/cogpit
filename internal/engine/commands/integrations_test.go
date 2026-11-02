@@ -70,10 +70,10 @@ func integrationsOf(t *testing.T, h *harness, ctx string) (map[string]bool, bool
 }
 
 // The question's lifecycle (D-76, D-82): asked at the first connect of a cluster without a choice,
-// on the pre-choice, nothing on, as ui_state shows it; Check all looks for every integration; Later
+// on the pre-choice, nothing on, as ui_state shows it; every integration ticked is looked for; Later
 // puts it off for the run (a reconnect does not ask again) and nothing is on meanwhile, the next
 // start asks again; an answer decides the cluster, with saveAsDefault the default for new clusters
-// too, which the next new cluster's Check all looks for; a decided cluster is not asked. The window
+// too; a decided cluster is not asked. The window
 // steps and answers (H-126: agents may not); an agent reads the question and may put it off.
 func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	settings, prefs := t.TempDir(), t.TempDir()
@@ -85,12 +85,13 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	if decided || slices.Contains(boolValues(on), true) {
 		t.Fatalf("before an answer: decided %v, %v", decided, on)
 	}
-	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
-	if a := asked(t, h); a.Step != "checkAll" || len(a.LookFor) != len(engine.Integrations) {
-		t.Errorf("Check all: %+v", a)
+	h.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "choose"}, nil)
+	h.must(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": allIntegrations(true)}, nil)
+	if a := asked(t, h); a.Step != "choose" || len(a.LookFor) != len(engine.Integrations) {
+		t.Errorf("Choose, all ticked: %+v", a)
 	}
 	if on, _ := integrationsOf(t, h, "test"); slices.Contains(boolValues(on), false) {
-		t.Errorf("Check all looks for: %v", on)
+		t.Errorf("all ticked looks for: %v", on)
 	}
 
 	// Later: gone for this run, a reconnect included, nothing on; a second Later has nothing to put off.
@@ -120,8 +121,9 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 	if q := question(t, h2); q != "test" {
 		t.Fatalf("the next start: %q", q)
 	}
-	h2.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
-	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{"integrations": map[string]bool{"alertmanager": false}}, nil)
+	answer := allIntegrations(true) // as the window's Use my default integrations answers, the default all on
+	answer["alertmanager"] = false
+	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{"integrations": answer}, nil)
 	if q := question(t, h2); q != "" {
 		t.Errorf("after the answer: %q", q)
 	}
@@ -149,19 +151,15 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 		t.Errorf("the default saved: %v", got)
 	}
 
-	// The next new cluster's Check all looks for it (the cluster settings of a third start are new,
-	// its preferences the same): nothing on before, Trivy and Kyverno unticked after.
+	// The next new cluster is asked as before (the cluster settings of a third start are new, its
+	// preferences the same), nothing on until it is answered; the window's Use my default
+	// integrations answers with the saved default (integrationsask_test.go).
 	h3 := integrationsHarness(t, t.TempDir(), prefs)
 	if q := question(t, h3); q != "test" {
 		t.Fatalf("a new cluster after the default was saved: %q", q)
 	}
 	if on, decided := integrationsOf(t, h3, "test"); decided || slices.Contains(boolValues(on), true) {
 		t.Errorf("before the pre-choice: decided %v, %v", decided, on)
-	}
-	h3.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
-	on, decided = integrationsOf(t, h3, "test")
-	if decided || on["trivy"] || on["kyverno"] || !on["alertmanager"] || !on["prometheus"] {
-		t.Errorf("Check all with the default: decided %v, %v", decided, on)
 	}
 	// A decided cluster is not asked (the first start's folder: test decided by h2).
 	h4 := integrationsHarness(t, settings, prefs)
@@ -171,13 +169,13 @@ func TestIntegrationsQuestionLifecycle(t *testing.T) {
 }
 
 // The pre-choice's commands as the window drives them (D-82): Choose ticks one at a time, a tick
-// before Check all or Choose is refused with the reason, Back looks for nothing, Don't use's Yes
+// before Choose is refused with the reason, Back looks for nothing, Don't use's Yes
 // answers with every one off, and Ask again (the user's only, H-133) brings the question back from
 // the pre-choice, for a decided cluster or one put off; refused for a cluster asked already.
 func TestIntegrationsConsentCommands(t *testing.T) {
 	h := integrationsHarness(t, t.TempDir(), t.TempDir())
 	if err := h.run(t, engine.OriginGUI, "cluster.integrations.lookFor", map[string]any{"integrations": map[string]bool{"trivy": true}}, nil); err == nil ||
-		!strings.Contains(err.Error(), "Check all or Choose") {
+		!strings.Contains(err.Error(), "Choose integrations first") {
 		t.Errorf("a tick on the pre-choice: %v", err)
 	}
 	if err := h.run(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "later"}, nil); err == nil ||
@@ -320,7 +318,7 @@ func TestIntegrationsOnAreTheUsers(t *testing.T) {
 		t.Helper()
 		for _, o := range agents {
 			for id, p := range map[string]map[string]any{
-				"cluster.integrations.step":    {"step": "checkAll"},
+				"cluster.integrations.step":    {"step": "choose"},
 				"cluster.integrations.lookFor": {"integrations": map[string]bool{"kyverno": true}},
 				"cluster.integrations.answer":  {"integrations": map[string]bool{"trivy": false}},
 			} {
@@ -359,8 +357,7 @@ func TestIntegrationsOnAreTheUsers(t *testing.T) {
 	}
 	h2 := integrationsHarness(t, settings, prefs)
 	h2.s.SetConfirmer(c)
-	h2.must(t, engine.OriginGUI, "cluster.integrations.step", map[string]any{"step": "checkAll"}, nil)
-	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{}, nil)
+	h2.must(t, engine.OriginGUI, "cluster.integrations.answer", map[string]any{"integrations": allIntegrations(true)}, nil)
 	if on, decided := integrationsOf(t, h2, "test"); !decided || slices.Contains(boolValues(on), false) {
 		t.Fatalf("the user's answer: decided %v, %v", decided, on)
 	}
@@ -456,4 +453,13 @@ func newDemoHarness(t *testing.T, opts engine.Options) *harness {
 		t.Fatal(err)
 	}
 	return h
+}
+
+// allIntegrations switches every integration on or off, as an answer's integrations.
+func allIntegrations(on bool) map[string]bool {
+	out := map[string]bool{}
+	for _, in := range engine.Integrations {
+		out[string(in.Name)] = on
+	}
+	return out
 }

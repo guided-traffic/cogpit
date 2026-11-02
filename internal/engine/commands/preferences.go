@@ -57,7 +57,7 @@ type preferencesSetParams struct {
 	// RestoreSession: agents and the CLI may only turn it off (engine/restore.go, D-69 item 8).
 	RestoreSession *bool `json:"restoreSession,omitempty" jsonschema:"whether Cogpit, at its next start, restores the tabs of the last run and connects again to the clusters connected when it quit, the one shown then first, their credential plugins running as on any connect (default false: it starts without tabs and connections). Agents and the CLI may only turn it off"`
 	// IntegrationDefaults: the integrations of clusters without a choice of their own (engine/integrations.go, D-76).
-	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. GUI only: refused to agents and the CLI, on (true) and off (false) alike: the default is what the user's Check all looks for, which is the user's, in Cogpit's window"`
+	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations turns on when the user answers Use my default integrations, and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. GUI only: refused to agents and the CLI, on (true) and off (false) alike: the default is what the user's Use my default integrations turns on, which is the user's, in Cogpit's window"`
 	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
@@ -98,8 +98,8 @@ func (p preferencesSetParams) refuse(ctx context.Context) error {
 }
 
 // refuseIntegrationDefaults refuses any change of the default integrations for new clusters, on or
-// off, from every origin but the GUI: it is what the user's Check all looks for with the user's
-// identity (H-126) and what it leaves out (H-133). The names are checked first.
+// off, from every origin but the GUI: it is what the user's Use my default integrations turns on,
+// read with the user's identity (H-126), and what it leaves out (H-133). The names are checked first.
 func (p preferencesSetParams) refuseIntegrationDefaults(ctx context.Context) error {
 	if len(p.IntegrationDefaults) == 0 {
 		return nil

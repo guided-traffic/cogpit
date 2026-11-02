@@ -100,9 +100,6 @@ func newIntegrationsFake(t *testing.T) *integrationsFake {
 		}
 		f.update(func(u *engine.UIState) {
 			u.IntegrationsStep, u.IntegrationsLookFor = engine.IntegrationsStep(p.Step), 0
-			if u.IntegrationsStep == engine.IntegrationsCheckAll {
-				u.IntegrationsLookFor = engine.IntAll &^ u.Preferences.IntegrationsOff
-			}
 		})
 		return nil, nil
 	}

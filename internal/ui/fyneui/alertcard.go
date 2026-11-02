@@ -41,11 +41,11 @@ type spanText struct {
 
 	// The text as it shows, from the last wrap: its lines joined by a space where a line wraps and
 	// by a line break where the text has one, and each run's place in it.
-	shown   string
-	pieces  []spanPiece
-	rows    []spanRow
-	r       *spanTextRenderer
-	stops   [][]spanStop // per line, every rune boundary and its x; nil until a selection needs it
+	shown  string
+	pieces []spanPiece
+	rows   []spanRow
+	r      *spanTextRenderer
+	stops  [][]spanStop // per line, every rune boundary and its x; nil until a selection needs it
 }
 
 // spanPiece is a run of a wrapped line: its text, where it starts on the line and in the shown

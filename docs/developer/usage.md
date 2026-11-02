@@ -900,9 +900,10 @@ by name (`…:http-web`), so a role written for Lens that names services in `res
 each refused spelling is a 403 in the cluster's audit log.
 
 **The question:** a cluster without a choice asks once it is connected and shown ("Integrations for
-<name>"): **Check all integrations** (the default's, looked for at once; untick what you don't
-want), **Choose integrations** (none ticked; a tick looks for that one), or **Don't use
-integrations** (after a warning, all off). **Apply** keeps the ticks, with "Save as the default for
+<name>"): **Use my default integrations** (turns on what Preferences › Kubernetes › Integrations
+of new clusters keeps on, at once, without a further page), **Choose integrations** (none ticked;
+a tick looks for that one), or **Don't use integrations (no metrics will be displayed)** (after a
+warning, all off). **Apply** keeps the ticks, with "Save as the default for
 new clusters" also as the default; **Later** asks again at the next start and reads nothing
 meanwhile. The demo cluster never asks. Preferences › Kubernetes › Integrations of new clusters
 holds the default. `cogpit-cli` asks nothing and reads what the default keeps on
