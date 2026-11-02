@@ -1024,11 +1024,12 @@ Escape closes the innermost thing open, and only that; press it again to go one 
 | a dialog (a confirmation, Rollback, Scale, a create dialog, Connection Updates, About, …), whatever field has the keyboard | its Cancel, or Close where it has none; the drawer behind it stays open |
 | a pop-up list (namespace filter, status filter, columns, the agent's history), the palette, the bell's list, the MCP details | closes it |
 | a dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
+| the find field over the drawer's YAML, a release's values or revisions | clears it; the editor gets the keys |
 | a list's search (⌘F) | clears it; the list gets the keys |
 | the logs tab's search, Argo CD's activity filter | clears it |
 | Preferences or Cluster Settings, a text field on it included | closes the card, keeping the value just typed; a menu or dialog opened from it closes first |
 | Preferences › Agent's connection form | closes the form, as its Cancel does |
-| the list or the navigator | closes the drawer |
+| the list, the navigator, or the drawer's YAML or values | closes the drawer |
 
 A selected text (a log, a toast, the agent's answer) drops its selection first; the navigator's
 search (⌘P) and the namespace filter's search clear typed text first. Fyne's own widgets keep

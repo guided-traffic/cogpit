@@ -125,7 +125,7 @@ type findBar struct {
 
 	// permanent is the bar over the drawer's YAML and a release's values (the owner's requests of
 	// 2026-10-25): always shown, no replace row and no ×; Escape in its field clears it and gives
-	// the editor the keys.
+	// the editor the keys, and the editor hands its Escape on to the window.
 	permanent bool
 }
 
@@ -146,8 +146,12 @@ func buildFindBar(sh *shell, view *yamlview.View, permanent bool) *findBar {
 	b.find.OnSubmitted = func(string) { b.step(1) }
 	b.find.escape = b.close // Escape closes the bar from either field and from the editor (AW4)
 	view.OnEscape = func() bool {
-		if permanent || !b.visible() {
-			return false // the drawer's YAML: Escape goes on to the window, which closes the drawer
+		if permanent {
+			passEscape(view) // the drawer's YAML and values: the window's Escape closes the drawer
+			return true
+		}
+		if !b.visible() {
+			return false
 		}
 		b.close()
 		return true
