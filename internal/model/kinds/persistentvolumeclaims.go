@@ -75,7 +75,15 @@ func pvcVolume(obj *unstructured.Unstructured) (model.VolumeClaim, bool) {
 	if vol == "" || model.NestedString(obj, "status", "phase") != pvcBound {
 		return model.VolumeClaim{}, false
 	}
-	return model.VolumeClaim{Namespace: obj.GetNamespace(), Claim: obj.GetName(), Volume: vol}, true
+	return model.VolumeClaim{Namespace: obj.GetNamespace(), Claim: obj.GetName(), Volume: vol, SizeBytes: pvcSizeBytes(obj)}, true
+}
+
+// pvcSizeBytes is the size of a claim's volume: the larger of its capacity (the bound volume's)
+// and its request, so that a volume bound larger than the request, and a resize the capacity does
+// not show yet, count with their size; 0 without either.
+func pvcSizeBytes(obj any) int64 {
+	return max(quantityValue(model.NestedIntOrString(obj, "status", "capacity", resourceStorage)),
+		quantityValue(model.NestedIntOrString(obj, "spec", "resources", "requests", resourceStorage)))
 }
 
 // pvcCells are the claim's cells without the related objects: the Pods column stays empty.

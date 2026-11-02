@@ -116,11 +116,14 @@ type objectParams struct {
 	Related bool            `json:"related,omitempty" jsonschema:"also list the related objects as refs (related, relatedTotal): what the drawer links to (owner, node, a node's pods, a claim's pods, a Service's endpoint slices, ...) and the objects a workload controls (replica sets, jobs, pods); at most 200"`
 }
 
-// objectWithRelated is object.get's result with related: the drawer model and its related objects
-// (engine.Related, relatedrefs.go).
-type objectWithRelated struct {
+// objectResult is object.get's result with related, or for a persistent volume claim or a
+// persistent volume: the drawer model, its related objects (engine.Related, relatedrefs.go; nil
+// without related) and the volume's usage as the drawer's Metrics section shows it
+// (engine.VolumeUsage; nil for other kinds).
+type objectResult struct {
 	*engine.DetailModel
-	engine.RelatedRefs
+	*engine.RelatedRefs
+	VolumeUsage *engine.VolumeUsage `json:"volumeUsage,omitempty"`
 }
 
 func registerResources(g *registrar) {
@@ -182,7 +185,14 @@ func registerResources(g *registrar) {
 			"(Controlled By, a pod's node, a node's pods and devices, a claim's pods, a Service's endpoint slices, ...) and the " +
 			"objects a workload controls (a Deployment's replica sets and pods, a Cron Job's jobs and pods, the pods of the " +
 			"other workloads); at most 200, relatedTotal counts them all." + privateReads + " For it a Secret's Data section " +
-			"holds each value as the drawer's Show reveals it, and its YAML the values as an Edit tab holds them.",
+			"holds each value as the drawer's Show reveals it, and its YAML the values as an Edit tab holds them. " +
+			"For a persistent volume claim or a persistent volume, volumeUsage is its volume's usage as the drawer's Metrics " +
+			"section shows it: volume (the bound claim and volume, the volume's size in sizeBytes, the pods that mount it), " +
+			"fill (the newest point of the kubelet's volume stats through Prometheus: the bytes in use, the filesystem's " +
+			"capacity and what is available), volumeNote (why there is no fill) and sizeNote (the storage reports a " +
+			"filesystem clearly larger than the volume's size, such as a host directory: it does not keep to the size, and " +
+			"fill's numbers are the storage's); the numbers come only while the drawer shows the claim or its volume " +
+			"(ui_navigate), else status is unknown.",
 		Enabled: func(s *engine.Session, p objectParams) error { _, err := connectedOn(s, p.Ref.Context); return err },
 		Run: func(ctx context.Context, s *engine.Session, p objectParams) (any, error) {
 			m, err := s.DetailWait(ctx, p.Ref)
@@ -192,10 +202,20 @@ func registerResources(g *registrar) {
 			if p.NoYAML {
 				m.YAML = ""
 			}
+			out := objectResult{DetailModel: m}
 			if p.Related {
-				return objectWithRelated{DetailModel: m, RelatedRefs: s.Related(ctx, m)}, nil
+				rel := s.Related(ctx, m)
+				out.RelatedRefs = &rel
 			}
-			return m, nil
+			if m.VolumeMetrics {
+				if out.VolumeUsage, err = s.VolumeUsage(m.Ref); err != nil {
+					return nil, err
+				}
+			}
+			if out.RelatedRefs == nil && out.VolumeUsage == nil {
+				return m, nil
+			}
+			return out, nil
 		},
 	})
 }

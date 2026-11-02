@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"fmt"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
@@ -17,7 +19,9 @@ import (
 // (metrics.ClaimScope) while the two are bound and the cluster's settings show it (Cluster
 // Settings › Metrics: Volumes, Filesystem). The binding comes from the cache: the poll starts when
 // the drawer's object is known to be bound, follows a new binding when the drawer's model is built
-// again (Detail), and ends with the drawer.
+// again (Detail), and ends with the drawer. Under the bar a note when the storage reports a
+// filesystem clearly larger than the volume's size (volumeSizeNote); agents read the section in
+// object.get (VolumeUsage).
 
 // Notes of a volume's Metrics section.
 const (
@@ -112,8 +116,70 @@ func (s *Session) volumeMetrics(b *Backend, p *model.KindProfile, ref model.Obje
 		if out.Fill = volumeFill(hist); out.Fill == nil {
 			out.VolumeNote = msgNoVolumeStats
 		}
+		out.SizeNote = volumeSizeNote(vc.SizeBytes, out.Fill)
 	}
 	return out
+}
+
+// A storage that does not keep to a volume's size (D-139): a host directory (local-path,
+// hostPath) reports the node's filesystem as the volume's, whatever the claim asked for. A
+// filesystem's own metadata makes a volume's filesystem a little smaller than its size, never
+// larger; a storage that rounds a size up does so by a few percent at most (10G in place of 10Gi
+// is 7.4 %) or, for a small volume, by its allocation unit (a 100Mi claim on a 1 GiB disk). So the
+// note is said only for a filesystem more than oversizeRatio of the size and at least
+// oversizeFloor beyond it.
+const (
+	oversizeRatio = 1.1
+	oversizeFloor = 1 << 30 // bytes
+)
+
+// volumeOversized reports whether a filesystem of capacity bytes is clearly larger than a volume
+// of size bytes; false without either.
+func volumeOversized(size int64, capacity float64) bool {
+	if size <= 0 || capacity <= 0 {
+		return false
+	}
+	s := float64(size)
+	return capacity > s*oversizeRatio && capacity-s >= oversizeFloor
+}
+
+// volumeSizeNote is the note under a volume's usage bar when its storage reports a filesystem
+// clearly larger than the volume's size; "" while it keeps to it, or without a size or a newest
+// point.
+func volumeSizeNote(size int64, fill *model.FilesystemSample) string {
+	if fill == nil || !volumeOversized(size, fill.CapacityBytes) {
+		return ""
+	}
+	return fmt.Sprintf("The storage reports a size of %s for a volume of %s: it does not seem to keep to the volume's size.",
+		model.FormatByteAmount(fill.CapacityBytes), model.FormatBytes(size))
+}
+
+// VolumeUsage is a persistent volume claim's or a persistent volume's Metrics section as object.get
+// returns it to agents: the claim and the volume while the two are bound, the newest point of the
+// volume's usage and the section's notes, as the drawer shows them. The numbers come while a drawer
+// shows the claim or its volume, which polls them; otherwise Status is "unknown" and Fill nil.
+type VolumeUsage struct {
+	Status     metrics.Status          `json:"status"`
+	Message    string                  `json:"message,omitempty"`
+	Volume     *model.VolumeClaim      `json:"volume,omitempty"`
+	Fill       *model.FilesystemSample `json:"fill,omitempty"`
+	VolumeNote string                  `json:"volumeNote,omitempty"`
+	SizeNote   string                  `json:"sizeNote,omitempty"`
+}
+
+// VolumeUsage returns the volume's usage of a claim or a volume as its drawer's Metrics section
+// holds it, or nil, nil for another kind. It reads the hub's latest results and the cache and sends
+// no request (ObjectMetrics).
+func (s *Session) VolumeUsage(ref model.ObjectRef) (*VolumeUsage, error) {
+	_, _, p, err := s.resolve(ref)
+	if err != nil || p.Volume == nil {
+		return nil, err
+	}
+	m, err := s.ObjectMetrics(ref)
+	if err != nil || m == nil {
+		return nil, err
+	}
+	return &VolumeUsage{Status: m.Status, Message: m.Message, Volume: m.Volume, Fill: m.Fill, VolumeNote: m.VolumeNote, SizeNote: m.SizeNote}, nil
 }
 
 // volumePods are the pods that mount a bound claim: from the open drawer's related objects, whose

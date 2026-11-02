@@ -15,7 +15,10 @@ import (
 // filesystem's size as an outline over them, so a resize is a step and the fill's height against
 // the outline reads as the fill level; under it a usage bar of the newest point in the disks' look
 // (metricsdisk.go): "Volume", the bar in the table's colours and the share, the numbers in its
-// tooltip. Without a newest point, quietly why ("Volume: the kubelet reports no usage …").
+// tooltip. Without a newest point, quietly why ("Volume: the kubelet reports no usage …"). Under
+// the bar, muted and wrapped, the engine's note when the storage reports a filesystem clearly
+// larger than the volume's size (ObjectMetrics.SizeNote): a fact of the storage, said as quietly as
+// the section's other notes.
 
 // volumeTitle stands before a volume's usage bar.
 const volumeTitle = "Volume"
@@ -79,18 +82,38 @@ func volumeIntro(v *model.VolumeClaim, kind string) (string, model.ObjectRef) {
 func (p *metricsPanel) showVolume(m *engine.ObjectMetrics) {
 	b := p.disk
 	b.title = volumeTitle
+	note := ""
 	switch {
 	case m != nil && m.Volume != nil && m.Fill != nil:
 		f, name := *m.Fill, m.Volume.Volume
 		b.tip = func(model.NodeFilesystem) string { return volumeTip(name, f) }
 		b.set([]model.NodeFilesystem{{UsedBytes: int64(f.UsageBytes), SizeBytes: int64(f.CapacityBytes)}}, "")
+		note = m.SizeNote
 	case m != nil && m.Volume != nil && m.VolumeNote != "":
 		b.set(nil, m.VolumeNote)
 	default:
 		b.Hide()
+		p.showSizeNote("")
 		return
 	}
 	b.Show()
+	p.showSizeNote(note)
+}
+
+// showSizeNote shows the note under a volume's usage bar, wrapped to the drawer's width, or hides it
+// for none; its text is the note shown, "" while hidden.
+func (p *metricsPanel) showSizeNote(text string) {
+	n := p.sizeNote
+	if text == "" {
+		n.text = ""
+		n.Hide()
+		return
+	}
+	if w := p.d.contentWidth(); n.text != text || n.width != w {
+		n.text, n.width = text, w
+		n.Refresh()
+	}
+	n.Show()
 }
 
 // volumeTip is a volume's usage bar's tooltip: the volume, the bytes in use of its size, and what is

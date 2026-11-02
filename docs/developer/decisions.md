@@ -147,7 +147,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service, the class to its IngressClass, a TLS entry to its Secret |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
-| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
+| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart, usage bar, a note on a storage that ignores the size |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
 | [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
@@ -5588,8 +5588,9 @@ count until the next.
 ## D-139: A volume's usage in its claim's and its own drawer
 
 **Status:** built · **By:** owner (a claim's fill level now and over time, a chart and a usage bar
-as a node's disk has; the claim's drawer says it shows its volume's numbers); lead (open to
-revision) the details below
+as a node's disk has; the claim's drawer says it shows its volume's numbers; Cogpit may point out
+a storage that does not seem to keep to the volume's size); lead (open to revision) the details
+below
 
 A persistent volume claim's drawer and a persistent volume's drawer have a Metrics section while the
 two are bound: what the user sees, [usage](usage.md#a-volumes-usage). A claim holds no data itself;
@@ -5627,6 +5628,24 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
   kubelet's used of its capacity, the filesystem's size (196.7 GiB of a 200 GiB claim on ext4),
   not the claim's request. A newest point more than two steps before the chart's end counts as
   none: the kubelet stopped reporting the volume.
+- **Larger than the volume:** under the bar, muted and wrapped, "The storage reports a size of
+  122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size." when the
+  newest point's filesystem is more than 1.1 times the volume's size and at least 1 GiB beyond it
+  (`volumeOversized`). The volume's size (`VolumeClaim.SizeBytes`) is in a claim's drawer the larger
+  of its `status.capacity.storage` (the bound volume's) and its `spec.resources.requests.storage`,
+  in a volume's drawer its `spec.capacity.storage`; without one, no note. A host directory
+  (local-path, a hostPath volume) reports the node's filesystem as the volume's: the bar's share is
+  then of the node's disk, and nothing keeps the volume to its size. The threshold: a filesystem's
+  metadata makes a volume's filesystem a little smaller than its size, never larger; a storage
+  that rounds a size up does so by a few percent (10G in place of 10Gi is 7.4 %) or, for a small
+  volume, by its allocation unit (a 100Mi claim on a 1 GiB disk). 10 % and 1 GiB leave both out
+  and still catch a host directory, which is many times the size. Muted as the section's other
+  notes: a lasting fact of the storage the user cannot clear, on kind and k3s (local-path is their
+  default class) on every claim.
+- **Agents:** `object_get` of a claim or a volume carries the section as `volumeUsage`: its status
+  and message, `volume` (the claim, the volume, `sizeBytes`, the pods that mount it), `fill`,
+  `volumeNote` and `sizeNote`, from the hub's latest results and the cache (`Session.VolumeUsage`).
+  The numbers come while a drawer shows the claim or its volume; otherwise the status is unknown.
 - **Without numbers:** not bound ("the claim is not bound to a volume", "the volume is not bound to
   a claim"); no Prometheus, or its integration off (the section says so, as a node's disk does); a
   bound volume the kubelet does not report ("no pod mounts it, or its driver reports none"): an
@@ -5649,6 +5668,18 @@ One query with three parts costs a third of three queries per step.
   (its own metadata), so a full volume would read below 100 %.
 - The size as a dashed reference line — it hides a resize; an outline series shows it.
 - The volume's own name in the query — the kubelet labels its gauges by the claim only.
+- The claim's request alone as the volume's size for the note — a volume bound larger than the
+  request (a static volume of 100 GiB for a 10Gi claim) has that size, and its filesystem rightly
+  does: the note would be wrong.
+- A ratio alone, or a margin alone — 10 % of a 1 GiB claim is an allocation unit's rounding; a
+  fixed 1 GiB of a 10 TiB volume is a rounding error.
+- The note in the warning colour — the status colour on every local-path claim would stop meaning
+  "look here".
+- The volume's size as the bar's whole when the storage ignores it (30 GiB of 10 GiB, 300 %) — the
+  volume writes past it until the node's disk is full, which the filesystem's own share shows.
+- The usage in `metrics_get`, or in `ui_state` — the first sends a request of its own outside the
+  drawer's poll (P19); the second is the window's state, and the usage is the object's, which
+  `object_get` returns as the drawer shows it.
 
 **Not covered:** a Usage column in the claims' and volumes' lists; a volume's inodes; a raw block
 volume and drivers that report no usage (some CSI drivers, NFS) show the note only; the demo
@@ -5656,11 +5687,14 @@ cluster serves no claims, so `--demo` shows none of it.
 
 **Code:** [`metrics/volume.go`](../../internal/metrics/volume.go),
 [`engine/volumemetrics.go`](../../internal/engine/volumemetrics.go),
+[`commands/resources.go`](../../internal/engine/commands/resources.go) (`object.get`),
 [`fyneui/metricsvolume.go`](../../internal/ui/fyneui/metricsvolume.go) · **Tests:**
 `TestObjectRangeOfAClaim`, `TestClaimChartAsksPrometheusAlone`, `TestClaimWithoutPrometheus`,
-`TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestClaimDrawerShowsItsVolume`,
-`TestVolumeDrawerShowsItsClaimsUsage`, `TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`,
-`TestClaimDrawerShowsItsVolumesUsage`
+`TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestVolumeSizeOfClaimsAndVolumes`,
+`TestClaimDrawerShowsItsVolume`, `TestVolumeDrawerShowsItsClaimsUsage`,
+`TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`, `TestVolumeOversized`,
+`TestVolumeLargerThanItsSize`, `TestObjectGetCarriesAClaimsVolumeUsage`,
+`TestClaimDrawerShowsItsVolumesUsage`, `TestVolumeLargerThanItsSizeSaysSo`
 
 ## D-140: A forwarded port in the drawer
 

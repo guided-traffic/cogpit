@@ -1391,6 +1391,11 @@ two pods on one node mount); no line while none does.
 - **Usage bar** under it: "Volume", the bar (warning from 80 %, error from 90 %) and the share of
   the filesystem's size, which is a little smaller than the claim's request (196.7 GiB of 200 GiB on
   ext4). Its tooltip: the volume, used of size, and what is still available for writing.
+- **Larger than the volume:** a storage that does not keep to the volume's size, such as
+  local-path's directory on the node, reports the node's disk as the volume's. A muted line under
+  the bar then says so: "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does
+  not seem to keep to the volume's size.", and the bar's share is of that disk. It shows when the
+  filesystem is more than 10 % and at least 1 GiB larger than the volume's size.
 - **Where the numbers come from:** the kubelet's volume stats (`kubelet_volume_stats_*`) in the
   cluster's Prometheus. Without Prometheus the section says so. The kubelet reports a volume only
   while a pod mounts it, and only when its driver reports usage (not raw block volumes, some CSI
@@ -1398,6 +1403,8 @@ two pods on one node mount); no line while none does.
   chart says "Metrics Server ● not used": it measures no volume.
 - **Not bound** (Pending, Lost, a Released volume): the section says so and nothing is asked.
 - **Hidden** with Cluster Settings › Metrics › Volumes or Filesystem.
+- **Agents** read the section in `object_get` (`volumeUsage`), the note included, while a drawer
+  shows the claim or its volume.
 
 ### A namespace stuck in Terminating
 

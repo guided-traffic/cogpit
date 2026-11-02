@@ -104,6 +104,12 @@ func volumeSession(t *testing.T) (*Session, *testkit.MemorySource, *volumeProm) 
 	src.Set(claimsGVR, claimObject("new", "Pending", ""))
 	src.Set(volumesGVR, volumeObject("pvc-f0327b26", "pg-1"))
 	prov := &volumeProm{}
+	return volumeSessionOver(t, src, prov), src, prov
+}
+
+// volumeSessionOver is a session over src's claims, volumes and pods with a metrics hub over prov.
+func volumeSessionOver(t *testing.T, src *testkit.MemorySource, prov metrics.Provider) *Session {
+	t.Helper()
 	fc := &fakeConnector{src: src, profiles: []*model.KindProfile{
 		builtinProfile(t, "persistentvolumeclaims"), builtinProfile(t, "persistentvolumes"), builtinProfile(t, "pods"), testEvents,
 	}}
@@ -115,7 +121,7 @@ func volumeSession(t *testing.T) (*Session, *testkit.MemorySource, *volumeProm) 
 	t.Cleanup(s.Close)
 	decideIntegrations(t, s, "test")
 	connectTest(t, s)
-	return s, src, prov
+	return s
 }
 
 // openVolumeDrawer opens the drawer on ref and builds its model until it was read from the cache,
@@ -154,7 +160,7 @@ func TestClaimDrawerShowsItsVolume(t *testing.T) {
 		t.Fatal("a claim's drawer has no Metrics section")
 	}
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
-	want := model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}
+	want := model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}
 	if om.Status != metrics.StatusAvailable || om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) || om.VolumeNote != "" ||
 		!slices.Equal(om.Variants, []string{VariantFilesystem}) || om.FilesystemSource != metrics.FilesystemUsage {
 		t.Fatalf("metrics = %+v", om)
@@ -195,7 +201,7 @@ func TestVolumeDrawerShowsItsClaimsUsage(t *testing.T) {
 	ref := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-f0327b26"}
 	openVolumeDrawer(t, s, ref)
 	om := waitVolume(t, s, ref, "the volume's usage", func(om *ObjectMetrics) bool { return om.Fill != nil })
-	if want := (model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26"}); om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) {
+	if want := (model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-1", Volume: "pvc-f0327b26", SizeBytes: 200 << 30}); om.Volume == nil || !reflect.DeepEqual(*om.Volume, want) {
 		t.Errorf("volume = %+v", om.Volume)
 	}
 	if qs := prov.asked(); len(qs) == 0 || qs[0].Namespace != "bezon-prod" || qs[0].Name != "pg-1" {

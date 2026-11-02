@@ -332,10 +332,13 @@ type ObjectMetrics struct {
 	// the two are bound; nil otherwise (Message then says the object is not bound). Fill is the
 	// newest point of the volume's usage while the kubelet reports it: the usage bar under the
 	// chart. VolumeNote says why there is none (no pod mounts the volume, or its driver reports no
-	// usage).
+	// usage). SizeNote says that the filesystem Fill reports is clearly larger than the volume's
+	// size (VolumeClaim.SizeBytes): a storage that does not keep to it, whose numbers are the
+	// storage's rather than the volume's (volumeSizeNote); empty otherwise.
 	Volume     *model.VolumeClaim      `json:"volume,omitempty"`
 	Fill       *model.FilesystemSample `json:"fill,omitempty"`
 	VolumeNote string                  `json:"volumeNote,omitempty"`
+	SizeNote   string                  `json:"sizeNote,omitempty"`
 }
 
 // ObjectMetrics returns the Metrics section of a pod, a node, a claim or a volume, or nil, nil for a

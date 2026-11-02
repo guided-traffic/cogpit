@@ -2021,7 +2021,9 @@ joined by time into `FilesystemSample`s (`volumeSamples`).
   per chart (the object, then each container) with requests and limits (`model.PodTotals`) or a
   node's allocatable and capacity, and its series cut to the chart's range. A claim's or a
   volume's (`volumeMetrics`): one target of the filesystem, the claim and volume (`Volume`), the
-  newest point (`Fill`) or why there is none (`VolumeNote`).
+  newest point (`Fill`) or why there is none (`VolumeNote`), and `SizeNote` when the filesystem is
+  clearly larger than the volume's size; `object.get` carries these as `volumeUsage`
+  (`Session.VolumeUsage`).
 - **Range and variant are engine state** (rule 2), per chart in `drawerWatch`: `ui.setMetricsRange`
   (1 min to 30 d, [`commands/metricsrange.go`](../../internal/engine/commands/metricsrange.go)) and
   `ui.setMetricsVariant` (network and filesystem only with a provider that has them,
