@@ -361,8 +361,8 @@ func forwardedPodFake(t *testing.T, phase string) (*fakeEngine, model.ObjectRef)
 	return f, ref
 }
 
-// A forwarded port shows its forward: the local address, selectable and copyable, and a stop icon
-// in place of Forward…; the port opens the forward in the browser instead of forwarding again, and
+// A forwarded port shows its forward: the local address, selectable, its copy icon shown for good,
+// and a stop icon in place of Forward…; the port opens the forward in the browser instead of forwarding again, and
 // the icon stops it. The other container's port, not forwarded, keeps its Forward….
 func TestForwardedPortInPodDrawer(t *testing.T) {
 	browser := recordBrowser(t)
@@ -380,8 +380,8 @@ func TestForwardedPortInPodDrawer(t *testing.T) {
 	if address == nil {
 		t.Fatal("the forwarded port shows no local address")
 	}
-	if address.hook == nil || address.hook.text != "127.0.0.1:54321" {
-		t.Errorf("the address's copy hook %+v", address.hook)
+	if address.hook != nil {
+		t.Errorf("the address has the hover copy icon too: %+v", address.hook)
 	}
 	var stop *tipButton
 	for _, b := range findAll[*tipButton](sh.drawer.details) {
@@ -392,11 +392,31 @@ func TestForwardedPortInPodDrawer(t *testing.T) {
 	if stop == nil {
 		t.Fatal("the forwarded port has no stop icon")
 	}
-	// The address stands between the port and the icon, whole.
+	// The address stands between the port and the icons, whole, its copy icon shown for good
+	// right after it (QW3), then the stop icon; the copy icon copies the address.
+	var copyIcon *copyButton
+	for _, b := range findAll[*copyButton](sh.drawer.details) {
+		if b.stays {
+			copyIcon = b
+		}
+	}
+	if copyIcon == nil || !copyIcon.Visible() {
+		t.Fatal("the address has no copy icon shown")
+	}
 	d := fyne.CurrentApp().Driver()
-	ax, sx := d.AbsolutePositionForObject(address).X, d.AbsolutePositionForObject(stop).X
-	if want := fyne.MeasureText("127.0.0.1:54321", theme.TextSize(), fyne.TextStyle{}).Width; ax >= sx || address.Size().Width < want {
-		t.Errorf("address at x %v width %v (text %v), stop at x %v", ax, address.Size().Width, want, sx)
+	ax, cx, sx := d.AbsolutePositionForObject(address).X, d.AbsolutePositionForObject(copyIcon).X, d.AbsolutePositionForObject(stop).X
+	want := fyne.MeasureText("127.0.0.1:54321", theme.TextSize(), fyne.TextStyle{}).Width
+	if ax >= cx || cx >= sx || address.Size().Width < want || cx > ax+want+2*theme.Padding() {
+		t.Errorf("address at x %v width %v (text %v), copy icon at x %v, stop at x %v", ax, address.Size().Width, want, cx, sx)
+	}
+	copyIcon.MouseOut()
+	if !copyIcon.Visible() {
+		t.Error("the address's copy icon hid when the pointer left it")
+	}
+	sh.app.Clipboard().SetContent("")
+	test.Tap(copyIcon)
+	if got := sh.app.Clipboard().Content(); got != "127.0.0.1:54321" {
+		t.Errorf("the copy icon copied %q", got)
 	}
 
 	var link *linkText

@@ -5667,8 +5667,9 @@ local port shown and copyable); lead (open to revision) the details below
   follows it, then a stop icon in Forward…'s place (`portforward.stop`, tooltip "Stop forwarding").
   A stopped or failed forward listens on nothing: the port reads as one without a forward.
 - **The address:** `127.0.0.1:<port>`, where the forward listens (not `localhost`, which resolves
-  to `::1` first), selectable, its copy icon copying it whole; the line keeps room for the icon
-  after it, so that it covers none of the port. Plain while the forward is active, amber while it
+  to `::1` first), selectable, its copy icon shown for good right after it (not on hover only, as
+  the drawer's other values have it: a room kept for a hidden icon reads as a gap), copying it
+  whole and covering none of it. Plain while the forward is active, amber while it
   starts, orange while it waits for its pod or reconnects (`DetailItem.Aside`, `AsideStatus`).
 - **Stop, not Delete:** the forward stays in the Port Forwarding view, stopped; Edit there starts
   it again with its settings, Delete removes it.
@@ -5698,7 +5699,7 @@ again, or Edit in the Port Forwarding view.
 **Code:** [`kinds/portforwards.go`](../../internal/model/kinds/portforwards.go) (`forwardPort`,
 `listeningForwards`, `ForwardsByTarget`), [`model/detail.go`](../../internal/model/detail.go)
 (`DetailItem.Aside`, `ItemAction.Icon`), [`fyneui/drawer.go`](../../internal/ui/fyneui/drawer.go)
-(`itemValue`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
+(`itemValue`, `asideCopy`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
 `TestForwardedPortInPodDrawer`, `TestRenderPodDrawerForwardedDark`,
 `TestRenderPodDrawerForwardReconnectingDark`
 

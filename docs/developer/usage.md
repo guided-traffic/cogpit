@@ -133,7 +133,8 @@ Ctrl on Windows and Linux.
 - A node shell: a privileged pod in `kube-system` from an Alpine image pinned by digest, confirmed
   every time, deleted when the shell closes.
 - Debug containers added from a pod's drawer ([details](#debug-containers)); port forwarding with
-  one click to the browser, the local address and a stop at the forwarded port in the drawer.
+  one click to the browser, the local address with its copy icon and a stop at the forwarded port
+  in the drawer.
 
 **Helm and GitOps**
 

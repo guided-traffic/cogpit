@@ -17,7 +17,7 @@ import (
 // H-25): "Ich will natürlich auch Passwörter direkt in den Zwischenspeicher packen können und dann
 // direkt irgendwo in ein Passwortfeld ohne es vorher anzuzeigen." A masked key has the copy icon in
 // its line, always shown, between Show and the remove button (the owner's RW1 of 2026-10-23,
-// secretdata.go), its tooltip "Copy the value without showing it". A tap reads the whole value with secret.reveal (the GUI-only command Show runs, with whole: never the
+// secretdata.go), its tooltip "Copy the value". A tap reads the whole value with secret.reveal (the GUI-only command Show runs, with whole: never the
 // first 4 KiB a reveal shows, since a password cut short and pasted unseen would be wrong) and puts
 // it on the clipboard for Secret values (shell.copyText with secret: concealed and this Mac's only
 // on macOS, cleared after 60 seconds if the clipboard still holds it). The value enters no widget
@@ -55,7 +55,7 @@ import (
 
 // Copy icons' tooltips: a masked Secret value's, a revealed one's, the b64 button's.
 const (
-	maskedCopyTip = "Copy the value without showing it"
+	maskedCopyTip = "Copy the value"
 	wholeCopyTip  = "Copy the whole value"
 	b64Tip        = "Copy the value as base64"
 )

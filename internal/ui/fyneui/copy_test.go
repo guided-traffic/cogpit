@@ -331,7 +331,7 @@ func TestSecretMaskedValueCopiedWithoutShowing(t *testing.T) {
 	if !icon.Visible() {
 		t.Fatal("no copy icon in a masked key's line")
 	}
-	if icon.tip != "Copy the value without showing it" {
+	if icon.tip != "Copy the value" {
 		t.Errorf("a masked key's copy icon says %q", icon.tip)
 	}
 
