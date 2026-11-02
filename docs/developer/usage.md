@@ -92,7 +92,8 @@ Ctrl on Windows and Linux.
   text or the private key.
 - YAML editing with a diff and a server-side dry run before every apply; every manifest reads
   apiVersion, kind and metadata first, status last; ⌘Z undoes, ⇧⌘Z or ⌘Y redoes; ⌘F opens a find bar
-  (match case, whole word, regular expression) in the editor tabs, the drawer's YAML
+  (match case, whole word, regular expression; every match tinted amber behind the text, the
+  selected one stronger and outlined) in the editor tabs, the drawer's YAML
   ([D-127](decisions.md#d-127-find-in-the-drawers-yaml)) and a release's values
   ([D-130](decisions.md#d-130-find-in-a-releases-values)). An apply that scales a workload to zero
   or removes a Config Map's or Secret's key asks first.

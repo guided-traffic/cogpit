@@ -120,3 +120,27 @@ func TestReleaseValuesFind(t *testing.T) {
 	escapeKey(w)
 	q.until(t, "the drawer closed by the values' Escape", func() bool { return sh.ui.Drawer == nil })
 }
+
+// Renders of the drawer's YAML with a search typed, dark and light, for review: every match tinted
+// behind the text, the selected one stronger and outlined, the syntax colours kept (QW1).
+func TestRenderDrawerYAMLFindDark(t *testing.T)  { renderDrawerYAMLFind(t, ThemeDark) }
+func TestRenderDrawerYAMLFindLight(t *testing.T) { renderDrawerYAMLFind(t, ThemeLight) }
+
+func renderDrawerYAMLFind(t *testing.T, mode ThemeMode) {
+	f := kindsFake(t, "pods")
+	p := richPod(t)
+	ref := model.ObjectRef{Context: "demo", Kind: "pods", Namespace: p.ns, Name: p.name}
+	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
+	sh, w, q := newTestShell(t, f, Options{Theme: mode})
+	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && sh.drawer.yamlText != "" && sh.diag.total > 0 })
+	d := sh.drawer
+	d.tabs.Select(d.yamlTab)
+	w.Canvas().Focus(sh.view.table)
+	cmdF(t, sh)
+	test.Type(d.find.find, "image")
+	if len(d.find.matches) < 2 {
+		t.Fatalf("%d matches of image", len(d.find.matches))
+	}
+	d.find.step(1)
+	savePNG(t, w, "drawer_yaml_find_"+string(mode)+".png")
+}

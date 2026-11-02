@@ -70,6 +70,7 @@ type viewRenderer struct {
 	bg, current, caret, gutterBg, gutterSep, vThumb, hThumb *canvas.Rectangle
 
 	sels  []*canvas.Rectangle
+	marks []*canvas.Rectangle
 	texts []*canvas.Text
 	nums  []*canvas.Text
 
@@ -177,6 +178,36 @@ func (r *viewRenderer) build(size fyne.Size) {
 			objects = append(objects, r.sels[ns])
 			ns++
 		}
+	}
+
+	// Find marks: every match on a visible line, over the selection (the current match is the
+	// selection), under the text.
+	nm := 0
+	for i, mk := range v.marks {
+		if mk.Line < first || mk.Line >= last || mk.Line >= len(lines) {
+			continue
+		}
+		line := lines[mk.Line]
+		x0 := max(r.originX+float64(displayCol(line, v.posOf(mk.Line, mk.Start).off))*cw, float64(m.gutterW))
+		x1 := min(r.originX+float64(displayCol(line, v.posOf(mk.Line, mk.End).off))*cw, float64(size.Width))
+		if x1 <= x0 {
+			continue
+		}
+		if nm == len(r.marks) {
+			r.marks = append(r.marks, canvas.NewRectangle(nil))
+		}
+		mr := r.marks[nm]
+		fill, stroke := pal.findMatch, color.Color(color.Transparent)
+		if i == v.markCur {
+			fill, stroke = pal.findCurrent, pal.findStroke
+		}
+		setRect(mr, fill, float32(x0), float32(originY+float64(mk.Line)*lh), float32(x1-x0), float32(lh))
+		mr.StrokeColor, mr.StrokeWidth = stroke, 0
+		if i == v.markCur {
+			mr.StrokeWidth = 1
+		}
+		objects = append(objects, mr)
+		nm++
 	}
 
 	// Text runs.

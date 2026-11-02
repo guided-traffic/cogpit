@@ -5031,7 +5031,11 @@ the window's tree for the outer scroller — Fyne's tree walk is internal.
 
 A find bar stands over the drawer's read-only YAML at all times (`newViewerFindBar`): the editor's
 find bar without its replace row and its ×: the field, Aa, ab, .*, the count and the chevrons; the
-count follows the object's updates. ⌘F focuses it while the drawer shows its YAML and the keyboard
+count follows the object's updates. Every bar tints all matches behind the text in the theme's
+warning colour and the selected one stronger, outlined in it, the text keeping its syntax colours;
+the fill is the strongest that leaves keys, values, numbers, literals and anchors a contrast of 3
+(`findColors`, lead, open to revision; rejected: the selection's colour alone, hard to find on a
+dark editor; inverted text, which loses the syntax colours). ⌘F focuses it while the drawer shows its YAML and the keyboard
 is in the drawer, in the list's table or nowhere (`drawerFinds`); a text field elsewhere keeps its
 own ⌘F, and with the keyboard nowhere the drawer goes before the dock's editor. Escape in the field
 clears it and gives the YAML the keys; the next Escape closes the drawer
@@ -5045,7 +5049,8 @@ drawer.
 
 **Code:** [`findbar.go`](../../internal/ui/fyneui/findbar.go) `newViewerFindBar`,
 [`findkeys.go`](../../internal/ui/fyneui/findkeys.go) `drawerFinds`,
-[`drawer.go`](../../internal/ui/fyneui/drawer.go) · **Tests:** `TestDrawerYAMLFind`
+[`drawer.go`](../../internal/ui/fyneui/drawer.go), [`yamlview/palette.go`](../../internal/ui/fyneui/yamlview/palette.go)
+`findColors` · **Tests:** `TestDrawerYAMLFind`, `TestFindMarks`, `TestRenderDrawerYAMLFindDark`
 
 ## D-128: A release's history in its drawer
 
