@@ -401,13 +401,13 @@ func (b *alertBoard) card(g engine.AlertGroup, c engine.AlertCard) fyne.CanvasOb
 func (b *alertBoard) cardBody(c engine.AlertCard) fyne.CanvasObject {
 	var body []fyne.CanvasObject
 	if len(c.Summary) > 0 {
-		body = append(body, newSpanText(theme.SizeNameText, cardSpans(c.Summary, c.Columns, theme.ColorNameForeground)...))
+		body = append(body, newSpanText(theme.SizeNameText, b.copySelection, cardSpans(c.Summary, c.Columns, theme.ColorNameForeground)...))
 	}
 	if line := b.infoLine(c); line != nil {
 		body = append(body, line)
 	}
 	if c.Expanded && len(c.Description) > 0 {
-		body = append(body, newSpanText(theme.SizeNameCaptionText, cardSpans(c.Description, c.Columns, theme.ColorNameForeground)...))
+		body = append(body, newSpanText(theme.SizeNameCaptionText, b.copySelection, cardSpans(c.Description, c.Columns, theme.ColorNameForeground)...))
 	}
 	if t := b.table(c); t != nil {
 		body = append(body, newDivider(false), t)
@@ -418,32 +418,24 @@ func (b *alertBoard) cardBody(c engine.AlertCard) fyne.CanvasObject {
 // infoLine is a card's line under its text: at its left what all its alerts name alike, as links
 // (the namespace narrows the board to it, the object opens in its view), since when its one alert
 // fires when it has no table, and its history in words; at its right Details (the description) and
-// its runbook. Nil when there is nothing.
+// its runbook. In a narrow column it wraps (infoLayout). Nil when there is nothing.
 func (b *alertBoard) infoLine(c engine.AlertCard) fyne.CanvasObject {
-	var left, right []fyne.CanvasObject
+	var units, right []fyne.CanvasObject
 	caption := func(text string) *textLine {
 		return newTextLine(text, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	}
-	dot := func() {
-		if len(left) > 0 {
-			left = append(left, caption("·"))
-		}
-	}
 	for _, o := range c.Context {
-		dot()
 		if o.Label == paramNamespace {
-			left = append(left, b.namespaceLink(o.Ref.Name, theme.SizeNameCaptionText))
+			units = append(units, b.namespaceLink(o.Ref.Name, theme.SizeNameCaptionText))
 			continue
 		}
-		left = append(left, caption(o.Title), b.objectCell(o, theme.SizeNameCaptionText))
+		units = append(units, container.New(layout.NewCustomPaddedHBoxLayout(4), caption(o.Title), b.objectCell(o, theme.SizeNameCaptionText)))
 	}
 	if len(c.Columns) == 0 && len(c.Alerts) == 1 {
-		dot()
-		left = append(left, b.age(c.Alerts[0].Since))
+		units = append(units, b.age(c.Alerts[0].Since))
 	}
 	if h := historySummary(c.History); h != "" {
-		dot()
-		left = append(left, caption(h))
+		units = append(units, caption(h))
 	}
 	if len(c.Description) > 0 {
 		label := "Details"
@@ -456,11 +448,107 @@ func (b *alertBoard) infoLine(c engine.AlertCard) fyne.CanvasObject {
 		runbook := c.Runbook
 		right = append(right, boardLink("Runbook", func() { b.openRunbook(runbook) }))
 	}
-	if len(left) == 0 && len(right) == 0 {
+	if len(units) == 0 && len(right) == 0 {
 		return nil
 	}
-	return container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedHBoxLayout(4), left...),
-		container.New(layout.NewCustomPaddedHBoxLayout(12), right...))
+	objs := append([]fyne.CanvasObject(nil), units...)
+	for range units[min(1, len(units)):] {
+		objs = append(objs, caption("·"))
+	}
+	if len(right) > 0 {
+		objs = append(objs, container.New(layout.NewCustomPaddedHBoxLayout(12), right...))
+	}
+	return container.New(&infoLayout{units: len(units), links: len(right) > 0}, objs...)
+}
+
+// infoLayout lays out a card's info line (the owner's QW10: in a narrow column its links ran over
+// its text): the units from the left, a dot between two on one line, wrapping where the next does
+// not fit, so that no line starts or ends with a dot; the links at the right of the last line, or
+// on a line of their own under it where they do not fit there. Its objects are the units, the dots
+// (one fewer) and the links' row. It wraps at the width it was last laid out at, as a card's text
+// does (spanText), so that the masonry's column decides its height.
+type infoLayout struct {
+	units int
+	links bool
+	width float32 // the width it was last laid out at; 0: one line
+}
+
+const (
+	infoUnitGap = 4 // between a unit and a dot
+	infoLinkGap = 12
+	infoLineGap = 2
+)
+
+// place lays out the objects at width w (0: one line), moving them when move is set, and returns
+// the size they take.
+func (l *infoLayout) place(objs []fyne.CanvasObject, w float32, move bool) fyne.Size {
+	units, dots := objs[:l.units], objs[l.units:l.units+max(l.units-1, 0)]
+	var rowH float32
+	for _, o := range objs {
+		rowH = max(rowH, o.MinSize().Height)
+	}
+	at := func(o fyne.CanvasObject, x float32, row int, width float32) {
+		if move {
+			ms := o.MinSize()
+			o.Move(fyne.NewPos(x, float32(row)*(rowH+infoLineGap)+(rowH-ms.Height)/2))
+			o.Resize(fyne.NewSize(width, ms.Height))
+		}
+	}
+	var x, widest float32
+	row := 0
+	for i, u := range units {
+		uw := u.MinSize().Width
+		if w > 0 {
+			uw = min(uw, w)
+		}
+		if i > 0 {
+			dw := dots[i-1].MinSize().Width
+			wraps := w > 0 && x+2*infoUnitGap+dw+uw > w
+			switch {
+			case move && wraps:
+				dots[i-1].Hide()
+			case move:
+				dots[i-1].Show()
+			}
+			if wraps {
+				row, x = row+1, 0
+			} else {
+				at(dots[i-1], x+infoUnitGap, row, dw)
+				x += 2*infoUnitGap + dw
+			}
+		}
+		at(u, x, row, uw)
+		x += uw
+		widest = max(widest, x)
+	}
+	if l.links {
+		links := objs[len(objs)-1]
+		lw := links.MinSize().Width
+		end := x + infoLinkGap + lw
+		if l.units == 0 {
+			end = lw
+		}
+		if w > 0 && end > w && l.units > 0 {
+			row++
+			end = lw
+		}
+		right := max(w, end)
+		at(links, right-lw, row, lw)
+		widest = max(widest, end)
+	}
+	return fyne.NewSize(widest, float32(row+1)*rowH+float32(row)*infoLineGap)
+}
+
+// Layout implements fyne.Layout.
+func (l *infoLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	l.width = size.Width
+	l.place(objs, size.Width, true)
+}
+
+// MinSize implements fyne.Layout: as high as its lines at the width it was last laid out at, and
+// narrow, so that the column it is in decides its width.
+func (l *infoLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	return fyne.NewSize(40, l.place(objs, l.width, false).Height)
 }
 
 // age is a since text of the board, refreshed by the shell's tick.
@@ -608,22 +696,26 @@ func (b *alertBoard) namespaceLink(ns string, size fyne.ThemeSizeName) fyne.Canv
 func (b *alertBoard) valueCell(v string, size fyne.ThemeSizeName) fyne.CanvasObject {
 	l := newTextLine(v, theme.ColorNameForeground, size, fyne.TextStyle{})
 	l.truncate = true
-	return newSelLine(l, nil, func(sel string) { b.sh.copyText(sel, false) })
+	return newSelLine(l, nil, b.copySelection)
 }
+
+// copySelection puts a selected text of the board on the clipboard (⌘C).
+func (b *alertBoard) copySelection(sel string) { b.sh.copyText(sel, false) }
 
 // ownText is an alert's own text under its row, where the card's does not give it back: muted,
 // selectable, one line.
 func (b *alertBoard) ownText(text string) fyne.CanvasObject {
 	l := newTextLine(strings.Join(strings.Fields(text), " "), colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 	l.truncate = true
-	return inset(theme.SizeNameInlineIcon, "", newSelLine(l, nil, func(sel string) { b.sh.copyText(sel, false) }))
+	return inset(theme.SizeNameInlineIcon, "", newSelLine(l, nil, b.copySelection))
 }
 
 // cardCopy is the copy icon of a card's alertname (the owner's WF21, 2026-10-18: "Alarm-Namen
 // müssen kopierbar sein"), right after the name (WF34, 2026-10-19: it sat at the card's far right):
 // shown while the pointer is on the card's head or on the icon, as the lists' copy icon (D-25: the
-// same icon, its checkmark after a copy, the same toast); its room is kept, so the head does not
-// move when it shows. attach hands it the head's hover. A board rebuilt under the pointer shows the
+// same icon, its checkmark after a copy, the same toast); its room is kept (iconSlot), so the head
+// does not move when it shows, and the head's tooltip gives way to the icon's over it. attach hands
+// it the head's hover. A board rebuilt under the pointer shows the
 // icon of the card it is on at once (alertBoard.hoverKey).
 func (b *alertBoard) cardCopy(key, name string) (icon fyne.CanvasObject, attach func(head *alertTap)) {
 	var done *time.Timer // the checkmark's
@@ -654,9 +746,32 @@ func (b *alertBoard) cardCopy(key, name string) (icon fyne.CanvasObject, attach 
 		onHead = true
 		enter()
 	}
-	return container.NewStack(newHGap(theme.SizeNameInlineIcon), btn), func(head *alertTap) {
+	return container.New(iconSlot{}, btn), func(head *alertTap) {
 		head.in = func() { onHead = true; enter() }
 		head.out = func() { onHead = false; leave() }
+		head.icon = btn
+	}
+}
+
+// iconSlot keeps a hover icon's width whether it shows or not, and centres it on the line without
+// making the line taller: nothing beside it moves when it shows (the owner's QW9).
+type iconSlot struct{}
+
+// MinSize implements fyne.Layout.
+func (iconSlot) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var w float32
+	for _, o := range objs {
+		w = max(w, o.MinSize().Width)
+	}
+	return fyne.NewSize(w, 0)
+}
+
+// Layout implements fyne.Layout.
+func (iconSlot) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	for _, o := range objs {
+		ms := o.MinSize()
+		o.Move(fyne.NewPos(0, (size.Height-ms.Height)/2))
+		o.Resize(ms)
 	}
 }
 
@@ -679,7 +794,17 @@ type alertTap struct {
 	content fyne.CanvasObject
 	onTap   func()
 	tip     string
-	in, out func() // the pointer came in and left (a card head's copy icon, cardCopy); nil for none
+	in, out func()            // the pointer came in and left (a card head's copy icon, cardCopy); nil for none
+	icon    fyne.CanvasObject // the head's copy icon: no tooltip of the head's over it; nil for none
+}
+
+// onIcon reports whether the point p lies on the shown copy icon of the head.
+func (t *alertTap) onIcon(p fyne.Position) bool {
+	if t.icon == nil || !t.icon.Visible() {
+		return false
+	}
+	at, size := fyne.CurrentApp().Driver().AbsolutePositionForObject(t.icon), t.icon.Size()
+	return p.X >= at.X && p.Y >= at.Y && p.X < at.X+size.Width && p.Y < at.Y+size.Height
 }
 
 var (
@@ -710,14 +835,22 @@ func (t *alertTap) Cursor() desktop.Cursor { return desktop.PointerCursor }
 
 // MouseIn implements desktop.Hoverable.
 func (t *alertTap) MouseIn(ev *desktop.MouseEvent) {
-	t.sh.tip.hover(t, t.tip, ev.AbsolutePosition)
 	if t.in != nil {
 		t.in()
+	}
+	if !t.onIcon(ev.AbsolutePosition) {
+		t.sh.tip.hover(t, t.tip, ev.AbsolutePosition)
 	}
 }
 
 // MouseMoved implements desktop.Hoverable.
-func (t *alertTap) MouseMoved(ev *desktop.MouseEvent) { t.sh.tip.moved(t, ev.AbsolutePosition) }
+func (t *alertTap) MouseMoved(ev *desktop.MouseEvent) {
+	if t.onIcon(ev.AbsolutePosition) {
+		t.sh.tip.hideFor(t)
+		return
+	}
+	t.sh.tip.hover(t, t.tip, ev.AbsolutePosition)
+}
 
 // MouseOut implements desktop.Hoverable.
 func (t *alertTap) MouseOut() {

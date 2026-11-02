@@ -1329,10 +1329,12 @@ reads the cluster's Alertmanager
   - its head in the severity's colour (a click folds the card; a copy icon after the name on hover)
     under a strip of the last 24 hours, a cell an hour, brighter the more often the alert started
     firing in it (its tooltip says when and how often; outlined while unknown);
-  - its summary once, the places where the alerts differ shown as `‹pod›`, `‹value›`;
+  - its summary once, the places where the alerts differ shown as `‹pod›`, `‹value›`; summary and
+    description are selectable (drag, double click, ⌘C);
   - a line with what all its alerts share (the namespace, a click narrows the board; the object or
     the workload that controls their pods, a click opens it), the history in words ("fired 7× in
-    24 h", "flapping"), **Details** (the description) and **Runbook**;
+    24 h", "flapping"), **Details** (the description) and **Runbook**; in a narrow column it wraps,
+    the two links at its right end;
   - a table of its alerts: only the columns that tell them apart (namespace, object, container, the
     labels that differ, a number from the text) and how long each fires; ten rows, then **Show
     all**. An alert whose text differs from the card's has it under its row.

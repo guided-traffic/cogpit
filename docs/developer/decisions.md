@@ -889,7 +889,8 @@ light theme; the tile on the welcome page only.
 **Status:** built · **By:** owner
 
 - **Drawer.** Every text is selectable (`selLine`: drag, double click, ⌘C); links, chips and pills
-  are not, their copy icon covers them. Every value shows the copy icon on hover, a padding after
+  are not, their copy icon covers them. A drag keeps what it selected when its button comes up
+  beside the text (`textSelection`, every selectable text of the window). Every value shows the copy icon on hover, a padding after
   what it draws; a line or link without room is shortened with "…" while it shows, and a value
   with action buttons (a port's Forward…) gets it over its end. One entry of a list value copies
   alone, `key=value` as `key: value` (`yamlEntry`).
@@ -5493,10 +5494,14 @@ cards; what the user sees: [usage](usage.md#alerts-the-pill-and-the-alert-board)
   (`alerts.fold`, the group's key).
 - **Card:** a strip of the last 24 hours, then the head on the severity's colour at 16 %: the
   severity in its colour (and the rule's label when it says another, "major"), the alertname with
-  its copy icon ([D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)), the
-  count; a click on the head folds the card. Under it the summary once, a line with what all the
-  alerts share, the history in words, Details (the description) and the runbook when all share
-  one; then the table.
+  its copy icon ([D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)) in a
+  room kept while it hides (`iconSlot`: the head does not move when it shows, and the head's "Fold
+  the card" tooltip does not open over it), the count; a click on the head folds the card. Under it
+  the summary once, a line with what all the alerts share, the history in words, Details (the
+  description) and the runbook when all share one; then the table. That line wraps in a narrow
+  column (`infoLayout`): no line starts or ends with its dot, and Details and the runbook stay at
+  the right, on a line of their own when the last has no room for them. The summary and the
+  description are selectable ([D-25](#d-25-copying-values)), their slots copied as their names.
 - **One text** (`cardText`): a column's value that stands in an alert's summary or description as a
   word of its own (not inside a longer name; at least three characters, or a namespace, object,
   container, node, device, mount point or instance) becomes a slot, shown muted as `‹pod›`; numbers
