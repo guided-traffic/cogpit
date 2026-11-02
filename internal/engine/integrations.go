@@ -19,7 +19,7 @@ import (
 // A context's choice is ClusterSettings.IntegrationsOff: the integrations switched off, nil while
 // the user has made none for it (the window then asks, D-76). Meanwhile nothing of them is read but
 // what the question looks for (D-82, integrationsconsent.go); the default for new clusters
-// (Preferences.IntegrationsOff) is what the question's Check all looks for, and what applies in a
+// (Preferences.IntegrationsOff) is what the question's Use my default integrations turns on, and what applies in a
 // session that does not ask (the CLI's) and to the demo cluster. Every integration is on by default
 // (the owner, 2026-10-17: "Unser Default ist alles an"), so an integration a later Cogpit adds is on
 // for the clusters decided before it. An integration switched off sends nothing to the cluster, and the
@@ -211,7 +211,7 @@ func (c *ClusterSettings) SetIntegrations(baseOff, on, off IntegrationSet) {
 }
 
 // IntegrationDefaultsOff returns the integrations off by default for new clusters (Preferences'
-// IntegrationsOff; the question's Check all looks for the others, D-82): none in a session that
+// IntegrationsOff; the question's Use my default integrations turns on the others, D-82): none in a session that
 // keeps no preferences.
 func (s *Session) IntegrationDefaultsOff() IntegrationSet {
 	p, err := s.Preferences()

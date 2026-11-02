@@ -52,6 +52,10 @@ type View struct {
 	doc       document
 	readOnly  bool
 	highlight bool
+	// marks are a find bar's matches, drawn behind the text; markCur is the one it selected, -1
+	// for none (SetMarks).
+	marks   []Mark
+	markCur int
 	// plainStrings colours plain scalars as strings (SetPlainStrings).
 	plainStrings bool
 
@@ -170,6 +174,7 @@ func (v *View) indentStep() int {
 // The view keeps text and slices it into lines without copying; CRLF and CR line ends become LF.
 func (v *View) SetText(text string) {
 	v.doc.setText(text)
+	v.marks = nil
 	v.hist.reset()
 	v.caret, v.anchor = pos{}, pos{}
 	v.goalCol = -1
@@ -187,6 +192,7 @@ func (v *View) UpdateText(text string) {
 		return
 	}
 	v.doc.setText(text)
+	v.marks = nil
 	v.hist.reset()
 	v.caret = v.doc.clamp(v.caret)
 	v.anchor = v.doc.clamp(v.anchor)
@@ -265,6 +271,17 @@ func (v *View) posOf(line, column int) pos {
 		off += size
 	}
 	return pos{line, off}
+}
+
+// Mark is a match a find bar shows: a 0-based line and the rune columns [Start, End) in it.
+type Mark struct{ Line, Start, End int }
+
+// SetMarks shows a find bar's matches behind the text, every one tinted and current (an index into
+// marks, -1 for none) stronger and outlined, the text keeping its colours; nil clears them. A new
+// text and an edit clear them too: they belong to the text they were found in.
+func (v *View) SetMarks(marks []Mark, current int) {
+	v.marks, v.markCur = marks, current
+	v.Refresh()
 }
 
 // SelectRange selects from a 0-based line and rune column to another, the caret at the end, and
@@ -816,6 +833,7 @@ func (v *View) replace(s string, kind editKind) {
 // edited finishes every edit: caret into view, repaint, OnChanged.
 func (v *View) edited() {
 	v.goalCol = -1
+	v.marks = nil
 	v.revealCaret()
 	v.Refresh()
 	if v.OnChanged != nil {

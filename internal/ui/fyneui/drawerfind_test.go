@@ -15,7 +15,7 @@ import (
 // bar over it for good, without replace and ×; ⌘F puts the keys in its field while the YAML shows,
 // from the drawer, the list's table or nowhere, but not from the list's search; typed text selects
 // the first match and counts them; Escape in the field clears it and gives the YAML the keys, and
-// the YAML's Escape goes on to the window.
+// the next Escape, typed to the YAML, closes the drawer.
 func TestDrawerYAMLFind(t *testing.T) {
 	f := kindsFake(t, "pods")
 	p := richPod(t)
@@ -57,21 +57,21 @@ func TestDrawerYAMLFind(t *testing.T) {
 	}
 
 	w.Canvas().Focus(d.find.find)
-	d.find.find.escape()
+	escapeKey(w)
 	if d.find.find.Text != "" || w.Canvas().Focused() != d.yaml || !d.find.root.Visible() {
 		t.Errorf("Escape in the field: text %q, keys in %T, bar shown %v", d.find.find.Text, w.Canvas().Focused(), d.find.root.Visible())
 	}
-	if d.yaml.OnEscape() {
-		t.Error("the YAML's Escape was kept: the window's must close the drawer")
-	}
+	escapeKey(w) // the keys are in the YAML: the window's Escape closes the drawer
+	q.until(t, "the drawer closed by the YAML's Escape", func() bool { return sh.ui.Drawer == nil })
 }
 
 // TestReleaseValuesFind (the owner's finding of 2026-10-25, "Es gibt keine Suche in Helm-Release
 // Values"): the release drawer's values editor has the drawer's find bar over it for good, without
 // a replace row; ⌘F in the editor puts the keys in its field, a search counts and selects the
-// matches and follows the text as it is typed; ⌘F from the list stays the list's search.
+// matches and follows the text as it is typed; ⌘F from the list stays the list's search; Escape
+// clears the field, the next closes the drawer.
 func TestReleaseValuesFind(t *testing.T) {
-	sh, w, _, _, _ := releaseDrawerShell(t, ThemeDark)
+	sh, w, q, _, _ := releaseDrawerShell(t, ThemeDark)
 	rv := sh.drawer.kept[releaseValuesKey].(*releaseValues)
 	if rv.find == nil || rv.find.replace != nil || !rv.find.root.Visible() {
 		t.Fatalf("the values' bar: %+v", rv.find)
@@ -111,4 +111,36 @@ func TestReleaseValuesFind(t *testing.T) {
 	if got := len(rv.find.matches); got != want+1 || rv.find.count.text != strconv.Itoa(want+1)+" found" {
 		t.Errorf("after typing: %d matches, count %q, want %d", got, rv.find.count.text, want+1)
 	}
+
+	w.Canvas().Focus(rv.find.find)
+	escapeKey(w)
+	if rv.find.find.Text != "" || w.Canvas().Focused() != rv.view {
+		t.Errorf("Escape in the field: text %q, keys in %T", rv.find.find.Text, w.Canvas().Focused())
+	}
+	escapeKey(w)
+	q.until(t, "the drawer closed by the values' Escape", func() bool { return sh.ui.Drawer == nil })
+}
+
+// Renders of the drawer's YAML with a search typed, dark and light, for review: every match tinted
+// behind the text, the selected one stronger and outlined, the syntax colours kept (QW1).
+func TestRenderDrawerYAMLFindDark(t *testing.T)  { renderDrawerYAMLFind(t, ThemeDark) }
+func TestRenderDrawerYAMLFindLight(t *testing.T) { renderDrawerYAMLFind(t, ThemeLight) }
+
+func renderDrawerYAMLFind(t *testing.T, mode ThemeMode) {
+	f := kindsFake(t, "pods")
+	p := richPod(t)
+	ref := model.ObjectRef{Context: "demo", Kind: "pods", Namespace: p.ns, Name: p.name}
+	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
+	sh, w, q := newTestShell(t, f, Options{Theme: mode})
+	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && sh.drawer.yamlText != "" && sh.diag.total > 0 })
+	d := sh.drawer
+	d.tabs.Select(d.yamlTab)
+	w.Canvas().Focus(sh.view.table)
+	cmdF(t, sh)
+	test.Type(d.find.find, "image")
+	if len(d.find.matches) < 2 {
+		t.Fatalf("%d matches of image", len(d.find.matches))
+	}
+	d.find.step(1)
+	savePNG(t, w, "drawer_yaml_find_"+string(mode)+".png")
 }

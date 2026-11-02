@@ -120,6 +120,9 @@ type tableView struct {
 	setWidths  []float32          // the width the shell last gave each visible column
 	fitWidth   float32            // the frame width the columns were last fitted to
 	fitting    bool               // set while fitColumns sets widths, which are not the user's
+	wants      map[string]float32 // what each column's content wants, by column id, measured when the view opened (tablespread.go); nil: none
+	wantsDue   bool               // the view opened and its rows are not in yet: measured when they come
+	spreadOn   bool               // the free-width preference the table was last laid out with (spreadChanged)
 
 	searchTimer *time.Timer
 	filterBusy  int  // filter changes typed but not yet acknowledged by the engine
@@ -135,7 +138,8 @@ type tableView struct {
 }
 
 func newTableView(sh *shell) *tableView {
-	tv := &tableView{sh: sh, hoverRow: -1, hoverCol: -1, userWidths: map[string]float32{}, icons: map[cellIconKey]fyne.Resource{}}
+	tv := &tableView{sh: sh, hoverRow: -1, hoverCol: -1, userWidths: map[string]float32{}, icons: map[cellIconKey]fyne.Resource{},
+		spreadOn: true} // the preference's default (tablespread.go)
 	tv.order = newColumnDrag(tv) // before the table: its header cells take the drag's callbacks
 	tv.copyIcon = newTableCopy(tv)
 
@@ -505,7 +509,9 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 		}
 		key = b.String()
 	}
-	if key != tv.colsKey {
+	tv.now, tv.tf = tv.sh.now(), tv.sh.timeFormat() // the ages and times as drawn, measured below too
+	colsChanged := key != tv.colsKey
+	if colsChanged {
 		tv.colsKey = key
 		tv.cols = tv.cols[:0]
 		if snap != nil {
@@ -516,6 +522,9 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 			}
 		}
 		tv.setWidths = nil
+	}
+	// The free width is measured when a view opens, never while it stays open (tablespread.go).
+	if tv.spreadSnapshot(newView, colsChanged) || colsChanged {
 		tv.fitWidth = 0
 		tv.fitColumns(tv.table.Size().Width)
 	}
@@ -526,7 +535,6 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 		tv.errLine.Hide()
 	}
 	tv.showScope(snap) // clustersettings_namespaces_filter.go
-	tv.now, tv.tf = tv.sh.now(), tv.sh.timeFormat()
 	tv.updateTitle()
 	tv.updatePlaceholder()
 	tv.updateNamespaceButton() // cluster-scoped views hide the namespace filter
@@ -1039,8 +1047,9 @@ func (tv *tableView) flexColumn() int {
 const minFlexWidth = 140
 
 // fitColumns gives every column its width and stretches the flex column to fill the frame, as
-// Lens does, unless the user sized it; when the columns are wider than the frame, the flex column
-// gives up width down to minFlexWidth first.
+// Lens does, unless the user sized it, after the columns whose content is cut took their share of
+// the free width (tablespread.go, D-145); when the columns are wider than the frame, the flex
+// column gives up width down to minFlexWidth first.
 func (tv *tableView) fitColumns(width float32) {
 	if tv.snap == nil || len(tv.cols) == 0 || width <= 0 {
 		return
@@ -1065,8 +1074,10 @@ func (tv *tableView) fitColumns(width float32) {
 		}
 	}
 	col := tv.snap.Columns[tv.cols[flex]]
-	if _, user := tv.userWidths[tv.snap.View+"/"+col.ID]; !user {
-		fill := width - others - th.Size(theme.SizeNameScrollBar)
+	_, user := tv.userWidths[tv.snap.View+"/"+col.ID]
+	fill := width - others - th.Size(theme.SizeNameScrollBar) // the flex column's width that fills the frame
+	fill -= tv.spread(widths, fill-widths[firstDataColumn+flex], flex, user)
+	if !user {
 		switch w := &widths[firstDataColumn+flex]; {
 		case fill > *w:
 			*w = fill

@@ -16,15 +16,15 @@ import (
 // the background, not before the question is answered. Only what the question looks for is read,
 // and only while it asks.
 //
-// The question opens on a pre-choice (IntegrationsPreChoice), which looks for nothing: "Check all
-// integrations" (IntegrationsCheckAll) looks at once for every integration the default for new
-// clusters keeps on (all of them unless the user saved another default), "Choose integrations"
-// (IntegrationsChoose) for none until the user ticks one (cluster.integrations.lookFor), and
-// "Don't use integrations" (IntegrationsDontUse) shows a last warning of what goes; its Yes answers
-// with every integration off, its No goes back to the pre-choice. The rows of Check all and Choose
-// lead back to it too. What the question ticks (UIState.IntegrationsLookFor) is read as an
-// integration switched on is, behind the dialog: its looking is its reading. Apply makes the ticks
-// the cluster's choice (cluster.integrations.answer).
+// The question opens on a pre-choice (IntegrationsPreChoice), which looks for nothing: "Use my
+// default integrations" answers at once with the default for new clusters (the owner's QW4: no
+// second page; cluster.integrations.answer), "Choose integrations" (IntegrationsChoose) shows the
+// rows and looks for none until the user ticks one (cluster.integrations.lookFor), and "Don't use
+// integrations" (IntegrationsDontUse) shows a last warning of what goes; its Yes answers with every
+// integration off, its No goes back to the pre-choice. The rows lead back to it too. What the
+// question ticks (UIState.IntegrationsLookFor) is read as an integration switched on is, behind the
+// dialog: its looking is its reading. Apply makes the ticks the cluster's choice
+// (cluster.integrations.answer).
 //
 // "Ask again" (cluster.integrations.ask, Cluster Settings › Integrations) forgets a cluster's
 // choice, and a Later of this run, so that the window asks again from the pre-choice while the
@@ -41,9 +41,6 @@ type IntegrationsStep string
 const (
 	// IntegrationsPreChoice: the three choices; nothing is looked for.
 	IntegrationsPreChoice IntegrationsStep = "preChoice"
-	// IntegrationsCheckAll: the rows, every integration the default for new clusters keeps on ticked
-	// and looked for at once; the user unticks what they don't want and applies.
-	IntegrationsCheckAll IntegrationsStep = "checkAll"
 	// IntegrationsChoose: the rows, none ticked; an integration is looked for once ticked.
 	IntegrationsChoose IntegrationsStep = "choose"
 	// IntegrationsDontUse: the warning of what goes without integrations, over the pre-choice; Yes
@@ -52,7 +49,7 @@ const (
 )
 
 // IntegrationsSteps are the steps in the order the question offers them.
-var IntegrationsSteps = []IntegrationsStep{IntegrationsPreChoice, IntegrationsCheckAll, IntegrationsChoose, IntegrationsDontUse}
+var IntegrationsSteps = []IntegrationsStep{IntegrationsPreChoice, IntegrationsChoose, IntegrationsDontUse}
 
 // ParseIntegrationsStep reads a step's name.
 func ParseIntegrationsStep(name string) (IntegrationsStep, error) {
@@ -69,7 +66,7 @@ func ParseIntegrationsStep(name string) (IntegrationsStep, error) {
 }
 
 // ErrIntegrationsNotRows disables cluster.integrations.lookFor while the question shows no rows.
-var ErrIntegrationsNotRows = errors.New("the question shows no integrations to tick: choose Check all or Choose first (cluster.integrations.step)")
+var ErrIntegrationsNotRows = errors.New("the question shows no integrations to tick: choose Choose integrations first (cluster.integrations.step)")
 
 // ErrIntegrationsAskedNow disables cluster.integrations.ask while the window asks about the cluster.
 var ErrIntegrationsAskedNow = errors.New("the window asks about this cluster's integrations now")
@@ -107,8 +104,8 @@ func (s *Session) IntegrationsOffNow(context string) IntegrationSet {
 }
 
 // StepIntegrationsQuestion moves the question of a context to a step (D-82): the pre-choice and
-// the warning look for nothing, Check all looks at once for what the default for new clusters keeps
-// on, Choose for nothing until ticked. It changes nothing but the window and what is looked for.
+// the warning look for nothing, Choose for nothing until ticked. It changes nothing but the window
+// and what is looked for: every step starts with nothing ticked.
 func (s *Session) StepIntegrationsQuestion(context string, step IntegrationsStep) error {
 	if _, err := ParseIntegrationsStep(string(step)); err != nil {
 		return err
@@ -116,25 +113,21 @@ func (s *Session) StepIntegrationsQuestion(context string, step IntegrationsStep
 	if s.UIState().IntegrationsQuestion != context || context == "" {
 		return ErrNoIntegrationsQuestion
 	}
-	lookFor := IntegrationSet(0)
-	if step == IntegrationsCheckAll {
-		lookFor = IntAll &^ s.IntegrationDefaultsOff()
-	}
 	s.UpdateUI(func(u *UIState) {
 		if u.IntegrationsQuestion == context { // still asked: the answer may have come meanwhile
-			u.IntegrationsStep, u.IntegrationsLookFor = step, lookFor
+			u.IntegrationsStep, u.IntegrationsLookFor = step, 0
 		}
 	})
 	return nil
 }
 
-// IntegrationsQuestionRows reports whether the question of a context shows its rows (Check all or
-// Choose), where integrations are ticked; the error says why not.
+// IntegrationsQuestionRows reports whether the question of a context shows its rows (Choose), where
+// integrations are ticked; the error says why not.
 func (u *UIState) IntegrationsQuestionRows(context string) error {
 	if context == "" || u.IntegrationsQuestion != context {
 		return ErrNoIntegrationsQuestion
 	}
-	if u.IntegrationsStep != IntegrationsCheckAll && u.IntegrationsStep != IntegrationsChoose {
+	if u.IntegrationsStep != IntegrationsChoose {
 		return ErrIntegrationsNotRows
 	}
 	return nil

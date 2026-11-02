@@ -20,7 +20,7 @@ import (
 
 const fixGiB = float64(1 << 30)
 
-var pgClaim = model.VolumeClaim{Namespace: "bezon-prod", Claim: "pg-bezon-timescale-1", Volume: "pvc-f0327b26-9407-4238-ad1b-45a2d7a09dcd"}
+var pgClaim = model.VolumeClaim{Namespace: "acme-prod", Claim: "acme-pg-timescale-1", Volume: "pvc-f0327b26-9407-4238-ad1b-45a2d7a09dcd"}
 
 // volumeMetricsFixture is a claim's volume over the last hour: filling up to 61 % of a 196.7 GiB
 // filesystem, resized from 150 GiB twenty minutes ago.
@@ -37,7 +37,7 @@ func volumeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	}
 	last := fs[len(fs)-1]
 	vc := pgClaim
-	vc.Pods = []string{"pg-bezon-timescale-1-0"}
+	vc.Pods = []string{"acme-pg-timescale-1-0"}
 	providers := bothAnswering()
 	providers[1].Unused = true // a claim's chart never asks the Metrics Server
 	return &engine.ObjectMetrics{
@@ -58,16 +58,24 @@ func volumeDrawer(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetric
 // volumeDrawerOf is volumeDrawer with the fake engine and the main queue.
 func volumeDrawerOf(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string), *fakeEngine, *mainQueue) {
 	t.Helper()
+	return claimDrawerOf(t, mode, pgClaim, "default", "200Gi", volumeMetricsFixture, mutate)
+}
+
+// claimDrawerOf opens the drawer of claim vc of a storage class and a size with the numbers fixture
+// makes, changed by mutate.
+func claimDrawerOf(t *testing.T, mode ThemeMode, vc model.VolumeClaim, class, size string, fixture func(model.ObjectRef) *engine.ObjectMetrics,
+	mutate func(*engine.ObjectMetrics)) (*shell, *metricsPanel, func(string), *fakeEngine, *mainQueue) {
+	t.Helper()
 	f := kindsFake(t, "pods")
 	f.kinds = append(f.kinds, kindInfo{Kind: "persistentvolumeclaims", Title: "Persistent Volume Claims", APIKind: "PersistentVolumeClaim", Version: "v1", Namespaced: true},
 		kindInfo{Kind: "persistentvolumes", Title: "Persistent Volumes", APIKind: "PersistentVolume", Version: "v1"})
-	ref := model.ObjectRef{Context: "demo", Kind: "persistentvolumeclaims", Namespace: pgClaim.Namespace, Name: pgClaim.Claim}
+	ref := model.ObjectRef{Context: "demo", Kind: "persistentvolumeclaims", Namespace: vc.Namespace, Name: vc.Claim}
 	obj := testkit.Object("v1", "PersistentVolumeClaim", ref.Namespace, ref.Name, map[string]any{
 		"spec": map[string]any{
-			"volumeName": pgClaim.Volume, "storageClassName": "default", "accessModes": []any{"ReadWriteOnce"}, "volumeMode": "Filesystem",
-			"resources": map[string]any{"requests": map[string]any{"storage": "200Gi"}},
+			"volumeName": vc.Volume, "storageClassName": class, "accessModes": []any{"ReadWriteOnce"}, "volumeMode": "Filesystem",
+			"resources": map[string]any{"requests": map[string]any{"storage": size}},
 		},
-		"status": map[string]any{"phase": "Bound", "capacity": map[string]any{"storage": "200Gi"}},
+		"status": map[string]any{"phase": "Bound", "capacity": map[string]any{"storage": size}},
 	})
 	p, _ := kinds.ByKey("persistentvolumeclaims")
 	dm, err := engine.BuildDetailWith(p, ref, obj, nil, fixedNow, nil)
@@ -78,7 +86,7 @@ func volumeDrawerOf(t *testing.T, mode ThemeMode, mutate func(*engine.ObjectMetr
 		t.Fatalf("the claim's model: metrics %v, volume %v", dm.Metrics, dm.VolumeMetrics)
 	}
 	f.details[ref.String()] = dm
-	m := volumeMetricsFixture(ref)
+	m := fixture(ref)
 	if mutate != nil {
 		mutate(m)
 	}
@@ -100,7 +108,7 @@ func TestClaimDrawerShowsItsVolumesUsage(t *testing.T) {
 		if texts[0] != "Metrics" || !p.intro.Visible() || p.intro.text != "Display metrics from PV: "+pgClaim.Volume || p.intro.links()[pgClaim.Volume] == nil {
 			t.Fatalf("the section begins %q, intro %q (shown %v)", texts[:min(3, len(texts))], p.intro.text, p.intro.Visible())
 		}
-		if !p.pods.Visible() || p.pods.text != "Mounted by pod: pg-bezon-timescale-1-0" || p.pods.links()["pg-bezon-timescale-1-0"] == nil {
+		if !p.pods.Visible() || p.pods.text != "Mounted by pod: acme-pg-timescale-1-0" || p.pods.links()["acme-pg-timescale-1-0"] == nil {
 			t.Errorf("pods line %q (shown %v)", p.pods.text, p.pods.Visible())
 		}
 		if got := chipTexts(p.status); len(got) != 2 || got[1] != "Metrics Server ● not used" {
@@ -157,7 +165,7 @@ func TestUnboundClaimSaysSo(t *testing.T) {
 func TestClaimIntroLinksTheVolume(t *testing.T) {
 	_, p, _, f, q := volumeDrawerOf(t, ThemeDark, nil)
 	p.intro.links()[pgClaim.Volume]()
-	p.pods.links()["pg-bezon-timescale-1-0"]()
+	p.pods.links()["acme-pg-timescale-1-0"]()
 	q.until(t, "ui.navigate", func() bool { return len(f.callsOf("ui.navigate")) == 2 })
 	var got []model.ObjectRef
 	for _, c := range f.callsOf("ui.navigate") {
@@ -165,7 +173,7 @@ func TestClaimIntroLinksTheVolume(t *testing.T) {
 	}
 	for _, want := range []model.ObjectRef{
 		{Context: "demo", Kind: "persistentvolumes", Name: pgClaim.Volume},
-		{Context: "demo", Kind: "pods", Namespace: pgClaim.Namespace, Name: "pg-bezon-timescale-1-0"},
+		{Context: "demo", Kind: "pods", Namespace: pgClaim.Namespace, Name: "acme-pg-timescale-1-0"},
 	} {
 		if !slices.Contains(got, want) {
 			t.Errorf("links went to %+v, not %+v", got, want)
@@ -186,7 +194,7 @@ func TestVolumePodsLine(t *testing.T) {
 			s.onTap()
 		}
 	}
-	if text.String() != "Mounted by pods: web-0, web-1, web-2" || !slices.Equal(opened, []string{"bezon-prod/web-0", "bezon-prod/web-1", "bezon-prod/web-2"}) {
+	if text.String() != "Mounted by pods: web-0, web-1, web-2" || !slices.Equal(opened, []string{"acme-prod/web-0", "acme-prod/web-1", "acme-prod/web-2"}) {
 		t.Errorf("line %q, links %q", text.String(), opened)
 	}
 	_, p, _ := volumeDrawer(t, ThemeDark, func(m *engine.ObjectMetrics) { m.Volume.Pods = nil })
@@ -199,5 +207,65 @@ func TestVolumeIntroInAVolumesDrawer(t *testing.T) {
 	prefix, link := volumeIntro(&pgClaim, "persistentvolumes")
 	if prefix != "Display metrics from PVC: " || link != (model.ObjectRef{Kind: "persistentvolumeclaims", Namespace: pgClaim.Namespace, Name: pgClaim.Claim}) {
 		t.Errorf("intro = %q %+v", prefix, link)
+	}
+}
+
+// acmeClaim is a claim on local-path, a directory on the node's disk.
+var acmeClaim = model.VolumeClaim{Namespace: "acme-shop", Claim: "data-acme-redis-0", Volume: "pvc-5c8e2a41-77d0-4c3e-9f1a-0b6d2e8c4a17", SizeBytes: 10 << 30}
+
+// oversizeMetricsFixture is a local-path claim of 10 GiB over the last hour: the kubelet reports the
+// node's disk of 122.9 GiB, 30 GiB of it in use, and the engine's note says so.
+func oversizeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
+	m := volumeMetricsFixture(ref)
+	for i := range m.Targets[0].Filesystem {
+		f := &m.Targets[0].Filesystem[i]
+		f.UsageBytes = (29 + float64(i+1)/120) * fixGiB
+		f.CapacityBytes = 122.9 * fixGiB
+		f.AvailableBytes = f.CapacityBytes*0.95 - f.UsageBytes
+	}
+	last := m.Targets[0].Filesystem[len(m.Targets[0].Filesystem)-1]
+	vc := acmeClaim
+	vc.Pods = []string{"acme-redis-0"}
+	m.Volume, m.Fill = &vc, &last
+	m.SizeNote = "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size."
+	return m
+}
+
+// A storage that does not keep to the volume's size: the engine's note under the usage bar,
+// muted and wrapped to the drawer; none while it keeps to it.
+func TestVolumeLargerThanItsSizeSaysSo(t *testing.T) {
+	sh, p, png, _, _ := claimDrawerOf(t, ThemeDark, acmeClaim, "local-path", "10Gi", oversizeMetricsFixture, nil)
+	want := oversizeMetricsFixture(p.ref).SizeNote
+	if !p.disk.Visible() || len(p.disk.fs) != 1 || model.FormatPercent(p.disk.fs[0].Share()) != "24%" {
+		t.Fatalf("usage bar: shown %v, %+v", p.disk.Visible(), p.disk.fs)
+	}
+	if !p.sizeNote.Visible() || p.sizeNote.text != want || p.sizeNote.color != colorMuted || p.sizeNote.width != sh.drawer.contentWidth() {
+		t.Errorf("note: shown %v, %q, colour %v, width %v of %v", p.sizeNote.Visible(), p.sizeNote.text, p.sizeNote.color, p.sizeNote.width, sh.drawer.contentWidth())
+	}
+	if sz := p.sizeNote.MinSize(); sz.Width > sh.drawer.contentWidth() {
+		t.Errorf("the note asks for %v, wider than the drawer's %v", sz.Width, sh.drawer.contentWidth())
+	}
+	if texts := strings.Join(drawerTexts(sh), " "); !strings.Contains(texts, "it does not seem to keep") {
+		t.Errorf("the drawer's texts hold no note: %q", texts)
+	}
+	png("volume_claim_oversize_dark.png")
+
+	// A narrower drawer wraps the note to its width at the rebuild, on two lines.
+	wide, oneLine := sh.drawer.contentWidth(), p.sizeNote.MinSize().Height
+	sh.drawerLay.got = minDrawerWidth
+	sh.drawer.widthChanged()
+	if w := sh.drawer.contentWidth(); w >= wide || !p.sizeNote.Visible() || p.sizeNote.width != w || p.sizeNote.MinSize().Height <= oneLine {
+		t.Errorf("after the resize from %v to %v: shown %v, width %v, height %v (was %v)", wide, w, p.sizeNote.Visible(), p.sizeNote.width, p.sizeNote.MinSize().Height, oneLine)
+	}
+
+	_, kept, _ := volumeDrawer(t, ThemeDark, nil)
+	if kept.sizeNote.Visible() {
+		t.Errorf("a volume that keeps to its size shows a note: %q", kept.sizeNote.text)
+	}
+	_, none, _ := volumeDrawer(t, ThemeDark, func(m *engine.ObjectMetrics) {
+		m.Fill, m.VolumeNote, m.SizeNote = nil, "the kubelet reports no usage of this volume now: no pod mounts it, or its driver reports none", "stale"
+	})
+	if none.sizeNote.Visible() {
+		t.Errorf("a note without a newest point: %q", none.sizeNote.text)
 	}
 }

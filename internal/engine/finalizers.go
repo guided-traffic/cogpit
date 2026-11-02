@@ -146,7 +146,7 @@ func (s *Session) finalizersApply(b *Backend, ref model.ObjectRef, finalizers []
 		return nil
 	}
 	if !p.APIObject() {
-		return fmt.Errorf("%s are not objects of the cluster's API (%w)", p.Title, ErrNotApplicable)
+		return NotAPIObject(p)
 	}
 	if isNamespaces(p) {
 		return errNamespaceFinalizers

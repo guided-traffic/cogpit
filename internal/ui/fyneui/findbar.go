@@ -19,7 +19,9 @@ import (
 // previous and next, and "1 of 1". Cogpit's reading of the details the capture does not show: a
 // match lies within one line, a regular expression applies to each line on its own (so ^ and $ are
 // a line's ends), a replacement in a regular expression may use $1 and ${name}, the matches are
-// capped, and the match is the editor's selection (no highlight of the others).
+// capped, and the match is the editor's selection. Every match is tinted behind the text, the
+// selected one stronger and outlined (yamlview's SetMarks; the owner's QW1: on the selection's colour
+// alone it was hard to find), the text keeping its syntax colours.
 
 // findOptions are the find widget's three switches.
 type findOptions struct {
@@ -125,7 +127,7 @@ type findBar struct {
 
 	// permanent is the bar over the drawer's YAML and a release's values (the owner's requests of
 	// 2026-10-25): always shown, no replace row and no ×; Escape in its field clears it and gives
-	// the editor the keys.
+	// the editor the keys, and the editor hands its Escape on to the window.
 	permanent bool
 }
 
@@ -146,8 +148,12 @@ func buildFindBar(sh *shell, view *yamlview.View, permanent bool) *findBar {
 	b.find.OnSubmitted = func(string) { b.step(1) }
 	b.find.escape = b.close // Escape closes the bar from either field and from the editor (AW4)
 	view.OnEscape = func() bool {
-		if permanent || !b.visible() {
-			return false // the drawer's YAML: Escape goes on to the window, which closes the drawer
+		if permanent {
+			passEscape(view) // the drawer's YAML and values: the window's Escape closes the drawer
+			return true
+		}
+		if !b.visible() {
+			return false
 		}
 		b.close()
 		return true
@@ -237,9 +243,23 @@ func (b *findBar) close() {
 		return
 	}
 	b.root.Hide()
+	b.view.SetMarks(nil, -1)
 	if c := fyne.CurrentApp().Driver().CanvasForObject(b.view); c != nil {
 		c.Focus(b.view)
 	}
+}
+
+// mark shows the matches in the editor, the selected one (cur) stronger.
+func (b *findBar) mark() {
+	if len(b.matches) == 0 {
+		b.view.SetMarks(nil, -1)
+		return
+	}
+	marks := make([]yamlview.Mark, len(b.matches))
+	for i, m := range b.matches {
+		marks[i] = yamlview.Mark{Line: m.line, Start: m.start, End: m.end}
+	}
+	b.view.SetMarks(marks, b.cur)
 }
 
 // visible reports whether the widget is shown.
@@ -250,6 +270,7 @@ func (b *findBar) refresh(selectFirst bool) {
 	b.text = b.view.Text()
 	ms, err := findMatches(b.text, b.find.Text, b.opts)
 	b.matches, b.cur = ms, -1
+	defer b.mark()
 	switch {
 	case err != nil:
 		b.count.SetText("Invalid")
@@ -285,6 +306,7 @@ func (b *findBar) show(i int) {
 	m := b.matches[i]
 	b.cur = i
 	b.view.SelectRange(m.line, m.start, m.line, m.end)
+	b.mark()
 	n := fmt.Sprint(len(b.matches))
 	if len(b.matches) >= maxFindMatches {
 		n += "+"

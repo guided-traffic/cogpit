@@ -755,6 +755,12 @@ and a shell tab's Reconnect row ([`dockreconnect.go`](../../internal/ui/fyneui/d
   `Revision`. A `model.Cell` ([`row.go`](../../internal/model/row.go)) carries text, a sort number
   and a status token the toolkit maps to a theme colour. Columns of type `age`, `until` and `time`
   hold a Unix time written when drawn (`model.CellText`), so rows never go stale.
+- **Column widths** (`fitColumns` in [`tableview.go`](../../internal/ui/fyneui/tableview.go),
+  [`tablespread.go`](../../internal/ui/fyneui/tablespread.go)): each column its width (the user's,
+  the kind's hint, a default); the frame's free width first to the columns whose text is cut, as
+  measured once when the view opened (its first 500 rows), the rest to the flex column, Name
+  ([D-145](decisions.md#d-145-a-tables-free-width-goes-to-its-cut-columns-first)). Widths live in
+  the window only, the user's for the session.
 - **Links** (`followLink`, [`links.go`](../../internal/ui/fyneui/links.go)): a link in a list's
   Namespace column runs `ui.setNamespace`, one without a name `ui.openView`, any other
   `ui.navigate`. A web address (`model.WebLink` in a cell of a list or a drawer table, a run per
@@ -2021,7 +2027,9 @@ joined by time into `FilesystemSample`s (`volumeSamples`).
   per chart (the object, then each container) with requests and limits (`model.PodTotals`) or a
   node's allocatable and capacity, and its series cut to the chart's range. A claim's or a
   volume's (`volumeMetrics`): one target of the filesystem, the claim and volume (`Volume`), the
-  newest point (`Fill`) or why there is none (`VolumeNote`).
+  newest point (`Fill`) or why there is none (`VolumeNote`), and `SizeNote` when the filesystem is
+  clearly larger than the volume's size; `object.get` carries these as `volumeUsage`
+  (`Session.VolumeUsage`).
 - **Range and variant are engine state** (rule 2), per chart in `drawerWatch`: `ui.setMetricsRange`
   (1 min to 30 d, [`commands/metricsrange.go`](../../internal/engine/commands/metricsrange.go)) and
   `ui.setMetricsVariant` (network and filesystem only with a provider that has them,

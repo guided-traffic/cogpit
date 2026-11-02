@@ -147,12 +147,13 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-136](#d-136-the-quit-bound) | The quit bound | built: Fyne's teardown bounded at 5 s; Cogpit's own shutdown runs either way |
 | [D-137](#d-137-an-ingresss-hosts-links-to-the-browser) | An Ingress's hosts, links to the browser | built: Hosts column in place of Rules; hosts and paths open on a click, backends link to their Service, the class to its IngressClass, a TLS entry to its Secret |
 | [D-138](#d-138-the-alert-boards-cards) | The alert board's cards | built: masonry, one text per alertname, 24-hour history, owner link |
-| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart and usage bar |
+| [D-139](#d-139-a-volumes-usage-in-its-claims-and-its-own-drawer) | A volume's usage in its claim's and its own drawer | built: kubelet volume stats through Prometheus, chart, usage bar, a note on a storage that ignores the size |
 | [D-140](#d-140-a-forwarded-port-in-the-drawer) | A forwarded port in the drawer | built: the local address and a stop icon in Forward…'s place |
 | [D-141](#d-141-the-windows-colour-space-is-srgb) | The window's colour space is sRGB | built: on macOS, converted to each display's profile |
 | [D-142](#d-142-mesas-opengl-beside-cogpitexe) | Mesa's OpenGL beside cogpit.exe | built: llvmpipe named by Cogpit; download offered without OpenGL |
 | [D-143](#d-143-scrolling-a-log-tab-sideways) | Scrolling a log tab sideways | built: unwrapped rows scroll together, Fyne's bar along the bottom, a row draws what is in view |
 | [D-144](#d-144-closing-several-tabs-at-once) | Closing several tabs at once | built: a tab's right-click menu in the tab bar and the dock; the bar's tabs only, a running job's tab stays |
+| [D-145](#d-145-a-tables-free-width-goes-to-its-cut-columns-first) | A table's free width goes to its cut columns first | built: measured once when a table opens, never while it stays open; Preferences › Tables › Free width, on |
 
 ## D-1: UI toolkit
 
@@ -889,7 +890,8 @@ light theme; the tile on the welcome page only.
 **Status:** built · **By:** owner
 
 - **Drawer.** Every text is selectable (`selLine`: drag, double click, ⌘C); links, chips and pills
-  are not, their copy icon covers them. Every value shows the copy icon on hover, a padding after
+  are not, their copy icon covers them. A drag keeps what it selected when its button comes up
+  beside the text (`textSelection`, every selectable text of the window). Every value shows the copy icon on hover, a padding after
   what it draws; a line or link without room is shortened with "…" while it shows, and a value
   with action buttons (a port's Forward…) gets it over its end. One entry of a list value copies
   alone, `key=value` as `key: value` (`yamlEntry`).
@@ -2817,9 +2819,9 @@ has what the user sees, [architecture](architecture.md) §4.7 the switch, probes
 **Why:** an absent choice tells "not chosen" from "all on", and an integration added later is on
 for clusters chosen before it. Switching one on reads with the user's identity, so it is the user's
 consent; switching one off hides alerts, grades or marks without the window saying who did it
-(H-126, H-133: [agents and MCP](../security/agents-and-mcp.md)). The default is what the next Check
-all looks for, and Ask again turns every integration off until answered, so both are switches; Later
-only delays a question whose cluster reads nothing meanwhile.
+(H-126, H-133: [agents and MCP](../security/agents-and-mcp.md)). The default is what the next "Use
+my default integrations" turns on, and Ask again turns every integration off until answered, so both
+are switches; Later only delays a question whose cluster reads nothing meanwhile.
 
 **Rejected:** detection at every connect — probes clusters nobody looks at; detection only when a
 drawer opens — "found" would not show at once; a toast instead of the dialog — easy to miss.
@@ -3089,11 +3091,12 @@ nothing is looked for before the user answers its question
 the question is put off with Later (until the next start), or while the cluster is connected in the
 background. Only what the question ticks is read, while it asks.
 
-- The question opens on a pre-choice that looks for nothing: **Check all integrations** ticks and
-  looks for what the default for new clusters keeps on; **Choose integrations** ticks none and
-  looks for each one ticked; **Don't use integrations** warns what goes (metrics, alerts, image
-  ratings, policy marks; the resources still show), and its Yes answers with every integration off.
-  The rows lead Back to the pre-choice.
+- The question opens on a pre-choice that looks for nothing: **Use my default integrations**
+  answers at once with the default for new clusters (Preferences › Kubernetes), no page of rows
+  between, its line naming what it turns on; **Choose integrations** ticks none and looks for each
+  one ticked; **Don't use integrations (no metrics will be displayed)** warns what goes (metrics,
+  alerts, image ratings, policy marks; the resources still show), and its Yes answers with every
+  integration off. The rows lead Back to the pre-choice.
 - **Ask again** (Cluster Settings › Integrations, `cluster.integrations.ask`) forgets the cluster's
   choice and a Later of this run; nothing is read until the window asks again.
 - The metrics line of a cluster without a choice, in the drawers and the Overview, reads "No
@@ -3112,7 +3115,10 @@ background. Only what the question ticks is read, while it asks.
 - a detection-only mode for a ticked integration — for Alertmanager, Trivy and Kyverno the looking
   is the reading, so it would be a second code path per integration;
 - a warning that no resources show without integrations — untrue, and it would push the user to
-  Check all;
+  turn everything on;
+- a first choice that ticks the default's integrations on a page of rows and looks for them before
+  Apply — one page more for the answer most users give; Choose is the page for a choice of one's
+  own;
 - Ask again keeping the old choice until the new answer — the reads would go on behind the
   question.
 
@@ -3122,7 +3128,8 @@ background. Only what the question ticks is read, while it asks.
 [`fyneui/integrationsask.go`](../../internal/ui/fyneui/integrationsask.go) · 
 `TestIntegrationsOffUntilAnswered`, `TestIntegrationsQuestionSteps`,
 `TestIntegrationsOnAreTheUsers`, `TestIntegrationsQuestionPreChoice`,
-`TestIntegrationsQuestionDontUse`, `TestKindIntegrationsQuestion`
+`TestIntegrationsQuestionUseDefaults`, `TestIntegrationsQuestionDontUse`,
+`TestKindIntegrationsQuestion`
 
 ## D-83: One hotbar, and a drag that carries the tile
 
@@ -5030,7 +5037,11 @@ the window's tree for the outer scroller — Fyne's tree walk is internal.
 
 A find bar stands over the drawer's read-only YAML at all times (`newViewerFindBar`): the editor's
 find bar without its replace row and its ×: the field, Aa, ab, .*, the count and the chevrons; the
-count follows the object's updates. ⌘F focuses it while the drawer shows its YAML and the keyboard
+count follows the object's updates. Every bar tints all matches behind the text in the theme's
+warning colour and the selected one stronger, outlined in it, the text keeping its syntax colours;
+the fill is the strongest that leaves keys, values, numbers, literals and anchors a contrast of 3
+(`findColors`, lead, open to revision; rejected: the selection's colour alone, hard to find on a
+dark editor; inverted text, which loses the syntax colours). ⌘F focuses it while the drawer shows its YAML and the keyboard
 is in the drawer, in the list's table or nowhere (`drawerFinds`); a text field elsewhere keeps its
 own ⌘F, and with the keyboard nowhere the drawer goes before the dock's editor. Escape in the field
 clears it and gives the YAML the keys; the next Escape closes the drawer
@@ -5044,7 +5055,8 @@ drawer.
 
 **Code:** [`findbar.go`](../../internal/ui/fyneui/findbar.go) `newViewerFindBar`,
 [`findkeys.go`](../../internal/ui/fyneui/findkeys.go) `drawerFinds`,
-[`drawer.go`](../../internal/ui/fyneui/drawer.go) · **Tests:** `TestDrawerYAMLFind`
+[`drawer.go`](../../internal/ui/fyneui/drawer.go), [`yamlview/palette.go`](../../internal/ui/fyneui/yamlview/palette.go)
+`findColors` · **Tests:** `TestDrawerYAMLFind`, `TestFindMarks`, `TestRenderDrawerYAMLFindDark`
 
 ## D-128: A release's history in its drawer
 
@@ -5493,10 +5505,14 @@ cards; what the user sees: [usage](usage.md#alerts-the-pill-and-the-alert-board)
   (`alerts.fold`, the group's key).
 - **Card:** a strip of the last 24 hours, then the head on the severity's colour at 16 %: the
   severity in its colour (and the rule's label when it says another, "major"), the alertname with
-  its copy icon ([D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)), the
-  count; a click on the head folds the card. Under it the summary once, a line with what all the
-  alerts share, the history in words, Details (the description) and the runbook when all share
-  one; then the table.
+  its copy icon ([D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy)) in a
+  room kept while it hides (`iconSlot`: the head does not move when it shows, and the head's "Fold
+  the card" tooltip does not open over it), the count; a click on the head folds the card. Under it
+  the summary once, a line with what all the alerts share, the history in words, Details (the
+  description) and the runbook when all share one; then the table. That line wraps in a narrow
+  column (`infoLayout`): no line starts or ends with its dot, and Details and the runbook stay at
+  the right, on a line of their own when the last has no room for them. The summary and the
+  description are selectable ([D-25](#d-25-copying-values)), their slots copied as their names.
 - **One text** (`cardText`): a column's value that stands in an alert's summary or description as a
   word of its own (not inside a longer name; at least three characters, or a namespace, object,
   container, node, device, mount point or instance) becomes a slot, shown muted as `‹pod›`; numbers
@@ -5573,8 +5589,9 @@ count until the next.
 ## D-139: A volume's usage in its claim's and its own drawer
 
 **Status:** built · **By:** owner (a claim's fill level now and over time, a chart and a usage bar
-as a node's disk has; the claim's drawer says it shows its volume's numbers); lead (open to
-revision) the details below
+as a node's disk has; the claim's drawer says it shows its volume's numbers; Cogpit may point out
+a storage that does not seem to keep to the volume's size); lead (open to revision) the details
+below
 
 A persistent volume claim's drawer and a persistent volume's drawer have a Metrics section while the
 two are bound: what the user sees, [usage](usage.md#a-volumes-usage). A claim holds no data itself;
@@ -5612,6 +5629,24 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
   kubelet's used of its capacity, the filesystem's size (196.7 GiB of a 200 GiB claim on ext4),
   not the claim's request. A newest point more than two steps before the chart's end counts as
   none: the kubelet stopped reporting the volume.
+- **Larger than the volume:** under the bar, muted and wrapped, "The storage reports a size of
+  122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size." when the
+  newest point's filesystem is more than 1.1 times the volume's size and at least 1 GiB beyond it
+  (`volumeOversized`). The volume's size (`VolumeClaim.SizeBytes`) is in a claim's drawer the larger
+  of its `status.capacity.storage` (the bound volume's) and its `spec.resources.requests.storage`,
+  in a volume's drawer its `spec.capacity.storage`; without one, no note. A host directory
+  (local-path, a hostPath volume) reports the node's filesystem as the volume's: the bar's share is
+  then of the node's disk, and nothing keeps the volume to its size. The threshold: a filesystem's
+  metadata makes a volume's filesystem a little smaller than its size, never larger; a storage
+  that rounds a size up does so by a few percent (10G in place of 10Gi is 7.4 %) or, for a small
+  volume, by its allocation unit (a 100Mi claim on a 1 GiB disk). 10 % and 1 GiB leave both out
+  and still catch a host directory, which is many times the size. Muted as the section's other
+  notes: a lasting fact of the storage the user cannot clear, on kind and k3s (local-path is their
+  default class) on every claim.
+- **Agents:** `object_get` of a claim or a volume carries the section as `volumeUsage`: its status
+  and message, `volume` (the claim, the volume, `sizeBytes`, the pods that mount it), `fill`,
+  `volumeNote` and `sizeNote`, from the hub's latest results and the cache (`Session.VolumeUsage`).
+  The numbers come while a drawer shows the claim or its volume; otherwise the status is unknown.
 - **Without numbers:** not bound ("the claim is not bound to a volume", "the volume is not bound to
   a claim"); no Prometheus, or its integration off (the section says so, as a node's disk does); a
   bound volume the kubelet does not report ("no pod mounts it, or its driver reports none"): an
@@ -5634,6 +5669,18 @@ One query with three parts costs a third of three queries per step.
   (its own metadata), so a full volume would read below 100 %.
 - The size as a dashed reference line — it hides a resize; an outline series shows it.
 - The volume's own name in the query — the kubelet labels its gauges by the claim only.
+- The claim's request alone as the volume's size for the note — a volume bound larger than the
+  request (a static volume of 100 GiB for a 10Gi claim) has that size, and its filesystem rightly
+  does: the note would be wrong.
+- A ratio alone, or a margin alone — 10 % of a 1 GiB claim is an allocation unit's rounding; a
+  fixed 1 GiB of a 10 TiB volume is a rounding error.
+- The note in the warning colour — the status colour on every local-path claim would stop meaning
+  "look here".
+- The volume's size as the bar's whole when the storage ignores it (30 GiB of 10 GiB, 300 %) — the
+  volume writes past it until the node's disk is full, which the filesystem's own share shows.
+- The usage in `metrics_get`, or in `ui_state` — the first sends a request of its own outside the
+  drawer's poll (P19); the second is the window's state, and the usage is the object's, which
+  `object_get` returns as the drawer shows it.
 
 **Not covered:** a Usage column in the claims' and volumes' lists; a volume's inodes; a raw block
 volume and drivers that report no usage (some CSI drivers, NFS) show the note only; the demo
@@ -5641,11 +5688,14 @@ cluster serves no claims, so `--demo` shows none of it.
 
 **Code:** [`metrics/volume.go`](../../internal/metrics/volume.go),
 [`engine/volumemetrics.go`](../../internal/engine/volumemetrics.go),
+[`commands/resources.go`](../../internal/engine/commands/resources.go) (`object.get`),
 [`fyneui/metricsvolume.go`](../../internal/ui/fyneui/metricsvolume.go) · **Tests:**
 `TestObjectRangeOfAClaim`, `TestClaimChartAsksPrometheusAlone`, `TestClaimWithoutPrometheus`,
-`TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestClaimDrawerShowsItsVolume`,
-`TestVolumeDrawerShowsItsClaimsUsage`, `TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`,
-`TestClaimDrawerShowsItsVolumesUsage`
+`TestVolumeBudget`, `TestVolumeOfClaimsAndVolumes`, `TestVolumeSizeOfClaimsAndVolumes`,
+`TestClaimDrawerShowsItsVolume`, `TestVolumeDrawerShowsItsClaimsUsage`,
+`TestVolumeWithoutUsageAndUnboundClaim`, `TestVolumesHidden`, `TestVolumeOversized`,
+`TestVolumeLargerThanItsSize`, `TestObjectGetCarriesAClaimsVolumeUsage`,
+`TestClaimDrawerShowsItsVolumesUsage`, `TestVolumeLargerThanItsSizeSaysSo`
 
 ## D-140: A forwarded port in the drawer
 
@@ -5662,8 +5712,9 @@ local port shown and copyable); lead (open to revision) the details below
   follows it, then a stop icon in Forward…'s place (`portforward.stop`, tooltip "Stop forwarding").
   A stopped or failed forward listens on nothing: the port reads as one without a forward.
 - **The address:** `127.0.0.1:<port>`, where the forward listens (not `localhost`, which resolves
-  to `::1` first), selectable, its copy icon copying it whole; the line keeps room for the icon
-  after it, so that it covers none of the port. Plain while the forward is active, amber while it
+  to `::1` first), selectable, its copy icon shown for good right after it (not on hover only, as
+  the drawer's other values have it: a room kept for a hidden icon reads as a gap), copying it
+  whole and covering none of it. Plain while the forward is active, amber while it
   starts, orange while it waits for its pod or reconnects (`DetailItem.Aside`, `AsideStatus`).
 - **Stop, not Delete:** the forward stays in the Port Forwarding view, stopped; Edit there starts
   it again with its settings, Delete removes it.
@@ -5693,7 +5744,7 @@ again, or Edit in the Port Forwarding view.
 **Code:** [`kinds/portforwards.go`](../../internal/model/kinds/portforwards.go) (`forwardPort`,
 `listeningForwards`, `ForwardsByTarget`), [`model/detail.go`](../../internal/model/detail.go)
 (`DetailItem.Aside`, `ItemAction.Icon`), [`fyneui/drawer.go`](../../internal/ui/fyneui/drawer.go)
-(`itemValue`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
+(`itemValue`, `asideCopy`, `actionRowLayout`) · **Tests:** `TestForwardedPortShowsItsForward`,
 `TestForwardedPortInPodDrawer`, `TestRenderPodDrawerForwardedDark`,
 `TestRenderPodDrawerForwardReconnectingDark`
 
@@ -5858,3 +5909,62 @@ button does (owner); Close to the Right — not asked for.
 [`commands/tabclose.go`](../../internal/engine/commands/tabclose.go),
 [`fyneui/tabmenu.go`](../../internal/ui/fyneui/tabmenu.go) · `TestCloseTabs`, `TestCloseDockTabs`,
 `TestTabCloseCommands`, `TestTabMenus`
+
+## D-145: A table's free width goes to its cut columns first
+
+**Status:** built · **By:** owner (the free width to the columns that need it, a preference for it, and
+measured when a table opens, never while it stays open), lead (open to revision) the rest
+
+Every column of a table gets its width (the user's, the kind's hint, the default for its id or
+type). When a table opens (another view, tab or cluster, or its first snapshot after none), what
+its frame leaves free goes first to the columns whose text is cut, each up to the width that shows
+its title and the widest text of the list's first 500 rows, as sorted, whole; the rest goes to the
+flex column (Name; Message where a view hides Name), which before took all of it. When the free
+width does not reach, each cut column gets an equal share in whole points, at most what it needs,
+and what one needs less is shared among the others, so the columns cut by a little show whole first.
+Name's own need takes part like any column's; beyond it Name gets only what is left.
+
+- The measure is taken once, when the opened view's rows are in (the first snapshot with rows, or a
+  synced one without any). Rows that change, come or go while the table stays open, a sort or a
+  search are not measured again.
+- The split follows the frame: a resized window or an opened drawer lays the same measure out at the
+  new width, the flex column's share giving way first; below the columns' own widths Name shrinks as
+  before.
+- A column shown while the table stays open is measured as it shows; a column hidden is forgotten.
+- A column the user sized (dragged, or fitted by a double click) keeps the user's width and takes no
+  share; so does the flex column, and then what is left stays free. The warning and grade columns and
+  icon columns take no share.
+- Preferences › Tables › Free width (`tableSpreadWidth`, on by default; agents and the CLI may set it
+  either way: it changes only the window's layout) turns it off, and Name takes all the free width.
+  Turning it on or off lays the open table out at once.
+
+**Why:** a wide window gave Name hundreds of empty points while an Ingress's Hosts were cut. Widths
+that move while the user reads would only confuse, so they are measured at the open alone. Equal
+shares up to each need show the most columns whole for the width there is. 500 rows are many times
+what a window shows and cost about 1 ms on the main goroutine for a list of 10,000 pods, every row
+about 24 ms (`BenchmarkSpreadMeasure10k`). Following the frame keeps a drawer opened over a wide
+table from scrolling it sideways sooner than before; the widths move then only on the user's own
+resize. On by default: the owner asked for the behaviour, the preference is the way back. In
+Preferences › Tables: the section of the tables' other preference, the row height.
+
+**Rejected:** measuring with every snapshot (the widths would move under the user's eyes); shares in
+proportion to the need (one column of long label lists would take nearly all, the columns cut by a
+few points staying cut); widths fixed at the open whatever the frame (an opened drawer would squeeze
+Name to its minimum and scroll the table sideways while the cut columns kept their shares); measuring
+every row (24 ms at every open of a list of 10,000 for texts no window shows); Preferences › App
+(Tables holds the tables' preferences).
+
+**Not covered:** a view that opens while its search or status filter shows no row is measured without
+rows, and Name takes the free width until the next open. Only text is measured, as the double click's
+fit measures it: a cell's squares (a pod's containers) and usage bars are not. The shares are not kept
+across a restart, and neither are the user's widths
+([D-41](#d-41-what-survives-a-restart)).
+
+**Code:** [`fyneui/tablespread.go`](../../internal/ui/fyneui/tablespread.go) `spreadSnapshot`,
+`spread`, `spreadExtra`, [`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) `fitColumns`,
+[`fyneui/tableheader.go`](../../internal/ui/fyneui/tableheader.go) `contentWidth`,
+[`fyneui/preferences_spread.go`](../../internal/ui/fyneui/preferences_spread.go),
+[`engine/preferences.go`](../../internal/engine/preferences.go) `TableSpreadWidth` · `TestSpreadExtra`,
+`TestFitColumnsSpreadsTheFreeWidth`, `TestFitColumnsNoneCut`, `TestFitColumnsSpreadsTooLittle`,
+`TestSpreadWidthOnlyWhenTheViewOpens`, `TestSpreadMeasuresAColumnShown`,
+`TestPreferencesTableSpreadWidth`, `TestRenderIngressesSpreadDark`, `BenchmarkSpreadMeasure10k`

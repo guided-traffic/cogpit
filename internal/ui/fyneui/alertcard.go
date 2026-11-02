@@ -2,9 +2,11 @@ package fyneui
 
 import (
 	"image/color"
+	"math"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -27,23 +29,130 @@ type span struct {
 
 // spanText is a wrapped text of runs in their own colours and styles: a card's text, its slots
 // muted and in italics. It wraps at the width it is laid out at, so that a masonry's column decides
-// its height. Not selectable: it is the card's text for all its alerts, not one the cluster sent.
+// its height. It is selectable as the drawer's texts are (selection.go; the owner's QW11): a drag
+// selects across its lines, a double click selects a word, ⌘C (Ctrl+C) copies the text as it
+// shows, its slots as their names ("‹pod›").
 type spanText struct {
 	widget.BaseWidget
+	textSelection
 	spans []span
 	size  fyne.ThemeSizeName
 	width float32 // the width it last wrapped at
+
+	// The text as it shows, from the last wrap: its lines joined by a space where a line wraps and
+	// by a line break where the text has one, and each run's place in it.
+	shown  string
+	pieces []spanPiece
+	rows   []spanRow
+	r      *spanTextRenderer
+	stops  [][]spanStop // per line, every rune boundary and its x; nil until a selection needs it
 }
 
-func newSpanText(size fyne.ThemeSizeName, spans ...span) *spanText {
+// spanPiece is a run of a wrapped line: its text, where it starts on the line and in the shown
+// text.
+type spanPiece struct {
+	row   int
+	x     float32
+	text  string
+	style fyne.TextStyle
+	start int
+}
+
+// spanRow is a wrapped line's start and end in the shown text.
+type spanRow struct{ start, end int }
+
+// spanStop is a rune boundary on a line: its offset in the shown text and its x.
+type spanStop struct {
+	at int
+	x  float32
+}
+
+func newSpanText(size fyne.ThemeSizeName, copied func(string), spans ...span) *spanText {
 	t := &spanText{spans: spans, size: size}
 	t.ExtendBaseWidget(t)
+	t.self = t
+	t.getText = func() string { return t.shown }
+	t.offsetAt = t.offset
+	t.repaint = func() {
+		if t.r != nil {
+			t.r.placeHighlights()
+			canvas.Refresh(t)
+		}
+	}
+	t.copied = copied
 	return t
+}
+
+// TypedKey implements fyne.Focusable: Escape drops a selection; other keys go on to the window.
+func (t *spanText) TypedKey(ev *fyne.KeyEvent) {
+	if ev.Name == fyne.KeyEscape && t.anchor != t.caret {
+		t.clear()
+		return
+	}
+	if c := fyne.CurrentApp().Driver().CanvasForObject(t); c != nil && c.OnTypedKey() != nil {
+		c.OnTypedKey()(ev)
+	}
+}
+
+// lineStops returns every rune boundary of line row with its x, in order.
+func (t *spanText) lineStops(row int) []spanStop {
+	if t.stops == nil {
+		size := t.Theme().Size(t.size)
+		t.stops = make([][]spanStop, len(t.rows))
+		for i, rw := range t.rows {
+			t.stops[i] = []spanStop{{at: rw.start}}
+		}
+		for _, p := range t.pieces {
+			runes := []rune(p.text)
+			line := t.stops[p.row]
+			if last := line[len(line)-1]; last.at < p.start { // the space before the run
+				line = append(line, spanStop{at: p.start, x: p.x})
+			} else {
+				line[len(line)-1].x = p.x
+			}
+			for k := 1; k <= len(runes); k++ {
+				line = append(line, spanStop{at: p.start + k, x: p.x + fyne.MeasureText(string(runes[:k]), size, p.style).Width})
+			}
+			t.stops[p.row] = line
+		}
+	}
+	if row < 0 || row >= len(t.stops) {
+		return nil
+	}
+	return t.stops[row]
+}
+
+// offset maps a point to the nearest rune boundary of the line under it.
+func (t *spanText) offset(p fyne.Position) int {
+	if len(t.rows) == 0 || t.r == nil {
+		return 0
+	}
+	row := min(max(int(p.Y/t.r.lineHeight()), 0), len(t.rows)-1)
+	best, dist := t.rows[row].start, float32(math.MaxFloat32)
+	for _, s := range t.lineStops(row) {
+		if d := float32(math.Abs(float64(s.x - p.X))); d < dist {
+			best, dist = s.at, d
+		}
+	}
+	return best
+}
+
+// xAt is the x of the boundary at offset o on line row.
+func (t *spanText) xAt(row, o int) float32 {
+	var x float32
+	for _, s := range t.lineStops(row) {
+		if s.at > o {
+			break
+		}
+		x = s.x
+	}
+	return x
 }
 
 // CreateRenderer implements fyne.Widget.
 func (t *spanText) CreateRenderer() fyne.WidgetRenderer {
 	r := &spanTextRenderer{t: t}
+	t.r = r
 	r.wrap(t.width)
 	return r
 }
@@ -52,6 +161,7 @@ type spanTextRenderer struct {
 	t     *spanText
 	texts []*canvas.Text
 	at    []fyne.Position
+	hls   []*canvas.Rectangle // the selection's background, a line each
 	rows  int
 }
 
@@ -75,12 +185,16 @@ func (r *spanTextRenderer) Layout(size fyne.Size) {
 		o.Move(r.at[i])
 		o.Resize(o.MinSize())
 	}
+	r.placeHighlights()
 }
 
 func (r *spanTextRenderer) Objects() []fyne.CanvasObject {
-	out := make([]fyne.CanvasObject, len(r.texts))
-	for i, o := range r.texts {
-		out[i] = o
+	out := make([]fyne.CanvasObject, 0, len(r.hls)+len(r.texts))
+	for _, o := range r.hls {
+		out = append(out, o)
+	}
+	for _, o := range r.texts {
+		out = append(out, o)
 	}
 	return out
 }
@@ -89,7 +203,36 @@ func (r *spanTextRenderer) Destroy() {}
 
 func (r *spanTextRenderer) Refresh() {
 	r.wrap(r.t.width)
+	r.placeHighlights()
 	canvas.Refresh(r.t)
+}
+
+// placeHighlights puts the selection's background behind each line it covers.
+func (r *spanTextRenderer) placeHighlights() {
+	t := r.t
+	lo, hi := t.bounds()
+	th := t.Theme()
+	h := fyne.MeasureText("Mg", th.Size(t.size), fyne.TextStyle{}).Height
+	n := 0
+	for i, rw := range t.rows {
+		a, b := max(lo, rw.start), min(hi, rw.end)
+		if a >= b {
+			continue
+		}
+		if n == len(r.hls) {
+			r.hls = append(r.hls, canvas.NewRectangle(color.Transparent))
+		}
+		x1, x2 := t.xAt(i, a), t.xAt(i, b)
+		hl := r.hls[n]
+		hl.FillColor = themeColor(th, theme.ColorNameSelection)
+		hl.Move(fyne.NewPos(x1, float32(i)*r.lineHeight()))
+		hl.Resize(fyne.NewSize(x2-x1, h))
+		hl.Show()
+		n++
+	}
+	for _, hl := range r.hls[n:] {
+		hl.Hide()
+	}
 }
 
 // spanWord is a word of a spanText: the runs between two spaces (a slot inside "ns/‹pod›" is a run
@@ -97,7 +240,8 @@ func (r *spanTextRenderer) Refresh() {
 type spanWord []span
 
 // wrap breaks the runs into lines at width (0: one line per paragraph) and makes a text of each
-// stretch of a line in one colour and style.
+// stretch of a line in one colour and style. It keeps the text as it shows and where each run is,
+// for the selection.
 func (r *spanTextRenderer) wrap(width float32) {
 	th := r.t.Theme()
 	size := th.Size(r.t.size)
@@ -140,21 +284,40 @@ func (r *spanTextRenderer) wrap(width float32) {
 	}
 	space := fyne.MeasureText(" ", size, fyne.TextStyle{}).Width
 	r.texts, r.at, r.rows = r.texts[:0], r.at[:0], 0
+	var shown strings.Builder
+	n := 0 // runes in shown
+	add := func(s string) {
+		shown.WriteString(s)
+		n += utf8.RuneCountInString(s)
+	}
+	t := r.t
+	t.pieces, t.rows, t.stops = t.pieces[:0], t.rows[:0], nil
 	h := r.lineHeight()
-	for _, p := range paras {
+	for pi, p := range paras {
+		if pi > 0 {
+			add("\n")
+		}
+		t.rows = append(t.rows, spanRow{start: n, end: n})
 		var x float32
 		var last *canvas.Text
 		lastStyle := span{}
-		for _, w := range p {
+		for wi, w := range p {
 			ww := wordWidth(w)
+			if wi > 0 {
+				add(" ")
+			}
 			if x > 0 && width > 0 && x+space+ww > width {
 				r.rows++
 				x, last = 0, nil
+				t.rows = append(t.rows, spanRow{start: n, end: n})
 			}
 			if x > 0 {
 				x += space
 			}
 			for i, s := range w {
+				t.pieces = append(t.pieces, spanPiece{row: len(t.rows) - 1, x: x, text: s.text, style: s.style, start: n})
+				add(s.text)
+				t.rows[len(t.rows)-1].end = n
 				gap := ""
 				if i == 0 && last != nil {
 					gap = " "
@@ -171,6 +334,10 @@ func (r *spanTextRenderer) wrap(width float32) {
 			}
 		}
 		r.rows++
+	}
+	t.shown = shown.String()
+	if lo, hi := t.bounds(); hi > n || lo > n {
+		t.anchor, t.caret = 0, 0
 	}
 }
 

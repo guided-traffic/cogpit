@@ -92,7 +92,8 @@ Ctrl on Windows and Linux.
   text or the private key.
 - YAML editing with a diff and a server-side dry run before every apply; every manifest reads
   apiVersion, kind and metadata first, status last; ⌘Z undoes, ⇧⌘Z or ⌘Y redoes; ⌘F opens a find bar
-  (match case, whole word, regular expression) in the editor tabs, the drawer's YAML
+  (match case, whole word, regular expression; every match tinted amber behind the text, the
+  selected one stronger and outlined) in the editor tabs, the drawer's YAML
   ([D-127](decisions.md#d-127-find-in-the-drawers-yaml)) and a release's values
   ([D-130](decisions.md#d-130-find-in-a-releases-values)). An apply that scales a workload to zero
   or removes a Config Map's or Secret's key asks first.
@@ -106,7 +107,9 @@ Ctrl on Windows and Linux.
   values.
 - Delete, Restart and the Flux and Argo CD actions on checked rows (each view keeps its own): up to
   500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
-  agents see and may cancel in `ui_state`.
+  agents see and may cancel in `ui_state`. On Port Forwarding the selection bar's Delete removes
+  the checked forwards at once, as their own Delete does; Helm Releases' bar has no Delete (uninstall
+  one at a time from its menu).
 - Scale a Deployment, StatefulSet or ReplicaSet with a slider from 1 to 30 or a typed count; 0 is
   confirmed first.
 - Drain a node in a dock tab with Cancel, a pod a PodDisruptionBudget holds retried until the
@@ -133,7 +136,8 @@ Ctrl on Windows and Linux.
 - A node shell: a privileged pod in `kube-system` from an Alpine image pinned by digest, confirmed
   every time, deleted when the shell closes.
 - Debug containers added from a pod's drawer ([details](#debug-containers)); port forwarding with
-  one click to the browser, the local address and a stop at the forwarded port in the drawer.
+  one click to the browser, the local address with its copy icon and a stop at the forwarded port
+  in the drawer.
 
 **Helm and GitOps**
 
@@ -498,6 +502,7 @@ the Preferences page or by an agent with `preferences.set`, except where a field
 | `theme` | `system` # default | `system` (follows the computer), `dark` or `light`; also the title bar's sun and moon; `--theme` overrides it for one run |
 | `timezone` | `""`: the computer's # default | the IANA time zone every absolute time is written in (`Europe/Berlin` # example) |
 | `tableRowHeight` | `0`: the text's height and 6 points above and below # default | a table row's height, 20 to 48 points |
+| `tableSpreadWidth` | `true` # default | Preferences › Tables › Free width: when a table opens, the columns whose text is cut widen to show it (their widest in the first 500 rows) before Name takes the rest; measured once, not while the table stays open; a column you sized keeps your width ([D-145](decisions.md#d-145-a-tables-free-width-goes-to-its-cut-columns-first)). Off: Name takes all the free width. Agents may set it |
 | `editorFontSize`, `editorLineNumbers`, `editorTabSize` | `13`, `true`, `2` # default | the YAML editor of the Edit, Create, Helm Install and Upgrade tabs: text size (8 to 32 points), line numbers, spaces per Tab (1 to 8) |
 | `terminalShell`, `terminalShellArgs` | `""`: `$SHELL`, else `/bin/zsh`, `/bin/bash`, `/bin/sh` ([Windows](#install-on-windows)); `[]` # default | the local terminal's shell (an absolute path) and its arguments; pod shells are not affected. Only you set them |
 | `terminalFontSize` | `13` # default | the text size of terminals, pod shells and attached sessions opened afterwards, 8 to 32 points |
@@ -898,9 +903,10 @@ by name (`…:http-web`), so a role written for Lens that names services in `res
 each refused spelling is a 403 in the cluster's audit log.
 
 **The question:** a cluster without a choice asks once it is connected and shown ("Integrations for
-<name>"): **Check all integrations** (the default's, looked for at once; untick what you don't
-want), **Choose integrations** (none ticked; a tick looks for that one), or **Don't use
-integrations** (after a warning, all off). **Apply** keeps the ticks, with "Save as the default for
+<name>"): **Use my default integrations** (turns on what Preferences › Kubernetes › Integrations
+of new clusters keeps on, at once, without a further page), **Choose integrations** (none ticked;
+a tick looks for that one), or **Don't use integrations (no metrics will be displayed)** (after a
+warning, all off). **Apply** keeps the ticks, with "Save as the default for
 new clusters" also as the default; **Later** asks again at the next start and reads nothing
 meanwhile. The demo cluster never asks. Preferences › Kubernetes › Integrations of new clusters
 holds the default. `cogpit-cli` asks nothing and reads what the default keeps on
@@ -1024,11 +1030,12 @@ Escape closes the innermost thing open, and only that; press it again to go one 
 | a dialog (a confirmation, Rollback, Scale, a create dialog, Connection Updates, About, …), whatever field has the keyboard | its Cancel, or Close where it has none; the drawer behind it stays open |
 | a pop-up list (namespace filter, status filter, columns, the agent's history), the palette, the bell's list, the MCP details | closes it |
 | a dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
+| the find field over the drawer's YAML, a release's values or revisions | clears it; the editor gets the keys |
 | a list's search (⌘F) | clears it; the list gets the keys |
 | the logs tab's search, Argo CD's activity filter | clears it |
 | Preferences or Cluster Settings, a text field on it included | closes the card, keeping the value just typed; a menu or dialog opened from it closes first |
 | Preferences › Agent's connection form | closes the form, as its Cancel does |
-| the list or the navigator | closes the drawer |
+| the list, the navigator, or the drawer's YAML or values | closes the drawer |
 
 A selected text (a log, a toast, the agent's answer) drops its selection first; the navigator's
 search (⌘P) and the namespace filter's search clear typed text first. Fyne's own widgets keep
@@ -1328,10 +1335,12 @@ reads the cluster's Alertmanager
   - its head in the severity's colour (a click folds the card; a copy icon after the name on hover)
     under a strip of the last 24 hours, a cell an hour, brighter the more often the alert started
     firing in it (its tooltip says when and how often; outlined while unknown);
-  - its summary once, the places where the alerts differ shown as `‹pod›`, `‹value›`;
+  - its summary once, the places where the alerts differ shown as `‹pod›`, `‹value›`; summary and
+    description are selectable (drag, double click, ⌘C);
   - a line with what all its alerts share (the namespace, a click narrows the board; the object or
     the workload that controls their pods, a click opens it), the history in words ("fired 7× in
-    24 h", "flapping"), **Details** (the description) and **Runbook**;
+    24 h", "flapping"), **Details** (the description) and **Runbook**; in a narrow column it wraps,
+    the two links at its right end;
   - a table of its alerts: only the columns that tell them apart (namespace, object, container, the
     labels that differ, a number from the text) and how long each fires; ten rows, then **Show
     all**. An alert whose text differs from the card's has it under its row.
@@ -1383,6 +1392,11 @@ two pods on one node mount); no line while none does.
 - **Usage bar** under it: "Volume", the bar (warning from 80 %, error from 90 %) and the share of
   the filesystem's size, which is a little smaller than the claim's request (196.7 GiB of 200 GiB on
   ext4). Its tooltip: the volume, used of size, and what is still available for writing.
+- **Larger than the volume:** a storage that does not keep to the volume's size, such as
+  local-path's directory on the node, reports the node's disk as the volume's. A muted line under
+  the bar then says so: "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does
+  not seem to keep to the volume's size.", and the bar's share is of that disk. It shows when the
+  filesystem is more than 10 % and at least 1 GiB larger than the volume's size.
 - **Where the numbers come from:** the kubelet's volume stats (`kubelet_volume_stats_*`) in the
   cluster's Prometheus. Without Prometheus the section says so. The kubelet reports a volume only
   while a pod mounts it, and only when its driver reports usage (not raw block volumes, some CSI
@@ -1390,6 +1404,8 @@ two pods on one node mount); no line while none does.
   chart says "Metrics Server ● not used": it measures no volume.
 - **Not bound** (Pending, Lost, a Released volume): the section says so and nothing is asked.
 - **Hidden** with Cluster Settings › Metrics › Volumes or Filesystem.
+- **Agents** read the section in `object_get` (`volumeUsage`), the note included, while a drawer
+  shows the claim or its volume.
 
 ### A namespace stuck in Terminating
 

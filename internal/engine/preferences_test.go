@@ -34,14 +34,14 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 		t.Fatalf("the directory exists before the first change: %v", err)
 	}
 	if got := s.UIState().Preferences; got == nil || got.Theme != ThemeSystem || !got.EditorLineNumbers || got.EditorTabSize != 2 ||
-		got.EditorFontSize != DefaultFontSize || got.TerminalFontSize != DefaultFontSize {
+		got.EditorFontSize != DefaultFontSize || got.TerminalFontSize != DefaultFontSize || !got.TableSpreadWidth {
 		t.Fatalf("a first start shows the defaults: %+v", got)
 	}
 	if _, err := s.ChangePreferences(func(p *Preferences) error {
 		p.Theme, p.Timezone, p.TableRowHeight = ThemeLight, "Europe/Berlin", 32
 		p.EditorFontSize, p.EditorLineNumbers, p.EditorTabSize = 15, false, 4
 		p.TerminalFontSize, p.TerminalShell, p.TerminalShellArgs = 14, testShell(), []string{"-l"}
-		p.LightStripMainsOnly = true
+		p.LightStripMainsOnly, p.TableSpreadWidth = true, false
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -76,7 +76,7 @@ func TestPreferencesPersistPrivately(t *testing.T) {
 	}
 	if got.Theme != ThemeLight || got.Timezone != "Europe/Berlin" || got.TableRowHeight != 32 || got.EditorFontSize != 15 ||
 		got.EditorLineNumbers || got.EditorTabSize != 4 || got.TerminalFontSize != 14 || got.TerminalShell != testShell() ||
-		len(got.TerminalShellArgs) != 1 || got.TerminalShellArgs[0] != "-l" || !got.LightStripMainsOnly {
+		len(got.TerminalShellArgs) != 1 || got.TerminalShellArgs[0] != "-l" || !got.LightStripMainsOnly || got.TableSpreadWidth {
 		t.Errorf("after a restart: %+v", got)
 	}
 	if s2.Location().String() != "Europe/Berlin" {
@@ -128,7 +128,7 @@ func TestPreferencesCheckAndNormalize(t *testing.T) {
 	got, _ := s.Preferences()
 	want := DefaultPreferences()
 	want.EditorLineNumbers, want.EditorTabSize, want.TerminalFontSize = false, 3, 12
-	if got.Theme != want.Theme || got.Timezone != "" || got.TableRowHeight != 0 || got.EditorFontSize != want.EditorFontSize ||
+	if got.Theme != want.Theme || got.Timezone != "" || got.TableRowHeight != 0 || got.EditorFontSize != want.EditorFontSize || !got.TableSpreadWidth ||
 		got.EditorLineNumbers || got.EditorTabSize != 3 || got.TerminalFontSize != 12 || got.TerminalShell != "" || got.TerminalShellArgs != nil ||
 		got.DebugImage != "" {
 		t.Errorf("normalized %+v, want the good fields kept and the bad ones defaulted", got)

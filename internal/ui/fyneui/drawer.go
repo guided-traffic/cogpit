@@ -654,32 +654,39 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 		// its icon right after its text, as a chip does.
 		icon = d.copyBtn.MinSize().Width + d.sh.app.Settings().Theme().Size(theme.SizeNamePadding)
 	}
-	l := actionRowLayout{natural: natural, icon: icon}
 	if it.Aside != "" {
-		// Selectable, in its status colour, whole, with the room for its copy icon after it: the
-		// icon covers none of its text, which is what one copies.
-		aside := d.line(it.Aside, statusPillInk(it.AsideStatus), theme.SizeNameText, fyne.TextStyle{}, false, it.Aside)
-		objs = slices.Insert(objs, 1, fyne.CanvasObject(aside))
-		l.aside = d.copyBtn.MinSize().Width + d.sh.app.Settings().Theme().Size(theme.SizeNamePadding)
+		// Selectable, in its status colour, whole, its copy icon shown for good right after it (the
+		// owner's QW3): the icon covers none of its text, which is what one copies, and no room
+		// stands empty waiting for it.
+		aside := d.line(it.Aside, statusPillInk(it.AsideStatus), theme.SizeNameText, fyne.TextStyle{}, false, "")
+		objs = slices.Insert(objs, 1, fyne.CanvasObject(aside), fyne.CanvasObject(d.asideCopy(it.Aside)))
 	}
-	return box(l, objs...)
+	return box(actionRowLayout{natural: natural, icon: icon}, objs...)
+}
+
+// asideCopy is the copy icon after an item's aside (a forward's local address): the drawer's copy
+// icon, its checkmark and toast, shown for good.
+func (d *drawer) asideCopy(text string) *copyButton {
+	var done *time.Timer
+	var b *copyButton
+	b = newCopyIcon(d.sh, func() {
+		d.sh.copyText(text, false)
+		b.confirm(&done)
+		d.sh.copyToast("info", copiedToast)
+	}, nil, nil)
+	b.stays = true
+	b.Show()
+	return b
 }
 
 // actionRowLayout puts a drawer value and its action buttons on one line: the value as wide as
 // its text (natural; 0 takes what the buttons leave) and, without buttons, the room for its copy
 // icon (icon), shortened when the drawer is narrower, the buttons right after it. The value's own
-// widgets ask for no width, since they shorten to fit. With aside set, the first object after the
-// value is the item's aside, which keeps that much room after its text for its copy icon.
-type actionRowLayout struct{ natural, icon, aside float32 }
+// widgets ask for no width, since they shorten to fit.
+type actionRowLayout struct{ natural, icon float32 }
 
 // width is the room the object after the value at index i takes.
-func (l actionRowLayout) width(i int, o fyne.CanvasObject) float32 {
-	w := o.MinSize().Width
-	if i == 0 {
-		w += l.aside
-	}
-	return w
-}
+func (l actionRowLayout) width(_ int, o fyne.CanvasObject) float32 { return o.MinSize().Width }
 
 func (actionRowLayout) gap() float32 {
 	return fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)

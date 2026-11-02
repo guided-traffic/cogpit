@@ -91,6 +91,19 @@ func TestPreferencesCommands(t *testing.T) {
 	if u := s.UIState().Preferences; u == nil || u.Theme != "light" {
 		t.Errorf("ui_state shows %+v", u)
 	}
+	// How a table shares its free width is the agents' too, either way (D-145); on by default.
+	if !res.Preferences.TableSpreadWidth {
+		t.Error("tableSpreadWidth is off by default")
+	}
+	for _, on := range []bool{false, true} {
+		var got, read commands.PreferencesResult
+		if err := dispatch(t, s, agent, "preferences.set", map[string]any{"tableSpreadWidth": on}, &got); err != nil || got.Preferences.TableSpreadWidth != on {
+			t.Errorf("an agent's tableSpreadWidth %v: %v, %v", on, err, got.Preferences.TableSpreadWidth)
+		}
+		if err := dispatch(t, s, engine.OriginCLI, "preferences.get", struct{}{}, &read); err != nil || read.Preferences.TableSpreadWidth != on {
+			t.Errorf("preferences.get after tableSpreadWidth %v: %v, %v", on, err, read.Preferences.TableSpreadWidth)
+		}
+	}
 	// Less motion is the agents' too, either way: it changes only how the window moves.
 	for _, on := range []bool{true, false} {
 		var got commands.PreferencesResult // omitempty: a false is left out of the result

@@ -420,6 +420,52 @@ func TestSelectionBarDeletes(t *testing.T) {
 	q.until(t, "the dialog gone", func() bool { return sh.confirmer.current == nil })
 }
 
+// The bar's Delete is the selection's own (the owner's QW12): on the Port Forwarding view it runs
+// portforward.removeMany with every checked forward, at once, its tooltip without "…" (it asks
+// nothing); on a kind of Cogpit's own without a delete of a selection (the Helm releases) the bar
+// offers no Delete; on the cluster's objects it stays object.deleteMany.
+func TestSelectionBarDeleteIsTheKinds(t *testing.T) {
+	f := forwardsFake(t, kindPortForwards)
+	withDeleteMany(t, f)
+	f.kinds = append(f.kinds, kindInfo{Kind: "releases", Title: "Releases", Namespaced: true, Virtual: true})
+	sh, w, q := newTestShell(t, f, Options{})
+	q.until(t, "the forwards", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == kindPortForwards })
+	rows := f.tables[kindPortForwards].Rows
+	f.update(func(u *engine.UIState) { u.Selected = []model.ObjectRef{rows[0].Ref, rows[1].Ref} })
+	q.until(t, "two forwards selected", func() bool { return len(sh.ui.Selected) == 2 && sh.view.check.bar.root.Visible() })
+	settle(w)
+	bar := sh.view.check.bar
+	if bar.delID != "portforward.removeMany" || !bar.plate.Visible() || bar.del.tip != "Delete the selected objects" {
+		t.Fatalf("the bar's Delete on forwards: %q, shown %v, tip %q", bar.delID, bar.plate.Visible(), bar.del.tip)
+	}
+	test.Tap(bar.del)
+	q.until(t, "removed", func() bool { return len(f.callsOf("portforward.removeMany")) == 1 })
+	if got := decodeParams[selectionRefs](t, f.callsOf("portforward.removeMany")[0]).Refs; len(got) != 2 {
+		t.Errorf("removeMany got %v", got)
+	}
+	if n := len(f.callsOf("object.deleteMany")); n != 0 || sh.confirmer.current != nil {
+		t.Errorf("the cluster's delete ran %d times, a confirmation %v", n, sh.confirmer.current != nil)
+	}
+
+	// A virtual kind with no delete of a selection: no Delete in the bar.
+	f.update(func(u *engine.UIState) {
+		u.Selected = []model.ObjectRef{{Context: "demo", Kind: "releases", Namespace: "shop", Name: "web"}}
+	})
+	q.until(t, "a release selected", func() bool { return len(sh.ui.Selected) == 1 && bar.root.Visible() })
+	if bar.delID != "" || bar.plate.Visible() {
+		t.Errorf("the bar's Delete on a release: %q, shown %v", bar.delID, bar.plate.Visible())
+	}
+
+	// The cluster's objects: object.deleteMany, which asks first.
+	f.update(func(u *engine.UIState) {
+		u.Selected = []model.ObjectRef{{Context: "demo", Kind: "pods", Namespace: "shop", Name: "web-0"}}
+	})
+	q.until(t, "a pod selected", func() bool { return bar.delID == deleteManyID })
+	if !bar.plate.Visible() || bar.del.tip != deleteSelectedTip {
+		t.Errorf("the bar's Delete on a pod: shown %v, tip %q", bar.plate.Visible(), bar.del.tip)
+	}
+}
+
 // setDeleteReason makes the fake's object.deleteMany disabled with a reason ("" enables it), as the
 // engine's write gate does while the connection is down; under the lock, since the bar asks for the
 // reason on another goroutine.

@@ -15,7 +15,7 @@ import (
 // poll, never the Metrics Server.
 
 func part(name string) map[string]string {
-	return map[string]string{"namespace": "bezon-prod", "persistentvolumeclaim": "pg-1", "part": name}
+	return map[string]string{"namespace": "acme-prod", "persistentvolumeclaim": "pg-1", "part": name}
 }
 
 func claimQuery(ns, name string) metrics.RangeQuery {
@@ -32,7 +32,7 @@ func TestObjectRangeOfAClaim(t *testing.T) {
 	prov := promProvider(t, c, metrics.PrometheusOptions{})
 	before := c.proxyCount()
 
-	got, err := prov.ObjectRange(context.Background(), claimQuery("bezon-prod", "pg-1"))
+	got, err := prov.ObjectRange(context.Background(), claimQuery("acme-prod", "pg-1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func TestObjectRangeOfAClaim(t *testing.T) {
 		}
 	}
 	for _, sub := range []string{
-		`max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace="bezon-prod",persistentvolumeclaim="pg-1"})`,
+		`max by (namespace, persistentvolumeclaim) (kubelet_volume_stats_used_bytes{namespace="acme-prod",persistentvolumeclaim="pg-1"})`,
 		`kubelet_volume_stats_capacity_bytes{`, `kubelet_volume_stats_available_bytes{`, `"part", "used"`, `"part", "capacity"`, `"part", "available"`,
 	} {
 		if !strings.Contains(q.query, sub) {
@@ -81,7 +81,7 @@ func TestObjectRangeOfAClaim(t *testing.T) {
 func TestClaimWithoutVolumeStatsIsAnEmptyAnswer(t *testing.T) {
 	c := newPromCluster(t, false)
 	prov := promProvider(t, c, metrics.PrometheusOptions{})
-	got, err := prov.ObjectRange(context.Background(), claimQuery("bezon-prod", "pg-1"))
+	got, err := prov.ObjectRange(context.Background(), claimQuery("acme-prod", "pg-1"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,7 +106,7 @@ func TestClaimNamesAreQuotedOnTheWire(t *testing.T) {
 	}
 }
 
-var claimPG1 = metrics.ClaimScope("bezon-prod", "pg-1")
+var claimPG1 = metrics.ClaimScope("acme-prod", "pg-1")
 
 // A claim's chart asks Prometheus alone, for its volume's filesystem: never the Metrics Server,
 // not even its detection, though it answers.
@@ -119,7 +119,7 @@ func TestClaimChartAsksPrometheusAlone(t *testing.T) {
 
 	qs := d.hist.ranges()
 	now := d.clk.Now()
-	if len(qs) != 1 || qs[0].Kind != metrics.KindClaims || qs[0].Namespace != "bezon-prod" || qs[0].Name != "pg-1" ||
+	if len(qs) != 1 || qs[0].Kind != metrics.KindClaims || qs[0].Namespace != "acme-prod" || qs[0].Name != "pg-1" ||
 		qs[0].Want != metrics.WantFilesystem || !qs[0].From.Equal(now.Add(-time.Hour)) || qs[0].Step != 30*time.Second {
 		t.Fatalf("Prometheus was asked %+v, want the claim's filesystem over the hour", qs)
 	}

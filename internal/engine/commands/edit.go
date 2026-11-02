@@ -283,7 +283,7 @@ func editable(s *engine.Session, ref model.ObjectRef) error {
 	}
 	if p, ok := b.Profile(ref.Kind); ok {
 		if !p.APIObject() {
-			return fmt.Errorf("%s are not objects of the cluster's API: %w", p.Title, engine.ErrNotApplicable)
+			return engine.NotAPIObject(p)
 		}
 		// A Secret is editable: object.edit's Run opens its tab for the GUI only (D-19).
 		_, err := s.Lookup(ref)
@@ -331,7 +331,7 @@ func cachedAny(s *engine.Session, ref model.ObjectRef) error {
 	}
 	if p, ok := b.Profile(ref.Kind); ok {
 		if !p.APIObject() {
-			return fmt.Errorf("%s are not objects of the cluster's API: %w", p.Title, engine.ErrNotApplicable)
+			return engine.NotAPIObject(p)
 		}
 		_, err := s.Lookup(ref)
 		return err

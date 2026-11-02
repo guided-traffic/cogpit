@@ -292,6 +292,9 @@ type copyButton struct {
 	pinned  bool
 	tip     string
 	hovered bool
+	// stays is an icon of the hover icon's look that its owner shows for good where it put it (a
+	// forward's address, the owner's QW3): the pointer leaving it does not hide it.
+	stays bool
 	// icon is drawn in the copy icon's place, nil for the copy icon: the b64 button is a pinned copy
 	// icon with its own icon (secretcopy.go), so that its size, outline, hover and checkmark are the
 	// copy icon's (the owner's VW19 of 2026-10-25).
@@ -437,7 +440,7 @@ func (b *copyButton) MouseMoved(ev *desktop.MouseEvent) { b.sh.tip.moved(b, ev.A
 
 // MouseOut implements desktop.Hoverable.
 func (b *copyButton) MouseOut() {
-	if !b.pinned {
+	if !b.pinned && !b.stays {
 		b.Hide()
 	} else if b.hovered {
 		b.hovered = false

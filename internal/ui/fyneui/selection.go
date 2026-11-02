@@ -32,6 +32,7 @@ type textSelection struct {
 	}
 	anchor, caret int // rune offsets into the text; equal when nothing is selected
 	dragging      bool
+	lostInDrag    bool      // the focus went while a drag selected: its end takes it back
 	guard         dragGuard // a drag pressed outside the text selects nothing (VW20, dragguard.go)
 	getText       func() string
 	offsetAt      func(fyne.Position) int // the rune offset nearest a point of the widget
@@ -116,8 +117,13 @@ func (s *textSelection) Dragged(ev *fyne.DragEvent) {
 func (s *textSelection) DragEnd() { s.endDrag() }
 
 // endDrag ends a drag and reports whether it went on to the text: false for one pressed outside.
+// The focus lost on the way comes back, so the copy shortcut still reaches the selection.
 func (s *textSelection) endDrag() bool {
 	s.dragging = false
+	if s.lostInDrag {
+		s.lostInDrag = false
+		s.grab()
+	}
 	return s.guard.end()
 }
 
@@ -153,8 +159,16 @@ func (s *textSelection) Cursor() desktop.Cursor { return desktop.TextCursor }
 // FocusGained implements fyne.Focusable.
 func (s *textSelection) FocusGained() {}
 
-// FocusLost implements fyne.Focusable: the selection goes when another text takes the focus.
-func (s *textSelection) FocusLost() { s.clear() }
+// FocusLost implements fyne.Focusable: the selection goes when another text takes the focus. A drag
+// whose button comes up beside the text keeps it (the owner's QW6): Fyne's driver drops the focus
+// at a release over another widget, before it ends the drag, and endDrag takes the focus back.
+func (s *textSelection) FocusLost() {
+	if s.dragging {
+		s.lostInDrag = true
+		return
+	}
+	s.clear()
+}
 
 // TypedRune implements fyne.Focusable.
 func (s *textSelection) TypedRune(rune) {}

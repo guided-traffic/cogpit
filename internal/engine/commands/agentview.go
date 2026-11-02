@@ -12,8 +12,9 @@ import "github.com/guided-traffic/cogpit/internal/engine"
 const privateReads = " Cogpit's built-in agent over a connection the user marked private (a local model or a private " +
 	"cloud) reads it as Cogpit's window shows it."
 
-// ForAgent filters object.get's model with its related objects as a bare model is filtered.
-func (o objectWithRelated) ForAgent(v *engine.AgentView) any {
+// ForAgent filters object.get's model, with its related objects and its volume's usage, as a
+// bare model is filtered.
+func (o objectResult) ForAgent(v *engine.AgentView) any {
 	v.Detail(o.DetailModel)
 	return o
 }

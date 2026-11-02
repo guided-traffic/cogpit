@@ -256,10 +256,14 @@ func (s FilesystemSample) Share() float64 {
 // claim (namespace, persistentvolumeclaim), so the volume is found by its claim. Pods are the
 // pods that mount the claim, by name in its namespace, sorted: the engine's, from the cache (one
 // for most ReadWriteOnce claims, though several on one node may mount it; any number for
-// ReadWriteMany); nil while the pods are still listing or none mounts it.
+// ReadWriteMany); nil while the pods are still listing or none mounts it. SizeBytes is the
+// volume's size as the API states it, which the kubelet's filesystem is checked against (a
+// storage that does not keep to it, D-139): a claim's the larger of its capacity and its request,
+// a volume's its capacity; 0 without one.
 type VolumeClaim struct {
 	Namespace string   `json:"namespace"`
 	Claim     string   `json:"claim"`
 	Volume    string   `json:"volume"`
+	SizeBytes int64    `json:"sizeBytes,omitempty"`
 	Pods      []string `json:"pods,omitempty"`
 }

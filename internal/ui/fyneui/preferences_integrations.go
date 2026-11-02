@@ -9,9 +9,8 @@ import (
 )
 
 // Preferences › Kubernetes › Integrations of new clusters (D-76, D-82; engine/integrations.go): what
-// the question at a new cluster's first connect looks for at once when the user checks the
-// integrations ("Check all integrations", "Check the default integrations" while it switches some
-// off), and what the question's "Save as the default for new clusters" sets. Nothing is looked for
+// the question at a new cluster's first connect turns on when the user answers "Use my default
+// integrations", and what the question's "Save as the default for new clusters" sets. Nothing is looked for
 // before the user answers the question's pre-choice (D-82), so the default no longer applies to an
 // undecided cluster by itself. Every integration is on by default (the owner, 2026-10-17). Cogpit's
 // own: Lens has no integrations; its place beside the other cluster-wide defaults of the Kubernetes

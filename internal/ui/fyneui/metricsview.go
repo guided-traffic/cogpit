@@ -87,9 +87,10 @@ type metricsPanel struct {
 	// volume says the section is a persistent volume claim's or a persistent volume's: one chart of
 	// the volume's filesystem, no variant buttons, a line above it that says whose usage it shows
 	// (intro) and a usage bar under it (metricsvolume.go).
-	volume bool
-	intro  *sourceLine // the other object's name a link
-	pods   *sourceLine // the pods that mount the claim, each a link
+	volume   bool
+	intro    *sourceLine // the other object's name a link
+	pods     *sourceLine // the pods that mount the claim, each a link
+	sizeNote *paragraph  // under the usage bar: the storage does not keep to the volume's size
 
 	root    *fyne.Container
 	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
@@ -153,7 +154,10 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel 
 	p.status.setAvail(d.contentWidth)
 	p.status.root.Hide()
 	p.disk = newDiskBars()
-	p.root = container.NewVBox(p.intro, p.pods, p.controls, p.plot, p.hint, p.disk, p.caption, p.note, p.status.root)
+	p.sizeNote = newParagraph("", colorMuted, d.contentWidth())
+	p.sizeNote.size = theme.SizeNameCaptionText
+	p.sizeNote.Hide()
+	p.root = container.NewVBox(p.intro, p.pods, p.controls, p.plot, p.hint, p.disk, p.sizeNote, p.caption, p.note, p.status.root)
 	p.render()
 	return p
 }
@@ -761,7 +765,8 @@ func (d *drawer) metricsPanel(m *engine.DetailModel) *metricsPanel {
 		d.kept[metricsKey] = p
 		p.refresh()
 	} else if p.volume {
-		p.refresh() // the pods that mount the claim changed, or its binding: the engine says which
+		p.showSizeNote(p.sizeNote.text) // wrapped to the drawer's width, which may have changed
+		p.refresh()                     // the pods that mount the claim changed, or its binding: the engine says which
 	}
 	p.setEvents(m.Events)
 	return p

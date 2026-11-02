@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 123 | 120 | 8 | 112 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 79 | 78 | 67 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 80 | 79 | 68 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -361,6 +361,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | The cluster's Kubernetes version in the navigator's cluster row with a warning symbol when it is past its end of life and how long it has l… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A namespace stuck in Terminating says what holds it: its drawer lists the objects whose finalizers keep it, with links, deleted ones vanish… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Debug containers: ephemeral containers stand out in blue among a pod's containers in the Pods list; a drawer icon adds one, asking for the… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| A table opens with the width its columns leave free given first to the columns whose text is cut, each up to its widest, and the rest to Na… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The navigator moves: going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's history in its drawer, as k9s's history view shows it: every revision with its status, chart, app version and time, and th… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's revisions, as k9s shows them (its values v and manifests y per revision): an older revision's values, user-supplied and al… | done | [Everyday use](beyond-lens.md#everyday-use) |
@@ -368,7 +369,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every integration on by default, the default for new clusters the user's to change | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
-| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "Check all integrations" looks f… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| A short pre-choice before any integration is looked for, since the search runs with the user's privileges: "Use my default integrations" tu… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The question can be shown again after it was answered | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A pod's drawer grades each container's image from Trivy Operator's reports, in the container's own section, as a symbol and a detail view,… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |

@@ -19,12 +19,13 @@ import (
 // nothing: the connect has finished and the views load behind it. It follows the question's step:
 //
 //   - the pre-choice (the owner's WF5 of 2026-10-17: "eine kurze Vorauswahl", since the "Suchen"
-//     run with the user's privileges): why it asks, and three choices, "Check all
-//     integrations" (or "Check the default integrations" while the default for new clusters
-//     switches some off), "Choose integrations" and "Don't use integrations", each with a line of
-//     what it does; Later. Nothing is looked for.
-//   - the rows (Check all, Choose): the same rows as Cluster Settings › Integrations (a checkbox with
-//     the label, the status line in the status colours, live, and what it adds), ticked as the
+//     run with the user's privileges): why it asks, and three choices, each with a line of what it
+//     does: "Use my default integrations" answers at once with the default for new clusters
+//     (Preferences › Kubernetes; the owner's QW4: "ohne weitere Nachfrage. Die zweite Maske wird
+//     direkt übersprungen"), "Choose integrations" and "Don't use integrations (no metrics will be
+//     displayed)"; Later. Nothing is looked for.
+//   - the rows (Choose): the same rows as Cluster Settings › Integrations (a checkbox with the
+//     label, the status line in the status colours, live, and what it adds), ticked as the
 //     engine's IntegrationsLookFor says; a tick dispatches cluster.integrations.lookFor, and the
 //     integration is looked for at once; an unticked row reads "Not looked for: tick it to look for
 //     it". The checkbox "Save as the default for new clusters" (off until ticked), Back, Later and
@@ -42,16 +43,13 @@ import (
 const (
 	integrationsAskSave    = "Save as the default for new clusters"
 	integrationsAskWhy     = "Cogpit can read tools this cluster runs to show more: metrics, alerts, image ratings and policy marks. It looks for them with your identity and never writes to them. Nothing is looked for until you choose."
-	integrationsAskAll     = "Check all integrations"
-	integrationsAskDefault = "Check the default integrations"
+	integrationsAskDefault = "Use my default integrations"
 	integrationsAskChoose  = "Choose integrations"
-	integrationsAskNone    = "Don't use integrations"
+	integrationsAskNone    = "Don't use integrations (no metrics will be displayed)"
 	// What each choice does, the line under its button.
-	integrationsAskAllHint    = "Looks for all of them now; untick what you don't want before you apply."
 	integrationsAskChooseHint = "Looks for nothing until you tick an integration."
 	integrationsAskNoneHint   = "The cluster's resources still show; no metrics, alerts, image ratings or policy marks."
-	// The rows' text after each choice.
-	integrationsAskRowsAll    = "Cogpit looks for each ticked integration now, with your identity, and never writes to it. Untick what you don't want, then apply."
+	// The rows' text.
 	integrationsAskRowsChoose = "Tick an integration to look for it: Cogpit looks with your identity and never writes to it. Apply keeps your choice."
 	// integrationsAskUnticked is an unticked row's status: nothing is asked for it.
 	integrationsAskUnticked = "Not looked for: tick it to look for it"
@@ -63,10 +61,10 @@ const (
 type integrationsQuestion struct {
 	sh   *shell
 	ctx  string                  // the context the open dialog asks about; "" while none is open
-	page engine.IntegrationsStep // the page it shows: the pre-choice, or the rows of Check all or Choose
+	page engine.IntegrationsStep // the page it shows: the pre-choice, or the rows of Choose
 
 	d       *dialog.CustomDialog
-	choices []*textButton // the pre-choice's Check all, Choose and Don't use
+	choices []*textButton // the pre-choice's Use my default integrations, Choose and Don't use
 	rows    []*integrationRow
 	save    *fieldCheck
 	apply   *textButton
@@ -90,10 +88,10 @@ func integrationsQuestionChanged(st, old engine.UIState) bool {
 		st.IntegrationsLookFor != old.IntegrationsLookFor
 }
 
-// questionPage is the page the dialog shows for a step: the rows of Check all and Choose, else the
-// pre-choice (under Don't use's warning too).
+// questionPage is the page the dialog shows for a step: the rows of Choose, else the pre-choice
+// (under Don't use's warning too).
 func questionPage(step engine.IntegrationsStep) engine.IntegrationsStep {
-	if step == engine.IntegrationsCheckAll || step == engine.IntegrationsChoose {
+	if step == engine.IntegrationsChoose {
 		return step
 	}
 	return engine.IntegrationsPreChoice
@@ -148,7 +146,7 @@ func (q *integrationsQuestion) open(ctx string, page engine.IntegrationsStep) {
 		content = q.preChoice()
 		buttons = []fyne.CanvasObject{q.later}
 	} else {
-		content = q.rowsPage(page)
+		content = q.rowsPage()
 		buttons = []fyne.CanvasObject{q.back, q.later, q.apply}
 	}
 	q.d = dialog.NewCustomWithoutButtons("Integrations for "+sh.identity(ctx).name, sized(sizePickerWidth, "", content), sh.win)
@@ -169,9 +167,8 @@ func (q *integrationsQuestion) open(ctx string, page engine.IntegrationsStep) {
 func (q *integrationsQuestion) preChoice() fyne.CanvasObject {
 	sh := q.sh
 	width := sh.app.Settings().Theme().Size(sizePickerWidth)
-	all, allHint := q.checkAllText()
-	choice := func(label, hint string, step engine.IntegrationsStep) []fyne.CanvasObject {
-		b := newPlateButton(label, nil, func() { q.step(step) })
+	choice := func(label, hint string, tap func()) []fyne.CanvasObject {
+		b := newPlateButton(label, nil, tap)
 		b.Alignment = widget.ButtonAlignLeading
 		q.choices = append(q.choices, b)
 		line := newTextLine(hint, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
@@ -179,22 +176,27 @@ func (q *integrationsQuestion) preChoice() fyne.CanvasObject {
 		return []fyne.CanvasObject{b, inset(theme.SizeNameInnerPadding, "", line), newSpace(theme.SizeNamePadding)}
 	}
 	objs := []fyne.CanvasObject{newParagraph(integrationsAskWhy, theme.ColorNameForeground, width), newSpace(theme.SizeNameInnerPadding)}
-	objs = append(objs, choice(all, allHint, engine.IntegrationsCheckAll)...)
-	objs = append(objs, choice(integrationsAskChoose, integrationsAskChooseHint, engine.IntegrationsChoose)...)
-	objs = append(objs, choice(integrationsAskNone, integrationsAskNoneHint, engine.IntegrationsDontUse)...)
+	objs = append(objs, choice(integrationsAskDefault, q.defaultsHint(), q.useDefaults)...)
+	objs = append(objs, choice(integrationsAskChoose, integrationsAskChooseHint, func() { q.step(engine.IntegrationsChoose) })...)
+	objs = append(objs, choice(integrationsAskNone, integrationsAskNoneHint, func() { q.step(engine.IntegrationsDontUse) })...)
 	q.choices[0].Importance = widget.HighImportance
 	return container.NewVBox(append(objs, q.errLine)...)
 }
 
-// checkAllText is the first choice's label and line: all of them, or those the default for new
-// clusters keeps on, named, while it switches some off.
-func (q *integrationsQuestion) checkAllText() (string, string) {
-	var off engine.IntegrationSet
+// defaultsOff are the integrations the default for new clusters switches off (Preferences ›
+// Kubernetes › Integrations of new clusters).
+func (q *integrationsQuestion) defaultsOff() engine.IntegrationSet {
 	if p := q.sh.ui.Preferences; p != nil {
-		off = p.IntegrationsOff & engine.IntAll
+		return p.IntegrationsOff & engine.IntAll
 	}
+	return 0
+}
+
+// defaultsHint is the first choice's line: what the default for new clusters turns on, named.
+func (q *integrationsQuestion) defaultsHint() string {
+	off := q.defaultsOff()
 	if off == 0 {
-		return integrationsAskAll, integrationsAskAllHint
+		return "Turns on all of them now, as Preferences › Kubernetes says for new clusters."
 	}
 	var labels []string
 	for _, in := range engine.Integrations {
@@ -203,9 +205,22 @@ func (q *integrationsQuestion) checkAllText() (string, string) {
 		}
 	}
 	if len(labels) == 0 {
-		return integrationsAskDefault, "Your default for new clusters has every integration off: nothing is looked for."
+		return "Your default for new clusters has every integration off: none is turned on."
 	}
-	return integrationsAskDefault, "Looks for " + andList(labels) + " now, your default for new clusters; untick what you don't want."
+	return "Turns on " + andList(labels) + " now, as Preferences › Kubernetes says for new clusters."
+}
+
+// useDefaults answers with the default for new clusters, without a page of rows.
+func (q *integrationsQuestion) useDefaults() {
+	if q.ctx == "" {
+		return
+	}
+	off := q.defaultsOff()
+	switches := map[string]bool{}
+	for _, in := range engine.Integrations {
+		switches[string(in.Name)] = off&in.Set == 0
+	}
+	q.answerWith(switches, false)
 }
 
 // andList joins names as a sentence does: "a", "a and b", "a, b and c".
@@ -216,14 +231,11 @@ func andList(names []string) string {
 	return strings.Join(names[:len(names)-1], ", ") + " and " + names[len(names)-1]
 }
 
-// rowsPage builds the rows of Check all or Choose: what happens, a row per integration ticked as
-// the engine says, the checkbox for the default, and Back and Apply.
-func (q *integrationsQuestion) rowsPage(page engine.IntegrationsStep) fyne.CanvasObject {
+// rowsPage builds the rows of Choose: what happens, a row per integration ticked as the engine
+// says, the checkbox for the default, and Back and Apply.
+func (q *integrationsQuestion) rowsPage() fyne.CanvasObject {
 	sh := q.sh
 	text := integrationsAskRowsChoose
-	if page == engine.IntegrationsCheckAll {
-		text = integrationsAskRowsAll
-	}
 	objs := make([]fyne.CanvasObject, 0, 6+len(engine.Integrations))
 	objs = append(objs, newParagraph(text, theme.ColorNameForeground, sh.app.Settings().Theme().Size(sizePickerWidth)),
 		newSpace(theme.SizeNameInnerPadding))

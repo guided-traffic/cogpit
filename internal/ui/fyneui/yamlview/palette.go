@@ -35,7 +35,10 @@ type palette struct {
 	bg, gutterFg, gutterFgActive, separator color.Color
 	caret, selection, currentLine           color.Color
 	scrollBar                               color.Color
-	kinds                                   [numTokKinds]color.Color
+	// findMatch tints a find bar's matches, findCurrent fills its selected one and findStroke
+	// outlines it (View.SetMarks).
+	findMatch, findCurrent, findStroke color.Color
+	kinds                              [numTokKinds]color.Color
 }
 
 // resolvePalette derives the palette from th in variant v.
@@ -82,7 +85,33 @@ func resolvePalette(th fyne.Theme, v fyne.ThemeVariant) palette {
 		}
 		p.kinds[d.kind] = ensureContrast(d.fallback, bg, d.ratio)
 	}
+	scanned := []color.Color{p.kinds[tokPlain], p.kinds[tokKey], p.kinds[tokString], p.kinds[tokNumber], p.kinds[tokLiteral], p.kinds[tokAnchor]}
+	p.findMatch, p.findCurrent, p.findStroke = findColors(c(theme.ColorNameWarning), bg, scanned)
 	return p
+}
+
+// findColors are the find marks' colours from the theme's warning colour (amber in Cogpit's): the
+// selected match's fill as strong as the colours of the text one scans allow (kinds, each keeping a
+// contrast of 3 on it; comments and punctuation are muted already), outlined in the warning colour
+// itself; every other match a lighter tint of it. The text keeps its colours on both (the owner's
+// QW1: the match was hard to find on the selection's colour).
+func findColors(warning, bg color.Color, kinds []color.Color) (match, current, stroke color.Color) {
+	current = mix(warning, bg, 0.8)
+	for t := 0.35; t <= 0.8; t += 0.05 {
+		fill := mix(warning, bg, t)
+		ok := true
+		for _, k := range kinds {
+			if k != nil && contrast(k, fill) < contrastMuted {
+				ok = false
+				break
+			}
+		}
+		if ok {
+			current = fill
+			break
+		}
+	}
+	return mix(warning, bg, 0.78), current, warning
 }
 
 // isUnset reports whether a theme returned no colour for a name.

@@ -84,7 +84,8 @@ func pvVolume(obj *unstructured.Unstructured) (model.VolumeClaim, bool) {
 	if ns == "" || name == "" || model.NestedString(obj, "status", "phase") != pvcBound {
 		return model.VolumeClaim{}, false
 	}
-	return model.VolumeClaim{Namespace: ns, Claim: name, Volume: obj.GetName()}, true
+	return model.VolumeClaim{Namespace: ns, Claim: name, Volume: obj.GetName(),
+		SizeBytes: quantityValue(model.NestedIntOrString(obj, "spec", "capacity", resourceStorage))}, true
 }
 
 func pvCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {

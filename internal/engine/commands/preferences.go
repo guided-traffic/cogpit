@@ -33,6 +33,7 @@ type preferencesSetParams struct {
 	Theme             *string  `json:"theme,omitempty" jsonschema:"system (follow the computer's light or dark setting), dark or light; Cogpit's window switches at once unless it was started with --theme"`
 	Timezone          *string  `json:"timezone,omitempty" jsonschema:"IANA time zone absolute times are shown in, such as Europe/Berlin or UTC; empty: the computer's own"`
 	TableRowHeight    *int     `json:"tableRowHeight,omitempty" jsonschema:"a table row's height in points, 20 to 48; 0: Cogpit's default"`
+	TableSpreadWidth  *bool    `json:"tableSpreadWidth,omitempty" jsonschema:"whether a table, when it opens, gives the width its columns leave free first to the columns whose content is cut (each up to its widest text in the first 500 rows) and the rest to Name (true, the default); false: Name takes all of it. Measured once when the table opens, never while it stays open; a column the user sized keeps its width"`
 	EditorFontSize    *int     `json:"editorFontSize,omitempty" jsonschema:"the YAML editor's text size in points, 8 to 32 (default 13)"`
 	EditorLineNumbers *bool    `json:"editorLineNumbers,omitempty" jsonschema:"whether the YAML editor shows line numbers (default true)"`
 	EditorTabSize     *int     `json:"editorTabSize,omitempty" jsonschema:"how many spaces Tab indents by in the YAML editor, 1 to 8 (default 2)"`
@@ -57,7 +58,7 @@ type preferencesSetParams struct {
 	// RestoreSession: agents and the CLI may only turn it off (engine/restore.go, D-69 item 8).
 	RestoreSession *bool `json:"restoreSession,omitempty" jsonschema:"whether Cogpit, at its next start, restores the tabs of the last run and connects again to the clusters connected when it quit, the one shown then first, their credential plugins running as on any connect (default false: it starts without tabs and connections). Agents and the CLI may only turn it off"`
 	// IntegrationDefaults: the integrations of clusters without a choice of their own (engine/integrations.go, D-76).
-	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations looks for when the user checks them (Check all), and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. GUI only: refused to agents and the CLI, on (true) and off (false) alike: the default is what the user's Check all looks for, which is the user's, in Cogpit's window"`
+	IntegrationDefaults map[string]bool `json:"integrationDefaults,omitempty" jsonschema:"the default for new clusters: integrations on (true) or off (false), by name (metrics-server, prometheus, alertmanager, trivy, kyverno), what the window's question about a new cluster's integrations turns on when the user answers Use my default integrations, and what a session that does not ask (the CLI's) reads; the window reads nothing of a cluster without a choice before its question is answered. Those left out stay as they are (default: every one on); preferences.integrationsOff reads back the ones off. GUI only: refused to agents and the CLI, on (true) and off (false) alike: the default is what the user's Use my default integrations turns on, which is the user's, in Cogpit's window"`
 	// DebugImage: the image Debug offers for a pod's debug container (engine/debugcontainer.go, D-102).
 	DebugImage *string `json:"debugImage,omitempty" jsonschema:"the image Debug (pod_debug) offers for a pod's debug container, best pinned by digest (repository:tag@sha256:...); empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest. Agents and the CLI may only reset it (an empty string): setting one is the user's, in Cogpit's window"`
 	// MixedEnvironments: which tabs the tab bar shows (engine/navscope.go TabsShown, GW11).
@@ -98,8 +99,8 @@ func (p preferencesSetParams) refuse(ctx context.Context) error {
 }
 
 // refuseIntegrationDefaults refuses any change of the default integrations for new clusters, on or
-// off, from every origin but the GUI: it is what the user's Check all looks for with the user's
-// identity (H-126) and what it leaves out (H-133). The names are checked first.
+// off, from every origin but the GUI: it is what the user's Use my default integrations turns on,
+// read with the user's identity (H-126), and what it leaves out (H-133). The names are checked first.
 func (p preferencesSetParams) refuseIntegrationDefaults(ctx context.Context) error {
 	if len(p.IntegrationDefaults) == 0 {
 		return nil
@@ -127,7 +128,8 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.get", Label: "Show Preferences", Danger: engine.DangerRead,
 		Description: "Returns Cogpit's preferences as the Preferences page (⌘,) shows them: the theme (system, dark, light), " +
 			"the time zone absolute times are shown in (empty: the computer's) and the zone in effect, the tables' row " +
-			"height, the YAML editor's font size, line numbers and tab size, the terminal's font size, the local " +
+			"height, whether a table gives its free width to the columns that are cut when it opens (tableSpreadWidth), " +
+			"the YAML editor's font size, line numbers and tab size, the terminal's font size, the local " +
 			"terminal's shell and arguments (empty: the system's default shell, $SHELL or on Windows PowerShell), whether a right click in a terminal copies and pastes, the " +
 			"HTTP proxy of the traffic that is no cluster's (empty: the environment's; its password shown as •••), and " +
 			"kubectl for terminals: downloads offered or not, the mirror, the directory for binaries (kubectlDir: the one " +
@@ -157,7 +159,8 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.set", Label: "Set Preferences", Danger: engine.DangerUI,
 		Description: "Changes some of Cogpit's preferences, as the Preferences page does; the fields left out stay as they are. " +
 			"The window follows at once: the theme, the time zone of the drawer's Created and the charts, the tables' row " +
-			"height, the open editors; the HTTP proxy at the next download from a Helm repository or of kubectl. The " +
+			"height and how the open table shares its free width (tableSpreadWidth), the open editors; the HTTP proxy " +
+			"at the next download from a Helm repository or of kubectl. The " +
 			"local terminal's shell and its arguments are refused for agents and the CLI: they name a program Cogpit " +
 			"runs on this computer; so are the path to kubectl, the directory for binaries and the kubectl download " +
 			"mirror, which decide what the terminals run as kubectl, and the terminals' right mouse button, which decides " +
@@ -264,6 +267,7 @@ func registerPreferences(g *registrar) {
 					pr.Timezone = strings.TrimSpace(*p.Timezone)
 				}
 				setIf(&pr.TableRowHeight, p.TableRowHeight)
+				setIf(&pr.TableSpreadWidth, p.TableSpreadWidth)
 				setIf(&pr.EditorFontSize, p.EditorFontSize)
 				setIf(&pr.EditorLineNumbers, p.EditorLineNumbers)
 				setIf(&pr.EditorTabSize, p.EditorTabSize)

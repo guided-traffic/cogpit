@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"slices"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -368,19 +369,51 @@ type selectionBar struct {
 	// asked is the connection (its context and state) the engine was last asked about why Delete
 	// cannot run; "" while Delete works.
 	asked string
+	// delID is the command Delete runs on the selection (selectionDelete); "" hides Delete.
+	delID string
 }
 
-// deleteManyID is the command the selection bar's Delete runs.
+// deleteManyID is the command the selection bar's Delete runs on objects of the cluster's API.
 const deleteManyID = "object.deleteMany"
 
-// deleteSelectedTip is the selection bar's Delete's tooltip while it works.
+// deleteSelectedTip is the selection bar's Delete's tooltip while it works: with "…" for a delete
+// that asks first.
 const deleteSelectedTip = "Delete the selected objects…"
+
+// selectionDelete is the command the bar's Delete runs on the selection: its kinds' own delete of
+// a selection (a port forward's, portforward.removeMany), else object.deleteMany for objects of the
+// cluster's API; "" for Cogpit's own or derived objects without one (the owner's QW12: the bar ran
+// the cluster's delete on port forwards, which refused them), and the bar then offers no Delete.
+func (tv *tableView) selectionDelete() string {
+	kinds := engine.SelectionKinds(tv.selected)
+	for _, c := range tv.sh.eng.Registry().SelectionActions(kinds) {
+		if c.Order == engine.OrderDelete && len(c.Kinds) > 0 {
+			return c.ID
+		}
+	}
+	for _, k := range kinds {
+		if tv.sh.cogpitKind(k) {
+			return ""
+		}
+	}
+	return deleteManyID
+}
+
+// deleteTip is Delete's tooltip for the command it runs: without "…" for one that does not ask.
+func (b *selectionBar) deleteTip() string {
+	if cmd, ok := b.tv.sh.eng.Registry().Get(b.delID); ok && cmd.Danger != engine.DangerDestructive {
+		return strings.TrimSuffix(deleteSelectedTip, "…")
+	}
+	return deleteSelectedTip
+}
 
 func newSelectionBar(tv *tableView) *selectionBar {
 	b := &selectionBar{tv: tv}
 	b.count = newTextLine("", colorAccent, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	b.del = newTipButton(tv.sh, theme.NewErrorThemedResource(theme.DeleteIcon()), deleteSelectedTip, func() {
-		tv.runOnSelection(deleteManyID, slices.Clone(tv.selected))
+		if b.delID != "" {
+			tv.runOnSelection(b.delID, slices.Clone(tv.selected))
+		}
 	})
 	b.plate = newDangerPlate(b.del) // an outlined plate, not a solid red block (chrome_actions.go)
 	b.clear = newTipButton(tv.sh, theme.CancelIcon(), "Clear the selection", tv.clearSelection)
@@ -396,6 +429,14 @@ func (b *selectionBar) update(n int) {
 	} else {
 		b.count.SetText(formatCount(int64(n)) + " selected")
 		b.root.Show()
+	}
+	if id := b.tv.selectionDelete(); id != b.delID {
+		b.delID, b.asked = id, ""
+	}
+	if b.delID == "" {
+		b.plate.Hide()
+	} else {
+		b.plate.Show()
 	}
 	b.followConnection()
 	b.tv.showHeadingCount()
@@ -414,7 +455,7 @@ func (b *selectionBar) followConnection() {
 			b.del.Enable()
 		}
 		b.asked = ""
-		b.del.setTip(deleteSelectedTip)
+		b.del.setTip(b.deleteTip())
 		b.plate.Refresh()
 		return
 	}
@@ -434,14 +475,17 @@ func (b *selectionBar) followConnection() {
 // meanwhile. No reason (the connection came back in between) leaves the tooltip as it is.
 func (b *selectionBar) askReason(at string) {
 	sh := b.tv.sh
-	refs := slices.Clone(b.tv.selected)
+	refs, id := slices.Clone(b.tv.selected), b.delID
+	if id == "" {
+		return
+	}
 	go func() {
 		defer sh.recoverTo("the selection's Delete")
 		label := "Delete"
-		if cmd, ok := sh.eng.Registry().Get(deleteManyID); ok {
+		if cmd, ok := sh.eng.Registry().Get(id); ok {
 			label = cmd.Label
 		}
-		err := sh.commandEnabled(deleteManyID, engine.SelectionParams(refs))
+		err := sh.commandEnabled(id, engine.SelectionParams(refs))
 		sh.do(func() {
 			if err != nil && b.asked == at {
 				b.del.setTip(disabledLabel(label, err.Error()))
