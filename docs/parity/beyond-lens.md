@@ -7,7 +7,7 @@ targets; they do not count toward the parity numbers in
 [`target-app-parity.md`](target-app-parity.md), which measure Cogpit against Lens. Method:
 [`README.md`](README.md).
 
-**Summary (measured):** 90 of 91 rows exist: 78 done and 12 partial. MCP control (17 rows), the
+**Summary (measured):** 91 of 92 rows exist: 78 done and 13 partial. MCP control (17 rows), the
 built-in agent (11), cache transparency (2), alerts (2) and k9s's keys (6) are done. Partial: the one-click update
 and package-manager installs, the Helm crash offer, four standby rows, copying from the drawer, the
 integrations' section and first-connect question, the Image Security page, the Velero page, and `cogpit-cli get`. Missing: a hotbar tile
