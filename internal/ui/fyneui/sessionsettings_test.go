@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -18,8 +17,8 @@ func TestPreferencesRestoreSession(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "app"})
-	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["restoreSession"].(*widget.Check); return ok })
-	check := sh.settings.controls["restoreSession"].(*widget.Check)
+	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["restoreSession"].(*pillSwitch); return ok })
+	check := sh.settings.controls["restoreSession"].(*pillSwitch)
 	if check.Checked || check.Text != restoreSessionCheck {
 		t.Fatalf("checked %v, label %q", check.Checked, check.Text)
 	}
@@ -36,10 +35,10 @@ func TestClusterSettingsRenewLogin(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
 	q.until(t, "the row", func() bool {
-		c, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
+		c, ok := sh.settings.controls["renewLoginInBackground"].(*pillSwitch)
 		return ok && c.Checked
 	})
-	check := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
+	check := sh.settings.controls["renewLoginInBackground"].(*pillSwitch)
 	if check.Text != renewLoginCheck {
 		t.Errorf("label %q", check.Text)
 	}
@@ -58,8 +57,8 @@ func TestClusterSettingsRenewLoginChangedElsewhereRightAfterATap(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
-	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["renewLoginInBackground"].(*widget.Check); return ok })
-	check := sh.settings.controls["renewLoginInBackground"].(*widget.Check)
+	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["renewLoginInBackground"].(*pillSwitch); return ok })
+	check := sh.settings.controls["renewLoginInBackground"].(*pillSwitch)
 	test.Tap(check)
 	// The window shows the off, and the page's read of its settings for it has answered: no answer
 	// still under way shows the state again by chance.
@@ -99,7 +98,7 @@ func renderPreferencesRestoreSession(t *testing.T, mode ThemeMode, name string) 
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "app"})
 	q.until(t, "the row", func() bool {
-		c, ok := sh.settings.controls["restoreSession"].(*widget.Check)
+		c, ok := sh.settings.controls["restoreSession"].(*pillSwitch)
 		return ok && c.Checked
 	})
 	q.drain()

@@ -10,7 +10,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -305,7 +304,7 @@ var fontSizes = []int{10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24}
 func (p *settingsPage) editorSection() fyne.CanvasObject {
 	pr := p.prefs()
 	font := p.intSelect("editorFontSize", sizeChoices(pr.EditorFontSize, fontSizes...))
-	numbers := widget.NewCheck("Show line numbers", func(on bool) { p.setPreference("editorLineNumbers", on) })
+	numbers := newLabelledSwitch("Show line numbers", func(on bool) { p.setPreference("editorLineNumbers", on) })
 	tab := p.intSelect("editorTabSize", sizeChoices(pr.EditorTabSize, 1, 2, 4, 8))
 	p.sync = func() {
 		pr := p.prefs()

@@ -4,7 +4,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Cluster Settings › General › Debug (D-135; engine/initiallists.go). Cogpit's own. A switch, "Use
@@ -23,7 +22,7 @@ const (
 // clusterStreamsSetting returns the row and the function that shows the setting in it, from the UI
 // state's cluster settings.
 func (p *settingsPage) clusterStreamsSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(streamsCheck, func(on bool) { p.setCluster("streamInitialLists", on) })
+	check := newLabelledSwitch(streamsCheck, func(on bool) { p.setCluster("streamInitialLists", on) })
 	desc := newParagraph(streamsText, colorMuted, settingsHelpWidth)
 	desc.size = theme.SizeNameCaptionText
 	p.controls["streamsText"] = desc

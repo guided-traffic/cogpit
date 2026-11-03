@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -274,8 +273,8 @@ func TestPreferencesTableSpreadWidth(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "tables"})
-	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["tableSpreadWidth"].(*widget.Check); return ok })
-	check := sh.settings.controls["tableSpreadWidth"].(*widget.Check)
+	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["tableSpreadWidth"].(*pillSwitch); return ok })
+	check := sh.settings.controls["tableSpreadWidth"].(*pillSwitch)
 	q.until(t, "checked", func() bool { return check.Checked })
 	if check.Text != spreadWidthCheck {
 		t.Fatalf("label %q", check.Text)

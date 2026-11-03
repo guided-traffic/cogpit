@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Preferences › App › Reduce motion (the owner, 2026-10-20: "weniger Bewegung", for those who do
@@ -32,7 +31,7 @@ func (sh *shell) reduceMotion() bool {
 
 // reduceMotionSetting returns the row and the function that shows the preference in it.
 func (p *settingsPage) reduceMotionSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(reduceMotionCheck, func(on bool) { p.setPreference("reduceMotion", on) })
+	check := newLabelledSwitch(reduceMotionCheck, func(on bool) { p.setPreference("reduceMotion", on) })
 	sync := func() { check.SetChecked(p.prefs().ReduceMotion) }
 	return p.setting("reduceMotion", reduceMotionTitle, reduceMotionHelp, check), sync
 }

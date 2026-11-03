@@ -7,7 +7,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Chart icons in the window (D-46, decided by the owner 2026-10-14; HELM2;
@@ -188,7 +187,7 @@ const chartIconKey = "helm.chartIcon"
 // chartIconsSetting returns Preferences › Kubernetes › Load chart icons and the function that
 // shows the preference in it.
 func (p *settingsPage) chartIconsSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck("Load the icon a chart repository names, from the host that serves it", func(on bool) {
+	check := newLabelledSwitch("Load the icon a chart repository names, from the host that serves it", func(on bool) {
 		p.setPreference("loadChartIcons", on)
 	})
 	sync := func() { check.SetChecked(p.prefs().LoadChartIcons) }

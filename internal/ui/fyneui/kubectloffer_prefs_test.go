@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -19,12 +18,12 @@ func TestKubectlPreferencesFields(t *testing.T) {
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the Kubernetes section", func() bool { return sh.settings.controls["kubectlPath"] != nil })
 	p := sh.settings
-	if !p.controls["kubectlDownload"].(*widget.Check).Checked {
+	if !p.controls["kubectlDownload"].(*pillSwitch).Checked {
 		t.Error("downloads are not offered by default")
 	}
 	prefs := func() engine.Preferences { pr, _ := s.Preferences(); return pr }
 
-	test.Tap(p.controls["kubectlDownload"].(*widget.Check))
+	test.Tap(p.controls["kubectlDownload"].(*pillSwitch))
 	q.until(t, "downloads off", func() bool { return !prefs().KubectlDownload })
 
 	mirror := entryOf(p.controls["kubectlMirror"])
@@ -58,7 +57,7 @@ func TestKubectlPreferencesFields(t *testing.T) {
 
 	// The page follows a change made elsewhere (an agent may switch downloads back on).
 	mustDispatch(t, s, "preferences.set", map[string]any{"kubectlDownload": true})
-	q.until(t, "the check follows", func() bool { return p.controls["kubectlDownload"].(*widget.Check).Checked })
+	q.until(t, "the check follows", func() bool { return p.controls["kubectlDownload"].(*pillSwitch).Checked })
 }
 
 // renderKubectlPreferences: Preferences › Kubernetes with the kubectl settings, a mirror and a path

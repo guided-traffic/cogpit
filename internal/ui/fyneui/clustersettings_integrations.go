@@ -67,9 +67,10 @@ type integrationRow struct {
 }
 
 // newIntegrationRow builds a row; onSwitch receives the user's switch (not the state's). Dark
-// Cockpit: the first line is the tile, the name and the switch, on one baseline; under it two
-// quiet lines, the status (a dot, and words that are coloured only when something needs the user
-// or fails) and what the integration adds.
+// Cockpit: the tile at the left, its top level with the name's capitals (tileAtTitle); beside it
+// the name and the switch on the first line, under them two quiet lines, the status (a dot, and
+// words that are coloured only when something needs the user or fails) and what the integration
+// adds.
 func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integrationRow {
 	r := &integrationRow{name: in.Name}
 	r.check = newPillSwitch(in.Label, onSwitch)
@@ -82,10 +83,10 @@ func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integ
 	r.adds.truncate = true
 	r.slot = container.NewStack(r.status)
 	r.tile = newInstrumentTile(in.Name)
-	first := container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), r.tile), r.check, r.title)
+	first := container.NewBorder(nil, nil, nil, r.check, r.title)
 	r.line = container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 6), newDotSlot(r.dot)), nil, r.slot)
-	under := box(layout.NewCustomPaddedVBoxLayout(2), r.line, r.adds)
-	r.box = box(layout.NewCustomPaddedVBoxLayout(2), first, box(fixedIndent{w: instrumentTileSide + 12}, under))
+	lines := box(layout.NewCustomPaddedVBoxLayout(2), first, r.line, r.adds)
+	r.box = box(tileAtTitle{first: first, title: r.title}, r.tile, lines)
 	return r
 }
 
@@ -96,25 +97,39 @@ func (r *integrationRow) setLabel(s string) {
 	r.title.SetText(s)
 }
 
-// fixedIndent lays its objects out from w points in: the status and adds lines start under the
-// name, not under the tile.
-type fixedIndent struct{ w float32 }
-
-func (l fixedIndent) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	var ms fyne.Size
-	for _, o := range objs {
-		if o.Visible() {
-			ms = ms.Max(o.MinSize())
-		}
-	}
-	return ms.AddWidthHeight(l.w, 0)
+// tileAtTitle lays a row's tile (objs[0]) out at its left and the row's lines (objs[1]) beside it,
+// the tile's top level with the top of the name's capitals on the first line (the owner's QS2: not
+// centred on the name, where it stands above it). The capitals' height is Noto Sans', the theme's
+// font: 714 of its 1000 units.
+type tileAtTitle struct {
+	first fyne.CanvasObject // the lines' first line: the name, and the switch
+	title *textLine
 }
 
-func (l fixedIndent) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	for _, o := range objs {
-		o.Move(fyne.NewPos(l.w, 0))
-		o.Resize(fyne.NewSize(max(size.Width-l.w, 0), size.Height))
-	}
+const (
+	tileGap        = 12    // from the tile to the lines
+	capHeightPerEm = 0.714 // Noto Sans' capitals
+)
+
+// tileTop is the tile's distance from the row's top: the first line's height less the name's,
+// halved (the name is centred on the line), and the name's ascent above its capitals.
+func (l tileAtTitle) tileTop() float32 {
+	ts := l.title.Theme().Size(l.title.size)
+	txt, base := fyne.CurrentApp().Driver().RenderedTextSize("Mg", ts, l.title.style, nil)
+	return max((l.first.MinSize().Height-txt.Height)/2+base-ts*capHeightPerEm, 0)
+}
+
+func (l tileAtTitle) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	tile, lines := objs[0].MinSize(), objs[1].MinSize()
+	return fyne.NewSize(tile.Width+tileGap+lines.Width, max(lines.Height, l.tileTop()+tile.Height))
+}
+
+func (l tileAtTitle) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	tile := objs[0].MinSize()
+	objs[0].Move(fyne.NewPos(0, l.tileTop()))
+	objs[0].Resize(tile)
+	objs[1].Move(fyne.NewPos(tile.Width+tileGap, 0))
+	objs[1].Resize(fyne.NewSize(max(size.Width-tile.Width-tileGap, 0), size.Height))
 }
 
 // paintStatus colours the status line: words are muted while the state is as expected or still

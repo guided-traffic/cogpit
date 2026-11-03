@@ -8,7 +8,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -108,8 +107,8 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})
 	until("the Metrics section", func() bool { return sh.settings.controls["hiddenPlaces"] != nil })
-	places := sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup)
-	measures := sh.settings.controls["hiddenMeasures"].(*widget.CheckGroup)
+	places := sh.settings.controls["hiddenPlaces"].(*switchGroup)
+	measures := sh.settings.controls["hiddenMeasures"].(*switchGroup)
 	line := sh.settings.controls["hiddenMetricsLine"].(*textLine)
 	if line.text != "All metrics are visible." || !slices.Equal(places.Options, []string{"Cluster", "Nodes", "Pods", "Containers", "Volumes"}) ||
 		!slices.Equal(measures.Options, []string{"CPU", "Memory", "Network", "Filesystem"}) {
@@ -137,8 +136,8 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 	// the chart shows Memory.
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": engine.DemoContext, "section": "metrics"})
 	until("the Metrics section again", func() bool { return sh.settings.controls["hiddenPlaces"] != nil })
-	places = sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup)
-	measures = sh.settings.controls["hiddenMeasures"].(*widget.CheckGroup)
+	places = sh.settings.controls["hiddenPlaces"].(*switchGroup)
+	measures = sh.settings.controls["hiddenMeasures"].(*switchGroup)
 	places.SetSelected(nil)
 	measures.SetSelected([]string{"CPU", "Network"})
 	until("cpu and network hidden", func() bool {
@@ -180,7 +179,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 		cs, _ := s.ClusterSettingsOf(engine.DemoContext)
 		l := sh.settings.controls["hiddenMetricsLine"].(*textLine)
 		return cs.HiddenMetrics == engine.HideAll && l.text == "All metrics are hidden." &&
-			len(sh.settings.controls["hiddenPlaces"].(*widget.CheckGroup).Selected) == 5
+			len(sh.settings.controls["hiddenPlaces"].(*switchGroup).Selected) == 5
 	})
 	if !sh.settings.controls["hideAllMetrics"].(*textButton).Disabled() {
 		t.Error("Hide all metrics is enabled with everything hidden")

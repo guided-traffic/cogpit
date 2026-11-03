@@ -16,7 +16,7 @@ import (
 // as the Prometheus address is set (clustersettings_prometheus.go): "Alertmanager service address"
 // (namespace/service:port, empty for detection by name), a line naming the Alertmanager in use,
 // "Use HTTPS", and its path prefix for an address only. A text field is set after the typing pause,
-// the check at once; each change sets the whole setting (the window's own, no confirmation; an
+// the switch at once; each change sets the whole setting (the window's own, no confirmation; an
 // agent's waits for the user, as A16's Prometheus). The fields follow the engine's setting, read
 // when they are built and after every change of the cluster's alerts (EventAlerts,
 // alertmanagerChanged), so an agent's change shows too.
@@ -45,7 +45,7 @@ type amFields struct {
 	ctx     string
 	address *fieldEntry // Escape closes the card (D-116, D-118)
 	prefix  *fieldEntry
-	https   *widget.Check
+	https   *pillSwitch
 	line    *textLine
 	enabled bool
 	content fyne.CanvasObject
@@ -72,7 +72,7 @@ func alertmanagerAddress(p *settingsPage, ctx string) fyne.CanvasObject {
 	f.prefix = newFieldEntry()
 	f.prefix.SetPlaceHolder("/ (none)")
 	f.prefix.OnChanged = func(string) { p.typed(amPrefixSetting, f.set) }
-	f.https = widget.NewCheck("Use HTTPS", func(bool) { f.set() })
+	f.https = newLabelledSwitch("Use HTTPS", func(bool) { f.set() })
 	f.line = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	f.line.truncate = true
 	p.controls[amAddressSetting+"Entry"], p.controls[amPrefixSetting+"Entry"] = f.address, f.prefix

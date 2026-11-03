@@ -1,8 +1,6 @@
 package fyneui
 
 import (
-	"fyne.io/fyne/v2/widget"
-
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/termview"
 )
 
@@ -39,7 +37,7 @@ const (
 
 // rightClickSetting is the Terminal section's check for the preference; sync shows the
 // preference in it.
-func (p *settingsPage) rightClickSetting() (setting *widget.Check, sync func()) {
-	check := widget.NewCheck(rightClickCheck, func(on bool) { p.setPreference("terminalRightClickCopyPaste", on) })
+func (p *settingsPage) rightClickSetting() (setting *pillSwitch, sync func()) {
+	check := newLabelledSwitch(rightClickCheck, func(on bool) { p.setPreference("terminalRightClickCopyPaste", on) })
 	return check, func() { check.SetChecked(p.prefs().TerminalRightClickCopyPaste) }
 }

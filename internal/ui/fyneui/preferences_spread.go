@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Preferences › Tables › Free width (engine.Preferences.TableSpreadWidth, D-145): on by default, a
@@ -17,7 +16,7 @@ const (
 
 // spreadWidthSetting returns the row and the function that shows the preference in it.
 func (p *settingsPage) spreadWidthSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(spreadWidthCheck, func(on bool) { p.setPreference("tableSpreadWidth", on) })
+	check := newLabelledSwitch(spreadWidthCheck, func(on bool) { p.setPreference("tableSpreadWidth", on) })
 	sync := func() { check.SetChecked(p.prefs().TableSpreadWidth) }
 	return p.setting("tableSpreadWidth", spreadWidthTitle, spreadWidthHelp, check), sync
 }

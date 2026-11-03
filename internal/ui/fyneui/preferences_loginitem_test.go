@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
@@ -77,7 +76,7 @@ func TestPreferencesStartAtLogin(t *testing.T) {
 		return l.text
 	}
 	q.until(t, "the row with macOS's status", func() bool { return status() == loginItemTexts[engine.LoginItemOff] })
-	check := sh.settings.controls["startAtLogin"].(*widget.Check)
+	check := sh.settings.controls["startAtLogin"].(*pillSwitch)
 	open := sh.settings.controls["startAtLoginOpen"].(*textButton)
 	if check.Checked || open.Visible() || check.Text != "Start Cogpit at login" {
 		t.Errorf("checked %v, button shown %v, label %q", check.Checked, open.Visible(), check.Text)

@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Preferences › App › Restore the last session (D-69 item 8; engine/restore.go). Cogpit's own: no
@@ -19,7 +18,7 @@ const (
 
 // restoreSessionSetting returns the row and the function that shows the preference in it.
 func (p *settingsPage) restoreSessionSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(restoreSessionCheck, func(on bool) { p.setPreference("restoreSession", on) })
+	check := newLabelledSwitch(restoreSessionCheck, func(on bool) { p.setPreference("restoreSession", on) })
 	sync := func() { check.SetChecked(p.prefs().RestoreSession) }
 	return p.setting("restoreSession", restoreSessionTitle, restoreSessionHelp, check), sync
 }

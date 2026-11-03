@@ -1397,7 +1397,7 @@ two pods on one node mount); no line while none does.
   ext4). Its tooltip: the volume, used of size, and what is still available for writing.
 - **Larger than the volume:** a storage that does not keep to the volume's size, such as
   local-path's directory on the node, reports the node's disk as the volume's. A muted line under
-  the bar then says so: "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of storage and
+  the bar, after a small red mark, then says so: "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of storage and
   can grow past 10.0 GiB.", and the bar's share is of that disk. It shows when the
   filesystem is more than 10 % and at least 1 GiB larger than the volume's size.
 - **Where the numbers come from:** the kubelet's volume stats (`kubelet_volume_stats_*`) in the

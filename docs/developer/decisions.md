@@ -154,6 +154,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-143](#d-143-scrolling-a-log-tab-sideways) | Scrolling a log tab sideways | built: unwrapped rows scroll together, Fyne's bar along the bottom, a row draws what is in view |
 | [D-144](#d-144-closing-several-tabs-at-once) | Closing several tabs at once | built: a tab's right-click menu in the tab bar and the dock; the bar's tabs only, a running job's tab stays |
 | [D-145](#d-145-a-tables-free-width-goes-to-its-cut-columns-first) | A table's free width goes to its cut columns first | built: measured once when a table opens, never while it stays open; Preferences › Tables › Free width, on |
+| [D-146](#d-146-every-onoff-setting-is-a-switch) | Every on/off setting is a switch | built: Preferences and Cluster Settings, label left, the switch at the right edge; filters, column picks and dialogs keep checkboxes |
 
 ## D-1: UI toolkit
 
@@ -5638,8 +5639,10 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
   kubelet's used of its capacity, the filesystem's size (196.7 GiB of a 200 GiB claim on ext4),
   not the claim's request. A newest point more than two steps before the chart's end counts as
   none: the kubelet stopped reporting the volume.
-- **Larger than the volume:** under the bar, muted and wrapped, "Size not enforced: this 10.0 GiB
-  volume sits on 122.9 GiB of storage and can grow past 10.0 GiB." (the owner's QR4) when the
+- **Larger than the volume:** under the bar, muted and wrapped after a small red mark (the error
+  icon at the height of the note's text; the owner's QS3: a note this important is easily missed in
+  muted text, which is not to grow), "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of
+  storage and can grow past 10.0 GiB." (the owner's QR4) when the
   newest point's filesystem is more than 1.1 times the volume's size and at least 1 GiB beyond it
   (`volumeOversized`). The volume's size (`VolumeClaim.SizeBytes`) is in a claim's drawer the larger
   of its `status.capacity.storage` (the bound volume's) and its `spec.resources.requests.storage`,
@@ -5977,3 +5980,33 @@ across a restart, and neither are the user's widths
 `TestFitColumnsSpreadsTheFreeWidth`, `TestFitColumnsNoneCut`, `TestFitColumnsSpreadsTooLittle`,
 `TestSpreadWidthOnlyWhenTheViewOpens`, `TestSpreadMeasuresAColumnShown`,
 `TestPreferencesTableSpreadWidth`, `TestRenderIngressesSpreadDark`, `BenchmarkSpreadMeasure10k`
+
+## D-146: Every on/off setting is a switch
+
+**Status:** built · **By:** owner (switches in place of the checkboxes in Preferences and Cluster
+Settings), lead (open to revision) the rest
+
+Every on/off setting of Preferences and of a cluster's Settings is a pill switch, as the
+integrations' rows have: the setting's label at the left, the switch at the right edge of the
+section's column, so a page's switches line up with the integrations' in one column. A click on
+the label switches too, as a checkbox's label does; Space switches a focused one. A setting with
+several on/off options (Cluster Settings › Metrics › Hide metrics: Places, Measures) is a row of
+such switches. A switch applies at once where the checkbox did; in the agent connection form it
+is kept with Save, as the form's fields are.
+
+Filters, column picks, a table's selection and the dialogs (the integrations question's "Save as
+the default for new clusters" among them) keep checkboxes: there a checkbox picks items or an
+option of one action, a switch would read as a setting that applies.
+
+**Why:** the owner's QS1: the integrations' switches look better than the checkboxes beside them.
+The label left and the switch at the right is how a settings page with switches reads elsewhere
+(macOS System Settings), and it puts the integrations' switches and the others in one column.
+
+**Rejected:** the switch in the checkbox's place before its label (two columns of switches on one
+page, the integrations' at the right); checkboxes kept in the forms (Prometheus' and Alertmanager's
+HTTPS, the agent connection form: two looks for one kind of control on one card); switches in
+filters and pickers (a pick of items, not a setting).
+
+**Code:** [`fyneui/instrument_switch.go`](../../internal/ui/fyneui/instrument_switch.go)
+`newLabelledSwitch`, `switchGroup` · `TestLabelledSwitch`, `TestSwitchGroup`,
+`TestSettingsShowSwitchesOnly`

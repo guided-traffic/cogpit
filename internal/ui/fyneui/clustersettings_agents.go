@@ -38,7 +38,7 @@ func (p *settingsPage) clusterAgentsSection() fyne.CanvasObject {
 	note := newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
 	note.truncate = true
 	p.controls["agentWritesNote"] = note
-	check := widget.NewCheck(agentWritesCheck, func(on bool) {
+	check := newLabelledSwitch(agentWritesCheck, func(on bool) {
 		if p.syncing {
 			return
 		}
@@ -51,11 +51,11 @@ func (p *settingsPage) clusterAgentsSection() fyne.CanvasObject {
 				p.setAgentWrites(ctx, true)
 				return
 			}
-			p.syncControls() // declined: the check shows the setting again
+			p.syncControls() // declined: the switch shows the setting again
 		})
 	})
 	p.sync = func() {
-		on := p.sh.ui.ClusterSettings[ctx].AgentWrites // the UI state's, so the check follows at once
+		on := p.sh.ui.ClusterSettings[ctx].AgentWrites // the UI state's, so the switch follows at once
 		check.SetChecked(on)
 		switch {
 		case engine.IsDemoContext(ctx):

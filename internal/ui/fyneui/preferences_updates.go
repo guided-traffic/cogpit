@@ -7,7 +7,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -16,7 +15,7 @@ import (
 // channel, and Help › Check for Updates…. Lens's App section has the channel (Stable, Beta, Alpha;
 // its documentation's list); Cogpit offers Stable until it publishes prereleases, and the row says
 // so. Where this copy does not update itself (a development build, the app still on its disk
-// image, cogpit-cli's engine), the check row says why and the Help item is greyed with the short
+// image, cogpit-cli's engine), the switch row says why and the Help item is greyed with the short
 // reason. The update notice and its one-click install are Sparkle's own window, not Fyne's.
 
 // checkForUpdatesCommand is Help › Check for Updates….
@@ -37,7 +36,7 @@ func shortReason(err error) string {
 // updatesSettings returns Preferences › App's two update settings and the function that shows the
 // preferences in them.
 func (p *settingsPage) updatesSettings() ([]fyne.CanvasObject, func()) {
-	check := widget.NewCheck("At every start and every hour; a new release installs with one click", func(on bool) {
+	check := newLabelledSwitch("At every start and every hour; a new release installs with one click", func(on bool) {
 		p.setPreference("checkForUpdates", on)
 	})
 	why := newParagraph("", colorMuted, settingsHelpWidth) // wrapped at word boundaries, never cut short
