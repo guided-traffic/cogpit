@@ -73,9 +73,10 @@ func (c *Cluster) build() {
 	c.buildWorkloads(now)
 	c.buildServices(now)
 	c.buildEvents(now)
-	c.buildHelmReleases(now) // without the random generator: the rest stays as it was
-	c.buildReplicaSets()     // the same
-	c.buildControllers()     // the same
+	c.buildHelmReleases(now)         // without the random generator: the rest stays as it was
+	c.buildReplicaSets()             // the same
+	c.buildControllers()             // the same
+	c.buildVulnerabilityReports(now) // the same (trivy.go)
 }
 
 // buildControllers stores the pods' other owners: the DaemonSets, and the CronJobs with the Jobs

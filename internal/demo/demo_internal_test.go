@@ -552,8 +552,9 @@ func TestStatsCountsObjectsAndEvents(t *testing.T) {
 	for _, cj := range c.w.cronJobs {
 		controllers += len(cj.jobs)
 	}
-	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers {
-		t.Errorf("Objects = %d", st.Objects)
+	reports := len(c.store[kindVulnerabilityReports]) // trivy_test.go checks them
+	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports {
+		t.Errorf("Objects = %d, %d reports", st.Objects, reports)
 	}
 	n := c.stepLocked(100)
 	if got := c.Stats().EventsSent; got != int64(n) {

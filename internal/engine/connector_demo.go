@@ -32,13 +32,20 @@ type DemoOptions = demo.Options
 // for a real cluster: a kind the demo has no objects for is not offered, rather than shown as an
 // error. Helm's releases follow as for a real cluster (Connect): the demo's Secrets and ConfigMaps
 // are Helm's release records, and each call makes a releases profile with its own memo, one per
-// backend.
+// backend. Its custom kinds (Trivy Operator's reports) come from their definitions, as the custom
+// kinds watch makes them.
 func demoProfiles() []*model.KindProfile {
 	served := map[schema.GroupVersionResource]bool{}
 	for _, gvr := range demo.Resources() {
 		served[gvr] = true
 	}
-	return withHelmReleases(servedProfiles(kinds.Builtin(), served))
+	out := withHelmReleases(servedProfiles(kinds.Builtin(), served))
+	for _, crd := range demo.CustomResourceDefinitions() {
+		if k, err := kinds.ParseCRD(crd); err == nil {
+			out = append(out, kinds.ProfileFor(k))
+		}
+	}
+	return out
 }
 
 // connectDemo builds the synthetic cluster and starts its churn.

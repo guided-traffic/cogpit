@@ -35,6 +35,8 @@ const (
 	kindDaemonSets
 	kindJobs
 	kindCronJobs
+
+	kindVulnerabilityReports // Trivy Operator's (trivy.go)
 	numKinds
 )
 
@@ -58,6 +60,8 @@ var kindInfo = [numKinds]struct {
 	kindDaemonSets:  {schema.GroupVersionResource{Group: groupApps, Version: "v1", Resource: "daemonsets"}, apiApps, "DaemonSet", true, []string{"ds"}},
 	kindJobs:        {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "jobs"}, apiBatch, "Job", true, nil},
 	kindCronJobs:    {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "cronjobs"}, apiBatch, "CronJob", true, []string{"cj"}},
+
+	kindVulnerabilityReports: {vulnReportsGVR, trivyAPIVersion, trivyKind, true, nil},
 }
 
 // kindOf returns the kind serving gvr.
