@@ -1023,8 +1023,8 @@ installs none
   change for every connected cluster, starts or stops the reads, and must not block.
 - **The question** ([`integrationsask.go`](../../internal/engine/integrationsask.go)): `UpdateUI`
   derives `UIState.IntegrationsQuestion` for the shown, connected, undecided, non-demo cluster not
-  put off this run; `cluster.integrations.step`, `.lookFor`, `.answer`, `.later` and `.ask` drive
-  it.
+  put off this run; `cluster.integrations.step`, `.lookFor`, `.answer` and `.ask` drive it from
+  the window, which has no Later; `.later` lets an agent put it off.
 - **Only the user switches**
   ([`integrationsguionly.go`](../../internal/engine/integrationsguionly.go),
   [agents and MCP](../security/agents-and-mcp.md),

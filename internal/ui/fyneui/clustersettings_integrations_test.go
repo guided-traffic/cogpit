@@ -419,22 +419,39 @@ func TestNewClusterIntegrationsPreference(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the Kubernetes section", func() bool { return sh.settings.controls[integrationDefaultsSetting] != nil })
-	checks := sh.settings.controls[integrationDefaultsSetting].(*fyne.Container).Objects
-	if len(checks) != len(engine.Integrations) {
-		t.Fatalf("%d checks", len(checks))
-	}
-	for _, o := range checks {
-		if !o.(*widget.Check).Checked {
-			t.Errorf("%s off by default", o.(*widget.Check).Text)
+	switches := make([]*pillSwitch, 0, len(engine.Integrations))
+	for _, in := range engine.Integrations {
+		sw, ok := sh.settings.controls["integrationDefault:"+string(in.Name)].(*pillSwitch)
+		if !ok {
+			t.Fatalf("no switch for %s", in.Name)
 		}
+		if !sw.Checked {
+			t.Errorf("%s off by default", in.Name)
+		}
+		switches = append(switches, sw)
 	}
-	test.Tap(checks[2].(*widget.Check)) // Alertmanager
+	test.Tap(switches[2]) // Alertmanager
 	q.until(t, "Alertmanager off by default", func() bool {
 		p, _ := s.Preferences()
 		return p.IntegrationsOff == engine.IntAlertmanager
 	})
 	mustDispatch(t, s, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"kyverno": false}})
-	q.until(t, "the agent's change shown", func() bool { return !checks[4].(*widget.Check).Checked && !checks[2].(*widget.Check).Checked })
+	q.until(t, "the agent's change shown", func() bool { return !switches[4].Checked && !switches[2].Checked })
+}
+
+// Preferences › Kubernetes › Integrations of new clusters scrolled into view, Alertmanager off.
+func TestRenderNewClusterIntegrationsPreference(t *testing.T) {
+	s, _ := settingsEngine(t)
+	mustDispatch(t, s, "preferences.set", map[string]any{"integrationDefaults": map[string]bool{"alertmanager": false}})
+	sh, w, q := newEngineShell(t, s, Options{})
+	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
+	q.until(t, "the Kubernetes section", func() bool { return sh.settings.controls[integrationDefaultsSetting] != nil })
+	settle(w)
+	d := fyne.CurrentApp().Driver()
+	y := d.AbsolutePositionForObject(sh.settings.controls[integrationDefaultsSetting]).Y -
+		d.AbsolutePositionForObject(sh.settings.scroll).Y + sh.settings.scroll.Offset.Y
+	sh.settings.scroll.ScrollToOffset(fyne.NewPos(0, y-60))
+	savePNG(t, w, "preferences_integration_defaults_dark.png")
 }
 
 // The section over the real engine and the demo cluster: the metrics integrations' statuses from

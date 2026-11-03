@@ -53,6 +53,7 @@ type integrationRow struct {
 	dot    *surface        // the status line's dot: the state's colour, none while it is plain
 	status *sourceLine     // plain text, or with the Service's namespace and name as links (placeLinks)
 	slot   *fyne.Container // holds the status line, and the link beside it
+	line   *fyne.Container // the dot and the slot: the status line as the row shows it
 	link   *linkText       // "Details…" or "Set its address…" to the integration's section; nil elsewhere
 	adds   *textLine
 	box    *fyne.Container
@@ -82,9 +83,8 @@ func newIntegrationRow(in engine.IntegrationInfo, onSwitch func(on bool)) *integ
 	r.slot = container.NewStack(r.status)
 	r.tile = newInstrumentTile(in.Name)
 	first := container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 8), r.tile), r.check, r.title)
-	under := box(layout.NewCustomPaddedVBoxLayout(2),
-		container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 6), newDotSlot(r.dot)), nil, r.slot),
-		r.adds)
+	r.line = container.NewBorder(nil, nil, container.New(layout.NewCustomPaddedLayout(0, 0, 0, 6), newDotSlot(r.dot)), nil, r.slot)
+	under := box(layout.NewCustomPaddedVBoxLayout(2), r.line, r.adds)
 	r.box = box(layout.NewCustomPaddedVBoxLayout(2), first, box(fixedIndent{w: instrumentTileSide + 12}, under))
 	return r
 }
@@ -135,6 +135,10 @@ func (r *integrationRow) paintStatus(c fyne.ThemeColorName) {
 	r.dot.Show()
 	r.dot.Refresh()
 }
+
+// withoutStatus hides the status line: a row that means no cluster (Preferences' default for new
+// clusters) has no status to show.
+func (r *integrationRow) withoutStatus() { r.line.Hide() }
 
 // withLink adds the link to the integration's section, after the status line.
 func (r *integrationRow) withLink(onTap func()) {

@@ -23,22 +23,26 @@ import (
 //     does: "Use my default integrations" answers at once with the default for new clusters
 //     (Preferences › Kubernetes; the owner's QW4: "ohne weitere Nachfrage. Die zweite Maske wird
 //     direkt übersprungen"), "Choose integrations" and "Don't use integrations (no metrics will be
-//     displayed)"; Later. Nothing is looked for.
+//     displayed)", its word and outline in the error colour (the owner's QR1: "Es muss klar sein,
+//     dass man hier etwas verliert"). Nothing is looked for.
 //   - the rows (Choose): the same rows as Cluster Settings › Integrations (a checkbox with the
 //     label, the status line in the status colours, live, and what it adds), ticked as the
 //     engine's IntegrationsLookFor says; a tick dispatches cluster.integrations.lookFor, and the
 //     integration is looked for at once; an unticked row reads "Not looked for: tick it to look for
-//     it". The checkbox "Save as the default for new clusters" (off until ticked), Back, Later and
-//     Apply.
+//     it". The checkbox "Save as the default for new clusters" (off until ticked); Back with its
+//     arrow at the left, Apply at the right (the owner's QR2).
 //   - Don't use: a warning over the pre-choice, "Use <name> without integrations?", that names what
 //     goes and what stays (the lead's correction of the owner's wording: the cluster's resources
 //     still show); Yes answers with every integration off, No (or closing it) goes back to the
 //     pre-choice.
 //
-// Every button is an engine command (cluster.integrations.step, .lookFor, .answer, .later), so
-// agents see the same state; only the window steps, ticks and answers (GUI-only, H-126), an agent
-// may put the question off (Later). The dialog closes when the engine drops the question, whatever
-// ended it (an answer, Later, a choice made in Cluster Settings › Integrations).
+// The dialog has no Later (the owner's QR1, QR2): it stays until the question is answered. Escape
+// goes Back on the rows and does nothing on the pre-choice; a Cogpit quit with the question open
+// leaves the cluster without a choice, so the next start asks again. Every button is an engine
+// command (cluster.integrations.step, .lookFor, .answer), so agents see the same state; only the
+// window steps, ticks and answers (GUI-only, H-126), an agent may put the question off
+// (cluster.integrations.later). The dialog closes when the engine drops the question, whatever
+// ended it (an answer, an agent's later, a choice made in Cluster Settings › Integrations).
 
 const (
 	integrationsAskSave    = "Save as the default for new clusters"
@@ -69,13 +73,12 @@ type integrationsQuestion struct {
 	save    *fieldCheck
 	apply   *textButton
 	back    *textButton
-	later   *textButton
 	errLine *textLine
 	warn    *dialog.CustomDialog // Don't use's warning, over the pre-choice; nil while not shown
 	yes, no *textButton          // the warning's
 	lookFor engine.IntegrationSet
 	seq     int  // the latest status request; older answers are dropped
-	closing bool // the dialog is being closed because the question moved on: no Later, no No
+	closing bool // the dialog is being closed because the question moved on: no No
 	syncing bool // the rows' ticks are set from the UI state: no lookFor
 }
 
@@ -139,28 +142,29 @@ func (q *integrationsQuestion) open(ctx string, page engine.IntegrationsStep) {
 	q.errLine = newTextLine("", colorStatusError, theme.SizeNameCaptionText, fyne.TextStyle{})
 	q.errLine.truncate = true
 	q.errLine.Hide()
-	q.later = newPlateButton("Later", nil, q.putOff)
 	var content fyne.CanvasObject
-	var buttons []fyne.CanvasObject
 	if page == engine.IntegrationsPreChoice {
 		content = q.preChoice()
-		buttons = []fyne.CanvasObject{q.later}
 	} else {
 		content = q.rowsPage()
-		buttons = []fyne.CanvasObject{q.back, q.later, q.apply}
 	}
+	// No button row of Fyne's, which centres its buttons: the rows' Back and Apply are the content's
+	// last line, at its edges.
 	q.d = dialog.NewCustomWithoutButtons("Integrations for "+sh.identity(ctx).name, sized(sizePickerWidth, "", content), sh.win)
-	q.d.SetButtons(buttons)
-	d := q.d
-	q.d.SetOnClosed(func() {
-		if !q.closing && q.d == d { // closed otherwise than by the question's end (Escape too): Later
-			q.putOff()
-		}
-	})
-	sh.showDialog(q.d)
+	q.show()
 	if page != engine.IntegrationsPreChoice {
 		q.request()
 	}
+}
+
+// show shows the dialog, Escape over it going Back from the rows and doing nothing on the
+// pre-choice: there is no Later.
+func (q *integrationsQuestion) show() {
+	onShown(q.sh.win.Canvas(), q.d.Show, func() {
+		if q.page == engine.IntegrationsChoose {
+			q.step(engine.IntegrationsPreChoice)
+		}
+	})
 }
 
 // preChoice builds the pre-choice: why it asks, and the three choices with what each does.
@@ -180,6 +184,7 @@ func (q *integrationsQuestion) preChoice() fyne.CanvasObject {
 	objs = append(objs, choice(integrationsAskChoose, integrationsAskChooseHint, func() { q.step(engine.IntegrationsChoose) })...)
 	objs = append(objs, choice(integrationsAskNone, integrationsAskNoneHint, func() { q.step(engine.IntegrationsDontUse) })...)
 	q.choices[0].Importance = widget.HighImportance
+	q.choices[2].setTone(colorStatusError) // what is lost: metrics, alerts, ratings and policy marks
 	return container.NewVBox(append(objs, q.errLine)...)
 }
 
@@ -232,7 +237,7 @@ func andList(names []string) string {
 }
 
 // rowsPage builds the rows of Choose: what happens, a row per integration ticked as the engine
-// says, the checkbox for the default, and Back and Apply.
+// says, the checkbox for the default, and Back at the left and Apply at the right.
 func (q *integrationsQuestion) rowsPage() fyne.CanvasObject {
 	sh := q.sh
 	text := integrationsAskRowsChoose
@@ -257,7 +262,8 @@ func (q *integrationsQuestion) rowsPage() fyne.CanvasObject {
 	objs = append(objs, newSpace(theme.SizeNameInnerPadding), newDivider(false), q.save, q.errLine)
 	q.apply = newPlateButton("Apply", nil, q.answer)
 	q.apply.Importance = widget.HighImportance
-	q.back = newPlateButton("Back", nil, func() { q.step(engine.IntegrationsPreChoice) })
+	q.back = newPlateButton("Back", theme.NavigateBackIcon(), func() { q.step(engine.IntegrationsPreChoice) })
+	objs = append(objs, newSpace(theme.SizeNameInnerPadding), container.NewBorder(nil, nil, q.back, q.apply))
 	return container.NewVBox(objs...)
 }
 
@@ -356,15 +362,6 @@ func (q *integrationsQuestion) answerWith(switches map[string]bool, saveAsDefaul
 		"saveAsDefault": saveAsDefault}, func(_ any, err error) { q.failed(ctx, err) })
 }
 
-// putOff dispatches Later.
-func (q *integrationsQuestion) putOff() {
-	if q.ctx == "" {
-		return
-	}
-	ctx := q.ctx
-	q.sh.dispatchInOrder("cluster.integrations.later", map[string]any{contextParam: ctx}, func(_ any, err error) { q.failed(ctx, err) })
-}
-
 // showWarning shows Don't use's warning over the pre-choice, or closes it.
 func (q *integrationsQuestion) showWarning(show bool) {
 	if !show {
@@ -411,6 +408,6 @@ func (q *integrationsQuestion) failed(ctx string, err error) {
 	q.errLine.SetText(err.Error())
 	q.errLine.Show()
 	if q.d != nil && q.sh.ui.IntegrationsQuestion == ctx {
-		q.sh.showDialog(q.d) // Later by closing it: shown again while the question stands
+		q.show() // shown again while the question stands
 	}
 }

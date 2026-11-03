@@ -43,7 +43,7 @@ func TestVolumeOversized(t *testing.T) {
 		}
 	}
 	fill := &model.FilesystemSample{UsageBytes: 30 * volGiB, CapacityBytes: 122.9 * volGiB, AvailableBytes: 86.6 * volGiB}
-	if got, want := volumeSizeNote(10*volGi, fill), "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size."; got != want {
+	if got, want := volumeSizeNote(10*volGi, fill), "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of storage and can grow past 10.0 GiB."; got != want {
 		t.Errorf("note %q, want %q", got, want)
 	}
 	if got := volumeSizeNote(10*volGi, nil); got != "" {
@@ -105,7 +105,7 @@ func TestVolumeLargerThanItsSize(t *testing.T) {
 		"acme-shop/data-acme-pg-0": {UsageBytes: 121 * volGiB, CapacityBytes: 196.7 * volGiB, AvailableBytes: 65 * volGiB},
 	}}
 	s := volumeSessionOver(t, src, prov)
-	const note = "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size."
+	const note = "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of storage and can grow past 10.0 GiB."
 
 	redis := model.ObjectRef{Context: "test", Kind: "persistentvolumeclaims", Namespace: "acme-shop", Name: "data-acme-redis-0"}
 	volume := model.ObjectRef{Context: "test", Kind: "persistentvolumes", Name: "pvc-5c8e2a41"}

@@ -112,7 +112,7 @@ func registerIntegrations(g *registrar) {
 
 	add(g, engine.Spec[integrationsLaterParams]{
 		ID: "cluster.integrations.later", Label: "Ask Later", Danger: engine.DangerUI,
-		Description: "Puts off the window's question about a cluster's integrations, as its Later button does: it is not " +
+		Description: "Puts off the window's question about a cluster's integrations (the window itself has no Later): it is not " +
 			"asked again this run, and asked again at the next start's connect until it is answered. Meanwhile nothing of " +
 			"the cluster's integrations is read; the user chooses them in its Settings › Integrations, cluster_integrations_ask " +
 			"asks again. Changes nothing but the window. Returns the new UI state.",
