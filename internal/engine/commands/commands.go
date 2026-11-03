@@ -70,6 +70,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerJump(g) // the palette's jump, k9s's :pod kube-system (engine/jump.go)
 	registerGroupLogs(g)
 	registerArgoCD(g)
+	registerTrivySecurity(g) // the Image Security page's read (trivy_security.go)
 	registerPreferences(g)
 	registerProgramFolders(g) // Preferences › Kubernetes › Program folders (D-120)
 	registerLoginItem(g)

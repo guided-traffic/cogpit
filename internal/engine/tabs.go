@@ -441,7 +441,8 @@ func (u *UIState) openTab(view string, sort SortSpec, fixed bool) {
 	default:
 		u.showInPreview(view)
 	}
-	u.View, u.Sort, u.Filter = view, sort, ""
+	// Opened afresh: a page's own search (pageFilters, imagesecurity.go), else none.
+	u.View, u.Sort, u.Filter = view, sort, pageFilters[view]
 	if view == AlertBoard { // the whole cluster's, as the pill counts it (D-77): opened afresh without a namespace filter
 		u.Namespaces = nil
 	}

@@ -46,9 +46,11 @@ const (
 
 // MixedKinds reports whether a view's rows are objects of several kinds: the cluster Overview's
 // Issues name pods, nodes, workloads and the objects of events, the Flux dashboard's table objects
-// of every Flux kind. ui.select then takes a row of any kind the cluster serves, where a kind's
-// view takes its own kind only.
-func MixedKinds(view string) bool { return view == ClusterOverview || view == FluxDashboard }
+// of every Flux kind, the Image Security page's findings their workloads. ui.select then takes a
+// row of any kind the cluster serves, where a kind's view takes its own kind only.
+func MixedKinds(view string) bool {
+	return view == ClusterOverview || view == FluxDashboard || view == ImageSecurity
+}
 
 // OverviewChoice is what the cluster Overview's charts show, held by the engine (rule 2: UI state is
 // engine state): their time range and their node group. ui.setOverviewRange and ui.setOverviewNodes
