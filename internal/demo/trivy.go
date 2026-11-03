@@ -70,14 +70,30 @@ const vulnReportsCRD = `{
 }`
 
 // CustomResourceDefinitions returns the definitions of the custom kinds the demo cluster serves:
-// Trivy Operator's VulnerabilityReport. The demo does not serve the definitions themselves; the
-// engine makes its views from them.
+// Trivy Operator's VulnerabilityReport and Velero's kinds. The engine makes their views from them
+// at connect, as discovery does for a real cluster; the cluster serves them as well, for the custom
+// kinds watch.
 func CustomResourceDefinitions() []*unstructured.Unstructured {
+	now := time.Now()
+	out := make([]*unstructured.Unstructured, 0, 1+len(veleroCRDs))
+	out = append(out, trivyCRD(now))
+	for _, d := range veleroCRDs {
+		out = append(out, veleroCRD(d.plural, d.kind, now))
+	}
+	return out
+}
+
+// trivyCRD is the established definition of Trivy Operator's VulnerabilityReport, which the demo
+// serves as a real cluster does: the custom kinds watch makes the reports' view from it.
+func trivyCRD(now time.Time) *unstructured.Unstructured {
 	var obj map[string]any
 	if err := utiljson.Unmarshal([]byte(vulnReportsCRD), &obj); err != nil {
 		panic(err) // a constant: the demo's own tests parse it
 	}
-	return []*unstructured.Unstructured{{Object: obj}}
+	md, _ := obj["metadata"].(map[string]any)
+	md["uid"] = stableUID("customresourcedefinition", fmt.Sprint(md["name"]))
+	md["creationTimestamp"] = ts(now.Add(-60 * 24 * time.Hour))
+	return &unstructured.Unstructured{Object: obj}
 }
 
 // demoVuln is one synthetic vulnerability of the catalogues.
@@ -222,6 +238,7 @@ func scanImage(seed int64, image string) demoImage {
 // buildVulnerabilityReports puts a report for every container of every Deployment's ReplicaSet
 // Trivy can scan. Called with c.mu held, after everything else (it does not draw from c.rng).
 func (c *Cluster) buildVulnerabilityReports(now time.Time) {
+	c.put(kindCRDs, trivyCRD(now))
 	scans := map[string]demoImage{}
 	for _, d := range c.w.deploys {
 		if d.current != 0 || d.templates[0] == nil {

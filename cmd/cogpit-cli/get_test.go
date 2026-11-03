@@ -44,7 +44,8 @@ func TestGetListsTheDemoClustersPods(t *testing.T) {
 	}
 	lines := strings.Split(strings.TrimRight(te.out.String(), "\n"), "\n")
 	header := strings.Fields(lines[0])
-	if len(header) < 3 || header[0] != "NAME" || header[1] != "NAMESPACE" {
+	// Name, then the Signals column (D-150: the demo's pods carry Trivy's grades), then Namespace.
+	if len(header) < 4 || header[0] != "NAME" || header[1] != "SIGNALS" || header[2] != "NAMESPACE" {
 		t.Errorf("header %q", lines[0])
 	}
 	// The metrics columns stay empty without a metrics view, and are left out.

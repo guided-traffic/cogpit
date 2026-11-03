@@ -64,16 +64,17 @@ func TestClusterConnectorContextsAndDemo(t *testing.T) {
 	if b.ServerVersion() != demo.ServerVersion || demo.ServerVersion == "" {
 		t.Errorf("the demo's API server version %q, want %q", b.ServerVersion(), demo.ServerVersion)
 	}
-	// Only the built-in kinds the demo serves get a view, as discovery decides on a real cluster, and
-	// Helm's releases from its Secrets and ConfigMaps; Velero's kinds come with their definitions.
+	// Only the built-in kinds the demo serves get a view, as discovery decides on a real cluster, then
+	// Helm's releases from its Secrets and ConfigMaps and its custom kinds from their definitions.
 	builtin := 0
 	for _, p := range kinds.Builtin() {
 		if slices.Contains(demo.Resources(), p.GVR()) {
 			builtin++
 		}
 	}
-	if len(b.Profiles) != builtin+1 || !b.CustomResources {
-		t.Errorf("demo offers %d views for %d served built-in kinds and Releases (custom kinds %v)", len(b.Profiles), builtin, b.CustomResources)
+	custom := len(demo.CustomResourceDefinitions())
+	if len(b.Profiles) != builtin+1+custom || !b.CustomResources {
+		t.Errorf("demo offers %d views for %d served built-in kinds, Releases and %d custom kinds (custom kinds %v)", len(b.Profiles), builtin, custom, b.CustomResources)
 	}
 }
 

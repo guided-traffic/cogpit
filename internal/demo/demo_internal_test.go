@@ -122,6 +122,7 @@ func TestBuildSizesAndVariety(t *testing.T) {
 	for k, n := range veleroCounts {
 		want[k] += n // Velero's node agents beside the cluster's DaemonSets
 	}
+	want[kindCRDs]++ // Trivy Operator's definition (trivy.go)
 	for k, n := range want {
 		if got := len(c.store[k]); got != n {
 			t.Errorf("%s: %d objects, want %d", kindInfo[k].kind, got, n)
@@ -571,8 +572,8 @@ func TestStatsCountsObjectsAndEvents(t *testing.T) {
 	for _, cj := range c.w.cronJobs {
 		controllers += len(cj.jobs)
 	}
-	reports := len(c.store[kindVulnerabilityReports]) // trivy_test.go checks them
-	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports+veleroObjects() {
+	reports := len(c.store[kindVulnerabilityReports])                                                                                                        // trivy_test.go checks them
+	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports+1+veleroObjects() { // +1: Trivy's definition
 		t.Errorf("Objects = %d, %d reports", st.Objects, reports)
 	}
 	n := c.stepLocked(100)
