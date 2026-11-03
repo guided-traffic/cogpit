@@ -96,12 +96,31 @@ const (
 	helmConfigMaps = 3
 )
 
+// The demo's Velero (velero.go) with every namespace of the default cluster: its namespace and
+// server besides the world's, and its own kinds.
+var veleroCounts = map[kind]int{
+	kindCRDs: 6, kindDaemonSets: 1, kindPVCs: 10, kindVeleroSchedules: 5, kindVeleroBackups: 14 + 28 + 72 + 2 + 3 + 1,
+	kindVeleroRestores: 3, kindVeleroLocations: 2, kindVeleroSnapshotLocations: 1, kindVeleroRepositories: 8,
+}
+
+// veleroObjects counts them all, its Namespace and Deployment included.
+func veleroObjects() int {
+	n := 2
+	for _, c := range veleroCounts {
+		n += c
+	}
+	return n
+}
+
 func TestBuildSizesAndVariety(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1})
 	want := map[kind]int{
-		kindPods: DefaultPods, kindNodes: DefaultNodes, kindNamespaces: DefaultNamespaces,
-		kindDeployments: DefaultDeployments, kindServices: DefaultServices, kindEvents: DefaultEvents,
-		kindSecrets: helmSecrets, kindConfigMaps: helmConfigMaps,
+		kindPods: DefaultPods, kindNodes: DefaultNodes, kindNamespaces: DefaultNamespaces + 1,
+		kindDeployments: DefaultDeployments + 1, kindServices: DefaultServices, kindEvents: DefaultEvents,
+		kindSecrets: helmSecrets, kindConfigMaps: helmConfigMaps, kindDaemonSets: len(c.w.daemonSets),
+	}
+	for k, n := range veleroCounts {
+		want[k] += n // Velero's node agents beside the cluster's DaemonSets
 	}
 	for k, n := range want {
 		if got := len(c.store[k]); got != n {
@@ -553,7 +572,7 @@ func TestStatsCountsObjectsAndEvents(t *testing.T) {
 		controllers += len(cj.jobs)
 	}
 	reports := len(c.store[kindVulnerabilityReports]) // trivy_test.go checks them
-	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports {
+	if reports == 0 || st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers+reports+veleroObjects() {
 		t.Errorf("Objects = %d, %d reports", st.Objects, reports)
 	}
 	n := c.stepLocked(100)

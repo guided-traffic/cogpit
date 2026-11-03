@@ -68,7 +68,15 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 		t.Fatalf("phases %v", names)
 	}
 	views := got.Phases[2]
-	if len(views.Switches) != 14 { // the demo's views but Pods, Config Maps, Secrets, Releases and Trivy's reports among them, then Pods
+	// Every view the navigator had when the phase began, then Pods: the demo's built-in views at
+	// least, its custom kinds (Velero's) too once their definitions were listed by then.
+	builtin := 0
+	for _, k := range sh.kinds {
+		if !isCustomKind(k.Kind) {
+			builtin++
+		}
+	}
+	if n := len(views.Switches); n < builtin || n > len(sh.kinds) {
 		t.Fatalf("switches %+v", views.Switches)
 	}
 	for _, sw := range views.Switches {

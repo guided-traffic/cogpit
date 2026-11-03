@@ -64,10 +64,63 @@ func TestClusterConnectorContextsAndDemo(t *testing.T) {
 	if b.ServerVersion() != demo.ServerVersion || demo.ServerVersion == "" {
 		t.Errorf("the demo's API server version %q, want %q", b.ServerVersion(), demo.ServerVersion)
 	}
-	// Only the kinds the demo serves get a view, as discovery decides on a real cluster, and Helm's
-	// releases from its Secrets and ConfigMaps.
-	if len(b.Profiles) != len(demo.Resources())+1 {
-		t.Errorf("demo offers %d views for %d served kinds and Releases", len(b.Profiles), len(demo.Resources()))
+	// Only the built-in kinds the demo serves get a view, as discovery decides on a real cluster, and
+	// Helm's releases from its Secrets and ConfigMaps; Velero's kinds come with their definitions.
+	builtin := 0
+	for _, p := range kinds.Builtin() {
+		if slices.Contains(demo.Resources(), p.GVR()) {
+			builtin++
+		}
+	}
+	if len(b.Profiles) != builtin+1 || !b.CustomResources {
+		t.Errorf("demo offers %d views for %d served built-in kinds and Releases (custom kinds %v)", len(b.Profiles), builtin, b.CustomResources)
+	}
+}
+
+// TestDemoVeleroPage: the demo cluster's Velero shows on the Velero page as its file describes it
+// (demo/velero.go): nightly-all overdue while its last backup runs, shop-volumes partially failed,
+// monitoring-config paused, the secondary location unavailable, demo-shop's repository's
+// maintenance failed, demo-ml outside every schedule with its PVCs first.
+func TestDemoVeleroPage(t *testing.T) {
+	c := &ClusterConnector{KubeconfigPaths: []string{filepath.Join(t.TempDir(), "none")}, IncludeDemo: true,
+		DemoOptions: demo.Options{Pods: 50, Deployments: 10, Services: 3, Namespaces: 20, Nodes: 3, Events: 10, NoChurn: true}}
+	s := New(Options{Connector: c, SnapshotInterval: 5 * time.Millisecond})
+	t.Cleanup(s.Close)
+	if err := s.Connect(context.Background(), DemoContext); err != nil {
+		if errors.Is(err, errDemoUnavailable) {
+			t.Skip("the demo package is a stub in this tree")
+		}
+		t.Fatal(err)
+	}
+	waitFor(t, "Velero's kinds", func() bool { return hasKind(s, VeleroBackupsKey) })
+	m, err := s.VeleroDashboard(context.Background(), "", nil)
+	if err != nil || !m.Served || !m.Synced {
+		t.Fatalf("%+v %v", m, err)
+	}
+	states := map[string]string{}
+	for _, r := range m.Schedules {
+		states[r.Ref.Name] = r.State
+	}
+	if states["nightly-all"] != lblOverdue || states["shop-volumes"] != lblPartiallyFailed || states["monitoring-config"] != lblPaused ||
+		states["hourly-db"] != lblEnabled || states["weekly-full"] != lblEnabled {
+		t.Errorf("schedules %v", states)
+	}
+	var problems []string
+	for _, a := range m.Attention {
+		problems = append(problems, a.Problem+" "+a.Object)
+	}
+	for _, want := range []string{"Location unavailable BackupStorageLocation secondary", "Overdue Schedule nightly-all",
+		"Maintenance failed BackupRepository demo-shop-default-kopia"} {
+		if !slices.Contains(problems, want) {
+			t.Errorf("attention %v: no %q", problems, want)
+		}
+	}
+	if len(m.Outside) == 0 || m.Outside[0].Ref.Name != "demo-ml" || m.Outside[0].PVCs != 4 {
+		t.Errorf("outside %+v (%s) tiles %s", m.Outside, m.OutsideError, tileText(m))
+	}
+	if h := m.Header; h.Version != "1.17.1" || h.Namespace != "velero" || h.NodeAgents == nil || h.NodeAgents.Desired != 3 ||
+		len(h.Plugins) != 1 || h.Plugins[0].Name != "aws" {
+		t.Errorf("header %+v", h)
 	}
 }
 

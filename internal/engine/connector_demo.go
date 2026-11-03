@@ -68,7 +68,8 @@ func (c *ClusterConnector) connectDemo() (*Backend, error) {
 	}()
 	var once sync.Once
 	return &Backend{
-		Context: DemoContext, Namespace: "default", Cache: ch, Profiles: demoProfiles(), Names: demo.Names(), Demo: true,
+		// The demo's definitions (Velero's, demo/velero.go) are watched as a cluster's.
+		Context: DemoContext, Namespace: "default", Cache: ch, Profiles: demoProfiles(), Names: demo.Names(), Demo: true, CustomResources: true,
 		Metrics:   metrics.NewHub(metrics.Fixed(dc.Metrics()), c.metricsOptions()),
 		DemoStats: func() any { return dc.Stats() },
 		Version:   demo.ServerVersion, // its kube-apiserver's (D-91)

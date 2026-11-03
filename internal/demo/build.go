@@ -77,6 +77,7 @@ func (c *Cluster) build() {
 	c.buildReplicaSets()             // the same
 	c.buildControllers()             // the same
 	c.buildVulnerabilityReports(now) // the same (trivy.go)
+	c.buildVelero(now)               // the same (velero.go)
 }
 
 // buildControllers stores the pods' other owners: the DaemonSets, and the CronJobs with the Jobs
