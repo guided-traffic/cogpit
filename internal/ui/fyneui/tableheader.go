@@ -94,7 +94,7 @@ func (tv *tableView) contentWidth(ci, n int) float32 {
 	}
 	switch c.Type {
 	case model.ColumnSignals:
-		w = signalsWidth(th, c) // tablesignals.go
+		return signalsWidth(th, c) // its slots or its title, padding included (tablesignals.go)
 	case model.ColumnIcon:
 		w = chartIconMaxSide // a chart's icon (helmcharticons.go); the column has no title
 	default:

@@ -18,7 +18,9 @@ import (
 // signal's text and what is behind it; a click on one selects the row and opens the drawer at the
 // signal's section (drawer.openAt). A row that shows a status pill and a spine (statusLit) leaves
 // out its state's triangle, which would say the same a third time; the integrations' icons stay.
-// The column keeps a fixed width: its slots, or its title and the sort arrow, whichever is wider.
+// The column is a column of its own (the owner, 2026-11-03): a divider in the header, and a width
+// the user may drag; it opens as wide as its slots, or its title and the sort arrow, whichever is
+// wider, and a double click on its edge brings it back to that.
 
 // signalGap is the room between two icons of a Signals cell, in points.
 const signalGap = 4
@@ -28,8 +30,8 @@ func signalStep(th fyne.Theme) float32 {
 	return max(th.Size(sizeCellIcon), gradeTableSide) + signalGap
 }
 
-// signalsWidth is a Signals column's fixed width: its slots' icons with the cell's padding, or its
-// title with the sort arrow as the header lays them out (headerCellRenderer), whichever is wider.
+// signalsWidth is a Signals column's width: its slots' icons with the cell's padding, or its title
+// with the sort arrow as the header lays them out (headerCellRenderer), whichever is wider.
 func signalsWidth(th fyne.Theme, col model.Column) float32 {
 	pad, gap := th.Size(sizeCellPadding), th.Size(theme.SizeNamePadding)
 	icons := 2*pad + float32(max(col.Slots, 1))*signalStep(th) - signalGap

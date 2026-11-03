@@ -1005,11 +1005,11 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 // the default for the column id or type.
 func (tv *tableView) columnWidth(i int) float32 {
 	col := tv.snap.Columns[tv.cols[i]]
-	if col.Type == model.ColumnSignals {
-		return signalsWidth(tv.table.Theme(), col) // its slots (tablesignals.go)
-	}
 	if w, ok := tv.userWidths[tv.snap.View+"/"+col.ID]; ok && !fixedWidth(col) {
 		return w
+	}
+	if col.Type == model.ColumnSignals {
+		return signalsWidth(tv.table.Theme(), col) // its slots or its title (tablesignals.go)
 	}
 	if col.Width > 0 {
 		return col.Width
@@ -1023,12 +1023,13 @@ func (tv *tableView) columnWidth(i int) float32 {
 	return defaultWidthByType[model.ColumnText]
 }
 
-// fixedWidth reports whether a column keeps its width: the Signals column, its slots' icons, has no
-// divider in the header and is neither dragged wider nor fitted to its content (the owner,
-// 2026-10-21, of the warning column it replaced: "kann meiner Meinung nach eine feste Breite
-// haben"); a grade column's shields too (the owner, 2026-10-22).
+// fixedWidth reports whether a column keeps its width: a grade column's shields, without a title,
+// have no divider in the header and are neither dragged wider nor fitted to their content (the
+// owner, 2026-10-22, of the warning column then: "kann meiner Meinung nach eine feste Breite
+// haben"). The Signals column, titled, is a column of its own (the owner, 2026-11-03): a divider,
+// and a width the user may drag.
 func fixedWidth(c model.Column) bool {
-	return c.Type == model.ColumnSignals || c.Type == model.ColumnGrade
+	return c.Type == model.ColumnGrade
 }
 
 // fixedAt reports whether the visible column i keeps its width (fixedWidth).

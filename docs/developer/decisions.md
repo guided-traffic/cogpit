@@ -6124,11 +6124,11 @@ its shield, an N/A one dimmed.
 
 - **Slots:** each source has a slot in a fixed order (the state's, then the integrations' in
   Cluster Settings' order: Trivy, Kyverno), and a view has the slots of the sources that apply to
-  its kind and are on:
-  the state's where the kind has one, Kyverno's while it is on (on a kind without a state of its
-  own only while one of its objects violates a policy), Trivy's on Pods while it is on. An icon keeps
-  its slot whatever the others show; the column's width is its slots' (or its title's, whichever is
-  wider) and fixed (`model.Column.Slots`).
+  its kind and are on: the state's where the kind has one, Kyverno's while it is on (on a kind
+  without a state of its own only while one of its objects violates a policy), Trivy's on Pods
+  while it is on. An icon keeps its slot whatever the others show (`model.Column.Slots`).
+- **A column of its own:** a divider in the header like every titled column, a width the user may
+  drag; it opens as wide as its slots or its title, whichever is wider.
 - **Pointer and click:** each icon has its own tooltip, the signal's text and what is behind it; a
   click selects the row and opens the drawer at the signal's section (Kyverno's first policy, the
   container whose image has the worst grade).
@@ -6158,4 +6158,4 @@ source (the scattering this ends).
 `cell`; [`fyneui/tablesignals.go`](../../internal/ui/fyneui/tablesignals.go);
 [`fyneui/drawer_openat.go`](../../internal/ui/fyneui/drawer_openat.go) · **Tests:** `TestSignalsCell`,
 `TestStateCell`, `TestSignalsSlots`, `TestKyvernoMarksViolations`, `TestTrivyPodsColumn`,
-`TestSignalsCellDraws`
+`TestSignalsCellDraws`, `TestSignalsColumnIsAColumnOfItsOwn`
