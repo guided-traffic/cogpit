@@ -97,7 +97,6 @@ const (
 // either.
 var navLayout = []navEntry{
 	page(engine.ClusterOverview),
-	{id: "applications"}, // a virtual kind, the workloads grouped by app.kubernetes.io/instance
 	{id: "nodes"},
 	navGroup("workloads", "Workloads", page(engine.WorkloadsOverview),
 		kindPods, "deployments", "daemonsets", "statefulsets", "replicasets", "replicationcontrollers", "jobs", "cronjobs"),
@@ -161,7 +160,6 @@ var (
 // (ten lines at every start) and got the fallback theme's icon.
 var navIcons = map[string]func() fyne.Resource{
 	engine.ClusterOverview:    func() fyne.Resource { return iconOverview },
-	"applications":            theme.ViewRestoreIcon,
 	"nodes":                   theme.ComputerIcon,
 	groupPrefix + "workloads": theme.GridIcon,
 	groupPrefix + "config":    theme.SettingsIcon,

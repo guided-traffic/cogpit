@@ -22,8 +22,12 @@ import (
 // object under "<namespace>/<owner UID>".
 
 const (
-	// keyReplicaSets is the Replica Sets' kind key.
-	keyReplicaSets = "replicasets"
+	// The workload kinds' keys.
+	keyDeployments  = "deployments"
+	keyStatefulSets = "statefulsets"
+	keyDaemonSets   = "daemonsets"
+	keyReplicaSets  = "replicasets"
+	keyJobs         = "jobs"
 	// indexByOwner names the indexes by controlling owner.
 	indexByOwner = "byOwner"
 )

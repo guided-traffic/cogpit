@@ -12,8 +12,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// A81: the logs of an Argo CD Application and of a Flux Kustomization in one merged tab, as an
-// application's.
+// A81: the logs of an Argo CD Application and of a Flux Kustomization in one merged tab.
 
 // commandState says how a command shows for its parameters: enabled, hidden or greyed with why.
 func commandState(t *testing.T, s *engine.Session, id string, params any) string {
@@ -73,7 +72,8 @@ func TestArgoCDLogs(t *testing.T) {
 }
 
 // TestFluxLogs (A81): Logs of a Flux Kustomization opens one tab on it, over the workloads its
-// status.inventory lists; greyed for one whose inventory lists none.
+// status.inventory lists, and activates it when it is open; the tab lists its workloads and narrows
+// to one (logs.sources, logs.setSource with workload); greyed for one whose inventory lists none.
 func TestFluxLogs(t *testing.T) {
 	h, _ := newFluxHarness(t, engine.Options{})
 	obj := fluxObject("kustomize.toolkit.fluxcd.io/v1", "Kustomization", "flux-system", "shop", false, "True")
@@ -97,5 +97,20 @@ func TestFluxLogs(t *testing.T) {
 	h.must(t, engine.OriginGUI, "flux.logs", map[string]any{"ref": shop}, &res)
 	if res.Tab.Title != "Logs: Kustomization shop" || !res.Created {
 		t.Errorf("tab %+v", res)
+	}
+	var again commands.DockResult
+	h.must(t, engine.OriginExternalAgent, "flux.logs", map[string]any{"ref": shop}, &again)
+	if again.Created || again.Tab.ID != res.Tab.ID || len(h.s.UIState().Dock) != 1 {
+		t.Errorf("a second Logs %+v, dock %d", again, len(h.s.UIState().Dock))
+	}
+	var src engine.LogSources
+	h.must(t, engine.OriginExternalAgent, "logs.sources", map[string]any{"id": res.Tab.ID}, &src)
+	if strings.Join(src.Workloads, ",") != "web" {
+		t.Errorf("sources %+v", src)
+	}
+	var narrowed engine.DockTab
+	h.must(t, engine.OriginExternalAgent, "logs.setSource", map[string]any{"id": res.Tab.ID, "workload": "web"}, &narrowed)
+	if narrowed.Logs.Workload != "web" {
+		t.Errorf("narrowed %+v", narrowed.Logs)
 	}
 }

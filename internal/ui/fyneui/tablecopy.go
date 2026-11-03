@@ -70,7 +70,7 @@ var noCopyTypes = map[model.ColumnType]bool{
 // resource's printer column of the same id too: its id is its name in lowerCamelCase).
 var noCopyColumns = map[string]bool{
 	// Short state words.
-	columnStatus: true, // Pods, Services, PVCs, PVs, Namespaces, HPAs, Port Forwards, Helm releases, VPAs, Applications
+	columnStatus: true, // Pods, Services, PVCs, PVs, Namespaces, HPAs, Port Forwards, Helm releases, VPAs
 	"conditions": true, // Nodes, Deployments, Jobs
 	"state":      true, // Resource Claims
 	"phase":      true, // custom resources

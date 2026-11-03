@@ -44,6 +44,7 @@ const fieldSpec = "spec"
 const (
 	idKind       = "kind"
 	titleKind    = "Kind"
+	titleName    = "Name"
 	titleTarget  = "Target"
 	fieldService = "service"
 	fieldPath    = "path"

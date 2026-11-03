@@ -95,8 +95,6 @@ type Backend struct {
 	nsWatch *nsWatch
 	// local holds the objects of the local kinds (kindscope.go), made on first use.
 	local localStore
-	// apps is the Applications view's cache (applications.go), made on first use.
-	apps appsStore
 	// forwards are the backend's running port forwards (portforward.go); they end with it.
 	forwards forwardSet
 	// ns is what decides whether a namespaced kind is read namespace by namespace
@@ -187,7 +185,6 @@ func (b *Backend) close(log *slog.Logger) {
 	b.alerts.stop()
 	b.history.stop()
 	b.overlays.close() // the integrations' reads (overlay.go)
-	b.apps.close()     // before the cluster's cache: it releases its handles on the workloads
 	b.local.close()
 	if b.Metrics != nil {
 		b.Metrics.Close()

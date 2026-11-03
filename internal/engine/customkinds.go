@@ -347,9 +347,6 @@ func (b *Backend) Cached(p *model.KindProfile) bool {
 	if p.Local {
 		return true
 	}
-	if isApplications(p) {
-		return b.apps.running(b.Scope(p))
-	}
 	if isHelmReleases(p) { // both drivers' records (helmdriver.go)
 		return b.releasesCached(p)
 	}

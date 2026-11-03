@@ -17,9 +17,8 @@ import (
 
 // A group's logs (A81, the owner's decision of 2026-10-14 evening): an application's logs in one
 // merged tab, each line starting with "<workload>/<pod>/<container> ", with a filter per source.
-// The groups are the objects that name the workloads they deploy, read from the cache: an
-// application of the Applications view (its workloads by the app.kubernetes.io/instance label),
-// an Argo CD Application (its status.resources) and a Flux Kustomization (its status.inventory).
+// The groups are the GitOps objects that name the workloads they deploy, read from the cache: an
+// Argo CD Application (its status.resources) and a Flux Kustomization (its status.inventory).
 // A Flux Helm release names no workloads in its status, so it is no group (helm-controller labels
 // what it deploys, which a query over every workload kind would have to find).
 //
@@ -40,7 +39,6 @@ const (
 
 // groupMembers resolve a group's workloads from its cached object, by the group's kind key.
 var groupMembers = map[string]func(*unstructured.Unstructured) []model.ObjectRef{
-	kinds.ApplicationsKey:                        kinds.ApplicationWorkloads,
 	kinds.ArgoApplicationsKey:                    kinds.ArgoAppWorkloads,
 	"kustomizations.kustomize.toolkit.fluxcd.io": kinds.FluxInventoryWorkloads,
 }

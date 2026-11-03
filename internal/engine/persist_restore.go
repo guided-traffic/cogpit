@@ -25,6 +25,13 @@ const (
 	maxStoredContext = maxHotbarContext
 )
 
+// retiredViews are the keys of views Cogpit does not have that a workspace file an older Cogpit
+// wrote may name (the Applications view, decisions.md › No Applications view): a tab on one, an
+// entry of a tab's history and a column layout of one are dropped on load, so that a restored tab
+// never waits for a view that never loads. The cluster of a dropped tab shows its most recent other
+// tab, else its default view (showConnected).
+var retiredViews = map[string]bool{"applications": true}
+
 // storedText reports whether s may be kept: valid UTF-8 of at most n bytes.
 func storedText(s string, n int) bool { return len(s) <= n && utf8.ValidString(s) }
 
@@ -61,9 +68,15 @@ func storedStates(states []string) []string {
 	return CleanStates(valid)
 }
 
-// storedHistory keeps a tab's history of valid view keys, the newest maxTabHistory.
+// storedHistory keeps a tab's history of valid view keys, without the retired views, the newest
+// maxTabHistory.
 func storedHistory(h []string) []string {
-	out := storedKeys(h)
+	var out []string
+	for _, v := range storedKeys(h) {
+		if !retiredViews[v] {
+			out = append(out, v)
+		}
+	}
 	if len(out) > maxTabHistory {
 		out = out[len(out)-maxTabHistory:]
 	}
@@ -74,7 +87,7 @@ func storedHistory(h []string) []string {
 func storedLayout(m map[string][]string) map[string][]string {
 	var out map[string][]string
 	for view, ids := range m {
-		if view == "" || !storedText(view, maxStoredKey) || len(out) >= maxStoredViews {
+		if view == "" || retiredViews[view] || !storedText(view, maxStoredKey) || len(out) >= maxStoredViews {
 			continue
 		}
 		if ids = storedKeys(ids); ids == nil {
@@ -89,15 +102,16 @@ func storedLayout(m map[string][]string) map[string][]string {
 }
 
 // normalize makes a document read from a file one the UI state can take: tabs with a valid context
-// and view, at most maxRestoredTabs, one preview tab per cluster at most (D-117; a file written
-// before it holds one in all), the fields within their bounds, and Active a tab's index or -1.
+// and a view that is not retired, at most maxRestoredTabs, one preview tab per cluster at most
+// (D-117; a file written before it holds one in all), the fields within their bounds, and Active a
+// tab's index or -1.
 func (doc *workspaceDoc) normalize() {
 	doc.Version = workspaceVersion
 	tabs := make([]storedTab, 0, min(len(doc.Tabs), maxRestoredTabs))
 	active, preview := -1, make(map[string]bool)
 	for i, t := range doc.Tabs {
 		if strings.TrimSpace(t.Context) == "" || !storedText(t.Context, maxStoredContext) ||
-			!storedText(t.View, maxStoredKey) || len(tabs) == maxRestoredTabs {
+			!storedText(t.View, maxStoredKey) || retiredViews[t.View] || len(tabs) == maxRestoredTabs {
 			continue
 		}
 		if i == doc.Active {

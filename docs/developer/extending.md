@@ -166,8 +166,9 @@ Without a profile a built-in kind has no view and a custom kind a generic one
    - objects Cogpit makes itself: a local kind (`Local`, listed in `local` in
      [`kinds.go`](../../internal/model/kinds/kinds.go), written with `Backend.PutLocal`); objects
      made from other cached objects: a virtual kind (`Derive`). One made of several kinds' objects
-     cannot derive from one scope and gets a cache of its own over `cache.Held`, filled while it is
-     read, as the Applications do ([`engine/applications.go`](../../internal/engine/applications.go)).
+     cannot derive from one scope: `Backend.Acquire` joins their handles (`cache.Join`) and
+     `Derive` works on the joined objects, as for Helm's releases, the Secrets and ConfigMaps
+     joined ([`engine/helmdriver.go`](../../internal/engine/helmdriver.go)).
 4. Golden tests from recorded objects in `internal/model/kinds/testdata/<kind>/`: `healthy`,
    `failing`, `terminating` and `minimal` (optional fields missing), which `TestTestdataComplete`
    requires and `TestGolden` renders; run `go test ./internal/model/kinds/ -update` and read the
@@ -194,7 +195,7 @@ Without a profile a built-in kind has no view and a custom kind a generic one
 1. Acquire a handle on what you show and release it when the view, drawer or query ends; the cache
    keeps the informer warm for a grace period after the last release. For a kind,
    `Backend.Acquire(profile)` ([`kindscope.go`](../../internal/engine/kindscope.go)), which serves
-   local kinds, the Applications, Helm's releases and the per-namespace watches of a user who may
+   local kinds, Helm's releases and the per-namespace watches of a user who may
    not list the kind everywhere; the backend's `Cache.Acquire(scope)` only for a scope without a
    profile.
 2. Read snapshots; never start an informer, a watch or a poll yourself.

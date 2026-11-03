@@ -66,7 +66,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerCreateDialogs(g)
 	registerSecretCreate(g)
 	registerPalette(g)
-	registerApplications(g)
+	registerGroupLogs(g)
 	registerArgoCD(g)
 	registerPreferences(g)
 	registerProgramFolders(g) // Preferences › Kubernetes › Program folders (D-120)

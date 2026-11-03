@@ -642,7 +642,6 @@ TestRenderAgentPreferences 0.89
 TestRenderAgentPreferencesPlainHTTP 1.81
 TestRenderAlertBoardDark 0.52
 TestRenderAlertmanagerFieldsDark 0.41
-TestRenderApplicationsViewDark 0.29
 TestRenderApplyRemovesDark 0.42
 TestRenderApplyRemovesLight 0.50
 TestRenderArgoApplicationDrawerDark 0.23
@@ -1010,8 +1009,8 @@ TestShowcaseLogs 0.00
 TestShowcaseNodes 0.00
 TestShowcaseShell 0.00
 TestShowcaseSocialPreview 0.00
-TestSidebarApplicationsAndDeviceResources 0.08
 TestSidebarCustomResources 0.13
+TestSidebarDeviceResources 0.08
 TestSidebarFluxSection 0.12
 TestSidebarFollowsKindsEvent 0.29
 TestSidebarHidesKindsNotListable 0.20

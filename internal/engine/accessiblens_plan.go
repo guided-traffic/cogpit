@@ -151,7 +151,7 @@ const (
 func (b *Backend) namespacePlan(p *model.KindProfile) nsPlan {
 	// Helm's releases are planned as the Secrets they are read from (the profile's resource), and
 	// their ConfigMaps part as the ConfigMaps (acquireReleases).
-	if b == nil || p == nil || !p.Namespaced || p.Local || isApplications(p) {
+	if b == nil || p == nil || !p.Namespaced || p.Local {
 		return nsPlan{}
 	}
 	denied, settled := b.clusterWideDenied(p)
@@ -354,7 +354,7 @@ const planWait = 10 * time.Second
 // cluster-wide list the server refuses. Without an answer by then it reads in all namespaces.
 func (b *Backend) acquireSettled(ctx context.Context, p *model.KindProfile) *cache.Handle {
 	plan := b.settledPlan(ctx, p)
-	if plan.pending || p.Local || isApplications(p) || isHelmReleases(p) { // their own caches (Acquire)
+	if plan.pending || p.Local || isHelmReleases(p) { // their own caches (Acquire)
 		return b.Acquire(p)
 	}
 	return b.acquirePlanned(p, plan)
@@ -391,7 +391,7 @@ func (b *Backend) settledPlan(ctx context.Context, p *model.KindProfile) nsPlan 
 func (b *Backend) acquireIn(ctx context.Context, p *model.KindProfile, namespace string) *cache.Handle {
 	plan := b.settledPlan(ctx, p)
 	switch {
-	case plan.pending || p.Local || isApplications(p) || isHelmReleases(p): // their own caches (Acquire)
+	case plan.pending || p.Local || isHelmReleases(p): // their own caches (Acquire)
 		return b.Acquire(p)
 	case plan.perNamespace && namespace != "":
 		return b.Cache.AcquireNamespaces(b.Scope(p), []string{namespace})
@@ -410,12 +410,12 @@ func refusedIn(h *cache.Handle, kind string) error {
 }
 
 // acquireForView is the open view's handle on its kind: as plan says, and nothing while the plan
-// is pending; local kinds and the Applications as Acquire serves them.
+// is pending; local kinds and Helm's releases as Acquire serves them.
 func (b *Backend) acquireForView(p *model.KindProfile, plan nsPlan) *cache.Handle {
 	switch {
 	case plan.pending:
 		return cache.Pending(b.Scope(p))
-	case p.Local || isApplications(p) || isHelmReleases(p): // the release Secrets and ConfigMaps joined (helmdriver.go)
+	case p.Local || isHelmReleases(p): // the release Secrets and ConfigMaps joined (helmdriver.go)
 		return b.Acquire(p)
 	}
 	return b.acquirePlanned(p, plan)
@@ -481,15 +481,6 @@ func (b *Backend) relatedKey(p *model.KindProfile, needs []model.RelatedIndex, n
 	return sb.String()
 }
 
-// readKey is how a handle Acquire takes on a kind reads it now: in all namespaces (a pending plan
-// too, which Acquire reads in all namespaces) or namespace by namespace in the plan's namespaces.
-func (b *Backend) readKey(p *model.KindProfile) string {
-	if plan := b.namespacePlan(p); plan.perNamespace {
-		return plan.key()
-	}
-	return "all"
-}
-
 // followRefusal reads the view's kind namespace by namespace once the API server refused its
 // cluster-wide watch (403 Forbidden), though the access reviews allowed it or could not tell (a
 // RoleBinding in the context's own namespace, an authorizer that cannot list its rules).
@@ -524,7 +515,6 @@ func (st *state) replan(b *Backend) {
 	}
 	st.reconcileLocked(now)
 	st.mu.Unlock()
-	b.apps.wake() // the Applications' own reads of the workloads (applications.go followPlans)
 }
 
 // replanPending is replan for a view still waiting for its plan: a rules review answered.

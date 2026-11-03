@@ -24,6 +24,8 @@ import (
 var (
 	replicaSetsGVR  = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}
 	statefulSetsGVR = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
+	jobsGVR         = schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"}
+	cronJobsGVR     = schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "cronjobs"}
 )
 
 // fakeLogs is a log streamer: each container's log is its initial content, and a follow stream

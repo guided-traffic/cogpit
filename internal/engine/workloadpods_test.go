@@ -62,8 +62,8 @@ func workloadPodsSession(t *testing.T) (*Session, *testkit.MemorySource, *podTab
 	src.Set(replicaSetsGVR, wpOwned(testkit.Object("apps/v1", "ReplicaSet", "shop", "api-1", nil), "apps/v1", "Deployment", "api"))
 	src.Set(statefulSetsGVR, testkit.Object("apps/v1", "StatefulSet", "shop", "db", nil))
 	src.Set(wpDaemonSetsGVR, testkit.Object("apps/v1", "DaemonSet", "shop", "agent", nil))
-	src.Set(appsCronJobsGVR, testkit.Object("batch/v1", "CronJob", "shop", "report", nil))
-	src.Set(appsJobsGVR, wpOwned(testkit.Object("batch/v1", "Job", "shop", "report-1", nil), "batch/v1", "CronJob", "report"))
+	src.Set(cronJobsGVR, testkit.Object("batch/v1", "CronJob", "shop", "report", nil))
+	src.Set(jobsGVR, wpOwned(testkit.Object("batch/v1", "Job", "shop", "report-1", nil), "batch/v1", "CronJob", "report"))
 	for _, p := range []*unstructured.Unstructured{
 		wpPod("shop", "web-old-a", "ReplicaSet", "web-old"),
 		wpPod("shop", "web-new-b", "ReplicaSet", "web-new"),

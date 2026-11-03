@@ -206,6 +206,28 @@ func TestRestoreBehindAnExplicitContext(t *testing.T) {
 	}
 }
 
+// A tab on a view Cogpit does not have (retiredViews: the Applications view) is not restored, nor
+// an entry of a tab's history or a column layout of one. The shown cluster's tab was that one, so
+// its cluster comes back on its default view, Pods, which loads; the other cluster's tab stays.
+func TestRestoreLeavesOutARetiredView(t *testing.T) {
+	s, _, _ := restoreStack(t, true, `{"version": 1, "active": 1, "tabs": [
+  {"context": "alpha", "view": "pods", "viewTitle": "Pods", "used": 1, "back": ["applications", "services"]},
+  {"context": "beta", "view": "applications", "viewTitle": "Applications", "used": 2, "back": ["pods"]}
+], "hiddenColumns": {"applications": ["managedBy"], "pods": ["qos"]}, "connected": ["alpha", "beta"], "shown": "beta"}`)
+	u := s.UIState()
+	if len(u.Tabs) != 1 || u.Tabs[0].Context != "alpha" || PlaceViews(u.Tabs[0].Back)[0] != "services" || len(u.Tabs[0].Back) != 1 || u.ActiveTab != "" {
+		t.Fatalf("restored tabs %+v, active %q", u.Tabs, u.ActiveTab)
+	}
+	if _, ok := u.HiddenColumns["applications"]; ok || !slices.Equal(u.HiddenColumns["pods"], []string{"qos"}) {
+		t.Errorf("hidden columns %v", u.HiddenColumns)
+	}
+	s.RestoreLastSession("")
+	waitTable(t, s, "pods", func(tb *TableSnapshot) bool { return tb.Synced && tb.Context == "beta" && len(tb.Rows) == 1 })
+	if u = s.UIState(); u.Context != "beta" || u.View != "pods" || slices.ContainsFunc(u.Tabs, func(t ViewTab) bool { return t.View == "applications" }) {
+		t.Errorf("shown %q on %q, tabs %+v", u.Context, u.View, u.Tabs)
+	}
+}
+
 // Off, nothing of the last session connects, and the start shows no tab.
 func TestRestoreOffOnARealStack(t *testing.T) {
 	s, alpha, beta := restoreStack(t, false, lastSession)

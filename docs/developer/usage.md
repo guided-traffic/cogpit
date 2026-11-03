@@ -549,6 +549,9 @@ welcome page's checkbox "Restore this session at the next start" is the same pre
   cluster says why. `--context` shows its own cluster first.
 - A cluster whose kubeconfig is gone is left out with a notice; one whose connect fails shows its
   [error page](#several-clusters-connected) and no tabs.
+- A tab on the Applications view, which Cogpit does not have
+  ([D-147](decisions.md#d-147-no-applications-view)), is left out; its cluster opens on its other
+  tabs, else on its default view.
 - The dock's tabs are not restored. Table columns, collapsed navigator groups, whether the navigator
   and the chat show, and the [window's place](#the-windows-place-and-size) come back either way.
 - `workspace.json` records the connected and shown clusters either way, so turning the preference

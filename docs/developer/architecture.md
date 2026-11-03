@@ -594,7 +594,9 @@ tab; of two processes the last write wins. `restoreWorkspace`
 ([`persist_restore.go`](../../internal/engine/persist_restore.go)) restores the layout, and with
 `Preferences.RestoreSession` the tabs, the last shown tab's cluster `Disconnected`, asking no
 cluster (`TestWorkspaceNoRequestAtStart`); tabs of contexts certainly gone are dropped
-(`goneContexts` reads the kubeconfig sources, never a cluster). `Session.RestoreLastSession`
+(`goneContexts` reads the kubeconfig sources, never a cluster), and the load drops the views Cogpit
+does not have (`retiredViews`) from the tabs, their history and the column layout.
+`Session.RestoreLastSession`
 ([`restore.go`](../../internal/engine/restore.go)) then connects the cluster shown at quit through
 `Connect` and the others through `ConnectBackground`
 ([`connect_background.go`](../../internal/engine/connect_background.go)), each the user's own
@@ -895,7 +897,7 @@ and close them too.
   container of the resource's pods from the cache (lines start `<pod>/<container>`, at most 40
   containers). A follow stream the server ends while the container runs reopens from `sinceTime`
   (backoff 0.5 s to 8 s, at most 5 times without a new line) and follows the container by name,
-  adopting its next instance. Group logs (`application.logs`, `argocd.logs`, `flux.logs`;
+  adopting its next instance. Group logs (`argocd.logs`, `flux.logs`;
   [`grouplogs.go`](../../internal/engine/grouplogs.go)) run one such stream per workload the cached
   group object names ([`workloadsof.go`](../../internal/model/kinds/workloadsof.go)), sharing the
   bounds, at most 20 workloads.
@@ -1205,10 +1207,6 @@ the Secrets view open they cost no watch of their own (`TestBudgetSecretsAndRele
   confirmation's UID binding rely on it). Helm's releases join (`cache.Join`,
   [`join.go`](../../internal/cache/join.go)) the Secrets and the ConfigMaps labelled `owner=helm`
   ([`helmdriver.go`](../../internal/engine/helmdriver.go)); a joined handle costs exactly its parts.
-  The Applications ([`applications.go`](../../internal/engine/applications.go)) group workloads by
-  `app.kubernetes.io/instance` (`kinds.GroupApplications`,
-  [`kinds/applications.go`](../../internal/model/kinds/applications.go)) in a cache of their own
-  over `cache.Held`, which holds the workload kinds only while its informer runs.
 - `object.edit` and `object.delete` do not apply to either (`KindProfile.APIObject`); `kinds.list`
   marks them `local` or `virtual`, and their views have no Create button.
 

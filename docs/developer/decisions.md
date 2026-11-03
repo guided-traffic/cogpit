@@ -155,6 +155,10 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-144](#d-144-closing-several-tabs-at-once) | Closing several tabs at once | built: a tab's right-click menu in the tab bar and the dock; the bar's tabs only, a running job's tab stays |
 | [D-145](#d-145-a-tables-free-width-goes-to-its-cut-columns-first) | A table's free width goes to its cut columns first | built: measured once when a table opens, never while it stays open; Preferences › Tables › Free width, on |
 | [D-146](#d-146-every-onoff-setting-is-a-switch) | Every on/off setting is a switch | built: Preferences and Cluster Settings, label left, the switch at the right edge; filters, column picks and dialogs keep checkboxes |
+| [D-147](#d-147-no-applications-view) | No Applications view | built: no view of workloads grouped by their instance label, nor its Logs; a restored tab on it is left out |
+| [D-148](#d-148-hide-outdated-objects) | Hide outdated objects | built: View menu and Preferences › App, on; Replication Controllers and Endpoints leave the navigator, its search still finds them |
+| [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
+| [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version mark stays in its cell |
 
 ## D-1: UI toolkit
 
@@ -1514,6 +1518,9 @@ the window's arrangement and the last session, written 1 s after they stop chang
   its draft, [D-11](#d-11-crash-stance)), column widths.
 - **Tabs of contexts that are gone** are dropped with a notice, only on a plain fact
   (`goneContexts`): the file or its source is gone, or the context is no longer defined or offered.
+- **A view Cogpit does not have** (`retiredViews`: the Applications view,
+  [D-147](#d-147-no-applications-view)) is dropped on load without a notice: a tab on it, its
+  entries in a tab's history, its column layout.
 - **A file read back** keeps at most 200 tabs, 1,000 entries a list, keys of 512 bytes, a search of
   1,000 bytes and titles of 256 bytes; one that does not load is moved to
   `workspace.json.unreadable` before the first write. Of two Cogpit processes the last write wins.
@@ -1529,9 +1536,11 @@ width whenever a header's laid-out width differs from the one it set, which a re
 - The column layout per cluster — a view's columns are its kind's, the same on every cluster.
 
 **Code:** [`engine/persist.go`](../../internal/engine/persist.go),
+[`engine/persist_restore.go`](../../internal/engine/persist_restore.go),
 [`engine/restore.go`](../../internal/engine/restore.go) · **Tests:** `TestWorkspaceRoundTrip`,
 `TestWorkspaceDropsOnlyWhatIsCertainlyGone`, `TestWorkspaceUnreadableFileIsKeptAside`,
-`TestRestoreOffStartsWithoutTabsAndConnections`, `TestRestoreOnConnectsTheLastSession`
+`TestRestoreOffStartsWithoutTabsAndConnections`, `TestRestoreOnConnectsTheLastSession`,
+`TestRestoreLeavesOutARetiredView`
 
 ## D-42: The start screen
 
@@ -6015,6 +6024,31 @@ filters and pickers (a pick of items, not a setting).
 **Code:** [`fyneui/instrument_switch.go`](../../internal/ui/fyneui/instrument_switch.go)
 `newLabelledSwitch`, `switchGroup` · `TestLabelledSwitch`, `TestSwitchGroup`,
 `TestSettingsShowSwitchesOnly`
+
+## D-147: No Applications view
+
+**Status:** built · **By:** owner (no Applications view: neither its navigator entry nor the view
+behind it), lead (open to revision) the rest
+
+Cogpit has no Applications view: no navigator entry, no view of the workloads grouped per namespace
+by their `app.kubernetes.io/instance` label, and no Logs of such a group; one tab merges the logs
+of a GitOps object's workloads, an Argo CD Application's (`argocd.logs`) or a Flux Kustomization's
+(`flux.logs`). A workspace file that names the view loads without it: a tab on it, its entries in a
+tab's history and its column layout are dropped on load, and the tab's cluster shows its most
+recent other tab, else its default view ([D-41](#d-41-what-survives-a-restart)).
+
+**Why:** the instance label is set mostly by Helm, so the view listed Helm's releases again with
+less in them: Helm › Releases shows the same groups with their revisions, values and actions. The
+owner sees no sense in the view. Argo CD's Applications and Flux's Kustomizations group what a
+GitOps tool deploys by its own records.
+
+**Rejected:** hiding the view behind the navigator's planned Hide outdated objects switch — the
+view, its own cache of the workload kinds and its tests would stay for a view the owner does not
+use; keeping it as it is; a restored tab on it kept, showing the cluster's default view — the tab's
+filters, status filter and sort belong to the Applications' columns.
+
+**Code:** [`engine/persist_restore.go`](../../internal/engine/persist_restore.go) `retiredViews` ·
+`TestRestoreLeavesOutARetiredView`
 
 ## D-148: Hide outdated objects
 

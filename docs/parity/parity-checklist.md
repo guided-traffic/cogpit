@@ -12,8 +12,8 @@ of the checklist that holds its evidence. The status is the row's first word the
 
 | What | Rows | Exist | Done | Partial | Missing |
 |---|---|---|---|---|---|
-| Resource views (free) | 64 | 64 | 1 | 63 | 0 |
-| Resource actions (free; exist = registered commands) | 42 | 42 | – | – | 0 |
+| Resource views (free) | 63 | 63 | 1 | 62 | 0 |
+| Resource actions (free; exist = registered commands) | 41 | 41 | – | – | 0 |
 | Interface rows, free plan | 123 | 120 | 8 | 112 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
@@ -34,7 +34,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Row menu (⋮): Show Details, Edit, Delete for a custom resource; the kinds' own actions are added for built-in kinds (captured, of a custom… | partial | [Every kind](resource-parity.md#every-kind) |
 | Right-click on a row opens the actions menu | done | [Every kind](resource-parity.md#every-kind) |
 | Overview | partial | [Cluster](resource-parity.md#cluster) |
-| Applications | partial | [Cluster](resource-parity.md#cluster) |
+| Applications | not a target | [Cluster](resource-parity.md#cluster) |
 | Nodes | partial | [Cluster](resource-parity.md#cluster) |
 | Namespaces | partial | [Cluster](resource-parity.md#cluster) |
 | Events | partial | [Cluster](resource-parity.md#cluster) |

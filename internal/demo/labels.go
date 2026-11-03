@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// The Kubernetes recommended labels the demo's deployments carry, so that its Applications view
-// (resource-parity › Cluster › Applications) groups them: a user deployment "<domain>-<role>" is
-// the <role> component of the application instance <domain> in its namespace. Every workload of an
-// instance shares its version and manager, both chosen by a hash of the namespace and the domain,
-// never by the random generator, so the rest of the cluster stays as it was.
+// The Kubernetes recommended labels the demo's deployments carry, as charts and GitOps tools set
+// them on a real cluster: a user deployment "<domain>-<role>" is the <role> component of the
+// application instance <domain> in its namespace. Every workload of an instance shares its version
+// and manager, both chosen by a hash of the namespace and the domain, never by the random
+// generator, so the rest of the cluster stays as it was.
 const (
 	labelInstance  = "app.kubernetes.io/instance"
 	labelName      = "app.kubernetes.io/name"

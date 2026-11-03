@@ -161,7 +161,7 @@ func (b *Backend) inNamespace(p *model.KindProfile, namespace string) func(conte
 // readsAllNamespaces reports whether a handle on a namespaced kind of the cluster reads it in all
 // namespaces: one that a refusal there would leave without objects.
 func readsAllNamespaces(p *model.KindProfile, h *cache.Handle) bool {
-	return p.Namespaced && !p.Local && !isApplications(p) && !isHelmReleases(p) &&
+	return p.Namespaced && !p.Local && !isHelmReleases(p) &&
 		h.Namespaces() == nil && h.Scope().Namespace == ""
 }
 
@@ -235,7 +235,7 @@ func (b *Backend) acquireNow(p *model.KindProfile, namespace string) *cache.Hand
 
 // waitsForPlan reports whether a namespaced kind of the cluster has a pending plan.
 func (b *Backend) waitsForPlan(p *model.KindProfile) bool {
-	return p.Namespaced && !p.Local && !isApplications(p) && !isHelmReleases(p) && b.namespacePlan(p).pending
+	return p.Namespaced && !p.Local && !isHelmReleases(p) && b.namespacePlan(p).pending
 }
 
 // narrowsTo reports whether acquireNow reads a kind in namespace alone: namespace is an object's,
@@ -243,7 +243,7 @@ func (b *Backend) waitsForPlan(p *model.KindProfile) bool {
 // The rules of the other namespaces the plan names do not matter here: a plan pending for one
 // (a namespace just added to the filter) does not send the drawer back to all namespaces.
 func (b *Backend) narrowsTo(p *model.KindProfile, namespace string) bool {
-	if b == nil || namespace == "" || !p.Namespaced || p.Local || isApplications(p) || isHelmReleases(p) {
+	if b == nil || namespace == "" || !p.Namespaced || p.Local || isHelmReleases(p) {
 		return false
 	}
 	denied, settled := b.clusterWideDenied(p)
