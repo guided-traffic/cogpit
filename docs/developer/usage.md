@@ -88,7 +88,7 @@ Ctrl on Windows and Linux.
   ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
 - <a id="the-signals-column"></a>The Signals column after Name gathers every mark on an object, one
   icon per source in a fixed slot: the object's own state as a triangle (a pod's containers not
-  ready, a node's pressure, a cron job's failed run), Kyverno's policy violations as its glyph, a
+  ready, a node's pressure, a cron job's failed run), Kyverno's policy violations as a whistle, a
   pod's worst image grade as its shield (N/A dimmed). Each icon has its tooltip; a click opens the
   drawer at the section behind it. Sorted descending, the worst comes first; a search finds the
   icons' texts ([D-150](decisions.md#d-150-one-signals-column-for-every-mark)).
@@ -1379,7 +1379,7 @@ a report names with a violation
 - **What counts:** a result `fail` in any policy mode (Audit, or Enforce on an object older than the
   policy, found by a background scan) and `warn` (a failed rule of a policy marked as not scored).
   `error`, `pass` and `skip` mark nothing; the report's drawer lists them.
-- **Lists:** Kyverno's glyph in the warning colour in the [Signals column](#the-signals-column),
+- **Lists:** Kyverno's whistle in the warning colour in the [Signals column](#the-signals-column),
   tooltip "Kyverno: 2 policy violations (require-team-label, disallow-latest-tag)": in the view's
   own Signals column (Pods, Nodes, Cron Jobs, …), else in a Signals column after Name, added while
   an object of the view violates a policy (custom resources included). A click opens the drawer at

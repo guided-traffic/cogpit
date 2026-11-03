@@ -6119,8 +6119,8 @@ Every mark Cogpit puts on an object in a list goes into one column right after N
 which takes the place of the warning column. A cell shows one icon per signal side by side, each
 source its own: the object's own state (a pod's containers not ready, a node's pressure, a cron
 job's failed run) a triangle, Kyverno's policy violations
-([D-79](#d-79-kyvernos-policy-violations-on-the-objects)) Kyverno's glyph, both in the signal's
-status colour; Trivy's worst image grade ([D-113](#d-113-image-grades-shields-from-trivys-reports))
+([D-79](#d-79-kyvernos-policy-violations-on-the-objects)) Kyverno's glyph, a referee's whistle
+(the owner; the same on Kyverno's tile in Cluster Settings), both in the signal's status colour; Trivy's worst image grade ([D-113](#d-113-image-grades-shields-from-trivys-reports))
 its shield, an N/A one dimmed.
 
 - **Slots:** each source has a slot in a fixed order (the state's, then the integrations' in

@@ -34,12 +34,14 @@ func newInstrumentTile(name engine.Integration) *instrumentTile {
 
 // The integrations' glyphs, Cogpit's own drawings (clean-room, D-12) on a 24-unit grid: the
 // Metrics Server's chip, Prometheus' rising line, the Alertmanager's bell, Trivy's shield and
-// Kyverno's checked ring.
+// Kyverno's referee's whistle, a rule broken (the owner, 2026-11-03: "Wir nehmen eine
+// Trillerpfeife"; the same glyph on its tile and as its signal in the lists).
 var (
 	glyphPrometheus = metricIcon("cogpit-prometheus.svg", `<path d="M3 18.2 9 11l3.6 3.6L19.6 6.4l1.6 1.4-8.5 10-3.6-3.6-4.7 5.6z"/>`)
 	glyphTrivy      = metricIcon("cogpit-trivy.svg", `<path d="M12 2 4 5.5v5.7c0 4.7 3.3 8.7 8 10 4.7-1.3 8-5.3 8-10V5.5z"/>`)
-	glyphKyverno    = metricIcon("cogpit-kyverno.svg", `<path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 2.4a7.6 7.6 0 1 1 0 15.2 7.6 7.6 0 0 1 0-15.2z"/>`+
-		`<path d="M10.6 15.6 7.4 12.4l1.4-1.4 1.8 1.8 4.6-4.6 1.4 1.4z"/>`)
+	glyphKyverno    = metricIcon("cogpit-kyverno.svg", `<path fill-rule="evenodd" d="M3 15.5a6 6 0 1 0 12 0a6 6 0 1 0 -12 0zM6.7 15.5a2.3 2.3 0 1 0 4.6 0a2.3 2.3 0 1 0 -4.6 0z"/>`+
+		`<path d="M6.56 10.02L18.80 4.57L19.59 4.87L20.81 7.61L20.51 8.41L11.74 12.31Z"/>`+
+		`<path d="M11.55 5.39L9.30 4.09L8.60 5.31L10.85 6.61Z"/><path d="M14.69 3.88L14.24 1.32L12.86 1.56L13.31 4.12Z"/><path d="M17.57 4.30L19.06 2.17L17.92 1.37L16.43 3.50Z"/>`)
 )
 
 // instrumentGlyph is the glyph of an integration; the first letter's absence is a state nobody
