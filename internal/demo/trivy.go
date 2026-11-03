@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utiljson "k8s.io/apimachinery/pkg/util/json"
 )
 
 // Trivy Operator's VulnerabilityReports (aquasecurity.github.io/v1alpha1), so that the demo
@@ -29,47 +31,53 @@ import (
 // vulnReportsGVR is the reports' resource.
 var vulnReportsGVR = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
 
-// trivyAPIVersion and trivyKind name the reports' kind.
+// trivyAPIVersion and trivyKind name the reports' kind, apiKindReplicaSet the workload they are of.
 const (
-	trivyAPIVersion = "aquasecurity.github.io/v1alpha1"
-	trivyKind       = "VulnerabilityReport"
+	trivyAPIVersion   = "aquasecurity.github.io/v1alpha1"
+	trivyKind         = "VulnerabilityReport"
+	apiKindReplicaSet = "ReplicaSet"
 )
 
-// CustomResourceDefinitions returns the definitions of the custom kinds the demo cluster serves,
-// established: Trivy Operator's VulnerabilityReport with its printer columns. The demo does not
-// serve the definitions themselves; the engine makes its views from them.
+// vulnReportsCRD is Trivy Operator's VulnerabilityReport definition, established, with its printer
+// columns.
+const vulnReportsCRD = `{
+  "apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
+  "metadata": {"name": "vulnerabilityreports.aquasecurity.github.io"},
+  "spec": {
+    "group": "aquasecurity.github.io", "scope": "Namespaced",
+    "names": {"plural": "vulnerabilityreports", "singular": "vulnerabilityreport", "kind": "VulnerabilityReport",
+      "listKind": "VulnerabilityReportList", "shortNames": ["vuln", "vulns"], "categories": ["all"]},
+    "versions": [{
+      "name": "v1alpha1", "served": true, "storage": true,
+      "schema": {"openAPIV3Schema": {"type": "object", "x-kubernetes-preserve-unknown-fields": true}},
+      "additionalPrinterColumns": [
+        {"name": "Repository", "type": "string", "jsonPath": ".report.artifact.repository"},
+        {"name": "Tag", "type": "string", "jsonPath": ".report.artifact.tag"},
+        {"name": "Scanner", "type": "string", "jsonPath": ".report.scanner.name"},
+        {"name": "Age", "type": "date", "jsonPath": ".metadata.creationTimestamp"},
+        {"name": "Critical", "type": "integer", "jsonPath": ".report.summary.criticalCount", "priority": 1},
+        {"name": "High", "type": "integer", "jsonPath": ".report.summary.highCount", "priority": 1},
+        {"name": "Medium", "type": "integer", "jsonPath": ".report.summary.mediumCount", "priority": 1},
+        {"name": "Low", "type": "integer", "jsonPath": ".report.summary.lowCount", "priority": 1},
+        {"name": "Unknown", "type": "integer", "jsonPath": ".report.summary.unknownCount", "priority": 1}
+      ]
+    }]
+  },
+  "status": {"conditions": [
+    {"type": "NamesAccepted", "status": "True", "reason": "NoConflicts"},
+    {"type": "Established", "status": "True", "reason": "InitialNamesAccepted"}
+  ]}
+}`
+
+// CustomResourceDefinitions returns the definitions of the custom kinds the demo cluster serves:
+// Trivy Operator's VulnerabilityReport. The demo does not serve the definitions themselves; the
+// engine makes its views from them.
 func CustomResourceDefinitions() []*unstructured.Unstructured {
-	col := func(name, typ, path string, priority int64) map[string]any {
-		c := map[string]any{"name": name, "type": typ, "jsonPath": path}
-		if priority > 0 {
-			c["priority"] = priority
-		}
-		return c
+	var obj map[string]any
+	if err := utiljson.Unmarshal([]byte(vulnReportsCRD), &obj); err != nil {
+		panic(err) // a constant: the demo's own tests parse it
 	}
-	return []*unstructured.Unstructured{{Object: map[string]any{
-		"apiVersion": "apiextensions.k8s.io/v1", "kind": "CustomResourceDefinition",
-		"metadata": map[string]any{"name": "vulnerabilityreports.aquasecurity.github.io"},
-		"spec": map[string]any{
-			"group": "aquasecurity.github.io", "scope": "Namespaced",
-			"names": map[string]any{"plural": "vulnerabilityreports", "singular": "vulnerabilityreport", "kind": trivyKind,
-				"listKind": trivyKind + "List", "shortNames": []any{"vuln", "vulns"}, "categories": []any{"all"}},
-			"versions": []any{map[string]any{
-				"name": "v1alpha1", "served": true, "storage": true,
-				"schema": map[string]any{"openAPIV3Schema": map[string]any{"type": "object", "x-kubernetes-preserve-unknown-fields": true}},
-				"additionalPrinterColumns": []any{
-					col("Repository", "string", ".report.artifact.repository", 0), col("Tag", "string", ".report.artifact.tag", 0),
-					col("Scanner", "string", ".report.scanner.name", 0), col("Age", "date", ".metadata.creationTimestamp", 0),
-					col("Critical", "integer", ".report.summary.criticalCount", 1), col("High", "integer", ".report.summary.highCount", 1),
-					col("Medium", "integer", ".report.summary.mediumCount", 1), col("Low", "integer", ".report.summary.lowCount", 1),
-					col("Unknown", "integer", ".report.summary.unknownCount", 1),
-				},
-			}},
-		},
-		"status": map[string]any{"conditions": []any{
-			map[string]any{"type": "NamesAccepted", "status": "True", "reason": "NoConflicts"},
-			map[string]any{"type": "Established", "status": "True", "reason": "InitialNamesAccepted"},
-		}},
-	}}}
+	return []*unstructured.Unstructured{{Object: obj}}
 }
 
 // demoVuln is one synthetic vulnerability of the catalogues.
@@ -94,7 +102,7 @@ var (
 		"tar", "gzip", "bash", "perl-base", "libgcrypt20", "libsystemd0", "libpcre2-8-0", "libtasn1-6", "ncurses-base", "login",
 		"libkrb5-3", "libldap-2.5-0", "libnghttp2-14", "libssh2-1", "libzstd1", "liblzma5", "libpam0g", "util-linux", "apt", "dpkg",
 	}
-	alpinePackages = []string{"musl", "busybox", "libcrypto3", "libssl3", "zlib", "libexpat", "sqlite-libs", "curl", "libcurl", "ssl_client"}
+	alpinePackages = []string{"musl", "busybox", "libcrypto3", "libssl3", "zlib", "libexpat", "sqlite-libs", "libcurl", "ssl_client", "c-ares"}
 	goModules      = []string{
 		"golang.org/x/net", "golang.org/x/crypto", "golang.org/x/text", "golang.org/x/oauth2", "google.golang.org/grpc",
 		"google.golang.org/protobuf", "github.com/golang-jwt/jwt/v4", "github.com/docker/docker", "github.com/opencontainers/runc",
@@ -239,46 +247,110 @@ func fnvOf(s string) uint64 {
 	return h.Sum64()
 }
 
+// The report's shape as Trivy Operator writes it (its v1alpha1 types, the fields the demo fills).
+type (
+	trivyReportObject struct {
+		APIVersion string          `json:"apiVersion"`
+		Kind       string          `json:"kind"`
+		Metadata   trivyReportMeta `json:"metadata"`
+		Report     trivyReportBody `json:"report"`
+	}
+	trivyReportMeta struct {
+		Name              string            `json:"name"`
+		Namespace         string            `json:"namespace"`
+		UID               string            `json:"uid"`
+		CreationTimestamp string            `json:"creationTimestamp"`
+		Labels            map[string]string `json:"labels"`
+		OwnerReferences   []any             `json:"ownerReferences"`
+	}
+	trivyReportBody struct {
+		UpdateTimestamp string           `json:"updateTimestamp"`
+		Scanner         trivyScanner     `json:"scanner"`
+		Registry        trivyRegistry    `json:"registry"`
+		Artifact        trivyArtifact    `json:"artifact"`
+		OS              trivyOS          `json:"os"`
+		Summary         map[string]int64 `json:"summary"`
+		Vulnerabilities []trivyFinding   `json:"vulnerabilities"`
+	}
+	trivyScanner struct {
+		Name    string `json:"name"`
+		Vendor  string `json:"vendor"`
+		Version string `json:"version"`
+	}
+	trivyRegistry struct {
+		Server string `json:"server"`
+	}
+	trivyArtifact struct {
+		Repository string `json:"repository"`
+		Tag        string `json:"tag"`
+		Digest     string `json:"digest"`
+		MimeType   string `json:"mimeType"`
+	}
+	trivyOS struct {
+		Family string `json:"family"`
+		Name   string `json:"name"`
+	}
+	trivyFinding struct {
+		VulnerabilityID  string   `json:"vulnerabilityID"`
+		Resource         string   `json:"resource"`
+		InstalledVersion string   `json:"installedVersion"`
+		FixedVersion     string   `json:"fixedVersion"`
+		Severity         string   `json:"severity"`
+		Score            *float64 `json:"score,omitempty"`
+		Title            string   `json:"title"`
+		PublishedDate    string   `json:"publishedDate"`
+		LastModifiedDate string   `json:"lastModifiedDate"`
+		Links            []string `json:"links"`
+	}
+)
+
 // vulnerabilityReport renders the report of one container of a Deployment's ReplicaSet.
 func vulnerabilityReport(d *deployment, rs string, ct container, im demoImage, scanned time.Time) *unstructured.Unstructured {
 	registry, repo, tag := splitImage(ct.image)
 	var counts [len("CHMLU")]int64
-	list := make([]any, 0, len(im.vulns))
+	list := make([]trivyFinding, 0, len(im.vulns))
 	for _, v := range im.vulns {
 		counts[strings.IndexByte("CHMLU", v.severity[0])]++
-		e := map[string]any{
-			"vulnerabilityID": v.id, "resource": v.pkg, "installedVersion": v.installed, "fixedVersion": v.fixed,
-			"severity": v.severity, "title": v.pkg + ": a synthetic vulnerability of the demo cluster",
-			"publishedDate": "2024-02-01T00:00:00Z", "lastModifiedDate": "2024-06-01T00:00:00Z", "links": []any{},
+		f := trivyFinding{
+			VulnerabilityID: v.id, Resource: v.pkg, InstalledVersion: v.installed, FixedVersion: v.fixed, Severity: v.severity,
+			Title:         v.pkg + ": a synthetic vulnerability of the demo cluster",
+			PublishedDate: "2024-02-01T00:00:00Z", LastModifiedDate: "2024-06-01T00:00:00Z", Links: []string{},
 		}
 		if v.score > 0 {
-			e["score"] = v.score
+			score := v.score
+			f.Score = &score
 		}
-		list = append(list, e)
+		list = append(list, f)
 	}
-	osInfo := map[string]any{"family": im.osFamily, "name": im.osName}
-	meta := map[string]any{
-		"name": "replicaset-" + rs + "-" + ct.name, "namespace": d.namespace, "uid": digest("vulnreport", d.namespace, rs, ct.name)[:32],
-		"creationTimestamp": ts(scanned),
-		"labels": map[string]any{
-			"app.kubernetes.io/managed-by": "trivy-operator", "resource-spec-hash": digest("spec", d.namespace, rs)[:10],
-			"trivy-operator.container.name": ct.name, "trivy-operator.resource.kind": "ReplicaSet",
-			"trivy-operator.resource.name": rs, "trivy-operator.resource.namespace": d.namespace,
+	obj := trivyReportObject{
+		APIVersion: trivyAPIVersion, Kind: trivyKind,
+		Metadata: trivyReportMeta{
+			Name: "replicaset-" + rs + "-" + ct.name, Namespace: d.namespace, UID: digest("vulnreport", d.namespace, rs, ct.name)[:32],
+			CreationTimestamp: ts(scanned),
+			Labels: map[string]string{
+				"app.kubernetes.io/managed-by": "trivy-operator", "resource-spec-hash": digest("spec", d.namespace, rs)[:10],
+				"trivy-operator.container.name": ct.name, "trivy-operator.resource.kind": apiKindReplicaSet,
+				"trivy-operator.resource.name": rs, "trivy-operator.resource.namespace": d.namespace,
+			},
+			OwnerReferences: ownerRef("apps/v1", apiKindReplicaSet, rs, d.rsUID[0]),
 		},
-		"ownerReferences": ownerRef("apps/v1", "ReplicaSet", rs, d.rsUID[0]),
+		Report: trivyReportBody{
+			UpdateTimestamp: ts(scanned),
+			Scanner:         trivyScanner{Name: "Trivy", Vendor: "Aqua Security", Version: "0.58.1"},
+			Registry:        trivyRegistry{Server: registry},
+			Artifact: trivyArtifact{Repository: repo, Tag: tag, Digest: "sha256:" + digest("image", ct.image),
+				MimeType: "application/vnd.oci.image.manifest.v1+json"},
+			OS: trivyOS{Family: im.osFamily, Name: im.osName},
+			Summary: map[string]int64{"criticalCount": counts[0], "highCount": counts[1], "mediumCount": counts[2], "lowCount": counts[3],
+				"unknownCount": counts[4], "noneCount": 0},
+			Vulnerabilities: list,
+		},
 	}
-	return object(trivyAPIVersion, trivyKind, meta, map[string]any{"report": map[string]any{
-		"updateTimestamp": ts(scanned),
-		"scanner":         map[string]any{"name": "Trivy", "vendor": "Aqua Security", "version": "0.58.1"},
-		"registry":        map[string]any{"server": registry},
-		"artifact":        map[string]any{"repository": repo, "tag": tag, "digest": "sha256:" + digest("image", ct.image), "mimeType": "application/vnd.oci.image.manifest.v1+json"},
-		"os":              osInfo,
-		"summary": map[string]any{
-			"criticalCount": counts[0], "highCount": counts[1], "mediumCount": counts[2], "lowCount": counts[3],
-			"unknownCount": counts[4], "noneCount": int64(0),
-		},
-		"vulnerabilities": list,
-	}})
+	u, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&obj)
+	if err != nil {
+		panic(err) // the types above convert
+	}
+	return &unstructured.Unstructured{Object: u}
 }
 
 // splitImage splits an image reference as Trivy writes it: the registry (Docker Hub as

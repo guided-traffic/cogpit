@@ -55,24 +55,29 @@ func init() {
 	cache.RegisterTrim(trivyFindingsTrim, trimVulnerabilityFindings)
 }
 
-// trimVulnerabilityFindings keeps of each vulnerability what the page shows (findingFields), and
-// the rest of the report as it is.
+// trimVulnerabilityFindings keeps of each vulnerability what the page shows (findingFields), in a
+// map of its own: a map does not shrink when keys are deleted, and the kept six fit the smallest
+// (on synthetic reports shaped as a real cluster's, 23,059 findings: 26.9 MB decoded, 23.5 MB with
+// nine fields deleted in place, 12.0 MB with six kept in their own maps; D-new). The rest of the
+// report stays as it is.
 func trimVulnerabilityFindings(u *unstructured.Unstructured) {
 	report, ok := u.Object["report"].(map[string]any)
 	if !ok {
 		return
 	}
 	list, _ := report["vulnerabilities"].([]any)
-	for _, v := range list {
+	for i, v := range list {
 		m, ok := v.(map[string]any)
 		if !ok {
 			continue
 		}
-		for k := range m {
-			if !findingFields[k] {
-				delete(m, k)
+		kept := make(map[string]any, len(findingFields))
+		for k := range findingFields {
+			if x, ok := m[k]; ok {
+				kept[k] = x
 			}
 		}
+		list[i] = kept
 	}
 }
 
@@ -101,13 +106,12 @@ func imageSecReason(b *Backend, u *UIState) string {
 // imageSecSource is what the page reads: the reports, trimmed, and the pods, each as its namespace
 // plan says; nothing when the page reads nothing (reason).
 type imageSecSource struct {
-	reports, pods       *cache.Handle // nil when not read
-	reportsP, podsP     *model.KindProfile
-	unsubs              []func()
-	reason              string
-	gen                 atomic.Uint64 // bumped by every event of either
-	onChange            func()
-	reportsKey, podsKey string
+	reports, pods   *cache.Handle // nil when not read
+	reportsP, podsP *model.KindProfile
+	unsubs          []func()
+	reason          string
+	gen             atomic.Uint64 // bumped by every event of either
+	onChange        func()
 }
 
 // newImageSecSource acquires the page's handles: the reports as plan says (trimmed), the pods

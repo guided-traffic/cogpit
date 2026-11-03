@@ -158,18 +158,14 @@ var shields = struct {
 	m map[shieldKey]*image.RGBA
 }{m: map[shieldKey]*image.RGBA{}}
 
-// shieldImage returns the crest of a grade at w × h pixels in the theme's colours, drawn once per
-// grade, size and colours and shared after (it is never written again).
-func shieldImage(th fyne.Theme, g model.ImageGrade, w, h int) image.Image {
-	return shieldImageOf(th, g, w, h, false)
-}
-
 // calmGrey reports whether a calm crest draws a grade grey: S to C (D-calm); D, E and N/A keep
 // their own.
 func calmGrey(g model.ImageGrade) bool { return g >= model.GradeS && g <= model.GradeC }
 
-// shieldImageOf is shieldImage, with calm the integrations' pages' crest (calmGrey).
-func shieldImageOf(th fyne.Theme, g model.ImageGrade, w, h int, calm bool) image.Image {
+// shieldImage returns the crest of a grade at w × h pixels in the theme's colours, drawn once per
+// grade, size and colours and shared after (it is never written again); with calm, the
+// integrations' pages' crest (calmGrey).
+func shieldImage(th fyne.Theme, g model.ImageGrade, w, h int, calm bool) image.Image {
 	if w <= 0 || h <= 0 {
 		return image.NewRGBA(image.Rectangle{})
 	}
@@ -281,7 +277,7 @@ func (b *gradeBadge) CreateRenderer() fyne.WidgetRenderer {
 		if b.grade == model.GradeNone {
 			return image.NewRGBA(image.Rectangle{})
 		}
-		return shieldImageOf(b.Theme(), b.grade, w, h, b.calm)
+		return shieldImage(b.Theme(), b.grade, w, h, b.calm)
 	})
 	r.objs = []fyne.CanvasObject{r.raster, r.text}
 	r.Refresh()

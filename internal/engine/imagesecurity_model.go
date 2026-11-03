@@ -200,11 +200,14 @@ func runningPodImages(idx trivyReportIndex, pods []*unstructured.Unstructured) [
 	return out
 }
 
+// apiKindDeployment is the Deployment's API kind, which the page names.
+const apiKindDeployment = "Deployment"
+
 // The workload kinds a report names, as kind keys; a ReplicaSet a Deployment made is the
 // Deployment's (deploymentOfReplicaSet).
 var trivyWorkloadKinds = map[string]string{
-	"Deployment": logKindDeployments, apiKindReplicaSet: logKindReplicaSets, apiKindStatefulSet: logKindStatefulSets,
-	apiKindDaemonSet: logKindDaemonSets, trivyKindCronJob: "cronjobs", trivyKindJob: logKindJobs, trivyKindPod: logKindPods,
+	apiKindDeployment: logKindDeployments, apiKindReplicaSet: logKindReplicaSets, apiKindStatefulSet: logKindStatefulSets,
+	apiKindDaemonSet: logKindDaemonSets, trivyKindCronJob: kindCronJobs, trivyKindJob: logKindJobs, trivyKindPod: logKindPods,
 	"ReplicationController": "replicationcontrollers",
 }
 
@@ -215,7 +218,7 @@ func trivyWorkloadRef(context string, r model.VulnerabilityReport) (model.Object
 	kind, name := r.Kind, r.Workload
 	if kind == apiKindReplicaSet {
 		if d := deploymentOfReplicaSet(name); d != "" {
-			kind, name = "Deployment", d
+			kind, name = apiKindDeployment, d
 		}
 	}
 	text := kind + " " + name
@@ -414,10 +417,10 @@ const (
 var imageSecProfile = &model.KindProfile{
 	Key: ImageSecurity, Title: imageSecTableTitle, Namespaced: true,
 	Columns: []model.Column{
-		{ID: columnNamespace, Title: "Namespace", Type: model.ColumnText, Width: 96},
+		{ID: columnNamespace, Title: titleNamespace, Type: model.ColumnText, Width: 96},
 		{ID: isColumnWorkload, Title: "Workload", Type: model.ColumnText, Width: 160},
 		{ID: isColumnContainer, Title: "Container", Type: model.ColumnText, Width: 90},
-		{ID: isColumnImage, Title: "Image", Type: model.ColumnText, Width: 170},
+		{ID: isColumnImage, Title: isTitleImage, Type: model.ColumnText, Width: 170},
 		{ID: isColumnCVE, Title: "CVE", Type: model.ColumnText, Width: 126},
 		{ID: isColumnSeverity, Title: "Severity", Type: model.ColumnNumber, Width: 84},
 		{ID: isColumnScore, Title: "Score", Type: model.ColumnNumber, Width: 56},
@@ -427,8 +430,12 @@ var imageSecProfile = &model.KindProfile{
 	},
 }
 
-// imageSecTableTitle is the table's title: the page's table heading names its rows.
-const imageSecTableTitle = "Findings"
+// imageSecTableTitle is the table's title: the page's table heading names its rows; isTitleImage
+// its Image column's.
+const (
+	imageSecTableTitle = "Findings"
+	isTitleImage       = "Image"
+)
 
 // imageSecSort is the table's order until the user sorts: the worst severity first.
 var imageSecSort = SortSpec{Column: isColumnSeverity, Desc: true}

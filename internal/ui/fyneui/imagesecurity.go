@@ -377,15 +377,17 @@ func (tv *tableView) imageSecRowTapped(row int) {
 	tv.sh.drawer.openAt(r.Ref, r.Cells[ci].Text)
 }
 
-// integrationsChanged rebuilds the navigator when an integration that shows or hides one of its
-// pages is switched for the cluster shown (imageSecNav).
+// integrationsChanged rebuilds the navigator when an integration is switched for the cluster
+// shown: an entry may show only while one is on (navEntry.integration, imageSecNav).
 func (s *sidebar) integrationsChanged(st, old engine.UIState) {
 	if st.Context == "" || st.Context != old.Context {
 		return // a cluster shown anew loads its kinds, which rebuilds the tree
 	}
-	if st.IntegrationOn(st.Context, engine.IntegrationTrivy) == old.IntegrationOn(st.Context, engine.IntegrationTrivy) {
-		return
+	for _, in := range engine.Integrations {
+		if st.IntegrationOn(st.Context, in.Name) != old.IntegrationOn(st.Context, in.Name) {
+			s.setKinds(s.sh.kinds)
+			s.selectView(st.View)
+			return
+		}
 	}
-	s.setKinds(s.sh.kinds)
-	s.selectView(st.View)
 }

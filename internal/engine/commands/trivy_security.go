@@ -34,8 +34,8 @@ type ImageSecurityResult struct {
 var imageSecurityReads = []engine.Verb{
 	{Verb: nwVerbList, Group: "aquasecurity.github.io", Resource: "vulnerabilityreports"},
 	{Verb: nwVerbWatch, Group: "aquasecurity.github.io", Resource: "vulnerabilityreports"},
-	{Verb: nwVerbList, Resource: "pods"},
-	{Verb: nwVerbWatch, Resource: "pods"},
+	{Verb: nwVerbList, Resource: kindPods},
+	{Verb: nwVerbWatch, Resource: kindPods},
 }
 
 func registerTrivySecurity(g *registrar) {
