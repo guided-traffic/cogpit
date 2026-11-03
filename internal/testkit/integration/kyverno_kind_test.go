@@ -8,7 +8,6 @@ import (
 	"os"
 	"slices"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -185,15 +184,16 @@ func TestKindKyverno(t *testing.T) {
 	t.Logf("kyverno_violations: %d violations of %d objects", res.Total, res.Objects)
 }
 
-// warned returns the names of a table's rows whose warning cell says Kyverno, sorted.
+// warned returns the names of a table's rows whose Signals cell has Kyverno's signal, sorted.
 func warned(tbl *engine.TableSnapshot) []string {
 	if tbl == nil {
 		return nil
 	}
-	ci := slices.IndexFunc(tbl.Columns, func(c model.Column) bool { return c.ID == "warning" })
+	ci := slices.IndexFunc(tbl.Columns, func(c model.Column) bool { return c.ID == model.SignalsColumnID })
+	kyverno := func(s model.Signal) bool { return s.Source == model.SignalKyverno }
 	var out []string
 	for _, r := range tbl.Rows {
-		if ci >= 0 && ci < len(r.Cells) && strings.Contains(r.Cells[ci].Text, "Kyverno") {
+		if ci >= 0 && ci < len(r.Cells) && r.Cells[ci].Signals != nil && slices.ContainsFunc(*r.Cells[ci].Signals, kyverno) {
 			out = append(out, r.Ref.Name)
 		}
 	}
