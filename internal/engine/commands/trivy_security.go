@@ -45,7 +45,7 @@ func registerTrivySecurity(g *registrar) {
 			"cache: the distinct images of the running pods, how many a report covers and how many not, the newest scan; " +
 			"the distinct CVE ids by severity (each under the worst severity a finding gives it) and how many have a " +
 			"fixed version; the five worst images (by grade S to E as the Pods list's Signals column shows it, then " +
-			"Critical, then High), the five most widespread CVEs (by images affected, then severity) and the five worst " +
+			"Critical, then High), the five worst CVEs (by severity, then images affected) and the five worst " +
 			"namespaces, each with the search token that narrows the table to it; with findings, the findings the search " +
 			"keeps, each with its workload (ref: pass it to ui_navigate or object_get), container, image, CVE, severity, " +
 			"score, package and its installed and fixed version. Needs the Trivy integration on for the cluster " +

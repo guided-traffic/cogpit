@@ -37,8 +37,8 @@ func findingCells(t *TableSnapshot) []string {
 
 // The page's model (D-new): the header counts the distinct images of the running pods and those a
 // report covers; Vulnerabilities counts distinct CVE ids under the worst severity a finding gives
-// them and those with a fix; Top images ranks by grade, then Critical, then High; Top CVEs by the
-// images affected, then severity; Top namespaces by the worst grade; each entry names its token.
+// them and those with a fix; Top images ranks by grade, then Critical, then High; Top CVEs by
+// severity, then the images affected; Top namespaces by the worst grade; each entry names its token.
 func TestImageSecurityModel(t *testing.T) {
 	s := imageSecSession(t, testkit.ImageSecuritySource())
 	m, _, err := s.ImageSecurity(context.Background(), "", nil, nil, false)
@@ -77,8 +77,8 @@ func TestImageSecurityModel(t *testing.T) {
 		cves = append(cves, fmt.Sprintf("%s %s %d %s", c.Severity, c.ID, c.Images, c.Token))
 	}
 	if want := []string{
-		"Critical CVE-2024-0001 2 cve:CVE-2024-0001", "High CVE-2024-0003 2 cve:CVE-2024-0003", "High CVE-2024-0004 2 cve:CVE-2024-0004",
-		"Critical CVE-2024-0002 1 cve:CVE-2024-0002", "High CVE-2024-0006 1 cve:CVE-2024-0006",
+		"Critical CVE-2024-0001 2 cve:CVE-2024-0001", "Critical CVE-2024-0002 1 cve:CVE-2024-0002",
+		"High CVE-2024-0003 2 cve:CVE-2024-0003", "High CVE-2024-0004 2 cve:CVE-2024-0004", "High CVE-2024-0006 1 cve:CVE-2024-0006",
 	}; !slices.Equal(cves, want) {
 		t.Errorf("top CVEs %q", cves)
 	}

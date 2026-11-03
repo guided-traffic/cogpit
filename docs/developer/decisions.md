@@ -7548,8 +7548,9 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   images, the five worst by grade ([D-113](#d-113-image-grades-shields-from-trivys-reports)'s
   rank), then Critical, then High, the counts the report's summary has (those the grade comes
   from, as the Signals column and the drawer show them), an image's worst report where several
-  scan it; Top CVEs, the five in the most images, then the worst; Top namespaces, the five whose
-  worst image grades worst, then by their distinct Critical and High ids.
+  scan it; Top CVEs, the five worst by severity (Critical, High, Medium, Low, Unknown), then by
+  the images they affect, then by id; Top namespaces, the five whose worst image grades worst,
+  then by their distinct Critical and High ids.
 - **A click on an entry** narrows the table through the page's search, engine state
   (`ui.setFilter`): `image:<repository:tag>`, `cve:<id>`, `ns:<namespace>`, in place of a token
   of the same key. A namespace is a token, not the namespace filter, so the cards keep the
@@ -7599,7 +7600,10 @@ close to etcd's object limit, and leaves the third-party texts out of the agents
 
 **Rejected:** the reports' whole objects while the page is open (twice the trimmed heap for fields
 nobody sees, the shared informer only with the reports' own view, seldom open beside the page);
-the nine fields first proposed, deleted in place (8 % less heap, measured: the maps keep their
+Top CVEs ranked by the images they affect first (on the demo the card showed only Low and
+Medium CVEs, and on the real cluster, Unknown in 13,661 of 23,059 findings and old distribution
+CVEs everywhere, it would show noise: the card is to lead the eye to what needs action); the nine
+fields first proposed, deleted in place (8 % less heap, measured: the maps keep their
 size, and title, link and date are not shown); a namespace entry setting the namespace filter (the cards would follow it); chips
 for the tokens (a token editor Fyne lacks, for what plain text already does); reading the
 ReplicaSets to find their Deployment (one more watch for what the name tells); the row opening a

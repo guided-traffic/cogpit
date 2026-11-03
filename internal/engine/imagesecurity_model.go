@@ -15,7 +15,7 @@ import (
 // The Image Security page's model (imagesecurity.go has its worker and its read): what Trivy
 // Operator's VulnerabilityReports say about the images the cluster runs. The header counts the
 // images of the running pods and those a report covers; four cards summarise the findings of the
-// selected namespaces (the CVEs by severity, the worst images, the most widespread CVEs, the worst
+// selected namespaces (the CVEs by severity, the worst images, the worst CVEs, the worst
 // namespaces); the table lists every finding, one row per CVE, workload and container, narrowed by
 // the page's search (plain text and the tokens parseFindingQuery reads). Everything comes from the
 // cache.
@@ -546,7 +546,7 @@ type ImageSecurityModel struct {
 	Severities []ImageSecuritySeverity `json:"severities"`
 	// TopImages are the five worst images: by grade (D-113), then Critical, then High.
 	TopImages []ImageSecurityImage `json:"topImages"`
-	// TopCVEs are the five most widespread CVEs: by the images they affect, then by severity.
+	// TopCVEs are the five worst CVEs: by severity, then by the images they affect, then by id.
 	TopCVEs []ImageSecurityCVE `json:"topCves"`
 	// TopNamespaces are the five worst namespaces: by their worst image's grade, then Critical,
 	// then High.
@@ -747,7 +747,7 @@ func topCVEs(cves map[string]*cveTally) []ImageSecurityCVE {
 		out = append(out, ImageSecurityCVE{ID: id, Severity: trivySeverities[t.sev], Status: severityStatus(t.sev), Images: len(t.images), Token: tokenCVE + id})
 	}
 	slices.SortFunc(out, func(a, b ImageSecurityCVE) int {
-		return cmp.Or(cmp.Compare(b.Images, a.Images), cmp.Compare(cves[b.ID].sev, cves[a.ID].sev), cmp.Compare(a.ID, b.ID))
+		return cmp.Or(cmp.Compare(cves[b.ID].sev, cves[a.ID].sev), cmp.Compare(b.Images, a.Images), cmp.Compare(a.ID, b.ID))
 	})
 	return out[:min(len(out), imageSecTop)]
 }
