@@ -649,11 +649,6 @@ linters:
       - path: ^internal/demo/helmcharts\.go$
         text: G101
         linters: [gosec]
-      # G115: len(managers) is the demo's fixed table of four values.
-      - path: ^internal/demo/applications\.go$
-        text: G115
-        source: uint32\(len\(managers\)\)
-        linters: [gosec]
       # G115: the average of n 16-bit channel values is at most 0xffff, so >> 8 fits a byte.
       - path: ^internal/engine/clustersettings_icon\.go$
         text: G115

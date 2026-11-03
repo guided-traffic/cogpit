@@ -20,8 +20,8 @@ const (
 	labelManagedBy = "app.kubernetes.io/managed-by"
 )
 
-// managers are the app.kubernetes.io/managed-by values the demo's applications draw from.
-var managers = []string{"Helm", "Helm", "kustomize", "argocd"}
+// managers are the app.kubernetes.io/managed-by values the demo's deployments draw from.
+var managers = [...]string{"Helm", "Helm", "kustomize", "argocd"}
 
 // deploymentLabels are a deployment's metadata labels: app=<name> as before, and the recommended
 // labels for a deployment outside kube-system, whose system components carry none.
