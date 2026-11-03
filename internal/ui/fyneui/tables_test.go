@@ -114,7 +114,7 @@ func TestCSVButtonSavesTheView(t *testing.T) {
 	if err := engine.WriteCSV(&want, f.tables["nodes"], fixedNow); err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != want.String() || !strings.HasPrefix(string(got), "Name,Warning,CPU,Memory,Disk,Taints,") {
+	if string(got) != want.String() || !strings.HasPrefix(string(got), "Name,Signals,CPU,Memory,Disk,Taints,") {
 		t.Fatalf("saved:\n%s\nwant:\n%s", got, want.String())
 	}
 	if len(sh.toasts.Objects) == 0 {
@@ -341,8 +341,10 @@ func columnCheck(t *testing.T, sh *shell, title string) *widget.Check {
 func TestColumnsMenuShowsAndHides(t *testing.T) {
 	f := kindsFake(t, "pods")
 	handleColumns(f)
-	sh, _, q := newTestShell(t, f, Options{})
+	sh, w, q := newTestShell(t, f, Options{})
+	w.Resize(fyne.NewSize(1600, 900)) // the ⋮ in view beside every column of Pods
 	q.until(t, "the pods view", func() bool { return sh.view.snap != nil && sh.view.snap.View == "pods" })
+	settle(w)
 	tv := sh.view
 
 	menu := headerFor(t, sh, tv.menuColumn())
