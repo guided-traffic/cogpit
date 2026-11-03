@@ -58,6 +58,7 @@ func noDefaultKubeconfig(c *engine.ClusterConnector) {
 // demoSize sizes a test's demo cluster (demoConnector): engine.DemoOptions' fields a test sets.
 type demoSize struct {
 	Pods              int
+	Deployments       int
 	Seed              int64
 	NoChurn           bool
 	EventsPerSecond   float64

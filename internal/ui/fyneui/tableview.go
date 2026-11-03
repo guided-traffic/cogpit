@@ -62,6 +62,7 @@ type tableView struct {
 	cluster                    *clusterPanel
 	flux                       *fluxPanel      // the Flux dashboard's tiles (fluxdashboard.go)
 	argo                       *argoPanel      // the Argo CD Dashboard's strip, cards and activity (argocd_dashboard.go)
+	imageSec                   *imageSecPanel  // the Image Security page's header line and cards (imagesecurity.go)
 	alerts                     *alertBoard     // the alert board, over the table while its page is open (alertboard.go, D-77)
 	pageTop                    *fyne.Container // the open page's part
 	eventsTitle                *textLine
@@ -209,6 +210,7 @@ func newTableView(sh *shell) *tableView {
 	tv.cluster = newClusterPanel(sh)
 	tv.flux = newFluxPanel(sh)
 	tv.argo = newArgoPanel(sh)
+	tv.imageSec = newImageSecPanel(sh)
 	tv.alerts = newAlertBoard(sh)
 	tv.pageTop = container.NewStack(tv.overview.root)
 	tv.eventsTitle = newTextLine("Events", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
@@ -266,7 +268,7 @@ func (tv *tableView) setPageLayout(view string) {
 		shown = view
 	}
 	tv.alerts.setShown(shown)
-	if board { // its groups are the severities: no status filter
+	if board || view == engine.ImageSecurity { // the board's groups are the severities, the page's search has sev tokens: no status filter
 		tv.states.box.Hide()
 	} else {
 		tv.states.box.Show()
@@ -284,16 +286,23 @@ func (tv *tableView) setPageLayout(view string) {
 		if view == engine.ArgoCDDashboard {
 			top, title = tv.argo.root, "Needs Attention"
 		}
+		if view == engine.ImageSecurity {
+			top, title = tv.imageSec.root, imageSecTableTitle
+		}
 		tv.pageTop.Objects = []fyne.CanvasObject{top}
 		tv.pageTop.Refresh()
 		tv.eventsTitle.SetText(title)
+		if tv.pageMode { // from another page: the heading follows (imagesecurity.go)
+			tv.heading.Objects = tv.pageHeading(view)
+			tv.heading.Refresh()
+		}
 	}
 	if page == tv.pageMode {
 		return
 	}
 	tv.pageMode = page
 	if page {
-		tv.heading.Objects = []fyne.CanvasObject{tv.title}
+		tv.heading.Objects = tv.pageHeading(view)
 		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox}
 		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.eventsTitle, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
 		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box, tv.searchBox} // the status filter filters the table only
@@ -336,6 +345,8 @@ func (tv *tableView) requestPage() {
 		tv.flux.request()
 	case view == engine.ArgoCDDashboard:
 		tv.argo.request()
+	case view == engine.ImageSecurity:
+		tv.imageSec.request()
 	case view == engine.AlertBoard, view == engine.AlertSilences:
 		tv.alerts.request()
 	case engine.IsPage(view):
@@ -355,6 +366,9 @@ func (tv *tableView) rowNoun() string {
 	if tv.sh.ui.View == engine.ArgoCDDashboard {
 		return argoRowNoun(tv.sh) // argocd.go
 	}
+	if tv.sh.ui.View == engine.ImageSecurity {
+		return imageSecRowNoun // imagesecurity.go
+	}
 	if tv.sh.ui.View == engine.AlertBoard {
 		return "alerts"
 	}
@@ -370,7 +384,7 @@ func (tv *tableView) rowNoun() string {
 // updateTitle shows the view's title and item count, "Pods 18 items", and names the view in the
 // search hint; kinds.list may bring the title after the view opened.
 func (tv *tableView) updateTitle() {
-	tv.search.SetPlaceHolder("Search " + tv.rowNoun() + "…")
+	tv.search.SetPlaceHolder(tv.searchHint()) // imagesecurity.go
 	title := tv.sh.kindTitle(tv.sh.ui.View)
 	if tv.snap != nil && tv.snap.Title != "" {
 		title = tv.snap.Title
@@ -777,6 +791,9 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if col.Type == model.ColumnGrade {
 			content.kind, content.grade = cellGrade, cell.Grade // the shield; the text is its tooltip (gradebadge.go)
 		}
+		if tv.snap.View == engine.ImageSecurity { // D-calm: coloured words, no pill (imagesecurity.go)
+			content.tone, content.pill = imageSecTone(col, cell), false
+		}
 	}
 	content.row = tv.snap.Rows[id.Row].Status
 	hover := id.Row == tv.hoverRow
@@ -904,6 +921,7 @@ func (tv *tableView) rowTapped(id widget.TableCellID) {
 	ref := tv.snap.Rows[id.Row].Ref
 	tv.check.anchor = &ref // ⇧-click selects from here (tablecheck.go)
 	tv.sh.openDetails(ref)
+	tv.imageSecRowTapped(id.Row) // a finding's container (imagesecurity.go)
 }
 
 // setHover moves the row highlight that follows the pointer and the keyboard.
@@ -1392,6 +1410,8 @@ type cellContent struct {
 	kind    cellKind
 	row     model.Status // the row's status: its spine and tint (list_rows.go)
 	pill    bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
+	// tone is the text's colour in place of the status's; "": the status's (imagesecurity.go).
+	tone fyne.ThemeColorName
 }
 
 // tableCell is one body cell: text in the cell's status colour (a link in the link colour, a cell
@@ -1695,6 +1715,9 @@ func (c *tableCell) apply() {
 	c.bg.FillColor = c.rowPlate(th)
 	size := th.Size(theme.SizeNameText)
 	fg := statusColorName(c.content.status)
+	if c.content.tone != "" {
+		fg = c.content.tone
+	}
 	if c.pillShows() && !abnormalStatus(c.content.status) {
 		fg = theme.ColorNameForeground // a healthy word is quiet; its dot carries the colour
 	}

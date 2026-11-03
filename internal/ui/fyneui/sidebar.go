@@ -44,6 +44,9 @@ type navEntry struct {
 	items []navEntry // a group's entries, in Lens's order
 	page  bool       // a page (engine.IsPage), shown while a cluster is connected
 	needs string     // a page shown only while the cluster serves this kind (the Argo CD Dashboard)
+	// integration, when set, shows a page only while that integration is on for the cluster (Image
+	// Security, imagesecurity.go).
+	integration engine.Integration
 }
 
 // page is a page of the navigator, titled as the engine titles it.
@@ -134,6 +137,7 @@ var navLayout = []navEntry{
 	navHeading("integrations", "Integrations",
 		fluxNav,      // fluxnav.go
 		argoNavGroup, // while the cluster serves Argo CD's Applications (argocd.go)
+		imageSecNav,  // while the Trivy integration is on and the cluster serves its reports (imagesecurity.go)
 	),
 }
 
@@ -453,6 +457,9 @@ func (s *sidebar) build(n navEntry, parent string, have map[string]kindInfo, pla
 		}
 		if _, served := have[n.needs]; n.needs != "" && !served {
 			return "" // a section's page without its kinds (argocd.go)
+		}
+		if n.integration != "" && !s.sh.ui.IntegrationOn(s.sh.ui.Context, n.integration) {
+			return "" // an integration's page while it is off (imagesecurity.go)
 		}
 		return s.leaf(n.id, n.title, parent)
 	default:

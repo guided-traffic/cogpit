@@ -49,6 +49,9 @@ const (
 	colorSevUnknown      fyne.ThemeColorName = "cogpit.sevUnknown" // Unknown's hatching, its two stripes
 	colorSevUnknownLight fyne.ThemeColorName = "cogpit.sevUnknownLight"
 	colorSevInkDark      fyne.ThemeColorName = "cogpit.sevInkDark" // a count on Medium and Low
+	// colorGradeCalm is the crest of S to C on the integrations' pages (D-calm): grey, the letter in
+	// the text colour; only D and E keep their colours there.
+	colorGradeCalm fyne.ThemeColorName = "cogpit.gradeCalm"
 )
 
 func init() {
@@ -69,6 +72,8 @@ func init() {
 		p.fyne[colorSevLow] = hex(0xf5d68e)
 		p.fyne[colorSevInkDark] = hex(0x1c1204)
 	}
+	darkPalette.fyne[colorGradeCalm] = hex(0x3a4455)
+	lightPalette.fyne[colorGradeCalm] = hex(0xc3cad5)
 	// N/A between the list's background and its text, at 1.5:1 and 4:1 to the background (the lab's
 	// rule, computed for each theme's stage).
 	darkPalette.fyne[colorGradeNA] = hex(0x2f343d)
@@ -139,11 +144,13 @@ func crestPath(p rasterx.Adder, k float64) {
 	p.Stop(true)
 }
 
-// shieldKey names a crest's image: its grade, its pixel size and its colours.
+// shieldKey names a crest's image: its grade, its pixel size and its colours; flat draws it in
+// one colour without a rim (N/A, and a calm crest's grey).
 type shieldKey struct {
 	g         model.ImageGrade
 	w, h      int
 	fill, rim color.NRGBA
+	flat      bool
 }
 
 var shields = struct {
@@ -154,11 +161,23 @@ var shields = struct {
 // shieldImage returns the crest of a grade at w × h pixels in the theme's colours, drawn once per
 // grade, size and colours and shared after (it is never written again).
 func shieldImage(th fyne.Theme, g model.ImageGrade, w, h int) image.Image {
+	return shieldImageOf(th, g, w, h, false)
+}
+
+// calmGrey reports whether a calm crest draws a grade grey: S to C (D-calm); D, E and N/A keep
+// their own.
+func calmGrey(g model.ImageGrade) bool { return g >= model.GradeS && g <= model.GradeC }
+
+// shieldImageOf is shieldImage, with calm the integrations' pages' crest (calmGrey).
+func shieldImageOf(th fyne.Theme, g model.ImageGrade, w, h int, calm bool) image.Image {
 	if w <= 0 || h <= 0 {
 		return image.NewRGBA(image.Rectangle{})
 	}
-	key := shieldKey{g: g, w: w, h: h, fill: nrgba(themeColor(th, gradeFill(g)))}
-	if g == model.GradeS {
+	key := shieldKey{g: g, w: w, h: h, fill: nrgba(themeColor(th, gradeFill(g))), flat: g == model.GradeNA || g == model.GradeNone}
+	switch {
+	case calm && calmGrey(g):
+		key.fill, key.flat = nrgba(themeColor(th, colorGradeCalm)), true
+	case g == model.GradeS:
 		key.rim = nrgba(themeColor(th, colorGradeRim))
 	}
 	shields.Lock()
@@ -176,7 +195,7 @@ func drawShield(key shieldKey) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, key.w, key.h))
 	scan := rasterx.NewScannerGV(key.w, key.h, img, img.Bounds())
 	k := float64(min(key.w, key.h)) / 100
-	if key.g == model.GradeNA || key.g == model.GradeNone {
+	if key.flat {
 		scan.SetColor(key.fill)
 	} else {
 		top, bottom := shade(key.fill, crestShade), shade(key.fill, -crestShade)
@@ -187,7 +206,7 @@ func drawShield(key shieldKey) *image.RGBA {
 	f := rasterx.NewFiller(key.w, key.h, scan)
 	crestPath(f, k)
 	f.Draw()
-	if key.g == model.GradeS {
+	if key.g == model.GradeS && !key.flat {
 		scan.Clear()
 		light, dark := shade(key.rim, 0.35), shade(key.rim, -0.3)
 		scan.SetColor(rasterx.ColorFunc(func(x, y int) color.Color {
@@ -224,14 +243,24 @@ func lerpNRGBA(a, b color.NRGBA, t float64) color.NRGBA {
 }
 
 // gradeBadge draws a grade as its crest and letter, side points square; GradeNone draws nothing.
+// A calm badge is the integrations' pages' (D-calm): S to C grey with the letter in the text
+// colour, D and E in their colours, N/A as everywhere.
 type gradeBadge struct {
 	widget.BaseWidget
 	grade model.ImageGrade
 	side  float32
+	calm  bool
 }
 
 func newGradeBadge(side float32, g model.ImageGrade) *gradeBadge {
 	b := &gradeBadge{grade: g, side: side}
+	b.ExtendBaseWidget(b)
+	return b
+}
+
+// newCalmGradeBadge is a calm gradeBadge.
+func newCalmGradeBadge(side float32, g model.ImageGrade) *gradeBadge {
+	b := &gradeBadge{grade: g, side: side, calm: true}
 	b.ExtendBaseWidget(b)
 	return b
 }
@@ -252,7 +281,7 @@ func (b *gradeBadge) CreateRenderer() fyne.WidgetRenderer {
 		if b.grade == model.GradeNone {
 			return image.NewRGBA(image.Rectangle{})
 		}
-		return shieldImage(b.Theme(), b.grade, w, h)
+		return shieldImageOf(b.Theme(), b.grade, w, h, b.calm)
 	})
 	r.objs = []fyne.CanvasObject{r.raster, r.text}
 	r.Refresh()
@@ -285,6 +314,9 @@ func (r *gradeBadgeRenderer) Refresh() {
 	th := b.Theme()
 	r.text.Text = b.grade.String()
 	r.text.Color = themeColor(th, gradeInk(b.grade))
+	if b.calm && calmGrey(b.grade) {
+		r.text.Color = themeColor(th, theme.ColorNameForeground)
+	}
 	r.text.TextSize = b.side * crestLetterSize
 	if b.grade == model.GradeNA {
 		r.text.TextSize *= crestNASize

@@ -414,16 +414,16 @@ const (
 var imageSecProfile = &model.KindProfile{
 	Key: ImageSecurity, Title: imageSecTableTitle, Namespaced: true,
 	Columns: []model.Column{
-		{ID: columnNamespace, Title: "Namespace", Type: model.ColumnText, Width: 110},
-		{ID: isColumnWorkload, Title: "Workload", Type: model.ColumnText, Width: 190},
-		{ID: isColumnContainer, Title: "Container", Type: model.ColumnText, Width: 110},
-		{ID: isColumnImage, Title: "Image", Type: model.ColumnText, Width: 220},
-		{ID: isColumnCVE, Title: "CVE", Type: model.ColumnText, Width: 150},
+		{ID: columnNamespace, Title: "Namespace", Type: model.ColumnText, Width: 96},
+		{ID: isColumnWorkload, Title: "Workload", Type: model.ColumnText, Width: 160},
+		{ID: isColumnContainer, Title: "Container", Type: model.ColumnText, Width: 90},
+		{ID: isColumnImage, Title: "Image", Type: model.ColumnText, Width: 170},
+		{ID: isColumnCVE, Title: "CVE", Type: model.ColumnText, Width: 126},
 		{ID: isColumnSeverity, Title: "Severity", Type: model.ColumnNumber, Width: 84},
-		{ID: isColumnScore, Title: "Score", Type: model.ColumnNumber, Width: 64},
-		{ID: isColumnPackage, Title: "Package", Type: model.ColumnText, Width: 190},
-		{ID: isColumnInstalled, Title: "Installed", Type: model.ColumnText, Width: 130},
-		{ID: isColumnFixed, Title: "Fixed", Type: model.ColumnText},
+		{ID: isColumnScore, Title: "Score", Type: model.ColumnNumber, Width: 56},
+		{ID: isColumnPackage, Title: "Package", Type: model.ColumnText, Width: 150},
+		{ID: isColumnInstalled, Title: "Installed", Type: model.ColumnText, Width: 100},
+		{ID: isColumnFixed, Title: "Fixed", Type: model.ColumnText, Width: 110},
 	},
 }
 

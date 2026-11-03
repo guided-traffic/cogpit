@@ -562,6 +562,8 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	}
 	sh.clustersChanged(st, old, first) // the other connected clusters' marks (clustermarks.go, D-69)
 	sh.side.userChanged(st, old)       // a renewed login's user (clusteruser.go, D-68)
+	// An integration's page in the navigator (imagesecurity.go).
+	sh.side.integrationsChanged(st, old)
 	if !first && (st.ActiveTab != old.ActiveTab || st.View != old.View) {
 		sh.view.dropSearch() // a search typed for one tab or view stays out of the next (tableview.go)
 	}
