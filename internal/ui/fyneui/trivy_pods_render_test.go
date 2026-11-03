@@ -203,4 +203,16 @@ func TestSignalsCellDraws(t *testing.T) {
 	if w := signalsWidth(th, sh.view.snap.Columns[1]); w < pad*2+2*step-signalGap {
 		t.Errorf("the column's width %v holds no two slots", w)
 	}
+	// A column dragged narrower than its slots hides the icon that would reach past it.
+	full := cell.Size()
+	cell.Resize(fyne.NewSize(pad+step, full.Height))
+	cell.layoutSignals(th, cell.Size())
+	if cell.badge.Visible() || !cell.sigIcons[0].Visible() {
+		t.Errorf("narrow: the shield shows %v, the triangle %v", cell.badge.Visible(), cell.sigIcons[0].Visible())
+	}
+	cell.Resize(full)
+	cell.layoutSignals(th, cell.Size())
+	if !cell.badge.Visible() {
+		t.Error("wide again: the shield stays hidden")
+	}
 }

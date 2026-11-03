@@ -85,6 +85,7 @@ func (c *tableCell) setSignals() {
 	for _, img := range c.sigIcons[n:] {
 		img.Hide()
 	}
+	c.layoutSignals(c.Theme(), c.Size()) // what does not fit the cell's width stays hidden
 }
 
 // signalGrade is the grade of the cell's shield: a Signals cell's grade signal, else a grade cell's.
@@ -100,7 +101,8 @@ func (c *tableCell) signalGrade() model.ImageGrade {
 	return model.GradeNone
 }
 
-// layoutSignals places a Signals cell's icons in their slots.
+// layoutSignals places a Signals cell's icons in their slots; an icon whose slot reaches past the
+// cell's right edge (a column dragged narrow) is hidden rather than drawn over the next column.
 func (c *tableCell) layoutSignals(th fyne.Theme, size fyne.Size) {
 	if c.content.kind != cellSignals {
 		return
@@ -113,14 +115,27 @@ func (c *tableCell) layoutSignals(th fyne.Theme, size fyne.Size) {
 			if c.badge != nil {
 				c.badge.Move(fyne.NewPos(x, (size.Height-gradeTableSide)/2))
 				c.badge.Resize(fyne.NewSize(gradeTableSide, gradeTableSide))
+				showIf(c.badge, x+gradeTableSide <= size.Width)
 			}
 			continue
 		}
 		if n < len(c.sigIcons) {
-			c.sigIcons[n].Move(fyne.NewPos(x+(step-signalGap-is)/2, (size.Height-is)/2))
+			left := x + (step-signalGap-is)/2
+			c.sigIcons[n].Move(fyne.NewPos(left, (size.Height-is)/2))
 			c.sigIcons[n].Resize(fyne.NewSize(is, is))
+			showIf(c.sigIcons[n], left+is <= size.Width)
 		}
 		n++
+	}
+}
+
+// showIf shows or hides an object, touching it only when that changes.
+func showIf(o fyne.CanvasObject, on bool) {
+	switch {
+	case on && !o.Visible():
+		o.Show()
+	case !on && o.Visible():
+		o.Hide()
 	}
 }
 

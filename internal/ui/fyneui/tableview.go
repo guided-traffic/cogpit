@@ -2206,6 +2206,7 @@ type headerCell struct {
 	box       bool // the checkbox at the start of the header row (tablecheck.go)
 	boxed     int  // the checkbox's state: checkNone, checkSome or checkAll
 	fixed     bool // the column keeps its width (fixedWidth): no divider
+	cut       bool // the title is shortened to the column's width: the tooltip names it whole
 
 	text  *canvas.Text
 	arrow *iconImage
@@ -2281,15 +2282,31 @@ func (r *headerCellRenderer) Layout(size fyne.Size) {
 	th := h.Theme()
 	gap := th.Size(theme.SizeNamePadding)
 	pad := th.Size(sizeCellPadding)
+	is := th.Size(sizeSortIcon)
+	// The title within the column, shortened with an ellipsis where the column is narrower than it
+	// (the owner, 2026-11-03: a column dragged narrow ran its title over the next one's), room left
+	// for the sort arrow; a title without room for an ellipsis shows none.
+	room := size.Width - pad - gap/2
+	if h.sort != 0 {
+		room -= gap/2 + is
+	}
+	shown := ellipsize(h.title, room, h.text.TextSize, h.text.TextStyle)
+	if shown != "" && fyne.MeasureText(shown, h.text.TextSize, h.text.TextStyle).Width > room {
+		shown = ""
+	}
+	h.cut = shown != h.title
+	if shown != h.text.Text {
+		h.text.Text = shown
+		h.text.Refresh()
+	}
 	ts := h.text.MinSize()
 	h.text.Move(fyne.NewPos(pad, (size.Height-ts.Height)/2))
 	h.text.Resize(ts)
-	is := th.Size(sizeSortIcon)
 	if h.menu || h.box {
 		is = th.Size(sizeCellIcon)
 		h.arrow.img.Move(fyne.NewPos((size.Width-is)/2, (size.Height-is)/2))
 	} else {
-		h.arrow.img.Move(fyne.NewPos(pad+ts.Width+gap/2, (size.Height-is)/2))
+		h.arrow.img.Move(fyne.NewPos(max(min(pad+ts.Width+gap/2, size.Width-is), 0), (size.Height-is)/2))
 	}
 	h.arrow.img.Resize(fyne.NewSize(is, is))
 	h.sep.Move(fyne.NewPos(size.Width+gap/2-0.5, size.Height/4))
