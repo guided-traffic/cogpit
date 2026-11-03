@@ -12,9 +12,9 @@
       "text": "trainer-0"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Unschedulable",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

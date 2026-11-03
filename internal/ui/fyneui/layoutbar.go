@@ -354,15 +354,18 @@ func (sh *shell) navigatorFocused() bool {
 }
 
 // layoutMenuChanged reports whether the View menu's layout items must follow the state: their
-// checkmarks, and the Dock item's enabled state with the dock's tabs.
+// checkmarks, Hide Outdated Objects' included, and the Dock item's enabled state with the dock's
+// tabs.
 func layoutMenuChanged(st, old engine.UIState) bool {
 	return st.Chat != old.Chat || st.NavigatorHidden != old.NavigatorHidden || st.DockOpen != old.DockOpen ||
-		(len(st.Dock) == 0) != (len(old.Dock) == 0)
+		(len(st.Dock) == 0) != (len(old.Dock) == 0) ||
+		(st.Preferences == nil || st.Preferences.HideOutdatedObjects) != (old.Preferences == nil || old.Preferences.HideOutdatedObjects)
 }
 
-// layoutMenuItems are the View menu's Navigator (⌘B) and Dock (⌘J), checked while their part is
-// open, before Agent Chat (⌘I, chatMenuItems); main-menu items, so their shortcuts work whatever
-// has the focus. None in a build without the commands.
+// layoutMenuItems are the View menu's Navigator (⌘B) with Hide Outdated Objects below it
+// (navigator_outdated.go) and Dock (⌘J), checked while their part is open or the preference on,
+// before Agent Chat (⌘I, chatMenuItems); main-menu items, so their shortcuts work whatever has the
+// focus. None in a build without the commands.
 func (sh *shell) layoutMenuItems() []*fyne.MenuItem {
 	var items []*fyne.MenuItem
 	if c, ok := sh.eng.Registry().Get("ui.toggleNavigator"); ok {
@@ -371,6 +374,9 @@ func (sh *shell) layoutMenuItems() []*fyne.MenuItem {
 		}), c.ID)
 		item.Checked = !sh.ui.NavigatorHidden
 		items = append(items, item)
+	}
+	if _, ok := sh.eng.Registry().Get("preferences.set"); ok && sh.ui.Preferences != nil {
+		items = append(items, sh.outdatedMenuItem())
 	}
 	if c, ok := sh.eng.Registry().Get("ui.toggleDock"); ok {
 		item := sh.withShortcut(fyne.NewMenuItem(c.Label, func() {

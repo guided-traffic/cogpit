@@ -114,7 +114,7 @@ G21) add **~2–6 h**. G19 and G20 are not targets and not counted.
 
 ### G6. Resource views
 
-- **Depth:** every view exists, 63 of 64 partial ([resource parity](resource-parity.md) marks the
+- **Depth:** every view exists, 62 of 63 partial ([resource parity](resource-parity.md) marks the
   inferred parts per row). Missing: metrics columns, and texts, status rules and drawers checked
   against a Lens capture, also how Lens shows a custom resource as an event's object or an owner.
 - **Not captured:** whether and where Lens's workload drawers list their pods, as Cogpit's do
@@ -123,7 +123,7 @@ G21) add **~2–6 h**. G19 and G20 are not targets and not counted.
 
 ### G7. Resource actions
 
-No action is missing: 42 of 42 exist ([resource parity](resource-parity.md)).
+No action is missing: 41 of 41 exist ([resource parity](resource-parity.md)).
 
 - **Lens not captured:** its drain, scale and confirmation dialogs and its eight create dialogs.
   Cogpit's fields, texts and drain defaults are inferred and unchecked, as is which actions take a

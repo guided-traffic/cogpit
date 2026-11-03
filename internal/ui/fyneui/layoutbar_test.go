@@ -173,7 +173,7 @@ func TestLayoutMenuItems(t *testing.T) {
 	for _, it := range view.Items {
 		labels = append(labels, it.Label)
 	}
-	if got := strings.Join(labels, "|"); !strings.Contains(got, "Navigator|Dock|Agent Chat|Stop Agent") {
+	if got := strings.Join(labels, "|"); !strings.Contains(got, "Navigator|Hide Outdated Objects|Dock|Agent Chat|Stop Agent") {
 		t.Errorf("the View menu: %s", got)
 	}
 	nav, dock := mainMenuItem(t, sh, "Navigator"), mainMenuItem(t, sh, "Dock")

@@ -476,8 +476,12 @@ func (s *sidebar) paletteViews() []engine.PaletteView {
 	var walk func(id string, path []string)
 	walk = func(id string, path []string) {
 		for _, c := range s.children[id] {
-			if strings.HasPrefix(c, groupPrefix) {
+			switch {
+			case strings.HasPrefix(c, groupPrefix):
 				walk(c, append(path, s.titles[c]))
+				continue
+			case isHeading(c): // its items are top-level ones
+				walk(c, path)
 				continue
 			}
 			out = append(out, engine.PaletteView{View: strings.TrimPrefix(c, aliasPrefix), Title: s.titles[c], Group: strings.Join(path, " › ")})

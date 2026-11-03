@@ -91,7 +91,7 @@ func TestNodeWarningsAndConditions(t *testing.T) {
 	unknown := map[string]any{"status": map[string]any{"conditions": []any{
 		map[string]any{"type": "Ready", "status": "Unknown"},
 	}}}
-	if w := summariseNode(unknown).warning(); w.Status != model.StatusWarning || w.Num != 1 {
+	if w := summariseNode(unknown).warning(); w.Status != model.StatusWarning || w.Num != model.SignalRank(model.StatusWarning, model.GradeNone, 0) {
 		t.Errorf("unknown ready = %+v", w)
 	}
 }

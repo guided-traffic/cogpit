@@ -78,8 +78,8 @@ counted rows are done (one view, eight interface rows), the rest partial.
 
 | Component | Weight | Ours / Lens | % | Kind |
 |---|---:|---|---:|---|
-| Resource views | 30% | 64 / 64 | 100.0% | measured ([resource-parity](resource-parity.md)); ten of them the Gateway API views, generic until captured |
-| Resource actions | 20% | 42 / 42 | 100.0% | measured ([resource-parity](resource-parity.md)) |
+| Resource views | 30% | 63 / 63 | 100.0% | measured ([resource-parity](resource-parity.md)); ten of them the Gateway API views, generic until captured |
+| Resource actions | 20% | 41 / 41 | 100.0% | measured ([resource-parity](resource-parity.md)) |
 | Interface: layout, navigation, tables, drawer, dock, editor, logs, terminal, palette, menus, shortcuts, preferences | 25% | 120 / 123 | 97.6% | measured ([ui-parity](ui-parity.md), free rows) |
 | Cluster authentication and connectivity | 10% | 7 / 10 | 70.0% | measured ([platform-parity](platform-parity.md#cluster-authentication-and-connectivity)); the cloud providers' three plugin rows not a target (D-9) |
 | Platforms and packages | 5% | 9 / 13 | 69.2% | measured ([platform-parity](platform-parity.md#operating-systems-and-packages)), the Linux deb (D-108) and the Windows setup (D-111) among them |
@@ -152,13 +152,13 @@ With the same stability discount (×0.85): **~69%**.
 ## Feature areas
 
 Percent is ready for real work for the area, an estimate older than the dimensions above and not
-re-assessed with them. Hours are the area's share of G6 and G7 (18–91 h for 106 views and actions,
+re-assessed with them. Hours are the area's share of G6 and G7 (18–91 h for 104 views and actions,
 about 0.2–0.9 h each: every view and action exists, what is left is depth), plus the named
 subsystem where one exists.
 
 | Area | Views | Actions | % | Hours |
 |---|---:|---:|---:|---:|
-| Cluster: overview, applications, nodes, namespaces, events | 5 | 6 | ~25% (every view and action partial) | 2–10, plus metrics (G12) |
+| Cluster: overview, nodes, namespaces, events | 4 | 5 | ~25% (every view and action partial; Applications is not a target) | 2–10, plus metrics (G12) |
 | Workloads | 9 | 15 | ~55% (every view and target action partial; Share is not a target) | 4–21 |
 | Config | 16 | 4 | ~42% (every view partial; the Resource Quota and Secret create dialogs; Config Map and Secret values saved in the drawer) | 3–16 |
 | Network, Gateway API included | 17 | 5 | ~45% (every view; port forwarding with its four actions; the Gateway API views generic) | 4–19 |

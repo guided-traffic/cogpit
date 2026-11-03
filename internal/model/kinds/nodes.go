@@ -27,7 +27,7 @@ var nodes = &model.KindProfile{
 	Title:    "Nodes",
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		nodeCPUColumn,
 		nodeMemoryColumn,
 		nodeDiskColumn,
@@ -221,9 +221,9 @@ func (s nodeSummary) warning() model.Cell {
 	}
 	reasons = append(reasons, s.problems...)
 	if len(reasons) == 0 {
-		return warningCell(model.StatusNone, "")
+		return stateCell(model.StatusNone, "")
 	}
-	return warningCell(model.StatusWarning, strings.Join(reasons, ", "))
+	return stateCell(model.StatusWarning, strings.Join(reasons, ", "))
 }
 
 // nodeAddresses returns the node's addresses of one type.
@@ -361,7 +361,7 @@ func taintText(t any) string {
 // ready containers (Cell.Num).
 var nodePodColumns = []model.Column{
 	nameColumn,
-	warningColumn,
+	signalsColumn,
 	{ID: idNode, Title: titleNode, Type: model.ColumnText},
 	namespaceColumn,
 	{ID: fieldReady, Title: nodeReady, Type: model.ColumnNumber},
@@ -376,7 +376,7 @@ var nodePodColumns = []model.Column{
 // Memory, Status, Age.
 var workloadPodColumns = []model.Column{
 	nameColumn,
-	warningColumn,
+	signalsColumn,
 	{ID: idNode, Title: titleNode, Type: model.ColumnText},
 	{ID: fieldReady, Title: nodeReady, Type: model.ColumnNumber},
 	cpuColumn,

@@ -7,18 +7,24 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-func TestWarningCell(t *testing.T) {
-	if c := warningCell(model.StatusNone, "ignored"); c != (model.Cell{}) {
-		t.Errorf("no warning: got %+v, want an empty cell", c)
+func TestStateCell(t *testing.T) {
+	if c := stateCell(model.StatusNone, "ignored"); c != (model.Cell{}) {
+		t.Errorf("no signal: got %+v, want an empty cell", c)
 	}
-	c := warningCell(model.StatusWarning, "3 restarts")
-	if c.Text != "3 restarts" || c.Num != 1 || c.Status != model.StatusWarning || c.Link != nil {
-		t.Errorf("warning: got %+v", c)
+	c := stateCell(model.StatusWarning, "3 restarts")
+	if c.Text != "3 restarts" || c.Status != model.StatusWarning || c.Link != nil || c.Signals == nil || len(*c.Signals) != 1 {
+		t.Fatalf("warning: got %+v", c)
 	}
-	if warningColumn.Type != model.ColumnWarning || warningColumn.ID != "warning" || warningColumn.Title == "" {
-		t.Errorf("warningColumn = %+v", warningColumn)
+	if s := (*c.Signals)[0]; s.Source != model.SignalState || s.Slot != 0 || s.Text != "3 restarts" || s.Status != model.StatusWarning {
+		t.Errorf("the state's signal %+v", s)
 	}
-	if got := model.CellText(warningColumn, c, time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)); got != "3 restarts" {
+	if e := stateCell(model.StatusError, "CrashLoopBackOff"); e.Num <= c.Num {
+		t.Errorf("an error sorts below a warning: %d, %d", e.Num, c.Num)
+	}
+	if signalsColumn.Type != model.ColumnSignals || signalsColumn.ID != "signals" || signalsColumn.Title != "Signals" || signalsColumn.Slots != 1 {
+		t.Errorf("signalsColumn = %+v", signalsColumn)
+	}
+	if got := model.CellText(signalsColumn, c, time.Date(2026, 10, 11, 12, 0, 0, 0, time.UTC)); got != "3 restarts" {
 		t.Errorf("CellText = %q, want the reason", got)
 	}
 }

@@ -35,20 +35,6 @@ func TestDemoProfilesFollowTheDemo(t *testing.T) {
 	}
 }
 
-// TestDemoOffersApplicationsOnce: the demo cluster serves workload kinds, so it offers
-// Applications, once (TestApplicationsOfferedWithWorkloads).
-func TestDemoOffersApplicationsOnce(t *testing.T) {
-	n := 0
-	for _, p := range demoProfiles() {
-		if p.Key == kinds.ApplicationsKey {
-			n++
-		}
-	}
-	if n != 1 {
-		t.Errorf("the demo cluster offers Applications %d times", n)
-	}
-}
-
 func TestClusterConnectorContextsAndDemo(t *testing.T) {
 	missing := filepath.Join(t.TempDir(), "no-such-kubeconfig")
 	c := &ClusterConnector{KubeconfigPaths: []string{missing}, IncludeDemo: true, DemoOptions: demo.Options{Pods: 20, Services: 3, Namespaces: 2, Nodes: 2, NoChurn: true}}
@@ -79,10 +65,9 @@ func TestClusterConnectorContextsAndDemo(t *testing.T) {
 		t.Errorf("the demo's API server version %q, want %q", b.ServerVersion(), demo.ServerVersion)
 	}
 	// Only the kinds the demo serves get a view, as discovery decides on a real cluster, and Helm's
-	// releases from its Secrets and ConfigMaps and the Applications made of its deployments
-	// (applications.go).
-	if len(b.Profiles) != len(demo.Resources())+2 {
-		t.Errorf("demo offers %d views for %d served kinds, Releases and Applications", len(b.Profiles), len(demo.Resources()))
+	// releases from its Secrets and ConfigMaps.
+	if len(b.Profiles) != len(demo.Resources())+1 {
+		t.Errorf("demo offers %d views for %d served kinds and Releases", len(b.Profiles), len(demo.Resources()))
 	}
 }
 
@@ -140,30 +125,4 @@ func TestDemoHelmReleases(t *testing.T) {
 			t.Errorf("row %s: %+v (lookup %v)", r.Ref.Key(), r.Cells, err)
 		}
 	}
-}
-
-// TestDemoApplications: the demo cluster's deployments carry the recommended labels, so its
-// Applications view groups them: every row an instance of its namespace, with a manager and a
-// version, and its drawer's workloads all of that namespace.
-func TestDemoApplications(t *testing.T) {
-	c := &ClusterConnector{KubeconfigPaths: []string{filepath.Join(t.TempDir(), "none")}, IncludeDemo: true,
-		DemoOptions: demo.Options{Pods: 300, Deployments: 60, Services: 3, Namespaces: 6, Nodes: 3, NoChurn: true}}
-	s := New(Options{Connector: c, SnapshotInterval: 5 * time.Millisecond})
-	t.Cleanup(s.Close)
-	if err := s.Connect(context.Background(), DemoContext); err != nil {
-		if errors.Is(err, errDemoUnavailable) {
-			t.Skip("the demo package is a stub in this tree")
-		}
-		t.Fatal(err)
-	}
-	apps, _ := s.Backend().Profile(kinds.ApplicationsKey)
-	openView(s, kinds.ApplicationsKey)
-	snap := waitTable(t, s, kinds.ApplicationsKey, func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) > 0 })
-	for _, r := range snap.Rows {
-		if r.Ref.Namespace == "kube-system" || r.Cells[apps.ColumnIndex("managedBy")].Text == "" ||
-			r.Cells[apps.ColumnIndex("version")].Text == "" || r.Cells[apps.ColumnIndex("workloads")].Num == 0 {
-			t.Errorf("row %s: %+v", r.Ref.Key(), r.Cells)
-		}
-	}
-	t.Logf("%d applications of 60 deployments", len(snap.Rows))
 }

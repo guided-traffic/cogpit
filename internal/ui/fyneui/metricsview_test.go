@@ -77,7 +77,7 @@ func TestPodsListShowsCPUAndMemory(t *testing.T) {
 	for _, c := range sh.view.snap.Columns[:5] {
 		ids = append(ids, c.ID)
 	}
-	if want := []string{"name", "warning", "namespace", "cpu", "memory"}; !slices.Equal(ids, want) {
+	if want := []string{"name", "signals", "namespace", "cpu", "memory"}; !slices.Equal(ids, want) {
 		t.Fatalf("first columns = %v, want %v (Lens: Name, warning, Namespace, CPU, Memory)", ids, want)
 	}
 	cpuCol, memCol := firstDataColumn+3, firstDataColumn+4 // table columns: the checkboxes first

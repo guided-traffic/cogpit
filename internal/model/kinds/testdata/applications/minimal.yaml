@@ -1,6 +1,0 @@
-# Synthetic: optional fields missing: only the instance and namespace, no workloads, no status.
-apiVersion: cogpit.io/v1
-kind: Application
-metadata:
-  name: bare
-  namespace: default

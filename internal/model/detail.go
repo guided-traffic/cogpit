@@ -52,9 +52,9 @@ const (
 // drawer draws a table whose cells name objects or carry a status (a node's pods, a binding's
 // subjects, an endpoint slice's endpoints): Types holds each column's type, Cells the rows as table
 // cells, row for row and column for column. A cell with a link is drawn as a link, one with a
-// status in its colour, as the lists draw them, and a cell of a warning column as Lens's warning
-// icon with the cell's text as its tooltip; a warning column's title is not shown. Build such a
-// table with [CellTable].
+// status in its colour, as the lists draw them, and a cell of a Signals column as the lists draw
+// it, an icon per signal with its text as the tooltip; a Signals column's title is not shown in a
+// drawer's table. Build such a table with [CellTable].
 //
 // A sortable table ([SortableCellTable]: the Pods of a node's drawer) also carries its columns'
 // IDs, and Sort says the order its rows are in: the engine sorts them as the drawer's sort says

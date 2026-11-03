@@ -50,7 +50,7 @@ func TestClusterRoleBindingFollowsItsClusterRole(t *testing.T) {
 		if len(ts.Rows) != 1 {
 			return "?"
 		}
-		return ts.Rows[0].Cells[crbs.ColumnIndex("warning")].Text
+		return ts.Rows[0].Cells[crbs.ColumnIndex("signals")].Text
 	}
 	const notFound = "Cluster role deployer not found: grants nothing"
 	waitTable(t, s, crbs.Key, func(ts *TableSnapshot) bool { return ts.Synced && warning(ts) == notFound })

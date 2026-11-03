@@ -16,10 +16,13 @@ import (
 // ("group:network/gatewayapi"); the API-group branches of Custom Resources are
 // customGroupPrefix and the API group. A kind that a curated section places (Network › Gateway
 // API › Gateways) is listed again under Custom Resources, as Lens does: that second node's id is
-// aliasPrefix and the key, so ids stay unique, and selecting either opens the same view.
+// aliasPrefix and the key, so ids stay unique, and selecting either opens the same view. A
+// heading's is headingPrefix and its path ("heading:integrations"): it holds top-level items
+// below it, and is no row the keyboard or a click reaches.
 const (
 	groupPrefix       = "group:"
 	aliasPrefix       = "alias:"
+	headingPrefix     = "heading:"
 	customGroup       = groupPrefix + "custom"
 	customGroupPrefix = customGroup + "/"
 	otherGroup        = groupPrefix + "other"
@@ -64,6 +67,11 @@ func navGroup(path, title string, items ...any) navEntry {
 	return g
 }
 
+// navHeading builds a heading over top-level groups: a divider, then its title (navheading.go).
+func navHeading(path, title string, items ...navEntry) navEntry {
+	return navEntry{id: headingPrefix + path, title: title, items: items}
+}
+
 // titled is a kind the layout titles itself: CRD kinds in a curated section show Lens's plural
 // title there ("Gateway Classes"), and their singular Kind name under Custom Resources.
 func titled(key, title string) navEntry { return navEntry{id: key, title: title} }
@@ -81,15 +89,14 @@ const (
 // Custom Resources is built from the cluster's kinds: Definitions, then one collapsed group per
 // API group with its kinds by singular Kind name, the groups of curated sections included. Kinds
 // the layout does not know and that no CRD defines go under Other. Pages (page) show while a
-// cluster is connected: the cluster Overview first (as captured), Workloads › Overview, Flux ›
-// Dashboard; a group whose kinds the cluster serves none of is left out with its pages (the Flux
-// section without Flux). Listener Sets are listed under both groups Gateway API releases used for
-// them.
+// cluster is connected: the cluster Overview first (as captured), Workloads › Overview, Flux CD ›
+// Dashboard; a group whose kinds the cluster serves none of is left out with its pages (the Flux CD
+// group without Flux). Listener Sets are listed under both groups Gateway API releases used for
+// them. Last, under the heading Integrations (the owner, 2026-11-03), the views of the tools a
+// cluster runs: Flux CD and Argo CD, each while the cluster serves it; the heading shows with
+// either.
 var navLayout = []navEntry{
 	page(engine.ClusterOverview),
-	{id: "applications"}, // a virtual kind, the workloads grouped by app.kubernetes.io/instance
-	fluxNav,              // Flux CD between Applications and Nodes, as captured (fluxnav.go)
-	argoNavGroup,         // Argo CD after Flux CD, while the cluster serves its Applications (argocd.go)
 	{id: "nodes"},
 	navGroup("workloads", "Workloads", page(engine.WorkloadsOverview),
 		kindPods, "deployments", "daemonsets", "statefulsets", "replicasets", "replicationcontrollers", "jobs", "cronjobs"),
@@ -125,6 +132,10 @@ var navLayout = []navEntry{
 		"serviceaccounts", "clusterroles", "roles", "clusterrolebindings", "rolebindings", "podsecuritypolicies"),
 	{id: customGroup, title: "Custom Resources", items: []navEntry{{id: kindDefinitions}}},
 	{id: otherGroup, title: "Other"},
+	navHeading("integrations", "Integrations",
+		fluxNav,      // fluxnav.go
+		argoNavGroup, // while the cluster serves Argo CD's Applications (argocd.go)
+	),
 }
 
 // Cogpit's own navigator icons, drawn for Cogpit (not taken from any other product): a network
@@ -149,7 +160,6 @@ var (
 // (ten lines at every start) and got the fallback theme's icon.
 var navIcons = map[string]func() fyne.Resource{
 	engine.ClusterOverview:    func() fyne.Resource { return iconOverview },
-	"applications":            theme.ViewRestoreIcon,
 	"nodes":                   theme.ComputerIcon,
 	groupPrefix + "workloads": theme.GridIcon,
 	groupPrefix + "config":    theme.SettingsIcon,
@@ -195,6 +205,8 @@ type sidebar struct {
 	filter   string            // the search text; "" shows every item
 	shown    map[string]bool   // with a search: the nodes it keeps
 
+	hidingOutdated bool // the tree leaves out the outdated kinds (navigator_outdated.go): the preference applied last
+
 	// The search text and the keyboard's row reported to the engine (D-51; navigatorstate.go).
 	searchRep, rowRep *navReport
 	applying          bool // the engine's search is being shown: not a change to report
@@ -224,7 +236,7 @@ type sidebar struct {
 
 func newSidebar(sh *shell) *sidebar {
 	s := &sidebar{sh: sh, children: map[string][]string{}, titles: map[string]string{}, parents: map[string]string{},
-		open: map[string]bool{}}
+		open: map[string]bool{}, hidingOutdated: sh.hideOutdated()}
 	s.badge = newClusterBadge()
 	s.name = newTextLine(notConnected, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	s.subtitle = newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
@@ -386,6 +398,12 @@ func (s *sidebar) setKinds(kinds []kindInfo) {
 
 	var roots []string
 	for _, n := range navLayout {
+		if isHeading(n.id) {
+			if id := s.buildHeading(n, have, placed, kinds); id != "" {
+				roots = append(roots, id)
+			}
+			continue
+		}
 		if id := s.build(n, "", have, placed, kinds); id != "" {
 			roots = append(roots, id)
 		}
@@ -455,6 +473,24 @@ func (s *sidebar) build(n navEntry, parent string, have map[string]kindInfo, pla
 	s.children[n.id] = kids
 	s.titles[n.id] = n.title
 	s.parents[n.id] = parent
+	return n.id
+}
+
+// buildHeading adds a heading and the top-level items below it the cluster serves, and returns its
+// node id, or "" when the cluster serves none of them. Its items are top-level ones: no parent,
+// no depth; only the heading lists them (children), for the search and the tree's order.
+func (s *sidebar) buildHeading(n navEntry, have map[string]kindInfo, placed map[string]bool, kinds []kindInfo) string {
+	var kids []string
+	for _, c := range n.items {
+		if id := s.build(c, "", have, placed, kinds); id != "" {
+			kids = append(kids, id)
+		}
+	}
+	if len(kids) == 0 {
+		return ""
+	}
+	s.children[n.id] = kids
+	s.titles[n.id] = n.title
 	return n.id
 }
 
@@ -537,9 +573,9 @@ func customTitle(k kindInfo) string {
 // selectView marks the open view in the tree without dispatching anything: its node in a curated
 // section if it has one, else its node under Custom Resources. When the view changes, the
 // branches above it open, so that a view an agent opened inside a closed API group is visible, and
-// the keyboard moves to it.
+// the keyboard moves to it. A view the tree leaves out (an outdated kind) is marked nowhere.
 func (s *sidebar) selectView(view string) {
-	if view == "" || s.titles[view] == "" {
+	if view == "" || s.titles[view] == "" || s.outdatedHidden(view) {
 		s.revealed, s.marked = "", ""
 		s.tree.rebuild()
 		return
@@ -602,6 +638,9 @@ func (s *sidebar) setOpen(id string, open bool) {
 // isBranch reports whether a node is a group.
 func (s *sidebar) isBranch(id string) bool { return strings.HasPrefix(id, groupPrefix) }
 
+// isHeading reports whether a node is a heading over top-level items.
+func isHeading(id string) bool { return strings.HasPrefix(id, headingPrefix) }
+
 // shownOpen reports whether a group shows its items: the user opened it, or a search is on.
 func (s *sidebar) shownOpen(id string) bool { return s.filter != "" || s.open[id] }
 
@@ -622,18 +661,18 @@ func (s *sidebar) depth(id string) int {
 	return d
 }
 
-// shownNodes lists the items the tree shows, in order, below the root: those of open groups, and
-// with a search those it keeps.
+// shownNodes lists the items the tree shows, in order, below the root: those of open groups but the
+// outdated kinds while they are hidden, and with a search those it keeps; a heading with its items.
 func (s *sidebar) shownNodes() []string {
 	var out []string
 	var walk func(parent string)
 	walk = func(parent string) {
 		for _, id := range s.children[parent] {
-			if s.shown != nil && !s.shown[id] {
+			if (s.shown != nil && !s.shown[id]) || s.outdatedHidden(id) {
 				continue
 			}
 			out = append(out, id)
-			if s.isBranch(id) && s.shownOpen(id) {
+			if isHeading(id) || (s.isBranch(id) && s.shownOpen(id)) {
 				walk(id)
 			}
 		}

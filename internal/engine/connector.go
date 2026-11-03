@@ -170,7 +170,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 		profiles = servedProfiles(profiles, served)
 		customResources = served[crdsGVR]
 	}
-	profiles = withApplications(withHelmReleases(profiles)) // applications.go
+	profiles = withHelmReleases(profiles)
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
 	profiles = append(slices.Clip(profiles), kinds.Local()...)
 	// Lists by default, at the lists' budget; a cluster that opted in streams them (initiallists.go, D-135).

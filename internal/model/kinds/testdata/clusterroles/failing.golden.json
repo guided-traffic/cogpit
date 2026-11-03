@@ -11,9 +11,9 @@
       "text": "backup-operator"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "No rules: grants nothing",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

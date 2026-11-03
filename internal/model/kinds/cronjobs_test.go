@@ -35,22 +35,22 @@ func TestCronJobsStatusTexts(t *testing.T) {
 
 		{"cronjobs", "healthy", "schedule", "57 13 * * *", none, ok},
 		{"cronjobs", "healthy", "lastSchedule", "22h", none, ok},
-		{"cronjobs", "healthy", "warning", "", none, ok},
+		{"cronjobs", "healthy", "signals", "", none, ok},
 		{"cronjobs", "time-zone", "timeZone", "Europe/Berlin", none, ok},
 		{"cronjobs", "time-zone", "nextExecution", "In about 13 hours 30 min", none, ok},
 		{"cronjobs", "minimal", "nextExecution", "In about 1 hour", none, ok},
 		{"cronjobs", "minimal", "lastSchedule", "", none, ok},
 		{"cronjobs", "every", "nextExecution", "In about 40 min", none, ok},
 		{"cronjobs", "active", "active", "1", none, ok},
-		{"cronjobs", "active", "warning", "", none, ok},
+		{"cronjobs", "active", "signals", "", none, ok},
 		{"cronjobs", "terminating", "schedule", "0 4 * * 0", none, model.StatusTerminating},
 
 		// The warning icon's rule is inferred, not captured.
-		{"cronjobs", "failing", "warning", "The last scheduled job did not succeed", warning, warning},
+		{"cronjobs", "failing", "signals", "The last scheduled job did not succeed", warning, warning},
 		{"cronjobs", "failing", "nextExecution", "In about 15 min", none, warning},
-		{"cronjobs", "invalid-schedule", "warning", "Unparsable schedule: no job runs", bad, bad},
+		{"cronjobs", "invalid-schedule", "signals", "Unparsable schedule: no job runs", bad, bad},
 		{"cronjobs", "invalid-schedule", "nextExecution", "", none, bad},
-		{"cronjobs", "unknown-zone", "warning", "Unknown time zone: no job runs", bad, bad},
+		{"cronjobs", "unknown-zone", "signals", "Unknown time zone: no job runs", bad, bad},
 		{"cronjobs", "unknown-zone", "timeZone", "Mars/Olympus_Mons", none, bad},
 	})
 }

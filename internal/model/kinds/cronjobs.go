@@ -36,7 +36,7 @@ var cronJobs = &model.KindProfile{
 	// Columns, titles and texts as captured from Lens (2026-10-11).
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		namespaceColumn,
 		{ID: "schedule", Title: "Schedule", Type: model.ColumnText},
 		{ID: "suspend", Title: "Suspend", Type: model.ColumnText},
@@ -106,9 +106,9 @@ func cronSuspendText(obj any) string {
 func cronJobHealth(obj any, problem string) (model.Cell, model.Status) {
 	switch {
 	case problem != "":
-		return warningCell(model.StatusError, problem), model.StatusError
+		return stateCell(model.StatusError, problem), model.StatusError
 	case cronLastRunFailed(obj):
-		return warningCell(model.StatusWarning, cronLastFailed), model.StatusWarning
+		return stateCell(model.StatusWarning, cronLastFailed), model.StatusWarning
 	}
 	if suspended, _ := model.NestedBool(obj, "spec", "suspend"); suspended {
 		return model.Cell{}, model.StatusNone

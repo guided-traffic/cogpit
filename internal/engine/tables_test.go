@@ -65,12 +65,12 @@ func TestWriteCSV(t *testing.T) {
 			{ID: "name", Title: "Name", Type: model.ColumnText, Hidden: true},
 			{ID: "message", Title: "Message", Type: model.ColumnText},
 			{ID: "count", Title: "Count", Type: model.ColumnNumber},
-			{ID: "warning", Title: "Warning", Type: model.ColumnWarning},
+			{ID: "signals", Title: "Signals", Type: model.ColumnSignals},
 			{ID: "age", Title: "Age", Type: model.ColumnAge},
 		},
 		Rows: []model.Row{
 			{Cells: []model.Cell{{Text: "a"}, {Text: `Back-off "restarting", failed`}, {Num: 3}, {}, {Num: now.Add(-5 * time.Minute).Unix()}}},
-			{Cells: []model.Cell{{Text: "b"}, {Text: "=HYPERLINK(\"http://x\")"}, {Num: -1}, {Text: "3 restarts", Num: 1, Status: model.StatusWarning}, {}}},
+			{Cells: []model.Cell{{Text: "b"}, {Text: "=HYPERLINK(\"http://x\")"}, {Num: -1}, model.SignalsCell([]model.Signal{{Source: model.SignalState, Text: "3 restarts", Status: model.StatusWarning}}), {}}},
 			{Cells: []model.Cell{{Text: "c"}, {Text: "line one\nline two"}, {Text: "-"}, {}, {Num: now.Add(-49 * time.Hour).Unix()}}},
 			{Cells: []model.Cell{{Text: "d"}, {Text: "@SUM(A1)"}, {Text: "+1"}, {}, {}}},
 			{Cells: []model.Cell{{Text: "e"}, {Text: "-cmd|' /C calc'!A0"}, {}, {}, {}}},
@@ -80,7 +80,7 @@ func TestWriteCSV(t *testing.T) {
 	if err := WriteCSV(&b, snap, now); err != nil {
 		t.Fatal(err)
 	}
-	want := "Message,Count,Warning,Age\n" +
+	want := "Message,Count,Signals,Age\n" +
 		"\"Back-off \"\"restarting\"\", failed\",3,,5m\n" +
 		"\"'=HYPERLINK(\"\"http://x\"\")\",-1,3 restarts,\n" +
 		"\"line one\nline two\",-,,2d\n" +

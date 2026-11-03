@@ -18,7 +18,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/enginekit"
 )
 
-// The Flux section (G23): the navigator's Flux group, the Dashboard page, a Flux kind's view, row
+// The Flux section (G23): the navigator's Flux CD group, the Dashboard page, a Flux kind's view, row
 // menu and drawer, over the real engine and commands with a cluster of synthetic Flux objects
 // (Cogpit's curated profiles, internal/model/kinds/flux*.go). PNGs: testdata/flux_*.png.
 
@@ -33,25 +33,52 @@ func fluxKindInfos() []kindInfo {
 	return out
 }
 
-// TestSidebarFluxSection: with Flux installed the navigator shows the Flux group between
-// Applications and Nodes as captured (Dashboard, Helm Releases, Kustomizations, the three
-// sub-groups), the sub-groups only with kinds the cluster serves, and the toolkit's API groups
-// under Custom Resources too; without Flux the group, the Dashboard included, is gone.
+// TestSidebarFluxSection: with Flux installed the navigator shows the Flux CD group last, under
+// the heading Integrations (Dashboard, Helm Releases, Kustomizations, the three sub-groups), the
+// sub-groups only with kinds the cluster serves, and the toolkit's API groups under Custom
+// Resources too; without Flux the group, the Dashboard included, is gone, and the heading with it.
 func TestSidebarFluxSection(t *testing.T) {
 	f := crdFake(t)
 	served := slices.DeleteFunc(fluxKindInfos(), func(k kindInfo) bool { return strings.HasPrefix(k.Kind, "imagepolicies.") })
 	served = slices.DeleteFunc(served, func(k kindInfo) bool { return strings.Contains(k.Kind, ".notification.") })
-	f.kinds = append(append(f.kinds, kindInfo{Kind: "applications", Title: "Applications", APIKind: "Application", Namespaced: true}), served...)
+	f.kinds = append(f.kinds, served...)
 	sh, _, q := newTestShell(t, f, Options{})
 	q.until(t, "kinds", func() bool { return len(sh.kinds) > 0 })
 	s := sh.side
-	roots := titlesOf(s, s.children[""])
-	if len(roots) < 4 || !slices.Equal(roots[:4], []string{"Overview", "Applications", "Flux", "Nodes"}) {
+	integrations := headingPrefix + "integrations"
+	roots := s.children[""]
+	if len(roots) < 2 || roots[len(roots)-1] != integrations || roots[len(roots)-2] != customGroup {
 		t.Fatalf("top level %v", roots)
+	}
+	if got := titlesOf(s, s.children[integrations]); !slices.Equal(got, []string{"Flux CD"}) {
+		t.Errorf("Integrations %v", got)
+	}
+	if s.parents[fluxGroup] != "" || s.depth(fluxGroup) != 0 {
+		t.Errorf("Flux CD is no top-level group: parent %q, depth %d", s.parents[fluxGroup], s.depth(fluxGroup))
 	}
 	if got := titlesOf(s, s.children[fluxGroup]); !slices.Equal(got, []string{"Dashboard", "Helm Releases", "Kustomizations", "Image Automation", "Sources"}) {
 		t.Errorf("Flux %v", got)
 	}
+	// The heading is drawn, but no key reaches it; the group below it is the last row the keys reach.
+	if slices.Contains(s.tree.visible, integrations) || s.tree.visible[len(s.tree.visible)-1] != fluxGroup {
+		t.Errorf("the keys' rows %v", s.tree.visible)
+	}
+	if !slices.Contains(s.tree.list.Objects, s.tree.heads[integrations]) {
+		t.Error("the heading is not drawn")
+	}
+	if lines := findAll[*textLine](s.tree.heads[integrations]); len(lines) != 1 || lines[0].text != "integrations" || lines[0].color != colorMuted ||
+		len(findAll[*bracketLabel](s.tree.heads[integrations])) != 0 {
+		t.Errorf("the heading: %d lines, %d brackets", len(lines), len(findAll[*bracketLabel](s.tree.heads[integrations])))
+	}
+	// A search for its name keeps the heading and everything below it; one for an item, the heading
+	// with the item's group.
+	for text, want := range map[string]string{"integr": fluxGroup, "kustom": "kustomizations" + fluxKustomize} {
+		s.setFilter(text)
+		if shown := s.shownNodes(); !slices.Contains(shown, integrations) || !slices.Contains(shown, want) {
+			t.Errorf("search %q shows %v", text, shown)
+		}
+	}
+	s.setFilter("")
 	if got := titlesOf(s, s.children[groupPrefix+"flux/images"]); !slices.Equal(got, []string{"Image Repositories", "Image Update Automations"}) {
 		t.Errorf("Image Automation %v", got)
 	}
@@ -79,7 +106,7 @@ func TestSidebarFluxSection(t *testing.T) {
 	f.mu.Unlock()
 	f.emit(engine.Event{Type: engine.EventKinds})
 	q.until(t, "the Flux group to go", func() bool { _, ok := s.children[fluxGroup]; return !ok })
-	if s.titles[engine.FluxDashboard] != "" || slices.Contains(titlesOf(s, s.children[""]), "Flux") {
+	if s.titles[engine.FluxDashboard] != "" || slices.Contains(s.children[""], integrations) {
 		t.Errorf("the Dashboard stayed: %q, top level %v", s.titles[engine.FluxDashboard], titlesOf(s, s.children[""]))
 	}
 }

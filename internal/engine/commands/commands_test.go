@@ -33,7 +33,6 @@ var wantCommands = map[string]engine.Danger{
 	"resources.find":     engine.DangerRead,
 	"object.get":         engine.DangerRead,
 	"pod.logs":           engine.DangerRead,
-	"application.logs":   engine.DangerRead,
 	"pod.shell":          engine.DangerMutating,
 	"terminal.open":      engine.DangerUI,
 	"dock.close":         engine.DangerUI,

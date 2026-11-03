@@ -138,24 +138,24 @@ func TestKyvernoMarksViolations(t *testing.T) {
 
 	openView(s, "deployments")
 	snap := waitTable(t, s, "deployments", func(t *TableSnapshot) bool {
-		return t.Synced && len(t.Rows) == 2 && cellOf(t, "web", "warning").Text != ""
+		return t.Synced && len(t.Rows) == 2 && cellOf(t, "web", "signals").Text != ""
 	})
-	web := cellOf(snap, "web", "warning")
-	if web.Text != "Kyverno: 1 policy violation (require-team-label)" || web.Status != model.StatusWarning || web.Num != 1 {
+	web := cellOf(snap, "web", "signals")
+	if web.Text != "Kyverno: 1 policy violation (require-team-label)" || web.Status != model.StatusWarning || web.Signals == nil || (*web.Signals)[0].Source != model.SignalKyverno || (*web.Signals)[0].Section != "require-team-label" {
 		t.Errorf("web's mark %+v", web)
 	}
-	if c := cellOf(snap, "api", "warning"); c != (model.Cell{}) {
+	if c := cellOf(snap, "api", "signals"); c != (model.Cell{}) {
 		t.Errorf("another engine's report marked api: %+v", c)
 	}
 	if got := snap.DisplayOrder(); !slices.Equal(got, []int{0, 2, 1}) {
-		t.Errorf("the added warning column shows at %v, want right after Name", got)
+		t.Errorf("the added Signals column shows at %v, want right after Name", got)
 	}
 	// The window's column commands take the added column's id.
-	if p := s.WithViewColumns(testDeployments); p.ColumnIndex("warning") != 2 {
+	if p := s.WithViewColumns(testDeployments); p.ColumnIndex("signals") != 2 {
 		t.Errorf("the view's columns %+v", p.Columns)
 	}
-	s.UpdateUI(func(u *UIState) { u.Sort = SortSpec{Column: "warning", Desc: true} })
-	waitTable(t, s, "deployments", func(t *TableSnapshot) bool { return t.Sort.Column == "warning" && t.Rows[0].Ref.Name == "web" })
+	s.UpdateUI(func(u *UIState) { u.Sort = SortSpec{Column: "signals", Desc: true} })
+	waitTable(t, s, "deployments", func(t *TableSnapshot) bool { return t.Sort.Column == "signals" && t.Rows[0].Ref.Name == "web" })
 
 	// The drawer: one section per violation, under its group.
 	m, err := s.Detail(model.ObjectRef{Context: "test", Kind: "deployments", Namespace: "shop", Name: "web"})
@@ -182,7 +182,7 @@ func TestKyvernoMarksViolations(t *testing.T) {
 	// A cluster-scoped object's mark merges into its kind's own warning column.
 	openView(s, "nodes")
 	nodes := waitTable(t, s, "nodes", func(t *TableSnapshot) bool {
-		return t.Synced && strings.Contains(cellOf(t, "n1", "warning").Text, "Kyverno: 1 policy violation (require-node-owner)")
+		return t.Synced && strings.Contains(cellOf(t, "n1", "signals").Text, "Kyverno: 1 policy violation (require-node-owner)")
 	})
 	if n := len(nodes.Columns); n != len(mustProfile(t, s, "nodes").Columns) {
 		t.Errorf("Nodes has %d columns: a column was added beside its own warning column", n)
@@ -216,7 +216,7 @@ func TestKyvernoMarksViolations(t *testing.T) {
 	src.Set(polrGVR, policyReport("apps/v1", "Deployment", "shop", "web",
 		kyvernoResult("require-team-label", "autogen-check-team", "pass", "admission review")))
 	openView(s, "deployments")
-	waitTable(t, s, "deployments", func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 2 && !hasColumn(t, "warning") })
+	waitTable(t, s, "deployments", func(t *TableSnapshot) bool { return t.Synced && len(t.Rows) == 2 && !hasColumn(t, "signals") })
 
 	// Off: no mark, no section, the reports' scopes released.
 	off := IntKyverno
@@ -230,7 +230,7 @@ func TestKyvernoMarksViolations(t *testing.T) {
 	})
 	openView(s, "nodes")
 	waitTable(t, s, "nodes", func(t *TableSnapshot) bool {
-		return t.Synced && !strings.Contains(cellOf(t, "n1", "warning").Text, "Kyverno")
+		return t.Synced && !strings.Contains(cellOf(t, "n1", "signals").Text, "Kyverno")
 	})
 	if m, _ := s.Detail(model.ObjectRef{Context: "test", Kind: "nodes", Name: "n1"}); len(sectionByGroup(m.Sections, "Policy violations")) != 0 {
 		t.Error("a Policy violations section while Kyverno is off")
@@ -363,7 +363,7 @@ func TestTrimPolicyReport(t *testing.T) {
 // TestOverlayLayout: an added column shows after the column its overlay names unless the user
 // placed it; a merged cell joins the reasons and keeps the worse status.
 func TestOverlayLayout(t *testing.T) {
-	cols := []model.Column{{ID: "name"}, {ID: "namespace"}, {ID: "age"}, {ID: "warning"}}
+	cols := []model.Column{{ID: "name"}, {ID: "namespace"}, {ID: "age"}, {ID: "signals"}}
 	l := &overlayLayout{added: map[int]string{3: "name"}}
 	if got := l.order(cols, nil); !slices.Equal(got, []int{0, 3, 1, 2}) {
 		t.Errorf("order %v", got)
@@ -371,7 +371,7 @@ func TestOverlayLayout(t *testing.T) {
 	if got := l.order(cols, []string{"age", "name"}); !slices.Equal(got, []int{2, 0, 3, 1}) {
 		t.Errorf("order after the user's %v", got)
 	}
-	if got := l.order(cols, []string{"warning", "age"}); !slices.Equal(got, []int{3, 2, 0, 1}) {
+	if got := l.order(cols, []string{"signals", "age"}); !slices.Equal(got, []int{3, 2, 0, 1}) {
 		t.Errorf("the user's own place %v", got)
 	}
 	m := mergeCell(model.Cell{Text: "Not ready", Num: 1, Status: model.StatusError}, model.Cell{Text: "Kyverno: 1 policy violation (p)", Num: 1, Status: model.StatusWarning})
@@ -415,7 +415,7 @@ func TestKyvernoNamespaceLimitedUser(t *testing.T) {
 	waitFor(t, "the policy report kinds", func() bool { return hasKind(s, kinds.PolicyReportsKey) })
 	openView(s, "deployments")
 	waitTable(t, s, "deployments", func(t *TableSnapshot) bool {
-		return t.Synced && strings.HasPrefix(cellOf(t, "web", "warning").Text, "Kyverno: 1 policy violation")
+		return t.Synced && strings.HasPrefix(cellOf(t, "web", "signals").Text, "Kyverno: 1 policy violation")
 	})
 	waitFor(t, "the status naming the refused kind", func() bool {
 		st := kyvernoStatus(s)
@@ -431,3 +431,54 @@ func TestKyvernoNamespaceLimitedUser(t *testing.T) {
 		}
 	}
 }
+
+// Two overlays in one Signals column: the kind's own state keeps slot 0, the overlays take 1 and 2
+// in their order, the column counts three, and each signal carries its slot.
+func TestSignalsSlots(t *testing.T) {
+	p := &model.KindProfile{Key: "pods", Kind: "Pod", Version: "v1", Columns: []model.Column{
+		{ID: "name", Title: "Name", Type: model.ColumnText},
+		{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals, Slots: 1},
+	}}
+	ky := signalOverlay{source: model.SignalKyverno, status: model.StatusWarning}
+	tr := signalOverlay{source: model.SignalTrivy, grade: model.GradeD}
+	l := layoutOverlays(p, []rowOverlay{ky, tr}, 1)
+	if got := l.columns(p)[1].Slots; got != 3 || p.Columns[1].Slots != 1 {
+		t.Fatalf("slots %d, the kind's own %d", got, p.Columns[1].Slots)
+	}
+	state := model.SignalsCell([]model.Signal{{Source: model.SignalState, Text: "CrashLoopBackOff", Status: model.StatusError,
+		Rank: model.SignalRank(model.StatusError, model.GradeNone, 0)}})
+	row, ok := l.apply(p, model.Row{Cells: []model.Cell{{Text: "web"}, state}}, nil)
+	if !ok || row.Cells[1].Signals == nil {
+		t.Fatalf("row %+v", row)
+	}
+	var slots []int
+	var sources []model.SignalSource
+	for _, s := range *row.Cells[1].Signals {
+		slots, sources = append(slots, s.Slot), append(sources, s.Source)
+	}
+	if !slices.Equal(slots, []int{0, 1, 2}) || !slices.Equal(sources, []model.SignalSource{model.SignalState, model.SignalKyverno, model.SignalTrivy}) {
+		t.Errorf("slots %v, sources %v", slots, sources)
+	}
+	if c := row.Cells[1]; c.Status != model.StatusError || c.Text != "CrashLoopBackOff; kyverno; trivy" {
+		t.Errorf("merged %+v", c)
+	}
+}
+
+// signalOverlay gives every object one signal of its source in the Signals column.
+type signalOverlay struct {
+	source model.SignalSource
+	status model.Status
+	grade  model.ImageGrade
+}
+
+func (o signalOverlay) columns(*model.KindProfile) []overlayColumn {
+	return []overlayColumn{signalsColumn}
+}
+func (o signalOverlay) cell(*model.KindProfile, string, *unstructured.Unstructured) (model.Cell, bool) {
+	return model.SignalsCell([]model.Signal{{Source: o.source, Text: string(o.source), Status: o.status, Grade: o.grade}}), true
+}
+func (o signalOverlay) sections(*model.KindProfile, *unstructured.Unstructured, model.TimeFormat) []model.DetailSection {
+	return nil
+}
+func (o signalOverlay) waitSynced(context.Context) {}
+func (o signalOverlay) stop()                      {}

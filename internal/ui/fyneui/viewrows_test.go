@@ -72,7 +72,7 @@ func TestViewRowsAreTheTablesRows(t *testing.T) {
 	dispatch("ui.setFilter", map[string]any{"filter": "-", "regex": false})
 	dispatch("ui.sort", map[string]any{"column": "name", "desc": true})
 	dispatch("ui.setColumnOrder", map[string]any{"order": []string{"status", "name", "node"}})
-	dispatch("ui.setColumns", map[string]any{"hidden": []string{"age", "namespace", "warning", "cpu", "memory"}}) // ages tick: compare what stays
+	dispatch("ui.setColumns", map[string]any{"hidden": []string{"age", "namespace", "signals", "cpu", "memory"}}) // ages tick: compare what stays
 	until("the table to follow", func() bool {
 		snap := sh.view.snap
 		return snap != nil && snap.View == "pods" && snap.Filter == "-" && slices.Equal(snap.Namespaces, []string{ns}) &&

@@ -61,7 +61,7 @@ var noCopyTypes = map[model.ColumnType]bool{
 	model.ColumnUntil:   true, // a Cron Job's Next Execution
 	model.ColumnTime:    true, // an event's Last Seen (D-31)
 	model.ColumnMetric:  true, // CPU, Memory
-	model.ColumnWarning: true, // the warning triangle
+	model.ColumnSignals: true, // the signals' icons
 	model.ColumnIcon:    true, // a chart's icon
 	model.ColumnGrade:   true, // an image grade's shield: its icon would cover it
 }
@@ -70,7 +70,7 @@ var noCopyTypes = map[model.ColumnType]bool{
 // resource's printer column of the same id too: its id is its name in lowerCamelCase).
 var noCopyColumns = map[string]bool{
 	// Short state words.
-	columnStatus: true, // Pods, Services, PVCs, PVs, Namespaces, HPAs, Port Forwards, Helm releases, VPAs, Applications
+	columnStatus: true, // Pods, Services, PVCs, PVs, Namespaces, HPAs, Port Forwards, Helm releases, VPAs
 	"conditions": true, // Nodes, Deployments, Jobs
 	"state":      true, // Resource Claims
 	"phase":      true, // custom resources

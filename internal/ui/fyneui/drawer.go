@@ -43,6 +43,11 @@ type drawer struct {
 	revealedLen map[string]int    // how many bytes of a revealed text are the value; the rest is a note that it was cut
 	kept        map[string]any    // what section renderers keep across rebuilds for the shown object (drawerSections)
 
+	// The section a click on a signal asked for and the section titles built, by title
+	// (drawer_openat.go).
+	want     *drawerWant
+	titleObj map[string]fyne.CanvasObject
+
 	// A Secret's edited values the drawer moved away from, by object, in memory only (secretdata.go).
 	secretUnsaved map[string]*secUnsaved
 
@@ -328,6 +333,7 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 		prev.Metrics != m.Metrics { // the cluster's settings hid or showed the Metrics section
 		d.rebuild()
 	}
+	d.scrollToWanted() // a signal's section (drawer_openat.go)
 	// The same object changed in the cache: keep the reader's place in the YAML. Another object:
 	// start at the top.
 	if !m.Plain {
@@ -443,6 +449,7 @@ func (d *drawer) run(ref model.ObjectRef, a actionState, from fyne.CanvasObject)
 // first section of each group, then the events.
 func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 	d.pruneRevealed(m)
+	d.titleObj = map[string]fyne.CanvasObject{}
 	out := make([]fyne.CanvasObject, 0, 4*len(m.Sections)+4)
 	panel := d.metricsPanel(m) // a pod's or node's Metrics section comes first, as in Lens
 	if panel != nil {
@@ -460,6 +467,7 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		}
 		group = sec.Group
 		title := d.sectionTitle(sec)
+		d.noteTitle(sec.Title, title)
 		if part, ok := drawerTitleParts[m.Ref.Kind+"\x00"+sec.Title]; ok && sec.Group == "" {
 			// At the title's right end, over the rule the title draws across the drawer.
 			title = container.NewStack(title, container.NewVBox(container.NewHBox(layout.NewSpacer(), part(d, m.Ref))))

@@ -1,11 +1,14 @@
 package fyneui
 
 import (
+	"strings"
+
 	"fyne.io/fyne/v2"
 )
 
 // A column header's tooltip: the snapshot's ColumnTips by column id (the Nodes list's Disk says
-// where its numbers come from, or why it is empty: G12). A header without one shows none. The
+// where its numbers come from, or why it is empty: G12), after the title whole when the column is
+// too narrow for it (headerCell.cut). A header without either shows none. The
 // table follows the pointer itself (resourceTable.MouseMoved, which also drives the resize cursor
 // over the header's gaps), so a header cell is not hoverable: the table asks which header is under
 // the pointer when it asks for a body cell's tooltip.
@@ -20,6 +23,9 @@ func (tv *tableView) headerTipShown() bool {
 		return false
 	}
 	tip := tv.headerTip(h.col)
+	if h.cut && h.title != "" {
+		tip = strings.TrimSuffix(h.title+"\n"+tip, "\n")
+	}
 	if tip == "" {
 		return false
 	}

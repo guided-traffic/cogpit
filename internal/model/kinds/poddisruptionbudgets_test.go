@@ -30,12 +30,12 @@ func TestPodDisruptionBudgetsStatusTexts(t *testing.T) {
 		{"poddisruptionbudgets", "minimal", "currentHealthy", "0", none, model.StatusPending},
 
 		// The warning icon's rule is inferred, not captured.
-		{"poddisruptionbudgets", "healthy", "warning", "", none, ok},
-		{"poddisruptionbudgets", "failing", "warning", "Budget not met: 1 of 2 desired pods healthy", warning, warning},
-		{"poddisruptionbudgets", "no-disruptions", "warning", "Allows no disruptions: evictions and node drains wait", warning, warning},
-		{"poddisruptionbudgets", "no-pods", "warning", "", none, none},
-		{"poddisruptionbudgets", "sync-failed", "warning", "The disruption controller could not compute the budget", bad, bad},
-		{"poddisruptionbudgets", "minimal", "warning", "", none, model.StatusPending},
+		{"poddisruptionbudgets", "healthy", "signals", "", none, ok},
+		{"poddisruptionbudgets", "failing", "signals", "Budget not met: 1 of 2 desired pods healthy", warning, warning},
+		{"poddisruptionbudgets", "no-disruptions", "signals", "Allows no disruptions: evictions and node drains wait", warning, warning},
+		{"poddisruptionbudgets", "no-pods", "signals", "", none, none},
+		{"poddisruptionbudgets", "sync-failed", "signals", "The disruption controller could not compute the budget", bad, bad},
+		{"poddisruptionbudgets", "minimal", "signals", "", none, model.StatusPending},
 	})
 }
 
@@ -43,7 +43,7 @@ func TestPodDisruptionBudgetsStatusTexts(t *testing.T) {
 func TestPodDisruptionBudgetColumns(t *testing.T) {
 	assertColumnOrder(t, "poddisruptionbudgets", []model.Column{
 		{ID: "name", Title: "Name"},
-		{ID: "warning", Title: "Warning"},
+		{ID: "signals", Title: "Signals"},
 		{ID: "namespace", Title: "Namespace"},
 		{ID: "minAvailable", Title: "Min Available"},
 		{ID: "maxUnavailable", Title: "Max Unavailable"},

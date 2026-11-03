@@ -6,11 +6,11 @@ import (
 	"strings"
 )
 
-// The Kubernetes recommended labels the demo's deployments carry, so that its Applications view
-// (resource-parity › Cluster › Applications) groups them: a user deployment "<domain>-<role>" is
-// the <role> component of the application instance <domain> in its namespace. Every workload of an
-// instance shares its version and manager, both chosen by a hash of the namespace and the domain,
-// never by the random generator, so the rest of the cluster stays as it was.
+// The Kubernetes recommended labels the demo's deployments carry, as charts and GitOps tools set
+// them on a real cluster: a user deployment "<domain>-<role>" is the <role> component of the
+// application instance <domain> in its namespace. Every workload of an instance shares its version
+// and manager, both chosen by a hash of the namespace and the domain, never by the random
+// generator, so the rest of the cluster stays as it was.
 const (
 	labelInstance  = "app.kubernetes.io/instance"
 	labelName      = "app.kubernetes.io/name"
@@ -20,8 +20,8 @@ const (
 	labelManagedBy = "app.kubernetes.io/managed-by"
 )
 
-// managers are the app.kubernetes.io/managed-by values the demo's applications draw from.
-var managers = []string{"Helm", "Helm", "kustomize", "argocd"}
+// managers are the app.kubernetes.io/managed-by values the demo's deployments draw from.
+var managers = [...]string{"Helm", "Helm", "kustomize", "argocd"}
 
 // deploymentLabels are a deployment's metadata labels: app=<name> as before, and the recommended
 // labels for a deployment outside kube-system, whose system components carry none.

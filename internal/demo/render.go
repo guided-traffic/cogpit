@@ -502,7 +502,7 @@ func pullError(image string) string {
 // renderDeploymentSpec renders a deployment's metadata labels and spec once.
 func (c *Cluster) renderDeploymentSpec(d *deployment) {
 	t := d.templates[d.current]
-	d.labels = deploymentLabels(d.namespace, d.name) // applications.go
+	d.labels = deploymentLabels(d.namespace, d.name) // labels.go
 	d.spec = map[string]any{
 		"replicas": int64(d.replicas),
 		"selector": map[string]any{"matchLabels": strMap(d.selector)},

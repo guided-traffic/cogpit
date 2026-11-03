@@ -227,9 +227,10 @@ func newArgoShell(t *testing.T, mode ThemeMode, seed bool) (*shell, fyne.Window,
 	return sh, w, q, s, src, writer
 }
 
-// TestArgoNavigatorGroup: the Argo CD group appears with Argo CD's definitions, right after
-// Applications, with the Dashboard, the three kinds and Settings › Repositories and Clusters; the
-// argoproj.io group stays under Custom Resources; the group leaves with the definitions.
+// TestArgoNavigatorGroup: the Argo CD group appears with Argo CD's definitions, last, under the
+// heading Integrations, with the Dashboard, the three kinds and Settings › Repositories and
+// Clusters; the argoproj.io group stays under Custom Resources; the group leaves with the
+// definitions.
 func TestArgoNavigatorGroup(t *testing.T) {
 	sh, _, q, _, src, _ := newArgoShell(t, ThemeDark, false)
 	s := sh.side
@@ -247,10 +248,11 @@ func TestArgoNavigatorGroup(t *testing.T) {
 	if got := titlesOf(s, s.children[groupPrefix+argoGroup+"/settings"]); !slices.Equal(got, []string{"Repositories", "Clusters"}) {
 		t.Errorf("settings %v", got)
 	}
-	// After Applications (which this fixture does not offer) and Flux CD, before Nodes and Workloads.
+	// Under Integrations, after Flux CD (which this fixture does not offer), as a top-level group.
 	roots := s.children[""]
-	if i := slices.Index(roots, groupPrefix+argoGroup); i < 1 || roots[i-1] != engine.ClusterOverview || roots[i+1] != groupPrefix+"workloads" {
-		t.Errorf("the group's place: %v", roots)
+	if integrations := headingPrefix + "integrations"; roots[len(roots)-1] != integrations ||
+		!slices.Equal(s.children[integrations], []string{groupPrefix + argoGroup}) || s.depth(groupPrefix+argoGroup) != 0 {
+		t.Errorf("the group's place: %v, Integrations %v", roots, s.children[integrations])
 	}
 	custom := s.children[customGroupPrefix+kinds.ArgoCDGroup]
 	if !slices.Contains(custom, aliasPrefix+kinds.ArgoApplicationsKey) {

@@ -81,6 +81,17 @@ Ctrl on Windows and Linux.
   custom resources), each with a word search (match case, regular expression), filters by the rows'
   states and a namespace filter with its own search; a filtered namespace being deleted shows red.
   A click below the rows closes the drawer.
+- The navigator lists the Kubernetes kinds the cluster serves, then, under the heading
+  Integrations, Flux CD and Argo CD while the cluster runs them
+  ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
+  (on by default) leaves Replication Controllers and Endpoints out of the navigator; its search,
+  ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
+- <a id="the-signals-column"></a>The Signals column after Name gathers every mark on an object, one
+  icon per source in a fixed slot: the object's own state as a triangle (a pod's containers not
+  ready, a node's pressure, a cron job's failed run), Kyverno's policy violations as a whistle, a
+  pod's worst image grade as its shield (N/A dimmed). Each icon has its tooltip; a click opens the
+  drawer at the section behind it. Sorted descending, the worst comes first; a search finds the
+  icons' texts ([D-150](decisions.md#d-150-one-signals-column-for-every-mark)).
 - Ingresses list their hosts in place of Lens's Rules; a click on a host, there or in the drawer's
   rules, opens it in the browser, https where the Ingress has TLS for it. `*` and wildcard hosts
   are text. The drawer shows each host across its width with its paths under it: a click on a path
@@ -121,8 +132,9 @@ Ctrl on Windows and Linux.
   ([details](#kyvernos-policy-violations)).
 - Image grades from the Trivy Operator the cluster runs: S nothing found and a supported OS; A only
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
-  of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade, a
-  pod's drawer each container's with its counts; nothing is read while the integration is off.
+  of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
+  its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
+  counts; nothing is read while the integration is off.
 
 **Workloads at run time**
 
@@ -502,6 +514,7 @@ the Preferences page or by an agent with `preferences.set`, except where a field
 | `theme` | `system` # default | `system` (follows the computer), `dark` or `light`; also the title bar's sun and moon; `--theme` overrides it for one run |
 | `timezone` | `""`: the computer's # default | the IANA time zone every absolute time is written in (`Europe/Berlin` # example) |
 | `tableRowHeight` | `0`: the text's height and 6 points above and below # default | a table row's height, 20 to 48 points |
+| `hideOutdatedObjects` | `true` # default | Preferences › App › Outdated objects and View › Hide Outdated Objects: the navigator leaves out Replication Controllers and Endpoints; its search, ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)). Agents may set it |
 | `tableSpreadWidth` | `true` # default | Preferences › Tables › Free width: when a table opens, the columns whose text is cut widen to show it (their widest in the first 500 rows) before Name takes the rest; measured once, not while the table stays open; a column you sized keeps your width ([D-145](decisions.md#d-145-a-tables-free-width-goes-to-its-cut-columns-first)). Off: Name takes all the free width. Agents may set it |
 | `editorFontSize`, `editorLineNumbers`, `editorTabSize` | `13`, `true`, `2` # default | the YAML editor of the Edit, Create, Helm Install and Upgrade tabs: text size (8 to 32 points), line numbers, spaces per Tab (1 to 8) |
 | `terminalShell`, `terminalShellArgs` | `""`: `$SHELL`, else `/bin/zsh`, `/bin/bash`, `/bin/sh` ([Windows](#install-on-windows)); `[]` # default | the local terminal's shell (an absolute path) and its arguments; pod shells are not affected. Only you set them |
@@ -536,6 +549,9 @@ welcome page's checkbox "Restore this session at the next start" is the same pre
   cluster says why. `--context` shows its own cluster first.
 - A cluster whose kubeconfig is gone is left out with a notice; one whose connect fails shows its
   [error page](#several-clusters-connected) and no tabs.
+- A tab on the Applications view, which Cogpit does not have
+  ([D-147](decisions.md#d-147-no-applications-view)), is left out; its cluster opens on its other
+  tabs, else on its default view.
 - The dock's tabs are not restored. Table columns, collapsed navigator groups, whether the navigator
   and the chat show, and the [window's place](#the-windows-place-and-size) come back either way.
 - `workspace.json` records the connected and shown clusters either way, so turning the preference
@@ -1363,10 +1379,11 @@ a report names with a violation
 - **What counts:** a result `fail` in any policy mode (Audit, or Enforce on an object older than the
   policy, found by a background scan) and `warn` (a failed rule of a policy marked as not scored).
   `error`, `pass` and `skip` mark nothing; the report's drawer lists them.
-- **Lists:** the warning icon, tooltip "Kyverno: 2 policy violations (require-team-label,
-  disallow-latest-tag)", in the view's own warning column (Pods, Nodes, Cron Jobs, …), else in a
-  warning column after Name, added while an object of the view violates a policy (custom resources
-  included). Sort by it, or search "Kyverno".
+- **Lists:** Kyverno's whistle in the warning colour in the [Signals column](#the-signals-column),
+  tooltip "Kyverno: 2 policy violations (require-team-label, disallow-latest-tag)": in the view's
+  own Signals column (Pods, Nodes, Cron Jobs, …), else in a Signals column after Name, added while
+  an object of the view violates a policy (custom resources included). A click opens the drawer at
+  the first policy's section. Sort by it, or search "Kyverno".
 - **Drawer:** "Policy violations", a section each: policy (a link while the cluster serves its kind:
   ClusterPolicy, Policy, ValidatingPolicy), rule, result, message, severity, category, how Kyverno
   found it (background scan, admission review), when.

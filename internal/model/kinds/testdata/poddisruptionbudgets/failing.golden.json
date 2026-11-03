@@ -12,9 +12,9 @@
       "text": "ledger"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Budget not met: 1 of 2 desired pods healthy",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

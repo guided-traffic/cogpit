@@ -17,8 +17,8 @@ import (
 
 // table renders a section's table. A table of cells (model.CellTable: a node's pods, an endpoint
 // slice's endpoints) draws its cells as the lists do: a link in the link colour that goes to its
-// object, a status in its colour, and a warning column as the warning icon with the reason as its
-// tooltip, under no title. A sortable one (a node's Pods) has the lists' column titles, which sort
+// object, a status in its colour, and a Signals column as its signals' icons, each with its text as
+// the tooltip, under no title. A sortable one (a node's Pods) has the lists' column titles, which sort
 // it (drawertable_sort.go). A table whose last column shows under its rows (LastUnder: a release's
 // History and its descriptions) is laid out by underTableLayout. Other tables are plain text
 // (detailTable). section is the section's title, which names the table to the engine.
@@ -39,7 +39,7 @@ func (d *drawer) table(ref model.ObjectRef, section string, t *model.DetailTable
 	// for a node's hundreds of pods measures every cell hundreds of times.
 	objs := make([]fyne.CanvasObject, 0, len(t.Columns)*(len(t.Cells)+1))
 	for i, c := range t.Columns {
-		if colType(i) == model.ColumnWarning {
+		if colType(i) == model.ColumnSignals {
 			c = ""
 		}
 		if t.Sortable && i < len(t.IDs) {
@@ -66,9 +66,9 @@ func (d *drawer) table(ref model.ObjectRef, section string, t *model.DetailTable
 // tableCell draws one cell of a table of cells.
 func (d *drawer) tableCell(ref model.ObjectRef, typ model.ColumnType, c model.Cell, text string) fyne.CanvasObject {
 	switch {
-	case typ == model.ColumnWarning && c.Status != model.StatusNone:
-		return newTipIcon(d.sh, theme.WarningIcon(), statusColorName(c.Status), text)
-	case typ == model.ColumnWarning:
+	case typ == model.ColumnSignals && c.Signals != nil:
+		return d.signalIcons(*c.Signals)
+	case typ == model.ColumnSignals:
 		text = ""
 	case c.Link != nil && text != "" && d.sh.view.serves(c.Link.Kind):
 		link := *c.Link

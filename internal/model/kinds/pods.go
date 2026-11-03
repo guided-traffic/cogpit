@@ -36,7 +36,7 @@ var pods = &model.KindProfile{
 	Namespaced: true,
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		namespaceColumn,
 		cpuColumn,
 		memoryColumn,
@@ -243,7 +243,7 @@ const keyNodes = "nodes"
 // each problem and, with one, the restart count. Restarts alone do not warn.
 func podWarning(obj any, s podSummary) model.Cell {
 	if s.status == model.StatusSucceeded || s.status == model.StatusTerminating || deleting(obj) {
-		return warningCell(model.StatusNone, "")
+		return stateCell(model.StatusNone, "")
 	}
 	var reasons []string
 	if s.status == model.StatusError {
@@ -272,7 +272,7 @@ func podWarning(obj any, s podSummary) model.Cell {
 		}
 	}
 	if len(reasons) == 0 {
-		return warningCell(model.StatusNone, "")
+		return stateCell(model.StatusNone, "")
 	}
 	switch s.restarts {
 	case 0:
@@ -281,7 +281,7 @@ func podWarning(obj any, s podSummary) model.Cell {
 	default:
 		reasons = append(reasons, itoa(s.restarts)+" restarts")
 	}
-	return warningCell(model.StatusWarning, strings.Join(reasons, "; "))
+	return stateCell(model.StatusWarning, strings.Join(reasons, "; "))
 }
 
 // podSummary is what the pod table derives from containers and their statuses.

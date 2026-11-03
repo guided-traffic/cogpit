@@ -23,7 +23,7 @@ type logOptionsParams struct {
 // logSourceParams are logs.setSource's parameters: the tab, and the parts of its source to change.
 type logSourceParams struct {
 	ID        string  `json:"id" jsonschema:"logs tab id as ui_state lists it, e.g. logs-1"`
-	Workload  *string `json:"workload,omitempty" jsonschema:"an application's tab only: the workload to show, one logs_sources lists; empty: every workload"`
+	Workload  *string `json:"workload,omitempty" jsonschema:"a GitOps object's tab only (argocd_logs, flux_logs): the workload to show, one logs_sources lists; empty: every workload"`
 	Pod       *string `json:"pod,omitempty" jsonschema:"the pod to show, one logs_sources lists; empty: every pod of a controlling resource's tab (a pod's tab shows one pod)"`
 	Container *string `json:"container,omitempty" jsonschema:"the container to show, one logs_sources lists (an init container too, and in a pod's tab an ephemeral one); empty: every container of a controlling resource's tab (a pod's tab shows one)"`
 }
@@ -127,7 +127,7 @@ func registerLogs(g *registrar) {
 		ID: "logs.sources", Label: "Log Sources", Danger: engine.DangerRead, Verbs: workloadLogVerbs[1:],
 		Description: "Lists what a logs tab's pod and container selectors offer, from Cogpit's cache: for the logs of " +
 			"a controlling resource (allPods true) its pods, and the containers of the pod the tab shows or of every " +
-			"pod; for an application's tab (application_logs, argocd_logs, flux_logs) also its workloads by name, the " +
+			"pod; for a GitOps object's tab (argocd_logs, flux_logs) also its workloads by name, the " +
 			"pods then of the workload it shows or of every one; for a pod's tab the pods of the resource that controls " +
 			"it (the pod alone if none does) and the pod's containers. Init containers are listed apart, and a pod's " +
 			"tab lists its ephemeral (debug) containers apart too (ephemeralContainers). Makes no API " +
@@ -141,7 +141,7 @@ func registerLogs(g *registrar) {
 	add(g, engine.Spec[logSourceParams]{
 		ID: "logs.setSource", Label: "Show Pod or Container", Danger: engine.DangerRead, Verbs: workloadLogVerbs,
 		Description: "Changes which pod and container a logs tab shows, as the tab's selectors do (choices: " +
-			"logs_sources). For an application's tab, workload narrows it to one of the application's workloads (empty: " +
+			"logs_sources). For a GitOps object's tab (argocd_logs, flux_logs), workload narrows it to one of its workloads (empty: " +
 			"every one; a pod of another workload is then dropped). For the logs of a controlling resource, pod narrows the tab to one of its pods and " +
 			"container to the containers of that name, an init container's too; an empty value selects every pod or " +
 			"container again (init containers that ran to completion only when named). The merged stream follows " +

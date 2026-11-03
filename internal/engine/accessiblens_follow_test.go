@@ -323,42 +323,6 @@ func TestLookupsAndWriteTargetsReadTheTargetsNamespace(t *testing.T) {
 	}
 }
 
-// The Applications view reads its workloads through a cache of its own; for a user whose
-// RoleBinding is in the context's namespace (shop) alone, its reads of the workloads in all
-// namespaces are refused, and before (2026-10-13) it kept them for as long as it ran and listed no
-// application. Its run now takes a workload kind again when how the kind is read changes, so the
-// view lists shop's application.
-func TestApplicationsFollowARefusal(t *testing.T) {
-	mem := testkit.NewMemorySource()
-	mem.Set(testkit.DeploymentsGVR, appDeployment("shop", "web", "storefront", "1.4", 1))
-	mem.Set(appsStatefulSetsGVR, appStatefulSet(2))
-	mem.Set(testkit.DeploymentsGVR, appDeployment("payments", "api", "storefront", "2.0", 1))
-	gvrs := []schema.GroupVersionResource{testkit.PodsGVR, testkit.DeploymentsGVR, appsStatefulSetsGVR, appsJobsGVR, appsCronJobsGVR}
-	src := &testkit.NamespacedOnlySource{Inner: mem, GVRs: gvrs, Denied: []string{"payments"}}
-	rev := newFakeReviewer(map[string][]cluster.AccessRule{"shop": {
-		rule("get,list,watch", "", "pods"), rule("get,list,watch", "apps", "deployments,statefulsets"), rule("get,list,watch", "batch", "jobs,cronjobs"),
-	}})
-	var profiles []*model.KindProfile
-	for _, key := range []string{"pods", "deployments", "statefulsets", "jobs", "cronjobs"} {
-		profiles = append(profiles, builtinProfile(t, key))
-	}
-	s := New(Options{Connector: dockConnector{src: src, rev: rev, profiles: withApplications(profiles), namespace: "shop"}, SnapshotInterval: 5 * time.Millisecond})
-	t.Cleanup(s.Close)
-	connectTest(t, s)
-	s.UpdateUI(func(u *UIState) { u.View = kinds.ApplicationsKey })
-	ts := waitTable(t, s, kinds.ApplicationsKey, func(ts *TableSnapshot) bool { return ts.Synced && len(ts.Rows) == 1 && ts.Error == "" })
-	if r := ts.Rows[0].Ref; r.Namespace != "shop" {
-		t.Errorf("row %v", r)
-	}
-	// The statefulset db is storefront's too: the row can stand before shop's deployments are read.
-	for _, res := range []string{"deployments", "statefulsets"} {
-		waitFor(t, res+" read in shop", func() bool { return callsOf(src, res)["list "+res+".apps in shop"] > 0 })
-		if calls := callsOf(src, res); calls["list "+res+".apps in shop"] != 1 || calls["list "+res+".apps"] > 2 {
-			t.Errorf("%s calls %v: want the refused read in all namespaces, then shop's", res, calls)
-		}
-	}
-}
-
 // A user who may not list the custom resource definitions (a namespace-limited user, measured on
 // kind: five refused lists and five refused streaming watches in 20 seconds) is not asked again
 // for them on every backoff step for as long as the cluster is connected: the refused list ends

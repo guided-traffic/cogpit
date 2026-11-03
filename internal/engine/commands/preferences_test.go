@@ -104,6 +104,19 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("preferences.get after tableSpreadWidth %v: %v, %v", on, err, read.Preferences.TableSpreadWidth)
 		}
 	}
+	// What the navigator lists is the agents' too, either way; outdated kinds are left out by default.
+	if !res.Preferences.HideOutdatedObjects {
+		t.Error("hideOutdatedObjects is off by default")
+	}
+	for _, on := range []bool{false, true} {
+		var read commands.PreferencesResult
+		if err := dispatch(t, s, agent, "preferences.set", map[string]any{"hideOutdatedObjects": on}, nil); err != nil {
+			t.Errorf("an agent's hideOutdatedObjects %v: %v", on, err)
+		}
+		if err := dispatch(t, s, engine.OriginCLI, "preferences.get", struct{}{}, &read); err != nil || read.Preferences.HideOutdatedObjects != on {
+			t.Errorf("preferences.get after hideOutdatedObjects %v: %v, %v", on, err, read.Preferences.HideOutdatedObjects)
+		}
+	}
 	// Less motion is the agents' too, either way: it changes only how the window moves.
 	for _, on := range []bool{true, false} {
 		var got commands.PreferencesResult // omitempty: a false is left out of the result

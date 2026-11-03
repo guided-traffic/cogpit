@@ -12,9 +12,9 @@
       "text": "agents"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "The disruption controller could not compute the budget",
-      "num": 1,
+      "num": 3000000000,
       "status": "error"
     },
     {

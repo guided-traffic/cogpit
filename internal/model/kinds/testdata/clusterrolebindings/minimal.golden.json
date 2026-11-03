@@ -11,9 +11,9 @@
       "text": "bare"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "No subjects: grants nothing",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

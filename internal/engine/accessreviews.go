@@ -656,9 +656,6 @@ func (b *Backend) Listable(p *model.KindProfile, filter []string) (listable, kno
 	if p.Local {
 		return true, true
 	}
-	if isApplications(p) { // the workloads it is made of decide (applications.go)
-		return b.applicationsListable(filter)
-	}
 	if isHelmReleases(p) { // the release Secrets or ConfigMaps decide (helmdriver.go)
 		return b.releasesListable(p, filter)
 	}

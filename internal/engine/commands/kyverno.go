@@ -44,7 +44,7 @@ func registerKyverno(g *registrar) {
 	add(g, engine.Spec[kyvernoViolationsParams]{
 		ID: "kyverno.violations", Label: "List Policy Violations", Danger: engine.DangerRead, Verbs: kyvernoReads,
 		Description: "Lists the objects that violate a Kyverno policy, from the policy reports Kyverno writes " +
-			"(wgpolicyk8s.io), as the window marks them in the lists' warning column and the drawer's Policy violations: " +
+			"(wgpolicyk8s.io), as the window marks them in the lists' Signals column and the drawer's Policy violations: " +
 			"each violation's object (ref: kind key, namespace, name; pass it to ui_navigate or object_get), policy, rule, " +
 			"result (fail, or warn for a policy its author marked as not scored), message, severity, category, process " +
 			"(background scan: an object from before the policy; admission review) and time. A fail counts whatever the " +

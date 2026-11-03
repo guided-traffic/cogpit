@@ -7,13 +7,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The Flux section of the navigator (ui-parity › Cluster sidebar, captured 2026-10-11; G23): between
-// Applications and Nodes, the Dashboard first, then Helm Releases and Kustomizations, and the
-// sub-groups Image Automation, Notifications and Sources, each kind under the plural title Lens
-// shows. Its kinds are the Flux toolkit's CRD kinds with Cogpit's curated profiles
+// The Flux CD group of the navigator (ui-parity › Cluster sidebar; G23): under the heading
+// Integrations, before Argo CD (the owner, 2026-11-03), the Dashboard first, then Helm Releases and
+// Kustomizations, and the sub-groups Image Automation, Notifications and Sources, each kind under
+// its plural title. Its kinds are the Flux toolkit's CRD kinds with Cogpit's curated profiles
 // (internal/model/kinds/flux*.go): only those the cluster serves appear, a sub-group without any
-// is left out, and so is the whole section, the Dashboard included, on a cluster without Flux.
-// The toolkit's API groups stay listed under Custom Resources too, as captured.
+// is left out, and so is the whole group, the Dashboard included, on a cluster without Flux.
+// The toolkit's API groups stay listed under Custom Resources too.
 
 // Flux toolkit API groups, as kind keys end ("kustomizations" + fluxKustomize).
 const (
@@ -24,11 +24,11 @@ const (
 	fluxNotification = ".notification.toolkit.fluxcd.io"
 )
 
-// fluxGroup is the Flux section's node id.
+// fluxGroup is the Flux CD group's node id.
 const fluxGroup = groupPrefix + "flux"
 
-// fluxNav is the Flux section of navLayout.
-var fluxNav = navGroup("flux", "Flux",
+// fluxNav is the Flux CD group of navLayout.
+var fluxNav = navGroup("flux", "Flux CD",
 	navEntry{id: engine.FluxDashboard, title: "Dashboard", page: true},
 	titled("helmreleases"+fluxHelm, "Helm Releases"),
 	titled("kustomizations"+fluxKustomize, "Kustomizations"),
@@ -47,7 +47,7 @@ var fluxNav = navGroup("flux", "Flux",
 		titled("buckets"+fluxSource, "Buckets"),
 		titled("externalartifacts"+fluxSource, "External Artifacts")))
 
-// iconFlux is Cogpit's own icon for the Flux section, drawn for Cogpit (not Flux's logo): two
+// iconFlux is Cogpit's own icon for the Flux CD group, drawn for Cogpit (not Flux's logo): two
 // arrows chasing each other around a circle, reconciliation.
 var iconFlux = fyne.NewStaticResource("cogpit-flux.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
 	`<path d="M12 3a9 9 0 0 1 8.5 6H23l-4 5-4-5h2.3A6.5 6.5 0 0 0 6.2 8.2L4.4 6.4A9 9 0 0 1 12 3Z"/>`+

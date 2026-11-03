@@ -60,7 +60,7 @@ func TestDrawerLinksCustomOwners(t *testing.T) {
 	if needs := drawerNeeds(plain, p); len(needs) != len(p.DrawerNeeds()) {
 		t.Errorf("a drawer on a cluster without custom kinds reads %v", needs)
 	}
-	virtual := &model.KindProfile{Key: "applications", Derive: func(objs []*unstructured.Unstructured) []*unstructured.Unstructured { return objs }}
+	virtual := &model.KindProfile{Key: "derived", Derive: func(objs []*unstructured.Unstructured) []*unstructured.Unstructured { return objs }}
 	if needs := drawerNeeds(b, virtual); len(needs) != 0 {
 		t.Errorf("a virtual kind's drawer reads %v", needs)
 	}

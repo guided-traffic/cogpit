@@ -12,9 +12,9 @@
       "text": "import-batch-42"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "OOMKilled",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

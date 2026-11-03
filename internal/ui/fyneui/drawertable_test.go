@@ -145,10 +145,10 @@ func TestDrawerCellTable(t *testing.T) {
 	pod := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-0"}
 	tbl := model.CellTable([]model.Column{
 		{ID: "name", Title: "Name", Type: model.ColumnText},
-		{ID: "warning", Title: "Warning", Type: model.ColumnWarning},
+		{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals},
 		{ID: "status", Title: "Status", Type: model.ColumnText},
 	}, [][]model.Cell{
-		{{Text: pod.Name, Link: &pod}, {Text: "CrashLoopBackOff; 4 restarts", Num: 1, Status: model.StatusWarning}, {Text: "CrashLoopBackOff", Status: model.StatusError}},
+		{{Text: pod.Name, Link: &pod}, model.SignalsCell([]model.Signal{{Source: model.SignalState, Text: "CrashLoopBackOff; 4 restarts", Status: model.StatusWarning}}), {Text: "CrashLoopBackOff", Status: model.StatusError}},
 		{{Text: "web-1", Link: &model.ObjectRef{Kind: "secrets", Namespace: "shop", Name: "web-1"}}, {}, {Text: "Running", Status: model.StatusOK}},
 	})
 	f.details[ref.String()] = &engine.DetailModel{

@@ -12,7 +12,7 @@ import (
 func sortFixture() *model.DetailTable {
 	cols := []model.Column{
 		{ID: "name", Title: "Name", Type: model.ColumnText},
-		{ID: "warning", Title: "Warning", Type: model.ColumnWarning},
+		{ID: "signals", Title: "Signals", Type: model.ColumnSignals},
 		{ID: "namespace", Title: "Namespace", Type: model.ColumnText},
 		{ID: "ready", Title: "Ready", Type: model.ColumnNumber},
 		{ID: model.ColumnCPU, Title: "CPU", Type: model.ColumnMetric},
@@ -74,7 +74,7 @@ func TestSortDetailTable(t *testing.T) {
 		{"status", false, []string{"jobs/Batch-0", "argo/api-0", "argo/web-0", "shop/web-0"}},
 		{"status", true, []string{"argo/web-0", "shop/web-0", "argo/api-0", "jobs/Batch-0"}},
 		{"ready", false, []string{"jobs/Batch-0", "argo/api-0", "argo/web-0", "shop/web-0"}},
-		{"warning", true, []string{"argo/api-0", "argo/web-0", "jobs/Batch-0", "shop/web-0"}},
+		{"signals", true, []string{"argo/api-0", "argo/web-0", "jobs/Batch-0", "shop/web-0"}},
 	}
 	for _, c := range cases {
 		in := sortFixture()

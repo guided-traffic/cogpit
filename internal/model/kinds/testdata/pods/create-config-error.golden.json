@@ -12,9 +12,9 @@
       "text": "billing-4f3e2d1c0-b4d5e"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "CreateContainerConfigError",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

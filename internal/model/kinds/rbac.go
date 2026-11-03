@@ -262,9 +262,9 @@ func bootstrapPolicy(obj any) bool {
 // causes it grants nothing; none without causes.
 func grantsNothingCell(causes []string) (model.Cell, model.Status) {
 	if len(causes) == 0 {
-		return warningCell(model.StatusNone, ""), model.StatusNone
+		return stateCell(model.StatusNone, ""), model.StatusNone
 	}
-	return warningCell(model.StatusWarning, grantsNothing(causes)), model.StatusWarning
+	return stateCell(model.StatusWarning, grantsNothing(causes)), model.StatusWarning
 }
 
 // subjectsCause is the cause a binding without subjects grants nothing, or "" when it has

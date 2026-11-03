@@ -12,9 +12,9 @@
       "text": "cache-5d6f7a8b9-ev1ct"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Evicted",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

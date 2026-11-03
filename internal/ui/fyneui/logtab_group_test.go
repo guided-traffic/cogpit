@@ -14,9 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// An application's logs in one merged tab (A81): every line starts with
-// "<workload>/<pod>/<container>", and the tab has a workload selector beside the pod and container
-// ones.
+// An Argo CD Application's logs in one merged tab (A81), as a Flux Kustomization's: every line
+// starts with "<workload>/<pod>/<container>", and the tab has a workload selector beside the pod
+// and container ones.
 
 // demoWorkers are the lines of the storefront application's second workload.
 var demoWorkers = []struct{ source, ts, msg string }{
@@ -76,7 +76,7 @@ func groupLogsScene(t *testing.T, mode ThemeMode) (*shell, *mainQueue, *fakeEngi
 		src.Containers = append(slices.Clone(src.Containers), "worker")
 		return src, nil
 	}
-	app := model.ObjectRef{Context: "demo", Kind: kinds.ApplicationsKey, Namespace: "checkout", Name: "storefront"}
+	app := model.ObjectRef{Context: "demo", Kind: kinds.ArgoApplicationsKey, Namespace: "argocd", Name: "storefront"}
 	f.ui.Dock = []engine.DockTab{{ID: "logs-1", Type: engine.DockLogs, Title: "Logs: Application storefront", Context: "demo", Ref: &app,
 		Logs: engine.LogOptions{ResourceNames: true, Timestamps: true}}}
 	f.ui.ActiveDock = "logs-1"
@@ -147,7 +147,7 @@ func TestRenderLogsApplication(t *testing.T) {
 			}
 			return src, err
 		}
-		app := model.ObjectRef{Context: "demo", Kind: kinds.ApplicationsKey, Namespace: "checkout", Name: "storefront"}
+		app := model.ObjectRef{Context: "demo", Kind: kinds.ArgoApplicationsKey, Namespace: "argocd", Name: "storefront"}
 		f.ui.Dock = []engine.DockTab{{ID: "logs-1", Type: engine.DockLogs, Title: "Logs: Application storefront", Context: "demo", Ref: &app,
 			Logs: engine.LogOptions{ResourceNames: true, Timestamps: true}}}
 		f.ui.ActiveDock = "logs-1"

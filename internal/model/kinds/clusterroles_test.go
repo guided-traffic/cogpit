@@ -21,12 +21,12 @@ const (
 
 func TestClusterRoleTexts(t *testing.T) {
 	checkStatusTexts(t, []statusText{
-		{"clusterroles", "healthy", "warning", "", model.StatusNone, model.StatusNone},
-		{"clusterroles", "aggregated", "warning", "", model.StatusNone, model.StatusNone},
-		{"clusterroles", "failing", "warning", accessNoRules, model.StatusWarning, model.StatusWarning},
-		{"clusterroles", "aggregated-empty", "warning", accessNoAggregated, model.StatusWarning, model.StatusWarning},
-		{"clusterroles", "minimal", "warning", accessNoRules, model.StatusWarning, model.StatusWarning},
-		{"clusterroles", "terminating", "warning", "", model.StatusNone, model.StatusTerminating},
+		{"clusterroles", "healthy", "signals", "", model.StatusNone, model.StatusNone},
+		{"clusterroles", "aggregated", "signals", "", model.StatusNone, model.StatusNone},
+		{"clusterroles", "failing", "signals", accessNoRules, model.StatusWarning, model.StatusWarning},
+		{"clusterroles", "aggregated-empty", "signals", accessNoAggregated, model.StatusWarning, model.StatusWarning},
+		{"clusterroles", "minimal", "signals", accessNoRules, model.StatusWarning, model.StatusWarning},
+		{"clusterroles", "terminating", "signals", "", model.StatusNone, model.StatusTerminating},
 		{"clusterroles", "healthy", "age", "51d", model.StatusNone, model.StatusNone},
 	})
 }
@@ -36,7 +36,7 @@ func TestClusterRoleTexts(t *testing.T) {
 func TestClusterRoleColumns(t *testing.T) {
 	assertColumnOrder(t, "clusterroles", []model.Column{
 		{ID: "name", Title: "Name"},
-		{ID: "warning", Title: "Warning"},
+		{ID: "signals", Title: "Signals"},
 		{ID: "age", Title: "Age"},
 	})
 	if p, _ := kinds.ByKey("clusterroles"); p.Namespaced || p.GVR().Group != "rbac.authorization.k8s.io" {

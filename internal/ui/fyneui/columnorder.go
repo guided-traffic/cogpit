@@ -139,7 +139,7 @@ func (d *columnDrag) show(x float32) {
 
 	d.chipTitle.Text = tv.snap.Columns[tv.cols[min(d.from, len(tv.cols)-1)]].Title
 	if d.chipTitle.Text == "" {
-		d.chipTitle.Text = "⚠" // the warning column has no title
+		d.chipTitle.Text = "⚠" // a column without a title (a grade column's)
 	}
 	d.chipTitle.TextSize = th.Size(theme.SizeNameText)
 	d.chipTitle.Color = themeColor(th, colorRowSelectedText)

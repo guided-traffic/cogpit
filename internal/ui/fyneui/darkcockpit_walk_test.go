@@ -159,14 +159,14 @@ func rectanglesIn(o fyne.CanvasObject) (out []*canvas.Rectangle) {
 	return out
 }
 
-// TestWarningColumnKeepsItsWidth: Lens's warning column right after Name keeps its width (the
-// owner, 2026-10-21): its header draws no divider, a drag that starts on its edge changes nothing,
-// a double click there fits nothing, and the resize arrows do not show over that edge; Name's own
-// divider, left of it, still drags.
-func TestWarningColumnKeepsItsWidth(t *testing.T) {
+// TestSignalsColumnIsAColumnOfItsOwn: the Signals column right after Name is a column of its own
+// (the owner, 2026-11-03: "eine eigenständige Spalte"): its header draws a divider as every titled
+// column's does, it opens as wide as its slots or its title, the resize arrows show over its edge,
+// and a drag there widens it.
+func TestSignalsColumnIsAColumnOfItsOwn(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]
-	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals, Slots: 1})
 	for i := range pods.Rows {
 		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
 	}
@@ -174,61 +174,45 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 	q.until(t, "the pods", func() bool { return sh.view.snap != nil && len(sh.view.cols) > 2 })
 	settle(w)
 	tv := sh.view
-	if !tv.fixedAt(1) || tv.fixedAt(0) {
-		t.Fatalf("fixed columns: name %v, warning %v; want the warning column only", tv.fixedAt(0), tv.fixedAt(1))
+	if tv.fixedAt(1) {
+		t.Fatal("the Signals column keeps a fixed width")
 	}
-	if h := headerFor(t, sh, firstDataColumn+1); h.sep.FillColor != color.Transparent {
-		t.Errorf("the warning column's header draws a divider (%v)", h.sep.FillColor)
+	if h := headerFor(t, sh, firstDataColumn+1); h.sep.FillColor == color.Transparent {
+		t.Error("the Signals column's header draws no divider")
 	}
-	if h := headerFor(t, sh, firstDataColumn); h.sep.FillColor == color.Transparent {
-		t.Error("Name's header lost its divider")
+	before := tv.setWidths[firstDataColumn+1]
+	if want := signalsWidth(tv.table.Theme(), tv.snap.Columns[1]); before != want {
+		t.Errorf("the Signals column opens %v wide, want %v", before, want)
 	}
 	gap := tv.table.Theme().Size(theme.SizeNamePadding)
 	header := headerFor(t, sh, firstDataColumn).Size().Height
-	edge := func(col int) fyne.Position { // the middle of the divider right of the visible column col
-		x := float32(0)
-		for i := 0; i < firstDataColumn+col; i++ {
-			x += tv.setWidths[i] + gap
-		}
-		return fyne.NewPos(x+tv.setWidths[firstDataColumn+col]+gap/2, header/2)
+	x := float32(0)
+	for i := 0; i < firstDataColumn+1; i++ {
+		x += tv.setWidths[i] + gap
 	}
-	before := tv.setWidths[firstDataColumn+1]
-
-	doubleClickAt(tv.table, edge(1))
-	if tv.setWidths[firstDataColumn+1] != before || len(tv.userWidths) != 0 {
-		t.Errorf("a double click on its edge: %v wide (was %v), user widths %v", tv.setWidths[firstDataColumn+1], before, tv.userWidths)
-	}
-
-	rel := edge(1)
+	rel := fyne.NewPos(x+before+gap/2, header/2) // the middle of the divider right of Signals
 	abs := fyne.CurrentApp().Driver().AbsolutePositionForObject(tv.table).Add(rel)
 	test.MoveMouse(w.Canvas(), abs)
-	if cur := tv.table.Cursor(); cur == desktop.HResizeCursor {
-		t.Error("the resize arrows show over the warning column's edge")
+	if cur := tv.table.Cursor(); cur != desktop.HResizeCursor {
+		t.Errorf("the cursor over the Signals column's edge: %v, want the resize arrows", cur)
 	}
 	tv.table.MouseDown(&desktop.MouseEvent{PointEvent: fyne.PointEvent{Position: rel, AbsolutePosition: abs}, Button: desktop.MouseButtonPrimary})
 	tv.table.Dragged(&fyne.DragEvent{PointEvent: fyne.PointEvent{Position: rel.AddXY(60, 0), AbsolutePosition: abs.AddXY(60, 0)}, Dragged: fyne.NewDelta(60, 0)})
 	tv.table.DragEnd()
 	q.drain()
 	settle(w)
-	if got := headerFor(t, sh, firstDataColumn+1).Size().Width; got != before {
-		t.Errorf("dragging its edge by 60: %v wide, want %v", got, before)
-	}
-
-	tv.userWidths["pods/warning"] = 120 // a width kept from before the rule
-	tv.fitWidth = 0
-	tv.fitColumns(tv.table.Size().Width)
-	if got := tv.setWidths[firstDataColumn+1]; got != 28 {
-		t.Errorf("a kept user width: the warning column %v wide, want its 28", got)
+	if got := headerFor(t, sh, firstDataColumn+1).Size().Width; got <= before {
+		t.Errorf("dragging its edge by 60: %v wide, was %v", got, before)
 	}
 }
 
-// TestAReusedHeaderCellKeepsItsDivider: Fyne hands a header cell that showed the warning column to
-// another column; as the ⋮ or the checkbox it draws its divider again (seen 2026-10-25 in the VW17
-// renders: the ⋮'s divider gone in a drawer's render).
+// TestAReusedHeaderCellKeepsItsDivider: Fyne hands a header cell that showed a fixed column (a grade
+// column's, no divider) to another column; as the ⋮ or the checkbox it draws its divider again
+// (seen 2026-10-25 in the VW17 renders: the ⋮'s divider gone in a drawer's render).
 func TestAReusedHeaderCellKeepsItsDivider(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]
-	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "grade", Title: "Grade", Type: model.ColumnGrade, Width: 32})
 	for i := range pods.Rows {
 		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
 	}
@@ -239,12 +223,12 @@ func TestAReusedHeaderCellKeepsItsDivider(t *testing.T) {
 	for _, col := range []int{tv.menuColumn(), checkColumn} {
 		h := headerFor(t, sh, firstDataColumn+1)
 		if !h.fixed {
-			t.Fatal("the warning column's header is not fixed")
+			t.Fatal("the grade column's header is not fixed")
 		}
 		tv.updateHeader(widget.TableCellID{Row: -1, Col: col}, h)
 		if h.sep.FillColor == color.Transparent {
-			t.Errorf("the warning column's cell reused for column %d draws no divider", col)
+			t.Errorf("the grade column's cell reused for column %d draws no divider", col)
 		}
-		tv.updateHeader(widget.TableCellID{Row: -1, Col: firstDataColumn + 1}, h) // back to the warning column
+		tv.updateHeader(widget.TableCellID{Row: -1, Col: firstDataColumn + 1}, h) // back to the grade column
 	}
 }

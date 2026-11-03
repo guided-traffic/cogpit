@@ -235,9 +235,9 @@ func TestGroupLogsPrevious(t *testing.T) {
 	}
 }
 
-// TestGroupWorkloadsOfEachGroup (A81): what each group names: an application's workloads, an Argo
-// CD Application's status.resources in the cluster it runs in (none for another cluster), a
-// Kustomization's inventory; only the kinds a logs tab shows.
+// TestGroupWorkloadsOfEachGroup (A81): what each group names: an Argo CD Application's
+// status.resources in the cluster it runs in (none for another cluster), a Kustomization's
+// inventory; only the kinds a logs tab shows.
 func TestGroupWorkloadsOfEachGroup(t *testing.T) {
 	argo := testkit.ArgoApplication("argocd", "shop", "Synced", "Healthy")
 	argo.Object["status"].(map[string]any)["resources"] = []any{
@@ -261,7 +261,7 @@ func TestGroupWorkloadsOfEachGroup(t *testing.T) {
 	if got := LogGroupWorkloads(groupRef, ks); len(got) != 2 || got[1].Kind != "statefulsets" || got[1].Name != "db" {
 		t.Errorf("Kustomization: %+v", got)
 	}
-	if IsLogGroup("deployments") || !IsLogGroup(kinds.ApplicationsKey) || LogGroupWorkloads(model.ObjectRef{Kind: "pods"}, ks) != nil {
+	if IsLogGroup("deployments") || !IsLogGroup(kinds.ArgoApplicationsKey) || LogGroupWorkloads(model.ObjectRef{Kind: "pods"}, ks) != nil {
 		t.Error("IsLogGroup")
 	}
 }

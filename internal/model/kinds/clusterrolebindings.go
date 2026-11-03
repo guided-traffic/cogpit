@@ -21,7 +21,7 @@ var clusterRoleBindings = &model.KindProfile{
 	Title:    "Cluster Role Bindings",
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		bindingsColumn,
 		ageColumn,
 	},

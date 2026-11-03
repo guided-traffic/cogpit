@@ -12,9 +12,9 @@
       "text": "gateway-8b7c6d5e4-r3s4t"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Containers not ready: auth-proxy; 2 restarts",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {
