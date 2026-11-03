@@ -81,11 +81,11 @@ func TestKindAccessControlViews(t *testing.T) {
 		"subjects": []any{map[string]any{"kind": "ServiceAccount", "name": "default", "namespace": "cogpit-b"}},
 	}}
 	rows := s.BuildRows(ctx, b, p, append(append([]*unstructured.Unstructured(nil), objs...), missing))
-	warning, bindings := p.ColumnIndex("warning"), p.ColumnIndex("bindings")
+	signals, bindings := p.ColumnIndex(model.SignalsColumnID), p.ColumnIndex("bindings")
 	seen := map[string]bool{}
 	for _, r := range rows {
 		seen[r.Ref.Name] = true
-		text := r.Cells[warning].Text
+		text := r.Cells[signals].Text
 		switch r.Ref.Name {
 		case "cogpit-b-not-created":
 			if text != "Cluster role cogpit-b-no-such-role not found: grants nothing" {
@@ -93,7 +93,7 @@ func TestKindAccessControlViews(t *testing.T) {
 			}
 		case "cluster-admin":
 			if text != "" || r.Cells[bindings].Text != "system:masters" {
-				t.Errorf("cluster-admin: warning %q, bindings %q", text, r.Cells[bindings].Text)
+				t.Errorf("cluster-admin: signal %q, bindings %q", text, r.Cells[bindings].Text)
 			}
 		default:
 			// Only the bindings kind and kubeadm create: other tests on the shared cluster may

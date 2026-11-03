@@ -140,7 +140,7 @@ func TestKindConfigViews(t *testing.T) {
 		func(cell func(string) model.Cell, r model.Row) bool {
 			return cell("minAvailable").Text == "1" && cell("maxUnavailable").Text == "N/A" &&
 				cell("currentHealthy").Num == 1 && cell("desiredHealthy").Num == 1 &&
-				cell("warning").Status == model.StatusWarning && strings.HasPrefix(cell("warning").Text, "Allows no disruptions")
+				cell(model.SignalsColumnID).Status == model.StatusWarning && strings.HasPrefix(cell(model.SignalsColumnID).Text, "Allows no disruptions")
 		})
 	row("resourcequotas", in("resourcequotas", "compute"), "the quota with its use counted",
 		func(_ func(string) model.Cell, r model.Row) bool { return r.Status == model.StatusOK })

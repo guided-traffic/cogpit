@@ -27,9 +27,9 @@ const trivyReportsKey = "vulnerabilityreports.aquasecurity.github.io"
 // cogpit-trivy-a and cogpit-trivy-b. The integration says it found the reports; each pod's drawer
 // rates its images from its controller's reports (a ReplicaSet's of two images and an init
 // container, a StatefulSet's, a Job's, the CronJob's of the Job made from it, a bare pod's own);
-// the Pods list rates every pod by its worst image; switched off, nothing is held and the column is
-// gone. It logs what the reports cost in the cache, trimmed as the integration reads them and whole
-// as their own view does. Skipped without the operator.
+// the Pods list's Signals column rates every pod by its worst image; switched off, nothing is held
+// and no pod has a grade. It logs what the reports cost in the cache, trimmed as the integration
+// reads them and whole as their own view does. Skipped without the operator.
 func TestKindTrivy(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
 	if kubeconfig == "" || contextName == "" {
@@ -92,7 +92,7 @@ func TestKindTrivy(t *testing.T) {
 		}
 		return out
 	}
-	worst := map[string]string{} // pod name → the grade of its Image Rating in the Pods list
+	worst := map[string]string{} // pod name → the grade of its signal in the Pods list
 	// The grades as Trivy's database rated the images on 2026-10-22 (D-113): nginx:1.16.1's dozens of
 	// Critical E; nginx:1.30.0-alpine's High C; alpine:3.12's Critical D (its OS's end of life caps at
 	// C, and D is worse); busybox's nothing S.
@@ -124,31 +124,39 @@ func TestKindTrivy(t *testing.T) {
 		t.Logf("%s: %v", ref, grades(ref))
 	}
 
-	// The Pods list's Image Rating: each test pod's worst grade.
+	// The Pods list's Signals column: each test pod's worst grade, Trivy's signal.
 	s.UpdateUI(func(u *engine.UIState) { u.View = "pods" })
-	cellOf := func(snap *engine.TableSnapshot, name string) model.Cell {
-		ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == "imageRating" })
+	gradesOf := func(snap *engine.TableSnapshot) map[string]model.Signal {
+		ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == model.SignalsColumnID })
+		out := map[string]model.Signal{}
 		for _, r := range snap.Rows {
-			if r.Ref.Name == name && ci >= 0 && ci < len(r.Cells) {
-				return r.Cells[ci]
+			if ci < 0 || ci >= len(r.Cells) || r.Cells[ci].Signals == nil {
+				continue
+			}
+			for _, sig := range *r.Cells[ci].Signals {
+				if sig.Source == model.SignalTrivy {
+					out[r.Ref.Name] = sig
+				}
 			}
 		}
-		return model.Cell{}
+		return out
 	}
 	waitFor(ctx, t, "the Pods list's grades", func() bool {
 		snap := s.Table("pods")
 		if snap == nil || !snap.Synced {
 			return false
 		}
+		got := gradesOf(snap)
 		for name, want := range worst {
-			if c := cellOf(snap, name); c.Grade.String() != want || !strings.HasPrefix(c.Text, want+" · ") {
+			if sig := got[name]; sig.Grade.String() != want || !strings.HasPrefix(sig.Text, want+" · ") {
 				return false
 			}
 		}
 		return true
 	})
+	listed := gradesOf(s.Table("pods"))
 	for name := range worst {
-		t.Logf("Pods list: %s: %q", name, cellOf(s.Table("pods"), name).Text)
+		t.Logf("Pods list: %s: %q", name, listed[name].Text)
 	}
 
 	// What the reports cost in the cache: the integration's trimmed scope, and the whole reports as
@@ -173,8 +181,8 @@ func TestKindTrivy(t *testing.T) {
 		t.Errorf("the trimmed reports take %d bytes, the whole ones %d", trimmed, full)
 	}
 
-	// Switched off: the handle goes back, the drawer shows no grade, the column is gone, the state
-	// says off.
+	// Switched off: the handle goes back, the drawer shows no grade, the Pods list has none, the
+	// state says off.
 	s.UpdateUI(func(u *engine.UIState) {
 		if u.ClusterSettings == nil {
 			u.ClusterSettings = map[string]engine.ClusterSettings{}
@@ -198,8 +206,8 @@ func TestKindTrivy(t *testing.T) {
 	if got := grades(bare); len(got) != 0 {
 		t.Errorf("off, the drawer grades %v", got)
 	}
-	waitFor(ctx, t, "the column gone", func() bool {
+	waitFor(ctx, t, "the Pods list's grades gone", func() bool {
 		snap := s.Table("pods")
-		return snap != nil && !slices.ContainsFunc(snap.Columns, func(c model.Column) bool { return c.ID == "imageRating" })
+		return snap != nil && snap.Synced && len(gradesOf(snap)) == 0
 	})
 }
