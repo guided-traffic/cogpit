@@ -66,6 +66,10 @@ func TestSidebarFluxSection(t *testing.T) {
 	if !slices.Contains(s.tree.list.Objects, s.tree.heads[integrations]) {
 		t.Error("the heading is not drawn")
 	}
+	if lines := findAll[*textLine](s.tree.heads[integrations]); len(lines) != 1 || lines[0].text != "integrations" || lines[0].color != colorMuted ||
+		len(findAll[*bracketLabel](s.tree.heads[integrations])) != 0 {
+		t.Errorf("the heading: %d lines, %d brackets", len(lines), len(findAll[*bracketLabel](s.tree.heads[integrations])))
+	}
 	// A search for its name keeps the heading and everything below it; one for an item, the heading
 	// with the item's group.
 	for text, want := range map[string]string{"integr": fluxGroup, "kustom": "kustomizations" + fluxKustomize} {

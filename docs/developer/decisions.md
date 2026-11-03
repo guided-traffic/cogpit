@@ -6084,10 +6084,11 @@ items are in title case.
 Flux CD and Argo CD under it, Helm where it was, the name "Flux CD"), lead (open to revision) the
 rest
 
-Below the navigator's last entry (Custom Resources, Other) a divider and the heading
-"integrations", in the look Cluster Settings heads its integrations with
-([D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer)):
-a bracket label in the accent colour. Under it the Flux CD and Argo CD groups, each top-level, with
+Below the navigator's last entry (Custom Resources, Other) the divider Cluster Settings draws above
+its integrations
+([D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer))
+and the heading "integrations" in small bold lower case in the muted colour, without a bracket
+(the owner: "ohne diesen Balken und nur in Grau"). Under it the Flux CD and Argo CD groups, each top-level, with
 its icon, folding as any group does, each only while the cluster serves it. The heading shows while
 one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
 (`ui.setNavigatorRow` names no heading). The search keeps it while it keeps one of its items, and a
