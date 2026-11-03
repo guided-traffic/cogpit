@@ -626,9 +626,9 @@ linters:
         linters: [gosec]
 
       # G404: the demo cluster is synthetic and seeded on purpose (the same seed builds the same
-      # cluster); nothing it draws is a secret. G115 on the same line: uint64(opts.Seed) keeps the
-      # seed's bits, and every 64-bit value is a valid PCG seed.
-      - path: ^internal/demo/demo\.go$
+      # cluster, its Trivy reports too); nothing it draws is a secret. G115 on the same line:
+      # uint64(opts.Seed) keeps the seed's bits, and every 64-bit value is a valid PCG seed.
+      - path: ^internal/demo/(demo|trivy)\.go$
         text: G404|G115
         source: rand\.NewPCG
         linters: [gosec]
