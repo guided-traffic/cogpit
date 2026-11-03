@@ -130,7 +130,7 @@ var resourceClaims = &model.KindProfile{
 	Namespaced: true,
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		namespaceColumn,
 		{ID: "state", Title: "State", Type: model.ColumnText, Width: 170},
 		{ID: idDeviceClasses, Title: titleDeviceClasses, Type: model.ColumnText, Width: 220},
@@ -181,7 +181,7 @@ func resourceClaimCells(obj *unstructured.Unstructured) ([]model.Cell, model.Sta
 	}
 	return []model.Cell{
 		nameCell(obj),
-		warningCell(warnToken, warn),
+		stateCell(warnToken, warn),
 		namespaceCell(obj),
 		{Text: state, Status: token},
 		{Text: strings.Join(draClasses(draRequests(model.NestedMap(obj, "spec"))), ", ")},

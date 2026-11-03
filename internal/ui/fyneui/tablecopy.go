@@ -61,7 +61,7 @@ var noCopyTypes = map[model.ColumnType]bool{
 	model.ColumnUntil:   true, // a Cron Job's Next Execution
 	model.ColumnTime:    true, // an event's Last Seen (D-31)
 	model.ColumnMetric:  true, // CPU, Memory
-	model.ColumnWarning: true, // the warning triangle
+	model.ColumnSignals: true, // the signals' icons
 	model.ColumnIcon:    true, // a chart's icon
 	model.ColumnGrade:   true, // an image grade's shield: its icon would cover it
 }

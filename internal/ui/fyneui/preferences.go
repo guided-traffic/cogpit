@@ -60,6 +60,9 @@ func (sh *shell) preferencesChanged() {
 	if sh.view != nil {
 		sh.view.spreadChanged() // how the open table shares its free width (tablespread.go)
 	}
+	if sh.side != nil {
+		sh.side.outdatedChanged() // the navigator's outdated kinds (navigator_outdated.go)
+	}
 	var zone *time.Location
 	if p.Timezone != "" {
 		zone, _ = engine.LoadTimezone(p.Timezone)
@@ -218,6 +221,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	updates, syncUpdates := p.updatesSettings()       // preferences_updates.go
 	restore, syncRestore := p.restoreSessionSetting() // preferences_restore.go
 	motion, syncMotion := p.reduceMotionSetting()     // preferences_motion.go
+	outdated, syncOutdated := p.outdatedSetting()     // navigator_outdated.go
 	power, syncPower := p.lightStripPowerSetting()    // preferences_power.go
 	diffs, syncDiffs := p.revisionsDiffSetting()      // preferences_revisions.go
 	zoom, syncZoom := p.zoomSetting()                 // preferences_zoom.go
@@ -232,6 +236,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		p.setEntry(zone, &zone.Entry, "timezone", pr.Timezone)
 		syncRestore()
 		syncMotion()
+		syncOutdated()
 		syncPower()
 		syncDiffs()
 		syncZoom()
@@ -243,6 +248,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		zoom,
 		restore,
 		motion,
+		outdated,
 		power,
 		diffs,
 	}

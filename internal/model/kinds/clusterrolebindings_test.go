@@ -17,12 +17,12 @@ const accessNoSubjects = "No subjects: grants nothing"
 func TestClusterRoleBindingTexts(t *testing.T) {
 	checkStatusTexts(t, []statusText{
 		{"clusterrolebindings", "healthy", "bindings", "metrics-collector, oncall:sre, alice@example.com", model.StatusNone, model.StatusNone},
-		{"clusterrolebindings", "healthy", "warning", "", model.StatusNone, model.StatusNone},
-		{"clusterrolebindings", "failing", "warning", accessNoSubjects, model.StatusWarning, model.StatusWarning},
+		{"clusterrolebindings", "healthy", "signals", "", model.StatusNone, model.StatusNone},
+		{"clusterrolebindings", "failing", "signals", accessNoSubjects, model.StatusWarning, model.StatusWarning},
 		{"clusterrolebindings", "failing", "bindings", "", model.StatusNone, model.StatusWarning},
 		// The API server's system:node binding has no subjects on purpose.
-		{"clusterrolebindings", "bootstrap-policy", "warning", "", model.StatusNone, model.StatusNone},
-		{"clusterrolebindings", "minimal", "warning", accessNoSubjects, model.StatusWarning, model.StatusWarning},
+		{"clusterrolebindings", "bootstrap-policy", "signals", "", model.StatusNone, model.StatusNone},
+		{"clusterrolebindings", "minimal", "signals", accessNoSubjects, model.StatusWarning, model.StatusWarning},
 		{"clusterrolebindings", "terminating", "bindings", "dashboard", model.StatusNone, model.StatusTerminating},
 	})
 }
@@ -32,7 +32,7 @@ func TestClusterRoleBindingTexts(t *testing.T) {
 func TestClusterRoleBindingColumns(t *testing.T) {
 	assertColumnOrder(t, "clusterrolebindings", []model.Column{
 		{ID: "name", Title: "Name"},
-		{ID: "warning", Title: "Warning"},
+		{ID: "signals", Title: "Signals"},
 		{ID: "bindings", Title: "Bindings"},
 		{ID: "age", Title: "Age"},
 	})
@@ -98,7 +98,7 @@ func TestClusterRoleBindingRoleNotFound(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			row := model.BuildRowWith(p, "test", tt.obj, tt.rel)
-			cell := row.Cells[p.ColumnIndex("warning")]
+			cell := row.Cells[p.ColumnIndex("signals")]
 			wantStatus := model.StatusNone
 			if tt.warning != "" {
 				wantStatus = model.StatusWarning

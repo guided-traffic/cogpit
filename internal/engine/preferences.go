@@ -168,6 +168,12 @@ type Preferences struct {
 	// fyneui/navigator_slide.go). Agents and the CLI may set it either way: it changes only how the
 	// window moves.
 	ReduceMotion bool `json:"reduceMotion,omitempty"`
+	// HideOutdatedObjects: the navigator leaves out the kinds Kubernetes has a successor for
+	// (OutdatedKinds); its search still finds them, and so do the palette, the View menu, links,
+	// open tabs and ui.openView. On by default (the owner, 2026-11-03: "Hide outdated objects",
+	// default true). Agents and the CLI may set it either way: it changes only what the navigator
+	// lists.
+	HideOutdatedObjects bool `json:"hideOutdatedObjects"`
 	// LightStripMainsOnly: the light strip under the tabs animates only while the computer runs on
 	// its power adapter and on battery shows its colour standing still; off, the default, it
 	// animates on battery too (the owner, 2026-10-24, LS15 and LS16: "nur bei Netzbetrieb", once for
@@ -195,12 +201,21 @@ type Preferences struct {
 // (Sync with computer; the owner's A94 of 2026-10-14 evening, dark before; a stored choice stays),
 // the computer's time zone, the default row height, a table's free width to its cut columns
 // (D-145), 13-point text, line numbers on, two-space tabs, the user's own shell, kubectl downloads
-// offered, chart icons loaded (D-46), updates checked automatically on the stable channel (D-4).
+// offered, chart icons loaded (D-46), updates checked automatically on the stable channel (D-4),
+// outdated kinds left out of the navigator.
 func DefaultPreferences() Preferences {
 	return Preferences{Theme: ThemeSystem, TableSpreadWidth: true, EditorFontSize: DefaultFontSize,
 		EditorLineNumbers: true, EditorTabSize: DefaultTabSize, TerminalFontSize: DefaultFontSize,
-		KubectlDownload: true, LoadChartIcons: true, CheckForUpdates: true, UpdateChannel: UpdateChannelStable}
+		KubectlDownload: true, LoadChartIcons: true, CheckForUpdates: true, UpdateChannel: UpdateChannelStable,
+		HideOutdatedObjects: true}
 }
+
+// OutdatedKinds are the kinds HideOutdatedObjects leaves out of the navigator: those Kubernetes
+// has a successor for while it still serves them. Replication Controllers (Deployments and their
+// Replica Sets) and Endpoints (EndpointSlices; the API server warns "v1 Endpoints is deprecated in
+// v1.33+"). Not in it: Pod Security Policies (served only up to 1.24, where they are live),
+// Ingresses (frozen, not deprecated), Leases (current).
+var OutdatedKinds = []string{"replicationcontrollers", "endpoints"}
 
 // Clone returns a deep copy.
 func (p Preferences) Clone() Preferences {

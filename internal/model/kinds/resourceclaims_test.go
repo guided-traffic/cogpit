@@ -21,7 +21,7 @@ func FuzzResourceSlices(f *testing.F)         { fuzzProfile(f, "resourceslices")
 // Cogpit's own hidden columns.
 func TestDeviceResourcesColumns(t *testing.T) {
 	assertColumnOrder(t, "resourceclaims", []model.Column{
-		{ID: "name", Title: "Name"}, {ID: "warning", Title: "Warning"}, {ID: "namespace", Title: "Namespace"},
+		{ID: "name", Title: "Name"}, {ID: "signals", Title: "Signals"}, {ID: "namespace", Title: "Namespace"},
 		{ID: "state", Title: "State"}, {ID: "deviceClasses", Title: "Device Classes"},
 		{ID: "devices", Title: "Devices"}, {ID: "reservedFor", Title: "Reserved For"}, {ID: "age", Title: "Age"},
 	})
@@ -67,9 +67,9 @@ func TestResourceClaimsStatusTexts(t *testing.T) {
 		{"resourceclaims", "minimal", "state", "Pending", pending, pending},
 		{"resourceclaims", "terminating", "state", "Allocated", ok, term},
 		// The warning icon: a driver reports an unhealthy device (which conditions count is inferred).
-		{"resourceclaims", "failing", "warning", "Device gpu-3 (gpu.example.com) reports Ready=False: Xid 79: GPU has fallen off the bus", warning, warning},
+		{"resourceclaims", "failing", "signals", "Device gpu-3 (gpu.example.com) reports Ready=False: Xid 79: GPU has fallen off the bus", warning, warning},
 		{"resourceclaims", "failing", "state", "Allocated (reserved: 1)", ok, warning},
-		{"resourceclaims", "healthy", "warning", "", none, ok},
+		{"resourceclaims", "healthy", "signals", "", none, ok},
 		{"resourceclaims", "healthy", "deviceClasses", "gpu.example.com", none, ok},
 		{"resourceclaims", "pending", "deviceClasses", "gpu-large.example.com, gpu.example.com, nic.example.net", none, pending},
 		{"resourceclaims", "shared", "devices", "gpu-0, gpu-1, gpu-2 + 2 more", none, ok},

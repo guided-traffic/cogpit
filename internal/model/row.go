@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -18,11 +19,14 @@ const (
 	// usage ("0.012", "19.5 MiB", "7.5%"), Cell.Num its sort key. A cell without a Text has no
 	// measurement (no metrics-server, or none for this object yet) and shows nothing, not "0".
 	ColumnMetric ColumnType = "metric"
-	// ColumnWarning is Lens's warning-icon column right after Name. A cell with a Status shows an
-	// icon in that status's colour and its Text (the reason) as the icon's tooltip; an empty cell
-	// shows nothing. Num is 1 when the row has a warning, so that the column sorts warnings
-	// together; [CellText] returns the reason.
-	ColumnWarning ColumnType = "warning"
+	// ColumnSignals is the Signals column right after Name (D-150): every mark on an object
+	// in one cell, an icon per source side by side (Cell.Signals; the object's own state first,
+	// then the integrations' in Cluster Settings' order: Trivy's image grade, Kyverno's policy
+	// violations), each in its slot
+	// of the column (Column.Slots) so that it keeps its place in a view. Text is the signals' texts
+	// joined ([SignalsCell]) for search, CSV and agents; the column sorts by Num, the worst
+	// signal's rank. An empty cell shows nothing.
+	ColumnSignals ColumnType = "signals"
 	// ColumnUntil is a time in the future: Cell.Num is a Unix timestamp in seconds, rendered as the
 	// time left from now ([FormatUntil]): a Cron Job's Next execution.
 	ColumnUntil ColumnType = "until"
@@ -36,11 +40,12 @@ const (
 	// cell and the user allows it (D-46), drawing a glyph of its own otherwise. Its cells have no
 	// text, so that searching, sorting and copying ignore it.
 	ColumnIcon ColumnType = "icon"
-	// ColumnGrade is a column of image grades drawn as shields (a pod's worst image grade, the Trivy
-	// integration, D-113): Cell.Grade is the shield, Cell.Text its readable form ("D · 2
-	// Critical") for search, CSV and agents, Cell.Tip the counts behind it, and the column sorts by
-	// Cell.Num ([GradeRank]). Like the warning column it has no title in the header and a fixed
-	// width; Title names it for agents and the columns menu. A cell without a grade is empty.
+	// ColumnGrade is a column of image grades drawn as shields: Cell.Grade is the shield, Cell.Text
+	// its readable form ("D · 2 Critical") for search, CSV and agents, Cell.Tip the counts behind
+	// it, and the column sorts by Cell.Num ([GradeRank]). It has no title in the header and a fixed
+	// width; Title names it for agents and the columns menu. A cell without a grade is empty. A
+	// pod's worst image grade is a signal in the Signals column (D-113); no built-in view has a
+	// grade column of its own.
 	ColumnGrade ColumnType = "grade"
 )
 
@@ -51,10 +56,13 @@ type Column struct {
 	Type   ColumnType `json:"type"`            // sort and render behaviour
 	Width  float32    `json:"width,omitempty"` // default width hint in points; 0 lets the UI decide
 	Hidden bool       `json:"hidden,omitempty"`
+	// Slots is a Signals column's number of icon places, one per source that applies to the view
+	// (Signal.Slot); 0 for any other column.
+	Slots int `json:"slots,omitempty"`
 }
 
 // Cell is one table cell. Text is what the user reads; Num is the sort key for number, age and
-// warning columns. Status colours the cell itself (a Status or Conditions column), independent of
+// Signals columns. Status colours the cell itself (a Status or Conditions column), independent of
 // the row's status.
 //
 // Link, when set, is the object the cell names (a Namespace, Node, Controlled By or Involved
@@ -95,6 +103,9 @@ type Cell struct {
 	Tip string `json:"tip,omitempty"`
 	// Grade is the image grade a ColumnGrade cell draws as its shield; GradeNone draws nothing.
 	Grade ImageGrade `json:"grade,omitempty"`
+	// Signals, when set, are a Signals cell's icons, in slot order (ColumnSignals). A pointer, so
+	// that Cell stays comparable; shared and immutable like Parts. Build it with [SignalsCell].
+	Signals *[]Signal `json:"signals,omitempty"`
 	// Web, when set, draws the cell as a list of web addresses separated by [WebSeparator], each
 	// one a link that opens its URL in the browser on the user's click; an entry without a URL is
 	// plain text (an Ingress's wildcard host). Text stays the entries' texts joined, for sorting,
@@ -180,6 +191,105 @@ func PartsCell(status Status, parts ...CellPart) Cell {
 		b.WriteString(p.Text)
 	}
 	return Cell{Text: b.String(), Status: status, Parts: &kept}
+}
+
+// The Signals column's id and title, in every view that has one.
+const (
+	SignalsColumnID    = "signals"
+	SignalsColumnTitle = "Signals"
+)
+
+// SignalSource is where a signal comes from; each source has its glyph and its slot.
+type SignalSource string
+
+// The signal sources, in their slots' order: the state's first, then the integrations' in the
+// order of engine.Integrations, as the overlays give them their slots.
+const (
+	// SignalState is the object's own state (a pod's containers not ready, a node's pressure): a
+	// triangle in the status's colour.
+	SignalState SignalSource = "state"
+	// SignalTrivy is the Trivy integration's worst image grade of a pod: the grade's shield, an N/A
+	// one dimmed.
+	SignalTrivy SignalSource = "trivy"
+	// SignalKyverno is the Kyverno integration's policy violations: Kyverno's glyph.
+	SignalKyverno SignalSource = "kyverno"
+)
+
+// Signal is one icon of a Signals cell: Text says what it marks ("Containers not ready: web",
+// "Kyverno: 1 policy violation (require-team-label)", "D · 2 Critical"), Tip what is behind it,
+// Status its colour (Grade a shield instead), Section the drawer section that tells more (a
+// click opens the drawer there; empty: the drawer's top), Slot its place in the column, and Rank
+// its sort key ([SignalRank]).
+type Signal struct {
+	Source  SignalSource `json:"source"`
+	Slot    int          `json:"slot,omitempty"`
+	Text    string       `json:"text"`
+	Tip     string       `json:"tip,omitempty"`
+	Status  Status       `json:"status,omitempty"`
+	Grade   ImageGrade   `json:"grade,omitempty"`
+	Section string       `json:"section,omitempty"`
+	Rank    int64        `json:"rank,omitempty"`
+}
+
+// signalSeverityStep separates the severities in SignalRank: above any GradeRank.
+const signalSeverityStep = 1_000_000_000
+
+// SignalRank is a signal's sort key: its severity first (an error above a warning above anything
+// else), then within a source its own order (a grade's GradeRank). A grade's severity: D and E an
+// error, C a warning, S, A and B none above the rest, N/A the lowest.
+func SignalRank(status Status, grade ImageGrade, fine int64) int64 {
+	sev := int64(1)
+	switch {
+	case grade == GradeNA:
+		sev = 0
+	case grade >= GradeD, grade == GradeNone && status == StatusError:
+		sev = 3
+	case grade == GradeC, grade == GradeNone && status == StatusWarning:
+		sev = 2
+	}
+	return sev*signalSeverityStep + fine
+}
+
+// SignalsCell returns a Signals cell of signals, sorted by slot: Text their texts joined by "; ",
+// Tip their tooltips a line each (what agents read beside the text; the window shows each
+// signal's own), Status the worst of them, Num the highest rank. No signals return an empty cell.
+func SignalsCell(signals []Signal) Cell {
+	if len(signals) == 0 {
+		return Cell{}
+	}
+	sorted := slices.Clone(signals)
+	slices.SortStableFunc(sorted, func(a, b Signal) int { return a.Slot - b.Slot })
+	texts := make([]string, 0, len(sorted))
+	var tips []string
+	var c Cell
+	for _, s := range sorted {
+		if s.Text != "" {
+			texts = append(texts, s.Text)
+		}
+		if s.Tip != "" {
+			tips = append(tips, s.Tip)
+		}
+		if statusSeverity(s.Status) > statusSeverity(c.Status) {
+			c.Status = s.Status
+		}
+		c.Num = max(c.Num, s.Rank)
+	}
+	c.Text, c.Tip = strings.Join(texts, "; "), strings.Join(tips, "\n")
+	c.Signals = &sorted
+	return c
+}
+
+// statusSeverity orders the statuses a Signals cell keeps the worst of.
+func statusSeverity(s Status) int {
+	switch s {
+	case StatusError:
+		return 3
+	case StatusWarning:
+		return 2
+	case StatusNone:
+		return 0
+	}
+	return 1
 }
 
 // Row is one object as a table row. Rows are immutable once built: snapshots share them.

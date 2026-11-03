@@ -448,10 +448,10 @@ func TestTooltips(t *testing.T) {
 	q.until(t, "the pods view", func() bool { return sh.view.snap != nil && sh.view.snap.View == "pods" })
 	settle(w)
 	crash := podNamed(t, podCrashLoop)
-	warn := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "warning"))
-	// A row in an abnormal state shows a spine and a status pill: its warning icon would say it a
+	warn := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "signals"))
+	// A row in an abnormal state shows a spine and a status pill: its state's triangle would say it a
 	// third time, so the reason moves to the tooltip of the status word (Dark Cockpit).
-	if warn.content.kind != cellText || warn.iconRes != nil && warn.icon.Visible() || warn.text.Text != "" {
+	if warn.content.kind != cellSignals || !warn.content.lit || len(warn.shownSignals()) != 0 || warn.text.Text != "" {
 		t.Fatalf("warning cell %+v", warn.content)
 	}
 	status := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "status"))

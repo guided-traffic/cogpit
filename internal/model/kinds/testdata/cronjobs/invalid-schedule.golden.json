@@ -12,9 +12,9 @@
       "text": "broken-schedule"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Unparsable schedule: no job runs",
-      "num": 1,
+      "num": 3000000000,
       "status": "error"
     },
     {

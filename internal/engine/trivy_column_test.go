@@ -9,22 +9,28 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// ratingCells returns the Pods view's Image Rating column: its index, and each pod's cell by name.
-func ratingCells(snap *TableSnapshot) (int, map[string]model.Cell) {
-	ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == trivyColumnID })
-	out := map[string]model.Cell{}
+// ratingCells returns the Pods view's Signals column, its index, and each pod's Trivy signal by name.
+func ratingCells(snap *TableSnapshot) (int, map[string]model.Signal) {
+	ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == model.SignalsColumnID })
+	out := map[string]model.Signal{}
 	for _, r := range snap.Rows {
-		if ci >= 0 && ci < len(r.Cells) {
-			out[r.Ref.Name] = r.Cells[ci]
+		if ci < 0 || ci >= len(r.Cells) || r.Cells[ci].Signals == nil {
+			continue
+		}
+		for _, sig := range *r.Cells[ci].Signals {
+			if sig.Source == model.SignalTrivy {
+				out[r.Ref.Name] = sig
+			}
 		}
 	}
 	return ci, out
 }
 
-// The Pods list's Image Rating (D-78's second phase, D-113's grades): a pod's worst image grade, its
-// text the grade and the count that decides it, sorted by the grade, then that count; N/A for a pod
-// without a report, sorted below S; the column without a header title (its Title for agents) and of
-// a fixed width; gone while the integration is off.
+// The Pods list's image grade (D-78's second phase, D-113's grades), a signal in the Signals column
+// (D-150): a pod's worst image grade, its text the grade and the count that decides it, sorted by
+// the grade, then that count; N/A for a pod without a report, sorted below S (testPods has no
+// Signals column of its own: the grade's is its first slot); the column gone while the integration
+// is off.
 func TestTrivyPodsColumn(t *testing.T) {
 	src := trivyFixture()
 	// Another pod of the same rating with fewer findings: sorted after the one with more.
@@ -33,19 +39,19 @@ func TestTrivyPodsColumn(t *testing.T) {
 	s := newCRDSession(t, src)
 	b := s.Backend()
 	waitFor(t, "the reports listed", func() bool { return trivyOn(b).synced() })
-	s.UpdateUI(func(u *UIState) { u.View, u.Sort = "pods", SortSpec{Column: trivyColumnID, Desc: true} })
+	s.UpdateUI(func(u *UIState) { u.View, u.Sort = "pods", SortSpec{Column: model.SignalsColumnID, Desc: true} })
 	snap := waitTable(t, s, "pods", func(ts *TableSnapshot) bool {
 		_, cells := ratingCells(ts)
-		return ts.Synced && cells["web-5d9c-a"].Text != "" && ts.Sort.Column == trivyColumnID
+		return ts.Synced && cells["web-5d9c-a"].Text != "" && ts.Sort.Column == model.SignalsColumnID
 	})
 	ci, cells := ratingCells(snap)
-	if col := snap.Columns[ci]; col.Title != "Image Rating" || col.Type != model.ColumnGrade || col.Width != trivyColumnWidth {
+	if col := snap.Columns[ci]; col.Title != "Signals" || col.Type != model.ColumnSignals || col.Slots != 1 {
 		t.Errorf("column %+v", col)
 	}
-	if cols := trivyOn(b).columns(testPods); len(cols) != 1 || cols[0].After != specContainers {
-		t.Errorf("the column is not placed right after Containers: %+v", cols)
+	if cols := trivyOn(b).columns(testPods); len(cols) != 1 || cols[0].ID != model.SignalsColumnID || cols[0].After != nameColumnID {
+		t.Errorf("not the Signals column: %+v", cols)
 	}
-	for name, want := range map[string]model.Cell{
+	for name, want := range map[string]model.Signal{
 		"web-5d9c-a":         {Text: "E · 39 Critical", Grade: model.GradeE},
 		"lone":               {Text: "D · 2 Critical", Grade: model.GradeD},
 		"nightly-29000000-x": {Text: "D · 1 Critical", Grade: model.GradeD},
@@ -53,9 +59,12 @@ func TestTrivyPodsColumn(t *testing.T) {
 		"once-y":             {Text: "S · no known vulnerabilities", Grade: model.GradeS},
 		"db-0":               {Text: "N/A · not scanned", Grade: model.GradeNA},
 	} {
-		if got := cells[name]; got.Text != want.Text || got.Grade != want.Grade || got.Status != model.StatusNone || got.Tip == "" {
-			t.Errorf("%s: %+v, want %q %v", name, got, want.Text, want.Grade)
+		if got := cells[name]; got.Text != want.Text || got.Grade != want.Grade || got.Status != model.StatusNone || got.Tip == "" || got.Slot != 0 {
+			t.Errorf("%s: %+v, want %q %v in slot 0", name, got, want.Text, want.Grade)
 		}
+	}
+	if sec := cells["web-5d9c-a"].Section; sec == "" {
+		t.Error("web's grade opens no container's section")
 	}
 	if tip := cells["web-5d9c-a"].Tip; !strings.HasPrefix(tip, "39 Critical · ") || !strings.Contains(tip, "The worst of 2 images: nginx:1.16.1") {
 		t.Errorf("web's tooltip %q", tip)
@@ -79,9 +88,6 @@ func TestTrivyPodsColumn(t *testing.T) {
 	// Off: the column is gone.
 	setTrivy(s, false)
 	waitTable(t, s, "pods", func(ts *TableSnapshot) bool { ci, _ := ratingCells(ts); return ts.Synced && ci < 0 })
-	if cols := s.ViewColumns(testPods); slices.ContainsFunc(cols, func(c model.Column) bool { return c.ID == trivyColumnID }) {
-		t.Error("off, the view still has the column")
-	}
 }
 
 // The integration reads the reports in a trimmed scope of its own (cache.Scope.Trim): its objects

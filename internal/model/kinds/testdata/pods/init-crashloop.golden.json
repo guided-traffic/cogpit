@@ -12,9 +12,9 @@
       "text": "api-1"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Init:CrashLoopBackOff; 4 restarts",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

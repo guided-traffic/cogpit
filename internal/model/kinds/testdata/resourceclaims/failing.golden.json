@@ -12,9 +12,9 @@
       "text": "inference-gpu"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Device gpu-3 (gpu.example.com) reports Ready=False: Xid 79: GPU has fallen off the bus",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

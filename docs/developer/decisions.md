@@ -2945,7 +2945,8 @@ name too long for a label (read from the annotation) is tested on a synthetic re
 While its integration (D-76) is on, Cogpit marks every object of the shown cluster that a Kyverno
 policy report names with a `fail`, or a `warn` (a failed rule of a policy marked as not scored),
 whatever the policy's mode: an Enforce policy's fail on an object from before it counts as an Audit
-one's. Marks: the lists' warning column, a "Policy violations" group in the drawer, and
+one's. Marks: Kyverno's glyph in the lists' Signals column
+([D-150](#d-150-one-signals-column-for-every-mark)), a "Policy violations" group in the drawer, and
 `kyverno.violations` for agents; Lens shows none. What the user sees:
 [usage](usage.md#kyvernos-policy-violations); the integration overlay and trimmed scopes, made for
 this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
@@ -2955,9 +2956,9 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
   starting with "kyverno"), in both shapes (`scope`, or each result's `resources`), trimmed to their
   fail and warn results (`kyverno-violations`); indexed by the object's UID, else by its group,
   Kind, namespace and name.
-- A kind with its own warning column gets the reason joined and the worse colour; any other kind,
-  custom ones included, gets the column after Name while one of its objects violates a policy. Every
-  violation is the warning colour.
+- A kind with its own Signals column gets Kyverno's slot in it; any other kind, custom ones
+  included, gets the column after Name while one of its objects violates a policy. Every violation
+  is the warning colour; a click on the glyph opens the drawer at the first policy's section.
 - The drawer links each violation's policy while the cluster serves its kind: ClusterPolicy, Policy
   ("<namespace>/<name>") or ValidatingPolicy.
 - Not read: the policies (the mode is not shown). `error`, `pass` and `skip` mark nothing; a
@@ -2974,7 +2975,7 @@ cluster's cache from going cold (D-69), so `kyverno.violations` refuses a cluste
 
 **Rejected:** Kyverno's policy-reporter API or reports-server through the service proxy — a
 component the cluster may not run, and polled; evaluating the policies in Cogpit — reimplements
-Kyverno; a badge for kinds without a warning column — a new cell kind that does not sort.
+Kyverno; a badge for kinds without a Signals column — a new cell kind that does not sort.
 
 **Code:** [`engine/kyverno.go`](../../internal/engine/kyverno.go) `followKyverno`,
 `trimPolicyReport`; [`model/kinds/policyreports.go`](../../internal/model/kinds/policyreports.go)
@@ -4406,8 +4407,9 @@ findings of a text and one per line, so a run's log would not list all a change 
 
 **Status:** built · **By:** owner
 
-The Pods list shows each pod's worst image grade as a shield, in a 32-point column without a header
-title right after Containers. A pod's drawer shows each container's grade as a 16-point shield after
+The Pods list shows each pod's worst image grade as a shield, a signal in its slot of the Signals
+column after Name ([D-150](#d-150-one-signals-column-for-every-mark)); an N/A shield stays there,
+dimmed. A pod's drawer shows each container's grade as a 16-point shield after
 its name and, under its items, a card: a 32-point shield, the grade's text and rule, a bar of the
 counts with each severity as wide as its share, and a line with the image's OS, when it was scanned
 and a link to the report. A grade comes from the image's Trivy Operator VulnerabilityReport as
@@ -4427,8 +4429,11 @@ only; Unknown counts as Low:
 - **Text** behind a shield (search, CSV, agents, tooltip): the grade and the count that decides it,
   "D · 2 Critical", "C · OS end of life", "S · no known vulnerabilities", "N/A · not scanned"
   (`GradeText`). The list's tooltip adds every severity's count, the OS's end of life and, for a pod
-  of several images, "The worst of N images: …".
-- **Sorting** (`GradeRank`): by the grade, then by the deciding count; N/A below S.
+  of several images, "The worst of N images: …"; a click on the shield opens the drawer at the
+  section of the container that runs that image.
+- **Sorting** (`GradeRank`): by the grade, then by the deciding count; N/A below S. In the Signals
+  column a grade counts as a severity beside the other signals (`model.SignalRank`): D and E as an
+  error, C as a warning.
 - **Look:** a crest filled from 25 % lighter at its top to 25 % darker at its bottom in Docker
   Scout's colours, the same in both themes, the letter in the theme's bold, dark or white by
   contrast; S has a gold rim and a mint letter; N/A is grey at 1.5:1 to the list's background, its
@@ -6010,3 +6015,113 @@ filters and pickers (a pick of items, not a setting).
 **Code:** [`fyneui/instrument_switch.go`](../../internal/ui/fyneui/instrument_switch.go)
 `newLabelledSwitch`, `switchGroup` · `TestLabelledSwitch`, `TestSwitchGroup`,
 `TestSettingsShowSwitchesOnly`
+
+## D-148: Hide outdated objects
+
+**Status:** built · **By:** owner (the switch, its default, its place in the View menu, hidden only
+in the navigator), lead (open to revision) the rest
+
+The View menu's **Hide Outdated Objects**, checked while on, and Preferences › App › Outdated
+objects switch `hideOutdatedObjects` (`preferences.set`), on by default. While on, the navigator's
+tree leaves out the kinds Kubernetes has a successor for while it still serves them
+(`engine.OutdatedKinds`): Replication Controllers (Deployments and their Replica Sets) and Endpoints
+(EndpointSlices; the API server warns that v1 Endpoints is deprecated from v1.33). Hidden means only
+the tree: its search still lists them (typing "endpoints" shows the entry), and the palette, the
+View menu's kinds, links, open tabs and `ui.openView` reach them as before. An outdated view opened
+another way is marked nowhere in the tree. Agents and the CLI may set the preference either way: it
+changes only what the navigator lists.
+
+**Why:** the owner: Replication Controllers in the navigator are noise on today's clusters. Endpoints
+is the same case, deprecated upstream with EndpointSlices beside it in Network. The search keeps
+finding them, as the owner put it: "Die Objekte dürfen ansonsten gerne noch gefunden werden."
+
+**Rejected:** Pod Security Policies in the list (served only up to 1.24, where they are live),
+Ingresses (frozen, not deprecated), Leases (current); hiding them everywhere (the palette, the View
+menu): the owner wants them found; a menu label as he wrote it, "Hide outdated objects": the menus'
+items are in title case.
+
+**Code:** [`engine/preferences.go`](../../internal/engine/preferences.go) `HideOutdatedObjects`,
+`OutdatedKinds`; [`fyneui/navigator_outdated.go`](../../internal/ui/fyneui/navigator_outdated.go) ·
+**Tests:** `TestNavigatorHidesOutdatedKinds`, `TestPreferencesCommands`
+
+## D-149: The navigator's Integrations heading
+
+**Status:** built · **By:** owner (a divider and the heading "Integrations" after the last entry,
+Flux CD and Argo CD under it, Helm where it was, the name "Flux CD"), lead (open to revision) the
+rest
+
+Below the navigator's last entry (Custom Resources, Other) a divider and the heading
+"integrations", in the look Cluster Settings heads its integrations with
+([D-87](#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer)):
+a bracket label in the accent colour. Under it the Flux CD and Argo CD groups, each top-level, with
+its icon, folding as any group does, each only while the cluster serves it. The heading shows while
+one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
+(`ui.setNavigatorRow` names no heading). The search keeps it while it keeps one of its items, and a
+search for its name keeps all of them. Helm stays after Events.
+
+**Why:** the views of the tools a cluster runs belong together, below the Kubernetes kinds, and
+"Integrations" is what Cogpit calls them (Cluster Settings › Integrations); further such views
+(an image security overview, Velero's backups) join the heading when they are built.
+
+**Not decided here:** whether Flux CD and Argo CD become `engine.Integration`s with a switch in
+Cluster Settings; today they show whenever the cluster serves their kinds.
+
+**Rejected:** "App Delivery" with Helm under it (the owner's first idea, then Helm stayed where it
+was); "GitOps" (the lead's proposal: too narrow for the views that are to come); a foldable section
+(the groups under it fold already).
+
+**Code:** [`fyneui/sidebar.go`](../../internal/ui/fyneui/sidebar.go) `navHeading`, `buildHeading`;
+[`fyneui/navheading.go`](../../internal/ui/fyneui/navheading.go) · **Tests:**
+`TestSidebarFluxSection`, `TestArgoNavigatorGroup`, `TestRenderNavigatorIntegrationsDark`
+
+## D-150: One Signals column for every mark
+
+**Status:** built · **By:** owner (one column for every source's marks, after Name, titled
+"Signals"; Trivy's N/A shield in it, dimmed; the Nodes' version mark stays in the Version cell),
+lead (open to revision) the rest
+
+Every mark Cogpit puts on an object in a list goes into one column right after Name, **Signals**,
+which takes the place of the warning column. A cell shows one icon per signal side by side, each
+source its own: the object's own state (a pod's containers not ready, a node's pressure, a cron
+job's failed run) a triangle, Kyverno's policy violations
+([D-79](#d-79-kyvernos-policy-violations-on-the-objects)) Kyverno's glyph, both in the signal's
+status colour; Trivy's worst image grade ([D-113](#d-113-image-grades-shields-from-trivys-reports))
+its shield, an N/A one dimmed.
+
+- **Slots:** each source has a slot in a fixed order (the state's, then the integrations' in
+  Cluster Settings' order: Trivy, Kyverno), and a view has the slots of the sources that apply to
+  its kind and are on:
+  the state's where the kind has one, Kyverno's while it is on (on a kind without a state of its
+  own only while one of its objects violates a policy), Trivy's on Pods while it is on. An icon keeps
+  its slot whatever the others show; the column's width is its slots' (or its title's, whichever is
+  wider) and fixed (`model.Column.Slots`).
+- **Pointer and click:** each icon has its own tooltip, the signal's text and what is behind it; a
+  click selects the row and opens the drawer at the signal's section (Kyverno's first policy, the
+  container whose image has the worst grade).
+- **Sorting:** worst first descending (`model.SignalRank`): an error above a warning above anything
+  else; a grade counts as D and E an error, C a warning, S to B neither, N/A the lowest.
+- **Text:** the signals' texts joined by "; " for search, CSV and agents (`resources_list`'s cell
+  "Signals"), their tooltips a line each in its `tips`.
+- A row that shows a status pill and a spine leaves out its state's triangle (the reason moves to
+  the status word's tooltip, as before); the integrations' icons stay.
+- The exception: the Nodes' version check ([D-91](#d-91-the-kubernetes-version-and-upstream-end-of-life))
+  colours the Version cell, because it is about the number beside it.
+- A drawer's tables (a node's pods) draw the column's icons, without its title.
+
+**Why:** the owner: the integrations' icons were scattered over the tables (Kyverno's violation the
+same triangle as a pod's crash loop, Trivy's shield beside Restarts), and more are to come. One
+column with a slot per source keeps each icon where the eye learns it, and a source that does not
+apply takes no room.
+
+**Rejected:** Indicators, Flags (the name); no icon for N/A (the owner keeps the dimmed shield); the
+version mark in Signals (it is about the Version cell's number); no header title (the warning
+column's way: a column of icons needs its name once there are several sources); a column per
+source (the scattering this ends).
+
+**Code:** [`model/row.go`](../../internal/model/row.go) `Signal`, `SignalsCell`, `SignalRank`;
+[`engine/overlay.go`](../../internal/engine/overlay.go) slots, `mergeCell`;
+[`engine/kyverno.go`](../../internal/engine/kyverno.go), [`engine/trivy.go`](../../internal/engine/trivy.go)
+`cell`; [`fyneui/tablesignals.go`](../../internal/ui/fyneui/tablesignals.go);
+[`fyneui/drawer_openat.go`](../../internal/ui/fyneui/drawer_openat.go) · **Tests:** `TestSignalsCell`,
+`TestStateCell`, `TestSignalsSlots`, `TestKyvernoMarksViolations`, `TestTrivyPodsColumn`,
+`TestSignalsCellDraws`

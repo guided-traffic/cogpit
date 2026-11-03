@@ -159,14 +159,14 @@ func rectanglesIn(o fyne.CanvasObject) (out []*canvas.Rectangle) {
 	return out
 }
 
-// TestWarningColumnKeepsItsWidth: Lens's warning column right after Name keeps its width (the
-// owner, 2026-10-21): its header draws no divider, a drag that starts on its edge changes nothing,
-// a double click there fits nothing, and the resize arrows do not show over that edge; Name's own
-// divider, left of it, still drags.
-func TestWarningColumnKeepsItsWidth(t *testing.T) {
+// TestSignalsColumnKeepsItsWidth: the Signals column right after Name keeps its width (the owner,
+// 2026-10-21, of the warning column it replaced): its header draws no divider, a drag that starts on
+// its edge changes nothing, a double click there fits nothing, and the resize arrows do not show
+// over that edge; Name's own divider, left of it, still drags.
+func TestSignalsColumnKeepsItsWidth(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]
-	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals, Slots: 1})
 	for i := range pods.Rows {
 		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
 	}
@@ -175,7 +175,7 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 	settle(w)
 	tv := sh.view
 	if !tv.fixedAt(1) || tv.fixedAt(0) {
-		t.Fatalf("fixed columns: name %v, warning %v; want the warning column only", tv.fixedAt(0), tv.fixedAt(1))
+		t.Fatalf("fixed columns: name %v, warning %v; want the Signals column only", tv.fixedAt(0), tv.fixedAt(1))
 	}
 	if h := headerFor(t, sh, firstDataColumn+1); h.sep.FillColor != color.Transparent {
 		t.Errorf("the warning column's header draws a divider (%v)", h.sep.FillColor)
@@ -214,11 +214,11 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 		t.Errorf("dragging its edge by 60: %v wide, want %v", got, before)
 	}
 
-	tv.userWidths["pods/warning"] = 120 // a width kept from before the rule
+	tv.userWidths["pods/signals"] = 120 // a width kept from before the rule
 	tv.fitWidth = 0
 	tv.fitColumns(tv.table.Size().Width)
-	if got := tv.setWidths[firstDataColumn+1]; got != 28 {
-		t.Errorf("a kept user width: the warning column %v wide, want its 28", got)
+	if got, want := tv.setWidths[firstDataColumn+1], signalsWidth(tv.table.Theme(), tv.snap.Columns[1]); got != want {
+		t.Errorf("a kept user width: the Signals column %v wide, want its %v", got, want)
 	}
 }
 
@@ -228,7 +228,7 @@ func TestWarningColumnKeepsItsWidth(t *testing.T) {
 func TestAReusedHeaderCellKeepsItsDivider(t *testing.T) {
 	f := connectedFake(t, 50)
 	pods := f.tables["pods"]
-	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28})
+	pods.Columns = slices.Insert(pods.Columns, 1, model.Column{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals, Slots: 1})
 	for i := range pods.Rows {
 		pods.Rows[i].Cells = slices.Insert(pods.Rows[i].Cells, 1, model.Cell{})
 	}

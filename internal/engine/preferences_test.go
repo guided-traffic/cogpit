@@ -130,8 +130,8 @@ func TestPreferencesCheckAndNormalize(t *testing.T) {
 	want.EditorLineNumbers, want.EditorTabSize, want.TerminalFontSize = false, 3, 12
 	if got.Theme != want.Theme || got.Timezone != "" || got.TableRowHeight != 0 || got.EditorFontSize != want.EditorFontSize || !got.TableSpreadWidth ||
 		got.EditorLineNumbers || got.EditorTabSize != 3 || got.TerminalFontSize != 12 || got.TerminalShell != "" || got.TerminalShellArgs != nil ||
-		got.DebugImage != "" {
-		t.Errorf("normalized %+v, want the good fields kept and the bad ones defaulted", got)
+		got.DebugImage != "" || !got.HideOutdatedObjects {
+		t.Errorf("normalized %+v, want the good fields kept, the bad ones and those left out defaulted", got)
 	}
 
 	for name, fn := range map[string]func(*Preferences){

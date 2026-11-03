@@ -69,8 +69,9 @@ type navTree struct {
 	widget.BaseWidget
 	s *sidebar
 
-	rows    map[string]*navRow // the item rows made, by node id; rows of hidden nodes are dropped
-	visible []string           // the shown node ids in order, rootNode first
+	rows    map[string]*navRow           // the item rows made, by node id; rows of hidden nodes are dropped
+	heads   map[string]fyne.CanvasObject // the headings made, by node id (navheading.go)
+	visible []string                     // the shown node ids in order, rootNode first; no heading, which no key reaches
 	list    *fyne.Container
 	scroll  *container.Scroll
 
@@ -87,7 +88,7 @@ var (
 )
 
 func newNavTree(s *sidebar) *navTree {
-	t := &navTree{s: s, rows: map[string]*navRow{}, visible: []string{rootNode}}
+	t := &navTree{s: s, rows: map[string]*navRow{}, heads: map[string]fyne.CanvasObject{}, visible: []string{rootNode}}
 	t.list = container.New(layout.NewVBoxLayout())
 	t.scroll = newVScroll(inset(theme.SizeNamePadding, theme.SizeNamePadding, t.list))
 	t.ExtendBaseWidget(t)
@@ -118,7 +119,7 @@ func (t *navTree) Select(id string) { t.s.activate(id) }
 func (t *navTree) rebuild() {
 	s := t.s
 	ids := s.shownNodes()
-	t.visible = append(append(t.visible[:0], rootNode), ids...)
+	t.visible = append(t.visible[:0], rootNode)
 	objs := make([]fyne.CanvasObject, 0, len(ids)+2)
 	objs = append(objs, s.rootRow)
 	if hint := s.hint(); hint != "" {
@@ -127,6 +128,11 @@ func (t *navTree) rebuild() {
 	}
 	rows := make(map[string]*navRow, len(ids))
 	for _, id := range ids {
+		if isHeading(id) {
+			objs = append(objs, t.heading(id))
+			continue
+		}
+		t.visible = append(t.visible, id)
 		r := t.rows[id]
 		if r == nil {
 			r = newNavRow(t, id)

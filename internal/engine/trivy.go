@@ -54,17 +54,8 @@ const trivyNotServed = "Trivy Operator's reports are not served"
 // trivyTrim names the trim of the reports' scope (cache.RegisterTrim).
 const trivyTrim = "trivy-summary"
 
-// trivyColumnID is the Pods list's column of the worst image grade, its title (for agents and the
-// columns menu: the header shows none, as the warning column's), its fixed width and the column it
-// shows after. The owner (2026-10-22): no title and a fixed width right after Containers, to save
-// room as the warning column does; 32 points hold the 18-point shield and the header's sort arrow
-// (the lead's choice).
-const (
-	trivyColumnID    = "imageRating"
-	trivyColumnTitle = "Image Rating"
-	trivyColumnWidth = 32
-	trivyColumnAfter = specContainers // the Containers column: the images' grade beside their squares
-)
+// The Trivy integration's place in the Pods list is a slot of the Signals column (D-150, D-113):
+// the worst image grade's shield, after the pod's own state and Kyverno's.
 
 // initSuffix marks an init container among the containers that run an image.
 const initSuffix = " (init)"
@@ -283,36 +274,36 @@ func (t *trivySource) reports() int {
 	return n
 }
 
-// columns: the Pods list's "Image Rating", shown after Containers, while the overlay is on (also
-// while no pod has a grade yet: a column that comes and goes with the reports would move the
-// columns after it). Other kinds get none.
+// columns: a slot in the Pods list's Signals column while the overlay is on (also while no pod has
+// a grade yet: a slot that comes and goes with the reports would move the icons after it). Other
+// kinds get none.
 func (t *trivySource) columns(p *model.KindProfile) []overlayColumn {
 	if !isPodsKind(p) {
 		return nil
 	}
-	return []overlayColumn{{
-		Column: model.Column{ID: trivyColumnID, Title: trivyColumnTitle, Type: model.ColumnGrade, Width: trivyColumnWidth},
-		After:  trivyColumnAfter,
-	}}
+	return []overlayColumn{signalsColumn}
 }
 
-// cell is a pod's worst image grade, drawn as its shield: its text says the grade and the count
-// that decides it ("D · 2 Critical"), its tooltip every severity's count, the end of life of the
-// image's OS, and which of several images it is; sorted by the grade, then that count. A pod none
-// of whose images has a report is N/A (the owner, 2026-10-22: N/A everywhere, unobtrusive); a pod
-// some of whose images have one, the worst of those (D-78). None while the reports list.
+// cell is a pod's worst image grade, a signal drawn as its shield: its text says the grade and the
+// count that decides it ("D · 2 Critical"), its tooltip every severity's count, the end of life of
+// the image's OS, and which of several images it is; it sorts by the grade, then that count, and a
+// click opens the drawer at the section of the container that runs the image. A pod none of whose
+// images has a report is N/A (the owner, 2026-10-22: N/A everywhere, unobtrusive; dimmed in the
+// Signals column, the owner, 2026-11-03); a pod some of whose images have one, the worst of those
+// (D-78). None while the reports list.
 func (t *trivySource) cell(p *model.KindProfile, column string, obj *unstructured.Unstructured) (model.Cell, bool) {
-	if column != trivyColumnID || !isPodsKind(p) || !t.synced() {
+	if column != model.SignalsColumnID || !isPodsKind(p) || !t.synced() {
 		return model.Cell{}, false
 	}
 	idx, _ := t.index()
 	images := idx.podImages(obj)
 	worst, ok := worstImage(images)
 	if !ok {
-		return model.Cell{
-			Text: model.GradeText(model.GradeNA, model.VulnerabilityCounts{}, false), Grade: model.GradeNA,
-			Num: model.GradeRank(model.GradeNA, model.VulnerabilityCounts{}, false), Tip: "No Trivy report of this pod's images",
-		}, true
+		return model.SignalsCell([]model.Signal{{
+			Source: model.SignalTrivy, Text: model.GradeText(model.GradeNA, model.VulnerabilityCounts{}, false), Grade: model.GradeNA,
+			Rank: model.SignalRank(model.StatusNone, model.GradeNA, model.GradeRank(model.GradeNA, model.VulnerabilityCounts{}, false)),
+			Tip:  "No Trivy report of this pod's images",
+		}}), true
 	}
 	r := worst.report
 	g := r.Grade()
@@ -323,14 +314,16 @@ func (t *trivySource) cell(p *model.KindProfile, column string, obj *unstructure
 	if len(images) > 1 {
 		tip = append(tip, fmt.Sprintf("The worst of %d images: %s", len(images), worst.image))
 	}
-	return model.Cell{
-		Text: model.GradeText(g, r.Counts, r.EOSL), Grade: g, Num: model.GradeRank(g, r.Counts, r.EOSL),
-		Tip: strings.Join(tip, "\n"),
-	}, true
+	var section string
+	if len(worst.containers) > 0 {
+		section = strings.TrimSuffix(worst.containers[0], initSuffix)
+	}
+	return model.SignalsCell([]model.Signal{{
+		Source: model.SignalTrivy, Text: model.GradeText(g, r.Counts, r.EOSL), Grade: g, Section: section,
+		Rank: model.SignalRank(model.StatusNone, g, model.GradeRank(g, r.Counts, r.EOSL)), Tip: strings.Join(tip, "\n"),
+	}}), true
 }
 
-// worstImage returns the image of the worst grade among those with a report (by grade, then the
-// count that decides it); ok is false when none has one.
 func worstImage(images []podImage) (podImage, bool) {
 	var worst podImage
 	found := false

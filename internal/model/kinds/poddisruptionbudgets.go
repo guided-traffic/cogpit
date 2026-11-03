@@ -38,7 +38,7 @@ var podDisruptionBudgets = &model.KindProfile{
 	Namespaced: true,
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		namespaceColumn,
 		{ID: "minAvailable", Title: "Min Available", Type: model.ColumnText},
 		{ID: "maxUnavailable", Title: "Max Unavailable", Type: model.ColumnText},
@@ -87,7 +87,7 @@ func pdbHealth(obj any) (model.Cell, model.Status) {
 		return model.Cell{}, model.StatusPending
 	}
 	if c := pdbCondition(obj); c.Status == condFalse && c.Reason == pdbSyncFailed {
-		return warningCell(model.StatusError, pdbTextSyncFailed), model.StatusError
+		return stateCell(model.StatusError, pdbTextSyncFailed), model.StatusError
 	}
 	if nonNegative(obj, "status", "expectedPods") == 0 {
 		return model.Cell{}, model.StatusNone
@@ -96,9 +96,9 @@ func pdbHealth(obj any) (model.Cell, model.Status) {
 	desired := nonNegative(obj, "status", "desiredHealthy")
 	switch {
 	case current < desired:
-		return warningCell(model.StatusWarning, pdbNotMet(current, desired)), model.StatusWarning
+		return stateCell(model.StatusWarning, pdbNotMet(current, desired)), model.StatusWarning
 	case nonNegative(obj, "status", "disruptionsAllowed") == 0:
-		return warningCell(model.StatusWarning, pdbTextNoneMayGo), model.StatusWarning
+		return stateCell(model.StatusWarning, pdbTextNoneMayGo), model.StatusWarning
 	}
 	return model.Cell{}, model.StatusOK
 }

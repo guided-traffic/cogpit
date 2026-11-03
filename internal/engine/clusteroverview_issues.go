@@ -336,14 +336,19 @@ func eventEntry(p *model.KindProfile, context string, obj *unstructured.Unstruct
 	return e
 }
 
-// warningOf returns a row's warning cell when it shows a warning.
+// warningOf returns a row's own state's signal as a cell when it shows a warning: the Signals
+// cell's state signal, not an integration's.
 func warningOf(p *model.KindProfile, row model.Row) (model.Cell, bool) {
-	i := p.ColumnIndex("warning")
-	if i < 0 || i >= len(row.Cells) {
+	i := p.ColumnIndex(model.SignalsColumnID)
+	if i < 0 || i >= len(row.Cells) || row.Cells[i].Signals == nil {
 		return model.Cell{}, false
 	}
-	c := row.Cells[i]
-	return c, c.Status != model.StatusNone && c.Status != ""
+	for _, s := range *row.Cells[i].Signals {
+		if s.Source == model.SignalState && s.Status != model.StatusNone {
+			return model.Cell{Text: s.Text, Num: s.Rank, Status: s.Status}, true
+		}
+	}
+	return model.Cell{}, false
 }
 
 // quantityOf reads a count quantity ("110") at a path; 0 when unset or unreadable.

@@ -1059,6 +1059,11 @@ its reads, when it is off. An overlay reads only its own cached data and reports
 
 - A cell in a column the kind has is merged (`mergeCell`: texts joined, the worse status); a column
   the kind lacks is appended, so row indexes hold, and shown after `overlayColumn.After`.
+- Both integrations mark into the Signals column after Name
+  ([D-150](decisions.md#d-150-one-signals-column-for-every-mark)): `layoutOverlays` gives each
+  overlay a slot after the kind's own (`model.Column.Slots`), and its signals carry it
+  (`model.Signal.Slot`); the window draws each signal in its slot
+  ([`tablesignals.go`](../../internal/ui/fyneui/tablesignals.go)).
 - The row cache keeps an overlaid copy per row; search, sort, the CSV, `view.rows` and
   `resources.list` read it.
 - An overlay's sections follow the kind's; a `sectionAmender` adds to the kind's own. An agent's

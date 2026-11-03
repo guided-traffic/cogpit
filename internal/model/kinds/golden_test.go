@@ -289,8 +289,8 @@ func TestBuiltinProfiles(t *testing.T) {
 			if !lowerCamel.MatchString(c.ID) || seen[c.ID] || c.Title == "" {
 				t.Errorf("%s: bad or duplicate column %+v", p.Key, c)
 			}
-			if c.Type == model.ColumnWarning && i != 1 {
-				t.Errorf("%s: the warning column must come right after Name", p.Key)
+			if c.Type == model.ColumnSignals && i != 1 {
+				t.Errorf("%s: the Signals column must come right after Name", p.Key)
 			}
 			seen[c.ID] = true
 		}

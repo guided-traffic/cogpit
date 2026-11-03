@@ -63,13 +63,13 @@ func TestKyvernoViolationsCommand(t *testing.T) {
 
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "deployments", "namespaces": []string{"shop"}}, &list)
-	if len(list.Rows) != 1 || !strings.HasPrefix(list.Rows[0].Cells["Warning"], "Kyverno: 1 policy violation") {
+	if len(list.Rows) != 1 || !strings.HasPrefix(list.Rows[0].Cells["Signals"], "Kyverno: 1 policy violation") {
 		t.Errorf("resources_list %+v", list.Rows)
 	}
 
 	h.must(t, agent, "ui.openView", map[string]any{"view": "deployments"}, nil)
-	h.must(t, agent, "ui.sort", map[string]any{"column": "warning", "desc": true}, nil)
-	h.must(t, agent, "ui.setColumns", map[string]any{"hidden": []string{"warning"}}, nil)
+	h.must(t, agent, "ui.sort", map[string]any{"column": "signals", "desc": true}, nil)
+	h.must(t, agent, "ui.setColumns", map[string]any{"hidden": []string{"signals"}}, nil)
 	h.must(t, agent, "ui.setColumns", map[string]any{"reset": true}, nil)
 
 	off := engine.IntKyverno

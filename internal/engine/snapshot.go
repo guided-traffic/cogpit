@@ -400,7 +400,7 @@ func compareRows(a, b *model.Row, ci int, typ model.ColumnType, desc bool) int {
 	}
 	if !ea {
 		var c int
-		if typ == model.ColumnNumber || typ == model.ColumnAge || typ == model.ColumnUntil || typ == model.ColumnTime || typ == model.ColumnWarning ||
+		if typ == model.ColumnNumber || typ == model.ColumnAge || typ == model.ColumnUntil || typ == model.ColumnTime || typ == model.ColumnSignals ||
 			typ == model.ColumnMetric || typ == model.ColumnGrade {
 			c = cmp.Compare(ca.Num, cb.Num)
 		} else {
@@ -431,7 +431,7 @@ func cellAt(r *model.Row, i int) model.Cell {
 }
 
 // emptyCell reports whether a cell shows nothing (model.CellText): a text cell without text, an
-// age cell without a timestamp, a warning cell without a warning. A number cell always shows its
+// age cell without a timestamp, a Signals cell without a signal. A number cell always shows its
 // number.
 func emptyCell(typ model.ColumnType, c model.Cell) bool {
 	switch typ {
@@ -441,8 +441,8 @@ func emptyCell(typ model.ColumnType, c model.Cell) bool {
 		return c.Num == 0 && c.Text == ""
 	case model.ColumnMetric:
 		return c.Text == "" // no measurement
-	case model.ColumnWarning:
-		return c.Num == 0 && c.Status == model.StatusNone
+	case model.ColumnSignals:
+		return c.Signals == nil
 	}
 	return c.Text == ""
 }

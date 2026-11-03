@@ -27,6 +27,7 @@ func listScene(t *testing.T, view string, mode ThemeMode) (*shell, fyne.Window, 
 	t.Helper()
 	f := kindsFake(t, view)
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
+	w.Resize(fyne.NewSize(1600, 900)) // every column of a wide list in view, the ⋮ too
 	q.until(t, "the "+view+" view", func() bool {
 		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == view && sh.diag.total > 0
 	})
@@ -141,7 +142,7 @@ func TestListCopyIconOnHover(t *testing.T) {
 	// No text, no icon.
 	for what, c := range map[string]*tableCell{
 		"the checkbox":          cellAt(t, sh, crash, checkColumn),
-		"the warning triangle":  cellAt(t, sh, crash, columnOf(t, sh, "warning")),
+		"the signals":           cellAt(t, sh, crash, columnOf(t, sh, "signals")),
 		"the container squares": cellAt(t, sh, crash, columnOf(t, sh, "containers")),
 		"the ⋮":                 cellAt(t, sh, crash, sh.view.menuColumn()),
 	} {
@@ -349,7 +350,7 @@ func TestCopyColumns(t *testing.T) {
 		{model.Column{ID: model.ColumnCPU, Type: model.ColumnMetric}, false},
 		{model.Column{ID: model.ColumnMemory, Type: model.ColumnMetric}, false},
 		{model.Column{ID: "nextExecution", Type: model.ColumnUntil}, false},
-		{model.Column{ID: "warning", Type: model.ColumnWarning}, false},
+		{model.Column{ID: "signals", Type: model.ColumnSignals}, false},
 		{model.Column{ID: "status", Type: model.ColumnText}, false},
 		{model.Column{ID: "qos", Type: model.ColumnText}, false},
 		{model.Column{ID: "suspend", Type: model.ColumnText}, false},
@@ -379,7 +380,7 @@ func TestListCopyIconPlaceholders(t *testing.T) {
 	marks := []model.CellMark{{Text: "app: running"}}
 	for _, c := range []*tableCell{
 		{content: cellContent{text: "1/1", marks: &marks}},
-		{content: cellContent{text: "CrashLoopBackOff", kind: cellWarning}},
+		{content: cellContent{text: "CrashLoopBackOff", kind: cellSignals}},
 		{content: cellContent{kind: cellMenu}},
 		{content: cellContent{kind: cellCheck}},
 	} {

@@ -12,9 +12,9 @@
       "text": "etcd"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Allows no disruptions: evictions and node drains wait",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

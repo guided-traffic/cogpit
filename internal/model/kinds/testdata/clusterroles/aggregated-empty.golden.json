@@ -11,9 +11,9 @@
       "text": "tenant-admin"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Aggregates no rules: grants nothing",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

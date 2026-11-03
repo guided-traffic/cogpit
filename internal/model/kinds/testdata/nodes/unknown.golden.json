@@ -11,9 +11,9 @@
       "text": "worker-a3"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "Ready status Unknown: the kubelet stopped reporting",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

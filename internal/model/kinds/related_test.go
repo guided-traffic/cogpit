@@ -107,8 +107,8 @@ func TestNodePodsTable(t *testing.T) {
 		t.Fatalf("sections %q", titles)
 	}
 	tbl := sections[3].Table
-	if !slices.Equal(tbl.Columns, []string{"Name", "Warning", "Node", "Namespace", "Ready", "CPU", "Memory", "Status"}) ||
-		tbl.Types[1] != model.ColumnWarning {
+	if !slices.Equal(tbl.Columns, []string{"Name", "Signals", "Node", "Namespace", "Ready", "CPU", "Memory", "Status"}) ||
+		tbl.Types[1] != model.ColumnSignals {
 		t.Errorf("columns %q, types %q", tbl.Columns, tbl.Types)
 	}
 	if len(tbl.Rows) != 2 {

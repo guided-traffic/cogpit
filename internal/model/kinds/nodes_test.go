@@ -10,9 +10,9 @@ import (
 // 2026-10-11); which nodes do warn is inferred: not Ready, or a problem condition.
 func TestNodeWarnings(t *testing.T) {
 	checkStatusTexts(t, []statusText{
-		{"nodes", "cordoned", "warning", "", model.StatusNone, model.StatusOK},
-		{"nodes", "healthy", "warning", "", model.StatusNone, model.StatusOK},
-		{"nodes", "failing", "warning", "NotReady, DiskPressure, MemoryPressure", model.StatusWarning, model.StatusError},
-		{"nodes", "minimal", "warning", "", model.StatusNone, model.StatusUnknown},
+		{"nodes", "cordoned", "signals", "", model.StatusNone, model.StatusOK},
+		{"nodes", "healthy", "signals", "", model.StatusNone, model.StatusOK},
+		{"nodes", "failing", "signals", "NotReady, DiskPressure, MemoryPressure", model.StatusWarning, model.StatusError},
+		{"nodes", "minimal", "signals", "", model.StatusNone, model.StatusUnknown},
 	})
 }

@@ -93,8 +93,8 @@ func (tv *tableView) contentWidth(ci, n int) float32 {
 		w += th.Size(theme.SizeNamePadding)/2 + th.Size(sizeSortIcon)
 	}
 	switch c.Type {
-	case model.ColumnWarning:
-		w = max(w, th.Size(sizeCellIcon))
+	case model.ColumnSignals:
+		w = signalsWidth(th, c) // tablesignals.go
 	case model.ColumnIcon:
 		w = chartIconMaxSide // a chart's icon (helmcharticons.go); the column has no title
 	default:

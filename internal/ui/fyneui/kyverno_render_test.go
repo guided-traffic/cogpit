@@ -100,7 +100,7 @@ func renderKyverno(t *testing.T, mode ThemeMode, suffix string) {
 			if snap == nil || snap.View != view || !snap.Synced {
 				return false
 			}
-			ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == "warning" })
+			ci := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == model.SignalsColumnID })
 			got := 0
 			for _, r := range snap.Rows {
 				if ci >= 0 && ci < len(r.Cells) && strings.Contains(r.Cells[ci].Text, "Kyverno") {

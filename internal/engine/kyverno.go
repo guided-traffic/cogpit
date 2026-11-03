@@ -42,18 +42,22 @@ import (
 // kyvernoTrim names the trim of the reports' scopes (cache.RegisterTrim).
 const kyvernoTrim = "kyverno-violations"
 
-// kyvernoMaxNames bounds the policies a warning cell's text names.
+// kyvernoMaxNames bounds the policies a signal's text names.
 const kyvernoMaxNames = 3
 
-// The section group, the warning text's prefix, an item's name, and the column an added warning
+// The section group, the signal text's prefix, an item's name, and the column an added Signals
 // column follows.
 const (
 	kyvernoGroup   = "Policy violations"
 	kyvernoPrefix  = "Kyverno: "
 	kyvernoItemMsg = "Message"
 	nameColumnID   = "name"
-	warningTitle   = "Warning" // the warning column's title, which the header does not show
 )
+
+// signalsColumn is the Signals column an overlay gives a kind (D-150), after Name; merged into the
+// kind's own where it has one.
+var signalsColumn = overlayColumn{Column: model.Column{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle,
+	Type: model.ColumnSignals}, After: nameColumnID}
 
 func init() {
 	cache.RegisterTrim(kyvernoTrim, trimPolicyReport)
@@ -329,31 +333,29 @@ func probeKyverno(_ *Session, b *Backend, on bool) (IntegrationState, string, st
 	return state, where, detail
 }
 
-// columns: every kind's warning column, merged into a kind's own, added after Name to a kind that
-// has none while one of its objects violates a policy (an empty column on every other view would
-// change sixty views for nothing). Not the reports themselves, not a virtual or local kind.
+// columns: a slot in the Signals column, in a kind's own Signals column always, added after Name
+// to a kind that has none while one of its objects violates a policy (an empty column on every
+// other view would change sixty views for nothing). Not the reports themselves, not a virtual or
+// local kind.
 func (k *kyvernoSource) columns(p *model.KindProfile) []overlayColumn {
 	if !p.APIObject() || p.Group == kinds.PolicyReportGroup {
 		return nil
 	}
-	col := overlayColumn{Column: model.Column{ID: "warning", Title: warningTitle, Type: model.ColumnWarning, Width: 28}, After: nameColumnID}
-	if i := p.ColumnIndex(col.ID); i >= 0 {
-		col.Column = p.Columns[i]
-		return []overlayColumn{col}
-	}
-	if !k.idx.hasKind(p.Group, p.Kind) {
+	if p.ColumnIndex(model.SignalsColumnID) < 0 && !k.idx.hasKind(p.Group, p.Kind) {
 		return nil
 	}
-	return []overlayColumn{col}
+	return []overlayColumn{signalsColumn}
 }
 
-// cell is an object's warning: "Kyverno: 2 policy violations (require-team-label, …)".
+// cell is an object's signal: "Kyverno: 2 policy violations (require-team-label, …)", in the
+// warning colour; a click opens the drawer at the first policy's section.
 func (k *kyvernoSource) cell(p *model.KindProfile, _ string, obj *unstructured.Unstructured) (model.Cell, bool) {
 	vs := k.idx.of(p, obj)
 	if len(vs) == 0 {
 		return model.Cell{}, false
 	}
-	return model.Cell{Text: violationsText(vs), Num: 1, Status: model.StatusWarning}, true
+	return model.SignalsCell([]model.Signal{{Source: model.SignalKyverno, Text: violationsText(vs), Status: model.StatusWarning,
+		Section: vs[0].Policy, Rank: model.SignalRank(model.StatusWarning, model.GradeNone, int64(len(vs)))}}), true
 }
 
 // violationsText says how many violations an object has, and of which policies.

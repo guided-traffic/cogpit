@@ -11,9 +11,9 @@
       "text": "worker-a2"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "NotReady, DiskPressure, MemoryPressure",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

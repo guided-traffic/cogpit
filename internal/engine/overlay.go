@@ -20,12 +20,17 @@ import (
 // (overlays.changed), which wakes the open view and the drawer.
 //
 //   - Columns: an overlay names, per kind, the columns it gives the kind's rows (rowOverlay.columns).
-//     A column the kind has (by id: the warning column of Pods, Nodes, Cron Jobs, …) gets the
-//     overlay's cell merged into the kind's own (mergeCell: the reasons joined, the worse status);
-//     a column the kind lacks is added after the kind's columns in the snapshot (the rows keep
-//     their indexes) and shown after the column the overlay names (overlayColumn.After), unless the
-//     user arranged it elsewhere. A column only shows while an overlay gives it to the kind: off,
-//     it is gone, as hidden metrics' columns are (hidemetrics.go).
+//     A column the kind has (by id: the Signals column of Pods, Nodes, Cron Jobs, …) gets the
+//     overlay's cell merged into the kind's own (mergeCell: the reasons joined, the worse status;
+//     a Signals cell's signals side by side); a column the kind lacks is added after the kind's
+//     columns in the snapshot (the rows keep their indexes) and shown after the column the overlay
+//     names (overlayColumn.After), unless the user arranged it elsewhere. A column only shows while
+//     an overlay gives it to the kind: off, it is gone, as hidden metrics' columns are
+//     (hidemetrics.go).
+//   - Signals (D-150): every overlay that marks objects gives the Signals column (model.SignalsColumnID,
+//     after Name); each takes a slot of its own in it, after the kind's own (the state's), in the
+//     overlays' order, and the column's Slots counts them. Its signals carry their slot, so that an
+//     icon keeps its place in the view whatever the other sources show.
 //   - Rows: the view's row cache makes a row's overlaid copy once per change of the row or of the
 //     overlays' generation (snapshot.go, rowEntry.ov); a row the overlays leave alone is shared as
 //     the profile built it. Search, sort, the CSV export and view.rows see the overlaid row, as the
@@ -203,6 +208,7 @@ func (o *overlays) close() {
 // those the overlays add) and where each overlay's cells go.
 type overlayLayout struct {
 	cols  []model.Column
+	owned bool           // cols is the layout's own copy, no longer the kind's
 	added map[int]string // index of an added column in cols → the id it shows after
 	parts []overlayPart
 	gen   uint64
@@ -213,6 +219,7 @@ type overlayPart struct {
 	ov    rowOverlay
 	id    string
 	index int
+	slot  int // the overlay's slot in a Signals column
 }
 
 // layoutOverlays returns how the overlays meet a kind's rows, nil when none gives it a column.
@@ -228,9 +235,7 @@ func layoutOverlays(p *model.KindProfile, list []rowOverlay, gen uint64) *overla
 			}
 			i := slices.IndexFunc(l.cols, func(k model.Column) bool { return k.ID == c.ID })
 			if i < 0 { // the kind lacks it: added after its columns, shown after c.After
-				if len(l.cols) == len(p.Columns) {
-					l.cols = slices.Clone(p.Columns)
-				}
+				l.own()
 				l.cols = append(l.cols, c.Column)
 				i = len(l.cols) - 1
 				if l.added == nil {
@@ -238,11 +243,24 @@ func layoutOverlays(p *model.KindProfile, list []rowOverlay, gen uint64) *overla
 				}
 				l.added[i] = c.After
 			}
-			l.parts = append(l.parts, overlayPart{ov: ov, id: c.ID, index: i})
+			part := overlayPart{ov: ov, id: c.ID, index: i}
+			if c.Type == model.ColumnSignals {
+				l.own() // the kind's own column gets the overlay's slot
+				part.slot = l.cols[i].Slots
+				l.cols[i].Slots++
+			}
+			l.parts = append(l.parts, part)
 			l.width = max(l.width, i+1)
 		}
 	}
 	return l
+}
+
+// own makes cols the layout's own copy of the kind's columns, before it changes them.
+func (l *overlayLayout) own() {
+	if !l.owned {
+		l.cols, l.owned = slices.Clone(l.cols), true
+	}
 }
 
 // columns returns the snapshot's columns: the kind's, then the added ones.
@@ -268,6 +286,9 @@ func (l *overlayLayout) apply(p *model.KindProfile, row model.Row, obj *unstruct
 		if cells == nil {
 			cells = make([]model.Cell, max(len(row.Cells), l.width))
 			copy(cells, row.Cells)
+		}
+		if c.Signals != nil {
+			c = slotted(c, part.slot)
 		}
 		cells[part.index] = mergeCell(cells[part.index], c)
 	}
@@ -318,14 +339,30 @@ func (l *overlayLayout) order(cols []model.Column, ids []string) []int {
 	return nil
 }
 
+// slotted returns a Signals cell whose signals take the slot of their overlay.
+func slotted(c model.Cell, slot int) model.Cell {
+	signals := slices.Clone(*c.Signals)
+	for i := range signals {
+		signals[i].Slot = slot
+	}
+	return model.SignalsCell(signals)
+}
+
 // mergeCell merges an overlay's cell into the kind's own cell of the same column: an empty cell
-// takes the overlay's; otherwise the texts are joined ("Containers not ready: web; Kyverno: 1 policy
-// violation"), the worse status and the larger sort key kept, and the tooltips joined a line each.
-// An overlay's cell in coloured parts redraws the cell: its text and parts replace the kind's (a
-// kubelet's version with a ⚠ after it, k8sversion.go).
+// takes the overlay's; Signals cells put their signals side by side (model.SignalsCell); otherwise
+// the texts are joined, the worse status and the larger sort key kept, and the tooltips joined a
+// line each. An overlay's cell in coloured parts redraws the cell: its text and parts replace the
+// kind's (a kubelet's version with a ⚠ after it, k8sversion.go).
 func mergeCell(base, add model.Cell) model.Cell {
-	if base.Text == "" && base.Num == 0 && base.Status == model.StatusNone {
+	if base.Text == "" && base.Num == 0 && base.Status == model.StatusNone && base.Signals == nil {
 		return add
+	}
+	if add.Signals != nil {
+		var signals []model.Signal
+		if base.Signals != nil {
+			signals = append(signals, *base.Signals...)
+		}
+		return model.SignalsCell(append(signals, *add.Signals...))
 	}
 	out := base
 	switch {

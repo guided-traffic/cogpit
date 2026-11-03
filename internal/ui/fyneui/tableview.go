@@ -104,10 +104,11 @@ type tableView struct {
 	hoverCell  *tableCell    // the cell under the pointer or the keyboard highlight
 	pointer    fyne.Position // the pointer over the table, in window coordinates (tooltips)
 	pointerIn  bool
-	icons      map[cellIconKey]fyne.Resource // the cells' icons, one per icon and colour
-	menu       *widget.PopUpMenu             // the row menu last opened
-	menuModel  *fyne.Menu                    // and its items
-	kindSet    map[string]bool               // the kinds links may lead to (serves)
+	icons      map[cellIconKey]fyne.Resource   // the cells' icons, one per icon and colour
+	sigIcons   map[signalIconKey]fyne.Resource // the signals' icons, one per source and colour (tablesignals.go)
+	menu       *widget.PopUpMenu               // the row menu last opened
+	menuModel  *fyne.Menu                      // and its items
+	kindSet    map[string]bool                 // the kinds links may lead to (serves)
 	kindSetSrc *kindInfo
 	kindSetLen int
 	selected   []model.ObjectRef
@@ -751,11 +752,10 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		// A word is a pill, a sentence is not: an event's message in a status colour stays plain text.
 		content.pill = status != model.StatusNone && col.Type == model.ColumnText && col.ID != columnMessage &&
 			utf8.RuneCountInString(content.text) <= maxPillText
-		if col.Type == model.ColumnWarning {
-			content.kind = cellWarning
-			if tv.statusLit(row) {
-				content.kind, content.text = cellText, "" // the spine and the pill say it; the reason moves to the status word's tooltip
-			}
+		if col.Type == model.ColumnSignals {
+			// Each signal's icon in its slot (tablesignals.go); on a lit row the spine and the pill say
+			// the state's, whose reason moves to the status word's tooltip.
+			content.kind, content.signals, content.lit = cellSignals, cell.Signals, tv.statusLit(row)
 		}
 		if col.ID == columnStatus && content.tip == "" && tv.statusLit(row) {
 			content.tip = tv.warningReason(row)
@@ -777,8 +777,8 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 	c.setFocused(tv.keyboardOn(id.Row, id.Col))
 }
 
-// statusLit reports whether the row shows a status pill and a spine, so that its warning icon would
-// say the same a third time: the row is in an abnormal state and a status column is shown.
+// statusLit reports whether the row shows a status pill and a spine, so that its state's triangle
+// would say the same a third time: the row is in an abnormal state and a status column is shown.
 func (tv *tableView) statusLit(row *model.Row) bool {
 	if !abnormalStatus(row.Status) {
 		return false
@@ -791,12 +791,17 @@ func (tv *tableView) statusLit(row *model.Row) bool {
 	return false
 }
 
-// warningReason is the text of the row's warning cell, the reason of the icon that a lit row does
-// not draw (statusLit): it is the status word's tooltip then.
+// warningReason is the text of the row's state signal, the reason of the triangle that a lit row
+// does not draw (statusLit): it is the status word's tooltip then.
 func (tv *tableView) warningReason(row *model.Row) string {
 	for _, ci := range tv.cols {
-		if tv.snap.Columns[ci].Type == model.ColumnWarning && ci < len(row.Cells) {
-			return tv.tf.CellText(tv.snap.Columns[ci], row.Cells[ci], tv.now)
+		if tv.snap.Columns[ci].Type != model.ColumnSignals || ci >= len(row.Cells) || row.Cells[ci].Signals == nil {
+			continue
+		}
+		for _, s := range *row.Cells[ci].Signals {
+			if s.Source == model.SignalState {
+				return s.Text
+			}
 		}
 	}
 	return ""
@@ -837,8 +842,8 @@ func (tv *tableView) updateHeader(id widget.TableCellID, o fyne.CanvasObject) {
 		}
 	}
 	title := col.Title
-	if col.Type == model.ColumnWarning || col.Type == model.ColumnIcon || col.Type == model.ColumnGrade {
-		title = "" // Lens's warning and icon columns, and the grades', have no title; Title names them for agents
+	if col.Type == model.ColumnIcon || col.Type == model.ColumnGrade {
+		title = "" // Lens's icon columns and the grades' have no title; Title names them for agents
 	}
 	h.set(id.Col, title, sort)
 	h.setFixed(fixedWidth(col))
@@ -990,6 +995,7 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 		tv.sh.followLink(*c.content.link, tv.snap.Rows[c.row].Ref.Context, nsColumn)
 	case tv.modifiedClick(c.row, mods): // ⌘-click toggles the row, ⇧-click selects a range (tablecheck.go)
 	default:
+		tv.signalTapped(c, e.Position) // a signal's icon: the drawer opens at its section (tablesignals.go)
 		tv.table.focusByPointer()
 		tv.table.Select(widget.TableCellID{Row: c.row, Col: c.col})
 	}
@@ -999,6 +1005,9 @@ func (tv *tableView) cellTapped(c *tableCell, e *fyne.PointEvent, mods fyne.KeyM
 // the default for the column id or type.
 func (tv *tableView) columnWidth(i int) float32 {
 	col := tv.snap.Columns[tv.cols[i]]
+	if col.Type == model.ColumnSignals {
+		return signalsWidth(tv.table.Theme(), col) // its slots (tablesignals.go)
+	}
 	if w, ok := tv.userWidths[tv.snap.View+"/"+col.ID]; ok && !fixedWidth(col) {
 		return w
 	}
@@ -1014,13 +1023,12 @@ func (tv *tableView) columnWidth(i int) float32 {
 	return defaultWidthByType[model.ColumnText]
 }
 
-// fixedWidth reports whether a column keeps its width: Lens's warning column, an icon without a
-// title, has no divider in the header and is neither dragged wider nor fitted to its content (the
-// owner, 2026-10-21, after the dividers came back: "kann meiner Meinung nach eine feste Breite
-// haben"); the image grades' shields too (the owner, 2026-10-22: "mit fester Breite hinter
-// Containers", to save room as the warning column does).
+// fixedWidth reports whether a column keeps its width: the Signals column, its slots' icons, has no
+// divider in the header and is neither dragged wider nor fitted to its content (the owner,
+// 2026-10-21, of the warning column it replaced: "kann meiner Meinung nach eine feste Breite
+// haben"); a grade column's shields too (the owner, 2026-10-22).
 func fixedWidth(c model.Column) bool {
-	return c.Type == model.ColumnWarning || c.Type == model.ColumnGrade
+	return c.Type == model.ColumnSignals || c.Type == model.ColumnGrade
 }
 
 // fixedAt reports whether the visible column i keeps its width (fixedWidth).
@@ -1329,6 +1337,7 @@ func (t *resourceTable) MouseMoved(ev *desktop.MouseEvent) {
 	t.tv.pointer, t.tv.pointerIn = ev.AbsolutePosition, true
 	t.Table.MouseMoved(ev)
 	t.tv.pointWeb()
+	t.tv.pointSignal()
 	t.tv.requestTip()
 	t.tv.copyIcon.moved()
 }
@@ -1346,7 +1355,7 @@ type cellKind uint8
 
 const (
 	cellText    cellKind = iota // text, possibly a link or in coloured parts
-	cellWarning                 // Lens's warning icon; the text is the icon's tooltip
+	cellSignals                 // a Signals cell's icons, each with its tooltip (tablesignals.go)
 	cellMenu                    // the ⋮ that opens the row's actions menu
 	cellCheck                   // the row's checkbox (tablecheck.go)
 	cellImage                   // an image from a URL, which text holds (a chart's icon, helmcharticons.go)
@@ -1365,9 +1374,12 @@ type cellContent struct {
 	bar    *model.CellBar    // a usage bar beside the text (a node's CPU, Memory, Disk; tablebar.go)
 	tip    string            // the cell's own tooltip (model.Cell.Tip: a kubelet's support, D-91)
 	grade  model.ImageGrade  // a grade cell's shield
-	kind   cellKind
-	row    model.Status // the row's status: its spine and tint (list_rows.go)
-	pill   bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
+	// signals are a Signals cell's; lit leaves out the state's (a lit row's pill and spine say it).
+	signals *[]model.Signal
+	lit     bool
+	kind    cellKind
+	row     model.Status // the row's status: its spine and tint (list_rows.go)
+	pill    bool         // a status cell: a healthy word with a dot, an abnormal one in a pill
 }
 
 // tableCell is one body cell: text in the cell's status colour (a link in the link colour, a cell
@@ -1389,7 +1401,12 @@ type tableCell struct {
 	bar   *cellBar            // a usage bar's track and fill; made when the cell first shows one (tablebar.go)
 	icon  *canvas.Image       // made when the cell first shows an icon
 	badge *gradeBadge         // an image grade's shield; made when the cell first shows one
-	line  *canvas.Rectangle
+	// A Signals cell's icons but the shield, each with its themed resource; grown on demand
+	// (tablesignals.go). sigHover is the slot of the icon the pointer is on; -1: none.
+	sigIcons []*canvas.Image
+	sigRes   []fyne.Resource
+	sigHover int
+	line     *canvas.Rectangle
 	// The Dark Cockpit's row marks (list_rows.go), each made the first time a cell needs it.
 	spine  *canvas.Rectangle // an abnormal row's status spine, in the first cell
 	selBar *canvas.Rectangle // the drawer's row's glow blue bar, in the first cell
@@ -1430,7 +1447,7 @@ func newTableCell(tv *tableView) *tableCell {
 		bg:   canvas.NewRectangle(color.Transparent),
 		text: canvas.NewText("", color.Transparent),
 		line: canvas.NewRectangle(color.Transparent),
-		row:  -1, col: -1, webHover: -1,
+		row:  -1, col: -1, webHover: -1, sigHover: -1,
 	}
 	c.ExtendBaseWidget(c)
 	return c
@@ -1462,6 +1479,9 @@ func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover
 	web := c.webHover
 	if changed || !linkHover {
 		web = -1 // the next move of the pointer finds its address again (tableView.pointWeb)
+	}
+	if changed || !hover {
+		c.sigHover = -1 // and its signal (tableView.pointSignal)
 	}
 	linkHover = linkHover && content.link != nil
 	if changed || marks.drawer != c.drawer || marks.checked != c.checked || hover != c.hover || linkHover != c.linkHover || web != c.webHover {
@@ -1616,8 +1636,8 @@ func (c *tableCell) runText(i int) string {
 // text of a cut-off cell.
 func (c *tableCell) tipText() string {
 	switch {
-	case c.content.kind == cellWarning:
-		return c.full
+	case c.content.kind == cellSignals:
+		return c.signalTip()
 	case c.content.kind == cellGrade && c.content.tip != "":
 		return c.full + "\n" + c.content.tip // "D · 2 Critical", then the counts behind it
 	case c.content.kind == cellGrade:
@@ -1729,6 +1749,7 @@ func (c *tableCell) apply() {
 	}
 	c.setIcon(c.tv.cellIcon(c.content, c.checked))
 	c.setGrade()
+	c.setSignals()
 	c.fit(th)
 	c.colourMore(th)
 	c.bg.Refresh()
@@ -1778,19 +1799,21 @@ func (c *tableCell) placeUnder() {
 	c.under.Resize(fyne.NewSize(s.Width, 1))
 }
 
-// setGrade shows a grade cell's shield, or hides the shield of a cell that shows something else.
+// setGrade shows a grade cell's shield or a Signals cell's, or hides the shield of a cell that shows
+// something else.
 func (c *tableCell) setGrade() {
-	if c.content.kind != cellGrade || c.content.grade == model.GradeNone {
+	grade := c.signalGrade()
+	if grade == model.GradeNone {
 		if c.badge != nil && c.badge.Visible() {
 			c.badge.Hide()
 		}
 		return
 	}
 	if c.badge == nil {
-		c.badge = newGradeBadge(gradeTableSide, c.content.grade)
+		c.badge = newGradeBadge(gradeTableSide, grade)
 		c.objs++
 	}
-	c.badge.setGrade(c.content.grade)
+	c.badge.setGrade(grade)
 	if !c.badge.Visible() {
 		c.badge.Show()
 	}
@@ -2041,10 +2064,11 @@ func (c *tableCell) layout(size fyne.Size) {
 		c.icon.Move(fyne.NewPos((size.Width-is)/2, (size.Height-is)/2))
 		c.icon.Resize(fyne.NewSize(is, is))
 	}
-	if c.badge != nil {
+	if c.badge != nil && c.content.kind == cellGrade {
 		c.badge.Move(fyne.NewPos((size.Width-gradeTableSide)/2, (size.Height-gradeTableSide)/2))
 		c.badge.Resize(fyne.NewSize(gradeTableSide, gradeTableSide))
 	}
+	c.layoutSignals(th, size) // tablesignals.go
 	ms, mg := markSize(th)
 	for i, r := range c.marks {
 		if i >= c.shown {
@@ -2113,6 +2137,9 @@ func (r *tableCellRenderer) Objects() []fyne.CanvasObject {
 		if c.badge != nil {
 			r.objs = append(r.objs, c.badge)
 		}
+		for _, img := range c.sigIcons {
+			r.objs = append(r.objs, img)
+		}
 		for _, t := range c.more {
 			r.objs = append(r.objs, t)
 		}
@@ -2140,11 +2167,6 @@ func (tv *tableView) cellIcon(content cellContent, checked bool) fyne.Resource {
 	switch content.kind {
 	case cellCheck:
 		key = checkIconKey(checked)
-	case cellWarning:
-		if content.status == model.StatusNone {
-			return nil
-		}
-		key = cellIconKey{theme.IconNameWarning, statusColorName(content.status)}
 	case cellMenu:
 		key = cellIconKey{theme.IconNameMoreVertical, colorMuted}
 	case cellImage:

@@ -111,7 +111,7 @@ func TestWorkloadDrawerPods(t *testing.T) {
 				t.Errorf("the drawer's Pods %q, want web-1 and web-2", got)
 			}
 			tbl := findTable(t, sections, "Pods")
-			if !tbl.Sortable || !slices.Equal(tbl.IDs, []string{"name", "warning", "node", "ready", model.ColumnCPU, model.ColumnMemory, "status", "age"}) {
+			if !tbl.Sortable || !slices.Equal(tbl.IDs, []string{"name", "signals", "node", "ready", model.ColumnCPU, model.ColumnMemory, "status", "age"}) {
 				t.Errorf("columns %q, ids %q: want the node drawer's without Namespace, with Age", tbl.Columns, tbl.IDs)
 			}
 			if len(tbl.Cells[0]) != len(tbl.IDs) {

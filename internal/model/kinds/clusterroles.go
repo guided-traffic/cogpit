@@ -22,7 +22,7 @@ var clusterRoles = &model.KindProfile{
 	Title:    "Cluster Roles",
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		ageColumn,
 	},
 	Cells:  clusterRoleCells,

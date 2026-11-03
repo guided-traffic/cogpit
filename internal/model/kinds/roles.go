@@ -19,7 +19,7 @@ var roles = &model.KindProfile{
 	Namespaced: true,
 	Columns: []model.Column{
 		nameColumn,
-		warningColumn,
+		signalsColumn,
 		namespaceColumn,
 		ageColumn,
 	},

@@ -57,10 +57,11 @@ var (
 	statusColumn     = model.Column{ID: idStatus, Title: titleStatus, Type: model.ColumnText}
 	typeColumn       = model.Column{ID: idType, Title: "Type", Type: model.ColumnText}
 	conditionsColumn = model.Column{ID: "conditions", Title: "Conditions", Type: model.ColumnText}
-	// warningColumn is Lens's warning-icon column; it comes right after Name in the views that
-	// have one (Pods, Nodes, Cron Jobs, Pod Disruption Budgets, the RBAC views). Its title is not
-	// shown in the header; it names the column for agents and resources.list.
-	warningColumn = model.Column{ID: "warning", Title: "Warning", Type: model.ColumnWarning, Width: 28}
+	// signalsColumn is the Signals column (D-150) of the views whose objects have a state of their
+	// own to mark, right after Name (Pods, Nodes, Cron Jobs, Pod Disruption Budgets, the RBAC
+	// views, Resource Claims); its one slot is the state's. The integrations' overlays add their
+	// slots, and the column to the views without it while they mark an object there.
+	signalsColumn = model.Column{ID: model.SignalsColumnID, Title: model.SignalsColumnTitle, Type: model.ColumnSignals, Slots: 1}
 )
 
 func nameCell(obj any) model.Cell {
@@ -83,13 +84,14 @@ func linkTo(kind, namespace, name string) *model.ObjectRef {
 	return &model.ObjectRef{Kind: kind, Namespace: namespace, Name: name}
 }
 
-// warningCell is a cell of warningColumn: no warning when status is StatusNone, else the icon in
-// that status's colour with the reason as its tooltip.
-func warningCell(status model.Status, reason string) model.Cell {
+// stateCell is a cell of signalsColumn: no signal when status is StatusNone, else the state's
+// triangle in that status's colour with the reason as its tooltip.
+func stateCell(status model.Status, reason string) model.Cell {
 	if status == model.StatusNone {
 		return model.Cell{}
 	}
-	return model.Cell{Text: reason, Num: 1, Status: status}
+	return model.SignalsCell([]model.Signal{{Source: model.SignalState, Text: reason, Status: status,
+		Rank: model.SignalRank(status, model.GradeNone, 0)}})
 }
 
 func created(obj any) time.Time {

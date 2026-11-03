@@ -11,11 +11,11 @@ func FuzzRoles(f *testing.F) { fuzzProfile(f, "roles") }
 
 func TestRoleTexts(t *testing.T) {
 	checkStatusTexts(t, []statusText{
-		{"roles", "healthy", "warning", "", model.StatusNone, model.StatusNone},
+		{"roles", "healthy", "signals", "", model.StatusNone, model.StatusNone},
 		{"roles", "healthy", "namespace", "checkout", model.StatusNone, model.StatusNone},
-		{"roles", "failing", "warning", accessNoRules, model.StatusWarning, model.StatusWarning},
-		{"roles", "minimal", "warning", accessNoRules, model.StatusWarning, model.StatusWarning},
-		{"roles", "terminating", "warning", "", model.StatusNone, model.StatusTerminating},
+		{"roles", "failing", "signals", accessNoRules, model.StatusWarning, model.StatusWarning},
+		{"roles", "minimal", "signals", accessNoRules, model.StatusWarning, model.StatusWarning},
+		{"roles", "terminating", "signals", "", model.StatusNone, model.StatusTerminating},
 	})
 }
 
@@ -24,7 +24,7 @@ func TestRoleTexts(t *testing.T) {
 func TestRoleColumns(t *testing.T) {
 	assertColumnOrder(t, "roles", []model.Column{
 		{ID: "name", Title: "Name"},
-		{ID: "warning", Title: "Warning"},
+		{ID: "signals", Title: "Signals"},
 		{ID: "namespace", Title: "Namespace"},
 		{ID: "age", Title: "Age"},
 	})

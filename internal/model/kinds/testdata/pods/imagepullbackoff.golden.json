@@ -12,9 +12,9 @@
       "text": "web-5c4d7f9b6-p0q1r"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "ImagePullBackOff",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

@@ -277,14 +277,14 @@ func TestCellTable(t *testing.T) {
 	pod := &ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-0"}
 	tbl := CellTable([]Column{
 		{ID: "name", Title: "Name", Type: ColumnText},
-		{ID: "warning", Title: "Warning", Type: ColumnWarning},
+		{ID: SignalsColumnID, Title: SignalsColumnTitle, Type: ColumnSignals},
 		{ID: "restarts", Title: "Restarts", Type: ColumnNumber},
 	}, [][]Cell{
 		{{Text: "web-0", Link: pod}, {Text: "CrashLoopBackOff", Num: 1, Status: StatusWarning}, {Num: 4}},
 		{{Text: "web-1"}},
 	})
-	if !slices.Equal(tbl.Columns, []string{"Name", "Warning", "Restarts"}) ||
-		!slices.Equal(tbl.Types, []ColumnType{ColumnText, ColumnWarning, ColumnNumber}) {
+	if !slices.Equal(tbl.Columns, []string{"Name", "Signals", "Restarts"}) ||
+		!slices.Equal(tbl.Types, []ColumnType{ColumnText, ColumnSignals, ColumnNumber}) {
 		t.Errorf("columns %q, types %q", tbl.Columns, tbl.Types)
 	}
 	if len(tbl.Rows) != 2 || !slices.Equal(tbl.Rows[0], []string{"web-0", "CrashLoopBackOff", "4"}) ||
@@ -464,5 +464,30 @@ func TestFieldValues(t *testing.T) {
 	}
 	if got := FieldValues(p, "unknown", obj); got != nil {
 		t.Errorf("unknown field = %v", got)
+	}
+}
+
+// A Signals cell: its signals in slot order, its text theirs joined, its status the worst, its sort
+// key the worst signal's rank (an error above a warning above a grade A; N/A the lowest).
+func TestSignalsCell(t *testing.T) {
+	if c := SignalsCell(nil); c != (Cell{}) {
+		t.Errorf("no signals: %+v", c)
+	}
+	grade := Signal{Source: SignalTrivy, Slot: 2, Text: "A", Grade: GradeA, Rank: SignalRank(StatusNone, GradeA, GradeRank(GradeA, VulnerabilityCounts{}, false))}
+	kyverno := Signal{Source: SignalKyverno, Slot: 1, Text: "Kyverno: 1 policy violation (p)", Status: StatusWarning, Rank: SignalRank(StatusWarning, GradeNone, 0)}
+	state := Signal{Source: SignalState, Text: "CrashLoopBackOff", Status: StatusError, Rank: SignalRank(StatusError, GradeNone, 0)}
+	c := SignalsCell([]Signal{grade, kyverno, state})
+	if c.Text != "CrashLoopBackOff; Kyverno: 1 policy violation (p); A" || c.Status != StatusError || c.Num != state.Rank {
+		t.Errorf("cell %+v", c)
+	}
+	if got := *c.Signals; got[0].Source != SignalState || got[1].Source != SignalKyverno || got[2].Source != SignalTrivy {
+		t.Errorf("order %+v", got)
+	}
+	na := SignalRank(StatusNone, GradeNA, GradeRank(GradeNA, VulnerabilityCounts{}, false))
+	if !(na < grade.Rank && grade.Rank < kyverno.Rank && kyverno.Rank < state.Rank) {
+		t.Errorf("ranks: N/A %d, A %d, warning %d, error %d", na, grade.Rank, kyverno.Rank, state.Rank)
+	}
+	if e := SignalRank(StatusNone, GradeE, GradeRank(GradeE, VulnerabilityCounts{Critical: 9}, false)); e <= kyverno.Rank {
+		t.Errorf("grade E %d sorts below a warning %d", e, kyverno.Rank)
 	}
 }

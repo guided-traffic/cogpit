@@ -12,9 +12,9 @@
       "text": "sync-prices"
     },
     {
-      "column": "warning",
+      "column": "signals",
       "text": "The last scheduled job did not succeed",
-      "num": 1,
+      "num": 2000000000,
       "status": "warning"
     },
     {

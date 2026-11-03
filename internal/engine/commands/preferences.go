@@ -65,6 +65,8 @@ type preferencesSetParams struct {
 	MixedEnvironments *bool `json:"mixedEnvironments,omitempty" jsonschema:"whether the tab bar shows the open tabs of every cluster side by side (true), or only the shown cluster's, the one the status bar and the navigator name (false, the default); ui_state's tabs list every tab either way"`
 	// ReduceMotion: whether the window slides (fyneui/navigator_slide.go).
 	ReduceMotion *bool `json:"reduceMotion,omitempty" jsonschema:"whether the window switches at once where it would slide (true): between All Clusters and a cluster's tree, and from one cluster's tree to another's; false, the default, it slides"`
+	// HideOutdatedObjects: what the navigator lists (engine.OutdatedKinds).
+	HideOutdatedObjects *bool `json:"hideOutdatedObjects,omitempty" jsonschema:"whether the navigator leaves out the kinds Kubernetes has a successor for, Replication Controllers and Endpoints (true, the default); its search still finds them, and ui_open_view, the palette and links open them either way; false lists them"`
 	// RevisionsDiff: how the Revisions tab reads a comparison (engine/helmrevisions.go).
 	RevisionsDiff *string `json:"revisionsDiff,omitempty" jsonschema:"how a Helm release's Revisions tab reads a comparison, which revision is the diff's old side: comparedToShown (the default; empty means it too), olderToNewer, or shownToCompared"`
 	// LightStripMainsOnly: whether the light strip animates on battery (fyneui/preferences_power.go).
@@ -140,6 +142,7 @@ func registerPreferences(g *registrar) {
 			"(integrationsOff, the default for new clusters; absent: every one on), the image Debug offers for a pod's debug " +
 			"container (debugImage; empty: Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest), whether the tab bar shows " +
 			"every cluster's tabs (mixedEnvironments), whether the window switches at once instead of sliding (reduceMotion), " +
+			"whether the navigator leaves out Replication Controllers and Endpoints (hideOutdatedObjects), " +
 			"how a Helm release's Revisions tab reads a comparison (revisionsDiff: comparedToShown, olderToNewer or shownToCompared; empty: comparedToShown) and " +
 			"whether the light strip animates only on the power adapter (lightStripMainsOnly), the window's zoom level (zoomLevel: -4 to 4, 0 is 100%), " +
 			"the folders Cogpit looks in for a credential plugin's programs after PATH (programFolders: preferences_addProgramFolder, preferences_removeProgramFolder); " +
@@ -159,7 +162,8 @@ func registerPreferences(g *registrar) {
 		ID: "preferences.set", Label: "Set Preferences", Danger: engine.DangerUI,
 		Description: "Changes some of Cogpit's preferences, as the Preferences page does; the fields left out stay as they are. " +
 			"The window follows at once: the theme, the time zone of the drawer's Created and the charts, the tables' row " +
-			"height and how the open table shares its free width (tableSpreadWidth), the open editors; the HTTP proxy " +
+			"height and how the open table shares its free width (tableSpreadWidth), the open editors, the navigator's " +
+			"items (hideOutdatedObjects); the HTTP proxy " +
 			"at the next download from a Helm repository or of kubectl. The " +
 			"local terminal's shell and its arguments are refused for agents and the CLI: they name a program Cogpit " +
 			"runs on this computer; so are the path to kubectl, the directory for binaries and the kubectl download " +
@@ -295,6 +299,7 @@ func registerPreferences(g *registrar) {
 				setIf(&pr.RestoreSession, p.RestoreSession)
 				setIf(&pr.MixedEnvironments, p.MixedEnvironments)
 				setIf(&pr.ReduceMotion, p.ReduceMotion)
+				setIf(&pr.HideOutdatedObjects, p.HideOutdatedObjects)
 				if p.RevisionsDiff != nil {
 					pr.RevisionsDiff = strings.TrimSpace(*p.RevisionsDiff)
 					if pr.RevisionsDiff == engine.RevisionsComparedToShown {
