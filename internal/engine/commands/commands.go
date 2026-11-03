@@ -71,6 +71,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerGroupLogs(g)
 	registerArgoCD(g)
 	registerTrivySecurity(g) // the Image Security page's read (trivy_security.go)
+	registerVelero(g)        // the Velero page's read (D-new)
 	registerPreferences(g)
 	registerProgramFolders(g) // Preferences › Kubernetes › Program folders (D-120)
 	registerLoginItem(g)

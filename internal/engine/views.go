@@ -58,6 +58,7 @@ type state struct {
 	flux       *fluxDashboardWorker   // the Flux dashboard's worker (fluxdashboard.go); nil unless it is open
 	argo       *argoDashWorker        // the Argo CD Dashboard's worker (argocd_dashboard.go); nil unless it is open
 	imageSec   *imageSecWorker        // the Image Security page's worker (imagesecurity.go); nil unless it is open
+	velero     *veleroWorker          // the Velero page's worker (velero.go); nil unless it is open
 	vanished   *TableSnapshot         // the open view after the cluster stopped serving its kind (customkinds.go)
 	drawer     *drawerWatch
 	drawerSort map[string]SortSpec  // the drawer tables' order last applied (UIState.DrawerSort)
@@ -145,6 +146,7 @@ func (st *state) reconcileLocked(now UIState) {
 	st.reconcileFluxPageLocked(b, now)
 	st.reconcileArgoPageLocked(b, now)
 	st.reconcileImageSecPageLocked(b, now)
+	st.reconcileVeleroPageLocked(b, now)
 
 	// The drawer: a watch on its object and on the events. A custom kind's profile changes with its
 	// definition (another version, or gone), and the drawer follows it.
@@ -466,6 +468,9 @@ func (s *Session) Table(view string) *TableSnapshot {
 	}
 	if view == ImageSecurity {
 		return s.state.imageSecTableOf()
+	}
+	if view == VeleroDashboard {
+		return s.state.veleroTable()
 	}
 	if w == nil || w.profile.Key != view {
 		if gone != nil && gone.View == view {

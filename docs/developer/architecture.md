@@ -501,14 +501,20 @@ A view key with a slash is a page (`engine.IsPage`,
 [D-34](decisions.md#d-34-the-flux-dashboard)), `argocd/dashboard`
 ([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `trivy/image-security`
 ([`imagesecurity.go`](../../internal/engine/imagesecurity.go),
-[D-new](decisions.md#d-new-the-image-security-page)), `alerts/board`. An open page runs its own
-worker in place of a view worker (`state.page`, `state.cluster`, `state.flux`, `state.argo`,
-`state.imageSec`), with cache handles on the kinds it reads; an agent's read of a page that is not
-open (`flux.dashboard`, `trivy.imageSecurity`) takes the same handles for the call
-(`openFollowing`). A page may open with a search of its own (`pageFilters`: Image Security's
-`sev>=high`). Its table's rows keep their kind keys, so
-selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix), and
-`Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile.
+[D-new](decisions.md#d-new-the-image-security-page)), `alerts/board`, `velero/dashboard`
+([`velero.go`](../../internal/engine/velero.go), [D-new](decisions.md#d-new-the-velero-page)). An
+open page runs its own worker in place of a view worker (`state.page`, `state.cluster`,
+`state.flux`, `state.argo`, `state.imageSec`, `state.velero`), with cache handles on the kinds it
+reads; an agent's read of a page that is not open (`flux.dashboard`, `trivy.imageSecurity`,
+`velero.dashboard`) takes the same handles for the call (`openFollowing`). A page may open with a
+search of its own (`pageFilters`: Image Security's `sev>=high`). Its table's rows keep their kind
+keys, so selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix), and
+`Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile. The
+Velero page has no table of its own: its worker builds `VeleroDashboardModel`
+(`Session.VeleroDashboard`, `velero.dashboard`) from Velero's kinds, the namespaces, PVCs and
+workloads, on every change and every 30 seconds; its snapshot carries only the sync state and the
+error, and the window draws the model's tiles and tables over the table's place
+([`fyneui/velero.go`](../../internal/ui/fyneui/velero.go)), as the alert board does.
 
 #### Hotbar
 
