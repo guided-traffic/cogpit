@@ -50,7 +50,7 @@ func clusterIssuesSnapshot(f *fakeEngine) *engine.TableSnapshot {
 	for key, kind := range map[string]string{"pods": "Pod", "nodes": "Node"} {
 		s := f.tables[key]
 		for _, r := range s.Rows {
-			if w := cellOf(s, r, "warning"); w.Status != model.StatusNone {
+			if w := cellOf(s, r, model.SignalsColumnID); w.Status != model.StatusNone {
 				sev := model.StatusWarning
 				if r.Status == model.StatusError {
 					sev = model.StatusError

@@ -484,7 +484,7 @@ func TestSignalsCell(t *testing.T) {
 		t.Errorf("order %+v", got)
 	}
 	na := SignalRank(StatusNone, GradeNA, GradeRank(GradeNA, VulnerabilityCounts{}, false))
-	if !(na < grade.Rank && grade.Rank < kyverno.Rank && kyverno.Rank < state.Rank) {
+	if na >= grade.Rank || grade.Rank >= kyverno.Rank || kyverno.Rank >= state.Rank {
 		t.Errorf("ranks: N/A %d, A %d, warning %d, error %d", na, grade.Rank, kyverno.Rank, state.Rank)
 	}
 	if e := SignalRank(StatusNone, GradeE, GradeRank(GradeE, VulnerabilityCounts{Critical: 9}, false)); e <= kyverno.Rank {
