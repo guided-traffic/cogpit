@@ -236,6 +236,14 @@ Metrics stack installed ([D-61](../developer/decisions.md#d-61-cogpit-metrics-th
 are the user's own Helm releases: the Helm Releases view uninstalls them, and detection reads that
 Prometheus like any other ([H-26](#h-26-prometheus-is-found-by-name)).
 
+## Integrations write nothing
+
+No integration creates, changes or deletes an object to get or show its data
+([D-151](../developer/decisions.md#d-151-integrations-never-write-to-the-cluster)): every request
+under [Integrations](#integrations) is a read, and a tool that hands out data only after an object
+is created for it gives Cogpit only what its objects already say. What writes are the user's
+commands under [Actions that write](#actions-that-write).
+
 ## What this does not cover
 
 ### H-64: A Flux action is carried out with the controller's identity

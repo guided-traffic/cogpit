@@ -159,6 +159,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-148](#d-148-hide-outdated-objects) | Hide outdated objects | built: View menu and Preferences › App, on; Replication Controllers and Endpoints leave the navigator, its search still finds them |
 | [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
 | [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version mark stays in its cell |
+| [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
 
 ## D-1: UI toolkit
 
@@ -2810,6 +2811,8 @@ has what the user sees, [architecture](architecture.md) §4.7 the switch, probes
   clusters has every integration on; the question's "Save as the default for new clusters" (off
   until ticked) and Preferences › Kubernetes set it. Off, an integration sends nothing and shows
   nothing. Lens's Metrics source is the two metrics switches.
+- An integration only reads; it writes nothing to the cluster to get or show its data
+  ([D-151](#d-151-integrations-never-write-to-the-cluster)).
 - Cluster Settings › Integrations shows at once whether each was found automatically or needs a
   manual configuration (layout: D-87).
 - While the shown cluster is connected and has no choice, a dialog asks; nothing waits for it, and
@@ -6160,3 +6163,28 @@ source (the scattering this ends).
 [`fyneui/drawer_openat.go`](../../internal/ui/fyneui/drawer_openat.go) · **Tests:** `TestSignalsCell`,
 `TestStateCell`, `TestSignalsSlots`, `TestKyvernoMarksViolations`, `TestTrivyPodsColumn`,
 `TestSignalsCellDraws`, `TestSignalsColumnIsAColumnOfItsOwn`
+
+## D-151: Integrations never write to the cluster
+
+**Status:** built · **By:** owner
+
+No integration writes to a cluster to get or show its data: for the Metrics Server, Prometheus,
+Alertmanager, Trivy Operator, Kyverno, Flux CD, Argo CD and every integration that joins them,
+Cogpit creates, changes and deletes no object on its own. It reads what the tool has written
+(`list`, `watch`, `get`, a read-only `GET` through `services/proxy`). A tool that hands out data
+only after an object is created for it (such as Velero's DownloadRequest, which makes Velero hand
+out a link into its object storage) gives Cogpit only what its objects already say. Writes stay the
+user's actions: commands with their verbs, danger levels and confirmations
+([D-2](#d-2-agent-interface-scope)), such as Flux's Reconcile or Argo CD's Sync.
+
+**Why:** an integration reads with the user's identity, on clusters that may be production; an
+object written to read data is a change nobody asked for, which the cluster's audit log names the
+user for, and which the tool acts on (a download, a status request) beyond what Cogpit shows.
+
+**Rejected:** a write behind a confirmation to show more (an integration's page would then need
+the write to be useful); a write the user switches on per cluster.
+
+**Code:** the integrations' reads: [`engine/trivy.go`](../../internal/engine/trivy.go),
+[`engine/kyverno.go`](../../internal/engine/kyverno.go), [`engine/alerts.go`](../../internal/engine/alerts.go),
+[`internal/metrics`](../../internal/metrics/), [`internal/alerting`](../../internal/alerting/);
+their requests: [privilege footprint](../security/privilege-footprint.md#integrations-write-nothing)
