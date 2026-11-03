@@ -188,6 +188,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
 | [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; four cards, findings with search tokens, opens on sev>=high; the reports trimmed to the shown fields while it is open |
 | [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Schedules, Outside every schedule; read-only, from the cache |
+| [D-calm](#d-calm-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
 
 ## D-1: UI toolkit
 
@@ -7733,3 +7734,39 @@ schedules as covering; times of day in the user's zone (unlike the manifest's cr
 `TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroPage`, `TestVeleroPageWithoutVelero`,
 `TestDemoVeleroPage`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
 `TestVeleroPageClicks`, `TestVeleroNavigatorEntry`
+
+## D-calm: Calm colours on the integrations' pages
+
+**Status:** built · **By:** owner (the rule and its two colours), lead (open to revision) the
+helpers
+
+On the Image Security page ([D-new](#d-new-the-image-security-page)) and the Velero page
+([D-new](#d-new-the-velero-page)) colour marks only what needs action: grey is the ground; the
+error colour means act now (Critical, an E grade, Failed, Overdue, Unavailable, a failed
+validation), the warning colour means check (High, a D grade, Partially failed, a failed
+maintenance); everything else, good states included (Completed, Enabled, Available, Medium, Low,
+grades S to C), is drawn in the text or the muted colour.
+
+- **Form:** a state is a coloured word, never a filled pill; no row carries a coloured stripe or
+  spine; a row shows at most one colour. Card and tile titles are in the text colour, section
+  labels muted; bars are faint with only the error and warning segments coloured.
+- **Grade shields:** on these pages D and E keep their colours and S to C are grey, the letter in
+  the text colour; N/A stays as D-113 draws it. The shields elsewhere (the Signals column, the
+  drawer's grade card) are unchanged.
+- **Helper:** `calmStatusColor` maps a status to the error or warning colour or the muted one.
+
+**Why:** with every state in its colour the eye finds no place to go. Two steps of urgency remain because both pages have two (Critical
+against High, Failed against Partially failed); with red alone a High CVE and a partly failed
+backup sink into the grey.
+
+**Rejected:** every state in its status colour; red alone with amber grey; filled pills and row
+stripes.
+
+**Not decided here:** whether the Flux CD and Argo CD dashboards and the Signals column take the
+same rule.
+
+**Code:** [`fyneui/calmtone.go`](../../internal/ui/fyneui/calmtone.go) `calmStatusColor`;
+[`fyneui/gradebadge.go`](../../internal/ui/fyneui/gradebadge.go) the calm crest;
+[`fyneui/imagesecurity.go`](../../internal/ui/fyneui/imagesecurity.go),
+[`fyneui/velero.go`](../../internal/ui/fyneui/velero.go) · **Tests:** `TestRenderImageSecurityDark`,
+`TestRenderVeleroDark`
