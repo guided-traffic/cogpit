@@ -32,7 +32,16 @@ func showLogs(t *testing.T, stream io.ReadCloser, size fyne.Size) (*Logs, fyne.W
 	w := test.NewTempWindow(t, widget.NewLabel(""))
 	w.Resize(size)
 	w.SetContent(l)
-	t.Cleanup(func() { _ = l.Close() })
+	t.Cleanup(func() {
+		_ = l.Close()
+		// The test driver runs the flusher's main-goroutine work on the flusher's own goroutine: a
+		// flusher still applying when the next test lays its view out races it in Fyne's caches.
+		select {
+		case <-l.flushed:
+		case <-time.After(10 * time.Second):
+			t.Error("the log view's flusher did not stop within 10s of Close")
+		}
+	})
 	return l, w
 }
 
