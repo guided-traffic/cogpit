@@ -17,7 +17,8 @@ func demoConnector(t testing.TB, size demoSize) *engine.ClusterConnector {
 	t.Helper()
 	c := &engine.ClusterConnector{IncludeDemo: true}
 	c.DemoOptions.Pods, c.DemoOptions.Seed, c.DemoOptions.NoChurn = size.Pods, size.Seed, size.NoChurn
-	c.DemoOptions.Deployments = size.Deployments
+	c.DemoOptions.Deployments, c.DemoOptions.Services, c.DemoOptions.Namespaces = size.Deployments, size.Services, size.Namespaces
+	c.DemoOptions.Nodes, c.DemoOptions.Events = size.Nodes, size.Events
 	c.DemoOptions.EventsPerSecond, c.DemoOptions.MetricsResolution = size.EventsPerSecond, size.MetricsResolution
 	return c
 }

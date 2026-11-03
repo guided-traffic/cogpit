@@ -64,6 +64,7 @@ type tableView struct {
 	argo                       *argoPanel      // the Argo CD Dashboard's strip, cards and activity (argocd_dashboard.go)
 	imageSec                   *imageSecPanel  // the Image Security page's header line and cards (imagesecurity.go)
 	alerts                     *alertBoard     // the alert board, over the table while its page is open (alertboard.go, D-77)
+	velero                     *veleroPanel    // the Velero page, over the table while it is open (velero.go)
 	pageTop                    *fyne.Container // the open page's part
 	eventsTitle                *textLine
 	eventsHeading, eventsTools *fyne.Container
@@ -212,6 +213,7 @@ func newTableView(sh *shell) *tableView {
 	tv.argo = newArgoPanel(sh)
 	tv.imageSec = newImageSecPanel(sh)
 	tv.alerts = newAlertBoard(sh)
+	tv.velero = newVeleroPanel(sh)
 	tv.pageTop = container.NewStack(tv.overview.root)
 	tv.eventsTitle = newTextLine("Events", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
 	tv.eventsHeading, tv.eventsTools = container.NewHBox(), container.NewHBox()
@@ -222,7 +224,7 @@ func newTableView(sh *shell) *tableView {
 	tv.pageBox.Hide()
 	frame := box(&stretchLayout{tv: tv}, tv.table)
 	tv.create = newCreateButton(sh)
-	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root)
+	body := container.NewStack(newSurface(theme.ColorNameBackground), frame, tv.order.layer, tv.copyIcon.layer, tv.placeholder, tv.alerts.root, tv.velero.root)
 	tv.root = container.NewBorder(
 		// The light strip right under the header, above the page's part and the table's header (the
 		// owner's walk, LS20: "Das ist der Platz für den Lichtstreifen").
@@ -263,17 +265,22 @@ func (tv *tableView) setPageLayout(view string) {
 	// The alert board's header is a view's: its title and count, the namespace filter and the
 	// search; its body replaces the table (alertboard.go, D-77).
 	board := view == engine.AlertBoard || view == engine.AlertSilences // the silences page shows in the board's place (silences.go)
+	velero := view == engine.VeleroDashboard                           // its header and body are its own (velero.go)
 	shown := ""
 	if board {
 		shown = view
 	}
 	tv.alerts.setShown(shown)
-	if board || view == engine.ImageSecurity { // the board's groups are the severities, the page's search has sev tokens: no status filter
+	tv.velero.setShown(velero)
+	// No status filter: the board's groups are the severities, Image Security's search has sev tokens,
+	// the Velero page has no table.
+	if board || velero || view == engine.ImageSecurity {
 		tv.states.box.Hide()
 	} else {
 		tv.states.box.Show()
 	}
-	page := engine.IsPage(view) && !board
+	page := engine.IsPage(view) && !board && !velero
+	tv.veleroHeading(velero)
 	if page && view != tv.pageView {
 		tv.pageView = view
 		top, title := tv.overview.root, "Events"
@@ -316,6 +323,7 @@ func (tv *tableView) setPageLayout(view string) {
 	for _, c := range []*fyne.Container{tv.heading, tv.tools, tv.eventsHeading, tv.eventsTools} {
 		c.Refresh()
 	}
+	tv.veleroHeading(velero)
 }
 
 // viewChanged follows a change of the open view: titles, placeholder, search hint.
@@ -349,6 +357,8 @@ func (tv *tableView) requestPage() {
 		tv.imageSec.request()
 	case view == engine.AlertBoard, view == engine.AlertSilences:
 		tv.alerts.request()
+	case view == engine.VeleroDashboard:
+		tv.velero.request()
 	case engine.IsPage(view):
 		tv.overview.request()
 	}

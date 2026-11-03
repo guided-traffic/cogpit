@@ -59,6 +59,10 @@ func noDefaultKubeconfig(c *engine.ClusterConnector) {
 type demoSize struct {
 	Pods              int
 	Deployments       int
+	Services          int
+	Namespaces        int
+	Nodes             int
+	Events            int
 	Seed              int64
 	NoChurn           bool
 	EventsPerSecond   float64

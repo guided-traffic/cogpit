@@ -384,6 +384,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Every pod in the Pods list shows the worst image grade of its containers as a symbol only, in a narrow column without a title after Contain… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Kyverno: the objects that violate a policy show it, in their lists and their drawer: an Audit policy's fail, and an Enforce policy's on an… | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | Agents read every policy violation of a cluster in one call, with each object's reference, from the cache (D-79) | done | [Cluster integrations](beyond-lens.md#cluster-integrations) |
+| Velero: a page of how the cluster's backups stand, while it serves Velero's Backups: Velero's version, server, node agents and plugins; Sch… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | The title bar's alerts pill shows the shown cluster's active alerts while the Alertmanager integration is on: red from a critical alert, or… | done | [Alerts](beyond-lens.md#alerts) |
 | An alert board like karma's, tidier: the alerts grouped by severity and alertname with their counts, each with its summary, its description… | done | [Alerts](beyond-lens.md#alerts) |
 | How often each alert started firing in each of the last 24 hours, from the cluster's Prometheus | done | [Alerts](beyond-lens.md#alerts) |

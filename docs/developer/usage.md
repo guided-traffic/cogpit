@@ -83,8 +83,9 @@ Ctrl on Windows and Linux.
   states and a namespace filter with its own search; a filtered namespace being deleted shows red.
   A click below the rows closes the drawer.
 - The navigator lists the Kubernetes kinds the cluster serves, then, under the heading
-  Integrations, Flux CD and Argo CD while the cluster runs them and Image Security while the Trivy
-  integration is on ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
+  Integrations, Flux CD, Argo CD and the [Velero page](#the-velero-page) while the cluster runs them
+  and Image Security while the Trivy integration is on
+  ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
   (on by default) leaves Replication Controllers and Endpoints out of the navigator; its search,
   ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
 - <a id="the-signals-column"></a>The Signals column after Name gathers every mark on an object, one
@@ -1612,6 +1613,36 @@ right applies to the whole page.
   page; `ui_setFilter` sets its search. No vulnerability's title or description is read.
 - **Reads:** the reports, without the fields the page does not show, and the pods, only while the
   page is open. Off: no entry, nothing read.
+
+### The Velero page
+
+While the cluster serves Velero's Backups, Integrations › Velero shows how its backups stand, read
+from the cache and nothing else: no action, no request to Velero, nothing created in the cluster
+([D-new](decisions.md#d-new-the-velero-page)). Grey is the ground; red means act now, amber check.
+
+- **Header:** "1.17.1 · namespace velero · server 1/1 · node agents 6/6 · plugins aws 1.13.0", from
+  Velero's Deployment and node-agent DaemonSet (a part you may not read is left out), and the
+  namespace filter, which narrows the page to the schedules, backups and restores whose scope takes
+  those namespaces in, their repositories and their rows below.
+- **Status:** Schedules, Backups, Restores and Storage counted by state, each with a thin bar; a
+  tile's title opens its kind's list.
+- **Needs attention:** Problem, Object, Scope, Since, Detail: a storage location unavailable (its
+  message), no default location, a schedule overdue ("due 02:00, no backup created; … still
+  InProgress": Velero creates no run while one of the schedule is under way) or failing validation,
+  a schedule's latest backup failed or partly failed (its counts of errors and warnings; their text
+  is in Velero's logs, which Cogpit does not fetch), a backup made by hand that failed in the last
+  week, a repository not ready or its maintenance failed, node agents not ready. A click opens the
+  object's drawer beside the page.
+- **Schedules:** When (the cron in words, its zone named where yours shows another time), Next run,
+  Last runs (the last seven, oldest left: grey completed, amber partially failed, red failed, a ring
+  running, a red ring a run cron expected that was never created), Last completed, Duration, Scope,
+  TTL, Location, State.
+- **Outside every schedule** (inferred): the namespaces no enabled schedule takes in full, those
+  with PVCs first, with their workloads, Flux CD or Argo CD where their labels name it, and why:
+  excluded, partly in scope (a selector, a resource filter, the Namespace labelled
+  `velero.io/exclude-from-backup`, which leaves only the Namespace object out), in scope of a paused
+  schedule only. "In scope" is read from the schedules, never proof of a backup.
+- **Agents:** `velero_dashboard {context?, namespaces?}` returns the same page.
 
 ### A volume's usage
 

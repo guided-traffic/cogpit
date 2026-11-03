@@ -187,6 +187,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
 | [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; four cards, findings with search tokens, opens on sev>=high; the reports trimmed to the shown fields while it is open |
+| [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Schedules, Outside every schedule; read-only, from the cache |
 
 ## D-1: UI toolkit
 
@@ -6224,7 +6225,8 @@ and the heading "integrations" in small bold lower case in the muted colour, wit
 (the owner: "ohne diesen Balken und nur in Grau"). Under it the Flux CD and Argo CD groups, each top-level, with
 its icon, folding as any group does, each only while the cluster serves it, then the Image Security
 page while the Trivy integration is on and the cluster serves its reports
-([D-new](#d-new-the-image-security-page)). The heading shows while one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
+([D-new](#d-new-the-image-security-page)), and the Velero page while the cluster serves Velero's
+Backups ([D-new](#d-new-the-velero-page)). The heading shows while one of them does. It is only a heading: no click, no hover, no fold, and no key reaches it
 (`ui.setNavigatorRow` names no heading). The search keeps it while it keeps one of its items, and a
 search for its name keeps all of them. Helm stays after Events.
 
@@ -7620,3 +7622,114 @@ running pod's drawer (the row names the workload); counting findings in the Vuln
 `TestTrivyWorkloadRef`, `TestTrimVulnerabilityFindings`, `TestImageSecurityCommand`,
 `TestImageSecurityInTheNavigator`, `TestImageSecurityPageInTheWindow`,
 `TestRenderImageSecurityDark`, `TestRenderImageSecurityLight`, `TestDemoVulnerabilityReports`
+
+## D-new: The Velero page
+
+**Status:** built · **By:** owner (the layout "Velero · A" at the colour level "Ruhig": header,
+Status tiles, Needs attention, Schedules with the last runs as dots, Outside every schedule marked
+inferred; its texts; shown only while the cluster serves Velero, without a switch; read-only, no
+actions; never a write to get data,
+[D-151](#d-151-integrations-never-write-to-the-cluster)), lead (open to revision) the rest
+
+A page `velero/dashboard`, titled Velero, a top-level entry under the navigator's Integrations after
+Argo CD ([D-149](#d-149-the-navigators-integrations-heading)), with Fyne's save icon, shown while
+the cluster serves `backups.velero.io`. Everything comes from the cache; the page holds its handles
+only while it is shown, and builds again on every change and every 30 seconds (a run comes due
+without an event). Colours follow D-calm: red to act now, amber to check, the rest grey.
+
+- **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations
+  and BackupRepositories, and Namespaces, PVCs, Deployments, StatefulSets and DaemonSets; a kind the
+  user may not list is left out, a tile says why. No DownloadRequest, ServerStatusRequest or
+  DeleteBackupRequest: counts of errors, never their text.
+- **The window:** the header is the title, the page's line and the namespace filter (no search, no
+  status filter); the body replaces the table, as the alert board's does: one scrolled panel with the
+  tiles and three tables of the page's own (read-only: no search, sort, selection, columns or CSV;
+  a row lit under the pointer, a click opening its object's drawer beside the page through
+  `ui.select`'s mode open, a namespace row the namespace's, a row about a kind its view). Agents read
+  the same model through `velero.dashboard`.
+- **The namespace filter** narrows the page to what concerns those namespaces: a schedule, backup or
+  restore whose scope takes one of them in, a repository holding their volumes, their rows in Outside;
+  the locations and the header always show.
+- **Header:** Velero's namespace is its storage locations' (else its schedules', backups',
+  repositories', snapshot locations'); its server the Deployment named velero there, else one whose
+  container runs Velero's image (repository `…/velero`); the version its image tag without `v`; the
+  plugins its init containers' images, the name without `velero-plugin-for-`, the tag without `v`;
+  the node agents the DaemonSet `node-agent` (or `restic`), ready of desired. From the server's
+  arguments `--default-backup-ttl` and `--default-backup-storage-location` (else 30 days and
+  `default`), from its environment `TZ` (else UTC).
+- **Tiles:** Schedules: Enabled, Paused, Overdue, Failed validation, New. Backups: Completed,
+  Partially failed, Failed, Failed validation, In progress (every phase that is not final, the
+  queued and finalizing ones included), Deleting; Restores the same without Deleting. Storage:
+  locations available, unavailable, pending (not validated yet); snapshot locations, unavailable;
+  repositories ready, not ready, pending; singular or plural by count. The bar: a segment per line,
+  grey, the slot colour for paused and in progress, the problems in their colour. Zero counts left
+  out; a title opens its kind's view (Storage the BackupStorageLocations').
+- **Needs attention**, errors before warnings, each newest first, rows without a time last:
+  - a location Unavailable (error): its message; since its last sync, else its creation;
+  - no location marked default and none named as the server's default (error while an enabled
+    schedule names no location, else warning); the row opens the locations' view;
+  - a schedule failing validation (error): its validation errors;
+  - a schedule overdue (error): its next run by Velero's rule
+    (`cron.Next(max(lastBackup or creation, lastSkipped))`, schedule_controller.go at 1.17.1 and
+    1.18.4) more than 5 minutes past; Detail "due 02:00, no backup created", and the backup still in
+    New, InProgress or no phase that keeps Velero from creating it ("…; nightly-all-2026… still
+    InProgress"); since the due time;
+  - a schedule's latest finished backup Failed or Failed validation (error) or Partially failed
+    (warning): its errors and warnings, its volume snapshots that did not complete ("2 of 3 volume
+    snapshots"), failed item operations, failure reason or validation errors;
+  - a backup no schedule made that failed, failed validation or partly failed in the last 7 days,
+    unless a later one of the same scope completed;
+  - a repository NotReady (error), or whose newest maintenance failed (warning, since it ended);
+  - node agents not ready (warning): "not ready on 1 of 6 nodes".
+- **Schedules,** those that need action first, paused last, then by name. When: the cron in words
+  for its common shapes ("daily 02:00", "every 6 h", "hourly :05", "Sun 03:00", "Mon–Fri 01:30",
+  "monthly, day 1 04:00", descriptors), else as written; a time of day in the cron's own zone (its
+  `CRON_TZ=`/`TZ=` prefix, else the server's), the zone named where the user's zone shows another
+  time ("daily 02:00 UTC"), the overdue "due" time alike. Next run: Velero's, or the next time cron
+  names once that one is due and not created; none while paused or failing validation. Last runs: the
+  seven newest, oldest left; a backup's time the one in its name (`<schedule>-YYYYMMDDHHMMSS`,
+  Velero's clock at submission, which a backup synced from its location keeps), else its start, else
+  its creation; between two backups every time cron named but the last is a missed run (a red ring;
+  a `lastSkipped` inside the gap starts it), and so is every due run not created since the last.
+  Last completed and Duration: the newest Completed backup's. TTL and Location: the template's,
+  else the server's defaults. State: Failed validation, Paused, Overdue, the latest finished backup's
+  problem, New, Enabled, the first that holds.
+- **Outside every schedule** (inferred), every active namespace no schedule that makes backups (not
+  paused, not failing validation) takes in full, with Velero's own matching (gobwas globs: `*`, `?`,
+  `[a-z]`, `[!a]`, `{a,b}`; an empty include list or `*` every namespace; an exclude wins). A label
+  selector or a namespace-scoped resource filter takes in part of it ("partly in scope: hourly-db
+  selects app=postgres only"). The label `velero.io/exclude-from-backup` on a Namespace leaves the
+  Namespace object out, its objects stay in scope (item_backupper.go): partly in scope. Reasons:
+  in scope of a paused or failing schedule only; excluded from a schedule; no schedule names it.
+  Workloads are its Deployments, StatefulSets and DaemonSets; Managed by is Flux CD where it or its
+  workloads or PVCs carry `kustomize.toolkit.fluxcd.io/name` or `helm.toolkit.fluxcd.io/name`, Argo CD
+  where they carry `argocd.argoproj.io/tracking-id` or `argocd.argoproj.io/instance`
+  (`app.kubernetes.io/instance` is Helm's too); with PVCs the reason adds "Git holds no volume
+  data", without PVCs and every workload managed "no volumes; rebuilt from Git". Order: with PVCs
+  first, then outside before partly, unmanaged before managed, then by name.
+
+**Why:** the owner's pick of the layouts, made calm; Velero's rules read from its controllers so that
+the page says what Velero will do, not what a cron alone suggests. Three tables and tiles do not fit
+the window's one table per page, and a table that cannot be sorted or searched still reads at a
+glance with the few rows these have.
+
+**Rejected:** the page's table through the window's list (one per page, the others then a panel
+above it that does not scroll); filtering by an object's own namespace (Velero's objects all live in
+one: any other emptied the page); the creation time as a run's time (a synced backup's is the
+sync's); the label on a Namespace as excluding its objects (Velero checks each item); paused
+schedules as covering; times of day in the user's zone (unlike the manifest's cron); errors' text
+(a DownloadRequest, D-nowrite).
+
+**Code:** [`engine/velero.go`](../../internal/engine/velero.go),
+[`engine/velero_build.go`](../../internal/engine/velero_build.go),
+[`engine/velero_schedules.go`](../../internal/engine/velero_schedules.go),
+[`engine/velero_cron.go`](../../internal/engine/velero_cron.go),
+[`engine/velero_scope.go`](../../internal/engine/velero_scope.go),
+[`commands/velero.go`](../../internal/engine/commands/velero.go),
+[`fyneui/velero.go`](../../internal/ui/fyneui/velero.go),
+[`fyneui/velero_tables.go`](../../internal/ui/fyneui/velero_tables.go),
+[`demo/velero.go`](../../internal/demo/velero.go) · **Tests:** `TestVeleroCronWords`,
+`TestVeleroOverdue`, `TestVeleroLastRuns`, `TestVeleroGlobs`, `TestVeleroOutside`,
+`TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroPage`, `TestVeleroPageWithoutVelero`,
+`TestDemoVeleroPage`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
+`TestVeleroPageClicks`, `TestVeleroNavigatorEntry`

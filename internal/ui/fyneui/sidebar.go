@@ -96,7 +96,8 @@ const (
 // Dashboard; a group whose kinds the cluster serves none of is left out with its pages (the Flux CD
 // group without Flux). Listener Sets are listed under both groups Gateway API releases used for
 // them. Last, under the heading Integrations (the owner), the views of the tools a cluster runs:
-// Flux CD and Argo CD, each while the cluster serves it; the heading shows with either.
+// Flux CD, Argo CD and the Velero page, each while the cluster serves it; the heading shows with any
+// of them.
 var navLayout = []navEntry{
 	page(engine.ClusterOverview),
 	{id: "nodes"},
@@ -138,6 +139,7 @@ var navLayout = []navEntry{
 		fluxNav,      // fluxnav.go
 		argoNavGroup, // while the cluster serves Argo CD's Applications (argocd.go)
 		imageSecNav,  // while the Trivy integration is on and the cluster serves its reports (imagesecurity.go)
+		veleroNav,    // while the cluster serves Velero's Backups (velero.go)
 	),
 }
 
