@@ -68,7 +68,7 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 		t.Fatalf("phases %v", names)
 	}
 	views := got.Phases[2]
-	if len(views.Switches) != 13 { // the demo's views but Pods, Config Maps, Secrets and Releases among them, then Pods
+	if len(views.Switches) != 14 { // the demo's views but Pods, Config Maps, Secrets, Releases and Trivy's reports among them, then Pods
 		t.Fatalf("switches %+v", views.Switches)
 	}
 	for _, sw := range views.Switches {

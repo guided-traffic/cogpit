@@ -499,9 +499,14 @@ A view key with a slash is a page (`engine.IsPage`,
 ([`clusteroverview.go`](../../internal/engine/clusteroverview.go)), `flux/dashboard`
 ([`fluxdashboard.go`](../../internal/engine/fluxdashboard.go),
 [D-34](decisions.md#d-34-the-flux-dashboard)), `argocd/dashboard`
-([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `alerts/board`. An open page
-runs its own worker in place of a view worker (`state.page`, `state.cluster`, `state.flux`,
-`state.argo`), with cache handles on the kinds it reads. Its table's rows keep their kind keys, so
+([`argocd_dashboard.go`](../../internal/engine/argocd_dashboard.go)), `trivy/image-security`
+([`imagesecurity.go`](../../internal/engine/imagesecurity.go),
+[D-new](decisions.md#d-new-the-image-security-page)), `alerts/board`. An open page runs its own
+worker in place of a view worker (`state.page`, `state.cluster`, `state.flux`, `state.argo`,
+`state.imageSec`), with cache handles on the kinds it reads; an agent's read of a page that is not
+open (`flux.dashboard`, `trivy.imageSecurity`) takes the same handles for the call
+(`openFollowing`). A page may open with a search of its own (`pageFilters`: Image Security's
+`sev>=high`). Its table's rows keep their kind keys, so
 selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix), and
 `Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile.
 
@@ -1310,7 +1315,8 @@ where a page would read it is named ("Cogpit may not list …", `mayNotList`)
 A scope may name a trim (`Scope.Trim`, `cache.RegisterTrim`,
 [`trim.go`](../../internal/cache/trim.go)) that the transform applies before the store:
 `kyverno-violations` keeps a policy report's violations, `trivy-summary` drops a vulnerability
-report's list. A trimmed scope is its own informer beside the kind's whole objects, so views, the
+report's list, `trivy-findings` keeps of each vulnerability only the fields the Image Security page
+shows (held while the page is open). A trimmed scope is its own informer beside the kind's whole objects, so views, the
 editor and agents never see a trimmed object; a trim never touches metadata (`TestTrimmedScope`).
 
 ## 6. Cluster connections (`internal/cluster`)

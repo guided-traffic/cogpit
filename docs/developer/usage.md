@@ -83,8 +83,8 @@ Ctrl on Windows and Linux.
   states and a namespace filter with its own search; a filtered namespace being deleted shows red.
   A click below the rows closes the drawer.
 - The navigator lists the Kubernetes kinds the cluster serves, then, under the heading
-  Integrations, Flux CD and Argo CD while the cluster runs them
-  ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
+  Integrations, Flux CD and Argo CD while the cluster runs them and Image Security while the Trivy
+  integration is on ([D-149](decisions.md#d-149-the-navigators-integrations-heading)). View › Hide Outdated Objects
   (on by default) leaves Replication Controllers and Endpoints out of the navigator; its search,
   ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
 - <a id="the-signals-column"></a>The Signals column after Name gathers every mark on an object, one
@@ -140,7 +140,8 @@ Ctrl on Windows and Linux.
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
   counts; nothing is read while the integration is off. Reports you may not list show no grade and
   "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
-  Refresh Access Reviews or the cluster is shown again.
+  Refresh Access Reviews or the cluster is shown again. The Image Security page sums them up for
+  the cluster and searches the findings ([details](#image-security)).
 
 **Workloads at run time**
 
@@ -930,7 +931,8 @@ Integrations are tools the cluster runs that Cogpit finds and reads with your id
 installing or writing to them
 ([D-76](decisions.md#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)):
 the Metrics Server (`metrics-server`) and Prometheus (`prometheus`) for metrics, Alertmanager
-(`alertmanager`) for the alerts pill and board, the Trivy Operator (`trivy`) for image ratings,
+(`alertmanager`) for the alerts pill and board, the Trivy Operator (`trivy`) for image ratings and
+the Image Security page,
 Kyverno (`kyverno`) for policy violations. Nothing is looked for until you choose for the cluster
 ([D-82](decisions.md#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again)), not
 even in the background; Alertmanager, Trivy and Kyverno are read only while the cluster is shown.
@@ -1573,6 +1575,43 @@ a report names with a violation
   for again until Refresh Access Reviews or the next connect; a namespace refused while others are
   read is left out the same way. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
+
+### Image Security
+
+While the Trivy integration is on and the cluster serves Trivy Operator's VulnerabilityReports,
+Integrations › Image Security shows what the reports say about the images the cluster runs
+([D-new](decisions.md#d-new-the-image-security-page)). Read only; the namespace filter at the
+right applies to the whole page.
+
+- **Header:** "93 images running · 81 scanned · 12 not scanned · newest scan 6m ago" # example:
+  the distinct images of running pods, those a report covers, the latest scan.
+- **Cards:** Vulnerabilities (the distinct CVE ids by severity, each under its worst, and how many
+  have a fix), Top images (grade shield, image, Critical and High), Top CVEs (severity, id, images
+  affected), Top namespaces (worst grade, Critical and High). A click on an entry narrows the
+  table to it by adding its token to the search.
+- **Search:** plain words search every cell (Aa and `.*` as in any view), and these words narrow
+  the findings:
+
+  | Token | Keeps |
+  |---|---|
+  | `sev>=high` # default | High and Critical; also `critical`, `medium`, `low`, `unknown` |
+  | `sev:low` # example | that severity only |
+  | `fixable` | findings with a fixed version |
+  | `ns:shop` # example | that namespace |
+  | `image:shop/api` # example | images that contain it |
+  | `pkg:openssl` # example | packages that contain it |
+  | `cve:CVE-2024-45337` # example | that CVE |
+
+  The same token twice means either (`sev:low sev:unknown`). The page opens with `sev>=high`;
+  clear the field for every finding.
+- **Findings:** one row per CVE, workload and container: Namespace, Workload ("Deployment api"),
+  Container, Image, CVE, Severity, Score, Package, Installed, Fixed; the worst first, sortable,
+  downloadable as CSV. A click opens the workload's drawer (a bare pod's at the container).
+- **Colours:** red for Critical and the E shield, amber for High and D, everything else grey.
+- **Agents:** `trivy_imageSecurity {context?, namespaces?, findings?, filter?, limit?}` reads the
+  page; `ui_setFilter` sets its search. No vulnerability's title or description is read.
+- **Reads:** the reports, without the fields the page does not show, and the pods, only while the
+  page is open. Off: no entry, nothing read.
 
 ### A volume's usage
 
