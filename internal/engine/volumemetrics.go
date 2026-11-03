@@ -150,8 +150,9 @@ func volumeSizeNote(size int64, fill *model.FilesystemSample) string {
 	if fill == nil || !volumeOversized(size, fill.CapacityBytes) {
 		return ""
 	}
-	return fmt.Sprintf("The storage reports a size of %s for a volume of %s: it does not seem to keep to the volume's size.",
-		model.FormatByteAmount(fill.CapacityBytes), model.FormatBytes(size))
+	vol := model.FormatBytes(size)
+	return fmt.Sprintf("Size not enforced: this %s volume sits on %s of storage and can grow past %s.",
+		vol, model.FormatByteAmount(fill.CapacityBytes), vol)
 }
 
 // VolumeUsage is a persistent volume claim's or a persistent volume's Metrics section as object.get

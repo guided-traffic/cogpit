@@ -227,7 +227,7 @@ func oversizeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 	vc := acmeClaim
 	vc.Pods = []string{"acme-redis-0"}
 	m.Volume, m.Fill = &vc, &last
-	m.SizeNote = "The storage reports a size of 122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size."
+	m.SizeNote = "Size not enforced: this 10.0 GiB volume sits on 122.9 GiB of storage and can grow past 10.0 GiB."
 	return m
 }
 
@@ -245,7 +245,7 @@ func TestVolumeLargerThanItsSizeSaysSo(t *testing.T) {
 	if sz := p.sizeNote.MinSize(); sz.Width > sh.drawer.contentWidth() {
 		t.Errorf("the note asks for %v, wider than the drawer's %v", sz.Width, sh.drawer.contentWidth())
 	}
-	if texts := strings.Join(drawerTexts(sh), " "); !strings.Contains(texts, "it does not seem to keep") {
+	if texts := strings.Join(drawerTexts(sh), " "); !strings.Contains(texts, "Size not enforced") {
 		t.Errorf("the drawer's texts hold no note: %q", texts)
 	}
 	png("volume_claim_oversize_dark.png")

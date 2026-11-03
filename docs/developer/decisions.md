@@ -5599,8 +5599,8 @@ count until the next.
 
 **Status:** built · **By:** owner (a claim's fill level now and over time, a chart and a usage bar
 as a node's disk has; the claim's drawer says it shows its volume's numbers; Cogpit may point out
-a storage that does not seem to keep to the volume's size); lead (open to revision) the details
-below
+a storage that does not keep to the volume's size, in the owner's pick of the lead's wordings);
+lead (open to revision) the details below
 
 A persistent volume claim's drawer and a persistent volume's drawer have a Metrics section while the
 two are bound: what the user sees, [usage](usage.md#a-volumes-usage). A claim holds no data itself;
@@ -5638,8 +5638,8 @@ the section says it shows its volume's usage, and the volume's drawer shows the 
   kubelet's used of its capacity, the filesystem's size (196.7 GiB of a 200 GiB claim on ext4),
   not the claim's request. A newest point more than two steps before the chart's end counts as
   none: the kubelet stopped reporting the volume.
-- **Larger than the volume:** under the bar, muted and wrapped, "The storage reports a size of
-  122.9 GiB for a volume of 10.0 GiB: it does not seem to keep to the volume's size." when the
+- **Larger than the volume:** under the bar, muted and wrapped, "Size not enforced: this 10.0 GiB
+  volume sits on 122.9 GiB of storage and can grow past 10.0 GiB." (the owner's QR4) when the
   newest point's filesystem is more than 1.1 times the volume's size and at least 1 GiB beyond it
   (`volumeOversized`). The volume's size (`VolumeClaim.SizeBytes`) is in a claim's drawer the larger
   of its `status.capacity.storage` (the bound volume's) and its `spec.resources.requests.storage`,
