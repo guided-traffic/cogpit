@@ -2803,9 +2803,11 @@ has what the user sees, [architecture](architecture.md) §4.7 the switch, probes
 - Cluster Settings › Integrations shows at once whether each was found automatically or needs a
   manual configuration (layout: D-87).
 - While the shown cluster is connected and has no choice, a dialog asks; nothing waits for it, and
-  nothing is read before the answer (D-82). Later, or closing it, puts it off for the run; the next
-  start asks again. Never asked: the demo cluster, and the CLI, which keeps no cluster settings and
-  reads every integration
+  nothing is read before the answer (D-82). It has no Later (the owner's QR1, QR2): it stays until
+  answered; Escape goes Back from the rows and does nothing on the pre-choice. Quitting with it open
+  leaves no choice, so the next start asks again; an agent may put it off for the run
+  (`cluster.integrations.later`). Never asked: the demo cluster, and the CLI, which keeps no cluster
+  settings and reads every integration
   ([H-120](../security/agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)).
 - While the question or the cluster's Integrations, Metrics, Metrics Server or Prometheus section
   shows a connected cluster, its metrics providers that are on are detected once, bounded as D-71's
@@ -2821,10 +2823,14 @@ for clusters chosen before it. Switching one on reads with the user's identity, 
 consent; switching one off hides alerts, grades or marks without the window saying who did it
 (H-126, H-133: [agents and MCP](../security/agents-and-mcp.md)). The default is what the next "Use
 my default integrations" turns on, and Ask again turns every integration off until answered, so both
-are switches; Later only delays a question whose cluster reads nothing meanwhile.
+are switches; an agent's later only delays a question whose cluster reads nothing meanwhile.
 
 **Rejected:** detection at every connect — probes clusters nobody looks at; detection only when a
-drawer opens — "found" would not show at once; a toast instead of the dialog — easy to miss.
+drawer opens — "found" would not show at once; a toast instead of the dialog — easy to miss; Escape
+as a Later without its button (the lead's, open to revision) — the owner took Later out so that the
+user answers, and an Escape that puts the question off would bring it back unseen; removing
+`cluster.integrations.later` with the button — an agent that cannot answer (H-126) could then not
+clear the window it drives.
 
 **Code:** [`engine/integrations.go`](../../internal/engine/integrations.go),
 [`engine/integrationsask.go`](../../internal/engine/integrationsask.go),
@@ -3088,7 +3094,7 @@ report lists). So in the window's session a cluster without a choice of integrat
 off (`integrationsOffOf` in [`engine/integrations.go`](../../internal/engine/integrations.go)):
 nothing is looked for before the user answers its question
 ([D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect)), while
-the question is put off with Later (until the next start), or while the cluster is connected in the
+an agent put the question off (until the next start), or while the cluster is connected in the
 background. Only what the question ticks is read, while it asks.
 
 - The question opens on a pre-choice that looks for nothing: **Use my default integrations**
@@ -3096,9 +3102,11 @@ background. Only what the question ticks is read, while it asks.
   between, its line naming what it turns on; **Choose integrations** ticks none and looks for each
   one ticked; **Don't use integrations (no metrics will be displayed)** warns what goes (metrics,
   alerts, image ratings, policy marks; the resources still show), and its Yes answers with every
-  integration off. The rows lead Back to the pre-choice.
+  integration off; its button's word and outline are in the error colour (the owner's QR1: what is
+  lost). The rows lead Back to the pre-choice (the arrow's button at the left, Apply at the right:
+  the owner's QR2).
 - **Ask again** (Cluster Settings › Integrations, `cluster.integrations.ask`) forgets the cluster's
-  choice and a Later of this run; nothing is read until the window asks again.
+  choice and an agent's later of this run; nothing is read until the window asks again.
 - The metrics line of a cluster without a choice, in the drawers and the Overview, reads "No
   metrics" with a link, Choose integrations…, that asks again.
 - Only the user consents: `cluster.integrations.step`, `cluster.integrations.lookFor`,
@@ -4557,8 +4565,9 @@ Escape closes the innermost thing open, and only that, outermost last:
   behind it. `TestEveryDialogTakesEscape` reads the sources and fails on a Fyne dialog shown
   otherwise or a pop-up shown without `onShown`.
 - **Escape over a dialog is Cancel** for every way it closes (a confirmation answers no, a file
-  dialog nil, the integrations question Later, "No clusters found" Keep Syncing), also where Cancel
-  drops what was typed; nothing reaches a cluster without the confirm button.
+  dialog nil, "No clusters found" Keep Syncing), also where Cancel drops what was typed; nothing
+  reaches a cluster without the confirm button. The integrations question has no Cancel: Escape goes
+  Back from its rows and leaves its pre-choice open (D-76).
 - **Passing it on:** Fyne gives a key to the widget that has the keyboard and calls the window's
   handler only while none has it, so Cogpit's own widgets hand an unused Escape on (`passEscape`):
   `fieldEntry`, `fieldSelectEntry`, `fieldCheck` and `fieldSlider` in dialogs and in every text field

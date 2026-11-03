@@ -905,11 +905,14 @@ each refused spelling is a 403 in the cluster's audit log.
 **The question:** a cluster without a choice asks once it is connected and shown ("Integrations for
 <name>"): **Use my default integrations** (turns on what Preferences › Kubernetes › Integrations
 of new clusters keeps on, at once, without a further page), **Choose integrations** (none ticked;
-a tick looks for that one), or **Don't use integrations (no metrics will be displayed)** (after a
-warning, all off). **Apply** keeps the ticks, with "Save as the default for
-new clusters" also as the default; **Later** asks again at the next start and reads nothing
-meanwhile. The demo cluster never asks. Preferences › Kubernetes › Integrations of new clusters
-holds the default. `cogpit-cli` asks nothing and reads what the default keeps on
+a tick looks for that one), or **Don't use integrations (no metrics will be displayed)**, in red
+(after a warning, all off). On the ticks' page **Back** (left) returns to the three choices and
+**Apply** (right) keeps the ticks, with "Save as the default for new clusters" also as the default.
+There is no Later: the question stays until you answer; Escape goes Back from the ticks and does
+nothing on the three choices. Quitting Cogpit with the question open asks again at the next start;
+nothing is read meanwhile. The demo cluster never asks. Preferences › Kubernetes › Integrations of
+new clusters holds the default, in rows like Cluster Settings' with a switch each. `cogpit-cli` asks
+nothing and reads what the default keeps on
 ([H-120](../security/agents-and-mcp.md#h-120-the-clis-headless-engine-does-not-apply-a-clusters-integration-switches)).
 
 | Setting or command | Default | Meaning |
@@ -917,7 +920,7 @@ holds the default. `cogpit-cli` asks nothing and reads what the default keeps on
 | `cluster.settings.set`'s `integrations`, `{"alertmanager": false}` # example | all off until you choose # default | the cluster's choice; kept as `integrationsOff` in `cluster-settings.json` (absent: no choice yet) |
 | `cluster.settings.set`'s `metricsSource` | – | `auto`, `prometheus`, `metrics-server` or `none`: sets both metrics integrations |
 | `preferences.set`'s `integrationDefaults`, `{"trivy": false}` # example | all on # default | the default for new clusters and the CLI; kept as `integrationsOff` in `preferences.json` |
-| `cluster.integrations.step`, `cluster.integrations.lookFor`, `cluster.integrations.answer`, `cluster.integrations.later`, `cluster.integrations.ask` | – | the question's page, its ticks, Apply, Later and Ask again; `ui_state`'s `integrationsQuestion`, `integrationsStep`, `integrationsLookFor` |
+| `cluster.integrations.step`, `cluster.integrations.lookFor`, `cluster.integrations.answer`, `cluster.integrations.later`, `cluster.integrations.ask` | – | the question's page, its ticks, Apply, an agent's putting it off, and Ask again; `ui_state`'s `integrationsQuestion`, `integrationsStep`, `integrationsLookFor` |
 
 Security note: only you switch integrations and answer the question (H-126, H-133,
 [agents and MCP](../security/agents-and-mcp.md)): on reads with your identity, off hides alerts,

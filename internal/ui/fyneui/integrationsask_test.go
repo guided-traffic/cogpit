@@ -174,30 +174,54 @@ func TestIntegrationsQuestionDontUse(t *testing.T) {
 	}
 }
 
-// Later puts it off; a choice made elsewhere (Cluster Settings › Integrations) closes the open
-// dialog without a Later; a step the engine took turns the dialog's page: the dialog follows the
-// engine's state, whoever changed it. (Until H-126, 2026-10-19, an agent could step and answer; the
-// test keeps its name.)
-func TestIntegrationsQuestionLaterAndAgent(t *testing.T) {
+// No Later (the owner's QR1, QR2): Escape does nothing on the pre-choice and goes Back from the
+// rows; Back has its arrow at the left, Apply is at the right; Don't use is in the error colour. An
+// agent's later closes the open dialog; a choice made elsewhere (Cluster Settings › Integrations)
+// closes it too; a step the engine took turns the dialog's page: the dialog follows the engine's
+// state, whoever changed it.
+func TestIntegrationsQuestionEscapeAndAgent(t *testing.T) {
 	sh, _, q, inf := openIntegrationsQuestion(t, ThemeLight, 0)
-	test.Tap(sh.intq.later)
-	q.until(t, "put off", func() bool { return sh.intq.d == nil })
-	if n := len(inf.callsOf("cluster.integrations.later")); n != 1 {
-		t.Fatalf("%d Later calls", n)
+	iq := sh.intq
+	if iq.choices[2].tone != colorStatusError || iq.choices[1].tone != "" {
+		t.Errorf("tones: Don't use %q, Choose %q", iq.choices[2].tone, iq.choices[1].tone)
+	}
+	sh.escape()
+	q.drain()
+	if iq.d == nil || len(inf.callsOf("cluster.integrations.later")) != 0 || len(stepCalls(inf)) != 0 {
+		t.Fatalf("Escape on the pre-choice: dialog %v, %d later, %d steps", iq.d != nil,
+			len(inf.callsOf("cluster.integrations.later")), len(stepCalls(inf)))
 	}
 
+	test.Tap(iq.choices[1])
+	q.until(t, "the rows of Choose", func() bool { return iq.page == engine.IntegrationsChoose && len(iq.rows) == len(engine.Integrations) })
+	settle(sh.win)
+	if iq.back.Icon == nil || iq.back.Position().X > iq.apply.Position().X {
+		t.Errorf("Back: icon %v, at %v; Apply at %v", iq.back.Icon != nil, iq.back.Position(), iq.apply.Position())
+	}
+	row := iq.apply.Position().X + iq.apply.Size().Width
+	if content := iq.rows[0].box.Size().Width; row < content-1 {
+		t.Errorf("Apply ends at %v, the rows at %v", row, content)
+	}
+	sh.escape()
+	q.until(t, "Back by Escape", func() bool { return iq.page == engine.IntegrationsPreChoice && iq.d != nil })
+	if got := stepCalls(inf); len(got) != 2 || got[1] != `{"context":"kind-dev","step":"preChoice"}` {
+		t.Errorf("steps: %q", got)
+	}
+
+	inf.update(func(u *engine.UIState) { u.IntegrationsQuestion, u.IntegrationsStep = "", "" }) // an agent's later
+	q.until(t, "put off by an agent", func() bool { return iq.d == nil })
 	inf.update(func(u *engine.UIState) {
 		u.IntegrationsQuestion, u.IntegrationsStep = "kind-dev", engine.IntegrationsPreChoice
 	})
-	q.until(t, "asked again", func() bool { return sh.intq.d != nil })
+	q.until(t, "asked again", func() bool { return iq.d != nil })
 	inf.update(func(u *engine.UIState) { // the engine took Choose, every one ticked
 		u.IntegrationsStep, u.IntegrationsLookFor = engine.IntegrationsChoose, engine.IntAll
 	})
-	q.until(t, "the engine's Choose", func() bool { return sh.intq.page == engine.IntegrationsChoose && len(sh.intq.rows) == 5 })
+	q.until(t, "the engine's Choose", func() bool { return iq.page == engine.IntegrationsChoose && len(iq.rows) == 5 })
 	inf.setIntegrations("kind-dev", map[string]bool{"trivy": false}) // chosen in Cluster Settings › Integrations
-	q.until(t, "closed by a choice made elsewhere", func() bool { return sh.intq.d == nil })
-	if n := len(inf.callsOf("cluster.integrations.later")); n != 1 {
-		t.Errorf("%d Later calls after a choice made elsewhere", n)
+	q.until(t, "closed by a choice made elsewhere", func() bool { return iq.d == nil })
+	if n := len(inf.callsOf("cluster.integrations.later")); n != 0 {
+		t.Errorf("%d later calls from the window", n)
 	}
 }
 
