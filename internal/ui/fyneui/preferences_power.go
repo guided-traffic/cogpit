@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Preferences › App › Light strip on battery (the owner's LS15 and LS16, 2026-10-24: "nur bei
@@ -30,7 +29,7 @@ func (sh *shell) batteryStopsStrip() bool {
 
 // lightStripPowerSetting returns the row and the function that shows the preference in it.
 func (p *settingsPage) lightStripPowerSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(lightStripPowerCheck, func(on bool) { p.setPreference("lightStripMainsOnly", on) })
+	check := newLabelledSwitch(lightStripPowerCheck, func(on bool) { p.setPreference("lightStripMainsOnly", on) })
 	sync := func() { check.SetChecked(p.prefs().LightStripMainsOnly) }
 	return p.setting("lightStripMainsOnly", lightStripPowerTitle, lightStripPowerHelp, check), sync
 }

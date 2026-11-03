@@ -88,9 +88,10 @@ type metricsPanel struct {
 	// the volume's filesystem, no variant buttons, a line above it that says whose usage it shows
 	// (intro) and a usage bar under it (metricsvolume.go).
 	volume   bool
-	intro    *sourceLine // the other object's name a link
-	pods     *sourceLine // the pods that mount the claim, each a link
-	sizeNote *paragraph  // under the usage bar: the storage does not keep to the volume's size
+	intro    *sourceLine     // the other object's name a link
+	pods     *sourceLine     // the pods that mount the claim, each a link
+	sizeNote *paragraph      // under the usage bar: the storage does not keep to the volume's size
+	sizeRow  *fyne.Container // the note with its red mark before it
 
 	root    *fyne.Container
 	caption *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
@@ -154,10 +155,12 @@ func newMetricsPanel(d *drawer, ref model.ObjectRef, volume bool) *metricsPanel 
 	p.status.setAvail(d.contentWidth)
 	p.status.root.Hide()
 	p.disk = newDiskBars()
-	p.sizeNote = newParagraph("", colorMuted, d.contentWidth())
+	p.sizeNote = newParagraph("", colorMuted, d.contentWidth()-sizeMarkRoom())
 	p.sizeNote.size = theme.SizeNameCaptionText
+	p.sizeRow = newSizeNoteRow(p.sizeNote)
 	p.sizeNote.Hide()
-	p.root = container.NewVBox(p.intro, p.pods, p.controls, p.plot, p.hint, p.disk, p.sizeNote, p.caption, p.note, p.status.root)
+	p.sizeRow.Hide()
+	p.root = container.NewVBox(p.intro, p.pods, p.controls, p.plot, p.hint, p.disk, p.sizeRow, p.caption, p.note, p.status.root)
 	p.render()
 	return p
 }

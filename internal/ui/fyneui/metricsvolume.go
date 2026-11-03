@@ -3,6 +3,12 @@ package fyneui
 import (
 	"fmt"
 
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
+	"fyne.io/fyne/v2/theme"
+
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
@@ -17,8 +23,9 @@ import (
 // (metricsdisk.go): "Volume", the bar in the table's colours and the share, the numbers in its
 // tooltip. Without a newest point, quietly why ("Volume: the kubelet reports no usage …"). Under
 // the bar, muted and wrapped, the engine's note when the storage reports a filesystem clearly
-// larger than the volume's size (ObjectMetrics.SizeNote): a fact of the storage, said as quietly as
-// the section's other notes.
+// larger than the volume's size (ObjectMetrics.SizeNote), at the size of the section's other notes
+// with a small red mark before it (the owner's QS3: a volume that can fill its node's disk is
+// easily missed in muted text).
 
 // volumeTitle stands before a volume's usage bar.
 const volumeTitle = "Volume"
@@ -100,20 +107,43 @@ func (p *metricsPanel) showVolume(m *engine.ObjectMetrics) {
 	p.showSizeNote(note)
 }
 
-// showSizeNote shows the note under a volume's usage bar, wrapped to the drawer's width, or hides it
-// for none; its text is the note shown, "" while hidden.
+// sizeMarkGap is the room between the size note's mark and its text.
+const sizeMarkGap = 6
+
+// sizeMarkSide is the side of the size note's mark: the height of a caption's line of text.
+func sizeMarkSide() float32 {
+	return fyne.MeasureText("Mg", fyne.CurrentApp().Settings().Theme().Size(theme.SizeNameCaptionText), fyne.TextStyle{}).Height
+}
+
+// sizeMarkRoom is the width the mark takes from the note's text.
+func sizeMarkRoom() float32 { return sizeMarkSide() + sizeMarkGap }
+
+// newSizeNoteRow is the size note with its mark, the error icon in the status error colour, at the
+// note's first line.
+func newSizeNoteRow(note *paragraph) *fyne.Container {
+	mark := canvas.NewImageFromResource(themedIcon(theme.ErrorIcon(), colorStatusError))
+	mark.FillMode = canvas.ImageFillContain
+	mark.SetMinSize(fyne.NewSquareSize(sizeMarkSide()))
+	left := container.New(layout.NewCustomPaddedLayout(0, 0, 0, sizeMarkGap), container.NewVBox(mark))
+	return container.NewBorder(nil, nil, left, nil, note)
+}
+
+// showSizeNote shows the note under a volume's usage bar, wrapped to the drawer's width less its
+// mark, or hides it for none; its text is the note shown, "" while hidden.
 func (p *metricsPanel) showSizeNote(text string) {
 	n := p.sizeNote
 	if text == "" {
 		n.text = ""
 		n.Hide()
+		p.sizeRow.Hide()
 		return
 	}
-	if w := p.d.contentWidth(); n.text != text || n.width != w {
+	if w := p.d.contentWidth() - sizeMarkRoom(); n.text != text || n.width != w {
 		n.text, n.width = text, w
 		n.Refresh()
 	}
 	n.Show()
+	p.sizeRow.Show()
 }
 
 // volumeTip is a volume's usage bar's tooltip: the volume, the bytes in use of its size, and what is

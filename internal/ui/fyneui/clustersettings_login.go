@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/widget"
 )
 
 // Cluster Settings › General › Login while not shown (D-69 item 4; engine/connwatch_lapse.go).
@@ -21,7 +20,7 @@ const (
 // clusterLoginSetting returns the row and the function that shows the setting in it, from the UI
 // state's cluster settings, so that it follows a change at once.
 func (p *settingsPage) clusterLoginSetting() (fyne.CanvasObject, func()) {
-	check := widget.NewCheck(renewLoginCheck, func(on bool) { p.setCluster("renewLoginInBackground", on) })
+	check := newLabelledSwitch(renewLoginCheck, func(on bool) { p.setCluster("renewLoginInBackground", on) })
 	ctx := p.shown.Context
 	sync := func() { check.SetChecked(!p.sh.ui.ClusterSettings[ctx].HoldBackgroundLogin) }
 	return p.setting("renewLoginInBackground", renewLoginTitle, renewLoginHelp, check), sync

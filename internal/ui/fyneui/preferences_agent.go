@@ -318,10 +318,10 @@ type agentForm struct {
 	modelNote *textLine
 	modelsSeq int    // the model list asked last; an older answer is dropped
 	listedFor string // the endpoint, CA file and typed key the list was asked with (listKey)
-	private   *widget.Check
-	allTools  *widget.Check
+	private   *pillSwitch
+	allTools  *pillSwitch
 	limits    [4]*fieldEntry
-	def       *widget.Check
+	def       *pillSwitch
 	errLine   *textLine
 	saveB     *textButton
 	testB     *textButton
@@ -393,9 +393,9 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 		f.loadModels()
 	}
 
-	f.private = widget.NewCheck(privateCheckText, nil)
+	f.private = newLabelledSwitch(privateCheckText, nil)
 	f.private.SetChecked(c.Private)
-	f.allTools = widget.NewCheck(allToolsText, nil)
+	f.allTools = newLabelledSwitch(allToolsText, nil)
 	f.allTools.SetChecked(c.AllTools)
 
 	lim := c.Limits
@@ -414,7 +414,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 		grid = append(grid, container.NewVBox(newTextLine(limitLabels[i], theme.ColorNameForeground, theme.SizeNameCaptionText, fyne.TextStyle{}), e))
 	}
 
-	f.def = widget.NewCheck("Use for new conversations (the default)", nil)
+	f.def = newLabelledSwitch("Use for new conversations (the default)", nil)
 	f.def.SetChecked(c.Default)
 	if c.Default {
 		f.def.Disable() // another connection becomes the default from its own row

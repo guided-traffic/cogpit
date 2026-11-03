@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/metrics"
@@ -15,8 +14,8 @@ import (
 // Cluster Settings › Prometheus, the integration's own section (G12; D-87, the owner's WF22 of
 // 2026-10-18: until then on Cluster Settings › Metrics, where Lens has them; engine/metricssettings.go,
 // cluster.prometheus and cluster.setPrometheus). Lens's Metrics page shows, captured: a "Prometheus"
-// dropdown (its query formats), a checkbox that filters empty containers out of the queries (on),
-// the auto-detected provider and its path, a checkbox for HTTPS (off) and a custom path prefix.
+// dropdown (its query formats), a switch that filters empty containers out of the queries (on),
+// the auto-detected provider and its path, a switch for HTTPS (off) and a custom path prefix.
 // Cogpit shows them on the page as well since 2026-10-16 night (before, a dialog the page's button
 // opened), under the integration's switch (integrationDetails, clustersettings_integration.go):
 //
@@ -53,10 +52,10 @@ func init() {
 // promFields are the Prometheus's controls of the shown Prometheus section.
 type promFields struct {
 	format  *selectField
-	filter  *widget.Check
+	filter  *pillSwitch
 	address *fieldEntry // Escape closes the card (D-116, D-118)
 	prefix  *fieldEntry
-	https   *widget.Check
+	https   *pillSwitch
 	line    *textLine
 	enabled bool
 }
@@ -81,8 +80,8 @@ func (p *settingsPage) prometheusSettings() (fyne.CanvasObject, func()) {
 	}
 	set := func() { p.setPrometheus(f) }
 	f.format = newSelectField(labels, func(string) { set() })
-	f.filter = widget.NewCheck("Filter empty containers", func(bool) { set() })
-	f.https = widget.NewCheck("Use HTTPS", func(bool) { set() })
+	f.filter = newLabelledSwitch("Filter empty containers", func(bool) { set() })
+	f.https = newLabelledSwitch("Use HTTPS", func(bool) { set() })
 	f.address = newFieldEntry()
 	f.address.SetPlaceHolder("Auto detect (namespace/service:port)")
 	f.address.OnChanged = func(string) {

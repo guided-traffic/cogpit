@@ -4,21 +4,20 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
 // Preferences › App › Start at login (D-48; engine/loginitem.go). Lens has "Automatic start-up"
 // among its application preferences (inferred from its documentation, not captured); Cogpit's row
-// is a check, "Start Cogpit at login", with a line under it saying what macOS reports, and, while
-// macOS waits for the user's approval, a button to System Settings' Login Items. The check shows
+// is a switch, "Start Cogpit at login", with a line under it saying what macOS reports, and, while
+// macOS waits for the user's approval, a button to System Settings' Login Items. The switch shows
 // macOS's state, not a stored wish: it reads the status when the section opens
 // (preferences.loginItem) and after every change, so a switch in System Settings shows here too.
 // Where the platform offers no login item (UIState.LoginItem nil: Windows, Linux) the row is not
 // built.
 
-// loginItemTexts are the line under the check, by status.
+// loginItemTexts are the line under the switch, by status.
 var loginItemTexts = map[string]string{
 	engine.LoginItemUnknown:       "Asking macOS…",
 	engine.LoginItemOff:           "Off: Cogpit starts when you open it.",
@@ -34,13 +33,13 @@ func (p *settingsPage) loginItemSetting() (fyne.CanvasObject, func()) {
 		return nil, func() {}
 	}
 	const name = "startAtLogin"
-	check := widget.NewCheck("Start Cogpit at login", func(on bool) {
+	check := newLabelledSwitch("Start Cogpit at login", func(on bool) {
 		if p.syncing {
 			return
 		}
 		p.sh.dispatch("preferences.setStartAtLogin", map[string]any{"enabled": on}, func(_ any, err error) {
 			p.showResult(name, err)
-			p.syncControls() // a refusal puts the check back where macOS says it is
+			p.syncControls() // a refusal puts the switch back where macOS says it is
 		})
 	})
 	status := newTextLine("", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})

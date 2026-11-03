@@ -9,19 +9,18 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // agentWritesBox is the shown Agents section's check.
-func agentWritesBox(sh *shell) *widget.Check {
+func agentWritesBox(sh *shell) *pillSwitch {
 	c, ok := sh.settings.controls[agentWritesSetting].(*fyne.Container)
 	if !ok {
 		return nil
 	}
-	check, _ := c.Objects[0].(*widget.Check)
+	check, _ := c.Objects[0].(*pillSwitch)
 	return check
 }
 

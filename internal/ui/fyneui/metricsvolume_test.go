@@ -6,6 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/theme"
+
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/metrics"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -232,15 +235,20 @@ func oversizeMetricsFixture(ref model.ObjectRef) *engine.ObjectMetrics {
 }
 
 // A storage that does not keep to the volume's size: the engine's note under the usage bar,
-// muted and wrapped to the drawer; none while it keeps to it.
+// muted, wrapped to the drawer and with the red mark before it; none while it keeps to it.
 func TestVolumeLargerThanItsSizeSaysSo(t *testing.T) {
 	sh, p, png, _, _ := claimDrawerOf(t, ThemeDark, acmeClaim, "local-path", "10Gi", oversizeMetricsFixture, nil)
 	want := oversizeMetricsFixture(p.ref).SizeNote
 	if !p.disk.Visible() || len(p.disk.fs) != 1 || model.FormatPercent(p.disk.fs[0].Share()) != "24%" {
 		t.Fatalf("usage bar: shown %v, %+v", p.disk.Visible(), p.disk.fs)
 	}
-	if !p.sizeNote.Visible() || p.sizeNote.text != want || p.sizeNote.color != colorMuted || p.sizeNote.width != sh.drawer.contentWidth() {
+	if !p.sizeNote.Visible() || p.sizeNote.text != want || p.sizeNote.color != colorMuted || p.sizeNote.width != sh.drawer.contentWidth()-sizeMarkRoom() {
 		t.Errorf("note: shown %v, %q, colour %v, width %v of %v", p.sizeNote.Visible(), p.sizeNote.text, p.sizeNote.color, p.sizeNote.width, sh.drawer.contentWidth())
+	}
+	marks := findAll[*canvas.Image](p.sizeRow)
+	if !p.sizeRow.Visible() || len(marks) != 1 || marks[0].Resource.Name() != themedIcon(theme.ErrorIcon(), colorStatusError).Name() ||
+		marks[0].Position().X+marks[0].Size().Width > p.sizeNote.Position().X || marks[0].Size().Height != sizeMarkSide() {
+		t.Errorf("the note's mark: row shown %v, %d marks", p.sizeRow.Visible(), len(marks))
 	}
 	if sz := p.sizeNote.MinSize(); sz.Width > sh.drawer.contentWidth() {
 		t.Errorf("the note asks for %v, wider than the drawer's %v", sz.Width, sh.drawer.contentWidth())
@@ -254,18 +262,18 @@ func TestVolumeLargerThanItsSizeSaysSo(t *testing.T) {
 	wide, oneLine := sh.drawer.contentWidth(), p.sizeNote.MinSize().Height
 	sh.drawerLay.got = minDrawerWidth
 	sh.drawer.widthChanged()
-	if w := sh.drawer.contentWidth(); w >= wide || !p.sizeNote.Visible() || p.sizeNote.width != w || p.sizeNote.MinSize().Height <= oneLine {
+	if w := sh.drawer.contentWidth(); w >= wide || !p.sizeNote.Visible() || p.sizeNote.width != w-sizeMarkRoom() || p.sizeNote.MinSize().Height <= oneLine {
 		t.Errorf("after the resize from %v to %v: shown %v, width %v, height %v (was %v)", wide, w, p.sizeNote.Visible(), p.sizeNote.width, p.sizeNote.MinSize().Height, oneLine)
 	}
 
 	_, kept, _ := volumeDrawer(t, ThemeDark, nil)
-	if kept.sizeNote.Visible() {
+	if kept.sizeNote.Visible() || kept.sizeRow.Visible() {
 		t.Errorf("a volume that keeps to its size shows a note: %q", kept.sizeNote.text)
 	}
 	_, none, _ := volumeDrawer(t, ThemeDark, func(m *engine.ObjectMetrics) {
 		m.Fill, m.VolumeNote, m.SizeNote = nil, "the kubelet reports no usage of this volume now: no pod mounts it, or its driver reports none", "stale"
 	})
-	if none.sizeNote.Visible() {
+	if none.sizeNote.Visible() || none.sizeRow.Visible() {
 		t.Errorf("a note without a newest point: %q", none.sizeNote.text)
 	}
 }

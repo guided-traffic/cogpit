@@ -6,7 +6,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 )
 
 // kubectlSettings are Preferences › Kubernetes' settings for kubectl in terminals (D-3;
@@ -16,7 +15,7 @@ import (
 // Azure). The engine refuses the last three for agents; in this window they are set like any
 // other preference, a text field after a typing pause, the refusal under the field.
 func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
-	download := widget.NewCheck("Offer the release that matches the cluster", func(on bool) { p.setPreference("kubectlDownload", on) })
+	download := newLabelledSwitch("Offer the release that matches the cluster", func(on bool) { p.setPreference("kubectlDownload", on) })
 	mirror := newFieldEntry() // Escape closes the card (D-116, D-118)
 	mirror.SetPlaceHolder("https://dl.k8s.io/release")
 	mirror.OnChanged = func(string) {
@@ -31,7 +30,7 @@ func (p *settingsPage) kubectlSettings() []fyne.CanvasObject {
 	browse.OnTapped = func() {
 		p.pickFolder(func(path string) { dir.SetText(path) }) // OnChanged sets it after the pause
 	}
-	enforce := widget.NewCheck("Define kubectl as a shell function in terminals", func(on bool) { p.setPreference("kubectlEnforce", on) })
+	enforce := newLabelledSwitch("Define kubectl as a shell function in terminals", func(on bool) { p.setPreference("kubectlEnforce", on) })
 	path := newFieldEntry()
 	path.SetPlaceHolder("kubectl on PATH")
 	path.OnChanged = func(string) {

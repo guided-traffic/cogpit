@@ -15,7 +15,6 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -204,14 +203,14 @@ func TestPreferencesLoadChartIcons(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "kubernetes"})
 	q.until(t, "the Kubernetes section", func() bool {
-		c, ok := sh.settings.controls["loadChartIcons"].(*widget.Check)
+		c, ok := sh.settings.controls["loadChartIcons"].(*pillSwitch)
 		return ok && c.Checked
 	})
-	sh.settings.controls["loadChartIcons"].(*widget.Check).SetChecked(false)
+	sh.settings.controls["loadChartIcons"].(*pillSwitch).SetChecked(false)
 	q.until(t, "icons off, kept and shown", func() bool {
 		p, _ := s.Preferences()
 		return !p.LoadChartIcons && sh.ui.Preferences != nil && !sh.ui.Preferences.LoadChartIcons && !sh.chartIconsOn()
 	})
 	mustDispatch(t, s, "preferences.set", map[string]any{"loadChartIcons": true})
-	q.until(t, "the check on again", func() bool { return sh.settings.controls["loadChartIcons"].(*widget.Check).Checked })
+	q.until(t, "the check on again", func() bool { return sh.settings.controls["loadChartIcons"].(*pillSwitch).Checked })
 }

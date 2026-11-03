@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/termview"
@@ -77,7 +76,7 @@ func TestPreferencesRightClickCheck(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "terminal"})
 	q.until(t, "the Terminal section", func() bool { return sh.settings.controls["terminalRightClickCopyPaste"] != nil })
-	check := sh.settings.controls["terminalRightClickCopyPaste"].(*widget.Check)
+	check := sh.settings.controls["terminalRightClickCopyPaste"].(*pillSwitch)
 	if check.Checked || check.Text != rightClickCheck {
 		t.Fatalf("the check: %q, checked %v", check.Text, check.Checked)
 	}
@@ -110,7 +109,7 @@ func renderTerminalPreferences(t *testing.T, mode ThemeMode, name string) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "terminal"})
 	q.until(t, "the Terminal section", func() bool {
-		c, ok := sh.settings.controls["terminalRightClickCopyPaste"].(*widget.Check)
+		c, ok := sh.settings.controls["terminalRightClickCopyPaste"].(*pillSwitch)
 		return sh.settings.visible() && ok && c.Checked
 	})
 	savePNG(t, w, name)

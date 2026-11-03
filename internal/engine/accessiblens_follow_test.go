@@ -350,7 +350,9 @@ func TestApplicationsFollowARefusal(t *testing.T) {
 	if r := ts.Rows[0].Ref; r.Namespace != "shop" {
 		t.Errorf("row %v", r)
 	}
+	// The statefulset db is storefront's too: the row can stand before shop's deployments are read.
 	for _, res := range []string{"deployments", "statefulsets"} {
+		waitFor(t, res+" read in shop", func() bool { return callsOf(src, res)["list "+res+".apps in shop"] > 0 })
 		if calls := callsOf(src, res); calls["list "+res+".apps in shop"] != 1 || calls["list "+res+".apps"] > 2 {
 			t.Errorf("%s calls %v: want the refused read in all namespaces, then shop's", res, calls)
 		}

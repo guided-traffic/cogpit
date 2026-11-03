@@ -8,7 +8,6 @@ import (
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/theme"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -39,10 +38,8 @@ func (p *settingsPage) hideMetricsSetting() (fyne.CanvasObject, func()) {
 		}
 		return out
 	}
-	places := widget.NewCheckGroup(labels(true), nil)
-	places.Horizontal = true
-	measures := widget.NewCheckGroup(labels(false), nil)
-	measures.Horizontal = true
+	places := newSwitchGroup(labels(true), nil)
+	measures := newSwitchGroup(labels(false), nil)
 	selected := func() engine.MetricSet {
 		var m engine.MetricSet
 		for _, h := range engine.HideableMetrics {

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -17,10 +16,10 @@ func TestClusterSettingsStreams(t *testing.T) {
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev", "section": "general"})
 	q.until(t, "the row", func() bool {
-		_, ok := sh.settings.controls["streamInitialLists"].(*widget.Check)
+		_, ok := sh.settings.controls["streamInitialLists"].(*pillSwitch)
 		return ok
 	})
-	check := sh.settings.controls["streamInitialLists"].(*widget.Check)
+	check := sh.settings.controls["streamInitialLists"].(*pillSwitch)
 	desc := sh.settings.controls["streamsText"].(*paragraph)
 	if check.Text != "Use initial streaming (BETA)" || check.Checked || desc.text != streamsText {
 		t.Errorf("label %q, checked %v, box %q", check.Text, check.Checked, desc.text)
@@ -47,7 +46,7 @@ func TestRenderClusterSettingsStreams(t *testing.T) {
 				sh.settings.scroll.ScrollToBottom() // the setting is the section's last
 			}
 			q.until(t, "the switch", func() bool {
-				c, ok := sh.settings.controls["streamInitialLists"].(*widget.Check)
+				c, ok := sh.settings.controls["streamInitialLists"].(*pillSwitch)
 				return ok && !c.Checked
 			})
 			bottom()
@@ -58,7 +57,7 @@ func TestRenderClusterSettingsStreams(t *testing.T) {
 			}); err != nil {
 				t.Fatal(err)
 			}
-			q.until(t, "on", func() bool { return sh.settings.controls["streamInitialLists"].(*widget.Check).Checked })
+			q.until(t, "on", func() bool { return sh.settings.controls["streamInitialLists"].(*pillSwitch).Checked })
 			bottom()
 			savePNG(t, w, "cluster_settings_streams_on_"+string(mode)+".png")
 		})

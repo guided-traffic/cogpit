@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2/test"
-	"fyne.io/fyne/v2/widget"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
@@ -95,8 +94,8 @@ func TestPreferencesReduceMotion(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "preferences.open", map[string]any{"section": "app"})
-	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["reduceMotion"].(*widget.Check); return ok })
-	check := sh.settings.controls["reduceMotion"].(*widget.Check)
+	q.until(t, "the row", func() bool { _, ok := sh.settings.controls["reduceMotion"].(*pillSwitch); return ok })
+	check := sh.settings.controls["reduceMotion"].(*pillSwitch)
 	if check.Checked || check.Text != reduceMotionCheck {
 		t.Fatalf("checked %v, label %q", check.Checked, check.Text)
 	}
