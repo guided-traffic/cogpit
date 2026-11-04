@@ -404,6 +404,9 @@ type Skew struct {
 	Behind int
 	// Allowed is how many minors behind the policy allows for this kubelet.
 	Allowed int
+	// KubeletPatch and ServerPatch are the versions' patch releases ("1.36.2" of
+	// "v1.36.2-eks-1552ad0" is 2), -1 for a version that names none.
+	KubeletPatch, ServerPatch int
 }
 
 // KubeletSkew compares a kubelet's version with its API server's; false when either holds no
@@ -414,7 +417,7 @@ func KubeletSkew(kubelet, server string) (Skew, bool) {
 	if !ok1 || !ok2 || k.Major != 1 || s.Major != 1 {
 		return Skew{}, false
 	}
-	out := Skew{Kubelet: k, Server: s, Allowed: 3}
+	out := Skew{Kubelet: k, Server: s, Allowed: 3, KubeletPatch: patchOf(kubelet), ServerPatch: patchOf(server)}
 	if k.Minor < 25 {
 		out.Allowed = 2
 	}
@@ -427,32 +430,87 @@ func KubeletSkew(kubelet, server string) (Skew, bool) {
 	return out, true
 }
 
+// patchOf returns a version's patch release, the number after its minor ("2" of "v1.36.2",
+// "v1.36.2-eks-1552ad0" and "v1.36.2+k3s1"); -1 when it names none.
+func patchOf(s string) int {
+	parts := strings.SplitN(strings.TrimPrefix(strings.TrimSpace(s), "v"), ".", 3)
+	if len(parts) < 3 {
+		return -1
+	}
+	end := strings.IndexFunc(parts[2], func(r rune) bool { return r < '0' || r > '9' })
+	if end < 0 {
+		end = len(parts[2])
+	}
+	n, err := strconv.Atoi(parts[2][:end])
+	if err != nil {
+		return -1
+	}
+	return n
+}
+
 // Outside reports whether the policy does not allow the pair.
 func (k Skew) Outside() bool { return k.Newer || k.Behind > k.Allowed }
 
-// Text says how the pair falls outside the policy: "Kubelet 1.37 is newer than the API server
-// 1.36: outside the version skew policy", "Kubelet 1.31 is 4 minors behind the API server 1.35:
-// the version skew policy allows 3"; "" inside it.
+// PatchDiffers reports whether the pair is of one minor and two patch releases; the build
+// suffixes after the patch ("-eks-…", "+k3s1") do not count.
+func (k Skew) PatchDiffers() bool {
+	return !k.Newer && k.Behind == 0 && k.KubeletPatch >= 0 && k.ServerPatch >= 0 && k.KubeletPatch != k.ServerPatch
+}
+
+// Differs reports whether the kubelet runs another minor or patch release than the API server.
+func (k Skew) Differs() bool { return k.Newer || k.Behind > 0 || k.PatchDiffers() }
+
+// minors counts minors: "1 minor", "4 minors".
+func minors(n int) string {
+	if n == 1 {
+		return "1 minor"
+	}
+	return strconv.Itoa(n) + " minors"
+}
+
+// release writes a version with its patch, "1.36.2"; the minor alone without one.
+func release(v Version, patch int) string {
+	if patch < 0 {
+		return v.String()
+	}
+	return v.String() + "." + strconv.Itoa(patch)
+}
+
+// Text says how the pair differs: "Kubelet 1.37 is newer than the API server 1.36: outside the
+// version skew policy", "Kubelet 1.31 is 4 minors behind the API server 1.35: the version skew
+// policy allows 3", "Kubelet 1.36 is 1 minor behind the API server 1.37: within the version skew
+// policy, which allows 3", "Kubelet 1.37.0, the API server 1.37.1: another patch release"; ""
+// for the same release.
 func (k Skew) Text() string {
 	switch {
 	case k.Newer:
 		return "Kubelet " + k.Kubelet.String() + " is newer than the API server " + k.Server.String() + ": outside the version skew policy"
 	case k.Behind > k.Allowed:
-		return "Kubelet " + k.Kubelet.String() + " is " + strconv.Itoa(k.Behind) + " minors behind the API server " + k.Server.String() +
+		return "Kubelet " + k.Kubelet.String() + " is " + minors(k.Behind) + " behind the API server " + k.Server.String() +
 			": the version skew policy allows " + strconv.Itoa(k.Allowed)
+	case k.Behind > 0:
+		return "Kubelet " + k.Kubelet.String() + " is " + minors(k.Behind) + " behind the API server " + k.Server.String() +
+			": within the version skew policy, which allows " + strconv.Itoa(k.Allowed)
+	case k.PatchDiffers():
+		return "Kubelet " + release(k.Kubelet, k.KubeletPatch) + ", the API server " + release(k.Server, k.ServerPatch) + ": another patch release"
 	}
 	return ""
 }
 
 // Short says it as the node drawer's "Version skew" does, beside the kubelet's version: "newer
-// than the API server 1.36", "4 minors behind the API server 1.35, the policy allows 3"; "" inside
-// the policy.
+// than the API server 1.36", "4 minors behind the API server 1.35, the policy allows 3", "1 minor
+// behind the API server 1.37, within the policy", "the API server runs 1.37.1"; "" for the same
+// release.
 func (k Skew) Short() string {
 	switch {
 	case k.Newer:
 		return "newer than the API server " + k.Server.String()
 	case k.Behind > k.Allowed:
-		return strconv.Itoa(k.Behind) + " minors behind the API server " + k.Server.String() + ", the policy allows " + strconv.Itoa(k.Allowed)
+		return minors(k.Behind) + " behind the API server " + k.Server.String() + ", the policy allows " + strconv.Itoa(k.Allowed)
+	case k.Behind > 0:
+		return minors(k.Behind) + " behind the API server " + k.Server.String() + ", within the policy"
+	case k.PatchDiffers():
+		return "the API server runs " + release(k.Server, k.ServerPatch)
 	}
 	return ""
 }

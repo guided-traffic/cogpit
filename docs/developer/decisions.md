@@ -99,7 +99,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-88](#d-88-the-metrics-source-row) | The metrics' source row | built: one row, a dot and an age per provider |
 | [D-89](#d-89-how-a-charts-line-is-drawn) | How a chart's line is drawn | built: one rasterised path per run of points |
 | [D-90](#d-90-a-nodes-disks-a-usage-bar-per-real-filesystem) | A node's disks: a usage bar per real filesystem | built: a bar per real filesystem; Nodes list shows the fullest |
-| [D-91](#d-91-the-kubernetes-version-and-upstream-end-of-life) | The Kubernetes version and upstream end of life | built: release table fetched at build time, estimate, ⚠ marks |
+| [D-91](#d-91-the-kubernetes-version-and-upstream-end-of-life) | The Kubernetes version and upstream end of life | built: release table fetched at build time, estimate, ⚠ on the API server's version, kubelets compared with it (colour, "!" in Signals) |
 | [D-92](#d-92-a-gear-in-the-navigators-cluster-row) | A gear in the navigator's cluster row | built |
 | [D-93](#d-93-room-in-the-data-footer-and-the-layout-bar-and-a-full-row-back-button) | Room in the data footer and the layout bar, and a full-row back button | built |
 | [D-94](#d-94-the-empty-docks-toggle-opens-a-terminal-and-alert-names-copy) | The empty dock's toggle opens a terminal, and alert names copy | built |
@@ -158,7 +158,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-147](#d-147-no-applications-view) | No Applications view | built: no view of workloads grouped by their instance label, nor its Logs; a restored tab on it is left out |
 | [D-148](#d-148-hide-outdated-objects) | Hide outdated objects | built: View menu and Preferences › App, on; Replication Controllers and Endpoints leave the navigator, its search still finds them |
 | [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
-| [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version mark stays in its cell |
+| [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, version, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version check's "!" in its own slot |
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
 
 ## D-1: UI toolkit
@@ -3456,8 +3456,12 @@ at 95 % under a root at 40 % stays unseen.
 
 Cogpit marks the shown cluster's API server version and its nodes' kubelet versions by upstream
 Kubernetes' support dates: muted while supported, the pending colour in the minor's maintenance
-mode, the warning colour with "⚠" past its end of life; a kubelet outside the version skew policy
-gets "⚠" too. Only upstream's dates count: no managed service's dates, no distribution detected.
+mode, the warning colour past its end of life (the navigator's API server version with "⚠"). A
+kubelet is also compared with the API server (the owner): any other release, a patch's included,
+colours its Version cell in the warning colour, outside the version skew policy in the error
+colour; the symbol is the Signals column's "!" in its own slot after the node's state, red outside
+the policy, in the warning colour past the end of life or a minor behind, none for a patch alone.
+Only upstream's dates count: no managed service's dates, no distribution detected.
 What users and agents see: [usage](usage.md#the-kubernetes-version-and-upstream-support).
 
 - **The table** ([`k8seol`](../../internal/model/k8seol/k8seol.go), L0, no I/O) is embedded
@@ -3471,17 +3475,22 @@ What users and agents see: [usage](usage.md#the-kubernetes-version-and-upstream-
 - **A minor newer than the table** gets an estimate (`EstimateFrom`): released four months per minor
   after the table's newest, end of life on the 28th of the month 14 months later.
 - **The day** is now's in now's zone (`StateAt`); the end-of-life day itself is still supported.
+- **Releases compared:** the minors and the patch numbers (`Skew.Differs`, `Skew.PatchDiffers`);
+  a build suffix after the patch (`-eks-…`, `+k3s1`) does not count, so a managed cluster's
+  control plane and nodes of one patch are the same release.
 - **The engine** ([`k8sversion.go`](../../internal/engine/k8sversion.go)) sends no request: the API
   server's version is the connect's `GET /version`, then the heartbeat's
   ([D-132](#d-132-a-cluster-upgraded-while-connected)); a kubelet's is its cached Node's.
   `learnVersion` puts Cogpit's own overlay on each connection (`overlays.putOwn`, the seam of
-  [D-79](#d-79-kyvernos-policy-violations-on-the-objects)) that marks the Nodes list's Version cell
-  (colour, "⚠", a `model.Cell.Tip` tooltip); `MarkKubeletVersion` marks the node drawer;
+  [D-79](#d-79-kyvernos-policy-violations-on-the-objects)), before the integrations' overlays, that
+  colours the Nodes list's Version cell (with a `model.Cell.Tip` tooltip) and gives the Signals
+  column its "!" (`model.SignalVersion`); `MarkKubeletVersion` marks the node drawer;
   `UIState.ClusterVersion` feeds the navigator root's third line
   ([`clusterversion.go`](../../internal/ui/fyneui/clusterversion.go)).
 
 **Why:** A minor past its end of life gets no fixes, and a kubelet outside the skew policy is
-unsupported. A table built into each release needs no connection from the app; the estimate covers a
+unsupported; a kubelet of another release, even an allowed one, is a node an upgrade has not
+reached yet, which the owner wants to see. A table built into each release needs no connection from the app; the estimate covers a
 build older than a new minor. Upstream's maintenance mode is the boundary of the softer mark, not a
 number of Cogpit's.
 
@@ -3490,13 +3499,16 @@ number of Cogpit's.
 - a scheduled workflow committing the table to `main` — a bot pushing to `main`, while every release
   fetches its own;
 - failing a release on a failed fetch — a GitHub hiccup must not stop a release;
-- the kubelet's mark in the warning column — that column is the node's health;
+- the kubelet's mark in the state's slot — that slot is the node's health, so the version has a
+  slot of its own;
+- a "!" for another patch alone — a managed cluster's control plane and nodes often differ in the
+  patch for good;
 - the version beside the user or the name — the navigator's default width cuts either.
 
 **Code:** [`k8seol.go`](../../internal/model/k8seol/k8seol.go) `SupportOf`, `KubeletSkew`;
 [`k8sversion.go`](../../internal/engine/k8sversion.go) `learnVersion`, `versionCheck` · 
 `TestSupportOf`, `TestStateAtTheEdges`, `TestKubeletSkew`, `TestEstimateRuleAgainstUpstream`,
-`TestCompare`, `TestNodesVersionCheck`, `TestKindClusterVersion`
+`TestCompare`, `TestNodesVersionCheck`, `TestRenderNodesVersionsDark`, `TestKindClusterVersion`
 
 ## D-92: A gear in the navigator's cluster row
 
@@ -6133,8 +6145,8 @@ was); "GitOps" (the lead's proposal: too narrow for the views that are to come);
 ## D-150: One Signals column for every mark
 
 **Status:** built · **By:** owner (one column for every source's marks, after Name, titled
-"Signals"; Trivy's N/A shield in it, dimmed; the Nodes' version mark stays in the Version cell),
-lead (open to revision) the rest
+"Signals"; Trivy's N/A shield in it, dimmed; the Nodes' version check's "!" in it, its colour in
+the Version cell), lead (open to revision) the rest
 
 Every mark Cogpit puts on an object in a list goes into one column right after Name, **Signals**,
 which takes the place of the warning column. A cell shows one icon per signal side by side, each
@@ -6144,8 +6156,9 @@ job's failed run) a triangle, Kyverno's policy violations
 (the owner; the same on Kyverno's tile in Cluster Settings), both in the signal's status colour; Trivy's worst image grade ([D-113](#d-113-image-grades-shields-from-trivys-reports))
 its shield, an N/A one dimmed.
 
-- **Slots:** each source has a slot in a fixed order (the state's, then the integrations' in
-  Cluster Settings' order: Trivy, Kyverno), and a view has the slots of the sources that apply to
+- **Slots:** each source has a slot in a fixed order (the state's, the Nodes' version check's,
+  then the integrations' in Cluster Settings' order: Trivy, Kyverno), and a view has the slots of
+  the sources that apply to
   its kind and are on: the state's where the kind has one, Kyverno's while it is on (on a kind
   without a state of its own only while one of its objects violates a policy), Trivy's on Pods
   while it is on. An icon keeps its slot whatever the others show (`model.Column.Slots`).
@@ -6160,8 +6173,8 @@ its shield, an N/A one dimmed.
   "Signals"), their tooltips a line each in its `tips`.
 - A row that shows a status pill and a spine leaves out its state's triangle (the reason moves to
   the status word's tooltip, as before); the integrations' icons stay.
-- The exception: the Nodes' version check ([D-91](#d-91-the-kubernetes-version-and-upstream-end-of-life))
-  colours the Version cell, because it is about the number beside it.
+- The Nodes' version check ([D-91](#d-91-the-kubernetes-version-and-upstream-end-of-life)) puts
+  its "!" in Signals and colours the Version cell too, because the colour is about the number in it.
 - A drawer's tables (a node's pods) draw the column's icons, without its title.
 
 **Why:** the owner: the integrations' icons were scattered over the tables (Kyverno's violation the
@@ -6170,7 +6183,7 @@ column with a slot per source keeps each icon where the eye learns it, and a sou
 apply takes no room.
 
 **Rejected:** Indicators, Flags (the name); no icon for N/A (the owner keeps the dimmed shield); the
-version mark in Signals (it is about the Version cell's number); no header title (the warning
+version's symbol in the Version cell (the owner: every symbol in Signals); no header title (the warning
 column's way: a column of icons needs its name once there are several sources); a column per
 source (the scattering this ends).
 

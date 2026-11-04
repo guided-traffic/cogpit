@@ -13,7 +13,8 @@ import (
 // The Signals column (D-150; the owner, 2026-11-03: every mark an object carries in one column
 // after Name, titled "Signals"): a cell draws one icon per signal side by side, each in its slot
 // (model.Signal.Slot) so that a source's icon keeps its place in the view: the object's own state
-// as the triangle, Kyverno's violations as its glyph, both in the signal's status colour, and
+// as the triangle, a node's kubelet version as an exclamation mark in a disc, Kyverno's violations
+// as its glyph, each in the signal's status colour, and
 // Trivy's worst image grade as its shield (an N/A one dimmed). The pointer over an icon shows that
 // signal's text and what is behind it; a click on one selects the row and opens the drawer at the
 // signal's section (drawer.openAt). A row that shows a status pill and a spine (statusLit) leaves
@@ -198,8 +199,11 @@ func (tv *tableView) signalIcon(s model.Signal) fyne.Resource {
 		return res
 	}
 	glyph := theme.WarningIcon()
-	if s.Source == model.SignalKyverno {
+	switch s.Source {
+	case model.SignalKyverno:
 		glyph = glyphKyverno
+	case model.SignalVersion: // the kubelet's version, an exclamation mark (the owner, 2026-11-04)
+		glyph = theme.ErrorIcon()
 	}
 	res := themedIcon(glyph, key.color)
 	if tv.sigIcons == nil {

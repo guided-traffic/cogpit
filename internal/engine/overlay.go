@@ -73,7 +73,8 @@ type overlayColumn struct {
 }
 
 // overlays are a backend's overlays, one per integration that is on and marks objects, and
-// Cogpit's own after them: the version check of the Nodes list (k8sversion.go, D-91).
+// Cogpit's own before them: the version check of the Nodes list (k8sversion.go, D-91), whose
+// signal takes the Signals slot right after the node's state.
 type overlays struct {
 	mu     sync.Mutex
 	by     map[Integration]rowOverlay
@@ -134,7 +135,8 @@ func (o *overlays) changed() {
 	}
 }
 
-// current returns the overlays in Integrations' order and their generation.
+// current returns Cogpit's own overlay, then the integrations' in Integrations' order, and their
+// generation.
 func (o *overlays) current() ([]rowOverlay, uint64) {
 	o.mu.Lock()
 	defer o.mu.Unlock()
@@ -142,13 +144,13 @@ func (o *overlays) current() ([]rowOverlay, uint64) {
 		return nil, o.gen
 	}
 	out := make([]rowOverlay, 0, len(o.by)+1)
+	if o.own != nil {
+		out = append(out, o.own)
+	}
 	for _, in := range Integrations {
 		if ov := o.by[in.Name]; ov != nil {
 			out = append(out, ov)
 		}
-	}
-	if o.own != nil {
-		out = append(out, o.own)
 	}
 	return out, o.gen
 }
@@ -352,7 +354,7 @@ func slotted(c model.Cell, slot int) model.Cell {
 // takes the overlay's; Signals cells put their signals side by side (model.SignalsCell); otherwise
 // the texts are joined, the worse status and the larger sort key kept, and the tooltips joined a
 // line each. An overlay's cell in coloured parts redraws the cell: its text and parts replace the
-// kind's (a kubelet's version with a ⚠ after it, k8sversion.go).
+// kind's.
 func mergeCell(base, add model.Cell) model.Cell {
 	if base.Text == "" && base.Num == 0 && base.Status == model.StatusNone && base.Signals == nil {
 		return add

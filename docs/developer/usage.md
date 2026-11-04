@@ -88,7 +88,8 @@ Ctrl on Windows and Linux.
   ⌘⇧P and links still find them ([D-148](decisions.md#d-148-hide-outdated-objects)).
 - <a id="the-signals-column"></a>The Signals column after Name gathers every mark on an object, one
   icon per source in a fixed slot: the object's own state as a triangle (a pod's containers not
-  ready, a node's pressure, a cron job's failed run), Kyverno's policy violations as a whistle, a
+  ready, a node's pressure, a cron job's failed run), a node's kubelet version as "!" in a disc
+  ([Nodes](#the-kubernetes-version-and-upstream-support)), Kyverno's policy violations as a whistle, a
   pod's worst image grade as its shield (N/A dimmed). Each icon has its tooltip; a click opens the
   drawer at the section behind it. Sorted descending, the worst comes first; a search finds the
   icons' texts ([D-150](decisions.md#d-150-one-signals-column-for-every-mark)).
@@ -1560,10 +1561,19 @@ the end of life on the 28th of the fourteenth month after the release month.
 
 - **Managed clusters:** only upstream's dates count; Cogpit knows no distribution's own dates (EKS,
   GKE, AKS, STACKIT SKE, …).
-- **Nodes:** the Nodes list's Version column marks a kubelet the same way, and with ⚠ one outside
-  the version skew policy (newer than the API server, or more than three minors behind; two for a
-  kubelet older than 1.25), the tooltip saying which; the node drawer shows "Upstream support" and,
-  outside the policy, "Version skew".
+- **Nodes:** the Nodes list compares each kubelet with the API server; the Version cell shows the
+  colour, the [Signals column](#the-signals-column) the "!" in its slot after the node's state:
+
+  | Kubelet | Version cell | Signals |
+  |---|---|---|
+  | outside the version skew policy (newer than the API server, or more than three minors behind; two for a kubelet older than 1.25) | red | red "!" |
+  | past its minor's end of life, or one or more minors behind within the policy | orange | orange "!" |
+  | the API server's minor, another patch (build suffixes such as `-eks-…` do not count) | orange | – |
+  | the API server's release, its minor in maintenance mode | amber | – |
+  | the API server's release, supported | muted | – |
+
+  The tooltips say the support and how the kubelet differs; the node drawer shows "Upstream
+  support" and, for another release than the API server's, "Version skew".
 - **Agents:** `ui_state`'s `clusterVersion` (version, minor, released, maintenanceFrom, endOfLife,
   estimated, state, daysLeft, tableNewest, tableFetched), the `tips` per node in `view_rows` and
   `resources_list`, `object_get`'s drawer items.
