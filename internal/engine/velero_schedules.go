@@ -377,7 +377,7 @@ func namespaceCoverage(ns string, labelledOut bool, scheds []*veleroSched) (part
 	case len(full) > 0:
 		return true, "partly in scope: its Namespace object carries " + veleroExcludeLabel + "; the rest is in scope of " + full[0].name, false
 	case len(partial) > 0:
-		return true, "partly in scope: " + partial[0].name + " selects " + partial[0].scope.narrowing() + " only", false
+		return true, "partly in scope: " + partial[0].name + " " + partial[0].scope.narrowing(), false
 	case len(idle) > 0 && idle[0].paused:
 		return false, "in scope of " + idle[0].name + " only, which is paused", false
 	case len(idle) > 0:

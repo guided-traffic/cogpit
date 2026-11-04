@@ -7700,8 +7700,12 @@ without an event). Colours follow D-calm: red to act now, amber to check, the re
 - **Outside every schedule** (inferred), every active namespace no schedule that makes backups (not
   paused, not failing validation) takes in full, with Velero's own matching (gobwas globs: `*`, `?`,
   `[a-z]`, `[!a]`, `{a,b}`; an empty include list or `*` every namespace; an exclude wins). A label
-  selector or a namespace-scoped resource filter takes in part of it ("partly in scope: hourly-db
-  selects app=postgres only"). The label `velero.io/exclude-from-backup` on a Namespace leaves the
+  selector takes in part of it ("partly in scope: hourly-db selects app=postgres only"), and so does
+  a resource filter that leaves out part of its data: an include list of kinds ("takes only
+  persistentvolumeclaims") or an exclusion of PVCs, PVs, pods, Secrets or ConfigMaps ("leaves out
+  secrets"); one that leaves out only kinds without data (jobs, events) does not, and the
+  schedule's Scope column still names it. Rejected: every resource filter as partly in scope (a
+  schedule that leaves out `jobs.batch` put every namespace on the list). The label `velero.io/exclude-from-backup` on a Namespace leaves the
   Namespace object out, its objects stay in scope (item_backupper.go): partly in scope. Reasons:
   in scope of a paused or failing schedule only; excluded from a schedule; no schedule names it.
   Workloads are its Deployments, StatefulSets and DaemonSets; Managed by is Flux CD where it or its

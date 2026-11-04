@@ -21,6 +21,7 @@ type veleroScope struct {
 	included, excluded []string
 	selector           string // the label selectors as text ("app=postgres", "a=1 or b=2"); "" without
 	resources          string // the resource filters as text ("persistentvolumeclaims", "not secrets"); "" without
+	data               string // the filters that leave out part of a namespace's data (dataNarrowing); "" without
 }
 
 // veleroScopeOf reads a BackupSpec (a Backup's spec, a Schedule's spec.template, a Restore's spec).
@@ -46,11 +47,14 @@ func veleroScopeOf(spec map[string]any) veleroScope {
 	}
 	sc.selector = strings.Join(sels, " or ")
 	sc.resources = resourceFilterText(spec)
+	sc.data = dataNarrowing(spec)
 	return sc
 }
 
 // partial reports whether the scope takes only some of a namespace's objects.
-func (sc veleroScope) partial() bool { return sc.selector != "" || sc.resources != "" }
+// A filter that leaves out only kinds without data (jobs, events) does not: the Scope column shows
+// it, and the namespace's volumes, secrets and pods stay in.
+func (sc veleroScope) partial() bool { return sc.selector != "" || sc.data != "" }
 
 // all reports whether the include list names every namespace.
 func (sc veleroScope) all() bool { return len(sc.included) == 0 || slices.Contains(sc.included, "*") }
@@ -186,6 +190,43 @@ func resourceFilterText(spec map[string]any) string {
 		parts = append(parts, "not "+strings.Join(exc, ","))
 	}
 	return strings.Join(parts, " ")
+}
+
+// veleroDataKinds are the kinds a namespace's data lives in, by the names a resource filter may
+// give them (plural, singular, short): a filter that leaves one out leaves part of the namespace's
+// data out.
+var veleroDataKinds = setOf(strings.Fields(
+	"persistentvolumeclaims persistentvolumeclaim pvc persistentvolumes persistentvolume pv " +
+		"pods pod po secrets secret configmaps configmap cm *"))
+
+// dataNarrowing writes the resource filters that leave part of a namespace's data out, for a
+// reason: an include list of kinds ("takes only persistentvolumeclaims"), excluded data kinds
+// ("leaves out secrets"); "" when the filters leave out only kinds without data.
+func dataNarrowing(spec map[string]any) string {
+	var inc, exc []string
+	for _, k := range []string{"includedResources", "includedNamespaceScopedResources"} {
+		for _, r := range stringsAt(spec, k) {
+			if r != "*" {
+				inc = append(inc, r)
+			}
+		}
+	}
+	for _, k := range []string{"excludedResources", "excludedNamespaceScopedResources"} {
+		for _, r := range stringsAt(spec, k) {
+			kind, _, _ := strings.Cut(strings.ToLower(r), ".")
+			if _, data := veleroDataKinds[kind]; data {
+				exc = append(exc, r)
+			}
+		}
+	}
+	var parts []string
+	if len(inc) > 0 {
+		parts = append(parts, "takes only "+strings.Join(inc, ","))
+	}
+	if len(exc) > 0 {
+		parts = append(parts, "leaves out "+strings.Join(exc, ","))
+	}
+	return strings.Join(parts, " and ")
 }
 
 // globsMatch reports whether any pattern matches s.
@@ -343,13 +384,15 @@ func excludedByLabel(o *unstructured.Unstructured) bool {
 	return o.GetLabels()[veleroExcludeLabel] == "true"
 }
 
-// narrowing is what narrows the scope, for a reason: "app=postgres", "persistentvolumeclaims".
+// narrowing is what narrows the scope, for a reason: "selects app=postgres only", "leaves out
+// secrets", "takes only persistentvolumeclaims".
 func (sc veleroScope) narrowing() string {
-	switch {
-	case sc.selector != "" && sc.resources != "":
-		return sc.selector + " and " + sc.resources
-	case sc.selector != "":
-		return sc.selector
+	var parts []string
+	if sc.selector != "" {
+		parts = append(parts, "selects "+sc.selector+" only")
 	}
-	return sc.resources
+	if sc.data != "" {
+		parts = append(parts, sc.data)
+	}
+	return strings.Join(parts, " and ")
 }

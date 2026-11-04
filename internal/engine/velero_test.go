@@ -248,13 +248,17 @@ func TestVeleroGlobs(t *testing.T) {
 }
 
 // TestVeleroOutside: Outside every schedule from the enabled schedules' scopes: excluded, a glob, a
-// selector or a resource filter (partly), a paused or failing schedule (no cover), the Namespace
+// selector or a resource filter that leaves out data (partly; one that leaves out only jobs does not), a paused or failing schedule (no cover), the Namespace
 // labelled out of backups (its objects in scope: partly), GitOps tools from the labels, those with
 // PVCs first.
 func TestVeleroOutside(t *testing.T) {
 	scheds := []*unstructured.Unstructured{
 		vSchedule("nightly-all", "0 2 * * *", map[string]any{"excludedNamespaces": []any{
-			"kube-*", "analytics", "data?", "monitoring", "legacy", "keycloak", "frontend", "volumes"}}, false, nil),
+			"kube-*", "analytics", "data?", "monitoring", "legacy", "keycloak", "frontend", "volumes", "batch", "vault"}}, false, nil),
+		vSchedule("no-jobs", "0 1 * * *", map[string]any{"includedNamespaces": []any{"batch"},
+			"excludedResources": []any{"jobs.batch", "events"}}, false, nil),
+		vSchedule("no-secrets", "0 1 * * *", map[string]any{"includedNamespaces": []any{"vault"},
+			"excludedNamespaceScopedResources": []any{"Secrets"}}, false, nil),
 		vSchedule("hourly-db", "5 * * * *", map[string]any{"includedNamespaces": []any{"data?"},
 			"labelSelector": map[string]any{"matchLabels": map[string]any{"app": "postgres"}}}, false, nil),
 		vSchedule("pvcs-only", "0 3 * * *", map[string]any{"includedNamespaces": []any{"volumes"},
@@ -272,7 +276,7 @@ func TestVeleroOutside(t *testing.T) {
 		return o
 	}
 	var namespaces []*unstructured.Unstructured
-	for _, n := range []string{"shop", "analytics", "data1", "kube-system", "monitoring", "legacy", "keycloak", "frontend", "volumes"} {
+	for _, n := range []string{"shop", "analytics", "data1", "kube-system", "monitoring", "legacy", "keycloak", "frontend", "volumes", "batch", "vault"} {
 		namespaces = append(namespaces, ns(n, nil, false))
 	}
 	namespaces = append(namespaces, ns("labelled", map[string]string{veleroExcludeLabel: "true"}, false), ns("going", nil, true))
@@ -307,7 +311,8 @@ func TestVeleroOutside(t *testing.T) {
 		"legacy||in scope of broken only, which fails validation",
 		"monitoring||in scope of monitoring only, which is paused",
 		"frontend|Argo CD|excluded from nightly-all, no other schedule names it · no volumes; rebuilt from Git",
-		"volumes||partly in scope: pvcs-only selects persistentvolumeclaims only",
+		"vault||partly in scope: no-secrets leaves out Secrets",
+		"volumes||partly in scope: pvcs-only takes only persistentvolumeclaims",
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("outside\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))

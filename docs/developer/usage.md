@@ -1639,7 +1639,8 @@ from the cache and nothing else: no action, no request to Velero, nothing create
   TTL, Location, State.
 - **Outside every schedule** (inferred): the namespaces no enabled schedule takes in full, those
   with PVCs first, with their workloads, Flux CD or Argo CD where their labels name it, and why:
-  excluded, partly in scope (a selector, a resource filter, the Namespace labelled
+  excluded, partly in scope (a selector, a resource filter that leaves out PVCs, PVs, pods, Secrets
+  or ConfigMaps or takes only some kinds, the Namespace labelled
   `velero.io/exclude-from-backup`, which leaves only the Namespace object out), in scope of a paused
   schedule only. "In scope" is read from the schedules, never proof of a backup.
 - **Agents:** `velero_dashboard {context?, namespaces?}` returns the same page.
