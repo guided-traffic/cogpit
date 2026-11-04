@@ -1590,7 +1590,7 @@ right applies to the whole page.
   have a fix), Top images (grade shield, image, Critical and High), Top CVEs (severity, id, images
   affected), Top namespaces (worst grade, Critical and High). A click on an entry narrows the
   table to it by adding its token to the search.
-- **Search:** plain words search every cell (Aa and `.*` as in any view), and these words narrow
+- **Search:** the field across the findings' header row; plain words search every cell (Aa and `.*` as in any view), and these words narrow
   the findings:
 
   | Token | Keeps |

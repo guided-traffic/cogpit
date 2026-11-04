@@ -68,6 +68,7 @@ type tableView struct {
 	pageTop                    *fyne.Container // the open page's part
 	eventsTitle                *textLine
 	eventsHeading, eventsTools *fyne.Container
+	eventsWide                 *fyne.Container // the row's free width: Image Security's search (placePageSearch)
 	pageBox                    *fyne.Container
 	pageMode                   bool
 	pageView                   string // the page the layout is set up for
@@ -216,11 +217,11 @@ func newTableView(sh *shell) *tableView {
 	tv.velero = newVeleroPanel(sh)
 	tv.pageTop = container.NewStack(tv.overview.root)
 	tv.eventsTitle = newTextLine("Events", theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{Bold: true})
-	tv.eventsHeading, tv.eventsTools = container.NewHBox(), container.NewHBox()
+	tv.eventsHeading, tv.eventsTools, tv.eventsWide = container.NewHBox(), container.NewHBox(), container.NewStack()
 	tv.pageBox = container.NewVBox(tv.pageTop, newDivider(false),
 		container.NewStack(newSurface(theme.ColorNameBackground),
 			inset(theme.SizeNameInnerPadding, theme.SizeNamePadding,
-				container.NewBorder(nil, nil, tv.eventsHeading, tv.eventsTools))))
+				container.NewBorder(nil, nil, tv.eventsHeading, tv.eventsTools, tv.eventsWide))))
 	tv.pageBox.Hide()
 	frame := box(&stretchLayout{tv: tv}, tv.table)
 	tv.create = newCreateButton(sh)
@@ -232,6 +233,20 @@ func newTableView(sh *shell) *tableView {
 		nil, nil, nil, body)
 	tv.updatePlaceholder()
 	return tv
+}
+
+// placePageSearch puts the search into a page's table header: at the right, as a view has it, or,
+// on Image Security, whose search is its main tool, across the row's free width (D-new).
+func (tv *tableView) placePageSearch(view string) {
+	if view == engine.ImageSecurity {
+		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box}
+		tv.eventsWide.Objects = []fyne.CanvasObject{tv.searchBox}
+	} else {
+		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box, tv.searchBox}
+		tv.eventsWide.Objects = nil
+	}
+	tv.eventsTools.Refresh()
+	tv.eventsWide.Refresh()
 }
 
 // showHeadingCount shows the item count and the CSV button while the view has a snapshot and no
@@ -299,9 +314,10 @@ func (tv *tableView) setPageLayout(view string) {
 		tv.pageTop.Objects = []fyne.CanvasObject{top}
 		tv.pageTop.Refresh()
 		tv.eventsTitle.SetText(title)
-		if tv.pageMode { // from another page: the heading follows (imagesecurity.go)
+		if tv.pageMode { // from another page: the heading and the search follow (imagesecurity.go)
 			tv.heading.Objects = tv.pageHeading(view)
 			tv.heading.Refresh()
+			tv.placePageSearch(view)
 		}
 	}
 	if page == tv.pageMode {
@@ -312,15 +328,15 @@ func (tv *tableView) setPageLayout(view string) {
 		tv.heading.Objects = tv.pageHeading(view)
 		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox}
 		tv.eventsHeading.Objects = []fyne.CanvasObject{tv.eventsTitle, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
-		tv.eventsTools.Objects = []fyne.CanvasObject{tv.states.box, tv.searchBox} // the status filter filters the table only
+		tv.placePageSearch(view) // the status filter filters the table only
 		tv.pageBox.Show()
 	} else {
-		tv.eventsHeading.Objects, tv.eventsTools.Objects = nil, nil
+		tv.eventsHeading.Objects, tv.eventsTools.Objects, tv.eventsWide.Objects = nil, nil, nil
 		tv.heading.Objects = []fyne.CanvasObject{tv.title, tv.count, tv.csvButton, tv.syncing, tv.check.bar.root}
 		tv.tools.Objects = []fyne.CanvasObject{tv.nsBox, tv.states.box, tv.searchBox}
 		tv.pageBox.Hide()
 	}
-	for _, c := range []*fyne.Container{tv.heading, tv.tools, tv.eventsHeading, tv.eventsTools} {
+	for _, c := range []*fyne.Container{tv.heading, tv.tools, tv.eventsHeading, tv.eventsTools, tv.eventsWide} {
 		c.Refresh()
 	}
 	tv.veleroHeading(velero)

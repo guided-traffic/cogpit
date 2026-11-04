@@ -32,6 +32,13 @@ var imageSecNav = func() navEntry {
 	return e
 }()
 
+// iconImageSecurity is Cogpit's own icon for the page, drawn for Cogpit: a shield's outline, the
+// shape of the grades (D-113) it ranks the images by.
+var iconImageSecurity = fyne.NewStaticResource("cogpit-image-security.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
+	`<path fill-rule="evenodd" d="M12 2 4 5v6.2c0 4.9 3.4 9.3 8 10.8 4.6-1.5 8-5.9 8-10.8V5l-8-3Zm0 2.2 6 2.25v4.75c0 3.9-2.6 7.4-6 8.7-3.4-1.3-6-4.8-6-8.7V6.45l6-2.25Z"/></svg>`))
+
+func init() { navIcons[engine.ImageSecurity] = func() fyne.Resource { return iconImageSecurity } }
+
 // The page's texts: its table's heading, its search's hint, its rows' noun.
 const (
 	imageSecTableTitle = "Findings"

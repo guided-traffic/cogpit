@@ -7521,7 +7521,8 @@ Trivy Operator's VulnerabilityReports and a search over their findings. Read onl
 nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
 
 - **Where:** a top-level entry under the navigator's Integrations heading
-  ([D-149](#d-149-the-navigators-integrations-heading)) after Argo CD, while the Trivy integration
+  ([D-149](#d-149-the-navigators-integrations-heading)) after Argo CD, its icon a shield's outline
+  (the grades' shape, drawn for Cogpit), while the Trivy integration
   is on for the cluster ([D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect))
   and the cluster serves the reports' kind; switched off or not served, no entry and no read, and a
   page left open says why in its error line.
@@ -7558,7 +7559,8 @@ nothing ([D-151](#d-151-integrations-never-write-to-the-cluster)).
   (`ui.setFilter`): `image:<repository:tag>`, `cve:<id>`, `ns:<namespace>`, in place of a token
   of the same key. A namespace is a token, not the namespace filter, so the cards keep the
   cluster's picture.
-- **Search:** the views' search field, plain text; its words of the forms `sev>=<severity>`,
+- **Search:** the views' search field, across the free width of the findings' header row (the
+  page's main tool, where a view's search keeps its fixed width at the right), plain text; its words of the forms `sev>=<severity>`,
   `sev:<severity>`, `fixable`, `ns:<name>` (exact), `image:<text>`, `pkg:<text>` (contained, any
   case) and `cve:<id>` (exact, any case) are tokens, the other words the views' search (Aa and the
   regular expression, its words then joined by single spaces). Tokens of different keys all hold,
