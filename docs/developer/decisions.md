@@ -187,7 +187,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 | [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
 | [D-new](#d-new-the-image-security-page) | The Image Security page | built: under Integrations while Trivy is on; four cards, findings with search tokens, opens on sev>=high; the reports trimmed to the shown fields while it is open |
-| [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Schedules, Outside every schedule; read-only, from the cache |
+| [D-new](#d-new-the-velero-page) | The Velero page | built: under Integrations while the cluster serves Velero's Backups; tiles, Needs attention, Failed volume backups, Schedules, Outside every schedule; read-only, from the cache |
 | [D-calm](#d-calm-calm-colours-on-the-integrations-pages) | Calm colours on the integrations' pages | built: grey ground, red to act now, amber to check, good states without colour; Image Security and Velero |
 
 ## D-1: UI toolkit
@@ -7640,10 +7640,12 @@ the cluster serves `backups.velero.io`. Everything comes from the cache; the pag
 only while it is shown, and builds again on every change and every 30 seconds (a run comes due
 without an event). Colours follow D-calm: red to act now, amber to check, the rest grey.
 
-- **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations
-  and BackupRepositories, and Namespaces, PVCs, Deployments, StatefulSets and DaemonSets; a kind the
-  user may not list is left out, a tile says why. No DownloadRequest, ServerStatusRequest or
-  DeleteBackupRequest: counts of errors, never their text.
+- **Reads:** Velero's Schedules, Backups, Restores, BackupStorageLocations, VolumeSnapshotLocations,
+  BackupRepositories, PodVolumeBackups and DataUploads, and Namespaces, PVCs, Deployments,
+  StatefulSets and DaemonSets; a kind the user may not list is left out, a tile says why. No
+  DownloadRequest, ServerStatusRequest or DeleteBackupRequest and nothing of the object storage (the
+  owner: no access to S3): a backup's own counts of errors and the messages its failed volume
+  backups carry, never the backup's error log.
 - **The window:** the header is the title, the page's line and the namespace filter (no search, no
   status filter); the body replaces the table, as the alert board's does: one scrolled panel with the
   tiles and three tables of the page's own (read-only: no search, sort, selection, columns or CSV;
@@ -7678,12 +7680,24 @@ without an event). Colours follow D-calm: red to act now, amber to check, the re
     New, InProgress or no phase that keeps Velero from creating it ("…; nightly-all-2026… still
     InProgress"); since the due time;
   - a schedule's latest finished backup Failed or Failed validation (error) or Partially failed
-    (warning): its errors and warnings, its volume snapshots that did not complete ("2 of 3 volume
-    snapshots"), failed item operations, failure reason or validation errors;
+    (warning): its errors and warnings, its failed volume backups and the errors they do not explain
+    ("28 errors · 28 volume backups failed", "49 errors · 28 volume backups failed · 21 counted
+    only": Velero counts a failed PodVolumeBackup and a failed DataUpload as an error each), its
+    volume snapshots that did not complete ("2 of 3 volume snapshots"), failed item operations,
+    failure reason or validation errors;
   - a backup no schedule made that failed, failed validation or partly failed in the last 7 days,
     unless a later one of the same scope completed;
   - a repository NotReady (error), or whose newest maintenance failed (warning, since it ended);
   - node agents not ready (warning): "not ready on 1 of 6 nodes".
+- **Failed volume backups,** after Needs attention while its backups have any: their
+  PodVolumeBackups and DataUploads in phase Failed (by the label `velero.io/backup-name`, an owner
+  Backup first), in the page's namespaces, a row per namespace and message: messages that read the
+  same once each one's own pod name (also `namespace/pod`), volume name (a DataUpload's PVC) and
+  every word that starts with "/" (a host path with the pod's UID) are masked. Namespace, Volumes,
+  Pods, Node (the first part of each node's name, three at most, then "+n"), Message (the first
+  member's as Velero wrote it, whole in the tooltip); most volumes first, then by namespace; a click
+  opens the first member's drawer. Neutral: the backup's row carries the colour. Agents get every
+  member's pod, volume, node and message.
 - **Schedules,** those that need action first, paused last, then by name. When: the cron in words
   for its common shapes ("daily 02:00", "every 6 h", "hourly :05", "Sun 03:00", "Mon–Fri 01:30",
   "monthly, day 1 04:00", descriptors), else as written; a time of day in the cron's own zone (its
@@ -7725,20 +7739,24 @@ above it that does not scroll); filtering by an object's own namespace (Velero's
 one: any other emptied the page); the creation time as a run's time (a synced backup's is the
 sync's); the label on a Namespace as excluding its objects (Velero checks each item); paused
 schedules as covering; times of day in the user's zone (unlike the manifest's cron); errors' text
-(a DownloadRequest, D-nowrite).
+(a DownloadRequest, [D-151](#d-151-integrations-never-write-to-the-cluster)); a row per failed
+volume backup (27 near-identical rows for one cause); the backup's results file in the object
+storage (the owner: no access to S3).
 
 **Code:** [`engine/velero.go`](../../internal/engine/velero.go),
 [`engine/velero_build.go`](../../internal/engine/velero_build.go),
 [`engine/velero_schedules.go`](../../internal/engine/velero_schedules.go),
 [`engine/velero_cron.go`](../../internal/engine/velero_cron.go),
 [`engine/velero_scope.go`](../../internal/engine/velero_scope.go),
+[`engine/velero_volumes.go`](../../internal/engine/velero_volumes.go),
 [`commands/velero.go`](../../internal/engine/commands/velero.go),
 [`fyneui/velero.go`](../../internal/ui/fyneui/velero.go),
 [`fyneui/velero_tables.go`](../../internal/ui/fyneui/velero_tables.go),
 [`demo/velero.go`](../../internal/demo/velero.go) · **Tests:** `TestVeleroCronWords`,
 `TestVeleroOverdue`, `TestVeleroLastRuns`, `TestVeleroGlobs`, `TestVeleroOutside`,
-`TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroPage`, `TestVeleroPageWithoutVelero`,
-`TestDemoVeleroPage`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
+`TestVeleroAttentionOrder`, `TestVeleroHeader`, `TestVeleroMaskVolumeMessage`, `TestVeleroFailedVolumes`,
+`TestVeleroPage`, `TestVeleroPageWithoutVelero`,
+`TestDemoVeleroPage`, `TestDemoVeleroStatesAllDay`, `TestVeleroDashboardCommand`, `TestRenderVeleroDark`, `TestRenderVeleroLight`,
 `TestVeleroPageClicks`, `TestVeleroNavigatorEntry`
 
 ## D-calm: Calm colours on the integrations' pages

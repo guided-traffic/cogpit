@@ -1629,10 +1629,15 @@ from the cache and nothing else: no action, no request to Velero, nothing create
 - **Needs attention:** Problem, Object, Scope, Since, Detail: a storage location unavailable (its
   message), no default location, a schedule overdue ("due 02:00, no backup created; … still
   InProgress": Velero creates no run while one of the schedule is under way) or failing validation,
-  a schedule's latest backup failed or partly failed (its counts of errors and warnings; their text
-  is in Velero's logs, which Cogpit does not fetch), a backup made by hand that failed in the last
-  week, a repository not ready or its maintenance failed, node agents not ready. A click opens the
-  object's drawer beside the page.
+  a schedule's latest backup failed or partly failed (its counts of errors and warnings, how many of
+  them are failed volume backups: "28 errors · 28 volume backups failed", "49 errors · 28 volume
+  backups failed · 21 counted only"; the text of the rest is in Velero's logs, which Cogpit does not
+  fetch), a backup made by hand that failed in the last week, a repository not ready or its
+  maintenance failed, node agents not ready. A click opens the object's drawer beside the page.
+- **Failed volume backups** (while those backups have any): Namespace, Volumes, Pods, Node,
+  Message, a row for the volumes of one namespace that failed the same way (their messages alike but
+  for their own pod, volume and paths), most volumes first; the message whole in its tooltip. A
+  click opens the first one's PodVolumeBackup or DataUpload beside the page.
 - **Schedules:** When (the cron in words, its zone named where yours shows another time), Next run,
   Last runs (the last seven, oldest left: grey completed, amber partially failed, red failed, a ring
   running, a red ring a run cron expected that was never created), Last completed, Duration, Scope,

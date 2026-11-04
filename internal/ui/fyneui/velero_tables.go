@@ -2,7 +2,9 @@ package fyneui
 
 import (
 	"image/color"
+	"slices"
 	"strconv"
+	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -21,6 +23,9 @@ import (
 // opening its object's drawer, and a footer line. Agents read the same rows through
 // velero.dashboard.
 
+// pageColNamespace is the Namespace column's title.
+const pageColNamespace = "Namespace"
+
 // pageCol is one column of a page table: its title, its width (0: it takes what is left), and
 // whether its cells are numbers, right-aligned.
 type pageCol struct {
@@ -29,12 +34,14 @@ type pageCol struct {
 	num   bool
 }
 
-// pageCell is one cell: its text in a colour, bold or not, or a canvas object of its own.
+// pageCell is one cell: its text in a colour, bold or not, or a canvas object of its own; tip,
+// when set, is its tooltip (a message cut off in the cell, whole).
 type pageCell struct {
 	text string
 	tone fyne.ThemeColorName
 	bold bool
 	obj  fyne.CanvasObject
+	tip  string
 }
 
 func pageCellOf(text string, tone fyne.ThemeColorName) pageCell {
@@ -48,8 +55,8 @@ func pageFg(text string) pageCell    { return pageCellOf(text, theme.ColorNameFo
 var pageDash = pageQuiet("—")
 
 // pageTable builds a table of rows; onTap[i] runs on a click on row i; footer is the line under
-// it ("" for none).
-func pageTable(cols []pageCol, rows [][]pageCell, onTap []func(), footer string) fyne.CanvasObject {
+// it ("" for none); tips shows the cells' tooltips.
+func pageTable(cols []pageCol, rows [][]pageCell, onTap []func(), footer string, tips *tooltip) fyne.CanvasObject {
 	widths := &pageWidths{cols: cols}
 	head := make([]fyne.CanvasObject, 0, len(cols))
 	for i, c := range cols {
@@ -69,14 +76,25 @@ func pageTable(cols []pageCol, rows [][]pageCell, onTap []func(), footer string)
 		container.New(&pageRowLayout{w: widths}, head...))}
 	for r, row := range rows {
 		cells := make([]fyne.CanvasObject, 0, len(cols))
+		var tipped []*pageTipCell
 		for i, c := range row {
-			cells = append(cells, pageCellObject(c, i < len(cols) && cols[i].num))
+			obj := pageCellObject(c, i < len(cols) && cols[i].num)
+			if c.tip != "" && tips != nil {
+				tc := newPageTipCell(obj, c.tip, tips)
+				tipped = append(tipped, tc)
+				obj = tc
+			}
+			cells = append(cells, obj)
 		}
 		var tap func()
 		if r < len(onTap) {
 			tap = onTap[r]
 		}
-		objs = append(objs, newPageRow(container.New(&pageRowLayout{w: widths}, cells...), tap))
+		pr := newPageRow(container.New(&pageRowLayout{w: widths}, cells...), tap)
+		for _, tc := range tipped {
+			tc.row = pr
+		}
+		objs = append(objs, pr)
 	}
 	if footer != "" {
 		f := newTextLine(footer, theme.ColorNamePlaceHolder, theme.SizeNameText, fyne.TextStyle{})
@@ -264,7 +282,7 @@ func (p *veleroPanel) attentionTable(rows []engine.VeleroAttention) fyne.CanvasO
 		ref := a.Ref
 		taps = append(taps, func() { p.open(ref) })
 	}
-	return pageTable(cols, cells, taps, "")
+	return pageTable(cols, cells, taps, "", p.sh.tip)
 }
 
 // schedulesTable is Schedules: a row per schedule with its last runs as dots.
@@ -292,13 +310,13 @@ func (p *veleroPanel) schedulesTable(rows []engine.VeleroSchedule) fyne.CanvasOb
 		ref := s.Ref
 		taps = append(taps, func() { p.open(ref) })
 	}
-	return pageTable(cols, cells, taps, veleroDotsFooter)
+	return pageTable(cols, cells, taps, veleroDotsFooter, p.sh.tip)
 }
 
 // outsideTable is Outside every schedule: the namespaces, their PVCs and workloads, the GitOps tool
 // that manages them, and why they are outside; a row opens the namespace's drawer.
 func (p *veleroPanel) outsideTable(rows []engine.VeleroOutside) fyne.CanvasObject {
-	cols := []pageCol{{title: "Namespace", width: 180}, {title: "PVCs", width: 64, num: true}, {title: "Workloads", width: 94, num: true},
+	cols := []pageCol{{title: pageColNamespace, width: 180}, {title: "PVCs", width: 64, num: true}, {title: "Workloads", width: 94, num: true},
 		{title: "Managed by", width: 136}, {title: "Reason"}}
 	cells := make([][]pageCell, 0, len(rows))
 	taps := make([]func(), 0, len(rows))
@@ -309,10 +327,93 @@ func (p *veleroPanel) outsideTable(rows []engine.VeleroOutside) fyne.CanvasObjec
 		ref := o.Ref
 		taps = append(taps, func() { p.open(ref) })
 	}
-	return pageTable(cols, cells, taps, veleroOutsideFooter)
+	return pageTable(cols, cells, taps, veleroOutsideFooter, p.sh.tip)
 }
 
-// orDash is a foreground cell, or a muted pageDash for nothing.
+// volumesTable is Failed volume backups: a row per namespace and reason, its volumes, pods and
+// nodes, and the first one's message, whole in its tooltip; a row opens its first volume backup's
+// drawer.
+func (p *veleroPanel) volumesTable(rows []engine.VeleroVolumeGroup) fyne.CanvasObject {
+	cols := []pageCol{{title: pageColNamespace, width: 180}, {title: "Volumes", width: 92, num: true}, {title: "Pods", width: 64, num: true},
+		{title: "Node", width: 170}, {title: "Message"}}
+	cells := make([][]pageCell, 0, len(rows))
+	taps := make([]func(), 0, len(rows))
+	for _, g := range rows {
+		cells = append(cells, []pageCell{
+			pageFg(g.Namespace), pageFg(strconv.Itoa(g.Volumes)), pageFg(strconv.Itoa(g.Pods)), orDash(shortNodes(g.Nodes)),
+			{text: g.Message, tone: colorMuted, tip: g.Message},
+		})
+		ref := g.Ref
+		taps = append(taps, func() { p.open(ref) })
+	}
+	return pageTable(cols, cells, taps, "", p.sh.tip)
+}
+
+// shortNodes writes nodes short: each one's first name part, at most three, then how many more
+// ("worker-01, worker-02 +3").
+func shortNodes(nodes []string) string {
+	var out []string
+	for _, n := range nodes {
+		short, _, _ := strings.Cut(n, ".")
+		if !slices.Contains(out, short) {
+			out = append(out, short)
+		}
+	}
+	text := strings.Join(out[:min(3, len(out))], ", ")
+	if more := len(out) - 3; more > 0 {
+		text += " +" + strconv.Itoa(more)
+	}
+	return text
+}
+
+// pageTipCell is a cell with a tooltip; it lights its row as the row itself does under the pointer.
+type pageTipCell struct {
+	widget.BaseWidget
+	content fyne.CanvasObject
+	text    string
+	tips    *tooltip
+	row     *pageRow
+}
+
+func newPageTipCell(content fyne.CanvasObject, text string, tips *tooltip) *pageTipCell {
+	c := &pageTipCell{content: content, text: text, tips: tips}
+	c.ExtendBaseWidget(c)
+	return c
+}
+
+// MouseIn implements desktop.Hoverable.
+func (c *pageTipCell) MouseIn(ev *desktop.MouseEvent) {
+	if c.row != nil {
+		c.row.setLit(true)
+	}
+	c.tips.hover(c, c.text, ev.AbsolutePosition)
+}
+
+// MouseMoved implements desktop.Hoverable.
+func (c *pageTipCell) MouseMoved(ev *desktop.MouseEvent) { c.tips.moved(c, ev.AbsolutePosition) }
+
+// MouseOut implements desktop.Hoverable.
+func (c *pageTipCell) MouseOut() {
+	if c.row != nil {
+		c.row.setLit(false)
+	}
+	c.tips.hideFor(c)
+}
+
+// Cursor implements desktop.Cursorable: the row's.
+func (c *pageTipCell) Cursor() desktop.Cursor {
+	if c.row != nil {
+		return c.row.Cursor()
+	}
+	return desktop.DefaultCursor
+}
+
+// CreateRenderer implements fyne.Widget.
+func (c *pageTipCell) CreateRenderer() fyne.WidgetRenderer {
+	return widget.NewSimpleRenderer(c.content)
+}
+
+// orDash is a foreground cell, or a muted dash for nothing.
 func orDash(text string) pageCell {
 	if text == "" {
 		return pageDash

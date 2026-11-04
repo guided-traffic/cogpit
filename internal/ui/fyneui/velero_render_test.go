@@ -76,7 +76,8 @@ func checkVeleroPage(t *testing.T, sh *shell) {
 		texts[strings.TrimSuffix(l.text, " UTC")] = true // the cron's zone is named where the computer's is another
 	}
 	for _, want := range []string{"Schedules", "Backups", "Restores", "Storage", "Location unavailable", "Overdue", "Maintenance failed",
-		"nightly-all", "daily 02:00", "demo-ml", veleroDotsFooter, veleroOutsideFooter} {
+		"nightly-all", "daily 02:00", "demo-ml", veleroDotsFooter, veleroOutsideFooter,
+		"exposed PVB is not ready: no expose result is available for the current node"} {
 		if !texts[want] {
 			t.Errorf("the page draws no %q", want)
 		}
@@ -84,7 +85,40 @@ func checkVeleroPage(t *testing.T, sh *shell) {
 	if n := len(findAll[*veleroDots](p.root)); n != 5 {
 		t.Errorf("%d rows of dots, want one per schedule", n)
 	}
+	// Failed volume backups after Needs attention: the section's count and its two groups, each
+	// message whole in its tooltip.
+	if got := veleroSectionLabels(p); !slices.Equal(got, []string{veleroStatusLabel, veleroAttentionLabel, veleroVolumesLabel + " · 4",
+		veleroSchedulesLabel, veleroOutsideLabel}) {
+		t.Errorf("sections %v", got)
+	}
+	tips := findAll[*pageTipCell](p.root)
+	if len(tips) != 2 || !strings.HasPrefix(tips[0].text, "error to expose PVB: ") || tips[1].text != tipCellText(tips[1]) {
+		t.Errorf("%d message cells", len(tips))
+	}
 	checkVeleroCalm(t, sh)
+}
+
+// veleroSectionLabels are the page's section labels in order, each with its count after " · " for
+// Failed volume backups.
+func veleroSectionLabels(p *veleroPanel) []string {
+	var out []string
+	for _, s := range findAll[*veleroSection](p.root) {
+		l := s.label
+		if s.label == veleroVolumesLabel {
+			l += " · " + s.count
+		}
+		out = append(out, l)
+	}
+	return out
+}
+
+// tipCellText is the text a tooltip cell draws: its message, cut off in the cell.
+func tipCellText(c *pageTipCell) string {
+	lines := findAll[*textLine](c.content)
+	if len(lines) != 1 {
+		return ""
+	}
+	return lines[0].text
 }
 
 // checkVeleroCalm checks the calm rule on the page: every text in the foreground, muted or faint
@@ -140,6 +174,16 @@ func TestVeleroPageClicks(t *testing.T) {
 		d := sh.ui.Drawer
 		return sh.ui.View == engine.VeleroDashboard && d != nil && d.Kind == engine.VeleroLocationsKey && d.Name == "secondary"
 	})
+	// Failed volume backups' first row: its first volume backup's drawer, the page staying.
+	tip := findAll[*pageTipCell](p.root)[0]
+	if tip.row == nil {
+		t.Fatal("the message cell knows no row")
+	}
+	tip.row.Tapped(nil)
+	q.until(t, "the pod volume backup's drawer", func() bool {
+		d := sh.ui.Drawer
+		return sh.ui.View == engine.VeleroDashboard && d != nil && d.Kind == engine.VeleroPodVolumeBackupsKey
+	})
 	last := rows[len(rows)-1] // Outside every schedule's last
 	last.Tapped(nil)
 	q.until(t, "the namespace's drawer", func() bool { d := sh.ui.Drawer; return d != nil && d.Kind == kindNamespaces })
@@ -190,5 +234,17 @@ func TestVeleroNavigatorEntry(t *testing.T) {
 		t.Errorf("entry %q depth %d", side.titles[engine.VeleroDashboard], side.depth(engine.VeleroDashboard))
 	}
 	src.Delete(testkit.CRDsGVR, "", engine.VeleroBackupsKey)
-	q.until(t, "the entry to go", func() bool { return !slices.Contains(side.children[integrations], engine.VeleroDashboard) })
+	// Without a failed volume backup the page has no Failed volume backups.
+	sh.dispatch("ui.openView", openViewParams{View: engine.VeleroDashboard}, nil)
+	q.until(t, "the page", func() bool {
+		d := sh.view.velero.data
+		return d != nil && d.Served && d.Synced && len(sh.view.velero.box.Objects) > 0
+	})
+	if got := veleroSectionLabels(sh.view.velero); slices.Contains(got, veleroVolumesLabel+" · 0") || len(got) != 4 {
+		t.Errorf("sections %v", got)
+	}
+	src.Delete(testkit.CRDsGVR, "", engine.VeleroBackupsKey)
+	q.until(t, "the entry to go", func() bool {
+		return !slices.Contains(side.children[integrations], engine.VeleroDashboard)
+	})
 }

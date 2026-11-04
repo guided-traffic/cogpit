@@ -21,10 +21,11 @@ import (
 // The Velero page in the window (D-new): a page under the navigator's Integrations, shown while the
 // cluster serves Velero's Backups (veleroNav). Its header is the title, a muted line of what the
 // cache tells of Velero and the namespace filter; its body replaces the table, as the alert board's
-// does: the Status tiles, Needs attention, Schedules and Outside every schedule, each under a muted
-// section label, the tables drawn by the page itself (velero_tables.go), read-only. Colour only
-// where action is needed (D-calm, calmStatusColor): red to act now, amber to check, everything
-// else grey. The model is the engine's (velero.dashboard), the same an agent reads.
+// does: the Status tiles, Needs attention, Failed volume backups (while there are any), Schedules and
+// Outside every schedule, each under a muted section label, the tables drawn by the page itself
+// (velero_tables.go), read-only. Colour only where action is needed (D-calm, calmStatusColor): red
+// to act now, amber to check, everything else grey. The model is the engine's (velero.dashboard),
+// the same an agent reads.
 
 // veleroNav is the navigator's entry: a top-level page under Integrations, while the cluster serves
 // Velero's Backups.
@@ -42,6 +43,7 @@ func init() {
 const (
 	veleroStatusLabel    = "STATUS"
 	veleroAttentionLabel = "NEEDS ATTENTION"
+	veleroVolumesLabel   = "FAILED VOLUME BACKUPS"
 	veleroSchedulesLabel = "SCHEDULES"
 	veleroOutsideLabel   = "OUTSIDE EVERY SCHEDULE"
 	veleroInferred       = "inferred"
@@ -168,6 +170,13 @@ func (p *veleroPanel) sections(m *engine.VeleroDashboardModel) []fyne.CanvasObje
 		objs = append(objs, empty("Nothing needs attention."))
 	} else {
 		objs = append(objs, p.attentionTable(m.Attention))
+	}
+	if len(m.FailedVolumes) > 0 { // the volumes behind the backups' errors; no section without them
+		n := 0
+		for _, g := range m.FailedVolumes {
+			n += g.Volumes
+		}
+		objs = append(objs, gapOf(4), newVeleroSection(veleroVolumesLabel, strconv.Itoa(n), ""), p.volumesTable(m.FailedVolumes))
 	}
 	objs = append(objs, gapOf(4), newVeleroSection(veleroSchedulesLabel, strconv.Itoa(len(m.Schedules)), ""))
 	if len(m.Schedules) == 0 {
