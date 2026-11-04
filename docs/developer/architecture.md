@@ -284,8 +284,9 @@ A write checks when it runs that it acts on what the user confirmed
   edit since refuses (`TestApplyFromTabBoundToTheReviewedText`,
   `TestHelmUpgradeTabBoundToTheReviewedText`).
 - **Effects:** Helm install refuses when the chart's origin warning changed, upgrade also when its
-  effects did; Remove finalizers removes exactly the confirmed ones (`ConfirmedFinalizers`,
-  [D-98](decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)).
+  effects did; Remove finalizers removes exactly the confirmed ones (`ConfirmedFinalizers`), on a
+  selection from an object holding none but those
+  ([D-98](decisions.md#d-98-what-holds-a-terminating-namespace-and-remove-finalizers)).
 
 #### Access reviews
 

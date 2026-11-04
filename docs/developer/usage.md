@@ -116,8 +116,8 @@ Ctrl on Windows and Linux.
   server first and names keys and sizes, never a value; nothing unsaved touches the disk. Create
   Secret masks values as you type. Agents can neither create a Secret nor read, review or save its
   values.
-- Delete, Restart and the Flux and Argo CD actions on checked rows (each view keeps its own): up to
-  500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
+- Delete, Restart, Remove Finalizers and the Flux and Argo CD actions on checked rows (each view
+  keeps its own): up to 500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
   agents see and may cancel in `ui_state`. On Port Forwarding the selection bar's Delete removes
   the checked forwards at once, as their own Delete does; Helm Releases' bar has no Delete (uninstall
   one at a time from its menu).
@@ -1444,12 +1444,19 @@ controller removes. Its drawer then shows **Blocking Deletion** under Properties
 - **It follows the cluster:** an object whose finalizers go leaves the list; when nothing is left
   the drawer says so and the controller removes the namespace within seconds, without a second
   Delete.
-- **Remove Finalizers** (in that list, the row menu and the drawer's toolbar of a deleting object
-  with finalizers, between Edit and Delete) is confirmed every time, naming the object, each
-  finalizer in red and "Skips the cleanup of the controllers that own them (a cloud disk or a DNS
-  record may stay)". It removes exactly those finalizers from exactly that object; if they changed
-  meanwhile, nothing is removed and Cogpit says so. Never offered on a namespace, and a namespace's
-  own finalizer is never forced.
+- **Remove Finalizers** (the open padlock; in that list, the row menu and the drawer's toolbar of
+  a deleting object with finalizers, between Edit and Delete) is confirmed every time, also for an
+  object whose Delete you confirmed already: the confirmation names the object and each finalizer
+  in red, and says below why this is rarely right and when it is (the controller that would clean
+  up is gone or broken for good). It removes exactly those finalizers from exactly that object; if
+  they changed meanwhile, nothing is removed and Cogpit says so. Never offered on a namespace, and a
+  namespace's own finalizer is never forced.
+- **On checked rows** the selection bar shows the padlock after Delete while a checked object is
+  being deleted and holds finalizers (also in the checked rows' menu). One confirmation names the
+  objects it acts on, every finalizer they hold once, and how many checked objects it leaves out
+  (not being deleted, without finalizers, a namespace); each object loses its finalizers only while
+  it holds none but the confirmed ones and is the object you confirmed. More than ten run in a dock
+  tab with Cancel; objects freed leave the selection.
 - **Agents** read the section in `object_get` with each row's `object_removeFinalizers` params;
   their request always waits for your confirmation.
 - **Reads** happen only while the drawer shows such a namespace, metadata only.

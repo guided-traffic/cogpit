@@ -334,7 +334,7 @@ func TestFluxActionsOnASelection(t *testing.T) {
 	for _, c := range h.s.Registry().SelectionActions(engine.SelectionKinds(refs)) {
 		ids = append(ids, c.ID)
 	}
-	if want := []string{"flux.reconcileMany", "flux.reconcileWithSourceMany", "flux.resumeMany", "flux.suspendMany", "object.deleteMany"}; !slices.Equal(ids, want) {
+	if want := []string{"flux.reconcileMany", "flux.reconcileWithSourceMany", "flux.resumeMany", "flux.suspendMany", engine.RemoveFinalizersManyCommand, "object.deleteMany"}; !slices.Equal(ids, want) {
 		t.Errorf("selection actions %v, want %v", ids, want)
 	}
 	ids = nil

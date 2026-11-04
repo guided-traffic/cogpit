@@ -137,8 +137,8 @@ func renderNamespaceBlocking(t *testing.T, mode ThemeMode, drawerPNG, confirmPNG
 	settle(w)
 	savePNG(t, w, drawerPNG)
 
-	// Remove Finalizers from walk-cm's row: the confirmation names the object and, as rows, the
-	// finalizers it removes and the cleanup it skips.
+	// Remove Finalizers from walk-cm's row: the confirmation names the object and, as a row, the
+	// finalizers it removes, and below the table why that is rarely right.
 	sh.runItemAction(ref, blocking.Items[0].Actions[0])
 	q.until(t, "the confirmation", func() bool { return sh.confirmer.current != nil })
 	savePNG(t, w, confirmPNG)
