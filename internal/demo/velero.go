@@ -2,6 +2,7 @@
 package demo
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,14 +18,17 @@ import (
 // churn never changes them, and nothing in them comes from the random generator: the rest of the
 // cluster stays as it was. Their times are relative to Now, as every other object's.
 
-// veleroNS is the demo's Velero namespace.
-const veleroNS = "velero"
+// veleroNS is the demo's Velero namespace, and veleroBackupKind the kind of its backups.
+const (
+	veleroNS         = "velero"
+	veleroBackupKind = "Backup"
+)
 
 // veleroCRDs are the definitions of Velero's kinds the page reads.
 var veleroCRDs = []struct{ plural, kind string }{
-	{"schedules", "Schedule"}, {"backups", "Backup"}, {"restores", "Restore"},
+	{"schedules", "Schedule"}, {"backups", veleroBackupKind}, {"restores", "Restore"},
 	{"backupstoragelocations", "BackupStorageLocation"}, {"volumesnapshotlocations", "VolumeSnapshotLocation"},
-	{"backuprepositories", "BackupRepository"},
+	{"backuprepositories", "BackupRepository"}, {"podvolumebackups", "PodVolumeBackup"},
 }
 
 // veleroSchedule is one of the demo's schedules: its cron, the template's scope, how its runs
@@ -42,12 +46,20 @@ type veleroSchedule struct {
 	outcome    func(i int) map[string]any
 }
 
-// lastAt is the newest time at hour:minute UTC (each day, in Velero's zone) that lies more than ten
-// minutes before now.
-func lastAt(now time.Time, hour, minute int) time.Time {
+// The runs' margins before now: a schedule's last run lies at least runMargin back, less than the
+// page's grace for a run on its way, so that the next one is never seen overdue; nightly-all's due
+// run lies dueMargin back, more than the grace, so that it always is.
+const (
+	runMargin = time.Minute
+	dueMargin = 10 * time.Minute
+)
+
+// lastAt is the newest time at hour:minute UTC (each day, in Velero's zone) that lies more than
+// margin before now.
+func lastAt(now time.Time, hour, minute int, margin time.Duration) time.Time {
 	now = now.UTC()
 	t := time.Date(now.Year(), now.Month(), now.Day(), hour, minute, 0, 0, time.UTC)
-	for !t.Before(now.Add(-10 * time.Minute)) {
+	for !t.Before(now.Add(-margin)) {
 		t = t.Add(-24 * time.Hour)
 	}
 	return t
@@ -66,7 +78,7 @@ func demoSchedules() []veleroSchedule {
 			name: "nightly-all", cron: "0 2 * * *", every: 24 * time.Hour, runs: 14, took: 58 * time.Minute, ttl: "720h0m0s",
 			// The run due last night was not created: the one before still runs (Velero skips a due run
 			// while a backup of the schedule is in progress).
-			anchor:   func(now time.Time) time.Time { return lastAt(now, 2, 0).Add(-24 * time.Hour) },
+			anchor:   func(now time.Time) time.Time { return lastAt(now, 2, 0, dueMargin).Add(-24 * time.Hour) },
 			template: map[string]any{"excludedNamespaces": outsideNamespaces, "snapshotVolumes": true, "storageLocation": "default"},
 			phase: func(i int) string {
 				switch i {
@@ -87,8 +99,8 @@ func demoSchedules() []veleroSchedule {
 		{
 			name: "shop-volumes", cron: "0 */6 * * *", every: 6 * time.Hour, runs: 28, took: 14 * time.Minute, ttl: "168h0m0s",
 			anchor: func(now time.Time) time.Time {
-				t := lastAt(now, 0, 0)
-				for t.Add(6 * time.Hour).Before(now.Add(-10 * time.Minute)) {
+				t := lastAt(now, 0, 0, runMargin)
+				for t.Add(6 * time.Hour).Before(now.Add(-runMargin)) {
 					t = t.Add(6 * time.Hour)
 				}
 				return t
@@ -113,7 +125,7 @@ func demoSchedules() []veleroSchedule {
 			anchor: func(now time.Time) time.Time {
 				now = now.UTC()
 				t := time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 5, 0, 0, time.UTC)
-				for !t.Before(now.Add(-10 * time.Minute)) {
+				for !t.Before(now.Add(-runMargin)) {
 					t = t.Add(-time.Hour)
 				}
 				return t
@@ -125,7 +137,7 @@ func demoSchedules() []veleroSchedule {
 		{
 			name: "weekly-full", cron: "0 3 * * 0", every: 7 * 24 * time.Hour, runs: 2, took: 107 * time.Minute, ttl: "2160h0m0s",
 			anchor: func(now time.Time) time.Time {
-				t := lastAt(now, 3, 0)
+				t := lastAt(now, 3, 0, runMargin)
 				for t.Weekday() != time.Sunday {
 					t = t.Add(-24 * time.Hour)
 				}
@@ -136,7 +148,7 @@ func demoSchedules() []veleroSchedule {
 		},
 		{
 			name: "monitoring-config", cron: "30 4 * * *", every: 24 * time.Hour, runs: 3, took: 2 * time.Minute, ttl: "336h0m0s", paused: true,
-			anchor:   func(now time.Time) time.Time { return lastAt(now, 4, 30).Add(-9 * 24 * time.Hour) },
+			anchor:   func(now time.Time) time.Time { return lastAt(now, 4, 30, runMargin).Add(-9 * 24 * time.Hour) },
 			template: map[string]any{"includedNamespaces": []any{"demo-monitoring"}, "storageLocation": "default"},
 			phase:    completed,
 		},
@@ -164,6 +176,9 @@ func (c *Cluster) buildVelero(now time.Time) {
 			name := s.name + "-" + at.Format("20060102150405")
 			if s.name == "shop-volumes" && i == 1 {
 				shopBackup = name
+			}
+			if s.name == "shop-volumes" && i == 0 {
+				c.buildVeleroPodVolumes(name, at)
 			}
 			var outcome map[string]any
 			if s.outcome != nil {
@@ -214,6 +229,71 @@ func (c *Cluster) buildVeleroStorage(now time.Time) {
 		c.put(kindVeleroRepositories, veleroObject("BackupRepository", ns+"-default-kopia", now.Add(-30*24*time.Hour), nil, map[string]any{
 			"volumeNamespace": ns, "backupStorageLocation": "default", "repositoryType": "kopia", "maintenanceFrequency": "1h0m0s",
 		}, status))
+	}
+}
+
+// demoPodVolume is one of the demo's pod volume backups.
+type demoPodVolume struct {
+	pod, volume string
+	node        int // which worker it ran on
+	phase, msg  string
+}
+
+// The reasons the demo's failed pod volume backups give, as Velero writes them: a pod that was
+// gone when its volume's turn came (a job's short-lived pod), and a node agent without an answer.
+const (
+	pvbExposeError = "error to expose PVB: error to get pod volume path: error identifying unique volume path on host for volume %s " +
+		"in pod %s: expected one matching path: /host_pods/%s/volumes/*/%s, got 0"
+	pvbNotReady = "exposed PVB is not ready: no expose result is available for the current node"
+)
+
+// buildVeleroPodVolumes adds the pod volume backups of shop-volumes' newest backup, which
+// partially failed: its four errors are the three volumes of short-lived pods that were gone and
+// the one a node agent did not expose; two more completed.
+func (c *Cluster) buildVeleroPodVolumes(backup string, at time.Time) {
+	var workers []string
+	for _, n := range c.w.nodes {
+		if n.role == roleWorker {
+			workers = append(workers, n.name)
+		}
+	}
+	if len(workers) == 0 {
+		workers = []string{"worker-1"}
+	}
+	for i, v := range []demoPodVolume{
+		{pod: "nightly-export-29384011-x7k2p", volume: "scratch", node: 0, phase: "Failed", msg: pvbExposeError},
+		{pod: "nightly-export-29384011-q9z4m", volume: "scratch", node: 1, phase: "Failed", msg: pvbExposeError},
+		{pod: "cache-warmup-29384011-h2n8d", volume: "tmp-data", node: 0, phase: "Failed", msg: pvbExposeError},
+		{pod: "orders-db-0", volume: "data", node: 2, phase: "Failed", msg: pvbNotReady},
+		{pod: "cart-db-0", volume: "data", node: 1, phase: "Completed"},
+		{pod: "catalog-cache-0", volume: "cache", node: 2, phase: "Completed"},
+	} {
+		podUID := stableUID("pod", "demo-shop", v.pod)
+		msg := v.msg
+		if msg == pvbExposeError {
+			msg = fmt.Sprintf(pvbExposeError, v.volume, v.pod, podUID, v.volume)
+		}
+		start := at.Add(time.Duration(30+i*20) * time.Second)
+		status := map[string]any{"phase": v.phase, "startTimestamp": ts(start), "completionTimestamp": ts(start.Add(40 * time.Second))}
+		if msg != "" {
+			status["message"] = msg
+		}
+		if v.phase == "Completed" {
+			status["progress"] = map[string]any{"totalBytes": int64(1_342_177_280), "bytesDone": int64(1_342_177_280)}
+			status["snapshotID"] = stableUID("snapshot", backup, v.pod)[:16]
+		}
+		name := backup + "-" + stableUID("podvolumebackup", backup, v.pod, v.volume)[:5]
+		obj := veleroObject("PodVolumeBackup", name, at, map[string]any{
+			"velero.io/backup-name": backup, "velero.io/backup-uid": stableUID(veleroBackupKind, backup),
+		}, map[string]any{
+			"backupStorageLocation": "default", "uploaderType": "kopia", "volume": v.volume, "node": workers[v.node%len(workers)],
+			"pod":  map[string]any{"kind": "Pod", "namespace": "demo-shop", "name": v.pod, "uid": podUID},
+			"tags": map[string]any{"backup": backup, "ns": "demo-shop", "pod": v.pod, "volume": v.volume},
+		}, status)
+		obj.Object["metadata"].(map[string]any)["ownerReferences"] = []any{
+			map[string]any{"apiVersion": veleroAPI, "kind": veleroBackupKind, "name": backup, "uid": stableUID(veleroBackupKind, backup), "controller": true},
+		}
+		c.put(kindVeleroPodVolumeBackups, obj)
 	}
 }
 
@@ -293,7 +373,7 @@ func veleroBackupObject(name, schedule string, tmpl map[string]any, ttl, phase s
 	for k, v := range outcome {
 		status[k] = v
 	}
-	return veleroObject("Backup", name, at, labels, spec, status)
+	return veleroObject(veleroBackupKind, name, at, labels, spec, status)
 }
 
 // veleroServer is Velero's Deployment: its server image and the AWS plugin as an init container.

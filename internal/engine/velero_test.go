@@ -524,3 +524,100 @@ func TestVeleroPageWithoutVelero(t *testing.T) {
 	s.OpenTab(VeleroDashboard, false)
 	waitTable(t, s, VeleroDashboard, func(t *TableSnapshot) bool { return t.Error == veleroNotServed })
 }
+
+// vPVB is a pod volume backup of a backup, of a pod's volume on a node, in a phase with a message.
+func vPVB(name, backup, phase, ns, pod, volume, node, msg string) *unstructured.Unstructured {
+	return testkit.VeleroObject("PodVolumeBackup", name, veleroNow, map[string]string{veleroBackupLabel: backup},
+		map[string]any{"pod": map[string]any{"kind": "Pod", "namespace": ns, "name": pod}, "volume": volume, "node": node},
+		map[string]any{"phase": phase, "message": msg})
+}
+
+// exposeError is the message of a pod volume backup whose pod's volume was gone when it ran.
+func exposeError(pod, volume, uid string) string {
+	return "error to expose PVB: error to get pod volume path: error identifying unique volume path on host for volume " + volume +
+		" in pod " + pod + ": expected one matching path: /host_pods/" + uid + "/volumes/*/" + volume + ", got 0"
+}
+
+func TestVeleroMaskVolumeMessage(t *testing.T) {
+	a := maskVolumeMessage(exposeError("export-1", "scratch", "1111"), "shop", "export-1", "scratch")
+	b := maskVolumeMessage(exposeError("export-2", "tmp", "2222"), "shop", "export-2", "tmp")
+	if a != b || strings.Contains(a, "export") || strings.Contains(a, "/host_pods") {
+		t.Errorf("masked\n%s\n%s", a, b)
+	}
+	if got := maskVolumeMessage("pod shop/web-0 (data) failed", "shop", "web-0", "data"); got != "pod <pod> <volume> failed" {
+		t.Errorf("masked %q", got)
+	}
+	// Another reason stays apart.
+	if c := maskVolumeMessage("exposed PVB is not ready: no expose result is available for the current node", "shop", "db-0", "data"); c == a {
+		t.Error("two reasons masked alike")
+	}
+}
+
+// TestVeleroFailedVolumes: the failed volume backups of the backups in Needs attention, grouped by
+// namespace and masked message, most volumes first; the backup's Detail counts them and the errors
+// they do not explain; a data upload counts as one; a completed one, another backup's, or one
+// outside the namespace filter does not.
+func TestVeleroFailedVolumes(t *testing.T) {
+	at := time.Date(2026, 11, 3, 2, 0, 0, 0, time.UTC)
+	latest := runName("nightly", at)
+	older := runName("nightly", at.Add(-24*time.Hour))
+	objs := func() map[string][]*unstructured.Unstructured {
+		return map[string][]*unstructured.Unstructured{
+			VeleroSchedulesKey: {vSchedule("nightly", "0 2 * * *", nil, false, map[string]any{"lastBackup": testkit.VeleroTime(at)})},
+			VeleroBackupsKey: {
+				vBackup("nightly", older, phaseCompleted, at.Add(-24*time.Hour), time.Hour, nil, nil),
+				vBackup("nightly", latest, phasePartiallyFailed, at, time.Hour, nil, map[string]any{"errors": int64(49), "warnings": int64(2)}),
+			},
+			VeleroPodVolumeBackupsKey: {
+				vPVB("p1", latest, phaseFailed, "shop", "export-b", "scratch", "node-2", exposeError("export-b", "scratch", "uid-b")),
+				vPVB("p2", latest, phaseFailed, "shop", "export-a", "scratch", "node-1", exposeError("export-a", "scratch", "uid-a")),
+				vPVB("p3", latest, phaseFailed, "shop", "warmup-c", "tmp", "node-1", exposeError("warmup-c", "tmp", "uid-c")),
+				vPVB("p4", latest, phaseFailed, "shop", "orders-db-0", "data", "node-3",
+					"exposed PVB is not ready: no expose result is available for the current node"),
+				vPVB("p5", latest, phaseCompleted, "shop", "cart-db-0", "data", "node-1", ""),
+				vPVB("p6", older, phaseFailed, "shop", "export-z", "scratch", "node-1", exposeError("export-z", "scratch", "uid-z")),
+			},
+			VeleroDataUploadsKey: {testkit.VeleroObject("DataUpload", "du1", veleroNow, map[string]string{veleroBackupLabel: latest},
+				map[string]any{"sourceNamespace": "billing", "sourcePVC": "ledger"},
+				map[string]any{"phase": phaseFailed, "node": "node-4", "message": "data path failed: snapshot not ready"})},
+		}
+	}
+	m := veleroAt(objs(), veleroNow, nil)
+	if len(m.Attention) != 1 || m.Attention[0].Detail != "49 errors, 2 warnings · 5 volume backups failed · 44 counted only" {
+		t.Fatalf("attention %+v", m.Attention)
+	}
+	var got []string
+	for _, g := range m.FailedVolumes {
+		got = append(got, g.Namespace+"|"+strconv.Itoa(g.Volumes)+"|"+strconv.Itoa(g.Pods)+"|"+strings.Join(g.Nodes, ",")+"|"+g.Ref.Name)
+	}
+	want := []string{"shop|3|3|node-1,node-2|p2", "billing|1|0|node-4|du1", "shop|1|1|node-3|p4"}
+	if !slices.Equal(got, want) {
+		t.Errorf("groups %v, want %v", got, want)
+	}
+	g := m.FailedVolumes[0]
+	if g.Message != exposeError("export-a", "scratch", "uid-a") || g.Ref.Kind != VeleroPodVolumeBackupsKey || len(g.Members) != 3 ||
+		g.Members[0].Pod != "export-a" || g.Members[2].Pod != "warmup-c" || g.Members[2].Volume != "tmp" || g.Members[0].Backup != latest {
+		t.Errorf("first group %+v", g)
+	}
+	if du := m.FailedVolumes[1].Members[0]; du.Ref.Kind != VeleroDataUploadsKey || du.Volume != "ledger" || du.Pod != "" || du.Node != "node-4" {
+		t.Errorf("data upload %+v", du)
+	}
+	// The namespace filter narrows the groups; the Detail still counts the backup's own.
+	m = veleroAt(objs(), veleroNow, nil, "billing")
+	if len(m.FailedVolumes) != 1 || m.FailedVolumes[0].Namespace != "billing" {
+		t.Errorf("narrowed %+v", m.FailedVolumes)
+	}
+	// As many errors as failed volume backups: nothing counted only.
+	o := objs()
+	o[VeleroBackupsKey][1] = vBackup("nightly", latest, phasePartiallyFailed, at, time.Hour, nil, map[string]any{"errors": int64(5)})
+	if m := veleroAt(o, veleroNow, nil); m.Attention[0].Detail != "5 errors · 5 volume backups failed" {
+		t.Errorf("detail %q", m.Attention[0].Detail)
+	}
+	// None failed: no groups, the Detail as before.
+	o = objs()
+	delete(o, VeleroPodVolumeBackupsKey)
+	delete(o, VeleroDataUploadsKey)
+	if m := veleroAt(o, veleroNow, nil); len(m.FailedVolumes) != 0 || m.Attention[0].Detail != "49 errors, 2 warnings" {
+		t.Errorf("without failures: %+v, %q", m.FailedVolumes, m.Attention[0].Detail)
+	}
+}

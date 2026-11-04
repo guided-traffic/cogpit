@@ -43,6 +43,8 @@ type veleroModeler struct {
 	tf     model.TimeFormat
 	server veleroServer
 	m      *VeleroDashboardModel
+
+	failed map[string][]VeleroFailedVolume // the failed volume backups by backup name (velero_volumes.go)
 }
 
 // veleroServer is what the page reads from Velero's Deployment: its namespace, its zone, its
@@ -63,7 +65,8 @@ func (s *Session) veleroModel(b *Backend, vb *veleroBuild, namespaces []string) 
 func buildVeleroModel(b *Backend, vb *veleroBuild, namespaces []string, now time.Time, tf model.TimeFormat) *VeleroDashboardModel {
 	mb := &veleroModeler{b: b, vb: vb, now: now, tf: tf,
 		m: &VeleroDashboardModel{Served: vb.served, Namespaces: slices.Clone(namespaces), Synced: vb.synced, Error: vb.errText,
-			Tiles: []VeleroTile{}, Attention: []VeleroAttention{}, Schedules: []VeleroSchedule{}, Outside: []VeleroOutside{}}}
+			Tiles: []VeleroTile{}, Attention: []VeleroAttention{}, FailedVolumes: []VeleroVolumeGroup{}, Schedules: []VeleroSchedule{},
+			Outside: []VeleroOutside{}}}
 	if len(namespaces) > 0 {
 		mb.nsSet = setOf(namespaces)
 	}
@@ -78,6 +81,7 @@ func buildVeleroModel(b *Backend, vb *veleroBuild, namespaces []string, now time
 	mb.tiles(scheds)
 	mb.storageAttention()
 	mb.backupAttention(scheds)
+	mb.m.FailedVolumes = mb.volumeGroups()
 	mb.outside(scheds)
 	mb.sortAttention()
 	return mb.m
@@ -465,9 +469,12 @@ func (mb *veleroModeler) repositoryAttention(o *unstructured.Unstructured) {
 }
 
 // backupOutcome is the Detail of a backup that did not complete: its counts of errors and
-// warnings, its volume snapshots that did not complete, its failed item operations, its failure
-// reason or validation errors. Never the errors' text: only a DownloadRequest has it (D-nowrite).
-func backupOutcome(o *unstructured.Unstructured) string {
+// warnings, its failed volume backups (failedVolumes of them) and the errors no volume backup
+// explains ("28 errors · 28 volume backups failed", "49 errors · 28 volume backups failed · 21
+// counted only"), its volume snapshots that did not complete, its failed item operations, its
+// failure reason or validation errors. Never the errors' own text: only a DownloadRequest has it
+// (D-151); a failed volume backup's message is in its own object (Failed volume backups).
+func backupOutcome(o *unstructured.Unstructured, failedVolumes int) string {
 	st := model.NestedMap(o.Object, "status")
 	num := func(f string) int {
 		n, _ := model.NestedInt64(st, f)
@@ -483,6 +490,12 @@ func backupOutcome(o *unstructured.Unstructured) string {
 	}
 	if len(counts) > 0 {
 		parts = append(parts, strings.Join(counts, ", "))
+	}
+	if failedVolumes > 0 {
+		parts = append(parts, strconv.Itoa(failedVolumes)+" volume "+veleroPlural(failedVolumes, "backup", "backups")+" failed")
+		if rest := num("errors") - failedVolumes; rest > 0 {
+			parts = append(parts, strconv.Itoa(rest)+" counted only")
+		}
 	}
 	attempted := num("volumeSnapshotsAttempted") + num("csiVolumeSnapshotsAttempted")
 	completed := num("volumeSnapshotsCompleted") + num("csiVolumeSnapshotsCompleted")
@@ -528,7 +541,8 @@ func finishedAt(o *unstructured.Unstructured) time.Time {
 // backupRow is Needs attention's row of a backup that did not complete.
 func (mb *veleroModeler) backupRow(o *unstructured.Unstructured, problem string, status model.Status) VeleroAttention {
 	return VeleroAttention{Problem: problem, Status: status, Ref: mb.ref(VeleroBackupsKey, o), Object: "Backup " + o.GetName(),
-		Scope: veleroScopeOf(model.NestedMap(o.Object, "spec")).text(), Since: finishedAt(o), Detail: backupOutcome(o)}
+		Scope: veleroScopeOf(model.NestedMap(o.Object, "spec")).text(), Since: finishedAt(o),
+		Detail: backupOutcome(o, len(mb.failedVolumes()[o.GetName()]))}
 }
 
 // backupAttention adds each schedule's problems (failed validation, overdue, its latest finished

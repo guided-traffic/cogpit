@@ -99,8 +99,9 @@ const (
 // The demo's Velero (velero.go) with every namespace of the default cluster: its namespace and
 // server besides the world's, and its own kinds.
 var veleroCounts = map[kind]int{
-	kindCRDs: 6, kindDaemonSets: 1, kindPVCs: 10, kindVeleroSchedules: 5, kindVeleroBackups: 14 + 28 + 72 + 2 + 3 + 1,
+	kindCRDs: 7, kindDaemonSets: 1, kindPVCs: 10, kindVeleroSchedules: 5, kindVeleroBackups: 14 + 28 + 72 + 2 + 3 + 1,
 	kindVeleroRestores: 3, kindVeleroLocations: 2, kindVeleroSnapshotLocations: 1, kindVeleroRepositories: 8,
+	kindVeleroPodVolumeBackups: 6, // shop-volumes' newest backup's: four failed, two completed
 }
 
 // veleroObjects counts them all, its Namespace and Deployment included.

@@ -23,7 +23,9 @@ func registerVelero(g *registrar) {
 			"(storage locations unavailable, no default location, schedules overdue by Velero's own next-run rule or " +
 			"failing validation, a schedule's latest backup failed or partly failed with its counts of errors and " +
 			"warnings, failed backups no schedule made, repositories not ready or whose maintenance failed, node agents " +
-			"not ready; worst first, then newest), the schedules (when in words, next run, the last seven runs with " +
+			"not ready; worst first, then newest), the failed volume backups of those backups (PodVolumeBackups and " +
+			"DataUploads in phase Failed, grouped by namespace and reason, each member's pod, volume, node and message), " +
+			"the schedules (when in words, next run, the last seven runs with " +
 			"missed ones, last completed, duration, scope, TTL, location, state) and the namespaces outside every " +
 			"enabled schedule's scope (inferred from the schedules' namespaces, resources and selectors, never proof of " +
 			"a backup; those with PVCs first). Read from the cache; nothing is written or created in the cluster. " +

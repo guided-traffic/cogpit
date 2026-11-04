@@ -21,13 +21,15 @@ var (
 	VeleroLocationsGVR         = schema.GroupVersionResource{Group: "velero.io", Version: "v1", Resource: "backupstoragelocations"}
 	VeleroSnapshotLocationsGVR = schema.GroupVersionResource{Group: "velero.io", Version: "v1", Resource: "volumesnapshotlocations"}
 	VeleroRepositoriesGVR      = schema.GroupVersionResource{Group: "velero.io", Version: "v1", Resource: "backuprepositories"}
+	VeleroPodVolumeBackupsGVR  = schema.GroupVersionResource{Group: "velero.io", Version: "v1", Resource: "podvolumebackups"}
+	VeleroDataUploadsGVR       = schema.GroupVersionResource{Group: "velero.io", Version: "v2alpha1", Resource: "datauploads"}
 	DaemonSetsGVR              = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "daemonsets"}
 	StatefulSetsGVR            = schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "statefulsets"}
 	PVCsGVR                    = schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}
 )
 
 // VeleroCRDs returns the definitions of Velero's Schedules, Backups, Restores, storage and
-// snapshot locations and repositories, established.
+// snapshot locations, repositories, pod volume backups and (at v2alpha1) data uploads, established.
 func VeleroCRDs() []*unstructured.Unstructured {
 	return []*unstructured.Unstructured{
 		CRD("velero.io", "schedules", "Schedule", true),
@@ -36,6 +38,8 @@ func VeleroCRDs() []*unstructured.Unstructured {
 		CRD("velero.io", "backupstoragelocations", "BackupStorageLocation", true),
 		CRD("velero.io", "volumesnapshotlocations", "VolumeSnapshotLocation", true),
 		CRD("velero.io", "backuprepositories", "BackupRepository", true),
+		CRD("velero.io", "podvolumebackups", "PodVolumeBackup", true),
+		CRD("velero.io", "datauploads", "DataUpload", true, CRDVersion{Name: "v2alpha1", Served: true, Storage: true}),
 	}
 }
 

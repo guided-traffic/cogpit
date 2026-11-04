@@ -43,6 +43,10 @@ const (
 	VeleroLocationsKey         = "backupstoragelocations.velero.io"
 	VeleroSnapshotLocationsKey = "volumesnapshotlocations.velero.io"
 	VeleroRepositoriesKey      = "backuprepositories.velero.io"
+	// A backup's volumes: the file-system backups of pod volumes (velero.io/v1) and the data
+	// mover's uploads of CSI snapshots (velero.io/v2alpha1), for Failed volume backups.
+	VeleroPodVolumeBackupsKey = "podvolumebackups.velero.io"
+	VeleroDataUploadsKey      = "datauploads.velero.io"
 )
 
 // The built-in kinds the page reads besides Velero's: the namespaces and what is in them for
@@ -56,6 +60,7 @@ const (
 var (
 	veleroKinds = []string{
 		VeleroSchedulesKey, VeleroBackupsKey, VeleroRestoresKey, VeleroLocationsKey, VeleroSnapshotLocationsKey, VeleroRepositoriesKey,
+		VeleroPodVolumeBackupsKey, VeleroDataUploadsKey,
 	}
 	veleroCoreKinds = []string{kindNamespaces, kindPVCs, logKindDeployments, kindStatefulSets, logKindDaemonSets}
 )
@@ -88,6 +93,9 @@ type VeleroDashboardModel struct {
 	Tiles []VeleroTile `json:"tiles"`
 	// Attention is Needs attention: worst first, then newest.
 	Attention []VeleroAttention `json:"attention"`
+	// FailedVolumes are the failed volume backups of the backups in Needs attention, grouped: those
+	// of one namespace that failed the same way, most volumes first (velero_volumes.go).
+	FailedVolumes []VeleroVolumeGroup `json:"failedVolumes"`
 	// Schedules are the schedules, those that need action first, then by name.
 	Schedules []VeleroSchedule `json:"schedules"`
 	// Outside are the namespaces no enabled schedule takes in full (inferred from the schedules'

@@ -47,6 +47,7 @@ const (
 	kindVeleroLocations
 	kindVeleroSnapshotLocations
 	kindVeleroRepositories
+	kindVeleroPodVolumeBackups
 	numKinds
 )
 
@@ -76,11 +77,12 @@ var kindInfo = [numKinds]struct {
 		"apiextensions.k8s.io/v1", "CustomResourceDefinition", false, []string{"crd", "crds"}},
 	kindPVCs:                    {schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}, "v1", "PersistentVolumeClaim", true, []string{"pvc"}},
 	kindVeleroSchedules:         {veleroGVR("schedules"), veleroAPI, "Schedule", true, nil},
-	kindVeleroBackups:           {veleroGVR("backups"), veleroAPI, "Backup", true, nil},
+	kindVeleroBackups:           {veleroGVR("backups"), veleroAPI, veleroBackupKind, true, nil},
 	kindVeleroRestores:          {veleroGVR("restores"), veleroAPI, "Restore", true, nil},
 	kindVeleroLocations:         {veleroGVR("backupstoragelocations"), veleroAPI, "BackupStorageLocation", true, nil},
 	kindVeleroSnapshotLocations: {veleroGVR("volumesnapshotlocations"), veleroAPI, "VolumeSnapshotLocation", true, nil},
 	kindVeleroRepositories:      {veleroGVR("backuprepositories"), veleroAPI, "BackupRepository", true, nil},
+	kindVeleroPodVolumeBackups:  {veleroGVR("podvolumebackups"), veleroAPI, "PodVolumeBackup", true, nil},
 }
 
 // veleroAPI is Velero's API version, and veleroGVR one of its resources.

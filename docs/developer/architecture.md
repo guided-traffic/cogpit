@@ -511,8 +511,9 @@ search of its own (`pageFilters`: Image Security's `sev>=high`). Its table's row
 keys, so selection, row menus and the drawer work (`engine.MixedKinds` where kinds mix), and
 `Session.ViewProfile` gives `ui.sort`, `ui.setColumns` and `table.exportCsv` its profile. The
 Velero page has no table of its own: its worker builds `VeleroDashboardModel`
-(`Session.VeleroDashboard`, `velero.dashboard`) from Velero's kinds, the namespaces, PVCs and
-workloads, on every change and every 30 seconds; its snapshot carries only the sync state and the
+(`Session.VeleroDashboard`, `velero.dashboard`) from Velero's kinds (its PodVolumeBackups and
+DataUploads included, [`velero_volumes.go`](../../internal/engine/velero_volumes.go)), the
+namespaces, PVCs and workloads, on every change and every 30 seconds; its snapshot carries only the sync state and the
 error, and the window draws the model's tiles and tables over the table's place
 ([`fyneui/velero.go`](../../internal/ui/fyneui/velero.go)), as the alert board does.
 

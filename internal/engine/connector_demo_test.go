@@ -10,9 +10,16 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/demo"
 	"github.com/guided-traffic/cogpit/internal/helm"
 	"github.com/guided-traffic/cogpit/internal/model"
@@ -122,6 +129,62 @@ func TestDemoVeleroPage(t *testing.T) {
 	if h := m.Header; h.Version != "1.17.1" || h.Namespace != "velero" || h.NodeAgents == nil || h.NodeAgents.Desired != 3 ||
 		len(h.Plugins) != 1 || h.Plugins[0].Name != "aws" {
 		t.Errorf("header %+v", h)
+	}
+	// shop-volumes' four errors are its four failed pod volume backups, in two groups.
+	var shop string
+	for _, a := range m.Attention {
+		if strings.HasPrefix(a.Object, "Backup shop-volumes-") {
+			shop = a.Detail
+		}
+	}
+	if shop != "4 errors, 12 warnings · 4 volume backups failed · 2 of 3 volume snapshots" {
+		t.Errorf("shop-volumes' detail %q", shop)
+	}
+	if len(m.FailedVolumes) != 2 || m.FailedVolumes[0].Volumes != 3 || m.FailedVolumes[0].Pods != 3 || m.FailedVolumes[0].Namespace != "demo-shop" ||
+		m.FailedVolumes[1].Volumes != 1 || !strings.HasPrefix(m.FailedVolumes[1].Message, "exposed PVB is not ready") ||
+		m.FailedVolumes[0].Ref.Kind != VeleroPodVolumeBackupsKey {
+		t.Errorf("failed volumes %+v", m.FailedVolumes)
+	}
+}
+
+// TestDemoVeleroStatesAllDay: the demo's schedules read the same at every time of day, as its file
+// describes them: nightly-all overdue, the others not (their last run lies less than the page's
+// grace back, demo/velero.go).
+func TestDemoVeleroStatesAllDay(t *testing.T) {
+	base := time.Date(2026, 11, 4, 0, 0, 0, 0, time.UTC)
+	for off := time.Duration(0); off < 26*time.Hour; off += 7 * time.Minute {
+		now := base.Add(off)
+		d := demo.New(demo.Options{Pods: 20, Deployments: 5, Services: 2, Namespaces: 20, Nodes: 3, Events: 5, NoChurn: true, Now: now})
+		objs := map[string][]*unstructured.Unstructured{}
+		for key, gvr := range map[string]schema.GroupVersionResource{
+			VeleroSchedulesKey: {Group: "velero.io", Version: "v1", Resource: "schedules"},
+			VeleroBackupsKey:   {Group: "velero.io", Version: "v1", Resource: "backups"},
+			VeleroLocationsKey: {Group: "velero.io", Version: "v1", Resource: "backupstoragelocations"},
+		} {
+			lw, ok := d.Source().ListerWatcher(cache.Scope{GVR: gvr}).(interface {
+				ListWithContext(context.Context, metav1.ListOptions) (runtime.Object, error)
+			})
+			if !ok {
+				t.Fatal("the demo's lister lists without a context")
+			}
+			list, err := lw.ListWithContext(context.Background(), metav1.ListOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for i := range list.(*unstructured.UnstructuredList).Items {
+				objs[key] = append(objs[key], &list.(*unstructured.UnstructuredList).Items[i])
+			}
+		}
+		vb := &veleroBuild{served: true, synced: true, objs: objs, read: map[string]bool{}, kindOK: map[string]bool{}, kindErr: map[string]string{}}
+		for _, k := range veleroPageKinds {
+			vb.read[k], vb.kindOK[k] = true, true
+		}
+		m := buildVeleroModel(&Backend{Context: DemoContext}, vb, nil, now.Add(30*time.Second), model.TimeFormat{})
+		for _, r := range m.Schedules {
+			if overdue := r.State == lblOverdue; overdue != (r.Ref.Name == "nightly-all") {
+				t.Fatalf("at %s: %s is %s", now.Format("15:04"), r.Ref.Name, r.State)
+			}
+		}
 	}
 }
 
