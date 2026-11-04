@@ -70,7 +70,8 @@ type DetailTable struct {
 	// Sortable marks a table the drawer sorts by its column titles.
 	Sortable bool `json:"sortable,omitempty"`
 	// Sort is the order the rows are in, set by the engine on a sortable table; nil: the order
-	// the kind's profile gave them.
+	// the kind's profile gave them. A profile may set it as the table's order until the user sorts
+	// it (Referenced By: by Kind); the engine sorts by name otherwise.
 	Sort *TableSort `json:"sort,omitempty"`
 	// Omitted counts the rows the engine left out of a long sortable table: it shows the first rows
 	// in Sort's order and counts the rest here (a workload's Pods, D-40).

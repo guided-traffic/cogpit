@@ -18,7 +18,7 @@ import (
 // an agent set the same thing, and ui_state shows it.
 
 type drawerSortParams struct {
-	Section string `json:"section,omitempty" jsonschema:"the title of the drawer's table to sort, as object_get's sections name it: Pods (a node's or a workload's pods); omitted: the drawer's only sortable table"`
+	Section string `json:"section,omitempty" jsonschema:"the title of the drawer's table to sort, as object_get's sections name it: Pods (a node's or a workload's pods), Referenced By (what points at the object, with back references on); omitted: the drawer's only sortable table"`
 	Column  string `json:"column" jsonschema:"the column to sort by: its id as the table's ids name it (name, node, namespace, ready, cpu, memory, status, ...) or its title"`
 	Desc    bool   `json:"desc,omitempty" jsonschema:"descending order"`
 }
@@ -31,7 +31,8 @@ func registerDrawerTables(g *registrar) {
 			"ready, cpu, memory, status or any other of its columns, ascending unless desc is true. Numbers and metrics " +
 			"sort by value, a pod without a measurement last in both directions. The drawer must show the table " +
 			"(ui_navigate opens an object's drawer). The order is kept by the table's title for the session, so the next " +
-			"object's table of the same title comes sorted the same way; a table nobody sorted is sorted by name. " +
+			"object's table of the same title comes sorted the same way; a table nobody sorted is sorted by name, " +
+			"Referenced By by kind. " +
 			fmt.Sprintf("A table of more than %[1]d rows shows the first %[1]d in that order and counts the rest (omitted). ", engine.MaxDrawerTableRows) +
 			"ui_state shows the orders (drawerSort), object_get the rows in that order and the table's sort. Returns " +
 			"the new UI state.",

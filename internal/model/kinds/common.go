@@ -287,13 +287,13 @@ func labelSelector(root any, fields ...string) []string {
 		}
 		values := strings.Join(model.NestedStrings(e, "values"), ",")
 		switch op := model.NestedString(e, "operator"); op {
-		case "In":
+		case opIn:
 			out = append(out, key+" in ("+values+")")
-		case "NotIn":
+		case opNotIn:
 			out = append(out, key+" notin ("+values+")")
-		case "Exists":
+		case opExists:
 			out = append(out, key)
-		case "DoesNotExist":
+		case opDoesNotExist:
 			out = append(out, "!"+key)
 		default:
 			out = append(out, key+" "+op+" ("+values+")")

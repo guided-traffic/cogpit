@@ -18,7 +18,8 @@ import (
 // Cogpit's defaults (Lens's drawer sorting is not captured): every column sorts, not only the five
 // the owner named; the order is kept by the table's section title ("Pods") for the session, so the
 // next node's Pods come in the same order, and is the same in every tab; a table nobody sorted is
-// sorted by name, ascending, as a list is.
+// sorted by name, ascending, as a list is, unless the profile gave it an order of its own
+// (DetailTable.Sort: Referenced By by Kind).
 
 // drawerSorts returns the drawer tables' sort orders from the UI state.
 func (s *Session) drawerSorts() map[string]SortSpec {
@@ -28,8 +29,9 @@ func (s *Session) drawerSorts() map[string]SortSpec {
 }
 
 // SortDrawerTables sorts the model's sortable tables by sorts, by section title; a table without an
-// order there (or with one naming a column it does not have) is sorted by name. Every drawer model
-// of the session goes through it; the window's tests use it for their own models.
+// order there (or with one naming a column it does not have) is sorted in the order its profile
+// gave it (DetailTable.Sort), else by name. Every drawer model of the session goes through it; the
+// window's tests use it for their own models.
 func SortDrawerTables(m *DetailModel, sorts map[string]SortSpec) {
 	for i := range m.Sections {
 		t := m.Sections[i].Table
@@ -37,7 +39,11 @@ func SortDrawerTables(m *DetailModel, sorts map[string]SortSpec) {
 			continue
 		}
 		spec, ok := sorts[m.Sections[i].Title]
-		if !ok || t.ColumnIndex(spec.Column) < 0 {
+		switch {
+		case ok && t.ColumnIndex(spec.Column) >= 0:
+		case t.Sort != nil && t.ColumnIndex(t.Sort.Column) >= 0:
+			spec = SortSpec{Column: t.Sort.Column, Desc: t.Sort.Desc}
+		default:
 			spec = DefaultSort
 		}
 		m.Sections[i].Table = SortDetailTable(t, spec)

@@ -7,6 +7,9 @@ const (
 	itemConditions      = "Conditions"
 	itemTaints          = "Taints"
 	opExists            = "Exists" // a toleration's or selector's operator
+	opIn                = "In"     // a selector's operators
+	opNotIn             = "NotIn"
+	opDoesNotExist      = "DoesNotExist"
 	fieldImage          = "image"
 	fieldContainers     = "containers"
 	fieldInitContainers = "initContainers"
