@@ -4337,8 +4337,9 @@ CI and local test runs are kept short at the same coverage.
   `SetTheme`) leaves the fonts parsed before it alive, so a process's heap grows with every test;
   reported as [fyne#6619](https://github.com/fyne-io/fyne/issues/6619), with the fix in
   [fyne#6620](https://github.com/fyne-io/fyne/pull/6620) (both open).
-- **Linux runners:** the organisation's self-hosted ones; the repository variable `LINUX_RUNNER`
-  names others (GitHub's hosted runners take load off the shared machine but do not shorten a run).
+- **Linux runners:** the organisation's self-hosted ones, `large` for the two kind jobs (their
+  clusters run in the pod's Docker, within the pod's memory); the repository variable `LINUX_RUNNER`
+  names others (GitHub's hosted runners take load off the shared machines but do not shorten a run).
 - **Lint and GoSec per system:** each sees one system's build, so `make lint` and `make gosec` add
   a pass for Windows without cgo, and the macOS job runs `make lint-darwin` and `make gosec-darwin`;
   the Makefile finds their packages by the files' names, so a new system file is analysed without a

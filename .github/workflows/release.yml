@@ -11,10 +11,12 @@
 #
 # Linux jobs run on the organisation's self-hosted runners, as the team's other repositories do: a
 # pod per job, thrown away after it, Ubuntu 24.04 with Docker beside it (no make or C compiler until
-# .github/actions/go-setup installs them), 6 CPUs and 10 GiB for the runner and Docker together
-# (4 GiB requested, so a job far above that is the first a busy node evicts). The repository
-# variable LINUX_RUNNER names other runners for every Linux job (ubuntu-latest: GitHub's hosted
-# ones). The macOS and Windows jobs run on GitHub's hosted runners, free for a public repository.
+# .github/actions/go-setup installs them). `self-hosted` pods have 6 CPUs and 10 GiB for the runner
+# and Docker together (4 GiB requested, so a job far above that is the first a busy node evicts);
+# `large` pods, meant for e2e, kind and load tests, 16 CPUs and 20 GiB (8 GiB requested): the two
+# kind jobs, whose clusters run in the pod's Docker. The repository variable LINUX_RUNNER names other
+# runners for every Linux job (ubuntu-latest: GitHub's hosted ones). The macOS and Windows jobs run
+# on GitHub's hosted runners, free for a public repository.
 #
 # Semantic Release creates the tag and the GitHub release with the organisation's GitHub App token,
 # so the release's "published" event starts the release pipeline (build.yml).
@@ -293,7 +295,7 @@ jobs:
   # Alertmanager, Kyverno, Trivy, VictoriaMetrics) are left out: make test-kind KIND_ADDONS=1 by hand.
   kind:
     name: Integration Tests (kind)
-    runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
+    runs-on: ${{ vars.LINUX_RUNNER || 'large' }}
     timeout-minutes: 30
     env:
       KIND_CLUSTER: cogpit-${{ github.run_id }}
@@ -362,7 +364,7 @@ jobs:
   # Cordon, uncordon and drain need a cluster with workers of their own (hack/kind/drain-cluster.yaml).
   kind-drain:
     name: Integration Tests (kind drain)
-    runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
+    runs-on: ${{ vars.LINUX_RUNNER || 'large' }}
     timeout-minutes: 30
     env:
       KIND_DRAIN_CLUSTER: cogpit-drain-${{ github.run_id }}
