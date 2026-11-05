@@ -279,7 +279,7 @@ func (p *settingsPage) pickIconWithDialog(done func(path string)) {
 		_ = r.Close()
 		done(path)
 	}, p.sh.win)
-	d.SetFilter(storage.NewExtensionFileFilter([]string{".png", ".jpg", ".jpeg", ".svg"}))
+	d.SetFilter(storage.NewExtensionFileFilter([]string{".png", ".jpg", ".jpeg", ".webp", ".svg"}))
 	p.sh.showDialog(d)
 }
 

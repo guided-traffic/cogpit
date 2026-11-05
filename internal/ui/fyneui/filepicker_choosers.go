@@ -25,7 +25,7 @@ const extYAML = "yaml"
 
 // Extensions the choosers accept, without the dot.
 var (
-	iconExtensions = []string{"png", "jpg", "jpeg", "svg"}
+	iconExtensions = []string{"png", "jpg", "jpeg", "webp", "svg"}
 	caExtensions   = []string{"pem", "crt", "cer"}
 	yamlExtensions = []string{extYAML, "yml"}
 	csvExtensions  = []string{"csv"}
@@ -56,7 +56,7 @@ func (k *kubeconfigUI) pickFiles(done func(path string, folder bool)) {
 }
 
 // iconPanel asks for an image for a cluster's icon.
-var iconPanel = nativedialog.OpenOptions{Title: "Upload Icon", Message: "Choose an image for the cluster's icon: PNG, JPEG or SVG.",
+var iconPanel = nativedialog.OpenOptions{Title: "Upload Icon", Message: "Choose an image for the cluster's icon: PNG, JPEG, WebP or SVG.",
 	Prompt: "Upload", Files: true, Types: iconExtensions}
 
 // pickIconPanel asks for an image file in the system's panel, else in Fyne's dialog.

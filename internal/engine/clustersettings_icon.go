@@ -15,15 +15,17 @@ import (
 	"path/filepath"
 	"strings"
 
+	"golang.org/x/image/webp"
+
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A cluster's uploaded icon (Lens's General › Upload Icon: .jpeg, .png, .svg). The image the user
-// picks is read once, bounded and checked, and a copy is kept in ClusterIconsDir; the GUI only
-// ever draws that copy. A PNG or JPEG is decoded under bounds (its header first: at most
-// maxIconPixels pixels, so a small file cannot expand into a huge image) and stored again as a PNG
-// of at most iconSide pixels a side, so that what the GUI decodes later is small and written by
-// Cogpit; an SVG is kept as text after a check that it is one <svg> document without a DOCTYPE,
+// A cluster's uploaded icon (Lens's General › Upload Icon: .jpeg, .png, .svg; Cogpit takes .webp
+// too). The image the user picks is read once, bounded and checked, and a copy is kept in
+// ClusterIconsDir; the GUI only ever draws that copy. A PNG, JPEG or WebP is decoded under bounds
+// (its header first: at most maxIconPixels pixels, so a small file cannot expand into a huge image)
+// and stored again as a PNG, so that what the GUI decodes later is small and written by Cogpit;
+// an SVG is kept as text after a check that it is one <svg> document without a DOCTYPE,
 // scripts, event handlers or references outside itself (Fyne's renderer loads none, but the copy
 // holds none either). Uploading reads a file on this computer, so it is the user's own action in
 // Cogpit's window: agents and the CLI are refused (a refusal that names no file's content, and
@@ -37,8 +39,8 @@ const ClusterIconsDir = "cluster-icons"
 const (
 	maxIconUpload  = 1 << 20   // bytes read from the picked file
 	maxIconSVG     = 256 << 10 // bytes of an SVG kept
-	maxIconPixels  = 16 << 20  // width × height of a PNG or JPEG decoded
-	maxIconEdge    = 8192      // pixels a side of a PNG or JPEG decoded
+	maxIconPixels  = 16 << 20  // width × height of a PNG, JPEG or WebP decoded
+	maxIconEdge    = 8192      // pixels a side of a PNG, JPEG or WebP decoded
 	iconSide       = 256       // pixels a side of the PNG kept
 	maxSVGTokens   = 20000
 	maxSVGDepth    = 64
@@ -85,16 +87,6 @@ func (c *ClusterSettingsStore) removeIcon(name string) {
 	}
 }
 
-// ReadIconFile reads the image file the user picked and returns it as Cogpit keeps it: a PNG of at
-// most iconSide pixels a side, or the checked SVG, and its format ("png", "svg").
-func ReadIconFile(path string) (data []byte, format string, err error) {
-	raw, err := readIconUpload(path)
-	if err != nil {
-		return nil, "", err
-	}
-	return CheckIcon(raw)
-}
-
 // readIconUpload reads a picked image file's bytes: a regular file of at most maxIconUpload bytes.
 func readIconUpload(path string) ([]byte, error) {
 	f, err := os.Open(path)
@@ -117,10 +109,12 @@ func readIconUpload(path string) ([]byte, error) {
 }
 
 // CheckIcon checks an image's bytes and returns them as Cogpit keeps them: a PNG or JPEG decoded
-// under bounds and stored again as a small PNG, an SVG checked and kept as it is.
+// under bounds and stored again as a small PNG, an SVG checked and kept as it is. A chart's icon
+// comes through here too, so a WebP, which only an icon's source picked by the user may be
+// (iconSource), is refused.
 func CheckIcon(raw []byte) (data []byte, format string, err error) {
-	switch {
-	case bytes.HasPrefix(raw, []byte("\x89PNG\r\n\x1a\n")), bytes.HasPrefix(raw, []byte{0xff, 0xd8, 0xff}):
+	switch f := rasterFormat(raw); {
+	case f == iconPNG, f == rasterJPEG:
 		data, err := rasterIcon(raw)
 		return data, iconPNG, err
 	case looksLikeSVG(raw):
@@ -146,23 +140,52 @@ func rasterIcon(raw []byte) ([]byte, error) {
 	return out.Bytes(), nil
 }
 
-// decodeRaster decodes a PNG or JPEG under the upload's bounds, its size checked from its header
-// first, so that a small file cannot expand into a huge image.
-func decodeRaster(raw []byte) (image.Image, error) {
-	decode, decodeConfig := png.Decode, png.DecodeConfig
-	if raw[0] == 0xff {
-		decode, decodeConfig = jpeg.Decode, jpeg.DecodeConfig
+// The raster formats an image may be, by its bytes' signature (rasterFormat); a PNG is iconPNG.
+const (
+	rasterJPEG = "jpeg"
+	rasterWebP = "webp"
+)
+
+// rasterFormat names the raster format of an image's bytes by their signature: iconPNG,
+// rasterJPEG, rasterWebP, or empty for anything else.
+func rasterFormat(raw []byte) string {
+	switch {
+	case bytes.HasPrefix(raw, []byte("\x89PNG\r\n\x1a\n")):
+		return iconPNG
+	case bytes.HasPrefix(raw, []byte{0xff, 0xd8, 0xff}):
+		return rasterJPEG
+	case len(raw) >= 12 && string(raw[:4]) == "RIFF" && string(raw[8:12]) == "WEBP":
+		return rasterWebP
 	}
+	return ""
+}
+
+// decodeRaster decodes a PNG, JPEG or WebP under the upload's bounds, its size checked from its
+// header first, so that a small file cannot expand into a huge image. A panic of a decoder fails
+// the image instead of the program.
+func decodeRaster(raw []byte) (img image.Image, err error) {
+	decode, decodeConfig, name := png.Decode, png.DecodeConfig, "PNG"
+	switch rasterFormat(raw) {
+	case rasterJPEG:
+		decode, decodeConfig, name = jpeg.Decode, jpeg.DecodeConfig, "JPEG"
+	case rasterWebP:
+		decode, decodeConfig, name = webp.Decode, webp.DecodeConfig, "WebP"
+	}
+	unreadable := fmt.Errorf("the icon is not a readable %s image", name)
+	defer func() {
+		if recover() != nil {
+			img, err = nil, unreadable
+		}
+	}()
 	cfg, err := decodeConfig(bytes.NewReader(raw))
 	if err != nil {
-		return nil, errors.New("the icon is not a readable PNG or JPEG image")
+		return nil, unreadable
 	}
 	if cfg.Width < 1 || cfg.Height < 1 || cfg.Width > maxIconEdge || cfg.Height > maxIconEdge || cfg.Width*cfg.Height > maxIconPixels {
 		return nil, fmt.Errorf("the icon is %d×%d pixels; Cogpit takes at most %d pixels a side and %d megapixels", cfg.Width, cfg.Height, maxIconEdge, maxIconPixels>>20)
 	}
-	img, err := decode(bytes.NewReader(raw))
-	if err != nil {
-		return nil, errors.New("the icon is not a readable PNG or JPEG image")
+	if img, err = decode(bytes.NewReader(raw)); err != nil {
+		return nil, unreadable // an animated WebP too: the decoder reads still images only
 	}
 	return img, nil
 }

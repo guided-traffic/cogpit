@@ -107,9 +107,9 @@ func CutIcon(src image.Image, crop IconCrop, side int) *image.NRGBA {
 	return out
 }
 
-// ReadIconSource reads the image file the user picked as an icon's source: a PNG or JPEG decoded
-// under the upload's bounds and made at most iconSourceSide pixels a side, an SVG checked and drawn
-// into a PNG of that size. It returns the source and its PNG as Cogpit keeps it. The window's
+// ReadIconSource reads the image file the user picked as an icon's source: a PNG, JPEG or WebP
+// decoded under the upload's bounds and made at most iconSourceSide pixels a side, an SVG checked
+// and drawn into a PNG of that size. It returns the source and its PNG as Cogpit keeps it. The window's
 // dialog shows a picked file with it before anything is kept.
 func ReadIconSource(path string) (image.Image, []byte, error) {
 	raw, err := readIconUpload(path)
@@ -123,7 +123,7 @@ func ReadIconSource(path string) (image.Image, []byte, error) {
 func iconSource(raw []byte) (image.Image, []byte, error) {
 	var img image.Image
 	switch {
-	case bytes.HasPrefix(raw, []byte("\x89PNG\r\n\x1a\n")), bytes.HasPrefix(raw, []byte{0xff, 0xd8, 0xff}):
+	case rasterFormat(raw) != "":
 		decoded, err := decodeRaster(raw)
 		if err != nil {
 			return nil, nil, err
@@ -139,7 +139,7 @@ func iconSource(raw []byte) (image.Image, []byte, error) {
 		}
 		img = drawn
 	default:
-		return nil, nil, errors.New("the icon is not a PNG, JPEG or SVG image")
+		return nil, nil, errors.New("the icon is not a PNG, JPEG, WebP or SVG image")
 	}
 	var out bytes.Buffer
 	if err := png.Encode(&out, img); err != nil {

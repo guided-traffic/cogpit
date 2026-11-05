@@ -2,12 +2,14 @@ package engine
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
 	"math"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -105,6 +107,72 @@ func TestIconSource(t *testing.T) {
 	}
 	if _, _, err := iconSource([]byte(`<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`)); err == nil {
 		t.Error("an SVG with a script accepted as a source")
+	}
+}
+
+// WebP images of halves(200, 100), written by libwebp (Pillow): lossless; lossy with an alpha
+// channel, its right half at half opacity; and an animation of two 64×64 frames.
+const (
+	webpLossless   = "UklGRiwAAABXRUJQVlA4TCAAAAAvx8AYAA8Q87//8x8OyKRt6qD+1e6rhBHR/wlYlnzVAA=="
+	webpLossyAlpha = "UklGRuYAAABXRUJQVlA4WAoAAAAQAAAAxwAAYwAAQUxQSBoAAAABD/DA/4iIQCZtU/9q62BfJYyI/k8A2eWrBlZQOCCmAAAAEAsAnQEq" +
+		"yABkAD5tNphJJCMioSLIAIANiWdu4XX7wA/ADYseAfhBRgPwArv/cAACLxNmDsGfo4fI/woPk1p8j/Cg+TWnyP8KD5NafI/woPk1p8j/Cg+TWnyP8KD5" +
+		"NafDgAD+/yi++tHdKGZL5HbyA/kB//Hvmxjp/9zhWdYBM9j38gD4CpXL/+QH+eBCup5qWXe3W1gzyHGnRHA9SXRpxLo04cAAAA=="
+	webpAnimated = "UklGRpgAAABXRUJQVlA4WAoAAAACAAAAPwAAPwAAQU5JTQYAAAAAAAAAAABBTk1GMgAAAAAAAAAAAD8AAD8AAGQAAAJWUDhMGgAAAC8/wA8A" +
+		"DxDzv//zHw7Egsn8pWPoi+h/VMF2QU5NRjIAAAAAAAAAAAA/AAA/AABkAAAAVlA4TBoAAAAvP8APAA8Q87//8x8OxIJJ/tJj6Ivof1TBdg=="
+)
+
+func webpBytes(t *testing.T, b64 string) []byte {
+	t.Helper()
+	raw, err := base64.StdEncoding.DecodeString(b64)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return raw
+}
+
+// A WebP, lossless or lossy with alpha, is a source like a PNG; an animation, a WebP whose header
+// claims more pixels than an icon takes and a cut-off one are refused. A chart's icon, which
+// CheckIcon checks, is never a WebP.
+func TestIconSourceWebP(t *testing.T) {
+	img, data, err := iconSource(webpBytes(t, webpLossless))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b := img.Bounds(); b.Dx() != 200 || b.Dy() != 100 {
+		t.Errorf("lossless %v, want 200×100", b)
+	}
+	if cut := CutIcon(img, DefaultIconCrop, 64); !mostly(cut, 4, 32, red) || !mostly(cut, 60, 32, blue) {
+		t.Error("the lossless WebP's middle square is not red left, blue right")
+	}
+	if cfg, err := png.DecodeConfig(bytes.NewReader(data)); err != nil || cfg.Width != 200 {
+		t.Errorf("kept PNG %+v, %v", cfg, err)
+	}
+
+	img, _, err = iconSource(webpBytes(t, webpLossyAlpha))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !mostly(img, 20, 50, red) || !mostly(img, 180, 50, color.NRGBA{B: 255, A: 128}) {
+		t.Errorf("lossy: left %v, right %v; want red and half-opaque blue", img.At(20, 50), img.At(180, 50))
+	}
+
+	huge := webpBytes(t, webpLossyAlpha)
+	huge[24], huge[25], huge[26] = 0x27, 0x23, 0x00 // the canvas 9,000 pixels wide
+	for _, tc := range []struct {
+		name string
+		raw  []byte
+		want string
+	}{
+		{"animated", webpBytes(t, webpAnimated), "not a readable WebP"},
+		{"huge", huge, "9000×100 pixels"},
+		{"truncated", webpBytes(t, webpLossyAlpha)[:120], "not a readable WebP"},
+	} {
+		if _, _, err := iconSource(tc.raw); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: %v, want %q", tc.name, err, tc.want)
+		}
+	}
+	if _, _, err := CheckIcon(webpBytes(t, webpLossless)); err == nil {
+		t.Error("CheckIcon took a WebP")
 	}
 }
 
