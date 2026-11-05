@@ -15,6 +15,9 @@ var (
 	// PodsByClaim indexes pods by the persistent volume claims they mount, as
 	// "<namespace>/<claimName>": a claim's pods.
 	PodsByClaim = model.RelatedIndex{Kind: podsResource, Name: "byClaim", Keys: podClaimKeys}
+	// PodsByNamespace indexes pods by namespace and sums what the scheduled, unfinished ones take
+	// from their nodes (podAllocationTotals): a namespace's requests and limits.
+	PodsByNamespace = model.RelatedIndex{Kind: podsResource, Name: "byNamespace", Keys: podNamespaceKeys, Sum: podAllocationTotals}
 	// PodsByPriorityClass indexes pods by spec.priorityClassName: a priority class's pods.
 	PodsByPriorityClass = model.RelatedIndex{Kind: podsResource, Name: "byPriorityClass", Keys: podPriorityClassKeys}
 	// ClusterRolesByName indexes cluster roles by name; Related.Listed tells a cluster role that

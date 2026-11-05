@@ -15,6 +15,46 @@ type RelatedIndex struct {
 	// "<namespace>/<claim>" for each claim it mounts. It must tolerate any content without
 	// panicking.
 	Keys func(obj *unstructured.Unstructured) []string
+	// Sum, when set, adds up a contribution of each object under its keys, kept current by the
+	// kind's events (TotalsOf): what a namespace's pods request. It must tolerate any content
+	// without panicking.
+	Sum func(obj *unstructured.Unstructured) Totals
+}
+
+// Totals are the numbers an index adds up per key (RelatedIndex.Sum), by position; the index's
+// declaration says what each position holds.
+type Totals [8]int64
+
+// Add returns t plus o, position by position.
+func (t Totals) Add(o Totals) Totals {
+	for i := range t {
+		t[i] += o[i]
+	}
+	return t
+}
+
+// Sub returns t minus o, position by position.
+func (t Totals) Sub(o Totals) Totals {
+	for i := range t {
+		t[i] -= o[i]
+	}
+	return t
+}
+
+// RelatedTotals is a Related that also serves the sums of the indexes that declare one.
+type RelatedTotals interface {
+	// Totals returns what the index's Sum adds up under key, and true once the index's kind is
+	// listed: a key without objects then has zero totals. It never blocks on the API server.
+	Totals(index RelatedIndex, key string) (Totals, bool)
+}
+
+// TotalsOf returns what rel's index adds up under key, and false while rel cannot tell (the
+// index's kind not listed yet, not served, refused, or a Related without sums).
+func TotalsOf(rel Related, index RelatedIndex, key string) (Totals, bool) {
+	if t, ok := rel.(RelatedTotals); ok && index.Sum != nil {
+		return t.Totals(index, key)
+	}
+	return Totals{}, false
 }
 
 // ID identifies the index: "<kind>/<name>".

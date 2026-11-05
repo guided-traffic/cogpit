@@ -21,8 +21,8 @@ func TestUsageColumns(t *testing.T) {
 			t.Errorf("%s: usage kind %q without CPU and Memory metric columns and UsageCells", p.Key, p.Usage)
 		}
 	}
-	if withUsage != 2 {
-		t.Errorf("%d kinds with usage, want pods and nodes", withUsage)
+	if withUsage != 3 {
+		t.Errorf("%d kinds with usage, want pods, nodes and namespaces", withUsage)
 	}
 }
 

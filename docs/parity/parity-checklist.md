@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 123 | 120 | 8 | 112 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 81 | 80 | 69 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 82 | 81 | 70 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -365,6 +365,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | The navigator moves: going into a cluster slides its tree in from the right over All Clusters, ‹ All Clusters slides it out again; showing… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's history in its drawer, as k9s's history view shows it: every revision with its status, chart, app version and time, and th… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A Helm release's revisions, as k9s shows them (its values v and manifests y per revision): an older revision's values, user-supplied and al… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| The Namespaces list shows each namespace's CPU and Memory and its pods' requests with their limits, a "+" after a limit some pod runs witho… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A drawer lists what points at its object, switched in Preferences › App › Back references, off by default: a pod's Services, Network Polici… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |

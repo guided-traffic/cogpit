@@ -304,7 +304,7 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 		Sections: []model.DetailSection{}, Events: []EventItem{},
 	}
 	m.Status = model.BuildRowWith(p, ref.Context, obj, rel).Status
-	m.Metrics = p.Usage != "" || p.Volume != nil
+	m.Metrics = p.Usage.Charted() || p.Volume != nil
 	m.VolumeMetrics = p.Volume != nil
 	m.NoEvents = p.Local // no event involves an object Cogpit makes itself (port forwards, Helm charts)
 	kind, err := profileSections(p, obj, rel)

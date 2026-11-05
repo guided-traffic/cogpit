@@ -121,6 +121,11 @@ func usageListScopes(k model.UsageKind, plan nsPlan) []metrics.Scope {
 	switch {
 	case k == model.UsageNodes:
 		return []metrics.Scope{{Kind: metrics.KindNodes}}
+	case k == model.UsageNamespaces:
+		// Every pod's list, summed per namespace (metrics.Hub.Namespace): one request a minute,
+		// as a cluster-wide Pods list's; a namespace-limited user's is refused and the columns
+		// stay empty.
+		return []metrics.Scope{{Kind: metrics.KindPods}}
 	case plan.pending:
 		return nil
 	case plan.perNamespace:
@@ -170,9 +175,12 @@ func (f *usageFeed) lookup(namespace, name string) (model.Usage, bool) {
 	if f == nil || !f.wants.usage {
 		return model.Usage{}, false
 	}
-	if f.kind == model.UsageNodes {
+	switch f.kind {
+	case model.UsageNodes:
 		n, ok := f.hub.Node(name)
 		return n.Usage, ok
+	case model.UsageNamespaces:
+		return f.hub.Namespace(name)
 	}
 	p, ok := f.hub.Pod(namespace, name)
 	return p.Total(), ok
@@ -350,7 +358,7 @@ func (s *Session) ObjectMetrics(ref model.ObjectRef) (*ObjectMetrics, error) {
 	if err != nil {
 		return nil, err
 	}
-	if p.Usage == "" && p.Volume == nil {
+	if !p.Usage.Charted() && p.Volume == nil {
 		return nil, nil
 	}
 	out := &ObjectMetrics{Ref: ref, Status: metrics.StatusNotServed, Message: "this cluster has no metrics provider", Targets: []MetricsTarget{}}

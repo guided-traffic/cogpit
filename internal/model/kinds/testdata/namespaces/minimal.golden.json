@@ -15,6 +15,22 @@
       "text": ""
     },
     {
+      "column": "cpu",
+      "text": ""
+    },
+    {
+      "column": "memory",
+      "text": ""
+    },
+    {
+      "column": "cpuRequests",
+      "text": ""
+    },
+    {
+      "column": "memoryRequests",
+      "text": ""
+    },
+    {
       "column": "age",
       "text": "1m",
       "num": 1791719940

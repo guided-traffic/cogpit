@@ -302,12 +302,16 @@ type scopeState struct {
 	kick      chan struct{} // wakes the poll goroutine early: a chart's range or variant changed
 }
 
-// dataSet is one result of current values: immutable once stored.
+// dataSet is one result of current values: immutable once stored, but for byNamespace, its pods'
+// usage per namespace, summed once on the first ask (hubnamespace.go).
 type dataSet struct {
 	at    time.Time // when the hub got it
 	pods  map[string]model.PodUsage
 	nodes map[string]model.NodeUsage
 	disks map[string]model.NodeDisk // the disk scope's, by the series' node (disk.go)
+
+	nsOnce      sync.Once
+	byNamespace map[string]model.Usage
 }
 
 type flight struct {
