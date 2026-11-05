@@ -190,13 +190,20 @@ func (lw *memLW) List(_ metav1.ListOptions) (runtime.Object, error) {
 func (lw *memLW) Watch(opts metav1.ListOptions) (watch.Interface, error) {
 	lw.m.watches.Add(1)
 	from, _ := strconv.ParseInt(opts.ResourceVersion, 10, 64)
-	w := &memWatcher{ch: make(chan watch.Event, 4096), stop: make(chan struct{}), namespace: lw.namespace, scope: lw.scope}
 	lw.m.mu.Lock()
 	defer lw.m.mu.Unlock()
+	var replay []memEvent
 	for _, ev := range lw.m.history[lw.gvr] {
 		if ev.rv > from {
-			w.send(ev)
+			replay = append(replay, ev)
 		}
+	}
+	// The channel holds the whole replay besides its buffer for live events: the replay is sent
+	// under the source's lock before anyone reads, and a longer one would block Set and Delete
+	// for good (a slow runner, many changes between a list and its watch).
+	w := &memWatcher{ch: make(chan watch.Event, len(replay)+4096), stop: make(chan struct{}), namespace: lw.namespace, scope: lw.scope}
+	for _, ev := range replay {
+		w.send(ev)
 	}
 	set := lw.m.watchers[lw.gvr]
 	if set == nil {
