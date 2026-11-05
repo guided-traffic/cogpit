@@ -15,9 +15,10 @@ feeds and the APT repository on GitHub Pages. What vouches for each file:
 request; a newer push cancels the running run of its ref. Every check is a job of its own with its
 own make target, so it runs the same locally; no job should need more than ten minutes (each has a
 30-minute limit for runs without a build cache). Linux jobs run on the organisation's self-hosted
-runners, a pod per job (6 CPUs and 10 GiB for the runner and its Docker together), unless the
-repository variable `LINUX_RUNNER` names others (`ubuntu-latest`); the macOS and Windows jobs run on
-GitHub's hosted runners. Every job but the
+runners, a pod per job: `self-hosted` (6 CPUs and 10 GiB for the runner and its Docker together)
+for most, `large` (16 CPUs, 20 GiB) for the two kind jobs, whose clusters run in the pod's Docker;
+the repository variable `LINUX_RUNNER` names others for all of them (`ubuntu-latest`). The macOS
+and Windows jobs run on GitHub's hosted runners. Every job but the
 race shards sets up through [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml):
 Go from `go.mod`, a build cache per kind of build (saved by `main`'s pushes only), Fyne's Linux
 build dependencies installed in the background; the race shards run what one job built

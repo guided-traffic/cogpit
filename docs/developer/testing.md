@@ -89,7 +89,7 @@ an IPv6 loopback in the Linux runners' pods.
 
 ## Asynchronous results
 
-CI runs on loaded machines (self-hosted runner pods sharing one machine, GitHub's small macOS and
+CI runs on loaded machines (self-hosted runner pods sharing their machines, GitHub's small macOS and
 Windows runners) and under the race detector, which slows a test five to ten times. A test that
 depends on timing passes locally and fails there. The rules:
 
