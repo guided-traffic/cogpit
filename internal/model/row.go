@@ -166,10 +166,12 @@ type CellMark struct {
 }
 
 // CellPart is one run of a cell's text in its own status colour; StatusNone draws it in the
-// foreground colour.
+// foreground colour. Parts stand a space apart, but a Glued part follows the one before it
+// directly: a "+" in a colour of its own after a number.
 type CellPart struct {
 	Text   string `json:"text"`
 	Status Status `json:"status,omitempty"`
+	Glued  bool   `json:"glued,omitempty"`
 }
 
 // PartsCell returns a cell drawn in coloured parts, with status as the cell's overall status.
@@ -195,7 +197,7 @@ func PartsCell(status Status, parts ...CellPart) Cell {
 	var b strings.Builder
 	b.Grow(n)
 	for i, p := range kept {
-		if i > 0 {
+		if i > 0 && !p.Glued {
 			b.WriteByte(' ')
 		}
 		b.WriteString(p.Text)

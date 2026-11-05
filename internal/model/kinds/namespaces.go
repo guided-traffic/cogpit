@@ -17,10 +17,20 @@ var namespaces = &model.KindProfile{
 	Columns: []model.Column{
 		nameColumn,
 		{ID: "labels", Title: "Labels", Type: model.ColumnText, Hidden: true, Pairs: model.PairsLabels}, // the drawer shows them (D-153)
+		cpuColumn,
+		memoryColumn,
+		cpuRequestsColumn,
+		memoryRequestsColumn,
 		ageColumn,
 		statusColumn,
 	},
-	Cells: namespaceCells,
+	Cells: func(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
+		return namespaceCells(obj, model.NoRelated)
+	},
+	CellsWith:  namespaceCells,
+	Needs:      []model.RelatedIndex{PodsByNamespace},
+	Usage:      model.UsageNamespaces,
+	UsageCells: podUsageCells, // the sum of its pods' usage (namespaceusage.go)
 	Fields: map[string]fieldFunc{
 		idStatus: func(obj *unstructured.Unstructured) []string {
 			text, _ := namespaceStatus(obj)
@@ -30,11 +40,14 @@ var namespaces = &model.KindProfile{
 	Detail: namespaceDetail,
 }
 
-func namespaceCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
+func namespaceCells(obj *unstructured.Unstructured, rel model.Related) ([]model.Cell, model.Status) {
 	text, token := namespaceStatus(obj)
+	cpuReq, memReq := namespaceAllocationCells(obj, rel)
 	return []model.Cell{
 		nameCell(obj),
 		{Text: strings.Join(model.SortedPairs(model.NestedStringMap(obj, "metadata", "labels")), ", ")},
+		{}, {}, // CPU and Memory: the usage feed fills them
+		cpuReq, memReq,
 		model.AgeCell(created(obj)),
 		{Text: text, Status: token},
 	}, token

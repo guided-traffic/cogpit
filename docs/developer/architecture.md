@@ -939,6 +939,9 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
   them with `rel.Objects(index, key)` in `CellsWith` and `DetailWith`; a volume's Metrics section
   reads the claim's pods from the drawer's set too
   ([`volumemetrics.go`](../../internal/engine/volumemetrics.go)).
+- An index may declare a `Sum`: what each object adds under its keys (`model.Totals`), kept with
+  the index and moved with each event, read with `model.TotalsOf(rel, index, key)` at no cost
+  however many objects: the Namespaces list's requests and limits (`PodsByNamespace`, D-154).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the
   keys it looked up (`TestWorkloadDrawerWakesOnlyForItsPods`).
@@ -2021,6 +2024,7 @@ joined by time into `FilesystemSample`s (`volumeSamples`).
 | Subscriber | Scope | Code |
 |---|---|---|
 | A Pods or Nodes view, once its kind has listed | the nodes; the pods in all namespaces, or per namespace the view reads (D-39) | `startListFeed`, `usageListScopes` |
+| The Namespaces view (`model.UsageNamespaces`, D-154) | the pods in all namespaces, summed per namespace (`Hub.Namespace`) | `startListFeed`, `usageListScopes` |
 | The open pod or node drawer | the object; each poll emits `EventMetrics` | `startDrawerUsage` |
 | A drawer's pod table (a node's, a workload's, [D-40](decisions.md#d-40-a-pods-table-in-the-workloads-drawers)) | the pods' namespace scopes; each poll wakes the drawer | [`drawerpods.go`](../../internal/engine/drawerpods.go) |
 | The Nodes list's Disk column, a node's drawer | `DiskScope` | `startListFeed`, `drawerWatch.followDisk` |

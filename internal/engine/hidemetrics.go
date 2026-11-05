@@ -336,7 +336,7 @@ func (d *drawerWatch) followHidden(s *Session, hidden MetricSet) {
 	if cpu, memory := hidden.listColumns(model.UsagePods); !cpu && !memory {
 		d.showPods(false) // its pod table's CPU and Memory are hidden: not polled (drawerpods.go)
 	}
-	if d.profile.Usage == "" && d.profile.Volume == nil {
+	if !d.profile.Usage.Charted() && d.profile.Volume == nil {
 		// A drawer without charts may still list pods: its table shows or hides their columns.
 		d.wmu.Lock()
 		changed := d.hidden != hidden || !d.hiddenSet

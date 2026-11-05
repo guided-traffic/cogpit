@@ -15,6 +15,22 @@
       "text": "kubernetes.io/metadata.name=shop, pod-security.kubernetes.io/enforce=baseline, team=checkout"
     },
     {
+      "column": "cpu",
+      "text": ""
+    },
+    {
+      "column": "memory",
+      "text": ""
+    },
+    {
+      "column": "cpuRequests",
+      "text": ""
+    },
+    {
+      "column": "memoryRequests",
+      "text": ""
+    },
+    {
       "column": "age",
       "text": "269d",
       "num": 1768471200

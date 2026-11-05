@@ -1622,6 +1622,12 @@ func (c *tableCell) runCount() int {
 	return 0
 }
 
+// glued reports whether run i is a part that follows the one before it without a space
+// (model.CellPart.Glued).
+func (c *tableCell) glued(i int) bool {
+	return c.content.web == nil && c.content.parts != nil && i < len(*c.content.parts) && (*c.content.parts)[i].Glued
+}
+
 // runText is run i's text: a part, or a web address on the even runs and the separator between two
 // on the odd ones.
 func (c *tableCell) runText(i int) string {
@@ -1896,6 +1902,9 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 	c.truncated = false
 	for i := range n {
 		t, text := c.run(i), c.runText(i)
+		if i > 0 && c.glued(i) {
+			x -= space // a glued part follows the one before it directly ("4+")
+		}
 		c.runX = append(c.runX, x)
 		w := fyne.MeasureText(text, t.TextSize, t.TextStyle).Width
 		switch {

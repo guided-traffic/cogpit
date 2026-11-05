@@ -15,6 +15,22 @@
       "text": "kubernetes.io/metadata.name=preview-1234, preview=true"
     },
     {
+      "column": "cpu",
+      "text": ""
+    },
+    {
+      "column": "memory",
+      "text": ""
+    },
+    {
+      "column": "cpuRequests",
+      "text": ""
+    },
+    {
+      "column": "memoryRequests",
+      "text": ""
+    },
+    {
       "column": "age",
       "text": "3h",
       "num": 1791709200

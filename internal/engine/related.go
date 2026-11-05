@@ -61,13 +61,17 @@ type pendingMove struct {
 	id   string
 	obj  *unstructured.Unstructured
 	keys []string
+	sum  model.Totals
 }
 
-// liveIndex is one index: every object of the kind under its keys.
+// liveIndex is one index: every object of the kind under its keys, and for an index with a Sum
+// what its objects add up to under each key, moved along with them.
 type liveIndex struct {
 	byKey   map[string]map[string]*unstructured.Unstructured // key → object id → object
 	keysOf  map[string][]string                              // object id → its keys
 	watched map[string]bool                                  // keys a lookup asked for (track)
+	sums    map[string]model.Totals                          // key → its objects' sum (Sum only)
+	sumOf   map[string]model.Totals                          // object id → what it adds (Sum only)
 }
 
 // maxWatchedKeys bounds the keys a tracking set remembers; past it every event wakes, as without
@@ -183,8 +187,9 @@ func (r *relatedSet) apply(kind string, derived bool, ev cache.Event) bool {
 			continue
 		}
 		var keys []string
+		var sum model.Totals
 		if ev.Type != cache.Deleted && !derived {
-			keys = indexKeys(ix, ev.Object) // outside the lock: a profile's code
+			keys, sum = indexKeys(ix, ev.Object), indexSum(ix, ev.Object) // outside the lock: a profile's code
 		}
 		r.mu.Lock()
 		li, pend := r.indexes[ix.ID()], r.pending[ix.ID()]
@@ -198,19 +203,20 @@ func (r *relatedSet) apply(kind string, derived bool, ev cache.Event) bool {
 			}
 			relevant = true
 		case li != nil:
-			relevant = li.move(id, ev.Object, keys) || relevant
+			relevant = li.move(id, ev.Object, keys, sum) || relevant
 		case pend != nil:
-			pend.moves = append(pend.moves, pendingMove{id: id, obj: ev.Object, keys: keys})
+			pend.moves = append(pend.moves, pendingMove{id: id, obj: ev.Object, keys: keys, sum: sum})
 		}
 		r.mu.Unlock()
 	}
 	return relevant
 }
 
-// move files the object with id under keys (none: it is gone) and reports whether a watched key
-// gained or lost it. Called with the set's mu held.
-func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []string) bool {
+// move files the object with id under keys (none: it is gone), its sum with it, and reports
+// whether a watched key gained or lost it. Called with the set's mu held.
+func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []string, sum model.Totals) bool {
 	relevant := len(li.watched) >= maxWatchedKeys
+	old := li.sumOf[id]
 	for _, k := range li.keysOf[id] {
 		if m := li.byKey[k]; m != nil {
 			delete(m, id)
@@ -218,10 +224,16 @@ func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []stri
 				delete(li.byKey, k)
 			}
 		}
+		if li.sums != nil {
+			li.sums[k] = li.sums[k].Sub(old)
+		}
 		relevant = relevant || li.watched[k]
 	}
 	if len(keys) == 0 {
 		delete(li.keysOf, id)
+		if li.sumOf != nil {
+			delete(li.sumOf, id)
+		}
 		return relevant
 	}
 	li.keysOf[id] = keys
@@ -232,7 +244,13 @@ func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []stri
 			li.byKey[k] = m
 		}
 		m[id] = obj
+		if li.sums != nil {
+			li.sums[k] = li.sums[k].Add(sum)
+		}
 		relevant = relevant || li.watched[k]
+	}
+	if li.sumOf != nil {
+		li.sumOf[id] = sum
 	}
 	return relevant
 }
@@ -300,6 +318,51 @@ func (r *relatedSet) lookup(ix model.RelatedIndex, key string) []*unstructured.U
 	defer r.bmu.Unlock()
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	li := r.ensure(ix, h)
+	if li == nil {
+		return nil
+	}
+	if r.track && len(li.watched) < maxWatchedKeys {
+		li.watched[key] = true
+	}
+	m := li.byKey[key]
+	if len(m) == 0 {
+		return nil
+	}
+	out := make([]*unstructured.Unstructured, 0, len(m))
+	for _, o := range m {
+		out = append(out, o)
+	}
+	slices.SortFunc(out, func(a, b *unstructured.Unstructured) int {
+		return cmp.Or(cmp.Compare(a.GetNamespace(), b.GetNamespace()), cmp.Compare(a.GetName(), b.GetName()))
+	})
+	return out
+}
+
+// totals returns what ix's objects under key add up to, building the index first if it is not
+// built; false while the kind is listing or not served.
+func (r *relatedSet) totals(ix model.RelatedIndex, key string) (model.Totals, bool) {
+	h, ok := r.handles[ix.Kind]
+	if !ok || !h.HasSynced() || ix.Keys == nil || ix.Sum == nil {
+		return model.Totals{}, false
+	}
+	r.bmu.Lock()
+	defer r.bmu.Unlock()
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	li := r.ensure(ix, h)
+	if li == nil {
+		return model.Totals{}, false
+	}
+	if r.track && len(li.watched) < maxWatchedKeys {
+		li.watched[key] = true
+	}
+	return li.sums[key], true
+}
+
+// ensure returns ix's index, building it from h's cache first if it is not built; nil once the
+// set is released. Called with bmu and mu held; mu is let go while the index is built.
+func (r *relatedSet) ensure(ix model.RelatedIndex, h *cache.Handle) *liveIndex {
 	if r.holds == 0 {
 		return nil
 	}
@@ -321,43 +384,47 @@ func (r *relatedSet) lookup(ix model.RelatedIndex, key string) []*unstructured.U
 		}
 		delete(r.pending, id)
 		for _, m := range pend.moves {
-			built.move(m.id, m.obj, m.keys)
+			built.move(m.id, m.obj, m.keys, m.sum)
 		}
 		li = built
 		if !pend.stale {
 			r.indexes[id] = li
 		}
 	}
-	if r.track && len(li.watched) < maxWatchedKeys {
-		li.watched[key] = true
-	}
-	m := li.byKey[key]
-	if len(m) == 0 {
-		return nil
-	}
-	out := make([]*unstructured.Unstructured, 0, len(m))
-	for _, o := range m {
-		out = append(out, o)
-	}
-	slices.SortFunc(out, func(a, b *unstructured.Unstructured) int {
-		return cmp.Or(cmp.Compare(a.GetNamespace(), b.GetNamespace()), cmp.Compare(a.GetName(), b.GetName()))
-	})
-	return out
+	return li
 }
 
-// buildIndex files every object under its keys; an index function that panics on an object skips
-// it.
+// buildIndex files every object under its keys, with its sum for an index that has one; an index
+// function that panics on an object skips it.
 func buildIndex(ix model.RelatedIndex, objs []*unstructured.Unstructured) *liveIndex {
 	li := &liveIndex{
 		byKey:  map[string]map[string]*unstructured.Unstructured{},
 		keysOf: make(map[string][]string, len(objs)), watched: map[string]bool{},
 	}
+	if ix.Sum != nil {
+		li.sums, li.sumOf = map[string]model.Totals{}, make(map[string]model.Totals, len(objs))
+	}
 	for _, o := range objs {
 		if keys := indexKeys(ix, o); len(keys) > 0 {
-			li.move(o.GetNamespace()+"/"+o.GetName(), o, keys)
+			li.move(o.GetNamespace()+"/"+o.GetName(), o, keys, indexSum(ix, o))
 		}
 	}
 	return li
+}
+
+// indexSum is what o adds under its keys to an index with a Sum; nothing for one without, or for
+// a Sum that panics on o.
+func indexSum(ix model.RelatedIndex, o *unstructured.Unstructured) (sum model.Totals) {
+	if ix.Sum == nil {
+		return sum
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			slog.Default().Error("engine: related-objects sum panicked", "index", ix.ID(), "panic", fmt.Sprint(r), "stack", string(debug.Stack()))
+			sum = model.Totals{}
+		}
+	}()
+	return ix.Sum(o)
 }
 
 func indexKeys(ix model.RelatedIndex, o *unstructured.Unstructured) (keys []string) {
@@ -401,6 +468,15 @@ func (v *relatedView) Objects(ix model.RelatedIndex, key string) []*unstructured
 	}
 	v.seen[lk] = objs
 	return objs
+}
+
+// Totals implements model.RelatedTotals. Only the indexes the profile declared are served.
+func (v *relatedView) Totals(ix model.RelatedIndex, key string) (model.Totals, bool) {
+	n, ok := v.declared(ix)
+	if !ok {
+		return model.Totals{}, false
+	}
+	return v.r.totals(n, key)
 }
 
 // Listed implements model.Related: the index is declared, its kind served and listed.

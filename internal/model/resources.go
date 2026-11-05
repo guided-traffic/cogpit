@@ -15,7 +15,13 @@ type UsageKind string
 const (
 	UsagePods  UsageKind = "pods"
 	UsageNodes UsageKind = "nodes"
+	// UsageNamespaces is a namespace's pods' usage summed: the Metrics API's list of every pod.
+	UsageNamespaces UsageKind = "namespaces"
 )
+
+// Charted reports whether a drawer charts a usage kind's object: a pod's or a node's own
+// measurements. A namespace's usage is a list's sum, without a drawer's charts.
+func (k UsageKind) Charted() bool { return k == UsagePods || k == UsageNodes }
 
 // The ids of the usage columns of a kind with a [KindProfile.Usage].
 const (
@@ -108,4 +114,67 @@ func PodTotals(cs []ContainerResources) (requests, limits Usage) {
 // NodeCapacity returns a node's allocatable and capacity (status.allocatable, status.capacity).
 func NodeCapacity(node *unstructured.Unstructured) (allocatable, capacity Usage) {
 	return UsageOf(node.Object, "status", "allocatable"), UsageOf(node.Object, "status", "capacity")
+}
+
+// PodAllocation is what a pod takes from its node as the scheduler counts it (kubectl describe
+// node's "Allocated resources"): its requests and limits, init containers, sidecars and its
+// overhead included; OpenCPU and OpenMemory say that a container runs without that limit, so
+// that the pod may use more than Limits says.
+type PodAllocation struct {
+	Requests, Limits    Usage
+	OpenCPU, OpenMemory bool
+}
+
+// PodAllocated returns a pod's allocation as Kubernetes computes it (component-helpers' PodRequests
+// and PodLimits): the containers' sum with the sidecars' (init containers with restartPolicy
+// Always), at least what any init container needs beside the sidecars started before it, plus
+// spec.overhead (on a limit only where one is set); spec.resources, the pod-level resources,
+// replaces a resource it names. A limit is open when a container or a sidecar sets none and the
+// pod sets none; an init container's own only holds while it runs.
+func PodAllocated(pod *unstructured.Unstructured) PodAllocation {
+	var a PodAllocation
+	var sidecarReq, sidecarLim, initReq, initLim Usage
+	for _, c := range NestedSlice(pod.Object, "spec", "initContainers") {
+		req, lim := UsageOf(c, "resources", "requests"), UsageOf(c, "resources", "limits")
+		if NestedString(c, "restartPolicy") == "Always" {
+			sidecarReq, sidecarLim = sidecarReq.Add(req), sidecarLim.Add(lim)
+			initReq, initLim = maxEach(initReq, sidecarReq), maxEach(initLim, sidecarLim)
+			a.OpenCPU, a.OpenMemory = a.OpenCPU || lim.CPUMilli == 0, a.OpenMemory || lim.MemoryBytes == 0
+			continue
+		}
+		initReq, initLim = maxEach(initReq, req.Add(sidecarReq)), maxEach(initLim, lim.Add(sidecarLim))
+	}
+	for _, c := range NestedSlice(pod.Object, "spec", "containers") {
+		lim := UsageOf(c, "resources", "limits")
+		a.Requests, a.Limits = a.Requests.Add(UsageOf(c, "resources", "requests")), a.Limits.Add(lim)
+		a.OpenCPU, a.OpenMemory = a.OpenCPU || lim.CPUMilli == 0, a.OpenMemory || lim.MemoryBytes == 0
+	}
+	a.Requests, a.Limits = maxEach(a.Requests.Add(sidecarReq), initReq), maxEach(a.Limits.Add(sidecarLim), initLim)
+	over := UsageOf(pod.Object, "spec", "overhead")
+	a.Requests = a.Requests.Add(over)
+	if a.Limits.CPUMilli > 0 {
+		a.Limits.CPUMilli += over.CPUMilli
+	}
+	if a.Limits.MemoryBytes > 0 {
+		a.Limits.MemoryBytes += over.MemoryBytes
+	}
+	podReq, podLim := UsageOf(pod.Object, "spec", "resources", "requests"), UsageOf(pod.Object, "spec", "resources", "limits")
+	if podReq.CPUMilli > 0 {
+		a.Requests.CPUMilli = podReq.CPUMilli
+	}
+	if podReq.MemoryBytes > 0 {
+		a.Requests.MemoryBytes = podReq.MemoryBytes
+	}
+	if podLim.CPUMilli > 0 {
+		a.Limits.CPUMilli, a.OpenCPU = podLim.CPUMilli, false
+	}
+	if podLim.MemoryBytes > 0 {
+		a.Limits.MemoryBytes, a.OpenMemory = podLim.MemoryBytes, false
+	}
+	return a
+}
+
+// maxEach is the larger of a and b, CPU and memory each.
+func maxEach(a, b Usage) Usage {
+	return Usage{CPUMilli: max(a.CPUMilli, b.CPUMilli), MemoryBytes: max(a.MemoryBytes, b.MemoryBytes)}
 }

@@ -15,6 +15,22 @@
       "text": "kubernetes.io/metadata.name=legacy"
     },
     {
+      "column": "cpu",
+      "text": ""
+    },
+    {
+      "column": "memory",
+      "text": ""
+    },
+    {
+      "column": "cpuRequests",
+      "text": ""
+    },
+    {
+      "column": "memoryRequests",
+      "text": ""
+    },
+    {
       "column": "age",
       "text": "1y",
       "num": 1748736000

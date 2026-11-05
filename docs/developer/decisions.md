@@ -162,6 +162,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
 | [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
 | [D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
+| [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU and Memory Requests (Limits); "+" after an open limit, orange for memory |
 
 ## D-1: UI toolkit
 
@@ -6331,3 +6332,55 @@ each kind's ids).
 `spreadExcepted`; [`fyneui/preferences_spread.go`](../../internal/ui/fyneui/preferences_spread.go) ·
 **Tests:** `TestPairsColumnsHiddenByDefault`, `TestSpreadExceptsLabels`,
 `TestPreferencesTableSpreadWidth`, `TestPreferencesCommands`
+
+## D-154: A namespace's usage and allocation in the Namespaces list
+
+**Status:** built · **By:** owner (the columns, a "+" after an open limit, orange for memory and in
+the text's colour for CPU), lead (open to revision) the rest
+
+| Column | Shows | From |
+|---|---|---|
+| CPU, Memory | the namespace's pods' usage summed (`0.442`, `2.1 GiB`) | the Metrics API's one list of every pod, once a minute, as a cluster-wide Pods list's (`Hub.Namespace`) |
+| CPU Requests (Limits) | `0.750 (1.500)`; `0.750 (0.500+)` when a pod runs without a CPU limit | the pods' cache: `PodsByNamespace`, a related index with a sum |
+| Memory Requests (Limits) | `192.0 MiB (256.0 MiB)`; the "+" orange when a pod runs without a memory limit | the same |
+
+- **Which pods:** scheduled and not finished (`spec.nodeName` set, phase neither Succeeded nor
+  Failed), as kubectl's "Allocated resources" counts a node's.
+- **A pod's requests and limits** as Kubernetes computes them (`model.PodAllocated`): its containers
+  and sidecars (init containers with `restartPolicy: Always`), at least what an init container needs
+  beside the sidecars started before it, plus `spec.overhead` (on a limit only where one is set); the
+  pod-level `spec.resources` replace what they name. A limit is open when a container or a sidecar
+  sets none and the pod sets none.
+- **Open limits:** the sum of the limits that are set, then "+"; the tooltip counts the pods and those
+  without the limit. Memory's "+" is orange (a container without a memory limit can take its node's
+  memory), CPU's in the text's colour (no CPU limit is a common choice: it only takes spare CPU).
+- **Sums kept current:** a related index may declare a `Sum`; the engine keeps each key's sum with
+  the index, moving an object's contribution with every event, so a lookup costs nothing however
+  many pods there are. The Metrics API's pods are summed once per poll result.
+- **Unknown, not 0:** a namespace whose pods are not listed yet, or not readable, and a cluster
+  without metrics show empty cells; a namespace without a pod shows 0. The columns sort by the
+  number (requests for the allocation columns). Cluster Settings › Metrics' Pods hide the usage
+  columns as they hide the Pods list's. A namespace's drawer charts nothing.
+
+**Why:** the free width of the Namespaces list answers "which namespace takes the cluster"; the sums
+come from what Cogpit reads anyway (the pods' cache, the Pods list's one metrics list). Counting as
+the scheduler does makes the numbers match `kubectl describe node`; a limits' sum that hides pods
+without one would read as a bound that is not there.
+
+**Rejected:** "≥ 4" for an open sum (the owner's choice: "4+"); summing every pod's rows on each
+change (a list of 10,000 pods rebuilds its rows on each pod event); counting pending and finished
+pods (they take nothing from a node); a bar against the namespace's ResourceQuota (not asked for
+yet).
+
+**Not covered:** a user who may not list pods in every namespace sees empty columns: the pods'
+cache and the metrics list are read cluster-wide only. Pods' usage the Metrics API does not measure
+(init containers that ran) is not in the sum.
+
+**Code:** [`model/resources.go`](../../internal/model/resources.go) `PodAllocated`;
+[`model/related.go`](../../internal/model/related.go) `RelatedIndex.Sum`, `TotalsOf`;
+[`kinds/namespaceusage.go`](../../internal/model/kinds/namespaceusage.go);
+[`engine/related.go`](../../internal/engine/related.go) `liveIndex.move`, `relatedSet.totals`;
+[`metrics/hubnamespace.go`](../../internal/metrics/hubnamespace.go);
+[`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) `glued` · **Tests:**
+`TestPodAllocated`, `TestNamespaceTotalsFollowThePods`, `TestNamespacesListUsageAndAllocation`,
+`TestNamespacesListUsageOverTheDemo`
