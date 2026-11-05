@@ -31,9 +31,24 @@ type RemoveFinalizersParams struct {
 	Finalizers []string        `json:"finalizers,omitempty" jsonschema:"the object's metadata.finalizers exactly as read, in their order (object_get's YAML, or the action's params in a Terminating namespace's Blocking Deletion section); omitted: the cached object's, as the confirmation shows them. Cogpit removes them only while the object still holds exactly these"`
 }
 
+// RemoveFinalizersManyCommand is the id of Remove finalizers on a table's selection: the selected
+// objects it applies to, each as RemoveFinalizersCommand removes one object's.
+const RemoveFinalizersManyCommand = "object.removeFinalizersMany"
+
 // EffectRemovesFinalizers names the confirmation's row of the finalizers a removal removes, one a
-// line. The command removes exactly the ones that row showed (ConfirmedFinalizers).
+// line. The command removes exactly the ones that row showed (ConfirmedFinalizers); on a
+// selection, the finalizers of all its objects, each once, and an object only while it holds
+// none but those.
 const EffectRemovesFinalizers = "Removes finalizers"
+
+// FinalizersWarning is what every confirmation of Remove finalizers says below its table, the
+// object already being deleted or not: why it is usually the wrong step, and when it is the right
+// one (the owner's wish of 2026-11-04 for this dialog alone: two or three sentences).
+const FinalizersWarning = "Finalizers let a controller clean up before an object goes, often something outside the " +
+	"cluster: a cloud disk, a load balancer, a DNS record. Removing them deletes the object at once and skips that " +
+	"cleanup, which can leave such resources behind or confuse the controller that still expects the object. Do it " +
+	"only if you know what they guard and that their controller will not finish, for example because it was " +
+	"uninstalled or is broken for good."
 
 // FinalizersShown are the finalizers a removal's confirmation names: the given ones, else the
 // cached object's (none when the cache does not hold it).

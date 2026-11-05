@@ -60,8 +60,15 @@ const installTabCommand = "helm.chart.installTab"
 // genericCommandIcon is the icon of a command without its own.
 const genericCommandIcon = theme.IconNameSettings
 
+// commandResources are the toolbar icons of Cogpit's own drawing, by command id, which win over
+// commandIcons: Remove finalizers' open padlock.
+var commandResources = map[string]func() fyne.Resource{}
+
 // commandIcon returns the toolbar icon of a command.
 func commandIcon(id string) fyne.Resource {
+	if r, ok := commandResources[id]; ok {
+		return r()
+	}
 	if name, ok := commandIcons[id]; ok {
 		return theme.Icon(name)
 	}

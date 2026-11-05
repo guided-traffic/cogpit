@@ -146,11 +146,15 @@ func (tv *tableView) dataColumn(col int) (int, bool) {
 // It visits every row once to count the selected ones the view shows.
 func (tv *tableView) checksChanged() {
 	state := checkNone
+	var deleting strings.Builder // the selected rows being deleted, which Remove Finalizers may apply to
 	if tv.snap != nil && len(tv.check.set) > 0 {
 		n := 0
 		for i := range tv.snap.Rows {
-			if tv.check.has(tv.snap.Rows[i].Ref) {
+			if r := &tv.snap.Rows[i]; tv.check.has(r.Ref) {
 				n++
+				if r.Status == model.StatusTerminating {
+					deleting.WriteString(r.Ref.Kind + " " + r.Ref.Namespace + "/" + r.Ref.Name + "\n")
+				}
 			}
 		}
 		switch {
@@ -166,6 +170,7 @@ func (tv *tableView) checksChanged() {
 	}
 	if tv.check.bar != nil {
 		tv.check.bar.update(len(tv.selected))
+		tv.check.bar.followDeleting(deleting.String())
 	}
 }
 
@@ -371,7 +376,18 @@ type selectionBar struct {
 	asked string
 	// delID is the command Delete runs on the selection (selectionDelete); "" hides Delete.
 	delID string
+	// fin is Remove Finalizers on the selection, after Delete (the owner's pick of 2026-11-04),
+	// shown while the engine says it applies: a selected object is being deleted and holds
+	// finalizers. finKey names the selected rows being deleted it was last asked for; finBusy is
+	// set while it is asked, finAgain when the rows changed meanwhile.
+	fin               *tipButton
+	finPlate          *dangerPlate
+	finKey            string
+	finBusy, finAgain bool
 }
+
+// removeFinalizersTip is the selection bar's Remove Finalizers' tooltip while it works.
+const removeFinalizersTip = "Remove the finalizers of the selected objects being deleted…"
 
 // deleteManyID is the command the selection bar's Delete runs on objects of the cluster's API.
 const deleteManyID = "object.deleteMany"
@@ -416,10 +432,81 @@ func newSelectionBar(tv *tableView) *selectionBar {
 		}
 	})
 	b.plate = newDangerPlate(b.del) // an outlined plate, not a solid red block (chrome_actions.go)
+	b.fin = newTipButton(tv.sh, theme.NewErrorThemedResource(iconUnlock), removeFinalizersTip, func() {
+		tv.runOnSelection(engine.RemoveFinalizersManyCommand, slices.Clone(tv.selected))
+	})
+	b.finPlate = newDangerPlate(b.fin) // destructive as Delete, so on the same plate
+	b.finPlate.Hide()
 	b.clear = newTipButton(tv.sh, theme.CancelIcon(), "Clear the selection", tv.clearSelection)
-	b.root = container.NewHBox(newHGap(theme.SizeNamePadding), b.count, b.plate, b.clear)
+	b.root = container.NewHBox(newHGap(theme.SizeNamePadding), b.count, b.plate, b.finPlate, b.clear)
 	b.root.Hide()
 	return b
+}
+
+// followDeleting shows Remove Finalizers while it applies to the selection. deleting names the
+// selected rows being deleted (none: hidden at once, nothing asked); when they or the connection
+// change, the engine is asked off the main goroutine, as its Enabled reads the cache, one question
+// at a time, and its reason greys the button as followConnection greys Delete.
+func (b *selectionBar) followDeleting(deleting string) {
+	_, known := b.tv.sh.eng.Registry().Get(engine.RemoveFinalizersManyCommand)
+	if deleting == "" || !known || b.delID != deleteManyID || !b.root.Visible() {
+		b.finKey, b.finAgain = "", false
+		b.finPlate.Hide()
+		return
+	}
+	ui := b.tv.sh.ui
+	entry, _ := ui.ConnectionOf(ui.Context)
+	key := fmt.Sprintf("%s\x00%s\x00%t\x00%s", ui.Context, ui.Connection.State, entry.LoginLapsed, deleting)
+	if key == b.finKey {
+		return
+	}
+	b.finKey = key
+	if b.finBusy {
+		b.finAgain = true
+		return
+	}
+	b.askFinalizers()
+}
+
+// askFinalizers asks whether Remove Finalizers applies to the selection and shows its answer,
+// unless the selection changed meanwhile; then it asks again.
+func (b *selectionBar) askFinalizers() {
+	sh, key := b.tv.sh, b.finKey
+	refs := slices.Clone(b.tv.selected)
+	b.finBusy = true
+	go func() {
+		defer sh.recoverTo("the selection's Remove Finalizers")
+		err := sh.commandEnabled(engine.RemoveFinalizersManyCommand, engine.SelectionParams(refs))
+		sh.do(func() {
+			b.finBusy = false
+			if b.finAgain || key != b.finKey || !slices.Equal(refs, b.tv.selected) {
+				b.finAgain = false
+				if b.finKey != "" {
+					b.askFinalizers()
+				}
+				return
+			}
+			b.showFinalizers(err)
+		})
+	}()
+}
+
+// showFinalizers shows Remove Finalizers for the engine's answer: hidden when it does not apply,
+// greyed with the reason when it cannot run now.
+func (b *selectionBar) showFinalizers(err error) {
+	switch {
+	case errors.Is(err, engine.ErrNotApplicable):
+		b.finPlate.Hide()
+		return
+	case err != nil:
+		b.fin.Disable()
+		b.fin.setTip(disabledLabel("Remove Finalizers", err.Error()))
+	default:
+		b.fin.Enable()
+		b.fin.setTip(removeFinalizersTip)
+	}
+	b.finPlate.Show()
+	b.finPlate.Refresh()
 }
 
 // update shows the bar for n selected objects, from minSelectionBar on.

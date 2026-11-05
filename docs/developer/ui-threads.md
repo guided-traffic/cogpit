@@ -76,6 +76,7 @@ places of the same kind has one row.
 | `fyneui/welcome.go` | `welcomePage.subscribe` | callback | A | The engine's `Subscribe`: `eventSig` under `sigMu`; `w.shown`, render and load only inside `sh.do`. |
 | `fyneui/tablecheck.go` | `tableView.openSelectionMenu` | go | A | `evaluateSelection` on references cloned on main; the menu built and shown inside `sh.do`. |
 | `fyneui/tablecheck.go` | `selectionBar.askReason` | go | A | The registry's label and `commandEnabled` on cloned references; the tooltip inside `sh.do`. |
+| `fyneui/tablecheck.go` | `selectionBar.askFinalizers` | go | A | `commandEnabled` of Remove Finalizers on cloned references; the button, its tooltip and the next question inside `sh.do`. |
 | `fyneui/tableview.go` | `tableView.searchChanged` | AfterFunc | A | `sh.dispatch(ui.setFilter)` with the text copied; `done` runs through `sh.do`. |
 | `fyneui/palette.go` | `cmdPalette.load` | go | A | `Registry.Palette` on a cloned state (`Runs` reads package maps) and `containersFor`; results inside `sh.do`. |
 | `fyneui/palette.go` | `shell.runPaletteAction` | go | A | `evaluateActions` and `containersFor`, engine only; `runAction` or the toast inside `sh.do`. |

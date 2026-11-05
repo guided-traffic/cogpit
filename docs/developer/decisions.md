@@ -106,7 +106,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-95](#d-95-the-window-comes-back-where-it-was) | The window comes back where it was | built: macOS frame and display; size elsewhere |
 | [D-96](#d-96-the-service-proxys-port-spelled-by-its-number-first) | The service proxy's port spelled by its number first | built: number first, then name |
 | [D-97](#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays) | A connect goes on when another cluster is shown; a failed one stays | built: connects run on in the background; a failure stays shown |
-| [D-98](#d-98-what-holds-a-terminating-namespace-and-remove-finalizers) | What holds a Terminating namespace, and Remove finalizers | built: Blocking Deletion list and guarded Remove Finalizers |
+| [D-98](#d-98-what-holds-a-terminating-namespace-and-remove-finalizers) | What holds a Terminating namespace, and Remove finalizers | built: Blocking Deletion list and guarded Remove Finalizers, on one object and a selection |
 | [D-99](#d-99-selecting-and-copying-a-log-tabs-text-and-a-toasts) | Selecting and copying a log tab's text and a toast's | built: log, toast and chat text selectable; Follow by scrolling |
 | [D-100](#d-100-objects-and-effects-in-one-form-and-a-drawers-edited-state-beside-save) | Objects and effects in one form, and a drawer's edited state beside Save | built: Kind → name in dialogs, effects as rows, edit pills |
 | [D-101](#d-101-the-kubeconfig-sources-at-hand-and-a-removed-cluster-leaves-the-hotbar) | The kubeconfig sources at hand, and a removed cluster leaves the hotbar | built: sources' "−"; a removed source's clusters leave the hotbar |
@@ -3709,6 +3709,16 @@ namespace's own finalizer or calls `/finalize`. What the user sees:
   is one JSON patch (`cluster.FinalizersPatch`): `test /metadata/uid`, `test /metadata/finalizers`
   equal to the finalizers the confirmation showed (`engine.ConfirmedFinalizers`),
   `remove /metadata/finalizers`; a failed test is `ErrTargetsChanged`.
+- **On a selection** (`object.removeFinalizersMany`, the owner's pick: the selection bar after
+  Delete, and the selection's menu): the selected objects it applies to, the others left out and
+  counted in the confirmation. Its finalizers row lists every finalizer of those objects once; each
+  object is patched with the finalizers it holds when its step runs, only while all of them are
+  among the confirmed ones, bound to its confirmed UID. More than ten run as a job (G4).
+- **The warning** (`engine.FinalizersWarning`, the owner's wish for this dialog alone): every
+  confirmation of either command says below its table, in two or three sentences, why removing
+  finalizers is usually wrong and when it is right, also for an object whose Delete was confirmed.
+- **The icon** is an open padlock of Cogpit's drawing (`iconUnlock`): the finalizers' hold on the
+  deletion released.
 
 **Why:** A metadata-only watch per named kind keeps Secret values off the wire, never lists a kind
 cluster-wide for a drawer, and lets an object whose finalizers go vanish by itself. The JSON patch
@@ -3718,7 +3728,12 @@ server's and guards its custom resources in etcd, as a namespace's own guards it
 
 **Rejected:** the Namespace profile's `DetailWith` — its `DetailNeeds` are fixed per profile, while
 the kinds come from the condition at run time; a merge patch `finalizers: null` with the
-resourceVersion — a controller's status update meanwhile would refuse it.
+resourceVersion — a controller's status update meanwhile would refuse it; on a selection, a "Also
+remove finalizers" option in Delete's confirmation — it frees an object before its controller
+could clean up at all; an exact match of every object's finalizers in the confirmation — a list
+per object hides what a selection's dialog must show at a glance, and the union with the subset
+check refuses the same thing, a finalizer the user did not see; scissors as the icon — it reads as
+Cut (the owner).
 
 **Not covered:** what a finalizer guards, which Cogpit cannot know
 ([H-9](../security/privilege-footprint.md#h-9-force-finalize-skips-cleanup)). Removing from the
@@ -3727,11 +3742,14 @@ which lists the kind as its view would.
 
 **Code:** [`nsblockers.go`](../../internal/engine/nsblockers.go);
 [`engine/finalizers.go`](../../internal/engine/finalizers.go) `RemoveFinalizers`;
+[`commands/finalizers.go`](../../internal/engine/commands/finalizers.go) `removeFinalizersMany`;
+[`fyneui/tablecheck.go`](../../internal/ui/fyneui/tablecheck.go) `followDeleting`;
 [`cluster/finalizers.go`](../../internal/cluster/finalizers.go) `FinalizersPatch` · 
 `TestNamespaceDeletionFromTheControllersConditions`, `TestTerminatingNamespaceListsWhatBlocksIt`,
 `TestRemoveFinalizersSendsTheGuardedPatch`, `TestRemoveFinalizersConfirmsWhatItRemoves`,
-`TestRemoveFinalizersRefusals`, `TestBudgetTerminatingNamespaceBlockers`,
-`TestKindTerminatingNamespaceBlockers`
+`TestRemoveFinalizersRefusals`, `TestRemoveFinalizersManyActsOnTheDeleting`,
+`TestRemoveFinalizersManyRefusals`, `TestRenderRemoveFinalizersManyDark`,
+`TestBudgetTerminatingNamespaceBlockers`, `TestKindTerminatingNamespaceBlockers`
 
 ## D-99: Selecting and copying a log tab's text and a toast's
 

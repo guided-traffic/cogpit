@@ -418,12 +418,13 @@ func TestArgoBulkSyncAndRefresh(t *testing.T) {
 	if syncs != 2 {
 		t.Errorf("%d syncs written", syncs)
 	}
-	// The selection's menu offers both for Applications, Delete after them.
+	// The selection's menu offers both for Applications, Remove Finalizers and Delete after them
+	// (Remove Finalizers shows only while a selected one is being deleted).
 	var ids []string
 	for _, c := range h.s.Registry().SelectionActions([]string{kinds.ArgoApplicationsKey}) {
 		ids = append(ids, c.ID)
 	}
-	if got := strings.Join(ids, ","); got != "argocd.application.syncMany,argocd.application.refreshMany,object.deleteMany" {
+	if got := strings.Join(ids, ","); got != "argocd.application.syncMany,argocd.application.refreshMany,object.removeFinalizersMany,object.deleteMany" {
 		t.Errorf("selection actions %s", got)
 	}
 }

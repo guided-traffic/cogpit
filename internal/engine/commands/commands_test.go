@@ -233,7 +233,8 @@ var wantCommands = map[string]engine.Danger{
 	// The Kyverno integration's violations, from the cache (D-79) (TestKyvernoViolationsCommand).
 	"kyverno.violations": engine.DangerRead,
 	// An object being deleted loses its finalizers (WF43, D-98) (TestRemoveFinalizersConfirmsWhatItRemoves).
-	"object.removeFinalizers": engine.DangerDestructive,
+	"object.removeFinalizers":     engine.DangerDestructive,
+	"object.removeFinalizersMany": engine.DangerDestructive,
 	// The program folders of a credential plugin's programs (D-120): adding GUI-only (TestProgramFoldersAddRemoveAndKeep).
 	"preferences.addProgramFolder": engine.DangerUI, "preferences.removeProgramFolder": engine.DangerUI,
 }
