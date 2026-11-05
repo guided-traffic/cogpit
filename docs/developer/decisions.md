@@ -162,7 +162,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
 | [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
 | [D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
-| [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU and Memory Requests (Limits); "+" after an open limit, orange for memory |
+| [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU Req / Lim, Memory Req / Lim; the limits muted after the requests, "+" after an open limit, orange for memory |
+| [D-new](#d-new-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 
 ## D-1: UI toolkit
 
@@ -6335,14 +6336,15 @@ each kind's ids).
 
 ## D-154: A namespace's usage and allocation in the Namespaces list
 
-**Status:** built · **By:** owner (the columns, a "+" after an open limit, orange for memory and in
-the text's colour for CPU), lead (open to revision) the rest
+**Status:** built · **By:** owner (the columns; a "+" after an open limit, orange for memory; the
+cells' form: the requests in the text's colour, "/ limits" muted after them, a byte unit once, the
+short titles), lead (open to revision) the rest
 
 | Column | Shows | From |
 |---|---|---|
-| CPU, Memory | the namespace's pods' usage summed (`0.442`, `2.1 GiB`) | the Metrics API's one list of every pod, once a minute, as a cluster-wide Pods list's (`Hub.Namespace`) |
-| CPU Requests (Limits) | `0.750 (1.500)`; `0.750 (0.500+)` when a pod runs without a CPU limit | the pods' cache: `PodsByNamespace`, a related index with a sum |
-| Memory Requests (Limits) | `192.0 MiB (256.0 MiB)`; the "+" orange when a pod runs without a memory limit | the same |
+| CPU, Memory | the namespace's pods' usage summed (`442m`, `2.1 GiB`) | the Metrics API's one list of every pod, once a minute, as a cluster-wide Pods list's (`Hub.Namespace`) |
+| CPU Req / Lim | `750m / 1.5`; `750m / 500m+` when a pod runs without a CPU limit | the pods' cache: `PodsByNamespace`, a related index with a sum |
+| Memory Req / Lim | `192.0 / 256.0 MiB`, `768.0 MiB / 3.8 GiB`; `41.1 / 123.4 GiB+`, the "+" orange, when a pod runs without a memory limit | the same |
 
 - **Which pods:** scheduled and not finished (`spec.nodeName` set, phase neither Succeeded nor
   Failed), as kubectl's "Allocated resources" counts a node's.
@@ -6351,9 +6353,13 @@ the text's colour for CPU), lead (open to revision) the rest
   beside the sidecars started before it, plus `spec.overhead` (on a limit only where one is set); the
   pod-level `spec.resources` replace what they name. A limit is open when a container or a sidecar
   sets none and the pod sets none.
+- **The cells:** the requests in the text's colour, then "/" and the limits in the muted colour
+  (`model.CellPart.Muted`): the requests are the number the column is read for, the limits their
+  context. CPU amounts as [D-new](#d-new-every-cpu-amount-in-millicores-below-one-core) writes them,
+  the "m" on each; byte amounts of the same unit carry it once, after the limits.
 - **Open limits:** the sum of the limits that are set, then "+"; the tooltip counts the pods and those
   without the limit. Memory's "+" is orange (a container without a memory limit can take its node's
-  memory), CPU's in the text's colour (no CPU limit is a common choice: it only takes spare CPU).
+  memory), CPU's muted with the limits (no CPU limit is a common choice: it only takes spare CPU).
 - **Sums kept current:** a related index may declare a `Sum`; the engine keeps each key's sum with
   the index, moving an object's contribution with every event, so a lookup costs nothing however
   many pods there are. The Metrics API's pods are summed once per poll result.
@@ -6367,7 +6373,11 @@ come from what Cogpit reads anyway (the pods' cache, the Pods list's one metrics
 the scheduler does makes the numbers match `kubectl describe node`; a limits' sum that hides pods
 without one would read as a bound that is not there.
 
-**Rejected:** "≥ 4" for an open sum (the owner's choice: "4+"); summing every pod's rows on each
+**Rejected:** "≥ 4" for an open sum (the owner's choice: "4+"); "requests (limits)" in the text's
+colour with full titles ("Memory Requests (Limits)": the widest columns of the list); a two-row
+header grouping Usage and Requests (Limits) under CPU and Memory (a header mechanism for one view);
+usage against requests with a bar in one column per resource, the limits in the tooltip (the "+"
+and sorting by requests gone); summing every pod's rows on each
 change (a list of 10,000 pods rebuilds its rows on each pod event); counting pending and finished
 pods (they take nothing from a node); a bar against the namespace's ResourceQuota (not asked for
 yet).
@@ -6381,6 +6391,38 @@ cache and the metrics list are read cluster-wide only. Pods' usage the Metrics A
 [`kinds/namespaceusage.go`](../../internal/model/kinds/namespaceusage.go);
 [`engine/related.go`](../../internal/engine/related.go) `liveIndex.move`, `relatedSet.totals`;
 [`metrics/hubnamespace.go`](../../internal/metrics/hubnamespace.go);
-[`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) `glued` · **Tests:**
+[`fyneui/tableview.go`](../../internal/ui/fyneui/tableview.go) `glued`, `partColorName` · **Tests:**
 `TestPodAllocated`, `TestNamespaceTotalsFollowThePods`, `TestNamespacesListUsageAndAllocation`,
 `TestNamespacesListUsageOverTheDemo`
+
+## D-new: Every CPU amount in millicores below one core
+
+**Status:** built · **By:** owner (no third decimal and no trailing zeros; millicores below one
+core), lead (open to revision) the rest
+
+Every CPU amount Cogpit writes goes through `model.FormatCPU`: the lists' CPU (Pods, Namespaces, a
+Vertical Pod Autoscaler's recommendations), the Namespaces list's requests and limits, a node's
+usage bar's tooltip ("300m of 4 cores") and the hover panel of a CPU chart.
+
+| Millicores | Written |
+|---|---|
+| 0 | `0` |
+| 1 to 999 | `1m`, `465m`, `999m` |
+| from 1000 | cores rounded half up to ten millicores, at most two decimals, no trailing zeros: `1`, `1.01` (1005), `2.28` (2275), `146.5` |
+
+**Why:** three decimals put zeros in most cells (`39.000`, `0.500`) and make the allocation columns
+the widest of the Namespaces list; millicores keep every value below a core exact, and Kubernetes
+writes them the same way in manifests and in `kubectl top`. One formatter keeps a chart's hover and
+the lists alike.
+
+**Rejected:** cores with three decimals (Lens's lists' form); cores with at most two decimals
+everywhere (everything below 5m reads `0`, the common case in the Pods list); millicores always
+(`10570m / 146500m+`: long above one core); the "m" once per cell like a byte unit (`440 / 700m`
+reads 440 as cores).
+
+**Not covered:** a chart's value axis keeps its three significant digits ("0.25", "1.5"), the cluster
+Overview's headline one decimal from ten cores.
+
+**Code:** [`model/usage.go`](../../internal/model/usage.go) `FormatCPU`;
+[`fyneui/metricsview.go`](../../internal/ui/fyneui/metricsview.go) `formatCoresExact` · **Tests:**
+`TestUsageFormats`, `TestUsageCells`, `TestNodeUsageBars`, `TestAgoText`

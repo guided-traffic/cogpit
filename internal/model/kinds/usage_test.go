@@ -40,7 +40,7 @@ func TestPodsListLensOrder(t *testing.T) {
 func TestUsageCells(t *testing.T) {
 	pods := profile(t, "pods")
 	cpu, mem := pods.UsageCells(&unstructured.Unstructured{}, model.Usage{CPUMilli: 12, MemoryBytes: 20_447_232})
-	if cpu.Text != "0.012" || cpu.Num != 12 || mem.Text != "19.5 MiB" || mem.Num != 20_447_232 {
+	if cpu.Text != "12m" || cpu.Num != 12 || mem.Text != "19.5 MiB" || mem.Num != 20_447_232 {
 		t.Errorf("pod cells = %+v, %+v", cpu, mem)
 	}
 
@@ -54,7 +54,7 @@ func TestUsageCells(t *testing.T) {
 	}
 	// No allocatable amount reported: absolute usage, not a division by zero.
 	cpu, _ = nodes.UsageCells(&unstructured.Unstructured{}, model.Usage{CPUMilli: 300})
-	if cpu.Text != "0.300" {
+	if cpu.Text != "300m" {
 		t.Errorf("node without allocatable: cpu = %+v", cpu)
 	}
 }
@@ -72,7 +72,7 @@ func TestUsageCellsLeaveAMissingPartEmpty(t *testing.T) {
 	}
 	pods := profile(t, "pods")
 	cpu, mem = pods.UsageCells(&unstructured.Unstructured{}, model.Usage{CPUMilli: 12, Missing: model.UsageMemory})
-	if cpu.Text != "0.012" || mem != (model.Cell{}) {
+	if cpu.Text != "12m" || mem != (model.Cell{}) {
 		t.Errorf("pod without a memory value: cells %+v, %+v", cpu, mem)
 	}
 	// A pod's total lacks a part only when every container lacks it.
@@ -106,7 +106,7 @@ func TestNodeUsageBars(t *testing.T) {
 		"allocatable": map[string]any{"cpu": "4", "memory": "8Gi"},
 	}}}
 	cpu, mem := nodes.UsageCells(node, model.Usage{CPUMilli: 3700, MemoryBytes: 7 << 30})
-	if cpu.Bar == nil || cpu.Bar.Status != model.StatusError || cpu.Bar.Detail != "3.700 of 4.000 cores" || cpu.Text != "92%" {
+	if cpu.Bar == nil || cpu.Bar.Status != model.StatusError || cpu.Bar.Detail != "3.7 of 4 cores" || cpu.Text != "92%" {
 		t.Errorf("cpu cell = %+v, bar %+v", cpu, cpu.Bar)
 	}
 	if mem.Bar == nil || mem.Bar.Status != model.StatusWarning || mem.Bar.Detail != "7.0 GiB of 8.0 GiB" || mem.Text != "88%" {

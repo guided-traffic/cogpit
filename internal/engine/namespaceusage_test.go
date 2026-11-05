@@ -143,10 +143,10 @@ func TestNamespacesListUsageAndAllocation(t *testing.T) {
 	}
 	want := map[string][4]string{
 		// CPU, Memory (drawerPodUsage: web-0 250m 64Mi, far-0 900m 2Gi; batch-0 5m 1.5Gi),
-		// CPU Requests (Limits), Memory Requests (Limits)
-		"apps":  {"1.150", "2.1 GiB", "0.750 (0.500+)", "192.0 MiB (128.0 MiB+)"},
-		"jobs":  {"0.005", "1.5 GiB", "0.100 (0.200)", "512.0 MiB (1.0 GiB)"},
-		"empty": {"0.000", "0 B", "0.000 (0.000)", "0 B (0 B)"},
+		// CPU Req / Lim, Memory Req / Lim
+		"apps":  {"1.15", "2.1 GiB", "750m / 500m+", "192.0 / 128.0 MiB+"},
+		"jobs":  {"5m", "1.5 GiB", "100m / 200m", "512.0 MiB / 1.0 GiB"},
+		"empty": {"0", "0 B", "0 / 0", "0 / 0 B"},
 	}
 	var snap *TableSnapshot
 	waitFor(t, "the namespaces' sums", func() bool {
@@ -163,11 +163,12 @@ func TestNamespacesListUsageAndAllocation(t *testing.T) {
 		}
 		return true
 	})
-	if c := cell(snap, "apps", "memoryRequests"); c.Parts == nil || (*c.Parts)[1].Status != model.StatusWarning || !(*c.Parts)[1].Glued {
-		t.Errorf("apps' memory: %+v, want an orange glued +", c)
+	if c := cell(snap, "apps", "memoryRequests"); c.Parts == nil || len(*c.Parts) != 3 || !(*c.Parts)[1].Muted ||
+		(*c.Parts)[2].Status != model.StatusWarning || !(*c.Parts)[2].Glued {
+		t.Errorf("apps' memory: %+v, want the limits muted and an orange glued +", c)
 	}
-	if c := cell(snap, "apps", "cpuRequests"); c.Parts != nil || c.Num != 750 {
-		t.Errorf("apps' CPU: %+v, want a plain cell sorted by 750m", c)
+	if c := cell(snap, "apps", "cpuRequests"); c.Parts == nil || len(*c.Parts) != 2 || !(*c.Parts)[1].Muted || c.Num != 750 {
+		t.Errorf("apps' CPU: %+v, want the limits muted with their +, sorted by 750m", c)
 	}
 	if n := s.Backend().Metrics.Subscribed(); n != 1 {
 		t.Errorf("%d metrics scopes polled, want 1 (every pod)", n)
@@ -176,7 +177,7 @@ func TestNamespacesListUsageAndAllocation(t *testing.T) {
 	mem.Set(testkit.PodsGVR, requestingPod("jobs", "batch-0", "node-1", "Running", 300, 512, true))
 	waitFor(t, "jobs' new request", func() bool {
 		snap := s.Table("namespaces")
-		return snap != nil && cell(snap, "jobs", "cpuRequests").Text == "0.300 (0.600)"
+		return snap != nil && cell(snap, "jobs", "cpuRequests").Text == "300m / 600m"
 	})
 
 	m, err := s.DetailWait(context.Background(), model.ObjectRef{Context: "test", Kind: "namespaces", Name: "apps"})

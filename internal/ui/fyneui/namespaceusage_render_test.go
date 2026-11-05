@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -9,9 +10,9 @@ import (
 )
 
 // The Namespaces list over the demo cluster (D-154): each namespace's pods' CPU and Memory, and
-// what they request with their limits, a "+" after a limit some pod runs without, orange for
-// memory, in the text's colour for CPU. The "+" follows the number directly. PNG (COGPIT_PNG_DIR
-// only): demo_namespaces.png.
+// what they request, the limits muted after them, a "+" after a limit some pod runs without,
+// orange for memory, muted with the limits for CPU. The "+" follows the number directly. PNG
+// (COGPIT_PNG_DIR only): demo_namespaces.png.
 func TestNamespacesListUsageOverTheDemo(t *testing.T) {
 	s, sh, w, until := demoShell(t)
 	until("the demo cluster", func() bool { return sh.ui.Connection.State == engine.Connected })
@@ -27,7 +28,7 @@ func TestNamespacesListUsageOverTheDemo(t *testing.T) {
 		}
 		mi, ci := col("memoryRequests"), col(model.ColumnCPU)
 		for _, r := range snap.Rows {
-			if mi < len(r.Cells) && r.Cells[mi].Parts != nil && ci < len(r.Cells) && r.Cells[ci].Text != "" {
+			if mi < len(r.Cells) && openLimit(r.Cells[mi].Parts) && ci < len(r.Cells) && r.Cells[ci].Text != "" {
 				return true
 			}
 		}
@@ -36,7 +37,7 @@ func TestNamespacesListUsageOverTheDemo(t *testing.T) {
 	settle(w)
 	vis := columnOf(t, sh, "memoryRequests")
 	for _, c := range findAll[*tableCell](sh.view.table) {
-		if c.col == vis && c.Visible() && c.content.parts != nil {
+		if c.col == vis && c.Visible() && openLimit(c.content.parts) {
 			plus = c
 			break
 		}
@@ -44,11 +45,19 @@ func TestNamespacesListUsageOverTheDemo(t *testing.T) {
 	if plus == nil {
 		t.Fatal("no shown memory cell with an open limit")
 	}
-	if got := plus.run(1); got.Text != "+" || got.Color != themeColor(plus.Theme(), statusColorName(model.StatusWarning)) {
+	if got := plus.run(1); !strings.HasPrefix(got.Text, "/ ") || got.Color != themeColor(plus.Theme(), colorMuted) {
+		t.Errorf("the limits: %q in %v, want them muted", got.Text, got.Color)
+	}
+	if got := plus.run(2); got.Text != "+" || got.Color != themeColor(plus.Theme(), statusColorName(model.StatusWarning)) {
 		t.Errorf("the +: %q in %v", got.Text, got.Color)
 	}
-	if x0, x1 := plus.runX[1], plus.runX[0]+plus.run(0).MinSize().Width; x0-x1 > 1 {
+	if x0, x1 := plus.runX[2], plus.runX[1]+plus.run(1).MinSize().Width; x0-x1 > 1 {
 		t.Errorf("a gap of %.1f before the +", x0-x1)
 	}
 	demoPNG(t, w, "demo_namespaces.png")
+}
+
+// openLimit reports whether an allocation cell's parts end in a "+": requests, limits, the +.
+func openLimit(parts *[]model.CellPart) bool {
+	return parts != nil && len(*parts) == 3 && (*parts)[2].Text == "+"
 }

@@ -1623,6 +1623,15 @@ func (c *tableCell) runCount() int {
 	return 0
 }
 
+// partColorName is a cell part's colour: its status's, or the muted text colour for a muted part
+// without one (model.CellPart.Muted).
+func partColorName(p model.CellPart) fyne.ThemeColorName {
+	if p.Muted && p.Status == model.StatusNone {
+		return colorMuted
+	}
+	return statusColorName(p.Status)
+}
+
 // glued reports whether run i is a part that follows the one before it without a space
 // (model.CellPart.Glued).
 func (c *tableCell) glued(i int) bool {
@@ -1702,12 +1711,12 @@ func (c *tableCell) apply() {
 			c.more = append(c.more, canvas.NewText("", color.Transparent))
 		}
 		if len(parts) > 0 {
-			c.text.Color = themeColor(th, statusColorName(parts[0].Status))
+			c.text.Color = themeColor(th, partColorName(parts[0]))
 		}
 		for i, t := range c.more {
 			t.TextSize = size
 			if i+1 < len(parts) {
-				t.Color = themeColor(th, statusColorName(parts[i+1].Status))
+				t.Color = themeColor(th, partColorName(parts[i+1]))
 			}
 		}
 	}

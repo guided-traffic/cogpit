@@ -172,10 +172,32 @@ type UsageSample struct {
 	Usage
 }
 
-// FormatCPU formats millicores as cores the way Lens's lists do, three decimals: 12 → "0.012",
-// 1500 → "1.500".
+// FormatCPU formats millicores as every CPU amount reads in Cogpit (D-new): below one core in
+// millicores, 12 → "12m"; from one core in cores rounded half up to ten millicores, with at most
+// two decimals and no trailing zeros, 1000 → "1", 2275 → "2.28", 146500 → "146.5"; 0 → "0".
 func FormatCPU(milli int64) string {
-	return strconv.FormatFloat(float64(milli)/1000, 'f', 3, 64)
+	switch {
+	case milli == 0:
+		return "0"
+	case milli > -1000 && milli < 1000:
+		return strconv.FormatInt(milli, 10) + "m"
+	}
+	sign := ""
+	if milli < 0 {
+		sign, milli = "-", -milli
+	}
+	centi := (milli + 5) / 10 // hundredths of a core
+	text := sign + strconv.FormatInt(centi/100, 10)
+	switch frac := centi % 100; {
+	case frac == 0:
+	case frac%10 == 0:
+		text += "." + strconv.FormatInt(frac/10, 10)
+	case frac < 10:
+		text += ".0" + strconv.FormatInt(frac, 10)
+	default:
+		text += "." + strconv.FormatInt(frac, 10)
+	}
+	return text
 }
 
 // FormatPercent formats a share of a whole with one decimal below 10 percent and none above:

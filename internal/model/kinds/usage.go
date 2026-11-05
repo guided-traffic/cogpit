@@ -29,8 +29,8 @@ var (
 // nodeBarWidth is the default width of a Nodes list's usage-bar column.
 const nodeBarWidth = 100
 
-// podUsageCells shows a pod's usage as Lens's Pods list does: CPU in cores with three decimals
-// ("0.012"), memory in binary units with one decimal (D-32: "19.5 MiB").
+// podUsageCells shows a pod's usage: CPU as model.FormatCPU writes it ("12m", "1.25"), memory in
+// binary units with one decimal (D-32: "19.5 MiB").
 // Num is the sort key: millicores and bytes. A part the provider did not measure (Usage.Missing)
 // is an empty cell, never "0".
 func podUsageCells(_ *unstructured.Unstructured, u model.Usage) (cpu, memory model.Cell) {
@@ -44,7 +44,7 @@ func podUsageCells(_ *unstructured.Unstructured, u model.Usage) (cpu, memory mod
 }
 
 // nodeUsageCells shows a node's usage as a share of what the node can allocate ("7.5%") drawn as
-// a usage bar (Lens's Nodes list), the amounts behind it as the bar's detail ("0.300 of 4.000
+// a usage bar (Lens's Nodes list), the amounts behind it as the bar's detail ("300m of 4
 // cores"); the share, in tenths of a percent, is the sort key. A node that reports no allocatable
 // amount shows the absolute usage without a bar, as a pod does.
 func nodeUsageCells(obj *unstructured.Unstructured, u model.Usage) (cpu, memory model.Cell) {
