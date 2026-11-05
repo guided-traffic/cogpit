@@ -206,9 +206,13 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
 - Sparkle and WinSparkle are pinned in the Makefile by release tag and SHA-256 (`SPARKLE_VERSION`,
   `SPARKLE_SHA256`, `WINSPARKLE_TAG`, `WINSPARKLE_SHA256`) under a
   `# renovate: datasource=github-release-attachments` comment; Renovate's pull request updates both
-  lines. Neither merges on its own: their code installs Cogpit's updates. Mesa, the Windows smoke
-  test's software OpenGL (`MESA_VERSION`, `MESA_SHA256`), is pinned the same way and merges on its
-  own once CI passes, a major version after review: it runs in CI only.
+  lines. Neither merges on its own: their code installs Cogpit's updates. Mesa (`MESA_VERSION`,
+  `MESA_SHA256`), the Windows smoke test's software OpenGL and the archive a release build of
+  `cogpit.exe` offers to download ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)), is
+  pinned the same way and merges on its own once CI passes, a major version after review: Windows
+  Package fetches the archive and refuses one without `x64/opengl32.dll` and
+  `x64/libgallium_wgl.dll` ([`mesa.sh`](../../hack/windows/mesa.sh)). A closed pull request keeps
+  Renovate from proposing that version again.
 - The node shell's and the debug container's default images (`DefaultNodeShellImage` in
   [`nodeshell.go`](../../internal/engine/nodeshell.go), `DefaultDebugImage` in
   [`debugcontainer.go`](../../internal/engine/debugcontainer.go)), pinned by tag and digest, have
