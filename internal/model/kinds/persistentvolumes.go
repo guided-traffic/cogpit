@@ -216,13 +216,13 @@ func pvNodeAffinity(obj any) []string {
 			}
 			values := strings.Join(model.NestedStrings(e, "values"), ",")
 			switch op := model.NestedString(e, "operator"); op {
-			case "In":
+			case opIn:
 				exprs = append(exprs, key+" in ("+values+")")
-			case "NotIn":
+			case opNotIn:
 				exprs = append(exprs, key+" notin ("+values+")")
 			case opExists:
 				exprs = append(exprs, key)
-			case "DoesNotExist":
+			case opDoesNotExist:
 				exprs = append(exprs, "!"+key)
 			default:
 				exprs = append(exprs, key+" "+op+" ("+values+")")

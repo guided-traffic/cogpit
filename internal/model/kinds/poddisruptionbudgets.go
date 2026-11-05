@@ -29,7 +29,7 @@ const (
 // bound the budget does not set. When the icon shows is not captured; the rule of pdbHealth is
 // inferred, as is the drawer.
 var podDisruptionBudgets = &model.KindProfile{
-	Key:        "poddisruptionbudgets",
+	Key:        keyPodDisruptionBudgets,
 	Group:      "policy",
 	Version:    "v1",
 	Resource:   "poddisruptionbudgets",

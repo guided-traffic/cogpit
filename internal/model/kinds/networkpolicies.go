@@ -17,7 +17,7 @@ const (
 // Types, Age. Policy Types reads "Ingress, Egress" (inferred). A policy has no state, so no
 // status token. The drawer is inferred.
 var networkPolicies = &model.KindProfile{
-	Key:        "networkpolicies",
+	Key:        keyNetworkPolicies,
 	Group:      groupNetworking,
 	Version:    "v1",
 	Resource:   "networkpolicies",

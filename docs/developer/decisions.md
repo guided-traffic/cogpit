@@ -160,6 +160,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
 | [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, version, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version check's "!" in its own slot |
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
+| [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
 
 ## D-1: UI toolkit
 
@@ -6219,3 +6220,59 @@ the write to be useful); a write the user switches on per cluster.
 [`engine/kyverno.go`](../../internal/engine/kyverno.go), [`engine/alerts.go`](../../internal/engine/alerts.go),
 [`internal/metrics`](../../internal/metrics/), [`internal/alerting`](../../internal/alerting/);
 their requests: [privilege footprint](../security/privilege-footprint.md#integrations-write-nothing)
+
+## D-152: Back references in the drawer
+
+**Status:** built · **By:** owner (a mode in the app's preferences; label selectors and references
+by name; a section of its own at the drawer's end as a table of Kind, Name and Via), lead (open to
+revision) the rest
+
+Preferences › App › Back references (`backReferences`, `preferences.set`), off by default. While
+on, the drawer of an object something can point at ends with **Referenced By**, the objects of
+other kinds that point at it:
+
+| Object | Referenced by | Via |
+|---|---|---|
+| Pod | Services, Network Policies, Pod Disruption Budgets | `spec.selector`, `spec.podSelector` (`(all pods)` for the empty one), `spec.selector` |
+| ConfigMap | Pods | `volume <name>`, `volume <name> (projected)`, `envFrom <container>`, `env <container>: <VAR>, …` |
+| Secret | Pods, Ingresses, Service Accounts | as a ConfigMap's, and `imagePullSecrets`; `tls: <hosts>`; `imagePullSecrets`, `secrets` |
+| ServiceAccount | Pods, Role Bindings, Cluster Role Bindings | `spec.serviceAccountName`; `subjects` |
+| Service | Ingresses | `defaultBackend`, `<host><path>` (`*` for a rule without a host) |
+| Role | Role Bindings | `roleRef` |
+| ClusterRole | Role Bindings, Cluster Role Bindings | `roleRef` |
+| StorageClass | Persistent Volume Claims, Persistent Volumes | `spec.storageClassName`, else the older annotation |
+
+- A table of Kind, Name (a link) and Via, a referrer's uses a line each; a cluster-scoped object's
+  table names the referrers' Namespace too. Sorted by Kind, then namespace and name, until the user
+  sorts it by a column's title, as any drawer table; at most `MaxDrawerTableRows` rows, the rest
+  counted.
+- A selector is read as the API server reads it: a Service's pairs all match, a label selector's
+  `matchLabels` and `matchExpressions` (`In`, `NotIn`, `Exists`, `DoesNotExist`; another operator
+  selects nothing); a Service without a selector selects nothing, a budget without one none.
+- Each relation is an index over the referring kind's cache (`model.RelatedIndex`), read while
+  such a drawer is open and the preference is on: in the object's namespace, a cluster-scoped
+  object's in all. Nothing is asked of the API server. A switch restarts the open drawer.
+- Without referrers it says "Found: None in" and the kinds it read; a kind not listed yet, not
+  served or not readable is named under "Not read".
+- Agents read it in `object_get` while the preference is on and may set it either way: it changes
+  only what a drawer shows.
+
+**Why:** what selects a pod, or uses a Config Map, is otherwise found only by reading every
+Service's selector or every pod's spec. Off by default because the section adds reads of more kinds
+to each such drawer and length to it.
+
+**Rejected:** a column in the lists (a count per row needs the indexes for every row the view
+holds, not one drawer); chips per kind (the Via is what makes the table worth reading; the owner
+picked the table); items in Properties (the object's own fields would mix with other objects'
+references); the workloads' pod templates among a ConfigMap's or Secret's referrers (the pods
+carry the same references while they run; a scaled-down workload's template is not in the sheet the
+owner picked); RoleBindings in other namespaces among a ServiceAccount's (its drawer reads its own
+namespace, as every namespaced drawer does).
+
+**Code:** [`kinds/backrefs.go`](../../internal/model/kinds/backrefs.go); [`engine/drawer.go`](../../internal/engine/drawer.go)
+`drawerNeeds`, `detail`; [`engine/views.go`](../../internal/engine/views.go) (the drawer's restart);
+[`engine/drawersort.go`](../../internal/engine/drawersort.go) (a table's own order);
+[`fyneui/preferences_backrefs.go`](../../internal/ui/fyneui/preferences_backrefs.go) · **Tests:**
+`TestBackRefsOfAPod`, `TestBackRefsByName`, `TestBackRefsOfClusterScoped`,
+`TestBackRefsNoneAndNotRead`, `TestBackRefsTypeConfusion`, `TestDrawerBackReferences`,
+`TestDrawerNeedsBackReferences`, `TestRenderBackRefsDark`

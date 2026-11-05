@@ -222,6 +222,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 	restore, syncRestore := p.restoreSessionSetting() // preferences_restore.go
 	motion, syncMotion := p.reduceMotionSetting()     // preferences_motion.go
 	outdated, syncOutdated := p.outdatedSetting()     // navigator_outdated.go
+	backRefs, syncBackRefs := p.backRefsSetting()     // preferences_backrefs.go
 	power, syncPower := p.lightStripPowerSetting()    // preferences_power.go
 	diffs, syncDiffs := p.revisionsDiffSetting()      // preferences_revisions.go
 	zoom, syncZoom := p.zoomSetting()                 // preferences_zoom.go
@@ -237,6 +238,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		syncRestore()
 		syncMotion()
 		syncOutdated()
+		syncBackRefs()
 		syncPower()
 		syncDiffs()
 		syncZoom()
@@ -249,6 +251,7 @@ func (p *settingsPage) appSection() fyne.CanvasObject {
 		restore,
 		motion,
 		outdated,
+		backRefs,
 		power,
 		diffs,
 	}

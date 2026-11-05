@@ -442,7 +442,8 @@ func (b *Backend) namespacesRunning(p *model.KindProfile) bool {
 // drawerPlanKey is how the drawer of an object of kind p in namespace reads its kind, the events
 // and its related objects (acquireNow); a drawer whose key changes starts again. A change of the
 // plan's namespaces that leaves the object's namespace read as it was (a filter) changes nothing.
-func (b *Backend) drawerPlanKey(p *model.KindProfile, namespace string) string {
+// backRefs: the drawer reads its back references (drawerNeeds).
+func (b *Backend) drawerPlanKey(p *model.KindProfile, namespace string, backRefs bool) string {
 	if p == nil {
 		return ""
 	}
@@ -453,7 +454,7 @@ func (b *Backend) drawerPlanKey(p *model.KindProfile, namespace string) string {
 	if ep, ok := b.Profile(eventsKind); ok && p.APIObject() {
 		key += "|" + b.readKeyIn(ep, namespace)
 	}
-	return key + b.relatedKey(p, drawerNeeds(b, p), namespace)
+	return key + b.relatedKey(p, drawerNeeds(b, p, backRefs), namespace)
 }
 
 // relatedKey is how the related-objects indexes of a kind's view (p.Needs, namespace "") or of a

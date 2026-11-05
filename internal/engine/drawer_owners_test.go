@@ -53,15 +53,15 @@ func TestDrawerLinksCustomOwners(t *testing.T) {
 
 	b := s.Backend()
 	p, _ := b.Profile("pods")
-	if needs := drawerNeeds(b, p); len(needs) == 0 || needs[len(needs)-1].ID() != kinds.CustomKindsByGroupKind.ID() {
+	if needs := drawerNeeds(b, p, false); len(needs) == 0 || needs[len(needs)-1].ID() != kinds.CustomKindsByGroupKind.ID() {
 		t.Errorf("a drawer on a cluster with custom kinds reads %v", needs)
 	}
 	plain := &Backend{Profiles: testProfiles()}
-	if needs := drawerNeeds(plain, p); len(needs) != len(p.DrawerNeeds()) {
+	if needs := drawerNeeds(plain, p, false); len(needs) != len(p.DrawerNeeds()) {
 		t.Errorf("a drawer on a cluster without custom kinds reads %v", needs)
 	}
 	virtual := &model.KindProfile{Key: "derived", Derive: func(objs []*unstructured.Unstructured) []*unstructured.Unstructured { return objs }}
-	if needs := drawerNeeds(b, virtual); len(needs) != 0 {
+	if needs := drawerNeeds(b, virtual, false); len(needs) != 0 {
 		t.Errorf("a virtual kind's drawer reads %v", needs)
 	}
 }

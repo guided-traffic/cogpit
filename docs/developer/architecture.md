@@ -945,6 +945,10 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
 - A lookup on a kind still listing returns nothing: a rule that warns about a missing object checks
   `rel.Listed(index)` first. Rows built outside a view use `Session.BuildRows`.
 - References to custom resources link through `CustomKindsByGroupKind` (`kinds.RefToWith`).
+- Back references ([`kinds/backrefs.go`](../../internal/model/kinds/backrefs.go), D-152): while
+  `Preferences.BackReferences` is on, `drawerNeeds` adds the indexes of the kinds that point at the
+  drawer's kind (`BackRefNeeds`: Services by each selector pair, pods by the ConfigMaps they name,
+  ...), and the drawer's last section, Referenced By, reads them (`BackRefSection`).
 - `object.get` with `related: true` ([`relatedrefs.go`](../../internal/engine/relatedrefs.go)) lists
   what the drawer links to and what a workload controls, at most 200 (`TestObjectGetRelated`).
 

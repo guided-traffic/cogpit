@@ -174,6 +174,12 @@ type Preferences struct {
 	// default true). Agents and the CLI may set it either way: it changes only what the navigator
 	// lists.
 	HideOutdatedObjects bool `json:"hideOutdatedObjects"`
+	// BackReferences: a drawer ends with Referenced By, the objects of other kinds that point at
+	// its object by a label selector or by name (kinds.BackRefSection, D-152); off, the default,
+	// it has none. While on, an open drawer of such a kind reads the referring kinds in its
+	// object's namespace (a cluster-scoped object's: in all) from the cache. Agents and the CLI
+	// may set it either way: it changes only what a drawer shows.
+	BackReferences bool `json:"backReferences,omitempty"`
 	// LightStripMainsOnly: the light strip under the tabs animates only while the computer runs on
 	// its power adapter and on battery shows its colour standing still; off, the default, it
 	// animates on battery too (the owner, 2026-10-24, LS15 and LS16: "nur bei Netzbetrieb", once for
@@ -628,6 +634,17 @@ func (s *Session) Location() *time.Location {
 		return time.Local
 	}
 	return p.loc
+}
+
+// backReferences reports whether the BackReferences preference is on.
+func (s *Session) backReferences() bool {
+	p := s.opts.Preferences
+	if p == nil {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.loaded && p.prefs.BackReferences
 }
 
 // displayNow is the clock in the preferred time zone: the drawer's ages count from it.

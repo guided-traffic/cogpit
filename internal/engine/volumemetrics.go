@@ -189,7 +189,7 @@ func (s *Session) VolumeUsage(ref model.ObjectRef) (*VolumeUsage, error) {
 func (s *Session) volumePods(b *Backend, p *model.KindProfile, ref model.ObjectRef, vc model.VolumeClaim) []string {
 	rs := s.drawerRelated(b, p, ref)
 	if rs == nil {
-		rs = newRelatedSetWith(b, drawerNeeds(b, p), nil, false, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, vc.Namespace) })
+		rs = newRelatedSetWith(b, drawerNeeds(b, p, false), nil, false, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, vc.Namespace) })
 	}
 	defer rs.release()
 	rel, _ := rs.view()

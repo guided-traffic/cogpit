@@ -46,6 +46,7 @@ type drawerWatch struct {
 	quit       chan struct{}
 	stopped    atomic.Bool
 	planKey    string // how its kind and the events were read when it started (accessiblens_plan.go); set under state.mu
+	backRefs   bool   // whether it reads its kind's back references (Preferences.BackReferences); set under state.mu
 
 	// blockers are a Terminating namespace's Blocking Deletion reads (nsblockers.go); nil for
 	// other kinds.
@@ -59,7 +60,7 @@ type drawerWatch struct {
 	hiddenSet bool
 }
 
-func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.ObjectRef, hidden MetricSet) *drawerWatch {
+func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.ObjectRef, hidden MetricSet, backRefs bool) *drawerWatch {
 	ns := ref.Namespace
 	if !p.Namespaced {
 		ns = ""
@@ -71,6 +72,7 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 		quit: make(chan struct{}),
 		// The hidden metrics as the drawer opens: its poll starts only for what shows.
 		hidden: hidden, hiddenSet: true,
+		backRefs: backRefs,
 	}
 	d.unsubs = append(d.unsubs, d.obj.Subscribe(func(ev cache.Event) {
 		// A virtual kind's cache holds what it derives from, not its objects (a Helm release's
@@ -92,7 +94,7 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 	// Woken only by changes to the keys the drawer's model looked up (a node's pods, not every
 	// pod); Detail reads through this set while the drawer shows ref (drawerRelated). The drawer's
 	// own indexes (DetailNeeds: a workload's pods) live only as long as it does.
-	d.related = newRelatedSetWith(b, drawerNeeds(b, p), func() { signal(d.wake) }, true, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, ns) })
+	d.related = newRelatedSetWith(b, drawerNeeds(b, p, backRefs), func() { signal(d.wake) }, true, func(rp *model.KindProfile) *cache.Handle { return b.acquireNow(rp, ns) })
 	if isNamespaces(p) && b.Cache != nil { // the kinds its conditions name, followed by Detail (nsblockers.go)
 		d.blockers = newNSBlockers(b, ref.Name, func() { signal(d.wake) })
 	}
@@ -232,6 +234,11 @@ func (s *Session) detail(ctx context.Context, ref model.ObjectRef, wait bool) (*
 	m.Sections = append(m.Sections, b.overlays.sections(p, obj, s.TimeFormat())...) // the integrations' (overlay.go)
 	m.Sections = b.overlays.amend(p, obj, m.Sections, s.TimeFormat())               // and what they add to the kind's own
 	s.markNodeVersion(b, p, obj, m)                                                 // a kubelet's upstream support and skew (k8sversion.go, D-91)
+	if s.backReferences() && p.APIObject() {                                        // what points at it, last (Preferences.BackReferences, D-152)
+		if sec, ok := kinds.BackRefSection(p.Key, obj, rel); ok {
+			m.Sections = append(m.Sections, sec)
+		}
+	}
 	if m.Metrics && len(s.hiddenMetrics(b.Context).drawerVariantsOf(p)) == 0 {
 		m.Metrics, m.VolumeMetrics = false, false // the cluster's settings hide every chart of the kind (hidemetrics.go)
 	}
@@ -340,22 +347,37 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 	return m, err
 }
 
-// drawerNeeds are the related-objects indexes a kind's drawer reads: its profile's, and on a
-// cluster with custom kinds the definitions by group and Kind, through which Controlled By links an
-// owner that is a custom resource (a StatefulSet's Prometheus, a Deployment's CephCluster, seen on a
-// real cluster 2026-10-16). Their scope is the custom kinds' own watch, so the index costs no
-// request; a virtual or local kind's drawer has no owners to link.
-func drawerNeeds(b *Backend, p *model.KindProfile) []model.RelatedIndex {
+// drawerNeeds are the related-objects indexes a kind's drawer reads: its profile's, its back
+// references' while backRefs (Preferences.BackReferences, kinds.BackRefNeeds), and on a cluster
+// with custom kinds the definitions by group and Kind, through which Controlled By links an owner
+// that is a custom resource (a StatefulSet's Prometheus, a Deployment's CephCluster, seen on a real
+// cluster 2026-10-16). Their scope is the custom kinds' own watch, so the index costs no request; a
+// virtual or local kind's drawer has no owners to link.
+func drawerNeeds(b *Backend, p *model.KindProfile, backRefs bool) []model.RelatedIndex {
 	needs := p.DrawerNeeds()
+	if backRefs && p.APIObject() {
+		needs = appendNeeds(needs, kinds.BackRefNeeds(p.Key)...)
+	}
 	if b == nil || !b.CustomResources || p.Derive != nil || p.Local {
 		return needs
 	}
-	for _, ix := range needs {
-		if ix.ID() == kinds.CustomKindsByGroupKind.ID() {
-			return needs
+	return appendNeeds(needs, kinds.CustomKindsByGroupKind)
+}
+
+// appendNeeds returns needs with each of more it does not name yet, in a new slice when it adds
+// one (needs may be a profile's).
+func appendNeeds(needs []model.RelatedIndex, more ...model.RelatedIndex) []model.RelatedIndex {
+	out := needs
+	for _, ix := range more {
+		if slices.ContainsFunc(out, func(n model.RelatedIndex) bool { return n.ID() == ix.ID() }) {
+			continue
 		}
+		if len(out) == len(needs) {
+			out = append(make([]model.RelatedIndex, 0, len(needs)+len(more)), needs...)
+		}
+		out = append(out, ix)
 	}
-	return append(append(make([]model.RelatedIndex, 0, len(needs)+1), needs...), kinds.CustomKindsByGroupKind)
+	return out
 }
 
 // detailTitle is the drawer's title: "Pod: web-0", "Release: web" (a profile's DetailTitle).

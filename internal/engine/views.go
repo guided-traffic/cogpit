@@ -148,17 +148,18 @@ func (st *state) reconcileLocked(now UIState) {
 	// definition (another version, or gone), and the drawer follows it.
 	var drawerProf *model.KindProfile
 	var drawerPlan string
+	backRefs := now.Preferences != nil && now.Preferences.BackReferences // the indexes its back references read
 	if b != nil && now.Drawer != nil {
 		drawerProf, _ = b.Profile(now.Drawer.Kind)
-		drawerPlan = b.drawerPlanKey(drawerProf, now.Drawer.Namespace)
+		drawerPlan = b.drawerPlanKey(drawerProf, now.Drawer.Namespace, backRefs)
 	}
 	if st.drawer != nil && (now.Drawer == nil || st.drawer.backend != b || st.drawer.ref != *now.Drawer || st.drawer.profile != drawerProf ||
-		st.drawer.planKey != drawerPlan) {
+		st.drawer.planKey != drawerPlan || st.drawer.backRefs != backRefs) {
 		st.drawer.stop()
 		st.drawer = nil
 	}
 	if st.drawer == nil && drawerProf != nil {
-		st.drawer = st.s.startDrawerWatch(b, drawerProf, *now.Drawer, hiddenMetricsOf(&now, b.Context))
+		st.drawer = st.s.startDrawerWatch(b, drawerProf, *now.Drawer, hiddenMetricsOf(&now, b.Context), backRefs)
 		st.drawer.planKey = drawerPlan
 	} else if st.drawer != nil {
 		st.drawer.followHidden(st.s, hiddenMetricsOf(&now, b.Context)) // the cluster's settings changed what shows
