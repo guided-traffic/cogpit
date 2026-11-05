@@ -52,7 +52,7 @@ type clusterSettingsSetParams struct {
 
 type clusterIconParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it; empty or omitted: the connected context"`
-	Path    string `json:"path" jsonschema:"the image file the user picked: .png, .jpeg or .svg, at most 1 MiB"`
+	Path    string `json:"path" jsonschema:"the image file the user picked: .png, .jpeg, .webp or .svg, at most 1 MiB"`
 	iconCutParams
 }
 
@@ -323,7 +323,7 @@ func registerClusterSettings(g *registrar) {
 	add(g, engine.Spec[clusterIconParams]{
 		ID: "cluster.settings.uploadIcon", Label: "Upload Icon", Danger: engine.DangerUI,
 		GUIOnly: engine.ErrIconGUIOnly,
-		Description: "Makes a context's icon a square cut from an image file the user picked (a PNG, a JPEG or an SVG without " +
+		Description: "Makes a context's icon a square cut from an image file the user picked (a PNG, a JPEG, a WebP or an SVG without " +
 			"scripts or outside references, at most 1 MiB): the image is kept, at most 1,024 pixels a side, as the icon's source, " +
 			"and the icon is cut from it at zoom, x and y (the middle, filled, when omitted) as a PNG of 256 pixels a side; it shows " +
 			"instead of the colour tile, which stays for when the user goes back to it. Only the user, in Cogpit's window, can " +

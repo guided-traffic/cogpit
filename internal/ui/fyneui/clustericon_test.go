@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"bytes"
+	"encoding/base64"
 	"image"
 	"image/color"
 	"image/png"
@@ -93,6 +94,37 @@ func TestIconTileDialog(t *testing.T) {
 	if size := r.initials.TextSize; size >= initialsSize(th, th.Size(sizeHotbarTile)) || r.initials.MinSize().Width > th.Size(sizeHotbarTile) {
 		t.Errorf("five letters at %v pt, %v wide: not fitted to the tile", size, r.initials.MinSize().Width)
 	}
+}
+
+// A WebP picked as the icon's image is read like a PNG: the same halves as wideImageFile, lossless
+// (written by libwebp), shown in the editor and kept as the icon.
+func TestIconImageDialogWebP(t *testing.T) {
+	s, sh, w, q := iconScene(t, ThemeDark)
+	raw, err := base64.StdEncoding.DecodeString("UklGRiwAAABXRUJQVlA4TCAAAAAvv8AXAA9wmawrcf9ldP5DC2IaQv/SPhEsov8TQDZ/Dg==")
+	if err != nil {
+		t.Fatal(err)
+	}
+	file := filepath.Join(t.TempDir(), "wide.webp")
+	if err := os.WriteFile(file, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	sh.settings.pickIcon = func(done func(string)) { done(file) }
+	sh.settings.controls["iconKind"].(*widget.RadioGroup).SetSelected(iconKindImage)
+	q.until(t, "the WebP in the editor", func() bool {
+		id := sh.settings.imageDialog
+		return id != nil && id.editor.src != nil
+	})
+	id := sh.settings.imageDialog
+	if b := id.editor.src.Bounds(); b.Dx() != 192 || b.Dy() != 96 {
+		t.Fatalf("the WebP read as %v, want 192×96", b)
+	}
+	q.until(t, "the previews cut", func() bool { return id.big.img != nil && id.small.img != nil })
+	settle(w)
+	test.Tap(id.save)
+	q.until(t, "the cut kept", func() bool {
+		cs, _ := s.ClusterSettingsOf("kind-dev")
+		return cs.Icon != "" && !cs.IconTile && cs.IconCrop != nil
+	})
 }
 
 // The Custom icon's dialog: a picked image fills the frame; the wheel and a drag move the cut, the

@@ -1672,12 +1672,12 @@ and may only turn the switch off (`ErrChartIconsGUIOnly`).
 - **Where to:** a host at a non-public address (loopback, private, link-local, carrier-grade NAT)
   is refused unless it is a chart repository's own host; each request dials the address it
   checked ([H-87](../security/trust-boundaries.md#h-87-chart-icons-tell-their-hosts-what-the-user-looks-at)).
-- **What:** checked as an uploaded cluster icon (`CheckIcon`): a PNG or JPEG decoded under bounds
+- **What:** checked by `CheckIcon`, as a cluster icon's image is: a PNG or JPEG decoded under bounds
   and kept as a PNG of at most 256 pixels a side; an SVG only as one `<svg>` document without a
   DOCTYPE, scripts, event handlers or outside references, rasterised by the window off the main
   goroutine, never by Fyne's renderer
   ([H-88](../security/trust-boundaries.md#h-88-chart-icons-are-decoded-in-cogpits-process));
-  anything else refused.
+  anything else refused, a WebP too ([D-119](#d-119-the-cluster-icon-designer)).
 - **Kept:** `<user cache dir>/Cogpit/helm/icons/<hash of the URL>.png` or `.svg`, owner-only, for 7
   days, the newest 2,048; 512 in memory; a failure is remembered for an hour.
 
@@ -2653,7 +2653,7 @@ Not built: the system dialogs of Windows and Linux (M11).
   through cgo as a sheet on the window; a request while one is up is dropped. Every chooser goes
   through the shell's `filePicker` and falls back to its Fyne dialog where no panel is shown: Sync
   Files and Folders (files and folders, several, synced in the order chosen, hidden files listed,
-  from the home folder), a cluster icon's image (PNG, JPEG, SVG), the terminal's and kubectl's
+  from the home folder), a cluster icon's image (PNG, JPEG, WebP, SVG), the terminal's and kubectl's
   folders, an agent connection's CA file (`.pem`, `.crt`, `.cer`), and the saves of a table's CSV,
   the Create tab's YAML and a log tab's lines (a new file owner-only).
 - **Bookmarks.** What Cogpit reads again later keeps a security-scoped bookmark made at the pick
@@ -4746,7 +4746,7 @@ newest overlay is on top); where Tab starts inside the card is Fyne's.
 
 ## D-119: The cluster icon designer
 
-**Status:** built · **By:** owner
+**Status:** built · **By:** owner, lead (open to revision) WebP for the icon's image alone
 
 Cluster Settings › General › Icon offers two kinds of icon, chosen by the radio pair "Internal icon"
 and "Custom icon" and changed in their own dialog through Customize…; Reset drops the image, its
@@ -4755,15 +4755,16 @@ source, the colour and the letters.
 - **Internal icon:** a colour tile with up to 5 characters, no spaces or control characters
   (`CheckIconLetters`); empty means the name's initials. The letters grow with the square
   (`initialsSize`: side × 16/38, at least the text size 13) and shrink to fit (`fitTextSize`).
-- **Custom icon:** a part of an image (a picked file of at most 1 MiB) placed in a 240-point square
-  of a 360 × 300 editor, the rest dimmed: dragged 1:1, zoomed by the wheel at the pointer (×1.1 per
-  notch) or by a slider (1 to 8) at the centre, Fit to fill and centre, clamped so the square never
-  leaves the image; square only, no rotation. Previews at the hotbar's and the navigator's sizes,
+- **Custom icon:** a part of an image (a picked PNG, JPEG, WebP or SVG file of at most 1 MiB)
+  placed in a 240-point square of a 360 × 300 editor, the rest dimmed: dragged 1:1, zoomed by the
+  wheel at the pointer (×1.1 per notch) or by a slider (1 to 8) at the centre, Fit to fill and
+  centre, clamped so the square never leaves the image; square only, no rotation. Previews at the hotbar's and the navigator's sizes,
   cut 80 ms after a move stops. Choose Image… opens the system's file panel (Fyne's dialog where
   there is none, [D-72](#d-72-native-file-panels-and-macos-folder-access)); Custom without a kept
   image opens the dialog.
-- **What is kept**, in `cluster-icons/` under each file's SHA-256: the source (a PNG or JPEG made a
-  PNG of at most 1,024 pixels a side; an SVG checked, then drawn into one with `srwiley/oksvg`), the
+- **What is kept**, in `cluster-icons/` under each file's SHA-256: the source (a PNG, JPEG or WebP
+  made a PNG of at most 1,024 pixels a side; an SVG checked, then drawn into one with
+  `srwiley/oksvg`), the
   cut (`iconCrop`: zoom 1 to 8 and the source's point at the square's centre, as fractions) and the
   icon (a PNG of 256 pixels a side). A file no context uses is removed. `CutIcon` (Catmull-Rom from
   `golang.org/x/image/draw`) makes both the previews and the icon. Both kinds stay kept (`iconTile`
@@ -4789,8 +4790,12 @@ the icon kept, keeps image bytes out of command parameters and is testable witho
 in fractions lets the dialog open where it was left. Fyne's corner radius is drawn at the screen's
 pixels by both painters, so no rounded copy per size and scale is needed.
 
-**Rejected:** a circle frame — the icon shows in a rounded square everywhere; rounding by masking
-pixels or a rounded copy — bakes one size and screen scale into each copy; the root badge sized by
+**Rejected:** WebP chart icons — a further decoder for bytes from any host a chart index names, where
+the WebP asked for is an image the user picks; `CheckIcon` keeps refusing one
+([D-46](#d-46-chart-icons-from-the-hosts-that-serve-them)); an animated WebP's first frame —
+`golang.org/x/image/webp` reads still images only, and an animation is refused as unreadable; a
+circle frame — the icon shows in a rounded square everywhere; rounding by masking pixels or a
+rounded copy — bakes one size and screen scale into each copy; the root badge sized by
 the navigator's width alone — cuts a typical cluster name at the default width.
 
 **Not covered:** the editor's cursor stays the arrow (Fyne has no grab cursor); corners are circular
@@ -4799,7 +4804,8 @@ arcs, not Apple's continuous curve.
 **Code:** [`clustersettings_iconcut.go`](../../internal/engine/clustersettings_iconcut.go)
 `CutIcon`, `CheckIconLetters`; [`clustericon.go`](../../internal/ui/fyneui/clustericon.go);
 [`clusteridentity.go`](../../internal/ui/fyneui/clusteridentity.go) `iconCorner`, `initialsSize` ·
-**Tests:** `TestCutIcon`, `TestIconSource`, `TestClusterIconCutAgain`, `TestIconImageDialog`,
+**Tests:** `TestCutIcon`, `TestIconSource`, `TestIconSourceWebP`, `TestClusterIconCutAgain`,
+`TestIconImageDialog`, `TestIconImageDialogWebP`,
 `TestCropEditorZoomsAtThePointer`, `TestClusterIconCornersAsMacOS`, `TestRootBadgeFillsItsRoom`
 
 ## D-120: Folders searched for credential plugins

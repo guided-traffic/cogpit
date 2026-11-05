@@ -833,7 +833,7 @@ kind's settings are kept.
 
 - **Internal icon:** a colour tile with up to five characters, no spaces (empty: the name's
   initials), in one of eight colours or any colour.
-- **Custom icon:** a square cut of a PNG, JPEG or SVG image: drag to move it, the wheel or the slider
+- **Custom icon:** a square cut of a PNG, JPEG, WebP or SVG image: drag to move it, the wheel or the slider
   to zoom (up to 8×), **Fit** to fill the square from the middle, **Choose Image…** for another file.
 
 Icons have macOS's app-icon corners (radius 22/96 of the side). Sizes: 50 points on the hotbar and
@@ -995,7 +995,7 @@ On macOS every file chooser is the system's panel, a sheet on Cogpit's window
 | Chooser | Where | Takes |
 |---|---|---|
 | Sync Files and Folders… | Cluster menu, the navigator's "+", the welcome page, Kubeconfig Sources, Preferences › Kubernetes | kubeconfig files and folders, several at once, hidden files listed; button "Sync"; opens in your home folder; ⌘⇧G types a path |
-| Choose Image… | Cluster Settings › General › Icon › Customize… (Custom icon) | one PNG, JPEG or SVG |
+| Choose Image… | Cluster Settings › General › Icon › Customize… (Custom icon) | one PNG, JPEG, WebP or SVG |
 | folder buttons | Cluster Settings › Terminal (working directory), Preferences › Kubernetes (directory for binaries) | one folder; button "Choose" |
 | Add Folder… | Preferences › Kubernetes › Program folders | one folder, hidden folders listed; button "Add" |
 | Choose… | Preferences › Agent, a connection's CA file | one `.pem`, `.crt` or `.cer` |

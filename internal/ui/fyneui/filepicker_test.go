@@ -212,7 +212,7 @@ func TestIconAndFolderPanels(t *testing.T) {
 	p.mu.Lock()
 	icon, folder := p.opens[0], p.opens[1]
 	p.mu.Unlock()
-	if !icon.Files || icon.Folders || icon.Multiple || !slices.Equal(icon.Types, []string{"png", "jpg", "jpeg", "svg"}) ||
+	if !icon.Files || icon.Folders || icon.Multiple || !slices.Equal(icon.Types, []string{"png", "jpg", "jpeg", "webp", "svg"}) ||
 		icon.Bookmark != nativedialog.NoBookmark || icon.Prompt != "Upload" {
 		t.Errorf("icon panel %+v", icon)
 	}
