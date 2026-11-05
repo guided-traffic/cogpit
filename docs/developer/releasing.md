@@ -15,8 +15,9 @@ feeds and the APT repository on GitHub Pages. What vouches for each file:
 request; a newer push cancels the running run of its ref. Every check is a job of its own with its
 own make target, so it runs the same locally; no job should need more than ten minutes (each has a
 30-minute limit for runs without a build cache). Linux jobs run on the organisation's self-hosted
-runners (one shared machine) unless the repository variable `LINUX_RUNNER` names others
-(`ubuntu-latest`); the macOS and Windows jobs run on GitHub's hosted runners. Every job but the
+runners, a pod per job (6 CPUs and 10 GiB for the runner and its Docker together), unless the
+repository variable `LINUX_RUNNER` names others (`ubuntu-latest`); the macOS and Windows jobs run on
+GitHub's hosted runners. Every job but the
 race shards sets up through [`.github/actions/go-setup`](../../.github/actions/go-setup/action.yml):
 Go from `go.mod`, a build cache per kind of build (saved by `main`'s pushes only), Fyne's Linux
 build dependencies installed in the background; the race shards run what one job built
@@ -193,8 +194,10 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
 `APP_PRIVATE_KEY`); the configuration is [`.github/renovate.json`](../../.github/renovate.json).
 
 - Minor, patch and digest updates of Go modules, the Go version, GitHub Actions and the Makefile's
-  tool pins merge on their own once CI passes; majors wait for review. Groups: the Go version with
-  `golang.org/x/*`; `k8s.io/*` and `sigs.k8s.io/*`; Fyne.
+  tool pins merge on their own once CI passes; majors wait for review, but for GitHub Actions'
+  majors, which merge on their own too. The Semantic Release job's Node is the exception: its major
+  waits, since only a push to `main` runs that job and a pull request's CI never starts it. Groups:
+  the Go version with `golang.org/x/*`; `k8s.io/*` and `sigs.k8s.io/*`; Fyne.
 - The Makefile's tool pins carry a `# renovate:` comment a custom manager reads; `bin/` tools are
   rebuilt when their pin or the Go of `go.mod` changes (the Makefile's `tool_stamp`).
 - dmgbuild's requirements ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt))
@@ -226,8 +229,8 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
    minor release, `fix:` and `perf:` a patch release, other types none.
 2. Once every job of a push run on `main` passed, the job Semantic Release
    ([`release.yml`](../../.github/workflows/release.yml)) takes a token of the organisation's GitHub
-   App (`permission-contents: write`), runs `npm ci` and `npm audit signatures` on Node 24 (pinned in
-   the job), puts the combined
+   App (`permission-contents: write`), runs `npm ci` and `npm audit signatures` on Node 26 (after
+   `libatomic1`, which its Linux build loads and the runners' image lacks), puts the combined
    coverage badge in place and runs `npx semantic-release`: the version from the commits since the
    last tag, the notes, the badge committed as `chore(release): <version> [skip ci]` with the notes
    in its body when the badge changed, the tag `v<version>` on that commit (else on the released
