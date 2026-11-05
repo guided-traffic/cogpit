@@ -1,47 +1,68 @@
 package fyneui
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/x509"
 	"encoding/base64"
+	hexenc "encoding/hex"
+	"encoding/pem"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
-	"testing/cryptotest"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
-	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
 // The drawer of a TLS Secret with its certificates decoded (D-30): the Secrets fixture with
 // storefront-tls holding a real chain (a leaf that expires in 20 days, an intermediate, a root) in
-// tls.crt, the root in ca.crt and the leaf's key in tls.key. Keys and signatures come from a fixed
-// seed, so the fingerprints and the PNGs are the same on every run. Every name is made up.
+// tls.crt, the root in ca.crt and the leaf's key in tls.key. The certificates are files of testdata
+// (made once by testkit.NewCert under cryptotest.SetGlobalRandom's seed 30) and the leaf's key comes
+// from its fixed scalar, so the fingerprints and the PNGs are the same on every run without the
+// process's random source set: setting it back raced with an earlier test's HTTP/2 health check
+// reading it. Every name is made up.
+
+// storefrontKeyScalar is the leaf's P-256 private scalar (a test key of a made-up name).
+const storefrontKeyScalar = "7aeb12af397013078cfba4aa96fef257daaeb3c11bd880f2b91aa4f98bf35d00"
+
+// storefrontKeyPEM is the leaf's key as a PKCS #8 PRIVATE KEY block, as a TLS Secret's tls.key
+// holds it.
+func storefrontKeyPEM(t *testing.T) string {
+	t.Helper()
+	raw, err := hexenc.DecodeString(storefrontKeyScalar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	k, err := ecdsa.ParseRawPrivateKey(elliptic.P256(), raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	der, err := x509.MarshalPKCS8PrivateKey(k)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der}))
+}
+
+// readTestdata returns a file of testdata as text.
+func readTestdata(t *testing.T, name string) string {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("testdata", name))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(b)
+}
 
 // certsSecretsFake is secretsFake with the drawer open on storefront-tls, whose certificates are
 // real; it returns the PEM texts the drawer must never show.
 func certsSecretsFake(t *testing.T) (*fakeEngine, model.ObjectRef, []string) {
-	cryptotest.SetGlobalRandom(t, 30)
-	root := testkit.NewCert(t, testkit.CertSpec{
-		CommonName: "Storefront Root CA", Organization: []string{"Example Shop"}, Serial: 1, CA: true,
-		NotBefore: fixedNow.AddDate(-2, 0, 0), NotAfter: fixedNow.AddDate(8, 0, 0), Key: testkit.RSAKey(t, 2048),
-	})
-	inter := testkit.NewCert(t, testkit.CertSpec{
-		CommonName: "Storefront Issuing CA", Organization: []string{"Example Shop"}, Serial: 0x1001, CA: true, PathLenZero: true,
-		NotBefore: fixedNow.AddDate(-1, 0, 0), NotAfter: fixedNow.AddDate(2, 0, 0), Key: testkit.ECDSAKey(t), Parent: root,
-	})
-	leaf := testkit.NewCert(t, testkit.CertSpec{
-		CommonName: "shop.example.com", Organization: []string{"Example Shop"}, Serial: 0x4f2a9c11e0,
-		NotBefore: fixedNow.AddDate(0, 0, -70), NotAfter: fixedNow.AddDate(0, 0, 20),
-		DNSNames:    []string{"shop.example.com", "www.shop.example.com"},
-		IPAddresses: []string{"203.0.113.10"},
-		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
-		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		Key:         testkit.ECDSAKey(t), Parent: inter,
-	})
-	chain, ca, key := string(testkit.Chain(leaf, inter, root)), string(root.PEM()), string(leaf.KeyPEM(t))
+	chain, ca, key := readTestdata(t, "certs/storefront-tls.crt"), readTestdata(t, "certs/storefront-ca.crt"), storefrontKeyPEM(t)
 	enc := func(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
 	f, _ := secretsFake(t)
