@@ -49,6 +49,12 @@ const (
 	ColumnGrade ColumnType = "grade"
 )
 
+// What the pairs of a column of key=value pairs are (Column.Pairs).
+const (
+	PairsLabels   = "labels"
+	PairsSelector = "selector"
+)
+
 // Column describes one table column of a kind.
 type Column struct {
 	ID     string     `json:"id"`              // stable id, lowerCamelCase: "name", "clusterIP"
@@ -56,6 +62,10 @@ type Column struct {
 	Type   ColumnType `json:"type"`            // sort and render behaviour
 	Width  float32    `json:"width,omitempty"` // default width hint in points; 0 lets the UI decide
 	Hidden bool       `json:"hidden,omitempty"`
+	// Pairs, when set, says the column lists key=value pairs of one kind: PairsLabels, an object's
+	// labels, or PairsSelector, a label selector. Preferences › Tables › Free width's exceptions
+	// match it (D-new).
+	Pairs string `json:"pairs,omitempty"`
 	// Slots is a Signals column's number of icon places, one per source that applies to the view
 	// (Signal.Slot); 0 for any other column.
 	Slots int `json:"slots,omitempty"`

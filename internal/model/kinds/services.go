@@ -29,7 +29,7 @@ var services = &model.KindProfile{
 		{ID: "clusterIP", Title: "Cluster IP", Type: model.ColumnText},
 		{ID: "ports", Title: "Ports", Type: model.ColumnText},
 		{ID: idExternalIP, Title: "External IP", Type: model.ColumnText},
-		{ID: idSelector, Title: "Selector", Type: model.ColumnText},
+		{ID: idSelector, Title: "Selector", Type: model.ColumnText, Hidden: true, Pairs: model.PairsSelector}, // the drawer shows it (D-new)
 		ageColumn,
 		statusColumn,
 	},

@@ -104,6 +104,19 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("preferences.get after tableSpreadWidth %v: %v, %v", on, err, read.Preferences.TableSpreadWidth)
 		}
 	}
+	// Its exceptions too, on by default (D-new).
+	if !res.Preferences.TableSpreadExceptLabels || !res.Preferences.TableSpreadExceptSelectors {
+		t.Errorf("the free width's exceptions are off by default: %+v", res.Preferences)
+	}
+	var except commands.PreferencesResult
+	if err := dispatch(t, s, agent, "preferences.set", map[string]any{"tableSpreadExceptLabels": false}, &except); err != nil ||
+		except.Preferences.TableSpreadExceptLabels || !except.Preferences.TableSpreadExceptSelectors {
+		t.Errorf("an agent's tableSpreadExceptLabels false: %v, %+v", err, except.Preferences)
+	}
+	if err := dispatch(t, s, agent, "preferences.set", map[string]any{"tableSpreadExceptSelectors": false}, &except); err != nil ||
+		except.Preferences.TableSpreadExceptSelectors {
+		t.Errorf("an agent's tableSpreadExceptSelectors false: %v, %+v", err, except.Preferences)
+	}
 	// What the navigator lists is the agents' too, either way; outdated kinds are left out by default.
 	if !res.Preferences.HideOutdatedObjects {
 		t.Error("hideOutdatedObjects is off by default")
