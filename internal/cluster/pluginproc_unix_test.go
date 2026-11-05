@@ -136,7 +136,10 @@ func TestListChildren(t *testing.T) {
 // look: seen there first, the shell had made two children in the group with the run's, and a run
 // whose own command line the search missed (a wrapper that replaced itself before the first look)
 // had no process (CI, 2026-10-19: TestSearchFindsAWrapperAfterItsExec found pid 0). The shell here
-// stays in the group for 100 ms, and the plugin's command line never matches.
+// is in the group from its fork until perl's first statement leaves it, which the search's looks a
+// millisecond apart see; leaving it at once keeps the search's window for a slow runner (a shell
+// that waited 100 ms first was still in the group at the window's end on a busy macOS runner). The
+// plugin's command line never matches.
 func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
 	perl := prereq.LookPath(t, "perl") // to leave the process group with
 	quietSearches(t)
@@ -145,7 +148,7 @@ func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
 	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, childSet())
 	defer func() { s.finished(time.Now()) }()
 	go s.run(stop)
-	shell := startChild(t, false, perl, "-e", "select(undef, undef, undef, 0.1); setpgrp(0, 0); sleep 900")
+	shell := startChild(t, false, perl, "-e", "setpgrp(0, 0); sleep 900")
 	plugin := startChild(t, false, "/bin/sleep", "900")
 	select {
 	case <-s.done:
