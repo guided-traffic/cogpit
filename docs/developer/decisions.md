@@ -5977,9 +5977,12 @@ measured when a table opens, never while it stays open), lead (open to revision)
 
 Every column of a table gets its width (the user's, the kind's hint, the default for its id or
 type). When a table opens (another view, tab or cluster, or its first snapshot after none), what
-its frame leaves free goes first to the columns whose text is cut, each up to the width that shows
-its title and the widest text of the list's first 500 rows, as sorted, whole; the rest goes to the
-flex column (Name; Message where a view hides Name), which before took all of it. When the free
+its frame leaves free goes first to the columns whose content is cut, each up to the width that
+shows its title and the widest text or row of squares (a pod's containers, at most twelve and the
+count of the rest:
+[D-102](#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach))
+of the list's first 500 rows, as sorted, whole; the rest goes to the flex column (Name; Message
+where a view hides Name), which before took all of it. When the free
 width does not reach, each cut column gets an equal share in whole points, at most what it needs,
 and what one needs less is shared among the others, so the columns cut by a little show whole first.
 Name's own need takes part like any column's; beyond it Name gets only what is left.
@@ -6015,9 +6018,8 @@ every row (24 ms at every open of a list of 10,000 for texts no window shows); P
 (Tables holds the tables' preferences).
 
 **Not covered:** a view that opens while its search or status filter shows no row is measured without
-rows, and Name takes the free width until the next open. Only text is measured, as the double click's
-fit measures it: a cell's squares (a pod's containers) and usage bars are not. The shares are not kept
-across a restart, and neither are the user's widths
+rows, and Name takes the free width until the next open. A usage bar is not measured, by the double
+click's fit neither. The shares are not kept across a restart, and neither are the user's widths
 ([D-41](#d-41-what-survives-a-restart)).
 
 **Code:** [`fyneui/tablespread.go`](../../internal/ui/fyneui/tablespread.go) `spreadSnapshot`,
@@ -6027,7 +6029,8 @@ across a restart, and neither are the user's widths
 [`engine/preferences.go`](../../internal/engine/preferences.go) `TableSpreadWidth` · `TestSpreadExtra`,
 `TestFitColumnsSpreadsTheFreeWidth`, `TestFitColumnsNoneCut`, `TestFitColumnsSpreadsTooLittle`,
 `TestSpreadWidthOnlyWhenTheViewOpens`, `TestSpreadMeasuresAColumnShown`,
-`TestPreferencesTableSpreadWidth`, `TestRenderIngressesSpreadDark`, `BenchmarkSpreadMeasure10k`
+`TestSpreadMeasuresContainerSquares`, `TestPreferencesTableSpreadWidth`,
+`TestRenderIngressesSpreadDark`, `BenchmarkSpreadMeasure10k`
 
 ## D-146: Every on/off setting is a switch
 

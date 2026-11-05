@@ -69,7 +69,7 @@ func (tv *tableView) separatorAt(pos fyne.Position) int {
 }
 
 // fitToContent sizes a visible column to its widest content: its title (with the sort arrow) and
-// the text of every row as the table shows it, not only the rows on screen. The width counts as
+// the text or squares of every row as the table shows them, not only the rows on screen. The width counts as
 // the user's, as a dragged one does.
 func (tv *tableView) fitToContent(col int) {
 	if tv.snap == nil || col < 0 || col >= len(tv.cols) {
@@ -82,7 +82,8 @@ func (tv *tableView) fitToContent(col int) {
 }
 
 // contentWidth is the width that shows the column ci of the snapshot whole: its title (with the
-// sort arrow) and the text of its first n rows as the table shows it, with the cell's padding.
+// sort arrow) and the text or the squares (a pod's containers) of its first n rows as the table
+// shows them, with the cell's padding.
 func (tv *tableView) contentWidth(ci, n int) float32 {
 	th := tv.table.Theme()
 	pad := th.Size(sizeCellPadding)
@@ -99,13 +100,23 @@ func (tv *tableView) contentWidth(ci, n int) float32 {
 		w = chartIconMaxSide // a chart's icon (helmcharticons.go); the column has no title
 	default:
 		rows := tv.snap.Rows[:min(n, len(tv.snap.Rows))]
-		w = max(w, widestText(len(rows), func(i int) string {
-			var cell model.Cell
+		at := func(i int) model.Cell {
 			if ci < len(rows[i].Cells) {
-				cell = rows[i].Cells[ci]
+				return rows[i].Cells[ci]
 			}
-			return tv.tf.CellText(c, cell, tv.now)
+			return model.Cell{}
+		}
+		w = max(w, widestText(len(rows), func(i int) string {
+			if cell := at(i); cell.Marks == nil {
+				return tv.tf.CellText(c, cell, tv.now)
+			}
+			return "" // its squares show in place of the text
 		}, size))
+		for i := range rows {
+			if m := at(i).Marks; m != nil {
+				w = max(w, marksWidth(th, len(*m)))
+			}
+		}
 	}
 	if c.ID == columnStatus {
 		w += pillPadX*2 + pillDotSide + pillDotGap // the pill's padding and dot (list_rows.go)
