@@ -6146,8 +6146,11 @@ search for its name keeps all of them. Helm stays after Events.
 Cluster Settings; today they show whenever the cluster serves their kinds.
 
 **Rejected:** "App Delivery" with Helm under it (the owner's first idea, then Helm stayed where it
-was); "GitOps" (the lead's proposal: too narrow for the views that are to come); a foldable section
-(the groups under it fold already).
+was); "GitOps" (the lead's proposal: too narrow for the views that are to come); "Add-ons" (the
+owner's idea, then he kept "Integrations": one word for one thing, as Cluster Settings ›
+Integrations, the first connection's question and the commands `cluster.integrations.*` say it,
+and in a desktop app "Add-ons" reads as extensions of the app itself); a foldable section (the
+groups under it fold already).
 
 **Code:** [`fyneui/sidebar.go`](../../internal/ui/fyneui/sidebar.go) `navHeading`, `buildHeading`;
 [`fyneui/navheading.go`](../../internal/ui/fyneui/navheading.go) · **Tests:**
