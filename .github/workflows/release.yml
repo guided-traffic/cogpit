@@ -9,11 +9,12 @@
 # that changes go.mod or go.sum compiles what changed in each of its runs, and a job without its
 # cache took up to 16.5 minutes (macOS, 2026-10-21).
 #
-# Linux jobs run on the organisation's self-hosted runners (ephemeral pods, Ubuntu 24.04, 16 CPUs,
-# Docker; no make or C compiler until .github/actions/go-setup installs them), as the team's other
-# repositories do, unless the repository variable LINUX_RUNNER names other runners (ubuntu-latest:
-# GitHub's hosted ones, which take the load off the shared self-hosted machine). The macOS and
-# Windows jobs run on GitHub's hosted runners, free for a public repository.
+# Linux jobs run on the organisation's self-hosted runners, as the team's other repositories do: a
+# pod per job, thrown away after it, Ubuntu 24.04 with Docker beside it (no make or C compiler until
+# .github/actions/go-setup installs them), 6 CPUs and 10 GiB for the runner and Docker together
+# (4 GiB requested, so a job far above that is the first a busy node evicts). The repository
+# variable LINUX_RUNNER names other runners for every Linux job (ubuntu-latest: GitHub's hosted
+# ones). The macOS and Windows jobs run on GitHub's hosted runners, free for a public repository.
 #
 # Semantic Release creates the tag and the GitHub release with the organisation's GitHub App token,
 # so the release's "published" event starts the release pipeline (build.yml).
@@ -736,6 +737,11 @@ jobs:
         run: |
           cp "${RUNNER_TEMP}/coverage/coverage.json" .github/badges/coverage.json
           cat .github/badges/coverage.json
+
+      # Node 26's Linux build loads libatomic.so.1, which the self-hosted runners' image lacks: node
+      # exits 127 before npm starts.
+      - name: Install Node's libatomic
+        run: hack/ci/apt-install.sh --no-install-recommends libatomic1
 
       - name: Setup Node.js
         uses: actions/setup-node@v7

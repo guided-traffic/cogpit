@@ -185,6 +185,19 @@
       "automerge": true
     },
     {
+      "description": "The Semantic Release job's Node (actions/setup-node's node-version in release.yml): a major waits for review. Only a push to main runs that job, so a pull request's CI never starts the new Node (Node 26 exited 127 there for a library the runners' image lacked).",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchPackageNames": [
+        "node"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    },
+    {
       "description": "Makefile-pinned Go tools (custom regex manager): automerge minor and patch updates",
       "matchManagers": [
         "custom.regex"
