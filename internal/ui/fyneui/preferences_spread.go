@@ -8,7 +8,7 @@ import (
 // Preferences › Tables › Free width (engine.Preferences.TableSpreadWidth, D-145): on by default, a
 // table that opens gives the width its columns leave free to the columns whose content is cut
 // before Name takes the rest (tablespread.go); off, Name takes all of it. Its exceptions
-// (TableSpreadExceptLabels, TableSpreadExceptSelectors, D-new), on by default: a column of labels
+// (TableSpreadExceptLabels, TableSpreadExceptSelectors, D-153), on by default: a column of labels
 // or of a selector keeps its own width when shown; they wait while Free width is off.
 
 const (

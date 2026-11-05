@@ -16,7 +16,7 @@ var namespaces = &model.KindProfile{
 	Title:    "Namespaces",
 	Columns: []model.Column{
 		nameColumn,
-		{ID: "labels", Title: "Labels", Type: model.ColumnText, Hidden: true, Pairs: model.PairsLabels}, // the drawer shows them (D-new)
+		{ID: "labels", Title: "Labels", Type: model.ColumnText, Hidden: true, Pairs: model.PairsLabels}, // the drawer shows them (D-153)
 		ageColumn,
 		statusColumn,
 	},

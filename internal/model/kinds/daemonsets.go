@@ -30,7 +30,7 @@ var daemonSets = &model.KindProfile{
 		nameColumn,
 		namespaceColumn,
 		{ID: idPods, Title: titlePods, Type: model.ColumnNumber},                                                       // ready/desired, sorted by ready
-		{ID: idNodeSelector, Title: "Node Selector", Type: model.ColumnText, Hidden: true, Pairs: model.PairsSelector}, // the drawer shows it (D-new)
+		{ID: idNodeSelector, Title: "Node Selector", Type: model.ColumnText, Hidden: true, Pairs: model.PairsSelector}, // the drawer shows it (D-153)
 		ageColumn,
 	},
 	Cells: daemonSetCells,

@@ -25,7 +25,7 @@ var replicationControllers = &model.KindProfile{
 		namespaceColumn,
 		{ID: idReplicas, Title: titleReplicas, Type: model.ColumnNumber},
 		{ID: "desiredReplicas", Title: "Desired Replicas", Type: model.ColumnNumber},
-		{ID: idSelector, Title: "Selector", Type: model.ColumnText, Hidden: true, Pairs: model.PairsSelector}, // the drawer shows it (D-new)
+		{ID: idSelector, Title: "Selector", Type: model.ColumnText, Hidden: true, Pairs: model.PairsSelector}, // the drawer shows it (D-153)
 	},
 	Cells: replicationControllerCells,
 	Fields: map[string]fieldFunc{

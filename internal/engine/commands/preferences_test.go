@@ -104,7 +104,7 @@ func TestPreferencesCommands(t *testing.T) {
 			t.Errorf("preferences.get after tableSpreadWidth %v: %v, %v", on, err, read.Preferences.TableSpreadWidth)
 		}
 	}
-	// Its exceptions too, on by default (D-new).
+	// Its exceptions too, on by default (D-153).
 	if !res.Preferences.TableSpreadExceptLabels || !res.Preferences.TableSpreadExceptSelectors {
 		t.Errorf("the free width's exceptions are off by default: %+v", res.Preferences)
 	}

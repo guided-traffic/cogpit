@@ -9,7 +9,7 @@ import (
 )
 
 // The columns of labels and of selectors say so (Free width's exceptions match them) and are
-// hidden by default: such lists are read in the drawer (D-new).
+// hidden by default: such lists are read in the drawer (D-153).
 func TestPairsColumnsHiddenByDefault(t *testing.T) {
 	want := map[string]string{
 		"namespaces/labels":               model.PairsLabels,

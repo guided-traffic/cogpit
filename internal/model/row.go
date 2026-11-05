@@ -64,7 +64,7 @@ type Column struct {
 	Hidden bool       `json:"hidden,omitempty"`
 	// Pairs, when set, says the column lists key=value pairs of one kind: PairsLabels, an object's
 	// labels, or PairsSelector, a label selector. Preferences › Tables › Free width's exceptions
-	// match it (D-new).
+	// match it (D-153).
 	Pairs string `json:"pairs,omitempty"`
 	// Slots is a Signals column's number of icon places, one per source that applies to the view
 	// (Signal.Slot); 0 for any other column.

@@ -160,8 +160,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
 | [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, version, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version check's "!" in its own slot |
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
-| [D-new](#d-new-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
 | [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
+| [D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
 
 ## D-1: UI toolkit
 
@@ -6005,7 +6005,7 @@ Name's own need takes part like any column's; beyond it Name gets only what is l
 - A column the user sized (dragged, or fitted by a double click) keeps the user's width and takes no
   share; so does the flex column, and then what is left stays free. The warning and grade columns and
   icon columns take no share, nor does a column of labels or of a selector while Free width's
-  exception for it is on ([D-new](#d-new-labels-and-selectors-hidden-and-kept-out-of-the-free-width)).
+  exception for it is on ([D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width)).
 - Preferences › Tables › Free width (`tableSpreadWidth`, on by default; agents and the CLI may set it
   either way: it changes only the window's layout) turns it off, and Name takes all the free width.
   Turning it on or off lays the open table out at once.
@@ -6292,7 +6292,7 @@ namespace, as every namespaced drawer does).
 `TestBackRefsNoneAndNotRead`, `TestBackRefsTypeConfusion`, `TestDrawerBackReferences`,
 `TestDrawerNeedsBackReferences`, `TestRenderBackRefsDark`
 
-## D-new: Labels and selectors hidden and kept out of the free width
+## D-153: Labels and selectors hidden and kept out of the free width
 
 **Status:** built · **By:** owner (both hidden by default, the exceptions Labels and Selectors under
 Free width, on by default), lead (open to revision) the rest

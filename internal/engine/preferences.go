@@ -89,7 +89,7 @@ type Preferences struct {
 	TableSpreadWidth bool `json:"tableSpreadWidth"`
 	// TableSpreadExceptLabels and TableSpreadExceptSelectors: a column of labels, or of a label
 	// selector (model.Column.Pairs), takes no share of a table's free width even when shown, and
-	// keeps its own width; Name gets that share. On by default (the owner's, D-new): such lists
+	// keeps its own width; Name gets that share. On by default (the owner's, D-153): such lists
 	// are read in the drawer. Agents and the CLI may set them either way, as TableSpreadWidth.
 	TableSpreadExceptLabels    bool `json:"tableSpreadExceptLabels"`
 	TableSpreadExceptSelectors bool `json:"tableSpreadExceptSelectors"`
@@ -212,7 +212,7 @@ type Preferences struct {
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's
 // (Sync with computer; the owner's A94 of 2026-10-14 evening, dark before; a stored choice stays),
 // the computer's time zone, the default row height, a table's free width to its cut columns
-// (D-145) but those of labels and selectors (D-new), 13-point text, line numbers on, two-space tabs, the user's own shell, kubectl downloads
+// (D-145) but those of labels and selectors (D-153), 13-point text, line numbers on, two-space tabs, the user's own shell, kubectl downloads
 // offered, chart icons loaded (D-46), updates checked automatically on the stable channel (D-4),
 // outdated kinds left out of the navigator.
 func DefaultPreferences() Preferences {

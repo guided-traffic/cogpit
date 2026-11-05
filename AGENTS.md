@@ -216,7 +216,7 @@ breaking change into a minor release). A commit that only changes documentation 
   (`git switch -c <topic> origin/main`) and ends as a pull request the lead merges itself once CI
   is green: rebase on `main` first. The worktree stays for the lead's next task and goes, once
   clean, when the owner closes that lead.
-- **Numbers at merge time.** A new decision, gap or security gap is written `D-new`, `G-new`,
+- **Numbers at merge time.** A new decision, gap or security gap is written `D-153`, `G-new`,
   `H-new` on the branch and gets the next free number on `main` in the rebase before the merge, so
   two leads never take the same one.
 - **One real app at a time.** Every Cogpit process shares `<user config dir>/Cogpit` (sources,

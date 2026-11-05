@@ -31,7 +31,7 @@ import (
 //     no share; so does the flex column, and then the rest of the free width stays free, as it did;
 //     fixed columns (the warning, the grades) and icon columns take no share;
 //   - a column of labels or of a selector (model.Column.Pairs) takes no share while the
-//     preference's exception for it is on, the default (D-new): such lists are read in the drawer;
+//     preference's exception for it is on, the default (D-153): such lists are read in the drawer;
 //   - turning the preference or an exception on or off lays the open table out at once: the
 //     user's own act.
 

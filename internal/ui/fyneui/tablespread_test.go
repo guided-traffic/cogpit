@@ -352,7 +352,7 @@ func spreadNamespaces() *engine.TableSnapshot {
 }
 
 // A shown column of labels keeps its own width while Free width excepts labels, the default
-// (D-new), and Name takes the free width; the exception turned off, it widens like any cut column,
+// (D-153), and Name takes the free width; the exception turned off, it widens like any cut column,
 // at once.
 func TestSpreadExceptsLabels(t *testing.T) {
 	f := connectedFake(t, 20)
