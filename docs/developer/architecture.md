@@ -1073,8 +1073,9 @@ its reads, when it is off. An overlay reads only its own cached data and reports
   read waits for the overlays' reads (`overlays.waitSynced`, at most 15 s).
 - Cogpit's own overlay (`overlays.putOwn`) is the Nodes list's version check
   ([`k8sversion.go`](../../internal/engine/k8sversion.go),
-  [D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)); it reads nothing of
-  the cluster.
+  [D-91](decisions.md#d-91-the-kubernetes-version-and-upstream-end-of-life)): the Version cell's
+  colour and the Signals column's "!"; it comes before the integrations' overlays, so its slot
+  follows the state's, and it reads nothing of the cluster.
 
 ## 5. Cache
 

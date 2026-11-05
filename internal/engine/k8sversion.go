@@ -20,12 +20,15 @@ import (
 // an estimate for a minor newer than the table, never a fetch.
 //
 //   - The shown cluster: UIState.ClusterVersion, which the navigator's root row shows.
-//   - Its nodes: Cogpit's own overlay on the Nodes list's Version column (overlay.go): a kubelet
-//     whose minor is past its end of life, or outside the version skew policy against the API
-//     server, reads "<version> ⚠" in the warning colour; one in maintenance mode is drawn in the
-//     pending colour; the cell's tooltip says the support and the skew. The node drawer's Kubelet
-//     version takes the same colour, with "Upstream support" and, outside the policy, "Version
-//     skew" after it (markNodeVersion).
+//   - Its nodes: Cogpit's own overlay on the Nodes list's Version and Signals columns (overlay.go;
+//     the owner, 2026-11-04): a kubelet outside the version skew policy against the API server is
+//     drawn in the error colour; one past its minor's end of life or of another release than the
+//     API server's, a patch's included, in the warning colour; one in maintenance mode in the
+//     pending colour; the cell's tooltip says the support and the skew. The Signals column's "!",
+//     in its slot after the node's state, marks the kubelet outside the policy (error), past its
+//     end of life or a minor behind (warning). The node drawer's Kubelet version takes the cell's
+//     colour, with "Upstream support" and, for another release, "Version skew" after it
+//     (markNodeVersion).
 //   - A day passing is seen when the row is built again: a Node's status changes at least every five
 //     minutes (the kubelet's report), the UI state at every change, ui_state when read.
 
@@ -150,7 +153,7 @@ type kubeletNote struct {
 	support k8seol.Support
 	state   k8seol.State
 	skew    k8seol.Skew
-	skewed  bool // outside the version skew policy
+	known   bool // the kubelet's and the API server's versions could be compared
 	text    string
 	short   string
 }
@@ -160,19 +163,24 @@ func noteKubelet(t *k8seol.Table, kubelet, server string, now time.Time, date fu
 	n := kubeletNote{support: t.SupportOf(kubelet)}
 	n.state = n.support.StateAt(now)
 	n.text, n.short = n.support.Text(now, date), n.support.Short(now, date)
-	if k, ok := k8seol.KubeletSkew(kubelet, server); ok && k.Outside() {
-		n.skew, n.skewed = k, true
-	}
+	n.skew, n.known = k8seol.KubeletSkew(kubelet, server)
 	return n
 }
 
-// warns reports whether the kubelet gets the ⚠.
-func (n kubeletNote) warns() bool { return n.state == k8seol.EndOfLife || n.skewed }
+// outside reports whether the kubelet is outside the version skew policy.
+func (n kubeletNote) outside() bool { return n.known && n.skew.Outside() }
 
-// status is the version's colour: warning with the ⚠, pending in maintenance mode.
+// differs reports whether the kubelet runs another minor or patch release than the API server.
+func (n kubeletNote) differs() bool { return n.known && n.skew.Differs() }
+
+// status is the version's colour (the owner, 2026-11-04): error outside the skew policy; warning
+// past the minor's end of life or for any other release than the API server's, a patch's
+// included; pending in maintenance mode.
 func (n kubeletNote) status() model.Status {
 	switch {
-	case n.warns():
+	case n.outside():
+		return model.StatusError
+	case n.state == k8seol.EndOfLife || n.differs():
 		return model.StatusWarning
 	case n.state == k8seol.Maintenance:
 		return model.StatusPending
@@ -180,24 +188,45 @@ func (n kubeletNote) status() model.Status {
 	return model.StatusNone
 }
 
-// tip is the version cell's tooltip: the support, then the skew outside the policy.
+// signalStatus is the colour of the version's "!" in the Signals column (the owner, 2026-11-04):
+// error outside the skew policy, warning past the minor's end of life or a minor behind the API
+// server; none for another patch release or maintenance mode, which colour the cell only.
+func (n kubeletNote) signalStatus() model.Status {
+	switch {
+	case n.outside():
+		return model.StatusError
+	case n.state == k8seol.EndOfLife || (n.known && n.skew.Behind > 0):
+		return model.StatusWarning
+	}
+	return model.StatusNone
+}
+
+// tip is the version cell's tooltip: the support, then how the kubelet differs from the API server.
 func (n kubeletNote) tip() string {
-	if n.skewed {
+	if n.differs() {
 		return n.text + "\n" + n.skew.Text()
 	}
 	return n.text
 }
 
-// cell is the overlay's Version cell: "<version> ⚠" in parts with the ⚠, else the colour alone;
-// the tooltip always.
-func (n kubeletNote) cell(kubelet string) model.Cell {
-	if n.warns() {
-		c := model.PartsCell(model.StatusWarning, model.CellPart{Text: kubelet, Status: model.StatusWarning},
-			model.CellPart{Text: "⚠", Status: model.StatusWarning})
-		c.Tip = n.tip()
-		return c
+// cell is the overlay's Version cell: the version's colour and the tooltip; its symbol is the
+// Signals column's (signal).
+func (n kubeletNote) cell() model.Cell { return model.Cell{Status: n.status(), Tip: n.tip()} }
+
+// signal is the overlay's Signals cell: the "!" with the skew as its text and the support as its
+// tooltip, or the support as its text past the end of life alone; a click opens the drawer at
+// Properties, where the Kubelet version is. False when the kubelet gets no "!".
+func (n kubeletNote) signal() (model.Cell, bool) {
+	st := n.signalStatus()
+	if st == model.StatusNone {
+		return model.Cell{}, false
 	}
-	return model.Cell{Status: n.status(), Tip: n.tip()}
+	text, tip := n.text, ""
+	if n.outside() || n.skew.Behind > 0 {
+		text, tip = n.skew.Text(), n.text
+	}
+	return model.SignalsCell([]model.Signal{{Source: model.SignalVersion, Text: text, Tip: tip, Status: st,
+		Section: model.TitleProperties, Rank: model.SignalRank(st, model.GradeNone, int64(n.skew.Behind))}}), true
 }
 
 // isNodes reports whether a profile is the built-in Nodes kind's.
@@ -220,11 +249,11 @@ func (v *versionCheck) columns(p *model.KindProfile) []overlayColumn {
 	if i < 0 {
 		return nil
 	}
-	return []overlayColumn{{Column: p.Columns[i]}}
+	return []overlayColumn{{Column: p.Columns[i]}, signalsColumn}
 }
 
 func (v *versionCheck) cell(p *model.KindProfile, column string, obj *unstructured.Unstructured) (model.Cell, bool) {
-	if !isNodes(p) || column != nodeVersionColumn {
+	if !isNodes(p) || (column != nodeVersionColumn && column != model.SignalsColumnID) {
 		return model.Cell{}, false
 	}
 	kubelet := model.NestedString(obj, "status", "nodeInfo", "kubeletVersion")
@@ -232,7 +261,11 @@ func (v *versionCheck) cell(p *model.KindProfile, column string, obj *unstructur
 		return model.Cell{}, false
 	}
 	now, date := VersionDates(v.format(), v.now())
-	return noteKubelet(v.table, kubelet, v.server, now, date).cell(kubelet), true
+	n := noteKubelet(v.table, kubelet, v.server, now, date)
+	if column == model.SignalsColumnID {
+		return n.signal()
+	}
+	return n.cell(), true
 }
 
 func (v *versionCheck) sections(*model.KindProfile, *unstructured.Unstructured, model.TimeFormat) []model.DetailSection {
@@ -253,7 +286,7 @@ func (s *Session) markNodeVersion(b *Backend, p *model.KindProfile, obj *unstruc
 }
 
 // KubeletVersionCell is a Nodes row's Version cell as the version check shows it: the kind's
-// cell, the kubelet's version, with the check's colour, ⚠ and tooltip merged in (mergeCell); base
+// cell, the kubelet's version, with the check's colour and tooltip merged in (mergeCell); base
 // itself without a kubelet or an API server version; t nil reads the table built in. The window's
 // tests draw with it.
 func KubeletVersionCell(t *k8seol.Table, base model.Cell, kubelet, server string, now time.Time, f model.TimeFormat) model.Cell {
@@ -261,13 +294,29 @@ func KubeletVersionCell(t *k8seol.Table, base model.Cell, kubelet, server string
 		return base
 	}
 	now, date := VersionDates(f, now)
-	return mergeCell(base, noteKubelet(tableOr(t), kubelet, server, now, date).cell(kubelet))
+	return mergeCell(base, noteKubelet(tableOr(t), kubelet, server, now, date).cell())
+}
+
+// KubeletSignalsCell is a Nodes row's Signals cell with the version check's "!" merged into the
+// kind's in slot (the one after the state's, 1, in a view with it); base itself without one. The
+// window's tests draw with it.
+func KubeletSignalsCell(t *k8seol.Table, base model.Cell, kubelet, server string, slot int, now time.Time, f model.TimeFormat) model.Cell {
+	if kubelet == "" || server == "" {
+		return base
+	}
+	now, date := VersionDates(f, now)
+	sig, ok := noteKubelet(tableOr(t), kubelet, server, now, date).signal()
+	if !ok {
+		return base
+	}
+	return mergeCell(base, slotted(sig, slot))
 }
 
 // MarkKubeletVersion gives a node's drawer its kubelet's support and skew, on now's day in f: the
-// Kubelet version in the version's colour, then "Upstream support" and, outside the skew policy,
-// "Version skew". Nothing without a kubelet or an API server version, or a Kubelet version item;
-// t nil reads the table built in.
+// Kubelet version in the version's colour, then "Upstream support" and, for another release than
+// the API server's, "Version skew" (the error colour outside the skew policy, else the
+// warning's). Nothing without a kubelet or an API server version, or a Kubelet version item; t nil
+// reads the table built in.
 func MarkKubeletVersion(t *k8seol.Table, m *DetailModel, kubelet, server string, now time.Time, f model.TimeFormat) {
 	if m == nil || kubelet == "" || server == "" {
 		return
@@ -292,8 +341,12 @@ func MarkKubeletVersion(t *k8seol.Table, m *DetailModel, kubelet, server string,
 				sup = model.StatusPending
 			}
 			add := []model.DetailItem{it, {Name: upstreamSupportItem, Value: n.short, Status: sup}}
-			if n.skewed {
-				add = append(add, model.DetailItem{Name: versionSkewItem, Value: n.skew.Short(), Status: model.StatusWarning})
+			if n.differs() {
+				st := model.StatusWarning
+				if n.outside() {
+					st = model.StatusError
+				}
+				add = append(add, model.DetailItem{Name: versionSkewItem, Value: n.skew.Short(), Status: st})
 			}
 			items := make([]model.DetailItem, 0, len(sec.Items)+len(add)-1)
 			items = append(items, sec.Items[:ii]...)

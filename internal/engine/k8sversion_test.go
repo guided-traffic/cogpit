@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -101,39 +102,85 @@ func TestClusterVersionInUIState(t *testing.T) {
 	}
 }
 
-// The Nodes list's Version column: a kubelet in maintenance mode in the pending colour, one past
-// its end of life and one newer than the API server "<version> ⚠", each with its tooltip, which
-// agents read as the row's tips; one inside the policy and supported keeps its text and gets the
-// tooltip only. The drawer marks its Kubelet version and adds Upstream support and Version skew.
+// The Nodes list's Version column (the owner, 2026-11-04): a kubelet outside the skew policy in the
+// error colour, one past its end of life or of another release than the API server's (a patch's
+// too) in the warning colour, each with its tooltip, which agents read as the row's tips; the
+// API server's release keeps its text and gets the tooltip only. The Signals column's "!" after
+// the state: error outside the policy, warning past the end of life or a minor behind, none for a
+// patch. The drawer marks its Kubelet version and adds Upstream support and Version skew.
 func TestNodesVersionCheck(t *testing.T) {
 	clk := &testClock{now: time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)}
 	src := testkit.NewMemorySource()
-	for name, v := range map[string]string{"maint": "v1.34.2", "ended": "v1.33.4", "newer": "v1.37.1", "behind": "v1.32.9", "fine": "v1.35.3"} {
+	for name, v := range map[string]string{"maint": "v1.34.2", "ended": "v1.33.4", "newer": "v1.37.1", "behind": "v1.32.9", "fine": "v1.35.3",
+		"patch": "v1.36.0", "same": "v1.36.1"} {
 		src.Set(testkit.NodesGVR, testkit.Object("v1", "Node", "", name, kubeletNode(name, v)))
 	}
 	src.Set(testkit.NodesGVR, testkit.Object("v1", "Node", "", "bare", nil))
 	s := versionSession(t, src, "v1.36.1", clk)
 	openView(s, "nodes")
 	snap := waitTable(t, s, "nodes", func(t *TableSnapshot) bool {
-		return t.Synced && len(t.Rows) == 6 && cellOf(t, "fine", "version").Tip != ""
+		return t.Synced && len(t.Rows) == 8 && cellOf(t, "fine", "version").Tip != ""
 	})
 
-	warn := func(name, text, tip string) {
+	mark := func(name, text string, st model.Status, tip string) {
 		t.Helper()
 		c := cellOf(snap, name, "version")
-		if c.Text != text || c.Status != model.StatusWarning || c.Parts == nil || len(*c.Parts) != 2 || (*c.Parts)[1].Text != "⚠" || c.Tip != tip {
-			t.Errorf("%s: %+v (parts %v)\nwant %q, tip %q", name, c, c.Parts, text, tip)
+		if c.Text != text || c.Status != st || c.Parts != nil || c.Tip != tip {
+			t.Errorf("%s: %+v\nwant %q %s, tip %q", name, c, text, st, tip)
 		}
 	}
-	warn("ended", "v1.33.4 ⚠", "Upstream end of life since 2026-06-28")
-	warn("newer", "v1.37.1 ⚠", "Upstream support until 2027-10-28 (375 days)\nKubelet 1.37 is newer than the API server 1.36: outside the version skew policy")
-	warn("behind", "v1.32.9 ⚠", "Upstream end of life since 2026-02-28\nKubelet 1.32 is 4 minors behind the API server 1.36: the version skew policy allows 3")
-	if c := cellOf(snap, "maint", "version"); c.Text != "v1.34.2" || c.Status != model.StatusPending || c.Parts != nil ||
-		c.Tip != "Upstream support until 2026-10-27 (9 days), maintenance mode since 2026-08-27" {
-		t.Errorf("maint: %+v", c)
+	mark("ended", "v1.33.4", model.StatusWarning, "Upstream end of life since 2026-06-28\n"+
+		"Kubelet 1.33 is 3 minors behind the API server 1.36: within the version skew policy, which allows 3")
+	mark("newer", "v1.37.1", model.StatusError, "Upstream support until 2027-10-28 (375 days)\n"+
+		"Kubelet 1.37 is newer than the API server 1.36: outside the version skew policy")
+	mark("behind", "v1.32.9", model.StatusError, "Upstream end of life since 2026-02-28\n"+
+		"Kubelet 1.32 is 4 minors behind the API server 1.36: the version skew policy allows 3")
+	mark("maint", "v1.34.2", model.StatusWarning, "Upstream support until 2026-10-27 (9 days), maintenance mode since 2026-08-27\n"+
+		"Kubelet 1.34 is 2 minors behind the API server 1.36: within the version skew policy, which allows 3")
+	mark("fine", "v1.35.3", model.StatusWarning, "Upstream support until 2027-02-28 (133 days)\n"+
+		"Kubelet 1.35 is 1 minor behind the API server 1.36: within the version skew policy, which allows 3")
+	if c := cellOf(snap, "patch", "version"); c.Status != model.StatusWarning || !strings.HasSuffix(c.Tip, "\nKubelet 1.36.0, the API server 1.36.1: another patch release") {
+		t.Errorf("patch: %+v", c)
 	}
-	if c := cellOf(snap, "fine", "version"); c.Text != "v1.35.3" || c.Status != model.StatusNone || c.Tip != "Upstream support until 2027-02-28 (133 days)" {
-		t.Errorf("fine: %+v", c)
+	if c := cellOf(snap, "same", "version"); c.Text != "v1.36.1" || c.Status != model.StatusNone || strings.Contains(c.Tip, "\n") {
+		t.Errorf("same: %+v", c)
+	}
+	// The pending colour: a kubelet of the API server's minor in maintenance mode.
+	if c := KubeletVersionCell(nil, model.Cell{Text: "v1.34.2"}, "v1.34.2", "v1.34.2", clk.Now(), s.TimeFormat()); c.Status != model.StatusPending {
+		t.Errorf("maintenance mode alone: %+v", c)
+	}
+
+	// The Signals column's "!", in the slot after the state's.
+	signal := func(name string) (model.Signal, bool) {
+		t.Helper()
+		c := cellOf(snap, name, model.SignalsColumnID)
+		if c.Signals == nil {
+			return model.Signal{}, false
+		}
+		for _, sg := range *c.Signals {
+			if sg.Source == model.SignalVersion {
+				return sg, true
+			}
+		}
+		return model.Signal{}, false
+	}
+	for name, want := range map[string]model.Status{"ended": model.StatusWarning, "newer": model.StatusError, "behind": model.StatusError,
+		"maint": model.StatusWarning, "fine": model.StatusWarning} {
+		if sg, ok := signal(name); !ok || sg.Status != want || sg.Slot != 1 || sg.Section != model.TitleProperties {
+			t.Errorf("%s's signal %+v (%v), want %s in slot 1", name, sg, ok, want)
+		}
+	}
+	if sg, ok := signal("fine"); sg.Text != "Kubelet 1.35 is 1 minor behind the API server 1.36: within the version skew policy, which allows 3" ||
+		sg.Tip != "Upstream support until 2027-02-28 (133 days)" || !ok {
+		t.Errorf("fine's signal %+v", sg)
+	}
+	for _, name := range []string{"patch", "same", "bare"} {
+		if sg, ok := signal(name); ok {
+			t.Errorf("%s has a signal %+v", name, sg)
+		}
+	}
+	if i := slices.IndexFunc(snap.Columns, func(c model.Column) bool { return c.ID == model.SignalsColumnID }); i < 0 || snap.Columns[i].Slots != 2 {
+		t.Errorf("the Signals column %+v: want the state's slot and the version's", snap.Columns)
 	}
 	if c := cellOf(snap, "bare", "version"); c != (model.Cell{}) {
 		t.Errorf("a node without a kubelet version: %+v", c)
@@ -160,12 +207,12 @@ func TestNodesVersionCheck(t *testing.T) {
 	vi := mustProfile(t, s, "nodes").ColumnIndex(nodeVersionColumn)
 	marked := 0
 	for _, r := range built {
-		if vi < len(r.Cells) && strings.HasSuffix(r.Cells[vi].Text, " ⚠") && r.Cells[vi].Tip != "" {
+		if vi < len(r.Cells) && r.Cells[vi].Status == model.StatusError && r.Cells[vi].Tip != "" {
 			marked++
 		}
 	}
-	if marked != 3 || len(cols) != len(mustProfile(t, s, "nodes").Columns) {
-		t.Errorf("BuildRowsShown: %d rows marked, want 3", marked)
+	if marked != 2 || len(cols) != len(mustProfile(t, s, "nodes").Columns) {
+		t.Errorf("BuildRowsShown: %d rows marked, want 2", marked)
 	}
 
 	// The drawer.
@@ -199,21 +246,27 @@ func TestNodesVersionCheck(t *testing.T) {
 	if it := ended[upstreamSupportItem]; it.Value != "ended 2026-06-28" || it.Status != model.StatusWarning {
 		t.Errorf("ended's support %+v", it)
 	}
-	if _, ok := ended[versionSkewItem]; ok {
-		t.Error("ended has a skew item inside the policy")
+	if it := ended[versionSkewItem]; it.Status != model.StatusWarning || it.Value != "3 minors behind the API server 1.36, within the policy" {
+		t.Errorf("ended's skew %+v", it)
 	}
 	newer := items("newer")
-	if it := newer[versionSkewItem]; it.Status != model.StatusWarning || it.Value != "newer than the API server 1.36" {
+	if it := newer[versionSkewItem]; it.Status != model.StatusError || it.Value != "newer than the API server 1.36" {
 		t.Errorf("newer's skew %+v", it)
+	}
+	if it := items("patch")[versionSkewItem]; it.Status != model.StatusWarning || it.Value != "the API server runs 1.36.1" {
+		t.Errorf("patch's skew %+v", it)
+	}
+	if _, ok := items("same")[versionSkewItem]; ok {
+		t.Error("the API server's release has a skew item")
 	}
 	if it := newer[upstreamSupportItem]; it.Status != model.StatusNone || it.Value != "until 2027-10-28 (375 days)" {
 		t.Errorf("newer's support %+v", it)
 	}
-	if it := items("maint")[kubeletVersionItem]; it.Status != model.StatusPending {
+	if it := items("maint")[kubeletVersionItem]; it.Status != model.StatusWarning {
 		t.Errorf("maint's kubelet version %+v", it)
 	}
-	if it := items("fine")[kubeletVersionItem]; it.Status != model.StatusNone {
-		t.Errorf("fine's kubelet version %+v", it)
+	if it := items("same")[kubeletVersionItem]; it.Status != model.StatusNone {
+		t.Errorf("same's kubelet version %+v", it)
 	}
 	if _, ok := items("bare")[upstreamSupportItem]; ok {
 		t.Error("a node without a kubelet version has an Upstream support item")

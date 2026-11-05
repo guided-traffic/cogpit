@@ -163,7 +163,7 @@ func TestTableCellShowsItsTip(t *testing.T) {
 	q.until(t, "the nodes view", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" })
 	settle(w)
 	c := cellAt(t, sh, rowOf(t, f, "nodes", "worker-b-01"), columnOf(t, sh, "version"))
-	if c.full != "v1.33.9 ⚠" {
+	if c.full != "v1.33.9" { // its symbol is the Signals column's "!"
 		t.Fatalf("the cell shows %q", c.full)
 	}
 	sh.tip.delay = time.Millisecond
@@ -177,7 +177,7 @@ const versionsServer = "v1.37.1"
 
 // versionKubelets are the kubelets of the versions scenes that are not the API server's.
 var versionKubelets = map[string]string{
-	"worker-a-02": "v1.34.6", // maintenance mode
+	"worker-a-02": "v1.34.6", // maintenance mode, three minors behind
 	"worker-b-01": "v1.33.9", // past its end of life, and four minors behind
 	"worker-c-01": "v1.38.0", // newer than the API server
 }
@@ -189,11 +189,18 @@ func versionsFake(t testing.TB, view string) *fakeEngine {
 	f := kindsFake(t, view)
 	tf := model.TimeLayout{}.In(time.UTC)
 	snap := *f.tables["nodes"]
-	vi := -1
+	vi, si := -1, -1
 	for i, c := range snap.Columns {
-		if c.ID == "version" {
+		switch c.ID {
+		case "version":
 			vi = i
+		case model.SignalsColumnID:
+			si = i
 		}
+	}
+	if si >= 0 { // the state's slot and the version check's, as the engine lays them out
+		snap.Columns = append([]model.Column(nil), snap.Columns...)
+		snap.Columns[si].Slots = max(snap.Columns[si].Slots, 2)
 	}
 	rows := make([]model.Row, len(snap.Rows))
 	for i, r := range snap.Rows {
@@ -203,6 +210,9 @@ func versionsFake(t testing.TB, view string) *fakeEngine {
 		}
 		cells := append([]model.Cell(nil), r.Cells...)
 		cells[vi] = engine.KubeletVersionCell(versionTable(), model.Cell{Text: kubelet}, kubelet, versionsServer, fixedNow, tf)
+		if si >= 0 {
+			cells[si] = engine.KubeletSignalsCell(versionTable(), cells[si], kubelet, versionsServer, 1, fixedNow, tf)
+		}
 		r.Cells = cells
 		rows[i] = r
 		ref := model.ObjectRef{Context: "demo", Kind: "nodes", Name: r.Ref.Name}
@@ -243,9 +253,10 @@ func renderNavigatorVersion(t *testing.T, mode ThemeMode, suffix string) {
 
 func TestRenderNodesVersionsDark(t *testing.T) { renderNodesVersions(t, ThemeDark, "dark") }
 
-// renderNodesVersions: the Nodes list with a kubelet in maintenance mode (pending colour), one past
-// its end of life and four minors behind and one newer than the API server (⚠), the pointer on
-// the one past its end of life and its tooltip shown.
+// renderNodesVersions: the Nodes list with a kubelet three minors behind in maintenance mode, one
+// past its end of life and four minors behind and one newer than the API server (red, a red "!"),
+// the rest of the API server's release, the pointer on the one past its end of life and its
+// tooltip shown.
 func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 	f := versionsFake(t, "nodes")
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
@@ -262,7 +273,7 @@ func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 func TestRenderNodeDrawerVersionsDark(t *testing.T) { renderNodeDrawerVersions(t, ThemeDark, "dark") }
 
 // renderNodeDrawerVersions: the drawer of the node whose kubelet is past its end of life and four
-// minors behind: its Kubelet version in the warning colour, Upstream support and Version skew after
+// minors behind: its Kubelet version in the error colour, Upstream support and Version skew after
 // it.
 func renderNodeDrawerVersions(t *testing.T, mode ThemeMode, suffix string) {
 	f := versionsFake(t, "nodes")

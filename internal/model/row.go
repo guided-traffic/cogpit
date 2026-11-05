@@ -202,12 +202,16 @@ const (
 // SignalSource is where a signal comes from; each source has its glyph and its slot.
 type SignalSource string
 
-// The signal sources, in their slots' order: the state's first, then the integrations' in the
-// order of engine.Integrations, as the overlays give them their slots.
+// The signal sources, in their slots' order: the state's first, then the version check's (a
+// node's), then the integrations' in the order of engine.Integrations, as the overlays give them
+// their slots.
 const (
 	// SignalState is the object's own state (a pod's containers not ready, a node's pressure): a
 	// triangle in the status's colour.
 	SignalState SignalSource = "state"
+	// SignalVersion is Cogpit's own check of a node's kubelet against its API server and upstream
+	// support (D-91): an exclamation mark in the status's colour.
+	SignalVersion SignalSource = "version"
 	// SignalTrivy is the Trivy integration's worst image grade of a pod: the grade's shield, an N/A
 	// one dimmed.
 	SignalTrivy SignalSource = "trivy"

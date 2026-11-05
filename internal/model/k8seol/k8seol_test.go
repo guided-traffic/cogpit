@@ -140,20 +140,23 @@ func TestKubeletSkew(t *testing.T) {
 		outside         bool
 		text            string
 	}{
-		{"v1.36.1", "v1.36.4", false, ""},
-		{"v1.33.0", "v1.36.1", false, ""},
+		{"v1.36.1", "v1.36.4", false, "Kubelet 1.36.1, the API server 1.36.4: another patch release"},
+		{"v1.36.2-eks-1552ad0", "v1.36.2-eks-a737599", false, ""},
+		{"v1.36.2", "v1.36.2", false, ""},
+		{"v1.36.2", "v1.37.1", false, "Kubelet 1.36 is 1 minor behind the API server 1.37: within the version skew policy, which allows 3"},
+		{"v1.33.0", "v1.36.1", false, "Kubelet 1.33 is 3 minors behind the API server 1.36: within the version skew policy, which allows 3"},
 		{"v1.32.9", "v1.36.1", true, "Kubelet 1.32 is 4 minors behind the API server 1.36: the version skew policy allows 3"},
 		{"v1.37.0", "v1.36.1", true, "Kubelet 1.37 is newer than the API server 1.36: outside the version skew policy"},
-		{"v1.22.4", "v1.24.0", false, ""},
+		{"v1.22.4", "v1.24.0", false, "Kubelet 1.22 is 2 minors behind the API server 1.24: within the version skew policy, which allows 2"},
 		{"v1.21.4", "v1.24.0", true, "Kubelet 1.21 is 3 minors behind the API server 1.24: the version skew policy allows 2"},
 		{"v1.24.4", "v1.27.0", true, "Kubelet 1.24 is 3 minors behind the API server 1.27: the version skew policy allows 2"},
-		{"v1.25.4", "v1.28.0", false, ""},
+		{"v1.25.4", "v1.28.0", false, "Kubelet 1.25 is 3 minors behind the API server 1.28: within the version skew policy, which allows 3"},
 	} {
 		k, ok := KubeletSkew(c.kubelet, c.server)
 		if !ok || k.Outside() != c.outside || k.Text() != c.text {
 			t.Errorf("%s against %s: ok %v outside %v %q; want %v %q", c.kubelet, c.server, ok, k.Outside(), k.Text(), c.outside, c.text)
 		}
-		if (k.Short() != "") != c.outside {
+		if (k.Short() != "") != (c.text != "") || k.Differs() != (c.text != "") {
 			t.Errorf("%s against %s: short %q", c.kubelet, c.server, k.Short())
 		}
 	}
@@ -161,6 +164,12 @@ func TestKubeletSkew(t *testing.T) {
 		t.Errorf("short %q", k.Short())
 	}
 	if k, _ := KubeletSkew("v1.37.0", "v1.36.1"); k.Short() != "newer than the API server 1.36" {
+		t.Errorf("short %q", k.Short())
+	}
+	if k, _ := KubeletSkew("v1.36.2", "v1.37.1"); k.Short() != "1 minor behind the API server 1.37, within the policy" {
+		t.Errorf("short %q", k.Short())
+	}
+	if k, _ := KubeletSkew("v1.37.0+k3s1", "v1.37.1+k3s1"); k.Short() != "the API server runs 1.37.1" || !k.PatchDiffers() {
 		t.Errorf("short %q", k.Short())
 	}
 	for _, pair := range [][2]string{{"", "v1.36.1"}, {"v1.36.1", "garbage"}, {"v2.0.0", "v1.36.0"}} {
