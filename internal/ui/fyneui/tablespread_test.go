@@ -267,6 +267,68 @@ func TestSpreadMeasuresAColumnShown(t *testing.T) {
 	}
 }
 
+// spreadPods is a Pods view whose Containers squares are wider than the column's own width: one pod
+// of seven containers (an agent behind six finished init containers) and one of fifteen, more than
+// a cell draws.
+func spreadPods() *engine.TableSnapshot {
+	cols := []model.Column{
+		{ID: "name", Title: "Name", Type: model.ColumnText},
+		{ID: "namespace", Title: "Namespace", Type: model.ColumnText},
+		{ID: "containers", Title: "Containers", Type: model.ColumnText},
+		{ID: "age", Title: "Age", Type: model.ColumnAge},
+	}
+	snap := &engine.TableSnapshot{View: "pods", Context: "demo", Title: "Pods", Namespaced: true, Columns: cols,
+		Sort: engine.SortSpec{Column: "name"}, Revision: 1, Synced: true}
+	for _, p := range []struct {
+		name string
+		n    int
+	}{{"agent-x7k2p", 7}, {"batch-9fq4m", maxCellMarks + 3}, {"web-5d8c9", 1}} {
+		marks := make([]model.CellMark, p.n)
+		for i := range marks {
+			marks[i] = model.CellMark{Text: "c" + strconv.Itoa(i) + ": terminated", Status: model.StatusStopped}
+		}
+		marks[p.n-1] = model.CellMark{Text: "main: running", Status: model.StatusOK}
+		snap.Rows = append(snap.Rows, model.Row{
+			Ref:   model.ObjectRef{Context: "demo", Kind: "pods", Namespace: "acme", Name: p.name},
+			Cells: []model.Cell{{Text: p.name}, {Text: "acme"}, {Text: "1/1", Marks: &marks}, {Num: fixedNow.Unix() - 3600}},
+		})
+	}
+	snap.Total = len(snap.Rows)
+	return snap
+}
+
+// The squares of a pod's containers are measured as the table draws them: a wide window gives the
+// Containers column the width that shows all seven of a pod's squares, and twelve and "+3" of
+// fifteen; a double click on its separator fits it to the same width.
+func TestSpreadMeasuresContainerSquares(t *testing.T) {
+	f := connectedFake(t, 20)
+	f.tables["pods"] = spreadPods()
+	f.ui.View = "pods"
+	sh, w, q := newTestShell(t, f, Options{})
+	w.Resize(fyne.NewSize(2000, 900))
+	tv := sh.view
+	q.until(t, "the Pods", func() bool { return tv.snap != nil && tv.snap.View == "pods" && len(tv.snap.Rows) == 3 })
+	settle(w)
+	want := tv.contentWidth(2, len(tv.snap.Rows))
+	if want <= defaultColumnWidths["containers"] {
+		t.Fatalf("the squares want %v: the fixture does not cut the column", want)
+	}
+	if got := spreadWidthOf(t, tv, "containers"); got != want {
+		t.Fatalf("Containers %v wide, want its squares' %v", got, want)
+	}
+	col := columnOf(t, sh, "containers")
+	for row, wantText := range []string{"", "+3", ""} {
+		c := cellAt(t, sh, row, col)
+		if n := len(*c.content.marks); c.shown != min(n, maxCellMarks) || c.text.Text != wantText {
+			t.Errorf("row %d: %d of %d squares shown, text %q, want %q", row, c.shown, n, c.text.Text, wantText)
+		}
+	}
+	tv.fitToContent(col - firstDataColumn)
+	if got := spreadWidthOf(t, tv, "containers"); got != want {
+		t.Errorf("fitted to its content %v wide, want %v", got, want)
+	}
+}
+
 // Preferences › Tables › Free width is on at first; the user's tap turns the preference off and on,
 // and an agent's change shows in the row.
 func TestPreferencesTableSpreadWidth(t *testing.T) {

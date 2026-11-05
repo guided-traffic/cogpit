@@ -1936,6 +1936,18 @@ func (c *tableCell) fitMarks(th fyne.Theme, avail float32) string {
 	return "+" + strconv.Itoa(n-c.shown)
 }
 
+// marksWidth is the width that shows n squares, at most maxCellMarks of them and the count of the
+// rest after them (fitMarks): what a column of squares wants (contentWidth).
+func marksWidth(th fyne.Theme, n int) float32 {
+	size, gap := markSize(th)
+	shown := min(n, maxCellMarks)
+	w := float32(shown)*(size+gap) - gap
+	if n > shown {
+		w += gap + fyne.MeasureText("+"+strconv.Itoa(n-shown), th.Size(theme.SizeNameText), fyne.TextStyle{}).Width
+	}
+	return max(w, 0)
+}
+
 // colourMore colours the "+N" of a cell whose squares do not all fit (fitMarks) by the hidden
 // containers' gravest state.
 func (c *tableCell) colourMore(th fyne.Theme) {
