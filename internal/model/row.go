@@ -16,7 +16,7 @@ const (
 	ColumnNumber ColumnType = "number" // sorts by Cell.Num
 	ColumnAge    ColumnType = "age"    // Cell.Num is a Unix timestamp in seconds; rendered as an age relative to now
 	// ColumnMetric is a CPU or Memory usage column (KindProfile.Usage): Cell.Text is the formatted
-	// usage ("0.012", "19.5 MiB", "7.5%"), Cell.Num its sort key. A cell without a Text has no
+	// usage ("12m", "19.5 MiB", "7.5%"), Cell.Num its sort key. A cell without a Text has no
 	// measurement (no metrics-server, or none for this object yet) and shows nothing, not "0".
 	ColumnMetric ColumnType = "metric"
 	// ColumnSignals is the Signals column right after Name (D-150): every mark on an object
@@ -170,11 +170,13 @@ type CellMark struct {
 
 // CellPart is one run of a cell's text in its own status colour; StatusNone draws it in the
 // foreground colour. Parts stand a space apart, but a Glued part follows the one before it
-// directly: a "+" in a colour of its own after a number.
+// directly: a "+" in a colour of its own after a number. Muted draws a part without a status in
+// the muted text colour: the context of the value before it, a limit after its request.
 type CellPart struct {
 	Text   string `json:"text"`
 	Status Status `json:"status,omitempty"`
 	Glued  bool   `json:"glued,omitempty"`
+	Muted  bool   `json:"muted,omitempty"`
 }
 
 // PartsCell returns a cell drawn in coloured parts, with status as the cell's overall status.

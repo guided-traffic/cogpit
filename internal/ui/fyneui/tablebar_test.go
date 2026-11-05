@@ -131,7 +131,7 @@ func TestNodesListDrawsUsageBars(t *testing.T) {
 		}
 	}
 	// The tooltip names the amounts behind the bar.
-	if got := sh.view.cellAt(t, row("worker-a-02"), cpuCol).tipText(); got != "7.410 of 7.800 cores (95%)" {
+	if got := sh.view.cellAt(t, row("worker-a-02"), cpuCol).tipText(); got != "7.41 of 7.8 cores (95%)" {
 		t.Errorf("tooltip = %q", got)
 	}
 

@@ -44,7 +44,7 @@
     },
     {
       "column": "cpuTarget",
-      "text": "0.250",
+      "text": "250m",
       "num": 250
     },
     {

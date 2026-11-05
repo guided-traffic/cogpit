@@ -123,7 +123,7 @@ func TestKindVerticalPodAutoscalers(t *testing.T) {
 			return model.Cell{}
 		}
 		return cell("mode").Text == "Recreate" && cell("status").Text == "RecommendationProvided" &&
-			cell("status").Status == model.StatusOK && cell("target").Text == "Deployment/web" && cell("cpuTarget").Text == "0.250"
+			cell("status").Status == model.StatusOK && cell("target").Text == "Deployment/web" && cell("cpuTarget").Text == "250m"
 	})
 
 	deleteCRD()

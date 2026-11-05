@@ -89,7 +89,7 @@ func TestRowCachePatchesUsageAndFallsBack(t *testing.T) {
 	}
 	params := viewParams{sort: SortSpec{Column: model.ColumnCPU, Desc: true}}
 	snap := rc.buildWith(p, "ctx", objs, params, nil, 0, feed, nil)
-	if c := cpu(snap, "a"); c.Text != "0.040" || c.Num != 40 {
+	if c := cpu(snap, "a"); c.Text != "40m" || c.Num != 40 {
 		t.Errorf("a: cpu %+v, want its measurement", c)
 	}
 	if c := cpu(snap, "b"); c.Text != "" {

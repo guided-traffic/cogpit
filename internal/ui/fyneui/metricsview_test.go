@@ -3,6 +3,7 @@ package fyneui
 import (
 	"image/color"
 	"math"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -66,6 +67,10 @@ func withUsageCells(t testing.TB, f *fakeEngine, key string) {
 	f.tables[key] = &snap
 }
 
+// cpuWritten matches a CPU amount as model.FormatCPU writes it: "0", millicores below one core,
+// else cores with at most two decimals.
+var cpuWritten = regexp.MustCompile(`^(0|[1-9][0-9]{0,2}m|[1-9][0-9]*(\.[0-9]?[1-9])?)$`)
+
 func TestPodsListShowsCPUAndMemory(t *testing.T) {
 	f := kindsFake(t, "pods")
 	withUsageCells(t, f, "pods")
@@ -91,8 +96,8 @@ func TestPodsListShowsCPUAndMemory(t *testing.T) {
 			}
 			continue
 		}
-		if !strings.Contains(c.full, ".") || !strings.HasSuffix(m.full, "iB") {
-			t.Errorf("row %d shows cpu %q memory %q, want cores and binary units", r, c.full, m.full)
+		if !cpuWritten.MatchString(c.full) || !strings.HasSuffix(m.full, "iB") {
+			t.Errorf("row %d shows cpu %q memory %q, want millicores or cores (D-155) and binary units", r, c.full, m.full)
 		}
 		shown++
 	}

@@ -179,7 +179,7 @@ func TestVerticalPodAutoscalersStatusTexts(t *testing.T) {
 		{vpaKey, "minimal", "status", "", pending, pending},
 		{vpaKey, "healthy", "target", "Deployment/web", none, ok},
 		// The target recommendation summed over the containers: 587m + 25m, 262144k + 64Mi.
-		{vpaKey, "healthy", "cpuTarget", "0.612", none, ok},
+		{vpaKey, "healthy", "cpuTarget", "612m", none, ok},
 		{vpaKey, "healthy", "memoryTarget", "314.0 MiB", none, ok},
 		{vpaKey, "minimal", "cpuTarget", "-", none, pending},
 	}

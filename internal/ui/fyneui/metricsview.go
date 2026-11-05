@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -747,13 +746,10 @@ func metricIcon(name, elements string) fyne.Resource {
 // formatCores formats cores for the value axis: "0.25", "1.5", "2".
 func formatCores(v float64) string { return fmt.Sprintf("%.3g", v) }
 
-// formatCoresExact formats cores for the hover panel: millicores below one core ("250m"), else
-// cores with up to three decimals ("1.25").
+// formatCoresExact formats cores for the hover panel as every CPU amount reads (model.FormatCPU):
+// millicores below one core ("250m"), else cores with up to two decimals ("1.25").
 func formatCoresExact(v float64) string {
-	if v < 1 {
-		return fmt.Sprintf("%dm", int(math.Round(v*1000)))
-	}
-	return strconv.FormatFloat(math.Round(v*1000)/1000, 'f', -1, 64)
+	return model.FormatCPU(int64(math.Round(v * 1000)))
 }
 
 // metricsPanel returns the drawer's Metrics panel for the shown object, made on first use; nil for
