@@ -97,7 +97,7 @@ func TestPodsListShowsCPUAndMemory(t *testing.T) {
 			continue
 		}
 		if !cpuWritten.MatchString(c.full) || !strings.HasSuffix(m.full, "iB") {
-			t.Errorf("row %d shows cpu %q memory %q, want millicores or cores (D-new) and binary units", r, c.full, m.full)
+			t.Errorf("row %d shows cpu %q memory %q, want millicores or cores (D-155) and binary units", r, c.full, m.full)
 		}
 		shown++
 	}

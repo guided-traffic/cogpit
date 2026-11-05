@@ -163,7 +163,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
 | [D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
 | [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU Req / Lim, Memory Req / Lim; the limits muted after the requests, "+" after an open limit, orange for memory |
-| [D-new](#d-new-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
+| [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 
 ## D-1: UI toolkit
 
@@ -6355,7 +6355,7 @@ short titles), lead (open to revision) the rest
   sets none and the pod sets none.
 - **The cells:** the requests in the text's colour, then "/" and the limits in the muted colour
   (`model.CellPart.Muted`): the requests are the number the column is read for, the limits their
-  context. CPU amounts as [D-new](#d-new-every-cpu-amount-in-millicores-below-one-core) writes them,
+  context. CPU amounts as [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) writes them,
   the "m" on each; byte amounts of the same unit carry it once, after the limits.
 - **Open limits:** the sum of the limits that are set, then "+"; the tooltip counts the pods and those
   without the limit. Memory's "+" is orange (a container without a memory limit can take its node's
@@ -6395,7 +6395,7 @@ cache and the metrics list are read cluster-wide only. Pods' usage the Metrics A
 `TestPodAllocated`, `TestNamespaceTotalsFollowThePods`, `TestNamespacesListUsageAndAllocation`,
 `TestNamespacesListUsageOverTheDemo`
 
-## D-new: Every CPU amount in millicores below one core
+## D-155: Every CPU amount in millicores below one core
 
 **Status:** built · **By:** owner (no third decimal and no trailing zeros; millicores below one
 core), lead (open to revision) the rest

@@ -172,7 +172,7 @@ type UsageSample struct {
 	Usage
 }
 
-// FormatCPU formats millicores as every CPU amount reads in Cogpit (D-new): below one core in
+// FormatCPU formats millicores as every CPU amount reads in Cogpit (D-155): below one core in
 // millicores, 12 → "12m"; from one core in cores rounded half up to ten millicores, with at most
 // two decimals and no trailing zeros, 1000 → "1", 2275 → "2.28", 146500 → "146.5"; 0 → "0".
 func FormatCPU(milli int64) string {
