@@ -3461,8 +3461,8 @@ Cogpit marks the shown cluster's API server version and its nodes' kubelet versi
 Kubernetes' support dates: muted while supported, the pending colour in the minor's maintenance
 mode, the warning colour past its end of life (the navigator's API server version with "⚠"). A
 kubelet is also compared with the API server (the owner): any other release, a patch's included,
-colours its Version cell in the warning colour, outside the version skew policy in the error
-colour; the symbol is the Signals column's "!" in its own slot after the node's state, red outside
+colours its Version cell's text in the warning colour, outside the version skew policy in the error
+colour, without a status pill (`model.Cell.Tint`); the symbol is the Signals column's "!" in its own slot after the node's state, red outside
 the policy, in the warning colour past the end of life or a minor behind, none for a patch alone.
 Only upstream's dates count: no managed service's dates, no distribution detected.
 What users and agents see: [usage](usage.md#the-kubernetes-version-and-upstream-support).

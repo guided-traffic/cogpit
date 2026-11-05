@@ -1564,7 +1564,8 @@ the end of life on the 28th of the fourteenth month after the release month.
 - **Managed clusters:** only upstream's dates count; Cogpit knows no distribution's own dates (EKS,
   GKE, AKS, STACKIT SKE, …).
 - **Nodes:** the Nodes list compares each kubelet with the API server; the Version cell shows the
-  colour, the [Signals column](#the-signals-column) the "!" in its slot after the node's state:
+  colour (the version's text in it, no pill), the [Signals column](#the-signals-column) the "!" in
+  its slot after the node's state:
 
   | Kubelet | Version cell | Signals |
   |---|---|---|

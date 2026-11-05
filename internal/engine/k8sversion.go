@@ -209,9 +209,11 @@ func (n kubeletNote) tip() string {
 	return n.text
 }
 
-// cell is the overlay's Version cell: the version's colour and the tooltip; its symbol is the
-// Signals column's (signal).
-func (n kubeletNote) cell() model.Cell { return model.Cell{Status: n.status(), Tip: n.tip()} }
+// cell is the overlay's Version cell: the version in its colour, plain text without a pill (the
+// owner, 2026-11-05), and the tooltip; its symbol is the Signals column's (signal).
+func (n kubeletNote) cell() model.Cell {
+	return model.Cell{Status: n.status(), Tip: n.tip(), Tint: true}
+}
 
 // signal is the overlay's Signals cell: the "!" with the skew as its text and the support as its
 // tooltip, or the support as its text past the end of life alone; a click opens the drawer at
