@@ -160,6 +160,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-149](#d-149-the-navigators-integrations-heading) | The navigator's Integrations heading | built: a divider and the heading after the last entry, Flux CD and Argo CD under it, Helm where it was |
 | [D-150](#d-150-one-signals-column-for-every-mark) | One Signals column for every mark | built: after Name, titled; a slot per source (state, version, Trivy, Kyverno), a tooltip per icon, a click opens the drawer at its section; the Nodes' version check's "!" in its own slot |
 | [D-151](#d-151-integrations-never-write-to-the-cluster) | Integrations never write to the cluster | built: they read what a tool wrote; writes stay the user's commands |
+| [D-new](#d-new-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
 | [D-152](#d-152-back-references-in-the-drawer) | Back references in the drawer | built: Preferences › App, off by default; Referenced By, the drawer's last section, a table of Kind, Name, Via from the cache |
 
 ## D-1: UI toolkit
@@ -6003,7 +6004,8 @@ Name's own need takes part like any column's; beyond it Name gets only what is l
 - A column shown while the table stays open is measured as it shows; a column hidden is forgotten.
 - A column the user sized (dragged, or fitted by a double click) keeps the user's width and takes no
   share; so does the flex column, and then what is left stays free. The warning and grade columns and
-  icon columns take no share.
+  icon columns take no share, nor does a column of labels or of a selector while Free width's
+  exception for it is on ([D-new](#d-new-labels-and-selectors-hidden-and-kept-out-of-the-free-width)).
 - Preferences › Tables › Free width (`tableSpreadWidth`, on by default; agents and the CLI may set it
   either way: it changes only the window's layout) turns it off, and Name takes all the free width.
   Turning it on or off lays the open table out at once.
@@ -6289,3 +6291,43 @@ namespace, as every namespaced drawer does).
 `TestBackRefsOfAPod`, `TestBackRefsByName`, `TestBackRefsOfClusterScoped`,
 `TestBackRefsNoneAndNotRead`, `TestBackRefsTypeConfusion`, `TestDrawerBackReferences`,
 `TestDrawerNeedsBackReferences`, `TestRenderBackRefsDark`
+
+## D-new: Labels and selectors hidden and kept out of the free width
+
+**Status:** built · **By:** owner (both hidden by default, the exceptions Labels and Selectors under
+Free width, on by default), lead (open to revision) the rest
+
+A table's column of key=value pairs says which it lists (`model.Column.Pairs`): an object's labels
+(`labels`) or a label selector (`selector`).
+
+| Table | Column | Pairs |
+|---|---|---|
+| Namespaces | Labels | labels |
+| Secrets | Labels | labels |
+| Services | Selector | selector |
+| Replication Controllers | Selector | selector |
+| Daemon Sets | Node Selector | selector |
+
+- All five are hidden by default; the header's ⋮ shows them. A view whose columns the user set
+  keeps that set. The search still finds a row by them: a hidden column keeps its cells.
+- Preferences › Tables › Free width › Except: Labels (`tableSpreadExceptLabels`) and Selectors
+  (`tableSpreadExceptSelectors`), both on by default. While on, a shown column of those pairs takes
+  no share of the free width and keeps its own width; Name gets the share. They wait (greyed) while
+  Free width is off; a change lays the open table out at once. Agents and the CLI may set them
+  either way, as `tableSpreadWidth`.
+
+**Why:** a list of a namespace's Flux labels took most of the window and was still cut; the
+drawer shows labels and selectors one per line. Hidden instead of removed: the search keeps finding
+a namespace by a label, and whoever wants the column shows it. The exceptions keep a column shown on
+purpose from taking the width again.
+
+**Rejected:** removing the columns (the search would no longer find rows by labels); one exception
+for both kinds; an exception list per column id in place of `Pairs` (the window would need to know
+each kind's ids).
+
+**Code:** [`model/row.go`](../../internal/model/row.go) `Column.Pairs`; the five kind profiles;
+[`engine/preferences.go`](../../internal/engine/preferences.go) `TableSpreadExceptLabels`,
+`TableSpreadExceptSelectors`; [`fyneui/tablespread.go`](../../internal/ui/fyneui/tablespread.go)
+`spreadExcepted`; [`fyneui/preferences_spread.go`](../../internal/ui/fyneui/preferences_spread.go) ·
+**Tests:** `TestPairsColumnsHiddenByDefault`, `TestSpreadExceptsLabels`,
+`TestPreferencesTableSpreadWidth`, `TestPreferencesCommands`

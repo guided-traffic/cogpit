@@ -329,6 +329,59 @@ func TestSpreadMeasuresContainerSquares(t *testing.T) {
 	}
 }
 
+// spreadNamespaces is a Namespaces view whose Labels column is shown and cut: long label lists, the
+// column's own 220 points.
+func spreadNamespaces() *engine.TableSnapshot {
+	cols := []model.Column{
+		{ID: "name", Title: "Name", Type: model.ColumnText},
+		{ID: "labels", Title: "Labels", Type: model.ColumnText, Width: 220, Pairs: model.PairsLabels},
+		{ID: "age", Title: "Age", Type: model.ColumnAge},
+	}
+	snap := &engine.TableSnapshot{View: "namespaces", Context: "demo", Title: "Namespaces", Columns: cols,
+		Sort: engine.SortSpec{Column: "name"}, Revision: 1, Synced: true}
+	for _, name := range []string{"acme-api", "acme-shop"} {
+		labels := "kubernetes.io/metadata.name=" + name + ", kustomize.toolkit.fluxcd.io/name=cluster-apps, " +
+			"kustomize.toolkit.fluxcd.io/namespace=flux-system"
+		snap.Rows = append(snap.Rows, model.Row{
+			Ref:   model.ObjectRef{Context: "demo", Kind: "namespaces", Name: name},
+			Cells: []model.Cell{{Text: name}, {Text: labels}, {Num: fixedNow.Unix() - 3600}},
+		})
+	}
+	snap.Total = len(snap.Rows)
+	return snap
+}
+
+// A shown column of labels keeps its own width while Free width excepts labels, the default
+// (D-new), and Name takes the free width; the exception turned off, it widens like any cut column,
+// at once.
+func TestSpreadExceptsLabels(t *testing.T) {
+	f := connectedFake(t, 20)
+	f.tables["namespaces"] = spreadNamespaces()
+	f.ui.View = "namespaces"
+	sh, w, q := newTestShell(t, f, Options{})
+	w.Resize(fyne.NewSize(2000, 900))
+	tv := sh.view
+	q.until(t, "the Namespaces", func() bool { return tv.snap != nil && tv.snap.View == "namespaces" && len(tv.snap.Rows) == 2 })
+	settle(w)
+	if want := tv.contentWidth(1, 2); want <= 220 {
+		t.Fatalf("the labels want %v: the fixture does not cut the column", want)
+	}
+	if got := spreadWidthOf(t, tv, "labels"); got != 220 || !filled(tv) {
+		t.Fatalf("Labels excepted %v wide, want its own 220", got)
+	}
+	off := engine.DefaultPreferences()
+	off.TableSpreadExceptLabels = false
+	f.update(func(u *engine.UIState) { u.Preferences = &off })
+	want := tv.contentWidth(1, 2)
+	q.until(t, "Labels widened", func() bool { return spreadWidthOf(t, tv, "labels") == want })
+	if !filled(tv) {
+		t.Error("the columns do not fill the table")
+	}
+	on := engine.DefaultPreferences()
+	f.update(func(u *engine.UIState) { u.Preferences = &on })
+	q.until(t, "Labels at its own width again", func() bool { return spreadWidthOf(t, tv, "labels") == 220 })
+}
+
 // Preferences › Tables › Free width is on at first; the user's tap turns the preference off and on,
 // and an agent's change shows in the row.
 func TestPreferencesTableSpreadWidth(t *testing.T) {
@@ -353,25 +406,45 @@ func TestPreferencesTableSpreadWidth(t *testing.T) {
 		t.Fatal(err)
 	}
 	q.until(t, "an agent's off", func() bool { return !check.Checked && !sh.view.spreadOn })
+
+	// Its exceptions, on at first, wait while Free width is off; the user's tap turns one off.
+	labels, selectors := exceptSwitches(t, sh)
+	if labels.Text != spreadExceptLabels || selectors.Text != spreadExceptSelectors {
+		t.Fatalf("the exceptions %q, %q", labels.Text, selectors.Text)
+	}
+	q.until(t, "the exceptions waiting", func() bool {
+		return labels.Checked && selectors.Checked && labels.Disabled() && selectors.Disabled()
+	})
+	test.Tap(check)
+	q.until(t, "the exceptions open", func() bool { return !labels.Disabled() && !selectors.Disabled() })
+	test.Tap(labels)
+	q.until(t, "labels not excepted", func() bool {
+		p, _ := s.Preferences()
+		return !p.TableSpreadExceptLabels && p.TableSpreadExceptSelectors && sh.view.spreadExcept == [2]bool{false, true}
+	})
 }
 
-// BenchmarkSpreadMeasure10k measures what a view of 10,000 pods costs the main goroutine when it
-// opens: its columns' content in the first spreadRows rows (measureColumns), and for comparison in
-// every row.
-func BenchmarkSpreadMeasure10k(b *testing.B) {
-	f := connectedFake(b, 10000)
-	sh, w, q := newTestShell(b, f, Options{})
-	q.until(b, "kinds", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil })
-	settle(w)
-	tv := sh.view
-	for _, n := range []int{spreadRows, len(tv.snap.Rows)} {
-		b.Run(strconv.Itoa(n)+"rows", func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				for _, ci := range tv.cols {
-					tv.contentWidth(ci, n)
-				}
-			}
-		})
+// Preferences › Tables with Free width and its exceptions, dark: the PNG of the pull request
+// (AGENTS.md rule 7). PNG: preferences_tables_dark.png.
+func TestRenderPreferencesTablesDark(t *testing.T) {
+	s, _ := settingsEngine(t)
+	mustDispatch(t, s, "preferences.set", map[string]any{"theme": string(ThemeDark), "timezone": "Europe/Berlin"})
+	sh, w, q := newEngineShell(t, s, Options{})
+	mustDispatch(t, s, "preferences.open", map[string]any{"section": "tables"})
+	q.until(t, "the exceptions", func() bool {
+		box, ok := sh.settings.controls["tableSpreadExcept"].(*fyne.Container)
+		return ok && len(box.Objects) == 2 && box.Objects[0].(*pillSwitch).Checked
+	})
+	q.drain()
+	savePNG(t, w, "preferences_tables_dark.png")
+}
+
+// exceptSwitches returns the switches of Free width's exceptions: Labels, Selectors.
+func exceptSwitches(t *testing.T, sh *shell) (labels, selectors *pillSwitch) {
+	t.Helper()
+	box, ok := sh.settings.controls["tableSpreadExcept"].(*fyne.Container)
+	if !ok || len(box.Objects) != 2 {
+		t.Fatalf("the exceptions' row holds %#v", sh.settings.controls["tableSpreadExcept"])
 	}
+	return box.Objects[0].(*pillSwitch), box.Objects[1].(*pillSwitch)
 }

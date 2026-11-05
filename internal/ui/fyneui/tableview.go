@@ -117,13 +117,14 @@ type tableView struct {
 	order      *columnDrag      // a header dragged to another place (columnorder.go)
 	copyIcon   *tableCopy       // the copy icon on the cell under the pointer (tablecopy.go)
 
-	userWidths map[string]float32 // widths the user dragged, by view and column id
-	setWidths  []float32          // the width the shell last gave each visible column
-	fitWidth   float32            // the frame width the columns were last fitted to
-	fitting    bool               // set while fitColumns sets widths, which are not the user's
-	wants      map[string]float32 // what each column's content wants, by column id, measured when the view opened (tablespread.go); nil: none
-	wantsDue   bool               // the view opened and its rows are not in yet: measured when they come
-	spreadOn   bool               // the free-width preference the table was last laid out with (spreadChanged)
+	userWidths   map[string]float32 // widths the user dragged, by view and column id
+	setWidths    []float32          // the width the shell last gave each visible column
+	fitWidth     float32            // the frame width the columns were last fitted to
+	fitting      bool               // set while fitColumns sets widths, which are not the user's
+	wants        map[string]float32 // what each column's content wants, by column id, measured when the view opened (tablespread.go); nil: none
+	wantsDue     bool               // the view opened and its rows are not in yet: measured when they come
+	spreadOn     bool               // the free-width preference the table was last laid out with (spreadChanged)
+	spreadExcept [2]bool            // and its exceptions, labels and selectors
 
 	searchTimer *time.Timer
 	filterBusy  int  // filter changes typed but not yet acknowledged by the engine
@@ -140,7 +141,7 @@ type tableView struct {
 
 func newTableView(sh *shell) *tableView {
 	tv := &tableView{sh: sh, hoverRow: -1, hoverCol: -1, userWidths: map[string]float32{}, icons: map[cellIconKey]fyne.Resource{},
-		spreadOn: true} // the preference's default (tablespread.go)
+		spreadOn: true, spreadExcept: [2]bool{true, true}} // the preference's defaults (tablespread.go)
 	tv.order = newColumnDrag(tv) // before the table: its header cells take the drag's callbacks
 	tv.copyIcon = newTableCopy(tv)
 

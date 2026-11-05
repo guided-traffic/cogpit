@@ -2,6 +2,7 @@ package fyneui
 
 import (
 	"encoding/base64"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -293,7 +294,7 @@ func TestListCopyIconByColumn(t *testing.T) {
 			[]string{"name", "namespace", "node", "controlledBy"}, []string{"age", "cpu", "memory", "restarts", "status", "qos"}},
 		{"services", func(t *testing.T) *fakeEngine {
 			f := kindsFake(t, "services")
-			f.tables["services"] = kindSnapshot(t, "services", fixtureServiceObjects())
+			f.tables["services"] = showAllColumns(kindSnapshot(t, "services", fixtureServiceObjects())) // Selector too
 			return f
 		}, []string{"name", "clusterIP", "ports", "selector", "type"}, []string{"age"}},
 		{"events", func(t *testing.T) *fakeEngine { return kindsFake(t, "events") },
@@ -574,12 +575,23 @@ func TestListCopyIconFollowsTheCells(t *testing.T) {
 	}
 }
 
+// showAllColumns returns a copy of snap that shows every column, those hidden by default too.
+func showAllColumns(snap *engine.TableSnapshot) *engine.TableSnapshot {
+	out := *snap
+	out.Columns = slices.Clone(snap.Columns)
+	for i := range out.Columns {
+		out.Columns[i].Hidden = false
+	}
+	return &out
+}
+
 // TestSecretsListCopiesNoValue: the Secrets list holds no values. Every cell with text of every
 // column but Age copies with the icon, a plain copy, and no copy contains a value of the
 // fixture's Secrets, decoded or base64.
 func TestSecretsListCopiesNoValue(t *testing.T) {
 	f, _ := secretsFake(t)
 	f.ui.Selected, f.ui.Drawer = nil, nil
+	f.tables["secrets"] = showAllColumns(f.tables["secrets"]) // Labels too, hidden by default
 	sh, w, q := newTestShell(t, f, Options{})
 	sh.toastTime = 5 * time.Millisecond // the toasts of earlier copies would pile up over the list
 	q.until(t, "the secrets", func() bool { return sh.view.snap != nil && sh.view.snap.View == "secrets" && sh.diag.total > 0 })

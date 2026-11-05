@@ -30,7 +30,10 @@ import (
 //   - a column the user sized (dragged, fitted by a double click) keeps the user's width and takes
 //     no share; so does the flex column, and then the rest of the free width stays free, as it did;
 //     fixed columns (the warning, the grades) and icon columns take no share;
-//   - turning the preference on or off lays the open table out at once: the user's own act.
+//   - a column of labels or of a selector (model.Column.Pairs) takes no share while the
+//     preference's exception for it is on, the default (D-new): such lists are read in the drawer;
+//   - turning the preference or an exception on or off lays the open table out at once: the
+//     user's own act.
 
 // spreadRows is how many rows, from the top of the list as sorted, a view's columns are measured
 // in when it opens: far more than a window shows at once, and a bounded cost on a list of 10,000
@@ -42,6 +45,25 @@ const spreadRows = 500
 func (sh *shell) spreadWidth() bool {
 	p := sh.ui.Preferences
 	return p == nil || p.TableSpreadWidth
+}
+
+// spreadExcepted reports whether column c takes no share of the free width: a column of labels or
+// of a selector while Preferences › Tables › Free width excepts it (on without preferences, the
+// default).
+func (sh *shell) spreadExcepted(c model.Column) bool {
+	p := sh.ui.Preferences
+	switch c.Pairs {
+	case model.PairsLabels:
+		return p == nil || p.TableSpreadExceptLabels
+	case model.PairsSelector:
+		return p == nil || p.TableSpreadExceptSelectors
+	}
+	return false
+}
+
+// spreadExceptions are the exceptions in effect, for spreadChanged to compare.
+func (sh *shell) spreadExceptions() [2]bool {
+	return [2]bool{sh.spreadExcepted(model.Column{Pairs: model.PairsLabels}), sh.spreadExcepted(model.Column{Pairs: model.PairsSelector})}
 }
 
 // spreadSnapshot follows a snapshot shown: a view opened is measured once its rows are in, and a
@@ -78,18 +100,21 @@ func (tv *tableView) forgetHidden() {
 	maps.DeleteFunc(tv.wants, func(id string, _ float32) bool { return !shown[id] })
 }
 
-// spreadChanged follows the preference: the open table is laid out at once, measured now when it
-// is turned on.
+// spreadChanged follows the preference and its exceptions: the open table is laid out at once,
+// measured now when the preference is turned on.
 func (tv *tableView) spreadChanged() {
-	on := tv.sh.spreadWidth()
-	if on == tv.spreadOn {
+	on, except := tv.sh.spreadWidth(), tv.sh.spreadExceptions()
+	if on == tv.spreadOn && except == tv.spreadExcept {
 		return
 	}
-	tv.spreadOn = on
-	tv.wants, tv.wantsDue = nil, on && tv.snap != nil
-	if tv.snap != nil {
-		tv.spreadSnapshot(false, false)
+	if on != tv.spreadOn {
+		tv.spreadOn = on
+		tv.wants, tv.wantsDue = nil, on && tv.snap != nil
+		if tv.snap != nil {
+			tv.spreadSnapshot(false, false)
+		}
 	}
+	tv.spreadExcept = except
 	tv.fitWidth = 0
 	tv.fitColumns(tv.table.Size().Width)
 }
@@ -118,7 +143,7 @@ func (tv *tableView) spread(widths []float32, surplus float32, flex int, flexUse
 	need := make([]float32, len(tv.cols))
 	for i, ci := range tv.cols {
 		c := tv.snap.Columns[ci]
-		if _, user := tv.userWidths[tv.snap.View+"/"+c.ID]; user || (i == flex && flexUser) {
+		if _, user := tv.userWidths[tv.snap.View+"/"+c.ID]; user || (i == flex && flexUser) || tv.sh.spreadExcepted(c) {
 			continue
 		}
 		need[i] = max(0, tv.wants[c.ID]-widths[firstDataColumn+i])
