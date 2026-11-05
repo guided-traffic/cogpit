@@ -379,6 +379,7 @@ func mergeCell(base, add model.Cell) model.Cell {
 	if statusRank(add.Status) > statusRank(base.Status) {
 		out.Status = add.Status
 	}
+	out.Tint = out.Tint || add.Tint
 	out.Num = max(base.Num, add.Num)
 	return out
 }

@@ -108,6 +108,9 @@ type Cell struct {
 	// readable share ("7.5%") for sorting, search, CSV and agents. A pointer, so that Cell stays
 	// comparable; shared and immutable like Parts.
 	Bar *CellBar `json:"bar,omitempty"`
+	// Tint: Status colours the text alone, never drawn as a status pill with its dot: a value in a
+	// colour (a kubelet's version), not a state.
+	Tint bool `json:"tint,omitempty"`
 	// Tip is the cell's tooltip, a line or a few: a kubelet's upstream support and version skew in
 	// the Nodes list (D-91). Agents read it beside the cell's text (view_rows, resources_list).
 	Tip string `json:"tip,omitempty"`

@@ -750,9 +750,10 @@ func (tv *tableView) updateCell(id widget.TableCellID, o fyne.CanvasObject) {
 		if content.link != nil && !tv.serves(content.link.Kind) {
 			content.link = nil // nowhere to go: plain text
 		}
-		// A word is a pill, a sentence is not: an event's message in a status colour stays plain text.
+		// A word is a pill, a sentence is not: an event's message in a status colour stays plain text,
+		// and so does a value only tinted (a kubelet's version).
 		content.pill = status != model.StatusNone && col.Type == model.ColumnText && col.ID != columnMessage &&
-			utf8.RuneCountInString(content.text) <= maxPillText
+			!cell.Tint && utf8.RuneCountInString(content.text) <= maxPillText
 		if col.Type == model.ColumnSignals {
 			// Each signal's icon in its slot (tablesignals.go); on a lit row the spine and the pill say
 			// the state's, whose reason moves to the status word's tooltip.

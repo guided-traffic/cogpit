@@ -264,6 +264,11 @@ func renderNodesVersions(t *testing.T, mode ThemeMode, suffix string) {
 		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" && sh.diag.total > 0
 	})
 	settle(w)
+	// The version is plain text in its colour, never a status pill with a dot (the owner, 2026-11-05).
+	c := cellAt(t, sh, rowOf(t, f, "nodes", "worker-b-01"), columnOf(t, sh, "version"))
+	if c.pillShows() || c.text.Color != themeColor(c.Theme(), statusColorName(model.StatusError)) {
+		t.Errorf("worker-b-01's version: pill %v, colour %v", c.pillShows(), c.text.Color)
+	}
 	sh.tip.delay = time.Millisecond
 	hoverOver(w, q, middleOf(cellAt(t, sh, rowOf(t, f, "nodes", "worker-b-01"), columnOf(t, sh, "version"))))
 	q.until(t, "the cell's tooltip", func() bool { return strings.HasPrefix(sh.tip.visibleText(), "Upstream end of life") })
