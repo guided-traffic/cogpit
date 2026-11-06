@@ -1184,7 +1184,9 @@ is rounded to whole bytes below 1 KiB. Lens's own notation is not captured.
   (lengths, not amounts); command descriptions and parameter schemas; the performance harness.
 
 **Why:** raw quantities such as `16360780Ki` or `13856852378` are unreadable; one formatter keeps
-the window, the CLI and agents in agreement.
+the window, the CLI and agents in agreement. The decimal stays when it is 0 ("36.0 GiB"): it shows
+the amount is exact to a tenth, not rounded to a whole unit; CPU drops its trailing zeros
+([D-155](#d-155-every-cpu-amount-in-millicores-below-one-core)).
 
 **Code:** [`model/bytes.go`](../../internal/model/bytes.go) · **Tests:** `TestFormatBytes`,
 `TestFormatByteAmount`, `TestFormatByteQuantity`, `TestByteResource`,
