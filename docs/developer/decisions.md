@@ -164,6 +164,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-153](#d-153-labels-and-selectors-hidden-and-kept-out-of-the-free-width) | Labels and selectors hidden and kept out of the free width | built: five columns hidden by default; Free width's exceptions Labels and Selectors, on |
 | [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU Req / Lim, Memory Req / Lim; the limits muted after the requests, "+" after an open limit, orange for memory |
 | [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
+| [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
 
 ## D-1: UI toolkit
 
@@ -6428,3 +6429,30 @@ Overview's headline one decimal from ten cores.
 **Code:** [`model/usage.go`](../../internal/model/usage.go) `FormatCPU`;
 [`fyneui/metricsview.go`](../../internal/ui/fyneui/metricsview.go) `formatCoresExact` · **Tests:**
 `TestUsageFormats`, `TestUsageCells`, `TestNodeUsageBars`, `TestAgoText`
+
+## D-156: The Overview's legends wrap
+
+**Status:** built · **By:** owner (wrap), lead (open to revision) the rest
+
+The cluster Overview's health header lays its three groups in equal columns, each as wide as the
+widest (`columnsLayout`). The nodes' and the pods' legends wrap where their column is narrower than
+their states (`flowLayout`, 14 points between two states, the theme's padding between two lines),
+so the page asks for no more than its widest single state: with every pod and node state at five
+digits and every integration, it fits a 1280-point screen.
+
+**Why:** Fyne makes a window as wide as its content's minimum and lets no one make it narrower. A
+legend in one line asks for the sum of its states, which the equal columns triple: seven pod states
+asked for about 2,400 points, a window wider than any laptop's screen that could not be made
+narrower.
+
+**Rejected:** shortening the legend to a few states and "+N" (hides the states the row is for); a
+cap on the window content's minimum width (lays out content narrower than it needs, overlapping,
+and hides the next cause).
+
+**Not covered:** the integrations' bearing asks for 52 points per integration, tripled by the
+columns (five today: 836 points); the dashboards the demo cluster does not have (Argo CD, Flux,
+alerts) are not measured.
+
+**Code:** [`instrument_health.go`](../../internal/ui/fyneui/instrument_health.go) `newHealthLegend`;
+[`metricsview.go`](../../internal/ui/fyneui/metricsview.go) `flowLayout` · **Tests:**
+`TestClusterOverviewFitsANarrowScreen`

@@ -790,6 +790,9 @@ func (d *drawer) metricsSection(p *metricsPanel) []fyne.CanvasObject {
 // fit in the available width, so that a row of buttons never asks for more than the drawer has.
 type flowLayout struct {
 	avail func() float32
+	// gap is the space between two objects on a line; 0 is the theme's padding, which is always
+	// the space between two lines.
+	gap float32
 }
 
 func (l *flowLayout) width(size fyne.Size) float32 {
@@ -804,7 +807,11 @@ func (l *flowLayout) width(size fyne.Size) float32 {
 
 // place returns each visible object's position for a width, and the height used.
 func (l *flowLayout) place(objs []fyne.CanvasObject, width float32) ([]fyne.Position, float32) {
-	gap := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)
+	lineGap := fyne.CurrentApp().Settings().Theme().Size(theme.SizeNamePadding)
+	gap := l.gap
+	if gap == 0 {
+		gap = lineGap
+	}
 	pos := make([]fyne.Position, len(objs))
 	var x, y, lineH float32
 	for i, o := range objs {
@@ -813,7 +820,7 @@ func (l *flowLayout) place(objs []fyne.CanvasObject, width float32) ([]fyne.Posi
 		}
 		ms := o.MinSize()
 		if x > 0 && x+ms.Width > width {
-			x, y, lineH = 0, y+lineH+gap, 0
+			x, y, lineH = 0, y+lineH+lineGap, 0
 		}
 		pos[i] = fyne.NewPos(x, y)
 		x += ms.Width + gap
