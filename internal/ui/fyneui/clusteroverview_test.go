@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/widget"
 
@@ -279,6 +280,44 @@ func TestClusterOverviewPage(t *testing.T) {
 	empty.Rows, empty.Total, empty.Revision = nil, 0, 2
 	f.setTable(engine.ClusterOverview, &empty)
 	q.until(t, "no issues", func() bool { return tv.placeholderText.text == "No issues found." })
+}
+
+// overviewScreenWidth is the narrowest screen the Overview must fit, in points: a MacBook's display
+// at its largest text setting.
+const overviewScreenWidth = 1280
+
+// The Overview fits a laptop's screen whatever states the cluster's pods and nodes are in: every
+// state of both with five-digit counts and every integration. The header's three columns are as
+// wide as the widest, so its legends wrap instead of widening their column; Fyne makes a window as
+// wide as its content's minimum and lets no one make it narrower.
+func TestClusterOverviewFitsANarrowScreen(t *testing.T) {
+	f := clusterFake(t)
+	every := []model.Status{model.StatusOK, model.StatusSucceeded, model.StatusPending, model.StatusWarning,
+		model.StatusError, model.StatusTerminating, model.StatusUnknown}
+	f.handlers["cluster.overview"] = func(context.Context, engine.Invocation) (any, error) {
+		m := clusterModelFor(engine.OverviewChoice{})
+		m.NodeStates, m.PodStates = nil, nil
+		for _, s := range every {
+			m.NodeStates = append(m.NodeStates, engine.StatusCount{Status: s, Count: 12345})
+			m.PodStates = append(m.PodStates, engine.StatusCount{Status: s, Count: 12345})
+		}
+		return m, nil
+	}
+	sh, w, q := newTestShell(t, f, Options{})
+	h := sh.view.cluster.health
+	q.until(t, "the page", func() bool { return sh.view.cluster.data != nil && len(h.podsLegend.row.Objects) == len(every) })
+	if got := sh.root.MinSize().Width; got > overviewScreenWidth {
+		t.Fatalf("the window is at least %.0f points wide, wider than a %d point screen", got, overviewScreenWidth)
+	}
+	w.Resize(fyne.NewSize(overviewScreenWidth, 900))
+	row := h.podsLegend.row
+	first, last := row.Objects[0], row.Objects[len(row.Objects)-1]
+	if last.Position().Y <= first.Position().Y || last.Position().X+last.Size().Width > row.Size().Width {
+		t.Fatalf("the pods' legend does not wrap in its %.0f points: first at %v, last at %v", row.Size().Width, first.Position(), last.Position())
+	}
+	if got, line := row.MinSize().Height, first.MinSize().Height; got <= line {
+		t.Fatalf("the wrapped legend asks for %.0f points of height, one line's", got)
+	}
 }
 
 func renderClusterOverview(t *testing.T, mode ThemeMode, name string) {

@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"math"
 	"strconv"
 
 	"fyne.io/fyne/v2"
@@ -19,12 +20,22 @@ import (
 // without problems shows mint tokens and nothing else.
 
 // healthLegend is a row of coloured dots with a count and a word each: "● 44 running  ● 2 pending".
+// It wraps where its column is narrower than its states: the three columns are as wide as the
+// widest (columnsLayout), so a row that only grew would make the page, and with it the window,
+// three times as wide as its states (seven on a cluster in a rollout), wider than the screen.
 type healthLegend struct {
 	row *fyne.Container
 }
 
 func newHealthLegend() *healthLegend {
-	return &healthLegend{row: box(layout.NewCustomPaddedHBoxLayout(14))}
+	l := &healthLegend{}
+	l.row = box(&flowLayout{gap: 14, avail: func() float32 {
+		if w := l.row.Size().Width; w > 0 {
+			return w
+		}
+		return math.MaxFloat32 // not laid out yet: one line
+	}})
+	return l
 }
 
 // set shows the counts, in the order given; zero counts are left out.
