@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"time"
 )
 
@@ -11,33 +12,88 @@ import (
 // node-exporter's where the Prometheus has them (A43; kube-prometheus-stack drops cAdvisor's root
 // cgroup), else the nodes' root cgroups, so that the history and the Metrics Server's live values
 // (a node's usage is its root cgroup's working set) mean the same. Every node is one query per
-// metric without a node matcher (every exporter, every root cgroup the Prometheus scrapes); the
-// masters are the control-plane nodes named by their node label or instance (their names or
-// addresses); the workers are every node less the masters, so no query names them and a cluster of
-// thousands of workers sends a short one.
+// metric naming the cluster's nodes by their node label or instance (their names or addresses,
+// RangeQuery.Nodes), so that a machine the Prometheus scrapes besides them (a hypervisor, a
+// storage host) is not counted (D-157); the masters are the control-plane nodes named the same
+// way; the workers are every node less the masters. A cluster with too many nodes to name in a
+// query (groupQueryMax), or whose nodes the engine did not give, is summed over every series the
+// Prometheus has, and the answer says how many machines more than nodes that counts.
 
-// clusterQueries are the queries of the cluster's chart at a rate window: CPU and memory over every
-// node, and over the masters when the cluster has any ("" otherwise), from cAdvisor's root
-// cgroups. The masters are found by their names and addresses (matchGroup).
-func clusterQueries(masters, addrs []string, win time.Duration) (cpuAll, memAll, cpuMaster, memMaster string) {
-	cpuAll = fmt.Sprintf(`sum(rate(%s{id="/"}[%s]))`, metricCPU, promDuration(win))
-	memAll = fmt.Sprintf(`sum(%s{id="/"})`, metricMemory)
-	if len(masters) == 0 {
-		return cpuAll, memAll, "", ""
+// groupQueryMax is the longest a query naming the cluster's nodes may be, URL-encoded: it goes as
+// a GET through the API server's service proxy, and a proxy in front of the API server may cap the
+// request line (ingress-nginx's default: 8 KiB, the path and the range included). The API server
+// itself takes 1 MiB.
+const groupQueryMax = 7 << 10
+
+// fitsGroup reports whether the queries naming a group of nodes are short enough to send.
+func fitsGroup(exprs ...string) bool {
+	for _, e := range exprs {
+		if len(url.QueryEscape(e)) > groupQueryMax {
+			return false
+		}
 	}
-	m := matchGroup(masters, addrs)
-	return cpuAll, memAll, nodeSum(metricCPU, m, win), nodeSum(metricMemory, m, 0)
+	return true
 }
 
-// clusterExporterQueries are clusterQueries from node-exporter's series (A43): every exporter the
-// Prometheus scrapes, and the masters' by the node label or the instance.
-func clusterExporterQueries(masters, addrs []string, win time.Duration) (cpuAll, memAll, cpuMaster, memMaster string) {
-	cpuAll, memAll = exporterCPU("", win), exporterMemory("")
-	if len(masters) == 0 {
-		return cpuAll, memAll, "", ""
+// clusterPlan is the queries of the cluster's chart from one source: CPU and memory over every
+// node, and over the masters when the cluster has any ("" otherwise). named: every node is the
+// cluster's nodes by name and address; else every series the Prometheus has.
+type clusterPlan struct {
+	cpuAll, memAll, cpuMaster, memMaster string
+	named                                bool
+}
+
+// clusterQueries are the queries of the cluster's chart at a rate window from cAdvisor's root
+// cgroups. Nodes and masters are found by their names and addresses (matchGroup).
+func clusterQueries(q RangeQuery, masters []string, win time.Duration) clusterPlan {
+	cp := clusterPlan{
+		cpuAll: fmt.Sprintf(`sum(rate(%s{id="/"}[%s]))`, metricCPU, promDuration(win)),
+		memAll: fmt.Sprintf(`sum(%s{id="/"})`, metricMemory),
 	}
-	m := matchGroup(masters, addrs)
-	return cpuAll, memAll, exporterOf(func(x string) string { return exporterCPU(x, win) }, m), exporterOf(exporterMemory, m)
+	if len(q.Nodes) > 0 {
+		m := matchGroup(q.Nodes, q.NodeAddresses)
+		if cpu, mem := nodeSum(metricCPU, m, win), nodeSum(metricMemory, m, 0); fitsGroup(cpu, mem) {
+			cp.cpuAll, cp.memAll, cp.named = cpu, mem, true
+		}
+	}
+	if len(masters) > 0 {
+		m := matchGroup(masters, q.Addresses)
+		cp.cpuMaster, cp.memMaster = nodeSum(metricCPU, m, win), nodeSum(metricMemory, m, 0)
+	}
+	return cp
+}
+
+// clusterExporterQueries are clusterQueries from node-exporter's series (A43), by the node label or
+// the instance.
+func clusterExporterQueries(q RangeQuery, masters []string, win time.Duration) clusterPlan {
+	cpu := func(x string) string { return exporterCPU(x, win) }
+	cp := clusterPlan{cpuAll: cpu(""), memAll: exporterMemory("")}
+	if len(q.Nodes) > 0 {
+		m := matchGroup(q.Nodes, q.NodeAddresses)
+		if c, mem := exporterOf(cpu, m), exporterOf(exporterGroupMemory, m); fitsGroup(c, mem) {
+			cp.cpuAll, cp.memAll, cp.named = c, mem, true
+		}
+	}
+	if len(masters) > 0 {
+		m := matchGroup(masters, q.Addresses)
+		cp.cpuMaster, cp.memMaster = exporterOf(cpu, m), exporterOf(exporterMemory, m)
+	}
+	return cp
+}
+
+// foreignMachines counts the machines with series of source beyond the cluster's nodes: one
+// instant query, sent only when the cluster's sums could not name its nodes. A failure counts
+// none: the count is the history's footnote, not the history.
+func (p *Prometheus) foreignMachines(ctx context.Context, source string, nodes int) int {
+	sel := metricNodeMemTotal
+	if source == UsageCAdvisor {
+		sel = selector(metricMemory, `id="/"`)
+	}
+	s, err := p.queryInstant(ctx, "count(max by (node, instance) ("+sel+"))")
+	if err != nil || len(s) == 0 || len(s[0].points) == 0 {
+		return 0
+	}
+	return max(int(s[0].points[len(s[0].points)-1].v)-nodes, 0)
 }
 
 // clusterRange answers a range query of the cluster scope: the targets "" (every node), master and
@@ -73,19 +129,21 @@ func (p *Prometheus) clusterRange(ctx context.Context, q RangeQuery) (*ObjectSer
 		}
 		return hasPoints(res[0]) || hasPoints(res[1]), nil // every node's: the masters' may lack an exporter
 	}
-	exporter := func() (bool, error) {
-		a, b, c, d := clusterExporterQueries(masters, q.Addresses, win)
-		return ask(a, b, c, d)
+	named := false
+	plan := func(cp clusterPlan) (bool, error) {
+		named = cp.named
+		return ask(cp.cpuAll, cp.memAll, cp.cpuMaster, cp.memMaster)
 	}
-	cadvisor := func() (bool, error) {
-		a, b, c, d := clusterQueries(masters, q.Addresses, win)
-		return ask(a, b, c, d)
-	}
+	exporter := func() (bool, error) { return plan(clusterExporterQueries(q, masters, win)) }
+	cadvisor := func() (bool, error) { return plan(clusterQueries(q, masters, win)) }
 	source, err := p.nodeSource(exporter, cadvisor)
 	if err != nil {
 		return nil, err
 	}
 	out.UsageSource = source
+	if !named && len(q.Nodes) > 0 && source != UsageNone {
+		out.ForeignMachines = p.foreignMachines(ctx, source, len(q.Nodes))
+	}
 	first := func(s []promSeries) []point {
 		if len(s) == 0 {
 			return nil

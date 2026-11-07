@@ -2,6 +2,8 @@ package metrics_test
 
 import (
 	"context"
+	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -110,6 +112,7 @@ func TestClusterHistoryThenLiveSums(t *testing.T) {
 	}, metrics.Options{ObjectInterval: time.Hour, ListInterval: time.Hour, Now: clk.Now})
 	t.Cleanup(h.Close)
 	sc := metrics.ClusterScope([]string{"m1"})
+	h.SetClusterNodes(map[string][]string{"m1": {"10.0.0.1"}, "w1": {"10.0.0.2", "w1"}, "w2": nil})
 	polls := make(chan int, 16)
 	n := 0
 	sub := h.Subscribe(sc, func() { n++; polls <- n })
@@ -119,6 +122,9 @@ func TestClusterHistoryThenLiveSums(t *testing.T) {
 	qs := hist.ranges()
 	if len(qs) != 1 || qs[0].Kind != metrics.KindCluster || qs[0].Name != "m1" || qs[0].Want != metrics.WantUsage || qs[0].Step != 30*time.Second {
 		t.Fatalf("the first poll asked Prometheus %+v, want the hour once", qs)
+	}
+	if !slices.Equal(qs[0].Nodes, []string{"m1", "w1", "w2"}) || !slices.Equal(qs[0].NodeAddresses, []string{"10.0.0.1", "10.0.0.2"}) {
+		t.Errorf("the history asked for the nodes %v at %v, want every node of the cluster (D-157)", qs[0].Nodes, qs[0].NodeAddresses)
 	}
 	if live.listCount() != 1 {
 		t.Fatalf("%d node lists at the first poll", live.listCount())
@@ -153,7 +159,7 @@ func TestClusterHistoryThenLiveSums(t *testing.T) {
 	metrics.Kick(h, sc)
 	waitPoll(t, polls, 5)
 	qs = hist.ranges()
-	if len(qs) != 2 || qs[1].Want != metrics.WantUsage || !qs[1].To.Equal(clk.Now()) || qs[1].Name != "m1" {
+	if len(qs) != 2 || qs[1].Want != metrics.WantUsage || !qs[1].To.Equal(clk.Now()) || qs[1].Name != "m1" || len(qs[1].Nodes) != 3 {
 		t.Fatalf("the fallback asked %+v", qs)
 	}
 	if l := last(h.History(sc).Targets[metrics.TargetWorker].Usage); l.CPUMilli != 1500 {
@@ -225,6 +231,60 @@ func TestClusterHistoryFromNodeExporter(t *testing.T) {
 	}
 	if got.Targets[metrics.TargetMaster] != nil || len(got.Targets[metrics.TargetWorker].Usage) != 2 || got.Targets[metrics.TargetWorker].Usage[1].CPUMilli != 2500 {
 		t.Errorf("masters without an exporter: %+v", got.Targets)
+	}
+}
+
+// TestClusterHistoryCountsTheClustersNodesOnly (D-157): a Prometheus that scrapes node-exporters
+// besides the cluster's nodes (a hypervisor, a storage host) is summed over the cluster's nodes,
+// named by their names and addresses, and the workers are those less the masters; a cluster with
+// too many nodes to name in a query is summed over every exporter, in queries short enough to send,
+// and the answer counts the machines beyond the nodes.
+func TestClusterHistoryCountsTheClustersNodesOnly(t *testing.T) {
+	c := newPromCluster(t, false)
+	master := `instance=~"(cp|10\\.0\\.0\\.1)(:[0-9]+)?"`
+	own := `instance=~"(cp|w1|10\\.0\\.0\\.1|10\\.0\\.0\\.2)(:[0-9]+)?"`
+	c.prom.on(`node_cpu_seconds_total{`+master, s(nil, 1000, 0.5, 1030, 0.75))
+	c.prom.on(`node_memory_MemTotal_bytes{`+master, s(nil, 1000, 1<<30, 1030, 1<<30))
+	c.prom.on(`node_cpu_seconds_total{`+own, s(nil, 1000, 2, 1030, 2.5))
+	c.prom.on(`node_memory_MemTotal_bytes{`+own+`} - node_memory_MemFree_bytes - node_memory_Inactive_file_bytes`, s(nil, 1000, 4<<30, 1030, 5<<30))
+	c.prom.on(`count(max by (node, instance) (node_memory_MemTotal_bytes))`, s(nil, 1030, 402))
+	// Every exporter: the hypervisor's 6 cores and 152 GiB too.
+	c.prom.on(`node_cpu_seconds_total{mode!~`, s(nil, 1000, 8, 1030, 8.5))
+	c.prom.on(`node_memory_MemTotal_bytes - node_memory_MemFree_bytes`, s(nil, 1000, 156<<30, 1030, 157<<30))
+	prov := promProvider(t, c, metrics.PrometheusOptions{})
+	to := time.Unix(100020, 0)
+	q := metrics.RangeQuery{Kind: metrics.KindCluster, Name: metrics.ClusterScope([]string{"cp"}).Name, Addresses: []string{"10.0.0.1"},
+		Nodes: []string{"cp", "w1"}, NodeAddresses: []string{"10.0.0.1", "10.0.0.2"},
+		From: to.Add(-time.Hour), To: to, Step: 30 * time.Second, Want: metrics.WantUsage}
+	got, err := prov.ObjectRange(context.Background(), q)
+	if err != nil {
+		t.Fatal(err)
+	}
+	whole, w := got.Targets[""], got.Targets[metrics.TargetWorker]
+	if whole == nil || w == nil || whole.Usage[1].CPUMilli != 2500 || w.Usage[1].CPUMilli != 1750 || w.Usage[1].MemoryBytes != 4<<30 {
+		t.Errorf("every node %+v, workers %+v: want the cluster's nodes only", whole, w)
+	}
+	if n := c.prom.queryCount(`{mode!~`) + c.prom.queryCount("count("); n != 0 || got.ForeignMachines != 0 {
+		t.Errorf("%d queries over every exporter, %d foreign machines", n, got.ForeignMachines)
+	}
+
+	// Four hundred nodes: too many to name, every exporter is summed and two more machines counted.
+	q.Nodes, q.NodeAddresses = nil, nil
+	for i := range 400 {
+		q.Nodes = append(q.Nodes, fmt.Sprintf("node-%03d.example.internal", i))
+		q.NodeAddresses = append(q.NodeAddresses, fmt.Sprintf("10.1.%d.%d", i/250, i%250))
+	}
+	before := len(c.prom.requests())
+	if got, err = prov.ObjectRange(context.Background(), q); err != nil {
+		t.Fatal(err)
+	}
+	if w := got.Targets[metrics.TargetWorker]; w == nil || w.Usage[1].CPUMilli != 7750 || got.ForeignMachines != 2 {
+		t.Errorf("workers %+v, %d foreign machines: want every exporter less the masters, 2", w, got.ForeignMachines)
+	}
+	for _, r := range c.prom.requests()[before:] {
+		if n := len(url.QueryEscape(r.query)); n > metrics.GroupQueryMax {
+			t.Errorf("a query of %d bytes was sent: %.80s…", n, r.query)
+		}
 	}
 }
 

@@ -24,7 +24,10 @@ type chart struct {
 	podsSource string
 	// usageSource is where the history of the CPU and memory came from at its last full query
 	// (ObjectSeries.UsageSource): node-exporter, cAdvisor, or none; "" before one answered.
+	// foreign is the cluster's machines beyond its nodes that history counts
+	// (ObjectSeries.ForeignMachines).
 	usageSource string
+	foreign     int
 
 	// The history each kind of series holds: the window and step it was asked for (zero: none,
 	// asked for at the next poll a history provider answers), and when it was last asked for.
@@ -218,7 +221,7 @@ func (c *chart) applyRange(res *ObjectSeries, want Want, from, to time.Time) {
 // gap, the fallback) when it found them: a chart whose history had none may find them later.
 func (c *chart) foundUsage(res *ObjectSeries) {
 	if res != nil && res.UsageSource != "" && res.UsageSource != UsageNone {
-		c.usageSource = res.UsageSource
+		c.usageSource, c.foreign = res.UsageSource, res.ForeignMachines
 	}
 }
 
@@ -362,7 +365,7 @@ func bound[T any](pts []T, age time.Duration, maxPoints int, at func(T) time.Tim
 // series returns the chart as an ObjectSeries for the engine: the points are shared and must not
 // be modified.
 func (c *chart) series() *ObjectSeries {
-	out := &ObjectSeries{Targets: map[string]*TargetSeries{}, FilesystemSource: c.fsSource, PodsSource: c.podsSource, UsageSource: c.usageSource, To: c.at, Step: c.step}
+	out := &ObjectSeries{Targets: map[string]*TargetSeries{}, FilesystemSource: c.fsSource, PodsSource: c.podsSource, UsageSource: c.usageSource, ForeignMachines: c.foreign, To: c.at, Step: c.step}
 	target := func(name string) *TargetSeries {
 		t := out.Targets[name]
 		if t == nil {

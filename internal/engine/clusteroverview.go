@@ -108,6 +108,10 @@ type ClusterOverviewModel struct {
 	// "cadvisor" (the nodes' root cgroups), "none" (it has neither: the charts hold what Cogpit
 	// measured since the page opened), or empty while not known or without Prometheus.
 	UsageHistory string `json:"usageHistory,omitempty"`
+	// ForeignMachines is how many machines more than the cluster has nodes the CPU and Memory
+	// history counts: the cluster has too many nodes to name in a Prometheus query, and the
+	// Prometheus scrapes more node-exporters than it has nodes (D-157); 0 otherwise.
+	ForeignMachines int `json:"foreignMachines,omitempty"`
 	// NodeStates and PodStates count the cluster's nodes and pods by the state their views show
 	// (all namespaces, whichever group the charts show), in StatusOrder; the health header
 	// above the charts draws them.

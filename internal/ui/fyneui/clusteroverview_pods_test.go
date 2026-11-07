@@ -61,3 +61,24 @@ func TestClusterOverviewPodsHistoryNote(t *testing.T) {
 		}
 	}
 }
+
+// TestClusterOverviewForeignMachinesNote (D-157): a history that counts machines besides the
+// cluster's nodes says so under the charts.
+func TestClusterOverviewForeignMachinesNote(t *testing.T) {
+	f := clusterFake(t)
+	f.handlers["cluster.overview"] = func(context.Context, engine.Invocation) (any, error) {
+		f.mu.Lock()
+		choice := f.ui.Overview
+		f.mu.Unlock()
+		m := clusterModelFor(choice)
+		m.UsageHistory, m.ForeignMachines = metrics.UsageNodeExporter, 2
+		return m, nil
+	}
+	sh, w, q := newTestShell(t, f, Options{})
+	q.until(t, "the page", func() bool { return sh.view.cluster.data != nil })
+	settle(w)
+	want := "The CPU and Memory history counts 2 machines besides this cluster's nodes: the cluster has too many nodes to name in a Prometheus query."
+	if got := sh.view.cluster.note.text; got != want {
+		t.Errorf("note %q, want %q", got, want)
+	}
+}

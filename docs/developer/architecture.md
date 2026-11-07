@@ -1972,13 +1972,16 @@ the whole setting at every change and follows `cluster.prometheus` after every m
 
 `ClusterScope(masters)` names the control-plane nodes (from the cache), so another control plane is
 another scope; it is polled like a drawer's object with the targets every node, `master` and
-`worker` (every node less the masters, so no query names workers). Live values: the nodes' list
+`worker` (every node less the masters). The history's every-node queries name the cluster's nodes,
+which the engine gives with their addresses (`Hub.SetClusterNodes`, `RangeQuery.Nodes`), up to
+`groupQueryMax`; above it they sum every series and `ObjectSeries.ForeignMachines` counts the
+machines beyond the nodes ([D-157](decisions.md#d-157-the-clusters-history-sums-its-own-nodes)). Live values: the nodes' list
 summed (`clusterSums`); history: `clusterRange`, the node charts' series summed; pods: the cache's
 count, preceded once by kube-state-metrics' (`podCountQuery`, `addPodsHistory` in
 [`clusteroverview_pods.go`](../../internal/engine/clusteroverview_pods.go)). The engine
 ([`clusteroverview_charts.go`](../../internal/engine/clusteroverview_charts.go)) subscribes while
-the page is open and CPU or Memory shows. Not guarded: a Prometheus holding other clusters' series,
-or scraping cAdvisor twice, inflates the every-node sum.
+the page is open and CPU or Memory shows. Not guarded: a Prometheus scraping cAdvisor twice
+inflates the every-node sum.
 
 `DiskScope` is a list scope: `pollDisks` sends one instant query (`diskQuery`: size and available
 bytes of every node's filesystems, told apart by a `part` label). `diskUsages` filters the answer

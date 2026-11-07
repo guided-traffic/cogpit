@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"runtime/debug"
 	"slices"
 	"sync"
@@ -192,6 +193,9 @@ type Hub struct {
 	// nodeAddrs are the nodes' addresses besides their names, by node (SetNodeAddresses): how a
 	// Prometheus whose series name a node by its address finds it (A43).
 	nodeAddrs map[string][]string
+	// clusterNodes are the cluster's nodes, clusterAddrs their addresses besides their names
+	// (SetClusterNodes): the nodes the cluster's history sums.
+	clusterNodes, clusterAddrs []string
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -774,8 +778,33 @@ func (h *Hub) SetNodeAddresses(name string, addrs []string) {
 	}
 }
 
+// SetClusterNodes tells the hub the cluster's nodes, each with its addresses besides its name (as
+// SetNodeAddresses has them). The cluster's history sums these nodes' series only (RangeQuery.Nodes):
+// a Prometheus may scrape node-exporters besides the cluster's (a hypervisor, a storage host),
+// which no live value counts. The engine sets them from the cache before it subscribes the
+// cluster's scope, and again with every build of the page. A change asks for nothing again: the
+// history is asked for when the page opens or its range changes, and a node that joined since has
+// no series before that. It sends nothing itself.
+func (h *Hub) SetClusterNodes(nodes map[string][]string) {
+	names := slices.Sorted(maps.Keys(nodes))
+	var addrs []string
+	for _, n := range names {
+		for _, a := range nodes[n] {
+			if a != "" && a != n {
+				addrs = append(addrs, a)
+			}
+		}
+	}
+	slices.Sort(addrs)
+	addrs = slices.Compact(addrs)
+	h.mu.Lock()
+	h.clusterNodes, h.clusterAddrs = names, addrs
+	h.mu.Unlock()
+}
+
 // queryLocked is the range query of an object scope without its range: the object, and for a node
-// (or the cluster's control plane) the addresses the engine gave (SetNodeAddresses).
+// (or the cluster's control plane) the addresses the engine gave (SetNodeAddresses); for the
+// cluster also its nodes (SetClusterNodes).
 func (h *Hub) queryLocked(sc Scope) RangeQuery {
 	q := RangeQuery{Kind: sc.Kind, Namespace: sc.Namespace, Name: sc.Name}
 	switch sc.Kind {
@@ -785,6 +814,7 @@ func (h *Hub) queryLocked(sc Scope) RangeQuery {
 		for _, m := range ClusterMasters(sc.Name) {
 			q.Addresses = append(q.Addresses, h.nodeAddrs[m]...)
 		}
+		q.Nodes, q.NodeAddresses = h.clusterNodes, h.clusterAddrs
 	}
 	return q
 }

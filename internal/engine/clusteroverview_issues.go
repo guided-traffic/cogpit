@@ -71,10 +71,11 @@ type overviewBuild struct {
 	masters []string // the control-plane nodes, sorted
 	// nodeStates and podStates count the cluster's nodes and pods by state, in all namespaces.
 	nodeStates, podStates map[model.Status]int
-	// masterAddrs are the control-plane nodes' addresses, by node: the cluster's Prometheus history
-	// finds the masters' series by them too (Hub.SetNodeAddresses, A43).
-	masterAddrs map[string][]string
-	synced      bool
+	// nodeAddrs are every node's addresses besides its name, by node: the cluster's Prometheus
+	// history finds the nodes' and the masters' series by them too (Hub.SetClusterNodes,
+	// Hub.SetNodeAddresses, A43).
+	nodeAddrs map[string][]string
+	synced    bool
 	// nodesSynced: the nodes are listed (or cannot be read), so masters names the whole control plane
 	// as far as Cogpit can know it.
 	nodesSynced bool
@@ -140,7 +141,7 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 	ob := &overviewBuild{at: now, synced: src.synced(), errText: src.errText(), // before the lists: never claims more
 		nodesSynced: src.nodes == nil || src.nodes.handle.HasSynced() || src.nodes.handle.Err() != nil,
 		groups:      map[string]groupTotals{NodesMaster: {}, NodesWorker: {}},
-		nodeStates:  map[model.Status]int{}, podStates: map[model.Status]int{}}
+		nodeStates:  map[model.Status]int{}, podStates: map[model.Status]int{}, nodeAddrs: map[string][]string{}}
 	context := src.b.Context
 
 	nodeGroup := map[string]string{}
@@ -153,11 +154,8 @@ func (src *overviewSource) build(now time.Time) *overviewBuild {
 		if e.master {
 			g = NodesMaster
 			ob.masters = append(ob.masters, name)
-			if ob.masterAddrs == nil {
-				ob.masterAddrs = map[string][]string{}
-			}
-			ob.masterAddrs[name] = e.addrs
 		}
+		ob.nodeAddrs[name] = e.addrs
 		nodeGroup[name] = g
 		ob.nodeStates[e.state]++
 		t := ob.groups[g]
