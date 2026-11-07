@@ -150,6 +150,8 @@ func (p *clusterPanel) show(m *engine.ClusterOverviewModel) {
 		note = "The Metrics Server keeps no history: Cogpit keeps what it measured, the last hour at most."
 	case m.Status == metrics.StatusAvailable && m.UsageHistory == metrics.UsageNone:
 		note = noHistoryNote("the nodes")
+	case m.Status == metrics.StatusAvailable && m.ForeignMachines > 0:
+		note = foreignMachinesNote(m.ForeignMachines)
 	case m.PodsHistory == metrics.PodsFromKubeStateMetrics:
 		note = "Pods before this page opened: kube-state-metrics through Prometheus; since then the cluster's objects."
 	case m.PodsHistory == metrics.PodsFromNowhere:
@@ -183,6 +185,16 @@ func (p *clusterPanel) show(m *engine.ClusterOverviewModel) {
 	} else {
 		p.controls.Show()
 	}
+}
+
+// foreignMachinesNote says that the CPU and Memory history counts n machines besides the cluster's
+// nodes (D-157).
+func foreignMachinesNote(n int) string {
+	machines := strconv.Itoa(n) + " machines"
+	if n == 1 {
+		machines = "1 machine"
+	}
+	return "The CPU and Memory history counts " + machines + " besides this cluster's nodes: the cluster has too many nodes to name in a Prometheus query."
 }
 
 // requestBearing reads the shown cluster's integrations and shows them as the header's bearing. The

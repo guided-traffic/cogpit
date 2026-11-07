@@ -321,6 +321,15 @@ func exporterMemory(matcher string) string {
 		selector(metricNodeMemTotal, matcher), selector(metricNodeMemFree, matcher), selector(metricNodeInactiveFile, matcher))
 }
 
+// exporterGroupMemory is exporterMemory with the matcher on the total only: the free and the
+// inactive series join it one to one, so it holds for all three, and a query naming every node of
+// the cluster is a third as long. The free and inactive series of every exporter are read, as an
+// every-node query reads them anyway.
+func exporterGroupMemory(matcher string) string {
+	return fmt.Sprintf("sum(max by (node, instance) (%s - %s - %s))",
+		selector(metricNodeMemTotal, matcher), metricNodeMemFree, metricNodeInactiveFile)
+}
+
 // exporterOf joins the two ways the exporter series of one node (or of the control plane) are
 // labelled by "or", as nodeSum does: the node label first, else the instance.
 func exporterOf(q func(matcher string) string, m nodeMatch) string {

@@ -226,8 +226,10 @@ Helm's views and actions count in G6 and G7.
   scrape (`rateWindow` in [`promql.go`](../../internal/metrics/promql.go)); reading the scrape
   interval from Prometheus would sharpen the 5–15 minute charts on a faster scrape.
 - **A Thanos or VictoriaMetrics store of several clusters** is read unfiltered: the queries carry no
-  cluster label, so the Overview's sums and pod counts take in every cluster
-  ([D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus)).
+  cluster label, so the Overview's pod counts take in every cluster, and its CPU and memory sums
+  another cluster's node that shares a name or an address with this one's
+  ([D-71](../developer/decisions.md#d-71-thanos-and-victoriametrics-read-as-prometheus),
+  [D-157](../developer/decisions.md#d-157-the-clusters-history-sums-its-own-nodes)).
   Auto-detection on a cluster without a Prometheus and Services an operator made are not checked
   against a real installation.
 - **Alertmanager** (beyond Lens, not in the estimate; [beyond Lens › Alerts](beyond-lens.md#alerts)):

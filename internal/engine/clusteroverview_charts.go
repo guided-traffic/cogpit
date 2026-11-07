@@ -180,9 +180,11 @@ func (c *overviewCharts) subscribeLocked(ob *overviewBuild) {
 	}
 	// The masters' addresses, which their history may be found by (A43): before the first poll,
 	// and again with every build (unchanged ones cost nothing; a change asks for the history again).
+	// Every node with its addresses: the history sums these nodes' series only (D-157).
 	for _, m := range ob.masters {
-		c.b.Metrics.SetNodeAddresses(m, ob.masterAddrs[m])
+		c.b.Metrics.SetNodeAddresses(m, ob.nodeAddrs[m])
 	}
+	c.b.Metrics.SetClusterNodes(ob.nodeAddrs)
 	sc := metrics.ClusterScope(ob.masters)
 	if c.sub != nil && c.scope == sc {
 		return
@@ -272,7 +274,7 @@ func (c *overviewCharts) fill(m *ClusterOverviewModel, ob *overviewBuild, series
 	ts := hist.Targets[target]
 	m.PodsHistory = hist.PodsSource
 	if m.History {
-		m.UsageHistory = hist.UsageSource
+		m.UsageHistory, m.ForeignMachines = hist.UsageSource, hist.ForeignMachines
 	}
 	if ts == nil {
 		return

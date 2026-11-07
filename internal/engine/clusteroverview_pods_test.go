@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -13,12 +14,14 @@ import (
 // The cluster Overview's Pods chart with Prometheus's history (G12): kube-state-metrics' counts
 // before the page opened, then the cache's.
 
-// podsHistory is a Prometheus with the cluster's history: CPU and memory, and the workers' pod
-// counts 30, 20 and 10 minutes back when it has kube-state-metrics.
+// podsHistory is a Prometheus with the cluster's history: CPU and memory (counting two machines
+// besides the cluster's nodes), and the workers' pod counts 30, 20 and 10 minutes back when it has
+// kube-state-metrics.
 type podsHistory struct {
-	ksm  bool
-	mu   sync.Mutex
-	asks []metrics.Want
+	ksm   bool
+	mu    sync.Mutex
+	asks  []metrics.Want
+	nodes [][]string
 }
 
 func (*podsHistory) ID() string    { return metrics.PrometheusID }
@@ -38,6 +41,7 @@ func (*podsHistory) GetNode(context.Context, string) (model.NodeUsage, error) {
 func (p *podsHistory) ObjectRange(_ context.Context, q metrics.RangeQuery) (*metrics.ObjectSeries, error) {
 	p.mu.Lock()
 	p.asks = append(p.asks, q.Want)
+	p.nodes = append(p.nodes, q.Nodes)
 	p.mu.Unlock()
 	out := &metrics.ObjectSeries{Targets: map[string]*metrics.TargetSeries{}, From: q.From, To: q.To, Step: q.Step}
 	now := time.Now()
@@ -45,6 +49,7 @@ func (p *podsHistory) ObjectRange(_ context.Context, q metrics.RangeQuery) (*met
 	out.Targets[metrics.TargetWorker] = worker
 	if q.Want.Has(metrics.WantUsage) {
 		worker.Usage = []model.UsageSample{{At: now.Add(-20 * time.Minute), Usage: model.Usage{CPUMilli: 900, MemoryBytes: 2 << 30}}}
+		out.UsageSource, out.ForeignMachines = metrics.UsageNodeExporter, 2
 	}
 	if q.Want.Has(metrics.WantPods) {
 		out.PodsSource = metrics.PodsFromNowhere
@@ -112,6 +117,14 @@ func TestClusterOverviewPodsHistory(t *testing.T) {
 		}
 		if n != 1 {
 			t.Errorf("the pod counts asked for %d times (%v), want once", n, prom.wants())
+		}
+		// The history was asked for the cluster's nodes, and the machines beyond them reach the page
+		// (D-157).
+		prom.mu.Lock()
+		nodes := prom.nodes[0]
+		prom.mu.Unlock()
+		if !slices.Equal(nodes, []string{"master-1", "worker-1", "worker-2"}) || m.ForeignMachines != 2 {
+			t.Errorf("the history asked for the nodes %v, the page counts %d foreign machines", nodes, m.ForeignMachines)
 		}
 	}
 }

@@ -165,6 +165,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-154](#d-154-a-namespaces-usage-and-allocation-in-the-namespaces-list) | A namespace's usage and allocation in the Namespaces list | built: CPU, Memory, CPU Req / Lim, Memory Req / Lim; the limits muted after the requests, "+" after an open limit, orange for memory |
 | [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 | [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
+| [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
 
 ## D-1: UI toolkit
 
@@ -2637,7 +2638,9 @@ cluster that runs both would show another store's series; trying several vmselec
 per guess.
 
 **Limits:** a store found or named that holds several clusters counts them all in the Overview's
-sums and the pod counts, and a drawer's object may match another cluster's object of the same name.
+pod counts, and in its CPU and memory sums another cluster's node that shares a name or an address
+with one of this cluster's (all of them above [D-157](#d-157-the-clusters-history-sums-its-own-nodes)'s
+limit); a drawer's object may match another cluster's object of the same name.
 Not verified: detection on a real cluster without a Prometheus (fakes only); VictoriaMetrics'
 charts point by point against Prometheus (MetricsQL's `rate` does not extrapolate).
 
@@ -6456,3 +6459,41 @@ alerts) are not measured.
 **Code:** [`instrument_health.go`](../../internal/ui/fyneui/instrument_health.go) `newHealthLegend`;
 [`metricsview.go`](../../internal/ui/fyneui/metricsview.go) `flowLayout` · **Tests:**
 `TestClusterOverviewFitsANarrowScreen`
+
+## D-157: The cluster's history sums its own nodes
+
+**Status:** built · **By:** owner (name the cluster's nodes), lead (open to revision) the rest
+
+The cluster Overview's CPU and Memory history (every node, and the workers as every node less the
+masters) sums the cluster's own nodes only. The engine gives the metrics hub every node from the
+cache with its addresses (`Hub.SetClusterNodes`); the every-node queries match them by the `node`
+label, else by `instance` as a name or an address, as the masters' queries do (`matchGroup`).
+node-exporter's memory names them on the total alone (`exporterGroupMemory`), a third of the
+length. Such a query may be 7 KiB long URL-encoded (`groupQueryMax`): about 100 nodes with short
+names and one address each, about 40 with cloud names such as
+`ip-10-0-1-2.eu-central-1.compute.internal`. A larger cluster is summed over every series the
+Prometheus has; one instant query then counts the machines, and when there are more than nodes the
+note under the charts says how many (`ObjectSeries.ForeignMachines`).
+
+**Why:** a Prometheus that also scrapes node-exporters outside the cluster (a hypervisor, a storage
+host) put them into the every-node sum and so into the workers': two workers of 3.7 GiB each
+charted 160 GiB while the Metrics Server's live values showed 3 GiB.
+
+**Rejected:** a join with kube-state-metrics' `kube_node_info` (needs kube-state-metrics and a
+relabelling of the address to the instance with its port, which matches nothing, silently, where
+the instance is named otherwise); counting the exporters and dropping the history when there are
+more than nodes (no history in exactly these setups); sending the query by POST (the service
+proxy's `create` verb, beyond the read-only footprint); a longer limit (the API server takes 1 MiB,
+but ingress-nginx in front of it, as Rancher has, caps the request line at 8 KiB by default).
+
+**Not covered:** a node that left the cluster is missing from the history of the time it was in it
+(the nodes are the cache's of now); a node-exporter whose instance is neither a node's name nor one
+of its addresses (a pod address) is not found, and the history falls back to the root cgroups; the
+Pods history is not matched by node ([D-71](#d-71-thanos-and-victoriametrics-read-as-prometheus)).
+
+**Code:** [`promcluster.go`](../../internal/metrics/promcluster.go) `clusterExporterQueries`,
+`clusterQueries`, `foreignMachines`; [`hub.go`](../../internal/metrics/hub.go) `SetClusterNodes`;
+[`clusteroverview_charts.go`](../../internal/engine/clusteroverview_charts.go) `subscribeLocked`;
+[`clusteroverview.go`](../../internal/ui/fyneui/clusteroverview.go) `foreignMachinesNote` ·
+**Tests:** `TestClusterHistoryCountsTheClustersNodesOnly`, `TestClusterHistoryThenLiveSums`,
+`TestClusterOverviewPodsHistory`, `TestClusterOverviewForeignMachinesNote`

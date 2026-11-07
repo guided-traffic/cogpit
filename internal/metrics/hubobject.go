@@ -42,7 +42,7 @@ type objectPlan struct {
 	// are the finest set's range and step, which the live values, the incremental and the gap's
 	// queries and the fallback follow.
 	window, fine, step time.Duration
-	addrs              []string // the node's (the control plane's) addresses for the range queries
+	base               RangeQuery // the object's range query without its range (Hub.queryLocked)
 	// coarse are the coarser query sets due (A46), each answer put into the chart up to its until:
 	// where the next finer set begins.
 	coarse []coarseQuery
@@ -119,7 +119,7 @@ func (h *Hub) pollObject(ctx context.Context, sc Scope) State {
 		if !now.After(from) {
 			from = alignDown(now.Add(-p.step), p.step)
 		}
-		q := RangeQuery{Kind: sc.Kind, Namespace: sc.Namespace, Name: sc.Name, Addresses: p.addrs, From: from, To: now, Step: p.step, Want: WantUsage}
+		q := p.base.over(from, now, p.step, WantUsage)
 		r.fallbackQuery = &q
 		r.fallback, r.fallbackErr = callRange(ctx, p.hist, q)
 	}
@@ -169,7 +169,7 @@ func (h *Hub) planLocked(st *scopeState, sc Scope, now time.Time) objectPlan {
 	p.hist = hist.prov.(RangeProvider)
 	base := h.queryLocked(sc)
 	base.Step = step
-	p.addrs = base.Addresses
+	p.base = base
 	from := alignDown(now.Add(-window), step)
 	addrsChanged := !slices.Equal(ch.histAddrs, base.Addresses)
 	if addrsChanged {
@@ -206,7 +206,8 @@ func (h *Hub) planLocked(st *scopeState, sc Scope, now time.Time) objectPlan {
 		full |= WantPods
 	}
 	if full != 0 {
-		p.full = &RangeQuery{Kind: base.Kind, Namespace: base.Namespace, Name: base.Name, Addresses: base.Addresses, From: from, To: now, Step: step, Want: full}
+		q := base.over(from, now, step, full)
+		p.full = &q
 	}
 	if inc != 0 {
 		start := ch.lastOf(inc)
@@ -217,10 +218,11 @@ func (h *Hub) planLocked(st *scopeState, sc Scope, now time.Time) objectPlan {
 		if !now.After(start) {
 			start = alignDown(now.Add(-step), step)
 		}
-		p.inc = &RangeQuery{Kind: base.Kind, Namespace: base.Namespace, Name: base.Name, Addresses: base.Addresses, From: start, To: now, Step: step, Want: inc}
+		q := base.over(start, now, step, inc)
+		p.inc = &q
 	}
 	if usage && ch.gap != nil && !full.Has(WantUsage) {
-		q := RangeQuery{Kind: base.Kind, Namespace: base.Namespace, Name: base.Name, Addresses: base.Addresses, From: alignDown(ch.gap[0], step), To: ch.gap[1], Step: step, Want: WantUsage}
+		q := base.over(alignDown(ch.gap[0], step), ch.gap[1], step, WantUsage)
 		if q.To.After(q.From) {
 			p.gap, p.gapSpan = &q, *ch.gap
 		} else {
@@ -250,8 +252,7 @@ func (h *Hub) planCoarseLocked(ch *chart, sc Scope, p *objectPlan, bands []band,
 			continue
 		}
 		until := alignDown(now.Add(-finer.window), finer.step)
-		q := base
-		q.From, q.To, q.Step, q.Want = alignDown(now.Add(-b.window), b.step), until, b.step, missing
+		q := base.over(alignDown(now.Add(-b.window), b.step), until, b.step, missing)
 		p.coarse = append(p.coarse, coarseQuery{q: q, band: b, until: until})
 	}
 }
@@ -303,7 +304,7 @@ func (h *Hub) applyObjectLocked(ctx context.Context, st *scopeState, sc Scope, p
 			ch.hist, ch.histAddrs = cov, p.full.Addresses
 			ch.histLabel = histLabel
 			if r.full != nil {
-				ch.usageSource = r.full.UsageSource
+				ch.usageSource, ch.foreign = r.full.UsageSource, r.full.ForeignMachines
 			}
 			if p.live == nil {
 				ch.liveLabel = histLabel

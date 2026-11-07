@@ -151,15 +151,27 @@ func (e *StateError) Unwrap() error { return e.Err }
 // alone, volume.go); Namespace is empty for a node. Want says which series; zero
 // asks for all of them. Addresses are the addresses of the node (or of the cluster's control-plane
 // nodes) besides their names (Hub.SetNodeAddresses): a Prometheus whose series name a node by
-// its address as the instance (kube-prometheus-stack's node-exporter) is matched by them.
+// its address as the instance (kube-prometheus-stack's node-exporter) is matched by them. Nodes
+// and NodeAddresses are, for the cluster's scope, every node of the cluster and their addresses
+// besides their names (Hub.SetClusterNodes): the every-node and the workers' sums count their
+// series only, so a machine the Prometheus scrapes besides the cluster's nodes (a hypervisor, a
+// storage host) is not counted; none known, every series is.
 type RangeQuery struct {
-	Kind      Kind
-	Namespace string
-	Name      string
-	Addresses []string
-	From, To  time.Time
-	Step      time.Duration
-	Want      Want
+	Kind          Kind
+	Namespace     string
+	Name          string
+	Addresses     []string
+	Nodes         []string
+	NodeAddresses []string
+	From, To      time.Time
+	Step          time.Duration
+	Want          Want
+}
+
+// over is the query over another range, at a step, for want.
+func (q RangeQuery) over(from, to time.Time, step time.Duration, want Want) RangeQuery {
+	q.From, q.To, q.Step, q.Want = from, to, step, want
+	return q
 }
 
 // Want is a set of the series a range query asks for. The hub asks for what the open drawer's
@@ -213,6 +225,11 @@ type ObjectSeries struct {
 	// (WantUsage): UsageNodeExporter (a node, the cluster), UsageCAdvisor, or UsageNone when the
 	// Prometheus has no such series over the range; "" when not asked.
 	UsageSource string `json:"usageSource,omitempty"`
+	// ForeignMachines is, for the cluster's history, how many machines more than the cluster has
+	// nodes its every-node and workers' sums count: the cluster has too many nodes to name in a
+	// query (RangeQuery.Nodes), so the sums take in every series the Prometheus has; 0 when they
+	// count the cluster's nodes only, or the Prometheus has no more.
+	ForeignMachines int `json:"foreignMachines,omitempty"`
 	// From, To and Step are the grid the series were asked for.
 	From, To time.Time
 	Step     time.Duration

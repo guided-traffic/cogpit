@@ -30,3 +30,6 @@ func ErrorClass(err error) string { return errorClass(err) }
 func Splice(old, add []model.UsageSample, from, to time.Time) []model.UsageSample {
 	return splice(old, add, from, to, usageAt)
 }
+
+// GroupQueryMax is groupQueryMax.
+const GroupQueryMax = groupQueryMax
