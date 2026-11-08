@@ -468,12 +468,13 @@ func charWidth(th fyne.Theme) float32 {
 	return fyne.MeasureText("M", th.Size(theme.SizeNameText), fyne.TextStyle{Monospace: true}).Width
 }
 
-// logList is the list of rows; it hands "/" to the view (focus the search) instead of ignoring it
-// when it has the keyboard focus, which a tap on a row gives it, and tells the view of the scrolls
-// the user makes (logsfollow.go).
+// logList is the list of rows; it offers the runes typed while it has the keyboard to the view
+// ("/" focuses the search, the caller's keys; Logs.takeRune) instead of ignoring them, and tells the
+// view of the scrolls the user makes (logsfollow.go).
 type logList struct {
 	widget.List
-	onSlash func()
+	onSlash  func()
+	takeRune func(rune) bool // Logs.takeRune
 
 	// onUserScroll is called after the user scrolled the rows: the wheel or the trackpad, the scroll
 	// bar's drag or a click on its track; dy is how far the view moved down (< 0: up).
@@ -485,8 +486,7 @@ type logList struct {
 
 // TypedRune implements fyne.Focusable.
 func (l *logList) TypedRune(r rune) {
-	if r == '/' && l.onSlash != nil {
-		l.onSlash()
+	if l.takeRune != nil && l.takeRune(r) {
 		return
 	}
 	l.List.TypedRune(r)

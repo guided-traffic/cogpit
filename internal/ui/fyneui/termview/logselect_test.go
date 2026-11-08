@@ -354,6 +354,53 @@ func TestLogSelectionKeysGoOn(t *testing.T) {
 	}
 }
 
+// TestLogsCallerKeys: the caller's keys (SetOnKeys) get the runes and shortcuts typed while the
+// lines have the keyboard, on the surface and on the list; what the caller takes stays there, a
+// rune it leaves goes on to the window; "/" stays the search's, ⌘C and ⌘A the selection's. (Fyne's test canvas has no shortcut handler to hand a shortcut on to.)
+func TestLogsCallerKeys(t *testing.T) {
+	l, w := showMerged(t, mergedLogs[:3], LogView{}, fyne.NewSize(600, 300))
+	got := copiedBy(l)
+	var windowRunes []rune
+	w.Canvas().SetOnTypedRune(func(r rune) { windowRunes = append(windowRunes, r) })
+	save := &desktop.CustomShortcut{KeyName: fyne.KeyS, Modifier: fyne.KeyModifierShortcutDefault}
+	other := &desktop.CustomShortcut{KeyName: fyne.KeyK, Modifier: fyne.KeyModifierShortcutDefault}
+	slashes := 0
+	l.SetOnSlash(func() { slashes++ })
+	var taken []string
+	l.SetOnKeys(func(r rune) bool {
+		if r != 't' {
+			return false
+		}
+		taken = append(taken, string(r))
+		return true
+	}, func(sc fyne.Shortcut) bool {
+		if sc.ShortcutName() != save.ShortcutName() {
+			return false
+		}
+		taken = append(taken, sc.ShortcutName())
+		return true
+	})
+
+	s := l.surface
+	w.Canvas().Focus(s)
+	test.Type(s, "tx/")
+	s.TypedShortcut(save)
+	s.TypedShortcut(other)
+	l.SelectAll()
+	s.TypedShortcut(&fyne.ShortcutCopy{})
+	if strings.Join(taken, " ") != "t "+save.ShortcutName() || slashes != 1 || string(windowRunes) != "x" ||
+		len(*got) != 1 || !strings.Contains((*got)[0], "\n") {
+		t.Errorf("taken %q, slashes %d, the window's runes %q, copied %q", taken, slashes, windowRunes, *got)
+	}
+
+	taken, windowRunes = nil, nil
+	w.Canvas().Focus(l.list)
+	test.Type(l.list, "tx/")
+	if strings.Join(taken, " ") != "t" || slashes != 2 {
+		t.Errorf("on the list: taken %q, slashes %d", taken, slashes)
+	}
+}
+
 func TestRenderLogsSelection(t *testing.T) {
 	l, w := showMerged(t, mergedLogs, LogView{Prefixed: true, Names: true, Timestamps: true, Search: "error"}, fyne.NewSize(900, 260))
 	l.Refresh()

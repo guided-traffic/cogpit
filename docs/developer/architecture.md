@@ -901,7 +901,10 @@ and close them too.
   adopting its next instance. Group logs (`argocd.logs`, `flux.logs`;
   [`grouplogs.go`](../../internal/engine/grouplogs.go)) run one such stream per workload the cached
   group object names ([`workloadsof.go`](../../internal/model/kinds/workloadsof.go)), sharing the
-  bounds, at most 20 workloads.
+  bounds, at most 20 workloads. The tab's single keys
+  ([`logtab_keys.go`](../../internal/ui/fyneui/logtab_keys.go)) run its controls' own actions,
+  offered by the lines' surface (`termview.Logs.SetOnKeys`), so they reach the engine as a click
+  does.
 - **Older log lines** ([`logsolder.go`](../../internal/engine/logsolder.go)): the lines live in the
   GUI's view (at most 10,000), so `logs.loadOlder` and `logs.jumpTo` record a request on the tab
   that the window carries out through `Session.OlderLogs`

@@ -140,7 +140,8 @@ Ctrl on Windows and Linux.
 **Workloads at run time**
 
 - Logs: follow, filter, timestamps, the previous container, pod and container selectors, older
-  lines, a jump to a time.
+  lines, a jump to a time; k9s's single keys `t`, `w`, `0`, `2`–`6` and ⌘S
+  ([keys](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)).
 - Pod shells, attach and a terminal bound to the cluster's context (⌘⇧T); copy and paste by keys or,
   if you choose, the right mouse button. A tab you open gets the keyboard; one an agent opens does
   not take it.
@@ -1078,6 +1079,18 @@ In a **logs tab** ([D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-tex
 | right-click | Copy, Select All, Copy All Lines Shown (what Download saves) |
 | Escape | drops the selection |
 
+Single keys while the lines have the keyboard (opening the tab or a click into the lines gives it
+to them), as in k9s's log view; the search, the time field and terminal tabs type every key:
+
+| Key | It does |
+|---|---|
+| `t` | Timestamps on or off |
+| `w` | Wrap on or off |
+| `2` `3` `4` `5` `6` | the time field's jump to `1m ago`, `5m ago`, `15m ago`, `30m ago`, `1h ago` |
+| `0` | ticks Follow: the newest line, following |
+| `/` | the search; also while nothing has the keyboard |
+| ⌘S (Ctrl+S) | Download |
+
 **Follow** goes off when you select with the pointer (the selection stays on its lines as new ones
 arrive) and when you scroll up five lines or more from the newest (wheel, trackpad, scroll bar):
 the log stays where you scrolled. A smaller scroll up keeps following that far behind; scrolling
@@ -1090,7 +1103,7 @@ Without **Wrap**, lines wider than the tab scroll sideways: a sideways swipe or 
 
 The selection survives Wrap, a new width, a search and a filter; toggling Resource names or
 Timestamps drops it. A tab keeps its newest 10,000 lines; a selection loses its part in dropped
-lines. Copying shows no toast. `/` jumps to the search.
+lines. Copying shows no toast.
 
 In a **toast**, drag or double-click selects and ⌘C copies; the copy icon left of the × copies the
 whole message. A toast stays while the pointer is on it, its × or its icon, and while its text is

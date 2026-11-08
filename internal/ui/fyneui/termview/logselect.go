@@ -29,8 +29,10 @@ import (
 // a filter (copying takes the lines the view shows within it); lines the scrollback drops take
 // their part of it with them; a view that shows the lines' text differently (names, timestamps,
 // the time format) drops it. A surface over the list (logSurface) takes the pointer and the keys,
-// so that a drag that leaves the list or makes it scroll still knows where it is. Selecting is
-// the window's alone, as in the detail drawer (D-25): no command, no engine state, no audit line.
+// so that a drag that leaves the list or makes it scroll still knows where it is; it offers the
+// keys it does not take itself to the caller (SetOnKeys: a logs tab's t, w, 0, 2–6, ⌘S) before
+// they go on to the window. Selecting is the window's alone, as in the detail drawer (D-25): no
+// command, no engine state, no audit line.
 
 // Bounds of selecting.
 const (
@@ -569,11 +571,10 @@ func (s *logSurface) FocusGained() {}
 // the focus); a press in the view begins a new one.
 func (s *logSurface) FocusLost() {}
 
-// TypedRune implements fyne.Focusable: "/" focuses the tab's search; other runes go on to the
-// window.
+// TypedRune implements fyne.Focusable: "/" focuses the tab's search, the caller takes its keys
+// (SetOnKeys); other runes go on to the window.
 func (s *logSurface) TypedRune(r rune) {
-	if r == '/' && s.l.list.onSlash != nil {
-		s.l.list.onSlash()
+	if s.l.takeRune(r) {
 		return
 	}
 	if c := fyne.CurrentApp().Driver().CanvasForObject(s); c != nil && c.OnTypedRune() != nil {
@@ -593,8 +594,9 @@ func (s *logSurface) TypedKey(ev *fyne.KeyEvent) {
 	}
 }
 
-// TypedShortcut implements fyne.Shortcutable: copy and select all; other shortcuts go on to the
-// window's, which a focused widget that takes shortcuts would otherwise keep.
+// TypedShortcut implements fyne.Shortcutable: copy and select all, then the caller's (SetOnKeys);
+// other shortcuts go on to the window's, which a focused widget that takes shortcuts would
+// otherwise keep.
 func (s *logSurface) TypedShortcut(sc fyne.Shortcut) {
 	switch sc.(type) {
 	case *fyne.ShortcutCopy:
@@ -602,6 +604,9 @@ func (s *logSurface) TypedShortcut(sc fyne.Shortcut) {
 		return
 	case *fyne.ShortcutSelectAll:
 		s.l.SelectAll()
+		return
+	}
+	if s.l.takeShortcut(sc) {
 		return
 	}
 	if c, ok := fyne.CurrentApp().Driver().CanvasForObject(s).(interface{ TypedShortcut(fyne.Shortcut) }); ok {

@@ -27,8 +27,8 @@ import (
 //     or less); a scroll down that ends there turns Follow on and the view goes to the very end;
 //   - new lines while not following never turn it on, however close they leave the end: only the
 //     user's scroll down does; the checkbox as before both ways, ticked it goes to the newest line;
-//   - the log view has no scrolling keys of its own (its keys go on to the window, D-99), so none
-//     switches Follow.
+//   - the log view has no scrolling keys of its own (its keys go on to the window, D-99); a logs
+//     tab's "0" ticks Follow as a click does (fyneui/logtab_keys.go).
 
 // followOffRows is how many rows above the newest line a scroll up of the user's switches Follow
 // off.
