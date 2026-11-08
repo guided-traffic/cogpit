@@ -168,7 +168,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
 | [D-158](#d-158-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
 | [D-159](#d-159-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
-| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint above the keys, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
+| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint in the data's head, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
 | [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 
 ## D-1: UI toolkit
@@ -6614,11 +6614,12 @@ keys.
 ## D-160: Show all on a Secret's data
 
 **Status:** built · **By:** owner (every value at once, no confirmation, the key x; no button: a
-hint above the keys, its words), lead (open to revision) the details
+hint in the data's head where the button was, its words), lead (open to revision) the details
 
-Above a Secret's keys in the drawer, right-aligned over their Show buttons, stands the hint "To
-show-all secrets at once press x." in the muted caption, its "show-all" a link; while every value
-is shown it reads "To hide-all secrets at once press x.". The data's head and its rule stay as
+The head of a Secret's data in the drawer ("data · 5") carries at its right end, on the label's
+line over the rule, the hint "To show-all secrets at once press x." in the muted caption, its
+"show-all" a link (`drawerTitleParts`, as a release's History its "Open revisions"); while every
+value is shown it reads "To hide-all secrets at once press x.". The rule runs the head's width as
 every section's. The link and the key `x` ([D-158](#d-158-k9ss-single-keys-on-rows)) do what a
 click on every Show in the data does, with no confirmation: a GUI-only `secret.reveal` per masked
 key, the value kept as a single Show keeps it (read-only in place, cut at 4 KiB or 40 lines; where
@@ -6638,7 +6639,7 @@ leaves the section's head as every other one and tells the key that does the sam
 **Rejected:** a `secret.revealAll` command (an MCP tool); one engine call returning every value (a
 new data path; the editor needs each value whole anyway); a confirmation before show-all (the user
 reveals each value without one already); a button beside the data's head (its rule ended before
-it, the button stood taller than the head); a button over the Show column or beside Add Key (the
+it, the button stood taller than the head); the hint on a line of its own above the keys (the owner: in the head); a button over the Show column or beside Add Key (the
 owner's choice: a hint that teaches the key); a toast per failed read; a revealAll request kept for any later visit of the
 Secret (values shown on an open the user did not ask to reveal).
 

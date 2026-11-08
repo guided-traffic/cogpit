@@ -114,7 +114,7 @@ Ctrl on Windows and Linux.
   dry run, rebased onto a version someone else changed meanwhile; unsaved values survive a quit or
   a crash as a draft.
 - A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
-  the hint above the keys, "To **show-all** secrets at once press x.", whose show-all is a link, or
+  the hint in the data's head, "To **show-all** secrets at once press x.", whose show-all is a link, or
   the key `x` (no confirmation; then it reads hide-all and masks them again; [D-160](decisions.md#d-160-show-all-on-a-secrets-data)), copy
   a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
   keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved

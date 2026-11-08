@@ -111,8 +111,8 @@ type secData struct {
 	b64s    map[string]*b64Button  // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
 	toggles map[string]*textButton // the Show and Hide toggles of the keys the Secret holds, by key (an added key's is its row's)
 
-	// The hint above the keys, "To show-all secrets at once press x.", its link, and the keys with
-	// a Show or Hide as render last drew them (secretshowall.go).
+	// The hint in the data's head, "To show-all secrets at once press x.", its link, and the keys
+	// with a Show or Hide as render last drew them (secretshowall.go).
 	allLink *linkText
 	allHint fyne.CanvasObject
 	entries []revealEntry
@@ -170,7 +170,7 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd.buttons = footerRow(sd.adder, sd.counts, sd.revert, sd.save, d.contentWidth())
 	sd.status = newParagraph("", colorMuted, d.contentWidth())
 	sd.allLink, sd.allHint = newRevealAllHint(sd.toggleAll)
-	sd.root = container.NewVBox(sd.allHint, sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
+	sd.root = container.NewVBox(sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
 	sd.restore()
 	return sd
 }

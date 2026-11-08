@@ -13,7 +13,7 @@ import (
 // value in place until the user hides it, the drawer moves to another object or closes. The value
 // lives in the drawer's revealed map and its widgets only: no toast, no log, no engine state. A
 // masked value is copied without being shown (secretcopy.go), and that copy leaves the revealed
-// map alone. The show-all link above the keys is Show on every masked key (secretshowall.go).
+// map alone. The show-all link in the data's head is Show on every masked key (secretshowall.go).
 
 func init() { itemActionDialogs[engine.RevealCommand] = toggleReveal }
 
@@ -153,7 +153,7 @@ func setRevealLook(b *textButton, label string) {
 }
 
 // hideLabel is the word on the button that masks a value Show revealed, showLabel the one that
-// reveals it; showAllWord and hideAllWord are the link in the hint above a Secret's keys that does
+// reveals it; showAllWord and hideAllWord are the link in the hint in a Secret's data head that does
 // so for every value at once (secretshowall.go).
 const (
 	hideLabel   = "Hide"

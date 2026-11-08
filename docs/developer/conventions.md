@@ -80,7 +80,7 @@ cluster operation is worse than a crash.
   ([D-66](decisions.md#d-66-the-connection-log)). Credential types implement `slog.LogValuer` and
   `fmt.Stringer` as `"<redacted>"`.
 - Secret data in the UI is hidden until the user reveals it: one value with Show, all of a
-  Secret's with the show-all link above its keys or the key `x`.
+  Secret's with the show-all link in its data head or the key `x`.
 - Nothing from a Secret's data is sent to an LLM endpoint unless the user explicitly allows it for
   that request ([agents and MCP](../security/agents-and-mcp.md)).
 

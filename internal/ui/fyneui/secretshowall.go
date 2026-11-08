@@ -2,14 +2,14 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Show all (H-8, D-59, D-160): above a Secret's keys stands the hint "To show-all secrets at once
-// press x.", right-aligned over the keys' Show buttons, muted, its "show-all" a link; while every
+// Show all (H-8, D-59, D-160): the head of a Secret's data ("data · 5") carries at its right end,
+// on the label's line over the rule, the hint "To show-all secrets at once press x." (muted, its
+// "show-all" a link; drawerTitleParts, as a release's History its "Open revisions"); while every
 // value is shown it reads "hide-all". The link and the key x (revealAll, on a Secret's row or its
 // drawer) do what a click on every Show in the data does, with no confirmation: a masked key reads
 // its value through secret.reveal from the GUI, one read per key, kept in the drawer's revealed map
@@ -21,14 +21,20 @@ import (
 // toast: the reads are a single Show's. The hint is hidden where no key has a Show (binary values
 // only, no data).
 
+func init() {
+	drawerTitleParts[kindSecrets+"\x00Data"] = func(d *drawer, ref model.ObjectRef) fyne.CanvasObject {
+		return d.secDataFor(ref).allHint
+	}
+}
+
 // The hint's words around its link.
 const (
 	revealAllBefore = "To"
 	revealAllAfter  = "secrets at once press x."
 )
 
-// newRevealAllHint is the hint above a Secret's keys and its link, which runs toggle; hidden until
-// render finds a key with a Show.
+// newRevealAllHint is the hint in a Secret's data head and its link, which runs toggle; hidden
+// until render finds a key with a Show.
 func newRevealAllHint(toggle func()) (*linkText, fyne.CanvasObject) {
 	link := newLinkText(showAllWord, toggle)
 	link.size = theme.SizeNameCaptionText
@@ -36,9 +42,8 @@ func newRevealAllHint(toggle func()) (*linkText, fyne.CanvasObject) {
 		newTextLine(revealAllBefore, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
 		fitLink(link), // its whole word: a link's own minimum lets it shorten
 		newTextLine(revealAllAfter, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
-	hint := container.NewBorder(nil, nil, nil, line)
-	hint.Hide()
-	return link, hint
+	line.Hide()
+	return link, line
 }
 
 // revealAllText is the hint as it reads now: the link's word in its place.

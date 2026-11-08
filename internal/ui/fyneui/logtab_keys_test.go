@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -222,10 +223,12 @@ type typingTerminals struct {
 	typed *typedText
 }
 
-// typedText is what a terminal session was sent.
+// typedText is what a terminal session was sent; reading is set once the terminal reads its
+// session, from when on it sends what is typed.
 type typedText struct {
-	mu sync.Mutex
-	b  strings.Builder
+	mu      sync.Mutex
+	b       strings.Builder
+	reading atomic.Bool
 }
 
 func (x *typedText) String() string {
@@ -238,6 +241,11 @@ func (x *typedText) String() string {
 type typedStream struct {
 	*fakeStream
 	typed *typedText
+}
+
+func (s typedStream) Read(p []byte) (int, error) {
+	s.typed.reading.Store(true)
+	return s.fakeStream.Read(p)
 }
 
 func (s typedStream) Write(p []byte) (int, error) {
@@ -282,6 +290,8 @@ func TestLogTabKeysStayOutOfTerminals(t *testing.T) {
 	})
 	c := w.Canvas()
 	c.Focus(target)
+	// The widget sends what is typed only once it runs its session: before, the keys are lost.
+	q.until(t, "the terminal to read", func() bool { return typed.reading.Load() })
 	typeFocused(c, "tw20/")
 	c.Focused().(fyne.Shortcutable).TypedShortcut(saveKey)
 	q.until(t, "the keys in the terminal", func() bool { return strings.HasPrefix(typed.String(), "tw20/") })

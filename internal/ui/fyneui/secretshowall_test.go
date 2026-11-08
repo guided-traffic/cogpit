@@ -12,7 +12,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The show-all link in the hint above a Secret's keys (secretshowall.go): every value shown at once
+// The show-all link in the hint in a Secret's data head (secretshowall.go): every value shown at once
 // through secret.reveal from the GUI, one read per key, as a click on every Show; hide-all as a
 // click on every Hide; the key x's hook revealAll. The Secret is checkout-db of secretsFake: four text keys
 // and a binary one.

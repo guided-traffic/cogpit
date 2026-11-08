@@ -372,7 +372,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | k9s's command line in the palette: : opens it with : typed, :po, :deploy kube-system, :svc /web, :po @prod, views by short name, singular,… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The key overview, ?: the keys that act where the keyboard is (the object's, greyed with the reason where one cannot run; the list's; a logs… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A logs tab's single keys as k9s's log view: t timestamps, w wrap, 0 follow, 2–6 the log since 1 m to 1 h ago, / the search, ⌘S Download (D-… | done | [Everyday use](beyond-lens.md#everyday-use) |
-| Every value of a Secret shown at once, as k9s's x: the show-all link in the hint above the keys, or x on the Secret's row (D-160) | done | [Everyday use](beyond-lens.md#everyday-use) |
+| Every value of a Secret shown at once, as k9s's x: the show-all link in the hint in the data's head, or x on the Secret's row (D-160) | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
