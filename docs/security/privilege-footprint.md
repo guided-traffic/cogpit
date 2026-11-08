@@ -96,7 +96,7 @@ Every row follows these rules:
 | Action | Requests | Danger | What changes |
 |---|---|---|---|
 | Logs (`pod.logs`, `workload.logs`, `logs.controller`, `argocd.logs`, `flux.logs`; `logs.setSource`, `logs.sources`, `logs.loadOlder`, `logs.jumpTo`) | `get pods/log`; the pods, Replica Sets and a group's object and workloads from the cache | Read | Nothing. A tab streams at most 40 containers at once (a group's of at most 20 workloads, [`engine/grouplogs.go`](../../internal/engine/grouplogs.go)); older lines and a jump to a time are one request per container, only on the user's or an agent's action, bounded by the tab's 10,000 lines ([`engine/logsolder.go`](../../internal/engine/logsolder.go)) |
-| Secret drawer, reveal (`secret.reveal`) | none: the full Secrets watch's cache (declared `list secrets`) | Read, GUI only | Nothing. A value (4 KiB or 40 lines; whole with `whole`, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) lives only in the window's widgets until Hide, another object or the drawer's close; the reveal names the Secret's `resourceVersion`, so a changed Secret is refused (`TestRevealedValueDroppedWhenSecretChanges`). An agent's refused reveal is audited without the value (`TestRevealIsGUIOnly`) |
+| Secret drawer, reveal (`secret.reveal`) | none: the full Secrets watch's cache (declared `list secrets`) | Read, GUI only | Nothing. A value (4 KiB or 40 lines; whole with `whole`, [D-59](../developer/decisions.md#d-59-a-secrets-values-edited-in-the-drawer)) lives only in the window's widgets until Hide or Hide all, another object or the drawer's close; Show all is a reveal per masked key ([H-8](#h-8-secret-data-arrives-with-the-list)); the reveal names the Secret's `resourceVersion`, so a changed Secret is refused (`TestRevealedValueDroppedWhenSecretChanges`). An agent's refused reveal is audited without the value (`TestRevealIsGUIOnly`) |
 | Refresh access (`cluster.refreshAccess`) | the access reviews of a connect | Read | Nothing; the cached answers are fetched again |
 | Server-side dry run (`object.dryRun`) | `update` with `dryRun=All` of an Edit tab's text | Read | Nothing stored; RBAC still asks for `update`, and admission webhooks with side effects refuse it. A conflict never moves the edit's base version, so an agent's check cannot make the user's next apply overwrite a concurrent change |
 | A release's revisions (`helm.release.revision`, `helm.release.diff`, `ui.helm.revisions`, `ui.helm.revisions.set`) | none: the cached release records | Read; `ui.helm.*` UI | Nothing (`TestReleaseRevision`); values and rendered Secrets as [H-8](#h-8-secret-data-arrives-with-the-list) says |
@@ -335,6 +335,11 @@ Secrets view shows Keys and Type as Lens does ([D-13](../developer/decisions.md#
   `secrets` uses it, plus the warm period (5 minutes by default); Helm's releases read it too, and
   their own `owner=helm` watch takes over within a minute of its end.
 - **RBAC cannot narrow `list secrets`:** a user who may list Secrets transfers every value.
+- **Every value on screen at once.** Show all in the head of a Secret's data shows every text value
+  with one click and no confirmation: a `secret.reveal` per masked key from the GUI, as each key's
+  Show, a long value cut as Show cuts it, where the user may save each whole in its editor; Hide all
+  masks them again. A screen share or a look over the shoulder then carries every value of the
+  Secret (`TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`).
 - **Wiping.** The drawer decodes each value to measure it and zeroes the bytes; a reveal hands a Go
   string to the GUI. The cache's base64 strings and a revealed string wait for the garbage
   collector.

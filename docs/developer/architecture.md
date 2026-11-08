@@ -845,7 +845,9 @@ drawer is its profile's sections alone.
   `secret.reviewData` (masked diff) and `secret.saveData` are GUI-only. Values stay in the window's
   memory, never in a draft, and are copied only through `shell.copyText` as a Secret (cleared after
   60 s; per platform: [Platforms](#platforms)); a masked value is copied whole without being shown
-  (`secret.reveal` with `whole`, [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)).
+  (`secret.reveal` with `whole`, [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)). Show
+  all in the data's head runs a `secret.reveal` per masked key, as each key's Show does, and builds
+  the drawer once when the last answers ([`secretshowall.go`](../../internal/ui/fyneui/secretshowall.go)).
 - Copying is the window's, no command ([D-25](decisions.md#d-25-copying-values),
   `TestCopyHasNoCommand`): the drawer's texts are selectable and one copy icon sits on the value
   under the pointer ([`selection.go`](../../internal/ui/fyneui/selection.go),

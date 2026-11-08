@@ -66,7 +66,16 @@ const (
 	bracketBelow = 12 // between the line and what the head introduces
 )
 
-func (r *bracketRenderer) textSize() float32 { return r.b.Theme().Size(theme.SizeNameCaptionText) + 1 }
+func (r *bracketRenderer) textSize() float32 { return bracketTextSize(r.b.Theme()) }
+
+// bracketTextSize is the size of a bracket head's label in th.
+func bracketTextSize(th fyne.Theme) float32 { return th.Size(theme.SizeNameCaptionText) + 1 }
+
+// bracketTextHeight is the height of a bracket head's label line: what a part at the head's right
+// end is centred on (headPartLayout).
+func bracketTextHeight(th fyne.Theme) float32 {
+	return fyne.MeasureText("data", bracketTextSize(th), fyne.TextStyle{Bold: true}).Height
+}
 
 func (r *bracketRenderer) MinSize() fyne.Size {
 	ts := fyne.MeasureText(r.b.text, r.textSize(), r.text.TextStyle)
