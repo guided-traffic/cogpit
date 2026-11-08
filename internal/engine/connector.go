@@ -164,11 +164,13 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	discoStart := time.Now()
 	served, err := conn.ServedResources(ctx)
 	steps.logDiscovery(conn, len(served), time.Since(discoStart), err)
+	var names map[schema.GroupResource]model.KindNames
 	if err != nil {
 		c.logger().Warn("engine: discovery failed; offering every built-in kind", "context", name, "err", err)
 	} else {
 		profiles = servedProfiles(profiles, served)
 		customResources = served[crdsGVR]
+		names, _ = conn.ResourceNames(ctx) // the same cached answer: no request; without it the jump matches plurals and kinds
 	}
 	profiles = withHelmReleases(profiles)
 	// The local kinds (port forwards) are Cogpit's own objects: every real cluster offers them.
@@ -190,7 +192,7 @@ func (c *ClusterConnector) Connect(ctx context.Context, name string) (*Backend, 
 	access := newAccessReviews(conn, conn.Namespace())
 	var once sync.Once
 	be := &Backend{
-		Context: ctxName, Namespace: conn.Namespace(), Cache: ch, Conn: conn, Profiles: profiles,
+		Context: ctxName, Namespace: conn.Namespace(), Cache: ch, Conn: conn, Profiles: profiles, Names: names,
 		CustomResources: customResources, Access: access, SourceFile: sourceFile, CredentialPlugin: conn.CredentialPlugin(), Streaming: streaming,
 		Close: func() {
 			once.Do(func() {

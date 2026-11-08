@@ -52,6 +52,7 @@ Ctrl on Windows and Linux.
 **The window**
 
 - Command palette ⌘⇧P: every menu action, view and hotbar cluster. ⌘P finds a cluster by name.
+  `:` opens it as k9s's command line, `:po kube-system /web @prod` ([details](#the-palettes-jump-k9ss--commands)).
   ⌘B, ⌘J and ⌘I toggle the navigator, the dock (a terminal when it has no tab) and the agent chat.
 - The tab bar shows the shown cluster's tabs, none until it connects; Mixed environments (foot of
   All Clusters, off by default) shows every connected cluster's. Reorder tabs by dragging or with
@@ -112,11 +113,13 @@ Ctrl on Windows and Linux.
 - A Config Map's values edited in its drawer: keys added, changed, removed, saved with a diff and a
   dry run, rebased onto a version someone else changed meanwhile; unsaved values survive a quit or
   a crash as a draft.
-- A Secret's values edited in its drawer, by you alone: Show, copy a value (masked too) or its
-  base64 form (the clipboard is cleared after 60 seconds), add and remove keys; Save checks with the
-  server first and names keys and sizes, never a value; nothing unsaved touches the disk. Create
-  Secret masks values as you type. Agents can neither create a Secret nor read, review or save its
-  values.
+- A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
+  the hint in the data's head, "To **show-all** secrets at once press x.", whose show-all is a link, or
+  the key `x` (no confirmation; then it reads hide-all and masks them again; [D-160](decisions.md#d-160-show-all-on-a-secrets-data)), copy
+  a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
+  keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved
+  touches the disk. Create Secret masks values as you type. Agents can neither create a Secret nor
+  read, review or save its values.
 - Delete, Restart, Remove Finalizers and the Flux and Argo CD actions on checked rows (each view
   keeps its own): up to 500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
   agents see and may cancel in `ui_state`. On Port Forwarding the selection bar's Delete removes
@@ -140,7 +143,8 @@ Ctrl on Windows and Linux.
 **Workloads at run time**
 
 - Logs: follow, filter, timestamps, the previous container, pod and container selectors, older
-  lines, a jump to a time.
+  lines, a jump to a time; k9s's single keys `t`, `w`, `0`, `2`–`6` and ⌘S
+  ([keys](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)).
 - Pod shells, attach and a terminal bound to the cluster's context (⌘⇧T); copy and paste by keys or,
   if you choose, the right mouse button. A tab you open gets the keyboard; one an agent opens does
   not take it.
@@ -988,6 +992,35 @@ a configuration directory have no such item. Copying is no command
 ([D-25](decisions.md#d-25-copying-values)); agents read the path in `cluster_contexts` (`file`) and
 `cluster_settings_get` (`kubeconfig`).
 
+### The palette's jump: k9s's `:` commands
+
+`:` in a table or the window opens the command palette with `:` typed; a palette text that starts
+with `:` is a jump: `:<view> [namespace] [/search] [@cluster]`, the words after the view in any
+order ([D-161](decisions.md#d-161-the-palettes-jump-k9ss--commands)). The list completes as you
+type, ↵ opens the first entry, and an entry that cannot run is greyed with its reason (no view by
+that name, a namespace the cluster does not have, a namespace on a cluster-scoped kind).
+
+| Word | Means |
+|---|---|
+| `<view>` | A kind by its plural, singular, Kind or short name (`po`, `deploy`, `svc`; a custom kind's from its definition), its key (`certificates.cert-manager.io`) or its title, case ignored; a word that begins a name lists that view too |
+| `<namespace>` | One namespace: the namespace filter is set to it, the shown cluster's namespaces completing it. `all` or `-A`: every namespace. None: the filter stays |
+| `/text` | The view's search; several `/words` are its terms |
+| `@cluster` | The cluster by its context or the name the window shows; one not connected is connected first, its login program approved first |
+
+k9s's names for its own pages open what Cogpit has in their place:
+
+| Typed | Opens |
+|---|---|
+| `:pulses`, `:pulse`, `:pu`, `:hz` | the cluster Overview |
+| `:workloads`, `:workload`, `:wk` | the Workloads Overview |
+| `:helm`, `:hm`, `:charts`, `:chart` | Helm Releases (`:charts` lists Cogpit's Charts too) |
+| `:pf`, `:portforward`, `:portforwards` | Port Forwarding |
+| `:ctx`, `:context`, `:contexts`, then a name or none | Connect to Cluster (the clusters' list, as ⌘P), then each cluster the name matches, to open |
+
+A label selector (`app=web`) is greyed: search with `/web`. k9s's xray, popeye, benchmarks, screen
+dumps, users, groups, aliases, help and quit have no counterpart. Agents jump with `ui_jump`;
+`kinds_list` gives each kind's `singular` and `shortNames`.
+
 ### Choosing files: the system's panels
 
 On macOS every file chooser is the system's panel, a sheet on Cogpit's window
@@ -1050,19 +1083,55 @@ Escape closes the innermost thing open, and only that; press it again to go one 
 |---|---|
 | an open dropdown's list | closes it without a choice |
 | a dialog (a confirmation, Rollback, Scale, a create dialog, Connection Updates, About, …), whatever field has the keyboard | its Cancel, or Close where it has none; the drawer behind it stays open |
-| a pop-up list (namespace filter, status filter, columns, the agent's history), the palette, the bell's list, the MCP details | closes it |
+| a pop-up list (namespace filter, status filter, columns, the agent's history), the palette, the key overview, the bell's list, the MCP details | closes it |
 | a dock tab's find bar (its fields or the editor) | closes the bar; the editor gets the keys, the find text stays for the next ⌘F |
 | the find field over the drawer's YAML, a release's values or revisions | clears it; the editor gets the keys |
 | a list's search (⌘F) | clears it; the list gets the keys |
 | the logs tab's search, Argo CD's activity filter | clears it |
 | Preferences or Cluster Settings, a text field on it included | closes the card, keeping the value just typed; a menu or dialog opened from it closes first |
 | Preferences › Agent's connection form | closes the form, as its Cancel does |
-| the list, the navigator, or the drawer's YAML or values | closes the drawer |
+| the list, the navigator, or the drawer's YAML or values | closes the drawer; in the list with the drawer closed, clears the marked rows |
 
 A selected text (a log, a toast, the agent's answer) drops its selection first; the navigator's
 search (⌘P) and the namespace filter's search clear typed text first. Fyne's own widgets keep
 Escape: a button reached by Tab, the items of a check or radio group (Argo CD's Sync dialog), the
 fields of Fyne's file and colour dialogs.
+
+### Single keys (k9s's)
+
+While the list or the drawer has the keyboard, single keys act as in k9s: on the row the keyboard is
+on (the ring), or on the drawer's object
+([D-158](decisions.md#d-158-k9ss-single-keys-on-rows)). A text field and a terminal
+keep every key; nothing acts while a dialog, a menu, the palette or a settings page is open. With
+nothing holding the keyboard, a key acts on the drawer's object, else the list takes it. **?** shows
+the keys that act where the keyboard is (Help › Key Overview); the row menu and the drawer's
+tooltips name each action's key.
+
+| Keys | Where | What |
+|---|---|---|
+| `l` `p` | pods, workloads, Argo CD Applications, Flux Kustomizations | Logs; the previous container's logs |
+| `s` `a` | pods | Shell, Attach (a pod with several containers asks which) |
+| `r` `s` | Deployments, Stateful Sets, Daemon Sets; Replica Sets | Restart, Scale |
+| `t` `s` | Cron Jobs | Trigger; Suspend or Resume |
+| `c` `u` `r` `s` | nodes | Cordon, Uncordon, Drain, Shell |
+| `r` `v` | Helm releases | Rollback; the values in the Revisions tab |
+| `x` | Secrets | show all of the data's values, or hide them again |
+| `e` `c` `n` | every object | Edit; copy the name; copy the namespace |
+| `y` `d` | every object | the drawer at YAML; at Details |
+| `Ctrl+D`, `⌘⌫` (`Ctrl+Backspace`), `Delete` | every object | Delete, which asks first |
+| `w` `⇧J` `o` | namespaced objects; every object; pods | show this namespace only; go to the owner; go to the node |
+| `u` | namespaces; Secrets, Config Maps, Service Accounts and the other kinds with back references | use this namespace; the drawer at Referenced By |
+| `f` `⇧F` | pods, services | the Port Forwarding view; forward a port |
+| `j` `k`, `g` `G`, Home, End, PageUp, PageDown | the list | next and previous row, first and last, a page |
+| Space, `⇧↑` `⇧↓`, `Ctrl+\` | the list | mark the row; mark the rows on the way; clear the marks |
+| ↵, Escape | the list | the details; close them, then clear the marks |
+| `⇧N` `⇧A` `⇧S` `⇧P`, `⇧O` | the list | sort by name, age, status, namespace; by the keyboard's column (again: descending) |
+| `Ctrl+Z` | the list | only rows with problems (warning and error states), or all again |
+| `⌘S` (`Ctrl+S`) | the list | download it as CSV |
+| `:` | everywhere | go to a view: `:po`, `:deploy kube-system`, `:svc /web`, `:po @context` |
+| `/`, `0`, `?` | everywhere | search the view; every namespace; the key overview |
+
+With rows marked, Delete and Restart act on the marked rows; the other keys on the keyboard's row.
 
 ### Selecting and copying a log's, a notification's and the agent's text
 
@@ -1078,6 +1147,20 @@ In a **logs tab** ([D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-tex
 | right-click | Copy, Select All, Copy All Lines Shown (what Download saves) |
 | Escape | drops the selection |
 
+Single keys while the lines have the keyboard (opening the tab or a click into the lines gives it
+to them), as in k9s's log view ([D-159](decisions.md#d-159-a-logs-tabs-single-keys));
+the search, the time field and terminal tabs type every key, and the list's single keys stay out:
+
+| Key | It does |
+|---|---|
+| `t` | Timestamps on or off |
+| `w` | Wrap on or off |
+| `2` `3` `4` `5` `6` | the time field's jump to `1m ago`, `5m ago`, `15m ago`, `30m ago`, `1h ago` |
+| `0` | ticks Follow: the newest line, following |
+| `/` | the search; also while nothing has the keyboard |
+| ⌘S (Ctrl+S) | Download |
+| `?` | the key overview with these keys |
+
 **Follow** goes off when you select with the pointer (the selection stays on its lines as new ones
 arrive) and when you scroll up five lines or more from the newest (wheel, trackpad, scroll bar):
 the log stays where you scrolled. A smaller scroll up keeps following that far behind; scrolling
@@ -1090,7 +1173,7 @@ Without **Wrap**, lines wider than the tab scroll sideways: a sideways swipe or 
 
 The selection survives Wrap, a new width, a search and a filter; toggling Resource names or
 Timestamps drops it. A tab keeps its newest 10,000 lines; a selection loses its part in dropped
-lines. Copying shows no toast. `/` jumps to the search.
+lines. Copying shows no toast.
 
 In a **toast**, drag or double-click selects and ⌘C copies; the copy icon left of the × copies the
 whole message. A toast stays while the pointer is on it, its × or its icon, and while its text is

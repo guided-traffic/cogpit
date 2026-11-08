@@ -19,7 +19,7 @@ const orderCopy = 10
 
 func registerCopy(g *registrar) {
 	add(g, engine.Spec[refParams]{
-		ID: "object.copyName", Label: "Copy", MenuPath: "Object/Copy Name", Order: orderCopy, DrawerOnly: true,
+		ID: "object.copyName", Label: "Copy", MenuPath: "Object/Copy Name", Order: orderCopy, DrawerOnly: true, RowKeys: []string{"c"},
 		Danger: engine.DangerUI,
 		Description: "Returns an object's name, as the detail drawer's Copy does for the user, who gets it on the " +
 			"clipboard. Works for every kind; the object must be in Cogpit's cache.",

@@ -33,8 +33,8 @@ const secretsKind = "secrets"
 // secretDataTitle is the title of a Secret drawer's section of keys.
 const secretDataTitle = "Data"
 
-// Caps on what the drawer lists and a reveal shows. A Secret holds up to 1 MiB; the drawer lists
-// keys and shows one value at a time, so a reveal shows only the beginning of a value.
+// Caps on what the drawer lists and a reveal shows. A Secret holds up to 1 MiB; a reveal shows only
+// the beginning of a value, also when the drawer's Show all reveals every key.
 const (
 	secretValueBytes = 4 << 10 // bytes of one value a reveal shows
 	secretValueLines = 40      // lines of one value a reveal shows

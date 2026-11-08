@@ -19,12 +19,14 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"
@@ -36,6 +38,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // ErrNotImplemented marks a Phase 0 stub.
@@ -770,9 +773,37 @@ func (c *Conn) discovery() (discovery.CachedDiscoveryInterfaceWithContext, *disc
 // whose discovery fails (an aggregated API that is down) are left out, and such a partial answer is
 // kept for a minute only and never written. The map is the caller's to keep.
 func (c *Conn) ServedResources(ctx context.Context) (map[schema.GroupVersionResource]bool, error) {
-	cached, dc, err := c.discovery()
+	out := map[schema.GroupVersionResource]bool{}
+	err := c.servedEach(ctx, func(gvr schema.GroupVersionResource, _ *metav1.APIResource) { out[gvr] = true })
 	if err != nil {
 		return nil, err
+	}
+	return out, nil
+}
+
+// ResourceNames returns the singular name and the short names ("po", "deploy") discovery gives
+// each resource ServedResources returns, by group and resource, for the palette's jump. It reads
+// the same cached answer: after ServedResources it asks the server nothing. Resources without a
+// singular name and short names are left out.
+func (c *Conn) ResourceNames(ctx context.Context) (map[schema.GroupResource]model.KindNames, error) {
+	out := map[schema.GroupResource]model.KindNames{}
+	err := c.servedEach(ctx, func(gvr schema.GroupVersionResource, r *metav1.APIResource) {
+		if r.SingularName != "" || len(r.ShortNames) > 0 {
+			out[gvr.GroupResource()] = model.KindNames{Singular: r.SingularName, ShortNames: slices.Clone(r.ShortNames)}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// servedEach calls fn for every resource of the cached discovery answer that ServedResources
+// describes: its preferred version, list and watch among its verbs, no subresource.
+func (c *Conn) servedEach(ctx context.Context, fn func(schema.GroupVersionResource, *metav1.APIResource)) error {
+	cached, dc, err := c.discovery()
+	if err != nil {
+		return err
 	}
 	if dc.expired() {
 		cached.InvalidateWithContext(ctx)
@@ -781,7 +812,7 @@ func (c *Conn) ServedResources(ctx context.Context) (map[schema.GroupVersionReso
 	if err != nil {
 		var failed *discovery.ErrGroupDiscoveryFailed
 		if !errors.As(err, &failed) || len(lists) == 0 {
-			return nil, fmt.Errorf("context %q: discovery: %w", c.contextName, err)
+			return fmt.Errorf("context %q: discovery: %w", c.contextName, err)
 		}
 		if dc.firstPartialNotice() { // once per answer, not at every read of it
 			groups := make([]string, 0, len(failed.Groups))
@@ -791,20 +822,20 @@ func (c *Conn) ServedResources(ctx context.Context) (map[schema.GroupVersionReso
 			slog.Warn("cluster: discovery left out groups that did not answer", "context", c.contextName, "groups", groups)
 		}
 	}
-	out := map[schema.GroupVersionResource]bool{}
 	for _, l := range discovery.FilteredBy(discovery.SupportsAllVerbs{Verbs: []string{"list", "watch"}}, lists) {
 		gv, err := schema.ParseGroupVersion(l.GroupVersion)
 		if err != nil {
 			continue
 		}
-		for _, r := range l.APIResources {
+		for i := range l.APIResources {
+			r := &l.APIResources[i]
 			if strings.Contains(r.Name, "/") { // a subresource
 				continue
 			}
-			out[gv.WithResource(r.Name)] = true
+			fn(gv.WithResource(r.Name), r)
 		}
 	}
-	return out, nil
+	return nil
 }
 
 // InvalidateServedResources drops the cached discovery answer, in memory and on disk, so the next

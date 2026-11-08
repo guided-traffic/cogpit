@@ -89,7 +89,7 @@ var nodeShellBounds = fmt.Sprintf("default %s, from %s to %s", engine.NodeShellD
 func registerNodeShell(g *registrar) {
 	add(g, engine.Spec[refParams]{
 		ID: engine.NodeShellCommand, Label: "Shell", MenuPath: "Node/Shell", Kinds: []string{nodeKindKey},
-		Order: 100, Danger: engine.DangerDestructive, Verbs: nodeShellVerbs, Undoable: true, // nothing is lost (A101)
+		Order: 100, RowKeys: []string{"s"}, Danger: engine.DangerDestructive, Verbs: nodeShellVerbs, Undoable: true, // nothing is lost (A101)
 		Description: "Opens a root shell on a node, as Lens's node shell does: creates a privileged pod in kube-system on the " +
 			"node that shares the node's processes (hostPID), from the image Cluster Settings › Node Shell names (default: " +
 			engine.DefaultNodeShellImageName + " pinned by digest), and enters the node's namespaces with nsenter in a dock tab " +

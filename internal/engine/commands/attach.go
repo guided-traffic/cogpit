@@ -10,7 +10,7 @@ import (
 func registerAttach(g *registrar) {
 	// Lens's pod menu (capture, 2026-10-11): Attach Pod › (a submenu of the containers) first.
 	add(g, engine.Spec[containerParams]{
-		ID: "pod.attach", Label: "Attach Pod", MenuPath: "Pod/Attach", Kinds: []string{kindPods}, Order: 100,
+		ID: "pod.attach", Label: "Attach Pod", MenuPath: "Pod/Attach", Kinds: []string{kindPods}, Order: 100, RowKeys: []string{"a"},
 		Danger: engine.DangerMutating,
 		Verbs:  []engine.Verb{{Verb: nwVerbCreate, Resource: kindPods, Subresource: subresourceAttach}},
 		Description: "Opens a dock tab attached to a container's main process, as kubectl attach does: its output from " +

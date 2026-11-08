@@ -230,6 +230,7 @@ agents read.
 | `ID` | `<kind-or-area>.<action>`, lowerCamelCase segments |
 | `Label`, `MenuPath`, `Description` | menu label; menu (empty: none); MCP tool description |
 | `Shortcut`, `MoreKeys`, `PlatformKeys` | "Cmd" is ⌘ on macOS, Ctrl elsewhere; `NewRegistryFor` resolves the keys for its platform ([`keys.go`](../../internal/engine/keys.go)); no menu shows `MoreKeys` |
+| `RowKeys` | k9s's single keys on the row the table's keyboard is on or the drawer's object, while the table or the drawer has the keyboard; the first one the row menu and the key overview show; needs an `Order` or a selection ([D-158](decisions.md#d-158-k9ss-single-keys-on-rows)) |
 | `Kinds`, `Order`, `DrawerOnly` | kinds (empty: any); place in the row menu and the drawer's toolbar (0: neither; a kind's actions below Edit at `OrderEdit` 900, Delete at `OrderDelete` 1000); drawer only (Copy, which the window draws after the object's name: [`drawertitlecopy.go`](../../internal/ui/fyneui/drawertitlecopy.go)) |
 | `Danger`, `Verbs` | `read`, `ui`, `mutating`, `destructive`; API verbs for access reviews and the [privilege footprint](../security/privilege-footprint.md) (`Verb.Namespace`: a fixed namespace) |
 | `Enabled` | why it cannot run now; an error wrapping `ErrNotApplicable` hides it instead (on a cordoned node, Uncordon takes Cordon's place) |
@@ -338,6 +339,18 @@ view's kind commands, commands with a `MenuPath` the window can run (no `ref` wi
 reads only where it presents the result, required parameters only where it has a dialog,
 `PaletteInput.Runs`), and an entry per view and hotbar tile. An entry dispatches with origin `gui`
 like its menu item. `Palette` asks every entry's `Enabled`: call it off the UI goroutine.
+
+A text that starts with `:` is a jump, k9s's command line ([`jump.go`](../../internal/engine/jump.go),
+the grammar in its header; [D-161](decisions.md#d-161-the-palettes-jump-k9ss--commands)):
+`Registry.JumpEntries` matches it against a `JumpIndex`, what the window holds (`kinds.list` with
+each kind's names, the shown cluster's namespaces, the contexts), on every keystroke and without a
+request ([`fyneui/jump.go`](../../internal/ui/fyneui/jump.go)); each entry runs `ui.jump`
+([`commands/jump.go`](../../internal/engine/commands/jump.go)), which resolves the name again on
+the cluster it goes to (`Backend.ResolveJump`) and goes the ways of `cluster.connect`,
+`ui.setNamespace`, `ui.openView` and `ui.setFilter`. A kind's names besides its plural are
+`Backend.KindNames`: a built-in kind's from the connect's discovery answer
+(`cluster.Conn.ResourceNames`, the answer `ServedResources` read, no further request), a custom
+kind's from its definition's `spec.names` (`kinds.CustomKind.Names`), so they follow the definition.
 
 #### Keys
 
@@ -844,7 +857,9 @@ drawer is its profile's sections alone.
   `secret.reviewData` (masked diff) and `secret.saveData` are GUI-only. Values stay in the window's
   memory, never in a draft, and are copied only through `shell.copyText` as a Secret (cleared after
   60 s; per platform: [Platforms](#platforms)); a masked value is copied whole without being shown
-  (`secret.reveal` with `whole`, [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)).
+  (`secret.reveal` with `whole`, [`secretcopy.go`](../../internal/ui/fyneui/secretcopy.go)). Show
+  all in the data's head runs a `secret.reveal` per masked key, as each key's Show does, and builds
+  the drawer once when the last answers ([`secretshowall.go`](../../internal/ui/fyneui/secretshowall.go)).
 - Copying is the window's, no command ([D-25](decisions.md#d-25-copying-values),
   `TestCopyHasNoCommand`): the drawer's texts are selectable and one copy icon sits on the value
   under the pointer ([`selection.go`](../../internal/ui/fyneui/selection.go),
@@ -901,7 +916,10 @@ and close them too.
   adopting its next instance. Group logs (`argocd.logs`, `flux.logs`;
   [`grouplogs.go`](../../internal/engine/grouplogs.go)) run one such stream per workload the cached
   group object names ([`workloadsof.go`](../../internal/model/kinds/workloadsof.go)), sharing the
-  bounds, at most 20 workloads.
+  bounds, at most 20 workloads. The tab's single keys
+  ([`logtab_keys.go`](../../internal/ui/fyneui/logtab_keys.go)) run its controls' own actions,
+  offered by the lines' surface (`termview.Logs.SetOnKeys`), so they reach the engine as a click
+  does.
 - **Older log lines** ([`logsolder.go`](../../internal/engine/logsolder.go)): the lines live in the
   GUI's view (at most 10,000), so `logs.loadOlder` and `logs.jumpTo` record a request on the tab
   that the window carries out through `Session.OlderLogs`

@@ -46,10 +46,13 @@ type drawer struct {
 	// The section a click on a signal asked for and the section titles built, by title
 	// (drawer_openat.go).
 	want     *drawerWant
+	tabWant  *tabWant // the tab a key asked for (drawer_tabkeys.go)
 	titleObj map[string]fyne.CanvasObject
 
 	// A Secret's edited values the drawer moved away from, by object, in memory only (secretdata.go).
 	secretUnsaved map[string]*secUnsaved
+	// The Secret whose values revealAll asked to show once its data is built (secretshowall.go).
+	revealAllWant *model.ObjectRef
 
 	kind     *bracketLabel // the eyebrow: "pod · inventory" (stage_header.go)
 	title    *textLine
@@ -220,6 +223,7 @@ func (d *drawer) request() {
 func (d *drawer) showLoading(ref model.ObjectRef) {
 	r := ref
 	d.shown = &r
+	d.dropRevealWant(&r)
 	d.last = nil
 	d.acts = nil
 	d.expanded = map[string]bool{}
@@ -333,7 +337,8 @@ func (d *drawer) show(ref model.ObjectRef, m *engine.DetailModel, err error, act
 		prev.Metrics != m.Metrics { // the cluster's settings hid or showed the Metrics section
 		d.rebuild()
 	}
-	d.scrollToWanted() // a signal's section (drawer_openat.go)
+	d.scrollToWanted()  // a signal's section (drawer_openat.go)
+	d.selectWantedTab() // a key's tab (drawer_tabkeys.go)
 	// The same object changed in the cache: keep the reader's place in the YAML. Another object:
 	// start at the top.
 	if !m.Plain {
@@ -351,11 +356,13 @@ func (d *drawer) rebuild() {
 	d.details.Objects = d.buildDetails(d.last)
 	d.details.Refresh()
 	d.keepCopy(anchor)
+	d.revealWanted()
 }
 
 // clear forgets the shown object when the drawer closes.
 func (d *drawer) clear() {
 	d.shown, d.last, d.acts, d.dirty = nil, nil, nil, false
+	d.dropRevealWant(nil)
 	d.revealed = map[string]string{}
 	d.revealedLen = map[string]int{}
 	d.dropKept()
@@ -400,7 +407,7 @@ func (d *drawer) showActions(ref model.ObjectRef, acts []actionState) {
 			d.showNameCopy(ref, a)
 			continue
 		}
-		b := newTipButton(d.sh, commandIcon(a.cmd.ID), actionTip(a), nil)
+		b := newTipButton(d.sh, commandIcon(a.cmd.ID), actionKeyTip(a, d.sh.rowKeyFor(ref.Kind, a.cmd)), nil)
 		b.OnTapped = func() { d.run(ref, a, b) }
 		if a.reason != "" {
 			b.Disable()

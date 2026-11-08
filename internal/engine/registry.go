@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -77,7 +78,14 @@ type Spec[P any] struct {
 	// that platform's MoreKeys. VS Code's Go Back is ⌃- on macOS, Alt+Left on Windows and
 	// Ctrl+Alt+- on Linux (D-134).
 	PlatformKeys map[string][]string
-	Kinds        []string // kind keys the command applies to; empty: not kind-specific
+	// RowKeys are the keys that run the command on the object the resource table's keyboard is on,
+	// or on the drawer's object, while the table or the drawer has the keyboard (D-158,
+	// k9s's keys; rowkeys.go): never in a text field or a terminal. The first is the one the row
+	// menu and the key overview show. A key is one character ("l"; "J" is ⇧J) or a key with its
+	// modifiers in the registry's notation ("Ctrl+D", "Cmd+Backspace", "Delete"). A command with
+	// RowKeys needs an Order (it is one of its kinds' actions) or takes a selection.
+	RowKeys []string
+	Kinds   []string // kind keys the command applies to; empty: not kind-specific
 	// Order places the command among its kinds' actions in the row menu (⋮) and the drawer's
 	// toolbar, ascending: the kind's own actions in Lens's order below OrderEdit, then Edit and
 	// Delete. Zero leaves the command out of row menus and drawers (ui.*, kinds.list, ...).
@@ -150,7 +158,10 @@ type Command struct {
 	MenuPath string `json:"menuPath,omitempty"`
 	Shortcut string `json:"shortcut,omitempty"` // this platform's (Spec.PlatformKeys)
 	// MoreKeys are this platform's further keys, which menus do not show (Spec.MoreKeys).
-	MoreKeys    []string `json:"moreKeys,omitempty"`
+	MoreKeys []string `json:"moreKeys,omitempty"`
+	// RowKeys run the command on the row the table's keyboard is on, or the drawer's object
+	// (Spec.RowKeys).
+	RowKeys     []string `json:"rowKeys,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Kinds       []string `json:"kinds,omitempty"`
 	Order       int      `json:"order,omitempty"`
@@ -303,6 +314,9 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	if err := checkKeys(spec.Shortcut, spec.MoreKeys, spec.PlatformKeys); err != nil {
 		return fmt.Errorf("command %s: %w", spec.ID, err)
 	}
+	if err := checkRowKeys(spec.RowKeys); err != nil {
+		return fmt.Errorf("command %s: %w", spec.ID, err)
+	}
 	schema, err := jsonschema.For[P](nil)
 	if err != nil {
 		return fmt.Errorf("command %s: params schema: %w", spec.ID, err)
@@ -316,7 +330,7 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	}
 	shortcut, more := keysOn(r.goos, spec.Shortcut, spec.MoreKeys, spec.PlatformKeys)
 	c := &Command{
-		ID: spec.ID, Label: spec.Label, MenuPath: spec.MenuPath, Shortcut: shortcut, MoreKeys: more,
+		ID: spec.ID, Label: spec.Label, MenuPath: spec.MenuPath, Shortcut: shortcut, MoreKeys: more, RowKeys: slices.Clone(spec.RowKeys),
 		Description: spec.Description, Kinds: spec.Kinds, Order: spec.Order, DrawerOnly: spec.DrawerOnly, Danger: spec.Danger,
 		Escalates: spec.Escalate != nil, AgentsAsk: spec.AgentsAsk != nil, GUIOnly: spec.GUIOnly != nil, guiOnly: spec.GUIOnly, undoable: spec.Undoable, Verbs: spec.Verbs, Schema: schema,
 		resolved: resolved, dialog: spec.Dialog,
@@ -387,6 +401,10 @@ func Register[P any](r *Registry, spec Spec[P]) error {
 	}
 	c.run = func(ctx context.Context, s *Session, p any) (any, error) {
 		return spec.Run(ctx, s, p.(P))
+	}
+
+	if len(c.RowKeys) > 0 && c.Order == 0 && !c.TakesSelection() {
+		return fmt.Errorf("command %s: row keys without an order or a selection: no row runs it", spec.ID)
 	}
 
 	r.mu.Lock()

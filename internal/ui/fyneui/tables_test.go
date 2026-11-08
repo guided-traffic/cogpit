@@ -133,8 +133,9 @@ func press(t *testing.T, w fyne.Window, name fyne.KeyName) {
 }
 
 // TestTableKeyboard: with the table focused, ↑↓ move between rows (the row band follows), Tab
-// and ⇧Tab between columns (a ring marks the cell), ↵ and Space open the row's details through
-// ui.select, as a click does, and Escape closes them.
+// and ⇧Tab between columns (a ring marks the cell), ↵ opens the row's details through ui.select,
+// as a click does, and Escape closes them; Space marks the row (k9s's, D-158), and Escape
+// with the drawer closed clears the marks.
 func TestTableKeyboard(t *testing.T) {
 	f := connectedFake(t, 50)
 	sh, w, q := newTestShell(t, f, Options{})
@@ -185,9 +186,22 @@ func TestTableKeyboard(t *testing.T) {
 	q.until(t, "the drawer to close", func() bool { return sh.ui.Drawer == nil })
 	press(t, w, fyne.KeyDown)
 	press(t, w, fyne.KeySpace)
-	q.until(t, "the next row's drawer", func() bool {
-		return sh.ui.Drawer != nil && *sh.ui.Drawer == f.tables["pods"].Rows[3].Ref
+	next := f.tables["pods"].Rows[3].Ref
+	q.until(t, "the next row marked", func() bool {
+		return len(sh.ui.Selected) == 1 && sh.ui.Selected[0] == next
 	})
+	if sh.ui.Drawer != nil {
+		t.Fatalf("Space opened the drawer on %v", *sh.ui.Drawer)
+	}
+	press(t, w, fyne.KeyReturn)
+	q.until(t, "the next row's drawer", func() bool { return sh.ui.Drawer != nil && *sh.ui.Drawer == next })
+	if len(sh.ui.Selected) != 1 {
+		t.Fatalf("↵ changed the marks: %v", sh.ui.Selected)
+	}
+	press(t, w, fyne.KeyEscape)
+	q.until(t, "the drawer to close, the mark kept", func() bool { return sh.ui.Drawer == nil && len(sh.ui.Selected) == 1 })
+	press(t, w, fyne.KeyEscape)
+	q.until(t, "the marks cleared", func() bool { return len(sh.ui.Selected) == 0 })
 
 	// Leaving the table hides the ring; another view starts at its first cell.
 	w.Canvas().Unfocus()

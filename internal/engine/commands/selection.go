@@ -77,7 +77,7 @@ var errNotAttempted = errors.New("not attempted")
 
 func registerSelection(g *registrar) {
 	add(g, engine.Spec[selectionParams]{
-		ID: "object.deleteMany", Label: labelDelete, MenuPath: "Object/Delete Selected", Order: engine.OrderDelete,
+		ID: "object.deleteMany", Label: labelDelete, MenuPath: "Object/Delete Selected", Order: engine.OrderDelete, RowKeys: deleteKeys,
 		Danger: engine.DangerDestructive, Verbs: []engine.Verb{{Verb: "delete", Resource: "*"}},
 		Description: "Deletes several objects of any kinds at once, as Delete on the table's selection does: one " +
 			"confirmation names every object (the message the first ten and the count), their namespaces and the " +

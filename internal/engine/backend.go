@@ -39,6 +39,11 @@ type Backend struct {
 	// they define. The real cluster connector sets it; the demo cluster and backends that leave it
 	// off have the built-in kinds only.
 	CustomResources bool
+	// Names are the singular names and short names ("po") the cluster's discovery gives its
+	// resources, by group and resource (cluster.Conn.ResourceNames, read from the discovery answer
+	// the connect already has); nil when discovery failed or the backend has none. KindNames reads
+	// them, for kinds.list and the palette's jump.
+	Names map[schema.GroupResource]model.KindNames
 	// Discovery lists the group/version/resources the cluster serves (API discovery, as
 	// cluster.Conn's ServedResources). Nil means Conn's; without either nothing is discovered. The
 	// custom kinds use it when the definitions cannot be listed (A90, customkinds_discovery.go).
@@ -213,6 +218,21 @@ func (b *Backend) Profile(kind string) (*model.KindProfile, bool) {
 		}
 	}
 	return nil, false
+}
+
+// KindNames returns the names the cluster gives a kind besides its plural (its singular and its
+// short names): a custom kind's from its definition, any other API kind's from discovery
+// (Names); none for local and virtual kinds, whose objects no API server serves.
+func (b *Backend) KindNames(p *model.KindProfile) model.KindNames {
+	if b == nil || p == nil || !p.APIObject() {
+		return model.KindNames{}
+	}
+	if set := b.customSet(); set != nil {
+		if n, ok := set.names[p.Key]; ok {
+			return n
+		}
+	}
+	return b.Names[schema.GroupResource{Group: p.Group, Resource: p.Resource}]
 }
 
 // AllProfiles returns every kind the cluster serves: the built-in profiles in sidebar order, then

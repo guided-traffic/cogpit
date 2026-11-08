@@ -17,7 +17,7 @@ type ActionResult struct {
 func registerActions(g *registrar) {
 	add(g, engine.Spec[refParams]{
 		ID: "deployment.restart", Label: labelRestart, MenuPath: "Deployment/Restart", Kinds: []string{kindDeployments},
-		Order: 200, Danger: engine.DangerDestructive,
+		Order: 200, RowKeys: []string{"r"}, Danger: engine.DangerDestructive,
 		Verbs: []engine.Verb{{Verb: "patch", Group: "apps", Resource: kindDeployments}},
 		Description: "Restarts a Deployment the way kubectl rollout restart does: it sets the pod template's restartedAt " +
 			"annotation and the controller replaces every pod. Always asks the user to confirm.",
@@ -40,7 +40,7 @@ func registerActions(g *registrar) {
 	})
 
 	add(g, engine.Spec[refParams]{
-		ID: "object.delete", Label: labelDelete, MenuPath: "Object/Delete", Order: engine.OrderDelete, Danger: engine.DangerDestructive,
+		ID: "object.delete", Label: labelDelete, MenuPath: "Object/Delete", Order: engine.OrderDelete, RowKeys: deleteKeys, Danger: engine.DangerDestructive,
 		Verbs: []engine.Verb{{Verb: "delete", Resource: "*"}},
 		Description: "Deletes an object of any kind with its default grace period, with the UID Cogpit's cache holds for it " +
 			"as a precondition, so that an object created again under the same name is not deleted; its dependents are " +

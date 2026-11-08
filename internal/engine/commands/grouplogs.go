@@ -55,7 +55,7 @@ func registerGroupLogs(g *registrar) {
 func groupLogsSpec(id, menuPath, kind, desc string, check func(*unstructured.Unstructured) error) engine.Spec[refParams] {
 	// Lens's documented orders put Logs after the kind's other actions (workload.logs: 300).
 	return engine.Spec[refParams]{
-		ID: id, Label: groupLogsLabel, MenuPath: menuPath, Kinds: []string{kind}, Order: 300,
+		ID: id, Label: groupLogsLabel, MenuPath: menuPath, Kinds: []string{kind}, Order: 300, RowKeys: []string{"l"},
 		Danger: engine.DangerRead, Verbs: groupLogVerbs, Description: desc,
 		Enabled: func(s *engine.Session, p refParams) error {
 			if p.Ref.Kind != kind {

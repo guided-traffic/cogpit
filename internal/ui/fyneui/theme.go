@@ -113,6 +113,8 @@ const (
 	sizeDialogPadX     fyne.ThemeSizeName = "cogpit.dialogPadX"     // a framed dialog's sides together, Fyne's dialog padWidth (dialogframe.go)
 	sizeDialogPadY     fyne.ThemeSizeName = "cogpit.dialogPadY"     // above its content and below its buttons, Fyne's dialog padHeight
 	sizeSliderWidth    fyne.ThemeSizeName = "cogpit.sliderWidth"    // a parameter dialog's slider (paramdialog.go, D-104)
+	sizeKeyColumn      fyne.ThemeSizeName = "cogpit.keyColumn"      // the keys' column of the key overview (keyoverview.go)
+	sizeKeyCardColumn  fyne.ThemeSizeName = "cogpit.keyCardColumn"  // a column of the key overview
 	sizeHintIcon       fyne.ThemeSizeName = "cogpit.hintIcon"       // the "?" after a dialog field's name (D-104)
 	sizeAboutWidth     fyne.ThemeSizeName = "cogpit.aboutWidth"     // About Cogpit's column (about.go)
 	sizeHealthBar      fyne.ThemeSizeName = "cogpit.healthBar"      // a health bar's height (Workloads Overview)
@@ -572,6 +574,10 @@ func (t *cogTheme) Size(n fyne.ThemeSizeName) float32 {
 		return 16 // Fyne's dialog.padHeight (v2.8.2)
 	case sizeSliderWidth:
 		return 180 // 30 steps of 6 points: each count can be hit with the pointer
+	case sizeKeyColumn:
+		return 128 // "PageUp PageDown" and "g G  Home End" in the text size
+	case sizeKeyCardColumn:
+		return 380
 	case sizeHintIcon:
 		return 14
 	case sizeAboutWidth:

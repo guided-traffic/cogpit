@@ -166,6 +166,10 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 | [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
+| [D-158](#d-158-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
+| [D-159](#d-159-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
+| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint in the data's head, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
+| [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 
 ## D-1: UI toolkit
 
@@ -547,7 +551,7 @@ lives in memory only; of a cluster only the discovery answer is kept on disk
 
 Secrets are listed and watched in full, so that the Secrets view fills its Keys and Type columns as
 Lens does. The drawer reads the opened Secret from the cache and masks its values until the user
-reveals one (`secret.reveal`, GUI only); agents get them redacted
+reveals them (`secret.reveal`, GUI only; one at a time or all, [D-160](#d-160-show-all-on-a-secrets-data)); agents get them redacted
 ([H-8](../security/privilege-footprint.md#h-8-secret-data-arrives-with-the-list)). Helm reads its
 release Secrets from that watch while it runs, else from its own `owner=helm` watch, so that the
 Releases view alone never holds every Secret. The cache drops the
@@ -6497,3 +6501,204 @@ Pods history is not matched by node ([D-71](#d-71-thanos-and-victoriametrics-rea
 [`clusteroverview.go`](../../internal/ui/fyneui/clusteroverview.go) `foreignMachinesNote` ·
 **Tests:** `TestClusterHistoryCountsTheClustersNodesOnly`, `TestClusterHistoryThenLiveSums`,
 `TestClusterOverviewPodsHistory`, `TestClusterOverviewForeignMachinesNote`
+
+## D-158: k9s's single keys on rows
+
+**Status:** built · **By:** owner (keys always on, only where the table or the drawer has the
+keyboard; Space marks; the key overview a card over the window; the scope: every key whose function
+Cogpit has, the jump, Show all), lead (open to revision) the rest
+
+While the resource table or the drawer has the keyboard, a single key acts on the object the
+table's keyboard is on (the ring's row), or on the drawer's object, as in k9s. A text field and a
+terminal keep every key: Fyne gives the window's handlers a key only while no widget takes it, and
+a drawer's selectable text passes keys on. A dialog, a pop-up, the palette, the key overview or a
+settings page over the window takes the keys.
+
+| Keys | Where | What |
+|---|---|---|
+| `l` `p` `s` `a` | pods (`l` `p` workloads, Argo CD Applications, Flux Kustomizations) | Logs, the previous container's logs, Shell, Attach |
+| `r` `s` `t` | Deployments, Stateful Sets, Daemon Sets; Replica Sets; Cron Jobs | Restart, Scale, Trigger; `s` Suspend or Resume on a Cron Job |
+| `c` `u` `r` `s` | nodes | Cordon, Uncordon, Drain, Shell |
+| `r` `v` | Helm releases | Rollback, Values |
+| `c` `n` `e` `y` `d` | every object | copy the name, the namespace; Edit; the drawer's YAML, its Details |
+| `Ctrl+D`, `⌘⌫` (`Ctrl+Backspace`), `Delete` | every object | Delete (Helm: Uninstall; port forwards: their delete) |
+| `w` `⇧J` `o` | every namespaced object; every object; pods | only this namespace; the owner (Controlled By); the node |
+| `u` | namespaces; kinds with back references | use the namespace; the drawer at Referenced By |
+| `f` `⇧F` | pods, services | the Port Forwarding view; Forward… of a port |
+| `x` | Secrets | Show all |
+| `j` `k` `g` `G`, Home, End, PageUp, PageDown | the table | move the keyboard's row |
+| Space, `⇧↑` `⇧↓`, `Ctrl+\`, Escape | the table | mark the row; mark on the way; clear the marks; Escape closes the drawer, then clears the marks |
+| `⇧N` `⇧A` `⇧S` `⇧P` `⇧O`, `Ctrl+Z`, `⌘S` | the table | sort by name, age, status, namespace, the keyboard's column; only rows with problems; the CSV |
+| `:` `/` `0` `?` | everywhere the single keys act | the jump; the view's search; every namespace; the key overview |
+
+- **Two sources, one each.** A command's keys are `Spec.RowKeys`
+  ([`engine/keys.go`](../../internal/engine/keys.go)): one character, or a key with modifiers in the
+  registry's notation. `Registry.RowKeyActions` lists a kind's commands for a key, its own before
+  those of every kind; the window keeps only its own when it has any (`c` cordons a node and never
+  copies its name) and runs the first that applies, as the row menu would: its confirmation, dialog
+  or container menu included; greyed, a toast says why. Keys that change what the window shows
+  (`y`, `w`, `⇧J`, ...) are the window's `objectKeys`
+  ([`rowkeys.go`](../../internal/ui/fyneui/rowkeys.go)) and dispatch the ui.* commands.
+- **Marked rows.** With rows marked, a key whose command acts on a selection (`Ctrl+D` Delete, `r`
+  Restart) acts on the marked rows (`Registry.RowKeySelectionActions`); the others on the ring's row.
+- **Nothing has the keyboard.** A key goes to the drawer's object while the drawer is open, else the
+  table takes the keyboard and the key; the table's own keys (moving, sorting) act on the table
+  even with the drawer open.
+- **Shown where the command is.** The row menu and the selection's menu draw a command's key after
+  its label, the drawer's toolbar names it in the tooltip; the key overview (`ui.keyOverview`,
+  `UIState.KeyOverview`, Help › Key Overview,
+  [`keyoverview.go`](../../internal/ui/fyneui/keyoverview.go)) lists the object's keys (greyed with
+  the reason), the table's and the window's, from the registry and the places' `keyHint`s.
+- `Ctrl+Z` sets the status filter to the warning and error states of the view's first state column,
+  or clears a filter set.
+
+**Why:** k9s users find Cogpit's functions behind the keys they know; the table's keyboard ring
+(D-124) is k9s's cursor already, and a key that is a command's metadata keeps every key in the
+registry, agents untouched.
+
+**Rejected:** a "k9s key map" preference, off by default (the users it is for must find it first);
+modifier shortcuts only (no k9s habit served, many ⌘ letters taken by convention); Space opening
+the details as Lens's (k9s marks with it, and ↵ opens); `Ctrl+K` deleting without a confirmation and
+`b` load tests (never surprise a cluster); `Ctrl+B` `Ctrl+F` paging (⌘B, ⌘F off macOS).
+
+**Not covered:** `⇧↑` `⇧↓` add rows to the marks and never take them off again; `Ctrl+Z` on a view
+with several state columns reads the first only.
+
+**Code:** [`engine/keys.go`](../../internal/engine/keys.go) `RowKeyActions`;
+[`rowkeys.go`](../../internal/ui/fyneui/rowkeys.go), [`tablerowkeys.go`](../../internal/ui/fyneui/tablerowkeys.go),
+[`windowkeys.go`](../../internal/ui/fyneui/windowkeys.go), [`keyoverview.go`](../../internal/ui/fyneui/keyoverview.go) ·
+**Tests:** `TestRowKeysAreK9ss`, `TestRowKeysDoNotCollide`, `TestRowKeysNeedARow`,
+`TestRowKeysRunTheRowsCommand`, `TestRowKeysOnMarkedRows`, `TestTableMoveKeys`,
+`TestSortAndFilterKeys`, `TestWindowKeysActOnTheDrawer`, `TestKeyOverview`, `TestRowMenuShowsRowKeys`,
+`TestTableKeyboard`, `TestXShowsAllOfASecret`, `TestRowKeysStayOutOfTheLogs`
+
+## D-159: A logs tab's single keys
+
+**Status:** built · **By:** owner (k9s's keys; single keys only where a non-text place has the
+keyboard), lead (open to revision) the rest
+
+While a logs tab's lines have the keyboard (the surface over them, which opening the tab or a
+click into the lines gives it), single keys do what k9s's log view does, each by running the
+tab's own control: `t` the Timestamps check and `w` the Wrap check (`logs.setOptions`), `2`–`6`
+`logs.jumpTo` with "1m ago", "5m ago", "15m ago", "30m ago", "1h ago" as typed into the time
+field, `0` the Follow check ticked, `/` the search, ⌘S (Ctrl+S) the Download button. The surface
+offers the keys it does not take itself (⌘C, ⌘A, Escape) to the tab (`termview.Logs.SetOnKeys`);
+what the tab does not take goes on to the window, where the row keys stay out
+([D-158](#d-158-k9ss-single-keys-on-rows)) and `?` lists the tab's keys. ⌘S is a
+shortcut of the surface, not a main-menu item. The search, the time field and terminal tabs type
+every key. Option changes and jumps go out in the order made (`dispatchInOrder`): `t t` ends as it
+began, the last of quick jumps stays. `logTabKeyHints` lists the keys for the key overview; the
+Download tooltip names ⌘S.
+
+**Why:** k9s users find the keys where they expect them. Running the control's own action keeps
+one path to the engine and the toolbar showing the state. k9s's 2–6 request the log since then;
+Cogpit's jump puts the same first line at the top, loads older lines when the tab holds none that
+old, and keeps every line it holds. Fyne asks the main menu before the focused widget, so a menu
+item would take Ctrl+S from terminals (XOFF) and text fields.
+
+**Rejected:** a "since" option of `logs.setOptions` that reopens the stream with sinceSeconds and
+hides older lines (new engine state and a new request where a jump covers it; the held lines go);
+`0` as a jump to "now" (finds no line and stops following); k9s's `1` (head) as `logs.loadOlder`
+(1,000 more lines, not the log's start; left unbound); ⌘S as a View-menu item.
+
+**Not covered:** after a click on a toolbar check or button that widget has the keyboard, not the
+lines; the list under the surface (reached by Tab) takes the runes but not ⌘S; capitals are no
+keys.
+
+**Code:** [`logtab_keys.go`](../../internal/ui/fyneui/logtab_keys.go) `typedRune`,
+`typedShortcut`, `logTabKeyHints`; [`termview/logs.go`](../../internal/ui/fyneui/termview/logs.go)
+`SetOnKeys` · **Tests:** `TestLogTabKeys`, `TestLogTabKeysLeaveTextFields`, `TestLogTabSaveKey`,
+`TestLogTabKeyHintsAreTheKeys`, `TestLogTabKeysStayOutOfTerminals`, `TestLogsCallerKeys`,
+`TestRowKeysStayOutOfTheLogs`
+
+## D-160: Show all on a Secret's data
+
+**Status:** built · **By:** owner (every value at once, no confirmation, the key x; no button: a
+hint in the data's head where the button was, its words), lead (open to revision) the details
+
+The head of a Secret's data in the drawer ("data · 5") carries at its right end, on the label's
+line over the rule, the hint "To show-all secrets at once press x." in the muted caption, its
+"show-all" a link (`drawerTitleParts`, as a release's History its "Open revisions"); while every
+value is shown it reads "To hide-all secrets at once press x.". The rule runs the head's width as
+every section's. The link and the key `x` ([D-158](#d-158-k9ss-single-keys-on-rows)) do what a
+click on every Show in the data does, with no confirmation: a GUI-only `secret.reveal` per masked
+key, the value kept as a single Show keeps it (read-only in place, cut at 4 KiB or 40 lines; where
+the values can be saved, whole in the key's editor, [D-59](#d-59-a-secrets-values-edited-in-the-drawer));
+an edited or added value Hide masked comes back from the window's memory without a read. hide-all
+does what every Hide does: an unedited value leaves the window's memory, an edited or added one
+stays masked. Keys without a Show (binary values, removed keys) are left alone; with none the hint
+is hidden. The answers build the drawer once, when the last arrives; a failed read shows one toast.
+`x` runs `drawer.revealAll`: it toggles as the link does while the drawer shows the Secret's data;
+before that it shows every value once the data is built, and is dropped when the drawer goes to
+another object or closes.
+
+**Why:** each key's own path means no new data path, no command and nothing for agents; one build
+per batch keeps a Secret of 100 keys from rebuilding the drawer 100 times; a line of caption text
+leaves the section's head as every other one and tells the key that does the same.
+
+**Rejected:** a `secret.revealAll` command (an MCP tool); one engine call returning every value (a
+new data path; the editor needs each value whole anyway); a confirmation before show-all (the user
+reveals each value without one already); a button beside the data's head (its rule ended before
+it, the button stood taller than the head); the hint on a line of its own above the keys (the owner: in the head); a button over the Show column or beside Add Key (the
+owner's choice: a hint that teaches the key); a toast per failed read; a revealAll request kept for any later visit of the
+Secret (values shown on an open the user did not ask to reveal).
+
+**Not covered:** a request whose drawer move never happens (the open refused) stays until the drawer
+next goes to another object or closes, and a later open of that Secret then shows its values; a
+second show-all while reads are in flight reads those keys again (the answers are the same).
+
+**Code:** [`secretshowall.go`](../../internal/ui/fyneui/secretshowall.go),
+[`secretreveal.go`](../../internal/ui/fyneui/secretreveal.go) `revealOne`,
+`newRevealAllHint` · **Tests:**
+`TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`, `TestSecretShowAllHiddenWithoutText`,
+`TestShowAllHasNoCommand`, `TestRevealAllToggles`, `TestRevealAllBeforeTheDrawerBuildsIt`,
+`TestXShowsAllOfASecret`
+
+## D-161: The palette's jump: k9s's `:` commands
+
+**Status:** built · **By:** owner (`:` opens the command palette in a jump mode with ":" typed; the
+scope), lead (open to revision) the rest
+
+A palette text that starts with ":" is a jump, `:<view> [namespace] [/search] [@cluster]`, the
+words after the view in any order; `:` opens the palette with it typed while the table, the drawer
+or nothing has the keyboard ([D-158](#d-158-k9ss-single-keys-on-rows)). The view is
+a kind by its plural, singular, Kind or short name, its key or title, case ignored; names that begin
+with the word follow the exact ones, so the list completes. A built-in kind's singular and short
+names are the cluster's discovery's (`Conn.ResourceNames`, the answer `ServedResources` read, no
+further request; `Backend.Names`), a custom kind's its definition's `spec.names`
+(`CustomKind.Names`, DNS labels, at most 16; a change rebuilds the kind). k9s's own pages open what
+Cogpit has in their place: pulses, pulse, pu, hz the cluster Overview; workloads, workload, wk the
+Workloads Overview; helm, hm, charts, chart the Helm releases; pf the port forwards; ctx, context,
+contexts the clusters (Connect to Cluster while no word follows, then Open <cluster> per match,
+`cluster.connect`). One namespace word sets the namespace filter (all or -A clears it, none keeps
+it), completed from the shown cluster's namespaces, which are read again when the text turns into a
+jump. /words are the search's terms. @word names a cluster by context, file-less name or shown name;
+another cluster's view is resolved by the shown cluster's names, an unknown one passed on for that
+cluster to resolve. Every entry runs `ui.jump` (view, namespace, filter, context: the cluster as
+`cluster.connect` shows or connects it, a failed connect an error; then `ui.setNamespace`,
+`ui.openView`, `ui.setFilter`); in the window a cluster not connected gets its login program
+reviewed first. An entry that cannot run is greyed with its reason: no view by the name, no such
+namespace, a namespace on a cluster-scoped kind, a word that is no namespace name, a label selector
+("search with /web"), a second namespace or cluster. At most 200 entries.
+
+**Why:** k9s users name views by short names and get there in one line; one command per entry
+keeps the palette's rule (an entry dispatches one command) and lets agents jump alike.
+
+**Rejected:** short names written into the built-in profiles (assumes what discovery says; rule 3);
+names on `KindProfile` (the built-in profiles are shared); custom kinds' names from discovery
+(stale until the next connect, a request after an invalidation); entries built in the engine from
+the session per keystroke (cache reads per key; the window has kinds, namespaces and contexts
+already); several namespace words (k9s takes one; a cross product of completions); a namespace
+ignored on a cluster-scoped kind (silent); k9s's xray, popeye, benchmarks, screen dumps, users,
+groups, dirs, aliases, quit (no counterpart).
+
+**Code:** [`jump.go`](../../internal/engine/jump.go) `Registry.JumpEntries`, `ParseJump`,
+`Backend.ResolveJump`; [`commands/jump.go`](../../internal/engine/commands/jump.go);
+[`backend.go`](../../internal/engine/backend.go) `KindNames`;
+[`cluster.go`](../../internal/cluster/cluster.go) `ResourceNames`;
+[`customresources.go`](../../internal/model/kinds/customresources.go) `crdNames`;
+[`fyneui/jump.go`](../../internal/ui/fyneui/jump.go) `openJump`, `jumpIndex`, `runJump` ·
+**Tests:** `TestParseJump`, `TestJumpEntries`, `TestJumpClusterEntries`,
+`TestJumpNamesFromTheCluster`, `TestJumpCommand`, `TestKindsListNames`,
+`TestResourceNamesReadTheCachedDiscovery`, `TestCRDNamesHostile`, `TestOpenJumpTypesAColon`,
+`TestJumpToAnotherClusterReviewsItsLogin`, `TestColonOpensTheJump`

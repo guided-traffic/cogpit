@@ -100,7 +100,7 @@ var drainVerbs = []engine.Verb{
 func registerNodes(g *registrar) {
 	add(g, engine.Spec[refParams]{
 		ID: "node.cordon", Label: "Cordon", MenuPath: "Node/Cordon", Kinds: []string{nodeKindKey},
-		Order: 200, Danger: engine.DangerMutating,
+		Order: 200, RowKeys: []string{"c"}, Danger: engine.DangerMutating,
 		Verbs: []engine.Verb{{Verb: nwVerbPatch, Resource: nodeKindKey}},
 		Description: "Cordons a node as kubectl cordon does: sets spec.unschedulable, so that no new pods are scheduled " +
 			"on it; running pods stay. Not offered for a cordoned node, where node_uncordon takes its place.",
@@ -119,7 +119,7 @@ func registerNodes(g *registrar) {
 
 	add(g, engine.Spec[refParams]{
 		ID: "node.uncordon", Label: "Uncordon", MenuPath: "Node/Uncordon", Kinds: []string{nodeKindKey},
-		Order: 200, Danger: engine.DangerMutating,
+		Order: 200, RowKeys: []string{"u"}, Danger: engine.DangerMutating,
 		Verbs: []engine.Verb{{Verb: nwVerbPatch, Resource: nodeKindKey}},
 		Description: "Uncordons a cordoned node as kubectl uncordon does: removes spec.unschedulable, so that pods are " +
 			"scheduled on it again. Offered only for a cordoned node, in node_cordon's place. Also clears the node's " +
@@ -144,7 +144,7 @@ func registerNodes(g *registrar) {
 
 	add(g, engine.Spec[drainParams]{
 		ID: "node.drain", Label: "Drain", MenuPath: "Node/Drain", Kinds: []string{nodeKindKey},
-		Order: 300, Danger: engine.DangerDestructive,
+		Order: 300, RowKeys: []string{"r"}, Danger: engine.DangerDestructive,
 		Verbs: drainVerbs,
 		Description: "Drains a node as kubectl drain does: cordons it, then evicts every pod on it through the eviction " +
 			"API, which honours PodDisruptionBudgets, and waits until they are gone. By default it leaves DaemonSet pods " +

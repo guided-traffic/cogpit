@@ -269,7 +269,7 @@ func registerPortForward(g *registrar) {
 
 	add(g, engine.Spec[forwardRefParams]{
 		ID: "portforward.remove", Label: labelDelete, MenuPath: "PortForward/Delete", Kinds: []string{engine.PortForwardKind},
-		Order: engine.OrderDelete, Danger: engine.DangerUI,
+		Order: engine.OrderDelete, RowKeys: deleteKeys, Danger: engine.DangerUI,
 		Description: "Stops a port forward and removes it from the list. Nothing in the cluster changes.",
 		Enabled: func(s *engine.Session, p forwardRefParams) error {
 			_, err := cachedForward(s, p.Ref)
@@ -287,7 +287,7 @@ func registerPortForward(g *registrar) {
 
 	add(g, engine.Spec[selectionParams]{
 		ID: "portforward.removeMany", Label: labelDelete, MenuPath: "PortForward/Delete Selected", Kinds: []string{engine.PortForwardKind},
-		Order: engine.OrderDelete, Danger: engine.DangerUI,
+		Order: engine.OrderDelete, RowKeys: deleteKeys, Danger: engine.DangerUI,
 		Description: "Stops several port forwards and removes them from the list, as Delete on the Port Forwarding " +
 			"view's selection does (object_deleteMany is for objects of the cluster's API). Nothing in the cluster " +
 			"changes. When one is not removed the others still are. At most 500.",

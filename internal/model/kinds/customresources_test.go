@@ -356,6 +356,62 @@ func TestCustomKindEqual(t *testing.T) {
 	if err != nil || a.Equal(b) || b.Version != "v1" || b.Columns[0].Name != "State" {
 		t.Errorf("serving v1: %+v, %v; want version v1 with its columns", b, err)
 	}
+	if a.Names.Singular != "backup" || len(a.Names.ShortNames) != 0 {
+		t.Errorf("names %+v, want the definition's singular", a.Names)
+	}
+	short := crd.DeepCopy()
+	short.Object["spec"].(map[string]any)["names"].(map[string]any)["shortNames"] = []any{"bk", "bkp"}
+	c, err := kinds.ParseCRD(short)
+	if err != nil || a.Equal(c) || !slices.Equal(c.Names.ShortNames, []string{"bk", "bkp"}) {
+		t.Errorf("short names added: %+v, %v; want a new kind with them, which the palette's jump finds", c.Names, err)
+	}
+}
+
+// TestCRDNamesHostile: short names that are no DNS label, or not strings, are left out, and at
+// most 16 are kept; a singular that is no DNS label is none.
+func TestCRDNamesHostile(t *testing.T) {
+	many := make([]any, 0, 40)
+	for i := range 40 {
+		many = append(many, fmt.Sprintf("s%d", i))
+	}
+	for _, tt := range []struct {
+		name     string
+		names    map[string]any
+		singular string
+		short    []string
+	}{
+		{"bad entries", map[string]any{"singular": "Thing!", "shortNames": []any{"th", 7, "UP", "a b", nil, strings.Repeat("x", 64)}}, "", []string{"th"}},
+		{"too many", map[string]any{"singular": "thing", "shortNames": many}, "thing", nil},
+		{"not a list", map[string]any{"shortNames": "th"}, "", nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			names := map[string]any{"plural": "things", "kind": "Thing"}
+			for k, v := range tt.names {
+				names[k] = v
+			}
+			crd := &unstructured.Unstructured{Object: map[string]any{
+				"spec": map[string]any{
+					"group": "example.com", "scope": "Namespaced", "names": names,
+					"versions": []any{map[string]any{"name": "v1", "served": true}},
+				},
+				"status": map[string]any{"conditions": []any{map[string]any{"type": "Established", "status": "True"}}},
+			}}
+			k, err := kinds.ParseCRD(crd)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.name == "too many" {
+				if len(k.Names.ShortNames) != 16 || k.Names.ShortNames[0] != "s0" {
+					t.Errorf("short names %v, want the first 16", k.Names.ShortNames)
+				}
+			} else if !slices.Equal(k.Names.ShortNames, tt.short) {
+				t.Errorf("short names %v, want %v", k.Names.ShortNames, tt.short)
+			}
+			if k.Names.Singular != tt.singular {
+				t.Errorf("singular %q, want %q", k.Names.Singular, tt.singular)
+			}
+		})
+	}
 }
 
 // TestJSONPathsRefused: printer column paths a simple path never needs are not evaluated, so the

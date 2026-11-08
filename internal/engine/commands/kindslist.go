@@ -32,6 +32,8 @@ func listKinds(s *engine.Session, b *engine.Backend, p kindsListParams) []KindIn
 	for _, prof := range all {
 		served[prof.Key] = true
 		info := kindInfo(prof)
+		names := b.KindNames(prof)
+		info.Singular, info.ShortNames = names.Singular, names.ShortNames
 		if listable, known := b.Listable(prof, filter); known {
 			info.Listable = &listable
 		}

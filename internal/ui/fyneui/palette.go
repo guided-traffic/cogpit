@@ -68,6 +68,10 @@ type cmdPalette struct {
 	// the palette take the keyboard focus. Opened by an agent it does not, so that what the user is
 	// typing elsewhere cannot become a command run in the user's name (↵ on the first entry).
 	requested bool
+	// jumpNext is set while the `:` key's opening waits for the engine: the palette then opens with
+	// ":" typed (jump.go). stopJumpNS ends following the namespaces while the text is a jump.
+	jumpNext   bool
+	stopJumpNS func()
 }
 
 // paletteMaxCategory caps the category shown at a row's end, in runes.
@@ -138,7 +142,7 @@ func (p *cmdPalette) open() {
 	p.requested = true
 	p.sh.dispatch(engine.PaletteOpenCommand, struct{}{}, func(_ any, err error) {
 		if err != nil {
-			p.requested = false
+			p.requested, p.jumpNext = false, false
 			p.sh.showError(err)
 		}
 	})
@@ -183,9 +187,13 @@ func (p *cmdPalette) applyText() {
 	p.showHint()
 }
 
-// showHint says how ↵ works now: as always, or on another's text only for reads and the window.
+// showHint says how ↵ works now: as always (a jump's words while the text is one), or on another's
+// text only for reads and the window.
 func (p *cmdPalette) showHint() {
 	text, c := paletteHint, colorMuted
+	if p.jumping() {
+		text = jumpHint
+	}
 	if p.byOther && !p.picked {
 		text = textTyper(p.sh.ui.PaletteTextOrigin) + " typed this: Enter runs views and reads only · pick a change with Up and Down or a click"
 		if p.refused {
@@ -234,12 +242,17 @@ func (p *cmdPalette) show() {
 	if p.requested { // opened by an agent, the focus stays where the user's typing goes
 		p.sh.win.Canvas().Focus(p.filter)
 	}
-	p.requested = false
+	jump := p.requested && p.jumpNext
+	p.requested, p.jumpNext = false, false
 	p.applyText() // the text an agent opened it with (ui.palette.setText)
+	if jump {
+		p.typeJump() // the `:` key's: the user's text, reported as typed
+	}
 	p.load()
 }
 
 func (p *cmdPalette) hide() {
+	p.endJump()
 	if p.popup != nil && p.popup.Visible() {
 		p.popup.Hide()
 	}
@@ -292,11 +305,17 @@ func (p *cmdPalette) load() {
 	}()
 }
 
-// apply filters the entries by the text and shows them.
+// apply filters the entries by the text and shows them; a jump's text shows its own (jump.go).
 func (p *cmdPalette) apply() {
-	p.shown = engine.FilterPalette(p.all, p.filter.Text)
+	jump := p.jumping()
+	if jump {
+		p.shown = p.jumpEntries()
+	} else {
+		p.endJump()
+		p.shown = engine.FilterPalette(p.all, p.filter.Text)
+	}
 	p.sel = max(0, min(p.sel, len(p.shown)-1))
-	if len(p.shown) == 0 && p.all != nil {
+	if len(p.shown) == 0 && (p.all != nil || jump) {
 		p.empty.Show()
 	} else {
 		p.empty.Hide()
@@ -417,9 +436,11 @@ func (sh *shell) runPaletteAction(e engine.PaletteEntry) {
 // or whose result it presents (engine/palette.go, rules 3 and 7), as the menus and buttons that
 // have them do: the navigator's section for a context (findcluster.go), the kubeconfig dialogs, the
 // search field, the namespace and column menus, the CSV download.
-// hotbar.openCluster goes through the hotbar, which asks for a login program's approval first.
+// hotbar.openCluster goes through the hotbar, which asks for a login program's approval first; so
+// do a jump and :ctx's entries to a cluster that is not connected (jump.go).
 var paletteRunners = map[string]func(sh *shell, e engine.PaletteEntry){
-	connectCommand:          func(sh *shell, _ engine.PaletteEntry) { sh.findCluster() },
+	connectCommand:          (*shell).runPaletteConnect,
+	engine.JumpCommand:      (*shell).runJump,
 	"cluster.refreshAccess": func(sh *shell, _ engine.PaletteEntry) { sh.refreshAccessItem().Action() },
 	"kubeconfig.addFile":    func(sh *shell, _ engine.PaletteEntry) { sh.kc.addKubeconfigs() },
 	"kubeconfig.addFolder":  func(sh *shell, _ engine.PaletteEntry) { sh.kc.addKubeconfigs() },

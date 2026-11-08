@@ -329,9 +329,10 @@ Handled with the care of Cogpit's own credentials
 ([`engine/secretdata.go`](../../internal/engine/secretdata.go)):
 
 - **Drawer.** Reads the cached Secret (no request) and lists its keys masked, with sizes; a value
-  shows only on the user's Show (`secret.reveal`, GUI-only). Decoded values are never logged and are
-  zeroed after use; the cached base64 text and a revealed string wait for the garbage collector
-  (best effort, [privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
+  shows only on the user's Show (`secret.reveal`, GUI-only), every value on show-all, the link above
+  the keys, or the key `x` (a reveal per key). Decoded values are never logged and are zeroed after use; the cached base64 text and a
+  revealed string wait for the garbage collector (best effort,
+  [privilege footprint › H-8](privilege-footprint.md#h-8-secret-data-arrives-with-the-list)).
 - **YAML.** A Secret is edited or created from YAML in the GUI only (D-19); no value reaches the
   audit log, an error, a toast or a draft. Drawer editing:
   [below](#secret-values-edited-in-the-drawer).
@@ -429,9 +430,10 @@ In the window only (D-59; [`secretdata.go`](../../internal/ui/fyneui/secretdata.
 - **Show** reads the whole value (`secret.reveal` with `whole`) into a `yamlview` editor, editable
   where the user may save (not the demo cluster, `update secrets` allowed, not immutable, no Helm
   release record), read-only elsewhere. Hide masks it; an edit stays, masked, until saved or
-  reverted. A Secret that changed masks every unedited value revealed at the older version
-  (`TestRevealedValueDroppedWhenSecretChanges`). ⌘C, ⌘X and the key's copy icon copy the whole value
-  through the clipboard for Secret values, an empty one nothing (yamlview's `OnCopy`,
+  reverted. the hint's **show-all** is Show on every masked key, **hide-all** Hide on every shown one
+  (`TestSecretShowAllEditable`). A Secret that changed masks every unedited value revealed at the
+  older version (`TestRevealedValueDroppedWhenSecretChanges`). ⌘C, ⌘X and the key's copy icon copy
+  the whole value through the clipboard for Secret values, an empty one nothing (yamlview's `OnCopy`,
   `secData.copyIcon`; `TestSecretEditorCopiesAsASecret`, `TestSecretEditorCopyIcon`); a masked value,
   or an edited one hidden again, copies without a reveal
   (`TestSecretEditorMaskedValueCopiedWithoutShowing`); the b64 button likewise.

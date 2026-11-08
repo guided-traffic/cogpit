@@ -172,6 +172,9 @@ var wantCommands = map[string]engine.Danger{
 	// (D-51, A51, A54, A63): UI state only (TestNavigatorAndPaletteStateCommands).
 	"ui.setNavigatorSearch": engine.DangerUI, "ui.setNavigatorRow": engine.DangerUI, "ui.setNavigatorGroup": engine.DangerUI,
 	"ui.palette.setText": engine.DangerUI,
+	// The palette's jump, k9s's :pod kube-system /web @prod (D-161): UI state, a cluster shown or
+	// connected as cluster.connect (TestJumpCommand).
+	"ui.jump": engine.DangerUI,
 	// kubectl for terminals (D-3): GUI-only, Cogpit's own folder, never a cluster (TestKubectlDownloadCommand).
 	"kubectl.download": engine.DangerUI,
 	// Help › Check for Updates… (D-4): Sparkle's window, never a cluster (TestCheckForUpdatesCommand).
@@ -221,6 +224,7 @@ var wantCommands = map[string]engine.Danger{
 	"ui.toggleNavigator": engine.DangerUI, "ui.toggleDock": engine.DangerUI,
 	// The window's zoom, VS Code's (D-134): a preference that changes only how large the window draws (TestZoom).
 	"ui.zoom.in": engine.DangerUI, "ui.zoom.out": engine.DangerUI, "ui.zoom.reset": engine.DangerUI,
+	"ui.keyOverview": engine.DangerUI,
 	// Restart of a selection of workloads (A74): destructive, as one Restart (TestRestartMany).
 	"workload.restartMany": engine.DangerDestructive,
 	// An Argo CD Application's and a Flux Kustomization's logs in one tab (A81) (TestArgoCDLogs, TestFluxLogs).

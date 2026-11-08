@@ -170,11 +170,32 @@ func (s *textSelection) FocusLost() {
 	s.clear()
 }
 
-// TypedRune implements fyne.Focusable.
-func (s *textSelection) TypedRune(rune) {}
+// TypedRune implements fyne.Focusable: a selectable text types nothing, so the key goes on to the
+// window, whose single keys act on the drawer's object (D-158, windowkeys.go).
+func (s *textSelection) TypedRune(r rune) {
+	if s.self == nil {
+		return
+	}
+	if c := fyne.CurrentApp().Driver().CanvasForObject(s.self); c != nil && c.OnTypedRune() != nil {
+		c.OnTypedRune()(r)
+	}
+}
 
-// TypedKey implements fyne.Focusable.
-func (s *textSelection) TypedKey(*fyne.KeyEvent) {}
+// TypedKey implements fyne.Focusable: the key goes on to the window (Escape, Delete, the row keys
+// with modifiers, which Fyne offers a selectable text only for ⌘C); Escape drops a selection
+// first.
+func (s *textSelection) TypedKey(ev *fyne.KeyEvent) {
+	if ev.Name == fyne.KeyEscape && s.anchor != s.caret { // Escape drops a selection first
+		s.clear()
+		return
+	}
+	if s.self == nil {
+		return
+	}
+	if c := fyne.CurrentApp().Driver().CanvasForObject(s.self); c != nil && c.OnTypedKey() != nil {
+		c.OnTypedKey()(ev)
+	}
+}
 
 // TypedShortcut implements fyne.Shortcutable: copy and select all.
 func (s *textSelection) TypedShortcut(sc fyne.Shortcut) {

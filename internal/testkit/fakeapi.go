@@ -29,14 +29,16 @@ type FakeResource struct {
 	GVR        schema.GroupVersionResource
 	Kind       string
 	Namespaced bool
+	// ShortNames are what its discovery answer gives as shortNames ("po").
+	ShortNames []string
 }
 
 // DefaultFakeResources are what a FakeAPIServer serves unless told otherwise.
 var DefaultFakeResources = []FakeResource{
-	{GVR: PodsGVR, Kind: "Pod", Namespaced: true},
-	{GVR: ServicesGVR, Kind: "Service", Namespaced: true},
-	{GVR: NamespacesGVR, Kind: "Namespace"},
-	{GVR: DeploymentsGVR, Kind: "Deployment", Namespaced: true},
+	{GVR: PodsGVR, Kind: "Pod", Namespaced: true, ShortNames: []string{"po"}},
+	{GVR: ServicesGVR, Kind: "Service", Namespaced: true, ShortNames: []string{"svc"}},
+	{GVR: NamespacesGVR, Kind: "Namespace", ShortNames: []string{"ns"}},
+	{GVR: DeploymentsGVR, Kind: "Deployment", Namespaced: true, ShortNames: []string{"deploy"}},
 }
 
 // FakeAPIOptions configure a FakeAPIServer.
@@ -486,10 +488,14 @@ func (s *FakeAPIServer) serveResourceList(w http.ResponseWriter, group, version 
 		if gvr.Group != group || gvr.Version != version {
 			continue
 		}
-		list = append(list, map[string]any{
+		res := map[string]any{
 			"name": gvr.Resource, "singularName": strings.ToLower(r.Kind), "namespaced": r.Namespaced, "kind": r.Kind,
 			"verbs": []string{"get", "list", "watch", "create", "update", "patch", "delete", "deletecollection"},
-		})
+		}
+		if len(r.ShortNames) > 0 {
+			res["shortNames"] = r.ShortNames
+		}
+		list = append(list, res)
 		if gvr.Resource == "pods" {
 			list = append(list, map[string]any{"name": "pods/log", "namespaced": true, "kind": "Pod", "verbs": []string{"get"}})
 		}

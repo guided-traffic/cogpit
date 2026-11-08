@@ -38,10 +38,14 @@ func (lt *logTab) newJumpField() *wheelEntry {
 	example, tf := time.Date(2026, 10, 13, 1, 20, 0, 0, time.UTC), lt.sh.ui.TimeFormat.In(time.UTC)
 	e.SetPlaceHolder("Jump to time: " + tf.FormatDate(example) + " " + tf.FormatClock(example) + ", 10m ago")
 	e.SetIcon(theme.HistoryIcon())
-	e.OnSubmitted = func(text string) {
-		lt.sh.dispatch("logs.jumpTo", logJumpParams{ID: lt.tab.ID, Time: text}, func(_ any, err error) { lt.sh.showError(err) })
-	}
+	e.OnSubmitted = lt.requestJump
 	return e
+}
+
+// requestJump asks the engine for a jump to the time text names (logs.jumpTo), in the order asked:
+// the last of the keys 2–6 typed in quick succession is the jump that stays.
+func (lt *logTab) requestJump(text string) {
+	lt.sh.dispatchInOrder("logs.jumpTo", logJumpParams{ID: lt.tab.ID, Time: text}, func(_ any, err error) { lt.sh.showError(err) })
 }
 
 // fitPlaceholderLayout sizes the time field: the theme's search width, or what its placeholder

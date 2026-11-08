@@ -208,6 +208,11 @@ places of the same kind has one row.
 | `fyneui/preferences_page.go` | `settingsPage.typed` | AfterFunc | A | The `timers` map, the current-pause check and `set()` inside `p.sh.do`. |
 | `fyneui/preferences_updates.go` | `settingsPage.updatesSettings` | go | A | Only `commandEnabled`; `why.SetText` and `Show` inside `p.sh.do`. |
 | `fyneui/rowmenu.go` | `tableView.openRowMenu` | go | A | `evaluateActions` and `containersFor` on a copied reference and view; the snapshot check and the popup inside `sh.do`. |
+| `fyneui/rowkeys.go` | `shell.runCommandKey` | go | A | `containersFor` and `evaluateAction` (engine only) on a copied target; the action, its container menu or the toast inside `sh.do`. |
+| `fyneui/rowkeys.go` | `shell.runSelectionKey` | go | A | `evaluateSelection` on copied references; `runOnSelection` or the toast inside `sh.do`. |
+| `fyneui/rowkeys.go` | `shell.followItemLink` | go | A | `Detail` (engine only) on a copied reference; `ui.navigate` or the toast inside `sh.do`. |
+| `fyneui/rowkeys.go` | `shell.forwardKey` | go | A | `Detail` (engine only) on a copied target; the forward dialog, the ports' menu or the toast inside `sh.do`. |
+| `fyneui/keyoverview.go` | `keyOverview.show` | go | A | `objectKeyStates` (engine only) on a copied reference; `render` inside `sh.do` while the same overview shows. |
 
 </details>
 

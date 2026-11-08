@@ -110,6 +110,12 @@ type secData struct {
 	pins    map[string]*keyPin     // the copy icons of the keys whose values are in no editor, by key
 	b64s    map[string]*b64Button  // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
 	toggles map[string]*textButton // the Show and Hide toggles of the keys the Secret holds, by key (an added key's is its row's)
+
+	// The hint in the data's head, "To show-all secrets at once press x.", its link, and the keys
+	// with a Show or Hide as render last drew them (secretshowall.go).
+	allLink *linkText
+	allHint fyne.CanvasObject
+	entries []revealEntry
 }
 
 // keyPin is the copy icon in the line of a key whose value is in no editor, kept across the
@@ -135,13 +141,20 @@ type secRow struct {
 // secretDataSection renders a Secret's Data: the section kept for the shown Secret, rebuilt with
 // every change of the drawer model.
 func secretDataSection(d *drawer, ref model.ObjectRef, sec model.DetailSection) fyne.CanvasObject {
+	sd := d.secDataFor(ref)
+	sd.render(sec)
+	return sd.root
+}
+
+// secDataFor is the Data section kept for the Secret ref, made when the drawer has none for it: the
+// section and its show-all hint (secretshowall.go) share it.
+func (d *drawer) secDataFor(ref model.ObjectRef) *secData {
 	sd, ok := d.kept[secDataKept].(*secData)
 	if !ok || sd.ref != ref {
 		sd = newSecData(d, ref)
 		d.kept[secDataKept] = sd
 	}
-	sd.render(sec)
-	return sd.root
+	return sd
 }
 
 func newSecData(d *drawer, ref model.ObjectRef) *secData {
@@ -156,6 +169,7 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd.counts = newEditCounts()
 	sd.buttons = footerRow(sd.adder, sd.counts, sd.revert, sd.save, d.contentWidth())
 	sd.status = newParagraph("", colorMuted, d.contentWidth())
+	sd.allLink, sd.allHint = newRevealAllHint(sd.toggleAll)
 	sd.root = container.NewVBox(sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
 	sd.restore()
 	return sd
@@ -221,6 +235,7 @@ func (sd *secData) render(sec model.DetailSection) {
 	}
 	sd.reason = sd.saveReason()
 	sd.revealed = false
+	sd.entries = sd.entries[:0]
 	listed := map[string]bool{}
 	objs := make([]fyne.CanvasObject, 0, 2*(len(sec.Items)+len(sd.added)))
 	for _, it := range sec.Items {
@@ -272,6 +287,7 @@ func (sd *secData) render(sec model.DetailSection) {
 	sd.list.Objects = objs
 	sd.list.Refresh()
 	sd.refreshFooter()
+	sd.setAllLook()
 }
 
 // sectionVersion is the Secret's version the drawer model lists its keys at: what its reveal
@@ -310,6 +326,7 @@ func (sd *secData) keyLine(r *secRow) fyne.CanvasObject {
 
 // toggle is Hide for a value in an editor, Show for one Hide masked.
 func (sd *secData) toggle(r *secRow) *textButton {
+	sd.entries = append(sd.entries, revealEntry{row: r, shown: !r.masked})
 	if r.masked {
 		return sd.toggleOf(r.key, r, showLabel, func() { sd.unmask(r.key) })
 	}
@@ -355,6 +372,7 @@ func (sd *secData) revealLines(it model.DetailItem) []fyne.CanvasObject {
 	d := sd.d
 	a, _ := revealAction(it)
 	shown, revealed := d.revealedItem(it)
+	sd.entries = append(sd.entries, revealEntry{action: a, shown: revealed})
 	toggle := sd.toggleOf(it.Name, nil, d.actionLabel(a), func() { d.sh.runItemAction(sd.ref, a) })
 	if !revealed {
 		l := newTextLine(it.Value, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
@@ -564,28 +582,35 @@ func (sd *secData) maskedLine() fyne.CanvasObject {
 }
 
 // reveal reads a key's whole value into an editor (Show on a Secret the user may save). The answer
-// of an older listing, or one for a drawer that moved on, is dropped.
-func (sd *secData) reveal(a model.ItemAction) {
+// of an older listing, or one for a drawer that moved on, is dropped. b is Show all's batch of
+// reads (secretshowall.go); nil for a single Show.
+func (sd *secData) reveal(a model.ItemAction, b *revealBatch) {
 	var p engine.RevealParams
 	if err := json.Unmarshal(a.Params, &p); err != nil {
-		sd.d.sh.showError(err)
+		b.answered(sd.d, sd.ref, err, false)
 		return
 	}
 	p.Whole = true
 	sd.d.sh.dispatch(a.Command, p, func(res any, err error) {
-		if err != nil {
-			sd.d.sh.showError(err)
-			return
+		kept := false
+		if err == nil {
+			kept = sd.keepWhole(p, res)
 		}
-		var v engine.SecretValue
-		if decode(res, &v) != nil || sd.closed || sd.d.shown == nil || *sd.d.shown != sd.ref || p.ResourceVersion != sd.latest {
-			return // the drawer moved on, or the Secret changed meanwhile: keep nothing
-		}
-		if _, ok := sd.rows[p.Key]; !ok && !v.Cut {
-			sd.newRow(p.Key, v.Value, p.ResourceVersion)
-		}
-		sd.d.rebuild()
+		b.answered(sd.d, sd.ref, err, kept)
 	})
+}
+
+// keepWhole puts a value reveal read whole into its editor and reports whether the drawer is to be
+// built again: not when the drawer moved on or the Secret changed meanwhile.
+func (sd *secData) keepWhole(p engine.RevealParams, res any) bool {
+	var v engine.SecretValue
+	if decode(res, &v) != nil || sd.closed || sd.d.shown == nil || *sd.d.shown != sd.ref || p.ResourceVersion != sd.latest {
+		return false // the drawer moved on, or the Secret changed meanwhile: keep nothing
+	}
+	if _, ok := sd.rows[p.Key]; !ok && !v.Cut {
+		sd.newRow(p.Key, v.Value, p.ResourceVersion)
+	}
+	return true
 }
 
 // hide masks a value again: an unedited one leaves the window's memory, an edited or added one
@@ -595,12 +620,17 @@ func (sd *secData) hide(key string) {
 	if r == nil {
 		return
 	}
+	sd.mask(r)
+	sd.d.rebuild()
+}
+
+// mask is hide without building the drawer again: Hide all masks every value, then builds once.
+func (sd *secData) mask(r *secRow) {
 	if r.dirty() || r.added {
 		r.masked = true
-	} else {
-		delete(sd.rows, key)
+	} else if sd.rows[r.key] == r {
+		delete(sd.rows, r.key)
 	}
-	sd.d.rebuild()
 }
 
 // unmask shows an edited value that Hide masked.

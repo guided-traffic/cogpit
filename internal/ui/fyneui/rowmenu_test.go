@@ -485,7 +485,7 @@ func TestDrawerToolbarFromRegistry(t *testing.T) {
 	for _, o := range sh.drawer.actions.Objects {
 		tips = append(tips, o.(*tipButton).tip)
 	}
-	want := []string{"Shell", "Uncordon", "Drain: the demo cluster cannot be changed", "Edit", "Delete"}
+	want := []string{"Shell", "Uncordon", "Drain: the demo cluster cannot be changed", "Edit", "Delete (" + rowKeyText("Ctrl+D") + ")"}
 	if strings.Join(tips, "|") != strings.Join(want, "|") {
 		t.Fatalf("toolbar %q, want %q", tips, want)
 	}
