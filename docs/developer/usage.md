@@ -52,6 +52,7 @@ Ctrl on Windows and Linux.
 **The window**
 
 - Command palette ⌘⇧P: every menu action, view and hotbar cluster. ⌘P finds a cluster by name.
+  `:` opens it as k9s's command line, `:po kube-system /web @prod` ([details](#the-palettes-jump-k9ss--commands)).
   ⌘B, ⌘J and ⌘I toggle the navigator, the dock (a terminal when it has no tab) and the agent chat.
 - The tab bar shows the shown cluster's tabs, none until it connects; Mixed environments (foot of
   All Clusters, off by default) shows every connected cluster's. Reorder tabs by dragging or with
@@ -990,6 +991,35 @@ toast names it. The demo cluster and contexts merged from `$KUBECONFIG` or `~/.k
 a configuration directory have no such item. Copying is no command
 ([D-25](decisions.md#d-25-copying-values)); agents read the path in `cluster_contexts` (`file`) and
 `cluster_settings_get` (`kubeconfig`).
+
+### The palette's jump: k9s's `:` commands
+
+`:` in a table or the window opens the command palette with `:` typed; a palette text that starts
+with `:` is a jump: `:<view> [namespace] [/search] [@cluster]`, the words after the view in any
+order ([D-new](decisions.md#d-new-the-palettes-jump-k9ss--commands)). The list completes as you
+type, ↵ opens the first entry, and an entry that cannot run is greyed with its reason (no view by
+that name, a namespace the cluster does not have, a namespace on a cluster-scoped kind).
+
+| Word | Means |
+|---|---|
+| `<view>` | A kind by its plural, singular, Kind or short name (`po`, `deploy`, `svc`; a custom kind's from its definition), its key (`certificates.cert-manager.io`) or its title, case ignored; a word that begins a name lists that view too |
+| `<namespace>` | One namespace: the namespace filter is set to it, the shown cluster's namespaces completing it. `all` or `-A`: every namespace. None: the filter stays |
+| `/text` | The view's search; several `/words` are its terms |
+| `@cluster` | The cluster by its context or the name the window shows; one not connected is connected first, its login program approved first |
+
+k9s's names for its own pages open what Cogpit has in their place:
+
+| Typed | Opens |
+|---|---|
+| `:pulses`, `:pulse`, `:pu`, `:hz` | the cluster Overview |
+| `:workloads`, `:workload`, `:wk` | the Workloads Overview |
+| `:helm`, `:hm`, `:charts`, `:chart` | Helm Releases (`:charts` lists Cogpit's Charts too) |
+| `:pf`, `:portforward`, `:portforwards` | Port Forwarding |
+| `:ctx`, `:context`, `:contexts`, then a name or none | Connect to Cluster (the clusters' list, as ⌘P), then each cluster the name matches, to open |
+
+A label selector (`app=web`) is greyed: search with `/web`. k9s's xray, popeye, benchmarks, screen
+dumps, users, groups, aliases, help and quit have no counterpart. Agents jump with `ui_jump`;
+`kinds_list` gives each kind's `singular` and `shortNames`.
 
 ### Choosing files: the system's panels
 

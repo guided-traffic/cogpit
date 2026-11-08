@@ -79,7 +79,15 @@ type CustomKind struct {
 	// Columns are the chosen version's additionalPrinterColumns of every priority, in the
 	// definition's order (at most maxPrinterColumns).
 	Columns []PrinterColumn
+	// Names are the definition's singular name and short names (spec.names), the names kubectl
+	// and the palette's jump accept for the kind; at most maxShortNames short names, each a DNS
+	// label, others left out.
+	Names model.KindNames
 }
+
+// maxShortNames caps the short names read from a definition: hostile content must not grow what
+// every keystroke of the palette's jump compares.
+const maxShortNames = 16
 
 // PrinterColumn is one additionalPrinterColumns entry of a definition's version.
 type PrinterColumn struct {
@@ -97,7 +105,8 @@ func (k CustomKind) Key() string { return k.Plural + "." + k.Group }
 // changes nothing Cogpit shows (its status, its schema) keeps the profile.
 func (k CustomKind) Equal(o CustomKind) bool {
 	return k.Group == o.Group && k.Version == o.Version && k.Plural == o.Plural && k.Kind == o.Kind &&
-		k.Namespaced == o.Namespaced && slices.Equal(k.Columns, o.Columns)
+		k.Namespaced == o.Namespaced && slices.Equal(k.Columns, o.Columns) &&
+		k.Names.Singular == o.Names.Singular && slices.Equal(k.Names.ShortNames, o.Names.ShortNames)
 }
 
 // ParseCRD reads an apiextensions.k8s.io/v1 CustomResourceDefinition. It fails with
@@ -140,6 +149,7 @@ func parseCRD(crd *unstructured.Unstructured) (k CustomKind, err error) {
 		return CustomKind{}, ErrNoServedVersion
 	}
 	k.Version = model.NestedString(v, fieldName)
+	k.Names = crdNames(spec)
 	for _, c := range model.NestedSlice(v, "additionalPrinterColumns") {
 		if len(k.Columns) == maxPrinterColumns {
 			break
@@ -156,6 +166,24 @@ func parseCRD(crd *unstructured.Unstructured) (k CustomKind, err error) {
 		k.Columns = append(k.Columns, pc)
 	}
 	return k, nil
+}
+
+// crdNames reads a definition's singular name and short names, each kept only when it is a DNS
+// label, as Kubernetes validates them.
+func crdNames(spec map[string]any) model.KindNames {
+	var n model.KindNames
+	if s := model.NestedString(spec, "names", "singular"); len(s) <= 63 && dnsLabel.MatchString(s) {
+		n.Singular = s
+	}
+	for _, sn := range model.NestedStrings(spec, "names", "shortNames") {
+		if len(n.ShortNames) == maxShortNames {
+			break
+		}
+		if len(sn) <= 63 && dnsLabel.MatchString(sn) {
+			n.ShortNames = append(n.ShortNames, sn)
+		}
+	}
+	return n
 }
 
 // servedVersion returns the served version of highest Kubernetes version priority (v2 before v1

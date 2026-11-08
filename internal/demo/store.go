@@ -32,15 +32,16 @@ var kindInfo = [numKinds]struct {
 	apiVersion string
 	kind       string
 	namespaced bool
+	short      []string // its discovery's shortNames, as a Kubernetes API server answers them
 }{
-	kindPods:        {schema.GroupVersionResource{Version: "v1", Resource: resourcePods}, "v1", "Pod", true},
-	kindDeployments: {schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "apps/v1", "Deployment", true},
-	kindServices:    {schema.GroupVersionResource{Version: "v1", Resource: "services"}, "v1", "Service", true},
-	kindNamespaces:  {schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}, "v1", "Namespace", false},
-	kindNodes:       {schema.GroupVersionResource{Version: "v1", Resource: "nodes"}, "v1", "Node", false},
-	kindEvents:      {schema.GroupVersionResource{Version: "v1", Resource: "events"}, "v1", "Event", true},
-	kindSecrets:     {schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, "v1", "Secret", true},
-	kindConfigMaps:  {schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "v1", "ConfigMap", true},
+	kindPods:        {schema.GroupVersionResource{Version: "v1", Resource: resourcePods}, "v1", "Pod", true, []string{"po"}},
+	kindDeployments: {schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "apps/v1", "Deployment", true, []string{"deploy"}},
+	kindServices:    {schema.GroupVersionResource{Version: "v1", Resource: "services"}, "v1", "Service", true, []string{"svc"}},
+	kindNamespaces:  {schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}, "v1", "Namespace", false, []string{"ns"}},
+	kindNodes:       {schema.GroupVersionResource{Version: "v1", Resource: "nodes"}, "v1", "Node", false, []string{"no"}},
+	kindEvents:      {schema.GroupVersionResource{Version: "v1", Resource: "events"}, "v1", "Event", true, []string{"ev"}},
+	kindSecrets:     {schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, "v1", "Secret", true, nil},
+	kindConfigMaps:  {schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "v1", "ConfigMap", true, []string{"cm"}},
 }
 
 // kindOf returns the kind serving gvr.

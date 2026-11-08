@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
 	"github.com/guided-traffic/cogpit/internal/cluster"
@@ -66,6 +67,17 @@ func testProfiles() []*model.KindProfile {
 	return []*model.KindProfile{pods, profile("deployments", "apps", "Deployment", "Deployments", true), svc, ns, events}
 }
 
+// testNames are the fixture cluster's singular and short names, as its discovery would give them.
+func testNames() map[schema.GroupResource]model.KindNames {
+	return map[schema.GroupResource]model.KindNames{
+		{Resource: "pods"}:                       {Singular: "pod", ShortNames: []string{"po"}},
+		{Group: "apps", Resource: "deployments"}: {Singular: "deployment", ShortNames: []string{"deploy"}},
+		{Resource: "services"}:                   {Singular: "service", ShortNames: []string{"svc"}},
+		{Resource: "namespaces"}:                 {Singular: "namespace", ShortNames: []string{"ns"}},
+		{Resource: "events"}:                     {Singular: "event", ShortNames: []string{"ev"}},
+	}
+}
+
 // fakeConnector connects "test" and "other" to fresh caches over one MemorySource; "broken"
 // fails. Backends get the fake writer and, unless demo is set, a (zero) connection, so that the
 // commands that need one are enabled; nothing here dials a cluster.
@@ -86,7 +98,7 @@ func (f *fakeConnector) Connect(_ context.Context, name string) (*engine.Backend
 		return nil, errors.New("dial tcp 127.0.0.1:1: connect: connection refused")
 	}
 	c := cache.New(f.src, cache.Options{WarmPeriod: time.Minute})
-	b := &engine.Backend{Context: name, Namespace: "default", Cache: c, Profiles: testProfiles(), Close: c.Close, Demo: f.demo, Access: f.access}
+	b := &engine.Backend{Context: name, Namespace: "default", Cache: c, Profiles: testProfiles(), Names: testNames(), Close: c.Close, Demo: f.demo, Access: f.access}
 	if !f.demo {
 		b.Conn = &cluster.Conn{}
 		b.Actions = f.writer

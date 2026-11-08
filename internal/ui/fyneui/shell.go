@@ -1246,6 +1246,8 @@ type kindInfo struct {
 	Group      string         `json:"group"`
 	Version    string         `json:"version"`
 	Namespaced bool           `json:"namespaced"`
+	Singular   string         `json:"singular,omitempty"`   // the palette's jump (jump.go)
+	ShortNames []string       `json:"shortNames,omitempty"` // "po", the palette's jump
 	Columns    []model.Column `json:"columns"`
 	Listable   *bool          `json:"listable,omitempty"` // nil: the access reviews have not answered
 	Local      bool           `json:"local,omitempty"`    // port forwards: Cogpit's own objects

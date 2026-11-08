@@ -340,6 +340,18 @@ reads only where it presents the result, required parameters only where it has a
 `PaletteInput.Runs`), and an entry per view and hotbar tile. An entry dispatches with origin `gui`
 like its menu item. `Palette` asks every entry's `Enabled`: call it off the UI goroutine.
 
+A text that starts with `:` is a jump, k9s's command line ([`jump.go`](../../internal/engine/jump.go),
+the grammar in its header; [D-new](decisions.md#d-new-the-palettes-jump-k9ss--commands)):
+`Registry.JumpEntries` matches it against a `JumpIndex`, what the window holds (`kinds.list` with
+each kind's names, the shown cluster's namespaces, the contexts), on every keystroke and without a
+request ([`fyneui/jump.go`](../../internal/ui/fyneui/jump.go)); each entry runs `ui.jump`
+([`commands/jump.go`](../../internal/engine/commands/jump.go)), which resolves the name again on
+the cluster it goes to (`Backend.ResolveJump`) and goes the ways of `cluster.connect`,
+`ui.setNamespace`, `ui.openView` and `ui.setFilter`. A kind's names besides its plural are
+`Backend.KindNames`: a built-in kind's from the connect's discovery answer
+(`cluster.Conn.ResourceNames`, the answer `ServedResources` read, no further request), a custom
+kind's from its definition's `spec.names` (`kinds.CustomKind.Names`), so they follow the definition.
+
 #### Keys
 
 A main-menu item's shortcut takes its key from any focus (Fyne asks the main menu first; on macOS it

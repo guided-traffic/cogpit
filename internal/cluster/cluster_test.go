@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
+	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
@@ -326,5 +328,41 @@ func TestServedResourcesToleratesBrokenGroupsAndCaches(t *testing.T) {
 	}
 	if after := c.Counter().Snapshot().ByVerb[VerbDiscovery]; after == before {
 		t.Error("InvalidateServedResources did not refresh")
+	}
+}
+
+// The names the palette's jump matches come from the discovery answer ServedResources read: the
+// singular and the short names of every served resource, without a further request.
+func TestResourceNamesReadTheCachedDiscovery(t *testing.T) {
+	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{})
+	defer srv.Close()
+	c, err := Connect(context.Background(), Options{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "fake", "")}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Close()
+	ctx := context.Background()
+	if _, err := c.ServedResources(ctx); err != nil {
+		t.Fatal(err)
+	}
+	before := c.Counter().Snapshot().ByVerb[VerbDiscovery]
+	names, err := c.ResourceNames(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after := c.Counter().Snapshot().ByVerb[VerbDiscovery]; after != before {
+		t.Errorf("the names cost %d discovery requests", after-before)
+	}
+	for gr, want := range map[schema.GroupResource]model.KindNames{
+		testkit.PodsGVR.GroupResource():        {Singular: "pod", ShortNames: []string{"po"}},
+		testkit.DeploymentsGVR.GroupResource(): {Singular: "deployment", ShortNames: []string{"deploy"}},
+		testkit.NamespacesGVR.GroupResource():  {Singular: "namespace", ShortNames: []string{"ns"}},
+	} {
+		if got := names[gr]; got.Singular != want.Singular || !slices.Equal(got.ShortNames, want.ShortNames) {
+			t.Errorf("%v: %+v, want %+v", gr, got, want)
+		}
+	}
+	if _, ok := names[schema.GroupResource{Resource: "pods/log"}]; ok {
+		t.Error("a subresource's names listed")
 	}
 }

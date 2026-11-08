@@ -29,12 +29,16 @@ const (
 
 // KindInfo is one entry of kinds.list.
 type KindInfo struct {
-	Kind       string         `json:"kind"`    // kind key, "pods"
-	Title      string         `json:"title"`   // "Pods"
-	APIKind    string         `json:"apiKind"` // "Pod"
-	Group      string         `json:"group,omitempty"`
-	Version    string         `json:"version"`
-	Namespaced bool           `json:"namespaced"`
+	Kind       string `json:"kind"`    // kind key, "pods"
+	Title      string `json:"title"`   // "Pods"
+	APIKind    string `json:"apiKind"` // "Pod"
+	Group      string `json:"group,omitempty"`
+	Version    string `json:"version"`
+	Namespaced bool   `json:"namespaced"`
+	// Singular and ShortNames are the names the cluster gives the kind besides its plural
+	// (discovery's, a custom kind's definition's: "pod", "po"), which ui_jump takes too.
+	Singular   string         `json:"singular,omitempty"`
+	ShortNames []string       `json:"shortNames,omitempty"`
 	Columns    []model.Column `json:"columns"`
 	Fields     []string       `json:"fields"` // what resources_find searches by
 	// Listable says whether the user may list the kind (access reviews); absent while unknown,
@@ -130,7 +134,8 @@ func registerResources(g *registrar) {
 	add(g, engine.Spec[kindsListParams]{
 		ID: "kinds.list", Label: "List Kinds", Danger: engine.DangerRead,
 		Description: "Lists the kinds a connected cluster serves (the shown one unless context names another), as Cogpit shows them: kind key (what other tools take as " +
-			"kind), title, Kubernetes kind, group, version, whether it is namespaced, its table columns, and the fields " +
+			"kind), title, Kubernetes kind, group, version, whether it is namespaced, its singular and short names (shortNames: po, deploy; " +
+			"from the cluster's discovery or the kind's definition, absent where the cluster gives none), its table columns, and the fields " +
 			"resources_find can search by. Built-in kinds come first and keep their plural as the key (pods); then the kinds " +
 			"of the cluster's custom resource definitions, keyed <plural>.<group> (gateways.gateway.networking.k8s.io), " +
 			"titled by their Kind, with their printer columns. Custom kinds follow the definitions while connected: they " +
