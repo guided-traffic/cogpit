@@ -113,7 +113,8 @@ Ctrl on Windows and Linux.
   dry run, rebased onto a version someone else changed meanwhile; unsaved values survive a quit or
   a crash as a draft.
 - A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
-  **Show all** at the right of the data's head (no confirmation; **Hide all** masks them again), copy
+  **Show all** at the right of the data's head or the key `x` (no confirmation; **Hide all** masks
+  them again; [D-new-showall](decisions.md#d-new-showall-show-all-on-a-secrets-data)), copy
   a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
   keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved
   touches the disk. Create Secret masks values as you type. Agents can neither create a Secret nor
@@ -1117,7 +1118,8 @@ In a **logs tab** ([D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-tex
 | Escape | drops the selection |
 
 Single keys while the lines have the keyboard (opening the tab or a click into the lines gives it
-to them), as in k9s's log view; the search, the time field and terminal tabs type every key:
+to them), as in k9s's log view ([D-new-logkeys](decisions.md#d-new-logkeys-a-logs-tabs-single-keys));
+the search, the time field and terminal tabs type every key, and the list's single keys stay out:
 
 | Key | It does |
 |---|---|
@@ -1127,6 +1129,7 @@ to them), as in k9s's log view; the search, the time field and terminal tabs typ
 | `0` | ticks Follow: the newest line, following |
 | `/` | the search; also while nothing has the keyboard |
 | ⌘S (Ctrl+S) | Download |
+| `?` | the key overview with these keys |
 
 **Follow** goes off when you select with the pointer (the selection stays on its lines as new ones
 arrive) and when you scroll up five lines or more from the newest (wheel, trackpad, scroll bar):

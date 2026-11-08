@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"runtime"
 	"slices"
 
 	"fyne.io/fyne/v2"
@@ -38,10 +39,15 @@ func newKeyOverview(sh *shell) *keyOverview {
 	return &keyOverview{sh: sh, body: container.NewVBox()}
 }
 
-// currentKeyPlace is where the keyboard is now, for the overview: the drawer's object while the
-// drawer is open and the table does not have the keyboard, else the table's keyboard row.
+// currentKeyPlace is where the keyboard is now, for the overview: a logs tab's lines; the drawer's
+// object while the drawer is open and the table does not have the keyboard; else the table's
+// keyboard row.
 func (sh *shell) currentKeyPlace() keyPlace {
 	focused := sh.win.Canvas().Focused()
+	if c, ok := sh.dock.contents[sh.dock.active]; ok && c.logs != nil && c.logs.view != nil &&
+		focused != nil && focused == c.logs.view.FocusTarget() {
+		return keyPlace{logs: logTabKeyHints(runtime.GOOS == goosMac)} // a logs tab's lines (logtab_keys.go)
+	}
 	tableHas := focused == fyne.Focusable(sh.view.table)
 	if sh.ui.Drawer != nil && !tableHas {
 		ref := *sh.ui.Drawer

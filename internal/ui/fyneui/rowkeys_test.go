@@ -331,3 +331,44 @@ func TestRenderRowMenuKeys(t *testing.T) {
 	q.until(t, "the row menu", func() bool { return tv.menu != nil && tv.menu.Visible() })
 	savePNG(t, w, "rowmenu_keys_dark.png")
 }
+
+// TestXShowsAllOfASecret: x on a Secret's row opens its drawer with every value shown (Show all),
+// and x again in the drawer hides them.
+func TestXShowsAllOfASecret(t *testing.T) {
+	f, ref := secretsFake(t)
+	f.ui.Selected, f.ui.Drawer = nil, nil
+	sh, w, q := newTestShell(t, f, Options{})
+	q.until(t, "the Secrets", func() bool { return sh.view.snap != nil && sh.view.snap.View == "secrets" })
+	tv := sh.view
+	w.Canvas().Focus(tv.table)
+	tv.moveRing(tv.snap.IndexOf(ref))
+	typeRune(t, w, 'x')
+	q.until(t, "the drawer with every value", func() bool {
+		return sh.ui.Drawer != nil && sh.ui.Drawer.Same(ref) && allShown(sh)
+	})
+	w.Canvas().Unfocus()
+	typeRune(t, w, 'x')
+	q.until(t, "every value hidden", func() bool { return noneShown(sh) })
+}
+
+// TestRowKeysStayOutOfTheLogs: with a logs tab's lines holding the keyboard, a row key the lines
+// pass on acts on no row; ? opens the overview with the logs tab's keys.
+func TestRowKeysStayOutOfTheLogs(t *testing.T) {
+	sh, w, q, f := logsScene(t, ThemeDark, true, engine.LogOptions{ResourceNames: true})
+	keyOverviewFake(t, f)
+	lt := logTabOf(sh)
+	c := w.Canvas()
+	q.until(t, "every line", func() bool { return len(lt.view.ShownLines()) == len(demoMerged) })
+	c.Focus(lt.view.FocusTarget())
+	logs := len(f.callsOf("pod.logs"))
+	typeFocused(c, "l")
+	logBarrier(t, sh, q)
+	if n := len(f.callsOf("pod.logs")); n != logs || c.Focused() != lt.view.FocusTarget() {
+		t.Fatalf("l in the logs ran Logs on a row (%d calls) or took the keyboard (%T)", n-logs, c.Focused())
+	}
+	typeFocused(c, "?")
+	q.until(t, "the overview", func() bool { return sh.ui.KeyOverview && sh.keys.popup != nil && sh.keys.popup.Visible() })
+	if !overviewSays(sh, "Keys · Logs") || !overviewSays(sh, "Timestamps") {
+		t.Fatal("the overview does not list the logs tab's keys")
+	}
+}

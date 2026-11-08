@@ -33,6 +33,16 @@ import (
 // With rows checked, a key whose command acts on a selection (Ctrl+D Delete, r Restart) acts on the
 // checked rows, as k9s acts on its marks; the others act on the ring's row.
 
+// The registry's names of modifiers and keys a row key may carry (engine/keys.go).
+const (
+	modCtrl      = "Ctrl"
+	modCmd       = "Cmd"
+	modAlt       = "Alt"
+	modShift     = "Shift"
+	keyNameBack  = "Backspace"
+	labelDetails = "Details"
+)
+
 // keyTarget is what a row key acts on.
 type keyTarget struct {
 	ref    model.ObjectRef
@@ -61,7 +71,7 @@ func init() {
 	}
 	objectKeys = []objectKey{
 		{keys: []string{"y"}, label: "YAML", run: func(sh *shell, t keyTarget) { sh.openDrawerTab(t, true) }},
-		{keys: []string{"d"}, label: "Details", run: func(sh *shell, t keyTarget) { sh.openDrawerTab(t, false) }},
+		{keys: []string{"d"}, label: labelDetails, run: func(sh *shell, t keyTarget) { sh.openDrawerTab(t, false) }},
 		{keys: []string{"p"}, label: "Previous Logs", applies: hasLogs, run: (*shell).previousLogsKey},
 		{keys: []string{"n"}, label: "Copy Namespace", applies: namespaced, run: func(sh *shell, t keyTarget) {
 			sh.copyText(t.ref.Namespace, false)
@@ -91,6 +101,12 @@ func init() {
 			sh.dispatch("ui.openView", openViewParams{View: kindPortForwards}, nil)
 		}},
 		{keys: []string{"F"}, label: "Port Forward…", applies: kindIs(kindPods, kindServices), run: (*shell).forwardKey},
+		{keys: []string{"x"}, label: "Show All Values", applies: kindIs(kindSecrets), run: func(sh *shell, t keyTarget) {
+			sh.drawer.revealAll(t.ref) // toggles while the drawer shows the Secret's data; else once it does
+			if !t.drawer && (sh.ui.Drawer == nil || !sh.ui.Drawer.Same(t.ref)) {
+				sh.openDetails(t.ref)
+			}
+		}},
 		{keys: []string{"v"}, label: "Values", applies: kindIs(helm.ReleaseKind), run: func(sh *shell, t keyTarget) {
 			sh.dispatch(revisionsCommand, revisionsValuesParams{Ref: t.ref, Mode: "values"}, nil)
 		}},
@@ -356,27 +372,27 @@ func keyNotations(sc *desktop.CustomShortcut, goos string) []string {
 	name := string(sc.KeyName)
 	switch sc.KeyName {
 	case fyne.KeyBackspace:
-		name = "Backspace"
+		name = keyNameBack
 	case fyne.KeyReturn, fyne.KeyEnter:
 		name = "Return"
 	}
 	m := sc.Modifier
 	var ctrl, cmd []string
 	if m&fyne.KeyModifierControl != 0 {
-		ctrl = []string{"Ctrl"}
+		ctrl = []string{modCtrl}
 		if goos != goosMac {
-			cmd = []string{"Cmd"}
+			cmd = []string{modCmd}
 		}
 	}
 	if m&fyne.KeyModifierSuper != 0 && goos == goosMac {
-		cmd = []string{"Cmd"}
+		cmd = []string{modCmd}
 	}
 	var rest []string
 	if m&fyne.KeyModifierAlt != 0 {
-		rest = append(rest, "Alt")
+		rest = append(rest, modAlt)
 	}
 	if m&fyne.KeyModifierShift != 0 {
-		rest = append(rest, "Shift")
+		rest = append(rest, modShift)
 	}
 	join := func(mods ...[]string) string {
 		var parts []string
@@ -419,18 +435,18 @@ func rowKeyItemShortcut(key string) fyne.Shortcut {
 	var mods fyne.KeyModifier
 	for _, m := range parts[:len(parts)-1] {
 		switch m {
-		case "Ctrl":
+		case modCtrl:
 			mods |= fyne.KeyModifierControl
-		case "Cmd":
+		case modCmd:
 			mods |= fyne.KeyModifierShortcutDefault
-		case "Alt":
+		case modAlt:
 			mods |= fyne.KeyModifierAlt
-		case "Shift":
+		case modShift:
 			mods |= fyne.KeyModifierShift
 		}
 	}
 	name := fyne.KeyName(parts[len(parts)-1])
-	if name == "Backspace" {
+	if name == keyNameBack {
 		name = fyne.KeyBackspace
 	}
 	return &shownShortcut{desktop.CustomShortcut{KeyName: name, Modifier: mods}}
@@ -448,18 +464,18 @@ func rowKeyText(key string) string {
 	var b strings.Builder
 	for _, m := range parts[:len(parts)-1] {
 		switch m {
-		case "Ctrl":
+		case modCtrl:
 			b.WriteString(modText("⌃", "Ctrl+"))
-		case "Cmd":
+		case modCmd:
 			b.WriteString(modText("⌘", "Ctrl+"))
-		case "Alt":
+		case modAlt:
 			b.WriteString(modText("⌥", "Alt+"))
-		case "Shift":
+		case modShift:
 			b.WriteString(modText("⇧", "Shift+"))
 		}
 	}
 	name := parts[len(parts)-1]
-	if name == "Backspace" {
+	if name == keyNameBack {
 		name = modText("⌫", "Backspace")
 	}
 	return b.String() + name

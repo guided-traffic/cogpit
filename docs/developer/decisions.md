@@ -167,6 +167,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
 | [D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
+| [D-new-logkeys](#d-new-logkeys-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
+| [D-new-showall](#d-new-showall-show-all-on-a-secrets-data) | Show all on a Secret's data | built: beside the data's head, every value through the GUI-only reveal, no confirmation; Hide all; the key x |
 
 ## D-1: UI toolkit
 
@@ -548,7 +550,7 @@ lives in memory only; of a cluster only the discovery answer is kept on disk
 
 Secrets are listed and watched in full, so that the Secrets view fills its Keys and Type columns as
 Lens does. The drawer reads the opened Secret from the cache and masks its values until the user
-reveals one (`secret.reveal`, GUI only); agents get them redacted
+reveals them (`secret.reveal`, GUI only; one at a time or all, [D-new-showall](#d-new-showall-show-all-on-a-secrets-data)); agents get them redacted
 ([H-8](../security/privilege-footprint.md#h-8-secret-data-arrives-with-the-list)). Helm reads its
 release Secrets from that watch while it runs, else from its own `owner=helm` watch, so that the
 Releases view alone never holds every Secret. The cache drops the
@@ -6567,4 +6569,84 @@ with several state columns reads the first only.
 **Tests:** `TestRowKeysAreK9ss`, `TestRowKeysDoNotCollide`, `TestRowKeysNeedARow`,
 `TestRowKeysRunTheRowsCommand`, `TestRowKeysOnMarkedRows`, `TestTableMoveKeys`,
 `TestSortAndFilterKeys`, `TestWindowKeysActOnTheDrawer`, `TestKeyOverview`, `TestRowMenuShowsRowKeys`,
-`TestTableKeyboard`
+`TestTableKeyboard`, `TestXShowsAllOfASecret`, `TestRowKeysStayOutOfTheLogs`
+
+## D-new-logkeys: A logs tab's single keys
+
+**Status:** built · **By:** owner (k9s's keys; single keys only where a non-text place has the
+keyboard), lead (open to revision) the rest
+
+While a logs tab's lines have the keyboard (the surface over them, which opening the tab or a
+click into the lines gives it), single keys do what k9s's log view does, each by running the
+tab's own control: `t` the Timestamps check and `w` the Wrap check (`logs.setOptions`), `2`–`6`
+`logs.jumpTo` with "1m ago", "5m ago", "15m ago", "30m ago", "1h ago" as typed into the time
+field, `0` the Follow check ticked, `/` the search, ⌘S (Ctrl+S) the Download button. The surface
+offers the keys it does not take itself (⌘C, ⌘A, Escape) to the tab (`termview.Logs.SetOnKeys`);
+what the tab does not take goes on to the window, where the row keys stay out
+([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)) and `?` lists the tab's keys. ⌘S is a
+shortcut of the surface, not a main-menu item. The search, the time field and terminal tabs type
+every key. Option changes and jumps go out in the order made (`dispatchInOrder`): `t t` ends as it
+began, the last of quick jumps stays. `logTabKeyHints` lists the keys for the key overview; the
+Download tooltip names ⌘S.
+
+**Why:** k9s users find the keys where they expect them. Running the control's own action keeps
+one path to the engine and the toolbar showing the state. k9s's 2–6 request the log since then;
+Cogpit's jump puts the same first line at the top, loads older lines when the tab holds none that
+old, and keeps every line it holds. Fyne asks the main menu before the focused widget, so a menu
+item would take Ctrl+S from terminals (XOFF) and text fields.
+
+**Rejected:** a "since" option of `logs.setOptions` that reopens the stream with sinceSeconds and
+hides older lines (new engine state and a new request where a jump covers it; the held lines go);
+`0` as a jump to "now" (finds no line and stops following); k9s's `1` (head) as `logs.loadOlder`
+(1,000 more lines, not the log's start; left unbound); ⌘S as a View-menu item.
+
+**Not covered:** after a click on a toolbar check or button that widget has the keyboard, not the
+lines; the list under the surface (reached by Tab) takes the runes but not ⌘S; capitals are no
+keys.
+
+**Code:** [`logtab_keys.go`](../../internal/ui/fyneui/logtab_keys.go) `typedRune`,
+`typedShortcut`, `logTabKeyHints`; [`termview/logs.go`](../../internal/ui/fyneui/termview/logs.go)
+`SetOnKeys` · **Tests:** `TestLogTabKeys`, `TestLogTabKeysLeaveTextFields`, `TestLogTabSaveKey`,
+`TestLogTabKeyHintsAreTheKeys`, `TestLogTabKeysStayOutOfTerminals`, `TestLogsCallerKeys`,
+`TestRowKeysStayOutOfTheLogs`
+
+## D-new-showall: Show all on a Secret's data
+
+**Status:** built · **By:** owner (Show all, no confirmation, the key x), lead (open to revision) the
+details
+
+The head of a Secret's Data in the drawer ("data · 5") has **Show all** beside it, the head's rule
+ending before it (`drawerTitleActions`), in the look of a key's Show (amber word, outline and eye);
+while every value is shown it reads **Hide all**, green with the eye struck through; one widget as
+wide as the wider word, kept across rebuilds. Show all does what a click on every Show in the data
+does, with no confirmation: a GUI-only `secret.reveal` per masked key, the value kept as a single
+Show keeps it (read-only in place, cut at 4 KiB or 40 lines; where the values can be saved, whole in
+the key's editor, [D-59](#d-59-a-secrets-values-edited-in-the-drawer)); an edited or added value Hide
+masked comes back from the window's memory without a read. Hide all does what every Hide does: an
+unedited value leaves the window's memory, an edited or added one stays masked. Keys without a Show
+(binary values, removed keys) are left alone; with none the button is hidden. The answers build the
+drawer once, when the last arrives; a failed read shows one toast. The key `x`
+([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)) runs `drawer.revealAll`: it toggles as
+the button does while the drawer shows the Secret's data; before that it shows every value once the
+data is built, and is dropped when the drawer goes to another object or closes.
+
+**Why:** each key's own path means no new data path, no command and nothing for agents; one build
+per batch keeps a Secret of 100 keys from rebuilding the drawer 100 times; beside the rule the
+28-point button leaves the bracket's geometry as it is.
+
+**Rejected:** a `secret.revealAll` command (an MCP tool); one engine call returning every value (a
+new data path; the editor needs each value whole anyway); a confirmation before Show all (the user
+reveals each value without one already); the button over the rule at the head's right end (its
+bottom met the rule); a toast per failed read; a revealAll request kept for any later visit of the
+Secret (values shown on an open the user did not ask to reveal).
+
+**Not covered:** a request whose drawer move never happens (the open refused) stays until the drawer
+next goes to another object or closes, and a later open of that Secret then shows its values; a
+second Show all while reads are in flight reads those keys again (the answers are the same).
+
+**Code:** [`secretshowall.go`](../../internal/ui/fyneui/secretshowall.go),
+[`secretreveal.go`](../../internal/ui/fyneui/secretreveal.go) `revealOne`,
+[`drawer.go`](../../internal/ui/fyneui/drawer.go) `drawerTitleActions` · **Tests:**
+`TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`, `TestSecretShowAllHiddenWithoutText`,
+`TestShowAllHasNoCommand`, `TestRevealAllToggles`, `TestRevealAllBeforeTheDrawerBuildsIt`,
+`TestXShowsAllOfASecret`

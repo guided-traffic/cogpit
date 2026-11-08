@@ -26,7 +26,7 @@ var tableKeyHints = []keyHint{
 	{"PageUp PageDown", "A page up or down"},
 	{"Space", "Mark the row, or unmark it"},
 	{"⇧↑ ⇧↓", "Mark the rows on the way"},
-	{"↵", "Details"},
+	{"↵", labelDetails},
 	{"Esc", "Close the details, then the marks"},
 	{"⇧N ⇧A ⇧S ⇧P", "Sort: name, age, status, namespace"},
 	{"⇧O", "Sort by the keyboard's column"},
@@ -62,8 +62,8 @@ func (t *resourceTable) TypedShortcut(sc fyne.Shortcut) {
 }
 
 // tableRune runs a single key typed while the table has the keyboard, or handed to it by the
-// window while nothing has it. It reports whether a key took it.
-func (tv *tableView) tableRune(r rune) bool {
+// window while nothing has it.
+func (tv *tableView) tableRune(r rune) {
 	switch r {
 	case 'j':
 		tv.moveRing(tv.kbRow + 1)
@@ -85,12 +85,12 @@ func (tv *tableView) tableRune(r rune) bool {
 		tv.sortRingColumn()
 	default:
 		if tv.sh.windowRune(r) {
-			return true
+			return
 		}
-		t, ok := tv.ringTarget()
-		return ok && tv.sh.rowKey(string(r), t)
+		if t, ok := tv.ringTarget(); ok {
+			tv.sh.rowKey(string(r), t)
+		}
 	}
-	return true
 }
 
 // tableShortcut runs a key with modifiers typed while the table has the keyboard.

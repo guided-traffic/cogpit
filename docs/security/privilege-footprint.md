@@ -335,8 +335,9 @@ Secrets view shows Keys and Type as Lens does ([D-13](../developer/decisions.md#
   `secrets` uses it, plus the warm period (5 minutes by default); Helm's releases read it too, and
   their own `owner=helm` watch takes over within a minute of its end.
 - **RBAC cannot narrow `list secrets`:** a user who may list Secrets transfers every value.
-- **Every value on screen at once.** Show all in the head of a Secret's data shows every text value
-  with one click and no confirmation: a `secret.reveal` per masked key from the GUI, as each key's
+- **Every value on screen at once.** Show all in the head of a Secret's data, or the key `x` on
+  the Secret's row ([D-new-showall](../developer/decisions.md#d-new-showall-show-all-on-a-secrets-data)),
+  shows every text value with one action and no confirmation: a `secret.reveal` per masked key from the GUI, as each key's
   Show, a long value cut as Show cuts it, where the user may save each whole in its editor; Hide all
   masks them again. A screen share or a look over the shoulder then carries every value of the
   Secret (`TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`).
