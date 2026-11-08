@@ -595,9 +595,7 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	if first || st.Palette || old.Palette { // while open, what it lists follows the state
 		sh.palette.stateChanged()
 	}
-	if first || st.KeyOverview != old.KeyOverview {
-		sh.keys.stateChanged()
-	}
+	sh.keys.stateChanged() // the key overview follows UIState.KeyOverview; idempotent (keyoverview.go)
 	if first || !reflect.DeepEqual(st.Preferences, old.Preferences) {
 		sh.preferencesChanged()
 	}

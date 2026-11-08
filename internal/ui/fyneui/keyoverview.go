@@ -59,7 +59,8 @@ func (sh *shell) currentKeyPlace() keyPlace {
 	return keyPlace{}
 }
 
-// stateChanged follows UIState.KeyOverview.
+// stateChanged follows UIState.KeyOverview: it shows or hides the card only when that differs from
+// what the window shows, so it runs at every state change.
 func (k *keyOverview) stateChanged() {
 	if !k.sh.ui.KeyOverview {
 		k.hide()
