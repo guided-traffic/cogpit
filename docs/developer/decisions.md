@@ -168,7 +168,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
 | [D-158](#d-158-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
 | [D-159](#d-159-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
-| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: beside the data's head, every value through the GUI-only reveal, no confirmation; Hide all; the key x |
+| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint above the keys, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
 | [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 
 ## D-1: UI toolkit
@@ -6613,41 +6613,42 @@ keys.
 
 ## D-160: Show all on a Secret's data
 
-**Status:** built · **By:** owner (Show all, no confirmation, the key x), lead (open to revision) the
-details
+**Status:** built · **By:** owner (every value at once, no confirmation, the key x; no button: a
+hint above the keys, its words), lead (open to revision) the details
 
-The head of a Secret's Data in the drawer ("data · 5") has **Show all** beside it, the head's rule
-ending before it (`drawerTitleActions`), in the look of a key's Show (amber word, outline and eye);
-while every value is shown it reads **Hide all**, green with the eye struck through; one widget as
-wide as the wider word, kept across rebuilds. Show all does what a click on every Show in the data
-does, with no confirmation: a GUI-only `secret.reveal` per masked key, the value kept as a single
-Show keeps it (read-only in place, cut at 4 KiB or 40 lines; where the values can be saved, whole in
-the key's editor, [D-59](#d-59-a-secrets-values-edited-in-the-drawer)); an edited or added value Hide
-masked comes back from the window's memory without a read. Hide all does what every Hide does: an
-unedited value leaves the window's memory, an edited or added one stays masked. Keys without a Show
-(binary values, removed keys) are left alone; with none the button is hidden. The answers build the
-drawer once, when the last arrives; a failed read shows one toast. The key `x`
-([D-158](#d-158-k9ss-single-keys-on-rows)) runs `drawer.revealAll`: it toggles as
-the button does while the drawer shows the Secret's data; before that it shows every value once the
-data is built, and is dropped when the drawer goes to another object or closes.
+Above a Secret's keys in the drawer, right-aligned over their Show buttons, stands the hint "To
+show-all secrets at once press x." in the muted caption, its "show-all" a link; while every value
+is shown it reads "To hide-all secrets at once press x.". The data's head and its rule stay as
+every section's. The link and the key `x` ([D-158](#d-158-k9ss-single-keys-on-rows)) do what a
+click on every Show in the data does, with no confirmation: a GUI-only `secret.reveal` per masked
+key, the value kept as a single Show keeps it (read-only in place, cut at 4 KiB or 40 lines; where
+the values can be saved, whole in the key's editor, [D-59](#d-59-a-secrets-values-edited-in-the-drawer));
+an edited or added value Hide masked comes back from the window's memory without a read. hide-all
+does what every Hide does: an unedited value leaves the window's memory, an edited or added one
+stays masked. Keys without a Show (binary values, removed keys) are left alone; with none the hint
+is hidden. The answers build the drawer once, when the last arrives; a failed read shows one toast.
+`x` runs `drawer.revealAll`: it toggles as the link does while the drawer shows the Secret's data;
+before that it shows every value once the data is built, and is dropped when the drawer goes to
+another object or closes.
 
 **Why:** each key's own path means no new data path, no command and nothing for agents; one build
-per batch keeps a Secret of 100 keys from rebuilding the drawer 100 times; beside the rule the
-28-point button leaves the bracket's geometry as it is.
+per batch keeps a Secret of 100 keys from rebuilding the drawer 100 times; a line of caption text
+leaves the section's head as every other one and tells the key that does the same.
 
 **Rejected:** a `secret.revealAll` command (an MCP tool); one engine call returning every value (a
-new data path; the editor needs each value whole anyway); a confirmation before Show all (the user
-reveals each value without one already); the button over the rule at the head's right end (its
-bottom met the rule); a toast per failed read; a revealAll request kept for any later visit of the
+new data path; the editor needs each value whole anyway); a confirmation before show-all (the user
+reveals each value without one already); a button beside the data's head (its rule ended before
+it, the button stood taller than the head); a button over the Show column or beside Add Key (the
+owner's choice: a hint that teaches the key); a toast per failed read; a revealAll request kept for any later visit of the
 Secret (values shown on an open the user did not ask to reveal).
 
 **Not covered:** a request whose drawer move never happens (the open refused) stays until the drawer
 next goes to another object or closes, and a later open of that Secret then shows its values; a
-second Show all while reads are in flight reads those keys again (the answers are the same).
+second show-all while reads are in flight reads those keys again (the answers are the same).
 
 **Code:** [`secretshowall.go`](../../internal/ui/fyneui/secretshowall.go),
 [`secretreveal.go`](../../internal/ui/fyneui/secretreveal.go) `revealOne`,
-[`drawer.go`](../../internal/ui/fyneui/drawer.go) `drawerTitleActions` · **Tests:**
+`newRevealAllHint` · **Tests:**
 `TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`, `TestSecretShowAllHiddenWithoutText`,
 `TestShowAllHasNoCommand`, `TestRevealAllToggles`, `TestRevealAllBeforeTheDrawerBuildsIt`,
 `TestXShowsAllOfASecret`

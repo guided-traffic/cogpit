@@ -13,7 +13,7 @@ import (
 // value in place until the user hides it, the drawer moves to another object or closes. The value
 // lives in the drawer's revealed map and its widgets only: no toast, no log, no engine state. A
 // masked value is copied without being shown (secretcopy.go), and that copy leaves the revealed
-// map alone. Show all in the head of the data is Show on every masked key (secretshowall.go).
+// map alone. The show-all link above the keys is Show on every masked key (secretshowall.go).
 
 func init() { itemActionDialogs[engine.RevealCommand] = toggleReveal }
 
@@ -128,7 +128,7 @@ func revealButton(label string, tapped func()) *textButton {
 }
 
 // revealToggle is a Show and Hide toggle with the words show and hide, as wide as the wider of
-// them, showing label: a key's Show and Hide, the data's Show all and Hide all.
+// them, showing label: a key's Show and Hide.
 func revealToggle(show, hide, label string, tapped func()) *textButton {
 	b := newTextButton("", nil, tapped)
 	setRevealLook(b, show)
@@ -139,11 +139,10 @@ func revealToggle(show, hide, label string, tapped func()) *textButton {
 	return b
 }
 
-// setRevealLook turns b into Show or Hide (Show all or Hide all) in place: its word, its eye and
-// its tone.
+// setRevealLook turns b into Show or Hide in place: its word, its eye and its tone.
 func setRevealLook(b *textButton, label string) {
 	icon, tone := theme.VisibilityIcon(), colorStatusWarning
-	if label == hideLabel || label == hideAllLabel {
+	if label == hideLabel {
 		icon, tone = theme.VisibilityOffIcon(), colorStatusOK
 	}
 	if b.Text == label && b.tone == tone {
@@ -154,13 +153,13 @@ func setRevealLook(b *textButton, label string) {
 }
 
 // hideLabel is the word on the button that masks a value Show revealed, showLabel the one that
-// reveals it; showAllLabel and hideAllLabel do so for every value of a Secret's data at once
-// (secretshowall.go).
+// reveals it; showAllWord and hideAllWord are the link in the hint above a Secret's keys that does
+// so for every value at once (secretshowall.go).
 const (
-	hideLabel    = "Hide"
-	showLabel    = "Show"
-	showAllLabel = "Show all"
-	hideAllLabel = "Hide all"
+	hideLabel   = "Hide"
+	showLabel   = "Show"
+	showAllWord = "show-all"
+	hideAllWord = "hide-all"
 )
 
 // actionLabel is an item action's button text: Hide for a value the action revealed.

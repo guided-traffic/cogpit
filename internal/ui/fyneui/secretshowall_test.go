@@ -12,9 +12,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Show all in the head of a Secret's Data (secretshowall.go): every value shown at once through
-// secret.reveal from the GUI, one read per key, as a click on every Show; Hide all as a click on
-// every Hide; the key x's hook revealAll. The Secret is checkout-db of secretsFake: four text keys
+// The show-all link in the hint above a Secret's keys (secretshowall.go): every value shown at once
+// through secret.reveal from the GUI, one read per key, as a click on every Show; hide-all as a
+// click on every Hide; the key x's hook revealAll. The Secret is checkout-db of secretsFake: four text keys
 // and a binary one.
 
 // secretTextKeys are checkout-db's keys with a Show, in the data's order.
@@ -66,12 +66,12 @@ func TestSecretShowAllReadOnly(t *testing.T) {
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(drawerButtons(sh.drawer)["Show"]) == 4 })
 	sd := secDataOf(sh)
-	if !sd.allPart.Visible() || sd.all.Text != showAllLabel || sd.all.tone != colorStatusWarning {
-		t.Fatalf("the head's button: visible %v, %q", sd.allPart.Visible(), sd.all.Text)
+	if !sd.allHint.Visible() || sd.revealAllText() != "To show-all secrets at once press x." {
+		t.Fatalf("the hint: visible %v, %q", sd.allHint.Visible(), sd.revealAllText())
 	}
 
-	test.Tap(sd.all)
-	q.until(t, "every value", func() bool { return allShown(sh) && sd.all.Text == hideAllLabel })
+	test.Tap(sd.allLink)
+	q.until(t, "every value", func() bool { return allShown(sh) && sd.allLink.text == hideAllWord })
 	if got := revealsOf(t, f, 0); strings.Join(got, ",") != strings.Join(secretTextKeys, ",") {
 		t.Errorf("reveals %v, want one per text key", got)
 	}
@@ -80,13 +80,13 @@ func TestSecretShowAllReadOnly(t *testing.T) {
 			t.Errorf("a read-only Show all asked for %+v", p)
 		}
 	}
-	if b := drawerButtons(sh.drawer); len(b["Hide"]) != 4 || len(b["Show"]) != 0 || sd.all.tone != colorStatusOK {
-		t.Errorf("after Show all: %d Hide, %d Show, tone %s", len(b["Hide"]), len(b["Show"]), sd.all.tone)
+	if b := drawerButtons(sh.drawer); len(b["Hide"]) != 4 || len(b["Show"]) != 0 || sd.revealAllText() != "To hide-all secrets at once press x." {
+		t.Errorf("after show-all: %d Hide, %d Show, hint %q", len(b["Hide"]), len(b["Show"]), sd.revealAllText())
 	}
 
-	test.Tap(sd.all)
-	if !noneShown(sh) || len(sh.drawer.revealed) != 0 || sd.all.Text != showAllLabel {
-		t.Fatalf("after Hide all: %d revealed, button %q", len(sh.drawer.revealed), sd.all.Text)
+	test.Tap(sd.allLink)
+	if !noneShown(sh) || len(sh.drawer.revealed) != 0 || sd.allLink.text != showAllWord {
+		t.Fatalf("after Hide all: %d revealed, button %q", len(sh.drawer.revealed), sd.allLink.text)
 	}
 	if n := len(f.callsOf(engine.RevealCommand)); n != 4 {
 		t.Errorf("Hide all read: %d reveals", n)
@@ -94,11 +94,11 @@ func TestSecretShowAllReadOnly(t *testing.T) {
 
 	test.Tap(drawerButtons(sh.drawer)["Show"][2]) // DB_PASSWORD
 	q.until(t, "one value", func() bool { return drawerHasText(sh.drawer, fixtureSecretValues["DB_PASSWORD"]) })
-	if sd.all.Text != showAllLabel {
-		t.Errorf("one of four shown: the button reads %q", sd.all.Text)
+	if sd.allLink.text != showAllWord {
+		t.Errorf("one of four shown: the button reads %q", sd.allLink.text)
 	}
-	test.Tap(sd.all)
-	q.until(t, "the rest", func() bool { return allShown(sh) && sd.all.Text == hideAllLabel })
+	test.Tap(sd.allLink)
+	q.until(t, "the rest", func() bool { return allShown(sh) && sd.allLink.text == hideAllWord })
 	if got := revealsOf(t, f, 5); strings.Join(got, ",") != "DATABASE_URL,DB_HOST,DB_USER" {
 		t.Errorf("Show all after a Show read %v, want the three masked keys", got)
 	}
@@ -113,8 +113,8 @@ func TestSecretShowAllReadOnly(t *testing.T) {
 func TestSecretShowAllEditable(t *testing.T) {
 	sh, _, q, f, _ := secShell(t, ThemeDark)
 	sd := secDataOf(sh)
-	test.Tap(sd.all)
-	q.until(t, "every editor", func() bool { return len(sd.rows) == 4 && sd.all.Text == hideAllLabel })
+	test.Tap(sd.allLink)
+	q.until(t, "every editor", func() bool { return len(sd.rows) == 4 && sd.allLink.text == hideAllWord })
 	for _, c := range f.callsOf(engine.RevealCommand) {
 		if p := decodeParams[engine.RevealParams](t, c); !p.Whole {
 			t.Errorf("an editable Show all read %s cut", p.Key)
@@ -130,17 +130,17 @@ func TestSecretShowAllEditable(t *testing.T) {
 	q.until(t, "the added key", func() bool { return sd.addedRows["API_KEY"] != nil })
 	typeIntoRow(sd.addedRows["API_KEY"].cmRow, "added-value")
 
-	test.Tap(sd.all)
-	if len(sd.rows) != 1 || !sd.rows["DB_PASSWORD"].masked || !sd.addedRows["API_KEY"].masked || sd.all.Text != showAllLabel {
-		t.Fatalf("after Hide all: %d rows, button %q", len(sd.rows), sd.all.Text)
+	test.Tap(sd.allLink)
+	if len(sd.rows) != 1 || !sd.rows["DB_PASSWORD"].masked || !sd.addedRows["API_KEY"].masked || sd.allLink.text != showAllWord {
+		t.Fatalf("after Hide all: %d rows, button %q", len(sd.rows), sd.allLink.text)
 	}
 	if !sd.dirty() || sd.rows["DB_PASSWORD"].view.Text() != secTyped {
 		t.Error("Hide all dropped an edit")
 	}
 
 	reads := len(f.callsOf(engine.RevealCommand))
-	test.Tap(sd.all)
-	q.until(t, "every editor again", func() bool { return len(sd.rows) == 4 && sd.all.Text == hideAllLabel })
+	test.Tap(sd.allLink)
+	q.until(t, "every editor again", func() bool { return len(sd.rows) == 4 && sd.allLink.text == hideAllWord })
 	if got := revealsOf(t, f, reads); strings.Join(got, ",") != "DATABASE_URL,DB_HOST,DB_USER" {
 		t.Errorf("Show all over a masked edit read %v, want the unedited keys", got)
 	}
@@ -152,7 +152,7 @@ func TestSecretShowAllEditable(t *testing.T) {
 	}
 }
 
-// TestSecretShowAllHiddenWithoutText: a Secret whose data has no value with a Show has no button.
+// TestSecretShowAllHiddenWithoutText: a Secret whose data has no value with a Show has no hint.
 func TestSecretShowAllHiddenWithoutText(t *testing.T) {
 	sh, _, q, _, _ := secShell(t, ThemeDark)
 	sd := secDataOf(sh)
@@ -160,7 +160,7 @@ func TestSecretShowAllHiddenWithoutText(t *testing.T) {
 		sd.removeKey(k)
 	}
 	q.until(t, "the keys removed", func() bool { return len(drawerButtons(sh.drawer)["Show"]) == 0 })
-	if sd.allPart.Visible() {
+	if sd.allHint.Visible() {
 		t.Error("Show all with no key to show")
 	}
 }
@@ -208,7 +208,7 @@ func TestRevealAllBeforeTheDrawerBuildsIt(t *testing.T) {
 
 	sh.drawer.revealAll(ref) // as the key x does: the drawer is asked for ref, then the hook runs
 	f.update(func(u *engine.UIState) { u.Selected, u.Drawer = []model.ObjectRef{ref}, &ref })
-	q.until(t, "every value", func() bool { return allShown(sh) && secDataOf(sh).all.Text == hideAllLabel })
+	q.until(t, "every value", func() bool { return allShown(sh) && secDataOf(sh).allLink.text == hideAllWord })
 	if sh.drawer.revealAllWant != nil || len(revealsOf(t, f, 0)) != 4 {
 		t.Errorf("the request stayed, or read %v", revealsOf(t, f, 0))
 	}
@@ -260,8 +260,8 @@ func renderShowAll(t *testing.T, mode ThemeMode, name string, editable, shown bo
 		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.drawer.last != nil && secDataOf(sh) != nil && sh.diag.total > 0
 	})
 	if shown {
-		test.Tap(secDataOf(sh).all)
-		q.until(t, "every value", func() bool { return secDataOf(sh).all.Text == hideAllLabel })
+		test.Tap(secDataOf(sh).allLink)
+		q.until(t, "every value", func() bool { return secDataOf(sh).allLink.text == hideAllWord })
 	}
 }
 

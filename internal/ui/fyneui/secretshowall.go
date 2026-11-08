@@ -2,26 +2,81 @@ package fyneui
 
 import (
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/theme"
 
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Show all (H-8, D-59): the head of a Secret's Data ("data · 5") has Show all at its right end,
-// Hide all while every value is shown, in the look of a key's Show and Hide (secretreveal.go) and
-// one widget as wide as the wider word, kept across rebuilds as a key's toggle is. Show all does
-// what a click on every Show in the data does, with no confirmation: a masked key reads its value
-// through secret.reveal from the GUI, one read per key, kept in the drawer's revealed map or, on a
-// Secret whose values the user may save, read whole into its editor; an edited value Hide masked
-// comes back from the window's memory without a read. Hide all does what a click on every Hide
-// does: an unedited value leaves the window's memory, an edited or added one stays masked. A value
-// Show cuts stays cut. The reads' answers build the drawer once, when the last arrives, and a
+// Show all (H-8, D-59, D-160): above a Secret's keys stands the hint "To show-all secrets at once
+// press x.", right-aligned over the keys' Show buttons, muted, its "show-all" a link; while every
+// value is shown it reads "hide-all". The link and the key x (revealAll, on a Secret's row or its
+// drawer) do what a click on every Show in the data does, with no confirmation: a masked key reads
+// its value through secret.reveal from the GUI, one read per key, kept in the drawer's revealed map
+// or, on a Secret whose values the user may save, read whole into its editor; an edited value Hide
+// masked comes back from the window's memory without a read. hide-all does what a click on every
+// Hide does: an unedited value leaves the window's memory, an edited or added one stays masked. A
+// value Show cuts stays cut. The reads' answers build the drawer once, when the last arrives, and a
 // failed read shows one toast for the batch. No value goes to an agent, the CLI, the log or a
-// toast: the reads are a single Show's. The button is hidden where no key has a Show (binary values
-// only, no data). revealAll is the same for a key press (x), on a Secret's row or its drawer.
+// toast: the reads are a single Show's. The hint is hidden where no key has a Show (binary values
+// only, no data).
 
-func init() {
-	drawerTitleActions[kindSecrets+"\x00Data"] = func(d *drawer, ref model.ObjectRef) fyne.CanvasObject {
-		return d.secDataFor(ref).allPart
+// The hint's words around its link.
+const (
+	revealAllBefore = "To"
+	revealAllAfter  = "secrets at once press x."
+)
+
+// newRevealAllHint is the hint above a Secret's keys and its link, which runs toggle; hidden until
+// render finds a key with a Show.
+func newRevealAllHint(toggle func()) (*linkText, fyne.CanvasObject) {
+	link := newLinkText(showAllWord, toggle)
+	link.size = theme.SizeNameCaptionText
+	line := box(wordsLayout{size: theme.SizeNameCaptionText},
+		newTextLine(revealAllBefore, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}),
+		fitLink(link), // its whole word: a link's own minimum lets it shorten
+		newTextLine(revealAllAfter, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+	hint := container.NewBorder(nil, nil, nil, line)
+	hint.Hide()
+	return link, hint
+}
+
+// revealAllText is the hint as it reads now: the link's word in its place.
+func (sd *secData) revealAllText() string {
+	return revealAllBefore + " " + sd.allLink.text + " " + revealAllAfter
+}
+
+// wordsLayout sets its objects side by side as the words of one line: at their minimum widths, a
+// space of the text size apart, at the line's full height.
+type wordsLayout struct{ size fyne.ThemeSizeName }
+
+func (l wordsLayout) gap() float32 {
+	return fyne.MeasureText(" ", fyne.CurrentApp().Settings().Theme().Size(l.size), fyne.TextStyle{}).Width
+}
+
+func (l wordsLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
+	var s fyne.Size
+	for i, o := range objs {
+		m := o.MinSize()
+		if i > 0 {
+			s.Width += l.gap()
+		}
+		s.Width += m.Width
+		s.Height = max(s.Height, m.Height)
+	}
+	return s
+}
+
+func (l wordsLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
+	x := float32(0)
+	for i, o := range objs {
+		if i > 0 {
+			x += l.gap()
+		}
+		w := o.MinSize().Width
+		o.Move(fyne.NewPos(x, 0))
+		o.Resize(fyne.NewSize(w, size.Height))
+		x += w
 	}
 }
 
@@ -33,7 +88,7 @@ type revealEntry struct {
 	shown  bool
 }
 
-// anyHidden reports whether a key's value is masked: Show all shows it, else the button is Hide all.
+// anyHidden reports whether a key's value is masked: show-all shows it, else the link is hide-all.
 func (sd *secData) anyHidden() bool {
 	for _, e := range sd.entries {
 		if !e.shown {
@@ -43,22 +98,26 @@ func (sd *secData) anyHidden() bool {
 	return false
 }
 
-// setAllLook makes the head's button Show all while a value is masked, Hide all while every value
-// is shown, and hides it where no key has a Show.
+// setAllLook makes the hint's link show-all while a value is masked, hide-all while every value
+// is shown, and hides the hint where no key has a Show.
 func (sd *secData) setAllLook() {
 	if len(sd.entries) == 0 {
-		setVisible(sd.allPart, false)
+		setVisible(sd.allHint, false)
 		return
 	}
-	label := hideAllLabel
+	word := hideAllWord
 	if sd.anyHidden() {
-		label = showAllLabel
+		word = showAllWord
 	}
-	setRevealLook(sd.all, label)
-	setVisible(sd.allPart, true)
+	if sd.allLink.text != word {
+		sd.allLink.text = word
+		sd.allLink.Refresh()
+		sd.allHint.Refresh() // the line's width follows the word's
+	}
+	setVisible(sd.allHint, true)
 }
 
-// toggleAll is the head's button: Show all while a value is masked, else Hide all.
+// toggleAll is the hint's link: show-all while a value is masked, else hide-all.
 func (sd *secData) toggleAll() {
 	if sd.anyHidden() {
 		sd.showAll()
@@ -150,8 +209,8 @@ func (b *revealBatch) answered(d *drawer, ref model.ObjectRef, err error, kept b
 }
 
 // revealAll is the key x on a Secret (its row in a list or its drawer): while the drawer shows
-// ref's data it toggles as the head's button does (Show all while a value is masked, else Hide
-// all); before the drawer has built ref's data (the drawer was just asked for ref) it remembers the
+// ref's data it toggles as the hint's link does (show-all while a value is masked, else
+// hide-all); before the drawer has built ref's data (the drawer was just asked for ref) it remembers the
 // request and shows every value once that data is built, and forgets it when the drawer moves to
 // another object or closes. Any object but a Secret is ignored.
 func (d *drawer) revealAll(ref model.ObjectRef) {
@@ -187,27 +246,5 @@ func (d *drawer) revealWanted() {
 func (d *drawer) dropRevealWant(ref *model.ObjectRef) {
 	if w := d.revealAllWant; w != nil && (ref == nil || !w.Same(*ref)) {
 		d.revealAllWant = nil
-	}
-}
-
-// headPartLayout puts a button beside a bracket head (drawerTitleActions) centred on the head's
-// label line: taller than the label, it reaches above the head, not down to the rule's end.
-type headPartLayout struct{}
-
-func (headPartLayout) MinSize(objs []fyne.CanvasObject) fyne.Size {
-	w := float32(0)
-	for _, o := range objs {
-		w = max(w, o.MinSize().Width)
-	}
-	return fyne.NewSize(w, bracketTextHeight(fyne.CurrentApp().Settings().Theme()))
-}
-
-// Layout centres each object on the label line at the top, however tall the head gives it room.
-func (headPartLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
-	line := bracketTextHeight(fyne.CurrentApp().Settings().Theme())
-	for _, o := range objs {
-		m := o.MinSize()
-		o.Resize(m)
-		o.Move(fyne.NewPos(size.Width-m.Width, (line-m.Height)/2))
 	}
 }

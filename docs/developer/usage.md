@@ -114,8 +114,8 @@ Ctrl on Windows and Linux.
   dry run, rebased onto a version someone else changed meanwhile; unsaved values survive a quit or
   a crash as a draft.
 - A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
-  **Show all** at the right of the data's head or the key `x` (no confirmation; **Hide all** masks
-  them again; [D-160](decisions.md#d-160-show-all-on-a-secrets-data)), copy
+  the hint above the keys, "To **show-all** secrets at once press x.", whose show-all is a link, or
+  the key `x` (no confirmation; then it reads hide-all and masks them again; [D-160](decisions.md#d-160-show-all-on-a-secrets-data)), copy
   a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
   keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved
   touches the disk. Create Secret masks values as you type. Agents can neither create a Secret nor
@@ -1115,7 +1115,7 @@ tooltips name each action's key.
 | `t` `s` | Cron Jobs | Trigger; Suspend or Resume |
 | `c` `u` `r` `s` | nodes | Cordon, Uncordon, Drain, Shell |
 | `r` `v` | Helm releases | Rollback; the values in the Revisions tab |
-| `x` | Secrets | Show all of the data's values |
+| `x` | Secrets | show all of the data's values, or hide them again |
 | `e` `c` `n` | every object | Edit; copy the name; copy the namespace |
 | `y` `d` | every object | the drawer at YAML; at Details |
 | `Ctrl+D`, `⌘⌫` (`Ctrl+Backspace`), `Delete` | every object | Delete, which asks first |

@@ -111,10 +111,10 @@ type secData struct {
 	b64s    map[string]*b64Button  // the b64 buttons of the keys the Secret holds, by key (an added key's is its row's)
 	toggles map[string]*textButton // the Show and Hide toggles of the keys the Secret holds, by key (an added key's is its row's)
 
-	// Show all and Hide all in the head of the data, and the keys with a Show or Hide as render
-	// last drew them (secretshowall.go).
-	all     *textButton
-	allPart fyne.CanvasObject
+	// The hint above the keys, "To show-all secrets at once press x.", its link, and the keys with
+	// a Show or Hide as render last drew them (secretshowall.go).
+	allLink *linkText
+	allHint fyne.CanvasObject
 	entries []revealEntry
 }
 
@@ -147,7 +147,7 @@ func secretDataSection(d *drawer, ref model.ObjectRef, sec model.DetailSection) 
 }
 
 // secDataFor is the Data section kept for the Secret ref, made when the drawer has none for it: the
-// section and Show all in its head (secretshowall.go) share it.
+// section and its show-all hint (secretshowall.go) share it.
 func (d *drawer) secDataFor(ref model.ObjectRef) *secData {
 	sd, ok := d.kept[secDataKept].(*secData)
 	if !ok || sd.ref != ref {
@@ -169,10 +169,8 @@ func newSecData(d *drawer, ref model.ObjectRef) *secData {
 	sd.counts = newEditCounts()
 	sd.buttons = footerRow(sd.adder, sd.counts, sd.revert, sd.save, d.contentWidth())
 	sd.status = newParagraph("", colorMuted, d.contentWidth())
-	sd.root = container.NewVBox(sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
-	sd.all = revealToggle(showAllLabel, hideAllLabel, showAllLabel, sd.toggleAll)
-	sd.allPart = box(headPartLayout{}, sd.all)
-	sd.allPart.Hide()
+	sd.allLink, sd.allHint = newRevealAllHint(sd.toggleAll)
+	sd.root = container.NewVBox(sd.allHint, sd.list, dataGap(), sd.adder.row, sd.buttons, sd.status)
 	sd.restore()
 	return sd
 }
