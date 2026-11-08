@@ -8,7 +8,7 @@ import (
 
 // Keyboard navigation in a table (ui-parity › Tables): ↑↓ move between rows, Tab and ⇧Tab between
 // columns, ↵ opens the details of the row, through ui.select as a click does; Space marks it
-// (k9s's, D-new-rowkeys; tablerowkeys.go). Fyne's table moves its highlight on the arrows and selects on Space; the resource
+// (k9s's, D-158; tablerowkeys.go). Fyne's table moves its highlight on the arrows and selects on Space; the resource
 // table adds Tab, ⇧Tab and ↵, and draws the highlighted cell itself, because Cogpit hides Fyne's
 // cell markers (HideSeparators) and draws whole-row bands instead.
 //

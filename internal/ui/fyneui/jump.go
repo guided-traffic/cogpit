@@ -8,7 +8,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The palette's jump (engine/jump.go, D-new-jump): a text that starts with ":" lists jump entries in
+// The palette's jump (engine/jump.go, D-161): a text that starts with ":" lists jump entries in
 // place of the commands, k9s's `:pod kube-system /web @prod`. The `:` key opens the palette with
 // ":" typed (openJump). The entries are made on every keystroke from what the window holds, without
 // a request: the shown cluster's kinds (kinds.list, with their singular and short names), its

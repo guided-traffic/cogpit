@@ -12,7 +12,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The key overview (D-new-rowkeys, the owner's pick: a card over the window, as the palette is):
+// The key overview (D-158, the owner's pick: a card over the window, as the palette is):
 // the single keys that act where the keyboard is, generated from the registry's row keys, the
 // window's object keys (rowkeys.go) and the keyHints of the place (the table's, a logs tab's) and
 // the window's, so that it never goes stale. On the left the object's keys, a key that cannot run on

@@ -166,10 +166,10 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 | [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
-| [D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
-| [D-new-logkeys](#d-new-logkeys-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
-| [D-new-showall](#d-new-showall-show-all-on-a-secrets-data) | Show all on a Secret's data | built: beside the data's head, every value through the GUI-only reveal, no confirmation; Hide all; the key x |
-| [D-new-jump](#d-new-jump-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
+| [D-158](#d-158-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
+| [D-159](#d-159-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
+| [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: beside the data's head, every value through the GUI-only reveal, no confirmation; Hide all; the key x |
+| [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 
 ## D-1: UI toolkit
 
@@ -551,7 +551,7 @@ lives in memory only; of a cluster only the discovery answer is kept on disk
 
 Secrets are listed and watched in full, so that the Secrets view fills its Keys and Type columns as
 Lens does. The drawer reads the opened Secret from the cache and masks its values until the user
-reveals them (`secret.reveal`, GUI only; one at a time or all, [D-new-showall](#d-new-showall-show-all-on-a-secrets-data)); agents get them redacted
+reveals them (`secret.reveal`, GUI only; one at a time or all, [D-160](#d-160-show-all-on-a-secrets-data)); agents get them redacted
 ([H-8](../security/privilege-footprint.md#h-8-secret-data-arrives-with-the-list)). Helm reads its
 release Secrets from that watch while it runs, else from its own `owner=helm` watch, so that the
 Releases view alone never holds every Secret. The cache drops the
@@ -6502,7 +6502,7 @@ Pods history is not matched by node ([D-71](#d-71-thanos-and-victoriametrics-rea
 **Tests:** `TestClusterHistoryCountsTheClustersNodesOnly`, `TestClusterHistoryThenLiveSums`,
 `TestClusterOverviewPodsHistory`, `TestClusterOverviewForeignMachinesNote`
 
-## D-new-rowkeys: k9s's single keys on rows
+## D-158: k9s's single keys on rows
 
 **Status:** built · **By:** owner (keys always on, only where the table or the drawer has the
 keyboard; Space marks; the key overview a card over the window; the scope: every key whose function
@@ -6572,7 +6572,7 @@ with several state columns reads the first only.
 `TestSortAndFilterKeys`, `TestWindowKeysActOnTheDrawer`, `TestKeyOverview`, `TestRowMenuShowsRowKeys`,
 `TestTableKeyboard`, `TestXShowsAllOfASecret`, `TestRowKeysStayOutOfTheLogs`
 
-## D-new-logkeys: A logs tab's single keys
+## D-159: A logs tab's single keys
 
 **Status:** built · **By:** owner (k9s's keys; single keys only where a non-text place has the
 keyboard), lead (open to revision) the rest
@@ -6584,7 +6584,7 @@ tab's own control: `t` the Timestamps check and `w` the Wrap check (`logs.setOpt
 field, `0` the Follow check ticked, `/` the search, ⌘S (Ctrl+S) the Download button. The surface
 offers the keys it does not take itself (⌘C, ⌘A, Escape) to the tab (`termview.Logs.SetOnKeys`);
 what the tab does not take goes on to the window, where the row keys stay out
-([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)) and `?` lists the tab's keys. ⌘S is a
+([D-158](#d-158-k9ss-single-keys-on-rows)) and `?` lists the tab's keys. ⌘S is a
 shortcut of the surface, not a main-menu item. The search, the time field and terminal tabs type
 every key. Option changes and jumps go out in the order made (`dispatchInOrder`): `t t` ends as it
 began, the last of quick jumps stays. `logTabKeyHints` lists the keys for the key overview; the
@@ -6611,7 +6611,7 @@ keys.
 `TestLogTabKeyHintsAreTheKeys`, `TestLogTabKeysStayOutOfTerminals`, `TestLogsCallerKeys`,
 `TestRowKeysStayOutOfTheLogs`
 
-## D-new-showall: Show all on a Secret's data
+## D-160: Show all on a Secret's data
 
 **Status:** built · **By:** owner (Show all, no confirmation, the key x), lead (open to revision) the
 details
@@ -6627,7 +6627,7 @@ masked comes back from the window's memory without a read. Hide all does what ev
 unedited value leaves the window's memory, an edited or added one stays masked. Keys without a Show
 (binary values, removed keys) are left alone; with none the button is hidden. The answers build the
 drawer once, when the last arrives; a failed read shows one toast. The key `x`
-([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)) runs `drawer.revealAll`: it toggles as
+([D-158](#d-158-k9ss-single-keys-on-rows)) runs `drawer.revealAll`: it toggles as
 the button does while the drawer shows the Secret's data; before that it shows every value once the
 data is built, and is dropped when the drawer goes to another object or closes.
 
@@ -6652,14 +6652,14 @@ second Show all while reads are in flight reads those keys again (the answers ar
 `TestShowAllHasNoCommand`, `TestRevealAllToggles`, `TestRevealAllBeforeTheDrawerBuildsIt`,
 `TestXShowsAllOfASecret`
 
-## D-new-jump: The palette's jump: k9s's `:` commands
+## D-161: The palette's jump: k9s's `:` commands
 
 **Status:** built · **By:** owner (`:` opens the command palette in a jump mode with ":" typed; the
 scope), lead (open to revision) the rest
 
 A palette text that starts with ":" is a jump, `:<view> [namespace] [/search] [@cluster]`, the
 words after the view in any order; `:` opens the palette with it typed while the table, the drawer
-or nothing has the keyboard ([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)). The view is
+or nothing has the keyboard ([D-158](#d-158-k9ss-single-keys-on-rows)). The view is
 a kind by its plural, singular, Kind or short name, its key or title, case ignored; names that begin
 with the word follow the exact ones, so the list completes. A built-in kind's singular and short
 names are the cluster's discovery's (`Conn.ResourceNames`, the answer `ServedResources` read, no

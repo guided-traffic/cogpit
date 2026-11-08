@@ -171,7 +171,7 @@ func (s *textSelection) FocusLost() {
 }
 
 // TypedRune implements fyne.Focusable: a selectable text types nothing, so the key goes on to the
-// window, whose single keys act on the drawer's object (D-new-rowkeys, windowkeys.go).
+// window, whose single keys act on the drawer's object (D-158, windowkeys.go).
 func (s *textSelection) TypedRune(r rune) {
 	if s.self == nil {
 		return

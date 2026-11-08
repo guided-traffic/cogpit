@@ -119,7 +119,7 @@ func add[P any](g *registrar, spec engine.Spec[P]) {
 // commands that take its place for kinds that are not API objects (Helm releases, port forwards).
 const labelDelete = "Delete"
 
-// deleteKeys are the row keys of every Delete (D-new-rowkeys): k9s's Ctrl+D, ⌘⌫ as macOS's lists
+// deleteKeys are the row keys of every Delete (D-158): k9s's Ctrl+D, ⌘⌫ as macOS's lists
 // delete (Ctrl+Backspace elsewhere), and the Delete key as Windows' and Linux's lists do. Each asks
 // first as Delete from the menu does.
 var deleteKeys = []string{"Ctrl+D", "Cmd+Backspace", "Delete"}

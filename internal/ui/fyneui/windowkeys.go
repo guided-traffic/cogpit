@@ -7,7 +7,7 @@ import (
 	"fyne.io/fyne/v2/driver/desktop"
 )
 
-// The window's side of the single keys (D-new-rowkeys). Fyne hands a key to the window's handlers
+// The window's side of the single keys (D-158). Fyne hands a key to the window's handlers
 // only while no widget has the keyboard, or while one passes it on (a drawer's selectable text,
 // selection.go): then a key acts on the drawer's object while the drawer is open, else on the
 // table's keyboard row, the table taking the keyboard. A dialog, a pop-up, the palette or a

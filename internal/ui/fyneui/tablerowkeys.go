@@ -11,7 +11,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The table's own single keys (D-new-rowkeys, k9s's): moving the keyboard's row, marking rows,
+// The table's own single keys (D-158, k9s's): moving the keyboard's row, marking rows,
 // sorting and the status filter. The object keys (l, s, r, ...) are rowkeys.go's; the window's
 // (/ : ? 0) shell.go's windowRune.
 

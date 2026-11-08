@@ -16,7 +16,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Row keys (D-new-rowkeys, the owner's pick: k9s's single keys). While the resource table or the
+// Row keys (D-158, the owner's pick: k9s's single keys). While the resource table or the
 // drawer has the keyboard, a key acts on the object the table's keyboard is on (its ring's row), or
 // on the drawer's object: l Logs, s Shell, r Restart, e Edit, Ctrl+D Delete, ... Never in a text
 // field or a terminal: those take every key while they have the keyboard, and the window's

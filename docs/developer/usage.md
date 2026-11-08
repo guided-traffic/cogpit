@@ -115,7 +115,7 @@ Ctrl on Windows and Linux.
   a crash as a draft.
 - A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
   **Show all** at the right of the data's head or the key `x` (no confirmation; **Hide all** masks
-  them again; [D-new-showall](decisions.md#d-new-showall-show-all-on-a-secrets-data)), copy
+  them again; [D-160](decisions.md#d-160-show-all-on-a-secrets-data)), copy
   a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
   keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved
   touches the disk. Create Secret masks values as you type. Agents can neither create a Secret nor
@@ -996,7 +996,7 @@ a configuration directory have no such item. Copying is no command
 
 `:` in a table or the window opens the command palette with `:` typed; a palette text that starts
 with `:` is a jump: `:<view> [namespace] [/search] [@cluster]`, the words after the view in any
-order ([D-new-jump](decisions.md#d-new-jump-the-palettes-jump-k9ss--commands)). The list completes as you
+order ([D-161](decisions.md#d-161-the-palettes-jump-k9ss--commands)). The list completes as you
 type, ↵ opens the first entry, and an entry that cannot run is greyed with its reason (no view by
 that name, a namespace the cluster does not have, a namespace on a cluster-scoped kind).
 
@@ -1101,7 +1101,7 @@ fields of Fyne's file and colour dialogs.
 
 While the list or the drawer has the keyboard, single keys act as in k9s: on the row the keyboard is
 on (the ring), or on the drawer's object
-([D-new-rowkeys](decisions.md#d-new-rowkeys-k9ss-single-keys-on-rows)). A text field and a terminal
+([D-158](decisions.md#d-158-k9ss-single-keys-on-rows)). A text field and a terminal
 keep every key; nothing acts while a dialog, a menu, the palette or a settings page is open. With
 nothing holding the keyboard, a key acts on the drawer's object, else the list takes it. **?** shows
 the keys that act where the keyboard is (Help › Key Overview); the row menu and the drawer's
@@ -1148,7 +1148,7 @@ In a **logs tab** ([D-99](decisions.md#d-99-selecting-and-copying-a-log-tabs-tex
 | Escape | drops the selection |
 
 Single keys while the lines have the keyboard (opening the tab or a click into the lines gives it
-to them), as in k9s's log view ([D-new-logkeys](decisions.md#d-new-logkeys-a-logs-tabs-single-keys));
+to them), as in k9s's log view ([D-159](decisions.md#d-159-a-logs-tabs-single-keys));
 the search, the time field and terminal tabs type every key, and the list's single keys stay out:
 
 | Key | It does |

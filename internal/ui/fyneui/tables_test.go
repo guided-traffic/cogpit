@@ -134,7 +134,7 @@ func press(t *testing.T, w fyne.Window, name fyne.KeyName) {
 
 // TestTableKeyboard: with the table focused, ↑↓ move between rows (the row band follows), Tab
 // and ⇧Tab between columns (a ring marks the cell), ↵ opens the row's details through ui.select,
-// as a click does, and Escape closes them; Space marks the row (k9s's, D-new-rowkeys), and Escape
+// as a click does, and Escape closes them; Space marks the row (k9s's, D-158), and Escape
 // with the drawer closed clears the marks.
 func TestTableKeyboard(t *testing.T) {
 	f := connectedFake(t, 50)

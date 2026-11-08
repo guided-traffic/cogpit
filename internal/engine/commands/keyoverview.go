@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The key overview (D-new-rowkeys): a card over Cogpit's window that lists the single keys acting
+// The key overview (D-158): a card over Cogpit's window that lists the single keys acting
 // where the keyboard is (the resource table, the drawer, a logs tab: k9s's keys) and the window's.
 // Whether it shows is UI state (rule 2), so that agents see it in ui_state and can close it.
 

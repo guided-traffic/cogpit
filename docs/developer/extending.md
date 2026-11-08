@@ -43,7 +43,7 @@ Ordered checklists. Packages and layers: [architecture §2](architecture.md#2-re
    | `GUIOnly` | only the user's own action in the window may run it; a new one needs the owner's decision ([conventions](conventions.md#commands-not-handlers)) |
    | `Prefill`, `Dialog` | a dialog starts from cached values; a field needs a hint for a person or a slider over the range most whole numbers fall in (`engine.DialogField`, [D-104](decisions.md#d-104-dialog-fields-hints-dropdowns-and-button-outlines)) |
    | `MoreKeys`, `PlatformKeys` | further keys no menu shows (add the command to `moreKeyRuns` in [`menukeys.go`](../../internal/ui/fyneui/menukeys.go), which binds them from any focus); keys that differ per GOOS, the first the shown one ([`engine/keys.go`](../../internal/engine/keys.go), [D-134](decisions.md#d-134-the-windows-zoom)) |
-   | `RowKeys` | a k9s key on the row (`l`, `Ctrl+D`), when k9s has one for it or one fits; a kind's own action, or one on a selection ([D-new-rowkeys](decisions.md#d-new-rowkeys-k9ss-single-keys-on-rows)) |
+   | `RowKeys` | a k9s key on the row (`l`, `Ctrl+D`), when k9s has one for it or one fits; a kind's own action, or one on a selection ([D-158](decisions.md#d-158-k9ss-single-keys-on-rows)) |
 
 5. **Its cluster** ([architecture › D-69](architecture.md#d-69-several-clusters-connected)): the
    parameters of a command on a dock tab implement `engine.DockTargeted`; one on neither an object

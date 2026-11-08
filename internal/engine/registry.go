@@ -79,7 +79,7 @@ type Spec[P any] struct {
 	// Ctrl+Alt+- on Linux (D-134).
 	PlatformKeys map[string][]string
 	// RowKeys are the keys that run the command on the object the resource table's keyboard is on,
-	// or on the drawer's object, while the table or the drawer has the keyboard (D-new-rowkeys,
+	// or on the drawer's object, while the table or the drawer has the keyboard (D-158,
 	// k9s's keys; rowkeys.go): never in a text field or a terminal. The first is the one the row
 	// menu and the key overview show. A key is one character ("l"; "J" is ⇧J) or a key with its
 	// modifiers in the registry's notation ("Ctrl+D", "Cmd+Backspace", "Delete"). A command with

@@ -39,7 +39,7 @@ func checkKeys(shortcut string, more []string, platform map[string][]string) err
 	return nil
 }
 
-// Row keys (Spec.RowKeys, D-new-rowkeys): k9s's single keys, which act on the object the
+// Row keys (Spec.RowKeys, D-158): k9s's single keys, which act on the object the
 // resource table's keyboard is on or on the drawer's object. A row key is one printable character
 // other than a space ("l", "J", "?"), or a key with modifiers in the registry's notation
 // ("Ctrl+D", "Cmd+Backspace") or a named key alone ("Delete").
