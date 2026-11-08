@@ -34,6 +34,8 @@ import (
 	"log/slog"
 	"math/rand/v2"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -42,6 +44,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/cache"
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // Defaults for zero Options fields.
@@ -214,6 +217,17 @@ func Resources() []schema.GroupVersionResource {
 	out := make([]schema.GroupVersionResource, 0, numKinds)
 	for k := range numKinds {
 		out = append(out, kindInfo[k].gvr)
+	}
+	return out
+}
+
+// Names returns the singular names and short names ("po") of the resources the cluster serves,
+// as a real cluster's discovery gives them (cluster.Conn.ResourceNames).
+func Names() map[schema.GroupResource]model.KindNames {
+	out := make(map[schema.GroupResource]model.KindNames, numKinds)
+	for k := range numKinds {
+		info := kindInfo[k]
+		out[info.gvr.GroupResource()] = model.KindNames{Singular: strings.ToLower(info.kind), ShortNames: slices.Clone(info.short)}
 	}
 	return out
 }

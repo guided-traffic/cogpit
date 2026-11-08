@@ -66,6 +66,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerCreateDialogs(g)
 	registerSecretCreate(g)
 	registerPalette(g)
+	registerJump(g) // the palette's jump, k9s's :pod kube-system (engine/jump.go)
 	registerGroupLogs(g)
 	registerArgoCD(g)
 	registerPreferences(g)

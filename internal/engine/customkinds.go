@@ -58,8 +58,11 @@ type customEntry struct {
 type customSet struct {
 	profiles []*model.KindProfile // sorted by API group, then Kind
 	byKey    map[string]*model.KindProfile
-	synced   bool   // the definitions' initial list is done
-	err      string // the watch's last error: without list and watch on definitions there are no custom kinds
+	// names are the definitions' singular and short names by kind key (Backend.KindNames); a
+	// kind discovery found (A90) has none here, its names are discovery's.
+	names  map[string]model.KindNames
+	synced bool   // the definitions' initial list is done
+	err    string // the watch's last error: without list and watch on definitions there are no custom kinds
 	// discovered: the definitions could not be listed (err), and API discovery answered which
 	// curated kinds the cluster serves (A90, customkinds_discovery.go).
 	discovered bool
@@ -227,6 +230,7 @@ func (ck *customKinds) rebuild() {
 	set := &customSet{
 		profiles:   make([]*model.KindProfile, 0, len(next)),
 		byKey:      make(map[string]*model.KindProfile, len(next)),
+		names:      make(map[string]model.KindNames, len(next)),
 		synced:     synced,
 		err:        errMsg,
 		discovered: discovered,
@@ -234,6 +238,9 @@ func (ck *customKinds) rebuild() {
 	for key, e := range next {
 		set.profiles = append(set.profiles, e.profile)
 		set.byKey[key] = e.profile
+		if n := e.kind.Names; e.kind.Key() == key && (n.Singular != "" || len(n.ShortNames) > 0) {
+			set.names[key] = n // not a companion's (argocd.go): its kind is the one it comes with
+		}
 	}
 	slices.SortFunc(set.profiles, func(x, y *model.KindProfile) int {
 		if c := strings.Compare(x.Group, y.Group); c != 0 {

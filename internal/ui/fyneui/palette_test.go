@@ -47,6 +47,7 @@ var paletteProbes = map[string]func(t testing.TB, f *fakeEngine, cmd *engine.Com
 	"hotbar.openCluster": probe[hotbarSlotParams],
 	"object.copyName":    probe[refParams], "pod.attach": probe[probeContainer], "pod.shell": probe[probeContainer],
 	"pod.evict": probe[refParams], "pod.logs": probe[probeContainer], "object.edit": probe[refParams], "object.delete": probe[refParams],
+	engine.JumpCommand: probe[engine.JumpParams], // the jump's entries (jump.go)
 }
 
 // probe registers a stand-in of a real command: its label, menu path, shortcut, kinds, order and
