@@ -13,7 +13,7 @@ import (
 // value in place until the user hides it, the drawer moves to another object or closes. The value
 // lives in the drawer's revealed map and its widgets only: no toast, no log, no engine state. A
 // masked value is copied without being shown (secretcopy.go), and that copy leaves the revealed
-// map alone.
+// map alone. Show all in the head of the data is Show on every masked key (secretshowall.go).
 
 func init() { itemActionDialogs[engine.RevealCommand] = toggleReveal }
 
@@ -26,35 +26,48 @@ func revealKey(a model.ItemAction) string { return a.Command + "\x00" + string(a
 func toggleReveal(sh *shell, ref model.ObjectRef, a model.ItemAction) {
 	d := sh.drawer
 	key := revealKey(a)
-	if sd := d.secretDataOf(ref); sd != nil && sd.editable() {
-		if _, shown := d.revealed[key]; !shown {
-			sd.reveal(a)
-			return
-		}
-	}
 	if _, shown := d.revealed[key]; shown {
 		delete(d.revealed, key)
 		delete(d.revealedLen, key)
 		d.rebuild()
 		return
 	}
+	revealOne(sh, ref, a, nil)
+}
+
+// revealOne is Show on a masked value: secret.reveal from the GUI, the value kept in the drawer's
+// revealed map, or, on a Secret whose values the user may save, read whole into an editor. b is
+// Show all's batch of reads (secretshowall.go); nil for a single Show.
+func revealOne(sh *shell, ref model.ObjectRef, a model.ItemAction, b *revealBatch) {
+	d := sh.drawer
+	if sd := d.secretDataOf(ref); sd != nil && sd.editable() {
+		sd.reveal(a, b)
+		return
+	}
+	key := revealKey(a)
 	sh.dispatch(a.Command, a.Params, func(res any, err error) {
-		if err != nil {
-			sh.showError(err)
-			return
+		kept := false
+		if err == nil {
+			kept = d.keepRevealed(ref, key, res)
 		}
-		var v engine.SecretValue
-		if decode(res, &v) != nil || d.shown == nil || *d.shown != ref {
-			return // the drawer moved on meanwhile: keep nothing
-		}
-		text := v.Value
-		if v.Cut {
-			text += "\n[the first " + byteText(len(v.Value)) + " of " + byteText(v.Size) + "]"
-		}
-		d.revealed[key] = text
-		d.revealedLen[key] = len(v.Value)
-		d.rebuild()
+		b.answered(d, ref, err, kept)
 	})
+}
+
+// keepRevealed keeps a revealed value in the drawer's revealed map, a value Show cut with a note
+// that says so, and reports whether it did: nothing when the drawer moved on meanwhile.
+func (d *drawer) keepRevealed(ref model.ObjectRef, key string, res any) bool {
+	var v engine.SecretValue
+	if decode(res, &v) != nil || d.shown == nil || *d.shown != ref {
+		return false // the drawer moved on meanwhile: keep nothing
+	}
+	text := v.Value
+	if v.Cut {
+		text += "\n[the first " + byteText(len(v.Value)) + " of " + byteText(v.Size) + "]"
+	}
+	d.revealed[key] = text
+	d.revealedLen[key] = len(v.Value)
+	return true
 }
 
 // pruneRevealed drops the revealed values no item of m offers any more: the reveal action names the
@@ -111,19 +124,26 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 // sends MouseIn only when the pointer moves, so a new Hide put where Show was started without its
 // hover, while the one widget keeps the hover it had as Show.
 func revealButton(label string, tapped func()) *textButton {
+	return revealToggle(showLabel, hideLabel, label, tapped)
+}
+
+// revealToggle is a Show and Hide toggle with the words show and hide, as wide as the wider of
+// them, showing label: a key's Show and Hide, the data's Show all and Hide all.
+func revealToggle(show, hide, label string, tapped func()) *textButton {
 	b := newTextButton("", nil, tapped)
-	setRevealLook(b, showLabel)
-	show := b.MinSize().Width
-	setRevealLook(b, hideLabel)
-	b.width = max(show, b.MinSize().Width)
+	setRevealLook(b, show)
+	w := b.MinSize().Width
+	setRevealLook(b, hide)
+	b.width = max(w, b.MinSize().Width)
 	setRevealLook(b, label)
 	return b
 }
 
-// setRevealLook turns b into Show or Hide in place: its word, its eye and its tone.
+// setRevealLook turns b into Show or Hide (Show all or Hide all) in place: its word, its eye and
+// its tone.
 func setRevealLook(b *textButton, label string) {
 	icon, tone := theme.VisibilityIcon(), colorStatusWarning
-	if label == hideLabel {
+	if label == hideLabel || label == hideAllLabel {
 		icon, tone = theme.VisibilityOffIcon(), colorStatusOK
 	}
 	if b.Text == label && b.tone == tone {
@@ -134,10 +154,13 @@ func setRevealLook(b *textButton, label string) {
 }
 
 // hideLabel is the word on the button that masks a value Show revealed, showLabel the one that
-// reveals it.
+// reveals it; showAllLabel and hideAllLabel do so for every value of a Secret's data at once
+// (secretshowall.go).
 const (
-	hideLabel = "Hide"
-	showLabel = "Show"
+	hideLabel    = "Hide"
+	showLabel    = "Show"
+	showAllLabel = "Show all"
+	hideAllLabel = "Hide all"
 )
 
 // actionLabel is an item action's button text: Hide for a value the action revealed.

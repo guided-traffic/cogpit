@@ -79,7 +79,8 @@ cluster operation is worse than a crash.
   only after a failed login, scrubbed and cut to 4 KiB, in the connection log
   ([D-66](decisions.md#d-66-the-connection-log)). Credential types implement `slog.LogValuer` and
   `fmt.Stringer` as `"<redacted>"`.
-- Secret data in the UI is hidden until the user reveals one field.
+- Secret data in the UI is hidden until the user reveals it: one value with Show, all of a
+  Secret's with Show all.
 - Nothing from a Secret's data is sent to an LLM endpoint unless the user explicitly allows it for
   that request ([agents and MCP](../security/agents-and-mcp.md)).
 

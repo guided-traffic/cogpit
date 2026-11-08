@@ -50,6 +50,8 @@ type drawer struct {
 
 	// A Secret's edited values the drawer moved away from, by object, in memory only (secretdata.go).
 	secretUnsaved map[string]*secUnsaved
+	// The Secret whose values revealAll asked to show once its data is built (secretshowall.go).
+	revealAllWant *model.ObjectRef
 
 	kind     *bracketLabel // the eyebrow: "pod · inventory" (stage_header.go)
 	title    *textLine
@@ -220,6 +222,7 @@ func (d *drawer) request() {
 func (d *drawer) showLoading(ref model.ObjectRef) {
 	r := ref
 	d.shown = &r
+	d.dropRevealWant(&r)
 	d.last = nil
 	d.acts = nil
 	d.expanded = map[string]bool{}
@@ -351,11 +354,13 @@ func (d *drawer) rebuild() {
 	d.details.Objects = d.buildDetails(d.last)
 	d.details.Refresh()
 	d.keepCopy(anchor)
+	d.revealWanted()
 }
 
 // clear forgets the shown object when the drawer closes.
 func (d *drawer) clear() {
 	d.shown, d.last, d.acts, d.dirty = nil, nil, nil, false
+	d.dropRevealWant(nil)
 	d.revealed = map[string]string{}
 	d.revealedLen = map[string]int{}
 	d.dropKept()
@@ -471,6 +476,9 @@ func (d *drawer) buildDetails(m *engine.DetailModel) []fyne.CanvasObject {
 		if part, ok := drawerTitleParts[m.Ref.Kind+"\x00"+sec.Title]; ok && sec.Group == "" {
 			// At the title's right end, over the rule the title draws across the drawer.
 			title = container.NewStack(title, container.NewVBox(container.NewHBox(layout.NewSpacer(), part(d, m.Ref))))
+		} else if act, ok := drawerTitleActions[m.Ref.Kind+"\x00"+sec.Title]; ok && sec.Group == "" {
+			// Beside the title, its rule ending before it: a button too tall to stand over the rule.
+			title = container.NewBorder(nil, nil, nil, act(d, m.Ref), title)
 		}
 		out = append(out, title)
 		if sec.Group != "" {
@@ -535,6 +543,11 @@ var drawerSections = map[string]func(d *drawer, ref model.ObjectRef, sec model.D
 // drawerTitleParts are the GUI's own parts at the right end of a section's title, by kind and
 // section title: a release's History opens its Revisions tab (helmrevisions_drawer.go).
 var drawerTitleParts = map[string]func(d *drawer, ref model.ObjectRef) fyne.CanvasObject{}
+
+// drawerTitleActions are the GUI's own buttons beside a section's title, its rule ending before
+// them, by kind and section title: a Secret's Show all (secretshowall.go). A button is centred on
+// the title's label line (headPartLayout); hidden, it takes no room from the rule.
+var drawerTitleActions = map[string]func(d *drawer, ref model.ObjectRef) fyne.CanvasObject{}
 
 // drawerHeaderParts are the GUI's own parts of a kind's drawer header, by kind: what shows left of the
 // title and under it (a Helm chart's icon and version picker, helmchartdrawer.go); nil hides the

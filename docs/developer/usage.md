@@ -112,11 +112,12 @@ Ctrl on Windows and Linux.
 - A Config Map's values edited in its drawer: keys added, changed, removed, saved with a diff and a
   dry run, rebased onto a version someone else changed meanwhile; unsaved values survive a quit or
   a crash as a draft.
-- A Secret's values edited in its drawer, by you alone: Show, copy a value (masked too) or its
-  base64 form (the clipboard is cleared after 60 seconds), add and remove keys; Save checks with the
-  server first and names keys and sizes, never a value; nothing unsaved touches the disk. Create
-  Secret masks values as you type. Agents can neither create a Secret nor read, review or save its
-  values.
+- A Secret's values edited in its drawer, by you alone: Show one value, or every value at once with
+  **Show all** at the right of the data's head (no confirmation; **Hide all** masks them again), copy
+  a value (masked too) or its base64 form (the clipboard is cleared after 60 seconds), add and remove
+  keys; Save checks with the server first and names keys and sizes, never a value; nothing unsaved
+  touches the disk. Create Secret masks values as you type. Agents can neither create a Secret nor
+  read, review or save its values.
 - Delete, Restart, Remove Finalizers and the Flux and Argo CD actions on checked rows (each view
   keeps its own): up to 500 after one confirmation naming them all; more than ten run in a dock tab with Cancel, which
   agents see and may cancel in `ui_state`. On Port Forwarding the selection bar's Delete removes
