@@ -14,10 +14,10 @@ of the checklist that holds its evidence. The status is the row's first word the
 |---|---|---|---|---|---|
 | Resource views (free) | 63 | 63 | 1 | 62 | 0 |
 | Resource actions (free; exist = registered commands) | 41 | 41 | – | – | 0 |
-| Interface rows, free plan | 123 | 120 | 8 | 112 | 3 |
+| Interface rows, free plan | 123 | 120 | 6 | 114 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 82 | 81 | 70 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 88 | 87 | 76 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -141,7 +141,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Namespace filter: multi-select, default "All namespaces", Space toggles without closing; none on cluster-scoped views (captures of Nodes, I… | partial | [Tables](ui-parity.md#tables) |
 | Actions menu per row (⋮ at the row's end), starting with Show Details and ending with Edit and Delete, the kind's own actions between; item… | partial | [Tables](ui-parity.md#tables) |
 | Right-click on a row opens the actions menu (since 2025.10.230725) | done | [Tables](ui-parity.md#tables) |
-| Keyboard: ↑↓ rows, Tab columns, ↵ or Space opens the details | done | [Tables](ui-parity.md#tables) |
+| Keyboard: ↑↓ rows, Tab columns, ↵ or Space opens the details | partial | [Tables](ui-parity.md#tables) |
 | Export the table as CSV (a download button beside the item count, "18 items"; the format is inferred) | partial | [Tables](ui-parity.md#tables) |
 | Select rows with a checkbox column, all rows with the header's checkbox (capture) | partial | [Tables](ui-parity.md#tables) |
 | A warning column right after Name in built-in views (Pods, Pod Disruption Budgets, Cron Jobs): an orange triangle on rows with a problem (s… | partial | [Tables](ui-parity.md#tables) |
@@ -207,7 +207,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | Cluster in the hotbar bank / switch bank | partial | [Keyboard shortcuts](ui-parity.md#keyboard-shortcuts) |
 | New space (Teamwork) | not a target | [Keyboard shortcuts](ui-parity.md#keyboard-shortcuts) |
 | Quit | partial | [Keyboard shortcuts](ui-parity.md#keyboard-shortcuts) |
-| Table: rows / columns / details | done | [Keyboard shortcuts](ui-parity.md#keyboard-shortcuts) |
+| Table: rows / columns / details | partial | [Keyboard shortcuts](ui-parity.md#keyboard-shortcuts) |
 | Theme: Sync with computer, Dark, Light | partial | [Preferences](ui-parity.md#preferences) |
 | Start at login | partial | [Preferences](ui-parity.md#preferences) |
 | Update channel: Stable, Beta, Alpha | partial | [Preferences](ui-parity.md#preferences) |
@@ -367,6 +367,12 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | A Helm release's revisions, as k9s shows them (its values v and manifests y per revision): an older revision's values, user-supplied and al… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | The Namespaces list shows each namespace's CPU and Memory and its pods' requests with their limits, a "+" after a limit some pod runs witho… | done | [Everyday use](beyond-lens.md#everyday-use) |
 | A drawer lists what points at its object, switched in Preferences › App › Back references, off by default: a pod's Services, Network Polici… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| k9s's single keys on the row the list's keyboard is on, or the drawer's object: l Logs, p the previous container's, s Shell or Scale, a Att… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| k9s's list keys: Space marks a row, ⇧↑ ⇧↓ mark on the way, j k g G, Home, End and the page keys move, ⇧N ⇧A ⇧S ⇧P ⇧O sort, Ctrl+Z only rows… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| k9s's command line in the palette: : opens it with : typed, :po, :deploy kube-system, :svc /web, :po @prod, views by short name, singular,… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| The key overview, ?: the keys that act where the keyboard is (the object's, greyed with the reason where one cannot run; the list's; a logs… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| A logs tab's single keys as k9s's log view: t timestamps, w wrap, 0 follow, 2–6 the log since 1 m to 1 h ago, / the search, ⌘S Download (D-… | done | [Everyday use](beyond-lens.md#everyday-use) |
+| Every value of a Secret shown at once, as k9s's x: Show all beside the data's head, or x on the Secret's row (D-new-showall) | done | [Everyday use](beyond-lens.md#everyday-use) |
 | Drag a hotbar tile out of the window and drop it to open that cluster in another Cogpit window | missing | [Everyday use](beyond-lens.md#everyday-use) |
 | Cluster Settings › Integrations: each integration of the cluster switched on or off, and at once whether Cogpit found it automatically (and… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |
 | A cluster without integration settings asks at its first connect which integrations to enable, with the same found or manual status per int… | partial | [Cluster integrations](beyond-lens.md#cluster-integrations) |

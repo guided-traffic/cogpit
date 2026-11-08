@@ -341,7 +341,7 @@ reads only where it presents the result, required parameters only where it has a
 like its menu item. `Palette` asks every entry's `Enabled`: call it off the UI goroutine.
 
 A text that starts with `:` is a jump, k9s's command line ([`jump.go`](../../internal/engine/jump.go),
-the grammar in its header; [D-new](decisions.md#d-new-the-palettes-jump-k9ss--commands)):
+the grammar in its header; [D-new-jump](decisions.md#d-new-jump-the-palettes-jump-k9ss--commands)):
 `Registry.JumpEntries` matches it against a `JumpIndex`, what the window holds (`kinds.list` with
 each kind's names, the shown cluster's namespaces, the contexts), on every keystroke and without a
 request ([`fyneui/jump.go`](../../internal/ui/fyneui/jump.go)); each entry runs `ui.jump`

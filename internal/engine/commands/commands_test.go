@@ -172,7 +172,7 @@ var wantCommands = map[string]engine.Danger{
 	// (D-51, A51, A54, A63): UI state only (TestNavigatorAndPaletteStateCommands).
 	"ui.setNavigatorSearch": engine.DangerUI, "ui.setNavigatorRow": engine.DangerUI, "ui.setNavigatorGroup": engine.DangerUI,
 	"ui.palette.setText": engine.DangerUI,
-	// The palette's jump, k9s's :pod kube-system /web @prod (D-new): UI state, a cluster shown or
+	// The palette's jump, k9s's :pod kube-system /web @prod (D-new-jump): UI state, a cluster shown or
 	// connected as cluster.connect (TestJumpCommand).
 	"ui.jump": engine.DangerUI,
 	// kubectl for terminals (D-3): GUI-only, Cogpit's own folder, never a cluster (TestKubectlDownloadCommand).

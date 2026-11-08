@@ -996,7 +996,7 @@ a configuration directory have no such item. Copying is no command
 
 `:` in a table or the window opens the command palette with `:` typed; a palette text that starts
 with `:` is a jump: `:<view> [namespace] [/search] [@cluster]`, the words after the view in any
-order ([D-new](decisions.md#d-new-the-palettes-jump-k9ss--commands)). The list completes as you
+order ([D-new-jump](decisions.md#d-new-jump-the-palettes-jump-k9ss--commands)). The list completes as you
 type, ↵ opens the first entry, and an entry that cannot run is greyed with its reason (no view by
 that name, a namespace the cluster does not have, a namespace on a cluster-scoped kind).
 

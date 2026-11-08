@@ -10,7 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The palette's jump (k9s's command line, D-new): a palette text that starts with ":" names a view
+// The palette's jump (k9s's command line, D-new-jump): a palette text that starts with ":" names a view
 // the way k9s users type it, `:<name> [namespace] [/search] [@cluster]`, the words after the name
 // in any order.
 //

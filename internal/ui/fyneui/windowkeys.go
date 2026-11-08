@@ -29,7 +29,7 @@ func (sh *shell) windowRune(r rune) bool {
 	case '/':
 		sh.win.Canvas().Focus(sh.view.search)
 	case ':':
-		sh.openJumpKey()
+		sh.openJump() // the palette with ":" typed (jump.go)
 	case '?':
 		sh.toggleKeyOverview()
 	case '0':
@@ -172,14 +172,6 @@ func (sh *shell) toggleKeyOverview() {
 		sh.keyPlace = sh.currentKeyPlace()
 	}
 	sh.dispatch("ui.keyOverview", struct{}{}, nil)
-}
-
-// openJumpKey opens the command palette with ":" typed, for the jump (k9s's :pod).
-func (sh *shell) openJumpKey() {
-	sh.dispatch("ui.palette.setText", struct {
-		Text string `json:"text"`
-	}{":"}, nil)
-	sh.dispatch("ui.palette.open", struct{}{}, nil)
 }
 
 // passWindowShortcut runs a shortcut a focused widget that takes shortcuts (the table) does not use

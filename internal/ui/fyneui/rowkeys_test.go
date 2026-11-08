@@ -372,3 +372,17 @@ func TestRowKeysStayOutOfTheLogs(t *testing.T) {
 		t.Fatal("the overview does not list the logs tab's keys")
 	}
 }
+
+// TestColonOpensTheJump: : in the list opens the palette with ":" typed, its field taking the
+// keys, as k9s's command line.
+func TestColonOpensTheJump(t *testing.T) {
+	sh, w, q, _ := jumpShell(t, ThemeDark)
+	q.until(t, "the list", func() bool { return sh.view.snap != nil })
+	w.Canvas().Focus(sh.view.table)
+	typeRune(t, w, ':')
+	p := sh.palette
+	q.until(t, "the palette with a colon", func() bool { return p.visible() && p.filter.Text == ":" })
+	if w.Canvas().Focused() != p.filter {
+		t.Fatalf("focus on %T, want the palette's field", w.Canvas().Focused())
+	}
+}

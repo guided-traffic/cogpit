@@ -169,6 +169,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
 | [D-new-logkeys](#d-new-logkeys-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
 | [D-new-showall](#d-new-showall-show-all-on-a-secrets-data) | Show all on a Secret's data | built: beside the data's head, every value through the GUI-only reveal, no confirmation; Hide all; the key x |
+| [D-new-jump](#d-new-jump-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 
 ## D-1: UI toolkit
 
@@ -6650,3 +6651,52 @@ second Show all while reads are in flight reads those keys again (the answers ar
 `TestSecretShowAllReadOnly`, `TestSecretShowAllEditable`, `TestSecretShowAllHiddenWithoutText`,
 `TestShowAllHasNoCommand`, `TestRevealAllToggles`, `TestRevealAllBeforeTheDrawerBuildsIt`,
 `TestXShowsAllOfASecret`
+
+## D-new-jump: The palette's jump: k9s's `:` commands
+
+**Status:** built · **By:** owner (`:` opens the command palette in a jump mode with ":" typed; the
+scope), lead (open to revision) the rest
+
+A palette text that starts with ":" is a jump, `:<view> [namespace] [/search] [@cluster]`, the
+words after the view in any order; `:` opens the palette with it typed while the table, the drawer
+or nothing has the keyboard ([D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows)). The view is
+a kind by its plural, singular, Kind or short name, its key or title, case ignored; names that begin
+with the word follow the exact ones, so the list completes. A built-in kind's singular and short
+names are the cluster's discovery's (`Conn.ResourceNames`, the answer `ServedResources` read, no
+further request; `Backend.Names`), a custom kind's its definition's `spec.names`
+(`CustomKind.Names`, DNS labels, at most 16; a change rebuilds the kind). k9s's own pages open what
+Cogpit has in their place: pulses, pulse, pu, hz the cluster Overview; workloads, workload, wk the
+Workloads Overview; helm, hm, charts, chart the Helm releases; pf the port forwards; ctx, context,
+contexts the clusters (Connect to Cluster while no word follows, then Open <cluster> per match,
+`cluster.connect`). One namespace word sets the namespace filter (all or -A clears it, none keeps
+it), completed from the shown cluster's namespaces, which are read again when the text turns into a
+jump. /words are the search's terms. @word names a cluster by context, file-less name or shown name;
+another cluster's view is resolved by the shown cluster's names, an unknown one passed on for that
+cluster to resolve. Every entry runs `ui.jump` (view, namespace, filter, context: the cluster as
+`cluster.connect` shows or connects it, a failed connect an error; then `ui.setNamespace`,
+`ui.openView`, `ui.setFilter`); in the window a cluster not connected gets its login program
+reviewed first. An entry that cannot run is greyed with its reason: no view by the name, no such
+namespace, a namespace on a cluster-scoped kind, a word that is no namespace name, a label selector
+("search with /web"), a second namespace or cluster. At most 200 entries.
+
+**Why:** k9s users name views by short names and get there in one line; one command per entry
+keeps the palette's rule (an entry dispatches one command) and lets agents jump alike.
+
+**Rejected:** short names written into the built-in profiles (assumes what discovery says; rule 3);
+names on `KindProfile` (the built-in profiles are shared); custom kinds' names from discovery
+(stale until the next connect, a request after an invalidation); entries built in the engine from
+the session per keystroke (cache reads per key; the window has kinds, namespaces and contexts
+already); several namespace words (k9s takes one; a cross product of completions); a namespace
+ignored on a cluster-scoped kind (silent); k9s's xray, popeye, benchmarks, screen dumps, users,
+groups, dirs, aliases, quit (no counterpart).
+
+**Code:** [`jump.go`](../../internal/engine/jump.go) `Registry.JumpEntries`, `ParseJump`,
+`Backend.ResolveJump`; [`commands/jump.go`](../../internal/engine/commands/jump.go);
+[`backend.go`](../../internal/engine/backend.go) `KindNames`;
+[`cluster.go`](../../internal/cluster/cluster.go) `ResourceNames`;
+[`customresources.go`](../../internal/model/kinds/customresources.go) `crdNames`;
+[`fyneui/jump.go`](../../internal/ui/fyneui/jump.go) `openJump`, `jumpIndex`, `runJump` ·
+**Tests:** `TestParseJump`, `TestJumpEntries`, `TestJumpClusterEntries`,
+`TestJumpNamesFromTheCluster`, `TestJumpCommand`, `TestKindsListNames`,
+`TestResourceNamesReadTheCachedDiscovery`, `TestCRDNamesHostile`, `TestOpenJumpTypesAColon`,
+`TestJumpToAnotherClusterReviewsItsLogin`, `TestColonOpensTheJump`
