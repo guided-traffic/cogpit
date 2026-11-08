@@ -437,8 +437,9 @@ update rows.
   file watch, whose reload can read the file emptied for the write and log `Preferences load error:`
   (EOF). Under load in the smoke test's container 240 quits hung 3 times and logged it 27 times; the
   smoke run names both ([D-112](../developer/decisions.md#d-112-ci-and-test-time)). The fixes are
-  Fyne's, filed and open: [fyne#6633](https://github.com/fyne-io/fyne/pull/6633) for the save,
-  [fyne#6635](https://github.com/fyne-io/fyne/pull/6635) for the stop hook.
+  Fyne's: [fyne#6633](https://github.com/fyne-io/fyne/pull/6633) for the save, merged into its
+  `develop` and in no release yet; [fyne#6635](https://github.com/fyne-io/fyne/pull/6635) for the
+  stop hook, open.
 - **Estimate:** 100–200 h to beta.
 
 ## Beyond Lens

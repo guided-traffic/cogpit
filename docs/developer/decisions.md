@@ -5018,7 +5018,8 @@ The first event decides because a tile, a tab or an edge moves under its own dra
 
 **Not covered:** Fyne's own draggables (a list's scroll bar, an Entry's text selection, a slider);
 the fix for them is Fyne's driver looking up the draggable at the press point
-([fyne#6629](https://github.com/fyne-io/fyne/pull/6629), open).
+([fyne#6629](https://github.com/fyne-io/fyne/pull/6629), merged into Fyne's `develop`, in no
+release yet).
 
 **Code:** [`dragguard.go`](../../internal/ui/fyneui/dragguard.go),
 [`panelwidths.go`](../../internal/ui/fyneui/panelwidths.go) `dockLayout` · 
