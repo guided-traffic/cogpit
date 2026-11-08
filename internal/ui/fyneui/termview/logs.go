@@ -94,6 +94,9 @@ type Logs struct {
 	surface   *logSurface
 	onCopy    func(string)
 	shownRows map[widget.ListItemID]*logRow
+	// The caller's keys while the lines have the keyboard (SetOnKeys).
+	onRune     func(rune) bool
+	onShortcut func(fyne.Shortcut) bool
 	// The stream's state as the status shows it: lines received, and its end.
 	stReceived int64
 	stEnded    bool
@@ -129,6 +132,7 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 	l.list.OnSelected = l.selected
 	l.list.HideSeparators = true
 	l.list.onUserScroll = l.userScrolled // Follow by scrolling (logsfollow.go)
+	l.list.takeRune = l.takeRune
 	l.list.ExtendBaseWidget(l.list)
 	l.controls = container.NewHBox()
 	l.header = container.NewHBox()
@@ -146,8 +150,8 @@ func NewLogsOn(stream io.ReadCloser, do func(func())) *Logs {
 }
 
 // FocusTarget is the widget that takes the keyboard: the surface over the lines, which a press
-// focuses too (⌘C, ⌘A, "/" for the tab's search; logselect.go). The dock gives it the keys when the
-// user opens the tab (fyneui/dockfocus.go).
+// focuses too (⌘C, ⌘A, "/" for the tab's search, the caller's keys of SetOnKeys; logselect.go).
+// The dock gives it the keys when the user opens the tab (fyneui/dockfocus.go).
 func (l *Logs) FocusTarget() fyne.Focusable { return l.surface }
 
 // Close stops reading and closes the stream. It is idempotent.
@@ -212,6 +216,30 @@ func (l *Logs) SetHeader(objs ...fyne.CanvasObject) {
 // SetOnSlash sets what "/" does while the list has the keyboard focus: the logs tab focuses its
 // search. Main goroutine only.
 func (l *Logs) SetOnSlash(fn func()) { l.list.onSlash = fn }
+
+// SetOnKeys sets what the caller does with the keys typed while the lines have the keyboard,
+// before they go on to the window: runes (a logs tab's "t") and shortcuts (its ⌘S). Each reports
+// whether it took the key; nil takes none. "/" stays SetOnSlash's, ⌘C and ⌘A the selection's, and
+// keys (Escape, F1–F12) are not offered. Main goroutine only.
+func (l *Logs) SetOnKeys(runes func(rune) bool, shortcuts func(fyne.Shortcut) bool) {
+	l.onRune, l.onShortcut = runes, shortcuts
+}
+
+// takeRune offers a rune typed while the lines have the keyboard: "/" to SetOnSlash's, the others
+// to SetOnKeys'. It reports whether one took it.
+func (l *Logs) takeRune(r rune) bool {
+	if r == '/' && l.list.onSlash != nil {
+		l.list.onSlash()
+		return true
+	}
+	return l.onRune != nil && l.onRune(r)
+}
+
+// takeShortcut offers a shortcut the selection does not take to SetOnKeys'. It reports whether it
+// took it.
+func (l *Logs) takeShortcut(sc fyne.Shortcut) bool {
+	return l.onShortcut != nil && l.onShortcut(sc)
+}
 
 // StatusText returns the status at the bar's right: the lines held, shown and dropped, and the
 // stream's end. Main goroutine only.

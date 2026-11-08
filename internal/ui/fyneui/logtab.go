@@ -110,7 +110,7 @@ func newLogTab(ctx context.Context, sh *shell, c *dockContent, t engine.DockTab)
 	lt.controller = newTipButton(sh, theme.MoveUpIcon(), "Logs of every pod of the pod's controller", func() {
 		sh.dispatch("logs.controller", dockParams{ID: lt.tab.ID}, nil)
 	})
-	lt.download = newTipButton(sh, theme.DownloadIcon(), "Download the lines this tab shows", lt.saveLines)
+	lt.download = newTipButton(sh, theme.DownloadIcon(), downloadTip(), lt.saveLines)
 	lt.controls = []fyne.CanvasObject{
 		lt.controller, lt.timestamps, lt.previous, lt.names, lt.wrap,
 		sized(sizeSearchWidth, "", lt.search), lt.filter, lt.download,
@@ -220,6 +220,7 @@ func (lt *logTab) open() {
 			w.SetHeader(lt.header...)
 			w.SetControls(lt.controls...)
 			w.SetOnSlash(lt.focusSearch)
+			w.SetOnKeys(lt.typedRune, lt.typedShortcut)                 // t, w, 0, 2–6, ⌘S (logtab_keys.go)
 			w.SetOnCopy(func(text string) { sh.copyText(text, false) }) // a selection's ⌘C and the menu's copies (D-99)
 			w.SetView(viewOf(lt.tab, sh.timeFormat()))
 			lt.view, lt.c.closer, lt.failed = w, w, err != nil
@@ -240,8 +241,10 @@ func (lt *logTab) open() {
 }
 
 // setOptions dispatches a change of the tab's options; the widgets follow the engine's answer.
+// Changes go out in the order made, so that a toggle clicked or typed twice in quick succession
+// (t t) ends as the check shows it.
 func (lt *logTab) setOptions(p logOptionsParams) {
-	lt.sh.dispatch("logs.setOptions", p, func(_ any, err error) {
+	lt.sh.dispatchInOrder("logs.setOptions", p, func(_ any, err error) {
 		lt.sh.showError(err)
 		if err != nil {
 			lt.follow(lt.tab) // back to what the engine holds
