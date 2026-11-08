@@ -78,15 +78,10 @@ func TestRowKeysRunTheRowsCommand(t *testing.T) {
 // a selection acts on the marked rows (Ctrl+D Delete Selected); one without (l) on the keyboard's row.
 func TestRowKeysOnMarkedRows(t *testing.T) {
 	f := connectedFake(t, 6)
-	var many []model.ObjectRef
 	mustRegister(t, engine.Register(f.reg, engine.Spec[selectionRefs]{ID: "object.deleteMany", Label: "Delete", Order: engine.OrderDelete,
 		RowKeys: []string{"Ctrl+D"}, Danger: engine.DangerDestructive,
 		Targets: func(_ *engine.Session, p selectionRefs) ([]model.ObjectRef, error) { return p.Refs, nil },
 		Run:     func(context.Context, *engine.Session, selectionRefs) (any, error) { return nil, nil }}))
-	f.handlers["object.deleteMany"] = func(_ context.Context, inv engine.Invocation) (any, error) {
-		many = decodeParams[selectionRefs](t, inv).Refs
-		return nil, nil
-	}
 	sh, w, q := newTestShell(t, f, Options{})
 	q.until(t, "the pods view", func() bool { return sh.view.snap != nil && sh.view.snap.View == "pods" })
 	tv := sh.view
@@ -109,6 +104,7 @@ func TestRowKeysOnMarkedRows(t *testing.T) {
 
 	tv.table.TypedShortcut(&desktop.CustomShortcut{KeyName: fyne.KeyD, Modifier: fyne.KeyModifierControl})
 	q.until(t, "Delete Selected", func() bool { return len(f.callsOf("object.deleteMany")) == 1 })
+	many := decodeParams[selectionRefs](t, f.callsOf("object.deleteMany")[0]).Refs // the calls are the fake's, under its lock
 	if len(many) != 3 || many[0] != rows[0].Ref || many[2] != rows[2].Ref {
 		t.Fatalf("Delete Selected on %v", many)
 	}
