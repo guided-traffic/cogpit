@@ -166,6 +166,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-155](#d-155-every-cpu-amount-in-millicores-below-one-core) | Every CPU amount in millicores below one core | built: "465m", from one core "2.14" (at most two decimals, no trailing zeros); one formatter, model/usage.go |
 | [D-156](#d-156-the-overviews-legends-wrap) | The Overview's legends wrap | built: the health header's node and pod legends wrap in their column; the page fits a 1280-point screen |
 | [D-157](#d-157-the-clusters-history-sums-its-own-nodes) | The cluster's history sums its own nodes | built: the Overview's CPU and Memory history matches the cluster's nodes by name and address; a cluster too large to name sums every series, with a note |
+| [D-new-rowkeys](#d-new-rowkeys-k9ss-single-keys-on-rows) | k9s's single keys on rows | built: while the table or the drawer has the keyboard, a key runs the row's command (`Spec.RowKeys`) or a ui.* change; Space marks; ? lists the keys |
 
 ## D-1: UI toolkit
 
@@ -6497,3 +6498,73 @@ Pods history is not matched by node ([D-71](#d-71-thanos-and-victoriametrics-rea
 [`clusteroverview.go`](../../internal/ui/fyneui/clusteroverview.go) `foreignMachinesNote` ·
 **Tests:** `TestClusterHistoryCountsTheClustersNodesOnly`, `TestClusterHistoryThenLiveSums`,
 `TestClusterOverviewPodsHistory`, `TestClusterOverviewForeignMachinesNote`
+
+## D-new-rowkeys: k9s's single keys on rows
+
+**Status:** built · **By:** owner (keys always on, only where the table or the drawer has the
+keyboard; Space marks; the key overview a card over the window; the scope: every key whose function
+Cogpit has, the jump, Show all), lead (open to revision) the rest
+
+While the resource table or the drawer has the keyboard, a single key acts on the object the
+table's keyboard is on (the ring's row), or on the drawer's object, as in k9s. A text field and a
+terminal keep every key: Fyne gives the window's handlers a key only while no widget takes it, and
+a drawer's selectable text passes keys on. A dialog, a pop-up, the palette, the key overview or a
+settings page over the window takes the keys.
+
+| Keys | Where | What |
+|---|---|---|
+| `l` `p` `s` `a` | pods (`l` `p` workloads, Argo CD Applications, Flux Kustomizations) | Logs, the previous container's logs, Shell, Attach |
+| `r` `s` `t` | Deployments, Stateful Sets, Daemon Sets; Replica Sets; Cron Jobs | Restart, Scale, Trigger; `s` Suspend or Resume on a Cron Job |
+| `c` `u` `r` `s` | nodes | Cordon, Uncordon, Drain, Shell |
+| `r` `v` | Helm releases | Rollback, Values |
+| `c` `n` `e` `y` `d` | every object | copy the name, the namespace; Edit; the drawer's YAML, its Details |
+| `Ctrl+D`, `⌘⌫` (`Ctrl+Backspace`), `Delete` | every object | Delete (Helm: Uninstall; port forwards: their delete) |
+| `w` `⇧J` `o` | every namespaced object; every object; pods | only this namespace; the owner (Controlled By); the node |
+| `u` | namespaces; kinds with back references | use the namespace; the drawer at Referenced By |
+| `f` `⇧F` | pods, services | the Port Forwarding view; Forward… of a port |
+| `x` | Secrets | Show all |
+| `j` `k` `g` `G`, Home, End, PageUp, PageDown | the table | move the keyboard's row |
+| Space, `⇧↑` `⇧↓`, `Ctrl+\`, Escape | the table | mark the row; mark on the way; clear the marks; Escape closes the drawer, then clears the marks |
+| `⇧N` `⇧A` `⇧S` `⇧P` `⇧O`, `Ctrl+Z`, `⌘S` | the table | sort by name, age, status, namespace, the keyboard's column; only rows with problems; the CSV |
+| `:` `/` `0` `?` | everywhere the single keys act | the jump; the view's search; every namespace; the key overview |
+
+- **Two sources, one each.** A command's keys are `Spec.RowKeys`
+  ([`engine/keys.go`](../../internal/engine/keys.go)): one character, or a key with modifiers in the
+  registry's notation. `Registry.RowKeyActions` lists a kind's commands for a key, its own before
+  those of every kind; the window keeps only its own when it has any (`c` cordons a node and never
+  copies its name) and runs the first that applies, as the row menu would: its confirmation, dialog
+  or container menu included; greyed, a toast says why. Keys that change what the window shows
+  (`y`, `w`, `⇧J`, ...) are the window's `objectKeys`
+  ([`rowkeys.go`](../../internal/ui/fyneui/rowkeys.go)) and dispatch the ui.* commands.
+- **Marked rows.** With rows marked, a key whose command acts on a selection (`Ctrl+D` Delete, `r`
+  Restart) acts on the marked rows (`Registry.RowKeySelectionActions`); the others on the ring's row.
+- **Nothing has the keyboard.** A key goes to the drawer's object while the drawer is open, else the
+  table takes the keyboard and the key; the table's own keys (moving, sorting) act on the table
+  even with the drawer open.
+- **Shown where the command is.** The row menu and the selection's menu draw a command's key after
+  its label, the drawer's toolbar names it in the tooltip; the key overview (`ui.keyOverview`,
+  `UIState.KeyOverview`, Help › Key Overview,
+  [`keyoverview.go`](../../internal/ui/fyneui/keyoverview.go)) lists the object's keys (greyed with
+  the reason), the table's and the window's, from the registry and the places' `keyHint`s.
+- `Ctrl+Z` sets the status filter to the warning and error states of the view's first state column,
+  or clears a filter set.
+
+**Why:** k9s users find Cogpit's functions behind the keys they know; the table's keyboard ring
+(D-124) is k9s's cursor already, and a key that is a command's metadata keeps every key in the
+registry, agents untouched.
+
+**Rejected:** a "k9s key map" preference, off by default (the users it is for must find it first);
+modifier shortcuts only (no k9s habit served, many ⌘ letters taken by convention); Space opening
+the details as Lens's (k9s marks with it, and ↵ opens); `Ctrl+K` deleting without a confirmation and
+`b` load tests (never surprise a cluster); `Ctrl+B` `Ctrl+F` paging (⌘B, ⌘F off macOS).
+
+**Not covered:** `⇧↑` `⇧↓` add rows to the marks and never take them off again; `Ctrl+Z` on a view
+with several state columns reads the first only.
+
+**Code:** [`engine/keys.go`](../../internal/engine/keys.go) `RowKeyActions`;
+[`rowkeys.go`](../../internal/ui/fyneui/rowkeys.go), [`tablerowkeys.go`](../../internal/ui/fyneui/tablerowkeys.go),
+[`windowkeys.go`](../../internal/ui/fyneui/windowkeys.go), [`keyoverview.go`](../../internal/ui/fyneui/keyoverview.go) ·
+**Tests:** `TestRowKeysAreK9ss`, `TestRowKeysDoNotCollide`, `TestRowKeysNeedARow`,
+`TestRowKeysRunTheRowsCommand`, `TestRowKeysOnMarkedRows`, `TestTableMoveKeys`,
+`TestSortAndFilterKeys`, `TestWindowKeysActOnTheDrawer`, `TestKeyOverview`, `TestRowMenuShowsRowKeys`,
+`TestTableKeyboard`

@@ -320,6 +320,9 @@ func (tv *tableView) selectionMenu(refs []model.ObjectRef, acts []selectionActio
 			id := a.cmd.ID
 			item.Action = func() { tv.runOnSelection(id, refs) }
 		}
+		if len(a.cmd.RowKeys) > 0 {
+			item.Shortcut = rowKeyItemShortcut(a.cmd.RowKeys[0]) // its key on the marked rows (rowkeys.go)
+		}
 		items = append(items, item)
 	}
 	items = append(items, fyne.NewMenuItemSeparator(), fyne.NewMenuItem("Clear Selection", tv.clearSelection))

@@ -221,6 +221,7 @@ var wantCommands = map[string]engine.Danger{
 	"ui.toggleNavigator": engine.DangerUI, "ui.toggleDock": engine.DangerUI,
 	// The window's zoom, VS Code's (D-134): a preference that changes only how large the window draws (TestZoom).
 	"ui.zoom.in": engine.DangerUI, "ui.zoom.out": engine.DangerUI, "ui.zoom.reset": engine.DangerUI,
+	"ui.keyOverview": engine.DangerUI,
 	// Restart of a selection of workloads (A74): destructive, as one Restart (TestRestartMany).
 	"workload.restartMany": engine.DangerDestructive,
 	// An Argo CD Application's and a Flux Kustomization's logs in one tab (A81) (TestArgoCDLogs, TestFluxLogs).

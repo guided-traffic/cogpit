@@ -45,7 +45,7 @@ func (e *RestartManyError) Error() string {
 
 func registerRestartMany(g *registrar) {
 	add(g, engine.Spec[selectionParams]{
-		ID: "workload.restartMany", Label: labelRestart, MenuPath: "Workload/Restart Selected", Kinds: restartKinds, Order: 100,
+		ID: "workload.restartMany", Label: labelRestart, MenuPath: "Workload/Restart Selected", Kinds: restartKinds, Order: 100, RowKeys: []string{"r"},
 		Danger: engine.DangerDestructive,
 		Verbs:  []engine.Verb{{Verb: nwVerbPatch, Group: nwGroupApps, Resource: "*"}},
 		Description: "Restarts several Deployments, Daemon Sets and Stateful Sets at once, as Restart on the table's selection " +

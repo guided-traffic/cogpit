@@ -32,7 +32,7 @@ type dockParams struct {
 
 func registerDock(g *registrar) {
 	add(g, engine.Spec[containerParams]{
-		ID: "pod.logs", Label: "Logs", MenuPath: "Pod/Logs", Kinds: []string{kindPods}, Order: 500, Danger: engine.DangerRead,
+		ID: "pod.logs", Label: "Logs", MenuPath: "Pod/Logs", Kinds: []string{kindPods}, Order: 500, RowKeys: []string{"l"}, Danger: engine.DangerRead,
 		Verbs: []engine.Verb{{Verb: "get", Resource: kindPods, Subresource: "log"}},
 		Description: "Opens a dock tab that follows a container's log (the last 1,000 lines, then new ones), or activates " +
 			"the tab already open for that pod and container. Returns the tab.",
@@ -69,7 +69,7 @@ func registerDock(g *registrar) {
 	})
 
 	add(g, engine.Spec[containerParams]{
-		ID: "pod.shell", Label: "Shell", MenuPath: "Pod/Shell", Kinds: []string{kindPods}, Order: 200, Danger: engine.DangerMutating,
+		ID: "pod.shell", Label: "Shell", MenuPath: "Pod/Shell", Kinds: []string{kindPods}, Order: 200, RowKeys: []string{"s"}, Danger: engine.DangerMutating,
 		Verbs: []engine.Verb{{Verb: "create", Resource: kindPods, Subresource: "exec"}},
 		Description: "Opens a dock tab with an interactive shell in a container (bash, else ash, else sh). Anything typed " +
 			"there runs with the container's privileges, so an agent's request waits for the user's acceptance. Returns the tab.",

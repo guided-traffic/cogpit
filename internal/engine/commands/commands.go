@@ -92,6 +92,7 @@ func RegisterAll(r *engine.Registry) error {
 	registerFlux(g)
 	registerUpdates(g)
 	registerChat(g)
+	registerKeyOverview(g)
 	registerRestartMany(g)
 	registerConnection(g)
 	registerJobs(g)
@@ -116,6 +117,11 @@ func add[P any](g *registrar, spec engine.Spec[P]) {
 // labelDelete is the label of every kind's last action, as Lens labels it: object.delete, and the
 // commands that take its place for kinds that are not API objects (Helm releases, port forwards).
 const labelDelete = "Delete"
+
+// deleteKeys are the row keys of every Delete (D-new-rowkeys): k9s's Ctrl+D, ⌘⌫ as macOS's lists
+// delete (Ctrl+Backspace elsewhere), and the Delete key as Windows' and Linux's lists do. Each asks
+// first as Delete from the menu does.
+var deleteKeys = []string{"Ctrl+D", "Cmd+Backspace", "Delete"}
 
 // cacheReads are the verbs of commands that read through the cache: the informer lists and
 // watches the kind they read. The kind is a parameter, hence the wildcard.

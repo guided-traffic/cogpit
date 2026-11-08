@@ -107,6 +107,8 @@ type shell struct {
 	toasts    *fyne.Container
 	tip       *tooltip      // the one tooltip: cut-off cells, warning icons, drawer actions
 	palette   *cmdPalette   // the command palette, ⌘⇧P (palette.go)
+	keys      *keyOverview  // the key overview, ? (keyoverview.go)
+	keyPlace  keyPlace      // where the keyboard was when the key overview opened
 	hot       *hotbar       // the pinned clusters at the window's left edge (hotbar.go)
 	tabs      *tabBar       // the tabs of cluster views above the workspace (tabbar.go)
 	strip     *lightStrip   // the light strip under the tabs, in the shown cluster's accent colour (lightstrip.go)
@@ -231,6 +233,7 @@ func newShell(eng Engine, a fyne.App, w fyne.Window, opts Options, do func(func(
 	sh.status = newStatusBar(sh)
 	sh.kc = newKubeconfigUI(sh)
 	sh.palette = newCmdPalette(sh)
+	sh.keys = newKeyOverview(sh)
 	sh.settings = newSettingsPage(sh)
 	sh.intq = newIntegrationsQuestion(sh)
 	sh.confirmer = newGUIConfirmer(sh)
@@ -591,6 +594,9 @@ func (sh *shell) applyUIState(st engine.UIState) {
 	}
 	if first || st.Palette || old.Palette { // while open, what it lists follows the state
 		sh.palette.stateChanged()
+	}
+	if first || st.KeyOverview != old.KeyOverview {
+		sh.keys.stateChanged()
 	}
 	if first || !reflect.DeepEqual(st.Preferences, old.Preferences) {
 		sh.preferencesChanged()
@@ -1167,13 +1173,12 @@ func (sh *shell) installShortcuts() {
 		}
 		if ev.Name == fyne.KeyEscape {
 			sh.escape() // the innermost thing open: an overlay (a settings page's card among them), the drawer (escape.go)
+			return
 		}
+		sh.windowTypedKey(ev) // Delete, and the row keys a drawer's text passed on (windowkeys.go)
 	})
-	c.SetOnTypedRune(func(r rune) {
-		if r == '/' && !sh.settings.visible() {
-			sh.dock.focusLogSearch() // "/" focuses the active logs tab's search
-		}
-	})
+	c.SetOnTypedRune(sh.windowTypedRune) // "/" the logs tab's search; the single keys (windowkeys.go)
+	sh.installRowKeyShortcuts(c)
 }
 
 // closeDrawer asks the engine to close the drawer.

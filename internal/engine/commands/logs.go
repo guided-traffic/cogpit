@@ -41,7 +41,7 @@ func registerLogs(g *registrar) {
 	// Restart, Scale, Logs; Daemon Set Restart, Logs; Replica Set Scale, Logs; Job Logs. Logs
 	// after the kind's other actions everywhere.
 	add(g, engine.Spec[refParams]{
-		ID: "workload.logs", Label: "Logs", MenuPath: "Workload/Logs", Kinds: engine.WorkloadLogKinds, Order: 300,
+		ID: "workload.logs", Label: "Logs", MenuPath: "Workload/Logs", Kinds: engine.WorkloadLogKinds, Order: 300, RowKeys: []string{"l"},
 		Danger: engine.DangerRead, Verbs: workloadLogVerbs,
 		Description: "Opens a dock tab with the logs of every container of every pod a Deployment, Daemon Set, Stateful " +
 			"Set, Replica Set or Job controls (a Deployment's through its replica sets), each line starting with " +

@@ -2,7 +2,6 @@ package fyneui
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -45,27 +44,9 @@ func (sh *shell) evaluateActions(ref model.ObjectRef, containers []string) []act
 	cmds := sh.eng.Registry().Actions(ref.Kind)
 	out := make([]actionState, 0, len(cmds))
 	for _, cmd := range cmds {
-		a := actionState{cmd: cmd, dialog: len(cmd.DialogFields()) > 0}
-		first := ""
-		if cmd.TakesContainer() && len(containers) > 0 {
-			a.containers, first = containers, containers[0]
+		if a, err := sh.evaluateAction(cmd, ref, containers); err == nil {
+			out = append(out, a)
 		}
-		params := cmd.ObjectParams(ref, first)
-		err := sh.commandEnabled(cmd.ID, params)
-		var perr *engine.ParamsError
-		switch {
-		case errors.Is(err, engine.ErrNotApplicable):
-			continue
-		case errors.As(err, &perr):
-			// The stub parameters did not satisfy the schema: the command cannot be judged before
-			// its dialog has the values; Dispatch validates them then.
-		case err != nil:
-			a.reason = err.Error()
-		}
-		if a.dialog {
-			a.prefill = sh.prefill(cmd, params)
-		}
-		out = append(out, a)
 	}
 	return out
 }
@@ -91,6 +72,9 @@ func (sh *shell) actionItems(ref model.ObjectRef, acts []actionState) []*fyne.Me
 	items := make([]*fyne.MenuItem, 0, len(acts))
 	for _, a := range acts {
 		item := fyne.NewMenuItem(a.cmd.Label, nil)
+		if k := sh.rowKeyFor(ref.Kind, a.cmd); k != "" {
+			item.Shortcut = rowKeyItemShortcut(k) // the key that runs it on the row (rowkeys.go)
+		}
 		switch {
 		case a.reason != "":
 			item.Label = disabledLabel(a.cmd.Label, a.reason)
@@ -221,4 +205,17 @@ func actionTip(a actionState) string {
 		return a.cmd.Label
 	}
 	return fmt.Sprintf("%s: %s", a.cmd.Label, a.reason)
+}
+
+// actionKeyTip is a drawer action's tooltip with the row key that runs it (rowkeys.go) after its
+// label, "Logs (l)", "Delete (⌃D): not permitted"; key "" adds none.
+func actionKeyTip(a actionState, key string) string {
+	label := a.cmd.Label
+	if key != "" {
+		label += " (" + rowKeyText(key) + ")"
+	}
+	if a.reason == "" {
+		return label
+	}
+	return fmt.Sprintf("%s: %s", label, a.reason)
 }

@@ -6,9 +6,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Keyboard navigation in a table (ui-parity › Tables, Lens's shortcuts page): ↑↓ move between rows,
-// Tab and ⇧Tab between columns, ↵ or Space opens the details of the row, through ui.select as a
-// click does. Fyne's table moves its highlight on the arrows and selects on Space; the resource
+// Keyboard navigation in a table (ui-parity › Tables): ↑↓ move between rows, Tab and ⇧Tab between
+// columns, ↵ opens the details of the row, through ui.select as a click does; Space marks it
+// (k9s's, D-new-rowkeys; tablerowkeys.go). Fyne's table moves its highlight on the arrows and selects on Space; the resource
 // table adds Tab, ⇧Tab and ↵, and draws the highlighted cell itself, because Cogpit hides Fyne's
 // cell markers (HideSeparators) and draws whole-row bands instead.
 //
@@ -45,8 +45,10 @@ func (t *resourceTable) KeyUp(ev *fyne.KeyEvent) {
 	}
 }
 
-// TypedKey adds Escape (close the drawer), Tab, ⇧Tab and ↵ to Fyne's table keys (arrows, Space).
-// Every key the table takes shows the ring (VW17).
+// TypedKey adds Escape, Tab, ⇧Tab and ↵ to Fyne's table keys (arrows), and the table's own keys
+// (tablerowkeys.go): Space marks the row (k9s's), ⇧↑ ⇧↓ mark on the way, Home, End, PageUp and
+// PageDown move, Delete deletes. Escape closes the drawer, then clears the marks. Every key the
+// table takes shows the ring (VW17).
 func (t *resourceTable) TypedKey(ev *fyne.KeyEvent) {
 	if t.tv.sh.hot.key(ev.Name, t.shift) { // F1–F12 belong to the hotbar
 		return
@@ -54,6 +56,10 @@ func (t *resourceTable) TypedKey(ev *fyne.KeyEvent) {
 	t.keyed()
 	switch ev.Name {
 	case fyne.KeyEscape:
+		if t.tv.sh.ui.Drawer == nil && len(t.tv.selected) > 0 {
+			t.tv.clearSelection()
+			return
+		}
 		t.tv.sh.closeDrawer()
 		return
 	case fyne.KeyTab:
@@ -63,7 +69,11 @@ func (t *resourceTable) TypedKey(ev *fyne.KeyEvent) {
 			ev = &fyne.KeyEvent{Name: fyne.KeyRight}
 		}
 	case fyne.KeyReturn, fyne.KeyEnter:
-		ev = &fyne.KeyEvent{Name: fyne.KeySpace} // Space selects the highlighted row
+		ev = &fyne.KeyEvent{Name: fyne.KeySpace} // Fyne's table selects the highlighted row on Space
+	default:
+		if t.tv.tableKey(ev.Name, t.shift) {
+			return
+		}
 	}
 	t.keying = true
 	defer func() { t.keying = false }()

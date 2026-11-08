@@ -31,7 +31,7 @@ func registerWorkloads(g *registrar) {
 
 	add(g, engine.Spec[refParams]{
 		ID: "cronjob.trigger", Label: "Trigger", MenuPath: "CronJob/Trigger", Kinds: []string{cronJobKindKey},
-		Order: 100, Danger: engine.DangerMutating,
+		Order: 100, RowKeys: []string{"t"}, Danger: engine.DangerMutating,
 		Verbs: []engine.Verb{{Verb: nwVerbCreate, Group: nwGroupBatch, Resource: "jobs"}},
 		Description: "Runs a cron job now, as kubectl create job --from=cronjob/<name> does: creates a Job from the cron " +
 			"job's job template, with its labels and annotations, the annotation cronjob.kubernetes.io/instantiate=manual " +
@@ -124,7 +124,7 @@ const scaleSliderMax = 30
 func scaleSpec(id, menuPath, kind, noun string, order int) engine.Spec[scaleParams] {
 	return engine.Spec[scaleParams]{
 		ID: id, Label: "Scale", MenuPath: menuPath, Kinds: []string{kind},
-		Order: order, Danger: engine.DangerMutating,
+		Order: order, RowKeys: []string{"s"}, Danger: engine.DangerMutating,
 		Verbs: []engine.Verb{{Verb: nwVerbPatch, Group: nwGroupApps, Resource: kind, Subresource: "scale"}},
 		Description: "Sets a " + noun + "'s replica count, as kubectl scale does: a patch of spec.replicas on its scale " +
 			"subresource. Scaling to 0 stops every pod and is confirmed like a destructive action, for every origin. " +
@@ -194,7 +194,7 @@ func suspendSpec(suspend bool) engine.Spec[refParams] {
 	}
 	return engine.Spec[refParams]{
 		ID: id, Label: label, MenuPath: "CronJob/" + label, Kinds: []string{cronJobKindKey},
-		Order: 200, Danger: engine.DangerMutating,
+		Order: 200, RowKeys: []string{"s"}, Danger: engine.DangerMutating,
 		Verbs:       []engine.Verb{{Verb: nwVerbPatch, Group: nwGroupBatch, Resource: cronJobKindKey}},
 		Description: desc,
 		Enabled: func(s *engine.Session, p refParams) error {

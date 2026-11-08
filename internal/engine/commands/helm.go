@@ -58,7 +58,7 @@ const kindConfigMaps = "configmaps"
 func registerHelm(g *registrar) {
 	add(g, engine.Spec[rollbackParams]{
 		ID: "helm.release.rollback", Label: "Rollback", MenuPath: "Helm/Rollback", Kinds: []string{helm.ReleaseKind},
-		Order: 200, Danger: engine.DangerDestructive, Undoable: true, // the history keeps the revision (A101)
+		Order: 200, RowKeys: []string{"r"}, Danger: engine.DangerDestructive, Undoable: true, // the history keeps the revision (A101)
 		Verbs: releaseSecretVerbs("list", "get", "create", "update", "delete"),
 		Description: "Rolls a Helm release back to an earlier revision of its history, as helm rollback does with its " +
 			"defaults (hooks waited for, ten revisions kept): a new revision with that revision's chart, values and " +
@@ -92,7 +92,7 @@ func registerHelm(g *registrar) {
 
 	add(g, engine.Spec[refParams]{
 		ID: "helm.release.uninstall", Label: labelDelete, MenuPath: "Helm/Uninstall", Kinds: []string{helm.ReleaseKind},
-		Order: engine.OrderDelete, Danger: engine.DangerDestructive,
+		Order: engine.OrderDelete, RowKeys: deleteKeys, Danger: engine.DangerDestructive,
 		Verbs: releaseSecretVerbs("list", "get", "update", "delete"),
 		Description: "Uninstalls a Helm release as helm uninstall does with its defaults: runs its hooks, deletes every object " +
 			"of the release and its history. Besides the release's records (its Secrets, or its ConfigMaps when Helm keeps it there) it needs whatever verbs deleting the release's " +

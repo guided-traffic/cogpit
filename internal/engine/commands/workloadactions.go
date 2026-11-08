@@ -43,7 +43,7 @@ func registerWorkloadActions(g *registrar) {
 func restartSpec(id, menuPath, kind, noun string) engine.Spec[refParams] {
 	return engine.Spec[refParams]{
 		ID: id, Label: labelRestart, MenuPath: menuPath, Kinds: []string{kind},
-		Order: 100, Danger: engine.DangerDestructive,
+		Order: 100, RowKeys: []string{"r"}, Danger: engine.DangerDestructive,
 		Verbs: []engine.Verb{{Verb: nwVerbPatch, Group: nwGroupApps, Resource: kind}},
 		Description: "Restarts a " + noun + " the way kubectl rollout restart does: it sets the pod template's " +
 			"kubectl.kubernetes.io/restartedAt annotation, and the controller replaces every pod by its update strategy " +

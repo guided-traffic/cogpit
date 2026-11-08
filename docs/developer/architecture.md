@@ -230,6 +230,7 @@ agents read.
 | `ID` | `<kind-or-area>.<action>`, lowerCamelCase segments |
 | `Label`, `MenuPath`, `Description` | menu label; menu (empty: none); MCP tool description |
 | `Shortcut`, `MoreKeys`, `PlatformKeys` | "Cmd" is ⌘ on macOS, Ctrl elsewhere; `NewRegistryFor` resolves the keys for its platform ([`keys.go`](../../internal/engine/keys.go)); no menu shows `MoreKeys` |
+| `RowKeys` | k9s's single keys on the row the table's keyboard is on or the drawer's object, while the table or the drawer has the keyboard; the first one the row menu and the key overview show; needs an `Order` or a selection ([D-new-rowkeys](decisions.md#d-new-rowkeys-k9ss-single-keys-on-rows)) |
 | `Kinds`, `Order`, `DrawerOnly` | kinds (empty: any); place in the row menu and the drawer's toolbar (0: neither; a kind's actions below Edit at `OrderEdit` 900, Delete at `OrderDelete` 1000); drawer only (Copy, which the window draws after the object's name: [`drawertitlecopy.go`](../../internal/ui/fyneui/drawertitlecopy.go)) |
 | `Danger`, `Verbs` | `read`, `ui`, `mutating`, `destructive`; API verbs for access reviews and the [privilege footprint](../security/privilege-footprint.md) (`Verb.Namespace`: a fixed namespace) |
 | `Enabled` | why it cannot run now; an error wrapping `ErrNotApplicable` hides it instead (on a cordoned node, Uncordon takes Cordon's place) |

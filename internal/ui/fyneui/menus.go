@@ -45,6 +45,9 @@ func (sh *shell) helpMenuOn(goos string) *fyne.Menu {
 	if c, ok := sh.eng.Registry().Get("ui.welcome.open"); ok {
 		items = append(items, fyne.NewMenuItem(c.Label, func() { sh.dispatch(c.ID, struct{}{}, nil) }))
 	}
+	if c, ok := sh.eng.Registry().Get("ui.keyOverview"); ok { // the key overview, ? (keyoverview.go)
+		items = append(items, fyne.NewMenuItem(c.Label, sh.toggleKeyOverview))
+	}
 	for _, item := range []*fyne.MenuItem{sh.auditMenuItem(), sh.diagnosticsMenuItem()} { // auditlog.go, diagnostics.go
 		if item != nil {
 			items = append(items, item)

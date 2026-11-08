@@ -26,7 +26,7 @@ func TestDrawerOnlyActionsStayOutOfRowMenus(t *testing.T) {
 	for _, o := range sh.drawer.actions.Objects {
 		tips = append(tips, o.(*tipButton).tip)
 	}
-	if want := "Shell|Uncordon|Drain|Edit|Delete"; strings.Join(tips, "|") != want || sh.drawer.nameCopy.tip != "Copy" {
+	if want := "Shell|Uncordon|Drain|Edit|Delete (" + rowKeyText("Ctrl+D") + ")"; strings.Join(tips, "|") != want || sh.drawer.nameCopy.tip != "Copy" {
 		t.Errorf("toolbar %q, want %q", tips, want)
 	}
 	got := labels(sh.rowMenu(ref, sh.evaluateActions(ref, nil)))

@@ -237,7 +237,7 @@ func TestDeleteGoesThroughConfirmation(t *testing.T) {
 	sh, _, q := newTestShell(t, f, Options{})
 	q.until(t, "the toolbar", func() bool { return len(sh.drawer.actions.Objects) == 3 })
 	del := sh.drawer.actions.Objects[2].(*tipButton) // Shell 200, Logs 500, Delete 1000
-	if del.tip != "Delete" || del.Disabled() {
+	if del.tip != "Delete ("+rowKeyText("Ctrl+D")+")" || del.Disabled() {
 		t.Fatalf("third action %q disabled=%v", del.tip, del.Disabled())
 	}
 	test.Tap(del)
@@ -267,11 +267,11 @@ func TestDrawerActionsDisabledWithReason(t *testing.T) {
 		tips = append(tips, b.tip)
 		states[b.tip] = b.Disabled()
 	}
-	want := []string{"Shell: not available on the demo cluster", "Logs", "Delete: not available on the demo cluster"}
+	want := []string{"Shell (s): not available on the demo cluster", "Logs (l)", "Delete (" + rowKeyText("Ctrl+D") + "): not available on the demo cluster"}
 	if strings.Join(tips, "|") != strings.Join(want, "|") {
 		t.Fatalf("tooltips %q, want %q", tips, want)
 	}
-	if states["Logs"] || !states[want[0]] || !states[want[2]] {
+	if states["Logs (l)"] || !states[want[0]] || !states[want[2]] {
 		t.Fatalf("disabled states %v, want Shell and Delete disabled", states)
 	}
 }

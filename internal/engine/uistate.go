@@ -101,6 +101,9 @@ type UIState struct {
 	// Chat is set while the built-in agent's chat column is shown (chat.toggle, ⌘I; chat.go).
 	// What is said in it stays in the window: agents see only that it is open.
 	Chat bool `json:"chat,omitempty"`
+	// KeyOverview is set while the key overview shows over the window (ui.keyOverview, ?;
+	// keyoverview.go): the single keys that act where the keyboard is (D-new-rowkeys).
+	KeyOverview bool `json:"keyOverview,omitempty"`
 	// NavigatorHidden is set while the navigator is hidden (ui.toggleNavigator, ⌘B; layout.go):
 	// the views take its room, the hotbar stays. Kept across restarts (workspace.json).
 	NavigatorHidden bool `json:"navigatorHidden,omitempty"`
