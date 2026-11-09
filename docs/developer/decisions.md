@@ -170,6 +170,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-159](#d-159-a-logs-tabs-single-keys) | A logs tab's single keys | built: t, w, 0, 2–6, /, ⌘S on the lines, each the tab's own control |
 | [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint in the data's head, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
 | [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
+| [D-162](#d-162-a-pods-log-opened-before-its-container-starts) | A pod's log opened before its container starts | built: the tab says what the container waits for and shows the log when it starts, from the pods' cache |
 
 ## D-1: UI toolkit
 
@@ -6703,3 +6704,36 @@ groups, dirs, aliases, quit (no counterpart).
 `TestJumpNamesFromTheCluster`, `TestJumpCommand`, `TestKindsListNames`,
 `TestResourceNamesReadTheCachedDiscovery`, `TestCRDNamesHostile`, `TestOpenJumpTypesAColon`,
 `TestJumpToAnotherClusterReviewsItsLogin`, `TestColonOpensTheJump`
+
+## D-162: A pod's log opened before its container starts
+
+**Status:** built · **By:** owner (the tab shows the log by itself once the pod has initialized),
+lead (open to revision) the rest
+
+A pod's tab on a container that has no log yet does not end with the API server's refusal. Its
+stream says `container "app" is waiting to start: PodInitializing; its log shows here when it
+starts`, once per reason, and shows the log when the pods' cache shows the container running or
+terminated, or a last instance whose log can be read. No log request goes out before that. A
+container counts as waiting too while the pod has no status for it (no node yet), where the API
+server answers with an empty log.
+
+The wait ends with a line when the pod is gone, and with the API server's answer when the pod
+reaches Succeeded or Failed before the container started. A cache that lags (it shows the container
+started, the API server says it waits) is asked again five times with a backoff, about 15 seconds,
+then the answer shows. A broken connection is waited out (D-58). Previous does not wait: that log
+exists or it does not. Without a read of the pods (the user may read logs but not list pods) the
+tab says it cannot tell when the container starts.
+
+**Why:** a controlling resource's tab has always done this from the cache; the pod's tab was the
+one place where clicking Logs a moment too early ended it for good. Doing it in the stream keeps the
+GUI and agents' reads alike, and a cache event costs no request.
+
+**Rejected:** repeating the log request on a timer (polls what can be watched); keeping the tab
+waiting under the pod's name after the pod is gone (a Deployment's pod never comes back, and the
+tab would wait forever; a running pod's log ends there too); a button to try again (asks the user
+for what Cogpit can see).
+
+[`engine/logswait.go`](../../internal/engine/logswait.go) · **Tests:**
+`TestPodLogWaitsForItsContainer`, `TestPodLogWaitsWhenTheServerSaysSo`, `TestPodLogWaitGivesUp`,
+`TestPodLogWaitEnds`, `TestPreviousPodLogDoesNotWait`, `TestPodContainerWaiting`,
+`TestKindPodLogWaitsForInit`

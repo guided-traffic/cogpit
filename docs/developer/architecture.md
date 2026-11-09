@@ -754,7 +754,9 @@ While a cluster is not `connected`
   `StaleNoteFor`.
 - Shells, attach and node shells end (`trackSession`); `dock.reconnect` opens a new session.
 - Followed logs wait and reopen from their last line
-  ([`logsresume.go`](../../internal/engine/logsresume.go)); port forwards dial once connected.
+  ([`logsresume.go`](../../internal/engine/logsresume.go)), a pod's that has not started also while
+  it waits for its container ([`logswait.go`](../../internal/engine/logswait.go)); port forwards
+  dial once connected.
 - Helm actions (`OperationContext`, `ErrConnectionLost`) and drains (`errJobInterrupted`, D-63) stop
   and stay in their journals ([D-11](decisions.md#d-11-crash-stance)). The drafts banner and the
   node shell sweep do not count an interruption's end as a connect.

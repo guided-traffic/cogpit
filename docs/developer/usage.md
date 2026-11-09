@@ -144,7 +144,10 @@ Ctrl on Windows and Linux.
 
 - Logs: follow, filter, timestamps, the previous container, pod and container selectors, older
   lines, a jump to a time; k9s's single keys `t`, `w`, `0`, `2`–`6` and ⌘S
-  ([keys](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)).
+  ([keys](#selecting-and-copying-a-logs-a-notifications-and-the-agents-text)). Opened while the
+  container has not started (the pod initializes, its image is pulled), the tab says what it waits
+  for and shows the log when it starts
+  ([D-162](decisions.md#d-162-a-pods-log-opened-before-its-container-starts)).
 - Pod shells, attach and a terminal bound to the cluster's context (⌘⇧T); copy and paste by keys or,
   if you choose, the right mouse button. A tab you open gets the keyboard; one an agent opens does
   not take it.
