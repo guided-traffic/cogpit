@@ -129,6 +129,8 @@ func (p *settingsPage) clusterSection(section string) fyne.CanvasObject {
 		return p.clusterAgentsSection() // clustersettings_agents.go
 	case engine.SectionNodeShell:
 		return p.clusterNodeShellSection() // clustersettings_nodeshell.go
+	case engine.SectionNodeConditions:
+		return p.clusterNodeConditionsSection() // clustersettings_nodeconditions.go
 	}
 	if in, ok := engine.IntegrationOfSection(section); ok {
 		return p.clusterIntegrationSection(in) // clustersettings_integration.go

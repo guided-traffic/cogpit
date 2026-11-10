@@ -286,7 +286,7 @@ func TestSettingsSections(t *testing.T) {
 	}
 	// The integrations after Agents, the heading's section first, then one per integration named as
 	// it is (D-87).
-	want := []string{"general", "proxy", "terminal", "namespaces", "metrics", "nodeShell", "agents", "integrations",
+	want := []string{"general", "proxy", "terminal", "namespaces", "metrics", "nodeShell", "nodeConditions", "agents", "integrations",
 		"metrics-server", "prometheus", "alertmanager", "trivy", "kyverno"}
 	if !slices.Equal(ClusterSettingsSections, want) {
 		t.Errorf("cluster sections %q", ClusterSettingsSections)

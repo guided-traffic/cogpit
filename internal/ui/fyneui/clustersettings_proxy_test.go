@@ -32,7 +32,7 @@ func TestClusterProxyField(t *testing.T) {
 	sh, w, q := newEngineShell(t, s, Options{})
 	mustDispatch(t, s, "cluster.settings.open", map[string]any{"context": "kind-dev"})
 	q.until(t, "the page", sh.settings.visible)
-	if labels := navLabels(sh.settings); !slices.Equal(labels, []string{"General", "Proxy", "Terminal", "Namespaces", "Metrics", "Node Shell", "Agents",
+	if labels := navLabels(sh.settings); !slices.Equal(labels, []string{"General", "Proxy", "Terminal", "Namespaces", "Metrics", "Node Shell", "Node Conditions", "Agents",
 		"—", "integrations", "Metrics Server", "Prometheus", "Alertmanager", "Trivy Operator", "Kyverno"}) {
 		t.Fatalf("sections %q", labels)
 	}

@@ -171,6 +171,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-160](#d-160-show-all-on-a-secrets-data) | Show all on a Secret's data | built: a hint in the data's head, "To show-all secrets at once press x.", its show-all a link; every value through the GUI-only reveal, no confirmation; hide-all; the key x |
 | [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 | [D-162](#d-162-a-pods-log-opened-before-its-container-starts) | A pod's log opened before its container starts | built: the tab says what the container waits for and shows the log when it starts, from the pods' cache |
+| [D-163](#d-163-accepted-node-conditions) | Accepted node conditions | built: SysctlChanged built in, each cluster's own list in Cluster Settings › Node Conditions; an accepted type never warns |
 
 ## D-1: UI toolkit
 
@@ -6737,3 +6738,47 @@ for what Cogpit can see).
 `TestPodLogWaitsForItsContainer`, `TestPodLogWaitsWhenTheServerSaysSo`, `TestPodLogWaitGivesUp`,
 `TestPodLogWaitEnds`, `TestPreviousPodLogDoesNotWait`, `TestPodContainerWaiting`,
 `TestKindPodLogWaitsForInit`
+
+## D-163: Accepted node conditions
+
+**Status:** built · **By:** owner (known-good states in the defaults, a per-cluster list in Cluster
+Settings), lead (open to revision) the rest
+
+A condition type named as accepted never warns, whatever its status: not in the Conditions column,
+the Signals column, the status filter or the Overview's issues. A node's drawer shows it uncoloured
+while it is True, and its status and message in the Conditions text.
+
+- **Built in:** `SysctlChanged`, which GKE's node-problem-detector sets True when a kernel setting
+  differs from what the node pool's configuration manages, with no fault on the node. It is the only
+  condition of the GKE nodes checked that is True in normal operation. Every other GKE type stays a
+  warning when True, the `Deprecated…` containerd ones too: they announce a break at the next
+  containerd upgrade.
+- **EKS:** nothing to add. The node monitoring agent's types (`AcceleratedHardwareReady`,
+  `ContainerRuntimeReady`, `KernelReady`, `NetworkingReady`, `StorageReady`) all end in `Ready`,
+  which the existing rule reads as healthy when True and as the problem otherwise.
+- **Per cluster:** Cluster Settings › Node Conditions keeps a list of exact types, at most 100, in
+  `cluster-settings.json`. `Ready` cannot be listed: a node that is not Ready always shows.
+- **Who:** only the user adds a type, in Cogpit's window, since it takes a warning out of the window.
+  Agents and the CLI read the list and may clear it.
+- **How it reaches the rows:** a cluster that accepts a type has a Nodes profile of its own on its
+  backend. A new list is a new profile, which restarts the views, the drawer and the Overview that
+  read the old one. The Overview dates a problem by the profile's rule as well, so the two cannot
+  disagree.
+
+**Why:** the API has no field that says which way a condition reads, so no built-in table can cover
+what vendors add; the list lets a user settle a new type without a Cogpit release.
+
+**Rejected:** warning only on a table of known problem types (a new vendor's fault would stay
+silent); one list for all clusters in Preferences (what is normal on one fleet is a fault on
+another); an entry per type and status (a second rule to explain for no case seen); a green chip for
+accepted types (it would call the state healthy, where the user only said it is no fault); a chip in
+the list's Conditions column (the warning's colour is what the user wants gone, and the drawer keeps
+the fact).
+
+[`kinds/nodes.go`](../../internal/model/kinds/nodes.go),
+[`engine/nodeconditions.go`](../../internal/engine/nodeconditions.go),
+[`clustersettings_nodeconditions.go`](../../internal/ui/fyneui/clustersettings_nodeconditions.go) · **Tests:**
+`TestAcceptedNodeConditions`, `TestConditionProblem`, `TestNodeProblemSinceReadsTheProfile`,
+`TestBackendAcceptedNodeConditions`, `TestCheckAcceptedNodeConditions`,
+`TestRefuseAcceptedNodeConditions`, `TestAcceptedNodeConditionsFollowTheSettings`,
+`TestClusterNodeConditionsField`

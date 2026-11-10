@@ -116,6 +116,7 @@ CLI before anything is written or asked:
 | `preferences.set`'s `restoreSession`, `cluster.settings.set`'s `renewLoginInBackground`: login programs run without a click ([D-69](../developer/decisions.md#d-69-several-clusters-connected-at-once)) | turn them off | `ErrRestoreSessionGUIOnly`, `ErrRenewLoginGUIOnly` |
 | `preferences.setStartAtLogin` (macOS): Cogpit, its MCP endpoint once on, after every login ([D-48](../developer/decisions.md#d-48-start-at-login)) | turn it off | `ErrStartAtLoginGUIOnly` |
 | `cluster.settings.setNodeShell`'s image, pull secret, maximum duration ([D-38](../developer/decisions.md#d-38-who-sets-the-node-shells-image)) | reset them | `ErrNodeShellGUIOnly` |
+| `cluster.settings.set`'s `acceptedNodeConditions`: a type accepted no longer warns ([D-163](../developer/decisions.md#d-163-accepted-node-conditions)) | clear the list | `ErrAcceptedNodeConditionsGUIOnly` |
 | `cluster.settings.set`'s `name`, `iconColor`, `iconLetters`, `iconTile` (H-125) | nothing, set or cleared; a change naming one is refused whole | `ErrClusterIdentityGUIOnly` |
 | `cluster.settings.set`'s `integrations`, `metricsSource`; `preferences.set`'s `integrationDefaults` (H-126, H-133) | nothing, on or off; an empty switch passes | `ErrIntegrationsGUIOnly` |
 | `cluster.settings.set`'s `proxy` (a cluster's traffic, credentials in it), `preferences.set`'s `httpProxy` (Cogpit's downloads) | agents: set one after the user's confirmation, asked whatever the allowance, its password `•••` everywhere; the CLI and links: only clear it | `ErrProxyGUIOnly` |

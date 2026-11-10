@@ -39,6 +39,11 @@ type KindProfile struct {
 	// Cells returns one cell per column, in the order of Columns, and the row's status token.
 	Cells func(obj *unstructured.Unstructured) ([]Cell, Status)
 
+	// ConditionProblem, when set, says whether one of the kind's status conditions names a problem,
+	// by the rules the kind's cells follow (a node's: kinds/nodes.go). The Overview dates a problem by
+	// it, so that it reads a condition as the list does.
+	ConditionProblem func(typ, status string) bool
+
 	// Fields are the searchable fields agents use with resources_find, beyond the generic "name",
 	// "namespace" and "label" fields that every kind has (see FieldValues). Each returns the
 	// object's values for that field: "clusterIP" → ["10.96.100.100"].

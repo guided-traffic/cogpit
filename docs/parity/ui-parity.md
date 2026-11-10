@@ -329,7 +329,7 @@ Terminal, Namespaces, Metrics, Lens Metrics, Cost, Node Shell), each setting und
 heading with a help line. Cogpit shows them as a card over the whole window titled "Cluster
 Settings: <name>" ([D-118](../developer/decisions.md#d-118-settings-as-a-card-over-the-window)),
 keeps them per context in `cluster-settings.json` (Prometheus's in `metrics.json`), never in the
-kubeconfig, and adds Agents and, under a divider, Integrations and a section per integration
+kubeconfig, and adds Node Conditions ([D-163](../developer/decisions.md#d-163-accepted-node-conditions)), Agents and, under a divider, Integrations and a section per integration
 ([D-87](../developer/decisions.md#d-87-cluster-settings-the-integrations-under-a-divider-a-section-each-metrics-their-consumer)).
 A new cluster asks which integrations to use, on a pre-choice before anything is looked for, and
 until it is answered reads none but what the question ticks, which its Metrics section says

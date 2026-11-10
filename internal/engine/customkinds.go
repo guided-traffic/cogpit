@@ -319,7 +319,7 @@ func (st *state) noteVanishedLocked(b *Backend, prof *model.KindProfile, view st
 func (b *Backend) builtinProfile(key string) *model.KindProfile {
 	for _, p := range b.Profiles {
 		if p.Key == key {
-			return p
+			return b.withAcceptedNodeConditions(p) // nodeconditions.go
 		}
 	}
 	return nil

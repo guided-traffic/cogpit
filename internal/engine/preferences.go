@@ -684,6 +684,8 @@ const (
 	SectionNamespaces = "namespaces"
 	SectionAgents     = "agents"    // a cluster's agents: the allowance of their writes (allowance.go)
 	SectionNodeShell  = "nodeShell" // a cluster's node shell: its image and pull secret (nodeshell.go)
+	// SectionNodeConditions is a cluster's accepted node conditions (nodeconditions.go, D-163).
+	SectionNodeConditions = "nodeConditions"
 	// SectionIntegrations is a cluster's Integrations: each integration's switch and what Cogpit
 	// found of it (integrations.go, D-76).
 	SectionIntegrations = "integrations"
@@ -711,7 +713,7 @@ var PreferencesSections = []string{SectionApp, SectionProxy, SectionKubernetes, 
 // format, Alertmanager's address). Metrics keeps what concerns the metrics themselves and names the
 // two integrations it reads.
 var ClusterSettingsSections = append([]string{SectionGeneral, SectionProxy, SectionTerminal, SectionNamespaces,
-	SectionMetrics, SectionNodeShell, SectionAgents, SectionIntegrations}, integrationSections()...)
+	SectionMetrics, SectionNodeShell, SectionNodeConditions, SectionAgents, SectionIntegrations}, integrationSections()...)
 
 // IntegrationSection is the Cluster settings section of an integration: its name, as
 // cluster.settings.set's integrations write it ("metrics-server", "prometheus", "alertmanager",

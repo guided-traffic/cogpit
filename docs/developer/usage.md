@@ -905,6 +905,21 @@ static costs nothing. Without an accent colour the row is disabled ("Set an acce
 |---|---|---|
 | `lightStrip` | absent # default: static | `breathing`, `scanner`, `flow`; set with the row or `cluster.settings.setLightStrip {context?, animation}` (GUI-only) |
 
+### Cluster Settings › Node Conditions
+
+Node conditions that are normal on this cluster, so that they stop warning
+([D-163](decisions.md#d-163-accepted-node-conditions)).
+
+- A type added here never warns, whatever its status: it leaves the Nodes list's Conditions and
+  Signals, the status filter and the Overview's issues. A node's drawer still shows it.
+- Add the type as the node reports it (`kubectl get node <name> -o yaml`); upper and lower case
+  count. `Ready` cannot be added.
+- `SysctlChanged` (GKE) is accepted on every cluster and shown under the list.
+- A condition whose type ends in `Ready` warns when False or Unknown, any other when True, unless
+  accepted. EtcdIsVoter reads like the `Ready` ones.
+- Only the user adds a type. Agents and `cogpit-cli` read the list (`cluster_settings_get`) and may
+  clear it.
+
 ### Cluster Settings › Integrations, and the question at a new cluster's first connect
 
 Integrations are tools the cluster runs that Cogpit finds and reads with your identity, never

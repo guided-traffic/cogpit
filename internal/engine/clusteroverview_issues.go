@@ -228,7 +228,7 @@ func nodeEntry(p *model.KindProfile, context string, obj *unstructured.Unstructu
 		}
 		e.issue = &ClusterIssue{
 			Ref: model.ObjectRef{Kind: p.Key, Name: obj.GetName()}, Name: obj.GetName(), Kind: p.Kind,
-			Source: IssueStatus, Severity: sev, Message: c.Text, Since: nodeProblemSince(obj),
+			Source: IssueStatus, Severity: sev, Message: c.Text, Since: nodeProblemSince(p, obj),
 		}
 	}
 	return e
@@ -367,27 +367,13 @@ func nodeReady(obj *unstructured.Unstructured) bool {
 	return false
 }
 
-// nodeConditionProblem reports whether a node condition is in a problem state, as the Nodes
-// profile reads it (kinds/nodes.go, conditionProblem): Ready not True; another condition whose
-// type ends in Ready (SystemdUnitsReady) False or Unknown; any other condition True (the kubelet's
-// pressures, NetworkUnavailable, what node-problem-detector adds).
-func nodeConditionProblem(typ, status string) bool {
-	switch {
-	case typ == condReady:
-		return status != condTrue
-	case strings.HasSuffix(typ, condReady):
-		return status == condFalse || status == condUnknown
-	}
-	return status == condTrue
-}
-
-// nodeProblemSince is when a node's problem began: the latest transition of a condition in a
-// problem state (nodeConditionProblem); zero when the node does not say.
-func nodeProblemSince(obj *unstructured.Unstructured) time.Time {
+// nodeProblemSince is when a node's problem began: the latest transition of a condition the
+// cluster's Nodes profile reads as a problem (ConditionProblem); zero when the node does not say.
+func nodeProblemSince(p *model.KindProfile, obj *unstructured.Unstructured) time.Time {
 	var since time.Time
 	for _, c := range model.NestedSlice(obj.Object, "status", "conditions") {
 		typ, st := model.NestedString(c, "type"), model.NestedString(c, "status")
-		if typ != "" && nodeConditionProblem(typ, st) {
+		if typ != "" && p.ConditionProblem(typ, st) {
 			if t := model.NestedTime(c, "lastTransitionTime"); t.After(since) {
 				since = t
 			}

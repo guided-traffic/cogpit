@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 
 	"k8s.io/apimachinery/pkg/util/validation"
+
+	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
 // Cluster settings (G13, docs/parity/ui-parity.md › Cluster settings): what the user sets for one
@@ -131,6 +133,10 @@ type ClusterSettings struct {
 	// asking (D-2, allowance.go); only the user sets it, in Cogpit's window. Destructive commands
 	// always ask. False, the default: every mutating command of an agent waits for the user.
 	AgentWrites bool `json:"agentWrites,omitempty"`
+	// AcceptedNodeConditions are the node condition types that never warn on this cluster, on top
+	// of the built-in ones (nodeconditions.go, D-163): sorted, without duplicates. Only the user adds
+	// one; agents may clear the list.
+	AcceptedNodeConditions []string `json:"acceptedNodeConditions,omitempty"`
 	// NodeShellImage is the image of this cluster's node shells (nodeshell.go); empty:
 	// DefaultNodeShellImage. Only the user sets one; agents may reset it.
 	NodeShellImage string `json:"nodeShellImage,omitempty"`
@@ -164,7 +170,7 @@ func (c ClusterSettings) Equal(o ClusterSettings) bool {
 		c.IconTile == o.IconTile && c.IconLetters == o.IconLetters && c.AccentColor == o.AccentColor && c.LightStrip == o.LightStrip && c.TerminalDir == o.TerminalDir &&
 		c.TerminalNamespace == o.TerminalNamespace && c.HiddenMetrics == o.HiddenMetrics && c.Proxy == o.Proxy && c.MetricsSource == o.MetricsSource &&
 		equalIntegrations(c.IntegrationsOff, o.IntegrationsOff) &&
-		slices.Equal(c.AccessibleNamespaces, o.AccessibleNamespaces) && c.AgentWrites == o.AgentWrites &&
+		slices.Equal(c.AccessibleNamespaces, o.AccessibleNamespaces) && slices.Equal(c.AcceptedNodeConditions, o.AcceptedNodeConditions) && c.AgentWrites == o.AgentWrites &&
 		c.NodeShellImage == o.NodeShellImage && c.NodeShellPullSecret == o.NodeShellPullSecret && c.NodeShellMaxMinutes == o.NodeShellMaxMinutes &&
 		c.HoldBackgroundLogin == o.HoldBackgroundLogin && c.Streaming == o.Streaming
 }
@@ -215,6 +221,9 @@ func (c ClusterSettings) Check() error {
 		return errors.New("integrations: one this Cogpit does not know")
 	}
 	if err := checkAccessibleNamespaces(c.AccessibleNamespaces); err != nil {
+		return err
+	}
+	if err := checkAcceptedNodeConditions(c.AcceptedNodeConditions); err != nil { // nodeconditions.go
 		return err
 	}
 	if err := CheckNodeShellImage(c.NodeShellImage); err != nil { // nodeshell.go
@@ -278,6 +287,7 @@ func (c *ClusterSettings) normalize() {
 		c.Proxy = ""
 	}
 	c.AccessibleNamespaces = keptAccessibleNamespaces(c.AccessibleNamespaces)
+	c.AcceptedNodeConditions = keptAcceptedNodeConditions(c.AcceptedNodeConditions)
 	if CheckNodeShellImage(c.NodeShellImage) != nil {
 		c.NodeShellImage = ""
 	}
@@ -456,6 +466,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 		old := c.by[context]
 		cs := old
 		cs.AccessibleNamespaces = slices.Clone(old.AccessibleNamespaces) // fn may append to it
+		cs.AcceptedNodeConditions = slices.Clone(old.AcceptedNodeConditions)
 		if old.IntegrationsOff != nil {
 			off := *old.IntegrationsOff // fn may change it
 			cs.IntegrationsOff = &off
@@ -466,6 +477,7 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 		cs.Name = strings.TrimSpace(cs.Name)
 		cs.Proxy = strings.TrimSpace(cs.Proxy)
 		cs.AccessibleNamespaces = sortedAccessibleNamespaces(cs.AccessibleNamespaces)
+		cs.AcceptedNodeConditions = sortedAcceptedNodeConditions(cs.AcceptedNodeConditions)
 		if cs.Proxy == RedactProxyURL(old.Proxy) {
 			cs.Proxy = old.Proxy // the redacted form handed back as it was shown: unchanged
 		}
@@ -501,7 +513,8 @@ func (s *Session) ChangeClusterSettings(context string, fn func(*ClusterSettings
 	for _, name := range dropped {
 		c.removeIcon(name)
 	}
-	shown := shownClusterSettings(all) // proxies without their passwords (proxy.go)
+	s.acceptedNodeConditionsChanged(context, next.AcceptedNodeConditions) // before the UI state: its change restarts the views on the new profile
+	shown := shownClusterSettings(all)                                    // proxies without their passwords (proxy.go)
 	s.UpdateUI(func(u *UIState) { u.ClusterSettings = shown })
 	if proxyChanged {
 		// A credential plugin's approval binds the proxy (A23): the context's approval state, which
@@ -612,6 +625,10 @@ type ClusterSettingsView struct {
 	// AgentWrites says whether the user allowed agents' mutating commands in this cluster without
 	// asking (destructive commands always ask); only the user changes it, in Cogpit's window.
 	AgentWrites bool `json:"agentWrites"`
+	// AcceptedNodeConditions are the node condition types the user accepted for this cluster, sorted;
+	// BuiltinAcceptedNodeConditions the ones every cluster accepts. Neither ever warns (D-163).
+	AcceptedNodeConditions        []string `json:"acceptedNodeConditions"`
+	BuiltinAcceptedNodeConditions []string `json:"builtinAcceptedNodeConditions"`
 	// NodeShellImage is the node shells' image as set; empty: NodeShellDefaultImage.
 	NodeShellImage string `json:"nodeShellImage,omitempty"`
 	// NodeShellDefaultImage is Cogpit's default image of a node shell, pinned by digest.
@@ -643,6 +660,7 @@ func (s *Session) ClusterSettingsView(context string) (ClusterSettingsView, erro
 		NameSet: cs.Name != "", IconColor: cs.IconColor, AccentColor: cs.AccentColor, LightStrip: LightStripOf(cs), TerminalDir: cs.TerminalDir,
 		TerminalNamespace: cs.TerminalNamespace, HiddenMetrics: MetricNames(cs.HiddenMetrics),
 		Proxy: RedactProxyURL(cs.Proxy), AccessibleNamespaces: append([]string{}, cs.AccessibleNamespaces...),
+		AcceptedNodeConditions: append([]string{}, cs.AcceptedNodeConditions...), BuiltinAcceptedNodeConditions: kinds.BuiltinAcceptedNodeConditions(),
 		AgentWrites: cs.AgentWrites, Kept: s.opts.ClusterSettings.Path() != "", RenewLoginInBackground: !cs.HoldBackgroundLogin,
 		NodeShellImage: cs.NodeShellImage, NodeShellDefaultImage: DefaultNodeShellImage, NodeShellPullSecret: cs.NodeShellPullSecret,
 		NodeShellDefaultMaxDuration: FormatNodeShellDeadline(DefaultNodeShellDeadline)}

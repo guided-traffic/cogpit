@@ -114,6 +114,9 @@ type Backend struct {
 	history historySource
 	// owners indexes the cached pods' controllers for the alert board (alerts_owner.go).
 	owners podOwnerIndex
+	// acceptedNodes is the Nodes profile for the node conditions this cluster's settings accept;
+	// nil: the built-in one (nodeconditions.go, D-163).
+	acceptedNodes atomic.Pointer[acceptedNodeProfile]
 	// overlays are the integrations' cells and drawer sections on its objects (overlay.go, D-79).
 	overlays overlays
 	// renewal is the kubeconfig login it last reconnected by itself for (reconnect.go, D-81).

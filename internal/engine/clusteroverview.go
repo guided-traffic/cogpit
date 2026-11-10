@@ -562,7 +562,7 @@ func (st *state) reconcileClusterPageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == ClusterOverview
 	var key string
 	if want {
-		key = b.pageReadKey(clusterOverviewKinds, true)
+		key = b.pageReadKey(clusterOverviewKinds, true) + b.acceptedNodeConditionsKey() // its issues read the conditions (nodeconditions.go)
 	}
 	if st.cluster != nil && (!want || st.cluster.backend != b || st.cluster.planKey != key) {
 		st.cluster.stop()

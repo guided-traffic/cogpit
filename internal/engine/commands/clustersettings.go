@@ -40,6 +40,8 @@ type clusterSettingsSetParams struct {
 	HiddenMetrics        []string `json:"hiddenMetrics,omitempty" jsonschema:"the metrics the window hides for this cluster, and does not ask the cluster for: places (cluster: the Overview's charts; nodes, pods: their lists' CPU and Memory columns and their drawers' charts; containers: a pod's containers' charts; volumes: the volume's chart and usage bar in a persistent volume claim's and a persistent volume's drawer) and measures (cpu, memory, network, filesystem), or all; it replaces the list set before, and an empty list shows every metric again. metrics_get still answers"`
 	MetricsSource        *string  `json:"metricsSource,omitempty" jsonschema:"which providers the cluster's metrics come from, as Lens's Metrics source: auto (both: Prometheus's history and the Metrics Server's current values, the default), prometheus (Prometheus alone), metrics-server (the Metrics Server alone: no history, network, filesystem or disk) or none (no metrics: nothing is asked); applied to the connected cluster at once. It sets the metrics-server and prometheus integrations. GUI only: refused to agents and the CLI, none included (it switches the metrics integrations, which is the user's, in Cogpit's window)"`
 	AccessibleNamespaces []string `json:"accessibleNamespaces,omitempty" jsonschema:"the namespaces the user may read in, for a user who may not list the cluster's namespaces (Lens: Accessible namespaces), at most 100 namespace names; it replaces the list set before, and an empty list removes them. It only narrows what Cogpit reads: the namespace filter offers them, and a kind the user may not list in all namespaces is watched in each of them instead"`
+	// AcceptedNodeConditions (D-163; engine/nodeconditions.go): agents and the CLI may only clear them.
+	AcceptedNodeConditions []string `json:"acceptedNodeConditions,omitempty" jsonschema:"node condition types that never warn on this cluster, on top of the built-in ones (builtinAcceptedNodeConditions in cluster_settings_get), spelled as the node reports them, at most 100, Ready not among them; it replaces the list set before, and an empty list removes them. Agents and the CLI may only clear the list (an empty list): accepting a condition takes a warning out of the window, which is the user's, in Cogpit's window"`
 	// RenewLoginInBackground: agents and the CLI may only turn it off (engine/connwatch_lapse.go, D-69 item 4).
 	RenewLoginInBackground *bool `json:"renewLoginInBackground,omitempty" jsonschema:"whether the cluster's login is renewed while the cluster is connected but not shown, its credential plugin running (a browser login included) when the login expires (default true). Off: the plugin does not run then, and an expired login lapses (connections' loginLapsed) until the cluster is shown or logged in again. Agents and the CLI may only turn it off"`
 	// StreamInitialLists (D-135; engine/initiallists.go): agents and the CLI switch it both ways, as
@@ -86,7 +88,7 @@ type clusterIconCutParams struct {
 
 type clusterSettingsOpenParams struct {
 	Context string `json:"context,omitempty" jsonschema:"context id as cluster_contexts lists it; empty or omitted: the connected context"`
-	Section string `json:"section,omitempty" jsonschema:"the section to show: general (name, icon, kubeconfig), proxy, terminal, namespaces (the accessible namespaces), metrics (hidden metrics, and the state of the two integrations it reads), nodeShell (the node shells' image and pull secret), agents (the allowance of agents' changes, which only the user sets), integrations (each integration's switch and what Cogpit found of it, Ask again), or an integration's own section, named as the integration is: metrics-server, prometheus (its address and query format), alertmanager (its address), trivy or kyverno; omitted: general"`
+	Section string `json:"section,omitempty" jsonschema:"the section to show: general (name, icon, kubeconfig), proxy, terminal, namespaces (the accessible namespaces), metrics (hidden metrics, and the state of the two integrations it reads), nodeShell (the node shells' image and pull secret), nodeConditions (the node condition types that never warn), agents (the allowance of agents' changes, which only the user sets), integrations (each integration's switch and what Cogpit found of it, Ask again), or an integration's own section, named as the integration is: metrics-server, prometheus (its address and query format), alertmanager (its address), trivy or kyverno; omitted: general"`
 }
 
 const clusterSettingsOnly = " Changes only Cogpit's own cluster settings (a file in Cogpit's configuration directory), never the cluster or its kubeconfig."
@@ -132,6 +134,9 @@ func (p clusterSettingsSetParams) refuse(ctx context.Context) error {
 		return err
 	}
 	if err := p.refuseIntegrations(ctx); err != nil {
+		return err
+	}
+	if err := engine.RefuseAcceptedNodeConditions(ctx, p.AcceptedNodeConditions); err != nil {
 		return err
 	}
 	return refuseProxy(ctx, p.Proxy)
@@ -280,6 +285,9 @@ func registerClusterSettings(g *registrar) {
 				if p.AccessibleNamespaces != nil {
 					cs.AccessibleNamespaces = slices.Clone(p.AccessibleNamespaces) // the engine trims, sorts and checks them
 				}
+				if p.AcceptedNodeConditions != nil {
+					cs.AcceptedNodeConditions = slices.Clone(p.AcceptedNodeConditions) // the engine trims, sorts and checks them
+				}
 				setIf(&cs.Name, p.Name)
 				if p.IconColor != nil {
 					cs.IconColor = strings.ToLower(strings.TrimSpace(*p.IconColor))
@@ -417,7 +425,7 @@ func registerClusterSettings(g *registrar) {
 		ID: "cluster.settings.open", Label: "Cluster Settings", MenuPath: "Cluster/Settings", Shortcut: "Cmd+Shift+,", Danger: engine.DangerUI,
 		Description: "Opens a context's Settings page in Cogpit's window, as ⌘⇧, (Ctrl+Shift+,) does for the shown cluster, " +
 			"at a section: general (name, icon, kubeconfig), proxy, terminal, namespaces (the accessible namespaces), metrics (hidden metrics, " +
-			"and the state of the two integrations it reads), nodeShell, agents, integrations (every integration's switch and state, Ask again), " +
+			"and the state of the two integrations it reads), nodeShell, nodeConditions, agents, integrations (every integration's switch and state, Ask again), " +
 			"or an integration's own, named as the integration is: metrics-server, prometheus (its address and query format), " +
 			"alertmanager (its address), trivy or kyverno. It shows as a card over the whole window " +
 			"until closed (settings_close, Escape); ui_state reports it as settings. Returns the new UI state.",

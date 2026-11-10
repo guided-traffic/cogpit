@@ -83,7 +83,7 @@ func TestNodeWarningsAndConditions(t *testing.T) {
 	if s = summariseNode(etcd("False")); s.conditionsCell().Text != "Ready EtcdIsVoter: False" || s.token != model.StatusWarning {
 		t.Errorf("EtcdIsVoter False: cell %q, row %q", s.conditionsCell().Text, s.token)
 	}
-	if problem, ok := conditionProblem("KernelDeadlock", "True"); !ok || problem != "KernelDeadlock" {
+	if problem, ok := (nodeConditionRules{}).problem("KernelDeadlock", "True"); !ok || problem != "KernelDeadlock" {
 		t.Errorf("node-problem-detector's KernelDeadlock True: %q %v", problem, ok)
 	}
 
@@ -156,5 +156,89 @@ func TestNodeDrawerBytesInBinaryUnits(t *testing.T) {
 	}
 	if seen != 2 {
 		t.Errorf("Capacity and Allocatable: %d of 2 sections", seen)
+	}
+}
+
+// GKE's SysctlChanged, accepted on every cluster: True does not warn and shows uncoloured in the
+// drawer only; False shows nowhere. A cluster's own accepted type reads the same whatever its status.
+func TestAcceptedNodeConditions(t *testing.T) {
+	node := func(typ, status string) map[string]any {
+		return map[string]any{"status": map[string]any{"conditions": []any{
+			map[string]any{"type": "Ready", "status": "True"},
+			map[string]any{"type": typ, "status": status},
+		}}}
+	}
+	s := summariseNode(node("SysctlChanged", "True"))
+	if c := s.conditionsCell(); c.Text != "Ready" || s.token != model.StatusOK || s.warning() != (model.Cell{}) {
+		t.Errorf("SysctlChanged True: cell %q, row %q, warning %+v", c.Text, s.token, s.warning())
+	}
+	if got := s.detailParts(); len(got) != 2 || got[1] != (model.CellPart{Text: "SysctlChanged"}) {
+		t.Errorf("SysctlChanged True: drawer chips %+v", got)
+	}
+	if got := summariseNode(node("SysctlChanged", "False")).detailParts(); len(got) != 1 {
+		t.Errorf("SysctlChanged False: drawer chips %+v", got)
+	}
+
+	r := nodeConditionRules{accepted: []string{"FooProblem", "BarReady"}}
+	for _, c := range []struct{ typ, status, cell string }{
+		{"FooProblem", "True", "Ready"},
+		{"FooProblem", "False", "Ready"},
+		{"BarReady", "False", "Ready"},
+		{"BarReady", "Unknown", "Ready"},
+		{"BazProblem", "True", "Ready BazProblem"},
+	} {
+		s := r.summarise(node(c.typ, c.status))
+		if got := s.conditionsCell().Text; got != c.cell {
+			t.Errorf("%s %s: cell %q, want %q", c.typ, c.status, got, c.cell)
+		}
+	}
+	// A positive type stays green when True, accepted or not.
+	if got := r.summarise(node("BarReady", "True")).detailParts(); len(got) != 2 || got[1] != (model.CellPart{Text: "BarReady", Status: model.StatusOK}) {
+		t.Errorf("accepted BarReady True: drawer chips %+v", got)
+	}
+	// Ready is never accepted, whatever the list says.
+	notReady := map[string]any{"status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "False"}}}}
+	if s := (nodeConditionRules{accepted: []string{"Ready"}}).summarise(notReady); s.base != "NotReady" || s.token != model.StatusError {
+		t.Errorf("Ready accepted: %+v", s)
+	}
+	if !(nodeConditionRules{accepted: []string{"Ready"}}).isProblem("Ready", "False") {
+		t.Error("isProblem took Ready as accepted")
+	}
+
+	if NodesAccepting(nodes, nil) != nodes {
+		t.Error("no accepted types made a copy")
+	}
+	own := NodesAccepting(nodes, []string{"FooProblem"})
+	if own == nodes || own.ConditionProblem("FooProblem", "True") || !nodes.ConditionProblem("FooProblem", "True") {
+		t.Error("the copy's rule")
+	}
+}
+
+// ConditionProblem is the one reading of a condition: the list's, Ready included.
+func TestConditionProblem(t *testing.T) {
+	for _, c := range []struct {
+		typ, status string
+		want        bool
+	}{
+		{"Ready", "True", false},
+		{"Ready", "False", true},
+		{"Ready", "Unknown", true},
+		{"SystemdUnitsReady", "True", false},
+		{"SystemdUnitsReady", "False", true},
+		{"SystemdUnitsReady", "Unknown", true},
+		{"EtcdIsVoter", "True", false},
+		{"EtcdIsVoter", "False", true},
+		{"MemoryPressure", "True", true},
+		{"MemoryPressure", "False", false},
+		{"KernelDeadlock", "True", true},
+		{"NetworkUnavailable", "False", false},
+		{"ContainerRuntimeReady", "False", true}, // EKS's node monitoring agent
+		{"ContainerRuntimeReady", "True", false},
+		{"SysctlChanged", "True", false},
+		{"SysctlChanged", "False", false},
+	} {
+		if got := nodes.ConditionProblem(c.typ, c.status); got != c.want {
+			t.Errorf("%s %s: %v, want %v", c.typ, c.status, got, c.want)
+		}
 	}
 }

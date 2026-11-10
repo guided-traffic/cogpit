@@ -37,7 +37,7 @@ var nodes = &model.KindProfile{
 		ageColumn,
 		conditionsColumn,
 	},
-	Cells:      nodeCells,
+	Cells:      nodeConditionRules{}.cells,
 	Usage:      model.UsageNodes,
 	UsageCells: nodeUsageCells,
 	DiskCell:   nodeDiskCell,
@@ -61,15 +61,30 @@ var nodes = &model.KindProfile{
 	Detail:      nodeDetail,
 	Needs:       []model.RelatedIndex{PodsByNode, SlicesByNode},
 	DetailNeeds: []model.RelatedIndex{ClaimsByDevice}, // the claim that holds each device (A108)
-	DetailWith:  nodeDetailWith,
+	DetailWith:  nodeConditionRules{}.detailWith,
+
+	ConditionProblem: nodeConditionRules{}.isProblem,
 }
 
-func nodeCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
+// NodesAccepting returns the Nodes profile for a cluster that accepts these condition types beyond
+// the built-in ones: itself when there are none, else a copy whose cells, drawer and problem dates
+// read them as accepted.
+func NodesAccepting(p *model.KindProfile, accepted []string) *model.KindProfile {
+	if len(accepted) == 0 {
+		return p
+	}
+	r := nodeConditionRules{accepted: slices.Clone(accepted)}
+	at := *p
+	at.Cells, at.Detail, at.DetailWith, at.ConditionProblem = r.cells, r.detail, r.detailWith, r.isProblem
+	return &at
+}
+
+func (r nodeConditionRules) cells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {
 	roles := "<none>"
 	if r := nodeRoles(obj); len(r) > 0 {
 		roles = strings.Join(r, ", ")
 	}
-	s := summariseNode(obj)
+	s := r.summarise(obj)
 	return []model.Cell{
 		nameCell(obj),
 		s.warning(),
@@ -107,6 +122,7 @@ type nodeSummary struct {
 	readyStatus string       // the Ready condition's status; "" when the node reports none
 	problems    []string     // other conditions that name a problem, sorted (conditionProblem)
 	healthy     []string     // other conditions whose type ends in Ready and that are True, sorted
+	accepted    []string     // accepted conditions that are True and name no healthy state, sorted
 	cordoned    bool         // spec.unschedulable
 	token       model.Status // the row's status
 }
@@ -115,7 +131,10 @@ type nodeSummary struct {
 // (conditionProblem), and whether the node is cordoned. The row's status is the Ready state's; a
 // Ready node with a problem condition is a warning. Cordoning is not a problem: Lens shows a
 // cordoned Ready node without a warning (capture, 2026-10-11).
-func summariseNode(obj any) nodeSummary {
+func summariseNode(obj any) nodeSummary { return nodeConditionRules{}.summarise(obj) }
+
+// summarise is summariseNode by these rules.
+func (r nodeConditionRules) summarise(obj any) nodeSummary {
 	s := nodeSummary{base: textUnknown, baseToken: model.StatusUnknown}
 	for _, e := range model.NestedSlice(obj, "status", "conditions") {
 		typ, status := model.NestedString(e, "type"), model.NestedString(e, "status")
@@ -129,15 +148,21 @@ func summariseNode(obj any) nodeSummary {
 				s.base, s.baseToken = "NotReady", model.StatusError
 			}
 		case typ != "":
-			if problem, ok := conditionProblem(typ, status); ok {
+			problem, ok := r.problem(typ, status)
+			switch {
+			case ok:
 				s.problems = appendUnique(s.problems, problem)
-			} else if positiveCondition(typ) && status == condTrue {
+			case status != condTrue:
+			case positiveCondition(typ):
 				s.healthy = appendUnique(s.healthy, typ)
+			default:
+				s.accepted = appendUnique(s.accepted, typ)
 			}
 		}
 	}
 	sort.Strings(s.problems)
 	sort.Strings(s.healthy)
+	sort.Strings(s.accepted)
 	s.cordoned, _ = model.NestedBool(obj, "spec", "unschedulable")
 	s.token = s.baseToken
 	if s.token == model.StatusOK && len(s.problems) > 0 {
@@ -161,10 +186,39 @@ func positiveCondition(typ string) bool {
 // a learner; the owner's finding on an RKE2 cluster, 2026-10-20: "ein guter Node Zustand").
 var positiveConditions = []string{"EtcdIsVoter"}
 
-// conditionProblem reports whether a condition other than Ready names a problem, and how the
-// Conditions read it: a positive condition that is False or Unknown as "<type>: <status>", any
-// other condition that is True by its type.
-func conditionProblem(typ, status string) (string, bool) {
+// builtinAcceptedConditions are the condition types that are no fault in any cluster although True
+// reads as one by the rule above: GKE's SysctlChanged, node-problem-detector's note that a kernel
+// setting differs from what the node pool's configuration manages (D-163).
+var builtinAcceptedConditions = []string{"SysctlChanged"}
+
+// BuiltinAcceptedNodeConditions are the condition types every cluster accepts.
+func BuiltinAcceptedNodeConditions() []string { return slices.Clone(builtinAcceptedConditions) }
+
+// nodeConditionRules read a node's conditions for one cluster: accepted are the types its settings
+// accept on top of the built-in ones. An accepted type names no problem whatever its status (D-163).
+type nodeConditionRules struct{ accepted []string }
+
+// accepts reports whether a condition type is accepted, built in or by the cluster's settings.
+func (r nodeConditionRules) accepts(typ string) bool {
+	return slices.Contains(builtinAcceptedConditions, typ) || slices.Contains(r.accepted, typ)
+}
+
+// isProblem reports whether a condition, Ready included, is in a problem state.
+func (r nodeConditionRules) isProblem(typ, status string) bool {
+	if typ == nodeReady {
+		return status != condTrue
+	}
+	_, bad := r.problem(typ, status)
+	return bad
+}
+
+// problem reports whether a condition other than Ready names a problem, and how the Conditions read
+// it: an accepted type never does, a positive condition that is False or Unknown as "<type>:
+// <status>", any other condition that is True by its type.
+func (r nodeConditionRules) problem(typ, status string) (string, bool) {
+	if r.accepts(typ) {
+		return "", false
+	}
 	if positiveCondition(typ) {
 		if status == condFalse || status == textUnknown {
 			return typ + ": " + status, true
@@ -191,15 +245,19 @@ func (s nodeSummary) parts() []model.CellPart {
 }
 
 // detailParts are the drawer's condition chips: the column's, with the positive conditions that are
-// True after Ready in its green, so that the drawer shows what was checked and is fine.
+// True after Ready in its green, so that the drawer shows what was checked and is fine, and the
+// accepted ones that are True after them, uncoloured: reported, neither fine nor a fault.
 func (s nodeSummary) detailParts() []model.CellPart {
 	parts := s.parts()
 	at := slices.IndexFunc(parts, func(p model.CellPart) bool { return p.Text == s.base }) + 1
-	healthy := make([]model.CellPart, 0, len(s.healthy))
+	extra := make([]model.CellPart, 0, len(s.healthy)+len(s.accepted))
 	for _, h := range s.healthy {
-		healthy = append(healthy, model.CellPart{Text: h, Status: model.StatusOK})
+		extra = append(extra, model.CellPart{Text: h, Status: model.StatusOK})
 	}
-	return slices.Insert(parts, at, healthy...)
+	for _, a := range s.accepted {
+		extra = append(extra, model.CellPart{Text: a})
+	}
+	return slices.Insert(parts, at, extra...)
 }
 
 // conditionsCell is the Conditions column's cell; its overall status is the Ready state's.
@@ -242,6 +300,11 @@ func nodeAddresses(obj any, typ string) []string {
 // Conditions), then Capacity and Allocatable as tables. The node's Pods follow in nodeDetailWith,
 // which has them. Taints are Cogpit's own addition to Properties.
 func nodeDetail(obj *unstructured.Unstructured) []model.DetailSection {
+	return nodeConditionRules{}.detail(obj)
+}
+
+// detail is nodeDetail by these rules.
+func (r nodeConditionRules) detail(obj *unstructured.Unstructured) []model.DetailSection {
 	var props detailItems
 	var addresses []string
 	for _, a := range model.NestedSlice(obj, "status", "addresses") {
@@ -272,7 +335,7 @@ func nodeDetail(obj *unstructured.Unstructured) []model.DetailSection {
 		lines = append(lines, c.Type+": "+c.text())
 	}
 	if len(lines) > 0 {
-		parts := summariseNode(obj).detailParts()
+		parts := r.summarise(obj).detailParts()
 		chips := make([]model.Chip, 0, len(parts))
 		for _, p := range parts {
 			chips = append(chips, model.Chip{Text: p.Text, Status: p.Status})
@@ -385,15 +448,15 @@ var workloadPodColumns = []model.Column{
 	ageColumn,
 }
 
-// nodeDetailWith is nodeDetail with the node's Pods table after Allocatable, from the
+// detailWith is nodeDetail with the node's Pods table after Allocatable, from the
 // related-objects index PodsByNode: one row per pod scheduled to the node, sorted by name, the
 // name and namespace as links, the warning icon and status as in the Pods view, Ready as the
 // ready containers of all ("1/2"), CPU and Memory left to the engine. The node's own name is plain
 // text: it links to the drawer's object. A node without pods, or whose pods are still listing,
 // has no Pods section. The node's Devices, the resource slices that name it (SlicesByNode,
 // nodedevices.go), come before the Pods.
-func nodeDetailWith(obj *unstructured.Unstructured, rel model.Related) []model.DetailSection {
-	sections := append(nodeDetail(obj), nodeDevices(obj, rel)...)
+func (r nodeConditionRules) detailWith(obj *unstructured.Unstructured, rel model.Related) []model.DetailSection {
+	sections := append(r.detail(obj), nodeDevices(obj, rel)...)
 	if s, ok := podsSection(rel.Objects(PodsByNode, obj.GetName()), false); ok {
 		sections = append(sections, s)
 	}
