@@ -21,17 +21,18 @@ const (
 	podInitPrefix  = "Init:"
 )
 
-// podsResource is the pods kind key and plural resource; podsTitle the view's title.
+// podsResource is the pods kind key and plural resource; podsTitle the view's title; kindPod the Kind.
 const (
 	podsResource = "pods"
 	podsTitle    = "Pods"
+	kindPod      = "Pod"
 )
 
 var pods = &model.KindProfile{
 	Key:        podsResource,
 	Version:    "v1",
 	Resource:   podsResource,
-	Kind:       "Pod",
+	Kind:       kindPod,
 	Title:      podsTitle,
 	Namespaced: true,
 	Columns: []model.Column{

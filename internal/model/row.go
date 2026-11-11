@@ -109,7 +109,8 @@ type Cell struct {
 	// comparable; shared and immutable like Parts.
 	Bar *CellBar `json:"bar,omitempty"`
 	// Tint: Status colours the text alone, never drawn as a status pill with its dot: a value in a
-	// colour (a kubelet's version), not a state.
+	// colour (a kubelet's version), not a state. In a drawer table a tinted healthy status keeps
+	// its colour, which plain text there drops (a Service's pod reading Ready in green).
 	Tint bool `json:"tint,omitempty"`
 	// Tip is the cell's tooltip, a line or a few: a kubelet's upstream support and version skew in
 	// the Nodes list (D-91). Agents read it beside the cell's text (view_rows, resources_list).

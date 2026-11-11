@@ -159,6 +159,7 @@ var relatedProfiles = []struct{ key, relatedKind, own string }{
 	{"nodes", "pods", "healthy"},
 	{"nodes", "resourceslices", "healthy"},
 	{"services", "endpointslices", "healthy"},
+	{"services", "pods", "healthy"},
 	// The workloads' drawers (DetailNeeds, D-40): their pods, a Deployment's replica sets, a Cron
 	// Job's jobs.
 	{"deployments", "replicasets", "healthy"},

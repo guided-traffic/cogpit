@@ -94,6 +94,14 @@
           "value": "80/TCP -> 80, node port 31080"
         }
       ]
+    },
+    {
+      "title": "Pods",
+      "items": [
+        {
+          "value": "No selector: Kubernetes picks no pods for this Service; its endpoints are in Endpoint Slices."
+        }
+      ]
     }
   ]
 }
