@@ -172,6 +172,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-161](#d-161-the-palettes-jump-k9ss--commands) | The palette's jump: k9s's ":" commands | built: ":" opens the palette as k9s's command line; views by short name, singular, plural, Kind; k9s's page names; namespace, /search, @cluster; ui.jump |
 | [D-162](#d-162-a-pods-log-opened-before-its-container-starts) | A pod's log opened before its container starts | built: the tab says what the container waits for and shows the log when it starts, from the pods' cache |
 | [D-163](#d-163-accepted-node-conditions) | Accepted node conditions | built: SysctlChanged built in, each cluster's own list in Cluster Settings › Node Conditions; an accepted type never warns |
+| [D-164](#d-164-one-pages-deploy-per-release-under-a-version-of-its-own) | One Pages deploy per release, under a version of its own | built: one job deploys both feeds and the APT repository, under `<commit>-<run id>-<run attempt>`, and checks that Pages serves them |
 
 ## D-1: UI toolkit
 
@@ -6782,3 +6783,28 @@ the fact).
 `TestBackendAcceptedNodeConditions`, `TestCheckAcceptedNodeConditions`,
 `TestRefuseAcceptedNodeConditions`, `TestAcceptedNodeConditionsFollowTheSettings`,
 `TestClusterNodeConditionsField`
+
+## D-164: One Pages deploy per release, under a version of its own
+
+**Status:** built · **By:** owner (one deploy), lead (open to revision) the rest
+
+One job, "GitHub Pages (deploy)", deploys the site once per run attempt after the three signing
+jobs: both appcasts and the APT repository, each part this release signed after its check and the
+others as Pages serves them. It deploys through the Pages API under the build version
+`<commit>-<run id>-<run attempt>` ([`pages-deploy.sh`](../../hack/ci/pages-deploy.sh)) and fails
+unless Pages then serves the deployed feeds and `InRelease` byte for byte.
+
+**Why:** `actions/deploy-pages` names a deployment by the commit, so the three deploys of a release
+and every re-run shared one deployment ID: a later deploy could report the first one's success as
+its own while Pages kept serving the first one's site, and a deploy that hung left the ID's later
+deploys without a status. Three deploys also fetched each other's parts from Pages, and the
+concurrency group `pages` dropped a waiting deploy whenever a third queued. A success reported by
+the API is not proof that Pages serves the site, so the job reads it back.
+
+**Rejected:** keeping three deploys with a fresh commit per release (the shared ID stays for every
+re-run); overriding `GITHUB_SHA` for deploy-pages (GitHub does not let a workflow set its `GITHUB_*`
+variables); one deploy that waits for every signing job to succeed (one failed platform would hold
+back the other two's updates).
+
+[`build.yml`](../../.github/workflows/build.yml) `pages-deploy`,
+[`pages-deploy.sh`](../../hack/ci/pages-deploy.sh), [releasing › GitHub Pages](releasing.md#github-pages)

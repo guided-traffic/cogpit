@@ -359,9 +359,10 @@ job checks out the tag; builds take `VERSION` from it without the `v` and use no
 (`cache: none`), so no artifact comes from objects another run wrote.
 
 ```text
-macOS    Cogpit.app ─► Sign and submit ─► Notarize and staple ─► Attach ─► Appcast draft ─► sign ─► deploy
-Linux    Cogpit.deb amd64, arm64 ─► Attach (Linux) ─► APT repository sign ─► deploy
-Windows  Cogpit Setup ─► Attach (Windows, after Attach (Linux)) ─► Windows appcast draft ─► sign ─► deploy
+macOS    Cogpit.app ─► Sign and submit ─► Notarize and staple ─► Attach ─► Appcast draft ─► sign
+Linux    Cogpit.deb amd64, arm64 ─► Attach (Linux) ─► APT repository sign
+Windows  Cogpit Setup ─► Attach (Windows, after Attach (Linux)) ─► Windows appcast draft ─► sign
+Pages    the three signing jobs ─► GitHub Pages (deploy): both feeds and the APT repository, one deploy
 ```
 
 | Job | Runner | Make target | What it does |
@@ -372,21 +373,40 @@ Windows  Cogpit Setup ─► Attach (Windows, after Attach (Linux)) ─► Windo
 | Attach to the release | `LINUX_RUNNER` or self-hosted | `dist-checksums` | exactly the verdict's files (the disk image, or unsigned the zip) and `SHA256SUMS`; the download note: signed by which certificate, or unsigned and how macOS lets it start |
 | Cogpit.deb (Linux amd64), (Linux arm64) | `ubuntu-24.04`, `ubuntu-24.04-arm` | `k8s-eol K8SEOL_FLAGS=-fallback`, `dist-linux` | [the package](#linux); checks its fields, lintian, `cogpit-cli version`, the sources file's URI. No secret |
 | Attach to the release (Linux) | `ubuntu-26.04` | [`publish.sh`](../../hack/linux/publish.sh) | both packages or none, the install note |
-| APT repository (sign), (deploy to Pages) | `ubuntu-26.04`, environments `apt`, `github-pages` | `apt-repo`; `apt.sh verify`, `newer` | [the APT repository](#the-apt-repository) |
-| Appcast (draft), (sign), (deploy to Pages) | `macos-latest`; `macos-latest` in `sparkle`; `LINUX_RUNNER` or self-hosted in `github-pages` | `appcast-draft`, `appcast-sign`, `appcast-verify` | [the appcast](#the-appcast), for a signed download only |
+| APT repository (sign) | `ubuntu-26.04`, environment `apt` | `apt-repo` | [the APT repository](#the-apt-repository) |
+| Appcast (draft), (sign) | `macos-latest`; `macos-latest` in `sparkle` | `appcast-draft`, `appcast-sign` | [the appcast](#the-appcast), for a signed download only |
 | Cogpit Setup (Windows x64) | `windows-latest`, MSYS2's MINGW64 | `k8s-eol K8SEOL_FLAGS=-fallback`, `dist-windows`, `test-windows-package` | [the setup](#windows); checks the update key in `cogpit.exe`, installs, reinstalls and uninstalls it. No secret |
 | Attach to the release (Windows) | `ubuntu-26.04` | [`publish.sh`](../../hack/windows/publish.sh) | the setup, the install note |
-| Windows appcast (draft), (sign), (deploy to Pages) | `ubuntu-26.04`; `macos-latest` in `sparkle`; `ubuntu-26.04` in `github-pages` | `appcast-windows-draft`, `appcast-windows-sign`, `appcast-windows-verify` | `appcast-windows.xml`, signed with the same update key ([Windows](#windows)) |
+| Windows appcast (draft), (sign) | `ubuntu-26.04`; `macos-latest` in `sparkle` | `appcast-windows-draft`, `appcast-windows-sign` | `appcast-windows.xml`, signed with the same update key ([Windows](#windows)) |
+| GitHub Pages (deploy) | `ubuntu-26.04`, environment `github-pages` | `appcast-verify`, `appcast-windows-verify`; `apt.sh verify`, `newer`, `mirror`; [`pages-deploy.sh`](../../hack/ci/pages-deploy.sh) | [GitHub Pages](#github-pages) |
 
 Each attach job merges its lines into the release's one `SHA256SUMS`
 ([`sha256sums.sh`](../../hack/ci/sha256sums.sh)) and appends its note to the release's text, in
 turn in the concurrency group `release-files-<tag>`. GitHub keeps one running and one waiting job
-per group and cancels an older waiting one, so the Windows attach job waits for the Linux one. The
-Pages deploys share the group `pages`, where a waiting deploy is cancelled the same way when
-another queues behind it: re-run it, or the next release's deploy of that part brings the newest.
-Pages serves only what the last deploy uploaded, so each deploy carries the other parts as Pages
-serves them (a feed byte for byte, the APT repository checked against its key by `apt.sh mirror`),
-in a site artifact named per run attempt (`actions/deploy-pages` refuses two of one name in a run).
+per group and cancels an older waiting one, so the Windows attach job waits for the Linux one.
+
+### GitHub Pages
+
+Pages serves one site, `appcast.xml`, `appcast-windows.xml` and `apt/`, and only what the last
+deploy uploaded. One job, "GitHub Pages (deploy)", builds and deploys it once per run attempt, after
+the three signing jobs, whatever they came to, as long as one of them signed
+([D-164](decisions.md#d-164-one-pages-deploy-per-release-under-a-version-of-its-own)):
+
+- each part this release signed, after its check: a feed by `make appcast-verify` or
+  `appcast-windows-verify` ([the appcast](#the-appcast)), which fails the job when it would take
+  back a newer release Pages serves; the APT repository by `apt.sh verify` and `newer`, and when
+  Pages serves a newer release's repository, that one stays (a warning);
+- each other part as Pages serves it: a feed byte for byte, the APT repository checked against its
+  key by `apt.sh mirror`; none served is none.
+
+[`pages-deploy.sh`](../../hack/ci/pages-deploy.sh) deploys the site through the Pages API as
+`actions/deploy-pages` does (the job's OIDC token, the status polled, the deployment cancelled after
+ten minutes), under the build version `<commit>-<run id>-<run attempt>` where deploy-pages always
+takes the commit. Then it reads both feeds and `apt/dists/stable/InRelease` from Pages until they
+are the deployed bytes, for up to ten minutes; a deploy Pages reports as succeeded but does not
+serve fails the job. A failed deploy: re-run the failed jobs, which deploy under a version of their
+own. The site's artifact is named per run attempt, and the concurrency group `pages` keeps two
+releases' runs from deploying at once.
 
 ### The Kubernetes release table
 
@@ -554,7 +574,7 @@ release's files back:
 |---|---|
 | Appcast (draft): `make appcast-draft` | reads the app in the stapled disk image; an app without `SUPublicEDKey` gets no item (`drafted=false`). Checks that the key is the repository variable, the release asset downloadable and the served feed (past Pages' cache; a 404 starts a new one) signed by the key; [`hack/appcast`](../../hack/appcast/main.go) `add` drafts the feed with the release's notes and dates (`gh release view`) and a placeholder for the disk image's signature. No secret; Go's standard library only |
 | Appcast (sign): `make appcast-sign`, environment `sparkle` | without `SPARKLE_ED_PRIVATE_KEY` a notice and `signed=false`, never a failure. With it: refuses unless `sparkle` admits tags `v*` only ([H-92](../security/updates.md#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)), asks for no reviewer ([H-141](../security/updates.md#h-141-the-update-key-signs-without-an-approval)); Sparkle's pinned `sign_update` signs the disk image the draft names (by SHA-256), then the feed, and verifies both. The key reaches `sign_update` on standard input only; no Go runs; work files removed with `if: always()` |
-| Appcast (deploy to Pages): `make appcast-verify`, environment `github-pages` | `hack/appcast verify`: the feed's signature, every item, the release's item naming this disk image by length and signature; `-live`: the served feed verifies, and no newer release it serves is lost (below). Then deploys the site |
+| GitHub Pages (deploy): `make appcast-verify`, environment `github-pages` | `hack/appcast verify`: the feed's signature, every item, the release's item naming this disk image by length and signature; `-live`: the served feed verifies, and no newer release it serves is lost (below). Then the feed goes into [the site's one deploy](#github-pages) |
 
 Items are newest first by `sparkle:version`; a re-run replaces its item; each channel keeps its 10
 newest. A prerelease goes to the channel `beta`, which no copy follows (Preferences › Update channel
@@ -651,9 +671,9 @@ apt/
   agent is ended after both signatures) and refuses a key whose fingerprint is not that of
   [`cogpit-archive-keyring.asc`](../../packaging/linux/cogpit-archive-keyring.asc). Without the key
   nothing is signed or deployed.
-- **"APT repository (deploy to Pages)"** checks it (`verify`), skips the deploy with a warning when
-  Pages serves a newer release (`newer`: an older release's run ending after a newer one's), adds
-  the served appcasts and deploys.
+- **"GitHub Pages (deploy)"** checks it (`verify`), keeps the served repository with a warning when
+  Pages serves a newer release (`newer`: an older release's run ending after a newer one's), and
+  deploys it with the appcasts ([GitHub Pages](#github-pages)).
 
 Pages caches files for up to ten minutes; since apt fetches index files by the hash an `InRelease`
 names and the previous generation stays, a client holding an older `InRelease` still finds what it

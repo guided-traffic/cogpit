@@ -18,7 +18,7 @@ carries ([Mesa on Windows](#mesa-on-windows)).
 release pipeline ─► Cogpit-<v>-macos-arm64.dmg (cogpit-cli inside the app): Developer ID-signed, notarized, stapled
    "Appcast (draft)", no secret ─► the served feed (only if the update key signed it) + this release's item
    "Appcast (sign)", environment sparkle ─► EdDSA signatures over the disk image, then the feed (sign_update)
-   "Appcast (deploy to Pages)" ─► checked with the public key ─► https://guided-traffic.github.io/cogpit/appcast.xml
+   "GitHub Pages (deploy)" ─► checked with the public key ─► https://guided-traffic.github.io/cogpit/appcast.xml
                                    │
 Cogpit.app (Sparkle 2) ─► reads the feed over HTTPS: at every start, every hour, on Help › Check for Updates…
        ─► the feed's EdDSA signature with SUPublicEDKey ─► an item newer than CFBundleVersion, for this macOS?
@@ -56,8 +56,8 @@ configured in `Info.plist` by [`hack/macos/sparkle.sh`](../../hack/macos/sparkle
 | Only a newer `CFBundleVersion`; `sparkle:minimumSystemVersion` | every copy | a downgrade; an update the Mac cannot run |
 | The environment `sparkle` admits tags `v*` only, read before signing (`check_environment` in `appcast.sh`) | "Appcast (sign)", "Windows appcast (sign)" | a branch's run, or one in an environment without rules, signing ([H-92](#h-92-an-environment-sparkle-without-rules-hands-the-update-key-to-any-run)) |
 | History kept only from a served feed the update key signed | both feeds' draft jobs | a feed altered on Pages being signed again |
-| Signed feed and download checked with the public key before Pages gets them | both feeds' deploy jobs | a feed every copy would refuse (a secret that does not match the app's key) |
-| No channel's newest item older than the newest Pages serves (`hack/appcast verify -live`) | both feeds' deploy jobs | an older release's run, ending after a newer one's, taking the feed back ([H-93](#h-93-the-feeds-host-can-withhold-updates)) |
+| Signed feed and download checked with the public key before Pages gets them | "GitHub Pages (deploy)" | a feed every copy would refuse (a secret that does not match the app's key) |
+| No channel's newest item older than the newest Pages serves (`hack/appcast verify -live`) | "GitHub Pages (deploy)" | an older release's run, ending after a newer one's, taking the feed back ([H-93](#h-93-the-feeds-host-can-withhold-updates)) |
 | HTTPS | feed and download | eavesdroppers learning the version a user runs (integrity is the signatures') |
 
 **Tests:** `TestSparkleScriptWritesTheSettings` (the `Info.plist` settings),
@@ -93,7 +93,7 @@ install what the key did not sign.
 | Key | Where it lives | What it can do | If it leaks |
 |---|---|---|---|
 | The organisation's GitHub App private key (`APP_CLIENT_ID`, `APP_PRIVATE_KEY`) | organisation secrets of `guided-traffic`, visible to this repository; Semantic Release makes a `contents: write` token from it, the Renovate job ([`renovate.yml`](../../.github/workflows/renovate.yml)) one with all of the App's permissions | push to `main`; create tags (the `v*` tag ruleset's only bypass) and releases, which start the release pipeline on whatever the tag points at | rotate the key in the App's settings, replace the secret, delete the tags and releases it made. Pull requests from forks get no secrets |
-| The release pipeline's `GITHUB_TOKEN` | `contents: write` only in the three attach jobs, `pages: write` only in the three Pages deploy jobs | upload assets to and edit this repository's releases; deploy to Pages | expires with the job |
+| The release pipeline's `GITHUB_TOKEN` | `contents: write` only in the three attach jobs, `pages: write` only in the Pages deploy job | upload assets to and edit this repository's releases; deploy to Pages | expires with the job |
 | Developer ID Application certificate, App Store Connect team API key (role Developer) | environment `release` (tags `v*` only, administrator bypass off): "Sign and submit (macOS)" reads both, "Notarize and staple (macOS)" the API key only; neither builds or runs Go. A temporary keychain (key not extractable, usable by `codesign` only) and an owner-only key file, deleted at the job's end ([releasing › signing and notarization](../developer/releasing.md#signing-and-notarization)) | sign and notarize as team `6L57P2HXN6`: the result passes Gatekeeper on every Mac until Apple revokes the certificate | revoke the certificate at Apple and the key in App Store Connect. Not verified: that releases notarized before stay valid |
 | The APT repository's key (OpenPGP Ed25519, fingerprint `BE09 5407 4B36 CBDE 8875  7E52 A9D2 608B 0DC7 6494`, expires 2031-10-19) | `APT_SIGNING_KEY` in the environment `apt` (tags `v*` only, no required reviewer, administrator bypass on); read only by "APT repository (sign)" on GitHub's hosted runner, which runs no Go and nothing of the packages, hands the key to gpg on standard input in a temporary keyring and ends gpg's agent after signing. The owner keeps a copy and the revocation certificate outside GitHub; the public half is in every package's sources file | sign a repository whose packages every Linux copy installs as root | [H-135](#h-135-the-apt-key-signs-without-an-approval) |
 | The update key (Sparkle's EdDSA key) | `SPARKLE_ED_PRIVATE_KEY` in the environment `sparkle` (tags `v*` only, no required reviewer, administrator bypass off), and the owner's login keychain, where Sparkle's `generate_keys` keeps it ([setting up Sparkle](../developer/releasing.md#setting-up-sparkle)); read only by "Appcast (sign)" and "Windows appcast (sign)", which refuse while the environment lacks its tag rule, hand the key to `sign_update` on standard input and run no Go and no dependency's code. The public half, the repository variable `SPARKLE_PUBLIC_ED_KEY`, is built into every copy (`SUPublicEDKey`; on Windows `edPublicKey`) | sign feeds, disk images and Windows setups that every copy accepts | [H-15](#h-15-update-key-compromise-and-rotation) |
@@ -109,7 +109,7 @@ The package installs the conffile `/etc/apt/sources.list.d/cogpit.sources`
 release pipeline ─► cogpit_<v>_<arch>.deb (both binaries), attached to the release, its line in SHA256SUMS
    "APT repository (sign)", environment apt ─► the served repository, checked against the key
         ─► this release's packages beside the newest served ones ─► Release, signed: InRelease, Release.gpg
-   "APT repository (deploy to Pages)" ─► checked with the public key, refused if Pages serves a newer one
+   "GitHub Pages (deploy)" ─► checked with the public key, the served one kept if it is newer
         ─► https://guided-traffic.github.io/cogpit/apt
                                    │
 apt (apt update: the system's timer, the Software Updater, or Cogpit's helper)
@@ -126,8 +126,8 @@ Cogpit (apt_linux.go) ─► apt-cache policy cogpit at every start and every ho
 | Index files by the hash InRelease names (`Acquire-By-Hash`), packages by Packages' SHA-256 and size | apt | a swapped index or package; a cached old index mixed with a newer one |
 | Only a newer version (`apt upgrade`, the helper's `--only-upgrade`) | apt | a downgrade (a freeze stays possible: [H-137](#h-137-the-apt-repositorys-host-can-withhold-updates)) |
 | The key's fingerprint is the packages' before signing (`apt.sh sign`) | "APT repository (sign)" | a secret replaced with another key, whose repository every copy would refuse |
-| The served repository fetched and checked against the key before it is kept (`apt.sh mirror`) | "APT repository (sign)", both feeds' deploy jobs | a repository altered on Pages being signed or deployed again |
-| The new repository checked with the public key, refused when Pages serves a newer release (`apt.sh verify`, `newer`) | "APT repository (deploy to Pages)" | a repository every copy would refuse; an older release's run taking a newer one back |
+| The served repository fetched and checked against the key before it is kept (`apt.sh mirror`) | "APT repository (sign)", "GitHub Pages (deploy)" | a repository altered on Pages being signed or deployed again |
+| The new repository checked with the public key, refused when Pages serves a newer release (`apt.sh verify`, `newer`) | "GitHub Pages (deploy)" | a repository every copy would refuse; an older release's run taking a newer one back |
 | The [helper](../../packaging/linux/update) takes no argument and nothing from the caller's environment, upgrades only `cogpit` from Cogpit's list, and is the polkit action's only program (`org.freedesktop.policykit.exec.path`) | pkexec, the helper | the Update button running anything else as root |
 | `app.checkForUpdates` runs only from the window ([agents and MCP](agents-and-mcp.md)) | the engine ([`updates.go`](../../internal/engine/updates.go)) | an agent or the CLI putting a password prompt or a restart in front of the user |
 
@@ -151,7 +151,7 @@ release pipeline ─► Cogpit-<v>-windows-x64-setup.exe (cogpit.exe carrying th
                     public half, cogpit-cli.exe, WinSparkle.dll pinned by SHA-256), attached, in SHA256SUMS
    "Windows appcast (draft)" ─► builds only on a served feed the key verifies
    "Windows appcast (sign)", environment sparkle ─► sign_update over the setup and the feed
-   "Windows appcast (deploy to Pages)" ─► both checked with the public key, refused if Pages serves a newer release
+   "GitHub Pages (deploy)" ─► both checked with the public key, refused if Pages serves a newer release
         ─► https://guided-traffic.github.io/cogpit/appcast-windows.xml
                                    │
 Cogpit (winsparkle_windows.go), the setup's cogpit.exe in a release build
@@ -287,13 +287,13 @@ Live. The signed feeds have no expiry, and every feed ever deployed is public. T
 nothing ([H-16](#h-16-availability-of-the-release-host)) or an older signed feed (a freeze): copies
 older than its newest item are offered at most that item, newer ones nothing; a Mac is not
 downgraded (Windows: [H-146](#h-146-winsparkle-installs-from-a-feed-it-does-not-verify)). The
-deploy jobs' `hack/appcast verify -live` keeps the pipeline from freezing a feed; a workflow that
+Pages deploy job's `hack/appcast verify -live` keeps the pipeline from freezing a feed; a workflow that
 skips it can. Dormant while every release has the same `LSMinimumSystemVersion` (`MACOS_MIN`): if
 one raised it, a left-out older item would be the newest a Mac on the older macOS may install.
 Pages changes through a run with `pages: write` that the environment `github-pages` admits (`main`
 and tags `v*`, administrator bypass on), so whoever may push a workflow to `main`
-([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)); "Appcast (deploy to Pages)"
-runs on the organisation's self-hosted runners. Not built: an expiry or freshness check.
+([H-62](#h-62-every-push-to-main-that-passes-the-gates-is-released)); "GitHub Pages (deploy)"
+runs on GitHub's hosted runner. Not built: an expiry or freshness check.
 
 ### H-91: After 20 days of unverifiable feeds, Sparkle presents items again
 

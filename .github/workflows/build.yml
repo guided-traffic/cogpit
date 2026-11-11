@@ -457,90 +457,6 @@ jobs:
           retention-days: 7
           overwrite: true
 
-  # Checked with the packages' public key before Pages gets it, and refused (skipped, with a
-  # warning) when Pages serves a newer release already: a run of an older release that ends after a
-  # newer one's. Pages serves one site, so the appcast it serves goes into it too, unchanged. The
-  # environment github-pages allows tags v*.
-  apt-deploy:
-    name: APT repository (deploy to Pages)
-    needs: [apt-sign]
-    if: needs.apt-sign.outputs.signed == 'true'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}apt/
-    permissions:
-      contents: read
-      pages: write     # deploy to Pages
-      id-token: write  # the deployment's OIDC token
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-      - name: Checkout the release's tag
-        uses: actions/checkout@v7
-
-      - name: Download the repository
-        uses: actions/download-artifact@v8
-        with:
-          name: apt-repo
-          path: dist/apt
-
-      - name: Check the repository
-        id: check
-        env:
-          APT_URL: https://guided-traffic.github.io/cogpit/apt
-          KEYRING: packaging/linux/cogpit-archive-keyring.asc
-        run: |
-          set -euo pipefail
-          command -v gpg >/dev/null && command -v gpgv >/dev/null || hack/ci/apt-install.sh gnupg gpgv
-          hack/linux/apt.sh verify dist/apt "${KEYRING}"
-          set +e
-          hack/linux/apt.sh newer dist/apt "${APT_URL}" "${KEYRING}"
-          rc=$?
-          set -e
-          case "${rc}" in
-          0) echo "deploy=true" >> "${GITHUB_OUTPUT}" ;;
-          3)
-            echo "::warning::Pages serves a newer release's APT repository already: this one is not deployed"
-            echo "deploy=false" >> "${GITHUB_OUTPUT}"
-            ;;
-          *) exit "${rc}" ;;
-          esac
-
-      # The appcasts Pages serves now (Sparkle's and WinSparkle's signed feeds, D-111), byte for
-      # byte; none yet is none.
-      - name: Keep the appcasts
-        if: steps.check.outputs.deploy == 'true'
-        run: |
-          set -euo pipefail
-          mkdir -p dist/site
-          cp -r dist/apt dist/site/apt
-          for feed in appcast.xml appcast-windows.xml; do
-            code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o "dist/site/${feed}" -w '%{http_code}' \
-              "https://guided-traffic.github.io/cogpit/${feed}?t=$(date +%s)")"
-            case "${code}" in
-            200) echo "${feed}: $(wc -c < "dist/site/${feed}") bytes" ;;
-            404) rm -f "dist/site/${feed}"; echo "no ${feed} on Pages yet" ;;
-            *) echo "::error::${feed} on Pages: HTTP ${code}"; exit 1 ;;
-            esac
-          done
-
-      - name: Upload the site
-        if: steps.check.outputs.deploy == 'true'
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: dist/site/
-          name: github-pages-apt-${{ github.run_attempt }}
-
-      - name: Deploy to GitHub Pages
-        if: steps.check.outputs.deploy == 'true'
-        id: deploy
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages-apt-${{ github.run_attempt }}
-
   # Cogpit for Windows (D-111; docs/developer/releasing.md#windows): the setup for x64, built on
   # GitHub's Windows runner (cgo with OpenGL does not cross-compile) in MSYS2's MINGW64 shell, whose
   # signed packages bring MinGW-w64 gcc, make and NSIS; Go is setup-go's. Both executables are built
@@ -735,85 +651,6 @@ jobs:
         if: always()
         run: rm -rf dist .cache/sparkle
 
-  # Checked with the public key before Pages gets it, and refused when Pages serves a newer release
-  # already. Pages serves one site: Sparkle's appcast and the APT repository it serves go into this
-  # deploy too, the appcast byte for byte, the repository checked against the packages' key.
-  windows-appcast-deploy:
-    name: Windows appcast (deploy to Pages)
-    needs: [windows-appcast-sign]
-    if: needs.windows-appcast-sign.outputs.signed == 'true'
-    runs-on: ubuntu-26.04
-    timeout-minutes: 15
-    environment:
-      name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}appcast-windows.xml
-    permissions:
-      contents: read
-      pages: write     # deploy to Pages
-      id-token: write  # the deployment's OIDC token
-    concurrency:
-      group: pages
-      cancel-in-progress: false
-    steps:
-      - name: Checkout the release's tag
-        uses: actions/checkout@v7
-
-      - name: Set up Go
-        uses: ./.github/actions/go-setup
-        with:
-          cache: none
-          fyne-deps: "false"
-
-      - name: Download the setup
-        uses: actions/download-artifact@v8
-        with:
-          name: windows-setup
-          path: dist/windows
-
-      - name: Download the draft
-        uses: actions/download-artifact@v8
-        with:
-          name: appcast-windows-draft
-          path: dist/appcast-windows
-
-      - name: Download the signed appcast
-        uses: actions/download-artifact@v8
-        with:
-          name: appcast-windows-signed
-          path: dist/site-windows
-
-      - name: Verify the signed appcast
-        env:
-          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
-        run: make appcast-windows-verify VERSION="${GITHUB_REF_NAME#v}"
-
-      - name: Keep the macOS appcast and the APT repository
-        run: |
-          set -euo pipefail
-          mkdir -p dist/site
-          cp dist/site-windows/appcast-windows.xml dist/site/
-          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast.xml -w '%{http_code}' \
-            "https://guided-traffic.github.io/cogpit/appcast.xml?t=$(date +%s)")"
-          case "${code}" in
-          200) echo "the macOS appcast: $(wc -c < dist/site/appcast.xml) bytes" ;;
-          404) rm -f dist/site/appcast.xml; echo "no macOS appcast on Pages yet" ;;
-          *) echo "::error::the macOS appcast on Pages: HTTP ${code}"; exit 1 ;;
-          esac
-          command -v gpg >/dev/null && command -v gpgv >/dev/null || hack/ci/apt-install.sh gnupg gpgv
-          hack/linux/apt.sh mirror https://guided-traffic.github.io/cogpit/apt packaging/linux/cogpit-archive-keyring.asc dist/site/apt
-
-      - name: Upload the site
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: dist/site/
-          name: github-pages-windows-${{ github.run_attempt }}
-
-      - name: Deploy to GitHub Pages
-        id: deploy
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages-windows-${{ github.run_attempt }}
-
   # Sparkle's appcast (D-4; docs/developer/releasing.md#the-appcast): the update feed at
   # https://guided-traffic.github.io/cogpit/appcast.xml, one feed with the releases' history, signed
   # with the update key. Three jobs, so that the key shares a job with nothing but Sparkle's own
@@ -917,19 +754,30 @@ jobs:
         if: always()
         run: rm -rf dist .cache/sparkle
 
-  # Checked with the public key before Pages gets it: the feed's signature, every item, and that
-  # the release's item names this disk image with a signature over its bytes. Then deployed: Pages
-  # serves exactly this feed (source "GitHub Actions"). The environment github-pages needs a
-  # deployment rule for tags v* (docs/developer/releasing.md#setting-up-sparkle).
-  appcast-deploy:
-    name: Appcast (deploy to Pages)
-    needs: [appcast-sign]
-    if: needs.appcast-sign.outputs.signed == 'true'
-    runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}
-    timeout-minutes: 15
+  # GitHub Pages serves one site: Sparkle's appcast (D-4), WinSparkle's (D-111) and the APT
+  # repository (D-108). One job deploys it, once per run attempt, after the three signing jobs
+  # (D-164; docs/developer/releasing.md#github-pages): each part this release signed, checked first,
+  # and for each part it did not (a fork without the key, a signing job that was skipped or failed)
+  # the one Pages serves now, unchanged. The appcasts are checked with the update key's public half
+  # (the feed's signature, every item, the release's item naming this download with a signature over
+  # its bytes) and refused, failing the job, when Pages serves a newer release; the APT repository
+  # is checked with the packages' key, and when Pages serves a newer release's repository, that one
+  # stays (a warning). hack/ci/pages-deploy.sh deploys under a build version of its own per attempt
+  # and fails unless Pages then serves this site's feeds and APT index. The environment
+  # github-pages allows tags v* (docs/developer/releasing.md#setting-up-sparkle).
+  pages-deploy:
+    name: GitHub Pages (deploy)
+    needs: [apt-sign, appcast-sign, windows-appcast-sign]
+    if: >-
+      !cancelled() && (
+      (needs.apt-sign.result == 'success' && needs.apt-sign.outputs.signed == 'true') ||
+      (needs.appcast-sign.result == 'success' && needs.appcast-sign.outputs.signed == 'true') ||
+      (needs.windows-appcast-sign.result == 'success' && needs.windows-appcast-sign.outputs.signed == 'true'))
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}appcast.xml
+      url: ${{ steps.deploy.outputs.page_url }}
     permissions:
       contents: read
       pages: write     # deploy to Pages
@@ -937,66 +785,129 @@ jobs:
     concurrency:
       group: pages
       cancel-in-progress: false
+    env:
+      APT: ${{ needs.apt-sign.result == 'success' && needs.apt-sign.outputs.signed == 'true' }}
+      MACOS: ${{ needs.appcast-sign.result == 'success' && needs.appcast-sign.outputs.signed == 'true' }}
+      WINDOWS: ${{ needs.windows-appcast-sign.result == 'success' && needs.windows-appcast-sign.outputs.signed == 'true' }}
+      PAGES_URL: https://guided-traffic.github.io/cogpit
+      KEYRING: packaging/linux/cogpit-archive-keyring.asc
     steps:
       - name: Checkout the release's tag
         uses: actions/checkout@v7
 
       - name: Set up Go
+        if: env.MACOS == 'true' || env.WINDOWS == 'true'
         uses: ./.github/actions/go-setup
         with:
           cache: none
           fyne-deps: "false"
 
-      - name: Install make
-        run: command -v make >/dev/null || hack/ci/apt-install.sh make
+      - name: Install the tools
+        run: command -v gpg >/dev/null && command -v gpgv >/dev/null && command -v jq >/dev/null && command -v make >/dev/null || hack/ci/apt-install.sh gnupg gpgv jq make
 
       - name: Download the macOS downloads
+        if: env.MACOS == 'true'
         uses: actions/download-artifact@v8
         with:
           name: release-macos
           path: dist/macos
 
-      - name: Download the draft
+      - name: Download the macOS appcast's draft
+        if: env.MACOS == 'true'
         uses: actions/download-artifact@v8
         with:
           name: appcast-draft
           path: dist/appcast
 
-      - name: Download the signed appcast
+      - name: Download the signed macOS appcast
+        if: env.MACOS == 'true'
         uses: actions/download-artifact@v8
         with:
           name: appcast-signed
           path: dist/site
 
-      - name: Verify the signed appcast
+      - name: Verify the signed macOS appcast
+        if: env.MACOS == 'true'
         env:
           SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
         run: make appcast-verify VERSION="${GITHUB_REF_NAME#v}"
 
-      # Pages serves one site, the APT repository too (D-108): the one it serves now goes into
-      # this deploy, fetched and checked against the packages' key (hack/linux/apt.sh mirror);
-      # none yet is none, one that does not check fails the job.
-      - name: Keep the APT repository
-        run: |
-          command -v gpg >/dev/null && command -v gpgv >/dev/null && command -v curl >/dev/null || hack/ci/apt-install.sh gnupg gpgv curl
-          hack/linux/apt.sh mirror https://guided-traffic.github.io/cogpit/apt packaging/linux/cogpit-archive-keyring.asc dist/site/apt
+      - name: Download the Windows setup
+        if: env.WINDOWS == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-setup
+          path: dist/windows
 
-      # And the Windows app's feed (D-111) it serves, byte for byte; none yet is none.
-      - name: Keep the Windows appcast
+      - name: Download the Windows appcast's draft
+        if: env.WINDOWS == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: appcast-windows-draft
+          path: dist/appcast-windows
+
+      - name: Download the signed Windows appcast
+        if: env.WINDOWS == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: appcast-windows-signed
+          path: dist/site-windows
+
+      - name: Verify the signed Windows appcast
+        if: env.WINDOWS == 'true'
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ vars.SPARKLE_PUBLIC_ED_KEY }}
+        run: |
+          make appcast-windows-verify VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist/site
+          cp dist/site-windows/appcast-windows.xml dist/site/
+
+      - name: Download the APT repository
+        if: env.APT == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: apt-repo
+          path: dist/apt
+
+      - name: Check the APT repository
+        if: env.APT == 'true'
+        id: apt
         run: |
           set -euo pipefail
-          code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o dist/site/appcast-windows.xml -w '%{http_code}' \
-            "https://guided-traffic.github.io/cogpit/appcast-windows.xml?t=$(date +%s)")"
-          case "${code}" in
-          200) echo "the Windows appcast: $(wc -c < dist/site/appcast-windows.xml) bytes" ;;
-          404) rm -f dist/site/appcast-windows.xml; echo "no Windows appcast on Pages yet" ;;
-          *) echo "::error::the Windows appcast on Pages: HTTP ${code}"; exit 1 ;;
+          hack/linux/apt.sh verify dist/apt "${KEYRING}"
+          set +e
+          hack/linux/apt.sh newer dist/apt "${PAGES_URL}/apt" "${KEYRING}"
+          rc=$?
+          set -e
+          case "${rc}" in
+          0) mkdir -p dist/site && cp -r dist/apt dist/site/apt ;;
+          3) echo "::warning::Pages serves a newer release's APT repository already: that one stays" ;;
+          *) exit "${rc}" ;;
           esac
 
-      # The site's artifact is named per run attempt: deploy-pages refuses a run that holds two
-      # artifacts of one name, and a re-run of this job (or of the whole run) uploads its site
-      # beside the earlier attempt's (v0.16.0's run, 2026-10-16).
+      # Each part this release did not sign: the one Pages serves now, the feeds byte for byte, the
+      # APT repository checked against the packages' key (hack/linux/apt.sh mirror); none yet is
+      # none.
+      - name: Keep what Pages serves
+        run: |
+          set -euo pipefail
+          mkdir -p dist/site
+          for feed in appcast.xml appcast-windows.xml; do
+            [ ! -f "dist/site/${feed}" ] || continue
+            code="$(curl -sS --proto '=https' --tlsv1.2 --retry 3 -o "dist/site/${feed}" -w '%{http_code}' \
+              "${PAGES_URL}/${feed}?t=$(date +%s)")"
+            case "${code}" in
+            200) echo "${feed}: the one Pages serves, $(wc -c < "dist/site/${feed}") bytes" ;;
+            404) rm -f "dist/site/${feed}"; echo "no ${feed} on Pages yet" ;;
+            *) echo "::error::GET ${PAGES_URL}/${feed}: HTTP ${code}"; exit 1 ;;
+            esac
+          done
+          [ -d dist/site/apt ] || hack/linux/apt.sh mirror "${PAGES_URL}/apt" "${KEYRING}" dist/site/apt
+
+      # The site's artifact is named per run attempt: a re-run uploads its site beside the earlier
+      # attempt's.
       - name: Upload the site
+        id: upload
         uses: actions/upload-pages-artifact@v5
         with:
           path: dist/site/
@@ -1004,6 +915,7 @@ jobs:
 
       - name: Deploy to GitHub Pages
         id: deploy
-        uses: actions/deploy-pages@v5
-        with:
-          artifact_name: github-pages-${{ github.run_attempt }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact_id }}
+        run: hack/ci/pages-deploy.sh "${ARTIFACT_ID}" dist/site
