@@ -378,7 +378,7 @@ Pages    the three signing jobs ─► GitHub Pages (deploy): both feeds and the
 | Cogpit Setup (Windows x64) | `windows-latest`, MSYS2's MINGW64 | `k8s-eol K8SEOL_FLAGS=-fallback`, `dist-windows`, `test-windows-package` | [the setup](#windows); checks the update key in `cogpit.exe`, installs, reinstalls and uninstalls it. No secret |
 | Attach to the release (Windows) | `ubuntu-26.04` | [`publish.sh`](../../hack/windows/publish.sh) | the setup, the install note |
 | Windows appcast (draft), (sign) | `ubuntu-26.04`; `macos-latest` in `sparkle` | `appcast-windows-draft`, `appcast-windows-sign` | `appcast-windows.xml`, signed with the same update key ([Windows](#windows)) |
-| GitHub Pages (deploy) | `ubuntu-26.04`, environment `github-pages` | `appcast-verify`, `appcast-windows-verify`; `apt.sh verify`, `newer`, `mirror`; [`pages-deploy.sh`](../../hack/ci/pages-deploy.sh) | [GitHub Pages](#github-pages) |
+| GitHub Pages (deploy) | `ubuntu-26.04`, environment `github-pages` | `appcast-verify`, `appcast-windows-verify`; `apt.sh verify`, `newer`, `mirror`; [`pages-served.sh`](../../hack/ci/pages-served.sh) | [GitHub Pages](#github-pages) |
 
 Each attach job merges its lines into the release's one `SHA256SUMS`
 ([`sha256sums.sh`](../../hack/ci/sha256sums.sh)) and appends its note to the release's text, in
@@ -390,7 +390,7 @@ per group and cancels an older waiting one, so the Windows attach job waits for 
 Pages serves one site, `appcast.xml`, `appcast-windows.xml` and `apt/`, and only what the last
 deploy uploaded. One job, "GitHub Pages (deploy)", builds and deploys it once per run attempt, after
 the three signing jobs, whatever they came to, as long as one of them signed
-([D-164](decisions.md#d-164-one-pages-deploy-per-release-under-a-version-of-its-own)):
+([D-164](decisions.md#d-164-one-pages-deploy-per-release-checked-against-what-pages-serves)):
 
 - each part this release signed, after its check: a feed by `make appcast-verify` or
   `appcast-windows-verify` ([the appcast](#the-appcast)), which fails the job when it would take
@@ -399,13 +399,13 @@ the three signing jobs, whatever they came to, as long as one of them signed
 - each other part as Pages serves it: a feed byte for byte, the APT repository checked against its
   key by `apt.sh mirror`; none served is none.
 
-[`pages-deploy.sh`](../../hack/ci/pages-deploy.sh) deploys the site through the Pages API as
-`actions/deploy-pages` does (the job's OIDC token, the status polled, the deployment cancelled after
-ten minutes), under the build version `<commit>-<run id>-<run attempt>` where deploy-pages always
-takes the commit. Then it reads both feeds and `apt/dists/stable/InRelease` from Pages until they
-are the deployed bytes, for up to ten minutes; a deploy Pages reports as succeeded but does not
-serve fails the job. A failed deploy: re-run the failed jobs, which deploy under a version of their
-own. The site's artifact is named per run attempt, and the concurrency group `pages` keeps two
+`actions/deploy-pages` deploys it; then [`pages-served.sh`](../../hack/ci/pages-served.sh) reads
+both feeds and `apt/dists/stable/InRelease` from Pages until they are the deployed bytes, for up to
+ten minutes, and fails the job otherwise. deploy-pages names the deployment by the commit and
+reports that ID's status, which an earlier deploy of the same commit (a re-run) may hold: a deploy
+reported as succeeded that Pages does not serve fails here. A re-run of a failed deploy is such a
+second deploy of the commit; when it fails the check as well, the next release's deploy brings the
+site. The site's artifact is named per run attempt, and the concurrency group `pages` keeps two
 releases' runs from deploying at once.
 
 ### The Kubernetes release table
