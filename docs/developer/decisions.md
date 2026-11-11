@@ -173,6 +173,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-162](#d-162-a-pods-log-opened-before-its-container-starts) | A pod's log opened before its container starts | built: the tab says what the container waits for and shows the log when it starts, from the pods' cache |
 | [D-163](#d-163-accepted-node-conditions) | Accepted node conditions | built: SysctlChanged built in, each cluster's own list in Cluster Settings › Node Conditions; an accepted type never warns |
 | [D-164](#d-164-one-pages-deploy-per-release-checked-against-what-pages-serves) | One Pages deploy per release, checked against what Pages serves | built: one job deploys both feeds and the APT repository and fails unless Pages then serves them |
+| [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Pods section before Endpoint Slices, Ready from the endpoint slices |
 
 ## D-1: UI toolkit
 
@@ -6808,3 +6809,30 @@ a workflow set its `GITHUB_*` variables); one deploy that waits for every signin
 
 [`build.yml`](../../.github/workflows/build.yml) `pages-deploy`,
 [`pages-served.sh`](../../hack/ci/pages-served.sh), [releasing › GitHub Pages](releasing.md#github-pages)
+
+## D-165: A Service's pods in its drawer
+
+**Status:** built · **By:** owner (the section, Ready from the slices, the notes), lead (open to
+revision) the rest
+
+A Service's drawer has a Pods section right before Endpoint Slices: every pod of its namespace
+whose labels hold the whole selector, by name, each a link to the pod's drawer, with Ready from the
+Service's endpoint slices: Ready (green) when an endpoint for the pod is ready, else Not ready
+(red), with the reason when no endpoint names the pod (terminating, Succeeded or Failed, no IP
+yet, in no endpoint slice); Unknown while the slices are not known. The colours are the text's
+(`Cell.Tint`), no pill or dot. Without a selector the section is the note "No selector: Kubernetes
+picks no pods for this Service; its endpoints are in Endpoint Slices."; an ExternalName Service's
+says where its traffic goes; a selector no pod matches reads "No pods match the selector". The pods
+come from the cache's pods by namespace, read only while such a drawer is open.
+
+**Why:** the slices' ready condition is what kube-proxy routes to, so green means the pod receives
+traffic, including `publishNotReadyAddresses` and terminating pods, which a pod's own Ready
+condition gets wrong. Matching the selector against the pods, not listing the slices' targets,
+also shows the pods the Service selects but does not route to, which is what one looks for.
+
+**Rejected:** Ready from the pod's Ready condition; the table in place of Endpoint Slices (loses
+the slices' links); one row per endpoint (two rows per pod with dual-stack); a selector-less
+Service's pods from its slices' `targetRef`s.
+
+[`servicepods.go`](../../internal/model/kinds/servicepods.go),
+[`endpointslices.go`](../../internal/model/kinds/endpointslices.go) `serviceDetailWith`

@@ -280,9 +280,13 @@ var serviceSliceColumns = []model.Column{
 // index EndpointSlicesByService: a table after Connection, each slice a link with its address
 // type, endpoints and ports as the Endpoint Slices list shows them. Lens shows a Service's
 // endpoint slices in a detail tab (documented, not captured); the section is Cogpit's form of it
-// (inferred). A Service without slices, or whose slices are still listing, has no section.
+// (inferred). A Service without slices, or whose slices are still listing, has no section. The
+// Pods section (servicepods.go) stands before it.
 func serviceDetailWith(obj *unstructured.Unstructured, rel model.Related) []model.DetailSection {
 	sections := serviceDetailRel(obj, rel)
+	if s, ok := servicePodsSection(obj, rel); ok {
+		sections = append(sections, s)
+	}
 	slices := append([]*unstructured.Unstructured(nil), rel.Objects(EndpointSlicesByService, obj.GetNamespace()+"/"+obj.GetName())...)
 	if len(slices) == 0 {
 		return sections

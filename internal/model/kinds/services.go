@@ -51,8 +51,8 @@ var services = &model.KindProfile{
 	},
 	Detail:      serviceDetail,
 	Needs:       []model.RelatedIndex{EndpointSlicesByService},
-	DetailNeeds: []model.RelatedIndex{ForwardsByTarget}, // the ports' forwards, only the open drawer reads them
-	DetailWith:  serviceDetailWith,                      // in endpointslices.go
+	DetailNeeds: []model.RelatedIndex{ForwardsByTarget, PodsByNamespace}, // the ports' forwards and the Pods section, only the open drawer reads them
+	DetailWith:  serviceDetailWith,                                       // in endpointslices.go
 }
 
 func serviceCells(obj *unstructured.Unstructured) ([]model.Cell, model.Status) {

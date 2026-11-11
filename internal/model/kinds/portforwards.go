@@ -258,7 +258,7 @@ func portForwardDetail(obj *unstructured.Unstructured) []model.DetailSection {
 	kind, name := model.NestedString(obj, "spec", idForwardKind), model.NestedString(obj, "spec", "name")
 	var d detailItems
 	switch kind {
-	case "Pod":
+	case kindPod:
 		d.put(linkedItem("Pod", name, linkTo(podsResource, ns, name)))
 		d.add("Container", model.NestedString(obj, "spec", "container"))
 		d.add("Pod Port", model.NestedIntOrString(obj, "spec", "port"))

@@ -81,6 +81,14 @@
           "value": "orders-db.example.net"
         }
       ]
+    },
+    {
+      "title": "Pods",
+      "items": [
+        {
+          "value": "ExternalName: traffic goes to orders-db.example.net, no pods."
+        }
+      ]
     }
   ]
 }
