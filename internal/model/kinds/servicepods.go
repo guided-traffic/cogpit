@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A Service's Pods in its drawer (owner, D-165): the pods its selector matches, each a link to the
+// A Service's Selected Pods in its drawer (owner, D-165): the pods its selector matches, each a link to the
 // pod's drawer, with Ready from its endpoint slices' ready condition, the endpoints kube-proxy
 // routes to (Ready green, Not ready red, as tinted text). The section stands before Endpoint
 // Slices. The pods come from the namespace's pods (PodsByNamespace, a DetailNeeds: only an open
@@ -15,17 +15,17 @@ import (
 // pods are chosen for it.
 
 const (
-	titlePodsSection = podsTitle
+	titlePodsSection = "Selected Pods"
 	textNotReady     = "Not ready"
 )
 
-// servicePodColumns are the Pods section's columns.
+// servicePodColumns are the Selected Pods section's columns.
 var servicePodColumns = []model.Column{
 	nameColumn,
 	{ID: fieldReady, Title: nodeReady, Type: model.ColumnText},
 }
 
-// servicePodsSection returns the Service's Pods section; false while its namespace's pods are
+// servicePodsSection returns the Service's Selected Pods section; false while its namespace's pods are
 // still listing.
 func servicePodsSection(obj *unstructured.Unstructured, rel model.Related) (model.DetailSection, bool) {
 	note := func(text string) (model.DetailSection, bool) {

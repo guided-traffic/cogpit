@@ -12,7 +12,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A Service's drawer with its Pods section, over the real engine: the pods its selector matches,
+// A Service's drawer with its Selected Pods section, over the real engine: the pods its selector matches,
 // Ready from its endpoint slice, before the Endpoint Slices section. PNG: drawer_service_pods_dark.png.
 
 var renderSlicesGVR = schema.GroupVersionResource{Group: "discovery.k8s.io", Version: "v1", Resource: "endpointslices"}
@@ -57,6 +57,7 @@ func TestRenderServicePodsDark(t *testing.T) {
 	sh, w, q := newEngineShell(t, s, Options{AutoConnect: "kind-cogpit", Theme: ThemeDark})
 	q.until(t, "the connection", func() bool { return sh.ui.Connection.State == engine.Connected && len(sh.kinds) > 0 })
 	mustDispatch(t, s, "ui.openView", map[string]any{"view": "services"})
+	q.until(t, "the Services", func() bool { return sh.view.snap != nil && sh.view.snap.Synced && len(sh.view.snap.Rows) == 1 })
 	ref := model.ObjectRef{Context: "kind-cogpit", Kind: "services", Namespace: "shop", Name: "web"}
 	mustDispatch(t, s, "ui.select", map[string]any{"refs": []model.ObjectRef{ref}})
 	want := [][]string{
@@ -64,20 +65,20 @@ func TestRenderServicePodsDark(t *testing.T) {
 		{"web-7d9f8c6b5-clnry", "Not ready"},
 		{"web-7d9f8c6b5-dmosz", "Not ready (no IP yet)"},
 	}
-	q.until(t, "the drawer's Pods", func() bool {
+	q.until(t, "the drawer's Selected Pods", func() bool {
 		m := sh.drawer.last
 		if m == nil {
 			return false
 		}
 		for _, sec := range m.Sections {
-			if sec.Title == "Pods" && sec.Table != nil && reflect.DeepEqual(sec.Table.Rows, want) {
+			if sec.Title == "Selected Pods" && sec.Table != nil && reflect.DeepEqual(sec.Table.Rows, want) {
 				return true
 			}
 		}
 		return false
 	})
 	settle(w)
-	scrollDrawerTo(t, sh, "Pods")
+	scrollDrawerTo(t, sh, "Selected Pods")
 	settle(w)
 	savePNG(t, w, "drawer_service_pods_dark.png")
 }

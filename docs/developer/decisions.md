@@ -173,7 +173,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-162](#d-162-a-pods-log-opened-before-its-container-starts) | A pod's log opened before its container starts | built: the tab says what the container waits for and shows the log when it starts, from the pods' cache |
 | [D-163](#d-163-accepted-node-conditions) | Accepted node conditions | built: SysctlChanged built in, each cluster's own list in Cluster Settings › Node Conditions; an accepted type never warns |
 | [D-164](#d-164-one-pages-deploy-per-release-checked-against-what-pages-serves) | One Pages deploy per release, checked against what Pages serves | built: one job deploys both feeds and the APT repository and fails unless Pages then serves them |
-| [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Pods section before Endpoint Slices, Ready from the endpoint slices |
+| [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Selected Pods section before Endpoint Slices, Ready from the endpoint slices |
 
 ## D-1: UI toolkit
 
@@ -6815,7 +6815,7 @@ a workflow set its `GITHUB_*` variables); one deploy that waits for every signin
 **Status:** built · **By:** owner (the section, Ready from the slices, the notes), lead (open to
 revision) the rest
 
-A Service's drawer has a Pods section right before Endpoint Slices: every pod of its namespace
+A Service's drawer has a Selected Pods section right before Endpoint Slices: every pod of its namespace
 whose labels hold the whole selector, by name, each a link to the pod's drawer, with Ready from the
 Service's endpoint slices: Ready (green) when an endpoint for the pod is ready, else Not ready
 (red), with the reason when no endpoint names the pod (terminating, Succeeded or Failed, no IP
@@ -6830,7 +6830,8 @@ traffic, including `publishNotReadyAddresses` and terminating pods, which a pod'
 condition gets wrong. Matching the selector against the pods, not listing the slices' targets,
 also shows the pods the Service selects but does not route to, which is what one looks for.
 
-**Rejected:** Ready from the pod's Ready condition; the table in place of Endpoint Slices (loses
+**Rejected:** Ready from the pod's Ready condition; a title naming the pods traffic goes to (the
+Not ready rows get none); the table in place of Endpoint Slices (loses
 the slices' links); one row per endpoint (two rows per pod with dual-stack); a selector-less
 Service's pods from its slices' `targetRef`s.
 
