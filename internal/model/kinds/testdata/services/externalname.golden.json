@@ -83,7 +83,7 @@
       ]
     },
     {
-      "title": "Pods",
+      "title": "Selected Pods",
       "items": [
         {
           "value": "ExternalName: traffic goes to orders-db.example.net, no pods."

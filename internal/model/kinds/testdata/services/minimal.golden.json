@@ -77,7 +77,7 @@
       ]
     },
     {
-      "title": "Pods",
+      "title": "Selected Pods",
       "items": [
         {
           "value": "No selector: Kubernetes picks no pods for this Service; its endpoints are in Endpoint Slices."

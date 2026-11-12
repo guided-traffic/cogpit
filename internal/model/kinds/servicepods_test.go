@@ -77,10 +77,10 @@ func TestServicePods(t *testing.T) {
 	for _, s := range sections {
 		titles = append(titles, s.Title)
 	}
-	if i, j := slices.Index(titles, "Pods"), slices.Index(titles, "Endpoint Slices"); i < 0 || j != i+1 {
-		t.Fatalf("Pods not right before Endpoint Slices: %q", titles)
+	if i, j := slices.Index(titles, "Selected Pods"), slices.Index(titles, "Endpoint Slices"); i < 0 || j != i+1 {
+		t.Fatalf("Selected Pods not right before Endpoint Slices: %q", titles)
 	}
-	tbl := findTable(t, sections, "Pods")
+	tbl := findTable(t, sections, "Selected Pods")
 	want := [][]string{
 		{"web-a", "Ready"},
 		{"web-b", "Ready"},
@@ -104,7 +104,7 @@ func TestServicePods(t *testing.T) {
 	}
 
 	// Slices not known yet: the pods are listed, their Ready unknown.
-	tbl = findTable(t, p.DetailSections(svc, fakeRelated{"pods": rel["pods"]}), "Pods")
+	tbl = findTable(t, p.DetailSections(svc, fakeRelated{"pods": rel["pods"]}), "Selected Pods")
 	if got := tbl.Rows[0][1]; got != "Unknown" {
 		t.Errorf("Ready without slices %q, want Unknown", got)
 	}
@@ -116,9 +116,9 @@ func TestServicePodsNotes(t *testing.T) {
 	note := func(svc *unstructured.Unstructured, rel model.Related) string {
 		t.Helper()
 		for _, s := range p.DetailSections(svc, rel) {
-			if s.Title == "Pods" {
+			if s.Title == "Selected Pods" {
 				if s.Table != nil || len(s.Items) != 1 {
-					t.Fatalf("Pods section %+v, want one note", s)
+					t.Fatalf("Selected Pods section %+v, want one note", s)
 				}
 				return s.Items[0].Value
 			}
