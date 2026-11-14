@@ -49,7 +49,7 @@ const (
 	// and the digest to the tag's newest build (.github/renovate.json reads the comment below), and
 	// CI's kind job runs every such change on a node (TestKindNodeShell).
 	// renovate: datasource=docker depName=docker.io/library/alpine
-	DefaultNodeShellImage = "docker.io/library/alpine:3.24@sha256:3f4d6b32e26703c6082839234f43769d5046b3ac7c910033911d1e71d8cd630a"
+	DefaultNodeShellImage = "docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf"
 
 	// DockNodeShell is a node shell's dock tab.
 	DockNodeShell DockType = "nodeShell"
