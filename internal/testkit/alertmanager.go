@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"net/http"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -12,12 +13,19 @@ import (
 )
 
 // FakeAlertmanager is Alertmanager's API v2 alerts endpoint (GET /api/v2/alerts with its active,
-// silenced and inhibited filters), to put behind the fake API server's service proxy (SetProxy) or
-// an httptest server (D-77). It answers what Set gave it, in Alertmanager's gettableAlert shape, and
-// records the requests it served.
+// silenced and inhibited filters) and its silences (GET and POST /api/v2/silences, DELETE
+// /api/v2/silence/<id>: D-166), to put behind the fake API server's service proxy (SetProxy) or an
+// httptest server (D-77). It answers what Set gave it, in Alertmanager's gettableAlert shape, an
+// alert silenced by FakeAlert.Silenced or by an active silence it holds, and records the requests
+// it served.
 type FakeAlertmanager struct {
 	mu       sync.Mutex
 	alerts   []FakeAlert
+	silences []FakeSilence
+	seq      int // the last silence id handed out
+	// Clock is the time silences are active, pending or expired at; nil: time.Now. A render's fixed
+	// clock (the window's) makes their states and ends the window's.
+	Clock    func() time.Time
 	status   int    // when set, every request gets this status
 	body     []byte // when set, every request gets this body
 	prefix   string // the route prefix it serves under
@@ -31,6 +39,75 @@ type FakeAlert struct {
 	StartsAt    time.Time
 	Silenced    bool // state suppressed, silencedBy set: left out with silenced=false
 	Inhibited   bool // state suppressed, inhibitedBy set: left out with inhibited=false
+}
+
+// FakeSilence is one silence of a FakeAlertmanager, in Alertmanager's gettableSilence shape.
+type FakeSilence struct {
+	ID        string           `json:"id"`
+	Matchers  []map[string]any `json:"matchers"` // name, value, isRegex, isEqual
+	StartsAt  time.Time        `json:"startsAt"`
+	EndsAt    time.Time        `json:"endsAt"`
+	UpdatedAt time.Time        `json:"updatedAt"`
+	CreatedBy string           `json:"createdBy"`
+	Comment   string           `json:"comment"`
+}
+
+func (f *FakeAlertmanager) now() time.Time {
+	if f.Clock != nil {
+		return f.Clock()
+	}
+	return time.Now()
+}
+
+// state is the silence's state at now: pending, active or expired.
+func (s FakeSilence) state(now time.Time) string {
+	switch {
+	case now.Before(s.StartsAt):
+		return "pending"
+	case now.Before(s.EndsAt):
+		return "active"
+	}
+	return "expired"
+}
+
+// matches reports whether every matcher matches labels, Alertmanager's way: the regular
+// expressions anchored, a missing label empty.
+func (s FakeSilence) matches(labels map[string]string) bool {
+	if len(s.Matchers) == 0 {
+		return false
+	}
+	for _, m := range s.Matchers {
+		name, _ := m["name"].(string)
+		value, _ := m["value"].(string)
+		isRegex, _ := m["isRegex"].(bool)
+		isEqual := true
+		if b, ok := m["isEqual"].(bool); ok {
+			isEqual = b
+		}
+		hit := labels[name] == value
+		if isRegex {
+			re, err := regexp.Compile("^(?:" + value + ")$")
+			hit = err == nil && re.MatchString(labels[name])
+		}
+		if hit != isEqual {
+			return false
+		}
+	}
+	return true
+}
+
+// SetSilences replaces the silences.
+func (f *FakeAlertmanager) SetSilences(ss ...FakeSilence) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.silences = slices.Clone(ss)
+}
+
+// Silences returns the silences it holds.
+func (f *FakeAlertmanager) Silences() []FakeSilence {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return slices.Clone(f.silences)
 }
 
 // Set replaces the alerts.
@@ -71,13 +148,9 @@ func (f *FakeAlertmanager) Requests() []string {
 // ServeHTTP implements http.Handler.
 func (f *FakeAlertmanager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
-	f.requests = append(f.requests, r.URL.Path+"?"+r.URL.RawQuery)
-	status, body, prefix, alerts := f.status, f.body, f.prefix, slices.Clone(f.alerts)
+	f.requests = append(f.requests, r.Method+" "+r.URL.Path+"?"+r.URL.RawQuery)
+	status, body, prefix, alerts, silences := f.status, f.body, f.prefix, slices.Clone(f.alerts), slices.Clone(f.silences)
 	f.mu.Unlock()
-	if r.Method != http.MethodGet {
-		http.Error(w, "read only", http.StatusMethodNotAllowed)
-		return
-	}
 	if status != 0 {
 		http.Error(w, "refused", status)
 		return
@@ -90,8 +163,21 @@ func (f *FakeAlertmanager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		path = strings.TrimPrefix(path, prefix)
 	}
-	if path != "/api/v2/alerts" {
+	switch {
+	case path == "/api/v2/silences" && r.Method == http.MethodGet:
+		f.listSilences(w, silences)
+		return
+	case path == "/api/v2/silences" && r.Method == http.MethodPost:
+		f.createSilence(w, r)
+		return
+	case strings.HasPrefix(path, "/api/v2/silence/") && r.Method == http.MethodDelete:
+		f.expireSilence(w, strings.TrimPrefix(path, "/api/v2/silence/"))
+		return
+	case path != "/api/v2/alerts":
 		http.NotFound(w, r)
+		return
+	case r.Method != http.MethodGet:
+		http.Error(w, "read only", http.StatusMethodNotAllowed)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -100,17 +186,26 @@ func (f *FakeAlertmanager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	q := r.URL.Query()
+	now := f.now()
 	out := []map[string]any{}
 	for _, a := range alerts {
-		if q.Get("silenced") == "false" && a.Silenced || q.Get("inhibited") == "false" && a.Inhibited {
-			continue
-		}
 		state, silencedBy, inhibitedBy := "active", []string{}, []string{}
 		if a.Silenced {
-			state, silencedBy = "suppressed", []string{"silence-1"}
+			silencedBy = append(silencedBy, "silence-1")
+		}
+		for _, s := range silences {
+			if s.state(now) == "active" && s.matches(a.Labels) {
+				silencedBy = append(silencedBy, s.ID)
+			}
 		}
 		if a.Inhibited {
-			state, inhibitedBy = "suppressed", []string{"inhibitor-1"}
+			inhibitedBy = []string{"inhibitor-1"}
+		}
+		if len(silencedBy) > 0 || len(inhibitedBy) > 0 {
+			state = "suppressed"
+		}
+		if q.Get("silenced") == "false" && len(silencedBy) > 0 || q.Get("inhibited") == "false" && len(inhibitedBy) > 0 {
+			continue
 		}
 		ann := a.Annotations
 		if ann == nil {
@@ -125,6 +220,80 @@ func (f *FakeAlertmanager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	_ = json.NewEncoder(w).Encode(out)
+}
+
+// listSilences answers GET /api/v2/silences.
+func (f *FakeAlertmanager) listSilences(w http.ResponseWriter, silences []FakeSilence) {
+	now := f.now()
+	out := []map[string]any{}
+	for _, s := range silences {
+		out = append(out, map[string]any{"id": s.ID, "status": map[string]any{"state": s.state(now)}, "matchers": s.Matchers,
+			"startsAt": s.StartsAt.UTC().Format(time.RFC3339Nano), "endsAt": s.EndsAt.UTC().Format(time.RFC3339Nano),
+			"updatedAt": s.UpdatedAt.UTC().Format(time.RFC3339Nano), "createdBy": s.CreatedBy, "comment": s.Comment})
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(out)
+}
+
+// createSilence answers POST /api/v2/silences: a silence of at least one matcher that does not
+// match the empty value, an end after its start and in the future, an author and a comment, as
+// Alertmanager validates it; its answer the new id.
+func (f *FakeAlertmanager) createSilence(w http.ResponseWriter, r *http.Request) {
+	var s FakeSilence
+	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
+		http.Error(w, `"silence invalid: `+err.Error()+`"`, http.StatusBadRequest)
+		return
+	}
+	now := f.now()
+	switch {
+	case len(s.Matchers) == 0:
+		http.Error(w, `"silence invalid: at least one matcher required"`, http.StatusBadRequest)
+		return
+	case s.matches(map[string]string{}):
+		http.Error(w, `"silence invalid: at least one matcher must not match the empty string"`, http.StatusBadRequest)
+		return
+	case !s.EndsAt.After(s.StartsAt) || !s.EndsAt.After(now):
+		http.Error(w, `"silence invalid: end time must not be before start time or in the past"`, http.StatusBadRequest)
+		return
+	case s.CreatedBy == "" || s.Comment == "":
+		http.Error(w, `"silence invalid: createdBy and comment are required"`, http.StatusBadRequest)
+		return
+	}
+	f.mu.Lock()
+	f.seq++
+	s.ID = fmt.Sprintf("00000000-0000-4000-8000-%012d", f.seq)
+	s.UpdatedAt = now
+	if s.StartsAt.Before(now) {
+		s.StartsAt = now
+	}
+	f.silences = append(f.silences, s)
+	f.mu.Unlock()
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(map[string]string{"silenceID": s.ID})
+}
+
+// expireSilence answers DELETE /api/v2/silence/<id>: it ends now; an expired one stays as it is
+// and an unknown id is 404, as Alertmanager 0.28 answers them.
+func (f *FakeAlertmanager) expireSilence(w http.ResponseWriter, id string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	now := f.now()
+	for i, s := range f.silences {
+		if s.ID != id {
+			continue
+		}
+		if s.state(now) == "expired" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+		if s.StartsAt.After(now) {
+			f.silences[i].StartsAt = now
+		}
+		f.silences[i].EndsAt, f.silences[i].UpdatedAt = now, now
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	http.Error(w, `"silence `+id+` not found"`, http.StatusNotFound)
 }
 
 // fingerprint is a hash of the labels, as Alertmanager's (its own hash differs; only stability

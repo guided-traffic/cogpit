@@ -209,6 +209,11 @@ var wantCommands = map[string]engine.Danger{
 	"alerts.list": engine.DangerRead, "alerts.board": engine.DangerRead, "alerts.refresh": engine.DangerRead,
 	"alerts.open": engine.DangerUI, "alerts.fold": engine.DangerUI,
 	"cluster.alertmanager": engine.DangerRead, "cluster.setAlertmanager": engine.DangerUI,
+	// Its silences (D-166): read from the last poll, the page UI state, a silence a write an agent
+	// always asks for, an expire destructive (TestSilenceCommands).
+	"alerts.silences": engine.DangerRead, "alerts.openSilences": engine.DangerUI, "alerts.silenceDraft": engine.DangerRead,
+	"alerts.silenceMatches": engine.DangerRead, "alerts.silence": engine.DangerMutating,
+	"alerts.expireSilence": engine.DangerDestructive,
 	// Argo CD (G23, D-36): Sync is destructive with prune (Escalate) (TestArgoSyncWritesTheOperation).
 	"argocd.application.sync": engine.DangerMutating, "argocd.application.syncMany": engine.DangerMutating,
 	"argocd.application.refresh": engine.DangerMutating, "argocd.application.refreshMany": engine.DangerMutating,

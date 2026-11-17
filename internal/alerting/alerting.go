@@ -1,9 +1,10 @@
 // Package alerting reads a cluster's Alertmanager (D-77): it finds one among the cluster's cached
 // Services by its well-known names, or takes the address the user set, and asks it for the active
-// alerts that are neither silenced nor inhibited, one GET through the API server's service proxy
-// every poll interval, on the connection's own clients (counted, rate limited and authenticated as
-// every other request). It only ever sends GET requests: silences and acknowledgements are writes
-// to Alertmanager and not Cogpit's (D-77). Cogpit installs no Alertmanager (D-61, AGENTS.md).
+// alerts that are not inhibited, one GET through the API server's service proxy every poll
+// interval, on the connection's own clients (counted, rate limited and authenticated as every other
+// request): the silenced ones apart, for the silences page (D-166). It lists, creates and expires
+// silences on the user's request (silences.go), and sends nothing else that writes. Cogpit installs
+// no Alertmanager (D-61, AGENTS.md).
 //
 // It is an L2 package beside metrics (architecture §3): the engine owns when it polls (the
 // integration switched on, the cluster shown and connected) and what the window shows of it.
@@ -94,6 +95,8 @@ type Alert struct {
 	StartsAt time.Time `json:"startsAt"`
 	// Labels are its labels, alertname and severity included.
 	Labels map[string]string `json:"labels"`
+	// SilencedBy are the ids of the silences that mute it; empty for an alert the board shows.
+	SilencedBy []string `json:"silencedBy,omitempty"`
 }
 
 // Bounds of what is kept of one alert, against a rule whose template renders a whole log line into
@@ -111,8 +114,20 @@ type wireAlert struct {
 	Annotations map[string]string `json:"annotations"`
 	StartsAt    *time.Time        `json:"startsAt"`
 	Status      *struct {
-		State string `json:"state"`
+		State      string   `json:"state"`
+		SilencedBy []string `json:"silencedBy"`
 	} `json:"status"`
+}
+
+// decoded is an answer of the alerts request: the alerts the board shows (Classify, at most the
+// limit; total counts them before it) and the silenced ones apart, the meta alerts among them (a
+// silence often mutes Watchdog), at most the limit too.
+type decoded struct {
+	alerts     []Alert
+	total      int
+	truncated  bool
+	muted      []Alert
+	mutedTotal int
 }
 
 // errNotAlertmanager says that an answer is not Alertmanager's list of alerts.
@@ -120,41 +135,61 @@ var errNotAlertmanager = errors.New("not an Alertmanager")
 
 // decodeAlerts reads the answer of GET /api/v2/alerts: a JSON array of gettable alerts. An answer of
 // another shape (an object, an array of something else) is errNotAlertmanager, which is how
-// detection tells an Alertmanager from another service of a similar name. Alerts beyond max are
-// dropped (truncated reports it); the meta alerts and those of severity none are left out here.
-func decodeAlerts(body []byte, limit int) (alerts []Alert, total int, truncated bool, err error) {
+// detection tells an Alertmanager from another service of a similar name. Alerts beyond limit are
+// dropped (truncated reports it); the meta alerts and those of severity none are left out of the
+// shown alerts here. An alert some silence mutes goes to the muted alerts whatever its severity.
+func decodeAlerts(body []byte, limit int) (decoded, error) {
 	var wire []wireAlert
 	if err := json.Unmarshal(body, &wire); err != nil {
-		return nil, 0, false, errNotAlertmanager
+		return decoded{}, errNotAlertmanager
 	}
-	alerts = make([]Alert, 0, min(len(wire), limit))
+	d := decoded{alerts: make([]Alert, 0, min(len(wire), limit))}
 	for _, w := range wire {
 		if w.Labels == nil || w.StartsAt == nil || w.Status == nil {
-			return nil, 0, false, errNotAlertmanager
+			return decoded{}, errNotAlertmanager
 		}
 		name := w.Labels["alertname"]
 		sev, keep := Classify(name, w.Labels["severity"])
-		if !keep {
+		silenced := len(w.Status.SilencedBy) > 0
+		if !keep && !silenced {
 			continue
 		}
-		total++
-		if len(alerts) >= limit {
-			truncated = true
-			continue
+		if silenced {
+			d.mutedTotal++
+			if len(d.muted) >= limit {
+				continue
+			}
+		} else {
+			d.total++
+			if len(d.alerts) >= limit {
+				d.truncated = true
+				continue
+			}
 		}
 		desc := w.Annotations["description"]
 		if desc == "" {
 			desc = w.Annotations["message"]
 		}
-		alerts = append(alerts, Alert{
+		a := Alert{
 			Fingerprint: clip(w.Fingerprint, 64), Name: clip(name, maxLabel), Severity: sev,
 			SeverityLabel: clip(strings.TrimSpace(w.Labels["severity"]), 64),
 			Summary:       clip(w.Annotations["summary"], maxText), Description: clip(desc, maxText),
 			Runbook: clip(strings.TrimSpace(w.Annotations["runbook_url"]), 2048), StartsAt: *w.StartsAt,
 			Labels: boundLabels(w.Labels),
-		})
+		}
+		if silenced {
+			for i, id := range w.Status.SilencedBy {
+				if i == maxMatchers {
+					break
+				}
+				a.SilencedBy = append(a.SilencedBy, clip(id, 64))
+			}
+			d.muted = append(d.muted, a)
+			continue
+		}
+		d.alerts = append(d.alerts, a)
 	}
-	return alerts, total, truncated, nil
+	return d, nil
 }
 
 // boundLabels keeps at most maxLabels labels, each value at most maxLabel bytes; alertname,

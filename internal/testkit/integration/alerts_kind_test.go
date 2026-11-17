@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -122,5 +123,74 @@ func TestKindAlertmanager(t *testing.T) {
 	sent := s.Backend().Conn.Counter().Snapshot().ByVerbResource["get services/proxy"] - before
 	if sent < 2 || sent > 5 {
 		t.Errorf("%d proxy requests in 3.5 s at a 1 s interval", sent)
+	}
+
+	// Silences (D-166) against the real Alertmanager: the window's silence is one POST ("create
+	// services/proxy"), Alertmanager mutes the matching alerts and lists the silence with them;
+	// expiring it is one DELETE ("delete services/proxy") and brings them back.
+	counter := func(key string) int64 { return s.Backend().Conn.Counter().Snapshot().ByVerbResource[key] }
+	dispatch := func(origin engine.Origin, id string, params any, out any) {
+		t.Helper()
+		raw, _ := json.Marshal(params)
+		res, err := s.Dispatch(ctx, engine.Invocation{ID: id, Params: raw, Origin: origin})
+		if err != nil {
+			t.Fatalf("%s: %v", id, err)
+		}
+		if out != nil {
+			b, _ := json.Marshal(res)
+			if err := json.Unmarshal(b, out); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	creates := counter("create services/proxy")
+	var created engine.SilenceCreated
+	dispatch(engine.OriginGUI, "alerts.silence", map[string]any{
+		"matchers": []map[string]string{{"name": "alertname", "op": "=", "value": "CogpitKindCritical"}, {"name": "source", "op": "=~", "value": "cogpit-kind-.*"}},
+		"duration": "10m", "comment": "Cogpit's kind test", "createdBy": "cogpit-kind-test"}, &created)
+	if n := counter("create services/proxy") - creates; n != 1 || created.ID == "" || created.Mutes != 2 {
+		t.Errorf("created %+v with %d create services/proxy", created, n)
+	}
+	for u = s.UIState(); u.Alerts == nil || u.Alerts.Critical != 0; u = s.UIState() {
+		if ctx.Err() != nil {
+			t.Fatalf("the critical alerts are not muted: %+v", u.Alerts)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	var page engine.SilencesModel
+	dispatch(engine.OriginExternalAgent, "alerts.silences", map[string]any{}, &page)
+	var found *engine.SilenceItem
+	for _, g := range page.Groups {
+		for i := range g.Silences {
+			if g.Silences[i].ID == created.ID {
+				found = &g.Silences[i]
+			}
+		}
+	}
+	if found == nil || found.State != "active" || found.Mutes != 2 || found.CreatedBy != "cogpit-kind-test" || len(found.Matchers) != 2 ||
+		found.Matchers[1].Op != "=~" {
+		t.Fatalf("the silence on the page: %+v (of %+v)", found, page.Groups)
+	}
+	deletes := counter("delete services/proxy")
+	s.SetConfirmer(engine.ConfirmFunc(func(context.Context, engine.ConfirmRequest) (bool, error) { return true, nil }))
+	dispatch(engine.OriginGUI, "alerts.expireSilence", map[string]any{"id": created.ID}, nil)
+	if n := counter("delete services/proxy") - deletes; n != 1 {
+		t.Errorf("%d delete services/proxy for one expire", n)
+	}
+	for u = s.UIState(); u.Alerts == nil || u.Alerts.Critical != 2; u = s.UIState() {
+		if ctx.Err() != nil {
+			t.Fatalf("the critical alerts do not come back: %+v", u.Alerts)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	// Alertmanager 0.28 answers an expired silence expired again with 200, an unknown id with 404:
+	// the refusal names the request.
+	dispatch(engine.OriginGUI, "alerts.expireSilence", map[string]any{"id": created.ID}, nil)
+	const unknown = "00000000-0000-4000-8000-000000000999"
+	raw, _ := json.Marshal(map[string]any{"id": unknown})
+	_, err = s.Dispatch(ctx, engine.Invocation{ID: "alerts.expireSilence", Params: raw, Origin: engine.OriginGUI})
+	if err == nil || !strings.Contains(err.Error(), "DELETE ") || !strings.Contains(err.Error(), "/proxy/api/v2/silence/"+unknown) ||
+		!strings.Contains(err.Error(), "HTTP 404") {
+		t.Errorf("an unknown silence: %v", err)
 	}
 }

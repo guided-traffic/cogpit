@@ -85,7 +85,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-74](#d-74-how-the-leads-decisions-are-reviewed) | How the lead's decisions are reviewed | built: lead decides details and records them, open to revision |
 | [D-75](#d-75-a-client-certificates-validity-in-the-cluster-lists) | A client certificate's validity in the cluster lists | built: time left or expired shown; never blocks a connect |
 | [D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect) | Integrations per cluster, and the question at a new cluster's first connect | built: five per-cluster switches; only the user switches them |
-| [D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board) | Alertmanager, the alerts pill and the alert board | built: shown cluster polled every 30 s, read only |
+| [D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board) | Alertmanager, the alerts pill and the alert board | built: shown cluster polled every 30 s; silences D-166 |
 | [D-78](#d-78-trivy-operators-image-ratings) | Trivy Operator's image ratings | built: reads and placement; the grade itself is D-113 |
 | [D-79](#d-79-kyvernos-policy-violations-on-the-objects) | Kyverno's policy violations on the objects | built: warning column and drawer marks from policy reports |
 | [D-80](#d-80-a-clusters-accent-colour) | A cluster's accent colour | built: accent colour per cluster, set only in the window |
@@ -174,6 +174,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-163](#d-163-accepted-node-conditions) | Accepted node conditions | built: SysctlChanged built in, each cluster's own list in Cluster Settings › Node Conditions; an accepted type never warns |
 | [D-164](#d-164-one-pages-deploy-per-release-checked-against-what-pages-serves) | One Pages deploy per release, checked against what Pages serves | built: one job deploys both feeds and the APT repository and fails unless Pages then serves them |
 | [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Selected Pods section before Endpoint Slices, Ready from the endpoint slices |
+| [D-166](#d-166-alertmanager-silences-listed-created-expired) | Alertmanager silences: listed, created, expired | built: a silences page, Silence on the board's cards and rows, Expire; an agent's always asks |
 
 ## D-1: UI toolkit
 
@@ -2884,9 +2885,10 @@ alert board, a page like karma's, tidier; Lens shows no alerts. What the user se
 - `internal/alerting` (L2, its own `depguard` rule) finds the Alertmanager among the cached
   Services by well-known names, at most 3 probed with the alerts request itself, or uses the address
   the user set (in `metrics.json`; an agent's `cluster.setAlertmanager` always asks).
-- One `GET /api/v2/alerts?active=true&silenced=false&inhibited=false` through the service proxy
+- One `GET /api/v2/alerts?active=true&silenced=true&inhibited=false` through the service proxy
   every 30 s while the cluster is shown and connected; failing, the polls back off to 5 minutes and
-  the last answer stands for 5 minutes. Read only: no silences, no acknowledgements.
+  the last answer stands for 5 minutes. The silenced alerts are kept apart, neither counted nor on
+  the board; silences are [D-166](#d-166-alertmanager-silences-listed-created-expired).
 - `critical` is red, `info` yellow, `warning`, `major` and any other or missing label orange;
   `none`, Watchdog and InfoInhibitor are neither counted nor shown.
 - The pill stays while the integration is on, grey with `warn` while nothing answers, and leads to
@@ -2895,26 +2897,34 @@ alert board, a page like karma's, tidier; Lens shows no alerts. What the user se
 - The board is a page with a view's header (namespace filter, search), its folds engine state
   (`alerts.fold`); per alert only what its alertname's card does not say once: the cells that tell
   it apart, since when, the objects it names; its cards, texts, history and links are
-  [D-138](#d-138-the-alert-boards-cards).
+  [D-138](#d-138-the-alert-boards-cards). The pill and `alerts.open` open it without a namespace
+  filter, in a fixed tab that shows it too; ⌘[ returns to the view before with its namespaces.
+- What the board (and the silences page) says instead of cards stands in one box in its middle,
+  its buttons at the box's bottom right (the owner): no Alertmanager found (Set Its Address…), not
+  allowed, not answering; no alert firing (a steaming cup, "Somebody did a great job servicing this
+  cluster…", how many are silenced, Show Silences); none in the namespaces chosen (how many the
+  cluster has, Remove Namespace Filter); none the search keeps (Clear Search).
 
 **Why:** `internal/metrics` is made for polled series, not a list of alerts. Probing every Service
 sends requests to services that are none (as for Prometheus, D-71); `GET /api/v2/status` would hand
 Cogpit Alertmanager's whole configuration, and `/-/ready` is answered by Prometheus too. 30 s is
 karma's and Alertmanager's own refresh (budget P17, [testing](testing.md)). The pill shows the shown
-cluster, and a background one whose login is held (D-69) answers 401. The kept answer stops a
+cluster, and a background one whose login is held (D-69) answers 401. The board counts the whole
+cluster as the pill does: a namespace filter carried over from the view before showed an empty board
+under a red pill (the owner, 2026-11-17). The kept answer stops a
 restarting Alertmanager from reading as "no alerts"; its limit stops an old count from standing. A
 label not marked informational counts as a warning. A poll does not change the UI state's revision.
 
 **Rejected:** the Prometheus Operator's `Alertmanager` resources — need list rights and miss the
-charts' installs; a table under an Overview-like page — not karma's groups and cards; silences —
-a write to Alertmanager.
+charts' installs; a table under an Overview-like page — not karma's groups and cards;
+acknowledgements (karma's short silences with a fixed comment) — a silence does it.
 
 **Code:** [`alerting/detect.go`](../../internal/alerting/detect.go),
 [`alerting/poller.go`](../../internal/alerting/poller.go),
 [`engine/alerts.go`](../../internal/engine/alerts.go),
 [`fyneui/alertboard.go`](../../internal/ui/fyneui/alertboard.go) · **Tests:** `TestClassify`,
 `TestCandidates`, `TestPollerBackoffAndKeep`, `TestAlertmanagerOnlyTheShownCluster`,
-`TestAlertsPill`, `TestAlertBoard`, `TestKindAlertmanager`, `TestRealAlertmanager`
+`TestAlertsPill`, `TestAlertBoard`, `TestBoardStateBox`, `TestSilenceCommands`, `TestKindAlertmanager`, `TestRealAlertmanager`
 
 ### What it does not cover
 
@@ -6837,3 +6847,76 @@ Service's pods from its slices' `targetRef`s.
 
 [`servicepods.go`](../../internal/model/kinds/servicepods.go),
 [`endpointslices.go`](../../internal/model/kinds/endpointslices.go) `serviceDetailWith`
+
+## D-166: Alertmanager silences: listed, created, expired
+
+**Status:** built · **By:** owner (silences as karma has them, silenced alerts off the board, an
+agent's always asks), lead (open to revision) the rest
+
+Cogpit lists the shown cluster's Alertmanager silences, creates one and expires one, in the
+Alertmanager whose alerts the board shows ([D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board)),
+through the API server's service proxy with the user's identity. What the user sees:
+[usage](usage.md#silences); the requests: [architecture](architecture.md) §9.
+
+- **Silences page** (`alerts/silences`, `alerts.openSilences`; the board's "N silenced" link): a
+  card per silence, grouped Active, Pending, Expired (Expired folded at first), with its matchers,
+  when it ends, starts or ended, comment, author, the alerts it mutes now (an active one's) and
+  Expire. Its header has the search, no namespace filter. While it is shown each poll adds
+  `GET /api/v2/silences`; an agent's `alerts.silences` asks once when the last answer is older than
+  the interval.
+- **Silenced alerts** are polled (`silenced=true`) and kept apart: neither the pill nor the board
+  shows them; the board's first line counts them, the silences page lists them by silence.
+- **Silence** on a card or on one alert's row opens a form: the Alertmanager as Context ›
+  Namespace › Object, the matchers (label, `=` `!=` `=~` `!~`, value; added and removed), how long
+  (1h to 1w offered, any `30m`, `1d12h` typed; 2h first), the author, the comment, and what the
+  matchers mute now. A card's draft is its alertname, the namespace and the label of the object the
+  alerts are about, each where all its alerts share it; a row's the same for its one alert. The
+  scraped target's labels (an exporter's `instance`, `pod`, `job`) are left out. The window's form
+  is its own confirmation: `alerts.silence` from the GUI asks nothing more.
+- **Agents** read `alerts.silences`, `alerts.silenceDraft` and `alerts.silenceMatches`;
+  `alerts.silence` (mutating, `create services/proxy`) always waits for the user, whatever the
+  context's allowance of agent writes, with a warning when it mutes a critical alert;
+  `alerts.expireSilence` (destructive, `delete services/proxy`) always asks, and its confirmation
+  does not say "This cannot be undone.".
+- **Checks before a request:** at least one matcher that does not match an empty value
+  (Alertmanager's own rule), regular expressions that compile, an end in the future, an author and
+  a comment; an id of a UUID's characters. A refusal names the request (method, URL, Alertmanager)
+  and quotes the API server's message or Alertmanager's answer, one line of at most 300 bytes.
+  Where the access reviews deny the verb on `services/proxy`, the command is refused before any
+  request, with the verb and namespace.
+- **The author** the form fills in is the last one the user created a silence with in the window
+  (`Preferences.SilenceAuthor`), else the computer user's full name.
+
+**Why:** a silence is how a team says an alert is known; looking it up and making it in the tool
+where the alert shows saves the switch to Alertmanager's UI (the owner, 2026-11-17, karma as the
+model). Muted alerts on the board would fill it with what someone decided to ignore; on the
+silences page they say what a silence hides. A silence stops the on-call's notifications, which the
+allowance of agent writes for cluster objects does not cover. Expiring one brings the alerts back
+and loses nothing: the silence stays listed as expired. The exporter's labels change at its next
+restart, after which a silence of them mutes nothing.
+
+**Rejected:** silenced alerts dimmed on the board with a switch (karma's `@state` filter) — a fuller
+board for a rare look; agents reading only — an agent could not even propose a maintenance
+silence; agents under the write allowance — a mute of the on-call's alerts without a question;
+every shared label in a draft — 12 matchers for one alert, half of them the exporter's; a modal
+silence browser as karma's — agents could not see or drive it.
+
+**Code:** [`alerting/silences.go`](../../internal/alerting/silences.go),
+[`alerting/poller.go`](../../internal/alerting/poller.go) `SetSilences`, `CreateSilence`,
+`ExpireSilence`, [`engine/alerts_silences.go`](../../internal/engine/alerts_silences.go),
+[`commands/silences.go`](../../internal/engine/commands/silences.go),
+[`fyneui/silences.go`](../../internal/ui/fyneui/silences.go),
+[`fyneui/silenceform.go`](../../internal/ui/fyneui/silenceform.go) · **Tests:** `TestMatcherMatches`,
+`TestNewSilenceValidate`, `TestDecodeSilences`, `TestPollerSilences`, `TestPollerSilenceWrites`,
+`TestSilencesThroughTheServiceProxy`, `TestSilenceCommands`, `TestSilencesInTheWindow`,
+`TestRenderSilencesDark`, `TestKindAlertmanager`
+
+### What it does not cover
+
+- **Editing a silence** (Alertmanager replaces it by id) and a silence that starts later: Expire
+  and Silence anew.
+- **Label names and values offered while typing** a matcher: the draft fills them, others are
+  typed.
+- **A lookalike Alertmanager found by name** receives the silences, their comments and authors
+  ([H-121](../security/privilege-footprint.md#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents));
+  the form and the confirmation name the Service.

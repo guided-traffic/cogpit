@@ -624,7 +624,12 @@ func (s *FakeAPIServer) SetProxy(namespace, service string, h http.Handler) {
 }
 
 func (s *FakeAPIServer) serveProxy(w http.ResponseWriter, r *http.Request, req fakeRequest) {
-	s.count("get", "services/proxy")
+	verb := map[string]string{http.MethodPost: "create", http.MethodPut: "update", http.MethodPatch: "patch",
+		http.MethodDelete: "delete"}[r.Method]
+	if verb == "" {
+		verb = "get"
+	}
+	s.count(verb, "services/proxy") // the verb RBAC checks for the method, as the API server maps it
 	s.mu.Lock()
 	h := s.proxies[req.namespace+"/"+req.name]
 	if h == nil {

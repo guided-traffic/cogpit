@@ -260,8 +260,12 @@ func (tv *tableView) showHeadingCount() {
 func (tv *tableView) setPageLayout(view string) {
 	// The alert board's header is a view's: its title and count, the namespace filter and the
 	// search; its body replaces the table (alertboard.go, D-77).
-	board := view == engine.AlertBoard
-	tv.alerts.setShown(board)
+	board := view == engine.AlertBoard || view == engine.AlertSilences // the silences page shows in the board's place (silences.go)
+	shown := ""
+	if board {
+		shown = view
+	}
+	tv.alerts.setShown(shown)
 	if board { // its groups are the severities: no status filter
 		tv.states.box.Hide()
 	} else {
@@ -332,7 +336,7 @@ func (tv *tableView) requestPage() {
 		tv.flux.request()
 	case view == engine.ArgoCDDashboard:
 		tv.argo.request()
-	case view == engine.AlertBoard:
+	case view == engine.AlertBoard, view == engine.AlertSilences:
 		tv.alerts.request()
 	case engine.IsPage(view):
 		tv.overview.request()
@@ -353,6 +357,9 @@ func (tv *tableView) rowNoun() string {
 	}
 	if tv.sh.ui.View == engine.AlertBoard {
 		return "alerts"
+	}
+	if tv.sh.ui.View == engine.AlertSilences {
+		return "silences"
 	}
 	if engine.IsPage(tv.sh.ui.View) {
 		return kindEvents // the kind key reads as the noun
@@ -1185,7 +1192,8 @@ func (tv *tableView) updateNamespaceButton() {
 	}
 	// Lens shows no namespace filter on a cluster-scoped view (captures of Nodes, Ingress Classes,
 	// Cluster Roles and Cluster Role Bindings, 2026-10-11), and a group filter on Definitions.
-	if tv.groupMode() || tv.viewNamespaced() {
+	// The silences page has none: silences are the Alertmanager's, not a namespace's (D-166).
+	if tv.groupMode() || tv.viewNamespaced() && tv.sh.ui.View != engine.AlertSilences {
 		tv.nsBox.Show()
 	} else {
 		tv.nsBox.Hide()

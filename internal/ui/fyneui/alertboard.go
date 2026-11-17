@@ -29,8 +29,9 @@ import (
 // it, its text once (the alerts' summaries made one, alerts_card.go), what all its alerts share (the
 // namespace, the object) as links, and a table of its alerts with the columns that tell them apart
 // and since when each fires. The object opens in its view, the namespace narrows the board, the
-// runbook opens in the browser. No silences: read only. The folding is the engine's (alerts.fold),
-// so agents see what the user folded. Karma's layout is the model, not its look: no code, text or
+// runbook opens in the browser. A card's and a row's Silence open the silence form (silenceform.go,
+// D-166); the first line's Silenced link leads to the silences page (silences.go), which shows in
+// the board's place. The folding is the engine's (alerts.fold), so agents see what the user folded. Karma's layout is the model, not its look: no code, text or
 // asset of it (D-12).
 
 // maxCardAlerts bounds the rows a card shows with all shown: the rest are counted under it, for the
@@ -56,13 +57,16 @@ var alertSettingsSection = engine.IntegrationSection(engine.IntegrationAlertmana
 type alertBoard struct {
 	sh     *shell
 	shown  bool
+	page   string          // the page shown: engine.AlertBoard or engine.AlertSilences; "" while hidden
 	box    *fyne.Container // the state lines, the severities and the cards
 	cards  *fyne.Container // the cards, in the masonry
 	grid   *masonry
 	scroll *container.Scroll
 	root   *fyne.Container // the background and the scroll over the table's place
+	center *fyne.Container // the state box in the middle of the page, over the scroll (boardbox.go)
 	data   *engine.AlertBoardModel
-	ages   []alertAge // the since texts, refreshed by the shell's tick (refreshAges)
+	sdata  *engine.SilencesModel // the silences page's (silences.go)
+	ages   []alertAge            // the since texts, refreshed by the shell's tick (refreshAges)
 
 	// The card head the pointer is on, kept across a rebuild of the board, so that its copy icon
 	// stays shown (the owner's WF34: it showed late or not at all, a rebuilt head getting no
@@ -77,13 +81,27 @@ type alertBoard struct {
 type alertAge struct {
 	line  *textLine
 	since time.Time
+	// until: the time lies ahead ("ends in 2h"); prefix and suffix around the age (a silence's head).
+	until          bool
+	prefix, suffix string
+}
+
+// text is the age's text at now.
+func (a alertAge) text(now time.Time) string {
+	d := now.Sub(a.since)
+	if a.until {
+		d = -d
+	}
+	return a.prefix + model.FormatAge(d) + a.suffix
 }
 
 func newAlertBoard(sh *shell) *alertBoard {
 	b := &alertBoard{sh: sh, box: container.NewVBox(), grid: &masonry{min: alertCardMin, gap: alertCardGap}}
 	b.cards = box(b.grid)
 	b.scroll = newVScroll(inset(theme.SizeNameInnerPadding, theme.SizeNamePadding, b.box))
-	b.root = container.New(boardRoot{b}, newSurface(theme.ColorNameBackground), b.scroll)
+	b.center = container.NewCenter()
+	b.center.Hide()
+	b.root = container.New(boardRoot{b}, newSurface(theme.ColorNameBackground), b.scroll, b.center)
 	b.root.Hide()
 	return b
 }
@@ -111,19 +129,21 @@ func (l boardRoot) MinSize(objs []fyne.CanvasObject) fyne.Size {
 	return ms
 }
 
-// setShown shows the board over the table while its page is open.
-func (b *alertBoard) setShown(on bool) {
-	if on == b.shown {
+// setShown shows the board, or the silences page, over the table while its page is open ("": none).
+func (b *alertBoard) setShown(page string) {
+	if page == b.page {
 		return
 	}
-	b.shown = on
-	if on {
+	b.page, b.shown = page, page != ""
+	b.data, b.sdata, b.ages = nil, nil, nil
+	b.box.Objects, b.cards.Objects = nil, nil
+	b.setCenter(nil)
+	if b.shown {
 		b.root.Show()
+		b.box.Refresh()
 		return
 	}
 	b.root.Hide()
-	b.data, b.ages = nil, nil
-	b.box.Objects, b.cards.Objects = nil, nil
 }
 
 // request reads the board off the main goroutine and shows it; requests made while one is in
@@ -144,6 +164,10 @@ func (b *alertBoard) request() {
 			break
 		}
 	}
+	if b.page == engine.AlertSilences {
+		b.requestSilences(func() bool { return b.requests.Swap(0) == 2 })
+		return
+	}
 	b.sh.dispatch("alerts.board", struct{}{}, func(res any, err error) {
 		again := b.requests.Swap(0) == 2
 		var m engine.AlertBoardModel
@@ -153,10 +177,10 @@ func (b *alertBoard) request() {
 		case decode(res, &m) != nil:
 			return
 		}
-		if b.shown {
+		if b.page == engine.AlertBoard {
 			b.show(&m)
 		}
-		if again && b.shown {
+		if again && b.page == engine.AlertBoard {
 			b.request()
 		}
 	})
@@ -164,7 +188,10 @@ func (b *alertBoard) request() {
 
 // countText is the header's count: "24 items", "4 of 24 items"; "" while the board has no answer.
 func (b *alertBoard) countText() string {
-	if !b.shown || b.data == nil || b.data.AsOf.IsZero() {
+	if b.page == engine.AlertSilences && b.sdata != nil && !b.sdata.AsOf.IsZero() {
+		return itemCount(b.sdata.Matched, b.sdata.Total)
+	}
+	if b.page != engine.AlertBoard || b.data == nil || b.data.AsOf.IsZero() {
 		return ""
 	}
 	return itemCount(b.data.Matched, b.data.Total)
@@ -174,7 +201,7 @@ func (b *alertBoard) countText() string {
 func (b *alertBoard) refreshAges() {
 	now := b.sh.now()
 	for _, a := range b.ages {
-		a.line.SetText(model.FormatAge(now.Sub(a.since)))
+		a.line.SetText(a.text(now))
 	}
 }
 
@@ -189,14 +216,7 @@ func (b *alertBoard) show(m *engine.AlertBoardModel) {
 	b.data, b.ages = m, nil
 	var objs []fyne.CanvasObject
 	objs = append(objs, b.stateLines(m)...)
-	if !m.AsOf.IsZero() && len(m.Groups) == 0 {
-		text := "No active alerts."
-		if m.Total > 0 {
-			text = "No alerts match the filter."
-		}
-		objs = append(objs, container.NewCenter(inset("", theme.SizeNameInnerPadding,
-			newTextLine(text, colorMuted, theme.SizeNameText, fyne.TextStyle{}))))
-	}
+	b.setCenter(b.boardState(m))
 	if line := b.severities(m); line != nil {
 		objs = append(objs, line)
 	}
@@ -230,32 +250,11 @@ func sameBoard(a, b *engine.AlertBoardModel) bool {
 	return reflect.DeepEqual(x, y)
 }
 
-// stateLines say what the board shows while the Alertmanager does not answer, or answered more
-// than Cogpit keeps: nothing while all is well.
+// stateLines say, above the cards, that they are an older answer's or not all of Alertmanager's:
+// nothing while all is well. What the board says instead of cards is boardState's.
 func (b *alertBoard) stateLines(m *engine.AlertBoardModel) []fyne.CanvasObject {
 	var out []fyne.CanvasObject
-	wrapped := func(text string) *widget.Label {
-		l := widget.NewLabel(text)
-		l.Wrapping = fyne.TextWrapWord
-		return l
-	}
-	setAddress := newPlateButton("Set Its Address…", nil, func() {
-		b.sh.dispatch("cluster.settings.open", clusterSettingsOpenParams{Context: b.sh.ui.Context, Section: alertSettingsSection}, nil)
-	})
-	switch {
-	case m.State == "": // the board's command refused: the integration off, no cluster
-		out = append(out, wrapped(m.Detail))
-	case m.AsOf.IsZero() && m.State == engine.AlertsChecking:
-		out = append(out, newTextLine("Looking for the cluster's Alertmanager…", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
-	case m.AsOf.IsZero() && m.State == engine.AlertsNotFound:
-		out = append(out, wrapped("No Alertmanager found in this cluster. Cogpit looks for the services that "+
-			"kube-prometheus-stack, kube-prometheus, the Prometheus Operator and the alertmanager chart create; set its "+
-			"address when it runs under another name."), container.NewHBox(setAddress))
-	case m.AsOf.IsZero() && m.State == engine.AlertsForbidden:
-		out = append(out, wrapped(m.Detail))
-	case m.AsOf.IsZero():
-		out = append(out, wrapped(m.Detail), container.NewHBox(setAddress))
-	case !m.FailingSince.IsZero():
+	if !m.AsOf.IsZero() && !m.FailingSince.IsZero() {
 		line := newTextLine("Alertmanager does not answer since "+b.sh.timeFormat().FormatClock(m.FailingSince)+
 			": the alerts of its last answer.", colorStatusWarning, theme.SizeNameText, fyne.TextStyle{})
 		line.truncate = true
@@ -266,6 +265,67 @@ func (b *alertBoard) stateLines(m *engine.AlertBoardModel) []fyne.CanvasObject {
 			formatCount(int64(m.Total))+" are counted.", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
 	}
 	return out
+}
+
+// boardState is the box the board shows in its middle instead of cards (boardbox.go): why there is
+// no answer (none found, with Set Its Address…; not allowed; not answering), or why no card shows:
+// no alert fires (a cup, and how many are silenced), none in the namespaces chosen (Remove
+// Namespace Filter), none the search keeps (Clear Search). Nil while there are cards.
+func (b *alertBoard) boardState(m *engine.AlertBoardModel) fyne.CanvasObject {
+	fg := theme.ColorNameForeground
+	setAddress := func() fyne.CanvasObject {
+		return newPlateButton("Set Its Address…", nil, func() {
+			b.sh.dispatch("cluster.settings.open", clusterSettingsOpenParams{Context: b.sh.ui.Context, Section: alertSettingsSection}, nil)
+		})
+	}
+	switch {
+	case m.State == "": // the board's command refused: the integration off, no cluster
+		return boardBox(nil, m.Detail, fg)
+	case m.AsOf.IsZero() && m.State == engine.AlertsChecking:
+		return boardBox(nil, "Looking for the cluster's Alertmanager…", colorMuted)
+	case m.AsOf.IsZero() && m.State == engine.AlertsNotFound:
+		return boardBox(nil, "No Alertmanager found in this cluster. Cogpit looks for the services that kube-prometheus-stack, "+
+			"kube-prometheus, the Prometheus Operator and the alertmanager chart create; set its address when it runs "+
+			"under another name.", fg, setAddress())
+	case m.AsOf.IsZero() && m.State == engine.AlertsForbidden:
+		return boardBox(nil, m.Detail, fg)
+	case m.AsOf.IsZero():
+		return boardBox(nil, m.Detail, fg, setAddress())
+	case len(m.Groups) > 0:
+		return nil
+	case m.Total == 0:
+		text := "Somebody did a great job servicing this cluster: no alert needs your attention right now. Enjoy your coffee."
+		if m.Muted == 0 {
+			return boardBox(iconCoffee, text, fg)
+		}
+		text += " " + alertCount(m.Muted) + " silenced."
+		return boardBox(iconCoffee, text, fg, newPlateButton("Show Silences", nil, func() {
+			b.sh.dispatch("alerts.openSilences", struct{}{}, nil)
+		}))
+	case len(m.Namespaces) > 0:
+		where := "namespace " + m.Namespaces[0]
+		if len(m.Namespaces) > 1 {
+			where = "these " + strconv.Itoa(len(m.Namespaces)) + " namespaces"
+		}
+		return boardBox(nil, "No alerts in "+where+", but "+alertCount(m.Total)+" in the whole cluster.", fg,
+			newPlateButton("Remove Namespace Filter", nil, func() {
+				b.sh.dispatch("ui.setNamespace", namespacesParams{Namespaces: []string{}}, nil)
+			}))
+	}
+	return boardBox(nil, "No alert matches the search, but "+alertCount(m.Total)+" fire in the cluster.", fg,
+		newPlateButton("Clear Search", nil, func() { b.sh.dispatch("ui.setFilter", filterParams{}, nil) }))
+}
+
+// setCenter shows box in the middle of the page, over the scroll; nil hides it.
+func (b *alertBoard) setCenter(box fyne.CanvasObject) {
+	if box == nil {
+		b.center.Objects = nil
+		b.center.Hide()
+		return
+	}
+	b.center.Objects = []fyne.CanvasObject{box}
+	b.center.Show()
+	b.center.Refresh()
 }
 
 // fold dispatches a fold of the board (alerts.fold): a group's or card's (engine.FoldCard), a card's
@@ -326,9 +386,10 @@ func alertTone(g engine.AlertGroup) fyne.ThemeColorName {
 // severities is the board's first line (Dark Cockpit's overview made a line): a chip per severity
 // with alerts, worst first, its dot in the severity's colour and its count; a click folds its cards
 // away, the chip then hollow and muted. At its right why the cards have no history, when they have
-// none. Nil without alerts.
+// none, and the link to the silences page with how many alerts are silenced (D-166). Nil before
+// the Alertmanager answered.
 func (b *alertBoard) severities(m *engine.AlertBoardModel) fyne.CanvasObject {
-	if len(m.Groups) == 0 {
+	if m.AsOf.IsZero() {
 		return nil
 	}
 	var chips []fyne.CanvasObject
@@ -348,11 +409,17 @@ func (b *alertBoard) severities(m *engine.AlertBoardModel) fyne.CanvasObject {
 			newTextLine(strconv.Itoa(g.Count), colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 		chips = append(chips, newAlertTap(b.sh, row, func() { b.fold(g.Key, !g.Folded, engine.FoldCard) }, tip))
 	}
-	var note fyne.CanvasObject
+	var right []fyne.CanvasObject
 	if m.HistoryNote != "" {
-		note = container.NewCenter(newTextLine("No history: "+m.HistoryNote, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{}))
+		right = append(right, container.NewCenter(newTextLine("No history: "+m.HistoryNote, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})))
 	}
-	line := container.NewBorder(nil, nil, box(layout.NewCustomPaddedHBoxLayout(18), chips...), note)
+	silences := "Silences"
+	if m.Muted > 0 {
+		silences = strconv.Itoa(m.Muted) + " silenced"
+	}
+	right = append(right, container.NewCenter(boardLink(silences, func() { b.sh.dispatch("alerts.openSilences", struct{}{}, nil) })))
+	line := container.NewBorder(nil, nil, box(layout.NewCustomPaddedHBoxLayout(18), chips...),
+		container.New(layout.NewCustomPaddedHBoxLayout(12), right...))
 	return inset("", theme.SizeNamePadding, line)
 }
 
@@ -437,6 +504,8 @@ func (b *alertBoard) infoLine(c engine.AlertCard) fyne.CanvasObject {
 	if h := historySummary(c.History); h != "" {
 		units = append(units, caption(h))
 	}
+	key := c.Key
+	right = append(right, boardLink("Silence", func() { b.sh.openSilenceForm(key, "") }))
 	if len(c.Description) > 0 {
 		label := "Details"
 		if c.Expanded {
@@ -620,7 +689,7 @@ func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
 			runbook := it.Runbook
 			end = append(end, boardLink("Runbook", func() { b.openRunbook(runbook) }))
 		}
-		end = append(end, b.age(it.Since))
+		end = append(end, b.age(it.Since), b.silenceIcon(it.Fingerprint))
 		cells = append(cells, container.New(layout.NewCustomPaddedHBoxLayout(8), end...))
 		rows = append(rows, box(gridRow{g}, cells...))
 		if it.Message != "" {
@@ -643,6 +712,12 @@ func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
 		rows = append(rows, container.New(layout.NewCustomPaddedHBoxLayout(12), more...))
 	}
 	return box(layout.NewCustomPaddedVBoxLayout(2), rows...)
+}
+
+// silenceIcon is a row's Silence: the silence form for that one alert (D-166).
+func (b *alertBoard) silenceIcon(fingerprint string) fyne.CanvasObject {
+	btn := newBareTipButton(b.sh, theme.VolumeMuteIcon(), "Silence this alert", func() { b.sh.openSilenceForm("", fingerprint) })
+	return btn
 }
 
 // cell is a row's cell of a column: the object as a link into its view (text when the cluster

@@ -442,6 +442,9 @@ func (u *UIState) openTab(view string, sort SortSpec, fixed bool) {
 		u.showInPreview(view)
 	}
 	u.View, u.Sort, u.Filter = view, sort, ""
+	if view == AlertBoard { // the whole cluster's, as the pill counts it (D-77): opened afresh without a namespace filter
+		u.Namespaces = nil
+	}
 	u.SetStates(nil) // opened afresh: no status filter, the active tab's own view too (statusfilter.go)
 	u.Selected, u.Drawer = slices.Clone(u.Tabs[u.activeIndex()].Selected), nil
 }
@@ -604,6 +607,18 @@ func (s *Session) OpenTab(view string, fixed bool) UIState {
 	s.noteKindTitle(view)
 	sort := s.ViewSort(view)
 	return s.DropGoneSelected(context.Background(), s.UpdateUI(func(u *UIState) { u.openTab(view, sort, fixed) }))
+}
+
+// OpenAlertBoard shows the alert board of the connected cluster (alerts.open, the title bar's pill)
+// as OpenTab does, and always without a namespace filter, also in a fixed tab that shows it already:
+// the board is the whole cluster's, as the pill counts it (D-77). Back (⌘[) returns to the view
+// before with its namespaces.
+func (s *Session) OpenAlertBoard() UIState {
+	sort := s.ViewSort(AlertBoard)
+	return s.DropGoneSelected(context.Background(), s.UpdateUI(func(u *UIState) {
+		u.openTab(AlertBoard, sort, false)
+		u.Namespaces = nil
+	}))
 }
 
 // SelectTab activates a tab. A tab of the connected cluster shows at once; a tab of another

@@ -36,6 +36,9 @@ type AlertBoardModel struct {
 	Total     int  `json:"total"`
 	Matched   int  `json:"matched"`
 	Truncated bool `json:"truncated,omitempty"`
+	// Muted counts the alerts silenced now, which the board leaves out (the silences page lists
+	// them by silence, D-166).
+	Muted int `json:"muted,omitempty"`
 	// Filter, FilterError and Namespaces are the board's search and namespace filter (the UI
 	// state's).
 	Filter      string   `json:"filter,omitempty"`
@@ -253,7 +256,7 @@ func (s *Session) AlertBoard(contextID string) (AlertBoardModel, error) {
 	}
 	m, ferr := NewRowMatcher(text, u.FilterOptions)
 	out := AlertBoardModel{Context: b.Context, State: AlertsState(snap.State), Detail: snap.Error, AsOf: snap.AsOf,
-		FailingSince: snap.FailingSince, Total: snap.Total, Truncated: snap.Truncated, Filter: u.Filter,
+		FailingSince: snap.FailingSince, Total: snap.Total, Truncated: snap.Truncated, Muted: snap.MutedTotal, Filter: u.Filter,
 		Namespaces: slices.Clone(u.Namespaces), Groups: []AlertGroup{}}
 	if ferr != nil {
 		out.FilterError = ferr.Error()

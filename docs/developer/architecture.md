@@ -2129,11 +2129,17 @@ through the API server's service proxy on the connection's counted clients
 - **Poller** ([`poller.go`](../../internal/alerting/poller.go)): one per backend while the
   integration is on (`Backend.alerts`, run by `followAlertmanager`), active only while its cluster
   is shown and connected ([D-69](decisions.md#d-69-several-clusters-connected-at-once)).
-  `GET /api/v2/alerts?active=true&silenced=false&inhibited=false` every 30 s, failures backing off
+  `GET /api/v2/alerts?active=true&silenced=true&inhibited=false` every 30 s (the silenced alerts
+  kept apart in `Snapshot.Muted`), and `GET /api/v2/silences` with each poll while the silences
+  page is shown (`SetSilences`, [D-166](decisions.md#d-166-alertmanager-silences-listed-created-expired)), failures backing off
   to 5 minutes, the last answer kept for 5 minutes of failures; with nothing found, detection reads
   the cache again every 5 minutes. Bounds: 15 s a request, 16 MiB an answer, 10,000 alerts, 4 KiB an
   annotation, 64 labels of 1 KiB; `Classify` drops severity `none`, Watchdog and InfoInhibitor. An
-  error text is the API server's message or the failure's class, never the service's answer. A poll
+  error text is the API server's message or the failure's class, never the service's answer.
+  `CreateSilence` (`POST /api/v2/silences`) and `ExpireSilence` (`DELETE /api/v2/silence/<id>`) go to
+  the Alertmanager that answered last through the core REST client's service proxy path
+  (`create`, `delete services/proxy`), validate first and start a poll at once; their `RequestError`
+  names method, URL and Alertmanager and quotes one line of the answer. A poll
   recovers from a panic on the poller's goroutine; `Stop` does not wait, since the engine stops a
   poller while holding locks its `OnChange` may wait for; `Close` waits.
 - **Engine** ([`alerts.go`](../../internal/engine/alerts.go)): `OnChange` stores the snapshot in
@@ -2144,7 +2150,9 @@ through the API server's service proxy on the connection's counted clients
   without a request ([`alerts_board.go`](../../internal/engine/alerts_board.go)); a card's text,
   columns and shared objects are `finishCard`'s
   ([`alerts_card.go`](../../internal/engine/alerts_card.go)), the pods' controllers peeked from the
-  cache ([`alerts_owner.go`](../../internal/engine/alerts_owner.go)).
+  cache ([`alerts_owner.go`](../../internal/engine/alerts_owner.go)). The silences page, the
+  silence drafts and their matches, and the writes are
+  [`alerts_silences.go`](../../internal/engine/alerts_silences.go)'s, from the same snapshot.
 - **History** ([`alerts_history.go`](../../internal/engine/alerts_history.go),
   [D-138](decisions.md#d-138-the-alert-boards-cards)): a second poller per backend
   (`Backend.history`, run by `followAlertHistory`), active only while the board is the shown view of
