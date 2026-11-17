@@ -1467,7 +1467,8 @@ reads the cluster's Alertmanager
     24 h", "flapping"), **Details** (the description) and **Runbook**; in a narrow column it wraps,
     the two links at its right end; **Silence** opens the [silence form](#silences) for the card;
   - a table of its alerts: only the columns that tell them apart (namespace, object, container, the
-    labels that differ, a number from the text) and how long each fires; ten rows, then **Show
+    labels that differ, a number from the text, numbers right-aligned beside since when) and how
+    long each fires; ten rows, then **Show
     all**. An alert whose text differs from the card's has it under its row; the speaker at a row's
     end silences that one alert.
 

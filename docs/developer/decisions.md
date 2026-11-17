@@ -5621,7 +5621,10 @@ cards; what the user sees: [usage](usage.md#alerts-the-pill-and-the-alert-board)
   scraped exporter's pod and container, the scrape target's instance beside an object, a label that
   repeats the namespace or the object's name. `exported_<label>` stands for `<label>`. A scraped
   exporter's namespace is not shown (the search and the namespace filter still find the alert in
-  it). Ten rows, Show all up to 50 (`alerts.fold` with `rows`), then the search.
+  it). Ten rows, Show all up to 50 (`alerts.fold` with `rows`), then the search. Each column is as
+  wide as its widest cell; a column of numbers (a value column, a label of only numbers:
+  `AlertColumn.Number`) stands right-aligned, and where numbers end the row the card's free width
+  goes to the text column before them, so they stand beside since when (the owner).
 - **Links:** the object opens in its view; the namespace narrows the board; the object that controls
   the alerts' pods, when all share one (a ReplicaSet's Deployment, a CloudNativePG Cluster), opens
   in its view, read from the pods and ReplicaSets the cache holds (`cache.Peek`, no watch of its

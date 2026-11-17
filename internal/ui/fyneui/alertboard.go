@@ -644,7 +644,15 @@ func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
 		limit = min(len(c.Alerts), maxCardAlerts)
 	}
 	shown := c.Alerts[:limit]
-	g := &tableGrid{natural: make([]float32, len(c.Columns)+1), gap: 10}
+	g := &tableGrid{natural: make([]float32, len(c.Columns)+1), gap: 10, grow: len(c.Columns)}
+	if len(c.Columns) > 0 && c.Columns[len(c.Columns)-1].Number { // the numbers beside since when
+		g.grow = 0
+		for i, col := range c.Columns {
+			if !col.Number {
+				g.grow = i
+			}
+		}
+	}
 	measure := func(i int, text string, size float32) {
 		g.natural[i] = max(g.natural[i], fyne.MeasureText(text, size, fyne.TextStyle{}).Width+2)
 	}
@@ -661,13 +669,19 @@ func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
 			measure(i, it.Values[col.Key], size)
 		}
 	}
+	// The last column, since when (a runbook where the card has none) and the row's Silence, as
+	// wide as its widest row's.
 	last := len(c.Columns)
-	for _, it := range shown {
-		w := fyne.MeasureText(model.FormatAge(b.sh.now().Sub(it.Since)), capSize, fyne.TextStyle{}).Width + 2
+	ends := make([]fyne.CanvasObject, len(shown))
+	for i, it := range shown {
+		end := []fyne.CanvasObject{layout.NewSpacer()}
 		if c.Runbook == "" && it.Runbook != "" {
-			w += fyne.MeasureText("Runbook", capSize, fyne.TextStyle{}).Width + 10
+			runbook := it.Runbook
+			end = append(end, boardLink("Runbook", func() { b.openRunbook(runbook) }))
 		}
-		g.natural[last] = max(g.natural[last], w, 30)
+		end = append(end, b.age(it.Since), b.silenceIcon(it.Fingerprint))
+		ends[i] = container.New(layout.NewCustomPaddedHBoxLayout(8), end...)
+		g.natural[last] = max(g.natural[last], ends[i].MinSize().Width, 30)
 	}
 	var rows []fyne.CanvasObject
 	if header {
@@ -675,22 +689,19 @@ func (b *alertBoard) table(c engine.AlertCard) fyne.CanvasObject {
 		for _, col := range c.Columns {
 			l := newTextLine(col.Title, colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{})
 			l.truncate = true
+			if col.Number {
+				l.align = fyne.TextAlignTrailing
+			}
 			cells = append(cells, l)
 		}
 		rows = append(rows, box(gridRow{g}, append(cells, layout.NewSpacer())...))
 	}
-	for _, it := range shown {
+	for i, it := range shown {
 		cells := make([]fyne.CanvasObject, 0, len(c.Columns)+1)
 		for _, col := range c.Columns {
 			cells = append(cells, b.cell(col, it))
 		}
-		end := []fyne.CanvasObject{layout.NewSpacer()}
-		if c.Runbook == "" && it.Runbook != "" {
-			runbook := it.Runbook
-			end = append(end, boardLink("Runbook", func() { b.openRunbook(runbook) }))
-		}
-		end = append(end, b.age(it.Since), b.silenceIcon(it.Fingerprint))
-		cells = append(cells, container.New(layout.NewCustomPaddedHBoxLayout(8), end...))
+		cells = append(cells, ends[i])
 		rows = append(rows, box(gridRow{g}, cells...))
 		if it.Message != "" {
 			rows = append(rows, b.ownText(it.Message))
@@ -736,6 +747,10 @@ func (b *alertBoard) cell(col engine.AlertColumn, it engine.AlertItem) fyne.Canv
 		if v != "" {
 			return b.namespaceLink(v, theme.SizeNameCaptionText)
 		}
+	}
+	if col.Number { // right-aligned, as a spreadsheet's numbers; short, so never cut
+		l := newTextLine(v, theme.ColorNameForeground, theme.SizeNameText, fyne.TextStyle{})
+		return container.NewBorder(nil, nil, nil, newSelLine(l, nil, b.copySelection))
 	}
 	return b.valueCell(v, theme.SizeNameText)
 }

@@ -174,6 +174,9 @@ type AlertColumn struct {
 	// Link says what a cell links to: ColumnObject the row's subject, ColumnNamespace its
 	// namespace; "" for text.
 	Link string `json:"link,omitempty"`
+	// Number marks a column of numbers: a number the texts hold, or a label all of whose values
+	// are numbers. The board sets it right-aligned (the owner, 2026-11-17).
+	Number bool `json:"number,omitempty"`
 }
 
 // The links of a column (AlertColumn.Link).
