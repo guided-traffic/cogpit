@@ -45,8 +45,8 @@ func boardBox(icon fyne.Resource, text string, tone fyne.ThemeColorName, buttons
 	for _, line := range wrapLines(text, inner, th.Size(theme.SizeNameText), fyne.TextStyle{}) {
 		rows = append(rows, container.NewCenter(newTextLine(line, tone, theme.SizeNameText, fyne.TextStyle{})))
 	}
-	if len(buttons) > 0 {
-		rows = append(rows, container.NewBorder(nil, nil, nil, container.NewHBox(buttons...)))
+	if len(buttons) > 0 { // a paragraph's space between the text and the buttons (the owner)
+		rows = append(rows, gapOf(th.Size(theme.SizeNameText)), container.NewBorder(nil, nil, nil, container.NewHBox(buttons...)))
 	}
 	body := container.New(textWidth{w: inner}, box(layout.NewCustomPaddedVBoxLayout(6), rows...))
 	bg := newSurface(colorSidebar)
