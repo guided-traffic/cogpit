@@ -207,6 +207,10 @@ type Preferences struct {
 	// power, MinZoomLevel to MaxZoomLevel; 0, the default, is 100%. Agents and the CLI may set it
 	// either way: it changes only how large the window draws.
 	ZoomLevel int `json:"zoomLevel,omitempty"`
+	// SilenceAuthor is the author the silence form fills in (D-166, alerts_silences.go): the one the
+	// user last created a silence with in the window; empty: the computer's user's name. Only the
+	// window's own silence sets it.
+	SilenceAuthor string `json:"silenceAuthor,omitempty"`
 }
 
 // DefaultPreferences are the preferences of a first start: the theme follows the computer's

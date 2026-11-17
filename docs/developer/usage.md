@@ -1435,8 +1435,8 @@ reads the cluster's Alertmanager
 - **Source:** a Service named as kube-prometheus-stack, kube-prometheus, the Prometheus Operator,
   VictoriaMetrics' operator or the alertmanager chart name theirs
   (`monitoring/kube-prometheus-alertmanager` # example), asked through the API server's service
-  proxy every 30 s while the cluster is shown, for the firing alerts neither silenced nor inhibited.
-  Your user needs `get services/proxy` on it. For another name, set **Service address**
+  proxy every 30 s while the cluster is shown, for the firing alerts that are not inhibited; the
+  silenced ones are counted apart, not shown. Your user needs `get services/proxy` on it. For another name, set **Service address**
   (`namespace/service:port`; empty: found by name), **Use HTTPS** and **Path prefix** in Cluster
   Settings › Alertmanager; the line under the address names the one in use.
 - **The pill,** left of the bell, hidden while the integration is off. Severity `none`, Watchdog and
@@ -1451,8 +1451,10 @@ reads the cluster's Alertmanager
 | grey `warn` | nothing answers: none found, not allowed, not answering (the tooltip says which) |
 | grey `–` | still looking for it |
 
-- **The board** (a click on the pill, or Alerts in the palette, ⌘⇧P): a line of the severities with
-  their counts (a click hides or shows that severity's cards), then cards in as many columns as the
+- **The board** (a click on the pill, or Alerts in the palette, ⌘⇧P) opens without a namespace
+  filter, as the pill counts the whole cluster; ⌘[ goes back to the view before with its namespaces.
+  A line of the severities with their counts (a click hides or shows that severity's cards; at its
+  right **N silenced**, the link to the [silences](#silences)), then cards in as many columns as the
   window holds, the worst severity first
   ([D-138](decisions.md#d-138-the-alert-boards-cards)). A card is one alert name:
   - its head in the severity's colour (a click folds the card; a copy icon after the name on hover)
@@ -1463,15 +1465,43 @@ reads the cluster's Alertmanager
   - a line with what all its alerts share (the namespace, a click narrows the board; the object or
     the workload that controls their pods, a click opens it), the history in words ("fired 7× in
     24 h", "flapping"), **Details** (the description) and **Runbook**; in a narrow column it wraps,
-    the two links at its right end;
+    the two links at its right end; **Silence** opens the [silence form](#silences) for the card;
   - a table of its alerts: only the columns that tell them apart (namespace, object, container, the
-    labels that differ, a number from the text) and how long each fires; ten rows, then **Show
-    all**. An alert whose text differs from the card's has it under its row.
+    labels that differ, a number from the text, numbers right-aligned beside since when) and how
+    long each fires; ten rows, then **Show
+    all**. An alert whose text differs from the card's has it under its row; the speaker at a row's
+    end silences that one alert.
 
   The history needs the Prometheus integration and a Prometheus that evaluates the rules (2 requests
   every 5 minutes while the board is shown); without one the line of severities says why. Search
-  and namespace filter work as in the lists; the settings link opens Cluster Settings ›
-  Alertmanager. Nothing on the board changes Alertmanager: silences stay in its own UI.
+  and namespace filter work as in the lists. Where no card shows, a box in the middle says why and
+  what to do: no Alertmanager found (**Set Its Address…** opens Cluster Settings › Alertmanager);
+  not allowed or not answering; no alert firing (a cup, and **Show Silences** while some are
+  silenced); none in the chosen namespaces, with the cluster's count (**Remove Namespace Filter**);
+  none the search keeps (**Clear Search**).
+
+### Silences
+
+Silences of the shown cluster's Alertmanager, made, listed and ended in Cogpit
+([D-166](decisions.md#d-166-alertmanager-silences-listed-created-expired)). A silenced alert sends no
+notification and is neither on the board nor in the pill.
+
+- **Silence** (on a card, or the speaker on a row) opens a form: the Alertmanager it goes to, the
+  matchers (label, `=` `!=` `=~` `!~`, value; **Add Matcher**, − removes one), **For** (1h … 1w, or
+  typed: `30m`, `1d12h`; 2h first) with its end, **Author** (the last one you used, first your
+  computer's user name), **Comment** (required, Alertmanager shows it to everyone) and **Mutes**: what
+  the matchers mute now, critical ones in red. A card fills in its alertname, the namespace and the
+  object its alerts are about where they share them; a row the same for its alert. **Silence**
+  creates it at once; a refusal stays in the form with the request and the answer.
+- **The silences page** (**N silenced** on the board, or Silences in the palette): a card per
+  silence, Active, Pending and Expired (Expired folded at first; a click on a chip folds or unfolds),
+  each with its matchers, when it ends (starts, ended), the comment, author and times, the alerts it
+  mutes now as links, its id (selectable) and **Expire**, which asks first. Search works as on the
+  board; **Alert Board** goes back.
+- **Permissions:** creating needs `create services/proxy`, expiring `delete services/proxy` on the
+  Alertmanager's Service; without them the API server's refusal shows.
+- **Agents** read `alerts_silences`, `alerts_silenceDraft`, `alerts_silenceMatches`; an agent's
+  `alerts_silence` and `alerts_expireSilence` always wait for your answer.
 
 ### Kyverno's policy violations
 

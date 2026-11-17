@@ -84,24 +84,29 @@ func registerAlerts(g *registrar) {
 	add(g, engine.Spec[struct{}]{
 		ID: "alerts.open", Label: "Alerts", MenuPath: "View/Alerts", Danger: engine.DangerUI,
 		Description: "Shows the alert board of the cluster the window shows, as a click on the title bar's alerts pill " +
-			"does: in the preview tab, as ui_openView with view alerts/board. Returns the new UI state.",
+			"does: in the preview tab, as ui_openView with view alerts/board, without a namespace filter (the board is " +
+			"the whole cluster's, as the pill counts it). Returns the new UI state.",
 		Enabled: func(s *engine.Session, _ struct{}) error { return ready(s, "") },
 		Run: func(_ context.Context, s *engine.Session, _ struct{}) (any, error) {
-			return s.OpenTab(engine.AlertBoard, false), nil
+			return s.OpenAlertBoard(), nil
 		},
 	})
 	add(g, engine.Spec[alertFoldParams]{
 		ID: "alerts.fold", Label: "Fold Alerts", Danger: engine.DangerUI,
 		Description: "Folds or unfolds a group (a severity) or a card (an alertname) of the alert board, shows or hides a " +
 			"card's description, or shows all of a card's rows or its first few, as a click on a severity chip, a card's " +
-			"head, its Details or its Show all does. The folding is the window's and stays for the session. Returns the " +
-			"new UI state (alertBoard).",
+			"head, its Details or its Show all does; or a group of the silences page (silences/active, silences/pending, " +
+			"silences/expired; the expired one starts folded), as a click on its chip does. The folding is the window's " +
+			"and stays for the session. Returns the new UI state (alertBoard).",
 		Run: func(_ context.Context, s *engine.Session, p alertFoldParams) (any, error) {
 			if strings.TrimSpace(p.Key) == "" {
 				return nil, fmt.Errorf("a key is needed: a group's or a card's")
 			}
 			if p.Description && p.Rows {
 				return nil, fmt.Errorf("description and rows: one fold at a time")
+			}
+			if key := strings.TrimSpace(p.Key); engine.IsSilenceGroup(key) && !p.Description && !p.Rows {
+				return s.UpdateUI(func(u *engine.UIState) { u.AlertBoard.SetSilenceGroupFolded(key, p.Folded) }), nil
 			}
 			fold := engine.FoldCard
 			switch {
@@ -118,7 +123,7 @@ func registerAlerts(g *registrar) {
 		Description: "Asks the cluster's Alertmanager for its alerts again at once instead of at the next poll (the " +
 			"shown cluster only: a cluster connected in the background is not polled). One GET through the API server's " +
 			"service proxy. Returns nothing; alerts_list reads the answer once it came.",
-		Verbs:   []engine.Verb{{Verb: "get", Resource: "services/proxy"}},
+		Verbs:   amGet,
 		Enabled: func(s *engine.Session, p engine.OnCluster) error { return ready(s, p.Context) },
 		Run: func(_ context.Context, s *engine.Session, p engine.OnCluster) (any, error) {
 			return nil, s.RefreshAlerts(p.Context)

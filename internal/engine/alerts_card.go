@@ -112,6 +112,10 @@ func finishCard(c *AlertCard, ownerOf func(AlertObject) *AlertObject) {
 	var own [2][]string
 	c.Summary, own[0] = cardText(summaries, values, keys, c)
 	c.Description, own[1] = cardText(descriptions, values, keys, c)
+	for i := range c.Columns {
+		col := &c.Columns[i]
+		col.Number = col.Link == "" && numbersIn(values, col.Key)
+	}
 	for i := range items {
 		it := &items[i]
 		it.Message, it.Detail = own[0][i], own[1][i]
@@ -558,6 +562,23 @@ func addValueColumns(c *AlertCard, values []map[string]string, nums [][]string, 
 		c.Columns = append(c.Columns, AlertColumn{Key: k, Title: "value"})
 	}
 	return true
+}
+
+// numbersIn reports whether every row's value of key is a number ("102.9", "-3", "1e6"); rows
+// without one do not count, and a column of none is no number column.
+func numbersIn(values []map[string]string, key string) bool {
+	seen := false
+	for _, v := range values {
+		x := strings.TrimSpace(v[key])
+		if x == "" {
+			continue
+		}
+		if _, err := strconv.ParseFloat(x, 64); err != nil {
+			return false
+		}
+		seen = true
+	}
+	return seen
 }
 
 // valueColumn begins the key of a number column: "value:1". A label's name has no colon, so it

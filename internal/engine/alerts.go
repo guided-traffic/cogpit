@@ -14,11 +14,12 @@ import (
 
 // The Alertmanager integration (D-77; I4 and I5 of the owner's ticket of 2026-10-17): Cogpit finds a
 // cluster's Alertmanager among its cached Services by its well-known names, or reads the address
-// the user set (alerts_settings.go), and asks it for the active alerts that are neither silenced
-// nor inhibited, one GET through the API server's service proxy every 30 seconds while the
-// integration is on and the cluster is shown and connected (package alerting). What it answered is
-// the title bar's pill (UIState.Alerts) and the alert board, a workspace page (AlertBoard,
-// alerts_board.go); agents read it with alerts.list. Alerts cannot be watched, so this is the one
+// the user set (alerts_settings.go), and asks it for the active alerts that are not inhibited, one
+// GET through the API server's service proxy every 30 seconds while the integration is on and the
+// cluster is shown and connected (package alerting). What it answered is the title bar's pill
+// (UIState.Alerts) and the alert board, a workspace page (AlertBoard, alerts_board.go), both
+// without the silenced alerts; agents read it with alerts.list. The silences page (AlertSilences,
+// alerts_silences.go, D-166) adds a GET of the silences to each poll while it is shown. Alerts cannot be watched, so this is the one
 // integration that polls; a cluster connected in the background (D-69) is not polled, and shows
 // the answer it had when it was last shown until it is shown again.
 //
@@ -290,7 +291,9 @@ func followAlertmanager(st *state, b *Backend, now UIState) {
 		}
 		p.SetAddress(b.MetricsSettings.Alertmanager(b.Context))
 	}
-	p.SetActive(now.Context == b.Context && now.connectionState(b.Context) == Connected)
+	shown := now.Context == b.Context && now.connectionState(b.Context) == Connected
+	p.SetActive(shown)
+	p.SetSilences(shown && now.View == AlertSilences) // the silences page asks for them with each poll (D-166)
 }
 
 // newAlertPoller makes a backend's poller: the cache's Services for detection, the connection's

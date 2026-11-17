@@ -161,19 +161,25 @@ func alertEngine(t *testing.T) *engine.Session {
 // alertEngineWith is alertEngine with the Alertmanager serving alerts, and the API server pods.
 func alertEngineWith(t *testing.T, alerts []testkit.FakeAlert, pods ...*unstructured.Unstructured) *engine.Session {
 	t.Helper()
+	am := &testkit.FakeAlertmanager{}
+	am.Set(alerts...)
+	return alertEngineAM(t, am, pods...)
+}
+
+// alertEngineAM is alertEngine with am as the Alertmanager, and the API server pods.
+func alertEngineAM(t *testing.T, am *testkit.FakeAlertmanager, pods ...*unstructured.Unstructured) *engine.Session {
+	t.Helper()
 	all := []testkit.FakeRule{{Verbs: []string{"*"}, APIGroups: []string{"*"}, Resources: []string{"*"}}}
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: &testkit.FakeAccess{Rules: map[string][]testkit.FakeRule{"": all}}})
 	t.Cleanup(srv.Close)
 	srv.Set(testkit.ServicesGVR, testkit.Object("v1", "Service", "monitoring", "kube-prometheus-alertmanager", map[string]any{
 		"spec": map[string]any{"ports": []any{map[string]any{"name": "http-web", "port": int64(9093)}}}}))
-	for _, ns := range []string{"monitoring", "shop", "flux-system", "payments", "search", "reports", "ingress", "rook-ceph", "velero", "iam", "orders"} {
+	for _, ns := range []string{"monitoring", "shop", "flux-system", "payments", "search", "reports", "ingress", "rook-ceph", "velero", "iam", "orders", "quiet"} {
 		srv.Set(testkit.NamespacesGVR, testkit.Namespace(ns))
 	}
 	for _, p := range pods {
 		srv.Set(testkit.PodsGVR, p)
 	}
-	am := &testkit.FakeAlertmanager{}
-	am.Set(alerts...)
 	srv.SetProxy("monitoring", "kube-prometheus-alertmanager:http-web", am)
 	s := newTestEngine(engine.Options{
 		Connector:        &engine.ClusterConnector{KubeconfigPaths: []string{srv.WriteKubeconfig(t, "staging", "default")}},

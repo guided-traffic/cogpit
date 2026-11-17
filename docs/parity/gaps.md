@@ -238,9 +238,7 @@ Helm's views and actions count in G6 and G7.
   ([H-121](../security/privilege-footprint.md#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents)).
 - **Not targets:** chart ranges beyond 30 days (Lens's Overview: 2 months); installing a metrics
   stack (Lens Metrics,
-  [D-61](../developer/decisions.md#d-61-cogpit-metrics-the-bundled-metrics-stack)); Alertmanager
-  silences, a write
-  ([D-77](../developer/decisions.md#d-77-alertmanager-the-alerts-pill-and-the-alert-board)).
+  [D-61](../developer/decisions.md#d-61-cogpit-metrics-the-bundled-metrics-stack)).
 - **Rows:** [ui-parity › Cluster overview and charts](ui-parity.md#cluster-overview-and-charts);
   [ui-parity › Cluster settings](ui-parity.md#cluster-settings), Metrics provider and Hide metrics
   from the UI.

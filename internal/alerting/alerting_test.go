@@ -68,11 +68,12 @@ func TestDecodeAlerts(t *testing.T) {
 		wireAlertOf("C", "none", at, nil),
 		wireAlertOf("D", "", at, nil),
 	)
-	alerts, total, truncated, err := decodeAlerts(body, 10)
-	if err != nil || total != 3 || truncated || len(alerts) != 3 {
-		t.Fatalf("decodeAlerts = %d alerts, total %d, truncated %v, %v", len(alerts), total, truncated, err)
+	d, err := decodeAlerts(body, 10)
+	alerts, total, truncated := d.alerts, d.total, d.truncated
+	if err != nil || total != 3 || truncated || len(alerts) != 3 || len(d.muted) != 0 {
+		t.Fatalf("decodeAlerts = %d alerts, total %d, truncated %v, %d muted, %v", len(alerts), total, truncated, len(d.muted), err)
 	}
-	a, b, d := alerts[0], alerts[1], alerts[2]
+	a, b, dd := alerts[0], alerts[1], alerts[2]
 	if a.Name != "A" || a.Severity != SeverityCritical || a.Summary != "s" || a.Description != "d" || a.Runbook != "https://r" ||
 		!a.StartsAt.Equal(at) || a.Labels["alertname"] != "A" || a.SeverityLabel != "critical" {
 		t.Errorf("A = %+v", a)
@@ -80,23 +81,47 @@ func TestDecodeAlerts(t *testing.T) {
 	if b.Severity != SeverityWarning || b.SeverityLabel != "major" || b.Description != "old style" || len(b.Summary) > maxText || !strings.HasPrefix(long, b.Summary) {
 		t.Errorf("B = %q %q, summary %d bytes", b.Severity, b.Description, len(b.Summary))
 	}
-	if d.Severity != SeverityWarning || d.SeverityLabel != "" {
-		t.Errorf("D without a severity = %+v", d)
+	if dd.Severity != SeverityWarning || dd.SeverityLabel != "" {
+		t.Errorf("D without a severity = %+v", dd)
 	}
 
 	// At most max kept; total counts them all.
-	alerts, total, truncated, _ = decodeAlerts(body, 2)
-	if len(alerts) != 2 || total != 3 || !truncated {
-		t.Errorf("bounded: %d alerts, total %d, truncated %v", len(alerts), total, truncated)
+	d, _ = decodeAlerts(body, 2)
+	if len(d.alerts) != 2 || d.total != 3 || !d.truncated {
+		t.Errorf("bounded: %d alerts, total %d, truncated %v", len(d.alerts), d.total, d.truncated)
 	}
 	// An empty list is an Alertmanager without alerts.
-	if alerts, total, _, err := decodeAlerts([]byte(`[]`), 10); err != nil || total != 0 || len(alerts) != 0 {
-		t.Errorf("empty: %v, %d, %v", alerts, total, err)
+	if d, err := decodeAlerts([]byte(`[]`), 10); err != nil || d.total != 0 || len(d.alerts) != 0 {
+		t.Errorf("empty: %v, %d, %v", d.alerts, d.total, err)
 	}
 	for _, other := range []string{`{"status":"success"}`, `[{"name":"x"}]`, `<html>`, `[1,2]`, `{"data":[]}`} {
-		if _, _, _, err := decodeAlerts([]byte(other), 10); err != errNotAlertmanager {
+		if _, err := decodeAlerts([]byte(other), 10); err != errNotAlertmanager {
 			t.Errorf("%s: %v, want errNotAlertmanager", other, err)
 		}
+	}
+}
+
+// The silenced alerts are apart (Snapshot.Muted): not shown, not counted in total, the meta alerts
+// among them kept (a silence of Watchdog mutes something), their silences' ids kept.
+func TestDecodeAlertsMuted(t *testing.T) {
+	at := time.Date(2026, 11, 17, 9, 0, 0, 0, time.UTC)
+	muted := func(name, severity string, ids ...string) map[string]any {
+		a := wireAlertOf(name, severity, at, nil)
+		a["status"] = map[string]any{"state": "suppressed", "silencedBy": ids, "inhibitedBy": []string{}}
+		return a
+	}
+	body := wire(t, wireAlertOf("A", "critical", at, nil), muted("B", "warning", "s-1"), muted("Watchdog", "none", "s-2", "s-3"))
+	d, err := decodeAlerts(body, 10)
+	if err != nil || d.total != 1 || len(d.alerts) != 1 || d.alerts[0].Name != "A" || len(d.alerts[0].SilencedBy) != 0 {
+		t.Fatalf("shown: %+v, %v", d, err)
+	}
+	if d.mutedTotal != 2 || len(d.muted) != 2 || d.muted[0].Name != "B" || d.muted[0].SilencedBy[0] != "s-1" ||
+		d.muted[1].Name != "Watchdog" || d.muted[1].Severity != "" || len(d.muted[1].SilencedBy) != 2 {
+		t.Errorf("muted: %+v", d.muted)
+	}
+	d, _ = decodeAlerts(body, 1)
+	if len(d.muted) != 1 || d.mutedTotal != 2 || len(d.alerts) != 1 {
+		t.Errorf("bounded muted: %d of %d", len(d.muted), d.mutedTotal)
 	}
 }
 

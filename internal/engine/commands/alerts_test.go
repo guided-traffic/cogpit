@@ -17,6 +17,13 @@ import (
 // serves testkit.SampleAlerts through the service proxy, connected, its first poll answered.
 func alertHarness(t *testing.T, confirm engine.Confirmer) *harness {
 	t.Helper()
+	h, _ := alertHarnessAM(t, confirm)
+	return h
+}
+
+// alertHarnessAM is alertHarness with its fake Alertmanager.
+func alertHarnessAM(t *testing.T, confirm engine.Confirmer) (*harness, *testkit.FakeAlertmanager) {
+	t.Helper()
 	all := []testkit.FakeRule{{Verbs: []string{"*"}, APIGroups: []string{"*"}, Resources: []string{"*"}}}
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Access: &testkit.FakeAccess{Rules: map[string][]testkit.FakeRule{"": all}}})
 	t.Cleanup(srv.Close)
@@ -49,7 +56,7 @@ func alertHarness(t *testing.T, confirm engine.Confirmer) *harness {
 		}
 		time.Sleep(5 * time.Millisecond)
 	}
-	return &harness{s: s}
+	return &harness{s: s}, am
 }
 
 // The alert commands as agents and the window use them: alerts.list and alerts.board read the

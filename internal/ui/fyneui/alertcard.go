@@ -524,6 +524,9 @@ func fadeColor(c color.Color, share float32) color.Color {
 type tableGrid struct {
 	natural []float32 // each column's widest cell
 	gap     float32
+	// grow is the column that takes the row's free width: the last text column before the
+	// numbers, which then stand right-aligned beside the last column (the owner, 2026-11-17).
+	grow int
 }
 
 // widths returns the columns' widths in a row of width w.
@@ -558,7 +561,10 @@ func (g *tableGrid) widths(w float32) []float32 {
 			sum *= k
 		}
 	}
-	out[n-1] = max(last, avail-sum)
+	out[n-1] = last
+	if free := avail - sum - last; free > 0 {
+		out[min(max(g.grow, 0), n-1)] += free
+	}
 	return out
 }
 

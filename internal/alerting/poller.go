@@ -2,10 +2,12 @@ package alerting
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"hash/fnv"
 	"log/slog"
+	"net/http"
 	"runtime/debug"
 	"slices"
 	"strings"
@@ -48,6 +50,18 @@ type Snapshot struct {
 	Alerts    []Alert
 	Total     int
 	Truncated bool
+	// Muted are the last answer's silenced alerts (whatever their severity: the meta alerts too), at
+	// most Options.MaxAlerts; MutedTotal counts them before that bound. Neither the pill nor the
+	// board shows them; the silences page tells each silence's (D-166).
+	Muted      []Alert
+	MutedTotal int
+	// Silences are the Alertmanager's silences as its last answer to the silences request listed
+	// them (SortSilences), asked while SetSilences is on; kept while it is off and while a later
+	// request fails. SilencesAsOf is when they came, zero before; SilencesError says why the last
+	// request failed ("" after an answer).
+	Silences      []Silence
+	SilencesAsOf  time.Time
+	SilencesError string
 	// AsOf is when the last answer came; zero before the first.
 	AsOf time.Time
 	// Error says why the poller is not reading (not found, forbidden, unavailable): the API
@@ -118,6 +132,7 @@ type Poller struct {
 	mu       sync.Mutex
 	addr     *Address
 	active   bool
+	silences bool // the silences are asked for with each poll (SetSilences)
 	snap     Snapshot
 	sig      uint64    // what the snapshot shows (signature), for OnChange
 	target   *Target   // the Alertmanager that answered last; nil: detect (or ask the address) again
@@ -242,6 +257,22 @@ func (p *Poller) SetActive(on bool) {
 	p.signal()
 }
 
+// SetSilences asks (true) or stops asking (false) for the silences with each poll: the silences page
+// is shown. Turned on, the next poll is due at once.
+func (p *Poller) SetSilences(on bool) {
+	p.mu.Lock()
+	if p.silences == on {
+		p.mu.Unlock()
+		return
+	}
+	p.silences = on
+	if on {
+		p.next = time.Time{}
+	}
+	p.mu.Unlock()
+	p.signal()
+}
+
 // Refresh makes the next poll due at once (while active).
 func (p *Poller) Refresh() {
 	p.mu.Lock()
@@ -345,7 +376,7 @@ func (p *Poller) run() {
 // next poll. A panic is recovered here, at the goroutine's boundary, and counts as a failure.
 func (p *Poller) poll() {
 	p.mu.Lock()
-	gen, addr, target := p.gen, p.addr, p.target
+	gen, addr, target, silences := p.gen, p.addr, p.target, p.silences
 	ctx, cancel := context.WithCancel(p.runCtx)
 	p.cancel = cancel
 	p.mu.Unlock()
@@ -360,6 +391,10 @@ func (p *Poller) poll() {
 			}
 		}()
 		res = p.ask(ctx, addr, target)
+		if res.target != nil && silences {
+			res.silencesAsked = true
+			res.silences, res.silencesErr = p.fetchSilences(ctx, *res.target)
+		}
 	}()
 	if ctx.Err() != nil && p.runCtx.Err() != nil {
 		return // closed
@@ -374,9 +409,16 @@ type result struct {
 	alerts    []Alert
 	total     int
 	truncated bool
+	muted     []Alert
+	mutedN    int
 	err       string
-	lost      bool // the target answered no more as an Alertmanager (or went away): detect again
-	notFound  bool // detection found none: look again after RetryMax
+	// silencesAsked: the silences were asked for after the alerts answered; silences is their
+	// answer, silencesErr why there is none.
+	silencesAsked bool
+	silences      []Silence
+	silencesErr   string
+	lost          bool // the target answered no more as an Alertmanager (or went away): detect again
+	notFound      bool // detection found none: look again after RetryMax
 }
 
 // ask runs one poll: the target that answered last, else the address, else the best candidates
@@ -424,10 +466,11 @@ func (p *Poller) ask(ctx context.Context, addr *Address, target *Target) result 
 	var refusedErr error
 	for _, spellings := range cands {
 		for _, t := range spellings {
-			alerts, total, truncated, err := p.fetch(ctx, t)
+			d, err := p.fetch(ctx, t)
 			if err == nil {
 				t := t
-				return result{state: found, target: &t, alerts: alerts, total: total, truncated: truncated}
+				return result{state: found, target: &t, alerts: d.alerts, total: d.total, truncated: d.truncated,
+					muted: d.muted, mutedN: d.mutedTotal}
 			}
 			if ctx.Err() != nil {
 				return result{state: StateUnavailable, err: "the request was cancelled"}
@@ -460,14 +503,29 @@ func (p *Poller) ask(ctx context.Context, addr *Address, target *Target) result 
 }
 
 // fetch sends the alerts request to t and reads the answer.
-func (p *Poller) fetch(ctx context.Context, t Target) ([]Alert, int, bool, error) {
+func (p *Poller) fetch(ctx context.Context, t Target) (decoded, error) {
 	ctx, cancel := context.WithTimeout(ctx, p.opts.Timeout)
 	defer cancel()
 	body, err := p.px.get(ctx, t, alertsPath, alertsParams, p.opts.MaxBytes)
 	if err != nil {
-		return nil, 0, false, err
+		return decoded{}, err
 	}
 	return decodeAlerts(body, p.opts.MaxAlerts)
+}
+
+// fetchSilences sends the silences request to t and reads the answer; a failure is its class (or
+// the API server's own message), never what the service answered.
+func (p *Poller) fetchSilences(ctx context.Context, t Target) ([]Silence, string) {
+	ctx, cancel := context.WithTimeout(ctx, p.opts.Timeout)
+	defer cancel()
+	body, err := p.px.get(ctx, t, silencesPath, nil, p.opts.MaxBytes)
+	if err == nil {
+		var ss []Silence
+		if ss, err = decodeSilences(body); err == nil {
+			return ss, ""
+		}
+	}
+	return nil, fmt.Sprintf("the silences of %s cannot be read: %s", t.Where(), errorText(err))
 }
 
 // apply makes a poll's result the snapshot and schedules the next poll: the interval after an
@@ -483,7 +541,18 @@ func (p *Poller) apply(gen uint64, res result) {
 	switch {
 	case res.target != nil: // an answer
 		p.target, p.failures = res.target, 0
-		s = Snapshot{State: res.state, Target: *res.target, Alerts: res.alerts, Total: res.total, Truncated: res.truncated, AsOf: now}
+		s = Snapshot{State: res.state, Target: *res.target, Alerts: res.alerts, Total: res.total, Truncated: res.truncated,
+			Muted: res.muted, MutedTotal: res.mutedN, AsOf: now,
+			Silences: s.Silences, SilencesAsOf: s.SilencesAsOf, SilencesError: s.SilencesError}
+		if s.Target != p.snap.Target { // another Alertmanager's silences are not this one's
+			s.Silences, s.SilencesAsOf, s.SilencesError = nil, time.Time{}, ""
+		}
+		switch {
+		case res.silencesAsked && res.silencesErr == "":
+			s.Silences, s.SilencesAsOf, s.SilencesError = res.silences, now, ""
+		case res.silencesAsked:
+			s.SilencesError = res.silencesErr
+		}
 		p.next = now.Add(p.opts.Interval)
 	default:
 		p.failures++
@@ -501,6 +570,7 @@ func (p *Poller) apply(gen uint64, res result) {
 			// Not found or forbidden, or failing for longer than KeepFor: what was answered
 			// before no longer stands.
 			s.Alerts, s.Total, s.Truncated, s.AsOf, s.FailingSince = nil, 0, false, time.Time{}, time.Time{}
+			s.Muted, s.MutedTotal, s.Silences, s.SilencesAsOf, s.SilencesError = nil, 0, nil, time.Time{}, ""
 			if res.state == StateUnavailable {
 				s.Target = Target{}
 			}
@@ -553,6 +623,17 @@ func signature(s Snapshot) uint64 {
 	for _, a := range s.Alerts {
 		w(a.Fingerprint, string(a.Severity), a.Summary, a.Description, a.StartsAt.String())
 	}
+	w(fmt.Sprint(s.MutedTotal), s.SilencesError, fmt.Sprint(s.SilencesAsOf.IsZero()))
+	for _, a := range s.Muted {
+		w(a.Fingerprint, string(a.Severity), a.Summary, a.StartsAt.String())
+		w(a.SilencedBy...)
+	}
+	for _, x := range s.Silences {
+		w(x.ID, string(x.State), x.StartsAt.String(), x.EndsAt.String(), x.UpdatedAt.String(), x.CreatedBy, x.Comment)
+		for _, m := range x.Matchers {
+			w(m.String())
+		}
+	}
 	return h.Sum64()
 }
 
@@ -580,4 +661,98 @@ func SortAlerts(alerts []Alert) {
 		}
 		return 0
 	})
+}
+
+// ErrNoAlertmanager refuses a silence while no Alertmanager answers: Cogpit writes only to the one
+// whose alerts it shows.
+var ErrNoAlertmanager = errors.New("no Alertmanager answers: Cogpit creates and expires silences only in the Alertmanager whose alerts it shows")
+
+// answering returns the Alertmanager that answered last, which the writes go to.
+func (p *Poller) answering() (Target, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.target == nil {
+		return Target{}, ErrNoAlertmanager
+	}
+	return *p.target, nil
+}
+
+// CreateSilence creates a silence in the Alertmanager that answered last (POST /api/v2/silences
+// through the service proxy) and returns its id and the Alertmanager. The next poll runs at once,
+// so that the alerts it mutes leave the board. n is validated first (NewSilence.Validate).
+func (p *Poller) CreateSilence(ctx context.Context, n NewSilence) (string, Target, error) {
+	if err := n.Validate(p.opts.Now()); err != nil {
+		return "", Target{}, err
+	}
+	t, err := p.answering()
+	if err != nil {
+		return "", Target{}, err
+	}
+	body, err := json.Marshal(n)
+	if err != nil {
+		return "", t, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, p.opts.Timeout)
+	defer cancel()
+	answer, err := p.px.send(ctx, t, http.MethodPost, silencesPath, body, 64<<10)
+	if err != nil {
+		return "", t, err
+	}
+	var a silenceAnswer
+	if json.Unmarshal(answer, &a) != nil || !ValidSilenceID(a.ID) {
+		return "", t, fmt.Errorf("POST %s to Alertmanager %s: the answer names no silence", silencesPath, t.Where())
+	}
+	p.Refresh()
+	return a.ID, t, nil
+}
+
+// ExpireSilence expires a silence in the Alertmanager that answered last (DELETE
+// /api/v2/silence/<id> through the service proxy) and returns the Alertmanager: it ends now and
+// stays listed as expired for Alertmanager's retention. The next poll runs at once.
+func (p *Poller) ExpireSilence(ctx context.Context, id string) (Target, error) {
+	if !ValidSilenceID(id) {
+		return Target{}, fmt.Errorf("silence id %.70q: not an id Alertmanager gives", id)
+	}
+	t, err := p.answering()
+	if err != nil {
+		return Target{}, err
+	}
+	ctx, cancel := context.WithTimeout(ctx, p.opts.Timeout)
+	defer cancel()
+	if _, err := p.px.send(ctx, t, http.MethodDelete, silencePath+id, nil, 64<<10); err != nil {
+		return t, err
+	}
+	p.Refresh()
+	return t, nil
+}
+
+// ReadSilences asks the Alertmanager that answered last for its silences now, outside the polls (an
+// agent's alerts.silences while the silences page is not shown), and keeps the answer in the
+// snapshot as a poll's would be kept.
+func (p *Poller) ReadSilences(ctx context.Context) error {
+	t, err := p.answering()
+	if err != nil {
+		return err
+	}
+	ss, why := p.fetchSilences(ctx, t)
+	now := p.opts.Now()
+	p.mu.Lock()
+	if p.closed || p.target == nil || *p.target != t {
+		p.mu.Unlock()
+		return errors.New("the Alertmanager changed while its silences were read")
+	}
+	if why == "" {
+		p.snap.Silences, p.snap.SilencesAsOf, p.snap.SilencesError = ss, now, ""
+	} else {
+		p.snap.SilencesError = why
+	}
+	changed := p.noteLocked()
+	p.mu.Unlock()
+	if changed {
+		p.changed()
+	}
+	if why != "" {
+		return errors.New(why)
+	}
+	return nil
 }

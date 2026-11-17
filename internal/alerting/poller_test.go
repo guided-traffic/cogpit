@@ -20,6 +20,10 @@ type fakeProxy struct {
 	answers map[string]func() ([]byte, error) // by Target.Where()
 	asked   []string
 	panics  bool
+	// silences answers the silences request; nil: refused as unexpected. writes answers send.
+	silences func() ([]byte, error)
+	writes   func(method, path string, body []byte) ([]byte, error)
+	sent     []string
 }
 
 func (f *fakeProxy) set(where string, fn func() ([]byte, error)) {
@@ -39,13 +43,28 @@ func (f *fakeProxy) get(_ context.Context, t Target, path string, params map[str
 	if panics {
 		panic("boom")
 	}
-	if path != alertsPath || params["active"] != "true" || params["silenced"] != "false" || params["inhibited"] != "false" {
+	if path == silencesPath && f.silences != nil {
+		return f.silences()
+	}
+	if path != alertsPath || params["active"] != "true" || params["silenced"] != "true" || params["inhibited"] != "false" {
 		return nil, errors.New("unexpected request " + path)
 	}
 	if fn == nil {
 		return nil, apierrors.NewServiceUnavailable("no endpoints available for service")
 	}
 	return fn()
+}
+
+func (f *fakeProxy) send(_ context.Context, t Target, method, path string, body []byte, _ int64) ([]byte, error) {
+	f.mu.Lock()
+	f.asked = append(f.asked, method+" "+t.Where()+path)
+	f.sent = append(f.sent, string(body))
+	fn := f.writes
+	f.mu.Unlock()
+	if fn == nil {
+		return nil, errors.New("no writes expected")
+	}
+	return fn(method, path, body)
 }
 
 func (f *fakeProxy) count() int {
