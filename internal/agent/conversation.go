@@ -44,6 +44,13 @@ type conversation struct {
 	keptHistory []*message
 	payloads    map[int]string // the user item's index → the last request body of its turn (memory only)
 	keptTitle   string         // the title scrubbed ("" until its first turn scrubbed it)
+	// cleared: the history's messages before this index are sent with their larger tool results
+	// replaced by a note (context.go, D-167); it only grows, but for a cut. calBytes and calTokens
+	// are the last request's body size and the prompt tokens the endpoint counted for it (memory
+	// only): the measure of what a request takes of the context window.
+	cleared   int
+	calBytes  int
+	calTokens int
 
 	turn       *turn
 	turnItems  int // len(items) when the running turn began: what is kept while it runs
@@ -86,6 +93,7 @@ func (c *conversation) cut(item int) {
 	}
 	c.items, c.kept = c.items[:item:item], c.kept[:item:item]
 	c.history, c.keptHistory = c.history[:h:h], c.keptHistory[:h:h]
+	c.cleared = min(c.cleared, h)
 	for i := range c.payloads {
 		if i >= item {
 			delete(c.payloads, i)
@@ -222,6 +230,9 @@ func (a *Agent) SetConversationConnection(id, connectionID string) error {
 	case !slices.ContainsFunc(a.conns, func(x engine.ChatConnection) bool { return x.ID == connectionID }):
 		a.mu.Unlock()
 		return ErrUnknownConn
+	}
+	if c.info.ConnectionID != connectionID {
+		c.calBytes, c.calTokens = 0, 0 // another model counts tokens its own way
 	}
 	c.info.ConnectionID = connectionID
 	rev := c.bump()

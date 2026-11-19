@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"net/url"
 	"strings"
@@ -138,17 +140,34 @@ type ChatLimits struct {
 	RepeatStop int `json:"repeatStop,omitempty"`
 	// MaxToolCalls is the most tool calls a turn runs.
 	MaxToolCalls int `json:"maxToolCalls,omitempty"`
-	// MaxTokens is the most tokens a turn uses: prompt and answer over all its requests, as the
-	// endpoint reports them, else estimated.
+	// MaxTokens is the most tokens a turn uses: prompt and answer summed over all its requests, as
+	// the endpoint reports them, else estimated. Every request carries the whole conversation
+	// again, so the sum is many times the context: it bounds what a turn costs, not what the model
+	// holds (ContextWindow).
 	MaxTokens int `json:"maxTokens,omitempty"`
 	// MaxDuration is a turn's wall-clock limit.
 	MaxDuration time.Duration `json:"maxDuration,omitempty"`
+	// ContextWindow is the model's context window in tokens: what one request may carry. It ends
+	// no turn; ClearAt and ClearTo are shares of it (D-167).
+	ContextWindow int `json:"contextWindow,omitempty"`
+	// ClearAt and ClearTo are percent of ContextWindow: a request that would reach ClearAt goes
+	// out with the conversation's oldest tool results replaced by a note, as many as bring it down
+	// to ClearTo. ClearTo is below ClearAt; ClearAt at 100 clears only once the window is full.
+	ClearAt int `json:"clearAt,omitempty"`
+	ClearTo int `json:"clearTo,omitempty"`
+	// MaxToolResultKiB is the most one tool call's result gives the model, in KiB; the rest is cut
+	// with a note.
+	MaxToolResultKiB int `json:"maxToolResultKiB,omitempty"`
 }
 
-// DefaultChatLimits are the owner's defaults (2026-10-14 late evening).
-var DefaultChatLimits = ChatLimits{RepeatStop: 3, MaxToolCalls: 25, MaxTokens: 300_000, MaxDuration: 10 * time.Minute}
+// DefaultChatLimits are the owner's defaults: the context window and what follows from it for a
+// local model with 300,000 tokens of context (D-167). A turn of 25 tool calls with results of the
+// full size sums up to some 2.8 million tokens, so MaxTokens stays above that.
+var DefaultChatLimits = ChatLimits{RepeatStop: 3, MaxToolCalls: 25, MaxTokens: 3_000_000, MaxDuration: 10 * time.Minute,
+	ContextWindow: 300_000, ClearAt: 70, ClearTo: 35, MaxToolResultKiB: 32}
 
-// WithDefaults returns l with every zero field set from DefaultChatLimits.
+// WithDefaults returns l with every zero field set from DefaultChatLimits. A ClearTo that is not
+// below ClearAt (one of them set, the other its default) becomes half of ClearAt.
 func (l ChatLimits) WithDefaults() ChatLimits {
 	d := DefaultChatLimits
 	if l.RepeatStop > 0 {
@@ -163,7 +182,38 @@ func (l ChatLimits) WithDefaults() ChatLimits {
 	if l.MaxDuration > 0 {
 		d.MaxDuration = l.MaxDuration
 	}
+	if l.ContextWindow > 0 {
+		d.ContextWindow = l.ContextWindow
+	}
+	if l.ClearAt > 0 {
+		d.ClearAt = min(l.ClearAt, 100)
+	}
+	if l.ClearTo > 0 {
+		d.ClearTo = l.ClearTo
+	}
+	if d.ClearTo >= d.ClearAt {
+		d.ClearTo = d.ClearAt / 2
+	}
+	if l.MaxToolResultKiB > 0 {
+		d.MaxToolResultKiB = l.MaxToolResultKiB
+	}
 	return d
+}
+
+// Validate reports a limit that cannot be: a negative one, a share above 100 percent, or a ClearTo
+// that is not below the ClearAt it is set with.
+func (l ChatLimits) Validate() error {
+	switch {
+	case l.RepeatStop < 0 || l.MaxToolCalls < 0 || l.MaxTokens < 0 || l.MaxDuration < 0 || l.ContextWindow < 0 ||
+		l.ClearAt < 0 || l.ClearTo < 0 || l.MaxToolResultKiB < 0:
+		return errors.New("a connection's limits cannot be negative")
+	case l.ClearAt > 100 || l.ClearTo > 100:
+		return errors.New("the shares of the context window are percent, at most 100")
+	}
+	if at := l.WithDefaults().ClearAt; l.ClearTo > 0 && l.ClearTo >= at {
+		return fmt.Errorf("tool results are cleared down to a share below the %d percent they are cleared at, not to %d", at, l.ClearTo)
+	}
+	return nil
 }
 
 // ChatTestLayer is one step of the connection test, in this order.

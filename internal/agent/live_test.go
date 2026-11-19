@@ -21,8 +21,135 @@ var liveModels = []string{"qwen/qwen3.8-27b", "qwen/qwen3.6-27b"}
 // endpoint, over the synthetic demo cluster only (never other cluster data). Local only: it runs
 // with COGPIT_LLM_TEST_URL (e.g. http://host:1234/v1, an LM Studio) and, if the endpoint lists
 // neither preferred model, COGPIT_LLM_TEST_MODEL; COGPIT_LLM_TEST_KIND sets the kind (default
-// lmstudio) and COGPIT_LLM_TEST_KEY a key. Skipped without them, so it never fails CI.
+// lmstudio) and COGPIT_LLM_TEST_KEY a key (liveAgent). Skipped without them, so it never fails CI.
 func TestLiveEndpoint(t *testing.T) {
+	s, a, conn, base := liveAgent(t)
+	ctx := context.Background()
+	steps := a.TestConnection(ctx, conn, nil, nil)
+	for _, st := range steps {
+		t.Logf("connection test %-5s %-10s %6s %s", st.Layer, st.State, st.Duration.Round(time.Millisecond), st.Detail)
+		if st.Warning != "" {
+			t.Logf("connection test %-5s warning: %s", st.Layer, st.Warning)
+		}
+	}
+	if steps[len(steps)-1].State != engine.ChatTestPass {
+		t.Fatal("the connection test did not pass")
+	}
+	// Plain http to another machine (the owner's LM Studio on his network) is warned about (H-95).
+	if warned := steps[2].Warning == engine.ChatPlainHTTPWarning; warned != engine.ChatPlainHTTPRemote(base) {
+		t.Errorf("the HTTP layer's warning %q for %s", steps[2].Warning, base)
+	}
+
+	// A namespace of the demo cluster to ask about, and its pod count as the cache holds it.
+	res, err := s.Dispatch(ctx, engine.Invocation{ID: "resources.list", Origin: engine.OriginGUI, Params: json.RawMessage(`{"kind":"pods","limit":1}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(res)
+	var first struct {
+		Rows []struct {
+			Ref struct {
+				Namespace string `json:"namespace"`
+			} `json:"ref"`
+		} `json:"rows"`
+	}
+	_ = json.Unmarshal(b, &first)
+	if len(first.Rows) == 0 {
+		t.Fatalf("no demo pods: %s", b)
+	}
+	ns := first.Rows[0].Ref.Namespace
+
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "How many pods run in namespace "+ns+"?")
+	if c.Items[len(c.Items)-1].Kind != engine.ChatItemAssistant {
+		t.Errorf("the turn ended without an answer")
+	}
+}
+
+// TestLiveContextClearing runs the clearing of old tool results (D-167) against a real endpoint,
+// local only as TestLiveEndpoint. A first turn reads the demo cluster's pods in a window no
+// request fills. The window is then set so that the conversation stands at 75 % of it, by the
+// endpoint's own count, and a second turn must go out without the first turn's results and still
+// end with an answer. The window follows the conversation, not the model, so that a slow endpoint
+// reads thousands of tokens, not hundreds of thousands. It logs how fast the endpoint read the
+// first turn's results and what a clearing at the default limits would so cost: the tokens it
+// leaves, read anew.
+func TestLiveContextClearing(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "List the pods of every namespace with resources_list, then tell me how many there are.")
+	last := c.Items[len(c.Items)-1]
+	if last.Kind != engine.ChatItemAssistant {
+		t.Fatal("the first turn ended without an answer")
+	}
+	a.mu.Lock()
+	conv := a.convs[c.ID]
+	tokens, bytes := conv.calTokens, conv.calBytes
+	results, clearables := 0, 0
+	for i := len(conv.history) - 2; i >= 0 && conv.history[i].Role == roleTool; i-- { // what the last request read anew
+		results += jsonSize(conv.history[i].Content)
+	}
+	for _, m := range conv.history {
+		if clearable(m) {
+			clearables++
+		}
+	}
+	a.mu.Unlock()
+	if tokens == 0 {
+		t.Fatal("the endpoint reported no prompt tokens: nothing to measure the context with")
+	}
+	if clearables == 0 {
+		t.Fatal("the first turn read no tool result large enough to clear")
+	}
+	t.Logf("the conversation: %d prompt tokens for %d bytes (%.2f bytes a token), %d results to clear", tokens, bytes,
+		float64(bytes)/float64(tokens), clearables)
+	if tm := last.Timing; tm != nil && tm.TTFT > 0 && results > 0 {
+		read := float64(results) * float64(tokens) / float64(bytes)
+		speed := read / tm.TTFT.Seconds()
+		d := engine.DefaultChatLimits
+		left := d.ContextWindow * d.ClearTo / 100
+		t.Logf("the endpoint read about %.0f new tokens in %s: about %.0f tokens a second", read, tm.TTFT.Round(time.Millisecond), speed)
+		t.Logf("a clearing at the defaults leaves %d tokens to read anew: about %s (a turn's limit is %s)", left,
+			time.Duration(float64(left)/speed*float64(time.Second)).Round(time.Second), d.MaxDuration)
+	}
+
+	conn.Limits = engine.ChatLimits{ContextWindow: tokens * 100 / 75, ClearAt: 70, ClearTo: 35}
+	if _, err := a.SaveConnection(conn, nil); err != nil {
+		t.Fatal(err)
+	}
+	before := len(c.Items)
+	c = liveTurn(t, s, a, c.ID, "And how many of them are in the first namespace of your list?")
+	var cleared, full bool
+	for _, it := range c.Items[before:] {
+		if it.Kind == engine.ChatItemNote {
+			cleared = cleared || strings.Contains(it.Text, "from what the model is sent")
+			full = full || strings.Contains(it.Text, "Start a new conversation")
+		}
+	}
+	if !cleared {
+		t.Errorf("the second turn, at 75 %% of a window of %d tokens, cleared nothing", conn.Limits.ContextWindow)
+	}
+	if full {
+		t.Errorf("the tools and the messages alone fill 70 %% of a window of %d tokens", conn.Limits.ContextWindow)
+	}
+	if p, ok := a.SentPayload(c.ID, len(c.Items)-1); !ok || !strings.Contains(p, "removed by Cogpit") {
+		t.Error("the second turn's request carries no cleared result")
+	}
+	if c.Items[len(c.Items)-1].Kind != engine.ChatItemAssistant {
+		t.Errorf("the turn after the clearing ended without an answer")
+	}
+}
+
+// liveAgent is an agent over the demo cluster with a connection to the endpoint the environment
+// names, its model chosen; it skips the test without COGPIT_LLM_TEST_URL.
+func liveAgent(t *testing.T) (*engine.Session, *Agent, engine.ChatConnection, string) {
+	t.Helper()
 	base := os.Getenv("COGPIT_LLM_TEST_URL")
 	if base == "" {
 		t.Skip("set COGPIT_LLM_TEST_URL to run against a real endpoint")
@@ -68,45 +195,15 @@ func TestLiveEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Logf("model %s of %d listed", conn.Model, len(models))
+	return s, a, conn, base
+}
 
-	steps := a.TestConnection(ctx, conn, nil, nil)
-	for _, st := range steps {
-		t.Logf("connection test %-5s %-10s %6s %s", st.Layer, st.State, st.Duration.Round(time.Millisecond), st.Detail)
-		if st.Warning != "" {
-			t.Logf("connection test %-5s warning: %s", st.Layer, st.Warning)
-		}
-	}
-	if steps[len(steps)-1].State != engine.ChatTestPass {
-		t.Fatal("the connection test did not pass")
-	}
-	// Plain http to another machine (the owner's LM Studio on his network) is warned about (H-95).
-	if warned := steps[2].Warning == engine.ChatPlainHTTPWarning; warned != engine.ChatPlainHTTPRemote(base) {
-		t.Errorf("the HTTP layer's warning %q for %s", steps[2].Warning, base)
-	}
-
-	// A namespace of the demo cluster to ask about, and its pod count as the cache holds it.
-	res, err := s.Dispatch(ctx, engine.Invocation{ID: "resources.list", Origin: engine.OriginGUI, Params: json.RawMessage(`{"kind":"pods","limit":1}`)})
-	if err != nil {
-		t.Fatal(err)
-	}
-	b, _ := json.Marshal(res)
-	var first struct {
-		Rows []struct {
-			Ref struct {
-				Namespace string `json:"namespace"`
-			} `json:"ref"`
-		} `json:"rows"`
-	}
-	_ = json.Unmarshal(b, &first)
-	if len(first.Rows) == 0 {
-		t.Fatalf("no demo pods: %s", b)
-	}
-	ns := first.Rows[0].Ref.Namespace
-
-	c, err := a.NewConversation(engine.DemoContext, conn.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
+// liveTurn sends a question, waits up to 8 minutes for the turn's end and logs what the turn
+// added: its tool calls, what it sent, its notes and its answers with their time to the first
+// token.
+func liveTurn(t *testing.T, s *engine.Session, a *Agent, id, question string) engine.ChatConversation {
+	t.Helper()
+	before, _ := a.Conversation(id)
 	changed := make(chan struct{}, 1)
 	defer s.Subscribe(func(ev engine.Event) {
 		if ev.Type == engine.EventChat {
@@ -117,14 +214,14 @@ func TestLiveEndpoint(t *testing.T) {
 		}
 	})()
 	start := time.Now()
-	question := "How many pods run in namespace " + ns + "?"
-	if err := a.Send(c.ID, engine.ChatUserMessage{Text: question}); err != nil {
+	if err := a.Send(id, engine.ChatUserMessage{Text: question}); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { a.Stop(c.ID) })
+	t.Cleanup(func() { a.Stop(id) })
 	deadline := time.After(8 * time.Minute)
+	var c engine.ChatConversation
 	for {
-		got, _ := a.Conversation(c.ID)
+		got, _ := a.Conversation(id)
 		if !got.Running {
 			c = got
 			break
@@ -136,19 +233,21 @@ func TestLiveEndpoint(t *testing.T) {
 		}
 	}
 	t.Logf("question %q, %s", question, time.Since(start).Round(time.Millisecond))
-	for _, it := range c.Items {
+	for _, it := range c.Items[len(before.Items):] {
 		switch it.Kind {
 		case engine.ChatItemTool:
-			t.Logf("tool %s %s [%s] %s", it.Tool.Command, it.Tool.Args, it.Tool.State, firstLine(it.Tool.Error))
+			t.Logf("tool %s %s [%s] %d bytes %s", it.Tool.Command, it.Tool.Args, it.Tool.State, len(it.Tool.Result), firstLine(it.Tool.Error))
 		case engine.ChatItemUser:
 			t.Logf("sent %d requests, %d bytes, %d tokens", it.Sent.Requests, it.Sent.Bytes, it.Sent.Tokens)
 		default:
-			t.Logf("%s: %s", it.Kind, it.Text)
+			ttft := ""
+			if it.Timing != nil {
+				ttft = " (first token after " + it.Timing.TTFT.Round(time.Millisecond).String() + ")"
+			}
+			t.Logf("%s%s: %s", it.Kind, ttft, it.Text)
 		}
 	}
-	if c.Items[len(c.Items)-1].Kind != engine.ChatItemAssistant {
-		t.Errorf("the turn ended without an answer")
-	}
+	return c
 }
 
 func firstLine(s string) string {

@@ -25,8 +25,12 @@ var (
 	errTokenLimit = errors.New("the turn reached its token limit")
 )
 
-// roleUser is the role of the user's messages in the history.
-const roleUser = "user"
+// The roles of the history's messages.
+const (
+	roleUser      = "user"
+	roleAssistant = "assistant"
+	roleTool      = "tool"
+)
 
 // keepTimeout bounds the scrubbing of what a turn keeps once the turn's own context ended (a stop).
 const keepTimeout = 5 * time.Second
@@ -96,6 +100,9 @@ func (a *Agent) send(id string, cut int, msg engine.ChatUserMessage) error {
 		c.cut(cut)
 	}
 	limits := conn.Limits.WithDefaults()
+	if c.info.ConnectionID != conn.ID {
+		c.calBytes, c.calTokens = 0, 0 // another model counts tokens its own way
+	}
 	c.info.ConnectionID = conn.ID
 	item := engine.ChatItem{Kind: engine.ChatItemUser, Text: text, Sent: &engine.ChatSent{Endpoint: ep.host, Private: conn.Private}}
 	if msg.AttachSelection {
@@ -154,6 +161,7 @@ type turnState struct {
 	calls   int            // tool calls run
 	repeats map[string]int // identical calls: tool and canonical arguments
 	tokens  int            // tokens used, reported or estimated
+	full    bool           // the turn noted that clearing cannot shorten the conversation any more
 }
 
 // runTurn runs the turn to its end and leaves the conversation idle, kept and notified. A panic ends
@@ -216,14 +224,24 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 		return nil, false
 	}
 	a.mu.Lock()
-	msgs := append([]message{{Role: "system", Content: systemPromptFor(st.conn.AllTools)}}, c.history...)
 	noOpts := a.noOptions[st.conn.ID]
 	a.mu.Unlock()
-	req := chatRequest{Model: st.conn.Model, Messages: msgs, Tools: st.tools.defsFor(st.conn.AllTools), Stream: true}
-	if !noOpts {
-		req.StreamOptions = &streamOptions{IncludeUsage: true}
+	msgs, body, err := a.encode(st, noOpts)
+	if err == nil {
+		// The request against the context window: at ClearAt of it the oldest tool results leave
+		// what is sent (context.go).
+		a.mu.Lock()
+		r := c.clearContext(st.limits, len(body))
+		a.mu.Unlock()
+		if r.removed > 0 {
+			a.addNote(c, engine.LevelInfo, clearedText(r, st.limits))
+			msgs, body, err = a.encode(st, noOpts)
+		}
+		if r.full && !st.full {
+			st.full = true
+			a.addNote(c, engine.LevelWarning, fullText(r, st.limits))
+		}
 	}
-	body, err := json.Marshal(req)
 	if err != nil {
 		a.addNote(c, engine.LevelError, "The request could not be encoded: "+err.Error())
 		return nil, false
@@ -267,6 +285,9 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 	} else {
 		st.tokens += estimateTokens(len(body) + resp.Bytes)
 	}
+	a.mu.Lock()
+	c.calibrate(len(body), resp.Usage.prompt())
+	a.mu.Unlock()
 	if resp.Text == "" && len(resp.ToolCalls) == 0 {
 		a.endAssistant(st, idx, "")
 		note := "The model returned no answer."
@@ -283,7 +304,7 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 	}
 	a.endAssistant(st, idx, resp.Text)
 	// The assistant's message, thinking removed, is what the model is sent back.
-	m := message{Role: "assistant", Content: resp.Text, ToolCalls: resp.ToolCalls}
+	m := message{Role: roleAssistant, Content: resp.Text, ToolCalls: resp.ToolCalls}
 	km := m
 	kept := []string{resp.Text}
 	for _, tc := range resp.ToolCalls { // the model chose every part of a call
@@ -301,6 +322,20 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 	c.keptHistory = append(c.keptHistory, &km)
 	a.mu.Unlock()
 	return resp.ToolCalls, true
+}
+
+// encode builds a request: the system prompt, the history as it is sent (sentHistory) and the
+// tools. It returns the messages and the body.
+func (a *Agent) encode(st *turnState, noOpts bool) ([]message, []byte, error) {
+	a.mu.Lock()
+	msgs := append([]message{{Role: "system", Content: systemPromptFor(st.conn.AllTools)}}, sentHistory(st.c.history, st.c.cleared)...)
+	a.mu.Unlock()
+	req := chatRequest{Model: st.conn.Model, Messages: msgs, Tools: st.tools.defsFor(st.conn.AllTools), Stream: true}
+	if !noOpts {
+		req.StreamOptions = &streamOptions{IncludeUsage: true}
+	}
+	body, err := json.Marshal(req)
+	return msgs, body, err
 }
 
 // endAssistant finishes the streamed item with its final text (a stopped stream keeps what was
@@ -384,7 +419,7 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 	}
 	if r.search != nil {
 		data, _ := json.Marshal(st.tools.search(*r.search))
-		content, shown := frameResult(toolSearch, data)
+		content, shown := frameResult(toolSearch, data, st.limits.MaxToolResultKiB<<10)
 		tc.State, tc.Result = engine.ChatToolDone, shown
 		a.addToolItem(st, tc, call, content)
 		return true
@@ -410,7 +445,7 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 			data = []byte(`"the command ran, but its result could not be encoded"`)
 		}
 		var shown string
-		content, shown = frameResult(call.Function.Name, data)
+		content, shown = frameResult(call.Function.Name, data, st.limits.MaxToolResultKiB<<10)
 		if note := a.s.StaleNoteFor(inv); note != "" && r.cmd.Danger == engine.DangerRead { // the cache's data as of an interruption (D-58)
 			content += "\n" + note
 		}
@@ -457,7 +492,7 @@ func (a *Agent) addToolItem(st *turnState, tc *engine.ChatToolCall, call toolCal
 // keepTool appends the tool message to the history and keeps the item and the message scrubbed.
 func (a *Agent) keepTool(st *turnState, idx int, tc *engine.ChatToolCall, call toolCall, content string) {
 	c := st.c
-	m := message{Role: "tool", ToolCallID: call.ID, Content: content}
+	m := message{Role: roleTool, ToolCallID: call.ID, Content: content}
 	out := a.scrub(st.ctx, c, content, tc.Args, tc.Result, tc.Error, tc.Summary, tc.Command, tc.Label, call.ID)
 	kt := *tc
 	kt.Args, kt.Result, kt.Error, kt.Summary, kt.Command, kt.Label, kt.CallID = out[1], out[2], out[3], out[4], out[5], out[6], out[7]
@@ -520,7 +555,7 @@ func limitNote(cause error, l engine.ChatLimits) string {
 	case errTimeLimit:
 		return fmt.Sprintf("The turn reached its time limit of %s and was stopped.", l.MaxDuration)
 	case errTokenLimit:
-		return fmt.Sprintf("The turn reached its limit of %d tokens and was stopped.", l.MaxTokens)
+		return fmt.Sprintf("The turn reached its limit of %s tokens and was stopped.", count(l.MaxTokens))
 	case errRepeat:
 		return fmt.Sprintf("The model asked for the same tool call a %s time, so the turn was stopped (a model looping on one request).", ordinal(l.RepeatStop))
 	case errMaxCalls:
@@ -561,7 +596,7 @@ func (a *Agent) recordSent(st *turnState, body []byte, msgs []message) {
 	c := st.c
 	tools := 0
 	for _, m := range msgs {
-		if m.Role == "tool" {
+		if m.Role == roleTool {
 			tools++
 		}
 	}

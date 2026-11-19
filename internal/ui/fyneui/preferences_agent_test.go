@@ -109,10 +109,18 @@ func TestAgentPreferencesKeySemantics(t *testing.T) {
 	f.private.SetChecked(true)
 	test.Type(f.limits[1], "40")
 	test.Type(f.limits[2], "120,000")
+	test.Type(f.context[0], "32,000")
+	test.Type(f.context[1], "80")
+	test.Type(f.context[3], "8")
 	got := save(4)
 	if got.key != nil || got.conn.ID != "" || got.conn.Kind != engine.ChatLMStudio || got.conn.BaseURL != "http://localhost:1234/v1" ||
 		!got.conn.Private || got.conn.Limits.MaxToolCalls != 40 || got.conn.Limits.MaxTokens != 120_000 || got.conn.Limits.RepeatStop != 0 {
 		t.Errorf("the new connection was saved as %+v with key %v", got.conn, got.key)
+	}
+	// The context's numbers (D-167): the window, the share old tool results are cleared at, a tool
+	// result's size; the share cleared down to left empty takes its default.
+	if l := got.conn.Limits; l.ContextWindow != 32_000 || l.ClearAt != 80 || l.ClearTo != 0 || l.MaxToolResultKiB != 8 {
+		t.Errorf("the context's numbers were saved as %+v", l)
 	}
 }
 
@@ -392,6 +400,17 @@ func TestAgentPreferencesValidation(t *testing.T) {
 	if !strings.Contains(a.form.errLine.text, "whole number") {
 		t.Errorf("bad limit: %q", a.form.errLine.text)
 	}
+	a.form.limits[0].SetText("")
+	test.Type(a.form.context[1], "40")
+	test.Type(a.form.context[2], "60")
+	test.Tap(a.form.saveB)
+	if !strings.Contains(a.form.errLine.text, "below the 40 percent") {
+		t.Errorf("cleared down to more than cleared at: %q", a.form.errLine.text)
+	}
+	a.form.context[1].SetText("")
+	a.form.context[2].SetText("")
+	test.Type(a.form.limits[0], "three")
+	test.Tap(a.form.saveB)
 	q.drain()
 	if n := len(ch.savesOf()); n != 0 {
 		t.Errorf("%d saves of invalid forms", n)
@@ -561,7 +580,7 @@ func TestRenderAgentPreferences(t *testing.T) {
 		conn.CAFile = `C:\Users\you\certs\team-ca.pem` // without a drive the form refuses the path there
 	}
 	for _, mode := range []ThemeMode{ThemeDark} {
-		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true), 2400) })
+		t.Run(string(mode), func(t *testing.T) { renderAgentPreferences(t, mode, "preferences_agent", conn, testSteps(true), 2560) })
 	}
 }
 
@@ -570,7 +589,7 @@ func TestRenderAgentPreferences(t *testing.T) {
 func TestRenderAgentPreferencesPlainHTTP(t *testing.T) {
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {
 		t.Run(string(mode), func(t *testing.T) {
-			renderAgentPreferences(t, mode, "preferences_agent_plainhttp", lanStudio(), plainSteps(), 2100)
+			renderAgentPreferences(t, mode, "preferences_agent_plainhttp", lanStudio(), plainSteps(), 2260)
 		})
 	}
 }

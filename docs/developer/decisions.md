@@ -175,6 +175,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-164](#d-164-one-pages-deploy-per-release-checked-against-what-pages-serves) | One Pages deploy per release, checked against what Pages serves | built: one job deploys both feeds and the APT repository and fails unless Pages then serves them |
 | [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Selected Pods section before Endpoint Slices, Ready from the endpoint slices |
 | [D-166](#d-166-alertmanager-silences-listed-created-expired) | Alertmanager silences: listed, created, expired | built: a silences page, Silence on the board's cards and rows, Expire; an agent's always asks |
+| [D-167](#d-167-the-chats-context-window-and-what-leaves-a-request) | The chat's context window and what leaves a request | built: a context window beside the turn's summed tokens; at 70 % of it the oldest tool results leave what is sent, down to 35 %; per connection |
 
 ## D-1: UI toolkit
 
@@ -464,9 +465,12 @@ MCP tool. A conversation keeps the context it began on.
 - **Tools:** 20 core commands plus `search_commands` and `run_command` (22 tools, under 40 KiB),
   or, set per connection, every command (about 200 tools, 70,000 tokens) without meta-tools; never
   GUI-only commands or `chat.toggle`. Each message starts with a compact `ui_state`; a tool result
-  goes back framed as data and cut at 32 KiB; a model's thinking is dropped.
-- **Limits per turn,** set per connection: the third identical tool call, 25 calls, 300,000
-  tokens, 10 minutes. Stop, Escape in the input and ⌘. from any focus end a turn; so does showing
+  goes back framed as data and cut at 32 KiB, a size set per connection; a model's thinking is
+  dropped.
+- **Context:** a request that reaches 70 % of the connection's context window goes out without
+  the conversation's oldest tool results ([D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)).
+- **Limits per turn,** set per connection: the third identical tool call, 25 calls, 3,000,000
+  tokens summed over its requests, 10 minutes. Stop, Escape in the input and ⌘. from any focus end a turn; so does showing
   another cluster, before the next tool call.
 - **Private connection** (the user's mark, off by default): the turn reads what the window shows,
   Secret values included ([H-94](../security/agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)); write rules, terminal
@@ -6923,3 +6927,55 @@ silence browser as karma's — agents could not see or drive it.
 - **A lookalike Alertmanager found by name** receives the silences, their comments and authors
   ([H-121](../security/privilege-footprint.md#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents));
   the form and the confirmation name the Service.
+
+## D-167: The chat's context window and what leaves a request
+
+**Status:** built · **By:** owner (two token numbers, clearing at a share of the window, the
+defaults for a local model with 300,000 tokens of context, every number the user's to change),
+lead (open to revision) the rest
+
+A connection has two token numbers. The **context window** (300,000 tokens) is what one request may
+carry; it ends no turn. The **tokens of a turn** (3,000,000) are summed over the turn's requests and
+end it ([D-10](#d-10-built-in-agent)): each request carries the whole conversation, so a turn of 25
+tool calls with full results sums up to some 2.8 million while its last request has 209,000.
+
+A request that would reach 70 % of the window goes out with the conversation's oldest tool results
+replaced by a note (the tool, the size, "Call the tool again if you need it"), as many as bring it
+down to 35 %.
+
+- **Only what is sent changes.** The chat, the history and the kept file hold every result; the
+  request body the chat shows is the one sent.
+- **What stays in the request:** the user's messages, the model's answers, its tool calls with
+  their arguments, results up to 1 KiB, and the results the model has not been sent yet.
+- **Removed stays removed,** kept with the conversation and taken back only by a cut
+  ([H-100](../security/agents-and-mcp.md#h-100-a-cut-parts-tool-calls-leave-the-models-view)), so
+  the requests between two clearings begin alike.
+- **The chat says so:** a note for each clearing, and once a turn a warning when the
+  conversation's messages alone, without any tool result, keep it at 70 %. Such a turn goes on;
+  nothing summarises a conversation.
+- **A request's size** is the endpoint's prompt-token count of the last request scaled by the
+  bodies' sizes (a count outside 1 to 16 bytes a token is not used), else four bytes a token.
+- **A tool result** is cut at 32 KiB.
+
+The window, both shares and the result's size are per connection (Preferences › Agent), empty
+taking the default.
+
+**Why:** a sum grows with the square of a turn's tool calls and the context with their number, so
+one number cannot bound both: 300,000 summed tokens are reached after some seven full results with
+the window a quarter full. The sum bounds what a turn costs at a paid endpoint, the window what the
+model holds. Shares of the window fit any model. Clearing down to 35 % in one step leaves the
+request's beginning unchanged until the next step, so a local server's prompt cache holds and it
+reads only what is new; a step costs one reading from the first removed result on. The tool calls
+stay so that the model knows what it changed.
+
+**Rejected:** a higher summed limit alone — measures cost, and nothing tells when to clear; the
+context size as the only limit — no bound on a paid turn; the last few results kept and the rest
+removed with every request — the request's beginning moves each time, no prompt cache; clearing at
+every new user message — each follow-up question reads again; the model summarising its history —
+a further request on slow hardware, a small model's summary, and the cluster's text turned into the
+model's own (H-11).
+
+[`context.go`](../../internal/agent/context.go), [`chat.go`](../../internal/engine/chat.go)
+`ChatLimits` · `TestOldToolResultsLeaveWhatIsSent`, `TestClearContext`, `TestContextTokens`,
+`TestFullContextIsNoted`, `TestToolResultLimit`, `TestChatLimitsDefaults`; `TestLiveContextClearing`
+needs a real endpoint and runs locally

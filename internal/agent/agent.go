@@ -234,8 +234,8 @@ func normalize(c engine.ChatConnection) (engine.ChatConnection, error) {
 		}
 		c.CAFile = filepath.Clean(c.CAFile)
 	}
-	if c.Limits.RepeatStop < 0 || c.Limits.MaxToolCalls < 0 || c.Limits.MaxTokens < 0 || c.Limits.MaxDuration < 0 {
-		return c, errors.New("a connection's limits cannot be negative")
+	if err := c.Limits.Validate(); err != nil {
+		return c, err
 	}
 	return c, nil
 }
