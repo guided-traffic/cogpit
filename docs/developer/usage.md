@@ -1393,9 +1393,13 @@ The tab, from the top:
 A log line is one problem with its count: a request client-go retries counts in its line ("12
 times since 08:01:04") instead of pushing other lines out.
 
-A kind the API server refuses to the Workloads or cluster Overview, the Flux or Argo CD dashboard
-is named in the page's error line ("Nodes: … is forbidden …") and listed once, not again while the
-page is open: Refresh Access Reviews, opening the page again or the next connect asks again
+A kind the API server refuses to a list view, the Workloads or cluster Overview, the Flux or Argo
+CD dashboard is named in the error line above the table ("Nodes: … is forbidden …") and listed
+once, not again while it is open; so is a namespace refused while the kind's other namespaces are
+read ("in team-b: … is forbidden"), whose rows stay. Refresh Access Reviews, opening the view
+again or the next connect asks again. Kinds the access reviews say you may not list are not read
+and are named instead: "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard,
+the Flux kinds on the Flux dashboard
 ([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
 
 <details>
@@ -1536,9 +1540,10 @@ a report names with a violation
   their objects; `object_get` carries the drawer's sections. Policy messages reach agents as data
   ([H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
 - **Reads:** a user who may list the reports only in some namespaces gets those the cluster's
-  settings or the namespace filter name. A report kind the cluster refuses (403) is named in
-  Cluster Settings › Integrations › Kyverno and not asked for again until Refresh Access Reviews
-  or the next connect. Off: nothing is read or shown. Not read: Kyverno's
+  settings or the namespace filter name. A report kind the cluster refuses (403), or the access
+  reviews say you may not list, is named in Cluster Settings › Integrations › Kyverno and not asked
+  for again until Refresh Access Reviews or the next connect; a namespace refused while others are
+  read is left out the same way. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
 
 ### A volume's usage

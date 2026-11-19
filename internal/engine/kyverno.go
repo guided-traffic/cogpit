@@ -154,7 +154,12 @@ type kyvernoRead struct {
 	unsub   func()
 	once    sync.Once   // the handle goes back once (drop, stop)
 	refused atomic.Bool // the API server refused it wholly, and its handle went back (dropRefused)
+	partial atomic.Bool // the API server refused some of its namespaces, which went back (dropRefused)
 }
+
+// denied reports whether the access reviews deny the kind in every namespace its plan names: the
+// read reads nothing, and the kind is a refused one (D-new).
+func (r *kyvernoRead) denied() bool { return r.plan.perNamespace && len(r.plan.watch) == 0 }
 
 // drop gives the read's handle back; dropping it again is harmless.
 func (r *kyvernoRead) drop() {
@@ -207,16 +212,21 @@ func (k *kyvernoSource) stop() {
 }
 
 // dropRefused gives back each read the API server refused wholly (403 Forbidden: the cluster
-// reports, or the reports in every namespace read): a refusal is a state the status names, not a
-// list client-go's backoff sends again for as long as the cluster is shown. cluster.refreshAccess
+// reports, or the reports in every namespace read), and each namespace refused of a read whose
+// other namespaces list: a refusal is a state the status names, not a list client-go's backoff
+// sends again for as long as the cluster is shown. cluster.refreshAccess
 // reads them again (retake). A refusal of a namespaced kind in all namespaces is followed first:
 // the cache told the backend of it (OnRefused) before the handle's error shows, so the read key
 // changes and followKyverno reads the kind namespace by namespace.
 func (k *kyvernoSource) dropRefused() {
 	for _, r := range k.reads {
-		if !r.plan.pending && !r.refused.Load() && refusedAll(r.handle) {
+		switch {
+		case r.plan.pending || r.refused.Load():
+		case refusedAll(r.handle):
 			r.refused.Store(true)
 			r.drop()
+		case r.handle.ReleaseRefusedNamespaces() > 0: // its other namespaces read on
+			r.partial.Store(true)
 		}
 	}
 }
@@ -227,7 +237,7 @@ func (k *kyvernoSource) retake() bool {
 	if k.gen == k.b.ns.refusalsGen() {
 		return false
 	}
-	return slices.ContainsFunc(k.reads, func(r *kyvernoRead) bool { return r.refused.Load() })
+	return slices.ContainsFunc(k.reads, func(r *kyvernoRead) bool { return r.refused.Load() || r.partial.Load() })
 }
 
 // settle tells the settings page and agents when what the integration knows changes (its reads
@@ -302,7 +312,7 @@ func (k *kyvernoSource) status() (IntegrationState, string) {
 		switch {
 		case r.plan.pending:
 			listing = true
-		case r.refused.Load() || refusedAll(r.handle):
+		case r.refused.Load() || refusedAll(r.handle) || r.denied():
 			refused = append(refused, r.profile.Key)
 		case !r.handle.HasSynced():
 			listing = true

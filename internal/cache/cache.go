@@ -810,11 +810,14 @@ type Handle struct {
 	parts    []*Handle // a joined handle's parts (join.go); nil for a handle on one scope
 	released atomic.Bool
 	set      *nsSet                  // a scope read in several namespaces, one informer each (nsscope.go); nil otherwise
-	kept     atomic.Pointer[keptErr] // the error a handle released by ReleaseWithErr keeps; nil otherwise
+	kept     atomic.Pointer[keptErr] // what a handle released by ReleaseWithErr keeps; nil otherwise
 }
 
-// keptErr is the error ReleaseWithErr keeps.
-type keptErr struct{ err error }
+// keptErr is what ReleaseWithErr keeps: the handle's error and whether it had synced.
+type keptErr struct {
+	err    error
+	synced bool
+}
 
 // Scope returns the handle's scope.
 func (h *Handle) Scope() Scope { return h.scope }
@@ -824,9 +827,10 @@ func (h *Handle) Scope() Scope { return h.scope }
 // list's late additions. (The store is filled before client-go hands the initial list to event
 // handlers, so the store's own sync comes first.)
 func (h *Handle) HasSynced() bool {
+	if k := h.kept.Load(); k != nil {
+		return k.synced
+	}
 	switch {
-	case h.kept.Load() != nil:
-		return false
 	case h.parts != nil:
 		return h.joinedSynced()
 	case h.set != nil:
@@ -842,8 +846,8 @@ func (h *Handle) HasSynced() bool {
 // WaitForSync blocks until the informer has synced (HasSynced) or ctx ends; it reports whether
 // it synced.
 func (h *Handle) WaitForSync(ctx context.Context) bool {
-	if h.kept.Load() != nil {
-		return false // it never syncs: nothing to wait for
+	if k := h.kept.Load(); k != nil {
+		return k.synced // it changes no more: nothing to wait for
 	}
 	if h.e == nil && h.parts == nil && h.set == nil {
 		<-ctx.Done()
@@ -869,8 +873,6 @@ func (h *Handle) WaitForSync(ctx context.Context) bool {
 // List returns every object of the scope. The objects are shared and must not be modified.
 func (h *Handle) List() []*unstructured.Unstructured {
 	switch {
-	case h.kept.Load() != nil:
-		return nil
 	case h.parts != nil:
 		return h.joinedList("", true)
 	case h.set != nil:
@@ -888,8 +890,6 @@ func (h *Handle) List() []*unstructured.Unstructured {
 // modified.
 func (h *Handle) ListNamespace(namespace string) []*unstructured.Unstructured {
 	switch {
-	case h.kept.Load() != nil:
-		return nil
 	case h.parts != nil:
 		return h.joinedList(namespace, false)
 	case h.set != nil:
@@ -918,9 +918,6 @@ func toUnstructured(items []any) []*unstructured.Unstructured {
 
 // Get returns one object by namespace and name.
 func (h *Handle) Get(namespace, name string) (*unstructured.Unstructured, bool) {
-	if h.kept.Load() != nil {
-		return nil, false
-	}
 	if h.parts != nil {
 		return h.joinedGet(namespace, name)
 	}
@@ -1007,17 +1004,35 @@ func (h *Handle) Release() {
 	h.c.release(h.e)
 }
 
-// ReleaseWithErr releases the handle and keeps its error as its state from then on: Err returns
-// that error, HasSynced is false, it lists, gets and delivers nothing, and WaitForSync does not
-// wait. A reader whose read the API server refused gives it back so, so that client-go's backoff
-// does not list the scope again for as long as the reader shows the refusal (a refused scope is
-// not kept warm). It reports whether it released the handle now: a handle without an error, or one
+// ReleaseWithErr releases the handle and keeps its state as it is from then on: Err returns its
+// error, HasSynced what it was (a read namespace by namespace has synced once every namespace
+// listed or was refused), it lists what it held (a released handle's reads stay valid) and
+// delivers no event, and WaitForSync does not wait. A reader whose read the API server refused
+// gives it back so, so that client-go's backoff does not list the scope again for as long as the
+// reader shows the refusal (a refused scope is not kept warm). It reports whether it released the handle now: a handle without an error, or one
 // released before, stays as it is.
 func (h *Handle) ReleaseWithErr() bool {
 	err := h.Err()
-	if err == nil || h.released.Load() || !h.kept.CompareAndSwap(nil, &keptErr{err: err}) {
+	if err == nil || h.released.Load() || !h.kept.CompareAndSwap(nil, &keptErr{err: err, synced: h.HasSynced()}) {
 		return false
 	}
 	h.Release()
 	return true
+}
+
+// ReleaseRefusedNamespaces gives back each namespace of a handle read namespace by namespace
+// (AcquireNamespaces) whose read the API server refused, its refusal kept (ReleaseWithErr): the
+// handle goes on reading the others, and its error names the refused ones. It reports how many it
+// gave back now; any other handle gives none back.
+func (h *Handle) ReleaseRefusedNamespaces() int {
+	if h.set == nil || h.kept.Load() != nil || h.released.Load() {
+		return 0
+	}
+	n := 0
+	for _, p := range h.set.parts {
+		if isRefused(p.Err()) && p.ReleaseWithErr() {
+			n++
+		}
+	}
+	return n
 }

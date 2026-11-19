@@ -3031,10 +3031,12 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
 - Not read: the policies (the mode is not shown). `error`, `pass` and `skip` mark nothing; a
   violation enters neither the status filter nor the Overview's issues.
 - Curated profiles of both report kinds let API discovery offer them without the definitions.
-- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read)
-  is a state the integration's status names: its handle goes back, and it is read again only after
-  `cluster.refreshAccess` or the next connect, as the custom kinds and the namespaces watch do (the
-  lead's detail, open to revision). A held refused scope is listed again at every step of
+- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read),
+  or the access reviews deny in every namespace named, is a state the integration's status names:
+  its handle goes back, and it is read again only after `cluster.refreshAccess` or the next
+  connect, as the custom kinds and the namespaces watch do (the lead's detail, open to revision);
+  a namespace refused while others list goes back alone
+  ([D-new](#d-new-a-refused-read-is-given-back-and-shown)). A held refused scope is listed again at every step of
   client-go's backoff (0.8 s doubling to a cap of 30 s, plus up to as much again), for as long as
   the cluster is shown.
 
@@ -7403,41 +7405,55 @@ system's temporary folder, whose name differs per machine.
 
 **Status:** built · **By:** lead (open to revision)
 
-A reader that holds its reads while it is shown gives back a read the API server refuses wholly
-(403 in its one scope, or in every namespace it reads) and keeps the refusal as its state: the
-Workloads and cluster Overviews and the Flux and Argo CD dashboards name it in their error line, the
-Trivy integration's status is forbidden. Nothing is listed again until `cluster.refreshAccess` (the
-reader starts again), the page opened again, the cluster shown again or the next connect. A
-refusal in all namespaces is followed first, namespace by namespace, as every read follows it
-(D-173). The Kyverno integration does the same with reads of its own (D-79).
+A reader that holds its reads while it is shown gives back a read the API server refuses, and keeps
+the refusal as its state: a list view and the Workloads and cluster Overviews and the Flux and Argo
+CD dashboards name it in their error line, the Trivy and Kyverno integrations' status is forbidden.
+A read refused wholly (403 in its one scope, or in every namespace it reads) goes back whole; of a
+read namespace by namespace, each refused namespace goes back and the others are read and watched
+on. Nothing refused is listed again until `cluster.refreshAccess` (the reader starts again), the
+view or page opened again, the cluster shown again or the next connect. A refusal in all namespaces
+is followed first, namespace by namespace, as every read follows it (D-173).
 
-- The handle goes back through `cache.Handle.ReleaseWithErr`: from then on it reports the refusal
-  as its error, never syncs and lists nothing, so the reader's code reads it as any handle; a
-  refused scope is not kept warm, so its informer stops at once.
-- Trivy Operator's reports that the access reviews deny in every namespace Cogpit would read them
-  in are not read and are the same state: forbidden, no grade in the Pods list or the drawer.
+- The handle goes back through `cache.Handle.ReleaseWithErr`, a refused namespace of it through
+  `ReleaseRefusedNamespaces`: the handle keeps its error, whether it had synced and what it held,
+  so the reader's code reads it as any handle; a refused scope is not kept warm, so its informer
+  stops at once.
+- A kind the access reviews say the user may not list where a reader would read it is named the
+  same way, and not read: "Cogpit may not list kustomizations.kustomize.toolkit.fluxcd.io,
+  gitrepositories.source.toolkit.fluxcd.io" on the Flux dashboard (not "The cluster serves no
+  Flux kinds."), "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard and its
+  cards, the Workloads Overview's kinds and events likewise, and the Trivy and Kyverno
+  integrations forbidden ("may not list policyreports.wgpolicyk8s.io"), with no grade or mark.
+  The cluster Overview leaves such a kind out without a word: Nodes, which a namespace-limited user
+  may rarely list, would name it on every such user's Overview.
 - The Argo CD dashboard rebuilds when a kind's error changes, as the other pages do, so its error
   line shows a refusal whenever it comes.
 
 **Why:** a refused scope a handle holds is listed again at every step of client-go's backoff (0.8 s
 doubling to a cap of 30 s, plus up to as much again) for as long as it is held. Measured against the
 fake API server for a user the access reviews cannot tell about (a webhook authorizer), cluster-wide
-and namespace-limited: each refused kind 3 lists in its namespace within 6 s of opening, and one more
-in any 3 s while shown — the Workloads Overview's 5 or 6 kinds, the cluster Overview's Nodes, Events,
-Stateful Sets and Daemon Sets, the Flux dashboard's 2, the Argo CD dashboard's 3 or 4, the Trivy
-integration's reports; after it, none.
+and namespace-limited: each refused kind 3 lists in its namespace within 6 s of opening, and one or
+two more in any 3 s while shown — a list view's kind (Stateful Sets, Nodes), the Workloads
+Overview's 5 or 6 kinds, the cluster Overview's Nodes, Events, Stateful Sets and Daemon Sets, the
+Flux dashboard's 2, the Argo CD dashboard's 3 or 4, the Trivy integration's reports; a namespace
+refused while another lists, 3 lists within 4 s. After it: one list each, none in the window. A
+kind the reviews deny was shown as a cluster without Flux, or as zero Applications.
 
 **Rejected:** a wrapper per reader with a refused flag, as the Kyverno integration's reads — every
-place a page reads a handle (its builds, the Overview's fold) would change; the cache ending every
-holder's refused scope by itself — an open view would not see a role granted meanwhile without
-`cluster.refreshAccess`; keeping the held read, which costs a list per backoff step and fills
-Connection Diagnostics' refused line.
+place a reader reads a handle (its builds, the Overview's fold) would change; the cache ending a refused
+scope for every holder by itself — only the reader knows when to read it again
+(`cluster.refreshAccess` starts readers, not scopes), and a read that waits (D-173) ends anyway; dropping a refused namespace from the read's plan — the plan's key would change and
+start the reader again, and the namespace would vanish from the scope the view names; keeping the
+held read, which costs a list per backoff step and fills Connection Diagnostics' refused line.
 
-**Limits:** a read refused in some of its namespaces only stays held: its other namespaces list, the
-refused ones are asked again at each backoff step. A page that starts again because another kind's
-plan changed reads a given-back kind once more.
+**Limits:** a reader that starts again because another kind's plan changed reads a given-back kind
+once more.
 
-[`cache/cache.go`](../../internal/cache/cache.go) `ReleaseWithErr`,
+[`cache/cache.go`](../../internal/cache/cache.go) `ReleaseWithErr`, `ReleaseRefusedNamespaces`;
 [`engine/pagerefusals.go`](../../internal/engine/pagerefusals.go) `refusedReads`,
-[`engine/trivy.go`](../../internal/engine/trivy.go) `deniedAll` · `TestReleaseWithErrKeepsTheRefusal`,
-`TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`
+[`engine/accessiblens_pages.go`](../../internal/engine/accessiblens_pages.go) `mayNotList`,
+[`engine/trivy.go`](../../internal/engine/trivy.go) `deniedAll`,
+[`engine/kyverno.go`](../../internal/engine/kyverno.go) `dropRefused` · `TestReleaseWithErrKeepsTheRefusal`,
+`TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`,
+`TestBudgetViewsRefusedKinds`, `TestBudgetPartiallyRefusedRead`, `TestReadersNameKindsTheReviewsDeny`,
+`TestRenderFluxDashboardMayNotListDark`, `TestRenderArgoDashboardMayNotListDark`

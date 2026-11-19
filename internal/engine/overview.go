@@ -182,15 +182,16 @@ func (s *Session) ViewProfile(view string) (*model.KindProfile, bool) {
 // each served workload kind and on the events, and rebuilds the kinds' counts and the events table
 // at most once per SnapshotInterval after a change.
 type overviewWorker struct {
-	s       *Session
-	backend *Backend
-	events  *model.KindProfile // the page's table profile; nil without events
-	evts    *cache.Handle
-	rows    *rowCache
-	kinds   []*overviewKindState
-	unsubs  []func()
-	planKey string       // how the open page reads its kinds (Backend.pageReadKey); the state's lock
-	refused refusedReads // the reads given back as refused (pagerefusals.go)
+	s          *Session
+	backend    *Backend
+	events     *model.KindProfile // the page's table profile; nil without events
+	evts       *cache.Handle
+	evtsDenied bool // the access reviews say the user may not list the events where the page reads them
+	rows       *rowCache
+	kinds      []*overviewKindState
+	unsubs     []func()
+	planKey    string       // how the open page reads its kinds (Backend.pageReadKey); the state's lock
+	refused    refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu     sync.Mutex
 	params viewParams
@@ -209,6 +210,7 @@ type overviewKindState struct {
 	profile  *model.KindProfile
 	column   int
 	handle   *cache.Handle
+	denied   bool // the access reviews say the user may not list it where the page reads it
 	related  *relatedSet
 	relGen   uint64
 	gen      uint32
@@ -243,7 +245,7 @@ func (s *Session) newOverviewWorker(b *Backend, params viewParams, notify, event
 			if !ok {
 				continue
 			}
-			k := &overviewKindState{profile: p, column: col, handle: acquire(p), statuses: map[string]*overviewStatus{}}
+			k := &overviewKindState{profile: p, column: col, handle: acquire(p), denied: b.deniedKind(p), statuses: map[string]*overviewStatus{}}
 			k.related = newRelatedSet(b, p.Needs, onChange)
 			w.unsubs = append(w.unsubs, k.handle.Subscribe(func(cache.Event) { onChange() }))
 			w.kinds = append(w.kinds, k)
@@ -251,6 +253,7 @@ func (s *Session) newOverviewWorker(b *Backend, params viewParams, notify, event
 	}
 	if w.events = overviewEvents(b); w.events != nil && events {
 		w.evts = acquire(w.events)
+		w.evtsDenied = b.deniedKind(w.events)
 		w.unsubs = append(w.unsubs, w.evts.Subscribe(func(cache.Event) { onChange() }))
 	}
 	return w
@@ -338,7 +341,7 @@ func (w *overviewWorker) unsettled() bool {
 		return true
 	}
 	for i, k := range w.kinds {
-		if i < len(m.Kinds) && m.Kinds[i].Error != errText(k.handle.Err()) {
+		if i < len(m.Kinds) && m.Kinds[i].Error != k.err() {
 			return true
 		}
 	}
@@ -382,7 +385,7 @@ func (w *overviewWorker) build(p viewParams) (*WorkloadsOverviewModel, *TableSna
 		synced := k.handle.HasSynced() && k.related.synced() // before List, as views do
 		ok := k.count(w.backend.Context, nsSet)
 		ok.Synced = synced
-		ok.Error = errText(k.handle.Err())
+		ok.Error = k.err()
 		m.Synced = m.Synced && synced
 		m.Kinds = append(m.Kinds, ok)
 	}
@@ -393,6 +396,9 @@ func (w *overviewWorker) build(p viewParams) (*WorkloadsOverviewModel, *TableSna
 		snap = w.rows.build(w.events, w.backend.Context, KindList(w.evts, w.events), p, model.NoRelated, 0)
 		snap.Synced = synced
 		snap.Error = errText(w.evts.Err())
+		if w.evtsDenied {
+			snap.Error = mayNotList(w.events)
+		}
 		m.Synced = m.Synced && synced
 	} else {
 		snap = &TableSnapshot{Rows: []model.Row{}, Synced: true, Error: "The cluster serves no events.", Namespaced: true}
@@ -400,6 +406,14 @@ func (w *overviewWorker) build(p viewParams) (*WorkloadsOverviewModel, *TableSna
 	snap.View, snap.Title = WorkloadsOverview, pageTitles[WorkloadsOverview]
 	snap.Revision = w.s.state.snapshots.Add(1)
 	return m, snap
+}
+
+// err is the kind's error: that the user may not list it (mayNotList), else its read's.
+func (k *overviewKindState) err() string {
+	if k.denied {
+		return mayNotList(k.profile)
+	}
+	return errText(k.handle.Err())
 }
 
 // count tallies a kind's objects in the namespaces by their rows' status tokens.
@@ -504,7 +518,7 @@ func (st *state) reconcilePageLocked(b *Backend, now UIState) {
 	want := b != nil && now.View == WorkloadsOverview
 	var key string
 	if want {
-		key = b.pageReadKey(overviewPageKinds, false)
+		key = b.pageReadKey(overviewPageKinds) // a kind the reviews come to deny names it (overviewKindState.denied)
 	}
 	if st.page != nil && (!want || st.page.backend != b || st.page.planKey != key || st.page.refused.retake(b)) {
 		st.page.stop()

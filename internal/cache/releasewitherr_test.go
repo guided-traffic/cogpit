@@ -2,6 +2,7 @@ package cache_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"testing/synctest"
 	"time"
@@ -12,10 +13,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A handle given back with its refusal (ReleaseWithErr) keeps the refusal as its state: its error
-// stays, it never syncs, lists nothing and waits for nothing, and its scope stops at once instead
-// of being listed again at every step of client-go's backoff; read namespace by namespace, it is
-// given back when every namespace refused. A handle without an error stays held.
+// A handle given back with its refusal (ReleaseWithErr) keeps its state: its error stays, it syncs
+// as it did and waits for nothing, and its scope stops at once instead of being listed again at
+// every step of client-go's backoff; read namespace by namespace, it is given back when every
+// namespace refused, or namespace by namespace (ReleaseRefusedNamespaces) while others list. A
+// handle without an error stays held.
 func TestReleaseWithErrKeepsTheRefusal(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -73,13 +75,41 @@ func TestReleaseWithErrKeepsTheRefusal(t *testing.T) {
 			if err := h.Err(); err == nil || err.Error() != refusal || !cache.IsRefused(err) {
 				t.Errorf("the kept error %v, want %q", err, refusal)
 			}
-			if h.HasSynced() || h.List() != nil || h.WaitForSync(ctx) {
-				t.Error("a handle given back syncs or lists")
+			synced := h.Namespaces() != nil // every namespace refused: a read namespace by namespace has synced
+			if h.HasSynced() != synced || h.WaitForSync(ctx) != synced || len(h.List()) != 0 {
+				t.Errorf("a handle given back: synced %v (want %v), %d objects", h.HasSynced(), synced, len(h.List()))
 			}
 			if _, found := h.Get("team-a", "web-0"); found {
 				t.Error("a handle given back gets an object")
 			}
 			h.Release() // harmless
 		}
+
+		// Some namespaces refused: those go back, the others read on.
+		ctx, cancel = context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		h := c.AcquireNamespaces(cache.Scope{GVR: testkit.PodsGVR}, []string{"team-a", "team-b"})
+		if !testkit.WaitFor(ctx, func() bool { return h.HasSynced() && cache.IsRefused(h.Err()) }) {
+			t.Fatalf("no refusal in team-b: %v", h.Err())
+		}
+		refusal := h.Err().Error()
+		if n := h.ReleaseRefusedNamespaces(); n != 1 {
+			t.Fatalf("%d namespaces given back, want team-b's", n)
+		}
+		if n := h.ReleaseRefusedNamespaces(); n != 0 {
+			t.Errorf("%d namespaces given back again", n)
+		}
+		before := src.Calls()
+		time.Sleep(5 * time.Second)
+		if n := src.Calls()["list pods in team-b"] - before["list pods in team-b"]; n != 0 {
+			t.Errorf("team-b listed %d more times after it was given back", n)
+		}
+		if !h.HasSynced() || len(h.List()) != 2 || h.Err() == nil || h.Err().Error() != refusal {
+			t.Errorf("the namespaces read on: synced %v, %d objects, error %v", h.HasSynced(), len(h.List()), h.Err())
+		}
+		if !slices.Equal(cache.Runners(c), []string{"pods in team-a"}) {
+			t.Errorf("informers %q, want team-a's alone", cache.Runners(c))
+		}
+		h.Release()
 	})
 }

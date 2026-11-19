@@ -10,6 +10,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
+	"github.com/guided-traffic/cogpit/internal/model/kinds"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
@@ -20,8 +21,12 @@ import (
 // in all namespaces, or in team-a alone; the access reviews either tell, or cannot (a webhook
 // authorizer: every rules review incomplete), and then the API server's refusal is the first word.
 
-// refusedTrivyGVR is Trivy Operator's VulnerabilityReport resource.
-var refusedTrivyGVR = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
+// refusedTrivyGVR is Trivy Operator's VulnerabilityReport resource, refusedPolicyReportsGVR
+// Kyverno's PolicyReport.
+var (
+	refusedTrivyGVR         = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
+	refusedPolicyReportsGVR = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "policyreports"}
+)
 
 // refusedWorkloadGVRs are the workload kinds the Overviews read besides the Deployments.
 var refusedWorkloadGVRs = map[string]schema.GroupVersionResource{
@@ -38,6 +43,8 @@ type refusedUser struct {
 	ns         string   // the context's namespace and the user's one RoleBinding; "": cluster-wide reads
 	incomplete bool     // the access reviews cannot tell
 	allow      []string // resources of the core and apps groups the user may read besides pods, namespaces, deployments
+	teamA      []string // resources of the core and apps groups the user may read in team-a alone
+	accessible []string // the cluster's accessible namespaces
 }
 
 func refusedUsers() []refusedUser {
@@ -50,9 +57,9 @@ func refusedUsers() []refusedUser {
 }
 
 // refusedSession connects u to a fake API server that serves the core kinds, the workload kinds,
-// the events, the nodes, Secrets, and Trivy Operator's, Flux's and Argo CD's kinds with their
-// definitions; with trivy, the Trivy integration is on.
-func refusedSession(ctx context.Context, t *testing.T, u refusedUser, trivy bool) (*engine.Session, *testkit.FakeAPIServer) {
+// the events, the nodes, Secrets, and Trivy Operator's, Kyverno's, Flux's and Argo CD's kinds with
+// their definitions; on are the integrations switched on.
+func refusedSession(ctx context.Context, t *testing.T, u refusedUser, on engine.IntegrationSet) (*engine.Session, *testkit.FakeAPIServer) {
 	t.Helper()
 	resources := append(append([]testkit.FakeResource(nil), testkit.DefaultFakeResources...),
 		testkit.FakeResource{GVR: testkit.CRDsGVR, Kind: "CustomResourceDefinition"},
@@ -60,6 +67,7 @@ func refusedSession(ctx context.Context, t *testing.T, u refusedUser, trivy bool
 		testkit.FakeResource{GVR: testkit.EventsGVR, Kind: "Event", Namespaced: true},
 		testkit.FakeResource{GVR: testkit.SecretsGVR, Kind: "Secret", Namespaced: true},
 		testkit.FakeResource{GVR: refusedTrivyGVR, Kind: "VulnerabilityReport", Namespaced: true},
+		testkit.FakeResource{GVR: refusedPolicyReportsGVR, Kind: "PolicyReport", Namespaced: true},
 		testkit.FakeResource{GVR: gitopsKustomizationsGVR, Kind: "Kustomization", Namespaced: true},
 		testkit.FakeResource{GVR: gitopsGitReposGVR, Kind: "GitRepository", Namespaced: true},
 		testkit.FakeResource{GVR: testkit.ArgoApplicationsGVR, Kind: "Application", Namespaced: true},
@@ -75,11 +83,16 @@ func refusedSession(ctx context.Context, t *testing.T, u refusedUser, trivy bool
 	if u.ns != "" {
 		rules = map[string][]testkit.FakeRule{"": {crds}, u.ns: {reads}}
 	}
+	if len(u.teamA) > 0 {
+		rules["team-a"] = append(rules["team-a"], testkit.FakeRule{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{"", "apps"}, Resources: u.teamA})
+	}
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: "refused-token", Resources: resources,
 		Access: &testkit.FakeAccess{Enforce: true, Incomplete: u.incomplete, Rules: rules}})
 	t.Cleanup(srv.Close)
 	srv.Set(testkit.CRDsGVR, testkit.CRD(refusedTrivyGVR.Group, refusedTrivyGVR.Resource, "VulnerabilityReport", true,
 		testkit.CRDVersion{Name: refusedTrivyGVR.Version, Served: true, Storage: true}))
+	srv.Set(testkit.CRDsGVR, testkit.CRD(refusedPolicyReportsGVR.Group, refusedPolicyReportsGVR.Resource, "PolicyReport", true,
+		testkit.CRDVersion{Name: refusedPolicyReportsGVR.Version, Served: true, Storage: true}))
 	srv.Set(testkit.CRDsGVR, testkit.CRD(gitopsKustomizationsGVR.Group, gitopsKustomizationsGVR.Resource, "Kustomization", true))
 	srv.Set(testkit.CRDsGVR, testkit.CRD(gitopsGitReposGVR.Group, gitopsGitReposGVR.Resource, "GitRepository", true))
 	for _, crd := range testkit.ArgoCRDs() {
@@ -94,13 +107,12 @@ func refusedSession(ctx context.Context, t *testing.T, u refusedUser, trivy bool
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)
 	}
-	if trivy {
-		if _, err := s.ChangeClusterSettings("fake", func(c *engine.ClusterSettings) error {
-			c.SetIntegrations(engine.IntAll, engine.IntTrivy, 0)
-			return nil
-		}); err != nil {
-			t.Fatal(err)
-		}
+	if _, err := s.ChangeClusterSettings("fake", func(c *engine.ClusterSettings) error {
+		c.SetIntegrations(engine.IntAll, on, 0)
+		c.AccessibleNamespaces = u.accessible
+		return nil
+	}); err != nil {
+		t.Fatal(err)
 	}
 	if err := s.Connect(ctx, "fake"); err != nil {
 		t.Fatal(err)
@@ -174,7 +186,7 @@ func TestBudgetTrivyRefusedReports(t *testing.T) {
 		t.Run(u.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 			defer cancel()
-			s, srv := refusedSession(ctx, t, u, true)
+			s, srv := refusedSession(ctx, t, u, engine.IntTrivy)
 			status := func() engine.IntegrationStatus {
 				for _, st := range s.IntegrationStatuses("fake") {
 					if st.Name == engine.IntegrationTrivy {
@@ -240,7 +252,7 @@ func TestBudgetPagesRefusedKinds(t *testing.T) {
 				t.Parallel()
 				ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 				defer cancel()
-				s, srv := refusedSession(ctx, t, u, false)
+				s, srv := refusedSession(ctx, t, u, 0)
 				s.OpenTab(page.view, false)
 				shown := func() bool {
 					ts := s.Table(page.view)
@@ -283,7 +295,7 @@ func TestBudgetClusterOverviewRefusedNodes(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	u := refusedUser{name: "all but the nodes", incomplete: true, allow: []string{"events", "statefulsets", "daemonsets"}}
-	s, srv := refusedSession(ctx, t, u, false)
+	s, srv := refusedSession(ctx, t, u, 0)
 	s.OpenTab(engine.ClusterOverview, false)
 	shown := func() bool {
 		ts := s.Table(engine.ClusterOverview)
@@ -305,5 +317,161 @@ func TestBudgetClusterOverviewRefusedNodes(t *testing.T) {
 	}
 	if again := settledRefusal(ctx, t, srv, shown, what, "nodes"); again["nodes"] > 3 {
 		t.Errorf("after cluster.refreshAccess the nodes were listed %d times in all, want at most 3", again["nodes"])
+	}
+}
+
+// TestReadersNameKindsTheReviewsDeny: a user the access reviews say may not list a reader's kinds,
+// cluster-wide and namespace-limited: nothing is listed, and each reader says so, as the
+// integrations' states do ("Cogpit may not list <kind>") — the Flux dashboard instead of "The
+// cluster serves no Flux kinds.", the Argo CD dashboard and the Workloads Overview instead of
+// counts of nothing, the Kyverno integration instead of "found".
+func TestReadersNameKindsTheReviewsDeny(t *testing.T) {
+	const (
+		ks    = "kustomizations.kustomize.toolkit.fluxcd.io"
+		repos = "gitrepositories.source.toolkit.fluxcd.io"
+		apps  = "applications.argoproj.io"
+		polr  = "policyreports.wgpolicyk8s.io"
+	)
+	for _, u := range refusedUsers() {
+		if u.incomplete {
+			continue
+		}
+		t.Run(u.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			s, srv := refusedSession(ctx, t, u, engine.IntKyverno)
+			pageError := func(view, want string) {
+				t.Helper()
+				s.OpenTab(view, false)
+				if !testkit.WaitFor(ctx, func() bool { ts := s.Table(view); return ts != nil && ts.Synced && ts.Error == want }) {
+					var got string
+					if ts := s.Table(view); ts != nil {
+						got = ts.Error
+					}
+					t.Errorf("%s says %q, want %q", view, got, want)
+				}
+			}
+
+			pageError(engine.FluxDashboard, "Cogpit may not list "+ks+", "+repos)
+			if m, _, err := s.FluxDashboard(ctx, "", nil, false); err != nil || m.Error != "Cogpit may not list "+ks+", "+repos {
+				t.Errorf("flux.dashboard: %+v, %v", m, err)
+			}
+
+			pageError(engine.ArgoCDDashboard, "Cogpit may not list "+apps)
+			if m, _, err := s.ArgoCDDashboard(ctx, "", nil, false); err != nil || m.Error != "Cogpit may not list "+apps ||
+				len(m.Kinds) == 0 || m.Kinds[0].Error != "Cogpit may not list "+apps {
+				t.Errorf("argocd.dashboard: %+v, %v", m, err)
+			}
+
+			pageError(engine.WorkloadsOverview, "Cogpit may not list events")
+			if m, _, err := s.WorkloadsOverview(ctx, "", nil, false); err != nil {
+				t.Error(err)
+			} else {
+				for _, k := range m.Kinds {
+					if k.Kind == "statefulsets" && k.Error != "Cogpit may not list statefulsets.apps" {
+						t.Errorf("the Workloads Overview's Stateful Sets: %+v", k)
+					}
+				}
+			}
+
+			kyverno := func() engine.IntegrationStatus {
+				for _, st := range s.IntegrationStatuses("fake") {
+					if st.Name == engine.IntegrationKyverno {
+						return st
+					}
+				}
+				return engine.IntegrationStatus{}
+			}
+			if !testkit.WaitFor(ctx, func() bool {
+				st := kyverno()
+				return st.State == engine.IntegrationForbidden && st.Detail == "may not list "+polr
+			}) {
+				t.Errorf("Kyverno's status: %+v", kyverno())
+			}
+
+			if got := refusedLists(srv, ks, repos, apps, polr, "statefulsets.apps", "events"); len(got) != 0 {
+				t.Errorf("kinds the reviews deny were listed: %v", got)
+			}
+		})
+	}
+}
+
+// TestBudgetViewsRefusedKinds: a kind's list view for a user the access reviews cannot tell about
+// who may not list the kind (a namespaced one, the Stateful Sets, and the Nodes): the view's error
+// line is the API server's refusal, and the kind is not listed again while the view is open, before
+// and after cluster.refreshAccess reads it once again.
+func TestBudgetViewsRefusedKinds(t *testing.T) {
+	for _, view := range []struct{ key, resource string }{{"statefulsets", "statefulsets.apps"}, {"nodes", "nodes"}} {
+		for _, u := range refusedUsers() {
+			if !u.incomplete {
+				continue
+			}
+			t.Run(view.key+", "+u.name, func(t *testing.T) {
+				t.Parallel()
+				ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+				defer cancel()
+				s, srv := refusedSession(ctx, t, u, 0)
+				s.OpenTab(view.key, false)
+				shown := func() bool {
+					ts := s.Table(view.key)
+					return ts != nil && strings.Contains(ts.Error, "is forbidden")
+				}
+				what := func() string {
+					if ts := s.Table(view.key); ts != nil {
+						return "error line " + ts.Error
+					}
+					return "no snapshot"
+				}
+				first := settledRefusal(ctx, t, srv, shown, what, view.resource)
+				if first[view.resource] > 2 { // in all namespaces, then in the context's namespace
+					t.Errorf("%s was listed %d times, want at most 2 (reads %v)", view.resource, first[view.resource], srv.RequestsIn())
+				}
+				refreshAccess(ctx, t, s)
+				if !testkit.WaitFor(ctx, func() bool { return refusedLists(srv, view.resource)[view.resource] > first[view.resource] }) {
+					t.Fatalf("cluster.refreshAccess did not read %s again: %v", view.resource, srv.RequestsIn())
+				}
+				settledRefusal(ctx, t, srv, shown, what, view.resource)
+			})
+		}
+	}
+}
+
+// TestBudgetPartiallyRefusedRead: the Stateful Sets view of a user who may list them in team-a but
+// not in team-b, both accessible namespaces, whom the access reviews cannot tell about: team-b's
+// refusal is the view's error line and team-b is listed once, while team-a's are read and watched;
+// cluster.refreshAccess reads team-b again.
+func TestBudgetPartiallyRefusedRead(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	u := refusedUser{name: "team-a's Stateful Sets", ns: "team-a", incomplete: true, teamA: []string{"statefulsets"}, accessible: []string{"team-a", "team-b"}}
+	s, srv := refusedSession(ctx, t, u, 0)
+	srv.Set(refusedWorkloadGVRs["StatefulSet"], testkit.Object("apps/v1", "StatefulSet", "team-a", "db", nil))
+	s.OpenTab("statefulsets", false)
+	teamB := func() int64 {
+		reads := srv.RequestsIn()
+		return reads["list statefulsets.apps in team-b"] + reads["watchlist statefulsets.apps in team-b"]
+	}
+	if !testkit.WaitFor(ctx, func() bool {
+		ts := s.Table("statefulsets")
+		return ts != nil && ts.Synced && len(ts.Rows) == 1 && strings.Contains(ts.Error, "in team-b") && strings.Contains(ts.Error, "is forbidden")
+	}) {
+		t.Fatalf("the view never showed team-a's row and team-b's refusal: %+v (reads %v)", s.Table("statefulsets"), srv.RequestsIn())
+	}
+	time.Sleep(refusedWindow + time.Second) // client-go's backoff would list team-b twice more by then
+	if n := teamB(); n != 1 {
+		t.Errorf("team-b's Stateful Sets were listed %d times, want once (reads %v)", n, srv.RequestsIn())
+	}
+	if ts := s.Table("statefulsets"); !ts.Synced || len(ts.Rows) != 1 || !strings.Contains(ts.Error, "in team-b") {
+		t.Errorf("the view lost team-a's row or team-b's refusal: %+v", ts)
+	}
+	srv.Set(refusedWorkloadGVRs["StatefulSet"], testkit.Object("apps/v1", "StatefulSet", "team-a", "cache", nil))
+	if !testkit.WaitFor(ctx, func() bool { ts := s.Table("statefulsets"); return ts != nil && len(ts.Rows) == 2 }) {
+		t.Errorf("team-a's watch went with team-b's refusal: %+v", s.Table("statefulsets"))
+	}
+
+	refreshAccess(ctx, t, s)
+	if !testkit.WaitFor(ctx, func() bool { return teamB() > 1 }) {
+		t.Fatalf("cluster.refreshAccess did not read team-b again: %v", srv.RequestsIn())
 	}
 }

@@ -121,7 +121,7 @@ func (st *state) reconcileLocked(now UIState) {
 		}
 	}
 	st.noteVanishedLocked(b, prof, now.View)
-	if st.view != nil && (st.view.backend != b || st.view.profile != prof || st.view.plan.key() != plan.key() || st.view.relKey != relKey) {
+	if st.view != nil && (st.view.backend != b || st.view.profile != prof || st.view.plan.key() != plan.key() || st.view.relKey != relKey || st.view.refused.retake(b)) {
 		st.view.stop()
 		st.view = nil
 	}

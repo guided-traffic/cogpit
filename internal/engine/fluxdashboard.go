@@ -66,8 +66,9 @@ type FluxDashboardModel struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 	// Synced is false while a kind is still being listed.
 	Synced bool `json:"synced"`
-	// Error names the kinds the page cannot read ("Kustomizations: forbidden …"); empty when it
-	// reads all.
+	// Error names the kinds the page cannot read: those the access reviews say the user may not
+	// list ("Cogpit may not list kustomizations.kustomize.toolkit.fluxcd.io"), the API server's
+	// refusals ("Kustomizations: forbidden …"); empty when it reads all.
 	Error string `json:"error,omitempty"`
 }
 
@@ -119,6 +120,7 @@ type fluxDashboardWorker struct {
 type fluxSource struct {
 	kinds  []fluxSourceKind
 	unsubs []func()
+	denied []string // the kinds served that the access reviews say the user may not list (mayNotList)
 }
 
 type fluxSourceKind struct {
@@ -174,8 +176,9 @@ func newFluxSource(b *Backend, acquire func(*model.KindProfile) *cache.Handle, o
 		if !ok {
 			continue
 		}
-		if listable, known := b.Listable(p, nil); known && !listable {
-			continue // a watch the API server refuses would only retry
+		if b.deniedKind(p) {
+			src.denied = append(src.denied, p.GVR().GroupResource().String()) // a watch the API server refuses would only retry
+			continue
 		}
 		h := acquire(p)
 		src.unsubs = append(src.unsubs, h.Subscribe(func(cache.Event) { onChange() }))
@@ -219,6 +222,9 @@ func (src *fluxSource) waitSynced(ctx context.Context) {
 
 func (src *fluxSource) errText() string {
 	var parts []string
+	if len(src.denied) > 0 {
+		parts = append(parts, "Cogpit may not list "+strings.Join(src.denied, ", "))
+	}
 	for _, k := range src.kinds {
 		if err := k.handle.Err(); err != nil {
 			parts = append(parts, k.info.Title+": "+err.Error())
@@ -327,7 +333,7 @@ func fluxTable(context string, fb *fluxBuild, p viewParams) *TableSnapshot {
 	switch {
 	case fb.unknown != "":
 		snap.Error = fb.unknown
-	case len(fb.kinds) == 0:
+	case len(fb.kinds) == 0 && fb.errText == "":
 		snap.Error = "The cluster serves no Flux kinds."
 	}
 	return snap
@@ -495,7 +501,7 @@ func (b *Backend) fluxPlanKey() string {
 			sb.WriteByte('|')
 		}
 	}
-	return b.pageReadKey(keys, true) + sb.String()
+	return b.pageReadKey(keys) + sb.String()
 }
 
 // reconcileFluxPageLocked runs the Flux dashboard's worker: started when the page opens, given the
