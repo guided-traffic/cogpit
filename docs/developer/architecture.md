@@ -423,8 +423,10 @@ Each cluster's connection watch writes its own state, bound to its connect by a 
   [D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)):
   each connect is a `connectRun` in `state.runs`. `Session.Connect` starts or joins one and waits
   under `state.connMu`; `ConnectBackground` starts one nobody waits for (generations from
-  `bgGenBase`). A later connect or show ends only the wait (`errConnectSuperseded`); the run then
-  joins the pool as a cluster the window left, and a toast says how it ended.
+  `bgGenBase`). Its entry in `Connections` (`markRunning`) and its attempt in the connection log
+  exist before its goroutine runs. A later connect or show ends only the wait
+  (`errConnectSuperseded`); the run then joins the pool as a cluster the window left, and a toast
+  says how it ended.
 - **The shown cluster never changes by itself:** a failed connect leaves `Context` on its cluster in
   `ConnectError`, its stages in `ConnectFailure`
   ([`connectfailure.go`](../../internal/engine/connectfailure.go), D-114).

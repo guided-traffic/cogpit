@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/guided-traffic/cogpit/internal/cluster"
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
@@ -57,8 +58,15 @@ func (st *state) newRunLocked(ctx context.Context, name string, restore bool) *c
 	return r
 }
 
-// startConnectRun runs r on a goroutine of its own.
+// startConnectRun runs r on a goroutine of its own. Its attempt in the connection log begins here,
+// before that goroutine runs, as its entry of Connections is marked by the caller (markRunning): a
+// cluster shown or a Disconnect before the scheduler ran it found no attempt.
 func (s *Session) startConnectRun(r *connectRun) {
+	begin := "Connecting to " + r.name
+	if r.restore {
+		begin += " (restoring the last session, in the background)"
+	}
+	attempt := s.state.logs.begin(r.name, AttemptConnect, LogInfo, begin)
 	s.goSafe("connect", func() {
 		defer func() { // a panic still ends the run, so that nobody waits for it forever
 			s.state.mu.Lock()
@@ -73,23 +81,23 @@ func (s *Session) startConnectRun(r *connectRun) {
 				close(r.done)
 			}
 		}()
-		s.runConnect(r)
+		if gate := runStartGate.Load(); gate != nil {
+			(*gate)(r.name)
+		}
+		s.runConnect(r, attempt)
 	})
 }
 
-// runConnect connects r's context through the connector: its entry of Connections connecting (its
-// marks blink), its attempt in the connection log, its credential plugin's runs in the UI state;
-// then the cluster in the pool as one the window left, or the error.
-func (s *Session) runConnect(r *connectRun) {
+// runStartGate, set by tests only, runs on a connect run's goroutine before the run begins: a test
+// holds it there to see a run the scheduler starts late.
+var runStartGate atomic.Pointer[func(contextID string)]
+
+// runConnect connects r's context through the connector, its steps in its attempt in the connection
+// log and its credential plugin's runs in the UI state; then the cluster in the pool as one the
+// window left, or the error.
+func (s *Session) runConnect(r *connectRun, attempt *ConnectAttempt) {
 	st := s.state
 	connector := s.opts.Connector
-	s.UpdateUI(func(u *UIState) { u.markRunning(r.name) })
-
-	begin := "Connecting to " + r.name
-	if r.restore {
-		begin += " (restoring the last session, in the background)"
-	}
-	attempt := st.logs.begin(r.name, AttemptConnect, LogInfo, begin)
 	steps := &connectSteps{logs: &st.logs, attempt: attempt, diag: st.diags.of(r.name),
 		cancelled: func() bool { return errors.Is(context.Cause(r.ctx), errConnectCancelled) }}
 	if line := s.proxyLogLine(r.name); line != "" {
@@ -366,7 +374,10 @@ func (s *Session) tellRunEnd(r *connectRun, err error) {
 }
 
 // markRunning marks the entry of Connections of a context whose connect runs (connectRun): it
-// stays, connecting, when the window shows another cluster. A context without one gets one.
+// stays, connecting, when the window shows another cluster. A context without one gets one. The
+// run's registrant marks it (Connect, with the connecting state; ConnectBackground) before the
+// run's goroutine starts: marked by that goroutine, a cluster shown before the scheduler ran it
+// dropped the entry, and the background connect had no blinking dot until then.
 func (u *UIState) markRunning(contextID string) {
 	if i := u.connectionIndex(contextID, 0); i >= 0 {
 		u.Connections[i].running = true

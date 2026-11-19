@@ -397,8 +397,6 @@ update rows.
 - **Missing:** a reserve for the bugs testers and users report on the way to beta. PhotoCraft's
   first public week brought hundreds of issues on features its tests counted as done. The known
   items below fall within it.
-- **A test fails under load:** `TestConnectCommandsAnswerABackgroundConnect` fails rarely under a
-  parallel test load and has not failed when run alone; cause not found.
 - **`services` answering 401:** on one real cluster `services` alone answered 401 every 5 minutes
   for two hours while every other kind worked; cause not found.
 - **Stray drags reach Fyne's own draggables:** a drag pressed elsewhere and moved onto a list's

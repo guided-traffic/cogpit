@@ -365,6 +365,9 @@ func (s *Session) connect(ctx context.Context, name string) (err error) {
 		u.Selected = nil
 		u.Drawer = nil
 		u.Filter = ""
+		if fresh {
+			u.markRunning(name) // with its connecting state: it stays when another cluster is shown before the run starts
+		}
 	})
 	if fresh {
 		s.startConnectRun(run)

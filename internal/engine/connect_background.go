@@ -57,6 +57,7 @@ func (s *Session) ConnectBackground(ctx context.Context, name string) error {
 	}
 	r := st.newRunLocked(ctx, name, true)
 	st.mu.Unlock()
+	s.UpdateUI(func(u *UIState) { u.markRunning(name) })
 	s.startConnectRun(r)
 	select {
 	case <-r.done:
