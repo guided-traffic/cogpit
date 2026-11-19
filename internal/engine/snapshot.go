@@ -117,11 +117,27 @@ func (w *viewWorker) unsettled() bool {
 // shownErr is the informer's error the view shows: none while the connection is interrupted or
 // its login expired (D-58): the rows are the cache's state as of then, and the connection's banner
 // says what is wrong.
+//
+// A related kind the user may not list (its pods behind the Nodes, D-new) follows the view's own
+// error on the same line: "Cogpit may not list pods".
 func (w *viewWorker) shownErr() string {
 	if w.backend.watch.current() != Connected {
 		return ""
 	}
-	return errText(w.handle.Err())
+	return joinErrLine(errText(w.handle.Err()), w.related.refusedKinds())
+}
+
+// joinErrLine is a view's error line: its own error, then the related kinds the user may not list
+// (mayNotList's words, the kinds comma-joined), "; " between them.
+func joinErrLine(own string, refused []string) string {
+	if len(refused) == 0 {
+		return own
+	}
+	line := "Cogpit may not list " + strings.Join(refused, ", ")
+	if own == "" {
+		return line
+	}
+	return own + "; " + line
 }
 
 // synced reports whether the view's kind and the kinds of its related-objects indexes finished

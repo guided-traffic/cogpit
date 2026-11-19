@@ -3,6 +3,7 @@ package integration_test
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -538,6 +539,44 @@ func TestBudgetRelatedReadsRefused(t *testing.T) {
 			}
 			what := func() string { return fmt.Sprint(refusedLists(srv, c.resources...)) }
 			settledRefusal(ctx, t, srv, shown, what, c.resources...)
+		})
+	}
+}
+
+// TestRelatedRefusalsAreNamed: a list view whose related read the user may not list says so on its
+// error line ("Cogpit may not list pods") and shows every cell read from it as "—", never 0 or
+// empty: the Nodes' pods, the Namespaces' pods behind the requests, whether the access reviews say
+// no or the API server refuses.
+func TestRelatedRefusalsAreNamed(t *testing.T) {
+	for _, incomplete := range []bool{false, true} {
+		t.Run(fmt.Sprintf("the access reviews cannot tell: %v", incomplete), func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			u := refusedUser{ns: "team-a", incomplete: incomplete, cluster: []string{"nodes", "namespaces"}, noPods: true}
+			s, srv := refusedSession(ctx, t, u, 0)
+			srv.Set(testkit.NodesGVR, testkit.Object("v1", "Node", "", "node-1", nil))
+			srv.Set(testkit.NamespacesGVR, testkit.Object("v1", "Namespace", "", "team-a", nil))
+			for _, c := range []struct{ view, column string }{{"nodes", ""}, {"namespaces", "cpuRequests"}} {
+				s.OpenTab(c.view, false)
+				var ts *engine.TableSnapshot
+				if !testkit.WaitFor(ctx, func() bool {
+					ts = s.Table(c.view)
+					return ts != nil && len(ts.Rows) == 1 && ts.Error == "Cogpit may not list pods"
+				}) {
+					t.Fatalf("%s: %+v", c.view, ts)
+				}
+				if c.column == "" {
+					continue
+				}
+				i := slices.IndexFunc(ts.Columns, func(col model.Column) bool { return col.ID == c.column })
+				if i < 0 {
+					t.Fatalf("%s has no column %s", c.view, c.column)
+				}
+				if cell := ts.Rows[0].Cells[i]; cell != model.NoCountCell() && (cell.Text != model.NoCount || cell.Parts == nil || !(*cell.Parts)[0].Muted) {
+					t.Errorf("%s's %s cell: %+v, want %q muted", c.view, c.column, cell, model.NoCount)
+				}
+			}
 		})
 	}
 }

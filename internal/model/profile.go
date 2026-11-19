@@ -196,6 +196,14 @@ func BuildRowWith(p *KindProfile, context string, obj *unstructured.Unstructured
 		copy(fixed, row.Cells)
 		row.Cells = fixed
 	}
+	if _, ok := rel.(RelatedRefusals); ok && p.CellsWith != nil {
+		// A cell read from a related kind the user may not list is unknown, not 0 or empty (D-new).
+		for i, c := range p.Columns {
+			if c.Related != "" && RelatedRefused(rel, c.Related) {
+				row.Cells[i] = NoCountCell()
+			}
+		}
+	}
 	if obj.GetDeletionTimestamp() != nil {
 		row.Status = StatusTerminating
 	}

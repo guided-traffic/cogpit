@@ -53,7 +53,7 @@ var resourceSlices = &model.KindProfile{
 		{ID: "pool", Title: titlePool, Type: model.ColumnText, Width: 160},
 		{ID: idNode, Title: titleNode, Type: model.ColumnText, Width: 160},
 		{ID: "devices", Title: titleDevices, Type: model.ColumnNumber},
-		{ID: "allocated", Title: draClaimAllocated, Type: model.ColumnNumber},
+		{ID: "allocated", Title: draClaimAllocated, Type: model.ColumnNumber, Related: keyResourceClaims},
 		ageColumn,
 	},
 	Needs:     []model.RelatedIndex{ClaimsByPool},

@@ -7431,6 +7431,12 @@ is followed first, namespace by namespace, as every read follows it (D-173).
   may rarely list, would name it on every such user's Overview.
 - The Argo CD dashboard rebuilds when a kind's error changes, as the other pages do, so its error
   line shows a refusal whenever it comes.
+- A list view whose related read the user may not list (the API server refused it, or the access
+  reviews deny it) names it on its error line after its own error, one line, the kinds
+  comma-joined ("Cogpit may not list pods"), and every cell read from it (`model.Column.Related`:
+  the Namespaces' requests, a claim's pods, a priority class's pods, an ApplicationSet's
+  Applications, a resource slice's allocated devices) shows "—" in the muted colour, never 0 or
+  empty.
 - What could not be read shows no count, and the refusal is said once, in the error line above the
   table, as in every list view: a kind's card or tile with an error and nothing counted shows "—"
   in the muted colour (not "0", not "No objects"; the Argo CD strip, its head and a Flux section's
@@ -7455,10 +7461,14 @@ place a reader reads a handle (its builds, the Overview's fold) would change; th
 scope for every holder by itself — only the reader knows when to read it again
 (`cluster.refreshAccess` starts readers, not scopes), and a read that waits (D-173) ends anyway; dropping a refused namespace from the read's plan — the plan's key would change and
 start the reader again, and the namespace would vanish from the scope the view names; keeping the
-held read, which costs a list per backoff step and fills Connection Diagnostics' refused line.
+held read, which costs a list per backoff step and fills Connection Diagnostics' refused line. For
+a related read the user may not list: silence — the empty or zero columns read as "nothing
+there"; a tooltip alone — nobody sees it; a banner — a new decoration where the error line already
+says what could not be read.
 
 **Limits:** a reader that starts again because another kind's plan changed reads a given-back kind
-once more.
+once more. A drawer names no related refusal: it has no error line, and its sections read from
+such a kind (a node's Pods, a workload's Pods table) show what they show without its objects.
 
 [`cache/cache.go`](../../internal/cache/cache.go) `ReleaseWithErr`, `ReleaseRefusedNamespaces`;
 [`engine/pagerefusals.go`](../../internal/engine/pagerefusals.go) `refusedReads`,
@@ -7467,6 +7477,7 @@ once more.
 [`engine/kyverno.go`](../../internal/engine/kyverno.go) `dropRefused` · `TestReleaseWithErrKeepsTheRefusal`,
 `TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`,
 `TestBudgetViewsRefusedKinds`, `TestBudgetPartiallyRefusedRead`, `TestReadersNameKindsTheReviewsDeny`,
-`TestBudgetRelatedReadsRefused`, `TestRenderFluxDashboardMayNotListDark`,
+`TestBudgetRelatedReadsRefused`, `TestRelatedRefusalsAreNamed`, `TestRenderNodesMayNotListPodsDark`,
+`TestRenderClaimsMayNotListPodsDark`, `TestRenderFluxDashboardMayNotListDark`,
 `TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
 `TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`

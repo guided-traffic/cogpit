@@ -69,6 +69,20 @@ type Column struct {
 	// Slots is a Signals column's number of icon places, one per source that applies to the view
 	// (Signal.Slot); 0 for any other column.
 	Slots int `json:"slots,omitempty"`
+	// Related is the kind key of the related-objects index the column's cells are read from (a
+	// namespace's pods' requests, a claim's pods): while the user may not list that kind, every
+	// cell of the column is NoCountCell (BuildRowWith, D-new). "" for a column read from the
+	// object itself.
+	Related string `json:"related,omitempty"`
+}
+
+// NoCount stands where a value is that could not be read (D-new): a refusal, or a list that
+// failed, counted nothing.
+const NoCount = "—"
+
+// NoCountCell is a cell whose value could not be read: NoCount in the muted text colour.
+func NoCountCell() Cell {
+	return Cell{Text: NoCount, Parts: &[]CellPart{{Text: NoCount, Muted: true}}}
 }
 
 // Cell is one table cell. Text is what the user reads; Num is the sort key for number, age and

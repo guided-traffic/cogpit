@@ -48,11 +48,14 @@ func mayNotList(p *model.KindProfile) string {
 	return "Cogpit may not list " + p.GVR().GroupResource().String()
 }
 
-// deniedKind reports whether the access reviews say the user may not list a kind where a page
-// would read it.
+// deniedKind reports whether the access reviews say the user may not list a kind where a reader
+// would read it: nowhere (Listable), or in none of the namespaces its plan names.
 func (b *Backend) deniedKind(p *model.KindProfile) bool {
-	listable, known := b.Listable(p, nil)
-	return known && !listable
+	if listable, known := b.Listable(p, nil); known && !listable {
+		return true
+	}
+	plan := b.namespacePlan(p)
+	return plan.perNamespace && len(plan.watch) == 0
 }
 
 // pageReadKey is how a page reads its kinds through acquireForPage: per kind its plan's key

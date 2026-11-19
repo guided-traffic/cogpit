@@ -180,3 +180,51 @@ func TestRenderKyvernoMayNotListDark(t *testing.T) {
 	})
 	savePNG(t, w, "cluster_settings_kyverno_may_not_list_dark.png")
 }
+
+// refusedRelated is fixtureRelated whose kinds in refused the user may not list
+// (model.RelatedRefusals): their objects are unknown.
+type refusedRelated struct {
+	fixtureRelated
+	refused []string
+}
+
+func (r refusedRelated) Refused(kind string) bool { return slices.Contains(r.refused, kind) }
+
+// TestRenderNodesMayNotListPodsDark: the Nodes view of a user who may not list pods, which the
+// view reads its nodes' pods from: the error line names them, once.
+func TestRenderNodesMayNotListPodsDark(t *testing.T) {
+	f := kindsFake(t, "nodes")
+	snap := *f.Table("nodes")
+	snap.Error = "Cogpit may not list pods"
+	f.setTable("nodes", &snap)
+	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
+	q.until(t, "the nodes view", func() bool {
+		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "nodes" && sh.diag.total > 0
+	})
+	q.until(t, "the error line", func() bool { return sh.view.errLine.Visible() && sh.view.errLine.text == snap.Error })
+	settle(w)
+	savePNG(t, w, "nodes_may_not_list_pods_dark.png")
+}
+
+// TestRenderClaimsMayNotListPodsDark: the Persistent Volume Claims of a user who may not list pods:
+// every Pods cell is "—" in the muted colour, never empty, and the error line names the pods.
+func TestRenderClaimsMayNotListPodsDark(t *testing.T) {
+	f := claimsFake(t)
+	claims, pods := fixtureClaims()
+	snap := kindSnapshotWith(t, "persistentvolumeclaims", claims, refusedRelated{fixtureRelated{"pods": pods}, []string{"pods"}})
+	snap.Error = "Cogpit may not list pods"
+	f.tables["persistentvolumeclaims"] = snap
+	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
+	q.until(t, "the claims view", func() bool {
+		return len(sh.kinds) > 0 && sh.view.snap != nil && sh.view.snap.View == "persistentvolumeclaims" && sh.diag.total > 0
+	})
+	settle(w)
+	col := columnOf(t, sh, "pods")
+	for _, r := range snap.Rows {
+		c := cellAt(t, sh, rowOf(t, f, "persistentvolumeclaims", r.Ref.Name), col)
+		if c.full != model.NoCount || c.text.Color != themeColor(c.Theme(), colorMuted) {
+			t.Errorf("%s's Pods cell %q in %v, want %q muted", r.Ref.Name, c.full, c.text.Color, model.NoCount)
+		}
+	}
+	savePNG(t, w, "pvc_may_not_list_pods_dark.png")
+}

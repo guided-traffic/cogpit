@@ -24,7 +24,7 @@ var priorityClasses = &model.KindProfile{
 		nameColumn,
 		{ID: "value", Title: "Value", Type: model.ColumnNumber, Width: 110},
 		{ID: "globalDefault", Title: "Global Default", Type: model.ColumnText, Width: 120},
-		{ID: idPods, Title: titlePods, Type: model.ColumnNumber},
+		{ID: idPods, Title: titlePods, Type: model.ColumnNumber, Related: podsResource},
 		ageColumn,
 	},
 	Needs:     []model.RelatedIndex{PodsByPriorityClass},

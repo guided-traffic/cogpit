@@ -52,7 +52,7 @@ var argoApplicationSets = &model.KindProfile{
 		{ID: idArgoGenerators, Title: "Generators", Type: model.ColumnText},
 		ageColumn,
 		{ID: idArgoProject, Title: titleArgoProject, Type: model.ColumnText, Hidden: true},
-		{ID: idArgoApps, Title: titleApplications, Type: model.ColumnNumber, Hidden: true},
+		{ID: idArgoApps, Title: titleApplications, Type: model.ColumnNumber, Hidden: true, Related: ArgoApplicationsKey},
 		{ID: idStatus, Title: titleStatus, Type: model.ColumnText, Hidden: true},
 	},
 	Needs: []model.RelatedIndex{ArgoAppsByAppSet},

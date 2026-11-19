@@ -1402,7 +1402,9 @@ and are named instead: "Cogpit may not list applications.argoproj.io" on the Arg
 the Flux kinds on the Flux dashboard. What could not be read shows "—" where its count would be
 (the dashboards' cards, the Workloads Overview's kinds), and the table neither counts items nor
 says "No … found" under the error line. A view's and a drawer's related objects that are refused
-(a node's pods, a Deployment's Replica Sets) are not asked for again either
+(a node's pods, a Deployment's Replica Sets) are not asked for again either; a list view names
+them after its own error ("Cogpit may not list pods") and shows "—" in every cell read from them
+(the Namespaces' requests, a claim's Pods)
 ([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
 
 <details>

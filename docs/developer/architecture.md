@@ -966,6 +966,11 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
 - An index may declare a `Sum`: what each object adds under its keys (`model.Totals`), kept with
   the index and moved with each event, read with `model.TotalsOf(rel, index, key)` at no cost
   however many objects: the Namespaces list's requests and limits (`PodsByNamespace`, D-154).
+- A column read from an index names its kind (`model.Column.Related`): while the user may not list
+  that kind (the reviews deny it, or the API server refused it; `model.RelatedRefusals`,
+  `relatedSet.refused`), `BuildRowWith` writes `model.NoCountCell` ("—", muted) into each of its
+  cells, and the view's error line names the kind after its own error ("Cogpit may not list pods",
+  `joinErrLine`; [D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the
   keys it looked up (`TestWorkloadDrawerWakesOnlyForItsPods`).
