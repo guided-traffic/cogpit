@@ -8,15 +8,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A connect still running when its context leaves Cogpit (G5, G13; FIXUP 2026-10-14): its
+// A connect still running when its context leaves Cogpit (G5, G13): its
 // kubeconfig file is gone, or its source was removed, while the connect waited for the cluster.
 // The watcher (closeTabsOfGoneFiles) and the removal (closeTabsOfSource) close the context's tabs
-// but leave UIState.Context alone while a connect holds it, so that the connect's end has the say.
-// Before, a connect that failed then left Context naming a context that is gone (ConnectError),
-// and one that succeeded left a connection made from a gone file until the sources changed again
-// (or, closed by the watcher between its publishing and the UI's Connected, a UI that said
-// Connected without a connection). Now the connect's end forgets the context as the watcher would
-// have, had the connect been over: a connection that succeeded is closed with the reason
+// but leave UIState.Context alone while a connect holds it, so that the connect's end has the say:
+// it forgets the context as the watcher would have, had the connect been over, so that neither a
+// failed connect's Context (ConnectError) nor a connection made from a gone file outlives it: a connection that succeeded is closed with the reason
 // (CloseGoneSourceConnection), and the context, its tabs and the dock's are dropped
 // (UIState.dropContexts), the reason kept in Connection.Error for the welcome page. Only a plain
 // fact counts, as for the watcher: the file does not exist, or no source covers the context and

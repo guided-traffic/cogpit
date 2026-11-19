@@ -26,7 +26,7 @@ import (
 // a folder in the list and press Sync, or press Sync with nothing selected to sync the folder
 // shown. Hidden files are listed (kubeconfigs may be named .kubeconfig), and the status line names
 // the path that will be synced. The dialog reads directory listings only, never file contents.
-// Since 2026-10-16 (D-72) macOS shows its own open panel instead (pickFiles,
+// On macOS the system's own open panel stands in (D-72) (pickFiles,
 // filepicker_choosers.go): this browser is the fallback where the system has no panel (Windows and
 // Linux until M11, Fyne's test driver).
 

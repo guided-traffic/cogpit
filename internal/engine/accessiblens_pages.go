@@ -8,10 +8,7 @@ import (
 )
 
 // The pages that read custom kinds (the Flux and Argo CD dashboards, D-34, D-36) for a
-// namespace-limited user (G3; FIXUP 2026-10-14, architecture §5). Both were built before the
-// namespace-limited fixes, with workers of their own: the open page took its kinds as a pending
-// plan reads them, in all namespaces, and an agent's read with no page open did too, then waited
-// 15 seconds for a list the API server refused. Now the open page waits for its kinds' plans as a
+// namespace-limited user (G3, architecture §5), each with workers of its own. The open page waits for its kinds' plans as a
 // view does (acquireForPage: nothing while the access reviews are out), its key tells a pending
 // plan apart (pageReadKey), and an agent's read waits for the plans and follows a refusal
 // (openFollowing), as the Overviews' do.

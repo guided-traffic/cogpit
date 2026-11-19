@@ -58,7 +58,7 @@ const redactedText = "•••"
 func RepositoryConfigPath() string { return cli.New().RepositoryConfig }
 
 // repoNamePattern is a repository's name as Cogpit can list its charts: letters, digits, '.', '-'
-// and '_', the first a letter or a digit. A dot is taken since 2026-10-14 (A36): the chart's id
+// and '_', the first a letter or a digit. A dot is taken (A36): the chart's id
 // doubles it (kinds.HelmChartName), so the id still tells the repository from the chart.
 var repoNamePattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,62}$`)
 

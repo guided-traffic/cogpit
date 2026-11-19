@@ -11,9 +11,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/k8seol"
 )
 
-// The Kubernetes version of the shown cluster and of its nodes against upstream's support (D-91,
-// the owner's WF30 of 2026-10-18). The API server's version is the one its connect read
-// (cluster.Conn's GET /version), and since 2026-10-26 the one its heartbeats read once it changed
+// The Kubernetes version of the shown cluster and of its nodes against upstream's support (D-91).
+// The API server's version is the one its connect read (cluster.Conn's GET /version), and the one
+// its heartbeats read once it changed
 // (Backend.ServerVersion, connwatch_version.go, D-132); a kubelet's is its Node's
 // status.nodeInfo.kubeletVersion in the cache: nothing here asks the cluster. The support is the
 // Kubernetes release table built into this Cogpit (internal/model/k8seol): upstream's dates only,

@@ -150,7 +150,7 @@ func TestKeyFileKeepsTheKey(t *testing.T) {
 	}
 }
 
-// TestKeyFromTheKeychainIsAskedForAgain: connections saved before 2026-10-15, whose keys the macOS
+// TestKeyFromTheKeychainIsAskedForAgain: connections an older Cogpit saved, whose keys the macOS
 // keychain kept (hasKey in the connections file, nothing in the key file), show no key; a turn asks
 // for the key again without naming the keychain and sends nothing; Cogpit has no keychain code to
 // read the old item with (TestNoKeychainCode). The chat's model menu (nil) keeps asking; a key
@@ -329,7 +329,7 @@ func TestFileKeyStoreRefuses(t *testing.T) {
 }
 
 // TestNoKeychainCode: the package has no cgo and no keychain call, so nothing the chat does makes
-// macOS ask for the login keychain, not even to migrate a key kept there before 2026-10-15 (the
+// macOS ask for the login keychain, not even to migrate a key an older Cogpit kept there (the
 // owner's decision, D-10).
 func TestNoKeychainCode(t *testing.T) {
 	files, err := filepath.Glob("*.go")

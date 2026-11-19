@@ -35,7 +35,7 @@ const (
 	// release (an uninstall in the Helm Releases view) replaces it. The journal still records the
 	// install: it keeps a second Cogpit process from starting an action on the release while the
 	// install runs (H-22), and tells the user after a crash what was left. An entry of this kind
-	// makes the journal unreadable for a Cogpit from before 2026-10-13.
+	// makes the journal unreadable for an older Cogpit that does not know installs.
 	HelmInstall HelmAction = "install"
 )
 

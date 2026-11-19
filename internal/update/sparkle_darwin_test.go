@@ -244,8 +244,8 @@ func TestSparkleChecksAtEveryStart(t *testing.T) {
 	framework := sparkleFramework(t)
 	harness := buildHarness(t)
 	now := time.Now().UTC()
-	// The interval releases before 2026-10-26 set (hack/macos/sparkle.sh), an hour: Sparkle's own
-	// check would be due two hours after the last one.
+	// The interval an older release set (hack/macos/sparkle.sh), an hour: Sparkle's own check would
+	// be due two hours after the last one.
 	interval := "\t<key>SUScheduledCheckInterval</key>\n\t<integer>3600</integer>\n"
 	for i, tc := range []struct {
 		name      string

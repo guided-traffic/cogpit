@@ -31,7 +31,7 @@ const MetricsSettingsFile = "metrics.json"
 const maxMetricsSettingsSize = 1 << 20
 
 // MetricsSettings keeps each context's Prometheus override and its query settings (the query
-// format, the empty-container filter, HTTPS; metrics.QuerySettings, since 2026-10-16). Safe for
+// format, the empty-container filter, HTTPS; metrics.QuerySettings). Safe for
 // concurrent use. A nil MetricsSettings keeps nothing: a setting then lasts for the connection.
 type MetricsSettings struct {
 	mu    sync.Mutex
@@ -191,8 +191,8 @@ func ParsePrometheusAddress(s string) (namespace, service, port string, err erro
 }
 
 // PrometheusSetting is the Prometheus a connected cluster's metrics come from: the override, or
-// detection by name (Auto), and how it is asked (since 2026-10-16: Lens's query format,
-// empty-container filter and HTTPS, Cluster Settings › Prometheus since D-87).
+// detection by name (Auto), and how it is asked (Lens's query format, empty-container filter and
+// HTTPS, Cluster Settings › Prometheus, D-87).
 type PrometheusSetting struct {
 	// Context is the connected context the setting belongs to.
 	Context string `json:"context"`

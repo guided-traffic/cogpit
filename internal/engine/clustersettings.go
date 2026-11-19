@@ -44,8 +44,8 @@ const (
 
 // IconColors are the colours a cluster's icon may take by name: Solarized's eight accents, the
 // theme's accent palette (D-22), drawn in each variant's legible shade (the GUI's theme tokens).
-// Since 2026-10-15 (the owner's A93 of 2026-10-14 evening) any colour "#rrggbb" too, which the window draws in a shade
-// of the same hue legible on each theme (IsCustomIconColor).
+// Any colour "#rrggbb" too (the owner's A93), which the window draws in a shade of the same hue
+// legible on each theme (IsCustomIconColor).
 var IconColors = []string{"cyan", "blue", "violet", "magenta", "red", "orange", "yellow", "green"}
 
 // IsCustomIconColor reports whether c is a colour picked freely: "#rrggbb", lower-case hex.

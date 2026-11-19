@@ -16,8 +16,8 @@ import (
 // A15 of 2026-10-14 evening): a file beside the token file, "on" or "off", written by the window's
 // status bar item only (cmd/cogpit's mcpControl), never by an engine command or an MCP tool. With
 // it off, `cogpit-cli mcp` refuses to serve, headless too: it answers the agent with
-// SwitchedOffMessage instead of Cogpit's tools. Since 2026-10-21 (the owner's security posture,
-// D-49) the server is opt-in: no file means off, so a new installation starts a server for agents
+// SwitchedOffMessage instead of Cogpit's tools. The server is opt-in (the owner's security
+// posture, D-49): no file means off, so a new installation starts a server for agents
 // only after the user switched it on, and a bridge started before that is told so.
 
 // SwitchFileName is the switch file's name in Cogpit's configuration directory.

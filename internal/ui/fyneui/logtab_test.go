@@ -334,7 +334,7 @@ func logTabOf(sh *shell) *logTab {
 
 // TestLogTabOptionsAreEngineState: a toggle in the toolbar asks the engine (logs.setOptions) and
 // the view follows the engine's state, whoever changed it; an option that changes the request
-// (previous) opens the stream again, the others (timestamps since 2026-10-13) do not.
+// (previous) opens the stream again, the others (timestamps) do not.
 func TestLogTabOptionsAreEngineState(t *testing.T) {
 	sh, _, q, f := logsScene(t, ThemeDark, false, engine.LogOptions{})
 	lt := logTabOf(sh)

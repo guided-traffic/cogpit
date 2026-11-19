@@ -20,7 +20,7 @@ const titleContainers = "Containers"
 // claims with the claim it resolves to (named directly, or generated from a template and recorded
 // in status.resourceClaimStatuses), a link to it and to the template, and the containers and init
 // containers that request it ("app" or "app (gpu)" for one request of the claim); the claim's state
-// since 2026-10-14 (A105, podDetailWith), from claims only the open drawer reads. The section's
+// (A105, podDetailWith), from claims only the open drawer reads. The section's
 // place, after Pod Volumes, is inferred.
 // With rel (not model.NoRelated) a State column shows each claim's state (A105).
 func podResourceClaimsSection(pod any, namespace string, rel model.Related) (model.DetailSection, bool) {

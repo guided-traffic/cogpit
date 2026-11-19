@@ -27,9 +27,7 @@ import (
 // it runs, what it serves now, the last good answer and the last failure (a class, never a response
 // body) are in each one's tooltip. While one is not reachable its part of the row links to its section of Cluster
 // Settings (D-87): "Set its address…" for a Prometheus not found, "Settings…" otherwise; while both
-// answer the row holds nothing more. Before 2026-10-18 there were a source line in prose with the
-// Prometheus's namespace and service as links, a line per provider and a "Prometheus…" button;
-// where the Prometheus runs is on its settings section now. A provider the cluster's settings
+// answer the row holds nothing more; where the Prometheus runs is on its settings section. A provider the cluster's settings
 // switch off is not on the row. A cluster whose integrations are not chosen yet (D-82) has none on:
 // its row is "Choose integrations…", which asks the question again (cluster.integrations.ask).
 // The data is the engine's (ObjectMetrics.Providers, ClusterOverviewModel.Providers), which agents

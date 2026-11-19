@@ -334,9 +334,9 @@ func (a *accessReviews) settledRulesLocked(ns string) (r *rulesReview, pending b
 // acquiring it would send the refused read again. The check and the acquire hold off noting a
 // refusal (planMu), and the cache tells of a refusal before a reader can see it and end the read
 // (cache.OnRefused), so a plan found current here either joins the read still running or starts
-// the first one. Before (2026-10-20) a reader that had planned while another reader's read was
-// refused and ended started it again (TestPrometheusDetectionFollowsARefusal, CI: Prometheus's
-// detection after the Alertmanager's lookup of the Services).
+// the first one: a reader that planned while another reader's read was refused and ended does not
+// start it again (TestPrometheusDetectionFollowsARefusal: Prometheus's detection after the
+// Alertmanager's lookup of the Services).
 func (b *Backend) acquirePlanned(p *model.KindProfile, plan nsPlan) *cache.Handle {
 	if plan.perNamespace {
 		return b.Cache.AcquireNamespaces(b.Scope(p), plan.watch)

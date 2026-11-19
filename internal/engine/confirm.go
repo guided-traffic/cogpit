@@ -171,8 +171,8 @@ func newConfirmRequest(cmd *Command, danger Danger, origin Origin, uiContext str
 // kindNames are the targets' kinds as the user reads them, for ConfirmRequest.Kinds: the drawer's
 // singular title where the kind has one ("Release", "Chart"), else its view's title in the
 // singular ("Pods" → "Pod", "Network Policies" → "Network Policy"; a custom kind's title is its
-// Kind already). Without the kind's profile the name is left empty. A real cluster's confirmations
-// read "Drain nodes worker-1" and "Delete helmreleases web" before (2026-10-16).
+// Kind already), never its kind key ("Drain nodes worker-1"). Without the kind's profile the name
+// is left empty.
 func (s *Session) kindNames(targets []model.ObjectRef) []string {
 	if len(targets) == 0 {
 		return nil

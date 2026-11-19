@@ -14,9 +14,8 @@ import (
 // A label-selected scope the API server refuses is not kept warm either, as an unselected one is
 // not (TestRefusedScopeIsNotKeptWarm): released after the refusal it stops at once, and refused
 // while only warm it stops then, instead of retrying with client-go's backoff for the whole warm
-// period. Found 2026-10-14 (FIXUP) through Argo CD's Repositories and Clusters, label-selected
-// Secrets: a namespace-limited user's Argo CD dashboard left both scopes in all namespaces warm,
-// refused five or six times each in 15 seconds. A selected scope served by its cover is not
+// period: Argo CD's Repositories and Clusters are label-selected Secrets, and a namespace-limited
+// user's Argo CD dashboard reads both in all namespaces first. A selected scope served by its cover is not
 // affected: it has no informer of its own.
 func TestRefusedSelectedScopeIsNotKeptWarm(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

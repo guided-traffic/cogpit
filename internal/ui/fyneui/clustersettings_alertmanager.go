@@ -22,8 +22,7 @@ import (
 // alertmanagerChanged), so an agent's change shows too.
 //
 // The fields stand on Alertmanager's own section of Cluster Settings under its switch (D-87,
-// integrationDetails, clustersettings_integration.go); until 2026-10-18 under its row on
-// Integrations.
+// integrationDetails, clustersettings_integration.go).
 
 func init() {
 	integrationDetails[engine.IntegrationAlertmanager] = func(p *settingsPage) (fyne.CanvasObject, func()) {

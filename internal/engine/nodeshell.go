@@ -43,10 +43,9 @@ const (
 	NodeShellContainer = "shell"
 
 	// DefaultNodeShellImage is the newest supported Alpine release, pinned to the digest of its
-	// multi-arch index (owner, 2026-10-14, D-37): its BusyBox has nsenter and sleep. Chosen on
-	// 2026-10-14 as 3.24 (3.24.2, supported until 2028-06-01), the digest read with `docker buildx
-	// imagetools inspect docker.io/library/alpine:3.24`. Renovate moves the tag to the next release
-	// and the digest to the tag's newest build (.github/renovate.json reads the comment below), and
+	// multi-arch index (owner, D-37): its BusyBox has nsenter and sleep. The digest is the one
+	// `docker buildx imagetools inspect` reads for the tag. Renovate moves the tag to the next
+	// release and the digest to the tag's newest build (.github/renovate.json reads the comment below), and
 	// CI's kind job runs every such change on a node (TestKindNodeShell).
 	// renovate: datasource=docker depName=docker.io/library/alpine
 	DefaultNodeShellImage = "docker.io/library/alpine:3.24@sha256:f59abe656b692d901e184be3445e084786602108599d2a51d229c0f5a48c71bf"

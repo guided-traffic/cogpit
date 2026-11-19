@@ -73,9 +73,9 @@ func (b *Backend) settleReads(ctx context.Context, reads ...*followedRead) {
 
 // readFollowing acquires a kind's objects for a read that waits for them (acquire: acquireIn for
 // one namespace's objects, acquireSettled for a list) and waits, bounded by ctx and syncTimeout,
-// for their initial list, following a refusal in all namespaces (settleReads). Before
-// (2026-10-13) such a read waited 15 seconds for a list that never came and failed. label names
-// the kind in the error of a list that never finished; the handle goes back with an error.
+// for their initial list, following a refusal in all namespaces (settleReads), so that a refused
+// read does not wait for a list that never comes. label names the kind in the error of a list
+// that never finished; the handle goes back with an error.
 func (b *Backend) readFollowing(ctx context.Context, p *model.KindProfile, label string, acquire func(context.Context) *cache.Handle) (*cache.Handle, error) {
 	r := startRead(ctx, p, acquire)
 	wctx, cancel := context.WithTimeout(ctx, syncTimeout)
@@ -102,8 +102,7 @@ type kindHandle struct {
 // handles) once the kinds' plans are decided, so that it does not take them in all namespaces
 // while the access reviews are out, and waits, bounded by ctx, for its handles; when the API server
 // refuses a read in all namespaces, the reader is opened again, once, now namespace by namespace
-// for those kinds. Before (2026-10-13) such a reader read in all namespaces while the reviews were
-// out and waited 15 seconds on a refused read. The caller releases what it returns.
+// for those kinds. The caller releases what it returns.
 func openFollowing[T any](ctx context.Context, b *Backend, keys []string, open func() (T, []kindHandle), release func(T)) T {
 	for _, key := range keys {
 		if p, ok := b.Profile(key); ok {
@@ -185,9 +184,8 @@ func (b *Backend) followRefused(p *model.KindProfile) {
 
 // attachRefusals makes every refused read of a namespaced kind in all namespaces count, whoever
 // sent it: a view, a page, the drawer, a related-objects index, an agent's read, the lookup of
-// Prometheus's Services. Before (2026-10-13) only a view's own refusal counted, and a page or an
-// index whose kind no view had opened kept a cluster-wide watch the server refused, retried for as
-// long as it was open. The cache tells of each refused list or watch (cache.OnRefused) on an
+// Prometheus's Services, so that no page or index keeps a cluster-wide watch the server refused.
+// The cache tells of each refused list or watch (cache.OnRefused) on an
 // informer's goroutine; the replan runs on a loop of the session's, which the backend's close
 // ends. A scope in one namespace and a cluster-scoped or local kind are left alone. Connect calls
 // it before the backend is published.
@@ -226,8 +224,8 @@ func (s *Session) attachRefusals(b *Backend) {
 // its model, their events and related objects): in all namespaces, or, for a user who may not list
 // the kind there, in the object's namespace alone, shared with any other reader of that namespace
 // (the view's, when the plan names it). A plan still pending, a cluster-scoped object and the kinds
-// with caches of their own read as Acquire does. Before (2026-10-13) the drawer read the plan's
-// namespaces, and an object in another one the user may read showed as missing.
+// with caches of their own read as Acquire does. An object in a namespace the plan does not name,
+// which the user may read, is found.
 func (b *Backend) acquireNow(p *model.KindProfile, namespace string) *cache.Handle {
 	switch {
 	case b.narrowsTo(p, namespace):
@@ -274,8 +272,7 @@ func (b *Backend) readKeyIn(p *model.KindProfile, namespace string) string {
 // decided, as Session.Object does, the events and a namespaced object's related objects there too,
 // follows a refusal in all namespaces, and waits, bounded by ctx and syncTimeout, for the kind and
 // the events side by side, then for the related objects. The GUI's read does not wait and reads as
-// the open drawer does (acquireNow). Before (2026-10-13) the waiting read took the plan's
-// namespaces, which can miss the object's, and waited 15 seconds for a refused read.
+// the open drawer does (acquireNow).
 func (s *Session) detailReads(ctx context.Context, b *Backend, p *model.KindProfile, ref model.ObjectRef, wait bool) (h, evh *cache.Handle, rs *relatedSet) {
 	ep, events := b.Profile(eventsKind)
 	events = events && p.APIObject() // no event involves a virtual or local kind's object

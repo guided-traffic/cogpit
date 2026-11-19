@@ -10,7 +10,7 @@ package engine
 // the text or picked the entry with the arrow keys; on a text an agent set, ↵ runs reads and UI
 // entries, and a change needs the user's arrow key or click. (The lead's night decision, 2026-10-14,
 // for the owner to confirm; the options are recorded in D-51.) The palette opened by an agent does
-// not take the keyboard focus either (since 2026-10-13), so an agent's text never meets the user's
+// not take the keyboard focus either, so an agent's text never meets the user's
 // typing unasked.
 
 // SetPaletteText sets the command palette's typed text (ui.palette.setText) as origin, opening the

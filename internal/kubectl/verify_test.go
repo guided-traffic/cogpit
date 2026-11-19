@@ -257,8 +257,8 @@ func TestVerifierRefuses(t *testing.T) {
 }
 
 // TestEmbeddedTrustedRoot: the embedded trusted root is sigstore's public-good instance: the Rekor
-// log whose key signs the Kubernetes release's entries, the Fulcio root and intermediate the
-// standard-library check embedded until 2026-10-15, and a certificate transparency log valid now;
+// log whose key signs the Kubernetes release's entries, the Fulcio root and intermediate, and a
+// certificate transparency log valid now;
 // and the identity is the one Kubernetes documents.
 func TestEmbeddedTrustedRoot(t *testing.T) {
 	v := DefaultVerifier()

@@ -169,8 +169,8 @@ func limitedSteps(ctx context.Context, t *testing.T, s *engine.Session, rows int
 
 // The Releases view of a user who may read Secrets and ConfigMaps in team-a alone (a RoleBinding
 // there): the release records are read in all namespaces first, refused, then in team-a, and the
-// view lists team-a's release without an error. Before (2026-10-13) the releases were left out of
-// the namespace plans: the view kept the refused watches of both drivers and showed no release.
+// view lists team-a's release without an error: the releases follow the namespace plans, rather
+// than keeping the refused watches of both drivers.
 func TestHelmReleasesOfANamespaceLimitedUser(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -216,9 +216,8 @@ func TestHelmReleasesOfANamespaceLimitedUser(t *testing.T) {
 
 // Prometheus in the namespace of a user whose one RoleBinding is there (team-a), on a cluster
 // without a Metrics Server: detection reads the cached Services, which are refused in all
-// namespaces and then read in team-a, and finds the Prometheus there at once. Before (2026-10-13)
-// the refused read waited its 8 seconds and failed, and detection was not tried again for two
-// minutes.
+// namespaces and then read in team-a, and finds the Prometheus there at once, without waiting on
+// the refused read.
 func TestPrometheusDetectionFollowsARefusal(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

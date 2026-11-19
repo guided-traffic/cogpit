@@ -16,8 +16,7 @@ import (
 // cluster.prometheus and cluster.setPrometheus). Lens's Metrics page shows, captured: a "Prometheus"
 // dropdown (its query formats), a switch that filters empty containers out of the queries (on),
 // the auto-detected provider and its path, a switch for HTTPS (off) and a custom path prefix.
-// Cogpit shows them on the page as well since 2026-10-16 night (before, a dialog the page's button
-// opened), under the integration's switch (integrationDetails, clustersettings_integration.go):
+// Cogpit shows them on the page as well, under the integration's switch (integrationDetails, clustersettings_integration.go):
 //
 //   - Query format: Cogpit's presets (metrics.QueryFormats: where a node's series come from; Lens's
 //     provider list is not reproduced, D-12) and "Filter empty containers";
@@ -209,7 +208,7 @@ func (p *settingsPage) showPrometheus(f *promFields, set engine.PrometheusSettin
 	if f.format.Selected != label {
 		f.format.SetSelected(label)
 	}
-	f.filter.SetChecked(set.FilterEmptyContainers || set.Format == "") // a setting read before 2026-10-16: Lens's default
+	f.filter.SetChecked(set.FilterEmptyContainers || set.Format == "") // a setting kept without a format: Lens's default
 	f.https.SetChecked(set.HTTPS)
 	p.setEntry(f.address, &f.address.Entry, promAddressSetting, set.Address)
 	p.setEntry(f.prefix, &f.prefix.Entry, promPrefixSetting, set.Prefix)

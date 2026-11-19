@@ -218,7 +218,7 @@ func shownLinkText(l *linkText) string {
 }
 
 // TestDrawerCopyIconInAnActionRow: the owner's decision A71: a container port is a link with
-// Forward… right after it, as before 2026-10-13 (the value keeps no room for its icon); on hover
+// Forward… right after it (the value keeps no room for its icon); on hover
 // the icon lies over the port's end, inside the value and before the button, and the port's text
 // is not shortened for it.
 func TestDrawerCopyIconInAnActionRow(t *testing.T) {

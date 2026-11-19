@@ -97,7 +97,7 @@ type ExecApproval struct {
 	Command     string    `json:"command"`
 	Approved    time.Time `json:"approved"`
 	// Kind is what was allowed (kubeconfig.ExecPlugin.Kind), for whoever reads the file; the
-	// fingerprint alone decides. Empty in approvals written before 2026-10-14.
+	// fingerprint alone decides. Empty in approvals an older Cogpit wrote.
 	Kind string `json:"kind,omitempty"`
 }
 

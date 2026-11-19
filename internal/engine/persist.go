@@ -19,21 +19,20 @@ import (
 // moment after they stop changing (WorkspaceDelay, at least every workspaceMaxWait while they keep
 // changing) and when the session closes.
 //
-// Since 2026-10-16 (D-69 item 8, restore.go) the tabs come back only while the preference "Restore
-// the last session" is on, and then the clusters connected at quit connect again; off, Cogpit
+// The tabs come back only while the preference "Restore the last session" is on (D-69 item 8,
+// restore.go), and then the clusters connected at quit connect again; off, Cogpit
 // starts without tabs and connections. The file keeps both either way (connected, shown), so that
-// turning the preference on restores the session of the last quit. A file written before has no
-// connections: its tabs come back without a connect, as in v0.17.0.
+// turning the preference on restores the session of the last quit. A file without connections
+// brings its tabs back without a connect.
 //
 // What it holds (D-41, night decision): per tab its cluster (the context id), its view and the
 // view's title, whether it is its cluster's preview tab, its place in the bar, when it was last shown (a
 // rank, so that a cluster connected from the navigator shows its most recently used tab), its
-// namespace and API group filters, its search text with the search's toggles, its status filter
-// (2026-10-14), its sort and its history (the places' view keys alone: a place's filters and
-// drawer are the session's, 2026-10-25); which tab was shown last; and the hidden
-// columns and the column order per view key, the same for every cluster, as UIState keeps them;
-// since 2026-10-14 the navigator's collapsed source groups (A63); since 2026-10-15 whether the
-// navigator is hidden and the chat column shown (F7). Never a selection or the drawer's object (they name objects that may be gone at the next start),
+// namespace and API group filters, its search text with the search's toggles, its status filter,
+// its sort and its history (the places' view keys alone: a place's filters and drawer are the
+// session's); which tab was shown last; the hidden columns and the column order per view key, the
+// same for every cluster, as UIState keeps them; the navigator's collapsed source groups (A63);
+// and whether the navigator is hidden and the chat column shown (F7). Never a selection or the drawer's object (they name objects that may be gone at the next start),
 // never a dock tab (logs, terminals, editors: an editor's unsaved text has its draft, D-11), never
 // a credential or an object's value.
 //

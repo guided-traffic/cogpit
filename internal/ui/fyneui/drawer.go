@@ -659,7 +659,7 @@ func (d *drawer) itemValue(ref model.ObjectRef, sec model.DetailSection, it mode
 	switch {
 	case len(objs) > 1:
 		// The owner's decision (A71, 2026-10-14 evening): the buttons (a port's Forward…) right
-		// after the value, as before 2026-10-13, and the copy icon over the value's end on hover,
+		// after the value, and the copy icon over the value's end on hover,
 		// as in the lists (A69): the value keeps no room for it and its text is not shortened.
 		for _, h := range d.copyHooks[hooks:] {
 			h.over = true

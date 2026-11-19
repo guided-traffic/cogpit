@@ -43,7 +43,7 @@ func podPlan(namespace, pod string, win time.Duration, q QuerySettings) rangePla
 
 // nodePlan reads a node's CPU and memory from node-exporter where this Prometheus has its series,
 // else from cAdvisor's root cgroup (A43, D-43: kube-prometheus-stack drops the root cgroup), and
-// since 2026-10-16 the network and the filesystem the same way: node-exporter's interfaces
+// the network and the filesystem the same way: node-exporter's interfaces
 // (nodeInterfaces) and block devices, else the root cgroup's. The series are matched to the node by
 // the node label, else by the instance: the node's name or one of its addresses (addrs), which is
 // how kube-prometheus-stack's node-exporter, scraped under its host-network address, is found.

@@ -126,7 +126,7 @@ type ChatConnection struct {
 	// the system's roots (on macOS its trust store).
 	CAFile string `json:"caFile,omitempty"`
 	// HasKey reports whether an API key for the connection is stored. A connection saved with a
-	// key that is not stored (one kept in the macOS keychain before 2026-10-15) reports false.
+	// key that is not stored (one an older Cogpit kept in the macOS keychain) reports false.
 	HasKey  bool       `json:"hasKey,omitempty"`
 	Default bool       `json:"default,omitempty"`
 	Limits  ChatLimits `json:"limits"`

@@ -27,8 +27,8 @@ import (
 //
 // The widgets that take the keyboard by a click hand an Escape they do not use on to the window's
 // handler (passEscape): Cogpit's dropdown and searches, the fields, checks and sliders of Cogpit's
-// dialogs (fieldEntry, fieldSelectEntry, fieldCheck, fieldSlider), and since 2026-10-24 the text
-// fields of a settings page (the owner's decision (a) of 2026-10-23: the card closes, the value
+// dialogs (fieldEntry, fieldSelectEntry, fieldCheck, fieldSlider), and the text fields of a
+// settings page (the owner's decision (a): the card closes, the value
 // typed set first by D-118's flushTyping; the agent connection form's fields close the form, its
 // Cancel). Fyne's own widgets keep theirs elsewhere: a button reached by Tab, a check group's and a
 // radio group's items (Argo CD's Sync dialog), the fields inside Fyne's file and colour dialogs.

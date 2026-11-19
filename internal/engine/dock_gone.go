@@ -5,10 +5,9 @@ import (
 	"strconv"
 )
 
-// The dock's tabs of a context that leaves Cogpit (G5, G13; FIXUP 2026-10-14). A removed
-// kubeconfig source's contexts (closeTabsOfSource) and those whose file is gone
-// (closeTabsOfGoneFiles) lose their cluster tabs (UIState.dropContexts); since 2026-10-14 they lose
-// their dock tabs with them: logs, terminals, shells, a node shell, editors and Helm tabs, every
+// The dock's tabs of a context that leaves Cogpit (G5, G13). A removed kubeconfig source's
+// contexts (closeTabsOfSource) and those whose file is gone (closeTabsOfGoneFiles) lose their
+// cluster tabs (UIState.dropContexts) and their dock tabs with them: logs, terminals, shells, a node shell, editors and Helm tabs, every
 // tab bound to one of those contexts (a tab without a context, the Audit Log, stays). What a
 // tab's close does follows, as for dock.close: the window ends its stream or shell, and a node
 // shell's pod is deleted (endClosedNodeShells, D-37). One thing differs: closing a tab discards its
