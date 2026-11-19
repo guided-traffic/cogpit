@@ -178,6 +178,9 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-167](#d-167-the-chats-context-window-and-what-leaves-a-request) | The chat's context window and what leaves a request | built: a context window beside the turn's summed tokens; at 70 % of it the oldest tool results leave what is sent, down to 35 %; per connection |
 | [D-168](#d-168-a-lists-rows-as-a-table-columns-once-shared-cells-once) | A list's rows as a table: columns once, shared cells once | built: `resources.list` and `view.rows` name the columns once, give each row as an array and the cells every row shares in `same`, for every reader |
 | [D-169](#d-169-a-local-models-turn-has-60-minutes) | A local model's turn has 60 minutes | built: by default 60 minutes for an LM Studio or an address on this computer or a private network, 10 for any other |
+| [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
+| [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
+| [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
 
 ## D-1: UI toolkit
 
@@ -464,10 +467,12 @@ MCP tool. A conversation keeps the context it began on.
 - **Endpoints:** OpenAI's Chat Completions API with streaming and tool calling, on plain
   `net/http`; the kind (LM Studio, LiteLLM, Open WebUI, another compatible server) sets the paths.
   Several connections, one the default; no redirects are followed, so a key reaches only its host.
-- **Tools:** 20 core commands plus `search_commands` and `run_command` (22 tools, under 40 KiB),
-  or, set per connection, every command (about 200 tools, 70,000 tokens) without meta-tools; never
+- **Tools:** 20 core commands plus `search_commands`, `run_command` and `result_read` (23 tools,
+  under 40 KiB), or, set per connection, every command and `result_read` (about 215 tools, 77,000
+  tokens); never
   GUI-only commands or `chat.toggle`. Each message starts with a compact `ui_state`; a tool result
-  goes back framed as data and cut at 32 KiB, a size set per connection; a model's thinking is
+  goes back framed as data; one above 32 KiB, a size set per connection, as its first elements
+  with the totals, read on with `result_read` ([D-170](#d-170-a-large-tool-results-head-and-result_read)); a model's thinking is
   dropped.
 - **Context:** a request that reaches 70 % of the connection's context window goes out without
   the conversation's oldest tool results ([D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)).
@@ -7050,3 +7055,142 @@ request before the user sent anything.
 
 [`chat.go`](../../internal/engine/chat.go) `ChatConnection.Local`, `DefaultLimits`,
 `EffectiveLimits` · `TestLocalConnectionsHaveLongerTurns`, `TestAgentPreferencesKeySemantics`
+
+## D-170: A large tool result's head, and result_read
+
+**Status:** built · **By:** owner (a valid head with the totals in place of the cut, the raw
+result held in memory only, `result_read`), lead (open to revision) the rest
+
+A chat tool result above the connection's size (32 KiB,
+[D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)) goes to the model as its own
+JSON document, still valid, with its largest part shortened: an array (`rows`, `issues`, `events`;
+the document itself, a member, or a member of a member) keeps its first elements, a long string (a
+YAML, a log's text) its first lines, cut at an element or a line. After the data frame Cogpit's
+note says how many of how many are shown, what it counted over all of them, and how to read on:
+
+```text
+[Cogpit: this shows the first 63 of the 232 elements of "issues". Counted over all 232: kind: Pod 228, Node 4; severity: warning 221, error 11. Read on with result_read {"call":"call_3","offset":63}; add "contains" to search all of it.]
+```
+
+- **The totals** are per field of the elements, or per column of a row table
+  ([D-168](#d-168-a-lists-rows-as-a-table-columns-once-shared-cells-once)), that has at most 8
+  distinct values of at most 32 bytes: at most 6 fields within an eighth of the size, 480 bytes
+  at most. They go first when the document does not fit.
+- **The raw result** is held with its call: in memory only, with the time it was read, its turn's
+  private mark and a note of an interrupted connection ([D-58](#d-58-standby-and-lost-connections));
+  at most 8 MiB per conversation, the oldest going first; gone with the conversation, and with a
+  cut for the calls it removes. Never held: `dock.read`'s output, a result above 8 MiB, one that
+  fits.
+- **`result_read {call, offset, limit, contains}`** is the chat's own tool, in both tool sets: it
+  reads the shortened part on, a page under the same size and frame, stamped "as read at" the
+  result's time. It counts as a tool call (the turn's limits, the repeat guard, the stop when the
+  window shows another cluster), shows as a tool item, and leaves a line in the audit log for each
+  read, served or refused: what was asked, never the page. It refuses a result not held ("call the
+  tool again") and a private turn's result to a turn that is not private.
+- **An element or line larger than a page** is shown cut, as valid JSON, and the note says that
+  the rest of it is out of reach.
+- **A cleared result's note** (D-167) names `result_read` where the result was a head.
+- **Nothing to shorten** (no array and no long string, or more than 8 parts to empty): the result
+  is cut at a byte with a note and not held.
+
+**Why:** a cut at a byte hands the model a broken document and no way to the rest: of 232 issues it
+read 65 and could not know. Totals counted over all elements answer "how many" without a further
+read. Pages come from the copy that was read, so they neither skip nor repeat an element while the
+cluster changes, and a command without paging parameters is read on like any other. In memory only,
+since a kept conversation is a scrubbed copy and a private turn's is never kept
+([H-96](../security/agents-and-mcp.md#h-96-a-private-turns-reads-are-kept-where-the-scrubber-does-not-know-them)).
+
+**Rejected:** a head alone, the tool called again with narrower parameters — commands without such
+parameters, and another state of the cluster on every page; the raw result in the conversations
+file — it holds more than the scrubber knows; `result_read` as a registry command — an MCP client
+has its own results and no conversation of Cogpit's.
+
+[`head.go`](../../internal/agent/head.go), [`rawresult.go`](../../internal/agent/rawresult.go),
+[`audit.go`](../../internal/engine/audit.go) `AuditChatRead` · `TestLargeResultIsReadOn`,
+`TestHeadFindsThePart`, `TestTotalsAreBounded`, `TestRawResultsAreBounded`,
+`TestRawResultStaysOutOfTheFile`, `TestOnlyAHeadNamesItsRawResult`, `TestResultReadIsAudited`;
+`TestLiveReadsOn` needs a real endpoint and runs locally
+
+## D-171: The cluster Overview's issues, folded by subject
+
+**Status:** built · **By:** owner (the fold for agents by default, the window's page as it is, the
+issue messages unfiltered as before), lead (open to revision) the rest, the owners read for the
+call among it
+
+`cluster.overview` returns its issues folded (`issueFold`): one row per subject and a table of
+causes, each a row table ([D-168](#d-168-a-lists-rows-as-a-table-columns-once-shared-cells-once)),
+with the exact counts of issues, errors, warnings and subjects whatever a page shows. `everyIssue`
+returns every issue as its own entry instead; the window's Overview page reads its Issues table
+from the engine's snapshot, not from the command, and stays as it is.
+
+- **A subject** is the workload that controls the affected pods, where the cache holds the owner
+  under the UID the pod's owner reference names (through its Replica Set or Job, at most two
+  steps); else the object itself. An object only an event names is a subject of its own, by the
+  kind the event wrote, never joined to a cached object.
+- **`bySubject`** has per subject its level, how many of its objects and issues, its state, and
+  the reason and message of the event most of its objects had. **`causes`** has per reason and
+  message, with what varies replaced (`{name}`, `{uid}`, `{digest}`, `{hash}`, `{image}`), how many
+  subjects, objects and issues; at most 20 rows.
+- **The order is Cogpit's:** level, a state before an event, the number of distinct objects, then
+  names. Never an event's count or time.
+- **Reading on:** `severity`, `sources`, `reason`, `limit` (20, at most 200), `offset`, and
+  `subject {kind, namespace, name}` for a subject's own issues with their messages up to 4 KiB.
+  `more` says what a page leaves out and where to go on.
+- **Bounds:** the fold stays under 20 KiB; a reason is cut at 64 bytes, a message and a state at
+  160, a kind, namespace or name at 253.
+- **Owners read for the call:** Replica Sets, Jobs and Cron Jobs are listed through the cache when
+  an issue is about a pod one of them controls, or a warning event about a Replica Set or a Job;
+  `ownersUnread` names the kinds not read in time or not listable, whose pods are then subjects of
+  their own. An owner reference to any other kind starts nothing.
+
+**Why:** most issues are one cause over the pods of one workload: the demo cluster's 234 issues are
+113,600 bytes as entries of their own and 4,677 folded into 11 subjects and 5 causes. Code folds
+them in milliseconds, the same way each time, where a model would read them for minutes. An order
+by an event's count or time would be the order of whoever writes events. Without the Replica Set a
+pod's Deployment cannot be told by UID, so a Deployment's pods would never fold; the Workloads
+Overview reads the same kinds.
+
+**Rejected:** the fold behind a parameter — a model that does not set it reads the 113,600 bytes;
+the fold in the window's page too — a change of what the user sees, for a later look; owners only
+where the cache already holds them — a Deployment's pods fold only while another view reads the
+Replica Sets; a model's summary of the issues
+([D-172](#d-172-a-sub-request-that-chooses-from-a-large-result)).
+
+[`clusteroverview_fold.go`](../../internal/engine/clusteroverview_fold.go),
+[`clusteroverview_owners.go`](../../internal/engine/clusteroverview_owners.go),
+[`commands/clusteroverview.go`](../../internal/engine/commands/clusteroverview.go) ·
+`TestFoldOrderIsCogpits`, `TestFoldOwnerMustBeCached`, `TestFoldPagesAndTotals`,
+`TestFoldAnEventsKindIsNoKindKey`, `TestClusterOverviewFolded`,
+`TestClusterOverviewFoldedOwnerChoosesNoWatch`; `TestLiveOverviewFold` needs a real endpoint and
+runs locally
+
+## D-172: A sub-request that chooses from a large result
+
+**Status:** decided, not built · **By:** owner
+
+For a result that is still above the connection's size after its head
+([D-170](#d-170-a-large-tool-results-head-and-result_read)) and that code cannot fold
+([D-171](#d-171-the-cluster-overviews-issues-folded-by-subject)), a log or a long list of distinct
+events, the chat may send the result in a request of its own and take back which entries matter.
+
+- **Only what code cannot reduce;** the cluster's state is folded by code.
+- **Entry numbers only:** the model names entries, Cogpit renders them from the result, in its own
+  order, and names or counts the rest. No text a model wrote enters the conversation as a result.
+- **Off by default,** switched on per connection.
+- **The conversation's own connection,** as a continuation of its request: the private mark and
+  the Secret filter hold as for the turn, and the data reaches no second endpoint.
+- **Shown** as a state on the tool's row and a note of Cogpit's in the chat for each run; its
+  request is among what the turn sent, and Stop ends it.
+
+**Why:** on one local model a sub-request moves the reading and adds to it: the 113,600 bytes of
+the Overview's issues are five to six minutes at 150 tokens a second, against seconds for the fold.
+A model's choice pays where entries differ and no rule folds them. Numbers keep invented names and
+instructions hidden in the cluster's text out of what the main model reads as a result; which
+entries it reads can still be steered by who writes them, which is why the switch is the user's.
+An LM Studio keeps the conversation's prompt cache through such a request and through an unrelated
+one: read anew after either, a conversation of 25,000 tokens answered in 10 and 13 seconds, 180
+cold.
+
+**Rejected:** every large result through the model, the Overview's included; a model's lines
+checked against the result, or its prose; on by default, or for local models; a second, faster
+connection for it.

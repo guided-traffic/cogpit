@@ -121,8 +121,12 @@ type ClusterOverviewModel struct {
 	// it answers, what it serves (as metrics.get and a drawer's status line have it).
 	Providers []metrics.ProviderStatus `json:"providers,omitempty"`
 	// Issues are what is wrong in the cluster now, in the selected namespaces (a cluster-scoped
-	// object's issue, a node's, is always listed), as the page's table lists them.
-	Issues []ClusterIssue `json:"issues"`
+	// object's issue, a node's, is always listed), as the page's table lists them: every issue an
+	// entry of its own. Absent where the issues are folded or left out.
+	Issues []ClusterIssue `json:"issues,omitzero"`
+	// Fold is the same issues folded (clusteroverview_fold.go): a row per subject and a table of
+	// causes, bounded in size, in place of Issues.
+	Fold *IssueFold `json:"issueFold,omitempty"`
 	// Synced is false while a kind the page reads is still being listed.
 	Synced bool `json:"synced"`
 	// Error names the kinds the page cannot read ("events: forbidden"); empty when it reads all.
@@ -156,6 +160,17 @@ type ClusterIssue struct {
 	// Since is when it began, as far as the object says: a condition's last transition, an event's
 	// last time; else when the object was created.
 	Since time.Time `json:"since,omitzero"`
+
+	// What the fold groups by (clusteroverview_fold.go); none of it is part of the entry agents and
+	// the window read.
+	//
+	// reason is the cause without what differs from object to object: an event's reason, a state's
+	// text without the restart count. count is how often an event happened, eventNamespace the
+	// namespace the event itself lies in; controller a pod's controller among its owner references.
+	reason         string
+	count          int64
+	eventNamespace string
+	controller     *issueController
 }
 
 // The sources of an issue.
@@ -440,13 +455,28 @@ func issueRow(context string, is ClusterIssue) model.Row {
 }
 
 // ClusterOverview returns the cluster Overview for the given namespaces (nil: the namespace filter
-// the user has set). While the page is open it is the page's latest build and its charts; otherwise
-// it is built once from the cache: the page's handles are held for the call, which waits (bounded by
-// ctx and 15 seconds) for their initial lists, and released after. Without the page the charts
-// carry the current values only (one Metrics Server list at most, cached for 15 seconds): the
-// cluster's history is asked of Prometheus only while the page is shown. With series, the charts
-// carry their points.
+// the user has set) with every issue an entry of its own. While the page is open it is the page's
+// latest build and its charts; otherwise it is built once from the cache: the page's handles are
+// held for the call, which waits (bounded by ctx and 15 seconds) for their initial lists, and
+// released after. Without the page the charts carry the current values only (one Metrics Server
+// list at most, cached for 15 seconds): the cluster's history is asked of Prometheus only while the
+// page is shown. With series, the charts carry their points.
 func (s *Session) ClusterOverview(ctx context.Context, contextID string, namespaces []string, series bool) (*ClusterOverviewModel, error) {
+	return s.clusterOverview(ctx, contextID, namespaces, series, nil)
+}
+
+// ClusterOverviewFolded is ClusterOverview with the issues folded as q asks (IssueFold): the
+// model's Fold in place of its Issues. A pod's issues count for the workload that controls it where
+// the cache holds that owner; the Replica Sets, Jobs and Cron Jobs the issues' pods and events name
+// are read into the cache for the call, within the time the call waits for its lists (foldOwners).
+func (s *Session) ClusterOverviewFolded(ctx context.Context, contextID string, namespaces []string, series bool, q IssueQuery) (*ClusterOverviewModel, error) {
+	if err := q.validate(); err != nil {
+		return nil, err
+	}
+	return s.clusterOverview(ctx, contextID, namespaces, series, &q)
+}
+
+func (s *Session) clusterOverview(ctx context.Context, contextID string, namespaces []string, series bool, fold *IssueQuery) (*ClusterOverviewModel, error) {
 	b, err := s.TargetBackend(contextID) // the context's cluster, "" the shown one (D-69)
 	if err != nil {
 		return nil, err
@@ -463,6 +493,7 @@ func (s *Session) ClusterOverview(ctx context.Context, contextID string, namespa
 		if ob := page.build.Load(); ob != nil {
 			m := overviewModel(ob, params, u.Overview)
 			page.charts.fill(m, ob, series)
+			foldModel(ctx, b, page.src, m, fold)
 			return m, nil
 		}
 	}
@@ -482,6 +513,7 @@ func (s *Session) ClusterOverview(ctx context.Context, contextID string, namespa
 	src.waitSynced(wctx)
 	ob := src.build(time.Now())
 	m := overviewModel(ob, params, u.Overview)
+	foldModel(wctx, b, src, m, fold)
 	currentCharts(ctx, b, m, ob, s.hiddenMetrics(b.Context))
 	return m, nil
 }

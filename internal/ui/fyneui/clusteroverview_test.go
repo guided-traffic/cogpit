@@ -282,6 +282,28 @@ func TestClusterOverviewPage(t *testing.T) {
 	q.until(t, "no issues", func() bool { return tv.placeholderText.text == "No issues found." })
 }
 
+// TestClusterOverviewPageAsksForNoIssues: the page reads cluster.overview for its charts only and
+// says so (noIssues), so that the engine neither lists nor folds the issues for it: its Issues are
+// the page's table, every issue a row of its own.
+func TestClusterOverviewPageAsksForNoIssues(t *testing.T) {
+	f := clusterFake(t)
+	sh, _, q := newTestShell(t, f, Options{})
+	tv := sh.view
+	q.until(t, "the page", func() bool { return tv.cluster.data != nil && tv.snap != nil && tv.snap.View == engine.ClusterOverview })
+	calls := f.callsOf("cluster.overview")
+	if len(calls) == 0 {
+		t.Fatal("the page never read cluster.overview")
+	}
+	for _, c := range calls {
+		if p := decodeParams[map[string]any](t, c); len(p) != 2 || p["noIssues"] != true || p["series"] != true {
+			t.Errorf("the page asked cluster.overview %s, want the charts' points and no issues", c.Params)
+		}
+	}
+	if want := f.tables[engine.ClusterOverview].Rows; len(tv.snap.Rows) != len(want) || len(want) < 2 {
+		t.Errorf("the Issues show %d rows of the engine's %d", len(tv.snap.Rows), len(want))
+	}
+}
+
 // overviewScreenWidth is the narrowest screen the Overview must fit, in points: a MacBook's display
 // at its largest text setting.
 const overviewScreenWidth = 1280

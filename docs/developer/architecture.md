@@ -1578,9 +1578,10 @@ endpoint, streams the answer and runs the tool calls through `Session.Dispatch` 
 |---|---|
 | [`agent.go`](../../internal/agent/agent.go) | `Agent` (implements `engine.ChatAgent`), the connections |
 | [`client.go`](../../internal/agent/client.go), [`think.go`](../../internal/agent/think.go) | requests, the streamed answer and its timing (TTFT, OTPS: `ChatTiming`, [D-125](decisions.md#d-125-an-answers-speed-ttft-and-otps)), `HTTPError`; reasoning cut from the content |
-| [`tools.go`](../../internal/agent/tools.go) | 20 core commands plus `search_commands` and `run_command`, or every command for `ChatConnection.AllTools`; GUI-only commands left out |
+| [`tools.go`](../../internal/agent/tools.go) | 20 core commands plus `search_commands`, `run_command` and `result_read`, or every command and `result_read` for `ChatConnection.AllTools`; GUI-only commands left out |
 | [`turn.go`](../../internal/agent/turn.go), [`prompt.go`](../../internal/agent/prompt.go), [`failure.go`](../../internal/agent/failure.go) | `Send`, `Resend`, the turn loop and its limits; the system prompt, tool results framed as data; a `Dispatch` error in the model's words |
 | [`context.go`](../../internal/agent/context.go) | a request against the context window: the oldest tool results replaced by notes in what is sent |
+| [`head.go`](../../internal/agent/head.go), [`rawresult.go`](../../internal/agent/rawresult.go) | a result above the connection's size as a valid head with the totals; the copy held in memory and `result_read`, which reads on in it ([D-170](decisions.md#d-170-a-large-tool-results-head-and-result_read)) |
 | [`conversation.go`](../../internal/agent/conversation.go), [`store.go`](../../internal/agent/store.go) | the conversations, `Stop`; the files |
 | [`conntest.go`](../../internal/agent/conntest.go), [`exchange.go`](../../internal/agent/exchange.go) | the connection test, layer by layer; a failed layer's request and answer |
 | [`cafile.go`](../../internal/agent/cafile.go), [`keystore.go`](../../internal/agent/keystore.go) | a connection's CA file as its only roots; the API keys |
