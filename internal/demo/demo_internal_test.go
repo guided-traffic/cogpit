@@ -548,7 +548,11 @@ func TestStatsCountsObjectsAndEvents(t *testing.T) {
 			stuck++
 		}
 	}
-	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck {
+	controllers := len(c.w.daemonSets) + len(c.w.cronJobs)
+	for _, cj := range c.w.cronJobs {
+		controllers += len(cj.jobs)
+	}
+	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck+controllers {
 		t.Errorf("Objects = %d", st.Objects)
 	}
 	n := c.stepLocked(100)
@@ -609,42 +613,58 @@ func TestHelmRecordsDrawNoRandomNumbers(t *testing.T) {
 	}
 }
 
-// Every owner reference of a deployment's pod names a stored ReplicaSet by name and UID, and that
-// ReplicaSet's names its stored Deployment, as the controllers write them; a ReplicaSet's status
-// counts its pods, through the churn too.
+// Every owner reference of a pod names a stored object of the kind it says by name and UID, as do
+// those owners' own (a ReplicaSet's Deployment, a Job's CronJob), as the controllers write them; a
+// ReplicaSet's status counts its pods, through the churn too.
 func TestPodsOwnersExist(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1, Pods: 2_000, Deployments: 100, Services: 20, Events: 50})
+	served := map[string]kind{}
+	for k := range numKinds {
+		served[kindInfo[k].kind] = k
+	}
 	check := func(when string) {
 		t.Helper()
 		byUID := map[kind]map[string]*unstructured.Unstructured{}
-		for _, k := range []kind{kindReplicaSets, kindDeployments} {
+		for k := range numKinds {
 			byUID[k] = map[string]*unstructured.Unstructured{}
 			for _, o := range c.store[k] {
 				byUID[k][string(o.GetUID())] = o
 			}
 		}
-		owned := 0
-		for _, o := range c.store[kindPods] {
-			for _, ref := range o.GetOwnerReferences() {
-				if ref.Kind != "ReplicaSet" {
-					continue
+		owned := map[string]int{}
+		var follow func(o *unstructured.Unstructured, depth int)
+		follow = func(o *unstructured.Unstructured, depth int) {
+			refs := o.GetOwnerReferences()
+			if depth > 0 && o.GetKind() != "ReplicaSet" && o.GetKind() != "Job" && len(refs) > 0 {
+				t.Fatalf("%s: %s %s has owners %+v", when, o.GetKind(), o.GetName(), refs)
+			}
+			for _, ref := range refs {
+				owned[ref.Kind]++
+				k, ok := served[ref.Kind]
+				if !ok {
+					t.Fatalf("%s: %s %s/%s names a %s, a kind the demo does not serve", when, o.GetKind(), o.GetNamespace(), o.GetName(), ref.Kind)
 				}
-				owned++
-				rs := byUID[kindReplicaSets][string(ref.UID)]
-				if rs == nil || rs.GetName() != ref.Name || rs.GetNamespace() != o.GetNamespace() {
-					t.Fatalf("%s: pod %s/%s names ReplicaSet %s (%s), not stored", when, o.GetNamespace(), o.GetName(), ref.Name, ref.UID)
+				owner := byUID[k][string(ref.UID)]
+				ns := o.GetNamespace()
+				if !kindInfo[k].namespaced {
+					ns = ""
 				}
-				refs := rs.GetOwnerReferences()
-				if len(refs) != 1 || refs[0].Kind != "Deployment" || refs[0].Controller == nil || !*refs[0].Controller {
-					t.Fatalf("%s: ReplicaSet %s owners %+v", when, rs.GetName(), refs)
+				if owner == nil || owner.GetName() != ref.Name || owner.GetNamespace() != ns || owner.GetAPIVersion() != ref.APIVersion {
+					t.Fatalf("%s: %s %s/%s names %s %s (%s), not stored", when, o.GetKind(), o.GetNamespace(), o.GetName(), ref.Kind, ref.Name, ref.UID)
 				}
-				if d := byUID[kindDeployments][string(refs[0].UID)]; d == nil || d.GetName() != refs[0].Name || d.GetNamespace() != rs.GetNamespace() {
-					t.Fatalf("%s: ReplicaSet %s names Deployment %s, not stored", when, rs.GetName(), refs[0].Name)
+				if ref.Controller == nil || !*ref.Controller {
+					t.Fatalf("%s: %s %s's owner %s is not its controller", when, o.GetKind(), o.GetName(), ref.Name)
 				}
+				follow(owner, depth+1)
 			}
 		}
-		if owned == 0 {
-			t.Fatalf("%s: no pod is owned by a ReplicaSet", when)
+		for _, o := range c.store[kindPods] {
+			follow(o, 0)
+		}
+		for _, k := range []string{"ReplicaSet", "Deployment", "DaemonSet", "Job", "CronJob", "Node"} {
+			if owned[k] == 0 {
+				t.Fatalf("%s: no %s owns a pod or its owner: %v", when, k, owned)
+			}
 		}
 		for _, d := range c.w.deploys {
 			for rs := range d.templates {

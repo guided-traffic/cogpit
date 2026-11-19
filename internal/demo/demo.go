@@ -1,9 +1,10 @@
 // Package demo is a synthetic cluster for `cogpit --demo`: 10,000 pods, a few hundred services
-// with known cluster IPs, deployments, namespaces, nodes and events, the records of three Helm
-// releases with their history (its only Secrets and ConfigMaps, helm.go), and a configurable
-// churn of watch events (default 1,000 per second) that leaves the release records alone. It
-// feeds the real cache through a cache.Source, so the demo exercises the same informers, engine
-// and UI as a real cluster.
+// with known cluster IPs, deployments with their replica sets, kube-proxy's DaemonSet, CronJobs
+// with the Jobs of their runs (every owner a pod names is served), namespaces, nodes and events,
+// the records of three Helm releases with their history (its only Secrets and ConfigMaps, helm.go),
+// and a configurable churn of watch events (default 1,000 per second) that leaves the release
+// records alone. It feeds the real cache through a cache.Source, so the demo exercises the same
+// informers, engine and UI as a real cluster.
 //
 // The cluster is deterministic: the same Seed (and Now) gives the same objects, and the same
 // sequence of changes, whatever the timing of the churn.

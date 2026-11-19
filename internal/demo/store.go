@@ -11,6 +11,14 @@ import (
 // resourcePods is the pods resource, also the name of a node's pod capacity.
 const resourcePods = "pods"
 
+// The API groups of the workloads the cluster serves, and their versions.
+const (
+	groupApps  = "apps"
+	groupBatch = "batch"
+	apiApps    = groupApps + "/v1"
+	apiBatch   = groupBatch + "/v1"
+)
+
 // kind indexes the resources the cluster serves.
 type kind int
 
@@ -24,6 +32,9 @@ const (
 	kindSecrets    // Helm's release records only (helm.go)
 	kindConfigMaps // Helm's release records only (helm.go)
 	kindReplicaSets
+	kindDaemonSets
+	kindJobs
+	kindCronJobs
 	numKinds
 )
 
@@ -36,14 +47,17 @@ var kindInfo = [numKinds]struct {
 	short      []string // its discovery's shortNames, as a Kubernetes API server answers them
 }{
 	kindPods:        {schema.GroupVersionResource{Version: "v1", Resource: resourcePods}, "v1", "Pod", true, []string{"po"}},
-	kindDeployments: {schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "deployments"}, "apps/v1", "Deployment", true, []string{"deploy"}},
+	kindDeployments: {schema.GroupVersionResource{Group: groupApps, Version: "v1", Resource: "deployments"}, apiApps, "Deployment", true, []string{"deploy"}},
 	kindServices:    {schema.GroupVersionResource{Version: "v1", Resource: "services"}, "v1", "Service", true, []string{"svc"}},
 	kindNamespaces:  {schema.GroupVersionResource{Version: "v1", Resource: "namespaces"}, "v1", "Namespace", false, []string{"ns"}},
 	kindNodes:       {schema.GroupVersionResource{Version: "v1", Resource: "nodes"}, "v1", "Node", false, []string{"no"}},
 	kindEvents:      {schema.GroupVersionResource{Version: "v1", Resource: "events"}, "v1", "Event", true, []string{"ev"}},
 	kindSecrets:     {schema.GroupVersionResource{Version: "v1", Resource: "secrets"}, "v1", "Secret", true, nil},
 	kindConfigMaps:  {schema.GroupVersionResource{Version: "v1", Resource: "configmaps"}, "v1", "ConfigMap", true, []string{"cm"}},
-	kindReplicaSets: {schema.GroupVersionResource{Group: "apps", Version: "v1", Resource: "replicasets"}, "apps/v1", "ReplicaSet", true, []string{"rs"}},
+	kindReplicaSets: {schema.GroupVersionResource{Group: groupApps, Version: "v1", Resource: "replicasets"}, apiApps, "ReplicaSet", true, []string{"rs"}},
+	kindDaemonSets:  {schema.GroupVersionResource{Group: groupApps, Version: "v1", Resource: "daemonsets"}, apiApps, "DaemonSet", true, []string{"ds"}},
+	kindJobs:        {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "jobs"}, apiBatch, "Job", true, nil},
+	kindCronJobs:    {schema.GroupVersionResource{Group: groupBatch, Version: "v1", Resource: "cronjobs"}, apiBatch, "CronJob", true, []string{"cj"}},
 }
 
 // kindOf returns the kind serving gvr.
