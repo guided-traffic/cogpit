@@ -101,7 +101,11 @@ func TestNamespaceFilterOffersAccessibleNamespaces(t *testing.T) {
 		}
 		return n
 	}
-	before := namespaceLists() // the shell asks once when it connects, before the access reviews answer
+	// The shell asks once when it connects, before the access reviews answer: that request is waited
+	// for, so that it is not counted as the filter's.
+	q.until(t, "the connect's list of the namespaces", func() bool { return namespaceLists() > 0 })
+	q.drain()
+	before := namespaceLists()
 	test.Tap(tv.nsButton)
 	var labels []string
 	for _, r := range tv.ns.rows {
