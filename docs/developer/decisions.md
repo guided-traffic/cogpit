@@ -7144,6 +7144,8 @@ from the engine's snapshot, not from the command, and stays as it is.
 - **Reading on:** `severity`, `sources`, `reason`, `limit` (20, at most 200), `offset`, and
   `subject {kind, namespace, name}` for a subject's own issues with their messages up to 4 KiB.
   `more` says what a page leaves out and where to go on.
+- **Times** are UTC to the second, in the fold and in `everyIssue`'s entries alike, whatever zone
+  the object or the computer gives.
 - **Bounds:** the fold stays under 20 KiB; a reason is cut at 64 bytes, a message and a state at
   160, a kind, namespace or name at 253.
 - **Owners read for the call:** Replica Sets, Jobs and Cron Jobs are listed through the cache when

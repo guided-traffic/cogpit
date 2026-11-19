@@ -192,9 +192,9 @@ func TestClusterOverviewFoldsForAgents(t *testing.T) {
 		if _, folded := fields["issueFold"]; folded || every.Fold != nil || string(fields["issues"]) != string(want) {
 			t.Fatalf("%s: everyIssue returned\n%s\nwant\n%s", where, fields["issues"], want)
 		}
-		// The entries as they always were: the event's with its time to the second in the computer's
-		// zone, the node's without one.
-		since, _ := json.Marshal(time.Unix(at.Unix(), 0))
+		// The entries: the event's with its time to the second in UTC, as the fold writes times, the
+		// node's without one.
+		since, _ := json.Marshal(time.Unix(at.Unix(), 0).UTC())
 		entries := `[{"ref":{"kind":"pods","namespace":"shop","name":"web-0"},"name":"web-0","kind":"Pod","source":"event","severity":"warning",` +
 			`"message":"Unhealthy: Readiness probe failed","since":` + string(since) + `},` +
 			`{"ref":{"kind":"nodes","name":"worker-2"},"name":"worker-2","kind":"Node","source":"status","severity":"error","message":"NotReady"}]`
