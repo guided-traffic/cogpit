@@ -181,8 +181,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
-| [D-new](#d-new-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
-| [D-new](#d-new-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
+| [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
+| [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 
 ## D-1: UI toolkit
 
@@ -7209,7 +7209,7 @@ cold.
 checked against the result, or its prose; on by default, or for local models; a second, faster
 connection for it.
 
-## D-new: A refusal answers a waiting read at once
+## D-173: A refusal answers a waiting read at once
 
 **Status:** built · **By:** lead (open to revision)
 
@@ -7237,7 +7237,7 @@ says the same; reading the Namespaces before the kinds, as before.
 `readFollowing`; [`fyneui/shell.go`](../../internal/ui/fyneui/shell.go) `loadKinds` ·
 `TestBudgetRefusedClusterScopedList`, `TestNamespaceFilterOffersAccessibleNamespaces`
 
-## D-new: A removed cluster's last user and bookmark go with it
+## D-174: A removed cluster's last user and bookmark go with it
 
 **Status:** built · **By:** lead (open to revision)
 
