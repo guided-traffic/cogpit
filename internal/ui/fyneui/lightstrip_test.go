@@ -271,8 +271,7 @@ func TestLightStripOnTheDemoCluster(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, engine.ClusterSettingsFile), []byte(doc), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 11
+	conn := demoConnector(t, demoSize{Pods: 300, NoChurn: true, Seed: 11})
 	s := newTestEngine(engine.Options{Connector: conn, ClusterSettings: engine.NewClusterSettingsStore(dir)})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

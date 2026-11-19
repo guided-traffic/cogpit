@@ -18,7 +18,7 @@ import (
 // engine, on the tab (DockTab.Logs), so that agents read them with ui_state and set them with
 // logs_setOptions like the user does; the GUI renders them. Previous changes the request to the
 // API server, so the GUI opens the stream again when it changes; the others are how the tab shows
-// the lines it holds. Every stream carries the API server's timestamps since 2026-10-13, whether
+// the lines it holds. Every stream carries the API server's timestamps, whether
 // the tab shows them or not: the tab jumps to a time and loads older lines by them
 // (logsolder.go), and the GUI hides them unless Timestamps is on. What a tab shows (its pod and
 // container) is its source (logsources.go).

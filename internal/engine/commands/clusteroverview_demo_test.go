@@ -75,7 +75,18 @@ func TestClusterOverviewDemoSize(t *testing.T) {
 	if by.Total != folded.Fold.Subjects || len(by.Rows) != by.Total {
 		t.Fatalf("%d subjects, %d rows of %d", folded.Fold.Subjects, len(by.Rows), by.Total)
 	}
-	// A subject's issues one by one: the node's, and the first pod's with its events.
+	// The demo's pods name their Replica Sets, which name their Deployments: a Deployment's pods fold
+	// into it.
+	deployments := 0
+	for i := range by.Total {
+		if by.Ref(i, "", "").Kind == "deployments" {
+			deployments++
+		}
+	}
+	if deployments == 0 {
+		t.Errorf("no pod folded into its Deployment: %+v", by)
+	}
+	// A subject's issues one by one: the first two subjects'.
 	for i := range 2 {
 		ref := by.Ref(i, "", "")
 		members, raw := read(map[string]any{"subject": map[string]any{"kind": ref.Kind, "namespace": ref.Namespace, "name": ref.Name}})

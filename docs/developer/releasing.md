@@ -192,15 +192,18 @@ self-hosted runners, client-go would otherwise take the pod's namespace as a con
 
 [`renovate.yml`](../../.github/workflows/renovate.yml) runs self-hosted Renovate with an
 installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID`,
-`APP_PRIVATE_KEY`); the configuration is [`.github/renovate.json`](../../.github/renovate.json).
+`APP_PRIVATE_KEY`); the configuration is [`.github/renovate.json`](../../.github/renovate.json),
+read as the repository's only; the workflow's environment holds the global settings.
 
 - Minor, patch and digest updates of Go modules, the Go version, GitHub Actions and the Makefile's
   tool pins merge on their own once CI passes; majors wait for review, but for GitHub Actions'
   majors, which merge on their own too. The Semantic Release job's Node is the exception: its major
   waits, since only a push to `main` runs that job and a pull request's CI never starts it. Groups:
   the Go version with `golang.org/x/*`; `k8s.io/*` and `sigs.k8s.io/*`; Fyne.
-- The Makefile's tool pins carry a `# renovate:` comment a custom manager reads; `bin/` tools are
-  rebuilt when their pin or the Go of `go.mod` changes (the Makefile's `tool_stamp`).
+- The Makefile's tool pins carry a `# renovate:` comment a custom manager reads: `depName` the
+  package `go install` builds, and `packageName` the module where Renovate cannot find it from that
+  package (`fyne.io/tools` for `fyne.io/tools/cmd/fyne`); `bin/` tools are rebuilt when their pin
+  or the Go of `go.mod` changes (the Makefile's `tool_stamp`).
 - dmgbuild's requirements ([`dmgbuild-requirements.txt`](../../hack/macos/dmgbuild-requirements.txt))
   never merge on their own: their output ships in every disk image.
 - Sparkle and WinSparkle are pinned in the Makefile by release tag and SHA-256 (`SPARKLE_VERSION`,
@@ -209,8 +212,8 @@ installation token of the team's GitHub App (organization secrets `APP_CLIENT_ID
   lines. Neither merges on its own: their code installs Cogpit's updates. Mesa (`MESA_VERSION`,
   `MESA_SHA256`), the Windows smoke test's software OpenGL and the archive a release build of
   `cogpit.exe` offers to download ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)), is
-  pinned the same way and merges on its own once CI passes, a major version after review: Windows
-  Package fetches the archive and refuses one without `x64/opengl32.dll` and
+  pinned the same way and never merges on its own either, since a release loads it into its
+  process: Windows Package fetches the archive and refuses one without `x64/opengl32.dll` and
   `x64/libgallium_wgl.dll` ([`mesa.sh`](../../hack/windows/mesa.sh)). A closed pull request keeps
   Renovate from proposing that version again.
 - The node shell's and the debug container's default images (`DefaultNodeShellImage` in

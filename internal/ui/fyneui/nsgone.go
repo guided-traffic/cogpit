@@ -26,10 +26,8 @@ import (
 //     or terminating, one of them or several;
 //   - what is gone or going comes from the cache through resources.list, as the list's names do:
 //     read when a cluster is shown, when the filter opens, and on the engine's EventNamespaces,
-//     which the namespaces' own changes send while the filter names namespaces (the owner's alpha
-//     walk, AW11: until 2026-10-22 the view's changing rows read them again, and a namespace
-//     without objects of the view's kind was noticed only at the filter's next opening;
-//     engine/nswatch.go). Nothing is read while the user may not list namespaces: then nothing is
+//     which the namespaces' own changes send while the filter names namespaces, so that a
+//     namespace without objects of the view's kind is noticed too (engine/nswatch.go). Nothing is read while the user may not list namespaces: then nothing is
 //     marked, for nothing is known.
 
 // nsPageSize is how many namespaces one resources.list reads for the filter: the command's most.

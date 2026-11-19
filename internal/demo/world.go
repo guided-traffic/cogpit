@@ -105,6 +105,8 @@ type deployment struct {
 	pods       map[*pod]struct{}
 	podLabels  [2]map[string]any // shared by the pods of each replica set
 	podOwners  [2][]any
+	rsCreated  [2]time.Time
+	rsStatus   [2][3]int // each replica set's active, ready and available pods as last published
 	selector   map[string]string
 	labels     map[string]any
 	spec       map[string]any
@@ -130,6 +132,21 @@ func (d *deployment) counts() (active, ready, updated int) {
 		}
 	}
 	return active, ready, updated
+}
+
+// rsCounts returns the active and ready pods of one of the deployment's replica sets, counted
+// as counts counts them.
+func (d *deployment) rsCounts(rs int) (active, ready int) {
+	for p := range d.pods {
+		if p.rs != rs || !p.deleting.IsZero() || p.phase == phaseSucceeded || p.phase == phaseFailed || p.phase == phaseEvicted {
+			continue
+		}
+		active++
+		if p.isReady() {
+			ready++
+		}
+	}
+	return active, ready
 }
 
 // podPhase is a pod's lifecycle state; the Kubernetes phase and container states follow from it.

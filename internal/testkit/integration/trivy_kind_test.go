@@ -12,6 +12,7 @@ import (
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"github.com/guided-traffic/cogpit/internal/cluster"
 	"github.com/guided-traffic/cogpit/internal/engine"
@@ -77,51 +78,83 @@ func TestKindTrivy(t *testing.T) {
 		}
 		return list.Items[0].Name
 	}
-	// grades returns a pod's container sections' image grades as "container: D · 1 Critical", once
-	// the drawer has them (its reports may still be on their way).
-	grades := func(ref model.ObjectRef) map[string]string {
+	// cards returns a pod's container sections' image grade cards by container, once the drawer has
+	// them (its reports may still be on their way).
+	cards := func(ref model.ObjectRef) map[string]*model.GradeCard {
 		m, err := s.DetailWait(ctx, ref)
 		if err != nil {
 			t.Fatal(err)
 		}
-		out := map[string]string{}
+		out := map[string]*model.GradeCard{}
 		for _, sec := range m.Sections {
 			if sec.Grade != nil {
-				out[sec.Title] = sec.Grade.Text
+				out[sec.Title] = sec.Grade
 			}
 		}
 		return out
 	}
-	worst := map[string]string{} // pod name → the grade of its signal in the Pods list
-	// The grades as Trivy's database rated the images on 2026-10-22 (D-113): nginx:1.16.1's dozens of
-	// Critical E; nginx:1.30.0-alpine's High C; alpine:3.12's Critical D (its OS's end of life caps at
-	// C, and D is worse); busybox's nothing S.
+	reports := conn.Dynamic().Resource(schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"})
+	// fromReport is whether a container's card says what the report it names says, read from the API
+	// server: the report is of that container, and the card's grade and text are its counts'.
+	fromReport := func(container string, card *model.GradeCard) bool {
+		if card.Report == nil {
+			return false
+		}
+		obj, err := reports.Namespace(card.Report.Namespace).Get(ctx, card.Report.Name, metav1.GetOptions{})
+		if err != nil {
+			return false
+		}
+		r, ok := model.ParseVulnerabilityReport(obj)
+		return ok && r.Container == container && card.Grade == r.Grade() &&
+			card.Text == model.GradeText(r.Grade(), r.Counts, r.EOSL)
+	}
+	worst := map[string]model.ImageGrade{} // pod name → the grade of its signal in the Pods list
+	// Each container's grade. Only what the images' age keeps stable is pinned: nginx:1.16.1's dozens
+	// of Critical grade E, busybox's nothing S. Trivy's database rates the others anew every day, so
+	// their grade is checked against their own reports: nginx:1.30.0-alpine holds known
+	// vulnerabilities, and alpine:3.12's OS is at its end of life, which caps it at C.
+	const fromItsReport, atMostC = "report", "report, C at best"
 	for _, c := range []struct {
 		ns, selector string
-		containers   map[string]string // container → its grade's letter
-		worst        string
+		containers   map[string]string // container → its grade's letter, or how its report rates it
 	}{
-		{"cogpit-trivy-a", "app=mixed", map[string]string{"init": "S", "old": "E", "new": "S"}, "E"},
-		{"cogpit-trivy-a", "app=store", map[string]string{"web": "C"}, "C"},
-		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=once", map[string]string{"task": "S"}, "S"},
-		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=nightly-29000000", map[string]string{"report": "D"}, "D"},
-		{"cogpit-trivy-b", "", map[string]string{"shell": "D"}, "D"},
+		{"cogpit-trivy-a", "app=mixed", map[string]string{"init": "S", "old": "E", "new": "S"}},
+		{"cogpit-trivy-a", "app=store", map[string]string{"web": fromItsReport}},
+		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=once", map[string]string{"task": "S"}},
+		{"cogpit-trivy-a", "batch.kubernetes.io/job-name=nightly-29000000", map[string]string{"report": atMostC}},
+		{"cogpit-trivy-b", "", map[string]string{"shell": atMostC}},
 	} {
 		ref := model.ObjectRef{Kind: "pods", Namespace: c.ns, Name: pod(c.ns, c.selector)}
-		worst[ref.Name] = c.worst
 		waitFor(ctx, t, "the grades of "+ref.String(), func() bool {
-			got := grades(ref)
+			got := cards(ref)
 			if len(got) != len(c.containers) {
 				return false
 			}
 			for name, want := range c.containers {
-				if g, ok := got[name]; !ok || !strings.HasPrefix(g, want+" · ") {
+				card, ok := got[name]
+				switch {
+				case !ok:
 					return false
+				case want == fromItsReport:
+					if card.Grade <= model.GradeS || !fromReport(name, card) {
+						return false
+					}
+				case want == atMostC:
+					if card.Grade < model.GradeC || !fromReport(name, card) {
+						return false
+					}
+				default:
+					if card.Grade.String() != want || !strings.HasPrefix(card.Text, want+" · ") {
+						return false
+					}
 				}
 			}
 			return true
 		})
-		t.Logf("%s: %v", ref, grades(ref))
+		for name, card := range cards(ref) {
+			worst[ref.Name] = max(worst[ref.Name], card.Grade)
+			t.Logf("%s: %s: %s", ref, name, card.Text)
+		}
 	}
 
 	// The Pods list's Signals column: each test pod's worst grade, Trivy's signal.
@@ -148,7 +181,7 @@ func TestKindTrivy(t *testing.T) {
 		}
 		got := gradesOf(snap)
 		for name, want := range worst {
-			if sig := got[name]; sig.Grade.String() != want || !strings.HasPrefix(sig.Text, want+" · ") {
+			if sig := got[name]; sig.Grade != want || !strings.HasPrefix(sig.Text, want.String()+" · ") {
 				return false
 			}
 		}
@@ -203,7 +236,7 @@ func TestKindTrivy(t *testing.T) {
 		t.Errorf("off: %+v", st)
 	}
 	bare := model.ObjectRef{Kind: "pods", Namespace: "cogpit-trivy-b", Name: "bare"}
-	if got := grades(bare); len(got) != 0 {
+	if got := cards(bare); len(got) != 0 {
 		t.Errorf("off, the drawer grades %v", got)
 	}
 	waitFor(ctx, t, "the Pods list's grades gone", func() bool {

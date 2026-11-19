@@ -190,6 +190,7 @@ func (s *Session) RemoveKubeconfigSource(id string) (KubeconfigSource, error) {
 		s.CloseGoneSourceConnection() // a connection made from the source's files ends with the link
 		s.closeTabsOfSource(k, src)
 		s.forgetSettingsOfSource(k, src)
+		s.forgetUsersOfSource(k, src)
 		s.dropHotbarTilesOfSource(k, src)
 		s.emit(Event{Type: EventContexts})
 	}
@@ -294,6 +295,37 @@ func (s *Session) forgetSettingsOfSource(k *KubeconfigSources, src KubeconfigSou
 		if _, err := s.ChangeClusterSettings(id, func(cs *ClusterSettings) error { *cs = ClusterSettings{}; return nil }); err != nil {
 			s.log.Warn("cluster settings of a removed cluster", "context", id, "err", err)
 		}
+	}
+}
+
+// forgetUsersOfSource forgets the last known users (cluster-users.json, whoami_store.go) of the
+// removed source's contexts that no source offers any more, as forgetSettingsOfSource forgets
+// their settings; a session file ($KUBECONFIG) keeps them. When the sources cannot be read,
+// nothing is forgotten on a guess.
+func (s *Session) forgetUsersOfSource(k *KubeconfigSources, src KubeconfigSource) {
+	if src.Session {
+		return
+	}
+	offered, err := offeredContexts(k)
+	if err != nil {
+		return
+	}
+	if s.users.drop(func(id string) bool { return ofSource(src, id) && !offered[id] }) {
+		s.users.flush(s)
+	}
+}
+
+// forgetUsersOfGoneContexts forgets, once at start, the last known users of the contexts that are
+// certainly gone (goneContexts: no source has them, or their file is), such as those of a source
+// removed by an older Cogpit or a kubeconfig file deleted meanwhile.
+func (s *Session) forgetUsersOfGoneContexts() {
+	ids := s.users.ids()
+	if len(ids) == 0 {
+		return
+	}
+	gone := s.goneContexts(ids, false)
+	if s.users.drop(func(id string) bool { return gone[id] }) {
+		s.users.flush(s)
 	}
 }
 

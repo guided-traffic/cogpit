@@ -237,7 +237,7 @@ func TestNodeDrawerPodsSortByHeader(t *testing.T) {
 // A narrow drawer shortens the sortable titles rather than overflowing: the header asks for its
 // title and arrow, and lays them out in what it gets.
 func TestTableSortHeaderShortens(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	h := newTableSortHeader("Namespace", -1, nil)
 	full := h.MinSize()
 	plain := newTableSortHeader("Namespace", 0, nil).MinSize()

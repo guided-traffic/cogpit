@@ -605,7 +605,7 @@ func (f *agentForm) showKeyState() {
 // apiKey is the key argument of SaveConnection and TestConnection: nil keeps the stored key, a
 // pointer to "" removes it, any other text replaces it. A saved connection without a stored key
 // saves "" for an empty field, as its hint says ("Empty: no key"): a key the agent no longer has
-// (one kept in the macOS keychain before 2026-10-15) is then given up, not asked for again.
+// (one an older Cogpit kept in the macOS keychain) is then given up, not asked for again.
 func (f *agentForm) apiKey() *string {
 	switch {
 	case f.key.Text != "":

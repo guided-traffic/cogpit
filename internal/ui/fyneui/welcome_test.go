@@ -28,8 +28,8 @@ func welcomeEngine(t *testing.T) *engine.Session {
 	if err := os.WriteFile(kc, []byte(settingsKubeconfig), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	conn := &engine.ClusterConnector{KubeconfigPaths: []string{kc}, IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 200, true, 3
+	conn := demoConnector(t, demoSize{Pods: 200, NoChurn: true, Seed: 3})
+	conn.KubeconfigPaths = []string{kc}
 	s := newTestEngine(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(cfg),
 		Preferences: engine.NewPreferencesStore(cfg), ClusterSettings: engine.NewClusterSettingsStore(cfg)})
 	if err := commands.RegisterAll(s.Registry()); err != nil {

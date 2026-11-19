@@ -23,8 +23,7 @@ func tapSeg(l *sourceLine, text string) bool {
 	return false
 }
 
-// Where a found Prometheus runs is on its section of Cluster Settings (D-87; until 2026-10-18 the
-// drawer's source line): its namespace and service are links that close the page and open the
+// Where a found Prometheus runs is on its section of Cluster Settings (D-87): its namespace and service are links that close the page and open the
 // Namespace or the Service through ui.navigate, in that cluster; the hand pointer and the underline
 // show over a link only; a status without a Service's place stays plain.
 func TestPrometheusSectionLinksItsService(t *testing.T) {

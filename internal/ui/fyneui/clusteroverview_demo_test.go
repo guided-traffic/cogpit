@@ -22,14 +22,10 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{
-		IncludeDemo: true,
-		MetricsOptions: metrics.Options{
-			ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
-		},
+	conn := demoConnector(t, demoSize{Pods: 1500, Seed: 11, EventsPerSecond: 200, MetricsResolution: 40 * time.Millisecond})
+	conn.MetricsOptions = metrics.Options{
+		ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
 	}
-	conn.DemoOptions.Pods, conn.DemoOptions.Seed, conn.DemoOptions.EventsPerSecond = 1500, 11, 200
-	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
 	s := newTestEngine(engine.Options{Connector: conn})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {

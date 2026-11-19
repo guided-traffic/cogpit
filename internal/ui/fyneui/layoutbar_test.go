@@ -340,8 +340,7 @@ func TestUpdateButtonOnTheBarsCentreLine(t *testing.T) {
 // minimum), the Update button with its version still fits beside the bar's left part. Where the
 // row lacks the room, the version gives way: the button says "Update" until the row has it, the
 // version never widens the row's least width, and the two parts never overlap. The bar names no
-// cluster since 2026-10-21 (D-54), so no text of it, a long context name and its kubeconfig file
-// as before, makes it the window's widest row: the window's minimum lies far above the bar's own,
+// cluster (D-54), so no text of it makes it the window's widest row: the window's minimum lies far above the bar's own,
 // and the second half checks the row's layout itself at its least width and a hair beyond the
 // room the long label needs.
 func TestUpdateButtonAtTheNarrowestWindow(t *testing.T) {
@@ -408,8 +407,7 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 3
+	conn := demoConnector(t, demoSize{Pods: 300, NoChurn: true, Seed: 3})
 	s := newTestEngine(engine.Options{Connector: conn, Hotbar: engine.NewHotbar(t.TempDir())}) // the hotbar stays
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

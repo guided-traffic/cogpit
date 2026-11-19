@@ -16,7 +16,7 @@ import (
 // the column, at most maxCellMarks squares show and the rest are counted, the count in the hidden
 // ones' colour (finished ephemeral containers: blue).
 func TestContainersCellDrawsEphemeralMarks(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	marks := []model.CellMark{
 		{Text: "app: running", Status: model.StatusOK},
 		{Text: "debugger: ephemeral, running", Status: model.StatusEphemeral},

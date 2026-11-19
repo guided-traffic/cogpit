@@ -77,7 +77,7 @@ func pdbBound(obj any, field string) string {
 	return pdbNotSet
 }
 
-// pdbHealth returns the warning cell and the row's token. The rule is inferred: a budget the
+// pdbHealth returns the state's signal cell and the row's token. The rule is inferred: a budget the
 // disruption controller could not compute is an error; one whose healthy pods fall short of the
 // desired count, or that allows no disruption at all, is a warning, because evictions and node
 // drains wait on it; a budget whose selector matches no pod guards nothing and is not coloured;

@@ -452,7 +452,7 @@ Restart, Delete and the pod shell wait for your confirmation
 | `--context <name>` | empty: the welcome page # default | connect at start: an id as the navigator lists it, or a context name only one file defines; one Cogpit refuses is named in a toast and the navigator's search opens |
 | `--demo` | `false` # default | connect to the synthetic demo cluster; development builds only ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |
 | `--demo-pods <n>` | `10000` # default | pods in the demo cluster; development builds only |
-| `--demo-events <n>` | `1000` # default | watch events per second in the demo cluster; development builds only |
+| `--demo-events <n>` | `1000` # default | watch events per second in the demo cluster, `0` for a static cluster; development builds only |
 | `--mcp-addr <addr>` | `127.0.0.1:0` # default | MCP listen address, loopback only; port 0 binds the port kept in `mcp-port` (a free one, kept, when there is none or it is taken), another port is used for this run only |
 | `--no-mcp` | `false` # default | leave the external MCP server and its status bar item out of this run; the stored switch stays |
 | `--perf <duration>` | `0` # default | measure main-loop latency while auto-scrolling the table, print it as JSON and quit |
@@ -1528,7 +1528,9 @@ a report names with a violation
   their objects; `object_get` carries the drawer's sections. Policy messages reach agents as data
   ([H-11](../security/agents-and-mcp.md#h-11-instructions-hidden-in-cluster-data)).
 - **Reads:** a user who may list the reports only in some namespaces gets those the cluster's
-  settings or the namespace filter name. Off: nothing is read or shown. Not read: Kyverno's
+  settings or the namespace filter name. A report kind the cluster refuses (403) is named in
+  Cluster Settings › Integrations › Kyverno and not asked for again until Refresh Access Reviews
+  or the next connect. Off: nothing is read or shown. Not read: Kyverno's
   `openreports.io` reports, other engines'.
 
 ### A volume's usage
@@ -1791,12 +1793,12 @@ In `<user config dir>/Cogpit`, owner-only, unless named otherwise.
 | `preferences.json` | the Preferences |
 | `kubeconfigs.json`, `exec-approvals.json` | the kubeconfig sources you added; the credential plugins you allowed. Cogpit never writes a kubeconfig |
 | `cluster-settings.json`, `cluster-icons/` | per context what Cluster Settings sets, at most 1,024 contexts; uploaded icons with their source images. Removing a cluster from Cogpit drops its settings (added again, it is asked its integrations again); a file `$KUBECONFIG` names keeps them |
-| `cluster-users.json` | per context the username the API server last confirmed, for the navigator while disconnected |
+| `cluster-users.json` | per context the username the API server last confirmed, for the navigator while disconnected. Removing a cluster from Cogpit drops its entry, and so does a start at which no kubeconfig source has the context any more; a file `$KUBECONFIG` names keeps it |
 | `metrics.json` | per context the Prometheus (namespace, service, port, path prefix, `format`, `keepEmptyContainers`, `https`) and the Alertmanager you named; never the kubeconfig |
 | `hotbar.json` | the pinned clusters, top to bottom ([D-83](decisions.md#d-83-one-hotbar-and-a-drag-that-carries-the-tile)) |
 | `workspace.json` | tabs, column layout, navigator and chat column, the clusters connected and shown: the layout comes back at every start, tabs and connections only with [Restore the last session](#preferences--app-restore-the-last-session) ([D-41](decisions.md#d-41-what-survives-a-restart)) |
 | `window.json` | the window's place ([its section](#the-windows-place-and-size)) |
-| `bookmarks.json` (macOS) | access to what you picked in the system's panels; deleting it removes that access ([file access](../security/file-access.md)) |
+| `bookmarks.json` (macOS) | access to what you picked in the system's panels; a kubeconfig source's goes when you remove the source; deleting the file removes that access ([file access](../security/file-access.md)) |
 | `drafts/` | unsaved Edit and Create tab text and Config Map drawer edits, offered again at the next connect; never a Secret's or Helm values ([D-11](decisions.md#d-11-crash-stance), [D-55](decisions.md#d-55-a-config-maps-values-edited-in-the-drawer)) |
 | `drains.json`, `helm.json`, `nodeshells.json`, `journals.lock`, `owners/` | the drains, Helm actions and node shell pods Cogpit started and has not finished or seen deleted, and which Cogpit process owns each; a node shell pod a crash left is deleted at the next connect ([H-71](../security/privilege-footprint.md#h-71-a-crash-leaves-the-node-shells-pod-until-the-next-connect)) |
 | `audit.log` | a JSON line per agent-initiated command, read newest first by Help › Audit Log and `audit_list` (its last 4 MiB) |

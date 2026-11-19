@@ -1,3 +1,7 @@
+//go:build !nodemo
+
+// The live tests run over the demo cluster: a development build only, as the demo cluster is (D-67).
+
 package agent
 
 import (

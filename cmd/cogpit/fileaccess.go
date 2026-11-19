@@ -13,8 +13,9 @@ import (
 // Cogpit reads again (D-72, internal/ui/nativedialog: <user config dir>/Cogpit/bookmarks.json,
 // owner-only), resolves them and starts accessing their items, before anything reads a
 // kubeconfig source: macOS granted them when the user picked them, and the bookmark is how an app
-// carries that grant into a later run. A kubeconfig source's bookmark goes once the source is
-// gone; the others are bounded by the store. Without a configuration directory the window keeps
+// carries that grant into a later run. A kubeconfig source's bookmark goes with the source: when
+// the user removes it, and at start for a path that is no source; the others are bounded by the
+// store. Without a configuration directory the window keeps
 // the bookmarks of this run only. The log names counts, never paths.
 func restoreFileAccess(logger *slog.Logger, sources *engine.KubeconfigSources) *nativedialog.Store {
 	path := ""
@@ -33,7 +34,24 @@ func restoreFileAccess(logger *slog.Logger, sources *engine.KubeconfigSources) *
 	}
 	logger.Debug("access to picked files restored", "restored", rep.Restored, "accessing", rep.Accessing,
 		"refreshed", rep.Refreshed, "dropped", rep.Dropped, "failed", rep.Failed)
+	forgetRemovedSources(store, sources, logger)
 	return store
+}
+
+// forgetRemovedSources drops a kubeconfig source's bookmark when the user removes the source, as
+// the next start would: the grant does not outlive the source. The access started for it lasts
+// until Cogpit quits.
+func forgetRemovedSources(store *nativedialog.Store, sources *engine.KubeconfigSources, logger *slog.Logger) {
+	if sources == nil {
+		return
+	}
+	sources.OnRemove(func(engine.KubeconfigSource) {
+		n, err := store.Drop(keptSource(sources, logger))
+		if err != nil {
+			logger.Warn("the bookmarks of picked files could not be written", "err", err)
+		}
+		logger.Debug("bookmarks of removed kubeconfig sources dropped", "dropped", n)
+	})
 }
 
 // keptSource keeps a kubeconfig bookmark while its path is a source; the other uses' bookmarks

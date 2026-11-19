@@ -52,7 +52,7 @@ func TestContainersCellDrawsSquares(t *testing.T) {
 // the others, coloured by their gravest state, so that a running container behind finished init
 // containers is not mistaken for none (the owner's F24 of 2026-10-17); a wider cell shows them all.
 func TestContainersCellCountsWhatDoesNotFit(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	marks := []model.CellMark{
 		{Text: "a: terminated", Status: model.StatusStopped}, {Text: "b: terminated", Status: model.StatusStopped},
 		{Text: "c: terminated", Status: model.StatusStopped}, {Text: "d: terminated", Status: model.StatusStopped},

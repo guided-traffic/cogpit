@@ -19,15 +19,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The Flux and Argo CD dashboards of a namespace-limited user (G3, G23; FIXUP 2026-10-14), measured
-// at the HTTP level against a fake API server that enforces RBAC: the dashboards were built before
-// the namespace-limited fixes, with workers of their own. A user who may read the custom resource
+// The Flux and Argo CD dashboards of a namespace-limited user (G3, G23), measured at the HTTP level
+// against a fake API server that enforces RBAC; the dashboards have workers of their own. A user who may read the custom resource
 // definitions (a ClusterRole, as Flux's and Argo CD's tenants are often given) and the GitOps kinds
 // in team-a alone, or in the accessible namespaces team-a and team-b, opens either dashboard, as a
 // page and as an agent's read with no page open: the reads end in the user's namespaces, a read in
 // all namespaces the access reviews refuse is never sent, and a refusal the API server gives is
 // followed as the views and the Overviews follow it. A cluster-admin's counts are one read per
-// kind in all namespaces, as before.
+// kind in all namespaces.
 
 var (
 	gitopsKustomizationsGVR = schema.GroupVersionResource{Group: "kustomize.toolkit.fluxcd.io", Version: "v1", Resource: "kustomizations"}

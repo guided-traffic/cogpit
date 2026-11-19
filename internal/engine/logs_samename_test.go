@@ -229,8 +229,8 @@ func TestWorkloadLogsAPodCreatedAgainSeenBeforeTheResume(t *testing.T) {
 
 // TestWorkloadLogsARestartTheCacheShowsLate: the server ends the stream as the container restarts,
 // and the cache shows the restart only after the resumption's backoff, so the stream opens again by
-// the name and follows the new instance. When the cache shows it, no second stream starts for it
-// (until 2026-10-20 the new instance's lines came twice).
+// the name and follows the new instance. When the cache shows it, no second stream starts for it,
+// so the new instance's lines come once.
 func TestWorkloadLogsARestartTheCacheShowsLate(t *testing.T) {
 	fastResumes(t, 5)
 	s, src, _ := watchedLogsSession(t)

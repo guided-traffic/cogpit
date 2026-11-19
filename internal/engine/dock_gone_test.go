@@ -18,10 +18,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The dock's tabs of a context that leaves Cogpit (G5, G13; FIXUP 2026-10-14). Since 2026-10-13 a
-// removed source's or a vanished file's cluster tabs close (UIState.dropContexts); the dock's tabs
-// of those contexts (logs, terminals, a node shell, editors) stayed open, bound to a cluster Cogpit
-// no longer offers. They close with the cluster tabs and are counted in the same notice; a node
+// The dock's tabs of a context that leaves Cogpit (G5, G13). A removed source's or a vanished
+// file's cluster tabs close (UIState.dropContexts); the dock's tabs of those contexts (logs,
+// terminals, a node shell, editors) close with them and are counted in the same notice; a node
 // shell's pod is deleted as its tab's close deletes it (D-37); an editor's unsaved text is kept as
 // a draft, offered when the cluster connects again (D-11), where closing a tab discards it.
 

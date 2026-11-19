@@ -7,8 +7,8 @@ import (
 )
 
 // A name wider than the details' name column wraps within it instead of running into its value
-// (FIXUP 2026-10-14, from WPODS's report: the Stateful Set drawer's "Pod Management Policy" and
-// "Volume Claim Templates" ran under their values); a name that fits stays one line, as before.
+// (the Stateful Set drawer's "Pod Management Policy" and "Volume Claim Templates"); a name that
+// fits stays one line.
 // PNGs: statefulset_pods_drawer_*.png.
 func TestDrawerLongNamesWrapInTheirColumn(t *testing.T) {
 	f, _ := workloadPodsFake(t, true, nil)

@@ -452,7 +452,7 @@ func TestTooltips(t *testing.T) {
 	// A row in an abnormal state shows a spine and a status pill: its state's triangle would say it a
 	// third time, so the reason moves to the tooltip of the status word (Dark Cockpit).
 	if warn.content.kind != cellSignals || !warn.content.lit || len(warn.shownSignals()) != 0 || warn.text.Text != "" {
-		t.Fatalf("warning cell %+v", warn.content)
+		t.Fatalf("signals cell %+v", warn.content)
 	}
 	status := cellAt(t, sh, rowOf(t, f, "pods", crash.name), columnOf(t, sh, "status"))
 	test.MoveMouse(w.Canvas(), at(status))

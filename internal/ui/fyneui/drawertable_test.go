@@ -137,7 +137,7 @@ func TestCapWidths(t *testing.T) {
 }
 
 // TestDrawerCellTable: a drawer table of cells (model.CellTable) draws a cell with a link as a
-// link that navigates, a status in its colour, and the warning column as an icon whose tooltip
+// link that navigates, a status in its colour, and the Signals column as an icon whose tooltip
 // is the reason, under no title; Rows stays the text agents read.
 func TestDrawerCellTable(t *testing.T) {
 	f := kindsFake(t, "nodes")
@@ -164,7 +164,7 @@ func TestDrawerCellTable(t *testing.T) {
 
 	texts := drawerTexts(sh)
 	if slices.Contains(texts, "Warning") || !slices.Contains(texts, "Name") || !slices.Contains(texts, "Status") {
-		t.Errorf("the warning column has a title, or the others none: %q", texts)
+		t.Errorf("the Signals column has a title, or the others none: %q", texts)
 	}
 	if !slices.Contains(texts, "web-1") {
 		t.Errorf("a link to a kind without a view must be plain text: %q", texts)

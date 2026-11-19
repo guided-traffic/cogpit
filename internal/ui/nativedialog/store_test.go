@@ -203,3 +203,51 @@ func TestStoreWithoutFile(t *testing.T) {
 		t.Errorf("Keep = %v, %+v", err, s.Entries())
 	}
 }
+
+// Drop takes the bookmarks keep refuses out of the store and its file, resolving none; nothing
+// refused leaves the file as it is; a nil keep and a nil store drop nothing.
+func TestStoreDrop(t *testing.T) {
+	s, path := newTestStore(t)
+	var calls []string
+	s.resolve = fakeResolver(&calls)
+	for _, k := range []struct{ use, path, data string }{
+		{UseKubeconfig, "/a.yaml", "a"}, {UseKubeconfig, "/team", "team"}, {UseFolder, "/a.yaml", "work"},
+	} {
+		if err := s.Keep(k.use, k.path, ReadOnly, []byte(k.data)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	notTeam := func(e Entry) bool { return e.Use != UseKubeconfig || e.Path != filepath.FromSlash("/team") }
+	if n, err := s.Drop(notTeam); n != 1 || err != nil {
+		t.Fatalf("Drop = %d, %v; want 1", n, err)
+	}
+	reopened, err := OpenStore(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, st := range []*Store{s, reopened} {
+		got := st.Entries()
+		if len(got) != 2 || string(got[0].Bookmark) != "a" || string(got[1].Bookmark) != "work" {
+			t.Errorf("entries = %+v, want a and work", got)
+		}
+	}
+	if len(calls) != 0 {
+		t.Errorf("Drop resolved %v", calls)
+	}
+	if err := os.Remove(path); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := s.Drop(notTeam); n != 0 || err != nil {
+		t.Errorf("Drop of nothing = %d, %v", n, err)
+	}
+	if _, err := os.Stat(path); !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Drop of nothing wrote the file: %v", err)
+	}
+	if n, err := s.Drop(nil); n != 0 || err != nil || len(s.Entries()) != 2 {
+		t.Errorf("Drop(nil) = %d, %v", n, err)
+	}
+	var none *Store
+	if n, err := none.Drop(notTeam); n != 0 || err != nil {
+		t.Errorf("nil store Drop = %d, %v", n, err)
+	}
+}

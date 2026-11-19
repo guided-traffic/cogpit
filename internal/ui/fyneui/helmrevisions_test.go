@@ -38,8 +38,7 @@ func newRevisionsHarness(t *testing.T, mode ThemeMode) *revisionsHarness {
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.Seed, conn.DemoOptions.NoChurn = 400, 7, true
+	conn := demoConnector(t, demoSize{Pods: 400, Seed: 7, NoChurn: true})
 	s := newTestEngine(engine.Options{Connector: conn, SnapshotInterval: 5 * time.Millisecond, Preferences: engine.NewPreferencesStore("")})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

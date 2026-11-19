@@ -289,7 +289,7 @@ sources beyond logs, events, annotations and YAML, while their integration is on
 |---|---|---|
 | Trivy Operator's reports: each vulnerability's title and description | the vulnerability databases' authors | `object_get`, `resources_list` on `vulnerabilityreports.aquasecurity.github.io`; a pod's image ratings carry no free text ([D-78](../developer/decisions.md#d-78-trivy-operators-image-ratings)) |
 | Alerts' summaries and descriptions; silences' comments | the alerting rules, with label values any workload sets; whoever created a silence; an Alertmanager found by name may be a lookalike ([H-121](privilege-footprint.md#h-121-alertmanager-is-found-by-name-and-its-texts-reach-the-window-and-agents)) | `alerts_list` (its description calls the texts data), `alerts_board` (D-77), `alerts_silences` (D-166) |
-| Kyverno's policy messages | a policy's author, quoting the object's fields (`{{request.object.metadata.name}}`), so whoever may create a checked object | `object_get`'s "Policy violations", the warning cell (policy names only), `kyverno_violations` (its description says data) (D-79) |
+| Kyverno's policy messages | a policy's author, quoting the object's fields (`{{request.object.metadata.name}}`), so whoever may create a checked object | `object_get`'s "Policy violations", the Signals cell (policy names only), `kyverno_violations` (its description says data) (D-79) |
 
 A policy that copies a Secret's value into its message hands the value to agents with it.
 

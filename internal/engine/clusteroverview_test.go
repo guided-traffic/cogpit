@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strings"
 	"testing"
@@ -173,6 +174,11 @@ func TestClusterOverviewIssues(t *testing.T) {
 	by := map[string]ClusterIssue{}
 	for _, is := range m.Issues {
 		by[is.Source+" "+is.Ref.Kind+"/"+is.Name] = is
+		// Every since in one zone, UTC, as the fold writes it: an event's time and a creation time
+		// would else come in the computer's zone beside a condition's Z.
+		if raw, _ := json.Marshal(is.Since); is.Since.Location() != time.UTC || !strings.HasSuffix(string(raw), `Z"`) {
+			t.Errorf("%s %s/%s: since %s, want UTC", is.Source, is.Ref.Kind, is.Name, raw)
+		}
 	}
 	crash := by["status pods/web-1"]
 	if crash.Severity != model.StatusError || !strings.Contains(crash.Message, "CrashLoopBackOff") || !strings.Contains(crash.Message, "5 restarts") ||

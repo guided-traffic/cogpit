@@ -171,6 +171,42 @@ func waitState(t *testing.T, s *Session, want ConnectionState) Connection {
 	return got
 }
 
+// transition records the connection as the session shows it when it first turns to want from now
+// on, and returns a function that waits for it. A later step may change it before a poll reads it:
+// with fastWatch the first reconnect attempt follows the interruption by BackoffFirst, and its
+// failure replaces the reason.
+func transition(t *testing.T, s *Session, want ConnectionState) func() Connection {
+	t.Helper()
+	var (
+		mu    sync.Mutex
+		first *Connection
+	)
+	t.Cleanup(s.Subscribe(func(ev Event) {
+		if ev.Type != EventUIState || ev.UIState == nil || ev.UIState.Connection.State != want {
+			return
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if first == nil {
+			c := ev.UIState.Connection
+			first = &c
+		}
+	}))
+	return func() Connection {
+		t.Helper()
+		var got Connection
+		waitUntil(t, "the connection "+string(want), func() bool {
+			mu.Lock()
+			defer mu.Unlock()
+			if first != nil {
+				got = *first
+			}
+			return first != nil
+		})
+		return got
+	}
+}
+
 // TestTwoFailedHeartbeatsInterruptTheConnection is S2 and S4: two heartbeats without an answer make
 // the connection Interrupted with its time and next attempt; the gate holds, the network
 // connections close; every mutating command is disabled with the reason "connection interrupted"
@@ -182,8 +218,9 @@ func TestTwoFailedHeartbeatsInterruptTheConnection(t *testing.T) {
 		t.Fatalf("a write while connected: %v", err)
 	}
 	before := time.Now()
+	interrupted := transition(t, s, Interrupted)
 	p.set(func(f *fakeProber) { f.down = true })
-	c := waitState(t, s, Interrupted)
+	c := interrupted()
 	if c.Since.Before(before) || c.Reason != "no answer from the API server" {
 		t.Errorf("connection %+v", c)
 	}

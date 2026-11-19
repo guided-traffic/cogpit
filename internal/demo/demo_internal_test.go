@@ -542,7 +542,13 @@ func TestObjectsCarryTheColumnFields(t *testing.T) {
 func TestStatsCountsObjectsAndEvents(t *testing.T) {
 	c := newTestCluster(t, Options{Seed: 1, Pods: 500, Deployments: 40, Services: 20, Events: 50})
 	st := c.Stats()
-	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps {
+	stuck := 0
+	for _, d := range c.w.deploys {
+		if d.templates[1] != nil {
+			stuck++
+		}
+	}
+	if st.Objects != 500+DefaultNodes+DefaultNamespaces+40+20+50+helmSecrets+helmConfigMaps+40+stuck {
 		t.Errorf("Objects = %d", st.Objects)
 	}
 	n := c.stepLocked(100)
@@ -601,4 +607,66 @@ func TestHelmRecordsDrawNoRandomNumbers(t *testing.T) {
 			uids[string(o.GetUID())] = key
 		}
 	}
+}
+
+// Every owner reference of a deployment's pod names a stored ReplicaSet by name and UID, and that
+// ReplicaSet's names its stored Deployment, as the controllers write them; a ReplicaSet's status
+// counts its pods, through the churn too.
+func TestPodsOwnersExist(t *testing.T) {
+	c := newTestCluster(t, Options{Seed: 1, Pods: 2_000, Deployments: 100, Services: 20, Events: 50})
+	check := func(when string) {
+		t.Helper()
+		byUID := map[kind]map[string]*unstructured.Unstructured{}
+		for _, k := range []kind{kindReplicaSets, kindDeployments} {
+			byUID[k] = map[string]*unstructured.Unstructured{}
+			for _, o := range c.store[k] {
+				byUID[k][string(o.GetUID())] = o
+			}
+		}
+		owned := 0
+		for _, o := range c.store[kindPods] {
+			for _, ref := range o.GetOwnerReferences() {
+				if ref.Kind != "ReplicaSet" {
+					continue
+				}
+				owned++
+				rs := byUID[kindReplicaSets][string(ref.UID)]
+				if rs == nil || rs.GetName() != ref.Name || rs.GetNamespace() != o.GetNamespace() {
+					t.Fatalf("%s: pod %s/%s names ReplicaSet %s (%s), not stored", when, o.GetNamespace(), o.GetName(), ref.Name, ref.UID)
+				}
+				refs := rs.GetOwnerReferences()
+				if len(refs) != 1 || refs[0].Kind != "Deployment" || refs[0].Controller == nil || !*refs[0].Controller {
+					t.Fatalf("%s: ReplicaSet %s owners %+v", when, rs.GetName(), refs)
+				}
+				if d := byUID[kindDeployments][string(refs[0].UID)]; d == nil || d.GetName() != refs[0].Name || d.GetNamespace() != rs.GetNamespace() {
+					t.Fatalf("%s: ReplicaSet %s names Deployment %s, not stored", when, rs.GetName(), refs[0].Name)
+				}
+			}
+		}
+		if owned == 0 {
+			t.Fatalf("%s: no pod is owned by a ReplicaSet", when)
+		}
+		for _, d := range c.w.deploys {
+			for rs := range d.templates {
+				if d.templates[rs] == nil {
+					continue
+				}
+				o := c.store[kindReplicaSets][objKey(d.namespace, d.name+"-"+d.rsHash[rs])]
+				active, ready := d.rsCounts(rs)
+				got, _, _ := unstructured.NestedInt64(o.Object, "status", "replicas")
+				gotReady, _, _ := unstructured.NestedInt64(o.Object, "status", "readyReplicas")
+				if int(got) != active || int(gotReady) != ready {
+					t.Fatalf("%s: ReplicaSet %s shows %d/%d pods, has %d/%d", when, o.GetName(), gotReady, got, ready, active)
+				}
+			}
+		}
+	}
+	check("built")
+	c.stepLocked(20_000)
+	c.mu.Lock()
+	for len(c.w.dirty) > 0 { // the statuses catch up, as the churn's own steps make them
+		c.opDeploymentStatus(c.opts.Now)
+	}
+	c.mu.Unlock()
+	check("after the churn")
 }

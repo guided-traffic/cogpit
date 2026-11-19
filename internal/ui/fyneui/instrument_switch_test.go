@@ -16,7 +16,7 @@ import (
 // A setting's switch draws its label at its left and the track at its right edge; a tap on the
 // label switches, as a checkbox's label does. An integration's switch draws no label.
 func TestLabelledSwitch(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	var got []bool
 	s := newLabelledSwitch("Reduce motion", func(on bool) { got = append(got, on) })
 	ms := s.MinSize()
@@ -47,7 +47,7 @@ func TestLabelledSwitch(t *testing.T) {
 // A switch group holds a check group's value: the options switched on, in their order; SetSelected
 // reports once.
 func TestSwitchGroup(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	var calls [][]string
 	g := newSwitchGroup([]string{"CPU", "Memory", "Network"}, func(sel []string) { calls = append(calls, sel) })
 	test.WidgetRenderer(g)
@@ -67,7 +67,7 @@ func TestSwitchGroup(t *testing.T) {
 // An integration's tile stands at the row's left with its top level with the name's capitals (the
 // owner's QS2): not above the name, and the lines beside it start after it.
 func TestIntegrationRowTileAtTitle(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	in, _ := engine.IntegrationOf(engine.IntegrationPrometheus)
 	r := newIntegrationRow(in, nil)
 	r.box.Resize(fyne.NewSize(600, r.box.MinSize().Height))

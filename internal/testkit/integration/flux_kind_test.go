@@ -7,10 +7,12 @@ import (
 	"errors"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -38,14 +40,15 @@ var fluxKsGVR = schema.GroupVersionResource{Group: "kustomize.toolkit.fluxcd.io"
 // status subresource, and checks the Flux section over the engine: the curated view's row, the
 // dashboard's counts, and Reconcile, Suspend and Resume patching the object on the API server, a
 // patch bound to another UID refused; Reconcile with Source annotating the GitRepository and the
-// Kustomization, Reset a Helm release. A cluster that already has Flux is left alone (the test
-// skips); the definitions are removed at the end.
+// Kustomization, Reset a Helm release; Logs of a Kustomization over the workloads its inventory
+// lists, narrowed to one. A cluster that already has Flux is left alone (the test skips); the
+// definitions are removed at the end.
 func TestKindFlux(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
 	if kubeconfig == "" || contextName == "" {
 		t.Skip("COGPIT_KIND_KUBECONFIG and COGPIT_KIND_CONTEXT are not set; run make test-kind")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 	conn, err := cluster.Connect(ctx, cluster.Options{KubeconfigPaths: []string{kubeconfig}, Context: contextName})
 	if err != nil {
@@ -169,6 +172,100 @@ func TestKindFlux(t *testing.T) {
 	}
 
 	kindFluxWithSourceAndReset(ctx, t, conn, s, d, ref, annotation)
+	kindFluxLogs(ctx, t, conn, d)
+}
+
+// kindFluxLogs (A81): Logs of a Kustomization whose inventory lists two Deployments, one talking
+// pod each, and a Service. The tab merges both workloads' lines, each named
+// <workload>/<pod>/<container>, and lists both as its sources; narrowed to one workload the other's
+// lines stop while the first's go on; widened again the other's resume.
+func kindFluxLogs(ctx context.Context, t *testing.T, conn *cluster.Conn, d dispatcher) {
+	t.Helper()
+	kube, ns := conn.Kube(), fluxNamespace
+	for _, name := range []string{"front", "back"} {
+		if _, err := kube.AppsV1().Deployments(ns).Create(ctx, &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: name},
+			Spec: appsv1.DeploymentSpec{Replicas: int32p(1), Selector: &metav1.LabelSelector{MatchLabels: map[string]string{"app": name}},
+				Template: talkingTemplate(name, "app")},
+		}, metav1.CreateOptions{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The Kustomization that applied them, and the inventory kustomize-controller would write.
+	kss := conn.Dynamic().Resource(fluxKsGVR).Namespace(ns)
+	ks := testkit.Object("kustomize.toolkit.fluxcd.io/v1", "Kustomization", ns, "shop", map[string]any{
+		"spec": map[string]any{"interval": "10m", "path": "./shop", "prune": true,
+			"sourceRef": map[string]any{"kind": "GitRepository", "name": "flux-system"}},
+	})
+	ks.SetUID("")
+	ks.SetCreationTimestamp(metav1.Time{})
+	created, err := kss.Create(ctx, ks, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("creating the Kustomization: %v", err)
+	}
+	created.Object["status"] = map[string]any{
+		"observedGeneration": created.GetGeneration(),
+		"inventory": map[string]any{"entries": []any{
+			map[string]any{"id": ns + "_front_apps_Deployment", "v": "v1"},
+			map[string]any{"id": ns + "_back_apps_Deployment", "v": "v1"},
+			map[string]any{"id": ns + "_front__Service", "v": "v1"},
+		}},
+	}
+	if _, err := kss.UpdateStatus(ctx, created, metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("writing the inventory: %v", err)
+	}
+
+	waitFor(ctx, t, "a ready pod each", func() bool {
+		return len(readyPods(ctx, kube, ns, "front")) == 1 && len(readyPods(ctx, kube, ns, "back")) == 1
+	})
+	shop := model.ObjectRef{Kind: fluxKsKey, Namespace: ns, Name: "shop"}
+	d.cached(shop, func(o *unstructured.Unstructured) bool { return len(engine.LogGroupWorkloads(shop, o)) == 2 })
+	var tab commands.DockResult
+	d.must("flux.logs", map[string]any{"ref": shop}, &tab)
+	id := tab.Tab.ID
+	if tab.Tab.Title != "Logs: Kustomization shop" || !tab.Created {
+		t.Errorf("tab %+v", tab)
+	}
+
+	stream, err := d.s.OpenLogs(ctx, id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer stream.Close()
+	merged := collect(stream)
+	// count is the number of lines of a workload's container app.
+	count := func(workload string) int {
+		n := 0
+		for _, l := range merged.snapshot() {
+			src, _, _ := strings.Cut(l, " ")
+			if strings.HasPrefix(src, workload+"/"+workload+"-") && strings.HasSuffix(src, "/app") {
+				n++
+			}
+		}
+		return n
+	}
+	merged.waitLines(ctx, t, "lines of both workloads", func([]string) bool { return count("front") > 0 && count("back") > 0 })
+
+	var src engine.LogSources
+	d.must("logs.sources", map[string]any{"id": id}, &src)
+	if got := slices.Sorted(slices.Values(src.Workloads)); !slices.Equal(got, []string{"back", "front"}) {
+		t.Errorf("sources %+v", src)
+	}
+
+	// Narrowed to back: front's stream ends. A line front wrote before is let through while back
+	// writes two more (a line a second each); from then on front writes none while back goes on.
+	d.must("logs.setSource", map[string]any{"id": id, "workload": "back"}, nil)
+	back := count("back")
+	merged.waitLines(ctx, t, "back's lines after the narrowing", func([]string) bool { return count("back") >= back+2 })
+	front, back := count("front"), count("back")
+	merged.waitLines(ctx, t, "more of back's lines", func([]string) bool { return count("back") >= back+3 })
+	if n := count("front"); n != front {
+		t.Errorf("front wrote %d more lines after the tab narrowed to back", n-front)
+	}
+
+	// Widened again: front's lines resume.
+	d.must("logs.setSource", map[string]any{"id": id, "workload": ""}, nil)
+	merged.waitLines(ctx, t, "front's lines after the widening", func([]string) bool { return count("front") > front })
 }
 
 // kindFluxWithSourceAndReset (D-33, owner 2026-10-14): Reconcile with Source annotates the

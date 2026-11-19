@@ -23,8 +23,7 @@ func TestViewRowsAreTheTablesRows(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 3
+	conn := demoConnector(t, demoSize{Pods: 300, NoChurn: true, Seed: 3})
 	s := newTestEngine(engine.Options{Connector: conn})
 	defer s.Close()
 	if err := commands.RegisterAll(s.Registry()); err != nil {

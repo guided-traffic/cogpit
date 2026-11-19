@@ -27,8 +27,8 @@ func podsHandles(s *Session) (clusterWide, namespaced int) {
 // in all namespaces first and are refused; no view has met the refusals of the Deployments and
 // Replica Sets. An agent's read of either Overview (no page open) waits for the plans, follows the
 // refusals and answers from team-a at once, instead of waiting 15 seconds on refused reads; the
-// open page reads them in team-a too (the refusals count whoever met them, cache.OnRefused), where
-// before (2026-10-13) it kept the refused watches, retried for as long as it was open.
+// open page reads them in team-a too (the refusals count whoever met them, cache.OnRefused), rather
+// than keeping the refused watches.
 func TestPagesFollowARefusal(t *testing.T) {
 	src, rev := contextOnly(t)
 	s := contextOnlySession(t, src, rev, nil)

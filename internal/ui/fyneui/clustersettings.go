@@ -35,7 +35,7 @@ import (
 // Cogpit installs nothing for its own features and reads what the cluster runs (D-61, owner
 // 2026-10-16); its Cost page is not built and not listed. Cogpit's own: the row of
 // colour swatches under the icon, which picks a colour in one click (the menu's Pick Icon Color
-// does the same); since 2026-10-17 the cluster's accent colour below the icon (D-80,
+// does the same); the cluster's accent colour below the icon (D-80,
 // clustersettings_accent.go) and copy icons by the name and the kubeconfig's path (F27,
 // clustersettings_copy.go).
 

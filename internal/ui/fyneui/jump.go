@@ -53,7 +53,7 @@ func (p *cmdPalette) jumpEntries() []engine.PaletteEntry {
 				p.apply()
 			}
 		})
-		if sh.ui.Connection.State.Live() {
+		if sh.ui.Connection.State.Live() && sh.namespacesListable() {
 			sh.loadNamespaces()
 		}
 	}

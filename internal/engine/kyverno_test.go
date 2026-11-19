@@ -73,7 +73,7 @@ func deployment(namespace, name string) *unstructured.Unstructured {
 }
 
 // kyvernoSession is a session over src with the custom kinds on, the built-in Nodes profile (it has
-// a warning column) beside the engine tests' profiles.
+// a Signals column) beside the engine tests' profiles.
 func kyvernoSession(t *testing.T, src *testkit.MemorySource) *Session {
 	t.Helper()
 	nodes, _ := kinds.ByKey("nodes")
@@ -106,8 +106,8 @@ func kyvernoStatus(s *Session) IntegrationStatus {
 }
 
 // TestKyvernoMarksViolations walks the integration through the engine: a Deployment's fail of an
-// Audit policy marks its row in a warning column added after Name, a Node's fail (a cluster report)
-// merges into the Nodes' own warning column, an object without a fail and another engine's report
+// Audit policy marks its row in a Signals column added after Name, a Node's fail (a cluster report)
+// takes Kyverno's slot in the Nodes' own Signals column, an object without a fail and another engine's report
 // mark nothing, the drawer lists the violation, agents read it; a fixed object loses its mark and
 // the added column goes; switched off, nothing shows and the reports are no longer held.
 func TestKyvernoMarksViolations(t *testing.T) {
@@ -179,13 +179,13 @@ func TestKyvernoMarksViolations(t *testing.T) {
 		t.Error("api has a Policy violations section")
 	}
 
-	// A cluster-scoped object's mark merges into its kind's own warning column.
+	// A cluster-scoped object's mark takes Kyverno's slot in its kind's own Signals column.
 	openView(s, "nodes")
 	nodes := waitTable(t, s, "nodes", func(t *TableSnapshot) bool {
 		return t.Synced && strings.Contains(cellOf(t, "n1", "signals").Text, "Kyverno: 1 policy violation (require-node-owner)")
 	})
 	if n := len(nodes.Columns); n != len(mustProfile(t, s, "nodes").Columns) {
-		t.Errorf("Nodes has %d columns: a column was added beside its own warning column", n)
+		t.Errorf("Nodes has %d columns: a column was added beside its own Signals column", n)
 	}
 
 	// Agents: every violation at once, each with its object's kind key.

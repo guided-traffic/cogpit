@@ -2,8 +2,7 @@
 // from the command registry, so that the table never lists a command the registry does not have:
 // the "All N commands" summary line, then one row per command, sorted by id, with its MCP tool
 // name, danger, parameters (optional ones marked ?) and the first sentence of its description.
-// Its output replaces the content of that page's details block (the README held the table until
-// 2026-10-14).
+// Its output replaces the content of that page's details block.
 //
 //	go run ./hack/readmecmds > /tmp/table.md
 package main

@@ -357,7 +357,7 @@ func TestWorkloadLogsForgetEndedInstances(t *testing.T) {
 }
 
 // TestWorkloadLogsFollowKeepsTimestampsWhenShown: a tab that shows timestamps gets the server's
-// (every tab does since 2026-10-13: the GUI hides them), and a resumption still drops what it has.
+// (every tab does: the GUI hides them), and a resumption still drops what it has.
 func TestWorkloadLogsFollowKeepsTimestampsWhenShown(t *testing.T) {
 	fastResumes(t, 5)
 	s, _ := logsSession(t)

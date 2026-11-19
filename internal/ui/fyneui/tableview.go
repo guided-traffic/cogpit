@@ -1034,9 +1034,8 @@ func (tv *tableView) columnWidth(i int) float32 {
 
 // fixedWidth reports whether a column keeps its width: a grade column's shields, without a title,
 // have no divider in the header and are neither dragged wider nor fitted to their content (the
-// owner, 2026-10-22, of the warning column then: "kann meiner Meinung nach eine feste Breite
-// haben"). The Signals column, titled, is a column of its own (the owner, 2026-11-03): a divider,
-// and a width the user may drag.
+// owner). The Signals column, titled, is a column of its own (D-150): a divider, and a width the
+// user may drag.
 func fixedWidth(c model.Column) bool {
 	return c.Type == model.ColumnGrade
 }

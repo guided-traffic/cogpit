@@ -158,7 +158,8 @@ type ClusterIssue struct {
 	Severity model.Status `json:"severity"`
 	Message  string       `json:"message"`
 	// Since is when it began, as far as the object says: a condition's last transition, an event's
-	// last time; else when the object was created.
+	// last time; else when the object was created. In UTC, as the fold's times are, whatever the
+	// time came from.
 	Since time.Time `json:"since,omitzero"`
 
 	// What the fold groups by (clusteroverview_fold.go); none of it is part of the entry agents and

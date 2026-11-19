@@ -35,8 +35,8 @@ func TestRoleBindingColumns(t *testing.T) {
 	}
 }
 
-// TestRoleBindingNoSubjectsWarnsInTheDrawer: without a warning column, only the drawer says that a
-// binding without subjects grants nothing.
+// TestRoleBindingNoSubjectsWarnsInTheDrawer: without a state slot in the Signals column, only the
+// drawer says that a binding without subjects grants nothing.
 func TestRoleBindingNoSubjectsWarnsInTheDrawer(t *testing.T) {
 	failing := accessDetail(t, "rolebindings", "failing")
 	if it := accessItem(t, &failing[0], "Warning"); it.Value != accessNoSubjects || it.Status != model.StatusWarning {

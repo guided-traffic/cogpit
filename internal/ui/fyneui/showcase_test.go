@@ -96,8 +96,7 @@ func saveShowcaseSized(t *testing.T, w fyne.Window, name string, mode ThemeMode,
 	for _, v := range findAll[*buildLabel](w.Content()) {
 		v.conceal()
 	}
-	// Nor the alerts pill (D-54, the lead's decision; its source since 2026-10-17 the cluster's
-	// Alertmanager, D-77, which the showcase's clusters do not run).
+	// Nor the alerts pill (D-54, the lead's decision; its source the cluster's Alertmanager, D-77, which the showcase's clusters do not run).
 	for _, a := range findAll[*alertsButton](w.Content()) {
 		a.conceal()
 	}

@@ -12,7 +12,7 @@ import (
 
 // TestSyncFolderNeverOpensAFIFO: a named pipe in a sync folder, hidden or not, is neither listed
 // nor opened (opening one for reading blocks until a writer comes), and InspectFile refuses it.
-// Hidden files are read since 2026-10-12; this is the check that keeps that harmless.
+// Hidden files are read; this is the check that keeps that harmless.
 func TestSyncFolderNeverOpensAFIFO(t *testing.T) {
 	dir := t.TempDir()
 	for _, name := range []string{"pipe", ".hiddenpipe"} {

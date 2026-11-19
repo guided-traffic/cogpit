@@ -12,12 +12,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A connect still running when its context leaves Cogpit (G5, G13; FIXUP 2026-10-14). The watcher
-// closes the tabs of a context whose kubeconfig file is gone, and a removed source's, but leaves
-// UIState.Context alone while a connect holds it (Connecting). Before, the connect then failed and
-// left Context naming a context that is gone (ConnectError), or succeeded and left a connection
-// made from a file that is gone, until the next change of the sources. Now the connect's end
-// forgets the context, and a connection that succeeded is closed, with the reason.
+// A connect still running when its context leaves Cogpit (G5, G13). The watcher closes the tabs of
+// a context whose kubeconfig file is gone, and a removed source's, but leaves UIState.Context alone
+// while a connect holds it (Connecting); the connect's end forgets the context, and a connection
+// that succeeded is closed, with the reason.
 
 // gatedConnector holds every connect until gate closes, then fails it or connects as
 // sourceConnector does.

@@ -24,8 +24,7 @@ import (
 //   - an engine toast marked Event.WindowOnly (EmitWindowToast): one that quotes what the cluster
 //     returned to a Helm action, which a chart's templates can fill from a Secret (H-31).
 //
-// A caller outside the window (an agent, the CLI) reads them as text since 2026-10-14 (the owner's
-// A19; model.Withheld before): the inline Helm values the action was given removed when the toast
+// A caller outside the window (an agent, the CLI) reads them as text (the owner's A19): the inline Helm values the action was given removed when the toast
 // was recorded, and the cached Secrets' values replaced when it is read (AgentView, H-82). Marking
 // notifications read and clearing them are the window's (A18).
 //

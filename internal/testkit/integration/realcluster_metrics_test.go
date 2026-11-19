@@ -44,9 +44,8 @@ func realMetricsSession(ctx context.Context, t *testing.T, opts metrics.Options)
 }
 
 // TestRealClusterNodeDrawer checks a node's drawer against a real cluster's Prometheus and Metrics
-// Server: its CPU and memory history, and since 2026-10-16 its Network and Filesystem history from
-// node-exporter, which on kube-prometheus-stack (whose kubelet ServiceMonitor drops cAdvisor's root
-// cgroup) had none; then budget P13 with the drawer open, 90 seconds each with CPU shown and with
+// Server: its CPU and memory history, and its Network and Filesystem history from node-exporter,
+// which kube-prometheus-stack needs (its kubelet ServiceMonitor drops cAdvisor's root cgroup); then budget P13 with the drawer open, 90 seconds each with CPU shown and with
 // the network shown. It only reads.
 func TestRealClusterNodeDrawer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Minute)

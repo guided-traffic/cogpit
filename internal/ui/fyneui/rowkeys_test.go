@@ -181,10 +181,21 @@ func TestSortAndFilterKeys(t *testing.T) {
 	typeRune(t, w, 'N')
 	q.until(t, "by name, descending", func() bool { return sh.ui.Sort.Column == "name" && sh.ui.Sort.Desc })
 	press(t, w, fyne.KeyTab)
-	vis, _ := tv.dataColumn(tv.kbCol)
-	col := tv.snap.Columns[tv.cols[vis]].ID
+	// The keyboard's column is read when the sort is checked: a column the view adds meanwhile (the
+	// metrics', once they come) shifts which column the keyboard's index names.
+	ringColumn := func() string {
+		vis, ok := tv.dataColumn(tv.kbCol)
+		if !ok || tv.snap == nil {
+			return ""
+		}
+		return tv.snap.Columns[tv.cols[vis]].ID
+	}
+	col := ringColumn()
 	typeRune(t, w, 'O')
-	q.until(t, "sorted by the keyboard's column", func() bool { return sh.ui.Sort.Column == col })
+	q.until(t, "sorted by the keyboard's column", func() bool {
+		col = ringColumn()
+		return col != "" && sh.ui.Sort.Column == col
+	})
 	typeRune(t, w, 'P')
 	if tv.snap.View == "pods" && !strings.Contains(col, "namespace") {
 		q.until(t, "by namespace", func() bool { return sh.ui.Sort.Column == "namespace" })

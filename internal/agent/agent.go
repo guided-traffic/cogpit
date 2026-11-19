@@ -51,8 +51,8 @@ var (
 	ErrCAFilePath = errors.New("the CA file must be an absolute path")
 	ErrNoModel    = errors.New("the connection has no model: choose one in the chat's settings")
 	// ErrKeyMissing: the connection was saved with an API key that is not stored (any more): a key
-	// kept in the macOS keychain before 2026-10-15, which Cogpit no longer reads, or a key file
-	// removed by hand.
+	// an older Cogpit kept in the macOS keychain, which Cogpit does not read, or a key file removed
+	// by hand.
 	ErrKeyMissing = errors.New("the connection's API key is missing: enter it again in the chat's settings")
 )
 
@@ -133,8 +133,8 @@ func New(opts Options) *Agent {
 	return a
 }
 
-// checkKeys marks the connections saved with a key the key store does not hold: a key kept in the
-// macOS keychain before 2026-10-15, which Cogpit no longer reads (D-10: reading it would ask for
+// checkKeys marks the connections saved with a key the key store does not hold: a key an older
+// Cogpit kept in the macOS keychain, which Cogpit does not read (D-10: reading it would ask for
 // the login password), or a key file removed by hand. They show "no API key" (Connections), and a
 // turn asks for the key again (ErrKeyMissing). Called by New, before anything else can run.
 func (a *Agent) checkKeys() {

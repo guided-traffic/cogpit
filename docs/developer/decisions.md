@@ -87,7 +87,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect) | Integrations per cluster, and the question at a new cluster's first connect | built: five per-cluster switches; only the user switches them |
 | [D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board) | Alertmanager, the alerts pill and the alert board | built: shown cluster polled every 30 s; silences D-166 |
 | [D-78](#d-78-trivy-operators-image-ratings) | Trivy Operator's image ratings | built: reads and placement; the grade itself is D-113 |
-| [D-79](#d-79-kyvernos-policy-violations-on-the-objects) | Kyverno's policy violations on the objects | built: warning column and drawer marks from policy reports |
+| [D-79](#d-79-kyvernos-policy-violations-on-the-objects) | Kyverno's policy violations on the objects | built: marks in the Signals column and the drawer from policy reports |
 | [D-80](#d-80-a-clusters-accent-colour) | A cluster's accent colour | built: accent colour per cluster, set only in the window |
 | [D-81](#d-81-reconnect-and-what-log-in-again-does) | Reconnect, and what Log in again does | built: Reconnect from the kubeconfig file, tabs kept |
 | [D-82](#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again) | A pre-choice before any integration is looked for, and Ask again | built: nothing looked for before the user's choice; Ask again |
@@ -181,6 +181,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
+| [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
+| [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 
 ## D-1: UI toolkit
 
@@ -2506,11 +2508,16 @@ release targets set ([Makefile](../../Makefile) `DIST_TAGS`: `dist-app`, `dist-l
   backend) and [`cmd/cogpit/demo.go`](../../cmd/cogpit/demo.go) against
   [`nodemo.go`](../../cmd/cogpit/nodemo.go) (the flags); the rest follows from a connector that
   offers no demo. A kubeconfig context named `demo` is one like any other there.
-- Tests that need the demo carry `//go:build !nodemo`.
+- Tests that need the demo carry `//go:build !nodemo`; one in a file whose other tests or fixtures
+  build without the demo takes its connector from `demoConnector`
+  ([fyneui](../../internal/ui/fyneui/demo_test.go),
+  [integration](../../internal/testkit/integration/demo_test.go)), which skips the test with the
+  tag. Every package's tests build with it (`go vet -tags nodemo ./...`).
 - A tag no file knows is ignored silently, so: the dist targets check `go version -m` for the tag in
   both binaries; `TestReleaseBuildsLeaveTheDemoOut` checks that they pass `DIST_TAGS` and that it
   names `connector_nodemo.go`'s tag; CI's lint job runs `make check-nodemo` (`internal/demo` in
-  neither binary with the tag and in both without it; lint and `TestNoDemoInARelease` with it).
+  neither binary with the tag and in both without it; lint, every package's tests built (`go vet`)
+  and `TestNoDemoInARelease` with it).
 
 **Why:** the demo is a development fixture, and a release ships none.
 
@@ -3015,6 +3022,12 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
 - Not read: the policies (the mode is not shown). `error`, `pass` and `skip` mark nothing; a
   violation enters neither the status filter nor the Overview's issues.
 - Curated profiles of both report kinds let API discovery offer them without the definitions.
+- A report kind the API server refuses wholly (403 in all namespaces, or in every namespace read)
+  is a state the integration's status names: its handle goes back, and it is read again only after
+  `cluster.refreshAccess` or the next connect, as the custom kinds and the namespaces watch do (the
+  lead's detail, open to revision). A held refused scope is listed again at every step of
+  client-go's backoff (0.8 s doubling to a cap of 30 s, plus up to as much again), for as long as
+  the cluster is shown.
 
 **Why:** the reports are Kubernetes objects Kyverno keeps current, so a watch holds them and nothing
 is polled. Every fail counts, so the mode would only label, at four more watches of large policies.
@@ -3031,8 +3044,8 @@ Kyverno; a badge for kinds without a Signals column — a new cell kind that doe
 **Code:** [`engine/kyverno.go`](../../internal/engine/kyverno.go) `followKyverno`,
 `trimPolicyReport`; [`model/kinds/policyreports.go`](../../internal/model/kinds/policyreports.go)
 `KyvernoReport`, `PolicyRef` · **Tests:** `TestKyvernoMarksViolations`,
-`TestKyvernoNamespaceLimitedUser`, `TestViolationIndex`, `TestKyvernoViolationsCommand`,
-`TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
+`TestKyvernoNamespaceLimitedUser`, `TestBudgetKyvernoRefusedClusterReports`, `TestViolationIndex`,
+`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
 
 ### What it does not cover
 
@@ -7136,6 +7149,8 @@ from the engine's snapshot, not from the command, and stays as it is.
 - **Reading on:** `severity`, `sources`, `reason`, `limit` (20, at most 200), `offset`, and
   `subject {kind, namespace, name}` for a subject's own issues with their messages up to 4 KiB.
   `more` says what a page leaves out and where to go on.
+- **Times** are UTC to the second, in the fold and in `everyIssue`'s entries alike, whatever zone
+  the object or the computer gives.
 - **Bounds:** the fold stays under 20 KiB; a reason is cut at 64 bytes, a message and a state at
   160, a kind, namespace or name at 253.
 - **Owners read for the call:** Replica Sets, Jobs and Cron Jobs are listed through the cache when
@@ -7144,7 +7159,7 @@ from the engine's snapshot, not from the command, and stays as it is.
   their own. An owner reference to any other kind starts nothing.
 
 **Why:** most issues are one cause over the pods of one workload: the demo cluster's 234 issues are
-113,600 bytes as entries of their own and 4,677 folded into 11 subjects and 5 causes. Code folds
+113,600 bytes as entries of their own and 4,562 folded into 11 subjects and 5 causes. Code folds
 them in milliseconds, the same way each time, where a model would read them for minutes. An order
 by an event's count or time would be the order of whoever writes events. Without the Replica Set a
 pod's Deployment cannot be told by UID, so a Deployment's pods would never fold; the Workloads
@@ -7194,3 +7209,57 @@ cold.
 **Rejected:** every large result through the model, the Overview's included; a model's lines
 checked against the result, or its prose; on by default, or for local models; a second, faster
 connection for it.
+
+## D-173: A refusal answers a waiting read at once
+
+**Status:** built · **By:** lead (open to revision)
+
+A read that waits for a kind's initial list (`resources.list`, an object, a log's pods, a port
+forward, the Services of metrics detection; `settleReads`) returns the API server's 403 as soon as
+the cache reports it, after one list, unless it is a namespaced kind's read in all namespaces met
+for the first time: that one is still retaken namespace by namespace. The error wraps the
+refusal (`apierrors.IsForbidden` holds) instead of "has not finished listing".
+
+The window reads the shown cluster's Namespaces for its filter once `kinds.list` answered, and only
+when the kinds do not say the user may not list them; the jump to a namespace asks the same, as the
+filter does.
+
+**Why:** a refused scope a handle holds is listed again at every step of client-go's backoff, so a
+namespace-limited user's connect cost 4 refused lists of the Namespaces and a 15 s wait for a list
+that never came (4 folded "refused" lines in Connection Diagnostics), measured against the fake API
+server. Once the kinds are known, a cluster shown again whose access reviews already said no costs
+no list at all. A role granted while a read waits is seen by the next read.
+
+**Rejected:** waiting the whole bound for a role granted meanwhile, which costs every refused read
+15 s; an access review before every cluster-scoped list, a request where the list's own answer
+says the same; reading the Namespaces before the kinds, as before.
+
+[`accessiblens_follow.go`](../../internal/engine/accessiblens_follow.go) `settleReads`,
+`readFollowing`; [`fyneui/shell.go`](../../internal/ui/fyneui/shell.go) `loadKinds` ·
+`TestBudgetRefusedClusterScopedList`, `TestNamespaceFilterOffersAccessibleNamespaces`
+
+## D-174: A removed cluster's last user and bookmark go with it
+
+**Status:** built · **By:** lead (open to revision)
+
+Removing a kubeconfig source, or a cluster from Cogpit, drops what Cogpit kept for it outside the
+cluster settings: the last known user of each of its contexts no source offers any more
+(`cluster-users.json`) and the source's bookmark (`bookmarks.json`). Once at start, the last known
+users of the contexts that are certainly gone (`goneContexts`: no source covers them, their file
+was deleted, or the file no longer defines them) go too. A file `$KUBECONFIG` names is removed for
+the run only and keeps both.
+
+**Why:** a cluster removed from Cogpit and added again is a new cluster, and its cluster settings
+go the same way; a username and a path that outlive the cluster are data nobody sees and only the
+caps bound. The start covers what no removal sees: a context deleted from its file, a file deleted
+while Cogpit was not running.
+
+**Rejected:** dropping the entries when the watcher sees a file go — a file that comes back (a
+volume mounted again) would lose its user, as the hotbar keeps a missing file's tile; keeping them
+until the caps push them out — 1,024 contexts' names and users on disk for clusters long gone.
+
+[`contextlink.go`](../../internal/engine/contextlink.go) (`forgetUsersOfSource`,
+`forgetUsersOfGoneContexts`), [`whoami_store.go`](../../internal/engine/whoami_store.go),
+[`fileaccess.go`](../../cmd/cogpit/fileaccess.go) (`forgetRemovedSources`) ·
+`TestRemovingASourceForgetsItsClustersUsers`, `TestRemovingASessionSourceKeepsItsUsers`,
+`TestStartForgetsTheUsersOfGoneContexts`, `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`

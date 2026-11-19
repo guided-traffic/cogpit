@@ -10,7 +10,7 @@ import (
 )
 
 // kyverno.violations: the Kyverno integration's violations of a cluster's objects in one read, for
-// agents (D-79). The window marks them in the lists' warning column and the drawer's "Policy
+// agents (D-79). The window marks them in the lists' Signals column and the drawer's "Policy
 // violations"; object_get, view_rows and resources_list carry those too, one object or one kind at
 // a time. A triage ("which objects violate a policy?") needs all of them at once: this command
 // reads the integration's index, from the cache, and sends no request.

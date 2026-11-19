@@ -41,7 +41,7 @@ func TestCandidatesRankKnownServices(t *testing.T) {
 		"monitoring/prometheus-k8s:9090",
 		"monitoring/prometheus-operated:9090",
 		"monitoring/prometheus-server:80",
-		"monitoring/thanos-query:9090", // since 2026-10-16 night, Thanos by its name (D-71)
+		"monitoring/thanos-query:9090", // Thanos by its name (D-71)
 		"lens-metrics/prometheus:80",
 		"apps/prometheus:9090",
 	}
@@ -177,7 +177,7 @@ func TestDetectTriesThePortsNumberThenName(t *testing.T) {
 }
 
 // TestDetectARefusedCandidateDoesNotStopTheNext: the best candidate refused under both spellings,
-// the next one is asked and found (before 2026-10-18 the first 403 ended detection).
+// the next one is asked and found: a 403 does not end detection.
 func TestDetectARefusedCandidateDoesNotStopTheNext(t *testing.T) {
 	c := newPromCluster(t, false)
 	c.srv.SetProxy("monitoring", "kube-prometheus-prometheus:9090", refusing)

@@ -19,8 +19,8 @@ import (
 // three layout toggles in VS Code's order: the navigator (its primary side bar), the dock (its
 // panel) and the agent chat's column (its secondary side bar). Each toggle dispatches its engine
 // command (ui.toggleNavigator ⌘B, ui.toggleDock ⌘J, chat.toggle ⌘I), so agents see and drive the
-// same state, and its icon shows whether its part is open. Since 2026-10-16 night (the owner's)
-// the toggles stand at the bar's right end, after the bell and a divider (bars.go).
+// same state, and its icon shows whether its part is open. The toggles stand at the bar's right
+// end, after the bell and a divider (bars.go).
 // The View menu has the three with their shortcuts (layoutMenuItems).
 
 // layoutIcon is one of the toggles' icons, Cogpit's own drawing (no VS Code asset or codicon,
