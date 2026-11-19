@@ -397,8 +397,8 @@ gosec-darwin: $(GOLANGCI_LINT) ## gosec over the packages with darwin-only files
 
 # The release build's variant (DIST_TAGS, D-67), which no other check builds, for CI's lint job:
 # internal/demo is linked into neither binary with the tags and into both without them (so the
-# check is not empty), the packages with nodemo files and their tests lint with the tags, and the
-# tests written for the variant (TestNoDemo*) run.
+# check is not empty), the packages with nodemo files and their tests lint with the tags, every
+# package's tests build with them (vet), and the tests written for the variant (TestNoDemo*) run.
 NODEMO_PKGS     := ./cmd/... ./internal/engine/...
 DEMO_PKG        := github.com/guided-traffic/cogpit/internal/demo
 
@@ -410,6 +410,7 @@ check-nodemo: $(GOLANGCI_LINT) ## The release build's variant (DIST_TAGS): no in
 			echo "$$b: $(DEMO_PKG) in the release build"; exit 1; fi; \
 	done; echo "$(DEMO_PKG): in both binaries without -tags $(DIST_TAGS), in neither with it"
 	$(GOLANGCI_LINT) run --build-tags '$(DIST_TAGS)' $(NODEMO_PKGS)
+	$(GO) vet -tags '$(DIST_TAGS)' ./...
 	$(TEST_ENV) $(GO) test -tags '$(DIST_TAGS)' -run '^TestNoDemo' ./internal/engine/ ./cmd/cogpit-cli/
 
 # The packages only the Windows app links (D-142): Mesa's download and its 7z decoder, imported

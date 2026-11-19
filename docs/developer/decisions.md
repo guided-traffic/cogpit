@@ -2516,7 +2516,8 @@ release targets set ([Makefile](../../Makefile) `DIST_TAGS`: `dist-app`, `dist-l
 - A tag no file knows is ignored silently, so: the dist targets check `go version -m` for the tag in
   both binaries; `TestReleaseBuildsLeaveTheDemoOut` checks that they pass `DIST_TAGS` and that it
   names `connector_nodemo.go`'s tag; CI's lint job runs `make check-nodemo` (`internal/demo` in
-  neither binary with the tag and in both without it; lint and `TestNoDemoInARelease` with it).
+  neither binary with the tag and in both without it; lint, every package's tests built (`go vet`)
+  and `TestNoDemoInARelease` with it).
 
 **Why:** the demo is a development fixture, and a release ships none.
 
