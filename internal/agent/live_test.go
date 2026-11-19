@@ -320,7 +320,7 @@ func liveTurn(t *testing.T, s *engine.Session, a *Agent, id, question string) en
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { a.Stop(id) })
-	deadline := time.After(8 * time.Minute)
+	deadline := time.After(20 * time.Minute) // a local model may think for minutes per request
 	var c engine.ChatConversation
 	for {
 		got, _ := a.Conversation(id)
@@ -331,7 +331,7 @@ func liveTurn(t *testing.T, s *engine.Session, a *Agent, id, question string) en
 		select {
 		case <-changed:
 		case <-deadline:
-			t.Fatal("the turn did not end within 8 minutes")
+			t.Fatal("the turn did not end within 20 minutes")
 		}
 	}
 	t.Logf("question %q, %s", question, time.Since(start).Round(time.Millisecond))
