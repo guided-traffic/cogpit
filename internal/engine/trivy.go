@@ -34,7 +34,10 @@ import (
 // wakes the open view and drawer. The overlay gives the Pods list its column "Image Rating" (the
 // worst grade of a pod's images, drawn as a shield, model.ImageGrade) and each container section of
 // a pod's drawer its image's grade (D-113). Switched off: no overlay, so no column, no grade and no
-// read.
+// read. A read the API server refuses wholly goes back with its refusal kept, and reports the access
+// reviews deny in every namespace named are not read: either is the integration's state (forbidden),
+// with no column cell and no grade, until cluster.refreshAccess reads them again (D-new,
+// pagerefusals.go).
 //
 // A pod's reports are its controller's, as Trivy Operator resolves a pod's workload (its
 // ReportOwner, read in its source and seen on kind): a ReplicaSet's (a Deployment's pods), a
@@ -103,7 +106,7 @@ func followTrivy(st *state, b *Backend, now UIState) {
 		key = p.GVR().String() + "=" + b.namespacePlan(p).key()
 	}
 	switch {
-	case cur == nil && !want, cur != nil && cur.key == key:
+	case cur == nil && !want, cur != nil && cur.key == key && !cur.refused.retake(b):
 		return
 	case want:
 		b.overlays.put(IntegrationTrivy, startTrivy(st.s, b, p, key))
@@ -136,6 +139,7 @@ type trivySource struct {
 	quit    chan struct{}
 	stopped atomic.Bool
 	gen     atomic.Uint64 // bumped by every event of the reports
+	refused refusedReads  // the read given back as refused (pagerefusals.go)
 
 	mu    sync.Mutex
 	built uint64 // gen that idx was built at
@@ -174,6 +178,7 @@ func newTrivyReportIndex(objs []*unstructured.Unstructured) (trivyReportIndex, i
 func startTrivy(s *Session, b *Backend, p *model.KindProfile, key string) *trivySource {
 	t := &trivySource{s: s, b: b, p: p, key: key, plan: b.namespacePlan(p),
 		wake: make(chan struct{}, 1), quit: make(chan struct{})}
+	t.refused.startAt(b.ns.refusalsGen())
 	sc := b.Scope(p)
 	sc.Trim = trivyTrim
 	switch {
@@ -202,6 +207,9 @@ func (t *trivySource) run() {
 	// holds listed), and a start read from the handle would then never change.
 	settled, replanned := "", false
 	poll := func() bool {
+		// A refusal is the integration's state, not a list client-go's backoff sends again for as
+		// long as the cluster is shown (D-new): the handle goes back with its refusal kept.
+		t.refused.giveBack(t.h)
 		return t.settled() != settled || (!replanned && t.planSettled())
 	}
 	runCoalesced(t.quit, t.wake, t.s.opts.SnapshotInterval, poll, func() {
@@ -239,13 +247,18 @@ func (t *trivySource) stop() {
 	t.h.Release()
 }
 
-// synced reports whether the reports' initial list is done.
-func (t *trivySource) synced() bool { return t != nil && t.h.HasSynced() }
+// synced reports whether the reports' initial list is done; never when the access reviews deny
+// them in every namespace the plan names (nothing is read).
+func (t *trivySource) synced() bool { return t != nil && !t.deniedAll() && t.h.HasSynced() }
+
+// deniedAll reports whether the access reviews deny the reports in every namespace the plan names:
+// the overlay reads nothing, and the integration's state is the refusal (D-new).
+func (t *trivySource) deniedAll() bool { return t.plan.perNamespace && len(t.plan.watch) == 0 }
 
 // waitSynced waits, bounded by ctx, until the reports listed or were refused: an agent's read sees
 // what a connect just started to read.
 func (t *trivySource) waitSynced(ctx context.Context) {
-	if t.plan.pending {
+	if t.plan.pending || t.deniedAll() {
 		return
 	}
 	for !t.h.HasSynced() && !cache.IsRefused(t.h.Err()) && ctx.Err() == nil && !t.stopped.Load() {
@@ -494,7 +507,7 @@ func probeTrivy(_ *Session, b *Backend, on bool) (IntegrationState, string, stri
 	}
 	err := t.h.Err()
 	switch {
-	case refusedAll(t.h):
+	case refusedAll(t.h) || t.deniedAll():
 		return IntegrationForbidden, where, "list " + trivyReportsKind
 	case t.h.HasSynced():
 		n := t.reports()

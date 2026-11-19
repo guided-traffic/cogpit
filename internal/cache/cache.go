@@ -809,8 +809,12 @@ type Handle struct {
 	c        *Cache
 	parts    []*Handle // a joined handle's parts (join.go); nil for a handle on one scope
 	released atomic.Bool
-	set      *nsSet // a scope read in several namespaces, one informer each (nsscope.go); nil otherwise
+	set      *nsSet                  // a scope read in several namespaces, one informer each (nsscope.go); nil otherwise
+	kept     atomic.Pointer[keptErr] // the error a handle released by ReleaseWithErr keeps; nil otherwise
 }
+
+// keptErr is the error ReleaseWithErr keeps.
+type keptErr struct{ err error }
 
 // Scope returns the handle's scope.
 func (h *Handle) Scope() Scope { return h.scope }
@@ -821,6 +825,8 @@ func (h *Handle) Scope() Scope { return h.scope }
 // handlers, so the store's own sync comes first.)
 func (h *Handle) HasSynced() bool {
 	switch {
+	case h.kept.Load() != nil:
+		return false
 	case h.parts != nil:
 		return h.joinedSynced()
 	case h.set != nil:
@@ -836,6 +842,9 @@ func (h *Handle) HasSynced() bool {
 // WaitForSync blocks until the informer has synced (HasSynced) or ctx ends; it reports whether
 // it synced.
 func (h *Handle) WaitForSync(ctx context.Context) bool {
+	if h.kept.Load() != nil {
+		return false // it never syncs: nothing to wait for
+	}
 	if h.e == nil && h.parts == nil && h.set == nil {
 		<-ctx.Done()
 		return false
@@ -860,6 +869,8 @@ func (h *Handle) WaitForSync(ctx context.Context) bool {
 // List returns every object of the scope. The objects are shared and must not be modified.
 func (h *Handle) List() []*unstructured.Unstructured {
 	switch {
+	case h.kept.Load() != nil:
+		return nil
 	case h.parts != nil:
 		return h.joinedList("", true)
 	case h.set != nil:
@@ -877,6 +888,8 @@ func (h *Handle) List() []*unstructured.Unstructured {
 // modified.
 func (h *Handle) ListNamespace(namespace string) []*unstructured.Unstructured {
 	switch {
+	case h.kept.Load() != nil:
+		return nil
 	case h.parts != nil:
 		return h.joinedList(namespace, false)
 	case h.set != nil:
@@ -905,6 +918,9 @@ func toUnstructured(items []any) []*unstructured.Unstructured {
 
 // Get returns one object by namespace and name.
 func (h *Handle) Get(namespace, name string) (*unstructured.Unstructured, bool) {
+	if h.kept.Load() != nil {
+		return nil, false
+	}
 	if h.parts != nil {
 		return h.joinedGet(namespace, name)
 	}
@@ -939,6 +955,9 @@ func objectKey(namespace, name string) string {
 // block. The returned function removes the subscription; it is idempotent and may be called from
 // inside fn. A delivery already running on the event goroutine may finish after it returns.
 func (h *Handle) Subscribe(fn func(Event)) (cancel func()) {
+	if h.kept.Load() != nil {
+		return func() {}
+	}
 	if h.parts != nil && fn != nil {
 		return h.joinedSubscribe(fn)
 	}
@@ -955,6 +974,9 @@ func (h *Handle) Subscribe(fn func(Event)) (cancel func()) {
 // connection). It clears when the next list or watch succeeds. Errors are states the UI shows,
 // not failures.
 func (h *Handle) Err() error {
+	if k := h.kept.Load(); k != nil {
+		return k.err
+	}
 	switch {
 	case h.parts != nil:
 		return h.joinedErr()
@@ -983,4 +1005,19 @@ func (h *Handle) Release() {
 		return
 	}
 	h.c.release(h.e)
+}
+
+// ReleaseWithErr releases the handle and keeps its error as its state from then on: Err returns
+// that error, HasSynced is false, it lists, gets and delivers nothing, and WaitForSync does not
+// wait. A reader whose read the API server refused gives it back so, so that client-go's backoff
+// does not list the scope again for as long as the reader shows the refusal (a refused scope is
+// not kept warm). It reports whether it released the handle now: a handle without an error, or one
+// released before, stays as it is.
+func (h *Handle) ReleaseWithErr() bool {
+	err := h.Err()
+	if err == nil || h.released.Load() || !h.kept.CompareAndSwap(nil, &keptErr{err: err}) {
+		return false
+	}
+	h.Release()
+	return true
 }

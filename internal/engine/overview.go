@@ -189,7 +189,8 @@ type overviewWorker struct {
 	rows    *rowCache
 	kinds   []*overviewKindState
 	unsubs  []func()
-	planKey string // how the open page reads its kinds (Backend.pageReadKey); the state's lock
+	planKey string       // how the open page reads its kinds (Backend.pageReadKey); the state's lock
+	refused refusedReads // the reads given back as refused (pagerefusals.go)
 
 	mu     sync.Mutex
 	params viewParams
@@ -269,7 +270,9 @@ func (w *overviewWorker) kindHandles() []kindHandle {
 
 // startOverview starts the page's worker; the first build runs at once.
 func (s *Session) startOverview(b *Backend, params viewParams) *overviewWorker {
+	gen := b.ns.refusalsGen()
 	w := s.newOverviewWorker(b, params, true, true, b.acquireForPage) // nothing while a plan is pending (A98)
+	w.refused.startAt(gen)
 	signal(w.wake)
 	s.goSafe("workloads overview", func() {
 		runCoalesced(w.quit, w.wake, s.opts.SnapshotInterval, w.unsettled, w.rebuild)
@@ -320,10 +323,15 @@ func (w *overviewWorker) synced() bool {
 }
 
 // unsettled reports whether a sync state or an error changed since the last build: neither comes
-// with a watch event.
+// with a watch event. A read the API server refused wholly goes back first, its refusal kept
+// (pagerefusals.go).
 func (w *overviewWorker) unsettled() bool {
+	gave := w.refused.giveBack(w.evts)
+	for _, k := range w.kinds {
+		gave = w.refused.giveBack(k.handle) || gave
+	}
 	m := w.model.Load()
-	if m == nil {
+	if m == nil || gave {
 		return true
 	}
 	if m.Synced != w.synced() {
@@ -498,7 +506,7 @@ func (st *state) reconcilePageLocked(b *Backend, now UIState) {
 	if want {
 		key = b.pageReadKey(overviewPageKinds, false)
 	}
-	if st.page != nil && (!want || st.page.backend != b || st.page.planKey != key) {
+	if st.page != nil && (!want || st.page.backend != b || st.page.planKey != key || st.page.refused.retake(b)) {
 		st.page.stop()
 		st.page = nil
 	}

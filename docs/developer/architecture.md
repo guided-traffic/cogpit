@@ -1127,7 +1127,8 @@ Informers run only in [`internal/cache`](../../internal/cache/cache.go), and eve
 `cache.DynamicSource` (the connection's dynamic client, or its metadata client for a metadata-only
 scope), unless a cover serves the scope (below). After the last `Release` the informer stays warm
 for `DefaultWarmPeriod` (5 minutes, not configurable), then stops. A failing list or watch is a
-state: client-go retries, and `Handle.Err` reports it.
+state: client-go retries, and `Handle.Err` reports it; `Handle.ReleaseWithErr` gives a handle back
+and keeps its error as its state, for a reader that shows a refusal (below).
 
 | Mechanism | Effect | Where |
 |---|---|---|
@@ -1283,6 +1284,13 @@ retaken) is the waiting read's answer at once, after one list
 `TestBudgetRefusedClusterScopedList`). `acquirePlanned` holds `nsState.planMu`, so a plan made
 before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
+Readers that hold their reads while shown (the Workloads and cluster Overviews, the Flux and Argo
+CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
+give a read refused wholly back with its refusal kept, at their loop's next look, and show the
+refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals
+(`refusedReads.retake`), as the Kyverno integration's reads do
+([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown),
+`TestBudgetPagesRefusedKinds`, `TestBudgetTrivyRefusedReports`).
 
 ### D-79: Trimmed scopes
 

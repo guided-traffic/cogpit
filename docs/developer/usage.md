@@ -138,7 +138,9 @@ Ctrl on Windows and Linux.
   Low or Unknown, at most 10; B Medium, or more than 10 Low or Unknown; C High, or an OS at its end
   of life; D 1 to 5 Critical; E more; N/A no report. The Pods list shows each pod's worst grade in
   its Signals column ([Signals](#the-signals-column)), a pod's drawer each container's with its
-  counts; nothing is read while the integration is off.
+  counts; nothing is read while the integration is off. Reports you may not list show no grade and
+  "No permission" in Cluster Settings › Integrations › Trivy, and are not asked for again until
+  Refresh Access Reviews or the cluster is shown again.
 
 **Workloads at run time**
 
@@ -1390,6 +1392,11 @@ The tab, from the top:
 
 A log line is one problem with its count: a request client-go retries counts in its line ("12
 times since 08:01:04") instead of pushing other lines out.
+
+A kind the API server refuses to the Workloads or cluster Overview, the Flux or Argo CD dashboard
+is named in the page's error line ("Nodes: … is forbidden …") and listed once, not again while the
+page is open: Refresh Access Reviews, opening the page again or the next connect asks again
+([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
 
 <details>
 <summary>The log's lines</summary>
