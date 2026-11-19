@@ -261,7 +261,7 @@ jobs:
 
   # Every other package under the race detector, and the patched terminal widget's tests. zsh and
   # fish for the terminal's shell tests, which fail in CI without them (internal/testkit/prereq);
-  # bash, perl, stty and sh come with Ubuntu. fish depends on python3 and man-db: about 18 MB
+  # bash, stty and sh come with Ubuntu. fish depends on python3 and man-db: about 18 MB
   # without the recommendations, 30 MB with them (measured in ubuntu:24.04).
   race-rest:
     name: Race Tests (other packages)
@@ -485,7 +485,7 @@ jobs:
           cache: macos
 
       # fish for the terminal's fish test, which fails in CI without it (internal/testkit/prereq):
-      # the runner image has none. clang, the window server, zsh, bash and perl come with it, and
+      # the runner image has none. clang, the window server, zsh and bash come with it, and
       # Sparkle.framework with make sparkle.
       - name: Install fish
         env:

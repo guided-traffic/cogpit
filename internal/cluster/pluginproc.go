@@ -156,6 +156,9 @@ type procSearch struct {
 	found   procID          // the run's process; zero for none; written before done closes
 	ended   time.Time       // when the run ended (searches.mu)
 	stopped time.Time       // when the search stopped looking; zero while it looks (searches.mu)
+	// children lists Cogpit's children for a look: listChildren, or a test's list, which may carry
+	// each child's command line (argv; nil: read with commandLine).
+	children func() []childProcess
 }
 
 // searches are the process searches of the runs that began lately, of every Authenticator.
@@ -167,7 +170,8 @@ var searches struct {
 // newProcSearch notes a run that begins at at with Cogpit's children before (childSet, taken before
 // client-go starts the plugin). The caller starts run.
 func newProcSearch(at time.Time, command []string, before map[procID]bool) *procSearch {
-	s := &procSearch{at: at, command: command, before: before, done: make(chan struct{}), late: make(chan struct{})}
+	s := &procSearch{at: at, command: command, before: before, done: make(chan struct{}), late: make(chan struct{}),
+		children: listChildren}
 	searches.mu.Lock()
 	defer searches.mu.Unlock()
 	keep := searches.recent[:0]
@@ -289,7 +293,7 @@ func (s *procSearch) isLate() bool {
 // look, it made a second child in the group, and a run whose command line was missed had none
 // (CI, 2026-10-19).
 func (s *procSearch) look(seen map[procID]*sighting) {
-	for _, c := range listChildren() {
+	for _, c := range s.children() {
 		if s.before[c.id] {
 			continue
 		}
@@ -300,7 +304,9 @@ func (s *procSearch) look(seen map[procID]*sighting) {
 		}
 		o.group = c.group
 		if !o.matched {
-			c.argv = commandLine(c.id.pid)
+			if c.argv == nil {
+				c.argv = commandLine(c.id.pid)
+			}
 			o.matched = c.runs(s.command)
 		}
 	}
