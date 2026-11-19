@@ -50,6 +50,7 @@ func newRevisionsHarness(t *testing.T, mode ThemeMode) *revisionsHarness {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext, Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

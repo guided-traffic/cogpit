@@ -18,7 +18,7 @@ import (
 // and the file.
 func settingsEngineWithFile(t *testing.T) (s *engine.Session, ctx, file string) {
 	t.Helper()
-	kube := filepath.Join(t.TempDir(), "home", ".kube")
+	kube := filepath.Join(fixedDir(t), "home", ".kube") // its path shows in the pictures
 	file = filepath.Join(kube, "config")
 	if err := os.MkdirAll(kube, 0o700); err != nil {
 		t.Fatal(err)

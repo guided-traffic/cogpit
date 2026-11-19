@@ -63,6 +63,7 @@ func podDrawerScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQue
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 && sh.diag.total > 0 })
+	awaitScene(t, w) // its metrics: a hover before they come would be rebuilt away
 	settle(w)
 	return sh, w, q, ref
 }

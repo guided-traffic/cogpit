@@ -282,6 +282,7 @@ func TestLightStripOnTheDemoCluster(t *testing.T) {
 	w := test.NewTempWindow(t, nil)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	sh.systemReduce = func() bool { return false }
 	ticking := false
 	sh.strip.ticker = func(on bool) { ticking = on }

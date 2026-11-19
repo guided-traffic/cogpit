@@ -42,8 +42,9 @@ import (
 type hotbar struct {
 	sh *shell
 
-	view *engine.HotbarState // the last hotbar.list; nil while there is none
-	seq  int                 // the latest hotbar.list request; older answers are dropped
+	view     *engine.HotbarState // the last hotbar.list; nil while there is none
+	seq      int                 // the latest hotbar.list request; older answers are dropped
+	answered int                 // the latest request answered, its result shown or not
 
 	tiles  *fyne.Container   // the tiles and the "+", laid out by tileStack (hotbardrag.go)
 	scroll *container.Scroll // the tiles' area: it scrolls when they do not fit
@@ -95,6 +96,7 @@ func (h *hotbar) request() {
 	h.seq++
 	seq := h.seq
 	h.sh.dispatch("hotbar.list", struct{}{}, func(res any, err error) {
+		h.answered = max(h.answered, seq)
 		if seq != h.seq || h.sh.ui.Hotbar == nil {
 			return
 		}

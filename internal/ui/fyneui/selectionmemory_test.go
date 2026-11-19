@@ -36,6 +36,7 @@ func TestSelectionBarIsTheShownViews(t *testing.T) {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: "kind-shop"}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
 	w.SetContent(sh.root)

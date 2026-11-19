@@ -16,6 +16,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // uiNotifier is an updater that knows of a newer release, as a check of Sparkle's reports one
@@ -426,6 +427,7 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	sh.zone = time.UTC
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
@@ -448,8 +450,8 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 		}
 		q.drain()
 	}
-	until("the demo's pods", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) > 0
+	until("the demo's pods with their CPU", func() bool { // the snapshots the diagnostics count, all built
+		return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) > 0 && measured(sh.view.snap)
 	})
 	mustDispatch(t, s, "hotbar.addCluster", struct{}{})
 	mustDispatch(t, s, "diagnostics.open", struct{}{})
@@ -510,4 +512,19 @@ func TestDockToggleOpensATerminal(t *testing.T) {
 	if !strings.HasPrefix(l.dock.tip, "Dock: no tabs; the demo cluster has no terminals") {
 		t.Errorf("the demo's tooltip %q", l.dock.tip)
 	}
+}
+
+// measured reports whether a Pods snapshot shows a pod's CPU: the Metrics Server's first answer is in.
+func measured(snap *engine.TableSnapshot) bool {
+	for i, c := range snap.Columns {
+		if c.ID != model.ColumnCPU {
+			continue
+		}
+		for _, r := range snap.Rows {
+			if i < len(r.Cells) && r.Cells[i].Text != "" {
+				return true
+			}
+		}
+	}
+	return false
 }

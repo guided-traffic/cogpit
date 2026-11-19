@@ -38,6 +38,7 @@ func notesShellWith(t *testing.T, opts Options) (*shell, fyne.Window, *mainQueue
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, opts, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow.Add(time.Hour) }
 	sh.zone = time.UTC
 	sh.confirmer.armDelay = 0

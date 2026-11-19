@@ -17,11 +17,12 @@ import (
 // TestRenderDemoShowcase renders the shell over the real engine and the real demo cluster (10,000
 // pods, 1,000 watch events per second) after an agent's ui.navigate to the Service with ClusterIP
 // 10.96.100.100: Services open, the row selected, its drawer open on the YAML. It is the offscreen
-// counterpart of the MVP's agent demo; the PNG is testdata/demo_showcase.png with -update. It runs
-// only for its pictures: TestPerfGateRunsEveryPhase runs the same churning demo in the window.
+// counterpart of the MVP's agent demo; the PNG is testdata/demo_showcase.png with -update -live
+// (the churn makes it differ from run to run). It runs only for its pictures:
+// TestPerfGateRunsEveryPhase runs the same churning demo in the window.
 func TestRenderDemoShowcase(t *testing.T) {
-	if testing.Short() || !pngKept() {
-		t.Skip("the docs' pictures of the 10,000-pod demo cluster: run with -update or COGPIT_PNG_DIR")
+	if testing.Short() || !livePNGKept() {
+		t.Skip("the docs' pictures of the 10,000-pod demo cluster: run with -update -live or COGPIT_PNG_DIR")
 	}
 	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{IncludeDemo: true}})
 	defer s.Close()
@@ -34,6 +35,7 @@ func TestRenderDemoShowcase(t *testing.T) {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext, MCPCommand: "claude mcp add …"}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

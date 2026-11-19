@@ -85,6 +85,7 @@ func newIconShell(t testing.TB, e *iconEngine, opts Options) (*shell, fyne.Windo
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(e, a, w, opts, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
 	sh.confirmer.armDelay = 0

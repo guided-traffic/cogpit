@@ -31,6 +31,7 @@ func startShell(t testing.TB, eng Engine, f *fakeEngine, opts Options) (*shell, 
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(eng, a, w, opts, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	f.SetConfirmer(sh.confirmer)

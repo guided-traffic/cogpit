@@ -36,21 +36,22 @@ const chartNoData = "No data yet"
 type clusterPanel struct {
 	sh *shell
 
-	data      *engine.ClusterOverviewModel
-	master    *tipButton
-	worker    *tipButton
-	rangeSel  *selectField
-	syncing   bool        // set while the select is set from engine state
-	caption   *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
-	note      *textLine
-	status    *providerStatusLine
-	health    *overviewHealth // the nodes, pods and integrations above the charts (instrument_health.go)
-	bearingOf string          // the context whose integrations the header shows (instrument_bearing.go)
-	cards     [3]*overviewChartCard
-	segment   *segmented
-	controls  *fyne.Container // the node group and the range; hidden with every chart
-	reconnect *textButton     // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
-	root      fyne.CanvasObject
+	data        *engine.ClusterOverviewModel
+	master      *tipButton
+	worker      *tipButton
+	rangeSel    *selectField
+	syncing     bool        // set while the select is set from engine state
+	caption     *sourceLine // why there are no charts, or nothing while they show (metricssource.go)
+	note        *textLine
+	status      *providerStatusLine
+	health      *overviewHealth // the nodes, pods and integrations above the charts (instrument_health.go)
+	bearingOf   string          // the context whose integrations the header shows (instrument_bearing.go)
+	bearingAsks int             // cluster.settings.get requests for the bearing not answered yet
+	cards       [3]*overviewChartCard
+	segment     *segmented
+	controls    *fyne.Container // the node group and the range; hidden with every chart
+	reconnect   *textButton     // Reconnect of the shown cluster (reconnect.go, D-81), at the right of the controls
+	root        fyne.CanvasObject
 
 	// Requests of the model are coalesced, as the Workloads Overview's are (overview.go).
 	requests atomic.Int32
@@ -212,7 +213,9 @@ func (p *clusterPanel) requestBearing() {
 		p.health.setBearing(items)
 		return
 	}
+	p.bearingAsks++
 	p.sh.dispatch("cluster.settings.get", clusterSettingsContext{Context: ctx}, func(res any, err error) {
+		p.bearingAsks--
 		var v engine.ClusterSettingsView
 		if err != nil || decode(res, &v) != nil || p.sh.ui.Context != ctx {
 			p.bearingOf = "" // the next model asks again

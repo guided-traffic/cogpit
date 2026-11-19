@@ -55,6 +55,7 @@ func TestStandbyWindowStaysUsable(t *testing.T) {
 	// shared runner (136 ms measured), a window that waits for the network stops for seconds.
 	const stall = 500 * time.Millisecond
 	sh := newShell(s, a, w, Options{AutoConnect: "fake"}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

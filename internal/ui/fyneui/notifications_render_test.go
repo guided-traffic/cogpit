@@ -32,6 +32,7 @@ func titleScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQueue) 
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	sh.zone = time.UTC
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)

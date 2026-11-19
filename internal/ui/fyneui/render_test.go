@@ -6,7 +6,9 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
@@ -21,6 +23,11 @@ import (
 // COGPIT_PNG_DIR they write their pictures there; otherwise they capture the window, which paints
 // every renderer, and write nothing (D-112), so a run never changes the tree.
 var updatePNG = flag.Bool("update", false, "rewrite the PNGs in testdata")
+
+// livePNG adds the pictures of the churning demo cluster to -update: its pods change and its
+// charts gather measurements by the computer's clock, so they differ from run to run, and -update
+// alone leaves them as they are (saveLivePNG).
+var livePNG = flag.Bool("live", false, "with -update: rewrite the pictures of the churning demo cluster too")
 
 // settle lays the window out again from the top, as the GL driver's EnsureMinSize does every
 // frame: a widget whose minimum size changed (a label got its text) gets room in its parent.
@@ -60,6 +67,23 @@ func relayout(o fyne.CanvasObject) {
 // waits only to give its picture a shape (a chart's series) waits that long only then.
 func pngKept() bool { return *updatePNG || os.Getenv("COGPIT_PNG_DIR") != "" }
 
+// livePNGKept reports whether a picture of the churning demo cluster is written: with -update
+// -live, or to COGPIT_PNG_DIR without -update.
+func livePNGKept() bool { return pngKept() && (!*updatePNG || *livePNG) }
+
+// saveLivePNG is savePNG for a picture of the churning demo cluster: with -update but not -live
+// the window is only captured, which paints every renderer.
+func saveLivePNG(t *testing.T, w fyne.Window, name string) {
+	t.Helper()
+	if *updatePNG && !*livePNG {
+		awaitScene(t, w)
+		settle(w)
+		w.Canvas().Capture()
+		return
+	}
+	savePNG(t, w, name)
+}
+
 // lookPNG captures the window, which paints every renderer (the check), and writes the picture to
 // COGPIT_PNG_DIR when that is set, for a look, never to testdata: the pictures a test only shows,
 // as against the ones writePNG keeps in testdata. Before D-112 it went to a temporary folder the
@@ -84,8 +108,120 @@ func lookPNG(t *testing.T, w fyne.Window, name string) {
 
 func savePNG(t *testing.T, w fyne.Window, name string) {
 	t.Helper()
+	awaitScene(t, w)
 	settle(w)
 	writePNG(t, w, name)
+}
+
+// awaitScene drains the window's queue until its shell's reads are in (scene.settled): before a
+// picture, and before a test scrolls to or looks up what a read still to come would move.
+func awaitScene(t testing.TB, w fyne.Window) {
+	t.Helper()
+	if sc := sceneOf(w); sc != nil {
+		sc.q.until(t, "the window's reads", sc.settled)
+	}
+}
+
+// A scene is a test's shell and its main queue, kept by its window (keepScene), so that savePNG
+// draws what the shell shows once its reads are in rather than whatever the timing left: -update
+// twice in a row writes the same pictures.
+type scene struct {
+	sh *shell
+	q  *mainQueue
+	// fakeBlink: the test moves the blinker's clock itself (fakeBlinkClock) and draws the blink
+	// it chose.
+	fakeBlink bool
+}
+
+var (
+	scenesMu sync.Mutex
+	scenes   = map[fyne.Window]*scene{}
+)
+
+// demoStatsDue reports whether the real engine's demo cluster is connected and the status bar does
+// not show its counters yet (a fake's are whatever the test gave it).
+func demoStatsDue(sh *shell) bool {
+	_, session := sh.eng.(*engine.Session)
+	return session && sh.ui.Connection.Demo && sh.ui.Connection.State == engine.Connected && !sh.diag.demo
+}
+
+// keepScene registers a test's shell under its window for savePNG, until the test ends.
+func keepScene(t testing.TB, w fyne.Window, sh *shell, q *mainQueue) {
+	scenesMu.Lock()
+	scenes[w] = &scene{sh: sh, q: q}
+	scenesMu.Unlock()
+	t.Cleanup(func() {
+		scenesMu.Lock()
+		delete(scenes, w)
+		scenesMu.Unlock()
+	})
+}
+
+func sceneOf(w fyne.Window) *scene {
+	scenesMu.Lock()
+	defer scenesMu.Unlock()
+	return scenes[w]
+}
+
+// sceneOfShell is the scene a shell was registered with, or nil.
+func sceneOfShell(sh *shell) *scene {
+	scenesMu.Lock()
+	defer scenesMu.Unlock()
+	for _, sc := range scenes {
+		if sc.sh == sh {
+			return sc
+		}
+	}
+	return nil
+}
+
+// settled reports whether the shell's own reads, the ones every scene starts, are in: the
+// clusters of the navigator, the welcome page and the hotbar, the status bar's counters, the
+// namespaces, a settings section's reads, the cluster Overview's integrations, the drawer's detail
+// and its metrics. A
+// connected cluster's blink past its connect (the minimum it lasts) is ended, as if its three
+// seconds had passed: a picture shows the steady dot, not a phase of the blink. Main goroutine.
+func (sc *scene) settled() bool {
+	sh := sc.sh
+	if sec := sh.side.sec; sec.loadSeq > 0 && !sec.loaded {
+		return false
+	}
+	if wp := sh.tabs.welcome; wp.shown && !wp.loaded {
+		return false
+	}
+	if sh.diagQueued.Load() || sh.lastDiagFetch.Load() != 0 && !sh.diagShown ||
+		demoStatsDue(sh) {
+		return false // the status bar's counters, the demo cluster's once it is connected
+	}
+	if sh.tableQueued.Load() || sh.detailQueued.Load() || sh.metricsQueued.Load() {
+		return false // a refresh the engine asked for
+	}
+	if sh.nsLoads > 0 || sh.settings.reads > 0 {
+		return false // the namespace filter's names, a settings section's reads
+	}
+	if sh.ui.Hotbar != nil && sh.hot.answered < sh.hot.seq || sh.view.cluster != nil && sh.view.cluster.bearingAsks > 0 {
+		return false // the hotbar's clusters, the cluster Overview's integrations
+	}
+	if d := sh.drawer; sh.ui.Drawer != nil {
+		if d.busy || d.dirty {
+			return false
+		}
+		if p, ok := d.kept[metricsKey].(*metricsPanel); ok && p.data == nil {
+			return false
+		}
+	}
+	if !sc.fakeBlink {
+		ended := false
+		for _, k := range sh.blink.blinks {
+			if !k.live {
+				k.until, ended = time.Time{}, true
+			}
+		}
+		if ended {
+			sh.blink.tick()
+		}
+	}
+	return true
 }
 
 // writePNG captures the window as it is, without settling it: for a test that lays out only what

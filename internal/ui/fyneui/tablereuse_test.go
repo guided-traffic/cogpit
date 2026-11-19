@@ -253,6 +253,7 @@ func podRow(t *testing.T, o *unstructured.Unstructured) model.Row {
 func renderContainersReused(t *testing.T, mode ThemeMode, name string) {
 	all := kindSnapshot(t, "pods", reusePods(0))
 	f, sh, w, q, p := reuseShell(t, mode, all)
+	awaitScene(t, w) // the status bar and the namespaces, before the frames this picture is about
 	f.update(func(u *engine.UIState) { u.Namespaces = []string{"telemetry"} })
 	showPods(t, f, sh, q, p, inNamespace(all, "telemetry"))
 	p.run(w) // the namespace button's new text, as the next frame lays it out

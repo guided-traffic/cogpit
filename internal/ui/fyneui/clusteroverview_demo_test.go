@@ -17,7 +17,8 @@ import (
 // Server's node measurements summed for the workers (the demo has no Prometheus, so no history),
 // the Pods chart counts the cache's pods as the churn moves them, and the Issues list what the
 // demo's pods, nodes, workloads and warning events show. The polls are fast, so the series is
-// seconds long: the charts are drawn over a window that shows its shape.
+// seconds long: the charts are drawn over a window that shows its shape. The churn and the polls go
+// by the computer's clock, so the picture is written with -update -live only (saveLivePNG).
 func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
@@ -37,6 +38,7 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext, Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
@@ -61,7 +63,7 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	s.UpdateUI(func(u *engine.UIState) { u.View, u.Sort = engine.ClusterOverview, s.ViewSort(engine.ClusterOverview) })
 	p := sh.view.cluster
 	cpuPoints := 3 // the checks below hold from the first points on
-	if pngKept() {
+	if livePNGKept() {
 		cpuPoints = 40 // a CPU line with a shape, over more than two seconds
 	}
 	until("the charts and the issues", func() bool {
@@ -84,7 +86,7 @@ func renderClusterOverviewDemo(t *testing.T, mode ThemeMode, name string) {
 	if m.Status != metrics.StatusAvailable || m.Nodes != engine.NodesWorker || m.Charts[0].Allocatable <= 0 || *m.Charts[0].Requests <= 0 {
 		t.Errorf("demo overview: status %s, nodes %s, cpu %+v", m.Status, m.Nodes, m.Charts[0])
 	}
-	savePNG(t, w, name)
+	saveLivePNG(t, w, name)
 }
 
 func TestRenderClusterOverviewDemoDark(t *testing.T) {

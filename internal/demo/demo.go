@@ -90,7 +90,9 @@ type Options struct {
 	// seconds at the default rate); an older resourceVersion gets 410 Gone.
 	History int
 	// Now is the reference time: creation timestamps lie up to 30 days before it. Zero means the
-	// time of New. Tests set it to make objects byte-for-byte reproducible.
+	// time of New. It is where the demo's clock starts, which then runs with the computer's: the
+	// churn's changes are made, and the Metrics Server measures, at its time. Tests set it to make
+	// objects, changes and measurements byte-for-byte reproducible.
 	Now time.Time
 }
 
@@ -154,8 +156,11 @@ type Cluster struct {
 
 	mu    sync.Mutex
 	rng   *rand.Rand       // guarded by mu
-	clock func() time.Time // the churn's clock; tests replace it before Start
-	w     world            // the typed state objects are rendered from; guarded by mu
+	clock func() time.Time // the churn's clock, the demo's (now); tests replace it before Start
+	// offset is the demo's time ahead of the computer's: Options.Now less the time of New, 0 when
+	// Now was not given.
+	offset time.Duration
+	w      world // the typed state objects are rendered from; guarded by mu
 
 	rv        int64                                           // the global resourceVersion; guarded by mu
 	compacted int64                                           // newest resourceVersion no longer in the history; guarded by mu
@@ -187,15 +192,20 @@ type runState struct {
 
 // New builds the synthetic cluster's initial objects. Nothing changes until Start.
 func New(opts Options) *Cluster {
+	start := time.Now()
+	if opts.Now.IsZero() {
+		opts.Now = start
+	}
 	opts = opts.withDefaults()
 	c := &Cluster{
 		opts:       opts,
 		rng:        rand.New(rand.NewPCG(uint64(opts.Seed), 0x636f67706974)), // "cogpit"
-		clock:      time.Now,
+		offset:     opts.Now.Sub(start),
 		history:    newHistory(opts.History),
 		queueLimit: defaultQueueLimit,
 	}
-	c.metrics = &Metrics{c: c, now: time.Now, resolution: opts.MetricsResolution}
+	c.clock = c.now
+	c.metrics = &Metrics{c: c, now: c.now, offset: c.offset, resolution: opts.MetricsResolution}
 	for k := range numKinds {
 		c.store[k] = map[string]*unstructured.Unstructured{}
 		c.watchers[k] = map[*watcher]struct{}{}
@@ -207,6 +217,9 @@ func New(opts Options) *Cluster {
 	c.compacted = c.rv
 	return c
 }
+
+// now is the demo's clock: Options.Now at New, running with the computer's clock since.
+func (c *Cluster) now() time.Time { return time.Now().Add(c.offset) }
 
 // Source returns the cache.Source the cache builds its informers from.
 func (c *Cluster) Source() cache.Source { return source{c: c} }

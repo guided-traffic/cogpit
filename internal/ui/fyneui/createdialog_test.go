@@ -65,6 +65,7 @@ func newCreateShell(t testing.TB, f *fakeEngine, mode ThemeMode) (*shell, fyne.W
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(listingFake{f}, a, w, Options{Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
 	sh.confirmer.armDelay = 0

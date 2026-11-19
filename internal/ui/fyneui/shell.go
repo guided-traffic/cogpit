@@ -99,6 +99,8 @@ type shell struct {
 	kindsQueued   atomic.Bool
 	diagQueued    atomic.Bool
 	lastDiagFetch atomic.Int64 // UnixNano of the last diagnostics fetch
+	diagShown     bool         // the status bar shows a fetch's counters; main goroutine
+	nsLoads       int          // reads of the namespaces under way (loadNamespaces); main goroutine
 
 	top       *topBar
 	side      *sidebar
@@ -538,7 +540,7 @@ func (sh *shell) requestDiagnostics() {
 		sh.diagQueued.Store(false)
 		dv := newDiagView(sh.eng.Diagnostics())
 		sh.do(func() {
-			sh.diag = dv
+			sh.diag, sh.diagShown = dv, true
 			sh.status.update()
 			sh.dock.diagnosticsChanged() // an open Diagnostics tab (diagnostics.go)
 		})
@@ -754,14 +756,17 @@ func (sh *shell) loadNamespaces() {
 	ctxName := sh.ui.Context
 	var names []string
 	terminating := map[string]bool{}
+	sh.nsLoads++
 	var page func(offset int)
 	page = func(offset int) {
 		sh.dispatch("resources.list", listParams{Kind: kindNamespaces, Limit: nsPageSize, Offset: offset}, func(res any, err error) {
 			if err != nil || sh.ui.Context != ctxName {
+				sh.nsLoads--
 				return // the filter then offers "All namespaces" only; nothing to tell the user
 			}
 			rows, total, derr := decodeNamespacePage(res)
 			if derr != nil {
+				sh.nsLoads--
 				return
 			}
 			for _, r := range rows {
@@ -776,6 +781,7 @@ func (sh *shell) loadNamespaces() {
 			}
 			slices.Sort(names)
 			names = slices.Compact(names)
+			sh.nsLoads--
 			sh.namespacesRead(ctxName, names, terminating)
 		})
 	}

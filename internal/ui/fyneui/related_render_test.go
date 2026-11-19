@@ -159,6 +159,8 @@ func renderNodePods(t *testing.T, mode ThemeMode, name string) {
 // scrollDrawerTo scrolls the drawer's details so that the section titled title is at the top.
 func scrollDrawerTo(t *testing.T, sh *shell, title string) {
 	t.Helper()
+	awaitScene(t, sh.win) // the sections above it in their final height
+	settle(sh.win)
 	var scroll *container.Scroll
 	for _, s := range findAll[*container.Scroll](sh.drawer.tabs) {
 		if slices.Contains(findAll[*fyne.Container](s.Content), sh.drawer.details) {

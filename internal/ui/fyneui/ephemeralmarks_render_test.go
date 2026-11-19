@@ -143,6 +143,7 @@ func renderEphemeralMarks(t *testing.T, mode ThemeMode, listPNG, drawerPNG strin
 	ref := model.ObjectRef{Context: "kind-cogpit", Kind: "pods", Namespace: "shop", Name: "web-0"}
 	mustDispatch(t, s, "ui.select", map[string]any{"refs": []model.ObjectRef{ref}})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && sh.drawer.last.Ref.Name == "web-0" })
+	awaitScene(t, w) // the metrics above the containers
 	settle(w)
 	sh.drawer.scroll.ScrollToBottom()
 	savePNG(t, w, drawerPNG)

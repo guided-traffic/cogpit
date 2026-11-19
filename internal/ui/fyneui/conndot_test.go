@@ -38,6 +38,9 @@ func fakeBlinkClock(sh *shell) *blinkClock {
 	c := &blinkClock{now: interruptedAt, b: sh.blink}
 	sh.blink.now = func() time.Time { return c.now }
 	sh.blink.ticker = func(on bool) { c.running = on }
+	if sc := sceneOfShell(sh); sc != nil {
+		sc.fakeBlink = true
+	}
 	return c
 }
 

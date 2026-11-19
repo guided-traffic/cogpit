@@ -184,6 +184,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 | [D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
+| [D-new](#d-new-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 
 ## D-1: UI toolkit
 
@@ -7365,3 +7366,31 @@ the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the 
 [`promql.go`](../../internal/metrics/promql.go) `exporterMemory`, `exporterGroupMemory` ·
 `TestExporterMemoryIsTheKubeletsWorkingSet` (synthetic `/proc/meminfo` and root `memory.stat` in
 [`testdata/nodememory`](../../internal/metrics/testdata/nodememory))
+
+## D-new: Two `-update` runs write the same pictures
+
+**Status:** built · **By:** lead (open to revision)
+
+A render test's picture shows the window once the shell's own reads are in: `savePNG` drains the
+test's queue until the clusters, the status bar's counters, the namespaces, the drawer's detail and
+metrics and a settings section's reads have answered, and ends a connected cluster's blink past its
+connect. A path a picture shows lies in a folder of a fixed name. The demo cluster runs on a clock of
+its own that starts at `Options.Now` and runs with the computer's: its churn's changes are stamped,
+and its Metrics Server measures, at that clock's time, with the computer's time as a measurement's
+timestamp. The pictures of the churning demo cluster (`demo_pods`, `demo_showcase`,
+`cluster_overview_demo_dark`) are written with `-update -live` only.
+
+**Why:** a picture that changes with the timing of a run shows up in every pull request that ran
+`-update`, beside the pictures a change really moved, and hides them. Waiting in `savePNG` covers
+every test at once, rather than each test's own wait for what it asserts. The churn and the charts'
+polls go by the computer's clock: their pictures are of a live cluster.
+
+**Rejected:** stopping the churn after a fixed number of events for the pictures, whose status bar
+would then read 0 events per second and whose charts would still gather by the clock; a test clock
+for the metrics hub's polls, test machinery in the engine for three pictures; a fixed path under the
+system's temporary folder, whose name differs per machine.
+
+[`render_test.go`](../../internal/ui/fyneui/render_test.go) (`savePNG`, `scene.settled`,
+`saveLivePNG`), [`fixeddir_unix_test.go`](../../internal/ui/fyneui/fixeddir_unix_test.go),
+[`demo.go`](../../internal/demo/demo.go) (`Cluster.now`), [`metrics.go`](../../internal/demo/metrics.go)
+(`measuredAt`) · `TestDemoMetricsServer`

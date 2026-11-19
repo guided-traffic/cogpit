@@ -82,6 +82,7 @@ func newEngineShell(t *testing.T, s *engine.Session, opts Options) (*shell, fyne
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
 	sh.start()
+	keepScene(t, w, sh, q)
 	t.Cleanup(func() {
 		sh.stop()
 		q.drain()

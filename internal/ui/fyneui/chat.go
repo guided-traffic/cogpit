@@ -487,8 +487,7 @@ func (c *chatPanel) requestLists() {
 				c.stale = true // read again when the column shows
 			}
 			c.conns, c.connsErr, c.connsRead = conns, err, true
-			c.input.refresh()
-			c.empty.refresh()
+			c.refreshChrome()                      // the header names the connection's model, the input and the examples follow
 			c.sh.settings.chatConnectionsChanged() // Preferences › Agent, when open
 			if c.history != nil && c.history.Visible() {
 				c.showHistory()

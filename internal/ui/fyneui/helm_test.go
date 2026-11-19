@@ -285,6 +285,7 @@ func newHelmTestShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQ
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(h, a, w, Options{Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	h.SetConfirmer(sh.confirmer)

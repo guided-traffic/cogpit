@@ -85,6 +85,9 @@ type settingsPage struct {
 	view    *engine.ClusterSettingsView
 	viewSeq int
 	syncing bool // controls being set from the state: their callbacks do not dispatch
+	// reads counts the shown section's reads off the main goroutine whose result is not shown yet
+	// (the update setting's reason); main goroutine.
+	reads   int
 	closing bool // the user closed the page and the engine's state has not closed it yet (close)
 
 	// The shown section's controls, by setting name, for updates from the state and for tests.

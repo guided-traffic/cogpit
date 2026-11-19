@@ -21,7 +21,7 @@ import (
 // subfolder with a kubeconfig of its own. Nothing here is the developer's home or ~/.kube.
 func syncTree(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := fixedDir(t) // its path shows in the picture
 	for _, f := range []string{"team.yaml", ".dev.kubeconfig", "notes.txt", filepath.Join("clusters", "prod.yaml")} {
 		p := filepath.Join(dir, f)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
