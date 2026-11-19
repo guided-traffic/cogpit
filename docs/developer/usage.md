@@ -452,7 +452,7 @@ Restart, Delete and the pod shell wait for your confirmation
 | `--context <name>` | empty: the welcome page # default | connect at start: an id as the navigator lists it, or a context name only one file defines; one Cogpit refuses is named in a toast and the navigator's search opens |
 | `--demo` | `false` # default | connect to the synthetic demo cluster; development builds only ([D-67](decisions.md#d-67-the-demo-cluster-stays-out-of-releases)) |
 | `--demo-pods <n>` | `10000` # default | pods in the demo cluster; development builds only |
-| `--demo-events <n>` | `1000` # default | watch events per second in the demo cluster; development builds only |
+| `--demo-events <n>` | `1000` # default | watch events per second in the demo cluster, `0` for a static cluster; development builds only |
 | `--mcp-addr <addr>` | `127.0.0.1:0` # default | MCP listen address, loopback only; port 0 binds the port kept in `mcp-port` (a free one, kept, when there is none or it is taken), another port is used for this run only |
 | `--no-mcp` | `false` # default | leave the external MCP server and its status bar item out of this run; the stored switch stays |
 | `--perf <duration>` | `0` # default | measure main-loop latency while auto-scrolling the table, print it as JSON and quit |
