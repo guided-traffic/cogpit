@@ -28,7 +28,7 @@ passing a gate, and a missing prerequisite fails its test instead of skipping it
 
 | Job | Make target | Runs |
 |---|---|---|
-| Code Linting | `make lint`, `make check-nodemo`, `make check-windows-only` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests; Mesa's download and its 7z decoder are in `cogpit.exe` and no other binary ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)) |
+| Code Linting | `make lint`, `make check-nodemo`, `make check-windows-only` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); no calendar date in a Go comment ([`hack/commentdates`](../../hack/commentdates/main.go)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests; Mesa's download and its 7z decoder are in `cogpit.exe` and no other binary ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)) |
 | Parity | `make parity` | [`hack/parity`](../../hack/parity/main.go) with `-check` ([parity README](../parity/README.md#make-parity)) |
 | GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out, for Linux and Windows |
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |

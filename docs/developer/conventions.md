@@ -113,6 +113,9 @@ holds on every platform CI runs ([testing › Asynchronous results](testing.md#a
   `_test` or an architecture after the name): lint and GoSec find the packages they analyse for
   Windows and macOS by these names ([releasing › Lint and GoSec per system](releasing.md#lint-and-gosec-per-system)).
 - Doc comments on every exported identifier (revive's `exported` rule). Comments explain *why*.
+- Comments follow the documentation's rules below: the current code and its reasons, no history.
+  `make lint` fails on a calendar date in a Go comment ([`hack/commentdates`](../../hack/commentdates/main.go));
+  a date that is data passes in quotes, as a timestamp with its time, or as Go's layout `2006-01-02`.
 - Names: packages short and lowercase (`cache`, `engine`); command ids `<kind-or-area>.<action>` in
   lowerCamelCase segments (`deployment.restart`, `helm.release.rollback`), their MCP tool names with
   underscores (`helm_release_rollback`); environment variables `COGPIT_<NAME>`.

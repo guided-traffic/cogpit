@@ -49,7 +49,8 @@ env:
 jobs:
   # golangci-lint with the team's linters and depguard's layering (the import rules of
   # docs/developer/architecture.md §3), for the Linux build and, without cgo, Windows' (make lint's
-  # second pass, over the packages with Windows files), and the release build's variant.
+  # second pass, over the packages with Windows files), no calendar date in a Go comment
+  # (hack/commentdates), and the release build's variant.
   lint:
     name: Code Linting
     runs-on: ${{ vars.LINUX_RUNNER || 'self-hosted' }}

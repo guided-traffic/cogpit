@@ -384,7 +384,8 @@ WINDOWS_LINT_ENV  := GOOS=windows CGO_ENABLED=0
 
 .PHONY: lint-darwin gosec-darwin
 
-lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'
+lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'; no dates in Go comments
+	$(GO) run ./hack/commentdates
 	$(GOLANGCI_LINT) run ./...
 	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run $(WINDOWS_LINT_PKGS))
 
