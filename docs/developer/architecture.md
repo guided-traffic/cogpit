@@ -786,7 +786,9 @@ and a shell tab's Reconnect row ([`dockreconnect.go`](../../internal/ui/fyneui/d
 - **`view.rows`** ([`viewrows.go`](../../internal/engine/viewrows.go),
   [`commands/viewrows.go`](../../internal/engine/commands/viewrows.go)): a page of the open view's
   snapshot as the table draws it, after waiting up to 2 s for the snapshot to follow the UI state
-  (`TableSnapshot.CaughtUp`); 100 rows by default, at most 500. No API request.
+  (`TableSnapshot.CaughtUp`); 100 rows by default, at most 500. No API request. Its rows and
+  `resources.list`'s are a table ([`rowtable.go`](../../internal/engine/rowtable.go)): the columns
+  once, each row an array, the cells every row shares in `same` ([D-168](decisions.md#d-168-a-lists-rows-as-a-table-columns-once-shared-cells-once)).
 
 **Fyne traps in lists and tables.** Table tests run the GL driver's minimum-size pass (`glPass` in
 [`tablereuse_test.go`](../../internal/ui/fyneui/tablereuse_test.go)), not `settle`, which lays out

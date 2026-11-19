@@ -62,23 +62,19 @@ type KindInfo struct {
 	NotServed bool `json:"notServed,omitempty"`
 }
 
-// ListResult is resources.list's result.
+// ListResult is resources.list's result: the objects as a table (engine.RowTable, D-168), a
+// column's tooltips (a kubelet's upstream support and version skew in the Nodes' Version, D-91)
+// in a column of their own.
 type ListResult struct {
-	Kind     string    `json:"kind"`
-	Total    int       `json:"total"`    // objects that pass the namespace, search and status filters
-	Returned int       `json:"returned"` // rows in this result, at most the limit, from the offset on
-	Rows     []ListRow `json:"rows"`
+	Context  string `json:"context,omitempty"` // the cluster the objects are on
+	Kind     string `json:"kind"`
+	Total    int    `json:"total"`    // objects that pass the namespace, search and status filters
+	Returned int    `json:"returned"` // rows in this result, at most the limit, from the offset on
+	engine.RowTable
 }
 
-// ListRow is one object of resources.list: its reference, status and cells by column title.
-type ListRow struct {
-	Ref    model.ObjectRef   `json:"ref"`
-	Status model.Status      `json:"status,omitempty"`
-	Cells  map[string]string `json:"cells"`
-	// Tips are the tooltips of the cells that have one, by column title: a kubelet's upstream
-	// support and version skew in the Nodes' Version (D-91).
-	Tips map[string]string `json:"tips,omitempty"`
-}
+// RefAt returns the reference of row i's object.
+func (r ListResult) RefAt(i int) model.ObjectRef { return r.Ref(i, r.Context, r.Kind) }
 
 // FindResult is resources.find's result.
 type FindResult struct {
@@ -159,8 +155,11 @@ func registerResources(g *registrar) {
 
 	add(g, engine.Spec[listParams]{
 		ID: "resources.list", Label: "List Resources", Danger: engine.DangerRead, Verbs: cacheReads,
-		Description: "Lists objects of one kind from Cogpit's cache, as table rows: reference, status and the cells by column " +
-			"title, and tips, the tooltips of the cells that have one (a node's kubelet: its upstream support and version skew). Optional namespaces, search text and states filter as in the view; rows are sorted by name. total counts every " +
+		Description: "Lists objects of one kind from Cogpit's cache as a table: columns names the columns once, each of rows " +
+			"is one object's cells in that order, and same holds the cells every row shares, which columns and rows then leave " +
+			"out. The columns namespace and name are, with kind, the object's reference; level is its status level (ok, " +
+			"pending, warning, error, …); the others are the view's columns by title, a column's tooltips as \"<title> tip\" " +
+			"(a node's kubelet: its upstream support and version skew). Optional namespaces, search text and states filter as in the view; rows are sorted by name. total counts every " +
 			"row that passes the filters, returned the rows in the result (limit, default 100, at most 1000); offset skips rows for the next page, so " +
 			"every row is read page by page while offset + returned < total. Makes no API request once the kind is cached.",
 		Enabled: func(s *engine.Session, p listParams) error { _, err := connectedOn(s, p.Context); return err },
@@ -273,24 +272,25 @@ func listResources(ctx context.Context, s *engine.Session, p listParams) (any, e
 	res := ListResult{Kind: prof.Key, Total: len(rows)}
 	page := rows[min(p.Offset, len(rows)):]
 	page = page[:min(limit, len(page))]
-	res.Rows = make([]ListRow, 0, len(page))
+	titles := make([]string, len(cols))
+	for i, c := range cols {
+		titles[i] = c.Title
+	}
+	table := make([]engine.TableRow, 0, len(page))
 	now, tf := s.Now(), s.TimeFormat() // times as the window writes them (D-31)
 	for _, r := range page {
-		cells := make(map[string]string, len(cols))
-		var tips map[string]string
+		tr := engine.TableRow{Ref: r.Ref, Status: r.Status, Cells: make([]string, len(cols)), Tips: make([]string, len(cols))}
 		for i, c := range cols {
 			if i < len(r.Cells) {
-				cells[c.Title] = tf.CellText(c, r.Cells[i], now)
-				if tip := r.Cells[i].Tip; tip != "" {
-					if tips == nil {
-						tips = map[string]string{}
-					}
-					tips[c.Title] = tip
-				}
+				tr.Cells[i], tr.Tips[i] = tf.CellText(c, r.Cells[i], now), r.Cells[i].Tip
 			}
 		}
-		res.Rows = append(res.Rows, ListRow{Ref: r.Ref, Status: r.Status, Cells: cells, Tips: tips})
+		if res.Context == "" {
+			res.Context = r.Ref.Context
+		}
+		table = append(table, tr)
 	}
+	res.RowTable = engine.NewRowTable(res.Context, prof.Key, titles, table)
 	res.Returned = len(res.Rows)
 	return res, nil
 }

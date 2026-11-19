@@ -94,8 +94,8 @@ func TestViewRowsAreTheTablesRows(t *testing.T) {
 		q.drain()
 		return got.Revision == sh.view.snap.Revision
 	})
-	ids := make([]string, len(got.Columns))
-	for i, c := range got.Columns {
+	ids := make([]string, len(got.ViewColumns))
+	for i, c := range got.ViewColumns {
 		ids[i] = c.ID
 	}
 	if shown := visibleIDs(sh.view); !slices.Equal(ids, shown) {
@@ -104,21 +104,40 @@ func TestViewRowsAreTheTablesRows(t *testing.T) {
 	if len(got.Rows) != len(sh.view.snap.Rows) || got.Shown != len(sh.view.snap.Rows) {
 		t.Fatalf("view.rows has %d rows (shown %d), the table %d", len(got.Rows), got.Shown, len(sh.view.snap.Rows))
 	}
-	cell := newTableCell(sh.view)
-	for r, row := range got.Rows {
-		if !row.Ref.Same(sh.view.snap.Rows[r].Ref) {
-			t.Fatalf("row %d: view.rows %v, the table %v", r, row.Ref, sh.view.snap.Rows[r].Ref)
+	// The view's columns in the table of view.rows keep the order the table shows them in: the ones
+	// the rows do not share, as they follow each other in columns.
+	var inTable, arranged []string
+	for _, c := range got.ViewColumns {
+		if name := got.ColumnOf(c.ID, c.Title); name == c.Title && slices.Contains(got.Columns, name) {
+			arranged = append(arranged, name)
 		}
-		for c, text := range row.Cells {
+	}
+	for _, name := range got.Columns {
+		if slices.Contains(arranged, name) {
+			inTable = append(inTable, name)
+		}
+	}
+	if !slices.Equal(inTable, arranged) || len(arranged) < 2 {
+		t.Fatalf("view.rows' columns %v, the table's order %v", got.Columns, arranged)
+	}
+	cell := newTableCell(sh.view)
+	for r := range got.Rows {
+		ref := got.RefAt(r)
+		if !ref.Same(sh.view.snap.Rows[r].Ref) {
+			t.Fatalf("row %d: view.rows %v, the table %v", r, ref, sh.view.snap.Rows[r].Ref)
+		}
+		cells := got.ViewCells(r)
+		for c := range got.ViewColumns {
+			text := cells[c]
 			sh.view.updateCell(widget.TableCellID{Row: r, Col: firstDataColumn + c}, cell) // as the table draws the cell
 			if cell.full != text {
-				t.Errorf("row %d (%s), column %s: view.rows %q, the table %q", r, row.Ref.Name, ids[c], text, cell.full)
+				t.Errorf("row %d (%s), column %s: view.rows %q, the table %q", r, ref.Name, ids[c], text, cell.full)
 			}
 		}
 	}
 	for i := 1; i < len(got.Rows); i++ {
-		if got.Rows[i-1].Ref.Name < got.Rows[i].Ref.Name {
-			t.Fatalf("rows not sorted by name, descending: %s before %s", got.Rows[i-1].Ref.Name, got.Rows[i].Ref.Name)
+		if before, after := got.Cell(i-1, engine.RowName), got.Cell(i, engine.RowName); before < after {
+			t.Fatalf("rows not sorted by name, descending: %s before %s", before, after)
 		}
 	}
 }

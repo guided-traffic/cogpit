@@ -48,8 +48,9 @@ func statesHarness(t *testing.T) *harness {
 
 func viewRowNames(v engine.ViewRows) []string {
 	out := make([]string, 0, len(v.Rows))
-	for _, r := range v.Rows {
-		out = append(out, r.Ref.Namespace+"/"+r.Ref.Name)
+	for i := range v.Rows {
+		ref := v.RefAt(i)
+		out = append(out, ref.Namespace+"/"+ref.Name)
 	}
 	return out
 }
@@ -84,6 +85,7 @@ func TestStatusFilterCommand(t *testing.T) {
 	if b, _ := json.Marshal(raw["states"]); string(b) != `["Running"]` || raw["rows"] != float64(2) {
 		t.Errorf("ui_state: states %s, rows %v", b, raw["rows"])
 	}
+	rows = engine.ViewRows{} // a fresh value: a decode keeps the cells an earlier result's rows shared
 	h.must(t, agent, "view.rows", map[string]any{}, &rows)
 	if got := viewRowNames(rows); !slices.Equal(got, []string{"infra/db-0", "shop/web-0"}) || rows.Shown != 2 || rows.Total != 4 ||
 		!slices.Equal(rows.States, []string{"Running"}) || len(rows.StateChoices) != 3 {
@@ -101,6 +103,7 @@ func TestStatusFilterCommand(t *testing.T) {
 
 	// The window's own origin sets it the same way; an empty list clears it.
 	h.must(t, gui, "ui.setStatusFilter", map[string]any{"states": []string{"Pending", "Failed"}}, nil)
+	rows = engine.ViewRows{} // a fresh value: a decode keeps the cells an earlier result's rows shared
 	h.must(t, agent, "view.rows", map[string]any{}, &rows)
 	if got := viewRowNames(rows); !slices.Equal(got, []string{"infra/job-0", "shop/web-1"}) {
 		t.Errorf("Pending or Failed: %v", got)
@@ -114,11 +117,12 @@ func TestStatusFilterCommand(t *testing.T) {
 	// resources.list filters by states whatever the view shows.
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods", "states": []string{"Pending"}}, &list)
-	if list.Total != 1 || list.Rows[0].Ref.Name != "web-1" {
+	if list.Total != 1 || list.RefAt(0).Name != "web-1" {
 		t.Errorf("resources_list %+v", list)
 	}
+	list = commands.ListResult{}
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods", "states": []string{"Running"}, "namespaces": []string{"infra"}}, &list)
-	if list.Total != 1 || list.Rows[0].Ref.Name != "db-0" {
+	if list.Total != 1 || list.RefAt(0).Name != "db-0" {
 		t.Errorf("resources_list in infra %+v", list)
 	}
 
@@ -128,6 +132,7 @@ func TestStatusFilterCommand(t *testing.T) {
 	if st.View != "pods" || !slices.Equal(st.States, []string{"Failed"}) {
 		t.Fatalf("opened filtered: %s %v", st.View, st.States)
 	}
+	rows = engine.ViewRows{} // a fresh value: a decode keeps the cells an earlier result's rows shared
 	h.must(t, agent, "view.rows", map[string]any{}, &rows)
 	if got := viewRowNames(rows); !slices.Equal(got, []string{"infra/job-0"}) {
 		t.Errorf("opened filtered rows %v", got)

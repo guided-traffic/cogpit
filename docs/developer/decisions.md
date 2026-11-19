@@ -176,6 +176,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-165](#d-165-a-services-pods-in-its-drawer) | A Service's pods in its drawer | built: a Selected Pods section before Endpoint Slices, Ready from the endpoint slices |
 | [D-166](#d-166-alertmanager-silences-listed-created-expired) | Alertmanager silences: listed, created, expired | built: a silences page, Silence on the board's cards and rows, Expire; an agent's always asks |
 | [D-167](#d-167-the-chats-context-window-and-what-leaves-a-request) | The chat's context window and what leaves a request | built: a context window beside the turn's summed tokens; at 70 % of it the oldest tool results leave what is sent, down to 35 %; per connection |
+| [D-168](#d-168-a-lists-rows-as-a-table-columns-once-shared-cells-once) | A list's rows as a table: columns once, shared cells once | built: `resources.list` and `view.rows` name the columns once, give each row as an array and the cells every row shares in `same`, for every reader |
+| [D-169](#d-169-a-local-models-turn-has-60-minutes) | A local model's turn has 60 minutes | built: by default 60 minutes for an LM Studio or an address on this computer or a private network, 10 for any other |
 
 ## D-1: UI toolkit
 
@@ -470,7 +472,7 @@ MCP tool. A conversation keeps the context it began on.
 - **Context:** a request that reaches 70 % of the connection's context window goes out without
   the conversation's oldest tool results ([D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)).
 - **Limits per turn,** set per connection: the third identical tool call, 25 calls, 3,000,000
-  tokens summed over its requests, 10 minutes. Stop, Escape in the input and ⌘. from any focus end a turn; so does showing
+  tokens summed over its requests, 10 minutes (60 for a local model, [D-169](#d-169-a-local-models-turn-has-60-minutes)). Stop, Escape in the input and ⌘. from any focus end a turn; so does showing
   another cluster, before the next tool call.
 - **Private connection** (the user's mark, off by default): the turn reads what the window shows,
   Secret values included ([H-94](../security/agents-and-mcp.md#h-94-a-private-connection-gives-the-model-what-the-window-shows)); write rules, terminal
@@ -6979,3 +6981,72 @@ model's own (H-11).
 `ChatLimits` · `TestOldToolResultsLeaveWhatIsSent`, `TestClearContext`, `TestContextTokens`,
 `TestFullContextIsNoted`, `TestToolResultLimit`, `TestChatLimitsDefaults`; `TestLiveContextClearing`
 needs a real endpoint and runs locally
+
+## D-168: A list's rows as a table: columns once, shared cells once
+
+**Status:** built · **By:** owner (the form with shared cells, for every reader of the commands),
+lead (open to revision) the rest
+
+`resources.list` and `view.rows` return their rows as a table (`engine.RowTable`): `columns` names
+the columns once, each of `rows` is one object's cells in that order, and `same` holds the cells
+every row shares, which `columns` and `rows` then leave out.
+
+```json
+{"context":"prod","kind":"pods","total":60,"returned":60,
+ "same":{"namespace":"kube-system","level":"ok","Status":"Running"},
+ "columns":["name","Age","Node"],
+ "rows":[["etcd-cp-1","27d","cp-1"],["etcd-cp-2","29d","cp-2"]]}
+```
+
+- **The object's columns** come first: `namespace` (absent in a list without namespaces), `name`
+  and `level`, the row's status token (`ok`, `pending`, `warning`, `error`, …). With the list's
+  `kind` and `context` they are the object's reference; a row of another kind or context than the
+  list's brings `kind` or `context` as a column.
+- **The view's columns** follow by title, without Name and Namespace where they repeat the
+  reference.
+- **Tooltips** are a column `"<title> tip"` where a row has one; in `view.rows` the selection is a
+  column `selected`, and `viewColumns` has the columns' ids for the ui commands.
+- **`same`** takes any column but `name`, an empty one too; a result of one row or none has none.
+- **Every reader** gets this form: the built-in chat, MCP, `cogpit-cli get -o json` and the
+  window's own reads of `resources.list`. `cogpit-cli get` prints its text table from it.
+
+**Why:** a row written as an object repeats every column's title and a reference of four fields.
+For the local model the chat is built for ([D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)),
+60 pods of one namespace are 5,659 tokens that way and 1,428 as a table with shared cells, counted
+by its endpoint, which reads some 150 tokens a second. What every row shares also stands where a
+reader looks first: "all Running" is one cell. Arrays in JSON, since a tab-separated table has
+fewer bytes and more tokens.
+
+**Rejected:** columns and rows without `same` — 2,193 tokens for the same list; a tab-separated
+table — 2,317 tokens, and a tab or a line break in a cell breaks it; the form for the built-in chat
+alone — an external agent pays for the same tokens; a parameter that chooses the form — every
+tool's schema grows and two forms stay to keep.
+
+[`rowtable.go`](../../internal/engine/rowtable.go), [`viewrows.go`](../../internal/engine/viewrows.go),
+[`commands/resources.go`](../../internal/engine/commands/resources.go) ·
+`TestRowTableSharesWhatEveryRowHas`, `TestRowTableOfOneRowAndNone`, `TestRowTableColumns`
+
+## D-169: A local model's turn has 60 minutes
+
+**Status:** built · **By:** owner (60 minutes for local models), lead (open to revision) what
+counts as local
+
+A turn's time limit is 60 minutes by default over a local model and 10 over any other; a limit the
+user set for the connection stays ([D-10](#d-10-built-in-agent)). Local is what the connection
+tells: the kind LM Studio, or a base URL on this computer or a private network (`localhost`, a name
+under `.local`, a loopback, private or link-local address). A name is not looked up. The form's
+Minutes field shows the default of the kind and address typed.
+
+**Why:** a local model reads its prompt at the speed of the user's hardware: at some 150 tokens a
+second the 105,000 tokens a clearing leaves of a window of 300,000
+([D-167](#d-167-the-chats-context-window-and-what-leaves-a-request)) take twelve minutes before the
+first token. Its tokens cost nothing, so time bounds nothing but the user's patience, and Stop ends
+a turn at once.
+
+**Rejected:** one limit of 60 minutes for every connection — at a paid endpoint ten minutes also
+bound a turn that went astray; the private mark as the sign of a local model — it is the user's
+statement about what the model may read, set for private clouds too; looking a host's name up — a
+request before the user sent anything.
+
+[`chat.go`](../../internal/engine/chat.go) `ChatConnection.Local`, `DefaultLimits`,
+`EffectiveLimits` · `TestLocalConnectionsHaveLongerTurns`, `TestAgentPreferencesKeySemantics`

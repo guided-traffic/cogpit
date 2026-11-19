@@ -189,11 +189,16 @@ func TestNodesVersionCheck(t *testing.T) {
 		t.Errorf("Nodes has %d columns: the check added one", n)
 	}
 
-	// Agents: the cell's text as drawn, its tooltip in the row's tips.
+	// Agents: the cell's text as drawn, its tooltip in the column of the Version column's tips.
 	rows := RowsIn(snap, nil, 0, 100, clk.Now(), s.TimeFormat())
+	vc := slices.IndexFunc(rows.ViewColumns, func(c ViewColumn) bool { return c.ID == nodeVersionColumn })
+	if vc < 0 {
+		t.Fatalf("view rows without the %s column: %+v", nodeVersionColumn, rows.ViewColumns)
+	}
+	tipColumn := rows.ViewColumns[vc].Title + TipSuffix
 	tips := map[string]string{}
-	for _, r := range rows.Rows {
-		tips[r.Ref.Name] = r.Tips[nodeVersionColumn]
+	for i := range rows.Rows {
+		tips[rows.RefAt(i).Name] = rows.Cell(i, tipColumn)
 	}
 	if !strings.HasPrefix(tips["ended"], "Upstream end of life since") || tips["bare"] != "" {
 		t.Errorf("view rows' tips %v", tips)

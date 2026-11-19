@@ -37,8 +37,8 @@ func TestResourcesListPagesThroughEveryNamespace(t *testing.T) {
 			if page.Total != total || page.Returned != len(page.Rows) {
 				t.Fatalf("offset %d: total %d, returned %d of %d rows", offset, page.Total, page.Returned, len(page.Rows))
 			}
-			for _, r := range page.Rows {
-				names = append(names, r.Ref.Name)
+			for i := range page.Rows {
+				names = append(names, page.RefAt(i).Name)
 			}
 			offset += page.Returned
 			if page.Returned == 0 || offset >= page.Total {

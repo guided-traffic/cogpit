@@ -7,6 +7,7 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/theme"
 
+	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
@@ -100,20 +101,32 @@ func (sh *shell) namespacesChanged(contextID string) {
 
 // namespaceRow is one row of resources.list's result for the namespaces.
 type namespaceRow struct {
-	Ref    model.ObjectRef `json:"ref"`
-	Status model.Status    `json:"status"`
+	Ref    model.ObjectRef
+	Status model.Status
 }
+
+// listPage is resources.list's result as the window reads it: the objects' table (D-168).
+type listPage struct {
+	Context string `json:"context"`
+	Kind    string `json:"kind"`
+	Total   int    `json:"total"`
+	engine.RowTable
+}
+
+// refAt returns the reference of row i's object.
+func (p listPage) refAt(i int) model.ObjectRef { return p.Ref(i, p.Context, p.Kind) }
 
 // decodeNamespacePage reads one page of resources.list's namespaces: the rows and the total.
 func decodeNamespacePage(res any) ([]namespaceRow, int, error) {
-	var out struct {
-		Total int            `json:"total"`
-		Rows  []namespaceRow `json:"rows"`
-	}
+	var out listPage
 	if err := decode(res, &out); err != nil {
 		return nil, 0, err
 	}
-	return out.Rows, out.Total, nil
+	rows := make([]namespaceRow, len(out.Rows))
+	for i := range out.Rows {
+		rows[i] = namespaceRow{Ref: out.refAt(i), Status: out.Level(i)}
+	}
+	return rows, out.Total, nil
 }
 
 // nsTintTheme is the theme of the namespace filter's button: the app's, the text and the arrow in

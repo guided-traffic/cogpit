@@ -46,18 +46,12 @@ func TestLiveEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(res)
-	var first struct {
-		Rows []struct {
-			Ref struct {
-				Namespace string `json:"namespace"`
-			} `json:"ref"`
-		} `json:"rows"`
-	}
+	var first commands.ListResult
 	_ = json.Unmarshal(b, &first)
 	if len(first.Rows) == 0 {
 		t.Fatalf("no demo pods: %s", b)
 	}
-	ns := first.Rows[0].Ref.Namespace
+	ns := first.RefAt(0).Namespace
 
 	c, err := a.NewConversation(engine.DemoContext, conn.ID)
 	if err != nil {
@@ -143,6 +137,36 @@ func TestLiveContextClearing(t *testing.T) {
 	}
 	if c.Items[len(c.Items)-1].Kind != engine.ChatItemAssistant {
 		t.Errorf("the turn after the clearing ended without an answer")
+	}
+}
+
+// TestLiveReadsATable asks a real model, local only as TestLiveEndpoint, for what a list's table
+// (D-168) says in two places: the status every pod of kube-system shares, which stands once in
+// "same", and one pod's node, which stands in its row. The demo cluster's kube-system pods all run,
+// and etcd-cp-2 runs on cp-2.
+func TestLiveReadsATable(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "List the pods of namespace kube-system with resources_list. Do they all have the same status, "+
+		"and which one? On which node does etcd-cp-2 run?")
+	listed := false
+	for _, it := range c.Items {
+		if it.Tool != nil && it.Tool.Command == "resources.list" && it.Tool.State == engine.ChatToolDone {
+			listed = true
+			if !strings.Contains(it.Tool.Result, `"same":{`) || !strings.Contains(it.Tool.Result, `"Status":"Running"`) {
+				t.Errorf("the list's result shares no status: %.300s", it.Tool.Result)
+			}
+		}
+	}
+	last := c.Items[len(c.Items)-1]
+	if !listed || last.Kind != engine.ChatItemAssistant {
+		t.Fatalf("the turn listed nothing or ended without an answer")
+	}
+	if !strings.Contains(last.Text, "Running") || !strings.Contains(last.Text, "cp-2") {
+		t.Errorf("the answer names neither the shared status nor the pod's node: %s", last.Text)
 	}
 }
 

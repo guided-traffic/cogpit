@@ -201,7 +201,7 @@ func TestKindHelmReleases(t *testing.T) {
 	var list commands.ListResult
 	b, _ := json.Marshal(res)
 	_ = json.Unmarshal(b, &list)
-	if list.Total != 1 || list.Rows[0].Cells["Revision"] != "2" || list.Rows[0].Cells["Status"] != "Deployed" || list.Rows[0].Cells["Chart"] != "cogpit-test" {
+	if list.Total != 1 || list.Cell(0, "Revision") != "2" || list.Cell(0, "Status") != "Deployed" || list.Cell(0, "Chart") != "cogpit-test" {
 		t.Fatalf("releases: %s", b)
 	}
 

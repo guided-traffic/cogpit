@@ -117,11 +117,11 @@ func TestContextParameterReadsAnyConnectedCluster(t *testing.T) {
 	var alpha, shown commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods", "context": "alpha"}, &alpha)
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods"}, &shown)
-	if len(alpha.Rows) != 1 || alpha.Rows[0].Ref.Context != "alpha" || alpha.Rows[0].Ref.Name != "alpha-web" {
-		t.Errorf("alpha's pods %+v", alpha.Rows)
+	if len(alpha.Rows) != 1 || alpha.RefAt(0).Context != "alpha" || alpha.RefAt(0).Name != "alpha-web" {
+		t.Errorf("alpha's pods %+v", alpha)
 	}
-	if len(shown.Rows) != 1 || shown.Rows[0].Ref.Context != "beta" {
-		t.Errorf("the shown cluster's pods %+v", shown.Rows)
+	if len(shown.Rows) != 1 || shown.RefAt(0).Context != "beta" {
+		t.Errorf("the shown cluster's pods %+v", shown)
 	}
 	before := pc.connects
 	err := h.run(t, agent, "resources.list", map[string]any{"kind": "pods", "context": "gamma"}, nil)

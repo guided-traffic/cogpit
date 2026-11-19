@@ -59,15 +59,15 @@ func TestGetListsTheDemoClustersPods(t *testing.T) {
 	if got := len(lines) - 1; got != all.Total {
 		t.Errorf("%d rows in the table, %d in resources_list's result", got, all.Total)
 	}
-	ns := all.Rows[0].Ref.Namespace
+	ns := all.RefAt(0).Namespace
 	// Flags after the arguments, a Kubernetes kind for the key, one namespace.
 	inNS := te.listJSON(t, "Pod", "--context=demo", "-n", ns)
 	if inNS.Total == 0 || inNS.Total >= all.Total && len(namespaces(all)) > 1 {
 		t.Errorf("-n %s: %d of %d pods", ns, inNS.Total, all.Total)
 	}
-	for _, r := range inNS.Rows {
-		if r.Ref.Namespace != ns || r.Ref.Context != "demo" {
-			t.Errorf("row %+v outside -n %s", r.Ref, ns)
+	for i := range inNS.Rows {
+		if ref := inNS.RefAt(i); ref.Namespace != ns || ref.Context != "demo" {
+			t.Errorf("row %+v outside -n %s", ref, ns)
 		}
 	}
 	te.reset()
@@ -79,9 +79,9 @@ func TestGetListsTheDemoClustersPods(t *testing.T) {
 
 func namespaces(r commands.ListResult) []string {
 	var out []string
-	for _, row := range r.Rows {
-		if !slices.Contains(out, row.Ref.Namespace) {
-			out = append(out, row.Ref.Namespace)
+	for i := range r.Rows {
+		if ns := r.RefAt(i).Namespace; !slices.Contains(out, ns) {
+			out = append(out, ns)
 		}
 	}
 	return out
@@ -89,7 +89,7 @@ func namespaces(r commands.ListResult) []string {
 
 func TestGetOneObject(t *testing.T) {
 	te := newTestEnv(t)
-	pod := te.listJSON(t, "pods", "--context", "demo").Rows[0].Ref
+	pod := te.listJSON(t, "pods", "--context", "demo").RefAt(0)
 
 	te.reset()
 	if code := te.run(t, "get", "pods", pod.Name, "-n", pod.Namespace, "--context", "demo", "-o", "yaml"); code != exitOK {
@@ -210,7 +210,7 @@ func TestGetKeepsSecretsSecret(t *testing.T) {
 
 	te.reset()
 	got := te.listJSON(t, "pods", "--kubeconfig", file, "--context", "fake")
-	if got.Total != 1 || got.Rows[0].Ref.Name != "web-0" || got.Rows[0].Ref.Context != "fake [kubeconfig]" {
+	if got.Total != 1 || got.RefAt(0).Name != "web-0" || got.RefAt(0).Context != "fake [kubeconfig]" {
 		t.Errorf("pods through the source context: %+v", got)
 	}
 	leaks("pods")
@@ -233,7 +233,7 @@ func TestGetWaitsForCustomKinds(t *testing.T) {
 	te := newTestEnv(t)
 	for _, kind := range []string{"widgets.acme.example.com", "Widget"} {
 		got := te.listJSON(t, kind, "--kubeconfig", file, "--context", "fake")
-		if got.Kind != "widgets.acme.example.com" || got.Total != 1 || got.Rows[0].Ref.Name != "w1" {
+		if got.Kind != "widgets.acme.example.com" || got.Total != 1 || got.RefAt(0).Name != "w1" {
 			t.Errorf("get %s: %+v", kind, got)
 		}
 	}

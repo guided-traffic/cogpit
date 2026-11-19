@@ -235,7 +235,7 @@ func getList(ctx context.Context, e *env, s *engine.Session, kind commands.KindI
 		fmt.Fprintf(e.stderr, "No %s found%s.\n", kind.Title, safeText(where))
 		return nil
 	}
-	return writeRows(e, kind, res.Rows)
+	return writeRows(e, kind, res.RowTable)
 }
 
 func getOne(ctx context.Context, e *env, s *engine.Session, kind commands.KindInfo, o getOptions) error {
@@ -264,10 +264,10 @@ func getOne(ctx context.Context, e *env, s *engine.Session, kind commands.KindIn
 		if _, err := dispatchInto(ctx, s, "resources.list", params, &res); err != nil {
 			return err
 		}
-		for _, r := range res.Rows {
-			if r.Ref.Name == o.name && r.Ref.Namespace == ns {
-				return writeRows(e, kind, []commands.ListRow{r})
-			}
+		if i := res.Find(ns, o.name); i >= 0 {
+			one := res.RowTable
+			one.Rows = one.Rows[i : i+1]
+			return writeRows(e, kind, one)
 		}
 		if res.Total > res.Returned {
 			return fmt.Errorf("%s %q is not among the first %d whose cells contain its name; use -o yaml", kind.Title, o.name, res.Returned)
@@ -303,15 +303,18 @@ func getOne(ctx context.Context, e *env, s *engine.Session, kind commands.KindIn
 // hide by default, in its order, without the columns that are empty in every row (the metrics
 // columns, which a headless read does not fill, and an unused warning column); the name column
 // always.
-func writeRows(e *env, kind commands.KindInfo, rows []commands.ListRow) error {
+func writeRows(e *env, kind commands.KindInfo, rows engine.RowTable) error {
+	// The result's table names an object by its reference's columns; the kind's Name and Namespace
+	// columns, which only repeat them, are not in it.
+	column := func(c model.Column) string { return rows.ColumnOf(c.ID, c.Title) }
 	var cols []model.Column
 	for _, c := range kind.Columns {
 		if c.Hidden {
 			continue
 		}
 		used := c.ID == "name"
-		for _, r := range rows {
-			if r.Cells[c.Title] != "" {
+		for i := range rows.Rows {
+			if rows.Cell(i, column(c)) != "" {
 				used = true
 				break
 			}
@@ -324,11 +327,11 @@ func writeRows(e *env, kind commands.KindInfo, rows []commands.ListRow) error {
 	for i, c := range cols {
 		header[i] = strings.ToUpper(c.Title)
 	}
-	table := make([][]string, len(rows))
-	for i, r := range rows {
+	table := make([][]string, len(rows.Rows))
+	for i := range rows.Rows {
 		line := make([]string, len(cols))
 		for j, c := range cols {
-			line[j] = r.Cells[c.Title]
+			line[j] = rows.Cell(i, column(c))
 		}
 		table[i] = line
 	}

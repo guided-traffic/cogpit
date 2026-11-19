@@ -44,7 +44,8 @@ func (h *repoUpgradeHarness) setInsecure(t *testing.T, name string, insecure boo
 	}
 }
 
-// chartRow is a chart's row as resources_list gives it to agents.
+// chartRow is a chart's row as resources_list gives it to agents: its cells by column, the ones
+// every chart shares included.
 func chartRow(t *testing.T, h *repoUpgradeHarness, id string) string {
 	t.Helper()
 	res, err := h.dispatch(engine.OriginExternalAgent, "resources.list", map[string]any{"kind": kinds.HelmChartsKey})
@@ -52,13 +53,12 @@ func chartRow(t *testing.T, h *repoUpgradeHarness, id string) string {
 		t.Fatal(err)
 	}
 	js, _ := json.Marshal(res)
-	var list struct {
-		Rows []json.RawMessage `json:"rows"`
-	}
+	var list commands.ListResult
 	_ = json.Unmarshal(js, &list)
-	for _, r := range list.Rows {
-		if strings.Contains(string(r), `"name":"`+id+`"`) {
-			return string(r)
+	for i := range list.Rows {
+		if list.RefAt(i).Name == id {
+			row, _ := json.Marshal(list.Record(i))
+			return string(row)
 		}
 	}
 	t.Fatalf("no row of %s in %s", id, js)

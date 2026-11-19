@@ -70,19 +70,19 @@ func TestAgentsReadTimesAsDrawn(t *testing.T) {
 	h.must(t, gui, "ui.openView", map[string]any{"view": "events"}, nil)
 	var rows engine.ViewRows
 	h.must(t, agent, "view.rows", struct{}{}, &rows)
-	col := -1
-	for i, c := range rows.Columns {
+	lastSeen := "" // the column's title, which names it in the rows' table
+	for _, c := range rows.ViewColumns {
 		if c.ID == "lastSeen" {
-			col = i
+			lastSeen = c.Title
 		}
 	}
-	if col < 0 || len(rows.Rows) != 1 || rows.Rows[0].Cells[col] != "11.10.2026 11:00:00" {
-		t.Errorf("view.rows: columns %+v, rows %+v", rows.Columns, rows.Rows)
+	if lastSeen == "" || len(rows.Rows) != 1 || rows.Cell(0, lastSeen) != "11.10.2026 11:00:00" {
+		t.Errorf("view.rows: columns %+v, table %+v", rows.ViewColumns, rows.RowTable)
 	}
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "events"}, &list)
-	if len(list.Rows) != 1 || list.Rows[0].Cells["Last Seen"] != "11.10.2026 11:00:00" {
-		t.Errorf("resources.list: %+v", list.Rows)
+	if len(list.Rows) != 1 || list.Cell(0, "Last Seen") != "11.10.2026 11:00:00" {
+		t.Errorf("resources.list: %+v", list.RowTable)
 	}
 
 	// testkit's pods were created 2026-10-01T12:00:00Z: 14:00 in Berlin.
