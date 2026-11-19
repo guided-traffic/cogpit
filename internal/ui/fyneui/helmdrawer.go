@@ -15,22 +15,22 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/yamlview"
 )
 
-// The release drawer's values, as Lens's (captured 2026-10-12): a "User-supplied values only"
-// checkbox, unchecked at first, the values in an editor and Save as a bar the drawer's width under
-// the editor. The drawer model's Values item is cut for the drawer and withheld from agents; the
-// editor reads the whole values with helm.release.values (from the cache, for the GUI only) and
-// Save upgrades the release with the editor's text through helm.release.upgrade, based on the
-// revision it read (inferred from Lens: its Save upgrades the release). Unchecked, the editor shows
-// every value, the chart's defaults merged in, and Save makes all of them user-supplied values,
-// which the status line says once the text is edited; checked, it shows the user-supplied ones.
+// The release drawer's values, as Lens's (captured): a "User-supplied values only" checkbox,
+// unchecked at first, the values in an editor and Save as a bar the drawer's width under the
+// editor. The drawer model's Values item is cut for the drawer and withheld from agents; the editor
+// reads the whole values with helm.release.values (from the cache, for the GUI only) and Save
+// upgrades the release with the editor's text through helm.release.upgrade, based on the revision
+// it read (inferred from Lens: its Save upgrades the release). Unchecked, the editor shows every
+// value, the chart's defaults merged in, and Save makes all of them user-supplied values, which the
+// status line says once the text is edited; checked, it shows the user-supplied ones.
 //
-// Over the editor, for good, the find bar the drawer's YAML has (D-127; the owner's finding of
-// 2026-10-25, "Es gibt keine Suche in Helm-Release Values"): the field, Aa, ab, .*, the count and
-// the chevrons; ⌘F in the editor puts the keys in its field. The lead's details (D-74, open to
-// revision): shown for good as over a drawer's YAML, though the values are editable, so that the
-// search is seen without knowing ⌘F (he looked for one and saw none); no replace row, which the
-// Helm Upgrade tab's bar has for a rewrite of the values; ⌘F from the list or with the keys
-// nowhere stays the list's search, as the editor may lie below the drawer's fold.
+// Over the editor, for good, the find bar the drawer's YAML has (D-127; the owner's finding, "Es
+// gibt keine Suche in Helm-Release Values"): the field, Aa, ab, .*, the count and the chevrons; ⌘F
+// in the editor puts the keys in its field. The lead's details (D-74, open to revision): shown for
+// good as over a drawer's YAML, though the values are editable, so that the search is seen without
+// knowing ⌘F (he looked for one and saw none); no replace row, which the Helm Upgrade tab's bar has
+// for a rewrite of the values; ⌘F from the list or with the keys nowhere stays the list's search,
+// as the editor may lie below the drawer's fold.
 
 func init() {
 	drawerSections[helm.ReleaseKind+"\x00"+helm.TitleValues] = releaseValuesSection

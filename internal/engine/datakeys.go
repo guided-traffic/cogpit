@@ -10,21 +10,20 @@ import (
 	"k8s.io/apimachinery/pkg/util/validation"
 )
 
-// Keys added and removed in a Config Map's or a Secret's drawer (the owner's audit decision of
-// 2026-10-16, N152 (b); decisions D-55 and D-59). The drawers' saves change values of keys the data
-// holds, and add keys with their values and remove keys, in one write: configMap.saveData and
-// secret.saveData take them as add and remove beside data. A key is added only when it is named in
-// add (a key of data that the data does not hold is refused, so that a typo never adds one), and
-// its name follows the API server's rule for ConfigMap and Secret keys (CheckDataKey). A removal is
-// a loss of data a workload may read: a save that removes a key is destructive (the commands
-// escalate), so the user confirms it for every origin, the window's review being that
-// confirmation, and an agent always asks. The review's rebase (D-55's (9)) moves an edit onto a
-// newer version only when none of its keys changed there: a changed or removed key holds the value
-// it had (from), an added key is still absent. Against the version the edit is based on an added
-// key the data holds and a removed key it does not hold are refused; against a newer version, which
-// a review shows as stale, an added key that appeared there is a change of its value and a removed
-// key that is gone there is left out, so that the review shows what a save over that version would
-// write.
+// Keys added and removed in a Config Map's or a Secret's drawer (the owner's audit decision, N152
+// (b); decisions D-55 and D-59). The drawers' saves change values of keys the data holds, and add
+// keys with their values and remove keys, in one write: configMap.saveData and secret.saveData take
+// them as add and remove beside data. A key is added only when it is named in add (a key of data
+// that the data does not hold is refused, so that a typo never adds one), and its name follows the
+// API server's rule for ConfigMap and Secret keys (CheckDataKey). A removal is a loss of data a
+// workload may read: a save that removes a key is destructive (the commands escalate), so the user
+// confirms it for every origin, the window's review being that confirmation, and an agent always
+// asks. The review's rebase (D-55's (9)) moves an edit onto a newer version only when none of its
+// keys changed there: a changed or removed key holds the value it had (from), an added key is still
+// absent. Against the version the edit is based on an added key the data holds and a removed key it
+// does not hold are refused; against a newer version, which a review shows as stale, an added key
+// that appeared there is a change of its value and a removed key that is gone there is left out, so
+// that the review shows what a save over that version would write.
 
 // DataEdit is a change of a Config Map's or a Secret's data as a drawer saves it: new values of keys
 // the data holds (Values), keys added with their values (Add), keys removed (Remove), and each
@@ -182,7 +181,7 @@ const maxDetailKeys = 10
 // DataKeysEffects are the confirmation's rows of a save or an apply that adds or removes keys of
 // a Config Map's or a Secret's data (configMap.saveData, object.apply): Removes, in the error
 // colour, then Adds, the keys' names only, never a value; none when it does neither. The drawer's
-// save review shows the same rows (the owner's WF33, 2026-10-19).
+// save review shows the same rows (the owner's WF33).
 func DataKeysEffects(added, removed []string) []Effect {
 	return dataEffects(nil, added, removed)
 }

@@ -15,7 +15,7 @@ import (
 
 // The view header's namespace filter (on Definitions the API group filter, the same list): the
 // button opens a list below it with a search field on top, "All namespaces" and a row per namespace,
-// each a check box and the name (the owner's F21, 2026-10-17; ui-parity › Tables).
+// each a check box and the name (the owner's F21; ui-parity › Tables).
 //
 //   - The search field has the keyboard as soon as the list opens. Typing narrows the rows to the
 //     names that contain the text, ignoring case; "All namespaces" is listed only while the field is
@@ -32,8 +32,8 @@ import (
 //
 // Every change of the filter is ui.setNamespace (ui.setGroups), so agents see and set the same state
 // (AGENTS.md rule 2). The typed text and the highlight are the window's own, as the list itself is:
-// they change what the list offers, not what a view shows (the lead's decision, 2026-10-17, open to
-// revision; the precedent is the navigator's open groups, architecture §4.3). Lens's namespace filter,
+// they change what the list offers, not what a view shows (the lead's decision, open to revision;
+// the precedent is the navigator's open groups, architecture §4.3). Lens's namespace filter,
 // inferred and not captured: a type-to-filter field and a check per row.
 type nsFilter struct {
 	tv     *tableView

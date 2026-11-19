@@ -18,7 +18,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// Reconcile with Source and Reset (D-33, owner 2026-10-14).
+// Reconcile with Source and Reset (D-33, owner).
 
 // The source kinds of the tests.
 const (

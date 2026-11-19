@@ -351,8 +351,8 @@ func buildDetail(p *model.KindProfile, ref model.ObjectRef, obj *unstructured.Un
 // references' while backRefs (Preferences.BackReferences, kinds.BackRefNeeds), and on a cluster
 // with custom kinds the definitions by group and Kind, through which Controlled By links an owner
 // that is a custom resource (a StatefulSet's Prometheus, a Deployment's CephCluster, seen on a real
-// cluster 2026-10-16). Their scope is the custom kinds' own watch, so the index costs no request; a
-// virtual or local kind's drawer has no owners to link.
+// cluster). Their scope is the custom kinds' own watch, so the index costs no request; a virtual or
+// local kind's drawer has no owners to link.
 func drawerNeeds(b *Backend, p *model.KindProfile, backRefs bool) []model.RelatedIndex {
 	needs := p.DrawerNeeds()
 	if backRefs && p.APIObject() {
@@ -463,7 +463,7 @@ func eventItem(ev *unstructured.Unstructured) EventItem {
 
 // ContainerNames returns the container names of a pod: spec.containers, then, with all, the init
 // containers and the ephemeral (debug) containers, which logs, shells and attach reach too (the
-// owner's "Fix bauen", 2026-10-19, D-102). Other shapes yield none.
+// owner's "Fix bauen", D-102). Other shapes yield none.
 func ContainerNames(obj *unstructured.Unstructured, all bool) []string {
 	out := containerNames(obj, "containers")
 	if all {

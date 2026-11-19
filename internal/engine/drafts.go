@@ -29,10 +29,10 @@ import (
 // editor.restoreDraft opens the tab with the text again, editor.discardDraft deletes it. A Config
 // Map's values edited in the drawer are kept the same way (drafts_drawer.go).
 //
-// Never for values (D-19, owner 2026-10-12): an Edit tab of a Secret, a text that holds a Secret's
-// manifest or might be one being typed, and the Helm Upgrade and Install tabs, whose values can
-// hold credentials, have no draft; a draft that became one is removed. Every other kind's text is
-// kept as typed, as the user's own unsaved work (docs/security/credentials.md).
+// Never for values (D-19, owner): an Edit tab of a Secret, a text that holds a Secret's manifest or
+// might be one being typed, and the Helm Upgrade and Install tabs, whose values can hold
+// credentials, have no draft; a draft that became one is removed. Every other kind's text is kept
+// as typed, as the user's own unsaved work (docs/security/credentials.md).
 //
 // Each draft names the Cogpit process that wrote it (JournalOwner, the drain and Helm journals'
 // owners, H-22): a draft whose owner still runs belongs to a tab open in that process and is not

@@ -37,13 +37,13 @@ import (
 // login guard ends it as ErrLoginLapsed.
 //
 // The same wrapper starts a run only for a connection that asks for one (admit; WF38, the lead's
-// walk of 2026-10-19): one that is open and that the user did not cancel (Conn.CancelLogin, a
-// cancelled Connect, Close) since he last connected or logged in (ArmLogin). client-go's getCreds
-// waits for the Authenticator's lock without its request's context, so a request of a cancelled
-// connect that queued behind a run took the lock once that run ended and started the plugin anew,
-// one run per cancelled connect, with nobody waiting for it. Such a request now fails with
-// errLoginNotAsked and no process starts; a request that queued behind a run while another
-// connection asks for one may start it, and the run then serves that connection.
+// walk): one that is open and that the user did not cancel (Conn.CancelLogin, a cancelled Connect,
+// Close) since he last connected or logged in (ArmLogin). client-go's getCreds waits for the
+// Authenticator's lock without its request's context, so a request of a cancelled connect that
+// queued behind a run took the lock once that run ended and started the plugin anew, one run per
+// cancelled connect, with nobody waiting for it. Such a request now fails with errLoginNotAsked and
+// no process starts; a request that queued behind a run while another connection asks for one may
+// start it, and the run then serves that connection.
 //
 // client-go keeps one Authenticator per plugin configuration (its command, arguments and
 // environment, and the cluster when provideClusterInfo is set, exec.go:166–170): two contexts with
@@ -245,7 +245,10 @@ func wrapInteractive(a *exec.Authenticator, p *pluginHold) bool {
 		}
 		interactive, err := orig()
 		if err == nil {
-			p.begin(mu) // client-go builds and runs the command next, under mu
+			search := p.begin(mu) // client-go builds and runs the command next, under mu
+			if gate := runBeginGate.Load(); gate != nil {
+				(*gate)(search)
+			}
 		}
 		return interactive, err
 	}))

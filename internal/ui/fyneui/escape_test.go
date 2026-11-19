@@ -21,10 +21,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Escape closes the innermost thing open, and only that (the owner's alpha walk of 2026-10-22,
-// AW2, AW3, AW4 and AW19): an open dropdown's list, and its field lets the next Escape go on; a
-// dialog, as its Cancel, the drawer behind it untouched; a find bar or a list's search; then the
-// window's order as before (escape.go).
+// Escape closes the innermost thing open, and only that (the owner's alpha walk, AW2, AW3, AW4 and
+// AW19): an open dropdown's list, and its field lets the next Escape go on; a dialog, as its
+// Cancel, the drawer behind it untouched; a find bar or a list's search; then the window's order as
+// before (escape.go).
 
 // escapeKey types Escape as the desktop driver delivers it: to the widget with the keyboard focus,
 // or to the window's key handler when nothing has it (Fyne's processKeyPressed).

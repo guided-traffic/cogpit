@@ -6,9 +6,8 @@ import (
 )
 
 // Version is one of Cogpit's logos as the owner chose it. Every one is kept, so that any of them
-// can be drawn again (owner, 2026-10-15): Current is the one Cogpit shows, `go run ./hack/icon
-// -version <name>` draws any of them, and docs/developer/assets/logo holds each one's picture and
-// reference.
+// can be drawn again (owner): Current is the one Cogpit shows, `go run ./hack/icon -version <name>`
+// draws any of them, and docs/developer/assets/logo holds each one's picture and reference.
 type Version struct {
 	Name   string // as hack/icon's -version takes it, and the files' name in docs/developer/assets/logo
 	Date   string // the day the owner chose it
@@ -37,7 +36,7 @@ func Find(name string) (Version, bool) {
 	return Version{}, false
 }
 
-// HelmGlow is the C helm the owner chose in the icon lab on 2026-10-15 (D-24 revised;
+// HelmGlow is the C helm the owner chose in the icon lab (D-24 revised;
 // docs/developer/assets/logo/helm-glow.json): a blue C with a white core, glowing over a pale wheel,
 // white handles, on a petrol plate darkening downwards.
 var HelmGlow = Look{

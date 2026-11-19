@@ -18,10 +18,10 @@ func jumpFieldRoom(lt *logTab) float32 {
 	return lt.jumpField.Size().Width - icon - 2*th.Size(theme.SizeNameInnerPadding)
 }
 
-// TestLogJumpFieldShowsItsPlaceholderWhole (#169, a defect the owner reported on 2026-10-14
-// evening): at a window width of 1440 points the time field's placeholder, which names the forms
-// it takes, is shown whole, in ISO 8601's format and in Germany's, the longest Cogpit writes; so
-// is a time a jump writes into the field.
+// TestLogJumpFieldShowsItsPlaceholderWhole (#169, a defect the owner reported): at a window width
+// of 1440 points the time field's placeholder, which names the forms it takes, is shown whole, in
+// ISO 8601's format and in Germany's, the longest Cogpit writes; so is a time a jump writes into
+// the field.
 func TestLogJumpFieldShowsItsPlaceholderWhole(t *testing.T) {
 	for name, setup := range map[string]func(*fakeEngine){"iso": nil, "de": inGermany} {
 		sh, w, q, _ := logsSceneWith(t, ThemeDark, true, engine.LogOptions{ResourceNames: true, Timestamps: true}, setup)

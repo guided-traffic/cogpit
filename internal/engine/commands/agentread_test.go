@@ -87,8 +87,8 @@ func dockTab(t *testing.T, h *harness, id string) engine.DockTab {
 	return tab
 }
 
-// A terminal tab's "Agents may read" switch (H-83, owner 2026-10-14): on, it ends 15 minutes later
-// unless an agent reads; each agent's read moves the end and tells the window to flash the tab
+// A terminal tab's "Agents may read" switch (H-83, owner): on, it ends 15 minutes later unless an
+// agent reads; each agent's read moves the end and tells the window to flash the tab
 // (EventDockRead); the user's own reads do neither; without a read for 15 minutes it turns itself
 // off and the tab says so (agentReadExpired) until the user turns it on again; switching it off
 // by hand leaves no such note. Each tab's switch ends on its own.
@@ -195,9 +195,9 @@ func TestAgentReadSwitchTurnsItselfOff(t *testing.T) {
 	}
 }
 
-// A switch ends at the latest an hour after it went on, whatever the reads (A3, owner 2026-10-14
-// evening): an agent reading every ten minutes keeps it on until then, not longer, and the tab says
-// it ended at its hour; turned on again, the hour starts again.
+// A switch ends at the latest an hour after it went on, whatever the reads (A3, owner): an agent
+// reading every ten minutes keeps it on until then, not longer, and the tab says it ended at its
+// hour; turned on again, the hour starts again.
 func TestAgentReadSwitchEndsAfterAnHour(t *testing.T) {
 	clock := newFakeClock()
 	h := newHarness(t, seed(), engine.Options{Now: clock.Now, AfterFunc: clock.AfterFunc})

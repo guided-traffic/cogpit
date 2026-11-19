@@ -51,12 +51,12 @@ func secretsInitial(srv *testkit.FakeAPIServer, resource string) int64 {
 	return req["watchlist "+resource] + req["list "+resource]
 }
 
-// TestBudgetSecretsViewAndDrawer runs the Secrets view of D-13 (revised 2026-10-12: a full watch)
-// through the engine on a real client-go stack against the fake API server, and counts what it
-// costs at the HTTP level: the list is one full Secrets informer, values included (the
-// last-applied annotation, which repeats them, is dropped as the objects enter the cache), its
-// Keys and Type columns are filled, and opening a Secret's drawer costs no request at all, however
-// often it refreshes; the values stay masked for agents and only the GUI can reveal one.
+// TestBudgetSecretsViewAndDrawer runs the Secrets view of D-13 (revised: a full watch) through the
+// engine on a real client-go stack against the fake API server, and counts what it costs at the
+// HTTP level: the list is one full Secrets informer, values included (the last-applied annotation,
+// which repeats them, is dropped as the objects enter the cache), its Keys and Type columns are
+// filled, and opening a Secret's drawer costs no request at all, however often it refreshes; the
+// values stay masked for agents and only the GUI can reveal one.
 func TestBudgetSecretsViewAndDrawer(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

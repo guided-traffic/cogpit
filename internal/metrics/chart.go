@@ -7,12 +7,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// chart is an object scope's series while a drawer shows the object (G12, owner 2026-10-12,
-// evening): the history a provider with history (Prometheus) gave when the drawer opened or a
-// range changed, continued by the live values (the Metrics Server's measurements, or Prometheus's
-// newest points when the Metrics Server does not answer). Per target: "" is the pod or node, then
-// a pod's containers. The network is the object's only. Points are in time order, at most one per
-// time; a slice handed out is never written again (new points go to new or appended slices).
+// chart is an object scope's series while a drawer shows the object (G12, owner): the
+// history a provider with history (Prometheus) gave when the drawer opened or a range changed,
+// continued by the live values (the Metrics Server's measurements, or Prometheus's newest points
+// when the Metrics Server does not answer). Per target: "" is the pod or node, then a pod's
+// containers. The network is the object's only. Points are in time order, at most one per time; a
+// slice handed out is never written again (new points go to new or appended slices).
 type chart struct {
 	usage    map[string][]model.UsageSample
 	network  []model.NetworkSample

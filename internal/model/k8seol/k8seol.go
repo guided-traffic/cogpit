@@ -7,8 +7,8 @@
 // kubernetes/website's data/releases/schedule.yaml and data/releases/eol.yaml (CC BY 4.0,
 // ATTRIBUTION.md). The release pipeline runs the generator before it builds, so every release
 // carries the table of its day, and keeps the committed table when the fetch fails. Cogpit never
-// fetches it at run time. Only upstream's dates count (the owner, 2026-10-18): the support windows
-// of managed services are not in it, and nothing here tells one distribution from another.
+// fetches it at run time. Only upstream's dates count (the owner): the support windows of managed
+// services are not in it, and nothing here tells one distribution from another.
 //
 // Layer L0: no I/O; the table is embedded.
 package k8seol

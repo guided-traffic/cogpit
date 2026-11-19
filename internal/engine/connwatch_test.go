@@ -295,7 +295,7 @@ func TestReconnectBacksOffAndComesBack(t *testing.T) {
 		t.Errorf("connection after the reconnect: %+v", c)
 	}
 	// The reconnect publishes Connected before it posts its toast (connwatch.go reconnect): wait for
-	// the toast, not for the state that comes before it (CI, 2026-10-21: the toast was not there yet).
+	// the toast, not for the state that comes before it (CI: the toast was not there yet).
 	waitUntil(t, "the reconnect's toast", func() bool { return strings.Contains(lastToast(s), "Reconnected to test") })
 }
 
@@ -340,7 +340,7 @@ func TestAStreamThatBreaksChecksAtOnce(t *testing.T) {
 // TestAStreamThatBreaksAfterTheReconnectStillResumes: a stream opened before an interruption whose
 // TCP connection outlived it breaks only once the connection is back; asked by when it opened, the
 // watch still names the interruption it lived through, so the log resumes instead of ending (the
-// race CI met on 2026-10-16 in TestStandbyWindowStaysUsable). A stream opened after it hears none.
+// race CI met in TestStandbyWindowStaysUsable). A stream opened after it hears none.
 func TestAStreamThatBreaksAfterTheReconnectStillResumes(t *testing.T) {
 	opts := fastWatch
 	s, p := watchedSession(t, opts)

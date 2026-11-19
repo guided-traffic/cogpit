@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestClusterIdentityIsTheUsers (H-125, the owner's decision of 2026-10-19): a cluster's display
-// name and icon colour are set and cleared only in the window, and its icon reset there too. Agents
-// and the CLI are refused either way, also where the user allowed agent writes, before anything is
-// written or anyone asked, a change that names other fields too as a whole; the other fields stay
-// theirs. Agents read the name and the colour, and the tools say who sets them.
+// TestClusterIdentityIsTheUsers (H-125, the owner's decision): a cluster's display name and icon
+// colour are set and cleared only in the window, and its icon reset there too. Agents and the CLI
+// are refused either way, also where the user allowed agent writes, before anything is written or
+// anyone asked, a change that names other fields too as a whole; the other fields stay theirs.
+// Agents read the name and the colour, and the tools say who sets them.
 func TestClusterIdentityIsTheUsers(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "Cogpit")
 	h := newHarness(t, seed(), engine.Options{ClusterSettings: engine.NewClusterSettingsStore(dir)})

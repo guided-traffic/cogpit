@@ -8,9 +8,9 @@ import (
 )
 
 // A drawer whose charts show only the network asks neither the Metrics Server nor Prometheus for
-// CPU and memory (Subscription.SetUsage, 2026-10-16 night), while the network goes on at its step;
-// shown again, the live values go on and the time between is filled once from Prometheus. A
-// second subscription of the scope that shows CPU keeps them asked.
+// CPU and memory (Subscription.SetUsage), while the network goes on at its step; shown again, the
+// live values go on and the time between is filled once from Prometheus. A second subscription of
+// the scope that shows CPU keeps them asked.
 func TestUsageNotAskedWhileNoChartShowsIt(t *testing.T) {
 	d := newDual(t)
 	d.open(t)

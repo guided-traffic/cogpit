@@ -6,15 +6,16 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/guided-traffic/cogpit/internal/cluster"
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A connect run (D-69; D-97, the owner's WF39 and WF40 of 2026-10-19). Every connect of a context
-// that is not connected runs on its own, apart from what the window shows: the window's connect
-// (Connect: a click on a cluster, cluster.connect) starts one, or joins the one under way for that
-// context, shows the cluster as connecting and waits for it; the restore of the last session
+// A connect run (D-69; D-97, the owner's WF39 and WF40). Every connect of a context that is not
+// connected runs on its own, apart from what the window shows: the window's connect (Connect: a
+// click on a cluster, cluster.connect) starts one, or joins the one under way for that context,
+// shows the cluster as connecting and waits for it; the restore of the last session
 // (ConnectBackground) starts one nobody waits for. When a run ends while the window's connect that
 // waits for it is still the latest, that connect shows its cluster, or its error, and the window
 // stays on it.
@@ -57,8 +58,15 @@ func (st *state) newRunLocked(ctx context.Context, name string, restore bool) *c
 	return r
 }
 
-// startConnectRun runs r on a goroutine of its own.
+// startConnectRun runs r on a goroutine of its own. Its attempt in the connection log begins here,
+// before that goroutine runs, as its entry of Connections is marked by the caller (markRunning): a
+// cluster shown or a Disconnect before the scheduler ran it found no attempt.
 func (s *Session) startConnectRun(r *connectRun) {
+	begin := "Connecting to " + r.name
+	if r.restore {
+		begin += " (restoring the last session, in the background)"
+	}
+	attempt := s.state.logs.begin(r.name, AttemptConnect, LogInfo, begin)
 	s.goSafe("connect", func() {
 		defer func() { // a panic still ends the run, so that nobody waits for it forever
 			s.state.mu.Lock()
@@ -73,23 +81,23 @@ func (s *Session) startConnectRun(r *connectRun) {
 				close(r.done)
 			}
 		}()
-		s.runConnect(r)
+		if gate := runStartGate.Load(); gate != nil {
+			(*gate)(r.name)
+		}
+		s.runConnect(r, attempt)
 	})
 }
 
-// runConnect connects r's context through the connector: its entry of Connections connecting (its
-// marks blink), its attempt in the connection log, its credential plugin's runs in the UI state;
-// then the cluster in the pool as one the window left, or the error.
-func (s *Session) runConnect(r *connectRun) {
+// runStartGate, set by tests only, runs on a connect run's goroutine before the run begins: a test
+// holds it there to see a run the scheduler starts late.
+var runStartGate atomic.Pointer[func(contextID string)]
+
+// runConnect connects r's context through the connector, its steps in its attempt in the connection
+// log and its credential plugin's runs in the UI state; then the cluster in the pool as one the
+// window left, or the error.
+func (s *Session) runConnect(r *connectRun, attempt *ConnectAttempt) {
 	st := s.state
 	connector := s.opts.Connector
-	s.UpdateUI(func(u *UIState) { u.markRunning(r.name) })
-
-	begin := "Connecting to " + r.name
-	if r.restore {
-		begin += " (restoring the last session, in the background)"
-	}
-	attempt := st.logs.begin(r.name, AttemptConnect, LogInfo, begin)
 	steps := &connectSteps{logs: &st.logs, attempt: attempt, diag: st.diags.of(r.name),
 		cancelled: func() bool { return errors.Is(context.Cause(r.ctx), errConnectCancelled) }}
 	if line := s.proxyLogLine(r.name); line != "" {
@@ -239,8 +247,8 @@ var ErrConnectSuperseded = errConnectSuperseded
 // connect a cluster: cluster.connect, hotbar.openCluster, ui.tab.select, ui.setNavigatorScope), says
 // that the connect did not fail: it goes on in the background (ErrConnectInBackground), it was
 // cancelled (ErrConnectCancelled), or a newer connect superseded it before it began
-// (ErrConnectSuperseded). The window raises no toast for any of them (the owner's AW15 and AW16 of
-// 2026-10-22): the cluster's dot and its connection log say what happened.
+// (ErrConnectSuperseded). The window raises no toast for any of them (the owner's AW15 and AW16):
+// the cluster's dot and its connection log say what happened.
 func ConnectNotFailed(err error) bool {
 	return errors.Is(err, errConnectInBackground) || errors.Is(err, errConnectCancelled) || errors.Is(err, errConnectSuperseded)
 }
@@ -317,12 +325,12 @@ func (s *Session) awaitRun(cctx context.Context, r *connectRun, seq uint64) erro
 }
 
 // leftRun is awaitRun's error when the window's connect waiting for r is no longer the latest once
-// r ended, which is no failure (the owner's AW15 and AW16 of 2026-10-22: it raised an error toast,
-// "superseded by a newer connect" among them): the session closed (ErrClosed); Disconnect cancelled
-// r or, once r had ended, the window's wait cctx (ErrConnectCancelled: the cluster it connected
-// closes behind it); or another connect or show came, and r ended in the background
-// (ErrConnectInBackground). A run that ended as the window's (watched) before another connect
-// replaced it says how it ended as a run nobody waited for says it (tellRunEnd).
+// r ended, which is no failure (the owner's AW15 and AW16: it raised an error toast, "superseded by
+// a newer connect" among them): the session closed (ErrClosed); Disconnect cancelled r or, once r
+// had ended, the window's wait cctx (ErrConnectCancelled: the cluster it connected closes behind
+// it); or another connect or show came, and r ended in the background (ErrConnectInBackground). A
+// run that ended as the window's (watched) before another connect replaced it says how it ended as
+// a run nobody waited for says it (tellRunEnd).
 func (s *Session) leftRun(cctx context.Context, r *connectRun, err error, e *pooled, watched bool) error {
 	st := s.state
 	st.mu.Lock()
@@ -366,7 +374,10 @@ func (s *Session) tellRunEnd(r *connectRun, err error) {
 }
 
 // markRunning marks the entry of Connections of a context whose connect runs (connectRun): it
-// stays, connecting, when the window shows another cluster. A context without one gets one.
+// stays, connecting, when the window shows another cluster. A context without one gets one. The
+// run's registrant marks it (Connect, with the connecting state; ConnectBackground) before the
+// run's goroutine starts: marked by that goroutine, a cluster shown before the scheduler ran it
+// dropped the entry, and the background connect had no blinking dot until then.
 func (u *UIState) markRunning(contextID string) {
 	if i := u.connectionIndex(contextID, 0); i >= 0 {
 		u.Connections[i].running = true

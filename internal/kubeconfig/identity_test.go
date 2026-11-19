@@ -7,9 +7,9 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// TestIdentityIsWhatTheLoginDoesNotWhereItIsUsed (D-28, 2026-10-12): contexts of one file whose
-// logins run the same program the same way share an identity, whatever their context, user, server
-// and trust; everything that changes what runs, or which token file is read, changes it.
+// TestIdentityIsWhatTheLoginDoesNotWhereItIsUsed (D-28): contexts of one file whose logins run the
+// same program the same way share an identity, whatever their context, user, server and trust;
+// everything that changes what runs, or which token file is read, changes it.
 func TestIdentityIsWhatTheLoginDoesNotWhereItIsUsed(t *testing.T) {
 	base := func() (*clientcmdapi.Cluster, *clientcmdapi.ExecConfig) {
 		return &clientcmdapi.Cluster{Server: "https://a.example", CertificateAuthorityData: []byte("ca")},

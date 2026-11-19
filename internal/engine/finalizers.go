@@ -17,7 +17,7 @@ import (
 
 // Remove finalizers (WF43, D-98): a destructive command on one object being deleted that removes
 // exactly the finalizers the user saw, so that the object goes without the cleanup their
-// controllers would have done. The owner's yes (Q1, 2026-10-19): "ja gerne".
+// controllers would have done. The owner's yes (Q1): "ja gerne".
 
 // RemoveFinalizersCommand is the id of the command that removes an object's finalizers; the
 // Terminating namespace's drawer offers it beside each object that holds the deletion.
@@ -43,7 +43,7 @@ const EffectRemovesFinalizers = "Removes finalizers"
 
 // FinalizersWarning is what every confirmation of Remove finalizers says below its table, the
 // object already being deleted or not: why it is usually the wrong step, and when it is the right
-// one (the owner's wish of 2026-11-04 for this dialog alone: two or three sentences).
+// one (the owner's wish for this dialog alone: two or three sentences).
 const FinalizersWarning = "Finalizers let a controller clean up before an object goes, often something outside the " +
 	"cluster: a cloud disk, a load balancer, a DNS record. Removing them deletes the object at once and skips that " +
 	"cleanup, which can leave such resources behind or confuse the controller that still expects the object. Do it " +
@@ -111,7 +111,7 @@ var errNamespaceFinalizers = fmt.Errorf("a namespace's deletion is never forced:
 // definition: its finalizer (customresourcecleanup.apiextensions.k8s.io) is the API server's own,
 // which deletes the definition's custom resources from etcd first; without it they would stay in
 // etcd and come back with a definition of the same name, as a namespace's content would without
-// the namespace controller's finalizer (the lead's decision of 2026-10-19, D-98, open to revision).
+// the namespace controller's finalizer (the lead's decision, D-98, open to revision).
 var errDefinitionFinalizers = fmt.Errorf("a custom resource definition's deletion is never forced: its finalizer is the API server's, which removes its custom resources from etcd first, and Cogpit never removes it (%w)", ErrNotApplicable)
 
 // definitionsKind is the custom resource definitions' kind key.

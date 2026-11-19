@@ -16,12 +16,12 @@ import (
 // The hotbar (G13, docs/parity/ui-parity.md › Hotbar): the clusters the user pinned to the bar at
 // the window's left edge, top to bottom. Captured from Lens: one tile per cluster with a short
 // label, F1–F12 open a cluster. Lens keeps them in banks of twelve with a switcher ("‹ 1 ›") at the
-// bottom; Cogpit has one hotbar (the owner's decision of 2026-10-17, D-83): it holds as many tiles
-// as the user pins, and the bar scrolls when they do not fit. F1–F12 open the first twelve.
-// Inferred (Cogpit's): the tiles are packed in order without empty cells; a context is pinned once;
-// a tile whose context no kubeconfig source offers any more stays, marked missing, when its file
-// went away by itself; removing its source, or Remove from Cogpit, takes it off (the owner's WF45,
-// D-101, dropHotbarTilesOfSource).
+// bottom; Cogpit has one hotbar (the owner's decision, D-83): it holds as many tiles as the user
+// pins, and the bar scrolls when they do not fit. F1–F12 open the first twelve. Inferred
+// (Cogpit's): the tiles are packed in order without empty cells; a context is pinned once; a tile
+// whose context no kubeconfig source offers any more stays, marked missing, when its file went away
+// by itself; removing its source, or Remove from Cogpit, takes it off (the owner's WF45, D-101,
+// dropHotbarTilesOfSource).
 //
 // The hotbar is engine state (UIState.Hotbar) so that agents see and drive what the user sees; the
 // GUI changes it only through the hotbar.* commands. It is Cogpit's own preference: kept in a file

@@ -78,7 +78,7 @@ func TestFormatByteAmount(t *testing.T) {
 // bytes stays as written.
 func TestFormatByteQuantity(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
-		// The owner's Node drawer (2026-10-13).
+		// The owner's Node drawer.
 		{"16360780Ki", "15.6 GiB"},
 		{"119842348Ki", "114.3 GiB"},
 		{"13856852378", "12.9 GiB"},

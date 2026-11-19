@@ -7,9 +7,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The status filter of every view (D-34, owner 2026-10-14; engine/statusfilter.go): ui.setStatusFilter
-// sets the active tab's, as the window's filter beside the namespace filter does; ui.openView
-// with states opens a view filtered (the dashboards' state links); view.rows and ui.state show it.
+// The status filter of every view (D-34, owner; engine/statusfilter.go): ui.setStatusFilter sets
+// the active tab's, as the window's filter beside the namespace filter does; ui.openView with
+// states opens a view filtered (the dashboards' state links); view.rows and ui.state show it.
 
 type statusFilterParams struct {
 	States []string `json:"states,omitempty" jsonschema:"states the rows must carry, as view_rows lists them in stateChoices: the texts of the view's state columns (a pod's Status Running, a Flux object's Not Ready, a deployment's condition Available), qualified by the column's title in a view with several (an Argo CD Application's Sync: OutOfSync or Health: Degraded; an unqualified text matches any of them), or for a kind without one its rows' status tokens (OK, Pending, Error); a row is shown when it carries one of the states selected for each column named; empty or omitted clears the filter"`

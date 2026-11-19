@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The checks of a Secret's certificates (D-30, the owner's answer of 2026-10-13): whether the
-// private key a certificate key pairs with belongs to its first certificate, and whether a chain
-// is in order. The private key is decoded from the cached Secret, compared inside
-// model.DecodedValue.MatchPrivateKey and zeroed; the outcome is yes, no or a fixed reason, never
-// the key, so no section, result, error, log line or audit line can carry it.
+// The checks of a Secret's certificates (D-30, the owner's answer): whether the private key a
+// certificate key pairs with belongs to its first certificate, and whether a chain is in order. The
+// private key is decoded from the cached Secret, compared inside model.DecodedValue.MatchPrivateKey
+// and zeroed; the outcome is yes, no or a fixed reason, never the key, so no section, result,
+// error, log line or audit line can carry it.
 
 // Texts of the checks section.
 const (
@@ -78,7 +78,7 @@ func certificateChecks(keys []model.CertificateKey, decoded map[string]model.Dec
 }
 
 // combinedPEM reports whether a Secret's value holds a private key block besides its
-// certificates (A99, owner 2026-10-14 evening): the key check then compares the value's own key.
+// certificates (A99, owner): the key check then compares the value's own key.
 func combinedPEM(v any) bool {
 	raw, ok := decodeValue(v)
 	defer wipeBytes(raw)

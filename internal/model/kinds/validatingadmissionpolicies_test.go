@@ -26,7 +26,7 @@ func TestValidatingAdmissionPoliciesStatusTexts(t *testing.T) {
 
 // TestAdmissionPolicyVersions pins which versions each admission policy kind is offered at: the
 // validating ones fall back to v1beta1 and v1alpha1, the mutating ones need v1 (Lens showed them
-// on Kubernetes 1.36.2 and not on 1.35.x, capture 2026-10-11).
+// on Kubernetes 1.36.2 and not on 1.35.x, capture).
 func TestAdmissionPolicyVersions(t *testing.T) {
 	for key, fallbacks := range map[string][]string{
 		"validatingadmissionpolicies":       {"v1beta1", "v1alpha1"},

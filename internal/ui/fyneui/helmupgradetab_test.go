@@ -14,9 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The Helm Upgrade tab with a chart repository that lists the release's chart (G11, 2026-10-13):
-// the repository's versions in the picker, the release's own marked, the engine's choice selected;
-// a pick goes to the engine, whose answer the pickers follow; Save names the version and the
+// The Helm Upgrade tab with a chart repository that lists the release's chart (G11): the
+// repository's versions in the picker, the release's own marked, the engine's choice selected; a
+// pick goes to the engine, whose answer the pickers follow; Save names the version and the
 // repository. Every name is made up.
 
 // repoTabFixture is an open Helm Upgrade tab on ingress-nginx (its chart at 4.12.1) whose chart

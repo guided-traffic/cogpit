@@ -11,11 +11,11 @@ import (
 	"strings"
 )
 
-// Whether a Secret's private key belongs to its certificate (D-30, the owner's answer of
-// 2026-10-13): the private key is parsed in memory, its public half compared with the first
-// certificate's public key, and nothing else of it is kept. The parsed key lives in one function
-// call and is never returned, stored or cached; the outcome is yes, no, or a fixed reason; no
-// error of the parsers leaves this file, so nothing can quote the key. Pure: no I/O.
+// Whether a Secret's private key belongs to its certificate (D-30, the owner's answer): the private
+// key is parsed in memory, its public half compared with the first certificate's public key, and
+// nothing else of it is kept. The parsed key lives in one function call and is never returned,
+// stored or cached; the outcome is yes, no, or a fixed reason; no error of the parsers leaves this
+// file, so nothing can quote the key. Pure: no I/O.
 
 // MaxPrivateKeyBytes bounds a private key value Cogpit reads (Cogpit's default): a PEM RSA key of
 // 16384 bits is about 12 KiB.

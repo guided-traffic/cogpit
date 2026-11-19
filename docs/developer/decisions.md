@@ -180,9 +180,11 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-169](#d-169-a-local-models-turn-has-60-minutes) | A local model's turn has 60 minutes | built: by default 60 minutes for an LM Studio or an address on this computer or a private network, 10 for any other |
 | [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
-| [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
+| [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | built: over a connection that chooses (off by default), a read's result above its size whose largest part is a list goes to the model in a request of its own, which answers with entry numbers; Cogpit renders those entries |
 | [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
+| [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
+| [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 
 ## D-1: UI toolkit
 
@@ -1618,8 +1620,9 @@ per poll (60 s) serves every node, only while the Disk column or a node's drawer
 
 A node's charts (its drawer, the cluster Overview) prefer node-exporter too, else cAdvisor's root
 cgroup, which kube-prometheus-stack drops; network and filesystem join both by `or` in one query
-each. Memory is `MemTotal − MemFree − Inactive(file)`, the kubelet's working set on cgroup v2, so
-history and live values mean the same (inferred from the kubelet's accounting, not measured). The
+each. Memory is the kubelet's working set counted from `/proc/meminfo`
+([D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set)), so history and live values mean the
+same. The
 network leaves out the loopback and the virtual interfaces of runtimes, network plugins and the
 kernel. Queries, matching, budget: [architecture §9](architecture.md#9-metrics-internalmetrics).
 The lists' fallback while the Metrics Server fails reads the root cgroup, so on
@@ -2734,9 +2737,12 @@ cannot be copied.
   15 s timeout bounds its first request below the plugin, not the login.
 - **Ending a run.** Cogpit finds the plugin's process among its own children at the run's begin and
   follows it by pid and start time, so a wrapper that `exec`s is ended too (macOS, Linux, Windows;
-  no cgo). It signals that process alone: SIGTERM, then SIGKILL after 3 s. It says "Cogpit ended
-  <program>" only when it found the process and may signal it, else "Cogpit stopped waiting for
-  <program>; its process was not found and may run on"
+  no cgo). It looks until half a second after the first new child appears, not after the run's
+  begin: on a loaded system client-go starts the plugin later than that (rejected: a longer window
+  from the begin, still a guess at the delay and a wider chance to take another child). It signals
+  that process alone: SIGTERM, then SIGKILL after 3 s. It says "Cogpit ended <program>" only when
+  it found the process and may signal it, else "Cogpit stopped waiting for <program>; its process
+  was not found and may run on"
   ([H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running)).
 - **No run nobody asked for.** After Cogpit ended a run, none starts until the user connects or
   logs in again (`ArmLogin`), and a run starts only while an open connection the user did not
@@ -3045,7 +3051,8 @@ Kyverno; a badge for kinds without a Signals column — a new cell kind that doe
 `trimPolicyReport`; [`model/kinds/policyreports.go`](../../internal/model/kinds/policyreports.go)
 `KyvernoReport`, `PolicyRef` · **Tests:** `TestKyvernoMarksViolations`,
 `TestKyvernoNamespaceLimitedUser`, `TestBudgetKyvernoRefusedClusterReports`, `TestViolationIndex`,
-`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
+`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestKindKyvernoRefusedClusterReports`,
+`TestRealKyverno`
 
 ### What it does not cover
 
@@ -6514,8 +6521,8 @@ The cluster Overview's CPU and Memory history (every node, and the workers as ev
 masters) sums the cluster's own nodes only. The engine gives the metrics hub every node from the
 cache with its addresses (`Hub.SetClusterNodes`); the every-node queries match them by the `node`
 label, else by `instance` as a name or an address, as the masters' queries do (`matchGroup`).
-node-exporter's memory names them on the total alone (`exporterGroupMemory`), a third of the
-length. Such a query may be 7 KiB long URL-encoded (`groupQueryMax`): about 100 nodes with short
+node-exporter's memory names them on the anonymous pages alone (`exporterGroupMemory`), a quarter
+of the length. Such a query may be 7 KiB long URL-encoded (`groupQueryMax`): about 100 nodes with short
 names and one address each, about 40 with cloud names such as
 `ip-10-0-1-2.eu-central-1.compute.internal`. A larger cluster is summed over every series the
 Prometheus has; one instant query then counts the machines, and when there are more than nodes the
@@ -7158,14 +7165,15 @@ from the engine's snapshot, not from the command, and stays as it is.
   `ownersUnread` names the kinds not read in time or not listable, whose pods are then subjects of
   their own. An owner reference to any other kind starts nothing.
 
-**Why:** most issues are one cause over the pods of one workload: the demo cluster's 234 issues are
-113,600 bytes as entries of their own and 4,562 folded into 11 subjects and 5 causes. Code folds
+**Why:** most issues are one cause over the pods of one workload: the 60-pod demo cluster's 234
+issues are ~112,500 bytes as entries of their own and ~4,570 folded into 11 subjects and 5 causes
+(`TestClusterOverviewDemoSize`). Code folds
 them in milliseconds, the same way each time, where a model would read them for minutes. An order
 by an event's count or time would be the order of whoever writes events. Without the Replica Set a
 pod's Deployment cannot be told by UID, so a Deployment's pods would never fold; the Workloads
 Overview reads the same kinds.
 
-**Rejected:** the fold behind a parameter — a model that does not set it reads the 113,600 bytes;
+**Rejected:** the fold behind a parameter — a model that does not set it reads the ~112,500 bytes;
 the fold in the window's page too — a change of what the user sees, for a later look; owners only
 where the cache already holds them — a Deployment's pods fold only while another view reads the
 Replica Sets; a model's summary of the issues
@@ -7181,34 +7189,91 @@ runs locally
 
 ## D-172: A sub-request that chooses from a large result
 
-**Status:** decided, not built · **By:** owner
+**Status:** built · **By:** owner (only what code cannot reduce, entry numbers only, off by default,
+the conversation's own connection, a state on the row and a note per run), lead (open to revision)
+the rest
 
-For a result that is still above the connection's size after its head
-([D-170](#d-170-a-large-tool-results-head-and-result_read)) and that code cannot fold
-([D-171](#d-171-the-cluster-overviews-issues-folded-by-subject)), a log or a long list of distinct
-events, the chat may send the result in a request of its own and take back which entries matter.
+Over a connection with **Choose from large results with the model** (`ChatConnection.ChooseLarge`,
+off by default), a tool result that is still above the connection's size and whose largest part is a
+list of entries goes to the model in a request of its own, which answers with the numbers of the
+entries that matter for the user's question. The conversation then reads those entries.
 
-- **Only what code cannot reduce;** the cluster's state is folded by code.
-- **Entry numbers only:** the model names entries, Cogpit renders them from the result, in its own
-  order, and names or counts the rest. No text a model wrote enters the conversation as a result.
-- **Off by default,** switched on per connection.
-- **The conversation's own connection,** as a continuation of its request: the private mark and
-  the Secret filter hold as for the turn, and the data reaches no second endpoint.
-- **Shown** as a state on the tool's row and a note of Cogpit's in the chat for each run; its
-  request is among what the turn sent, and Stop ends it.
+- **Which results:** a read command's (`DangerRead`), above `MaxToolResultKiB`, whose largest part
+  (as the head finds it, D-170) is an array of at least 8 elements: a log page's lines, a list's
+  rows, events. Never a text part (YAML, a values file, a manifest), never `cluster.overview`,
+  whose issues code folds (D-171), never a meta-tool's.
+- **The request** continues the conversation's: the system prompt, history and tools the turn's next
+  request carries, then this call's result with its list emptied, Cogpit's line and the entries,
+  one a line, numbered from `#0` (the numbers `result_read`'s offsets count); the later calls of the
+  same answer as not run yet; Cogpit's fixed request to choose, in the user's role with no text of
+  the model's or the cluster's; and the answer's beginning, an empty thinking block
+  (`<think>\n\n</think>\n\n`). No `reasoning_effort`, `tool_choice` or `max_tokens`.
+- **The entries offered** are the first ones within four times the connection's size, fewer when
+  the request would pass `ClearAt` of the context window; under 8 fit, no request goes.
+- **The answer** is read as numbers (`12`, `#12`), ranges (`3-5`), commas, semicolons and blanks,
+  nothing else; numbers not offered are dropped, at most 40 kept in the model's order. Any other
+  text, no number offered, a tool call, a model that only thinks, more than 1 KiB of answer or
+  4 KiB with its thinking, an endpoint's error: no choice.
+- **What the conversation reads:** the result's own document with the chosen entries in its list,
+  in the result's order, as many as fit the size, the model's least important left out first; then
+  Cogpit's note: how many of how many, from how many offered, their numbers, the totals over all
+  entries (as a head's) and `result_read` from 0 for the rest (the raw result is held as for a
+  head). Cogpit counts the rest, it does not name it.
+- **Bounds:** half the time the turn has left, none with under 2 minutes left; the turn's token
+  limit; Stop and the turn's limits end it as they end any request. No choice leaves the result's
+  head, with the reason.
+- **Shown:** the tool row says "Choosing entries" while the request runs; the opened item says which
+  model chose how many of how many, from how many it read, in what time, or why no choice came; a
+  Cogpit note per run, info or warning; the user's item counts the request ("4 requests (1
+  choosing)"), and "What this turn sent" shows its body after the turn's last
+  (`ChatAgent.SentChoices`, memory only).
+- **Not a command:** the switch is a connection's, set in Preferences › Agent as the private mark
+  is, and the request is the chat's own, so no MCP client starts one.
 
 **Why:** on one local model a sub-request moves the reading and adds to it: the 113,600 bytes of
 the Overview's issues are five to six minutes at 150 tokens a second, against seconds for the fold.
 A model's choice pays where entries differ and no rule folds them. Numbers keep invented names and
 instructions hidden in the cluster's text out of what the main model reads as a result; which
 entries it reads can still be steered by who writes them, which is why the switch is the user's.
-An LM Studio keeps the conversation's prompt cache through such a request and through an unrelated
-one: read anew after either, a conversation of 25,000 tokens answered in 10 and 13 seconds, 180
-cold.
+Measured on an LM Studio (MLX, `qwen/qwen3.8-27b`, which thinks before every answer, 10.5 tokens a
+second):
+
+- **The prompt cache:** a fork and an unrelated request leave the conversation's cache: read anew
+  after either, a conversation of 25,000 tokens answered in 10 and 13 seconds, 180 cold. A prefix
+  of 104,000 tokens took 923 seconds cold and 30 to 37 seconds again, also after four other
+  prefixes: 102,400 tokens restored, the rest read anew. The cache is a store on disk, kept by
+  size, not by count (166,720 MiB there, about 0.13 MiB a token, so some 1.2 million tokens of
+  prefixes before the oldest go); every prefix asked for again was restored.
+- **Thinking off:** `reasoning_effort: "none"` stops the thinking, but the template then renders
+  the request differently from its start, so the endpoint read 17,700 tokens of the same
+  conversation anew (113 s against 2 s); `chat_template_kwargs.enable_thinking`, `/no_think` and
+  `reasoning: {effort}` were ignored. The empty thinking block as the answer's beginning kept the
+  cache (17,664 tokens restored, 2.2 s) and the model answered in 15 tokens.
+- **Stop:** a request whose client goes away stops generating at once; one still reading its prompt
+  stops after the part it reads (2,048 tokens, about 13 s) and keeps what it read for the next
+  request (4,096 of 22,210 tokens restored).
+- **A turn** over the demo cluster: the choice from 60 pods took 21 seconds with 10,240 tokens of
+  the conversation restored, and the turn's next request restored 10,752.
+
+The time bound is a bound, not an estimate: what a request costs depends on how much of it the
+endpoint has cached, which no endpoint reports before it answers, and a bound costs at most itself
+because the endpoint stops when the request goes.
 
 **Rejected:** every large result through the model, the Overview's included; a model's lines
 checked against the result, or its prose; on by default, or for local models; a second, faster
-connection for it.
+connection for it; `reasoning_effort` or `max_tokens` to bound the answer — the first rereads the
+conversation on LM Studio, both are refused by some endpoints, and Cogpit's own bound on the
+streamed bytes holds everywhere; an estimate of the reading time from a read rate — the cache
+decides it; only the commands that read logs and events — events and long lists come from
+`resources.list` and `object.get` as well; naming the entries not chosen — a list's entries have no
+shape a name can be read from in general, and the totals count them; numbers from 1 — the model and
+`result_read` would count differently.
+
+[`choose.go`](../../internal/agent/choose.go), [`turn.go`](../../internal/agent/turn.go) `runCall`,
+[`fyneui/chat_items.go`](../../internal/ui/fyneui/chat_items.go) `choiceLine`,
+[`fyneui/preferences_agent.go`](../../internal/ui/fyneui/preferences_agent.go) ·
+`TestChoiceChoosesEntries`, `TestChoiceFailsToHead`, `TestChoiceStopped`, `TestChoiceOnlyWhereItHelps`,
+`TestChosenEntries`; `TestLiveChoosesFromALargeList` needs a real endpoint and runs locally
 
 ## D-173: A refusal answers a waiting read at once
 
@@ -7263,3 +7328,70 @@ until the caps push them out — 1,024 contexts' names and users on disk for clu
 [`fileaccess.go`](../../cmd/cogpit/fileaccess.go) (`forgetRemovedSources`) ·
 `TestRemovingASourceForgetsItsClustersUsers`, `TestRemovingASessionSourceKeepsItsUsers`,
 `TestStartForgetsTheUsersOfGoneContexts`, `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`
+
+## D-175: A node's memory is the kubelet's working set
+
+**Status:** built · **By:** lead (open to revision)
+
+node-exporter's memory of a node, which a node's chart and the cluster Overview's history show, is
+`AnonPages + Cached + Buffers − Inactive(file)` from `/proc/meminfo`: the working set the kubelet
+reports for the node, which is the Metrics Server's live value. The kubelet's node is cAdvisor's
+root cgroup, whose working set is its usage less `inactive_file` (cAdvisor,
+`github.com/google/cadvisor/lib` `container/libcontainer/handler.go` `setMemoryStats`). On cgroup v2
+the root has no `memory.current`; runc's cgroup library takes the root's usage from its
+`memory.stat` as `anon + file` (`github.com/opencontainers/cgroups` `fs2/memory.go`
+`rootStatsFromMeminfo`; runc 1.1.9 and later, which Kubernetes 1.29 and later build with). The
+root's `anon` is `AnonPages`, its `file` is `Cached + Buffers`: the swap cache is among the node's
+file pages, which `Cached` leaves out, but never among a cgroup's (Linux `mm/swap_state.c`
+`add_to_swap_cache`, `fs/proc/meminfo.c`). On cgroup v1 the root's usage is the node's file pages
+plus `AnonPages` (Linux `mm/memcontrol.c` `mem_cgroup_usage`), `SwapCached` more, which is zero on a
+node without swap. Kernel memory (slab, kernel stacks, page tables, per-CPU), reserved huge pages
+and pages no cgroup was charged for are in use in neither.
+
+**Why:** the history and the live values must mean the same, or a node's chart and the Overview
+step where the Metrics Server's values continue the history. On a cgroup v2 machine (Linux 6.10)
+the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the same working set to
+0.1 MiB beside a 16 MiB swap cache.
+
+**Rejected:**
+- `MemTotal − MemFree − Inactive(file)` — counts the kernel's own memory, which the kubelet leaves
+  out: 2.82 GiB of a 3.7 GiB worker against the live 2.14 GiB, 99 GiB of a master against 80 GiB.
+  It is the kubelet's value only with runc before 1.1.9 on cgroup v2.
+- That less `Slab` — still counts kernel stacks, page tables, per-CPU memory, the kernel memory
+  `/proc/meminfo` names nowhere, and reserved huge pages.
+- Adding `SwapCached`, cgroup v1's value — cgroup v2 is the default, and without swap it is zero.
+- cAdvisor's root cgroup (`container_memory_working_set_bytes{id="/"}`) alone — kube-prometheus-stack
+  drops it ([D-43](#d-43-where-the-nodes-disk-comes-from)); it stays the fallback.
+- Smoothing the joint between history and live values — hides an offset that is in every point.
+
+[`promql.go`](../../internal/metrics/promql.go) `exporterMemory`, `exporterGroupMemory` ·
+`TestExporterMemoryIsTheKubeletsWorkingSet` (synthetic `/proc/meminfo` and root `memory.stat` in
+[`testdata/nodememory`](../../internal/metrics/testdata/nodememory))
+
+## D-176: Two `-update` runs write the same pictures
+
+**Status:** built · **By:** lead (open to revision)
+
+A render test's picture shows the window once the shell's own reads are in: `savePNG` drains the
+test's queue until the clusters, the status bar's counters, the namespaces, the drawer's detail and
+metrics and a settings section's reads have answered, and ends a connected cluster's blink past its
+connect. A path a picture shows lies in a folder of a fixed name. The demo cluster runs on a clock of
+its own that starts at `Options.Now` and runs with the computer's: its churn's changes are stamped,
+and its Metrics Server measures, at that clock's time, with the computer's time as a measurement's
+timestamp. The pictures of the churning demo cluster (`demo_pods`, `demo_showcase`,
+`cluster_overview_demo_dark`) are written with `-update -live` only.
+
+**Why:** a picture that changes with the timing of a run shows up in every pull request that ran
+`-update`, beside the pictures a change really moved, and hides them. Waiting in `savePNG` covers
+every test at once, rather than each test's own wait for what it asserts. The churn and the charts'
+polls go by the computer's clock: their pictures are of a live cluster.
+
+**Rejected:** stopping the churn after a fixed number of events for the pictures, whose status bar
+would then read 0 events per second and whose charts would still gather by the clock; a test clock
+for the metrics hub's polls, test machinery in the engine for three pictures; a fixed path under the
+system's temporary folder, whose name differs per machine.
+
+[`render_test.go`](../../internal/ui/fyneui/render_test.go) (`savePNG`, `scene.settled`,
+`saveLivePNG`), [`fixeddir_unix_test.go`](../../internal/ui/fyneui/fixeddir_unix_test.go),
+[`demo.go`](../../internal/demo/demo.go) (`Cluster.now`), [`metrics.go`](../../internal/demo/metrics.go)
+(`measuredAt`) · `TestDemoMetricsServer`

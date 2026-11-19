@@ -42,8 +42,10 @@ func (p *settingsPage) updatesSettings() ([]fyne.CanvasObject, func()) {
 	why := newParagraph("", colorMuted, settingsHelpWidth) // wrapped at word boundaries, never cut short
 	why.size = theme.SizeNameCaptionText
 	why.Hide()
+	p.reads++
 	go func() { // Enabled is evaluated off the main goroutine, as every command's
-		defer p.sh.recoverTo("the update preference") // D-11: a panic here would end the app
+		defer func() { p.sh.do(func() { p.reads-- }) }() // after the reason it shows
+		defer p.sh.recoverTo("the update preference")    // D-11: a panic here would end the app
 		err := p.sh.commandEnabled(checkForUpdatesCommand, struct{}{})
 		if err == nil || errors.Is(err, errUnavailable) || err.Error() == "" {
 			return

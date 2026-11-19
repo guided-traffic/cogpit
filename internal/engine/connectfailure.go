@@ -9,12 +9,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// A failed connect's page and the connect's stages (D-114, the owner's AW17 of 2026-10-22). The
-// cluster layer measures a connect in stages (cluster/connectstages.go): the kubeconfig valid and
-// complete, a credential plugin's login, the API server's name looked up (DNS), its address and
-// port reached (TCP), the TLS handshake, and the API server's answer with the login. Each attempt
-// of the connection log keeps them (ConnectAttempt.Stages), so Connection Updates shows them for
-// every connect; a failed connect of the shown cluster keeps them in the UI state too
+// A failed connect's page and the connect's stages (D-114, the owner's AW17). The cluster layer
+// measures a connect in stages (cluster/connectstages.go): the kubeconfig valid and complete, a
+// credential plugin's login, the API server's name looked up (DNS), its address and port reached
+// (TCP), the TLS handshake, and the API server's answer with the login. Each attempt of the
+// connection log keeps them (ConnectAttempt.Stages), so Connection Updates shows them for every
+// connect; a failed connect of the shown cluster keeps them in the UI state too
 // (UIState.ConnectFailure), and the window shows its error page from them, whether or not a tab is
 // open: the welcome page shows only while no cluster is chosen (the owner's choice (b)).
 //

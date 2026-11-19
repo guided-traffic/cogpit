@@ -94,8 +94,8 @@ func TestRealClusterNodeDrawer(t *testing.T) {
 	t.Logf("node network: %d points, %d from before the drawer opened; filesystem: %d points (%s)", len(net), pastNet, len(m.Targets[0].Filesystem), m.FilesystemSource)
 	logTarget(t, "node "+node.Name, m.FilesystemSource, m.Targets[0])
 
-	// Budget P13 with the node's drawer at 1 h: CPU shown, then the network shown, which since
-	// 2026-10-16 night asks the Metrics Server nothing (the one chart shows no CPU or memory).
+	// Budget P13 with the node's drawer at 1 h: CPU shown, then the network shown, which
+	// asks the Metrics Server nothing (the one chart shows no CPU or memory).
 	liveGets := func() int64 { return s.Diagnostics().Requests.ByVerbResource["get nodes.metrics.k8s.io"] }
 	measure := func(what string) (prom, live int64) {
 		p0, g0, w0 := proxy(), liveGets(), writes(s)

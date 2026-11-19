@@ -6,9 +6,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A pod whose charts show the network alone has no current CPU and memory (the hub asks for none,
-// 2026-10-16 night): the drawer draws the network and says nothing of missing measurements; at CPU
-// the note is back.
+// A pod whose charts show the network alone has no current CPU and memory (the hub asks for none):
+// the drawer draws the network and says nothing of missing measurements; at CPU the note is back.
 func TestNetworkOnlyChartNeedsNoCurrentUsage(t *testing.T) {
 	networkOnly := func(m *engine.ObjectMetrics) {
 		for i := range m.Targets {

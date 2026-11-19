@@ -19,8 +19,8 @@ import (
 // piece is final, so that what reaches the disk never carries a Secret value (D-10, as D-19). nil
 // is a piece not yet scrubbed.
 //
-// A private conversation is never kept (H-96; the owner's decision of 2026-10-15): a private turn
-// reads what the window shows (H-94), more than the scrubber knows. The rule:
+// A private conversation is never kept (H-96; the owner's decision): a private turn reads what the
+// window shows (H-94), more than the scrubber knows. The rule:
 //
 //   - A conversation becomes private when a turn over a connection the user marked private starts
 //     in it (Send: info.Private, and the user item's Sent.Private records the mark the turn ran
@@ -43,6 +43,9 @@ type conversation struct {
 	history     []message
 	keptHistory []*message
 	payloads    map[int]string // the user item's index → the last request body of its turn (memory only)
+	// choices are the bodies of the requests that had the model choose from a large result, by the
+	// user item's index (choose.go; memory only).
+	choices map[int][]string
 	// raws are the tool results held whole for result_read, by the name their notes give them, the
 	// tool call's id (rawresult.go; memory only); rawOrder the names, the oldest first, and rawBytes
 	// their size.
@@ -72,13 +75,13 @@ type turn struct {
 }
 
 // cut drops the user's message at item, which is a user item, and everything after it (F9, the
-// owner's decision of 2026-10-15): from the items and their kept copies, from the history the model
-// is sent (the user message the item stands for, which is the history's user message of the same
-// rank, and what followed it), from the request bodies and from the raw results held for
-// result_read; cutting the first message takes the title too, so that the new one names the conversation. Nothing tells the model about the cut
-// part: its tool calls, writes included, leave the model's view (H-100); the audit log keeps
-// them. The full slice expressions make the next append allocate, never reuse the cut part's
-// memory. Agent.mu is held.
+// owner's decision): from the items and their kept copies, from the history the model is sent (the
+// user message the item stands for, which is the history's user message of the same rank, and what
+// followed it), from the request bodies and from the raw results held for result_read; cutting the
+// first message takes the title too, so that the new one names the conversation. Nothing tells the
+// model about the cut part: its tool calls, writes included, leave the model's view (H-100); the
+// audit log keeps them. The full slice expressions make the next append allocate, never reuse the
+// cut part's memory. Agent.mu is held.
 func (c *conversation) cut(item int) {
 	users := 0
 	for _, it := range c.items[:item] {
@@ -106,6 +109,11 @@ func (c *conversation) cut(item int) {
 			delete(c.payloads, i)
 		}
 	}
+	for i := range c.choices {
+		if i >= item {
+			delete(c.choices, i)
+		}
+	}
 	if item == 0 {
 		c.info.Title, c.keptTitle = "", ""
 	}
@@ -129,6 +137,10 @@ func hadPrivateTurn(items []engine.ChatItem) bool {
 func cloneItem(it engine.ChatItem) engine.ChatItem {
 	if it.Tool != nil {
 		t := *it.Tool
+		if t.Choice != nil {
+			ch := *t.Choice
+			t.Choice = &ch
+		}
 		it.Tool = &t
 	}
 	if it.Sent != nil {

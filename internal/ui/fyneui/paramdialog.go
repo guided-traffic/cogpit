@@ -23,13 +23,13 @@ import (
 
 // The parameter dialog: what a command needs beyond its object (Scale's replicas, Drain's
 // options), in a form generated from the command's JSON schema (engine.Command.DialogFields) and
-// what the command says of its dialog (Command.DialogField, D-104). The owner's gate walk of
-// 2026-10-20: "Deine Texte sind echt hilfreich, aber sie überladen unsere Masken teilweise enorm"
-// (GW6), so a field's hint is the tooltip of a small "?" after its name, never a line under it;
-// fields are as wide as what they hold; Scale's replicas have a slider from 1 to 30 with the count
-// typed beside it for more (GW2). The rows are a table as every Cogpit dialog's are (D-85): the
-// names muted on the left, the fields beside them. A value the schema refuses shows why under its
-// field, in the error colour, and greys the confirm button until it is corrected.
+// what the command says of its dialog (Command.DialogField, D-104). The owner's gate walk: "Deine
+// Texte sind echt hilfreich, aber sie überladen unsere Masken teilweise enorm" (GW6), so a field's
+// hint is the tooltip of a small "?" after its name, never a line under it; fields are as wide as
+// what they hold; Scale's replicas have a slider from 1 to 30 with the count typed beside it for
+// more (GW2). The rows are a table as every Cogpit dialog's are (D-85): the names muted on the
+// left, the fields beside them. A value the schema refuses shows why under its field, in the error
+// colour, and greys the confirm button until it is corrected.
 
 // paramDialog is a shown parameter dialog.
 type paramDialog struct {
@@ -361,7 +361,7 @@ func (l paramRowsLayout) Layout(objs []fyne.CanvasObject, _ fyne.Size) {
 // name's column wide and the row tall, shows the hint: the pointer need not hit the icon. A click
 // shows it at once, a second one hides it. The tooltip is asked for at the pointer's event, not
 // kept from the start: the navigator's foot builds its "?" before the shell has its tooltip, and
-// a hover there ended Cogpit (v0.31.0, the owner's report of 2026-10-20).
+// a hover there ended Cogpit (v0.31.0, the owner's report).
 type fieldName struct {
 	widget.BaseWidget
 	text, hint string

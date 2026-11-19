@@ -108,8 +108,8 @@ func TestFluxStatusTexts(t *testing.T) {
 		{fluxGitRepos, "ssh", "ref", "tag v2.1.0", none, ok},
 		{fluxAlerts, "static", "status", "Ready", ok, ok}, // v1beta3: no status, ready unless suspended
 		// An OCI Helm repository has no status since Flux 2.1 and the flux CLI calls it Ready (seen
-		// on a real cluster, 2026-10-16, where Cogpit showed Unknown); a plain one without a
-		// status stays unknown.
+		// on a real cluster, where Cogpit showed Unknown); a plain one without a status stays
+		// unknown.
 		{fluxHelmRepos, "oci-static", "status", "Ready", ok, ok},
 		{fluxHelmRepos, "oci-static", "message", "", none, ok},
 		{fluxHelmRepos, "oci-suspended", "status", "Suspended", stopped, stopped},

@@ -8,10 +8,10 @@ import (
 	"fyne.io/fyne/v2/test"
 )
 
-// A column dragged narrower than its title keeps the title within it (the owner, 2026-11-03: the
-// headers ran over each other): the title is shortened with an ellipsis, room left for the sort
-// arrow, which stays inside the column too; the header is marked cut, so its tooltip names the
-// title whole. Wide enough, the title shows whole and is not cut.
+// A column dragged narrower than its title keeps the title within it (the owner: the headers ran
+// over each other): the title is shortened with an ellipsis, room left for the sort arrow, which
+// stays inside the column too; the header is marked cut, so its tooltip names the title whole. Wide
+// enough, the title shows whole and is not cut.
 func TestHeaderTitleFitsItsColumn(t *testing.T) {
 	sh, _, _ := newTestShell(t, connectedFake(t, 1), Options{})
 	h := newHeaderCell(nil)

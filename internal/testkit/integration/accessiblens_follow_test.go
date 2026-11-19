@@ -94,7 +94,7 @@ func readsOf(srv *testkit.FakeAPIServer, resource string) map[string]int64 {
 
 // readsSettled is readsOf once the reads of resource stopped changing for a moment: a read's watch
 // follows its list (client-go opens it once the list filled the store), later under the race
-// detector (main's race job, 2026-10-26: the list counted, its watch not yet).
+// detector (main's race job: the list counted, its watch not yet).
 func readsSettled(ctx context.Context, srv *testkit.FakeAPIServer, resource string) map[string]int64 {
 	return settledMap(ctx, func() map[string]int64 { return readsOf(srv, resource) })
 }
@@ -308,10 +308,10 @@ func TestBudgetNamespaceLimitedUser(t *testing.T) {
 		}
 	})
 
-	// D-39 (owner, 2026-10-14): a user who may list pods in team-a and team-b but their metrics in
-	// team-a only. team-b's refused list of pods.metrics.k8s.io affects team-b alone: its rows stay
-	// empty and metrics.get says forbidden for team-b, team-a's rows have their values, the Metrics
-	// Server's status stays available, and nothing looks for a Prometheus in its place (no read of
+	// D-39 (owner): a user who may list pods in team-a and team-b but their metrics in team-a only.
+	// team-b's refused list of pods.metrics.k8s.io affects team-b alone: its rows stay empty and
+	// metrics.get says forbidden for team-b, team-a's rows have their values, the Metrics Server's
+	// status stays available, and nothing looks for a Prometheus in its place (no read of
 	// services).
 	t.Run("pods in two namespaces, their metrics in one", func(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)

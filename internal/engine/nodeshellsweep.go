@@ -12,16 +12,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cluster"
 )
 
-// The node shell pods a crash left (H-71, owner 2026-10-14): when Cogpit connects to a context, it
-// deletes the node shell pods its journal (nodeshelljournal.go) still names for that context, each
-// with its UID as the delete's precondition, and says so in a notification. It never deletes a pod
-// it did not create: only pods its own journal names, by UID; an entry recorded before the create
-// returned (no UID) is matched by name and then by the random id the pod carries
-// (NodeShellIDAnnotation) before its UID is used. Entries of another live Cogpit process of the
-// user, and pods this session is creating, holds or deleting, are left alone. A pod that is gone,
-// or whose name another pod has now, only clears its entry; a refused delete (forbidden, a lost
-// connection) keeps the entry, says so, and is tried again at the next connect. Every delete is in
-// the audit log. It runs off the UI goroutine and recovers from a panic (goSafe).
+// The node shell pods a crash left (H-71, owner): when Cogpit connects to a context, it deletes the
+// node shell pods its journal (nodeshelljournal.go) still names for that context, each with its UID
+// as the delete's precondition, and says so in a notification. It never deletes a pod it did not
+// create: only pods its own journal names, by UID; an entry recorded before the create returned (no
+// UID) is matched by name and then by the random id the pod carries (NodeShellIDAnnotation) before
+// its UID is used. Entries of another live Cogpit process of the user, and pods this session is
+// creating, holds or deleting, are left alone. A pod that is gone, or whose name another pod has
+// now, only clears its entry; a refused delete (forbidden, a lost connection) keeps the entry, says
+// so, and is tried again at the next connect. Every delete is in the audit log. It runs off the UI
+// goroutine and recovers from a panic (goSafe).
 
 // NodeShellIDAnnotation carries a node shell pod's random id, the journal entry's ID.
 const NodeShellIDAnnotation = "cogpit.io/node-shell-id"

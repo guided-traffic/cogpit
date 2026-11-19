@@ -29,10 +29,10 @@ func (m *Metrics) ListNodeDisks(_ context.Context) ([]model.NodeDisk, error) {
 	}
 	m.c.mu.Unlock()
 	slices.Sort(names)
-	at := m.measuredAt()
+	at, stamp := m.measuredAt()
 	out := make([]model.NodeDisk, 0, len(names))
 	for _, name := range names {
-		out = append(out, model.NewNodeDisk(name, at, demoFilesystems(name, at)))
+		out = append(out, model.NewNodeDisk(name, stamp, demoFilesystems(name, at)))
 	}
 	return out, nil
 }

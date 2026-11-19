@@ -20,7 +20,7 @@ import (
 // commands (architecture §4.4):
 //
 //   - a Namespace link in a list's Namespace column narrows the view's namespace filter to that
-//     namespace (ui.setNamespace; owner, 2026-10-11);
+//     namespace (ui.setNamespace; owner);
 //   - a link without a name opens its kind's list view (ui.openView);
 //   - any other link shows the object (ui.navigate); an empty context is the row's.
 //

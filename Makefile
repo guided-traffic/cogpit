@@ -178,13 +178,14 @@ test-fork: ## Tests and fuzz seeds of the patched terminal widget, a module of i
 # whose one kind test is the Prometheus drawer's (a race build of the UI's package for a skip).
 # KIND_ADDONS=1 runs them after their add-on's target (kind-prometheus; TestKindKubePrometheusStack
 # kind-kps, TestKindVictoriaMetrics kind-vm, TestKindAlertmanager kind-alertmanager, TestKindKyverno
-# kind-kyverno, TestKindTrivy kind-trivy; TestKindMetricsFallback also COGPIT_KIND_FALLBACK=1), e.g.
+# and TestKindKyvernoRefusedClusterReports kind-kyverno, TestKindTrivy kind-trivy;
+# TestKindMetricsFallback also COGPIT_KIND_FALLBACK=1), e.g.
 # make kind-prometheus && make test-kind KIND_ADDONS=1 KIND_RUN='^TestKindPrometheus'.
 KIND_ALL_PKGS    = $(sort $(addprefix ./,$(dir $(shell grep -rl --include='*_test.go' '^//go:build kind' cmd internal))))
 KIND_PKGS        = $(if $(KIND_ADDONS),$(KIND_ALL_PKGS),$(filter-out ./internal/ui/fyneui/,$(KIND_ALL_PKGS)))
 KIND_RUN        ?= ^TestKind
 KIND_ADDON_TESTS := TestKindPrometheus TestKindPrometheusDrawer TestKindNodeExporterByAddress TestKindMetricsFallback \
-	TestKindKubePrometheusStack TestKindVictoriaMetrics TestKindAlertmanager TestKindKyverno TestKindTrivy
+	TestKindKubePrometheusStack TestKindVictoriaMetrics TestKindAlertmanager TestKindKyverno TestKindKyvernoRefusedClusterReports TestKindTrivy
 KIND_SKIP        = ^(TestKindDrain.*$(if $(KIND_ADDONS),,|$(subst $(space),|,$(strip $(KIND_ADDON_TESTS)))))$$
 
 test-kind-compile: ## Compile the cluster tests without a cluster or a run (CI does it while the cluster starts)
@@ -383,7 +384,8 @@ WINDOWS_LINT_ENV  := GOOS=windows CGO_ENABLED=0
 
 .PHONY: lint-darwin gosec-darwin
 
-lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'
+lint: $(GOLANGCI_LINT) ## golangci-lint: the team's linters plus depguard layering, for this system's build and Windows'; no dates in Go comments
+	$(GO) run ./hack/commentdates
 	$(GOLANGCI_LINT) run ./...
 	$(if $(WINDOWS_LINT_PKGS),$(WINDOWS_LINT_ENV) $(GOLANGCI_LINT) run $(WINDOWS_LINT_PKGS))
 
@@ -621,7 +623,9 @@ kind-kyverno: ## Install Kyverno, test policies and violating objects into the k
 		--version $(KYVERNO_CHART_VERSION) --namespace cogpit-kyverno --create-namespace \
 		--values hack/kind/kyverno/values.yaml --wait --timeout 10m
 	$(KUBECTL) apply -f hack/kind/kyverno/before.yaml
-	$(KUBECTL) apply -f hack/kind/kyverno/policies.yaml
+	@# helm's --wait sees the pods ready a moment before Kyverno's policy webhook answers
+	@for i in $$(seq 1 60); do $(KUBECTL) apply -f hack/kind/kyverno/policies.yaml && exit 0; \
+		echo "Kyverno's webhook does not answer yet ($$i/60)"; sleep 2; done; exit 1
 	$(KUBECTL) wait --for=condition=Ready clusterpolicy -l cogpit-kyverno=true --timeout 2m
 	$(KUBECTL) apply -f hack/kind/kyverno/after.yaml
 

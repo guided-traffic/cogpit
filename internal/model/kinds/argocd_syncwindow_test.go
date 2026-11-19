@@ -30,7 +30,7 @@ func argoWindowProject(windows ...map[string]any) *unstructured.Unstructured {
 
 // TestArgoSyncBlocked (A33): a manual sync against an AppProject's windows, as Argo CD checks it.
 func TestArgoSyncBlocked(t *testing.T) {
-	// 2026-10-14 is a Wednesday; at 10:30 UTC.
+	// A Wednesday, 10:30 UTC.
 	now := time.Date(2026, 10, 14, 10, 30, 0, 0, time.UTC)
 	app := argoWindowApp("shop-web", "shop", "https://kubernetes.default.svc")
 	denyNow := map[string]any{"kind": "deny", "schedule": "0 10 * * *", "duration": "1h", "applications": []any{"shop-*"}}
@@ -86,9 +86,9 @@ func TestArgoSyncBlocked(t *testing.T) {
 
 // TestArgoSyncBlockedAsArgoCD35 holds the check to Argo CD 3.5.5's CanSync where Cogpit's first
 // reading of it differed (read in its source and checked against a live controller on a real
-// cluster, 2026-10-16): a manual sync passes a deny window only when every active deny window
-// allows manual syncs, and passes closed allow windows only when every one of them does; a
-// cluster pattern's * matches a server URL's slashes.
+// cluster): a manual sync passes a deny window only when every active deny window allows manual
+// syncs, and passes closed allow windows only when every one of them does; a cluster pattern's *
+// matches a server URL's slashes.
 func TestArgoSyncBlockedAsArgoCD35(t *testing.T) {
 	now := time.Date(2026, 10, 14, 10, 30, 0, 0, time.UTC)
 	app := argoWindowApp("shop-web", "shop", "https://kubernetes.default.svc")

@@ -6,13 +6,13 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Follow by scrolling (the owner's alpha walk of 2026-10-22, AW14, verbatim): "Ich vergesse immer
-// das Follow-Flag raus zu nehmen wenn ich hoch scrolle. Bekommen wir das automatisiert, wenn der
-// Nutzer 5-6 Zeilen nach oben scrollt, wird das Follow-Flag entfernt und wenn er wieder runter
-// scrollt, bis zur aktuellen Zeile im Log, wird Follow wieder aktiviert? Ist er auf der aktuellen
-// Zeile des Logs und deaktiviert follow über das Flag, bleibt das Log dort einfach stehen (wie
-// heute) und wenn er irgendwo im Log ist und Follow aktiviert, springt er zur aktuellen Zeile und
-// folgt (wie heute)". The lead's details, open to revision (D-99):
+// Follow by scrolling (the owner's alpha walk, AW14, verbatim): "Ich vergesse immer das Follow-Flag
+// raus zu nehmen wenn ich hoch scrolle. Bekommen wir das automatisiert, wenn der Nutzer 5-6 Zeilen
+// nach oben scrollt, wird das Follow-Flag entfernt und wenn er wieder runter scrollt, bis zur
+// aktuellen Zeile im Log, wird Follow wieder aktiviert? Ist er auf der aktuellen Zeile des Logs und
+// deaktiviert follow über das Flag, bleibt das Log dort einfach stehen (wie heute) und wenn er
+// irgendwo im Log ist und Follow aktiviert, springt er zur aktuellen Zeile und folgt (wie heute)".
+// The lead's details, open to revision (D-99):
 //   - a scroll of the user's is one the list's scroller reports outside the view's own scrolling
 //     and layout (logList.quietly): the wheel and the trackpad over the lines or the scroll bar,
 //     the bar's drag, a click on its track; the stream's flushes, a jump, a selection's

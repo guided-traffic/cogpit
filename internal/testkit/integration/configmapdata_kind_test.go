@@ -205,10 +205,10 @@ data:
 		t.Fatalf("the rebased save: %v", got)
 	}
 
-	// Keys added and removed (the owner's audit decision of 2026-10-16): the server accepts the dry
-	// run of an edit that adds a key of 253 characters and one more and removes one; the save is
-	// destructive and asks the confirmer, naming the keys; the Config Map then holds the new keys and
-	// not the removed one.
+	// Keys added and removed (the owner's audit decision): the server accepts the dry run of an
+	// edit that adds a key of 253 characters and one more and removes one; the save is destructive
+	// and asks the confirmer, naming the keys; the Config Map then holds the new keys and not the
+	// removed one.
 	var asked []engine.ConfirmRequest
 	s.SetConfirmer(engine.ConfirmFunc(func(_ context.Context, req engine.ConfirmRequest) (bool, error) {
 		asked = append(asked, req)

@@ -16,16 +16,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision of
-// 2026-10-16, N152 (b); decisions D-55 and D-59). Where the user may save the data, each key's
-// line ends with a remove button and the footer starts with Add Key, which opens a row for the new
-// key's name, checked as the API server checks it (engine.CheckDataKey) and against the keys the
-// data and the drawer hold; Add puts the key at the end of the data with an empty editor. A removed
-// key shows as removed, its value hidden, with Undo; Save writes every change at once. The review
-// before Save names the keys removed, in the error colour with the object, its namespace and its
-// context, and the keys added; a save that removes a key is destructive, so the review is its
-// confirmation (helmrollback.go's dialog answer): its Save arms after the confirmation's delay and
-// hands the engine the answer for exactly that command, object, UID and keys.
+// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision, N152
+// (b); decisions D-55 and D-59). Where the user may save the data, each key's line ends with a
+// remove button and the footer starts with Add Key, which opens a row for the new key's name,
+// checked as the API server checks it (engine.CheckDataKey) and against the keys the data and the
+// drawer hold; Add puts the key at the end of the data with an empty editor. A removed key shows as
+// removed, its value hidden, with Undo; Save writes every change at once. The review before Save
+// names the keys removed, in the error colour with the object, its namespace and its context, and
+// the keys added; a save that removes a key is destructive, so the review is its confirmation
+// (helmrollback.go's dialog answer): its Save arms after the confirmation's delay and hands the
+// engine the answer for exactly that command, object, UID and keys.
 
 // keyAdder is the footer's Add Key and the row it opens: the new key's name, Add and Cancel, and a
 // line that says why a name cannot be added.
@@ -50,8 +50,8 @@ func newKeyAdder(width float32, taken func(string) string, onAdd func(string)) *
 	a.add.Importance = widget.HighImportance
 	cancel := newPlateButton("Cancel", nil, a.close)
 	a.hint = newParagraph("", colorMuted, width)
-	// Room around the row (the owner's WF12, 2026-10-18: "nur zu gequetscht"): a gap between the
-	// name and its buttons, and one under the row before the footer (dataGap above it).
+	// Room around the row (the owner's WF12: "nur zu gequetscht"): a gap between the name and its
+	// buttons, and one under the row before the footer (dataGap above it).
 	buttons := container.NewHBox(newHGap(theme.SizeNamePadding), a.add, cancel)
 	a.row = container.NewVBox(container.NewBorder(nil, nil, nil, buttons, a.entry), a.hint, newSpace(theme.SizeNameInnerPadding))
 	a.row.Hide()
@@ -296,14 +296,14 @@ func (rv *secReview) target() model.ObjectRef {
 }
 
 // dataGap is the room between a data section's last key and its Add Key row and footer (the
-// owner's WF12, 2026-10-18: "ein bisschen zu dicht am letzten key-value pair").
+// owner's WF12: "ein bisschen zu dicht am letzten key-value pair").
 func dataGap() fyne.CanvasObject { return newSpace(theme.SizeNameInnerPadding) }
 
 // editCounts is a data section's edited state in its footer, beside Revert and Save (the owner's
-// WF31, 2026-10-19: "Die Statuszeile ist absolut übersehbar"; it was "Edited: 1 value." in small
-// muted text under the footer): a tinted pill per count, coloured as a diff marks its lines, the
-// values edited in the warning colour, the keys added in the green of their "new" tag, the keys
-// removed in the red of their struck name. Nothing shows while nothing is edited (D-100).
+// WF31: "Die Statuszeile ist absolut übersehbar"; it was "Edited: 1 value." in small muted text
+// under the footer): a tinted pill per count, coloured as a diff marks its lines, the values edited
+// in the warning colour, the keys added in the green of their "new" tag, the keys removed in the
+// red of their struck name. Nothing shows while nothing is edited (D-100).
 type editCounts struct {
 	box                    *fyne.Container
 	values, added, removed *pill

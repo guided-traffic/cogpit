@@ -14,8 +14,8 @@ import (
 // the confirmation is the engine's.
 
 // iconUnlock is Remove finalizers' icon: an open padlock, the hold on the object's deletion
-// released (Cogpit's drawing, clean-room; the owner found scissors a poor sign, 2026-11-04). A
-// shackle lifted out of the body on the left over a body with a keyhole, filled shapes on the 24 unit grid so that
+// released (Cogpit's drawing, clean-room; the owner found scissors a poor sign). A shackle lifted
+// out of the body on the left over a body with a keyhole, filled shapes on the 24 unit grid so that
 // Fyne draws it in the theme's colours like its own icons.
 var iconUnlock = fyne.NewStaticResource("cogpit-unlock.svg", []byte(`<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">`+
 	`<path d="M7 6.5a5 5 0 0 1 10 0V11h-2V6.5a3 3 0 0 0-6 0z"/>`+

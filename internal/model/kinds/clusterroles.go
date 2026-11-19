@@ -8,11 +8,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// clusterRoles has the columns captured from Lens on 2026-10-11: Name, the warning icon, Age; no
-// namespace filter (the kind is cluster-scoped). The warning rule is inferred: a cluster role
-// without rules grants nothing, and an aggregated one whose rules the aggregation controller left
-// empty matches no cluster role that grants anything. A cluster role has no state, so a row
-// without a warning has no status token.
+// clusterRoles has the columns captured from Lens: Name, the warning icon, Age; no namespace filter
+// (the kind is cluster-scoped). The warning rule is inferred: a cluster role without rules grants
+// nothing, and an aggregated one whose rules the aggregation controller left empty matches no
+// cluster role that grants anything. A cluster role has no state, so a row without a warning has no
+// status token.
 var clusterRoles = &model.KindProfile{
 	Key:      keyClusterRoles,
 	Group:    groupRBAC,

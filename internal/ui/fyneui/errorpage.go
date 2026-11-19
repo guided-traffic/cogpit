@@ -13,10 +13,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A failed connect's error page (D-114, the owner's AW17 of 2026-10-22, his choice (b)). After the
-// shown cluster's connect failed (the restore's or a click's) the workspace shows this page,
-// whether or not a tab is open: the welcome page shows only while no cluster is chosen. Before, the
-// welcome page took the workspace and said the raw error chain in its status line (the restore's
+// A failed connect's error page (D-114, the owner's AW17, his choice (b)). After the shown
+// cluster's connect failed (the restore's or a click's) the workspace shows this page, whether or
+// not a tab is open: the welcome page shows only while no cluster is chosen. Before, the welcome
+// page took the workspace and said the raw error chain in its status line (the restore's
 // walk-cert-gone), and D-97's placeholder with Connect Again never showed.
 //
 // The page is the welcome page's look as the owner asked ("wie die Welcome seite mit oben dem Cogpit

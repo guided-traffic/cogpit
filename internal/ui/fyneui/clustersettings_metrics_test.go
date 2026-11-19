@@ -37,6 +37,7 @@ func demoSettingsShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
@@ -142,7 +143,7 @@ func TestHideMetricsFromTheSettings(t *testing.T) {
 	})
 	mustDispatch(t, s, "settings.close", struct{}{})
 	// The table follows its own snapshots: wait for the one without CPU too, not only the drawer
-	// (one with the pods' metrics shown again came first on CI, 2026-10-13).
+	// (one with the pods' metrics shown again came first on CI).
 	until("the section with Memory and Filesystem", func() bool {
 		p, ok := sh.drawer.kept[metricsKey].(*metricsPanel)
 		return ok && slices.Contains(findAll[*fyne.Container](sh.drawer.root), p.root) && p.data != nil &&

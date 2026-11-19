@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"os"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -28,9 +30,10 @@ var fixedNow = time.Date(2026, 10, 11, 14, 30, 0, 0, time.UTC)
 
 // newTestEngine is engine.New with the tests' clock, so that a time the window shows (an object's
 // age, "23d ago") is the same in every run and a render changes only when the window does (the
-// owner, 2026-10-25: renders were updated for a day's turn of an age alone). The clock starts at
+// owner: renders were updated for a day's turn of an age alone). The clock starts at
 // fixedNow and runs, so timers and deadlines go on as with time.Now; a test's own Now stays. A
-// demo cluster's objects are dated from fixedNow too.
+// demo cluster's objects are dated from fixedNow too. A connector given no kubeconfig reads none
+// (noDefaultKubeconfig).
 func newTestEngine(o engine.Options) *engine.Session {
 	if o.Now == nil {
 		start := time.Now()
@@ -38,8 +41,18 @@ func newTestEngine(o engine.Options) *engine.Session {
 	}
 	if c, ok := o.Connector.(*engine.ClusterConnector); ok {
 		datedDemo(c)
+		noDefaultKubeconfig(c)
 	}
 	return engine.New(o)
+}
+
+// noDefaultKubeconfig gives a connector without kubeconfig files or sources an empty one: client-go's
+// default ($KUBECONFIG, else ~/.kube/config) would list the developer's clusters in a run without
+// make's TEST_ENV, in the pictures too. Windows keeps the default: its null device is no file.
+func noDefaultKubeconfig(c *engine.ClusterConnector) {
+	if c.Sources == nil && len(c.KubeconfigPaths) == 0 && runtime.GOOS != "windows" {
+		c.KubeconfigPaths = []string{os.DevNull}
+	}
 }
 
 // demoSize sizes a test's demo cluster (demoConnector): engine.DemoOptions' fields a test sets.
@@ -763,8 +776,8 @@ func (q *mainQueue) drain() {
 }
 
 // until drains the queue until cond holds, failing the test after fifteen seconds: five were too few
-// for a race shard on CI's shared runner under load (2026-10-20 night, TestCreateTabKeepsSecretsOffDisk
-// waiting for its tab); a condition that holds returns at once.
+// for a race shard on CI's shared runner under load (TestCreateTabKeepsSecretsOffDisk waiting for
+// its tab); a condition that holds returns at once.
 func (q *mainQueue) until(t testing.TB, what string, cond func() bool) {
 	t.Helper()
 	q.untilShows(t, what, cond, nil)
@@ -839,6 +852,7 @@ func newTestShell(t testing.TB, f *fakeEngine, opts Options) (*shell, fyne.Windo
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
 	sh.start()
+	keepScene(t, w, sh, q)
 	t.Cleanup(func() {
 		sh.stop()
 		q.drain()

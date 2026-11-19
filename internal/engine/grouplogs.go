@@ -15,12 +15,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// A group's logs (A81, the owner's decision of 2026-10-14 evening): an application's logs in one
-// merged tab, each line starting with "<workload>/<pod>/<container> ", with a filter per source.
-// The groups are the GitOps objects that name the workloads they deploy, read from the cache: an
-// Argo CD Application (its status.resources) and a Flux Kustomization (its status.inventory).
-// A Flux Helm release names no workloads in its status, so it is no group (helm-controller labels
-// what it deploys, which a query over every workload kind would have to find).
+// A group's logs (A81, the owner's decision): an application's logs in one merged tab, each line
+// starting with "<workload>/<pod>/<container> ", with a filter per source. The groups are the
+// GitOps objects that name the workloads they deploy, read from the cache: an Argo CD Application
+// (its status.resources) and a Flux Kustomization (its status.inventory). A Flux Helm release names
+// no workloads in its status, so it is no group (helm-controller labels what it deploys, which a
+// query over every workload kind would have to find).
 //
 // The stream is one workload stream per workload (workloadlogs.go), all writing into one sink,
 // each with its share of the tab's bounds; the group's object is watched through the cache, so a

@@ -12,9 +12,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A failed connect's error page (D-114, the owner's AW17 of 2026-10-22), the view's placeholder that
-// stays inside the view (AW18), the welcome page without "Other clusters" (AW13) and the stages in
-// Connection Updates.
+// A failed connect's error page (D-114, the owner's AW17), the view's placeholder that stays inside
+// the view (AW18), the welcome page without "Other clusters" (AW13) and the stages in Connection
+// Updates.
 
 // walkCertCause is the cause of the owner's walk-cert-gone failure as the engine now says it.
 const walkCertCause = "the client certificate file /Users/hfi/walk-cert/client.crt does not exist"

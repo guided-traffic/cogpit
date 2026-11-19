@@ -12,15 +12,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The one form in which every dialog names a Kubernetes object (the owner's WF32, 2026-10-19:
-// "ich möchte dass Config Map noch klarer vom Namen getrennt wird: "Config Map -> walk-cm" oder
-// etwas ähnliches"; D-85, D-100): the kind in the muted colour with an arrow, the name in bold,
-// "Config Map → walk-cm". Several objects are grouped by kind: the kind stands once, on its group's
-// first line, and the names stand under each other in their own column. A dialog's title has the
-// same form without the colours, its arrow ending a text of its own (objectDialogTitle,
-// dialogframe.go: one text with a space after the arrow draws an em-wide gap, D-104); other plain
-// text has objectText. A dialog that names objects (a confirmation, a save review, Rollback, a Helm
-// install, Remove finalizers to come) builds its Object(s) row with objectsRow.
+// The one form in which every dialog names a Kubernetes object (the owner's WF32: "ich möchte dass
+// Config Map noch klarer vom Namen getrennt wird: "Config Map -> walk-cm" oder etwas ähnliches";
+// D-85, D-100): the kind in the muted colour with an arrow, the name in bold, "Config Map →
+// walk-cm". Several objects are grouped by kind: the kind stands once, on its group's first line,
+// and the names stand under each other in their own column. A dialog's title has the same form
+// without the colours, its arrow ending a text of its own (objectDialogTitle, dialogframe.go: one
+// text with a space after the arrow draws an em-wide gap, D-104); other plain text has objectText.
+// A dialog that names objects (a confirmation, a save review, Rollback, a Helm install, Remove
+// finalizers to come) builds its Object(s) row with objectsRow.
 
 // objectArrow sets a kind apart from its name.
 const objectArrow = "→"
@@ -160,9 +160,9 @@ func placeRows(rows *fyne.Container, context string, namespaces []string, objs [
 // contextValue is a dialog's Context row value: the context's id as it is, "kind-cogpit
 // [kubernetes_configs/walk-kind.yaml]", the context in the text colour and the source label that
 // tells two files' contexts of one name apart (D-28, engine.SourceContextID) in the kind word's
-// grey (the owner's alpha walk, AW7, 2026-10-22: "Dann lass es gerne in dem Format wie es ist, aber
-// grau wäre top"), wrapped as before: on the context's line where it fits. An id without a label
-// (the demo) is the context alone.
+// grey (the owner's alpha walk, AW7: "Dann lass es gerne in dem Format wie es ist, aber grau wäre
+// top"), wrapped as before: on the context's line where it fits. An id without a label (the demo)
+// is the context alone.
 func contextValue(id string, width float32) *paragraph {
 	v := newParagraph(id, theme.ColorNameForeground, width)
 	v.hard = true

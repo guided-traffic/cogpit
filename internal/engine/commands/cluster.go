@@ -25,12 +25,11 @@ func connectResult(u engine.UIState) ConnectResult {
 // connectAnswer is the answer of a command that connected contextID (cluster.connect,
 // hotbar.openCluster) once Connect returned err. A connect that goes on in the background because
 // another cluster was shown while it waited is no failure: {context, state: connecting} without an
-// error (D-97; the owner's AW16 of 2026-10-22, every connecting command alike), its end in
-// ui_state's connections and the connection log. A failed connect is its UI state, the error in it.
-// A connect refused before it began (no connector, closed), cancelled by Disconnect
-// (engine.ErrConnectCancelled, the window's Cancel Connecting: AW15) or superseded before it began
-// (engine.ErrConnectSuperseded) is the error; the window raises no toast for the last two
-// (engine.ConnectNotFailed).
+// error (D-97; the owner's AW16, every connecting command alike), its end in ui_state's connections
+// and the connection log. A failed connect is its UI state, the error in it. A connect refused
+// before it began (no connector, closed), cancelled by Disconnect (engine.ErrConnectCancelled, the
+// window's Cancel Connecting: AW15) or superseded before it began (engine.ErrConnectSuperseded) is
+// the error; the window raises no toast for the last two (engine.ConnectNotFailed).
 func connectAnswer(s *engine.Session, contextID string, err error) (any, error) {
 	if errors.Is(err, engine.ErrConnectInBackground) {
 		return ConnectResult{Context: contextID, State: engine.Connecting}, nil

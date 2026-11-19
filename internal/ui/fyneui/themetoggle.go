@@ -10,12 +10,12 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// The title bar's appearance toggle (the owner, 2026-10-21: "einen Button links neben der Glocke …
-// zum Toggle zwischen light / dark mode"): one click shows the other look. It sets the preference
-// Preferences › App › Theme through preferences.set, the command the Preferences page and agents use,
-// so the choice is engine state and survives a restart; a Sync with computer setting becomes the
-// explicit look the click asked for. The icon is the look a click goes to: a sun in the dark, a moon
-// in the light.
+// The title bar's appearance toggle (the owner: "einen Button links neben der Glocke … zum Toggle
+// zwischen light / dark mode"): one click shows the other look. It sets the preference Preferences
+// › App › Theme through preferences.set, the command the Preferences page and agents use, so the
+// choice is engine state and survives a restart; a Sync with computer setting becomes the explicit
+// look the click asked for. The icon is the look a click goes to: a sun in the dark, a moon in the
+// light.
 
 // iconSun and iconMoon are drawn for Cogpit, each one path so that the theme recolours all of it: a
 // disc with eight rays, and a crescent.

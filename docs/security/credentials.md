@@ -562,25 +562,30 @@ stopped waiting and the process may run on (`LoginEndedError.RunsOn`). What is n
   dormant on macOS for a plugin that opens the browser through `open`, which leaves no child (not
   tried with a real plugin).
 - **A process not found.** The `interactiveFunc` wrapper notes Cogpit's children just before
-  client-go starts the plugin; for half a second after, Cogpit takes the new child seen running the
-  plugin's command line (its arguments after its program, or a script's path after its interpreter;
-  a program named by its path only under that path), else the one new child in Cogpit's process
-  group when no other plugin run began within half a second of it, and follows it by number and
-  start time: a wrapper that `exec`s the login program is ended (`TestCancelEndsAPluginThatExecs`),
-  and no signal reaches a number the system gave another process. Without such a process, a cancel
-  or the bound takes the one new child that runs the plugin's command line. Not found: two runs that
-  begin within half a second (two connects or renewals at once) when a wrapper replaced itself
-  before Cogpit saw its command line or both run the same command line; a process that appears after
-  the half second and replaces itself.
+  client-go starts the plugin; until half a second after the first new child appears (on a loaded
+  system client-go starts the plugin well after it asked), Cogpit takes the new child seen running
+  the plugin's command line (its arguments after its program, or a script's path after its
+  interpreter; a program named by its path only under that path), else the one new child in
+  Cogpit's process group when no other plugin run's search looked meanwhile, and follows it by
+  number and start time: a wrapper that `exec`s the login program is ended
+  (`TestCancelEndsAPluginThatExecs`, `TestCancelEndsAWrapperStartedLate`), and no signal reaches a
+  number the system gave another process. Without such a process, a cancel or the bound takes the
+  one new child that runs the plugin's command line. Not found: two runs whose searches overlap (two
+  connects or renewals at once) when a wrapper replaced itself before Cogpit saw its command line
+  or both run the same command line; a wrapper that appears only after a cancel that came more than
+  half a second after the run's begin (a cancel does not wait for a process it cannot see yet:
+  another user's plugin never appears, `TestSearchTakesAChildThatAppearsLate`).
 - **Another child taken for the plugin's**, only if the plugin's own process did not appear within
-  the half second while exactly one other child in Cogpit's group did. Cogpit's other children in
-  its group: `kubectl version --client` ([`kubectl/client.go`](../../internal/kubectl/client.go)),
-  `open` or `xdg-open` for a link or folder the user opens (Fyne's `OpenURL`), and in the Linux
-  package apt's queries and an update's `pkexec`
+  the half second after the first new child while exactly one other child in Cogpit's group did.
+  Cogpit's other children in its group: `kubectl version --client`
+  ([`kubectl/client.go`](../../internal/kubectl/client.go)), `open` or `xdg-open` for a link or
+  folder the user opens (Fyne's `OpenURL`), and in the Linux package apt's queries and an update's
+  `pkexec`
   ([`update/apt_linux.go`](../../internal/update/apt_linux.go)). A terminal's shell runs in a
   session of its own and is never taken: a child counts by its group at Cogpit's last look
-  (`TestSearchCountsTheGroupAChildEndsIn`). Dormant: client-go starts the plugin microseconds after
-  it asked, and a plugin that cannot start ends the run at once.
+  (`TestSearchCountsTheGroupAChildEndsIn`). Dormant: client-go starts the plugin moments after it
+  asked, and another child must start in that moment; a plugin that cannot start ends the run at
+  once.
 - **Windows** (D-111) matches new children by their program's file name only (another process's
   command line is not readable; no `exec` keeps a process's number), so a new child with the same
   program name can be taken for the plugin's (`TestWindowsChildIsFoundAndEnded`); a `.bat` or

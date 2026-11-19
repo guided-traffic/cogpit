@@ -21,8 +21,8 @@ import (
 // A value made of several entries (labels, annotations, ports, images, environment) copies the one
 // entry the pointer is over, in YAML syntax: `app.kubernetes.io/name: grafana`. A Secret's value
 // is copyable revealed or masked: a masked one is read whole when its icon is tapped and copied
-// without being shown (the owner's decision of 2026-10-22, secretcopy.go). The clipboard is cleared
-// again 60 seconds after a copy of a Secret's value if it still holds it.
+// without being shown (the owner's decision, secretcopy.go). The clipboard is cleared again 60
+// seconds after a copy of a Secret's value if it still holds it.
 //
 // It is a GUI behaviour and no engine command: an agent reads values through object_get, so a
 // command would add a way to put a Secret on the user's clipboard, nothing else.
@@ -286,9 +286,8 @@ type copyButton struct {
 	// pinned is an icon that stays shown where its owner put it instead of following the pointer
 	// from value to value (a Secret's editor, secretdata.go); tip is its tooltip, "" for "Copy".
 	// It is a button of its line: as tall as the line's other buttons and outlined as they are
-	// (the owner's finding of 2026-10-23: "Copy ist hier zu klein. Die höhe von "Show", Copy und
-	// Papierkorb muss die gleiche sein. Alle Buttons bekommen den sichtbaren Rahmen"), with
-	// their hover plate.
+	// (the owner's finding: "Copy ist hier zu klein. Die höhe von "Show", Copy und Papierkorb muss
+	// die gleiche sein. Alle Buttons bekommen den sichtbaren Rahmen"), with their hover plate.
 	pinned  bool
 	tip     string
 	hovered bool
@@ -297,7 +296,7 @@ type copyButton struct {
 	stays bool
 	// icon is drawn in the copy icon's place, nil for the copy icon: the b64 button is a pinned copy
 	// icon with its own icon (secretcopy.go), so that its size, outline, hover and checkmark are the
-	// copy icon's (the owner's VW19 of 2026-10-25).
+	// copy icon's (the owner's VW19).
 	icon fyne.Resource
 
 	// The drawer's: the value that keeps room for the icon at its right end, and how much.
@@ -567,7 +566,7 @@ func wrapCopy(content fyne.CanvasObject, hook *copyHook) fyne.CanvasObject {
 
 // MouseIn implements desktop.Hoverable: the icon follows what the content draws, not the wrapper,
 // which its row may stretch to the whole value's width (a status pill, an event's message): the
-// owner saw the icon of a certificate's Not After pill at the drawer's far right (2026-10-13).
+// owner saw the icon of a certificate's Not After pill at the drawer's far right.
 func (w *hoverWrap) MouseIn(*desktop.MouseEvent) {
 	w.hook.enter(w, min(drawnWidth(w.content), w.Size().Width-w.gutter))
 }

@@ -125,8 +125,7 @@ type Prometheus struct {
 	// fsMode is which filesystem metric this Prometheus has, for pods and for nodes (fsKind):
 	// fsUnknown until a query found one. The two differ in practice: the kubelet's cAdvisor on
 	// containerd reports container_fs_usage_bytes for the node's root cgroup but not for
-	// containers (kind with the prometheus chart, 2026-10-12), so a node's "usage" must not decide
-	// the pods'.
+	// containers (kind with the prometheus chart), so a node's "usage" must not decide the pods'.
 	fsMode [2]atomic.Int32
 
 	// nodeMode is where this Prometheus has the nodes' CPU and memory (A43, nodeSource):

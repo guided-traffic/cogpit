@@ -13,12 +13,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A sent message edited and sent again (F9, the owner's decision of 2026-10-15, ChatGPT's form).
-// Every message of the user's has a pencil under its card, at the end of the line of what its turn
-// sent. It opens the message in an editor in place of the card: Enter or Send sends the edited text
-// through ChatAgent.Resend, which drops the message and everything after it from the conversation,
-// the model's history and the kept file (the audit log keeps everything); Escape or Cancel leaves
-// the message as it was. Sending it unchanged retries a failed or stopped turn. The resent message
+// A sent message edited and sent again (F9, the owner's decision, ChatGPT's form). Every message of
+// the user's has a pencil under its card, at the end of the line of what its turn sent. It opens
+// the message in an editor in place of the card: Enter or Send sends the edited text through
+// ChatAgent.Resend, which drops the message and everything after it from the conversation, the
+// model's history and the kept file (the audit log keeps everything); Escape or Cancel leaves the
+// message as it was. Sending it unchanged retries a failed or stopped turn. The resent message
 // attaches the view and selection the input's chip shows at that moment. No warning when editing
 // and no note to the model (the owner's). While a turn of the conversation runs, or while the
 // input could not send either (no cluster, another cluster's conversation), the pencil is dimmed

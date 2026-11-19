@@ -84,3 +84,30 @@ func nestedStr(obj map[string]any, fields ...string) (string, bool, error) {
 	s, ok := cur.(string)
 	return s, ok, nil
 }
+
+// The demo's clock starts at Options.Now: two clusters made with the same Now measure the same
+// numbers within the first resolution, whenever they are made, and a measurement's timestamp is
+// the computer's time of that measurement, within a resolution before now.
+func TestDemoMetricsFollowTheDemosClock(t *testing.T) {
+	now := time.Date(2026, 10, 11, 14, 30, 0, 0, time.UTC)
+	opts := Options{Pods: 200, NoChurn: true, Seed: 3, Now: now, MetricsResolution: time.Hour}
+	ctx := context.Background()
+	before := time.Now()
+	first, err := New(opts).Metrics().ListPods(ctx, "")
+	if err != nil || len(first) == 0 {
+		t.Fatalf("%d pods measured, err %v", len(first), err)
+	}
+	second, _ := New(opts).Metrics().ListPods(ctx, "")
+	got := map[string]int64{}
+	for _, p := range second {
+		got[p.Namespace+"/"+p.Name] = p.Total().CPUMilli + p.Total().MemoryBytes
+	}
+	for _, p := range first {
+		if got[p.Namespace+"/"+p.Name] != p.Total().CPUMilli+p.Total().MemoryBytes {
+			t.Fatalf("pod %s/%s measured %+v, then %d", p.Namespace, p.Name, p.Total(), got[p.Namespace+"/"+p.Name])
+		}
+		if p.Timestamp.After(time.Now()) || p.Timestamp.Before(before.Add(-opts.MetricsResolution)) {
+			t.Fatalf("pod %s/%s measured at %v, not the computer's time %v", p.Namespace, p.Name, p.Timestamp, before)
+		}
+	}
+}

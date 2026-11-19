@@ -73,8 +73,8 @@ func TestTheWatchWritesReconnectAndLoginAttempts(t *testing.T) {
 // reconnectOnly reports whether a reconnect attempt's text holds its own lines only: it begins with
 // "Reconnecting", says "Reconnected" once, and its only warnings are its failed tries before that.
 // A try may fail before the prober is up again (the test turns it up once it saw the interruption,
-// and the first try comes 20 ms after it: a slow runner, Windows on 2026-10-23, tried first); the
-// interruption's own lines never belong here.
+// and the first try comes 20 ms after it: a slow runner, Windows, tried first); the interruption's
+// own lines never belong here.
 func reconnectOnly(text, ctx string) bool {
 	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
 	if len(lines) == 0 || lines[0] != "INFO : Reconnecting to "+ctx {

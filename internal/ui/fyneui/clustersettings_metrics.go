@@ -113,9 +113,9 @@ const metricsSourcesHelp = "Current values come from the Metrics Server; history
 // metricsSourceIntegrations are the integrations Metrics reads, in the rows' order.
 var metricsSourceIntegrations = []engine.Integration{engine.IntegrationMetricsServer, engine.IntegrationPrometheus}
 
-// metricsSourcesSetting builds Cluster settings › Metrics › Sources (D-87, the owner's WF22 of
-// 2026-10-18: Metrics shows that it reads the two metrics integrations, their details live on their
-// own sections): a row per integration, its state's dot in the cluster dots' colours, its name as a
+// metricsSourcesSetting builds Cluster settings › Metrics › Sources (D-87, the owner's WF22:
+// Metrics shows that it reads the two metrics integrations, their details live on their own
+// sections): a row per integration, its state's dot in the cluster dots' colours, its name as a
 // link to its section, and its status line as Integrations words it; under them, while the cluster
 // has no choice of integrations, that nothing is asked (D-82). It replaces Lens's "Metrics source"
 // dropdown (Automatic, Prometheus, Kubernetes Metrics Server, No metrics, captured), which since

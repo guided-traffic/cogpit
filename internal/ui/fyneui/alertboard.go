@@ -23,16 +23,16 @@ import (
 // page (engine.AlertBoard) whose header is a view's (its title, the count, the namespace filter and
 // the search, the UI state's) and whose body replaces the table. Under a line of the severities
 // (each a chip with its count that folds its cards away), a masonry of cards, worst severity first
-// (the owner, 2026-10-27: first the criticality, then a short description of the problem, then a
-// list of the concrete instances, and far less empty room than a full-width list): a card per
-// alertname, its head tinted in the severity's colour with the history of its last 24 hours above
-// it, its text once (the alerts' summaries made one, alerts_card.go), what all its alerts share (the
-// namespace, the object) as links, and a table of its alerts with the columns that tell them apart
-// and since when each fires. The object opens in its view, the namespace narrows the board, the
-// runbook opens in the browser. A card's and a row's Silence open the silence form (silenceform.go,
-// D-166); the first line's Silenced link leads to the silences page (silences.go), which shows in
-// the board's place. The folding is the engine's (alerts.fold), so agents see what the user folded. Karma's layout is the model, not its look: no code, text or
-// asset of it (D-12).
+// (the owner: first the criticality, then a short description of the problem, then a list of the
+// concrete instances, and far less empty room than a full-width list): a card per alertname, its
+// head tinted in the severity's colour with the history of its last 24 hours above it, its text
+// once (the alerts' summaries made one, alerts_card.go), what all its alerts share (the namespace,
+// the object) as links, and a table of its alerts with the columns that tell them apart and since
+// when each fires. The object opens in its view, the namespace narrows the board, the runbook opens
+// in the browser. A card's and a row's Silence open the silence form (silenceform.go, D-166); the
+// first line's Silenced link leads to the silences page (silences.go), which shows in the board's
+// place. The folding is the engine's (alerts.fold), so agents see what the user folded. Karma's
+// layout is the model, not its look: no code, text or asset of it (D-12).
 
 // maxCardAlerts bounds the rows a card shows with all shown: the rest are counted under it, for the
 // search to narrow. A card of thousands would cost thousands of widgets at every refresh.
@@ -800,13 +800,13 @@ func (b *alertBoard) ownText(text string) fyne.CanvasObject {
 	return inset(theme.SizeNameInlineIcon, "", newSelLine(l, nil, b.copySelection))
 }
 
-// cardCopy is the copy icon of a card's alertname (the owner's WF21, 2026-10-18: "Alarm-Namen
-// müssen kopierbar sein"), right after the name (WF34, 2026-10-19: it sat at the card's far right):
-// shown while the pointer is on the card's head or on the icon, as the lists' copy icon (D-25: the
-// same icon, its checkmark after a copy, the same toast); its room is kept (iconSlot), so the head
-// does not move when it shows, and the head's tooltip gives way to the icon's over it. attach hands
-// it the head's hover. A board rebuilt under the pointer shows the
-// icon of the card it is on at once (alertBoard.hoverKey).
+// cardCopy is the copy icon of a card's alertname (the owner's WF21: "Alarm-Namen müssen kopierbar
+// sein"), right after the name (WF34: it sat at the card's far right): shown while the pointer is
+// on the card's head or on the icon, as the lists' copy icon (D-25: the same icon, its checkmark
+// after a copy, the same toast); its room is kept (iconSlot), so the head does not move when it
+// shows, and the head's tooltip gives way to the icon's over it. attach hands it the head's hover.
+// A board rebuilt under the pointer shows the icon of the card it is on at once
+// (alertBoard.hoverKey).
 func (b *alertBoard) cardCopy(key, name string) (icon fyne.CanvasObject, attach func(head *alertTap)) {
 	var done *time.Timer // the checkmark's
 	var onHead, onIcon bool

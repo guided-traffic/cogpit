@@ -5,16 +5,15 @@ import (
 	"fmt"
 )
 
-// A connect of the cluster the window's connect waits for already (the lead's finding of
-// 2026-10-22, in the family of the owner's AW16): a second cluster.connect of a cluster that is
-// connecting, from the navigator's section, the palette or an agent, joined the connect run under
-// way (no second login, D-97) but ended the first connect's wait as a connect of another cluster
-// does, with ErrConnectInBackground, and the window toasted "another cluster was shown; the
-// connect goes on in the background" although nothing else was shown. Now the second connect joins
-// the first's wait instead: the first goes on waiting, and both answer with the first's answer
-// (connected, its failure, cancelled, or in the background when another cluster is shown after
-// all). Nothing about the cluster changes: the run, its login and the window's state are the
-// first's.
+// A connect of the cluster the window's connect waits for already (the lead's finding, in the
+// family of the owner's AW16): a second cluster.connect of a cluster that is connecting, from the
+// navigator's section, the palette or an agent, joined the connect run under way (no second login,
+// D-97) but ended the first connect's wait as a connect of another cluster does, with
+// ErrConnectInBackground, and the window toasted "another cluster was shown; the connect goes on in
+// the background" although nothing else was shown. Now the second connect joins the first's wait
+// instead: the first goes on waiting, and both answer with the first's answer (connected, its
+// failure, cancelled, or in the background when another cluster is shown after all). Nothing about
+// the cluster changes: the run, its login and the window's state are the first's.
 
 // windowConnect is the window's latest connect while it runs (Session.connect, state.connectWait).
 type windowConnect struct {

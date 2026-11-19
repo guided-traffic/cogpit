@@ -219,7 +219,7 @@ func TestEditTabSaveReviewsThenApplies(t *testing.T) {
 		t.Fatal("the edit tab starts in the editor, editable")
 	}
 	// The title and the time it loaded, nothing else: no resourceVersion ("41", D-85). On the shell's
-	// clock, so that a wall clock at hh:41 or hh:mm:41 cannot match (CI, 2026-10-18: run 39161105286).
+	// clock, so that a wall clock at hh:41 or hh:mm:41 cannot match (CI: run 39161105286).
 	if want := "Service checkout · loaded at " + sh.timeFormat().FormatTime(fixedNow); et.status.text != want {
 		t.Errorf("status %q, want %q", et.status.text, want)
 	}

@@ -10,9 +10,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The renders of the owner's gate walk of 2026-10-20 (GW2, GW5, GW6; D-104): the real Drain's
-// dialog, the Scale dialog with its hint's tooltip, the Rollback dialog with its dropdown closed and
-// open. PNGs: testdata/drain_dialog_*.png, scale_dialog_hint_*.png, rollback_dialog_*.png,
+// The renders of the owner's gate walk (GW2, GW5, GW6; D-104): the real Drain's dialog, the Scale
+// dialog with its hint's tooltip, the Rollback dialog with its dropdown closed and open. PNGs:
+// testdata/drain_dialog_*.png, scale_dialog_hint_*.png, rollback_dialog_*.png,
 // rollback_dropdown_*.png; the Scale dialog's own: scale_dialog_*.png (render_drawer_test.go).
 
 func renderDrainDialog(t *testing.T, mode ThemeMode, name string) {

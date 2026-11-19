@@ -35,8 +35,8 @@ var events = &model.KindProfile{
 		{ID: "count", Title: "Count", Type: model.ColumnNumber},
 		ageColumn,
 		// Lens shows Last Seen as a timestamp ("2026-10-11T16:04:00Z", in UTC), not an age
-		// (capture, 2026-10-11); Cogpit writes it in the user's zone and format when it is drawn
-		// (D-31) and sorts it by time.
+		// (capture); Cogpit writes it in the user's zone and format when it is drawn (D-31) and
+		// sorts it by time.
 		{ID: "lastSeen", Title: "Last Seen", Type: model.ColumnTime},
 	},
 	// An event's state is its Type, Normal or Warning (the status filter, D-34).
@@ -63,7 +63,7 @@ var events = &model.KindProfile{
 	},
 	Detail: eventDetail,
 	// An involved custom resource links to its kind's view through its definition (Lens links
-	// custom kinds too, capture 2026-10-11); the definitions are the custom kinds' own watch.
+	// custom kinds too, capture); the definitions are the custom kinds' own watch.
 	Needs:      []model.RelatedIndex{CustomKindsByGroupKind},
 	CellsWith:  eventCellsWith,
 	DetailWith: eventDetailWith,
@@ -79,7 +79,7 @@ func eventCellsWith(obj *unstructured.Unstructured, rel model.Related) ([]model.
 	msg := model.Cell{Text: singleLine(eventMessage(obj))}
 	if typ == eventWarning {
 		// As in Lens: a warning's message is red; the Type cell and normal events stay
-		// uncoloured, so warnings stand out (capture, 2026-10-11).
+		// uncoloured, so warnings stand out (capture).
 		rowToken = model.StatusWarning
 		msg.Status = model.StatusError
 	}
@@ -129,10 +129,10 @@ func eventObject(obj any) (kind, name string) {
 }
 
 // eventObjectLink links the involved object ("Kind: name", a link in Lens, custom kinds included,
-// capture 2026-10-11). Built-in kinds link by their key; a custom resource's key needs its plural,
-// which an event does not carry, so it links through its definition in rel (refToWith) and stays
-// plain without one. A namespaced object without a namespace in the reference lives in the
-// event's namespace.
+// capture). Built-in kinds link by their key; a custom resource's key needs its plural, which an
+// event does not carry, so it links through its definition in rel (refToWith) and stays plain
+// without one. A namespaced object without a namespace in the reference lives in the event's
+// namespace.
 func eventObjectLink(obj any, rel model.Related) *model.ObjectRef {
 	ref := model.NestedMap(obj, "involvedObject")
 	if ref == nil {

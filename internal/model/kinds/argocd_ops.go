@@ -9,13 +9,13 @@ import (
 const ArgoSyncInitiator = "cogpit"
 
 // ArgoSyncOperation builds the operation a Sync writes into an Application, as Argo CD's API
-// server builds it for argocd app sync without options (D-36; Server.Sync of Argo CD 3.5.5, read
-// 2026-10-16): the source the user confirmed, a copy of the spec's (source for one, sources for
-// several: the controller then syncs it even if the spec changes before it runs, as it does for
-// argocd app sync), the revision of each source as the spec targets it (revision for one source,
-// revisions for several), prune as asked, the sync options and the retry strategy of the
-// Application's own syncPolicy, and Cogpit as the initiator. No dry run, no strategy (the
-// controller's default, apply), every resource.
+// server builds it for argocd app sync without options (D-36; Server.Sync of Argo CD 3.5.5): the
+// source the user confirmed, a copy of the spec's (source for one, sources for several: the
+// controller then syncs it even if the spec changes before it runs, as it does for argocd app
+// sync), the revision of each source as the spec targets it (revision for one source, revisions for
+// several), prune as asked, the sync options and the retry strategy of the Application's own
+// syncPolicy, and Cogpit as the initiator. No dry run, no strategy (the controller's default,
+// apply), every resource.
 func ArgoSyncOperation(app any, prune bool) map[string]any {
 	sync := map[string]any{"prune": prune}
 	if list := model.NestedSlice(app, fieldSpec, fieldArgoSources); len(list) > 0 {

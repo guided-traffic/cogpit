@@ -6,10 +6,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// A drawer's poll asks for CPU and memory only while a visible chart shows them (2026-10-16
-// night): a chart at its default shows CPU, or memory with CPU hidden; a variant hidden since
-// shows the default; the containers' charts count unless hidden, and a pod the cache does not hold
-// yet counts them at the default.
+// A drawer's poll asks for CPU and memory only while a visible chart shows them: a chart at its
+// default shows CPU, or memory with CPU hidden; a variant hidden since shows the default; the
+// containers' charts count unless hidden, and a pod the cache does not hold yet counts them at the
+// default.
 func TestDrawerUsageShownByItsCharts(t *testing.T) {
 	pods, _ := kinds.ByKey("pods")
 	nodes, _ := kinds.ByKey("nodes")

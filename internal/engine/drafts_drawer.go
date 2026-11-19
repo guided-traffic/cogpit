@@ -13,18 +13,18 @@ import (
 )
 
 // A Config Map's values edited in the drawer and not saved, kept in memory and as a draft on disk
-// (the owner's answer of 2026-10-15 to the lead's question of D-55: "as the Edit tab's"). The
-// drawer hands the edited values to configMap.keepEdits as the user types; the session keeps them
-// for the drawer's next visit of the Config Map (configMap.readData returns them to the window),
-// and the drafts (drafts.go) write them a moment after the typing stops into drafts/<id>.json,
-// owner-only, removed when the user saves or reverts them. A quit or a crash leaves the draft,
-// which is offered when its context connects (EventDrafts, editor.drafts): editor.restoreDraft
-// opens the drawer on the Config Map with the values in its editors, based on the version they
-// were edited at, editor.discardDraft deletes it. Only the window keeps such edits
-// (configMap.keepEdits is GUI-only, and only the window reads them back): an agent cannot plant
-// values the user would take for their own, and changes a Config Map with configMap.saveData,
-// which the user sees. A Secret's values are never kept here, nor anywhere on disk (D-59): the
-// window keeps them in its memory only.
+// (the owner's answer to the lead's question of D-55: "as the Edit tab's"). The drawer hands the
+// edited values to configMap.keepEdits as the user types; the session keeps them for the drawer's
+// next visit of the Config Map (configMap.readData returns them to the window), and the drafts
+// (drafts.go) write them a moment after the typing stops into drafts/<id>.json, owner-only, removed
+// when the user saves or reverts them. A quit or a crash leaves the draft, which is offered when
+// its context connects (EventDrafts, editor.drafts): editor.restoreDraft opens the drawer on the
+// Config Map with the values in its editors, based on the version they were edited at,
+// editor.discardDraft deletes it. Only the window keeps such edits (configMap.keepEdits is
+// GUI-only, and only the window reads them back): an agent cannot plant values the user would take
+// for their own, and changes a Config Map with configMap.saveData, which the user sees. A Secret's
+// values are never kept here, nor anywhere on disk (D-59): the window keeps them in its memory
+// only.
 
 // DraftConfigMapData is the type of a draft of a Config Map's values edited in the drawer: the
 // drawer's, no dock tab's.
@@ -40,7 +40,7 @@ var ErrConfigMapEditsGUIOnly = errors.New("the values a Config Map's drawer keep
 	"own window: agents and the CLI cannot keep, plant or read them; an agent changes values with configMap_saveData")
 
 // ConfigMapEdits are a Config Map's values edited in the drawer and not saved, and the keys added
-// and removed there (the owner's audit decision of 2026-10-16, datakeys.go).
+// and removed there (the owner's audit decision, datakeys.go).
 type ConfigMapEdits struct {
 	// BaseResourceVersion is the version the values are based on.
 	BaseResourceVersion string            `json:"baseResourceVersion"`

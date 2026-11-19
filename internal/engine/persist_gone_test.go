@@ -127,8 +127,8 @@ func TestTabsCloseWhenTheirFileLeavesASyncFolder(t *testing.T) {
 }
 
 // Removing a source, as Remove from Cogpit does, takes its clusters off the hotbar (the owner's
-// WF45 of 2026-10-19); a tile of a context another source still offers, and one whose file went
-// away by itself, stay (the latter marked missing).
+// WF45); a tile of a context another source still offers, and one whose file went away by itself,
+// stay (the latter marked missing).
 func TestRemovedSourceLeavesTheHotbar(t *testing.T) {
 	root := t.TempDir()
 	fileA, fileB := filepath.Join(root, "a.yaml"), filepath.Join(root, "b.yaml")

@@ -14,10 +14,10 @@ import (
 )
 
 // TestDrawerLinksCustomOwners: a drawer's Controlled By links an owner that is a custom resource
-// to it, through the definitions the custom kinds watch (on a real cluster, 2026-10-16, a
-// StatefulSet owned by a Prometheus, a Deployment by a CephCluster, a pod by cert-manager's
-// Challenge were plain text); the definitions' index is every drawer's on a cluster with custom
-// kinds, none's on one without, and never a virtual kind's.
+// to it, through the definitions the custom kinds watch (on a real cluster, a StatefulSet owned by
+// a Prometheus, a Deployment by a CephCluster, a pod by cert-manager's Challenge were plain text);
+// the definitions' index is every drawer's on a cluster with custom kinds, none's on one without,
+// and never a virtual kind's.
 func TestDrawerLinksCustomOwners(t *testing.T) {
 	src := testkit.NewMemorySource()
 	src.Set(crdsGVR, orderCRD())

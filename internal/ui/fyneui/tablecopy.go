@@ -12,21 +12,21 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Copying the text of a list's cells (D-25, the owner's addition of 2026-10-13): names in Pods,
-// Deployments and every other view are copyable with the drawer's copy icon on hover, with the same
-// checkmark after a copy. As in the drawer it is a GUI behaviour and no command (TestCopyHasNoCommand).
+// Copying the text of a list's cells (D-25, the owner's addition): names in Pods, Deployments and
+// every other view are copyable with the drawer's copy icon on hover, with the same checkmark after
+// a copy. As in the drawer it is a GUI behaviour and no command (TestCopyHasNoCommand).
 //
-// The owner's feedback after seeing it (2026-10-13): not every cell ("a name, an IP, a node name,
-// a message in the Events is great; but no Age, no CPU, no Memory, no Restarts"), by a blacklist,
-// so that a custom resource's columns need no marking and keep the icon unless blacklisted
-// (copyColumn); and the icon right after the text, not at the column's end.
+// The owner's feedback after seeing it: not every cell ("a name, an IP, a node name, a message in
+// the Events is great; but no Age, no CPU, no Memory, no Restarts"), by a blacklist, so that a
+// custom resource's columns need no marking and keep the icon unless blacklisted (copyColumn); and
+// the icon right after the text, not at the column's end.
 //
-// The owner's decision (A69, 2026-10-14 evening; built 2026-10-15): when the text leaves no room
-// after it, the icon lies over the cell's end and the text is not shortened for it: the text keeps
-// the cell's whole width (cut off with "…" only where the cell itself ends, its tooltip showing the
-// whole text), and the icon's opaque plate covers what lies under it.
+// The owner's decision (A69): when the text leaves no room after it, the icon lies over the
+// cell's end and the text is not shortened for it: the text keeps the cell's whole width (cut off
+// with "…" only where the cell itself ends, its tooltip showing the whole text), and the icon's
+// opaque plate covers what lies under it.
 //
-// Cogpit's defaults (the lead's proposals, not the owner's decision, 2026-10-13):
+// Cogpit's defaults (the lead's proposals, not the owner's decision):
 //   - a cell that shows no text has none: the checkbox, the ⋮, the warning triangle, a pod's
 //     container squares, an empty cell and the placeholders "-", "–", "—" and "<none>";
 //   - the icon sits a padding after the text, centred on the row, and at the cell's right end
@@ -44,13 +44,12 @@ import (
 // a pointer move inside the table shows it while the pointer is inside that cell and hides it in
 // the gaps and over the header, where Fyne reports no cell.
 
-// The columns without the copy icon: a blacklist (the owner, 2026-10-13), so that every other
-// column, a custom resource's printer columns included, keeps it. The owner's principle, with his
-// four examples Age, CPU, Memory and Restarts: identifiers and free text keep the icon (names,
-// namespaces, IPs, hosts, ports, images, node names, labels, selectors, messages, reasons, URLs,
-// versions, types); numbers, times, durations, counts, ratios, booleans and short state words do
-// not. The lists below are Cogpit's reading of it for the built-in kinds (D-25 names every id),
-// one place to edit.
+// The columns without the copy icon: a blacklist (the owner), so that every other column, a custom
+// resource's printer columns included, keeps it. The owner's principle, with his four examples Age,
+// CPU, Memory and Restarts: identifiers and free text keep the icon (names, namespaces, IPs, hosts,
+// ports, images, node names, labels, selectors, messages, reasons, URLs, versions, types); numbers,
+// times, durations, counts, ratios, booleans and short state words do not. The lists below are
+// Cogpit's reading of it for the built-in kinds (D-25 names every id), one place to edit.
 
 // noCopyTypes are the column types without the icon, whatever the column. A custom resource's
 // printer columns map to them by their type: integer and number to ColumnNumber, date to

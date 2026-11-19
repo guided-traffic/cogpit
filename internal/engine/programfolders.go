@@ -13,13 +13,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cluster"
 )
 
-// Program folders (D-120, the owner's decision of 2026-10-23; H-6): the folders Cogpit looks in
-// for the programs a kubeconfig's credential plugin runs (kubelogin, a cloud's plugin, kubectl run
-// as the plugin and the kubectl plugin it runs, such as krew's kubectl-oidc_login), and for every
-// other program it starts (a terminal's shell gets them on its PATH). A GUI app does not inherit
-// the PATH a shell's profile sets; Cogpit appends its built-in folders at start
-// (cluster.EnsureToolPath: Homebrew, MacPorts, Nix, krew, go install, asdf, mise and others), and
-// these, the user's own, after them.
+// Program folders (D-120, the owner's decision; H-6): the folders Cogpit looks in for the programs
+// a kubeconfig's credential plugin runs (kubelogin, a cloud's plugin, kubectl run as the plugin and
+// the kubectl plugin it runs, such as krew's kubectl-oidc_login), and for every other program it
+// starts (a terminal's shell gets them on its PATH). A GUI app does not inherit the PATH a shell's
+// profile sets; Cogpit appends its built-in folders at start (cluster.EnsureToolPath: Homebrew,
+// MacPorts, Nix, krew, go install, asdf, mise and others), and these, the user's own, after them.
 //
 // They are a preference (Preferences.ProgramFolders) set in Preferences › Kubernetes through the
 // system's folder panel (D-72), and take effect at once, for the next program started

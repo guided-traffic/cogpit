@@ -12,16 +12,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/alerting"
 )
 
-// The Alertmanager integration (D-77; I4 and I5 of the owner's ticket of 2026-10-17): Cogpit finds a
-// cluster's Alertmanager among its cached Services by its well-known names, or reads the address
-// the user set (alerts_settings.go), and asks it for the active alerts that are not inhibited, one
-// GET through the API server's service proxy every 30 seconds while the integration is on and the
-// cluster is shown and connected (package alerting). What it answered is the title bar's pill
-// (UIState.Alerts) and the alert board, a workspace page (AlertBoard, alerts_board.go), both
-// without the silenced alerts; agents read it with alerts.list. The silences page (AlertSilences,
-// alerts_silences.go, D-166) adds a GET of the silences to each poll while it is shown. Alerts cannot be watched, so this is the one
-// integration that polls; a cluster connected in the background (D-69) is not polled, and shows
-// the answer it had when it was last shown until it is shown again.
+// The Alertmanager integration (D-77; I4 and I5 of the owner's ticket): Cogpit finds a cluster's
+// Alertmanager among its cached Services by its well-known names, or reads the address the user set
+// (alerts_settings.go), and asks it for the active alerts that are not inhibited, one GET through
+// the API server's service proxy every 30 seconds while the integration is on and the cluster is
+// shown and connected (package alerting). What it answered is the title bar's pill (UIState.Alerts)
+// and the alert board, a workspace page (AlertBoard, alerts_board.go), both without the silenced
+// alerts; agents read it with alerts.list. The silences page (AlertSilences, alerts_silences.go,
+// D-166) adds a GET of the silences to each poll while it is shown. Alerts cannot be watched, so
+// this is the one integration that polls; a cluster connected in the background (D-69) is not
+// polled, and shows the answer it had when it was last shown until it is shown again.
 //
 // Off for a cluster (integrations.go), it sends nothing, its last answer is forgotten and the
 // window shows nothing of it: no pill, no board, nothing in ui_state.

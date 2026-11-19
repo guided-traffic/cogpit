@@ -24,8 +24,8 @@ func scrubbed(t *testing.T, m *secretMatcher, s string) string {
 
 // TestSecretMatcherForms (H-82): a value is replaced in each form it takes in text, by a
 // placeholder that names its Secret and key only; certificates, a service account token Secret's
-// namespace and CA, name keys, Helm release records and values under 10 bytes are not (A5, owner 2026-10-14 evening); a short
-// value only where it stands alone; values that overlap are replaced together.
+// namespace and CA, name keys, Helm release records and values under 10 bytes are not (A5, owner);
+// a short value only where it stands alone; values that overlap are replaced together.
 func TestSecretMatcherForms(t *testing.T) {
 	const pass = `pa"ss\word-4711`
 	certPEM, keyPEM := pemPair(t, "web.shop.svc", 9)

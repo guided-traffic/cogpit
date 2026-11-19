@@ -9,14 +9,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/nativedialog"
 )
 
-// Every file chooser of the window goes through the shell's filePicker (D-72, the owner's order
-// of 2026-10-16 night): on macOS the system's own panels, NSOpenPanel and NSSavePanel as a sheet
-// on Cogpit's window (internal/ui/nativedialog), so that Cogpit lists no folder of its own to
-// draw a chooser and macOS grants what the user picks without a privacy prompt. Where there is no
-// system panel (Windows and Linux until M11, Fyne's test driver, which has no NSWindow) open and
-// save report false and each chooser shows its Fyne dialog as before: Cogpit's own "Sync Files
-// and Folders" browser (syncpicker.go), since Fyne's dialogs choose a file or a folder, never
-// both, and Fyne's file dialogs for the rest. Tests inject a recorder (filepicker_test.go).
+// Every file chooser of the window goes through the shell's filePicker (D-72, the owner's order):
+// on macOS the system's own panels, NSOpenPanel and NSSavePanel as a sheet on Cogpit's window
+// (internal/ui/nativedialog), so that Cogpit lists no folder of its own to draw a chooser and macOS
+// grants what the user picks without a privacy prompt. Where there is no system panel (Windows and
+// Linux until M11, Fyne's test driver, which has no NSWindow) open and save report false and each
+// chooser shows its Fyne dialog as before: Cogpit's own "Sync Files and Folders" browser
+// (syncpicker.go), since Fyne's dialogs choose a file or a folder, never both, and Fyne's file
+// dialogs for the rest. Tests inject a recorder (filepicker_test.go).
 //
 // The choosers: Sync Files and Folders (kubeconfigs.go), a cluster's icon and a folder for a
 // terminal's working directory or for kubectl's binaries (the settings pages), a chat

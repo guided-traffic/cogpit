@@ -14,14 +14,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/fyneui/yamlview"
 )
 
-// The editor's find widget, as Lens's Helm Upgrade tab opens one at the editor's bottom (captured
-// 2026-10-12): a search field with match case, whole word and regular expression, a replace field,
-// previous and next, and "1 of 1". Cogpit's reading of the details the capture does not show: a
-// match lies within one line, a regular expression applies to each line on its own (so ^ and $ are
-// a line's ends), a replacement in a regular expression may use $1 and ${name}, the matches are
-// capped, and the match is the editor's selection. Every match is tinted behind the text, the
-// selected one stronger and outlined (yamlview's SetMarks; the owner's QW1: on the selection's colour
-// alone it was hard to find), the text keeping its syntax colours.
+// The editor's find widget, as Lens's Helm Upgrade tab opens one at the editor's bottom (captured):
+// a search field with match case, whole word and regular expression, a replace field, previous and
+// next, and "1 of 1". Cogpit's reading of the details the capture does not show: a match lies
+// within one line, a regular expression applies to each line on its own (so ^ and $ are a line's
+// ends), a replacement in a regular expression may use $1 and ${name}, the matches are capped, and
+// the match is the editor's selection. Every match is tinted behind the text, the selected one
+// stronger and outlined (yamlview's SetMarks; the owner's QW1: on the selection's colour alone it
+// was hard to find), the text keeping its syntax colours.
 
 // findOptions are the find widget's three switches.
 type findOptions struct {
@@ -125,17 +125,17 @@ type findBar struct {
 	cur     int    // index into matches of the selected one; -1 when none is
 	text    string // the text matches was computed from
 
-	// permanent is the bar over the drawer's YAML and a release's values (the owner's requests of
-	// 2026-10-25): always shown, no replace row and no ×; Escape in its field clears it and gives
-	// the editor the keys, and the editor hands its Escape on to the window.
+	// permanent is the bar over the drawer's YAML and a release's values (the owner's requests):
+	// always shown, no replace row and no ×; Escape in its field clears it and gives the editor the
+	// keys, and the editor hands its Escape on to the window.
 	permanent bool
 }
 
 func newFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, false) }
 
 // newViewerFindBar is a find bar shown over its editor for good, without a replace row: the
-// drawer's read-only YAML (the owner, 2026-10-25: "Da dieser Part read-only ist, kann oben über dem
-// YAML permanent ein Suchfeld angezeigt werden. Mit cmd+f wird das Feld dann aktiv.") and, since the
+// drawer's read-only YAML (the owner: "Da dieser Part read-only ist, kann oben über dem YAML
+// permanent ein Suchfeld angezeigt werden. Mit cmd+f wird das Feld dann aktiv.") and, since the
 // same day, a release's values in its drawer (helmdrawer.go).
 func newViewerFindBar(sh *shell, view *yamlview.View) *findBar { return buildFindBar(sh, view, true) }
 
@@ -192,9 +192,9 @@ func buildFindBar(sh *shell, view *yamlview.View, permanent bool) *findBar {
 		b.toggles[i] = t
 		toggles[i] = t
 	}
-	oneWidth(b.toggles[:]...) // Aa, ab and .* one width (the owner's VW3 of 2026-10-23)
+	oneWidth(b.toggles[:]...) // Aa, ab and .* one width (the owner's VW3)
 	b.count = newTextLine("", colorMuted, theme.SizeNameText, fyne.TextStyle{})
-	// One icon family (the owner's VW2 of 2026-10-23): Cogpit's chevrons, up and down.
+	// One icon family (the owner's VW2): Cogpit's chevrons, up and down.
 	b.prev = newTipButton(sh, chevronUpIcon(), "Previous match", func() { b.step(-1) })
 	b.next = newTipButton(sh, chevronDownIcon(), "Next match", func() { b.step(1) })
 	tail := append(toggles, container.NewCenter(sized(sizeFindCountWidth, "", b.count)), b.prev, b.next)
@@ -222,10 +222,10 @@ func (b *findBar) open() {
 		b.find.SetText(sel)
 	}
 	b.root.Show()
-	// Through the window's canvas (the owner's AW6, 2026-10-22): Fyne's Container.Show asks for no
-	// repaint, and the driver knows no canvas for a field never drawn (CanvasForObject nil), so the
-	// first ⌘F showed the bar seconds later, at a repaint something else asked for, and left the
-	// keys in the editor.
+	// Through the window's canvas (the owner's AW6): Fyne's Container.Show asks for no repaint, and
+	// the driver knows no canvas for a field never drawn (CanvasForObject nil), so the first ⌘F
+	// showed the bar seconds later, at a repaint something else asked for, and left the keys in the
+	// editor.
 	c := b.sh.win.Canvas()
 	c.Refresh(b.root)
 	c.Focus(b.find)

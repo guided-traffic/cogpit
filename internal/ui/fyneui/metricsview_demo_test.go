@@ -99,6 +99,7 @@ func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what st
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))

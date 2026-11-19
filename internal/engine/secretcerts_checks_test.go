@@ -204,7 +204,7 @@ func TestSecretDERCertificates(t *testing.T) {
 }
 
 // A combined PEM, the certificate and its private key in one value, gets the key check against
-// the value's own key (A99, owner 2026-10-14 evening); a value with certificates alone does not.
+// the value's own key (A99, owner); a value with certificates alone does not.
 func TestSecretCombinedPEMKeyCheck(t *testing.T) {
 	ca := testkit.NewCert(t, testkit.CertSpec{CommonName: "CA", CA: true, Key: testkit.Ed25519Key(t)})
 	leaf := testkit.NewCert(t, testkit.CertSpec{CommonName: "web", Parent: ca, Key: testkit.ECDSAKey(t)})

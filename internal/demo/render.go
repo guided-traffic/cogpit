@@ -580,7 +580,7 @@ func (c *Cluster) renderDeployment(d *deployment) *unstructured.Unstructured {
 		cond["lastUpdateTime"] = cond["lastTransitionTime"]
 	}
 	st["conditions"] = []any{available, progressing}
-	return object("apps/v1", "Deployment", meta, map[string]any{"spec": d.spec, "status": st})
+	return object(apiApps, "Deployment", meta, map[string]any{"spec": d.spec, "status": st})
 }
 
 // renderReplicaSet renders one of a deployment's replica sets, owned by the deployment, and
@@ -600,7 +600,7 @@ func (c *Cluster) renderReplicaSet(d *deployment, rs int) *unstructured.Unstruct
 			"deployment.kubernetes.io/max-replicas":     strconv.Itoa(d.replicas + (d.replicas+3)/4),
 			"deployment.kubernetes.io/revision":         strconv.Itoa(rs + 1),
 		},
-		"ownerReferences": ownerRef("apps/v1", "Deployment", d.name, d.uid),
+		"ownerReferences": ownerRef(apiApps, "Deployment", d.name, d.uid),
 	}
 	selector := strMap(d.selector)
 	selector["pod-template-hash"] = d.rsHash[rs]
@@ -630,7 +630,7 @@ func (c *Cluster) renderReplicaSet(d *deployment, rs int) *unstructured.Unstruct
 		st["readyReplicas"] = int64(ready)
 		st["availableReplicas"] = int64(ready)
 	}
-	return object("apps/v1", "ReplicaSet", meta, map[string]any{"spec": spec, "status": st})
+	return object(apiApps, "ReplicaSet", meta, map[string]any{"spec": spec, "status": st})
 }
 
 // replicaSetsChanged reports the replica sets of d whose counts differ from those last published.
@@ -646,6 +646,132 @@ func (d *deployment) replicaSetsChanged() []int {
 		}
 	}
 	return out
+}
+
+// templateOf is a workload's pod template: the labels its pods carry and their spec, as a pod
+// renders it without a node.
+func templateOf(t *podTemplate, labels map[string]any) map[string]any {
+	return map[string]any{"metadata": map[string]any{"labels": labels}, "spec": renderPodSpec(&pod{tmpl: t})}
+}
+
+// renderDaemonSet renders a DaemonSet that runs a pod on each node it placed one on, all of them
+// scheduled and up to date.
+func (c *Cluster) renderDaemonSet(ds *daemonSet) *unstructured.Unstructured {
+	created := c.opts.Now
+	for _, p := range ds.pods {
+		created = minTime(created, p.created.Add(-time.Minute))
+	}
+	labels := strMap(ds.labels)
+	meta := map[string]any{
+		"name": ds.name, "namespace": ds.namespace, "uid": ds.uid, "creationTimestamp": ts(created),
+		"generation": int64(1), "labels": labels,
+		"annotations": map[string]any{"deprecated.daemonset.template.generation": "1"},
+	}
+	spec := map[string]any{
+		"selector":             map[string]any{"matchLabels": labels},
+		"template":             templateOf(ds.tmpl, labels),
+		"updateStrategy":       map[string]any{"type": "RollingUpdate", "rollingUpdate": map[string]any{"maxUnavailable": int64(1), "maxSurge": int64(0)}},
+		"revisionHistoryLimit": int64(10),
+	}
+	n, ready := int64(len(ds.pods)), int64(0)
+	for _, p := range ds.pods {
+		if p.isReady() {
+			ready++
+		}
+	}
+	st := map[string]any{
+		"desiredNumberScheduled": n, "currentNumberScheduled": n, "updatedNumberScheduled": n,
+		"numberReady": ready, "numberAvailable": ready, "numberMisscheduled": int64(0), "observedGeneration": int64(1),
+	}
+	if n > ready {
+		st["numberUnavailable"] = n - ready
+	}
+	return object(apiApps, "DaemonSet", meta, map[string]any{"spec": spec, "status": st})
+}
+
+// cronSchedule is when the demo's CronJobs run: hourly, as buildJobs schedules their runs.
+const cronSchedule = "0 * * * *"
+
+// renderCronJob renders a CronJob that keeps the runs the build made: its last schedule the newest
+// run's, its last success the newest completed one's end.
+func (c *Cluster) renderCronJob(cj *cronJob) *unstructured.Unstructured {
+	created := c.opts.Now.Add(-time.Hour)
+	var last, success time.Time
+	for _, j := range cj.jobs {
+		created = minTime(created, j.scheduled.Add(-time.Hour))
+		if j.scheduled.After(last) {
+			last = j.scheduled
+		}
+		if j.pod.phase == phaseSucceeded && j.pod.lastExit.After(success) {
+			success = j.pod.lastExit
+		}
+	}
+	meta := map[string]any{
+		"name": cj.name, "namespace": cj.namespace, "uid": cj.uid, "creationTimestamp": ts(created), "generation": int64(1),
+	}
+	kept := int64(max(len(cj.jobs), 1))
+	spec := map[string]any{
+		"schedule": cronSchedule, "concurrencyPolicy": "Forbid", "suspend": false,
+		"successfulJobsHistoryLimit": kept, "failedJobsHistoryLimit": kept,
+		"jobTemplate": map[string]any{"spec": map[string]any{
+			"backoffLimit": int64(0),
+			"template":     templateOf(cj.tmpl, map[string]any{}),
+		}},
+	}
+	st := map[string]any{}
+	if !last.IsZero() {
+		st["lastScheduleTime"] = ts(last)
+	}
+	if !success.IsZero() {
+		st["lastSuccessfulTime"] = ts(success)
+	}
+	return object(apiBatch, "CronJob", meta, map[string]any{"spec": spec, "status": st})
+}
+
+// renderJob renders one run of a CronJob, owned by it: its one pod completed or failed, which
+// ends the Job (no retry: backoffLimit 0).
+func (c *Cluster) renderJob(cj *cronJob, j *jobRun) *unstructured.Unstructured {
+	p := j.pod
+	labels := map[string]any{
+		"batch.kubernetes.io/controller-uid": j.uid, "batch.kubernetes.io/job-name": j.name,
+		"controller-uid": j.uid, "job-name": j.name,
+	}
+	meta := map[string]any{
+		"name": j.name, "namespace": cj.namespace, "uid": j.uid, "creationTimestamp": ts(j.scheduled),
+		"generation": int64(1), "labels": labels,
+		"annotations":     map[string]any{"batch.kubernetes.io/cronjob-scheduled-timestamp": ts(j.scheduled)},
+		"ownerReferences": ownerRef(apiBatch, "CronJob", cj.name, cj.uid),
+	}
+	spec := map[string]any{
+		"parallelism": int64(1), "completions": int64(1), "backoffLimit": int64(0), "completionMode": "NonIndexed",
+		"suspend":  false,
+		"selector": map[string]any{"matchLabels": map[string]any{"batch.kubernetes.io/controller-uid": j.uid}},
+		"template": templateOf(cj.tmpl, labels),
+	}
+	st := map[string]any{"startTime": ts(p.created), "ready": int64(0), "terminating": int64(0)}
+	switch p.phase {
+	case phaseSucceeded:
+		st["succeeded"] = int64(1)
+		st["completionTime"] = ts(p.lastExit)
+		st["conditions"] = []any{
+			condition("SuccessCriteriaMet", "True", p.lastExit, "CompletionsReached", "Reached expected number of succeeded pods"),
+			condition("Complete", "True", p.lastExit, "CompletionsReached", "Reached expected number of succeeded pods"),
+		}
+	default:
+		st["failed"] = int64(1)
+		st["conditions"] = []any{
+			condition("FailureTarget", "True", p.lastExit, "BackoffLimitExceeded", "Job has reached the specified backoff limit"),
+			condition("Failed", "True", p.lastExit, "BackoffLimitExceeded", "Job has reached the specified backoff limit"),
+		}
+	}
+	return object(apiBatch, "Job", meta, map[string]any{"spec": spec, "status": st})
+}
+
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 // Events.

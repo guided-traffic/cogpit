@@ -23,14 +23,14 @@ import (
 // item would (an object's action through the row menu's own path, runAction), so the confirmation
 // (D-2), the parameter dialogs and the audit log apply unchanged. Its open state and its typed text
 // are UI state (UIState.Palette, ui.palette.open and ui.palette.close; UIState.PaletteText,
-// ui.palette.setText, the owner's A54 of 2026-10-14 evening), so that agents see them in ui_state,
-// can open the palette and type into it: the window reports the user's typing a pause after the last
-// key, as the navigator's search (navigatorstate.go), and shows an agent's text.
+// ui.palette.setText, the owner's A54), so that agents see them in ui_state, can open the palette
+// and type into it: the window reports the user's typing a pause after the last key, as the
+// navigator's search (navigatorstate.go), and shows an agent's text.
 //
-// An agent's text never chooses what the user's next ↵ runs (the lead's night decision, 2026-10-14,
-// for the owner to confirm; D-51): on a text another origin typed last, ↵ runs a read or a UI entry
-// (a view to switch to, a search), and a change (a mutating or destructive entry) runs only once the
-// user picked it with the arrow keys or a click; the hint line says so. Typing makes the text the
+// An agent's text never chooses what the user's next ↵ runs (the lead's night decision, for the
+// owner to confirm; D-51): on a text another origin typed last, ↵ runs a read or a UI entry (a view
+// to switch to, a search), and a change (a mutating or destructive entry) runs only once the user
+// picked it with the arrow keys or a click; the hint line says so. Typing makes the text the
 // user's. F1–F12 close the palette and open the hotbar's cluster, as the entries listing them do
 // (A64).
 //

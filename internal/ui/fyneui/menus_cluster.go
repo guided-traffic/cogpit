@@ -115,9 +115,8 @@ func (l *clusterLinks) refresh() {
 }
 
 // copyPathLabel is a cluster's menu item that copies the path of the kubeconfig file the context
-// comes from (the owner's VW13 of 2026-10-24: "den Pfad zur kube-config in den Zwischenspeicher
-// kopieren", in every menu of a cluster, connected or not). Cogpit's own: Lens's cluster menu is not
-// captured.
+// comes from (the owner's VW13: "den Pfad zur kube-config in den Zwischenspeicher kopieren", in
+// every menu of a cluster, connected or not). Cogpit's own: Lens's cluster menu is not captured.
 const copyPathLabel = "Copy Kubeconfig Path"
 
 // contextInfo is a context as the window last read the contexts: the navigator's list, else the

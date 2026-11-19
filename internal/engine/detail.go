@@ -10,9 +10,9 @@ import (
 // MCP's object_get result, so its JSON shape is kept stable: fields are only ever added, and every
 // added field is optional.
 //
-// The drawer shows, in this order, as Lens does (capture, 2026-10-11): the Metrics section of a pod
-// or node (Metrics; its data is Session.ObjectMetrics), the sections, then the events ("No events found" when there are
-// none). The YAML is Cogpit's own view of the object.
+// The drawer shows, in this order, as Lens does (capture): the Metrics section of a pod or node
+// (Metrics; its data is Session.ObjectMetrics), the sections, then the events ("No events found"
+// when there are none). The YAML is Cogpit's own view of the object.
 //
 //	{
 //	  "ref": {...}, "title": "Pod: web-0", "status": "ok",
@@ -61,8 +61,7 @@ type DetailModel struct {
 	Metrics       bool `json:"metrics,omitempty"`
 	VolumeMetrics bool `json:"volumeMetrics,omitempty"`
 	// Plain is true for a kind whose drawer is Lens's flat one (a virtual kind: Helm releases,
-	// captured 2026-10-12): the title on one line, no Details and YAML tabs, no status pill in the
-	// title bar.
+	// captured): the title on one line, no Details and YAML tabs, no status pill in the title bar.
 	Plain bool `json:"plain,omitempty"`
 	// Certificates are the certificates a Secret's values hold, decoded (D-30, secretcerts.go):
 	// per key, each certificate's public fields with its times in UTC (RFC 3339), expiresInDays

@@ -164,7 +164,7 @@ func TestPollerStates(t *testing.T) {
 	}
 	p.SetAddress(nil)
 	// The new address drops the old state at once; detection without a candidate sends nothing and
-	// may already have found nothing (CI's race job, 2026-10-17: NotFound before the check ran).
+	// may already have found nothing (CI's race job: NotFound before the check ran).
 	if st := p.Snapshot().State; st != StateChecking && st != StateNotFound {
 		t.Errorf("a new address keeps %s", st)
 	}
@@ -256,8 +256,8 @@ func TestPollerBackoffAndKeep(t *testing.T) {
 	}
 }
 
-// TestPollerTriesThePortsNumberThenName (the owner's acme-mgmt, 2026-10-18): a refused spelling of
-// the port, or a refused candidate, does not end the search; the spelling granted is used.
+// TestPollerTriesThePortsNumberThenName (the owner's acme-mgmt): a refused spelling of the port, or
+// a refused candidate, does not end the search; the spelling granted is used.
 func TestPollerTriesThePortsNumberThenName(t *testing.T) {
 	refuse := func() ([]byte, error) {
 		return nil, apierrors.NewForbidden(schema.GroupResource{Resource: "services/proxy"}, "x", errors.New("not granted"))

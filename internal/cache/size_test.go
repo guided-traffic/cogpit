@@ -80,9 +80,9 @@ func decodeStore(t *testing.T, docs [][]byte, copies int) (measured, walked, est
 // The estimate against the heap Go reports for the same objects in a store: every built-in kind's
 // fixtures, decoded as client-go decodes them, hundreds of copies each so that the heap's own noise
 // does not count. The model (every object walked, as the size memo does for a scope of up to 1,000
-// objects) must be within ±10 % of the heap per kind and ±5 % over all of them. Measured 2026-10-16
-// on Go 1.27.2, darwin/arm64 (the log shows each kind's ratio): 0.93–0.99 per kind and 0.97 over
-// all (it leaves out a few percent).
+// objects) must be within ±10 % of the heap per kind and ±5 % over all of them. Measured on Go
+// 1.27.2, darwin/arm64 (the log shows each kind's ratio): 0.93–0.99 per kind and 0.97 over all (it
+// leaves out a few percent).
 func TestMemoryEstimateAgainstTheHeap(t *testing.T) {
 	if testing.Short() || raceEnabled {
 		t.Skip("decodes every fixture many times; the race detector's heap is laid out otherwise")

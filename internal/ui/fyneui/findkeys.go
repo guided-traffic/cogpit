@@ -4,14 +4,14 @@ import (
 	"fyne.io/fyne/v2"
 )
 
-// ⌘F in the dock's editor tabs (the owner's gate walk, 2026-10-20, GW3: "⌘F does not open the Helm
-// Upgrade tab's find bar", only its magnifier did). Every dock tab with a YAML editor has a find bar
-// below it (findbar.go): Edit, Create, Helm Upgrade and Helm Install; Edit had none before and has
-// one since, opened by ⌘F alone (it has no toolbar for a magnifier, as Lens's Edit tab has none).
-// ⌘F opens the shown tab's find bar and puts the keyboard in its field, wherever the keys are within
+// ⌘F in the dock's editor tabs (the owner's gate walk, GW3: "⌘F does not open the Helm Upgrade
+// tab's find bar", only its magnifier did). Every dock tab with a YAML editor has a find bar below
+// it (findbar.go): Edit, Create, Helm Upgrade and Helm Install; Edit had none before and has one
+// since, opened by ⌘F alone (it has no toolbar for a magnifier, as Lens's Edit tab has none). ⌘F
+// opens the shown tab's find bar and puts the keyboard in its field, wherever the keys are within
 // that tab: in the editor (yamlview's OnFind), in another of its fields, or nowhere (after a click
 // on one of its buttons). Elsewhere ⌘F stays what it was: the list's search, or the focused text
-// field's (A55, menukeys.go). The lead's decisions of 2026-10-20, open to revision (D-106):
+// field's (A55, menukeys.go). The lead's decisions, open to revision (D-106):
 //   - ⌘F goes by where the keyboard is, not by what is shown: with the keys in the list (its table,
 //     its search) the list's search takes ⌘F although the dock shows an editor tab below, as an
 //     editor's find takes it only from its own pane in other IDEs;
@@ -76,11 +76,11 @@ func (sh *shell) claimFind() bool {
 	return false
 }
 
-// drawerFinds reports whether ⌘F is the drawer's YAML find bar's (the owner's request of
-// 2026-10-25, "Mit cmd+f wird das Feld dann aktiv"): the drawer shows its YAML, and the keyboard
-// is in the drawer, in the list's table (a click on a row puts it there, VW17) or nowhere. A text
-// field elsewhere keeps its own ⌘F, and with the keys nowhere the drawer's YAML goes before the
-// dock's editor (the lead's details, D-106's addition, open to revision).
+// drawerFinds reports whether ⌘F is the drawer's YAML find bar's (the owner's request, "Mit cmd+f
+// wird das Feld dann aktiv"): the drawer shows its YAML, and the keyboard is in the drawer, in the
+// list's table (a click on a row puts it there, VW17) or nowhere. A text field elsewhere keeps its
+// own ⌘F, and with the keys nowhere the drawer's YAML goes before the dock's editor (the lead's
+// details, D-106's addition, open to revision).
 func (sh *shell) drawerFinds(focused fyne.Focusable) bool {
 	if !sh.drawer.yamlShown() {
 		return false

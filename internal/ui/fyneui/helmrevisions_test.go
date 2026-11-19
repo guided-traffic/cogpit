@@ -50,6 +50,7 @@ func newRevisionsHarness(t *testing.T, mode ThemeMode) *revisionsHarness {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: engine.DemoContext, Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
@@ -280,7 +281,7 @@ func TestRevisionsTabFromTheDrawer(t *testing.T) {
 	}
 	// Show is the window's alone: the tab's state in the engine stays as it was. (Not the engine's
 	// whole state: the window reports its navigator's row when it gets to it, which moved it after
-	// the tap now and then, 2026-10-26.)
+	// the tap now and then.)
 	tabState := func() engine.HelmRevisionsTab {
 		for _, d := range h.s.UIState().Dock {
 			if d.ID == r.tab.ID && d.HelmRevisions != nil {
@@ -333,10 +334,9 @@ func TestRevisionsDiffPreference(t *testing.T) {
 	}
 }
 
-// Every text of the tab worth copying is selectable and ⌘C copies it (the owner, 2026-10-26): a
-// changed key's path and values, a revision's chart version and time, an object's name, a diff's
-// line, the status line; the copy icon copies what the tab shows, the changed keys or the diff, not
-// an older text.
+// Every text of the tab worth copying is selectable and ⌘C copies it (the owner): a changed key's
+// path and values, a revision's chart version and time, an object's name, a diff's line, the status
+// line; the copy icon copies what the tab shows, the changed keys or the diff, not an older text.
 func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
 	h := newRevisionsHarness(t, ThemeDark)
 	res := h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 3})
@@ -407,8 +407,8 @@ func TestRevisionsTabTextsSelectAndCopy(t *testing.T) {
 }
 
 // A click on a row's text worth copying picks the row at once, as a click beside it does (the
-// owner, 2026-10-26: the revisions could hardly be clicked, the rows being selectable text); a
-// drag over it selects and picks nothing.
+// owner: the revisions could hardly be clicked, the rows being selectable text); a drag over it
+// selects and picks nothing.
 func TestRevisionsRowTextsPassTheirClick(t *testing.T) {
 	h := newRevisionsHarness(t, ThemeDark)
 	h.dispatch(commands.RevisionsCommand, map[string]any{"ref": shopWeb, "revision": 3})

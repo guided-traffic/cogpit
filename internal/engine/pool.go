@@ -11,11 +11,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// The pool of connected clusters (D-69, the owner's F16 of 2026-10-16: several clusters connected
-// at once, one shown). The engine holds one backend per connected context, each with its own cache,
-// connection watch (D-58), discovery, access reviews, port forwards and the dock's streams; the
-// window shows one of them (state.shown, the window's view state; R3's windows, D-52, later get
-// one each from the same pool).
+// The pool of connected clusters (D-69, the owner's F16: several clusters connected at once, one
+// shown). The engine holds one backend per connected context, each with its own cache, connection
+// watch (D-58), discovery, access reviews, port forwards and the dock's streams; the window shows
+// one of them (state.shown, the window's view state; R3's windows, D-52, later get one each from
+// the same pool).
 //
 //   - cluster.connect connects a context that is not in the pool and shows it; one that is in the
 //     pool is only shown: no request, no new cache, its views come from its cache at once. The

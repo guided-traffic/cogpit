@@ -6,16 +6,16 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// RBAC objects an agent asks for (H-27, owner 2026-10-14; every RBAC kind since the owner's A1 of
-// 2026-10-14 evening): a Role, ClusterRole, RoleBinding or ClusterRoleBinding that an agent
-// creates or changes always waits for the user's acceptance, also in a context where the user
-// allowed agent writes (D-2, H-14). A binding hands on a role, and a role's rules decide what every
-// existing binding to it grants: what either allows is not something the allowance of "scale,
-// cordon, apply" was given for. Commands declare it with Spec.AgentsAsk, judged per invocation and
-// only for agents: role.create, clusterRole.create and roleBinding.create always, object.apply
-// when its Edit tab edits an RBAC object or its text holds one, object.create when its text holds
-// one. clusterRoleBinding.create is destructive and asks every origin anyway. The GUI's own
-// commands are unchanged: the user is the one asking.
+// RBAC objects an agent asks for (H-27, owner; every RBAC kind since the owner's A1): a Role,
+// ClusterRole, RoleBinding or ClusterRoleBinding that an agent creates or changes always waits for
+// the user's acceptance, also in a context where the user allowed agent writes (D-2, H-14). A
+// binding hands on a role, and a role's rules decide what every existing binding to it grants: what
+// either allows is not something the allowance of "scale, cordon, apply" was given for. Commands
+// declare it with Spec.AgentsAsk, judged per invocation and only for agents: role.create,
+// clusterRole.create and roleBinding.create always, object.apply when its Edit tab edits an RBAC
+// object or its text holds one, object.create when its text holds one. clusterRoleBinding.create is
+// destructive and asks every origin anyway. The GUI's own commands are unchanged: the user is the
+// one asking.
 
 // Kubernetes' RBAC API group and the kinds and resources it serves.
 const (

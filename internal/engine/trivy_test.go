@@ -17,7 +17,7 @@ import (
 )
 
 // The Trivy integration's fixtures are shaped like what Trivy Operator 0.35.0 wrote on kind
-// (2026-10-17, hack/kind/trivy): synthetic names, the vulnerability lists left out.
+// (hack/kind/trivy): synthetic names, the vulnerability lists left out.
 
 var vulnReportsGVR = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
 
@@ -201,7 +201,7 @@ func TestTrivyImageGrades(t *testing.T) {
 		t.Errorf("status %+v", st)
 	}
 	// The source announces the settled detection from its own loop, after the reports are listed:
-	// wait for the announcement, not for the listing that comes before it (CI, 2026-10-21).
+	// wait for the announcement, not for the listing that comes before it.
 	waitFor(t, "the settled detection announced", func() bool { return rec.count(EventIntegrations, "test") > 0 })
 
 	web := model.ObjectRef{Kind: "pods", Namespace: "shop", Name: "web-5d9c-a"}
@@ -299,7 +299,7 @@ func TestTrivyNotServedOrForbidden(t *testing.T) {
 	}}
 	s2 := newCRDSession(t, refused)
 	// State and detail read together: between the refusal in all namespaces and the one in each
-	// namespace the plan reads, the state is checking for a moment (the race job, 2026-10-26).
+	// namespace the plan reads, the state is checking for a moment (the race job).
 	waitFor(t, "forbidden, naming the permission", func() bool {
 		st := trivyStatus(s2)
 		return st.State == IntegrationForbidden && st.Detail == "list "+trivyReportsKind

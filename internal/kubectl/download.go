@@ -28,7 +28,7 @@ import (
 const DefaultMirror = "https://dl.k8s.io/release"
 
 // Bounds of a download (Cogpit's defaults): kubectl 1.36.1 for darwin/arm64 is about 57 MB, its
-// .sha256 64 bytes, its .sig 96 and its .cert 1,440 (2026-10-13).
+// .sha256 64 bytes, its .sig 96 and its .cert 1,440.
 const (
 	MaxBinarySize = 128 << 20
 	maxSmallFile  = 16 << 10

@@ -9,9 +9,9 @@ import (
 // A pod's Containers cell keeps "ready/total" to sort and search by and draws one square per
 // container, init containers first: running in the Running colour, stopped grey (a finished init
 // container too), waiting pending, or red on an error; each square names its container (owner,
-// 2026-10-12, from Lens). A running container that is not ready is orange (the owner's F23 of
-// 2026-10-17); a plain init container, which Kubernetes never marks ready while it runs, stays in the
-// Running colour, a sidecar (restartPolicy Always) does not.
+// from Lens). A running container that is not ready is orange (the owner's F23); a plain init
+// container, which Kubernetes never marks ready while it runs, stays in the Running colour, a
+// sidecar (restartPolicy Always) does not.
 func TestContainerMarks(t *testing.T) {
 	obj := pod(map[string]any{
 		"initContainers": []any{
@@ -98,11 +98,11 @@ func debuggedPod() map[string]any {
 	}, nil)
 }
 
-// Ephemeral containers get a square each after the regular ones (the owner, 2026-10-19; D-102):
-// blue while running or starting, a blue outline once finished whatever the exit code, red while
-// waiting on an error; the live ones first, so that the finished ones are what a narrow cell's
-// count hides. The tooltip names each ephemeral with its state and target. The ratio stays
-// kubectl's READY: ephemeral containers count in neither part.
+// Ephemeral containers get a square each after the regular ones (the owner; D-102): blue while
+// running or starting, a blue outline once finished whatever the exit code, red while waiting on an
+// error; the live ones first, so that the finished ones are what a narrow cell's count hides. The
+// tooltip names each ephemeral with its state and target. The ratio stays kubectl's READY:
+// ephemeral containers count in neither part.
 func TestEphemeralContainerMarks(t *testing.T) {
 	obj := debuggedPod()
 	marks := containerMarks(obj)
@@ -135,9 +135,8 @@ func TestEphemeralContainerMarks(t *testing.T) {
 	}
 }
 
-// The drawer's Ephemeral Containers group names each one's Target (the owner's "Fix bauen",
-// 2026-10-19), after its Status; one without a target has no such row, and regular containers
-// never have one.
+// The drawer's Ephemeral Containers group names each one's Target (the owner's "Fix bauen"), after
+// its Status; one without a target has no such row, and regular containers never have one.
 func TestEphemeralContainerSectionTarget(t *testing.T) {
 	sections := podDetail(asUnstructured(debuggedPod()))
 	got := map[string]model.DetailSection{}

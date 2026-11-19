@@ -18,7 +18,7 @@ import (
 // server sends the objects from its watch cache and that bookmark at once (on a 1.37 cluster, 22 to
 // 758 ms for up to 261 objects, the bookmark right after the last object); on some clusters the
 // stream goes silent before its end, for a minute and longer, while a list of the same objects
-// answers at once (an OpenShift cluster, 2026-10-26: 17 s to over 2 min per read).
+// answers at once (an OpenShift cluster: 17 s to over 2 min per read).
 //
 // The cache bounds that silence: a streamed initial list that receives nothing for the stall bound
 // (Options.StreamStall) before its end is ended, client-go lists in its place, and from then on

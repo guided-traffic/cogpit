@@ -11,8 +11,8 @@ import (
 // TestArgoDashboardWaitsForTheDefinitions: an agent's argocd.dashboard right after connecting,
 // while the definitions are still being listed, waits for them (bounded) and then counts Argo CD's
 // Applications; read before they are listed it says it is not synced, never that the cluster
-// serves no Argo CD while synced (seen on a real cluster with many definitions, 2026-10-16:
-// served false, synced true).
+// serves no Argo CD while synced (seen on a real cluster with many definitions: served false,
+// synced true).
 func TestArgoDashboardWaitsForTheDefinitions(t *testing.T) {
 	src := testkit.NewMemorySource()
 	for _, crd := range testkit.ArgoCRDs() {

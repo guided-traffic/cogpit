@@ -208,6 +208,7 @@ func openPodDrawer(t *testing.T, f *fakeEngine, ref model.ObjectRef, mode ThemeM
 	q.until(t, "the drawer's ports", func() bool {
 		return len(sh.kinds) > 0 && sh.drawer.last != nil && len(forwardButtons(sh)) > 0 && sh.diag.total > 0
 	})
+	awaitScene(t, w) // the metrics above the ports
 	settle(w)
 	return sh, w, q
 }

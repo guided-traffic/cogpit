@@ -21,8 +21,8 @@ import (
 // what the question looks for (D-82, integrationsconsent.go); the default for new clusters
 // (Preferences.IntegrationsOff) is what the question's Use my default integrations turns on, and what applies in a
 // session that does not ask (the CLI's) and to the demo cluster. Every integration is on by default
-// (the owner, 2026-10-17: "Unser Default ist alles an"), so an integration a later Cogpit adds is on
-// for the clusters decided before it. An integration switched off sends nothing to the cluster, and the
+// (the owner: "Unser Default ist alles an"), so an integration a later Cogpit adds is on for the
+// clusters decided before it. An integration switched off sends nothing to the cluster, and the
 // window shows nothing of it: no column, no drawer section, no pill, nothing in ui_state (as hidden
 // metrics, hidemetrics.go).
 //

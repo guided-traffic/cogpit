@@ -9,9 +9,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The default synced folder (~/.kube, G2, 2026-10-12). Every test names a temporary directory as
-// "the home": the engine takes the folder as an option and never looks up the home directory, so
-// none of these tests can read the developer's real ~/.kube.
+// The default synced folder (~/.kube, G2). Every test names a temporary directory as "the home":
+// the engine takes the folder as an option and never looks up the home directory, so none of these
+// tests can read the developer's real ~/.kube.
 
 // fakeHome writes a ~/.kube with the user's default kubeconfig, a second kubeconfig, a hidden one
 // and a note, and returns the .kube directory.

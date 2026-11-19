@@ -242,8 +242,8 @@ func (c stepConnector) Connect(ctx context.Context, name string) (*Backend, erro
 }
 
 // The user's Cancel Connecting is the user's own act: the steps it ended are INFO, its attempt
-// "cancelled", no ERROR line (the lead's note of the walk of 2026-10-19; D-66 keeps ERROR for a
-// connect that failed).
+// "cancelled", no ERROR line (the lead's note of the walk; D-66 keeps ERROR for a connect that
+// failed).
 func TestACancelledConnectWritesNoError(t *testing.T) {
 	s := New(Options{Connector: stepConnector{newPoolConnector(time.Minute, "alpha")}, SnapshotInterval: 10 * time.Millisecond, ConnWatch: fastWatch})
 	t.Cleanup(s.Close)
@@ -288,4 +288,40 @@ func TestTheInterruptedMarkerSaysTheGap(t *testing.T) {
 	if got := s.interruptedMarker(from, to, time.Time{}); !strings.Contains(got, tf.FormatTime(from)+" – "+tf.FormatTime(to)+" "+zone+" (3.0 s)") {
 		t.Errorf("without a line seen: %q", got)
 	}
+}
+
+// A connect run whose goroutine the scheduler starts late (a loaded system): the window shows another
+// cluster before the run began, and the background connect still has its entry, connecting, and
+// its attempt in the connection log. Before, the run's goroutine marked the entry and began the
+// attempt: the show dropped the entry, and for that moment the connect had neither (the flake of
+// TestConnectCommandsAnswerABackgroundConnect).
+func TestARunStartedLateKeepsItsEntryAndAttempt(t *testing.T) {
+	release := make(chan struct{})
+	gate := func(contextID string) {
+		if contextID == "alpha" {
+			<-release
+		}
+	}
+	runStartGate.Store(&gate)
+	t.Cleanup(func() { runStartGate.Store(nil) })
+	s, hc, errc, _ := runSession(t, false)
+	defer close(release)
+	if err := s.Show("beta"); err != nil {
+		t.Fatal(err)
+	}
+	if err := <-errc; !errors.Is(err, ErrConnectInBackground) {
+		t.Fatalf("the left connect returned %v", err)
+	}
+	if c, ok := s.UIState().ConnectionOf("alpha"); !ok || c.Shown || c.Connection.State != Connecting {
+		t.Errorf("alpha's entry before its run began: %+v (%v)", c, ok)
+	}
+	if attempts, _ := s.ConnectAttempts("alpha", 0); len(attempts) != 1 || !attempts[0].Running {
+		t.Errorf("alpha's attempts before its run began: %+v", attempts)
+	}
+	release <- struct{}{}
+	hc.open("alpha")
+	waitUntil(t, "alpha connected in the background", func() bool {
+		c, ok := s.UIState().ConnectionOf("alpha")
+		return ok && !c.Shown && c.Connection.State == Connected
+	})
 }

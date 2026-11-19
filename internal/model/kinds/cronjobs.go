@@ -33,7 +33,7 @@ var cronJobs = &model.KindProfile{
 	Kind:       "CronJob",
 	Title:      "Cron Jobs",
 	Namespaced: true,
-	// Columns, titles and texts as captured from Lens (2026-10-11).
+	// Columns, titles and texts as captured from Lens.
 	Columns: []model.Column{
 		nameColumn,
 		signalsColumn,

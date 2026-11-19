@@ -186,7 +186,7 @@ func TestListSyncFolder(t *testing.T) {
 		return p
 	}
 	a := write("a.yaml", "x")
-	hidden := write(".hidden", "x") // Lens reads dot files, and so does Cogpit (2026-10-12)
+	hidden := write(".hidden", "x") // Lens reads dot files, and so does Cogpit
 	write(".DS_Store", "x")
 	write("b.yaml~", "x")
 	write("huge", strings.Repeat("#", kubeconfig.MaxFileSize+1))

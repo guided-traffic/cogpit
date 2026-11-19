@@ -44,8 +44,8 @@ const (
 )
 
 // DefaultBaseURL is the base URL a new connection of the kind starts with, from each server's
-// documentation (verified 2026-10-14, docs/developer/decisions.md › D-10): LM Studio serves
-// /v1 on port 1234, LiteLLM's proxy listens on 4000, Open WebUI's docs use port 3000.
+// documentation (verified, docs/developer/decisions.md › D-10): LM Studio serves /v1 on port 1234,
+// LiteLLM's proxy listens on 4000, Open WebUI's docs use port 3000.
 func DefaultBaseURL(kind engine.ChatConnectionKind) string {
 	switch kind {
 	case engine.ChatLMStudio:
@@ -186,8 +186,8 @@ func (u *usage) prompt() int {
 
 // HTTPError is an answer of the endpoint with an error status. Message is at most a short excerpt
 // of the server's own message, with the API key removed; 401 and 403 carry none. Method and URL
-// are the request's, which the error names first (the owner, 2026-10-26: an error that does not
-// say which endpoint was called how leaves nothing to look for).
+// are the request's, which the error names first (the owner: an error that does not say which
+// endpoint was called how leaves nothing to look for).
 type HTTPError struct {
 	Status  int
 	Message string
@@ -253,7 +253,7 @@ func serverMessage(body []byte, key string) string {
 	} else {
 		msg = string(body)
 		if strings.HasPrefix(strings.TrimSpace(msg), "<") {
-			msg = htmlTag.ReplaceAllString(msg, " ") // a proxy's error page: its text, not its tags (2026-10-25)
+			msg = htmlTag.ReplaceAllString(msg, " ") // a proxy's error page: its text, not its tags
 		}
 	}
 	return cleanMessage(msg, key)
@@ -300,6 +300,12 @@ type response struct {
 // complete posts body and reads the answer, streamed or not. onText, if not nil, receives the answer
 // so far whenever its visible text grew.
 func (c *client) complete(ctx context.Context, body []byte, onText func(string)) (response, error) {
+	return c.completeWatch(ctx, body, onText, nil)
+}
+
+// completeWatch is complete, and onOut, if not nil, receives the bytes of the answer so far, its
+// thinking and tool calls included, whenever they grew.
+func (c *client) completeWatch(ctx context.Context, body []byte, onText func(string), onOut func(int)) (response, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.ep.chat, bytes.NewReader(body))
 	if err != nil {
 		return response{}, fmt.Errorf("the request could not be built: %w", errBaseURL)
@@ -322,6 +328,7 @@ func (c *client) complete(ctx context.Context, body []byte, onText func(string))
 		return response{}, he
 	}
 	acc := newAccumulator(onText)
+	acc.onOut = onOut
 	ct, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
 	if ct == "application/json" {
 		data, err := io.ReadAll(io.LimitReader(resp.Body, maxEventBytes+1))
@@ -467,6 +474,7 @@ type accumulator struct {
 	bytes  int
 	shown  string
 	onText func(string)
+	onOut  func(int)
 	// firstAt and lastAt are when a part of the answer came (TTFT and OTPS, ChatTiming); out its
 	// bytes.
 	firstAt, lastAt time.Time
@@ -533,6 +541,9 @@ func (a *accumulator) delta(d *delta) {
 			a.firstAt = now
 		}
 		a.lastAt, a.out = now, a.out+n
+		if a.onOut != nil {
+			a.onOut(a.out)
+		}
 	}
 	for _, tc := range d.ToolCalls {
 		idx := a.callIndex(tc.Index, tc.ID)

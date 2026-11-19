@@ -7,12 +7,11 @@ import (
 )
 
 // The built-in agent keeps its conversations across restarts in an owner-only file, scrubbed
-// (D-10, the owner's decision of 2026-10-14 late evening, as D-19 keeps Secret values out of
-// drafts): before a tool result, an answer or a message is kept, the values of the connected
-// cluster's Secrets in it are replaced by «secret <ns>/<name>/<key>», as the H-82 filter replaces
-// them in what agents read. A connection the user marked private reads like the user
-// (Invocation.ReadsLikeUser), so its results carry values the filter did not see; this is the step
-// that keeps them off the disk.
+// (D-10, the owner's decision, as D-19 keeps Secret values out of drafts): before a tool result, an
+// answer or a message is kept, the values of the connected cluster's Secrets in it are replaced by
+// «secret <ns>/<name>/<key>», as the H-82 filter replaces them in what agents read. A connection
+// the user marked private reads like the user (Invocation.ReadsLikeUser), so its results carry
+// values the filter did not see; this is the step that keeps them off the disk.
 
 // ErrScrubContext refuses to scrub for a context that is not connected: the Secrets the filter
 // knows are the connected clusters'.

@@ -31,6 +31,7 @@ func startShell(t testing.TB, eng Engine, f *fakeEngine, opts Options) (*shell, 
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(eng, a, w, opts, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	f.SetConfirmer(sh.confirmer)
@@ -682,10 +683,10 @@ func TestLogTabJumpsToATime(t *testing.T) {
 	}
 }
 
-// TestLogDownloadSavesWhatTheTabShows (A84, the owner's decision of 2026-10-14 evening): the
-// download writes the lines the tab shows, as shown: with Filter on only those matching the search,
-// of the pod and container its selectors show; with Filter off every line it holds, the search only
-// highlighting; to the file the save dialog names, proposed after the tab.
+// TestLogDownloadSavesWhatTheTabShows (A84, the owner's decision): the download writes the lines
+// the tab shows, as shown: with Filter on only those matching the search, of the pod and container
+// its selectors show; with Filter off every line it holds, the search only highlighting; to the
+// file the save dialog names, proposed after the tab.
 func TestLogDownloadSavesWhatTheTabShows(t *testing.T) {
 	sh, _, q, _ := logsScene(t, ThemeDark, true, engine.LogOptions{ResourceNames: true, Timestamps: true, Search: "error", Filter: true})
 	lt := logTabOf(sh)

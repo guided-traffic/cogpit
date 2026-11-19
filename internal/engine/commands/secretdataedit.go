@@ -10,15 +10,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A Secret's values edited in the drawer, the window's only (the owner's audit answer of
-// 2026-10-15, D-59; engine/secretdataedit.go): secret.reviewData shows the masked diff (keys and
-// sizes, never a value) and the server's dry run, secret.saveData writes the values with the
-// version they are based on as precondition, as configMap.reviewData and configMap.saveData do
-// for a Config Map. Both are MCP tools like every command, marked GUI-only: Dispatch refuses an
-// agent or the CLI before anything is read, asked or sent, Refuse and the engine refuse again, and
-// the audit line of a refused call names the Secret and its keys, never a value. Keys are added
-// (add) and removed (remove) in the same write (the owner's audit decision of 2026-10-16); a save
-// that removes a key is destructive, which the drawer's review confirms.
+// A Secret's values edited in the drawer, the window's only (the owner's audit answer, D-59;
+// engine/secretdataedit.go): secret.reviewData shows the masked diff (keys and sizes, never a
+// value) and the server's dry run, secret.saveData writes the values with the version they are
+// based on as precondition, as configMap.reviewData and configMap.saveData do for a Config Map.
+// Both are MCP tools like every command, marked GUI-only: Dispatch refuses an agent or the CLI
+// before anything is read, asked or sent, Refuse and the engine refuse again, and the audit line of
+// a refused call names the Secret and its keys, never a value. Keys are added (add) and removed
+// (remove) in the same write (the owner's audit decision); a save that removes a key is
+// destructive, which the drawer's review confirms.
 
 // dataVerbUpdate is the verb of the drawers' saves: an object written back whole.
 const dataVerbUpdate = "update"

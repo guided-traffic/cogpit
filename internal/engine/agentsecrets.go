@@ -8,16 +8,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cache"
 )
 
-// The Secrets an agent's read waits for (H-82; the owner's decision of 2026-10-14, option b). The
-// filter in Dispatch replaces the values of the Secrets the cache holds in what an agent reads, and
-// until then the cache held them only while the Secrets view was open and for its warm period
-// after: a log an agent read in a session without that view went out as printed. Now a result the
-// filter reads (forAgent) first takes the Secrets as the Secrets view would read them (the access
-// reviews' plan: in all namespaces, or in each namespace the user may list them in), waits for them
-// bounded by agentSecretsWait, and lets them go at once: the cache keeps them warm for its warm
-// period (5 minutes by default) after the last agent read, and a read within it costs no request.
-// Options were (a) only what the cache holds anyway, (b) this, (c) the Secrets watched whenever the
-// MCP server is on; the owner chose (b). The window's reads and the CLI's start nothing.
+// The Secrets an agent's read waits for (H-82; the owner's decision, option b). The filter in
+// Dispatch replaces the values of the Secrets the cache holds in what an agent reads, and until
+// then the cache held them only while the Secrets view was open and for its warm period after: a
+// log an agent read in a session without that view went out as printed. Now a result the filter
+// reads (forAgent) first takes the Secrets as the Secrets view would read them (the access reviews'
+// plan: in all namespaces, or in each namespace the user may list them in), waits for them bounded
+// by agentSecretsWait, and lets them go at once: the cache keeps them warm for its warm period (5
+// minutes by default) after the last agent read, and a read within it costs no request. Options
+// were (a) only what the cache holds anyway, (b) this, (c) the Secrets watched whenever the MCP
+// server is on; the owner chose (b). The window's reads and the CLI's start nothing.
 
 // agentSecretsWait bounds how long an agent's read waits for the Secrets to be listed.
 const agentSecretsWait = 10 * time.Second

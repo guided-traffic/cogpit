@@ -34,8 +34,8 @@ type execConfig struct {
 
 // shardMemory is what one shard of the UI's tests (internal/ui/fyneui, an eighth of them) takes at
 // its peak, with some room: 2 GB measured without the race detector and 6.9 GB with it (an M1
-// Ultra, 2026-10-21; it grows with the tests a process runs, as Fyne parses its fonts again for
-// every test's app and go-text keeps every parsed face).
+// Ultra; it grows with the tests a process runs, as Fyne parses its fonts again for every test's
+// app and go-text keeps every parsed face).
 const (
 	shardMemory     = 3 << 30
 	shardMemoryRace = 8 << 30

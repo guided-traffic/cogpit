@@ -16,7 +16,7 @@ func TestPodDisruptionBudgetsStatusTexts(t *testing.T) {
 		bad     = model.StatusError
 	)
 	checkStatusTexts(t, []statusText{
-		// As captured from Lens (2026-10-11): "N/A" for a bound the budget does not set.
+		// As captured from Lens: "N/A" for a bound the budget does not set.
 		{"poddisruptionbudgets", "healthy", "minAvailable", "2", none, ok},
 		{"poddisruptionbudgets", "healthy", "maxUnavailable", "N/A", none, ok},
 		{"poddisruptionbudgets", "minimal", "minAvailable", "N/A", none, model.StatusPending},
@@ -39,7 +39,7 @@ func TestPodDisruptionBudgetsStatusTexts(t *testing.T) {
 	})
 }
 
-// TestPodDisruptionBudgetColumns pins the columns captured from Lens on 2026-10-11.
+// TestPodDisruptionBudgetColumns pins the columns captured from Lens.
 func TestPodDisruptionBudgetColumns(t *testing.T) {
 	assertColumnOrder(t, "poddisruptionbudgets", []model.Column{
 		{ID: "name", Title: "Name"},

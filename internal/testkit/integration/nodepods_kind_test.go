@@ -17,10 +17,9 @@ import (
 )
 
 // TestKindNodeDrawerPods checks a node drawer's Pods table against the kind cluster's
-// metrics-server (owner, 2026-10-13): with the drawer open the table's CPU and Memory fill from
-// the pods' metrics list, as metrics.get reads them; ui.sortDrawerTable sorts the rows by memory,
-// a pod without a measurement last; the drawer closed, no more pod metrics are listed. It only
-// reads.
+// metrics-server (owner): with the drawer open the table's CPU and Memory fill from the pods'
+// metrics list, as metrics.get reads them; ui.sortDrawerTable sorts the rows by memory, a pod
+// without a measurement last; the drawer closed, no more pod metrics are listed. It only reads.
 func TestKindNodeDrawerPods(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
 	if kubeconfig == "" || contextName == "" {

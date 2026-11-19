@@ -17,17 +17,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A Secret's values edited in the drawer, in Cogpit's own window only (the owner's audit answer of
-// 2026-10-15; decisions D-59). The drawer shows a Secret's keys masked; Show reveals one value
-// (secret.reveal, GUI-only) into an editor below its key, as a Config Map's values are edited
-// (D-55), and Save at the end of the data reviews every edited value and writes them at once.
-// secret.reviewData shows a masked diff (the keys that change and their sizes, never a value) and
-// the server's dry run; secret.saveData writes, as configMap.saveData writes a Config Map: the
-// Secret from the cache with the values set, base64-encoded in data, a dry run, then the update
-// with the version the values are based on as precondition; a Secret that changed since is a
-// *DataConflictError with the masked changes against the newer version, written over only by a
-// save that names it. Given the edited keys' values at the base version (from), the review
-// rebases the edit onto a newer version none of those keys changed in, as a Config Map's does.
+// A Secret's values edited in the drawer, in Cogpit's own window only (the owner's audit answer;
+// decisions D-59). The drawer shows a Secret's keys masked; Show reveals one value (secret.reveal,
+// GUI-only) into an editor below its key, as a Config Map's values are edited (D-55), and Save at
+// the end of the data reviews every edited value and writes them at once. secret.reviewData shows a
+// masked diff (the keys that change and their sizes, never a value) and the server's dry run;
+// secret.saveData writes, as configMap.saveData writes a Config Map: the Secret from the cache with
+// the values set, base64-encoded in data, a dry run, then the update with the version the values
+// are based on as precondition; a Secret that changed since is a *DataConflictError with the masked
+// changes against the newer version, written over only by a save that names it. Given the edited
+// keys' values at the base version (from), the review rebases the edit onto a newer version none of
+// those keys changed in, as a Config Map's does.
 //
 // Both commands are GUI-only (Spec.GUIOnly): Dispatch refuses every other origin before anything
 // is read, asked or sent, so no agent, no CLI call and no MCP client reaches a path that writes a
@@ -36,9 +36,9 @@ import (
 // keys; an API message that quotes a value is scrubbed), a toast, a log, a draft (the window
 // keeps unsaved values in its memory only) or the result. Keys are added (their values typed as
 // text, stored base64-encoded) and removed in the same write (add and remove, the owner's audit
-// decision of 2026-10-16; datakeys.go); a save that removes one is destructive, and the masked diff
-// lists it. A binary value is not edited (it can be removed), a Helm release record is not
-// edited, and an immutable Secret is refused.
+// decision; datakeys.go); a save that removes one is destructive, and the masked diff lists it. A
+// binary value is not edited (it can be removed), a Helm release record is not edited, and an
+// immutable Secret is refused.
 
 // The ids of the drawer's Secret commands.
 const (

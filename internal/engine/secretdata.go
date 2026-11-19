@@ -15,14 +15,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Secrets drawer (D-13 revised 2026-10-12, H-8). The cache holds Secrets in full: the Secrets
-// view watches them with their values, so the drawer reads the Secret it shows from the cache like
-// any other object and makes no request of its own. The drawer model lists every key with its
-// value masked and its size, for the GUI and agents alike; secret.reveal hands one value of the
-// Secret the drawer shows to the user's own window and refuses every other origin. Values never
-// reach the drawer model, the YAML (model.Redact), logs, errors, toasts or the audit log; the one
-// exception is object.get for the built-in agent over a connection the user marked private, which
-// reads like the user (readLikeUser below, D-10, H-94).
+// The Secrets drawer (D-13 revised, H-8). The cache holds Secrets in full: the Secrets view watches
+// them with their values, so the drawer reads the Secret it shows from the cache like any other
+// object and makes no request of its own. The drawer model lists every key with its value masked
+// and its size, for the GUI and agents alike; secret.reveal hands one value of the Secret the
+// drawer shows to the user's own window and refuses every other origin. Values never reach the
+// drawer model, the YAML (model.Redact), logs, errors, toasts or the audit log; the one exception
+// is object.get for the built-in agent over a connection the user marked private, which reads like
+// the user (readLikeUser below, D-10, H-94).
 
 // RevealCommand is the command a masked Secret value's "Show" button runs: GUI-only.
 const RevealCommand = "secret.reveal"
@@ -256,15 +256,15 @@ func (s *Session) SecretValue(p RevealParams) (SecretValue, error) {
 }
 
 // readLikeUser gives a turn of the built-in agent over a connection the user marked private what
-// the user can read of a Secret (D-10, H-94; the owner's decision of 2026-10-14 late evening, "the
-// chat reads like the user"): the drawer's Data section with each text value as the drawer's Show
-// reveals it (the first 4 KiB and 40 lines, the cut said), a binary value by its size, and the
-// YAML as the object's Edit tab holds it, its values unredacted (base64 in data). A Helm release
-// record kept in a ConfigMap gets its YAML likewise (its payload is the release's values, which
-// helm.release.values gives the private turn decoded). Only Dispatch's private turn reaches it
-// (PrivateTurn): the window's own drawer keeps the values masked until the user clicks Show, every
-// other caller reads them redacted. The items are marked private, so that a model passed through
-// model.WithholdPrivate withholds them again. m is the model detail built for this read alone.
+// the user can read of a Secret (D-10, H-94; the owner's decision, "the chat reads like the user"):
+// the drawer's Data section with each text value as the drawer's Show reveals it (the first 4 KiB
+// and 40 lines, the cut said), a binary value by its size, and the YAML as the object's Edit tab
+// holds it, its values unredacted (base64 in data). A Helm release record kept in a ConfigMap gets
+// its YAML likewise (its payload is the release's values, which helm.release.values gives the
+// private turn decoded). Only Dispatch's private turn reaches it (PrivateTurn): the window's own
+// drawer keeps the values masked until the user clicks Show, every other caller reads them
+// redacted. The items are marked private, so that a model passed through model.WithholdPrivate
+// withholds them again. m is the model detail built for this read alone.
 func readLikeUser(p *model.KindProfile, obj *unstructured.Unstructured, m *DetailModel) {
 	if obj == nil || m == nil {
 		return

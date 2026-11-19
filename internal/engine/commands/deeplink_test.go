@@ -209,9 +209,8 @@ func TestDeepLinkConnectsAndNavigates(t *testing.T) {
 }
 
 // A link that would connect another cluster asks the user once, naming the context and what it
-// opens (A7, owner 2026-10-14 evening, H-89); declined, nothing is connected and nothing moves, and
-// the toast and the audit log say the user declined. Navigation within the connected cluster never
-// asks.
+// opens (A7, owner, H-89); declined, nothing is connected and nothing moves, and the toast and the
+// audit log say the user declined. Navigation within the connected cluster never asks.
 func TestDeepLinkAsksBeforeItConnects(t *testing.T) {
 	h := newLinkHarness(t)
 	var req engine.ConfirmRequest

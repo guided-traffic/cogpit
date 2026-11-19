@@ -10,13 +10,12 @@ import (
 	"strings"
 )
 
-// The endpoints of Connection Diagnostics' report (D-133, the owner's choice of 2026-10-26:
-// "Nur Endpunkte"): hosts, addresses, ports, URLs' servers and file paths are replaced before a
-// report leaves Cogpit; the names of users, groups, namespaces, objects and API groups stay as
-// they are. A host becomes host-1, host-2, an address ip-1, ip-2, the same one the same placeholder
-// throughout the report, so that its lines can still be read together; a URL keeps its path and
-// query (an API path names a resource, not an endpoint) with the placeholder for its server; a
-// file path becomes <path>.
+// The endpoints of Connection Diagnostics' report (D-133, the owner's choice: "Nur Endpunkte"):
+// hosts, addresses, ports, URLs' servers and file paths are replaced before a report leaves Cogpit;
+// the names of users, groups, namespaces, objects and API groups stay as they are. A host becomes
+// host-1, host-2, an address ip-1, ip-2, the same one the same placeholder throughout the report,
+// so that its lines can still be read together; a URL keeps its path and query (an API path names a
+// resource, not an endpoint) with the placeholder for its server; a file path becomes <path>.
 
 var (
 	urlPattern = regexp.MustCompile(`(?i)\b[a-z][a-z0-9+.-]*://[^\s"'<>()\[\]]+`)

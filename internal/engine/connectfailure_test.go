@@ -13,7 +13,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A failed connect's page and the connect's stages (D-114, the owner's AW17 of 2026-10-22).
+// A failed connect's page and the connect's stages (D-114, the owner's AW17).
 
 // certGoneKubeconfig is a kubeconfig whose context name logs in by a client certificate whose files
 // are gone, as the owner's walk-cert-gone after its certificate was removed.

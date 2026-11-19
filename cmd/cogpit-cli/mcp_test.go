@@ -277,11 +277,11 @@ func TestMCPRefusesAForeignEndpoint(t *testing.T) {
 	}
 }
 
-// TestMCPFreshInstallationIsOff: the external MCP server is opt-in (D-49, the owner's decision of
-// 2026-10-21). In a Cogpit directory without a switch file, a new installation, the bridge serves
-// neither the running app's tools nor a headless engine's: the agent is told the server is off, with
-// --headless too, and the bridge does not write the switch for the user. Where Cogpit's directory is
-// unknown the switch cannot have been switched on, so it is the same.
+// TestMCPFreshInstallationIsOff: the external MCP server is opt-in (D-49, the owner's decision). In
+// a Cogpit directory without a switch file, a new installation, the bridge serves neither the
+// running app's tools nor a headless engine's: the agent is told the server is off, with --headless
+// too, and the bridge does not write the switch for the user. Where Cogpit's directory is unknown
+// the switch cannot have been switched on, so it is the same.
 func TestMCPFreshInstallationIsOff(t *testing.T) {
 	te := newTestEnv(t)
 	if _, err := os.Lstat(mcp.SwitchPath(te.dirs.Config)); !os.IsNotExist(err) {

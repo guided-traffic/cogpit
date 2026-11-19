@@ -14,14 +14,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The node shell journal (H-71, owner 2026-10-14; D-11): every node shell pod Cogpit creates is
-// recorded before its create is sent, with its context, namespace, name and a random id the pod
-// carries as an annotation (NodeShellIDAnnotation), and gets its UID once the API server returned
-// it. The entry goes when the pod is deleted (the shell ends, its tab closes, Cogpit quits) or is
-// gone. A crash, a kill or a lost connection during the delete leave the entry, and the next
-// connect to that context deletes the pod (nodeshellsweep.go). Recording before the create means a
-// crash between the create and the journal cannot leave a pod nobody recorded: the worst case is
-// an entry without a UID, whose pod the sweep finds by name and recognises by the id.
+// The node shell journal (H-71, owner; D-11): every node shell pod Cogpit creates is recorded
+// before its create is sent, with its context, namespace, name and a random id the pod carries as
+// an annotation (NodeShellIDAnnotation), and gets its UID once the API server returned it. The
+// entry goes when the pod is deleted (the shell ends, its tab closes, Cogpit quits) or is gone. A
+// crash, a kill or a lost connection during the delete leave the entry, and the next connect to
+// that context deletes the pod (nodeshellsweep.go). Recording before the create means a crash
+// between the create and the journal cannot leave a pod nobody recorded: the worst case is an entry
+// without a UID, whose pod the sweep finds by name and recognises by the id.
 
 // NodeShellEntry is one node shell pod Cogpit created and has not seen deleted.
 type NodeShellEntry struct {

@@ -25,7 +25,7 @@ import (
 )
 
 // The sources the kind cluster's charts name: Prometheus for the history, the Metrics Server for
-// the live values (both together, the normal case: G12, owner 2026-10-12, evening).
+// the live values (both together, the normal case: G12, owner).
 const (
 	kindPromSource = "Prometheus (monitoring/prometheus-server)"
 	kindBothSource = kindPromSource + " and Kubernetes Metrics Server"
@@ -423,13 +423,13 @@ func itoa(n int) string {
 }
 
 // TestKindMetricsFallback watches the engine fall back to one provider while the other is down
-// and return to both when it is back (owner, 2026-10-12): it scales the kind cluster's
-// metrics-server to zero (Prometheus takes the live values over in the drawer and the lists), back
-// to one (the Metrics Server serves them again), then Prometheus to zero (the Metrics Server's live
-// values go on without new history; the status line says Prometheus does not answer), and back.
-// It changes kube-system and monitoring of the kind cluster, so it runs only with
-// COGPIT_KIND_FALLBACK=1 and never with the rest of make test-kind; it restores both deployments
-// to one replica and waits for them to be ready, also when it fails.
+// and return to both when it is back (owner): it scales the kind cluster's metrics-server to zero
+// (Prometheus takes the live values over in the drawer and the lists), back to one (the Metrics
+// Server serves them again), then Prometheus to zero (the Metrics Server's live values go on
+// without new history; the status line says Prometheus does not answer), and back. It changes
+// kube-system and monitoring of the kind cluster, so it runs only with COGPIT_KIND_FALLBACK=1 and
+// never with the rest of make test-kind; it restores both deployments to one replica and waits for
+// them to be ready, also when it fails.
 func TestKindMetricsFallback(t *testing.T) {
 	if os.Getenv("COGPIT_KIND_FALLBACK") != "1" {
 		t.Skip("scales the kind cluster's metrics-server and Prometheus: set COGPIT_KIND_FALLBACK=1")
@@ -590,8 +590,8 @@ func TestKindKubePrometheusStack(t *testing.T) {
 	dispatch("ui.navigate", map[string]any{"ref": node})
 	// The chart's default kubelet ServiceMonitor drops cAdvisor's series without a pod ("Drop
 	// cgroup metrics with no pod": sourceLabels [id, pod], regex ".+;"), the root cgroup the node
-	// charts read until A43: the node had no history (2026-10-12; F1 in the owner's window). Its
-	// node-exporter (on since A115) has it, labelled with the exporter's host-network address only.
+	// charts read until A43: the node had no history (F1 in the owner's window). Its node-exporter
+	// (on since A115) has it, labelled with the exporter's host-network address only.
 	m := waitHistory(ctx, t, s, node, func(m *engine.ObjectMetrics) bool {
 		return strings.HasPrefix(m.Source, source) && len(m.Targets[0].Samples) >= 2 && m.HistorySource != ""
 	})

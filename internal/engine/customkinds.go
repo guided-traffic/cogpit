@@ -113,7 +113,7 @@ func (ck *customKinds) current() (*cache.Handle, string) {
 // state is current with the handle's error that msg was made from, nil once the watch was dropped.
 // A refusal is judged on this one read: read again, a refusal that arrived in between was dropped
 // with the empty text of the first read, and the watch ended with no error, no refusal and no
-// discovery until the next connect (TestCuratedKindsFromDiscovery, CI, 2026-10-16).
+// discovery until the next connect (TestCuratedKindsFromDiscovery).
 func (ck *customKinds) state() (h *cache.Handle, msg string, err error) {
 	ck.hmu.Lock()
 	defer ck.hmu.Unlock()
@@ -126,11 +126,11 @@ func (ck *customKinds) state() (h *cache.Handle, msg string, err error) {
 
 // drop ends a watch of the definitions that the API server refused (403 Forbidden): retried, it
 // would cost a refused list on every backoff step for as long as the cluster is connected (a
-// namespace-limited user, measured on kind 2026-10-13: ten refused requests in 20 seconds). The
-// custom kinds keep the refusal as their error; a refresh of the access reviews or the next
-// connect asks again (retake), as for a kind refused in all namespaces (accessiblens_plan.go).
-// The refusal's text is the reason: dropped holds it, and an empty one would end the watch without
-// saying so (refused and retake read dropped).
+// namespace-limited user, measured on kind: ten refused requests in 20 seconds). The custom kinds
+// keep the refusal as their error; a refresh of the access reviews or the next connect asks again
+// (retake), as for a kind refused in all namespaces (accessiblens_plan.go). The refusal's text is
+// the reason: dropped holds it, and an empty one would end the watch without saying so (refused and
+// retake read dropped).
 func (ck *customKinds) drop(h *cache.Handle, refusal error) {
 	ck.hmu.Lock()
 	defer ck.hmu.Unlock()

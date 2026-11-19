@@ -8,8 +8,8 @@ import (
 )
 
 // demoFlags: a release build (the tag nodemo) has no demo cluster, so there is no --demo,
-// --demo-pods or --demo-events, and the welcome page offers no context "demo" (owner, 2026-10-16,
-// D-67; demo.go has the development build's).
+// --demo-pods or --demo-events, and the welcome page offers no context "demo" (owner, D-67; demo.go
+// has the development build's).
 type demoFlags struct{}
 
 func registerDemoFlags() demoFlags { return demoFlags{} }

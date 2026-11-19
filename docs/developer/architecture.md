@@ -156,7 +156,7 @@ Where each package's mechanisms are described, and what only this table states:
 | [`kubectl`](../../internal/kubectl/) | [kubectl in terminals](#kubectl-in-terminals). |
 | [`locale`](../../internal/locale/) | The computer's date and time format ([`system_darwin.go`](../../internal/locale/system_darwin.go), else the environment), converted to Go layouts (`GoLayout`); ISO 8601 where a pattern does not convert. |
 | [`helm`](../../internal/helm/), [`metrics`](../../internal/metrics/), [`alerting`](../../internal/alerting/) | [§8](#8-helm-internalhelm), [§9](#9-metrics-internalmetrics), [Alertmanager](#d-77-alertmanager-internalalerting). |
-| [`demo`](../../internal/demo/) | Development builds only: a synthetic cluster behind a `cache.Source` (by default 10,000 pods, 500 Deployments with their Replica Sets, 300 services, 1,000 watch events per second; watch resume and 410 Gone), a synthetic Metrics Server and node disks ([`disks.go`](../../internal/demo/disks.go)), Helm release records. |
+| [`demo`](../../internal/demo/) | Development builds only: a synthetic cluster behind a `cache.Source` (by default 10,000 pods, 500 Deployments with their Replica Sets, kube-proxy's Daemon Set, 30 Cron Jobs with the Jobs of their runs, 300 services, 1,000 watch events per second; watch resume and 410 Gone), a synthetic Metrics Server and node disks ([`disks.go`](../../internal/demo/disks.go)), Helm release records. |
 | [`engine`](../../internal/engine/), [`engine/commands`](../../internal/engine/commands/) | [§4](#4-the-ui-seam-the-most-important-interface) (`Session`, registry, UI state, tables, jobs, drafts), the pool and connect runs ([§6](#d-69-the-pool-of-backends)), integrations ([§4.7](#47-integrations-d-76-d-82)), the port-forward manager ([`portforward.go`](../../internal/engine/portforward.go)). `object.create` runs in its dispatch call, without a job. Debug containers ([`debugcontainer.go`](../../internal/engine/debugcontainer.go), [D-102](decisions.md#d-102-debug-containers-added-from-the-drawer-shown-in-blue-reached-by-logs-shell-and-attach)): destructive for every origin; the new container reaches Cogpit through the pod's watch, then Attach opens on it. |
 | [`mcp`](../../internal/mcp/), [`agent`](../../internal/agent/) | [§7](#7-mcp-and-the-built-in-agent). The MCP server is stateless: each request is its own session. |
 | [`update`](../../internal/update/) | [§11](#11-updates-internalupdate). No automated test installs an update end to end. |
@@ -423,8 +423,10 @@ Each cluster's connection watch writes its own state, bound to its connect by a 
   [D-97](decisions.md#d-97-a-connect-goes-on-when-another-cluster-is-shown-a-failed-one-stays)):
   each connect is a `connectRun` in `state.runs`. `Session.Connect` starts or joins one and waits
   under `state.connMu`; `ConnectBackground` starts one nobody waits for (generations from
-  `bgGenBase`). A later connect or show ends only the wait (`errConnectSuperseded`); the run then
-  joins the pool as a cluster the window left, and a toast says how it ended.
+  `bgGenBase`). Its entry in `Connections` (`markRunning`) and its attempt in the connection log
+  exist before its goroutine runs. A later connect or show ends only the wait
+  (`errConnectSuperseded`); the run then joins the pool as a cluster the window left, and a toast
+  says how it ended.
 - **The shown cluster never changes by itself:** a failed connect leaves `Context` on its cluster in
   `ConnectError`, its stages in `ConnectFailure`
   ([`connectfailure.go`](../../internal/engine/connectfailure.go), D-114).
@@ -1572,7 +1574,11 @@ turn sends the conversation, a compact `ui_state` and tools to an OpenAI-compati
 endpoint, streams the answer and runs the tool calls through `Session.Dispatch` with
 `OriginBuiltInAgent`, so D-2's confirmations and the audit log apply. A request that would reach
 70 % of the connection's context window goes out without the conversation's oldest tool results
-([D-167](decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)).
+([D-167](decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)). A result above
+the connection's size goes as its head, or, over a connection that chooses, as the entries the
+model chose in a request of its own
+([D-170](decisions.md#d-170-a-large-tool-results-head-and-result_read),
+[D-172](decisions.md#d-172-a-sub-request-that-chooses-from-a-large-result)).
 
 <details>
 <summary>The agent's files</summary>
@@ -1585,11 +1591,12 @@ endpoint, streams the answer and runs the tool calls through `Session.Dispatch` 
 | [`turn.go`](../../internal/agent/turn.go), [`prompt.go`](../../internal/agent/prompt.go), [`failure.go`](../../internal/agent/failure.go) | `Send`, `Resend`, the turn loop and its limits; the system prompt, tool results framed as data; a `Dispatch` error in the model's words |
 | [`context.go`](../../internal/agent/context.go) | a request against the context window: the oldest tool results replaced by notes in what is sent |
 | [`head.go`](../../internal/agent/head.go), [`rawresult.go`](../../internal/agent/rawresult.go) | a result above the connection's size as a valid head with the totals; the copy held in memory and `result_read`, which reads on in it ([D-170](decisions.md#d-170-a-large-tool-results-head-and-result_read)) |
+| [`choose.go`](../../internal/agent/choose.go) | over a connection that chooses, a large result's list offered to the model in a request of its own; its entry numbers read, the chosen entries rendered ([D-172](decisions.md#d-172-a-sub-request-that-chooses-from-a-large-result)) |
 | [`conversation.go`](../../internal/agent/conversation.go), [`store.go`](../../internal/agent/store.go) | the conversations, `Stop`; the files |
 | [`conntest.go`](../../internal/agent/conntest.go), [`exchange.go`](../../internal/agent/exchange.go) | the connection test, layer by layer; a failed layer's request and answer |
 | [`cafile.go`](../../internal/agent/cafile.go), [`keystore.go`](../../internal/agent/keystore.go) | a connection's CA file as its only roots; the API keys |
 | [`engine/toolschema.go`](../../internal/engine/toolschema.go), [`chatconfirm.go`](../../internal/engine/chatconfirm.go), [`chatscrub.go`](../../internal/engine/chatscrub.go), [`chatfiles.go`](../../internal/engine/chatfiles.go) | the engine's side: tool schemas and descriptions shared with MCP; whether `Dispatch` will ask (`Session.AsksUser`); `Session.ScrubSecretValues`; the owner-only files |
-| [`turn_test.go`](../../internal/agent/turn_test.go), [`conntest_test.go`](../../internal/agent/conntest_test.go), [`connections_test.go`](../../internal/agent/connections_test.go), [`keyfile_test.go`](../../internal/agent/keyfile_test.go), [`client_test.go`](../../internal/agent/client_test.go), [`private_test.go`](../../internal/agent/private_test.go), [`live_test.go`](../../internal/agent/live_test.go) | tests against [`testkit/fakellm`](../../internal/testkit/fakellm/fakellm.go) and a real engine session; `live_test.go` against a real endpoint, local only |
+| [`turn_test.go`](../../internal/agent/turn_test.go), [`conntest_test.go`](../../internal/agent/conntest_test.go), [`connections_test.go`](../../internal/agent/connections_test.go), [`keyfile_test.go`](../../internal/agent/keyfile_test.go), [`client_test.go`](../../internal/agent/client_test.go), [`private_test.go`](../../internal/agent/private_test.go), [`choose_test.go`](../../internal/agent/choose_test.go), [`live_test.go`](../../internal/agent/live_test.go) | tests against [`testkit/fakellm`](../../internal/testkit/fakellm/fakellm.go) and a real engine session; `live_test.go` against a real endpoint, local only |
 
 </details>
 
@@ -1985,10 +1992,12 @@ the whole setting at every change and follows `cluster.prometheus` after every m
   filter off, when the pod's own cgroup is its line); the network per pod, which a container's chart
   carries (`NetworkOfPod`); the filesystem's usage, else its read and write rates
   (`FilesystemSource`, found by trying, remembered per kind for the provider's life).
-- A node and the cluster: node-exporter's CPU, memory (`MemTotal − MemFree − Inactive_file`),
-  interfaces (`nodeInterfaces`) and block devices, else cAdvisor's root cgroup (`id="/"`). CPU and
-  memory try node-exporter first and `Prometheus.nodeSource` remembers the answer for the provider's
-  life (`ObjectSeries.UsageSource`); network and filesystem join both by `or`. Series match by the
+- A node and the cluster: node-exporter's CPU, memory (`AnonPages + Cached + Buffers −
+  Inactive_file`, the kubelet's working set:
+  [D-175](decisions.md#d-175-a-nodes-memory-is-the-kubelets-working-set)), interfaces
+  (`nodeInterfaces`) and block devices, else cAdvisor's root cgroup (`id="/"`). CPU and memory try
+  node-exporter first and `Prometheus.nodeSource` remembers the answer for the provider's life
+  (`ObjectSeries.UsageSource`); network and filesystem join both by `or`. Series match by the
   `node` label, else by `instance` as the name or an address; each exporter counts once. Why:
   [D-43](decisions.md#d-43-where-the-nodes-disk-comes-from).
 - The lists' instant queries read cAdvisor only (a node: its root cgroup), so on

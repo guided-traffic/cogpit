@@ -265,8 +265,8 @@ func TestLookGeometry(t *testing.T) {
 	}
 }
 
-// TestGlowLiesOverTheWheel: the C's glow is painted over the wheel (owner, 2026-10-15), so a spoke
-// near the C takes the glow's blue; the C and its core stay on top of the glow.
+// TestGlowLiesOverTheWheel: the C's glow is painted over the wheel (owner), so a spoke near the C
+// takes the glow's blue; the C and its core stay on top of the glow.
 func TestGlowLiesOverTheWheel(t *testing.T) {
 	dark := HelmGlow
 	dark.Glow = 0

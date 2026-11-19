@@ -17,26 +17,26 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The debug container (the owner, 2026-10-19 evening; D-102; docs/security/privilege-footprint.md
-// › Debug container): pod.debug (commands/debugcontainer.go) adds an ephemeral container to a
-// running pod, as `kubectl debug -it --target` does: a container "debugger-<5 characters>" from the
-// image the user confirmed (the Preferences' DebugImage by default, nicolaka/netshoot pinned by
-// digest), with stdin and a TTY, sharing the target container's processes; then the pod's Attach
-// tab opens on it. Kubernetes keeps an ephemeral container as long as the pod object: it survives
-// the pod's container restarts, is never restarted itself, and the API cannot remove or change it,
-// so adding one cannot be undone and is destructive for every origin (the owner). The new container
-// reaches Cogpit through the pod's watch, never through a read of its own (cache first).
+// The debug container (the owner; D-102; docs/security/privilege-footprint.md › Debug container):
+// pod.debug (commands/debugcontainer.go) adds an ephemeral container to a running pod, as `kubectl
+// debug -it --target` does: a container "debugger-<5 characters>" from the image the user confirmed
+// (the Preferences' DebugImage by default, nicolaka/netshoot pinned by digest), with stdin and a
+// TTY, sharing the target container's processes; then the pod's Attach tab opens on it. Kubernetes
+// keeps an ephemeral container as long as the pod object: it survives the pod's container restarts,
+// is never restarted itself, and the API cannot remove or change it, so adding one cannot be undone
+// and is destructive for every origin (the owner). The new container reaches Cogpit through the
+// pod's watch, never through a read of its own (cache first).
 
 // The debug container's names and bounds.
 const (
 	// DebugCommand is the id of the command that adds a debug container.
 	DebugCommand = "pod.debug"
 
-	// DefaultDebugImage is nicolaka/netshoot v0.16, the owner's choice (2026-10-19), pinned to the
-	// digest of its multi-arch index (read by the lead with a HEAD of the tag on registry-1.docker.io
-	// with the OCI index Accept header, 2026-10-19), as the node shell's default is pinned (D-37).
-	// Renovate moves the tag and the digest (.github/renovate.json reads the comment below), and
-	// CI's kind job runs every such change in a pod (TestKindDebugContainer).
+	// DefaultDebugImage is nicolaka/netshoot v0.16, the owner's choice, pinned to the digest of its
+	// multi-arch index (read by the lead with a HEAD of the tag on registry-1.docker.io with the
+	// OCI index Accept header), as the node shell's default is pinned (D-37). Renovate moves the
+	// tag and the digest (.github/renovate.json reads the comment below), and CI's kind job runs
+	// every such change in a pod (TestKindDebugContainer).
 	// renovate: datasource=docker depName=docker.io/nicolaka/netshoot
 	DefaultDebugImage = "docker.io/nicolaka/netshoot:v0.16@sha256:b09d9b21381f47a79b3cbcb30da25266dc17186ea00ae65e99fdc51396f48e70"
 
@@ -54,8 +54,8 @@ const (
 // nicolaka/netshoot:v0.16.
 var DefaultDebugImageName = ShortImage(DefaultDebugImage)
 
-// ShortImage is an image reference as Cogpit's image fields show it (the owner's R30, 2026-10-20:
-// the short name, the pin behind it): without its digest and Docker Hub's registry and library path
+// ShortImage is an image reference as Cogpit's image fields show it (the owner's R30: the short
+// name, the pin behind it): without its digest and Docker Hub's registry and library path
 // (docker.io/library/alpine:3.24@sha256:… is alpine:3.24); another registry stays.
 func ShortImage(image string) string {
 	if at := strings.LastIndex(image, "@"); at >= 0 {
@@ -65,11 +65,11 @@ func ShortImage(image string) string {
 	return strings.TrimPrefix(image, "library/")
 }
 
-// ImageFromField is the image an image field's text stands for (the owner's R30, 2026-10-20: the
-// debug dialog, Preferences › debug image and Cluster Settings › Node Shell): the configured image
-// (def when configured is empty) while the text is its short name, so its digest stays behind the
-// name; def while the text is def's short name or empty; anything else exactly as typed, a tag
-// without a digest a floating one. The text is trimmed.
+// ImageFromField is the image an image field's text stands for (the owner's R30: the debug dialog,
+// Preferences › debug image and Cluster Settings › Node Shell): the configured image (def when
+// configured is empty) while the text is its short name, so its digest stays behind the name; def
+// while the text is def's short name or empty; anything else exactly as typed, a tag without a
+// digest a floating one. The text is trimmed.
 func ImageFromField(text, configured, def string) string {
 	text = strings.TrimSpace(text)
 	if configured == "" {

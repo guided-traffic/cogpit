@@ -14,7 +14,7 @@ import (
 	"unicode"
 )
 
-// The connection test's record of its requests (the owner, 2026-10-26: "WELCHER ENDPUNKT WURDE WIE
+// The connection test's record of its requests (the owner: "WELCHER ENDPUNKT WURDE WIE
 // AUFGERUFEN???", after a failed Tool use step said only "the endpoint answered HTTP 404 Not Found:
 // Not Found"). A layer that sends requests keeps its last one with the answer, and a failed layer
 // shows it in curl -v's form: where the connection went, the request line, the header fields as

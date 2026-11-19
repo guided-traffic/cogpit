@@ -14,9 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The status bar's zoom (D-134), right of Diagnostics (the owner, 2026-10-26: "eine Lupe mit + und
-// eine Lupe mit - in der Statusleiste rechts von Diagnostics"; of three looks he chose − 120% +):
-// the magnifier with − (ui.zoom.out), the zoom in percent, which a click sets back to 100%
+// The status bar's zoom (D-134), right of Diagnostics (the owner: "eine Lupe mit + und eine Lupe
+// mit - in der Statusleiste rechts von Diagnostics"; of three looks he chose − 120% +): the
+// magnifier with − (ui.zoom.out), the zoom in percent, which a click sets back to 100%
 // (ui.zoom.reset), and the magnifier with + (ui.zoom.in). The percent shows always, at one width
 // for every level, so that neither magnifier moves under the pointer while it is clicked again and
 // again. A magnifier at the end of the range is greyed, the reason its tooltip. VS Code shows a

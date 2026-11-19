@@ -20,10 +20,11 @@ import (
 //
 // Its error, against the heap runtime.ReadMemStats reports for the same objects decoded into a store
 // (TestMemoryEstimateAgainstTheHeap, every built-in kind's fixtures, Go 1.27): 0.93–0.99 per kind,
-// 0.97 over all; on a real cluster's objects of seven kinds (TestRealMemoryEstimateAgainstTheHeap,
-// 2026-10-16) 0.96–1.00 per kind, 0.99 over all: it leaves out a few percent. Not counted: what client-go's informer holds besides its store (its queue between a list
-// and the store, the reflector's buffers), the label-selected views' own indexes, the size memo
-// itself, and the table snapshots and row caches the engine builds from the objects.
+// 0.97 over all; on a real cluster's objects of seven kinds (TestRealMemoryEstimateAgainstTheHeap)
+// 0.96–1.00 per kind, 0.99 over all: it leaves out a few percent. Not counted: what client-go's
+// informer holds besides its store (its queue between a list and the store, the reflector's
+// buffers), the label-selected views' own indexes, the size memo itself, and the table snapshots
+// and row caches the engine builds from the objects.
 
 // walkBudget bounds the objects one read walks per scope; the rest count at the walked ones' mean.
 const walkBudget = 1000

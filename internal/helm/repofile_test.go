@@ -122,7 +122,7 @@ repositories:
 	if len(entries) != 11 {
 		t.Fatalf("%d entries: %+v", len(entries), entries)
 	}
-	// A name with a dot is used since A36 (2026-10-14): the chart id doubles the dot.
+	// A name with a dot is used since A36: the chart id doubles the dot.
 	if d := byName(5); d.Name != "with.dot" || d.Repository == nil || d.Err != nil || d.Repository.Name != "with.dot" {
 		t.Errorf("with.dot %+v", d)
 	}

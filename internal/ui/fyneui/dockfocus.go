@@ -6,17 +6,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Which dock tab has the keys (the owner's alpha walk of 2026-10-22: AW5, "⋮ › Edit opens the Edit
-// tab without the cursor in the editor"; AW8, "⌘⇧T opens a terminal, but the cursor is not put into
-// it"; and AW6's first cause, ⌘F routed by where the keys are, D-106, to the list's search; D-115).
-// A dock tab the user opens or shows from the window takes the keyboard on its main widget: the
-// editor of an Edit, Create, Helm Upgrade or Helm Install tab, the terminal of a terminal, shell,
-// attach or node shell tab once its session runs, the lines of a logs tab once its stream opened.
-// The window knows a tab is its user's because a command of its own answers with it (the engine's
-// DockResult, EditResult and DebugResult, openedTab: the row menu, the drawer's buttons, the menus,
-// the palette, ⌘⇧T, the strip's chips, Reconnect, Debug), because the user clicked the tab in the
-// strip (dock.rebuildStrip), or restored its draft (drafts.go). The lead's decisions of 2026-10-22, open
-// to revision (D-115):
+// Which dock tab has the keys (the owner's alpha walk: AW5, "⋮ › Edit opens the Edit tab without
+// the cursor in the editor"; AW8, "⌘⇧T opens a terminal, but the cursor is not put into it"; and
+// AW6's first cause, ⌘F routed by where the keys are, D-106, to the list's search; D-115). A dock
+// tab the user opens or shows from the window takes the keyboard on its main widget: the editor of
+// an Edit, Create, Helm Upgrade or Helm Install tab, the terminal of a terminal, shell, attach or
+// node shell tab once its session runs, the lines of a logs tab once its stream opened. The window
+// knows a tab is its user's because a command of its own answers with it (the engine's DockResult,
+// EditResult and DebugResult, openedTab: the row menu, the drawer's buttons, the menus, the
+// palette, ⌘⇧T, the strip's chips, Reconnect, Debug), because the user clicked the tab in the strip
+// (dock.rebuildStrip), or restored its draft (drafts.go). The lead's decisions, open to revision
+// (D-115):
 //   - a tab an agent opens or shows (over MCP, the built-in agent) or the CLI leaves the keys where
 //     they are: the window sees only the state, never an answer of its own; keys meant for the chat
 //     or the list's search would land in a pod's shell otherwise, and the palette and the chat column

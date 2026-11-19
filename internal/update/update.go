@@ -16,18 +16,18 @@
 // The engine drives it (engine/updates.go): the preference "Check for updates automatically" is
 // Cogpit's, and the engine hands it to Start and SetAutomaticChecks, which run Cogpit's scheduled
 // checks while it is on: one at once, so that every start checks whenever the last check was (the
-// owner, 2026-10-16), then one every hour. Help › Check for Updates… calls CheckForUpdates. Sparkle
-// runs on the main thread: every call is queued onto the main dispatch queue, which the app's
-// event loop drains, so no method blocks and any goroutine may call them.
+// owner), then one every hour. Help › Check for Updates… calls CheckForUpdates. Sparkle runs on the
+// main thread: every call is queued onto the main dispatch queue, which the app's event loop
+// drains, so no method blocks and any goroutine may call them.
 //
 // The Update button (F7): Sparkle's own scheduled checks stay off, since a release one of them
 // finds is held for the user (Sparkle's gentle reminders) and no check runs while it is held: a
 // copy running for days offered the first release it found however many followed (the owner's
-// report, 2026-10-26). Cogpit's scheduled checks are Sparkle's probing checks, which read the feed,
-// report the newest release (not the one the user skipped) to the updater's delegate and end;
-// AvailableUpdate says so until a check finds none or the update session of the user's check ends,
-// so that the window shows its Update button, whose click reads the feed again and brings Sparkle's
-// window with the newest release up (CheckForUpdates). OnUpdateChange tells the engine.
+// report). Cogpit's scheduled checks are Sparkle's probing checks, which read the feed, report the
+// newest release (not the one the user skipped) to the updater's delegate and end; AvailableUpdate
+// says so until a check finds none or the update session of the user's check ends, so that the
+// window shows its Update button, whose click reads the feed again and brings Sparkle's window with
+// the newest release up (CheckForUpdates). OnUpdateChange tells the engine.
 //
 // Layer L4: it imports nothing of Cogpit's but internal/buildinfo (L0, the version this process
 // runs, on Linux and Windows); cmd/cogpit wires it into the engine.

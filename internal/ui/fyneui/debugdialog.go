@@ -17,20 +17,20 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Debug dialog (the owner, 2026-10-19; D-102; engine/debugcontainer.go): Debug on a pod, from
-// its drawer's toolbar, its row menu or the palette, asks which image, prefilled with the
-// Preferences' debug image in an ordinary entry the user edits, selects, copies and pastes into,
-// and which of the pod's containers to target (the first preselected, None for no target). Debug
-// is destructive for every origin (the owner), and this dialog is its confirmation, as the
-// Rollback dialog is a rollback's (helmrollback.go): its rows are the confirmation's, Context ›
-// Namespace › Pod, Target and what the container sees of it, Image and its digest, "This cannot be
-// undone." in red, its Debug button armed after the confirmation's delay. Its answer is bound to
-// the command, this window, the pod and its UID as the dialog read them, the target and the image,
-// so the engine's confirmation of exactly that takes it instead of asking a second time; a pod
-// created again under the name meanwhile is refused. One step, not two: a second dialog would only
-// repeat the first's values (the lead's choice, D-102).
+// The Debug dialog (the owner; D-102; engine/debugcontainer.go): Debug on a pod, from its drawer's
+// toolbar, its row menu or the palette, asks which image, prefilled with the Preferences' debug
+// image in an ordinary entry the user edits, selects, copies and pastes into, and which of the
+// pod's containers to target (the first preselected, None for no target). Debug is destructive for
+// every origin (the owner), and this dialog is its confirmation, as the Rollback dialog is a
+// rollback's (helmrollback.go): its rows are the confirmation's, Context › Namespace › Pod, Target
+// and what the container sees of it, Image and its digest, "This cannot be undone." in red, its
+// Debug button armed after the confirmation's delay. Its answer is bound to the command, this
+// window, the pod and its UID as the dialog read them, the target and the image, so the engine's
+// confirmation of exactly that takes it instead of asking a second time; a pod created again under
+// the name meanwhile is refused. One step, not two: a second dialog would only repeat the first's
+// values (the lead's choice, D-102).
 //
-// The image field shows the image's short name (the owner's R30, 2026-10-20: nicolaka/netshoot:v0.16,
+// The image field shows the image's short name (the owner's R30: nicolaka/netshoot:v0.16,
 // engine.ShortImage), its digest behind it: while the text is the configured image's short name the
 // configured image runs, pinned as it is, and the Digest row shows its digest; a changed text runs
 // exactly what is typed, a tag without a digest marked as floating (engine.ImageFromField).

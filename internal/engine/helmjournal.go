@@ -30,12 +30,12 @@ const (
 	// HelmInstall: an install of a chart as a new release (helm install, helminstall.go). The entry
 	// names the chart ("<repository>/<chart>") and version, never the values. An interrupted
 	// install leaves the release pending-install (or failed); Cogpit offers nothing to finish it
-	// (owner, 2026-10-14 evening, A17): the entry shows the release's state until the cluster shows
-	// the install finished or the release gone, the user dismisses it, or another action on the
-	// release (an uninstall in the Helm Releases view) replaces it. The journal still records the
-	// install: it keeps a second Cogpit process from starting an action on the release while the
-	// install runs (H-22), and tells the user after a crash what was left. An entry of this kind
-	// makes the journal unreadable for an older Cogpit that does not know installs.
+	// (owner, A17): the entry shows the release's state until the cluster shows the install
+	// finished or the release gone, the user dismisses it, or another action on the release (an
+	// uninstall in the Helm Releases view) replaces it. The journal still records the install: it
+	// keeps a second Cogpit process from starting an action on the release while the install runs
+	// (H-22), and tells the user after a crash what was left. An entry of this kind makes the
+	// journal unreadable for an older Cogpit that does not know installs.
 	HelmInstall HelmAction = "install"
 )
 

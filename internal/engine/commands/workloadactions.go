@@ -38,8 +38,8 @@ func registerWorkloadActions(g *registrar) {
 }
 
 // restartSpec builds the Restart command of a Daemon Set or Stateful Set: kubectl rollout
-// restart's patch, destructive (it replaces every pod), confirmed for every origin (owner,
-// 2026-10-11), first in the kind's menu.
+// restart's patch, destructive (it replaces every pod), confirmed for every origin (owner), first
+// in the kind's menu.
 func restartSpec(id, menuPath, kind, noun string) engine.Spec[refParams] {
 	return engine.Spec[refParams]{
 		ID: id, Label: labelRestart, MenuPath: menuPath, Kinds: []string{kind},

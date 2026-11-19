@@ -22,7 +22,7 @@ import (
 // the results; and, as curated kinds, they come from API discovery for a user who may not list the
 // custom resource definitions (A90, engine/customkinds_discovery.go), so that the integration finds
 // the reports such a user may read. Version: v1alpha2 only, the one Kyverno serves (checked on a
-// real cluster's Kyverno 1.17, 2026-10-17); the Working Group's v1beta1 is not read.
+// real cluster's Kyverno 1.17); the Working Group's v1beta1 is not read.
 
 // The policy reports' kind keys and API group.
 const (
@@ -104,9 +104,9 @@ type PolicyResult struct {
 
 // PolicyRef links a result's policy: Kyverno's ClusterPolicy, or its namespaced Policy for a
 // policy named "<namespace>/<name>" (source kyverno); a ValidatingPolicy (source
-// KyvernoValidatingPolicy, seen on Kyverno 1.19 on kind, 2026-10-17); nil for a result of another
-// source (Kyverno's other CEL kinds, a Kubernetes ValidatingAdmissionPolicy's), whose kind Cogpit
-// has not seen a report name. The window drops the link while the cluster does not serve the kind.
+// KyvernoValidatingPolicy, seen on Kyverno 1.19 on kind); nil for a result of another source
+// (Kyverno's other CEL kinds, a Kubernetes ValidatingAdmissionPolicy's), whose kind Cogpit has not
+// seen a report name. The window drops the link while the cluster does not serve the kind.
 func (r PolicyResult) PolicyRef() *model.ObjectRef {
 	switch {
 	case r.Policy == "":

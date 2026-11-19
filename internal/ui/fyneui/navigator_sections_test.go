@@ -486,6 +486,7 @@ func TestNavigatorSectionOverTheEngine(t *testing.T) {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{}, q.do)
+	keepScene(t, w, sh, q)
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
@@ -594,8 +595,7 @@ func renderNavigatorFind(t *testing.T, mode ThemeMode, name string) {
 	savePNG(t, w, name)
 }
 
-// The section root's "−" opens Kubeconfig Sources… (the owner's WF44 of 2026-10-19), as its menu
-// does.
+// The section root's "−" opens Kubeconfig Sources… (the owner's WF44), as its menu does.
 func TestSectionRootMinusOpensTheSources(t *testing.T) {
 	sh, _, q, _ := sectionScene(t, ThemeDark)
 	r := sh.side.sec.root
@@ -606,9 +606,9 @@ func TestSectionRootMinusOpensTheSources(t *testing.T) {
 	q.until(t, "the sources dialog", func() bool { return sh.kc.sources != nil })
 }
 
-// The foot of All Clusters (the owner's GW11, 2026-10-20): "Mixed environments", off by default,
-// with a "?" whose tooltip says what it does; a click sets the preference through preferences.set
-// (agents set the same), and with it on the tab bar shows every cluster's tabs.
+// The foot of All Clusters (the owner's GW11): "Mixed environments", off by default, with a "?"
+// whose tooltip says what it does; a click sets the preference through preferences.set (agents set
+// the same), and with it on the tab bar shows every cluster's tabs.
 func TestMixedEnvironmentsCheck(t *testing.T) {
 	sh, w, q, f := sectionScene(t, ThemeDark)
 	n := sh.side.sec
@@ -650,7 +650,7 @@ func TestMixedEnvironmentsCheck(t *testing.T) {
 
 // The foot's "?" shows its explanation on a hover and a click (GW11). Its tooltip is the shell's,
 // asked for at the event: the navigator is built before the shell's tooltip, and v0.31.0 kept the
-// nil it saw then, so a hover over the "?" ended Cogpit (the owner's report of 2026-10-20).
+// nil it saw then, so a hover over the "?" ended Cogpit (the owner's report).
 func TestMixedEnvironmentsHintHover(t *testing.T) {
 	sh, w, q, _ := sectionScene(t, ThemeDark)
 	hints := findAll[*fieldName](sh.side.sec.foot)

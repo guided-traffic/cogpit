@@ -14,13 +14,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The light strip (D-122, the owner's VW14 of 2026-10-24): a strip of frosted glass under the view's
-// header, above the table's header or the page's part, the width of the view (not under the
-// navigator, the drawer or the chat), that shows the accent colour (D-80) of the cluster whose tab
-// is shown, so that the user knows at a glance where they work: "Bin ich Beispielsweise auf Prod,
-// wünsche ich mir einen Roten Akzent umd direkt zu wissen dass ich hier vorsichtig sein muss". Its
-// place is the owner's from his walk (LS20: "Das ist der Platz für den Lichtstreifen"); every tab of
-// the main tab bar is a view of the table view (tableview.go), pages included.
+// The light strip (D-122, the owner's VW14): a strip of frosted glass under the view's header,
+// above the table's header or the page's part, the width of the view (not under the navigator, the
+// drawer or the chat), that shows the accent colour (D-80) of the cluster whose tab is shown, so
+// that the user knows at a glance where they work: "Bin ich Beispielsweise auf Prod, wünsche ich
+// mir einen Roten Akzent umd direkt zu wissen dass ich hier vorsichtig sein muss". Its place is the
+// owner's from his walk (LS20: "Das ist der Platz für den Lichtstreifen"); every tab of the main
+// tab bar is a view of the table view (tableview.go), pages included.
 //
 //   - Off, frosted glass with a fine grain, dark or light with the theme, for a cluster without an
 //     accent colour, the welcome page, and while no tab of a connected cluster is shown ("Stellt der

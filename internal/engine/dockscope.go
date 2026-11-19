@@ -5,12 +5,11 @@ import (
 	"slices"
 )
 
-// The dock per cluster (D-69 item 9, stage 2, built 2026-10-16): the dock shows the tabs of the
-// cluster the window shows and the tabs of no cluster (the Audit Log, the Diagnostics), so that a
-// terminal never stands beside another cluster's log. The other clusters' tabs stay in
-// UIState.Dock with their streams running, hidden, and come back with what ran meanwhile when their
-// cluster is shown again (as Lens). A local terminal belongs to the cluster it was opened for
-// (DockTab.Context).
+// The dock per cluster (D-69 item 9, stage 2): the dock shows the tabs of the cluster the window
+// shows and the tabs of no cluster (the Audit Log, the Diagnostics), so that a terminal never
+// stands beside another cluster's log. The other clusters' tabs stay in UIState.Dock with their
+// streams running, hidden, and come back with what ran meanwhile when their cluster is shown again
+// (as Lens). A local terminal belongs to the cluster it was opened for (DockTab.Context).
 //
 // Each cluster keeps its own active tab and whether its dock was open: ActiveDock and DockOpen are
 // the shown cluster's, and the engine keeps every other cluster's while it is not shown

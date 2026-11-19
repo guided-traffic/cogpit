@@ -15,11 +15,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A pod-metrics refusal affects only its namespace (D-39, owner 2026-10-14): the Metrics Server
-// refuses `list pods.metrics.k8s.io` in team-b (RBAC on the Metrics API is not the pods'), answers
-// in team-a. team-b's pods get no values and the state forbidden for team-b; team-a keeps the
-// Metrics Server's values; the Metrics Server's status stays as it is, and Prometheus is not asked
-// in its place.
+// A pod-metrics refusal affects only its namespace (D-39, owner): the Metrics Server refuses `list
+// pods.metrics.k8s.io` in team-b (RBAC on the Metrics API is not the pods'), answers in team-a.
+// team-b's pods get no values and the state forbidden for team-b; team-a keeps the Metrics Server's
+// values; the Metrics Server's status stays as it is, and Prometheus is not asked in its place.
 
 // refusingServer is a Metrics Server that refuses one namespace's pods.
 type refusingServer struct {

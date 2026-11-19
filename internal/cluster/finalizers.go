@@ -25,9 +25,9 @@ var ErrNoFinalizers = errors.New("a removal of finalizers needs the object's UID
 // while the object is the one with uid and holds exactly finalizers, in that order: two test
 // operations, then the removal. The API server applies the patch to the object it holds and
 // refuses it as a whole when a test fails (422 Invalid, whose message it does not detail; seen on
-// kind v1.36.1, 2026-10-19), so a finalizer added or removed since, or another object under the
-// name, is never overwritten. It names no other field, and never spec.finalizers or a subresource:
-// a namespace's own finalizer is removed only through /finalize, which Cogpit never calls.
+// kind v1.36.1), so a finalizer added or removed since, or another object under the name, is never
+// overwritten. It names no other field, and never spec.finalizers or a subresource: a namespace's
+// own finalizer is removed only through /finalize, which Cogpit never calls.
 func FinalizersPatch(uid string, finalizers []string) ([]byte, error) {
 	if uid == "" || len(finalizers) == 0 {
 		return nil, ErrNoFinalizers

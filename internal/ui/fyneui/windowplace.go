@@ -14,11 +14,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The window's place (D-95, the owner's WF11 of 2026-10-17): where the window was, how large, on
-// which display and whether in full screen, kept in a file of its own in Cogpit's configuration
-// directory and given back at the next start, whatever Preferences › App › Restore the last session
-// says (macOS apps come back where they were). It is the window's, not engine state: agents drive
-// what the window shows, not where it sits on the desktop, so no command reads or sets it.
+// The window's place (D-95, the owner's WF11): where the window was, how large, on which display
+// and whether in full screen, kept in a file of its own in Cogpit's configuration directory and
+// given back at the next start, whatever Preferences › App › Restore the last session says (macOS
+// apps come back where they were). It is the window's, not engine state: agents drive what the
+// window shows, not where it sits on the desktop, so no command reads or sets it.
 //
 // macOS keeps the frame in AppKit's screen coordinates (points, origin at the bottom left of the
 // primary display, y up) with the display it was on, and follows every move, resize and full-screen

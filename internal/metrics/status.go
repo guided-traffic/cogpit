@@ -10,9 +10,9 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
-// The status line under the drawer's charts (G12, owner 2026-10-12, evening): for each of a
-// cluster's providers, whether Cogpit reached it and whether it answered as expected, when it last
-// did, the last failure, and what it serves now. Agents read the same in metrics.get and ui.state.
+// The status line under the drawer's charts (G12, owner): for each of a cluster's
+// providers, whether Cogpit reached it and whether it answered as expected, when it last did, the
+// last failure, and what it serves now. Agents read the same in metrics.get and ui.state.
 
 // The roles a provider can serve (ProviderStatus.Serves).
 const (

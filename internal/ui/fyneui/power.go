@@ -18,9 +18,9 @@ import (
 // powerPoll is how often Windows and Linux read the power source to follow a change: Fyne's window
 // offers neither a change notification (Windows's WM_POWERBROADCAST goes to a window procedure
 // GLFW keeps; Linux's is UPower over D-Bus, a dependency for one bit), and a read costs
-// microseconds. Half a minute is the lead's choice (2026-10-24): the strip stops or starts its
-// animation at most that long after the cable moved, and the poll wakes the process twice a minute,
-// nothing beside the strip's frames (stripFPS a second) it saves.
+// microseconds. Half a minute is the lead's choice: the strip stops or starts its animation at most
+// that long after the cable moved, and the poll wakes the process twice a minute, nothing beside
+// the strip's frames (stripFPS a second) it saves.
 const powerPoll = 30 * time.Second
 
 // pollPower reads the power source every period and calls fn whenever it changed, until stop

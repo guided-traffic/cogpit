@@ -15,8 +15,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// A data key removed through the Edit tab (the owner, 2026-10-16 evening; D-55): object.apply is
-// destructive for every origin when the text drops a key the cached Config Map or Secret holds.
+// A data key removed through the Edit tab (the owner; D-55): object.apply is destructive for every
+// origin when the text drops a key the cached Config Map or Secret holds.
 
 // appConfig is the Config Map the tests edit; dbSecret (secretedit_test.go) the Secret.
 var appConfig = model.ObjectRef{Kind: "configmaps", Namespace: "shop", Name: "app"}

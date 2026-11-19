@@ -12,8 +12,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The owner's finding of 2026-10-16 night (D-73), end to end on client-go: a context whose
-// credential plugin waits for a login nobody finishes, as an OIDC login in the browser does.
+// The owner's finding (D-73), end to end on client-go: a context whose credential plugin waits for
+// a login nobody finishes, as an OIDC login in the browser does.
 
 const loginToken = "login-wait-token-0042"
 
@@ -266,12 +266,15 @@ func TestCancelABackgroundConnect(t *testing.T) {
 func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	s, p, _ := loginStack(t, 0)
 	p.Stray(true)
+	// Each wait below may start the plugin, a race-enabled test binary, on a loaded runner: room as
+	// in internal/cluster's TestAWaitBehindARunCogpitCouldNotEndHasNoEnd.
+	wait := within(t, 30*time.Second)
 	done := make(chan error, 1)
 	go func() { done <- s.Connect(context.Background(), "oidc") }()
 	// Cancelled only once the run left its stray child and its own process ended: a cancel while
 	// that process still exits finds it and says Cogpit ended it (strayed in internal/cluster's
 	// loginrun_test.go).
-	if !testkit.WaitFor(within(t, 10*time.Second), func() bool {
+	if !testkit.WaitFor(wait, func() bool {
 		c := s.UIState().Connection
 		return c.State == Connecting && c.WaitingForLogin.Program == "login-plugin" && len(p.Strays()) == 1 &&
 			testkit.ProcessGone(p.LastPID())
@@ -284,7 +287,7 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	}
 	select {
 	case _ = <-done:
-	case <-time.After(10 * time.Second):
+	case <-wait.Done():
 		t.Fatal("the cancelled connect did not return")
 	}
 	if text := attemptText(lastAttempt(t, s, "oidc", AttemptConnect)); !strings.Contains(text, "Cogpit stopped waiting for login-plugin") {
@@ -292,7 +295,7 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	}
 
 	go func() { done <- s.Connect(context.Background(), "oidc") }()
-	if !testkit.WaitFor(within(t, 10*time.Second), func() bool {
+	if !testkit.WaitFor(wait, func() bool {
 		c := s.UIState().Connection
 		return c.State == Connecting && c.WaitingForLogin.Program == "login-plugin"
 	}) {
@@ -308,7 +311,7 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 	if data, err := json.Marshal(c.WaitingForLogin); err != nil || strings.Contains(string(data), "until") || !strings.Contains(string(data), `"runsOn":true`) {
 		t.Errorf("the wait as agents read it: %s", data)
 	}
-	if !testkit.WaitFor(within(t, 5*time.Second), func() bool {
+	if !testkit.WaitFor(wait, func() bool {
 		return strings.Contains(attemptText(lastAttempt(t, s, "oidc", AttemptConnect)), "login: Login: waiting behind the login through login-plugin, running since ")
 	}) {
 		t.Errorf("the connect's attempt does not say what it waits behind:\n%s", attemptText(lastAttempt(t, s, "oidc", AttemptConnect)))
@@ -319,7 +322,6 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 		t.Errorf("the connect's attempt:\n%s", a)
 	}
 
-	start := time.Now()
 	if err := s.Disconnect(); err != nil {
 		t.Fatal(err)
 	}
@@ -328,19 +330,20 @@ func TestAConnectBehindARunCogpitCouldNotEndHasNoEnd(t *testing.T) {
 		if err == nil {
 			t.Error("the cancelled connect behind the run connected")
 		}
-	case <-time.After(10 * time.Second):
+	case <-wait.Done():
 		t.Fatal("Cancel Connecting did not stop the wait behind the run")
 	}
-	if took := time.Since(start); took > 5*time.Second {
-		t.Errorf("Cancel Connecting took %s", took)
-	}
-	if a := lastAttempt(t, s, "oidc", AttemptConnect); a.Outcome != OutcomeCancelled {
-		t.Errorf("the attempt: %s\n%s", a.Outcome, attemptText(a))
+	// The cancel claimed to end no run: a connect that ended one waits for its request to return
+	// (cluster's abandonAfter, seconds), one that only stops waiting does not (cancelSettle). Its
+	// attempt names a run it ended; checked here instead of the cancel's wall-clock time, which a
+	// loaded runner stretches (testing.md, Asynchronous results).
+	if a := lastAttempt(t, s, "oidc", AttemptConnect); a.Outcome != OutcomeCancelled || lastLine(a) != "Connecting cancelled (Disconnect)" {
+		t.Errorf("the attempt: %s, %q\n%s", a.Outcome, lastLine(a), attemptText(a))
 	}
 
 	p.Stray(false) // the run ends with its stray child: the cancelled connect starts no run
 	p.Give(loginToken, time.Time{})
-	if err := s.Connect(within(t, 10*time.Second), "oidc"); err != nil {
+	if err := s.Connect(wait, "oidc"); err != nil {
 		t.Fatalf("Connect after the run ended: %v", err)
 	}
 	if n := p.Runs(); n != 2 {

@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Logs of a GitOps object in one merged tab (A81, the owner's decision of 2026-10-14 evening): every
-// workload it deploys, each line starting with "<workload>/<pod>/<container>", a filter per source
-// (the tab's workload, pod and container selectors), for the objects that name the workloads they
-// deploy: an Argo CD Application (its status.resources) and a Flux Kustomization (its
-// status.inventory). engine/grouplogs.go streams them.
+// Logs of a GitOps object in one merged tab (A81, the owner's decision): every workload it deploys,
+// each line starting with "<workload>/<pod>/<container>", a filter per source (the tab's workload,
+// pod and container selectors), for the objects that name the workloads they deploy: an Argo CD
+// Application (its status.resources) and a Flux Kustomization (its status.inventory).
+// engine/grouplogs.go streams them.
 
 // groupLogsLabel is Logs of a group.
 const groupLogsLabel = "Logs"

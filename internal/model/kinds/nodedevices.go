@@ -13,20 +13,20 @@ import (
 
 // A node's Devices in its drawer (resource-parity › Nodes, G6): the devices dynamic resource
 // allocation drivers publish for the node in resource slices, from the cache through the
-// related-objects index SlicesByNode. Lens's documentation (its Device Resources pages, read
-// 2026-10-13, not captured) names the section and that it lists each device a slice publishes for
-// the node with its driver, pool and attributes and the claim holding it.
+// related-objects index SlicesByNode. Lens's documentation (its Device Resources pages, read, not
+// captured) names the section and that it lists each device a slice publishes for the node with its
+// driver, pool and attributes and the claim holding it.
 //
-// Cogpit's form, inferred (not the owner's decision, 2026-10-13): after Allocatable and before the
-// Pods, under a "Devices" heading, one section per resource slice, titled by its driver, sorted by
-// driver, pool and slice name: the Pool, the Slice (a link) and how many Devices it publishes for
-// the node, then a table of those devices, their attributes, capacity and, when one has some, its
-// taints. A slice names the node in spec.nodeName, or, with perDeviceNodeSelection, in a device's
-// nodeName (only those devices are listed); slices for all nodes or a node selector are not the
-// node's own and stay out. The claim holding a device is left out: it would make the Nodes view
-// watch every claim in the cluster, as the pod drawer leaves out a claim's state. The section
-// appears only when the cluster serves resource.k8s.io/v1 (the profile is offered there only), the
-// user may list resource slices, and a slice names the node.
+// Cogpit's form, inferred (not the owner's decision): after Allocatable and before the Pods, under
+// a "Devices" heading, one section per resource slice, titled by its driver, sorted by driver, pool
+// and slice name: the Pool, the Slice (a link) and how many Devices it publishes for the node, then
+// a table of those devices, their attributes, capacity and, when one has some, its taints. A slice
+// names the node in spec.nodeName, or, with perDeviceNodeSelection, in a device's nodeName (only
+// those devices are listed); slices for all nodes or a node selector are not the node's own and
+// stay out. The claim holding a device is left out: it would make the Nodes view watch every claim
+// in the cluster, as the pod drawer leaves out a claim's state. The section appears only when the
+// cluster serves resource.k8s.io/v1 (the profile is offered there only), the user may list resource
+// slices, and a slice names the node.
 
 // SlicesByNode indexes resource slices by the nodes they publish devices for: spec.nodeName, or
 // with perDeviceNodeSelection each device's nodeName.

@@ -270,8 +270,8 @@ func TestRefusedClusterWideListFallsBackToNamespaces(t *testing.T) {
 		t.Error("the refusal is not kept")
 	}
 	// The reviews held while the refresh is checked: once they answer, the view tries the
-	// cluster-wide list again and the server refuses it again (CI, 2026-10-22: a loaded runner
-	// had the refusal noted again before the check ran).
+	// cluster-wide list again and the server refuses it again (CI: a loaded runner had the refusal
+	// noted again before the check ran).
 	rev.set(func(f *fakeReviewer) { f.gate = make(chan struct{}) })
 	if _, ok := s.Backend().RefreshAccess(); !ok {
 		t.Fatal("no access reviews")

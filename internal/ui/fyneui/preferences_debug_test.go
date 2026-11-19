@@ -39,9 +39,9 @@ func TestDebugImagePreferenceField(t *testing.T) {
 	q.until(t, "the field follows", func() bool { return entry.Text == "" && note.text == debugNotePinned })
 }
 
-// TestDebugImagePreferenceShortName (the owner's R30, 2026-10-20): a pinned image set shows by its
-// short name and is said to be pinned; the short name left as it is keeps the digest, the default's
-// short name typed sets the default (empty), and a changed name is kept as typed, floating.
+// TestDebugImagePreferenceShortName (the owner's R30): a pinned image set shows by its short name
+// and is said to be pinned; the short name left as it is keeps the digest, the default's short name
+// typed sets the default (empty), and a changed name is kept as typed, floating.
 func TestDebugImagePreferenceShortName(t *testing.T) {
 	const pinned = "registry.example.com/tools/netshoot:v1@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	s, _ := settingsEngine(t)

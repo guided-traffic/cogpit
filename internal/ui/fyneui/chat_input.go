@@ -74,9 +74,9 @@ func newChatInput(c *chatPanel) *chatInput {
 // flatEntryTheme draws the entry without its own background and border: the input's box is them.
 // The border keeps its width and loses its colours, the unfocused one and the focused one (the
 // primary), because Fyne draws the text cursor as wide as the border: a border of width 0 left the
-// agent's input without a cursor (the owner, 2026-10-21). The blinking cursor takes the app's
-// primary, not this theme's; only with Fyne's animations off (FYNE_DISABLE_ANIMATIONS, which Cogpit
-// never sets) would it take this theme's and not show.
+// agent's input without a cursor (the owner). The blinking cursor takes the app's primary, not this
+// theme's; only with Fyne's animations off (FYNE_DISABLE_ANIMATIONS, which Cogpit never sets) would
+// it take this theme's and not show.
 type flatEntryTheme struct{ app fyne.App }
 
 func (t *flatEntryTheme) cur() fyne.Theme { return t.app.Settings().Theme() }

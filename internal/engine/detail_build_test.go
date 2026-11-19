@@ -13,9 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// TestBuildDetailPodAsLens checks the drawer model of a pod against Lens's drawer (capture,
-// 2026-10-11): one Properties section first (metadata merged with the pod's state, no UID, labels
-// folded behind a count), the volumes and containers after it, the events last.
+// TestBuildDetailPodAsLens checks the drawer model of a pod against Lens's drawer (capture): one
+// Properties section first (metadata merged with the pod's state, no UID, labels folded behind a
+// count), the volumes and containers after it, the events last.
 func TestBuildDetailPodAsLens(t *testing.T) {
 	p, _ := kinds.ByKey("pods")
 	pod := testkit.Pod("shop", "web-0")

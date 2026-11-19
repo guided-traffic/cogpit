@@ -421,9 +421,9 @@ func TestFluxDashboardCommand(t *testing.T) {
 	}
 }
 
-// TestFluxConfirmationNamesTheIdentity (A34, owner 2026-10-14 evening; H-64): the confirmation of a
-// Flux action says whose rights the reconciliation uses: the object's spec.serviceAccountName, or
-// the controller's own service account without one; a selection names each identity once.
+// TestFluxConfirmationNamesTheIdentity (A34, owner; H-64): the confirmation of a Flux action says
+// whose rights the reconciliation uses: the object's spec.serviceAccountName, or the controller's
+// own service account without one; a selection names each identity once.
 func TestFluxConfirmationNamesTheIdentity(t *testing.T) {
 	src := fluxSource()
 	hr := fluxObject("helm.toolkit.fluxcd.io/v2", "HelmRelease", "shop", "podinfo", false, "True")

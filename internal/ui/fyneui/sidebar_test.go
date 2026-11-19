@@ -98,8 +98,8 @@ func TestSidebarCustomResources(t *testing.T) {
 		t.Errorf("Other lists %v", s.children[otherGroup])
 	}
 
-	// Every group starts closed (owner, 2026-10-12), except the groups above the open view, which
-	// open so that the selection is visible.
+	// Every group starts closed (owner), except the groups above the open view, which open so that
+	// the selection is visible.
 	above := map[string]bool{}
 	for p := s.parents[sh.ui.View]; p != ""; p = s.parents[p] {
 		above[p] = true

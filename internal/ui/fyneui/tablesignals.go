@@ -10,18 +10,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The Signals column (D-150; the owner, 2026-11-03: every mark an object carries in one column
-// after Name, titled "Signals"): a cell draws one icon per signal side by side, each in its slot
+// The Signals column (D-150; the owner: every mark an object carries in one column after Name,
+// titled "Signals"): a cell draws one icon per signal side by side, each in its slot
 // (model.Signal.Slot) so that a source's icon keeps its place in the view: the object's own state
 // as the triangle, a node's kubelet version as an exclamation mark in a disc, Kyverno's violations
-// as its glyph, each in the signal's status colour, and
-// Trivy's worst image grade as its shield (an N/A one dimmed). The pointer over an icon shows that
-// signal's text and what is behind it; a click on one selects the row and opens the drawer at the
-// signal's section (drawer.openAt). A row that shows a status pill and a spine (statusLit) leaves
-// out its state's triangle, which would say the same a third time; the integrations' icons stay.
-// The column is a column of its own (the owner, 2026-11-03): a divider in the header, and a width
-// the user may drag; it opens as wide as its slots, or its title and the sort arrow, whichever is
-// wider, and a double click on its edge brings it back to that.
+// as its glyph, each in the signal's status colour, and Trivy's worst image grade as its shield (an
+// N/A one dimmed). The pointer over an icon shows that signal's text and what is behind it; a click
+// on one selects the row and opens the drawer at the signal's section (drawer.openAt). A row that
+// shows a status pill and a spine (statusLit) leaves out its state's triangle, which would say the
+// same a third time; the integrations' icons stay. The column is a column of its own (the owner): a
+// divider in the header, and a width the user may drag; it opens as wide as its slots, or its title
+// and the sort arrow, whichever is wider, and a double click on its edge brings it back to that.
 
 // signalGap is the room between two icons of a Signals cell, in points.
 const signalGap = 4
@@ -202,7 +201,7 @@ func (tv *tableView) signalIcon(s model.Signal) fyne.Resource {
 	switch s.Source {
 	case model.SignalKyverno:
 		glyph = glyphKyverno
-	case model.SignalVersion: // the kubelet's version, an exclamation mark (the owner, 2026-11-04)
+	case model.SignalVersion: // the kubelet's version, an exclamation mark (the owner)
 		glyph = theme.ErrorIcon()
 	}
 	res := themedIcon(glyph, key.color)

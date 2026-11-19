@@ -9,13 +9,13 @@ import (
 	"unicode/utf8"
 )
 
-// The navigator's own state (D-51, the owner's A51 and A63, 2026-10-14 evening): its search text,
-// the row its keyboard is on, and which of the Local Kubeconfigs section's source groups are
-// collapsed are engine state, so that an agent sees and sets what the user typed and where the
-// keyboard stands (golden rule 2; architecture §4.3).
+// The navigator's own state (D-51, the owner's A51 and A63): its search text, the row its keyboard
+// is on, and which of the Local Kubeconfigs section's source groups are collapsed are engine state,
+// so that an agent sees and sets what the user typed and where the keyboard stands (golden rule 2;
+// architecture §4.3).
 //
-// How the build settled what D-51 left open (the lead's night decisions, 2026-10-14, for the owner
-// to confirm; recorded in D-51):
+// How the build settled what D-51 left open (the lead's night decisions, for the owner to confirm;
+// recorded in D-51):
 //   - one state per window, as UIState is one per window (D-52 open), not per tab: the navigator
 //     is one per window and its scope already decides which tabs show;
 //   - the keyboard's row is held as a row of the level shown, not as a view key alone: at a

@@ -11,11 +11,11 @@ import (
 // the question at a new cluster's first connect turns on when the user answers "Use my default
 // integrations", and what the question's "Save as the default for new clusters" sets. Nothing is looked for
 // before the user answers the question's pre-choice (D-82), so the default no longer applies to an
-// undecided cluster by itself. Every integration is on by default (the owner, 2026-10-17). Cogpit's
-// own: Lens has no integrations; its place beside the other cluster-wide defaults of the Kubernetes
-// section is the lead's decision (2026-10-17). The rows are Cluster Settings › Integrations' (the
-// owner's QR3: the tile, the name, the switch, what it adds), without the status line: no cluster is
-// meant. A tile is tinted while its switch is on, dim while it is off.
+// undecided cluster by itself. Every integration is on by default (the owner). Cogpit's own: Lens
+// has no integrations; its place beside the other cluster-wide defaults of the Kubernetes section
+// is the lead's decision. The rows are Cluster Settings › Integrations' (the owner's QR3: the tile,
+// the name, the switch, what it adds), without the status line: no cluster is meant. A tile is
+// tinted while its switch is on, dim while it is off.
 
 const (
 	integrationDefaultsSetting = "integrationDefaults"

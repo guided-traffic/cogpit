@@ -19,25 +19,23 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A cluster's Settings page (G13, ⌘⇧,; engine/clustersettings.go), as Lens's (captured
-// 2026-10-11): General (the cluster's name, the icon with its "…" menu of Upload Icon, Pick Icon
-// Color and Reset Icon, the kubeconfig's path, whole and selectable since the owner's WF28 of
-// 2026-10-18, with a button to its folder), Proxy (the proxy of the cluster's API traffic,
-// clustersettings_proxy.go), Terminal (the working directory, "$HOME" when unset, and kubectl's
-// namespace, "default" when unset), Namespaces (the accessible namespaces,
-// clustersettings_namespaces.go), Metrics (the two metrics integrations it reads and the hidden
-// metrics, clustersettings_metrics.go).
-// Node Shell (the node shells' image and pull secret, clustersettings_nodeshell.go, 2026-10-13).
-// Under a divider, Cogpit's own integrations (D-76, D-87): Integrations, every integration's switch
-// and what Cogpit found of it (clustersettings_integrations.go), then one section per integration
-// with its switch and its details (clustersettings_integration.go, the list clustersettings_nav.go).
-// Lens's Lens Metrics page, which installs a metrics stack into the cluster, has no counterpart:
-// Cogpit installs nothing for its own features and reads what the cluster runs (D-61, owner
-// 2026-10-16); its Cost page is not built and not listed. Cogpit's own: the row of
-// colour swatches under the icon, which picks a colour in one click (the menu's Pick Icon Color
-// does the same); the cluster's accent colour below the icon (D-80,
-// clustersettings_accent.go) and copy icons by the name and the kubeconfig's path (F27,
-// clustersettings_copy.go).
+// A cluster's Settings page (G13, ⌘⇧,; engine/clustersettings.go), as Lens's (captured): General
+// (the cluster's name, the icon with its "…" menu of Upload Icon, Pick Icon Color and Reset Icon,
+// the kubeconfig's path, whole and selectable since the owner's WF28, with a button to its folder),
+// Proxy (the proxy of the cluster's API traffic, clustersettings_proxy.go), Terminal (the working
+// directory, "$HOME" when unset, and kubectl's namespace, "default" when unset), Namespaces (the
+// accessible namespaces, clustersettings_namespaces.go), Metrics (the two metrics integrations it
+// reads and the hidden metrics, clustersettings_metrics.go). Node Shell (the node shells' image and
+// pull secret, clustersettings_nodeshell.go). Under a divider, Cogpit's own integrations (D-76,
+// D-87): Integrations, every integration's switch and what Cogpit found of it
+// (clustersettings_integrations.go), then one section per integration with its switch and its
+// details (clustersettings_integration.go, the list clustersettings_nav.go). Lens's Lens Metrics
+// page, which installs a metrics stack into the cluster, has no counterpart: Cogpit installs
+// nothing for its own features and reads what the cluster runs (D-61, owner); its Cost page is not
+// built and not listed. Cogpit's own: the row of colour swatches under the icon, which picks a
+// colour in one click (the menu's Pick Icon Color does the same); the cluster's accent colour below
+// the icon (D-80, clustersettings_accent.go) and copy icons by the name and the kubeconfig's path
+// (F27, clustersettings_copy.go).
 
 // clusterSectionLabels are the page's section titles, Lens's (captured).
 var clusterSectionLabels = map[string]string{engine.SectionGeneral: "General", engine.SectionProxy: proxySectionLabel,

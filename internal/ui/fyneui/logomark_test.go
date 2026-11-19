@@ -11,8 +11,8 @@ import (
 	logoart "github.com/guided-traffic/cogpit/internal/ui/logo"
 )
 
-// TestHeaderMark: the header's logo is the current version's tile (D-24; owner, 2026-10-15), 20
-// pixels, the same picture in both themes.
+// TestHeaderMark: the header's logo is the current version's tile (D-24; owner), 20 pixels, the
+// same picture in both themes.
 func TestHeaderMark(t *testing.T) {
 	want := logoart.Current.Tile(20)
 	for _, mode := range []ThemeMode{ThemeDark, ThemeLight} {

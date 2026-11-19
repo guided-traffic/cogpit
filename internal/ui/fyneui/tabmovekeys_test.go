@@ -20,14 +20,14 @@ func dockStepIDs(u engine.UIState) []string {
 	return out
 }
 
-// TestMoveTabKeysMoveTheDocksTab (the owner's alpha walk, 2026-10-22, AW10: ⌘⌥⇧← and ⌘⌥⇧→ did
-// nothing in the dock): View › Move Tab Left and Right move the active tab of the bar the keyboard
-// works in. The dock's while the keys are in it: its Edit tab's editor, also after a click on that
-// tab, which gives the editor the keys (D-115), and after ⌘⌥→ switched the tab bar's tabs, which
-// leaves them there; or while nothing has them and a dock tab was clicked last (the Audit Log, which
-// takes no keys). The tab bar's while the keys are elsewhere (the list's search), after a click on
-// one of its tabs, or, with nothing focused, after ⌘⌥→ switched its tabs. Nothing is sent at a bar's
-// end. test.Tap moves the focus as a click does: a tap on a tab button takes it away.
+// TestMoveTabKeysMoveTheDocksTab (the owner's alpha walk, AW10: ⌘⌥⇧← and ⌘⌥⇧→ did nothing in the
+// dock): View › Move Tab Left and Right move the active tab of the bar the keyboard works in. The
+// dock's while the keys are in it: its Edit tab's editor, also after a click on that tab, which
+// gives the editor the keys (D-115), and after ⌘⌥→ switched the tab bar's tabs, which leaves them
+// there; or while nothing has them and a dock tab was clicked last (the Audit Log, which takes no
+// keys). The tab bar's while the keys are elsewhere (the list's search), after a click on one of
+// its tabs, or, with nothing focused, after ⌘⌥→ switched its tabs. Nothing is sent at a bar's end.
+// test.Tap moves the focus as a click does: a tap on a tab button takes it away.
 func TestMoveTabKeysMoveTheDocksTab(t *testing.T) {
 	f := tabsFake(t)
 	ed := newEditorFake(f)

@@ -8,12 +8,12 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-// Byte amounts as Cogpit shows them (D-32, owner 2026-10-13): whole bytes up to 1023 B, from 1024
-// bytes in KiB, from 1024 KiB in MiB, and so on, each with one decimal. Cogpit's defaults: a space
-// between number and unit as IEC 80000-13 writes it, the units B, KiB, MiB, GiB, TiB, PiB and EiB,
-// and a decimal point whatever the region (the UI is English; D-31's dates follow the region,
-// numbers do not). Every byte amount a person or an agent reads as drawn goes through these
-// functions; structured results keep their numbers.
+// Byte amounts as Cogpit shows them (D-32, owner): whole bytes up to 1023 B, from 1024 bytes in
+// KiB, from 1024 KiB in MiB, and so on, each with one decimal. Cogpit's defaults: a space between
+// number and unit as IEC 80000-13 writes it, the units B, KiB, MiB, GiB, TiB, PiB and EiB, and a
+// decimal point whatever the region (the UI is English; D-31's dates follow the region, numbers do
+// not). Every byte amount a person or an agent reads as drawn goes through these functions;
+// structured results keep their numbers.
 
 // byteUnits are the units from KiB up; an amount beyond 1023.9 EiB stays in EiB.
 var byteUnits = [...]string{"KiB", "MiB", "GiB", "TiB", "PiB", "EiB"}

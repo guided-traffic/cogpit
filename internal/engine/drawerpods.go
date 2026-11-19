@@ -7,13 +7,13 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The CPU and Memory of the pods a drawer lists (owner, 2026-10-13: a node's drawer lists its pods
-// with CPU and Memory, which came from the Metrics Server nowhere; architecture §9). A drawer's pod
-// table is a sortable table of cells (model.SortableCellTable) whose rows link to pods and that
-// has the Pods list's metric columns (ids model.ColumnCPU and model.ColumnMemory, type
-// model.ColumnMetric): a node's Pods. Its CPU and Memory cells are filled the way the Pods list
-// fills its own: from the metrics hub's latest measurement of each pod (Hub.Pod), through the Pods
-// profile's UsageCells, so the texts and sort keys are the list's. Nothing here sends a request.
+// The CPU and Memory of the pods a drawer lists (owner: a node's drawer lists its pods with CPU and
+// Memory, which came from the Metrics Server nowhere; architecture §9). A drawer's pod table is a
+// sortable table of cells (model.SortableCellTable) whose rows link to pods and that has the Pods
+// list's metric columns (ids model.ColumnCPU and model.ColumnMemory, type model.ColumnMetric): a
+// node's Pods. Its CPU and Memory cells are filled the way the Pods list fills its own: from the
+// metrics hub's latest measurement of each pod (Hub.Pod), through the Pods profile's UsageCells, so
+// the texts and sort keys are the list's. Nothing here sends a request.
 //
 // The open drawer polls those pods' metrics while it shows such a table: the first model built
 // for it with one subscribes the drawer to the pods' list scopes, the object's namespace for a

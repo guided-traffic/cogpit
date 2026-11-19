@@ -375,11 +375,11 @@ const withheldHelmError = "failed; the error is shown in Cogpit's window only"
 
 // forCaller keeps the text of an install's or upgrade's error from agents and the CLI. A chart's
 // templates run the values through tpl, so an agent's values can reach lookup, and the SDK's error
-// can quote what lookup read, a Secret's data included (review 2026-10-13); the values themselves
-// are scrubbed (helm.Scrubbed), what the cluster returned is not. The user reads the full error in
-// the window's toast; the caller learns that the action failed and where to look. The built-in
-// agent over a connection the user marked private reads the error as the window does (D-10,
-// H-94), and the audit log records only that it failed (userOnly).
+// can quote what lookup read, a Secret's data included; the values themselves are scrubbed
+// (helm.Scrubbed), what the cluster returned is not. The user reads the full error in the window's
+// toast; the caller learns that the action failed and where to look. The built-in agent over a
+// connection the user marked private reads the error as the window does (D-10, H-94), and the audit
+// log records only that it failed (userOnly).
 func forCaller(ctx context.Context, action, release string, err error) error {
 	if err == nil || engine.OriginOf(ctx) == engine.OriginGUI {
 		return err

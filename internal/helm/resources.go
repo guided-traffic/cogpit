@@ -11,9 +11,9 @@ import (
 )
 
 // The release drawer's Resources: the objects a release's manifest renders, by kind, as Lens lists
-// them (captured 2026-10-12: one table of Name and Namespace per kind, with links). They come from
-// the newest revision's manifest in the cached release Secret, not from the cluster: what the
-// release says it owns.
+// them (captured: one table of Name and Namespace per kind, with links). They come from the newest
+// revision's manifest in the cached release Secret, not from the cluster: what the release says it
+// owns.
 
 // resource is one object of a release's manifest.
 type resource struct {

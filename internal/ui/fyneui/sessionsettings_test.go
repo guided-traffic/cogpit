@@ -52,7 +52,7 @@ func TestClusterSettingsRenewLogin(t *testing.T) {
 
 // A change from elsewhere that comes before the window has shown the state of the user's own tap:
 // the window takes the two states as one, which equals the state it showed before the tap, and the
-// check shows the change all the same (TestClusterSettingsRenewLogin on CI, 2026-10-21 and 2026-10-22).
+// check shows the change all the same (TestClusterSettingsRenewLogin on CI).
 func TestClusterSettingsRenewLoginChangedElsewhereRightAfterATap(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})

@@ -20,9 +20,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The top bar's right part, left to right (the owner, 2026-10-16 night; the appearance toggle left
-// of the bell, the owner's of 2026-10-21): the Update button's place, the alerts pill, the light and
-// dark toggle, the bell, a divider, then the three layout toggles at the bar's right end.
+// The top bar's right part, left to right (the owner; the appearance toggle left of the bell, the
+// owner's): the Update button's place, the alerts pill, the light and dark toggle, the bell, a
+// divider, then the three layout toggles at the bar's right end.
 func TestTopBarRightOrder(t *testing.T) {
 	s := chatEngine(t)
 	sh, w, _ := newEngineShell(t, s, Options{})
@@ -54,11 +54,11 @@ func TestTopBarRightOrder(t *testing.T) {
 	}
 }
 
-// The alerts pill (D-54 changed by D-77, the owner's look of 2026-10-20): hidden without the shown
-// cluster's Alertmanager (off, no cluster, the demo cluster); grey with a dash while the first look
-// runs, grey with "warn" while nothing answers; then the number of every alert in the worst one's
-// colour: red from a critical, orange from a warning (major and unlabelled ones count as warning in
-// the engine), yellow from an info alert, green with "0" without alerts; "99+" beyond 99; a failing
+// The alerts pill (D-54 changed by D-77, the owner's look): hidden without the shown cluster's
+// Alertmanager (off, no cluster, the demo cluster); grey with a dash while the first look runs,
+// grey with "warn" while nothing answers; then the number of every alert in the worst one's colour:
+// red from a critical, orange from a warning (major and unlabelled ones count as warning in the
+// engine), yellow from an info alert, green with "0" without alerts; "99+" beyond 99; a failing
 // Alertmanager keeps its last answer, the tooltip says so; the sign and the number inside the pill;
 // a click opens the board.
 func TestAlertsPill(t *testing.T) {
@@ -94,9 +94,9 @@ func TestAlertsPill(t *testing.T) {
 			t.Errorf("%s: visible %v, colour %v, text %q, tip %q; want %v, %q, %q", c.name, a.Visible(), a.colour(), a.countText(), a.tipText(), c.colour, c.text, c.tip)
 		}
 		settle(w)
-		// The sign and the number inside the pill (the owner, 2026-10-20): both within its width,
-		// the sign within its height; the number's box holds the line's descent below the digits,
-		// so it is taller than the pill, its digits measured inside it in the renders.
+		// The sign and the number inside the pill (the owner): both within its width, the sign
+		// within its height; the number's box holds the line's descent below the digits, so it is
+		// taller than the pill, its digits measured inside it in the renders.
 		r := test.WidgetRenderer(a).(*alertsRenderer)
 		bg, pill := r.bg.Position(), r.bg.Size()
 		for _, o := range []fyne.CanvasObject{r.img.img, r.count, r.segs[0].tok, r.segs[0].num, r.segs[1].tok, r.segs[1].num, r.segs[2].tok, r.segs[2].num} {

@@ -14,10 +14,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit/enginekit"
 )
 
-// Each view keeps its checked rows (N111, the owner's decision in the audit of 2026-10-16), and
-// the selection bar is the shown view's: with two pods checked, the Services view shows no bar, so
-// its Delete cannot reach the pods; back in Pods the two are checked and the bar is there again.
-// The real engine, since the window only draws the selection it is given.
+// Each view keeps its checked rows (N111, the owner's decision in the audit), and the selection bar
+// is the shown view's: with two pods checked, the Services view shows no bar, so its Delete cannot
+// reach the pods; back in Pods the two are checked and the bar is there again. The real engine,
+// since the window only draws the selection it is given.
 func TestSelectionBarIsTheShownViews(t *testing.T) {
 	src := testkit.NewMemorySource()
 	for _, n := range []string{"web-0", "web-1", "web-2"} {
@@ -36,6 +36,7 @@ func TestSelectionBarIsTheShownViews(t *testing.T) {
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{AutoConnect: "kind-shop"}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
 	w.SetContent(sh.root)

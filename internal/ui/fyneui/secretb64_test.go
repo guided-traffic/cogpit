@@ -15,8 +15,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The b64 button beside a Secret value's copy icon (the owner's VW7 of 2026-10-24; D-25): it copies
-// the value base64-encoded, as the copy icon beside it copies it plain, a binary value's too.
+// The b64 button beside a Secret value's copy icon (the owner's VW7; D-25): it copies the value
+// base64-encoded, as the copy icon beside it copies it plain, a binary value's too.
 
 func enc64(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 
@@ -93,10 +93,10 @@ func drawnIcon(b *copyButton) string {
 	return test.WidgetRenderer(b).(*copyButtonRenderer).img.Resource.Name()
 }
 
-// TestSecretB64OnABinaryValue (the owner's pick (b) of 2026-10-24): a binary value has the b64
-// button and nothing else to copy it, no Show and no copy icon; the button copies its bytes
-// base64-encoded through the binary value's own base64 read, and the drawer still shows it by its
-// size, without a button of the model's action.
+// TestSecretB64OnABinaryValue (the owner's pick (b)): a binary value has the b64 button and nothing
+// else to copy it, no Show and no copy icon; the button copies its bytes base64-encoded through the
+// binary value's own base64 read, and the drawer still shows it by its size, without a button of
+// the model's action.
 func TestSecretB64OnABinaryValue(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -196,10 +196,10 @@ func TestSecretB64Refusals(t *testing.T) {
 	}
 }
 
-// TestSecretB64ButtonLook (D-104; the owner's VW19 of 2026-10-25, his pick O1): the b64 button is an
-// icon made as the copy icon beside it: outlined as it is, as wide and as high, and no wider than
-// the remove button; with the checkmark in its icon's place it keeps its size (his VW18: the word's
-// button grew after it). A binary value's line holds it and the remove button only, the same size.
+// TestSecretB64ButtonLook (D-104; the owner's VW19, his pick O1): the b64 button is an icon made as
+// the copy icon beside it: outlined as it is, as wide and as high, and no wider than the remove
+// button; with the checkmark in its icon's place it keeps its size (his VW18: the word's button
+// grew after it). A binary value's line holds it and the remove button only, the same size.
 func TestSecretB64ButtonLook(t *testing.T) {
 	sh, w, q, _, _ := secShell(t, ThemeDark)
 	settle(w)

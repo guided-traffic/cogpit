@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/guided-traffic/cogpit/internal/testkit"
-	"github.com/guided-traffic/cogpit/internal/testkit/prereq"
 )
 
 // startChild starts a child of the test's that ends with the test; setpgid puts it in a process
@@ -30,8 +29,8 @@ func startChild(t *testing.T, setpgid bool, name string, args ...string) *exec.C
 
 // WF38: a wrapper that replaces itself with the login program (exec) is found as the child that
 // appeared at the run's begin, and keeps its identity (number and start time) after the exec; a
-// child in a process group of its own (a terminal's shell) that starts alongside is not taken for
-// it, and neither is a child older than the run.
+// child older than the run is not taken for it. The wrapper is the one new child, so the search
+// decides the same at any pace (a shell in a group of its own: TestSearchTakesTheChildInCogpitsGroup).
 func TestSearchFindsAWrapperAfterItsExec(t *testing.T) {
 	quietSearches(t)
 	older := startChild(t, false, "/bin/sleep", "900")
@@ -46,19 +45,17 @@ func TestSearchFindsAWrapperAfterItsExec(t *testing.T) {
 	s := newProcSearch(time.Now(), command, childSet())
 	defer func() { s.finished(time.Now()) }()
 	go s.run(stop)
-	shell := startChild(t, true, "/bin/sleep", "900")
 	plugin := startChild(t, false, wrapper, "login")
 	select {
 	case <-s.done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("the search did not decide")
 	}
 	if s.found.pid != plugin.Process.Pid {
-		t.Fatalf("the search found %+v; the wrapper is %d, the shell %d, the older child %d", s.found, plugin.Process.Pid,
-			shell.Process.Pid, older.Process.Pid)
+		t.Fatalf("the search found %+v; the wrapper is %d, the older child %d", s.found, plugin.Process.Pid, older.Process.Pid)
 	}
 	// macOS may take a while before it runs a new script the first time: wait for the exec.
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	if !testkit.WaitFor(ctx, func() bool { argv := commandLine(plugin.Process.Pid); return len(argv) > 0 && argv[0] == "/bin/sleep" }) {
 		t.Fatalf("the wrapper did not replace itself: %v", commandLine(plugin.Process.Pid))
@@ -131,31 +128,75 @@ func TestListChildren(t *testing.T) {
 	}
 }
 
-// A terminal's shell leaves Cogpit's process group right after its fork (setsid, setpgid), and a
-// look in that moment sees it in the group. The search counts a child as in the group by its last
-// look: seen there first, the shell had made two children in the group with the run's, and a run
-// whose own command line the search missed (a wrapper that replaced itself before the first look)
-// had no process (CI, 2026-10-19: TestSearchFindsAWrapperAfterItsExec found pid 0). The shell here
-// is in the group from its fork until perl's first statement leaves it, which the search's looks a
-// millisecond apart see; leaving it at once keeps the search's window for a slow runner (a shell
-// that waited 100 ms first was still in the group at the window's end on a busy macOS runner). The
-// plugin's command line never matches.
-func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
-	perl := prereq.LookPath(t, "perl") // to leave the process group with
+// On the system's own processes: a child in a process group of its own (a terminal's shell) is not
+// taken for the run's, the one new child in Cogpit's group is. Both are started, and seen in their
+// groups, before the search looks, so its looks see the same at any pace
+// (TestSearchCountsTheGroupAChildEndsIn drives a child that leaves the group during the search).
+func TestSearchTakesTheChildInCogpitsGroup(t *testing.T) {
+	quietSearches(t)
+	before := childSet()
+	shell := startChild(t, true, "/bin/sleep", "900")
+	plugin := startChild(t, false, "/bin/sleep", "900")
+	if !testkit.WaitFor(waitCtx(t, 30*time.Second), func() bool {
+		var shellOwn, pluginOurs bool
+		for _, c := range listChildren() {
+			shellOwn = shellOwn || (c.id.pid == shell.Process.Pid && !c.group)
+			pluginOurs = pluginOurs || (c.id.pid == plugin.Process.Pid && c.group)
+		}
+		return shellOwn && pluginOurs
+	}) {
+		t.Fatalf("the children are not in their groups: %+v", listChildren())
+	}
+	stop := make(chan struct{})
+	defer close(stop)
+	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, before)
+	defer func() { s.finished(time.Now()) }()
+	go s.run(stop)
+	select {
+	case <-s.done:
+	case <-time.After(30 * time.Second):
+		t.Fatal("the search did not decide")
+	}
+	if s.found.pid != plugin.Process.Pid {
+		t.Fatalf("the search found %+v; the plugin is %d, the shell in its own group %d", s.found, plugin.Process.Pid, shell.Process.Pid)
+	}
+}
+
+// A child that appears only after the search looked for searchWindow and saw none (client-go
+// started the plugin late, on a loaded system) is the run's: the window runs from the first new
+// child. A cancel in the meantime does not wait for it: the plugin may be one Cogpit cannot see.
+func TestSearchTakesAChildThatAppearsLate(t *testing.T) {
 	quietSearches(t)
 	stop := make(chan struct{})
 	defer close(stop)
 	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, childSet())
 	defer func() { s.finished(time.Now()) }()
 	go s.run(stop)
-	shell := startChild(t, false, perl, "-e", "setpgrp(0, 0); sleep 900")
+	select {
+	case <-s.late:
+	case <-time.After(30 * time.Second):
+		t.Fatal("the search never said it saw no new child within its window")
+	}
+	located := make(chan string, 1)
+	go func() { _, why := s.locate(stop); located <- why }()
+	select {
+	case why := <-located:
+		if why != whyNotFound {
+			t.Errorf("locate before the plugin appeared: %q, want %q", why, whyNotFound)
+		}
+	case <-time.After(30 * time.Second):
+		t.Fatal("locate waited for a plugin that had not appeared")
+	}
 	plugin := startChild(t, false, "/bin/sleep", "900")
 	select {
 	case <-s.done:
-	case <-time.After(5 * time.Second):
+	case <-time.After(30 * time.Second):
 		t.Fatal("the search did not decide")
 	}
 	if s.found.pid != plugin.Process.Pid {
-		t.Fatalf("the search found %+v; the plugin is %d, the shell that left the group %d", s.found, plugin.Process.Pid, shell.Process.Pid)
+		t.Fatalf("the search found %+v; the plugin is %d", s.found, plugin.Process.Pid)
+	}
+	if target, why := s.locate(stop); why != "" || target != s.found {
+		t.Errorf("locate: %+v %q, want the plugin", target, why)
 	}
 }

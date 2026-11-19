@@ -28,8 +28,8 @@ import (
 // signature as <file>.sig (base64 of an ASN.1 ECDSA signature) and the certificate as <file>.cert
 // (base64 of a PEM certificate), and no sigstore bundle
 // (https://kubernetes.io/docs/tasks/administer-cluster/verify-signed-artifacts/; no
-// <file>.sigstore.json for kubectl 1.37.1, 2026-10-15). The log entry is asked for at Rekor
-// (rekor.go), as cosign verify-blob does with --certificate and --signature.
+// <file>.sigstore.json for kubectl 1.37.1). The log entry is asked for at Rekor (rekor.go), as
+// cosign verify-blob does with --certificate and --signature.
 //
 // Verifier checks the three with sigstore-go (decision D-50) against the trusted root Cogpit embeds
 // (sigstore_trusted_root.json, sigstore's public-good instance, refreshed by make sigstore-root):
@@ -48,8 +48,7 @@ type Signer struct {
 }
 
 // KubernetesRelease is the signer of Kubernetes' release binaries, as Kubernetes documents it and
-// as kubectl 1.36.1's and 1.37.1's certificates name it (darwin/arm64, read 2026-10-13 and
-// 2026-10-15).
+// as kubectl 1.36.1's and 1.37.1's certificates name it (darwin/arm64).
 var KubernetesRelease = Signer{
 	Identity: "krel-staging@k8s-releng-prod.iam.gserviceaccount.com",
 	Issuer:   "https://accounts.google.com",

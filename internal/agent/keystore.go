@@ -15,11 +15,11 @@ import (
 
 // The API keys of the LLM connections live in a file of their own in Cogpit's configuration
 // directory (KeysFile), owner-only, never in the connections file and never in the operating
-// system's keychain: the owner's decision of 2026-10-15 (D-10), since every self-built binary
-// carries another code signature and macOS asked for the login password again and again. Cogpit
-// neither reads nor removes the keychain item that versions up to 2026-10-15 wrote ("Cogpit LLM
-// connection"): reading it would ask that very question. A connection whose key was there shows
-// "no API key" until the user enters the key once more (Agent.checkKeys).
+// system's keychain: the owner's decision (D-10), since every self-built binary carries another
+// code signature and macOS asked for the login password again and again. Cogpit neither reads nor
+// removes the keychain item older versions wrote ("Cogpit LLM connection"): reading it would
+// ask that very question. A connection whose key was there shows "no API key" until the user enters
+// the key once more (Agent.checkKeys).
 
 // ErrNoKey is returned by KeyStore.Get when no key is stored for the account.
 var ErrNoKey = errors.New("no API key stored for this connection")

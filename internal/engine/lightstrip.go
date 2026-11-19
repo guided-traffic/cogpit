@@ -7,18 +7,18 @@ import (
 	"strings"
 )
 
-// A cluster's light strip (D-122, the owner's VW14 of 2026-10-24): the strip under the window's
-// tabs shows the accent colour (accentcolor.go) of the cluster whose tab is shown, so that the user
-// sees at a glance where they work ("Bin ich Beispielsweise auf Prod, wünsche ich mir einen Roten
-// Akzent umd direkt zu wissen dass ich hier vorsichtig sein muss"). Without an accent colour the
-// strip is off, frosted glass, whatever this says. With one it shows the colour steady (static, the
-// default) or moving: breathing, a scanner, or a flow (his pick of the Steam Machine's light bar's
-// modes, 2026-10-24). ClusterSettings.LightStrip keeps the choice, "" for static, as lightStrip in
+// A cluster's light strip (D-122, the owner's VW14): the strip under the window's tabs shows the
+// accent colour (accentcolor.go) of the cluster whose tab is shown, so that the user sees at a
+// glance where they work ("Bin ich Beispielsweise auf Prod, wünsche ich mir einen Roten Akzent umd
+// direkt zu wissen dass ich hier vorsichtig sein muss"). Without an accent colour the strip is off,
+// frosted glass, whatever this says. With one it shows the colour steady (static, the default) or
+// moving: breathing, a scanner, or a flow (his pick of the Steam Machine's light bar's modes).
+// ClusterSettings.LightStrip keeps the choice, "" for static, as lightStrip in
 // cluster-settings.json; the window draws it (fyneui/lightstrip.go).
 //
 // Only the user chooses it, in Cogpit's window (cluster.settings.setLightStrip is GUI-only, the
-// lead's decision of 2026-10-24): an agent that could calm a production cluster's strip down would
-// undo the user's own warning, the harm H-125 names for the accent colour. Agents read it.
+// lead's decision): an agent that could calm a production cluster's strip down would undo the
+// user's own warning, the harm H-125 names for the accent colour. Agents read it.
 
 // The light strip's animations, as lightStrip names them. LightStripStatic is kept as "" (the
 // default, left out of the file).

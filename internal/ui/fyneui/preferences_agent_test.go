@@ -143,9 +143,9 @@ func TestAgentPreferencesKeySemantics(t *testing.T) {
 }
 
 // TestAgentPreferencesKeyHint: the API key's hints say where a key is kept, Cogpit's settings
-// folder readable only by the user, never the keychain (the owner's decision of 2026-10-15), each
-// whole at the form's width; a saved connection without a key saves "" for an empty field, as its
-// hint says ("Empty: no key"), which gives up a key kept in the keychain before.
+// folder readable only by the user, never the keychain (the owner's decision), each whole at the
+// form's width; a saved connection without a key saves "" for an empty field, as its hint says
+// ("Empty: no key"), which gives up a key kept in the keychain before.
 func TestAgentPreferencesKeyHint(t *testing.T) {
 	sh, w, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent
@@ -219,9 +219,9 @@ func TestAgentPreferencesPrivateHint(t *testing.T) {
 	}
 }
 
-// TestAgentPreferencesAllTools: the form's "send all tools" (the owner's decision of 2026-10-15) is
-// off for a connection without it, says what it costs, is saved with the connection, and the list
-// names a connection that sends all tools.
+// TestAgentPreferencesAllTools: the form's "send all tools" (the owner's decision) is off for a
+// connection without it, says what it costs, is saved with the connection, and the list names a
+// connection that sends all tools.
 func TestAgentPreferencesAllTools(t *testing.T) {
 	sh, w, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent
@@ -259,10 +259,10 @@ func lanStudio() engine.ChatConnection {
 		Model: "qwen/qwen3.8-27b"}
 }
 
-// TestAgentPreferencesPlainHTTPWarning (the owner's decision of 2026-10-15, H-95): while the base
-// URL is plain http to another machine the form says, in the warning colour and whole, that the key,
-// the conversation and every secret the agent reads travel unencrypted; localhost, 127.0.0.1, ::1
-// and https do not warn. The list marks such a connection "plain http".
+// TestAgentPreferencesPlainHTTPWarning (the owner's decision, H-95): while the base URL is plain
+// http to another machine the form says, in the warning colour and whole, that the key, the
+// conversation and every secret the agent reads travel unencrypted; localhost, 127.0.0.1, ::1 and
+// https do not warn. The list marks such a connection "plain http".
 func TestAgentPreferencesPlainHTTPWarning(t *testing.T) {
 	sh, w, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent
@@ -536,8 +536,8 @@ func TestAgentPreferencesConnectionTest(t *testing.T) {
 			t.Errorf("%s: %q %q", l, r.label.text, r.detail.p.text)
 		}
 	}
-	// The failed layer shows its request and answer (the owner, 2026-10-26: which endpoint was
-	// called how), selectable and with a copy icon that copies it whole; a passed layer shows none.
+	// The failed layer shows its request and answer (the owner: which endpoint was called how),
+	// selectable and with a copy icon that copies it whole; a passed layer shows none.
 	auth := rows[engine.ChatTestAuth]
 	if !auth.xRow.Visible() {
 		t.Fatal("the failed layer's exchange is hidden")
@@ -621,11 +621,11 @@ func paragraphShown(p *paragraph) string {
 	return strings.Join(lines, " ")
 }
 
-// TestAgentPreferencesModelsFromTheForm (the owner's request of 2026-10-25, a colleague's list that
-// stayed empty after he typed his credentials): ↻ is on in a new connection and lists the models of
-// the values typed, the typed key with them; leaving the key field changed lists them again; a
-// passed test fills the list too. A saved connection whose base URL changed lists with its stored key
-// only on ↻, not on leaving the field (H-143).
+// TestAgentPreferencesModelsFromTheForm (the owner's request, a colleague's list that stayed empty
+// after he typed his credentials): ↻ is on in a new connection and lists the models of the values
+// typed, the typed key with them; leaving the key field changed lists them again; a passed test
+// fills the list too. A saved connection whose base URL changed lists with its stored key only on
+// ↻, not on leaving the field (H-143).
 func TestAgentPreferencesModelsFromTheForm(t *testing.T) {
 	sh, _, q, ch := agentPrefsShell(t, ThemeDark)
 	a := sh.settings.agent

@@ -354,14 +354,12 @@ func argoSecretReads(srv *testkit.FakeAPIServer) []string {
 	return out
 }
 
-// A namespace-limited user whose Role names the GitOps kinds but who may not list their
-// definitions (the rule rather than the exception: listing definitions takes a ClusterRole). Before
-// 2026-10-14 both dashboards said the cluster serves none; then that Cogpit cannot tell, with the
-// server's reason. Since A90 (the owner's decision of 2026-10-14 evening) Cogpit recognises Flux
-// and Argo CD from API discovery and shows them with their curated profiles: both dashboards, as
-// pages and as agents' reads, count team-a's objects as for a user who may list the definitions,
-// with the same reads of each kind (one refused read in all namespaces and its list, then team-a's).
-// The definitions are refused once.
+// A namespace-limited user whose Role names the GitOps kinds but who may not list their definitions
+// (the rule rather than the exception: listing definitions takes a ClusterRole). With A90 (the
+// owner's decision) Cogpit recognises Flux and Argo CD from API discovery and shows them with their
+// curated profiles: both dashboards, as pages and as agents' reads, count team-a's objects as for a
+// user who may list the definitions, with the same reads of each kind (one refused read in all
+// namespaces and its list, then team-a's). The definitions are refused once.
 func TestGitOpsDashboardsWithoutTheDefinitions(t *testing.T) {
 	u := gitopsUsers()[0] // a RoleBinding in the context's namespace alone
 	u.name += ", without the definitions"

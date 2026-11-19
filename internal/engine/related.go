@@ -266,7 +266,7 @@ func (r *relatedSet) synced() bool {
 		}
 		// A cluster-scoped kind the API server refused (the definitions for a namespace-limited
 		// user) has no namespace to read instead: its lookups stay empty, and the rows do not wait
-		// for it (TestKindNamespaceLimitedUser, 2026-10-16, after custom owners began to link).
+		// for it (TestKindNamespaceLimitedUser, after custom owners began to link).
 		if p := r.profiles[kind]; p != nil && !p.Namespaced && cache.IsRefused(h.Err()) {
 			continue
 		}

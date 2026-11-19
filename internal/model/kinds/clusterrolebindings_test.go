@@ -27,8 +27,8 @@ func TestClusterRoleBindingTexts(t *testing.T) {
 	})
 }
 
-// TestClusterRoleBindingColumns pins the columns captured from Lens on 2026-10-11: Name, the
-// warning icon, Bindings, Age; cluster-scoped, so no namespace filter.
+// TestClusterRoleBindingColumns pins the columns captured from Lens: Name, the warning icon,
+// Bindings, Age; cluster-scoped, so no namespace filter.
 func TestClusterRoleBindingColumns(t *testing.T) {
 	assertColumnOrder(t, "clusterrolebindings", []model.Column{
 		{ID: "name", Title: "Name"},

@@ -5,11 +5,11 @@ import (
 )
 
 // masonry lays out cards in columns, each card in the column that is shortest when its turn comes
-// (the alert board, the owner, 2026-10-27: "ein Dashboard im Masonry-Layout"): as many columns of
-// at least min points as the width holds, gap points apart, the cards as wide as a column and as
-// high as their content at that width. The cards keep their order: the first of them are at the top
-// of the columns. Its height depends on its width, which its MinSize cannot be told: whoever lays
-// out its scroller tells it first (setWidth), so that the scroller asks for the right height.
+// (the alert board, the owner: "ein Dashboard im Masonry-Layout"): as many columns of at least min
+// points as the width holds, gap points apart, the cards as wide as a column and as high as their
+// content at that width. The cards keep their order: the first of them are at the top of the
+// columns. Its height depends on its width, which its MinSize cannot be told: whoever lays out its
+// scroller tells it first (setWidth), so that the scroller asks for the right height.
 type masonry struct {
 	min, gap float32
 	width    float32 // the width it is laid out at, set before the scroller asks for its MinSize

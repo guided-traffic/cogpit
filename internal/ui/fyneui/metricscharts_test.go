@@ -11,8 +11,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Every chart has its own controls, and changing one changes only that chart (owner, 2026-10-12:
-// "The selection buttons must be shown at every container too. There is no main button").
+// Every chart has its own controls, and changing one changes only that chart (owner: "The selection
+// buttons must be shown at every container too. There is no main button").
 func TestEveryChartHasItsOwnControls(t *testing.T) {
 	sh, f, q := metricsDrawerFor(t, twoContainerPod(t), ThemeDark, withEnvoy)
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
@@ -87,7 +87,7 @@ func TestLateContainerStartsWithCPU(t *testing.T) {
 	p := sh.drawer.kept[metricsKey].(*metricsPanel)
 	p.variants[variantMemory].OnTapped()
 	// The tap reaches the engine on another goroutine, which reads the metrics it holds: wait for
-	// its answer, then add the container to a copy (mutating the shared one raced, CI 2026-10-13).
+	// its answer, then add the container to a copy (mutating the shared one raced).
 	q.until(t, "the pod's Memory from the engine", func() bool {
 		p = sh.drawer.kept[metricsKey].(*metricsPanel)
 		return p.data != nil && len(p.data.Targets) > 0 && p.data.Targets[0].Variant == engine.VariantMemory

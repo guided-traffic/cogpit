@@ -13,9 +13,9 @@ var iconTerminal = fyne.NewStaticResource("cogpit-terminal.svg", []byte(`<svg xm
 
 // newTerminalButton is the chip at the left end of the dock's strip, after the tabs: it opens a
 // terminal tab (terminal.open, ⌘⇧T) on the shown cluster. It replaced the strip's "+" menu, whose
-// other item, Create resource, the create chip at the right end already offers (owner,
-// 2026-10-22). It shows while the shown cluster is connected, as the create chip does; where
-// terminal.open is disabled (the demo cluster) a tap says why in a toast, as ⌘⇧T does.
+// other item, Create resource, the create chip at the right end already offers (owner). It shows
+// while the shown cluster is connected, as the create chip does; where terminal.open is disabled
+// (the demo cluster) a tap says why in a toast, as ⌘⇧T does.
 func newTerminalButton(sh *shell) *stripChip {
 	return newStripChip(func() fyne.Resource { return iconTerminal },
 		func() bool { return sh.ui.Connection.State.Live() },

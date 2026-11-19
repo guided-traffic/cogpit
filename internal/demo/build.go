@@ -75,6 +75,21 @@ func (c *Cluster) build() {
 	c.buildEvents(now)
 	c.buildHelmReleases(now) // without the random generator: the rest stays as it was
 	c.buildReplicaSets()     // the same
+	c.buildControllers()     // the same
+}
+
+// buildControllers stores the pods' other owners: the DaemonSets, and the CronJobs with the Jobs
+// of their runs. Every owner a pod names is an object the cluster serves.
+func (c *Cluster) buildControllers() {
+	for _, ds := range c.w.daemonSets {
+		c.put(kindDaemonSets, c.renderDaemonSet(ds))
+	}
+	for _, cj := range c.w.cronJobs {
+		c.put(kindCronJobs, c.renderCronJob(cj))
+		for _, j := range cj.jobs {
+			c.put(kindJobs, c.renderJob(cj, j))
+		}
+	}
 }
 
 // buildReplicaSets stores each deployment's replica sets, the owners its pods name: the one
@@ -373,7 +388,7 @@ func (c *Cluster) buildSystemPods(static, proxies int) {
 		}
 	}
 
-	dsUID := c.newUID()
+	ds := &daemonSet{name: "kube-proxy", namespace: kubeSystem, uid: c.newUID(), labels: map[string]string{"k8s-app": "kube-proxy"}}
 	proxy := &podTemplate{
 		labels:         map[string]string{"k8s-app": "kube-proxy", "controller-revision-hash": "7b5d9c8f64", "pod-template-generation": "1"},
 		containers:     []container{{name: "kube-proxy", image: "registry.k8s.io/kube-proxy:" + kubeVersion}},
@@ -385,12 +400,15 @@ func (c *Cluster) buildSystemPods(static, proxies int) {
 		tolerations:    []any{map[string]any{"operator": "Exists"}},
 	}
 	renderTemplate(proxy)
-	owners := ownerRef("apps/v1", "DaemonSet", "kube-proxy", dsUID)
+	ds.tmpl = proxy
+	owners := ownerRef(apiApps, "DaemonSet", ds.name, ds.uid)
 	for _, n := range c.w.nodes[:proxies] {
 		p := c.newPod(kubeSystem, c.uniqueName(kubeSystem, "kube-proxy-"), proxy, n, phaseRunning, n.created.Add(2*time.Minute))
 		p.owners = owners
 		c.addPod(p)
+		ds.pods = append(ds.pods, p)
 	}
+	c.w.daemonSets = append(c.w.daemonSets, ds)
 }
 
 // Deployments.
@@ -487,7 +505,7 @@ func (c *Cluster) finishDeployment(d *deployment) {
 		labels := strMap(d.templates[rs].labels)
 		labels["pod-template-hash"] = d.rsHash[rs]
 		d.podLabels[rs] = labels
-		d.podOwners[rs] = ownerRef("apps/v1", "ReplicaSet", d.name+"-"+d.rsHash[rs], d.rsUID[rs])
+		d.podOwners[rs] = ownerRef(apiApps, "ReplicaSet", d.name+"-"+d.rsHash[rs], d.rsUID[rs])
 	}
 	c.renderDeploymentSpec(d)
 }
@@ -713,7 +731,8 @@ func (c *Cluster) buildExtras(now time.Time, terminating, evicted int) int {
 	return 0
 }
 
-// buildJobs creates the pods of CronJob runs: about ten runs a CronJob, hourly, most completed.
+// buildJobs creates the CronJobs and the pods of their runs: about ten runs a CronJob, hourly, most
+// completed; buildControllers stores the CronJobs and their Jobs.
 func (c *Cluster) buildJobs(now time.Time, budget int) {
 	if budget == 0 {
 		return
@@ -744,6 +763,8 @@ func (c *Cluster) buildJobs(now time.Time, budget int) {
 			tolerations:    defaultTolerations,
 		}
 		renderTemplate(t)
+		cj := &cronJob{name: name, namespace: ns.name, uid: stableUID("CronJob", ns.name, name), tmpl: t}
+		c.w.cronJobs = append(c.w.cronJobs, cj)
 		for r := range runs {
 			scheduled := now.Truncate(time.Hour).Add(-time.Duration(r+1) * time.Hour)
 			job := fmt.Sprintf("%s-%d", name, scheduled.Unix()/60)
@@ -757,9 +778,10 @@ func (c *Cluster) buildJobs(now time.Time, budget int) {
 				"batch.kubernetes.io/controller-uid": uid, "batch.kubernetes.io/job-name": job,
 				"controller-uid": uid, "job-name": job,
 			}
-			p.owners = ownerRef("batch/v1", "Job", job, uid)
+			p.owners = ownerRef(apiBatch, "Job", job, uid)
 			p.lastExit = p.started.Add(time.Duration(20+c.rng.IntN(280)) * time.Second)
 			c.addPod(p)
+			cj.jobs = append(cj.jobs, &jobRun{name: job, uid: uid, scheduled: scheduled, pod: p})
 		}
 	}
 }

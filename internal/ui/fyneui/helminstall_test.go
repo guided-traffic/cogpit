@@ -210,7 +210,7 @@ func TestChartsView(t *testing.T) {
 	f := chartsFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
 	// The sidebar's groups come with kinds.list, which can answer after the view's rows (CI on
-	// Windows, 2026-10-22).
+	// Windows).
 	q.until(t, "the charts", func() bool { return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) == 7 })
 	if kids := sh.side.children[groupPrefix+"helm"]; !slices.Equal(kids, []string{helmChartsKind, helm.ReleaseKind}) {
 		t.Errorf("Helm group %v", kids)
@@ -404,8 +404,7 @@ func TestRenderHelmReposDialog(t *testing.T) {
 }
 
 // A version picked for the Install tab reaches the window when the engine has loaded its chart:
-// the picker and the digest line follow the tab's state (dockEqual compared neither, review
-// 2026-10-13).
+// the picker and the digest line follow the tab's state (dockEqual compared neither).
 func TestHelmInstallTabFollowsItsVersion(t *testing.T) {
 	f := chartsFake(t)
 	tab := installTabFixture(t, f, true)

@@ -18,8 +18,8 @@ import (
 	"time"
 )
 
-// The connection log on disk (D-66; the owner's decision of 2026-10-16): one file per context in
-// Cogpit's configuration directory, <user config dir>/Cogpit/connection-logs (app.Dirs.ConnectLogDir),
+// The connection log on disk (D-66; the owner's decision): one file per context in Cogpit's
+// configuration directory, <user config dir>/Cogpit/connection-logs (app.Dirs.ConnectLogDir),
 // owner-only like the audit log (the directory 0700, the files 0600). A file is named by the
 // SHA-256 of the context id (its first 32 hex digits and ".jsonl"), never by the id itself, which
 // may hold any character; the id is stored inside, in each attempt's first record, and an attempt

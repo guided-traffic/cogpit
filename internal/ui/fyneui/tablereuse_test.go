@@ -16,12 +16,12 @@ import (
 
 // The tests of a table cell that gets new content without a layout. A colleague of the owner saw
 // one pod of a DaemonSet's thirteen with three container squares, the others with two, after the
-// namespace filter had narrowed 263 rows to 13 (2026-10-19); a reconnect made it go away. Fyne's
-// table gives a cell it keeps on screen new content without laying it out when the cell's size is
-// unchanged, and the GL driver lays a cell out again only when one of its objects' minimum size
-// changed (glPass below), which a Containers cell whose squares all fit never does: its text stays
-// empty. So the cell kept the third square of the pod it showed before. The pods below are made up
-// in the picture's shape; the usage bars of the Nodes list go through the same layout.
+// namespace filter had narrowed 263 rows to 13; a reconnect made it go away. Fyne's table gives a
+// cell it keeps on screen new content without laying it out when the cell's size is unchanged, and
+// the GL driver lays a cell out again only when one of its objects' minimum size changed (glPass
+// below), which a Containers cell whose squares all fit never does: its text stays empty. So the
+// cell kept the third square of the pod it showed before. The pods below are made up in the
+// picture's shape; the usage bars of the Nodes list go through the same layout.
 
 // glPass is the GL driver's pass before each frame (Canvas.EnsureMinSize in Fyne 2.8.2's
 // internal/driver/common), so that these tests lay out what the running app lays out and no more:
@@ -253,6 +253,7 @@ func podRow(t *testing.T, o *unstructured.Unstructured) model.Row {
 func renderContainersReused(t *testing.T, mode ThemeMode, name string) {
 	all := kindSnapshot(t, "pods", reusePods(0))
 	f, sh, w, q, p := reuseShell(t, mode, all)
+	awaitScene(t, w) // the status bar and the namespaces, before the frames this picture is about
 	f.update(func(u *engine.UIState) { u.Namespaces = []string{"telemetry"} })
 	showPods(t, f, sh, q, p, inNamespace(all, "telemetry"))
 	p.run(w) // the namespace button's new text, as the next frame lays it out

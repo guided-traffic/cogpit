@@ -337,10 +337,10 @@ func (sh *shell) setChatWidth(w float32) float32 {
 }
 
 // The dock's height is the user's as well: the handle between the workspace and the dock is a
-// vertical resizeHandle, as the side panels' edges are (the owner's VW20 of 2026-10-25: Fyne's
-// Split divider, which held the dock before, took a drag pressed anywhere and could not keep a
-// dragGuard). The height is a share of the body's: dockOffset is the workspace's at the start, a
-// drag sets it, and a resized window keeps it, as the Split did. It is not stored.
+// vertical resizeHandle, as the side panels' edges are (the owner's VW20: Fyne's Split divider,
+// which held the dock before, took a drag pressed anywhere and could not keep a dragGuard). The
+// height is a share of the body's: dockOffset is the workspace's at the start, a drag sets it, and
+// a resized window keeps it, as the Split did. It is not stored.
 
 const (
 	minDockHeight      float32 = 100 // the dock's strip and a few lines of its tab

@@ -6,9 +6,9 @@ import (
 )
 
 // FormatUntil formats the time left until a moment in the future the way Lens's Cron Jobs view
-// shows Next execution. Captured from Lens (2026-10-11): "In about 1 hour 57 min". The other
-// ranges follow the same pattern and are inferred: "In about 12 min", "In about 2 days 3 hours",
-// "In less than a minute"; a moment already past reads "now".
+// shows Next execution. Captured from Lens: "In about 1 hour 57 min". The other ranges follow the
+// same pattern and are inferred: "In about 12 min", "In about 2 days 3 hours", "In less than a
+// minute"; a moment already past reads "now".
 func FormatUntil(d time.Duration) string {
 	switch {
 	case d <= 0:

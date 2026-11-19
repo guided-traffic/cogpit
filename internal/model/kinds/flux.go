@@ -11,11 +11,11 @@ import (
 
 // Flux CD (G23, D-9, D-33): curated profiles of the Flux toolkit's kinds, registered with the
 // other curated CRD profiles (verticalpodautoscalers.go) by this file's init. Lens shows them in its
-// paid Flux section (captured 2026-10-11: the navigator's structure only); its columns, drawers and
-// actions are not captured, so everything here is Cogpit's reading of Flux's own conventions
-// (inferred): the Ready condition is the state, spec.suspend a state of its own, and the columns
-// follow Flux's printer columns (the kind's own, Age, Ready, Status) with the revision and the
-// suspension added, as `flux get` shows them.
+// paid Flux section (captured: the navigator's structure only); its columns, drawers and actions
+// are not captured, so everything here is Cogpit's reading of Flux's own conventions (inferred):
+// the Ready condition is the state, spec.suspend a state of its own, and the columns follow Flux's
+// printer columns (the kind's own, Age, Ready, Status) with the revision and the suspension added,
+// as `flux get` shows them.
 
 // The Flux toolkit's API groups.
 const (
@@ -42,7 +42,7 @@ const (
 	textFalse     = "false"
 )
 
-// The Flux section's sub-groups in the navigator, as captured (2026-10-11).
+// The Flux section's sub-groups in the navigator, as captured.
 const (
 	FluxSectionImages        = "Image Automation"
 	FluxSectionNotifications = "Notifications"
@@ -104,9 +104,9 @@ type FluxKind struct {
 	static bool
 }
 
-// fluxSpecs are the Flux kinds in the navigator's order (captured 2026-10-11): Helm Releases,
-// Kustomizations; Image Automation; Notifications; Sources. Each file of the toolkit's groups adds
-// its specs to fluxSpecs through fluxRegister, in that order.
+// fluxSpecs are the Flux kinds in the navigator's order (captured): Helm Releases, Kustomizations;
+// Image Automation; Notifications; Sources. Each file of the toolkit's groups adds its specs to
+// fluxSpecs through fluxRegister, in that order.
 var fluxSpecs []*fluxSpec
 
 // fluxRegister adds specs to the Flux kinds, in order.

@@ -110,12 +110,12 @@ func propertyOrder(s *jsonschema.Schema) []string {
 }
 
 // DialogField is how the window's generated dialog shows one parameter beyond what its schema
-// says (Spec.Dialog; the owner's gate walk of 2026-10-20, GW2 and GW6, D-104). The schema's
-// description is written for agents ("required to run; a dialog starts from the current count");
-// Hint says the same to a person, in the tooltip of the "?" after the field's name. A whole number
-// whose schema allows far more than anyone picks (Scale's 0 to 65535) gets a slider over the range
-// most values fall in, SliderMin to SliderMax, and the number field beside it for any other value
-// the schema allows.
+// says (Spec.Dialog; the owner's gate walk, GW2 and GW6, D-104). The schema's description is
+// written for agents ("required to run; a dialog starts from the current count"); Hint says the
+// same to a person, in the tooltip of the "?" after the field's name. A whole number whose schema
+// allows far more than anyone picks (Scale's 0 to 65535) gets a slider over the range most values
+// fall in, SliderMin to SliderMax, and the number field beside it for any other value the schema
+// allows.
 type DialogField struct {
 	// Hint is the field's tooltip; empty shows the schema's description.
 	Hint string

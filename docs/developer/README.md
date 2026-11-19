@@ -66,6 +66,7 @@ cogpit/
 │  ├─ parity/                 checks the parity checklists and their numbers (make parity); go run ./hack/parity writes docs/parity/parity-checklist.md
 │  ├─ scorecard/              make scorecard: the performance and API-load budgets measured into docs/parity/scorecard.md
 │  ├─ readmecmds/             the command table in docs/developer/commands.md, from the registry
+│  ├─ commentdates/           fails on a calendar date in a Go comment (make lint)
 │  ├─ icon/                   draws the app icon from internal/ui/logo: packaging/icon.png (make icon), the Linux and Windows packages' icons
 │  ├─ showcase/               oxipng.sh: the pinned oxipng and its lossless run over docs/images (make showcase)
 │  ├─ macos/                  release.sh (signs, images and notarizes the download: make dist-macos), the disk image's template, Sparkle, the appcast

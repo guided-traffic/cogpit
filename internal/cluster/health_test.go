@@ -161,8 +161,8 @@ func TestHeartbeatAndReachable(t *testing.T) {
 	}
 	p.Thaw()
 	// The probe that timed out on the frozen proxy can leave its HTTP/2 connection closing while
-	// the next one starts ("client connection force closed", CI 2026-10-16); the reconnect loop
-	// tries again on its backoff, so the test waits for the condition, as the loop would.
+	// the next one starts ("client connection force closed"); the reconnect loop tries again on its
+	// backoff, so the test waits for the condition, as the loop would.
 	var lastErr error
 	wctx, wcancel := context.WithTimeout(ctx, 5*time.Second)
 	defer wcancel()

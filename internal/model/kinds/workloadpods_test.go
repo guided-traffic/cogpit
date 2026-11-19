@@ -82,7 +82,7 @@ func TestControllerKeys(t *testing.T) {
 // The pods a Replica Set, Stateful Set, Daemon Set or Job controls itself: by UID, not by the
 // owner's name (a workload created again under its name owns none of the old one's pods), only in
 // its namespace, only through the controller reference. The table is the node drawer's without its
-// Namespace column (D-40, owner 2026-10-14): the workload's pods share its namespace.
+// Namespace column (D-40, owner): the workload's pods share its namespace.
 func TestWorkloadDrawerPods(t *testing.T) {
 	for _, key := range []string{"replicasets", "statefulsets", "daemonsets", "jobs"} {
 		t.Run(key, func(t *testing.T) {

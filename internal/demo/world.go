@@ -17,6 +17,8 @@ type world struct {
 	nodes      []*node
 	workers    []*node // schedulable workers, for new pods
 	deploys    []*deployment
+	daemonSets []*daemonSet
+	cronJobs   []*cronJob
 	pods       []*pod // every pod; pod.idx is its index
 	podKeys    map[string]struct{}
 	events     []*event // oldest first, from evHead
@@ -114,6 +116,30 @@ type deployment struct {
 
 	available, progressing           string // condition status, "True" or "False"
 	availableSince, progressingSince time.Time
+}
+
+// daemonSet is a DaemonSet and the pods the build placed for it, one a node (kube-proxy). The churn
+// leaves its pods alone.
+type daemonSet struct {
+	name, namespace, uid string
+	labels               map[string]string // its selector and its pods' own labels
+	tmpl                 *podTemplate
+	pods                 []*pod
+}
+
+// cronJob is a CronJob and the Jobs of its runs the build kept, newest first. The churn leaves
+// them alone.
+type cronJob struct {
+	name, namespace, uid string
+	tmpl                 *podTemplate
+	jobs                 []*jobRun
+}
+
+// jobRun is one run of a CronJob: a Job and its one pod.
+type jobRun struct {
+	name, uid string
+	scheduled time.Time
+	pod       *pod
 }
 
 // counts returns the deployment's active (scheduled for the replica count), ready and updated

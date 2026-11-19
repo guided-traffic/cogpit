@@ -8,9 +8,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The navigator's search text and keyboard row are engine state (D-51, the owner's A51, 2026-10-14
-// evening; engine/navigator.go), so that an agent sees what the user typed and where the keyboard
-// stands, and sets them as the user does:
+// The navigator's search text and keyboard row are engine state (D-51, the owner's A51;
+// engine/navigator.go), so that an agent sees what the user typed and where the keyboard stands,
+// and sets them as the user does:
 //   - the window reports every change of them, whatever moved the keyboard (a key, a click, a
 //     search hiding the row, a view opened), a pause after the last change (searchDebounce, as the
 //     view's search); a value the engine holds already is not sent;

@@ -14,14 +14,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The top bar's right end (F7, the owner's finding of 2026-10-15, after VS Code's title bar): an
-// Update button while the app's updater holds a newer release for the user (UIState.Update), then
-// three layout toggles in VS Code's order: the navigator (its primary side bar), the dock (its
-// panel) and the agent chat's column (its secondary side bar). Each toggle dispatches its engine
-// command (ui.toggleNavigator ⌘B, ui.toggleDock ⌘J, chat.toggle ⌘I), so agents see and drive the
-// same state, and its icon shows whether its part is open. The toggles stand at the bar's right
-// end, after the bell and a divider (bars.go).
-// The View menu has the three with their shortcuts (layoutMenuItems).
+// The top bar's right end (F7, the owner's finding, after VS Code's title bar): an Update button
+// while the app's updater holds a newer release for the user (UIState.Update), then three layout
+// toggles in VS Code's order: the navigator (its primary side bar), the dock (its panel) and the
+// agent chat's column (its secondary side bar). Each toggle dispatches its engine command
+// (ui.toggleNavigator ⌘B, ui.toggleDock ⌘J, chat.toggle ⌘I), so agents see and drive the same
+// state, and its icon shows whether its part is open. The toggles stand at the bar's right end,
+// after the bell and a divider (bars.go). The View menu has the three with their shortcuts
+// (layoutMenuItems).
 
 // layoutIcon is one of the toggles' icons, Cogpit's own drawing (no VS Code asset or codicon,
 // D-12): a window's outline and, filled while it is open or as a line where it sits while it is
@@ -90,9 +90,9 @@ func newLayoutBar(sh *shell) *layoutBar {
 			b.b.Hide() // a build without the command (a test fake)
 		}
 	}
-	// At the bar's right end (bars.go), close together: half their inner padding (the owner,
-	// 2026-10-16 night: "können näher zusammen rücken"), and a padding between the buttons (the
-	// owner, 2026-10-18, WF17: "zu eng beieinander. Ein bisschen mehr Platz").
+	// At the bar's right end (bars.go), close together: half their inner padding (the owner:
+	// "können näher zusammen rücken"), and a padding between the buttons (the owner, WF17: "zu eng
+	// beieinander. Ein bisschen mehr Platz").
 	gap := sh.app.Settings().Theme().Size(theme.SizeNamePadding)
 	l.toggles = container.New(layout.NewCustomPaddedHBoxLayout(gap), l.navigator, l.dock, l.chat)
 	l.root = container.NewThemeOverride(l.toggles, &compactButtonTheme{app: sh.app})

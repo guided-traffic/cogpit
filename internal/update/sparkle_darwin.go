@@ -22,8 +22,8 @@ import (
 const detailSize = 512
 
 var (
-	// checkInterval is how often the scheduled checks read the feed: an hour (owner, 2026-10-16,
-	// D-4), as on Linux and Windows.
+	// checkInterval is how often the scheduled checks read the feed: an hour (owner, D-4), as on
+	// Linux and Windows.
 	checkInterval = time.Hour
 	// probe runs Sparkle's probing check (sparkle_darwin.m): it reads the feed and reports what it
 	// found, holding nothing for later.

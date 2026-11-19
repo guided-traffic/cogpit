@@ -23,16 +23,16 @@ import (
 )
 
 // helmRevisionsTab is a release's Revisions dock tab (D-131; the owner picked the dock tab, his
-// option A, on 2026-10-25, and looked at it in the window on 2026-10-26): over the
-// tab the revision shown and the one it is compared with, Values or Manifest, and the actions;
-// on its left the release's revisions; on its right the revision's values (user-supplied or all)
-// or its rendered manifest (its objects as kubectl lists them, or manifest.yaml as Helm stored
-// it). Compared with another revision, the values are the keys that changed, their line diff
-// folded under them, and the objects are marked + (only in the revision shown), − (only in the one
-// compared), ~ (changed) or =, a changed one's YAML as its diff. Everything is read through
-// helm.release.revision and helm.release.diff from the cache; what the tab shows is the engine's
-// state (DockTab.HelmRevisions), changed through ui.helm.revisions.set, so agents see and drive it.
-// A rendered Secret's values are masked until the user's Show, which is the window's alone.
+// option A, and looked at it in the window): over the tab the revision shown and the one it is
+// compared with, Values or Manifest, and the actions; on its left the release's revisions; on its
+// right the revision's values (user-supplied or all) or its rendered manifest (its objects as
+// kubectl lists them, or manifest.yaml as Helm stored it). Compared with another revision, the
+// values are the keys that changed, their line diff folded under them, and the objects are marked +
+// (only in the revision shown), − (only in the one compared), ~ (changed) or =, a changed one's
+// YAML as its diff. Everything is read through helm.release.revision and helm.release.diff from the
+// cache; what the tab shows is the engine's state (DockTab.HelmRevisions), changed through
+// ui.helm.revisions.set, so agents see and drive it. A rendered Secret's values are masked until
+// the user's Show, which is the window's alone.
 type helmRevisionsTab struct {
 	sh  *shell
 	tab engine.DockTab
@@ -954,8 +954,8 @@ func centred(o fyne.CanvasObject) fyne.CanvasObject { return container.NewCenter
 // revisionRow is one revision in the tab's list: its number, status and chart version, the marks
 // of the revision shown (●) and compared (◆), and under them when it was deployed. The version and
 // the time are worth copying and selectable, a click on them picks the row as one beside them does;
-// the number and the status are plain words (the owner, 2026-10-26: "Ein Index muss nicht
-// selektierbar sein. Auch Deployed oder Superseded nicht. Eine Version und ein Datum dagegen schon").
+// the number and the status are plain words (the owner: "Ein Index muss nicht selektierbar sein.
+// Auch Deployed oder Superseded nicht. Eine Version und ein Datum dagegen schon").
 type revisionRow struct {
 	widget.BaseWidget
 	bg            *canvas.Rectangle
@@ -1204,9 +1204,9 @@ func (objectRowLayout) Layout(objs []fyne.CanvasObject, size fyne.Size) {
 }
 
 // copy puts a selected text on the clipboard: every text of the tab worth copying is selectable, a
-// drag, a double click on a word, ⌘C (the owner, 2026-10-26: "Ich möchte texte markieren können.
-// Überall in diesen Masken", D-25's selection); a number, a status, a kind, a title or a hint is a
-// plain word, and a list row's selectable text passes its click on to the row (passClick).
+// drag, a double click on a word, ⌘C (the owner: "Ich möchte texte markieren können. Überall in
+// diesen Masken", D-25's selection); a number, a status, a kind, a title or a hint is a plain word,
+// and a list row's selectable text passes its click on to the row (passClick).
 func (r *helmRevisionsTab) copy(text string) { r.sh.copyText(text, false) }
 
 // newSel makes a line of the tab selectable, ⌘C copying its selection through copied.

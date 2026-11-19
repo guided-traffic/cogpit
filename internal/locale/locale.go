@@ -1,10 +1,10 @@
-// Package locale finds how this computer writes dates and times (D-31, owner 2026-10-13: every
-// timestamp in the local time zone and in the format that fits the location). On macOS the format
-// comes from the region settings through CoreFoundation, which also honours a user's own formats
-// and the 24-hour switch (system_darwin.go); elsewhere, and in the pure-Go cogpit-cli, from the
-// POSIX locale the environment names, through a small table of common locales' CLDR formats. The
-// result is a model.TimeLayout of Go layouts; the binaries look it up once at start and hand it to
-// the engine, which writes every time the user reads with it, in the Preferences' time zone.
+// Package locale finds how this computer writes dates and times (D-31, owner: every timestamp in
+// the local time zone and in the format that fits the location). On macOS the format comes from the
+// region settings through CoreFoundation, which also honours a user's own formats and the 24-hour
+// switch (system_darwin.go); elsewhere, and in the pure-Go cogpit-cli, from the POSIX locale the
+// environment names, through a small table of common locales' CLDR formats. The result is a
+// model.TimeLayout of Go layouts; the binaries look it up once at start and hand it to the engine,
+// which writes every time the user reads with it, in the Preferences' time zone.
 //
 // Layer L1: it reads the environment and, on macOS, the system's settings; it imports nothing of
 // Cogpit's but model and never talks to a cluster.

@@ -11,14 +11,14 @@ import (
 )
 
 // TestRegistryMenusAsLens checks the row menus and drawer toolbars the real registry yields
-// against Lens's captured menus (2026-10-11), Show Details aside: Node: Shell, Cordon or Uncordon,
-// Drain, Edit, Delete; Cron Job: Trigger, Suspend or Resume, Edit, Delete; Pod: Attach Pod, Shell,
-// Evict, Share, Logs, Edit, Delete; Deployment: Scale, Restart, Logs. A pair such as Cordon and
-// Uncordon are both listed here; the menu shows the one that applies (TestRowMenuNodes). Commands
-// Cogpit has not built are named in missing, so that the test shows the gap instead of hiding it.
-// Remove Finalizers is Cogpit's own (D-98), between Edit and Delete of every kind, and shown only
-// for an object being deleted that finalizers hold. Debug is Cogpit's own too (D-102), after Shell,
-// in a dialog of the window's own that is its confirmation (debugdialog.go).
+// against Lens's captured menus, Show Details aside: Node: Shell, Cordon or Uncordon, Drain, Edit,
+// Delete; Cron Job: Trigger, Suspend or Resume, Edit, Delete; Pod: Attach Pod, Shell, Evict, Share,
+// Logs, Edit, Delete; Deployment: Scale, Restart, Logs. A pair such as Cordon and Uncordon are both
+// listed here; the menu shows the one that applies (TestRowMenuNodes). Commands Cogpit has not
+// built are named in missing, so that the test shows the gap instead of hiding it. Remove
+// Finalizers is Cogpit's own (D-98), between Edit and Delete of every kind, and shown only for an
+// object being deleted that finalizers hold. Debug is Cogpit's own too (D-102), after Shell, in a
+// dialog of the window's own that is its confirmation (debugdialog.go).
 func TestRegistryMenusAsLens(t *testing.T) {
 	const rf = engine.RemoveFinalizersCommand
 	s := newTestEngine(engine.Options{})

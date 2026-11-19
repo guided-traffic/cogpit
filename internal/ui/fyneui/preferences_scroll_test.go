@@ -8,9 +8,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// TestASettingsSectionStartsAtItsTop (the owner's finding of 2026-10-25): a section shown after
-// another that was scrolled down starts at its top, as does the page opened again; before, the
-// scroller kept the old offset and a shorter section drew nothing until a scroll.
+// TestASettingsSectionStartsAtItsTop (the owner's finding): a section shown after another that was
+// scrolled down starts at its top, as does the page opened again; before, the scroller kept the old
+// offset and a shorter section drew nothing until a scroll.
 func TestASettingsSectionStartsAtItsTop(t *testing.T) {
 	s, _ := settingsEngine(t)
 	ch := newFakeChat()

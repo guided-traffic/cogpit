@@ -525,7 +525,7 @@ type tableGrid struct {
 	natural []float32 // each column's widest cell
 	gap     float32
 	// grow is the column that takes the row's free width: the last text column before the
-	// numbers, which then stand right-aligned beside the last column (the owner, 2026-11-17).
+	// numbers, which then stand right-aligned beside the last column (the owner).
 	grow int
 }
 

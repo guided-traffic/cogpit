@@ -106,23 +106,23 @@ func (d *drawer) revealedItem(it model.DetailItem) (model.DetailItem, bool) {
 }
 
 // revealButton is Show or Hide on a Secret's value. Show exposes the value, so it is marked as
-// exposing (the owner's RW3 of 2026-10-23: "angemessen (als exposing) markiert … Vielleicht rot,
-// weil es löscht ja nichts, aber ein warnendes Orange?"; his pick of three rendered looks, variant
-// A): its word, its outline and an eye icon in the status warning's amber, the tone of "(edited,
-// not saved)"; filled it would be louder than Save, with the outline alone it read as any button in
-// the light theme. Hide puts the value away again: the eye struck through in the status OK's green
-// (the owner's CW2 of 2026-10-23, "Hide könnte doch ein grünes Button sein, weil es die visuelle
-// sicherheit wiederherstellt, vielleicht haben wir auch ein geschlossenes Auge?"; his pick of three
-// rendered looks, variant C). Red stays for what removes.
+// exposing (the owner's RW3: "angemessen (als exposing) markiert … Vielleicht rot, weil es löscht
+// ja nichts, aber ein warnendes Orange?"; his pick of three rendered looks, variant A): its word,
+// its outline and an eye icon in the status warning's amber, the tone of "(edited, not saved)";
+// filled it would be louder than Save, with the outline alone it read as any button in the light
+// theme. Hide puts the value away again: the eye struck through in the status OK's green (the
+// owner's CW2, "Hide könnte doch ein grünes Button sein, weil es die visuelle sicherheit
+// wiederherstellt, vielleicht haben wir auch ein geschlossenes Auge?"; his pick of three rendered
+// looks, variant C). Red stays for what removes.
 //
 // Show and Hide are one toggle in one place: each is as wide as the wider of the two (the owner's
-// CW1 of 2026-10-23: "Hide soll genau so groß sein wie Show, damit man mit der Maus nicht erneut
-// auf hide ziehen muss"; the line ends at the right, so a narrower Hide started right of Show's
-// eye). They are one widget too, which setRevealLook turns from one into the other, kept by its
-// owner across rebuilds (the owner's VW1 of 2026-10-23: "wenn man auf Show klickt, ist man ja dann
-// direkt auf dem Hide-Button, dieser ist dann aber erstmal so als ob man nicht darüber ist"): Fyne
-// sends MouseIn only when the pointer moves, so a new Hide put where Show was started without its
-// hover, while the one widget keeps the hover it had as Show.
+// CW1: "Hide soll genau so groß sein wie Show, damit man mit der Maus nicht erneut auf hide ziehen
+// muss"; the line ends at the right, so a narrower Hide started right of Show's eye). They are one
+// widget too, which setRevealLook turns from one into the other, kept by its owner across rebuilds
+// (the owner's VW1: "wenn man auf Show klickt, ist man ja dann direkt auf dem Hide-Button, dieser
+// ist dann aber erstmal so als ob man nicht darüber ist"): Fyne sends MouseIn only when the pointer
+// moves, so a new Hide put where Show was started without its hover, while the one widget keeps the
+// hover it had as Show.
 func revealButton(label string, tapped func()) *textButton {
 	return revealToggle(showLabel, hideLabel, label, tapped)
 }

@@ -46,11 +46,11 @@ func (l *queryLog) has(sub string) bool {
 	return false
 }
 
-// Lens's other Metrics provider settings (G12, Cluster Settings › Metrics, 2026-10-16): the query
-// format, the empty-container filter and HTTPS, set with cluster.setPrometheus beside the address,
-// applied at once (the open drawer asks the service over https with the filter off), kept in
-// Cogpit's own preferences per context and applied to the next connection before anything is
-// detected; a format Cogpit does not know is refused.
+// Lens's other Metrics provider settings (G12, Cluster Settings › Metrics): the query format, the
+// empty-container filter and HTTPS, set with cluster.setPrometheus beside the address, applied at
+// once (the open drawer asks the service over https with the filter off), kept in Cogpit's own
+// preferences per context and applied to the next connection before anything is detected; a format
+// Cogpit does not know is refused.
 func TestPrometheusQuerySettings(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()

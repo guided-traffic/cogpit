@@ -207,7 +207,7 @@ func TestPropertiesSection(t *testing.T) {
 			byName[it.Name] = it
 		}
 	}
-	// Lens shows no UID; Controlled By once per owner (capture, 2026-10-11).
+	// Lens shows no UID; Controlled By once per owner (capture).
 	want := []string{"Created", "Name", "Namespace", "Labels", "Annotations", "Controlled By", "Controlled By"}
 	if strings.Join(order, ",") != strings.Join(want, ",") {
 		t.Fatalf("order = %v, want %v", order, want)

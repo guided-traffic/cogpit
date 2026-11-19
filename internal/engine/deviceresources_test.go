@@ -12,8 +12,8 @@ import (
 // TestBuiltinDeviceResourcesFollowTheServedVersion checks the Device Resources views on the
 // discovery of three clusters: one that serves resource.k8s.io/v1 (Kubernetes 1.34 and later) gets
 // the four views at v1; one that serves only the beta versions (1.32 and 1.33 with the beta APIs
-// switched on) gets none, as Lens reads v1 only (its documentation, read 2026-10-13); a cluster
-// without dynamic resource allocation gets none.
+// switched on) gets none, as Lens reads v1 only (its documentation); a cluster without dynamic
+// resource allocation gets none.
 func TestBuiltinDeviceResourcesFollowTheServedVersion(t *testing.T) {
 	const group = "resource.k8s.io"
 	all := []string{"resourceclaims", "resourceclaimtemplates", "deviceclasses", "resourceslices"}

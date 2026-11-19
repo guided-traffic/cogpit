@@ -14,10 +14,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// TestNavigateLeavesTheSelection: selecting and opening a drawer are separate actions (owner,
-// 2026-10-15): ui.navigate opens the drawer and leaves the checked rows of the same view alone; a
-// view it changes to shows its own checked rows, none for a view never checked in, and the old
-// view's come back with it (owner, audit of 2026-10-16).
+// TestNavigateLeavesTheSelection: selecting and opening a drawer are separate actions (owner):
+// ui.navigate opens the drawer and leaves the checked rows of the same view alone; a view it
+// changes to shows its own checked rows, none for a view never checked in, and the old view's come
+// back with it (owner, audit).
 func TestNavigateLeavesTheSelection(t *testing.T) {
 	src := testkit.NewMemorySource()
 	claims := schema.GroupVersionResource{Version: "v1", Resource: "persistentvolumeclaims"}
@@ -68,8 +68,8 @@ func TestNavigateLeavesTheSelection(t *testing.T) {
 		t.Errorf("a Delete of the pods view's selection: %v, want nothing selected", err)
 	}
 
-	// Each view keeps its checked rows (N111, the owner's decision in the audit of 2026-10-16): the
-	// claims' come back with their view.
+	// Each view keeps its checked rows (N111, the owner's decision in the audit): the claims' come
+	// back with their view.
 	h.must(t, agent, "ui.navigate", map[string]any{"ref": logs}, nil)
 	if st := s.UIState(); st.View != "persistentvolumeclaims" || len(st.Selected) != 1 || !st.Selected[0].Same(data) {
 		t.Errorf("back in the claims: view %s, selected %v", st.View, st.Selected)

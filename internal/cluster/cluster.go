@@ -62,9 +62,9 @@ const (
 	// discoveryQPS and discoveryBurst are discovery's own budget (kubectl's values).
 	discoveryQPS   = 50
 	discoveryBurst = 300
-	// listQPS and listBurst are the cache's own budget for its lists (D-135, the owner's choice of
-	// 2026-10-26: discovery's values): a read lists its objects once and then watches, and a connect
-	// that reads many kinds, several namespaces each, would wait seconds at DefaultQPS.
+	// listQPS and listBurst are the cache's own budget for its lists (D-135, the owner's choice:
+	// discovery's values): a read lists its objects once and then watches, and a connect that reads
+	// many kinds, several namespaces each, would wait seconds at DefaultQPS.
 	listQPS   = 50
 	listBurst = 300
 )
@@ -692,7 +692,7 @@ func (c *Conn) ServerVersion() string { return c.version }
 // SeenVersion returns the API server's version as the last heartbeat that answered read it, ""
 // before the first: an upgrade of the cluster while Cogpit stays connected shows here, while
 // ServerVersion stays the version the connection's discovery was made for (the owner's
-// colleague's case of 2026-10-25; the engine takes it, connwatch_version.go).
+// colleague's case; the engine takes it, connwatch_version.go).
 func (c *Conn) SeenVersion() string {
 	if v := c.seen.Load(); v != nil {
 		return *v

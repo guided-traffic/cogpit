@@ -18,8 +18,8 @@ import (
 )
 
 // release is one real kubectl release's published signature and Rekor's answer for it, read from
-// dl.k8s.io and rekor.sigstore.dev (darwin/arm64; 1.36.1 on 2026-10-13 and 2026-10-15, 1.37.1 on
-// 2026-10-15). Public material: the files every download reads.
+// dl.k8s.io and rekor.sigstore.dev (darwin/arm64; 1.36.1 and 1.37.1). Public material: the files
+// every download reads.
 type release struct {
 	signed  *Signed
 	entries []LogEntry

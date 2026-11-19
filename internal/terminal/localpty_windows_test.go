@@ -49,7 +49,7 @@ func startTestCmd(t *testing.T, opts LocalOptions) (Session, *outputRecorder, st
 // return), then a last one that writes done.txt, and waits for that file: the console host
 // repaints the screen as it likes, so results go to files, not through the output. The wait is
 // long: on a fresh CI runner every program's first start is scanned, and the kubectl GitHub's
-// Windows image brings took more than 20 seconds for its four runs (2026-10-21).
+// Windows image brings took more than 20 seconds for its four runs.
 func typeLines(t *testing.T, sess Session, home string, lines ...string) {
 	t.Helper()
 	lines = append(lines, "echo done> done.txt")

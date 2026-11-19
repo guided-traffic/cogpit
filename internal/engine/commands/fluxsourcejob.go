@@ -11,17 +11,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Reconcile with Source waits as the flux CLI does (A91, the owner's decision of 2026-10-14
-// evening; D-33): `flux reconcile kustomization|helmrelease --with-source` asks the source's
-// controller to reconcile it, waits until the controller has handled the request and the source
-// is ready (at most --timeout, 5 minutes by default), and only then asks for the object, and waits
-// for it too. Cogpit runs that as a background job (engine/jobs.go) with a dock tab of its own: the
-// command checks everything, as before, and returns the job's tab at once; the job writes each
-// reconcile request in its chain's order, the deepest source first, and waits for each through the
-// cache (Session.WaitFluxReconciled, no polling), at most fluxJobWait per object. A source that
-// ends not ready, times out or fails stops what depends on it: its object is not asked to reconcile,
-// as the flux CLI stops. On a selection the objects' chains run side by side, a source two objects
-// share is asked once, and one that fails fails only the objects that need it.
+// Reconcile with Source waits as the flux CLI does (A91, the owner's decision; D-33): `flux
+// reconcile kustomization|helmrelease --with-source` asks the source's controller to reconcile it,
+// waits until the controller has handled the request and the source is ready (at most --timeout, 5
+// minutes by default), and only then asks for the object, and waits for it too. Cogpit runs that as
+// a background job (engine/jobs.go) with a dock tab of its own: the command checks everything, as
+// before, and returns the job's tab at once; the job writes each reconcile request in its chain's
+// order, the deepest source first, and waits for each through the cache
+// (Session.WaitFluxReconciled, no polling), at most fluxJobWait per object. A source that ends not
+// ready, times out or fails stops what depends on it: its object is not asked to reconcile, as the
+// flux CLI stops. On a selection the objects' chains run side by side, a source two objects share
+// is asked once, and one that fails fails only the objects that need it.
 //
 // Its steps (one per object written, the sources first) and its outcome are the tab's engine state,
 // which agents read with ui_state; a toast says how it ended. Closing the tab stops the job; what

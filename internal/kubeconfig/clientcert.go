@@ -10,11 +10,11 @@ import (
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
 
-// A context's client certificate and how long it is valid (D-75, the owner's F22 of 2026-10-17):
-// the cluster list shows the time left or "expired" for a context whose user logs in with a
-// client certificate, and never blocks or warns against connecting because of it. Only the
-// certificate is read, and of it only its two dates are kept: never its PEM, never its subject,
-// and never the private key (client-key-data, client-key), which nothing here looks at.
+// A context's client certificate and how long it is valid (D-75, the owner's F22): the cluster list
+// shows the time left or "expired" for a context whose user logs in with a client certificate, and
+// never blocks or warns against connecting because of it. Only the certificate is read, and of it
+// only its two dates are kept: never its PEM, never its subject, and never the private key
+// (client-key-data, client-key), which nothing here looks at.
 
 // CertValidity is when a client certificate is valid: from NotBefore through NotAfter, as the
 // certificate says (UTC). State is set where a list is made for a reader (the engine's

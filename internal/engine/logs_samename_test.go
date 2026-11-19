@@ -270,10 +270,10 @@ func TestWorkloadLogsARestartTheCacheShowsLate(t *testing.T) {
 
 // TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate: the Stateful Set's pod db-0 is deleted and
 // created again under its name with a new UID, no interruption: the server ends the old pod's
-// stream, and the cache shows the new pod only after the resumption's backoff (the lead's note of
-// 2026-10-14: "while the cache lags > 500 ms", the backoff shortened here). The stream opens again
-// by the name, says that the log no longer goes on from its last line, and when the cache shows
-// the new pod under its new UID, no second stream starts for it: every line once, two requests.
+// stream, and the cache shows the new pod only after the resumption's backoff (the lead's note:
+// "while the cache lags > 500 ms", the backoff shortened here). The stream opens again by the name,
+// says that the log no longer goes on from its last line, and when the cache shows the new pod
+// under its new UID, no second stream starts for it: every line once, two requests.
 func TestWorkloadLogsAPodCreatedAgainTheCacheShowsLate(t *testing.T) {
 	fastResumes(t, 5)
 	s, src, _ := watchedLogsSession(t)

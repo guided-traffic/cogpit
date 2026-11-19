@@ -17,12 +17,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Kyverno (D-79; beyond-lens › Integrations; the owner, 2026-10-17: "ich will an den K8S-Objekten
-// sehen wenn sie gegen eine Policy verstoßen die auf Audit läuft"; his answer: fails of Enforce
-// policies on objects that existed before count too). While the integration is on for a connected
-// cluster, Cogpit reads the policy reports Kyverno writes (wgpolicyk8s.io/v1alpha2 PolicyReports
-// and ClusterPolicyReports, kinds/policyreports.go) through the cache and marks every object a
-// report names with a violation: Kyverno's slot in the lists' Signals column ("Kyverno: 2 policy
+// Kyverno (D-79; beyond-lens › Integrations; the owner: "ich will an den K8S-Objekten sehen wenn
+// sie gegen eine Policy verstoßen die auf Audit läuft"; his answer: fails of Enforce policies on
+// objects that existed before count too). While the integration is on for a connected cluster,
+// Cogpit reads the policy reports Kyverno writes (wgpolicyk8s.io/v1alpha2 PolicyReports and
+// ClusterPolicyReports, kinds/policyreports.go) through the cache and marks every object a report
+// names with a violation: Kyverno's slot in the lists' Signals column ("Kyverno: 2 policy
 // violations (require-team-label, disallow-latest-tag)"), the column added after Name to a kind
 // that has none while one of its objects violates a policy, and a "Policy violations" group in the drawer. Off: nothing is
 // read, nothing shows (overlay.go).
@@ -99,7 +99,7 @@ func followKyverno(st *state, b *Backend, now UIState) {
 	cur, _ := overlayOf[*kyvernoSource](b)
 	// Read only while the cluster is the one shown: its marks show only in its views, and a cluster
 	// connected in the background goes cold (D-69); shown again within the cache's warm period, the
-	// reports are there at once (the lead's decision, 2026-10-17, D-79).
+	// reports are there at once (the lead's decision, D-79).
 	if !now.IntegrationOn(b.Context, IntegrationKyverno) || now.Context != b.Context {
 		if cur != nil {
 			b.overlays.put(IntegrationKyverno, nil)

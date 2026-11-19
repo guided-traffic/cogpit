@@ -17,32 +17,31 @@ import (
 // has an Order: object.deleteMany. Registry.SelectionActions lists them for a selection's menu, and
 // Registry.Actions (the menus of one object) leaves them out.
 //
-// The owner's decision (A73, 2026-10-14 evening; built 2026-10-15): a plain click on a row opens
-// its drawer and keeps the checked rows checked. The click is ui.select's mode open (SelectOpen):
-// the drawer moves to the row's object and the selection stays as it is, the clicked row neither
-// checked nor unchecked. Cogpit's defaults (inferred, not the owner's decision, 2026-10-13): a
-// checkbox, ⌘-click and ⇧-click change the selection without opening the drawer; the header's
-// checkbox selects the rows the view shows (the namespace filter and the search applied) or clears
-// the selection; an action takes at most MaxSelection objects at once.
+// The owner's decision (A73): a plain click on a row opens its drawer and keeps the checked
+// rows checked. The click is ui.select's mode open (SelectOpen): the drawer moves to the row's
+// object and the selection stays as it is, the clicked row neither checked nor unchecked. Cogpit's
+// defaults (inferred, not the owner's decision): a checkbox, ⌘-click and ⇧-click change the
+// selection without opening the drawer; the header's checkbox selects the rows the view shows (the
+// namespace filter and the search applied) or clears the selection; an action takes at most
+// MaxSelection objects at once.
 
 // ParamRefs is the parameter of a command that acts on a selection: the objects (model.ObjectRef).
 const ParamRefs = "refs"
 
 // MaxSelection is the most objects one action on a selection takes (Cogpit's bound, inferred;
 // the owner confirmed it for Delete, A72): 500 deletes take about 100 seconds at the cluster
-// connection's 5 requests per second. Since G4 (2026-10-16) a selection of more than
-// DirectSelection objects runs as a background job whose dock tab shows its progress and can be
-// cancelled; the bound stays, the confirmation listing every object (the lead's decision for the
-// owner to confirm).
+// connection's 5 requests per second. Since G4 a selection of more than DirectSelection objects
+// runs as a background job whose dock tab shows its progress and can be cancelled; the bound stays,
+// the confirmation listing every object (the lead's decision for the owner to confirm).
 const MaxSelection = 500
 
 // DirectSelection is the most objects an action on a selection acts on within its call, returning
 // what it did as one object's action does; a larger selection runs as a background job (jobs.go)
 // and the command returns at once with the job's tab (G4; the lead's decision for the owner to
-// confirm, 2026-10-16). Ten is the cluster connection's burst of requests (cluster.DefaultBurst):
-// up to ten go out at once and end within about a second on a healthy connection, a toast saying
-// how they went; beyond it the connection's 5 requests per second spread them over seconds to
-// minutes, which the job's tab shows step by step.
+// confirm). Ten is the cluster connection's burst of requests (cluster.DefaultBurst): up to ten go
+// out at once and end within about a second on a healthy connection, a toast saying how they went;
+// beyond it the connection's 5 requests per second spread them over seconds to minutes, which the
+// job's tab shows step by step.
 const DirectSelection = 10
 
 // SelectMode says how ui.select changes the selection.

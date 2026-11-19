@@ -63,8 +63,8 @@ func TestBudgetCustomResourceView(t *testing.T) {
 	// plan; the Services are read from the cache by the detection of Prometheus (the Pods view's CPU
 	// and Memory columns) and of the Alertmanager (while the cluster is shown). The Widget kind can
 	// come first: opened before the reviews' answer, its view ends the Pods view before it watched,
-	// and the count below stays at three (2026-10-17; reviews held 1.5 s by the fake: the pods'
-	// watch missing three times in three). Leave the Pods view once both watches are open.
+	// and the count below stays at three (reviews held 1.5 s by the fake: the pods' watch missing
+	// three times in three). Leave the Pods view once both watches are open.
 	if !testkit.WaitFor(ctx, func() bool { w := srv.OpenWatchesBy(); return w["pods"] == 1 && w["services"] == 1 }) {
 		t.Fatalf("the Pods view's watches: %v, want pods and services", srv.OpenWatchesBy())
 	}

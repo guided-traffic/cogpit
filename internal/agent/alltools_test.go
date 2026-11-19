@@ -19,13 +19,12 @@ func toolNames(r fakellm.Request) []string {
 	return out
 }
 
-// TestAllToolsSendsEveryCommand: a connection set to send all tools (the owner's decision of
-// 2026-10-15) carries every command the chat may run as a tool of its own, the core ones first,
-// without the meta-tools that find and run a command, with result_read, and a system prompt that
-// says so; the rules are the same: a command
-// outside the core set reads through the agents' filter (no Secret value reaches the endpoint),
-// and one that asks agents waits for the user. The setting is kept with the connection; off, the
-// core set goes as before.
+// TestAllToolsSendsEveryCommand: a connection set to send all tools (the owner's decision) carries
+// every command the chat may run as a tool of its own, the core ones first, without the meta-tools
+// that find and run a command, with result_read, and a system prompt that says so; the rules are
+// the same: a command outside the core set reads through the agents' filter (no Secret value
+// reaches the endpoint), and one that asks agents waits for the user. The setting is kept with the
+// connection; off, the core set goes as before.
 func TestAllToolsSendsEveryCommand(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	conn := h.conn

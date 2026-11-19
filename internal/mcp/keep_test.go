@@ -16,7 +16,7 @@ import (
 )
 
 // The token and the port kept across starts, and the user's Regenerate token (F6, the owner's
-// finding of 2026-10-15).
+// finding).
 
 // hostPort is the address of an endpoint URL.
 func hostPort(endpoint string) string {

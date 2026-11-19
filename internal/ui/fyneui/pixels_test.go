@@ -18,9 +18,9 @@ func (retinaCanvas) PixelCoordinateForPosition(p fyne.Position) (int, int) {
 	return int(math.Round(float64(p.X * 2))), int(math.Round(float64(p.Y * 2)))
 }
 
-// TestLogoDrawnAtTheDisplaysPixels (the owner's question of 2026-10-23, G16): a picture Cogpit draws
-// itself, the logo in the header and on the welcome page, has as many pixels as the display shows it
-// at, not the canvas scale's, which stays 1 on a Retina display on macOS.
+// TestLogoDrawnAtTheDisplaysPixels (the owner's question, G16): a picture Cogpit draws itself, the
+// logo in the header and on the welcome page, has as many pixels as the display shows it at, not
+// the canvas scale's, which stays 1 on a Retina display on macOS.
 func TestLogoDrawnAtTheDisplaysPixels(t *testing.T) {
 	for _, c := range []struct {
 		name   string

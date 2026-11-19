@@ -520,8 +520,8 @@ func TestEngineEventsWithoutRaces(t *testing.T) {
 	}
 	// The engine's newest state, read at every check: the window's own reports move it too, the
 	// navigator's row a debounce after the kinds came (navigatorstate.go, D-51). On a slow runner
-	// that report lands after the flood, and a revision read once here waits forever (CI,
-	// 2026-10-18: run 39161105286).
+	// that report lands after the flood, and a revision read once here waits forever (CI: run
+	// 39161105286).
 	q.until(t, "the last state", func() bool {
 		return sh.ui.Revision == f.UIState().Revision && sh.view.snap == f.Table("pods")
 	})
@@ -544,8 +544,7 @@ func mustJSON(t *testing.T, v any) json.RawMessage {
 // second request waits until the first is answered, and a fresh dialog's confirm button ignores
 // taps until it arms.
 // A confirmation that carries a review text (an agent's Helm values) shows it in the dialog,
-// monospace and selectable, in a box that scrolls instead of growing past the window (owner,
-// 2026-10-12).
+// monospace and selectable, in a box that scrolls instead of growing past the window (owner).
 func TestConfirmationShowsTheReviewText(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, w, q := newTestShell(t, f, Options{})

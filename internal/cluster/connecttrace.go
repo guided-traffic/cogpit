@@ -22,15 +22,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// The steps of a connect for the connection log (D-66, the owner's decision of 2026-10-16): Connect
-// reports what it does through Options.Trace, one ConnectStep each, from the configuration it
-// actually builds the client from: the kubeconfig file and context, the API server's URL, the
-// login (a client certificate's subject and expiry, "bearer token" without any of it, a credential
-// plugin's program name and whether the user allowed it), the proxy, how the server's certificate
-// is checked, and the first answer (GET /version) with its time. A failed first answer adds the
-// error picture (ErrorPicture): the class of the failure, the HTTP status and the API server's
-// message, a presented certificate's public facts, the error chain, and, when the credential plugin
-// failed, its standard error, scrubbed and capped (pluginstderr.go).
+// The steps of a connect for the connection log (D-66, the owner's decision): Connect reports what
+// it does through Options.Trace, one ConnectStep each, from the configuration it actually builds
+// the client from: the kubeconfig file and context, the API server's URL, the login (a client
+// certificate's subject and expiry, "bearer token" without any of it, a credential plugin's program
+// name and whether the user allowed it), the proxy, how the server's certificate is checked, and
+// the first answer (GET /version) with its time. A failed first answer adds the error picture
+// (ErrorPicture): the class of the failure, the HTTP status and the API server's message, a
+// presented certificate's public facts, the error chain, and, when the credential plugin failed,
+// its standard error, scrubbed and capped (pluginstderr.go).
 //
 // A step's text never holds a credential: it names fields and methods, never a token, a password
 // or key material, a URL is shown without user information, query or fragment (logURL), and a
@@ -182,7 +182,7 @@ func clientCertSummary(cfg *rest.Config, now time.Time) string {
 
 // clientCertOutOfDate reports whether the kubeconfig's client certificate is expired or not valid
 // yet: the Login line then is a warning, since the API server will refuse it (D-75; the lead's
-// answer of 2026-10-17 to agent G's open question: the line names the dates already).
+// answer to agent G's open question: the line names the dates already).
 func clientCertOutOfDate(cfg *rest.Config, now time.Time) bool {
 	if cfg.ExecProvider != nil || (len(cfg.CertData) == 0 && cfg.CertFile == "") {
 		return false
@@ -218,8 +218,8 @@ func firstCertificate(data []byte) *x509.Certificate {
 	}
 }
 
-// certFacts is a certificate's subject common name and validity: "CN=alice, valid until
-// 2027-01-02 (expired 3 days ago)".
+// certFacts is a certificate's subject common name and validity:
+// "CN=alice, valid until 2027-01-02 (expired 3 days ago)".
 func certFacts(cert *x509.Certificate, now time.Time) string {
 	text := "CN=" + cert.Subject.CommonName + ", valid until " + cert.NotAfter.UTC().Format(time.DateOnly)
 	switch {

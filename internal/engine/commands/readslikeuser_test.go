@@ -17,9 +17,9 @@ import (
 )
 
 // The built-in agent over a connection the user marked private reads like the user (D-10, H-94;
-// the owner's decision of 2026-10-14 late evening): every read path that withholds from agents
-// gives such a turn what the window shows, while every write rule, the GUI-only commands, a
-// Secret's Edit and Create tabs and a terminal tab's switch stay as they are for any agent.
+// the owner's decision): every read path that withholds from agents gives such a turn what the
+// window shows, while every write rule, the GUI-only commands, a Secret's Edit and Create tabs and
+// a terminal tab's switch stay as they are for any agent.
 
 // reader is who dispatches a read: an origin and Invocation.ReadsLikeUser as set in Go.
 type reader struct {

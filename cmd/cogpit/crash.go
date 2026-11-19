@@ -15,11 +15,11 @@ import (
 
 // Crash reports (credentials.md: "a local crash report follows the log rule"; no upload). The Go
 // runtime writes an unhandled panic or fatal error to standard error; a GUI app's standard error
-// is gone with its terminal, and a crash the owner saw (2026-10-12) left nothing to look at.
-// captureCrashes makes the runtime write the same text into a file as well
-// (runtime/debug.SetCrashOutput): <user config dir>/Cogpit/crash.log, 0600, which a clean exit
-// removes again. A crash leaves it; the next start moves it to crashes/crash-<time>.log, keeps the
-// newest maxCrashReports, and the window says where it is.
+// is gone with its terminal, and a crash the owner saw left nothing to look at. captureCrashes
+// makes the runtime write the same text into a file as well (runtime/debug.SetCrashOutput): <user
+// config dir>/Cogpit/crash.log, 0600, which a clean exit removes again. A crash leaves it; the next
+// start moves it to crashes/crash-<time>.log, keeps the newest maxCrashReports, and the window says
+// where it is.
 
 const (
 	crashFile       = "crash.log"

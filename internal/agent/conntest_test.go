@@ -209,12 +209,12 @@ func fakeDialer(t *testing.T, to string, refuse ...string) func() []string {
 	}
 }
 
-// TestConnectionTestDNS (the owner's VW8, 2026-10-23): the DNS layer comes before TCP, resolves the
-// endpoint's name and lists its addresses (IPv4 and IPv6, duplicates once, more than four counted),
-// a name that is not known fails it; an IP address and localhost pass at once without a lookup; the
-// TCP layer dials the addresses the DNS layer found, in its order, and says which one answered.
-// With a proxy configured, DNS and TCP check the proxy (its password never shown) and the endpoint's
-// name is left to the proxy. No real resolver or network is asked.
+// TestConnectionTestDNS (the owner's VW8): the DNS layer comes before TCP, resolves the endpoint's
+// name and lists its addresses (IPv4 and IPv6, duplicates once, more than four counted), a name
+// that is not known fails it; an IP address and localhost pass at once without a lookup; the TCP
+// layer dials the addresses the DNS layer found, in its order, and says which one answered. With a
+// proxy configured, DNS and TCP check the proxy (its password never shown) and the endpoint's name
+// is left to the proxy. No real resolver or network is asked.
 func TestConnectionTestDNS(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	fake, err := url.Parse(h.llm.Root)
@@ -397,9 +397,9 @@ func TestConnectionTestAddressShare(t *testing.T) {
 	})
 }
 
-// TestConnectionTestAuthAndModels (the owner's request of 2026-10-25): Auth asks without the key
-// first, so it says whether the endpoint wants one; Models counts the list, names the chosen model
-// and hands the list to the form; an empty list passes with a warning.
+// TestConnectionTestAuthAndModels (the owner's request): Auth asks without the key first, so it
+// says whether the endpoint wants one; Models counts the list, names the chosen model and hands the
+// list to the form; an empty list passes with a warning.
 func TestConnectionTestAuthAndModels(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	conn := engine.ChatConnection{Name: "t", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base, Model: "qwen"}
@@ -442,9 +442,9 @@ func TestConnectionTestAuthAndModels(t *testing.T) {
 	}
 }
 
-// TestModelsOfTheFormsValues (the owner's request of 2026-10-25, a colleague's empty list): the
-// models of an unsaved connection, with the key typed, or the stored one of a saved connection
-// when none is typed; a key the endpoint wants and none given fails, its key never in the error.
+// TestModelsOfTheFormsValues (the owner's request, a colleague's empty list): the models of an
+// unsaved connection, with the key typed, or the stored one of a saved connection when none is
+// typed; a key the endpoint wants and none given fails, its key never in the error.
 func TestModelsOfTheFormsValues(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	h.llm.Models(0, "llama", "qwen")
@@ -479,11 +479,11 @@ type asAddr struct {
 
 func (c asAddr) RemoteAddr() net.Addr { return c.remote }
 
-// TestConnectionTestEveryAddress (the owner's case of 2026-10-25): a name with three addresses, one
-// of them a proxy with no server behind it that answers 503 with an HTML page. When the chat's
-// client reaches that one the HTTP layer fails, names the URL, the address and the page's text,
-// and lists the other addresses' answers; when the chat's client reaches a good one the layer passes
-// with a warning naming the broken address.
+// TestConnectionTestEveryAddress (the owner's case): a name with three addresses, one of them a
+// proxy with no server behind it that answers 503 with an HTML page. When the chat's client reaches
+// that one the HTTP layer fails, names the URL, the address and the page's text, and lists the
+// other addresses' answers; when the chat's client reaches a good one the layer passes with a
+// warning naming the broken address.
 func TestConnectionTestEveryAddress(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	good, err := url.Parse(h.llm.Root)
@@ -546,10 +546,10 @@ func TestConnectionTestEveryAddress(t *testing.T) {
 	}
 }
 
-// TestConnectionTestShowsTheExchange (the owner, 2026-10-26: "WELCHER ENDPUNKT WURDE WIE
-// AUFGERUFEN???" after a Tool use step that said only "the endpoint answered HTTP 404 Not Found:
-// Not Found"): a failed layer names the method and URL, and carries its last request and answer in
-// curl -v's form, the key never in it; a passed layer carries none.
+// TestConnectionTestShowsTheExchange (the owner: "WELCHER ENDPUNKT WURDE WIE AUFGERUFEN???" after a
+// Tool use step that said only "the endpoint answered HTTP 404 Not Found: Not Found"): a failed
+// layer names the method and URL, and carries its last request and answer in curl -v's form, the
+// key never in it; a passed layer carries none.
 func TestConnectionTestShowsTheExchange(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	conn := engine.ChatConnection{Name: "t", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base, Model: "test-model"}

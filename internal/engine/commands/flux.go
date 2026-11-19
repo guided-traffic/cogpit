@@ -16,10 +16,10 @@ import (
 )
 
 // The Flux CD actions (resource-parity › Paid Lens Desktop views › Flux CD, G23; D-33, decided by
-// the owner 2026-10-14): Reconcile, Reconcile with Source, Reset, Suspend and Resume on one Flux
-// object and on a selection, each one JSON merge patch per object as the flux CLI sends it
-// (cluster.FluxPatch), bound to the object's UID. Lens's Flux actions are not documented or
-// captured: their names, menu places and rules are Cogpit's.
+// the owner): Reconcile, Reconcile with Source, Reset, Suspend and Resume on one Flux object and on
+// a selection, each one JSON merge patch per object as the flux CLI sends it (cluster.FluxPatch),
+// bound to the object's UID. Lens's Flux actions are not documented or captured: their names, menu
+// places and rules are Cogpit's.
 //
 //   - Reconcile sets reconcile.fluxcd.io/requestedAt to now; for a Helm release optionally also
 //     reconcile.fluxcd.io/forceAt (force), as `flux reconcile helmrelease --force` does. Not on a

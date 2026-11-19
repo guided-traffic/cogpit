@@ -30,9 +30,9 @@ func wheelOver(t *testing.T, field fyne.Widget, dx, dy float32) {
 	test.Scroll(d.CanvasForObject(field), d.AbsolutePositionForObject(field).AddXY(5, 5), dx, dy)
 }
 
-// TestATextFieldPassesTheWheelOn (the owner's finding of 2026-10-25): over a one-line field the
-// wheel scrolls the page around it, never the field (a sideways swipe still moves a long line);
-// over a multi-line field it scrolls the field to its end and then the page.
+// TestATextFieldPassesTheWheelOn (the owner's finding): over a one-line field the wheel scrolls the
+// page around it, never the field (a sideways swipe still moves a long line); over a multi-line
+// field it scrolls the field to its end and then the page.
 func TestATextFieldPassesTheWheelOn(t *testing.T) {
 	test.NewTempApp(t)
 	line := newFieldEntry()

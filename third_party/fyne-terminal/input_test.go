@@ -260,12 +260,12 @@ func TestTerminal_TypedKey_ModifierHeldOnFocusChange(t *testing.T) {
 	}
 }
 
-// TestTypedKey_ShiftReleaseNeverSeen: Cogpit's G16 GW8 (the owner's gate walk of 2026-10-20). ⇧⌘4
-// starts macOS's screenshot overlay, which takes the keys while the window stays key: the widget saw
-// ⇧ go down and never come up. It kept ⇧ "held", sent ← and → as ESC [ D ; 2 and ESC [ C ; 2, which
-// zsh reads as the arrow and the text ";2" (after a paste of "… | head -3", ← and → left
-// "head -;23;2"), and sent nothing for Return, until a click outside the terminal and back reset it.
-// Cogpit patch: a key takes its modifiers from its own event (keyModifiers), which has no ⇧ here.
+// TestTypedKey_ShiftReleaseNeverSeen: Cogpit's G16 GW8 (the owner's gate walk). ⇧⌘4 starts macOS's
+// screenshot overlay, which takes the keys while the window stays key: the widget saw ⇧ go down and
+// never come up. It kept ⇧ "held", sent ← and → as ESC [ D ; 2 and ESC [ C ; 2, which zsh reads as
+// the arrow and the text ";2" (after a paste of "… | head -3", ← and → left "head -;23;2"), and
+// sent nothing for Return, until a click outside the terminal and back reset it. Cogpit patch: a
+// key takes its modifiers from its own event (keyModifiers), which has no ⇧ here.
 func TestTypedKey_ShiftReleaseNeverSeen(t *testing.T) {
 	test.NewTempApp(t) // its driver reports no modifiers, as a key without ⇧ does
 	in := &bytes.Buffer{}

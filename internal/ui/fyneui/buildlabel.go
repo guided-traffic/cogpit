@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/buildinfo"
 )
 
-// buildLabel is the version right of the top bar's wordmark (F12, the owner, 2026-10-16), in the
-// wordmark's colour and weight but about 30% smaller, on the wordmark's baseline (the owner,
-// 2026-10-16 night: "nicht so wichtig … muss kleiner werden"): "v0.16.0" for a release; "dev" for a development build, its commit in the
-// tooltip as internal/buildinfo has it ("dev 0691fb32abcd-dirty"). Cogpit's own: Lens's title bar
-// shows no version. The README's showcase pictures hide it (showcase_test.go).
+// buildLabel is the version right of the top bar's wordmark (F12, the owner), in the wordmark's
+// colour and weight but about 30% smaller, on the wordmark's baseline (the owner: "nicht so wichtig
+// … muss kleiner werden"): "v0.16.0" for a release; "dev" for a development build, its commit in
+// the tooltip as internal/buildinfo has it ("dev 0691fb32abcd-dirty"). Cogpit's own: Lens's title
+// bar shows no version. The README's showcase pictures hide it (showcase_test.go).
 type buildLabel struct {
 	textLine
 	sh  *shell

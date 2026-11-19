@@ -17,16 +17,16 @@ import (
 )
 
 // Helm upgrade (G11, architecture §8): Lens's Upgrade opens a "Helm Upgrade: <name>" dock tab
-// with the release's values (captured 2026-10-12); helm.release.upgrade upgrades the release with
-// the tab's values, or with values a caller passes (the drawer's Save), through the Helm SDK in
-// Cogpit's process, mutating (privilege-footprint.md), recorded in the Helm journal first (D-11).
-// The chart is the release's own, or a version of it a repository of Helm's repositories file lists, which is
+// with the release's values (captured); helm.release.upgrade upgrades the release with the tab's
+// values, or with values a caller passes (the drawer's Save), through the Helm SDK in Cogpit's
+// process, mutating (privilege-footprint.md), recorded in the Helm journal first (D-11). The chart
+// is the release's own, or a version of it a repository of Helm's repositories file lists, which is
 // downloaded (bounded, checked against the index's digest) before anything is recorded or changed.
 // The values are the user's: agents read them withheld, and no log, error, toast, audit line or
 // journal entry carries them.
 
 // orderUpgrade places Upgrade between Rollback (200) and Delete in the drawer's toolbar and the
-// row menu, as Lens's drawer orders its icons (captured 2026-10-12).
+// row menu, as Lens's drawer orders its icons (captured).
 const orderUpgrade = 300
 
 type upgradeTabParams struct {
@@ -124,7 +124,7 @@ func registerHelmUpgrade(g *registrar) {
 			"the user allowed agent writes (a chart's templates can create any object). An upgrade a crash " +
 			"of Cogpit interrupts stays in helm_pendingOperations; helm_release_rollback to its fromRevision finishes it.",
 		// What a chart's templates write is not something the allowance of agent writes was given
-		// for: an agent's upgrade always waits for the user (A2, owner 2026-10-14 evening).
+		// for: an agent's upgrade always waits for the user (A2, owner).
 		AgentsAsk: func(*engine.Session, upgradeParams) bool { return true },
 		Enabled: func(s *engine.Session, p upgradeParams) error {
 			obj, err := cachedOfKind(s, p.Ref, helm.ReleaseKind)
@@ -161,8 +161,8 @@ func registerHelmUpgrade(g *registrar) {
 		Targets: func(s *engine.Session, p upgradeParams) ([]model.ObjectRef, error) { return targetOf(s, p.Ref) },
 		Effects: upgradeEffects,
 		Warning: upgradeWarning, // a chart from a repository nothing authenticates (H-41, A14)
-		// The values an agent passes inline are shown to the user before they answer (owner,
-		// 2026-10-12: R-2's remainder); from a tab, the tab is what the user reviews.
+		// The values an agent passes inline are shown to the user before they answer (owner: R-2's
+		// remainder); from a tab, the tab is what the user reviews.
 		Review: func(_ *engine.Session, p upgradeParams) string {
 			switch {
 			case p.Tab != "" || p.Values == nil:

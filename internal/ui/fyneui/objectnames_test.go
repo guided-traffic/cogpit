@@ -15,9 +15,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The one form of an object's kind and name (the owner's WF32, 2026-10-19): the kind muted with an
-// arrow, the name bold, in a column of their own; several grouped by kind, the kind on its group's
-// first line only.
+// The one form of an object's kind and name (the owner's WF32): the kind muted with an arrow, the
+// name bold, in a column of their own; several grouped by kind, the kind on its group's first line
+// only.
 func TestObjectNamesSetTheKindApart(t *testing.T) {
 	test.NewTempApp(t)
 	c := objectNames([]namedObject{{"Pod", "web-0"}, {"Config Map", "walk-cm"}, {"Pod", "web-1"}}, 400)
@@ -41,8 +41,8 @@ func TestObjectNamesSetTheKindApart(t *testing.T) {
 	}
 }
 
-// A dialog's Context row (the owner's alpha walk, AW7, 2026-10-22: "Dann lass es gerne in dem Format
-// wie es ist, aber grau wäre top"): a source context's id stays as it is, "<context> [<label>]", the
+// A dialog's Context row (the owner's alpha walk, AW7: "Dann lass es gerne in dem Format wie es
+// ist, aber grau wäre top"): a source context's id stays as it is, "<context> [<label>]", the
 // context in the text colour and its source label in the kind word's grey, on the context's line
 // where it fits, else wrapped as before; the paragraph keeps the whole id; an id without a label is
 // the context alone.
@@ -116,9 +116,9 @@ func TestContextRowMutesTheSourceLabel(t *testing.T) {
 	}
 }
 
-// The Edit tab's Apply that removes a key (the owner's WF33, 2026-10-19: "Removes key added. Ist
-// wieder als Satz geschrieben"): the confirmation names the object in the one form and the removed
-// key in a row of its own, bold and red as the drawer's save review does, never inside a sentence.
+// The Edit tab's Apply that removes a key (the owner's WF33: "Removes key added. Ist wieder als
+// Satz geschrieben"): the confirmation names the object in the one form and the removed key in a
+// row of its own, bold and red as the drawer's save review does, never inside a sentence.
 func TestConfirmationEffectsAreRows(t *testing.T) {
 	f := connectedFake(t, 10)
 	sh, w, q := newTestShell(t, f, Options{})

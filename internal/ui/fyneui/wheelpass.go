@@ -13,10 +13,10 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// A text field passes the wheel on (the owner's finding of 2026-10-25: "Wenn die Maus über einem
-// dieser Textfelder hovert, kann nicht mehr gescrollt werden. Wenn es sich um ein
-// Multiline-Textfeld handelt, ist es in Ordnung, wenn erst bis zum Ende gescrollt wird. Ist dann
-// aber das Ende des Multiline-Textfelds erreicht, wird außerhalb des Textfelds weiter gescrollt. In
+// A text field passes the wheel on (the owner's finding: "Wenn die Maus über einem dieser
+// Textfelder hovert, kann nicht mehr gescrollt werden. Wenn es sich um ein Multiline-Textfeld
+// handelt, ist es in Ordnung, wenn erst bis zum Ende gescrollt wird. Ist dann aber das Ende des
+// Multiline-Textfelds erreicht, wird außerhalb des Textfelds weiter gescrollt. In
 // Single-Line-Textfeldern darf das Scrolling gar nicht stecken bleiben. Das gilt für alle
 // Textfelder unserer App.").
 //

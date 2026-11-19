@@ -295,8 +295,8 @@ func navigate(ctx context.Context, s *engine.Session, p refParams) (any, error) 
 		if len(u.States) > 0 && (row == nil || !engine.MatchesStates(prof, *row, u.States)) {
 			u.SetStates(nil) // the status filter hides it (statusfilter.go)
 		}
-		// Selecting and opening a drawer are separate actions (owner, 2026-10-15): the checked rows
-		// change only through ui.select.
+		// Selecting and opening a drawer are separate actions (owner): the checked rows change only
+		// through ui.select.
 		d := ref
 		u.Drawer = &d
 		u.MarkStep() // back comes back here, another object of the same view too (engine/tabs.go)

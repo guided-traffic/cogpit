@@ -28,7 +28,7 @@ passing a gate, and a missing prerequisite fails its test instead of skipping it
 
 | Job | Make target | Runs |
 |---|---|---|
-| Code Linting | `make lint`, `make check-nodemo`, `make check-windows-only` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests; Mesa's download and its 7z decoder are in `cogpit.exe` and no other binary ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)) |
+| Code Linting | `make lint`, `make check-nodemo`, `make check-windows-only` | golangci-lint with the team's linters and depguard's layering, for Linux and Windows ([per system](#lint-and-gosec-per-system)); no calendar date in a Go comment ([`hack/commentdates`](../../hack/commentdates/main.go)); the release variant (`-tags nodemo`) has no demo cluster, its lint and its tests; Mesa's download and its 7z decoder are in `cogpit.exe` and no other binary ([D-142](decisions.md#d-142-mesas-opengl-beside-cogpitexe)) |
 | Parity | `make parity` | [`hack/parity`](../../hack/parity/main.go) with `-check` ([parity README](../parity/README.md#make-parity)) |
 | GoSec Security Scan | `make gosec` | gosec over the shipped code, tests left out, for Linux and Windows |
 | Vulnerability Check | `make vuln` | govulncheck over the code paths Cogpit calls |
@@ -36,11 +36,11 @@ passing a gate, and a missing prerequisite fails its test instead of skipping it
 | Unit Tests (no race) | `make test-norace-coverage` | what the race build skips, and the UI's render tests in `UI_RENDER_SHARDS` parallel shards, with coverage |
 | Race Tests (UI build) | `make test-race-ui-build RACE_SHARDS=5` | `internal/ui/fyneui`'s race test binary with coverage, each shard's `-run` pattern and the libraries the binary links, uploaded for the five shards ([the UI's shards](#the-uis-shards)) |
 | Race Tests (UI n/5) | `hack/ci/race-ui.sh run .cache/race-ui n .cache/coverage` (`make test-race-ui RACE_SHARD=n` builds and runs it locally) | `internal/ui/fyneui` under the race detector without its render tests, one shard of five from the build, balanced by the tests' measured time; no Go, make or apt on the runner |
-| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job); zsh and fish installed for the terminal's shell tests, beside the image's bash, `perl` and `stty` |
+| Race Tests (other packages) | `make test-race-rest` | every other package and the terminal fork under the race detector (`internal/ui/logo` runs in the no-race job); zsh and fish installed for the terminal's shell tests, beside the image's bash and `stty` |
 | Integration Tests (kind) | `make kind-up`, `make test-kind` | the cluster tests (`TestKind*`, tag `kind`) on a kind cluster created while they compile; the add-on stacks' tests are skipped (`KIND_ADDONS=1` runs them) |
 | Integration Tests (kind drain) | `make kind-drain-up`, `make test-kind-drain` | cordon and drain on a three-node cluster |
 | Integration Tests (envtest) | `make test-envtest` | the envtest tests against a real kube-apiserver and etcd, pinned by SHA-512 |
-| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh, bash and `perl` |
+| macOS Tests | `make test-darwin` | the macOS tier ([testing › Tiers](testing.md#tiers)) under the race detector; fish installed (Homebrew) and Sparkle.framework fetched, beside the runner's clang, window server, zsh and bash |
 | macOS Lint and App | `make lint-darwin gosec-darwin`, `make dist-app VERSION=0.0.1` | lint and gosec of the packages with darwin-only files; the app bundle as releases build it, not started ([the smoke test](#the-smoke-test)) |
 | Unit Tests (windows) | `make test-windows-unit` | `go vet` and every package's tests but the window's, without the race detector; WinSparkle.dll fetched, beside Windows PowerShell, `ping` and MSYS2's `sh` |
 | UI Tests (windows) | `make test-windows-ui` | the window's tests in `WINDOWS_UI_SHARDS` shards, `WINDOWS_UI_JOBS` at once |

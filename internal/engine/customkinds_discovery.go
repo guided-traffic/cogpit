@@ -9,17 +9,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Curated kinds from API discovery (A90, the owner's decision of 2026-10-14 evening): a user who may
-// not list the custom resource definitions (a ClusterRole is needed for that, so as a rule a
-// namespace-limited user) had no Flux or Argo CD kinds at all. Discovery, which every authenticated
-// user may read (system:discovery), names the resources the cluster serves; a kind Cogpit has a
-// curated profile for (kinds.Curated: Flux's thirteen, Argo CD's three, the Vertical Pod
-// Autoscalers) that the cluster serves at a version the profile reads gets that profile, as its
-// definition would give it, and Argo CD's settings views come with its Applications as they do
-// with the definitions. Generic custom resources stay invisible: discovery names their resources
-// but not their printer columns, and the owner kept them out. Flux's HelmCharts have no curated
-// profile, so Reconcile with Source of a Helm release made from spec.chart says the cluster does
-// not serve them, for such a user.
+// Curated kinds from API discovery (A90, the owner's decision): a user who may not list the custom
+// resource definitions (a ClusterRole is needed for that, so as a rule a namespace-limited user)
+// had no Flux or Argo CD kinds at all. Discovery, which every authenticated user may read
+// (system:discovery), names the resources the cluster serves; a kind Cogpit has a curated profile
+// for (kinds.Curated: Flux's thirteen, Argo CD's three, the Vertical Pod Autoscalers) that the
+// cluster serves at a version the profile reads gets that profile, as its definition would give it,
+// and Argo CD's settings views come with its Applications as they do with the definitions. Generic
+// custom resources stay invisible: discovery names their resources but not their printer columns,
+// and the owner kept them out. Flux's HelmCharts have no curated profile, so Reconcile with Source
+// of a Helm release made from spec.chart says the cluster does not serve them, for such a user.
 //
 // Discovery is asked while the definitions cannot be listed, at each rebuild of the custom kinds:
 // after the refused list that ends their watch (customKinds.drop), and again when a refresh of the

@@ -13,11 +13,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Reconnect (D-81, the owner's F28 and F29 of 2026-10-17). A connection keeps the credentials it
-// read from the kubeconfig at its connect (cluster/loginfile.go): a client certificate renewed in
-// the file never reached it, and Log in again, which renews a login on the same connection through
-// its credential plugin, had nothing to renew for a context without one. Reconnect ends a cluster's
-// connection and connects it anew from its kubeconfig file as it is now, without closing its tabs:
+// Reconnect (D-81, the owner's F28 and F29). A connection keeps the credentials it read from the
+// kubeconfig at its connect (cluster/loginfile.go): a client certificate renewed in the file never
+// reached it, and Log in again, which renews a login on the same connection through its credential
+// plugin, had nothing to renew for a context without one. Reconnect ends a cluster's connection and
+// connects it anew from its kubeconfig file as it is now, without closing its tabs:
 //
 //   - The new connection is made first, as any connect makes it (the connector: the file read
 //     again, the proxy of the cluster's settings, the approvals of credential plugins and unchecked

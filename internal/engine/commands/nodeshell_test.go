@@ -248,8 +248,8 @@ func TestNodeShellSettings(t *testing.T) {
 	}
 }
 
-// TestNodeShellMaxDurationSetting: the maximum duration is the user's (owner, 2026-10-14, D-37):
-// unset it is 2 hours; set to 90 minutes in the window, the confirmation names it and the pod's
+// TestNodeShellMaxDurationSetting: the maximum duration is the user's (owner, D-37): unset it is 2
+// hours; set to 90 minutes in the window, the confirmation names it and the pod's
 // activeDeadlineSeconds, its container's sleep and the tab follow it; the CLI and agents are
 // refused a value but may reset it; the bounds are 5 minutes and 24 hours.
 func TestNodeShellMaxDurationSetting(t *testing.T) {

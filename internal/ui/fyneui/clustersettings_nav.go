@@ -9,12 +9,12 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// The integrations in a cluster's Settings list (the owner's WF22 of 2026-10-18, D-87): under
-// Agents a divider, then the heading "INTEGRATIONS" in the look of a setting's heading (upper case,
-// small, bold, muted), then one item per integration. The heading is a section too, Integrations,
-// which holds what concerns them all (the note while the cluster has no choice, Ask again, every
-// integration's switch at a glance): a click opens it, the pointer over it shows the items' hover,
-// and it is marked as the items are while it is shown.
+// The integrations in a cluster's Settings list (the owner's WF22, D-87): under Agents a divider,
+// then the heading "INTEGRATIONS" in the look of a setting's heading (upper case, small, bold,
+// muted), then one item per integration. The heading is a section too, Integrations, which holds
+// what concerns them all (the note while the cluster has no choice, Ask again, every integration's
+// switch at a glance): a click opens it, the pointer over it shows the items' hover, and it is
+// marked as the items are while it is shown.
 
 // navDivider is the line in the list above the integrations, with room above and below it.
 func navDivider() fyne.CanvasObject {

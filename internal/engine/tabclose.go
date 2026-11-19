@@ -6,9 +6,9 @@ import (
 	"slices"
 )
 
-// Closing several tabs at once (the owner's request of 2026-10-31: "Bei einem Rechtsklick auf einen
-// Tab, sowohl im Hauptbereich als auch im Dock, soll der Nutzer die Wahl bekommen: close, close
-// other, close all"). The details (D-144):
+// Closing several tabs at once (the owner's request: "Bei einem Rechtsklick auf einen Tab, sowohl
+// im Hauptbereich als auch im Dock, soll der Nutzer die Wahl bekommen: close, close other, close
+// all"). The details (D-144):
 //   - they close the tabs the bar shows (TabsShown, DockInScope): the tabs of a cluster it does not
 //     show stay, as they stay hidden;
 //   - Close Others makes the tab it keeps the active one, as a click on it does;

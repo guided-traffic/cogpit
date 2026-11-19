@@ -11,8 +11,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/metrics"
 )
 
-// Cluster Settings › Prometheus, the integration's own section (G12; D-87, the owner's WF22 of
-// 2026-10-18: until then on Cluster Settings › Metrics, where Lens has them; engine/metricssettings.go,
+// Cluster Settings › Prometheus, the integration's own section (G12; D-87, the owner's WF22: until
+// then on Cluster Settings › Metrics, where Lens has them; engine/metricssettings.go,
 // cluster.prometheus and cluster.setPrometheus). Lens's Metrics page shows, captured: a "Prometheus"
 // dropdown (its query formats), a switch that filters empty containers out of the queries (on),
 // the auto-detected provider and its path, a switch for HTTPS (off) and a custom path prefix.
@@ -21,8 +21,8 @@ import (
 //   - Query format: Cogpit's presets (metrics.QueryFormats: where a node's series come from; Lens's
 //     provider list is not reproduced, D-12) and "Filter empty containers";
 //   - Service address: namespace/service:port, empty for detection by name (the lead's decision of
-//     the night run, 2026-10-16/17: Lens's empty field rather than the dialog's "Auto detect"
-//     check), a line naming the Prometheus in use, and "Use HTTPS";
+//     the night run: Lens's empty field rather than the dialog's "Auto detect" check), a line
+//     naming the Prometheus in use, and "Use HTTPS";
 //   - Path prefix: the service's route prefix, for a service address only.
 //
 // A select or check is set at once, a text field after the typing pause; each change sets the

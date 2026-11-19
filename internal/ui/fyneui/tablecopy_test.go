@@ -19,9 +19,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Copying the text of a list's cells with the drawer's copy icon (D-25, owner 2026-10-13): one
-// icon per table, right after the text of the cell under the pointer, in every column but the
-// blacklisted ones, copying the full text with the drawer's checkmark, never selecting the row.
+// Copying the text of a list's cells with the drawer's copy icon (D-25, owner): one icon per table,
+// right after the text of the cell under the pointer, in every column but the blacklisted ones,
+// copying the full text with the drawer's checkmark, never selecting the row.
 
 // listScene is a settled list of the kinds fixture.
 func listScene(t *testing.T, view string, mode ThemeMode) (*shell, fyne.Window, *mainQueue, *fakeEngine) {
@@ -181,8 +181,8 @@ func TestListCopyIconOnHover(t *testing.T) {
 	}
 }
 
-// TestListCopyIconAfterTheText: the owner's feedback (2026-10-13): in a wide Name column the icon
-// sits right after the name, not at the column's far end; the name stays whole.
+// TestListCopyIconAfterTheText: the owner's feedback: in a wide Name column the icon sits right
+// after the name, not at the column's far end; the name stays whole.
 func TestListCopyIconAfterTheText(t *testing.T) {
 	sh, w, q, _ := listScene(t, "nodes", ThemeDark)
 	name := textCellOf(t, sh, "name")
@@ -193,7 +193,7 @@ func TestListCopyIconAfterTheText(t *testing.T) {
 	b0, b1 := absRect(sh.view.copyIcon.btn)
 	_, c1 := absRect(name)
 	// The Name column keeps room after the name: 40 units at least since the Nodes list's usage
-	// bars and Disk column took some of its width (2026-10-14, G12).
+	// bars and Disk column took some of its width (G12).
 	if c1.X-b1.X < 40 {
 		t.Errorf("the icon ends %v before the column's end, want it right after the name in a wide column", c1.X-b1.X)
 	}
@@ -280,10 +280,10 @@ func backupsFake(t *testing.T) *fakeEngine {
 	return f
 }
 
-// TestListCopyIconByColumn: the owner's feedback (2026-10-13): a name, an IP, a node name, an
-// Event's message have the icon; Age, CPU, Memory, Restarts and the other blacklisted columns do
-// not, though their cells show text. A custom resource's integer and date printer columns have
-// none, its string column has one.
+// TestListCopyIconByColumn: the owner's feedback: a name, an IP, a node name, an Event's message
+// have the icon; Age, CPU, Memory, Restarts and the other blacklisted columns do not, though their
+// cells show text. A custom resource's integer and date printer columns have none, its string
+// column has one.
 func TestListCopyIconByColumn(t *testing.T) {
 	for _, sc := range []struct {
 		view      string

@@ -10,9 +10,9 @@ import (
 	"testing"
 )
 
-// The default kubeconfig as sources (D-28, 2026-10-12). Every test names temporary directories as
-// the home and as the files $KUBECONFIG lists: the engine takes both as options and never looks at
-// the environment, so none of these tests can read the developer's real ~/.kube or $KUBECONFIG.
+// The default kubeconfig as sources (D-28). Every test names temporary directories as the home and
+// as the files $KUBECONFIG lists: the engine takes both as options and never looks at the
+// environment, so none of these tests can read the developer's real ~/.kube or $KUBECONFIG.
 
 // sessionSetup is a fake home with a ~/.kube/config and two kubeconfig files elsewhere that
 // "$KUBECONFIG" names, and the sources over them.

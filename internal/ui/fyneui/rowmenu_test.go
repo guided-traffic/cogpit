@@ -19,7 +19,7 @@ import (
 )
 
 // Probe commands shaped like the row-menu commands the parallel work registers (node and workload
-// actions, Edit): the menus must come out as Lens's once those exist (captures, 2026-10-11).
+// actions, Edit): the menus must come out as Lens's once those exist (captures).
 
 type probeRef struct {
 	Ref model.ObjectRef `json:"ref"`

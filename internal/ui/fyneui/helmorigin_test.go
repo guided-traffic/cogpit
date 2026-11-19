@@ -15,10 +15,9 @@ import (
 )
 
 // Charts from repositories whose content nothing authenticates are marked in the window (H-41,
-// owner 2026-10-14 evening, A14): the Charts view's Repository cell, the drawer, the Install tab,
-// the install's preview, the Upgrade tab and a confirmation, each in the warning colour, from what
-// the engine says (the chart object's origin, the tabs' origin, the preview's and the
-// confirmation's warning).
+// owner, A14): the Charts view's Repository cell, the drawer, the Install tab, the install's
+// preview, the Upgrade tab and a confirmation, each in the warning colour, from what the engine
+// says (the chart object's origin, the tabs' origin, the preview's and the confirmation's warning).
 
 var labWarning = kinds.HelmOriginWarning("lab", kinds.HelmOriginHTTP)
 

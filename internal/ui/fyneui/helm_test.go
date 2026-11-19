@@ -190,9 +190,9 @@ func releasesFake(t testing.TB) (*fakeEngine, model.ObjectRef) {
 }
 
 // The Releases view and drawer: one row per release with its newest revision and Lens's status
-// text, the sidebar's Helm group, and the drawer as Lens's (captured 2026-10-12): "Release" and
-// the name, the icons Rollback, Upgrade, Delete, Properties with an Upgrade button beside Chart,
-// the values in an editor, the notes, the resources by kind, no events.
+// text, the sidebar's Helm group, and the drawer as Lens's (captured): "Release" and the name, the
+// icons Rollback, Upgrade, Delete, Properties with an Upgrade button beside Chart, the values in an
+// editor, the notes, the resources by kind, no events.
 func TestReleasesViewAndDrawer(t *testing.T) {
 	f, _ := releasesFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -285,6 +285,7 @@ func newHelmTestShell(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQ
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(h, a, w, Options{Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	h.SetConfirmer(sh.confirmer)
@@ -398,10 +399,10 @@ func TestHelmBannerShowsAndActs(t *testing.T) {
 	q.until(t, "the banner to go", func() bool { return !sh.helm.root.Visible() })
 }
 
-// An install a crash interrupted is offered nothing (owner, 2026-10-14 evening, A17): its row says
-// what happened and the release's state, and offers Show release, which opens the release in the
-// Helm Releases view (ui.navigate), and Dismiss; no Uninstall, no other action on the release. A
-// release that no longer exists has nothing to show: Dismiss alone.
+// An install a crash interrupted is offered nothing (owner, A17): its row says what happened and
+// the release's state, and offers Show release, which opens the release in the Helm Releases view
+// (ui.navigate), and Dismiss; no Uninstall, no other action on the release. A release that no
+// longer exists has nothing to show: Dismiss alone.
 func TestHelmBannerOffersNothingAfterAnInstall(t *testing.T) {
 	sh, _, q, h := newHelmTestShell(t, ThemeDark)
 	op := fixtureHelmInstallOp()

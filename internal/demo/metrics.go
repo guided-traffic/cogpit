@@ -16,14 +16,17 @@ import (
 
 // Metrics is the demo cluster's Metrics Server: a metrics.Provider that makes up the usage of
 // every running pod and ready node, so that `cogpit --demo` shows CPU and Memory columns and live
-// charts without a cluster. The numbers are deterministic for a pod and a moment: each container
-// has a steady level between 15 % and 85 % of its CPU and memory limit (else request, else a
-// default), a slow wave of its own on top and a little noise per measurement. A measurement is
-// taken every 15 seconds like the real Metrics Server does, so a chart gains a point per 15 s. A
-// pod that is not running has no measurement (metrics.ErrNoData), as in a real cluster.
+// charts without a cluster. The numbers are deterministic for a pod and a moment of the demo's
+// clock (Options.Now): each container has a steady level between 15 % and 85 % of its CPU and
+// memory limit (else request, else a default), a slow wave of its own on top and a little noise per
+// measurement. A measurement is taken every 15 seconds like the real Metrics Server does, so a
+// chart gains a point per 15 s; its timestamp is the computer's time of that moment, as a real
+// Metrics Server's. A pod that is not running has no measurement (metrics.ErrNoData), as in a real
+// cluster.
 type Metrics struct {
 	c          *Cluster
-	now        func() time.Time
+	now        func() time.Time // the demo's clock
+	offset     time.Duration    // the demo's clock ahead of the computer's (Cluster.offset)
 	resolution time.Duration
 	requests   atomic.Int64
 }
@@ -65,10 +68,10 @@ func (m *Metrics) ListPods(_ context.Context, namespace string) ([]model.PodUsag
 	}
 	m.c.mu.Unlock()
 	// Published objects are immutable, so the measurements are made outside the lock.
-	at := m.measuredAt()
+	at, stamp := m.measuredAt()
 	out := make([]model.PodUsage, 0, len(pods))
 	for _, p := range pods {
-		if u, ok := podUsageAt(p, at, m.resolution); ok {
+		if u, ok := podUsageAt(p, at, stamp, m.resolution); ok {
 			out = append(out, u)
 		}
 	}
@@ -82,7 +85,8 @@ func (m *Metrics) GetPod(_ context.Context, namespace, name string) (model.PodUs
 	p := m.c.store[kindPods][objKey(namespace, name)]
 	m.c.mu.Unlock()
 	if p != nil {
-		if u, ok := podUsageAt(p, m.measuredAt(), m.resolution); ok {
+		at, stamp := m.measuredAt()
+		if u, ok := podUsageAt(p, at, stamp, m.resolution); ok {
 			return u, nil
 		}
 	}
@@ -98,10 +102,10 @@ func (m *Metrics) ListNodes(_ context.Context) ([]model.NodeUsage, error) {
 		nodes = append(nodes, n)
 	}
 	m.c.mu.Unlock()
-	at := m.measuredAt()
+	at, stamp := m.measuredAt()
 	out := make([]model.NodeUsage, 0, len(nodes))
 	for _, n := range nodes {
-		if u, ok := nodeUsageAt(n, at); ok {
+		if u, ok := nodeUsageAt(n, at, stamp); ok {
 			out = append(out, u)
 		}
 	}
@@ -115,21 +119,26 @@ func (m *Metrics) GetNode(_ context.Context, name string) (model.NodeUsage, erro
 	n := m.c.store[kindNodes][objKey("", name)]
 	m.c.mu.Unlock()
 	if n != nil {
-		if u, ok := nodeUsageAt(n, m.measuredAt()); ok {
+		at, stamp := m.measuredAt()
+		if u, ok := nodeUsageAt(n, at, stamp); ok {
 			return u, nil
 		}
 	}
 	return model.NodeUsage{}, metrics.ErrNoData
 }
 
-// measuredAt is the time of the newest measurement: now, rounded down to the resolution.
-func (m *Metrics) measuredAt() time.Time { return m.now().Truncate(m.resolution) }
+// measuredAt is the newest measurement: at, the demo's clock rounded down to the resolution, which
+// the numbers follow, and stamp, the computer's time of that moment, its timestamp.
+func (m *Metrics) measuredAt() (at, stamp time.Time) {
+	at = m.now().Truncate(m.resolution)
+	return at, at.Add(-m.offset)
+}
 
-func podUsageAt(p *unstructured.Unstructured, at time.Time, res time.Duration) (model.PodUsage, bool) {
+func podUsageAt(p *unstructured.Unstructured, at, stamp time.Time, res time.Duration) (model.PodUsage, bool) {
 	if phase, _, _ := unstructured.NestedString(p.Object, "status", "phase"); phase != "Running" || p.GetDeletionTimestamp() != nil {
 		return model.PodUsage{}, false
 	}
-	out := model.PodUsage{Namespace: p.GetNamespace(), Name: p.GetName(), Timestamp: at}
+	out := model.PodUsage{Namespace: p.GetNamespace(), Name: p.GetName(), Timestamp: stamp}
 	for _, c := range model.NestedSlice(p.Object, "spec", "containers") {
 		name := model.NestedString(c, "name")
 		if name == "" {
@@ -145,7 +154,7 @@ func podUsageAt(p *unstructured.Unstructured, at time.Time, res time.Duration) (
 	return out, len(out.Containers) > 0
 }
 
-func nodeUsageAt(n *unstructured.Unstructured, at time.Time) (model.NodeUsage, bool) {
+func nodeUsageAt(n *unstructured.Unstructured, at, stamp time.Time) (model.NodeUsage, bool) {
 	ready := false
 	for _, c := range model.NestedSlice(n.Object, "status", "conditions") {
 		if model.NestedString(c, "type") == "Ready" && model.NestedString(c, "status") == "True" {
@@ -157,7 +166,7 @@ func nodeUsageAt(n *unstructured.Unstructured, at time.Time) (model.NodeUsage, b
 	}
 	alloc, _ := model.NodeCapacity(n)
 	key := n.GetName()
-	return model.NodeUsage{Name: n.GetName(), Timestamp: at, Usage: model.Usage{
+	return model.NodeUsage{Name: n.GetName(), Timestamp: stamp, Usage: model.Usage{
 		CPUMilli:    int64(float64(alloc.CPUMilli) * (0.1 + 0.55*wave(key+"/cpu", at, 40*time.Minute))),
 		MemoryBytes: int64(float64(alloc.MemoryBytes) * (0.25 + 0.5*wave(key+"/mem", at, 3*time.Hour))),
 	}}, true

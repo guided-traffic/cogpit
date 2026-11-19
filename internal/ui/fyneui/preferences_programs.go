@@ -11,7 +11,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/ui/nativedialog"
 )
 
-// Preferences › Kubernetes › Program folders (D-120, the owner's decision of 2026-10-23;
+// Preferences › Kubernetes › Program folders (D-120, the owner's decision;
 // engine/programfolders.go): the folders Cogpit looks in for a credential plugin's programs after
 // PATH and its built-in folders. Each folder is a row with its path and a remove button; Add
 // Folder… opens the system's folder panel (D-72), hidden folders listed so that ~/.krew/bin can be

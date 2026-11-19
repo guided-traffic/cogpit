@@ -110,11 +110,11 @@ func objectText(t *testing.T, h *harness, origin engine.Origin, ref model.Object
 	return string(out)
 }
 
-// TestAgentViewReplacesCachedSecretValues (H-82, owner 2026-10-14): an agent reads the cached
-// Secrets' values as «secret <ns>/<name>/<key>» in an object's YAML and drawer, an editor's text and
-// diff and a logs tab's lines; the window reads them as they are. The window's read starts no
-// Secrets watch; an agent's first read takes the Secrets and is filtered against them already (the
-// owner's option b, 2026-10-14). An agent's text that carries a placeholder back is refused.
+// TestAgentViewReplacesCachedSecretValues (H-82, owner): an agent reads the cached Secrets' values
+// as «secret <ns>/<name>/<key>» in an object's YAML and drawer, an editor's text and diff and a
+// logs tab's lines; the window reads them as they are. The window's read starts no Secrets watch;
+// an agent's first read takes the Secrets and is filtered against them already (the owner's option
+// b). An agent's text that carries a placeholder back is refused.
 func TestAgentViewReplacesCachedSecretValues(t *testing.T) {
 	h := newAgentViewHarness(t)
 	const placeholder = "«secret shop/db/password»"
@@ -189,10 +189,10 @@ func TestAgentViewReplacesCachedSecretValues(t *testing.T) {
 	}
 }
 
-// TestAgentViewWithholdsFluxCredentials (H-63, owner 2026-10-14): a Helm release's inline values,
-// a Provider's address and the user information in a source's URL are withheld from the YAML an
-// agent reads (object.get, object.edit, editor.get, editor.diff); the window reads them, and an
-// agent's text that carries the marker back is refused.
+// TestAgentViewWithholdsFluxCredentials (H-63, owner): a Helm release's inline values, a Provider's
+// address and the user information in a source's URL are withheld from the YAML an agent reads
+// (object.get, object.edit, editor.get, editor.diff); the window reads them, and an agent's text
+// that carries the marker back is refused.
 func TestAgentViewWithholdsFluxCredentials(t *testing.T) {
 	h := newAgentViewHarness(t)
 	for _, c := range []struct {

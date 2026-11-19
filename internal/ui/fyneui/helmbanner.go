@@ -17,11 +17,11 @@ import (
 // helmBanner shows the connected context's unfinished Helm release actions below the top bar, one
 // row each, as drainBanner shows drains (D-11): what happened to the release, and Finish (the
 // rollback or uninstall again, as recorded, confirmed as usual; an upgrade's rollback) and Dismiss
-// (helm.dismissOperation). An install is offered nothing (owner, 2026-10-14 evening, A17): its row
-// says the release's state, Show release opens it in the Helm Releases view, where the user cleans
-// up, and Dismiss forgets the row. An action running in this window shows as running. The engine
-// announces changes with EventHelm; the banner reads the actions with helm.pendingOperations, so
-// that it shows what an agent would read.
+// (helm.dismissOperation). An install is offered nothing (owner, A17): its row says the release's
+// state, Show release opens it in the Helm Releases view, where the user cleans up, and Dismiss
+// forgets the row. An action running in this window shows as running. The engine announces changes
+// with EventHelm; the banner reads the actions with helm.pendingOperations, so that it shows what
+// an agent would read.
 type helmBanner struct {
 	sh     *shell
 	root   *fyne.Container // the rows; hidden while there are none

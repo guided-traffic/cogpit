@@ -7,13 +7,13 @@ import (
 )
 
 // The window's zoom (D-134; engine/zoom.go): VS Code's Zoom In, Zoom Out and Reset Zoom with VS
-// Code's keys on each platform (its windowActions.ts, the owner's wish of 2026-10-26: "die exakt
-// gleichen Tastenkombinationen wie VSCode auf der jeweiligen Plattform"). Zoom In is Cmd+= with
-// Cmd+Shift+= and the keypad's + (Fyne names the + key of a German keyboard as the keypad's);
-// Zoom Out Cmd+- with Cmd+Shift+- and the keypad's -, on Linux without Cmd+Shift+-, which is Go
-// Forward there; Reset Zoom VS Code's Cmd+Numpad0, which Fyne cannot tell from Cmd+0
-// (glfwKeyToKeyName reads both as 0), so Cmd+0 resets too. The level is a preference
-// (Preferences.ZoomLevel); the window applies it (fyneui/zoom.go).
+// Code's keys on each platform (its windowActions.ts, the owner's wish: "die exakt gleichen
+// Tastenkombinationen wie VSCode auf der jeweiligen Plattform"). Zoom In is Cmd+= with Cmd+Shift+=
+// and the keypad's + (Fyne names the + key of a German keyboard as the keypad's); Zoom Out Cmd+-
+// with Cmd+Shift+- and the keypad's -, on Linux without Cmd+Shift+-, which is Go Forward there;
+// Reset Zoom VS Code's Cmd+Numpad0, which Fyne cannot tell from Cmd+0 (glfwKeyToKeyName reads both
+// as 0), so Cmd+0 resets too. The level is a preference (Preferences.ZoomLevel); the window applies
+// it (fyneui/zoom.go).
 
 // ZoomResult is the zoom commands' result.
 type ZoomResult struct {

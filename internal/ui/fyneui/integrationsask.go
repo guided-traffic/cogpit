@@ -18,11 +18,11 @@ import (
 // dialog over the window asks which integrations Cogpit uses for the shown cluster. It holds up
 // nothing: the connect has finished and the views load behind it. It follows the question's step:
 //
-//   - the pre-choice (the owner's WF5 of 2026-10-17: "eine kurze Vorauswahl", since the "Suchen"
-//     run with the user's privileges): why it asks, and three choices, each with a line of what it
-//     does: "Use my default integrations" answers at once with the default for new clusters
-//     (Preferences › Kubernetes; the owner's QW4: "ohne weitere Nachfrage. Die zweite Maske wird
-//     direkt übersprungen"), "Choose integrations" and "Don't use integrations (no metrics will be
+//   - the pre-choice (the owner's WF5: "eine kurze Vorauswahl", since the "Suchen" run with the
+//     user's privileges): why it asks, and three choices, each with a line of what it does: "Use my
+//     default integrations" answers at once with the default for new clusters (Preferences ›
+//     Kubernetes; the owner's QW4: "ohne weitere Nachfrage. Die zweite Maske wird direkt
+//     übersprungen"), "Choose integrations" and "Don't use integrations (no metrics will be
 //     displayed)", its word and outline in the error colour (the owner's QR1: "Es muss klar sein,
 //     dass man hier etwas verliert"). Nothing is looked for.
 //   - the rows (Choose): the same rows as Cluster Settings › Integrations (a checkbox with the

@@ -16,26 +16,26 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// helmUpgradeTab is Lens's "Helm Upgrade: <name>" dock tab (captured 2026-10-12): save and search
-// icons, the chart and its version as text ("/<chart>  version: 0.1.0 (no repository)") beside a
-// separate version picker, the line "Release <name> values.yaml, version …, on <namespace>
-// namespace." with the release and the namespace as links, and the release's values in a YAML
-// editor whose text lives in the engine (editor.get, editor.setText, as an Edit tab's). The search
-// icon opens the editor's find widget at its bottom (findbar.go). Save sends the text, then
-// upgrades the release with it (helm.release.upgrade with the tab id, the text revision the send
-// made and the chart version the tab shows). The status line at the bottom is Cogpit's: what the
-// values are based on, what Save does, progress and errors.
+// helmUpgradeTab is Lens's "Helm Upgrade: <name>" dock tab (captured): save and search icons, the
+// chart and its version as text ("/<chart> version: 0.1.0 (no repository)") beside a separate
+// version picker, the line "Release <name> values.yaml, version …, on <namespace> namespace." with
+// the release and the namespace as links, and the release's values in a YAML editor whose text
+// lives in the engine (editor.get, editor.setText, as an Edit tab's). The search icon opens the
+// editor's find widget at its bottom (findbar.go). Save sends the text, then upgrades the release
+// with it (helm.release.upgrade with the tab id, the text revision the send made and the chart
+// version the tab shows). The status line at the bottom is Cogpit's: what the values are based on,
+// what Save does, progress and errors.
 //
 // Without a chart repository that lists the release's chart the picker offers the release's own
-// version only, with Lens's "Select…" and "(no repository)" (captured). With one (2026-10-13;
-// inferred, Lens with a repository is not captured) the chart reads "<repository>/<chart>", the
-// version text loses "(no repository)", the picker offers the repository's versions with the
-// release's own marked "(current)" and starts on the engine's choice, the newest when it is newer,
-// and a second picker chooses the repository when several list the chart. A pick goes to the
-// engine (helm.release.upgradeTab with the repository and version), whose tab is what the pickers
-// show (update). A repository whose content nothing authenticates (plain http, or https without
-// the certificate check) is marked beside the chart, and while Save downloads from it a line
-// under the chart says what that means (H-41, A14; the engine's HelmUpgradeTab.Origin).
+// version only, with Lens's "Select…" and "(no repository)" (captured). With one (inferred, Lens
+// with a repository is not captured) the chart reads "<repository>/<chart>", the version text loses
+// "(no repository)", the picker offers the repository's versions with the release's own marked
+// "(current)" and starts on the engine's choice, the newest when it is newer, and a second picker
+// chooses the repository when several list the chart. A pick goes to the engine
+// (helm.release.upgradeTab with the repository and version), whose tab is what the pickers show
+// (update). A repository whose content nothing authenticates (plain http, or https without the
+// certificate check) is marked beside the chart, and while Save downloads from it a line under the
+// chart says what that means (H-41, A14; the engine's HelmUpgradeTab.Origin).
 type helmUpgradeTab struct {
 	sh   *shell
 	tab  engine.DockTab
@@ -73,7 +73,7 @@ type helmUpgradeTab struct {
 }
 
 // noRepository marks a version that comes from the release itself, not from a chart repository,
-// as Lens writes it (captured 2026-10-12).
+// as Lens writes it (captured).
 const noRepository = " (no repository)"
 
 // currentVersion marks the release's own version among a repository's (inferred).

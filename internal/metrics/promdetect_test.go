@@ -54,7 +54,7 @@ func TestCandidatesRankKnownServices(t *testing.T) {
 
 	// kube-prometheus-stack's names by release: the release alone when it contains the chart's
 	// name, else <release>-kube-prometheus-stack cut to 26 characters, so a short release keeps
-	// "-stack" (kps, 2026-10-12) and a longer one loses it.
+	// "-stack" (kps) and a longer one loses it.
 	for _, name := range []string{"kube-prometheus-stack-prometheus", "kps-kube-prometheus-stack-prometheus", "monitoring-kube-prometheus-prometheus"} {
 		if c := metrics.Candidates([]metrics.Service{svc("cogpit-kps", name, p("http-web", 9090))}); len(c) != 1 || c[0].Score != 100 {
 			t.Errorf("%s: candidates %+v, want it first", name, c)
@@ -149,9 +149,9 @@ var refusing = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		`"message":"services \"x\" is forbidden: cannot get resource \"services/proxy\""}`))
 })
 
-// TestDetectTriesThePortsNumberThenName (the owner's acme-mgmt, 2026-10-18): a role that grants the
-// service proxy by resourceNames matches the name as written. Where only "<svc>:9090" is granted
-// (as the roles written for Lens name it), the number, asked first, is found at once; where only
+// TestDetectTriesThePortsNumberThenName (the owner's acme-mgmt): a role that grants the service
+// proxy by resourceNames matches the name as written. Where only "<svc>:9090" is granted (as the
+// roles written for Lens name it), the number, asked first, is found at once; where only
 // "<svc>:http-web" is, the number is refused and the name found next.
 func TestDetectTriesThePortsNumberThenName(t *testing.T) {
 	svc := metrics.Service{Namespace: "monitoring", Name: "kube-prometheus-prometheus", Ports: []metrics.ServicePort{{Name: "reloader-web", Port: 8080}, {Name: "http-web", Port: 9090}}}

@@ -11,10 +11,10 @@ import (
 // "node.cilium.io/agent-not-ready", "MAX_CONNECTIONS").
 const nameBreaks = "-._/"
 
-// wrapName wraps a name to width (the owner's F3, 2026-10-15: a key without spaces ran under its
-// value): at its spaces as wrapLines does; a word still wider than width after one of nameBreaks,
-// as many of its parts on a line as fit; a part wider than width alone by characters (wrapHard).
-// A name that fits is one line, as before.
+// wrapName wraps a name to width (the owner's F3: a key without spaces ran under its value): at its
+// spaces as wrapLines does; a word still wider than width after one of nameBreaks, as many of its
+// parts on a line as fit; a part wider than width alone by characters (wrapHard). A name that fits
+// is one line, as before.
 func wrapName(text string, width, size float32, style fyne.TextStyle) []string {
 	if width <= 0 {
 		return []string{text}

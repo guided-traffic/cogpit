@@ -266,10 +266,10 @@ func (l *Logs) SetView(v LogView) {
 // and timestamps as shown, not filtered, not wrapped). Main goroutine only.
 func (l *Logs) ShownLines() []string { return l.lines.shown(l.view, false) }
 
-// DownloadLines returns what a download saves (A84, the owner's decision of 2026-10-14 evening):
-// the lines the view shows, as it shows them: of the sources it selects, with its filter applied
-// while Filter is on (a search alone highlights and hides nothing, so every line is saved), the
-// names and timestamps as shown, not wrapped. Main goroutine only.
+// DownloadLines returns what a download saves (A84, the owner's decision): the lines the view
+// shows, as it shows them: of the sources it selects, with its filter applied while Filter is on (a
+// search alone highlights and hides nothing, so every line is saved), the names and timestamps as
+// shown, not wrapped. Main goroutine only.
 func (l *Logs) DownloadLines() []string { return l.lines.shown(l.view, l.view.Filter) }
 
 // shown returns the kept lines v shows, as it shows them; filtered, only those matching v's search.

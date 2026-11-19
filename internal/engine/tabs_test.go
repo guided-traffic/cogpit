@@ -247,10 +247,10 @@ func TestTabHistory(t *testing.T) {
 }
 
 // Back brings the place back as the tab left it, and forward the place back left (the owner's
-// finding of 2026-10-25: a pod opened from a Deployment's drawer, back, and the Deployment's drawer
-// was closed): the view's namespace and API group filters, search, status filter and drawer, and
-// the place's name, by which the window scrolls its list back. ui.navigate within the view
-// (MarkStep) is a step too; a drawer changed otherwise (a click on a row) is not.
+// finding: a pod opened from a Deployment's drawer, back, and the Deployment's drawer was closed):
+// the view's namespace and API group filters, search, status filter and drawer, and the place's
+// name, by which the window scrolls its list back. ui.navigate within the view (MarkStep) is a step
+// too; a drawer changed otherwise (a click on a row) is not.
 func TestTabHistoryBringsThePlaceBack(t *testing.T) {
 	s := tabSession(t)
 	pod := model.ObjectRef{Context: "test", Kind: "pods", Namespace: "shop", Name: "web-0"}
@@ -394,8 +394,8 @@ func TestTabsOfAnotherCluster(t *testing.T) {
 	}
 }
 
-// Selecting another cluster's tab changes no other tab (D-117, the owner's bug of 2026-10-23): the
-// cluster left keeps the view its preview tab shows, though a fixed tab of it was the active one.
+// Selecting another cluster's tab changes no other tab (D-117, the owner's bug): the cluster left
+// keeps the view its preview tab shows, though a fixed tab of it was the active one.
 func TestSelectingAnotherClustersTabChangesNoTab(t *testing.T) {
 	s := tabSession(t)
 	ctx := context.Background()
@@ -425,9 +425,9 @@ func TestSelectingAnotherClustersTabChangesNoTab(t *testing.T) {
 	}
 }
 
-// The owner's case (2026-10-23): a view on three clusters, two in fixed tabs and the third in its
-// preview tab; selecting the first tab, then the second, leaves the third's preview tab as it was,
-// and every cluster keeps a preview tab of its own.
+// The owner's case: a view on three clusters, two in fixed tabs and the third in its preview tab;
+// selecting the first tab, then the second, leaves the third's preview tab as it was, and every
+// cluster keeps a preview tab of its own.
 func TestThreeClustersKeepTheirPreviewTabs(t *testing.T) {
 	s := tabSession(t)
 	ctx := context.Background()
@@ -531,10 +531,10 @@ func TestPinTab(t *testing.T) {
 	}
 }
 
-// A preview tab comes back as it was left when its cluster is shown again (the owner, 2026-10-23:
-// "zurück komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe
-// … gleiche filter"): its namespaces, search with its toggles, status filter, sort, selection and
-// drawer; the other cluster's preview tab keeps its own. The list's scroll offset is the window's
+// A preview tab comes back as it was left when its cluster is shown again (the owner: "zurück komme
+// in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe … gleiche
+// filter"): its namespaces, search with its toggles, status filter, sort, selection and drawer; the
+// other cluster's preview tab keeps its own. The list's scroll offset is the window's
 // (fyneui/tabscroll.go).
 func TestATabComesBackAsItWasLeft(t *testing.T) {
 	s := tabSession(t)

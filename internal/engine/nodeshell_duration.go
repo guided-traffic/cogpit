@@ -6,17 +6,17 @@ import (
 	"time"
 )
 
-// The node shell's maximum duration (owner, 2026-10-14; D-37): how long a node shell's pod lives at
-// most, its activeDeadlineSeconds and its container's sleep, so that it ends by then whatever
-// Cogpit does. Cluster Settings › Node Shell › Maximum duration sets it per context, in whole
-// minutes from MinNodeShellDeadline to MaxNodeShellDeadline (Cogpit's bounds); unset, it is
+// The node shell's maximum duration (owner; D-37): how long a node shell's pod lives at most, its
+// activeDeadlineSeconds and its container's sleep, so that it ends by then whatever Cogpit does.
+// Cluster Settings › Node Shell › Maximum duration sets it per context, in whole minutes from
+// MinNodeShellDeadline to MaxNodeShellDeadline (Cogpit's bounds); unset, it is
 // DefaultNodeShellDeadline. Only the user sets it, as the image (D-38): agents and the CLI may
 // reset it to the default.
 
 // The node shell's deadline and its bounds.
 const (
 	// DefaultNodeShellDeadline is a node shell's maximum duration when its cluster's settings name
-	// none (owner, 2026-10-14; Lens's is not known).
+	// none (owner; Lens's is not known).
 	DefaultNodeShellDeadline = 2 * time.Hour
 	// MinNodeShellDeadline is the shortest maximum duration the setting takes: time to pull the
 	// image and look at something (Cogpit's bound).

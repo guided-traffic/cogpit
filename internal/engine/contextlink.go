@@ -15,14 +15,13 @@ import (
 // ui-parity › Clusters). Cogpit reaches a context through Cogpit's link to a kubeconfig file or
 // folder, a kubeconfig source (kubeconfigs.go); removing a cluster from Cogpit removes that link
 // and never edits or deletes a kubeconfig file. A file the user added is unlinked that way, and
-// with it every context the file defines. The rules (Cogpit's defaults, 2026-10-13; Lens's own rule
-// is not captured):
+// with it every context the file defines. The rules (Cogpit's defaults; Lens's own rule is not
+// captured):
 //   - a context of a file in a sync folder, the default ~/.kube included, is unlinked with its
-//     whole folder, and every context of the folder's files leaves Cogpit with it (the owner's A97,
-//     2026-10-14 evening; built 2026-10-15). The window's confirmation names them all, and the
-//     removal is bound to that list: a folder whose contexts changed since is refused, so that
-//     nothing leaves Cogpit the user was not shown (the lead's night decision for the owner to
-//     confirm);
+//     whole folder, and every context of the folder's files leaves Cogpit with it (the owner's
+//     A97). The window's confirmation names them all, and the removal is bound to that list: a
+//     folder whose contexts changed since is refused, so that nothing leaves Cogpit the user was
+//     not shown (the lead's night decision for the owner to confirm);
 //   - a context of a file named by $KUBECONFIG or --kubeconfig is refused: the file is offered
 //     again at the next start;
 //   - the demo cluster has no kubeconfig to unlink.
@@ -178,8 +177,8 @@ func (s *Session) RemoveContext(id string, shown []string) (ContextLink, error) 
 // made from one of its files is closed, and the tabs of the contexts that leave Cogpit with it are
 // closed, the active one too (UI state is engine state: the tab bar and an agent's ui_state lose
 // them alike). A context the sources still offer afterwards keeps its tabs. Cogpit's default
-// (2026-10-13, not the owner's decision; Lens's behaviour is not captured): a cluster Cogpit no
-// longer offers keeps no tab, which could only fail to connect.
+// (not the owner's decision; Lens's behaviour is not captured): a cluster Cogpit no longer offers
+// keeps no tab, which could only fail to connect.
 func (s *Session) RemoveKubeconfigSource(id string) (KubeconfigSource, error) {
 	k := s.KubeconfigSources()
 	if k == nil {
@@ -198,10 +197,10 @@ func (s *Session) RemoveKubeconfigSource(id string) (KubeconfigSource, error) {
 }
 
 // dropHotbarTilesOfSource takes the removed source's contexts that no source offers any more off
-// the hotbar (the owner's WF45 of 2026-10-19: "Ein entfernter Cluster wird automatisch auch aus der
-// Hotbar entfernt."): removing a source and Remove from Cogpit are the user's own acts. A file that
-// went away by itself keeps its tile, marked missing (HotbarTile.Missing): it may come back, and
-// its tile keeps its place. When the sources cannot be read, nothing is dropped on a guess.
+// the hotbar (the owner's WF45: "Ein entfernter Cluster wird automatisch auch aus der Hotbar
+// entfernt."): removing a source and Remove from Cogpit are the user's own acts. A file that went
+// away by itself keeps its tile, marked missing (HotbarTile.Missing): it may come back, and its
+// tile keeps its place. When the sources cannot be read, nothing is dropped on a guess.
 func (s *Session) dropHotbarTilesOfSource(k *KubeconfigSources, src KubeconfigSource) {
 	if s.opts.Hotbar == nil {
 		return
@@ -266,10 +265,10 @@ func offeredContexts(k *KubeconfigSources) (map[string]bool, error) {
 // forgetSettingsOfSource forgets the cluster settings (cluster-settings.json: name, icon, accent
 // colour, proxy, integrations, agent allowance, …) of the removed source's contexts that no source
 // offers any more: a cluster removed from Cogpit and added again is a new cluster, asked its
-// integrations again (the lead's decision, 2026-10-17 evening, after the owner's walk, WF4: he
-// removed and re-added a cluster to see the integrations question again, and its kept choice
-// stopped it). A session file ($KUBECONFIG) keeps them: it is offered again at the next start. When
-// the sources cannot be read, nothing is forgotten on a guess.
+// integrations again (the lead's decision, after the owner's walk, WF4: he removed and re-added a
+// cluster to see the integrations question again, and its kept choice stopped it). A session file
+// ($KUBECONFIG) keeps them: it is offered again at the next start. When the sources cannot be read,
+// nothing is forgotten on a guess.
 func (s *Session) forgetSettingsOfSource(k *KubeconfigSources, src KubeconfigSource) {
 	c := s.opts.ClusterSettings
 	if c == nil || src.Session {

@@ -108,7 +108,7 @@ func TestConnectEndsWhenItsContextLeftCogpit(t *testing.T) {
 // The window's connect whose backend the kubeconfig watcher closed between its publishing and its
 // Connected, the watcher's change of the UI still on its way, forgets the context that left
 // Cogpit (settleClosedConnect): the run's own settle found the window Connecting and left it, and
-// a race-detector run on CI (2026-10-23) saw the connect return with the window "connecting".
+// a race-detector run on CI saw the connect return with the window "connecting".
 func TestAClosedConnectForgetsItsGoneContext(t *testing.T) {
 	folder := filepath.Join(t.TempDir(), "synced")
 	file := filepath.Join(folder, "a.yaml")

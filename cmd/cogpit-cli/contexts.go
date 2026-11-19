@@ -92,7 +92,7 @@ func login(c engine.ContextInfo) string {
 // H-37), followed for a kubeconfig source's context by whether the user allowed connecting to it so
 // ("not checked, required"; A28: approved, required or changed, the context's approval, a plugin's
 // included); empty otherwise. After the columns it found in place, so that they keep their places
-// (Cogpit's default, 2026-10-13, not the owner's decision); CLIENT CERT came after it (2026-10-17).
+// (Cogpit's default, not the owner's decision); CLIENT CERT follows it.
 func certificate(c engine.ContextInfo) string {
 	switch {
 	case !c.Insecure:
@@ -105,7 +105,7 @@ func certificate(c engine.ContextInfo) string {
 
 // clientCert says how long a context's client certificate is valid (D-75): "expires in 23 days",
 // "expired 3 days ago", "not valid yet"; empty for a context without one. The last column, after
-// the server's CERTIFICATE (Cogpit's default, 2026-10-17).
+// the server's CERTIFICATE (Cogpit's default).
 func clientCert(c engine.ContextInfo, now time.Time) string {
 	if c.ClientCert == nil {
 		return ""

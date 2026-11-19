@@ -1,9 +1,9 @@
 //go:build nodemo
 
 // A release build: the release pipeline builds with the tag nodemo (the Makefile's DIST_TAGS), so
-// neither binary contains the synthetic demo cluster (owner, 2026-10-16, D-67). The connector
-// offers no context "demo" whatever IncludeDemo says, and a kubeconfig context of that name is one
-// like any other (connector_demo.go has the development build's).
+// neither binary contains the synthetic demo cluster (owner, D-67). The connector offers no context
+// "demo" whatever IncludeDemo says, and a kubeconfig context of that name is one like any other
+// (connector_demo.go has the development build's).
 
 package engine
 

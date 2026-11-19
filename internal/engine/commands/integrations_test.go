@@ -295,14 +295,14 @@ func TestIntegrationSwitchCommands(t *testing.T) {
 	}
 }
 
-// TestIntegrationsOnAreTheUsers (H-126, the owner's decision of 2026-10-19: "Nein"; H-133, his
-// decision of 2026-10-20: GUI-only both ways): only the user, in the window, answers a new cluster's
-// integrations question or switches an integration, on or off. The question's step, ticks and
-// answer refuse agents and the CLI, and so does every switch: by name (true or false), by any Metrics
-// source (none included), and as the default for new clusters (true or false), on a cluster without
-// a choice and on one the user chose for alike. Also where the user allowed agent writes; nobody is
-// asked, nothing is looked for or changed. Ask again, which forgets the user's choice, is the user's
-// too; Later stays theirs.
+// TestIntegrationsOnAreTheUsers (H-126, the owner's decision: "Nein"; H-133, his decision: GUI-only
+// both ways): only the user, in the window, answers a new cluster's integrations question or
+// switches an integration, on or off. The question's step, ticks and answer refuse agents and the
+// CLI, and so does every switch: by name (true or false), by any Metrics source (none included),
+// and as the default for new clusters (true or false), on a cluster without a choice and on one the
+// user chose for alike. Also where the user allowed agent writes; nobody is asked, nothing is
+// looked for or changed. Ask again, which forgets the user's choice, is the user's too; Later stays
+// theirs.
 func TestIntegrationsOnAreTheUsers(t *testing.T) {
 	settings, prefs := t.TempDir(), t.TempDir()
 	h := integrationsHarness(t, settings, prefs)

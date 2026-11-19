@@ -13,12 +13,12 @@ import (
 )
 
 // The Create resource tab's save and search buttons, left of the template picker, as Lens's tab
-// has them (captured 2026-10-11; what they do is not captured). Cogpit's reading (inferred): save
-// writes the tab's text to a YAML file the user picks in the system's save panel (D-72), a GUI
-// action with no command, as the table's CSV download is; search opens the editor's find widget
-// below the editor (findbar.go), as the Helm Upgrade tab's search icon does. A text that holds a
-// Secret's manifest is not saved to a file, so that its values never land on disk in plain text
-// (D-19; Cogpit's default).
+// has them (captured; what they do is not captured). Cogpit's reading (inferred): save writes the
+// tab's text to a YAML file the user picks in the system's save panel (D-72), a GUI action with no
+// command, as the table's CSV download is; search opens the editor's find widget below the editor
+// (findbar.go), as the Helm Upgrade tab's search icon does. A text that holds a Secret's manifest
+// is not saved to a file, so that its values never land on disk in plain text (D-19; Cogpit's
+// default).
 
 // createSaveRefused is the status when the text holds a Secret.
 const createSaveRefused = "A Secret's manifest is not saved to a file: its values would sit on disk in plain text."

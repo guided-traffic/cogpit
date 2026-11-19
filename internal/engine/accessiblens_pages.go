@@ -24,8 +24,8 @@ func (b *Backend) acquireForPage(p *model.KindProfile) *cache.Handle {
 // customKindsUnknown says why a page of custom kinds (the Flux and Argo CD dashboards) cannot tell
 // whether the cluster serves what (its kinds, "Flux kinds"): the user may not list the custom
 // resource definitions (a namespace-limited user, as a rule, whose Role names the kinds but not
-// their definitions), or they are still being listed; "" when the custom kinds are known. Before
-// (2026-10-14) such a page said the cluster serves none.
+// their definitions), or they are still being listed; "" when the custom kinds are known. Such a
+// page never says the cluster serves none.
 func (b *Backend) customKindsUnknown(what string) string {
 	set := b.customSet()
 	switch {
@@ -44,7 +44,7 @@ func (b *Backend) customKindsUnknown(what string) string {
 // pageReadKey is how a page reads its kinds through acquireForPage: per kind its plan's key
 // (pending, all, or the namespaces), so that a page whose kinds' plans change starts again; with
 // skipUnlistable, a kind the page leaves out as one the user may not list is marked so. Kinds the
-// cluster does not serve are left out. The Overviews keep it too since A98 (2026-10-14).
+// cluster does not serve are left out. The Overviews keep it too (A98).
 func (b *Backend) pageReadKey(keys []string, skipUnlistable bool) string {
 	var sb strings.Builder
 	for _, key := range keys {

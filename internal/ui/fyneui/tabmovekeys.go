@@ -9,10 +9,9 @@ import (
 )
 
 // Move Tab Left and Right by their keys (⌘⌥⇧←, ⌘⌥⇧→, View › Move Tab Left and Right; the owner's
-// alpha walk, 2026-10-22, AW10: the keys "do nothing in the dock") move the active tab of the bar
-// the keyboard works in: ui.tab.moveLeft and ui.tab.moveRight with dock for the dock's
-// (engine/tabmove.go), without it for the tab bar's, as before. The lead's decisions, open to
-// revision (D-106):
+// alpha walk, AW10: the keys "do nothing in the dock") move the active tab of the bar the keyboard
+// works in: ui.tab.moveLeft and ui.tab.moveRight with dock for the dock's (engine/tabmove.go),
+// without it for the tab bar's, as before. The lead's decisions, open to revision (D-106):
 //   - the dock's while the focused widget lies in the dock: its tab's terminal, editor, log or a
 //     find bar's field, or the strip's switch. A click on a dock tab gives the tab's widget the keys
 //     (D-115, dockfocus.go), so after a click on a tab with one the keys are the dock's this way, and

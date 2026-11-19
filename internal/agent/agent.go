@@ -23,7 +23,7 @@ const (
 	// mark, whether a key was given. Never a key.
 	ConnectionsFile = "llm-connections.json"
 	// KeysFile holds the connections' API keys, the connection's id to its key (FileKeyStore): the
-	// owner's decision of 2026-10-15, no keychain (D-10).
+	// owner's decision, no keychain (D-10).
 	KeysFile = "llm-keys.json"
 	// ConversationsFile holds the last MaxConversations conversations per context, scrubbed; never
 	// a private one (H-96).
@@ -392,8 +392,8 @@ func (a *Agent) clientFor(c engine.ChatConnection, key string) (*client, error) 
 }
 
 // ModelsOf implements engine.ChatAgent: the settings form's list from the values typed, the key
-// typed or else the stored one (the owner's request of 2026-10-25: a colleague's list stayed empty
-// after he typed his credentials, as it was read from the saved connection only).
+// typed or else the stored one (the owner's request: a colleague's list stayed empty after he typed
+// his credentials, as it was read from the saved connection only).
 func (a *Agent) ModelsOf(ctx context.Context, c engine.ChatConnection, apiKey *string) ([]string, error) {
 	if !validKind(c.Kind) {
 		return nil, errors.New("unknown connection kind")

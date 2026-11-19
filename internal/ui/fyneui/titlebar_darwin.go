@@ -129,9 +129,9 @@ func doubleClickSetting() titlebarAction {
 }
 
 // stop ends AppKit's reports. It runs once the app's run ended, when GLFW has terminated and
-// destroyed the window: asking GLFW for the window then panics, which every quit did until
-// 2026-10-12. Forgetting the id is enough: the observer is the window's associated object and goes
-// with it, and a report still on its way finds no title bar under the id.
+// destroyed the window: asking GLFW for the window then panics.
+// Forgetting the id is enough: the observer is the window's associated object and goes with it, and
+// a report still on its way finds no title bar under the id.
 func (tb *titlebar) stop() {
 	titlebars.Delete(tb.id)
 	tb.window = 0

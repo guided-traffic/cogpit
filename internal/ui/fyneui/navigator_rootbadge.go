@@ -7,9 +7,9 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// The navigator's root shows the cluster's icon as large as its room allows (the owner's LS19 of
-// 2026-10-24: "Das Icon hier in der Leiste ist super klein. Wenn es eng wird, darf das Icon ruhig
-// so klein werden, aber wenn so viel Platz ist, wie hier, hätte ich es gerne 50px x 50px"):
+// The navigator's root shows the cluster's icon as large as its room allows (the owner's LS19: "Das
+// Icon hier in der Leiste ist super klein. Wenn es eng wird, darf das Icon ruhig so klein werden,
+// aber wenn so viel Platz ist, wie hier, hätte ich es gerne 50px x 50px"):
 //
 //   - as tall as the root's lines, at most sizeNavHeadBadge (50): the three lines (name, user,
 //     version) are 55 points high, so the badge is 50 there; two lines (the version not known yet)

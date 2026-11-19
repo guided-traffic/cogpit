@@ -121,7 +121,7 @@ type workspaceDoc struct {
 	HiddenColumns map[string][]string `json:"hiddenColumns,omitempty"`
 	ColumnOrder   map[string][]string `json:"columnOrder,omitempty"`
 	// CollapsedSources are the Local Kubeconfigs section's collapsed source groups, by their
-	// headings' labels (NavigatorState.Collapsed; A63, 2026-10-14).
+	// headings' labels (NavigatorState.Collapsed; A63).
 	CollapsedSources []string `json:"collapsedSources,omitempty"`
 	// NavigatorHidden and Chat are the window's layout (F7, layout.go): the navigator hidden and
 	// the chat column shown. The dock's is not kept: its tabs are not restored, and a dock without
@@ -129,9 +129,9 @@ type workspaceDoc struct {
 	NavigatorHidden bool `json:"navigatorHidden,omitempty"`
 	Chat            bool `json:"chat,omitempty"`
 	// Connected are the clusters connected (or connecting) when the file was written, by context
-	// id, and Shown the one the window showed (D-69 item 8, 2026-10-16): what "Restore the last
-	// session" connects again. Absent in a file of v0.17.0 and before; the format version stays 1,
-	// and a Cogpit of then ignores the two fields.
+	// id, and Shown the one the window showed (D-69 item 8): what "Restore the last session"
+	// connects again. Absent in a file of v0.17.0 and before; the format version stays 1, and a
+	// Cogpit of then ignores the two fields.
 	Connected []string `json:"connected,omitempty"`
 	Shown     string   `json:"shown,omitempty"`
 }

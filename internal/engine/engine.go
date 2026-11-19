@@ -50,11 +50,11 @@ type Invocation struct {
 	Params json.RawMessage `json:"params,omitempty"` // validated against the command's schema
 	Origin Origin          `json:"origin"`
 	// ReadsLikeUser is set by the built-in agent for a turn over a connection the user marked
-	// private (a local model or a private cloud; owner, 2026-10-14 late evening): its reads then
-	// return what the window shows instead of what agents are given. Honoured only with
-	// OriginBuiltInAgent; never read from JSON, so no MCP or CLI request can set it. Write rules
-	// (D-2) are the same either way. Dispatch carries it in the command's context
-	// (engine.ReadsLikeUser, readslikeuser.go) and marks the audit line.
+	// private (a local model or a private cloud; owner): its reads then return what the window
+	// shows instead of what agents are given. Honoured only with OriginBuiltInAgent; never read
+	// from JSON, so no MCP or CLI request can set it. Write rules (D-2) are the same either way.
+	// Dispatch carries it in the command's context (engine.ReadsLikeUser, readslikeuser.go) and
+	// marks the audit line.
 	ReadsLikeUser bool `json:"-"`
 }
 
@@ -318,8 +318,8 @@ func (s *Session) SetAgentWrites(context string, allowed bool) {
 // mutating commands need it from agents unless the user allowed agent writes for the context, and
 // always when the command declares that agents ask for this invocation (agentsAsk: an agent's RBAC
 // write, H-27, A1); a UI command needs it from agents only when it declares so for the invocation
-// (agentsAsk: an agent's proxy, A20, owner 2026-10-14 evening), the allowance of agent writes not
-// bearing on it; read commands never do.
+// (agentsAsk: an agent's proxy, A20, owner), the allowance of agent writes not bearing on it; read
+// commands never do.
 func NeedsConfirmation(d Danger, o Origin, agentWritesAllowed, agentsAsk bool) bool {
 	switch d {
 	case DangerDestructive:

@@ -15,9 +15,9 @@ import (
 )
 
 // A credential plugin's run that a connection waits for, ended when the user cancels and after a
-// bound (D-73; the owner's finding of 2026-10-16 night: a connect that waited for an OIDC login in
-// the browser, which the user had not finished, could not be cancelled, had no timeout, and kept
-// Disconnect waiting behind it).
+// bound (D-73; the owner's finding: a connect that waited for an OIDC login in the browser, which
+// the user had not finished, could not be cancelled, had no timeout, and kept Disconnect waiting
+// behind it).
 //
 // client-go's exec authenticator runs the plugin with exec.Command and cmd.Run, without a context,
 // under the Authenticator's lock (k8s.io/client-go v0.37.1, plugin/pkg/client/auth/exec/exec.go:
@@ -53,8 +53,8 @@ import (
 // not hold its login, and was not cancelled, uses it; the bound ends it whoever waits.
 
 // DefaultLoginTimeout bounds one run of a credential plugin (Options.LoginTimeout; the lead's
-// decision of the night run 2026-10-16/17, D-73): long enough for a browser login with a second
-// factor, short of what a login nobody finishes would cost.
+// decision of the night run, D-73): long enough for a browser login with a second factor, short of
+// what a login nobody finishes would cost.
 const DefaultLoginTimeout = 5 * time.Minute
 
 // killGrace is how long a plugin has to end after SIGTERM before SIGKILL.
@@ -244,7 +244,7 @@ func (p *pluginHold) current() (LoginRun, bool) {
 // Authenticator's lock (lock), which client-go lets go once the plugin's process ended; Cogpit's
 // children are noted first, before client-go starts the plugin, so that its process is the one that
 // appears after (pluginproc.go).
-func (p *pluginHold) begin(lock *sync.Mutex) {
+func (p *pluginHold) begin(lock *sync.Mutex) *procSearch {
 	before := childSet()
 	now := time.Now()
 	p.mu.Lock()
@@ -276,12 +276,18 @@ func (p *pluginHold) begin(lock *sync.Mutex) {
 		}
 		p.finish(run)
 	}()
+	return run.search
 }
 
 // runEndGate, set by tests only, runs in the goroutine that notes a run's end, after client-go let
 // its lock go and before the end is noted: a test delays it there to see what a goroutine the
 // scheduler runs late leaves behind.
 var runEndGate atomic.Pointer[func()]
+
+// runBeginGate, set by tests only, runs after a run's begin was noted and before client-go starts
+// the plugin: a test delays it there to see the start of a loaded system, later than the run's
+// begin.
+var runBeginGate atomic.Pointer[func(*procSearch)]
 
 // finish notes that run ended.
 func (p *pluginHold) finish(run *pluginRun) {
@@ -334,7 +340,7 @@ func notifyAll(watches []*LoginWatch) {
 }
 
 // end ends run for cause, unless it ended or is being ended: its process is looked up first (it may
-// wait for the search of it, at most until searchWindow after the run's begin); then no run starts
+// wait for the search of it, procSearch.locate); then no run starts
 // any more until rearm, each connection using the plugin is told, and the process, if found, is
 // signalled. Without one, client-go's run goes on: the watches of the connections that wait behind
 // it are told that it has no end any more (current), but the one of by, the connection whose cancel

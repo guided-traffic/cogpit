@@ -23,10 +23,10 @@ import (
 
 // notConnected is what the window says where no cluster is connected: the top bar and the status
 // bar in place of a cluster's name, the navigator's head, the View menu, an empty view and the
-// Diagnostics, in the same words and case everywhere (the owner's walk, 2026-10-17, WF2: "No
-// Cluster" above and "no cluster" below; "eher not connected"). The engine's reasons for a
-// disabled command keep "no cluster connected": a reason in a sentence ("… — no cluster connected"),
-// which agents read too (the lead's decision).
+// Diagnostics, in the same words and case everywhere (the owner's walk, WF2: "No Cluster" above and
+// "no cluster" below; "eher not connected"). The engine's reasons for a disabled command keep "no
+// cluster connected": a reason in a sentence ("… — no cluster connected"), which agents read too
+// (the lead's decision).
 const notConnected = "Not connected"
 
 // connectionText describes a connection state in a word or two: the dots' tooltips (conndot.go)
@@ -50,11 +50,10 @@ func connectionText(c engine.Connection) string {
 // topBar is the window's top bar: the Cogpit wordmark and the build's version (F12), the history
 // arrows and at the right: the Update button while an update is available, the alerts pill
 // (alerts.go), the notifications' bell, a divider and the layout toggles at the right end
-// (layoutbar.go, F7; their order the owner's, 2026-10-16 night; the MCP details are the status
-// bar's, F6). It names no cluster (the owner, 2026-10-21, D-54): the shown cluster, its connection's
-// dot and its kubeconfig are the status bar's and the navigator's. On macOS it is also the window's
-// title bar (titlebar.go): room for the window buttons before the logo, and a drag area under its
-// contents.
+// (layoutbar.go, F7; their order the owner's; the MCP details are the status bar's, F6). It names
+// no cluster (the owner, D-54): the shown cluster, its connection's dot and its kubeconfig are the
+// status bar's and the navigator's. On macOS it is also the window's title bar (titlebar.go): room
+// for the window buttons before the logo, and a drag area under its contents.
 type topBar struct {
 	sh          *shell
 	lead        *canvas.Rectangle // the window buttons' room; hidden unless Cogpit draws the title bar
@@ -63,7 +62,7 @@ type topBar struct {
 	left        *fyne.Container
 	right       *fyne.Container // the Update button, the alerts, the bell, a divider, the layout toggles
 	alerts      *alertsButton   // the alerts pill left of the bell (alerts.go): the shown cluster's Alertmanager (D-77)
-	appearance  *themeToggle    // the light and dark toggle directly left of the bell (themetoggle.go, the owner's of 2026-10-21)
+	appearance  *themeToggle    // the light and dark toggle directly left of the bell (themetoggle.go, the owner's)
 	version     *buildLabel     // the build's version right of the wordmark (buildlabel.go, F12)
 	edge        *surface        // the line under the bar, directly under it (shell.go, F11)
 	titleHeight float32         // the title bar's height the bar covers, in Fyne units; 0 without
@@ -150,9 +149,9 @@ func logoTile(px int) *image.NRGBA {
 // pixelsFor is how many of the display's pixels side points span on the canvas c: Fyne's canvas
 // scale times the framebuffer's density. On macOS the canvas scale stays 1 on a Retina display,
 // whose factor 2 is the framebuffer's (Fyne's texScale), so a picture drawn at the canvas scale had
-// half the display's pixels and was stretched, soft (the owner's question of 2026-10-23, a
-// colleague's sharp display; G16). PixelCoordinateForPosition multiplies both, as Fyne's painter
-// does for text and icons. A widget not on a canvas yet gets one pixel a point.
+// half the display's pixels and was stretched, soft (the owner's question, a colleague's sharp
+// display; G16). PixelCoordinateForPosition multiplies both, as Fyne's painter does for text and
+// icons. A widget not on a canvas yet gets one pixel a point.
 func pixelsFor(c fyne.Canvas, side float32) int {
 	if c == nil {
 		return int(math.Ceil(float64(side)))
@@ -162,7 +161,7 @@ func pixelsFor(c fyne.Canvas, side float32) int {
 }
 
 // newLogo draws Cogpit's logo in the header: the current version's tile (internal/ui/logo, D-24),
-// the same in both themes (owner, 2026-10-15), drawn at the pixel size the canvas shows it at.
+// the same in both themes (owner), drawn at the pixel size the canvas shows it at.
 func newLogo() fyne.CanvasObject {
 	l := &logo{}
 	l.ExtendBaseWidget(l)
@@ -216,7 +215,7 @@ func (r *logoRenderer) Destroy()                     {}
 // diagView is what the status bar shows from engine.Diagnostics, prepared off the main
 // goroutine: the problems on the Connection Diagnostics button, the requests and informers in its
 // tooltip (D-133). The count of table snapshots is not among it: a developer's diagnostic that only
-// the Diagnostics tab shows (diagnostics.go; owner, 2026-10-14).
+// the Diagnostics tab shows (diagnostics.go; owner).
 type diagView struct {
 	total, list, watch int64
 	informers          int
@@ -365,7 +364,7 @@ func (l *statusLayout) Layout(_ []fyne.CanvasObject, size fyne.Size) {
 		textSize = th.Size(lt.size)
 	}
 	// The items are laid out in a band lifted by statusLift: a text line centred in the whole bar
-	// reads low, since its box keeps room for descenders below the letters (owner, 2026-10-14).
+	// reads low, since its box keeps room for descenders below the letters (owner).
 	lift := statusLift(textSize)
 	size.Height -= 2 * lift
 	full := fyne.MeasureText(ownerLinkText, textSize, fyne.TextStyle{}).Width

@@ -111,7 +111,7 @@ func TestDiagnosticsCommands(t *testing.T) {
 		}
 	}
 	// The table snapshots built since start: an agent reads them here, the status bar does not
-	// show them (owner, 2026-10-14). The Pods view built at least one.
+	// show them (owner). The Pods view built at least one.
 	if r.Snapshots == 0 {
 		t.Error("diagnostics.get counts no table snapshots after the Pods view synced")
 	}

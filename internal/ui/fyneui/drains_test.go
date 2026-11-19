@@ -75,6 +75,7 @@ func newDrainTestShell(t *testing.T, mode ThemeMode, prep ...func(*drainEngine))
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(d, a, w, Options{Theme: mode}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	d.SetConfirmer(sh.confirmer)

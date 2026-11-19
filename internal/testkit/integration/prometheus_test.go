@@ -183,8 +183,7 @@ func TestPrometheusInTheDrawer(t *testing.T) {
 		t.Errorf("the targets' ranges are %q and %q, want 10m and the default 1h", m.Targets[0].Range, m.Targets[1].Range)
 	}
 	// The change also made the drawer ask once more, at the finer step, for what the charts show:
-	// the network and the filesystem; no chart shows CPU or memory, so they are not asked (since
-	// 2026-10-16 night; before, 13: CPU and memory too).
+	// the network and the filesystem; no chart shows CPU or memory, so they are not asked.
 	if !testkit.WaitFor(ctx, func() bool { return proxy() == 8+3 }) {
 		t.Errorf("%d proxy requests after the range changed, want 11 (8 + 2 + 1)", proxy())
 	}

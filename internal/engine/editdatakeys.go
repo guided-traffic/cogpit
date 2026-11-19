@@ -8,21 +8,20 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// A data key removed through an Edit tab (the owner's answer of 2026-10-16 evening; D-55). The
-// drawer's save that removes a key of a Config Map or a Secret is destructive (datakeys.go, N152);
-// so is object.apply when the applied text no longer holds a key the cached object (or the version
-// the edit is based on) holds: the same loss of data a workload may read, through the other way of
-// writing it. object.apply escalates for it beside a scale to zero (EditScalesToZero), so the user
-// confirms it for every origin, the window included, and an agent always asks, agent writes allowed
-// or not (D-2).
+// A data key removed through an Edit tab (the owner's answer; D-55). The drawer's save that removes
+// a key of a Config Map or a Secret is destructive (datakeys.go, N152); so is object.apply when the
+// applied text no longer holds a key the cached object (or the version the edit is based on) holds:
+// the same loss of data a workload may read, through the other way of writing it. object.apply
+// escalates for it beside a scale to zero (EditScalesToZero), so the user confirms it for every
+// origin, the window included, and an agent always asks, agent writes allowed or not (D-2).
 //
 // The keys compared are the object's, not one field's: a Config Map's data and binaryData, a
 // Secret's data and stringData (the API server merges stringData into data and never returns it,
 // so a key moved from data to stringData stays). A key moved between a Config Map's data and
 // binaryData stays too: its value changes form, as a changed value does, which does not escalate
-// (the lead's decisions, night run 2026-10-16/17, in decisions.md D-55, with the comparison against
-// the cache and the base together). Only key names are compared and named, never a value: the
-// confirmation's detail lists the removed keys (DataKeysDetail).
+// (the lead's decisions, night run, in decisions.md D-55, with the comparison against the cache and
+// the base together). Only key names are compared and named, never a value: the confirmation's
+// detail lists the removed keys (DataKeysDetail).
 
 // dataKeyFields are the fields of a kind's object whose keys an Edit tab's apply must not drop
 // unconfirmed: a Config Map's and a Secret's; nil for every other kind.

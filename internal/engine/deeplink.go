@@ -334,12 +334,11 @@ var ErrDeepLinkDeclined = errors.New("the user declined to follow the link")
 // DeepLinkConnectCommand is the confirmation's command id for a link that connects a cluster.
 const DeepLinkConnectCommand = "deeplink.connect"
 
-// askLinkConnect asks the user once before a link connects a cluster (A7, owner 2026-10-14
-// evening; H-89): another cluster than the connected one, or one while none is connected (the
-// lead's reading: every connect a link would start asks, so a page that opens links in a loop
-// raises questions rather than connections). The question names the context and what the link
-// opens; navigation within the connected cluster never asks. Without a window to ask in the link
-// is refused.
+// askLinkConnect asks the user once before a link connects a cluster (A7, owner; H-89): another
+// cluster than the connected one, or one while none is connected (the lead's reading: every connect
+// a link would start asks, so a page that opens links in a loop raises questions rather than
+// connections). The question names the context and what the link opens; navigation within the
+// connected cluster never asks. Without a window to ask in the link is refused.
 func (s *Session) askLinkConnect(ctx context.Context, link DeepLink, ctxID string, u UIState) error {
 	s.mu.Lock()
 	confirmer := s.confirmer

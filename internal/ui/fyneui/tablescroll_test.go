@@ -13,10 +13,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A list that gets shorter while it is scrolled down (the owner's finding of 2026-10-22 on
-// acme-d-pinniped: the namespace filter narrowed the scrolled Pods list to two pods, "2 of 200
-// items", and no row was drawn): the table's offset comes back within the rows
-// (tableView.keepScrollInRows).
+// A list that gets shorter while it is scrolled down (the owner's finding on acme-d-pinniped: the
+// namespace filter narrowed the scrolled Pods list to two pods, "2 of 200 items", and no row was
+// drawn): the table's offset comes back within the rows (tableView.keepScrollInRows).
 
 // scrollPods are 198 pods in one namespace and two in kundenportal, whose names sort last.
 func scrollPods() []*unstructured.Unstructured {
@@ -90,9 +89,9 @@ func TestRowsGoneAtTheEndKeepTheEndShown(t *testing.T) {
 	}
 }
 
-// A view entered after another was scrolled down (the owner's finding of 2026-10-23, v0.40.1: a
-// view entered showed its header and "197 items" and no row until a minimal scroll) shows its rows
-// from its top (tableView.scrollToTop), however its first snapshots come.
+// A view entered after another was scrolled down (the owner's finding, v0.40.1: a view entered
+// showed its header and "197 items" and no row until a minimal scroll) shows its rows from its top
+// (tableView.scrollToTop), however its first snapshots come.
 
 // longPods are 400 pods, a list longer than the one entered after it.
 func longPods() []*unstructured.Unstructured {
@@ -197,8 +196,8 @@ func scrollConfigMaps() []*unstructured.Unstructured {
 	return out
 }
 
-// A tab comes back as it was left, its list where it scrolled it (the owner, 2026-10-23: "zurück
-// komme in meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe. Gleich
+// A tab comes back as it was left, its list where it scrolled it (the owner: "zurück komme in
+// meinem floating tab, dann ist er noch exakt so wie als ich ihn verlassen habe. Gleich
 // Scroll-position"; tabscroll.go).
 
 // showTab shows a tab of a cluster's view, its snapshots one after the other as the engine sends
@@ -396,12 +395,12 @@ func TestAScrollEndsTheWaitForATabsRows(t *testing.T) {
 	}
 }
 
-// TestATabsViewOpenedAgainStartsAtTheTop (the owner's VW15 of 2026-10-25, his live walk's D6 step
-// 5: "der Tab hat sich weiterhin gemerkt wo wir waren auch wenn die Vorschau neu geoeffnet wurde"):
-// tab-1's Pods scrolled, then Config Maps and Pods again in the same tab: Pods starts at its top,
-// whether the tab was left for another tab and shown again before (it came back where it was left,
-// and the place it kept then is gone once it opens another view), and whether Config Maps' rows
-// came or the tab went back to Pods before they did. A place kept afterwards comes back again.
+// TestATabsViewOpenedAgainStartsAtTheTop (the owner's VW15, his live walk's D6 step 5: "der Tab hat
+// sich weiterhin gemerkt wo wir waren auch wenn die Vorschau neu geoeffnet wurde"): tab-1's Pods
+// scrolled, then Config Maps and Pods again in the same tab: Pods starts at its top, whether the
+// tab was left for another tab and shown again before (it came back where it was left, and the
+// place it kept then is gone once it opens another view), and whether Config Maps' rows came or the
+// tab went back to Pods before they did. A place kept afterwards comes back again.
 func TestATabsViewOpenedAgainStartsAtTheTop(t *testing.T) {
 	for _, tc := range []struct {
 		name          string
@@ -451,8 +450,8 @@ func TestATabsViewOpenedAgainStartsAtTheTop(t *testing.T) {
 }
 
 // Back and forward bring a place of the tab's history back where its list was scrolled, with its
-// drawer, whose row is not scrolled to (the owner's finding of 2026-10-25: "beim zurück navigieren
-// möchte ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden").
+// drawer, whose row is not scrolled to (the owner's finding: "beim zurück navigieren möchte ich
+// auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden").
 
 // TestBackBringsTheListBackWhereItWasLeft: Pods with a pod's drawer, scrolled away from its row,
 // then Config Maps in the same tab, scrolled; back shows Pods where they were left and the pod's

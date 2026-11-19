@@ -5,10 +5,10 @@ package locale
 type patterns struct{ date, time string }
 
 // cldr holds the formats of common locales for Environment: CLDR's short date and medium time
-// patterns, as macOS 26's ICU wrote them on 2026-10-13 (CFDateFormatterCreate with
-// kCFDateFormatterShortStyle and kCFDateFormatterMediumStyle). A language alone ("de") stands for
-// its main territory, CLDR's default. Locales whose time writes a day period Go cannot (Korean's
-// 오후, Taiwanese Chinese's "B", Greek's π.μ.) are left out: they get ISO 8601.
+// patterns, as macOS 26's ICU wrote them (CFDateFormatterCreate with kCFDateFormatterShortStyle and
+// kCFDateFormatterMediumStyle). A language alone ("de") stands for its main territory, CLDR's
+// default. Locales whose time writes a day period Go cannot (Korean's 오후, Taiwanese Chinese's "B",
+// Greek's π.μ.) are left out: they get ISO 8601.
 var cldr = map[string]patterns{
 	"en_US":  {"M/d/yy", "h:mm:ss\u202fa"},
 	"en_GB":  {"dd/MM/y", "HH:mm:ss"},

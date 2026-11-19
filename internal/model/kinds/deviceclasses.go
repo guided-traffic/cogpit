@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// deviceClasses has the columns of Lens's documentation (read 2026-10-13, not captured): Name,
-// Driver ("the driver whose devices the class selects"), Age; its drawer names Selectors (the CEL
-// expressions the class matches devices on), Config and Extended Resource Name. Inferred: Driver
-// read from the selectors' comparisons of device.driver with a literal, else from the opaque
-// configuration's drivers; no status token (a class has no state); the drawer's form.
+// deviceClasses has the columns of Lens's documentation (read, not captured): Name, Driver ("the
+// driver whose devices the class selects"), Age; its drawer names Selectors (the CEL expressions
+// the class matches devices on), Config and Extended Resource Name. Inferred: Driver read from the
+// selectors' comparisons of device.driver with a literal, else from the opaque configuration's
+// drivers; no status token (a class has no state); the drawer's form.
 var deviceClasses = &model.KindProfile{
 	Key:      keyDeviceClasses,
 	Group:    groupResource,

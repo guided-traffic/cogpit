@@ -11,12 +11,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The identity a Flux action is carried out with (A34, owner 2026-10-14 evening; H-64): Cogpit's
-// patch is the user's, but the reconciliation it asks for is the Flux controller's. The
-// confirmation names whose rights it uses: the object's spec.serviceAccountName (a Kustomization's
-// or a Helm release's impersonation) or, without one, the controller's own service account.
-// Whether the controller enforces a default service account (--default-service-account) is a flag
-// of its Deployment Cogpit does not read: the sentence says so.
+// The identity a Flux action is carried out with (A34, owner; H-64): Cogpit's patch is the user's,
+// but the reconciliation it asks for is the Flux controller's. The confirmation names whose rights
+// it uses: the object's spec.serviceAccountName (a Kustomization's or a Helm release's
+// impersonation) or, without one, the controller's own service account. Whether the controller
+// enforces a default service account (--default-service-account) is a flag of its Deployment Cogpit
+// does not read: the sentence says so.
 
 // fluxControllers names the controller that reconciles each Flux API group.
 var fluxControllers = map[string]string{

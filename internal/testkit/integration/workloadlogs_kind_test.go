@@ -273,7 +273,7 @@ func TestKindWorkloadLogsAttachRestartScale(t *testing.T) {
 	case <-ctx.Done():
 		t.Fatal("the previous container's log did not end")
 	}
-	if got := prev.snapshot(); len(got) != 1 || !regexp.MustCompile(`^\d{4}-\d\d-\d\dT\S+Z crash run at `).MatchString(got[0]) { // every stream carries timestamps (2026-10-13)
+	if got := prev.snapshot(); len(got) != 1 || !regexp.MustCompile(`^\d{4}-\d\d-\d\dT\S+Z crash run at `).MatchString(got[0]) { // every stream carries timestamps
 		t.Errorf("previous container's log %q", got)
 	}
 	_ = stream.Close()

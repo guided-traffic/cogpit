@@ -7,10 +7,10 @@ import (
 )
 
 // Cluster Settings › General › Debug (D-135; engine/initiallists.go). Cogpit's own. A switch, "Use
-// initial streaming (BETA)", off by default, and under it a box that says what it is (the owner,
-// 2026-10-26: an opt-in beta; a static text that points at Kubernetes' WatchListClient and says it
-// may save API server resources). Off: every read lists its objects once and then watches. On, from
-// the next connect: every read gets its objects over the watch it keeps.
+// initial streaming (BETA)", off by default, and under it a box that says what it is (the owner: an
+// opt-in beta; a static text that points at Kubernetes' WatchListClient and says it may save API
+// server resources). Off: every read lists its objects once and then watches. On, from the next
+// connect: every read gets its objects over the watch it keeps.
 
 const (
 	streamsTitle = "Debug"

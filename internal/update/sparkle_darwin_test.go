@@ -192,13 +192,13 @@ const probeID = "io.guided-traffic.cogpit.test-sparkle-probe"
 
 // The Update button's signal from the real Sparkle (F7), and every scheduled check reading the feed
 // again: an installed app with the framework, the key and a feed on a local server runs Cogpit's
-// scheduled check twice; the first finds 99.1.0 and the delegate reports it with its version,
-// which the app's Go side keeps (cogpitSparkleUpdateChanged; the harness prints it), the second
-// finds 99.2.0, released meanwhile, and no update session stays open after either. Before
-// 2026-10-26 Sparkle's own scheduled check held the release it found in an update session and no
-// check ran while it lasted: a copy running for days offered 0.48.2 while 0.49.1 was out (the
-// owner's report). Sparkle shows no window for these checks. Skipped without clang or make
-// sparkle's framework. Not checked here: a check the user starts (Sparkle's window).
+// scheduled check twice; the first finds 99.1.0 and the delegate reports it with its version, which
+// the app's Go side keeps (cogpitSparkleUpdateChanged; the harness prints it), the second finds
+// 99.2.0, released meanwhile, and no update session stays open after either: Sparkle's own
+// scheduled check would hold the release it found in an update session and run no check while it
+// lasted, so that a copy running for days offers an old release (the owner's report). Sparkle shows
+// no window for these checks. Skipped without clang or make sparkle's framework. Not checked here:
+// a check the user starts (Sparkle's window).
 func TestSparkleScheduledChecksFindTheNewestRelease(t *testing.T) {
 	framework := sparkleFramework(t)
 	harness := buildHarness(t)
@@ -231,15 +231,14 @@ func TestSparkleScheduledChecksFindTheNewestRelease(t *testing.T) {
 const launchID = "io.guided-traffic.cogpit.test-sparkle-launch"
 
 // Cogpit checks for updates at every start while "Check for updates automatically" is on (the
-// owner, 2026-10-16): once, whenever Sparkle last checked, at the first launch too; its find goes
-// to the Update button, and a check that finds nothing says so. Sparkle never checks by itself:
-// its own scheduled checks are off, also where an older Cogpit left them on in the app's user
-// defaults and the last check is older than the interval that older release set (an hour), so
-// that Sparkle would check at once. With the preference off, no check at all. The harness starts
-// the updater as the app does and pumps events a few seconds past the first report or the
-// session's end; the test counts the feed's requests. The cases run in parallel, each an app of its
-// own with its own feed and user defaults, as each mostly waits. Skipped without clang or make
-// sparkle's framework.
+// owner): once, whenever Sparkle last checked, at the first launch too; its find goes to the Update
+// button, and a check that finds nothing says so. Sparkle never checks by itself: its own scheduled
+// checks are off, also where an older Cogpit left them on in the app's user defaults and the last
+// check is older than the interval that older release set (an hour), so that Sparkle would check at
+// once. With the preference off, no check at all. The harness starts the updater as the app does
+// and pumps events a few seconds past the first report or the session's end; the test counts the
+// feed's requests. The cases run in parallel, each an app of its own with its own feed and user
+// defaults, as each mostly waits. Skipped without clang or make sparkle's framework.
 func TestSparkleChecksAtEveryStart(t *testing.T) {
 	framework := sparkleFramework(t)
 	harness := buildHarness(t)

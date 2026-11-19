@@ -17,9 +17,9 @@ import (
 // (users[].user.exec): the program Cogpit shows the user before its first run, and what the user's
 // approval of it binds (docs/security/trust-boundaries.md, H-1). It describes the context's login
 // whenever that needs the user's approval: the plugin, a token file outside the kubeconfig's folder
-// (D-17), or, since A28 (owner, 2026-10-14 evening), a cluster that skips the check of the
-// server's certificate (insecure-skip-tls-verify, H-37), where nothing runs but the credential
-// goes to whoever answers at the server's address (Kind LoginInsecure when that is all).
+// (D-17), or, since A28 (owner), a cluster that skips the check of the server's certificate
+// (insecure-skip-tls-verify, H-37), where nothing runs but the credential goes to whoever answers
+// at the server's address (Kind LoginInsecure when that is all).
 //
 // It holds the names of the variables the plugin's environment adds, never their values: those
 // enter the fingerprint only. The other fields are as the kubeconfig wrote them, untrusted text;
@@ -262,10 +262,10 @@ type identityDoc struct {
 // SHA-256 of its content or the note saying why there is none: D-26), and the token file when it
 // needs approval. Two contexts of one file whose logins have the same identity run the same
 // program the same way (or read the same token file), so the approval dialog asks about them once
-// (D-28, 2026-10-12). It is no replacement for Fingerprint: the approval stays bound per context,
-// to the server and how it is trusted as well. A login that only skips the certificate check
-// (LoginInsecure) runs nothing to share: its identity is its own context's, so it is asked about on
-// its own (A28). An empty identity (nil or no login that needs approval) groups with nothing.
+// (D-28). It is no replacement for Fingerprint: the approval stays bound per context, to the server
+// and how it is trusted as well. A login that only skips the certificate check (LoginInsecure) runs
+// nothing to share: its identity is its own context's, so it is asked about on its own (A28). An
+// empty identity (nil or no login that needs approval) groups with nothing.
 func (p *ExecPlugin) Identity() string {
 	if !p.NeedsApproval() {
 		return ""

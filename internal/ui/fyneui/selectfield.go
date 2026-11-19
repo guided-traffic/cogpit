@@ -14,22 +14,23 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// selectField is Cogpit's dropdown, every one in the window (the owner's gate walk of 2026-10-20,
-// GW5; D-104). Fyne's Select opens its list below the field, the current entry among the others,
-// so the choice stands twice: "verwirrend". This one opens the list over the field as a macOS
-// pop-up button does: the current entry at the field's place, marked with a check, the entries
-// before it above and those after it below, the list scrolled when it is taller than the window
-// (a chart's hundreds of versions) so that the current entry still sits there.
+// selectField is Cogpit's dropdown, every one in the window (the owner's gate walk, GW5; D-104).
+// Fyne's Select opens its list below the field, the current entry among the others, so the choice
+// stands twice: "verwirrend". This one opens the list over the field as a macOS pop-up button does:
+// the current entry at the field's place, marked with a check, the entries before it above and
+// those after it below, the list scrolled when it is taller than the window (a chart's hundreds of
+// versions) so that the current entry still sits there.
 //
 // The field is Fyne's Select, embedded: its look, its state and its API (Options, Selected,
 // SetSelected, OnChanged, PlaceHolder, Disable), so a choice reaches the code through OnChanged
 // exactly as before and the commands and state agents see do not change. The list is Cogpit's,
-// and so is the field's outline, the one Fyne's entry draws (the owner's AW1 of 2026-10-22: Fyne's
-// Select draws a plate in the input background only, which on a dialog's card is the card's own
-// colour, so a closed dropdown read as no field). Keys as before: Space, ↑ and ↓ open it, ← and → step through the entries without it;
-// in the list ↑ ↓ (Page Up, Page Down, Home, End) move, a letter jumps to the next entry starting
-// with it, Return, Enter or Space choose and Escape closes, taking the keyboard off the field (the
-// next Escape goes on: AW2); a click outside closes it too. Escape on the field goes on to the window.
+// and so is the field's outline, the one Fyne's entry draws (the owner's AW1: Fyne's Select draws a
+// plate in the input background only, which on a dialog's card is the card's own colour, so a
+// closed dropdown read as no field). Keys as before: Space, ↑ and ↓ open it, ← and → step through
+// the entries without it; in the list ↑ ↓ (Page Up, Page Down, Home, End) move, a letter jumps to
+// the next entry starting with it, Return, Enter or Space choose and Escape closes, taking the
+// keyboard off the field (the next Escape goes on: AW2); a click outside closes it too. Escape on
+// the field goes on to the window.
 type selectField struct {
 	widget.Select
 	pop *selectPopup // the open list; nil, or hidden by a click outside, while closed
@@ -335,7 +336,7 @@ func (p *selectPopup) dismiss() {
 
 // escape is Escape on the open list: it closes without a choice, and the field gives the keyboard
 // up, so that it is no longer drawn focused and the next Escape goes on to what holds it (the
-// owner's AW2 of 2026-10-22: the field stayed blue and took the next Escape for nothing).
+// owner's AW2: the field stayed blue and took the next Escape for nothing).
 func (p *selectPopup) escape() {
 	p.dismiss()
 	if c := fyne.CurrentApp().Driver().CanvasForObject(p.sel); c != nil && c.Focused() == p.sel {

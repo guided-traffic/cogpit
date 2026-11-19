@@ -175,8 +175,7 @@ func registerHelmInstall(g *registrar) {
 			"create any object). An install a crash of Cogpit interrupts, or that fails, stays in " +
 			"helm_pendingOperations with its release's state; Cogpit offers nothing to finish it: the user decides " +
 			"in the Helm Releases view.",
-		// An agent's install always waits for the user, whatever the chart holds (A2, owner 2026-10-14
-		// evening).
+		// An agent's install always waits for the user, whatever the chart holds (A2, owner).
 		AgentsAsk: func(*engine.Session, installParams) bool { return true },
 		Enabled: func(s *engine.Session, p installParams) error {
 			if err := installEnabled(s, p); err != nil {

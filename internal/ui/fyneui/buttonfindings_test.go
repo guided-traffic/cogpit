@@ -13,7 +13,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The owner's button findings VW2–VW4 of the VW walk (2026-10-23, D-104's button block).
+// The owner's button findings VW2–VW4 of the VW walk (D-104's button block).
 
 // iconName is the name of the resource a themed or coloured icon wraps.
 func iconName(r fyne.Resource) string {

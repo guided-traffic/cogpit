@@ -9,8 +9,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// Restore the last session (D-69 item 8; the owner, 2026-10-16: a global preference, off by
-// default). Preferences › App › "Restore the last session":
+// Restore the last session (D-69 item 8; the owner: a global preference, off by default).
+// Preferences › App › "Restore the last session":
 //
 //   - On: at start Cogpit restores the tab bar's tabs of the last run (D-41) and connects again to
 //     the clusters that were connected when it quit, the one shown then first (Connect: the window

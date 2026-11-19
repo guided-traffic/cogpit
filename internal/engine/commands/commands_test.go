@@ -62,8 +62,8 @@ var wantCommands = map[string]engine.Danger{
 	"resource.templates": engine.DangerRead,
 	// A Config Map's values edited in the drawer (F3) (TestConfigMapDataSave).
 	"configMap.readData": engine.DangerRead, "configMap.reviewData": engine.DangerRead, "configMap.saveData": engine.DangerMutating,
-	// Its unsaved values kept, in memory and as a draft (the owner's answer of 2026-10-15): GUI-only,
-	// Cogpit's own files, never a cluster (TestConfigMapDrawerDrafts).
+	// Its unsaved values kept, in memory and as a draft (the owner's answer): GUI-only, Cogpit's
+	// own files, never a cluster (TestConfigMapDrawerDrafts).
 	"configMap.keepEdits": engine.DangerUI,
 
 	"cluster.refreshAccess": engine.DangerRead,
@@ -221,7 +221,7 @@ var wantCommands = map[string]engine.Danger{
 	"argocd.openUI":    engine.DangerMutating, // a port forward to argocd-server (TestArgoOpenUIFindsTheServer)
 	// What the dock's tabs show, for agents (G17, D-44); a terminal's switch is GUI-only.
 	"dock.read": engine.DangerRead, "dock.allowAgentRead": engine.DangerUI,
-	// The status filter of every view (D-34, owner 2026-10-14) (TestStatusFilterCommand).
+	// The status filter of every view (D-34, owner) (TestStatusFilterCommand).
 	"ui.setStatusFilter": engine.DangerUI,
 	// The built-in agent's chat column (D-10, M12): UI state only (TestChatToggle).
 	"chat.toggle": engine.DangerUI,

@@ -13,7 +13,7 @@ import (
 // The notification log (G5, ui-parity › Appearance: "Notifications in the title bar"): every toast
 // the user was shown, newest last, so that the title bar's bell can list what the user may have
 // missed and agents can read what the user was told (notifications.list). It is the session's, in
-// memory: a restart starts empty (Cogpit's default, 2026-10-13, not the owner's decision).
+// memory: a restart starts empty (Cogpit's default, not the owner's decision).
 //
 // What a notification carries is what its toast carried: a level and a message, never a value
 // (architecture §4.3). Two kinds of message are the window's (Notification.WindowOnly):
@@ -34,7 +34,7 @@ import (
 // workers and recover handlers that must not wait for the views to follow a change.
 
 // ErrNotificationsGUIOnly refuses marking notifications read or clearing them from anywhere but the
-// window (A18, owner 2026-10-14 evening): what the user has not seen yet stays unread for the user.
+// window (A18, owner): what the user has not seen yet stays unread for the user.
 var ErrNotificationsGUIOnly = errors.New("only the user, in Cogpit's own window, marks notifications read or clears them; " +
 	"agents read the list (notifications_list)")
 

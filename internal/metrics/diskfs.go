@@ -10,11 +10,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Which of a node's filesystems count (D-90, the owner's WF26 of 2026-10-18: "Hat der Server
-// vielleicht auch weitere Blockstorages … eine SSD an /data"): node-exporter reports every
-// filesystem the host mounts, by mountpoint, device and type; a node's drawer shows a usage bar for
-// each real one, the root first, and the Nodes list's Disk column the fullest. Real is what holds
-// the node's own data on a device of its own:
+// Which of a node's filesystems count (D-90, the owner's WF26: "Hat der Server vielleicht auch
+// weitere Blockstorages … eine SSD an /data"): node-exporter reports every filesystem the host
+// mounts, by mountpoint, device and type; a node's drawer shows a usage bar for each real one, the
+// root first, and the Nodes list's Disk column the fullest. Real is what holds the node's own data
+// on a device of its own:
 //
 //   - not a filesystem in memory or of the kernel (tmpfs, devtmpfs, proc, sysfs, cgroup, …), not a
 //     container's layers (overlay) or a read-only image (squashfs, erofs, iso9660): fsTypesSkipped;

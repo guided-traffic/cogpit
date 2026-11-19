@@ -487,8 +487,7 @@ func (c *chatPanel) requestLists() {
 				c.stale = true // read again when the column shows
 			}
 			c.conns, c.connsErr, c.connsRead = conns, err, true
-			c.input.refresh()
-			c.empty.refresh()
+			c.refreshChrome()                      // the header names the connection's model, the input and the examples follow
 			c.sh.settings.chatConnectionsChanged() // Preferences › Agent, when open
 			if c.history != nil && c.history.Visible() {
 				c.showHistory()
@@ -789,12 +788,13 @@ func (c *chatPanel) showPayload(idx int) {
 	go func() {
 		defer c.sh.recoverTo("the agent chat")
 		body, ok := c.agent.SentPayload(id, idx)
+		choices := c.agent.SentChoices(id, idx)
 		c.sh.do(func() {
 			if !ok {
 				c.sh.toast("info", "Nothing was sent for this message yet.")
 				return
 			}
-			c.payloadDialog(body, endpoint, private)
+			c.payloadDialog(body, choices, endpoint, private)
 		})
 	}()
 }
@@ -802,9 +802,15 @@ func (c *chatPanel) showPayload(idx int) {
 // payloadMaxLines is the most lines of a request body the dialog draws; Copy has all of them.
 const payloadMaxLines = 2000
 
-// payloadDialog is the request body, pretty-printed, read-only, with Copy.
-func (c *chatPanel) payloadDialog(body, endpoint string, private bool) {
+// payloadDialog is the request body, pretty-printed, read-only, with Copy; after it the bodies of
+// the requests that had the model choose from a large result (D-172), each under a line of its own.
+func (c *chatPanel) payloadDialog(body string, choices []string, endpoint string, private bool) {
 	text := prettyJSON(body)
+	for i, ch := range choices {
+		text += fmt.Sprintf("\n\n// Request %d of %d that had the model choose from a large result, %s:\n%s", i+1, len(choices),
+			model.FormatBytes(int64(len(ch))), prettyJSON(ch))
+		body += "\n\n" + ch
+	}
 	lines := strings.Split(text, "\n")
 	shown := text
 	note := model.FormatBytes(int64(len(body))) + ", as sent"

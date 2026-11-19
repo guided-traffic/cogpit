@@ -11,11 +11,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// A namespace the filter names that is deleted (the owner's alpha walk of 2026-10-22, AW11): his
-// Pods view was filtered to walk-gw9, a namespace without pods that a ConfigMap's finalizer held
-// Terminating, and the filter's button turned red only "sehr viel später": the window read the
-// namespaces again only when the view's rows changed, and no row of it did (D-106's gap). The
-// namespaces' own changes now tell it. The lead's details, open to revision (D-106):
+// A namespace the filter names that is deleted (the owner's alpha walk, AW11): his Pods view was
+// filtered to walk-gw9, a namespace without pods that a ConfigMap's finalizer held Terminating, and
+// the filter's button turned red only "sehr viel später": the window read the namespaces again only
+// when the view's rows changed, and no row of it did (D-106's gap). The namespaces' own changes now
+// tell it. The lead's details, open to revision (D-106):
 //   - the engine watches the namespaces while the shown cluster's namespace filter names some:
 //     then a namespace's state shows (the filter's button, nsgone.go); one handle, shared through
 //     the cache with the filter's own reads and the access reviews';

@@ -1,6 +1,7 @@
 package fyneui
 
 import (
+	"os"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -49,7 +50,11 @@ func (f *fakeLoginItem) called() []string {
 func loginItemEngine(t *testing.T, li engine.LoginItem) *engine.Session {
 	t.Helper()
 	cfg := filepath.Join(t.TempDir(), "Cogpit")
-	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{}, Preferences: engine.NewPreferencesStore(cfg),
+	kc := filepath.Join(t.TempDir(), "config")
+	if err := os.WriteFile(kc, []byte(settingsKubeconfig), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := newTestEngine(engine.Options{Connector: &engine.ClusterConnector{KubeconfigPaths: []string{kc}}, Preferences: engine.NewPreferencesStore(cfg),
 		ClusterSettings: engine.NewClusterSettingsStore(cfg), Hotbar: engine.NewHotbar(cfg), LoginItem: li})
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

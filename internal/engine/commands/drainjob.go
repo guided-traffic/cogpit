@@ -16,15 +16,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// node.drain as a background job (D-63, built 2026-10-16): after its confirmation (destructive,
-// for every origin) the command records the drain in the journal, starts a job and returns at once
-// with the job's dock tab. The job's steps are the cordon, then one per pod the drain evicts: the
-// cache's pods on the node while the drain has not listed them (when the cache holds the cluster's
-// pods: the Nodes view reads them), the drain's own list once it has. A pod's step runs while its
-// eviction is asked for ("Evicting"), refused for now ("Waiting: the PodDisruptionBudget web allows
-// no disruption now (…); retrying") and accepted ("Evicted; waiting for the pod to end"), and ends
-// done ("Evicted", "Gone already"), failed with the API server's error, or stopped. The job's
-// outcome counts the pods evicted, failed and not attempted.
+// node.drain as a background job (D-63): after its confirmation (destructive, for every origin) the
+// command records the drain in the journal, starts a job and returns at once with the job's dock
+// tab. The job's steps are the cordon, then one per pod the drain evicts: the cache's pods on the
+// node while the drain has not listed them (when the cache holds the cluster's pods: the Nodes view
+// reads them), the drain's own list once it has. A pod's step runs while its eviction is asked for
+// ("Evicting"), refused for now ("Waiting: the PodDisruptionBudget web allows no disruption now
+// (…); retrying") and accepted ("Evicted; waiting for the pod to end"), and ends done ("Evicted",
+// "Gone already"), failed with the API server's error, or stopped. The job's outcome counts the
+// pods evicted, failed and not attempted.
 //
 // The job keeps the command's context values but not its cancellation (JobSpec.Parent): an MCP
 // client that gives up on its call, or the call's end, no longer cancels the drain the user
@@ -331,7 +331,7 @@ func (dj *drainJob) leftAs() string {
 
 // leftState says what the drain left of a cordoned node (drainLeft, nodes.go): no pod evicted, or how
 // many of the node's pods were (a real cluster's drain was refused at once for its emptyDir pods
-// and still said "partly drained", 2026-10-16). Call it with dj.mu held or after the run.
+// and still said "partly drained"). Call it with dj.mu held or after the run.
 func (dj *drainJob) leftState() string {
 	evicted := 0
 	for _, st := range dj.steps[1:] {

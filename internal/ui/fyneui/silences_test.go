@@ -145,9 +145,9 @@ func textsOf(root fyne.CanvasObject) string {
 	return strings.Join(out, "\n")
 }
 
-// The board's state box (the owner, 2026-11-17): in the page's middle instead of cards, no alert
-// firing is a cup and how many are silenced; none in the namespace chosen says how many the cluster
-// has and removes the filter; none the search keeps clears it; no Alertmanager found offers Set Its
+// The board's state box (the owner): in the page's middle instead of cards, no alert firing is a
+// cup and how many are silenced; none in the namespace chosen says how many the cluster has and
+// removes the filter; none the search keeps clears it; no Alertmanager found offers Set Its
 // Address…. Renders, dark, for review.
 func TestBoardStateBox(t *testing.T) {
 	am := &testkit.FakeAlertmanager{}

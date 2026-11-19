@@ -652,9 +652,10 @@ const (
 )
 
 // headRef returns the name a tool result's raw result was held under, for a tool message that is a
-// head whose note names result_read. Only Cogpit's own shape counts: the result's frame line, the
-// document's one line, then the note's line, which ends in the call. An error's message and a
-// document hold the cluster's text, which may write the same words: neither is read.
+// head, or a choice's entries (choose.go), whose note names result_read. Only Cogpit's own shape
+// counts: the result's frame line, the document's one line, then the note's line, which ends in
+// the call. An error's message and a document hold the cluster's text, which may write the same
+// words: neither is read.
 func headRef(content string) (string, bool) {
 	frame, rest, ok := strings.Cut(content, "\n")
 	if !ok || !strings.HasPrefix(frame, resultFrameStart) || !strings.HasSuffix(frame, resultFrameEnd) {
@@ -666,7 +667,7 @@ func headRef(content string) (string, bool) {
 	}
 	note, _, _ := strings.Cut(rest, "\n") // a note about the connection may follow (D-58)
 	i := strings.LastIndex(note, headReadOn+toolRead+" ")
-	if i < 0 || !strings.HasPrefix(note, headNoteStart) || !strings.HasSuffix(note, headNoteEnd) {
+	if i < 0 || (!strings.HasPrefix(note, headNoteStart) && !strings.HasPrefix(note, choiceNoteStart)) || !strings.HasSuffix(note, headNoteEnd) {
 		return "", false
 	}
 	call := note[i+len(headReadOn) : len(note)-len(headNoteEnd)]

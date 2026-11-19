@@ -17,23 +17,23 @@ import (
 )
 
 // The tab bar of cluster views above the workspace, right of the navigator (ui-parity › Layout;
-// the tabs are engine state, engine/tabs.go). Captured from Lens Desktop (2026-10-11): a tab reads
-// "<view> - <context>" with the cluster's icon and a close button, the preview tab's title is
-// italic (that italic means preview is inferred), hovering a tab shows its full title; a single
-// click in the navigator opens a preview tab, a double click or ⇧↵ a fixed tab. Cogpit's defaults
-// (inferred, not the owner's decision, 2026-10-13):
+// the tabs are engine state, engine/tabs.go). Captured from Lens Desktop: a tab reads "<view> -
+// <context>" with the cluster's icon and a close button, the preview tab's title is italic (that
+// italic means preview is inferred), hovering a tab shows its full title; a single click in the
+// navigator opens a preview tab, a double click or ⇧↵ a fixed tab. Cogpit's defaults (inferred, not
+// the owner's decision):
 //   - a tab's icon is the cluster's icon as the navigator and the hotbar's tiles show it (cluster
 //     settings, clusteridentity.go): its uploaded image, else its initials badge in its icon colour,
-//     the accent by default (the owner's F25, 2026-10-17); muted while its cluster is not connected,
-//     an image faded (D-69 stage 2: a tab of another connected cluster is not muted);
+//     the accent by default (the owner's F25); muted while its cluster is not connected, an image
+//     faded (D-69 stage 2: a tab of another connected cluster is not muted);
 //   - the bar takes the dock's tab colours; the active tab is raised and underlined in the accent
 //     colour, as the dock's active tab is;
 //   - a title wider than the dock's widest tab title is cut with an ellipsis; tabs that do not fit
 //     scroll sideways, the active one scrolled into view;
 //   - a double click on a preview tab fixes it (ui.tab.pin), as editors do;
 //   - the bar shows while no tab is open too, empty, so that the window's layout does not jump when
-//     the first tab opens or the last closes (the owner's walk, LS11, 2026-10-24: "Ich denke die
-//     tableiste und der Leuchtstreifen sollten immer dargestellt werden");
+//     the first tab opens or the last closes (the owner's walk, LS11: "Ich denke die tableiste und
+//     der Leuchtstreifen sollten immer dargestellt werden");
 //   - the shortcuts are main-menu items of the View menu, so they work whatever has the focus:
 //     ⌘W, ⌘⌥→ and ⌘⌥←, ⌘1–⌘8 and ⌘9 (the last tab), ⌃- and ⌃⇧-; on Windows and Linux they are the
 //     Ctrl forms of the same keys, not Lens's Ctrl+PageUp/PageDown and Alt+←/→ (G22);

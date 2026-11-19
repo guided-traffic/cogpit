@@ -141,7 +141,7 @@ func TestRowCheckboxes(t *testing.T) {
 	if c := cellAt(t, sh, 2, checkColumn); !c.checked || c.drawer || c.iconRes != tv.cellIcon(cellContent{kind: cellCheck}, true) || sh.ui.Drawer != nil {
 		t.Fatalf("checked row: checked %v, the drawer's %v, checked icon %v, drawer %v", c.checked, c.drawer, c.iconRes == tv.cellIcon(cellContent{kind: cellCheck}, true), sh.ui.Drawer)
 	}
-	if !tv.check.bar.root.Visible() || tv.check.bar.count.text != "1 selected" { // from one row (owner, 2026-10-15)
+	if !tv.check.bar.root.Visible() || tv.check.bar.count.text != "1 selected" { // from one row (owner)
 		t.Errorf("selection bar for one object: visible %v, %q", tv.check.bar.root.Visible(), tv.check.bar.count.text)
 	}
 	if tv.check.bar.del.Disabled() {
@@ -475,11 +475,11 @@ func setDeleteReason(f *fakeEngine, reason string) {
 	f.disabled[deleteManyID] = reason
 }
 
-// TestSelectionBarDeleteNamesTheReason (the owner's audit decision of 2026-10-16, D-58 (c)): while
-// the shown cluster's connection is not connected, or its login lapsed, the bar's Delete is greyed
-// and its tooltip names the engine's reason as the row menus do, "Delete — connection interrupted";
-// another state asks the engine again; a shown tooltip follows; the connection back, Delete works
-// and its tooltip says what it does.
+// TestSelectionBarDeleteNamesTheReason (the owner's audit decision, D-58 (c)): while the shown
+// cluster's connection is not connected, or its login lapsed, the bar's Delete is greyed and its
+// tooltip names the engine's reason as the row menus do, "Delete — connection interrupted"; another
+// state asks the engine again; a shown tooltip follows; the connection back, Delete works and its
+// tooltip says what it does.
 func TestSelectionBarDeleteNamesTheReason(t *testing.T) {
 	f := connectedFake(t, 20)
 	withDeleteMany(t, f)

@@ -14,10 +14,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// The connection watch (D-58, standby and lost connections; owner, 2026-10-15). A computer that
-// sleeps drops every connection, and nothing told the user: the connection said Connected while
-// the views stood still. Each connection to a real cluster now has a watch that finds out, says
-// so, and reconnects:
+// The connection watch (D-58, standby and lost connections; owner). A computer that sleeps drops
+// every connection, and nothing told the user: the connection said Connected while the views stood
+// still. Each connection to a real cluster now has a watch that finds out, says so, and reconnects:
 //
 //   - Three signals check the connection at once: macOS's wake (NoteWake), a change of the network
 //     (NoteNetworkChange), and a list or watch of the cache that broke (cache.OnStreamError); and

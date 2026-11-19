@@ -493,9 +493,9 @@ func TestConversationHistory(t *testing.T) {
 
 func ptr[T any](v T) *T { return &v }
 
-// TestAnswerTiming (the owner's request of 2026-10-25): an answer keeps its TTFT and its output
-// tokens over the time they streamed, the endpoint's completion tokens where reported, else an
-// estimate marked as such; it is kept with the conversation.
+// TestAnswerTiming (the owner's request): an answer keeps its TTFT and its output tokens over the
+// time they streamed, the endpoint's completion tokens where reported, else an estimate marked as
+// such; it is kept with the conversation.
 func TestAnswerTiming(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{})
 	// The second part 100 ms after the first: Windows' clock reads a span in steps of up to 15.6 ms.

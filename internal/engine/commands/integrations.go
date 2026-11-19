@@ -16,13 +16,13 @@ import (
 // the default for new clusters too), cluster.integrations.later puts it off for this run, and
 // cluster.integrations.ask asks it again. All change only Cogpit's own settings and what it reads,
 // so they are UI commands. The question asks the user's consent to what Cogpit looks for with the
-// user's identity, so only the user answers it, in Cogpit's window (H-126, the owner's decision of
-// 2026-10-19: "Nein"; engine/integrationsguionly.go): step, lookFor and answer are GUI-only, as is
-// switching an integration on or off in cluster.settings.set and preferences.set (H-133, the
-// owner's decision of 2026-10-20), and Ask again, which forgets the user's choice and so switches
-// every integration of the cluster off until the user answers (the lead's decision, 2026-10-24).
-// Later stays open to agents and the CLI: it only puts off a question nobody has answered, whose
-// cluster reads nothing meanwhile (the lead's decision, 2026-10-19).
+// user's identity, so only the user answers it, in Cogpit's window (H-126, the owner's decision:
+// "Nein"; engine/integrationsguionly.go): step, lookFor and answer are GUI-only, as is switching an
+// integration on or off in cluster.settings.set and preferences.set (H-133, the owner's decision),
+// and Ask again, which forgets the user's choice and so switches every integration of the cluster
+// off until the user answers (the lead's decision). Later stays open to agents and the CLI: it only
+// puts off a question nobody has answered, whose cluster reads nothing meanwhile (the lead's
+// decision).
 
 // refuseQuestion refuses the question's steps, ticks, answer and Ask again from anywhere but the
 // window (Dispatch refuses them first, the commands being GUI-only; Run checks again).
@@ -208,7 +208,7 @@ func registerIntegrations(g *registrar) {
 	add(g, engine.Spec[integrationsAskParams]{
 		ID: "cluster.integrations.ask", Label: "Ask About Integrations Again", Danger: engine.DangerUI,
 		// H-133: forgetting the user's choice switches every integration of the cluster off until the
-		// user answers again (the lead's decision, 2026-10-24).
+		// user answers again (the lead's decision).
 		GUIOnly: engine.ErrIntegrationsGUIOnly,
 		Description: "Asks the question about a cluster's integrations again, as Cluster Settings › Integrations' Ask again " +
 			"does: the cluster's choice of integrations is forgotten (and a Later of this run), nothing of its integrations " +

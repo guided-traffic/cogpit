@@ -181,7 +181,7 @@ func TestDeleteManyJobCancelled(t *testing.T) {
 		}
 	}
 	// The request comes first; the dispatch's done and the job's end in either order: the job runs
-	// on and can be cancelled (at s02) before the dispatch has written its done line (CI, 2026-10-20).
+	// on and can be cancelled (at s02) before the dispatch has written its done line.
 	wantPhases := []string{"requested true ", "done true ", "ended false " + want}
 	sorted := slices.Clone(phases)
 	if len(sorted) > 1 {

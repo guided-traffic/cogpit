@@ -13,12 +13,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The navigator's header (navigator.go; D-57, the owner's interview of 2026-10-15 evening): at the
-// section the title "All Clusters", a "+" that adds kubeconfigs and the search button; at a cluster
-// the button "‹ All Clusters", the one way up to the section (← on the tree's root is the
-// keyboard's), and the search button. Below them the search field while it is open. Lens's header
-// has a dropdown of the scope instead; Cogpit's went with the context picker, so that one list
-// chooses a cluster (D-57).
+// The navigator's header (navigator.go; D-57, the owner's interview): at the section the title "All
+// Clusters", a "+" that adds kubeconfigs and the search button; at a cluster the button "‹ All
+// Clusters", the one way up to the section (← on the tree's root is the keyboard's), and the search
+// button. Below them the search field while it is open. Lens's header has a dropdown of the scope
+// instead; Cogpit's went with the context picker, so that one list chooses a cluster (D-57).
 
 // navAllClusters is the header's name of the section level; its root row keeps Lens's "Local
 // Kubeconfigs" (navSectionTitle), the name the cloud sections will need beside it (G18).
@@ -49,7 +48,7 @@ func newNavHeader(s *sidebar) *navHeader {
 	h.field.Hide()
 	// The title sits where the scope dropdown's text sat; the back button's ‹ takes that place, and
 	// the button the whole row up to the buttons at its right, so a click anywhere left of them goes
-	// up (the owner's WF27, 2026-10-18: "rechts davon ist auch valid").
+	// up (the owner's WF27: "rechts davon ist auch valid").
 	title := inset(theme.SizeNameInnerPadding, "", h.title)
 	top := inset(theme.SizeNamePadding, theme.SizeNamePadding, container.NewBorder(nil, nil, nil,
 		container.NewHBox(container.NewCenter(h.addB), container.NewCenter(h.searchB)),

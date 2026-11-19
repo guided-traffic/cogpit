@@ -400,8 +400,8 @@ func (tv *tableView) updateTitle() {
 // before the connection was interrupted or the login expired (a view opened since, a cluster shown
 // again after its cache went cold): the cache's lists wait until the cluster is back
 // (cluster.HealthInterrupted, HealthLoginExpired), so nothing loads or syncs meanwhile and the
-// view says so instead of "Loading…" and "syncing…" (the owner's finding of 2026-10-22). A view
-// read before keeps its rows as of then (D-58).
+// view says so instead of "Loading…" and "syncing…" (the owner's finding). A view read before keeps
+// its rows as of then (D-58).
 func (tv *tableView) unreadWhileAway() bool {
 	if st := tv.sh.ui.Connection.State; st != engine.Interrupted && st != engine.LoginExpired {
 		return false
@@ -418,8 +418,7 @@ func unreadText(noun string, st engine.ConnectionState) string {
 }
 
 // updateConnecting shows, while the cluster connects, the login its credential plugin waits for and
-// Cancel Connecting (D-73; the owner's finding of 2026-10-16 night: a login nobody finished could
-// not be ended).
+// Cancel Connecting (D-73; the owner's finding: a login nobody finished could not be ended).
 func (tv *tableView) updateConnecting(ui engine.UIState) {
 	if ui.Connection.State != engine.Connecting {
 		tv.detailBox.Hide()
@@ -566,13 +565,12 @@ func (tv *tableView) setSnapshot(snap *engine.TableSnapshot) {
 }
 
 // scrollToTop shows a view entered from its top, unless its tab comes back to it (tabscroll.go),
-// both offsets set (the owner's finding of
-// 2026-10-23, v0.40.1: a view entered showed its header and "197 items" and no row until a
-// minimal scroll). Fyne 2.8's table and its scroller each keep an offset, and the table draws its
-// rows from its own: the keyboard's first cell (resetKeyboard, Fyne's ScrollTo) scrolls only as far
-// as the cell below the header row needs, so the first row stayed under it, and not at all while
-// the entered view has no rows yet (its list not synced), so the offset the view left kept
-// standing; past the new rows' end, below a longer list's, it drew none.
+// both offsets set (the owner's finding, v0.40.1: a view entered showed its header and "197 items"
+// and no row until a minimal scroll). Fyne 2.8's table and its scroller each keep an offset, and
+// the table draws its rows from its own: the keyboard's first cell (resetKeyboard, Fyne's ScrollTo)
+// scrolls only as far as the cell below the header row needs, so the first row stayed under it, and
+// not at all while the entered view has no rows yet (its list not synced), so the offset the view
+// left kept standing; past the new rows' end, below a longer list's, it drew none.
 func (tv *tableView) scrollToTop() {
 	tv.table.ScrollToOffset(fyne.Position{})
 	tv.table.offset = fyne.Position{}
@@ -582,7 +580,7 @@ func (tv *tableView) scrollToTop() {
 // shorter, as a scroller does with its own: down to where the new last row ends at the bottom, to
 // the top when every row fits. Fyne 2.8's table keeps its offset where the longer list left it and
 // draws the rows from there, past the new last one: a namespace filter that narrowed a list
-// scrolled down to two pods showed "2 of 200 items" and no row (the owner's finding of 2026-10-22,
+// scrolled down to two pods showed "2 of 200 items" and no row (the owner's finding,
 // acme-d-pinniped). Its scroller checks its offset again only when it is resized, and then sets an
 // offset that no longer fits to zero without telling the table, which keeps its own; the table's
 // ScrollToOffset sets both.
@@ -1058,9 +1056,9 @@ func (tv *tableView) flexColumn() int {
 	return 0
 }
 
-// minFlexWidth is how narrow the flex column gets before the table scrolls sideways: since the
-// checkbox column (2026-10-13) a view with many columns, such as Pods, gives up width of its name
-// rather than push the ⋮ out of a window of 1440 points (Cogpit's, inferred).
+// minFlexWidth is how narrow the flex column gets before the table scrolls sideways: with the
+// checkbox column a view with many columns, such as Pods, gives up width of its name rather than
+// push the ⋮ out of a window of 1440 points (Cogpit's, inferred).
 const minFlexWidth = 140
 
 // fitColumns gives every column its width and stretches the flex column to fill the frame, as
@@ -1190,8 +1188,8 @@ func (tv *tableView) updateNamespaceButton() {
 		tv.nsTint.Refresh()
 	}
 	// Lens shows no namespace filter on a cluster-scoped view (captures of Nodes, Ingress Classes,
-	// Cluster Roles and Cluster Role Bindings, 2026-10-11), and a group filter on Definitions.
-	// The silences page has none: silences are the Alertmanager's, not a namespace's (D-166).
+	// Cluster Roles and Cluster Role Bindings), and a group filter on Definitions. The silences
+	// page has none: silences are the Alertmanager's, not a namespace's (D-166).
 	if tv.groupMode() || tv.viewNamespaced() && tv.sh.ui.View != engine.AlertSilences {
 		tv.nsBox.Show()
 	} else {
@@ -1476,9 +1474,9 @@ type rowMarks struct{ drawer, checked bool }
 // layout when the cell's size is unchanged, and the GL driver lays a cell out only when one of its
 // objects' minimum size changed. What Layout alone shows, hides and places (a pod's squares, a
 // usage bar, the count after the squares) would otherwise stay as the cell's last content left it:
-// a colleague of the owner saw a pod with three squares of which the third was the pod's before
-// (2026-10-19). Laying out here keeps one rule for every object a cell draws, a new kind of mark
-// included (architecture.md §4.4, the lead's choice of 2026-10-19).
+// a colleague of the owner saw a pod with three squares of which the third was the pod's before.
+// Laying out here keeps one rule for every object a cell draws, a new kind of mark included
+// (architecture.md §4.4, the lead's choice).
 func (c *tableCell) set(row, col int, content cellContent, marks rowMarks, hover, linkHover bool) bool {
 	c.row, c.col = row, col
 	changed := false
@@ -1939,11 +1937,11 @@ func (c *tableCell) fit(th fyne.Theme) bool {
 }
 
 // fitMarks decides how many of the cell's squares show in avail and returns the text after them:
-// "+N" for the N that do not fit, empty when all do (the owner's F24 of 2026-10-17: a pod with more
-// containers than the column is wide must not look as if the few shown were all it has). The
-// squares give way until the count fits beside them; apply colours the count by the hidden
-// containers' gravest state (moreStatus), so that "+1" in the Running colour tells a running
-// container behind finished init containers.
+// "+N" for the N that do not fit, empty when all do (the owner's F24: a pod with more containers
+// than the column is wide must not look as if the few shown were all it has). The squares give way
+// until the count fits beside them; apply colours the count by the hidden containers' gravest state
+// (moreStatus), so that "+1" in the Running colour tells a running container behind finished init
+// containers.
 //
 // At most maxCellMarks squares show however wide the column is: a pod debugged often collects
 // finished ephemeral containers (they stay as long as the pod), which come last and are counted
@@ -2123,7 +2121,7 @@ func (c *tableCell) layout(size fyne.Size) {
 }
 
 // markColorName is a square's colour: its status colour, but a running container (StatusOK) in the
-// greener colorContainerRunning (owner, 2026-10-12).
+// greener colorContainerRunning (owner).
 func markColorName(s model.Status) fyne.ThemeColorName {
 	if s == model.StatusOK {
 		return colorContainerRunning
@@ -2323,8 +2321,8 @@ func (r *headerCellRenderer) Layout(size fyne.Size) {
 	pad := th.Size(sizeCellPadding)
 	is := th.Size(sizeSortIcon)
 	// The title within the column, shortened with an ellipsis where the column is narrower than it
-	// (the owner, 2026-11-03: a column dragged narrow ran its title over the next one's), room left
-	// for the sort arrow; a title without room for an ellipsis shows none.
+	// (the owner: a column dragged narrow ran its title over the next one's), room left for the
+	// sort arrow; a title without room for an ellipsis shows none.
 	room := size.Width - pad - gap/2
 	if h.sort != 0 {
 		room -= gap/2 + is
@@ -2366,7 +2364,7 @@ func (r *headerCellRenderer) Refresh() {
 	h.text.Text = h.title
 	// Muted bold text on the stage, a hairline under it and a short divider between the columns,
 	// both in the bracket's ink: no band. The dividers show where a column is dragged wider (the
-	// owner missed them in the first build of Dark Cockpit, 2026-10-21).
+	// owner missed them in the first build of Dark Cockpit).
 	h.text.TextSize = th.Size(theme.SizeNameText) - 1
 	h.text.TextStyle = fyne.TextStyle{Bold: true}
 	h.text.Color = themeColor(th, colorMuted)

@@ -132,7 +132,7 @@ func (k *kubeconfigUI) announce(res any) {
 
 // noClusters tells the user that a source they just synced offers no cluster, which files it
 // found and why each was skipped, and offers to remove it again: a toast saying "0 contexts" was
-// easy to miss (owner, 2026-10-12).
+// easy to miss (owner).
 func (k *kubeconfigUI) noClusters(a sourceAdded) {
 	width := k.sh.app.Settings().Theme().Size(sizePickerWidth)
 	path := kubeconfig.DisplayText(a.Source.Path, maxShownPath)

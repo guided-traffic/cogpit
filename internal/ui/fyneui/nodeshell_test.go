@@ -224,10 +224,10 @@ func TestClusterSettingsNodeShellSection(t *testing.T) {
 	q.until(t, "the pinned note", func() bool { return note.text == nodeShellNotePinned })
 }
 
-// TestClusterSettingsNodeShellMaxDuration: Maximum duration (owner, 2026-10-14, D-37) shows the
-// default 2h as its placeholder and says it in words under the field; 90m typed is kept as 90
-// minutes and said as 1 hour 30 minutes; 3m is refused under the field with the bounds; emptied, it
-// is the default again; an agent's reset shows.
+// TestClusterSettingsNodeShellMaxDuration: Maximum duration (owner, D-37) shows the default 2h as
+// its placeholder and says it in words under the field; 90m typed is kept as 90 minutes and said as
+// 1 hour 30 minutes; 3m is refused under the field with the bounds; emptied, it is the default
+// again; an agent's reset shows.
 func TestClusterSettingsNodeShellMaxDuration(t *testing.T) {
 	s, _ := settingsEngine(t)
 	sh, w, q := newEngineShell(t, s, Options{})

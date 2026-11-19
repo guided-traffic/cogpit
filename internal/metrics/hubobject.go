@@ -10,8 +10,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The poll of an open drawer (G12, owner 2026-10-12, evening). Both providers together is the
-// normal case:
+// The poll of an open drawer (G12, owner). Both providers together is the normal case:
 //
 //   - History from Prometheus: when the drawer opens, Prometheus is asked once for the charts'
 //     range (CPU and memory: two range queries), and once more when a range changes.

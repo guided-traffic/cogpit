@@ -172,11 +172,10 @@ func (r Repository) AllowCredentialsOverHTTP() *Repository {
 	return &r
 }
 
-// HTTPBinding is what the user's allowance of credentials over plain http binds (H-40, owner
-// 2026-10-14): the repository's name, its URL and its user name, as a SHA-256 in hex. A changed
-// URL or user gives another binding, and the allowance no longer applies; a changed password
-// keeps it. No password goes into it, so it may be kept on disk; empty for a repository without
-// basic auth.
+// HTTPBinding is what the user's allowance of credentials over plain http binds (H-40, owner): the
+// repository's name, its URL and its user name, as a SHA-256 in hex. A changed URL or user gives
+// another binding, and the allowance no longer applies; a changed password keeps it. No password
+// goes into it, so it may be kept on disk; empty for a repository without basic auth.
 func (r *Repository) HTTPBinding() string {
 	if r == nil || r.auth == nil {
 		return ""
@@ -189,7 +188,7 @@ func (r *Repository) HTTPBinding() string {
 }
 
 // Origin says how the repository's content reaches Cogpit when nothing authenticates it (H-41,
-// owner 2026-10-14 evening, A14): kinds.HelmOriginHTTP for a repository served over plain http,
+// owner, A14): kinds.HelmOriginHTTP for a repository served over plain http,
 // kinds.HelmOriginInsecureTLS for one over https whose entry says insecure_skip_tls_verify; ""
 // for https with the server's certificate checked. Plain http wins: its entry's TLS setting does
 // not apply.

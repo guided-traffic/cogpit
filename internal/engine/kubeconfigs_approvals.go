@@ -10,10 +10,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/kubeconfig"
 )
 
-// Asking for credential plugins once per file and plugin (D-28, owner's decision 2026-10-12): a
-// kubeconfig with ten contexts that run the same `aws eks get-token` shows one dialog that lists
-// the ten, and one click allows them all. Only the asking is bundled. The approvals stay one per
-// context, each with its own fingerprint (the server and how it is trusted are bound per context,
+// Asking for credential plugins once per file and plugin (D-28, owner's decision): a kubeconfig
+// with ten contexts that run the same `aws eks get-token` shows one dialog that lists the ten, and
+// one click allows them all. Only the asking is bundled. The approvals stay one per context, each
+// with its own fingerprint (the server and how it is trusted are bound per context,
 // trust-boundaries H-1), and the engine verifies every fingerprint the dialog showed against the
 // file as it is now before it records any of them.
 

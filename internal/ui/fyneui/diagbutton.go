@@ -9,12 +9,12 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// diagButton is the status bar's button for Connection Diagnostics (D-133, the owner's answer of
-// 2026-10-26: "Es gibt in der Status-Leiste dann nur noch ein Button, um die Connection Diagnostics
-// zu öffnen"): a muted pill "Diagnostics" while the shown cluster's diagnostics log has no problem
-// since its latest connect, the warning colour with their count once it has (capped "99+"). A click
-// opens the tab (diagnostics.open); the tooltip says the counts the bar showed before (the requests,
-// the watches) and the problems.
+// diagButton is the status bar's button for Connection Diagnostics (D-133, the owner's answer: "Es
+// gibt in der Status-Leiste dann nur noch ein Button, um die Connection Diagnostics zu öffnen"): a
+// muted pill "Diagnostics" while the shown cluster's diagnostics log has no problem since its
+// latest connect, the warning colour with their count once it has (capped "99+"). A click opens the
+// tab (diagnostics.open); the tooltip says the counts the bar showed before (the requests, the
+// watches) and the problems.
 type diagButton struct {
 	widget.BaseWidget
 	sh       *shell

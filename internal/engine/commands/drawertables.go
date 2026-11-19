@@ -11,11 +11,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// ui.sortDrawerTable: the order of a sortable table in the detail drawer (owner, 2026-10-13: a
-// node's Pods sort by Name, Namespace, CPU, Memory and Status; a workload's Pods since D-40, under
-// the same title and so the same order; engine/drawersort.go). The order is
-// UI state the engine holds (UIState.DrawerSort), so a click on a column's title in the window and
-// an agent set the same thing, and ui_state shows it.
+// ui.sortDrawerTable: the order of a sortable table in the detail drawer (owner: a node's Pods sort
+// by Name, Namespace, CPU, Memory and Status; a workload's Pods since D-40, under the same title
+// and so the same order; engine/drawersort.go). The order is UI state the engine holds
+// (UIState.DrawerSort), so a click on a column's title in the window and an agent set the same
+// thing, and ui_state shows it.
 
 type drawerSortParams struct {
 	Section string `json:"section,omitempty" jsonschema:"the title of the drawer's table to sort, as object_get's sections name it: Pods (a node's or a workload's pods), Referenced By (what points at the object, with back references on); omitted: the drawer's only sortable table"`

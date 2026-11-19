@@ -18,10 +18,9 @@ import (
 )
 
 // TestNetworkOnlyDrawerAsksNoLiveUsage: a node's drawer whose one chart shows the network asks the
-// Metrics Server nothing and Prometheus no CPU or memory, poll after poll (2026-10-16 night; before,
-// every object poll asked for the live CPU and memory); back to CPU, the live values go on. The
-// same with CPU and memory hidden by the cluster's settings: the chart shows the network by
-// default, and nothing asks for them. Counted at the fake API server.
+// Metrics Server nothing and Prometheus no CPU or memory, poll after poll; back to CPU, the live
+// values go on. The same with CPU and memory hidden by the cluster's settings: the chart shows the
+// network by default, and nothing asks for them. Counted at the fake API server.
 func TestNetworkOnlyDrawerAsksNoLiveUsage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	defer cancel()

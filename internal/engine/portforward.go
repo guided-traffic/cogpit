@@ -111,7 +111,7 @@ func ForwardName(target model.ObjectRef, port uint16) string {
 // forwardURL is a forward's URL. It names the address the listener is on, 127.0.0.1, never
 // localhost: localhost resolves to ::1 first on macOS, and a client (a browser, curl, Go's HTTP
 // client) then reaches whatever another local process listens on at [::1] and the same port,
-// never falling back to the forward (review 2026-10-11, TestForwardURLReachesTheForward).
+// never falling back to the forward (review, TestForwardURLReachesTheForward).
 func forwardURL(https bool, port uint16) string {
 	scheme := schemeHTTP
 	if https {

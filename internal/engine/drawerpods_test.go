@@ -14,8 +14,8 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// The CPU and Memory of the pods a node's drawer lists (owner, 2026-10-13), from a fake metrics
-// provider through the hub, as the Pods list gets them; polled while the drawer shows the table.
+// The CPU and Memory of the pods a node's drawer lists (owner), from a fake metrics provider
+// through the hub, as the Pods list gets them; polled while the drawer shows the table.
 
 // podTableProvider measures the pods in usage ("namespace/name") and counts its lists by
 // namespace; it measures no single pod and no node.

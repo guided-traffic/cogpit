@@ -18,8 +18,8 @@ import (
 // rateWindow is the range of the rate() queries of the current values (the lists, metrics.get) and
 // the shortest of the charts'. Prometheus asks for at least four scrape intervals: the prometheus
 // chart scrapes every minute, and cAdvisor stamps a sample with its own collection time, up to a
-// minute before the scrape. On kind with that chart (2026-10-12) a [2m] range left 5 to 7 of 52
-// points of a half-hour chart empty and the newest one or two minutes missing; [4m] left none.
+// minute before the scrape. On kind with that chart a [2m] range left 5 to 7 of 52 points of a
+// half-hour chart empty and the newest one or two minutes missing; [4m] left none.
 const rateWindow = 4 * time.Minute
 
 // rangeRate is the rate() range of a chart's query at step: every sample between two points counts
@@ -224,8 +224,8 @@ func nodeSelectors(metric, extra string, m nodeMatch) [2]string {
 
 // nodeDisks keeps the node's block devices among its root cgroup's filesystem series. cAdvisor
 // reports every mount there, and the overlay mounts of the containers repeat the disk they live
-// on, so a sum over all of them counts one disk many times (kind, 2026-10-12: nine overlays of
-// /dev/vda1 summed to 503 GiB on a 56 GiB disk). /dev/shm is memory.
+// on, so a sum over all of them counts one disk many times (kind: nine overlays of /dev/vda1 summed
+// to 503 GiB on a 56 GiB disk). /dev/shm is memory.
 const nodeDisks = `device=~"/dev/.+",device!="/dev/shm"`
 
 // nodeSum sums the root cgroup of one node: a gauge as is (win 0), a counter as its rate over win.
@@ -248,12 +248,14 @@ func nodeSumWhere(metric, extra string, m nodeMatch, win time.Duration) string {
 }
 
 // node-exporter's metrics, which a node's CPU and memory come from where the cluster's Prometheus
-// has them (A43, D-43, owner 2026-10-14 evening): kube-prometheus-stack's kubelet ServiceMonitor
-// drops cAdvisor's root cgroup, so a node there had no history (F1).
+// has them (A43, D-43, owner): kube-prometheus-stack's kubelet ServiceMonitor drops cAdvisor's root
+// cgroup, so a node there had no history (F1).
 const (
 	metricNodeCPU          = "node_cpu_seconds_total"
 	metricNodeMemTotal     = "node_memory_MemTotal_bytes"
-	metricNodeMemFree      = "node_memory_MemFree_bytes"
+	metricNodeAnon         = "node_memory_AnonPages_bytes"
+	metricNodeCached       = "node_memory_Cached_bytes"
+	metricNodeBuffers      = "node_memory_Buffers_bytes"
 	metricNodeInactiveFile = "node_memory_Inactive_file_bytes"
 )
 
@@ -278,7 +280,7 @@ func exporterRate(metric, extra, matcher string, win time.Duration) string {
 }
 
 // node-exporter's network and disk metrics, which a node's Network and Filesystem charts read
-// where the cluster's Prometheus has them (G12, 2026-10-16), as its CPU and memory do (A43):
+// where the cluster's Prometheus has them (G12), as its CPU and memory do (A43):
 // kube-prometheus-stack drops cAdvisor's root cgroup, so those charts stayed empty there. The
 // filesystem's usage reads the disks' gauges (metricFSSize, metricFSAvail in disk.go).
 const (
@@ -292,10 +294,10 @@ const (
 // the container runtimes, the network plugins and the kernel create (the pods' veth and lxc ends,
 // the plugins' bridges, overlays and tunnels, the kernel's fallback tunnel devices, WireGuard) are
 // left out, since the same bytes pass them and the node's own interface, and a sum over all of
-// them counts the traffic several times (a real cluster with Cilium, 2026-10-16: 34 interfaces on
-// one node, the overlay, WireGuard and the physical interface each carrying the pods' traffic).
-// The names are the plugins' and the kernel's defaults; one not listed is counted (not guarded),
-// and so are a bond and its members (counted twice, not guarded).
+// them counts the traffic several times (a real cluster with Cilium: 34 interfaces on one node, the
+// overlay, WireGuard and the physical interface each carrying the pods' traffic). The names are the
+// plugins' and the kernel's defaults; one not listed is counted (not guarded), and so are a bond
+// and its members (counted twice, not guarded).
 const nodeInterfaces = `device!~"lo|veth.+|lxc.+|cali.+|cilium_.+|flannel.+|cni.+|cbr.+|docker.+|br-.+|virbr.+|vxlan.+|genev.+|tunl.+|tun.+|wg.+|kube-.+|weave.*|nodelocaldns|antrea-.+|ovs-.+|ovn-.+|gre.+|erspan.+|ip6gre.+|ip6tnl.+|ip_vti.+|ip6_vti.+|sit.+|dummy.+|nerdctl.+|[a-f0-9]{15}"`
 
 // nodeBlockDevices keeps the disks among node-exporter's disk statistics: device-mapper and
@@ -312,22 +314,27 @@ func exporterFSUsage(matcher string) string {
 		selector(metricFSSize, matcher, nodeDisks), selector(metricFSAvail, matcher, nodeDisks))
 }
 
-// exporterMemory is the memory in use the node-exporter series that match give: the total less the
-// free memory and the inactive file cache. That is how the kubelet counts the root cgroup's working
-// set (its usage less inactive_file; on cgroup v2 the root's usage is MemTotal less MemFree), so
-// the history and the Metrics Server's live values mean the same. Each exporter counted once.
+// exporterMemory is the memory in use the node-exporter series that match give, counted as the
+// kubelet counts a node's working set (D-175): the anonymous pages, the page cache and the block
+// devices' buffers, less the inactive file cache. The kubelet's node is cAdvisor's root cgroup,
+// whose working set is its usage less inactive_file; on cgroup v2 the root has no memory.current
+// and runc takes memory.stat's anon + file for its usage, and the root's file is /proc/meminfo's
+// Cached + Buffers (the swap cache is in the node's file pages, not in a cgroup's). So kernel
+// memory (slab, stacks, page tables) and reserved huge pages are not in use here, as they are not
+// in the Metrics Server's live value. Each exporter counted once.
 func exporterMemory(matcher string) string {
-	return fmt.Sprintf("sum(max by (node, instance) (%s - %s - %s))",
-		selector(metricNodeMemTotal, matcher), selector(metricNodeMemFree, matcher), selector(metricNodeInactiveFile, matcher))
+	return fmt.Sprintf("sum(max by (node, instance) (%s + %s + %s - %s))",
+		selector(metricNodeAnon, matcher), selector(metricNodeCached, matcher),
+		selector(metricNodeBuffers, matcher), selector(metricNodeInactiveFile, matcher))
 }
 
-// exporterGroupMemory is exporterMemory with the matcher on the total only: the free and the
-// inactive series join it one to one, so it holds for all three, and a query naming every node of
-// the cluster is a third as long. The free and inactive series of every exporter are read, as an
-// every-node query reads them anyway.
+// exporterGroupMemory is exporterMemory with the matcher on the anonymous pages only: the other
+// series join them one to one, so it holds for all four, and a query naming every node of the
+// cluster is a quarter as long. The other series of every exporter are read, as an every-node
+// query reads them anyway.
 func exporterGroupMemory(matcher string) string {
-	return fmt.Sprintf("sum(max by (node, instance) (%s - %s - %s))",
-		selector(metricNodeMemTotal, matcher), metricNodeMemFree, metricNodeInactiveFile)
+	return fmt.Sprintf("sum(max by (node, instance) (%s + %s + %s - %s))",
+		selector(metricNodeAnon, matcher), metricNodeCached, metricNodeBuffers, metricNodeInactiveFile)
 }
 
 // exporterOf joins the two ways the exporter series of one node (or of the control plane) are

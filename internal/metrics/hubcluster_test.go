@@ -204,9 +204,9 @@ func TestClusterLiveOnlyWithoutHistory(t *testing.T) {
 func TestClusterHistoryFromNodeExporter(t *testing.T) {
 	c := newPromCluster(t, false)
 	c.prom.on(`node_cpu_seconds_total{instance=~"(cp|10\\.0\\.0\\.1)(:[0-9]+)?"`, s(nil, 1000, 0.5, 1030, 0.75))
-	c.prom.on(`node_memory_MemTotal_bytes{instance=~"(cp|10\\.0\\.0\\.1)(:[0-9]+)?"`, s(nil, 1000, 1<<30, 1030, 1<<30))
+	c.prom.on(`node_memory_AnonPages_bytes{instance=~"(cp|10\\.0\\.0\\.1)(:[0-9]+)?"`, s(nil, 1000, 1<<30, 1030, 1<<30))
 	c.prom.on(`node_cpu_seconds_total{mode!~`, s(nil, 1000, 2, 1030, 2.5))
-	c.prom.on(`node_memory_MemTotal_bytes - node_memory_MemFree_bytes`, s(nil, 1000, 4<<30, 1030, 5<<30))
+	c.prom.on(`node_memory_AnonPages_bytes + node_memory_Cached_bytes`, s(nil, 1000, 4<<30, 1030, 5<<30))
 	prov := promProvider(t, c, metrics.PrometheusOptions{})
 	to := time.Unix(100020, 0)
 	q := metrics.RangeQuery{Kind: metrics.KindCluster, Name: metrics.ClusterScope([]string{"cp"}).Name, Addresses: []string{"10.0.0.1"},
@@ -244,13 +244,13 @@ func TestClusterHistoryCountsTheClustersNodesOnly(t *testing.T) {
 	master := `instance=~"(cp|10\\.0\\.0\\.1)(:[0-9]+)?"`
 	own := `instance=~"(cp|w1|10\\.0\\.0\\.1|10\\.0\\.0\\.2)(:[0-9]+)?"`
 	c.prom.on(`node_cpu_seconds_total{`+master, s(nil, 1000, 0.5, 1030, 0.75))
-	c.prom.on(`node_memory_MemTotal_bytes{`+master, s(nil, 1000, 1<<30, 1030, 1<<30))
+	c.prom.on(`node_memory_AnonPages_bytes{`+master, s(nil, 1000, 1<<30, 1030, 1<<30))
 	c.prom.on(`node_cpu_seconds_total{`+own, s(nil, 1000, 2, 1030, 2.5))
-	c.prom.on(`node_memory_MemTotal_bytes{`+own+`} - node_memory_MemFree_bytes - node_memory_Inactive_file_bytes`, s(nil, 1000, 4<<30, 1030, 5<<30))
+	c.prom.on(`node_memory_AnonPages_bytes{`+own+`} + node_memory_Cached_bytes + node_memory_Buffers_bytes - node_memory_Inactive_file_bytes`, s(nil, 1000, 4<<30, 1030, 5<<30))
 	c.prom.on(`count(max by (node, instance) (node_memory_MemTotal_bytes))`, s(nil, 1030, 402))
 	// Every exporter: the hypervisor's 6 cores and 152 GiB too.
 	c.prom.on(`node_cpu_seconds_total{mode!~`, s(nil, 1000, 8, 1030, 8.5))
-	c.prom.on(`node_memory_MemTotal_bytes - node_memory_MemFree_bytes`, s(nil, 1000, 156<<30, 1030, 157<<30))
+	c.prom.on(`node_memory_AnonPages_bytes + node_memory_Cached_bytes`, s(nil, 1000, 156<<30, 1030, 157<<30))
 	prov := promProvider(t, c, metrics.PrometheusOptions{})
 	to := time.Unix(100020, 0)
 	q := metrics.RangeQuery{Kind: metrics.KindCluster, Name: metrics.ClusterScope([]string{"cp"}).Name, Addresses: []string{"10.0.0.1"},

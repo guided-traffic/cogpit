@@ -11,16 +11,16 @@ import (
 	"fyne.io/fyne/v2/theme"
 )
 
-// The navigator's slides (the owner's requests, 2026-10-20). Drilling into a cluster moves its tree
-// in from the right over the section's clusters, which stay where they are; ‹ All Clusters moves
-// the tree out to the right again and uncovers them. Showing another cluster while a cluster's tree
-// shows (a tab of another cluster with mixed environments on, the hotbar, an agent) slides
-// vertically in the order All Clusters lists them: a cluster listed above the one shown comes in
-// from above and pushes the old tree out downwards, one listed below comes in from below. Every
-// change of the scope slides, an agent's ui.setNavigatorScope and ⌘P's included; the first scope
-// the window shows does not, and nothing slides with Preferences › App › Reduce motion or macOS's
-// Reduce motion on (shell.reduceMotion, preferences_motion.go). The header does not move: "All Clusters" is its title at either level
-// (navigator_header.go).
+// The navigator's slides (the owner's requests). Drilling into a cluster moves its tree in from the
+// right over the section's clusters, which stay where they are; ‹ All Clusters moves the tree out
+// to the right again and uncovers them. Showing another cluster while a cluster's tree shows (a tab
+// of another cluster with mixed environments on, the hotbar, an agent) slides vertically in the
+// order All Clusters lists them: a cluster listed above the one shown comes in from above and
+// pushes the old tree out downwards, one listed below comes in from below. Every change of the
+// scope slides, an agent's ui.setNavigatorScope and ⌘P's included; the first scope the window shows
+// does not, and nothing slides with Preferences › App › Reduce motion or macOS's Reduce motion on
+// (shell.reduceMotion, preferences_motion.go). The header does not move: "All Clusters" is its
+// title at either level (navigator_header.go).
 //
 // The tree is one widget, drawn from the shown cluster's state, so the cluster that leaves is a
 // picture: taken from the window as it shows when the scope changes (Canvas.Capture reads the frame

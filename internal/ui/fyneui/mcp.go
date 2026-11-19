@@ -75,7 +75,7 @@ type MCPSwitchStore interface {
 
 // prefMCPEnabled is the preference that remembered the user's switch before D-49, and still does
 // beside the switch store. Only a click writes it. Absent means the user never chose, which is off:
-// the server is opt-in (the owner, 2026-10-21); before that, absent meant on.
+// the server is opt-in (the owner); before that, absent meant on.
 const prefMCPEnabled = "mcp.enabled"
 
 // legacyMCP returns the preference's choice and whether the user made one. Fyne has no "is it

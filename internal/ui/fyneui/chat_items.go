@@ -359,6 +359,9 @@ func sentText(s *engine.ChatSent) string {
 		return ""
 	}
 	parts := []string{pluralOf(s.Requests, "request")}
+	if s.Choices > 0 {
+		parts[0] += fmt.Sprintf(" (%d choosing)", s.Choices)
+	}
 	parts = append(parts, model.FormatBytes(int64(s.Bytes)))
 	if s.Tokens > 0 {
 		parts = append(parts, formatCount(int64(s.Tokens))+" tokens")
@@ -537,8 +540,8 @@ func (v *chatAnswerView) update(it engine.ChatItem, blocks []mdBlock) {
 	v.Refresh()
 }
 
-// chatTimingText is an answer's speed under it (the owner's request of 2026-10-25): "TTFT 840 ms ·
-// OTPS 42.1", the OTPS with ≈ where the tokens are estimated, none where it cannot be told.
+// chatTimingText is an answer's speed under it (the owner's request): "TTFT 840 ms · OTPS 42.1",
+// the OTPS with ≈ where the tokens are estimated, none where it cannot be told.
 func chatTimingText(t *engine.ChatTiming) string {
 	if t == nil {
 		return ""
@@ -573,6 +576,8 @@ var chatToolStates = map[engine.ChatToolState]struct {
 	engine.ChatToolFailed:  {"Failed", colorStatusError, theme.IconNameError},
 	engine.ChatToolRefused: {"Refused", colorStatusWarning, theme.IconNameCancel},
 	engine.ChatToolStopped: {"Stopped", colorMuted, theme.IconNameMediaStop},
+	// The model chooses from the result in a request of its own (D-172): the agent at work, its violet.
+	engine.ChatToolChoosing: {"Choosing entries", colorAgent, theme.IconNameSearch},
 }
 
 // chatToolView is one tool call: a compact row (state icon, the command's label, a one-line
@@ -706,8 +711,14 @@ func (v *chatToolView) build() {
 		objs[len(objs)-1].(*mdCode).color = colorStatusError
 		objs[len(objs)-1].(*mdCode).words = true
 	case t.Result != "":
+		if line := choiceLine(t.Choice); line != "" {
+			objs = append(objs, newParagraph(line, colorMuted, max(v.width-v.indent(), 0)))
+		}
 		objs = append(objs, heading("Result, as the model saw it"), code(prettyJSON(t.Result)))
-	case t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting:
+	case t.State == engine.ChatToolChoosing && t.Choice != nil:
+		objs = append(objs, newTextLine(fmt.Sprintf("%s chooses from %s entries…", t.Choice.Model, formatCount(int64(t.Choice.Entries))),
+			colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Italic: true}))
+	case t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting || t.State == engine.ChatToolChoosing:
 		objs = append(objs, newTextLine("No result yet.", colorMuted, theme.SizeNameCaptionText, fyne.TextStyle{Italic: true}))
 	}
 	v.body.objs = objs
@@ -755,6 +766,24 @@ func (r *chatToolRenderer) Refresh() {
 // chatToolView's own MinSize and CreateRenderer win over the vstack's; Fyne keys the renderer by
 // the chatToolView (extend).
 var _ fyne.Widget = (*chatToolView)(nil)
+
+// choiceLine says over an opened tool item what the model's choice from its result did (D-172):
+// "Entries chosen by qwen3: 12 of 412, from the 400 it read (58 KiB, 2m51s)", or why none came.
+// "" without one.
+func choiceLine(ch *engine.ChatChoice) string {
+	switch {
+	case ch == nil:
+		return ""
+	case ch.Failed != "":
+		return "Choosing failed (" + ch.Failed + "): the model saw the result's first entries and Cogpit's totals."
+	}
+	read := "all " + formatCount(int64(ch.Offered))
+	if ch.Offered < ch.Entries {
+		read = "the first " + formatCount(int64(ch.Offered))
+	}
+	return fmt.Sprintf("Entries chosen by %s: %s of %s, from %s it read (%s, %s). Their text is the cluster's.", ch.Model,
+		formatCount(int64(ch.Shown)), formatCount(int64(ch.Entries)), read, model.FormatBytes(int64(ch.OfferedBytes)), ch.Took)
+}
 
 // prettyJSON indents JSON for reading; other text stays as it is.
 func prettyJSON(s string) string {

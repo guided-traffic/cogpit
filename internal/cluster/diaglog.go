@@ -17,8 +17,8 @@ import (
 // problem unless it repeats), one without an answer or that broke on the way, one answered only after SlowRequest, one
 // that waited at Cogpit's own rate limit for ThrottleNote or more, a read whose initial list the
 // server did not stream, one that took SlowLoad or more to load, and a kind read namespace by
-// namespace after a refusal. Kept in memory only, never on disk (the owner, 2026-10-26: gone at
-// quit), and bounded (the owner: "Aber Limit einbauen, nicht immer größer werden lassen"): at most
+// namespace after a refusal. Kept in memory only, never on disk (the owner: gone at quit), and
+// bounded (the owner: "Aber Limit einbauen, nicht immer größer werden lassen"): at most
 // DiagLogLimit lines, the same problem again (a refused list retried with client-go's backoff)
 // folded into its line with a count, the line least recently seen dropped first.
 //
@@ -50,11 +50,10 @@ const (
 
 // Problem reports whether a line of the kind is a problem the status bar counts. A connect is a
 // marker, and a kind read namespace by namespace follows a refusal that counts already. A cache
-// warming up is not, on its own (D-135, the owner's option a of 2026-10-26): the API server builds
-// its cache of a custom resource at the first request for it, and of every resource after it
-// starts, and answers a watch with 429 and Retry-After meanwhile; client-go asks again. Asked again
-// and answered the same within WarmingRepeatWithin, the line is a problem (DiagLog.Add): the cache
-// did not come up.
+// warming up is not, on its own (D-135, the owner's option a): the API server builds its cache of a
+// custom resource at the first request for it, and of every resource after it starts, and answers a
+// watch with 429 and Retry-After meanwhile; client-go asks again. Asked again and answered the same
+// within WarmingRepeatWithin, the line is a problem (DiagLog.Add): the cache did not come up.
 func (k DiagKind) Problem() bool { return k != DiagConnect && k != DiagNamespaced && k != DiagWarming }
 
 // Thresholds of the diagnostics log (the lead's, D-133).

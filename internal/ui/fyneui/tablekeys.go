@@ -13,13 +13,13 @@ import (
 // cell markers (HideSeparators) and draws whole-row bands instead.
 //
 // The ring shows where the keyboard is only while the keyboard is used, as the web's :focus-visible
-// and the navigator's (A53) do (the owner's VW17 of 2026-10-25: "dass immer der erste Eintrag einer
-// Tabelle einen Rahmen hat, wenn irgendein Element in der Tabelle selektiert ist"; the lead's
-// detail, D-74): a click on a cell puts the keyboard there without the ring, so that ↑↓ go on from
-// the row clicked; a key the table takes shows the ring, and so does the focus that comes by the
-// keyboard (Tab from another widget), not the one a click gives. On the drawer's row the bar marks
-// the row already and the ring stays off (the owner, 2026-10-25: "Der Balken auf der linken Seite
-// über die ganze Zeilenhöhe würde reichen"); ↑↓ to another row show it there.
+// and the navigator's (A53) do (the owner's VW17: "dass immer der erste Eintrag einer Tabelle einen
+// Rahmen hat, wenn irgendein Element in der Tabelle selektiert ist"; the lead's detail, D-74): a
+// click on a cell puts the keyboard there without the ring, so that ↑↓ go on from the row clicked;
+// a key the table takes shows the ring, and so does the focus that comes by the keyboard (Tab from
+// another widget), not the one a click gives. On the drawer's row the bar marks the row already and
+// the ring stays off (the owner: "Der Balken auf der linken Seite über die ganze Zeilenhöhe würde
+// reichen"); ↑↓ to another row show it there.
 
 var (
 	_ fyne.Tabbable   = (*resourceTable)(nil)

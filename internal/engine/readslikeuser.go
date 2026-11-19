@@ -2,19 +2,19 @@ package engine
 
 import "context"
 
-// A private connection of the built-in agent (D-10, H-94; the owner's decision of 2026-10-14 late
-// evening). The user marks an LLM connection "private (a local model or a private cloud)"; the
-// agent then dispatches its tool calls with Invocation.ReadsLikeUser, and the engine gives such a
-// turn what the window shows instead of what agents are given: Secret values (object.get, an
-// editor's text, a logs tab's lines unscrubbed), Helm's user-supplied values, Flux's credential
-// fields, a failed Helm action's error, the window's notifications in full. Dispatch honours the
-// mark only with OriginBuiltInAgent and carries it in the command's context (ReadsLikeUser); every
-// read path that withholds from agents asks ReadsLikeUser or ReadsAsAgent instead of the origin
-// alone. Write rules never ask it: D-2's confirmations, the agents-ask rules (H-27, A1, A2), the
-// GUI-only commands (secret.reveal, secret.create, ...), a Secret's Edit and Create tabs (D-19),
-// the markers an agent may not write back, and a terminal tab's agent-read switch (H-83) are the
-// same for a private turn as for any agent. The audit log marks the private turn's lines
-// (AuditEntry.ReadsLikeUser) and keeps values out of them as for every origin.
+// A private connection of the built-in agent (D-10, H-94; the owner's decision). The user marks an
+// LLM connection "private (a local model or a private cloud)"; the agent then dispatches its tool
+// calls with Invocation.ReadsLikeUser, and the engine gives such a turn what the window shows
+// instead of what agents are given: Secret values (object.get, an editor's text, a logs tab's lines
+// unscrubbed), Helm's user-supplied values, Flux's credential fields, a failed Helm action's error,
+// the window's notifications in full. Dispatch honours the mark only with OriginBuiltInAgent and
+// carries it in the command's context (ReadsLikeUser); every read path that withholds from agents
+// asks ReadsLikeUser or ReadsAsAgent instead of the origin alone. Write rules never ask it: D-2's
+// confirmations, the agents-ask rules (H-27, A1, A2), the GUI-only commands (secret.reveal,
+// secret.create, ...), a Secret's Edit and Create tabs (D-19), the markers an agent may not write
+// back, and a terminal tab's agent-read switch (H-83) are the same for a private turn as for any
+// agent. The audit log marks the private turn's lines (AuditEntry.ReadsLikeUser) and keeps values
+// out of them as for every origin.
 
 // readsLikeUserKey is the context key under which Dispatch hands a command whether its reads are
 // a private turn's.

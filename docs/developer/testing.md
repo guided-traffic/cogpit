@@ -23,7 +23,7 @@ platform CI runs, and the performance budgets. What each CI job runs and how lon
 | Cluster | Linux CI (Integration Tests (kind)), locally | `make kind-up`, `make test-kind` | views, logs, exec and attach, `kubectl` in the terminal, edits, custom resources, workload actions against a real `kind` cluster; the add-on stacks' tests run by hand (`KIND_ADDONS=1`, [hack/kind](../../hack/kind/README.md)) |
 | Drain cluster | Linux CI (Integration Tests (kind drain)), locally | `make kind-drain-up`, `make test-kind-drain` | cordon, a drain blocked by a PodDisruptionBudget, a simulated crash and the finish after it, on a three-node cluster of its own |
 | Envtest | Linux CI (Integration Tests (envtest)), locally (Unix) | `make test-envtest` | the real API server's path behind client-go, and a control plane frozen with `SIGSTOP` for standby; its binaries pinned by SHA-512 (`make envtest-bin`) |
-| UI | everywhere with cgo | part of Unit | views render from snapshots offscreen (Fyne's `test` driver); `-update` writes the pictures to `testdata/`, `make showcase` the README's to [`docs/images/`](../images/) |
+| UI | everywhere with cgo | part of Unit | views render from snapshots offscreen (Fyne's `test` driver); `-update` writes the pictures to `testdata/` (the churning demo cluster's with `-update -live` only), `make showcase` the README's to [`docs/images/`](../images/) |
 | Fuzz | locally | `go test -fuzz <Fuzz…>` | kubeconfig parsing (`FuzzContexts`, `FuzzExecPlugins`), kind profiles, the YAML tokenizer and edits, the terminal's escape filter, manifests (`FuzzParseManifests`, `FuzzEditYAML`), `cogpit://` links (`FuzzParseDeepLink`); seeds run with the unit tests |
 | Real cluster | locally, opt-in, never in CI | `make test-real REAL_KUBECONFIG=<file> REAL_CONTEXT=<context>` (`COGPIT_REAL_KUBECONFIG`, `COGPIT_REAL_CONTEXT`) | discovery and the budgets P9–P11 against a real API server; node, Helm and Flux tests each need a variable naming what they may act on |
 | Live Argo CD | locally, opt-in | `COGPIT_REAL_KUBECONFIG` and `COGPIT_REAL_ARGOCD_NAMESPACE` | the Argo CD section against a live Argo CD |
@@ -116,6 +116,15 @@ depends on timing passes locally and fails there. The rules:
   meant, never the engine's global revision read once.
 - **A time the window shows comes from the shell's clock** (`sh.now`), and a test's engine runs on
   the tests' clock (`newTestEngine` starts at `fixedNow`), so renders do not change with the day.
+- **A picture is the same in every run.** `savePNG` drains the window's queue until the shell's own
+  reads are in (`scene.settled` in [`render_test.go`](../../internal/ui/fyneui/render_test.go): the
+  clusters, the status bar's counters, the namespaces, the drawer's detail and metrics, a settings
+  section's reads) and ends a connected cluster's blink; a test that scrolls or hovers first calls
+  `awaitScene`. A path a picture shows lies in `fixedDir` (`/tmp/cogpit-tests/<test>`), a test's
+  connector without kubeconfig reads none, and the demo cluster's clock starts at `Options.Now`, so
+  its measurements in the first 15 s are the same. Two `-update` runs write the same files; the
+  churning demo cluster's pictures (`demo_pods`, `demo_showcase`, `cluster_overview_demo_dark`) are
+  live and written with `-live` only.
 - **Pass dependencies before connect.** A test never assigns a field of a live `Backend` that the
   engine's goroutines read (`Access`, connectors): it gives them to the connector, or uses a locked
   setter.
@@ -186,7 +195,7 @@ commit the page.
 | P3 | Scroll a 10,000-pod list | every frame ≤ 16 ms | real window: after the first fill at most 3 stalls of 16–25 ms in 9 s of scrolling; the first fill stalls 151–193 ms once per window |
 | P4 | Apply a burst of 1,000 watch events per second to an open list | no frame over 16 ms | a 10,000-row snapshot in 2.1–4.6 ms (`BenchmarkSnapshot10k`); view switches under the churn at most 42 ms, p99 6.3–7.4 ms |
 | P5 | Follow a log stream at 10,000 lines per second | no frame over 16 ms; memory bounded by the scrollback limit | offscreen 0.15 ms median, 2.3 ms max of work per 100 ms batch at ~9,800 lines/s; 1.5 MiB for 10,000 kept lines (`TestLogsP5`) |
-| P6 | Resident memory with three clusters open on their Pods lists | track only until measured against Lens | the demo cluster with 10,000 pods keeps ~98 MB of its own heap; Cogpit's not measured |
+| P6 | Resident memory with three clusters open on their Pods lists | track only until measured against Lens | the demo cluster with 10,000 pods keeps ~103 MB of its own heap (`BenchmarkNew`); Cogpit's not measured |
 | P7 | Cold start to an interactive window | ≤ 1 s | 0.44–0.58 s from the shell's start to the demo cluster's first rows, 0.42–0.56 s of it the window's GL set-up |
 | P8 | Type into a 5 MB YAML document in the editor, highlighting on | keystroke to repaint ≤ 16 ms | real window: widget work p50 0.09 ms, max 2.1 ms (`BenchmarkKeystroke5MB`, `BenchmarkKeystrokeLayout5MB`) |
 | P9 | A view stays open on an idle cluster for 10 minutes | 0 list requests; only the view's watches and the connection's heartbeat, one `get` of `/version` every 15 s (D-58) | 0 lists idle on the fake API server and on kind; on a real cluster 10 minutes cost 0 lists and the watches client-go renews (`TestBudgetIdleViewAndWarmReopen`, `TestKindIdleViewsCostNoLists`, `TestRealDiscoveryAndBudgets`) |

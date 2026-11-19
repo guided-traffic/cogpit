@@ -16,13 +16,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A connection's CA file (engine.ChatConnection.CAFile, the owner's decision of 2026-10-15): the
-// CA certificates of an https server with a private CA. For that connection they replace the
-// system's roots, as a kubeconfig's certificate-authority does for kubectl: only the file's CAs
-// vouch for the endpoint, a public CA cannot (N141, the owner's decision in the audit of
-// 2026-10-16; until then the file was added to the system's roots). A server that moves to a public
-// certificate fails until the field is cleared, with an error that says the connection trusts only
-// its CA file (transportError).
+// A connection's CA file (engine.ChatConnection.CAFile, the owner's decision): the CA certificates
+// of an https server with a private CA. For that connection they replace the system's roots, as a
+// kubeconfig's certificate-authority does for kubectl: only the file's CAs vouch for the endpoint,
+// a public CA cannot (N141, the owner's decision in the audit; until then the file was added to the
+// system's roots). A server that moves to a public certificate fails until the field is cleared,
+// with an error that says the connection trusts only its CA file (transportError).
 //
 // How the roots are built, checked in Go 1.27.2's crypto/x509 (cert_pool.go, verify.go
 // Certificate.Verify): a pool from x509.NewCertPool is not the system's, so Verify never hands it

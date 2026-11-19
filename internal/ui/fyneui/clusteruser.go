@@ -13,16 +13,16 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The user Cogpit is logged in as, in the navigator root's subtitle (D-68, the owner, 2026-10-16;
-// Cogpit's own: Lens's root row is not captured for this). Connected: the username the API server
-// confirmed, and beside it a small box with an icon whose tooltip lists the user's groups (only
-// the groups: no UID, no extra fields; no groups, no box). Where the API server does not know the
-// review or refuses it: the kubeconfig's user entry's name with "(kubeconfig)", its tooltip "Not
-// confirmed by the API server". Not connected: the last username the API server confirmed for the
-// context, dimmed, its tooltip saying when it was last seen in the user's date and time format
-// (D-31). Never confirmed: the kubeconfig file, as before. The demo cluster keeps "Synthetic demo
-// cluster". The row stays the one hoverable thing: its tooltip is the box's or the user's while the
-// pointer is on them (tipAt).
+// The user Cogpit is logged in as, in the navigator root's subtitle (D-68, the owner; Cogpit's own:
+// Lens's root row is not captured for this). Connected: the username the API server confirmed, and
+// beside it a small box with an icon whose tooltip lists the user's groups (only the groups: no
+// UID, no extra fields; no groups, no box). Where the API server does not know the review or
+// refuses it: the kubeconfig's user entry's name with "(kubeconfig)", its tooltip "Not confirmed by
+// the API server". Not connected: the last username the API server confirmed for the context,
+// dimmed, its tooltip saying when it was last seen in the user's date and time format (D-31). Never
+// confirmed: the kubeconfig file, as before. The demo cluster keeps "Synthetic demo cluster". The
+// row stays the one hoverable thing: its tooltip is the box's or the user's while the pointer is on
+// them (tipAt).
 
 // kubeconfigMark marks a username the API server did not confirm.
 const kubeconfigMark = " (kubeconfig)"

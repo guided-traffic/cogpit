@@ -13,10 +13,10 @@ import (
 )
 
 // What a connection waits for while its credential plugin runs, and the cancel of a connect that
-// waits (D-73; the owner's finding of 2026-10-16 night: a connect waiting for an OIDC login that
-// the user had abandoned blinked for ten minutes, without a timeout, and Disconnect waited behind
-// it). The cluster layer follows each run of a context's plugin, ends it on a cancel and after its
-// bound (cluster/loginrun.go); the session says it:
+// waits (D-73; the owner's finding: a connect waiting for an OIDC login that the user had abandoned
+// blinked for ten minutes, without a timeout, and Disconnect waited behind it). The cluster layer
+// follows each run of a context's plugin, ends it on a cancel and after its bound
+// (cluster/loginrun.go); the session says it:
 //
 //   - the UI state: Connection.WaitingForLogin (the program, since, until) wherever the cluster's
 //     connection shows, while connecting with Reason "waiting for the login through <program>; …";

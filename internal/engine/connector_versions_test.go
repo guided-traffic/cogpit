@@ -75,8 +75,8 @@ func TestServedProfilesFallBackToAnOlderVersion(t *testing.T) {
 // TestBuiltinAdmissionPoliciesFollowTheServedVersion checks the built-in admission policy views
 // on the discovery of three Kubernetes versions: 1.36 serves every kind at v1; 1.29 with the beta
 // APIs switched on serves the validating policies at v1beta1 and the mutating ones not at all,
-// whose views stay hidden as Lens hides them before 1.36 (capture, 2026-10-11); a cluster that
-// serves only v1alpha1 gets the validating views at v1alpha1.
+// whose views stay hidden as Lens hides them before 1.36 (capture); a cluster that serves only
+// v1alpha1 gets the validating views at v1alpha1.
 func TestBuiltinAdmissionPoliciesFollowTheServedVersion(t *testing.T) {
 	const group = "admissionregistration.k8s.io"
 	served := func(version string, resources ...string) map[schema.GroupVersionResource]bool {

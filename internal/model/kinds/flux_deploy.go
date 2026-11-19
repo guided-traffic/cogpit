@@ -10,8 +10,8 @@ import (
 )
 
 // Flux's two deployers: Helm releases (helm.toolkit.fluxcd.io) and Kustomizations
-// (kustomize.toolkit.fluxcd.io), the Flux section's first entries (captured 2026-10-11). Columns
-// and drawers inferred (flux.go).
+// (kustomize.toolkit.fluxcd.io), the Flux section's first entries (captured). Columns and drawers
+// inferred (flux.go).
 
 // kustomizationsSpec: Source (spec.sourceRef, a link) and Path after Namespace; Revision is the
 // last applied one. v1 since Flux 2.0; v1beta2 reads the same fields.

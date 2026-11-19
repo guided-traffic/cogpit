@@ -20,8 +20,8 @@ import (
 )
 
 // DefaultRekor is sigstore's public transparency log, Rekor v1, where cosign records the
-// Kubernetes release's signatures (kubectl 1.37.1's for darwin/arm64 is entry 2924600063, read
-// 2026-10-15). The trusted root names it with its key.
+// Kubernetes release's signatures (kubectl 1.37.1's for darwin/arm64 is entry 2924600063). The
+// trusted root names it with its key.
 const DefaultRekor = "https://rekor.sigstore.dev"
 
 // Bounds of the log's lookup (Cogpit's defaults): the answer for kubectl 1.37.1 was 5,263 bytes,

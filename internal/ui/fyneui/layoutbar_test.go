@@ -16,6 +16,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
+	"github.com/guided-traffic/cogpit/internal/model"
 )
 
 // uiNotifier is an updater that knows of a newer release, as a check of Sparkle's reports one
@@ -65,12 +66,12 @@ func chatEngine(t *testing.T) *engine.Session {
 	return s
 }
 
-// The three toggles at the top bar's right end (the owner, 2026-10-16 night: after the bell and a
-// divider), in VS Code's order, drive the
-// engine's state and show it: the navigator hides (the views take its room, the hotbar stays) and
-// comes back, the dock collapses to its strip and opens again (its own arrow and a click on its
-// shown tab too), the chat column shows; the dock's toggle is disabled while the dock has no tabs
-// and no terminal can open (no cluster connected). An agent's change shows the same way. Against the real engine and its registry.
+// The three toggles at the top bar's right end (the owner: after the bell and a divider), in VS
+// Code's order, drive the engine's state and show it: the navigator hides (the views take its room,
+// the hotbar stays) and comes back, the dock collapses to its strip and opens again (its own arrow
+// and a click on its shown tab too), the chat column shows; the dock's toggle is disabled while the
+// dock has no tabs and no terminal can open (no cluster connected). An agent's change shows the
+// same way. Against the real engine and its registry.
 func TestLayoutTogglesThroughTheEngine(t *testing.T) {
 	s := chatEngine(t)
 	sh, _, q := newEngineShell(t, s, Options{})
@@ -256,7 +257,7 @@ func TestUpdateButtonOffersTheRestart(t *testing.T) {
 	r.restart.Store(true)
 	r.set(true, "0.34.0") // the same version, now installed
 	// The engine's state first, then the window's: the bar follows the state's change on the main
-	// queue, which until drains, a step later on a slow runner (the Windows CI, 2026-10-21).
+	// queue, which until drains, a step later on a slow runner (the Windows CI).
 	q.until(t, "the restart", func() bool { return s.UIState().Update.Restart && b.Text == restartLabel })
 	settle(w)
 	if b.Text != restartLabel || b.tip != "Cogpit 0.34.0 is installed: restart Cogpit to use it" {
@@ -314,7 +315,7 @@ func iconOf(t *testing.T, b *tipButton) *canvas.Image {
 // bar lies directly under it (F11): with a box's padding between the two, the line lay 4 units
 // below the bar's end, and in the dark theme, where the window's background and the bar's are
 // nearly one colour, everything in the bar looked 2 units high; the pill, 26 of the bar's 40 units,
-// most (the owner, 2026-10-16: "hängt ein wenig zu hoch").
+// most (the owner: "hängt ein wenig zu hoch").
 func TestUpdateButtonOnTheBarsCentreLine(t *testing.T) {
 	s := chatEngine(t)
 	n := &uiNotifier{}
@@ -426,6 +427,7 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: engine.DemoContext}, q.do)
+	keepScene(t, w, sh, q)
 	sh.zone = time.UTC
 	s.SetConfirmer(sh.confirmer)
 	w.SetContent(sh.root)
@@ -448,8 +450,8 @@ func layoutScene(t *testing.T, mode ThemeMode, u engine.Updater) (*shell, fyne.W
 		}
 		q.drain()
 	}
-	until("the demo's pods", func() bool {
-		return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) > 0
+	until("the demo's pods with their CPU", func() bool { // the snapshots the diagnostics count, all built
+		return len(sh.kinds) > 0 && sh.view.snap != nil && len(sh.view.snap.Rows) > 0 && measured(sh.view.snap)
 	})
 	mustDispatch(t, s, "hotbar.addCluster", struct{}{})
 	mustDispatch(t, s, "diagnostics.open", struct{}{})
@@ -510,4 +512,19 @@ func TestDockToggleOpensATerminal(t *testing.T) {
 	if !strings.HasPrefix(l.dock.tip, "Dock: no tabs; the demo cluster has no terminals") {
 		t.Errorf("the demo's tooltip %q", l.dock.tip)
 	}
+}
+
+// measured reports whether a Pods snapshot shows a pod's CPU: the Metrics Server's first answer is in.
+func measured(snap *engine.TableSnapshot) bool {
+	for i, c := range snap.Columns {
+		if c.ID != model.ColumnCPU {
+			continue
+		}
+		for _, r := range snap.Rows {
+			if i < len(r.Cells) && r.Cells[i].Text != "" {
+				return true
+			}
+		}
+	}
+	return false
 }

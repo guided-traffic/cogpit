@@ -55,11 +55,11 @@ func rootBadgeScene(t *testing.T, mode ThemeMode, name string, user *engine.Clus
 // shownText is what a textLine draws: its text, cut with an ellipsis where it does not fit.
 func shownText(l *textLine) string { return test.WidgetRenderer(l).(*textLineRenderer).obj.Text }
 
-// TestRootBadgeFillsItsRoom (the owner's LS19 of 2026-10-24): the root's badge is 50 points beside
-// its three lines and no taller than they make the root, its letters in proportion; with two lines
-// it is as tall as they are, with one (no cluster) 28 as before. It gives way, down to 28, before it
-// cuts the name or the version further than the 28-point badge did, or a user's line that showed
-// whole beside it; a user's line cut beside 28 too (alice@example.com and her groups at the default
+// TestRootBadgeFillsItsRoom (the owner's LS19): the root's badge is 50 points beside its three
+// lines and no taller than they make the root, its letters in proportion; with two lines it is as
+// tall as they are, with one (no cluster) 28 as before. It gives way, down to 28, before it cuts
+// the name or the version further than the 28-point badge did, or a user's line that showed whole
+// beside it; a user's line cut beside 28 too (alice@example.com and her groups at the default
 // width) does not hold it back.
 func TestRootBadgeFillsItsRoom(t *testing.T) {
 	sh, w, q, f := rootBadgeScene(t, ThemeDark, "", confirmedUser, defaultSidebarWidth)

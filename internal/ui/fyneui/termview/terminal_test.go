@@ -355,9 +355,9 @@ func runRawWidget(t *testing.T, input string) (panicked any, cwdAfter string) {
 }
 
 // Inputs that crashed or froze fyne-io/terminal at 91063bb29d69 (the first nine) or at
-// 46cd12724ff3 (found by fuzzing the widget alone, 2026-10-12). Cogpit builds against a patched
-// copy (third_party/fyne-terminal, see its PATCHES.md) that survives all of them, and keeps
-// escFilter in front of it.
+// 46cd12724ff3 (found by fuzzing the widget alone). Cogpit builds against a patched copy
+// (third_party/fyne-terminal, see its PATCHES.md) that survives all of them, and keeps escFilter in
+// front of it.
 var widgetHazards = []struct {
 	name, input string
 }{

@@ -636,6 +636,7 @@ func showcaseEngineShell(t *testing.T, conn engine.Connector, mode ThemeMode) (*
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: showcaseContext}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.kc.startDir = t.TempDir
 	sh.confirmer.armDelay = 0

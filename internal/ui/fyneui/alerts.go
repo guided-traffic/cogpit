@@ -14,20 +14,20 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// alertsButton is the top bar's alerts pill, left of the notifications' bell (the owner, 2026-10-16
-// night: a warning sign and a number on a rounded background, as the status bar's MCP pill, its
-// corners the same). Since D-77 its source is the shown cluster's Alertmanager (UIState.Alerts,
-// engine/alerts.go): the owner's colours (2026-10-17) by the worst active alert, Solarized's
-// status tokens: red (the error token) from a critical alert, orange (the warning token) from a
-// warning, major or unlabelled one, yellow (the pending token, Solarized yellow) from an info one,
-// green (the ok token) with "0" while Alertmanager answers with none (the owner, 2026-10-20); its
-// number is every alert shown, "99+" beyond 99. A click opens the alert board (alerts.open). Hidden
-// while the Alertmanager integration is off for the shown cluster, while no cluster is shown and for
-// the demo cluster; grey (the unknown token) with "warn" while the integration is on and nothing
-// answers (none found, not allowed, not answering; the owner, 2026-10-20), with a dash while the
-// first look runs (the lead's, open to revision); the tooltip says which. The triangle is the bell's
-// size, the number in the views' text size (first as tall as the triangle, too heavy: countSize), a
-// padding between them, and both inside the pill (the owner, 2026-10-20). Cogpit's own; Lens's title bar has no such pill.
+// alertsButton is the top bar's alerts pill, left of the notifications' bell (the owner: a warning
+// sign and a number on a rounded background, as the status bar's MCP pill, its corners the same).
+// Since D-77 its source is the shown cluster's Alertmanager (UIState.Alerts, engine/alerts.go): the
+// owner's colours by the worst active alert, Solarized's status tokens: red (the error token) from
+// a critical alert, orange (the warning token) from a warning, major or unlabelled one, yellow (the
+// pending token, Solarized yellow) from an info one, green (the ok token) with "0" while
+// Alertmanager answers with none (the owner); its number is every alert shown, "99+" beyond 99. A
+// click opens the alert board (alerts.open). Hidden while the Alertmanager integration is off for
+// the shown cluster, while no cluster is shown and for the demo cluster; grey (the unknown token)
+// with "warn" while the integration is on and nothing answers (none found, not allowed, not
+// answering; the owner), with a dash while the first look runs (the lead's, open to revision); the
+// tooltip says which. The triangle is the bell's size, the number in the views' text size (first as
+// tall as the triangle, too heavy: countSize), a padding between them, and both inside the pill
+// (the owner). Cogpit's own; Lens's title bar has no such pill.
 type alertsButton struct {
 	widget.BaseWidget
 	sh        *shell
@@ -297,11 +297,11 @@ func (r *alertsRenderer) metrics() (icon, pad, height float32) {
 // countSize is the number's text size: the views' text size, its digits about two thirds of the
 // warning sign's height and centred on it (10 and 14 pixels at scale 1, measured in the renders).
 // The bell's size (13-pixel digits, the sign's own height) read too heavy in the owner's window
-// (2026-10-20: "Die Zahl doch etwas kleiner").
+// ("Die Zahl doch etwas kleiner").
 func countSize(th fyne.Theme) float32 { return th.Size(theme.SizeNameText) }
 
-// alertsPillEnd is the room added at the pill's two ends beyond the padding: the owner's look of
-// 2026-10-20 ("die Pille ist mir zu eng", "5px rechts und links dazu").
+// alertsPillEnd is the room added at the pill's two ends beyond the padding: the owner's look ("die
+// Pille ist mir zu eng", "5px rechts und links dazu").
 const alertsPillEnd = 5
 
 // countRise lifts the number by this share of its text size: a text's box holds the line's

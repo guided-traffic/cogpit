@@ -11,8 +11,8 @@ import (
 )
 
 // twiceFixture is a kubeconfig file offered twice: by a file source of its own ("a.yaml") and by
-// the synced folder it lies in, as the owner's home folder offered ~/walk-kind.yaml on his walk of
-// 2026-10-17 (WF3). The session keeps cluster settings.
+// the synced folder it lies in, as the owner's home folder offered ~/walk-kind.yaml on his walk
+// (WF3). The session keeps cluster settings.
 type twiceFixture struct {
 	s          *Session
 	k          *KubeconfigSources

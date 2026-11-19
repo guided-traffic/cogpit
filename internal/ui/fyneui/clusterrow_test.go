@@ -144,8 +144,8 @@ func TestRenderConnectionUpdatesInsecure(t *testing.T) {
 }
 
 // A cluster row on the welcome page names its kubeconfig file only when another row shows the same
-// title (the owner, 2026-10-21): two "staging" contexts from two files are told apart by their
-// files, a cluster whose name is unique shows none.
+// title (the owner): two "staging" contexts from two files are told apart by their files, a cluster
+// whose name is unique shows none.
 func TestWelcomeNamesTheFileOnlyForSharedNames(t *testing.T) {
 	f := newFakeEngine(t)
 	f.contexts = []engine.ContextInfo{

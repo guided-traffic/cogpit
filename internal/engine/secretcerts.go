@@ -14,17 +14,17 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The certificates a Secret holds, decoded for the drawer and for agents (D-30, owner
-// 2026-10-13): every key whose value holds PEM CERTIFICATE blocks or DER certificates, a TLS
-// Secret's tls.crt and ca.crt first, gets a group of sections in the drawer, one section per
-// certificate in the value's order, each field its own item (so each has the drawer's copy icon);
-// DetailModel.Certificates carries the same fields for agents with the times in UTC and the days
-// left. A certificate is public material; the PEM text, the value it came from and every private
-// key stay out: a key named like a private key (privateKeyName) is never searched for
-// certificates, and the parser decodes nothing but certificates (model.DecodeCertificates). The
-// one use of a private key is the check whether it belongs to its certificate
-// (secretcerts_checks.go), which keeps nothing of it. Built from the cached object, no request; the
-// decoded values are zeroed after parsing, as the Data section's are.
+// The certificates a Secret holds, decoded for the drawer and for agents (D-30, owner): every key
+// whose value holds PEM CERTIFICATE blocks or DER certificates, a TLS Secret's tls.crt and ca.crt
+// first, gets a group of sections in the drawer, one section per certificate in the value's order,
+// each field its own item (so each has the drawer's copy icon); DetailModel.Certificates carries
+// the same fields for agents with the times in UTC and the days left. A certificate is public
+// material; the PEM text, the value it came from and every private key stay out: a key named like a
+// private key (privateKeyName) is never searched for certificates, and the parser decodes nothing
+// but certificates (model.DecodeCertificates). The one use of a private key is the check whether it
+// belongs to its certificate (secretcerts_checks.go), which keeps nothing of it. Built from the
+// cached object, no request; the decoded values are zeroed after parsing, as the Data section's
+// are.
 
 // Bounds (Cogpit's defaults, not the owner's): a value larger than certValueBytes is not decoded;
 // at most model.MaxCertificatesPerKey certificates per key and certsPerSecret per Secret.

@@ -16,12 +16,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision of
-// 2026-10-16, N152 (b)): the saves take add and remove beside data, a key's name follows the API
-// server's rule, a removal is destructive and confirmed for every origin with the keys named, the
-// review's rebase counts an added key that appeared and a removed key that changed as a conflict,
-// kept edits and their draft hold the keys too, and no value of a Secret reaches a confirmation,
-// a result, the audit log or the log.
+// Keys added and removed in a Config Map's and a Secret's drawer (the owner's audit decision, N152
+// (b)): the saves take add and remove beside data, a key's name follows the API server's rule, a
+// removal is destructive and confirmed for every origin with the keys named, the review's rebase
+// counts an added key that appeared and a removed key that changed as a conflict, kept edits and
+// their draft hold the keys too, and no value of a Secret reaches a confirmation, a result, the
+// audit log or the log.
 
 // TestConfigMapDataAddsAndRemovesKeys: the window reviews an edit that changes a value, adds a key
 // and removes one: the diff, the keys of each kind, the Config Map's UID and the dry run. Its save

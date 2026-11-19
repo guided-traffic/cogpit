@@ -29,8 +29,8 @@ import (
 // scripts, event handlers or references outside itself (Fyne's renderer loads none, but the copy
 // holds none either). Uploading reads a file on this computer, so it is the user's own action in
 // Cogpit's window: agents and the CLI are refused (a refusal that names no file's content, and
-// a read that never happens for them). Since H-125 (2026-10-19) every change of the icon is the
-// user's alone (clusteridentity.go).
+// a read that never happens for them). Since H-125 every change of the icon is the user's alone
+// (clusteridentity.go).
 
 // ClusterIconsDir is the directory of the uploaded icons under Cogpit's configuration directory.
 const ClusterIconsDir = "cluster-icons"

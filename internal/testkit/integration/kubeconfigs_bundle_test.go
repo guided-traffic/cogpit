@@ -13,10 +13,10 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
 )
 
-// TestPendingApprovalsAreBundledAndApprovedByTheGUIOnly (D-28, 2026-10-12): two contexts of one file
-// that run the same plugin are one group in kubeconfig.pendingApprovals; an agent may read it (the
-// arguments withheld, no environment value) but not approve; the GUI's approval is refused as a whole,
-// naming the context, when one fingerprint is stale, and allows both otherwise.
+// TestPendingApprovalsAreBundledAndApprovedByTheGUIOnly (D-28): two contexts of one file that run
+// the same plugin are one group in kubeconfig.pendingApprovals; an agent may read it (the arguments
+// withheld, no environment value) but not approve; the GUI's approval is refused as a whole, naming
+// the context, when one fingerprint is stale, and allows both otherwise.
 func TestPendingApprovalsAreBundledAndApprovedByTheGUIOnly(t *testing.T) {
 	const secret = "env-value-must-not-leak"
 	file := filepath.Join(t.TempDir(), "eks.yaml")

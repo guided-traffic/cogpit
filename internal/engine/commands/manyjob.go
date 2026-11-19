@@ -10,12 +10,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// Actions on a selection, within the call or as a background job (G4, built 2026-10-16): Delete
-// (object.deleteMany), Restart (workload.restartMany), the Flux actions but Reconcile with Source
-// (flux.reconcileMany, suspendMany, resumeMany, resetMany; Reconcile with Source is always a job,
-// fluxsourcejob.go) and Argo CD's Sync and Refresh (argocd.application.syncMany, refreshMany). Each
-// asks for its confirmation as before, in Dispatch, before it runs; then it acts on the objects
-// the user confirmed, one after the other, each bound to its confirmed UID.
+// Actions on a selection, within the call or as a background job (G4): Delete (object.deleteMany),
+// Restart (workload.restartMany), the Flux actions but Reconcile with Source (flux.reconcileMany,
+// suspendMany, resumeMany, resetMany; Reconcile with Source is always a job, fluxsourcejob.go) and
+// Argo CD's Sync and Refresh (argocd.application.syncMany, refreshMany). Each asks for its
+// confirmation as before, in Dispatch, before it runs; then it acts on the objects the user
+// confirmed, one after the other, each bound to its confirmed UID.
 //
 // At most engine.DirectSelection objects (10) run within the call and return what was done and
 // what was not, as before. More run as a job (engine.StartJob): the command returns at once with

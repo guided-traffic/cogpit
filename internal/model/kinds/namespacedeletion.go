@@ -11,8 +11,8 @@ import (
 )
 
 // The namespace controller's conditions on a namespace being deleted (Kubernetes'
-// pkg/controller/namespace/deletion, read 2026-10-19 and seen on kind v1.36.1): each is False
-// while all is well, and True says what holds the deletion.
+// pkg/controller/namespace/deletion, read and seen on kind v1.36.1): each is False while all is
+// well, and True says what holds the deletion.
 const (
 	CondContentRemaining    = "NamespaceContentRemaining"
 	CondFinalizersRemaining = "NamespaceFinalizersRemaining"
@@ -28,7 +28,7 @@ const maxRemainingEntries = 200
 // deleted, and what the namespace controller reported holding it. The controller names the kinds
 // that still have objects in the namespace by resource and group, and the finalizers those objects
 // hold, each with a count, but never an object's name, and it does not pair a kind with its
-// finalizers. Anyone who may read the namespace reads it (checked on kind, 2026-10-19, WF43).
+// finalizers. Anyone who may read the namespace reads it (checked on kind, WF43).
 type NamespaceDeletion struct {
 	// Terminating is true while the namespace is being deleted (a deletionTimestamp, or the phase).
 	Terminating bool

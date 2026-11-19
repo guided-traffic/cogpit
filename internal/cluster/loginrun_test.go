@@ -50,24 +50,21 @@ func endChildren(pids []int) {
 	}
 }
 
-// quietSearches waits until no plugin run of an earlier test that is still under way began within
-// searchWindow: a search with such a neighbour may take the neighbour's process for its own.
+// quietSearches waits until no search of a plugin run of an earlier test that is still under way
+// looks any more: a search with such a neighbour may take the neighbour's process for its own.
 func quietSearches(t *testing.T) {
 	t.Helper()
-	for {
-		now := time.Now()
-		var wait time.Duration
+	if !testkit.WaitFor(waitCtx(t, 10*time.Second), func() bool {
 		searches.mu.Lock()
+		defer searches.mu.Unlock()
 		for _, o := range searches.recent {
-			if o.ended.IsZero() || o.ended.After(now) {
-				wait = max(wait, searchWindow-now.Sub(o.at))
+			if o.ended.IsZero() && o.stopped.IsZero() {
+				return false
 			}
 		}
-		searches.mu.Unlock()
-		if wait <= 0 {
-			return
-		}
-		time.Sleep(wait)
+		return true
+	}) {
+		t.Fatal("a search of an earlier test's plugin run still looks")
 	}
 }
 
@@ -78,9 +75,9 @@ func waitCtx(t *testing.T, d time.Duration) context.Context {
 	return ctx
 }
 
-// The owner's finding (2026-10-16 night): a connect waiting for an interactive login that the user
-// abandoned could not be cancelled. Now a cancel of the connect ends the plugin's process at once,
-// the connect returns with "login cancelled", and the watch says the login waited until then.
+// The owner's finding: a connect waiting for an interactive login that the user abandoned could not
+// be cancelled. Now a cancel of the connect ends the plugin's process at once, the connect returns
+// with "login cancelled", and the watch says the login waited until then.
 func TestCancelledConnectEndsThePlugin(t *testing.T) {
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()
@@ -363,14 +360,36 @@ func result(t *testing.T, done <-chan connectResult) connectResult {
 	return connectResult{}
 }
 
-// WF38 (the lead's walk of 2026-10-19), part 3: a credential plugin that is a wrapper and replaces
-// itself with the real login program (exec) keeps its process number while its command line
-// becomes the program's. Cogpit finds it at the run's begin and ends it by its number: the cancel
-// ends the process, and the log says so truthfully.
+// WF38 (the lead's walk), part 3: a credential plugin that is a wrapper and replaces itself with
+// the real login program (exec) keeps its process number while its command line becomes the
+// program's. Cogpit finds it at the run's begin and ends it by its number: the cancel ends the
+// process, and the log says so truthfully.
 func TestCancelEndsAPluginThatExecs(t *testing.T) {
 	if runtime.GOOS == goosWindows {
 		t.Skip("Windows has no exec")
 	}
+	cancelEndsAWrapper(t)
+}
+
+// On a loaded system client-go starts the plugin later than the run's begin: here only once the
+// search has looked for searchWindow and seen no new child (CI run 40591278804, a macOS runner
+// linking another package's tests). The wrapper is found all the same, and the cancel ends it:
+// before, the search decided on none at the window's end, and the cancel, looking for the plugin's
+// command line after the exec, said its process was not found and left /bin/sleep running.
+func TestCancelEndsAWrapperStartedLate(t *testing.T) {
+	if runtime.GOOS == goosWindows {
+		t.Skip("Windows has no exec")
+	}
+	gate := func(s *procSearch) { <-s.late }
+	runBeginGate.Store(&gate)
+	t.Cleanup(func() { runBeginGate.Store(nil) })
+	cancelEndsAWrapper(t)
+}
+
+// cancelEndsAWrapper connects through a plugin that replaces itself with /bin/sleep, cancels the
+// connect once it did, and checks that Cogpit found and ended the process.
+func cancelEndsAWrapper(t *testing.T) {
+	t.Helper()
 	quietSearches(t)
 	srv := testkit.NewFakeAPIServer(testkit.FakeAPIOptions{Token: secretToken})
 	defer srv.Close()

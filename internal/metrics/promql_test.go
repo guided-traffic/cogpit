@@ -82,8 +82,8 @@ func TestQueries(t *testing.T) {
 			`sum(max by (node, instance) (sum by (node, instance, job) (rate(node_cpu_seconds_total{node="n1.example",mode!~"idle|iowait|steal"}[4m])))) or ` +
 				`sum(max by (node, instance) (sum by (node, instance, job) (rate(node_cpu_seconds_total{` + inst + `,mode!~"idle|iowait|steal"}[4m]))))`},
 		"exporter mem": {node.exporterMem,
-			`sum(max by (node, instance) (node_memory_MemTotal_bytes{node="n1.example"} - node_memory_MemFree_bytes{node="n1.example"} - node_memory_Inactive_file_bytes{node="n1.example"})) or ` +
-				`sum(max by (node, instance) (node_memory_MemTotal_bytes{` + inst + `} - node_memory_MemFree_bytes{` + inst + `} - node_memory_Inactive_file_bytes{` + inst + `}))`},
+			`sum(max by (node, instance) (node_memory_AnonPages_bytes{node="n1.example"} + node_memory_Cached_bytes{node="n1.example"} + node_memory_Buffers_bytes{node="n1.example"} - node_memory_Inactive_file_bytes{node="n1.example"})) or ` +
+				`sum(max by (node, instance) (node_memory_AnonPages_bytes{` + inst + `} + node_memory_Cached_bytes{` + inst + `} + node_memory_Buffers_bytes{` + inst + `} - node_memory_Inactive_file_bytes{` + inst + `}))`},
 		"cadvisor cpu with addresses": {node.cpu,
 			`sum(rate(container_cpu_usage_seconds_total{id="/",node="n1.example"}[4m])) or sum(rate(container_cpu_usage_seconds_total{id="/",` + inst + `}[4m]))`},
 		"every exporter": {exporterCPU("", rateWindow),

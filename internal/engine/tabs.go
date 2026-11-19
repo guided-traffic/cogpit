@@ -13,22 +13,22 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The tab bar of cluster views (ui-parity › Layout, G5). Captured from Lens Desktop (2026-10-11): a
-// single click in the navigator opens a preview tab, a double click (or ⇧↵) a fixed tab; a tab reads
-// "<view> - <context>" with the cluster's icon and a close button; the preview tab's title is
-// italic. From Lens's shortcuts page: ⌘W closes the tab, ⌃- and ⌃⇧- go back and forward in the
-// tab's history, ⌘⌥→ and ⌘⌥← to the next and the previous tab, ⌘n to the n-th.
+// The tab bar of cluster views (ui-parity › Layout, G5). Captured from Lens Desktop: a single click
+// in the navigator opens a preview tab, a double click (or ⇧↵) a fixed tab; a tab reads "<view> -
+// <context>" with the cluster's icon and a close button; the preview tab's title is italic. From
+// Lens's shortcuts page: ⌘W closes the tab, ⌃- and ⌃⇧- go back and forward in the tab's history,
+// ⌘⌥→ and ⌘⌥← to the next and the previous tab, ⌘n to the n-th.
 //
-// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13, unless noted):
-//   - one preview tab per cluster (D-117, the owner's pick of 2026-10-23; until then one in all):
-//     opening a view in preview shows it in the shown cluster's preview tab, made when it has none,
-//     and the view it showed before goes into its history; another cluster's preview tab is never
-//     touched, and a tab never changes its cluster; a fixed tab stays until it is closed;
+// Cogpit's defaults (inferred, not the owner's decision, unless noted):
+//   - one preview tab per cluster (D-117, the owner's pick; until then one in all): opening a view
+//     in preview shows it in the shown cluster's preview tab, made when it has none, and the view
+//     it showed before goes into its history; another cluster's preview tab is never touched, and a
+//     tab never changes its cluster; a fixed tab stays until it is closed;
 //   - opening a view that a fixed tab of the cluster shows activates that tab;
 //   - a tab keeps its own namespace filter, search, status filter, sort, selection and drawer;
 //     changing them does not fix a preview tab; it remembers the selection of every view it showed,
 //     by cluster, and gives it back when it shows the view again (selectionmemory.go: N111, the
-//     owner's decision in the audit of 2026-10-16);
+//     owner's decision in the audit);
 //   - a new tab opens right of the active one;
 //   - closing the active tab shows the nearest tab of the same cluster, right first, else nothing:
 //     the workspace stays empty until a view is opened (closing the last tab too);
@@ -94,11 +94,11 @@ type ViewTab struct {
 }
 
 // TabPlace is a place in a tab's history: a view as the tab left it, with its filters and its
-// drawer, which back and forward bring back (the owner's finding of 2026-10-25: "beim zurück
-// navigieren möchte ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden.
-// Zurück navigieren heißt eben zurück auf den vorherigen Punkt."). The view's selection comes back
-// from the tab's memory of it (selectionmemory.go), the search's toggles and the sort stay the
-// tab's and the view's, and where its list was scrolled is the window's, by Place (tabscroll.go).
+// drawer, which back and forward bring back (the owner's finding: "beim zurück navigieren möchte
+// ich auch, dass der Drawer, Scrollpunkt und Filter wiederhergestellt werden. Zurück navigieren
+// heißt eben zurück auf den vorherigen Punkt."). The view's selection comes back from the tab's
+// memory of it (selectionmemory.go), the search's toggles and the sort stay the tab's and the
+// view's, and where its list was scrolled is the window's, by Place (tabscroll.go).
 type TabPlace struct {
 	View       string           `json:"view"`
 	Namespaces []string         `json:"namespaces,omitempty"`
@@ -654,8 +654,8 @@ func (s *Session) SelectTab(ctx context.Context, id string) (UIState, error) {
 	// cluster named but not connected: D-41) gives way, or syncTabs would show it instead of the one
 	// clicked. The shown cluster's active tab stays active until the other cluster shows: cleared
 	// here, syncTabs took the shown view for one just opened and moved it into the preview tab, which
-	// lost the view that tab showed (D-117, the owner's bug of 2026-10-23); and a connect that ends
-	// before it began (superseded, cancelled) leaves the shown cluster with its tab.
+	// lost the view that tab showed (D-117, the owner's bug); and a connect that ends before it
+	// began (superseded, cancelled) leaves the shown cluster with its tab.
 	s.UpdateUI(func(u *UIState) {
 		if j := u.tabIndex(id); j >= 0 {
 			u.touch(j)

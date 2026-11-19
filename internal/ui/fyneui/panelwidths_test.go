@@ -217,6 +217,7 @@ func TestPanelWidthsSurviveARestart(t *testing.T) {
 	w2.SetPadded(false)
 	q := &mainQueue{}
 	sh2 := newShell(f, a, w2, Options{}, q.do)
+	keepScene(t, w2, sh2, q)
 	sh2.kc.startDir = t.TempDir
 	w2.SetContent(sh2.root)
 	w2.Resize(fyne.NewSize(1440, 900))

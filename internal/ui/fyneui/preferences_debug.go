@@ -10,16 +10,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// Preferences › Kubernetes › Debug container image (the owner, 2026-10-19; D-102;
-// engine/debugcontainer.go): the image Debug offers for a pod's ephemeral container, app-wide,
-// unlike the node shell's image, which is a cluster's. The field shows an image by its short name,
-// the pin behind it (the owner's R30, 2026-10-20, as the debug dialog does): Cogpit's default,
-// nicolaka/netshoot:v0.16 pinned by digest, is the placeholder, a set image its short name; while
-// the text is the set image's short name the setting keeps the image as it is, its digest included,
-// the default's short name sets the default, and a changed text is kept as typed
-// (engine.ImageFromField). A line under it says whether the image in effect is pinned or a floating
-// tag, as the debug dialog and its confirmation do. Only the user sets it (preferences.set refuses
-// agents anything but the default).
+// Preferences › Kubernetes › Debug container image (the owner; D-102; engine/debugcontainer.go):
+// the image Debug offers for a pod's ephemeral container, app-wide, unlike the node shell's image,
+// which is a cluster's. The field shows an image by its short name, the pin behind it (the owner's
+// R30, as the debug dialog does): Cogpit's default, nicolaka/netshoot:v0.16 pinned by digest, is
+// the placeholder, a set image its short name; while the text is the set image's short name the
+// setting keeps the image as it is, its digest included, the default's short name sets the default,
+// and a changed text is kept as typed (engine.ImageFromField). A line under it says whether the
+// image in effect is pinned or a floating tag, as the debug dialog and its confirmation do. Only
+// the user sets it (preferences.set refuses agents anything but the default).
 
 const debugImageSetting = "debugImage"
 

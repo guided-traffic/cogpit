@@ -10,12 +10,12 @@ import (
 	"github.com/guided-traffic/cogpit/internal/helm"
 )
 
-// Editing and creating Secrets from YAML, in the GUI only (D-19, owner 2026-10-12). An Edit or
-// Create resource tab that holds a Secret shows the user its values (base64 in data, plain text in
-// stringData) and works like any other editor tab. Agents and the CLI can neither open such a tab,
-// nor read its text, nor change, check or apply it, nor create a Secret: the same pattern as
-// secret.reveal. The check sits in the engine functions each of those commands calls, so every
-// entry point has it, and its text never carries a value.
+// Editing and creating Secrets from YAML, in the GUI only (D-19, owner). An Edit or Create resource
+// tab that holds a Secret shows the user its values (base64 in data, plain text in stringData) and
+// works like any other editor tab. Agents and the CLI can neither open such a tab, nor read its
+// text, nor change, check or apply it, nor create a Secret: the same pattern as secret.reveal. The
+// check sits in the engine functions each of those commands calls, so every entry point has it, and
+// its text never carries a value.
 
 // ErrSecretGUIOnly refuses an agent or the CLI anything that opens, reads, changes, checks, applies
 // or creates a Secret from YAML, and the same for a Helm release record kept in a ConfigMap

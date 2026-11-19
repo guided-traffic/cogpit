@@ -243,7 +243,7 @@ func TestPaletteOpenState(t *testing.T) {
 
 // Every cluster and kubeconfig command is under the menu path Cluster/, the window's Cluster menu
 // that holds them, so the palette files each under "Cluster" (N121, the owner's decision in the
-// audit of 2026-10-16): no command names File/, a menu Cogpit's window does not have.
+// audit): no command names File/, a menu Cogpit's window does not have.
 func TestClusterCommandsUnderTheClusterMenu(t *testing.T) {
 	h := newHarness(t, seed(), engine.Options{})
 	for _, c := range h.s.Registry().Commands() {

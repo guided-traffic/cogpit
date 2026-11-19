@@ -10,18 +10,18 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 )
 
-// Reconcile with Source (D-33, owner 2026-10-14), as `flux reconcile kustomization|helmrelease
-// --with-source` does it: a reconcile request on the object's source first, then on the object
-// (kinds.FluxSourceOf names the source). A Helm release's HelmChart is reconciled with the chart's
-// own source before it, as the flux CLI does; an OCI Helm repository is skipped, as the flux CLI
-// skips it (no controller reconciles it). Each patch is reconciliation's annotation alone, bound
-// to its object's UID like Reconcile's.
+// Reconcile with Source (D-33, owner), as `flux reconcile kustomization|helmrelease --with-source`
+// does it: a reconcile request on the object's source first, then on the object (kinds.FluxSourceOf
+// names the source). A Helm release's HelmChart is reconciled with the chart's own source before
+// it, as the flux CLI does; an OCI Helm repository is skipped, as the flux CLI skips it (no
+// controller reconciles it). Each patch is reconciliation's annotation alone, bound to its object's
+// UID like Reconcile's.
 //
-// Since A91 (the owner's decision of 2026-10-14 evening) Cogpit waits as the flux CLI does: a
-// background job asks each object in turn and waits for its controller before the next
-// (fluxsourcejob.go). Every object is checked before the job starts: a suspended source, or one
-// missing from the cluster, refuses the whole action with nothing done, where the flux CLI would
-// stop after the sources it had already annotated.
+// Since A91 (the owner's decision) Cogpit waits as the flux CLI does: a background job asks each
+// object in turn and waits for its controller before the next (fluxsourcejob.go). Every object is
+// checked before the job starts: a suspended source, or one missing from the cluster, refuses the
+// whole action with nothing done, where the flux CLI would stop after the sources it had already
+// annotated.
 
 // fluxSourceChainLen bounds the walk from an object to its sources: a Helm release's HelmChart,
 // then the chart's source.

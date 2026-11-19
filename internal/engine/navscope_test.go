@@ -140,9 +140,9 @@ func TestNavScopeIsChecked(t *testing.T) {
 	}
 }
 
-// The tab bar shows the shown cluster's tabs, at the section too (the owner's GW11, 2026-10-20);
-// the n-th tab, next and previous count those, so that ⌘n and ⌘⌥→ never leave the cluster shown;
-// another cluster's tab, selected by its id (ui.tab.select), shows that cluster.
+// The tab bar shows the shown cluster's tabs, at the section too (the owner's GW11); the n-th tab,
+// next and previous count those, so that ⌘n and ⌘⌥→ never leave the cluster shown; another
+// cluster's tab, selected by its id (ui.tab.select), shows that cluster.
 func TestTabsShown(t *testing.T) {
 	s, _ := scopeSession(t)
 	ctx := context.Background()
@@ -195,10 +195,10 @@ func TestTabsShown(t *testing.T) {
 	}
 }
 
-// The tab bar with mixed environments (the owner's GW11, 2026-10-20): off, the default, only the
-// shown cluster's tabs, at the section too; on, every connected cluster's tabs; every tab of a
-// connected cluster while no cluster is shown. Never a tab of a cluster without a connection
-// (GW13): connecting, a failed connect, disconnected.
+// The tab bar with mixed environments (the owner's GW11): off, the default, only the shown
+// cluster's tabs, at the section too; on, every connected cluster's tabs; every tab of a connected
+// cluster while no cluster is shown. Never a tab of a cluster without a connection (GW13):
+// connecting, a failed connect, disconnected.
 func TestTabsShownMixedEnvironments(t *testing.T) {
 	tabs := []ViewTab{{ID: "a1", Context: "a"}, {ID: "b1", Context: "b"}, {ID: "a2", Context: "a"}}
 	ids := func(u UIState) []string { return tabIDs(u.TabsShown()) }

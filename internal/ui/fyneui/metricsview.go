@@ -18,14 +18,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The drawer's Metrics section (G12, architecture §9), after Lens's (capture, 2026-10-12): above the
-// Properties of a pod or node, a line naming the source ("Displaying metrics from Kubernetes
-// Metrics Server", "Displaying metrics from Prometheus (monitoring/prometheus-server)"), and
-// charts, each with its own time range (1h at first), a button for each variant (CPU, Memory,
-// Network, Filesystem), a flag button that marks the object's events on the chart, and the chart
-// with the requests and limits as dashed lines (CPU and Memory). Network and Filesystem need a
-// provider that has them (Prometheus) and are disabled with that reason otherwise. Each container
-// of a pod gets a compact chart of its own under its section's title.
+// The drawer's Metrics section (G12, architecture §9), after Lens's (capture): above the Properties
+// of a pod or node, a line naming the source ("Displaying metrics from Kubernetes Metrics Server",
+// "Displaying metrics from Prometheus (monitoring/prometheus-server)"), and charts, each with its
+// own time range (1h at first), a button for each variant (CPU, Memory, Network, Filesystem), a
+// flag button that marks the object's events on the chart, and the chart with the requests and
+// limits as dashed lines (CPU and Memory). Network and Filesystem need a provider that has them
+// (Prometheus) and are disabled with that reason otherwise. Each container of a pod gets a compact
+// chart of its own under its section's title.
 //
 // A chart's time range is engine state (ui.setMetricsRange), so that agents see and set it: the
 // range control asks the engine and follows what the engine reports, whoever changed it.
@@ -126,7 +126,7 @@ type chartCtl struct {
 }
 
 // metricsVariants are the buttons of every chart: icons, as Lens's are, with the name as the
-// tooltip (owner, 2026-10-12).
+// tooltip (owner).
 var metricsVariants = []struct {
 	id, label string
 	icon      fyne.Resource

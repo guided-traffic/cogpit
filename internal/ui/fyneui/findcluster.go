@@ -18,25 +18,25 @@ const connectLabel = "Connect to Cluster"
 // connectAgainLabel is the button after a failed connect that connects its cluster again (D-97).
 const connectAgainLabel = "Connect Again"
 
-// Choosing a cluster (D-57, the owner's interview of 2026-10-15 evening): one list, the navigator's
-// section (navigator_sections.go), instead of the context picker that listed the same clusters a
-// second time. Every way that opened the picker shows the section with its search open and
-// focused: ⌘P and the Cluster menu's Connect to Cluster… (cluster.connect's shortcut and label in
-// the registry), the palette's Connect to Cluster, the workspace's button while no cluster is
-// connected, and a --context that fails at start. The welcome page has no button of its own (the
-// owner, 2026-10-16 evening, N122): its cluster rows and the section are the list. The workspace's
-// stays: while it shows, the engine's scope is the section (syncNavScope: the shown cluster is not
-// connected or connecting), but a navigator ⌘B hid shows nothing, and the button shows it first. ↵ drills into the
-// first match, connecting it as the section does (its login program shown for approval first);
-// Escape on the empty search goes back to the tree of the cluster ⌘P came from (navHeader.escape).
+// Choosing a cluster (D-57, the owner's interview): one list, the navigator's section
+// (navigator_sections.go), instead of the context picker that listed the same clusters a second
+// time. Every way that opened the picker shows the section with its search open and focused: ⌘P and
+// the Cluster menu's Connect to Cluster… (cluster.connect's shortcut and label in the registry),
+// the palette's Connect to Cluster, the workspace's button while no cluster is connected, and a
+// --context that fails at start. The welcome page has no button of its own (the owner, N122): its
+// cluster rows and the section are the list. The workspace's stays: while it shows, the engine's
+// scope is the section (syncNavScope: the shown cluster is not connected or connecting), but a
+// navigator ⌘B hid shows nothing, and the button shows it first. ↵ drills into the first match,
+// connecting it as the section does (its login program shown for approval first); Escape on the
+// empty search goes back to the tree of the cluster ⌘P came from (navHeader.escape).
 //
-// What is engine state and what is the window's (the lead's night decision, 2026-10-15, for the
-// owner to confirm; D-57): the navigator shown (ui.toggleNavigator), the section
-// (ui.setNavigatorScope) and the search's text (ui.setNavigatorSearch, D-51) are engine state, set
-// through their commands as every other way sets them; the search field's keyboard focus and the
-// cluster ⌘P came from are the window's, as the palette's focus is: they belong to the keystroke,
-// an agent drives the same state with the three commands, and the cluster to go back to is the
-// connected one, which ui_state names.
+// What is engine state and what is the window's (the lead's night decision, for the owner to
+// confirm; D-57): the navigator shown (ui.toggleNavigator), the section (ui.setNavigatorScope) and
+// the search's text (ui.setNavigatorSearch, D-51) are engine state, set through their commands as
+// every other way sets them; the search field's keyboard focus and the cluster ⌘P came from are the
+// window's, as the palette's focus is: they belong to the keystroke, an agent drives the same state
+// with the three commands, and the cluster to go back to is the connected one, which ui_state
+// names.
 
 // connectMenuItem is the Cluster menu's Connect to Cluster… with ⌘P: the registry's label and
 // shortcut of cluster.connect, the section in the window (findCluster).

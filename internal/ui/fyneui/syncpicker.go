@@ -21,14 +21,13 @@ import (
 
 // The one dialog that adds kubeconfigs (G2): "Sync Files and Folders". Lens opens the system's file
 // dialog titled "Sync file(s)" or "Sync Files and Folders" with the button "Sync", which takes
-// files and folders together (captured 2026-10-12). Fyne's own file dialogs choose either a file
-// or a folder, so this is a small browser of Cogpit's own with the same semantic: select a file or
-// a folder in the list and press Sync, or press Sync with nothing selected to sync the folder
-// shown. Hidden files are listed (kubeconfigs may be named .kubeconfig), and the status line names
-// the path that will be synced. The dialog reads directory listings only, never file contents.
-// On macOS the system's own open panel stands in (D-72) (pickFiles,
-// filepicker_choosers.go): this browser is the fallback where the system has no panel (Windows and
-// Linux until M11, Fyne's test driver).
+// files and folders together (captured). Fyne's own file dialogs choose either a file or a folder,
+// so this is a small browser of Cogpit's own with the same semantic: select a file or a folder in
+// the list and press Sync, or press Sync with nothing selected to sync the folder shown. Hidden
+// files are listed (kubeconfigs may be named .kubeconfig), and the status line names the path that
+// will be synced. The dialog reads directory listings only, never file contents. On macOS the
+// system's own open panel stands in (D-72) (pickFiles, filepicker_choosers.go): this browser is the
+// fallback where the system has no panel (Windows and Linux until M11, Fyne's test driver).
 
 // maxSyncPickerEntries bounds the rows of one folder: a folder with more is not a folder of
 // kubeconfigs, and building thousands of rows would stall the window.
@@ -246,8 +245,8 @@ func (sp *syncPicker) target() (path string, folder bool) {
 
 // sync adds the target and closes the dialog. A path typed or pasted into the entry and not opened
 // with Enter is what the user means: it wins over the folder shown (Sync used to add the folder
-// the dialog opened in, the home directory, owner 2026-10-12). One that does not exist is said in
-// the status line, and the dialog stays.
+// the dialog opened in, the home directory, owner). One that does not exist is said in the status
+// line, and the dialog stays.
 func (sp *syncPicker) sync() {
 	typed := sp.typed()
 	if typed == "" {

@@ -13,7 +13,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A cluster's accent colour on Cluster Settings › General (D-80, the owner's F26 of 2026-10-17;
+// A cluster's accent colour on Cluster Settings › General (D-80, the owner's F26;
 // engine/accentcolor.go): a row of swatches under the icon, as the icon colour has: None first, the
 // eight accents, a colour picked freely (its swatch while one is set) and the picker. A tap
 // dispatches cluster.settings.setAccentColor, which only the window may run: the colour is the

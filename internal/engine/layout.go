@@ -5,14 +5,13 @@ import (
 	"slices"
 )
 
-// The window's layout (F7, the owner's finding of 2026-10-15; decisions.md, F7): three toggles at
-// the top bar's right end, as VS Code's title bar has them, for the navigator (VS Code's primary
-// side bar), the dock (its panel) and the agent chat's column (its secondary side bar). Each is UI
-// state, so that agents see and drive it as the user does: UIState.NavigatorHidden
-// (ui.toggleNavigator, ⌘B), UIState.DockOpen (ui.toggleDock, ⌘J) and UIState.Chat (chat.toggle,
-// ⌘I; chat.go). The navigator's and the chat column's survive a restart in workspace.json
-// (persist.go). The dock's does not need to: its tabs are not restored (D-41), and a dock without
-// tabs is closed.
+// The window's layout (F7, the owner's finding; decisions.md, F7): three toggles at the top bar's
+// right end, as VS Code's title bar has them, for the navigator (VS Code's primary side bar), the
+// dock (its panel) and the agent chat's column (its secondary side bar). Each is UI state, so that
+// agents see and drive it as the user does: UIState.NavigatorHidden (ui.toggleNavigator, ⌘B),
+// UIState.DockOpen (ui.toggleDock, ⌘J) and UIState.Chat (chat.toggle, ⌘I; chat.go). The navigator's
+// and the chat column's survive a restart in workspace.json (persist.go). The dock's does not need
+// to: its tabs are not restored (D-41), and a dock without tabs is closed.
 
 // ErrNoDockTabs disables ui.toggleDock while the dock has no tabs: there is nothing to open, only
 // its tab strip with the "+" menu.
@@ -41,10 +40,10 @@ func (u *UIState) SyncDock(old UIState) {
 
 // ShowDockTab makes the dock tab id the active one and opens the dock on it: a command that shows a
 // dock tab opens the dock, also when the tab is open already and the active one (the owner's alpha
-// walk, 2026-10-22, AW9: Edit on an object whose Edit tab was the active one left the minimised
-// dock collapsed, since SyncDock opens it only for a tab added or another tab made active). A tab
-// of a cluster the window does not show opens that cluster's dock for when it is shown
-// (syncDockScope), never the shown one. Exported for the window's test fake of the engine.
+// walk, AW9: Edit on an object whose Edit tab was the active one left the minimised dock collapsed,
+// since SyncDock opens it only for a tab added or another tab made active). A tab of a cluster the
+// window does not show opens that cluster's dock for when it is shown (syncDockScope), never the
+// shown one. Exported for the window's test fake of the engine.
 func (u *UIState) ShowDockTab(id string) {
 	u.ActiveDock = id
 	if u.inDockScope(id) {

@@ -10,14 +10,14 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// The alert board (D-77; the owner, 2026-10-17: "ein Alert-Dashboard … wie karma, aber
-// aufgeräumter"): a workspace page of the shown cluster's active alerts, grouped by severity
-// (critical, warning, info), a card per alertname with its count, and per alert its summary (the
-// description folded under it), since when it fires, the object it names as a link into Cogpit's
-// views and its runbook. It shows what serves and nothing else ("sparsam bei der Darstellung"): no
-// label chips, no cluster, environment, job, instance or Prometheus labels, no receivers, no
-// silences. Read only: silencing is a write to Alertmanager, not Cogpit's (D-77). The model is
-// alerts.board's; agents read the alerts flat with alerts.list.
+// The alert board (D-77; the owner: "ein Alert-Dashboard … wie karma, aber aufgeräumter"): a
+// workspace page of the shown cluster's active alerts, grouped by severity (critical, warning,
+// info), a card per alertname with its count, and per alert its summary (the description folded
+// under it), since when it fires, the object it names as a link into Cogpit's views and its
+// runbook. It shows what serves and nothing else ("sparsam bei der Darstellung"): no label chips,
+// no cluster, environment, job, instance or Prometheus labels, no receivers, no silences. Read
+// only: silencing is a write to Alertmanager, not Cogpit's (D-77). The model is alerts.board's;
+// agents read the alerts flat with alerts.list.
 
 // AlertBoardModel is the board: the cluster's alerts as the window shows them, with its search and
 // namespace filter applied.
@@ -175,7 +175,7 @@ type AlertColumn struct {
 	// namespace; "" for text.
 	Link string `json:"link,omitempty"`
 	// Number marks a column of numbers: a number the texts hold, or a label all of whose values
-	// are numbers. The board sets it right-aligned (the owner, 2026-11-17).
+	// are numbers. The board sets it right-aligned (the owner).
 	Number bool `json:"number,omitempty"`
 }
 
@@ -234,7 +234,7 @@ func severityTitle(s alerting.Severity) string {
 }
 
 // AlertSeverityStatus is a severity's colour token: critical red, warning orange, info yellow (the
-// owner, 2026-10-17); StatusNone for anything else.
+// owner); StatusNone for anything else.
 func AlertSeverityStatus(severity string) model.Status {
 	for _, s := range alertSeverities {
 		if string(s.sev) == severity {

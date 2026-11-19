@@ -38,11 +38,11 @@ func tabRevision(t *testing.T, h *helmHarness, id string) uint64 {
 	return res.(engine.EditorState).Revision
 }
 
-// The Upgrade tab, as Lens's (captured 2026-10-12): Upgrade sits between Rollback and Delete; the
-// tab holds the chart, the release's own version as the only choice, and the user-supplied values
-// from the cache, read again by editor.get; it is focused, not opened twice; Save (the tab id)
-// upgrades with the edited values, which replace the old ones, records nothing in the journal once
-// it finished, and moves the tab's base to the new revision.
+// The Upgrade tab, as Lens's (captured): Upgrade sits between Rollback and Delete; the tab holds
+// the chart, the release's own version as the only choice, and the user-supplied values from the
+// cache, read again by editor.get; it is focused, not opened twice; Save (the tab id) upgrades with
+// the edited values, which replace the old ones, records nothing in the journal once it finished,
+// and moves the tab's base to the new revision.
 func TestHelmUpgradeTab(t *testing.T) {
 	journal := engine.NewMemoryHelmJournal()
 	h := newHelmHarness(t, journal, nil)
@@ -186,7 +186,7 @@ func TestHelmUpgradeAgents(t *testing.T) {
 		t.Fatalf("%d confirmations, want 2", len(asked))
 	}
 	// The values an agent passes inline are shown to the user before they answer, and never
-	// serialised with the request (owner, 2026-10-12); from a tab, the tab is what the user reads.
+	// serialised with the request (owner); from a tab, the tab is what the user reads.
 	if asked[0].Review != "" || asked[1].Review != "adminPassword: agent-s3cr3t-2\n" {
 		t.Errorf("reviews %q, %q", asked[0].Review, asked[1].Review)
 	}

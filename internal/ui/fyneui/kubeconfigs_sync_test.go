@@ -21,7 +21,7 @@ import (
 // subfolder with a kubeconfig of its own. Nothing here is the developer's home or ~/.kube.
 func syncTree(t *testing.T) string {
 	t.Helper()
-	dir := t.TempDir()
+	dir := fixedDir(t) // its path shows in the picture
 	for _, f := range []string{"team.yaml", ".dev.kubeconfig", "notes.txt", filepath.Join("clusters", "prod.yaml")} {
 		p := filepath.Join(dir, f)
 		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
@@ -294,9 +294,9 @@ func TestRenderRemoveConfirmation(t *testing.T) {
 }
 
 // A path typed or pasted into the entry and not opened with Enter is what Sync adds, not the folder
-// the dialog shows (owner, 2026-10-12: Sync added the home directory instead of the folder typed).
-// One that does not exist keeps the dialog open with the reason; a tap on an entry after typing
-// chooses from the list again.
+// the dialog shows (owner: Sync added the home directory instead of the folder typed). One that
+// does not exist keeps the dialog open with the reason; a tap on an entry after typing chooses from
+// the list again.
 func TestSyncPickerSyncsATypedPath(t *testing.T) {
 	f, rec := kubeconfigFake(t, engine.ExecRequired)
 	f.handlers["kubeconfig.addFolder"] = func(_ context.Context, inv engine.Invocation) (any, error) {
@@ -336,7 +336,7 @@ func TestSyncPickerSyncsATypedPath(t *testing.T) {
 }
 
 // A sync that finds no cluster says so in a dialog, with the files it skipped and why, and offers
-// to remove the source again; a toast saying "0 contexts" went unnoticed (owner, 2026-10-12).
+// to remove the source again; a toast saying "0 contexts" went unnoticed (owner).
 func TestSyncWithoutClustersSaysWhy(t *testing.T) {
 	f, rec := kubeconfigFake(t, engine.ExecRequired)
 	f.handlers["kubeconfig.addFolder"] = func(_ context.Context, inv engine.Invocation) (any, error) {

@@ -10,13 +10,12 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// Cogpit's own title bar on macOS (ui-parity › Layout, owner requirement 2026-10-11): no standard
-// title bar above Cogpit's top bar; the top bar reaches into the title bar's area, the logo beside
-// the window buttons, and the window is dragged by Cogpit's bar and zoomed or minimised by a
-// double click on it, as the user's "double-click a window's title bar to" setting says. The
-// AppKit side is titlebar_darwin.go and .m; other systems keep their native frames
-// (titlebar_other.go). This file is what all systems share: the logic the bridge feeds, testable
-// without a window.
+// Cogpit's own title bar on macOS (ui-parity › Layout, owner requirement): no standard title bar
+// above Cogpit's top bar; the top bar reaches into the title bar's area, the logo beside the window
+// buttons, and the window is dragged by Cogpit's bar and zoomed or minimised by a double click on
+// it, as the user's "double-click a window's title bar to" setting says. The AppKit side is
+// titlebar_darwin.go and .m; other systems keep their native frames (titlebar_other.go). This file
+// is what all systems share: the logic the bridge feeds, testable without a window.
 
 // titlebarAction is what a double click on the title bar does.
 type titlebarAction int
@@ -76,7 +75,7 @@ func titlebarLayout(g titlebarGeometry, scale, innerPad, pad float32) (lead, hei
 // bar's height; zeros give the room back (full screen, other systems). It reports whether anything
 // changed: AppKit reports every step of a live resize, and refreshing the window's whole content
 // for each of them, the room unchanged, re-rendered every text while the window was dragged (the
-// owner saw the text flicker, 2026-10-13).
+// owner saw the text flicker).
 func (t *topBar) setTitlebar(lead, height float32) bool {
 	if t.titleSet && lead == t.titleLead && height == t.titleHeight {
 		return false

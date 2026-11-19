@@ -10,9 +10,9 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// A container's image grade in a pod's drawer (D-113; the owner, 2026-10-22: no section of its own,
-// in each container's section, "als Symbol und als Detailansicht"; his pick in the Image Rating Lab:
-// the shield after the container's name, and Docker Scout's card under its items). The card: the
+// A container's image grade in a pod's drawer (D-113; the owner: no section of its own, in each
+// container's section, "als Symbol und als Detailansicht"; his pick in the Image Rating Lab: the
+// shield after the container's name, and Docker Scout's card under its items). The card: the
 // shield, the grade and the count that decides it, the rule it stands for, the counts as a severity
 // bar (gradebadge.go), and a line with the image's OS (its end of life in the warning colour), when
 // it was scanned and the report, a link to its object. N/A: the shield, its text and its rule.

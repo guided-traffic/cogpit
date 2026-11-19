@@ -134,8 +134,8 @@ func TestClearNotifications(t *testing.T) {
 }
 
 // The window's own toasts and an engine toast marked WindowOnly reach every caller but the window
-// as text since A19 (owner, 2026-10-14 evening), filtered (no Secret is cached here, so the text is
-// the window's); the others read in full. An EmitWindowToast's inline values are removed for them.
+// as text since A19 (owner), filtered (no Secret is cached here, so the text is the window's); the
+// others read in full. An EmitWindowToast's inline values are removed for them.
 func TestWindowOnlyNotificationsReachAgents(t *testing.T) {
 	s, events := notificationSession(t)
 	id := s.RecordWindowToast(LevelError, "helm.chart.install: template: name LOOKED-UP-SECRET-DATA is not valid")

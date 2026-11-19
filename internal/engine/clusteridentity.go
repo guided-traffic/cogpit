@@ -5,15 +5,15 @@ import (
 	"errors"
 )
 
-// A cluster's display name and icon are the user's (H-125, the owner's decision of 2026-10-19
-// afternoon: "Nein, sollen sie nicht können."). They are what the window shows of which cluster this
-// is: the name in the hotbar, the navigator, the tab bar and the status bar (D-68),
-// the icon on the hotbar's tile and the tabs. An agent that could change them could rename a
-// production cluster "dev" and colour its icon green, so only the user changes them, in Cogpit's
-// window, as only the user sets the accent colour (D-80, accentcolor.go): cluster.settings.set's
-// name, iconColor, iconLetters and iconTile (D-119) are refused for every other origin, set or
-// cleared, before anything is read, written or asked (RefuseClusterIdentity), and
-// cluster.settings.resetIcon, cluster.settings.uploadIcon and cluster.settings.cutIcon are GUI-only. Agents read them (cluster.settings.get, ui_state's
+// A cluster's display name and icon are the user's (H-125, the owner's decision: "Nein, sollen sie
+// nicht können."). They are what the window shows of which cluster this is: the name in the hotbar,
+// the navigator, the tab bar and the status bar (D-68), the icon on the hotbar's tile and the tabs.
+// An agent that could change them could rename a production cluster "dev" and colour its icon
+// green, so only the user changes them, in Cogpit's window, as only the user sets the accent colour
+// (D-80, accentcolor.go): cluster.settings.set's name, iconColor, iconLetters and iconTile (D-119)
+// are refused for every other origin, set or cleared, before anything is read, written or asked
+// (RefuseClusterIdentity), and cluster.settings.resetIcon, cluster.settings.uploadIcon and
+// cluster.settings.cutIcon are GUI-only. Agents read them (cluster.settings.get, ui_state's
 // clusterSettings), so that they can tell the user which cluster they act in.
 
 // ErrClusterIdentityGUIOnly refuses a change of a cluster's display name or icon from anywhere but

@@ -13,11 +13,11 @@ import (
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
 
-// H-40 (owner, 2026-10-14; D-2): the allowance to send a Helm repository's user and password over
-// plain http is the user's, in the window. An agent and the CLI read why the repository waits
-// (helm.repo.list) and are refused helm.repo.allowHTTPCredentials whatever they pass, the token
-// included: nothing is recorded, nothing is requested, and the refusal is audited. The window's
-// call allows it, and the repository then downloads with its credentials.
+// H-40 (owner; D-2): the allowance to send a Helm repository's user and password over plain http is
+// the user's, in the window. An agent and the CLI read why the repository waits (helm.repo.list)
+// and are refused helm.repo.allowHTTPCredentials whatever they pass, the token included: nothing is
+// recorded, nothing is requested, and the refusal is audited. The window's call allows it, and the
+// repository then downloads with its credentials.
 func TestAllowHTTPCredentialsIsTheUsers(t *testing.T) {
 	const user, pass = "erin-http-user", "pw-http-93"
 	h := newChartHarness(t, nil)

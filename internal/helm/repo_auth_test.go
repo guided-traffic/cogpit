@@ -256,12 +256,12 @@ func TestCredentialsNotSentToAChartElsewhere(t *testing.T) {
 	}
 }
 
-// A repository served over plain http with a user and password (H-40, owner 2026-10-14): nothing
-// is requested until the engine hands over a copy the user allowed, so neither the credentials nor a
-// request without them leave Cogpit; then it is used as helm uses it, credentials included, its
-// index may point to https charts; a user and password in its URL are its basic auth and are shown
-// nowhere; an error shows the URL redacted. An http repository without credentials downloads as
-// before (only H-41 applies).
+// A repository served over plain http with a user and password (H-40, owner): nothing is requested
+// until the engine hands over a copy the user allowed, so neither the credentials nor a request
+// without them leave Cogpit; then it is used as helm uses it, credentials included, its index may
+// point to https charts; a user and password in its URL are its basic auth and are shown nowhere;
+// an error shows the URL redacted. An http repository without credentials downloads as before (only
+// H-41 applies).
 func TestPlainHTTPRepository(t *testing.T) {
 	src := testkit.NewHelmRepo(t, webChart)
 	archive := src.Archive("web-0.2.0.tgz")

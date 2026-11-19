@@ -207,6 +207,7 @@ func newArgoShell(t *testing.T, mode ThemeMode, seed bool) (*shell, fyne.Window,
 	w.SetPadded(false)
 	q := &mainQueue{}
 	sh := newShell(s, a, w, Options{Theme: mode, AutoConnect: "argo"}, q.do)
+	keepScene(t, w, sh, q)
 	sh.now = func() time.Time { return fixedNow }
 	sh.confirmer.armDelay = 0
 	s.SetConfirmer(sh.confirmer)

@@ -17,7 +17,7 @@ type prometheusParams struct {
 	engine.OnCluster
 	Address string `json:"address,omitempty" jsonschema:"the Prometheus service as namespace/service:port, the port by number or name (monitoring/prometheus-server:80); omitted or auto: detect it by its well-known service names"`
 	Prefix  string `json:"prefix,omitempty" jsonschema:"the path Prometheus serves under (its --web.route-prefix), such as /prometheus; omitted: none"`
-	// Format, FilterEmptyContainers and HTTPS: how the Prometheus is asked (2026-10-16).
+	// Format, FilterEmptyContainers and HTTPS: how the Prometheus is asked.
 	Format                string `json:"format,omitempty" jsonschema:"the query format, how the cluster's Prometheus names a node's series: auto (default: node-exporter where it has them, else cAdvisor's root cgroup), prometheus-operator (kube-prometheus-stack: node-exporter alone), cadvisor (no node-exporter: the root cgroup alone)"`
 	FilterEmptyContainers *bool  `json:"filterEmptyContainers,omitempty" jsonschema:"leave the series without a container name out of the pods' queries (default true, Lens's default); false keeps them, for a Prometheus whose cAdvisor series carry no container name"`
 	HTTPS                 bool   `json:"https,omitempty" jsonschema:"ask the Prometheus service over https through the API server's service proxy (default false)"`
@@ -60,8 +60,8 @@ func registerPrometheusSetting(g *registrar) {
 			"waits for the user's acceptance, which names the service. Returns the setting.",
 		Enabled: func(s *engine.Session, p prometheusParams) error { _, err := connectedOn(s, p.Context); return err },
 		// Where the cluster's metrics come from decides which service learns the names of the pods
-		// and nodes the user opens (H-26): an agent's change always waits for the user (A16, owner
-		// 2026-10-14 evening; always, as the lead's night decision N8 has UI commands ask).
+		// and nodes the user opens (H-26): an agent's change always waits for the user (A16, owner;
+		// always, as the lead's night decision N8 has UI commands ask).
 		AgentsAsk: func(*engine.Session, prometheusParams) bool { return true },
 		Effects:   prometheusEffects,
 		Run: func(_ context.Context, s *engine.Session, p prometheusParams) (any, error) {

@@ -16,16 +16,16 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-// The MCP details (F6, the owner's decision of 2026-10-15). The gear in the status bar's MCP item
-// opens a panel above it with the external MCP server's switch, its endpoint, the bearer token, the
-// registration commands, and Regenerate token, which warns first. The token is shown masked until
-// the user shows it (as a Secret's value in the drawer), hidden again when the panel closes, and
-// copied on request: a copy of the token or of the HTTP registration, which carries it, is cleared
-// from the clipboard like a Secret's value. The token lives in the window's mcpState and the
-// panel's widgets only, never in a toast, a log or engine state. Like the switch, the panel and
-// Regenerate token are the window's alone: no engine command opens or runs them, so no agent can
-// read the token there or cut the other clients off. The top bar's MCP button is gone; Help › Copy
-// MCP command copies the command and opens this panel.
+// The MCP details (F6, the owner's decision). The gear in the status bar's MCP item opens a panel
+// above it with the external MCP server's switch, its endpoint, the bearer token, the registration
+// commands, and Regenerate token, which warns first. The token is shown masked until the user shows
+// it (as a Secret's value in the drawer), hidden again when the panel closes, and copied on
+// request: a copy of the token or of the HTTP registration, which carries it, is cleared from the
+// clipboard like a Secret's value. The token lives in the window's mcpState and the panel's widgets
+// only, never in a toast, a log or engine state. Like the switch, the panel and Regenerate token
+// are the window's alone: no engine command opens or runs them, so no agent can read the token
+// there or cut the other clients off. The top bar's MCP button is gone; Help › Copy MCP command
+// copies the command and opens this panel.
 
 // mcpTokenMask stands for the token while it is hidden: always the same, so it says nothing of the
 // token.

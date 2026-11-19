@@ -19,7 +19,7 @@ import (
 
 // Copying values from the drawer (D-25): everything selectable, a copy icon on hover, entries in
 // YAML syntax, Secret values masked or revealed (masked ones without showing them, the owner's
-// decision of 2026-10-22) and cleared from the clipboard later.
+// decision) and cleared from the clipboard later.
 
 func TestYAMLEntry(t *testing.T) {
 	for entry, want := range map[string]string{
@@ -63,6 +63,7 @@ func podDrawerScene(t *testing.T, mode ThemeMode) (*shell, fyne.Window, *mainQue
 	f.ui.Selected, f.ui.Drawer = []model.ObjectRef{ref}, &ref
 	sh, w, q := newTestShell(t, f, Options{Theme: mode})
 	q.until(t, "the drawer", func() bool { return sh.drawer.last != nil && len(sh.drawer.details.Objects) > 2 && sh.diag.total > 0 })
+	awaitScene(t, w) // its metrics: a hover before they come would be rebuilt away
 	settle(w)
 	return sh, w, q, ref
 }
@@ -308,13 +309,12 @@ func concealedClipboard(sh *shell) *[]string {
 	return &got
 }
 
-// TestSecretMaskedValueCopiedWithoutShowing (the owner's decision of 2026-10-22, D-25): a masked
-// Secret value has the copy icon in its key's line (RW1), its tooltip says it copies without
-// showing; a tap
-// reads the whole value from the GUI (a value longer than a reveal shows comes whole) and puts it
-// on the clipboard for Secret values, concealed, without showing it: the drawer stays masked, the
-// value enters no widget and not the revealed map, and the toast names the key, never the value.
-// The clipboard is cleared after the TTL, shortened for the test.
+// TestSecretMaskedValueCopiedWithoutShowing (the owner's decision, D-25): a masked Secret value has
+// the copy icon in its key's line (RW1), its tooltip says it copies without showing; a tap reads
+// the whole value from the GUI (a value longer than a reveal shows comes whole) and puts it on the
+// clipboard for Secret values, concealed, without showing it: the drawer stays masked, the value
+// enters no widget and not the revealed map, and the toast names the key, never the value. The
+// clipboard is cleared after the TTL, shortened for the test.
 func TestSecretMaskedValueCopiedWithoutShowing(t *testing.T) {
 	f := wholeRevealFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})
@@ -421,11 +421,10 @@ func TestSecretMaskedCopyRefusals(t *testing.T) {
 	untouched("an answer for the closed drawer")
 }
 
-// TestSecretCutRevealedValueCopiedWhole (the lead's decision of 2026-10-22, D-25): a revealed value
-// that Show cut at 4 KiB copies the whole value through its copy icon, read again with whole as a
-// masked value's copy is, its tooltip "Copy the whole value", the toast naming the key; the drawer
-// keeps showing what Show showed, cut, and nothing more. A selection and ⌘C still copy exactly the
-// selection.
+// TestSecretCutRevealedValueCopiedWhole (the lead's decision, D-25): a revealed value that Show cut
+// at 4 KiB copies the whole value through its copy icon, read again with whole as a masked value's
+// copy is, its tooltip "Copy the whole value", the toast naming the key; the drawer keeps showing
+// what Show showed, cut, and nothing more. A selection and ⌘C still copy exactly the selection.
 func TestSecretCutRevealedValueCopiedWhole(t *testing.T) {
 	f := wholeRevealFake(t)
 	sh, _, q := newTestShell(t, f, Options{Theme: ThemeDark})

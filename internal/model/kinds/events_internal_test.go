@@ -50,11 +50,11 @@ func definition(group, plural, kind, scope string, established bool) *unstructur
 }
 
 // TestEventInvolvedCustomResourceLinks: an event about a custom resource links to its kind's view
-// once the definitions are known, as Lens's do (capture, 2026-10-11). On a real cluster the owner
-// provides for tests (2026-10-16), 174 of 188 events were about Flux's and cert-manager's kinds, all
-// plain before; a cluster-scoped kind drops the namespace; a definition that is not established
-// yet, an unknown group or no definitions leave the link out; built-in kinds link as before. The
-// event's drawer links the same.
+// once the definitions are known, as Lens's do (capture). On a real cluster the owner provides for
+// tests, 174 of 188 events were about Flux's and cert-manager's kinds, all plain before; a
+// cluster-scoped kind drops the namespace; a definition that is not established yet, an unknown
+// group or no definitions leave the link out; built-in kinds link as before. The event's drawer
+// links the same.
 func TestEventInvolvedCustomResourceLinks(t *testing.T) {
 	defs := definitions{
 		definition("kustomize.toolkit.fluxcd.io", "kustomizations", "Kustomization", "Namespaced", true),
@@ -107,9 +107,9 @@ func TestEventInvolvedCustomResourceLinks(t *testing.T) {
 }
 
 // TestPodControlledByCustomResource: a pod whose controller is a custom resource (cert-manager's
-// Challenge, the logging operator's Logging; seen on a real cluster, 2026-10-16) links to it in
-// the Pods list once the definitions are known, and stays plain without them; the Pods view reads
-// the definitions by group and Kind.
+// Challenge, the logging operator's Logging; seen on a real cluster) links to it in the Pods list
+// once the definitions are known, and stays plain without them; the Pods view reads the definitions
+// by group and Kind.
 func TestPodControlledByCustomResource(t *testing.T) {
 	defs := definitions{definition("acme.cert-manager.io", "challenges", "Challenge", "Namespaced", true)}
 	obj := asUnstructured(pod(map[string]any{"containers": []any{map[string]any{"name": "solver"}}}, map[string]any{"phase": "Running"},

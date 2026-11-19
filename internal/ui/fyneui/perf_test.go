@@ -39,6 +39,7 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 	reported := false
 	opts := Options{AutoConnect: engine.DemoContext, PerfMode: PerfGate, PerfReport: func(ps PerfStats) { got, reported = ps, true }}
 	sh := newShell(s, a, w, opts, q.do)
+	keepScene(t, w, sh, q)
 	w.SetContent(sh.root)
 	w.Resize(fyne.NewSize(1440, 900))
 	sh.start()
@@ -67,7 +68,7 @@ func TestPerfGateRunsEveryPhase(t *testing.T) {
 		t.Fatalf("phases %v", names)
 	}
 	views := got.Phases[2]
-	if len(views.Switches) != 10 { // the demo's views but Pods, Config Maps, Secrets and Releases among them, then Pods
+	if len(views.Switches) != 13 { // the demo's views but Pods, Config Maps, Secrets and Releases among them, then Pods
 		t.Fatalf("switches %+v", views.Switches)
 	}
 	for _, sw := range views.Switches {

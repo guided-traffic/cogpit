@@ -196,11 +196,10 @@ func TestPrometheusBudget(t *testing.T) {
 	closedQuiet(t, h, c)
 }
 
-// P12 and P13 with both providers, the normal case (owner, 2026-10-12): a drawer that opens asks
-// Prometheus once for its history (CPU and memory) and then nothing while only CPU or Memory is
-// shown; the Metrics Server's get serves the live values at every poll. A Pods list costs the
-// Metrics Server's list and nothing of Prometheus, which is not even looked for until a drawer
-// opens.
+// P12 and P13 with both providers, the normal case (owner): a drawer that opens asks Prometheus
+// once for its history (CPU and memory) and then nothing while only CPU or Memory is shown; the
+// Metrics Server's get serves the live values at every poll. A Pods list costs the Metrics Server's
+// list and nothing of Prometheus, which is not even looked for until a drawer opens.
 func TestBothProvidersBudget(t *testing.T) {
 	c := newPromCluster(t, true)
 	c.srv.Set(podMetricsGVR, podObj("web", "a"))

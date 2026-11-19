@@ -10,8 +10,8 @@ import (
 )
 
 // What the Access Control views share: Service Accounts, Cluster Roles, Roles, Cluster Role
-// Bindings and Role Bindings. Their columns are captured from Lens (2026-10-11); their warning
-// rules and drawers are Cogpit's (inferred), because the captures show neither.
+// Bindings and Role Bindings. Their columns are captured from Lens; their warning rules and drawers
+// are Cogpit's (inferred), because the captures show neither.
 
 const (
 	groupRBAC          = "rbac.authorization.k8s.io"
@@ -167,7 +167,7 @@ func subjects(obj any) []any {
 }
 
 // subjectNames is the Bindings column: the subjects' names, comma-separated, in their order
-// (capture, 2026-10-11).
+// (capture).
 func subjectNames(obj any) []string {
 	var out []string
 	for _, s := range model.NestedSlice(obj, "subjects") {

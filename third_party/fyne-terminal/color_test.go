@@ -864,8 +864,8 @@ func TestHandleOutput_BufferCutoff(t *testing.T) {
 // is not reversed. Cogpit patch: SGR 7 swapped the current colours each time it came and SGR 27
 // cleared both. zsh highlights a paste with SGR 7 until Enter, and with oh-my-zsh it sends SGR 7
 // again before every character (zsh-syntax-highlighting loaded) or part way (without it; zsh 5.9 in
-// a pseudo-terminal, 2026-10-20), so every other character, or the rest of the paste after one,
-// showed without the highlight (Cogpit's G16 GW7).
+// a pseudo-terminal), so every other character, or the rest of the paste after one, showed without
+// the highlight (Cogpit's G16 GW7).
 func TestReverseVideo(t *testing.T) {
 	type colors struct{ fg, bg color.Color }
 	text := theme.Color(theme.ColorNameDisabledButton) // the default background, as text

@@ -12,8 +12,8 @@ import (
 
 // A followed pod log whose stream outlives an interruption and breaks only once the connection is
 // back still resumes, with the marker, from its last line: asked by when the stream opened, the
-// watch names the interruption it lived through (CI, 2026-10-16: TestStandbyWindowStaysUsable's
-// log ended there, since the watch was asked by the time the stream broke, after the reconnect).
+// watch names the interruption it lived through (CI: TestStandbyWindowStaysUsable's log ended
+// there, since the watch was asked by the time the stream broke, after the reconnect).
 func TestAPodLogBrokenAfterTheReconnectResumes(t *testing.T) {
 	s, p := watchedSession(t, fastWatch)
 	srv := newServerLogs()

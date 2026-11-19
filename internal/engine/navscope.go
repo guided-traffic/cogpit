@@ -8,14 +8,14 @@ import (
 	"strings"
 )
 
-// The navigator's scope (ui-parity › Layout and Clusters, G5, G13). Captured from Lens Desktop
-// (2026-10-11): the navigator's header has a dropdown of the scope its tree shows, one cluster or a
-// section such as "Local Kubeconfigs"; a cluster's root has a › and a ‹ to go back. Lens's
-// documentation: the navigator's sections are Kubernetes Clusters (Local Kubeconfigs and the cloud
-// sections), Teamwork and Extensions, and drilling into a section or a cluster with its chevron
-// filters the tabs to that scope.
+// The navigator's scope (ui-parity › Layout and Clusters, G5, G13). Captured from Lens Desktop: the
+// navigator's header has a dropdown of the scope its tree shows, one cluster or a section such as
+// "Local Kubeconfigs"; a cluster's root has a › and a ‹ to go back. Lens's documentation: the
+// navigator's sections are Kubernetes Clusters (Local Kubeconfigs and the cloud sections), Teamwork
+// and Extensions, and drilling into a section or a cluster with its chevron filters the tabs to
+// that scope.
 //
-// Cogpit's defaults (inferred, not the owner's decision, 2026-10-13):
+// Cogpit's defaults (inferred, not the owner's decision):
 //   - one section, Local Kubeconfigs under Kubernetes Clusters: every context the kubeconfig
 //     sources offer, the one list that chooses a cluster (D-57). The cloud sections (G18, after the
 //     beta), Teamwork (D-9) and Extensions (D-5) are not built, so the section level has nothing

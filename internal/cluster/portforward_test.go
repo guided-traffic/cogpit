@@ -274,7 +274,7 @@ func (c *cancelledAfterFirstCheck) Err() error {
 }
 
 // A dial that finishes after its caller was cancelled hands back no tunnel, whatever order
-// select sees the two in (CI flake on main 7e01d03, 2026-10-12).
+// select sees the two in (CI flake on main 7e01d03).
 func TestDialPortForwardCancelledWhileDialling(t *testing.T) {
 	_, cfg, u := newFakeKubelet(t)
 	ctx := &cancelledAfterFirstCheck{Context: context.Background()}

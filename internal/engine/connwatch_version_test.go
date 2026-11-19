@@ -23,9 +23,9 @@ func versionedSession(t *testing.T, version string) (*Session, *fakeProber) {
 }
 
 // TestTheServerVersionFollowsTheHeartbeat (the owner's colleague's cluster upgraded while Cogpit ran,
-// the owner's "Option A" of 2026-10-26): a version two heartbeats read becomes the cluster's; a patch
-// sets nothing else, another minor sets Connection.Upgraded (in the shown cluster's entry of
-// Connections too) and a line in the connection log, and a return to the connect's minor clears it.
+// the owner's "Option A"): a version two heartbeats read becomes the cluster's; a patch sets
+// nothing else, another minor sets Connection.Upgraded (in the shown cluster's entry of Connections
+// too) and a line in the connection log, and a return to the connect's minor clears it.
 func TestTheServerVersionFollowsTheHeartbeat(t *testing.T) {
 	s, p := versionedSession(t, "v1.35.2")
 	version := func(u UIState) string {

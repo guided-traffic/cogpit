@@ -27,9 +27,9 @@ func TestIngressClassTexts(t *testing.T) {
 	})
 }
 
-// TestIngressClassColumns pins the columns captured from Lens on 2026-10-11: Name, the star column
-// (Default here: Fyne's bundled fonts have no star), an empty Namespace, Controller, API Group,
-// Scope, Kind, and no Age.
+// TestIngressClassColumns pins the columns captured from Lens: Name, the star column (Default here:
+// Fyne's bundled fonts have no star), an empty Namespace, Controller, API Group, Scope, Kind, and
+// no Age.
 func TestIngressClassColumns(t *testing.T) {
 	assertColumnOrder(t, "ingressclasses", []model.Column{
 		{ID: "name", Title: "Name"},

@@ -26,14 +26,14 @@ import (
 // the create, after the confirmation's context and object are checked. The GUI's dialogs
 // (internal/ui/fyneui/createdialog.go) dispatch these commands; agents call the same tools.
 //
-// Danger (the lead's default, 2026-10-12, not the owner's decision; privilege-footprint.md): every
-// create is mutating, so an agent's waits for the user's acceptance (D-2). A binding is a
-// privilege grant, so its confirmation says what it grants to whom (Effects); an agent's role
-// binding, role or cluster role waits for the user even where the user allowed agent writes for
-// the context (AgentsAsk, the owner's decisions of 2026-10-14, H-27 and A1); and two kinds of
-// grant are confirmed for every origin, the GUI too: a cluster role binding (cluster-wide, so registered destructive) and a role
-// binding to cluster-admin, or to a role Cogpit's cache holds whose rules allow every verb on
-// every resource (escalated to destructive). Roles themselves grant nothing until bound.
+// Danger (the lead's default, not the owner's decision; privilege-footprint.md): every create is
+// mutating, so an agent's waits for the user's acceptance (D-2). A binding is a privilege grant, so
+// its confirmation says what it grants to whom (Effects); an agent's role binding, role or cluster
+// role waits for the user even where the user allowed agent writes for the context (AgentsAsk, the
+// owner's decisions, H-27 and A1); and two kinds of grant are confirmed for every origin, the GUI
+// too: a cluster role binding (cluster-wide, so registered destructive) and a role binding to
+// cluster-admin, or to a role Cogpit's cache holds whose rules allow every verb on every resource
+// (escalated to destructive). Roles themselves grant nothing until bound.
 
 // The RBAC names the dialogs use.
 const (
@@ -650,8 +650,8 @@ func grantsAll(s *engine.Session, contextID, kind, name, namespace string) bool 
 }
 
 // bindingEffects are a binding's rows in the confirmation: the role it grants, to whom (one
-// subject a line), and the owner's "immediately, cluster-wide" or "in namespace <ns>" (A101,
-// 2026-10-14 evening), cluster-wide in the warning colour.
+// subject a line), and the owner's "immediately, cluster-wide" or "in namespace <ns>" (A101),
+// cluster-wide in the warning colour.
 func bindingEffects(roleKind, roleName, namespace string, subjects []subjectParams) []engine.Effect {
 	texts := make([]string, 0, len(subjects))
 	for _, sub := range subjects {

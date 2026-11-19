@@ -20,15 +20,15 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// A cluster's icon in Cluster Settings › General (the owner's VW5 of 2026-10-23, D-119): the user
-// chooses the Internal icon, a colour tile with up to five letters of the user's, or the Custom
-// icon, a square part of an image the user places; each is customised in a dialog of its own
-// (Customize…). The tile's dialog has the letters and the colours; the image's has a square frame
-// the image is moved in by dragging and zoomed in with the mouse wheel (at the pointer) or the
-// slider, as the owner's teddycloud-cover-printer does, the image always filling the frame. Both
-// dialogs preview the icon at the hotbar's and the navigator's sizes; the image's preview is cut by
-// the engine's own CutIcon, so it is the icon that is kept. Lens's "…" menu (Upload Icon, Pick Icon
-// Color, Reset Icon) gave way to this by the owner's direction; Reset stays beside Customize….
+// A cluster's icon in Cluster Settings › General (the owner's VW5, D-119): the user chooses the
+// Internal icon, a colour tile with up to five letters of the user's, or the Custom icon, a square
+// part of an image the user places; each is customised in a dialog of its own (Customize…). The
+// tile's dialog has the letters and the colours; the image's has a square frame the image is moved
+// in by dragging and zoomed in with the mouse wheel (at the pointer) or the slider, as the owner's
+// teddycloud-cover-printer does, the image always filling the frame. Both dialogs preview the icon
+// at the hotbar's and the navigator's sizes; the image's preview is cut by the engine's own
+// CutIcon, so it is the icon that is kept. Lens's "…" menu (Upload Icon, Pick Icon Color, Reset
+// Icon) gave way to this by the owner's direction; Reset stays beside Customize….
 
 // The two kinds of icon, as the choice names them, and the setting that switches between them.
 const (

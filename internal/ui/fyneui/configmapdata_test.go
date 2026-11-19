@@ -456,11 +456,10 @@ func TestConfigMapDrawerConflict(t *testing.T) {
 	}
 }
 
-// TestConfigMapDrawerRebases (the owner's answer of 2026-10-15): another key changed on the
-// cluster since the values were read. The review comes back rebased onto the newer version and
-// says so, the diff and the dry run against it; Save writes with that version. A change of
-// another key between the review and Save reviews again, rebased once more, and writes nothing
-// until Save.
+// TestConfigMapDrawerRebases (the owner's answer): another key changed on the cluster since the
+// values were read. The review comes back rebased onto the newer version and says so, the diff and
+// the dry run against it; Save writes with that version. A change of another key between the review
+// and Save reviews again, rebased once more, and writes nothing until Save.
 func TestConfigMapDrawerRebases(t *testing.T) {
 	sh, w, q, f, c := cmShell(t, ThemeDark)
 	cd := cmDataOf(sh)
@@ -657,8 +656,8 @@ func TestDrawerLongNameNeverRunsIntoItsValue(t *testing.T) {
 }
 
 // TestSecretDrawerKeysAboveValues (F3): a Secret's keys stand above their masked values, which take
-// the full width, Show at the end of the key's line (the owner's RW1 of 2026-10-23); revealing
-// still works (TestSecretRevealInDrawer).
+// the full width, Show at the end of the key's line (the owner's RW1); revealing still works
+// (TestSecretRevealInDrawer).
 func TestSecretDrawerKeysAboveValues(t *testing.T) {
 	f, _ := secretsFake(t)
 	sh, w, q := newTestShell(t, f, Options{Theme: ThemeDark})
