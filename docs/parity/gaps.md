@@ -454,6 +454,9 @@ Nothing open.
 - **Open WebUI:** its routes (`/api/chat/completions`, `/api/models`) are tested only against the
   fake endpoint ([`fakellm.go`](../../internal/testkit/fakellm/fakellm.go)), not a real Open WebUI
   ([checklist](beyond-lens.md#built-in-agent)).
+- **No summary of a long conversation:** once the user's messages and the model's answers alone
+  fill the context window, with every old tool result cleared, the chat only says so
+  ([D-167](../developer/decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)).
 - **Estimate:** 2–6 h. **Human:** a LiteLLM virtual key for CI; an Open WebUI instance to test
   against.
 

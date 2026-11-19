@@ -29,11 +29,13 @@ type conversationsFile struct {
 }
 
 // storedConversation is a conversation as kept: its items and the history the model is sent when it
-// goes on, both scrubbed.
+// goes on, both scrubbed, and how far the history's tool results are cleared from what is sent
+// (conversation.cleared).
 type storedConversation struct {
 	engine.ChatConversationInfo
 	Items   []engine.ChatItem `json:"items"`
 	History []message         `json:"history"`
+	Cleared int               `json:"cleared,omitempty"`
 }
 
 func (a *Agent) path(name string) string {
@@ -127,6 +129,7 @@ func (a *Agent) loadConversations() {
 			c.history = append(c.history, m)
 			c.keptHistory = append(c.keptHistory, &k)
 		}
+		c.cleared = max(0, min(sc.Cleared, len(c.history)))
 		c.bump()
 		a.convs[c.info.ID] = c
 		contexts[c.info.Context] = true
@@ -166,7 +169,7 @@ func (a *Agent) save() {
 		if items == 0 || c.info.Private { // a private conversation lives in memory only
 			continue
 		}
-		sc := storedConversation{ChatConversationInfo: c.info}
+		sc := storedConversation{ChatConversationInfo: c.info, Cleared: min(c.cleared, hist)}
 		sc.Running = false
 		sc.Title = c.keptTitle // the first message, scrubbed
 		if sc.Title == "" && c.info.Title != "" {

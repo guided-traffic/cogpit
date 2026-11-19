@@ -31,7 +31,9 @@ import (
 // "Remove key" removes it, and empty saves no key where none is stored), model (the endpoint's
 // list, any name may be typed), the private connection's mark with what it unlocks and the hint
 // that its conversations are not saved (H-96), whether to send all tools (for large cloud models,
-// what it costs said), the four limits of a turn with their defaults, and
+// what it costs said), the four limits of a turn and the four numbers of the model's context (its
+// window, the shares of it at and down to which old tool results leave what is sent, a tool
+// result's size; D-167), each with its default, and
 // "use as default"; Test connection checks the form's values layer by layer (TCP, HTTP and TLS,
 // authentication, tool use) and shows each layer as it ends.
 //
@@ -321,6 +323,7 @@ type agentForm struct {
 	private   *pillSwitch
 	allTools  *pillSwitch
 	limits    [4]*fieldEntry
+	context   [4]*fieldEntry // the context window, clear at and down to (percent), a tool result's KiB
 	def       *pillSwitch
 	errLine   *textLine
 	saveB     *textButton
@@ -402,17 +405,12 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	def := engine.DefaultChatLimits
 	values := [4]int{lim.RepeatStop, lim.MaxToolCalls, lim.MaxTokens, int(lim.MaxDuration / time.Minute)}
 	defaults := [4]int{def.RepeatStop, def.MaxToolCalls, def.MaxTokens, int(def.MaxDuration / time.Minute)}
-	limitLabels := [4]string{"Stop at identical tool calls", "Tool calls", "Tokens", "Minutes"}
-	grid := make([]fyne.CanvasObject, 0, len(f.limits))
-	for i := range f.limits {
-		e := f.field(newFieldEntry())
-		e.SetPlaceHolder(formatCount(int64(defaults[i])) + " (default)")
-		if values[i] > 0 {
-			e.SetText(strconv.Itoa(values[i]))
-		}
-		f.limits[i] = e
-		grid = append(grid, container.NewVBox(newTextLine(limitLabels[i], theme.ColorNameForeground, theme.SizeNameCaptionText, fyne.TextStyle{}), e))
-	}
+	limitLabels := [4]string{"Stop at identical tool calls", "Tool calls", "Tokens, summed", "Minutes"}
+	grid := f.numberGrid(f.limits[:], limitLabels[:], values[:], defaults[:])
+	ctxGrid := f.numberGrid(f.context[:],
+		[]string{"Context window, tokens", "Clear results at, %", "Clear down to, %", "Tool result, KiB"},
+		[]int{lim.ContextWindow, lim.ClearAt, lim.ClearTo, lim.MaxToolResultKiB},
+		[]int{def.ContextWindow, def.ClearAt, def.ClearTo, def.MaxToolResultKiB})
 
 	f.def = newLabelledSwitch("Use for new conversations (the default)", nil)
 	f.def.SetChecked(c.Default)
@@ -443,8 +441,8 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 		p.setting("agentPrivate", "Private connection", privateNotKept, container.NewVBox(f.private,
 			newParagraph(privateHelp, colorMuted, textW))),
 		p.setting("agentAllTools", "Tools", "", container.NewVBox(f.allTools, newParagraph(allToolsHelp, colorMuted, textW))),
-		p.setting("agentLimits", "Limits per turn", "Empty takes the default; a turn that reaches one stops with a note.",
-			container.NewGridWithColumns(4, grid...)),
+		p.setting("agentLimits", "Limits per turn", limitsHelp, container.NewGridWithColumns(4, grid...)),
+		p.setting("agentContext", "Context", contextHelp, container.NewGridWithColumns(4, ctxGrid...)),
 		f.def,
 		newSpace(theme.SizeNameInnerPadding),
 		f.errLine,
@@ -455,6 +453,31 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.testWarn = newParagraph("", colorStatusWarning, textW)
 	f.showPlainWarning()
 	return f
+}
+
+// Help of the form's two rows of numbers.
+const (
+	limitsHelp = "Empty takes the default; a turn that reaches one stops with a note. Tokens are summed over the turn's " +
+		"requests, each of which carries the whole conversation."
+	contextHelp = "Empty takes the default. A request that reaches the first share of the model's context window is sent " +
+		"without the conversation's oldest tool results, as many as bring it down to the second share; the chat keeps them " +
+		"and says so. A longer tool result is cut."
+)
+
+// numberGrid fills fields with a row of number fields, each under its label: the value when set,
+// else the default as its placeholder.
+func (f *agentForm) numberGrid(fields []*fieldEntry, labels []string, values, defaults []int) []fyne.CanvasObject {
+	grid := make([]fyne.CanvasObject, 0, len(fields))
+	for i := range fields {
+		e := f.field(newFieldEntry())
+		e.SetPlaceHolder(formatCount(int64(defaults[i])) + " (default)")
+		if values[i] > 0 {
+			e.SetText(strconv.Itoa(values[i]))
+		}
+		fields[i] = e
+		grid = append(grid, container.NewVBox(newTextLine(labels[i], theme.ColorNameForeground, theme.SizeNameCaptionText, fyne.TextStyle{}), e))
+	}
+	return grid
 }
 
 // field makes a text field of the form close the form on Escape, as its Cancel (D-116: Escape
@@ -594,8 +617,8 @@ func (f *agentForm) values() (engine.ChatConnection, error) {
 	c.Name = strings.TrimSpace(f.name.Text)
 	c.Private = f.private.Checked
 	c.AllTools = f.allTools.Checked
-	var n [4]int
-	for i, e := range f.limits {
+	var n [8]int
+	for i, e := range append(f.limits[:], f.context[:]...) {
 		t := strings.NewReplacer(",", "", ".", "", " ", "").Replace(strings.TrimSpace(e.Text))
 		if t == "" {
 			continue
@@ -606,7 +629,11 @@ func (f *agentForm) values() (engine.ChatConnection, error) {
 		}
 		n[i] = v
 	}
-	c.Limits = engine.ChatLimits{RepeatStop: n[0], MaxToolCalls: n[1], MaxTokens: n[2], MaxDuration: time.Duration(n[3]) * time.Minute}
+	c.Limits = engine.ChatLimits{RepeatStop: n[0], MaxToolCalls: n[1], MaxTokens: n[2], MaxDuration: time.Duration(n[3]) * time.Minute,
+		ContextWindow: n[4], ClearAt: n[5], ClearTo: n[6], MaxToolResultKiB: n[7]}
+	if err := c.Limits.Validate(); err != nil {
+		return c, err
+	}
 	return c, nil
 }
 

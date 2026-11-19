@@ -1565,7 +1565,9 @@ kind's profile and the tools of its row menu, drawer and selection menu, all fro
 **Built-in agent** (`internal/agent`, D-10): a chat column toggled with ⌘I (`chat.toggle`). Each
 turn sends the conversation, a compact `ui_state` and tools to an OpenAI-compatible Chat Completions
 endpoint, streams the answer and runs the tool calls through `Session.Dispatch` with
-`OriginBuiltInAgent`, so D-2's confirmations and the audit log apply.
+`OriginBuiltInAgent`, so D-2's confirmations and the audit log apply. A request that would reach
+70 % of the connection's context window goes out without the conversation's oldest tool results
+([D-167](decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)).
 
 <details>
 <summary>The agent's files</summary>
@@ -1576,6 +1578,7 @@ endpoint, streams the answer and runs the tool calls through `Session.Dispatch` 
 | [`client.go`](../../internal/agent/client.go), [`think.go`](../../internal/agent/think.go) | requests, the streamed answer and its timing (TTFT, OTPS: `ChatTiming`, [D-125](decisions.md#d-125-an-answers-speed-ttft-and-otps)), `HTTPError`; reasoning cut from the content |
 | [`tools.go`](../../internal/agent/tools.go) | 20 core commands plus `search_commands` and `run_command`, or every command for `ChatConnection.AllTools`; GUI-only commands left out |
 | [`turn.go`](../../internal/agent/turn.go), [`prompt.go`](../../internal/agent/prompt.go), [`failure.go`](../../internal/agent/failure.go) | `Send`, `Resend`, the turn loop and its limits; the system prompt, tool results framed as data; a `Dispatch` error in the model's words |
+| [`context.go`](../../internal/agent/context.go) | a request against the context window: the oldest tool results replaced by notes in what is sent |
 | [`conversation.go`](../../internal/agent/conversation.go), [`store.go`](../../internal/agent/store.go) | the conversations, `Stop`; the files |
 | [`conntest.go`](../../internal/agent/conntest.go), [`exchange.go`](../../internal/agent/exchange.go) | the connection test, layer by layer; a failed layer's request and answer |
 | [`cafile.go`](../../internal/agent/cafile.go), [`keystore.go`](../../internal/agent/keystore.go) | a connection's CA file as its only roots; the API keys |

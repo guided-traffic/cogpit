@@ -17,7 +17,7 @@ of the checklist that holds its evidence. The status is the row's first word the
 | Interface rows, free plan | 123 | 120 | 6 | 114 | 3 |
 | Interface rows, paid plans | 10 | 8 | 0 | 8 | 2 |
 | Platform rows (packages, authentication, versions, tools, display) | 35 | 21 | 0 | 21 | 14 |
-| Beyond Lens (not in feature breadth) | 89 | 88 | 77 | 11 | 1 |
+| Beyond Lens (not in feature breadth) | 90 | 89 | 78 | 11 | 1 |
 
 Not counted: 12 interface rows that are not a target, 8 platform rows that are paid or have nothing to build.
 
@@ -325,6 +325,7 @@ Not counted: 12 interface rows that are not a target, 8 platform rows that are p
 | LLM through an OpenAI-compatible Chat Completions endpoint with tool calling and streaming: LM Studio, LiteLLM, Open WebUI or any compatibl… | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Settings: base URL, API key (kept owner-only), model picked from the endpoint's model list | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Limits per turn: tool calls, tokens, time | done | [Built-in agent](beyond-lens.md#built-in-agent) |
+| A long conversation stays within the model's context window | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | Data sent to the endpoint is visible to the user; Secret values are never sent unless the user marked the connection private | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | ⌘I / Ctrl+I opens the chat for the current cluster (Lens's Ask AI shortcut) | done | [Built-in agent](beyond-lens.md#built-in-agent) |
 | One click updates the macOS app through Sparkle 2, the Linux deb through apt and the Windows setup through WinSparkle; AppImage and tar.xz… | partial | [Updates](beyond-lens.md#updates) |

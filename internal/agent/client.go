@@ -171,6 +171,19 @@ func (u *usage) total() int {
 	return u.PromptTokens + u.CompletionTokens
 }
 
+// prompt is the request's tokens as the endpoint counted them; 0 when it did not say.
+func (u *usage) prompt() int {
+	switch {
+	case u == nil:
+		return 0
+	case u.PromptTokens > 0:
+		return u.PromptTokens
+	case u.TotalTokens > u.CompletionTokens:
+		return u.TotalTokens - u.CompletionTokens
+	}
+	return 0
+}
+
 // HTTPError is an answer of the endpoint with an error status. Message is at most a short excerpt
 // of the server's own message, with the API key removed; 401 and 403 carry none. Method and URL
 // are the request's, which the error names first (the owner, 2026-10-26: an error that does not
