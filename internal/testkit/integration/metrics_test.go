@@ -23,13 +23,11 @@ func metricsSession(t *testing.T) (*engine.Session, context.Context) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 40*time.Second)
 	t.Cleanup(cancel)
-	s := engine.New(engine.Options{Connector: &engine.ClusterConnector{
-		IncludeDemo: true,
-		DemoOptions: demo.Options{Pods: 300, NoChurn: true, Seed: 7, MetricsResolution: 30 * time.Millisecond},
-		MetricsOptions: metrics.Options{
-			ListInterval: metricsListInterval, ObjectInterval: 40 * time.Millisecond, TTL: 30 * time.Millisecond,
-		},
-	}})
+	conn := demoConnector(t, demo.Options{Pods: 300, NoChurn: true, Seed: 7, MetricsResolution: 30 * time.Millisecond})
+	conn.MetricsOptions = metrics.Options{
+		ListInterval: metricsListInterval, ObjectInterval: 40 * time.Millisecond, TTL: 30 * time.Millisecond,
+	}
+	s := engine.New(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
 		t.Fatal(err)

@@ -84,15 +84,10 @@ func demoShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func(what st
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{
-		IncludeDemo: true,
-		MetricsOptions: metrics.Options{
-			ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
-		},
+	conn := demoConnector(t, demoSize{Pods: 300, NoChurn: true, Seed: 11, MetricsResolution: 40 * time.Millisecond})
+	conn.MetricsOptions = metrics.Options{
+		ListInterval: 300 * time.Millisecond, ObjectInterval: 60 * time.Millisecond, TTL: 40 * time.Millisecond,
 	}
-	// The UI may not import the demo package, but it may size the demo cluster through its field.
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 11
-	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
 	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

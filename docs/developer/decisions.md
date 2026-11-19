@@ -2508,7 +2508,11 @@ release targets set ([Makefile](../../Makefile) `DIST_TAGS`: `dist-app`, `dist-l
   backend) and [`cmd/cogpit/demo.go`](../../cmd/cogpit/demo.go) against
   [`nodemo.go`](../../cmd/cogpit/nodemo.go) (the flags); the rest follows from a connector that
   offers no demo. A kubeconfig context named `demo` is one like any other there.
-- Tests that need the demo carry `//go:build !nodemo`.
+- Tests that need the demo carry `//go:build !nodemo`; one in a file whose other tests or fixtures
+  build without the demo takes its connector from `demoConnector`
+  ([fyneui](../../internal/ui/fyneui/demo_test.go),
+  [integration](../../internal/testkit/integration/demo_test.go)), which skips the test with the
+  tag. Every package's tests build with it (`go vet -tags nodemo ./...`).
 - A tag no file knows is ignored silently, so: the dist targets check `go version -m` for the tag in
   both binaries; `TestReleaseBuildsLeaveTheDemoOut` checks that they pass `DIST_TAGS` and that it
   names `connector_nodemo.go`'s tag; CI's lint job runs `make check-nodemo` (`internal/demo` in

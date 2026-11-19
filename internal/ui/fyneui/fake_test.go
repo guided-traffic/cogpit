@@ -36,10 +36,19 @@ func newTestEngine(o engine.Options) *engine.Session {
 		start := time.Now()
 		o.Now = func() time.Time { return fixedNow.Add(time.Since(start)) }
 	}
-	if c, ok := o.Connector.(*engine.ClusterConnector); ok && c.IncludeDemo && c.DemoOptions.Now.IsZero() {
-		c.DemoOptions.Now = fixedNow
+	if c, ok := o.Connector.(*engine.ClusterConnector); ok {
+		datedDemo(c)
 	}
 	return engine.New(o)
+}
+
+// demoSize sizes a test's demo cluster (demoConnector): engine.DemoOptions' fields a test sets.
+type demoSize struct {
+	Pods              int
+	Seed              int64
+	NoChurn           bool
+	EventsPerSecond   float64
+	MetricsResolution time.Duration
 }
 
 // fakeEngine is an Engine with canned data. Dispatch changes its UI state the way the real

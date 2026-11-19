@@ -197,8 +197,8 @@ func TestConnectToClusterOverTheEngine(t *testing.T) {
 	if err := os.WriteFile(empty, []byte("apiVersion: v1\nkind: Config\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true, KubeconfigPaths: []string{empty}}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 300, true, 3
+	conn := demoConnector(t, demoSize{Pods: 300, NoChurn: true, Seed: 3})
+	conn.KubeconfigPaths = []string{empty}
 	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

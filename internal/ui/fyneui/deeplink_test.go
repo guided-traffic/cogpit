@@ -29,8 +29,7 @@ func TestDeepLinksOpenInTheWindow(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{IncludeDemo: true}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 50, true, 5
+	conn := demoConnector(t, demoSize{Pods: 50, NoChurn: true, Seed: 5})
 	s := newTestEngine(engine.Options{Connector: conn})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {

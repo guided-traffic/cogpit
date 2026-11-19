@@ -22,14 +22,10 @@ func demoSettingsShell(t *testing.T) (*engine.Session, *shell, fyne.Window, func
 	if testing.Short() {
 		t.Skip("builds a demo cluster")
 	}
-	conn := &engine.ClusterConnector{
-		IncludeDemo: true,
-		MetricsOptions: metrics.Options{
-			ListInterval: 200 * time.Millisecond, ObjectInterval: 50 * time.Millisecond, TTL: 40 * time.Millisecond,
-		},
+	conn := demoConnector(t, demoSize{Pods: 200, NoChurn: true, Seed: 5, MetricsResolution: 40 * time.Millisecond})
+	conn.MetricsOptions = metrics.Options{
+		ListInterval: 200 * time.Millisecond, ObjectInterval: 50 * time.Millisecond, TTL: 40 * time.Millisecond,
 	}
-	conn.DemoOptions.Pods, conn.DemoOptions.NoChurn, conn.DemoOptions.Seed = 200, true, 5
-	conn.DemoOptions.MetricsResolution = 40 * time.Millisecond
 	s := newTestEngine(engine.Options{Connector: conn, ClusterSettings: engine.NewClusterSettingsStore(filepath.Join(t.TempDir(), "Cogpit"))})
 	t.Cleanup(s.Close)
 	if err := commands.RegisterAll(s.Registry()); err != nil {
