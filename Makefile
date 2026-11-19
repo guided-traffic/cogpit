@@ -1009,8 +1009,8 @@ WIN_APP_LDFLAGS   = -H=windowsgui -X $(UPDATE_PKG).windowsFeedURL=$(WINDOWS_FEED
 # waits for a person.
 MESA_PKG        := github.com/guided-traffic/cogpit/internal/mesa
 # renovate: datasource=github-release-attachments depName=pal1000/mesa-dist-win
-MESA_VERSION    := 26.2.5
-MESA_SHA256     := 997123ef4ce8896204ab912d5b54f19372c487ff9835bcefafa2fca23b8953c2
+MESA_VERSION    := 26.3.0
+MESA_SHA256     := c505fcc77e8f63a09d7ddac086591d2f542c0698d37fc9e3094685a34d0d9991
 MESA_DIR        := $(CACHE)/mesa/$(MESA_VERSION)
 SMOKE_MESA       = $(if $(and $(filter windows,$(APP_OS)),$(filter x64,$(WIN_ARCH))),$(MESA_DIR)/x64)
 # The installed app's smoke test in test-windows-package (D-112): on for CI's job Windows Package;
