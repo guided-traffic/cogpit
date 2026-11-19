@@ -42,7 +42,7 @@ KIND_CLUSTER    ?= cogpit
 KIND_KUBECONFIG ?= $(CACHE)/kind/kubeconfig
 KIND_CONTEXT    := kind-$(KIND_CLUSTER)
 KUBECTL         := KUBECONFIG=$(KIND_KUBECONFIG) kubectl --context $(KIND_CONTEXT)
-# renovate: datasource=go depName=fyne.io/tools/cmd/fyne
+# renovate: datasource=go depName=fyne.io/tools/cmd/fyne packageName=fyne.io/tools
 FYNE_TOOLS      ?= v1.7.3
 FYNE            := $(BIN)/fyne
 # renovate: datasource=go depName=github.com/golangci/golangci-lint/v2/cmd/golangci-lint

@@ -363,13 +363,13 @@
   ],
   "customManagers": [
     {
-      "description": "Update Go tool versions pinned in Makefile via renovate comments. The value may be a release or a Go pseudo-version (vX.Y.Z-0.<time>-<commit>), which semver orders below the next release, so a tool pinned to an upstream commit moves onto that release on its own.",
+      "description": "Update Go tool versions pinned in Makefile via renovate comments. The value may be a release or a Go pseudo-version (vX.Y.Z-0.<time>-<commit>), which semver orders below the next release, so a tool pinned to an upstream commit moves onto that release on its own. depName is the package go install builds; a packageName after it names the module to look up where Renovate cannot find the module from that path (a vanity import's sub-package, such as fyne.io/tools/cmd/fyne: neither the Go proxy nor fyne.io's go-get answer for it).",
       "customType": "regex",
       "managerFilePatterns": [
         "/^Makefile$/"
       ],
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)\\n.+\\?=\\s*(?<currentValue>v\\d[^\\s]*)"
+        "# renovate: datasource=(?<datasource>[^\\s]+) depName=(?<depName>[^\\s]+)(?: packageName=(?<packageName>[^\\s]+))?\\n.+\\?=\\s*(?<currentValue>v\\d[^\\s]*)"
       ],
       "versioningTemplate": "semver"
     },
