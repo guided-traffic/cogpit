@@ -211,16 +211,16 @@ func TestKindAgentTriageAndChangeOverMCP(t *testing.T) {
 	waitFor(ctx, t, "the crash pod to restart with a previous container", func() bool {
 		var list commands.ListResult
 		callTool(ctx, t, cs, "resources_list", map[string]any{"kind": "pods", "namespaces": []string{ns}, "filter": "crash-"}, &list)
-		if len(list.Rows) != 1 || list.Rows[0].Status != model.StatusError {
+		if len(list.Rows) != 1 || list.Level(0) != model.StatusError {
 			return false
 		}
-		obj, err := s.Object(ctx, list.Rows[0].Ref)
+		obj, err := s.Object(ctx, list.RefAt(0))
 		if err != nil {
 			return false
 		}
 		for _, st := range model.NestedSlice(obj, "status", "containerStatuses") {
 			if model.NestedMap(st, "lastState", "terminated") != nil {
-				crashPod = list.Rows[0].Ref
+				crashPod = list.RefAt(0)
 				return true
 			}
 		}
@@ -279,11 +279,11 @@ func TestKindAgentTriageAndChangeOverMCP(t *testing.T) {
 	}
 	before := asked()
 	var shell commands.DockResult
-	callTool(ctx, t, cs, "pod_shell", map[string]any{"ref": webPods.Rows[0].Ref}, &shell)
+	callTool(ctx, t, cs, "pod_shell", map[string]any{"ref": webPods.RefAt(0)}, &shell)
 	if asked() != before+1 || shell.Tab.Type != engine.DockShell {
 		t.Fatalf("pod_shell: %+v, asked %d times", shell, asked()-before)
 	}
-	confirmed("pod.shell", webPods.Rows[0].Ref)
+	confirmed("pod.shell", webPods.RefAt(0))
 	if msg := toolError(ctx, t, cs, "dock_read", map[string]any{"id": shell.Tab.ID}); !strings.Contains(msg, "D-44") {
 		t.Errorf("dock_read of the shell before the user's switch: %q", msg)
 	}

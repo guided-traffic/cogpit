@@ -11,22 +11,21 @@ import (
 	"github.com/guided-traffic/cogpit/internal/engine"
 )
 
-// The chat's tools (D-10; the lead's choice for the owner to confirm). The registry's every
-// command as a tool, as the MCP server offers them, measured 2026-10-14: 183 tools, 219,945 bytes
-// of tool definitions (169 without the excluded ones, 202,445 bytes), some 50,000 tokens at four
-// bytes a token with every request: more than a local 27B model's whole context holds in many
-// set-ups. The core set below is 22 tools, 29,443 bytes, about 7,400 tokens
-// (TestToolsetSize). So each request carries a core set of native tools, the reads and UI
-// commands diagnosis and navigation need and the drawer's most common writes, and two meta-tools:
-// search_commands finds any other command by words and returns its id, label, danger and parameter
-// schema; run_command runs any command by id with parameters, through the same Dispatch and the
-// same rules. Both kinds dispatch with origin builtInAgent.
+// The chat's tools (D-10). The registry's every command as a tool, as the MCP server offers them,
+// is some 240 tools and 350,000 bytes of tool definitions, about 88,000 tokens at four bytes a
+// token with every request: more than a local model's whole context holds in many set-ups. So each
+// request carries a core set of native tools, the reads and UI commands diagnosis and navigation
+// need and the drawer's most common writes, and three meta-tools, together some 39,000 bytes, about
+// 9,700 tokens (TestToolsetSize logs the numbers and bounds the set). search_commands finds any
+// other command by words and returns its id, label, danger and parameter schema; run_command runs
+// any command by id with parameters, through the same Dispatch and the same rules; both kinds
+// dispatch with origin builtInAgent. result_read reads on in a result that was too large to show
+// whole (rawresult.go); it runs no command.
 //
-// A connection the user set to send all tools (ChatConnection.AllTools, the owner's decision of
-// 2026-10-15, for large cloud models) gets every command the chat may run as a native tool instead:
-// the core ones first, in their order, then the rest in the registry's, and no meta-tools (nothing
-// is left to find). Measured 2026-10-26 (TestToolsetSize): 197 tools, 280,080 bytes, about 70,000
-// tokens with every request; the core set 22 tools, 34,508 bytes, about 8,600 tokens. The tools
+// A connection the user set to send all tools (ChatConnection.AllTools, for large cloud models)
+// gets every command the chat may run as a native tool instead: the core ones first, in their
+// order, then the rest in the registry's, and of the meta-tools only result_read (nothing is left
+// to find): some 215 tools, 309,000 bytes, about 77,000 tokens with every request. The tools
 // resolve and dispatch alike either way, so the rules are the same.
 //
 // Left out of both: GUI-only commands (Dispatch refuses them to every agent anyway, so offering
@@ -44,11 +43,12 @@ var coreCommands = []string{
 	"deployment.scale", "deployment.restart", "object.delete",
 }
 
-// Meta-tool names. Registry tool names are "<area>_<action>" from ids with a dot, so these two
+// Meta-tool names. Registry tool names are "<area>_<action>" from ids with a dot, so these
 // cannot collide with one (newToolset checks).
 const (
 	toolSearch = "search_commands"
 	toolRun    = "run_command"
+	toolRead   = "result_read"
 )
 
 const searchSchema = `{"type":"object","properties":{` +
@@ -60,6 +60,20 @@ const runSchema = `{"type":"object","properties":{` +
 	`"command":{"type":"string","description":"the command's id as search_commands returns it, e.g. \"statefulset.scale\""},` +
 	`"params":{"type":"object","description":"the command's parameters, matching the parameters schema search_commands returned"}},` +
 	`"required":["command"],"additionalProperties":false}`
+
+const readSchema = `{"type":"object","properties":{` +
+	`"call":{"type":"string","description":"the tool call's id, as Cogpit's note after the shortened result names it"},` +
+	`"offset":{"type":"integer","minimum":0,"description":"the first element or line, counted from 0 (default 0)"},` +
+	`"limit":{"type":"integer","minimum":1,"description":"at most this many (default: as many as fit)"},` +
+	`"contains":{"type":"string","description":"only the elements or lines whose text contains this, whatever the case"}},` +
+	`"required":["call"],"additionalProperties":false}`
+
+// readTool is result_read as a tool.
+var readTool = toolDef{Type: typeFunction, Function: toolDefFunc{Name: toolRead, Parameters: json.RawMessage(readSchema),
+	Description: "Reads on in a tool result that was too large to show whole: Cogpit's note after such a result names the " +
+		"call's id and the next offset. Returns the result's elements (rows, issues, events) or lines from offset on, as many " +
+		"as fit, or with contains only those about a text, out of all of them. It reads what Cogpit holds of that call, as old " +
+		"as the note says, not the cluster. If the result is no longer held, call the tool again. Danger level: read."}}
 
 // chatExcluded reports whether a command is kept from the chat's tools.
 func chatExcluded(c *engine.Command) bool {
@@ -74,8 +88,8 @@ type toolset struct {
 	all   []*engine.Command          // every command the chat may run, by id
 	byID  map[string]*engine.Command
 	byTN  map[string]*engine.Command // tool name → command
-	// every is every command the chat may run as a tool (a connection's AllTools); full its JSON
-	// size and fullN its count.
+	// every is what a connection that sends all tools carries (AllTools): every command the chat
+	// may run as a tool, then result_read; full is its JSON size and fullN the commands' count.
 	every []toolDef
 	full  int
 	fullN int
@@ -105,7 +119,7 @@ func newToolset(reg *engine.Registry) (*toolset, error) {
 			rest = append(rest, def)
 		}
 	}
-	if t.byTN[toolSearch] != nil || t.byTN[toolRun] != nil {
+	if t.byTN[toolSearch] != nil || t.byTN[toolRun] != nil || t.byTN[toolRead] != nil {
 		return nil, errors.New("a registry command has a meta-tool's name")
 	}
 	for _, id := range coreCommands {
@@ -121,11 +135,13 @@ func newToolset(reg *engine.Registry) (*toolset, error) {
 		t.core[def.Function.Name] = c
 	}
 	t.every = append(slices.Clone(t.defs), rest...)
+	t.fullN = len(t.every)
+	t.every = append(t.every, readTool)
 	b, err := json.Marshal(t.every)
 	if err != nil {
 		return nil, err
 	}
-	t.full, t.fullN = len(b), len(t.every)
+	t.full = len(b)
 	t.defs = append(t.defs,
 		toolDef{Type: typeFunction, Function: toolDefFunc{Name: toolSearch, Parameters: json.RawMessage(searchSchema),
 			Description: "Finds Cogpit commands beyond the tools listed here (scaling a StatefulSet, Helm actions, port forwards, " +
@@ -135,6 +151,7 @@ func newToolset(reg *engine.Registry) (*toolset, error) {
 			Description: "Runs any Cogpit command by its id (from search_commands) with its parameters, under the same rules as " +
 				"the other tools: read and ui commands run at once; mutating and destructive ones wait for the user's " +
 				"confirmation in Cogpit's window and fail if the user declines."}},
+		readTool,
 	)
 	if b, err = json.Marshal(t.defs); err != nil {
 		return nil, err
@@ -177,11 +194,13 @@ func chatSchema(c *engine.Command) (json.RawMessage, error) {
 	return json.Marshal(m)
 }
 
-// resolved is a tool call made a command invocation.
+// resolved is a tool call made a command invocation, or the arguments of a meta-tool that runs
+// none.
 type resolved struct {
-	cmd    *engine.Command // nil for search_commands
+	cmd    *engine.Command // nil for search_commands and result_read
 	params json.RawMessage
 	search *searchArgs
+	read   *readArgs
 }
 
 type searchArgs struct {
@@ -227,6 +246,15 @@ func (t *toolset) resolve(name, args string) (resolved, error) {
 			p = json.RawMessage("{}")
 		}
 		return resolved{cmd: c, params: p}, nil
+	case toolRead:
+		var a readArgs
+		if err := json.Unmarshal(raw, &a); err != nil {
+			return resolved{}, fmt.Errorf("invalid arguments for %s: %v", toolRead, err)
+		}
+		if err := a.check(); err != nil {
+			return resolved{}, err
+		}
+		return resolved{read: &a}, nil
 	}
 	c := t.core[name]
 	if c == nil {

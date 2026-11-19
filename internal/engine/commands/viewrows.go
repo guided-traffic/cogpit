@@ -25,9 +25,11 @@ func registerViewRows(g *registrar) {
 		ID: "view.rows", Label: "Read View Rows", Danger: engine.DangerRead,
 		Description: "Returns the rows the user sees in the active tab's view, as the table shows them: the namespace filter, " +
 			"the search (with its match case and regular expression toggles), the status filter (states) and the sort applied, the visible columns in the " +
-			"order the user arranged them, each cell's text as drawn (ages relative to now), each row's ref and status, its tips " +
-			"(the tooltips of the cells that have one, by column id: a node's kubelet, its upstream support and version skew), and " +
-			"selected for the rows of the selection; a page of them (offset, limit: default 100, at most 500). shown counts " +
+			"order the user arranged them, each cell's text as drawn (ages relative to now). A table as resources_list's: " +
+			"columns once, each of rows one object's cells in that order, same the cells every row shares (left out of columns " +
+			"and rows); namespace and name (the view's Namespace and Name columns) are, with the view's kind, the object's reference, level its status level, " +
+			"\"<title> tip\" a column's tooltips (a node's kubelet: its upstream support and version skew) and selected marks " +
+			"the rows of the selection. viewColumns has the columns' ids for the ui commands. A page of rows (offset, limit: default 100, at most 500). shown counts " +
 			"every row the view shows, total the objects before filtering. Secrets show what their view shows (key names, " +
 			"types), never a value. Reads the view's snapshot, never the API server; resources_list lists a kind regardless " +
 			"of the view. stateChoices are the states the rows carry that the namespace filter and the search keep, with " +

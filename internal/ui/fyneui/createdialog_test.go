@@ -39,15 +39,21 @@ func (l listingFake) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 	l.calls = append(l.calls, inv)
 	snap := l.tables[p.Kind]
 	l.mu.Unlock()
-	rows := []map[string]any{}
+	res := commands.ListResult{Kind: p.Kind}
+	rows := []engine.TableRow{}
 	if snap != nil {
 		for _, r := range snap.Rows {
 			if len(p.Namespaces) == 0 || slices.Contains(p.Namespaces, r.Ref.Namespace) {
-				rows = append(rows, map[string]any{"ref": r.Ref})
+				if res.Context == "" {
+					res.Context = r.Ref.Context
+				}
+				rows = append(rows, engine.TableRow{Ref: r.Ref})
 			}
 		}
 	}
-	return map[string]any{"rows": rows}, nil
+	res.Total, res.Returned = len(rows), len(rows)
+	res.RowTable = engine.NewRowTable(res.Context, p.Kind, nil, rows)
+	return res, nil
 }
 
 // newCreateShell is newTestShell on the listing fake.

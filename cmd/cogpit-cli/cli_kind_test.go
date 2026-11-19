@@ -37,11 +37,12 @@ func TestKindCLIContextsAndGet(t *testing.T) {
 		t.Fatal("no pods in kube-system")
 	}
 	etcd := false
-	for _, r := range pods.Rows {
-		if r.Ref.Namespace != "kube-system" || r.Ref.Context != id {
-			t.Errorf("row %+v", r.Ref)
+	for i := range pods.Rows {
+		ref := pods.RefAt(i)
+		if ref.Namespace != "kube-system" || ref.Context != id {
+			t.Errorf("row %+v", ref)
 		}
-		etcd = etcd || strings.HasPrefix(r.Ref.Name, "etcd-")
+		etcd = etcd || strings.HasPrefix(ref.Name, "etcd-")
 	}
 	if !etcd {
 		t.Errorf("no etcd pod among %d kube-system pods", pods.Total)
@@ -62,7 +63,7 @@ func TestKindCLIContextsAndGet(t *testing.T) {
 	if crds.Total == 0 {
 		t.Log("the kind cluster defines no custom resources; the custom kind is not read")
 	} else {
-		key := crds.Rows[0].Ref.Name
+		key := crds.RefAt(0).Name
 		custom := te.listJSON(t, key, "--kubeconfig", kubeconfig, "--context", id)
 		if custom.Kind != key {
 			t.Errorf("get %s read %q", key, custom.Kind)

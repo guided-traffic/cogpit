@@ -43,6 +43,51 @@ func TestChatLimitsDefaults(t *testing.T) {
 	}
 }
 
+// TestLocalConnectionsHaveLongerTurns (D-169): a turn over a local model, an LM Studio or a base URL
+// on this machine or a private network, has 60 minutes by default and any other 10; a limit the
+// user set stays; nothing else of the defaults differs.
+func TestLocalConnectionsHaveLongerTurns(t *testing.T) {
+	for _, c := range []struct {
+		kind  ChatConnectionKind
+		url   string
+		local bool
+	}{
+		{ChatLMStudio, "http://localhost:1234/v1", true},
+		{ChatLMStudio, "https://studio.example.com/v1", true},
+		{ChatOpenAI, "http://localhost:11434/v1", true},
+		{ChatOpenAI, "http://127.0.0.1:8080/v1", true},
+		{ChatOpenAI, "http://[::1]:8080/v1", true},
+		{ChatOpenAI, "http://192.168.1.20:1234/v1", true},
+		{ChatLiteLLM, "http://10.0.3.7:4000", true},
+		{ChatOpenWebUI, "http://172.16.0.5:3000", true},
+		{ChatOpenAI, "http://studio.local:1234/v1", true},
+		{ChatOpenAI, "http://169.254.10.1/v1", true},
+		{ChatOpenAI, "https://api.openai.com/v1", false},
+		{ChatLiteLLM, "https://litellm.example.com", false},
+		{ChatOpenAI, "http://8.8.8.8/v1", false},
+		{ChatOpenAI, "http://172.32.0.1/v1", false},
+		{ChatOpenAI, "http://notlocal.localhost.example.com/v1", false},
+		{ChatOpenAI, "", false},
+		{ChatOpenAI, "://", false},
+	} {
+		conn := ChatConnection{Kind: c.kind, BaseURL: c.url}
+		want := DefaultChatLimits
+		if c.local {
+			want.MaxDuration = LocalChatMaxDuration
+		}
+		if conn.Local() != c.local || conn.DefaultLimits() != want || conn.EffectiveLimits() != want {
+			t.Errorf("%s %q: local %v, limits %+v; want local %v, %+v", c.kind, c.url, conn.Local(), conn.EffectiveLimits(), c.local, want)
+		}
+	}
+	if LocalChatMaxDuration != 60*time.Minute || DefaultChatLimits.MaxDuration != 10*time.Minute {
+		t.Errorf("the defaults: %s local, %s else", LocalChatMaxDuration, DefaultChatLimits.MaxDuration)
+	}
+	set := ChatConnection{Kind: ChatLMStudio, BaseURL: "http://localhost:1234/v1", Limits: ChatLimits{MaxDuration: 3 * time.Minute, MaxToolCalls: 7}}
+	if got := set.EffectiveLimits(); got.MaxDuration != 3*time.Minute || got.MaxToolCalls != 7 || got.MaxTokens != DefaultChatLimits.MaxTokens {
+		t.Errorf("a set limit: %+v", got)
+	}
+}
+
 // TestChatLimitsValidate: negative limits, shares above 100 percent and a ClearTo not below its
 // ClearAt are refused; the shares each on their own are held against the other's default.
 func TestChatLimitsValidate(t *testing.T) {

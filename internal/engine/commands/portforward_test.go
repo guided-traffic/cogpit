@@ -775,8 +775,8 @@ func TestPortForwardsForAgentsAndMenus(t *testing.T) {
 
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": engine.PortForwardKind}, &list)
-	if list.Total != 1 || list.Rows[0].Cells["Name"] != "web" || list.Rows[0].Cells["Kind"] != "Service" ||
-		list.Rows[0].Cells["Local Port"] != strconv.Itoa(int(f.LocalPort)) || list.Rows[0].Cells["Status"] != "Active" {
+	if list.Total != 1 || list.Cell(0, "Name") != "web" || list.Cell(0, "Kind") != "Service" ||
+		list.Cell(0, "Local Port") != strconv.Itoa(int(f.LocalPort)) || list.Cell(0, "Status") != "Active" {
 		t.Errorf("resources.list: %+v", list)
 	}
 	var found commands.FindResult

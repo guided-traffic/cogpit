@@ -228,7 +228,7 @@ func nodeEntry(p *model.KindProfile, context string, obj *unstructured.Unstructu
 		}
 		e.issue = &ClusterIssue{
 			Ref: model.ObjectRef{Kind: p.Key, Name: obj.GetName()}, Name: obj.GetName(), Kind: p.Kind,
-			Source: IssueStatus, Severity: sev, Message: c.Text, Since: nodeProblemSince(p, obj),
+			Source: IssueStatus, Severity: sev, Message: c.Text, Since: nodeProblemSince(p, obj), reason: c.Text,
 		}
 	}
 	return e
@@ -254,6 +254,7 @@ func podEntry(p *model.KindProfile, context string, obj *unstructured.Unstructur
 		e.issue = &ClusterIssue{
 			Ref: model.ObjectRef{Kind: p.Key, Namespace: obj.GetNamespace(), Name: obj.GetName()}, Name: obj.GetName(), Kind: p.Kind,
 			Source: IssueStatus, Severity: sev, Message: c.Text, Since: podProblemSince(obj),
+			reason: podStateReason(c.Text), controller: issueControllerOf(obj),
 		}
 	}
 	return e
@@ -272,6 +273,7 @@ func workloadEntry(p *model.KindProfile, context string, obj *unstructured.Unstr
 	e.issue = &ClusterIssue{
 		Ref: model.ObjectRef{Kind: p.Key, Namespace: obj.GetNamespace(), Name: obj.GetName()}, Name: obj.GetName(), Kind: p.Kind,
 		Source: IssueStatus, Severity: row.Status, Message: msg, Since: conditionSince(obj, "Available", "False"),
+		reason: reasonShortOfPods,
 	}
 	return e
 }
@@ -324,12 +326,14 @@ func eventEntry(p *model.KindProfile, context string, obj *unstructured.Unstruct
 		name = obj.GetName()
 	}
 	msg := cell("message").Text
-	if reason := model.NestedString(obj.Object, "reason"); reason != "" {
+	reason := model.NestedString(obj.Object, "reason")
+	if reason != "" {
 		msg = reason + ": " + msg
 	}
 	e.issue = &ClusterIssue{
 		Ref: ref, Name: name, Kind: kind, Source: IssueEvent, Severity: model.StatusWarning,
 		Message: strings.TrimSuffix(msg, ": "), Since: e.last,
+		reason: reason, count: cell("count").Num, eventNamespace: obj.GetNamespace(),
 	}
 	return e
 }

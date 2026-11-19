@@ -97,6 +97,19 @@ func (s *Session) AuditUser(action string, params any, err error) {
 	s.audit(Invocation{ID: action, Params: raw, Origin: OriginGUI}, "", auditDone, err)
 }
 
+// AuditChatRead writes one line for a read of the built-in agent that is no command: result_read,
+// which hands the model more of a result an earlier call read and was audited for (agent's
+// rawresult.go). Origin builtInAgent, the tool's name as the command, its parameters (which call,
+// from where, how much, what to look for: never the page), the conversation's context, whether the
+// turn reads like the user, and whether a page was served. Only package agent calls it.
+func (s *Session) AuditChatRead(tool string, params any, context string, readsLikeUser bool, err error) {
+	raw, mErr := json.Marshal(params)
+	if mErr != nil {
+		raw = nil
+	}
+	s.audit(Invocation{ID: tool, Params: raw, Origin: OriginBuiltInAgent, ReadsLikeUser: readsLikeUser}, context, auditDone, err)
+}
+
 // auditParams keeps Secret values out of the audit log. Commands that take manifests (object.apply,
 // object.create, editor.setText, resource.createTab) carry them in a "yaml" parameter; an agent may
 // send a Secret's manifest even though Cogpit refuses to write Secrets. The parameter is logged as

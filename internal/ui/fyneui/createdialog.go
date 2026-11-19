@@ -408,18 +408,14 @@ func (f *createForm) loadNames(kind string, namespaces []string, done func([]mod
 		if err != nil {
 			return
 		}
-		var out struct {
-			Rows []struct {
-				Ref model.ObjectRef `json:"ref"`
-			} `json:"rows"`
-		}
+		var out listPage
 		if decode(res, &out) != nil {
 			return
 		}
 		refs := make([]model.ObjectRef, 0, len(out.Rows))
-		for _, r := range out.Rows {
-			if r.Ref.Kind == kind {
-				refs = append(refs, r.Ref)
+		for i := range out.Rows {
+			if ref := out.refAt(i); ref.Kind == kind {
+				refs = append(refs, ref)
 			}
 		}
 		done(refs)

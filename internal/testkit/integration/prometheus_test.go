@@ -108,9 +108,12 @@ func TestPrometheusInTheDrawer(t *testing.T) {
 	var m *engine.ObjectMetrics
 	if !testkit.WaitFor(ctx, func() bool {
 		m, _ = s.ObjectMetrics(ref)
-		return m != nil && len(m.Targets) == 2 && len(m.Targets[0].Samples) >= 3 && len(m.Targets[1].Samples) >= 3
+		// The history (the drawer's window) and the current values (the usage poll) arrive one after
+		// the other.
+		return m != nil && len(m.Targets) == 2 && len(m.Targets[0].Samples) >= 3 && len(m.Targets[1].Samples) >= 3 &&
+			m.Targets[0].Current != nil && m.Targets[1].Current != nil
 	}) {
-		t.Fatalf("the drawer never got the history: %+v", m)
+		t.Fatalf("the drawer never got the history and the current values: %+v", m)
 	}
 	// The drawer's first poll: CPU and memory over the hour, nothing else; the next poll (the newest
 	// points) is a step (30 s) away.

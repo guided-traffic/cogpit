@@ -43,7 +43,13 @@ type conversation struct {
 	history     []message
 	keptHistory []*message
 	payloads    map[int]string // the user item's index → the last request body of its turn (memory only)
-	keptTitle   string         // the title scrubbed ("" until its first turn scrubbed it)
+	// raws are the tool results held whole for result_read, by the name their notes give them, the
+	// tool call's id (rawresult.go; memory only); rawOrder the names, the oldest first, and rawBytes
+	// their size.
+	raws      map[string]*rawResult
+	rawOrder  []string
+	rawBytes  int
+	keptTitle string // the title scrubbed ("" until its first turn scrubbed it)
 	// cleared: the history's messages before this index are sent with their larger tool results
 	// replaced by a note (context.go, D-167); it only grows, but for a cut. calBytes and calTokens
 	// are the last request's body size and the prompt tokens the endpoint counted for it (memory
@@ -68,8 +74,8 @@ type turn struct {
 // cut drops the user's message at item, which is a user item, and everything after it (F9, the
 // owner's decision of 2026-10-15): from the items and their kept copies, from the history the model
 // is sent (the user message the item stands for, which is the history's user message of the same
-// rank, and what followed it) and from the request bodies; cutting the first message takes the
-// title too, so that the new one names the conversation. Nothing tells the model about the cut
+// rank, and what followed it), from the request bodies and from the raw results held for
+// result_read; cutting the first message takes the title too, so that the new one names the conversation. Nothing tells the model about the cut
 // part: its tool calls, writes included, leave the model's view (H-100); the audit log keeps
 // them. The full slice expressions make the next append allocate, never reuse the cut part's
 // memory. Agent.mu is held.
@@ -94,6 +100,7 @@ func (c *conversation) cut(item int) {
 	c.items, c.kept = c.items[:item:item], c.kept[:item:item]
 	c.history, c.keptHistory = c.history[:h:h], c.keptHistory[:h:h]
 	c.cleared = min(c.cleared, h)
+	c.cutRaws(h)
 	for i := range c.payloads {
 		if i >= item {
 			delete(c.payloads, i)

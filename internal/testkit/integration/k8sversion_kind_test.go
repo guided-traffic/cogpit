@@ -20,7 +20,7 @@ import (
 // TestKindClusterVersion (D-91) connects the engine to the kind cluster and checks, reading only:
 // the UI state's cluster version is the one the API server's GET /version answered, assessed by
 // the release table built in; every node's Version cell carries its kubelet's tooltip, which
-// agents read as the rows' tips (view_rows, resources_list), and a kind kubelet is the API
+// agents read as the column "Version tip" (view_rows, resources_list), and a kind kubelet is the API
 // server's minor, inside the skew policy; the node drawer has its Upstream support.
 func TestKindClusterVersion(t *testing.T) {
 	kubeconfig, contextName := os.Getenv("COGPIT_KIND_KUBECONFIG"), os.Getenv("COGPIT_KIND_CONTEXT")
@@ -78,22 +78,23 @@ func TestKindClusterVersion(t *testing.T) {
 	if !testkit.WaitFor(ctx, func() bool { tbl := s.Table("nodes"); return tbl != nil && tbl.Synced && len(tbl.Rows) > 0 }) {
 		t.Fatal("the Nodes view never listed")
 	}
+	const versionTip = "Version" + engine.TipSuffix // the Version column's tooltips, in both results
 	var rows engine.ViewRows
 	if err := json.Unmarshal(dispatch("view.rows", map[string]any{}), &rows); err != nil || len(rows.Rows) == 0 {
 		t.Fatalf("view_rows: %+v (%v)", rows, err)
 	}
-	for _, r := range rows.Rows {
-		tip := r.Tips["version"]
+	for i := range rows.Rows {
+		tip := rows.Cell(i, versionTip)
 		if !strings.HasPrefix(tip, "Upstream ") || strings.Contains(tip, "skew") {
-			t.Errorf("%s: the version's tip %q", r.Ref.Name, tip)
+			t.Errorf("%s: the version's tip %q", rows.RefAt(i).Name, tip)
 		}
 	}
 	var list commands.ListResult
 	if err := json.Unmarshal(dispatch("resources.list", map[string]any{"kind": "nodes"}), &list); err != nil || len(list.Rows) == 0 ||
-		!strings.HasPrefix(list.Rows[0].Tips["Version"], "Upstream ") {
+		!strings.HasPrefix(list.Cell(0, versionTip), "Upstream ") {
 		t.Fatalf("resources_list: %+v (%v)", list, err)
 	}
-	m, err := s.DetailWait(ctx, rows.Rows[0].Ref)
+	m, err := s.DetailWait(ctx, rows.RefAt(0))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,5 +107,5 @@ func TestKindClusterVersion(t *testing.T) {
 	if !found {
 		t.Errorf("the node drawer has no Upstream support: %+v", m.Sections)
 	}
-	t.Logf("node %s: %s", rows.Rows[0].Ref.Name, rows.Rows[0].Tips["version"])
+	t.Logf("node %s: %s", rows.RefAt(0).Name, rows.Cell(0, versionTip))
 }

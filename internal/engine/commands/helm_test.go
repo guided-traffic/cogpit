@@ -409,7 +409,7 @@ func TestHelmReleasesViewAndDrawer(t *testing.T) {
 	}
 	b, _ := json.Marshal(res)
 	_ = json.Unmarshal(b, &list)
-	if list.Total != 2 || list.Rows[1].Cells["Revision"] != "3" || list.Rows[1].Cells["Status"] != "Deployed" || list.Rows[1].Cells["Chart"] != "web" {
+	if list.Total != 2 || list.Cell(1, "Revision") != "3" || list.Cell(1, "Status") != "Deployed" || list.Cell(1, "Chart") != "web" {
 		t.Fatalf("releases list %s", b)
 	}
 	if strings.Contains(string(b), "hunter2") {

@@ -602,17 +602,18 @@ func (f *fakeEngine) Dispatch(ctx context.Context, inv engine.Invocation) (any, 
 		if f.nsErr != nil {
 			return nil, f.nsErr
 		}
-		rows := make([]map[string]any, 0, len(f.namespaces))
+		rows := make([]engine.TableRow, 0, len(f.namespaces))
 		for _, n := range f.namespaces {
 			status := model.StatusOK
 			if f.terminatingNS[n] {
 				status = model.StatusTerminating
 			}
-			rows = append(rows, map[string]any{"ref": model.ObjectRef{Kind: "namespaces", Name: n}, "status": status, "cells": []string{n}})
+			rows = append(rows, engine.TableRow{Ref: model.ObjectRef{Kind: "namespaces", Name: n}, Status: status, Cells: []string{n}})
 		}
 		page := rows[min(p.Offset, len(rows)):]
 		page = page[:min(limit, len(page))]
-		return map[string]any{"rows": page, "total": len(rows), "returned": len(page)}, nil
+		return commands.ListResult{Kind: "namespaces", Total: len(rows), Returned: len(page),
+			RowTable: engine.NewRowTable("", "namespaces", []string{"Name"}, page)}, nil
 	case "pod.logs", "pod.shell":
 		var p containerParams
 		if err := params(&p); err != nil {

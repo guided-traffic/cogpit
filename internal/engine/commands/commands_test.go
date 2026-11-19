@@ -447,7 +447,7 @@ func TestResourcesCommands(t *testing.T) {
 
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods", "namespaces": []string{"shop"}, "limit": 1}, &list)
-	if list.Total != 2 || list.Returned != 1 || list.Rows[0].Ref.Name != "web-0" || list.Rows[0].Cells["Node"] != "node-1" {
+	if list.Total != 2 || list.Returned != 1 || list.RefAt(0).Name != "web-0" || list.Cell(0, "Node") != "node-1" {
 		t.Errorf("list %+v", list)
 	}
 	h.must(t, agent, "resources.list", map[string]any{"kind": "pods", "filter": "web-1"}, &list)

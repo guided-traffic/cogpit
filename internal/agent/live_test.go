@@ -46,18 +46,12 @@ func TestLiveEndpoint(t *testing.T) {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(res)
-	var first struct {
-		Rows []struct {
-			Ref struct {
-				Namespace string `json:"namespace"`
-			} `json:"ref"`
-		} `json:"rows"`
-	}
+	var first commands.ListResult
 	_ = json.Unmarshal(b, &first)
 	if len(first.Rows) == 0 {
 		t.Fatalf("no demo pods: %s", b)
 	}
-	ns := first.Rows[0].Ref.Namespace
+	ns := first.RefAt(0).Namespace
 
 	c, err := a.NewConversation(engine.DemoContext, conn.ID)
 	if err != nil {
@@ -143,6 +137,110 @@ func TestLiveContextClearing(t *testing.T) {
 	}
 	if c.Items[len(c.Items)-1].Kind != engine.ChatItemAssistant {
 		t.Errorf("the turn after the clearing ended without an answer")
+	}
+}
+
+// TestLiveReadsATable asks a real model, local only as TestLiveEndpoint, for what a list's table
+// (D-168) says in two places: the status every pod of kube-system shares, which stands once in
+// "same", and one pod's node, which stands in its row. The demo cluster's kube-system pods all run,
+// and etcd-cp-2 runs on cp-2.
+func TestLiveReadsATable(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "List the pods of namespace kube-system with resources_list. Do they all have the same status, "+
+		"and which one? On which node does etcd-cp-2 run?")
+	listed := false
+	for _, it := range c.Items {
+		if it.Tool != nil && it.Tool.Command == "resources.list" && it.Tool.State == engine.ChatToolDone {
+			listed = true
+			if !strings.Contains(it.Tool.Result, `"same":{`) || !strings.Contains(it.Tool.Result, `"Status":"Running"`) {
+				t.Errorf("the list's result shares no status: %.300s", it.Tool.Result)
+			}
+		}
+	}
+	last := c.Items[len(c.Items)-1]
+	if !listed || last.Kind != engine.ChatItemAssistant {
+		t.Fatalf("the turn listed nothing or ended without an answer")
+	}
+	if !strings.Contains(last.Text, "Running") || !strings.Contains(last.Text, "cp-2") {
+		t.Errorf("the answer names neither the shared status nor the pod's node: %s", last.Text)
+	}
+}
+
+// TestLiveOverviewFold asks a real model, local only as TestLiveEndpoint, what is wrong in the demo
+// cluster: cluster_overview answers with its issues folded (D-171), a few kilobytes where every
+// issue of its own was above a hundred, and the model must name the demo's fault from it: images
+// that cannot be pulled.
+func TestLiveOverviewFold(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "Read the cluster's state with cluster_overview. What is the main problem in this cluster, in one or two sentences?")
+	read := false
+	for _, it := range c.Items {
+		if it.Tool != nil && it.Tool.Command == "cluster.overview" && it.Tool.State == engine.ChatToolDone {
+			read = true
+			if !strings.Contains(it.Tool.Result, `"issueFold"`) || len(it.Tool.Result) > 24<<10 {
+				t.Errorf("the overview's result is no fold or too large: %d bytes: %.200s", len(it.Tool.Result), it.Tool.Result)
+			}
+		}
+	}
+	last := c.Items[len(c.Items)-1]
+	if !read || last.Kind != engine.ChatItemAssistant {
+		t.Fatalf("the turn read no overview or ended without an answer")
+	}
+	if answer := strings.ToLower(last.Text); !strings.Contains(answer, "image") && !strings.Contains(answer, "pull") {
+		t.Errorf("the answer does not name the images that cannot be pulled: %s", last.Text)
+	}
+}
+
+// TestLiveReadsOn asks a real model, local only as TestLiveEndpoint, for the last pod of a list
+// that does not fit one result (D-170): a limit of 2 KiB shows the first pods and the totals, and
+// the name asked for stands only on a later page, which result_read reads.
+func TestLiveReadsOn(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	conn.Limits = engine.ChatLimits{MaxToolResultKiB: 2}
+	if _, err := a.SaveConnection(conn, nil); err != nil {
+		t.Fatal(err)
+	}
+	res, err := s.Dispatch(context.Background(), engine.Invocation{ID: "resources.list", Origin: engine.OriginGUI,
+		Params: json.RawMessage(`{"kind":"pods","namespaces":["kube-system"],"limit":1000}`)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(res)
+	var list struct{ engine.RowTable }
+	if err := json.Unmarshal(b, &list); err != nil || len(list.Rows) < 30 {
+		t.Fatalf("the demo's kube-system pods: %d rows, %v", len(list.Rows), err)
+	}
+	lastPod := list.Cell(len(list.Rows)-1, engine.RowName)
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "List the pods of namespace kube-system with resources_list (limit 1000). The list is sorted by name. "+
+		"Which pod is the very last one in it? Read on until you have seen the end of the list.")
+	reads := 0
+	for _, it := range c.Items {
+		if it.Tool != nil && it.Tool.Command == toolRead && it.Tool.State == engine.ChatToolDone {
+			reads++
+		}
+	}
+	last := c.Items[len(c.Items)-1]
+	if last.Kind != engine.ChatItemAssistant {
+		t.Fatal("the turn ended without an answer")
+	}
+	t.Logf("the list's last pod is %s; %d reads on", lastPod, reads)
+	if reads == 0 {
+		t.Errorf("the model never read on")
+	}
+	if !strings.Contains(last.Text, lastPod) {
+		t.Errorf("the answer does not name the last pod %s: %s", lastPod, last.Text)
 	}
 }
 

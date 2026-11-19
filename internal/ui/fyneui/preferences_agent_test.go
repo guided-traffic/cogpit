@@ -100,10 +100,28 @@ func TestAgentPreferencesKeySemantics(t *testing.T) {
 	if f.baseURL.Text != "http://localhost:1234/v1" || f.kind.Selected != "LM Studio" {
 		t.Fatalf("a new connection: %q, %q", f.kind.Selected, f.baseURL.Text)
 	}
+	// A turn's minutes by default (D-169): 60 for a local model, an LM Studio or an address on this
+	// computer or a private network, 10 for any other; the field says which as kind and URL change.
+	minutes := func() string { return f.limits[3].PlaceHolder }
+	if minutes() != "60 (default)" {
+		t.Errorf("a new LM Studio connection's minutes: %q", minutes())
+	}
 	f.kind.SetSelected("Open WebUI")
 	if f.baseURL.Text != "" || !strings.Contains(f.urlHint.text, "/api") {
 		t.Errorf("Open WebUI: the URL %q, hint %q", f.baseURL.Text, f.urlHint.text)
 	}
+	if minutes() != "10 (default)" {
+		t.Errorf("an Open WebUI without an address: %q", minutes())
+	}
+	f.baseURL.SetText("http://192.168.1.5:3000")
+	if minutes() != "60 (default)" {
+		t.Errorf("an Open WebUI on a private network: %q", minutes())
+	}
+	f.baseURL.SetText("https://chat.example.com")
+	if minutes() != "10 (default)" {
+		t.Errorf("an Open WebUI on the internet: %q", minutes())
+	}
+	f.baseURL.SetText("")
 	f.kind.SetSelected("LM Studio")
 	test.Type(f.name, "Mac Studio")
 	f.private.SetChecked(true)

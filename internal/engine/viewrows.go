@@ -27,34 +27,25 @@ type ViewColumn struct {
 	Title string `json:"title"`
 }
 
-// ViewRow is one row as the table shows it: its object, its status and its cells' texts, one per
-// column of ViewRows.Columns.
-type ViewRow struct {
-	Ref    model.ObjectRef `json:"ref"`
-	Status model.Status    `json:"status,omitempty"`
-	Cells  []string        `json:"cells"`
-	// Tips are the tooltips of the cells that have one, by column id: a kubelet's upstream support
-	// and version skew in the Nodes list's Version column (D-91).
-	Tips map[string]string `json:"tips,omitempty"`
-	// Selected marks a row of the view's selection (UIState.Selected).
-	Selected bool `json:"selected,omitempty"`
-}
-
-// ViewRows is a page of the rows the open view shows.
+// ViewRows is a page of the rows the open view shows, as a table (RowTable, D-168): the visible
+// columns by title in the order the user arranged them, a column's tooltips (a kubelet's upstream
+// support and version skew in the Nodes list's Version column, D-91) in a column of their own, and
+// RowSelected for the rows of the view's selection (UIState.Selected).
 type ViewRows struct {
 	View    string `json:"view"`
 	Title   string `json:"title"`
 	Context string `json:"context"`
-	// Columns are the visible columns in the order the table shows them.
-	Columns []ViewColumn `json:"columns"`
+	// ViewColumns are the visible columns in the order the table shows them, with the ids the ui
+	// commands take (ui.setSort, ui.setColumns).
+	ViewColumns []ViewColumn `json:"viewColumns"`
 	// Shown is the number of rows the view shows (after the namespace filter and the search); Total
 	// the number of objects before filtering.
 	Shown int `json:"shown"`
 	Total int `json:"total"`
 	// Offset is the index of the first row returned; Returned the rows in this page.
-	Offset   int       `json:"offset"`
-	Returned int       `json:"returned"`
-	Rows     []ViewRow `json:"rows"`
+	Offset   int `json:"offset"`
+	Returned int `json:"returned"`
+	RowTable
 	// What the rows were filtered and sorted with: the snapshot's, which follows the UI state within
 	// a tenth of a second.
 	Namespaces    []string      `json:"namespaces,omitempty"`
@@ -101,38 +92,42 @@ func RowsIn(t *TableSnapshot, selected []model.ObjectRef, offset, limit int, now
 		Namespaces: slices.Clone(t.Namespaces), Filter: t.Filter, FilterOptions: t.FilterOptions,
 		FilterError: t.FilterError, Sort: t.Sort, Synced: t.Synced, Error: t.Error, Revision: t.Revision,
 		States: slices.Clone(t.States), StateChoices: slices.Clone(t.StateChoices),
-		Rows: []ViewRow{},
 	}
 	var visible []int
+	var titles []string
 	for _, i := range t.DisplayOrder() { // the order the user arranged, hidden columns left out (as WriteCSV)
 		if c := t.Columns[i]; !c.Hidden {
 			visible = append(visible, i)
-			out.Columns = append(out.Columns, ViewColumn{ID: c.ID, Title: c.Title})
+			titles = append(titles, c.Title)
+			out.ViewColumns = append(out.ViewColumns, ViewColumn{ID: c.ID, Title: c.Title})
 		}
 	}
-	if offset >= len(t.Rows) {
-		return out
-	}
-	end := min(len(t.Rows), offset+limit)
-	out.Rows = make([]ViewRow, 0, end-offset)
+	end := max(offset, min(len(t.Rows), offset+limit))
+	rows := make([]TableRow, 0, end-min(offset, end))
 	for ri := offset; ri < end; ri++ {
 		row := &t.Rows[ri]
-		cells := make([]string, len(visible))
-		var tips map[string]string
+		tr := TableRow{Ref: row.Ref, Status: row.Status, Cells: make([]string, len(visible)), Tips: make([]string, len(visible)),
+			Selected: slices.ContainsFunc(selected, row.Ref.Same)}
 		for i, ci := range visible {
 			c := cellAt(row, ci)
-			cells[i] = f.CellText(t.Columns[ci], c, now)
-			if c.Tip != "" {
-				if tips == nil {
-					tips = map[string]string{}
-				}
-				tips[t.Columns[ci].ID] = c.Tip
-			}
+			tr.Cells[i], tr.Tips[i] = f.CellText(t.Columns[ci], c, now), c.Tip
 		}
-		out.Rows = append(out.Rows, ViewRow{Ref: row.Ref, Status: row.Status, Cells: cells, Tips: tips,
-			Selected: slices.ContainsFunc(selected, row.Ref.Same)})
+		rows = append(rows, tr)
 	}
+	out.RowTable = NewRowTable(t.Context, t.View, titles, rows)
 	out.Returned = len(out.Rows)
+	return out
+}
+
+// RefAt returns the reference of row i's object.
+func (v ViewRows) RefAt(i int) model.ObjectRef { return v.Ref(i, v.Context, v.View) }
+
+// ViewCells returns row i's cells under ViewColumns, in their order: the row as the table shows it.
+func (v ViewRows) ViewCells(i int) []string {
+	out := make([]string, len(v.ViewColumns))
+	for j, c := range v.ViewColumns {
+		out[j] = v.Cell(i, v.ColumnOf(c.ID, c.Title))
+	}
 	return out
 }
 

@@ -57,8 +57,9 @@ func TestHelmConfigMapReleasesListedAndRead(t *testing.T) {
 		t.Fatal(err)
 	}
 	var names []string
-	for _, r := range res.(commands.ListResult).Rows {
-		names = append(names, r.Ref.Name+"@"+r.Cells["Revision"])
+	list := res.(commands.ListResult)
+	for i := range list.Rows {
+		names = append(names, list.RefAt(i).Name+"@"+list.Cell(i, "Revision"))
 	}
 	slices.Sort(names)
 	if strings.Join(names, ",") != "cm@2,web@3" {
@@ -344,7 +345,8 @@ func TestHelmConfigMapPayloadsKeptFromAgents(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := json.Marshal(res); strings.Contains(string(b), marker) || !strings.Contains(string(b), `"Keys":"release"`) {
+	listed := res.(commands.ListResult)
+	if b, _ := json.Marshal(res); strings.Contains(string(b), marker) || listed.Cell(listed.Find(ref.Namespace, ref.Name), "Keys") != "release" {
 		t.Errorf("resources.list %s", b)
 	}
 	if _, err := h.dispatch(engine.OriginExternalAgent, "object.edit", map[string]any{"ref": ref}); !errors.Is(err, engine.ErrSecretGUIOnly) {

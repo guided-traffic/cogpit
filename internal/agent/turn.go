@@ -99,7 +99,7 @@ func (a *Agent) send(id string, cut int, msg engine.ChatUserMessage) error {
 	if cut >= 0 {
 		c.cut(cut)
 	}
-	limits := conn.Limits.WithDefaults()
+	limits := conn.EffectiveLimits()
 	if c.info.ConnectionID != conn.ID {
 		c.calBytes, c.calTokens = 0, 0 // another model counts tokens its own way
 	}
@@ -386,6 +386,8 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 		tc.Command, tc.Label, tc.Summary = r.cmd.ID, r.cmd.Label, callSummary(r.params)
 	case r.search != nil:
 		tc.Label, tc.Summary = "Search Cogpit's commands", strings.TrimSpace(r.search.Query)
+	case r.read != nil:
+		tc.Label, tc.Summary = readLabel, callSummary(json.RawMessage(call.Function.Arguments))
 	}
 
 	// Limits and the kill switch come before the call runs.
@@ -406,7 +408,7 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 	if stop != nil {
 		tc.State = engine.ChatToolStopped
 		tc.Error = limitNote(stop, st.limits)
-		a.addToolItem(st, tc, call, frameError(call.Function.Name, "not run: "+tc.Error))
+		a.addToolItem(st, tc, call, frameError(call.Function.Name, "not run: "+tc.Error), nil)
 		a.endNote(st, stop)
 		return false
 	}
@@ -414,14 +416,18 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 
 	if rerr != nil {
 		tc.State, tc.Error = engine.ChatToolFailed, rerr.Error()
-		a.addToolItem(st, tc, call, frameError(call.Function.Name, rerr.Error()))
+		a.addToolItem(st, tc, call, frameError(call.Function.Name, rerr.Error()), nil)
 		return true
 	}
 	if r.search != nil {
 		data, _ := json.Marshal(st.tools.search(*r.search))
-		content, shown := frameResult(toolSearch, data, st.limits.MaxToolResultKiB<<10)
+		content, shown, raw := a.frame(st, toolSearch, nil, call.ID, data)
 		tc.State, tc.Result = engine.ChatToolDone, shown
-		a.addToolItem(st, tc, call, content)
+		a.addToolItem(st, tc, call, content, raw)
+		return true
+	}
+	if r.read != nil {
+		a.runRead(st, tc, call, *r.read)
 		return true
 	}
 
@@ -432,6 +438,7 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 	idx := a.addItem(c, engine.ChatItem{Kind: engine.ChatItemTool, Tool: tc}, nil)
 	res, err := a.dispatch(st.ctx, inv)
 	var content string
+	var raw *rawResult
 	if err != nil {
 		state, msg := failure(r.cmd, err)
 		if cause := context.Cause(st.ctx); cause != nil {
@@ -445,18 +452,43 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 			data = []byte(`"the command ran, but its result could not be encoded"`)
 		}
 		var shown string
-		content, shown = frameResult(call.Function.Name, data, st.limits.MaxToolResultKiB<<10)
+		content, shown, raw = a.frame(st, call.Function.Name, r.cmd, call.ID, data)
 		if note := a.s.StaleNoteFor(inv); note != "" && r.cmd.Danger == engine.DangerRead { // the cache's data as of an interruption (D-58)
 			content += "\n" + note
+			if raw != nil {
+				raw.stale = note
+			}
 		}
 		tc = a.toolDone(c, idx, func(t *engine.ChatToolCall) { t.State, t.Result = engine.ChatToolDone, shown })
 	}
-	a.keepTool(st, idx, tc, call, content)
+	a.keepTool(st, idx, tc, call, content, raw)
 	if cause := context.Cause(st.ctx); cause != nil {
 		a.endNote(st, cause)
 		return false
 	}
 	return true
+}
+
+// frame frames a tool's result for the model (frameResult) under the name the model called, and
+// returns the raw result to hold when the result went as a head that names result_read. cmd is the
+// command that read it, nil for search_commands: result_read's note names its tool, and a command
+// whose results are never held (unheld) gets a head that says so.
+func (a *Agent) frame(st *turnState, called string, cmd *engine.Command, id string, data []byte) (content, shown string, raw *rawResult) {
+	tool := toolSearch
+	if cmd != nil {
+		tool = cmd.ToolName()
+	}
+	ref, held := "", holdable(id, data) && (cmd == nil || !unheld[cmd.ID])
+	if held && len(data) > st.limits.MaxToolResultKiB<<10 {
+		a.mu.Lock()
+		ref = st.c.rawRef(id)
+		a.mu.Unlock()
+	}
+	content, shown, reads := frameResult(called, ref, data, st.limits.MaxToolResultKiB<<10, held)
+	if reads {
+		raw = &rawResult{ref: ref, data: data, tool: tool, read: a.opts.Now(), private: st.conn.Private}
+	}
+	return content, shown, raw
 }
 
 // dispatch runs the command, a panic outside the command's own recovery turned into an error.
@@ -483,14 +515,16 @@ func (a *Agent) toolDone(c *conversation, idx int, fn func(*engine.ChatToolCall)
 	return &out
 }
 
-// addToolItem adds a finished tool item and its message.
-func (a *Agent) addToolItem(st *turnState, tc *engine.ChatToolCall, call toolCall, content string) {
+// addToolItem adds a finished tool item and its message; raw as keepTool takes it.
+func (a *Agent) addToolItem(st *turnState, tc *engine.ChatToolCall, call toolCall, content string, raw *rawResult) {
 	idx := a.addItem(st.c, engine.ChatItem{Kind: engine.ChatItemTool, Tool: tc}, nil)
-	a.keepTool(st, idx, tc, call, content)
+	a.keepTool(st, idx, tc, call, content, raw)
 }
 
 // keepTool appends the tool message to the history and keeps the item and the message scrubbed.
-func (a *Agent) keepTool(st *turnState, idx int, tc *engine.ChatToolCall, call toolCall, content string) {
+// raw, when not nil, is the call's result whole: it is held for result_read, unscrubbed and in
+// memory only (rawresult.go).
+func (a *Agent) keepTool(st *turnState, idx int, tc *engine.ChatToolCall, call toolCall, content string, raw *rawResult) {
 	c := st.c
 	m := message{Role: roleTool, ToolCallID: call.ID, Content: content}
 	out := a.scrub(st.ctx, c, content, tc.Args, tc.Result, tc.Error, tc.Summary, tc.Command, tc.Label, call.ID)
@@ -502,6 +536,10 @@ func (a *Agent) keepTool(st *turnState, idx int, tc *engine.ChatToolCall, call t
 	ki := cloneItem(c.items[idx])
 	ki.Tool = &kt
 	c.kept[idx] = &ki
+	if raw != nil {
+		raw.hist = len(c.history)
+		c.holdRaw(raw)
+	}
 	c.history = append(c.history, m)
 	c.keptHistory = append(c.keptHistory, &km)
 	a.mu.Unlock()
@@ -516,7 +554,7 @@ func (a *Agent) skipCalls(st *turnState, calls []toolCall) {
 		if r, err := st.tools.resolve(call.Function.Name, call.Function.Arguments); err == nil && r.cmd != nil {
 			tc.Command, tc.Label, tc.Summary = r.cmd.ID, r.cmd.Label, callSummary(r.params)
 		}
-		a.addToolItem(st, tc, call, frameError(call.Function.Name, tc.Error))
+		a.addToolItem(st, tc, call, frameError(call.Function.Name, tc.Error), nil)
 	}
 }
 

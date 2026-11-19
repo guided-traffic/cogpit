@@ -60,7 +60,8 @@ func TestTurnDispatchesToolCalls(t *testing.T) {
 	for _, tl := range reqs[0].JSON()["tools"].([]any) {
 		tools = append(tools, tl.(map[string]any)["function"].(map[string]any)["name"].(string))
 	}
-	if len(tools) != len(coreCommands)+2 || !slices.Contains(tools, "search_commands") || !slices.Contains(tools, "run_command") ||
+	if len(tools) != len(coreCommands)+3 || !slices.Contains(tools, "search_commands") || !slices.Contains(tools, "run_command") ||
+		!slices.Contains(tools, "result_read") ||
 		slices.Contains(tools, "chat_toggle") || slices.Contains(tools, "secret_reveal") {
 		t.Errorf("tools %v", tools)
 	}

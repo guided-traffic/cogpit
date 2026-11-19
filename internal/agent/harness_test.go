@@ -5,6 +5,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -66,6 +67,7 @@ func (f *fakeConfirmer) Confirm(ctx context.Context, req engine.ConfirmRequest) 
 // key store and a temporary config directory, and the fake LLM endpoint.
 type harness struct {
 	s     *engine.Session
+	src   *testkit.MemorySource
 	a     *Agent
 	llm   *fakellm.Server
 	keys  *MemoryKeyStore
@@ -74,6 +76,16 @@ type harness struct {
 	audit *syncBuffer
 	conn  engine.ChatConnection
 	chat  chan uint64 // a signal per EventChat
+	// clock, when a test set it, is the agent's time; else the session's.
+	clock atomic.Pointer[time.Time]
+}
+
+// now is the agent's clock.
+func (h *harness) now() time.Time {
+	if t := h.clock.Load(); t != nil {
+		return *t
+	}
+	return h.s.Now()
 }
 
 func newHarness(t *testing.T, limits engine.ChatLimits) *harness {
@@ -85,7 +97,7 @@ func newHarness(t *testing.T, limits engine.ChatLimits) *harness {
 	src.Set(testkit.DeploymentsGVR, testkit.Object("apps/v1", "Deployment", "shop", "web", map[string]any{
 		"spec": map[string]any{"replicas": int64(2)}, "status": map[string]any{"replicas": int64(2), "readyReplicas": int64(2)}}))
 	src.Set(testkit.SecretsGVR, testkit.Secret("shop", "db", nil, map[string]string{"password": secretValue}))
-	h := &harness{conf: newFakeConfirmer(), audit: &syncBuffer{}, keys: NewMemoryKeyStore(), dir: t.TempDir(), chat: make(chan uint64, 1)}
+	h := &harness{src: src, conf: newFakeConfirmer(), audit: &syncBuffer{}, keys: NewMemoryKeyStore(), dir: t.TempDir(), chat: make(chan uint64, 1)}
 	h.s = engine.New(engine.Options{
 		Connector: enginekit.MemoryConnector{Context: "test", Src: src, Profiles: kinds.Builtin(), Writer: &enginekit.FluxRecorder{}},
 		Confirmer: h.conf, Audit: h.audit, SnapshotInterval: 5 * time.Millisecond})
@@ -111,7 +123,7 @@ func newHarness(t *testing.T, limits engine.ChatLimits) *harness {
 		return cmd.Enabled(h.s, []byte(`{"ref":{"kind":"deployments","namespace":"shop","name":"web"}}`)) == nil
 	})
 	h.llm = fakellm.New(t)
-	h.a = New(Options{Session: h.s, Dir: h.dir, Keys: h.keys, NotifyEvery: time.Millisecond})
+	h.a = New(Options{Session: h.s, Dir: h.dir, Keys: h.keys, NotifyEvery: time.Millisecond, Now: h.now})
 	t.Cleanup(func() { h.stopAll() })
 	var err error
 	h.conn, err = h.a.SaveConnection(engine.ChatConnection{Name: "fake", Kind: engine.ChatLMStudio, BaseURL: h.llm.Base,

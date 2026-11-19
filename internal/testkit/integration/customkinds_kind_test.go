@@ -104,7 +104,7 @@ func TestKindCustomResources(t *testing.T) {
 		t.Fatalf("the Widget view never showed the widget: %+v", s.Table(widgetsKey))
 	}
 	list := dispatch("resources.list", map[string]any{"kind": widgetsKey}).(commands.ListResult)
-	if len(list.Rows) != 1 || list.Rows[0].Cells["Color"] != "teal" || list.Rows[0].Cells["Size"] != "7" || list.Rows[0].Ref.Namespace != crdNamespace {
+	if len(list.Rows) != 1 || list.Cell(0, "Color") != "teal" || list.Cell(0, "Size") != "7" || list.RefAt(0).Namespace != crdNamespace {
 		t.Fatalf("resources.list: %+v", list)
 	}
 	found := dispatch("resources.find", map[string]any{"kind": widgetsKey, "field": "color", "value": "teal"}).(commands.FindResult)

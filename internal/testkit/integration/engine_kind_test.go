@@ -84,7 +84,7 @@ func TestKindEngineWorkflows(t *testing.T) {
 	if len(pods.Rows) == 0 {
 		t.Fatal("no crashloop pod in cogpit-demo; run make kind-seed")
 	}
-	logsTab := dispatch("pod.logs", map[string]any{"ref": pods.Rows[0].Ref}).(commands.DockResult)
+	logsTab := dispatch("pod.logs", map[string]any{"ref": pods.RefAt(0)}).(commands.DockResult)
 	logs, err := s.OpenLogs(ctx, logsTab.Tab.ID)
 	if err != nil {
 		t.Fatal(err)

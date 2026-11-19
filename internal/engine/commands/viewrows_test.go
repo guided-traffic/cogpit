@@ -39,8 +39,8 @@ func TestViewRowsMatchTheTable(t *testing.T) {
 
 	var got engine.ViewRows
 	h.must(t, agent, "view.rows", struct{}{}, &got) // waits for the snapshot to follow the filters
-	cols := make([]string, len(got.Columns))
-	for i, c := range got.Columns {
+	cols := make([]string, len(got.ViewColumns))
+	for i, c := range got.ViewColumns {
 		cols[i] = c.ID
 	}
 	if !slices.Equal(cols, []string{"node", "name"}) {
@@ -53,15 +53,28 @@ func TestViewRowsMatchTheTable(t *testing.T) {
 		t.Errorf("filtered with %q %+v in %v sorted %+v", got.Filter, got.FilterOptions, got.Namespaces, got.Sort)
 	}
 	want := [][]string{{"node-1", "web-1"}, {"node-1", "web-0"}}
-	for i, r := range got.Rows {
-		if !slices.Equal(r.Cells, want[i]) {
-			t.Errorf("row %d: %v, want %v", i, r.Cells, want[i])
+	// The table as it goes out (D-168): what both rows share once, the rest in the rows.
+	if !slices.Equal(got.Columns, []string{engine.RowName, engine.RowSelected}) || got.Same["Node"] != "node-1" ||
+		got.Same[engine.RowNamespace] != "shop" || !slices.Equal(got.Rows[0], []string{"web-1", "true"}) {
+		t.Errorf("the table: same %v, columns %v, rows %v", got.Same, got.Columns, got.Rows)
+	}
+	if len(got.Rows) != len(want) {
+		t.Fatalf("%d rows, want %d: %+v", len(got.Rows), len(want), got.RowTable)
+	}
+	for i := range got.Rows {
+		if cells := got.ViewCells(i); !slices.Equal(cells, want[i]) {
+			t.Errorf("row %d: %v, want %v", i, cells, want[i])
 		}
-		if r.Ref.Namespace != "shop" || r.Ref.Name != want[i][1] || r.Ref.Kind != "pods" {
-			t.Errorf("row %d: ref %+v", i, r.Ref)
+		ref := got.RefAt(i)
+		if ref.Namespace != "shop" || ref.Name != want[i][1] || ref.Kind != "pods" {
+			t.Errorf("row %d: ref %+v", i, ref)
 		}
-		if r.Selected != (r.Ref.Name == "web-1") {
-			t.Errorf("row %d (%s): selected %v", i, r.Ref.Name, r.Selected)
+		wantSelected := ""
+		if ref.Name == "web-1" {
+			wantSelected = "true"
+		}
+		if selected := got.Cell(i, engine.RowSelected); selected != wantSelected {
+			t.Errorf("row %d (%s): selected %q, want %q", i, ref.Name, selected, wantSelected)
 		}
 	}
 
@@ -74,27 +87,27 @@ func TestViewRowsMatchTheTable(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	titles := make([]string, len(got.Columns))
-	for i, c := range got.Columns {
+	titles := make([]string, len(got.ViewColumns))
+	for i, c := range got.ViewColumns {
 		titles[i] = c.Title
 	}
 	if !slices.Equal(records[0], titles) || len(records) != len(got.Rows)+1 {
 		t.Fatalf("the CSV has %v and %d rows, view.rows %v and %d", records[0], len(records)-1, titles, len(got.Rows))
 	}
-	for i, r := range got.Rows {
-		if !slices.Equal(records[i+1], r.Cells) {
-			t.Errorf("row %d: the CSV has %v, view.rows %v", i, records[i+1], r.Cells)
+	for i := range got.Rows {
+		if cells := got.ViewCells(i); !slices.Equal(records[i+1], cells) {
+			t.Errorf("row %d: the CSV has %v, view.rows %v", i, records[i+1], cells)
 		}
 	}
 
 	// A page.
 	var page engine.ViewRows
 	h.must(t, agent, "view.rows", map[string]any{"offset": 1, "limit": 1}, &page)
-	if page.Returned != 1 || page.Rows[0].Ref.Name != "web-0" || page.Shown != 2 || page.Offset != 1 {
+	if page.Returned != 1 || page.RefAt(0).Name != "web-0" || page.Shown != 2 || page.Offset != 1 {
 		t.Errorf("page offset 1 limit 1: %+v", page)
 	}
 	h.must(t, agent, "view.rows", map[string]any{"offset": 5}, &page)
-	if page.Returned != 0 || len(page.Rows) != 0 || page.Shown != 2 || len(page.Columns) != 2 {
+	if page.Returned != 0 || len(page.Rows) != 0 || page.Shown != 2 || len(page.ViewColumns) != 2 {
 		t.Errorf("a page past the end: %+v", page)
 	}
 	if err := h.run(t, agent, "view.rows", map[string]any{"offset": -1}, nil); err == nil {
@@ -103,8 +116,9 @@ func TestViewRowsMatchTheTable(t *testing.T) {
 
 	// A filter set just before is applied: view.rows waits for the snapshot.
 	h.must(t, gui, "ui.setFilter", map[string]any{"filter": "api", "regex": false}, nil)
+	got = engine.ViewRows{} // a fresh value: a decode keeps the cells an earlier result's rows shared
 	h.must(t, agent, "view.rows", struct{}{}, &got)
-	if got.Shown != 1 || got.Rows[0].Ref.Name != "api-0" || !slices.Equal(got.Rows[0].Cells, []string{"node-2", "api-0"}) {
+	if got.Shown != 1 || got.RefAt(0).Name != "api-0" || !slices.Equal(got.ViewCells(0), []string{"node-2", "api-0"}) {
 		t.Errorf("after the search api: %+v", got)
 	}
 }

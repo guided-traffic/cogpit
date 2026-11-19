@@ -165,13 +165,17 @@ func TestTableMoveKeys(t *testing.T) {
 }
 
 // TestSortAndFilterKeys: ⇧N sorts by name (twice: descending), ⇧O by the keyboard's column; a
-// view without the column says so.
+// view without the column says so. The view opens sorted by name, so it is sorted by status first:
+// a wait for "by name, ascending" that held before the key was typed would say nothing, and would
+// never hold once the key's sort, descending then, arrived before the wait looked.
 func TestSortAndFilterKeys(t *testing.T) {
 	f := connectedFake(t, 5)
 	sh, w, q := newTestShell(t, f, Options{})
 	q.until(t, "the pods view", func() bool { return sh.view.snap != nil && sh.view.snap.View == "pods" })
 	tv := sh.view
 	w.Canvas().Focus(tv.table)
+	typeRune(t, w, 'S')
+	q.until(t, "sorted by status", func() bool { return sh.ui.Sort.Column == "status" })
 	typeRune(t, w, 'N')
 	q.until(t, "sorted by name", func() bool { return sh.ui.Sort.Column == "name" && !sh.ui.Sort.Desc })
 	typeRune(t, w, 'N')

@@ -326,18 +326,39 @@ func TestFullContextIsNoted(t *testing.T) {
 	}
 }
 
-// TestToolResultLimit: a result above the connection's limit is cut there with the note on how to
-// ask for less, in what the model is sent and in what the window shows.
+// TestToolResultLimit: a result above the connection's limit goes as its head (head.go): valid JSON
+// with the members around its largest array, and Cogpit's note that names result_read, together
+// within the limit, in what the model is sent and in what the window shows; search_commands' result
+// is held as a command's is, and result_read reads on in it.
 func TestToolResultLimit(t *testing.T) {
 	h := newHarness(t, engine.ChatLimits{MaxToolResultKiB: 1})
 	h.llm.Script(searchReply(0), fakellm.Reply{Text: []string{"Done."}})
 	c := h.idle(t, h.start(t, "Which commands scale?"))
 	reqs := h.llm.ChatRequests()
 	sent := toolContents(t, reqs[len(reqs)-1])
-	if len(sent) != 1 || !strings.Contains(sent[0], "[Cogpit cut this result at 1024 of ") || len(sent[0]) > 1024+400 {
-		t.Fatalf("the result as sent: %d bytes, %q", len(sent[0]), sent[0][max(0, len(sent[0])-160):])
+	if len(sent) != 1 || !strings.HasPrefix(sent[0], resultFrame(toolSearch)) {
+		t.Fatalf("the result as sent: %q", sent)
 	}
-	if c.Items[1].Tool == nil || !strings.Contains(c.Items[1].Tool.Result, "[Cogpit cut this result at 1024 of ") {
-		t.Errorf("the window's result is not cut: %v", itemKinds(c))
+	shown := strings.TrimPrefix(sent[0], resultFrame(toolSearch))
+	doc, note := splitHead(t, shown)
+	if len(shown) > 1<<10 || !strings.Contains(doc, `"commands":[`) || !strings.Contains(doc, `"note":"Run one with run_command`) ||
+		!strings.Contains(note, ` elements of "commands". `) || !strings.Contains(note, `result_read {"call":"call_0","offset":`) {
+		t.Errorf("the result as sent: %d bytes, %q", len(shown), shown)
+	}
+	if c.Items[1].Tool == nil || c.Items[1].Tool.Result != shown {
+		t.Errorf("the window's result is not the one sent: %v", itemKinds(c))
+	}
+	if raw, held := h.raw(c.ID, "call_0"); raw == nil || held != 1 || raw.tool != toolSearch {
+		t.Fatalf("the search's raw result: %+v, %d held", raw, held)
+	}
+
+	// The note's call reads on in the commands found.
+	next, _ := nextRead(t, note)
+	args, _ := json.Marshal(next)
+	h.llm.Script(fakellm.Reply{ToolCalls: []fakellm.ToolCall{readCall("call_read", string(args))}}, fakellm.Reply{Text: []string{"More."}})
+	h.send(t, c.ID, "And the others?")
+	page, pageNote := splitHead(t, strings.TrimPrefix(h.lastToolMessage(t), resultFrame(toolRead)))
+	if !strings.HasPrefix(page, `{"commands":[`) || !strings.Contains(pageNote, ` elements of "commands" in the result of search_commands, as read at `) {
+		t.Errorf("result_read on a search's result: %s\n%s", page, pageNote)
 	}
 }

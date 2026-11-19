@@ -109,8 +109,8 @@ func TestCustomKindsThroughCommands(t *testing.T) {
 
 	var list commands.ListResult
 	h.must(t, engine.OriginExternalAgent, "resources.list", map[string]any{"kind": gatewayKey}, &list)
-	if list.Total != 2 || list.Rows[0].Ref.Name != "internal" || list.Rows[1].Cells["Class"] != "envoy" ||
-		list.Rows[1].Cells["Address"] != "203.0.113.7" || list.Rows[1].Cells["Programmed"] != "True" {
+	if list.Total != 2 || list.RefAt(0).Name != "internal" || list.Cell(1, "Class") != "envoy" ||
+		list.Cell(1, "Address") != "203.0.113.7" || list.Cell(1, "Programmed") != "True" {
 		t.Fatalf("resources.list: %+v", list)
 	}
 

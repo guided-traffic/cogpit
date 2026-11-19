@@ -63,8 +63,8 @@ func TestKyvernoViolationsCommand(t *testing.T) {
 
 	var list commands.ListResult
 	h.must(t, agent, "resources.list", map[string]any{"kind": "deployments", "namespaces": []string{"shop"}}, &list)
-	if len(list.Rows) != 1 || !strings.HasPrefix(list.Rows[0].Cells["Signals"], "Kyverno: 1 policy violation") {
-		t.Errorf("resources_list %+v", list.Rows)
+	if len(list.Rows) != 1 || !strings.HasPrefix(list.Cell(0, "Signals"), "Kyverno: 1 policy violation") {
+		t.Errorf("resources_list %+v", list.RowTable)
 	}
 
 	h.must(t, agent, "ui.openView", map[string]any{"view": "deployments"}, nil)

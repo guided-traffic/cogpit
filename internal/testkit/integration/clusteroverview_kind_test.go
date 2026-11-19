@@ -28,7 +28,7 @@ func TestKindClusterOverview(t *testing.T) {
 	read := func(series bool) engine.ClusterOverviewModel {
 		t.Helper()
 		var m engine.ClusterOverviewModel
-		raw, _ := json.Marshal(dispatch("cluster.overview", map[string]any{"series": series}))
+		raw, _ := json.Marshal(dispatch("cluster.overview", map[string]any{"series": series, "everyIssue": true}))
 		if err := json.Unmarshal(raw, &m); err != nil {
 			t.Fatal(err)
 		}

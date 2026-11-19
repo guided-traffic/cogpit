@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
@@ -16,9 +17,22 @@ import (
 
 type clusterOverviewParams struct {
 	engine.OnCluster
-	Namespaces []string `json:"namespaces,omitempty" jsonschema:"namespaces whose issues to list (a node's issues are always listed); omitted: the namespace filter the user has set (every namespace for a cluster the window does not show)"`
+	Namespaces []string `json:"namespaces,omitempty" jsonschema:"namespaces whose issues to read (a node's issues always are); omitted: the namespace filter the user has set (every namespace for a cluster the window does not show)"`
 	Series     bool     `json:"series,omitempty" jsonschema:"true: include each chart's points over its time range (while the page is open; otherwise there are none)"`
 	NoIssues   bool     `json:"noIssues,omitempty" jsonschema:"true: leave the issues out (the charts only)"`
+	EveryIssue bool     `json:"everyIssue,omitempty" jsonschema:"true: every issue as an entry of its own in issues, newest first, in place of issueFold: not bounded in size, and not with the parameters below"`
+
+	Severity string               `json:"severity,omitempty" jsonschema:"fold only the issues of this severity: error or warning"`
+	Sources  []string             `json:"sources,omitempty" jsonschema:"fold only the issues of these sources: status (an object's own state), event (a warning event)"`
+	Reason   string               `json:"reason,omitempty" jsonschema:"fold only the issues of this cause: a reason of causes"`
+	Subject  *engine.IssueSubject `json:"subject,omitempty" jsonschema:"a row of bySubject by its kind, namespace and name: returns that subject's issues (members), their messages whole"`
+	Limit    int                  `json:"limit,omitempty" jsonschema:"rows of bySubject or members to return; default 20, at most 200"`
+	Offset   int                  `json:"offset,omitempty" jsonschema:"rows to skip before the first one returned, for the next page"`
+}
+
+// narrows reports whether a parameter of the fold is set.
+func (p clusterOverviewParams) narrows() bool {
+	return p.Severity != "" || len(p.Sources) > 0 || p.Reason != "" || p.Subject != nil || p.Limit != 0 || p.Offset != 0
 }
 
 type overviewRangeParams struct {
@@ -37,17 +51,31 @@ func registerClusterOverview(g *registrar) {
 			"group and time range the charts show (ui_setOverviewNodes, ui_setOverviewRange), the charts CPU (cores), " +
 			"Memory (bytes) and Pods for that group with their current usage, requests and limits (sums over the pods " +
 			"that have not finished on those nodes), allocatable capacity and capacity, the metrics providers' state, and " +
-			"the Issues: pods with a warning, nodes not Ready or under pressure, Deployments, Stateful Sets and Daemon " +
-			"Sets short of ready pods, and warning events of the last hour, each with its object (ref), kind, message " +
-			"and since when. The issues and lines are read from the cache; while the page is open the charts carry the " +
-			"metrics history (with series: true, their points), otherwise the current CPU and memory come from one read " +
-			"of the nodes' metrics. ui_openView with view cluster/overview shows the page to the user; ui_select with an " +
-			"issue's ref opens its details there.",
+			"the issues (pods with a warning, nodes not Ready or under pressure, Deployments, Stateful Sets and Daemon " +
+			"Sets short of ready pods, warning events of the last hour) folded in issueFold: exact counts (issues, " +
+			"error, warning, subjects); bySubject, a row per subject (the workload that controls the affected pods, else " +
+			"the object: kind, namespace and name are its ref) with its level, affected objects, state and most common " +
+			"event; causes, each distinct state or event with the subjects, objects and issues that share it. Both are " +
+			"tables: columns names a row's cells, same holds the cells all rows share. {name}, {image}, {uid}, {digest} " +
+			"and {hash} in a message stand for what differs between objects. more says how to read on; subject returns " +
+			"one subject's issues with whole messages; ownersUnread names kinds that could not be read, whose pods are " +
+			"then subjects themselves. The issues and lines are read from the cache; while the page is " +
+			"open the charts carry the metrics history (with series: true, their points), otherwise the current CPU and " +
+			"memory come from one read of the nodes' metrics. ui_openView with view cluster/overview shows the page to " +
+			"the user; ui_select with a ref opens its details there.",
 		Enabled: func(s *engine.Session, p clusterOverviewParams) error {
 			_, err := connectedOn(s, p.Context)
 			return err
 		},
 		Run: func(ctx context.Context, s *engine.Session, p clusterOverviewParams) (any, error) {
+			if !p.NoIssues && !p.EveryIssue {
+				return s.ClusterOverviewFolded(ctx, p.Context, p.Namespaces, p.Series, engine.IssueQuery{
+					Severity: p.Severity, Sources: p.Sources, Reason: p.Reason, Subject: p.Subject, Limit: p.Limit, Offset: p.Offset,
+				})
+			}
+			if p.narrows() {
+				return nil, errors.New("severity, sources, reason, subject, limit and offset read the fold: leave out everyIssue and noIssues")
+			}
 			m, err := s.ClusterOverview(ctx, p.Context, p.Namespaces, p.Series)
 			if err == nil && p.NoIssues {
 				m.Issues = nil
