@@ -583,6 +583,71 @@ func (c *Cluster) renderDeployment(d *deployment) *unstructured.Unstructured {
 	return object("apps/v1", "Deployment", meta, map[string]any{"spec": d.spec, "status": st})
 }
 
+// renderReplicaSet renders one of a deployment's replica sets, owned by the deployment, and
+// records the counts it shows. The running one wants the deployment's replicas, a stuck rollout's
+// new one its surge pod.
+func (c *Cluster) renderReplicaSet(d *deployment, rs int) *unstructured.Unstructured {
+	t := d.templates[rs]
+	want := d.replicas
+	if rs == 1 {
+		want = 1 // the stuck rollout's surge pod
+	}
+	meta := map[string]any{
+		"name": d.name + "-" + d.rsHash[rs], "namespace": d.namespace, "uid": d.rsUID[rs],
+		"creationTimestamp": ts(d.rsCreated[rs]), "generation": int64(1), "labels": d.podLabels[rs],
+		"annotations": map[string]any{
+			"deployment.kubernetes.io/desired-replicas": strconv.Itoa(d.replicas),
+			"deployment.kubernetes.io/max-replicas":     strconv.Itoa(d.replicas + (d.replicas+3)/4),
+			"deployment.kubernetes.io/revision":         strconv.Itoa(rs + 1),
+		},
+		"ownerReferences": ownerRef("apps/v1", "Deployment", d.name, d.uid),
+	}
+	selector := strMap(d.selector)
+	selector["pod-template-hash"] = d.rsHash[rs]
+	spec := map[string]any{
+		"replicas": int64(want),
+		"selector": map[string]any{"matchLabels": selector},
+		"template": map[string]any{
+			"metadata": map[string]any{"labels": d.podLabels[rs]},
+			"spec": map[string]any{
+				"containers":                    t.rendered,
+				"restartPolicy":                 "Always",
+				"terminationGracePeriodSeconds": int64(30),
+				"dnsPolicy":                     "ClusterFirst",
+				"schedulerName":                 "default-scheduler",
+				"serviceAccountName":            t.serviceAccount,
+				"securityContext":               map[string]any{},
+			},
+		},
+	}
+	active, ready := d.rsCounts(rs)
+	d.rsStatus[rs] = [3]int{active, ready, ready}
+	st := map[string]any{"replicas": int64(active), "observedGeneration": int64(1)}
+	if active > 0 {
+		st["fullyLabeledReplicas"] = int64(active)
+	}
+	if ready > 0 {
+		st["readyReplicas"] = int64(ready)
+		st["availableReplicas"] = int64(ready)
+	}
+	return object("apps/v1", "ReplicaSet", meta, map[string]any{"spec": spec, "status": st})
+}
+
+// replicaSetsChanged reports the replica sets of d whose counts differ from those last published.
+func (d *deployment) replicaSetsChanged() []int {
+	var out []int
+	for rs := range d.templates {
+		if d.templates[rs] == nil {
+			continue
+		}
+		active, ready := d.rsCounts(rs)
+		if d.rsStatus[rs] != [3]int{active, ready, ready} {
+			out = append(out, rs)
+		}
+	}
+	return out
+}
+
 // Events.
 
 func (c *Cluster) renderEvent(e *event) *unstructured.Unstructured {

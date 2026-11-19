@@ -73,7 +73,26 @@ func (c *Cluster) build() {
 	c.buildWorkloads(now)
 	c.buildServices(now)
 	c.buildEvents(now)
-	c.buildHelmReleases(now) // last, and without the random generator: the rest stays as it was
+	c.buildHelmReleases(now) // without the random generator: the rest stays as it was
+	c.buildReplicaSets()     // the same
+}
+
+// buildReplicaSets stores each deployment's replica sets, the owners its pods name: the one
+// running, and a stuck rollout's new one, created with its oldest pod.
+func (c *Cluster) buildReplicaSets() {
+	for _, d := range c.w.deploys {
+		d.rsCreated[0] = d.created
+		for p := range d.pods {
+			if p.rs == 1 && (d.rsCreated[1].IsZero() || p.created.Before(d.rsCreated[1])) {
+				d.rsCreated[1] = p.created
+			}
+		}
+		for rs := range d.templates {
+			if d.templates[rs] != nil {
+				c.put(kindReplicaSets, c.renderReplicaSet(d, rs))
+			}
+		}
+	}
 }
 
 // Namespaces.

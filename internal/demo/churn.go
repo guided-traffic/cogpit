@@ -194,8 +194,8 @@ func (c *Cluster) opStart(now time.Time) int {
 	return 1
 }
 
-// opDeploymentStatus publishes the status of the deployment whose pods changed longest ago, as
-// the deployment controller does after its replica sets report.
+// opDeploymentStatus publishes the status of the deployment whose pods changed longest ago and of
+// those of its replica sets whose counts changed, as the controllers do.
 func (c *Cluster) opDeploymentStatus(now time.Time) int {
 	if len(c.w.dirty) == 0 {
 		return 0
@@ -204,8 +204,13 @@ func (c *Cluster) opDeploymentStatus(now time.Time) int {
 	c.w.dirty = c.w.dirty[1:]
 	d.dirty = false
 	d.refresh(now)
+	n := 1
+	for _, rs := range d.replicaSetsChanged() { // the replica sets report first
+		c.publish(kindReplicaSets, watch.Modified, c.renderReplicaSet(d, rs))
+		n++
+	}
 	c.publish(kindDeployments, watch.Modified, c.renderDeployment(d))
-	return 1
+	return n
 }
 
 // opNewEvent records a new event and removes the oldest beyond Options.Events, as the API

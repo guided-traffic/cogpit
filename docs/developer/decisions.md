@@ -7152,7 +7152,7 @@ from the engine's snapshot, not from the command, and stays as it is.
   their own. An owner reference to any other kind starts nothing.
 
 **Why:** most issues are one cause over the pods of one workload: the demo cluster's 234 issues are
-113,600 bytes as entries of their own and 4,677 folded into 11 subjects and 5 causes. Code folds
+113,600 bytes as entries of their own and 4,562 folded into 11 subjects and 5 causes. Code folds
 them in milliseconds, the same way each time, where a model would read them for minutes. An order
 by an event's count or time would be the order of whoever writes events. Without the Replica Set a
 pod's Deployment cannot be told by UID, so a Deployment's pods would never fold; the Workloads
