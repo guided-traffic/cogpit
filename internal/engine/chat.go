@@ -166,10 +166,51 @@ type ChatLimits struct {
 var DefaultChatLimits = ChatLimits{RepeatStop: 3, MaxToolCalls: 25, MaxTokens: 3_000_000, MaxDuration: 10 * time.Minute,
 	ContextWindow: 300_000, ClearAt: 70, ClearTo: 35, MaxToolResultKiB: 32}
 
+// LocalChatMaxDuration is a turn's default time limit over a local model (ChatConnection.Local,
+// D-169): one that reads some 150 tokens a second needs twelve minutes for the 105,000 tokens a
+// clearing leaves of a context window of 300,000 (D-167).
+const LocalChatMaxDuration = 60 * time.Minute
+
+// Local reports whether the connection's model runs on hardware of the user's own, as far as the
+// connection tells: an LM Studio, or a base URL on this machine or a private network (localhost, a
+// name under .local, a loopback, private or link-local address). A name that only resolves to such
+// an address is not looked up.
+func (c ChatConnection) Local() bool {
+	if c.Kind == ChatLMStudio {
+		return true
+	}
+	u, err := url.Parse(strings.TrimSpace(c.BaseURL))
+	if err != nil || u.Host == "" {
+		return false
+	}
+	host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+	if host == "localhost" || strings.HasSuffix(host, ".local") {
+		return true
+	}
+	ip := net.ParseIP(host)
+	return ip != nil && (ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast())
+}
+
+// DefaultLimits are the defaults of the connection's limits: DefaultChatLimits, with
+// LocalChatMaxDuration for a local model.
+func (c ChatConnection) DefaultLimits() ChatLimits {
+	d := DefaultChatLimits
+	if c.Local() {
+		d.MaxDuration = LocalChatMaxDuration
+	}
+	return d
+}
+
+// EffectiveLimits are the limits a turn over the connection runs with: its own, every zero field
+// from DefaultLimits.
+func (c ChatConnection) EffectiveLimits() ChatLimits { return c.Limits.over(c.DefaultLimits()) }
+
 // WithDefaults returns l with every zero field set from DefaultChatLimits. A ClearTo that is not
 // below ClearAt (one of them set, the other its default) becomes half of ClearAt.
-func (l ChatLimits) WithDefaults() ChatLimits {
-	d := DefaultChatLimits
+func (l ChatLimits) WithDefaults() ChatLimits { return l.over(DefaultChatLimits) }
+
+// over returns l with every zero field set from d.
+func (l ChatLimits) over(d ChatLimits) ChatLimits {
 	if l.RepeatStop > 0 {
 		d.RepeatStop = l.RepeatStop
 	}

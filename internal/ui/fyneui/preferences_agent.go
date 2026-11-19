@@ -361,7 +361,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	textW := settingsColumn - 4*p.sh.app.Settings().Theme().Size(theme.SizeNameInnerPadding)
 	f.textW = textW
 	f.plainWarn = newParagraph(engine.ChatPlainHTTPWarning, colorStatusWarning, textW)
-	f.baseURL.OnChanged = func(string) { f.showPlainWarning() }
+	f.baseURL.OnChanged = func(string) { f.showPlainWarning(); f.showMinutesDefault() }
 	f.caFile = f.field(newFieldEntry())
 	placeholder, _ := caFileExamples(runtime.GOOS)
 	f.caFile.SetPlaceHolder(placeholder)
@@ -402,7 +402,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.allTools.SetChecked(c.AllTools)
 
 	lim := c.Limits
-	def := engine.DefaultChatLimits
+	def := c.DefaultLimits()
 	values := [4]int{lim.RepeatStop, lim.MaxToolCalls, lim.MaxTokens, int(lim.MaxDuration / time.Minute)}
 	defaults := [4]int{def.RepeatStop, def.MaxToolCalls, def.MaxTokens, int(def.MaxDuration / time.Minute)}
 	limitLabels := [4]string{"Stop at identical tool calls", "Tool calls", "Tokens, summed", "Minutes"}
@@ -411,6 +411,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 		[]string{"Context window, tokens", "Clear results at, %", "Clear down to, %", "Tool result, KiB"},
 		[]int{lim.ContextWindow, lim.ClearAt, lim.ClearTo, lim.MaxToolResultKiB},
 		[]int{def.ContextWindow, def.ClearAt, def.ClearTo, def.MaxToolResultKiB})
+	f.showMinutesDefault() // by the form's kind and base URL, a new connection's prefill included
 
 	f.def = newLabelledSwitch("Use for new conversations (the default)", nil)
 	f.def.SetChecked(c.Default)
@@ -458,7 +459,8 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 // Help of the form's two rows of numbers.
 const (
 	limitsHelp = "Empty takes the default; a turn that reaches one stops with a note. Tokens are summed over the turn's " +
-		"requests, each of which carries the whole conversation."
+		"requests, each of which carries the whole conversation. A local model (an LM Studio, or an address on this " +
+		"computer or a private network) has 60 minutes by default, any other 10."
 	contextHelp = "Empty takes the default. A request that reaches the first share of the model's context window is sent " +
 		"without the conversation's oldest tool results, as many as bring it down to the second share; the chat keeps them " +
 		"and says so. A longer tool result is cut."
@@ -570,6 +572,17 @@ func (f *agentForm) kindChanged(label string) {
 		}
 		f.lastKind = k.kind
 	}
+	f.showMinutesDefault()
+}
+
+// showMinutesDefault writes the default of a turn's minutes as the form's kind and base URL give
+// it: a local model's turn has longer (D-169).
+func (f *agentForm) showMinutesDefault() {
+	if f.limits[3] == nil {
+		return
+	}
+	d := engine.ChatConnection{Kind: f.lastKind, BaseURL: f.baseURL.Text}.DefaultLimits()
+	f.limits[3].SetPlaceHolder(formatCount(int64(d.MaxDuration/time.Minute)) + " (default)")
 }
 
 // showKeyState says what saving does with the key.

@@ -99,7 +99,7 @@ func (a *Agent) send(id string, cut int, msg engine.ChatUserMessage) error {
 	if cut >= 0 {
 		c.cut(cut)
 	}
-	limits := conn.Limits.WithDefaults()
+	limits := conn.EffectiveLimits()
 	if c.info.ConnectionID != conn.ID {
 		c.calBytes, c.calTokens = 0, 0 // another model counts tokens its own way
 	}
