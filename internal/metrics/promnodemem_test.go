@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// TestExporterMemoryIsTheKubeletsWorkingSet (D-new): node-exporter's memory, as exporterMemory
+// TestExporterMemoryIsTheKubeletsWorkingSet (D-175): node-exporter's memory, as exporterMemory
 // computes it, is the working set the kubelet reports for the node (the Metrics Server's live
 // value), so a node's history does not step where the live values continue it. The fixtures are
 // synthetic nodes shaped like a real cluster's: /proc/meminfo, which node-exporter exports, and the

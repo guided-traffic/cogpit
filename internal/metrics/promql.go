@@ -315,7 +315,7 @@ func exporterFSUsage(matcher string) string {
 }
 
 // exporterMemory is the memory in use the node-exporter series that match give, counted as the
-// kubelet counts a node's working set (D-new): the anonymous pages, the page cache and the block
+// kubelet counts a node's working set (D-175): the anonymous pages, the page cache and the block
 // devices' buffers, less the inactive file cache. The kubelet's node is cAdvisor's root cgroup,
 // whose working set is its usage less inactive_file; on cgroup v2 the root has no memory.current
 // and runc takes memory.stat's anon + file for its usage, and the root's file is /proc/meminfo's

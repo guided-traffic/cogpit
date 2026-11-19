@@ -183,8 +183,8 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | built: over a connection that chooses (off by default), a read's result above its size whose largest part is a list goes to the model in a request of its own, which answers with entry numbers; Cogpit renders those entries |
 | [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
-| [D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
-| [D-new](#d-new-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
+| [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
+| [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
 
 ## D-1: UI toolkit
 
@@ -1621,7 +1621,7 @@ per poll (60 s) serves every node, only while the Disk column or a node's drawer
 A node's charts (its drawer, the cluster Overview) prefer node-exporter too, else cAdvisor's root
 cgroup, which kube-prometheus-stack drops; network and filesystem join both by `or` in one query
 each. Memory is the kubelet's working set counted from `/proc/meminfo`
-([D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set)), so history and live values mean the
+([D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set)), so history and live values mean the
 same. The
 network leaves out the loopback and the virtual interfaces of runtimes, network plugins and the
 kernel. Queries, matching, budget: [architecture §9](architecture.md#9-metrics-internalmetrics).
@@ -7329,7 +7329,7 @@ until the caps push them out — 1,024 contexts' names and users on disk for clu
 `TestRemovingASourceForgetsItsClustersUsers`, `TestRemovingASessionSourceKeepsItsUsers`,
 `TestStartForgetsTheUsersOfGoneContexts`, `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`
 
-## D-new: A node's memory is the kubelet's working set
+## D-175: A node's memory is the kubelet's working set
 
 **Status:** built · **By:** lead (open to revision)
 
@@ -7368,7 +7368,7 @@ the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the 
 `TestExporterMemoryIsTheKubeletsWorkingSet` (synthetic `/proc/meminfo` and root `memory.stat` in
 [`testdata/nodememory`](../../internal/metrics/testdata/nodememory))
 
-## D-new: Two `-update` runs write the same pictures
+## D-176: Two `-update` runs write the same pictures
 
 **Status:** built · **By:** lead (open to revision)
 

@@ -1994,7 +1994,7 @@ the whole setting at every change and follows `cluster.prometheus` after every m
   (`FilesystemSource`, found by trying, remembered per kind for the provider's life).
 - A node and the cluster: node-exporter's CPU, memory (`AnonPages + Cached + Buffers −
   Inactive_file`, the kubelet's working set:
-  [D-new](decisions.md#d-new-a-nodes-memory-is-the-kubelets-working-set)), interfaces
+  [D-175](decisions.md#d-175-a-nodes-memory-is-the-kubelets-working-set)), interfaces
   (`nodeInterfaces`) and block devices, else cAdvisor's root cgroup (`id="/"`). CPU and memory try
   node-exporter first and `Prometheus.nodeSource` remembers the answer for the provider's life
   (`ObjectSeries.UsageSource`); network and filesystem join both by `or`. Series match by the
