@@ -16,8 +16,8 @@ import (
 // Cogpit finds it among its own child processes (pluginproc_*.go: macOS through proc_info, Linux
 // through /proc, Windows through a Toolhelp snapshot).
 //
-// It is found at the run's begin and followed by its number and start time from then on (WF38, the
-// lead's walk of 2026-10-19): a plugin that is a wrapper and replaces itself with the real login
+// It is found at the run's begin and followed by its number and start time from then on (WF38): a
+// plugin that is a wrapper and replaces itself with the real login
 // program (exec) keeps its number while its command line becomes the program's, so a search by the
 // command line at the cancel, minutes later, did not find it; the process ran on while the log said
 // Cogpit had ended it. The wrapper of client-go's interactiveFunc (loginhold.go) notes Cogpit's

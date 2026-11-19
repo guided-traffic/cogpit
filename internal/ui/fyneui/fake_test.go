@@ -30,7 +30,7 @@ var fixedNow = time.Date(2026, 10, 11, 14, 30, 0, 0, time.UTC)
 
 // newTestEngine is engine.New with the tests' clock, so that a time the window shows (an object's
 // age, "23d ago") is the same in every run and a render changes only when the window does (the
-// owner, 2026-10-25: renders were updated for a day's turn of an age alone). The clock starts at
+// owner: renders were updated for a day's turn of an age alone). The clock starts at
 // fixedNow and runs, so timers and deadlines go on as with time.Now; a test's own Now stays. A
 // demo cluster's objects are dated from fixedNow too. A connector given no kubeconfig reads none
 // (noDefaultKubeconfig).

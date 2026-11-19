@@ -95,7 +95,7 @@ const (
 		"names the entries that matter for the question; the conversation then reads those, Cogpit's totals and the rest " +
 		"on request. Each choice is one more request over the whole conversation, minutes on a local model, and who writes " +
 		"the entries can sway what is chosen. Off: the result's first entries and Cogpit's totals."
-	// caHelp is the CA file's hint (the owner's decisions of 2026-10-15 and, N141, of 2026-10-16: the
+	// caHelp is the CA file's hint (the owner's decisions, N141: the
 	// file replaces the system's roots for the connection; agent/cafile.go).
 	caHelp = "For an https server with a private CA: a PEM file of its CA certificates, the only ones this connection " +
 		"trusts, not the system's, read when connecting. Empty: the system's (on macOS its keychains)."

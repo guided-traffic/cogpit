@@ -110,7 +110,7 @@ func steppedChildren(steps ...[]childProcess) func() []childProcess {
 // look in that moment sees it in the group. The search counts a child as in the group by its last
 // look: counted by its first, the shell made two children in the group with the run's, and a run
 // whose own command line the search missed (a wrapper that replaced itself before the first look)
-// had no process (CI, 2026-10-19 and 2026-11-05: the search found pid 0). The looks are the test's:
+// had no process (CI: the search found pid 0). The looks are the test's:
 // the shell in the group at the first, out of it with the plugin there at every later one; a shell
 // still in the group at the end leaves two children there, and none is taken.
 func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
