@@ -7380,7 +7380,8 @@ the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the 
 A render test's picture shows the window once the shell's own reads are in: `savePNG` drains the
 test's queue until the clusters, the status bar's counters, the namespaces, the drawer's detail and
 metrics and a settings section's reads have answered, and ends a connected cluster's blink past its
-connect. A path a picture shows lies in a folder of a fixed name. The demo cluster runs on a clock of
+connect. A path a picture shows lies in a folder of a fixed name. Every scene shows ages and
+times by the tests' fixed clock (`fixedNow`), never by the day of the run. The demo cluster runs on a clock of
 its own that starts at `Options.Now` and runs with the computer's: its churn's changes are stamped,
 and its Metrics Server measures, at that clock's time, with the computer's time as a measurement's
 timestamp. The pictures of the churning demo cluster (`demo_pods`, `demo_showcase`,
