@@ -1985,10 +1985,12 @@ the whole setting at every change and follows `cluster.prometheus` after every m
   filter off, when the pod's own cgroup is its line); the network per pod, which a container's chart
   carries (`NetworkOfPod`); the filesystem's usage, else its read and write rates
   (`FilesystemSource`, found by trying, remembered per kind for the provider's life).
-- A node and the cluster: node-exporter's CPU, memory (`MemTotal − MemFree − Inactive_file`),
-  interfaces (`nodeInterfaces`) and block devices, else cAdvisor's root cgroup (`id="/"`). CPU and
-  memory try node-exporter first and `Prometheus.nodeSource` remembers the answer for the provider's
-  life (`ObjectSeries.UsageSource`); network and filesystem join both by `or`. Series match by the
+- A node and the cluster: node-exporter's CPU, memory (`AnonPages + Cached + Buffers −
+  Inactive_file`, the kubelet's working set:
+  [D-new](decisions.md#d-new-a-nodes-memory-is-the-kubelets-working-set)), interfaces
+  (`nodeInterfaces`) and block devices, else cAdvisor's root cgroup (`id="/"`). CPU and memory try
+  node-exporter first and `Prometheus.nodeSource` remembers the answer for the provider's life
+  (`ObjectSeries.UsageSource`); network and filesystem join both by `or`. Series match by the
   `node` label, else by `instance` as the name or an address; each exporter counts once. Why:
   [D-43](decisions.md#d-43-where-the-nodes-disk-comes-from).
 - The lists' instant queries read cAdvisor only (a node: its root cgroup), so on

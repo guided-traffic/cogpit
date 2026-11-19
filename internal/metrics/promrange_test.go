@@ -197,7 +197,7 @@ func TestNodeHistoryFromNodeExporter(t *testing.T) {
 	t.Run("kube-prometheus-stack: the exporter by its address, no root cgroup", func(t *testing.T) {
 		c := newPromCluster(t, false)
 		c.prom.on(`node_cpu_seconds_total{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, 1000, 1.5, 1030, 1.75))
-		c.prom.on(`node_memory_MemTotal_bytes{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, 1000, 3<<30, 1030, 3<<30))
+		c.prom.on(`node_memory_AnonPages_bytes{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, 1000, 3<<30, 1030, 3<<30))
 		prov := promProvider(t, c, metrics.PrometheusOptions{})
 
 		// Without the address the exporter is not found, nor the dropped root cgroup: no history,
@@ -223,7 +223,7 @@ func TestNodeHistoryFromNodeExporter(t *testing.T) {
 	t.Run("the prometheus chart with node-exporter: the node label, preferred to the root cgroup", func(t *testing.T) {
 		c := newPromCluster(t, false)
 		c.prom.on(`node_cpu_seconds_total{node="n1"`, s(nil, 1000, 0.25))
-		c.prom.on(`node_memory_MemTotal_bytes{node="n1"}`, s(nil, 1000, 1<<30))
+		c.prom.on(`node_memory_AnonPages_bytes{node="n1"}`, s(nil, 1000, 1<<30))
 		c.prom.on(`container_cpu_usage_seconds_total{id="/"`, s(nil, 1000, 9))
 		c.prom.on(`container_memory_working_set_bytes{id="/"`, s(nil, 1000, 9<<30))
 		prov := promProvider(t, c, metrics.PrometheusOptions{})

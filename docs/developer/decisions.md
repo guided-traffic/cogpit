@@ -183,6 +183,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
 | [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
+| [D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 
 ## D-1: UI toolkit
 
@@ -1618,8 +1619,9 @@ per poll (60 s) serves every node, only while the Disk column or a node's drawer
 
 A node's charts (its drawer, the cluster Overview) prefer node-exporter too, else cAdvisor's root
 cgroup, which kube-prometheus-stack drops; network and filesystem join both by `or` in one query
-each. Memory is `MemTotal − MemFree − Inactive(file)`, the kubelet's working set on cgroup v2, so
-history and live values mean the same (inferred from the kubelet's accounting, not measured). The
+each. Memory is the kubelet's working set counted from `/proc/meminfo`
+([D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set)), so history and live values mean the
+same. The
 network leaves out the loopback and the virtual interfaces of runtimes, network plugins and the
 kernel. Queries, matching, budget: [architecture §9](architecture.md#9-metrics-internalmetrics).
 The lists' fallback while the Metrics Server fails reads the root cgroup, so on
@@ -6515,8 +6517,8 @@ The cluster Overview's CPU and Memory history (every node, and the workers as ev
 masters) sums the cluster's own nodes only. The engine gives the metrics hub every node from the
 cache with its addresses (`Hub.SetClusterNodes`); the every-node queries match them by the `node`
 label, else by `instance` as a name or an address, as the masters' queries do (`matchGroup`).
-node-exporter's memory names them on the total alone (`exporterGroupMemory`), a third of the
-length. Such a query may be 7 KiB long URL-encoded (`groupQueryMax`): about 100 nodes with short
+node-exporter's memory names them on the anonymous pages alone (`exporterGroupMemory`), a quarter
+of the length. Such a query may be 7 KiB long URL-encoded (`groupQueryMax`): about 100 nodes with short
 names and one address each, about 40 with cloud names such as
 `ip-10-0-1-2.eu-central-1.compute.internal`. A larger cluster is summed over every series the
 Prometheus has; one instant query then counts the machines, and when there are more than nodes the
@@ -7264,3 +7266,42 @@ until the caps push them out — 1,024 contexts' names and users on disk for clu
 [`fileaccess.go`](../../cmd/cogpit/fileaccess.go) (`forgetRemovedSources`) ·
 `TestRemovingASourceForgetsItsClustersUsers`, `TestRemovingASessionSourceKeepsItsUsers`,
 `TestStartForgetsTheUsersOfGoneContexts`, `TestRemovedSourceDropsItsBookmark`, `TestStoreDrop`
+
+## D-new: A node's memory is the kubelet's working set
+
+**Status:** built · **By:** lead (open to revision)
+
+node-exporter's memory of a node, which a node's chart and the cluster Overview's history show, is
+`AnonPages + Cached + Buffers − Inactive(file)` from `/proc/meminfo`: the working set the kubelet
+reports for the node, which is the Metrics Server's live value. The kubelet's node is cAdvisor's
+root cgroup, whose working set is its usage less `inactive_file` (cAdvisor,
+`github.com/google/cadvisor/lib` `container/libcontainer/handler.go` `setMemoryStats`). On cgroup v2
+the root has no `memory.current`; runc's cgroup library takes the root's usage from its
+`memory.stat` as `anon + file` (`github.com/opencontainers/cgroups` `fs2/memory.go`
+`rootStatsFromMeminfo`; runc 1.1.9 and later, which Kubernetes 1.29 and later build with). The
+root's `anon` is `AnonPages`, its `file` is `Cached + Buffers`: the swap cache is among the node's
+file pages, which `Cached` leaves out, but never among a cgroup's (Linux `mm/swap_state.c`
+`add_to_swap_cache`, `fs/proc/meminfo.c`). On cgroup v1 the root's usage is the node's file pages
+plus `AnonPages` (Linux `mm/memcontrol.c` `mem_cgroup_usage`), `SwapCached` more, which is zero on a
+node without swap. Kernel memory (slab, kernel stacks, page tables, per-CPU), reserved huge pages
+and pages no cgroup was charged for are in use in neither.
+
+**Why:** the history and the live values must mean the same, or a node's chart and the Overview
+step where the Metrics Server's values continue the history. On a cgroup v2 machine (Linux 6.10)
+the root's `memory.stat` and `/proc/meminfo`, read at the same moment, give the same working set to
+0.1 MiB beside a 16 MiB swap cache.
+
+**Rejected:**
+- `MemTotal − MemFree − Inactive(file)` — counts the kernel's own memory, which the kubelet leaves
+  out: 2.82 GiB of a 3.7 GiB worker against the live 2.14 GiB, 99 GiB of a master against 80 GiB.
+  It is the kubelet's value only with runc before 1.1.9 on cgroup v2.
+- That less `Slab` — still counts kernel stacks, page tables, per-CPU memory, the kernel memory
+  `/proc/meminfo` names nowhere, and reserved huge pages.
+- Adding `SwapCached`, cgroup v1's value — cgroup v2 is the default, and without swap it is zero.
+- cAdvisor's root cgroup (`container_memory_working_set_bytes{id="/"}`) alone — kube-prometheus-stack
+  drops it ([D-43](#d-43-where-the-nodes-disk-comes-from)); it stays the fallback.
+- Smoothing the joint between history and live values — hides an offset that is in every point.
+
+[`promql.go`](../../internal/metrics/promql.go) `exporterMemory`, `exporterGroupMemory` ·
+`TestExporterMemoryIsTheKubeletsWorkingSet` (synthetic `/proc/meminfo` and root `memory.stat` in
+[`testdata/nodememory`](../../internal/metrics/testdata/nodememory))

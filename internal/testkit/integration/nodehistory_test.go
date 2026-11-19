@@ -57,9 +57,9 @@ func (p *kpsProm) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		base = 0.5
 	case strings.Contains(q, `node_cpu_seconds_total{instance=~"(cp-1|10\\.0\\.0\\.7)`):
 		base = 0.5
-	case strings.HasPrefix(q, "sum(max by (node, instance) (node_memory_MemTotal_bytes - "): // every exporter
+	case strings.HasPrefix(q, "sum(max by (node, instance) (node_memory_AnonPages_bytes + "): // every exporter
 		base = 1 << 30
-	case strings.Contains(q, `node_memory_MemTotal_bytes{instance=~"(cp-1|10\\.0\\.0\\.7)`):
+	case strings.Contains(q, `node_memory_AnonPages_bytes{instance=~"(cp-1|10\\.0\\.0\\.7)`):
 		base = 1 << 30
 	default:
 		_, _ = w.Write([]byte(`{"status":"success","data":{"resultType":"matrix","result":[]}}`))

@@ -23,7 +23,7 @@ func TestNodeDrawerHistoryFromNodeExporterByAddress(t *testing.T) {
 		"timestamp": time.Now().UTC().Format(time.RFC3339), "window": "15s", "usage": map[string]any{"cpu": "500m", "memory": "1Gi"},
 	}})
 	c.prom.onRel(`node_cpu_seconds_total{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, -120, 0.25, -90, 0.5, -60, 0.75))
-	c.prom.onRel(`node_memory_MemTotal_bytes{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, -120, 1<<30, -90, 1<<30, -60, 1<<30))
+	c.prom.onRel(`node_memory_AnonPages_bytes{instance=~"(n1|10\\.0\\.0\\.7)(:[0-9]+)?"`, s(nil, -120, 1<<30, -90, 1<<30, -60, 1<<30))
 	c.srv.SetProxy("monitoring", "prometheus-server:80", c.prom)
 	src, _, err := metrics.SourcesForConn(c.conn, servicesOf(web("monitoring", "prometheus-server", 80)), metrics.PrometheusOptions{})
 	if err != nil {

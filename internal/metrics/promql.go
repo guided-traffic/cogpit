@@ -253,7 +253,9 @@ func nodeSumWhere(metric, extra string, m nodeMatch, win time.Duration) string {
 const (
 	metricNodeCPU          = "node_cpu_seconds_total"
 	metricNodeMemTotal     = "node_memory_MemTotal_bytes"
-	metricNodeMemFree      = "node_memory_MemFree_bytes"
+	metricNodeAnon         = "node_memory_AnonPages_bytes"
+	metricNodeCached       = "node_memory_Cached_bytes"
+	metricNodeBuffers      = "node_memory_Buffers_bytes"
 	metricNodeInactiveFile = "node_memory_Inactive_file_bytes"
 )
 
@@ -312,22 +314,27 @@ func exporterFSUsage(matcher string) string {
 		selector(metricFSSize, matcher, nodeDisks), selector(metricFSAvail, matcher, nodeDisks))
 }
 
-// exporterMemory is the memory in use the node-exporter series that match give: the total less the
-// free memory and the inactive file cache. That is how the kubelet counts the root cgroup's working
-// set (its usage less inactive_file; on cgroup v2 the root's usage is MemTotal less MemFree), so
-// the history and the Metrics Server's live values mean the same. Each exporter counted once.
+// exporterMemory is the memory in use the node-exporter series that match give, counted as the
+// kubelet counts a node's working set (D-new): the anonymous pages, the page cache and the block
+// devices' buffers, less the inactive file cache. The kubelet's node is cAdvisor's root cgroup,
+// whose working set is its usage less inactive_file; on cgroup v2 the root has no memory.current
+// and runc takes memory.stat's anon + file for its usage, and the root's file is /proc/meminfo's
+// Cached + Buffers (the swap cache is in the node's file pages, not in a cgroup's). So kernel
+// memory (slab, stacks, page tables) and reserved huge pages are not in use here, as they are not
+// in the Metrics Server's live value. Each exporter counted once.
 func exporterMemory(matcher string) string {
-	return fmt.Sprintf("sum(max by (node, instance) (%s - %s - %s))",
-		selector(metricNodeMemTotal, matcher), selector(metricNodeMemFree, matcher), selector(metricNodeInactiveFile, matcher))
+	return fmt.Sprintf("sum(max by (node, instance) (%s + %s + %s - %s))",
+		selector(metricNodeAnon, matcher), selector(metricNodeCached, matcher),
+		selector(metricNodeBuffers, matcher), selector(metricNodeInactiveFile, matcher))
 }
 
-// exporterGroupMemory is exporterMemory with the matcher on the total only: the free and the
-// inactive series join it one to one, so it holds for all three, and a query naming every node of
-// the cluster is a third as long. The free and inactive series of every exporter are read, as an
-// every-node query reads them anyway.
+// exporterGroupMemory is exporterMemory with the matcher on the anonymous pages only: the other
+// series join them one to one, so it holds for all four, and a query naming every node of the
+// cluster is a quarter as long. The other series of every exporter are read, as an every-node
+// query reads them anyway.
 func exporterGroupMemory(matcher string) string {
-	return fmt.Sprintf("sum(max by (node, instance) (%s - %s - %s))",
-		selector(metricNodeMemTotal, matcher), metricNodeMemFree, metricNodeInactiveFile)
+	return fmt.Sprintf("sum(max by (node, instance) (%s + %s + %s - %s))",
+		selector(metricNodeAnon, matcher), metricNodeCached, metricNodeBuffers, metricNodeInactiveFile)
 }
 
 // exporterOf joins the two ways the exporter series of one node (or of the control plane) are
