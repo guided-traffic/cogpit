@@ -265,8 +265,9 @@ func (s nodeSummary) conditionsCell() model.Cell {
 	return model.PartsCell(s.baseToken, s.parts()...)
 }
 
-// warning is the node's cell of the warning column. Inferred: Lens shows the column for nodes and
-// gives a cordoned node no icon (capture, 2026-10-11); which states do get one is not captured.
+// warning is the node's state signal, its slot in the Signals column (D-150). Inferred: Lens shows
+// a warning column for nodes and gives a cordoned node no icon (capture, 2026-10-11); which states
+// do get one is not captured.
 // Cogpit's rule: a node warns when it is not Ready (the Ready condition False or Unknown) or
 // reports a problem condition, and the reason names them.
 func (s nodeSummary) warning() model.Cell {

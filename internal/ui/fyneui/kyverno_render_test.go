@@ -18,9 +18,9 @@ import (
 )
 
 // The Kyverno integration's marks (D-79), over the real engine with the synthetic cluster of the
-// list renders and Kyverno's reports about some of its objects: the Pods' own warning column with
-// the mark merged in, the warning column added after Name to Deployments while one violates a
-// policy, a node's mark (a cluster report), and a Deployment's drawer with its "Policy violations".
+// list renders and Kyverno's reports about some of its objects: the Pods' Signals column with
+// Kyverno's slot beside the state's, the Signals column added after Name to Deployments while one
+// violates a policy, a node's mark (a cluster report), and a Deployment's drawer with its "Policy violations".
 // PNGs: kyverno_{pods,deployments,nodes,drawer}_{dark,light}.png.
 
 var (

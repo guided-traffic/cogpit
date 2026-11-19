@@ -17,8 +17,8 @@ import (
 var polrGVR = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "policyreports"}
 
 // TestKyvernoViolationsCommand drives the Kyverno integration as an agent does: kyverno_violations
-// lists the violations with their objects' kind keys, resources_list carries the mark in a Warning
-// cell, the open Deployments view sorts by the warning column the integration added, and with the
+// lists the violations with their objects' kind keys, resources_list carries the mark in a Signals
+// cell, the open Deployments view sorts by the Signals column the integration added, and with the
 // integration off the command is disabled and says why.
 func TestKyvernoViolationsCommand(t *testing.T) {
 	src := seed()

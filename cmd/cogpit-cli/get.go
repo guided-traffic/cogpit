@@ -301,7 +301,7 @@ func getOne(ctx context.Context, e *env, s *engine.Session, kind commands.KindIn
 
 // writeRows prints rows under the kind's columns as its view shows them: the columns it does not
 // hide by default, in its order, without the columns that are empty in every row (the metrics
-// columns, which a headless read does not fill, and an unused warning column); the name column
+// columns, which a headless read does not fill, and a Signals column without a signal); the name column
 // always.
 func writeRows(e *env, kind commands.KindInfo, rows engine.RowTable) error {
 	// The result's table names an object by its reference's columns; the kind's Name and Namespace

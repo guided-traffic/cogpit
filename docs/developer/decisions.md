@@ -87,7 +87,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-76](#d-76-integrations-per-cluster-and-the-question-at-a-new-clusters-first-connect) | Integrations per cluster, and the question at a new cluster's first connect | built: five per-cluster switches; only the user switches them |
 | [D-77](#d-77-alertmanager-the-alerts-pill-and-the-alert-board) | Alertmanager, the alerts pill and the alert board | built: shown cluster polled every 30 s; silences D-166 |
 | [D-78](#d-78-trivy-operators-image-ratings) | Trivy Operator's image ratings | built: reads and placement; the grade itself is D-113 |
-| [D-79](#d-79-kyvernos-policy-violations-on-the-objects) | Kyverno's policy violations on the objects | built: warning column and drawer marks from policy reports |
+| [D-79](#d-79-kyvernos-policy-violations-on-the-objects) | Kyverno's policy violations on the objects | built: marks in the Signals column and the drawer from policy reports |
 | [D-80](#d-80-a-clusters-accent-colour) | A cluster's accent colour | built: accent colour per cluster, set only in the window |
 | [D-81](#d-81-reconnect-and-what-log-in-again-does) | Reconnect, and what Log in again does | built: Reconnect from the kubeconfig file, tabs kept |
 | [D-82](#d-82-a-pre-choice-before-any-integration-is-looked-for-and-ask-again) | A pre-choice before any integration is looked for, and Ask again | built: nothing looked for before the user's choice; Ask again |

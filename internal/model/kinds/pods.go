@@ -236,7 +236,7 @@ func containerMark(name string, status any, readiness bool) model.CellMark {
 // keyNodes is the kind key node cells link to.
 const keyNodes = "nodes"
 
-// podWarning is the pod's cell of the warning column. Lens shows an orange triangle on a pod with
+// podWarning is the pod's state signal, its slot in the Signals column (D-150). Lens shows an orange triangle on a pod with
 // problems (captured on a pod with many restarts and a container not ready, 2026-10-11); the rule
 // is inferred. Cogpit's rule: a pod that is neither finished nor being deleted warns when its
 // status is an error (CrashLoopBackOff, ImagePullBackOff, Evicted, OOMKilled, ...), when it runs

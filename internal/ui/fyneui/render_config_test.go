@@ -7,8 +7,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// The Pod Disruption Budgets list as the real kind profile fills it: the warning column after
-// Name (a budget not met, one that allows no disruption, one the controller could not compute),
+// The Pod Disruption Budgets list as the real kind profile fills it: the state's signal in the
+// Signals column after Name (a budget not met, one that allows no disruption, one the controller could not compute),
 // "N/A" for a bound a budget does not set, and the healthy counts. PNGs:
 // testdata/pdbs_list_{dark,light}.png.
 

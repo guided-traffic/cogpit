@@ -22,9 +22,9 @@ import (
 // policies on objects that existed before count too). While the integration is on for a connected
 // cluster, Cogpit reads the policy reports Kyverno writes (wgpolicyk8s.io/v1alpha2 PolicyReports
 // and ClusterPolicyReports, kinds/policyreports.go) through the cache and marks every object a
-// report names with a violation: the lists' warning column ("Kyverno: 2 policy violations
-// (require-team-label, disallow-latest-tag)"), added after Name to a kind that has none while one of
-// its objects violates a policy, and a "Policy violations" group in the drawer. Off: nothing is
+// report names with a violation: Kyverno's slot in the lists' Signals column ("Kyverno: 2 policy
+// violations (require-team-label, disallow-latest-tag)"), the column added after Name to a kind
+// that has none while one of its objects violates a policy, and a "Policy violations" group in the drawer. Off: nothing is
 // read, nothing shows (overlay.go).
 //
 //   - Source: the reports in all namespaces, or in each namespace the user names when they may not

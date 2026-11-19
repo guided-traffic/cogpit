@@ -258,7 +258,7 @@ func bootstrapPolicy(obj any) bool {
 	return model.NestedString(obj, "metadata", "annotations", annotationAutoupdate) == textTrue
 }
 
-// grantsNothingCell is the warning cell and row token of a role or binding: a warning with the
+// grantsNothingCell is the state's signal cell and row token of a role or binding: a warning with the
 // causes it grants nothing; none without causes.
 func grantsNothingCell(causes []string) (model.Cell, model.Status) {
 	if len(causes) == 0 {
@@ -276,7 +276,7 @@ func subjectsCause(obj any) string {
 	return causeNoSubjects
 }
 
-// roleWarning is the warning cell and row token of a role: it warns when it has no rules.
+// roleWarning is the state's signal cell and row token of a role: it warns when it has no rules.
 func roleWarning(obj any) (model.Cell, model.Status) {
 	if hasObject(model.NestedSlice(obj, "rules")) {
 		return grantsNothingCell(nil)

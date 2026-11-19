@@ -100,7 +100,7 @@ func cronSuspendText(obj any) string {
 	return "false"
 }
 
-// cronJobHealth returns the warning cell and the row's token. The rule is inferred: a schedule or
+// cronJobHealth returns the state's signal cell and the row's token. The rule is inferred: a schedule or
 // time zone the controller cannot use is an error, because no job will ever run; a last scheduled
 // job that did not succeed is a warning; a suspended cron job has nothing to colour.
 func cronJobHealth(obj any, problem string) (model.Cell, model.Status) {

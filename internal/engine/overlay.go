@@ -433,8 +433,8 @@ func (o *overlays) amend(p *model.KindProfile, obj *unstructured.Unstructured, s
 }
 
 // ViewColumns returns the columns the view of a kind has on the cluster the window shows: the
-// kind's, then the columns the integrations' overlays add to it (a Kyverno warning column on
-// Deployments). ui.sort, ui.setColumns and ui.setColumnOrder take their ids.
+// kind's, then the columns the integrations' overlays add to it (a Signals column with Kyverno's
+// slot on Deployments). ui.sort, ui.setColumns and ui.setColumnOrder take their ids.
 func (s *Session) ViewColumns(p *model.KindProfile) []model.Column {
 	if p == nil {
 		return nil

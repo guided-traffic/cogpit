@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/model"
 )
 
-// TestPodWarningTexts pins the warning column of recorded pods. Lens's rule is not captured (an
+// TestPodWarningTexts pins the state signal of recorded pods. Lens's rule is not captured (an
 // orange triangle on a pod with many restarts and a container not ready); this is Cogpit's.
 func TestPodWarningTexts(t *testing.T) {
 	checkStatusTexts(t, []statusText{
