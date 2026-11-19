@@ -76,8 +76,9 @@ func TestClusterNamespacesField(t *testing.T) {
 }
 
 // The namespace filter while Namespaces cannot be listed: it offers the cluster's accessible
-// namespaces and those the open view reads or names as denied, and does not try to list the
-// cluster's namespaces (the access reviews said no); a check narrows the view as before.
+// namespaces and those the open view reads or names as denied, and neither the connect nor the
+// filter tries to list the cluster's namespaces (the access reviews said no); a check narrows the
+// view as before.
 func TestNamespaceFilterOffersAccessibleNamespaces(t *testing.T) {
 	f := connectedFake(t, 20)
 	f.namespaces = nil
@@ -101,11 +102,10 @@ func TestNamespaceFilterOffersAccessibleNamespaces(t *testing.T) {
 		}
 		return n
 	}
-	// The shell asks once when it connects, before the access reviews answer: that request is waited
-	// for, so that it is not counted as the filter's.
-	q.until(t, "the connect's list of the namespaces", func() bool { return namespaceLists() > 0 })
 	q.drain()
-	before := namespaceLists()
+	if n := namespaceLists(); n != 0 {
+		t.Errorf("the connect listed the namespaces the user may not list %d times", n)
+	}
 	test.Tap(tv.nsButton)
 	var labels []string
 	for _, r := range tv.ns.rows {
@@ -115,7 +115,7 @@ func TestNamespaceFilterOffersAccessibleNamespaces(t *testing.T) {
 		t.Fatalf("filter offers %q, want %q", labels, want)
 	}
 	q.drain()
-	if namespaceLists() != before {
+	if namespaceLists() != 0 {
 		t.Error("the filter tried to list the namespaces the user may not list")
 	}
 	if want := "You may not list Pods in all namespaces: read in team-a only. Not permitted in team-b, team-c."; !tv.scopeLine.Visible() || tv.scopeLine.text != want {

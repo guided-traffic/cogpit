@@ -84,7 +84,10 @@ type shell struct {
 	// (nsgone.go, GW9).
 	nsFor         string
 	nsTerminating map[string]bool
-	diag          diagView
+	// nsAfterKinds: the shown cluster's namespaces are read once its kinds say whether the user may
+	// list them (loadKinds), not before.
+	nsAfterKinds bool
+	diag         diagView
 
 	// Coalescing of engine events: the latest UI state wins, and at most one table, detail and
 	// diagnostics refresh is queued at a time. Guarded by pendingMu or atomic.
@@ -647,8 +650,8 @@ func (sh *shell) connectionChanged(st, old engine.UIState) {
 	// A connected cluster shown again loads its kinds, an interrupted one too (D-69).
 	if st.Connection.State.Live() && (sh.kindsFor != st.Context) {
 		sh.forgetNamespaces()
+		sh.nsAfterKinds = true
 		sh.loadKinds()
-		sh.loadNamespaces()
 	}
 	if !st.Connection.State.Live() && old.Connection.State.Live() { // an interruption keeps them (D-58)
 		sh.kinds, sh.kindsFor, sh.namespaces, sh.nsFor, sh.nsTerminating = nil, "", nil, "", nil
@@ -730,11 +733,18 @@ func (sh *shell) loadKinds() {
 		sh.view.create.update() // local and virtual kinds have no "+"
 		sh.setMainMenu()
 		sh.drawer.rebuild() // a drawer built before the kinds linked every kind (tableView.serves)
+		if sh.nsAfterKinds {
+			sh.nsAfterKinds = false
+			if sh.namespacesListable() { // a list the access reviews refuse would only be refused
+				sh.loadNamespaces()
+			}
+		}
 	})
 }
 
 // loadNamespaces reads the namespace names from the cache for the namespace filter and the fields
-// that offer namespaces (followNamespaces). It runs when a cluster is shown and again whenever the
+// that offer namespaces (followNamespaces). It runs when a cluster is shown, once its kinds say the
+// user may list the namespaces (or cannot tell yet: nsAfterKinds), and again whenever the
 // filter or such a field opens, so that a namespace created since is offered (the owner's walk,
 // 2026-10-17, WF10: walk-test, created in the window, was missing from both until the cluster was
 // shown anew), and while the filter names namespaces when the view's rows change (nsgone.go); it

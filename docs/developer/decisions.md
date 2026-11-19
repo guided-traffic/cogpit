@@ -181,6 +181,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
 | [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
+| [D-new](#d-new-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 
 ## D-1: UI toolkit
 
@@ -7200,3 +7201,31 @@ cold.
 **Rejected:** every large result through the model, the Overview's included; a model's lines
 checked against the result, or its prose; on by default, or for local models; a second, faster
 connection for it.
+
+## D-new: A refusal answers a waiting read at once
+
+**Status:** built · **By:** lead (open to revision)
+
+A read that waits for a kind's initial list (`resources.list`, an object, a log's pods, a port
+forward, the Services of metrics detection; `settleReads`) returns the API server's 403 as soon as
+the cache reports it, after one list, unless it is a namespaced kind's read in all namespaces met
+for the first time: that one is still retaken namespace by namespace. The error wraps the
+refusal (`apierrors.IsForbidden` holds) instead of "has not finished listing".
+
+The window reads the shown cluster's Namespaces for its filter once `kinds.list` answered, and only
+when the kinds do not say the user may not list them; the jump to a namespace asks the same, as the
+filter does.
+
+**Why:** a refused scope a handle holds is listed again at every step of client-go's backoff, so a
+namespace-limited user's connect cost 4 refused lists of the Namespaces and a 15 s wait for a list
+that never came (4 folded "refused" lines in Connection Diagnostics), measured against the fake API
+server. Once the kinds are known, a cluster shown again whose access reviews already said no costs
+no list at all. A role granted while a read waits is seen by the next read.
+
+**Rejected:** waiting the whole bound for a role granted meanwhile, which costs every refused read
+15 s; an access review before every cluster-scoped list, a request where the list's own answer
+says the same; reading the Namespaces before the kinds, as before.
+
+[`accessiblens_follow.go`](../../internal/engine/accessiblens_follow.go) `settleReads`,
+`readFollowing`; [`fyneui/shell.go`](../../internal/ui/fyneui/shell.go) `loadKinds` ·
+`TestBudgetRefusedClusterScopedList`, `TestNamespaceFilterOffersAccessibleNamespaces`

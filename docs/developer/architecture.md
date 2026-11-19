@@ -1275,8 +1275,11 @@ kept warm.
 ([`accessiblens_follow.go`](../../internal/engine/accessiblens_follow.go)). `Cache.OnRefused`
 reports every refused list or watch before the handle's error shows; the session keeps a
 cluster-wide refusal and replans what is open, and reads that wait retake the kind per namespace at
-once (`settleReads`). `acquirePlanned` holds `nsState.planMu`, so a plan made before a refusal never
-sends the refused read again (`TestBudgetAccessibleNamespaces`,
+once (`settleReads`). Any other refusal (a cluster-scoped kind, a namespace, a read already
+retaken) is the waiting read's answer at once, after one list
+([D-new](decisions.md#d-new-a-refusal-answers-a-waiting-read-at-once),
+`TestBudgetRefusedClusterScopedList`). `acquirePlanned` holds `nsState.planMu`, so a plan made
+before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
 
 ### D-79: Trimmed scopes

@@ -32,9 +32,12 @@ func startRead(ctx context.Context, p *model.KindProfile, acquire func(context.C
 	return &followedRead{p: p, acquire: acquire, h: acquire(ctx)}
 }
 
-// settleReads waits, bounded by ctx, until every read's handle has synced, the reads side by side.
-// A read in all namespaces that the API server refuses is followed: the refusal is kept (the kind is
-// read namespace by namespace from then on, by every reader) and the read is taken again, once.
+// settleReads waits, bounded by ctx, until every read's handle has synced or been refused, the
+// reads side by side. A read in all namespaces that the API server refuses is followed: the refusal
+// is kept (the kind is read namespace by namespace from then on, by every reader) and the read is
+// taken again, once. Any other refusal (a cluster-scoped kind, a namespace, a read already
+// followed) is the read's answer: waiting would only send the list again at every step of
+// client-go's backoff until ctx ends.
 func (b *Backend) settleReads(ctx context.Context, reads ...*followedRead) {
 	t := time.NewTicker(10 * time.Millisecond)
 	defer t.Stop()
@@ -44,7 +47,10 @@ func (b *Backend) settleReads(ctx context.Context, reads ...*followedRead) {
 			if r.h.HasSynced() {
 				continue
 			}
-			if !r.followed && readsAllNamespaces(r.p, r.h) && cache.IsRefused(r.h.Err()) {
+			if cache.IsRefused(r.h.Err()) {
+				if r.followed || !readsAllNamespaces(r.p, r.h) {
+					continue // refused for good
+				}
 				r.followed = true
 				b.followRefused(r.p) // noted before the release ends the refused read (acquirePlanned)
 				r.h.Release()
@@ -79,6 +85,9 @@ func (b *Backend) readFollowing(ctx context.Context, p *model.KindProfile, label
 		return r.h, nil
 	}
 	err := notSynced(ctx, r.h, label)
+	if herr := r.h.Err(); cache.IsRefused(herr) {
+		err = fmt.Errorf("%s: %w", label, herr) // the API server's answer, not a list still running
+	}
 	r.h.Release()
 	return nil, err
 }
