@@ -14,6 +14,7 @@ import (
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/guided-traffic/cogpit/internal/cluster"
@@ -153,6 +154,14 @@ func TestKindNamespaceLimitedUser(t *testing.T) {
 	d.must("metrics.get", map[string]any{"kind": "pods"}, &mr)
 	if mr.Status != metrics.StatusAvailable || len(mr.Pods) != 1 || mr.Pods[0].Namespace != nsLimited {
 		t.Errorf("metrics.get: %+v", mr)
+	}
+
+	// The Namespaces, cluster-scoped, which this user may not list: the read cannot be followed into
+	// a namespace, so the refusal is its answer at once (D-173), not after the read's wait.
+	start = time.Now()
+	_, err = s.Dispatch(ctx, engine.Invocation{ID: "resources.list", Params: []byte(`{"kind":"namespaces","limit":500}`), Origin: engine.OriginGUI})
+	if took := time.Since(start); !apierrors.IsForbidden(err) || took > 5*time.Second {
+		t.Errorf("resources.list of the namespaces after %s: %v, want the API server's refusal at once", took.Round(time.Millisecond), err)
 	}
 
 	// Each kind: a list in all namespaces the server refuses, then cogpit-ns-a's list and watch.

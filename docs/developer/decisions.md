@@ -3045,7 +3045,8 @@ Kyverno; a badge for kinds without a Signals column — a new cell kind that doe
 `trimPolicyReport`; [`model/kinds/policyreports.go`](../../internal/model/kinds/policyreports.go)
 `KyvernoReport`, `PolicyRef` · **Tests:** `TestKyvernoMarksViolations`,
 `TestKyvernoNamespaceLimitedUser`, `TestBudgetKyvernoRefusedClusterReports`, `TestViolationIndex`,
-`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestRealKyverno`
+`TestKyvernoViolationsCommand`, `TestPolicyRef`, `TestKindKyverno`, `TestKindKyvernoRefusedClusterReports`,
+`TestRealKyverno`
 
 ### What it does not cover
 
