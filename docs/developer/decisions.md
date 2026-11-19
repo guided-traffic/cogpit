@@ -7165,14 +7165,15 @@ from the engine's snapshot, not from the command, and stays as it is.
   `ownersUnread` names the kinds not read in time or not listable, whose pods are then subjects of
   their own. An owner reference to any other kind starts nothing.
 
-**Why:** most issues are one cause over the pods of one workload: the demo cluster's 234 issues are
-113,600 bytes as entries of their own and 4,562 folded into 11 subjects and 5 causes. Code folds
+**Why:** most issues are one cause over the pods of one workload: the 60-pod demo cluster's 234
+issues are ~112,500 bytes as entries of their own and ~4,570 folded into 11 subjects and 5 causes
+(`TestClusterOverviewDemoSize`). Code folds
 them in milliseconds, the same way each time, where a model would read them for minutes. An order
 by an event's count or time would be the order of whoever writes events. Without the Replica Set a
 pod's Deployment cannot be told by UID, so a Deployment's pods would never fold; the Workloads
 Overview reads the same kinds.
 
-**Rejected:** the fold behind a parameter — a model that does not set it reads the 113,600 bytes;
+**Rejected:** the fold behind a parameter — a model that does not set it reads the ~112,500 bytes;
 the fold in the window's page too — a change of what the user sees, for a later look; owners only
 where the cache already holds them — a Deployment's pods fold only while another view reads the
 Replica Sets; a model's summary of the issues
