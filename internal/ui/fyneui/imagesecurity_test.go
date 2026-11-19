@@ -108,6 +108,9 @@ func TestImageSecurityInTheNavigator(t *testing.T) {
 func TestImageSecurityPageInTheWindow(t *testing.T) {
 	sh, q, _, _ := trivyMemoryShell(t)
 	tv := sh.view
+	// The first view's rows first, so that the page takes over a table that drew status pills.
+	q.until(t, "the first view's rows", func() bool { return tv.snap != nil && tv.snap.Synced && len(tv.snap.Rows) > 0 })
+	q.drain()
 	sh.side.activate(engine.ImageSecurity)
 	q.until(t, "the cards and the findings", func() bool {
 		return tv.imageSec.data != nil && len(tv.imageSec.data.TopImages) == 3 && tv.snap != nil && tv.snap.View == engine.ImageSecurity && len(tv.snap.Rows) == 8
@@ -156,7 +159,9 @@ func TestImageSecurityPageInTheWindow(t *testing.T) {
 		t.Error("the cells' tones")
 	}
 	q.drain()
-	for _, c := range tv.cells {
+	// The cells the table draws: one it dropped (the first view's Status column) stays in tv.cells
+	// with its last content and visible, outside the table's tree.
+	for _, c := range findAll[*tableCell](tv.table) {
 		if c.Visible() && c.content.pill {
 			t.Errorf("a pill in row %d, column %d", c.row, c.col)
 		}
