@@ -272,8 +272,10 @@ func (s *Session) StartJob(spec JobSpec) (DockTab, error) {
 			cause := context.Cause(ctx)
 			cancel(nil)
 			state, text := jobEnd(outcome, err, cause)
-			s.endJob(tab.ID, state, text)
+			// Off the running jobs before the tab says it ended: whoever sees the end may reconnect
+			// (busyOn) at once.
 			s.jobs.forget(tab.ID)
+			s.endJob(tab.ID, state, text)
 			close(ended)
 			s.auditJobEnd(ctx, spec, state, text)
 		}()
