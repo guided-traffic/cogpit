@@ -203,7 +203,7 @@ func localCentre(obj fyne.CanvasObject) fyne.Position {
 // The editor zooms at the pointer: the image's point under it stays there; the image always fills
 // the frame.
 func TestCropEditorZoomsAtThePointer(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	e := newCropEditor(nil)
 	e.Resize(fyne.NewSize(cropAreaWidth, cropAreaHeight))
 	src := image.NewNRGBA(image.Rect(0, 0, 400, 200))

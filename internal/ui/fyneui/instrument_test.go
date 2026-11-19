@@ -46,7 +46,7 @@ func TestBearingStates(t *testing.T) {
 // The Overview's header draws the nodes as one square each, the pods as bars by state, and a
 // legend of the states that are not healthy for nodes; a large cluster's nodes coarsen to bars.
 func TestOverviewHealthHeader(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	h := newOverviewHealth(nil)
 	h.setStates(
 		[]engine.StatusCount{{Status: model.StatusOK, Count: 7}, {Status: model.StatusError, Count: 1}},
@@ -129,7 +129,7 @@ func TestChartReferenceLinesAreRevealedByTheLegend(t *testing.T) {
 // The segmented Master | Worker control marks the chosen segment with its underline and none
 // with none.
 func TestSegmentedControlMarksTheChosenSegment(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	a, b := widget.NewButton("Master", nil), widget.NewButton("Worker", nil)
 	s := newSegmented(&shell{app: fyne.CurrentApp()}, a, b)
 	s.choose(1)
@@ -159,7 +159,7 @@ func TestAlertTokenWidthIsBounded(t *testing.T) {
 // A found integration's status is muted words and a mint dot; a failing one is coral words and
 // dot; the pill switch toggles from anywhere in its row.
 func TestIntegrationRowStaysQuietWhenHealthy(t *testing.T) {
-	test.NewTempApp(t)
+	test.NewTempApp(t).Settings().SetTheme(newTheme(ThemeDark))
 	in, _ := engine.IntegrationOf(engine.IntegrationMetricsServer)
 	var got []bool
 	r := newIntegrationRow(in, func(on bool) { got = append(got, on) })
