@@ -256,6 +256,19 @@ func (li *liveIndex) move(id string, obj *unstructured.Unstructured, keys []stri
 }
 
 // synced reports whether every served kind of the set finished its initial list.
+// handleList is the set's handles, for a reader that gives a refused one back (refusedReads); nil
+// for no set. The handles are fixed once the set is made.
+func (r *relatedSet) handleList() []*cache.Handle {
+	if r == nil {
+		return nil
+	}
+	out := make([]*cache.Handle, 0, len(r.handles))
+	for _, h := range r.handles {
+		out = append(out, h)
+	}
+	return out
+}
+
 func (r *relatedSet) synced() bool {
 	if r == nil {
 		return true

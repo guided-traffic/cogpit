@@ -1399,7 +1399,10 @@ once, not again while it is open; so is a namespace refused while the kind's oth
 read ("in team-b: … is forbidden"), whose rows stay. Refresh Access Reviews, opening the view
 again or the next connect asks again. Kinds the access reviews say you may not list are not read
 and are named instead: "Cogpit may not list applications.argoproj.io" on the Argo CD dashboard,
-the Flux kinds on the Flux dashboard
+the Flux kinds on the Flux dashboard. What could not be read shows "—" where its count would be
+(the dashboards' cards, the Workloads Overview's kinds), and the table neither counts items nor
+says "No … found" under the error line. A view's and a drawer's related objects that are refused
+(a node's pods, a Deployment's Replica Sets) are not asked for again either
 ([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
 
 <details>

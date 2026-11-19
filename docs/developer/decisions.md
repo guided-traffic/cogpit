@@ -7408,6 +7408,9 @@ system's temporary folder, whose name differs per machine.
 A reader that holds its reads while it is shown gives back a read the API server refuses, and keeps
 the refusal as its state: a list view and the Workloads and cluster Overviews and the Flux and Argo
 CD dashboards name it in their error line, the Trivy and Kyverno integrations' status is forbidden.
+A list view's and a drawer's reads of related objects (the pods behind the Nodes, the Endpoint
+Slices behind the Services, a Deployment's Replica Sets and pods, the drawer's events) go back the
+same way.
 A read refused wholly (403 in its one scope, or in every namespace it reads) goes back whole; of a
 read namespace by namespace, each refused namespace goes back and the others are read and watched
 on. Nothing refused is listed again until `cluster.refreshAccess` (the reader starts again), the
@@ -7428,6 +7431,12 @@ is followed first, namespace by namespace, as every read follows it (D-173).
   may rarely list, would name it on every such user's Overview.
 - The Argo CD dashboard rebuilds when a kind's error changes, as the other pages do, so its error
   line shows a refusal whenever it comes.
+- What could not be read shows no count, and the refusal is said once, in the error line above the
+  table, as in every list view: a kind's card or tile with an error and nothing counted shows "—"
+  in the muted colour (not "0", not "No objects"; the Argo CD strip, its head and a Flux section's
+  head likewise), the table's header no item count and no "syncing…", its placeholder no "No …
+  found." (also under a failed list), the Flux dashboard without a kind no text of its own, the Argo
+  CD dashboard's recent activity no "No operations yet." while the Applications could not be read.
 
 **Why:** a refused scope a handle holds is listed again at every step of client-go's backoff (0.8 s
 doubling to a cap of 30 s, plus up to as much again) for as long as it is held. Measured against the
@@ -7436,8 +7445,10 @@ and namespace-limited: each refused kind 3 lists in its namespace within 6 s of 
 two more in any 3 s while shown — a list view's kind (Stateful Sets, Nodes), the Workloads
 Overview's 5 or 6 kinds, the cluster Overview's Nodes, Events, Stateful Sets and Daemon Sets, the
 Flux dashboard's 2, the Argo CD dashboard's 3 or 4, the Trivy integration's reports; a namespace
-refused while another lists, 3 lists within 4 s. After it: one list each, none in the window. A
-kind the reviews deny was shown as a cluster without Flux, or as zero Applications.
+refused while another lists, 3 lists within 4 s; a view's related read (the Nodes' pods: 4 within
+6 s, the Services' Endpoint Slices: 3) and a Deployment drawer's (Replica Sets 3, pods 4 or 5,
+events 3), one more in any 3 s. After it: one list each, none in the window. A kind the reviews deny
+was shown as a cluster without Flux, or as zero Applications.
 
 **Rejected:** a wrapper per reader with a refused flag, as the Kyverno integration's reads — every
 place a reader reads a handle (its builds, the Overview's fold) would change; the cache ending a refused
@@ -7456,4 +7467,6 @@ once more.
 [`engine/kyverno.go`](../../internal/engine/kyverno.go) `dropRefused` · `TestReleaseWithErrKeepsTheRefusal`,
 `TestBudgetTrivyRefusedReports`, `TestBudgetPagesRefusedKinds`, `TestBudgetClusterOverviewRefusedNodes`,
 `TestBudgetViewsRefusedKinds`, `TestBudgetPartiallyRefusedRead`, `TestReadersNameKindsTheReviewsDeny`,
-`TestRenderFluxDashboardMayNotListDark`, `TestRenderArgoDashboardMayNotListDark`
+`TestBudgetRelatedReadsRefused`, `TestRenderFluxDashboardMayNotListDark`,
+`TestRenderArgoDashboardMayNotListDark`, `TestRenderWorkloadsOverviewMayNotListDark`,
+`TestRenderKyvernoMayNotListDark`, `TestFluxTileOfARefusedKind`

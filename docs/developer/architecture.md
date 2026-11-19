@@ -1286,15 +1286,15 @@ retaken) is the waiting read's answer at once, after one list
 `TestBudgetRefusedClusterScopedList`). `acquirePlanned` holds `nsState.planMu`, so a plan made
 before a refusal never sends the refused read again (`TestBudgetAccessibleNamespaces`,
 `TestTargetReadsFollowARefusedClusterWideList`, `TestKindNamespaceLimitedUser`).
-Readers that hold their reads while shown (a list view, the Workloads and cluster Overviews, the
-Flux and Argo CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
+Readers that hold their reads while shown (a list view and its related objects' reads, a drawer's
+reads, the Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration; [`pagerefusals.go`](../../internal/engine/pagerefusals.go))
 give a read refused wholly back with its refusal kept, and of a read namespace by namespace each
 refused namespace (`Handle.ReleaseRefusedNamespaces`), at their loop's next look, and show the
 refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals
 (`refusedReads.retake`), as the Kyverno integration's reads do. A kind the access reviews deny
 where a page would read it is named ("Cogpit may not list …", `mayNotList`)
 ([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown), `TestBudgetViewsRefusedKinds`,
-`TestBudgetPartiallyRefusedRead`, `TestBudgetPagesRefusedKinds`, `TestBudgetTrivyRefusedReports`,
+`TestBudgetPartiallyRefusedRead`, `TestBudgetRelatedReadsRefused`, `TestBudgetPagesRefusedKinds`, `TestBudgetTrivyRefusedReports`,
 `TestReadersNameKindsTheReviewsDeny`).
 
 ### D-79: Trimmed scopes

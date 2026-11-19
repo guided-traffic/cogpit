@@ -106,7 +106,7 @@ func (w *viewWorker) stop() {
 func (w *viewWorker) unsettled() bool {
 	// A refusal is the view's error, not a list client-go's backoff sends again for as long as the
 	// view is open (D-new): the read, or its refused namespaces, go back with the refusal kept.
-	gave := w.refused.giveBack(w.handle)
+	gave := w.refused.giveBack(append(w.related.handleList(), w.handle)...) // its related objects' reads too
 	last := w.snap.Load()
 	if last == nil || gave {
 		return true

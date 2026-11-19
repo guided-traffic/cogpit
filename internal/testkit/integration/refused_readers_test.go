@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/guided-traffic/cogpit/internal/engine"
 	"github.com/guided-traffic/cogpit/internal/engine/commands"
+	"github.com/guided-traffic/cogpit/internal/model"
 	"github.com/guided-traffic/cogpit/internal/model/kinds"
 	"github.com/guided-traffic/cogpit/internal/testkit"
 )
@@ -24,8 +26,9 @@ import (
 // refusedTrivyGVR is Trivy Operator's VulnerabilityReport resource, refusedPolicyReportsGVR
 // Kyverno's PolicyReport.
 var (
-	refusedTrivyGVR         = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
-	refusedPolicyReportsGVR = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "policyreports"}
+	refusedTrivyGVR          = schema.GroupVersionResource{Group: "aquasecurity.github.io", Version: "v1alpha1", Resource: "vulnerabilityreports"}
+	refusedPolicyReportsGVR  = schema.GroupVersionResource{Group: kinds.PolicyReportGroup, Version: "v1alpha2", Resource: "policyreports"}
+	refusedEndpointSlicesGVR = schema.GroupVersionResource{Group: "discovery.k8s.io", Version: "v1", Resource: "endpointslices"}
 )
 
 // refusedWorkloadGVRs are the workload kinds the Overviews read besides the Deployments.
@@ -43,7 +46,9 @@ type refusedUser struct {
 	ns         string   // the context's namespace and the user's one RoleBinding; "": cluster-wide reads
 	incomplete bool     // the access reviews cannot tell
 	allow      []string // resources of the core and apps groups the user may read besides pods, namespaces, deployments
+	noPods     bool     // the user may not read pods
 	teamA      []string // resources of the core and apps groups the user may read in team-a alone
+	cluster    []string // resources of the core group the user may read cluster-wide (a ClusterRole), also when namespace-limited
 	accessible []string // the cluster's accessible namespaces
 }
 
@@ -66,6 +71,7 @@ func refusedSession(ctx context.Context, t *testing.T, u refusedUser, on engine.
 		testkit.FakeResource{GVR: testkit.NodesGVR, Kind: "Node"},
 		testkit.FakeResource{GVR: testkit.EventsGVR, Kind: "Event", Namespaced: true},
 		testkit.FakeResource{GVR: testkit.SecretsGVR, Kind: "Secret", Namespaced: true},
+		testkit.FakeResource{GVR: refusedEndpointSlicesGVR, Kind: "EndpointSlice", Namespaced: true},
 		testkit.FakeResource{GVR: refusedTrivyGVR, Kind: "VulnerabilityReport", Namespaced: true},
 		testkit.FakeResource{GVR: refusedPolicyReportsGVR, Kind: "PolicyReport", Namespaced: true},
 		testkit.FakeResource{GVR: gitopsKustomizationsGVR, Kind: "Kustomization", Namespaced: true},
@@ -79,9 +85,15 @@ func refusedSession(ctx context.Context, t *testing.T, u refusedUser, on engine.
 	crds := testkit.FakeRule{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{"apiextensions.k8s.io"}, Resources: []string{"customresourcedefinitions"}}
 	reads := testkit.FakeRule{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{"", "apps"},
 		Resources: append([]string{"pods", "namespaces", "deployments"}, u.allow...)}
+	if u.noPods {
+		reads.Resources = append([]string{"namespaces", "deployments"}, u.allow...)
+	}
 	rules := map[string][]testkit.FakeRule{"": {crds, reads}}
 	if u.ns != "" {
 		rules = map[string][]testkit.FakeRule{"": {crds}, u.ns: {reads}}
+	}
+	if len(u.cluster) > 0 {
+		rules[""] = append(rules[""], testkit.FakeRule{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{""}, Resources: u.cluster})
 	}
 	if len(u.teamA) > 0 {
 		rules["team-a"] = append(rules["team-a"], testkit.FakeRule{Verbs: []string{"get", "list", "watch"}, APIGroups: []string{"", "apps"}, Resources: u.teamA})
@@ -473,5 +485,59 @@ func TestBudgetPartiallyRefusedRead(t *testing.T) {
 	refreshAccess(ctx, t, s)
 	if !testkit.WaitFor(ctx, func() bool { return teamB() > 1 }) {
 		t.Fatalf("cluster.refreshAccess did not read team-b again: %v", srv.RequestsIn())
+	}
+}
+
+// TestBudgetRelatedReadsRefused: the reads a list view or a drawer makes of its related objects
+// (the pods behind the Nodes, the Endpoint Slices behind the Services, a Deployment's drawer's Replica
+// Sets, pods and events) for a user the access reviews cannot tell about who may read the view's
+// kind but not those: each refused read is listed in all namespaces and then in the context's
+// namespace, and not again while the view or drawer is open.
+func TestBudgetRelatedReadsRefused(t *testing.T) {
+	for _, c := range []struct {
+		name      string
+		u         refusedUser
+		view      string
+		drawer    bool
+		resources []string
+	}{
+		{"the Nodes' pods, cluster-wide", refusedUser{incomplete: true, cluster: []string{"nodes"}, noPods: true}, "nodes", false, []string{"pods"}},
+		{"the Nodes' pods, namespace-limited", refusedUser{ns: "team-a", incomplete: true, cluster: []string{"nodes"}, noPods: true}, "nodes", false, []string{"pods"}},
+		{"the Services' Endpoint Slices", refusedUser{incomplete: true, allow: []string{"services"}}, "services", false, []string{"endpointslices.discovery.k8s.io"}},
+		{"a Deployment's drawer, cluster-wide", refusedUser{incomplete: true, noPods: true}, "deployments", true, []string{"replicasets.apps", "pods", "events"}},
+		{"a Deployment's drawer, namespace-limited", refusedUser{ns: "team-a", incomplete: true, noPods: true}, "deployments", true, []string{"replicasets.apps", "pods", "events"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			s, srv := refusedSession(ctx, t, c.u, 0)
+			ns := c.u.ns
+			if ns == "" {
+				ns = "default"
+			}
+			s.OpenTab(c.view, false)
+			if c.drawer {
+				srv.Set(testkit.DeploymentsGVR, testkit.Object("apps/v1", "Deployment", ns, "web", nil))
+				if !testkit.WaitFor(ctx, func() bool { ts := s.Table(c.view); return ts != nil && len(ts.Rows) == 1 }) {
+					t.Fatalf("the Deployment never showed: %+v", s.Table(c.view))
+				}
+				s.UpdateUI(func(u *engine.UIState) {
+					u.Drawer = &model.ObjectRef{Context: "fake", Kind: c.view, Namespace: ns, Name: "web"}
+				})
+			}
+			// Refused in the context's namespace: the read namespace by namespace was refused too.
+			shown := func() bool {
+				reads := srv.RequestsIn()
+				for _, r := range c.resources {
+					if reads["list "+r+" in "+ns]+reads["watchlist "+r+" in "+ns] == 0 {
+						return false
+					}
+				}
+				return true
+			}
+			what := func() string { return fmt.Sprint(refusedLists(srv, c.resources...)) }
+			settledRefusal(ctx, t, srv, shown, what, c.resources...)
+		})
 	}
 }

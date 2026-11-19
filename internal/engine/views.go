@@ -154,7 +154,7 @@ func (st *state) reconcileLocked(now UIState) {
 		drawerPlan = b.drawerPlanKey(drawerProf, now.Drawer.Namespace, backRefs)
 	}
 	if st.drawer != nil && (now.Drawer == nil || st.drawer.backend != b || st.drawer.ref != *now.Drawer || st.drawer.profile != drawerProf ||
-		st.drawer.planKey != drawerPlan || st.drawer.backRefs != backRefs) {
+		st.drawer.planKey != drawerPlan || st.drawer.backRefs != backRefs || st.drawer.refused.retake(b)) {
 		st.drawer.stop()
 		st.drawer = nil
 	}
