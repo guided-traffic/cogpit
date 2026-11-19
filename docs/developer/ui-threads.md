@@ -128,7 +128,7 @@ places of the same kind has one row.
 | `fyneui/chat.go` | `chatPanel.showHistory` | go | A | Only `Conversations(ctx)`; the popup built and shown inside `c.sh.do`. |
 | `fyneui/chat.go` | `chatPanel.deleteConversation` | go | A | `DeleteConversation(id)`; toast, `setConversation` and `showHistory` inside `c.sh.do`. |
 | `fyneui/chat.go` | `chatPanel.confirmClear` | go | A | `ClearConversations(ctx)` from the dialog's callback; toast and `setConversation` inside `c.sh.do`. |
-| `fyneui/chat.go` | `chatPanel.showPayload` | go | A | `SentPayload(id, idx)` with endpoint and private flag read on main; the dialog built inside `c.sh.do`. |
+| `fyneui/chat.go` | `chatPanel.showPayload` | go | A | `SentPayload(id, idx)` and `SentChoices(id, idx)` with endpoint and private flag read on main; the dialog built inside `c.sh.do`. |
 | `fyneui/chat.go` | `chatPanel.event` | callback | B | `EventChat` through `shell.onEvent`: reads the fixed `c.agent` and the atomic `shownID`, starts the requests; no Fyne. |
 | `fyneui/chat_edit.go` | `chatPanel.resend` | go | A | `agent.Resend` with id, index, text and attachment read on main; editor, input and scroll inside `c.sh.do`. |
 | `fyneui/chat_input.go` | `chatInput.pickConnection` | go | A | `Connections()` and `modelsFor` with the menu's place read on main; the menu built and shown inside `c.sh.do`. |

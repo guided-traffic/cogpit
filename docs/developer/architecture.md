@@ -1572,7 +1572,11 @@ turn sends the conversation, a compact `ui_state` and tools to an OpenAI-compati
 endpoint, streams the answer and runs the tool calls through `Session.Dispatch` with
 `OriginBuiltInAgent`, so D-2's confirmations and the audit log apply. A request that would reach
 70 % of the connection's context window goes out without the conversation's oldest tool results
-([D-167](decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)).
+([D-167](decisions.md#d-167-the-chats-context-window-and-what-leaves-a-request)). A result above
+the connection's size goes as its head, or, over a connection that chooses, as the entries the
+model chose in a request of its own
+([D-170](decisions.md#d-170-a-large-tool-results-head-and-result_read),
+[D-172](decisions.md#d-172-a-sub-request-that-chooses-from-a-large-result)).
 
 <details>
 <summary>The agent's files</summary>
@@ -1585,11 +1589,12 @@ endpoint, streams the answer and runs the tool calls through `Session.Dispatch` 
 | [`turn.go`](../../internal/agent/turn.go), [`prompt.go`](../../internal/agent/prompt.go), [`failure.go`](../../internal/agent/failure.go) | `Send`, `Resend`, the turn loop and its limits; the system prompt, tool results framed as data; a `Dispatch` error in the model's words |
 | [`context.go`](../../internal/agent/context.go) | a request against the context window: the oldest tool results replaced by notes in what is sent |
 | [`head.go`](../../internal/agent/head.go), [`rawresult.go`](../../internal/agent/rawresult.go) | a result above the connection's size as a valid head with the totals; the copy held in memory and `result_read`, which reads on in it ([D-170](decisions.md#d-170-a-large-tool-results-head-and-result_read)) |
+| [`choose.go`](../../internal/agent/choose.go) | over a connection that chooses, a large result's list offered to the model in a request of its own; its entry numbers read, the chosen entries rendered ([D-172](decisions.md#d-172-a-sub-request-that-chooses-from-a-large-result)) |
 | [`conversation.go`](../../internal/agent/conversation.go), [`store.go`](../../internal/agent/store.go) | the conversations, `Stop`; the files |
 | [`conntest.go`](../../internal/agent/conntest.go), [`exchange.go`](../../internal/agent/exchange.go) | the connection test, layer by layer; a failed layer's request and answer |
 | [`cafile.go`](../../internal/agent/cafile.go), [`keystore.go`](../../internal/agent/keystore.go) | a connection's CA file as its only roots; the API keys |
 | [`engine/toolschema.go`](../../internal/engine/toolschema.go), [`chatconfirm.go`](../../internal/engine/chatconfirm.go), [`chatscrub.go`](../../internal/engine/chatscrub.go), [`chatfiles.go`](../../internal/engine/chatfiles.go) | the engine's side: tool schemas and descriptions shared with MCP; whether `Dispatch` will ask (`Session.AsksUser`); `Session.ScrubSecretValues`; the owner-only files |
-| [`turn_test.go`](../../internal/agent/turn_test.go), [`conntest_test.go`](../../internal/agent/conntest_test.go), [`connections_test.go`](../../internal/agent/connections_test.go), [`keyfile_test.go`](../../internal/agent/keyfile_test.go), [`client_test.go`](../../internal/agent/client_test.go), [`private_test.go`](../../internal/agent/private_test.go), [`live_test.go`](../../internal/agent/live_test.go) | tests against [`testkit/fakellm`](../../internal/testkit/fakellm/fakellm.go) and a real engine session; `live_test.go` against a real endpoint, local only |
+| [`turn_test.go`](../../internal/agent/turn_test.go), [`conntest_test.go`](../../internal/agent/conntest_test.go), [`connections_test.go`](../../internal/agent/connections_test.go), [`keyfile_test.go`](../../internal/agent/keyfile_test.go), [`client_test.go`](../../internal/agent/client_test.go), [`private_test.go`](../../internal/agent/private_test.go), [`choose_test.go`](../../internal/agent/choose_test.go), [`live_test.go`](../../internal/agent/live_test.go) | tests against [`testkit/fakellm`](../../internal/testkit/fakellm/fakellm.go) and a real engine session; `live_test.go` against a real endpoint, local only |
 
 </details>
 

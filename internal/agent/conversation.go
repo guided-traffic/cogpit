@@ -43,6 +43,9 @@ type conversation struct {
 	history     []message
 	keptHistory []*message
 	payloads    map[int]string // the user item's index → the last request body of its turn (memory only)
+	// choices are the bodies of the requests that had the model choose from a large result, by the
+	// user item's index (choose.go; memory only).
+	choices map[int][]string
 	// raws are the tool results held whole for result_read, by the name their notes give them, the
 	// tool call's id (rawresult.go; memory only); rawOrder the names, the oldest first, and rawBytes
 	// their size.
@@ -106,6 +109,11 @@ func (c *conversation) cut(item int) {
 			delete(c.payloads, i)
 		}
 	}
+	for i := range c.choices {
+		if i >= item {
+			delete(c.choices, i)
+		}
+	}
 	if item == 0 {
 		c.info.Title, c.keptTitle = "", ""
 	}
@@ -129,6 +137,10 @@ func hadPrivateTurn(items []engine.ChatItem) bool {
 func cloneItem(it engine.ChatItem) engine.ChatItem {
 	if it.Tool != nil {
 		t := *it.Tool
+		if t.Choice != nil {
+			ch := *t.Choice
+			t.Choice = &ch
+		}
 		it.Tool = &t
 	}
 	if it.Sent != nil {

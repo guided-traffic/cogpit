@@ -663,7 +663,7 @@ func testTools(ctx context.Context, cl *client, model string) (string, error) {
 	req := chatRequest{
 		Model: model,
 		Messages: []message{
-			{Role: "system", Content: "You are testing a tool connection. Call the get_time tool; do not answer in text."},
+			{Role: roleSystem, Content: "You are testing a tool connection. Call the get_time tool; do not answer in text."},
 			{Role: "user", Content: "What time is it? Use the get_time tool."},
 		},
 		Tools: []toolDef{{Type: typeFunction, Function: toolDefFunc{Name: testToolName,

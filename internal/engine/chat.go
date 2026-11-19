@@ -87,6 +87,9 @@ type ChatAgent interface {
 	// SentPayload returns the request body the turn of item index sent to the endpoint, as sent
 	// (the window shows it on request: "what is sent is visible"). The API key is never in it.
 	SentPayload(conversationID string, item int) (string, bool)
+	// SentChoices returns the bodies of the requests the turn of item index sent to have the model
+	// choose from a large result (D-172), in order, as sent; none when it sent none.
+	SentChoices(conversationID string, item int) []string
 }
 
 // ChatConnectionKind names the server behind a connection. All speak OpenAI's Chat Completions
@@ -119,6 +122,11 @@ type ChatConnection struct {
 	// two meta-tools that find and run the rest. The rules are the same either way (D-2, the
 	// confirmations, the Secret filter); only the user sets it, in the window.
 	AllTools bool `json:"allTools,omitempty"`
+	// ChooseLarge has the model choose, in a request of its own, which entries of a large tool
+	// result the conversation reads (D-172): a result still above MaxToolResultKiB whose largest
+	// part is a list of entries. Off (the default): the result's head and result_read (D-170).
+	// Only the user sets it, in the window.
+	ChooseLarge bool `json:"chooseLarge,omitempty"`
 	// CAFile names a PEM file of CA certificates for an https base URL whose server has a private
 	// CA (the owner's decision of 2026-10-15): for this connection they replace the system's roots,
 	// as a kubeconfig's certificate-authority does for kubectl (N141, the owner's decision in the
@@ -416,6 +424,9 @@ const (
 	ChatToolFailed  ChatToolState = "failed"
 	ChatToolRefused ChatToolState = "refused" // the user declined, or a rule refused it
 	ChatToolStopped ChatToolState = "stopped" // the kill switch or a limit ended it
+	// ChatToolChoosing: the command ran, and the model chooses from its large result in a request
+	// of its own (ChatConnection.ChooseLarge, D-172).
+	ChatToolChoosing ChatToolState = "choosing"
 )
 
 // ChatToolCall is one tool call of the model, dispatched as a registry command.
@@ -429,17 +440,39 @@ type ChatToolCall struct {
 	// Result is the result as the model was sent it, bounded for display; Error the failure.
 	Result string `json:"result,omitempty"`
 	Error  string `json:"error,omitempty"`
+	// Choice is set when the model was asked to choose from the result (ChatConnection.ChooseLarge).
+	Choice *ChatChoice `json:"choice,omitempty"`
+}
+
+// ChatChoice is what a request that had the model choose from a large result did (D-172).
+type ChatChoice struct {
+	// Model is the model that chose; Entries how many entries the result's list has, Offered how
+	// many of them, from the first, the request carried (OfferedBytes their bytes), Chosen how many
+	// the model chose and Shown how many of those the conversation reads.
+	Model        string `json:"model"`
+	Entries      int    `json:"entries"`
+	Offered      int    `json:"offered"`
+	OfferedBytes int    `json:"offeredBytes"`
+	Chosen       int    `json:"chosen,omitempty"`
+	Shown        int    `json:"shown,omitempty"`
+	// Took is the request's time.
+	Took time.Duration `json:"took,omitempty"`
+	// Failed is why no choice came, when none did: the conversation then reads the result's head.
+	Failed string `json:"failed,omitempty"`
 }
 
 // ChatSent sums up what a turn sent to the endpoint (SentPayload has the body).
 type ChatSent struct {
-	Requests    int    `json:"requests"`
-	Bytes       int    `json:"bytes"`
-	Messages    int    `json:"messages"`
-	ToolResults int    `json:"toolResults"`
-	Tokens      int    `json:"tokens,omitempty"`
-	Endpoint    string `json:"endpoint"` // the endpoint's host
-	Private     bool   `json:"private,omitempty"`
+	Requests    int `json:"requests"`
+	Bytes       int `json:"bytes"`
+	Messages    int `json:"messages"`
+	ToolResults int `json:"toolResults"`
+	Tokens      int `json:"tokens,omitempty"`
+	// Choices counts the requests among Requests that had the model choose from a large result
+	// (D-172).
+	Choices  int    `json:"choices,omitempty"`
+	Endpoint string `json:"endpoint"` // the endpoint's host
+	Private  bool   `json:"private,omitempty"`
 }
 
 // ChatUserMessage is what the user sends.

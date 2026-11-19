@@ -356,3 +356,40 @@ func firstLine(s string) string {
 	l, _, _ := strings.Cut(s, "\n")
 	return l
 }
+
+// TestLiveChoosesFromALargeList has a real model, local only as TestLiveEndpoint, choose from a
+// list that does not fit one result (D-172): over a connection that chooses from large results
+// and a limit of 2 KiB, the pods of kube-system go to the model in a request of its own, which
+// answers with entry numbers without thinking first, and the conversation reads the chosen pods.
+func TestLiveChoosesFromALargeList(t *testing.T) {
+	s, a, conn, _ := liveAgent(t)
+	conn.Limits = engine.ChatLimits{MaxToolResultKiB: 2}
+	conn.ChooseLarge = true
+	if _, err := a.SaveConnection(conn, nil); err != nil {
+		t.Fatal(err)
+	}
+	c, err := a.NewConversation(engine.DemoContext, conn.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c = liveTurn(t, s, a, c.ID, "List the pods of namespace kube-system with resources_list (limit 1000) and tell me which of them "+
+		"belong to CoreDNS or kube-proxy.")
+	chose := 0
+	for _, it := range c.Items {
+		if it.Tool == nil || it.Tool.Choice == nil {
+			continue
+		}
+		ch := it.Tool.Choice
+		t.Logf("choice: %d of %d entries, %d offered (%d bytes), %d shown, %s, failed %q", ch.Chosen, ch.Entries, ch.Offered,
+			ch.OfferedBytes, ch.Shown, ch.Took, ch.Failed)
+		if ch.Failed == "" {
+			chose++
+		}
+	}
+	if chose == 0 {
+		t.Errorf("no choice came (%s)", notes(c))
+	}
+	if bodies := a.SentChoices(c.ID, 0); len(bodies) == 0 || !strings.Contains(bodies[0], "[Cogpit's request, not the user's]") {
+		t.Errorf("the choice's request is not among what the turn sent (%d bodies)", len(bodies))
+	}
+}

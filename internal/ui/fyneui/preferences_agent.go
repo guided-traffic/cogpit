@@ -89,6 +89,13 @@ const (
 	allToolsHelp = "For large cloud models: each request then carries some 215 tools, about 77,000 tokens, more than " +
 		"many local models' context holds. Off: 20 core tools and a search that finds the rest, about 9,700 tokens. " +
 		"The same rules either way: reads as the private mark says, writes ask."
+	// chooseText and chooseHelp are the setting to have the model choose from a large result
+	// (engine.ChatConnection.ChooseLarge, D-172; off by default, the owner's decision).
+	chooseText = "Choose from large results with the model"
+	chooseHelp = "A result too large to send whole, a long log or list, goes to the model in a request of its own, which " +
+		"names the entries that matter for the question; the conversation then reads those, Cogpit's totals and the rest " +
+		"on request. Each choice is one more request over the whole conversation, minutes on a local model, and who writes " +
+		"the entries can sway what is chosen. Off: the result's first entries and Cogpit's totals."
 	// caHelp is the CA file's hint (the owner's decisions of 2026-10-15 and, N141, of 2026-10-16: the
 	// file replaces the system's roots for the connection; agent/cafile.go).
 	caHelp = "For an https server with a private CA: a PEM file of its CA certificates, the only ones this connection " +
@@ -202,6 +209,9 @@ func (a *agentPrefs) row(c engine.ChatConnection) fyne.CanvasObject {
 	}
 	if c.AllTools {
 		parts = append(parts, "all tools")
+	}
+	if c.ChooseLarge {
+		parts = append(parts, "chooses from large results")
 	}
 	if c.CAFile != "" {
 		parts = append(parts, "CA file")
@@ -322,6 +332,7 @@ type agentForm struct {
 	listedFor string // the endpoint, CA file and typed key the list was asked with (listKey)
 	private   *pillSwitch
 	allTools  *pillSwitch
+	choose    *pillSwitch
 	limits    [4]*fieldEntry
 	context   [4]*fieldEntry // the context window, clear at and down to (percent), a tool result's KiB
 	def       *pillSwitch
@@ -400,6 +411,8 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 	f.private.SetChecked(c.Private)
 	f.allTools = newLabelledSwitch(allToolsText, nil)
 	f.allTools.SetChecked(c.AllTools)
+	f.choose = newLabelledSwitch(chooseText, nil)
+	f.choose.SetChecked(c.ChooseLarge)
 
 	lim := c.Limits
 	def := c.DefaultLimits()
@@ -442,6 +455,7 @@ func newAgentForm(a *agentPrefs, c engine.ChatConnection) *agentForm {
 		p.setting("agentPrivate", "Private connection", privateNotKept, container.NewVBox(f.private,
 			newParagraph(privateHelp, colorMuted, textW))),
 		p.setting("agentAllTools", "Tools", "", container.NewVBox(f.allTools, newParagraph(allToolsHelp, colorMuted, textW))),
+		p.setting("agentChoose", "Large results", "", container.NewVBox(f.choose, newParagraph(chooseHelp, colorMuted, textW))),
 		p.setting("agentLimits", "Limits per turn", limitsHelp, container.NewGridWithColumns(4, grid...)),
 		p.setting("agentContext", "Context", contextHelp, container.NewGridWithColumns(4, ctxGrid...)),
 		f.def,
@@ -630,6 +644,7 @@ func (f *agentForm) values() (engine.ChatConnection, error) {
 	c.Name = strings.TrimSpace(f.name.Text)
 	c.Private = f.private.Checked
 	c.AllTools = f.allTools.Checked
+	c.ChooseLarge = f.choose.Checked
 	var n [8]int
 	for i, e := range append(f.limits[:], f.context[:]...) {
 		t := strings.NewReplacer(",", "", ".", "", " ", "").Replace(strings.TrimSpace(e.Text))

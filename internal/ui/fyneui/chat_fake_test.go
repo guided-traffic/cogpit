@@ -415,5 +415,7 @@ func (c *fakeChat) SentPayload(id string, item int) (string, bool) {
 	return p, ok
 }
 
+func (c *fakeChat) SentChoices(string, int) []string { return nil }
+
 // errNotSent is a Send that fails.
 var errNotSent = errors.New("the endpoint refused the request: HTTP 503")

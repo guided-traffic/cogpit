@@ -27,6 +27,7 @@ var (
 
 // The roles of the history's messages.
 const (
+	roleSystem    = "system"
 	roleUser      = "user"
 	roleAssistant = "assistant"
 	roleTool      = "tool"
@@ -328,7 +329,7 @@ func (a *Agent) request(st *turnState) ([]toolCall, bool) {
 // tools. It returns the messages and the body.
 func (a *Agent) encode(st *turnState, noOpts bool) ([]message, []byte, error) {
 	a.mu.Lock()
-	msgs := append([]message{{Role: "system", Content: systemPromptFor(st.conn.AllTools)}}, sentHistory(st.c.history, st.c.cleared)...)
+	msgs := append([]message{{Role: roleSystem, Content: systemPromptFor(st.conn.AllTools)}}, sentHistory(st.c.history, st.c.cleared)...)
 	a.mu.Unlock()
 	req := chatRequest{Model: st.conn.Model, Messages: msgs, Tools: st.tools.defsFor(st.conn.AllTools), Stream: true}
 	if !noOpts {
@@ -439,6 +440,7 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 	res, err := a.dispatch(st.ctx, inv)
 	var content string
 	var raw *rawResult
+	var choice *engine.ChatChoice
 	if err != nil {
 		state, msg := failure(r.cmd, err)
 		if cause := context.Cause(st.ctx); cause != nil {
@@ -452,16 +454,25 @@ func (a *Agent) runCall(st *turnState, call toolCall) bool {
 			data = []byte(`"the command ran, but its result could not be encoded"`)
 		}
 		var shown string
-		content, shown, raw = a.frame(st, call.Function.Name, r.cmd, call.ID, data)
+		if p := choosable(st.conn, r.cmd, data, st.limits.MaxToolResultKiB<<10); merr == nil && p != nil { // D-172
+			content, shown, raw, choice = a.choose(st, idx, call, r.cmd, data, p)
+		}
+		if content == "" {
+			content, shown, raw = a.frame(st, call.Function.Name, r.cmd, call.ID, data)
+		}
 		if note := a.s.StaleNoteFor(inv); note != "" && r.cmd.Danger == engine.DangerRead { // the cache's data as of an interruption (D-58)
 			content += "\n" + note
 			if raw != nil {
 				raw.stale = note
 			}
 		}
-		tc = a.toolDone(c, idx, func(t *engine.ChatToolCall) { t.State, t.Result = engine.ChatToolDone, shown })
+		tc = a.toolDone(c, idx, func(t *engine.ChatToolCall) { t.State, t.Result, t.Choice = engine.ChatToolDone, shown, choice })
 	}
 	a.keepTool(st, idx, tc, call, content, raw)
+	if choice != nil {
+		level, text := choiceNoteText(r.cmd.ToolName(), choice)
+		a.addNote(c, level, text)
+	}
 	if cause := context.Cause(st.ctx); cause != nil {
 		a.endNote(st, cause)
 		return false
@@ -703,7 +714,8 @@ func (a *Agent) finishTurn(st *turnState) {
 	a.mu.Lock()
 	for i := range c.items { // nothing streams or runs any more
 		c.items[i].Streaming = false
-		if t := c.items[i].Tool; t != nil && (t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting) {
+		if t := c.items[i].Tool; t != nil && (t.State == engine.ChatToolRunning || t.State == engine.ChatToolWaiting ||
+			t.State == engine.ChatToolChoosing) {
 			nt := *t
 			nt.State = engine.ChatToolStopped
 			c.items[i].Tool = &nt

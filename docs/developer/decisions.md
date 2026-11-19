@@ -180,7 +180,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-169](#d-169-a-local-models-turn-has-60-minutes) | A local model's turn has 60 minutes | built: by default 60 minutes for an LM Studio or an address on this computer or a private network, 10 for any other |
 | [D-170](#d-170-a-large-tool-results-head-and-result_read) | A large tool result's head, and `result_read` | built: a result above the connection's size goes as a valid document with its first elements and the totals; the chat's `result_read` reads on in the copy held in memory |
 | [D-171](#d-171-the-cluster-overviews-issues-folded-by-subject) | The cluster Overview's issues, folded by subject | built: `cluster.overview` returns one row per workload or object and a table of causes; `everyIssue` and `subject` read what is folded |
-| [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | decided, not built: only for what code cannot reduce, entry numbers only, off by default, on the conversation's connection |
+| [D-172](#d-172-a-sub-request-that-chooses-from-a-large-result) | A sub-request that chooses from a large result | built: over a connection that chooses (off by default), a read's result above its size whose largest part is a list goes to the model in a request of its own, which answers with entry numbers; Cogpit renders those entries |
 | [D-173](#d-173-a-refusal-answers-a-waiting-read-at-once) | A refusal answers a waiting read at once | built: a read that waits for its list returns the API server's 403 after one list; the window reads the Namespaces once the kinds say the user may |
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 | [D-new](#d-new-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
@@ -7184,34 +7184,91 @@ runs locally
 
 ## D-172: A sub-request that chooses from a large result
 
-**Status:** decided, not built · **By:** owner
+**Status:** built · **By:** owner (only what code cannot reduce, entry numbers only, off by default,
+the conversation's own connection, a state on the row and a note per run), lead (open to revision)
+the rest
 
-For a result that is still above the connection's size after its head
-([D-170](#d-170-a-large-tool-results-head-and-result_read)) and that code cannot fold
-([D-171](#d-171-the-cluster-overviews-issues-folded-by-subject)), a log or a long list of distinct
-events, the chat may send the result in a request of its own and take back which entries matter.
+Over a connection with **Choose from large results with the model** (`ChatConnection.ChooseLarge`,
+off by default), a tool result that is still above the connection's size and whose largest part is a
+list of entries goes to the model in a request of its own, which answers with the numbers of the
+entries that matter for the user's question. The conversation then reads those entries.
 
-- **Only what code cannot reduce;** the cluster's state is folded by code.
-- **Entry numbers only:** the model names entries, Cogpit renders them from the result, in its own
-  order, and names or counts the rest. No text a model wrote enters the conversation as a result.
-- **Off by default,** switched on per connection.
-- **The conversation's own connection,** as a continuation of its request: the private mark and
-  the Secret filter hold as for the turn, and the data reaches no second endpoint.
-- **Shown** as a state on the tool's row and a note of Cogpit's in the chat for each run; its
-  request is among what the turn sent, and Stop ends it.
+- **Which results:** a read command's (`DangerRead`), above `MaxToolResultKiB`, whose largest part
+  (as the head finds it, D-170) is an array of at least 8 elements: a log page's lines, a list's
+  rows, events. Never a text part (YAML, a values file, a manifest), never `cluster.overview`,
+  whose issues code folds (D-171), never a meta-tool's.
+- **The request** continues the conversation's: the system prompt, history and tools the turn's next
+  request carries, then this call's result with its list emptied, Cogpit's line and the entries,
+  one a line, numbered from `#0` (the numbers `result_read`'s offsets count); the later calls of the
+  same answer as not run yet; Cogpit's fixed request to choose, in the user's role with no text of
+  the model's or the cluster's; and the answer's beginning, an empty thinking block
+  (`<think>\n\n</think>\n\n`). No `reasoning_effort`, `tool_choice` or `max_tokens`.
+- **The entries offered** are the first ones within four times the connection's size, fewer when
+  the request would pass `ClearAt` of the context window; under 8 fit, no request goes.
+- **The answer** is read as numbers (`12`, `#12`), ranges (`3-5`), commas, semicolons and blanks,
+  nothing else; numbers not offered are dropped, at most 40 kept in the model's order. Any other
+  text, no number offered, a tool call, a model that only thinks, more than 1 KiB of answer or
+  4 KiB with its thinking, an endpoint's error: no choice.
+- **What the conversation reads:** the result's own document with the chosen entries in its list,
+  in the result's order, as many as fit the size, the model's least important left out first; then
+  Cogpit's note: how many of how many, from how many offered, their numbers, the totals over all
+  entries (as a head's) and `result_read` from 0 for the rest (the raw result is held as for a
+  head). Cogpit counts the rest, it does not name it.
+- **Bounds:** half the time the turn has left, none with under 2 minutes left; the turn's token
+  limit; Stop and the turn's limits end it as they end any request. No choice leaves the result's
+  head, with the reason.
+- **Shown:** the tool row says "Choosing entries" while the request runs; the opened item says which
+  model chose how many of how many, from how many it read, in what time, or why no choice came; a
+  Cogpit note per run, info or warning; the user's item counts the request ("4 requests (1
+  choosing)"), and "What this turn sent" shows its body after the turn's last
+  (`ChatAgent.SentChoices`, memory only).
+- **Not a command:** the switch is a connection's, set in Preferences › Agent as the private mark
+  is, and the request is the chat's own, so no MCP client starts one.
 
 **Why:** on one local model a sub-request moves the reading and adds to it: the 113,600 bytes of
 the Overview's issues are five to six minutes at 150 tokens a second, against seconds for the fold.
 A model's choice pays where entries differ and no rule folds them. Numbers keep invented names and
 instructions hidden in the cluster's text out of what the main model reads as a result; which
 entries it reads can still be steered by who writes them, which is why the switch is the user's.
-An LM Studio keeps the conversation's prompt cache through such a request and through an unrelated
-one: read anew after either, a conversation of 25,000 tokens answered in 10 and 13 seconds, 180
-cold.
+Measured on an LM Studio (MLX, `qwen/qwen3.8-27b`, which thinks before every answer, 10.5 tokens a
+second):
+
+- **The prompt cache:** a fork and an unrelated request leave the conversation's cache: read anew
+  after either, a conversation of 25,000 tokens answered in 10 and 13 seconds, 180 cold. A prefix
+  of 104,000 tokens took 923 seconds cold and 30 to 37 seconds again, also after four other
+  prefixes: 102,400 tokens restored, the rest read anew. The cache is a store on disk, kept by
+  size, not by count (166,720 MiB there, about 0.13 MiB a token, so some 1.2 million tokens of
+  prefixes before the oldest go); every prefix asked for again was restored.
+- **Thinking off:** `reasoning_effort: "none"` stops the thinking, but the template then renders
+  the request differently from its start, so the endpoint read 17,700 tokens of the same
+  conversation anew (113 s against 2 s); `chat_template_kwargs.enable_thinking`, `/no_think` and
+  `reasoning: {effort}` were ignored. The empty thinking block as the answer's beginning kept the
+  cache (17,664 tokens restored, 2.2 s) and the model answered in 15 tokens.
+- **Stop:** a request whose client goes away stops generating at once; one still reading its prompt
+  stops after the part it reads (2,048 tokens, about 13 s) and keeps what it read for the next
+  request (4,096 of 22,210 tokens restored).
+- **A turn** over the demo cluster: the choice from 60 pods took 21 seconds with 10,240 tokens of
+  the conversation restored, and the turn's next request restored 10,752.
+
+The time bound is a bound, not an estimate: what a request costs depends on how much of it the
+endpoint has cached, which no endpoint reports before it answers, and a bound costs at most itself
+because the endpoint stops when the request goes.
 
 **Rejected:** every large result through the model, the Overview's included; a model's lines
 checked against the result, or its prose; on by default, or for local models; a second, faster
-connection for it.
+connection for it; `reasoning_effort` or `max_tokens` to bound the answer — the first rereads the
+conversation on LM Studio, both are refused by some endpoints, and Cogpit's own bound on the
+streamed bytes holds everywhere; an estimate of the reading time from a read rate — the cache
+decides it; only the commands that read logs and events — events and long lists come from
+`resources.list` and `object.get` as well; naming the entries not chosen — a list's entries have no
+shape a name can be read from in general, and the totals count them; numbers from 1 — the model and
+`result_read` would count differently.
+
+[`choose.go`](../../internal/agent/choose.go), [`turn.go`](../../internal/agent/turn.go) `runCall`,
+[`fyneui/chat_items.go`](../../internal/ui/fyneui/chat_items.go) `choiceLine`,
+[`fyneui/preferences_agent.go`](../../internal/ui/fyneui/preferences_agent.go) ·
+`TestChoiceChoosesEntries`, `TestChoiceFailsToHead`, `TestChoiceStopped`, `TestChoiceOnlyWhereItHelps`,
+`TestChosenEntries`; `TestLiveChoosesFromALargeList` needs a real endpoint and runs locally
 
 ## D-173: A refusal answers a waiting read at once
 
