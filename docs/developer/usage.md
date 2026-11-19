@@ -1405,7 +1405,7 @@ says "No … found" under the error line. A view's and a drawer's related object
 (a node's pods, a Deployment's Replica Sets) are not asked for again either; a list view names
 them after its own error ("Cogpit may not list pods") and shows "—" in every cell read from them
 (the Namespaces' requests, a claim's Pods)
-([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
+([D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown)).
 
 <details>
 <summary>The log's lines</summary>

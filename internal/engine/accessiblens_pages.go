@@ -43,7 +43,7 @@ func (b *Backend) customKindsUnknown(what string) string {
 
 // mayNotList is what a page says of a kind the access reviews say the user may not list in any
 // namespace it would read it in (Backend.Listable): "Cogpit may not list
-// kustomizations.kustomize.toolkit.fluxcd.io", as the integrations' states name such a kind (D-new).
+// kustomizations.kustomize.toolkit.fluxcd.io", as the integrations' states name such a kind (D-177).
 func mayNotList(p *model.KindProfile) string {
 	return "Cogpit may not list " + p.GVR().GroupResource().String()
 }

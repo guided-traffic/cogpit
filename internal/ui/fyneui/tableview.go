@@ -384,7 +384,7 @@ func (tv *tableView) updateTitle() {
 	}
 	switch {
 	case tv.unreadWhileAway(), // no count of what was never read, and nothing syncs
-		len(tv.snap.Rows) == 0 && tv.snap.Total == 0 && tv.snap.Error != "": // nor of what could not be read: the error line says why (D-new)
+		len(tv.snap.Rows) == 0 && tv.snap.Total == 0 && tv.snap.Error != "": // nor of what could not be read: the error line says why (D-177)
 		tv.count.SetText("")
 		tv.syncing.SetText("")
 	case tv.snap.Synced:
@@ -466,7 +466,7 @@ func (tv *tableView) updatePlaceholder() {
 		msg = "Loading " + tv.rowNoun() + "…"
 	case len(tv.snap.Rows) == 0 && tv.snap.Error != "":
 		// The error line says why nothing is shown (a refusal, a failed list): "No … found" would
-		// claim what was not read (D-new).
+		// claim what was not read (D-177).
 	case len(tv.snap.Rows) == 0 && (tv.snap.Filter != "" || len(tv.snap.Namespaces) > 0 || len(tv.snap.States) > 0 || (tv.groupMode() && len(ui.Groups) > 0)):
 		msg = "No " + tv.rowNoun() + " match the filter."
 	case len(tv.snap.Rows) == 0 && ui.View == engine.FluxDashboard && tv.snap.Error == "":

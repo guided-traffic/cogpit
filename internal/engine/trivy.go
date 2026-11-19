@@ -36,7 +36,7 @@ import (
 // a pod's drawer its image's grade (D-113). Switched off: no overlay, so no column, no grade and no
 // read. A read the API server refuses wholly goes back with its refusal kept, and reports the access
 // reviews deny in every namespace named are not read: either is the integration's state (forbidden),
-// with no column cell and no grade, until cluster.refreshAccess reads them again (D-new,
+// with no column cell and no grade, until cluster.refreshAccess reads them again (D-177,
 // pagerefusals.go).
 //
 // A pod's reports are its controller's, as Trivy Operator resolves a pod's workload (its
@@ -208,7 +208,7 @@ func (t *trivySource) run() {
 	settled, replanned := "", false
 	poll := func() bool {
 		// A refusal is the integration's state, not a list client-go's backoff sends again for as
-		// long as the cluster is shown (D-new): the handle goes back with its refusal kept.
+		// long as the cluster is shown (D-177): the handle goes back with its refusal kept.
 		t.refused.giveBack(t.h)
 		return t.settled() != settled || (!replanned && t.planSettled())
 	}
@@ -252,7 +252,7 @@ func (t *trivySource) stop() {
 func (t *trivySource) synced() bool { return t != nil && !t.deniedAll() && t.h.HasSynced() }
 
 // deniedAll reports whether the access reviews deny the reports in every namespace the plan names:
-// the overlay reads nothing, and the integration's state is the refusal (D-new).
+// the overlay reads nothing, and the integration's state is the refusal (D-177).
 func (t *trivySource) deniedAll() bool { return t.plan.perNamespace && len(t.plan.watch) == 0 }
 
 // waitSynced waits, bounded by ctx, until the reports listed or were refused: an agent's read sees

@@ -970,7 +970,7 @@ it in the Preferences' zone. A kind's `Detail` has no clock, so it writes a time
   that kind (the reviews deny it, or the API server refused it; `model.RelatedRefusals`,
   `relatedSet.refused`), `BuildRowWith` writes `model.NoCountCell` ("—", muted) into each of its
   cells, and the view's error line names the kind after its own error ("Cogpit may not list pods",
-  `joinErrLine`; [D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown)).
+  `joinErrLine`; [D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown)).
 - An index is built on its first lookup and kept current by its kind's events. A view wakes on every
   change of an indexed kind (its row cache keys on the related generation); a drawer only for the
   keys it looked up (`TestWorkloadDrawerWakesOnlyForItsPods`).
@@ -1298,7 +1298,7 @@ refused namespace (`Handle.ReleaseRefusedNamespaces`), at their loop's next look
 refusal; they start again, and read it again, once `cluster.refreshAccess` cleared the refusals
 (`refusedReads.retake`), as the Kyverno integration's reads do. A kind the access reviews deny
 where a page would read it is named ("Cogpit may not list …", `mayNotList`)
-([D-new](decisions.md#d-new-a-refused-read-is-given-back-and-shown), `TestBudgetViewsRefusedKinds`,
+([D-177](decisions.md#d-177-a-refused-read-is-given-back-and-shown), `TestBudgetViewsRefusedKinds`,
 `TestBudgetPartiallyRefusedRead`, `TestBudgetRelatedReadsRefused`, `TestBudgetPagesRefusedKinds`, `TestBudgetTrivyRefusedReports`,
 `TestReadersNameKindsTheReviewsDeny`).
 

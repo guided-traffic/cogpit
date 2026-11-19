@@ -71,12 +71,12 @@ type Column struct {
 	Slots int `json:"slots,omitempty"`
 	// Related is the kind key of the related-objects index the column's cells are read from (a
 	// namespace's pods' requests, a claim's pods): while the user may not list that kind, every
-	// cell of the column is NoCountCell (BuildRowWith, D-new). "" for a column read from the
+	// cell of the column is NoCountCell (BuildRowWith, D-177). "" for a column read from the
 	// object itself.
 	Related string `json:"related,omitempty"`
 }
 
-// NoCount stands where a value is that could not be read (D-new): a refusal, or a list that
+// NoCount stands where a value is that could not be read (D-177): a refusal, or a list that
 // failed, counted nothing.
 const NoCount = "—"
 

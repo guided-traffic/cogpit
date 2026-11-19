@@ -128,12 +128,12 @@ func (t *overviewTile) set(k engine.OverviewKind) {
 	t.bar.set(k.Statuses, k.Count)
 }
 
-// noCount stands where a kind's count would be while the kind could not be read (D-new): a
+// noCount stands where a kind's count would be while the kind could not be read (D-177): a
 // refusal, or a list that failed, counted nothing.
 const noCount = model.NoCount
 
 // unread reports whether a kind could not be read: an error and nothing counted. Its count is
-// unknown, not zero (D-new).
+// unknown, not zero (D-177).
 func unread(count int, err string) bool { return err != "" && count == 0 }
 
 // kindCount is a kind's count as a page shows it: with " …" while it is still being listed, and

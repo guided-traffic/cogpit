@@ -20,7 +20,7 @@ import (
 // Readers that hold their reads while they are shown, for a user who may not list what they read,
 // measured at the HTTP level against a fake API server that enforces RBAC: the refusal is a state
 // the reader shows, never a list client-go's backoff keeps sending while it is shown, and
-// cluster.refreshAccess reads it again (D-new). The user may list pods, namespaces and Deployments
+// cluster.refreshAccess reads it again (D-177). The user may list pods, namespaces and Deployments
 // in all namespaces, or in team-a alone; the access reviews either tell, or cannot (a webhook
 // authorizer: every rules review incomplete), and then the API server's refusal is the first word.
 

@@ -110,7 +110,7 @@ func (p *argoPanel) request() {
 // show draws a model.
 func (p *argoPanel) show(m *engine.ArgoCDDashboardModel) {
 	p.data = m
-	// The strip counts the Applications: none read (a refusal, a failed list), no count (D-new).
+	// The strip counts the Applications: none read (a refusal, a failed list), no count (D-177).
 	appsUnread := len(m.Strip) > 0 && unread(m.Strip[0].Count, m.Error)
 	if len(m.Strip) > 0 {
 		head := strconv.Itoa(m.Strip[0].Count)
@@ -157,7 +157,7 @@ func (p *argoPanel) showActivity() {
 	switch {
 	case len(lines) > 0:
 	case len(p.data.Strip) > 0 && unread(p.data.Strip[0].Count, p.data.Error):
-		// The Applications could not be read: their operations are unknown, not none (D-new).
+		// The Applications could not be read: their operations are unknown, not none (D-177).
 	case len(terms) > 0:
 		lines = append(lines, newTextLine("No activity matches the filter.", colorMuted, theme.SizeNameText, fyne.TextStyle{}))
 	default:

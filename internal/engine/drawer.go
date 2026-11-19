@@ -106,7 +106,7 @@ func (s *Session) startDrawerWatch(b *Backend, p *model.KindProfile, ref model.O
 	blockersKey := d.blockers.key()
 	poll := func() bool {
 		// A refusal is the drawer's state, not a list client-go's backoff sends again while it is
-		// open (D-new): its object's, its events' and its related objects' reads go back.
+		// open (D-177): its object's, its events' and its related objects' reads go back.
 		gave := d.refused.giveBack(append(d.related.handleList(), d.obj, d.events)...)
 		o, e := d.synced()
 		k := d.blockers.key() // an access review answered, a first list finished (nsblockers.go)

@@ -128,7 +128,7 @@ func (p *fluxPanel) show(m engine.FluxDashboardModel) {
 		grid = append(grid, t)
 	}
 	flush()
-	// Without a kind to show, the table's error line says why, once (D-new): the cluster serves no
+	// Without a kind to show, the table's error line says why, once (D-177): the cluster serves no
 	// Flux kinds, the user may not list them, or whether the cluster serves them is unknown.
 	for key := range p.tiles {
 		if !seen[key] {

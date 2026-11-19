@@ -11,7 +11,7 @@ import (
 )
 
 // The pages and the Kyverno integration of a user the access reviews say may not list their kinds
-// (engine: mayNotList, D-new), with the models the engine builds for that user
+// (engine: mayNotList, D-177), with the models the engine builds for that user
 // (TestReadersNameKindsTheReviewsDeny): a kind that could not be read shows no count, only "—"
 // in the muted colour (no "0", no "No objects"); the table's error line names the refusal once, and
 // its placeholder claims nothing ("No … found").

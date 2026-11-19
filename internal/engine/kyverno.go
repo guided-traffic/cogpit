@@ -158,7 +158,7 @@ type kyvernoRead struct {
 }
 
 // denied reports whether the access reviews deny the kind in every namespace its plan names: the
-// read reads nothing, and the kind is a refused one (D-new).
+// read reads nothing, and the kind is a refused one (D-177).
 func (r *kyvernoRead) denied() bool { return r.plan.perNamespace && len(r.plan.watch) == 0 }
 
 // drop gives the read's handle back; dropping it again is harmless.

@@ -6,7 +6,7 @@ import (
 	"github.com/guided-traffic/cogpit/internal/cache"
 )
 
-// A read the API server refuses is given back and shown (D-new): a refused scope a handle holds is
+// A read the API server refuses is given back and shown (D-177): a refused scope a handle holds is
 // listed again at every step of client-go's backoff for as long as it is held, so a reader that
 // holds its handles while it is shown (a list view and its related objects' reads, a drawer, the
 // Workloads and cluster Overviews, the Flux and Argo CD dashboards, the Trivy integration) gives a

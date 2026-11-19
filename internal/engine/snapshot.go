@@ -105,7 +105,7 @@ func (w *viewWorker) stop() {
 // neither comes with a watch event.
 func (w *viewWorker) unsettled() bool {
 	// A refusal is the view's error, not a list client-go's backoff sends again for as long as the
-	// view is open (D-new): the read, or its refused namespaces, go back with the refusal kept.
+	// view is open (D-177): the read, or its refused namespaces, go back with the refusal kept.
 	gave := w.refused.giveBack(append(w.related.handleList(), w.handle)...) // its related objects' reads too
 	last := w.snap.Load()
 	if last == nil || gave {
@@ -118,7 +118,7 @@ func (w *viewWorker) unsettled() bool {
 // its login expired (D-58): the rows are the cache's state as of then, and the connection's banner
 // says what is wrong.
 //
-// A related kind the user may not list (its pods behind the Nodes, D-new) follows the view's own
+// A related kind the user may not list (its pods behind the Nodes, D-177) follows the view's own
 // error on the same line: "Cogpit may not list pods".
 func (w *viewWorker) shownErr() string {
 	if w.backend.watch.current() != Connected {

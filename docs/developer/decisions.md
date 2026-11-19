@@ -185,6 +185,7 @@ use or feedback changes them ([D-74](#d-74-how-the-leads-decisions-are-reviewed)
 | [D-174](#d-174-a-removed-clusters-last-user-and-bookmark-go-with-it) | A removed cluster's last user and bookmark go with it | built: removing a source drops its contexts' last known users and its bookmark; a start drops the last known users of contexts no source has |
 | [D-175](#d-175-a-nodes-memory-is-the-kubelets-working-set) | A node's memory is the kubelet's working set | built: node-exporter's node memory is `AnonPages + Cached + Buffers − Inactive(file)`, the root cgroup's working set the kubelet and the Metrics Server report |
 | [D-176](#d-176-two-update-runs-write-the-same-pictures) | Two `-update` runs write the same pictures | built: a picture waits for the window's reads; the demo's own clock; the churning demo's pictures with `-live` |
+| [D-177](#d-177-a-refused-read-is-given-back-and-shown) | A refused read is given back and shown | built: views, pages, drawers, related reads and the Trivy and Kyverno integrations give a refused read back, name it once, show "—" for what was not read; Refresh Access reads again |
 
 ## D-1: UI toolkit
 
@@ -2985,7 +2986,7 @@ shows these reports only in its paid Security Center.
   whole. `ClusterVulnerabilityReport`s are not read.
 - Reports the API server refuses wholly, or the access reviews deny in every namespace named, are
   the integration's state (forbidden) and are not asked for again until `cluster.refreshAccess`
-  ([D-new](#d-new-a-refused-read-is-given-back-and-shown)).
+  ([D-177](#d-177-a-refused-read-is-given-back-and-shown)).
 
 **Why:** a report is made for the workload, and Trivy Operator picks the same owner; a report of the
 same image elsewhere would grade the pod by another workload's scan. The CronJob from the Job's name
@@ -3036,7 +3037,7 @@ this and used by D-78 too: [architecture](architecture.md) §4.4 and §5.
   its handle goes back, and it is read again only after `cluster.refreshAccess` or the next
   connect, as the custom kinds and the namespaces watch do (the lead's detail, open to revision);
   a namespace refused while others list goes back alone
-  ([D-new](#d-new-a-refused-read-is-given-back-and-shown)). A held refused scope is listed again at every step of
+  ([D-177](#d-177-a-refused-read-is-given-back-and-shown)). A held refused scope is listed again at every step of
   client-go's backoff (0.8 s doubling to a cap of 30 s, plus up to as much again), for as long as
   the cluster is shown.
 
@@ -7402,7 +7403,7 @@ system's temporary folder, whose name differs per machine.
 [`demo.go`](../../internal/demo/demo.go) (`Cluster.now`), [`metrics.go`](../../internal/demo/metrics.go)
 (`measuredAt`) · `TestDemoMetricsServer`
 
-## D-new: A refused read is given back and shown
+## D-177: A refused read is given back and shown
 
 **Status:** built · **By:** lead (open to revision)
 
