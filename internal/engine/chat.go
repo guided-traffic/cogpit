@@ -155,8 +155,8 @@ type ChatLimits struct {
 	// to ClearTo. ClearTo is below ClearAt; ClearAt at 100 clears only once the window is full.
 	ClearAt int `json:"clearAt,omitempty"`
 	ClearTo int `json:"clearTo,omitempty"`
-	// MaxToolResultKiB is the most one tool call's result gives the model, in KiB; the rest is cut
-	// with a note.
+	// MaxToolResultKiB is the most one tool call's result gives the model, in KiB: a larger one goes
+	// as its first elements or lines with the totals, and the chat's result_read reads on (D-170).
 	MaxToolResultKiB int `json:"maxToolResultKiB,omitempty"`
 }
 

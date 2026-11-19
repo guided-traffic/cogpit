@@ -40,13 +40,22 @@ const (
 	maxBytesPerToken = 16
 )
 
-// clearedNote stands in a request for a tool result that was taken out.
-func clearedNote(tool string, bytes int) string {
+// clearedNote stands in a request for the tool result m that was taken out. For a result that was
+// sent as a head with result_read named (head.go) it names result_read too. That is read from the
+// result as the history has it (headRef: Cogpit's own lines only, never an error's text or the
+// document), not from whether the raw result is held now: the note of a cleared
+// result so never changes, whatever a later turn lets go and across a restart, and the request's
+// beginning stays the endpoint's cached one. A raw result that is gone is result_read's to say.
+func clearedNote(tool string, m message) string {
 	if tool == "" {
 		tool = "a tool"
 	}
-	return "Result of " + tool + ": removed by Cogpit to keep the conversation within the model's context (it had " +
-		strconv.Itoa(bytes) + " bytes). Call the tool again if you need it."
+	note := "Result of " + tool + ": removed by Cogpit to keep the conversation within the model's context (it had " +
+		strconv.Itoa(len(m.Content)) + " bytes). "
+	if ref, ok := headRef(m.Content); ok {
+		return note + "Read it with " + readOn{Call: ref}.String() + ", or call the tool again."
+	}
+	return note + "Call the tool again if you need it."
 }
 
 // clearable reports whether a history message is a tool result that clearing replaces.
@@ -70,7 +79,7 @@ func sentHistory(history []message, cleared int) []message {
 			tools[tc.ID] = tc.Function.Name
 		}
 		if clearable(m) {
-			out[i].Content = clearedNote(tools[m.ToolCallID], len(m.Content))
+			out[i].Content = clearedNote(tools[m.ToolCallID], m)
 		}
 	}
 	return out
@@ -143,7 +152,7 @@ func (c *conversation) clearContext(l engine.ChatLimits, bodyBytes int) clearing
 		if !clearable(m) {
 			continue
 		}
-		bodyBytes -= jsonSize(m.Content) - jsonSize(clearedNote(tools[m.ToolCallID], len(m.Content)))
+		bodyBytes -= jsonSize(m.Content) - jsonSize(clearedNote(tools[m.ToolCallID], m))
 		r.after = c.contextTokens(bodyBytes)
 		r.removed++
 	}
@@ -158,7 +167,7 @@ func (c *conversation) clearContext(l engine.ChatLimits, bodyBytes int) clearing
 			tools[tc.ID] = tc.Function.Name
 		}
 		if clearable(m) {
-			bodyBytes -= jsonSize(m.Content) - jsonSize(clearedNote(tools[m.ToolCallID], len(m.Content)))
+			bodyBytes -= jsonSize(m.Content) - jsonSize(clearedNote(tools[m.ToolCallID], m))
 		}
 	}
 	r.full = c.contextTokens(bodyBytes) >= high
