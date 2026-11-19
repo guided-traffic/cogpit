@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -20,28 +21,35 @@ import (
 // program (exec) keeps its number while its command line becomes the program's, so a search by the
 // command line at the cancel, minutes later, did not find it; the process ran on while the log said
 // Cogpit had ended it. The wrapper of client-go's interactiveFunc (loginhold.go) notes Cogpit's
-// children just before client-go starts the plugin (pluginHold.begin); for searchWindow a goroutine
-// looks at each child that is new since, then decides which one is the run's (decideProcess):
+// children just before client-go starts the plugin (pluginHold.begin); a goroutine looks at each
+// child that is new since, until searchWindow after the first one it sees, then decides which one
+// is the run's (decideProcess). The window runs from the first new child, not from the run's
+// begin: on a loaded system client-go starts the plugin later than the begin, and a window that had
+// passed by then decided on none, and a wrapper that replaced itself was not found at the cancel
+// (CI run 40591278804).
 //
 //   - the one new child seen running the plugin's command line (childProcess.runs), before its exec
 //     or without one;
 //   - else the one new child in Cogpit's own process group (client-go starts the plugin there; a
-//     terminal's shell runs in a session of its own), when no other plugin run was under way within
-//     the window before or after this one's begin: two runs that begin together could take each
-//     other's process;
+//     terminal's shell runs in a session of its own), when no other plugin run's search looked
+//     while this one did: two runs that begin together could take each other's process;
 //   - else none.
 //
 // A cancel or the bound then signals that process if it still runs with the same start time (a
 // number the system gave to another process meanwhile is not hit); without one, a child that is new
-// since the run's begin and runs the plugin's command line (one that appeared after the window).
-// With neither, Cogpit stops waiting for the run and says so: its process may run on (H-118).
+// since the run's begin and runs the plugin's command line. A cancel does not wait for a search
+// that has seen no new child searchWindow after the run's begin: the plugin may be one Cogpit cannot
+// see (another user's), and the cancel would wait for as long as it runs. With neither, Cogpit
+// stops waiting for the run and says so: its process may run on (H-118).
 
-// searchWindow is how long after a run's begin its process is looked for among Cogpit's new
-// children: client-go starts it at once, so a child that appears later is not taken for it.
+// searchWindow is how long a run's process is looked for among Cogpit's new children after the
+// first one appeared: client-go starts the plugin at once, so a child that appears later is not
+// taken for it.
 const searchWindow = 500 * time.Millisecond
 
-// The search looks every searchFastPause for searchFastFor, to see a wrapper's own command line
-// before it replaces itself, then every searchPause.
+// The search looks every searchFastPause for searchFastFor from its window's start, to see a
+// wrapper's own command line before it replaces itself, then every searchPause; while it has seen
+// no new child, every searchPause after searchFastFor from the run's begin.
 const (
 	searchFastFor   = 50 * time.Millisecond
 	searchFastPause = time.Millisecond
@@ -143,8 +151,11 @@ type procSearch struct {
 	command []string
 	before  map[procID]bool // Cogpit's children at the run's begin
 	done    chan struct{}   // closed when the search decided, or stopped because the run ended
+	late    chan struct{}   // closed when a look searchWindow after the run's begin saw no new child
+	sighted atomic.Bool     // a new child was seen
 	found   procID          // the run's process; zero for none; written before done closes
 	ended   time.Time       // when the run ended (searches.mu)
+	stopped time.Time       // when the search stopped looking; zero while it looks (searches.mu)
 }
 
 // searches are the process searches of the runs that began lately, of every Authenticator.
@@ -156,12 +167,12 @@ var searches struct {
 // newProcSearch notes a run that begins at at with Cogpit's children before (childSet, taken before
 // client-go starts the plugin). The caller starts run.
 func newProcSearch(at time.Time, command []string, before map[procID]bool) *procSearch {
-	s := &procSearch{at: at, command: command, before: before, done: make(chan struct{})}
+	s := &procSearch{at: at, command: command, before: before, done: make(chan struct{}), late: make(chan struct{})}
 	searches.mu.Lock()
 	defer searches.mu.Unlock()
 	keep := searches.recent[:0]
 	for _, o := range searches.recent {
-		if at.Sub(o.at) < 3*searchWindow {
+		if o.stopped.IsZero() || at.Sub(o.stopped) < 3*searchWindow {
 			keep = append(keep, o)
 		}
 	}
@@ -182,16 +193,26 @@ func (s *procSearch) finished(t time.Time) {
 	}
 }
 
-// neighbours reports whether another plugin run was under way within searchWindow of s's begin,
-// and whether one of them runs the same command line.
-func (s *procSearch) neighbours() (near, same bool) {
+// stop notes that the search stopped looking at t, unless it did before.
+func (s *procSearch) stop(t time.Time) {
+	searches.mu.Lock()
+	defer searches.mu.Unlock()
+	if s.stopped.IsZero() {
+		s.stopped = t
+	}
+}
+
+// neighbours reports whether another plugin run's search looked while s's did, from s's begin until
+// until, and had not ended by s's begin, and whether one of them runs the same command line: the
+// other run began before until, and its search had not stopped looking by s's begin.
+func (s *procSearch) neighbours(until time.Time) (near, same bool) {
 	searches.mu.Lock()
 	defer searches.mu.Unlock()
 	for _, o := range searches.recent {
 		if o == s || (!o.ended.IsZero() && !o.ended.After(s.at)) {
 			continue
 		}
-		if d := s.at.Sub(o.at); d > -searchWindow && d < searchWindow {
+		if o.at.Before(until) && (o.stopped.IsZero() || o.stopped.After(s.at)) {
 			near = true
 			same = same || slices.Equal(o.command, s.command)
 		}
@@ -205,8 +226,8 @@ type sighting struct {
 	matched bool // seen running the plugin's command line
 }
 
-// run looks at Cogpit's new children until searchWindow after the run's begin, then decides; it
-// stops without a decision when stop closes (the run ended).
+// run looks at Cogpit's new children until searchWindow after the first one appeared, then
+// decides; it stops without a decision when stop closes (the run ended).
 func (s *procSearch) run(stop <-chan struct{}) {
 	defer close(s.done)
 	defer func() {
@@ -214,7 +235,9 @@ func (s *procSearch) run(stop <-chan struct{}) {
 			slog.Error("cluster: looking for a credential plugin's process failed", "panic", fmt.Sprint(r))
 		}
 	}()
+	defer func() { s.stop(time.Now()) }() // a search that looks on counts as every later run's neighbour
 	seen := map[procID]*sighting{}
+	from := s.at // the window's start: the last look that saw no new child, the run's begin before
 	t := time.NewTimer(0)
 	defer t.Stop()
 	for {
@@ -223,19 +246,40 @@ func (s *procSearch) run(stop <-chan struct{}) {
 			return
 		case <-t.C:
 		}
+		now := time.Now()
 		s.look(seen)
-		since := time.Since(s.at)
-		if since >= searchWindow {
+		if len(seen) == 0 {
+			from = now
+			if now.Sub(s.at) >= searchWindow && !s.isLate() {
+				close(s.late)
+			}
+		} else {
+			s.sighted.Store(true)
+		}
+		since := time.Since(from)
+		if len(seen) > 0 && since >= searchWindow {
 			break
 		}
 		pause := searchPause
-		if since < searchFastFor {
+		if since < searchFastFor && (len(seen) > 0 || time.Since(s.at) < searchFastFor) {
 			pause = searchFastPause
 		}
-		t.Reset(min(pause, searchWindow-since))
+		t.Reset(min(pause, max(searchWindow-since, 0)))
 	}
-	near, same := s.neighbours()
+	until := time.Now()
+	s.stop(until)
+	near, same := s.neighbours(until)
 	s.found = decideProcess(seen, near, same)
+}
+
+// isLate reports whether late is closed.
+func (s *procSearch) isLate() bool {
+	select {
+	case <-s.late:
+		return true
+	default:
+		return false
+	}
 }
 
 // look notes each child that is new since the run's begin, whether it runs the plugin's command
@@ -288,14 +332,27 @@ func decideProcess(seen map[procID]*sighting, near, same bool) procID {
 // runs; else the one child of Cogpit's that is new since the begin and runs the plugin's command
 // line. why is empty when it found one that Cogpit may signal, and says why not otherwise; both are
 // empty when the run ended meanwhile (stop closed). It waits for the search's decision, at most
-// until searchWindow after the run's begin.
+// until searchWindow after the first new child appeared; not for a search that saw none by
+// searchWindow after the run's begin.
 func (s *procSearch) locate(stop <-chan struct{}) (target procID, why string) {
 	select {
 	case <-s.done:
+	case <-s.late:
+		if s.sighted.Load() { // a child appeared since: the decision comes within the window
+			select {
+			case <-s.done:
+			case <-stop:
+				return procID{}, ""
+			}
+		}
 	case <-stop:
 		return procID{}, ""
 	}
-	target = s.found
+	select {
+	case <-s.done:
+		target = s.found
+	default: // no new child yet: client-go has not started the plugin, or its process is not to be seen
+	}
 	if target != (procID{}) && !alive(target) {
 		select { // it ended a moment ago: the run ends with it
 		case <-stop:

@@ -244,7 +244,7 @@ func (p *pluginHold) current() (LoginRun, bool) {
 // Authenticator's lock (lock), which client-go lets go once the plugin's process ended; Cogpit's
 // children are noted first, before client-go starts the plugin, so that its process is the one that
 // appears after (pluginproc.go).
-func (p *pluginHold) begin(lock *sync.Mutex) {
+func (p *pluginHold) begin(lock *sync.Mutex) *procSearch {
 	before := childSet()
 	now := time.Now()
 	p.mu.Lock()
@@ -276,12 +276,18 @@ func (p *pluginHold) begin(lock *sync.Mutex) {
 		}
 		p.finish(run)
 	}()
+	return run.search
 }
 
 // runEndGate, set by tests only, runs in the goroutine that notes a run's end, after client-go let
 // its lock go and before the end is noted: a test delays it there to see what a goroutine the
 // scheduler runs late leaves behind.
 var runEndGate atomic.Pointer[func()]
+
+// runBeginGate, set by tests only, runs after a run's begin was noted and before client-go starts
+// the plugin: a test delays it there to see the start of a loaded system, later than the run's
+// begin.
+var runBeginGate atomic.Pointer[func(*procSearch)]
 
 // finish notes that run ended.
 func (p *pluginHold) finish(run *pluginRun) {
@@ -334,7 +340,7 @@ func notifyAll(watches []*LoginWatch) {
 }
 
 // end ends run for cause, unless it ended or is being ended: its process is looked up first (it may
-// wait for the search of it, at most until searchWindow after the run's begin); then no run starts
+// wait for the search of it, procSearch.locate); then no run starts
 // any more until rearm, each connection using the plugin is told, and the process, if found, is
 // signalled. Without one, client-go's run goes on: the watches of the connections that wait behind
 // it are told that it has no end any more (current), but the one of by, the connection whose cancel

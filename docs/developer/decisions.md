@@ -2736,9 +2736,12 @@ cannot be copied.
   15 s timeout bounds its first request below the plugin, not the login.
 - **Ending a run.** Cogpit finds the plugin's process among its own children at the run's begin and
   follows it by pid and start time, so a wrapper that `exec`s is ended too (macOS, Linux, Windows;
-  no cgo). It signals that process alone: SIGTERM, then SIGKILL after 3 s. It says "Cogpit ended
-  <program>" only when it found the process and may signal it, else "Cogpit stopped waiting for
-  <program>; its process was not found and may run on"
+  no cgo). It looks until half a second after the first new child appears, not after the run's
+  begin: on a loaded system client-go starts the plugin later than that (rejected: a longer window
+  from the begin, still a guess at the delay and a wider chance to take another child). It signals
+  that process alone: SIGTERM, then SIGKILL after 3 s. It says "Cogpit ended <program>" only when
+  it found the process and may signal it, else "Cogpit stopped waiting for <program>; its process
+  was not found and may run on"
   ([H-118](../security/credentials.md#h-118-what-a-cancelled-login-leaves-running)).
 - **No run nobody asked for.** After Cogpit ended a run, none starts until the user connects or
   logs in again (`ArmLogin`), and a run starts only while an open connection the user did not

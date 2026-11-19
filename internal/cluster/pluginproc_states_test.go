@@ -26,11 +26,14 @@ func noteRun(t *testing.T, at time.Time, command []string) *procSearch {
 	return s
 }
 
-// Another plugin run is a neighbour of a run's search when it began less than searchWindow before
-// or after this one and had not ended by this one's begin; it shares the command line when it runs
-// the same one. What the search decides follows (WF38): with a neighbour, a lone new child in
-// Cogpit's process group is not taken for the run's process, and with a neighbour of the same
-// command line, neither is a lone child seen running it.
+// Another plugin run is a neighbour of a run's search when its own search looked while this one did
+// (it began before this search stopped looking, and had not stopped looking by this run's begin)
+// and it had not ended by this one's begin; it shares the command line when it runs the same one.
+// A search looks until searchWindow after its first new child: here the first child appears at
+// once, but for a search still looking (client-go started its plugin late). What the search
+// decides follows (WF38): with a neighbour, a lone new child in Cogpit's process group is not taken
+// for the run's process, and with a neighbour of the same command line, neither is a lone child
+// seen running it.
 func TestSearchNeighbours(t *testing.T) {
 	const ms = time.Millisecond
 	login := []string{"/opt/homebrew/bin/pinniped", "login", "oidc", "--issuer=https://a.example"}
@@ -39,6 +42,7 @@ func TestSearchNeighbours(t *testing.T) {
 		begin   time.Duration // from this run's begin
 		end     time.Duration // from this run's begin, when ended is set
 		ended   bool
+		looking bool // its search still looks: no new child seen yet
 		command []string
 	}
 	for _, tt := range []struct {
@@ -57,6 +61,9 @@ func TestSearchNeighbours(t *testing.T) {
 		{"under way, begins a window after", []run{{begin: searchWindow, command: login}}, false, false},
 		{"another command line near, the same one a window away", []run{
 			{begin: -100 * ms, command: otherLogin}, {begin: -searchWindow - 10*ms, command: login}}, true, false},
+		{"still looking, began three windows before", []run{{begin: -3 * searchWindow, looking: true, command: login}}, true, true},
+		{"still looking, began three windows before, ended", []run{
+			{begin: -3 * searchWindow, end: -ms, ended: true, looking: true, command: login}}, false, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			for _, o := range tt.others {
@@ -64,9 +71,12 @@ func TestSearchNeighbours(t *testing.T) {
 				if o.ended {
 					r.finished(neighbourBase.Add(o.end))
 				}
+				if !o.looking {
+					r.stop(neighbourBase.Add(o.begin + searchWindow))
+				}
 			}
 			s := noteRun(t, neighbourBase, login)
-			near, same := s.neighbours()
+			near, same := s.neighbours(neighbourBase.Add(searchWindow))
 			if near != tt.near || same != tt.same {
 				t.Fatalf("near %v, same %v; want near %v, same %v", near, same, tt.near, tt.same)
 			}

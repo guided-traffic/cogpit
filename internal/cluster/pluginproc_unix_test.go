@@ -159,3 +159,42 @@ func TestSearchCountsTheGroupAChildEndsIn(t *testing.T) {
 		t.Fatalf("the search found %+v; the plugin is %d, the shell that left the group %d", s.found, plugin.Process.Pid, shell.Process.Pid)
 	}
 }
+
+// A child that appears only after the search looked for searchWindow and saw none (client-go
+// started the plugin late, on a loaded system) is the run's: the window runs from the first new
+// child. A cancel in the meantime does not wait for it: the plugin may be one Cogpit cannot see.
+func TestSearchTakesAChildThatAppearsLate(t *testing.T) {
+	quietSearches(t)
+	stop := make(chan struct{})
+	defer close(stop)
+	s := newProcSearch(time.Now(), []string{"/no/such/plugin", "login"}, childSet())
+	defer func() { s.finished(time.Now()) }()
+	go s.run(stop)
+	select {
+	case <-s.late:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the search never said it saw no new child within its window")
+	}
+	located := make(chan string, 1)
+	go func() { _, why := s.locate(stop); located <- why }()
+	select {
+	case why := <-located:
+		if why != whyNotFound {
+			t.Errorf("locate before the plugin appeared: %q, want %q", why, whyNotFound)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("locate waited for a plugin that had not appeared")
+	}
+	plugin := startChild(t, false, "/bin/sleep", "900")
+	select {
+	case <-s.done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("the search did not decide")
+	}
+	if s.found.pid != plugin.Process.Pid {
+		t.Fatalf("the search found %+v; the plugin is %d", s.found, plugin.Process.Pid)
+	}
+	if target, why := s.locate(stop); why != "" || target != s.found {
+		t.Errorf("locate: %+v %q, want the plugin", target, why)
+	}
+}

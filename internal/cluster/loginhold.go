@@ -245,7 +245,10 @@ func wrapInteractive(a *exec.Authenticator, p *pluginHold) bool {
 		}
 		interactive, err := orig()
 		if err == nil {
-			p.begin(mu) // client-go builds and runs the command next, under mu
+			search := p.begin(mu) // client-go builds and runs the command next, under mu
+			if gate := runBeginGate.Load(); gate != nil {
+				(*gate)(search)
+			}
 		}
 		return interactive, err
 	}))
